@@ -7,6 +7,7 @@
 pub mod app;
 pub mod autofetch;
 pub mod commands;
+pub mod crash;
 pub mod db;
 pub mod error;
 pub mod events;

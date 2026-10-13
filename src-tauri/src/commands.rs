@@ -655,6 +655,26 @@ pub async fn activity_list(core: State<'_, Core>, scope: ActivityScope, repo_id:
 }
 
 #[tauri::command]
+pub async fn crash_reports_list(core: State<'_, Core>) -> R<Vec<CrashReportSummary>> {
+    c::crash::crash_reports_list(&core).await
+}
+
+#[tauri::command]
+pub async fn crash_report_get(core: State<'_, Core>, id: String) -> R<String> {
+    c::crash::crash_report_get(&core, id).await
+}
+
+#[tauri::command]
+pub async fn crash_report_save(core: State<'_, Core>, id: String, path: String) -> R<()> {
+    c::crash::crash_report_save(&core, id, path).await
+}
+
+#[tauri::command]
+pub async fn crash_report_discard(core: State<'_, Core>, id: String) -> R<()> {
+    c::crash::crash_report_discard(&core, id).await
+}
+
+#[tauri::command]
 pub async fn worktree_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Worktree>> {
     c::worktree::worktree_list(&core, repo_id).await
 }

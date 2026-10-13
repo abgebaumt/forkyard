@@ -1,0 +1,30 @@
+{
+  "kind": {
+    "panic": "Interner Fehler",
+    "unexpectedExit": "Unerwartet beendet"
+  },
+  "line": "{{time}} · {{kind}} · Forkyard {{version}} · {{message}}",
+  "dialog": {
+    "title": "Forkyard wurde beim letzten Mal unerwartet beendet",
+    "titleOf": "Forkyard wurde unerwartet beendet ({{index}} von {{count}})",
+    "description": "Auf diesem Computer wurde ein Absturzbericht gespeichert: {{line}}. Er enthält den Fehler, das letzte Protokoll und die letzten Git-Aufrufe, ohne Tokens und Passwörter. Es wird nichts verschickt – du entscheidest, ob du ihn speicherst und weitergibst, etwa in einem Fehlerbericht.",
+    "view": "Ansehen",
+    "viewHint": "Den ganzen Bericht anzeigen",
+    "save": "Speichern…",
+    "saveHint": "Den Bericht als Textdatei speichern",
+    "discard": "Verwerfen",
+    "discardHint": "Diesen Bericht löschen"
+  },
+  "view": {
+    "title": "Absturzbericht"
+  },
+  "save": {
+    "title": "Absturzbericht speichern",
+    "filterName": "Textdatei",
+    "done": "Absturzbericht gespeichert",
+    "failed": "Der Absturzbericht konnte nicht gespeichert werden"
+  },
+  "none": "Es gibt keine Absturzberichte.",
+  "loadFailed": "Die Absturzberichte konnten nicht gelesen werden",
+  "discarded": "Absturzbericht gelöscht"
+}

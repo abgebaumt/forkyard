@@ -23,6 +23,7 @@ import { OverlayHost } from "./shell/OverlayHost";
 import { ManagementToolbar, RepoToolbar } from "./shell/RepoToolbar";
 import { RepoWorkspace } from "./shell/RepoWorkspace";
 import { useLaunchRequests } from "./shell/launch";
+import { useCrashReportsOnStart } from "../screens/CrashReport";
 import { useStartFocus } from "./shell/startFocus";
 import { StatusLine } from "./shell/StatusLine";
 import { TabStrip } from "./shell/TabStrip";
@@ -143,6 +144,8 @@ function Shell({ info }: { info: AppInfo }) {
   useStartupScenario(tabsQuery.isSuccess);
   useStartFocus(tabsQuery.isSuccess && !hasScenario, repoId ? "repo" : "management");
   useLaunchRequests(tabsQuery.isSuccess);
+  // Not during a scenario (screenshots, tests): a dialog would cover the view.
+  useCrashReportsOnStart(tabsQuery.isSuccess && !hasScenario);
 
   if (tabsQuery.isPending) return <StartupScreen />;
   if (tabsQuery.isError) {

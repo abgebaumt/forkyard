@@ -15,6 +15,10 @@
     "shortcuts": {
       "keywords": "Hilfe, Tastatur",
       "title": "Tastenkürzel anzeigen"
+    },
+    "crashReports": {
+      "title": "Absturzberichte anzeigen",
+      "keywords": "Absturz, Bericht, Fehler, Crash"
     }
   },
   "branch": {

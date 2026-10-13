@@ -55,18 +55,25 @@ pub async fn available(core: &Core) -> bool {
 }
 
 /// Reads a secret; `None` if the entry does not exist.
+/// Every secret that passes through here is also removed from the app's log from then on.
 pub async fn get(core: &Core, account: &str) -> CoreResult<Option<String>> {
-    if let Some(memory) = core.memory_secrets() {
-        return Ok(memory.entries.lock().get(account).cloned());
+    let found = if let Some(memory) = core.memory_secrets() {
+        memory.entries.lock().get(account).cloned()
+    } else {
+        if !core.git.broker().keyring_available().await {
+            return Err(unavailable());
+        }
+        keychain::get(&service(core), account).await?
+    };
+    if let Some(secret) = &found {
+        crate::crash::remember_secret(secret);
     }
-    if !core.git.broker().keyring_available().await {
-        return Err(unavailable());
-    }
-    keychain::get(&service(core), account).await
+    Ok(found)
 }
 
 /// Creates an entry or overwrites it.
 pub async fn set(core: &Core, account: &str, secret: &str) -> CoreResult<()> {
+    crate::crash::remember_secret(secret);
     if let Some(memory) = core.memory_secrets() {
         memory.entries.lock().insert(account.to_string(), secret.to_string());
         return Ok(());

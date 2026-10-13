@@ -942,6 +942,19 @@ export interface ActivityPage {
   nextCursor: string | null;
 }
 
+export type CrashReportKind = "panic" | "unexpected_exit";
+
+/** A pending crash report as listed. */
+export interface CrashReportSummary {
+  id: Id;
+  /** ISO 8601, UTC. */
+  time: string;
+  kind: CrashReportKind;
+  appVersion: string;
+  /** First line of the message, shortened. */
+  message: string;
+}
+
 /** `diff_tool` and `merge_tool` need a `path` in `openExternal` (see api.ts). */
 export type ExternalTarget = "editor" | "terminal" | "file_manager" | "diff_tool" | "merge_tool";
 

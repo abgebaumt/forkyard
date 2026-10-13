@@ -14,6 +14,7 @@
  * The UI never calls Git directly and never builds command lines.
  */
 import type {
+  CrashReportSummary,
   ActivityPage,
   ActivityScope,
   AppInfo,
@@ -425,6 +426,16 @@ export interface CoreCommands {
   credentialsForgetAll(): Promise<number>;
 
   activityList(input: { scope: ActivityScope; repoId: Id | null; cursor: string | null; limit: number }): Promise<ActivityPage>;
+
+  // --- Crash reports (written by the core's panic hook or after an unexpected exit; never uploaded) ---
+  /** Pending reports, newest first. */
+  crashReportsList(): Promise<CrashReportSummary[]>;
+  /** Full text of a report (already redacted), with the last Git calls up to the crash appended. */
+  crashReportGet(input: { id: Id }): Promise<string>;
+  /** Writes the full text to `path` (absolute, from the save dialog). */
+  crashReportSave(input: { id: Id; path: string }): Promise<void>;
+  /** Deletes a report; no error if it is already gone. */
+  crashReportDiscard(input: { id: Id }): Promise<void>;
   /**
    * `path` relative to the repository; null = the repository itself (only editor, terminal, file_manager).
    * - `diff_tool`: `path` is required; `source` picks the comparison (if omitted: unstaged).

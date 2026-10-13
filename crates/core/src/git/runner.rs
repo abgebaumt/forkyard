@@ -222,6 +222,7 @@ impl GitRunner {
         let mut passwords = self.inner.proxy_passwords.lock();
         match password {
             Some(password) => {
+                crate::crash::remember_secret(&password);
                 passwords.insert(key, password);
             }
             None => {

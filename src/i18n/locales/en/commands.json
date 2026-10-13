@@ -15,6 +15,10 @@
     "shortcuts": {
       "keywords": "help, keyboard",
       "title": "Show keyboard shortcuts"
+    },
+    "crashReports": {
+      "title": "Show crash reports",
+      "keywords": "crash, report, error, bug"
     }
   },
   "branch": {

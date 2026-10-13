@@ -1,0 +1,30 @@
+{
+  "kind": {
+    "panic": "Internal error",
+    "unexpectedExit": "Unexpected exit"
+  },
+  "line": "{{time}} · {{kind}} · Forkyard {{version}} · {{message}}",
+  "dialog": {
+    "title": "Forkyard closed unexpectedly last time",
+    "titleOf": "Forkyard closed unexpectedly ({{index}} of {{count}})",
+    "description": "A crash report was saved on this computer: {{line}}. It contains the error, the recent log and the last Git calls, with tokens and passwords removed. Nothing is sent anywhere – you decide whether to save it and share it, for example in a bug report.",
+    "view": "View",
+    "viewHint": "Show the full report",
+    "save": "Save…",
+    "saveHint": "Save the report as a text file",
+    "discard": "Discard",
+    "discardHint": "Delete this report"
+  },
+  "view": {
+    "title": "Crash report"
+  },
+  "save": {
+    "title": "Save crash report",
+    "filterName": "Text file",
+    "done": "Crash report saved",
+    "failed": "Couldn’t save the crash report"
+  },
+  "none": "There are no crash reports.",
+  "loadFailed": "Couldn’t read the crash reports",
+  "discarded": "Crash report deleted"
+}

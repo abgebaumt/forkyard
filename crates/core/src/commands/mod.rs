@@ -7,6 +7,7 @@ pub mod auth;
 pub mod avatars;
 pub mod branches;
 pub mod clone_init;
+pub mod crash;
 pub mod commit;
 pub mod diff;
 pub mod external;

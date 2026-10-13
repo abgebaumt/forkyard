@@ -158,9 +158,19 @@ fn move_contents(from: &std::path::Path, to: &std::path::Path) -> std::io::Resul
 
 fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
+    let data_dir = data_dir(&handle)?;
+    let version = app.package_info().version.to_string();
+    let crash = gitcore::crash::global().attach(&data_dir, &version);
+    if let Some(id) = &crash.unexpected_report {
+        log::warn!("The previous run ended without shutting down; report {id}");
+    }
+    if !crash.owns_marker {
+        log::info!("Another instance uses this data directory; it keeps the crash marker");
+    }
+    log::info!("Forkyard {version} on {} {}", std::env::consts::OS, std::env::consts::ARCH);
     let mut config = CoreConfig::new(
-        data_dir(&handle)?,
-        app.package_info().version.to_string(),
+        data_dir,
+        version,
         Arc::new(WindowSink { app: handle }),
     );
     config.git_path = env_value(GIT_PATH_ENV).map(PathBuf::from);
@@ -322,6 +332,9 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
 }
 
 pub fn run() {
+    // First of all: the log and the panic hook. Until the data directory is known (`setup`), lines
+    // wait in memory; with `windows_subsystem = "windows"` there is no console to see a panic in.
+    gitcore::crash::install();
     if is_unbundled_release(tauri::is_dev(), cfg!(debug_assertions)) {
         // Without the embedded UI a shipped program would load it from a local port – whoever
         // serves that port would have access to all of the app's commands.
@@ -466,6 +479,10 @@ pub fn run() {
             commands::credentials_list,
             commands::credentials_forget_all,
             commands::activity_list,
+            commands::crash_reports_list,
+            commands::crash_report_get,
+            commands::crash_report_save,
+            commands::crash_report_discard,
             commands::open_external,
             commands::terminal_open,
             commands::terminal_write,
@@ -519,6 +536,8 @@ pub fn run() {
                     // Port and password of the local channel are only valid while the app is running.
                     gitcore::commands::launch::remove_instance_file(core.data_dir());
                 }
+                // Last: from here on, ending is not a crash.
+                gitcore::crash::global().clean_exit();
             }
         }),
         Err(e) => {

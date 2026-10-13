@@ -41,6 +41,13 @@ fn secret_key() -> Option<&'static Regex> {
     )
 }
 
+/// Host tokens with a well-known prefix (GitHub `ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`/`github_pat_`,
+/// GitLab `glpat-` and relatives), wherever they appear.
+fn host_token() -> Option<&'static Regex> {
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    compiled(&RE, r"\b(?:gh[pousr]_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,}|gl(?:pat|dt|rt|ptt|ft|oas|cbt|imt)-[A-Za-z0-9_\-]{10,})")
+}
+
 /// A word that only introduces a question ("Password for 'https://…':") and is therefore
 /// not a value.
 fn is_plain_word(value: &str) -> bool {
@@ -126,6 +133,11 @@ pub fn redact(text: &str) -> String {
             out = changed;
         }
     }
+    if let Some(re) = host_token() {
+        if let std::borrow::Cow::Owned(changed) = re.replace_all(&out, MASK) {
+            out = changed;
+        }
+    }
     out
 }
 
@@ -167,9 +179,26 @@ mod tests {
         assert_eq!(redact("git@github.com:a/b.git"), "git@github.com:a/b.git");
     }
 
+    /// Host tokens recognisable by their prefix are removed even without a key or header before them.
+    #[test]
+    fn bare_host_tokens_are_removed() {
+        for (line, secret) in [
+            ("using ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789 for the request", "ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789"),
+            ("gho_1234567890abcdefXYZ", "gho_1234567890abcdefXYZ"),
+            ("token github_pat_11ABCDEFG0123456789_abcdefghijklmnop rejected", "github_pat_11ABCDEFG0123456789_abcdefghijklmnop"),
+            ("gitlab says glpat-xYz12_3-AbCdEfGhIjK is expired", "glpat-xYz12_3-AbCdEfGhIjK"),
+        ] {
+            let out = redact(line);
+            assert!(!out.contains(secret), "{line} → {out}");
+            assert!(out.contains("***"), "{out}");
+        }
+        // Words that merely start like a prefix stay.
+        assert_eq!(redact("ghp_ is the prefix of classic tokens"), "ghp_ is the prefix of classic tokens");
+    }
+
     #[test]
     fn removes_credentials() {
-        assert!(header().is_some() && extra_header().is_some() && secret_key().is_some());
+        assert!(header().is_some() && extra_header().is_some() && secret_key().is_some() && host_token().is_some());
         assert_eq!(redact("https://user:pw@github.com/a/b.git"), "https://***@github.com/a/b.git");
         assert_eq!(redact("fatal: https://ghp_abc@github.com/x"), "fatal: https://***@github.com/x");
         assert_eq!(redact("ssh://git@host:22/r"), "ssh://***@host:22/r");
