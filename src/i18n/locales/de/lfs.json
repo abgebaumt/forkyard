@@ -1,0 +1,43 @@
+{
+  "title": "Git LFS",
+  "description": "Große Dateien außerhalb der Historie ablegen – für dieses Repository.",
+  "close": "Schließen",
+  "progress": {
+    "stopping": "Wird abgebrochen",
+    "pulling": "LFS-Dateien werden geholt",
+    "label": "Fortschritt beim Holen der LFS-Dateien",
+    "valueText": "{{label}}, {{percent}} Prozent",
+    "waiting": "Warte auf den LFS-Server …"
+  },
+  "patterns": {
+    "label": "Muster, die über LFS laufen",
+    "remove": "Muster „{{pattern}}“ entfernen",
+    "heading": "Muster",
+    "empty": "Noch läuft kein Muster über LFS. Trage unten eine Endung oder einen Ordner ein."
+  },
+  "loading": "Git LFS wird geprüft",
+  "readFailed": "Der Stand von Git LFS ließ sich nicht lesen",
+  "retry": "Erneut versuchen",
+  "missing": {
+    "title": "Git LFS ist auf diesem Rechner nicht installiert",
+    "recheck": "Erneut prüfen",
+    "body": "Git LFS legt große Dateien (Bilder, Videos, Archive) außerhalb der Historie ab; im Repository steht dann nur ein kleiner Zeiger. Installiere es von git-lfs.com oder über deine Paketverwaltung und prüfe dann erneut – ein Neustart ist nicht nötig.",
+    "used_one": "Dieses Repository nutzt LFS für {{count}} Muster. Ohne Git LFS siehst du statt dieser Dateien nur die Zeiger, und neue Dateien landen ungewollt in der normalen Historie.",
+    "used_other": "Dieses Repository nutzt LFS für {{count}} Muster. Ohne Git LFS siehst du statt dieser Dateien nur die Zeiger, und neue Dateien landen ungewollt in der normalen Historie.",
+    "unused": "Dieses Repository nutzt bisher kein LFS; es fehlt dir hier also nichts."
+  },
+  "rejected": "Dieses Muster nimmt Git LFS nicht an.",
+  "intro": "Dateien, die auf ein Muster passen, legt Git ab dem nächsten Commit im LFS-Speicher ab; in der Historie steht nur ein Zeiger. Die Muster stehen in der .gitattributes und gelten für alle, die das Repository klonen.",
+  "installed": "installiert",
+  "newPattern": {
+    "label": "Neues Muster",
+    "hint": "Eine Endung (*.psd) oder ein Ordner (bilder/**), geschrieben wie in der .gitignore."
+  },
+  "add": "Hinzufügen",
+  "suggestions": "Oft gebraucht:",
+  "addPattern": "Muster {{pattern}} hinzufügen",
+  "pullCancel": "Holen abbrechen",
+  "pull": "LFS-Dateien holen",
+  "prune": "Aufräumen …",
+  "footer": "„Holen“ ersetzt Zeiger im Arbeitsverzeichnis durch die echten Dateien vom Remote. „Aufräumen“ löscht alte LFS-Dateien aus dem lokalen Speicher, die der aktuelle Stand nicht braucht."
+}

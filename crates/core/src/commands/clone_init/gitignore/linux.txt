@@ -1,0 +1,12 @@
+# Editor backup files
+*~
+
+# KDE folder settings
+.directory
+
+# Trash
+.Trash-*
+
+# NFS and FUSE placeholders
+.nfs*
+.fuse_hidden*

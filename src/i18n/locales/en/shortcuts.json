@@ -1,0 +1,228 @@
+{
+  "title": "Keyboard shortcuts",
+  "description": "Everything in this app works without a mouse. Fixed keys apply while the focus is in the respective view.",
+  "search": {
+    "label": "Search shortcuts",
+    "placeholder": "Search for an action or key, e.g. “stash” or “F7”",
+    "clear": "Clear search"
+  },
+  "close": "Close",
+  "listLabel": "List of keyboard shortcuts",
+  "matches_one": "{{count}} shortcut matches",
+  "matches_other": "{{count}} shortcuts match",
+  "empty": {
+    "title": "No shortcut matches “{{query}}”",
+    "hint": "Try another word – or look for the action in the command palette, which lists every command."
+  },
+  "parts": {
+    "commands": "Commands",
+    "fixed": "Fixed keys in lists and views"
+  },
+  "footer": "Every command – with or without a shortcut – is in the command palette.",
+  "openPalette": "Open command palette",
+  "or": "or",
+  "to": "to",
+  "gotoTabRange_one": "Go to tab 1 to {{count}}",
+  "gotoTabRange_other": "Go to tab 1 to {{count}}",
+  "groups": {
+    "general": "General",
+    "view": "View and focus",
+    "tabs": "Tabs",
+    "repository": "Repository",
+    "remote": "Remote",
+    "branch": "Branch",
+    "commit": "Commit",
+    "stash": "Stash",
+    "file": "File"
+  },
+  "keyNames": {
+    "pageUp": "PgUp",
+    "pageDown": "PgDn",
+    "home": "Home",
+    "end": "End",
+    "delete": "Del",
+    "insert": "Ins",
+    "backspace": "Backspace",
+    "space": "Space",
+    "contextMenu": "Menu"
+  },
+  "fixed": {
+    "graph": {
+      "title": "Commit graph",
+      "where": "Focus on a row in the graph",
+      "entries": {
+        "next": "Next commit",
+        "previous": "Previous commit",
+        "parent": "To the parent commit (along the line)",
+        "child": "Back to the child commit",
+        "extendSelection": "Extend selection",
+        "page": "Page by page",
+        "firstLast": "First / last loaded commit",
+        "openDetails": "Open details in the commit panel",
+        "highlightBranch": "Highlight the row’s branch (press again or Esc to clear)",
+        "contextMenu": "Row context menu"
+      }
+    },
+    "lists": {
+      "title": "Lists and trees",
+      "where": "Sidebar, file lists, results",
+      "entries": {
+        "move": "Move between entries",
+        "expandCollapse": "Expand / collapse folder",
+        "mainAction": "Main action (check out, show diff)",
+        "mark": "Mark, or show in the graph",
+        "markMore": "Mark several",
+        "markAll": "Mark all",
+        "renameBranch": "Rename branch (sidebar)",
+        "delete": "Delete or discard – asks first",
+        "filter": "Go to the sidebar filter",
+        "contextMenu": "Context menu"
+      }
+    },
+    "wip": {
+      "title": "Local changes",
+      "where": "Commit panel with the local changes",
+      "entries": {
+        "stage": "Stage file or folder",
+        "unstage": "Unstage file",
+        "discard": "Discard the file’s changes …",
+        "commit": "Commit",
+        "stageAllCommit": "Stage all and commit",
+        "toggleCommitStash": "Switch between commit and stash (in the toggle)"
+      }
+    },
+    "diff": {
+      "title": "Diff",
+      "where": "Diff view in the middle",
+      "entries": {
+        "nextChange": "Next change",
+        "previousChange": "Previous change",
+        "nextPreviousFile": "Next / previous file",
+        "markLine": "Mark line, expand fold",
+        "markLines": "Mark lines",
+        "stage": "Stage hunk or marked lines",
+        "stageUnstage": "Stage / unstage",
+        "discard": "Discard hunk or lines …",
+        "escape": "Clear marks, then close the diff"
+      }
+    },
+    "search": {
+      "title": "Commit search",
+      "where": "Search bar above the graph ({{mod}}+F)",
+      "entries": {
+        "next": "Next result",
+        "previous": "Previous result",
+        "mark": "Mark result in the list",
+        "close": "Close search"
+      }
+    },
+    "conflict": {
+      "title": "Conflict tool",
+      "where": "While resolving a conflict (merge, rebase, cherry-pick)",
+      "entries": {
+        "next": "Next conflict",
+        "previous": "Previous conflict",
+        "nextPreviousFile": "Next / previous conflicted file",
+        "switchSide": "Switch side (current / incoming)",
+        "take": "Take or deselect line or block",
+        "swapOrder": "Swap order when both sides are chosen",
+        "find": "Search in the result",
+        "resolved": "Resolved: save and stage",
+        "close": "Close (asks if the resolution is unsaved)"
+      }
+    },
+    "rebase": {
+      "title": "Rebase tool",
+      "where": "Interactive rebase, squash and cherry-pick of several commits",
+      "entries": {
+        "pick": "Keep (pick)",
+        "reword": "Reword (reword)",
+        "squash": "Combine (squash)",
+        "drop": "Leave out (drop)",
+        "move": "Move commit",
+        "editMessage": "Edit message",
+        "chooseAction": "Choose action; for cherry-pick: include / skip",
+        "start": "Start",
+        "close": "Close without changing anything"
+      }
+    },
+    "history": {
+      "title": "File history",
+      "where": "List of a file’s commits",
+      "entries": {
+        "openDiff": "Open the diff of this version",
+        "blame": "Blame this version",
+        "showInGraph": "Show commit in the graph",
+        "close": "Close history"
+      }
+    },
+    "blame": {
+      "title": "Blame",
+      "where": "A file’s lines with their last commit",
+      "entries": {
+        "move": "Move between lines",
+        "showInGraph": "Show the line’s commit in the graph",
+        "parentBlame": "Blame the parent version – what was here before?",
+        "card": "Toggle the card with the line’s full commit",
+        "close": "Close the card, then close blame"
+      }
+    },
+    "file": {
+      "title": "View and edit file",
+      "where": "File view in the middle",
+      "entries": {
+        "save": "Save",
+        "history": "File history",
+        "close": "Close (asks if there are unsaved changes)"
+      }
+    },
+    "terminal": {
+      "title": "Terminal",
+      "where": "Focus in the terminal – every other key, including Tab, goes to the shell",
+      "entries": {
+        "leaveNextPrevious": "Leave terminal: next / previous area",
+        "leaveArea": "Leave terminal: sidebar / view / commit panel",
+        "copy": "Copy selection (Ctrl+C interrupts in the shell)",
+        "paste": "Paste",
+        "scroll": "Scroll the output",
+        "contextMenu": "Terminal context menu",
+        "resize": "Change height (focus on the handle above; Enter hides)"
+      }
+    },
+    "tabs": {
+      "title": "Tab bar",
+      "where": "Focus on a tab",
+      "entries": {
+        "previousNext": "Previous / next tab (Enter switches)",
+        "firstLast": "First / last tab",
+        "move": "Move tab left / right",
+        "rename": "Rename tab (alias; empty resets)",
+        "close": "Close tab",
+        "contextMenu": "Tab context menu"
+      }
+    },
+    "palette": {
+      "title": "Command palette",
+      "where": "After {{mod}}+P",
+      "entries": {
+        "commands": "Commands only",
+        "refs": "Branches and tags only",
+        "files": "Files only",
+        "commits": "Search commits",
+        "repositories": "Repositories only",
+        "moreActions": "More actions for the result",
+        "back": "Back or close"
+      }
+    },
+    "dialogs": {
+      "title": "Dialogs and menus",
+      "where": "Everywhere",
+      "entries": {
+        "confirm": "Confirm (never preselected for dangerous actions)",
+        "close": "Close without doing anything",
+        "nextPrevious": "Next / previous control",
+        "selectionMenu": "Menu for the current selection"
+      }
+    }
+  }
+}

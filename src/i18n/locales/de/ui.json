@@ -1,0 +1,66 @@
+{
+  "loading": "Lädt",
+  "close": "Schließen",
+  "cancel": "Abbrechen",
+  "commitGraph": "Commit-Graph",
+  "toolbar": "Repository-Aktionen",
+  "diff": {
+    "added": "hinzugefügt",
+    "removed": "entfernt",
+    "lines": "Geänderte Zeilen"
+  },
+  "toast": {
+    "close": "Meldung schließen",
+    "region": "Meldungen",
+    "viewport": "Meldungen ({hotkey})"
+  },
+  "number": {
+    "range": "Erlaubt sind {{min}} bis {{max}}.",
+    "decrease": "Verringern",
+    "increase": "Erhöhen"
+  },
+  "keys": {
+    "pageUp": "Bild↑",
+    "pageDown": "Bild↓",
+    "home": "Pos1",
+    "end": "Ende",
+    "delete": "Entf",
+    "insert": "Einfg",
+    "backspace": "Rück",
+    "space": "Leertaste",
+    "menu": "Menü",
+    "ctrl": "Strg"
+  },
+  "ref": {
+    "local": "Lokaler Branch",
+    "remote": "Remote-Branch",
+    "tag": "Tag",
+    "title": "{{kind}}: {{name}}",
+    "titleHead": "{{kind}}: {{name}} (ausgecheckt)"
+  },
+  "fileStatus": {
+    "modified": "geändert",
+    "added": "neu",
+    "deleted": "gelöscht",
+    "renamed": "umbenannt",
+    "conflicted": "Konflikt",
+    "untracked": "nicht verfolgt"
+  },
+  "sync": {
+    "ahead": "{{n}} vor dem Remote",
+    "behind": "{{n}} hinter dem Remote"
+  },
+  "tabs": {
+    "management": "Repositories",
+    "alias": "Alias für {{folder}}",
+    "renameHint": "Enter übernimmt, Esc verwirft. Leer lassen: Der Tab heißt wieder wie der Ordner.",
+    "dirtyLabel": "{{label}}, uncommittete Änderungen",
+    "dirty": "Uncommittete Änderungen",
+    "dirtySuffix": ", uncommittete Änderungen",
+    "close": "{{label}} schließen",
+    "list": "Offene Repositories",
+    "all": "Alle Tabs",
+    "new": "Neuer Tab"
+  },
+  "toolbarOptions": "{{label}}: Optionen"
+}

@@ -1,0 +1,80 @@
+{
+  "ariaLabel": "Blame of {{path}}",
+  "prefix": "Blame",
+  "loading": "Loading blame of {{name}}",
+  "uncommitted": "Not committed yet",
+  "noMessage": "(no message)",
+  "history": "History",
+  "file": "File",
+  "viewFile": "View file",
+  "line": "Line {{line}}",
+  "lineRange": "Lines {{from}}–{{to}}",
+  "stand": {
+    "worktree": "Working directory",
+    "worktreeHint": "with uncommitted lines",
+    "head": "last commit (HEAD)",
+    "before": "before {{sha}}",
+    "commitsLabel": "State of a commit of this file",
+    "historyLoading": "Loading history …",
+    "noCommits": "No commits for this file",
+    "pickerLabel": "State: {{stand}} – choose another state",
+    "label": "State"
+  },
+  "parent": {
+    "noLine": "no line selected",
+    "noEarlier": "no earlier state",
+    "neverCommitted": "the file has never been committed",
+    "createdHere": "The file was created in this commit",
+    "firstCommit": "first commit, there was nothing before",
+    "tip": "Blame of the parent state: what was here before?",
+    "tipDisabled": "What was here before? – {{reason}}",
+    "label": "What was here before?"
+  },
+  "error": {
+    "goneWorktree": "The file does not exist in the working directory",
+    "goneStand": "This file does not exist in state {{stand}}",
+    "unsupported": "There is no blame for this file",
+    "failed": "Blame could not be computed",
+    "retry": "Try again",
+    "showHistory": "Show history",
+    "back": "Back"
+  },
+  "empty": {
+    "title": "Empty file",
+    "body": "Without lines there is nothing to attribute."
+  },
+  "card": {
+    "close": "Close the card with the full commit",
+    "open": "Show the full commit of this line",
+    "ariaLabel": "Show commit of this line",
+    "short": "Commit",
+    "announce": "Commit {{sha}}: {{summary}}, {{author}}, {{when}}",
+    "uncommittedKeyboard": "These lines are changed in the working directory. Enter shows the local changes.",
+    "uncommittedMouse": "These lines are changed in the working directory. Click shows the local changes.",
+    "hintKeyboard": "Enter shows the commit in the graph · P the state before · Esc closes",
+    "hintMouse": "Click shows the commit in the graph"
+  },
+  "reveal": {
+    "local": "View local changes",
+    "commit": "Show commit in graph",
+    "ariaLabel": "Show in graph",
+    "short": "In graph"
+  },
+  "legend": {
+    "noLines": "no lines",
+    "range": "{{from}} to {{to}}",
+    "lines_one": "{{formatted}} line",
+    "lines_other": "{{formatted}} lines",
+    "commits_one": "{{formatted}} commit",
+    "commits_other": "{{formatted}} commits",
+    "colorBy": "Color by",
+    "colorByLabel": "Color the bar by",
+    "author": "Author",
+    "age": "Age",
+    "authorsLabel": "Authors and their lines",
+    "more": "+{{count}} more",
+    "ageScaleLabel": "Color by commit age: strong is new ({{newest}}), pale is old ({{oldest}})",
+    "new": "new",
+    "old": "old"
+  }
+}

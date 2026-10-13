@@ -1,0 +1,159 @@
+@import "@fontsource-variable/dm-sans/opsz.css";
+@import "@fontsource-variable/jetbrains-mono";
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./theme.css";
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--gc-bg);
+    color: var(--gc-text);
+    font-family: var(--gc-font-sans);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+    font-feature-settings: "cv11", "ss03", "tnum";
+    -webkit-font-smoothing: antialiased;
+    /* Desktop app: text is not selectable everywhere, only where it makes sense (.selectable). */
+    user-select: none;
+    cursor: default;
+  }
+
+  .selectable,
+  input,
+  textarea,
+  pre,
+  code {
+    user-select: text;
+  }
+
+  /* A single focus ring, the same everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--gc-accent);
+    outline-offset: 1px;
+  }
+
+  ::selection {
+    background: var(--gc-accent-surface);
+    color: var(--gc-text);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gc-border) transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@keyframes gc-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+}
+
+@keyframes gc-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@utility animate-pop {
+  animation: gc-pop-in var(--gc-motion-fast) var(--gc-motion-ease);
+}
+
+@utility animate-fade {
+  animation: gc-fade-in var(--gc-motion-base) var(--gc-motion-ease);
+}
+
+/* Code font without ligatures – everywhere, not only in the editor: "--" in a command and "<=" in a
+   patch must appear character by character (log, patch preview, SHAs, paths). */
+.font-mono,
+code,
+pre,
+kbd,
+samp {
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0;
+}
+
+/* Focus set by a keyboard shortcut (Alt+1 to Alt+3, F6): the browser only shows the ring if it considers
+   the last input to be "keyboard" – after a mouse click and a shortcut with Alt it does not.
+   main.tsx therefore records the kind of the last input on the root element. */
+html[data-input="keyboard"] :focus:not(:focus-visible) {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: -2px;
+}
+
+/* System contrast mode (Windows › Contrast themes): background colours do not apply there.
+   States that otherwise only a fill shows get an outline or a system colour. */
+@media (forced-colors: active) {
+  /* Switches: on and off differ in fill and knob. */
+  [role="switch"] {
+    forced-color-adjust: none;
+    background: Canvas;
+    border-color: ButtonText;
+  }
+  [role="switch"] > span {
+    background: ButtonText;
+  }
+  [role="switch"][aria-checked="true"] {
+    background: Highlight;
+    border-color: Highlight;
+  }
+  [role="switch"][aria-checked="true"] > span {
+    background: HighlightText;
+  }
+  [role="switch"]:disabled {
+    border-color: GrayText;
+  }
+  [role="switch"]:disabled > span {
+    background: GrayText;
+  }
+
+  /* Selected rows, options, tabs and segments. */
+  [role="row"][aria-selected="true"],
+  [role="option"][aria-selected="true"],
+  [role="treeitem"][aria-selected="true"],
+  [role="tab"][aria-selected="true"],
+  [role="radio"][aria-checked="true"],
+  [role="menuitemradio"][aria-checked="true"],
+  [aria-current="true"],
+  [aria-pressed="true"],
+  [data-selected="true"] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  /* Handles between the areas otherwise show focus through a background colour. */
+  [role="separator"]:focus-visible,
+  [role="separator"]:focus {
+    outline: 2px solid Highlight;
+    outline-offset: -1px;
+  }
+
+  /* Buttons are otherwise just a coloured area: without an outline they would appear as plain text. */
+  button:not([role="switch"]):not([role="tab"]):not([role="radio"]) {
+    outline: 1px solid ButtonBorder;
+    outline-offset: -1px;
+  }
+  button:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: 1px;
+  }
+}

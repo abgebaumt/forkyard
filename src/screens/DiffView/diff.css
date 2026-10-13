@@ -1,0 +1,36 @@
+/* Additions of the diff view that cannot be expressed as utility classes. Tokens only. */
+
+/* Side by side: the merge view fills the area and scrolls as a whole, both columns run together. */
+.gc-split .cm-mergeView {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--gc-surface-sunken);
+}
+.gc-split .cm-mergeViewEditors {
+  min-height: 100%;
+}
+.gc-split .cm-mergeViewEditor + .cm-mergeViewEditor {
+  border-left: 1px solid var(--gc-border);
+}
+
+/* Checkerboard behind images so that transparency is visible. */
+.gc-checker {
+  background-color: var(--gc-surface-sunken);
+  background-image: conic-gradient(var(--gc-surface-raised) 25%, transparent 0 50%, var(--gc-surface-raised) 0 75%, transparent 0);
+  background-size: var(--gc-size-icon) var(--gc-size-icon);
+}
+
+/* Skeleton rows while loading. */
+@keyframes gc-diff-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.gc-diff-skeleton {
+  animation: gc-diff-pulse 1.4s var(--gc-motion-ease) infinite;
+}
+
+/* Enlarged small images: pixels stay pixels. */
+.gc-pixelated {
+  image-rendering: pixelated;
+}

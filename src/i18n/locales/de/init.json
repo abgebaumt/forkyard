@@ -1,0 +1,56 @@
+{
+  "title": "Neues Repository anlegen",
+  "description": "Legt einen Ordner an und richtet darin ein leeres Git-Repository ein.",
+  "validation": {
+    "nameMissing": "Das Repository braucht einen Namen.",
+    "parentMissing": "Wähle den Ordner, in dem das Repository entstehen soll.",
+    "branchMissing": "Der erste Branch braucht einen Namen.",
+    "pathExists": "Dort liegt schon ein Ordner mit Inhalt oder eine Datei. Ein Repository entsteht hier nur in einem neuen oder leeren Ordner.",
+    "pathNotFound": "Diesen Ordner gibt es nicht. Wähle einen vorhandenen über „Durchsuchen …“."
+  },
+  "pickFolderTitle": "Ort für das neue Repository",
+  "create": "Repository anlegen",
+  "success": "„{{name}}“ ist angelegt",
+  "noFirstCommit": "„{{name}}“ ist angelegt – der erste Commit fehlt",
+  "showOutput": "Ausgabe anzeigen",
+  "firstCommitOutputTitle": "Erster Commit: Ausgabe von Git",
+  "outputTitle": "Repository anlegen: Ausgabe von Git",
+  "templateNone": "Keine",
+  "cancel": "Abbrechen",
+  "failed": "Das Repository ließ sich nicht anlegen",
+  "existing": {
+    "title": "Der gewählte Ordner wird zum Repository",
+    "body": "Das klappt, solange der Ordner noch leer ist."
+  },
+  "name": {
+    "label": "Name",
+    "placeholder": "mein-projekt",
+    "hint": "So heißt auch der Ordner."
+  },
+  "parent": {
+    "label": "Ort",
+    "placeholder": "Ordner, in dem das Repository entsteht"
+  },
+  "browse": "Durchsuchen …",
+  "target": "Entsteht in:",
+  "targetHint": "Name und Ort ergeben zusammen den Pfad des Repositories.",
+  "branch": {
+    "label": "Standard-Branch",
+    "hint": "Auf diesem Branch liegt der erste Commit."
+  },
+  "templates": {
+    "failed": "Die Vorlagen ließen sich nicht laden",
+    "retry": "Erneut versuchen",
+    "failedBody": "Ohne Vorlagen lässt sich das Repository trotzdem anlegen.",
+    "gitignore": ".gitignore-Vorlage",
+    "gitignoreHint": "Typische Ausnahmen für eine Sprache oder ein Werkzeug.",
+    "license": "Lizenz",
+    "licenseHint": "Kommt als Datei LICENSE ins Repository."
+  },
+  "readme": {
+    "label": "README.md anlegen",
+    "hint": "Mit dem Namen als Überschrift."
+  },
+  "noteEmpty": "Ohne README und Vorlagen bleibt das Repository leer – ohne ersten Commit.",
+  "noteCommit": "Die gewählten Dateien kommen in einen ersten Commit."
+}

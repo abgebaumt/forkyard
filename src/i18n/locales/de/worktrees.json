@@ -1,0 +1,152 @@
+{
+  "row": {
+    "missingLocked": "Ordner fehlt · gesperrt",
+    "missingOrphaned": "Ordner fehlt · verwaist",
+    "detached": "losgelöst · {{sha}}",
+    "noCommit": "ohne Commit",
+    "main": "Hauptordner",
+    "locked": "gesperrt",
+    "changed": "geändert"
+  },
+  "describe": {
+    "name": "Worktree {{name}}",
+    "orphaned": "Ordner fehlt, verwaist",
+    "branch": "Branch {{branch}}",
+    "current": "in diesem Tab geöffnet",
+    "lockedReason": "gesperrt: {{reason}}",
+    "changes": "mit nicht committeten Änderungen"
+  },
+  "tip": {
+    "orphaned": "Den Ordner gibt es nicht mehr. „Aufräumen“ entfernt den Eintrag.",
+    "branch": "Branch: {{branch}}",
+    "noBranch": "Kein Branch – {{target}}",
+    "main": "Hauptordner des Repositories",
+    "current": "In diesem Tab geöffnet",
+    "lockedReason": "Gesperrt: {{reason}}",
+    "lockedNoReason": "Gesperrt, ohne Angabe eines Grundes",
+    "changes": "Enthält nicht committete Änderungen",
+    "orphanFlag": "Der Ordner fehlt – der Eintrag ist verwaist"
+  },
+  "block": {
+    "here": "hier ausgecheckt",
+    "elsewhere": "in anderem Worktree"
+  },
+  "dialog": {
+    "title": "Worktree anlegen",
+    "description": "Ein zweiter Arbeitsordner für dasselbe Repository: ein anderer Branch liegt ausgecheckt daneben, ohne dass du hier wechseln oder stashen musst.",
+    "cancel": "Abbrechen",
+    "modeHint": {
+      "new": "Legt einen neuen Branch an und checkt ihn im neuen Ordner aus.",
+      "existing": "Checkt einen vorhandenen lokalen Branch im neuen Ordner aus. Jeder Branch kann nur in einem Worktree ausgecheckt sein.",
+      "detached": "Checkt einen Commit ohne Branch aus – zum Ansehen, Bauen oder Testen eines Stands."
+    },
+    "head": {
+      "branch": "Aktueller Commit ({{branch}})",
+      "unborn": "Aktueller Stand",
+      "plain": "Aktueller Commit"
+    },
+    "tagOption": "Tag {{name}}",
+    "remoteOption": "Remote-Branch {{name}}",
+    "blockedOption": "{{name}} – {{reason}}",
+    "errors": {
+      "nameRequired": "Der neue Branch braucht einen Namen.",
+      "checkedOutHere": "„{{name}}“ ist schon in diesem Worktree ausgecheckt.",
+      "checkedOutElsewhere": "„{{name}}“ ist schon in einem anderen Worktree ausgecheckt.",
+      "branchRequired": "Wähle den Branch, der im neuen Ordner ausgecheckt wird.",
+      "parentAbsolute": "Gib einen vollständigen Pfad an oder wähle den Ordner über „Durchsuchen …“.",
+      "parentRequired": "Wähle den Ordner, in dem der Worktree entsteht.",
+      "taken": "Dort liegt schon ein Worktree dieses Repositories.",
+      "folderRequired": "Der Ordner braucht einen Namen.",
+      "noCommit": "Dieses Repository hat noch keinen Commit, der sich auschecken ließe.",
+      "pathExists": "Dort liegt schon etwas. Der Ordner darf noch nicht existieren oder muss leer sein.",
+      "pathNotFound": "Diesen Ordner gibt es nicht."
+    },
+    "pickTitle": "Übergeordneter Ordner für den Worktree",
+    "createdOpened": "Worktree „{{name}}“ angelegt und geöffnet",
+    "created": "Worktree „{{name}}“ angelegt",
+    "openInTab": "In neuem Tab öffnen",
+    "loading": "Branches werden geladen",
+    "loadError": "Die Branches ließen sich nicht laden",
+    "retry": "Erneut versuchen",
+    "unborn": {
+      "title": "Erst committen, dann Worktrees",
+      "text": "Dieses Repository hat noch keinen Commit. Ein Worktree braucht einen Stand, den er auschecken kann."
+    },
+    "failed": "Der Worktree wurde nicht angelegt",
+    "mode": {
+      "label": "Was wird ausgecheckt?",
+      "new": "Neuer Branch",
+      "existing": "Vorhandener Branch",
+      "detached": "Losgelöst"
+    },
+    "name": {
+      "label": "Name des neuen Branches",
+      "placeholder": "feature/neue-idee"
+    },
+    "start": "Beginnt bei",
+    "noFree": {
+      "title": "Kein Branch frei",
+      "text": "Alle lokalen Branches sind schon in einem Worktree ausgecheckt. Lege stattdessen einen neuen Branch an."
+    },
+    "branch": "Branch",
+    "branchPlaceholder": "Branch wählen",
+    "commitFrom": "Commit von",
+    "commitHint": "Der Worktree steht danach auf diesem Commit, ohne Branch.",
+    "parent": {
+      "label": "Übergeordneter Ordner",
+      "placeholder": "Ordner, in dem der Worktree entsteht"
+    },
+    "browse": "Durchsuchen …",
+    "folder": {
+      "label": "Ordnername",
+      "placeholder": "wird aus dem Branch vorgeschlagen"
+    },
+    "target": "Entsteht in:",
+    "targetEmpty": "Übergeordneter Ordner und Ordnername ergeben zusammen den Ort des Worktrees.",
+    "openAfter": "Danach in einem neuen Tab öffnen"
+  },
+  "lock": {
+    "titleChange": "Grund der Sperre von „{{name}}“ ändern",
+    "title": "Worktree „{{name}}“ sperren",
+    "description": "Ein gesperrter Worktree wird weder entfernt noch aufgeräumt – gedacht für Ordner auf Wechseldatenträgern oder Netzlaufwerken, die nicht immer da sind.",
+    "saveReason": "Grund speichern",
+    "lock": "Sperren",
+    "reason": {
+      "label": "Grund (optional)",
+      "placeholder": "z. B. liegt auf der externen Platte",
+      "hint": "Steht später in der Liste und im Tooltip des Worktrees."
+    }
+  },
+  "menu": {
+    "mainNoLock": "der Hauptordner lässt sich nicht sperren",
+    "folderMissing": "Ordner fehlt",
+    "alreadyOpen": "ist hier schon geöffnet",
+    "copyPath": "Pfad kopieren",
+    "pathWhat": "Pfad des Worktrees",
+    "unlock": "Entsperren",
+    "lock": "Sperren …",
+    "lockHint": "schützt vor Entfernen und Aufräumen",
+    "changeReason": "Grund der Sperre ändern …",
+    "create": "Worktree anlegen …",
+    "pruneAll": "Verwaiste Einträge aufräumen …",
+    "pruneOne": "Eintrag aufräumen …",
+    "pruneOneTip": "Verwaisten Eintrag „{{name}}“ aufräumen",
+    "remove": "Worktree entfernen …",
+    "removeTip": "Worktree „{{name}}“ entfernen"
+  },
+  "section": {
+    "title": "Worktrees",
+    "loadError": "Worktrees lassen sich nicht laden",
+    "create": "Anlegen",
+    "empty": "Keine Worktrees",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "alwaysOpen": "beim Filtern immer offen",
+    "hide": "Sektion ausblenden",
+    "hideHint": "zurück über das Menü einer anderen Sektion",
+    "noOrphans": "kein Eintrag ohne Ordner",
+    "busy": "Worktrees werden geändert",
+    "prune_one": "Verwaisten Eintrag aufräumen",
+    "prune_other": "{{count}} verwaiste Einträge aufräumen"
+  }
+}

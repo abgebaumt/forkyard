@@ -1,0 +1,144 @@
+{
+  "actionDialogs": {
+    "ignore": {
+      "comment": "A line starting with # is a comment and ignores nothing.",
+      "confirm": "Ignore",
+      "description": "The pattern is added as a new line to the .gitignore in the root folder.",
+      "oneLine": "A pattern is exactly one line.",
+      "pattern": "Pattern",
+      "preview": "New line in .gitignore",
+      "stopTracking": "Also stop tracking",
+      "stopTrackingHint": "Tracked files that match the pattern leave the index and stay on disk.",
+      "stopTrackingTracked": "Git already tracks the file; .gitignore alone doesn’t change that. The file leaves the index and stays on disk.",
+      "title": "Ignore",
+      "what": "What to ignore?"
+    },
+    "message": {
+      "description": "Description",
+      "lengthLong_one": "{{count}} character – many tools cut off after {{max}}",
+      "lengthLong_other": "{{count}} characters – many tools cut off after {{max}}",
+      "length_one": "{{count}} character",
+      "length_other": "{{count}} characters",
+      "summary": "Summary"
+    },
+    "push": {
+      "branchName": "Branch name on the remote",
+      "confirm": "Push",
+      "createdAs": "Will be created as {{name}}.",
+      "description": "<strong>{{branch}}</strong> has no upstream yet. The push creates the branch on the remote and remembers it as the upstream.",
+      "remote": "Remote",
+      "title": "Where to push?"
+    },
+    "refName": {
+      "atBrace": "The sequence @{ is not allowed.",
+      "chars": "Don’t use spaces or any of the characters ~ ^ : ? * [ \\.",
+      "dotOrLock": "No name part may start with a dot or end in .lock.",
+      "doubleDot": "Two dots in a row are not allowed.",
+      "leadingDash": "The name must not start with a minus sign.",
+      "reserved": "This name is reserved by Git.",
+      "slashes": "Slashes only between name parts, not at the edges or doubled.",
+      "trailingDot": "The name must not end with a dot."
+    },
+    "tag": {
+      "annotation": "Annotation",
+      "annotationOptional": "Annotation (optional)",
+      "confirm": "Create tag",
+      "description": "The tag points to {{target}}.",
+      "hintAnnotated": "Annotated tag: carries author, date and this text.",
+      "hintLightweight": "Without text, a lightweight tag is created – just a name for the commit.",
+      "hintNeedsText": "An annotated tag needs a text.",
+      "name": "Name",
+      "title": "Create tag",
+      "titleAnnotated": "Create annotated tag"
+    }
+  },
+  "closeGuard": {
+    "dirtyView": "A view has unsaved work (conflict tool or form) – it will be lost when you quit.",
+    "discard": "Quit without saving",
+    "discardHint": "The unsaved text will be lost.",
+    "jobRunning": "“{{job}}” is still running and will be cancelled.",
+    "jobsRunning_one": "{{count}} action is still running and will be cancelled.",
+    "jobsRunning_other": "{{count}} actions are still running and will be cancelled.",
+    "quit": "Quit",
+    "save": "Save and quit",
+    "saveFailed": "Not everything could be saved",
+    "saveFailedText": "The app stays open. Not saved: {{files}}",
+    "saveHint_one": "The file is saved, then the app closes.",
+    "saveHint_other": "All files are saved, then the app closes.",
+    "title": "Quit Forkyard?",
+    "unsavedFiles_one": "Unsaved file",
+    "unsavedFiles_other": "Unsaved files",
+    "unsavedText_one": "The editor has unsaved text.",
+    "unsavedText_other": "The editor has unsaved text in {{count}} files."
+  },
+  "common": {
+    "cancel": "Cancel"
+  },
+  "core": {
+    "unknownError": "Unknown error in the core."
+  },
+  "dialogs": {
+    "andMore_one": "and {{formatted}} more",
+    "andMore_other": "and {{formatted}} more",
+    "close": "Close",
+    "copy": "Copy",
+    "filter": "Filter …",
+    "noMatch": "No match for “{{filter}}”.",
+    "noOutput": "No output.",
+    "nothingToChoose": "Nothing to choose from.",
+    "pickMore": "{{count, number}} more – type to narrow down."
+  },
+  "errorBoundary": {
+    "reload": "Reload",
+    "reloadWithoutTabs": "Reload without the open tabs",
+    "text": "Your repositories are not affected – nothing was changed. Reload the interface. If the error comes back right away, it is probably caused by one of the open repositories: then “Reload without the open tabs” helps.",
+    "title": "The interface ran into an error"
+  },
+  "notify": {
+    "blocked": "The system doesn’t allow notifications from this app.",
+    "rejected": "The system didn’t accept the notification.",
+    "testBody": "This is how the app notifies you when its window is not in front.",
+    "testTitle": "Notifications are working"
+  },
+  "queries": {
+    "fetchFailed": "{{where}}: auto-fetch failed",
+    "fetchNews": "{{where}}: new on the remote",
+    "fetchNewsShort": "Auto-fetch brought new commits or branches.",
+    "fetchNewsText": "Auto-fetch brought new commits or branches. Nothing was changed locally.",
+    "repository": "Repository"
+  },
+  "run": {
+    "failed": "{{label}} failed",
+    "outputTitle": "{{label}}: Git output",
+    "showOutput": "Show output"
+  },
+  "shell": {
+    "management": "Repository management"
+  },
+  "startup": {
+    "coreDown": {
+      "browser": "This interface belongs in the {{app}} app window and doesn’t work in a browser – only the core of the desktop app can reach Git, files and settings. Start {{app}} as an app.",
+      "desktop": "The interface is running but can’t reach the core. Restart the app. If the error persists, the message below helps track it down.",
+      "title": "The app core is not responding"
+    },
+    "gitMissing": {
+      "restart": "Then restart {{app}}. If Git is in an unusual location, its folder must be on the PATH.",
+      "title": "Git was not found",
+      "uses": "{{app}} works with the Git installed on this computer (version {{version}} or later)."
+    },
+    "gitTooOld": {
+      "found": "Found: Git {{version}}",
+      "foundAt": "Found: Git {{version}} at {{path}}",
+      "text": "Git {{version}} is installed; {{app}} needs at least version {{minimum}}.",
+      "title": "Git is too old"
+    },
+    "installGit": {
+      "linux": "Install Git with your package manager, e.g. “sudo apt install git”, “sudo dnf install git” or “sudo pacman -S git”.",
+      "macos": "Install the Xcode command line tools (“xcode-select --install”) or Git via Homebrew (“brew install git”).",
+      "windows": "Download Git for Windows from git-scm.com and install it with the default settings."
+    },
+    "recheck": "Check again",
+    "retry": "Try again",
+    "tabsFailed": "The tabs could not be loaded"
+  }
+}

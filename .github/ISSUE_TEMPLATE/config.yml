@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/abgebaumt/forkyard/security/advisories/new
+    about: Please report security problems privately.
+  - name: Questions and ideas
+    url: https://github.com/abgebaumt/forkyard/discussions
+    about: Ask questions and discuss ideas.

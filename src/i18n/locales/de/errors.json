@@ -1,0 +1,170 @@
+{
+  "not_a_repo": {
+    "text": "Der Ordner ist kein Git-Repository.",
+    "hint": "Wähle den Ordner, der den Unterordner .git enthält, oder lege dort ein neues Repository an."
+  },
+  "path_not_found": {
+    "text": "Der Pfad existiert nicht.",
+    "hint": "Prüfe, ob der Ordner verschoben, umbenannt oder gelöscht wurde, oder ob ein Laufwerk fehlt."
+  },
+  "path_exists": {
+    "text": "Am Ziel liegt schon ein Ordner oder eine Datei mit diesem Namen.",
+    "hint": "Wähle einen anderen Namen oder einen anderen Zielordner."
+  },
+  "git_missing": {
+    "text": "Git wurde auf diesem Rechner nicht gefunden.",
+    "hint": "Installiere Git (ab Version 2.39) und starte das Programm neu."
+  },
+  "git_too_old": {
+    "text": "Die installierte Git-Version ist zu alt.",
+    "hint": "Aktualisiere Git auf Version 2.39 oder neuer und starte das Programm neu."
+  },
+  "invalid_name": {
+    "text": "Der Name ist für Git nicht gültig.",
+    "hint": "Verwende keine Leerzeichen, kein „..“, kein „~ ^ : ? * [ \\“ und keinen Punkt oder Schrägstrich am Ende."
+  },
+  "name_exists": {
+    "text": "Es gibt schon einen Eintrag mit diesem Namen.",
+    "hint": "Wähle einen anderen Namen."
+  },
+  "not_found": {
+    "text": "Das gesuchte Objekt existiert nicht (mehr).",
+    "hint": "Vielleicht wurde es inzwischen außerhalb der App geändert. Die Ansicht wird neu geladen."
+  },
+  "dirty_worktree": {
+    "text": "Uncommittete Änderungen stehen im Weg.",
+    "hint": "Committe oder stashe deine Änderungen zuerst und versuche es dann erneut."
+  },
+  "conflict": {
+    "text": "Es sind Konflikte entstanden.",
+    "hint": "Löse die Konflikte im Commit Panel auf und schließe die Aktion dann ab – oder brich sie ab."
+  },
+  "nothing_to_commit": {
+    "text": "Es gibt nichts zu committen.",
+    "hint": "Stage zuerst mindestens eine Änderung."
+  },
+  "empty_message": {
+    "text": "Die Commit-Message ist leer.",
+    "hint": "Gib eine kurze Zusammenfassung ein."
+  },
+  "identity_missing": {
+    "text": "Git weiß nicht, wer du bist: Name oder E-Mail fehlen.",
+    "hint": "Trage Name und E-Mail in den Einstellungen unter „Profile“ ein."
+  },
+  "hook_failed": {
+    "text": "Ein Git-Hook hat die Aktion abgelehnt.",
+    "hint": "Sieh dir die Ausgabe des Hooks an. Falls nötig, kannst du Hooks beim Commit überspringen."
+  },
+  "push_rejected": {
+    "text": "Der Remote hat den Push abgelehnt, weil er Commits enthält, die lokal fehlen.",
+    "hint": "Hole die Änderungen zuerst mit Pull und pushe danach erneut."
+  },
+  "no_upstream": {
+    "text": "Der Branch hat keinen Upstream.",
+    "hint": "Lege beim Push einen Remote-Branch an oder setze den Upstream im Kontextmenü des Branches."
+  },
+  "no_remote": {
+    "text": "Für dieses Repository ist kein Remote eingerichtet.",
+    "hint": "Füge im Left Panel unter „Remote“ einen Remote hinzu."
+  },
+  "auth_failed": {
+    "text": "Die Anmeldung beim Remote ist fehlgeschlagen.",
+    "hint": "Prüfe Benutzername, Passwort bzw. Token oder SSH-Schlüssel. Gespeicherte Zugangsdaten lassen sich in den Einstellungen löschen."
+  },
+  "host_key_unknown": {
+    "text": "Der SSH-Host ist unbekannt und wurde nicht bestätigt.",
+    "hint": "Vergleiche den Fingerabdruck mit den Angaben des Anbieters und bestätige ihn beim nächsten Versuch."
+  },
+  "offline": {
+    "text": "Der Remote ist nicht erreichbar.",
+    "hint": "Prüfe die Netzwerkverbindung, einen Proxy oder die Adresse des Remotes."
+  },
+  "timeout": {
+    "text": "Die Verbindung hat zu lange gedauert und wurde abgebrochen.",
+    "hint": "Versuche es später noch einmal oder prüfe die Netzwerkverbindung."
+  },
+  "stale_state": {
+    "text": "Das Repository hat sich inzwischen geändert.",
+    "hint": "Die Ansicht wird neu geladen. Prüfe den neuen Stand und versuche es dann erneut."
+  },
+  "locked": {
+    "text": "Ein anderes Programm arbeitet gerade im Repository (index.lock ist gesperrt).",
+    "hint": "Warte, bis es fertig ist, oder schließe es. Bleibt die Sperre, lösche .git/index.lock von Hand – aber nur, wenn sicher kein Git-Prozess mehr läuft."
+  },
+  "not_merged": {
+    "text": "Der Branch ist noch nicht vollständig gemergt.",
+    "hint": "Merge ihn zuerst oder lösche ihn ausdrücklich trotzdem – seine Commits gehen dann verloren."
+  },
+  "operation_in_progress": {
+    "text": "Es läuft noch ein Merge, Rebase, Cherry-Pick oder Revert.",
+    "hint": "Schließe die laufende Aktion im Commit Panel ab oder brich sie ab."
+  },
+  "no_operation": {
+    "text": "Es läuft gerade keine Aktion, die sich fortsetzen oder abbrechen ließe.",
+    "hint": ""
+  },
+  "not_allowed": {
+    "text": "Diese Aktion ist im aktuellen Zustand nicht möglich.",
+    "hint": ""
+  },
+  "nothing_to_undo": {
+    "text": "Es gibt nichts, was sich rückgängig machen ließe.",
+    "hint": ""
+  },
+  "cancelled": {
+    "text": "Die Aktion wurde abgebrochen.",
+    "hint": ""
+  },
+  "duplicate": {
+    "text": "Diese Aktion läuft schon.",
+    "hint": "Warte, bis sie fertig ist."
+  },
+  "unsupported": {
+    "text": "Das wird (noch) nicht unterstützt.",
+    "hint": ""
+  },
+  "io": {
+    "text": "Eine Datei konnte nicht gelesen oder geschrieben werden.",
+    "hint": "Prüfe Zugriffsrechte und freien Speicherplatz, und ob die Datei in einem anderen Programm geöffnet ist."
+  },
+  "unknown": {
+    "text": "Ein unerwarteter Fehler ist aufgetreten.",
+    "hint": "Sieh dir die Ausgabe an. Hilft das nicht, findest du im Protokoll (Statusleiste) jeden ausgeführten Befehl."
+  },
+  "host_not_connected": {
+    "text": "Für diesen Hoster ist kein Konto verbunden.",
+    "hint": "Verbinde in den Einstellungen ein Konto mit einem eigenen Token."
+  },
+  "host_auth_failed": {
+    "text": "Der Hoster hat den Token abgelehnt.",
+    "hint": "Prüfe, ob der Token noch gilt und die nötigen Berechtigungen hat, und verbinde das Konto neu."
+  },
+  "host_rate_limited": {
+    "text": "Das Anfrage-Limit des Hosters ist erreicht.",
+    "hint": "Warte bis zum genannten Zeitpunkt und versuche es dann erneut."
+  },
+  "host_not_found": {
+    "text": "Der Hoster kennt das nicht.",
+    "hint": "Prüfe die Adresse des Remotes und ob der Token darauf zugreifen darf."
+  },
+  "host_unsupported": {
+    "text": "Das geht bei diesem Hoster nicht.",
+    "hint": "Unterstützt werden GitHub und GitLab, auch als eigene Instanz mit verbundenem Konto."
+  },
+  "host_rejected": {
+    "text": "Der Hoster hat die Anfrage abgelehnt.",
+    "hint": "Sieh dir die Begründung an und passe die Angaben an."
+  },
+  "host_forbidden": {
+    "text": "Dem Token fehlt die Berechtigung dafür.",
+    "hint": "Der Token gilt, darf das aber nicht. Stelle einen Token mit den nötigen Berechtigungen aus und ersetze ihn in den Einstellungen unter „Integrationen“."
+  },
+  "repo_untrusted": {
+    "text": "Dieses Repository bringt eigene Befehle mit, denen du noch nicht zugestimmt hast.",
+    "hint": "Öffne den Tab des Repositories: dort steht, was gefunden wurde, und du entscheidest, ob du ihm vertraust."
+  },
+  "repo_other_profile": {
+    "text": "Dieses Repository gehört zu einem anderen Profil.",
+    "hint": "Wechsle zu diesem Profil oder öffne es auch im aktuellen."
+  }
+}

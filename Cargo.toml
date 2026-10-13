@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = ["crates/core", "crates/askpass", "src-tauri"]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.80"
+version = "0.1.0"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/abgebaumt/forkyard"
+homepage = "https://github.com/abgebaumt/forkyard"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 2

@@ -1,0 +1,62 @@
+{
+  "host": {
+    "localPath": "Local path",
+    "server": "Server: {{host}}",
+    "local": "A repository on this computer or on a network drive",
+    "detected": "Detected: {{host}}"
+  },
+  "validation": {
+    "nameMissing": "Give the remote a name, e.g. “origin”.",
+    "nameSpaces": "Spaces aren't allowed in the name.",
+    "nameChars": "“..”, “@{” and the characters ~ ^ : ? * [ \\ aren't allowed.",
+    "nameEdges": "The name can't start with “-”, “/” or “.” and can't end with “/”, “.” or “.lock”.",
+    "nameExists": "A remote named “{{name}}” already exists.",
+    "urlMissing": "The URL is missing.",
+    "urlSpaces": "The URL can't contain spaces.",
+    "pushMissing": "Enter the push URL or turn off “Separate push URL”.",
+    "urlRejected": "Git doesn't accept this URL."
+  },
+  "editTitle": "Edit remote “{{name}}”",
+  "add": "Add remote",
+  "save": "Save remote",
+  "saveButton": "Save",
+  "saved": "Remote “{{name}}” saved",
+  "added": "Remote “{{name}}” added",
+  "remove": {
+    "title": "Remove remote “{{name}}”?",
+    "body": "The connection and all remote branches {{name}}/… disappear from this repository; branches that track it lose their upstream. Nothing changes on the server. Undo brings the remote back.",
+    "confirm": "Remove remote",
+    "done": "Remote “{{name}}” removed",
+    "undo": "Undo"
+  },
+  "editDescription": "Change the name and addresses. Remote branches and upstreams follow along when renaming.",
+  "addDescription": "Connects this repository to another server or folder.",
+  "cancel": "Cancel",
+  "loading": "Loading remotes",
+  "loadFailed": "The remotes couldn't be loaded",
+  "retry": "Try again",
+  "gone": {
+    "title": "The remote “{{name}}” no longer exists",
+    "body": "It was removed or renamed in the meantime, maybe in the terminal. Close the dialog and select it again."
+  },
+  "notSaved": "Not saved",
+  "notAdded": "Not added",
+  "name": {
+    "label": "Name",
+    "hint": "Short and without spaces. The first remote is usually called “origin”."
+  },
+  "fetchUrl": {
+    "label": "Fetch URL",
+    "hint": "HTTPS (https://…), SSH (git@server:group/project.git) or a folder.",
+    "placeholder": "git@server:group/project.git"
+  },
+  "pushUrl": {
+    "toggle": "Separate push URL",
+    "toggleHint": "In case you fetch from one address and push to another.",
+    "label": "Push URL"
+  },
+  "masked": "The credentials in the URL are hidden as “***”. If you leave the asterisks, the stored credentials are kept.",
+  "fetchAfterSave": "Fetch after saving",
+  "fetchAfterAdd": "Fetch right away",
+  "fetchAfterHint": "Fetches this remote's branches and tags so they appear in the graph."
+}

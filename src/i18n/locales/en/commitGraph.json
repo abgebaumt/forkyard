@@ -1,0 +1,82 @@
+{
+  "filter": {
+    "stashes": "Stashes",
+    "list": "{{first}} and {{last}}",
+    "currentBranch": "current branch",
+    "upstream": "upstream",
+    "target": "target",
+    "smart": "only {{names}} ({{parts}})",
+    "soloOne": "only {{name}} (solo)",
+    "soloMany": "only {{count}} refs (solo)",
+    "hiddenOne": "{{name}} hidden",
+    "hiddenMany": "{{count}} refs hidden",
+    "clear": "Clear filter",
+    "title": "View filtered",
+    "showAll": "Show all"
+  },
+  "loading": "Loading history",
+  "loadFailed": "Could not load the history",
+  "retry": "Try again",
+  "outputTitle": "Loading history: Git output",
+  "showOutput": "Show output",
+  "detached": {
+    "title": "No branch checked out (detached HEAD)",
+    "text": "· <code>{{sha}}</code> · new commits don’t belong to any branch",
+    "createBranch": "Create branch here …"
+  },
+  "highlight": {
+    "title": "Highlighted: {{name}}",
+    "notLoaded": "its state isn’t among the loaded commits",
+    "count_one": "{{count, number}} commit, the rest is dimmed",
+    "count_other": "{{count, number}} commits, the rest is dimmed",
+    "countLoaded_one": "{{count, number}} commit among the loaded ones, the rest is dimmed",
+    "countLoaded_other": "{{count, number}} commits among the loaded ones, the rest is dimmed",
+    "clear": "Clear",
+    "noneTitle": "There is no branch to highlight here",
+    "noneText": "No branch among the loaded commits contains this row."
+  },
+  "footer": {
+    "loading": "Loading more commits …",
+    "loadMore": "Load more commits",
+    "loadFailed": "Could not load more commits.",
+    "end_one": "End of history · {{count, number}} commit",
+    "end_other": "End of history · {{count, number}} commits"
+  },
+  "saveColumns": "Save columns",
+  "menu": {
+    "wip": "Actions for the local changes",
+    "stash": "Actions for the stash “{{message}}”",
+    "commit": "Actions for commit {{sha}}",
+    "commits": "Actions for {{count}} commits",
+    "tag": "Actions for tag {{name}}",
+    "branch": "Actions for branch {{name}}",
+    "dropped": "{{from}} dragged onto {{to}}"
+  },
+  "checkout": {
+    "title": "Check out commit {{sha}}?",
+    "body": "Afterwards no branch is checked out (detached HEAD). New commits don’t belong to any branch until you create one; your branches stay as they are.",
+    "confirm": "Check out commit"
+  },
+  "reveal": {
+    "notInView": "Commit {{sha}} is not in this view",
+    "filtered": "The view is filtered. Maybe it is on a hidden branch.",
+    "unreachable": "It doesn’t belong to any branch or tag shown in the graph.",
+    "further": "Commit {{sha}} is further back",
+    "notLoaded_one": "It isn’t among the {{count, number}} loaded commit.",
+    "notLoaded_other": "It isn’t among the {{count, number}} loaded commits.",
+    "continue": "Keep searching",
+    "seeking_one": "Searching for commit {{sha}} … {{count, number}} commit loaded",
+    "seeking_other": "Searching for commit {{sha}} … {{count, number}} commits loaded"
+  },
+  "label": "Commit graph",
+  "cancel": "Cancel",
+  "smartLoading": "The branches haven’t loaded yet",
+  "stale": "The graph isn’t up to date",
+  "empty": {
+    "filteredTitle": "The filtered view is empty",
+    "filteredText": "There are no commits to show here with the selected branches.",
+    "title": "No commits yet",
+    "showChanges": "View changes",
+    "text": "This repository has no history yet. Create the first commit in the commit panel on the right."
+  }
+}

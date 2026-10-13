@@ -1,0 +1,25 @@
+{
+  "create": "Create stash",
+  "createFiles_one": "Stash {{count}} file",
+  "createFiles_other": "Stash {{count}} files",
+  "blocked": {
+    "loading": "The repository state is still loading.",
+    "unborn": "A stash needs a commit to build on. Create the first commit first.",
+    "conflicts": "Resolve the open conflicts first.",
+    "markedUntracked": "The marked files are untracked. Check “Include untracked files” to stash them.",
+    "onlyUntracked": "There are only untracked files. Check “Include untracked files” to stash them.",
+    "nothing": "There are no changes to stash."
+  },
+  "name": {
+    "label": "Stash name",
+    "placeholder": "e.g. Half-done report",
+    "hint": "Optional. Without a name, the stash is named after the last commit."
+  },
+  "includeUntracked": "Include untracked files",
+  "onlyMarked": "Only the marked files",
+  "onlyMarkedCount": "Only the marked files ({{count}})",
+  "onlyMarkedHint": "Mark files above to stash only those ({{mod}}+click for several).",
+  "backToCommit": "Back to commit",
+  "tipMarked": "Puts only the marked files aside",
+  "tipAll": "Puts all changes aside"
+}

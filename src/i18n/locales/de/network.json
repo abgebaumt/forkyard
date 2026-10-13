@@ -1,0 +1,55 @@
+{
+  "check": {
+    "proxySpaces": "Eine Proxy-Adresse enthält keine Leerzeichen.",
+    "proxyFormat": "Erwartet wird eine Adresse wie http://proxy.firma.example:8080 (auch https, socks4, socks5).",
+    "hostEmpty": "Bitte einen Host angeben, z. B. git.firma.example oder git.firma.example:8443.",
+    "hostSpaces": "Ein Host enthält keine Leerzeichen.",
+    "hostWildcard": "Platzhalter sind nicht erlaubt – nenne jeden Host einzeln."
+  },
+  "title": "Netzwerk",
+  "intro": "Proxy und Zertifikate für die Verbindungen dieser App zu HTTP(S)-Remotes. Deine eigene Git-Konfiguration bleibt unberührt; SSH-Verbindungen betrifft das nicht.",
+  "warning_one": "Für {{count}} Host ist die Zertifikatsprüfung abgeschaltet",
+  "warning_other": "Für {{count}} Hosts ist die Zertifikatsprüfung abgeschaltet",
+  "warningBody": "Bei diesen Verbindungen kann sich jeder im Netz als der Server ausgeben, Zugangsdaten mitlesen und Code verändern. Unten lässt sich das je Host wieder einschalten.",
+  "proxy": {
+    "title": "Proxy",
+    "description": "Über diesen Proxy laufen alle HTTP(S)-Remotes, z. B. http://proxy.firma.example:8080 – auch https, socks4 und socks5. Leer: direkte Verbindung.",
+    "placeholder": "kein Proxy – direkte Verbindung"
+  },
+  "perHost": {
+    "title": "Proxy je Host",
+    "intro": "Für einzelne Server einen anderen Proxy nehmen – oder keinen, etwa für den Git-Server im eigenen Netz.",
+    "list": "Proxy-Ausnahmen je Host",
+    "empty": "Keine Ausnahmen: Für jeden Host gilt der Proxy von oben.",
+    "via": "über {{proxy}}",
+    "noProxy": "ohne Proxy",
+    "remove": "Ausnahme für {{host}} entfernen",
+    "add": "Hinzufügen",
+    "host": "Host",
+    "hostPlaceholder": "git.firma.example",
+    "proxy": "Proxy für diesen Host (leer = ohne Proxy)"
+  },
+  "certificates": "Zertifikate",
+  "caBundle": {
+    "title": "Eigenes CA-Bündel",
+    "description": "PEM-Datei mit den Zertifikaten, denen Git statt der Liste des Systems vertraut – z. B. das selbst ausgestellte Zertifikat eures Servers oder die Zertifizierungsstelle der Firma. Leer: die Zertifikate des Systems.",
+    "placeholder": "Zertifikate des Systems",
+    "browseLabel": "CA-Bündel durchsuchen",
+    "pick": "CA-Bündel wählen (PEM-Datei)",
+    "browse": "Durchsuchen"
+  },
+  "noVerify": {
+    "title": "Zertifikatsprüfung je Host abschalten",
+    "intro": "Nur als Notlösung, wenn sich das Zertifikat eines Servers nicht als CA-Bündel eintragen lässt. Die Prüfung fällt dann für genau diesen Host weg – nie für alle.",
+    "list": "Hosts ohne Zertifikatsprüfung",
+    "empty": "Für jeden Host wird das Zertifikat geprüft.",
+    "unverified": "ungeprüft",
+    "verifyLabel": "Zertifikat von {{host}} wieder prüfen",
+    "verify": "Wieder prüfen",
+    "submit": "Prüfung abschalten …",
+    "hostPlaceholder": "git.firma.example:8443",
+    "confirmTitle": "Zertifikatsprüfung für „{{host}}“ abschalten?",
+    "confirmBody": "Die App prüft dann nicht mehr, ob am anderen Ende wirklich dieser Server sitzt. Wer im selben Netz mithört, kann Zugangsdaten abgreifen und dir veränderten Code unterschieben. Sicherer ist, das Zertifikat des Servers oben als CA-Bündel einzutragen. Die Ausnahme gilt nur für diesen Host und lässt sich hier jederzeit zurücknehmen.",
+    "confirm": "Prüfung abschalten"
+  }
+}

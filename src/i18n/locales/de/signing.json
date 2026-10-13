@@ -1,0 +1,51 @@
+{
+  "securityKey": "Sicherheitsschlüssel",
+  "fileMissing": "Datei fehlt",
+  "save": "Signier-Einstellung speichern",
+  "title": "Commits signieren",
+  "loadError": "Die Signier-Einstellungen ließen sich nicht laden",
+  "blocked": "Wähle zuerst einen SSH-Schlüssel – ohne ihn scheitert jeder Commit.",
+  "noKey": "Kein Schlüssel gewählt",
+  "fromGitConfig": "Aus der Git-Konfiguration: {{key}}",
+  "on": "Signieren an",
+  "off": "Signieren aus",
+  "repoIntro": "Gilt nur für dieses Repository (.git/config) und geht der globalen Einstellung vor.",
+  "globalIntro": "Gilt für alle Repositories, die nichts Eigenes festlegen (globale Git-Konfiguration). Signiert wird jeder Commit aus dieser App – genau wie im Terminal.",
+  "sameAsGlobal": " Im Moment gilt hier dasselbe wie global.",
+  "format": {
+    "title": "Format",
+    "description": "Womit signiert wird (gpg.format). Wer das Format wechselt, wählt den Schlüssel neu."
+  },
+  "sshKey": {
+    "title": "SSH-Schlüssel",
+    "none": "Noch kein SSH-Schlüssel eingetragen. Lege links unter „SSH-Schlüssel“ einen an oder trage einen vorhandenen ein – dann steht er hier zur Wahl.",
+    "description": "Der öffentliche Schlüssel, mit dessen privatem Gegenstück signiert wird (user.signingKey). Zur Wahl stehen die Schlüssel aus „SSH-Schlüssel“."
+  },
+  "certificate": {
+    "title": "Zertifikat",
+    "description": "Kennung des Zertifikats für gpgsm (user.signingKey). Leer: gpgsm nimmt das Zertifikat zu deiner E-Mail-Adresse.",
+    "placeholder": "Zertifikat zur E-Mail-Adresse"
+  },
+  "keyId": {
+    "title": "Schlüssel-ID",
+    "description": "ID oder Fingerabdruck deines GPG-Schlüssels (user.signingKey), z. B. aus „gpg --list-secret-keys“. Leer: GPG nimmt den Schlüssel zu deiner E-Mail-Adresse.",
+    "placeholder": "Schlüssel zur E-Mail-Adresse"
+  },
+  "noSpaces": "Eine Kennung enthält keine Leerzeichen.",
+  "notSaved": "Nicht gespeichert.",
+  "enable": {
+    "title": "Commits signieren",
+    "ssh": "Jeder neue Commit bekommt eine SSH-Signatur (commit.gpgSign). Als „gültig“ zeigt Git sie erst, wenn gpg.ssh.allowedSignersFile deinen Schlüssel kennt – sonst steht am Commit „nicht prüfbar“.",
+    "other": "Jeder neue Commit wird signiert (commit.gpgSign). Kann das Programm die Passphrase nicht abfragen, scheitert der Commit mit der Meldung von Git."
+  },
+  "program": {
+    "title": "Programm",
+    "description": "Nur zum Ablesen: das Programm, das Git zum Signieren startet ({{config}}). Ändern lässt es sich bisher nur mit git config.",
+    "default": "{{program}} (Vorgabe von Git)"
+  },
+  "global": {
+    "summary": "Global gilt: {{state}}, {{format}}.",
+    "summaryNoKey": "Global gilt: {{state}}, {{format}}, ohne festen Schlüssel.",
+    "likeGlobal": "Wie global"
+  }
+}

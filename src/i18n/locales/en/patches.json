@@ -1,0 +1,120 @@
+{
+  "applyErrors": {
+    "failedAt": "does not fit from line {{line}}",
+    "exists": "already exists in the working directory",
+    "missing": "missing from the working directory",
+    "noFit": "does not fit the content"
+  },
+  "fileName": {
+    "range": "comparison",
+    "changes": "changes"
+  },
+  "size": {
+    "bytes": "{{size}} bytes",
+    "kb": "{{size}} KB",
+    "mb": "{{size}} MB"
+  },
+  "save": {
+    "crlf": "The patch contains lines with Windows line endings (CRLF). Saving it as a file would change it and it would no longer fit. Use “Copy to clipboard”.",
+    "title": "Save patch",
+    "outside": "Saving only works in the repository folder (or a subfolder) for now. For other places: use “Copy to clipboard” and paste it into a file there.",
+    "mismatch": "The saved file differs from the patch. Use “Copy to clipboard”.",
+    "filterName": "Patch"
+  },
+  "parts": {
+    "preview": "Patch preview",
+    "previewMore": "… and {{count}} more lines. The preview is truncated, the patch is not.",
+    "fits": "fits",
+    "binary": "binary",
+    "moreFiles": "and {{count}} more files",
+    "loading": "Creating patch"
+  },
+  "apply": {
+    "tooLarge": "“{{name}}” is {{size}} – this dialog does not accept more than {{max}}.",
+    "notText": "“{{name}}” is not a text file and therefore not a patch.",
+    "unreadable": "“{{name}}” could not be read.",
+    "clipboardEmpty": "There is no text in the clipboard.",
+    "clipboardFailed": "The clipboard could not be read. Click into the field and paste with {{mod}}+V.",
+    "applied": "Patch applied",
+    "appliedText_one": "{{count}} file changed in the working directory. Nothing is staged or committed.",
+    "appliedText_other": "{{count}} files changed in the working directory. Nothing is staged or committed.",
+    "undo": "Undo",
+    "blocked": {
+      "empty": "Paste a patch or choose a file first.",
+      "checking": "The patch is still being checked.",
+      "failed": "The patch does not fit the working directory."
+    },
+    "title": "Apply patch",
+    "description": "Only changes the working directory of <strong>{{repo}}</strong>. Nothing is staged or committed; all or nothing.",
+    "thisRepo": "this repository",
+    "cancel": "Cancel",
+    "submit": "Apply",
+    "conflicts": {
+      "title": "There are open conflicts",
+      "text": "Resolve them first – otherwise the patch gets mixed up with the conflicted files."
+    },
+    "chooseFile": "Choose file …",
+    "fromClipboard": "From clipboard",
+    "fileInput": "Patch file",
+    "clearFile": "Discard file and clear field",
+    "textLabel": "Patch text",
+    "placeholder": "diff --git a/file b/file\n… paste here ({{mod}}+V), choose a file or take it from the clipboard",
+    "idle": "As soon as there is a patch here, Git checks whether it fits the working directory – without changing anything.",
+    "checking": "Git is checking whether the patch fits …",
+    "fits_one": "Fits: {{count}} file will be changed",
+    "fits_other": "Fits: {{count}} files will be changed",
+    "fromCommit": "from the commit “{{subject}}”",
+    "byAuthor": " by {{author}}",
+    "noCommit": ". Author and message are not carried over – no commit is created.",
+    "filesLabel": "Files the patch changes",
+    "notFitting_one": "Does not fit: {{failed}} of {{count}} file",
+    "notFitting_other": "Does not fit: {{failed}} of {{count}} files",
+    "cannotApply": "The patch cannot be applied",
+    "nothingChanged": "Nothing was changed.",
+    "resultLabel": "Patch files with check result"
+  },
+  "create": {
+    "scope": {
+      "unstaged": "Unstaged",
+      "staged": "Staged",
+      "all": "Both",
+      "label": "Which changes",
+      "withCount": "{{label}} ({{count}})"
+    },
+    "blocked": {
+      "loading": "The patch is still being created.",
+      "error": "The patch could not be created.",
+      "empty": "The patch is empty."
+    },
+    "copied": "Patch copied",
+    "files_one": "{{count}} file",
+    "files_other": "{{count}} files",
+    "lines_one": "{{count}} line",
+    "lines_other": "{{count}} lines",
+    "notCopied": "Not copied",
+    "notCopiedText": "The clipboard is not available right now. Select the text in the preview and copy it by hand.",
+    "notSaved": "Not saved",
+    "saved": "Patch saved",
+    "showInFileManager": "{{revealInFileManager}}",
+    "title": "Create patch",
+    "from": "From: <strong>{{what}}</strong>",
+    "onlyThisFile": " – only this file",
+    "onlyFiles": " – only {{count}} files",
+    "close": "Close",
+    "saveAs": "Save as file …",
+    "copy": "Copy to clipboard",
+    "untracked_one": "Without {{count}} new, untracked file – it is only in “Unstaged”.",
+    "untracked_other": "Without {{count}} new, untracked files – they are only in “Unstaged”.",
+    "error": "The patch could not be created",
+    "retry": "Try again",
+    "noText": "No text for a patch",
+    "nothing": "Nothing to export",
+    "noTextHint": "All affected files are binary or not valid UTF-8 – that does not fit into a text patch.",
+    "nothingHint": "There are no changes here that a patch could be made from.",
+    "withAuthor": "· with author and message, as from git format-patch",
+    "filesLabel": "Files in the patch",
+    "skipped_one": "{{count}} file is missing from the patch",
+    "skipped_other": "{{count}} files are missing from the patch",
+    "skippedText": "Binary files and files whose diff is not valid UTF-8 cannot be passed on as text. Send them separately."
+  }
+}

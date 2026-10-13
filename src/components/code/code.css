@@ -1,0 +1,72 @@
+/*
+ * Shared foundation for everything that shows code: CodeMirror editors and the
+ * self-drawn diff lines. Colours come exclusively from the tokens
+ * (--gc-*), so dark and light follow without a rebuild.
+ *
+ * --gc-code-font-size, --gc-code-line-height and --gc-code-tab-size are set by the
+ * host via `codeVars(settings)` (see settings.ts).
+ */
+
+.gc-code {
+  font-family: var(--gc-font-mono);
+  font-size: var(--gc-code-font-size, 0.75rem);
+  line-height: var(--gc-code-line-height, 1.5);
+  tab-size: var(--gc-code-tab-size, 4);
+  font-variant-ligatures: none;
+  font-feature-settings: normal;
+}
+
+/* Syntax roles. Every colour meets AA on bg, surface-sunken and all diff backgrounds. */
+.gc-tok-keyword {
+  color: var(--gc-syntax-keyword);
+}
+.gc-tok-string {
+  color: var(--gc-syntax-string);
+}
+.gc-tok-number {
+  color: var(--gc-syntax-number);
+}
+.gc-tok-comment {
+  color: var(--gc-syntax-comment);
+  font-style: italic;
+}
+.gc-tok-function {
+  color: var(--gc-syntax-function);
+}
+.gc-tok-type {
+  color: var(--gc-syntax-type);
+}
+.gc-tok-property {
+  color: var(--gc-syntax-property);
+}
+.gc-tok-tag {
+  color: var(--gc-syntax-tag);
+}
+.gc-tok-meta {
+  color: var(--gc-syntax-meta);
+}
+.gc-tok-heading {
+  color: var(--gc-syntax-function);
+  font-weight: 600;
+}
+.gc-tok-strong {
+  font-weight: 600;
+}
+.gc-tok-emphasis {
+  font-style: italic;
+}
+.gc-tok-link {
+  color: var(--gc-syntax-function);
+  text-decoration: underline;
+}
+.gc-tok-strike {
+  text-decoration: line-through;
+}
+.gc-tok-invalid {
+  text-decoration: underline wavy var(--gc-danger);
+}
+
+/* A CodeMirror editor fills its host and scrolls by itself. */
+.gc-code-host > .cm-editor {
+  height: 100%;
+}

@@ -1,0 +1,100 @@
+{
+  "fileList": {
+    "loading": "{{label}} wird geladen",
+    "folder_one": "Ordner {{name}}, {{count}} Datei",
+    "folder_other": "Ordner {{name}}, {{count}} Dateien",
+    "layout": "Dateiansicht",
+    "layoutList": "Liste",
+    "layoutTree": "Baum"
+  },
+  "sideSection": {
+    "noActions": "Keine Aktionen verfügbar",
+    "retry": "Erneut versuchen"
+  },
+  "code": {
+    "controlCharacter": "Steuerzeichen",
+    "find": "Suchen",
+    "replace": "Ersetzen",
+    "next": "weiter",
+    "previous": "zurück",
+    "all": "alle",
+    "matchCase": "Groß-/Kleinschreibung",
+    "byWord": "ganzes Wort",
+    "regexp": "Regulärer Ausdruck",
+    "replaceOne": "ersetzen",
+    "replaceAll": "alle ersetzen",
+    "close": "schließen",
+    "currentMatch": "aktueller Treffer",
+    "replacedMatches": "$ Treffer ersetzt",
+    "replacedMatchOnLine": "Treffer in Zeile $ ersetzt",
+    "onLine": "in Zeile",
+    "goToLine": "Gehe zu Zeile",
+    "go": "los",
+    "unchangedLines": "$ unveränderte Zeilen"
+  },
+  "columns": {
+    "refs": "Refs",
+    "graph": "Graph",
+    "message": "Message",
+    "author": "Autor",
+    "date": "Datum",
+    "sha": "SHA"
+  },
+  "header": {
+    "smart": "Nur aktuellen Branch, Upstream und Ziel zeigen",
+    "showColumns": "Spalten zeigen",
+    "noRoom": "{{column}} (kein Platz)",
+    "columnTitle": "Spalte „{{column}}“",
+    "moveLeft": "Nach links schieben",
+    "moveRight": "Nach rechts schieben",
+    "fitLanes": "Breite an die Bahnen anpassen",
+    "resetWidth": "Breite zurücksetzen",
+    "fillsSpace": "Nimmt den freien Platz ein",
+    "resetAll": "Alle Spalten zurücksetzen",
+    "menuLabel": "Spalten des Graphen, Spalte {{column}}",
+    "hintWidth": "Breite: {{left}} / {{right}}",
+    "hintMove": "Verschieben: {{left}} / {{right}} oder ziehen",
+    "hintMenu": "Menü: Enter oder Rechtsklick",
+    "widthOf": "Breite der Spalte {{column}}"
+  },
+  "row": {
+    "kind": {
+      "commit": "Commit",
+      "merge": "Merge-Commit",
+      "wip": "Lokale Änderungen",
+      "stash": "Stash"
+    },
+    "stashUnnamed": "Stash ohne Namen",
+    "wipUnreadable": "Lokale Änderungen nicht lesbar",
+    "noChanges": "Keine Änderungen",
+    "conflicts_one": "1 Konflikt",
+    "conflicts_other": "{{count}} Konflikte",
+    "staged_one": "{{count}} gestaged",
+    "staged_other": "{{count}} gestaged",
+    "changedFiles_one": "1 geänderte Datei",
+    "changedFiles_other": "{{formatted}} geänderte Dateien",
+    "searchHit": "Suchtreffer:",
+    "stashOnBranch": "{{text}} auf {{branch}}",
+    "onBranch": "auf {{branch}}",
+    "noMessage": "Ohne Message",
+    "checkedOut": "{{kind}}, ausgecheckt"
+  },
+  "refs": {
+    "kind": {
+      "local": "Lokaler Branch",
+      "remote": "Remote-Branch",
+      "tag": "Tag"
+    },
+    "twinTitle": "{{kind}}: {{name}} (gleicher Stand wie der lokale Branch)",
+    "pinnedTitle": "„{{name}}“ ist links im Graphen angeheftet",
+    "pinned": "angeheftet:",
+    "ghostRemote": "Enthalten in Remote-Branch {{name}} – der nächste Branch, der diesen Commit enthält",
+    "ghostLocal": "Enthalten in Branch {{name}} – der nächste Branch, der diesen Commit enthält",
+    "containedIn": "enthalten in",
+    "detachedTitle": "HEAD steht auf diesem Commit; es ist kein Branch ausgecheckt (Detached HEAD)",
+    "detachedSr": "(kein Branch ausgecheckt)",
+    "showMore_one": "1 weiteres Label zeigen",
+    "showMore_other": "{{count}} weitere Labels zeigen",
+    "moreLabel": "Weitere Labels dieses Commits"
+  }
+}

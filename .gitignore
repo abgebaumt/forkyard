@@ -1,0 +1,15 @@
+node_modules/
+dist/
+target/
+*.log
+.DS_Store
+src-tauri/target/
+src-tauri/gen/
+.claude/worktrees/
+# Laufzeit-Dateien des E2E-Treibers (PID und Port des Vite-Servers liegen sonst unter target/e2e/)
+scripts/e2e/.vite.*
+src-tauri/binaries/
+# Umgebungsdateien mit Werten gehören nie ins Repository; .env.example nennt nur die Namen.
+.env
+.env.*
+!.env.example

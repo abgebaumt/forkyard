@@ -1,0 +1,49 @@
+[package]
+name = "gitcore"
+version.workspace = true
+description = "Forkyard core: Git calls, database, commands (no Tauri)"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+# Test helpers (TestRepo, TestCore) for this crate's own tests and those of other crates.
+testkit = ["dep:tempfile"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["process", "io-util", "sync", "time", "rt-multi-thread", "macros", "fs", "net"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+notify = "6"
+notify-debouncer-mini = "0.4"
+keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
+uuid = { version = "1", features = ["v4"] }
+thiserror = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+parking_lot = "0.12"
+encoding_rs = "0.8"
+base64 = "0.22"
+regex = "1"
+dirs = "5"
+which = "6"
+# Pseudo-terminal for the built-in terminal (ConPTY on Windows).
+portable-pty = "0.9"
+log = "0.4"
+# HTTP client for the host APIs: blocking, rustls (no OpenSSL),
+# the operating system's root certificates, SOCKS proxy.
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier", "socks-proxy"] }
+tempfile = { version = "3", optional = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_System_Console"] }
+
+[dev-dependencies]
+tempfile = "3"
+# Also enables the "testkit" feature for integration tests under tests/.
+gitcore = { path = ".", features = ["testkit"] }

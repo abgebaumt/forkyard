@@ -1,0 +1,81 @@
+{
+  "copy": {
+    "failed": "Copy failed",
+    "failedText": "The clipboard isn’t available. Select the text and copy it manually.",
+    "command": "Command copied",
+    "output": "Output copied"
+  },
+  "exit": {
+    "noneTip": "Ended without exit code – the app stopped the command early or it was cancelled.",
+    "none": "ended",
+    "okTip": "Exit code 0: successful",
+    "errorTip": "Exit code {{code}}: failed",
+    "error": "Error {{code}}"
+  },
+  "title": "Activity log",
+  "description": "Every Git command the app has run – with duration, exit code and output.",
+  "close": "Close",
+  "closeLabel": "Close activity log",
+  "tabs": "Which log",
+  "tabRepo": "This repository",
+  "tabApp": "App",
+  "empty": {
+    "repo": "As soon as the app runs a Git command in this repository, it shows up here.",
+    "app": "Commands without a repository end up here, for example when cloning or reading the global Git configuration.",
+    "title": "Nothing logged yet"
+  },
+  "search": {
+    "label": "Search activity log",
+    "placeholder": "Search command and output",
+    "clear": "Clear search"
+  },
+  "onlyErrors": "Errors only",
+  "onlyErrorsCount": "Errors only ({{count}})",
+  "count": {
+    "loading": "Loading …",
+    "filtered": "{{shown}} of {{total}} loaded",
+    "loaded_one": "{{count, number}} entry loaded",
+    "loaded_other": "{{count, number}} entries loaded",
+    "all_one": "{{count, number}} entry",
+    "all_other": "{{count, number}} entries"
+  },
+  "refreshing": "Refreshing activity log",
+  "column": {
+    "time": "Time",
+    "command": "Command",
+    "duration": "Duration",
+    "exitCode": "Exit code"
+  },
+  "fresh_one": "{{count}} new entry",
+  "fresh_other": "{{count}} new entries",
+  "loading": "Loading activity log",
+  "loadFailed": "Could not load the activity log",
+  "retry": "Try again",
+  "noMatch": {
+    "title": "No entry matches",
+    "both_one": "None of the {{count, number}} loaded entry matches search and filter.",
+    "both_other": "None of the {{count, number}} loaded entries match search and filter.",
+    "search_one": "None of the {{count, number}} loaded entry matches your search.",
+    "search_other": "None of the {{count, number}} loaded entries match your search.",
+    "errors_one": "None of the {{count, number}} loaded entry matches “Errors only”.",
+    "errors_other": "None of the {{count, number}} loaded entries match “Errors only”."
+  },
+  "resetFilter": "Reset filter",
+  "loadOlder": "Load older entries",
+  "listRepo": "Activity log of this repository",
+  "listApp": "Activity log of the app",
+  "loadingOlder": "Loading older entries",
+  "loadingOlderText": "Loading older entries …",
+  "start": "Start of the activity log. Entries older than 30 days are deleted.",
+  "row": {
+    "collapse": "Collapse output",
+    "expand": "Expand output",
+    "copyCommand": "Copy command",
+    "copyOutput": "Copy output",
+    "noExit": "ended without exit code",
+    "failed": "failed with exit code {{code}}",
+    "success": "successful",
+    "output": "Output of {{command}}",
+    "noOutput": "No output."
+  }
+}

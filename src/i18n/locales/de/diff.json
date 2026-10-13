@@ -1,0 +1,189 @@
+{
+  "before": "Vorher",
+  "after": "Nachher",
+  "size": "Größe",
+  "loading": "Diff lädt",
+  "undo": "Rückgängig",
+  "saveSetting": "Einstellung speichern",
+  "mode": {
+    "hunks": "Hunks",
+    "inline": "Ganze Datei",
+    "split": "Nebeneinander"
+  },
+  "patch": {
+    "stage": "Stagen",
+    "unstage": "Zurücknehmen",
+    "discard": "Verwerfen"
+  },
+  "source": {
+    "unstaged": "Nicht gestaged",
+    "staged": "Gestaged",
+    "commit": "Commit {{sha}}",
+    "startTo": "Anfang … {{to}}",
+    "startToWorktree": "Anfang … Arbeitsverzeichnis",
+    "toWorktree": "{{from}} … Arbeitsverzeichnis",
+    "stash": "Stash {{index}}"
+  },
+  "header": {
+    "formerly": "früher {{path}}",
+    "encoding": "Erkannte Kodierung der Datei",
+    "counts_one": "{{added}} Zeile hinzugefügt, {{removed}} entfernt",
+    "counts_other": "{{added}} Zeilen hinzugefügt, {{removed}} entfernt",
+    "switchFile": "Datei wechseln",
+    "prevFile": "Vorige Datei",
+    "nextFile": "Nächste Datei",
+    "filePosition": "Datei {{index}} von {{total}}",
+    "history": "Historie der Datei",
+    "blame": "Blame",
+    "edit": "Datei bearbeiten",
+    "externalDiff": "Im externen Diff-Tool öffnen",
+    "close": "Diff schließen",
+    "toolbar": "Diff-Ansicht",
+    "mode": "Darstellung",
+    "switchChange": "Change wechseln",
+    "prevChange": "Voriger Change",
+    "nextChange": "Nächster Change",
+    "changePosition": "Change {{index}} von {{total}}",
+    "unfold": "Unveränderte Bereiche ausklappen",
+    "fold": "Unveränderte Bereiche einklappen",
+    "wrap": "Lange Zeilen umbrechen",
+    "ignoreWhitespaceSplit": "Leerraum ignorieren – wirkt nur in „Hunks“ und „Ganze Datei“",
+    "ignoreWhitespace": "Leerraum-Änderungen ignorieren"
+  },
+  "view": {
+    "changesLabel": "Änderungen in {{path}}",
+    "ariaLabel": "Diff von {{path}}",
+    "fellBack": "Die Datei ist zu groß für „{{mode}}“ – gezeigt werden die Hunks."
+  },
+  "conflict": {
+    "title": "Diese Datei steht im Konflikt",
+    "resolve": "Konflikt lösen",
+    "body": "Der Diff zeigt die Datei mit den Konfliktmarkern. Stagen geht erst, wenn der Konflikt gelöst ist."
+  },
+  "whitespace": {
+    "show": "Leerraum einblenden",
+    "ignoredNoStage": "Leerraum wird ignoriert. Stagen geht nur mit dem vollständigen Diff."
+  },
+  "noHunks": {
+    "renamedTitle": "Nur umbenannt",
+    "renamedBody": "Der Inhalt ist gleich geblieben.",
+    "whitespaceTitle": "Nur Leerraum geändert",
+    "whitespaceBody": "Solange Leerraum ignoriert wird, bleibt von dieser Änderung nichts übrig.",
+    "emptyTitle": "Leere Datei",
+    "emptyBody": "Die Datei ist neu und hat noch keinen Inhalt.",
+    "emptyDeletedTitle": "Leere Datei gelöscht",
+    "emptyDeletedBody": "Die Datei hatte keinen Inhalt.",
+    "unchangedTitle": "Keine inhaltlichen Änderungen",
+    "unchangedUnstaged": "In „Nicht gestaged“ gibt es für diese Datei nichts mehr – entweder ist alles gestaged, oder nur der Dateimodus hat sich geändert.",
+    "unchangedStaged": "In „Gestaged“ gibt es für diese Datei nichts mehr – entweder wurde alles zurückgenommen, oder nur der Dateimodus hat sich geändert.",
+    "unchangedMode": "Der Inhalt ist gleich; geändert hat sich nur der Dateimodus (zum Beispiel „ausführbar“)."
+  },
+  "discard": {
+    "hunkTitle": "Hunk in „{{path}}“ verwerfen?",
+    "linesTitle_one": "{{count}} Zeile in „{{path}}“ verwerfen?",
+    "linesTitle_other": "{{count}} Zeilen in „{{path}}“ verwerfen?",
+    "hunkBody": "Die Änderungen dieses Hunks werden aus dem Arbeitsverzeichnis entfernt. Direkt danach lässt sich das über Rückgängig zurückholen.",
+    "linesBody": "Die ausgewählten Zeilen werden im Arbeitsverzeichnis zurückgesetzt. Direkt danach lässt sich das über Rückgängig zurückholen.",
+    "hunkDone": "Hunk verworfen",
+    "linesDone_one": "{{count}} Zeile verworfen",
+    "linesDone_other": "{{count}} Zeilen verworfen"
+  },
+  "stale": {
+    "title": "Die Datei hat sich inzwischen geändert",
+    "body": "Der Diff ist neu geladen. Bitte die Auswahl noch einmal treffen."
+  },
+  "hunkRange": {
+    "line": "Zeile {{start}}",
+    "lines": "Zeilen {{start}}–{{end}}",
+    "old": "{{label}} (alt)"
+  },
+  "line": {
+    "added": "hinzugefügt",
+    "removed": "entfernt",
+    "noNewline": "Kein Zeilenumbruch am Dateiende"
+  },
+  "hunk": {
+    "title": "Hunk {{index}}",
+    "ofTotal": "von {{total}}",
+    "counts": "{{added}} hinzugefügt, {{removed}} entfernt",
+    "stage": "Hunk stagen",
+    "discard": "Hunk verwerfen",
+    "unstage": "Hunk zurücknehmen",
+    "stageN": "Hunk {{index}} stagen",
+    "discardN": "Hunk {{index}} verwerfen",
+    "unstageN": "Hunk {{index}} zurücknehmen"
+  },
+  "fold": {
+    "unchanged_one": "{{count}} Zeile unverändert",
+    "unchanged_other": "{{count}} Zeilen unverändert",
+    "hidden": "ausgeblendet"
+  },
+  "copy": {
+    "done": "In die Zwischenablage kopiert",
+    "failed": "Kopieren fehlgeschlagen",
+    "failedBody": "Die Zwischenablage ließ sich nicht beschreiben."
+  },
+  "selection": {
+    "toolbar": "Ausgewählte Zeilen",
+    "selected_one": "{{count}} Zeile ausgewählt",
+    "selected_other": "{{count}} Zeilen ausgewählt",
+    "stage_one": "{{count}} Zeile stagen",
+    "stage_other": "{{count}} Zeilen stagen",
+    "discard_one": "{{count}} Zeile verwerfen",
+    "discard_other": "{{count}} Zeilen verwerfen",
+    "unstage_one": "{{count}} Zeile zurücknehmen",
+    "unstage_other": "{{count}} Zeilen zurücknehmen",
+    "clear": "Auswahl aufheben"
+  },
+  "menu": {
+    "selectLine": "Zeile auswählen",
+    "deselectLine": "Zeile abwählen",
+    "selectAll": "Alle geänderten Zeilen auswählen",
+    "copyLine": "Zeile kopieren",
+    "copyHunk": "Hunk als Patch-Text kopieren"
+  },
+  "split": {
+    "beforeLabel": "Vorher: {{path}}",
+    "afterLabel": "Nachher: {{path}}",
+    "newFile": "Neue Datei",
+    "deletedFile": "Gelöschte Datei",
+    "newFileLabel": "Neue Datei: {{path}}",
+    "deletedFileLabel": "Gelöschte Datei: {{path}}"
+  },
+  "image": {
+    "failed": "Das Bild lässt sich nicht anzeigen.",
+    "noOld": "Vorher gab es dieses Bild nicht.",
+    "deleted": "Das Bild wurde gelöscht.",
+    "oldAlt": "{{name}}, alte Fassung",
+    "newAlt": "{{name}}, neue Fassung"
+  },
+  "status": {
+    "modified": "Der Inhalt hat sich geändert.",
+    "added": "Die Datei ist neu.",
+    "untracked": "Die Datei ist neu und wird noch nicht verfolgt.",
+    "deleted": "Die Datei wurde gelöscht.",
+    "renamed": "Die Datei wurde umbenannt.",
+    "conflicted": "Die Datei steht im Konflikt."
+  },
+  "binary": {
+    "title": "Binärdatei – kein Text-Diff",
+    "body": "Binäre Inhalte lassen sich nicht zeilenweise vergleichen."
+  },
+  "lfs": {
+    "title": "Git-LFS-Datei",
+    "body": "Im Repository liegt nur ein Zeiger; der Inhalt wird über LFS geholt."
+  },
+  "tooLarge": {
+    "detail": "{{size}}, {{lines}} Zeilen",
+    "title": "Großer Diff ({{detail}})",
+    "load": "Trotzdem laden",
+    "body": "Diffs über 1 MB oder 20.000 Zeilen werden nicht von selbst geladen, damit die Ansicht schnell bleibt."
+  },
+  "error": {
+    "goneTitle": "Die Datei ist nicht mehr da",
+    "goneBody": "<path>{{path}}</path> gibt es an dieser Stelle nicht (mehr) – vielleicht wurde sie gelöscht, umbenannt oder inzwischen committet.",
+    "title": "Der Diff ließ sich nicht laden",
+    "retry": "Erneut versuchen",
+    "backToGraph": "Zurück zum Graphen"
+  }
+}

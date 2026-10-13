@@ -1,0 +1,161 @@
+{
+  "failures": {
+    "authFailed": {
+      "title": "Anmeldung abgelehnt",
+      "hint": "Der Server hat die Zugangsdaten oder den SSH-Schlüssel nicht angenommen. Prüfe sie – und ob du dieses Repository lesen darfst."
+    },
+    "offline": {
+      "title": "Server nicht erreichbar",
+      "hint": "Prüfe die Netzwerkverbindung und den Servernamen in der Adresse."
+    },
+    "notFound": {
+      "title": "Unter dieser Adresse liegt kein Repository",
+      "hint": "Prüfe die Schreibweise. Private Repositories melden sich ohne passende Rechte genauso."
+    },
+    "pathExists": {
+      "title": "Der Ordner ist schon belegt",
+      "hint": "Unter diesem Pfad liegt bereits etwas. Wähle einen Ordner, den es im Repository noch nicht gibt."
+    },
+    "hostKeyUnknown": {
+      "title": "SSH-Server nicht bestätigt",
+      "hint": "Der Fingerabdruck des Servers wurde nicht bestätigt. Vergleiche ihn mit den Angaben des Anbieters und bestätige ihn beim nächsten Versuch."
+    },
+    "timeout": {
+      "title": "Keine Antwort vom Server",
+      "hint": "Die Verbindung kam zu lange nicht voran und wurde beendet. Versuche es später noch einmal."
+    },
+    "notAllowed": {
+      "title": "So lässt sich das Submodul nicht hinzufügen"
+    },
+    "locked": {
+      "title": "Im Repository arbeitet gerade etwas anderes",
+      "hint": "Warte, bis die laufende Aktion fertig ist, und versuche es dann noch einmal."
+    },
+    "generic": "Hinzufügen fehlgeschlagen",
+    "nothingLeft": "Im Repository ist nichts zurückgeblieben.",
+    "field": {
+      "pathExists": "Dort liegt schon etwas.",
+      "notFound": "Hier wurde kein Repository gefunden.",
+      "url": "Diese Quelle nimmt Git so nicht an.",
+      "path": "Diesen Ordner nimmt Git so nicht an."
+    }
+  },
+  "phase": {
+    "counting": "Der Server stellt die Daten zusammen",
+    "compressing": "Der Server packt die Daten",
+    "receiving": "Daten werden übertragen",
+    "resolving": "Die Historie wird zusammengesetzt",
+    "checkout": "Dateien werden ausgecheckt",
+    "connecting": "Verbindung wird aufgebaut",
+    "stopping": "Das Holen wird abgebrochen"
+  },
+  "progress": {
+    "from": "Von",
+    "to": "Nach",
+    "label": "Fortschritt beim Holen des Submoduls",
+    "valueText": "{{label}}, {{percent}} Prozent",
+    "waiting": "Warte auf die Antwort des Servers …"
+  },
+  "dialog": {
+    "title": "Submodul hinzufügen",
+    "description": "Bindet ein anderes Repository in einen Unterordner ein. Festgehalten wird ein bestimmter Commit; der Eintrag liegt danach gestaged bereit.",
+    "continue": "Weiter holen",
+    "stop": "Holen abbrechen",
+    "busy": "Hole Submodul …",
+    "cancel": "Abbrechen",
+    "closeWarning": {
+      "title": "Das Submodul wird noch geholt",
+      "text": "Wenn du jetzt abbrichst, wird der halbe Ordner wieder entfernt und nichts eingetragen."
+    },
+    "outputTitle": "Submodul hinzufügen: Ausgabe von Git",
+    "showOutput": "Ausgabe anzeigen",
+    "cancelled": {
+      "title": "Holen abgebrochen",
+      "text": "Es wurde nichts eingetragen und kein Ordner zurückgelassen. Deine Eingaben stehen noch da."
+    },
+    "url": {
+      "label": "Adresse",
+      "placeholder": "https://host/gruppe/bibliothek.git",
+      "required": "Gib die Adresse des Repositories ein, das eingebunden wird.",
+      "hintLocal": "Einen lokalen Ordner nimmt Git als Submodul nur an, wenn in deiner Git-Konfiguration protocol.file.allow auf „always“ steht.",
+      "hint": "HTTPS oder SSH (git@host:gruppe/bibliothek.git). Diese Adresse steht später in der .gitmodules, für alle sichtbar."
+    },
+    "path": {
+      "label": "Ordner im Repository",
+      "placeholder": "wird aus der Adresse vorgeschlagen",
+      "hint": "Zählt ab der Wurzel des Repositories, z. B. libs/bibliothek. Den Ordner darf es noch nicht geben."
+    },
+    "target": "Wird eingebunden unter:",
+    "targetEmpty": "Adresse und Ordner ergeben zusammen, was wo eingebunden wird."
+  },
+  "path": {
+    "required": "Gib den Ordner an, in dem das Submodul liegen soll.",
+    "absolute": "Der Pfad zählt ab dem Repository – ohne Laufwerk und ohne Schrägstrich am Anfang.",
+    "root": "Das Submodul braucht einen eigenen Ordner im Repository.",
+    "emptySegment": "Zwischen zwei Schrägstrichen fehlt ein Ordnername.",
+    "parent": "„..“ führt aus dem Repository heraus.",
+    "dot": "„.“ ist kein Ordnername.",
+    "git": "„.git“ gehört Git selbst.",
+    "badChar": "Das Zeichen „{{char}}“ geht in Ordnernamen nicht.",
+    "control": "Der Pfad enthält ein Steuerzeichen.",
+    "edges": "„{{segment}}“ darf nicht mit einem Leerzeichen beginnen oder mit Punkt oder Leerzeichen enden.",
+    "reserved": "„{{segment}}“ reserviert Windows für sich.",
+    "dash": "Der Pfad darf nicht mit „-“ beginnen.",
+    "taken": "Unter diesem Pfad liegt schon ein Submodul.",
+    "nested": "Dieser Ordner läge in einem anderen Submodul."
+  },
+  "row": {
+    "outOfSync": "{{head}} statt {{sha}}",
+    "describe": "Submodul {{path}}",
+    "describeOutOfSync": "ausgecheckt {{head}}, eingetragen {{sha}}",
+    "describeBranch": "Branch {{branch}}",
+    "tipRecorded": "Eingetragen: {{sha}}",
+    "tipCheckedOut": " · ausgecheckt: {{head}}",
+    "tipTracking": "Folgt dem Branch {{branch}}",
+    "tipName": "Name in der .gitmodules: {{name}}"
+  },
+  "offer": {
+    "title_one": "Ein Submodul ist noch nicht geholt",
+    "title_other": "{{count}} Submodule sind noch nicht geholt",
+    "description_one": "Sein Ordner ist bisher leer: {{paths}}. Initialisieren holt die eingetragenen Commits.",
+    "description_other": "Ihre Ordner sind bisher leer: {{paths}}. Initialisieren holt die eingetragenen Commits.",
+    "action": "Jetzt initialisieren"
+  },
+  "menu": {
+    "busy": "Submodule werden gerade geholt",
+    "init": "Initialisieren",
+    "initHint": "holt den eingetragenen Commit",
+    "update": "Aktualisieren",
+    "upToDate": "steht schon auf dem eingetragenen Commit",
+    "updateHint": "checkt den eingetragenen Commit aus",
+    "open": "Als Repository öffnen",
+    "initFirst": "erst initialisieren",
+    "copyUrl": "URL kopieren",
+    "urlWhat": "URL des Submoduls",
+    "noUrl": "keine URL eingetragen",
+    "copyPath": "Pfad kopieren",
+    "pathWhat": "Pfad des Submoduls",
+    "updateAll": "Alle aktualisieren",
+    "add": "Submodul hinzufügen …",
+    "remove": "Submodul entfernen …",
+    "removeTip": "Submodul „{{path}}“ entfernen"
+  },
+  "section": {
+    "title": "Submodule",
+    "listLabel": "Submodule: {{summary}}",
+    "loadError": "Submodule lassen sich nicht laden",
+    "add": "Hinzufügen",
+    "empty": "Keine Submodule",
+    "pendingTip_one": "{{count}} Submodul ist noch nicht geholt; die Ordner sind leer.",
+    "pendingTip_other": "{{count}} Submodule sind noch nicht geholt; die Ordner sind leer.",
+    "pending": "{{count}} noch nicht geholt",
+    "none": "keine Submodule",
+    "running": "läuft schon",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "alwaysOpen": "beim Filtern immer offen",
+    "hide": "Sektion ausblenden",
+    "hideHint": "zurück über das Menü einer anderen Sektion",
+    "fetching": "Submodule werden geholt"
+  }
+}

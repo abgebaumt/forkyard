@@ -1,0 +1,51 @@
+{
+  "securityKey": "Security key",
+  "fileMissing": "File missing",
+  "save": "Save signing setting",
+  "title": "Sign commits",
+  "loadError": "The signing settings could not be loaded",
+  "blocked": "Choose an SSH key first – without it, every commit fails.",
+  "noKey": "No key chosen",
+  "fromGitConfig": "From the Git configuration: {{key}}",
+  "on": "Signing on",
+  "off": "Signing off",
+  "repoIntro": "Applies only to this repository (.git/config) and takes precedence over the global setting.",
+  "globalIntro": "Applies to all repositories that don't set their own (global Git configuration). Every commit from this app is signed – just like in the terminal.",
+  "sameAsGlobal": " Currently the same as the global setting applies here.",
+  "format": {
+    "title": "Format",
+    "description": "What signs the commits (gpg.format). Changing the format means choosing the key again."
+  },
+  "sshKey": {
+    "title": "SSH key",
+    "none": "No SSH key added yet. Create one under “SSH keys” on the left or add an existing one – then it can be chosen here.",
+    "description": "The public key whose private counterpart signs the commits (user.signingKey). You can choose from the keys under “SSH keys”."
+  },
+  "certificate": {
+    "title": "Certificate",
+    "description": "Identifier of the certificate for gpgsm (user.signingKey). Empty: gpgsm uses the certificate for your email address.",
+    "placeholder": "Certificate for the email address"
+  },
+  "keyId": {
+    "title": "Key ID",
+    "description": "ID or fingerprint of your GPG key (user.signingKey), e.g. from “gpg --list-secret-keys”. Empty: GPG uses the key for your email address.",
+    "placeholder": "Key for the email address"
+  },
+  "noSpaces": "An identifier contains no spaces.",
+  "notSaved": "Not saved.",
+  "enable": {
+    "title": "Sign commits",
+    "ssh": "Every new commit gets an SSH signature (commit.gpgSign). Git only shows it as “valid” once gpg.ssh.allowedSignersFile knows your key – otherwise the commit shows “cannot be verified”.",
+    "other": "Every new commit is signed (commit.gpgSign). If the program cannot ask for the passphrase, the commit fails with Git's message."
+  },
+  "program": {
+    "title": "Program",
+    "description": "Read-only: the program Git starts for signing ({{config}}). For now it can only be changed with git config.",
+    "default": "{{program}} (Git default)"
+  },
+  "global": {
+    "summary": "Global setting: {{state}}, {{format}}.",
+    "summaryNoKey": "Global setting: {{state}}, {{format}}, without a fixed key.",
+    "likeGlobal": "Like global"
+  }
+}

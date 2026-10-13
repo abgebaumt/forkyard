@@ -1,0 +1,560 @@
+{
+  "title": "Settings",
+  "search": "Search settings",
+  "nav": {
+    "label": "Settings sections",
+    "list": "Sections",
+    "appliesNow": "Changes apply immediately.",
+    "close": "Close",
+    "closeLabel": "Close settings",
+    "own_one": "{{count}} overridden",
+    "own_other": "{{count}} overridden"
+  },
+  "levels": {
+    "global": "Global",
+    "profile": "Profile · {{name}}",
+    "profileTitle": "Profile {{name}}",
+    "switch": "Switch",
+    "project": "Project · {{name}}",
+    "help": "Help"
+  },
+  "scope": {
+    "global": "Global · in all profiles",
+    "profile": "Only in profile {{name}}",
+    "project": "Only in {{repo}}",
+    "projectOverrides": " · overrides {{profile}}"
+  },
+  "repoFallback": "Repository",
+  "sections": {
+    "appearance": {
+      "label": "Appearance",
+      "keywords": "Theme|Dark|Light|Zoom|Toolbar labels|Date format|Avatars|Initials|Language|Sprache|English|Deutsch"
+    },
+    "diff": {
+      "label": "Diff and editor",
+      "keywords": "Diff view|Word wrap|Ignore whitespace|Font size|Tab width"
+    },
+    "external": {
+      "label": "External programs",
+      "keywords": "Editor|Terminal|File manager|Diff tool|Merge tool"
+    },
+    "notifications": {
+      "label": "Notifications",
+      "keywords": "On fetch results|On background errors"
+    },
+    "identity": {
+      "label": "Profile and identity",
+      "keywords": "Profile|Profile name|Color|Author name|Email|gitconfig"
+    },
+    "git": {
+      "label": "Git behavior",
+      "keywords": "Auto-fetch|Prune stale remote branches|Default pull mode|Push after commit|Squash on merge|.orig files|Default branch name|Commits on first load|Load more while scrolling|Remember tabs"
+    },
+    "ssh": {
+      "label": "SSH keys",
+      "keywords": "SSH keys|SSH agent|Passphrase"
+    },
+    "credentials": {
+      "label": "Credentials",
+      "keywords": "Password|HTTPS|Keychain"
+    },
+    "integrations": {
+      "label": "GitHub and GitLab",
+      "keywords": "GitHub|GitLab|Account|Token"
+    },
+    "network": {
+      "label": "Network",
+      "keywords": "Proxy|Custom CA bundle|Certificate"
+    },
+    "pIdentity": {
+      "label": "Identity and access",
+      "keywords": "Author name|Email|SSH key|Account"
+    },
+    "pGit": {
+      "label": "Pull and fetch",
+      "keywords": "Pull mode|Auto-fetch"
+    },
+    "pFiles": {
+      "label": "Files and hooks",
+      "keywords": "Hooks folder|Commit template|Encoding"
+    },
+    "about": {
+      "label": "About",
+      "keywords": "Version|License|Privacy"
+    }
+  },
+  "row": {
+    "changed": "Changed",
+    "reset": "Reset",
+    "saved": "Saved",
+    "loading": "Loading settings",
+    "retry": "Try again",
+    "browse": "Browse"
+  },
+  "inherit": {
+    "own": "Own value",
+    "resetTo": "Reset to {{source}}",
+    "from": "From {{source}}:",
+    "overrideLabel": "{{title}}: override",
+    "override": "Override"
+  },
+  "loadError": {
+    "settings": "The settings could not be loaded",
+    "profiles": "The profiles could not be loaded",
+    "noProfile": "There is no profile.",
+    "about": "The app information could not be loaded",
+    "repoSettings": "The settings of this repository could not be loaded",
+    "credentials": "The credentials could not be loaded",
+    "sshKeys": "The SSH keys could not be loaded"
+  },
+  "save": {
+    "setting": "Save setting",
+    "repoSetting": "Save repository setting",
+    "notAllowed": "This value is not allowed.",
+    "notSaved": "Not saved."
+  },
+  "check": {
+    "email": "This is not an email address – the @ or a part before or after it is missing.",
+    "branchEmpty": "The name must not be empty.",
+    "branchSpaces": "Branch names cannot contain spaces.",
+    "branchChars": "Not allowed: “..”, “@{” and the characters ~ ^ : ? * [ \\.",
+    "branchEdges": "The name cannot start with “-”, “/” or “.” and cannot end with “/”, “.” or “.lock”.",
+    "quote": "A quotation mark is not closed."
+  },
+  "pullModes": {
+    "ff": "Fast-forward if possible",
+    "ffOnly": "Fast-forward only",
+    "rebase": "Rebase"
+  },
+  "git": {
+    "title": "Git behavior",
+    "intro": "Defaults for all repositories in this profile. A repository can set its own pull mode and auto-fetch.",
+    "fetchCard": "Fetching",
+    "autoFetch": {
+      "title": "Auto-fetch",
+      "description": "Regularly fetches all remotes of the open repositories in the background – without asking, using saved credentials. 0 turns it off; per repository it can be turned off in its settings."
+    },
+    "autoPrune": {
+      "title": "Prune stale remote branches",
+      "description": "On fetch, removes local references to branches that no longer exist on the remote."
+    },
+    "pullMode": "Default pull mode",
+    "commitCard": "Commit and merge",
+    "pushAfterCommit": {
+      "title": "Push after commit",
+      "description": "The “Push afterwards” checkbox in the commit panel is then checked by default."
+    },
+    "squashOnMerge": {
+      "title": "Squash on merge",
+      "description": "When merging, combines all commits of the branch into a single change instead of creating a merge commit."
+    },
+    "deleteOrigFiles": {
+      "title": "Delete .orig files after resolving a conflict",
+      "description": "Removes the backup copies that merge tools leave next to a conflicted file."
+    },
+    "repoCard": "New repositories and graph",
+    "defaultBranch": {
+      "title": "Default branch name",
+      "description": "The name of the first branch in repositories you create here."
+    },
+    "initialCommits": {
+      "title": "Commits on first load",
+      "description": "How many commits the graph shows right after opening (at least 500). More takes longer to start."
+    },
+    "lazyLoad": {
+      "title": "Load more while scrolling",
+      "description": "Loads older commits as soon as you reach the end of the graph."
+    },
+    "rememberTabs": {
+      "title": "Remember tabs",
+      "description": "Reopens the last tabs of this profile on startup and when switching to it."
+    }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "intro": "How the interface looks, the same in all profiles. Everything here takes effect immediately.",
+    "themeCard": "Theme",
+    "theme": {
+      "title": "Theme",
+      "description": "“System” follows the light or dark setting of your operating system.",
+      "dark": "Dark",
+      "light": "Light",
+      "system": "System"
+    },
+    "uiCard": "Interface",
+    "language": {
+      "title": "Language / Sprache",
+      "description": "Language of the interface. “System” follows the language of your operating system. Changing it reloads the window.",
+      "system": "System"
+    },
+    "zoom": {
+      "title": "Zoom",
+      "description": "Enlarges or shrinks the whole interface (80 to 200 %). Also works with {{mod}} and plus or minus. In a small window, only as much zoom applies as fits – make the window larger for more."
+    },
+    "dateFormat": {
+      "title": "Date format",
+      "description": "How times appear in the graph and in the commit details. Example: {{example}}",
+      "relative": "Relative",
+      "local": "Local",
+      "iso": "ISO"
+    },
+    "toolbarLabels": {
+      "title": "Toolbar labels",
+      "description": "Shows what each toolbar icon does below it."
+    },
+    "authorsCard": "Authors",
+    "showInitials": {
+      "title": "Initials instead of avatars",
+      "description": "Shows authors as colored initials instead of loading their avatars from GitHub (looked up by commit email address)."
+    }
+  },
+  "diff": {
+    "title": "Diff and editor",
+    "intro": "How changes and files are displayed, the same in all profiles.",
+    "diffCard": "Diff",
+    "mode": {
+      "title": "Diff view",
+      "description": "A diff opens in this view. You can switch at any time in the diff itself.",
+      "hunks": "Hunks",
+      "inline": "Whole file",
+      "split": "Side by side"
+    },
+    "wordWrap": {
+      "title": "Word wrap",
+      "description": "Wraps long lines instead of scrolling them horizontally."
+    },
+    "ignoreWhitespace": {
+      "title": "Ignore whitespace",
+      "description": "Hides changes that only affect spaces, tabs or line endings."
+    },
+    "textCard": "Text",
+    "fontSize": {
+      "title": "Font size",
+      "description": "Applies to the diff, editor and conflict tool (8 to 40 pixels)."
+    },
+    "tabSize": {
+      "title": "Tab width",
+      "description": "How many columns a tab takes up (1 to 16)."
+    }
+  },
+  "external": {
+    "title": "External programs",
+    "intro": "Command lines for “Open in …”. <code>{path}</code> stands for the file or folder, <code>{repo}</code> for the repository. An empty field uses your system's default, or your Git configuration for the diff and merge tool.",
+    "card": "Open with",
+    "example": "{{description}} Example: {{example}}",
+    "systemDefault": "System default",
+    "browseLabel": "{{tool}}: browse for program",
+    "editor": {
+      "title": "Editor",
+      "description": "Opens a file or the whole repository in your editor.",
+      "pick": "Choose editor"
+    },
+    "terminal": {
+      "title": "Terminal",
+      "description": "Opens a terminal in the repository folder; {path} is the folder here.",
+      "pick": "Choose terminal"
+    },
+    "diffTool": {
+      "title": "Diff tool",
+      "description": "Shows the diff of a file in a separate program (“Open in external diff tool” in the diff and the file menu). {local} is the old version, {remote} the new one; if both are missing, the app appends them. Empty: git difftool with the tool from your Git configuration.",
+      "pick": "Choose diff tool",
+      "placeholder": "git difftool (diff.tool from your Git configuration)"
+    },
+    "mergeTool": {
+      "title": "Merge tool",
+      "description": "Opens a conflicted file in a separate program instead of the built-in conflict tool. {base} is the common ancestor, {local} your version, {remote} the incoming one, {merged} the file the result goes into; without placeholders the program only gets {merged}. Empty: git mergetool with the tool from your Git configuration.",
+      "pick": "Choose merge tool",
+      "placeholder": "git mergetool (merge.tool from your Git configuration)"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "Which messages appear at the bottom right without you having started anything.",
+    "card": "Notify",
+    "onFetch": {
+      "title": "On fetch results",
+      "description": "Notifies you when an auto-fetch has found new commits or branches."
+    },
+    "onError": {
+      "title": "On background errors",
+      "description": "Notifies you when a background task fails unexpectedly. If auto-fetch only lacks the network or a login, it stays quiet and the error goes to the log. You always see errors of your own actions."
+    }
+  },
+  "profiles": {
+    "save": "Save profile",
+    "gone": "The profile no longer exists.",
+    "title": "Profile and identity",
+    "intro": "The name and email address your commits are signed with.",
+    "noAuthor": {
+      "title": "No author set",
+      "both": "Name and email are missing.",
+      "name": "The name is missing.",
+      "email": "The email address is missing.",
+      "hint": "Git cannot create commits without both. Enter them below."
+    },
+    "preview": "Identity preview",
+    "noName": "No name",
+    "noEmail": "No email address",
+    "activeTitle": "This profile is currently active",
+    "name": {
+      "title": "Profile name",
+      "description": "Only for you, to tell profiles apart – such as “Work” and “Personal”.",
+      "empty": "The profile name must not be empty.",
+      "missing": "Give the profile a name."
+    },
+    "authorName": {
+      "title": "Author name",
+      "description": "Appears as the author of every commit you create.",
+      "placeholder": "First name Last name"
+    },
+    "email": {
+      "title": "Email",
+      "description": "Hosts use this address to link commits to your account.",
+      "placeholder": "name@example.com"
+    },
+    "syncGitconfig": {
+      "title": "Write name and email to the global gitconfig",
+      "description": "Sets both as user.name and user.email in your global Git configuration – then they also apply in the terminal and other programs. When off, the file stays as it is and Git uses what is there."
+    },
+    "list": "Profiles",
+    "listIntro": "Each profile has its own identity, tabs and settings.",
+    "new": "New profile",
+    "lastBlocked": "The last profile cannot be deleted.",
+    "activeBlocked": "The active profile cannot be deleted. Switch to another one first.",
+    "delete": {
+      "title": "Delete profile “{{name}}”?",
+      "body": "Its settings, its tab list, the added SSH keys and the saved credentials are removed. Repositories and key files on disk stay where they are. This cannot be undone.",
+      "confirm": "Delete profile",
+      "action": "Delete profile",
+      "done": "Profile “{{name}}” deleted",
+      "label": "Delete profile {{name}}"
+    },
+    "noAuthorSet": "No author set",
+    "active": "Active",
+    "switch": "Switch",
+    "switchLabel": "Switch to profile {{name}}",
+    "create": {
+      "action": "Create profile",
+      "done": "Profile “{{name}}” created",
+      "doneHint": "Use “Switch” in the list to make it the active profile.",
+      "title": "New profile",
+      "description": "A second identity with its own tabs and settings, for example for work.",
+      "cancel": "Cancel",
+      "submit": "Create profile"
+    }
+  },
+  "about": {
+    "title": "About",
+    "intro": "What is running here and where it stores its data – useful for bug reports.",
+    "notFound": "not found",
+    "summary": {
+      "git": "Git {{version}}",
+      "platform": "Platform {{name}}",
+      "dataDir": "Data directory {{path}}"
+    },
+    "copied": "Information copied",
+    "copyFailed": "Copy failed",
+    "clipboardUnavailable": "The clipboard is not available.",
+    "copy": "Copy information",
+    "tagline": "Desktop Git client. Works locally, without an account with us and without telemetry.",
+    "appVersion": "App version",
+    "gitVersion": "Git version",
+    "minimum": "at least {{version}}",
+    "gitPath": "Git path",
+    "platform": "Platform",
+    "dataDir": "Data directory",
+    "reveal": "{{revealInFileManager}}",
+    "dataDirHint": "The data directory holds settings, profiles, tab lists and the log. Your repositories are not stored there. Tokens, passwords and API keys are not stored there either, but in the operating system's keychain.",
+    "privacyTitle": "What leaves this computer",
+    "privacyGit": "Git connections to the remotes of your repositories: clone, fetch, pull, push, submodules and LFS. This includes auto-fetch – by default every minute for every open repository, without asking and using saved credentials. To turn it off: Git behavior › Auto-fetch to 0, or per repository.",
+    "privacyHosts": "Requests to GitHub or GitLab if you have connected an account there – only for pull requests and issues, with your own token.",
+    "privacyLinks": "Links from READMEs, pull requests and issues are opened by the system browser, and only after asking.",
+    "privacyRest": "Nothing else: no telemetry, no update checks, no images or fonts from the internet. Forkyard only runs commands a repository brings along after you have agreed.",
+    "privacyAvatars": "Avatars of commit authors from GitHub (avatars.githubusercontent.com): the commit email address is sent to look up the account; results are kept for a week. Turn off: Appearance › Initials instead of avatars."
+  },
+  "project": {
+    "intro": "Applies only to <strong>{{repo}}</strong> and takes precedence over the profile.",
+    "openRepo": "the open repository",
+    "notSet": "not set",
+    "identity": {
+      "title": "Identity and access",
+      "commitCard": "Commit identity",
+      "authorName": "Name for commits in this repository; stored in its .git/config.",
+      "authorEmail": "Email address for commits in this repository; stored in its .git/config.",
+      "accessCard": "Access",
+      "sshKeyTitle": "SSH key",
+      "sshKey": "Only applies to fetch, pull and push from the app, even if the profile uses the SSH agent. A core.sshCommand of this repository stays the basis; the key is appended.",
+      "agentFallback": "SSH agent or your SSH configuration",
+      "noKeys": "No SSH key has been added to the profile yet.",
+      "keyMissing": "{{label}} (file missing)",
+      "account": "Account",
+      "accountDescription": "For pull requests, issues and avatars. The profile has one account per host; it applies to all repositories there.",
+      "accountFromProfile": "{{account}} · from profile",
+      "noAccount": "No account for this remote"
+    },
+    "git": {
+      "title": "Pull and fetch",
+      "card": "Sync",
+      "pullMode": "Pull mode",
+      "pullModeDescription": "How the pull button works in this repository.",
+      "autoFetchOffInProfile": "Auto-fetch is off in the profile (interval 0 under “Git behavior”); here it can only be turned off additionally.",
+      "autoFetchDescription": "When off, the app only fetches the remotes here when you click fetch or pull yourself – good for very large repositories.",
+      "off": "off",
+      "every": "on, every {{minutes}} min"
+    },
+    "files": {
+      "title": "Files and hooks",
+      "card": "Files",
+      "encoding": "Encoding",
+      "encodingDescription": "The app reads and writes text files that are not recognizable as UTF-8 in this encoding.",
+      "hooks": "Hooks folder",
+      "hooksDescription": "Folder with the Git hooks of this repository (core.hooksPath), relative to the repository or absolute. Empty = .git/hooks.",
+      "hooksBrowse": "Browse for hooks folder",
+      "hooksPick": "Choose hooks folder",
+      "template": "Commit template",
+      "templateDescription": "Text file whose content appears as a draft in every new commit message (commit.template). Empty = no template.",
+      "templatePlaceholder": "no template",
+      "templateBrowse": "Browse for commit template",
+      "templatePick": "Choose commit template"
+    },
+    "encodings": {
+      "windows1252": "Windows-1252 (Western European)",
+      "windows1250": "Windows-1250 (Central European)",
+      "windows1251": "Windows-1251 (Cyrillic)",
+      "ibm866": "IBM 866 (Cyrillic, DOS)",
+      "shiftJis": "Shift JIS (Japanese)",
+      "eucJp": "EUC-JP (Japanese)",
+      "gbk": "GBK (Chinese, simplified)",
+      "big5": "Big5 (Chinese, traditional)",
+      "eucKr": "EUC-KR (Korean)"
+    }
+  },
+  "credentials": {
+    "kind": {
+      "password": "Password or token",
+      "passphrase": "Passphrase"
+    },
+    "forget": {
+      "title_one": "Forget the saved entry?",
+      "title_other": "Forget all {{count}} saved entries?",
+      "body": "The passwords, tokens and passphrases of this profile are deleted from the system keychain. The app will ask for them again on the next fetch, pull or push.",
+      "confirm": "Forget all",
+      "action": "Forget credentials",
+      "none": "There was nothing to forget",
+      "done_one": "{{count}} entry forgotten",
+      "done_other": "{{count}} entries forgotten"
+    },
+    "title": "Credentials",
+    "forgetAll": "Forget all",
+    "intro": "What the app has saved for remotes. The secrets themselves are stored in your system keychain and are never shown here.",
+    "noKeyring": {
+      "title": "No keychain available",
+      "body": "So the app cannot save anything and asks again for every connection. On Linux, a running Secret Service (GNOME Keyring or KWallet) is usually missing. A Git credential helper or an SSH agent still work."
+    },
+    "list": "Saved",
+    "listCount": "Saved ({{count}})",
+    "loading": "Loading credentials",
+    "empty": {
+      "title": "Nothing saved",
+      "body": "When a remote asks for a password, token or passphrase, you can check “Save in the system keychain” in the dialog. The entry then appears here."
+    },
+    "columns": {
+      "host": "Host",
+      "user": "User",
+      "kind": "Type",
+      "saved": "Saved on"
+    }
+  },
+  "ssh": {
+    "securityKey": "Security key",
+    "noPublicKey": "No readable public key",
+    "noPublicKeyHint": "The file {{path}} is missing or empty.",
+    "copied": "Public key copied",
+    "copiedHint": "Paste it at your host under “SSH keys”.",
+    "copyFailed": "Copy failed",
+    "copyFailedHint": "The clipboard is not available. Select the key text and copy it manually.",
+    "import": {
+      "pickPrivate": "Choose private SSH key",
+      "title": "Add key",
+      "label": "Label",
+      "confirm": "Add",
+      "action": "Add key",
+      "askPublic": "Choose public key?",
+      "noPub": "There is no .pub file next to the private key.",
+      "pickFile": "Choose file",
+      "pickPublic": "Choose public SSH key (.pub)",
+      "done": "Key “{{label}}” added"
+    },
+    "pickExisting": "Choose existing",
+    "generate": "Generate key",
+    "title": "SSH keys",
+    "intro": "Keys Git uses to sign in to your remotes over SSH.",
+    "useAgent": {
+      "title": "Use the system SSH agent",
+      "description": "When on, your SSH agent and SSH configuration choose the key. When off, the app always uses the default key from this list."
+    },
+    "noDefault": {
+      "title": "No default key chosen",
+      "body": "The SSH agent is off, but no key is marked as default. Choose “Use as default” below."
+    },
+    "list": "Keys",
+    "listCount": "Keys ({{count}})",
+    "loading": "Loading keys",
+    "empty": {
+      "title": "No key yet",
+      "intro": "You need one for remotes with an SSH address (git@…). In three steps:",
+      "step1": "<strong>Generate</strong> – “Generate key” creates a new pair in the SSH folder.",
+      "step2": "<strong>Copy</strong> – “Copy public key” puts it on the clipboard.",
+      "step3": "<strong>Add</strong> – paste it at your host in the account settings under “SSH keys”."
+    },
+    "makeDefault": {
+      "action": "Set default key",
+      "done": "“{{label}}” is now the default key",
+      "doneAgent": "It is used as soon as you turn off “Use the system SSH agent”."
+    },
+    "remove": {
+      "title": "Remove key “{{label}}”?",
+      "body": "Only the entry in this list disappears. The files stay where they are:",
+      "confirm": "Remove entry",
+      "action": "Remove key",
+      "done": "Entry “{{label}}” removed – the files are still there"
+    },
+    "default": "Default",
+    "withPassphrase": "With passphrase",
+    "withoutPassphrase": "Without passphrase",
+    "fileMissing": "File missing",
+    "fileMissingHint": "At least one of the two key files is gone.",
+    "fingerprint": "Fingerprint",
+    "fingerprintUnknown": "cannot be determined",
+    "private": "Private",
+    "public": "Public",
+    "publicKeyLabel": "Public key {{label}}",
+    "copyPublic": "Copy public key",
+    "useAsDefault": "Use as default",
+    "removeEntry": "Remove",
+    "dialog": {
+      "labelMissing": "Give the key a label, e.g. “Work laptop”.",
+      "fileEmpty": "The file name must not be empty.",
+      "fileChars": "Only a file name, not a path – without \\ / : * ? \" < > |.",
+      "filePub": "Without “.pub” – that is the name of the public key file.",
+      "passphraseShort": "At least 5 characters – or leave it empty.",
+      "repeatMismatch": "The two entries do not match.",
+      "done": "Key “{{label}}” generated",
+      "doneHint": "Now copy the public key and add it at your host.",
+      "fileExists": "A file with this name already exists in the SSH folder. Choose another one – nothing is overwritten.",
+      "failed": "The key could not be generated.",
+      "title": "Generate SSH key",
+      "description": "Creates a new key pair (ed25519) in your SSH folder. Existing files are never overwritten.",
+      "cancel": "Cancel",
+      "notCreated": "The key was not generated",
+      "label": "Label",
+      "labelHint": "Shown in this list. The public key ends with the email of your profile – without an email, the label.",
+      "labelPlaceholder": "e.g. Work laptop",
+      "fileName": "File name",
+      "fileNameHint": "The public key gets the same name with “.pub”.",
+      "passphrase": "Passphrase (optional)",
+      "passphraseHint": "Protects the file in case someone copies it. Empty = none.",
+      "repeat": "Repeat passphrase"
+    }
+  }
+}

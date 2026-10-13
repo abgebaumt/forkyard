@@ -1,0 +1,80 @@
+{
+  "ariaLabel": "Blame von {{path}}",
+  "prefix": "Blame",
+  "loading": "Blame von {{name}} wird geladen",
+  "uncommitted": "Noch nicht committet",
+  "noMessage": "(ohne Message)",
+  "history": "Historie",
+  "file": "Datei",
+  "viewFile": "Datei ansehen",
+  "line": "Zeile {{line}}",
+  "lineRange": "Zeilen {{from}}–{{to}}",
+  "stand": {
+    "worktree": "Arbeitsverzeichnis",
+    "worktreeHint": "mit uncommitteten Zeilen",
+    "head": "letzter Commit (HEAD)",
+    "before": "vor {{sha}}",
+    "commitsLabel": "Stand eines Commits dieser Datei",
+    "historyLoading": "Historie wird geladen …",
+    "noCommits": "Keine Commits zu dieser Datei",
+    "pickerLabel": "Stand: {{stand}} – anderen Stand wählen",
+    "label": "Stand"
+  },
+  "parent": {
+    "noLine": "keine Zeile gewählt",
+    "noEarlier": "kein früherer Stand",
+    "neverCommitted": "die Datei wurde noch nie committet",
+    "createdHere": "Die Datei entstand in diesem Commit",
+    "firstCommit": "erster Commit, davor gab es nichts",
+    "tip": "Blame des Elternstands: Was stand hier vorher?",
+    "tipDisabled": "Was stand hier vorher? – {{reason}}",
+    "label": "Was stand hier vorher?"
+  },
+  "error": {
+    "goneWorktree": "Die Datei gibt es im Arbeitsverzeichnis nicht",
+    "goneStand": "Im Stand {{stand}} gibt es diese Datei nicht",
+    "unsupported": "Für diese Datei gibt es kein Blame",
+    "failed": "Blame ließ sich nicht berechnen",
+    "retry": "Erneut versuchen",
+    "showHistory": "Historie zeigen",
+    "back": "Zurück"
+  },
+  "empty": {
+    "title": "Leere Datei",
+    "body": "Ohne Zeilen gibt es nichts zuzuordnen."
+  },
+  "card": {
+    "close": "Karte mit dem vollen Commit schließen",
+    "open": "Den ganzen Commit dieser Zeile zeigen",
+    "ariaLabel": "Commit dieser Zeile zeigen",
+    "short": "Commit",
+    "announce": "Commit {{sha}}: {{summary}}, {{author}}, {{when}}",
+    "uncommittedKeyboard": "Diese Zeilen sind im Arbeitsverzeichnis geändert. Enter zeigt die lokalen Änderungen.",
+    "uncommittedMouse": "Diese Zeilen sind im Arbeitsverzeichnis geändert. Klick zeigt die lokalen Änderungen.",
+    "hintKeyboard": "Enter zeigt den Commit im Graphen · P den Stand davor · Esc schließt",
+    "hintMouse": "Klick zeigt den Commit im Graphen"
+  },
+  "reveal": {
+    "local": "Lokale Änderungen ansehen",
+    "commit": "Commit im Graphen zeigen",
+    "ariaLabel": "Im Graphen zeigen",
+    "short": "Im Graphen"
+  },
+  "legend": {
+    "noLines": "keine Zeilen",
+    "range": "{{from}} bis {{to}}",
+    "lines_one": "{{formatted}} Zeile",
+    "lines_other": "{{formatted}} Zeilen",
+    "commits_one": "{{formatted}} Commit",
+    "commits_other": "{{formatted}} Commits",
+    "colorBy": "Farbe nach",
+    "colorByLabel": "Farbe des Balkens nach",
+    "author": "Autor",
+    "age": "Alter",
+    "authorsLabel": "Autoren und ihre Zeilen",
+    "more": "+{{count}} weitere",
+    "ageScaleLabel": "Farbe nach Alter des Commits: kräftig ist neu ({{newest}}), blass ist alt ({{oldest}})",
+    "new": "neu",
+    "old": "alt"
+  }
+}

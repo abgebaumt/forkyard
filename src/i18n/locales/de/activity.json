@@ -1,0 +1,81 @@
+{
+  "copy": {
+    "failed": "Kopieren fehlgeschlagen",
+    "failedText": "Die Zwischenablage ist nicht erreichbar. Markiere den Text und kopiere ihn von Hand.",
+    "command": "Befehl kopiert",
+    "output": "Ausgabe kopiert"
+  },
+  "exit": {
+    "noneTip": "Ohne Exit-Code beendet – die App hat den Befehl vorzeitig gestoppt oder er wurde abgebrochen.",
+    "none": "beendet",
+    "okTip": "Exit-Code 0: erfolgreich",
+    "errorTip": "Exit-Code {{code}}: fehlgeschlagen",
+    "error": "Fehler {{code}}"
+  },
+  "title": "Protokoll",
+  "description": "Jeder Git-Befehl, den die App ausgeführt hat – mit Dauer, Exit-Code und Ausgabe.",
+  "close": "Schließen",
+  "closeLabel": "Protokoll schließen",
+  "tabs": "Welches Protokoll",
+  "tabRepo": "Dieses Repository",
+  "tabApp": "App",
+  "empty": {
+    "repo": "Sobald die App in diesem Repository einen Git-Befehl ausführt, steht er hier.",
+    "app": "Hier landen Befehle ohne Repository-Bezug, etwa beim Klonen oder beim Lesen der globalen Git-Konfiguration.",
+    "title": "Noch nichts protokolliert"
+  },
+  "search": {
+    "label": "Protokoll durchsuchen",
+    "placeholder": "In Befehl und Ausgabe suchen",
+    "clear": "Suche leeren"
+  },
+  "onlyErrors": "Nur Fehler",
+  "onlyErrorsCount": "Nur Fehler ({{count}})",
+  "count": {
+    "loading": "Lädt …",
+    "filtered": "{{shown}} von {{total}} geladenen",
+    "loaded_one": "{{count, number}} Eintrag geladen",
+    "loaded_other": "{{count, number}} Einträge geladen",
+    "all_one": "{{count, number}} Eintrag",
+    "all_other": "{{count, number}} Einträge"
+  },
+  "refreshing": "Protokoll wird aktualisiert",
+  "column": {
+    "time": "Zeit",
+    "command": "Befehl",
+    "duration": "Dauer",
+    "exitCode": "Exit-Code"
+  },
+  "fresh_one": "{{count}} neuer Eintrag",
+  "fresh_other": "{{count}} neue Einträge",
+  "loading": "Protokoll wird geladen",
+  "loadFailed": "Das Protokoll ließ sich nicht laden",
+  "retry": "Erneut versuchen",
+  "noMatch": {
+    "title": "Kein Eintrag passt",
+    "both_one": "Unter den {{count, number}} geladenen Einträgen passt keiner zu Suche und Filter.",
+    "both_other": "Unter den {{count, number}} geladenen Einträgen passt keiner zu Suche und Filter.",
+    "search_one": "Unter den {{count, number}} geladenen Einträgen passt keiner zu deiner Suche.",
+    "search_other": "Unter den {{count, number}} geladenen Einträgen passt keiner zu deiner Suche.",
+    "errors_one": "Unter den {{count, number}} geladenen Einträgen passt keiner zu „Nur Fehler“.",
+    "errors_other": "Unter den {{count, number}} geladenen Einträgen passt keiner zu „Nur Fehler“."
+  },
+  "resetFilter": "Filter zurücksetzen",
+  "loadOlder": "Ältere Einträge laden",
+  "listRepo": "Protokoll dieses Repositories",
+  "listApp": "Protokoll der App",
+  "loadingOlder": "Ältere Einträge werden geladen",
+  "loadingOlderText": "Ältere Einträge werden geladen …",
+  "start": "Anfang des Protokolls. Einträge älter als 30 Tage werden gelöscht.",
+  "row": {
+    "collapse": "Ausgabe zuklappen",
+    "expand": "Ausgabe aufklappen",
+    "copyCommand": "Befehl kopieren",
+    "copyOutput": "Ausgabe kopieren",
+    "noExit": "ohne Exit-Code beendet",
+    "failed": "fehlgeschlagen mit Exit-Code {{code}}",
+    "success": "erfolgreich",
+    "output": "Ausgabe von {{command}}",
+    "noOutput": "Keine Ausgabe."
+  }
+}

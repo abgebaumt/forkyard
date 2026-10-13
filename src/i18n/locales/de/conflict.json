@@ -1,0 +1,208 @@
+{
+  "ariaLabel": "Konflikt lösen: {{path}}",
+  "loading": "Konfliktdatei lädt",
+  "toolbar": "Konflikte",
+  "linkedOn": "Gemeinsames Scrollen ist an",
+  "linkedOff": "Gemeinsames Scrollen ist aus",
+  "restored": "Angefangene Lösung wiederhergestellt.",
+  "noBase": "Beide Seiten haben diese Datei neu angelegt. Ohne gemeinsamen Vorgänger gilt jeder Unterschied als Konflikt.",
+  "mixedEol": "Die Seiten haben unterschiedliche Zeilenenden ({{ours}}: {{oursEol}}, {{theirs}}: {{theirsEol}}). Verglichen wird ohne sie; das Ergebnis behält {{eol}}.",
+  "shownSide": "Angezeigte Seite",
+  "splitter": "Aufteilung zwischen den Seiten und dem Ergebnis",
+  "side": {
+    "rebaseOurs": {
+      "role": "Ziel",
+      "hint": "Der Stand, auf den deine Commits gesetzt werden.",
+      "all": "Alles vom Ziel",
+      "whole": "Fassung vom Ziel nehmen"
+    },
+    "rebaseTheirs": {
+      "role": "Dein Commit",
+      "hint": "Der Commit, der gerade neu aufgespielt wird.",
+      "all": "Alles aus deinem Commit",
+      "whole": "Fassung aus deinem Commit nehmen"
+    },
+    "current": {
+      "role": "Aktuell",
+      "hint": "Der ausgecheckte Branch.",
+      "hintCheckedOut": "Der ausgecheckte Stand.",
+      "all": "Alles aktuell",
+      "whole": "Aktuelle Fassung behalten"
+    },
+    "cherryPick": {
+      "role": "Cherry-Pick",
+      "hint": "Die Änderung aus dem übernommenen Commit.",
+      "all": "Alles aus dem Cherry-Pick",
+      "whole": "Fassung aus dem Cherry-Pick nehmen"
+    },
+    "revert": {
+      "role": "Revert",
+      "hint": "Der Stand ohne den zurückgenommenen Commit.",
+      "all": "Alles aus dem Revert",
+      "whole": "Fassung aus dem Revert nehmen"
+    },
+    "incoming": {
+      "role": "Eingehend",
+      "hint": "Was hereinkommt.",
+      "hintApplied": "Die Änderung, die angewendet wurde.",
+      "all": "Alles eingehend",
+      "whole": "Eingehende Fassung nehmen"
+    }
+  },
+  "header": {
+    "operation": "Laufende Aktion",
+    "encoding": "Erkannte Kodierung der Datei – bleibt beim Speichern erhalten",
+    "external": "Im externen Tool öffnen",
+    "switchFile": "Konfliktdatei wechseln",
+    "prevFile": "Vorige Konfliktdatei",
+    "nextFile": "Nächste Konfliktdatei",
+    "filePosition": "Konfliktdatei {{index}} von {{total}}",
+    "close": "Konflikt-Tool schließen"
+  },
+  "error": {
+    "goneTitle": "Diese Datei steht nicht mehr im Konflikt",
+    "backToChanges": "Zurück zu den Änderungen",
+    "recheck": "Erneut prüfen",
+    "goneBody": "<path>{{path}}</path> ist schon gelöst – vielleicht im Terminal, in einem anderen Programm oder über das Kontextmenü. Die Operation läuft weiter.",
+    "title": "Die Konfliktdatei ließ sich nicht laden",
+    "retry": "Erneut versuchen",
+    "close": "Schließen"
+  },
+  "resolve": {
+    "takeOurs": "Aktuelle Fassung übernehmen",
+    "takeTheirs": "Eingehende Fassung übernehmen",
+    "resolve": "Konflikt lösen",
+    "doneTitle": "„{{name}}“ gelöst und gestaged",
+    "remainingNext_one": "Noch {{count}} Konfliktdatei offen – weiter mit „{{next}}“.",
+    "remainingNext_other": "Noch {{count}} Konfliktdateien offen – weiter mit „{{next}}“.",
+    "remaining_one": "Noch {{count}} Konfliktdatei offen.",
+    "remaining_other": "Noch {{count}} Konfliktdateien offen.",
+    "allDoneMerge": "Alle Konflikte gelöst. Schließe den Merge im Commit Panel ab.",
+    "allDoneContinue": "Alle Konflikte gelöst. Setze den {{operation}} im Commit Panel fort.",
+    "allDone": "Alle Konflikte gelöst."
+  },
+  "whole": {
+    "keep": "Datei behalten",
+    "keepDetail": "Fassung aus „{{side}}“",
+    "delete": "Datei löschen",
+    "deleteDetail": "wie in „{{side}}“",
+    "large": {
+      "title": "Sehr große Datei",
+      "text": "Mit {{lines}} Zeilen ist die Datei zu groß, um beide Seiten Zeile für Zeile gegenüberzustellen. Nimm eine Seite ganz – oder gleiche trotzdem ab; das kann einen Moment dauern."
+    },
+    "deletedByUs": {
+      "title": "Auf einer Seite gelöscht, auf der anderen geändert",
+      "text": "In „{{ours}}“ gibt es die Datei nicht mehr; „{{theirs}}“ hat sie geändert. Soll sie bleiben?"
+    },
+    "deletedByThem": {
+      "title": "Auf einer Seite geändert, auf der anderen gelöscht",
+      "text": "„{{ours}}“ hat die Datei geändert; in „{{theirs}}“ gibt es sie nicht mehr. Soll sie bleiben?"
+    },
+    "bothDeleted": {
+      "title": "Auf beiden Seiten gelöscht",
+      "text": "Unter diesem Namen gibt es die Datei auf keiner Seite mehr – meist, weil beide sie umbenannt haben. Die neuen Namen stehen als eigene Einträge in der Liste der Konflikte.",
+      "confirm": "Löschen bestätigen",
+      "detail": "Der alte Name verschwindet"
+    },
+    "addedOneSide": {
+      "title": "Nur auf einer Seite vorhanden",
+      "text": "Diesen Namen gibt es nur in „{{side}}“ – meist, weil beide Seiten dieselbe Datei verschieden umbenannt haben. Soll die Datei unter diesem Namen bleiben?"
+    },
+    "binary": {
+      "title": "Binärdatei",
+      "noTextTitle": "Kein Text zum Abgleichen",
+      "modifiedBinary": "Beide Seiten haben die Datei geändert. Binäre Inhalte lassen sich nicht Zeile für Zeile zusammenführen – nimm eine der beiden Fassungen ganz.",
+      "modifiedNoText": "Beide Seiten haben die Datei geändert. Der Inhalt lässt sich nicht als Text lesen – nimm eine der beiden Fassungen ganz.",
+      "addedBinary": "Beide Seiten haben die Datei neu angelegt. Binäre Inhalte lassen sich nicht Zeile für Zeile zusammenführen – nimm eine der beiden Fassungen ganz.",
+      "addedNoText": "Beide Seiten haben die Datei neu angelegt. Der Inhalt lässt sich nicht als Text lesen – nimm eine der beiden Fassungen ganz."
+    },
+    "decision": "Entscheidung für diese Datei",
+    "force": "Trotzdem Zeile für Zeile abgleichen",
+    "previewLabel": "Fassung aus {{side}}",
+    "previewKept": "diese Fassung bliebe erhalten",
+    "previewEditor": "Fassung aus {{side}}, nur lesen"
+  },
+  "takeAll": {
+    "title": "{{all}} – bearbeitete Blöcke überschreiben?",
+    "body_one": "{{count}} Konflikt-Block wurde von Hand bearbeitet. Dieser Text wird durch die Fassung „{{side}}“ ersetzt.",
+    "body_other": "{{count}} Konflikt-Blöcke wurden von Hand bearbeitet. Dieser Text wird durch die Fassung „{{side}}“ ersetzt."
+  },
+  "reset": {
+    "title": "Lösung für „{{name}}“ zurücksetzen?",
+    "body": "Alle Entscheidungen und alles von Hand Getippte gehen verloren. Die Datei steht danach wieder so da wie zu Beginn.",
+    "confirm": "Zurücksetzen",
+    "tip": "Zurücksetzen – alle Entscheidungen verwerfen"
+  },
+  "save": {
+    "blockedOpen_one": "Noch {{count}} Konflikt offen. Speichern geht erst ohne Konfliktmarker im Ergebnis.",
+    "blockedOpen_other": "Noch {{count}} Konflikte offen. Speichern geht erst ohne Konfliktmarker im Ergebnis.",
+    "blockedMarker": "Im Ergebnis steht noch ein Konfliktmarker (Zeile {{line}}). Speichern geht erst ohne ihn.",
+    "readyNone": "Nichts mehr zu entscheiden – das Ergebnis kann gespeichert werden.",
+    "ready": "Alle Konflikte gelöst – das Ergebnis kann gespeichert werden.",
+    "tip": "Schreibt das Ergebnis in die Datei und stagt sie",
+    "label": "Gelöst – speichern und stagen"
+  },
+  "takeWorktree": {
+    "title": "Stand der Datei übernehmen?",
+    "body": "Deine Entscheidungen hier im Tool gehen verloren. Gespeichert wird die Datei, wie sie gerade im Arbeitsverzeichnis liegt.",
+    "confirm": "Datei so übernehmen"
+  },
+  "leave": {
+    "title": "„{{name}}“ verlassen, ohne zu speichern?",
+    "body": "Die Lösung ist noch nicht gespeichert. Die Datei bleibt bis dahin im Konflikt.",
+    "keep": "Später weitermachen",
+    "keepBody": "Auswahl und Text bleiben erhalten, solange die App läuft.",
+    "discard": "Lösung verwerfen",
+    "discardBody": "Alle Entscheidungen zu dieser Datei gehen verloren."
+  },
+  "counter": {
+    "none": "Keine widersprüchlichen Zeilen",
+    "resolved_one": "{{resolved}} von {{count}} Konflikt gelöst",
+    "resolved_other": "{{resolved}} von {{count}} Konflikten gelöst",
+    "auto_one": "{{count}} Stelle automatisch übernommen",
+    "auto_other": "{{count}} Stellen automatisch übernommen"
+  },
+  "nav": {
+    "switch": "Konflikt wechseln",
+    "prev": "Voriger Konflikt",
+    "next": "Nächster Konflikt",
+    "position": "Konflikt {{index}} von {{total}}"
+  },
+  "handEdited": {
+    "clean": "Die Datei im Arbeitsverzeichnis wurde außerhalb bearbeitet und enthält keine Konfliktmarker mehr. Übernimm sie so – oder löse hier; Speichern ersetzt sie dann durch das Ergebnis unten.",
+    "dirty": "Die Datei im Arbeitsverzeichnis weicht von diesem Abgleich ab – vermutlich wurde sie schon von Hand bearbeitet. Speichern ersetzt sie durch das Ergebnis unten."
+  },
+  "result": {
+    "title": "Ergebnis",
+    "subtitle": "bearbeitbar – so wird die Datei gespeichert",
+    "manualTip": "Der Text weicht von der Auswahl oben ab",
+    "manual": "von Hand bearbeitet",
+    "manualBlocks_one": "{{count}} Block von Hand bearbeitet",
+    "manualBlocks_other": "{{count}} Blöcke von Hand bearbeitet",
+    "eolTip": "Zeilenenden der Datei – bleiben beim Speichern erhalten",
+    "noFinalNewlineTip": "Die Datei endet ohne Zeilenumbruch – das bleibt beim Speichern so",
+    "noFinalNewline": "ohne Zeilenende am Schluss",
+    "search": "Im Ergebnis suchen",
+    "editorLabel": "Ergebnis für {{path}}, bearbeitbar"
+  },
+  "block": {
+    "open": "offen",
+    "taken": "übernommen",
+    "partly": "teilweise übernommen",
+    "notTaken": "nicht übernommen",
+    "bothSame": "Auf beiden Seiten gleich geändert – übernommen",
+    "auto": "Automatisch übernommen",
+    "otherChanged": "Unverändert – die andere Seite hat hier geändert",
+    "takeLabel": "Konflikt {{number}}: {{side}} übernehmen",
+    "title": "Konflikt {{number}}",
+    "first": "zuerst",
+    "then": "danach",
+    "noLines": "keine Zeilen",
+    "swap": "Reihenfolge tauschen",
+    "takeLine": "Zeile {{line}} aus {{side}} übernehmen"
+  },
+  "sides": {
+    "single": "{{side}} – Zeilen zum Übernehmen",
+    "both": "{{ours}} und {{theirs}} nebeneinander"
+  }
+}

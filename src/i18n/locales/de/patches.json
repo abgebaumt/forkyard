@@ -1,0 +1,120 @@
+{
+  "applyErrors": {
+    "failedAt": "passt ab Zeile {{line}} nicht",
+    "exists": "gibt es im Arbeitsverzeichnis schon",
+    "missing": "fehlt im Arbeitsverzeichnis",
+    "noFit": "passt nicht zum Inhalt"
+  },
+  "fileName": {
+    "range": "vergleich",
+    "changes": "aenderungen"
+  },
+  "size": {
+    "bytes": "{{size}} Byte",
+    "kb": "{{size}} KB",
+    "mb": "{{size}} MB"
+  },
+  "save": {
+    "crlf": "Der Patch enthält Zeilen mit Windows-Zeilenenden (CRLF). Als Datei würde er dabei verändert und passte nicht mehr. Nimm „In die Zwischenablage“.",
+    "title": "Patch speichern",
+    "outside": "Speichern geht bisher nur in den Ordner des Repositories (oder einen Unterordner). Für andere Orte: „In die Zwischenablage“ und dort in eine Datei einfügen.",
+    "mismatch": "Die gespeicherte Datei weicht vom Patch ab. Nimm „In die Zwischenablage“.",
+    "filterName": "Patch"
+  },
+  "parts": {
+    "preview": "Vorschau des Patches",
+    "previewMore": "… und {{count}} weitere Zeilen. Die Vorschau ist gekürzt, der Patch nicht.",
+    "fits": "passt",
+    "binary": "binär",
+    "moreFiles": "und {{count}} weitere Dateien",
+    "loading": "Patch wird erzeugt"
+  },
+  "apply": {
+    "tooLarge": "„{{name}}“ ist {{size}} groß – mehr als {{max}} nimmt dieser Dialog nicht an.",
+    "notText": "„{{name}}“ ist keine Textdatei und damit kein Patch.",
+    "unreadable": "„{{name}}“ ließ sich nicht lesen.",
+    "clipboardEmpty": "In der Zwischenablage steht kein Text.",
+    "clipboardFailed": "Die Zwischenablage ließ sich nicht lesen. Klick ins Feld und füge mit {{mod}}+V ein.",
+    "applied": "Patch angewendet",
+    "appliedText_one": "{{count}} Datei im Arbeitsverzeichnis geändert. Nichts ist gestaged oder committet.",
+    "appliedText_other": "{{count}} Dateien im Arbeitsverzeichnis geändert. Nichts ist gestaged oder committet.",
+    "undo": "Rückgängig",
+    "blocked": {
+      "empty": "Füge zuerst einen Patch ein oder wähle eine Datei.",
+      "checking": "Der Patch wird noch geprüft.",
+      "failed": "Der Patch passt nicht zum Arbeitsverzeichnis."
+    },
+    "title": "Patch anwenden",
+    "description": "Ändert nur das Arbeitsverzeichnis von <strong>{{repo}}</strong>. Nichts wird gestaged oder committet; ganz oder gar nicht.",
+    "thisRepo": "diesem Repository",
+    "cancel": "Abbrechen",
+    "submit": "Anwenden",
+    "conflicts": {
+      "title": "Es gibt offene Konflikte",
+      "text": "Löse sie zuerst – sonst vermischt sich der Patch mit den Konfliktdateien."
+    },
+    "chooseFile": "Datei wählen …",
+    "fromClipboard": "Aus der Zwischenablage",
+    "fileInput": "Patch-Datei",
+    "clearFile": "Datei verwerfen und Feld leeren",
+    "textLabel": "Patch-Text",
+    "placeholder": "diff --git a/datei b/datei\n… hier einfügen ({{mod}}+V), eine Datei wählen oder aus der Zwischenablage holen",
+    "idle": "Sobald hier ein Patch steht, prüft Git, ob er zum Arbeitsverzeichnis passt – ohne etwas zu ändern.",
+    "checking": "Git prüft, ob der Patch passt …",
+    "fits_one": "Passt: {{count}} Datei wird geändert",
+    "fits_other": "Passt: {{count}} Dateien werden geändert",
+    "fromCommit": "aus dem Commit „{{subject}}“",
+    "byAuthor": " von {{author}}",
+    "noCommit": ". Autor und Message werden nicht übernommen – es entsteht kein Commit.",
+    "filesLabel": "Dateien, die der Patch ändert",
+    "notFitting_one": "Passt nicht: {{failed}} von {{count}} Datei",
+    "notFitting_other": "Passt nicht: {{failed}} von {{count}} Dateien",
+    "cannotApply": "Der Patch lässt sich nicht anwenden",
+    "nothingChanged": "Es wurde nichts geändert.",
+    "resultLabel": "Dateien des Patches mit Prüfergebnis"
+  },
+  "create": {
+    "scope": {
+      "unstaged": "Nicht gestaged",
+      "staged": "Gestaged",
+      "all": "Beides",
+      "label": "Welche Änderungen",
+      "withCount": "{{label}} ({{count}})"
+    },
+    "blocked": {
+      "loading": "Der Patch wird noch erzeugt.",
+      "error": "Der Patch ließ sich nicht erzeugen.",
+      "empty": "Der Patch ist leer."
+    },
+    "copied": "Patch kopiert",
+    "files_one": "{{count}} Datei",
+    "files_other": "{{count}} Dateien",
+    "lines_one": "{{count}} Zeile",
+    "lines_other": "{{count}} Zeilen",
+    "notCopied": "Nicht kopiert",
+    "notCopiedText": "Die Zwischenablage ist gerade nicht erreichbar. Markiere den Text in der Vorschau und kopiere ihn von Hand.",
+    "notSaved": "Nicht gespeichert",
+    "saved": "Patch gespeichert",
+    "showInFileManager": "{{revealInFileManager}}",
+    "title": "Patch erzeugen",
+    "from": "Aus: <strong>{{what}}</strong>",
+    "onlyThisFile": " – nur diese Datei",
+    "onlyFiles": " – nur {{count}} Dateien",
+    "close": "Schließen",
+    "saveAs": "Als Datei speichern …",
+    "copy": "In die Zwischenablage",
+    "untracked_one": "Ohne {{count}} neue, noch nicht verfolgte Datei – die steckt nur in „Nicht gestaged“.",
+    "untracked_other": "Ohne {{count}} neue, noch nicht verfolgte Dateien – die stecken nur in „Nicht gestaged“.",
+    "error": "Der Patch ließ sich nicht erzeugen",
+    "retry": "Erneut versuchen",
+    "noText": "Kein Text für einen Patch",
+    "nothing": "Nichts zu exportieren",
+    "noTextHint": "Alle betroffenen Dateien sind binär oder kein gültiges UTF-8 – so etwas passt nicht in einen Text-Patch.",
+    "nothingHint": "Hier gibt es keine Änderungen, aus denen ein Patch entstehen könnte.",
+    "withAuthor": "· mit Autor und Message, wie von git format-patch",
+    "filesLabel": "Dateien im Patch",
+    "skipped_one": "{{count}} Datei fehlt im Patch",
+    "skipped_other": "{{count}} Dateien fehlen im Patch",
+    "skippedText": "Binärdateien und Dateien, deren Diff kein gültiges UTF-8 ist, lassen sich nicht als Text weitergeben. Gib sie getrennt mit."
+  }
+}

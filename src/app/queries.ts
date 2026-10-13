@@ -1,0 +1,572 @@
+/**
+ * All reads from the core as TanStack Query hooks, plus the key factory `qk` and the ONE
+ * place that subscribes to the core's events and invalidates selectively (useCoreSync).
+ *
+ * Keys are hierarchical: everything of a repo starts with ["repo", repoId, …],
+ * so a repo can be invalidated as a whole.
+ */
+import { useEffect } from "react";
+import {
+  QueryClient,
+  useInfiniteQuery,
+  useQueries,
+  useQuery,
+  type Query,
+  type QueryKey,
+} from "@tanstack/react-query";
+import { core, CoreError, type ActivityScope, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { toast } from "../ui/Feedback";
+import { t } from "../i18n";
+import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
+import { reportHookOutput } from "./notifications/hooks";
+import { issueApi, type IssueFilter } from "../screens/Issues/api";
+import { desktopNotify, wasManualSync } from "./notify";
+import { readStatus } from "./statusOrder";
+import { useAppStore } from "./store";
+import { writesSettled } from "./writeQueue";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Freshness comes from the core's events, not from time passing.
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      // Core errors are deterministic; a second attempt achieves nothing.
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Keys
+// ---------------------------------------------------------------------------
+
+export interface DiffOptions {
+  force?: boolean;
+  ignoreWhitespace?: boolean;
+}
+
+export const qk = {
+  appInfo: ["app", "info"] as const,
+  avatar: (email: string) => ["app", "avatar", email] as const,
+  tabs: ["app", "tabs"] as const,
+  repos: ["app", "repos"] as const,
+  settings: ["app", "settings"] as const,
+  profiles: ["app", "profiles"] as const,
+  initTemplates: ["app", "initTemplates"] as const,
+  sshKeys: ["app", "sshKeys"] as const,
+  credentials: ["app", "credentials"] as const,
+  activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
+  activityAll: ["activity"] as const,
+
+  repo: (repoId: Id) => ["repo", repoId] as const,
+  readme: (repoId: Id) => ["repo", repoId, "readme"] as const,
+  refs: (repoId: Id) => ["repo", repoId, "refs"] as const,
+  status: (repoId: Id) => ["repo", repoId, "status"] as const,
+  graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
+  commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
+  commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
+  diff: (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) =>
+    ["repo", repoId, "diff", source, path, { force: options.force ?? false, ignoreWhitespace: options.ignoreWhitespace ?? false }] as const,
+  diffAll: (repoId: Id) => ["repo", repoId, "diff"] as const,
+  search: (repoId: Id, query: string) => ["repo", repoId, "search", query] as const,
+  tree: (repoId: Id, sha: Sha | null, filter: string | null) => ["repo", repoId, "tree", sha, filter] as const,
+  stashes: (repoId: Id) => ["repo", repoId, "stashes"] as const,
+  remotes: (repoId: Id) => ["repo", repoId, "remotes"] as const,
+  undo: (repoId: Id) => ["repo", repoId, "undo"] as const,
+  viewState: (repoId: Id) => ["repo", repoId, "viewState"] as const,
+  draft: (repoId: Id) => ["repo", repoId, "draft"] as const,
+  repoSettings: (repoId: Id) => ["repo", repoId, "repoSettings"] as const,
+  fileHistory: (repoId: Id, path: string) => ["repo", repoId, "fileHistory", path] as const,
+  fileHistoryAll: (repoId: Id) => ["repo", repoId, "fileHistory"] as const,
+  blame: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "blame", sha, path] as const,
+  blameAll: (repoId: Id) => ["repo", repoId, "blame"] as const,
+  file: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "file", sha, path] as const,
+  fileAll: (repoId: Id) => ["repo", repoId, "file"] as const,
+  conflict: (repoId: Id, path: string) => ["repo", repoId, "conflict", path] as const,
+  conflictAll: (repoId: Id) => ["repo", repoId, "conflict"] as const,
+  rebasePlan: (repoId: Id, base: string) => ["repo", repoId, "rebasePlan", base] as const,
+  rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
+  worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
+  submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
+  lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
+
+  // Host integration (GitHub, GitLab): the app's accounts, the repository's host, pull requests.
+  hostAccounts: ["app", "hostAccounts"] as const,
+  hostRepo: (repoId: Id) => ["repo", repoId, "hostRepo"] as const,
+  prLists: (repoId: Id) => ["repo", repoId, "prs"] as const,
+  prList: (repoId: Id, state: PrListState) => ["repo", repoId, "prs", state] as const,
+  prs: (repoId: Id) => ["repo", repoId, "pr"] as const,
+  pr: (repoId: Id, number: number) => ["repo", repoId, "pr", number] as const,
+  prTemplate: (repoId: Id) => ["repo", repoId, "prTemplate"] as const,
+
+  // Issues of the host.
+  issueLists: (repoId: Id) => ["repo", repoId, "issues"] as const,
+  issueList: (repoId: Id, filter: IssueFilter) => ["repo", repoId, "issues", filter.state, filter.query.trim()] as const,
+  issues: (repoId: Id) => ["repo", repoId, "issue"] as const,
+  issue: (repoId: Id, number: number) => ["repo", repoId, "issue", number] as const,
+};
+
+/** Page size when loading more of the graph; the first page uses `settings.initialCommits`. */
+export const GRAPH_PAGE_SIZE = 500;
+
+// ---------------------------------------------------------------------------
+// App
+// ---------------------------------------------------------------------------
+
+export const useAppInfo = () => useQuery({ queryKey: qk.appInfo, queryFn: () => core.appInfo(), staleTime: Infinity });
+export const useTabs = () => useQuery({ queryKey: qk.tabs, queryFn: () => core.tabsList() });
+export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core.repoList() });
+// Settings and profiles are read only once no change to them is in flight (see writeQueue.ts).
+export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: () => writesSettled().then(() => core.settingsGet()) });
+/**
+ * Avatar from GitHub for an email address – for `AvatarSourceContext` (called as a hook in every
+ * `Avatar`). Off while "Initials instead of avatars" is set; without an image the initials remain.
+ */
+export function useAvatarUrl(email: string | undefined): string | null {
+  const { data: settings } = useSettings();
+  const key = email?.trim().toLowerCase() ?? "";
+  const enabled = Boolean(key) && settings !== undefined && !settings.showInitials;
+  const { data } = useQuery({ queryKey: qk.avatar(key), queryFn: () => core.avatarGet({ email: key }), enabled, staleTime: Infinity, gcTime: Infinity, retry: false });
+  return enabled ? (data ?? null) : null;
+}
+export const useProfiles = () => useQuery({ queryKey: qk.profiles, queryFn: () => writesSettled().then(() => core.profileList()) });
+export const useInitTemplates = () =>
+  useQuery({ queryKey: qk.initTemplates, queryFn: () => core.initTemplates(), staleTime: Infinity });
+export const useSshKeys = () => useQuery({ queryKey: qk.sshKeys, queryFn: () => core.sshKeyList() });
+export const useCredentials = () => useQuery({ queryKey: qk.credentials, queryFn: () => core.credentialsList() });
+
+/** Active tab from the tab list (or null). */
+export function useActiveTab(): Tab | null {
+  const { data } = useTabs();
+  return data?.find((tab) => tab.isActive) ?? null;
+}
+
+/** Repository entry for an ID from the repo list. */
+export function useRepo(repoId: Id | null | undefined) {
+  const query = useRepos();
+  return { ...query, data: repoId ? query.data?.find((repo) => repo.id === repoId) : undefined };
+}
+
+export const useActivity = (scope: ActivityScope, repoId: Id | null, limit = 200) =>
+  useInfiniteQuery({
+    queryKey: qk.activity(scope, repoId),
+    queryFn: ({ pageParam }) => core.activityList({ scope, repoId, cursor: pageParam, limit }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  });
+
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
+
+const enabledFor = (repoId: Id | null | undefined): repoId is Id => Boolean(repoId);
+
+export const useRefs = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.refs(repoId ?? ""), queryFn: () => core.refsList({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useStatus = (repoId: Id | null | undefined) =>
+  // Via statusOrder.ts: a query overtaken by a command result does not overwrite it with an older state.
+  useQuery({ queryKey: qk.status(repoId ?? ""), queryFn: ({ signal }) => readStatus(repoId!, signal), enabled: enabledFor(repoId) });
+
+/**
+ * The repository's folder is gone or no longer a repository – according to the repo list or the
+ * latest status fetch. Then the shell shows a full-page message instead of the repo view, and
+ * toolbar and status bar offer nothing that needs a repository.
+ */
+export function useRepoMissing(repoId: Id | null | undefined): boolean {
+  const { data: repo } = useRepo(repoId);
+  const { error } = useStatus(repoId);
+  const code = error instanceof CoreError ? error.code : null;
+  return Boolean(repoId) && (repo?.missing === true || code === "path_not_found" || code === "not_a_repo");
+}
+
+/**
+ * Whether the core does not (yet) work in this repository because it brings its own commands
+ * and the user has not consented. The shell then shows the prompt instead of the view.
+ */
+export function useRepoLocked(repoId: Id | null | undefined): boolean {
+  const { data: repo } = useRepo(repoId);
+  return Boolean(repoId) && repo?.trusted === false;
+}
+
+export const trustKey = (repoId: Id) => ["trust", repoId] as const;
+
+/** What the check finds in the repository (for the prompt). */
+export const useRepoTrust = (repoId: Id) => useQuery({ queryKey: trustKey(repoId), queryFn: () => core.repoTrustGet({ repoId }), staleTime: 0 });
+
+/** Graph as an infinite query. Concatenate `data.pages`; `fetchNextPage()` loads more. */
+export function useGraph(repoId: Id | null | undefined) {
+  const { data: settings } = useSettings();
+  const firstLimit = Math.max(GRAPH_PAGE_SIZE, settings?.initialCommits ?? 2000);
+  return useInfiniteQuery({
+    queryKey: qk.graph(repoId ?? ""),
+    queryFn: ({ pageParam }): Promise<GraphPage> =>
+      core.graphPage({ repoId: repoId!, cursor: pageParam, limit: pageParam === null ? firstLimit : GRAPH_PAGE_SIZE }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: enabledFor(repoId) && settings !== undefined,
+  });
+}
+
+/** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
+const isLive = (source: DiffSource) =>
+  source.kind === "unstaged" || source.kind === "staged" || (source.kind === "range" && source.to === null);
+
+export const useCommitDetails = (repoId: Id | null | undefined, source: DiffSource | null | undefined) =>
+  useQuery({
+    queryKey: qk.commitDetails(repoId ?? "", source ?? { kind: "unstaged" }),
+    queryFn: () => core.commitDetails({ repoId: repoId!, source: source! }),
+    enabled: enabledFor(repoId) && Boolean(source),
+    staleTime: source && !isLive(source) && source.kind !== "stash" ? Infinity : undefined,
+  });
+
+export const useDiff = (
+  repoId: Id | null | undefined,
+  path: string | null | undefined,
+  source: DiffSource | null | undefined,
+  options: DiffOptions = {},
+) =>
+  useQuery({
+    queryKey: qk.diff(repoId ?? "", path ?? "", source ?? { kind: "unstaged" }, options),
+    queryFn: () =>
+      core.diffFile({ repoId: repoId!, path: path!, source: source!, force: options.force, ignoreWhitespace: options.ignoreWhitespace }),
+    enabled: enabledFor(repoId) && Boolean(path) && Boolean(source),
+    staleTime: source && !isLive(source) && source.kind !== "stash" ? Infinity : undefined,
+  });
+
+/** Search across the whole history; an empty search does not ask the core. */
+export const useCommitSearch = (repoId: Id | null | undefined, query: string, limit = 200) =>
+  useQuery({
+    queryKey: qk.search(repoId ?? "", query),
+    queryFn: () => core.commitSearch({ repoId: repoId!, query, limit }),
+    enabled: enabledFor(repoId) && query.trim().length > 0,
+  });
+
+export const useTree = (repoId: Id | null | undefined, sha: Sha | null, filter: string | null = null, enabled = true) =>
+  useQuery({
+    queryKey: qk.tree(repoId ?? "", sha, filter),
+    queryFn: () => core.treeList({ repoId: repoId!, sha, filter }),
+    enabled: enabledFor(repoId) && enabled,
+  });
+
+export const useStashes = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.stashes(repoId ?? ""), queryFn: () => core.stashList({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useRemotes = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.remotes(repoId ?? ""), queryFn: () => core.remoteList({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useUndoState = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.undo(repoId ?? ""), queryFn: () => core.undoPeek({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useViewState = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.viewState(repoId ?? ""), queryFn: () => core.viewStateGet({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useDraft = (repoId: Id | null | undefined) =>
+  useQuery({
+    queryKey: qk.draft(repoId ?? ""),
+    queryFn: () => core.draftGet({ repoId: repoId! }),
+    enabled: enabledFor(repoId),
+    // The draft belongs to the input field; do not reload it under the user's fingers.
+    staleTime: Infinity,
+  });
+
+export const useRepoSettings = (repoId: Id | null | undefined) =>
+  useQuery({
+    queryKey: qk.repoSettings(repoId ?? ""),
+    queryFn: () => writesSettled().then(() => core.repoSettingsGet({ repoId: repoId! })),
+    enabled: enabledFor(repoId),
+  });
+
+export const useReadme = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.readme(repoId ?? ""), queryFn: () => core.repoReadme({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useFileHistory = (repoId: Id | null | undefined, path: string | null | undefined, limit = 1000) =>
+  useQuery({
+    // The limit is part of the key: loading more (larger limit) refetches and shows the previous list until then.
+    queryKey: [...qk.fileHistory(repoId ?? "", path ?? ""), limit] as const,
+    queryFn: () => core.fileHistory({ repoId: repoId!, path: path!, limit }),
+    enabled: enabledFor(repoId) && Boolean(path),
+    placeholderData: (previous: FileHistoryEntry[] | undefined, query) => (query?.queryKey[3] === path ? previous : undefined),
+  });
+
+export const useBlame = (repoId: Id | null | undefined, path: string | null | undefined, sha: Sha | null) =>
+  useQuery({
+    queryKey: qk.blame(repoId ?? "", path ?? "", sha),
+    queryFn: () => core.fileBlame({ repoId: repoId!, path: path!, sha }),
+    enabled: enabledFor(repoId) && Boolean(path),
+    staleTime: sha ? Infinity : undefined,
+  });
+
+export const useFileContent = (repoId: Id | null | undefined, path: string | null | undefined, sha: Sha | null) =>
+  useQuery({
+    queryKey: qk.file(repoId ?? "", path ?? "", sha),
+    queryFn: () => core.fileRead({ repoId: repoId!, path: path!, sha }),
+    enabled: enabledFor(repoId) && Boolean(path),
+    staleTime: sha ? Infinity : undefined,
+  });
+
+export const useConflict = (repoId: Id | null | undefined, path: string | null | undefined) =>
+  useQuery({
+    queryKey: qk.conflict(repoId ?? "", path ?? ""),
+    queryFn: () => core.conflictGet({ repoId: repoId!, path: path! }),
+    enabled: enabledFor(repoId) && Boolean(path),
+  });
+
+/**
+ * Details of several commits at once (squash and cherry-pick preview). Same keys as
+ * useCommitDetails, hence the same cache. Returns the results in the order of `shas`.
+ */
+export const useCommitInfos = (repoId: Id | null | undefined, shas: Sha[]) =>
+  useQueries({
+    queries: shas.map((sha) => ({
+      queryKey: qk.commitDetails(repoId ?? "", { kind: "commit", sha }),
+      queryFn: () => core.commitDetails({ repoId: repoId!, source: { kind: "commit", sha } }),
+      enabled: enabledFor(repoId),
+      staleTime: Infinity,
+    })),
+  });
+
+export const useRebasePlan = (repoId: Id | null | undefined, base: string | null | undefined) =>
+  useQuery({
+    queryKey: qk.rebasePlan(repoId ?? "", base ?? ""),
+    queryFn: () => core.rebasePlan({ repoId: repoId!, base: base! }),
+    enabled: enabledFor(repoId) && Boolean(base),
+  });
+
+/** All working directories of the repository; the main worktree comes first. */
+export const useWorktrees = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.worktrees(repoId ?? ""), queryFn: () => core.worktreeList({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+export const useSubmodules = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.submodules(repoId ?? ""), queryFn: () => core.submoduleList({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+/** Whether Git LFS is installed and which patterns the repository tracks with it. */
+export const useLfsStatus = (repoId: Id | null | undefined, enabled = true) =>
+  useQuery({ queryKey: qk.lfs(repoId ?? ""), queryFn: () => core.lfsStatus({ repoId: repoId! }), enabled: enabledFor(repoId) && enabled });
+
+// ---------------------------------------------------------------------------
+// Host integration (GitHub, GitLab)
+// ---------------------------------------------------------------------------
+
+/** What lives at the host changes without an event from the core: after two minutes it counts as stale. */
+const HOST_STALE_MS = 2 * 60_000;
+
+/** The connected accounts – without token; that lives in the system keychain. */
+export const useHostAccounts = () => useQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
+
+/** Host, owner and name of the repository according to its remote URL; null if nothing was recognised. */
+export const useHostRepo = (repoId: Id | null | undefined) =>
+  useQuery({
+    queryKey: qk.hostRepo(repoId ?? ""),
+    queryFn: () => hostApi.repoInfo(repoId!, queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts) ?? []),
+    enabled: enabledFor(repoId),
+    staleTime: HOST_STALE_MS,
+  });
+
+/** Pull requests page by page (page 1 first). */
+export const usePullRequests = (repoId: Id | null | undefined, state: PrListState, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: qk.prList(repoId ?? "", state),
+    queryFn: ({ pageParam }) => hostApi.prList(repoId!, state, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) => last.nextPage ?? undefined,
+    enabled: enabledFor(repoId) && enabled,
+    staleTime: HOST_STALE_MS,
+  });
+
+export const usePullRequest = (repoId: Id | null | undefined, number: number | null | undefined) =>
+  useQuery({
+    queryKey: qk.pr(repoId ?? "", number ?? 0),
+    queryFn: () => hostApi.prGet(repoId!, number!),
+    enabled: enabledFor(repoId) && typeof number === "number",
+    staleTime: HOST_STALE_MS,
+  });
+
+/**
+ * Where a pull request's commits are in the local repository (for the "Files" tab):
+ * the range for the diff – or "missing locally".
+ */
+export const usePrRange = (repoId: Id | null | undefined, pr: Pick<PrDetails, "number" | "commits" | "headSha"> | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: [...qk.pr(repoId ?? "", pr?.number ?? 0), "range", pr?.headSha ?? null, pr?.commits.length ?? 0] as const,
+    queryFn: () => hostApi.prRange(repoId!, pr!),
+    enabled: enabledFor(repoId) && Boolean(pr) && enabled,
+    staleTime: 0,
+  });
+
+/** Text of the pull request template from the repository; null if there is none. */
+export const usePrTemplate = (repoId: Id | null | undefined, enabled = true) =>
+  useQuery({ queryKey: qk.prTemplate(repoId ?? ""), queryFn: () => hostApi.prTemplate(repoId!), enabled: enabledFor(repoId) && enabled, staleTime: Infinity });
+
+// ---------------------------------------------------------------------------
+// Issues of the host
+// ---------------------------------------------------------------------------
+
+/** Issues page by page (page 1 first); the core names the next page. */
+export const useIssues = (repoId: Id | null | undefined, filter: IssueFilter, enabled = true) =>
+  useInfiniteQuery({
+    queryKey: qk.issueList(repoId ?? "", filter),
+    queryFn: ({ pageParam }) => issueApi.list(repoId!, filter, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (last) => last.nextPage ?? undefined,
+    enabled: enabledFor(repoId) && enabled,
+    staleTime: HOST_STALE_MS,
+  });
+
+export const useIssue = (repoId: Id | null | undefined, number: number | null | undefined) =>
+  useQuery({
+    queryKey: qk.issue(repoId ?? "", number ?? 0),
+    queryFn: () => issueApi.get(repoId!, number!),
+    enabled: enabledFor(repoId) && typeof number === "number",
+    staleTime: HOST_STALE_MS,
+  });
+
+// ---------------------------------------------------------------------------
+// Invalidation
+// ---------------------------------------------------------------------------
+
+/** Key part at position 2 (after "repo", repoId). */
+const part = (query: Query) => query.queryKey[2] as string | undefined;
+
+/** Queries that depend on the working directory or index. */
+function dependsOnWorktree(query: Query): boolean {
+  const key = query.queryKey;
+  switch (part(query)) {
+    case "status":
+    case "conflict":
+      return true;
+    case "diff":
+    case "commit":
+      return isLive(key[3] as DiffSource);
+    case "file":
+    case "blame":
+    case "tree":
+      return key[3] === null;
+    // Submodule state and the LFS patterns (.gitattributes) depend on the working directory.
+    case "submodules":
+    case "lfs":
+      return true;
+    default:
+      return false;
+  }
+}
+
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees"]);
+const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
+// "hostRepo": a repository's host follows from its remote URL.
+const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo"]);
+const OPERATION_PARTS = new Set(["status", "conflict", "undo"]);
+
+/** What a `repo:changed` means for a repo's queries. */
+export function invalidateRepo(client: QueryClient, repoId: Id, what: RepoChange[]): Promise<void> {
+  const changes = new Set(what);
+  return client.invalidateQueries({
+    queryKey: qk.repo(repoId),
+    predicate: (query) => {
+      const name = part(query);
+      if (!name) return false;
+      // The undo state also depends on the working directory: discard creates an entry and reports only "worktree".
+      if ((changes.has("worktree") || changes.has("index")) && (dependsOnWorktree(query) || name === "undo")) return true;
+      if ((changes.has("refs") || changes.has("head")) && (REFS_PARTS.has(name) || dependsOnWorktree(query))) return true;
+      if (changes.has("stash") && STASH_PARTS.has(name)) return true;
+      if (changes.has("config") && CONFIG_PARTS.has(name)) return true;
+      if (changes.has("operation") && OPERATION_PARTS.has(name)) return true;
+      return false;
+    },
+  });
+}
+
+/**
+ * A fetch in the activity log that nobody clicked is the core's auto-fetch. It only reports on
+ * new refs or on the first failure of a kind – here that becomes, depending on the settings, a
+ * toast (and a notification if the window is not in front).
+ */
+/** Error codes for which a failed auto-fetch does not interrupt: no network, no credentials, timeout, unknown host. */
+const QUIET_FETCH_FAILURES: ReadonlySet<string> = new Set(["offline", "auth_failed", "timeout", "host_key_unknown"]);
+
+function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: string, code: string | null): void {
+  const busy = useAppStore.getState().busy;
+  if (busy[`${repoId}:fetch`] || busy[`${repoId}:pull`] || busy[`${repoId}:push`] || wasManualSync(repoId)) return;
+  const settings = queryClient.getQueryData<Settings>(qk.settings);
+  const name = queryClient.getQueryData<Repo[]>(qk.repos)?.find((repo) => repo.id === repoId);
+  const where = name ? (name.alias ?? name.name) : t("app.queries.repository");
+  if (exitCode === 0) {
+    if (!settings?.notifyOnFetch) return;
+    toast({ tone: "info", title: t("app.queries.fetchNews", { where }), description: t("app.queries.fetchNewsText") });
+    desktopNotify(true, t("app.queries.fetchNews", { where }), t("app.queries.fetchNewsShort"));
+    return;
+  }
+  if (!settings?.notifyOnError || !output.startsWith("Auto-fetch failed")) return;
+  const reason = (output.split("\n")[0] ?? "").replace(/^Auto-fetch failed:\s*/, "");
+  // No network, no credentials, unknown host: that is normal on the road and no reason to interrupt.
+  // The entry is in the activity log; a manual fetch prompts or names the error.
+  if (code !== null && QUIET_FETCH_FAILURES.has(code)) return;
+  toast({ tone: "warning", title: t("app.queries.fetchFailed", { where }), description: reason || undefined });
+  desktopNotify(true, t("app.queries.fetchFailed", { where }), reason);
+}
+
+const APP_KEYS: Record<string, QueryKey> = {
+  // Host accounts (connected, disconnected, verified).
+  host_accounts: qk.hostAccounts,
+  tabs: qk.tabs,
+  repos: qk.repos,
+  settings: qk.settings,
+  profiles: qk.profiles,
+};
+
+/**
+ * Subscribes to all of the core's events and keeps query cache and store up to date.
+ * Call exactly once in the shell.
+ */
+export function useCoreSync(activeRepoId: Id | null) {
+  useEffect(() => {
+    const store = useAppStore.getState;
+    const stops = [
+      core.on("repo:changed", ({ repoId, what }) => {
+        void invalidateRepo(queryClient, repoId, what);
+      }),
+      core.on("app:changed", ({ what }) => {
+        for (const item of what) {
+          const key = APP_KEYS[item];
+          if (key) void queryClient.invalidateQueries({ queryKey: key });
+        }
+        // Host accounts have changed (connected, token replaced, disconnected): whatever is loaded about issues –
+        // including a list that failed because of the expired token – counts as stale and reloads.
+        if (what.includes("host_accounts")) {
+          void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue") });
+        }
+        // Switching profile changes settings, tabs and identity
+        if (what.includes("profiles")) {
+          void queryClient.invalidateQueries({ queryKey: qk.settings });
+          void queryClient.invalidateQueries({ queryKey: qk.tabs });
+        }
+      }),
+      core.on("log:appended", (entry) => {
+        void queryClient.invalidateQueries({ queryKey: qk.activityAll });
+        if (!entry.repoId || !/^git\s+fetch\b/.test(entry.command)) return;
+        if (entry.exitCode === 0) store().markFetched(entry.repoId);
+        reportBackgroundFetch(entry.repoId, entry.exitCode, entry.output, entry.code ?? null);
+      }),
+      core.on("job:progress", (payload) => store().updateJob(payload)),
+      core.on("job:done", ({ jobId }) => store().finishJob(jobId)),
+      core.on("credential:request", (request) => store().enqueueCredential(request)),
+      // Hook output and failures: one toast per incident, see notifications/hooks.ts.
+      core.on("hook:output", (payload) => reportHookOutput(payload, queryClient.getQueryData<Settings>(qk.settings)?.notifyOnError)),
+    ];
+    return () => stops.forEach((stop) => stop());
+  }, []);
+
+  // Status refresh when the window gets focus (changes from terminal or editor).
+  useEffect(() => {
+    if (!activeRepoId) return;
+    const onFocus = () => {
+      void queryClient.invalidateQueries({ queryKey: qk.status(activeRepoId) });
+      void queryClient.invalidateQueries({ queryKey: qk.refs(activeRepoId) });
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [activeRepoId]);
+}

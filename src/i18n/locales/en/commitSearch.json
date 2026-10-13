@@ -1,0 +1,24 @@
+{
+  "counter": {
+    "none": "No matches",
+    "position": "{{position}} of {{total}}",
+    "total_one": "{{total}} match",
+    "total_other": "{{total}} matches"
+  },
+  "label": "Commit search",
+  "input": "Search commits",
+  "placeholder": "Search commits: message, author or SHA",
+  "searching": "Searching",
+  "previous": "Previous match",
+  "next": "Next match",
+  "close": "Close search",
+  "hint": "Searches message, author and SHA (from 4 characters) of all branches and tags – including beyond the loaded rows.",
+  "keys": "<enter>Enter</enter> next <shift>Shift+Enter</shift> previous <esc>Esc</esc> close",
+  "failed": "The search failed",
+  "retry": "Try again",
+  "empty": "No commit matches “{{query}}”. The search covered message, author and SHA of all branches and tags. Accented characters must be written exactly as in the commit.",
+  "hits": "Matches",
+  "current": "Current match: ",
+  "noMessage": "(no message)",
+  "limit": "More than {{limit}} matches – showing the first {{limit}}. A more specific search term narrows it down."
+}

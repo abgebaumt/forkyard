@@ -1,0 +1,25 @@
+{
+  "create": "Stash anlegen",
+  "createFiles_one": "{{count}} Datei stashen",
+  "createFiles_other": "{{count}} Dateien stashen",
+  "blocked": {
+    "loading": "Der Stand des Repositorys wird noch geladen.",
+    "unborn": "Ein Stash braucht einen Commit als Grundlage. Lege zuerst den ersten Commit an.",
+    "conflicts": "Erst die offenen Konflikte lösen.",
+    "markedUntracked": "Die markierten Dateien sind nicht verfolgt. Hake „Auch nicht verfolgte Dateien“ an, um sie zu stashen.",
+    "onlyUntracked": "Es gibt nur nicht verfolgte Dateien. Hake „Auch nicht verfolgte Dateien“ an, um sie zu stashen.",
+    "nothing": "Es gibt keine Änderungen, die sich stashen ließen."
+  },
+  "name": {
+    "label": "Name des Stashs",
+    "placeholder": "z. B. Halbfertige Auswertung",
+    "hint": "Optional. Ohne Namen heißt der Stash wie der letzte Commit."
+  },
+  "includeUntracked": "Auch nicht verfolgte Dateien",
+  "onlyMarked": "Nur die markierten Dateien",
+  "onlyMarkedCount": "Nur die markierten Dateien ({{count}})",
+  "onlyMarkedHint": "Markiere oben Dateien, um nur sie zu stashen ({{mod}}+Klick für mehrere).",
+  "backToCommit": "Zurück zum Commit",
+  "tipMarked": "Legt nur die markierten Dateien beiseite",
+  "tipAll": "Legt alle Änderungen beiseite"
+}

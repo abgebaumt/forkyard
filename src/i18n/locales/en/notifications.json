@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "outputOf": "Output of {{hook}}",
+    "failed": "Hook “{{hook}}” failed (exit code {{code}})",
+    "showOutput": "Show output",
+    "printed": "Hook “{{hook}}” printed something",
+    "rejectedMessage": "A Git hook rejected the action.",
+    "rejected": "{{label}}: rejected by a Git hook",
+    "gitHook": "Git hook"
+  },
+  "system": {
+    "intro": {
+      "granted": "When the window is not in the foreground, they also arrive as system notifications.",
+      "blocked": "System notifications are blocked for this app – messages only appear in the window.",
+      "unknown": "When the window is not in the foreground, they also arrive as system notifications – the first time, the system asks for permission."
+    },
+    "granted": {
+      "label": "Allowed",
+      "text": "The system shows notifications from this app. They only arrive when the window is not in the foreground and one of the switches above is on. Clicking a notification does not bring the window to the front by itself."
+    },
+    "blocked": {
+      "label": "Blocked by the system",
+      "text": "The system does not allow notifications from this app. Allow them in the system settings (Notifications) and reopen this section."
+    },
+    "unknown": {
+      "label": "Not asked yet",
+      "text": "The system has not been asked for permission yet. That happens with the first notification – or now with “Send test”."
+    },
+    "title": "System notifications",
+    "probe": "Send test",
+    "sent": "Sent – it now appears as a system notification.",
+    "notSent": "Not sent: {{reason}}"
+  }
+}

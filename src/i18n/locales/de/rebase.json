@@ -1,0 +1,186 @@
+{
+  "tool": {
+    "interactive": "Interactive Rebase",
+    "squash": "Commits zusammenfassen",
+    "cherryPick": "Cherry-Pick"
+  },
+  "commits_one": "{{count}} Commit",
+  "commits_other": "{{count}} Commits",
+  "closeWithoutChanges": "Schließen, ohne etwas zu ändern",
+  "loading": "Commits werden geladen",
+  "backToGraph": "Zurück zum Graphen",
+  "retry": "Erneut versuchen",
+  "cancel": "Abbrechen",
+  "dragToReorder": "Ziehen zum Umsortieren",
+  "loadError": {
+    "title": "Die Commits ließen sich nicht laden"
+  },
+  "column": {
+    "author": "Autor",
+    "date": "Datum",
+    "action": "Aktion"
+  },
+  "direction": {
+    "oldestTop": "Ältester Commit oben",
+    "oldestTopNewestBottom": "Ältester Commit oben, neuester unten"
+  },
+  "keys": {
+    "action": "Aktion",
+    "move": "verschieben",
+    "message": "Message",
+    "spaceKey": "Leertaste",
+    "choose": "Auswahl",
+    "start": "starten"
+  },
+  "action": {
+    "pick": {
+      "label": "Übernehmen",
+      "hint": "bleibt, wie er ist"
+    },
+    "reword": {
+      "label": "Umformulieren",
+      "hint": "neue Message, Inhalt bleibt"
+    },
+    "squash": {
+      "label": "Zusammenfassen",
+      "hint": "geht im Commit darüber auf"
+    },
+    "drop": {
+      "label": "Weglassen",
+      "hint": "fällt aus dem Branch"
+    }
+  },
+  "check": {
+    "noTarget": "Darüber bleibt kein Commit, in dem dieser aufgehen könnte.",
+    "rewordMissing": "Für „Umformulieren“ fehlt noch die neue Message.",
+    "empty": "Es gibt keine Commits zum Bearbeiten.",
+    "allDropped": "Mindestens ein Commit muss bleiben – sonst hätte der Branch keine eigenen Commits mehr.",
+    "topSquash": "Der oberste verbleibende Commit kann nicht zusammengefasst werden – darüber bleibt keiner, in dem er aufgeht.",
+    "unchanged": "Noch nichts geändert. Sortiere um oder wähle für einen Commit eine andere Aktion."
+  },
+  "summary": {
+    "reworded": "{{count}} umformuliert",
+    "squashed": "{{count}} zusammengefasst",
+    "dropped": "{{count}} weggelassen",
+    "reordered": "Reihenfolge geändert",
+    "unchanged": "unverändert"
+  },
+  "refused": {
+    "mergeCommits": "Merge-Commits im Bereich",
+    "noCommonAncestor": "Diese Basis passt nicht zum Branch",
+    "nothingToRebase": "Nichts zu rebasen",
+    "dirtyWorktree": "Erst die lokalen Änderungen sichern",
+    "detached": "Kein Branch ausgecheckt",
+    "operationInProgress": "Es läuft noch eine Operation"
+  },
+  "confirm": {
+    "dropped_one": "Ein Commit fällt aus „{{branch}}“ – seine Änderungen sind danach nicht mehr im Branch.",
+    "dropped_other": "{{count}} Commits fallen aus „{{branch}}“ – ihre Änderungen sind danach nicht mehr im Branch.",
+    "pushed": "Die Commits liegen schon auf einem Remote und werden neu geschrieben: Der Branch weicht danach vom Remote ab, und der nächste Push muss erzwungen werden.",
+    "undo": "Mit „Rückgängig“ in der Toolbar lässt sich der Rebase danach zurücknehmen.",
+    "dropTitle_one": "{{count}} Commit weglassen und Rebase starten?",
+    "dropTitle_other": "{{count}} Commits weglassen und Rebase starten?",
+    "pushedTitle": "Gepushte Commits von „{{branch}}“ neu schreiben?",
+    "droppedLabel": "Fällt aus dem Branch"
+  },
+  "interactive": {
+    "start": "Rebase starten",
+    "reloadedTitle": "Plan neu geladen",
+    "reloadedBody": "Der Branch hat sich geändert, während der Plan offen war. Die Liste zeigt jetzt den aktuellen Stand; bisherige Änderungen am Plan sind verworfen.",
+    "rewordTitle": "Commit umformulieren",
+    "rewordBody": "Neue Message für {{sha}}. Der Inhalt des Commits bleibt gleich.",
+    "applyMessage": "Message übernehmen",
+    "resultTitle": "Message des zusammengefassten Commits",
+    "resultBody_one": "Aus {{count}} Commit wird einer. Vorbelegt mit den Messages aller Beteiligten.",
+    "resultBody_other": "Aus {{count}} Commits wird einer. Vorbelegt mit den Messages aller Beteiligten.",
+    "actionForCommit": "Aktion für diesen Commit",
+    "chooseAction": "Aktion wählen",
+    "staleTitle": "Der Branch hat sich inzwischen geändert",
+    "staleBody": "Seit dem Laden des Plans ist auf dem Branch etwas passiert, zum Beispiel ein Commit im Terminal. Der Plan ist neu geladen – prüfe ihn und starte noch einmal.",
+    "upToDateTitle": "Nichts zu tun",
+    "upToDateBody": "Der Plan entspricht dem aktuellen Stand des Branches.",
+    "onto": "auf",
+    "from": "ab {{base}}",
+    "stash": "Änderungen stashen",
+    "rebaseFirst": "Erst auf „{{base}}“ rebasen",
+    "rebaseFirstBody": "„{{base}}“ ist weitergegangen, seit der Branch abgezweigt ist. Rebase ihn zuerst normal auf „{{base}}“ – danach lassen sich seine Commits hier umsortieren und bearbeiten.",
+    "pushedTitle": "Diese Commits liegen schon auf einem Remote",
+    "pushedBody": "Der Rebase schreibt sie neu. Danach weicht der Branch vom Remote ab, und der nächste Push muss erzwungen werden (Force Push).",
+    "dismiss": "Ausblenden",
+    "listLabel": "Commits des Rebase, ältester oben",
+    "pillLabel": "Aktion: {{action}} – ändern",
+    "squashInto": "geht auf in „{{summary}}“",
+    "noTarget": "darüber bleibt kein Commit",
+    "previously": "vorher: {{summary}}",
+    "newMessage": "neue Message",
+    "messageEdited": "Message bearbeitet",
+    "editMessage": "Message bearbeiten",
+    "editResultMessage": "Message des Ergebnisses bearbeiten",
+    "keysHelp": "Pfeiltasten wählen einen Commit. P übernimmt, R formuliert um, S fasst zusammen, D lässt weg. Alt mit Pfeil verschiebt. Leertaste öffnet die Auswahl der Aktion, Enter bearbeitet die Message.",
+    "resetTip": "Alle Änderungen am Plan verwerfen",
+    "nothingChanged": "Noch nichts geändert",
+    "reset": "Zurücksetzen"
+  },
+  "squash": {
+    "label": "Squash",
+    "on": "auf",
+    "becomeOne": "werden zu einem",
+    "tooFewTitle": "Zu wenige Commits gewählt",
+    "tooFewBody": "Wähle im Graphen mit Shift oder {{mod}} mindestens zwei aufeinanderfolgende Commits und öffne dann das Kontextmenü.",
+    "mergeTitle": "Ein Merge-Commit lässt sich nicht zusammenfassen",
+    "gapTitle": "Nur aufeinanderfolgende Commits",
+    "interactiveInstead": "Stattdessen Interactive Rebase",
+    "mergeBody": "In der Auswahl steckt ein Merge-Commit. Zusammenfassen geht nur mit einer geraden Folge von Commits.",
+    "gapBody": "Zwischen den gewählten Commits liegen andere. Mit einem Interactive Rebase lassen sich auch verstreute Commits zusammenfassen – dort kannst du sie vorher nebeneinander schieben.",
+    "summaryEmpty": "Die Zusammenfassung darf nicht leer sein.",
+    "operationRunning": "Erst die laufende Operation abschließen oder abbrechen.",
+    "confirmTitle_one": "{{count}} gepushten Commit zusammenfassen?",
+    "confirmTitle_other": "{{count}} gepushte Commits zusammenfassen?",
+    "confirmBodyBranch": "Mindestens einer dieser Commits liegt schon auf einem Remote. Zusammenfassen schreibt sie neu: „{{branch}}“ weicht danach vom Remote ab, und der nächste Push muss erzwungen werden. Mit „Rückgängig“ in der Toolbar lässt sich das Zusammenfassen danach zurücknehmen.",
+    "confirmBody": "Mindestens einer dieser Commits liegt schon auf einem Remote. Zusammenfassen schreibt sie neu: Der Branch weicht danach vom Remote ab, und der nächste Push muss erzwungen werden. Mit „Rückgängig“ in der Toolbar lässt sich das Zusammenfassen danach zurücknehmen.",
+    "confirm": "Zusammenfassen",
+    "pushedTitle": "Mindestens einer dieser Commits liegt schon auf einem Remote",
+    "pushedBody": "Zusammenfassen schreibt die Historie neu. Danach weicht der Branch vom Remote ab, und der nächste Push muss erzwungen werden (Force Push).",
+    "direction": "Ältester Commit oben – Autor und Datum des ältesten bleiben",
+    "listLabel": "Commits, die zusammengefasst werden, ältester oben",
+    "formLabel": "Message des neuen Commits",
+    "summary": "Zusammenfassung",
+    "description": "Beschreibung",
+    "chars_one": "{{count}} Zeichen",
+    "chars_other": "{{count}} Zeichen",
+    "charsTooMany_one": "{{count}} Zeichen – üblich sind höchstens {{limit}}",
+    "charsTooMany_other": "{{count}} Zeichen – üblich sind höchstens {{limit}}",
+    "keySquash": "zusammenfassen",
+    "laterRebased": "spätere Commits des Branches werden neu aufgesetzt",
+    "start": "Zu einem Commit zusammenfassen"
+  },
+  "pick": {
+    "branchQuoted": "„{{branch}}“",
+    "to": "nach",
+    "noneTitle": "Keine Commits gewählt",
+    "noneBody": "Wähle im Graphen die Commits, die du übertragen willst, und öffne dann das Kontextmenü.",
+    "order": "Reihenfolge der Anwendung",
+    "orderOnto": "Reihenfolge der Anwendung auf {{target}} – von oben nach unten",
+    "unborn": "Das Repository hat noch keinen Commit, auf den sich etwas übertragen ließe.",
+    "operationRunning": "Erst den laufenden {{operation}} abschließen oder abbrechen.",
+    "chooseOne": "Wähle mindestens einen Commit aus.",
+    "labelMany_one": "Cherry-Pick von {{count}} Commit",
+    "labelMany_other": "Cherry-Pick von {{count}} Commits",
+    "upToDateTitle": "Nichts zu übertragen",
+    "upToDateBody": "Die Änderungen sind in {{target}} schon enthalten.",
+    "listLabel": "Commits für den Cherry-Pick, in der Reihenfolge der Anwendung",
+    "skipped": "ausgelassen",
+    "step": "Schritt {{step}}",
+    "alreadyIn": "schon in {{target}}",
+    "include": "Wieder mitnehmen",
+    "exclude": "Auslassen",
+    "containedTip": "Die Änderungen stecken schon in {{target}}; der Schritt wird übersprungen.",
+    "contained": "schon enthalten",
+    "keysHelp": "Pfeiltasten wählen einen Commit, Leertaste nimmt ihn mit oder lässt ihn aus, Alt mit Pfeil verschiebt ihn.",
+    "keyToggle": "mitnehmen / auslassen",
+    "chosenOf": "{{chosen}} von {{count}} Commits",
+    "footer": "nach {{target}}, bei einem Konflikt geht es in den lokalen Änderungen weiter",
+    "start_one": "{{count}} Commit cherry-picken",
+    "start_other": "{{count}} Commits cherry-picken"
+  }
+}

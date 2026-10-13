@@ -1,0 +1,208 @@
+{
+  "ariaLabel": "Resolve conflict: {{path}}",
+  "loading": "Loading conflict file",
+  "toolbar": "Conflicts",
+  "linkedOn": "Synchronized scrolling is on",
+  "linkedOff": "Synchronized scrolling is off",
+  "restored": "Restored the solution you started.",
+  "noBase": "Both sides created this file. Without a common ancestor, every difference counts as a conflict.",
+  "mixedEol": "The sides use different line endings ({{ours}}: {{oursEol}}, {{theirs}}: {{theirsEol}}). They are ignored when comparing; the result keeps {{eol}}.",
+  "shownSide": "Shown side",
+  "splitter": "Split between the sides and the result",
+  "side": {
+    "rebaseOurs": {
+      "role": "Target",
+      "hint": "The state your commits are placed onto.",
+      "all": "All from target",
+      "whole": "Take version from target"
+    },
+    "rebaseTheirs": {
+      "role": "Your commit",
+      "hint": "The commit that is being replayed right now.",
+      "all": "All from your commit",
+      "whole": "Take version from your commit"
+    },
+    "current": {
+      "role": "Current",
+      "hint": "The checked-out branch.",
+      "hintCheckedOut": "The checked-out state.",
+      "all": "All current",
+      "whole": "Keep current version"
+    },
+    "cherryPick": {
+      "role": "Cherry-pick",
+      "hint": "The change from the picked commit.",
+      "all": "All from the cherry-pick",
+      "whole": "Take version from the cherry-pick"
+    },
+    "revert": {
+      "role": "Revert",
+      "hint": "The state without the reverted commit.",
+      "all": "All from the revert",
+      "whole": "Take version from the revert"
+    },
+    "incoming": {
+      "role": "Incoming",
+      "hint": "What is coming in.",
+      "hintApplied": "The change that was applied.",
+      "all": "All incoming",
+      "whole": "Take incoming version"
+    }
+  },
+  "header": {
+    "operation": "Running operation",
+    "encoding": "Detected encoding of the file – kept when saving",
+    "external": "Open in external tool",
+    "switchFile": "Switch conflict file",
+    "prevFile": "Previous conflict file",
+    "nextFile": "Next conflict file",
+    "filePosition": "Conflict file {{index}} of {{total}}",
+    "close": "Close conflict tool"
+  },
+  "error": {
+    "goneTitle": "This file is no longer in conflict",
+    "backToChanges": "Back to changes",
+    "recheck": "Check again",
+    "goneBody": "<path>{{path}}</path> is already resolved – maybe in the terminal, in another program or via the context menu. The operation continues.",
+    "title": "The conflict file could not be loaded",
+    "retry": "Try again",
+    "close": "Close"
+  },
+  "resolve": {
+    "takeOurs": "Take current version",
+    "takeTheirs": "Take incoming version",
+    "resolve": "Resolve conflict",
+    "doneTitle": "“{{name}}” resolved and staged",
+    "remainingNext_one": "{{count}} conflict file still open – continuing with “{{next}}”.",
+    "remainingNext_other": "{{count}} conflict files still open – continuing with “{{next}}”.",
+    "remaining_one": "{{count}} conflict file still open.",
+    "remaining_other": "{{count}} conflict files still open.",
+    "allDoneMerge": "All conflicts resolved. Finish the merge in the commit panel.",
+    "allDoneContinue": "All conflicts resolved. Continue the {{operation}} in the commit panel.",
+    "allDone": "All conflicts resolved."
+  },
+  "whole": {
+    "keep": "Keep file",
+    "keepDetail": "Version from “{{side}}”",
+    "delete": "Delete file",
+    "deleteDetail": "as in “{{side}}”",
+    "large": {
+      "title": "Very large file",
+      "text": "With {{lines}} lines, the file is too large to compare both sides line by line. Take one side completely – or compare anyway; that can take a moment."
+    },
+    "deletedByUs": {
+      "title": "Deleted on one side, changed on the other",
+      "text": "The file no longer exists in “{{ours}}”; “{{theirs}}” changed it. Should it stay?"
+    },
+    "deletedByThem": {
+      "title": "Changed on one side, deleted on the other",
+      "text": "“{{ours}}” changed the file; it no longer exists in “{{theirs}}”. Should it stay?"
+    },
+    "bothDeleted": {
+      "title": "Deleted on both sides",
+      "text": "The file no longer exists under this name on either side – usually because both renamed it. The new names appear as separate entries in the list of conflicts.",
+      "confirm": "Confirm deletion",
+      "detail": "The old name disappears"
+    },
+    "addedOneSide": {
+      "title": "Only present on one side",
+      "text": "This name only exists in “{{side}}” – usually because both sides renamed the same file differently. Should the file stay under this name?"
+    },
+    "binary": {
+      "title": "Binary file",
+      "noTextTitle": "No text to compare",
+      "modifiedBinary": "Both sides changed the file. Binary content cannot be merged line by line – take one of the two versions completely.",
+      "modifiedNoText": "Both sides changed the file. The content cannot be read as text – take one of the two versions completely.",
+      "addedBinary": "Both sides created the file. Binary content cannot be merged line by line – take one of the two versions completely.",
+      "addedNoText": "Both sides created the file. The content cannot be read as text – take one of the two versions completely."
+    },
+    "decision": "Decision for this file",
+    "force": "Compare line by line anyway",
+    "previewLabel": "Version from {{side}}",
+    "previewKept": "this version would be kept",
+    "previewEditor": "Version from {{side}}, read-only"
+  },
+  "takeAll": {
+    "title": "{{all}} – overwrite edited blocks?",
+    "body_one": "{{count}} conflict block was edited by hand. This text will be replaced by the version “{{side}}”.",
+    "body_other": "{{count}} conflict blocks were edited by hand. This text will be replaced by the version “{{side}}”."
+  },
+  "reset": {
+    "title": "Reset the solution for “{{name}}”?",
+    "body": "All decisions and everything typed by hand will be lost. The file will then be back to how it was at the start.",
+    "confirm": "Reset",
+    "tip": "Reset – discard all decisions"
+  },
+  "save": {
+    "blockedOpen_one": "{{count}} conflict still open. Saving is possible once there are no conflict markers in the result.",
+    "blockedOpen_other": "{{count}} conflicts still open. Saving is possible once there are no conflict markers in the result.",
+    "blockedMarker": "There is still a conflict marker in the result (line {{line}}). Saving is possible once it is gone.",
+    "readyNone": "Nothing left to decide – the result can be saved.",
+    "ready": "All conflicts resolved – the result can be saved.",
+    "tip": "Writes the result to the file and stages it",
+    "label": "Resolved – save and stage"
+  },
+  "takeWorktree": {
+    "title": "Take the file as it is?",
+    "body": "Your decisions here in the tool will be lost. The file is saved as it currently is in the working directory.",
+    "confirm": "Take file as it is"
+  },
+  "leave": {
+    "title": "Leave “{{name}}” without saving?",
+    "body": "The solution is not saved yet. Until then, the file stays in conflict.",
+    "keep": "Continue later",
+    "keepBody": "Selection and text are kept as long as the app is running.",
+    "discard": "Discard solution",
+    "discardBody": "All decisions for this file will be lost."
+  },
+  "counter": {
+    "none": "No conflicting lines",
+    "resolved_one": "{{resolved}} of {{count}} conflict resolved",
+    "resolved_other": "{{resolved}} of {{count}} conflicts resolved",
+    "auto_one": "{{count}} spot taken automatically",
+    "auto_other": "{{count}} spots taken automatically"
+  },
+  "nav": {
+    "switch": "Switch conflict",
+    "prev": "Previous conflict",
+    "next": "Next conflict",
+    "position": "Conflict {{index}} of {{total}}"
+  },
+  "handEdited": {
+    "clean": "The file in the working directory was edited elsewhere and no longer contains conflict markers. Take it as it is – or resolve here; saving then replaces it with the result below.",
+    "dirty": "The file in the working directory differs from this comparison – it was probably already edited by hand. Saving replaces it with the result below."
+  },
+  "result": {
+    "title": "Result",
+    "subtitle": "editable – this is how the file will be saved",
+    "manualTip": "The text differs from the selection above",
+    "manual": "edited by hand",
+    "manualBlocks_one": "{{count}} block edited by hand",
+    "manualBlocks_other": "{{count}} blocks edited by hand",
+    "eolTip": "Line endings of the file – kept when saving",
+    "noFinalNewlineTip": "The file ends without a newline – this stays the same when saving",
+    "noFinalNewline": "no newline at the end",
+    "search": "Search in result",
+    "editorLabel": "Result for {{path}}, editable"
+  },
+  "block": {
+    "open": "open",
+    "taken": "taken",
+    "partly": "partly taken",
+    "notTaken": "not taken",
+    "bothSame": "Changed the same way on both sides – taken",
+    "auto": "Taken automatically",
+    "otherChanged": "Unchanged – the other side changed here",
+    "takeLabel": "Conflict {{number}}: take {{side}}",
+    "title": "Conflict {{number}}",
+    "first": "first",
+    "then": "then",
+    "noLines": "no lines",
+    "swap": "Swap order",
+    "takeLine": "Take line {{line}} from {{side}}"
+  },
+  "sides": {
+    "single": "{{side}} – lines to take",
+    "both": "{{ours}} and {{theirs}} side by side"
+  }
+}
