@@ -1,53 +1,133 @@
 name: Release
 
-# Builds installers for Windows, Linux and macOS when a version tag is pushed
-# (e.g. `git tag v0.1.0 && git push origin v0.1.0`) and attaches them to a draft release.
+# Builds installers for every supported system when a version tag is pushed
+# (`git tag v1.0.0 && git push origin v1.0.0`), attaches them to one release and publishes it
+# once every build succeeded. If a build fails, the release stays a draft.
+#
+#   Windows  x64 (.msi, .exe) and ARM64 (.exe, cross-compiled on x64)
+#   macOS    Apple Silicon and Intel (.dmg, .app.tar.gz; Intel is cross-compiled)
+#   Linux    x64 and ARM64 (.deb, .rpm, .AppImage), built on Ubuntu 22.04 for an older glibc
+#
+# GitHub only offers ARM64 Linux runners to public repositories, so that build is skipped
+# while the repository is private. Run the workflow by hand with the tag to add it later.
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build, e.g. v1.0.0
+        required: true
 
 permissions:
   contents: write
 
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+
 jobs:
-  build:
-    name: Build (${{ matrix.platform }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-22.04
-            args: ""
-          - platform: windows-latest
-            args: ""
-          # Apple Silicon. The askpass sidecar is built per target by src-tauri/build.rs,
-          # so a universal binary would need a lipo step first.
-          - platform: macos-latest
-            args: ""
-    runs-on: ${{ matrix.platform }}
+  release:
+    name: Create draft release
+    runs-on: ubuntu-24.04
+    outputs:
+      id: ${{ steps.draft.outputs.id }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.TAG }}
+      - name: Check that the tag matches the app version
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match the app version $version in src-tauri/tauri.conf.json"
+            exit 1
+          fi
+      - name: Create or reuse the draft
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq ".[] | select(.tag_name == \"$TAG\") | .id" | head -n1)
+          if [ -z "$id" ]; then
+            notes=$(awk -v v="${TAG#v}" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md)
+            id=$(gh api "repos/$GITHUB_REPOSITORY/releases" -f tag_name="$TAG" -f name="Forkyard $TAG" \
+              -f body="${notes:-See CHANGELOG.md for what is new.}" -F draft=true --jq .id)
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+      - name: Choose the build targets
+        id: matrix
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          targets='[
+            {"name":"Linux x64","runner":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","args":""},
+            {"name":"Windows x64","runner":"windows-latest","target":"x86_64-pc-windows-msvc","args":""},
+            {"name":"Windows ARM64","runner":"windows-latest","target":"aarch64-pc-windows-msvc","args":"--target aarch64-pc-windows-msvc --bundles nsis"},
+            {"name":"macOS Apple Silicon","runner":"macos-latest","target":"aarch64-apple-darwin","args":"--target aarch64-apple-darwin"},
+            {"name":"macOS Intel","runner":"macos-latest","target":"x86_64-apple-darwin","args":"--target x86_64-apple-darwin"}
+          ]'
+          if [ "$PRIVATE" != "true" ]; then
+            targets=$(echo "$targets" | jq -c '. + [{"name":"Linux ARM64","runner":"ubuntu-22.04-arm","target":"aarch64-unknown-linux-gnu","args":""}]')
+          else
+            echo "::notice::Repository is private: the Linux ARM64 build is skipped (no ARM64 runners for private repositories)."
+          fi
+          echo "matrix=$(echo "$targets" | jq -c '{include: .}')" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.release.outputs.matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ env.TAG }}
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev \
-            libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev libdbus-1-dev
+            libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev libdbus-1-dev \
+            patchelf rpm
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: release-${{ matrix.target }}
       - run: npm ci
       - uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Forkyard ${{ github.ref_name }}
-          releaseBody: Installers for Windows, Linux and macOS. See CHANGELOG.md for what is new.
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.release.outputs.id }}
           args: ${{ matrix.args }}
+
+  publish:
+    name: Checksums and publish
+    needs: [release, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Add SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir assets && cd assets
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/${{ needs.release.outputs.id }}" --jq .tag_name)
+          gh release download "$tag" -R "$GITHUB_REPOSITORY" --pattern '*' --skip-existing
+          rm -f SHA256SUMS.txt
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "$tag" SHA256SUMS.txt -R "$GITHUB_REPOSITORY" --clobber
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/${{ needs.release.outputs.id }}" -F draft=false -F make_latest=true --jq .html_url

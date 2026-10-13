@@ -90,11 +90,17 @@ actually happens, and makes the risky parts safe:
 
 Download the installer for your system from the [latest release](https://github.com/abgebaumt/forkyard/releases/latest):
 
-| System | Package |
-| --- | --- |
-| Windows 10/11 | `.msi` or `.exe` setup |
-| Linux | `.deb`, `.rpm` or `.AppImage` |
-| macOS (Apple Silicon) | `.dmg` |
+| System | x64 (Intel/AMD) | ARM64 |
+| --- | --- | --- |
+| Windows 10/11 | `.msi` or `-setup.exe` | `-setup.exe` |
+| macOS 11 or newer | `_x64.dmg` (Intel) | `_aarch64.dmg` (Apple Silicon) |
+| Linux (Debian, Ubuntu, Mint …) | `.deb` | `.deb` |
+| Linux (Fedora, openSUSE, RHEL …) | `.rpm` | `.rpm` |
+| Linux (any distribution) | `.AppImage` | `.AppImage` |
+
+`SHA256SUMS.txt` in every release lists the checksums. The builds are not signed with a paid
+certificate yet: Windows SmartScreen may ask once (“More info” → “Run anyway”), and on macOS open
+the app the first time with right-click → Open.
 
 Forkyard uses the Git installed on your system (version 2.39 or newer). The interface is available
 in English and German.
