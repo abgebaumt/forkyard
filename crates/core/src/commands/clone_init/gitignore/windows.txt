@@ -1,0 +1,16 @@
+# Explorer thumbnails
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+
+# Folder settings
+[Dd]esktop.ini
+
+# Trash
+$RECYCLE.BIN/
+
+# Shortcuts
+*.lnk
+
+# Crash dumps
+*.stackdump

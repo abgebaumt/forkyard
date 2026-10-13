@@ -1,0 +1,170 @@
+{
+  "not_a_repo": {
+    "text": "This folder is not a Git repository.",
+    "hint": "Choose the folder that contains the .git subfolder, or create a new repository there."
+  },
+  "path_not_found": {
+    "text": "The path does not exist.",
+    "hint": "Check whether the folder was moved, renamed or deleted, or whether a drive is missing."
+  },
+  "path_exists": {
+    "text": "A folder or file with this name already exists at the target.",
+    "hint": "Choose a different name or a different target folder."
+  },
+  "git_missing": {
+    "text": "Git was not found on this computer.",
+    "hint": "Install Git (version 2.39 or later) and restart the app."
+  },
+  "git_too_old": {
+    "text": "The installed Git version is too old.",
+    "hint": "Update Git to version 2.39 or later and restart the app."
+  },
+  "invalid_name": {
+    "text": "This name is not valid for Git.",
+    "hint": "Don’t use spaces, “..”, “~ ^ : ? * [ \\” or a trailing dot or slash."
+  },
+  "name_exists": {
+    "text": "An entry with this name already exists.",
+    "hint": "Choose a different name."
+  },
+  "not_found": {
+    "text": "The object no longer exists (or never did).",
+    "hint": "It may have been changed outside the app. The view will reload."
+  },
+  "dirty_worktree": {
+    "text": "Uncommitted changes are in the way.",
+    "hint": "Commit or stash your changes first, then try again."
+  },
+  "conflict": {
+    "text": "Conflicts occurred.",
+    "hint": "Resolve the conflicts in the commit panel and then finish the action – or abort it."
+  },
+  "nothing_to_commit": {
+    "text": "There is nothing to commit.",
+    "hint": "Stage at least one change first."
+  },
+  "empty_message": {
+    "text": "The commit message is empty.",
+    "hint": "Enter a short summary."
+  },
+  "identity_missing": {
+    "text": "Git doesn’t know who you are: name or email is missing.",
+    "hint": "Enter your name and email in Settings under “Profiles”."
+  },
+  "hook_failed": {
+    "text": "A Git hook rejected the action.",
+    "hint": "Look at the hook’s output. If necessary, you can skip hooks when committing."
+  },
+  "push_rejected": {
+    "text": "The remote rejected the push because it has commits that are missing locally.",
+    "hint": "Pull the changes first, then push again."
+  },
+  "no_upstream": {
+    "text": "The branch has no upstream.",
+    "hint": "Create a remote branch when pushing, or set the upstream in the branch’s context menu."
+  },
+  "no_remote": {
+    "text": "No remote is set up for this repository.",
+    "hint": "Add a remote in the sidebar under “Remote”."
+  },
+  "auth_failed": {
+    "text": "Signing in to the remote failed.",
+    "hint": "Check your username, password or token, or SSH key. You can delete saved credentials in Settings."
+  },
+  "host_key_unknown": {
+    "text": "The SSH host is unknown and was not confirmed.",
+    "hint": "Compare the fingerprint with the provider’s details and confirm it on the next attempt."
+  },
+  "offline": {
+    "text": "The remote cannot be reached.",
+    "hint": "Check your network connection, a proxy or the remote’s address."
+  },
+  "timeout": {
+    "text": "The connection took too long and was aborted.",
+    "hint": "Try again later or check your network connection."
+  },
+  "stale_state": {
+    "text": "The repository has changed in the meantime.",
+    "hint": "The view will reload. Check the new state, then try again."
+  },
+  "locked": {
+    "text": "Another program is currently working in the repository (index.lock is locked).",
+    "hint": "Wait until it is done, or close it. If the lock remains, delete .git/index.lock by hand – but only if you’re sure no Git process is still running."
+  },
+  "not_merged": {
+    "text": "The branch is not fully merged yet.",
+    "hint": "Merge it first, or explicitly delete it anyway – its commits will then be lost."
+  },
+  "operation_in_progress": {
+    "text": "A merge, rebase, cherry-pick or revert is still in progress.",
+    "hint": "Finish or abort the running action in the commit panel."
+  },
+  "no_operation": {
+    "text": "There is no running action that could be continued or aborted.",
+    "hint": ""
+  },
+  "not_allowed": {
+    "text": "This action is not possible in the current state.",
+    "hint": ""
+  },
+  "nothing_to_undo": {
+    "text": "There is nothing to undo.",
+    "hint": ""
+  },
+  "cancelled": {
+    "text": "The action was cancelled.",
+    "hint": ""
+  },
+  "duplicate": {
+    "text": "This action is already running.",
+    "hint": "Wait until it is done."
+  },
+  "unsupported": {
+    "text": "This is not supported (yet).",
+    "hint": ""
+  },
+  "io": {
+    "text": "A file could not be read or written.",
+    "hint": "Check access rights and free disk space, and whether the file is open in another program."
+  },
+  "unknown": {
+    "text": "An unexpected error occurred.",
+    "hint": "Look at the output. If that doesn’t help, the log (status bar) lists every command that was run."
+  },
+  "host_not_connected": {
+    "text": "No account is connected for this host.",
+    "hint": "Connect an account with your own token in Settings."
+  },
+  "host_auth_failed": {
+    "text": "The host rejected the token.",
+    "hint": "Check whether the token is still valid and has the required permissions, and reconnect the account."
+  },
+  "host_rate_limited": {
+    "text": "The host’s request limit has been reached.",
+    "hint": "Wait until the stated time and then try again."
+  },
+  "host_not_found": {
+    "text": "The host doesn’t know this.",
+    "hint": "Check the remote’s address and whether the token has access to it."
+  },
+  "host_unsupported": {
+    "text": "This is not possible with this host.",
+    "hint": "GitHub and GitLab are supported, including self-hosted instances with a connected account."
+  },
+  "host_rejected": {
+    "text": "The host rejected the request.",
+    "hint": "Look at the reason given and adjust your input."
+  },
+  "host_forbidden": {
+    "text": "The token lacks the permission for this.",
+    "hint": "The token is valid but not allowed to do this. Issue a token with the required permissions and replace it in Settings under “Integrations”."
+  },
+  "repo_untrusted": {
+    "text": "This repository brings its own commands that you haven’t approved yet.",
+    "hint": "Open the repository’s tab: it shows what was found, and you decide whether to trust it."
+  },
+  "repo_other_profile": {
+    "text": "This repository belongs to a different profile.",
+    "hint": "Switch to that profile or open it in the current one as well."
+  }
+}

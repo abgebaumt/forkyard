@@ -1,0 +1,178 @@
+{
+  "title": "Clone repository",
+  "description": "Fetches a repository from a server or from another folder onto this computer.",
+  "errors": {
+    "authFailed": {
+      "title": "Sign-in rejected",
+      "hint": "The server didn't accept the user name, password, token or SSH key. Check your credentials – and whether you're allowed to read this repository at all."
+    },
+    "offline": {
+      "title": "Server not reachable",
+      "hint": "Check the network connection, any proxy, and the server name in the address."
+    },
+    "notFound": {
+      "title": "There is no repository at this address",
+      "hint": "Check the spelling of the address and, if given, the branch. Private repositories respond the same way without the right permissions."
+    },
+    "pathExists": {
+      "title": "The target is already taken",
+      "hint": "There is already a non-empty folder or a file there. Choose a different folder name or a different target folder."
+    },
+    "pathNotFound": {
+      "title": "The target folder doesn't exist",
+      "hint": "Use “Browse …” to choose an existing folder."
+    },
+    "hostKeyUnknown": {
+      "title": "SSH server not confirmed",
+      "hint": "The server's fingerprint wasn't confirmed. Compare it with the details from the provider and confirm it on the next attempt."
+    },
+    "timeout": {
+      "title": "No response from the server",
+      "hint": "The connection made no progress for too long and was closed. Try again later."
+    },
+    "invalidName": "This name doesn't work",
+    "notAllowed": "Can't clone with these settings",
+    "branchMissing": {
+      "title": "This branch doesn't exist there",
+      "hint": "Check the spelling, or leave the field empty to get the default branch."
+    },
+    "hostKeyChanged": "The SSH server's key has changed",
+    "failed": "Clone failed",
+    "noLeftovers": "No half-finished folder was left behind.",
+    "showOutput": "Show output",
+    "outputTitle": "Clone: Git output",
+    "fieldPathExists": "Something is already there.",
+    "fieldPathNotFound": "This folder doesn't exist.",
+    "fieldNotFound": "No repository was found here."
+  },
+  "phase": {
+    "enumerating": "The server is gathering the data",
+    "compressing": "The server is compressing the data",
+    "receiving": "Transferring data",
+    "resolving": "Assembling the history",
+    "checkout": "Checking out files",
+    "sparse": "Checking out the selected folders",
+    "filtering": "Downloading remaining files",
+    "connecting": "Connecting",
+    "stopping": "Cancelling the clone"
+  },
+  "progress": {
+    "from": "From",
+    "to": "To",
+    "label": "Clone progress",
+    "valueText": "{{label}}, {{percent}} percent",
+    "waiting": "Waiting for the server to respond …"
+  },
+  "validation": {
+    "urlMissing": "Enter the repository's address.",
+    "parentNotAbsolute": "Enter a full path or choose the folder with “Browse …”.",
+    "parentMissing": "Choose the folder in which the clone should be created.",
+    "repoAtTarget": "The repository “{{name}}” is already there.",
+    "depth": "The depth is a whole number of 1 or more.",
+    "dateFormat": "Write the date as year-month-day, e.g. 2026-01-31.",
+    "dateMissing": "Enter the date from which the history is fetched.",
+    "sparseMissing": "Name at least one folder – or turn off sparse checkout."
+  },
+  "pickFolderTitle": "Target folder for the clone",
+  "action": "Clone",
+  "jobTitle": "Clone: {{name}}",
+  "success": "“{{name}}” has been cloned",
+  "summary": {
+    "depth": "Shallow, depth {{depth}}",
+    "since": "Shallow, since {{date}}",
+    "branch": "Branch {{branch}}",
+    "sparse": "Sparse checkout",
+    "submodules": "with submodules"
+  },
+  "continue": "Keep cloning",
+  "stop": "Cancel clone",
+  "busy": "Cloning …",
+  "cancel": "Cancel",
+  "stillRunning": {
+    "title": "The clone is still running",
+    "body": "If you cancel now, the incomplete folder is removed again. Your input is lost when the dialog closes."
+  },
+  "cancelled": {
+    "title": "Clone cancelled",
+    "body": "The incomplete folder was removed again. Your input is still there."
+  },
+  "url": {
+    "label": "Address",
+    "placeholder": "https://host/group/project.git",
+    "hint": "HTTPS, SSH (git@host:group/project.git) or a local path."
+  },
+  "parent": {
+    "label": "Target folder",
+    "placeholder": "Folder in which the clone is created"
+  },
+  "browse": "Browse …",
+  "name": {
+    "label": "Folder name",
+    "placeholder": "suggested from the address"
+  },
+  "target": "Will be cloned to:",
+  "targetHint": "Address and target folder together determine where the clone goes.",
+  "advanced": "Advanced options",
+  "shallow": {
+    "label": "Shallow clone",
+    "hint": "Fetches only the most recent part of the history – faster and smaller, older commits are missing.",
+    "limitBy": "Limit by",
+    "limitByLabel": "Limit history by",
+    "depth": "Depth",
+    "date": "Date",
+    "depthLabel": "Depth (commits per branch)",
+    "sinceLabel": "Commits since"
+  },
+  "branch": {
+    "label": "Branch",
+    "placeholder": "Default branch of the remote",
+    "hint": "Leave empty to check out the default branch."
+  },
+  "sparse": {
+    "label": "Sparse checkout",
+    "hint": "Checks out only selected folders. Files in the root folder are always included.",
+    "pathsLabel": "Folders, one per line",
+    "pathsPlaceholder": "src\ndocs/manual"
+  },
+  "submodules": "Clone submodules too",
+  "parse": {
+    "control": "The address contains a control character.",
+    "dash": "An address doesn't start with “-”.",
+    "scheme": "“{{scheme}}://” isn't supported here. Possible are https://, ssh://, git:// and file://.",
+    "restMissing": "The rest of the address is missing after “://”.",
+    "spaces": "An address doesn't contain spaces.",
+    "hostMissing": "The server name is missing from the address.",
+    "pathMissing": "The path to the repository is missing after the server name.",
+    "slashes": "“{{scheme}}:” needs two slashes: “{{scheme}}://…”.",
+    "helper": "Addresses with “::” aren't supported.",
+    "scpPathMissing": "The path to the repository is missing after the colon.",
+    "incomplete": "This isn't a complete address. Examples: https://host/group/project.git, git@host:group/project.git or a local path.",
+    "portNotNumber": "The server name is followed by “:{{port}}” – in an address with “{{scheme}}://” that is the port and must be a number. Separate the path with a slash (“{{scheme}}://host/path”).",
+    "portNotNumberSsh": "The server name is followed by “:{{port}}” – in an address with “{{scheme}}://” that is the port and must be a number. Separate the path with a slash (“{{scheme}}://host/path”) or use the short form “git@host:path”.",
+    "portRange": "Port {{port}} doesn't exist: ports range between 1 and 65535."
+  },
+  "kind": {
+    "http": "HTTP, unencrypted",
+    "git": "git://, unencrypted",
+    "local": "Local",
+    "localFolder": "Local folder"
+  },
+  "folderName": {
+    "missing": "The folder needs a name.",
+    "dots": "“.” and “..” aren't folder names.",
+    "char": "The character “{{char}}” isn't allowed in folder names.",
+    "control": "The name contains a control character.",
+    "leadingSpace": "The name can't start with a space.",
+    "trailing": "The name can't end with a period or a space.",
+    "reserved": "Windows reserves this name for itself.",
+    "tooLong": "At {{length}} characters, the name is too long (at most {{max}})."
+  },
+  "branchName": {
+    "spaces": "Branch names don't contain spaces.",
+    "dash": "The name can't start with “-”.",
+    "char": "The character “{{char}}” isn't allowed in branch names.",
+    "sequence": "“..” and “@{” aren't allowed in branch names.",
+    "slashes": "Slashes only between parts of the name.",
+    "ending": "The name can't end with “.” or “.lock”."
+  }
+}

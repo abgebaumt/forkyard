@@ -1,0 +1,53 @@
+{
+  "title": "Terminal",
+  "clipboardFailed": "Die Zwischenablage ließ sich nicht lesen",
+  "clipboardHint": "Füge mit {{shortcut}} direkt im Terminal ein.",
+  "menu": {
+    "copy": "Kopieren",
+    "nothingSelected": "nichts markiert",
+    "paste": "Einfügen",
+    "shellEnded": "Shell beendet",
+    "selectAll": "Alles markieren",
+    "clear": "Verlauf leeren",
+    "clearHint": "weggerollte Ausgabe",
+    "restartAsk": "Neu starten …",
+    "restart": "Neu starten",
+    "endAsk": "Sitzung beenden …",
+    "end": "Sitzung beenden"
+  },
+  "copySelection": "Auswahl",
+  "exit": {
+    "unknown": "Die Shell wurde beendet.",
+    "ok": "Die Shell wurde beendet (Exit-Code 0).",
+    "error": "Die Shell wurde mit einem Fehler beendet (Exit-Code {{code}})."
+  },
+  "failure": {
+    "pathNotFound": "Der Ordner des Repositorys fehlt",
+    "notAllowed": "Es lässt sich gerade kein weiteres Terminal öffnen",
+    "other": "Die Shell ließ sich nicht starten"
+  },
+  "badge": {
+    "exited": "beendet",
+    "failed": "nicht gestartet"
+  },
+  "clearLabel": "Verlauf leeren – die weggerollte Ausgabe",
+  "external": "Im externen Terminal öffnen",
+  "hide": "Terminal ausblenden – die Shell läuft weiter",
+  "retry": "Erneut versuchen",
+  "exitHint": "Tab und Esc gehen an die Shell – F6 verlässt das Terminal",
+  "starting": "Shell startet",
+  "close": "Schließen",
+  "height": "Höhe des Terminals",
+  "promptLabel": "Terminal-Eingabe",
+  "tooMuchOutput": "Zu viel Ausgabe zum Vorlesen. Mit den Pfeiltasten lässt sie sich zeilenweise lesen.",
+  "confirm": {
+    "restartTitle": "Terminal neu starten?",
+    "restartBody": "Die Shell wird beendet – samt allem, was gerade darin läuft. Die bisherige Ausgabe verschwindet.",
+    "endTitle": "Terminal-Sitzung beenden?",
+    "endBody": "Die Shell wird beendet – samt allem, was gerade darin läuft. Die Ausgabe geht verloren; beim nächsten Öffnen startet eine neue Shell.",
+    "closeTabNamed": "Tab „{{name}}“ schließen und Terminal beenden?",
+    "closeTab": "Tab schließen und Terminal beenden?",
+    "closeTabBody": "Im Terminal dieses Tabs läuft noch eine Shell, in der du gearbeitet hast. Mit dem Tab endet sie – samt allem, was gerade darin läuft.",
+    "closeTabConfirm": "Tab schließen"
+  }
+}

@@ -1,0 +1,684 @@
+{
+  "app": {
+    "activity": {
+      "keywords": "activity, log, commands, history",
+      "title": "Show activity log"
+    },
+    "palette": {
+      "keywords": "commands, search",
+      "title": "Command palette"
+    },
+    "preferences": {
+      "keywords": "options, preferences",
+      "title": "Settings"
+    },
+    "shortcuts": {
+      "keywords": "help, keyboard",
+      "title": "Show keyboard shortcuts"
+    }
+  },
+  "branch": {
+    "checkout": {
+      "confirm": "Check out",
+      "keywords": "switch, checkout, change branch",
+      "pick": "Check out branch",
+      "title": "Check out branch …"
+    },
+    "copyName": {
+      "title": "Copy current branch name"
+    },
+    "create": {
+      "title": "New branch …"
+    },
+    "delete": {
+      "pick": "Delete branch",
+      "title": "Delete branch …"
+    },
+    "fastForward": {
+      "keywords": "fast forward, ff",
+      "title": "Fast-forward to upstream"
+    },
+    "merge": {
+      "confirm": "Merge",
+      "keywords": "merge, combine",
+      "pick": "Merge",
+      "pickInto": "Merge into “{{target}}”",
+      "title": "Merge branch into current …"
+    },
+    "rebase": {
+      "confirm": "Rebase",
+      "keywords": "rebase",
+      "pick": "Rebase “{{branch}}” onto",
+      "title": "Rebase current branch onto …"
+    },
+    "rebaseInteractive": {
+      "keywords": "rebase, interactive, reorder, squash",
+      "pick": "Interactively rebase “{{branch}}” onto",
+      "title": "Interactively rebase current branch onto …"
+    },
+    "rename": {
+      "title": "Rename current branch …"
+    },
+    "setUpstream": {
+      "keywords": "tracking, track",
+      "title": "Set or change upstream …"
+    },
+    "unsetUpstream": {
+      "title": "Unset upstream"
+    }
+  },
+  "changes": {
+    "discardAll": {
+      "keywords": "discard, reset, throw away",
+      "title": "Discard all changes …"
+    }
+  },
+  "commit": {
+    "branchHere": {
+      "title": "Create branch at selected commit …"
+    },
+    "checkout": {
+      "title": "Check out selected commit (detached HEAD)"
+    },
+    "cherryPick": {
+      "keywords": "cherry-pick, transfer, copy commit",
+      "title": "Cherry-pick selected commits"
+    },
+    "compare": {
+      "title": "Compare the two selected commits"
+    },
+    "copyMessage": {
+      "title": "Copy message of selected commit"
+    },
+    "copySha": {
+      "title": "Copy SHA of selected commit"
+    },
+    "rebaseInteractive": {
+      "title": "Interactive rebase from selected commit …"
+    },
+    "rebaseOnto": {
+      "title": "Rebase current branch onto selected commit"
+    },
+    "reset": {
+      "hard": {
+        "title": "Reset to selected commit (hard) …"
+      },
+      "keywords": "reset",
+      "mixed": {
+        "title": "Reset to selected commit (mixed)"
+      },
+      "soft": {
+        "title": "Reset to selected commit (soft)"
+      }
+    },
+    "revert": {
+      "title": "Revert selected commit"
+    },
+    "reword": {
+      "keywords": "reword, amend, rephrase",
+      "title": "Edit message of last commit …"
+    },
+    "showWip": {
+      "keywords": "WIP, stage, commit",
+      "title": "Show local changes"
+    },
+    "squash": {
+      "title": "Squash selected commits …"
+    },
+    "tagHere": {
+      "title": "Create tag at selected commit …"
+    }
+  },
+  "file": {
+    "blame": {
+      "keywords": "blame, who changed, annotate",
+      "title": "Blame file"
+    },
+    "delete": {
+      "action": "Delete file",
+      "confirm": "Delete",
+      "confirmBody": "The file {{path}} will be removed from the working directory. For a tracked file, the deletion then shows up under the changes. Right afterwards, “Undo” brings it back.",
+      "confirmTitle": "Delete “{{name}}”?",
+      "done": "“{{name}}” deleted",
+      "keywords": "delete file, remove, erase",
+      "title": "Delete file …"
+    },
+    "edit": {
+      "confirm": "Edit",
+      "empty": "There are no files in the working directory.",
+      "keywords": "edit file, editor, open",
+      "label": "File",
+      "pick": "Edit file",
+      "readAction": "Read files",
+      "title": "Edit file …"
+    },
+    "externalDiff": {
+      "keywords": "difftool, external diff, compare, Meld, Beyond Compare, WinMerge",
+      "noDiff": "open a file’s diff first",
+      "title": "Open diff in external diff tool"
+    },
+    "externalMerge": {
+      "keywords": "mergetool, external merge, conflict, KDiff3, Meld",
+      "noConflict": "open a conflict file first",
+      "title": "Open conflict file in external merge tool"
+    },
+    "history": {
+      "keywords": "file history, history, log",
+      "title": "File history"
+    },
+    "new": {
+      "action": "Create file",
+      "confirm": "Create",
+      "description": "Missing folders are created. The file starts empty and opens in the editor.",
+      "dialogTitle": "Create new file",
+      "done": "“{{path}}” created",
+      "exists": "This file already exists.",
+      "keywords": "new file, create file, add file",
+      "label": "Path in the repository",
+      "placeholder": "docs/notes.md",
+      "title": "Create new file …"
+    },
+    "path": {
+      "absolute": "The path is relative to the repository, without a drive or leading slash.",
+      "dots": "“.” and “..” are not allowed in the path.",
+      "empty": "Please enter a path, e.g. docs/notes.md.",
+      "gitDir": "Nothing is written to the .git folder.",
+      "noName": "The file name is missing at the end.",
+      "windowsChars": "The name contains characters that are not allowed on Windows."
+    }
+  },
+  "focus": {
+    "center": {
+      "keywords": "focus, graph, commits, center",
+      "title": "Go to main view (graph, diff, file)"
+    },
+    "commitMessage": {
+      "keywords": "focus, summary, write message, local changes",
+      "title": "Go to commit message"
+    },
+    "commitPanel": {
+      "keywords": "focus, details, changes, right",
+      "title": "Go to commit panel"
+    },
+    "leftPanel": {
+      "keywords": "focus, branches, refs, left panel",
+      "title": "Go to sidebar"
+    },
+    "next": {
+      "keywords": "focus, keyboard, panel, switch",
+      "title": "Next area"
+    },
+    "previous": {
+      "keywords": "focus, keyboard, panel, switch",
+      "title": "Previous area"
+    }
+  },
+  "gitflow": {
+    "finish": {
+      "keywords": "git flow, gitflow, finish, complete, merge, feature, release, hotfix",
+      "notFlowBranch": "the checked-out branch is not a feature, release or hotfix",
+      "title": "Git Flow: finish checked-out branch …"
+    },
+    "notSetUp": "Git Flow is not set up here yet",
+    "open": {
+      "keywords": "git flow, gitflow, set up, init, feature, release, hotfix, develop",
+      "title": "Git Flow …"
+    },
+    "start": {
+      "keywords": "git flow, gitflow, start, new",
+      "title": "Git Flow: start {{kind}} …"
+    }
+  },
+  "graph": {
+    "highlightCurrentBranch": {
+      "keywords": "highlight, dim, branch commits, fade",
+      "title": "Graph: highlight checked-out branch (on/off)"
+    },
+    "pinCurrentBranch": {
+      "keywords": "pin, unpin, line, left, lane",
+      "title": "Graph: pin checked-out branch to the left (on/off)"
+    },
+    "smartVisibility": {
+      "keywords": "smart, visibility, filter, solo, main branch, tidy, fewer branches",
+      "title": "Graph: show only current branch, upstream and target (on/off)"
+    }
+  },
+  "groups": {
+    "branch": "Branch",
+    "commit": "Commit",
+    "file": "File",
+    "general": "General",
+    "remote": "Remote",
+    "repository": "Repository",
+    "stash": "Stash",
+    "tabs": "Tabs",
+    "view": "View"
+  },
+  "hosts": {
+    "check": {
+      "keywords": "check, valid, expired, permissions",
+      "loadAction": "Load accounts",
+      "noAccount": "no account connected",
+      "noneText": "Connect one with “Connect host account …”.",
+      "noneTitle": "No host account connected",
+      "title": "Check host accounts"
+    },
+    "connect": {
+      "keywords": "connect, sign in, set up, personal access token",
+      "title": "Connect host account …"
+    },
+    "keywords": "GitHub, GitLab, host, account, token, integration, API",
+    "open": {
+      "keywords": "settings, connected, disconnect",
+      "title": "Open integrations (host accounts)"
+    }
+  },
+  "issues": {
+    "branch": {
+      "keywords": "issue, branch, ticket, create",
+      "noIssue": "open an issue first",
+      "title": "Create branch for the open issue …"
+    },
+    "noAccount": "no account connected for this repository’s host",
+    "noHost": "no remote on GitHub or GitLab",
+    "refresh": {
+      "keywords": "issue, update, refresh, reload",
+      "title": "Reload issues"
+    },
+    "show": {
+      "keywords": "issue, ticket, task, bug, GitHub, GitLab, tracker",
+      "title": "Show issues"
+    },
+    "web": {
+      "keywords": "issue, website, host, external",
+      "title": "Open issues in browser"
+    }
+  },
+  "leftPanel": {
+    "filter": {
+      "keywords": "sidebar, left panel, filter, refs, search",
+      "title": "Filter branches, tags and stashes"
+    }
+  },
+  "lfs": {
+    "manage": {
+      "keywords": "LFS, large files, track, patterns, .gitattributes, git lfs track",
+      "title": "Git LFS: manage patterns …"
+    },
+    "missing": "Git LFS is not installed",
+    "prune": {
+      "keywords": "LFS, prune, clean up, disk space, git lfs prune",
+      "title": "Git LFS: clean up local storage …"
+    },
+    "pull": {
+      "keywords": "LFS, large files, pull, pointers, git lfs pull",
+      "title": "Git LFS: fetch files"
+    }
+  },
+  "operation": {
+    "abort": {
+      "keywords": "merge, rebase, cherry-pick, revert, abort",
+      "title": "Abort running action"
+    },
+    "continue": {
+      "keywords": "merge, rebase, cherry-pick, revert, continue",
+      "title": "Continue running action"
+    }
+  },
+  "palette": {
+    "branches": {
+      "keywords": "switch, check out, checkout, tag",
+      "title": "Find branch or tag …"
+    },
+    "commands": {
+      "keywords": "command palette, commands, help",
+      "title": "Run command …"
+    },
+    "files": {
+      "keywords": "open, path, diff",
+      "title": "Find file …"
+    },
+    "repos": {
+      "keywords": "open, tab, recent",
+      "title": "Switch repository …"
+    }
+  },
+  "patch": {
+    "apply": {
+      "keywords": "patch, apply, diff, import",
+      "title": "Apply patch …"
+    },
+    "create": {
+      "commit": {
+        "keywords": "patch, format-patch, export, diff",
+        "title": "Create patch from selected commit …"
+      },
+      "stash": {
+        "keywords": "patch, export, diff",
+        "title": "Create patch from selected stash …"
+      },
+      "wip": {
+        "keywords": "patch, diff, export, WIP, format-patch",
+        "title": "Create patch from local changes …"
+      }
+    },
+    "noChanges": "no local changes",
+    "selectOneCommit": "select exactly one commit in the graph",
+    "selectStash": "select a stash"
+  },
+  "pick": {
+    "annotated": "annotated",
+    "confirmFollows": "You’ll be asked to confirm next.",
+    "next": "Next",
+    "noRemotes": "This repository has no remotes yet.",
+    "noTags": "This repository has no tags yet.",
+    "remote": "Remote",
+    "tag": "Tag"
+  },
+  "pr": {
+    "create": {
+      "keywords": "create, new, open",
+      "title": "Create pull request …"
+    },
+    "keywords": "pull request, PR, merge request, MR, GitHub, GitLab, review",
+    "noAccount": "no host account connected",
+    "noHost": "the remote belongs to neither GitHub nor GitLab",
+    "openCurrent": {
+      "keywords": "current branch, view",
+      "none": "there is no open pull request for the checked-out branch",
+      "title": "Open pull request of checked-out branch"
+    },
+    "openInBrowser": {
+      "keywords": "browser, host, external",
+      "none": "no pull request is open",
+      "title": "Open pull request in browser"
+    },
+    "page": "Page",
+    "pageAt": "Page on {{host}}",
+    "pick": {
+      "confirm": "Open",
+      "description": "The open pull requests of this repository.",
+      "descriptionMore": "The latest open pull requests. More are listed in the “Pull requests” section of the sidebar.",
+      "dialogTitle": "Open pull request",
+      "draft": "draft",
+      "keywords": "list, choose, view, open",
+      "label": "Pull request",
+      "loadAction": "Load pull requests",
+      "noneText": "Create one with “Create pull request …”.",
+      "noneTitle": "No open pull requests",
+      "title": "Open pull request …",
+      "unknownAuthor": "Unknown"
+    },
+    "refresh": {
+      "keywords": "reload, refresh",
+      "title": "Refresh pull requests"
+    },
+    "repoInBrowser": {
+      "keywords": "GitHub, GitLab, host, browser, website, external",
+      "title": "Open repository on host in browser",
+      "unknownUrl": "the address on the host is not known"
+    }
+  },
+  "profile": {
+    "switch": {
+      "keywords": "profile, work, personal, identity, switch",
+      "title": "Switch profile …"
+    },
+    "new": {
+      "title": "New profile …",
+      "keywords": "profile, new, add, work, private"
+    }
+  },
+  "reason": {
+    "noBranch": "No branch checked out",
+    "repoTabOnly": "Only in a repository tab"
+  },
+  "remote": {
+    "add": {
+      "title": "Add remote …"
+    },
+    "edit": {
+      "confirm": "Edit",
+      "pick": "Edit which remote?",
+      "title": "Edit remote …"
+    },
+    "fetchOne": {
+      "confirm": "Fetch",
+      "pick": "Fetch from which remote?",
+      "title": "Fetch from a remote …"
+    },
+    "remove": {
+      "pick": "Remove which remote?",
+      "title": "Remove remote …"
+    }
+  },
+  "repo": {
+    "clone": {
+      "keywords": "clone, URL",
+      "title": "Clone repository …"
+    },
+    "forget": {
+      "title": "Remove repository from list"
+    },
+    "init": {
+      "keywords": "init, create",
+      "title": "Create new repository …"
+    },
+    "open": {
+      "keywords": "folder, browse",
+      "title": "Open repository …"
+    },
+    "openEditor": {
+      "keywords": "open in",
+      "title": "Open in external editor"
+    },
+    "openFileManager": {
+      "keywords": "Explorer, Finder, folder, open in",
+      "title": "{{revealInFileManager}}"
+    },
+    "openTerminal": {
+      "keywords": "console, shell, open in",
+      "title": "Open in external terminal"
+    },
+    "redo": {
+      "title": "Redo"
+    },
+    "undo": {
+      "title": "Undo"
+    }
+  },
+  "selection": {
+    "menu": {
+      "commits": "Actions for the selected commits",
+      "keywords": "context menu, menu, right-click",
+      "stash": "Actions for the stash",
+      "title": "Actions for the selection …",
+      "wip": "Actions for the local changes"
+    }
+  },
+  "stash": {
+    "apply": {
+      "title": "Apply latest stash (and keep it)"
+    },
+    "create": {
+      "title": "Stash changes"
+    },
+    "createNamed": {
+      "title": "Stash with description …"
+    },
+    "drop": {
+      "title": "Delete latest stash …"
+    },
+    "pop": {
+      "title": "Stash pop (apply latest)"
+    },
+    "rename": {
+      "title": "Rename latest stash …"
+    }
+  },
+  "submodule": {
+    "add": {
+      "keywords": "submodule, include, library, git submodule add",
+      "title": "Add submodule …"
+    },
+    "updateAll": {
+      "keywords": "submodule, initialize, fetch, update, init, git submodule update",
+      "none": "This repository has no submodules",
+      "title": "Update all submodules"
+    }
+  },
+  "sync": {
+    "cancel": {
+      "action": "Cancel",
+      "keywords": "fetch, pull, push, stop",
+      "title": "Cancel running network action"
+    },
+    "fetch": {
+      "title": "Fetch (all remotes)"
+    },
+    "pull": {
+      "title": "Pull"
+    },
+    "push": {
+      "force": {
+        "keywords": "force, with-lease, overwrite",
+        "title": "Force push …"
+      },
+      "title": "Push"
+    }
+  },
+  "tab": {
+    "close": {
+      "title": "Close tab"
+    },
+    "goto": {
+      "last": "Go to last tab",
+      "number": "Go to tab {{number}}"
+    },
+    "new": {
+      "keywords": "repository management, open",
+      "title": "New tab"
+    },
+    "next": {
+      "title": "Next tab"
+    },
+    "previous": {
+      "title": "Previous tab"
+    },
+    "rename": {
+      "keywords": "alias, name, display name, rename, F2",
+      "repoOnly": "Only for a repository tab",
+      "title": "Rename tab (alias) …"
+    }
+  },
+  "tag": {
+    "create": {
+      "keywords": "tag, version, release",
+      "title": "Create tag at current commit …"
+    },
+    "createAnnotated": {
+      "keywords": "tag, annotation, release",
+      "title": "Create annotated tag at current commit …"
+    },
+    "delete": {
+      "pick": "Delete tag",
+      "title": "Delete tag …"
+    },
+    "push": {
+      "confirm": "Push",
+      "pick": "Push tag",
+      "title": "Push tag …"
+    }
+  },
+  "terminal": {
+    "clear": {
+      "keywords": "shell, console, clear, cls, scrollback",
+      "title": "Clear terminal history"
+    },
+    "end": {
+      "keywords": "shell, console, close, kill, end",
+      "title": "End terminal session"
+    },
+    "focus": {
+      "keywords": "focus, shell, console, command line, show",
+      "title": "Go to terminal"
+    },
+    "noSession": "No terminal is running in this tab",
+    "restart": {
+      "keywords": "shell, console, restart",
+      "title": "Restart terminal"
+    }
+  },
+  "view": {
+    "graph": {
+      "title": "Back to graph"
+    },
+    "search": {
+      "keywords": "search, find, SHA, author",
+      "title": "Search commits"
+    },
+    "terminal": {
+      "title": "Show or hide terminal"
+    },
+    "toggleCommitPanel": {
+      "title": "Show or hide commit panel"
+    },
+    "toggleLeftPanel": {
+      "title": "Show or hide sidebar"
+    },
+    "zoomIn": {
+      "title": "Zoom in"
+    },
+    "zoomOut": {
+      "title": "Zoom out"
+    },
+    "zoomReset": {
+      "title": "Reset zoom"
+    }
+  },
+  "wip": {
+    "commit": {
+      "keywords": "commit, finish merge, continue",
+      "title": "Commit"
+    },
+    "commitAll": {
+      "keywords": "commit all, stage all",
+      "title": "Stage all and commit"
+    },
+    "discardAll": {
+      "keywords": "discard, reset",
+      "title": "Discard all changes …"
+    },
+    "stageAll": {
+      "keywords": "stage all, add",
+      "title": "Stage all changes"
+    },
+    "unstageAll": {
+      "keywords": "unstage all, reset",
+      "title": "Unstage everything"
+    }
+  },
+  "worktree": {
+    "add": {
+      "keywords": "worktree, working folder, second folder, parallel branch, git worktree add",
+      "title": "Create worktree …"
+    },
+    "open": {
+      "confirm": "Open",
+      "description": "The chosen working folder opens in its own tab.",
+      "dialogTitle": "Open worktree",
+      "keywords": "worktree, working folder, switch, tab",
+      "label": "Worktree",
+      "loadAction": "Load worktrees",
+      "locked": "locked",
+      "main": "main folder",
+      "noneText": "Create a second working folder with “Create worktree …”.",
+      "noneTitle": "There is no other worktree",
+      "title": "Open worktree …"
+    },
+    "prune": {
+      "keywords": "worktree, prune, clean up, folder missing, git worktree prune",
+      "title": "Clean up orphaned worktrees …"
+    }
+  }
+}

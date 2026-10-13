@@ -1,0 +1,56 @@
+{
+  "title": "Create new repository",
+  "description": "Creates a folder and sets up an empty Git repository in it.",
+  "validation": {
+    "nameMissing": "The repository needs a name.",
+    "parentMissing": "Choose the folder in which the repository should be created.",
+    "branchMissing": "The first branch needs a name.",
+    "pathExists": "There is already a non-empty folder or a file there. A repository can only be created here in a new or empty folder.",
+    "pathNotFound": "This folder doesn't exist. Choose an existing one with “Browse …”."
+  },
+  "pickFolderTitle": "Location for the new repository",
+  "create": "Create repository",
+  "success": "“{{name}}” has been created",
+  "noFirstCommit": "“{{name}}” has been created – the first commit is missing",
+  "showOutput": "Show output",
+  "firstCommitOutputTitle": "First commit: Git output",
+  "outputTitle": "Create repository: Git output",
+  "templateNone": "None",
+  "cancel": "Cancel",
+  "failed": "The repository couldn't be created",
+  "existing": {
+    "title": "The selected folder becomes the repository",
+    "body": "This works as long as the folder is still empty."
+  },
+  "name": {
+    "label": "Name",
+    "placeholder": "my-project",
+    "hint": "The folder gets the same name."
+  },
+  "parent": {
+    "label": "Location",
+    "placeholder": "Folder in which the repository is created"
+  },
+  "browse": "Browse …",
+  "target": "Will be created in:",
+  "targetHint": "Name and location together make up the repository's path.",
+  "branch": {
+    "label": "Default branch",
+    "hint": "The first commit goes on this branch."
+  },
+  "templates": {
+    "failed": "The templates couldn't be loaded",
+    "retry": "Try again",
+    "failedBody": "You can still create the repository without templates.",
+    "gitignore": ".gitignore template",
+    "gitignoreHint": "Typical exclusions for a language or a tool.",
+    "license": "License",
+    "licenseHint": "Added to the repository as a LICENSE file."
+  },
+  "readme": {
+    "label": "Create README.md",
+    "hint": "With the name as its heading."
+  },
+  "noteEmpty": "Without a README and templates, the repository stays empty – with no first commit.",
+  "noteCommit": "The selected files go into a first commit."
+}

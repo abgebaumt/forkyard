@@ -1,0 +1,24 @@
+[package]
+name = "forkyard-askpass"
+version.workspace = true
+description = "GIT_ASKPASS/SSH_ASKPASS helper: forwards prompts from Git and SSH to the running app"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+# Deliberately without dependencies: for the Tauri bundle, src/main.rs is additionally
+# compiled directly with rustc (src-tauri/build.rs) and has to stand alone for that.
+# The name differs from the sidecar name (forkyard-askpass) so the two don't overwrite
+# each other in the target folder.
+[[bin]]
+name = "askpass-helper"
+path = "src/main.rs"
+
+[dev-dependencies]
+gitcore = { path = "../core", features = ["testkit"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "process"] }
+tempfile = "3"
+serde_json = "1"
+base64 = "0.22"

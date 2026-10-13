@@ -1,0 +1,152 @@
+{
+  "row": {
+    "missingLocked": "folder missing · locked",
+    "missingOrphaned": "folder missing · orphaned",
+    "detached": "detached · {{sha}}",
+    "noCommit": "no commit",
+    "main": "main folder",
+    "locked": "locked",
+    "changed": "changed"
+  },
+  "describe": {
+    "name": "Worktree {{name}}",
+    "orphaned": "folder missing, orphaned",
+    "branch": "branch {{branch}}",
+    "current": "open in this tab",
+    "lockedReason": "locked: {{reason}}",
+    "changes": "with uncommitted changes"
+  },
+  "tip": {
+    "orphaned": "The folder no longer exists. “Clean up” removes the entry.",
+    "branch": "Branch: {{branch}}",
+    "noBranch": "No branch – {{target}}",
+    "main": "Main folder of the repository",
+    "current": "Open in this tab",
+    "lockedReason": "Locked: {{reason}}",
+    "lockedNoReason": "Locked, no reason given",
+    "changes": "Contains uncommitted changes",
+    "orphanFlag": "The folder is missing – the entry is orphaned"
+  },
+  "block": {
+    "here": "checked out here",
+    "elsewhere": "in another worktree"
+  },
+  "dialog": {
+    "title": "Create worktree",
+    "description": "A second working folder for the same repository: another branch is checked out next to it, without you having to switch or stash here.",
+    "cancel": "Cancel",
+    "modeHint": {
+      "new": "Creates a new branch and checks it out in the new folder.",
+      "existing": "Checks out an existing local branch in the new folder. Each branch can only be checked out in one worktree.",
+      "detached": "Checks out a commit without a branch – to look at, build or test a state."
+    },
+    "head": {
+      "branch": "Current commit ({{branch}})",
+      "unborn": "Current state",
+      "plain": "Current commit"
+    },
+    "tagOption": "Tag {{name}}",
+    "remoteOption": "Remote branch {{name}}",
+    "blockedOption": "{{name}} – {{reason}}",
+    "errors": {
+      "nameRequired": "The new branch needs a name.",
+      "checkedOutHere": "“{{name}}” is already checked out in this worktree.",
+      "checkedOutElsewhere": "“{{name}}” is already checked out in another worktree.",
+      "branchRequired": "Choose the branch to check out in the new folder.",
+      "parentAbsolute": "Enter a full path or choose the folder via “Browse …”.",
+      "parentRequired": "Choose the folder the worktree will be created in.",
+      "taken": "A worktree of this repository is already there.",
+      "folderRequired": "The folder needs a name.",
+      "noCommit": "This repository has no commit yet that could be checked out.",
+      "pathExists": "Something is already there. The folder must not exist yet or must be empty.",
+      "pathNotFound": "This folder does not exist."
+    },
+    "pickTitle": "Parent folder for the worktree",
+    "createdOpened": "Worktree “{{name}}” created and opened",
+    "created": "Worktree “{{name}}” created",
+    "openInTab": "Open in new tab",
+    "loading": "Loading branches",
+    "loadError": "The branches could not be loaded",
+    "retry": "Try again",
+    "unborn": {
+      "title": "Commit first, then worktrees",
+      "text": "This repository has no commit yet. A worktree needs a state it can check out."
+    },
+    "failed": "The worktree was not created",
+    "mode": {
+      "label": "What gets checked out?",
+      "new": "New branch",
+      "existing": "Existing branch",
+      "detached": "Detached"
+    },
+    "name": {
+      "label": "Name of the new branch",
+      "placeholder": "feature/new-idea"
+    },
+    "start": "Starts at",
+    "noFree": {
+      "title": "No branch available",
+      "text": "All local branches are already checked out in a worktree. Create a new branch instead."
+    },
+    "branch": "Branch",
+    "branchPlaceholder": "Choose branch",
+    "commitFrom": "Commit from",
+    "commitHint": "The worktree will then be at this commit, without a branch.",
+    "parent": {
+      "label": "Parent folder",
+      "placeholder": "Folder the worktree will be created in"
+    },
+    "browse": "Browse …",
+    "folder": {
+      "label": "Folder name",
+      "placeholder": "suggested from the branch"
+    },
+    "target": "Will be created in:",
+    "targetEmpty": "Parent folder and folder name together determine where the worktree goes.",
+    "openAfter": "Open in a new tab afterwards"
+  },
+  "lock": {
+    "titleChange": "Change lock reason of “{{name}}”",
+    "title": "Lock worktree “{{name}}”",
+    "description": "A locked worktree is neither removed nor cleaned up – meant for folders on removable media or network drives that are not always there.",
+    "saveReason": "Save reason",
+    "lock": "Lock",
+    "reason": {
+      "label": "Reason (optional)",
+      "placeholder": "e.g. lives on the external drive",
+      "hint": "Shown later in the list and in the worktree’s tooltip."
+    }
+  },
+  "menu": {
+    "mainNoLock": "the main folder cannot be locked",
+    "folderMissing": "folder missing",
+    "alreadyOpen": "already open here",
+    "copyPath": "Copy path",
+    "pathWhat": "Worktree path",
+    "unlock": "Unlock",
+    "lock": "Lock …",
+    "lockHint": "protects against removal and cleanup",
+    "changeReason": "Change lock reason …",
+    "create": "Create worktree …",
+    "pruneAll": "Clean up orphaned entries …",
+    "pruneOne": "Clean up entry …",
+    "pruneOneTip": "Clean up orphaned entry “{{name}}”",
+    "remove": "Remove worktree …",
+    "removeTip": "Remove worktree “{{name}}”"
+  },
+  "section": {
+    "title": "Worktrees",
+    "loadError": "Worktrees could not be loaded",
+    "create": "Create",
+    "empty": "No worktrees",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "alwaysOpen": "always open while filtering",
+    "hide": "Hide section",
+    "hideHint": "bring back via another section’s menu",
+    "noOrphans": "no entry without a folder",
+    "busy": "Changing worktrees",
+    "prune_one": "Clean up orphaned entry",
+    "prune_other": "Clean up {{count}} orphaned entries"
+  }
+}

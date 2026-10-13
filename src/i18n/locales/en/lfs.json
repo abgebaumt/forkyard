@@ -1,0 +1,43 @@
+{
+  "title": "Git LFS",
+  "description": "Store large files outside the history – for this repository.",
+  "close": "Close",
+  "progress": {
+    "stopping": "Cancelling",
+    "pulling": "Fetching LFS files",
+    "label": "Progress of fetching the LFS files",
+    "valueText": "{{label}}, {{percent}} percent",
+    "waiting": "Waiting for the LFS server …"
+  },
+  "patterns": {
+    "label": "Patterns stored via LFS",
+    "remove": "Remove pattern “{{pattern}}”",
+    "heading": "Patterns",
+    "empty": "No pattern goes through LFS yet. Enter an extension or a folder below."
+  },
+  "loading": "Checking Git LFS",
+  "readFailed": "The state of Git LFS couldn't be read",
+  "retry": "Try again",
+  "missing": {
+    "title": "Git LFS isn't installed on this computer",
+    "recheck": "Check again",
+    "body": "Git LFS stores large files (images, videos, archives) outside the history; the repository then only contains a small pointer. Install it from git-lfs.com or through your package manager, then check again – no restart needed.",
+    "used_one": "This repository uses LFS for {{count}} pattern. Without Git LFS you only see the pointers instead of these files, and new files end up in the normal history by accident.",
+    "used_other": "This repository uses LFS for {{count}} patterns. Without Git LFS you only see the pointers instead of these files, and new files end up in the normal history by accident.",
+    "unused": "This repository doesn't use LFS so far, so you're not missing anything here."
+  },
+  "rejected": "Git LFS doesn't accept this pattern.",
+  "intro": "From the next commit on, Git stores files matching a pattern in LFS storage; the history only contains a pointer. The patterns are kept in .gitattributes and apply to everyone who clones the repository.",
+  "installed": "installed",
+  "newPattern": {
+    "label": "New pattern",
+    "hint": "An extension (*.psd) or a folder (images/**), written as in .gitignore."
+  },
+  "add": "Add",
+  "suggestions": "Common:",
+  "addPattern": "Add pattern {{pattern}}",
+  "pullCancel": "Cancel fetching",
+  "pull": "Fetch LFS files",
+  "prune": "Clean up …",
+  "footer": "“Fetch” replaces pointers in the working directory with the real files from the remote. “Clean up” deletes old LFS files from local storage that the current state doesn't need."
+}

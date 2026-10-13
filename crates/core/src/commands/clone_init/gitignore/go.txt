@@ -1,0 +1,18 @@
+# Executables and libraries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries and profiles
+*.test
+*.out
+coverage.*
+
+# Workspace
+go.work
+go.work.sum
+
+# Local environment
+.env

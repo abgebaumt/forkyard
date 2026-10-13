@@ -1,0 +1,70 @@
+{
+  "ariaLabel": "Historie von {{path}}",
+  "prefix": "Historie",
+  "count_one": "{{count}} Commit",
+  "count_other": "{{count}} Commits",
+  "countMore_one": "mehr als {{count}} Commit",
+  "countMore_other": "mehr als {{count}} Commits",
+  "goneFromWorkdir": "Die Datei gibt es im Arbeitsverzeichnis nicht mehr",
+  "current": "Aktuelle Fassung",
+  "viewCurrent": "Aktuelle Fassung ansehen",
+  "blame": "Blame",
+  "deleted": {
+    "title": "Gelöscht in {{sha}}",
+    "body": "„{{summary}}“ hat die Datei entfernt. Die Liste reicht bis zum Löschen; frühere Fassungen lassen sich ansehen und wiederherstellen."
+  },
+  "followsRename": "Folgt der Umbenennung – früher:",
+  "loading": "Historie wird geladen",
+  "commitActions": "Aktionen für diesen Commit",
+  "listLabel": "Commits dieser Datei",
+  "loadingMore": "Weitere Commits werden geladen …",
+  "more": "Weitere Commits …",
+  "noMessage": "(ohne Message)",
+  "binary": "binär",
+  "renamedFrom": "umbenannt von",
+  "calledThen": "hieß damals",
+  "noEarlierVersion": "es gibt keinen früheren Stand",
+  "status": {
+    "added": "angelegt",
+    "deleted": "gelöscht",
+    "renamed": "umbenannt",
+    "modified": "geändert"
+  },
+  "action": {
+    "view": "Diese Fassung ansehen",
+    "viewBeforeDelete": "Fassung vor dem Löschen ansehen",
+    "blame": "Blame zu diesem Stand",
+    "compareWorkdir": "Mit Arbeitsverzeichnis vergleichen",
+    "showInGraph": "Im Graphen zeigen",
+    "copySha": "SHA kopieren",
+    "restore": "Diese Fassung wiederherstellen",
+    "restoreBeforeDelete": "Fassung vor dem Löschen wiederherstellen",
+    "restoreMenu": "Diese Fassung wiederherstellen …",
+    "restoreBeforeDeleteMenu": "Fassung vor dem Löschen wiederherstellen …",
+    "restoreHint": "aus {{sha}}, landet gestaged"
+  },
+  "short": {
+    "view": "Ansehen",
+    "restore": "Wiederherstellen",
+    "showInGraph": "Im Graphen"
+  },
+  "error": {
+    "title": "Die Historie ließ sich nicht laden",
+    "retry": "Erneut versuchen"
+  },
+  "empty": {
+    "newTitle": "Noch keine Historie",
+    "noneTitle": "Keine Commits zu dieser Datei",
+    "viewFile": "Datei ansehen",
+    "newBody": "„{{name}}“ ist neu und wurde noch nie committet. Nach dem ersten Commit steht er hier.",
+    "noneBody": "In der Historie des ausgecheckten Stands kommt unter diesem Pfad keine Datei vor."
+  },
+  "restore": {
+    "confirmTitle": "Lokale Änderungen an „{{name}}“ ersetzen?",
+    "confirmBody": "Die Datei hat uncommittete Änderungen. Sie werden durch die Fassung aus {{sha}} ersetzt. Direkt danach holt „Rückgängig“ sie zurück.",
+    "confirm": "Fassung wiederherstellen",
+    "doneTitle": "„{{name}}“ auf den Stand von {{sha}} gebracht",
+    "doneBody": "Die Fassung liegt gestaged im Arbeitsverzeichnis.",
+    "undo": "Rückgängig"
+  }
+}

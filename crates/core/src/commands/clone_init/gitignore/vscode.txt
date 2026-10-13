@@ -1,0 +1,10 @@
+# VS Code settings; shared files stay in the repository
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# History and packaged extensions
+.history/
+*.vsix

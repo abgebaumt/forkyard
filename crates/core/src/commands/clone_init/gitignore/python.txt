@@ -1,0 +1,29 @@
+# Bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packages and build output
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# Tests and tools
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Local environment
+.env

@@ -1,0 +1,684 @@
+{
+  "app": {
+    "activity": {
+      "keywords": "Activity, Log, Befehle, Verlauf",
+      "title": "Protokoll anzeigen"
+    },
+    "palette": {
+      "keywords": "Befehle, suchen",
+      "title": "Command Palette"
+    },
+    "preferences": {
+      "keywords": "Optionen, Preferences",
+      "title": "Einstellungen"
+    },
+    "shortcuts": {
+      "keywords": "Hilfe, Tastatur",
+      "title": "Tastenkürzel anzeigen"
+    }
+  },
+  "branch": {
+    "checkout": {
+      "confirm": "Auschecken",
+      "keywords": "wechseln, Checkout, switch",
+      "pick": "Branch auschecken",
+      "title": "Branch auschecken …"
+    },
+    "copyName": {
+      "title": "Namen des aktuellen Branches kopieren"
+    },
+    "create": {
+      "title": "Neuer Branch …"
+    },
+    "delete": {
+      "pick": "Branch löschen",
+      "title": "Branch löschen …"
+    },
+    "fastForward": {
+      "keywords": "vorspulen, ff",
+      "title": "Fast-forward auf den Upstream"
+    },
+    "merge": {
+      "confirm": "Mergen",
+      "keywords": "Merge, zusammenführen",
+      "pick": "Mergen",
+      "pickInto": "In „{{target}}“ mergen",
+      "title": "Branch in den aktuellen mergen …"
+    },
+    "rebase": {
+      "confirm": "Rebasen",
+      "keywords": "Rebase",
+      "pick": "„{{branch}}“ rebasen auf",
+      "title": "Aktuellen Branch rebasen auf …"
+    },
+    "rebaseInteractive": {
+      "keywords": "Rebase, interaktiv, umsortieren, squash",
+      "pick": "„{{branch}}“ interaktiv rebasen auf",
+      "title": "Aktuellen Branch interaktiv rebasen auf …"
+    },
+    "rename": {
+      "title": "Aktuellen Branch umbenennen …"
+    },
+    "setUpstream": {
+      "keywords": "Tracking, verfolgen",
+      "title": "Upstream setzen oder ändern …"
+    },
+    "unsetUpstream": {
+      "title": "Upstream lösen"
+    }
+  },
+  "changes": {
+    "discardAll": {
+      "keywords": "Discard, zurücksetzen, wegwerfen",
+      "title": "Alle Änderungen verwerfen …"
+    }
+  },
+  "commit": {
+    "branchHere": {
+      "title": "Branch am gewählten Commit anlegen …"
+    },
+    "checkout": {
+      "title": "Gewählten Commit auschecken (Detached HEAD)"
+    },
+    "cherryPick": {
+      "keywords": "Cherry-Pick, übertragen",
+      "title": "Gewählte Commits cherry-picken"
+    },
+    "compare": {
+      "title": "Die zwei gewählten Commits vergleichen"
+    },
+    "copyMessage": {
+      "title": "Message des gewählten Commits kopieren"
+    },
+    "copySha": {
+      "title": "SHA des gewählten Commits kopieren"
+    },
+    "rebaseInteractive": {
+      "title": "Interaktiv rebasen ab gewähltem Commit …"
+    },
+    "rebaseOnto": {
+      "title": "Aktuellen Branch auf gewählten Commit rebasen"
+    },
+    "reset": {
+      "hard": {
+        "title": "Auf gewählten Commit zurücksetzen (Hard) …"
+      },
+      "keywords": "Reset, zurücksetzen",
+      "mixed": {
+        "title": "Auf gewählten Commit zurücksetzen (Mixed)"
+      },
+      "soft": {
+        "title": "Auf gewählten Commit zurücksetzen (Soft)"
+      }
+    },
+    "revert": {
+      "title": "Gewählten Commit zurücknehmen (Revert)"
+    },
+    "reword": {
+      "keywords": "Reword, Amend, umformulieren",
+      "title": "Message des letzten Commits ändern …"
+    },
+    "showWip": {
+      "keywords": "WIP, stagen, committen",
+      "title": "Lokale Änderungen zeigen"
+    },
+    "squash": {
+      "title": "Gewählte Commits zusammenfassen (Squash) …"
+    },
+    "tagHere": {
+      "title": "Tag am gewählten Commit anlegen …"
+    }
+  },
+  "file": {
+    "blame": {
+      "keywords": "blame, wer hat, annotate",
+      "title": "Blame der Datei"
+    },
+    "delete": {
+      "action": "Datei löschen",
+      "confirm": "Löschen",
+      "confirmBody": "Die Datei {{path}} wird aus dem Arbeitsverzeichnis entfernt. Bei einer verfolgten Datei erscheint das Löschen danach unter den Änderungen. Direkt danach holt „Rückgängig“ sie zurück.",
+      "confirmTitle": "„{{name}}“ löschen?",
+      "done": "„{{name}}“ gelöscht",
+      "keywords": "delete file, entfernen, remove",
+      "title": "Datei löschen …"
+    },
+    "edit": {
+      "confirm": "Bearbeiten",
+      "empty": "Im Arbeitsverzeichnis liegen keine Dateien.",
+      "keywords": "edit file, Editor, öffnen",
+      "label": "Datei",
+      "pick": "Datei bearbeiten",
+      "readAction": "Dateien lesen",
+      "title": "Datei bearbeiten …"
+    },
+    "externalDiff": {
+      "keywords": "difftool, external diff, vergleichen, Meld, Beyond Compare, WinMerge",
+      "noDiff": "erst den Diff einer Datei öffnen",
+      "title": "Diff im externen Diff-Tool öffnen"
+    },
+    "externalMerge": {
+      "keywords": "mergetool, external merge, Konflikt, KDiff3, Meld",
+      "noConflict": "erst eine Konfliktdatei öffnen",
+      "title": "Konfliktdatei im externen Merge-Tool öffnen"
+    },
+    "history": {
+      "keywords": "file history, Verlauf, log",
+      "title": "Historie der Datei"
+    },
+    "new": {
+      "action": "Datei anlegen",
+      "confirm": "Anlegen",
+      "description": "Fehlende Ordner werden angelegt. Die Datei ist danach leer und öffnet sich im Editor.",
+      "dialogTitle": "Neue Datei anlegen",
+      "done": "„{{path}}“ angelegt",
+      "exists": "Diese Datei gibt es schon.",
+      "keywords": "new file, create file, Datei erstellen",
+      "label": "Pfad im Repository",
+      "placeholder": "docs/notizen.md",
+      "title": "Neue Datei anlegen …"
+    },
+    "path": {
+      "absolute": "Der Pfad ist relativ zum Repository, ohne Laufwerk oder führenden Schrägstrich.",
+      "dots": "„.“ und „..“ sind im Pfad nicht erlaubt.",
+      "empty": "Bitte einen Pfad angeben, z. B. docs/notizen.md.",
+      "gitDir": "In den Ordner .git wird nichts geschrieben.",
+      "noName": "Am Ende fehlt der Dateiname.",
+      "windowsChars": "Der Name enthält Zeichen, die unter Windows nicht erlaubt sind."
+    }
+  },
+  "focus": {
+    "center": {
+      "keywords": "Fokus, Graph, Commits, Mitte",
+      "title": "Zur Ansicht (Graph, Diff, Datei)"
+    },
+    "commitMessage": {
+      "keywords": "Fokus, Zusammenfassung, Message schreiben, lokale Änderungen",
+      "title": "Zur Commit-Message"
+    },
+    "commitPanel": {
+      "keywords": "Fokus, Details, Änderungen, rechts",
+      "title": "Zum Commit Panel"
+    },
+    "leftPanel": {
+      "keywords": "Fokus, Branches, Refs",
+      "title": "Zum Left Panel"
+    },
+    "next": {
+      "keywords": "Fokus, Tastatur, Panel, wechseln",
+      "title": "Nächster Bereich"
+    },
+    "previous": {
+      "keywords": "Fokus, Tastatur, Panel, wechseln",
+      "title": "Voriger Bereich"
+    }
+  },
+  "gitflow": {
+    "finish": {
+      "keywords": "git flow, gitflow, finish, abschließen, mergen, feature, release, hotfix",
+      "notFlowBranch": "der ausgecheckte Branch ist kein Feature, Release oder Hotfix",
+      "title": "Gitflow: ausgecheckten Branch abschließen …"
+    },
+    "notSetUp": "Gitflow ist hier noch nicht eingerichtet",
+    "open": {
+      "keywords": "git flow, gitflow, einrichten, init, feature, release, hotfix, develop",
+      "title": "Gitflow …"
+    },
+    "start": {
+      "keywords": "git flow, gitflow, start, neu",
+      "title": "Gitflow: {{kind}} starten …"
+    }
+  },
+  "graph": {
+    "highlightCurrentBranch": {
+      "keywords": "Highlight, hervorheben, dimmen, Commits des Branches, abblenden",
+      "title": "Graph: ausgecheckten Branch hervorheben (ein/aus)"
+    },
+    "pinCurrentBranch": {
+      "keywords": "Pin, anheften, lösen, Linie, links, Bahn",
+      "title": "Graph: ausgecheckten Branch links anheften (ein/aus)"
+    },
+    "smartVisibility": {
+      "keywords": "Smart, Sichtbarkeit, Filter, Solo, Hauptbranch, übersichtlich, weniger Branches",
+      "title": "Graph: nur aktuellen Branch, Upstream und Ziel zeigen (ein/aus)"
+    }
+  },
+  "groups": {
+    "branch": "Branch",
+    "commit": "Commit",
+    "file": "Datei",
+    "general": "Allgemein",
+    "remote": "Remote",
+    "repository": "Repository",
+    "stash": "Stash",
+    "tabs": "Tabs",
+    "view": "Ansicht"
+  },
+  "hosts": {
+    "check": {
+      "keywords": "prüfen, gültig, abgelaufen, Berechtigungen",
+      "loadAction": "Konten laden",
+      "noAccount": "kein Konto verbunden",
+      "noneText": "Verbinde eines mit „Hoster-Konto verbinden …“.",
+      "noneTitle": "Kein Hoster-Konto verbunden",
+      "title": "Hoster-Konten prüfen"
+    },
+    "connect": {
+      "keywords": "verbinden, anmelden, einrichten, Personal Access Token",
+      "title": "Hoster-Konto verbinden …"
+    },
+    "keywords": "GitHub, GitLab, Hoster, Konto, Account, Token, Integration, API",
+    "open": {
+      "keywords": "Einstellungen, verbunden, trennen",
+      "title": "Integrationen öffnen (Hoster-Konten)"
+    }
+  },
+  "issues": {
+    "branch": {
+      "keywords": "Issue, Branch, Ticket, anlegen",
+      "noIssue": "erst ein Issue öffnen",
+      "title": "Branch für das geöffnete Issue anlegen …"
+    },
+    "noAccount": "kein Konto für den Hoster dieses Repositories verbunden",
+    "noHost": "kein Remote bei GitHub oder GitLab",
+    "refresh": {
+      "keywords": "Issue, aktualisieren, refresh",
+      "title": "Issues neu laden"
+    },
+    "show": {
+      "keywords": "Issue, Ticket, Aufgabe, Bug, GitHub, GitLab, Tracker",
+      "title": "Issues anzeigen"
+    },
+    "web": {
+      "keywords": "Issue, Webseite, Hoster, extern",
+      "title": "Issues im Browser öffnen"
+    }
+  },
+  "leftPanel": {
+    "filter": {
+      "keywords": "Left Panel, Filter, Refs, suchen",
+      "title": "Branches, Tags und Stashes filtern"
+    }
+  },
+  "lfs": {
+    "manage": {
+      "keywords": "LFS, große Dateien, track, Muster, .gitattributes, git lfs track",
+      "title": "Git LFS: Muster verwalten …"
+    },
+    "missing": "Git LFS ist nicht installiert",
+    "prune": {
+      "keywords": "LFS, prune, aufräumen, Speicherplatz, git lfs prune",
+      "title": "Git LFS: lokalen Speicher aufräumen …"
+    },
+    "pull": {
+      "keywords": "LFS, große Dateien, pull, Zeiger, git lfs pull",
+      "title": "Git LFS: Dateien holen"
+    }
+  },
+  "operation": {
+    "abort": {
+      "keywords": "Merge, Rebase, Cherry-Pick, Revert, abort",
+      "title": "Laufende Aktion abbrechen"
+    },
+    "continue": {
+      "keywords": "Merge, Rebase, Cherry-Pick, Revert, continue",
+      "title": "Laufende Aktion fortsetzen"
+    }
+  },
+  "palette": {
+    "branches": {
+      "keywords": "wechseln, auschecken, Checkout, Tag",
+      "title": "Branch oder Tag suchen …"
+    },
+    "commands": {
+      "keywords": "Command Palette, Befehle, Hilfe",
+      "title": "Befehl ausführen …"
+    },
+    "files": {
+      "keywords": "öffnen, Pfad, Diff",
+      "title": "Datei suchen …"
+    },
+    "repos": {
+      "keywords": "öffnen, Tab, zuletzt",
+      "title": "Repository wechseln …"
+    }
+  },
+  "patch": {
+    "apply": {
+      "keywords": "patch, apply, diff, einspielen, importieren",
+      "title": "Patch anwenden …"
+    },
+    "create": {
+      "commit": {
+        "keywords": "patch, format-patch, exportieren, diff",
+        "title": "Patch aus dem gewählten Commit erzeugen …"
+      },
+      "stash": {
+        "keywords": "patch, exportieren, diff",
+        "title": "Patch aus dem gewählten Stash erzeugen …"
+      },
+      "wip": {
+        "keywords": "patch, diff, exportieren, WIP, format-patch",
+        "title": "Patch aus den lokalen Änderungen erzeugen …"
+      }
+    },
+    "noChanges": "keine lokalen Änderungen",
+    "selectOneCommit": "im Graphen genau einen Commit wählen",
+    "selectStash": "einen Stash wählen"
+  },
+  "pick": {
+    "annotated": "annotiert",
+    "confirmFollows": "Danach folgt eine Rückfrage.",
+    "next": "Weiter",
+    "noRemotes": "Dieses Repository hat noch keinen Remote.",
+    "noTags": "Dieses Repository hat noch keinen Tag.",
+    "remote": "Remote",
+    "tag": "Tag"
+  },
+  "pr": {
+    "create": {
+      "keywords": "anlegen, neu, erstellen, öffnen",
+      "title": "Pull Request anlegen …"
+    },
+    "keywords": "Pull Request, PR, Merge Request, MR, GitHub, GitLab, Review",
+    "noAccount": "kein Hoster-Konto verbunden",
+    "noHost": "der Remote gehört weder zu GitHub noch zu GitLab",
+    "openCurrent": {
+      "keywords": "aktueller Branch, ansehen",
+      "none": "für den ausgecheckten Branch gibt es keinen offenen Pull Request",
+      "title": "Pull Request des ausgecheckten Branches öffnen"
+    },
+    "openInBrowser": {
+      "keywords": "Browser, Hoster, extern",
+      "none": "es ist kein Pull Request geöffnet",
+      "title": "Pull Request im Browser öffnen"
+    },
+    "page": "Seite",
+    "pageAt": "Seite bei {{host}}",
+    "pick": {
+      "confirm": "Öffnen",
+      "description": "Die offenen Pull Requests dieses Repositories.",
+      "descriptionMore": "Die neuesten offenen Pull Requests. Weitere stehen in der Sektion „Pull Requests“ im Left Panel.",
+      "dialogTitle": "Pull Request öffnen",
+      "draft": "Entwurf",
+      "keywords": "Liste, wählen, ansehen, offene",
+      "label": "Pull Request",
+      "loadAction": "Pull Requests laden",
+      "noneText": "Lege mit „Pull Request anlegen …“ einen an.",
+      "noneTitle": "Keine offenen Pull Requests",
+      "title": "Pull Request öffnen …",
+      "unknownAuthor": "Unbekannt"
+    },
+    "refresh": {
+      "keywords": "neu laden, refresh",
+      "title": "Pull Requests aktualisieren"
+    },
+    "repoInBrowser": {
+      "keywords": "GitHub, GitLab, Hoster, Browser, Webseite, extern",
+      "title": "Repository beim Hoster im Browser öffnen",
+      "unknownUrl": "die Adresse beim Hoster ist nicht bekannt"
+    }
+  },
+  "profile": {
+    "switch": {
+      "keywords": "Profil, Arbeit, Privat, Identität, wechseln",
+      "title": "Profil wechseln …"
+    },
+    "new": {
+      "title": "Neues Profil …",
+      "keywords": "profil, neu, anlegen, arbeit, privat"
+    }
+  },
+  "reason": {
+    "noBranch": "Kein Branch ausgecheckt",
+    "repoTabOnly": "Nur in einem Repository-Tab"
+  },
+  "remote": {
+    "add": {
+      "title": "Remote hinzufügen …"
+    },
+    "edit": {
+      "confirm": "Bearbeiten",
+      "pick": "Welchen Remote bearbeiten?",
+      "title": "Remote bearbeiten …"
+    },
+    "fetchOne": {
+      "confirm": "Fetch",
+      "pick": "Von welchem Remote holen?",
+      "title": "Fetch von einem Remote …"
+    },
+    "remove": {
+      "pick": "Welchen Remote entfernen?",
+      "title": "Remote entfernen …"
+    }
+  },
+  "repo": {
+    "clone": {
+      "keywords": "Clone, URL",
+      "title": "Repository klonen …"
+    },
+    "forget": {
+      "title": "Repository aus der Liste entfernen"
+    },
+    "init": {
+      "keywords": "Init, erstellen",
+      "title": "Neues Repository anlegen …"
+    },
+    "open": {
+      "keywords": "Ordner, durchsuchen",
+      "title": "Repository öffnen …"
+    },
+    "openEditor": {
+      "keywords": "Öffnen in",
+      "title": "Im externen Editor öffnen"
+    },
+    "openFileManager": {
+      "keywords": "Explorer, Finder, Ordner, Öffnen in",
+      "title": "{{revealInFileManager}}"
+    },
+    "openTerminal": {
+      "keywords": "Konsole, Shell, Öffnen in",
+      "title": "Im externen Terminal öffnen"
+    },
+    "redo": {
+      "title": "Wiederholen"
+    },
+    "undo": {
+      "title": "Rückgängig"
+    }
+  },
+  "selection": {
+    "menu": {
+      "commits": "Aktionen für die gewählten Commits",
+      "keywords": "Kontextmenü, Menü, Rechtsklick",
+      "stash": "Aktionen für den Stash",
+      "title": "Aktionen für die Auswahl …",
+      "wip": "Aktionen für die lokalen Änderungen"
+    }
+  },
+  "stash": {
+    "apply": {
+      "title": "Neuesten Stash anwenden (und behalten)"
+    },
+    "create": {
+      "title": "Änderungen stashen"
+    },
+    "createNamed": {
+      "title": "Stash mit Beschreibung …"
+    },
+    "drop": {
+      "title": "Neuesten Stash löschen …"
+    },
+    "pop": {
+      "title": "Stash Pop (neuesten anwenden)"
+    },
+    "rename": {
+      "title": "Neuesten Stash umbenennen …"
+    }
+  },
+  "submodule": {
+    "add": {
+      "keywords": "Submodul, Submodule, einbinden, Bibliothek, git submodule add",
+      "title": "Submodul hinzufügen …"
+    },
+    "updateAll": {
+      "keywords": "Submodul, Submodule, initialisieren, holen, update, init, git submodule update",
+      "none": "Dieses Repository hat keine Submodule",
+      "title": "Alle Submodule aktualisieren"
+    }
+  },
+  "sync": {
+    "cancel": {
+      "action": "Abbrechen",
+      "keywords": "Fetch, Pull, Push, stoppen",
+      "title": "Laufende Netz-Aktion abbrechen"
+    },
+    "fetch": {
+      "title": "Fetch (alle Remotes)"
+    },
+    "pull": {
+      "title": "Pull"
+    },
+    "push": {
+      "force": {
+        "keywords": "force, with-lease, überschreiben",
+        "title": "Push erzwingen …"
+      },
+      "title": "Push"
+    }
+  },
+  "tab": {
+    "close": {
+      "title": "Tab schließen"
+    },
+    "goto": {
+      "last": "Zum letzten Tab",
+      "number": "Zu Tab {{number}}"
+    },
+    "new": {
+      "keywords": "Repository-Verwaltung, öffnen",
+      "title": "Neuer Tab"
+    },
+    "next": {
+      "title": "Nächster Tab"
+    },
+    "previous": {
+      "title": "Vorheriger Tab"
+    },
+    "rename": {
+      "keywords": "Alias, Name, Anzeigename, umbenennen, F2",
+      "repoOnly": "Nur für einen Repository-Tab",
+      "title": "Tab umbenennen (Alias) …"
+    }
+  },
+  "tag": {
+    "create": {
+      "keywords": "Tag, Version, Release",
+      "title": "Tag am aktuellen Commit anlegen …"
+    },
+    "createAnnotated": {
+      "keywords": "Tag, Annotation, Release",
+      "title": "Annotierten Tag am aktuellen Commit anlegen …"
+    },
+    "delete": {
+      "pick": "Tag löschen",
+      "title": "Tag löschen …"
+    },
+    "push": {
+      "confirm": "Pushen",
+      "pick": "Tag pushen",
+      "title": "Tag pushen …"
+    }
+  },
+  "terminal": {
+    "clear": {
+      "keywords": "Shell, Konsole, clear, cls, Scrollback",
+      "title": "Terminal-Verlauf leeren"
+    },
+    "end": {
+      "keywords": "Shell, Konsole, schließen, kill, beenden",
+      "title": "Terminal-Sitzung beenden"
+    },
+    "focus": {
+      "keywords": "Fokus, Shell, Konsole, Kommandozeile, einblenden",
+      "title": "Zum Terminal"
+    },
+    "noSession": "In diesem Tab läuft kein Terminal",
+    "restart": {
+      "keywords": "Shell, Konsole, neu starten, restart",
+      "title": "Terminal neu starten"
+    }
+  },
+  "view": {
+    "graph": {
+      "title": "Zurück zum Graphen"
+    },
+    "search": {
+      "keywords": "Suche, finden, SHA, Autor",
+      "title": "Commits suchen"
+    },
+    "terminal": {
+      "title": "Terminal ein- oder ausblenden"
+    },
+    "toggleCommitPanel": {
+      "title": "Commit Panel ein- oder ausblenden"
+    },
+    "toggleLeftPanel": {
+      "title": "Left Panel ein- oder ausblenden"
+    },
+    "zoomIn": {
+      "title": "Vergrößern"
+    },
+    "zoomOut": {
+      "title": "Verkleinern"
+    },
+    "zoomReset": {
+      "title": "Zoom zurücksetzen"
+    }
+  },
+  "wip": {
+    "commit": {
+      "keywords": "commit, Merge abschließen, fortsetzen",
+      "title": "Committen"
+    },
+    "commitAll": {
+      "keywords": "commit all, stage all",
+      "title": "Alles stagen und committen"
+    },
+    "discardAll": {
+      "keywords": "discard, zurücksetzen",
+      "title": "Alle Änderungen verwerfen …"
+    },
+    "stageAll": {
+      "keywords": "stage all, add",
+      "title": "Alle Änderungen stagen"
+    },
+    "unstageAll": {
+      "keywords": "unstage all, reset",
+      "title": "Alles Gestagte zurücknehmen"
+    }
+  },
+  "worktree": {
+    "add": {
+      "keywords": "Worktree, Arbeitsordner, zweiter Ordner, Branch parallel, git worktree add",
+      "title": "Worktree anlegen …"
+    },
+    "open": {
+      "confirm": "Öffnen",
+      "description": "Der gewählte Arbeitsordner öffnet sich in einem eigenen Tab.",
+      "dialogTitle": "Worktree öffnen",
+      "keywords": "Worktree, Arbeitsordner, wechseln, Tab",
+      "label": "Worktree",
+      "loadAction": "Worktrees laden",
+      "locked": "gesperrt",
+      "main": "Hauptordner",
+      "noneText": "Lege mit „Worktree anlegen …“ einen zweiten Arbeitsordner an.",
+      "noneTitle": "Es gibt keinen anderen Worktree",
+      "title": "Worktree öffnen …"
+    },
+    "prune": {
+      "keywords": "Worktree, prune, aufräumen, Ordner fehlt, git worktree prune",
+      "title": "Verwaiste Worktrees aufräumen …"
+    }
+  }
+}

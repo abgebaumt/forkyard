@@ -1,0 +1,129 @@
+{
+  "back": {
+    "diff": "Back to diff",
+    "history": "Back to history",
+    "blame": "Back to blame",
+    "file": "Back to file",
+    "graph": "Back to graph",
+    "generic": "Back"
+  },
+  "close": "Close",
+  "encoding": {
+    "utf8Bom": "UTF-8 with BOM",
+    "western": "Western European ({{name}})",
+    "central": "Central European ({{name}})",
+    "cyrillic": "Cyrillic ({{name}})",
+    "japanese": "Japanese ({{name}})",
+    "korean": "Korean ({{name}})",
+    "chineseSimplified": "Chinese Simplified ({{name}})",
+    "chineseTraditional": "Chinese Traditional ({{name}})",
+    "saveFirst": "save or discard first",
+    "certain": "the file is clearly {{encoding}}",
+    "reread": "Reread file",
+    "rereadDone": "Reread as {{encoding}}",
+    "rereadHint": "Applies from now on to all files in this repository that aren’t UTF-8.",
+    "writeAs": "Write on save as",
+    "detected": "detected",
+    "rereadAs": "Reread as"
+  },
+  "markdown": {
+    "openLinkTitle": "Open link outside the app?",
+    "openLinkBody": "The link is in the file and opens in the system’s default program:",
+    "openLink": "Open link",
+    "emptyTitle": "Nothing to show",
+    "emptyText": "The file is empty or contains only elements the preview leaves out for security reasons.",
+    "blockedImages_one": "{{count, number}} image not loaded – the preview fetches nothing from the network",
+    "blockedImages_other": "{{count, number}} images not loaded – the preview fetches nothing from the network",
+    "truncated": "truncated to the first {{limit}} characters",
+    "preview": "Preview of {{path}}",
+    "source": "Source",
+    "previewMode": "Preview"
+  },
+  "save": "Save",
+  "savedStaged": "“{{name}}” saved and staged",
+  "saved": "“{{name}}” saved",
+  "closeDirty": {
+    "title": "Save changes to “{{name}}”?",
+    "text": "Without saving, the changes made since the last save are lost.",
+    "saveHint": "Save file and close",
+    "discard": "Don’t save",
+    "discardHint": "Discard changes and close"
+  },
+  "header": {
+    "worktree": "Working directory",
+    "commit": "Commit {{sha}}",
+    "worktreeTip": "The file as it is on disk right now",
+    "commitTip": "Version from commit {{sha}}",
+    "editableTip": "Changes can be saved",
+    "editable": "editable",
+    "unsavedTip": "Unsaved changes",
+    "unsaved": "unsaved",
+    "history": "File history",
+    "blame": "Blame",
+    "worktreeOnly": "Only for the file in the working directory"
+  },
+  "openExternal": "Open in external editor",
+  "toolbar": "File view",
+  "mode": {
+    "label": "Mode",
+    "view": "View",
+    "edit": "Edit",
+    "editWorktree": "Edit in working directory"
+  },
+  "wrap": "Wrap long lines",
+  "saveStageTip": "Save and stage the file",
+  "saveStage": "Save and stage",
+  "loading": "Loading {{name}}",
+  "error": {
+    "goneWorktree": "The file doesn’t exist in the working directory",
+    "goneCommit": "This file doesn’t exist in {{sha}}",
+    "readFailed": "Could not read the file",
+    "showHistory": "Show history",
+    "goneWorktreeHint": "It was deleted, renamed or never created. The history shows earlier versions."
+  },
+  "retry": "Try again",
+  "tooLarge": {
+    "title": "The file is too large for the view",
+    "text": "At {{size}} it is over the 5 MB limit.",
+    "external": "An external editor handles it better."
+  },
+  "contentEditable": "Content of {{path}}, editable",
+  "content": "Content of {{path}}",
+  "eol": {
+    "lf": "LF (Linux, macOS)",
+    "crlf": "CRLF (Windows)"
+  },
+  "footer": {
+    "cursor": "Line {{line}}, column {{column}}",
+    "lines_one": "{{count, number}} line",
+    "lines_other": "{{count, number}} lines",
+    "pendingEncoding": "becomes {{encoding}} on save",
+    "encoding": "Encoding: {{encoding}}",
+    "eol": "Line endings: {{eol}}",
+    "mixed": "mixed",
+    "mixedTo": "Mixed → {{eol}}",
+    "worktreeOnly": "{{label}} – can only be changed in the working directory"
+  },
+  "section": "File {{path}}",
+  "restored": {
+    "title": "Unsaved changes from earlier",
+    "discard": "Discard",
+    "text": "You edited the file and left the view without saving. The changes are back in the editor."
+  },
+  "external": {
+    "title": "The file was changed outside the app",
+    "reload": "Reload",
+    "keep": "Keep mine",
+    "text": "Another program saved “{{name}}”. “Reload” discards your unsaved changes, “Keep mine” overwrites on save."
+  },
+  "binary": {
+    "title": "Binary file",
+    "text": "The content ({{size}}) isn’t text and can’t be shown here."
+  },
+  "image": {
+    "loading": "Loading image",
+    "failed": "The image can’t be displayed",
+    "failedText": "The file ({{size}}) is an image, but the preview couldn’t be created – for example because Git doesn’t track it yet.",
+    "label": "Image"
+  }
+}

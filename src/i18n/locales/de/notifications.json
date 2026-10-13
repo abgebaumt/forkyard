@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "outputOf": "Ausgabe von {{hook}}",
+    "failed": "Hook „{{hook}}“ ist fehlgeschlagen (Exit-Code {{code}})",
+    "showOutput": "Ausgabe anzeigen",
+    "printed": "Hook „{{hook}}“ hat etwas ausgegeben",
+    "rejectedMessage": "Ein Git-Hook hat die Aktion abgelehnt.",
+    "rejected": "{{label}}: von einem Git-Hook abgelehnt",
+    "gitHook": "Git-Hook"
+  },
+  "system": {
+    "intro": {
+      "granted": "Ist das Fenster gerade nicht im Vordergrund, kommen sie zusätzlich als Benachrichtigung des Systems.",
+      "blocked": "Benachrichtigungen des Systems sind für diese App gesperrt – die Meldungen erscheinen nur im Fenster.",
+      "unknown": "Ist das Fenster gerade nicht im Vordergrund, kommen sie zusätzlich als Benachrichtigung des Systems – beim ersten Mal fragt das System um Erlaubnis."
+    },
+    "granted": {
+      "label": "Erlaubt",
+      "text": "Das System zeigt Benachrichtigungen dieser App. Sie kommen nur, wenn das Fenster nicht im Vordergrund ist und einer der Schalter oben an ist. Ein Klick auf eine Benachrichtigung holt das Fenster nicht von selbst nach vorn."
+    },
+    "blocked": {
+      "label": "Vom System gesperrt",
+      "text": "Das System lässt Benachrichtigungen dieser App nicht zu. Erlaube sie in den Einstellungen des Systems (Benachrichtigungen) und öffne diesen Bereich neu."
+    },
+    "unknown": {
+      "label": "Noch nicht gefragt",
+      "text": "Das System wurde noch nicht um Erlaubnis gefragt. Das geschieht mit der ersten Benachrichtigung – oder jetzt mit „Probe senden“."
+    },
+    "title": "Benachrichtigungen des Systems",
+    "probe": "Probe senden",
+    "sent": "Gesendet – sie erscheint jetzt als Benachrichtigung des Systems.",
+    "notSent": "Nicht gesendet: {{reason}}"
+  }
+}

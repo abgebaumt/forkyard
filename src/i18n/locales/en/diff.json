@@ -1,0 +1,189 @@
+{
+  "before": "Before",
+  "after": "After",
+  "size": "Size",
+  "loading": "Loading diff",
+  "undo": "Undo",
+  "saveSetting": "Save setting",
+  "mode": {
+    "hunks": "Hunks",
+    "inline": "Whole file",
+    "split": "Side by side"
+  },
+  "patch": {
+    "stage": "Stage",
+    "unstage": "Unstage",
+    "discard": "Discard"
+  },
+  "source": {
+    "unstaged": "Unstaged",
+    "staged": "Staged",
+    "commit": "Commit {{sha}}",
+    "startTo": "Start … {{to}}",
+    "startToWorktree": "Start … working directory",
+    "toWorktree": "{{from}} … working directory",
+    "stash": "Stash {{index}}"
+  },
+  "header": {
+    "formerly": "formerly {{path}}",
+    "encoding": "Detected encoding of the file",
+    "counts_one": "{{added}} line added, {{removed}} removed",
+    "counts_other": "{{added}} lines added, {{removed}} removed",
+    "switchFile": "Switch file",
+    "prevFile": "Previous file",
+    "nextFile": "Next file",
+    "filePosition": "File {{index}} of {{total}}",
+    "history": "File history",
+    "blame": "Blame",
+    "edit": "Edit file",
+    "externalDiff": "Open in external diff tool",
+    "close": "Close diff",
+    "toolbar": "Diff view",
+    "mode": "Display",
+    "switchChange": "Switch change",
+    "prevChange": "Previous change",
+    "nextChange": "Next change",
+    "changePosition": "Change {{index}} of {{total}}",
+    "unfold": "Expand unchanged regions",
+    "fold": "Collapse unchanged regions",
+    "wrap": "Wrap long lines",
+    "ignoreWhitespaceSplit": "Ignore whitespace – only applies to “Hunks” and “Whole file”",
+    "ignoreWhitespace": "Ignore whitespace changes"
+  },
+  "view": {
+    "changesLabel": "Changes in {{path}}",
+    "ariaLabel": "Diff of {{path}}",
+    "fellBack": "The file is too large for “{{mode}}” – showing the hunks."
+  },
+  "conflict": {
+    "title": "This file is in conflict",
+    "resolve": "Resolve conflict",
+    "body": "The diff shows the file with the conflict markers. Staging is possible once the conflict is resolved."
+  },
+  "whitespace": {
+    "show": "Show whitespace",
+    "ignoredNoStage": "Whitespace is ignored. Staging only works with the complete diff."
+  },
+  "noHunks": {
+    "renamedTitle": "Only renamed",
+    "renamedBody": "The content stayed the same.",
+    "whitespaceTitle": "Only whitespace changed",
+    "whitespaceBody": "While whitespace is ignored, nothing is left of this change.",
+    "emptyTitle": "Empty file",
+    "emptyBody": "The file is new and has no content yet.",
+    "emptyDeletedTitle": "Empty file deleted",
+    "emptyDeletedBody": "The file had no content.",
+    "unchangedTitle": "No content changes",
+    "unchangedUnstaged": "There is nothing left for this file in “Unstaged” – either everything is staged, or only the file mode has changed.",
+    "unchangedStaged": "There is nothing left for this file in “Staged” – either everything was unstaged, or only the file mode has changed.",
+    "unchangedMode": "The content is the same; only the file mode changed (for example “executable”)."
+  },
+  "discard": {
+    "hunkTitle": "Discard hunk in “{{path}}”?",
+    "linesTitle_one": "Discard {{count}} line in “{{path}}”?",
+    "linesTitle_other": "Discard {{count}} lines in “{{path}}”?",
+    "hunkBody": "The changes of this hunk are removed from the working directory. Right afterwards, Undo brings them back.",
+    "linesBody": "The selected lines are reset in the working directory. Right afterwards, Undo brings them back.",
+    "hunkDone": "Hunk discarded",
+    "linesDone_one": "{{count}} line discarded",
+    "linesDone_other": "{{count}} lines discarded"
+  },
+  "stale": {
+    "title": "The file has changed in the meantime",
+    "body": "The diff has been reloaded. Please make the selection again."
+  },
+  "hunkRange": {
+    "line": "Line {{start}}",
+    "lines": "Lines {{start}}–{{end}}",
+    "old": "{{label}} (old)"
+  },
+  "line": {
+    "added": "added",
+    "removed": "removed",
+    "noNewline": "No newline at end of file"
+  },
+  "hunk": {
+    "title": "Hunk {{index}}",
+    "ofTotal": "of {{total}}",
+    "counts": "{{added}} added, {{removed}} removed",
+    "stage": "Stage hunk",
+    "discard": "Discard hunk",
+    "unstage": "Unstage hunk",
+    "stageN": "Stage hunk {{index}}",
+    "discardN": "Discard hunk {{index}}",
+    "unstageN": "Unstage hunk {{index}}"
+  },
+  "fold": {
+    "unchanged_one": "{{count}} line unchanged",
+    "unchanged_other": "{{count}} lines unchanged",
+    "hidden": "hidden"
+  },
+  "copy": {
+    "done": "Copied to the clipboard",
+    "failed": "Copy failed",
+    "failedBody": "The clipboard could not be written."
+  },
+  "selection": {
+    "toolbar": "Selected lines",
+    "selected_one": "{{count}} line selected",
+    "selected_other": "{{count}} lines selected",
+    "stage_one": "Stage {{count}} line",
+    "stage_other": "Stage {{count}} lines",
+    "discard_one": "Discard {{count}} line",
+    "discard_other": "Discard {{count}} lines",
+    "unstage_one": "Unstage {{count}} line",
+    "unstage_other": "Unstage {{count}} lines",
+    "clear": "Clear selection"
+  },
+  "menu": {
+    "selectLine": "Select line",
+    "deselectLine": "Deselect line",
+    "selectAll": "Select all changed lines",
+    "copyLine": "Copy line",
+    "copyHunk": "Copy hunk as patch text"
+  },
+  "split": {
+    "beforeLabel": "Before: {{path}}",
+    "afterLabel": "After: {{path}}",
+    "newFile": "New file",
+    "deletedFile": "Deleted file",
+    "newFileLabel": "New file: {{path}}",
+    "deletedFileLabel": "Deleted file: {{path}}"
+  },
+  "image": {
+    "failed": "The image cannot be displayed.",
+    "noOld": "This image did not exist before.",
+    "deleted": "The image was deleted.",
+    "oldAlt": "{{name}}, old version",
+    "newAlt": "{{name}}, new version"
+  },
+  "status": {
+    "modified": "The content has changed.",
+    "added": "The file is new.",
+    "untracked": "The file is new and not tracked yet.",
+    "deleted": "The file was deleted.",
+    "renamed": "The file was renamed.",
+    "conflicted": "The file is in conflict."
+  },
+  "binary": {
+    "title": "Binary file – no text diff",
+    "body": "Binary content cannot be compared line by line."
+  },
+  "lfs": {
+    "title": "Git LFS file",
+    "body": "The repository only holds a pointer; the content is fetched via LFS."
+  },
+  "tooLarge": {
+    "detail": "{{size}}, {{lines}} lines",
+    "title": "Large diff ({{detail}})",
+    "load": "Load anyway",
+    "body": "Diffs over 1 MB or 20,000 lines are not loaded automatically, so the view stays fast."
+  },
+  "error": {
+    "goneTitle": "The file is no longer there",
+    "goneBody": "<path>{{path}}</path> does not exist here (any more) – maybe it was deleted, renamed or committed in the meantime.",
+    "title": "The diff could not be loaded",
+    "retry": "Try again",
+    "backToGraph": "Back to graph"
+  }
+}

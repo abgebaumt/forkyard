@@ -1,0 +1,228 @@
+{
+  "title": "Tastenkürzel",
+  "description": "Alles in dieser App geht auch ohne Maus. Feste Tasten gelten, solange der Fokus in der jeweiligen Ansicht steht.",
+  "search": {
+    "label": "Kürzel suchen",
+    "placeholder": "Aktion oder Taste suchen, z. B. „stash“ oder „F7“",
+    "clear": "Suche leeren"
+  },
+  "close": "Schließen",
+  "listLabel": "Liste der Tastenkürzel",
+  "matches_one": "{{count}} Kürzel passt",
+  "matches_other": "{{count}} Kürzel passen",
+  "empty": {
+    "title": "Kein Kürzel passt zu „{{query}}“",
+    "hint": "Versuch ein anderes Wort – oder suche die Aktion in der Command Palette, dort steht jeder Befehl."
+  },
+  "parts": {
+    "commands": "Befehle",
+    "fixed": "Feste Tasten in Listen und Ansichten"
+  },
+  "footer": "Jeder Befehl – auch ohne Kürzel – steht in der Command Palette.",
+  "openPalette": "Command Palette öffnen",
+  "or": "oder",
+  "to": "bis",
+  "gotoTabRange_one": "Zu Tab 1 bis {{count}}",
+  "gotoTabRange_other": "Zu Tab 1 bis {{count}}",
+  "groups": {
+    "general": "Allgemein",
+    "view": "Ansicht und Fokus",
+    "tabs": "Tabs",
+    "repository": "Repository",
+    "remote": "Remote",
+    "branch": "Branch",
+    "commit": "Commit",
+    "stash": "Stash",
+    "file": "Datei"
+  },
+  "keyNames": {
+    "pageUp": "Bild↑",
+    "pageDown": "Bild↓",
+    "home": "Pos1",
+    "end": "Ende",
+    "delete": "Entf",
+    "insert": "Einfg",
+    "backspace": "Rück",
+    "space": "Leertaste",
+    "contextMenu": "Menü"
+  },
+  "fixed": {
+    "graph": {
+      "entries": {
+        "next": "Nächster Commit",
+        "previous": "Voriger Commit",
+        "parent": "Zum Eltern-Commit (der Linie nach)",
+        "child": "Zurück zum Kind-Commit",
+        "extendSelection": "Auswahl erweitern",
+        "page": "Seitenweise",
+        "firstLast": "Erster / letzter geladener Commit",
+        "openDetails": "Details im Commit Panel öffnen",
+        "highlightBranch": "Branch der Zeile hervorheben (noch einmal oder Esc hebt auf)",
+        "contextMenu": "Kontextmenü der Zeile"
+      },
+      "title": "Commit-Graph",
+      "where": "Fokus auf einer Zeile im Graphen"
+    },
+    "lists": {
+      "entries": {
+        "move": "Eintrag wechseln",
+        "expandCollapse": "Ordner auf- / zuklappen",
+        "mainAction": "Hauptaktion (auschecken, Diff zeigen)",
+        "mark": "Markieren bzw. im Graphen zeigen",
+        "markMore": "Mehrere markieren",
+        "markAll": "Alle markieren",
+        "renameBranch": "Branch umbenennen (Left Panel)",
+        "delete": "Löschen bzw. verwerfen – mit Rückfrage",
+        "filter": "In die Filterleiste des Left Panels",
+        "contextMenu": "Kontextmenü"
+      },
+      "title": "Listen und Bäume",
+      "where": "Left Panel, Dateilisten, Treffer"
+    },
+    "wip": {
+      "entries": {
+        "stage": "Datei oder Ordner stagen",
+        "unstage": "Gestagte Datei zurücknehmen",
+        "discard": "Änderungen der Datei verwerfen …",
+        "commit": "Committen",
+        "stageAllCommit": "Alles stagen und committen",
+        "toggleCommitStash": "Commit / Stash umschalten (im Umschalter)"
+      },
+      "title": "Lokale Änderungen",
+      "where": "Commit Panel mit den lokalen Änderungen"
+    },
+    "diff": {
+      "entries": {
+        "nextChange": "Nächste Änderung",
+        "previousChange": "Vorige Änderung",
+        "nextPreviousFile": "Nächste / vorige Datei",
+        "markLine": "Zeile markieren, Falte öffnen",
+        "markLines": "Zeilen markieren",
+        "stage": "Hunk bzw. markierte Zeilen stagen",
+        "stageUnstage": "Stagen / zurücknehmen",
+        "discard": "Hunk bzw. Zeilen verwerfen …",
+        "escape": "Markierung aufheben, dann Diff schließen"
+      },
+      "title": "Diff",
+      "where": "Diff-Ansicht in der Mitte"
+    },
+    "search": {
+      "entries": {
+        "next": "Nächster Treffer",
+        "previous": "Voriger Treffer",
+        "mark": "Treffer in der Liste markieren",
+        "close": "Suche schließen"
+      },
+      "title": "Commit-Suche",
+      "where": "Suchleiste über dem Graphen ({{mod}}+F)"
+    },
+    "conflict": {
+      "entries": {
+        "next": "Nächster Konflikt",
+        "previous": "Voriger Konflikt",
+        "nextPreviousFile": "Nächste / vorige Konfliktdatei",
+        "switchSide": "Seite wechseln (aktuell / eingehend)",
+        "take": "Zeile oder Block übernehmen bzw. abwählen",
+        "swapOrder": "Reihenfolge tauschen, wenn beide Seiten gewählt sind",
+        "find": "Im Ergebnis suchen",
+        "resolved": "Gelöst: speichern und stagen",
+        "close": "Schließen (fragt bei ungespeicherter Lösung)"
+      },
+      "title": "Konflikt-Tool",
+      "where": "Beim Lösen eines Konflikts (Merge, Rebase, Cherry-Pick)"
+    },
+    "rebase": {
+      "entries": {
+        "pick": "Übernehmen (pick)",
+        "reword": "Umformulieren (reword)",
+        "squash": "Zusammenfassen (squash)",
+        "drop": "Weglassen (drop)",
+        "move": "Commit verschieben",
+        "editMessage": "Message bearbeiten",
+        "chooseAction": "Aktion wählen; beim Cherry-Pick: mitnehmen / auslassen",
+        "start": "Starten",
+        "close": "Schließen, ohne etwas zu ändern"
+      },
+      "title": "Rebase-Tool",
+      "where": "Interaktiver Rebase, Squash und Cherry-Pick mehrerer Commits"
+    },
+    "history": {
+      "entries": {
+        "openDiff": "Diff dieses Stands öffnen",
+        "blame": "Blame dieses Stands",
+        "showInGraph": "Commit im Graphen zeigen",
+        "close": "Historie schließen"
+      },
+      "title": "Datei-Historie",
+      "where": "Liste der Commits einer Datei"
+    },
+    "blame": {
+      "entries": {
+        "move": "Zeile wechseln",
+        "showInGraph": "Commit der Zeile im Graphen zeigen",
+        "parentBlame": "Blame des Elternstands – was stand hier vorher?",
+        "card": "Karte mit dem ganzen Commit der Zeile ein / aus",
+        "close": "Karte schließen, dann Blame schließen"
+      },
+      "title": "Blame",
+      "where": "Zeilen einer Datei mit ihrem letzten Commit"
+    },
+    "file": {
+      "entries": {
+        "save": "Speichern",
+        "history": "Historie der Datei",
+        "close": "Schließen (fragt bei ungespeicherten Änderungen)"
+      },
+      "title": "Datei ansehen und bearbeiten",
+      "where": "Datei-Ansicht in der Mitte"
+    },
+    "terminal": {
+      "entries": {
+        "leaveNextPrevious": "Terminal verlassen: nächster / voriger Bereich",
+        "leaveArea": "Terminal verlassen: Left Panel / Ansicht / Commit Panel",
+        "copy": "Auswahl kopieren (Ctrl+C bricht in der Shell ab)",
+        "paste": "Einfügen",
+        "scroll": "In der Ausgabe blättern",
+        "contextMenu": "Kontextmenü des Terminals",
+        "resize": "Höhe ändern (Fokus auf dem Griff darüber; Enter blendet aus)"
+      },
+      "title": "Terminal",
+      "where": "Fokus im Terminal – jede andere Taste, auch Tab, geht an die Shell"
+    },
+    "tabs": {
+      "entries": {
+        "previousNext": "Voriger / nächster Tab (Enter wechselt)",
+        "firstLast": "Erster / letzter Tab",
+        "move": "Tab nach links / rechts verschieben",
+        "rename": "Tab umbenennen (Alias; leer setzt zurück)",
+        "close": "Tab schließen",
+        "contextMenu": "Kontextmenü des Tabs"
+      },
+      "title": "Tab-Leiste",
+      "where": "Fokus auf einem Tab"
+    },
+    "palette": {
+      "entries": {
+        "commands": "Nur Befehle",
+        "refs": "Nur Branches und Tags",
+        "files": "Nur Dateien",
+        "commits": "Commits suchen",
+        "repositories": "Nur Repositories",
+        "moreActions": "Weitere Aktionen zum Treffer",
+        "back": "Zurück bzw. schließen"
+      },
+      "title": "Command Palette",
+      "where": "Nach {{mod}}+P"
+    },
+    "dialogs": {
+      "entries": {
+        "confirm": "Bestätigen (nie bei gefährlichen Aktionen vorbelegt)",
+        "close": "Schließen, ohne etwas zu tun",
+        "nextPrevious": "Nächstes / voriges Bedienelement",
+        "selectionMenu": "Menü der aktuellen Auswahl"
+      },
+      "title": "Dialoge und Menüs",
+      "where": "Überall"
+    }
+  }
+}

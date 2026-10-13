@@ -1,0 +1,90 @@
+{
+  "state": {
+    "connectedAs": "Connected as {{person}}",
+    "connected": "Connected",
+    "scopes": "Missing permissions",
+    "scopesDetail": "The token is valid but cannot do everything the app needs. Create a token with the permissions listed in “Replace token …”.",
+    "scopesDetailPerson": "The token is valid ({{person}}) but cannot do everything the app needs. Create a token with the permissions listed in “Replace token …”.",
+    "expired": "Token expired",
+    "expiredDetail": "The host no longer accepts the token – it has expired or been revoked. Create a new one and replace it.",
+    "error": "Check failed"
+  },
+  "account": {
+    "user": "User: {{login}}",
+    "tokenEnds": "Token ends in {{hint}}",
+    "tokenInKeyring": "Token in keychain",
+    "checkLabel": "Check {{name}}",
+    "check": "Check",
+    "replaceLabel": "Replace token for {{name}}",
+    "replace": "Replace token …",
+    "disconnectLabel": "Disconnect {{name}}",
+    "disconnect": "Disconnect …"
+  },
+  "loading": "Loading accounts",
+  "section": {
+    "title": "Integrations",
+    "connect": "Connect account …",
+    "intro": "Accounts on GitHub and GitLab – including self-hosted instances. With them, the app shows and creates pull requests for your repositories, via the host's public API and with a token you create there yourself. The token is stored in your system keychain and is never shown here.",
+    "noKeyringTitle": "No keychain available",
+    "noKeyring": "Without a keychain, the app cannot store a token, so no account can be connected. On Linux, a running Secret Service (GNOME Keyring or KWallet) is usually missing.",
+    "list": "Accounts",
+    "listCount": "Accounts ({{count}})",
+    "loadError": "The accounts could not be loaded",
+    "retry": "Try again",
+    "emptyTitle": "No account connected yet",
+    "empty": "Fetch, pull and push don't need an account here – SSH keys or saved credentials are enough. You need an account for pull requests: viewing, creating, commenting, merging.",
+    "footer": "The app only talks to the addresses listed here. Disconnecting deletes the token from the keychain; at the host it stays valid until you revoke it there."
+  },
+  "guide": {
+    "title": "How to create the token",
+    "path": "On {{host}}: {{path}}.",
+    "tokenPage": "Token page",
+    "openTokenPage": "Open token page in browser",
+    "github": {
+      "path": "Profile picture top right|Settings|Developer settings|Personal access tokens",
+      "fineGrained": "Fine-grained token (recommended)",
+      "fineGrainedIntro": "Only applies to the repositories you select under “Repository access”. Under “Repository permissions” it needs:",
+      "pullRequests": "view, create, comment on and close pull requests",
+      "contents": "merge and delete the branch afterwards",
+      "statuses": "show the state of checks",
+      "issues": "list issues",
+      "metadata": "set by GitHub automatically",
+      "classic": "Token (classic)",
+      "classicIntro": "Applies to everything your account has access to. It needs one scope:",
+      "repo": "full access to repositories; if you only work with public ones, public_repo is enough",
+      "sso": "If the repository belongs to an organization with SSO, the token must also be authorized there (“Configure SSO”)."
+    },
+    "gitlab": {
+      "path": "Profile picture|Preferences|Access tokens|Add new token",
+      "personal": "Personal access token",
+      "personalIntro": "It needs one scope:",
+      "api": "view, create, comment on and merge merge requests; read_api is only enough for viewing",
+      "roles": "What the account may do in the project depends on its role: creating from Developer, merging – depending on the project's settings – only from Maintainer."
+    }
+  },
+  "instance": {
+    "own": "Self-hosted",
+    "githubHint": "Address of GitHub Enterprise Server, as you open it in the browser (without /api).",
+    "githubPlaceholder": "https://github.company.example",
+    "gitlabHint": "Address of your GitLab instance, as you open it in the browser.",
+    "gitlabPlaceholder": "https://gitlab.company.example"
+  },
+  "connect": {
+    "pasteToken": "Paste the token.",
+    "replaceTitle": "Replace token",
+    "title": "Connect host account",
+    "replaceDescription": "New token for {{host}}. The old one is overwritten in the keychain.",
+    "description": "With a token of yours, the app talks directly to the host's public API – for pull requests in the app.",
+    "cancel": "Cancel",
+    "checking": "Checking token …",
+    "replace": "Replace token",
+    "submit": "Connect",
+    "noKeyring": "The app only stores tokens in the system keychain. Without it, no account can be connected. On Linux, a running Secret Service (GNOME Keyring or KWallet) is usually missing.",
+    "host": "Host",
+    "instance": "Instance",
+    "address": "Instance address",
+    "token": "Token",
+    "tokenPlaceholder": "Paste token here",
+    "tokenHint": "It is stored in your system keychain and never shown here again – only its last four characters."
+  }
+}

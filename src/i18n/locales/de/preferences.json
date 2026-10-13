@@ -1,0 +1,560 @@
+{
+  "title": "Einstellungen",
+  "search": "Einstellungen durchsuchen",
+  "nav": {
+    "label": "Bereiche der Einstellungen",
+    "list": "Bereiche",
+    "appliesNow": "Änderungen gelten sofort.",
+    "close": "Schließen",
+    "closeLabel": "Einstellungen schließen",
+    "own_one": "{{count}} eigene",
+    "own_other": "{{count}} eigene"
+  },
+  "levels": {
+    "global": "Global",
+    "profile": "Profil · {{name}}",
+    "profileTitle": "Profil {{name}}",
+    "switch": "Wechseln",
+    "project": "Projekt · {{name}}",
+    "help": "Hilfe"
+  },
+  "scope": {
+    "global": "Global · in allen Profilen",
+    "profile": "Nur im Profil {{name}}",
+    "project": "Nur in {{repo}}",
+    "projectOverrides": " · überschreibt {{profile}}"
+  },
+  "repoFallback": "Repository",
+  "sections": {
+    "appearance": {
+      "label": "Darstellung",
+      "keywords": "Theme|Dunkel|Hell|Zoom|Beschriftungen in der Toolbar|Datumsformat|Avatare|Initialen|Sprache|Language|English|Deutsch"
+    },
+    "diff": {
+      "label": "Diff und Editor",
+      "keywords": "Diff-Ansicht|Zeilenumbruch|Leerraum ignorieren|Schriftgröße|Tab-Breite"
+    },
+    "external": {
+      "label": "Externe Programme",
+      "keywords": "Editor|Terminal|Dateimanager|Diff-Programm|Merge-Programm"
+    },
+    "notifications": {
+      "label": "Benachrichtigungen",
+      "keywords": "Bei Fetch-Ergebnissen|Bei Fehlern im Hintergrund"
+    },
+    "identity": {
+      "label": "Profil und Identität",
+      "keywords": "Profil|Profilname|Farbe|Autorname|E-Mail|gitconfig"
+    },
+    "git": {
+      "label": "Git-Verhalten",
+      "keywords": "Auto-Fetch|Verwaiste Remote-Branches entfernen|Standard-Pull-Modus|Nach dem Commit pushen|Merge als Squash|.orig-Dateien|Standard-Branch-Name|Commits beim ersten Laden|Beim Scrollen nachladen|Tabs merken"
+    },
+    "ssh": {
+      "label": "SSH-Schlüssel",
+      "keywords": "SSH-Schlüssel|SSH-Agent|Passphrase"
+    },
+    "credentials": {
+      "label": "Zugangsdaten",
+      "keywords": "Passwort|HTTPS|Schlüsselbund"
+    },
+    "integrations": {
+      "label": "GitHub und GitLab",
+      "keywords": "GitHub|GitLab|Konto|Token"
+    },
+    "network": {
+      "label": "Netzwerk",
+      "keywords": "Proxy|Eigenes CA-Bündel|Zertifikat"
+    },
+    "pIdentity": {
+      "label": "Identität und Zugang",
+      "keywords": "Autorname|E-Mail|SSH-Schlüssel|Konto"
+    },
+    "pGit": {
+      "label": "Pull und Fetch",
+      "keywords": "Pull-Modus|Auto-Fetch"
+    },
+    "pFiles": {
+      "label": "Dateien und Hooks",
+      "keywords": "Hooks-Ordner|Commit-Vorlage|Kodierung"
+    },
+    "about": {
+      "label": "Über",
+      "keywords": "Version|Lizenz|Datenschutz"
+    }
+  },
+  "row": {
+    "changed": "Geändert",
+    "reset": "Zurücksetzen",
+    "saved": "Gespeichert",
+    "loading": "Einstellungen werden geladen",
+    "retry": "Erneut versuchen",
+    "browse": "Durchsuchen"
+  },
+  "inherit": {
+    "own": "Eigener Wert",
+    "resetTo": "Auf {{source}} zurücksetzen",
+    "from": "Von {{source}}:",
+    "overrideLabel": "{{title}}: überschreiben",
+    "override": "Überschreiben"
+  },
+  "loadError": {
+    "settings": "Die Einstellungen ließen sich nicht laden",
+    "profiles": "Die Profile ließen sich nicht laden",
+    "noProfile": "Es ist kein Profil vorhanden.",
+    "about": "Die Angaben zur App ließen sich nicht laden",
+    "repoSettings": "Die Einstellungen dieses Repositories ließen sich nicht laden",
+    "credentials": "Die Zugangsdaten ließen sich nicht laden",
+    "sshKeys": "Die SSH-Schlüssel ließen sich nicht laden"
+  },
+  "save": {
+    "setting": "Einstellung speichern",
+    "repoSetting": "Repository-Einstellung speichern",
+    "notAllowed": "Dieser Wert ist nicht erlaubt.",
+    "notSaved": "Nicht gespeichert."
+  },
+  "check": {
+    "email": "Das ist keine E-Mail-Adresse – es fehlt das @ oder ein Teil davor oder danach.",
+    "branchEmpty": "Der Name darf nicht leer sein.",
+    "branchSpaces": "Leerzeichen sind in Branch-Namen nicht erlaubt.",
+    "branchChars": "Nicht erlaubt sind „..“, „@{“ und die Zeichen ~ ^ : ? * [ \\.",
+    "branchEdges": "Der Name darf nicht mit „-“, „/“ oder „.“ beginnen und nicht auf „/“, „.“ oder „.lock“ enden.",
+    "quote": "Ein Anführungszeichen ist nicht geschlossen."
+  },
+  "pullModes": {
+    "ff": "Fast-forward, wenn möglich",
+    "ffOnly": "Nur Fast-forward",
+    "rebase": "Rebase"
+  },
+  "git": {
+    "title": "Git-Verhalten",
+    "intro": "Vorgaben für alle Repositories dieses Profils. Ein Repository kann Pull-Modus und Auto-Fetch selbst festlegen.",
+    "fetchCard": "Abrufen",
+    "autoFetch": {
+      "title": "Auto-Fetch",
+      "description": "Holt im Hintergrund regelmäßig den Stand aller Remotes der offenen Repositories – ohne Rückfrage, mit gemerkten Zugangsdaten. 0 schaltet das aus; je Repository geht es in dessen Einstellungen."
+    },
+    "autoPrune": {
+      "title": "Verwaiste Remote-Branches entfernen",
+      "description": "Räumt beim Fetch lokale Verweise auf Branches weg, die es auf dem Remote nicht mehr gibt."
+    },
+    "pullMode": "Standard-Pull-Modus",
+    "commitCard": "Commit und Merge",
+    "pushAfterCommit": {
+      "title": "Nach dem Commit pushen",
+      "description": "Der Haken „Danach pushen“ im Commit Panel ist dann von vornherein gesetzt."
+    },
+    "squashOnMerge": {
+      "title": "Merge als Squash",
+      "description": "Fasst beim Mergen alle Commits des Branches zu einer einzigen Änderung zusammen, statt einen Merge-Commit anzulegen."
+    },
+    "deleteOrigFiles": {
+      "title": ".orig-Dateien nach gelöstem Konflikt löschen",
+      "description": "Entfernt die Sicherungskopien, die Merge-Tools neben einer Konfliktdatei zurücklassen."
+    },
+    "repoCard": "Neue Repositories und Graph",
+    "defaultBranch": {
+      "title": "Standard-Branch-Name",
+      "description": "So heißt der erste Branch in Repositories, die du hier neu anlegst."
+    },
+    "initialCommits": {
+      "title": "Commits beim ersten Laden",
+      "description": "So viele Commits zeigt der Graph direkt nach dem Öffnen (mindestens 500). Mehr kostet Startzeit."
+    },
+    "lazyLoad": {
+      "title": "Beim Scrollen nachladen",
+      "description": "Lädt ältere Commits nach, sobald du das Ende des Graphen erreichst."
+    },
+    "rememberTabs": {
+      "title": "Tabs merken",
+      "description": "Öffnet beim Start und beim Wechsel in dieses Profil wieder seine letzten Tabs."
+    }
+  },
+  "appearance": {
+    "title": "Darstellung",
+    "intro": "Aussehen der Oberfläche, in allen Profilen gleich. Alles hier wirkt sofort.",
+    "themeCard": "Theme",
+    "theme": {
+      "title": "Theme",
+      "description": "„System“ folgt der Hell-Dunkel-Einstellung deines Betriebssystems.",
+      "dark": "Dunkel",
+      "light": "Hell",
+      "system": "System"
+    },
+    "uiCard": "Oberfläche",
+    "language": {
+      "title": "Sprache / Language",
+      "description": "Sprache der Oberfläche. „System“ folgt der Sprache deines Betriebssystems. Beim Wechsel lädt das Fenster neu.",
+      "system": "System"
+    },
+    "zoom": {
+      "title": "Zoom",
+      "description": "Vergrößert oder verkleinert die ganze Oberfläche (80 bis 200 %). Geht auch mit {{mod}} und Plus oder Minus. In einem kleinen Fenster wirkt nur so viel Vergrößerung, wie hineinpasst – für mehr das Fenster größer ziehen."
+    },
+    "dateFormat": {
+      "title": "Datumsformat",
+      "description": "So stehen Zeiten im Graphen und in den Commit-Details. Beispiel: {{example}}",
+      "relative": "Relativ",
+      "local": "Lokal",
+      "iso": "ISO"
+    },
+    "toolbarLabels": {
+      "title": "Beschriftungen in der Toolbar",
+      "description": "Schreibt unter jedes Icon der Toolbar, was es tut."
+    },
+    "authorsCard": "Autoren",
+    "showInitials": {
+      "title": "Initialen statt Avatare",
+      "description": "Zeigt Autoren als farbige Initialen, statt ihre Avatare von GitHub zu laden (gesucht über die E-Mail-Adresse der Commits)."
+    }
+  },
+  "diff": {
+    "title": "Diff und Editor",
+    "intro": "Wie Änderungen und Dateien angezeigt werden, in allen Profilen gleich.",
+    "diffCard": "Diff",
+    "mode": {
+      "title": "Diff-Ansicht",
+      "description": "In dieser Ansicht öffnet sich ein Diff. Im Diff selbst kannst du jederzeit umschalten.",
+      "hunks": "Hunks",
+      "inline": "Ganze Datei",
+      "split": "Nebeneinander"
+    },
+    "wordWrap": {
+      "title": "Zeilenumbruch",
+      "description": "Bricht lange Zeilen um, statt sie waagerecht scrollen zu lassen."
+    },
+    "ignoreWhitespace": {
+      "title": "Leerraum ignorieren",
+      "description": "Blendet Änderungen aus, die nur Leerzeichen, Tabs oder Zeilenenden betreffen."
+    },
+    "textCard": "Text",
+    "fontSize": {
+      "title": "Schriftgröße",
+      "description": "Gilt für Diff, Editor und Konflikt-Tool (8 bis 40 Pixel)."
+    },
+    "tabSize": {
+      "title": "Tab-Breite",
+      "description": "So viele Spalten nimmt ein Tabulator ein (1 bis 16)."
+    }
+  },
+  "external": {
+    "title": "Externe Programme",
+    "intro": "Befehlszeilen für „Öffnen in …“. <code>{path}</code> steht für die Datei oder den Ordner, <code>{repo}</code> für das Repository. Ein leeres Feld nimmt die Vorgabe deines Systems, bei Diff- und Merge-Tool die deiner Git-Konfiguration.",
+    "card": "Öffnen mit",
+    "example": "{{description}} Beispiel: {{example}}",
+    "systemDefault": "Vorgabe des Systems",
+    "browseLabel": "{{tool}}: Programm durchsuchen",
+    "editor": {
+      "title": "Editor",
+      "description": "Öffnet eine Datei oder das ganze Repository in deinem Editor.",
+      "pick": "Editor wählen"
+    },
+    "terminal": {
+      "title": "Terminal",
+      "description": "Öffnet ein Terminal im Ordner des Repositories; {path} ist hier der Ordner.",
+      "pick": "Terminal wählen"
+    },
+    "diffTool": {
+      "title": "Diff-Tool",
+      "description": "Zeigt den Diff einer Datei in einem eigenen Programm („Im externen Diff-Tool öffnen“ im Diff und im Datei-Menü). {local} ist die alte Fassung, {remote} die neue; fehlen beide, hängt die App sie hinten an. Leer: git difftool mit dem Tool aus deiner Git-Konfiguration.",
+      "pick": "Diff-Tool wählen",
+      "placeholder": "git difftool (diff.tool aus deiner Git-Konfiguration)"
+    },
+    "mergeTool": {
+      "title": "Merge-Tool",
+      "description": "Öffnet eine Konfliktdatei in einem eigenen Programm statt im eingebauten Konflikt-Tool. {base} ist der gemeinsame Vorfahre, {local} deine Fassung, {remote} die eingehende, {merged} die Datei, in die das Ergebnis gehört; ohne Platzhalter bekommt das Programm nur {merged}. Leer: git mergetool mit dem Tool aus deiner Git-Konfiguration.",
+      "pick": "Merge-Tool wählen",
+      "placeholder": "git mergetool (merge.tool aus deiner Git-Konfiguration)"
+    }
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "intro": "Welche Meldungen unten rechts erscheinen, ohne dass du etwas angestoßen hast.",
+    "card": "Melden",
+    "onFetch": {
+      "title": "Bei Fetch-Ergebnissen",
+      "description": "Meldet, wenn ein Auto-Fetch neue Commits oder Branches gefunden hat."
+    },
+    "onError": {
+      "title": "Bei Fehlern im Hintergrund",
+      "description": "Meldet, wenn eine Hintergrundaufgabe unerwartet scheitert. Fehlt beim Auto-Fetch nur das Netz oder die Anmeldung, bleibt es still und steht im Protokoll. Fehler deiner eigenen Aktionen siehst du immer."
+    }
+  },
+  "profiles": {
+    "save": "Profil speichern",
+    "gone": "Das Profil gibt es nicht mehr.",
+    "title": "Profil und Identität",
+    "intro": "Name und E-Mail-Adresse, mit denen deine Commits unterschrieben sind.",
+    "noAuthor": {
+      "title": "Kein Autor gesetzt",
+      "both": "Name und E-Mail fehlen.",
+      "name": "Der Name fehlt.",
+      "email": "Die E-Mail-Adresse fehlt.",
+      "hint": "Ohne beides legt Git keine Commits an. Trage sie unten ein."
+    },
+    "preview": "Vorschau der Identität",
+    "noName": "Kein Name",
+    "noEmail": "Keine E-Mail-Adresse",
+    "activeTitle": "Dieses Profil ist gerade aktiv",
+    "name": {
+      "title": "Profilname",
+      "description": "Nur für dich, um Profile auseinanderzuhalten – etwa „Arbeit“ und „Privat“.",
+      "empty": "Der Profilname darf nicht leer sein.",
+      "missing": "Gib dem Profil einen Namen."
+    },
+    "authorName": {
+      "title": "Autorname",
+      "description": "Steht als Autor in jedem Commit, den du anlegst.",
+      "placeholder": "Vorname Nachname"
+    },
+    "email": {
+      "title": "E-Mail",
+      "description": "Hoster ordnen Commits über diese Adresse deinem Konto zu.",
+      "placeholder": "name@beispiel.de"
+    },
+    "syncGitconfig": {
+      "title": "Name und E-Mail in die globale gitconfig schreiben",
+      "description": "Trägt beides als user.name und user.email in deine globale Git-Konfiguration ein – dann gelten sie auch im Terminal und in anderen Programmen. Ausgeschaltet bleibt die Datei, wie sie ist, und Git nimmt, was dort steht."
+    },
+    "list": "Profile",
+    "listIntro": "Jedes Profil hat eine eigene Identität, eigene Tabs und eigene Einstellungen.",
+    "new": "Neues Profil",
+    "lastBlocked": "Das letzte Profil lässt sich nicht löschen.",
+    "activeBlocked": "Das aktive Profil lässt sich nicht löschen. Wechsle zuerst zu einem anderen.",
+    "delete": {
+      "title": "Profil „{{name}}“ löschen?",
+      "body": "Seine Einstellungen, seine Tab-Liste, die eingetragenen SSH-Schlüssel und die gemerkten Zugangsdaten werden entfernt. Repositories und Schlüsseldateien auf der Platte bleiben liegen. Das lässt sich nicht zurückholen.",
+      "confirm": "Profil löschen",
+      "action": "Profil löschen",
+      "done": "Profil „{{name}}“ gelöscht",
+      "label": "Profil {{name}} löschen"
+    },
+    "noAuthorSet": "Kein Autor gesetzt",
+    "active": "Aktiv",
+    "switch": "Wechseln",
+    "switchLabel": "Zum Profil {{name}} wechseln",
+    "create": {
+      "action": "Profil anlegen",
+      "done": "Profil „{{name}}“ angelegt",
+      "doneHint": "Mit „Wechseln“ in der Liste machst du es zum aktiven Profil.",
+      "title": "Neues Profil",
+      "description": "Eine zweite Identität mit eigenen Tabs und Einstellungen, zum Beispiel für die Arbeit.",
+      "cancel": "Abbrechen",
+      "submit": "Profil anlegen"
+    }
+  },
+  "about": {
+    "title": "Über",
+    "intro": "Was hier läuft und wo es seine Daten ablegt – nützlich für Fehlerberichte.",
+    "notFound": "nicht gefunden",
+    "summary": {
+      "git": "Git {{version}}",
+      "platform": "Plattform {{name}}",
+      "dataDir": "Datenverzeichnis {{path}}"
+    },
+    "copied": "Angaben kopiert",
+    "copyFailed": "Kopieren fehlgeschlagen",
+    "clipboardUnavailable": "Die Zwischenablage ist nicht erreichbar.",
+    "copy": "Angaben kopieren",
+    "tagline": "Git-Manager für den Desktop. Arbeitet lokal, ohne Konto bei uns und ohne Telemetrie.",
+    "appVersion": "App-Version",
+    "gitVersion": "Git-Version",
+    "minimum": "mindestens {{version}}",
+    "gitPath": "Git-Pfad",
+    "platform": "Plattform",
+    "dataDir": "Datenverzeichnis",
+    "reveal": "{{revealInFileManager}}",
+    "dataDirHint": "Im Datenverzeichnis liegen Einstellungen, Profile, Tab-Listen und das Protokoll. Deine Repositories liegen dort nicht. Tokens, Passwörter und API-Schlüssel liegen nicht dort, sondern im Schlüsselbund des Betriebssystems.",
+    "privacyTitle": "Was diesen Rechner verlässt",
+    "privacyGit": "Git-Verbindungen zu den Remotes deiner Repositories: Clone, Fetch, Pull, Push, Submodule und LFS. Dazu gehört der Auto-Fetch – ab Werk jede Minute für jedes offene Repository, ohne Rückfrage und mit gemerkten Zugangsdaten. Abschalten: Git-Verhalten › Auto-Fetch auf 0, oder je Repository.",
+    "privacyHosts": "Aufrufe bei GitHub oder GitLab, wenn du dort ein Konto verbunden hast – nur für Pull Requests und Issues, mit deinem eigenen Token.",
+    "privacyLinks": "Links aus READMEs, Pull Requests und Issues öffnet der Browser des Systems, und erst nach Rückfrage.",
+    "privacyRest": "Sonst nichts: keine Telemetrie, keine Abfrage nach Updates, keine Bilder oder Schriften aus dem Netz. Ein Repository, das eigene Befehle mitbringt, führt Forkyard erst aus, wenn du dem zugestimmt hast.",
+    "privacyAvatars": "Avatare der Commit-Autoren von GitHub (avatars.githubusercontent.com): Dafür geht die E-Mail-Adresse aus dem Commit an GitHub; das Ergebnis bleibt eine Woche gespeichert. Abschalten: Darstellung › Initialen statt Avatare."
+  },
+  "project": {
+    "intro": "Gilt nur für <strong>{{repo}}</strong> und geht dem Profil vor.",
+    "openRepo": "das geöffnete Repository",
+    "notSet": "nicht gesetzt",
+    "identity": {
+      "title": "Identität und Zugang",
+      "commitCard": "Commit-Identität",
+      "authorName": "Name für Commits in diesem Repository; steht in seiner .git/config.",
+      "authorEmail": "E-Mail-Adresse für Commits in diesem Repository; steht in seiner .git/config.",
+      "accessCard": "Zugang",
+      "sshKeyTitle": "SSH-Schlüssel",
+      "sshKey": "Gilt nur für Fetch, Pull und Push aus der App, auch wenn das Profil den SSH-Agent benutzt. Ein eigener core.sshCommand dieses Repositories bleibt die Grundlage; der Schlüssel wird angehängt.",
+      "agentFallback": "SSH-Agent bzw. deine SSH-Konfiguration",
+      "noKeys": "Im Profil ist noch kein SSH-Schlüssel eingetragen.",
+      "keyMissing": "{{label}} (Datei fehlt)",
+      "account": "Konto",
+      "accountDescription": "Für Pull Requests, Issues und Avatare. Je Hoster gibt es im Profil ein Konto; es gilt für alle Repositories dort.",
+      "accountFromProfile": "{{account}} · vom Profil",
+      "noAccount": "Kein Konto für diesen Remote"
+    },
+    "git": {
+      "title": "Pull und Fetch",
+      "card": "Abgleich",
+      "pullMode": "Pull-Modus",
+      "pullModeDescription": "So arbeitet der Pull-Button in diesem Repository.",
+      "autoFetchOffInProfile": "Im Profil ist Auto-Fetch aus (Intervall 0 unter „Git-Verhalten“); hier lässt es sich nur zusätzlich abschalten.",
+      "autoFetchDescription": "Ausgeschaltet holt die App den Stand der Remotes hier nur, wenn du selbst auf Fetch oder Pull klickst – gut für sehr große Repositories.",
+      "off": "aus",
+      "every": "an, alle {{minutes}} min"
+    },
+    "files": {
+      "title": "Dateien und Hooks",
+      "card": "Dateien",
+      "encoding": "Kodierung",
+      "encodingDescription": "In dieser Kodierung liest und schreibt die App Textdateien, die nicht als UTF-8 erkennbar sind.",
+      "hooks": "Hooks-Ordner",
+      "hooksDescription": "Ordner mit den Git-Hooks dieses Repositories (core.hooksPath), relativ zum Repository oder absolut. Leer = .git/hooks.",
+      "hooksBrowse": "Hooks-Ordner durchsuchen",
+      "hooksPick": "Hooks-Ordner wählen",
+      "template": "Commit-Vorlage",
+      "templateDescription": "Textdatei, deren Inhalt als Entwurf in jeder neuen Commit-Message steht (commit.template). Leer = keine Vorlage.",
+      "templatePlaceholder": "keine Vorlage",
+      "templateBrowse": "Commit-Vorlage durchsuchen",
+      "templatePick": "Commit-Vorlage wählen"
+    },
+    "encodings": {
+      "windows1252": "Windows-1252 (Westeuropa)",
+      "windows1250": "Windows-1250 (Mitteleuropa)",
+      "windows1251": "Windows-1251 (Kyrillisch)",
+      "ibm866": "IBM 866 (Kyrillisch, DOS)",
+      "shiftJis": "Shift JIS (Japanisch)",
+      "eucJp": "EUC-JP (Japanisch)",
+      "gbk": "GBK (Chinesisch, vereinfacht)",
+      "big5": "Big5 (Chinesisch, traditionell)",
+      "eucKr": "EUC-KR (Koreanisch)"
+    }
+  },
+  "credentials": {
+    "kind": {
+      "password": "Passwort oder Token",
+      "passphrase": "Passphrase"
+    },
+    "forget": {
+      "title_one": "Den gemerkten Eintrag vergessen?",
+      "title_other": "Alle {{count}} gemerkten Einträge vergessen?",
+      "body": "Die Passwörter, Tokens und Passphrasen dieses Profils werden aus dem Schlüsselbund des Systems gelöscht. Beim nächsten Fetch, Pull oder Push fragt die App wieder danach.",
+      "confirm": "Alle vergessen",
+      "action": "Zugangsdaten vergessen",
+      "none": "Es war nichts zu vergessen",
+      "done_one": "{{count}} Eintrag vergessen",
+      "done_other": "{{count}} Einträge vergessen"
+    },
+    "title": "Zugangsdaten",
+    "forgetAll": "Alle vergessen",
+    "intro": "Was die App sich für Remotes gemerkt hat. Die Geheimnisse selbst liegen im Schlüsselbund deines Systems und werden hier nie angezeigt.",
+    "noKeyring": {
+      "title": "Kein Schlüsselbund erreichbar",
+      "body": "Die App kann sich deshalb nichts merken und fragt bei jeder Verbindung neu. Unter Linux fehlt meist ein laufender Secret Service (GNOME Keyring oder KWallet). Ein Credential Helper von Git oder ein SSH-Agent funktionieren weiterhin."
+    },
+    "list": "Gemerkt",
+    "listCount": "Gemerkt ({{count}})",
+    "loading": "Zugangsdaten werden geladen",
+    "empty": {
+      "title": "Nichts gemerkt",
+      "body": "Wenn ein Remote nach Passwort, Token oder Passphrase fragt, kannst du im Dialog „Im Schlüsselbund des Systems merken“ ankreuzen. Der Eintrag erscheint dann hier."
+    },
+    "columns": {
+      "host": "Host",
+      "user": "Benutzer",
+      "kind": "Art",
+      "saved": "Gemerkt am"
+    }
+  },
+  "ssh": {
+    "securityKey": "Sicherheitsschlüssel",
+    "noPublicKey": "Kein öffentlicher Schlüssel lesbar",
+    "noPublicKeyHint": "Die Datei {{path}} fehlt oder ist leer.",
+    "copied": "Öffentlicher Schlüssel kopiert",
+    "copiedHint": "Füge ihn bei deinem Hoster unter „SSH-Schlüssel“ ein.",
+    "copyFailed": "Kopieren fehlgeschlagen",
+    "copyFailedHint": "Die Zwischenablage ist nicht erreichbar. Markiere den Schlüsseltext und kopiere ihn von Hand.",
+    "import": {
+      "pickPrivate": "Privaten SSH-Schlüssel wählen",
+      "title": "Schlüssel eintragen",
+      "label": "Bezeichnung",
+      "confirm": "Eintragen",
+      "action": "Schlüssel eintragen",
+      "askPublic": "Öffentlichen Schlüssel wählen?",
+      "noPub": "Neben dem privaten Schlüssel liegt keine .pub-Datei.",
+      "pickFile": "Datei wählen",
+      "pickPublic": "Öffentlichen SSH-Schlüssel (.pub) wählen",
+      "done": "Schlüssel „{{label}}“ eingetragen"
+    },
+    "pickExisting": "Vorhandenen wählen",
+    "generate": "Schlüssel erzeugen",
+    "title": "SSH-Schlüssel",
+    "intro": "Schlüssel, mit denen sich Git per SSH bei deinen Remotes anmeldet.",
+    "useAgent": {
+      "title": "SSH-Agent des Systems verwenden",
+      "description": "Eingeschaltet wählen dein SSH-Agent und deine SSH-Konfiguration den Schlüssel. Ausgeschaltet nimmt die App immer den Standard-Schlüssel aus dieser Liste."
+    },
+    "noDefault": {
+      "title": "Kein Standard-Schlüssel gewählt",
+      "body": "Der SSH-Agent ist ausgeschaltet, aber kein Schlüssel ist als Standard markiert. Wähle unten „Als Standard verwenden“."
+    },
+    "list": "Schlüssel",
+    "listCount": "Schlüssel ({{count}})",
+    "loading": "Schlüssel werden geladen",
+    "empty": {
+      "title": "Noch kein Schlüssel",
+      "intro": "Für Remotes mit SSH-Adresse (git@…) brauchst du einen. In drei Schritten:",
+      "step1": "<strong>Erzeugen</strong> – „Schlüssel erzeugen“ legt ein neues Paar im SSH-Ordner an.",
+      "step2": "<strong>Kopieren</strong> – „Öffentlichen Schlüssel kopieren“ legt ihn in die Zwischenablage.",
+      "step3": "<strong>Eintragen</strong> – füge ihn bei deinem Hoster in den Kontoeinstellungen unter „SSH-Schlüssel“ ein."
+    },
+    "makeDefault": {
+      "action": "Standard-Schlüssel festlegen",
+      "done": "„{{label}}“ ist jetzt der Standard-Schlüssel",
+      "doneAgent": "Er wird benutzt, sobald du „SSH-Agent des Systems verwenden“ ausschaltest."
+    },
+    "remove": {
+      "title": "Schlüssel „{{label}}“ entfernen?",
+      "body": "Nur der Eintrag in dieser Liste verschwindet. Die Dateien bleiben liegen:",
+      "confirm": "Eintrag entfernen",
+      "action": "Schlüssel entfernen",
+      "done": "Eintrag „{{label}}“ entfernt – die Dateien liegen noch da"
+    },
+    "default": "Standard",
+    "withPassphrase": "Mit Passphrase",
+    "withoutPassphrase": "Ohne Passphrase",
+    "fileMissing": "Datei fehlt",
+    "fileMissingHint": "Mindestens eine der beiden Schlüsseldateien ist nicht mehr da.",
+    "fingerprint": "Fingerabdruck",
+    "fingerprintUnknown": "nicht ermittelbar",
+    "private": "Privat",
+    "public": "Öffentlich",
+    "publicKeyLabel": "Öffentlicher Schlüssel {{label}}",
+    "copyPublic": "Öffentlichen Schlüssel kopieren",
+    "useAsDefault": "Als Standard verwenden",
+    "removeEntry": "Entfernen",
+    "dialog": {
+      "labelMissing": "Gib dem Schlüssel eine Bezeichnung, z. B. „Arbeitsrechner“.",
+      "fileEmpty": "Der Dateiname darf nicht leer sein.",
+      "fileChars": "Nur ein Dateiname, kein Pfad – ohne \\ / : * ? \" < > |.",
+      "filePub": "Ohne „.pub“ – so heißt die Datei des öffentlichen Schlüssels.",
+      "passphraseShort": "Mindestens 5 Zeichen – oder leer lassen.",
+      "repeatMismatch": "Die beiden Eingaben stimmen nicht überein.",
+      "done": "Schlüssel „{{label}}“ erzeugt",
+      "doneHint": "Kopiere jetzt den öffentlichen Schlüssel und trage ihn bei deinem Hoster ein.",
+      "fileExists": "Im SSH-Ordner liegt schon eine Datei mit diesem Namen. Wähle einen anderen – überschrieben wird nichts.",
+      "failed": "Der Schlüssel konnte nicht erzeugt werden.",
+      "title": "SSH-Schlüssel erzeugen",
+      "description": "Legt ein neues Schlüsselpaar (ed25519) in deinem SSH-Ordner an. Vorhandene Dateien werden nie überschrieben.",
+      "cancel": "Abbrechen",
+      "notCreated": "Der Schlüssel wurde nicht erzeugt",
+      "label": "Bezeichnung",
+      "labelHint": "Steht in dieser Liste. Im öffentlichen Schlüssel steht am Ende die E-Mail deines Profils – ohne E-Mail die Bezeichnung.",
+      "labelPlaceholder": "z. B. Arbeitsrechner",
+      "fileName": "Dateiname",
+      "fileNameHint": "Der öffentliche Schlüssel bekommt denselben Namen mit „.pub“.",
+      "passphrase": "Passphrase (optional)",
+      "passphraseHint": "Schützt die Datei, falls sie jemand kopiert. Leer = ohne.",
+      "repeat": "Passphrase wiederholen"
+    }
+  }
+}

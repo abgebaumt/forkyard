@@ -1,0 +1,82 @@
+{
+  "filter": {
+    "stashes": "Stashes",
+    "list": "{{first}} und {{last}}",
+    "currentBranch": "aktueller Branch",
+    "upstream": "Upstream",
+    "target": "Ziel",
+    "smart": "nur {{names}} ({{parts}})",
+    "soloOne": "nur {{name}} (Solo)",
+    "soloMany": "nur {{count}} Refs (Solo)",
+    "hiddenOne": "{{name}} ausgeblendet",
+    "hiddenMany": "{{count}} Refs ausgeblendet",
+    "clear": "Filter aufheben",
+    "title": "Ansicht gefiltert",
+    "showAll": "Alle zeigen"
+  },
+  "loading": "Die Historie wird geladen",
+  "loadFailed": "Die Historie konnte nicht geladen werden",
+  "retry": "Erneut versuchen",
+  "outputTitle": "Historie laden: Ausgabe von Git",
+  "showOutput": "Ausgabe anzeigen",
+  "detached": {
+    "title": "Kein Branch ausgecheckt (Detached HEAD)",
+    "text": "· <code>{{sha}}</code> · neue Commits gehören zu keinem Branch",
+    "createBranch": "Branch hier anlegen …"
+  },
+  "highlight": {
+    "title": "Hervorgehoben: {{name}}",
+    "notLoaded": "sein Stand ist unter den geladenen Commits nicht dabei",
+    "count_one": "{{count, number}} Commit, der Rest ist gedimmt",
+    "count_other": "{{count, number}} Commits, der Rest ist gedimmt",
+    "countLoaded_one": "{{count, number}} Commit unter den geladenen, der Rest ist gedimmt",
+    "countLoaded_other": "{{count, number}} Commits unter den geladenen, der Rest ist gedimmt",
+    "clear": "Aufheben",
+    "noneTitle": "Hier gibt es keinen Branch zum Hervorheben",
+    "noneText": "Unter den geladenen Commits enthält kein Branch diese Zeile."
+  },
+  "footer": {
+    "loading": "Weitere Commits werden geladen …",
+    "loadMore": "Weitere Commits laden",
+    "loadFailed": "Weitere Commits ließen sich nicht laden.",
+    "end_one": "Ende der Historie · {{count, number}} Commit",
+    "end_other": "Ende der Historie · {{count, number}} Commits"
+  },
+  "saveColumns": "Spalten speichern",
+  "menu": {
+    "wip": "Aktionen für die lokalen Änderungen",
+    "stash": "Aktionen für den Stash „{{message}}“",
+    "commit": "Aktionen für Commit {{sha}}",
+    "commits": "Aktionen für {{count}} Commits",
+    "tag": "Aktionen für Tag {{name}}",
+    "branch": "Aktionen für Branch {{name}}",
+    "dropped": "{{from}} auf {{to}} gezogen"
+  },
+  "checkout": {
+    "title": "Commit {{sha}} auschecken?",
+    "body": "Danach ist kein Branch mehr ausgecheckt (Detached HEAD). Neue Commits gehören zu keinem Branch, bis du einen anlegst; deine Branches bleiben, wie sie sind.",
+    "confirm": "Commit auschecken"
+  },
+  "reveal": {
+    "notInView": "Commit {{sha}} ist in dieser Ansicht nicht enthalten",
+    "filtered": "Die Ansicht ist gefiltert. Vielleicht liegt er auf einem ausgeblendeten Branch.",
+    "unreachable": "Er gehört zu keinem Branch und keinem Tag, die der Graph zeigt.",
+    "further": "Commit {{sha}} liegt weiter zurück",
+    "notLoaded_one": "Unter den {{count, number}} geladenen Commit ist er nicht.",
+    "notLoaded_other": "Unter den {{count, number}} geladenen Commits ist er nicht.",
+    "continue": "Weiter suchen",
+    "seeking_one": "Commit {{sha}} wird gesucht … {{count, number}} Commit geladen",
+    "seeking_other": "Commit {{sha}} wird gesucht … {{count, number}} Commits geladen"
+  },
+  "label": "Commit-Graph",
+  "cancel": "Abbrechen",
+  "smartLoading": "Die Branches sind noch nicht geladen",
+  "stale": "Der Graph ist nicht auf dem neuesten Stand",
+  "empty": {
+    "filteredTitle": "Die gefilterte Ansicht ist leer",
+    "filteredText": "Mit den gewählten Branches gibt es hier keinen Commit zu sehen.",
+    "title": "Noch kein Commit",
+    "showChanges": "Änderungen ansehen",
+    "text": "Dieses Repository hat noch keine Historie. Lege den ersten Commit rechts im Commit Panel an."
+  }
+}

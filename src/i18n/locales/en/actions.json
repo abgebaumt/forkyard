@@ -1,0 +1,890 @@
+{
+  "undoLabel": "Undo",
+  "ancestry": {
+    "atLeastTwo": "select at least two commits",
+    "containsMerge": "the selection contains a merge commit",
+    "consecutiveOnly": "consecutive commits only",
+    "noHead": "no commit checked out",
+    "mergeAbove": "there is a merge commit above",
+    "headBranchOnly": "only on the checked-out branch"
+  },
+  "branches": {
+    "invalidName": "This name is not valid for Git.",
+    "offerStash": {
+      "title": "Uncommitted changes are blocking the switch",
+      "description": "Git would overwrite files you have changed. Nothing has been changed yet.",
+      "affected": "Affected",
+      "stash": "Stash changes and switch",
+      "stashDescription": "All uncommitted changes go into a stash; you can get them back later with Pop."
+    },
+    "stashMessage": "Saved before switching to {{target}}",
+    "stashHint": {
+      "title": "Your changes are in the stash",
+      "description": "“{{message}}” – get them back with Pop when you need them here."
+    },
+    "startWithSummary": "{{name}} (“{{summary}}”)",
+    "create": {
+      "title": "New branch",
+      "startsAt": "The branch starts at {{start}}.",
+      "startsAtHead": "The branch starts at the current commit.",
+      "name": "Name",
+      "placeholder": "feature/new-idea",
+      "action": "Create branch",
+      "done": "Branch “{{name}}” created",
+      "doneCheckedOut": "Branch “{{name}}” created and checked out"
+    },
+    "busy": {
+      "title": "“{{target}}” was not checked out",
+      "running": "The checkout of “{{target}}” is still running. Try again in a moment.",
+      "other": "Another action is still running in the repository. Try again in a moment."
+    },
+    "checkout": {
+      "action": "Checkout",
+      "detached": {
+        "title": "HEAD detached at {{sha}}",
+        "description": "No branch is checked out. New commits belong to no branch until you create one.",
+        "action": "Create branch here"
+      },
+      "done": "“{{name}}” checked out",
+      "follows": "Tracks {{upstream}}."
+    },
+    "leftBehind": {
+      "title_one": "{{count}} commit left behind without a branch",
+      "title_other": "{{count}} commits left behind without a branch",
+      "description_one": "You left the detached HEAD at {{sha}}. Its commit belongs to no branch and can only be reached by its SHA – Git cleans such commits up after a while. A branch there keeps it.",
+      "description_other": "You left the detached HEAD at {{sha}}. Its commits belong to no branch and can only be reached by their SHA – Git cleans such commits up after a while. A branch there keeps them.",
+      "action": "Create branch there …"
+    },
+    "rename": {
+      "title": "Rename branch “{{name}}”",
+      "label": "New name",
+      "unchanged": "The name is unchanged.",
+      "action": "Rename",
+      "done": "Branch is now called “{{name}}”"
+    },
+    "merged": {
+      "intoBranch": "“{{name}}”",
+      "intoDetached": "the checked-out commit",
+      "sameCommit": "points to the same commit as {{into}}",
+      "contained": "is fully contained in {{into}}",
+      "onUpstream": "is fully on {{upstream}}",
+      "notMergedCount_one": "is not merged: {{count}} commit can only be reached through it",
+      "notMergedCount_other": "is not merged: {{count}} commits can only be reached through it",
+      "notMerged": "is not merged",
+      "unknown": "may not be merged – Git checks when deleting"
+    },
+    "delete": {
+      "title": "Delete branch “{{name}}”?",
+      "titleUnmerged": "Delete unmerged branch “{{name}}”?",
+      "body": "The local branch will be removed. It {{note}}. Undo brings it back right afterwards.",
+      "bodyMerged": "The local branch will be removed. It {{note}} – no commits are lost. Undo brings it back right afterwards.",
+      "bodyUnmerged": "The branch {{note}}. After deleting, you can only find these commits through Undo or the reflog.",
+      "titleMany": "Delete {{count}} branches?",
+      "bodyMany": "The local branches will be removed. Undo brings them back one by one right afterwards.",
+      "bodyManyUnmerged_one": "{{count}} branch is not merged. Afterwards you can only find its commits through Undo or the reflog.",
+      "bodyManyUnmerged_other": "{{count}} branches are not merged. Afterwards you can only find their commits through Undo or the reflog.",
+      "anyway": "Delete anyway",
+      "action": "Delete branch",
+      "actionMany": "Delete branches",
+      "doneOne": "Branch “{{name}}” deleted",
+      "doneMany": "{{count}} branches deleted",
+      "forceTitle": "Delete unmerged commits?",
+      "forceBody": "{{message}} If you delete anyway, you can only find these commits through Undo or the reflog."
+    },
+    "upstream": {
+      "set": "Set upstream",
+      "unset": "Unset upstream",
+      "setDone": "“{{name}}” now tracks {{upstream}}",
+      "unsetDone": "“{{name}}” no longer has an upstream",
+      "changeTitle": "Change upstream of “{{name}}”",
+      "setTitle": "Set upstream for “{{name}}”",
+      "description": "Pull fetches from this remote branch, push writes to it.",
+      "label": "Remote branch",
+      "current": "current upstream",
+      "empty": "No remote branch known yet. A fetch gets them; a push sets the upstream on its own."
+    },
+    "pick": {
+      "label": "Branch",
+      "checkedOut": "checked out",
+      "remote": "Remote",
+      "follows": "tracks {{upstream}}",
+      "empty": "There is no matching branch."
+    }
+  },
+  "clipboard": {
+    "copied": "{{what}} copied",
+    "failed": "Copy failed",
+    "failedDescription": "The clipboard is not reachable right now. Select the text and copy it by hand."
+  },
+  "fastForward": {
+    "label": "Fast-forward",
+    "done": "Fast-forward complete",
+    "doneDescription": "{{summary}}.\nOnly the branch moved; whatever was checked out stays checked out.",
+    "summary": "{{branch}} fast-forwarded to {{upstream}}",
+    "upToDate": "Already up to date",
+    "upToDateDescription": "“{{branch}}” is already at “{{upstream}}” or ahead of it."
+  },
+  "files": {
+    "stage": "Stage",
+    "unstage": "Unstage",
+    "discard": {
+      "titleAll": "Discard all changes?",
+      "titleOne": "Discard changes to “{{path}}”?",
+      "titleMany_one": "Discard changes to {{count}} file?",
+      "titleMany_other": "Discard changes to {{count}} files?",
+      "bodyAll": "Everything uncommitted is lost: staged and unstaged changes, and new files are deleted. Undo brings them back right afterwards.",
+      "bodyNew_one": "The file is new and will be deleted. Undo brings it back right afterwards.",
+      "bodyNew_other": "The files are new and will be deleted. Undo brings them back right afterwards.",
+      "bodyWithNew_one": "The unstaged changes are removed from the working directory; {{count}} new file is deleted. Staged changes stay. Undo brings them back right afterwards.",
+      "bodyWithNew_other": "The unstaged changes are removed from the working directory; {{count}} new files are deleted. Staged changes stay. Undo brings them back right afterwards.",
+      "body": "The unstaged changes are removed from the working directory. Staged changes stay. Undo brings them back right afterwards.",
+      "fullPath": "Full path",
+      "actionAll": "Discard all",
+      "action": "Discard",
+      "doneAll": "All changes discarded",
+      "doneOne": "Changes to “{{path}}” discarded",
+      "doneMany_one": "Changes to {{count}} file discarded",
+      "doneMany_other": "Changes to {{count}} files discarded",
+      "blocked": "Discarding is not possible right now",
+      "blockedOperation": "A {{operation}} is in progress. Undoing everything here means aborting the {{operation}}."
+    },
+    "external": {
+      "editor": "Open in editor",
+      "terminal": "Open in terminal",
+      "fileManager": "{{revealInFileManager}}",
+      "diffTool": "Open in external diff tool",
+      "mergeTool": "Open in external merge tool"
+    },
+    "ignore": {
+      "action": "Ignore",
+      "done": "“{{pattern}}” is now in .gitignore",
+      "doneUntracked": "“{{pattern}}” is in .gitignore and no longer tracked",
+      "file": "Only this file",
+      "extension": "All files with the extension {{extension}}",
+      "folder": "The folder {{folder}}/",
+      "noPattern": "No common pattern",
+      "noPatternDescription": "The marked files share neither extension nor folder. Ignore them one by one."
+    },
+    "stashOne": "Only {{path}}",
+    "stashMany": "Only {{count}} files: {{paths}}",
+    "resolve": {
+      "ours": "Take current version",
+      "theirs": "Take incoming version",
+      "doneOne": "“{{path}}” resolved",
+      "doneMany_one": "{{count}} file resolved",
+      "doneMany_other": "{{count}} files resolved",
+      "open_one": "{{count}} conflict still open.",
+      "open_other": "{{count}} conflicts still open.",
+      "allDone": "All conflicts are resolved."
+    }
+  },
+  "gitflow": {
+    "kind": {
+      "feature": "Feature",
+      "release": "Release",
+      "hotfix": "Hotfix"
+    },
+    "init": "Set up Git Flow",
+    "initDone": "Git Flow set up",
+    "initDescription": "Main branch {{main}}, development branch {{develop}}.",
+    "start": "Start {{kind}}",
+    "started": "{{kind}} started",
+    "startedDescription": "“{{branch}}” is created and checked out.",
+    "finish": "Finish {{kind}}",
+    "finishPushJob": "Finish and push {{kind}} “{{name}}”",
+    "finished": "{{kind}} “{{name}}” finished",
+    "nothingLeft": "Nothing left to do",
+    "alreadyFinished": "{{kind}} “{{name}}” was already finished.",
+    "conflict_one": "{{label}}: conflict in one file",
+    "conflict_other": "{{label}}: conflict in {{count}} files",
+    "conflictDescription": "Resolve the conflicts in the commit panel and complete the merge. Then run “{{label}}” again – whatever is already done is skipped."
+  },
+  "graphView": {
+    "pin": "Pin branch",
+    "unpin": "Unpin branch",
+    "pinned": "“{{name}}” pinned to the left of the graph",
+    "unpinned": "“{{name}}” is no longer pinned",
+    "pinnedDescription": "This branch’s line is now on the far left. This only applies to the view of this repository.",
+    "change": "Change view",
+    "smart": {
+      "refsLoading": "The branches are not loaded yet",
+      "detached": "No branch checked out – the selection follows the checked-out branch",
+      "unborn": "No commit yet",
+      "headLoading": "The checked-out branch is not loaded yet"
+    }
+  },
+  "history": {
+    "quoted": "“{{text}}”",
+    "commitNotLoaded": "Commit {{sha}} could not be loaded.",
+    "messageWhat": "Message",
+    "revert": {
+      "label": "Revert",
+      "nothing": "Nothing to revert",
+      "nothingDescription": "The changes from {{sha}} are already no longer in the current state."
+    },
+    "reset": {
+      "mode": {
+        "soft": "Soft",
+        "softDescription": "Changes from the later commits stay staged.",
+        "mixed": "Mixed",
+        "mixedDescription": "Changes from the later commits stay in the working directory, unstaged.",
+        "hard": "Hard",
+        "hardDescription": "All later changes and uncommitted work are discarded."
+      },
+      "hint": {
+        "soft": "changes stay staged",
+        "mixed": "changes stay, unstaged",
+        "hard": "changes are discarded"
+      },
+      "subjectBranch": "“{{name}}”",
+      "commitsUnknown": "The commits after this point disappear from the branch.",
+      "commitsNone": "No commit disappears from the branch.",
+      "commits_one": "{{count}} commit disappears from the branch{{list}}.",
+      "commits_other": "{{count}} commits disappear from the branch{{list}}.",
+      "changesUnknown": "Uncommitted changes are discarded.",
+      "changes_one": "Uncommitted changes to {{count}} file are discarded.",
+      "changes_other": "Uncommitted changes to {{count}} files are discarded.",
+      "changesNone": "There are no uncommitted changes.",
+      "untracked": "Untracked files stay where they are.",
+      "undo": "Undo ({{shortcut}}) brings back the old state including the changes right afterwards.",
+      "hardTitle": "Hard reset {{subject}} to {{sha}}?",
+      "detailsLabel": "These changes are discarded",
+      "hardAction": "Hard reset",
+      "label": "Reset ({{mode}})",
+      "keptCount_one": "The changes from {{count}} commit",
+      "keptCount_other": "The changes from {{count}} commits",
+      "kept": "The changes from the later commits",
+      "done": "{{subject}} is now at {{sha}}",
+      "doneSoft": "{{kept}} are staged.",
+      "doneMixed": "{{kept}} are in the working directory, unstaged.",
+      "doneHard": "The old state is discarded – Undo ({{shortcut}}) brings it back."
+    },
+    "cherryPick": {
+      "label": "Cherry-pick",
+      "labelMany": "Cherry-pick of {{count}} commits",
+      "nothing": "Nothing to apply",
+      "nothingDescription": "The changes are already in the checked-out branch."
+    },
+    "squash": {
+      "label": "Squash",
+      "impossible": "Squash not possible",
+      "impossibleDescription": "Squashing only works like this: {{reason}}.",
+      "title": "Squash {{count}} commits",
+      "description": "The selected commits become one. Author and date of the oldest are kept; the later commits of the branch are rebuilt.",
+      "action": "Squash"
+    },
+    "reword": {
+      "failed": "Edit message failed",
+      "title": "Edit message of the last commit",
+      "action": "Edit message",
+      "pushedTitle": "This commit is already on the remote",
+      "pushedText": "The change creates a new commit. Afterwards the branch differs from the remote and needs a force push.",
+      "done": "Message changed"
+    },
+    "restore": {
+      "titleOne": "Overwrite “{{path}}” with the version from {{sha}}?",
+      "titleMany_one": "Overwrite {{count}} file with the version from {{sha}}?",
+      "titleMany_other": "Overwrite {{count}} files with the versions from {{sha}}?",
+      "bodyOne": "The file has uncommitted changes. They are replaced by the version from the commit and cannot be recovered.",
+      "bodyMany_one": "{{count}} file has uncommitted changes. They are replaced by the versions from the commit and cannot be recovered.",
+      "bodyMany_other": "{{count}} files have uncommitted changes. They are replaced by the versions from the commit and cannot be recovered.",
+      "detailsLabel": "Changed locally",
+      "action": "Overwrite",
+      "label": "Restore file",
+      "doneOne": "“{{path}}” restored from {{sha}} – it is staged",
+      "doneMany_one": "{{count}} file restored from {{sha}} – it is staged",
+      "doneMany_other": "{{count}} files restored from {{sha}} – they are staged"
+    }
+  },
+  "hosts": {
+    "prWord": {
+      "github": "pull request",
+      "gitlab": "merge request"
+    },
+    "unexpectedShape": "The core returned {{what}} in an unexpected form.",
+    "what": {
+      "account": "the account",
+      "pr": "the pull request",
+      "newPr": "the new pull request"
+    },
+    "localTime": "{{time}}",
+    "error": {
+      "notConnected": {
+        "title": "Not connected",
+        "fallback": "No account is connected for this repository’s host.",
+        "hint": "Connect an account under Settings › Integrations."
+      },
+      "auth": {
+        "title": "The host rejects the token",
+        "fallback": "The token has expired, been revoked, or is wrong.",
+        "hint": "Create a new token at the host and replace it under Settings › Integrations."
+      },
+      "rateLimit": {
+        "title": "The host is throttling requests",
+        "fallback": "The request quota is used up.",
+        "hint": "Wait until the stated time and then try again."
+      },
+      "notFound": {
+        "title": "Not found",
+        "fallback": "The host doesn’t know (or no longer knows) what you were looking for, or the account may not see it.",
+        "hint": "Check that the repository exists at the host and the token may access it."
+      },
+      "unsupported": {
+        "title": "This host is not supported",
+        "fallback": "The app only talks to GitHub and GitLab (including self-hosted instances)."
+      },
+      "rejected": {
+        "title": "The host refused",
+        "fallback": "The host did not accept the request."
+      },
+      "permission": {
+        "title": "No permission",
+        "fallback": "The account is not allowed to do that in this repository.",
+        "hint": "Check the account’s rights in the repository and the token’s permissions (Settings › Integrations › Replace token)."
+      },
+      "offline": {
+        "title": "The host is not reachable",
+        "fallback": "The connection failed.",
+        "hint": "Check the network connection, a proxy, or the instance address."
+      },
+      "notBuilt": {
+        "title": "The host integration is missing from this build",
+        "fallback": "This version of the app does not know the command yet.",
+        "hint": "Update the app."
+      },
+      "other": {
+        "title": "That didn’t work",
+        "fallback": "An unexpected error occurred."
+      }
+    },
+    "url": {
+      "empty": "Enter the instance address, e.g. https://git.company.example.",
+      "invalid": "That is not a valid address.",
+      "scheme": "The address must start with https:// or http://.",
+      "credentials": "User name and password don’t belong in the address.",
+      "noHost": "The address is missing the server name.",
+      "insecure": "Unencrypted (http://) only works to this computer – use https://."
+    },
+    "browser": {
+      "page": "page",
+      "noUrl": "No address is known for this {{what}}",
+      "open": "Open in browser"
+    },
+    "failed": "{{label}} failed",
+    "openIntegrations": "Open integrations",
+    "connect": {
+      "label": "Connect account",
+      "rejected": "The host rejected the token",
+      "missingScopes": "The token is missing permissions",
+      "failed": "The account could not be connected",
+      "rejectedHint": "Check that the token was copied completely, is still valid and belongs to this host.",
+      "done": "Connected to {{host}}",
+      "doneAs": "Connected to {{host}} as {{person}}",
+      "inKeychain": "The token is stored in your system keychain.",
+      "scopesMissing": "The token is missing permissions – the host will reject some actions."
+    },
+    "check": {
+      "label": "Check account",
+      "ok": "{{account}}: connected",
+      "okAs": "{{account}}: connected as {{person}}",
+      "scopes": "{{account}}: permissions missing",
+      "scopesDescription": "The token is valid but may not do everything the app needs. Create a token with the listed permissions and replace it.",
+      "expired": "{{account}}: The token is no longer valid",
+      "failed": "{{account}}: Check failed"
+    },
+    "disconnect": {
+      "title": "Disconnect {{host}} account?",
+      "body": "The app deletes the token for {{address}} from your system keychain and no longer shows pull requests for repositories of this host. The token stays valid at the host – revoke it there if you no longer need it. Fetch, pull and push keep working as before.",
+      "action": "Disconnect account",
+      "done": "{{host}} account disconnected",
+      "doneDescription": "The token has been deleted from the keychain."
+    }
+  },
+  "lfs": {
+    "pattern": {
+      "empty": "Enter a pattern, e.g. *.psd or images/**.",
+      "multiline": "A pattern fits on one line.",
+      "comment": "A pattern must not start with # – in .gitattributes that would be a comment.",
+      "negation": ".gitattributes does not support exceptions with !.",
+      "everything": "This pattern would match every file. Name an extension or a folder.",
+      "exists": "“{{pattern}}” is already tracked by LFS."
+    },
+    "track": {
+      "label": "Add pattern",
+      "done": "“{{pattern}}” now goes through LFS – .gitattributes has changed"
+    },
+    "untrack": {
+      "label": "Remove pattern",
+      "done": "“{{pattern}}” no longer goes through LFS"
+    },
+    "pull": {
+      "label": "Fetch LFS files",
+      "done": "LFS files fetched"
+    },
+    "prune": {
+      "title": "Clean up the local LFS storage?",
+      "body": "This deletes old LFS files under .git/lfs that the checked-out state and the most recent commits don’t need and that are on the remote. The files in your working directory stay. If you need an old state later, Git LFS fetches the files from the remote again – it has to be reachable for that.",
+      "action": "Clean up",
+      "label": "Clean up LFS",
+      "done": "LFS cleaned up",
+      "doneSummary": "LFS cleaned up: {{summary}}"
+    }
+  },
+  "merge": {
+    "operation": {
+      "merge": "merge",
+      "rebase": "rebase",
+      "cherryPick": "cherry-pick",
+      "revert": "revert"
+    },
+    "abortLabel": "Abort {{operation}} …",
+    "result": {
+      "done": "{{label}} complete",
+      "fastForward": "Fast-forward, without a merge commit.",
+      "upToDate": "Already up to date",
+      "nothingToDo": "{{label}}: There was nothing to do.",
+      "conflict_one": "{{label}}: conflict in one file",
+      "conflict_other": "{{label}}: conflict in {{count}} files",
+      "stopped": "{{label}} paused",
+      "stoppedDescription": "There is no conflict. Continue in the commit panel – or abort.",
+      "conflictStash": "The stash is kept. Resolve the conflicts in the commit panel; no operation is running that you would need to finish or abort.",
+      "conflictNoOperation": "Resolve the conflicts in the commit panel and then commit as usual. No operation is running that you would need to finish.",
+      "conflictOperation": "Resolve the conflicts in the commit panel and then continue the {{operation}} – or abort it."
+    },
+    "label": "Merge",
+    "squashLabel": "Squash merge",
+    "squashDone": "Changes from {{source}} are staged",
+    "squashCommitInto": "Commit them to complete the squash merge into {{target}}.",
+    "squashCommit": "Commit them to complete the squash merge.",
+    "continue": "Continue",
+    "rebaseLabel": "Rebase",
+    "abort": {
+      "title": "Abort {{operation}}?",
+      "body": "The repository returns to the state before the {{operation}}. Conflicts you already resolved are lost.",
+      "action": "Abort {{operation}}",
+      "done": "Aborted the {{operation}}"
+    }
+  },
+  "otherProfile": {
+    "titleOne": "“{{name}}” belongs to the profile “{{profile}}”",
+    "titleMany": "“{{name}}” belongs to other profiles",
+    "description": "You are in the profile “{{current}}”. Switch to use the other profile’s identity, keys and tabs – or open it here as well; then it is listed in both profiles.",
+    "switch": "Switch to “{{profile}}”",
+    "switchDescription": "Close this profile’s tabs and open the other one’s.",
+    "add": "Also open in “{{profile}}”",
+    "addDescription": "The repository is then listed in both profiles."
+  },
+  "patches": {
+    "unstaged": "unstaged changes",
+    "staged": "staged changes",
+    "commit": "Commit {{sha}}",
+    "commitWithSummary": "Commit {{sha}} · {{summary}}",
+    "stash": "Stash “{{message}}”",
+    "stashIndex": "Stash {{index}}",
+    "compareWorktree": "Comparison {{from}} ↔ working directory",
+    "compare": "Comparison {{from}} ↔ {{to}}",
+    "local": "local changes"
+  },
+  "profiles": {
+    "someAction": "A Git action",
+    "warning": {
+      "jobOne": "“{{job}}” is still running; the action continues, its tab closes.",
+      "jobMany": "{{count}} actions are still running; they continue, their tabs close.",
+      "views": "A view has unsaved work (conflict tool or form) – it is lost when you switch.",
+      "fileOne": "The editor has unsaved text – it is lost when you switch.",
+      "fileMany": "The editor has unsaved text in {{count}} files – it is lost when you switch."
+    },
+    "switch": {
+      "title": "Switch to the profile “{{name}}”?",
+      "action": "Switch profile",
+      "done": "Profile “{{name}}” is active",
+      "author": "Commits are now authored by {{author}}."
+    }
+  },
+  "pullrequests": {
+    "exists": "Pull request #{{number}} already exists for “{{branch}}”",
+    "pushJob": "Push {{branch}}",
+    "pushRejected": "Push rejected",
+    "create": {
+      "label": "Create pull request",
+      "done": "Pull request #{{number}} created"
+    },
+    "comment": {
+      "label": "Comment",
+      "done": "Comment sent"
+    },
+    "method": {
+      "merge": "Merge commit",
+      "squash": "Squash",
+      "rebase": "Rebase",
+      "mergeHint": "All commits stay, plus a merge commit in the target branch.",
+      "squashHint": "All commits are squashed into a single one in the target branch.",
+      "rebaseHint": "The commits are placed one by one onto the target branch, without a merge commit."
+    },
+    "block": {
+      "merged": "The pull request is already merged.",
+      "closed": "The pull request is closed – reopen it first.",
+      "draft": "This is a draft. Mark it as ready at the host, then it can be merged.",
+      "conflicts": "There are conflicts with the target branch. Resolve them locally (merge or rebase the target branch into the source branch) and push.",
+      "checksFailing": "At least one check failed.",
+      "checksPending": "The checks are still running.",
+      "checking": "The host is still checking whether the pull request can be merged. Refresh again in a moment."
+    },
+    "merge": {
+      "label": "Merge",
+      "done": "Pull request #{{number}} merged",
+      "description": "The merge is at the host in “{{target}}”. Nothing changes locally until the next fetch.",
+      "descriptionDeleted": "The merge is at the host in “{{target}}”, “{{source}}” has been deleted there. Nothing changes locally until the next fetch.",
+      "fetch": "Fetch now"
+    },
+    "close": {
+      "title": "Close pull request #{{number}}?",
+      "body": "“{{title}}” is closed at the host without merging. Branch and commits stay; the pull request can be reopened.",
+      "action": "Close pull request",
+      "label": "Close",
+      "done": "Pull request #{{number}} closed"
+    },
+    "reopen": {
+      "label": "Reopen",
+      "done": "Pull request #{{number}} reopened"
+    },
+    "checkout": {
+      "label": "Check out branch",
+      "job": "Fetch pull request #{{number}}",
+      "done": "The branch of pull request #{{number}} has been fetched and checked out."
+    }
+  },
+  "remotes": {
+    "remove": {
+      "entry": "The entry for {{url}} is removed from this repository",
+      "branches_one": "{{count}} remote branch disappears from the view",
+      "branches_other": "{{count}} remote branches disappear from the view",
+      "title": "Remove remote “{{name}}”?",
+      "serverUnchanged": "Nothing changes on the server.",
+      "losesUpstream_one": "{{count}} local branch loses its upstream.",
+      "losesUpstream_other": "{{count}} local branches lose their upstream.",
+      "undo": "Undo brings the remote back right afterwards.",
+      "detailsLabel": "Lose their upstream",
+      "action": "Remove remote",
+      "done": "Remote “{{name}}” removed"
+    }
+  },
+  "repos": {
+    "open": "Open repository",
+    "newTab": "New tab",
+    "openTab": "Open tab",
+    "switchTab": "Switch tab",
+    "closeTab": "Close tab",
+    "moveTab": "Move tab",
+    "zoom": "Zoom",
+    "unsaved": {
+      "titleOne": "Save changes to “{{name}}”?",
+      "titleMany": "Save changes to {{count}} files?",
+      "description": "The editor contains text that has not been saved yet. It would be lost with the tab.",
+      "detailsLabel_one": "Unsaved file",
+      "detailsLabel_other": "Unsaved files",
+      "save": "Save and close",
+      "saveDescription_one": "The file is saved, then the tab closes.",
+      "saveDescription_other": "All files are saved, then the tab closes.",
+      "discard": "Don’t save",
+      "discardDescription": "The unsaved text is lost.",
+      "failed": "Not everything could be saved",
+      "failedDescription": "The tab stays open. Not saved: {{files}}"
+    },
+    "forget": {
+      "title": "Remove “{{name}}” from the list?",
+      "body": "Only the entry disappears; the folder {{path}} stays unchanged on disk.",
+      "action": "Remove from list",
+      "label": "Remove"
+    }
+  },
+  "stash": {
+    "gone": "That stash no longer exists",
+    "goneDescription": "It has been applied or deleted in the meantime. The list has been reloaded.",
+    "label": "Stash",
+    "done": "Changes stashed",
+    "doneFiles_one": "{{count}} file stashed",
+    "doneFiles_other": "{{count}} files stashed",
+    "pop": "Stash pop",
+    "apply": "Apply stash",
+    "inTheWay": "In the way",
+    "drop": {
+      "title": "Delete stash “{{name}}”?",
+      "body": "The changes in this stash are lost. A deleted stash cannot be brought back with Undo.",
+      "action": "Delete stash",
+      "done": "Stash deleted"
+    },
+    "rename": {
+      "title": "Rename stash",
+      "label": "Description",
+      "unchanged": "The description is unchanged.",
+      "done": "Stash is now called “{{name}}”"
+    }
+  },
+  "submodules": {
+    "state": {
+      "initialized": "initialized",
+      "uninitialized": "not initialized",
+      "outOfSync": "differs",
+      "modified": "modified"
+    },
+    "hint": {
+      "initialized": "Exactly the recorded commit is checked out.",
+      "uninitialized": "Recorded, but not fetched yet – the folder is empty.",
+      "outOfSync": "A different commit than the recorded one is checked out.",
+      "modified": "The submodule contains its own changes or new files."
+    },
+    "fetchJob": "Fetch submodule: {{path}}",
+    "updateJob": "Update submodule: {{path}}",
+    "add": {
+      "label": "Add submodule",
+      "done": "Submodule “{{path}}” added – the change is staged"
+    },
+    "update": {
+      "initOne": "Initialize submodule",
+      "one": "Update submodule",
+      "all": "Update submodules",
+      "doneOne": "Submodule “{{path}}” is at the recorded commit",
+      "none": "This repository has no submodules",
+      "doneOpen_one": "Submodules updated – {{count}} still differs",
+      "doneOpen_other": "Submodules updated – {{count}} still differ",
+      "doneAll_one": "{{count}} submodule is at the recorded commit",
+      "doneAll_other": "{{count}} submodules are at the recorded commit",
+      "dirty": "Changes inside the submodule are in the way.",
+      "dirtyHint": "Open the submodule as a repository and commit or discard the changes there."
+    },
+    "open": {
+      "label": "Open submodule",
+      "notFetched": "“{{path}}” has not been fetched yet",
+      "notFetchedDescription": "A submodule can only be opened once it is initialized.",
+      "init": "Initialize now",
+      "noFolder": "The repository folder is not known."
+    },
+    "remove": {
+      "title": "Remove submodule “{{name}}”?",
+      "body": "The folder is deleted and the entry is taken out of .gitmodules. The removal is then staged and only takes effect with your next commit.",
+      "bodyUrl": "The folder is deleted and the entry is taken out of .gitmodules. The removal is then staged and only takes effect with your next commit. The repository it points to stays untouched.",
+      "detailsLabel": "Folder and source",
+      "action": "Remove submodule",
+      "done": "Submodule “{{name}}” removed – the change is staged"
+    },
+    "force": {
+      "titleUnpushed": "Remove “{{name}}” including unpushed commits?",
+      "titleOutOfSync": "Remove “{{name}}” despite the differing commit?",
+      "titleModified": "Remove “{{name}}” including its own changes?",
+      "bodyUnpushed": "{{reason}} They only exist in this submodule and cannot be recovered afterwards – not even with Undo. Push them from the submodule first if you want to keep them.",
+      "bodyOutOfSync": "The submodule has {{head}} checked out, the recorded commit is {{sha}}. Commits that only exist there and are not pushed are lost with the folder and cannot be recovered.",
+      "bodyOutOfSyncUnknown": "The submodule has a different commit checked out, the recorded commit is {{sha}}. Commits that only exist there and are not pushed are lost with the folder and cannot be recovered.",
+      "bodyModified": "The submodule contains uncommitted changes or new files. They are deleted with the folder and cannot be recovered – not even with Undo.",
+      "detailsLabel": "Lost for good",
+      "action": "Remove anyway"
+    }
+  },
+  "sync": {
+    "pullMode": {
+      "ff": "Pull (fast-forward if possible)",
+      "ffOnly": "Pull (fast-forward only)",
+      "rebase": "Pull (rebase)",
+      "ffHint": "Fast-forwards if possible; otherwise a merge commit is created.",
+      "ffOnlyHint": "Only fast-forwards; aborts if local commits are in the way.",
+      "rebaseHint": "Puts your own commits on top of the remote state.",
+      "save": "Save pull mode"
+    },
+    "noRemote": {
+      "title": "{{label}}: no remote set up",
+      "description": "This repository has no remote yet. Add a remote, then it works.",
+      "action": "Add remote"
+    },
+    "fetch": {
+      "label": "Fetch",
+      "labelFrom": "Fetch from {{remote}}",
+      "refs_one": "{{count}} ref updated",
+      "refs_other": "{{count}} refs updated",
+      "failedOne": "Fetch from “{{remote}}” failed",
+      "failedMany": "Fetch from {{count}} remotes failed",
+      "others_one": "The other remote was fetched.",
+      "others_other": "The other {{count}} remotes were fetched.",
+      "othersRefs_one": "The other remote was fetched ({{refs}}).",
+      "othersRefs_other": "The other {{count}} remotes were fetched ({{refs}}).",
+      "pruned_one": "{{count}} stale remote branch removed",
+      "pruned_other": "{{count}} stale remote branches removed",
+      "nothingNew": "Nothing new on the remote."
+    },
+    "pull": {
+      "label": "Pull",
+      "dirty": {
+        "title": "Uncommitted changes are in the way of the pull",
+        "description": "The pull would overwrite files you have changed. Nothing has been changed yet.",
+        "stash": "Stash first, then pull",
+        "stashDescription": "Puts your changes in a stash, pulls and brings them back afterwards."
+      },
+      "stashMessage": "Saved before pull",
+      "stashKept": "The stash “{{message}}” stays. Get it back with Pop once the pull is done.",
+      "noUpstream": {
+        "title": "Pull: no upstream",
+        "description": "The branch doesn’t track a remote branch yet (or it was deleted). Set an upstream – or push, which creates one.",
+        "descriptionBranch": "“{{branch}}” doesn’t track a remote branch yet (or it was deleted). Set an upstream – or push, which creates one.",
+        "action": "Set upstream …"
+      }
+    },
+    "push": {
+      "label": "Push",
+      "labelForced": "Force push",
+      "jobForced": "Push (forced)",
+      "done": "Pushed to {{target}}",
+      "doneForced": "Force-pushed to {{target}}",
+      "createdUpstream": "The remote branch was created and set as upstream.",
+      "nothing": "Nothing to push",
+      "nothingDescription": "The remote branch is already at this state."
+    },
+    "force": {
+      "fetchLabel": "Fetch before force push",
+      "fetchJob": "Get the remote state",
+      "remoteBranch": "the remote branch",
+      "lost_one": "{{target}} has 1 commit that is missing locally – it disappears there.",
+      "lost_other": "{{target}} has {{formatted}} commits that are missing locally – they disappear there.",
+      "nothingLost": "As of the last fetch, no commit on {{target}} is lost.",
+      "titleTo": "Force push to {{upstream}}?",
+      "title": "Force push?",
+      "body": "The push runs with --force-with-lease: it only overwrites the remote branch if it still has the state this dialog shows.",
+      "detailsLabel": "Will be overwritten on the remote",
+      "action": "Force push"
+    },
+    "rejected": {
+      "description": "The remote contains commits that are missing locally.",
+      "pull": "Pull first",
+      "pullDescription": "Gets the missing commits; then pushes again.",
+      "force": "Force push …",
+      "forceDescription": "Overwrites the remote branch. You see beforehand which commits are lost there."
+    }
+  },
+  "tags": {
+    "currentCommit": "the current commit",
+    "noRemote": "No remote set up",
+    "create": {
+      "label": "Create tag",
+      "done": "Tag “{{name}}” created",
+      "doneAnnotated": "Annotated tag “{{name}}” created"
+    },
+    "delete": {
+      "commitsNote": "Commits that a branch or another tag still leads to are kept. Whatever is only reachable through this tag – including the text of an annotated tag – then hangs on no ref and is cleaned up by Git later. Undo does not restore the tag.",
+      "pickRemote": "Delete on which remote?",
+      "pickRemoteDescription": "The tag “{{name}}” is deleted locally and on the chosen remote.",
+      "titleRemote": "Delete tag “{{name}}” locally and on {{remote}}?",
+      "title": "Delete tag “{{name}}”?",
+      "bodyRemote": "The tag disappears here and on the remote. Anyone who has already fetched it keeps their copy.",
+      "body": "The tag is only deleted locally; it stays on the remote.",
+      "actionRemote": "Delete locally and on remote",
+      "action": "Delete tag",
+      "doneRemote": "Tag “{{name}}” deleted locally and on {{remote}}",
+      "done": "Tag “{{name}}” deleted"
+    },
+    "push": {
+      "pickRemote": "Push to which remote?",
+      "pickRemoteDescription": "The tag “{{name}}” is transferred there.",
+      "label": "Push tag",
+      "job": "Push tag {{name}}",
+      "rejected": "Tag “{{name}}” was rejected",
+      "rejectedShort": "Tag was rejected",
+      "upToDate": "Tag “{{name}}” is already on {{remote}}",
+      "done": "Tag “{{name}}” pushed to {{remote}}"
+    }
+  },
+  "tools": {
+    "setup": "Set up external programs",
+    "diffStarted": "Diff tool started",
+    "diffStartedDescription": "“{{name}}” opens in a separate window.",
+    "diffFailed": "The diff tool could not be started",
+    "mergeStarted": "Merge tool started",
+    "mergeStartedDescription": "“{{name}}” opens in a separate window. Save there; the app then shows the new state.",
+    "mergeFailed": "The merge tool could not be started"
+  },
+  "undo": {
+    "redoLabel": "Redo",
+    "step": "“{{label}}”",
+    "thisStep": "This step",
+    "thisStepObject": "this step",
+    "title": {
+      "staleUndo": "Can no longer be undone",
+      "staleRedo": "Can no longer be redone",
+      "dirtyUndo": "Clean up first, then undo",
+      "dirtyRedo": "Clean up first, then redo",
+      "localUndo": "Cannot be undone locally",
+      "localRedo": "Cannot be redone locally",
+      "notNow": "Not possible right now"
+    },
+    "explain": {
+      "stale": "{{step}} no longer matches the repository: something has changed since then, for example through a command in the terminal. The entry stays until the next action replaces it.",
+      "dirty": "{{step}} needs a working directory without uncommitted changes. Commit or stash them and try again.",
+      "pushed": "{{step}} affects a commit that is already on the remote. Taking it back locally would diverge from there – revert it instead.",
+      "operation": "A merge, rebase, cherry-pick or revert is still in progress. Finish it in the commit panel or abort it.",
+      "conflict": "There are still open conflicts. Resolve them in the commit panel first.",
+      "missing": "The saved state for {{step}} is missing – Git has probably cleaned it up in the meantime."
+    },
+    "doneUndo": "Undone",
+    "doneRedo": "Redone",
+    "nothingUndo": "Nothing to undo",
+    "nothingRedo": "Nothing to redo",
+    "overwriteUndo": "Undo would overwrite newer work",
+    "overwriteRedo": "Redo would overwrite newer work",
+    "stashUndo": "Stash and undo",
+    "stashRedo": "Stash and redo",
+    "stashMessage": "Saved before “{{name}}”"
+  },
+  "worktrees": {
+    "detachedAt": "detached at {{sha}}",
+    "noCommit": "no commit",
+    "add": "Create worktree",
+    "open": {
+      "missing": "The folder of “{{name}}” is missing",
+      "missingHint": "If it no longer exists, “Clean up” removes the orphaned entry.",
+      "current": "This worktree is already open here"
+    },
+    "lock": {
+      "label": "Lock",
+      "done": "Worktree “{{name}}” locked",
+      "reasonChanged": "Lock reason of “{{name}}” changed"
+    },
+    "unlock": {
+      "label": "Unlock",
+      "done": "Worktree “{{name}}” unlocked"
+    },
+    "block": {
+      "main": "the main folder stays",
+      "current": "it is open in this tab",
+      "locked": "unlock it first"
+    },
+    "remove": {
+      "blocked": "“{{name}}” cannot be removed",
+      "reason": "Reason: {{reason}}.",
+      "keepsBranch": "The branch “{{branch}}” and its commits stay in the repository.",
+      "keepsDetached": "Commits that are on no branch can then only be reached by their SHA.",
+      "title": "Remove worktree “{{name}}”?",
+      "body": "The folder is deleted with its contents. {{keeps}} An open tab for it is closed.",
+      "detailsLabel": "This folder is deleted",
+      "action": "Remove worktree",
+      "done": "Worktree “{{name}}” removed",
+      "dirty": "The worktree still has changes."
+    },
+    "force": {
+      "title": "Delete “{{name}}” with its changes?",
+      "body": "This worktree has uncommitted changes or new files. They are deleted with the folder and cannot be recovered – not even with Undo. Cancel if you want to commit or stash them first.",
+      "action": "Delete with changes"
+    },
+    "prune": {
+      "nothing": "Nothing to clean up",
+      "nothingDescription": "The folder still exists for every worktree.",
+      "allLocked_one": "{{count}} orphaned entry is locked and stays. Unlock it if the folder is really gone.",
+      "allLocked_other": "{{count}} orphaned entries are locked and stay. Unlock them if the folders are really gone.",
+      "title_one": "Clean up orphaned worktree entry?",
+      "title_other": "Clean up {{count}} orphaned worktree entries?",
+      "body_one": "There is no folder for this entry anymore. Only the reference in the repository disappears; branches and commits stay.",
+      "body_other": "There are no folders for these entries anymore. Only the references in the repository disappear; branches and commits stay.",
+      "lockedStay_one": "{{count}} locked entry stays.",
+      "lockedStay_other": "{{count}} locked entries stay.",
+      "detailsLabel": "Folder missing",
+      "done_one": "{{count}} orphaned entry cleaned up",
+      "done_other": "{{count}} orphaned entries cleaned up"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "check": {
+    "proxySpaces": "A proxy address contains no spaces.",
+    "proxyFormat": "Expected an address like http://proxy.company.example:8080 (also https, socks4, socks5).",
+    "hostEmpty": "Please enter a host, e.g. git.company.example or git.company.example:8443.",
+    "hostSpaces": "A host contains no spaces.",
+    "hostWildcard": "Wildcards are not allowed – list each host separately."
+  },
+  "title": "Network",
+  "intro": "Proxy and certificates for this app's connections to HTTP(S) remotes. Your own Git configuration stays untouched; SSH connections are not affected.",
+  "warning_one": "Certificate verification is turned off for {{count}} host",
+  "warning_other": "Certificate verification is turned off for {{count}} hosts",
+  "warningBody": "On these connections, anyone on the network can pose as the server, read credentials and alter code. You can turn it back on per host below.",
+  "proxy": {
+    "title": "Proxy",
+    "description": "All HTTP(S) remotes go through this proxy, e.g. http://proxy.company.example:8080 – also https, socks4 and socks5. Empty: direct connection.",
+    "placeholder": "no proxy – direct connection"
+  },
+  "perHost": {
+    "title": "Proxy per host",
+    "intro": "Use a different proxy for individual servers – or none, e.g. for the Git server on your own network.",
+    "list": "Proxy exceptions per host",
+    "empty": "No exceptions: the proxy above applies to every host.",
+    "via": "via {{proxy}}",
+    "noProxy": "no proxy",
+    "remove": "Remove exception for {{host}}",
+    "add": "Add",
+    "host": "Host",
+    "hostPlaceholder": "git.company.example",
+    "proxy": "Proxy for this host (empty = no proxy)"
+  },
+  "certificates": "Certificates",
+  "caBundle": {
+    "title": "Custom CA bundle",
+    "description": "PEM file with the certificates Git trusts instead of the system list – e.g. your server's self-signed certificate or your company's certificate authority. Empty: the system certificates.",
+    "placeholder": "System certificates",
+    "browseLabel": "Browse for CA bundle",
+    "pick": "Choose CA bundle (PEM file)",
+    "browse": "Browse"
+  },
+  "noVerify": {
+    "title": "Turn off certificate verification per host",
+    "intro": "Only as a last resort, if a server's certificate cannot be added as a CA bundle. Verification is then skipped for exactly this host – never for all.",
+    "list": "Hosts without certificate verification",
+    "empty": "The certificate is verified for every host.",
+    "unverified": "unverified",
+    "verifyLabel": "Verify certificate of {{host}} again",
+    "verify": "Verify again",
+    "submit": "Turn off verification …",
+    "hostPlaceholder": "git.company.example:8443",
+    "confirmTitle": "Turn off certificate verification for “{{host}}”?",
+    "confirmBody": "The app then no longer checks whether this server is really at the other end. Anyone listening on the same network can capture credentials and slip you altered code. It is safer to add the server's certificate as a CA bundle above. The exception only applies to this host and can be undone here at any time.",
+    "confirm": "Turn off verification"
+  }
+}

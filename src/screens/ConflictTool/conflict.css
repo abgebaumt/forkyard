@@ -1,0 +1,75 @@
+/* Additions of the conflict tool that cannot be expressed as utility classes. Tokens only. */
+
+/* Padded rows where one side is shorter: hatched so that they do not look like empty lines. */
+.gc-cf-filler {
+  background-color: var(--gc-surface-sunken);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent 0,
+    transparent calc(var(--gc-size-icon) / 4),
+    var(--gc-border) calc(var(--gc-size-icon) / 4),
+    var(--gc-border) calc(var(--gc-size-icon) / 4 + var(--gc-size-edge) / 2)
+  );
+  opacity: 0.6;
+}
+
+/* Rows that do not go into the result: struck through and muted (not only via colour). */
+.gc-cf-dropped [data-line-text] {
+  color: var(--gc-text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--gc-text-muted);
+}
+.gc-cf-dropped [data-line-text] span {
+  color: inherit;
+}
+
+/* Focus in the side-by-side view: ring inside so that it is not clipped in the grid. */
+[data-sides] [data-item]:focus-visible {
+  outline: var(--gc-size-edge) solid var(--gc-accent);
+  outline-offset: calc(var(--gc-size-edge) * -1);
+}
+
+/* Result: rows of the blocks. Left bar as a second cue besides colour. */
+.gc-cf-result .cm-line.gc-cf-open {
+  background-color: var(--gc-warning-surface);
+  box-shadow: inset var(--gc-size-edge) 0 0 var(--gc-warning);
+}
+.gc-cf-result .cm-line.gc-cf-done {
+  background-color: var(--gc-success-surface);
+  box-shadow: inset var(--gc-size-edge) 0 0 var(--gc-success);
+}
+.gc-cf-result .cm-line.gc-cf-auto {
+  background-color: var(--gc-accent-surface);
+  box-shadow: inset var(--gc-size-edge) 0 0 var(--gc-accent);
+}
+
+/* Handle between the side-by-side view and the result. */
+.gc-cf-grip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--gc-size-icon) * 2);
+  height: var(--gc-size-edge);
+  transform: translate(-50%, -50%);
+  border-radius: var(--gc-radius-pill);
+  background: var(--gc-border-input);
+}
+.gc-cf-grip:hover::after,
+.gc-cf-grip:focus-visible::after {
+  background: var(--gc-accent);
+}
+
+@keyframes gc-cf-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+.gc-cf-skeleton {
+  animation: gc-cf-pulse 1.4s var(--gc-motion-ease) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gc-cf-skeleton {
+    animation: none;
+  }
+}

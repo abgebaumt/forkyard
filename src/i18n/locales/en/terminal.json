@@ -1,0 +1,53 @@
+{
+  "title": "Terminal",
+  "clipboardFailed": "The clipboard couldn't be read",
+  "clipboardHint": "Paste directly in the terminal with {{shortcut}}.",
+  "menu": {
+    "copy": "Copy",
+    "nothingSelected": "nothing selected",
+    "paste": "Paste",
+    "shellEnded": "shell ended",
+    "selectAll": "Select all",
+    "clear": "Clear scrollback",
+    "clearHint": "output scrolled out of view",
+    "restartAsk": "Restart …",
+    "restart": "Restart",
+    "endAsk": "End session …",
+    "end": "End session"
+  },
+  "copySelection": "Selection",
+  "exit": {
+    "unknown": "The shell has ended.",
+    "ok": "The shell has ended (exit code 0).",
+    "error": "The shell ended with an error (exit code {{code}})."
+  },
+  "failure": {
+    "pathNotFound": "The repository's folder is missing",
+    "notAllowed": "No further terminal can be opened right now",
+    "other": "The shell couldn't be started"
+  },
+  "badge": {
+    "exited": "ended",
+    "failed": "not started"
+  },
+  "clearLabel": "Clear scrollback – the output scrolled out of view",
+  "external": "Open in external terminal",
+  "hide": "Hide terminal – the shell keeps running",
+  "retry": "Try again",
+  "exitHint": "Tab and Esc go to the shell – F6 leaves the terminal",
+  "starting": "Shell is starting",
+  "close": "Close",
+  "height": "Terminal height",
+  "promptLabel": "Terminal input",
+  "tooMuchOutput": "Too much output to read aloud. Use the arrow keys to read it line by line.",
+  "confirm": {
+    "restartTitle": "Restart terminal?",
+    "restartBody": "The shell is ended – along with everything running in it. The previous output disappears.",
+    "endTitle": "End terminal session?",
+    "endBody": "The shell is ended – along with everything running in it. The output is lost; a new shell starts the next time you open it.",
+    "closeTabNamed": "Close tab “{{name}}” and end the terminal?",
+    "closeTab": "Close tab and end the terminal?",
+    "closeTabBody": "The terminal of this tab is still running a shell you worked in. It ends with the tab – along with everything running in it.",
+    "closeTabConfirm": "Close tab"
+  }
+}

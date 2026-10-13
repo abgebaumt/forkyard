@@ -1,0 +1,90 @@
+{
+  "state": {
+    "connectedAs": "Verbunden als {{person}}",
+    "connected": "Verbunden",
+    "scopes": "Berechtigungen fehlen",
+    "scopesDetail": "Der Token gilt, darf aber nicht alles, was die App braucht. Lege einen Token mit den Berechtigungen aus „Token ersetzen …“ an.",
+    "scopesDetailPerson": "Der Token gilt ({{person}}), darf aber nicht alles, was die App braucht. Lege einen Token mit den Berechtigungen aus „Token ersetzen …“ an.",
+    "expired": "Token abgelaufen",
+    "expiredDetail": "Der Hoster nimmt den Token nicht mehr an – er ist abgelaufen oder widerrufen. Lege einen neuen an und ersetze ihn.",
+    "error": "Prüfung fehlgeschlagen"
+  },
+  "account": {
+    "user": "Benutzer: {{login}}",
+    "tokenEnds": "Token endet auf {{hint}}",
+    "tokenInKeyring": "Token im Schlüsselbund",
+    "checkLabel": "{{name}} prüfen",
+    "check": "Prüfen",
+    "replaceLabel": "Token für {{name}} ersetzen",
+    "replace": "Token ersetzen …",
+    "disconnectLabel": "{{name}} trennen",
+    "disconnect": "Trennen …"
+  },
+  "loading": "Konten werden geladen",
+  "section": {
+    "title": "Integrationen",
+    "connect": "Konto verbinden …",
+    "intro": "Konten bei GitHub und GitLab – auch eigene Instanzen. Damit zeigt die App Pull Requests zu deinen Repositories und legt sie an, über die öffentliche API des Hosters und mit einem Token, den du dort selbst anlegst. Der Token liegt im Schlüsselbund deines Systems und wird hier nie angezeigt.",
+    "noKeyringTitle": "Kein Schlüsselbund erreichbar",
+    "noKeyring": "Ohne Schlüsselbund kann die App keinen Token ablegen; ein Konto lässt sich so nicht verbinden. Unter Linux fehlt meist ein laufender Secret Service (GNOME Keyring oder KWallet).",
+    "list": "Konten",
+    "listCount": "Konten ({{count}})",
+    "loadError": "Die Konten ließen sich nicht laden",
+    "retry": "Erneut versuchen",
+    "emptyTitle": "Noch kein Konto verbunden",
+    "empty": "Fetch, Pull und Push brauchen kein Konto hier – dafür genügen SSH-Schlüssel oder gemerkte Zugangsdaten. Ein Konto brauchst du für Pull Requests: ansehen, anlegen, kommentieren, mergen.",
+    "footer": "Die App spricht nur mit den Adressen, die hier stehen. Trennen löscht den Token aus dem Schlüsselbund; beim Hoster bleibt er gültig, bis du ihn dort widerrufst."
+  },
+  "guide": {
+    "title": "So legst du den Token an",
+    "path": "Bei {{host}}: {{path}}.",
+    "tokenPage": "Token-Seite",
+    "openTokenPage": "Token-Seite im Browser öffnen",
+    "github": {
+      "path": "Profilbild oben rechts|Settings|Developer settings|Personal access tokens",
+      "fineGrained": "Fine-grained token (empfohlen)",
+      "fineGrainedIntro": "Gilt nur für die Repositories, die du unter „Repository access“ auswählst. Unter „Repository permissions“ braucht er:",
+      "pullRequests": "Pull Requests ansehen, anlegen, kommentieren, schließen",
+      "contents": "mergen und den Branch danach löschen",
+      "statuses": "den Stand der Checks zeigen",
+      "issues": "Issues auflisten",
+      "metadata": "setzt GitHub von selbst",
+      "classic": "Token (classic)",
+      "classicIntro": "Gilt für alles, worauf dein Konto Zugriff hat. Er braucht einen Scope:",
+      "repo": "voller Zugriff auf Repositories; arbeitest du nur mit öffentlichen, genügt public_repo",
+      "sso": "Gehört das Repository einer Organisation mit SSO, muss der Token dort zusätzlich freigegeben werden („Configure SSO“)."
+    },
+    "gitlab": {
+      "path": "Profilbild|Preferences|Access tokens|Add new token",
+      "personal": "Personal access token",
+      "personalIntro": "Er braucht einen Scope:",
+      "api": "Merge Requests ansehen, anlegen, kommentieren und mergen; read_api reicht nur zum Ansehen",
+      "roles": "Was das Konto im Projekt darf, bestimmt seine Rolle: Anlegen ab Developer, Mergen je nach Einstellung des Projekts erst ab Maintainer."
+    }
+  },
+  "instance": {
+    "own": "Eigene Instanz",
+    "githubHint": "Adresse von GitHub Enterprise Server, so wie du sie im Browser öffnest (ohne /api).",
+    "githubPlaceholder": "https://github.firma.example",
+    "gitlabHint": "Adresse deiner GitLab-Instanz, so wie du sie im Browser öffnest.",
+    "gitlabPlaceholder": "https://gitlab.firma.example"
+  },
+  "connect": {
+    "pasteToken": "Füge den Token ein.",
+    "replaceTitle": "Token ersetzen",
+    "title": "Hoster-Konto verbinden",
+    "replaceDescription": "Neuer Token für {{host}}. Der alte wird im Schlüsselbund überschrieben.",
+    "description": "Mit einem Token von dir spricht die App direkt mit der öffentlichen API des Hosters – für Pull Requests in der App.",
+    "cancel": "Abbrechen",
+    "checking": "Token wird geprüft …",
+    "replace": "Token ersetzen",
+    "submit": "Verbinden",
+    "noKeyring": "Die App legt Tokens nur im Schlüsselbund des Systems ab. Ohne ihn lässt sich kein Konto verbinden. Unter Linux fehlt meist ein laufender Secret Service (GNOME Keyring oder KWallet).",
+    "host": "Hoster",
+    "instance": "Instanz",
+    "address": "Adresse der Instanz",
+    "token": "Token",
+    "tokenPlaceholder": "Token hier einfügen",
+    "tokenHint": "Er wird im Schlüsselbund deines Systems gespeichert und hier nie wieder angezeigt – nur seine letzten vier Zeichen."
+  }
+}

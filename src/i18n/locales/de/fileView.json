@@ -1,0 +1,129 @@
+{
+  "back": {
+    "diff": "Zurück zum Diff",
+    "history": "Zurück zur Historie",
+    "blame": "Zurück zum Blame",
+    "file": "Zurück zur Datei",
+    "graph": "Zurück zum Graphen",
+    "generic": "Zurück"
+  },
+  "close": "Schließen",
+  "encoding": {
+    "utf8Bom": "UTF-8 mit BOM",
+    "western": "Westeuropäisch ({{name}})",
+    "central": "Mitteleuropäisch ({{name}})",
+    "cyrillic": "Kyrillisch ({{name}})",
+    "japanese": "Japanisch ({{name}})",
+    "korean": "Koreanisch ({{name}})",
+    "chineseSimplified": "Chinesisch vereinfacht ({{name}})",
+    "chineseTraditional": "Chinesisch traditionell ({{name}})",
+    "saveFirst": "erst speichern oder verwerfen",
+    "certain": "die Datei ist eindeutig {{encoding}}",
+    "reread": "Datei neu lesen",
+    "rereadDone": "Neu gelesen als {{encoding}}",
+    "rereadHint": "Gilt ab jetzt für alle Dateien dieses Repositories, die kein UTF-8 sind.",
+    "writeAs": "Beim Speichern schreiben als",
+    "detected": "erkannt",
+    "rereadAs": "Neu lesen als"
+  },
+  "markdown": {
+    "openLinkTitle": "Link außerhalb der App öffnen?",
+    "openLinkBody": "Der Link steht in der Datei und öffnet sich im Standardprogramm des Systems:",
+    "openLink": "Link öffnen",
+    "emptyTitle": "Nichts zu zeigen",
+    "emptyText": "Die Datei ist leer oder enthält nur Elemente, die die Vorschau aus Sicherheitsgründen weglässt.",
+    "blockedImages_one": "{{count, number}} Bild nicht geladen – die Vorschau holt nichts aus dem Netz",
+    "blockedImages_other": "{{count, number}} Bilder nicht geladen – die Vorschau holt nichts aus dem Netz",
+    "truncated": "gekürzt auf die ersten {{limit}} Zeichen",
+    "preview": "Vorschau von {{path}}",
+    "source": "Quelltext",
+    "previewMode": "Vorschau"
+  },
+  "save": "Speichern",
+  "savedStaged": "„{{name}}“ gespeichert und gestaged",
+  "saved": "„{{name}}“ gespeichert",
+  "closeDirty": {
+    "title": "Änderungen an „{{name}}“ speichern?",
+    "text": "Ohne Speichern gehen die Änderungen verloren, die seit dem letzten Speichern gemacht wurden.",
+    "saveHint": "Datei speichern und schließen",
+    "discard": "Nicht speichern",
+    "discardHint": "Änderungen verwerfen und schließen"
+  },
+  "header": {
+    "worktree": "Arbeitsverzeichnis",
+    "commit": "Commit {{sha}}",
+    "worktreeTip": "Die Datei, wie sie gerade auf der Platte liegt",
+    "commitTip": "Fassung aus dem Commit {{sha}}",
+    "editableTip": "Änderungen lassen sich speichern",
+    "editable": "bearbeitbar",
+    "unsavedTip": "Ungespeicherte Änderungen",
+    "unsaved": "ungespeichert",
+    "history": "Historie der Datei",
+    "blame": "Blame",
+    "worktreeOnly": "Nur für die Datei im Arbeitsverzeichnis"
+  },
+  "openExternal": "Im externen Editor öffnen",
+  "toolbar": "Datei-Ansicht",
+  "mode": {
+    "label": "Modus",
+    "view": "Ansehen",
+    "edit": "Bearbeiten",
+    "editWorktree": "Arbeitsverzeichnis bearbeiten"
+  },
+  "wrap": "Lange Zeilen umbrechen",
+  "saveStageTip": "Speichern und die Datei stagen",
+  "saveStage": "Speichern und stagen",
+  "loading": "{{name}} wird geladen",
+  "error": {
+    "goneWorktree": "Die Datei gibt es im Arbeitsverzeichnis nicht",
+    "goneCommit": "In {{sha}} gibt es diese Datei nicht",
+    "readFailed": "Die Datei ließ sich nicht lesen",
+    "showHistory": "Historie zeigen",
+    "goneWorktreeHint": "Sie wurde gelöscht, umbenannt oder noch nie angelegt. Die Historie zeigt frühere Fassungen."
+  },
+  "retry": "Erneut versuchen",
+  "tooLarge": {
+    "title": "Die Datei ist zu groß für die Ansicht",
+    "text": "Mit {{size}} liegt sie über der Grenze von 5 MB.",
+    "external": "Ein externer Editor kommt damit besser zurecht."
+  },
+  "contentEditable": "Inhalt von {{path}}, bearbeitbar",
+  "content": "Inhalt von {{path}}",
+  "eol": {
+    "lf": "LF (Linux, macOS)",
+    "crlf": "CRLF (Windows)"
+  },
+  "footer": {
+    "cursor": "Zeile {{line}}, Spalte {{column}}",
+    "lines_one": "{{count, number}} Zeile",
+    "lines_other": "{{count, number}} Zeilen",
+    "pendingEncoding": "wird beim Speichern zu {{encoding}}",
+    "encoding": "Kodierung: {{encoding}}",
+    "eol": "Zeilenenden: {{eol}}",
+    "mixed": "gemischt",
+    "mixedTo": "Gemischt → {{eol}}",
+    "worktreeOnly": "{{label}} – nur im Arbeitsverzeichnis änderbar"
+  },
+  "section": "Datei {{path}}",
+  "restored": {
+    "title": "Ungespeicherte Änderungen von vorhin",
+    "discard": "Verwerfen",
+    "text": "Du hattest die Datei bearbeitet und die Ansicht verlassen, ohne zu speichern. Die Änderungen stehen wieder im Editor."
+  },
+  "external": {
+    "title": "Die Datei wurde außerhalb geändert",
+    "reload": "Neu laden",
+    "keep": "Meine behalten",
+    "text": "Ein anderes Programm hat „{{name}}“ gespeichert. „Neu laden“ verwirft deine ungespeicherten Änderungen, „Meine behalten“ überschreibt beim Speichern."
+  },
+  "binary": {
+    "title": "Binärdatei",
+    "text": "Der Inhalt ({{size}}) ist kein Text und lässt sich hier nicht anzeigen."
+  },
+  "image": {
+    "loading": "Bild wird geladen",
+    "failed": "Das Bild lässt sich nicht anzeigen",
+    "failedText": "Die Datei ({{size}}) ist ein Bild, aber die Vorschau ließ sich nicht erzeugen – zum Beispiel, weil sie noch nicht von Git verfolgt wird.",
+    "label": "Bild"
+  }
+}

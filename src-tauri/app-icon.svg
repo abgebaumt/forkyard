@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="1024" height="1024">
+  <!-- Source of all app icons: `npx tauri icon src-tauri/app-icon.svg -o src-tauri/icons`. The railway switch: main track and diverging branch. -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#111314"/>
+  <path d="M22 41 C22 30 42 31 42 19" stroke="#f2b84b" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M22 50 V14" stroke="#52b5a0" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <circle cx="22" cy="14" r="6.5" fill="#52b5a0"/>
+  <circle cx="42" cy="17" r="6.5" fill="#f2b84b"/>
+  <circle cx="22" cy="50" r="6.5" fill="#52b5a0"/>
+</svg>

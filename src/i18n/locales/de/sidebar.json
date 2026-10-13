@@ -1,0 +1,130 @@
+{
+  "sync": {
+    "ahead_one": "{{count, number}} Commit voraus",
+    "ahead_other": "{{count, number}} Commits voraus",
+    "behind_one": "{{count, number}} Commit zurück",
+    "behind_other": "{{count, number}} Commits zurück",
+    "against": "{{text}} gegenüber {{upstream}}"
+  },
+  "kind": {
+    "branch": "Lokaler Branch",
+    "remoteBranch": "Remote-Branch",
+    "tag": "Tag",
+    "stash": "Stash",
+    "folder": "Ordner",
+    "remote": "Remote"
+  },
+  "tip": {
+    "upstreamGone": "Upstream {{upstream}} gibt es nicht mehr",
+    "upstream": "Upstream: {{upstream}}",
+    "noUpstream": "Kein Upstream",
+    "inWorktree": "In einem anderen Worktree ausgecheckt: {{path}}",
+    "annotatedEmpty": "Annotierter Tag ohne Text",
+    "lightweight": "Leichtgewichtiger Tag",
+    "stashOn": " auf {{branch}}",
+    "files_one": "{{count, number}} Datei",
+    "files_other": "{{count, number}} Dateien",
+    "noBranchesFetched": "Noch keine Branches geholt",
+    "entries_one": "{{count, number}} Eintrag",
+    "entries_other": "{{count, number}} Einträge",
+    "detached": "Kein Branch ausgecheckt. HEAD zeigt direkt auf {{sha}}.",
+    "unborn": "{{branch}} hat noch keinen Commit."
+  },
+  "describe": {
+    "checkedOut": "ausgecheckt",
+    "detached": "losgelöst",
+    "unborn": "ausgecheckt, noch kein Commit",
+    "upstreamMissing": "Upstream fehlt",
+    "inWorktree": "in einem anderen Worktree ausgecheckt",
+    "stashOn": "auf {{branch}}, ",
+    "hidden": "im Graphen ausgeblendet",
+    "partlyHidden": "teilweise ausgeblendet",
+    "solo": "Solo",
+    "partlySolo": "teilweise Solo"
+  },
+  "rename": {
+    "label": "Neuer Name für {{name}}"
+  },
+  "noCommitYet": "noch kein Commit",
+  "toggle": {
+    "soloEnd": "Solo beenden",
+    "soloMany": "Solo: nur diese im Graphen zeigen",
+    "soloOne": "Solo: nur diesen im Graphen zeigen",
+    "show": "Im Graphen wieder zeigen",
+    "hideMany": "Alle im Graphen ausblenden",
+    "hideOne": "Im Graphen ausblenden",
+    "showMany": "Alle im Graphen wieder zeigen"
+  },
+  "noBranch": "ohne Branch",
+  "section": {
+    "local": "Lokal",
+    "remote": "Remote",
+    "tags": "Tags",
+    "stashes": "Stashes",
+    "issues": "Issues",
+    "worktrees": "Worktrees",
+    "submodules": "Submodule",
+    "show": "{{title}}: im Graphen wieder zeigen",
+    "hide": "{{title}}: im Graphen ausblenden",
+    "solo": "Solo: nur {{title}} im Graphen zeigen",
+    "showAll": "Alle Sektionen zeigen",
+    "maximize": "Maximieren",
+    "hideSection": "Sektion ausblenden",
+    "sections": "Sektionen"
+  },
+  "menu": {
+    "none": "Keine Aktionen verfügbar",
+    "deleteBranches_one": "{{count}} Branch löschen …",
+    "deleteBranches_other": "{{count}} Branches löschen …",
+    "rename": "Umbenennen",
+    "checkout": "Auschecken",
+    "deleteBranch": "Branch löschen …",
+    "viewStash": "Stash ansehen",
+    "collapse": "Einklappen",
+    "expand": "Ausklappen",
+    "showInGraph": "Im Graphen zeigen"
+  },
+  "saveView": "Ansicht speichern",
+  "retry": "Erneut versuchen",
+  "renamed": "Branch heißt jetzt „{{name}}“",
+  "dropBranch": "Branch ablegen",
+  "stashesFailed": "Stashes lassen sich nicht laden",
+  "noMatch": "Kein Treffer",
+  "addRemote": "Remote hinzufügen",
+  "noRemote": "Noch kein Remote",
+  "noLocal": "Keine lokalen Branches",
+  "noTags": "Keine Tags",
+  "noStashes": "Keine Stashes",
+  "header": {
+    "show": "{{title}} im Graphen wieder zeigen",
+    "hide": "{{title}} im Graphen ausblenden"
+  },
+  "add": {
+    "branch": "Branch anlegen",
+    "tag": "Tag am aktuellen Commit anlegen",
+    "stash": "Änderungen stashen"
+  },
+  "summary": {
+    "hidden": "{{count}} ausgeblendet",
+    "solo": "{{count}} Solo"
+  },
+  "filter": {
+    "label": "Branches, Tags und Stashes filtern",
+    "placeholder": "Filtern ({{shortcut}})",
+    "clear": "Filter leeren"
+  },
+  "viewFiltered": {
+    "tip": "{{summary}}. Das ändert nur, was der Graph zeigt – nicht das Repository.",
+    "title": "Ansicht gefiltert",
+    "reset": "Zurücksetzen"
+  },
+  "refsFailed": "Branches und Tags lassen sich nicht laden",
+  "noHits": {
+    "title": "Keine Treffer für „{{query}}“",
+    "text": "Kein Branch, Tag oder Stash enthält diesen Text."
+  },
+  "allHidden": {
+    "show": "Alle einblenden",
+    "text": "Alle Sektionen sind ausgeblendet"
+  }
+}

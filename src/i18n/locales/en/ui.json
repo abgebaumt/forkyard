@@ -1,0 +1,66 @@
+{
+  "loading": "Loading",
+  "close": "Close",
+  "cancel": "Cancel",
+  "commitGraph": "Commit graph",
+  "toolbar": "Repository actions",
+  "diff": {
+    "added": "added",
+    "removed": "removed",
+    "lines": "Changed lines"
+  },
+  "toast": {
+    "close": "Close message",
+    "region": "Notifications",
+    "viewport": "Notifications ({hotkey})"
+  },
+  "number": {
+    "range": "Allowed values are {{min}} to {{max}}.",
+    "decrease": "Decrease",
+    "increase": "Increase"
+  },
+  "keys": {
+    "pageUp": "PgUp",
+    "pageDown": "PgDn",
+    "home": "Home",
+    "end": "End",
+    "delete": "Del",
+    "insert": "Ins",
+    "backspace": "Backspace",
+    "space": "Space",
+    "menu": "Menu",
+    "ctrl": "Ctrl"
+  },
+  "ref": {
+    "local": "Local branch",
+    "remote": "Remote branch",
+    "tag": "Tag",
+    "title": "{{kind}}: {{name}}",
+    "titleHead": "{{kind}}: {{name}} (checked out)"
+  },
+  "fileStatus": {
+    "modified": "modified",
+    "added": "new",
+    "deleted": "deleted",
+    "renamed": "renamed",
+    "conflicted": "conflict",
+    "untracked": "untracked"
+  },
+  "sync": {
+    "ahead": "{{n}} ahead of the remote",
+    "behind": "{{n}} behind the remote"
+  },
+  "tabs": {
+    "management": "Repositories",
+    "alias": "Alias for {{folder}}",
+    "renameHint": "Enter applies, Esc discards. Leave empty to name the tab after the folder again.",
+    "dirtyLabel": "{{label}}, uncommitted changes",
+    "dirty": "Uncommitted changes",
+    "dirtySuffix": ", uncommitted changes",
+    "close": "Close {{label}}",
+    "list": "Open repositories",
+    "all": "All tabs",
+    "new": "New tab"
+  },
+  "toolbarOptions": "{{label}}: options"
+}

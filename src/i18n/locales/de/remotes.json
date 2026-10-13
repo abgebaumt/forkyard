@@ -1,0 +1,62 @@
+{
+  "host": {
+    "localPath": "Lokaler Pfad",
+    "server": "Server: {{host}}",
+    "local": "Ein Repository auf diesem Rechner oder im Netzlaufwerk",
+    "detected": "Erkannt: {{host}}"
+  },
+  "validation": {
+    "nameMissing": "Gib dem Remote einen Namen, z. B. „origin“.",
+    "nameSpaces": "Leerzeichen sind im Namen nicht erlaubt.",
+    "nameChars": "Nicht erlaubt sind „..“, „@{“ und die Zeichen ~ ^ : ? * [ \\.",
+    "nameEdges": "Der Name darf nicht mit „-“, „/“ oder „.“ beginnen und nicht auf „/“, „.“ oder „.lock“ enden.",
+    "nameExists": "Einen Remote namens „{{name}}“ gibt es schon.",
+    "urlMissing": "Die URL fehlt.",
+    "urlSpaces": "Die URL darf keine Leerzeichen enthalten.",
+    "pushMissing": "Trage die Push-URL ein oder schalte „Eigene Push-URL“ aus.",
+    "urlRejected": "Diese URL nimmt Git nicht an."
+  },
+  "editTitle": "Remote „{{name}}“ bearbeiten",
+  "add": "Remote hinzufügen",
+  "save": "Remote speichern",
+  "saveButton": "Speichern",
+  "saved": "Remote „{{name}}“ gespeichert",
+  "added": "Remote „{{name}}“ hinzugefügt",
+  "remove": {
+    "title": "Remote „{{name}}“ entfernen?",
+    "body": "Die Verbindung und alle Remote-Branches {{name}}/… verschwinden aus diesem Repository; Branches, die ihm folgen, verlieren ihren Upstream. Auf dem Server ändert sich nichts. Mit Rückgängig holst du den Remote zurück.",
+    "confirm": "Remote entfernen",
+    "done": "Remote „{{name}}“ entfernt",
+    "undo": "Rückgängig"
+  },
+  "editDescription": "Name und Adressen ändern. Remote-Branches und Upstreams ziehen beim Umbenennen mit.",
+  "addDescription": "Verbindet dieses Repository mit einem weiteren Server oder Ordner.",
+  "cancel": "Abbrechen",
+  "loading": "Remotes werden geladen",
+  "loadFailed": "Die Remotes ließen sich nicht laden",
+  "retry": "Erneut versuchen",
+  "gone": {
+    "title": "Den Remote „{{name}}“ gibt es nicht mehr",
+    "body": "Er wurde inzwischen entfernt oder umbenannt, vielleicht im Terminal. Schließe den Dialog und wähle ihn neu aus."
+  },
+  "notSaved": "Nicht gespeichert",
+  "notAdded": "Nicht hinzugefügt",
+  "name": {
+    "label": "Name",
+    "hint": "Kurz und ohne Leerzeichen. Der erste Remote heißt üblicherweise „origin“."
+  },
+  "fetchUrl": {
+    "label": "Fetch-URL",
+    "hint": "HTTPS (https://…), SSH (git@server:gruppe/projekt.git) oder ein Ordner.",
+    "placeholder": "git@server:gruppe/projekt.git"
+  },
+  "pushUrl": {
+    "toggle": "Eigene Push-URL",
+    "toggleHint": "Für den Fall, dass du von einer Adresse holst und an eine andere pushst.",
+    "label": "Push-URL"
+  },
+  "masked": "Die Zugangsdaten in der URL sind als „***“ ausgeblendet. Lässt du die Sternchen stehen, bleiben die gespeicherten Zugangsdaten erhalten.",
+  "fetchAfterSave": "Nach dem Speichern fetchen",
+  "fetchAfterAdd": "Danach gleich fetchen",
+  "fetchAfterHint": "Holt die Branches und Tags dieses Remotes, damit sie im Graphen erscheinen."
+}

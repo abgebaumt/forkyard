@@ -1,0 +1,169 @@
+{
+  "title": "Command palette",
+  "input": "Search commands, branches, files or repositories",
+  "inputAction": "Action for {{title}}",
+  "notice": "“{{title}}” is not available right now: {{reason}}.",
+  "retry": "Try again",
+  "actions": "Actions",
+  "results": "Results",
+  "count_one": "{{count}} result",
+  "count_other": "{{count}} results",
+  "countMore": " – type more precisely",
+  "commits_one": "{{count}} commit",
+  "commits_other": "{{count}} commits",
+  "kind": {
+    "command": "Command",
+    "branch": "Branch",
+    "remote": "Remote branch",
+    "tag": "Tag",
+    "file": "File",
+    "repo": "Repository",
+    "commit": "Commit",
+    "action": "Action"
+  },
+  "groups": {
+    "general": "General",
+    "tabs": "Tabs",
+    "view": "View",
+    "repository": "Repository",
+    "remote": "Remote",
+    "branch": "Branch",
+    "stash": "Stash",
+    "commit": "Commit",
+    "file": "File"
+  },
+  "scope": {
+    "commands": "Commands",
+    "branches": "Branches and tags",
+    "files": "Files",
+    "commits": "Commits",
+    "repos": "Repositories"
+  },
+  "header": {
+    "recent": "Recently used",
+    "allCommands": "All available commands",
+    "localBranches": "Local branches",
+    "remoteBranches": "Remote branches",
+    "tags": "Tags",
+    "changedFiles": "Changed files",
+    "allFiles": "All files"
+  },
+  "loading": {
+    "commits": "Searching commits …",
+    "branches": "Reading branches …",
+    "files": "Reading file list …"
+  },
+  "placeholder": {
+    "action": "Choose an action for “{{title}}” …",
+    "commands": "Search commands …",
+    "branches": "Search branches or tags …",
+    "files": "Search files …",
+    "commits": "Search commits by message, author or SHA …",
+    "repos": "Search repositories …",
+    "all": "Search commands, branches, files and repositories"
+  },
+  "empty": {
+    "noRepo": "No repository open",
+    "noRepoFiles": "Files are only available in a repository tab. Open one with “~” or Alt+O.",
+    "noRepoCommits": "Commits are only available in a repository tab. Open one with “~” or Alt+O.",
+    "noRepoBranches": "Branches and tags are only available in a repository tab. Open one with “~” or Alt+O.",
+    "commitsTitle": "Search commits",
+    "commitsHint": "Type a word from the message, an author or the first characters of a SHA.",
+    "nothingFound": "Nothing found for “{{text}}”",
+    "tryPrefix": "Try fewer letters – or narrow it down with a prefix: “>” commands, “@” branches, “/” files, “#” commits.",
+    "tryFewer": "Try fewer or different letters.",
+    "nothingHere": "Nothing here",
+    "noRepos": "No repository added yet. Open one with Alt+O.",
+    "listEmpty": "This list is empty."
+  },
+  "failure": {
+    "search": "The search failed.",
+    "files": "The file list could not be read.",
+    "branches": "The branches could not be read."
+  },
+  "footer": {
+    "select": "select",
+    "run": "run",
+    "moreActions": "more actions",
+    "back": "back",
+    "close": "close"
+  },
+  "ff": {
+    "upToDate": "already up to date with the upstream",
+    "ownCommits_one": "{{count}} own commit in the way – pull or rebase",
+    "ownCommits_other": "{{count}} own commits in the way – pull or rebase",
+    "otherWorktree": "checked out in another worktree – pull there",
+    "title": "Fast-forward to “{{upstream}}”",
+    "withoutCheckout_one": "{{count}} commit · without checkout",
+    "withoutCheckout_other": "{{count}} commits · without checkout",
+    "keywords": "fast forward, update"
+  },
+  "action": {
+    "checkout": "Check out",
+    "checkoutRemote": "Check out (create local branch)",
+    "checkoutDetached": "Check out (detached HEAD)",
+    "mergeInto": "Merge into “{{branch}}”",
+    "rebaseOnto": "Rebase “{{branch}}” onto this",
+    "reveal": "Show in graph",
+    "newBranchHere": "Create new branch here …",
+    "branchHere": "Create branch here …",
+    "rename": "Rename …",
+    "setUpstream": "Set or change upstream …",
+    "copyName": "Copy name",
+    "branchName": "Branch name",
+    "tagName": "Tag name",
+    "delete": "Delete …",
+    "pushTag": "Push tag",
+    "showDiff": "Show changes (diff)",
+    "viewFile": "View file",
+    "editFile": "Edit file",
+    "fileHistory": "File history",
+    "blame": "Blame – who changed which line",
+    "openExternal": "Open in external editor",
+    "copyPath": "Copy path",
+    "path": "Path",
+    "copySha": "Copy SHA"
+  },
+  "ref": {
+    "tracks": "tracks {{upstream}}",
+    "checkedOut": "checked out",
+    "otherWorktree": "in another worktree"
+  },
+  "repo": {
+    "missing": "missing",
+    "open": "open"
+  },
+  "commit": {
+    "noMessage": "(no message)"
+  },
+  "reason": {
+    "repoOnly": "Only in a repository tab",
+    "oneTab": "Only one tab open",
+    "noSuchTab": "This tab does not exist",
+    "unavailable": "Not available right now",
+    "loading": "The repository state is still being read",
+    "noStash": "No stash available",
+    "noChanges": "No local changes",
+    "nothingToStage": "Nothing left to stage",
+    "nothingStaged": "Nothing staged",
+    "openWip": "Open the local changes first (WIP row in the graph)",
+    "resolveConflicts": "Resolve all conflicts first",
+    "finishOperation": "Finish or abort the {{operation}} first",
+    "noOperation": "No merge, rebase or cherry-pick is running",
+    "noRemote": "No remote set up",
+    "oneRemote": "There is only one remote – fetch is enough",
+    "unborn": "The repository has no commit yet",
+    "detached": "No branch checked out (HEAD detached)",
+    "selectTwo": "Select exactly two commits in the graph",
+    "selectRange": "Select several consecutive commits in the graph",
+    "selectCommit": "Select a commit in the graph first",
+    "selectOne": "Only with exactly one selected commit",
+    "notOnlyBehind": "The branch is not only behind its upstream",
+    "noUpstream": "The branch has no upstream",
+    "noOtherBranch": "There is no other branch",
+    "noTag": "This repository has no tag yet",
+    "nothingRunning": "Nothing is running",
+    "graphShown": "The graph is already shown",
+    "nothingSelected": "Nothing selected"
+  }
+}

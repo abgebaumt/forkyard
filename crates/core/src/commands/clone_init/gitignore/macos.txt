@@ -1,0 +1,14 @@
+# Finder
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Resource forks
+._*
+
+# System folders on volumes
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.DocumentRevisions-V100

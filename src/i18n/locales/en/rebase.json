@@ -1,0 +1,186 @@
+{
+  "tool": {
+    "interactive": "Interactive rebase",
+    "squash": "Squash commits",
+    "cherryPick": "Cherry-pick"
+  },
+  "commits_one": "{{count}} commit",
+  "commits_other": "{{count}} commits",
+  "closeWithoutChanges": "Close without changing anything",
+  "loading": "Loading commits",
+  "backToGraph": "Back to graph",
+  "retry": "Try again",
+  "cancel": "Cancel",
+  "dragToReorder": "Drag to reorder",
+  "loadError": {
+    "title": "The commits could not be loaded"
+  },
+  "column": {
+    "author": "Author",
+    "date": "Date",
+    "action": "Action"
+  },
+  "direction": {
+    "oldestTop": "Oldest commit at the top",
+    "oldestTopNewestBottom": "Oldest commit at the top, newest at the bottom"
+  },
+  "keys": {
+    "action": "action",
+    "move": "move",
+    "message": "message",
+    "spaceKey": "Space",
+    "choose": "choose",
+    "start": "start"
+  },
+  "action": {
+    "pick": {
+      "label": "Pick",
+      "hint": "stays as it is"
+    },
+    "reword": {
+      "label": "Reword",
+      "hint": "new message, content stays"
+    },
+    "squash": {
+      "label": "Squash",
+      "hint": "merges into the commit above"
+    },
+    "drop": {
+      "label": "Drop",
+      "hint": "leaves the branch"
+    }
+  },
+  "check": {
+    "noTarget": "No commit remains above that this one could merge into.",
+    "rewordMissing": "“Reword” still needs the new message.",
+    "empty": "There are no commits to edit.",
+    "allDropped": "At least one commit must stay – otherwise the branch would have no commits of its own.",
+    "topSquash": "The topmost remaining commit cannot be squashed – no commit remains above it to merge into.",
+    "unchanged": "Nothing changed yet. Reorder, or choose a different action for a commit."
+  },
+  "summary": {
+    "reworded": "{{count}} reworded",
+    "squashed": "{{count}} squashed",
+    "dropped": "{{count}} dropped",
+    "reordered": "Order changed",
+    "unchanged": "unchanged"
+  },
+  "refused": {
+    "mergeCommits": "Merge commits in the range",
+    "noCommonAncestor": "This base does not fit the branch",
+    "nothingToRebase": "Nothing to rebase",
+    "dirtyWorktree": "Save your local changes first",
+    "detached": "No branch checked out",
+    "operationInProgress": "An operation is still in progress"
+  },
+  "confirm": {
+    "dropped_one": "One commit leaves “{{branch}}” – its changes will no longer be in the branch.",
+    "dropped_other": "{{count}} commits leave “{{branch}}” – their changes will no longer be in the branch.",
+    "pushed": "The commits are already on a remote and will be rewritten: the branch will then differ from the remote, and the next push must be forced.",
+    "undo": "You can take the rebase back afterwards with “Undo” in the toolbar.",
+    "dropTitle_one": "Drop {{count}} commit and start the rebase?",
+    "dropTitle_other": "Drop {{count}} commits and start the rebase?",
+    "pushedTitle": "Rewrite pushed commits of “{{branch}}”?",
+    "droppedLabel": "Leaves the branch"
+  },
+  "interactive": {
+    "start": "Start rebase",
+    "reloadedTitle": "Plan reloaded",
+    "reloadedBody": "The branch changed while the plan was open. The list now shows the current state; previous changes to the plan have been discarded.",
+    "rewordTitle": "Reword commit",
+    "rewordBody": "New message for {{sha}}. The content of the commit stays the same.",
+    "applyMessage": "Apply message",
+    "resultTitle": "Message of the squashed commit",
+    "resultBody_one": "{{count}} commit becomes one. Prefilled with the messages of all involved commits.",
+    "resultBody_other": "{{count}} commits become one. Prefilled with the messages of all involved commits.",
+    "actionForCommit": "Action for this commit",
+    "chooseAction": "Choose action",
+    "staleTitle": "The branch has changed in the meantime",
+    "staleBody": "Something happened on the branch since the plan was loaded, for example a commit in the terminal. The plan has been reloaded – check it and start again.",
+    "upToDateTitle": "Nothing to do",
+    "upToDateBody": "The plan matches the current state of the branch.",
+    "onto": "onto",
+    "from": "from {{base}}",
+    "stash": "Stash changes",
+    "rebaseFirst": "Rebase onto “{{base}}” first",
+    "rebaseFirstBody": "“{{base}}” has moved on since the branch split off. Rebase it normally onto “{{base}}” first – then its commits can be reordered and edited here.",
+    "pushedTitle": "These commits are already on a remote",
+    "pushedBody": "The rebase rewrites them. The branch will then differ from the remote, and the next push must be forced (force push).",
+    "dismiss": "Dismiss",
+    "listLabel": "Commits of the rebase, oldest at the top",
+    "pillLabel": "Action: {{action}} – change",
+    "squashInto": "merges into “{{summary}}”",
+    "noTarget": "no commit remains above",
+    "previously": "previously: {{summary}}",
+    "newMessage": "new message",
+    "messageEdited": "message edited",
+    "editMessage": "Edit message",
+    "editResultMessage": "Edit message of the result",
+    "keysHelp": "Arrow keys select a commit. P picks, R rewords, S squashes, D drops. Alt with an arrow moves. Space opens the action choice, Enter edits the message.",
+    "resetTip": "Discard all changes to the plan",
+    "nothingChanged": "Nothing changed yet",
+    "reset": "Reset"
+  },
+  "squash": {
+    "label": "Squash",
+    "on": "on",
+    "becomeOne": "become one",
+    "tooFewTitle": "Too few commits selected",
+    "tooFewBody": "Select at least two consecutive commits in the graph with Shift or {{mod}}, then open the context menu.",
+    "mergeTitle": "A merge commit cannot be squashed",
+    "gapTitle": "Consecutive commits only",
+    "interactiveInstead": "Interactive rebase instead",
+    "mergeBody": "The selection contains a merge commit. Squashing only works with a straight sequence of commits.",
+    "gapBody": "There are other commits between the selected ones. An interactive rebase can also squash scattered commits – there you can move them next to each other first.",
+    "summaryEmpty": "The summary must not be empty.",
+    "operationRunning": "Finish or abort the running operation first.",
+    "confirmTitle_one": "Squash {{count}} pushed commit?",
+    "confirmTitle_other": "Squash {{count}} pushed commits?",
+    "confirmBodyBranch": "At least one of these commits is already on a remote. Squashing rewrites them: “{{branch}}” will then differ from the remote, and the next push must be forced. You can take the squash back afterwards with “Undo” in the toolbar.",
+    "confirmBody": "At least one of these commits is already on a remote. Squashing rewrites them: the branch will then differ from the remote, and the next push must be forced. You can take the squash back afterwards with “Undo” in the toolbar.",
+    "confirm": "Squash",
+    "pushedTitle": "At least one of these commits is already on a remote",
+    "pushedBody": "Squashing rewrites the history. The branch will then differ from the remote, and the next push must be forced (force push).",
+    "direction": "Oldest commit at the top – author and date of the oldest are kept",
+    "listLabel": "Commits being squashed, oldest at the top",
+    "formLabel": "Message of the new commit",
+    "summary": "Summary",
+    "description": "Description",
+    "chars_one": "{{count}} character",
+    "chars_other": "{{count}} characters",
+    "charsTooMany_one": "{{count}} character – usually at most {{limit}}",
+    "charsTooMany_other": "{{count}} characters – usually at most {{limit}}",
+    "keySquash": "squash",
+    "laterRebased": "later commits of the branch are rebased",
+    "start": "Squash into one commit"
+  },
+  "pick": {
+    "branchQuoted": "“{{branch}}”",
+    "to": "to",
+    "noneTitle": "No commits selected",
+    "noneBody": "Select the commits you want to transfer in the graph, then open the context menu.",
+    "order": "Order of application",
+    "orderOnto": "Order of application onto {{target}} – top to bottom",
+    "unborn": "The repository has no commit yet that anything could be transferred onto.",
+    "operationRunning": "Finish or abort the running {{operation}} first.",
+    "chooseOne": "Select at least one commit.",
+    "labelMany_one": "Cherry-pick of {{count}} commit",
+    "labelMany_other": "Cherry-pick of {{count}} commits",
+    "upToDateTitle": "Nothing to transfer",
+    "upToDateBody": "The changes are already contained in {{target}}.",
+    "listLabel": "Commits for the cherry-pick, in order of application",
+    "skipped": "skipped",
+    "step": "Step {{step}}",
+    "alreadyIn": "already in {{target}}",
+    "include": "Include again",
+    "exclude": "Skip",
+    "containedTip": "The changes are already in {{target}}; the step will be skipped.",
+    "contained": "already contained",
+    "keysHelp": "Arrow keys select a commit, Space includes or skips it, Alt with an arrow moves it.",
+    "keyToggle": "include / skip",
+    "chosenOf": "{{chosen}} of {{count}} commits",
+    "footer": "onto {{target}}; on a conflict, it continues in the local changes",
+    "start_one": "Cherry-pick {{count}} commit",
+    "start_other": "Cherry-pick {{count}} commits"
+  }
+}

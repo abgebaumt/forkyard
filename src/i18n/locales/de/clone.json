@@ -1,0 +1,178 @@
+{
+  "title": "Repository klonen",
+  "description": "Holt ein Repository von einem Server oder aus einem anderen Ordner auf diesen Rechner.",
+  "errors": {
+    "authFailed": {
+      "title": "Anmeldung abgelehnt",
+      "hint": "Der Server hat Benutzername, Passwort, Token oder SSH-Schlüssel nicht angenommen. Prüfe die Zugangsdaten – und ob du dieses Repository überhaupt lesen darfst."
+    },
+    "offline": {
+      "title": "Server nicht erreichbar",
+      "hint": "Prüfe die Netzwerkverbindung, einen Proxy und den Servernamen in der Adresse."
+    },
+    "notFound": {
+      "title": "Unter dieser Adresse liegt kein Repository",
+      "hint": "Prüfe die Schreibweise der Adresse und, falls angegeben, den Branch. Private Repositories melden sich ohne passende Rechte genauso."
+    },
+    "pathExists": {
+      "title": "Das Ziel ist schon belegt",
+      "hint": "Dort liegt bereits ein Ordner mit Inhalt oder eine Datei. Wähle einen anderen Ordnernamen oder einen anderen Zielordner."
+    },
+    "pathNotFound": {
+      "title": "Den Zielordner gibt es nicht",
+      "hint": "Wähle über „Durchsuchen …“ einen vorhandenen Ordner."
+    },
+    "hostKeyUnknown": {
+      "title": "SSH-Server nicht bestätigt",
+      "hint": "Der Fingerabdruck des Servers wurde nicht bestätigt. Vergleiche ihn mit den Angaben des Anbieters und bestätige ihn beim nächsten Versuch."
+    },
+    "timeout": {
+      "title": "Keine Antwort vom Server",
+      "hint": "Die Verbindung kam zu lange nicht voran und wurde beendet. Versuche es später noch einmal."
+    },
+    "invalidName": "Dieser Name geht nicht",
+    "notAllowed": "Mit diesen Angaben lässt sich nicht klonen",
+    "branchMissing": {
+      "title": "Diesen Branch gibt es dort nicht",
+      "hint": "Prüfe die Schreibweise oder lass das Feld leer, um den Standard-Branch zu holen."
+    },
+    "hostKeyChanged": "Der Schlüssel des SSH-Servers hat sich geändert",
+    "failed": "Klonen fehlgeschlagen",
+    "noLeftovers": "Es ist kein halber Ordner zurückgeblieben.",
+    "showOutput": "Ausgabe anzeigen",
+    "outputTitle": "Klonen: Ausgabe von Git",
+    "fieldPathExists": "Dort liegt schon etwas.",
+    "fieldPathNotFound": "Diesen Ordner gibt es nicht.",
+    "fieldNotFound": "Hier wurde kein Repository gefunden."
+  },
+  "phase": {
+    "enumerating": "Der Server stellt die Daten zusammen",
+    "compressing": "Der Server packt die Daten",
+    "receiving": "Daten werden übertragen",
+    "resolving": "Die Historie wird zusammengesetzt",
+    "checkout": "Dateien werden ausgecheckt",
+    "sparse": "Die gewählten Ordner werden ausgecheckt",
+    "filtering": "Dateien werden nachgeladen",
+    "connecting": "Verbindung wird aufgebaut",
+    "stopping": "Klonen wird abgebrochen"
+  },
+  "progress": {
+    "from": "Von",
+    "to": "Nach",
+    "label": "Fortschritt des Klonens",
+    "valueText": "{{label}}, {{percent}} Prozent",
+    "waiting": "Warte auf die Antwort des Servers …"
+  },
+  "validation": {
+    "urlMissing": "Gib die Adresse des Repositories ein.",
+    "parentNotAbsolute": "Gib einen vollständigen Pfad an oder wähle den Ordner über „Durchsuchen …“.",
+    "parentMissing": "Wähle den Ordner, in dem der Klon entstehen soll.",
+    "repoAtTarget": "Dort liegt schon das Repository „{{name}}“.",
+    "depth": "Die Tiefe ist eine ganze Zahl ab 1.",
+    "dateFormat": "Schreibe das Datum als Jahr-Monat-Tag, z. B. 2026-01-31.",
+    "dateMissing": "Gib das Datum an, ab dem die Historie geholt wird.",
+    "sparseMissing": "Nenne mindestens einen Ordner – oder schalte Sparse Checkout aus."
+  },
+  "pickFolderTitle": "Zielordner für den Klon",
+  "action": "Klonen",
+  "jobTitle": "Klonen: {{name}}",
+  "success": "„{{name}}“ ist geklont",
+  "summary": {
+    "depth": "Shallow, Tiefe {{depth}}",
+    "since": "Shallow, seit {{date}}",
+    "branch": "Branch {{branch}}",
+    "sparse": "Sparse Checkout",
+    "submodules": "mit Submodulen"
+  },
+  "continue": "Weiter klonen",
+  "stop": "Klonen abbrechen",
+  "busy": "Klone …",
+  "cancel": "Abbrechen",
+  "stillRunning": {
+    "title": "Das Klonen läuft noch",
+    "body": "Wenn du jetzt abbrichst, wird der unvollständige Ordner wieder entfernt. Deine Eingaben gehen mit dem Dialog verloren."
+  },
+  "cancelled": {
+    "title": "Klonen abgebrochen",
+    "body": "Der unvollständige Ordner wurde wieder entfernt. Deine Eingaben stehen noch da."
+  },
+  "url": {
+    "label": "Adresse",
+    "placeholder": "https://host/gruppe/projekt.git",
+    "hint": "HTTPS, SSH (git@host:gruppe/projekt.git) oder ein lokaler Pfad."
+  },
+  "parent": {
+    "label": "Zielordner",
+    "placeholder": "Ordner, in dem der Klon entsteht"
+  },
+  "browse": "Durchsuchen …",
+  "name": {
+    "label": "Ordnername",
+    "placeholder": "wird aus der Adresse vorgeschlagen"
+  },
+  "target": "Wird geklont nach:",
+  "targetHint": "Adresse und Zielordner ergeben zusammen den Ort des Klons.",
+  "advanced": "Erweiterte Optionen",
+  "shallow": {
+    "label": "Shallow Clone",
+    "hint": "Holt nur den jüngsten Teil der Historie – schneller und kleiner, ältere Commits fehlen.",
+    "limitBy": "Begrenzen nach",
+    "limitByLabel": "Historie begrenzen nach",
+    "depth": "Tiefe",
+    "date": "Datum",
+    "depthLabel": "Tiefe (Commits je Branch)",
+    "sinceLabel": "Commits seit"
+  },
+  "branch": {
+    "label": "Branch",
+    "placeholder": "Standard-Branch des Remotes",
+    "hint": "Leer lassen, um den Standard-Branch auszuchecken."
+  },
+  "sparse": {
+    "label": "Sparse Checkout",
+    "hint": "Checkt nur ausgewählte Ordner aus. Dateien im Wurzelverzeichnis kommen immer mit.",
+    "pathsLabel": "Ordner, einer je Zeile",
+    "pathsPlaceholder": "src\ndocs/handbuch"
+  },
+  "submodules": "Submodule mitklonen",
+  "parse": {
+    "control": "Die Adresse enthält ein Steuerzeichen.",
+    "dash": "Eine Adresse beginnt nicht mit „-“.",
+    "scheme": "„{{scheme}}://“ geht hier nicht. Möglich sind https://, ssh://, git:// und file://.",
+    "restMissing": "Nach „://“ fehlt der Rest der Adresse.",
+    "spaces": "Eine Adresse enthält keine Leerzeichen.",
+    "hostMissing": "In der Adresse fehlt der Servername.",
+    "pathMissing": "Nach dem Servernamen fehlt der Pfad zum Repository.",
+    "slashes": "Nach „{{scheme}}:“ gehören zwei Schrägstriche: „{{scheme}}://…“.",
+    "helper": "Adressen mit „::“ werden nicht unterstützt.",
+    "scpPathMissing": "Nach dem Doppelpunkt fehlt der Pfad zum Repository.",
+    "incomplete": "Das ist keine vollständige Adresse. Beispiele: https://host/gruppe/projekt.git, git@host:gruppe/projekt.git oder ein lokaler Pfad.",
+    "portNotNumber": "Nach dem Servernamen steht „:{{port}}“ – in einer Adresse mit „{{scheme}}://“ ist das der Port und muss eine Zahl sein. Trenne den Pfad mit einem Schrägstrich ab („{{scheme}}://host/pfad“).",
+    "portNotNumberSsh": "Nach dem Servernamen steht „:{{port}}“ – in einer Adresse mit „{{scheme}}://“ ist das der Port und muss eine Zahl sein. Trenne den Pfad mit einem Schrägstrich ab („{{scheme}}://host/pfad“) oder nimm die Kurzform „git@host:pfad“.",
+    "portRange": "Der Port {{port}} gibt es nicht: Ports liegen zwischen 1 und 65535."
+  },
+  "kind": {
+    "http": "HTTP, unverschlüsselt",
+    "git": "git://, unverschlüsselt",
+    "local": "Lokal",
+    "localFolder": "Lokaler Ordner"
+  },
+  "folderName": {
+    "missing": "Der Ordner braucht einen Namen.",
+    "dots": "„.“ und „..“ sind keine Ordnernamen.",
+    "char": "Das Zeichen „{{char}}“ geht in Ordnernamen nicht.",
+    "control": "Der Name enthält ein Steuerzeichen.",
+    "leadingSpace": "Der Name darf nicht mit einem Leerzeichen beginnen.",
+    "trailing": "Der Name darf nicht mit Punkt oder Leerzeichen enden.",
+    "reserved": "Diesen Namen reserviert Windows für sich.",
+    "tooLong": "Der Name ist mit {{length}} Zeichen zu lang (höchstens {{max}})."
+  },
+  "branchName": {
+    "spaces": "Branch-Namen enthalten keine Leerzeichen.",
+    "dash": "Der Name darf nicht mit „-“ beginnen.",
+    "char": "Das Zeichen „{{char}}“ geht in Branch-Namen nicht.",
+    "sequence": "„..“ und „@{“ gehen in Branch-Namen nicht.",
+    "slashes": "Schrägstriche nur zwischen Namensteilen.",
+    "ending": "Der Name darf nicht auf „.“ oder „.lock“ enden."
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "failures": {
+    "authFailed": {
+      "title": "Sign-in rejected",
+      "hint": "The server did not accept the credentials or the SSH key. Check them – and whether you are allowed to read this repository."
+    },
+    "offline": {
+      "title": "Server not reachable",
+      "hint": "Check the network connection and the server name in the address."
+    },
+    "notFound": {
+      "title": "There is no repository at this address",
+      "hint": "Check the spelling. Private repositories respond the same way without the right permissions."
+    },
+    "pathExists": {
+      "title": "The folder is already taken",
+      "hint": "Something already exists at this path. Choose a folder that does not exist in the repository yet."
+    },
+    "hostKeyUnknown": {
+      "title": "SSH server not confirmed",
+      "hint": "The server’s fingerprint was not confirmed. Compare it with the provider’s details and confirm it on the next attempt."
+    },
+    "timeout": {
+      "title": "No response from the server",
+      "hint": "The connection made no progress for too long and was stopped. Try again later."
+    },
+    "notAllowed": {
+      "title": "The submodule cannot be added like this"
+    },
+    "locked": {
+      "title": "Something else is working in the repository",
+      "hint": "Wait until the running action is finished, then try again."
+    },
+    "generic": "Adding failed",
+    "nothingLeft": "Nothing was left behind in the repository.",
+    "field": {
+      "pathExists": "Something is already there.",
+      "notFound": "No repository was found here.",
+      "url": "Git does not accept this source.",
+      "path": "Git does not accept this folder."
+    }
+  },
+  "phase": {
+    "counting": "The server is gathering the data",
+    "compressing": "The server is packing the data",
+    "receiving": "Transferring data",
+    "resolving": "Assembling the history",
+    "checkout": "Checking out files",
+    "connecting": "Connecting",
+    "stopping": "Cancelling the fetch"
+  },
+  "progress": {
+    "from": "From",
+    "to": "To",
+    "label": "Progress fetching the submodule",
+    "valueText": "{{label}}, {{percent}} percent",
+    "waiting": "Waiting for the server to respond …"
+  },
+  "dialog": {
+    "title": "Add submodule",
+    "description": "Embeds another repository in a subfolder. A specific commit is recorded; the entry is then staged and ready.",
+    "continue": "Keep fetching",
+    "stop": "Cancel fetch",
+    "busy": "Fetching submodule …",
+    "cancel": "Cancel",
+    "closeWarning": {
+      "title": "The submodule is still being fetched",
+      "text": "If you cancel now, the half-fetched folder is removed again and nothing is recorded."
+    },
+    "outputTitle": "Add submodule: Git output",
+    "showOutput": "Show output",
+    "cancelled": {
+      "title": "Fetch cancelled",
+      "text": "Nothing was recorded and no folder was left behind. Your input is still there."
+    },
+    "url": {
+      "label": "Address",
+      "placeholder": "https://host/group/library.git",
+      "required": "Enter the address of the repository to embed.",
+      "hintLocal": "Git only accepts a local folder as a submodule if protocol.file.allow is set to “always” in your Git configuration.",
+      "hint": "HTTPS or SSH (git@host:group/library.git). This address ends up in .gitmodules, visible to everyone."
+    },
+    "path": {
+      "label": "Folder in the repository",
+      "placeholder": "suggested from the address",
+      "hint": "Relative to the repository root, e.g. libs/library. The folder must not exist yet."
+    },
+    "target": "Will be embedded at:",
+    "targetEmpty": "Address and folder together determine what is embedded where."
+  },
+  "path": {
+    "required": "Enter the folder the submodule should live in.",
+    "absolute": "The path is relative to the repository – no drive and no leading slash.",
+    "root": "The submodule needs its own folder in the repository.",
+    "emptySegment": "A folder name is missing between two slashes.",
+    "parent": "“..” leads out of the repository.",
+    "dot": "“.” is not a folder name.",
+    "git": "“.git” belongs to Git itself.",
+    "badChar": "The character “{{char}}” is not allowed in folder names.",
+    "control": "The path contains a control character.",
+    "edges": "“{{segment}}” must not start with a space or end with a dot or space.",
+    "reserved": "“{{segment}}” is reserved by Windows.",
+    "dash": "The path must not start with “-”.",
+    "taken": "There is already a submodule at this path.",
+    "nested": "This folder would be inside another submodule."
+  },
+  "row": {
+    "outOfSync": "{{head}} instead of {{sha}}",
+    "describe": "Submodule {{path}}",
+    "describeOutOfSync": "checked out {{head}}, recorded {{sha}}",
+    "describeBranch": "branch {{branch}}",
+    "tipRecorded": "Recorded: {{sha}}",
+    "tipCheckedOut": " · checked out: {{head}}",
+    "tipTracking": "Follows branch {{branch}}",
+    "tipName": "Name in .gitmodules: {{name}}"
+  },
+  "offer": {
+    "title_one": "One submodule has not been fetched yet",
+    "title_other": "{{count}} submodules have not been fetched yet",
+    "description_one": "Its folder is empty so far: {{paths}}. Initializing fetches the recorded commits.",
+    "description_other": "Their folders are empty so far: {{paths}}. Initializing fetches the recorded commits.",
+    "action": "Initialize now"
+  },
+  "menu": {
+    "busy": "Submodules are being fetched",
+    "init": "Initialize",
+    "initHint": "fetches the recorded commit",
+    "update": "Update",
+    "upToDate": "already at the recorded commit",
+    "updateHint": "checks out the recorded commit",
+    "open": "Open as repository",
+    "initFirst": "initialize first",
+    "copyUrl": "Copy URL",
+    "urlWhat": "Submodule URL",
+    "noUrl": "no URL recorded",
+    "copyPath": "Copy path",
+    "pathWhat": "Submodule path",
+    "updateAll": "Update all",
+    "add": "Add submodule …",
+    "remove": "Remove submodule …",
+    "removeTip": "Remove submodule “{{path}}”"
+  },
+  "section": {
+    "title": "Submodules",
+    "listLabel": "Submodules: {{summary}}",
+    "loadError": "Submodules could not be loaded",
+    "add": "Add",
+    "empty": "No submodules",
+    "pendingTip_one": "{{count}} submodule has not been fetched yet; the folders are empty.",
+    "pendingTip_other": "{{count}} submodules have not been fetched yet; the folders are empty.",
+    "pending": "{{count}} not fetched yet",
+    "none": "no submodules",
+    "running": "already running",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "alwaysOpen": "always open while filtering",
+    "hide": "Hide section",
+    "hideHint": "bring back via another section’s menu",
+    "fetching": "Fetching submodules"
+  }
+}

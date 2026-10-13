@@ -1,0 +1,169 @@
+{
+  "title": "Command Palette",
+  "input": "Befehl, Branch, Datei oder Repository suchen",
+  "inputAction": "Aktion für {{title}}",
+  "notice": "„{{title}}“ geht gerade nicht: {{reason}}.",
+  "retry": "Erneut versuchen",
+  "actions": "Aktionen",
+  "results": "Treffer",
+  "count_one": "{{count}} Treffer",
+  "count_other": "{{count}} Treffer",
+  "countMore": " – genauer tippen",
+  "commits_one": "{{count}} Commit",
+  "commits_other": "{{count}} Commits",
+  "kind": {
+    "command": "Befehl",
+    "branch": "Branch",
+    "remote": "Remote-Branch",
+    "tag": "Tag",
+    "file": "Datei",
+    "repo": "Repository",
+    "commit": "Commit",
+    "action": "Aktion"
+  },
+  "groups": {
+    "general": "Allgemein",
+    "tabs": "Tabs",
+    "view": "Ansicht",
+    "repository": "Repository",
+    "remote": "Remote",
+    "branch": "Branch",
+    "stash": "Stash",
+    "commit": "Commit",
+    "file": "Datei"
+  },
+  "scope": {
+    "commands": "Befehle",
+    "branches": "Branches und Tags",
+    "files": "Dateien",
+    "commits": "Commits",
+    "repos": "Repositories"
+  },
+  "header": {
+    "recent": "Zuletzt benutzt",
+    "allCommands": "Alle verfügbaren Befehle",
+    "localBranches": "Lokale Branches",
+    "remoteBranches": "Remote-Branches",
+    "tags": "Tags",
+    "changedFiles": "Geänderte Dateien",
+    "allFiles": "Alle Dateien"
+  },
+  "loading": {
+    "commits": "Commits werden gesucht …",
+    "branches": "Branches werden gelesen …",
+    "files": "Dateiliste wird gelesen …"
+  },
+  "placeholder": {
+    "action": "Aktion für „{{title}}“ wählen …",
+    "commands": "Befehl suchen …",
+    "branches": "Branch oder Tag suchen …",
+    "files": "Datei suchen …",
+    "commits": "Commit nach Message, Autor oder SHA suchen …",
+    "repos": "Repository suchen …",
+    "all": "Befehle, Branches, Dateien und Repositories durchsuchen"
+  },
+  "empty": {
+    "noRepo": "Kein Repository offen",
+    "noRepoFiles": "Dateien gibt es nur in einem Repository-Tab. Öffne eins mit „~“ oder Alt+O.",
+    "noRepoCommits": "Commits gibt es nur in einem Repository-Tab. Öffne eins mit „~“ oder Alt+O.",
+    "noRepoBranches": "Branches und Tags gibt es nur in einem Repository-Tab. Öffne eins mit „~“ oder Alt+O.",
+    "commitsTitle": "Commits durchsuchen",
+    "commitsHint": "Tippe ein Wort aus der Message, einen Autor oder die ersten Zeichen eines SHA.",
+    "nothingFound": "Nichts gefunden für „{{text}}“",
+    "tryPrefix": "Versuch es mit weniger Buchstaben – oder grenze mit einem Präfix ein: „>“ Befehle, „@“ Branches, „/“ Dateien, „#“ Commits.",
+    "tryFewer": "Versuch es mit weniger oder anderen Buchstaben.",
+    "nothingHere": "Hier gibt es nichts",
+    "noRepos": "Noch kein Repository eingetragen. Öffne eins mit Alt+O.",
+    "listEmpty": "Diese Liste ist leer."
+  },
+  "failure": {
+    "search": "Die Suche ist fehlgeschlagen.",
+    "files": "Die Dateiliste ließ sich nicht lesen.",
+    "branches": "Die Branches ließen sich nicht lesen."
+  },
+  "footer": {
+    "select": "wählen",
+    "run": "ausführen",
+    "moreActions": "weitere Aktionen",
+    "back": "zurück",
+    "close": "schließen"
+  },
+  "ff": {
+    "upToDate": "schon auf dem Stand des Upstreams",
+    "ownCommits_one": "{{count}} eigener Commit im Weg – Pull oder Rebase",
+    "ownCommits_other": "{{count}} eigene Commits im Weg – Pull oder Rebase",
+    "otherWorktree": "in einem anderen Worktree ausgecheckt – dort pullen",
+    "title": "Fast-forward auf „{{upstream}}“",
+    "withoutCheckout_one": "{{count}} Commit · ohne Auschecken",
+    "withoutCheckout_other": "{{count}} Commits · ohne Auschecken",
+    "keywords": "vorspulen, aktualisieren"
+  },
+  "action": {
+    "checkout": "Auschecken",
+    "checkoutRemote": "Auschecken (lokalen Branch anlegen)",
+    "checkoutDetached": "Auschecken (Detached HEAD)",
+    "mergeInto": "In „{{branch}}“ mergen",
+    "rebaseOnto": "„{{branch}}“ darauf rebasen",
+    "reveal": "Im Graphen zeigen",
+    "newBranchHere": "Neuen Branch hier anlegen …",
+    "branchHere": "Branch hier anlegen …",
+    "rename": "Umbenennen …",
+    "setUpstream": "Upstream setzen oder ändern …",
+    "copyName": "Namen kopieren",
+    "branchName": "Name des Branches",
+    "tagName": "Name des Tags",
+    "delete": "Löschen …",
+    "pushTag": "Tag pushen",
+    "showDiff": "Änderungen zeigen (Diff)",
+    "viewFile": "Datei ansehen",
+    "editFile": "Datei bearbeiten",
+    "fileHistory": "Historie der Datei",
+    "blame": "Blame – wer hat welche Zeile geändert",
+    "openExternal": "Im externen Editor öffnen",
+    "copyPath": "Pfad kopieren",
+    "path": "Pfad",
+    "copySha": "SHA kopieren"
+  },
+  "ref": {
+    "tracks": "folgt {{upstream}}",
+    "checkedOut": "ausgecheckt",
+    "otherWorktree": "in anderem Worktree"
+  },
+  "repo": {
+    "missing": "fehlt",
+    "open": "offen"
+  },
+  "commit": {
+    "noMessage": "(ohne Message)"
+  },
+  "reason": {
+    "repoOnly": "Nur in einem Repository-Tab",
+    "oneTab": "Nur ein Tab offen",
+    "noSuchTab": "Diesen Tab gibt es nicht",
+    "unavailable": "Gerade nicht verfügbar",
+    "loading": "Der Stand des Repositorys wird noch gelesen",
+    "noStash": "Kein Stash vorhanden",
+    "noChanges": "Keine lokalen Änderungen",
+    "nothingToStage": "Nichts mehr zu stagen",
+    "nothingStaged": "Nichts gestaged",
+    "openWip": "Erst die lokalen Änderungen öffnen (WIP-Zeile im Graphen)",
+    "resolveConflicts": "Erst alle Konflikte lösen",
+    "finishOperation": "Erst {{operation}} abschließen oder abbrechen",
+    "noOperation": "Es läuft gerade kein Merge, Rebase oder Cherry-Pick",
+    "noRemote": "Kein Remote eingerichtet",
+    "oneRemote": "Es gibt nur einen Remote – Fetch genügt",
+    "unborn": "Das Repository hat noch keinen Commit",
+    "detached": "Kein Branch ausgecheckt (HEAD losgelöst)",
+    "selectTwo": "Genau zwei Commits im Graphen wählen",
+    "selectRange": "Mehrere aufeinanderfolgende Commits im Graphen wählen",
+    "selectCommit": "Erst im Graphen einen Commit wählen",
+    "selectOne": "Nur mit genau einem gewählten Commit",
+    "notOnlyBehind": "Der Branch ist nicht nur hinter seinem Upstream",
+    "noUpstream": "Der Branch hat keinen Upstream",
+    "noOtherBranch": "Es gibt keinen anderen Branch",
+    "noTag": "Dieses Repository hat noch keinen Tag",
+    "nothingRunning": "Es läuft gerade nichts",
+    "graphShown": "Der Graph ist schon zu sehen",
+    "nothingSelected": "Nichts ausgewählt"
+  }
+}

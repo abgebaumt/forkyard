@@ -1,0 +1,144 @@
+{
+  "actionDialogs": {
+    "ignore": {
+      "comment": "Eine Zeile mit # am Anfang ist ein Kommentar und ignoriert nichts.",
+      "confirm": "Ignorieren",
+      "description": "Das Muster kommt als neue Zeile in die .gitignore im Wurzelverzeichnis.",
+      "oneLine": "Ein Muster ist genau eine Zeile.",
+      "pattern": "Muster",
+      "preview": "Neue Zeile in .gitignore",
+      "stopTracking": "Auch nicht mehr verfolgen",
+      "stopTrackingHint": "Verfolgte Dateien, auf die das Muster passt, verlassen den Index und bleiben auf der Platte.",
+      "stopTrackingTracked": "Git verfolgt die Datei schon; .gitignore allein ändert daran nichts. Die Datei verlässt den Index und bleibt auf der Platte.",
+      "title": "Ignorieren",
+      "what": "Was ignorieren?"
+    },
+    "message": {
+      "description": "Beschreibung",
+      "lengthLong_one": "{{count}} Zeichen – viele Werkzeuge schneiden nach {{max}} ab",
+      "lengthLong_other": "{{count}} Zeichen – viele Werkzeuge schneiden nach {{max}} ab",
+      "length_one": "{{count}} Zeichen",
+      "length_other": "{{count}} Zeichen",
+      "summary": "Zusammenfassung"
+    },
+    "push": {
+      "branchName": "Name des Branches auf dem Remote",
+      "confirm": "Pushen",
+      "createdAs": "Entsteht als {{name}}.",
+      "description": "<strong>{{branch}}</strong> hat noch keinen Upstream. Der Push legt den Branch auf dem Remote an und merkt ihn als Upstream.",
+      "remote": "Remote",
+      "title": "Wohin pushen?"
+    },
+    "refName": {
+      "atBrace": "Die Zeichenfolge @{ ist nicht erlaubt.",
+      "chars": "Keine Leerzeichen und keines der Zeichen ~ ^ : ? * [ \\ verwenden.",
+      "dotOrLock": "Kein Namensteil darf mit einem Punkt beginnen oder auf .lock enden.",
+      "doubleDot": "Zwei Punkte hintereinander sind nicht erlaubt.",
+      "leadingDash": "Der Name darf nicht mit einem Minus beginnen.",
+      "reserved": "Dieser Name ist für Git reserviert.",
+      "slashes": "Schrägstriche nur zwischen Namensteilen, nicht am Rand oder doppelt.",
+      "trailingDot": "Der Name darf nicht mit einem Punkt enden."
+    },
+    "tag": {
+      "annotation": "Annotation",
+      "annotationOptional": "Annotation (optional)",
+      "confirm": "Tag anlegen",
+      "description": "Der Tag zeigt auf {{target}}.",
+      "hintAnnotated": "Annotierter Tag: trägt Autor, Datum und diesen Text.",
+      "hintLightweight": "Ohne Text entsteht ein leichtgewichtiger Tag – nur ein Name für den Commit.",
+      "hintNeedsText": "Ein annotierter Tag braucht einen Text.",
+      "name": "Name",
+      "title": "Tag anlegen",
+      "titleAnnotated": "Annotierten Tag anlegen"
+    }
+  },
+  "closeGuard": {
+    "dirtyView": "In einer Ansicht steht ungespeicherte Arbeit (Konflikt-Tool oder Formular) – sie geht mit dem Beenden verloren.",
+    "discard": "Nicht speichern und beenden",
+    "discardHint": "Der ungespeicherte Text geht verloren.",
+    "jobRunning": "„{{job}}“ läuft noch und wird abgebrochen.",
+    "jobsRunning_one": "{{count}} Aktion läuft noch und wird abgebrochen.",
+    "jobsRunning_other": "{{count}} Aktionen laufen noch und werden abgebrochen.",
+    "quit": "Beenden",
+    "save": "Speichern und beenden",
+    "saveFailed": "Nicht alles ließ sich speichern",
+    "saveFailedText": "Die App bleibt offen. Nicht gespeichert: {{files}}",
+    "saveHint_one": "Die Datei wird gespeichert, dann schließt die App.",
+    "saveHint_other": "Alle Dateien werden gespeichert, dann schließt die App.",
+    "title": "Forkyard beenden?",
+    "unsavedFiles_one": "Ungespeicherte Datei",
+    "unsavedFiles_other": "Ungespeicherte Dateien",
+    "unsavedText_one": "Im Editor steht ungespeicherter Text.",
+    "unsavedText_other": "Im Editor steht ungespeicherter Text in {{count}} Dateien."
+  },
+  "common": {
+    "cancel": "Abbrechen"
+  },
+  "core": {
+    "unknownError": "Unbekannter Fehler im Kern."
+  },
+  "dialogs": {
+    "andMore_one": "und {{formatted}} weitere",
+    "andMore_other": "und {{formatted}} weitere",
+    "close": "Schließen",
+    "copy": "Kopieren",
+    "filter": "Filtern …",
+    "noMatch": "Kein Treffer für „{{filter}}“.",
+    "noOutput": "Keine Ausgabe.",
+    "nothingToChoose": "Nichts zur Auswahl.",
+    "pickMore": "{{count, number}} weitere – tippe, um einzugrenzen."
+  },
+  "errorBoundary": {
+    "reload": "Neu laden",
+    "reloadWithoutTabs": "Ohne die offenen Tabs neu laden",
+    "text": "Deine Repositories sind davon nicht betroffen – es wurde nichts verändert. Lade die Oberfläche neu. Kommt der Fehler sofort wieder, liegt er vermutlich an einem der offenen Repositories: dann hilft „Ohne die offenen Tabs neu laden“.",
+    "title": "Die Oberfläche ist auf einen Fehler gestoßen"
+  },
+  "notify": {
+    "blocked": "Das System lässt Benachrichtigungen dieser App nicht zu.",
+    "rejected": "Das System hat die Benachrichtigung nicht angenommen.",
+    "testBody": "So meldet sich die App, wenn das Fenster nicht im Vordergrund ist.",
+    "testTitle": "Benachrichtigungen funktionieren"
+  },
+  "queries": {
+    "fetchFailed": "{{where}}: Auto-Fetch fehlgeschlagen",
+    "fetchNews": "{{where}}: Neues auf dem Remote",
+    "fetchNewsShort": "Der Auto-Fetch hat neue Commits oder Branches geholt.",
+    "fetchNewsText": "Der Auto-Fetch hat neue Commits oder Branches geholt. Lokal wurde nichts verändert.",
+    "repository": "Repository"
+  },
+  "run": {
+    "failed": "{{label}} fehlgeschlagen",
+    "outputTitle": "{{label}}: Ausgabe von Git",
+    "showOutput": "Ausgabe anzeigen"
+  },
+  "shell": {
+    "management": "Repository-Verwaltung"
+  },
+  "startup": {
+    "coreDown": {
+      "browser": "Diese Oberfläche gehört ins Programmfenster von {{app}} und funktioniert im Browser nicht – Git, Dateien und Einstellungen erreicht nur der Kern der Desktop-App. Starte {{app}} als Programm.",
+      "desktop": "Die Oberfläche läuft, erreicht aber den Kern nicht. Starte das Programm neu. Bleibt der Fehler, hilft die Meldung unten bei der Suche.",
+      "title": "Der App-Kern antwortet nicht"
+    },
+    "gitMissing": {
+      "restart": "Danach {{app}} neu starten. Liegt Git an einem ungewöhnlichen Ort, muss sein Ordner im PATH stehen.",
+      "title": "Git wurde nicht gefunden",
+      "uses": "{{app}} arbeitet mit dem Git, das auf diesem Rechner installiert ist (ab Version {{version}})."
+    },
+    "gitTooOld": {
+      "found": "Gefunden: Git {{version}}",
+      "foundAt": "Gefunden: Git {{version}} unter {{path}}",
+      "text": "Installiert ist Git {{version}}; {{app}} braucht mindestens Version {{minimum}}.",
+      "title": "Git ist zu alt"
+    },
+    "installGit": {
+      "linux": "Installiere Git über die Paketverwaltung, z. B. „sudo apt install git“, „sudo dnf install git“ oder „sudo pacman -S git“.",
+      "macos": "Installiere die Xcode-Befehlszeilenwerkzeuge („xcode-select --install“) oder Git über Homebrew („brew install git“).",
+      "windows": "Lade Git für Windows von git-scm.com herunter und installiere es mit den Standardeinstellungen."
+    },
+    "recheck": "Erneut prüfen",
+    "retry": "Erneut versuchen",
+    "tabsFailed": "Die Tabs ließen sich nicht laden"
+  }
+}

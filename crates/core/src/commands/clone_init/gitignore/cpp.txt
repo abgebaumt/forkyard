@@ -1,0 +1,34 @@
+# Object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Libraries
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Precompiled headers
+*.gch
+*.pch
+
+# Debug files
+*.pdb
+*.ilk
+*.dSYM/
+
+# Build folders and CMake
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json

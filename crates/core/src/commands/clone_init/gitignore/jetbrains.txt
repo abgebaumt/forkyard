@@ -1,0 +1,10 @@
+# Project folder of JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, Rider …)
+.idea/
+
+# Legacy project files
+*.iml
+*.ipr
+*.iws
+
+# IDE output
+out/

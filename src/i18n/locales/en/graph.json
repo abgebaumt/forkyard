@@ -1,0 +1,97 @@
+{
+  "fileList": {
+    "loading": "Loading {{label}}",
+    "folder_one": "Folder {{name}}, {{count}} file",
+    "folder_other": "Folder {{name}}, {{count}} files"
+  },
+  "sideSection": {
+    "noActions": "No actions available",
+    "retry": "Try again"
+  },
+  "code": {
+    "controlCharacter": "Control character",
+    "find": "Find",
+    "replace": "Replace",
+    "next": "next",
+    "previous": "previous",
+    "all": "all",
+    "matchCase": "match case",
+    "byWord": "by word",
+    "regexp": "regexp",
+    "replaceOne": "replace",
+    "replaceAll": "replace all",
+    "close": "close",
+    "currentMatch": "current match",
+    "replacedMatches": "replaced $ matches",
+    "replacedMatchOnLine": "replaced match on line $",
+    "onLine": "on line",
+    "goToLine": "Go to line",
+    "go": "go",
+    "unchangedLines": "$ unchanged lines"
+  },
+  "columns": {
+    "refs": "Refs",
+    "graph": "Graph",
+    "message": "Message",
+    "author": "Author",
+    "date": "Date",
+    "sha": "SHA"
+  },
+  "header": {
+    "smart": "Show only the current branch, upstream and target",
+    "showColumns": "Show columns",
+    "noRoom": "{{column}} (no room)",
+    "columnTitle": "Column “{{column}}”",
+    "moveLeft": "Move left",
+    "moveRight": "Move right",
+    "fitLanes": "Fit width to the lanes",
+    "resetWidth": "Reset width",
+    "fillsSpace": "Takes up the free space",
+    "resetAll": "Reset all columns",
+    "menuLabel": "Graph columns, column {{column}}",
+    "hintWidth": "Width: {{left}} / {{right}}",
+    "hintMove": "Move: {{left}} / {{right}} or drag",
+    "hintMenu": "Menu: Enter or right-click",
+    "widthOf": "Width of column {{column}}"
+  },
+  "row": {
+    "kind": {
+      "commit": "Commit",
+      "merge": "Merge commit",
+      "wip": "Local changes",
+      "stash": "Stash"
+    },
+    "stashUnnamed": "Unnamed stash",
+    "wipUnreadable": "Local changes could not be read",
+    "noChanges": "No changes",
+    "conflicts_one": "1 conflict",
+    "conflicts_other": "{{count}} conflicts",
+    "staged_one": "{{count}} staged",
+    "staged_other": "{{count}} staged",
+    "changedFiles_one": "1 changed file",
+    "changedFiles_other": "{{formatted}} changed files",
+    "searchHit": "Search result:",
+    "stashOnBranch": "{{text}} on {{branch}}",
+    "onBranch": "on {{branch}}",
+    "noMessage": "No message",
+    "checkedOut": "{{kind}}, checked out"
+  },
+  "refs": {
+    "kind": {
+      "local": "Local branch",
+      "remote": "Remote branch",
+      "tag": "Tag"
+    },
+    "twinTitle": "{{kind}}: {{name}} (same commit as the local branch)",
+    "pinnedTitle": "“{{name}}” is pinned to the left of the graph",
+    "pinned": "pinned:",
+    "ghostRemote": "Contained in remote branch {{name}} – the nearest branch that contains this commit",
+    "ghostLocal": "Contained in branch {{name}} – the nearest branch that contains this commit",
+    "containedIn": "contained in",
+    "detachedTitle": "HEAD points to this commit; no branch is checked out (detached HEAD)",
+    "detachedSr": "(no branch checked out)",
+    "showMore_one": "Show 1 more label",
+    "showMore_other": "Show {{count}} more labels",
+    "moreLabel": "More labels on this commit"
+  }
+}
