@@ -52,6 +52,14 @@ pub fn temp_folder() -> TempDir {
     if let Ok(base) = std::env::temp_dir().canonicalize() {
         return tempfile::Builder::new().tempdir_in(base).expect("temp folder");
     }
+    // Windows runners point TEMP at an 8.3 short path (C:\Users\RUNNER~1\…), while Git reports the
+    // long one. Canonicalizing expands it; the verbatim prefix it adds is dropped again.
+    #[cfg(windows)]
+    if let Ok(base) = std::env::temp_dir().canonicalize() {
+        let text = base.to_string_lossy();
+        let base = text.strip_prefix(r"\\?\").map(PathBuf::from).unwrap_or_else(|| base.clone());
+        return tempfile::Builder::new().tempdir_in(base).expect("temp folder");
+    }
     tempfile::tempdir().expect("temp folder")
 }
 

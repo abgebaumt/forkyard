@@ -825,7 +825,8 @@ async fn network_calls_get_the_askpass_environment() {
     assert_eq!(field(&net, "R"), "force");
     assert!(field(&net, "P").parse::<u16>().is_ok(), "{net}");
     assert_eq!(field(&net, "T").len(), 64);
-    assert_eq!(field(&net, "G"), "");
+    // Left as inherited (GitHub's Windows runners set GCM_INTERACTIVE=Never themselves).
+    assert_eq!(field(&net, "G"), std::env::var("GCM_INTERACTIVE").unwrap_or_default());
     assert_eq!(field(&net, "C"), "", "without a default key SSH is left unchanged");
 
     let quiet = fx.tc.git_for(&id).unwrap().args(["-c", ENV_DUMP, "envdump"]).network().no_prompt().run_text().await.unwrap();
