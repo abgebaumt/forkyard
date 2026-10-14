@@ -27,6 +27,8 @@ parking_lot = "0.12"
 encoding_rs = "0.8"
 base64 = "0.22"
 regex = "1"
+# SHA-256 of a repository's .forkyard/commands.json (approval is bound to the exact file).
+sha2 = "0.10"
 dirs = "5"
 which = "6"
 # Pseudo-terminal for the built-in terminal (ConPTY on Windows).
