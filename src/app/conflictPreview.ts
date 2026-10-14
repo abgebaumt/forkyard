@@ -74,19 +74,25 @@ export function useConflictPreview(repoId: Id | null | undefined, op: PreviewOp 
 
 /**
  * One check without a view, with a time limit; null = no answer in time or the check failed.
- * While it runs, the status bar shows “Checking for conflicts…” (with cancel).
+ * While it runs, the status bar shows “Checking for conflicts…” (with cancel); a dialog that shows
+ * the same state passes `signal` so that closing it ends the check.
  */
-export async function previewOnce(repoId: Id, op: PreviewOp, limitMs: number): Promise<ConflictPreview | null> {
+export async function previewOnce(repoId: Id, op: PreviewOp, limitMs: number, signal?: AbortSignal): Promise<ConflictPreview | null> {
   const jobId = newJobId();
   let timer = 0;
+  let onAbort = () => undefined as void;
   const late = new Promise<null>((resolve) => {
     timer = window.setTimeout(() => resolve(null), limitMs);
+    onAbort = () => resolve(null);
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
   useAppStore.getState().startJob({ id: jobId, title: t("conflictPreview.checking"), repoId });
   try {
+    if (signal?.aborted) return null;
     return await Promise.race([core.conflictPreview({ repoId, jobId, op }).catch(() => null), late]);
   } finally {
     window.clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
     useAppStore.getState().finishJob(jobId);
     void core.jobCancel({ jobId }).catch(() => undefined);
   }
