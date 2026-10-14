@@ -29,7 +29,7 @@ use aggregate::Aggregator;
 use parse::{BlameAges, LogParser, LOG_FORMAT};
 
 /// Change it whenever the numbers are computed differently: old cache entries then no longer match.
-const STATS_VERSION: u32 = 1;
+const STATS_VERSION: u32 = 2;
 /// Progress phases (`job:progress.phase`); the UI names them.
 const PHASE_HISTORY: &str = "history";
 const PHASE_BLAME: &str = "blame";

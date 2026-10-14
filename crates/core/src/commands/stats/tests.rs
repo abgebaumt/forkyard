@@ -243,9 +243,9 @@ async fn code_age_counts_lines_by_the_age_of_their_last_change() {
     let (repo, _) = demo();
     let (tc, id) = setup(&repo).await;
     let stats = run(&tc, &id, range(None, None, "HEAD")).await;
-    assert_eq!(stats.code_age, StatsCodeAge { files: 4, skipped: 0, month: 18, year: 0, three_years: 11, older: 0 });
+    assert_eq!(stats.code_age, StatsCodeAge { files: 4, skipped: 0, month: 18, half_year: 0, year: 0, two_years: 0, older: 11 });
     let early = run(&tc, &id, range(None, Some("2025-06-04T23:59:59Z"), "HEAD")).await;
-    assert_eq!(early.code_age, StatsCodeAge { files: 4, skipped: 0, month: 9, year: 0, three_years: 14, older: 0 }, "measured at that tip, against `to`");
+    assert_eq!(early.code_age, StatsCodeAge { files: 4, skipped: 0, month: 9, half_year: 0, year: 0, two_years: 0, older: 14 }, "measured at that tip, against `to`");
 }
 
 #[tokio::test]

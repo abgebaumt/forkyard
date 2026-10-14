@@ -55,17 +55,17 @@ describe("statistics charts", () => {
     expect(hotspots).toContain("Commits: 4 · Authors: 3");
     expect(renderToStaticMarkup(<HotspotList hotspots={[]} onFile={none} />)).toContain("exists any more");
 
-    const folder: StatsFolder = { path: "", weight: 40, authors: 3, mainAuthor: { name: "Ada", email: "ada@example.com" }, mainShare: 45, busFactor: 2 };
+    const folder: StatsFolder = { path: "", weight: 40, authors: 3, mainAuthor: { name: "Ada", email: "ada@example.com" }, mainShare: 45, busFactor: 2, top: [] };
     const knowledge = renderToStaticMarkup(<KnowledgeTable folders={[folder, { ...folder, path: "docs", mainShare: 100, busFactor: 1 }]} onFolder={none} />);
     expect(knowledge).toContain("(whole repository)");
     expect(knowledge).toContain("45%");
     expect(knowledge).toMatch(/text-warning">1</);
 
-    const age = renderToStaticMarkup(<CodeAgeBar age={{ files: 4, skipped: 1, month: 18, year: 0, threeYears: 11, older: 0 }} />);
-    expect(age.match(/data-age=/g)).toHaveLength(4);
-    expect(age).toContain("Under a month: 18 lines");
+    const age = renderToStaticMarkup(<CodeAgeBar age={{ files: 4, skipped: 1, month: 18, halfYear: 0, year: 0, twoYears: 0, older: 11 }} />);
+    expect(age.match(/data-age=/g)).toHaveLength(5);
+    expect(age).toContain("&lt; 1 mo: 18 lines");
     expect(age).toContain("1 file could not be read.");
-    expect(renderToStaticMarkup(<CodeAgeBar age={{ files: 0, skipped: 0, month: 0, year: 0, threeYears: 0, older: 0 }} />)).toContain("no text file");
+    expect(renderToStaticMarkup(<CodeAgeBar age={{ files: 0, skipped: 0, month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 }} />)).toContain("no text file");
 
     const records = renderToStaticMarkup(
       <Records

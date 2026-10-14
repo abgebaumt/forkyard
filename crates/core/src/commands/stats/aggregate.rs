@@ -8,8 +8,8 @@ use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveDateTime, Timelike};
 
 use super::parse::LogCommit;
 use crate::model::{
-    Person, RepoStats, StatsAuthor, StatsBigCommit, StatsBucket, StatsBusyDay, StatsCodeAge, StatsFile, StatsFolder, StatsHotspot, StatsRecords,
-    StatsStreak,
+    Person, RepoStats, StatsAuthor, StatsBigCommit, StatsBucket, StatsBusyDay, StatsCodeAge, StatsFile, StatsFolder, StatsFolderShare, StatsHotspot,
+    StatsRecords, StatsStreak,
 };
 use crate::util;
 
@@ -18,13 +18,16 @@ pub(super) const MAX_AUTHORS: usize = 200;
 pub(super) const MAX_FILES: usize = 2000;
 pub(super) const MAX_HOTSPOTS: usize = 30;
 pub(super) const MAX_FOLDERS: usize = 100;
+/// Authors named per folder (`StatsFolder::top`).
+pub(super) const MAX_FOLDER_AUTHORS: usize = 6;
 /// Knowledge is counted for the repository root and for folders down to this depth.
 pub(super) const FOLDER_DEPTH: usize = 2;
 const DAY: i64 = 86_400;
-/// Code age: a month is 30 days, a year 365 days.
+/// Code age: a month is 30 days, half a year 180 days, a year 365 days.
 const MONTH: i64 = 30 * DAY;
+const HALF_YEAR: i64 = 180 * DAY;
 const YEAR: i64 = 365 * DAY;
-const THREE_YEARS: i64 = 3 * YEAR;
+const TWO_YEARS: i64 = 2 * YEAR;
 
 #[derive(Debug, Default, Clone, Copy)]
 struct Totals {
@@ -290,11 +293,9 @@ fn folders(files: &[(&String, &FileAcc)], authors: &HashMap<String, AuthorAcc>) 
             ranked.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(b.0)));
             let sorted: Vec<u64> = ranked.iter().map(|(_, weight)| *weight).collect();
             let total: u64 = sorted.iter().sum();
-            let main_author = ranked
-                .first()
-                .and_then(|(key, _)| authors.get(*key))
-                .map(|a| Person { name: a.name.clone(), email: a.email.clone() })
-                .unwrap_or_default();
+            let person = |key: &str| authors.get(key).map(|a| Person { name: a.name.clone(), email: a.email.clone() }).unwrap_or_default();
+            let main_author = ranked.first().map(|(key, _)| person(key)).unwrap_or_default();
+            let top = ranked.iter().take(MAX_FOLDER_AUTHORS).map(|(key, weight)| StatsFolderShare { author: person(key), weight: *weight }).collect();
             StatsFolder {
                 path,
                 weight: total,
@@ -302,6 +303,7 @@ fn folders(files: &[(&String, &FileAcc)], authors: &HashMap<String, AuthorAcc>) 
                 main_author,
                 main_share: share(sorted.first().copied().unwrap_or(0), total),
                 bus_factor: bus_factor(&sorted, total),
+                top,
             }
         })
         .collect();
@@ -345,10 +347,12 @@ pub(super) fn age_buckets(times: &[i64], reference: i64, age: &mut StatsCodeAge)
         let seconds = reference.saturating_sub(time);
         if seconds < MONTH {
             age.month += 1;
+        } else if seconds < HALF_YEAR {
+            age.half_year += 1;
         } else if seconds < YEAR {
             age.year += 1;
-        } else if seconds < THREE_YEARS {
-            age.three_years += 1;
+        } else if seconds < TWO_YEARS {
+            age.two_years += 1;
         } else {
             age.older += 1;
         }
@@ -443,6 +447,25 @@ mod tests {
             [("", 26, 2, "Ada", 62, 1), ("src", 14, 2, "Ada", 93, 1), ("src/app", 14, 2, "Ada", 93, 1), ("docs", 8, 1, "Ben", 100, 1)]
         );
         assert_eq!(stats.folders[0].main_author.email, "ada@example.com");
+        let root: Vec<(&str, u64)> = stats.folders[0].top.iter().map(|s| (s.author.name.as_str(), s.weight)).collect();
+        assert_eq!(root, [("Ada", 16), ("Ben", 10)], "lines per author, most first");
+        let docs: Vec<(&str, u64)> = stats.folders[3].top.iter().map(|s| (s.author.name.as_str(), s.weight)).collect();
+        assert_eq!(docs, [("Ben", 8)]);
+    }
+
+    #[test]
+    fn a_folder_names_its_top_authors_only() {
+        let mut agg = Aggregator::new(None, None);
+        for n in 0..(MAX_FOLDER_AUTHORS as i64 + 3) {
+            let email = format!("p{n}@example.com");
+            agg.add(&commit(&format!("c{n}"), ("P", &email), 100 + n, 0, &[("src/a.rs", (n + 1) as u64, 0)]));
+        }
+        let stats = agg.finish(&HashSet::from(["src/a.rs".to_string()]), StatsCodeAge::default(), "c0".into(), 200);
+        let root = &stats.folders[0];
+        assert_eq!(root.top.len(), MAX_FOLDER_AUTHORS);
+        assert_eq!(root.authors as usize, MAX_FOLDER_AUTHORS + 3);
+        assert!(root.top.windows(2).all(|pair| pair[0].weight >= pair[1].weight));
+        assert!(root.top.iter().map(|s| s.weight).sum::<u64>() < root.weight, "the rest is the others' share");
     }
 
     #[test]
@@ -498,9 +521,19 @@ mod tests {
     fn code_age_bucket_boundaries() {
         let now = 2_000_000_000;
         let mut age = StatsCodeAge::default();
-        let times = [now + 10, now - (MONTH - 1), now - MONTH, now - (YEAR - 1), now - YEAR, now - (THREE_YEARS - 1), now - THREE_YEARS];
+        let times = [
+            now + 10,
+            now - (MONTH - 1),
+            now - MONTH,
+            now - (HALF_YEAR - 1),
+            now - HALF_YEAR,
+            now - (YEAR - 1),
+            now - YEAR,
+            now - (TWO_YEARS - 1),
+            now - TWO_YEARS,
+        ];
         age_buckets(&times, now, &mut age);
-        assert_eq!((age.month, age.year, age.three_years, age.older), (2, 2, 2, 1));
+        assert_eq!((age.month, age.half_year, age.year, age.two_years, age.older), (2, 2, 2, 2, 1));
     }
 
     #[test]

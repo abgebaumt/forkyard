@@ -31,11 +31,12 @@ export function formatPeriod(period: string): string {
 const WEEKDAYS = Array.from({ length: 7 }, (_, day) => weekdayFormat.format(new Date(Date.UTC(2024, 0, 1 + day))));
 const HEAT_FILLS = ["fill-surface-sunken", "fill-accent/25", "fill-accent/50", "fill-accent/75", "fill-accent"];
 const LANE_FILLS = ["fill-lane-1", "fill-lane-2", "fill-lane-3", "fill-lane-4", "fill-lane-5", "fill-lane-6", "fill-lane-7", "fill-lane-8"];
-const AGE_FILLS: Record<AgeKey, string> = { month: "fill-lane-3", year: "fill-lane-2", threeYears: "fill-lane-5", older: "fill-text-disabled" };
+const AGE_FILLS: Record<AgeKey, string> = { month: "fill-lane-3", halfYear: "fill-lane-1", year: "fill-lane-2", twoYears: "fill-lane-5", older: "fill-text-disabled" };
 const AGE_LABELS: Record<AgeKey, string> = {
   month: t("stats.age.month"),
+  halfYear: t("stats.age.halfYear"),
   year: t("stats.age.year"),
-  threeYears: t("stats.age.threeYears"),
+  twoYears: t("stats.age.twoYears"),
   older: t("stats.age.older"),
 };
 

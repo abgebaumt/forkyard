@@ -1730,17 +1730,29 @@ export interface StatsFolder {
   mainAuthor: Person;
   mainShare: number;
   busFactor: number;
+  /** The authors with the most lines, most first (at most 6); the rest of `weight` belongs to the others. */
+  top: StatsFolderShare[];
 }
 
-/** Lines of the blamed sample by the age of their last change (relative to `RepoStats.referenceTime`). */
+/** An author's changed lines in a folder. */
+export interface StatsFolderShare {
+  author: Person;
+  weight: number;
+}
+
+/**
+ * Lines of the blamed sample by the age of their last change (relative to `RepoStats.referenceTime`):
+ * under 30 days, under 180 days, under 365 days, under two years, older.
+ */
 export interface StatsCodeAge {
   /** Files that were blamed. */
   files: number;
   /** Files of the sample Git could not blame. */
   skipped: number;
   month: number;
+  halfYear: number;
   year: number;
-  threeYears: number;
+  twoYears: number;
   older: number;
 }
 

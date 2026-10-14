@@ -46,13 +46,14 @@ describe("heatmap and code age", () => {
   });
 
   it("code age shares in percent", () => {
-    expect(ageShares({ files: 3, skipped: 0, month: 1, year: 1, threeYears: 2, older: 0 }).map((s) => [s.key, s.percent])).toEqual([
+    expect(ageShares({ files: 3, skipped: 0, month: 1, halfYear: 1, year: 0, twoYears: 2, older: 0 }).map((s) => [s.key, s.percent])).toEqual([
       ["month", 25],
-      ["year", 25],
-      ["threeYears", 50],
+      ["halfYear", 25],
+      ["year", 0],
+      ["twoYears", 50],
       ["older", 0],
     ]);
-    expect(ageShares({ files: 0, skipped: 0, month: 0, year: 0, threeYears: 0, older: 0 }).every((s) => s.percent === 0)).toBe(true);
+    expect(ageShares({ files: 0, skipped: 0, month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 }).every((s) => s.percent === 0)).toBe(true);
   });
 });
 

@@ -72,7 +72,7 @@ export function heatLevels(heatmap: number[][]): number[][] {
   return heatmap.map((row) => row.map((count) => (count <= 0 || max === 0 ? 0 : Math.max(1, Math.ceil((count / max) * 4)))));
 }
 
-export type AgeKey = "month" | "year" | "threeYears" | "older";
+export type AgeKey = "month" | "halfYear" | "year" | "twoYears" | "older";
 export interface AgeShare {
   key: AgeKey;
   lines: number;
@@ -83,8 +83,9 @@ export interface AgeShare {
 export function ageShares(age: StatsCodeAge): AgeShare[] {
   const parts: [AgeKey, number][] = [
     ["month", age.month],
+    ["halfYear", age.halfYear],
     ["year", age.year],
-    ["threeYears", age.threeYears],
+    ["twoYears", age.twoYears],
     ["older", age.older],
   ];
   const total = parts.reduce((sum, [, lines]) => sum + lines, 0);

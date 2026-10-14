@@ -2924,10 +2924,22 @@ pub struct StatsFolder {
     /// Share of the main author in percent (0–100).
     pub main_share: u32,
     pub bus_factor: u32,
+    /// The authors with the most lines in the folder, most first (at most 6); the rest of
+    /// `weight` belongs to the others.
+    pub top: Vec<StatsFolderShare>,
+}
+
+/// An author's changed lines in a folder.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsFolderShare {
+    pub author: Person,
+    pub weight: u64,
 }
 
 /// Lines of the blamed sample by the age of their last change, relative to
-/// `RepoStats::reference_time`: under 30 days, under 365 days, under 3 × 365 days, older.
+/// `RepoStats::reference_time`: under 30 days, under 180 days, under 365 days, under 2 × 365
+/// days, older.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StatsCodeAge {
@@ -2936,8 +2948,9 @@ pub struct StatsCodeAge {
     /// Files of the sample that Git could not blame.
     pub skipped: u32,
     pub month: u64,
+    pub half_year: u64,
     pub year: u64,
-    pub three_years: u64,
+    pub two_years: u64,
     pub older: u64,
 }
 
@@ -3017,15 +3030,17 @@ mod stats_json_tests {
         assert_eq!(serde_json::to_value(&range).unwrap()["ref"], "refs/heads/main");
 
         let stats = RepoStats {
-            code_age: StatsCodeAge { three_years: 4, ..StatsCodeAge::default() },
+            code_age: StatsCodeAge { half_year: 4, two_years: 5, ..StatsCodeAge::default() },
             folders: vec![StatsFolder { path: String::new(), main_share: 45, bus_factor: 2, ..StatsFolder::default() }],
             ..RepoStats::default()
         };
         let v = serde_json::to_value(&stats).unwrap();
-        assert_eq!(v["codeAge"]["threeYears"], 4);
+        assert_eq!(v["codeAge"]["halfYear"], 4);
+        assert_eq!(v["codeAge"]["twoYears"], 5);
         assert_eq!(v["folders"][0]["mainShare"], 45);
         assert_eq!(v["folders"][0]["busFactor"], 2);
         assert!(v["folders"][0]["mainAuthor"].is_object());
+        assert!(v["folders"][0]["top"].is_array());
         assert!(v["records"]["longestStreak"].is_null());
         assert!(v["tip"].is_null() && v["referenceTime"].is_null() && v["firstAt"].is_null());
         for key in ["heatmap", "weeks", "months", "authors", "files", "hotspots", "folders"] {
