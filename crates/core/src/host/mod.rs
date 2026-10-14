@@ -501,6 +501,11 @@ pub(crate) fn not_found_as(error: CoreError, what: impl FnOnce() -> String) -> C
     }
 }
 
+/// Recognises "one already exists for this" in a rejection (all hosts word it like that).
+pub(crate) fn already_exists(error: &CoreError) -> bool {
+    error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
+}
+
 /// Runs `work` for each element, at most `ENRICH_PARALLEL` at a time, and returns the
 /// results in input order.
 pub(crate) async fn parallel<I, T, F, Fut>(inputs: Vec<I>, work: F) -> Vec<Option<T>>

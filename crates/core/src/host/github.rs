@@ -5,7 +5,7 @@
 use serde_json::{json, Value};
 
 use super::{
-    color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging,
+    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging,
     PrChange, RepoFacts, RepoPath,
 };
 use crate::app::Core;
@@ -298,11 +298,6 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
     let check_runs = checks(core, api, repo, &head_sha).await.unwrap_or_default();
     summary.checks = summarize_checks(&check_runs);
     Ok(PrDetails { summary, body: text(&value, "body"), reviewers, comments, commits, mergeable: value.get("mergeable").and_then(Value::as_bool), check_runs, head_sha })
-}
-
-/// Recognises "a pull request already exists for this" in a rejection.
-fn already_exists(error: &CoreError) -> bool {
-    error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
 }
 
 /// `POST /repos/{owner}/{repo}/pulls`, then reviewers and labels.

@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 
 use super::{
-    detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts,
+    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts,
     RepoPath,
 };
 use crate::app::Core;
@@ -291,10 +291,6 @@ fn draft_title(title: &str, draft: bool) -> String {
     } else {
         plain.to_string()
     }
-}
-
-fn already_exists(error: &CoreError) -> bool {
-    error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
 }
 
 /// `POST /projects/:id/merge_requests`

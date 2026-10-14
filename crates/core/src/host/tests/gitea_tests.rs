@@ -6,7 +6,7 @@ use serde_json::json;
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
 use crate::host::detect::normalize_base_url;
-use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrReviewState, PrState};
+use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
 
 const KIND: HostKind = HostKind::Gitea;
 const LABEL: &str = "Gitea/Forgejo";
@@ -149,5 +149,63 @@ async fn checkout_fetches_the_branch_of_a_pull_request() {
     assert_eq!((repo.current_branch(), repo.head()), ("pr-8".to_string(), from_fork));
     assert_eq!(repo.git(&["for-each-ref", "refs/forkyard/pull"]), "", "the helper ref is not left behind");
     assert_eq!(cmd::pr_checkout(&fx.tc, fx.id(), 999, None).await.unwrap_err().code, ErrorCode::HostNotFound);
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn pull_requests_are_created_changed_commented_merged_and_closed() {
+    let fx = Fixture::new(KIND).await;
+    let created = cmd::pr_create(&fx.tc, fx.id(), "Neue Anmeldung".into(), "Text".into(), "feature/neu".into(), "main".into(), true, Some(vec!["mira".into()]), Some(vec!["bug".into(), "UI".into()]), None)
+        .await
+        .unwrap();
+    assert_eq!(created.number, 101);
+    assert_eq!(fx.sent("POST", "/pulls")[0].json(), json!({ "title": "WIP: Neue Anmeldung", "body": "Text", "head": "feature/neu", "base": "main", "labels": [11, 13] }), "labels by ID, the draft in the title");
+    assert_eq!(fx.sent("POST", "/pulls/101/requested_reviewers")[0].json(), json!({ "reviewers": ["mira"] }));
+    // A label the repository doesn't have: nothing is created.
+    fx.server.clear();
+    let error = cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "feature/neu".into(), "main".into(), false, None, Some(vec!["fehlt".into()]), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostRejected);
+    assert!(error.message.contains("“fehlt”"), "{}", error.message);
+    assert!(fx.sent("POST", "/pulls").is_empty());
+    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NameExists);
+    assert!(error.message.contains("already an open pull request"), "{}", error.message);
+    check_error_modes(&fx, LABEL, "pr_create", || cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)).await;
+
+    // Update: the draft state lives in the title.
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 3, None, None, None, Some(false), None, None, None).await.unwrap();
+    assert_eq!(fx.sent("PATCH", "/pulls/3")[0].json(), json!({ "title": "Thema 3 umsetzen" }));
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 3, Some("Neuer Titel".into()), Some("Neuer Text".into()), Some("develop".into()), None, None, Some(vec!["frage".into()]), None).await.unwrap();
+    assert_eq!(fx.sent("PATCH", "/pulls/3")[0].json(), json!({ "title": "WIP: Neuer Titel", "body": "Neuer Text", "base": "develop", "labels": [12] }), "a draft stays a draft when renamed");
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, Some(vec!["jonas".into()]), None, None).await.unwrap();
+    assert_eq!(fx.sent("POST", "/pulls/1/requested_reviewers")[0].json(), json!({ "reviewers": ["jonas"] }));
+    assert!(fx.sent("PATCH", "/pulls/1").is_empty(), "no PATCH without title, body, target, labels or draft");
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 2, None, None, None, None, Some(Vec::new()), None, None).await.unwrap();
+    assert_eq!(fx.sent("DELETE", "/pulls/2/requested_reviewers")[0].json(), json!({ "reviewers": ["mira"] }));
+
+    let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
+    assert_eq!((comment.id.as_str(), comment.body.as_str()), ("c99", "Passt so."));
+    assert_eq!(fx.sent("POST", "/issues/1/comments")[0].json(), json!({ "body": "Passt so." }));
+
+    let merged = cmd::pr_merge(&fx.tc, fx.id(), 1, PrMergeMethod::Squash, true, None).await.unwrap();
+    assert_eq!(merged.state, PrState::Merged);
+    assert_eq!(fx.sent("POST", "/pulls/1/merge")[0].json(), json!({ "Do": "squash", "delete_branch_after_merge": true }));
+    cmd::pr_merge(&fx.tc, fx.id(), 2, PrMergeMethod::Rebase, false, None).await.unwrap();
+    assert_eq!(fx.sent("POST", "/pulls/2/merge")[0].json(), json!({ "Do": "rebase", "delete_branch_after_merge": false }));
+    let error = cmd::pr_merge(&fx.tc, fx.id(), 13, PrMergeMethod::Merge, false, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostRejected);
+    assert!(error.message.contains("merge conflicts"), "{}", error.message);
+
+    assert_eq!(cmd::pr_close(&fx.tc, fx.id(), 6, None).await.unwrap().state, PrState::Closed);
+    assert_eq!(cmd::pr_reopen(&fx.tc, fx.id(), 6, None).await.unwrap().state, PrState::Open);
+    let patches: Vec<_> = fx.sent("PATCH", "/pulls/6").iter().map(|r| r.json()).collect();
+    assert_eq!(patches, vec![json!({ "state": "closed" }), json!({ "state": "open" })]);
+    check_error_modes(&fx, LABEL, "pr_merge", || cmd::pr_merge(&fx.tc, fx.id(), 7, PrMergeMethod::Merge, false, None)).await;
+    check_error_modes(&fx, LABEL, "pr_comment", || cmd::pr_comment(&fx.tc, fx.id(), 7, "Text".into(), None)).await;
+    check_error_modes(&fx, LABEL, "pr_close", || cmd::pr_close(&fx.tc, fx.id(), 7, None)).await;
     fx.assert_token_stays_secret();
 }
