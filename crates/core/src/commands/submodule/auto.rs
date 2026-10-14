@@ -3,11 +3,14 @@
 //! (`git submodule update --init --recursive`). This runs as a follow-up job in the same queue –
 //! network lock, then write lock – so the main operation answers right away. A failure is a warning
 //! (event `submodules:updated` with `ok: false`, plus the activity log of the Git call), never an
-//! error of the main operation. A submodule whose detached HEAD holds commits that no branch, tag
-//! or remote branch contains is left where it is and reported the same way, so nothing is orphaned. Network access uses the usual credential prompts; Git's
+//! error of the main operation. A submodule whose detached HEAD – or that of a submodule nested in
+//! it – holds commits that no branch, tag or remote branch contains is left where it is and
+//! reported the same way, so nothing is orphaned. Network access uses the usual credential prompts; Git's
 //! `protocol.allow` defaults stay as they are. Repository setting `submodulesAutoUpdate` (default on).
 
 use std::future::Future;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
 
 use crate::app::Core;
 use crate::commands::status;
@@ -153,31 +156,100 @@ async fn recorded(core: &Core, repo_id: &str) -> Vec<(Vec<u8>, String)> {
     }
 }
 
-/// The submodule at `raw` has a detached HEAD that is neither the commit recorded before (`old`) nor
-/// the one recorded now (`new`) and holds commits that no branch, tag or remote branch contains:
-/// `submodule update` would leave them reachable only from the reflog. Unreadable counts as yes.
+/// The submodule at `raw` – or one nested in it, which `submodule update --recursive` moves too –
+/// has a detached HEAD that is neither the commit recorded before (`old`) nor the one recorded now
+/// (`new`) and holds commits that no branch, tag or remote branch contains: the update would leave
+/// them reachable only from the reflog. Unreadable counts as yes.
 async fn leaves_commits_behind(core: &Core, repo_id: &str, raw: &[u8], old: Option<&str>, new: &str) -> bool {
     let Ok(root) = core.repo_path(repo_id) else { return true };
-    let sub_root = util::join_from_git(&root, raw);
-    let Some(git_dir) = sub_git_dir(&sub_root) else { return false };
-    let head = match read_sub_head(&git_dir) {
-        (Some(_), _) => return false,
-        (None, Some(sha)) => sha,
-        (None, None) => return false,
-    };
-    if head == new || Some(head.as_str()) == old {
-        return false;
-    }
+    orphans_below(core, repo_id, util::join_from_git(&root, raw), old.map(str::to_string), Some(new.to_string())).await
+}
+
+/// `leaves_commits_behind` for the submodule checked out at `sub_root` and, recursively, the
+/// submodules inside it. `new` is `None` when the commit the parent moves to is not known locally
+/// yet (still to be fetched): then only `old` exempts a detached HEAD.
+fn orphans_below<'a>(
+    core: &'a Core,
+    repo_id: &'a str,
+    sub_root: PathBuf,
+    old: Option<String>,
+    new: Option<String>,
+) -> Pin<Box<dyn Future<Output = bool> + Send + 'a>> {
+    Box::pin(async move {
+        let Some(git_dir) = sub_git_dir(&sub_root) else { return false };
+        if let (None, Some(head)) = read_sub_head(&git_dir) {
+            let recorded = Some(&head) == new.as_ref() || Some(&head) == old.as_ref();
+            if !recorded && !held_by_ref(core, repo_id, &sub_root, &head).await {
+                return true;
+            }
+        }
+        if !sub_root.join(".gitmodules").is_file() {
+            return false;
+        }
+        let Some(current) = nested_links(core, repo_id, &sub_root).await else { return true };
+        let next = match &new {
+            Some(rev) => nested_links_at(core, repo_id, &sub_root, rev).await,
+            None => None,
+        };
+        for (path, current_sha) in current {
+            let next_sha = next.as_ref().and_then(|links| links.iter().find(|(known, _)| *known == path).map(|(_, sha)| sha.clone()));
+            if orphans_below(core, repo_id, util::join_from_git(&sub_root, &path), Some(current_sha), next_sha).await {
+                return true;
+            }
+        }
+        false
+    })
+}
+
+/// Every commit up to `head` is contained in a branch, tag or remote branch of the submodule.
+async fn held_by_ref(core: &Core, repo_id: &str, sub_root: &Path, head: &str) -> bool {
     let counted = core
         .git
-        .cmd(&sub_root)
+        .cmd(sub_root)
         .repo(repo_id)
         .read_only()
         .no_log()
-        .args(["rev-list", "--count", head.as_str(), "--not", "--branches", "--tags", "--remotes"])
+        .args(["rev-list", "--count", head, "--not", "--branches", "--tags", "--remotes"])
         .run_raw()
         .await;
-    !counted.ok().filter(|out| out.success()).is_some_and(|out| out.stdout_text().trim() == "0")
+    counted.ok().filter(|out| out.success()).is_some_and(|out| out.stdout_text().trim() == "0")
+}
+
+/// Gitlinks in the index of the submodule at `sub_root` (`ls-files --stage -z`, stage 0 and the
+/// first of a conflict). `None` = unreadable.
+async fn nested_links(core: &Core, repo_id: &str, sub_root: &Path) -> Option<Vec<(Vec<u8>, String)>> {
+    let out = core.git.cmd(sub_root).repo(repo_id).read_only().no_log().args(["ls-files", "--stage", "-z"]).run_raw().await.ok()?;
+    if !out.success() {
+        return None;
+    }
+    let mut links: Vec<(Vec<u8>, String)> = Vec::new();
+    for record in util::split_z(&out.stdout) {
+        // `<mode> <object> <stage>TAB<path>`
+        let Some(tab) = record.iter().position(|&byte| byte == b'\t') else { continue };
+        let meta = util::decode_lossy(&record[..tab]);
+        let mut fields = meta.split(' ');
+        let (Some("160000"), Some(sha)) = (fields.next(), fields.next()) else { continue };
+        let path = record[tab + 1..].to_vec();
+        if !links.iter().any(|(known, _)| *known == path) {
+            links.push((path, sha.to_string()));
+        }
+    }
+    Some(links)
+}
+
+/// Gitlinks recorded in the tree of `rev` inside the submodule; `None` if `rev` is not there yet.
+async fn nested_links_at(core: &Core, repo_id: &str, sub_root: &Path, rev: &str) -> Option<Vec<(Vec<u8>, String)>> {
+    let out = core
+        .git
+        .cmd(sub_root)
+        .repo(repo_id)
+        .read_only()
+        .no_log()
+        .args(["ls-tree", "-r", "-z", "--full-tree", rev])
+        .run_raw()
+        .await
+        .ok()?;
+    out.success().then(|| tree_gitlinks(&out.stdout))
 }
 
 /// `RepoSettings.submodules_auto_update` (default: on).
@@ -245,7 +317,7 @@ async fn update_changed(core: &Core, repo_id: &str, before: Vec<(Vec<u8>, String
     let mut message = result.as_ref().err().map(|e| redact::redact(&e.message));
     if !kept.is_empty() {
         let note = format!(
-            "{} not updated: it has commits checked out that are not on any branch, tag or remote branch. Create a branch for them in the submodule, then update it.",
+            "{} not updated: it or a submodule inside it has commits checked out that are not on any branch, tag or remote branch. Create a branch for them there, then update it.",
             kept.join(", ")
         );
         message = Some(message.map_or(note.clone(), |error| format!("{error} {note}")));

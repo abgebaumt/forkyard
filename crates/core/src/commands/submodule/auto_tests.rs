@@ -211,3 +211,79 @@ async fn a_submodule_on_a_branch_follows_even_with_own_commits() {
     assert_eq!(next_update(&f.tc).await["ok"], true, "the branch keeps the commit");
     assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.first);
 }
+
+struct Nested {
+    tc: TestCore,
+    repo: TestRepo,
+    id: String,
+    outer_first: String,
+    outer_second: String,
+    _keep: (TestRepo, TestRemote, TestRepo, TestRemote),
+}
+
+impl Nested {
+    fn nested_git(&self, args: &[&str]) -> String {
+        let dir = self.repo.path().join(SUB).join("innen").to_string_lossy().into_owned();
+        let mut all = vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
+        all.extend_from_slice(args);
+        self.repo.git(&all)
+    }
+}
+
+/// The submodule `SUB` has a submodule `innen` of its own (same commit in both outer commits);
+/// `main` records the outer second commit, `alt` the first. HEAD on `main`, all in sync.
+async fn nested_fixture() -> Nested {
+    let tc = TestCore::with_global_config(ALLOW_FILE).await;
+    let inner = TestRepo::new();
+    inner.commit_file("innen.txt", "eins\n", "Innen angelegt");
+    let inner_remote = inner.add_remote();
+    let outer = TestRepo::new();
+    outer.commit_file("aussen.txt", "eins\n", "Aussen angelegt");
+    outer.git(&["-c", "protocol.file.allow=always", "submodule", "add", "-q", &inner_remote.url(), "innen"]);
+    let outer_first = outer.commit("Innen eingebunden");
+    outer.commit_file("aussen.txt", "eins\nzwei\n", "Aussen erweitert");
+    let outer_remote = outer.add_remote();
+
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    submodule_add(&tc, id.clone(), "job-add".into(), outer_remote.url(), SUB.into()).await.unwrap();
+    repo.git(&["-c", "protocol.file.allow=always", "submodule", "update", "-q", "--init", "--recursive"]);
+    repo.commit("Submodul bei zwei");
+    let outer_second = sub_git(&repo, &["rev-parse", "HEAD"]);
+    repo.checkout_new("alt");
+    sub_git(&repo, &["checkout", "-q", &outer_first]);
+    repo.git(&["add", SUB]);
+    repo.git(&["commit", "-q", "-m", "Submodul bei eins"]);
+    repo.checkout("main");
+    sub_git(&repo, &["checkout", "-q", &outer_second]);
+    tc.events.clear();
+    Nested { tc, repo, id, outer_first, outer_second, _keep: (inner, inner_remote, outer, outer_remote) }
+}
+
+#[tokio::test]
+async fn a_submodule_with_nested_submodules_in_sync_follows() {
+    let f = nested_fixture().await;
+    branch_checkout(&f.tc, f.id.clone(), "alt".into()).await.unwrap();
+    assert_eq!(next_update(&f.tc).await["ok"], true);
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.outer_first);
+}
+
+/// The outer submodule follows `alt`, but its own submodule holds a detached commit of its own:
+/// `submodule update --recursive` would orphan it, so the whole path is left alone.
+#[tokio::test]
+async fn a_nested_submodule_with_commits_on_no_ref_is_left_alone() {
+    let f = nested_fixture().await;
+    f.nested_git(&["checkout", "-q", "--detach"]);
+    std::fs::write(f.repo.path().join(SUB).join("innen").join("eigen.txt"), "eigen\n").unwrap();
+    f.nested_git(&["add", "eigen.txt"]);
+    f.nested_git(&["commit", "-q", "-m", "Eigener Stand"]);
+    let own = f.nested_git(&["rev-parse", "HEAD"]);
+    f.tc.events.clear();
+
+    branch_checkout(&f.tc, f.id.clone(), "alt".into()).await.unwrap();
+    let event = next_update(&f.tc).await;
+    assert_eq!((event["ok"].clone(), event["paths"].clone()), (json!(false), json!([SUB])), "{event}");
+    assert!(event["message"].as_str().is_some_and(|text| text.contains("not on any branch")), "{event}");
+    assert_eq!(f.nested_git(&["rev-parse", "HEAD"]), own, "the nested own commit stays checked out");
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.outer_second, "the outer submodule stays too");
+}
