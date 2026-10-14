@@ -54,6 +54,22 @@ async fn global_commands_are_checked_saved_and_listed() {
     assert_eq!(custom_commands_list(&tc, None).await.unwrap().commands.len(), 2);
 }
 
+/// 150 valid commands with long command lines exceed the file limit together: saving them is
+/// refused instead of storing a list that reads back as empty.
+#[tokio::test]
+async fn a_list_larger_than_the_file_limit_is_not_saved() {
+    let tc = TestCore::new().await;
+    let kept = def("bleibt", CustomCommandKind::Git, "status");
+    custom_commands_save(&tc, vec![kept.clone()]).await.unwrap();
+    let long = format!("log {}", "x".repeat(1990));
+    let many: Vec<CustomCommandDef> = (0..150).map(|n| def(&format!("lang-{n}"), CustomCommandKind::Git, &long)).collect();
+    let error = custom_commands_save(&tc, many).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotAllowed);
+    assert!(error.message.contains("KiB"), "{}", error.message);
+    let listed: Vec<CustomCommandDef> = custom_commands_list(&tc, None).await.unwrap().commands.into_iter().map(|entry| entry.command).collect();
+    assert_eq!(listed, vec![kept], "what was there stays");
+}
+
 #[tokio::test]
 async fn commands_are_exported_and_imported_as_json() {
     let tc = TestCore::new().await;

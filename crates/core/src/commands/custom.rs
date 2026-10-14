@@ -184,10 +184,18 @@ pub async fn custom_commands_list(core: &Core, repo_id: Option<String>) -> CoreR
 }
 
 /// Replaces the user's own commands. Every command is checked; one invalid command rejects the
-/// whole list (`not_allowed`, naming it) and nothing changes.
+/// whole list (`not_allowed`, naming it) and nothing changes. So does a list that, written in the
+/// file format, would exceed the file limit – it could not be read back (nor imported after export).
 pub async fn custom_commands_save(core: &Core, commands: Vec<CustomCommandDef>) -> CoreResult<Vec<CustomCommandDef>> {
     check_global(&commands)?;
-    core.db.with(|c| db::app_settings::set(c, GLOBAL_KEY, &file_value(&commands)))?;
+    let value = file_value(&commands);
+    if serde_json::to_vec(&value)?.len() > definition::MAX_FILE_BYTES {
+        return Err(CoreError::not_allowed(format!(
+            "Together the commands are larger than {} KiB. Shorten or remove some of them.",
+            definition::MAX_FILE_BYTES / 1024
+        )));
+    }
+    core.db.with(|c| db::app_settings::set(c, GLOBAL_KEY, &value))?;
     core.emit_app_changed(&[AppChange::CustomCommands]);
     load_global(core)
 }
