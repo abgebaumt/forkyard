@@ -86,6 +86,7 @@ import type {
   Repo,
   LinkRules,
   RepoSettings,
+  RepoStats,
   RepoViewState,
   ResetMode,
   SettingScope,
@@ -95,6 +96,7 @@ import type {
   SigningStatus,
   SshKey,
   Stash,
+  StatsRange,
   StashSelection,
   Status,
   Submodule,
@@ -789,6 +791,15 @@ export interface CoreCommands {
   /** Like `prList`. `query` searches title and body (GitHub: via the search API, own limit of 30/min). */
   issueList(input: R & { state: IssueState | "all"; query?: string | null; page?: number | null; perPage?: number | null; remote?: string | null }): Promise<IssuePage>;
   issueGet(input: R & { number: number; remote?: string | null }): Promise<IssueDetails>;
+
+  // --- Statistics -----------------------------------------------------------------------------
+  /**
+   * Statistics of the history of `range.ref` as a job: `job:progress` with the phases `history`
+   * and `blame`, cancellable via `jobCancel`. Only reads. Cached per tip commit and period
+   * (`cached: true`). `HEAD` without a commit, or nothing committed up to `to` → empty statistics
+   * (`tip: null`); unknown ref → `not_found`; `from`/`to` not ISO-8601 or `from` after `to` → `not_allowed`.
+   */
+  statsCompute(input: R & { jobId: string; range: StatsRange }): Promise<RepoStats>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

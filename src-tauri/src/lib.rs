@@ -544,7 +544,8 @@ pub fn run() {
             commands::pr_checkout,
             commands::pr_template,
             commands::issue_list,
-            commands::issue_get
+            commands::issue_get,
+            commands::stats_compute
         ])
         .build(context);
     match result {
