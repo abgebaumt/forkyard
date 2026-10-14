@@ -29,4 +29,4 @@ log = "0.4"
 # Only for a WebView2 setting that Tauri doesn't pass through (disabling browser shortcuts).
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
-windows-core = "0.62"
+windows-core = "0.100"

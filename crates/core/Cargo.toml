@@ -16,19 +16,19 @@ testkit = ["dep:tempfile"]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["process", "io-util", "sync", "time", "rt-multi-thread", "macros", "fs", "net"] }
-rusqlite = { version = "0.32", features = ["bundled"] }
-notify = "6"
-notify-debouncer-mini = "0.4"
+rusqlite = { version = "0.40", features = ["bundled"] }
+notify = "8"
+notify-debouncer-mini = "0.7"
 keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
 uuid = { version = "1", features = ["v4"] }
-thiserror = "1"
+thiserror = "2"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 parking_lot = "0.12"
 encoding_rs = "0.8"
-base64 = "0.22"
+base64 = "0.23"
 regex = "1"
-dirs = "5"
-which = "6"
+dirs = "7"
+which = "8"
 # Pseudo-terminal for the built-in terminal (ConPTY on Windows).
 portable-pty = "0.9"
 log = "0.4"
