@@ -1,6 +1,6 @@
 //! Connection to hosts through their official, publicly documented APIs – with the user's own
-//! token: GitHub (REST, also GitHub Enterprise Server) and GitLab (REST v4, also self-hosted
-//! instances). No other hosts are contacted.
+//! token. Everything that differs between hosts is behind `trait Host`; `host(kind)` hands out
+//! the implementation.
 //!
 //! - `detect`: recognises host, owner and name from a remote's URL.
 //! - `github`, `gitlab`: the calls per host; both return the same types (`crate::model`).
@@ -16,6 +16,9 @@ pub mod gh_cli;
 pub mod github;
 pub mod gitlab;
 
+use std::future::Future;
+use std::pin::Pin;
+
 use serde_json::Value;
 
 use crate::app::Core;
@@ -24,7 +27,10 @@ use crate::db;
 use crate::db::hoster_accounts::{AccountFacts, HosterAccountRow};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{self, Method, Request, Response};
-use crate::model::{AppChange, ChecksState, CheckRunState, HostKind, HostUser, HosterAccount, PrCheck};
+use crate::model::{
+    AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRepoRef, HostUser, HosterAccount, IssueDetails, IssueListState, IssuePage,
+    IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrSummary,
+};
 use crate::secrets;
 use crate::util;
 
@@ -43,18 +49,12 @@ pub fn secret_account(account_id: &str) -> String {
 }
 
 pub fn label(kind: HostKind) -> &'static str {
-    match kind {
-        HostKind::Github => "GitHub",
-        HostKind::Gitlab => "GitLab",
-    }
+    host(kind).label()
 }
 
 /// What the host calls a "pull request".
 pub fn pr_word(kind: HostKind) -> &'static str {
-    match kind {
-        HostKind::Github => "pull request",
-        HostKind::Gitlab => "merge request",
-    }
+    host(kind).pr_word()
 }
 
 // ---------------------------------------------------------------------------
@@ -96,6 +96,154 @@ pub(crate) fn summarize_checks(checks: &[PrCheck]) -> Option<ChecksState> {
         Some(ChecksState::Passing)
     } else {
         None
+    }
+}
+
+// ---------------------------------------------------------------------------
+// What differs between hosts
+// ---------------------------------------------------------------------------
+
+/// A host call as the trait hands it out: boxed so that `dyn Host` works, `Send` so the commands
+/// can await it on any thread.
+pub type HostFuture<'a, T> = Pin<Box<dyn Future<Output = CoreResult<T>> + Send + 'a>>;
+
+/// Which page of a list, and how many entries per page.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Paging {
+    pub page: u32,
+    pub per_page: u32,
+}
+
+/// What the host says about a repository.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RepoFacts {
+    pub default_branch: Option<String>,
+    pub can_push: Option<bool>,
+    pub fork_parent: Option<HostRepoRef>,
+    /// `Some(false)`: the repository has its issue tracker switched off.
+    pub has_issues: Option<bool>,
+}
+
+/// A new pull request, the same for every host.
+pub struct NewPr<'a> {
+    pub title: &'a str,
+    pub body: &'a str,
+    pub source_branch: &'a str,
+    pub target_branch: &'a str,
+    pub draft: bool,
+    pub reviewers: &'a [String],
+    pub labels: &'a [String],
+}
+
+/// Changes to a pull request; `None` = stays as it is.
+pub struct PrChange<'a> {
+    pub title: Option<&'a str>,
+    pub body: Option<&'a str>,
+    pub target_branch: Option<&'a str>,
+    pub draft: Option<bool>,
+    pub reviewers: Option<&'a [String]>,
+    pub labels: Option<&'a [String]>,
+}
+
+/// A call this host cannot make: `host_unsupported`, before anything is sent.
+pub(crate) fn unsupported<'a, T: Send + 'a>(label: &str, what: &str) -> HostFuture<'a, T> {
+    let error = CoreError::new(ErrorCode::HostUnsupported, format!("{label} does not offer {what} through its API."));
+    Box::pin(async move { Err(error) })
+}
+
+/// `owner/name` with exactly two levels (GitHub, Gitea, Bitbucket).
+pub(crate) fn two_levels(path: &str) -> Option<RepoPath> {
+    let (owner, name) = path.rsplit_once('/')?;
+    (!owner.is_empty() && !name.is_empty() && !owner.contains('/')).then(|| RepoPath { owner: owner.to_string(), name: name.to_string() })
+}
+
+/// Everything that differs between hosts. `commands/host.rs`, the call path (`Api`) and the
+/// detection only go through this trait; each host module implements it once.
+pub trait Host: Sync {
+    fn kind(&self) -> HostKind;
+    /// Name for messages ("GitHub").
+    fn label(&self) -> &'static str;
+    /// What the host calls a pull request.
+    fn pr_word(&self) -> &'static str;
+    /// Web address of the public service; `None` if every organization has its own address.
+    fn public_web(&self) -> Option<&'static str>;
+    /// Server names that, entered as an address, mean the public service.
+    fn public_hosts(&self) -> &'static [&'static str] {
+        &[]
+    }
+    /// API address for a normalised web address.
+    fn api_base(&self, web_base: &str) -> String;
+    /// API paths users sometimes paste with the address (`api/v4`); they are not part of it.
+    fn api_suffixes(&self) -> &'static [&'static str] {
+        &[]
+    }
+    /// Last check of a normalised address that is not the public service.
+    fn check_base(&self, base: String, _loopback: bool) -> CoreResult<String> {
+        Ok(base)
+    }
+    /// Headers every call carries besides `authorization`.
+    fn request_headers(&self) -> &'static [(&'static str, &'static str)];
+    /// Value of the `authorization` header.
+    fn authorization(&self, token: &str, _username: Option<&str>) -> String {
+        format!("Bearer {token}")
+    }
+    /// Whether the account needs a user name besides the token.
+    fn needs_username(&self) -> bool {
+        false
+    }
+    /// The repository from a remote's path below the web address; `None` = no repository there.
+    fn split_repo_path(&self, path: &str) -> Option<RepoPath>;
+    /// The repository's page at the host.
+    fn repo_web_url(&self, web_base: &str, repo: &RepoPath) -> String {
+        format!("{web_base}/{}/{}", repo.owner, repo.name)
+    }
+    fn capabilities(&self) -> HostCapabilities;
+    /// Ref under which the host offers the head of a pull request from a fork; `None` = none.
+    fn pr_ref(&self, number: u64) -> Option<String>;
+    /// Local branch for a pull request from a fork.
+    fn fork_branch(&self, number: u64) -> String {
+        format!("pr-{number}")
+    }
+    /// Folders in the working directory where this host keeps pull request templates.
+    fn template_folders(&self) -> &'static [&'static str] {
+        &[]
+    }
+
+    /// Checks the token and says whom it belongs to.
+    fn account_facts<'a>(&'a self, core: &'a Core, api: &'a Api) -> HostFuture<'a, AccountFacts>;
+    fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts>;
+    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage>;
+    fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails>;
+    /// Only the header data of a pull request (without checks and reviews).
+    fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary>;
+    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage>;
+    fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails>;
+
+    fn pr_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
+        unsupported(self.label(), "creating pull requests")
+    }
+    fn pr_update<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+        unsupported(self.label(), "changing pull requests")
+    }
+    fn pr_comment<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _body: &'a str) -> HostFuture<'a, HostComment> {
+        unsupported(self.label(), "comments")
+    }
+    fn pr_merge<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _method: PrMergeMethod, _delete_branch: bool) -> HostFuture<'a, PrSummary> {
+        unsupported(self.label(), "merging")
+    }
+    fn pr_set_open<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _open: bool) -> HostFuture<'a, PrSummary> {
+        unsupported(self.label(), "closing and reopening pull requests")
+    }
+    fn issue_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _title: &'a str, _body: &'a str) -> HostFuture<'a, IssueSummary> {
+        unsupported(self.label(), "creating issues")
+    }
+}
+
+/// The implementation for a host kind.
+pub fn host(kind: HostKind) -> &'static dyn Host {
+    match kind {
+        HostKind::Github => &github::GithubHost,
+        HostKind::Gitlab => &gitlab::GitlabHost,
     }
 }
 

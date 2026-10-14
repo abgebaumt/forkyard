@@ -4,14 +4,17 @@
 
 use serde_json::{json, Value};
 
-use super::{color, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, Api, RepoPath};
+use super::{
+    color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging,
+    PrChange, RepoFacts, RepoPath,
+};
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostComment, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary, PrCheck,
-    PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
+    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
 };
 
 fn repo_path(repo: &RepoPath) -> String {
@@ -56,12 +59,6 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
     Ok(AccountFacts { login: Some(login), name: opt_text(&me, "name"), avatar_url: opt_text(&me, "avatar_url"), scopes_ok: missing.is_empty(), missing_scopes: missing })
 }
 
-pub struct RepoFacts {
-    pub default_branch: Option<String>,
-    pub can_push: Option<bool>,
-    pub fork_parent: Option<HostRepoRef>,
-}
-
 /// `GET /repos/{owner}/{repo}`
 pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<RepoFacts> {
     let value = api.get_json(core, &repo_path(repo)).await.map_err(|e| not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full())))?;
@@ -74,6 +71,7 @@ pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<R
         default_branch: opt_text(&value, "default_branch"),
         can_push: value.get("permissions").and_then(|p| p.get("push")).and_then(Value::as_bool),
         fork_parent,
+        has_issues: value.get("has_issues").and_then(Value::as_bool),
     })
 }
 
@@ -322,16 +320,6 @@ fn already_exists(error: &CoreError) -> bool {
     error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
 }
 
-pub struct NewPr<'a> {
-    pub title: &'a str,
-    pub body: &'a str,
-    pub source_branch: &'a str,
-    pub target_branch: &'a str,
-    pub draft: bool,
-    pub reviewers: &'a [String],
-    pub labels: &'a [String],
-}
-
 /// `POST /repos/{owner}/{repo}/pulls`, then reviewers and labels.
 pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) -> CoreResult<PrSummary> {
     let base = repo_path(repo);
@@ -364,15 +352,6 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
         return Ok(pr_summary(&created));
     }
     pr_head(core, api, repo, number).await
-}
-
-pub struct PrChange<'a> {
-    pub title: Option<&'a str>,
-    pub body: Option<&'a str>,
-    pub target_branch: Option<&'a str>,
-    pub draft: Option<bool>,
-    pub reviewers: Option<&'a [String]>,
-    pub labels: Option<&'a [String]>,
 }
 
 /// `PATCH /repos/{owner}/{repo}/pulls/{number}`; labels and reviewers through their own endpoints.
@@ -529,4 +508,100 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
     }
     let comments = api.get_all(core, &format!("{base}/issues/{number}/comments?per_page=100")).await?.iter().map(|c| comment("c", c, "created_at")).collect();
     Ok(IssueDetails { summary: issue_summary(&value), body: text(&value, "body"), comments })
+}
+
+// ---------------------------------------------------------------------------
+// As a `Host`
+// ---------------------------------------------------------------------------
+
+pub struct GithubHost;
+
+impl Host for GithubHost {
+    fn kind(&self) -> HostKind {
+        HostKind::Github
+    }
+    fn label(&self) -> &'static str {
+        "GitHub"
+    }
+    fn pr_word(&self) -> &'static str {
+        "pull request"
+    }
+    fn public_web(&self) -> Option<&'static str> {
+        Some(detect::GITHUB_WEB)
+    }
+    fn public_hosts(&self) -> &'static [&'static str] {
+        &["github.com", "www.github.com", "api.github.com"]
+    }
+    fn api_base(&self, web_base: &str) -> String {
+        if web_base == detect::GITHUB_WEB {
+            "https://api.github.com".to_string()
+        } else {
+            format!("{web_base}/api/v3")
+        }
+    }
+    fn api_suffixes(&self) -> &'static [&'static str] {
+        &["api/v3"]
+    }
+    fn request_headers(&self) -> &'static [(&'static str, &'static str)] {
+        &[("accept", "application/vnd.github+json"), ("x-github-api-version", "2022-11-28")]
+    }
+    fn split_repo_path(&self, path: &str) -> Option<RepoPath> {
+        two_levels(path)
+    }
+    fn capabilities(&self) -> HostCapabilities {
+        HostCapabilities {
+            issues: true,
+            issue_create: false,
+            draft_prs: true,
+            draft_toggle: false,
+            merge_methods: vec![PrMergeMethod::Merge, PrMergeMethod::Squash, PrMergeMethod::Rebase],
+            delete_source_branch: true,
+            pr_reopen: true,
+            pr_reviewers: true,
+            pr_labels: true,
+            fork_checkout: true,
+        }
+    }
+    fn pr_ref(&self, number: u64) -> Option<String> {
+        Some(pr_ref(number))
+    }
+    fn template_folders(&self) -> &'static [&'static str] {
+        &[".github"]
+    }
+    fn account_facts<'a>(&'a self, core: &'a Core, api: &'a Api) -> HostFuture<'a, AccountFacts> {
+        Box::pin(account_facts(core, api))
+    }
+    fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts> {
+        Box::pin(repo_facts(core, api, repo))
+    }
+    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage> {
+        Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page))
+    }
+    fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
+        Box::pin(pr_get(core, api, repo, number))
+    }
+    fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_head(core, api, repo, number))
+    }
+    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage> {
+        Box::pin(issue_list(core, api, repo, state, query, paging.page, paging.per_page))
+    }
+    fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
+        Box::pin(issue_get(core, api, repo, number))
+    }
+    fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_create(core, api, repo, new))
+    }
+    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_update(core, api, repo, number, change))
+    }
+    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+        Box::pin(comment_create(core, api, repo, number, body))
+    }
+    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
+    }
+    fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_set_open(core, api, repo, number, open))
+    }
 }

@@ -2364,6 +2364,33 @@ pub struct HostInfoError {
     pub message: String,
 }
 
+/// What a host offers. The UI only shows what is there; the core refuses the rest with
+/// `host_unsupported` before anything is sent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostCapabilities {
+    /// The host has an issue tracker (Azure DevOps: work items) – for this repository, as far as known.
+    pub issues: bool,
+    /// Issues can be created from the app.
+    pub issue_create: bool,
+    /// Pull requests can be created as drafts.
+    pub draft_prs: bool,
+    /// An existing pull request can switch between draft and ready.
+    pub draft_toggle: bool,
+    /// Merge methods the API accepts, in display order.
+    pub merge_methods: Vec<PrMergeMethod>,
+    /// The source branch can be deleted when merging.
+    pub delete_source_branch: bool,
+    /// A closed pull request can be reopened.
+    pub pr_reopen: bool,
+    /// Reviewers can be requested by user name.
+    pub pr_reviewers: bool,
+    /// Pull requests carry labels.
+    pub pr_labels: bool,
+    /// Pull requests from forks can be checked out (the host offers a ref for them).
+    pub fork_checkout: bool,
+}
+
 /// The repository at the host, recognized by the URL of a remote.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

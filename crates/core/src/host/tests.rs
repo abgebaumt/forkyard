@@ -230,3 +230,29 @@ async fn pr_template_is_found_in_the_usual_places() {
     assert_eq!(cmd::pr_template(&tc, id.clone()).await.unwrap().as_deref(), Some("## Was ändert sich?\n"));
     assert_eq!(cmd::pr_template(&tc, "unbekannt".into()).await.unwrap_err().code, ErrorCode::NotFound);
 }
+
+#[test]
+fn every_kind_has_exactly_its_host_with_its_capabilities() {
+    use crate::host::host;
+    use crate::model::PrMergeMethod;
+    for kind in HostKind::ALL.iter().copied() {
+        let found = host(kind);
+        assert_eq!(found.kind(), kind);
+        assert!(!found.label().is_empty() && !found.pr_word().is_empty(), "{kind:?}");
+        assert!(found.capabilities().merge_methods.contains(&PrMergeMethod::Merge), "{kind:?} can merge with a merge commit");
+    }
+    let hub = host(HostKind::Github);
+    assert_eq!(hub.capabilities().merge_methods, vec![PrMergeMethod::Merge, PrMergeMethod::Squash, PrMergeMethod::Rebase]);
+    assert!(!hub.capabilities().draft_toggle && hub.capabilities().pr_labels && !hub.capabilities().issue_create);
+    assert_eq!((hub.pr_ref(8).as_deref(), hub.fork_branch(8).as_str()), (Some("refs/pull/8/head"), "pr-8"));
+    assert_eq!(hub.authorization("t0k3n", Some("lena")), "Bearer t0k3n", "GitHub ignores a user name");
+    let lab = host(HostKind::Gitlab);
+    assert_eq!(lab.capabilities().merge_methods, vec![PrMergeMethod::Merge, PrMergeMethod::Squash]);
+    assert!(lab.capabilities().draft_toggle);
+    assert_eq!((lab.pr_ref(8).as_deref(), lab.fork_branch(8).as_str(), lab.pr_word()), (Some("refs/merge-requests/8/head"), "mr-8", "merge request"));
+    let shape = serde_json::to_value(lab.capabilities()).unwrap();
+    for key in ["issues", "issueCreate", "draftPrs", "draftToggle", "mergeMethods", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout"] {
+        assert!(shape.get(key).is_some(), "{key} missing: {shape}");
+    }
+    assert_eq!(shape["mergeMethods"], serde_json::json!(["merge", "squash"]));
+}

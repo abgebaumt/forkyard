@@ -6,14 +6,17 @@
 
 use serde_json::{json, Value};
 
-use super::{first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, Api, RepoPath};
+use super::{
+    detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts,
+    RepoPath,
+};
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostComment, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary, PrCheck, PrCommit,
-    PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
+    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
 };
 
 /// Prefix with which GitLab marks a merge request as a draft.
@@ -61,12 +64,6 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
     Ok(AccountFacts { login: Some(login), name: opt_text(&me, "name"), avatar_url: opt_text(&me, "avatar_url"), scopes_ok: missing.is_empty(), missing_scopes: missing })
 }
 
-pub struct RepoFacts {
-    pub default_branch: Option<String>,
-    pub can_push: Option<bool>,
-    pub fork_parent: Option<HostRepoRef>,
-}
-
 fn project_missing(repo: &RepoPath) -> impl FnOnce() -> String + '_ {
     move || format!("GitLab could not find the project {} – or the token is not allowed to see it.", repo.full())
 }
@@ -82,7 +79,7 @@ pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<R
         let (owner, name) = full.rsplit_once('/')?;
         Some(HostRepoRef { owner: owner.to_string(), name: name.to_string(), web_url: text(parent, "web_url") })
     });
-    Ok(RepoFacts { default_branch: opt_text(&value, "default_branch"), can_push, fork_parent })
+    Ok(RepoFacts { default_branch: opt_text(&value, "default_branch"), can_push, fork_parent, has_issues: value.get("issues_enabled").and_then(Value::as_bool) })
 }
 
 // ---------------------------------------------------------------------------
@@ -301,7 +298,7 @@ fn already_exists(error: &CoreError) -> bool {
 }
 
 /// `POST /projects/:id/merge_requests`
-pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: super::github::NewPr<'_>) -> CoreResult<PrSummary> {
+pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) -> CoreResult<PrSummary> {
     let mut body = json!({
         "source_branch": new.source_branch,
         "target_branch": new.target_branch,
@@ -329,7 +326,7 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: super::gith
 }
 
 /// `PUT /projects/:id/merge_requests/:iid`
-pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: super::github::PrChange<'_>) -> CoreResult<PrSummary> {
+pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
     let mut patch = serde_json::Map::new();
     match (change.title, change.draft) {
         (Some(title), Some(draft)) => {
@@ -445,4 +442,101 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
     let path = format!("{}/issues/{number}", project_path(repo));
     let value = api.get_json(core, &path).await.map_err(|e| not_found_as(e, || format!("Issue #{number} does not exist in {}.", repo.full())))?;
     Ok(IssueDetails { summary: issue_summary(&value), body: text(&value, "description"), comments: notes(core, api, &path).await? })
+}
+
+// ---------------------------------------------------------------------------
+// As a `Host`
+// ---------------------------------------------------------------------------
+
+pub struct GitlabHost;
+
+impl Host for GitlabHost {
+    fn kind(&self) -> HostKind {
+        HostKind::Gitlab
+    }
+    fn label(&self) -> &'static str {
+        "GitLab"
+    }
+    fn pr_word(&self) -> &'static str {
+        "merge request"
+    }
+    fn public_web(&self) -> Option<&'static str> {
+        Some(detect::GITLAB_WEB)
+    }
+    fn public_hosts(&self) -> &'static [&'static str] {
+        &["gitlab.com", "www.gitlab.com"]
+    }
+    fn api_base(&self, web_base: &str) -> String {
+        format!("{web_base}/api/v4")
+    }
+    fn api_suffixes(&self) -> &'static [&'static str] {
+        &["api/v4"]
+    }
+    fn request_headers(&self) -> &'static [(&'static str, &'static str)] {
+        &[("accept", "application/json")]
+    }
+    /// Groups can be nested arbitrarily deep: everything before the last segment is the owner.
+    fn split_repo_path(&self, path: &str) -> Option<RepoPath> {
+        let (owner, name) = path.rsplit_once('/')?;
+        (!owner.is_empty() && !name.is_empty()).then(|| RepoPath { owner: owner.to_string(), name: name.to_string() })
+    }
+    fn capabilities(&self) -> HostCapabilities {
+        HostCapabilities {
+            issues: true,
+            issue_create: false,
+            draft_prs: true,
+            draft_toggle: true,
+            merge_methods: vec![PrMergeMethod::Merge, PrMergeMethod::Squash],
+            delete_source_branch: true,
+            pr_reopen: true,
+            pr_reviewers: true,
+            pr_labels: true,
+            fork_checkout: true,
+        }
+    }
+    fn pr_ref(&self, number: u64) -> Option<String> {
+        Some(pr_ref(number))
+    }
+    fn fork_branch(&self, number: u64) -> String {
+        format!("mr-{number}")
+    }
+    fn template_folders(&self) -> &'static [&'static str] {
+        &[".gitlab"]
+    }
+    fn account_facts<'a>(&'a self, core: &'a Core, api: &'a Api) -> HostFuture<'a, AccountFacts> {
+        Box::pin(account_facts(core, api))
+    }
+    fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts> {
+        Box::pin(repo_facts(core, api, repo))
+    }
+    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage> {
+        Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page))
+    }
+    fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
+        Box::pin(pr_get(core, api, repo, number))
+    }
+    fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_head(core, api, repo, number))
+    }
+    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage> {
+        Box::pin(issue_list(core, api, repo, state, query, paging.page, paging.per_page))
+    }
+    fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
+        Box::pin(issue_get(core, api, repo, number))
+    }
+    fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_create(core, api, repo, new))
+    }
+    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_update(core, api, repo, number, change))
+    }
+    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+        Box::pin(comment_create(core, api, repo, number, body))
+    }
+    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
+    }
+    fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_set_open(core, api, repo, number, open))
+    }
 }

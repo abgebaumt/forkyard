@@ -174,7 +174,7 @@ pub async fn pr_create(
     }
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     let (reviewers, labels) = (clean_names(reviewers), clean_names(labels));
-    let new = github::NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
+    let new = host::NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
     match api.kind {
         HostKind::Github => github::pr_create(core, &api, &repo, new).await,
         HostKind::Gitlab => gitlab::pr_create(core, &api, &repo, new).await,
@@ -200,7 +200,7 @@ pub async fn pr_update(
     let reviewers = reviewers.map(|r| clean_names(Some(r)));
     let labels = labels.map(|l| clean_names(Some(l)));
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let change = github::PrChange { title: title.as_deref(), body: body.as_deref(), target_branch: target, draft, reviewers: reviewers.as_deref(), labels: labels.as_deref() };
+    let change = host::PrChange { title: title.as_deref(), body: body.as_deref(), target_branch: target, draft, reviewers: reviewers.as_deref(), labels: labels.as_deref() };
     match api.kind {
         HostKind::Github => github::pr_update(core, &api, &repo, number, change).await,
         HostKind::Gitlab => gitlab::pr_update(core, &api, &repo, number, change).await,
