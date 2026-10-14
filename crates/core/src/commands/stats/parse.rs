@@ -1,7 +1,6 @@
 //! Parsers for the two Git outputs of the statistics: `git log --numstat -z` (see `LOG_FORMAT`)
 //! and `git blame --porcelain`. Bytes in, plain numbers out; paths are decoded lossily (they
 //! are only shown and compared, never handed back to Git).
-#![cfg_attr(not(test), allow(dead_code))]
 
 use std::collections::HashMap;
 

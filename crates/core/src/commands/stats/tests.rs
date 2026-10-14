@@ -194,6 +194,7 @@ async fn the_job_reports_progress_and_its_end_and_changes_nothing() {
     let progress = tc.events.named(names::JOB_PROGRESS);
     assert!(progress.iter().all(|p| p["jobId"] == "job-stats" && p["repoId"] == id.as_str()));
     assert!(progress.iter().any(|p| p["phase"] == "history" && p["percent"] == 70), "{progress:?}");
+    assert!(progress.iter().any(|p| p["phase"] == "blame" && p["percent"] == 100), "{progress:?}");
     let done = tc.events.named(names::JOB_DONE);
     assert_eq!((done.len(), done[0]["ok"].as_bool()), (1, Some(true)));
     assert!(!tc.jobs.is_running("job-stats"));
@@ -223,4 +224,26 @@ async fn the_command_future_is_send() {
     let (tc, id) = setup(&repo).await;
     let stats = assert_send(stats_compute(&tc, id, "job-send".into(), range(None, None, "HEAD"))).await.unwrap();
     assert_eq!(stats.commits, 1);
+}
+
+#[tokio::test]
+async fn the_sample_takes_the_largest_text_files_and_skips_binaries() {
+    let (repo, shas) = demo();
+    let (tc, id) = setup(&repo).await;
+    let tree = list_tree(&tc, &id, &shas[8]).await.unwrap();
+    let mut paths: Vec<&str> = tree.iter().map(|f| f.path.as_str()).collect();
+    paths.sort_unstable();
+    assert_eq!(paths, ["README.md", "docs/guide.md", "logo.bin", "src/app/main.rs", "src/lib/util.rs"]);
+    let sample = blame_sample(&tc, &id, &tree, 2, &CancelToken::new()).await.unwrap();
+    assert_eq!(sample, [b"src/app/main.rs".to_vec(), b"docs/guide.md".to_vec()], "logo.bin is the largest, but binary");
+}
+
+#[tokio::test]
+async fn code_age_counts_lines_by_the_age_of_their_last_change() {
+    let (repo, _) = demo();
+    let (tc, id) = setup(&repo).await;
+    let stats = run(&tc, &id, range(None, None, "HEAD")).await;
+    assert_eq!(stats.code_age, StatsCodeAge { files: 4, skipped: 0, month: 18, year: 0, three_years: 11, older: 0 });
+    let early = run(&tc, &id, range(None, Some("2025-06-04T23:59:59Z"), "HEAD")).await;
+    assert_eq!(early.code_age, StatsCodeAge { files: 4, skipped: 0, month: 9, year: 0, three_years: 14, older: 0 }, "measured at that tip, against `to`");
 }

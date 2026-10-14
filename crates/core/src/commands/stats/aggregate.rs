@@ -1,7 +1,6 @@
 //! Turns the commits of the log into the numbers of `RepoStats`: totals, heatmap, weeks and
 //! months, authors, records, the numbers per file (files, hotspots, knowledge per folder) and
 //! the code age buckets. Pure computation – everything that talks to Git is in `stats.rs`.
-#![cfg_attr(not(test), allow(dead_code))]
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 

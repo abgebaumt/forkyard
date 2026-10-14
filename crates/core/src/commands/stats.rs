@@ -19,19 +19,28 @@ use std::collections::HashSet;
 use crate::app::Core;
 use crate::commands::graph::{resolve_commit, LOG_SAFE};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::jobs::Job;
+use crate::jobs::{CancelToken, Job};
 use crate::model::{RepoStats, StatsCodeAge, StatsRange};
 use crate::util;
 
 use aggregate::Aggregator;
-use parse::{LogParser, LOG_FORMAT};
+use parse::{BlameAges, LogParser, LOG_FORMAT};
 
-/// Progress phase (`job:progress.phase`); the UI names it.
+/// Progress phases (`job:progress.phase`); the UI names them.
 const PHASE_HISTORY: &str = "history";
-/// Share of the history pass in the progress; the code age gets the rest.
+const PHASE_BLAME: &str = "blame";
+/// Share of the history pass in the progress; the blame sample gets the rest.
 const HISTORY_SHARE: u32 = 70;
 /// Progress after every this many commits.
 const PROGRESS_EVERY: u32 = 200;
+/// At most this many files go through `git blame` (largest first, text files only).
+const BLAME_SAMPLE: usize = 300;
+/// At most this many files are checked for being binary while the sample is collected.
+const BLAME_PROBES: usize = 1000;
+/// Larger files are not blamed (the limit of the editor).
+const BLAME_MAX_BYTES: u64 = crate::commands::history::MAX_TEXT_BYTES;
+/// `git blame` processes at the same time.
+const BLAME_PARALLEL: usize = 4;
 
 /// Statistics of the history of `range.ref` as a job under `job_id`.
 ///
@@ -77,8 +86,9 @@ async fn compute(core: &Core, repo_id: &str, reference: &str, from: Option<i64>,
     let mut aggregator = Aggregator::new(from, to);
     read_log(core, repo_id, &tip, from, job, &mut aggregator).await?;
     let tree = list_tree(core, repo_id, &tip).await?;
+    let code_age = code_age(core, repo_id, &tip, &tree, reference_time, job).await?;
     let existing: HashSet<String> = tree.iter().map(|file| file.path.clone()).collect();
-    Ok(aggregator.finish(&existing, StatsCodeAge::default(), tip, reference_time))
+    Ok(aggregator.finish(&existing, code_age, tip, reference_time))
 }
 
 /// The commit whose history is counted: `reference` itself, or with `to` its last commit
@@ -165,6 +175,11 @@ async fn read_log(core: &Core, repo_id: &str, tip: &str, from: Option<i64>, job:
 struct TreeFile {
     /// For display and comparison (lossy).
     path: String,
+    /// Exactly as Git wrote it, for `git blame`.
+    raw: Vec<u8>,
+    oid: String,
+    size: u64,
+    symlink: bool,
 }
 
 async fn list_tree(core: &Core, repo_id: &str, tip: &str) -> CoreResult<Vec<TreeFile>> {
@@ -177,8 +192,78 @@ fn parse_tree_entry(record: &[u8]) -> Option<TreeFile> {
     let tab = record.iter().position(|&b| b == b'\t')?;
     let meta = std::str::from_utf8(&record[..tab]).ok()?;
     let raw = &record[tab + 1..];
-    let kind = meta.split_whitespace().nth(1)?;
-    (kind == "blob" && !raw.is_empty()).then(|| TreeFile { path: util::decode_lossy(raw) })
+    let mut fields = meta.split_whitespace();
+    let (mode, kind, oid, size) = (fields.next()?, fields.next()?, fields.next()?, fields.next()?);
+    if kind != "blob" || raw.is_empty() {
+        return None;
+    }
+    Some(TreeFile { path: util::decode_lossy(raw), raw: raw.to_vec(), oid: oid.to_string(), size: size.parse().ok()?, symlink: mode == "120000" })
+}
+
+/// Code age from `git blame` over the sample, `BLAME_PARALLEL` files at a time. A file Git
+/// cannot blame (e.g. a missing `blame.ignoreRevsFile`) only counts as skipped.
+async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], reference_time: i64, job: &Job) -> CoreResult<StatsCodeAge> {
+    let sample = blame_sample(core, repo_id, tree, BLAME_SAMPLE, job.token()).await?;
+    let total = sample.len() as u32;
+    let mut age = StatsCodeAge::default();
+    let mut done: u32 = 0;
+    let mut pending = sample.into_iter();
+    let mut running = tokio::task::JoinSet::new();
+    loop {
+        while running.len() < BLAME_PARALLEL {
+            let Some(path) = pending.next() else { break };
+            let (core, repo_id, tip, token) = (core.clone(), repo_id.to_string(), tip.to_string(), job.token().clone());
+            running.spawn(async move { blame_times(&core, &repo_id, &tip, &path, &token).await });
+        }
+        let Some(joined) = running.join_next().await else { break };
+        match joined {
+            Ok(Ok(times)) => {
+                aggregate::age_buckets(&times, reference_time, &mut age);
+                age.files += 1;
+            }
+            Ok(Err(e)) if e.code == ErrorCode::Cancelled => return Err(e),
+            Ok(Err(_)) | Err(_) => age.skipped += 1,
+        }
+        done += 1;
+        job.progress(PHASE_BLAME, Some(HISTORY_SHARE + percent(done, total, 100 - HISTORY_SHARE)), &format!("{done}/{total}"));
+    }
+    job.token().check()?;
+    job.progress(PHASE_BLAME, Some(100), &format!("{total}/{total}"));
+    Ok(age)
+}
+
+/// The files for the code age: largest first, without symlinks, empty files, files over
+/// `BLAME_MAX_BYTES` and binary files; at most `limit`, after at most `BLAME_PROBES` checks.
+async fn blame_sample(core: &Core, repo_id: &str, tree: &[TreeFile], limit: usize, token: &CancelToken) -> CoreResult<Vec<Vec<u8>>> {
+    let mut candidates: Vec<&TreeFile> = tree.iter().filter(|file| !file.symlink && file.size > 0 && file.size <= BLAME_MAX_BYTES).collect();
+    candidates.sort_by(|a, b| b.size.cmp(&a.size).then_with(|| a.path.cmp(&b.path)));
+    let mut sample = Vec::new();
+    for file in candidates.into_iter().take(BLAME_PROBES) {
+        if sample.len() >= limit {
+            break;
+        }
+        token.check()?;
+        if !crate::commands::history::blob_looks_binary(core, repo_id, &file.oid).await? {
+            sample.push(file.raw.clone());
+        }
+    }
+    Ok(sample)
+}
+
+/// Author time of every line of `path` at `tip`.
+async fn blame_times(core: &Core, repo_id: &str, tip: &str, path: &[u8], token: &CancelToken) -> CoreResult<Vec<i64>> {
+    let mut ages = BlameAges::default();
+    core.git_for(repo_id)?
+        .args(["blame", "--porcelain", "--no-textconv", tip, "--"])
+        .arg_bytes(path)
+        .read_only()
+        .no_log()
+        .run_records(b'\n', Some(token), &mut |line| {
+            ages.feed(line.strip_suffix(b"\r").unwrap_or(line));
+            true
+        })
+        .await?;
+    Ok(ages.lines)
 }
 
 /// `done` of `total` as a share of `span` percent.

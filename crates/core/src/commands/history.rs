@@ -554,7 +554,7 @@ pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<
 }
 
 /// Whether a blob is binary without reading it completely: Git is stopped as soon as the first NUL byte arrives.
-async fn blob_looks_binary(core: &Core, repo_id: &str, spec: &str) -> CoreResult<bool> {
+pub(crate) async fn blob_looks_binary(core: &Core, repo_id: &str, spec: &str) -> CoreResult<bool> {
     let mut nul_in_head = false;
     let out = core
         .git_for(repo_id)?
