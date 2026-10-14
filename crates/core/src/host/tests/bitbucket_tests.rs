@@ -2,6 +2,7 @@
 //! under `/2.0`, Basic authentication with account e-mail and token).
 
 use base64::Engine;
+use serde_json::json;
 
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
@@ -169,5 +170,66 @@ async fn checkout_works_for_branches_of_the_repository_but_not_from_forks() {
     assert_eq!(error.code, ErrorCode::HostUnsupported, "{error:?}");
     assert!(error.message.contains("forks"), "{}", error.message);
     assert_eq!(repo.git(&["for-each-ref"]), before);
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn pull_requests_are_created_changed_commented_merged_and_declined() {
+    let fx = Fixture::new(KIND).await;
+    let created = cmd::pr_create(&fx.tc, fx.id(), "Neue Anmeldung".into(), "Text".into(), "feature/neu".into(), "main".into(), true, None, None, None).await.unwrap();
+    assert_eq!((created.number, created.title.as_str(), created.is_draft), (101, "Neue Anmeldung", true));
+    assert_eq!(
+        fx.sent("POST", "/pullrequests")[0].json(),
+        json!({ "title": "Neue Anmeldung", "description": "Text", "source": { "branch": { "name": "feature/neu" } }, "destination": { "branch": { "name": "main" } }, "draft": true })
+    );
+    // What Bitbucket doesn't have is refused before anything goes out.
+    fx.server.clear();
+    for (reviewers, labels) in [(Some(vec!["mira".to_string()]), None), (None, Some(vec!["bug".to_string()]))] {
+        let error = cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "feature/neu".into(), "main".into(), false, reviewers, labels, None).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::HostUnsupported);
+    }
+    assert!(fx.server.requests().is_empty());
+    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NameExists);
+    assert!(error.message.contains("already an open pull request") && error.git_output.as_deref().is_some_and(|o| o.contains("Only one pull request")), "{error:?}");
+    check_error_modes(&fx, LABEL, "pr_create", || cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)).await;
+
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 3, Some("Neuer Titel".into()), Some("Neuer Text".into()), Some("develop".into()), Some(false), None, Some(Vec::new()), None).await.unwrap();
+    assert_eq!(
+        fx.sent("PUT", "/pullrequests/3")[0].json(),
+        json!({ "title": "Neuer Titel", "description": "Neuer Text", "destination": { "branch": { "name": "develop" } }, "draft": false }),
+        "an empty label list is no change"
+    );
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 4, None, None, None, None, None, None, None).await.unwrap();
+    assert!(fx.sent("PUT", "/pullrequests/4").is_empty(), "no write call without a change");
+    assert_eq!(cmd::pr_update(&fx.tc, fx.id(), 4, None, None, None, None, Some(vec!["mira".into()]), None, None).await.unwrap_err().code, ErrorCode::HostUnsupported);
+
+    let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
+    assert_eq!((comment.id.as_str(), comment.body.as_str()), ("99", "Passt so."));
+    assert_eq!(fx.sent("POST", "/pullrequests/1/comments")[0].json(), json!({ "content": { "raw": "Passt so." } }));
+
+    let merged = cmd::pr_merge(&fx.tc, fx.id(), 1, PrMergeMethod::Squash, true, None).await.unwrap();
+    assert_eq!(merged.state, PrState::Merged);
+    assert_eq!(fx.sent("POST", "/pullrequests/1/merge")[0].json(), json!({ "merge_strategy": "squash", "close_source_branch": true }));
+    cmd::pr_merge(&fx.tc, fx.id(), 2, PrMergeMethod::Merge, false, None).await.unwrap();
+    assert_eq!(fx.sent("POST", "/pullrequests/2/merge")[0].json(), json!({ "merge_strategy": "merge_commit", "close_source_branch": false }));
+    fx.server.clear();
+    assert_eq!(cmd::pr_merge(&fx.tc, fx.id(), 4, PrMergeMethod::Rebase, false, None).await.unwrap_err().code, ErrorCode::HostUnsupported);
+    assert!(fx.server.requests().is_empty());
+    let error = cmd::pr_merge(&fx.tc, fx.id(), 13, PrMergeMethod::Merge, false, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostRejected);
+    assert!(error.message.contains("merge conflicts"), "the nested Bitbucket message: {}", error.message);
+
+    assert_eq!(cmd::pr_close(&fx.tc, fx.id(), 6, None).await.unwrap().state, PrState::Closed);
+    assert_eq!(fx.sent("POST", "/pullrequests/6/decline").len(), 1);
+    fx.server.clear();
+    let error = cmd::pr_reopen(&fx.tc, fx.id(), 6, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported);
+    assert!(error.message.contains("cannot reopen"), "{}", error.message);
+    assert!(fx.server.requests().is_empty());
+    check_error_modes(&fx, LABEL, "pr_merge", || cmd::pr_merge(&fx.tc, fx.id(), 7, PrMergeMethod::Merge, false, None)).await;
+    check_error_modes(&fx, LABEL, "pr_comment", || cmd::pr_comment(&fx.tc, fx.id(), 7, "Text".into(), None)).await;
     fx.assert_token_stays_secret();
 }

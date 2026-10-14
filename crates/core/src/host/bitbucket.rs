@@ -7,16 +7,16 @@
 //! cannot reopen a declined pull request and offers no ref for pull requests from forks.
 
 use base64::Engine;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use super::{
-    first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, Paging,
-    RepoFacts, RepoPath, MAX_ITEMS,
+    already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host,
+    HostFuture, NewPr, Paging, PrChange, RepoFacts, RepoPath, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::http::{encode, with_query};
+use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
     PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
@@ -314,6 +314,107 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
 }
 
 // ---------------------------------------------------------------------------
+// Writing
+// ---------------------------------------------------------------------------
+
+/// Reviewers by name and labels: Bitbucket's API has neither in a form the app can fill.
+fn refuse_extras(reviewers: &[String], labels: &[String]) -> CoreResult<()> {
+    if !labels.is_empty() {
+        return Err(CoreError::new(ErrorCode::HostUnsupported, "Bitbucket has no labels for pull requests."));
+    }
+    if !reviewers.is_empty() {
+        return Err(CoreError::new(ErrorCode::HostUnsupported, "On Bitbucket, reviewers can only be added on the website."));
+    }
+    Ok(())
+}
+
+/// "There is already one" – Bitbucket words it as "only one … may be open".
+fn duplicate(error: &CoreError) -> bool {
+    already_exists(error) || (error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|d| d.to_ascii_lowercase().contains("only one pull request")))
+}
+
+/// `POST …/pullrequests`
+pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) -> CoreResult<PrSummary> {
+    refuse_extras(new.reviewers, new.labels)?;
+    let body = json!({
+        "title": new.title,
+        "description": new.body,
+        "source": { "branch": { "name": new.source_branch } },
+        "destination": { "branch": { "name": new.target_branch } },
+        "draft": new.draft,
+    });
+    let created: Value = api
+        .send_json(core, Method::Post, &format!("{}/pullrequests", repo_path(repo)), &body)
+        .await
+        .map_err(|e| {
+            if duplicate(&e) {
+                CoreError { code: ErrorCode::NameExists, message: format!("There is already an open pull request for the branch “{}”.", new.source_branch), git_output: e.git_output, retry_at: None }
+            } else {
+                not_found_as(e, missing_repo(repo))
+            }
+        })?
+        .json()?;
+    Ok(pr_summary(&created))
+}
+
+/// `PUT …/pullrequests/{id}` with only what changes.
+pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
+    refuse_extras(change.reviewers.unwrap_or(&[]), change.labels.unwrap_or(&[]))?;
+    let mut patch = serde_json::Map::new();
+    if let Some(title) = change.title {
+        patch.insert("title".into(), json!(title));
+    }
+    if let Some(body) = change.body {
+        patch.insert("description".into(), json!(body));
+    }
+    if let Some(target) = change.target_branch {
+        patch.insert("destination".into(), json!({ "branch": { "name": target } }));
+    }
+    if let Some(draft) = change.draft {
+        patch.insert("draft".into(), json!(draft));
+    }
+    if patch.is_empty() {
+        return pr_head(core, api, repo, number).await;
+    }
+    let value: Value = api.send_json(core, Method::Put, &pr_path(repo, number), &Value::Object(patch)).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?.json()?;
+    Ok(pr_summary(&value))
+}
+
+/// `POST …/pullrequests/{id}/comments`
+pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64, body: &str) -> CoreResult<HostComment> {
+    let value: Value = api
+        .send_json(core, Method::Post, &format!("{}/comments", pr_path(repo, number)), &json!({ "content": { "raw": body } }))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
+        .json()?;
+    Ok(comment(&value))
+}
+
+/// `POST …/pullrequests/{id}/merge` with a merge commit or squashed; Bitbucket closes the branch itself.
+pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> CoreResult<PrSummary> {
+    let strategy = match method {
+        PrMergeMethod::Merge => "merge_commit",
+        PrMergeMethod::Squash => "squash",
+        PrMergeMethod::Rebase => return Err(CoreError::new(ErrorCode::HostUnsupported, "Bitbucket merges with a merge commit or squashed here – choose “Merge” or “Squash”.")),
+    };
+    let value: Value = api
+        .send_json(core, Method::Post, &format!("{}/merge", pr_path(repo, number)), &json!({ "merge_strategy": strategy, "close_source_branch": delete_branch }))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
+        .json()?;
+    Ok(pr_summary(&value))
+}
+
+/// Closing = declining (`POST …/decline`). A declined pull request cannot be reopened on Bitbucket.
+pub async fn pr_set_open(core: &Core, api: &Api, repo: &RepoPath, number: u64, open: bool) -> CoreResult<PrSummary> {
+    if open {
+        return Err(CoreError::new(ErrorCode::HostUnsupported, "Bitbucket cannot reopen a declined pull request. Create a new one from the same branch."));
+    }
+    let value: Value = api.send_json(core, Method::Post, &format!("{}/decline", pr_path(repo, number)), &json!({})).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?.json()?;
+    Ok(pr_summary(&value))
+}
+
+// ---------------------------------------------------------------------------
 // Issues
 // ---------------------------------------------------------------------------
 
@@ -466,5 +567,20 @@ impl Host for BitbucketHost {
     }
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
         Box::pin(issue_get(core, api, repo, number))
+    }
+    fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_create(core, api, repo, new))
+    }
+    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_update(core, api, repo, number, change))
+    }
+    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+        Box::pin(comment_create(core, api, repo, number, body))
+    }
+    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
+    }
+    fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_set_open(core, api, repo, number, open))
     }
 }
