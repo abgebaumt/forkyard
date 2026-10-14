@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { CloudOff, GitCompareArrows, GitMerge, Pencil, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import type { CommitInfo, Id, Person, Sha, SignatureStatus } from "../../core";
 import { shortSha } from "../../app/format";
-import { useCommitDetails, useRefs, useRemotes, useSettings, useStatus } from "../../app/queries";
+import { useCommitDetails, useRefs, useRemotes, useSettings, useStatus, useTicketLinks } from "../../app/queries";
+import { LinkedText } from "../../components/LinkedText";
 import { useAppStore } from "../../app/store";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -179,6 +180,7 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
   const { data: settings } = useSettings();
   const { data: status } = useStatus(repoId);
   const { data: remotes } = useRemotes(repoId);
+  const links = useTicketLinks(repoId);
   const { laneOf } = useCommitBriefs(repoId, [commit.sha]);
   const editWrap = useRef<HTMLDivElement>(null);
   const store = useAppStore.getState;
@@ -267,11 +269,11 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
         ) : (
           <div className="flex flex-col gap-2">
             <h2 data-testid="commit-summary" className="selectable text-lg font-semibold wrap-anywhere whitespace-pre-wrap text-text">
-              {commit.summary || t("commitDetails.noMessage")}
+              {commit.summary ? <LinkedText text={commit.summary} rules={links} /> : t("commitDetails.noMessage")}
             </h2>
             {description ? (
               <p data-testid="commit-description" className="selectable text-base wrap-anywhere whitespace-pre-wrap text-text">
-                {description}
+                <LinkedText text={description} rules={links} />
               </p>
             ) : null}
             {canEdit ? (

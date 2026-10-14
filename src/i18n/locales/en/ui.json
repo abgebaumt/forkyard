@@ -62,5 +62,9 @@
     "all": "All tabs",
     "new": "New tab"
   },
-  "toolbarOptions": "{{label}}: options"
+  "toolbarOptions": "{{label}}: options",
+  "ticketLink": {
+    "open": "Open {{url}} in the browser",
+    "what": "ticket link"
+  }
 }

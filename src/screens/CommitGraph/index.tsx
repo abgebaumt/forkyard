@@ -30,7 +30,7 @@ import { confirm, showOutput } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
 import { shortSha } from "../../app/format";
 import { branchMenu, commitMenu, dropMenu, stashMenu, tagMenu, wipMenu } from "../../app/menus";
-import { qk, queryClient, useBisectStatus, useGraph, useRefs, useSettings, useStashes, useStatus, useViewState } from "../../app/queries";
+import { qk, queryClient, useBisectStatus, useGraph, useRefs, useSettings, useStashes, useStatus, useTicketLinks, useViewState } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { layoutColumns, normalizeColumns, type ColumnState } from "../../components/graph/columns";
@@ -436,9 +436,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
 
   const { data: bisectStatus } = useBisectStatus(repoId);
   const bisect = useMemo(() => bisectMarks(bisectStatus), [bisectStatus]);
+  const links = useTicketLinks(repoId);
   const shared = useMemo<RowShared>(
-    () => ({ repoId, tabId, dateFormat, upstreams, marks, pinned, detached, bisect }),
-    [repoId, tabId, dateFormat, upstreams, marks, pinned, detached, bisect],
+    () => ({ repoId, tabId, dateFormat, upstreams, marks, pinned, detached, bisect, links }),
+    [repoId, tabId, dateFormat, upstreams, marks, pinned, detached, bisect, links],
   );
 
   // --- Selection and focus ----------------------------------------------------------------------

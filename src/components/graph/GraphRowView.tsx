@@ -13,6 +13,8 @@ import { DetachedHeadChip, GhostLabel, HEAD_CHIP_WIDTH, RowRefs } from "./RowRef
 import { useRowDim, useRowGhost, type RowMarks } from "./rowMarks";
 import { locale, t } from "../../i18n";
 import type { BisectMark } from "../../screens/Bisect/model";
+import type { CompiledRule } from "../../app/ticketLinks";
+import { LinkedText } from "../LinkedText";
 
 /** What all rows need in common; the object stays the same as long as none of it changes. */
 export interface RowShared {
@@ -29,6 +31,8 @@ export interface RowShared {
   detached: boolean;
   /** Bisect marks per commit (good, bad, skipped); empty without a bisect. */
   bisect: ReadonlyMap<string, BisectMark>;
+  /** Ticket link rules of the repository, compiled; links in the message column. */
+  links: readonly CompiledRule[];
 }
 
 // ---------------------------------------------------------------------------
@@ -238,7 +242,7 @@ function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode 
     <>
       {before}
       <span className={cn("truncate", row.kind === "merge" && "text-text-muted", row.isHead && "font-medium")} title={row.summary}>
-        {row.summary}
+        {shared.links.length > 0 ? <LinkedText text={row.summary} rules={shared.links} focusable={false} /> : row.summary}
       </span>
       {after}
     </>

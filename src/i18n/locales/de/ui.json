@@ -62,5 +62,9 @@
     "all": "Alle Tabs",
     "new": "Neuer Tab"
   },
-  "toolbarOptions": "{{label}}: Optionen"
+  "toolbarOptions": "{{label}}: Optionen",
+  "ticketLink": {
+    "open": "{{url}} im Browser öffnen",
+    "what": "Ticket-Verknüpfung"
+  }
 }
