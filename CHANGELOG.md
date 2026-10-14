@@ -67,10 +67,20 @@ All notable changes to Forkyard are listed here. The format follows
   knowledge per folder with bus factor, code age from `git blame` on the largest text files,
   and records. It runs as a cancellable background job for a period and branch; results are
   cached per commit and period (numbers only, never commit contents).
+- Hosts: Gitea and Forgejo (including Codeberg and self-hosted instances), Bitbucket Cloud and Azure
+  DevOps join GitHub and GitLab – pull requests (list, read, create, change, comment, merge, close,
+  check out) and issues; on Azure DevOps these are work items, which can also be created from the app.
+  Remotes are recognised in their HTTPS and SSH forms (including `ssh.dev.azure.com`,
+  `vs-ssh.visualstudio.com` and `altssh.bitbucket.org`). Tokens stay in the system keychain;
+  Bitbucket signs in with the account e-mail and an API token.
 
 ### Changed
 
 - Redaction also removes bare GitHub (`ghp_…`, `github_pat_…`) and GitLab (`glpat-…`) tokens.
+- The app only offers what a host can do: merge methods, drafts, reviewers, labels, reopening, checking
+  out pull requests from forks and the issue tracker follow the host (and the repository's settings).
+- Settings › "GitHub and GitLab" is now Settings › Hosts.
+- Redaction also removes Atlassian API tokens and Bitbucket app passwords (`ATATT…`, `ATBB…`).
 
 ## [1.0.0] – 2026-10-13
 
