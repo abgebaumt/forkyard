@@ -402,3 +402,52 @@ async fn a_running_program_can_be_cancelled() {
     assert!(started.elapsed() < Duration::from_secs(25));
     assert!(tc.events.named(names::JOB_DONE).iter().any(|e| e["jobId"] == "job-warten" && e["cancelled"] == true));
 }
+
+#[tokio::test]
+async fn git_commands_run_in_the_queue_and_values_never_become_options() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let head = repo.head();
+    let mut tag = def("markieren", CustomCommandKind::Git, "tag ${input:name} ${sha}");
+    tag.inputs = vec![text_input("name")];
+    let mut log = def("liste", CustomCommandKind::Git, "log ${input:format} -1");
+    log.inputs = vec![CustomCommandInput { id: "format".into(), label: "Format".into(), input_type: CustomInputType::Choice, default: None, options: vec!["--oneline".into(), "--stat".into()] }];
+    custom_commands_save(&tc, vec![tag, log]).await.unwrap();
+    tc.events.clear();
+
+    assert_eq!(run(&tc, &id, "global:markieren", Default::default(), &[("name", "v-eins")]).await.unwrap(), CustomCommandResult::Finished { exit_code: Some(0), output: String::new() });
+    assert_eq!(repo.git(&["tag", "--list"]), "v-eins");
+    assert_eq!(repo.git(&["rev-parse", "v-eins"]), head);
+    assert!(tc.events.named(names::REPO_CHANGED).iter().any(|e| e["repoId"] == id.as_str()));
+    let page = crate::commands::activity::activity_list(&tc, ActivityScope::Repo, Some(id.clone()), None, 50).await.unwrap();
+    assert!(page.entries.iter().any(|e| e.command == format!("git tag v-eins {head}")), "{:?}", page.entries.iter().map(|e| &e.command).collect::<Vec<_>>());
+
+    // A value from a text field never becomes an option: nothing is deleted.
+    let error = run(&tc, &id, "global:markieren", Default::default(), &[("name", "--delete")]).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotAllowed);
+    assert_eq!(repo.git(&["tag", "--list"]), "v-eins");
+    // A choice from the definition may be an option – but only one of its own.
+    let (exit_code, output) = finished(run(&tc, &id, "global:liste", Default::default(), &[("format", "--oneline")]).await.unwrap());
+    assert_eq!(exit_code, Some(0));
+    assert!(output.contains("Erster Commit"), "{output}");
+    assert_eq!(run(&tc, &id, "global:liste", Default::default(), &[("format", "--exec=x")]).await.unwrap_err().code, ErrorCode::NotAllowed);
+    // A failing Git command is a result with its exit code.
+    let (exit_code, output) = finished(run(&tc, &id, "global:markieren", Default::default(), &[("name", "v-eins")]).await.unwrap());
+    assert_ne!(exit_code, Some(0));
+    assert!(output.contains("already exists"), "{output}");
+
+    // The command waits for the repository's write queue.
+    let guard = tc.write_lock(&id).await;
+    let (core, repo_id) = (tc.core.clone(), id.clone());
+    let task = tokio::spawn(async move {
+        let inputs: BTreeMap<String, String> = [("name".to_string(), "v-zwei".to_string())].into();
+        custom_command_run(&core, repo_id, "global:markieren".into(), Default::default(), inputs, util::new_id(), true).await
+    });
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(!task.is_finished(), "waits while another write runs");
+    assert_eq!(repo.git(&["tag", "--list"]), "v-eins");
+    drop(guard);
+    task.await.unwrap().unwrap();
+    assert_eq!(repo.git(&["tag", "--list"]), "v-eins\nv-zwei");
+}

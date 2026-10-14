@@ -355,6 +355,39 @@ async fn working_dir(core: &Core, root: &Path, cwd: CustomCommandCwd) -> PathBuf
     }
 }
 
+/// Git subcommands that talk to a remote: they wait for the network lock and may ask for credentials.
+const NETWORK_SUBCOMMANDS: [&str; 6] = ["fetch", "pull", "push", "ls-remote", "submodule", "lfs"];
+
+/// A `git` command: through the Git runner (logged, redacted), under the repository's write lock
+/// – network commands first under its network lock – as a cancellable job.
+async fn run_git(core: &Core, repo_id: &str, job_id: &str, args: Vec<String>) -> CoreResult<CustomCommandResult> {
+    let job = core.start_job(job_id, Some(repo_id))?;
+    let network = args.first().is_some_and(|sub| NETWORK_SUBCOMMANDS.contains(&sub.as_str()));
+    let result = async {
+        let _network_lock = if network { Some(core.network_lock(repo_id).await) } else { None };
+        core.with_write_lock(repo_id, &process::ALL_CHANGES, async {
+            let mut cmd = core.git_for(repo_id)?.args(&args).check(false);
+            if network {
+                cmd = cmd.network();
+            }
+            let out = cmd.run_stream(job.token(), &mut |line| job.progress_line(line)).await?;
+            let mut output = redact::redact_bytes(&out.stdout);
+            let errors = redact::redact_bytes(&out.stderr);
+            if !errors.trim().is_empty() {
+                if !output.is_empty() && !output.ends_with('\n') {
+                    output.push('\n');
+                }
+                output.push_str(&errors);
+            }
+            Ok(CustomCommandResult::Finished { exit_code: out.code, output: util::truncate_str(output.trim_end(), process::MAX_OUTPUT) })
+        })
+        .await
+    }
+    .await;
+    job.finish(&result);
+    result
+}
+
 /// Runs a custom command. `id` is the key from the list (`global:<id>`, `repo:<id>`), `inputs`
 /// the form's values by input ID. With `confirm: true` and `confirmed: false` nothing runs: the
 /// result is `confirm` with the finished command line. `shell` and `git` run as job `job_id`
@@ -394,7 +427,7 @@ pub async fn custom_command_run(
             if def.confirm && !confirmed {
                 return Ok(ask(process::display_line("git", &args)));
             }
-            Err(CoreError::not_built("custom commands of kind “git”"))
+            run_git(core, &repo_id, &job_id, args).await
         }
     }
 }
