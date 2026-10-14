@@ -340,19 +340,38 @@ impl<'a> Probe<'a> {
     }
 
     /// Branches a rebase moved along must still be where it left them (undo) or where they were
-    /// before (redo); an unknown end (not settled yet) is not compared.
+    /// before (redo); an unknown end (not settled yet) is not compared. One that would move must not
+    /// be checked out in any worktree now: `update-ref` would shift it under that worktree's index
+    /// and files.
     async fn updated_refs_fit(&mut self, entry: &UndoEntry, dir: Direction) -> CoreResult<bool> {
         for step in updated_refs(&entry.payload) {
-            let expected = match dir {
-                Direction::Undo => step.after.as_deref(),
-                Direction::Redo => step.before.as_deref(),
+            let (expected, target) = match dir {
+                Direction::Undo => (step.after.as_deref(), step.before.as_deref()),
+                Direction::Redo => (step.before.as_deref(), step.after.as_deref()),
             };
             let Some(expected) = expected else { continue };
             if !same_sha(self.ref_sha(&step.name).await?.as_deref(), Some(expected)) {
                 return Ok(false);
             }
+            let moves = target.is_some_and(|target| !same_sha(Some(expected), Some(target)));
+            if moves && self.checked_out_in_worktree(&step.name).await? {
+                return Ok(false);
+            }
         }
         Ok(true)
+    }
+
+    /// Whether the branch `name` (`refs/heads/…`) is checked out in this or another worktree.
+    async fn checked_out_in_worktree(&self, name: &str) -> CoreResult<bool> {
+        let out = self
+            .core
+            .git_for(self.repo_id)?
+            .args(["for-each-ref", "--format=%(worktreepath)", name])
+            .read_only()
+            .no_log()
+            .run()
+            .await?;
+        Ok(out.stdout_lines().into_iter().any(|line| !line.is_empty()))
     }
 
     /// If the most recently recorded action is a commit (or amend, squash …) that is now on a

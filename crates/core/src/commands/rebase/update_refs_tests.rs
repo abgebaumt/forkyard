@@ -89,6 +89,33 @@ async fn rebase_with_update_refs_moves_dependent_branches_and_undo_resets_all() 
     assert_eq!(sha_of(&repo, "part"), old_part);
 }
 
+/// A dependent branch checked out in another worktree since the rebase: `update-ref` would move it
+/// under that worktree's index and files, so neither undo nor redo offers the entry.
+#[tokio::test]
+async fn undo_skips_the_rebase_when_a_dependent_branch_is_checked_out_in_another_worktree() {
+    let (tc, repo, id) = setup().await;
+    let (_, old_tip) = stacked(&repo);
+    rebase_start_with(&tc, id.clone(), "main".into(), None, Some(true)).await.unwrap();
+    let new_tip = repo.head();
+    let new_part = sha_of(&repo, "part");
+    let worktree = repo.temp_dir().join("anderer ort");
+    repo.git(&["worktree", "add", "-q", worktree.to_str().unwrap(), "part"]);
+
+    assert!(crate::commands::undo::undo_peek(&tc, id.clone()).await.unwrap().undo.is_none(), "not offered");
+    let _ = crate::commands::undo::undo(&tc, id.clone()).await;
+    assert_eq!(sha_of(&repo, "part"), new_part, "the checked-out branch stays");
+    assert_eq!(repo.head(), new_tip, "the rebase stays as well");
+    let status = repo.git(&["-C", worktree.to_str().unwrap(), "status", "--porcelain"]);
+    assert_eq!(status, "", "the other worktree is untouched");
+
+    // Out of the other worktree again: undo goes through, redo is blocked the same way.
+    repo.git(&["worktree", "remove", worktree.to_str().unwrap()]);
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+    assert_eq!(repo.head(), old_tip);
+    repo.git(&["worktree", "add", "-q", worktree.to_str().unwrap(), "part"]);
+    assert!(crate::commands::undo::undo_peek(&tc, id.clone()).await.unwrap().redo.is_none(), "redo not offered");
+}
+
 #[tokio::test]
 async fn interactive_rebase_with_update_refs_keeps_dependents_on_their_commits() {
     let (tc, repo, id) = setup().await;
