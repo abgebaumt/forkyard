@@ -1620,6 +1620,49 @@ pub struct LfsStatus {
     pub patterns: Vec<String>,
 }
 
+/// A lock on a file at the LFS server (`git lfs locks --verify`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsLock {
+    /// The server's ID of the lock.
+    pub id: String,
+    /// Relative to the repository root, with `/`.
+    pub path: String,
+    /// Name of the owner as the server reports it; empty if it reports none.
+    pub owner: String,
+    /// When the lock was set, as the server reports it (usually ISO 8601); `None` if unknown.
+    pub locked_at: Option<IsoTime>,
+    /// Held by the signed-in user – the server decides that (`--verify`).
+    pub ours: bool,
+}
+
+/// Result of `lfs_locks`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsLockList {
+    /// Sorted by path.
+    pub locks: Vec<LfsLock>,
+    /// When the list was read from the server (UTC).
+    pub fetched_at: IsoTime,
+}
+
+/// A path that `lfs_lock` / `lfs_unlock` could not lock or unlock.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsLockFailure {
+    pub path: String,
+    /// Git LFS's reason (English, without credentials), e.g. "already created lock".
+    pub reason: String,
+}
+
+/// Result of `lfs_lock` / `lfs_unlock`: the fresh list from the server plus what failed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsLockOutcome {
+    pub locks: LfsLockList,
+    pub failed: Vec<LfsLockFailure>,
+}
+
 /// Result of `patch_create`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1802,6 +1845,8 @@ pub enum RepoChange {
     Stash,
     Config,
     Operation,
+    /// LFS file locks (`lfs_locks`): after locking/unlocking and after a fetch.
+    Locks,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -2052,6 +2097,32 @@ mod tests {
             serde_json::to_value(PushResult::Rejected { reason: "x".into() }).unwrap(),
             json!({"status":"rejected","reason":"x"})
         );
+    }
+
+    #[test]
+    fn lfs_lock_json() {
+        let list = LfsLockList {
+            locks: vec![LfsLock {
+                id: "1".into(),
+                path: "bilder/karte.psd".into(),
+                owner: "Lena Berg".into(),
+                locked_at: Some("2026-01-02T03:04:05Z".into()),
+                ours: false,
+            }],
+            fetched_at: "2026-01-02T03:05:00.000Z".into(),
+        };
+        let outcome = LfsLockOutcome { locks: list, failed: vec![LfsLockFailure { path: "plan.psd".into(), reason: "already created lock".into() }] };
+        assert_eq!(
+            serde_json::to_value(&outcome).unwrap(),
+            json!({
+                "locks": {
+                    "locks": [{"id":"1","path":"bilder/karte.psd","owner":"Lena Berg","lockedAt":"2026-01-02T03:04:05Z","ours":false}],
+                    "fetchedAt": "2026-01-02T03:05:00.000Z"
+                },
+                "failed": [{"path":"plan.psd","reason":"already created lock"}]
+            })
+        );
+        assert_eq!(serde_json::to_value(RepoChange::Locks).unwrap(), "locks");
     }
 
     #[test]

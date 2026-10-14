@@ -14,6 +14,8 @@ use crate::jobs::Job;
 use crate::model::{LfsStatus, RepoChange};
 use crate::util;
 
+mod locks;
+
 /// For tests: pretend Git LFS is not installed (`core.state::<LfsState>()`).
 #[derive(Default)]
 pub struct LfsState {

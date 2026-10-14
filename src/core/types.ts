@@ -1180,6 +1180,39 @@ export interface LfsStatus {
   patterns: string[];
 }
 
+/** A lock on a file at the LFS server (`lfsLocks`). */
+export interface LfsLock {
+  /** The server's ID of the lock. */
+  id: string;
+  /** Relative to the repository root, with "/". */
+  path: string;
+  /** Owner as the server names it; empty if it names none. */
+  owner: string;
+  /** When the lock was set, as the server reports it; null if unknown. */
+  lockedAt: IsoTime | null;
+  /** Held by the signed-in user – the server decides that. */
+  ours: boolean;
+}
+
+export interface LfsLockList {
+  /** Sorted by path. */
+  locks: LfsLock[];
+  /** When the list was read from the server. */
+  fetchedAt: IsoTime;
+}
+
+/** A path that could not be locked or unlocked, with Git LFS's reason (English). */
+export interface LfsLockFailure {
+  path: string;
+  reason: string;
+}
+
+/** Result of `lfsLock` / `lfsUnlock`: the fresh list plus what failed. */
+export interface LfsLockOutcome {
+  locks: LfsLockList;
+  failed: LfsLockFailure[];
+}
+
 export interface PatchText {
   /** The patch; empty if there is nothing to show. */
   text: string;
@@ -1288,7 +1321,8 @@ export interface GitflowFinishOptions {
 // Events from the core
 // ---------------------------------------------------------------------------
 
-export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation";
+/** `locks`: LFS file locks (`lfsLocks`) – after locking/unlocking and after a fetch. */
+export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks";
 /** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `workspaces`: `workspaceList`. */
 export type AppChange = "tabs" | "repos" | "settings" | "profiles" | "credentials" | "ssh_keys" | "workspaces" | "host_accounts";
 
