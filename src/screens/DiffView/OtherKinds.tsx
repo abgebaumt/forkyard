@@ -1,9 +1,9 @@
 /**
- * Everything that is not a text diff: images, binary files, LFS pointers, files that are too large –
+ * Everything that is not a text or image diff: binary files, LFS pointers, files that are too large –
  * plus the calm hints for text diffs without hunks, the loading skeleton and the error state.
  */
-import { ArrowRight, Binary, FileQuestion, HardDrive, ImageOff, RefreshCw, Scale, TriangleAlert } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { ArrowRight, Binary, FileQuestion, HardDrive, RefreshCw, Scale, TriangleAlert } from "lucide-react";
+import { type ReactNode } from "react";
 import type { CoreError, FileDiff, FileStatus } from "../../core";
 import { describeError } from "../../app/errors";
 import { formatBytes } from "../../app/format";
@@ -12,7 +12,6 @@ import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
 import { Trans } from "react-i18next";
 
-type ImageDiff = Extract<FileDiff, { kind: "image" }>;
 type BinaryDiff = Extract<FileDiff, { kind: "binary" }>;
 type LfsDiff = Extract<FileDiff, { kind: "lfs" }>;
 type TooLargeDiff = Extract<FileDiff, { kind: "too_large" }>;
@@ -27,56 +26,6 @@ export function Notice({ icon, title, children, action, tone = "muted", id }: { 
       <p className="max-w-full text-md font-medium text-text">{title}</p>
       {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
       {action ? <div className="mt-2 flex flex-wrap justify-center gap-2">{action}</div> : null}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Bild
-// ---------------------------------------------------------------------------
-
-function ImagePane({ title, url, bytes, tone, alt }: { title: string; url: string | null; bytes: number | null; tone: "old" | "new"; alt: string }) {
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [failed, setFailed] = useState(false);
-  return (
-    <figure data-image-pane={tone} className="m-0 flex min-h-0 min-w-0 flex-1 flex-col">
-      <figcaption className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface px-3 text-sm">
-        <span className={cn("font-medium", tone === "old" ? "text-danger" : "text-success")}>{title}</span>
-        {url ? (
-          <span className="min-w-0 truncate text-text-muted tabular-nums">
-            {dimensions ? `${dimensions.width} × ${dimensions.height} px · ` : ""}
-            {size(bytes)}
-          </span>
-        ) : null}
-      </figcaption>
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-surface-sunken p-4">
-        {url && !failed ? (
-          <img
-            src={url}
-            alt={alt}
-            draggable={false}
-            // Small images (icons) are shown enlarged, with crisp pixel edges instead of blurred.
-            className={cn("gc-checker max-h-full max-w-full border border-border object-contain", dimensions && dimensions.width < 192 && dimensions.height < 192 && "gc-pixelated min-w-48")}
-            onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-center text-sm text-text-muted">
-            <ImageOff className="size-6" aria-hidden />
-            <span>{failed ? t("diff.image.failed") : tone === "old" ? t("diff.image.noOld") : t("diff.image.deleted")}</span>
-          </div>
-        )}
-      </div>
-    </figure>
-  );
-}
-
-export function ImageDiffView({ diff }: { diff: ImageDiff }) {
-  const name = diff.path.slice(diff.path.lastIndexOf("/") + 1);
-  return (
-    <div data-diff-kind="image" className="flex h-full min-h-0 divide-x divide-border">
-      <ImagePane title={t("diff.before")} tone="old" url={diff.oldDataUrl} bytes={diff.oldSize} alt={t("diff.image.oldAlt", { name })} />
-      <ImagePane title={t("diff.after")} tone="new" url={diff.newDataUrl} bytes={diff.newSize} alt={t("diff.image.newAlt", { name })} />
     </div>
   );
 }

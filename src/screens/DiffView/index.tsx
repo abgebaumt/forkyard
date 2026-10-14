@@ -27,7 +27,8 @@ import { DiffHeader } from "./DiffHeader";
 import "./diff.css";
 import { LineView, type LineViewHandle, type PatchTarget } from "./LineView";
 import { WordDiffCache, buildFileRows, buildHunkRows, hunkToPatch, patchModeOf, selectionToPatch, sourceKey } from "./model";
-import { BinaryDiffView, DiffError, DiffSkeleton, ImageDiffView, LfsDiffView, Notice, TooLargeView } from "./OtherKinds";
+import { BinaryDiffView, DiffError, DiffSkeleton, LfsDiffView, Notice, TooLargeView } from "./OtherKinds";
+import { ImageDiffView } from "./ImageDiff";
 import type { SplitViewHandle } from "./SplitView";
 import { t } from "../../i18n";
 

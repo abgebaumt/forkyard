@@ -162,7 +162,19 @@
       "onion": "Überblenden",
       "difference": "Differenz"
     },
-    "onlyOneSide": "Es gibt nur eine Fassung – nichts zum Übereinanderlegen."
+    "onlyOneSide": "Es gibt nur eine Fassung – nichts zum Übereinanderlegen.",
+    "modeLabel": "Bildvergleich",
+    "swipePosition": "Position des Trenners",
+    "opacity": "Deckkraft der neuen Fassung",
+    "sizeDiffers": "Unterschiedliche Größen ({{before}} → {{after}}); beide sind oben links ausgerichtet.",
+    "dimensions": "{{width}} × {{height}} px",
+    "computing": "Vergleiche Pixel …",
+    "changed_one": "{{count}} Pixel geändert ({{percent}})",
+    "changed_other": "{{count}} Pixel geändert ({{percent}})",
+    "identical": "Kein Pixel unterscheidet sich.",
+    "tooLarge": "Die Bilder sind für einen Pixelvergleich zu groß (mehr als {{limit}} Pixel).",
+    "unavailable": "Dieses Bild lässt sich nicht pixelweise vergleichen.",
+    "differenceAlt": "{{name}}, geänderte Pixel hervorgehoben"
   },
   "status": {
     "modified": "Der Inhalt hat sich geändert.",
