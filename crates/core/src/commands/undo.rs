@@ -1143,6 +1143,9 @@ impl Run<'_> {
     /// Stash: undo brings the changes back and removes the stash, redo stashes again.
     async fn stash(&mut self) -> CoreResult<()> {
         let Some(sha) = self.text("stashSha") else { return Err(self.lost()) };
+        if self.payload.get("partial").and_then(Value::as_bool) == Some(true) {
+            return self.partial_stash(&sha).await;
+        }
         match self.dir {
             Direction::Undo => {
                 let rows = stash::read_rows(self.core, self.repo_id).await?;
@@ -1165,6 +1168,29 @@ impl Run<'_> {
                 // The new stash has a different SHA; the next undo must find it.
                 self.payload.insert("stashSha".into(), json!(new_sha));
                 self.save_payload()
+            }
+        }
+    }
+
+    /// Partial stash (selected lines): undo swaps the selected files and the index back to the
+    /// backup and drops the stash; redo swaps forward again and puts the same stash commit back on
+    /// the list (it stays reachable through the backup ref `stash`).
+    async fn partial_stash(&mut self, sha: &str) -> CoreResult<()> {
+        let paths = self.paths();
+        match self.dir {
+            Direction::Undo => {
+                let rows = stash::read_rows(self.core, self.repo_id).await?;
+                let Some(index) = rows.iter().position(|row| row.sha == sha) else { return Err(self.stale()) };
+                self.swap_checked(paths.as_deref()).await?;
+                stash::drop_stash(self.core, self.repo_id, index).await
+            }
+            Direction::Redo => {
+                if !self.commit_exists(sha).await? {
+                    return Err(self.lost());
+                }
+                self.swap_checked(paths.as_deref()).await?;
+                let subject = self.text("stashSubject").unwrap_or_else(|| "Stash".to_string());
+                stash::store_stash(self.core, self.repo_id, sha, &subject).await
             }
         }
     }

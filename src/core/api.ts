@@ -87,6 +87,7 @@ import type {
   SigningStatus,
   SshKey,
   Stash,
+  StashSelection,
   Status,
   Submodule,
   Tab,
@@ -382,12 +383,16 @@ export interface CoreCommands {
 
   // --- Stash, tags, undo, history ------------------------------------------------
   stashList(input: R): Promise<Stash[]>;
-  /** `paths: null` = everything. */
   /**
+   * `paths: null` = everything.
    * `undoable: false`: without an undo entry – for "stash and undo", so that the following
    * undo hits the intended action and not the stash just created.
+   * `selection`: only these hunks and lines go into the stash (index and working directory keep the
+   * rest); `paths` must then be null, `includeUntracked` does not apply. Errors: `stale_state` (HEAD
+   * or a diff changed), `not_allowed` (selected unstaged lines build on unselected staged ones),
+   * `nothing_to_commit`. Undo step `stash`.
    */
-  stashCreate(input: R & { opId: string; message: string | null; paths: string[] | null; includeUntracked: boolean; undoable?: boolean | null }): Promise<Stash[]>;
+  stashCreate(input: R & { opId: string; message: string | null; paths: string[] | null; includeUntracked: boolean; undoable?: boolean | null; selection?: StashSelection | null }): Promise<Stash[]>;
   stashApply(input: R & { index: number }): Promise<OpResult>;
   stashPop(input: R & { index: number }): Promise<OpResult>;
   /**

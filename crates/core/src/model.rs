@@ -719,6 +719,17 @@ pub struct PatchSelection {
     pub expect: String,
 }
 
+/// Selected hunks and lines for a partial stash (`stash_create` with `selection`). Each entry is a
+/// selection like `stage_patch` takes it, from the staged or the unstaged diff of one file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StashSelection {
+    /// HEAD the UI made the selection on; anything else is `stale_state`.
+    pub expect_head: Sha,
+    pub staged: Vec<PatchSelection>,
+    pub unstaged: Vec<PatchSelection>,
+}
+
 // ---------------------------------------------------------------------------
 // Results of write actions
 // ---------------------------------------------------------------------------
@@ -2037,6 +2048,19 @@ mod tests {
             json!({"status":"conflicts","files":["a.txt"],"atCommit":"c"})
         );
         assert_eq!(serde_json::to_value(ConflictPreview::Unknown { reason: "x".into() }).unwrap(), json!({"status":"unknown","reason":"x"}));
+    }
+
+    #[test]
+    fn stash_selection_json() {
+        let selection: StashSelection = serde_json::from_value(json!({
+            "expectHead": "abc",
+            "staged": [],
+            "unstaged": [{"path": "a.txt", "hunks": [{"index": 0, "lines": [1, 2]}], "expect": "t"}]
+        }))
+        .unwrap();
+        assert_eq!(selection.expect_head, "abc");
+        assert!(selection.staged.is_empty());
+        assert_eq!(selection.unstaged[0].hunks[0].lines, Some(vec![1, 2]));
     }
 
     #[test]

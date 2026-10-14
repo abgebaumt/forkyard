@@ -500,8 +500,17 @@ pub async fn stash_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Stash>>
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn stash_create(core: State<'_, Core>, repo_id: String, op_id: String, message: Option<String>, paths: Option<Vec<String>>, include_untracked: bool, undoable: Option<bool>) -> R<Vec<Stash>> {
-    c::stash::stash_create(&core, repo_id, op_id, message, paths, include_untracked, undoable).await
+pub async fn stash_create(
+    core: State<'_, Core>,
+    repo_id: String,
+    op_id: String,
+    message: Option<String>,
+    paths: Option<Vec<String>>,
+    include_untracked: bool,
+    undoable: Option<bool>,
+    selection: Option<StashSelection>,
+) -> R<Vec<Stash>> {
+    c::stash::stash_create_with(&core, repo_id, op_id, message, paths, include_untracked, undoable, selection).await
 }
 
 #[tauri::command]

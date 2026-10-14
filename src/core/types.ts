@@ -638,6 +638,16 @@ export interface PatchSelection {
   expect: string;
 }
 
+/** Selected lines for `stashCreate` (partial stash). Each entry as `stagePatch` takes it. */
+export interface StashSelection {
+  /** HEAD the selection was made on; otherwise `stale_state`. */
+  expectHead: Sha;
+  /** From the staged diff of a file. */
+  staged: PatchSelection[];
+  /** From the unstaged diff of a file. */
+  unstaged: PatchSelection[];
+}
+
 // ---------------------------------------------------------------------------
 // Results of write actions
 // ---------------------------------------------------------------------------

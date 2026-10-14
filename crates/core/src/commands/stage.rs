@@ -274,7 +274,7 @@ fn unified_endings(bytes: &[u8]) -> Vec<u8> {
 /// `Some` only if Git has rewritten the line endings of untouched lines (without conversion
 /// it writes the restored lines exactly as they are in the index – then its version
 /// applies) and the result matches what Git wrote exactly except for line endings.
-fn keep_line_endings(before: &[u8], after: &[u8], hunks: &[patch::PatchHunk]) -> Option<Vec<u8>> {
+pub(crate) fn keep_line_endings(before: &[u8], after: &[u8], hunks: &[patch::PatchHunk]) -> Option<Vec<u8>> {
     if hunks.is_empty() || !before.contains(&b'\n') {
         return None;
     }

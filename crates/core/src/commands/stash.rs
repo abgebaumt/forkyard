@@ -12,9 +12,11 @@ use crate::app::Core;
 use crate::commands::refs;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitOutput};
-use crate::model::{Head, OpResult, RepoChange, Stash, Status};
+use crate::model::{Head, OpResult, RepoChange, Stash, StashSelection, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
+
+mod partial;
 
 /// SHA, parents, commit time, reflog text – four NUL-separated fields per stash.
 const LIST_FORMAT: &str = "--format=%H%x00%P%x00%ct%x00%gs";
@@ -466,7 +468,7 @@ pub(crate) async fn drop_stash(core: &Core, repo_id: &str, index: usize) -> Core
     Ok(())
 }
 
-async fn store_stash(core: &Core, repo_id: &str, sha: &str, subject: &str) -> CoreResult<()> {
+pub(crate) async fn store_stash(core: &Core, repo_id: &str, sha: &str, subject: &str) -> CoreResult<()> {
     let subject = one_line(subject);
     core.git_for(repo_id)?.args(["stash", "store", "-q"]).arg(format!("--message={subject}")).arg(sha).run().await?;
     Ok(())
@@ -606,6 +608,38 @@ pub async fn stash_create(
                 },
             )
             .await?;
+            read_stashes(core, &repo_id).await
+        })
+        .await
+    })
+    .await
+}
+
+/// `stash_create` with an optional `selection`: then only these hunks and lines are stashed
+/// (`partial::stash_selection`); `paths` and `include_untracked` don't apply and `paths` together
+/// with a selection is `not_allowed`. Idempotent via `op_id` like `stash_create`.
+#[allow(clippy::too_many_arguments)]
+pub async fn stash_create_with(
+    core: &Core,
+    repo_id: String,
+    op_id: String,
+    message: Option<String>,
+    paths: Option<Vec<String>>,
+    include_untracked: bool,
+    undoable: Option<bool>,
+    selection: Option<StashSelection>,
+) -> CoreResult<Vec<Stash>> {
+    let Some(selection) = selection else {
+        return stash_create(core, repo_id, op_id, message, paths, include_untracked, undoable).await;
+    };
+    if paths.is_some() {
+        return Err(CoreError::not_allowed("A stash takes either whole files or selected lines, not both."));
+    }
+    core.repo_path(&repo_id)?;
+    let message = message.map(|m| one_line(&m)).filter(|m| !m.is_empty());
+    core.idempotent(&op_id, async {
+        core.with_write_lock(&repo_id, &[RepoChange::Stash, RepoChange::Worktree, RepoChange::Index], async {
+            partial::stash_selection(core, &repo_id, message.as_deref(), &selection, undoable != Some(false)).await?;
             read_stashes(core, &repo_id).await
         })
         .await
@@ -861,6 +895,9 @@ pub async fn stash_rename(core: &Core, repo_id: String, index: u32, message: Str
     })
     .await
 }
+
+#[cfg(test)]
+mod partial_tests;
 
 #[cfg(test)]
 mod tests {
