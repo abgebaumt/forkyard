@@ -119,6 +119,7 @@
     "mergeButton": "Mergen …",
     "closeButton": "Schließen …",
     "reopen": "Wieder öffnen",
+    "forkCheckoutUnsupported": "{{host}} bietet für Pull Requests aus Forks keinen Branch an – füge den Fork als Remote hinzu und checke seinen Branch aus.",
     "mergeBlocked": "Mergen ist gesperrt:",
     "stale": "{{title}} – die Ansicht zeigt den zuletzt geladenen Stand",
     "tabs": "Bereiche des Pull Requests",

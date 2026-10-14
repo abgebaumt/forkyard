@@ -14,9 +14,6 @@ export type HostKind = "github" | "gitlab";
 
 export const hostKindLabels: Record<HostKind, string> = { github: "GitHub", gitlab: "GitLab" };
 
-/** GitLab has no "rebase" when merging via the API. */
-export const mergeMethods: Record<HostKind, MergeMethod[]> = { github: ["merge", "squash", "rebase"], gitlab: ["merge", "squash"] };
-
 /** What the host calls the thing – GitLab speaks of merge requests. The app uniformly says pull request. */
 export const hostPrWord: Record<HostKind, string> = { github: t("actions.hosts.prWord.github"), gitlab: t("actions.hosts.prWord.gitlab") };
 
@@ -52,6 +49,8 @@ export interface HostRepo {
   defaultBranch: string | null;
   canPush: boolean;
   forkParent: { owner: string; name: string; defaultBranch: string | null } | null;
+  /** What the host offers for this repository. */
+  capabilities: HostCapabilities;
   /** The account is there, but the host did not answer or refused (token, quota, network). */
   error: CoreError | null;
 }
@@ -61,6 +60,38 @@ export type PrListState = PrState | "all";
 export type CheckState = "passing" | "failing" | "pending";
 export type CheckRunState = CheckState | "skipped";
 export type MergeMethod = "merge" | "squash" | "rebase";
+
+/** What the host offers – the core reports it per repository; these are the fallbacks per host kind. */
+export interface HostCapabilities {
+  issues: boolean;
+  issueCreate: boolean;
+  draftPrs: boolean;
+  draftToggle: boolean;
+  mergeMethods: MergeMethod[];
+  deleteSourceBranch: boolean;
+  prReopen: boolean;
+  prReviewers: boolean;
+  prLabels: boolean;
+  forkCheckout: boolean;
+}
+
+const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
+  issues: true,
+  issueCreate: false,
+  draftPrs: true,
+  draftToggle: true,
+  deleteSourceBranch: true,
+  prReopen: true,
+  prReviewers: true,
+  prLabels: true,
+  forkCheckout: true,
+};
+
+/** GitLab has no "rebase" when merging via the API; GitHub cannot toggle drafts there. */
+export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
+  github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
+  gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
+};
 
 export interface PrSummary {
   number: number;
@@ -191,6 +222,19 @@ export function toAccount(value: unknown): HostAccountInfo | null {
   };
 }
 
+type CapabilityFlag = Exclude<keyof HostCapabilities, "mergeMethods">;
+const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout"];
+const isMergeMethod = (value: unknown): value is MergeMethod => value === "merge" || value === "squash" || value === "rebase";
+
+/** The core's capabilities; whatever is missing or malformed comes from the host kind's defaults. */
+export function toCapabilities(value: unknown, kind: HostKind | null): HostCapabilities {
+  const fallback = defaultCapabilities[kind ?? "github"];
+  if (!isObject(value)) return fallback;
+  const result: HostCapabilities = { ...fallback, mergeMethods: Array.isArray(value.mergeMethods) ? value.mergeMethods.filter(isMergeMethod) : fallback.mergeMethods };
+  for (const key of CAPABILITY_FLAGS) result[key] = flag(value[key], fallback[key]);
+  return result;
+}
+
 export function toHostRepo(value: unknown, accounts: HostAccountInfo[] = []): HostRepo | null {
   if (!isObject(value)) return null;
   const owner = text(value.owner);
@@ -202,16 +246,18 @@ export function toHostRepo(value: unknown, accounts: HostAccountInfo[] = []): Ho
   const parentOwner = parent ? text(parent.owner) : null;
   const parentName = parent ? text(parent.name) : null;
   const failure = isObject(value.error) ? value.error : null;
+  const kind = toKind(value.kind) ?? account?.kind ?? null;
   return {
     remote: text(value.remote),
     account,
-    kind: toKind(value.kind) ?? account?.kind ?? null,
+    kind,
     owner,
     name,
     webUrl: text(value.webUrl),
     defaultBranch: text(value.defaultBranch),
     canPush: flag(value.canPush, true),
     forkParent: parent && parentOwner && parentName ? { owner: parentOwner, name: parentName, defaultBranch: text(parent.defaultBranch) } : null,
+    capabilities: toCapabilities(value.capabilities, kind),
     error: failure ? new CoreError({ code: (text(failure.code) ?? "unknown") as CoreError["code"], message: text(failure.message) ?? "", gitOutput: null }) : null,
   };
 }

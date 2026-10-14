@@ -92,8 +92,8 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
     return () => window.removeEventListener("focus", onFocus);
   }, [connected, section.hidden, issues]);
 
-  // No host detected (or the integration is missing entirely): no section.
-  if (section.hidden || hostRepo.isPending || !repo) return null;
+  // No host detected (or the integration is missing entirely, or the repository has no tracker): no section.
+  if (section.hidden || hostRepo.isPending || !repo || !repo.capabilities.issues) return null;
   const problem = hostRepo.isError ? describeHostError(hostRepo.error) : null;
   if (problem && (problem.kind === "not_built" || problem.kind === "unsupported")) return null;
 

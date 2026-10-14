@@ -119,6 +119,7 @@
     "mergeButton": "Merge …",
     "closeButton": "Close …",
     "reopen": "Reopen",
+    "forkCheckoutUnsupported": "{{host}} offers no branch for pull requests from forks – add the fork as a remote and check out its branch.",
     "mergeBlocked": "Merging is blocked:",
     "stale": "{{title}} – the view shows the last loaded state",
     "tabs": "Pull request sections",

@@ -14,7 +14,7 @@ import { Ban, CircleAlert, ExternalLink, GitBranch, GitCommitHorizontal, GitMerg
 import { Tabs } from "radix-ui";
 import { core, CoreError, type Id } from "../../core";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, type HostErrorText, type HostKind, type PrComment, type PrCommit, type PrDetails } from "../../app/actions/hostTypes";
+import { defaultCapabilities, describeHostError, hostKindLabels, type HostCapabilities, type HostErrorText, type PrComment, type PrCommit, type PrDetails } from "../../app/actions/hostTypes";
 import { checkoutPr, closePr, commentOnPr, mergeBlock, prBusyKeys, refreshPullRequests, reopenPr } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";
@@ -313,13 +313,14 @@ function Commits({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDetails }
 // View
 // ---------------------------------------------------------------------------
 
-function Body({ repoId, tabId, pr, kind, stale }: { repoId: Id; tabId: Id; pr: PrDetails; kind: HostKind; stale: HostErrorText | null }) {
+function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id; tabId: Id; pr: PrDetails; capabilities: HostCapabilities; hostName: string; stale: HostErrorText | null }) {
   const [tab, setTab] = useState<TabId>("conversation");
   const writing = useBusy(prBusyKeys.write(repoId, pr.number));
   const checkingOut = useBusy(busyKeys.history(repoId));
   const blocked = mergeBlock(pr);
   const author = userName(pr.author);
   const open = pr.state === "open";
+  const forkBlocked = pr.isFork && !capabilities.forkCheckout;
   const tabList = useRef<HTMLDivElement>(null);
 
   // On open, focus goes into the view (onto the active tab) – unless a dialog or menu is currently on top.
@@ -360,11 +361,18 @@ function Body({ repoId, tabId, pr, kind, stale }: { repoId: Id; tabId: Id; pr: P
         </p>
 
         <div role="toolbar" aria-label={t("pullRequest.view.actions")} data-pr-actions="" className="mt-2 flex flex-wrap items-center gap-2">
-          <Button size="sm" loading={checkingOut} icon={<GitBranch className="size-3.5" aria-hidden />} onClick={() => void checkoutPr(repoId, pr)}>
+          <Button
+            size="sm"
+            loading={checkingOut}
+            disabled={forkBlocked}
+            title={forkBlocked ? t("pullRequest.view.forkCheckoutUnsupported", { host: hostName }) : undefined}
+            icon={<GitBranch className="size-3.5" aria-hidden />}
+            onClick={() => void checkoutPr(repoId, pr)}
+          >
             {t("pullRequest.view.files.checkout")}
           </Button>
           {open ? (
-            <Button size="sm" variant="primary" disabled={Boolean(blocked) || writing} icon={<GitMerge className="size-3.5" aria-hidden />} aria-describedby={blocked ? "s24-merge-blocked" : undefined} onClick={() => void openMergeDialog(repoId, pr, kind)}>
+            <Button size="sm" variant="primary" disabled={Boolean(blocked) || writing} icon={<GitMerge className="size-3.5" aria-hidden />} aria-describedby={blocked ? "s24-merge-blocked" : undefined} onClick={() => void openMergeDialog(repoId, pr, capabilities)}>
               {t("pullRequest.view.mergeButton")}
             </Button>
           ) : null}
@@ -372,7 +380,7 @@ function Body({ repoId, tabId, pr, kind, stale }: { repoId: Id; tabId: Id; pr: P
             <Button size="sm" disabled={writing} icon={<GitPullRequestClosed className="size-3.5" aria-hidden />} onClick={() => void closePr(repoId, pr)}>
               {t("pullRequest.view.closeButton")}
             </Button>
-          ) : pr.state === "closed" ? (
+          ) : pr.state === "closed" && capabilities.prReopen ? (
             <Button size="sm" loading={writing} icon={<RotateCcw className="size-3.5" aria-hidden />} onClick={() => void reopenPr(repoId, pr)}>
               {t("pullRequest.view.reopen")}
             </Button>
@@ -467,7 +475,8 @@ export function PullRequestView({ repoId, tabId, number }: PullRequestViewProps)
   };
 
   let content: ReactNode;
-  if (pr) content = <Body key={number} repoId={repoId} tabId={tabId} pr={pr} kind={hostRepo.data?.kind ?? "github"} stale={query.isError ? describeHostError(query.error) : null} />;
+  const hostKind = hostRepo.data?.kind ?? "github";
+  if (pr) content = <Body key={number} repoId={repoId} tabId={tabId} pr={pr} capabilities={hostRepo.data?.capabilities ?? defaultCapabilities[hostKind]} hostName={hostKindLabels[hostKind]} stale={query.isError ? describeHostError(query.error) : null} />;
   else if (query.isError) content = <LoadFailure error={query.error} number={number} onRetry={() => void query.refetch()} />;
   else content = <Skeleton />;
 

@@ -253,7 +253,9 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
       ? describeHostError(hostRepo.error).kind
       : !repo
         ? "no_host"
-        : !connected
+        : !repo.capabilities.issues
+          ? "disabled"
+          : !connected
           ? "not_connected"
           : issues.isPending
             ? "loading"
@@ -272,6 +274,12 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
   if (hostRepo.isPending) listBody = <ListSkeleton />;
   else if (hostRepo.isError) listBody = <HostProblem error={hostRepo.error} onRetry={() => void hostRepo.refetch()} retrying={hostRepo.isFetching} />;
   else if (!repo) listBody = <NoHost />;
+  else if (!repo.capabilities.issues)
+    listBody = (
+      <Blank state="disabled" icon={<Inbox className="size-8" aria-hidden />} title={t("issues.view.disabledTitle")}>
+        {t("issues.view.disabled", { where })}
+      </Blank>
+    );
   else if (!connected) listBody = <NotConnected repo={repo} />;
   else if (issues.isPending) listBody = <ListSkeleton />;
   else if (issues.isError && loaded.length === 0) listBody = <HostProblem error={issues.error} onRetry={() => void issues.refetch()} retrying={issues.isFetching} />;
@@ -309,7 +317,7 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
     );
   }
 
-  const showControls = Boolean(repo && connected);
+  const showControls = Boolean(repo && connected && repo.capabilities.issues);
   const staleProblem = connected && issues.isError && loaded.length > 0 && !issues.isFetchNextPageError ? describeHostError(issues.error) : null;
   const knownIssue = number !== null ? loaded.find((issue) => issue.number === number) : undefined;
 

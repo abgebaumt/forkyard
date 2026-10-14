@@ -1415,6 +1415,23 @@ export interface HostRepoRef {
 }
 
 /** The repository at the host, recognised by a remote's URL. */
+/** What a host offers; the UI only shows what is there. */
+export interface HostCapabilities {
+  /** Issue tracker (Azure DevOps: work items); false if the repository has it switched off. */
+  issues: boolean;
+  issueCreate: boolean;
+  draftPrs: boolean;
+  /** An existing pull request can switch between draft and ready. */
+  draftToggle: boolean;
+  mergeMethods: PrMergeMethod[];
+  deleteSourceBranch: boolean;
+  prReopen: boolean;
+  prReviewers: boolean;
+  prLabels: boolean;
+  /** Pull requests from forks can be checked out. */
+  forkCheckout: boolean;
+}
+
 export interface HostRepoInfo {
   /** Name of the remote it was recognised by. */
   remote: string;
@@ -1429,6 +1446,7 @@ export interface HostRepoInfo {
   canPush: boolean | null;
   /** The repository this one is a fork of. */
   forkParent: HostRepoRef | null;
+  capabilities: HostCapabilities;
   /** Set if an account exists but the host refused or did not respond. */
   error: { code: ErrorCode; message: string } | null;
 }

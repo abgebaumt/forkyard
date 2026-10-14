@@ -99,6 +99,8 @@
     "moreFailed": "Loading more failed: {{reason}}",
     "loadMore": "Load more",
     "pick": "Choose an issue on the left to read its description and comments.",
+    "disabledTitle": "No issue tracker",
+    "disabled": "The issue tracker of {{where}} is switched off at the host.",
     "refreshing": "Reloading issues"
   },
   "section": {

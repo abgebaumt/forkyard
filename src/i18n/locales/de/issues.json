@@ -99,6 +99,8 @@
     "moreFailed": "Nachladen fehlgeschlagen: {{reason}}",
     "loadMore": "Weitere laden",
     "pick": "Wähle links ein Issue, um Beschreibung und Kommentare zu lesen.",
+    "disabledTitle": "Kein Issue-Tracker",
+    "disabled": "Der Issue-Tracker von {{where}} ist beim Hoster abgeschaltet.",
     "refreshing": "Issues werden neu geladen"
   },
   "section": {

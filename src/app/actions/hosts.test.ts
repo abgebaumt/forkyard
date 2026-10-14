@@ -1,12 +1,28 @@
 import { describe, expect, it } from "vitest";
 import { CoreError } from "../../core";
-import { describeHostError, hostErrorKind, localTimes, summarizeChecks, toAccount, toHostRepo, toPrDetails, toPrSummary, toUser } from "./hostTypes";
+import { defaultCapabilities, describeHostError, hostErrorKind, localTimes, summarizeChecks, toAccount, toCapabilities, toHostRepo, toPrDetails, toPrSummary, toUser } from "./hostTypes";
 import { accountHost, accountState, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
 import { mergeBlock, pushState, suggestTitle, titleFromBranch } from "./pullrequests";
 
 const account = { id: "a1", kind: "github", baseUrl: "https://github.com", user: { login: "lena", name: "Lena Hartmann", avatarUrl: null }, tokenHint: "…1234", scopesOk: true, missingScopes: [], lastError: null };
 
 describe("what the core returns, in a fixed shape", () => {
+  it("capabilities: from the core, otherwise what the host kind offers", () => {
+    const caps = toCapabilities(
+      { issues: false, issueCreate: false, draftPrs: true, draftToggle: true, mergeMethods: ["squash", "bogus"], deleteSourceBranch: true, prReopen: false, prReviewers: false, prLabels: true, forkCheckout: false },
+      "github",
+    );
+    expect(caps).toMatchObject({ issues: false, prReopen: false, prReviewers: false, forkCheckout: false, mergeMethods: ["squash"] });
+    expect(toCapabilities(undefined, "gitlab")).toEqual(defaultCapabilities.gitlab);
+    expect(toCapabilities({ issues: "ja" }, "github").issues).toBe(true);
+    expect(defaultCapabilities.github.mergeMethods).toEqual(["merge", "squash", "rebase"]);
+    expect(defaultCapabilities.gitlab.mergeMethods).toEqual(["merge", "squash"]);
+    const repo = toHostRepo({ kind: "gitlab", account: null, owner: "g", name: "p", capabilities: { mergeMethods: ["merge"] } });
+    expect(repo?.capabilities.mergeMethods).toEqual(["merge"]);
+    expect(repo?.capabilities.draftToggle).toBe(true);
+    expect(toHostRepo({ kind: "github", account: null, owner: "a", name: "b" })?.capabilities).toEqual(defaultCapabilities.github);
+  });
+
   it("user as an object or as a bare name", () => {
     expect(toUser({ login: "lena", name: "Lena Hartmann", avatarUrl: "https://x/y.png" })).toEqual({ login: "lena", name: "Lena Hartmann", avatarUrl: "https://x/y.png" });
     expect(toUser("lena")).toEqual({ login: "lena", name: null, avatarUrl: null });

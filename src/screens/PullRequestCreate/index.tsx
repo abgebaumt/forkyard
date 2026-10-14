@@ -373,9 +373,9 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
         // From the fork into the original: GitHub wants the source as "owner:branch", the target repository via its remote.
         sourceBranch: toParent ? `${repo.owner}:${sourceName}` : sourceName,
         targetBranch: targetName,
-        draft,
-        reviewers: splitNames(reviewers),
-        labels: splitNames(labels),
+        draft: repo.capabilities.draftPrs && draft,
+        reviewers: repo.capabilities.prReviewers ? splitNames(reviewers) : [],
+        labels: repo.capabilities.prLabels ? splitNames(labels) : [],
         remote: toParent ? upstream : null,
       },
       tabId,
@@ -598,20 +598,26 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
               )}
             </div>
 
-            <Checkbox label={t("pullRequest.create.draft")} hint={t("pullRequest.create.draftHint")} checked={draft} onCheckedChange={setDraft} />
+            {repo.capabilities.draftPrs ? <Checkbox label={t("pullRequest.create.draft")} hint={t("pullRequest.create.draftHint")} checked={draft} onCheckedChange={setDraft} /> : null}
 
-            <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2">
-              <TextField
-                name="reviewers"
-                label={t("pullRequest.create.reviewers")}
-                value={reviewers}
-                autoComplete="off"
-                placeholder={t("pullRequest.create.reviewersPlaceholder")}
-                hint={t("pullRequest.create.reviewersHint")}
-                onChange={(event) => setReviewers(event.target.value)}
-              />
-              <TextField name="labels" label={t("pullRequest.create.labels")} value={labels} autoComplete="off" placeholder={t("pullRequest.create.labelsPlaceholder")} hint={t("pullRequest.create.labelsHint")} onChange={(event) => setLabels(event.target.value)} />
-            </div>
+            {repo.capabilities.prReviewers || repo.capabilities.prLabels ? (
+              <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2">
+                {repo.capabilities.prReviewers ? (
+                  <TextField
+                    name="reviewers"
+                    label={t("pullRequest.create.reviewers")}
+                    value={reviewers}
+                    autoComplete="off"
+                    placeholder={t("pullRequest.create.reviewersPlaceholder")}
+                    hint={t("pullRequest.create.reviewersHint")}
+                    onChange={(event) => setReviewers(event.target.value)}
+                  />
+                ) : null}
+                {repo.capabilities.prLabels ? (
+                  <TextField name="labels" label={t("pullRequest.create.labels")} value={labels} autoComplete="off" placeholder={t("pullRequest.create.labelsPlaceholder")} hint={t("pullRequest.create.labelsHint")} onChange={(event) => setLabels(event.target.value)} />
+                ) : null}
+              </div>
+            ) : null}
 
             {failure ? (
               <div role="alert" data-pr-error={failure.kind} className="flex items-start gap-2 rounded-md border border-border bg-danger-surface p-3">
@@ -636,7 +642,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
           </p>
           <Button onClick={close}>{t("pullRequest.create.cancel")}</Button>
           <Button type="submit" variant="primary" disabled={Boolean(blockedReason)} loading={creating || Boolean(pushJob)} icon={<GitPullRequestCreate className="size-icon" aria-hidden />}>
-            {needsPush ? t("pullRequest.create.pushAndCreate") : draft ? t("pullRequest.create.createDraft") : t("pullRequest.create.title")}
+            {needsPush ? t("pullRequest.create.pushAndCreate") : repo.capabilities.draftPrs && draft ? t("pullRequest.create.createDraft") : t("pullRequest.create.title")}
           </Button>
         </footer>
       </form>
