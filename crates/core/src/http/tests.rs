@@ -201,6 +201,18 @@ fn response_with(status: u16, headers: &[(&str, &str)]) -> Response {
 }
 
 #[test]
+fn an_interrupted_read_is_retried_and_not_reported_as_offline() {
+    // A signal (e.g. SIGCHLD of a finished Git process) interrupts a socket read that has a
+    // timeout set; the kernel does not restart it. That is a transient hiccup, not a lost network.
+    let io = std::io::Error::from(std::io::ErrorKind::Interrupted);
+    let failure = Failure::from_ureq(ureq::Error::Io(io));
+    assert!(failure.retryable);
+    let error = failure.into_error("Bitbucket", "api.bitbucket.org", &[]);
+    assert_eq!(error.code, ErrorCode::Timeout);
+    assert!(error.message.contains("interrupted"), "{}", error.message);
+}
+
+#[test]
 fn rate_limit_headers_of_both_hosters_are_understood() {
     // GitHub: 403 with an exhausted limit and the reset time.
     let hub = response_with(403, &[("x-ratelimit-remaining", "0"), ("x-ratelimit-reset", "1791720000")]);

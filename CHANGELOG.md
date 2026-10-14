@@ -83,6 +83,11 @@ All notable changes to Forkyard are listed here. The format follows
 - Settings › "GitHub and GitLab" is now Settings › Hosts.
 - Redaction also removes Atlassian API tokens and Bitbucket app passwords (`ATATT…`, `ATBB…`).
 
+### Fixed
+
+- A host request whose network read is interrupted by a signal (for example when a Git process ends at
+  the same moment) is retried and no longer reported as "not reachable".
+
 ## [1.0.0] – 2026-10-13
 
 First public release.

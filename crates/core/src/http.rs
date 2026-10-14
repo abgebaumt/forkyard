@@ -474,6 +474,7 @@ fn build_agent(route: &Route, options: &HttpOptions) -> CoreResult<ureq::Agent> 
 
 enum FailureKind {
     Timeout,
+    Interrupted,
     Unreachable,
     Tls,
     Proxy,
@@ -494,6 +495,8 @@ impl Failure {
             ureq::Error::Timeout(_) => (FailureKind::Timeout, true),
             ureq::Error::HostNotFound | ureq::Error::ConnectionFailed => (FailureKind::Unreachable, true),
             ureq::Error::Io(io) if io.kind() == std::io::ErrorKind::TimedOut => (FailureKind::Timeout, true),
+            // A signal interrupted a socket read that has a timeout; the kernel does not restart it.
+            ureq::Error::Io(io) if io.kind() == std::io::ErrorKind::Interrupted => (FailureKind::Interrupted, true),
             ureq::Error::Io(_) => (FailureKind::Unreachable, true),
             ureq::Error::Tls(_) | ureq::Error::Rustls(_) | ureq::Error::Pem(_) | ureq::Error::TlsRequired => (FailureKind::Tls, false),
             ureq::Error::ConnectProxyFailed(_) | ureq::Error::InvalidProxyUrl => (FailureKind::Proxy, false),
@@ -512,6 +515,7 @@ impl Failure {
     fn into_error(self, label: &str, host: &str, secrets: &[String]) -> CoreError {
         let (code, message) = match self.kind {
             FailureKind::Timeout => (ErrorCode::Timeout, format!("Timeout: {label} ({host}) did not respond in time.")),
+            FailureKind::Interrupted => (ErrorCode::Timeout, format!("The connection to {label} ({host}) was interrupted. Try again.")),
             FailureKind::Unreachable => (ErrorCode::Offline, format!("{label} ({host}) is not reachable. Check your network connection.")),
             FailureKind::Tls => (
                 ErrorCode::Offline,
