@@ -172,7 +172,7 @@ pub(crate) async fn read_bisect(core: &Core, repo_id: &str) -> CoreResult<Bisect
     status.steps_done = count_steps(&log, &terms);
     status.current = current_commit(core, &path, repo_id, &dir).await;
     if let (Some(bad), false) = (status.bad.clone(), status.good.is_empty()) {
-        evaluate(core, &path, repo_id, &bad, &mut status).await?;
+        evaluate(core, &path, repo_id, &dir, &bad, &mut status).await?;
     }
     Ok(status)
 }
@@ -198,15 +198,20 @@ async fn current_commit(core: &Core, path: &Path, repo_id: &str, dir: &Path) -> 
     (out.success() && is_full_sha(&sha)).then_some(sha)
 }
 
-/// Remaining steps, result and "only skipped left" from `git rev-list --bisect-vars`.
-async fn evaluate(core: &Core, path: &Path, repo_id: &str, bad: &str, status: &mut BisectStatus) -> CoreResult<()> {
+/// Remaining steps, result and "only skipped left" from `git rev-list --bisect-vars`, limited to
+/// the bisect's pathspec (`BISECT_NAMES`).
+async fn evaluate(core: &Core, path: &Path, repo_id: &str, dir: &Path, bad: &str, status: &mut BisectStatus) -> CoreResult<()> {
     let mut stdin = format!("{bad}\n");
     for sha in &status.good {
         stdin.push('^');
         stdin.push_str(sha);
         stdin.push('\n');
     }
-    let vars = read_cmd(core, path, repo_id).args(["rev-list", "--bisect-vars", "--stdin"]).stdin(stdin.clone()).run_raw().await?;
+    // The pathspec of the bisect limits the candidates exactly as Git's own count does.
+    let names: Vec<std::ffi::OsString> = std::fs::read(dir.join("BISECT_NAMES"))
+        .map(|raw| bisect_names(&raw).iter().map(|name| util::bytes_to_path(name).into_os_string()).collect())
+        .unwrap_or_default();
+    let vars = read_cmd(core, path, repo_id).args(["rev-list", "--bisect-vars", "--stdin", "--"]).args(&names).stdin(stdin.clone()).run_raw().await?;
     if !vars.success() {
         return Ok(());
     }
@@ -221,7 +226,7 @@ async fn evaluate(core: &Core, path: &Path, repo_id: &str, bad: &str, status: &m
     }
     status.remaining_steps = Some(u32::try_from(steps.max(0)).unwrap_or(u32::MAX));
     if all <= status.skipped.len() + 1 {
-        let listed = read_cmd(core, path, repo_id).args(["rev-list", "--stdin"]).stdin(stdin).run().await?;
+        let listed = read_cmd(core, path, repo_id).args(["rev-list", "--stdin", "--"]).args(&names).stdin(stdin).run().await?;
         let skipped: HashSet<&str> = status.skipped.iter().map(String::as_str).collect();
         let candidates: Vec<String> = listed.stdout_lines().into_iter().map(util::decode_lossy).collect();
         if candidates.iter().all(|c| c == bad || skipped.contains(c.as_str())) {
@@ -230,6 +235,34 @@ async fn evaluate(core: &Core, path: &Path, repo_id: &str, bad: &str, status: &m
         }
     }
     Ok(())
+}
+
+/// The pathspec a bisect was started with (`git bisect start … -- <paths>`): `BISECT_NAMES` holds
+/// it shell-quoted (` 'a b' 'it'\\''s'`, Git's `sq_quote_argv`). Bytes, never lossy.
+fn bisect_names(raw: &[u8]) -> Vec<Vec<u8>> {
+    let mut names = Vec::new();
+    let mut current: Option<Vec<u8>> = None;
+    let mut quoted = false;
+    let mut bytes = raw.iter().copied();
+    while let Some(byte) = bytes.next() {
+        match (quoted, byte) {
+            (true, b'\'') => quoted = false,
+            (true, _) => current.get_or_insert_with(Vec::new).push(byte),
+            (false, b'\'') => {
+                quoted = true;
+                current.get_or_insert_with(Vec::new);
+            }
+            (false, b'\\') => {
+                if let Some(next) = bytes.next() {
+                    current.get_or_insert_with(Vec::new).push(next);
+                }
+            }
+            (false, b' ' | b'\t' | b'\n' | b'\r') => names.extend(current.take()),
+            (false, _) => current.get_or_insert_with(Vec::new).push(byte),
+        }
+    }
+    names.extend(current);
+    names
 }
 
 #[cfg(test)]
@@ -241,6 +274,34 @@ mod tests {
     /// `n` commits on main, oldest first.
     fn chain(repo: &TestRepo, n: usize) -> Vec<String> {
         (1..=n).map(|i| repo.commit_file("f.txt", format!("{i}\n"), &format!("c{i}"))).collect()
+    }
+
+    /// A bisect started on the command line with a pathspec: only commits that touch those paths
+    /// are candidates, so the result is there as soon as Git has it.
+    #[tokio::test]
+    async fn an_external_bisect_with_a_pathspec_counts_only_matching_commits() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        let good = repo.commit_file("x.txt", "0\n", "c0");
+        repo.commit_file("anderes.txt", "1\n", "c1");
+        let culprit = repo.commit_file("mein ordner/f'x.txt", "2\n", "c2");
+        repo.commit_file("anderes.txt", "3\n", "c3");
+        let bad = repo.commit_file("anderes.txt", "4\n", "c4");
+        let id = tc.open(&repo).await.repo.id;
+        repo.git(&["bisect", "start", &bad, &good, "--", "mein ordner/f'x.txt", "fehlt.txt"]);
+        let out = repo.git(&["bisect", "bad", &culprit]);
+        assert!(out.contains("is the first bad commit"), "{out}");
+
+        let status = bisect_status(&tc, id.clone()).await.unwrap();
+        assert_eq!(status.result.as_deref(), Some(culprit.as_str()), "{status:?}");
+        assert_eq!(status.remaining_steps, Some(0));
+    }
+
+    #[test]
+    fn saved_pathspecs_are_unquoted() {
+        assert_eq!(bisect_names(b" 'a b' 'it'\\''s' 'x'\\!'y'\n"), [b"a b".to_vec(), b"it's".to_vec(), b"x!y".to_vec()]);
+        assert!(bisect_names(b"\n").is_empty());
+        assert!(bisect_names(b"").is_empty());
     }
 
     #[tokio::test]
