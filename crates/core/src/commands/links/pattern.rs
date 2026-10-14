@@ -6,10 +6,10 @@
 //! Allowed: ASCII literals, `.`, `^`, `$`, `|`, groups `(…)` and `(?:…)`, character classes without
 //! nesting or set operations, the escapes `\d \D \w \W \s \S \b \B` and a backslash before
 //! punctuation, repetitions `* + ? {n} {n,} {n,m}` (also lazy). Not allowed: lookarounds, named
-//! groups, flags, back-references, Unicode classes, a repeated group that itself contains a repetition
-//! (`(a+)+`) or an alternative (`(a|b)+`), unbounded repetitions in a row that can match the same
-//! characters (`\w+\w+`, `\w*a\w*`), a repetition with nothing to repeat (`a**`, `^*`, `\b+`), and
-//! patterns that match empty text.
+//! groups, flags, back-references, Unicode classes, a repeated group without a fixed width
+//! (`(a+)+`, `(aa?)+`, `(a?){9}`) or with an alternative (`(a|b)+`), repetitions in a row that can
+//! match the same characters (`\w+\w+`, `\w*a\w*`, `\w+\w?`, `\w?\w?`, `\w{1,2}\w{1,2}`), a
+//! repetition with nothing to repeat (`a**`, `^*`, `\b+`), and patterns that match empty text.
 
 /// Longer patterns are rejected.
 pub const MAX_PATTERN_LEN: usize = 200;
@@ -187,7 +187,7 @@ fn scan_class(chars: &[char], start: usize) -> Result<(usize, Chars), String> {
 
 /// An open group during the scan.
 struct Group {
-    /// Contains a repetition (`*`, `+`, `{…}`).
+    /// Contains a repetition or an optional part (`*`, `+`, `?`, `{…}`), i.e. has no fixed width.
     repeats: bool,
     /// Contains a `|`.
     alternates: bool,
@@ -211,10 +211,11 @@ struct Item {
 /// Checks the structure; the syntax details are left to the regex compiler afterwards.
 ///
 /// Besides nested repetition, two things make JavaScript's backtracking explode: a repeated group
-/// with alternatives (`(a|a)+`) and unbounded repetitions in a row that can share characters
-/// (`\w+\w+`, `\w*a\w*`). For the latter the scan tracks `open`: the characters an unbounded
-/// repetition before may still take, because nothing since has fixed where it ends. A mandatory item
-/// that matches none of them closes it; a new unbounded repetition must not match any of them.
+/// with alternatives (`(a|a)+`) or of varying width (`(aa?)+`), and repetitions of variable length in
+/// a row that can share characters (`\w+\w+`, `\w*a\w*`, `\w?\w?\w?`). For the latter the scan
+/// tracks `open`: the characters a repetition of variable length (`*`, `+`, `?`, `{n,m}`) before may
+/// still take, because nothing since has fixed where it ends. A mandatory item that matches none of
+/// them closes it; a new repetition of variable length must not match any of them.
 fn scan(pattern: &str) -> Result<(), String> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut groups: Vec<Group> = Vec::new();
@@ -303,24 +304,29 @@ fn scan(pattern: &str) -> Result<(), String> {
                     '+' => (i + 1, false, true, false),
                     _ => (i + 1, true, false, false),
                 };
+                // An optional `?` makes the item optional, not repeated, so `(a+)?` and `(a|b)?` are fine;
+                // but it still varies the width of an enclosing group (`(?:aa?)+`).
                 if c != '?' {
                     if repeated.repeats {
-                        return Err("A repeated group must not contain a repetition itself, e.g. (a+)+ – it can take very long to match.".into());
+                        return Err("A repeated group must have a fixed width: no repetition or optional part inside, e.g. (a+)+ or (aa?)+ – it can take very long to match.".into());
                     }
                     if repeated.alternates {
                         return Err("A repeated group must not contain alternatives, e.g. (a|b)+ – it can take very long to match; use a character class such as [ab]+ instead.".into());
                     }
-                    if let Some(group) = groups.last_mut() {
-                        group.repeats = true;
-                    }
                 }
-                if (unbounded || ranged) && repeated.chars & repeated.before != 0 {
-                    return Err("Repetitions in a row that can match the same characters, e.g. \\w+\\w+ or \\w*a\\w*, can take very long to match; put a character between them that only one side matches.".into());
+                if let Some(group) = groups.last_mut() {
+                    group.repeats = true;
+                }
+                // `?` is the range {0,1}: it must not overlap a still open repetition either (`\\w+\\w?`,
+                // `\\w?\\w?`).
+                if (unbounded || ranged || c == '?') && repeated.chars & repeated.before != 0 {
+                    return Err("Repetitions in a row that can match the same characters, e.g. \\w+\\w+, \\w*a\\w* or \\w?\\w?, can take very long to match; put a character between them that only one side matches.".into());
                 }
                 if unbounded {
                     open = repeated.chars | if optional { repeated.before } else { 0 };
-                } else if optional {
-                    open |= repeated.before;
+                } else if optional || ranged {
+                    // The end of a choice of length stays open: the next item may take its characters.
+                    open |= repeated.chars | if optional { repeated.before } else { 0 };
                 }
                 // Lazy form: `*?`, `+?`, `{1,3}?`.
                 i = if chars.get(end) == Some(&'?') { end + 1 } else { end };
@@ -360,7 +366,10 @@ mod tests {
         assert_eq!(check_pattern(r"(\d+)-(\d+)"), Ok(2));
         assert_eq!(check_pattern(r"[a-z]+\d+[a-z]+"), Ok(0));
         assert_eq!(check_pattern(r"\w+\w{3}-\w+"), Ok(0));
-        assert_eq!(check_pattern(r"\w+\w?-\d{1,6}"), Ok(0));
+        assert_eq!(check_pattern(r"[A-Z]+-?\d{1,6}"), Ok(0));
+        assert_eq!(check_pattern(r"[A-Z]+-?\d+"), Ok(0));
+        assert_eq!(check_pattern(r"https?://(\S+)"), Ok(1));
+        assert_eq!(check_pattern(r"(?:a+)?b"), Ok(0));
         assert_eq!(check_pattern(r"(?:a|b)?c+"), Ok(0));
         assert!(check_pattern(&"a".repeat(MAX_PATTERN_LEN)).is_ok());
     }
@@ -418,6 +427,14 @@ mod tests {
             (r"[^-]+\d+", "negated class followed by a repetition"),
             (r"\w+(?:ab)+", "repetition followed by a repeated group"),
             (r"\w+\w{1,50}-", "repetition followed by a counted range"),
+            (r"(?:aa?)+$", "repeated group with an optional item"),
+            (r"(?:\w\w?)+!", "repeated group of varying width"),
+            (r"(?:\w?){30}!", "counted group with an optional item"),
+            (r"\w?\w?\w?!", "optional items in a row"),
+            (r"\w+\w?\w?!", "repetition followed by optional items"),
+            (r"\w+\w?-", "repetition followed by an overlapping optional item"),
+            (r"(\w?)(\w?)(\w?)!", "optional groups in a row"),
+            (r"\w{1,2}\w{1,2}\w{1,2}!", "counted ranges in a row"),
         ];
         for (pattern, why) in rejected {
             assert!(check_pattern(pattern).is_err(), "{why}: {pattern}");
