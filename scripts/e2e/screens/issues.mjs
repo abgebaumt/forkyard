@@ -136,7 +136,7 @@ try {
     await shot("issues-not-connected");
     await view().getByRole("button", { name: "Connect account …" }).click();
     await page.locator('[data-screen="settings"]').waitFor();
-    equal(await page.getByRole("tab", { selected: true }).innerText(), "GitHub and GitLab", "\"Connect account …\" opens Settings › GitHub and GitLab");
+    equal(await page.getByRole("tab", { selected: true }).innerText(), "Hosts", "\"Connect account …\" opens Settings › Hosts");
     await press("Escape");
     await page.locator('[data-screen="settings"]').waitFor({ state: "detached" });
     await closeView(tabId);
@@ -452,7 +452,7 @@ try {
     await page.keyboard.type(">Show issues");
     const row = page.locator('[data-screen="command-palette"] [role="option"][data-key="command:issues.show"]');
     await row.waitFor();
-    check((await row.innerText()).includes("no remote on GitHub or GitLab"), `the palette names the reason: ${(await row.innerText()).replace(/\s+/g, " ")}`);
+    check((await row.innerText()).includes("no remote on a supported host"), `the palette names the reason: ${(await row.innerText()).replace(/\s+/g, " ")}`);
     await press("Escape");
     // Whoever reaches the view anyway (remembered state) gets the explanation.
     await openView(second.tabId, null);
@@ -460,7 +460,7 @@ try {
     await shot("issues-no-host");
     await closeView(second.tabId);
     // A remote on a host the app does not integrate counts the same.
-    plain.git("remote", "set-url", "origin", "https://bitbucket.org/schule/messnetz.git");
+    plain.git("remote", "set-url", "origin", "https://git.example.org/schule/messnetz.git");
     await page.evaluate((id) => window.__gc.queryClient.invalidateQueries({ queryKey: ["repo", id, "hostRepo"] }), second.repoId);
     await sleep(600);
     equal(await page.locator(SECTION).count(), 0, "not for other hosts either");

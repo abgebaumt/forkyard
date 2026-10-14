@@ -478,7 +478,11 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
             ) : repo.forkParent ? (
               <p data-pr-fork="hint" className="text-sm text-text-muted">
                 {t("pullRequest.create.forkHint", { repo: `${repo.forkParent.owner}/${repo.forkParent.name}`, word })}{" "}
-                {repo.kind === "github" ? t("pullRequest.create.forkGithub") : t("pullRequest.create.forkGitlab")}
+                {repo.kind === "github"
+                  ? t("pullRequest.create.forkGithub")
+                  : repo.kind === "gitlab"
+                    ? t("pullRequest.create.forkGitlab")
+                    : t("pullRequest.create.forkOther", { word, host: hostKindLabels[repo.kind ?? "gitea"] })}
               </p>
             ) : null}
 

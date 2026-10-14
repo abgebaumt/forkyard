@@ -1,5 +1,5 @@
 /**
- * hosts – host accounts (Settings › GitHub and GitLab): connect, check, replace token, disconnect –
+ * hosts – host accounts (Settings › Hosts): connect, check, replace token, disconnect –
  * in the real app, against a LOCAL host (scripts/e2e/screens/host-lib.mjs, 127.0.0.1) in GitHub
  * and GitLab shape and against the core's test server (scripts/e2e/host-mock.mjs).
  * No call ever goes to a real service.
@@ -62,15 +62,15 @@ try {
     }
     const selected = () => page.locator(`${PREFS} [role="tab"][aria-selected="true"]`).innerText();
     if (keyboard) {
-      for (let step = 0; step < 16 && (await selected()) !== "GitHub and GitLab"; step++) {
+      for (let step = 0; step < 16 && (await selected()) !== "Hosts"; step++) {
         const now = await selected();
         await page.keyboard.press("ArrowDown");
         await page.waitForFunction((before) => document.querySelector('[data-screen="settings"] [role="tab"][aria-selected="true"]')?.textContent?.trim() !== before, now, { timeout: 5000 }).catch(() => undefined);
       }
     } else {
-      await page.getByRole("tab", { name: "GitHub and GitLab", exact: true }).click();
+      await page.getByRole("tab", { name: "Hosts", exact: true }).click();
     }
-    await eventually(selected, "GitHub and GitLab", "section \"GitHub and GitLab\" is open");
+    await eventually(selected, "Hosts", "section \"Hosts\" is open");
     await hosts.waitFor();
     await app.settle();
   };
@@ -105,7 +105,7 @@ try {
     check(text.includes("No account connected yet"), "says nothing is connected");
     check(text.includes("Fetch, pull and push don't need an account here"), "and what an account is needed for (not fetch/push)");
     check(text.includes("is never shown here"), "and that the token is never shown");
-    check(!/Bitbucket|Azure/i.test(text), "offers only GitHub and GitLab");
+    check(/Bitbucket/.test(text) && /Azure DevOps/.test(text), "names every supported host");
     equal(await escaping(page, HOSTS), [], "nothing sticks out of the section");
     await shot("hosts-empty");
   });
@@ -118,7 +118,7 @@ try {
     await page.keyboard.press("Enter");
     await dialog.waitFor();
     await eventually(() => focusedName(page), "GitHub", "focus starts at the host choice");
-    equal(await dialog.getByRole("radio").allInnerTexts(), ["GitHub", "GitLab", "github.com", "Self-hosted"], "choices are GitHub and GitLab (no Bitbucket, no Azure DevOps)");
+    equal(await dialog.getByRole("radio").allInnerTexts(), ["GitHub", "GitLab", "Gitea/Forgejo", "Bitbucket", "Azure DevOps", "github.com", "Self-hosted"], "choices: every host, then the instance");
 
     // The guide says where the token is created and what it must be allowed to do – per host.
     const guide = dialog.locator("[data-token-guide]");

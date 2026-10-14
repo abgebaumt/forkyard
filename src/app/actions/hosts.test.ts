@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CoreError } from "../../core";
 import { defaultCapabilities, describeHostError, HOST_KINDS, hostErrorKind, hostKindLabels, localTimes, summarizeChecks, toAccount, toCapabilities, toHostRepo, toPrDetails, toPrSummary, toUser, type HostKind } from "./hostTypes";
-import { accountHost, accountState, connectTarget, organizationOf, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
+import { accountHost, accountState, connectInputs, connectTarget, organizationOf, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
 import { issuesWebUrl } from "../../screens/Issues/actions";
 import { mergeBlock, pushState, suggestTitle, titleFromBranch } from "./pullrequests";
 
@@ -206,6 +206,16 @@ describe("preparing a pull request", () => {
 });
 
 describe("the hosts the app knows", () => {
+  it("which inputs the connect dialog shows", () => {
+    expect(connectInputs("github", false, false)).toEqual({ instance: true, address: false, organization: false, username: false, gh: true });
+    expect(connectInputs("gitea", true, false)).toEqual({ instance: true, address: true, organization: false, username: false, gh: false });
+    expect(connectInputs("bitbucket", true, false)).toEqual({ instance: false, address: false, organization: false, username: true, gh: false });
+    expect(connectInputs("azure_devops", false, false)).toEqual({ instance: false, address: false, organization: true, username: false, gh: false });
+    // Replacing the token of an existing account: host, address and user name stay.
+    expect(connectInputs("azure_devops", false, true)).toEqual({ instance: false, address: false, organization: false, username: false, gh: false });
+    expect(connectInputs("github", true, true)).toMatchObject({ instance: false, address: false, gh: true });
+  });
+
   it("accounts of every kind are read, unknown ones dropped; the user name comes along", () => {
     for (const kind of ["gitea", "bitbucket", "azure_devops"] as const) expect(toAccount({ ...account, kind })?.kind).toBe(kind);
     expect(toAccount({ ...account, kind: "bitbucket", username: "lena@example.org" })?.username).toBe("lena@example.org");

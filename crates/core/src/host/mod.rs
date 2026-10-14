@@ -720,7 +720,7 @@ pub async fn api_for_repo(core: &Core, repo_id: &str, remote: Option<&str>) -> C
     let Some(account) = &found.detected.account else {
         return Err(CoreError::new(
             ErrorCode::HostNotConnected,
-            format!("No account is connected for {}. You can connect one in Settings under Integrations.", found.detected.web_base),
+            format!("No account is connected for {}. You can connect one in Settings under “Hosts”.", found.detected.web_base),
         ));
     };
     let mut api = api_for_account(core, account).await?;

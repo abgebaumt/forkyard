@@ -67,7 +67,7 @@
   },
   "noHost": {
     "title": "No host detected",
-    "text": "The app shows issues for repositories whose remote is on GitHub or GitLab (including self-hosted instances). This repository has no such remote."
+    "text": "The app shows issues for repositories whose remote is on GitHub, GitLab, Gitea/Forgejo, Bitbucket or Azure DevOps (including self-hosted instances). This repository has no such remote."
   },
   "view": {
     "loading": "Loading issues",

@@ -288,7 +288,7 @@
       "keywords": "connect, sign in, set up, personal access token",
       "title": "Connect host account …"
     },
-    "keywords": "GitHub, GitLab, host, account, token, integration, API",
+    "keywords": "GitHub, GitLab, Gitea, Forgejo, Codeberg, Bitbucket, Azure DevOps, host, account, token, integration, API",
     "open": {
       "keywords": "settings, connected, disconnect",
       "title": "Open integrations (host accounts)"
@@ -301,13 +301,13 @@
       "title": "Create branch for the open issue …"
     },
     "noAccount": "no account connected for this repository’s host",
-    "noHost": "no remote on GitHub or GitLab",
+    "noHost": "no remote on a supported host",
     "refresh": {
       "keywords": "issue, update, refresh, reload",
       "title": "Reload issues"
     },
     "show": {
-      "keywords": "issue, ticket, task, bug, GitHub, GitLab, tracker",
+      "keywords": "issue, ticket, task, bug, work item, GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, tracker",
       "title": "Show issues"
     },
     "web": {
@@ -401,9 +401,9 @@
       "keywords": "create, new, open",
       "title": "Create pull request …"
     },
-    "keywords": "pull request, PR, merge request, MR, GitHub, GitLab, review",
+    "keywords": "pull request, PR, merge request, MR, GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, review",
     "noAccount": "no host account connected",
-    "noHost": "the remote belongs to neither GitHub nor GitLab",
+    "noHost": "the remote belongs to no supported host",
     "openCurrent": {
       "keywords": "current branch, view",
       "none": "there is no open pull request for the checked-out branch",
@@ -435,7 +435,7 @@
       "title": "Refresh pull requests"
     },
     "repoInBrowser": {
-      "keywords": "GitHub, GitLab, host, browser, website, external",
+      "keywords": "GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, host, browser, website, external",
       "title": "Open repository on host in browser",
       "unknownUrl": "the address on the host is not known"
     }

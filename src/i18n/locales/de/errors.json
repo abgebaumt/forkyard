@@ -149,7 +149,7 @@
   },
   "host_unsupported": {
     "text": "Das geht bei diesem Hoster nicht.",
-    "hint": "Unterstützt werden GitHub und GitLab, auch als eigene Instanz mit verbundenem Konto."
+    "hint": "Unterstützt werden GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud und Azure DevOps – eigene Instanzen mit verbundenem Konto."
   },
   "host_rejected": {
     "text": "Der Hoster hat die Anfrage abgelehnt.",

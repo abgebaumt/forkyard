@@ -341,7 +341,7 @@
       },
       "unsupported": {
         "title": "Dieser Hoster wird nicht unterstützt",
-        "fallback": "Die App spricht nur mit GitHub und GitLab (auch eigene Instanzen)."
+        "fallback": "Die App spricht mit GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud und Azure DevOps (mit den ersten drei auch als eigene Instanz)."
       },
       "rejected": {
         "title": "Der Hoster hat abgelehnt",

@@ -170,7 +170,7 @@
     "openIntegrations": "Integrationen öffnen",
     "noHost": "Kein Hoster erkannt",
     "connect": "Konto verbinden …",
-    "noHostText": "Die Adresse des Remotes gehört weder zu GitHub noch zu GitLab – oder es gibt keinen Remote. Liegt das Repository auf einer eigenen Instanz, verbinde ein Konto mit deren Adresse.",
+    "noHostText": "Die Adresse des Remotes gehört zu keinem der unterstützten Hoster (GitHub, GitLab, Gitea/Forgejo, Bitbucket, Azure DevOps) – oder es gibt keinen Remote. Liegt das Repository auf einer eigenen Instanz, verbinde ein Konto mit deren Adresse.",
     "notConnected": "Nicht mit {{host}} verbunden",
     "notConnectedText": "Das Repository {{repo}} liegt bei {{host}}. Um dort einen {{word}} anzulegen, braucht die App ein Konto mit einem Token von dir.",
     "leave": {
@@ -204,6 +204,7 @@
     "forkHint": "Dieses Repository ist ein Fork von {{repo}}. Der {{word}} entsteht hier im Fork.",
     "forkGithub": "Soll er ins Original gehen, füge dessen Adresse als Remote hinzu (üblich: „upstream“) und hole es einmal – dann steht es hier zur Wahl.",
     "forkGitlab": "Einen Merge Request ins Original legst du bei GitLab im Browser an.",
+    "forkOther": "Einen {{word}} ins Original legst du bei {{host}} im Browser an.",
     "steps": "Vor dem Anlegen",
     "same": {
       "title": "Quelle und Ziel sind derselbe Branch",

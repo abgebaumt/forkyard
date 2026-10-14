@@ -170,7 +170,7 @@
     "openIntegrations": "Open integrations",
     "noHost": "No host detected",
     "connect": "Connect account …",
-    "noHostText": "The remote address belongs neither to GitHub nor to GitLab – or there is no remote. If the repository is on a self-hosted instance, connect an account with its address.",
+    "noHostText": "The remote address belongs to none of the supported hosts (GitHub, GitLab, Gitea/Forgejo, Bitbucket, Azure DevOps) – or there is no remote. If the repository is on a self-hosted instance, connect an account with its address.",
     "notConnected": "Not connected to {{host}}",
     "notConnectedText": "The repository {{repo}} is on {{host}}. To create a {{word}} there, the app needs an account with a token from you.",
     "leave": {
@@ -204,6 +204,7 @@
     "forkHint": "This repository is a fork of {{repo}}. The {{word}} is created here in the fork.",
     "forkGithub": "If it should go to the original, add its address as a remote (usually “upstream”) and fetch it once – then it is available here.",
     "forkGitlab": "You create a merge request into the original on GitLab in the browser.",
+    "forkOther": "You create a {{word}} into the original on {{host}} in the browser.",
     "steps": "Before creating",
     "same": {
       "title": "Source and target are the same branch",

@@ -1324,7 +1324,7 @@ if (isMain) {
 
         // Without an account, and with a different host.
         await app.invoke("remote_add", { repoId: id, name: "oeffentlich", fetchUrl: "git@github.com:octo/demo.git", pushUrl: null });
-        await app.invoke("remote_add", { repoId: id, name: "anderswo", fetchUrl: "https://bitbucket.org/team/demo.git", pushUrl: null });
+        await app.invoke("remote_add", { repoId: id, name: "anderswo", fetchUrl: "https://git.example.org/team/demo.git", pushUrl: null });
         remotes.push("oeffentlich", "anderswo");
         const open = await app.invoke("host_repo_info", { repoId: id, remote: "oeffentlich" });
         shape("HostRepoInfo | null", open, "host_repo_info without account");

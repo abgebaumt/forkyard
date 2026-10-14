@@ -288,7 +288,7 @@
       "keywords": "verbinden, anmelden, einrichten, Personal Access Token",
       "title": "Hoster-Konto verbinden …"
     },
-    "keywords": "GitHub, GitLab, Hoster, Konto, Account, Token, Integration, API",
+    "keywords": "GitHub, GitLab, Gitea, Forgejo, Codeberg, Bitbucket, Azure DevOps, Hoster, Konto, Account, Token, Integration, API",
     "open": {
       "keywords": "Einstellungen, verbunden, trennen",
       "title": "Integrationen öffnen (Hoster-Konten)"
@@ -301,13 +301,13 @@
       "title": "Branch für das geöffnete Issue anlegen …"
     },
     "noAccount": "kein Konto für den Hoster dieses Repositories verbunden",
-    "noHost": "kein Remote bei GitHub oder GitLab",
+    "noHost": "kein Remote bei einem unterstützten Hoster",
     "refresh": {
       "keywords": "Issue, aktualisieren, refresh",
       "title": "Issues neu laden"
     },
     "show": {
-      "keywords": "Issue, Ticket, Aufgabe, Bug, GitHub, GitLab, Tracker",
+      "keywords": "Issue, Ticket, Aufgabe, Bug, Work Item, GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, Tracker",
       "title": "Issues anzeigen"
     },
     "web": {
@@ -401,9 +401,9 @@
       "keywords": "anlegen, neu, erstellen, öffnen",
       "title": "Pull Request anlegen …"
     },
-    "keywords": "Pull Request, PR, Merge Request, MR, GitHub, GitLab, Review",
+    "keywords": "Pull Request, PR, Merge Request, MR, GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, Review",
     "noAccount": "kein Hoster-Konto verbunden",
-    "noHost": "der Remote gehört weder zu GitHub noch zu GitLab",
+    "noHost": "der Remote gehört zu keinem unterstützten Hoster",
     "openCurrent": {
       "keywords": "aktueller Branch, ansehen",
       "none": "für den ausgecheckten Branch gibt es keinen offenen Pull Request",
@@ -435,7 +435,7 @@
       "title": "Pull Requests aktualisieren"
     },
     "repoInBrowser": {
-      "keywords": "GitHub, GitLab, Hoster, Browser, Webseite, extern",
+      "keywords": "GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, Hoster, Browser, Webseite, extern",
       "title": "Repository beim Hoster im Browser öffnen",
       "unknownUrl": "die Adresse beim Hoster ist nicht bekannt"
     }

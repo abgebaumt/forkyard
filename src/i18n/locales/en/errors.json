@@ -149,7 +149,7 @@
   },
   "host_unsupported": {
     "text": "This is not possible with this host.",
-    "hint": "GitHub and GitLab are supported, including self-hosted instances with a connected account."
+    "hint": "Supported are GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps – self-hosted instances with a connected account."
   },
   "host_rejected": {
     "text": "The host rejected the request.",

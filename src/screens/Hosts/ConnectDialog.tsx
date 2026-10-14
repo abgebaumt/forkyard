@@ -1,14 +1,28 @@
 /**
- * "Connect account" dialog: pick the host, for a self-hosted instance its address, paste the token.
- * Above that it says exactly where to create the token at the host and which permissions it needs.
+ * "Connect account" dialog: pick the host, then what that host needs besides the token – the address
+ * of a self-hosted instance (GitHub, GitLab, Gitea/Forgejo), the organization (Azure DevOps) or the
+ * account e-mail (Bitbucket). Above the token it says exactly where to create it and which
+ * permissions it needs.
  *
  * The token lives only in the password field (no value in UI state, no `value` attribute in the
  * document). "Connect" passes it to the core; the field is cleared immediately in every case.
  */
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, KeyRound, ShieldAlert, Terminal } from "lucide-react";
-import { accountHost, connectAccount, connectWithGh, hostBusyKeys, openInBrowser, parseBaseUrl, tokenPageUrl } from "../../app/actions/hosts";
-import { hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "../../app/actions/hostTypes";
+import {
+  accountHost,
+  connectAccount,
+  connectInputs,
+  connectTarget,
+  connectWithGh,
+  hostBusyKeys,
+  openInBrowser,
+  organizationOf,
+  tokenPageUrl,
+  type ConnectField,
+  type ConnectTarget,
+} from "../../app/actions/hosts";
+import { HOST_KINDS, hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "../../app/actions/hostTypes";
 import { showDialog } from "../../app/dialogs";
 import { useAppInfo } from "../../app/queries";
 import { useBusy } from "../../app/store";
@@ -21,9 +35,9 @@ import { t } from "../../i18n";
 
 export interface ConnectPreset {
   kind?: HostKind;
-  /** Address of a self-hosted instance; null = the public service. */
+  /** Address of a self-hosted instance (Azure DevOps: of the organization); null = the public service. */
   baseUrl?: string | null;
-  /** Replace the token of an existing account: host and instance are fixed. */
+  /** Replace the token of an existing account: host, address and user name are fixed. */
   replace?: HostAccountInfo;
 }
 
@@ -33,9 +47,7 @@ function Guide({ kind, baseUrl }: { kind: HostKind; baseUrl: string | null }) {
   return (
     <section aria-label={t("hosts.guide.title")} data-token-guide={kind} className="rounded-md border border-border bg-surface-sunken p-3">
       <h3 className="text-base font-medium text-text">{t("hosts.guide.title")}</h3>
-      <p className="mt-1 text-sm text-text-muted">
-        {t("hosts.guide.path", { host: hostKindLabels[kind], path: guide.path.join(" › ") })}
-      </p>
+      <p className="mt-1 text-sm text-text-muted">{t("hosts.guide.path", { host: hostKindLabels[kind], path: guide.path.join(" › ") })}</p>
       {guide.variants.map((variant) => (
         <div key={variant.title} className="mt-2">
           <p className="text-sm font-medium text-text">{variant.title}</p>
@@ -70,7 +82,9 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
   const presetBase = replace ? replace.baseUrl : (preset.baseUrl ?? null);
   const [own, setOwn] = useState(presetBase !== null);
   const [address, setAddress] = useState(presetBase ?? "");
-  const [addressError, setAddressError] = useState<string | null>(null);
+  const [organization, setOrganization] = useState(() => organizationOf(presetBase));
+  const [username, setUsername] = useState(replace?.username ?? "");
+  const [fieldError, setFieldError] = useState<{ field: ConnectField; text: string } | null>(null);
   const [hasToken, setHasToken] = useState(false);
   const [tokenError, setTokenError] = useState<string | null>(null);
   const [failure, setFailure] = useState<HostErrorText | null>(null);
@@ -78,6 +92,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
   const busy = useBusy(hostBusyKeys.connect);
   const keyring = useAppInfo().data?.keyringAvailable;
   const labels = instanceLabels[kind];
+  const inputs = connectInputs(kind, own, replace !== null);
 
   const tokenField = () => form.current?.elements.namedItem("token") as HTMLInputElement | null;
 
@@ -89,27 +104,28 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
     return () => cancelAnimationFrame(frame);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const parsedBase = own ? parseBaseUrl(address) : { url: null, error: null };
-  const guideBase = own ? parsedBase.url : null;
 
-  /** The address of the self-hosted instance, or null for the public service; reports a bad address in the field. */
-  const chosenBase = (): { ok: true; url: string | null } | { ok: false } => {
-    if (!own) return { ok: true, url: null };
-    const parsed = parseBaseUrl(address);
-    if (parsed.error !== null) {
-      setAddressError(parsed.error);
-      form.current?.querySelector<HTMLInputElement>('input[name="baseUrl"]')?.focus();
-      return { ok: false };
-    }
-    return { ok: true, url: parsed.url };
+  /** Address and user name for the chosen host; an existing account keeps both. */
+  const target = (): ConnectTarget => (replace ? { ok: true, baseUrl: replace.baseUrl, username: replace.username } : connectTarget({ kind, own, address, organization, username }));
+  const preview = target();
+  const guideBase = preview.ok ? preview.baseUrl : null;
+  const errorFor = (field: ConnectField) => (fieldError?.field === field ? fieldError.text : undefined);
+
+  /** The target – or null after pointing at the field that is wrong. */
+  const chosen = (): { baseUrl: string | null; username: string | null } | null => {
+    const result = target();
+    if (result.ok) return result;
+    setFieldError({ field: result.field, text: result.error });
+    form.current?.querySelector<HTMLInputElement>(`input[name="${result.field}"]`)?.focus();
+    return null;
   };
 
   const useGh = async () => {
     if (busy) return;
     setFailure(null);
-    const base = chosenBase();
-    if (!base.ok) return;
-    const result = await connectWithGh(base.url);
+    const base = chosen();
+    if (!base) return;
+    const result = await connectWithGh(base.baseUrl);
     if (result.ok) onDone(result.account);
     else setFailure(result.error);
   };
@@ -119,9 +135,8 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
     const field = tokenField();
     const token = field?.value.trim() ?? "";
     setFailure(null);
-    const base = chosenBase();
-    if (!base.ok) return;
-    const baseUrl = base.url;
+    const base = chosen();
+    if (!base) return;
     if (!token) {
       setTokenError(t("hosts.connect.pasteToken"));
       field?.focus();
@@ -130,7 +145,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
     // The field is cleared immediately: afterwards the token is nowhere in the UI anymore.
     if (field) field.value = "";
     setHasToken(false);
-    const result = await connectAccount({ kind, baseUrl, token });
+    const result = await connectAccount({ kind, baseUrl: base.baseUrl, token, username: base.username });
     if (result.ok) {
       onDone(result.account);
       return;
@@ -144,11 +159,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
       open
       size="md"
       title={replace ? t("hosts.connect.replaceTitle") : t("hosts.connect.title")}
-      description={
-        replace
-          ? t("hosts.connect.replaceDescription", { host: `${hostKindLabels[replace.kind]} – ${accountHost(replace)}` })
-          : t("hosts.connect.description")
-      }
+      description={replace ? t("hosts.connect.replaceDescription", { host: `${hostKindLabels[replace.kind]} – ${accountHost(replace)}` }) : t("hosts.connect.description")}
       onOpenChange={(open) => {
         if (!open && !busy) onDone(null);
       }}
@@ -188,36 +199,36 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
               <SegmentedControl
                 label={t("hosts.connect.host")}
                 value={kind}
-                options={[
-                  { value: "github", label: "GitHub" },
-                  { value: "gitlab", label: "GitLab" },
-                ]}
+                options={HOST_KINDS.map((value) => ({ value, label: hostKindLabels[value] }))}
                 onValueChange={(next) => {
                   setKind(next);
+                  setFieldError(null);
                   setFailure(null);
                 }}
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm font-medium text-text-muted">{t("hosts.connect.instance")}</span>
-              <SegmentedControl
-                label={t("hosts.connect.instance")}
-                value={own ? "own" : "public"}
-                options={[
-                  { value: "public", label: labels.public },
-                  { value: "own", label: labels.own },
-                ]}
-                onValueChange={(next) => {
-                  setOwn(next === "own");
-                  setAddressError(null);
-                  setFailure(null);
-                }}
-              />
-            </div>
+            {inputs.instance ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-text-muted">{t("hosts.connect.instance")}</span>
+                <SegmentedControl
+                  label={t("hosts.connect.instance")}
+                  value={own ? "own" : "public"}
+                  options={[
+                    { value: "public", label: labels.public },
+                    { value: "own", label: labels.own },
+                  ]}
+                  onValueChange={(next) => {
+                    setOwn(next === "own");
+                    setFieldError(null);
+                    setFailure(null);
+                  }}
+                />
+              </div>
+            ) : null}
           </div>
         )}
 
-        {own && !replace ? (
+        {inputs.address ? (
           <TextField
             name="baseUrl"
             label={t("hosts.connect.address")}
@@ -228,15 +239,52 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
             autoCorrect="off"
             autoCapitalize="off"
             hint={labels.ownHint}
-            error={addressError ?? undefined}
+            error={errorFor("baseUrl")}
             onChange={(event) => {
               setAddress(event.target.value);
-              setAddressError(null);
+              setFieldError(null);
             }}
           />
         ) : null}
 
-        {kind === "github" ? (
+        {inputs.organization ? (
+          <TextField
+            name="organization"
+            label={t("hosts.connect.organization")}
+            value={organization}
+            mono
+            placeholder={t("hosts.connect.organizationPlaceholder")}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            hint={t("hosts.connect.organizationHint")}
+            error={errorFor("organization")}
+            onChange={(event) => {
+              setOrganization(event.target.value);
+              setFieldError(null);
+            }}
+          />
+        ) : null}
+
+        {inputs.username ? (
+          <TextField
+            name="username"
+            label={t("hosts.connect.username")}
+            value={username}
+            placeholder={t("hosts.connect.usernamePlaceholder")}
+            autoComplete="username"
+            autoCorrect="off"
+            autoCapitalize="off"
+            hint={t("hosts.connect.usernameHint")}
+            error={errorFor("username")}
+            onChange={(event) => {
+              setUsername(event.target.value);
+              setFieldError(null);
+            }}
+          />
+        ) : null}
+
+        {inputs.gh ? (
           <section data-connect-gh className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-surface-sunken p-3">
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-medium text-text">{t("hosts.connect.gh.title")}</h3>

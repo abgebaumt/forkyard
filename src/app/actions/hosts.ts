@@ -132,6 +132,17 @@ export function connectTarget(fields: ConnectFields): ConnectTarget {
   return { ok: true, baseUrl, username };
 }
 
+/** Which inputs the connect dialog shows besides the token. Replacing a token keeps host, address and user name. */
+export function connectInputs(kind: HostKind, own: boolean, replacing: boolean): { instance: boolean; address: boolean; organization: boolean; username: boolean; gh: boolean } {
+  return {
+    instance: !replacing && hostHasInstances(kind),
+    address: !replacing && own && hostHasInstances(kind),
+    organization: !replacing && kind === "azure_devops",
+    username: !replacing && kind === "bitbucket",
+    gh: kind === "github",
+  };
+}
+
 /** Opens a page in the system browser – never inside the app. Only http and https. */
 export async function openInBrowser(url: string | null | undefined, what = t("actions.hosts.browser.page")): Promise<boolean> {
   if (!url || !/^https?:\/\//i.test(url)) {

@@ -72,6 +72,11 @@ function AccountRow({ account }: { account: HostAccountInfo }) {
                 {t("hosts.account.user", { login: account.user.login })}
               </span>
             ) : null}
+            {account.username ? (
+              <span className="selectable min-w-0 truncate" title={account.username}>
+                {t("hosts.account.signIn", { name: account.username })}
+              </span>
+            ) : null}
             <span className="whitespace-nowrap">{account.tokenHint ? t("hosts.account.tokenEnds", { hint: account.tokenHint.replace(/^[•.*…\s]+/, "") }) : t("hosts.account.tokenInKeyring")}</span>
           </p>
           {text.detail ? (

@@ -79,7 +79,7 @@ try {
     await eventually(h.focusedName, "Git behavior", "focus is on the active section");
     equal(await page.getByRole("tab", { selected: true }).innerText(), "Git behavior", "selected section");
     const tabs = await page.getByRole("tab").allInnerTexts();
-    equal(tabs, ["Appearance", "Diff and editor", "External programs", "Notifications", "Profile and identity", "Git behavior", "SSH keys", "Credentials", "GitHub and GitLab", "Network", "Identity and access", "Pull and fetch", "Files and hooks", "About"], "sections");
+    equal(tabs, ["Appearance", "Diff and editor", "External programs", "Notifications", "Profile and identity", "Git behavior", "SSH keys", "Credentials", "Hosts", "Network", "Identity and access", "Pull and fetch", "Files and hooks", "About"], "sections");
     check((await dialog().getByRole("button", { name: /Save/ }).count()) === 0, "there is no Save button");
     const width = await dialog().locator('[role="tabpanel"] > div').first().evaluate((element) => element.getBoundingClientRect().width);
     check(width <= 640, `content is at most 640 px wide (is ${width})`);

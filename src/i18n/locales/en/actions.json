@@ -341,7 +341,7 @@
       },
       "unsupported": {
         "title": "This host is not supported",
-        "fallback": "The app only talks to GitHub and GitLab (including self-hosted instances)."
+        "fallback": "The app talks to GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps (to the first three also as self-hosted instances)."
       },
       "rejected": {
         "title": "The host refused",

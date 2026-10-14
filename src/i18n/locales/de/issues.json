@@ -67,7 +67,7 @@
   },
   "noHost": {
     "title": "Kein Hoster erkannt",
-    "text": "Issues zeigt die App für Repositories, deren Remote bei GitHub oder GitLab liegt (auch eigene Instanzen). Dieses Repository hat keinen solchen Remote."
+    "text": "Issues zeigt die App für Repositories, deren Remote bei GitHub, GitLab, Gitea/Forgejo, Bitbucket oder Azure DevOps liegt (auch eigene Instanzen). Dieses Repository hat keinen solchen Remote."
   },
   "view": {
     "loading": "Issues werden geladen",

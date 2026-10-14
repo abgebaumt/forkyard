@@ -63,8 +63,8 @@
       "keywords": "Password|HTTPS|Keychain"
     },
     "integrations": {
-      "label": "GitHub and GitLab",
-      "keywords": "GitHub|GitLab|Account|Token"
+      "label": "Hosts",
+      "keywords": "GitHub|GitLab|Gitea|Forgejo|Codeberg|Bitbucket|Azure DevOps|Account|Token"
     },
     "network": {
       "label": "Network",
@@ -375,7 +375,7 @@
     "dataDirHint": "The data directory holds settings, profiles, tab lists and the log. Your repositories are not stored there. Tokens, passwords and API keys are not stored there either, but in the operating system's keychain.",
     "privacyTitle": "What leaves this computer",
     "privacyGit": "Git connections to the remotes of your repositories: clone, fetch, pull, push, submodules and LFS. This includes auto-fetch – by default every minute for every open repository, without asking and using saved credentials. To turn it off: Git behavior › Auto-fetch to 0, or per repository.",
-    "privacyHosts": "Requests to GitHub or GitLab if you have connected an account there – only for pull requests and issues, with your own token.",
+    "privacyHosts": "Requests to GitHub, GitLab, Gitea/Forgejo, Bitbucket or Azure DevOps if you have connected an account there – only for pull requests and issues, with your own token.",
     "privacyLinks": "Links from READMEs, pull requests and issues are opened by the system browser, and only after asking.",
     "privacyRest": "Nothing else: no telemetry, no update checks, no images or fonts from the internet. Forkyard only runs commands a repository brings along after you have agreed.",
     "privacyAvatars": "Avatars of commit authors from GitHub (avatars.githubusercontent.com): the commit email address is sent to look up the account; results are kept for a week. Turn off: Appearance › Initials instead of avatars."
