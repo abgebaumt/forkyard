@@ -537,6 +537,12 @@
       "title": "Neuesten Stash umbenennen …"
     }
   },
+  "stats": {
+    "show": {
+      "keywords": "Statistik, Heatmap, Autoren, Beiträge, Hotspots, Code-Alter, Treemap",
+      "title": "Statistik anzeigen"
+    }
+  },
   "submodule": {
     "add": {
       "keywords": "Submodul, Submodule, einbinden, Bibliothek, git submodule add",

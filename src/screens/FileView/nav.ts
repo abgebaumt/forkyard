@@ -95,6 +95,8 @@ export function backLabel(target: CenterView | null): string {
       return t("fileView.back.blame");
     case "file":
       return t("fileView.back.file");
+    case "stats":
+      return t("fileView.back.stats");
     default:
       return t("fileView.back.graph");
   }

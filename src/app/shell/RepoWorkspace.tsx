@@ -14,6 +14,7 @@ import { LeftPanel } from "../../screens/LeftPanel";
 import { PullRequestCreate } from "../../screens/PullRequestCreate";
 import { PullRequestView } from "../../screens/PullRequestView";
 import { IssuesView } from "../../screens/Issues";
+import { StatsView } from "../../screens/Stats";
 import { RebaseTool } from "../../screens/RebaseTool";
 import { ReflogView } from "../../screens/Reflog";
 import { StashForm } from "../../screens/StashForm";
@@ -59,6 +60,8 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       return <PullRequestView {...props} number={center.number} />;
     case "issues":
       return <IssuesView {...props} number={center.number} />;
+    case "stats":
+      return <StatsView {...props} />;
     case "reflog":
       return <ReflogView {...props} refName={center.ref} />;
   }

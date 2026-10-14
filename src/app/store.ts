@@ -35,7 +35,9 @@ export type CenterView =
   /** Issues of the host; `number`: the opened issue, null = just the list. */
   | { kind: "issues"; number: number | null }
   /** Reflog of HEAD (`ref: null`) or of a branch (full name). */
-  | { kind: "reflog"; ref: string | null };
+  | { kind: "reflog"; ref: string | null }
+  /** Statistics of the repository (src/screens/Stats). */
+  | { kind: "stats" };
 
 export type RightPanel = "details" | "stash_form";
 

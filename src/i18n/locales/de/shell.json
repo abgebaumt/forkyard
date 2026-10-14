@@ -161,6 +161,8 @@
     "terminalShow": "Terminal im Repository einblenden",
     "search": "Suchen",
     "searchHint": "Commits nach Message, SHA oder Autor suchen",
+    "stats": "Statistik",
+    "statsHint": "Commits, Autoren, Hotspots und Code-Alter dieses Repositorys",
     "commands": "Befehle",
     "palette": "Command Palette",
     "settings": "Einstellungen",

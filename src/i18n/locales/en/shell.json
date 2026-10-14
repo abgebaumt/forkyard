@@ -161,6 +161,8 @@
     "terminalShow": "Show terminal in the repository",
     "search": "Search",
     "searchHint": "Search commits by message, SHA or author",
+    "stats": "Statistics",
+    "statsHint": "Commits, authors, hotspots and code age of this repository",
     "commands": "Commands",
     "palette": "Command palette",
     "settings": "Settings",
