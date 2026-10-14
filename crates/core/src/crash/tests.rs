@@ -139,6 +139,22 @@ fn a_run_without_clean_exit_leaves_an_unexpected_exit_report() {
     assert!(!found[0].log.iter().any(|line| line.contains(&second.run_id)));
 }
 
+/// A child process spawned by another thread (fork before exec) briefly shares the marker's
+/// open file description. The end of a run must release the lock even then, or the next run
+/// (here: the next test) is wrongly turned away as a second instance.
+#[test]
+fn the_end_of_a_run_releases_the_marker_even_while_a_copy_of_its_descriptor_lives() {
+    let dir = tempfile::tempdir().unwrap();
+    let first = log_in(None);
+    assert!(first.attach(dir.path(), "1.2.3").owns_marker);
+    let inherited = lock(&first.marker).as_ref().unwrap().0.try_clone().unwrap();
+    drop(first);
+    let second = log_in(None);
+    assert!(second.attach(dir.path(), "1.2.3").owns_marker, "the dropped run still holds the marker");
+    second.clean_exit();
+    drop(inherited);
+}
+
 #[test]
 fn a_clean_exit_leaves_no_report() {
     let dir = tempfile::tempdir().unwrap();

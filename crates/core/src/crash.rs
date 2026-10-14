@@ -129,7 +129,7 @@ pub struct CrashLog {
     sink: Mutex<Option<Sink>>,
     attached: OnceLock<Attached>,
     /// The locked marker file while this process owns it.
-    marker: Mutex<Option<File>>,
+    marker: Mutex<Option<MarkerFile>>,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
@@ -324,10 +324,11 @@ impl CrashLog {
     fn take_marker(&self, data_dir: &Path, version: &str) -> AttachOutcome {
         let path = data_dir.join(MARKER_FILE);
         // `None`: another instance holds it – it is running, not crashed.
-        let Some(mut file) = open_marker_exclusively(&path) else {
+        let Some(mut marker_file) = open_marker_exclusively(&path) else {
             return AttachOutcome::default();
         };
         let mut previous = String::new();
+        let file = &mut marker_file.0;
         let _ = file.read_to_string(&mut previous);
         let mut unexpected_report = None;
         if let Ok(marker) = serde_json::from_str::<Marker>(&previous) {
@@ -343,7 +344,7 @@ impl CrashLog {
         if !written {
             return AttachOutcome { owns_marker: false, unexpected_report };
         }
-        *lock(&self.marker) = Some(file);
+        *lock(&self.marker) = Some(marker_file);
         AttachOutcome { owns_marker: true, unexpected_report }
     }
 
@@ -362,7 +363,7 @@ impl CrashLog {
     pub fn clean_exit(&self) {
         let Some(file) = lock(&self.marker).take() else { return };
         // Empty first: should the removal fail, an empty marker still means "ended cleanly".
-        let _ = file.set_len(0);
+        let _ = file.0.set_len(0);
         // Closing releases the lock (Windows: the file can only be deleted once it is closed).
         drop(file);
         if let Some(attached) = self.attached.get() {
@@ -406,28 +407,42 @@ impl CrashLog {
     }
 }
 
+/// The open, locked marker file. Dropping it lets go of the lock explicitly: a child process
+/// another thread is just spawning (between fork and exec) shares the open file description,
+/// and a plain close would leave the `flock` held until that child has called exec.
+struct MarkerFile(File);
+
+#[cfg(unix)]
+impl Drop for MarkerFile {
+    fn drop(&mut self) {
+        use std::os::unix::io::AsRawFd;
+        // SAFETY: `flock` on a descriptor this value owns; no memory is passed.
+        unsafe { libc::flock(self.0.as_raw_fd(), libc::LOCK_UN) };
+    }
+}
+
 /// Opens the marker so that no other process can take it while this one runs; the OS lets go
 /// when the process ends, however it ends. `None` if another process has it.
 #[cfg(unix)]
-fn open_marker_exclusively(path: &Path) -> Option<File> {
+fn open_marker_exclusively(path: &Path) -> Option<MarkerFile> {
     use std::os::unix::io::AsRawFd;
     let file = OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path).ok()?;
     // SAFETY: `flock` on a descriptor this function owns; no memory is passed.
     let locked = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0;
-    locked.then_some(file)
+    locked.then_some(MarkerFile(file))
 }
 
 /// Windows: opened without sharing – a second process gets a sharing violation until this
 /// handle is closed (by `clean_exit` or by the end of the process).
 #[cfg(windows)]
-fn open_marker_exclusively(path: &Path) -> Option<File> {
+fn open_marker_exclusively(path: &Path) -> Option<MarkerFile> {
     use std::os::windows::fs::OpenOptionsExt;
-    OpenOptions::new().read(true).write(true).create(true).truncate(false).share_mode(0).open(path).ok()
+    OpenOptions::new().read(true).write(true).create(true).truncate(false).share_mode(0).open(path).ok().map(MarkerFile)
 }
 
 #[cfg(not(any(unix, windows)))]
-fn open_marker_exclusively(path: &Path) -> Option<File> {
-    OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path).ok()
+fn open_marker_exclusively(path: &Path) -> Option<MarkerFile> {
+    OpenOptions::new().read(true).write(true).create(true).truncate(false).open(path).ok().map(MarkerFile)
 }
 
 /// `forkyard.log` → `forkyard.1.log` → `forkyard.2.log`; the oldest is dropped.
