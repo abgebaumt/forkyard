@@ -913,6 +913,61 @@ export interface RepoSettings {
    * `path_not_found`. If the key is removed, the choice is null again.
    */
   sshKeyId: Id | null;
+  /**
+   * Ticket links: host links on/off, tracker presets and own rules. `repoSettingsSet` checks them
+   * (`not_allowed` with the reason) and stores them in canonical form. The effective rules come from `linkRulesGet`.
+   */
+  linkRules: LinkRulesConfig;
+}
+
+export type LinkPresetKind = "jira" | "linear" | "youtrack" | "redmine";
+
+export interface LinkPreset {
+  kind: LinkPresetKind;
+  /** Address of the tracker, http(s), without trailing slash. */
+  baseUrl: string;
+  /** Jira, Linear, YouTrack: only these project keys (`ABC`); empty = every `ABC-123`. Always empty for Redmine. */
+  keys: string[];
+}
+
+/** Own rule: matches of `pattern` link to `url` (`$0` = whole match, `$1` … = groups). */
+export interface CustomLinkRule {
+  id: string;
+  pattern: string;
+  url: string;
+}
+
+export interface LinkRulesConfig {
+  /** `#123` (on GitLab also `!123`) link to the repository's host. */
+  hostRules: boolean;
+  presets: LinkPreset[];
+  custom: CustomLinkRule[];
+}
+
+export type LinkRuleSource = "custom" | "preset" | "repo_file" | "host";
+
+export interface LinkRule {
+  /** `custom:<id>`, `preset:<kind>:<n>`, `file:<id or position>`, `host:issue`, `host:merge_request`. */
+  id: string;
+  source: LinkRuleSource;
+  pattern: string;
+  url: string;
+}
+
+export type LinkFileOrigin = "worktree" | "head";
+
+export interface LinkRuleProblem {
+  /** Position in the file's `rules` (from 0); null = the file as a whole. */
+  index: number | null;
+  message: string;
+}
+
+export interface LinkRules {
+  /** In order of precedence. */
+  rules: LinkRule[];
+  /** null: the repository has no `.forkyard/links.json`. */
+  file: LinkFileOrigin | null;
+  problems: LinkRuleProblem[];
 }
 
 export interface Profile {

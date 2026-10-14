@@ -15,6 +15,7 @@ const base: RepoSettings = {
   authorName: null,
   authorEmail: null,
   sshKeyId: null,
+  linkRules: { hostRules: true, presets: [], custom: [] },
 };
 
 describe("inheritance in the project", () => {

@@ -1,3 +1,4 @@
+import type { RepoChange } from "../core";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it } from "vitest";
 import { matchesShortcut } from "./commandTypes";
@@ -171,6 +172,19 @@ describe("Invalidation after repo:changed", () => {
     const second = seeded();
     await invalidateRepo(second.client, "r1", ["config"]);
     expect(second.invalid()).toEqual(["refs", "remotes", "repoSettings"]);
+  });
+
+  it("link rules follow the working directory, HEAD and the configuration", async () => {
+    for (const what of [["worktree"], ["index"], ["head"], ["refs"], ["config"]] as RepoChange[][]) {
+      const client = new QueryClient();
+      client.setQueryData(qk.linkRules("r1"), 1);
+      await invalidateRepo(client, "r1", what);
+      expect(client.getQueryState(qk.linkRules("r1"))?.isInvalidated, what.join()).toBe(true);
+    }
+    const client = new QueryClient();
+    client.setQueryData(qk.linkRules("r1"), 1);
+    await invalidateRepo(client, "r1", ["stash"]);
+    expect(client.getQueryState(qk.linkRules("r1"))?.isInvalidated).toBe(false);
   });
 });
 

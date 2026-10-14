@@ -475,6 +475,7 @@ pub fn run() {
             commands::avatar_get,
             commands::repo_settings_get,
             commands::repo_settings_set,
+            commands::link_rules_get,
             commands::ssh_key_list,
             commands::ssh_key_generate,
             commands::ssh_key_import,

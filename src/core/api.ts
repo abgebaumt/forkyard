@@ -74,6 +74,7 @@ import type {
   RefsSnapshot,
   Remote,
   Repo,
+  LinkRules,
   RepoSettings,
   RepoViewState,
   ResetMode,
@@ -431,7 +432,15 @@ export interface CoreCommands {
   /** Avatar for the email address from GitHub as a data URL; null if none is known. */
   avatarGet(input: { email: string }): Promise<string | null>;
   repoSettingsGet(input: R): Promise<RepoSettings>;
+  /** `linkRules` is checked (`not_allowed` with the reason) and stored in its canonical form. */
   repoSettingsSet(input: R & { patch: Partial<RepoSettings> }): Promise<RepoSettings>;
+  /**
+   * Effective ticket link rules in order of precedence (where two match at the same place, the
+   * earlier wins): own rules, presets, `.forkyard/links.json` (working directory, otherwise HEAD),
+   * host (`#123`, on GitLab also `!123`; off with `linkRules.hostRules`). Invalid entries of the
+   * repository file are skipped and listed in `problems`. The core checks the patterns; the UI matches them.
+   */
+  linkRulesGet(input: R): Promise<LinkRules>;
 
   sshKeyList(): Promise<SshKey[]>;
   /** Generates an ed25519 pair in the user's SSH folder. */

@@ -81,6 +81,7 @@ export const qk = {
   viewState: (repoId: Id) => ["repo", repoId, "viewState"] as const,
   draft: (repoId: Id) => ["repo", repoId, "draft"] as const,
   repoSettings: (repoId: Id) => ["repo", repoId, "repoSettings"] as const,
+  linkRules: (repoId: Id) => ["repo", repoId, "linkRules"] as const,
   fileHistory: (repoId: Id, path: string) => ["repo", repoId, "fileHistory", path] as const,
   fileHistoryAll: (repoId: Id) => ["repo", repoId, "fileHistory"] as const,
   blame: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "blame", sha, path] as const,
@@ -299,6 +300,10 @@ export const useRepoSettings = (repoId: Id | null | undefined) =>
     enabled: enabledFor(repoId),
   });
 
+/** Effective ticket link rules (settings, `.forkyard/links.json`, host). */
+export const useLinkRules = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.linkRules(repoId ?? ""), queryFn: () => core.linkRulesGet({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
 export const useReadme = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.readme(repoId ?? ""), queryFn: () => core.repoReadme({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
@@ -468,6 +473,9 @@ function dependsOnWorktree(query: Query): boolean {
     case "submodules":
     case "lfs":
       return true;
+    // `.forkyard/links.json` is read from the working directory (otherwise from HEAD).
+    case "linkRules":
+      return true;
     default:
       return false;
   }
@@ -475,8 +483,8 @@ function dependsOnWorktree(query: Query): boolean {
 
 const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
-// "hostRepo": a repository's host follows from its remote URL.
-const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo"]);
+// "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
+const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules"]);
 const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
 
 /** What a `repo:changed` means for a repo's queries. */
@@ -553,9 +561,11 @@ export function useCoreSync(activeRepoId: Id | null) {
           if (key) void queryClient.invalidateQueries({ queryKey: key });
         }
         // Host accounts have changed (connected, token replaced, disconnected): whatever is loaded about issues –
-        // including a list that failed because of the expired token – counts as stale and reloads.
+        // including a list that failed because of the expired token – counts as stale and reloads; link rules follow from the recognised host.
         if (what.includes("host_accounts")) {
-          void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue") });
+          void queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue" || part(query) === "linkRules"),
+          });
         }
         // Switching profile changes settings, tabs and identity
         if (what.includes("profiles")) {

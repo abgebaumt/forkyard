@@ -634,6 +634,11 @@ pub async fn repo_settings_set(core: State<'_, Core>, repo_id: String, patch: Va
 }
 
 #[tauri::command]
+pub async fn link_rules_get(core: State<'_, Core>, repo_id: String) -> R<LinkRules> {
+    c::links::link_rules_get(&core, repo_id).await
+}
+
+#[tauri::command]
 pub async fn ssh_key_list(core: State<'_, Core>) -> R<Vec<SshKey>> {
     c::auth::ssh_key_list(&core).await
 }
