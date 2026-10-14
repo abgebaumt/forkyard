@@ -1,4 +1,9 @@
 {
+  "custom": {
+    "title": "Eigene Befehle",
+    "fromRepo": "Aus .forkyard/commands.json",
+    "untrusted": "nicht freigegeben"
+  },
   "quoted": "„{{name}}“",
   "operationBlock": "erst den laufenden {{operation}} abschließen",
   "noBranch": "kein Branch ausgecheckt",

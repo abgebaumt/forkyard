@@ -86,6 +86,7 @@ import { isPinned, togglePinned } from "../actions/graphView";
 import { isHidden, isSolo, toggleHidden, toggleSolo } from "../actions/view";
 import { t } from "../../i18n";
 import { useAppStore } from "../store";
+import { customCommandEntries } from "./custom";
 import { openGitflowFinish } from "../../screens/Gitflow";
 
 export interface MenuBase {
@@ -263,6 +264,7 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
     item(t("menus.commit.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),
     item(t("menus.commit.copyMessage"), Copy, () => void copyCommitMessage(repoId, sha), { tooltip: row?.summary ? t("menus.commit.copyMessageTip", { summary: row.summary }) : undefined }),
     item(t("menus.createPatch"), FileDiff, () => void patchFromCommit(repoId, sha), { hint: t("menus.commit.createPatchHint") }),
+    ...customCommandEntries(repoId, "commit", { sha }),
   ]);
 }
 
@@ -448,6 +450,7 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
       : item(t("menus.branch.createWorktree"), FolderOpen, () => void openWorktreeDialog(repoId, { branch: ref.name }), {
           hint: ref.isHead ? t("menus.branch.createWorktreeHintHead") : t("menus.branch.createWorktreeHint"),
         }),
+    ...customCommandEntries(repoId, "branch", { branch: ref.name }),
     SEPARATOR,
     item(t("menus.branch.delete", { name: q(ref.name) }), Trash2, () => void deleteBranches(repoId, [ref.name]), {
       danger: true,
@@ -477,6 +480,7 @@ function remoteBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     item(t("menus.branch.reflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
     SEPARATOR,
     ...visibilityEntries(repoId, ref),
+    ...customCommandEntries(repoId, "branch", { branch: ref.name, remote: ref.remote ?? null }),
     // "Delete on remote" is missing on purpose: the core has no command for it yet (push --delete).
   ]);
 }
@@ -701,6 +705,7 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
     item(single ? t("menus.file.patch") : t("menus.file.patchMany", { n: count }), FileDiff, () => void patchFromFiles(repoId, source, files), {
       blocked: conflicted.length > 0 ? t("menus.file.containsConflicts") : files.every((file) => file.isBinary) ? t("menus.file.binaryNoPatch") : null,
     }),
+    ...(single ? customCommandEntries(repoId, "file", { file: single.path, sha }) : []),
   ]);
 }
 

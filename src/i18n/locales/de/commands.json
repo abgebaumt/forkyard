@@ -1,4 +1,9 @@
 {
+  "custom": {
+    "title": "Ausführen: {{title}}",
+    "keywords": "eigener Befehl,Befehl,Skript",
+    "untrusted": "Für dieses Repository nicht freigegeben"
+  },
   "app": {
     "activity": {
       "keywords": "Activity, Log, Befehle, Verlauf",

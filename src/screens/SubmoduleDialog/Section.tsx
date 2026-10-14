@@ -7,6 +7,7 @@ import { useEffect, type ReactNode } from "react";
 import { Copy, Download, FolderInput, GitCompareArrows, Info, Loader2, PackageCheck, PackageOpen, PencilLine, Plus, RefreshCw, SquareArrowOutUpRight, Trash2 } from "lucide-react";
 import type { Id, Submodule, SubmoduleState } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
+import { customCommandEntries } from "../../app/menus/custom";
 import { moveSubmodule, openSubmodule, removeSubmodule, submoduleBusyKey, submoduleStateText, updateSubmodules } from "../../app/actions/submodules";
 import { qk, queryClient, useSubmodules, useViewState } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
@@ -96,6 +97,7 @@ function submoduleMenu(repoId: Id, submodule: Submodule, busy: boolean): MenuEnt
     MENU_SEPARATOR,
     menuItem(t("submodules.menu.updateAll"), RefreshCw, () => void updateSubmodules(repoId, null, { init: true }), { blocked: running }),
     menuItem(t("submodules.menu.add"), Plus, openAddDialog),
+    ...customCommandEntries(repoId, "submodule", { file: submodule.path }),
     MENU_SEPARATOR,
     menuItem(t("submodules.menu.remove"), Trash2, () => void removeSubmodule(repoId, submodule), { shortcut: "Delete", danger: true, tooltip: t("submodules.menu.removeTip", { path: submodule.path }), blocked: running }),
   ];

@@ -97,6 +97,8 @@ export const qk = {
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
+  /** Custom commands: with a repository its file and approval are included; without one only the user's own. */
+  customCommands: (repoId: Id | null) => (repoId ? (["repo", repoId, "customCommands"] as const) : (["app", "customCommands"] as const)),
   lfsLocks: (repoId: Id, filter: string | null = null) => ["repo", repoId, "lfsLocks", filter] as const,
   lfsLocksAll: (repoId: Id) => ["repo", repoId, "lfsLocks"] as const,
   /** LFS status for the lock symbols – a separate key so it is not re-read on every worktree change. */
@@ -381,6 +383,10 @@ export const useWorktrees = (repoId: Id | null | undefined) =>
 export const useSubmodules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.submodules(repoId ?? ""), queryFn: () => core.submoduleList({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
+/** The user's own custom commands and – with a repository – those of its `.forkyard/commands.json` with their approval. */
+export const useCustomCommandList = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.customCommands(repoId ?? null), queryFn: () => core.customCommandsList({ repoId: repoId ?? null }) });
+
 /** Whether Git LFS is installed and which patterns the repository tracks with it. */
 export const useLfsStatus = (repoId: Id | null | undefined, enabled = true) =>
   useQuery({ queryKey: qk.lfs(repoId ?? ""), queryFn: () => core.lfsStatus({ repoId: repoId! }), enabled: enabledFor(repoId) && enabled });
@@ -510,8 +516,10 @@ function dependsOnWorktree(query: Query): boolean {
     case "tree":
       return key[3] === null;
     // Submodule state and the LFS patterns (.gitattributes) depend on the working directory.
+    // `.forkyard/commands.json` (custom commands) as well.
     case "submodules":
     case "lfs":
+    case "customCommands":
       return true;
     // `.forkyard/links.json` is read from the working directory (otherwise from HEAD).
     case "linkRules":
@@ -607,6 +615,11 @@ export function useCoreSync(activeRepoId: Id | null) {
         if (what.includes("host_accounts")) {
           void queryClient.invalidateQueries({
             predicate: (query) => query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue" || part(query) === "linkRules"),
+          });
+        }
+        if (what.includes("custom_commands")) {
+          void queryClient.invalidateQueries({
+            predicate: (query) => (query.queryKey[0] === "app" && query.queryKey[1] === "customCommands") || (query.queryKey[0] === "repo" && part(query) === "customCommands"),
           });
         }
         // Switching profile changes settings, tabs and identity

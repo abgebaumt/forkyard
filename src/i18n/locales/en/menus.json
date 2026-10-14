@@ -1,4 +1,9 @@
 {
+  "custom": {
+    "title": "Custom commands",
+    "fromRepo": "From .forkyard/commands.json",
+    "untrusted": "not approved"
+  },
   "quoted": "“{{name}}”",
   "operationBlock": "finish the running {{operation}} first",
   "noBranch": "no branch checked out",

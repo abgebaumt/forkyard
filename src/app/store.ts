@@ -86,6 +86,7 @@ export type PreferencesSection =
   | "ssh"
   | "integrations"
   | "external"
+  | "commands"
   | "notifications"
   | "ui"
   | "signing"

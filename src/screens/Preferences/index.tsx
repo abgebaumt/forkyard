@@ -55,6 +55,7 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   signing: "git",
   editor: "diff",
   external: "external",
+  commands: "external",
   terminal: "external",
   notifications: "notifications",
   profiles: "identity",

@@ -1,7 +1,23 @@
 {
   "inputs": {
+    "description": "Fill in the values for this run.",
+    "run": "Run",
+    "cancel": "Cancel",
+    "browse": "Browse",
     "pickOne": "Choose one of the options.",
     "invalid": "This value contains a character that can’t be passed on."
+  },
+  "run": {
+    "untrusted": "This repository’s commands aren’t approved.",
+    "untrustedHint": "Review .forkyard/commands.json in Settings under “Custom commands”.",
+    "review": "Review",
+    "confirmTitle": "Run “{{title}}”?",
+    "confirmBody": "It runs in {{cwd}}.",
+    "confirmDetails": "Command",
+    "confirmLabel": "Run",
+    "done": "“{{title}}” finished.",
+    "failed": "“{{title}}” ended with exit code {{code}}.",
+    "showOutput": "Show output"
   },
   "editor": {
     "errors": {

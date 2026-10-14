@@ -1,4 +1,9 @@
 {
+  "custom": {
+    "title": "Run: {{title}}",
+    "keywords": "custom command,own command,script",
+    "untrusted": "Not approved for this repository"
+  },
   "app": {
     "activity": {
       "keywords": "activity, log, commands, history",

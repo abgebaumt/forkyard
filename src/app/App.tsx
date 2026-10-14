@@ -13,6 +13,7 @@ import { runScenarioFromUrl } from "../screens/scenarios";
 import { DialogHost } from "./dialogs";
 import { t } from "../i18n";
 import { describeError } from "./errors";
+import { useCustomCommandRegistration } from "../screens/CustomCommands/register";
 import { queryClient, useAppInfo, useCoreSync, useRepoLocked, useRepoMissing, useSettings, useTabs } from "./queries";
 import { useGlobalShortcuts } from "./registry";
 import { NARROW_WINDOW, useAppStore } from "./store";
@@ -136,6 +137,7 @@ function Shell({ info }: { info: AppInfo }) {
   const missing = useRepoMissing(locked ? null : repoId) || locked;
 
   useCoreSync(locked ? null : repoId);
+  useCustomCommandRegistration(locked ? null : repoId);
   useGlobalShortcuts(info.platform === "macos");
   useAppearance(settings);
   useWindowTitle(active);

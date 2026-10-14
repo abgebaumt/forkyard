@@ -1,7 +1,23 @@
 {
   "inputs": {
+    "description": "Trage die Werte für diesen Lauf ein.",
+    "run": "Ausführen",
+    "cancel": "Abbrechen",
+    "browse": "Durchsuchen",
     "pickOne": "Wähle eine der Möglichkeiten.",
     "invalid": "Dieser Wert enthält ein Zeichen, das sich nicht weitergeben lässt."
+  },
+  "run": {
+    "untrusted": "Die Befehle dieses Repositories sind nicht freigegeben.",
+    "untrustedHint": "Prüfe .forkyard/commands.json in den Einstellungen unter „Eigene Befehle“.",
+    "review": "Prüfen",
+    "confirmTitle": "„{{title}}“ ausführen?",
+    "confirmBody": "Der Befehl läuft in {{cwd}}.",
+    "confirmDetails": "Befehl",
+    "confirmLabel": "Ausführen",
+    "done": "„{{title}}“ ist fertig.",
+    "failed": "„{{title}}“ endete mit Exit-Code {{code}}.",
+    "showOutput": "Ausgabe zeigen"
   },
   "editor": {
     "errors": {
