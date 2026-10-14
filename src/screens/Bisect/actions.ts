@@ -11,6 +11,7 @@ import { qk, queryClient } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { t } from "../../i18n";
+import { markTarget } from "./model";
 
 export const bisectBusyKey = (repoId: Id) => `${repoId}:bisect`;
 
@@ -66,9 +67,10 @@ export async function startBisect(repoId: Id, shas: Sha[], tabId?: Id | null) {
   return result;
 }
 
-/** `sha: null` = the commit under test. */
+/** `sha: null` = the commit under test, as the bar shows it (see `markTarget`). */
 export async function markBisect(repoId: Id, verdict: BisectVerdict, tabId?: Id | null, sha: Sha | null = null) {
-  const result = await runAction(MARK_LABELS[verdict], () => core.bisectMark({ repoId, verdict, sha }), { busyKey: bisectBusyKey(repoId) });
+  const target = markTarget(queryClient.getQueryData<BisectStatus>(qk.bisect(repoId)), sha);
+  const result = await runAction(MARK_LABELS[verdict], () => core.bisectMark({ repoId, verdict, sha: target }), { busyKey: bisectBusyKey(repoId) });
   if (result.ok) showState(repoId, tabId, result.value);
   return result;
 }

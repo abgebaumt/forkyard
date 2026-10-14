@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { BisectStatus } from "../../core";
-import { bisectBar, bisectMarks } from "./model";
+import { bisectBar, bisectMarks, markTarget } from "./model";
 
 const status = (patch: Partial<BisectStatus>): BisectStatus => ({
   active: true,
@@ -49,5 +49,14 @@ describe("bisectMarks", () => {
     ]);
     expect(bisectMarks(status({ active: false, bad: "b" })).size).toBe(0);
     expect(bisectMarks(undefined).size).toBe(0);
+  });
+});
+
+describe("markTarget", () => {
+  it("marks the commit the bar shows, not whatever HEAD is when the core gets the call", () => {
+    expect(markTarget(status({ bad: "b", good: ["g"], current: "shown" }), null)).toBe("shown");
+    expect(markTarget(status({ current: "shown" }), "picked")).toBe("picked");
+    expect(markTarget(status({ current: null }), null)).toBeNull();
+    expect(markTarget(undefined, null)).toBeNull();
   });
 });

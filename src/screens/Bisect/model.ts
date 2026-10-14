@@ -31,3 +31,12 @@ export function bisectMarks(status: BisectStatus | undefined): ReadonlyMap<Sha, 
   if (status.bad) marks.set(status.bad, "bad");
   return marks;
 }
+
+/**
+ * The commit a mark applies to: the one picked, otherwise the commit under test as the bar shows
+ * it. Sent explicitly so that a HEAD moved in the meantime (terminal, another tool) is never
+ * marked untested; `null` only when nothing is known (the core then takes the current commit).
+ */
+export function markTarget(status: BisectStatus | undefined, sha: Sha | null): Sha | null {
+  return sha ?? status?.current ?? null;
+}
