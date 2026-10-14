@@ -62,11 +62,14 @@ pub enum ErrorCode {
     RepoOtherProfile,
     /// A bisect is already running in the repository.
     BisectActive,
+    /// A command from the repository's `.forkyard/commands.json` that the user has not approved
+    /// (or the file changed since the approval).
+    CommandUntrusted,
 }
 
 impl ErrorCode {
     /// All codes, for tests and cross-checks.
-    pub const ALL: [ErrorCode; 43] = [
+    pub const ALL: [ErrorCode; 44] = [
         ErrorCode::NotARepo,
         ErrorCode::PathNotFound,
         ErrorCode::PathExists,
@@ -110,6 +113,7 @@ impl ErrorCode {
         ErrorCode::RepoUntrusted,
         ErrorCode::RepoOtherProfile,
         ErrorCode::BisectActive,
+        ErrorCode::CommandUntrusted,
     ];
 
     /// The code as text, as it appears in the JSON (`"not_a_repo"`).
@@ -158,6 +162,7 @@ impl ErrorCode {
             ErrorCode::RepoUntrusted => "repo_untrusted",
             ErrorCode::RepoOtherProfile => "repo_other_profile",
             ErrorCode::BisectActive => "bisect_active",
+            ErrorCode::CommandUntrusted => "command_untrusted",
         }
     }
 }
@@ -256,6 +261,12 @@ impl CoreError {
     pub fn repo_other_profile(names: &[String]) -> Self {
         let list = names.iter().map(|n| format!("“{n}”")).collect::<Vec<_>>().join(", ");
         Self::new(ErrorCode::RepoOtherProfile, format!("The repository belongs to the profile {list}."))
+    }
+    pub fn command_untrusted() -> Self {
+        Self::new(
+            ErrorCode::CommandUntrusted,
+            "This command comes from the repository’s .forkyard/commands.json, and you haven’t approved this version of the file. Review it in Settings under “Custom commands”.",
+        )
     }
     pub fn stale_state() -> Self {
         Self::new(
@@ -395,5 +406,13 @@ mod tests {
             assert!(e.message.contains(word) && !e.message.contains("os error"), "{raw}: {}", e.message);
             assert!(e.git_output.unwrap_or_default().contains("os error"), "the raw text stays in the output");
         }
+    }
+
+    #[test]
+    fn command_untrusted_has_its_own_code() {
+        let error = CoreError::command_untrusted();
+        assert_eq!(serde_json::to_value(&error).unwrap()["code"], "command_untrusted");
+        assert!(ErrorCode::ALL.contains(&ErrorCode::CommandUntrusted));
+        assert!(error.message.contains(".forkyard/commands.json"), "{}", error.message);
     }
 }

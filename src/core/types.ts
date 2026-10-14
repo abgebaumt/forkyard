@@ -73,7 +73,9 @@ export type ErrorCode =
   /** The repository belongs only to other profiles. `repoProfiles` names them; `repoOpen` with `addToProfile: true` opens it anyway. */
   | "repo_other_profile"
   /** A bisect is already running (`bisectStart`). */
-  | "bisect_active";
+  | "bisect_active"
+  /** A command from the repository's `.forkyard/commands.json` that is not approved for this version of the file. */
+  | "command_untrusted";
 
 /** This is how every error comes from the core. `message` is English and meant for humans. */
 export interface CoreErrorData {

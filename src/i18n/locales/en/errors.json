@@ -170,5 +170,9 @@
   "bisect_active": {
     "text": "A bisect is already running.",
     "hint": "Finish it in the bar above the graph, or keep marking commits."
+  },
+  "command_untrusted": {
+    "text": "This repository’s commands aren’t approved.",
+    "hint": "Review .forkyard/commands.json in Settings under “Custom commands” and approve this version of the file."
   }
 }

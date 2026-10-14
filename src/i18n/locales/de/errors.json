@@ -170,5 +170,9 @@
   "bisect_active": {
     "text": "Es läuft bereits ein Bisect.",
     "hint": "Beende es in der Leiste über dem Graphen oder markiere weiter Commits."
+  },
+  "command_untrusted": {
+    "text": "Die Befehle dieses Repositories sind nicht freigegeben.",
+    "hint": "Prüfe .forkyard/commands.json in den Einstellungen unter „Eigene Befehle“ und gib diese Fassung der Datei frei."
   }
 }
