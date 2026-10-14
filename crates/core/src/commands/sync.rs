@@ -26,6 +26,7 @@ use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
 use crate::commands::remotes::{self, head_marker};
 use crate::commands::{refs, status};
+use crate::commands::submodule::auto;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd};
@@ -257,7 +258,7 @@ fn pull_mode_key(mode: PullMode) -> &'static str {
 /// Pull; `mode: None` takes the default from the settings.
 pub async fn pull(core: &Core, repo_id: String, job_id: String, mode: Option<PullMode>) -> CoreResult<OpResult> {
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let result = pull_with_job(core, &repo_id, &job, mode).await;
+    let result = auto::follow(core, &repo_id, pull_with_job(core, &repo_id, &job, mode)).await;
     job.finish(&result);
     result
 }

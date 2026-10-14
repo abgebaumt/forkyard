@@ -9,6 +9,7 @@ use crate::app::Core;
 use crate::commands::commit::head_label;
 use crate::commands::refs::{read_head, read_refs, short_ref_name};
 use crate::commands::status::{parse_porcelain_v2, read_operation, read_status};
+use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
 use crate::model::{Head, OpResult, OperationKind, RefNameCheck, RefNameKind, RefsSnapshot, RepoChange, Status};
@@ -58,6 +59,11 @@ pub async fn branch_create(core: &Core, repo_id: String, name: String, start: Op
 
 /// Local branch, remote branch (creates a tracking branch) or SHA (detached).
 pub async fn branch_checkout(core: &Core, repo_id: String, target: String) -> CoreResult<Status> {
+    let id = repo_id.clone();
+    auto::follow(core, &id, checkout_branch(core, repo_id, target)).await
+}
+
+async fn checkout_branch(core: &Core, repo_id: String, target: String) -> CoreResult<Status> {
     core.with_write_lock(&repo_id, &CHECKOUT_CHANGES, async {
         // Whoever leaves a detached HEAD with their own commits leaves them behind without a ref:
         // check beforehand so that the answer can say so.

@@ -965,6 +965,8 @@ export interface RepoSettings {
    * `path_not_found`. If the key is removed, the choice is null again.
    */
   sshKeyId: Id | null;
+  /** After checkout, pull, merge, cherry-pick, revert, hard reset and a finished rebase, changed submodules are checked out at their recorded commit. Default true. */
+  submodulesAutoUpdate: boolean;
   /**
    * Ticket links: host links on/off, tracker presets and own rules. `repoSettingsSet` checks them
    * (`not_allowed` with the reason) and stores them in canonical form. The effective rules come from `linkRulesGet`.
@@ -1333,6 +1335,8 @@ export interface CoreEvents {
   // No payload. (Written as a literal object type: that is how the contract check in scripts/e2e/contract.mjs reads it.)
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   "app:close_requested": {};
+  /** The follow-up job brought changed submodules along; `ok: false` is a warning (`message` says why), the main operation went through. */
+  "submodules:updated": { repoId: Id; ok: boolean; paths: string[]; message: string | null };
 }
 
 // ---------------------------------------------------------------------------

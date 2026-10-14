@@ -330,6 +330,7 @@ if (isMain) {
       "terminal:exit": { terminalId: "x", code: null },
       "app:open_request": { path: "x", commit: null },
       "app:close_requested": {},
+      "submodules:updated": { repoId: "x", ok: true, paths: [], message: null },
     };
     const emptyEvents = () => structuredClone(placeholders);
     const whatOf = (list, name) => list.filter((event) => event.name === name).flatMap((event) => event.payload.what ?? []);

@@ -25,8 +25,10 @@ pub mod names {
     /// The window is about to close, but the UI has reported something to lose
     /// (`app_close_guard`): it asks and then calls `app_quit`.
     pub const APP_CLOSE_REQUESTED: &str = "app:close_requested";
+    /// The follow-up job brought changed submodules along (or failed – a warning).
+    pub const SUBMODULES_UPDATED: &str = "submodules:updated";
 
-    pub const ALL: [&str; 12] = [
+    pub const ALL: [&str; 13] = [
         REPO_CHANGED,
         JOB_PROGRESS,
         JOB_DONE,
@@ -39,6 +41,7 @@ pub mod names {
         TERMINAL_EXIT,
         APP_OPEN_REQUEST,
         APP_CLOSE_REQUESTED,
+        SUBMODULES_UPDATED,
     ];
 }
 

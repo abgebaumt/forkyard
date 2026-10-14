@@ -20,6 +20,8 @@ use crate::jobs::Job;
 use crate::model::{RepoChange, Submodule, SubmoduleState};
 use crate::util;
 
+pub(crate) mod auto;
+
 const GITLINK_MODE: &[u8] = b"160000";
 const LITERAL: &str = "GIT_LITERAL_PATHSPECS";
 
@@ -423,27 +425,36 @@ async fn update_job(core: &Core, repo_id: &str, job: &Job, paths: Option<Vec<Str
         guard = core.network_lock(repo_id) => guard,
         _ = job.token().cancelled() => return Err(CoreError::cancelled()),
     };
+    let updated = run_update(core, repo_id, job, &wanted, init).await;
+    // Even after an error midway, part of it may already be checked out.
+    core.emit_repo_changed(repo_id, &[RepoChange::Worktree, RepoChange::Config]);
+    updated?;
+    list(core, repo_id).await
+}
+
+/// `git submodule update --recursive [--init] -- <paths>` (`paths` empty = all) with progress to
+/// `job`. Takes no lock itself. Local changes in the way become `dirty_worktree`.
+pub(crate) async fn run_update(core: &Core, repo_id: &str, job: &Job, paths: &[String], init: bool) -> CoreResult<()> {
     let mut cmd = core.git_for(repo_id)?.env(LITERAL, "1").args(["submodule", "update", "--progress", "--recursive"]);
     if init {
         cmd = cmd.arg("--init");
     }
-    cmd = cmd.arg("--").args(&wanted);
-    let updated = cmd.network().run_stream(job.token(), &mut |line| job.progress_line(line)).await;
-    // Even after an error midway, part of it may already be checked out.
-    core.emit_repo_changed(repo_id, &[RepoChange::Worktree, RepoChange::Config]);
-    if let Err(error) = updated {
-        let text = error.git_output.clone().unwrap_or_default().to_lowercase();
-        if text.contains("would be overwritten by checkout") || text.contains("unable to checkout") {
-            let mut dirty = CoreError::new(
-                ErrorCode::DirtyWorktree,
-                "Local changes in a submodule are in the way. Commit, stash or discard them there first.",
-            );
-            dirty.git_output = error.git_output;
-            return Err(dirty);
+    cmd = cmd.arg("--").args(paths);
+    match cmd.network().run_stream(job.token(), &mut |line| job.progress_line(line)).await {
+        Ok(_) => Ok(()),
+        Err(error) => {
+            let text = error.git_output.clone().unwrap_or_default().to_lowercase();
+            if text.contains("would be overwritten by checkout") || text.contains("unable to checkout") {
+                let mut dirty = CoreError::new(
+                    ErrorCode::DirtyWorktree,
+                    "Local changes in a submodule are in the way. Commit, stash or discard them there first.",
+                );
+                dirty.git_output = error.git_output;
+                return Err(dirty);
+            }
+            Err(submodule_error(error))
         }
-        return Err(submodule_error(error));
     }
-    list(core, repo_id).await
 }
 
 /// Number of commits in the submodule that hang off a local ref (branch, tag, stash, HEAD) but off
@@ -559,3 +570,6 @@ pub async fn submodule_move(core: &Core, repo_id: String, path: String, new_path
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod auto_tests;

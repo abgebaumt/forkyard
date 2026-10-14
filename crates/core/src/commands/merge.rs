@@ -20,6 +20,7 @@ use crate::commands::commit::{hook_failure, Hooks, ABORTING_HOOKS};
 use crate::commands::rebase;
 use crate::commands::refs::{read_head, short_ref_name};
 use crate::commands::status::{self, read_operation, read_status};
+use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
 use crate::git::{GitCmd, GitOutput};
@@ -47,7 +48,7 @@ const BACKUP_IDENT_EMAIL: &str = "forkyard@localhost";
 /// branch. `default` = fast-forward if possible; `ff_only` fails with `not_allowed` if no
 /// fast-forward is possible; `squash` leaves the result staged (no commit).
 pub async fn merge_start(core: &Core, repo_id: String, source: String, mode: MergeMode) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &ALL_CHANGES, merge_locked(core, &repo_id, &source, mode)).await
+    auto::follow(core, &repo_id, core.with_write_lock(&repo_id, &ALL_CHANGES, merge_locked(core, &repo_id, &source, mode))).await
 }
 
 async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode) -> CoreResult<OpResult> {
@@ -386,7 +387,7 @@ async fn remove_orig_file(core: &Core, repo_id: &str, root: &Path, rel: &[u8]) {
 /// `skip_hooks`: the merge commit is created with `--no-verify` (like "Skip Git hooks" for an
 /// ordinary commit). Git has no such option for rebase, cherry-pick and revert; there it has no effect.
 pub async fn operation_continue(core: &Core, repo_id: String, message: Option<String>, skip_hooks: Option<bool>) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &ALL_CHANGES, continue_locked(core, &repo_id, message, skip_hooks.unwrap_or(false))).await
+    auto::follow_operation(core, &repo_id, core.with_write_lock(&repo_id, &ALL_CHANGES, continue_locked(core, &repo_id, message, skip_hooks.unwrap_or(false)))).await
 }
 
 async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, skip_hooks: bool) -> CoreResult<OpResult> {
@@ -733,7 +734,7 @@ async fn changed_names(core: &Core, repo_id: &str, args: &[&str]) -> CoreResult<
 /// (`-m 1`): the branch that was merged into stays, the incoming changes disappear. If
 /// there is nothing to revert, `up_to_date` comes back.
 pub async fn revert_commit(core: &Core, repo_id: String, sha: String) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &ALL_CHANGES, revert_locked(core, &repo_id, &sha)).await
+    auto::follow(core, &repo_id, core.with_write_lock(&repo_id, &ALL_CHANGES, revert_locked(core, &repo_id, &sha))).await
 }
 
 async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpResult> {
@@ -834,7 +835,13 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
 /// directory is backed up as a commit; the old tip always gets a backup ref.
 pub async fn reset_branch(core: &Core, repo_id: String, sha: String, mode: ResetMode) -> CoreResult<Status> {
     let changes = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head];
-    core.with_write_lock(&repo_id, &changes, reset_locked(core, &repo_id, &sha, mode)).await
+    let run = core.with_write_lock(&repo_id, &changes, reset_locked(core, &repo_id, &sha, mode));
+    // Only a hard reset changes the working directory; soft and mixed leave submodules alone.
+    if mode == ResetMode::Hard {
+        auto::follow(core, &repo_id, run).await
+    } else {
+        run.await
+    }
 }
 
 async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) -> CoreResult<Status> {

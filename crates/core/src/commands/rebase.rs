@@ -23,6 +23,7 @@ use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
 use crate::commands::refs;
 use crate::commands::status::{self, EntryKind};
+use crate::commands::submodule::auto;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd, GitOutput};
@@ -108,7 +109,7 @@ pub async fn rebase_start(core: &Core, repo_id: String, onto: String, branch: Op
 /// backed up for undo.
 pub async fn rebase_start_with(core: &Core, repo_id: String, onto: String, branch: Option<String>, update_refs: Option<bool>) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    write_action(core, &repo_id, &touched, start_rebase(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), &touched)).await
+    auto::follow(core, &repo_id, write_action(core, &repo_id, &touched, start_rebase(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), &touched))).await
 }
 
 /// The local branches a rebase of `branch` (default: the checked-out one) onto `onto` would move
@@ -221,7 +222,7 @@ pub async fn rebase_apply(core: &Core, repo_id: String, base: String, rows: Vec<
 /// Like `rebase_apply`; `update_refs: Some(true)` moves dependent branches along.
 pub async fn rebase_apply_with(core: &Core, repo_id: String, base: String, rows: Vec<RebasePlanRow>, update_refs: Option<bool>) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    write_action(core, &repo_id, &touched, apply_plan(core, &repo_id, &base, &rows, update_refs.unwrap_or(false), &touched)).await
+    auto::follow(core, &repo_id, write_action(core, &repo_id, &touched, apply_plan(core, &repo_id, &base, &rows, update_refs.unwrap_or(false), &touched))).await
 }
 
 /// Apply one or more commits.
@@ -230,7 +231,7 @@ pub async fn cherry_pick(core: &Core, repo_id: String, shas: Vec<String>) -> Cor
     // With `--empty=drop` Git remembers to skip empty picks for a later `--continue` as well;
     // older versions stop and are pushed on from here.
     let empty_drop = core.git.info()?.version >= CHERRY_PICK_EMPTY_DROP;
-    write_action(core, &repo_id, &touched, pick_commits(core, &repo_id, &shas, empty_drop, &touched)).await
+    auto::follow(core, &repo_id, write_action(core, &repo_id, &touched, pick_commits(core, &repo_id, &shas, empty_drop, &touched))).await
 }
 
 /// Combine consecutive commits of the checked-out branch.

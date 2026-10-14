@@ -15,6 +15,7 @@ const base: RepoSettings = {
   authorName: null,
   authorEmail: null,
   sshKeyId: null,
+  submodulesAutoUpdate: true,
   linkRules: { hostRules: true, presets: [], custom: [] },
 };
 

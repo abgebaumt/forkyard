@@ -1291,6 +1291,9 @@ pub struct RepoSettings {
     /// enforced for the app's network calls, even with an SSH agent. `None` = like the profile.
     #[serde(default)]
     pub ssh_key_id: Option<String>,
+    /// After checkout, pull, merge, cherry-pick, revert, hard reset and a finished rebase: bring
+    /// submodules whose recorded commit changed to it (`git submodule update --init --recursive`).
+    pub submodules_auto_update: bool,
     /// Ticket link rules of this repository (presets, own rules, host links on/off). Checked on
     /// saving; the effective rules (including `.forkyard/links.json`) come from `link_rules_get`.
     #[serde(default)]
@@ -1309,6 +1312,7 @@ impl Default for RepoSettings {
             author_name: None,
             author_email: None,
             ssh_key_id: None,
+            submodules_auto_update: true,
             link_rules: LinkRulesConfig::default(),
         }
     }
@@ -1881,6 +1885,19 @@ pub struct AppChangedEvent {
     pub what: Vec<AppChange>,
 }
 
+/// `submodules:updated` – the follow-up job after checkout, pull, merge … (see
+/// `commands::submodule::auto`). A failure is a warning; the main operation went through.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubmodulesUpdatedEvent {
+    pub repo_id: Id,
+    pub ok: bool,
+    /// Submodules whose recorded commit changed.
+    pub paths: Vec<String>,
+    /// Why it failed (redacted); `None` on success.
+    pub message: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2056,6 +2073,14 @@ mod tests {
             serde_json::to_value(&multi).unwrap(),
             json!({"status":"multi","remote":"origin","atomic":true,"refs":[{"local":"refs/heads/main","remoteRef":"refs/heads/main","status":"rejected","forced":false,"reason":"atomic push failed"}]})
         );
+    }
+
+    #[test]
+    fn submodules_updated_json() {
+        let event = SubmodulesUpdatedEvent { repo_id: "r".into(), ok: false, paths: vec!["libs/a".into()], message: Some("x".into()) };
+        assert_eq!(serde_json::to_value(&event).unwrap(), json!({"repoId":"r","ok":false,"paths":["libs/a"],"message":"x"}));
+        assert_eq!(serde_json::to_value(RepoSettings::default()).unwrap()["submodulesAutoUpdate"], true);
+        assert!(crate::events::names::ALL.contains(&crate::events::names::SUBMODULES_UPDATED));
     }
 
     #[test]
