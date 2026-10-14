@@ -39,5 +39,25 @@
   "pullCancel": "Cancel fetching",
   "pull": "Fetch LFS files",
   "prune": "Clean up …",
-  "footer": "“Fetch” replaces pointers in the working directory with the real files from the remote. “Clean up” deletes old LFS files from local storage that the current state doesn't need."
+  "footer": "“Fetch” replaces pointers in the working directory with the real files from the remote. “Clean up” deletes old LFS files from local storage that the current state doesn't need.",
+  "locks": {
+    "heading": "Locks",
+    "intro": "A lock tells everyone working on this repository that you’re editing a file. The LFS server keeps the locks; they’re read again after every fetch.",
+    "refresh": "Refresh",
+    "refreshLabel": "Read the locks from the server again",
+    "loading": "Reading the locks",
+    "unsupported": "The LFS server of this repository doesn’t offer file locking.",
+    "readFailed": "The locks couldn’t be read",
+    "filter": "Filter by path or owner",
+    "empty": "No file is locked.",
+    "emptyFiltered": "No lock matches “{{filter}}”.",
+    "listLabel": "Locked files",
+    "you": "you",
+    "byYou": "Locked by you",
+    "byOther": "Locked by {{owner}}",
+    "unlock": "Unlock",
+    "force": "Force unlock …",
+    "selected_one": "{{count}} selected",
+    "selected_other": "{{count}} selected"
+  }
 }

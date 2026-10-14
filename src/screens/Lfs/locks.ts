@@ -41,3 +41,22 @@ export function forceUnlockConfirm(foreign: LfsLock[]): ConfirmOptions {
     detailsLabel: t("actions.lfs.forceUnlock.details"),
   };
 }
+
+export interface PanelActions {
+  /** “Unlock”: the selected own locks. */
+  unlock: string[];
+  /** “Force unlock …”: everything selected. */
+  force: string[];
+  /** How many of the selected locks belong to others (they need the prompt). */
+  foreign: number;
+}
+
+/** What the buttons below the lock list do with the selection (in list order). */
+export function panelActions(locks: LfsLock[], selected: ReadonlySet<string>): PanelActions {
+  const chosen = locks.filter((lock) => selected.has(lock.path));
+  return {
+    unlock: chosen.filter((lock) => lock.ours).map((lock) => lock.path),
+    force: chosen.map((lock) => lock.path),
+    foreign: chosen.filter((lock) => !lock.ours).length,
+  };
+}

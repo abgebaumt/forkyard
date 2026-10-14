@@ -17,6 +17,7 @@ import { Button, IconButton } from "../../ui/Button";
 import { Banner } from "../../ui/Feedback";
 import { TextField } from "../../ui/Field";
 import { t } from "../../i18n";
+import { LocksSection } from "./LocksSection";
 
 /** Common candidates; offered are those not tracked yet. */
 const SUGGESTIONS = ["*.psd", "*.zip", "*.mp4", "*.bin"];
@@ -265,6 +266,9 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
         </div>
       ) : null}
 
+      <div className="border-t border-border pt-3">
+        <LocksSection repoId={repoId} />
+      </div>
       <div className="flex flex-col gap-2 border-t border-border pt-3">
         {jobId ? <PullProgress jobId={jobId} stopping={stopping} /> : null}
         <div className="flex flex-wrap items-center gap-2">

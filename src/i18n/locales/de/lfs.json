@@ -39,5 +39,25 @@
   "pullCancel": "Holen abbrechen",
   "pull": "LFS-Dateien holen",
   "prune": "Aufräumen …",
-  "footer": "„Holen“ ersetzt Zeiger im Arbeitsverzeichnis durch die echten Dateien vom Remote. „Aufräumen“ löscht alte LFS-Dateien aus dem lokalen Speicher, die der aktuelle Stand nicht braucht."
+  "footer": "„Holen“ ersetzt Zeiger im Arbeitsverzeichnis durch die echten Dateien vom Remote. „Aufräumen“ löscht alte LFS-Dateien aus dem lokalen Speicher, die der aktuelle Stand nicht braucht.",
+  "locks": {
+    "heading": "Sperren",
+    "intro": "Eine Sperre zeigt allen, die an diesem Repository arbeiten, dass du eine Datei bearbeitest. Die Sperren verwaltet der LFS-Server; sie werden nach jedem Fetch neu gelesen.",
+    "refresh": "Aktualisieren",
+    "refreshLabel": "Sperren neu vom Server lesen",
+    "loading": "Sperren werden gelesen",
+    "unsupported": "Der LFS-Server dieses Repositorys bietet keine Dateisperren an.",
+    "readFailed": "Die Sperren ließen sich nicht lesen",
+    "filter": "Nach Pfad oder Besitzer filtern",
+    "empty": "Keine Datei ist gesperrt.",
+    "emptyFiltered": "Keine Sperre passt zu „{{filter}}“.",
+    "listLabel": "Gesperrte Dateien",
+    "you": "du",
+    "byYou": "Von dir gesperrt",
+    "byOther": "Gesperrt von {{owner}}",
+    "unlock": "Entsperren",
+    "force": "Entsperren erzwingen …",
+    "selected_one": "{{count}} ausgewählt",
+    "selected_other": "{{count}} ausgewählt"
+  }
 }
