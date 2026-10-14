@@ -131,6 +131,30 @@ export interface SegmentedOption<T extends string> {
   value: T;
   label: string;
   icon?: ReactNode;
+  /** Shown but not selectable; the arrow keys skip it. */
+  disabled?: boolean;
+  /** Tooltip, e.g. why the entry is disabled. */
+  hint?: string;
+}
+
+/**
+ * The entry that an arrow key, Home or End leads to: wrapping, skipping disabled entries.
+ * -1: not a navigation key, or nothing is selectable.
+ */
+export function segmentTarget(options: readonly { disabled?: boolean }[], from: number, key: string): number {
+  const count = options.length;
+  if (count === 0) return -1;
+  const walk = (start: number, step: number) => {
+    for (let n = 0, index = start; n < count; n += 1, index = (index + step + count) % count) {
+      if (!options[index]?.disabled) return index;
+    }
+    return -1;
+  };
+  if (key === "ArrowRight" || key === "ArrowDown") return walk((from + 1) % count, 1);
+  if (key === "ArrowLeft" || key === "ArrowUp") return walk((from - 1 + count) % count, -1);
+  if (key === "Home") return walk(0, 1);
+  if (key === "End") return walk(count - 1, -1);
+  return -1;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -164,12 +188,8 @@ export function SegmentedControl<T extends string>({
     const from = event.currentTarget.dataset.value ?? value;
     const known = options.findIndex((option) => option.value === from);
     const index = known >= 0 ? known : options.findIndex((option) => option.value === value);
-    let next = -1;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") next = (index + 1) % options.length;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") next = (index - 1 + options.length) % options.length;
-    else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = options.length - 1;
-    else return;
+    const next = segmentTarget(options, index, event.key);
+    if (next < 0) return;
     // preventDefault also holds back Radix' own arrow navigation (focus only).
     event.preventDefault();
     const target = options[next];
@@ -208,10 +228,12 @@ export function SegmentedControl<T extends string>({
           value={option.value}
           data-value={option.value}
           onKeyDown={onItemKeyDown}
-          title={iconOnly ? option.label : undefined}
+          disabled={option.disabled}
+          title={iconOnly ? option.label : option.hint}
           className={cn(
             "inline-flex h-full items-center gap-1 rounded-sm px-2 text-sm font-medium whitespace-nowrap text-text-muted",
             "hover:text-text data-[state=on]:bg-surface-raised data-[state=on]:text-text",
+            "disabled:text-text-disabled disabled:hover:text-text-disabled",
           )}
         >
           {option.icon}
