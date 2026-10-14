@@ -2777,3 +2777,188 @@ pub struct CliStatus {
     /// The folder of the link is on the PATH of the running app.
     pub on_path: bool,
 }
+
+// ---------------------------------------------------------------------------
+// Statistics
+// ---------------------------------------------------------------------------
+
+/// What `stats_compute` counts. `from`/`to`: ISO-8601, compared with the author time (both
+/// inclusive); `None` = open. `ref` (JSON key): `HEAD` or a full ref name (`refs/heads/main`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsRange {
+    pub from: Option<IsoTime>,
+    pub to: Option<IsoTime>,
+    #[serde(rename = "ref")]
+    pub reference: String,
+}
+
+/// Commits of a week (`period` = its Monday, "YYYY-MM-DD") or a month ("YYYY-MM"), by the
+/// author's local date.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsBucket {
+    pub period: String,
+    pub commits: u32,
+    pub added: u64,
+    pub removed: u64,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsAuthor {
+    pub name: String,
+    pub email: String,
+    pub commits: u32,
+    pub added: u64,
+    pub removed: u64,
+    pub first_at: IsoTime,
+    pub last_at: IsoTime,
+}
+
+/// A file that still exists at the tip and was changed in the period.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsFile {
+    pub path: String,
+    pub commits: u32,
+    /// Number of different authors.
+    pub authors: u32,
+    pub added: u64,
+    pub removed: u64,
+}
+
+/// `score` = commits × authors.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsHotspot {
+    pub path: String,
+    pub commits: u32,
+    pub authors: u32,
+    pub score: u32,
+}
+
+/// Knowledge per folder (`path` "" = the whole repository). `weight`: changed lines, at least
+/// 1 per file change. `bus_factor`: fewest authors who together hold more than half of it.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsFolder {
+    pub path: String,
+    pub weight: u64,
+    pub authors: u32,
+    pub main_author: Person,
+    /// Share of the main author in percent (0–100).
+    pub main_share: u32,
+    pub bus_factor: u32,
+}
+
+/// Lines of the blamed sample by the age of their last change, relative to
+/// `RepoStats::reference_time`: under 30 days, under 365 days, under 3 × 365 days, older.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsCodeAge {
+    /// Files that were blamed.
+    pub files: u32,
+    /// Files of the sample that Git could not blame.
+    pub skipped: u32,
+    pub month: u64,
+    pub year: u64,
+    pub three_years: u64,
+    pub older: u64,
+}
+
+/// Longest run of consecutive days with commits ("YYYY-MM-DD", author's local date).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsStreak {
+    pub days: u32,
+    pub start: String,
+    pub end: String,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsBigCommit {
+    pub sha: Sha,
+    pub added: u64,
+    pub removed: u64,
+    pub at: IsoTime,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsBusyDay {
+    pub date: String,
+    pub commits: u32,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsRecords {
+    pub longest_streak: Option<StatsStreak>,
+    pub biggest_commit: Option<StatsBigCommit>,
+    pub busiest_day: Option<StatsBusyDay>,
+}
+
+/// Result of `stats_compute`: derived numbers only – no commit list, no messages.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoStats {
+    /// The commit whose history was counted; `None` = nothing to count.
+    pub tip: Option<Sha>,
+    /// Reference point of the code age: `to`, otherwise the commit time of `tip`.
+    pub reference_time: Option<IsoTime>,
+    pub commits: u32,
+    pub added: u64,
+    pub removed: u64,
+    pub first_at: Option<IsoTime>,
+    pub last_at: Option<IsoTime>,
+    /// 7 × 24: weekday (Monday first) × hour, in the author's local time.
+    pub heatmap: Vec<Vec<u32>>,
+    pub weeks: Vec<StatsBucket>,
+    pub months: Vec<StatsBucket>,
+    /// All authors of the period; `authors` holds at most 200 of them.
+    pub author_count: u32,
+    pub authors: Vec<StatsAuthor>,
+    /// All changed files that still exist; `files` holds at most 2000 of them (most changed first).
+    pub file_count: u32,
+    pub files: Vec<StatsFile>,
+    pub hotspots: Vec<StatsHotspot>,
+    pub folders: Vec<StatsFolder>,
+    pub code_age: StatsCodeAge,
+    pub records: StatsRecords,
+    /// Came from the cache.
+    pub cached: bool,
+}
+
+#[cfg(test)]
+mod stats_json_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn stats_range_reads_ref_and_stats_are_camel_case() {
+        let range: StatsRange = serde_json::from_value(json!({ "from": "2025-06-01T00:00:00.000Z", "to": null, "ref": "refs/heads/main" })).unwrap();
+        assert_eq!(range, StatsRange { from: Some("2025-06-01T00:00:00.000Z".into()), to: None, reference: "refs/heads/main".into() });
+        assert_eq!(serde_json::to_value(&range).unwrap()["ref"], "refs/heads/main");
+
+        let stats = RepoStats {
+            code_age: StatsCodeAge { three_years: 4, ..StatsCodeAge::default() },
+            folders: vec![StatsFolder { path: String::new(), main_share: 45, bus_factor: 2, ..StatsFolder::default() }],
+            ..RepoStats::default()
+        };
+        let v = serde_json::to_value(&stats).unwrap();
+        assert_eq!(v["codeAge"]["threeYears"], 4);
+        assert_eq!(v["folders"][0]["mainShare"], 45);
+        assert_eq!(v["folders"][0]["busFactor"], 2);
+        assert!(v["folders"][0]["mainAuthor"].is_object());
+        assert!(v["records"]["longestStreak"].is_null());
+        assert!(v["tip"].is_null() && v["referenceTime"].is_null() && v["firstAt"].is_null());
+        for key in ["heatmap", "weeks", "months", "authors", "files", "hotspots", "folders"] {
+            assert!(v[key].is_array(), "{key}");
+        }
+        assert_eq!((v["authorCount"].clone(), v["fileCount"].clone(), v["cached"].clone()), (json!(0), json!(0), json!(false)));
+        let back: RepoStats = serde_json::from_value(v).unwrap();
+        assert_eq!(back, stats);
+    }
+}

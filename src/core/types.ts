@@ -1649,3 +1649,130 @@ export interface CliStatus {
   /** The link's folder is on the PATH of the running app. */
   onPath: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Statistics
+// ---------------------------------------------------------------------------
+
+/**
+ * What `statsCompute` counts. `from`/`to`: ISO-8601, compared with the author time (both
+ * inclusive); null = open. `ref`: "HEAD" or a full ref name (`refs/heads/main`).
+ */
+export interface StatsRange {
+  from: IsoTime | null;
+  to: IsoTime | null;
+  ref: string;
+}
+
+/** Commits of a week (`period` = its Monday, "YYYY-MM-DD") or a month ("YYYY-MM"), by the author's local date. */
+export interface StatsBucket {
+  period: string;
+  commits: number;
+  added: number;
+  removed: number;
+}
+
+export interface StatsAuthor {
+  name: string;
+  email: string;
+  commits: number;
+  added: number;
+  removed: number;
+  firstAt: IsoTime;
+  lastAt: IsoTime;
+}
+
+/** A file that still exists at the tip and was changed in the period. `authors`: number of different authors. */
+export interface StatsFile {
+  path: string;
+  commits: number;
+  authors: number;
+  added: number;
+  removed: number;
+}
+
+/** `score` = commits × authors. */
+export interface StatsHotspot {
+  path: string;
+  commits: number;
+  authors: number;
+  score: number;
+}
+
+/**
+ * Knowledge per folder (`path` "" = the whole repository). `weight`: changed lines, at least 1
+ * per file change. `mainShare`: percent. `busFactor`: fewest authors holding more than half.
+ */
+export interface StatsFolder {
+  path: string;
+  weight: number;
+  authors: number;
+  mainAuthor: Person;
+  mainShare: number;
+  busFactor: number;
+}
+
+/** Lines of the blamed sample by the age of their last change (relative to `RepoStats.referenceTime`). */
+export interface StatsCodeAge {
+  /** Files that were blamed. */
+  files: number;
+  /** Files of the sample Git could not blame. */
+  skipped: number;
+  month: number;
+  year: number;
+  threeYears: number;
+  older: number;
+}
+
+export interface StatsStreak {
+  days: number;
+  start: string;
+  end: string;
+}
+
+export interface StatsBigCommit {
+  sha: Sha;
+  added: number;
+  removed: number;
+  at: IsoTime;
+}
+
+export interface StatsBusyDay {
+  date: string;
+  commits: number;
+}
+
+export interface StatsRecords {
+  longestStreak: StatsStreak | null;
+  biggestCommit: StatsBigCommit | null;
+  busiestDay: StatsBusyDay | null;
+}
+
+/** Result of `statsCompute`: derived numbers only – no commit list, no messages. */
+export interface RepoStats {
+  /** The commit whose history was counted; null = nothing to count. */
+  tip: Sha | null;
+  /** Reference point of the code age: `to`, otherwise the commit time of `tip`. */
+  referenceTime: IsoTime | null;
+  commits: number;
+  added: number;
+  removed: number;
+  firstAt: IsoTime | null;
+  lastAt: IsoTime | null;
+  /** 7 × 24: weekday (Monday first) × hour, in the author's local time. */
+  heatmap: number[][];
+  weeks: StatsBucket[];
+  months: StatsBucket[];
+  /** All authors of the period; `authors` holds at most 200. */
+  authorCount: number;
+  authors: StatsAuthor[];
+  /** All changed files that still exist; `files` holds at most 2000 (most changed first). */
+  fileCount: number;
+  files: StatsFile[];
+  hotspots: StatsHotspot[];
+  folders: StatsFolder[];
+  codeAge: StatsCodeAge;
+  records: StatsRecords;
+  /** Came from the cache. */
+  cached: boolean;
+}
