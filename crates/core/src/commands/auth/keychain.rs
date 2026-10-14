@@ -112,6 +112,26 @@ pub async fn delete(service: &str, account: &str) -> CoreResult<bool> {
 #[cfg(any(test, feature = "testkit"))]
 pub const TEST_SERVICE_PREFIX: &str = "forkyard-test-";
 
+/// Tests only: whether the keychain under the test service `service` accepts a write. A
+/// keychain can answer reads and still refuse every write (a locked Secret Service collection
+/// with nobody there to unlock it), and tests that store secrets have to be skipped then.
+/// Writes, reads back and deletes a probe entry; only touches services with the test prefix.
+#[cfg(any(test, feature = "testkit"))]
+pub async fn probe_writable(service: &str) -> bool {
+    if !service.starts_with(TEST_SERVICE_PREFIX) || !probe(service).await {
+        return false;
+    }
+    let service = service.to_string();
+    blocking(move || {
+        let probe = entry(&service, PROBE_ACCOUNT)?;
+        let stored = probe.set_password("probe").is_ok() && read(&service, PROBE_ACCOUNT)?.as_deref() == Some("probe");
+        let _ = probe.delete_credential();
+        Ok(stored)
+    })
+    .await
+    .unwrap_or(false)
+}
+
 /// Tests only: deletes all entries recorded in this core's database from the keychain service
 /// `service`, synchronously so that it can run in a `Drop` and a test leaves nothing behind even
 /// when it fails halfway. Only touches services with the test prefix. Returns the number of
@@ -136,4 +156,20 @@ pub fn remove_test_entries(core: &crate::app::Core, service: &str) -> usize {
         .iter()
         .filter(|account| keyring::Entry::new(service, account).is_ok_and(|entry| entry.delete_credential().is_ok()))
         .count()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn writable_probe_never_touches_real_services_and_leaves_nothing_behind() {
+        assert!(!probe_writable(DEFAULT_SERVICE).await, "only test services are probed by writing");
+        let service = format!("{TEST_SERVICE_PREFIX}{}", crate::util::new_id());
+        if probe_writable(&service).await {
+            assert_eq!(get(&service, PROBE_ACCOUNT).await.unwrap(), None, "the probe entry is removed again");
+            set(&service, "account", "value").await.expect("a writable keychain takes a real write");
+            assert!(delete(&service, "account").await.unwrap());
+        }
+    }
 }

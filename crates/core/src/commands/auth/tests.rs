@@ -107,11 +107,11 @@ struct TestKeyring {
 }
 
 impl TestKeyring {
-    /// `None` if no keychain is reachable on this machine.
+    /// `None` if no keychain on this machine accepts writes (none at all, or locked).
     async fn new(fx: &Fixture) -> Option<TestKeyring> {
         let service = format!("{}{}", keychain::TEST_SERVICE_PREFIX, util::new_id());
-        if !keychain::probe(&service).await {
-            eprintln!("skipped: no keychain reachable");
+        if !keychain::probe_writable(&service).await {
+            eprintln!("skipped: no writable keychain reachable");
             return None;
         }
         let name = service.clone();

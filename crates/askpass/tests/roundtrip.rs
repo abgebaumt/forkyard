@@ -327,9 +327,9 @@ async fn https_roundtrip_with_basic_auth() {
     let url = server.url();
     let host = format!("127.0.0.1:{}", server.port);
 
-    // Keychain with its own service name; without a reachable keychain the “remember” part is skipped.
+    // Keychain with its own service name; without a writable keychain (none, or locked) the “remember” part is skipped.
     let service = format!("{}{}", keychain::TEST_SERVICE_PREFIX, uuid_like());
-    let with_keyring = keychain::probe(&service).await;
+    let with_keyring = keychain::probe_writable(&service).await;
     // Even if the test fails midway, no entry is left behind in the machine's keychain.
     let _cleanup = KeyringCleanup { core: fx.core(), service: service.clone() };
     if with_keyring {
