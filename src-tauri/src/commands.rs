@@ -816,6 +816,21 @@ pub async fn lfs_prune(core: State<'_, Core>, repo_id: String) -> R<String> {
 }
 
 #[tauri::command]
+pub async fn lfs_locks(core: State<'_, Core>, repo_id: String, filter: Option<String>, refresh: Option<bool>) -> R<LfsLockList> {
+    c::lfs::lfs_locks(&core, repo_id, filter, refresh).await
+}
+
+#[tauri::command]
+pub async fn lfs_lock(core: State<'_, Core>, repo_id: String, paths: Vec<String>) -> R<LfsLockOutcome> {
+    c::lfs::lfs_lock(&core, repo_id, paths).await
+}
+
+#[tauri::command]
+pub async fn lfs_unlock(core: State<'_, Core>, repo_id: String, paths: Vec<String>, force: bool) -> R<LfsLockOutcome> {
+    c::lfs::lfs_unlock(&core, repo_id, paths, force).await
+}
+
+#[tauri::command]
 pub async fn patch_create(core: State<'_, Core>, repo_id: String, source: DiffSource, paths: Option<Vec<String>>) -> R<PatchText> {
     c::patch::patch_create(&core, repo_id, source, paths).await
 }

@@ -53,6 +53,8 @@ import type {
   IssueState,
   LaunchRequest,
   LfsStatus,
+  LfsLockList,
+  LfsLockOutcome,
   MergeMode,
   OpResult,
   OpenedRepo,
@@ -587,6 +589,17 @@ export interface CoreCommands {
   lfsPull(input: R & { jobId: string }): Promise<void>;
   /** Returns Git LFS's summary (one line, English). */
   lfsPrune(input: R): Promise<string>;
+  /**
+   * LFS file locks at the server (`git lfs locks --verify`), sorted by path; `filter` narrows by
+   * path or owner. The core keeps the list and asks the server again only with `refresh` or
+   * after a fetch (then `repo:changed` with `locks`). Without `refresh` Git never asks for
+   * credentials. Without Git LFS or on a server without the locking API: `unsupported`.
+   */
+  lfsLocks(input: R & { filter?: string | null; refresh?: boolean }): Promise<LfsLockList>;
+  /** Locks the files; paths that could not be locked are in `failed`. `repo:changed` with `locks`. */
+  lfsLock(input: R & { paths: string[] }): Promise<LfsLockOutcome>;
+  /** Unlocks; `force` also removes other people's locks and own locks on changed files. */
+  lfsUnlock(input: R & { paths: string[]; force: boolean }): Promise<LfsLockOutcome>;
 
   // --- Patches ------------------------------------------------------------------------
   /**
