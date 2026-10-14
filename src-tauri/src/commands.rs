@@ -786,6 +786,11 @@ pub async fn submodule_remove(core: State<'_, Core>, repo_id: String, path: Stri
 }
 
 #[tauri::command]
+pub async fn submodule_move(core: State<'_, Core>, repo_id: String, path: String, new_path: String) -> R<Vec<Submodule>> {
+    c::submodule::submodule_move(&core, repo_id, path, new_path).await
+}
+
+#[tauri::command]
 pub async fn lfs_status(core: State<'_, Core>, repo_id: String) -> R<LfsStatus> {
     c::lfs::lfs_status(&core, repo_id).await
 }

@@ -518,5 +518,44 @@ pub async fn submodule_remove(core: &Core, repo_id: String, path: String, force:
     .await
 }
 
+/// Moves a submodule to `new_path` (`git mv`; Git updates `.gitmodules` and the submodule's
+/// gitfile). The move is staged afterwards. The target must not exist yet; missing parent folders
+/// are created.
+///
+/// Errors: `not_found` (no submodule at `path`), `path_exists` (target exists), `not_allowed`
+/// (path outside the repository or in `.git`, target inside the submodule itself).
+pub async fn submodule_move(core: &Core, repo_id: String, path: String, new_path: String) -> CoreResult<Vec<Submodule>> {
+    let repo_id = repo_id.as_str();
+    let rel = normalize_rel_path(&path)?;
+    let target = normalize_rel_path(&new_path)?;
+    if is_inside_git_dir(&target) {
+        return Err(CoreError::not_allowed(format!("“{target}” is inside the Git directory.")));
+    }
+    if target == rel {
+        return list(core, repo_id).await;
+    }
+    if target.starts_with(&format!("{rel}/")) {
+        return Err(CoreError::not_allowed("A submodule can't be moved into itself."));
+    }
+    let changes = [RepoChange::Worktree, RepoChange::Index, RepoChange::Config];
+    core.with_write_lock(repo_id, &changes, async {
+        let known = list(core, repo_id).await?;
+        if !known.iter().any(|s| s.path == rel) {
+            return Err(CoreError::not_found(format!("There is no submodule at “{rel}”.")));
+        }
+        let root = core.repo_path(repo_id)?;
+        let destination = util::join_from_git(&root, target.as_bytes());
+        if std::fs::symlink_metadata(&destination).is_ok() {
+            return Err(CoreError::path_exists(&target));
+        }
+        if let Some(parent) = destination.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        core.git_for(repo_id)?.env(LITERAL, "1").args(["mv", "--"]).arg(&rel).arg(&target).run().await?;
+        list(core, repo_id).await
+    })
+    .await
+}
+
 #[cfg(test)]
 mod tests;

@@ -506,6 +506,7 @@ pub fn run() {
             commands::submodule_add,
             commands::submodule_update,
             commands::submodule_remove,
+            commands::submodule_move,
             commands::lfs_status,
             commands::lfs_track,
             commands::lfs_untrack,

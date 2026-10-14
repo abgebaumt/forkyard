@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Submodule } from "../../core";
 import { submoduleStateText } from "../../app/actions/submodules";
-import { matchesSubmodule, normalizePath, pathProblem, splitPath, submoduleSecondary, suggestPath } from "./model";
+import { matchesSubmodule, moveTargetProblem, normalizePath, pathProblem, splitPath, submoduleSecondary, suggestPath } from "./model";
+import { t } from "../../i18n";
 
 const sub = (patch: Partial<Submodule>): Submodule => ({
   name: "libs/kern",
@@ -68,5 +69,20 @@ describe("submodule: row", () => {
     expect(matchesSubmodule(sub({}), "git.example")).toBe(true);
     expect(matchesSubmodule(sub({}), "nirgends")).toBe(false);
     expect(matchesSubmodule(sub({ url: null }), "  ")).toBe(true);
+  });
+});
+
+describe("submodule: move target", () => {
+  const all = [sub({ path: "libs/kern" }), sub({ path: "libs/rand" })];
+  it("accepts a free path inside the repository", () => {
+    expect(moveTargetProblem("extern/kern", all[0]!, all)).toBeNull();
+    expect(moveTargetProblem(" ./extern\\kern/ ", all[0]!, all)).toBeNull();
+  });
+  it("refuses the same place, other submodules, outside and the Git directory", () => {
+    expect(moveTargetProblem("libs/kern", all[0]!, all)).toBe(t("submoduleMove.same"));
+    expect(moveTargetProblem("libs/rand", all[0]!, all)).toBe(t("submodules.path.taken"));
+    expect(moveTargetProblem("libs/kern/innen", all[0]!, all)).toBe(t("submodules.path.nested"));
+    expect(moveTargetProblem("../draußen", all[0]!, all)).toBe(t("submodules.path.parent"));
+    expect(moveTargetProblem(".git/x", all[0]!, all)).toBe(t("submodules.path.git"));
   });
 });

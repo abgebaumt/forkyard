@@ -568,6 +568,13 @@ export interface CoreCommands {
    * staged. With state `modified` or `out_of_sync` only with `force` (otherwise `dirty_worktree`).
    */
   submoduleRemove(input: R & { path: string; force?: boolean }): Promise<Submodule[]>;
+  /**
+   * Moves a submodule (`git mv`; Git updates `.gitmodules`); the move is staged afterwards. `newPath`
+   * is relative to the repository and must not exist yet (missing parent folders are created).
+   * Errors: `not_found`, `path_exists`, `not_allowed` (outside, in `.git`, into itself). Reports
+   * `repo:changed` with worktree, index, config.
+   */
+  submoduleMove(input: R & { path: string; newPath: string }): Promise<Submodule[]>;
 
   // --- Git LFS ------------------------------------------------------------------------
   /** Always works. If Git LFS is not installed (`installed: false`), the others answer with `unsupported`. */

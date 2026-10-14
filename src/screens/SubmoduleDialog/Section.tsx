@@ -4,10 +4,10 @@
  * If submodules have not been fetched yet, the section offers to initialise them.
  */
 import { useEffect, type ReactNode } from "react";
-import { Copy, Download, GitCompareArrows, Info, Loader2, PackageCheck, PackageOpen, PencilLine, Plus, RefreshCw, SquareArrowOutUpRight, Trash2 } from "lucide-react";
+import { Copy, Download, FolderInput, GitCompareArrows, Info, Loader2, PackageCheck, PackageOpen, PencilLine, Plus, RefreshCw, SquareArrowOutUpRight, Trash2 } from "lucide-react";
 import type { Id, Submodule, SubmoduleState } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
-import { openSubmodule, removeSubmodule, submoduleBusyKey, submoduleStateText, updateSubmodules } from "../../app/actions/submodules";
+import { moveSubmodule, openSubmodule, removeSubmodule, submoduleBusyKey, submoduleStateText, updateSubmodules } from "../../app/actions/submodules";
 import { qk, queryClient, useSubmodules, useViewState } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
 import { Marked, MENU_SEPARATOR, menuItem, SideEmpty, SideLoadError, SideSection, SideSkeleton, type SideRowState } from "../../components/SideSection";
@@ -92,6 +92,7 @@ function submoduleMenu(repoId: Id, submodule: Submodule, busy: boolean): MenuEnt
     MENU_SEPARATOR,
     menuItem(t("submodules.menu.copyUrl"), Copy, () => void copyText(submodule.url ?? "", t("submodules.menu.urlWhat")), { blocked: submodule.url ? null : t("submodules.menu.noUrl") }),
     menuItem(t("submodules.menu.copyPath"), Copy, () => void copyText(submodule.path, t("submodules.menu.pathWhat"))),
+    menuItem(t("submoduleMove.menu"), FolderInput, () => void moveSubmodule(repoId, submodule), { tooltip: t("submoduleMove.menuTip", { path: submodule.path }), blocked: running }),
     MENU_SEPARATOR,
     menuItem(t("submodules.menu.updateAll"), RefreshCw, () => void updateSubmodules(repoId, null, { init: true }), { blocked: running }),
     menuItem(t("submodules.menu.add"), Plus, openAddDialog),

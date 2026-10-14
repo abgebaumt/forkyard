@@ -223,3 +223,36 @@ async fn local_urls_need_the_file_protocol_to_be_allowed() {
     assert!(err.message.contains("protocol.file.allow"), "{}", err.message);
     assert!(!repo.path().join("libs").exists() && !repo.path().join(".gitmodules").exists());
 }
+
+#[tokio::test]
+async fn move_updates_gitmodules_and_keeps_the_checkout() {
+    let tc = core().await;
+    let (lib, lib_remote) = library();
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    submodule_add(&tc, id.clone(), "job-add".into(), lib_remote.url(), "libs/werkzeug".into()).await.unwrap();
+    repo.commit("Submodul hinzugefügt");
+    tc.events.clear();
+
+    let list = submodule_move(&tc, id.clone(), "libs/werkzeug".into(), "extern/neuer Ort".into()).await.unwrap();
+    assert_eq!(list.len(), 1);
+    assert_eq!((list[0].path.as_str(), list[0].state), ("extern/neuer Ort", SubmoduleState::Initialized));
+    assert_eq!(list[0].sha, lib.head());
+    assert_eq!(repo.read_file("extern/neuer Ort/lib.txt"), b"eins\nzwei\n");
+    assert!(!repo.path().join("libs").join("werkzeug").exists());
+    let gitmodules = String::from_utf8(repo.read_file(".gitmodules")).unwrap();
+    assert!(gitmodules.contains("path = extern/neuer Ort"), "{gitmodules}");
+    let changed = tc.events.named(names::REPO_CHANGED);
+    assert!(changed.iter().any(|e| e["what"] == serde_json::json!(["worktree", "index", "config"])), "{changed:?}");
+    let status = crate::commands::status::read_status(&tc, &id).await.unwrap();
+    assert!(status.staged.iter().any(|f| f.path == ".gitmodules"), "the move is staged");
+
+    // Errors change nothing: target exists, unknown submodule, outside, into itself, into .git.
+    repo.write_file("belegt/datei.txt", "x\n");
+    assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "belegt".into()).await), ErrorCode::PathExists);
+    assert_eq!(code(submodule_move(&tc, id.clone(), "gibt/es/nicht".into(), "x".into()).await), ErrorCode::NotFound);
+    assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "../draußen".into()).await), ErrorCode::NotAllowed);
+    assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "extern/neuer Ort/innen".into()).await), ErrorCode::NotAllowed);
+    assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), ".git/modules/x".into()).await), ErrorCode::NotAllowed);
+    assert_eq!(submodule_list(&tc, id).await.unwrap()[0].path, "extern/neuer Ort");
+}

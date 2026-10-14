@@ -49,6 +49,12 @@ export function pathProblem(raw: string, existing: Pick<Submodule, "path">[]): s
   return null;
 }
 
+/** Why `raw` cannot be the new place of `submodule` – or null. The same checks as for adding, plus “already there”. */
+export function moveTargetProblem(raw: string, submodule: Pick<Submodule, "path">, all: Pick<Submodule, "path">[]): string | null {
+  if (normalizePath(raw) === submodule.path) return t("submoduleMove.same");
+  return pathProblem(raw, all);
+}
+
 /** Last part of the path and the folder before it (with slash), for "name first, folder dimmed". */
 export function splitPath(path: string): { name: string; dir: string } {
   const index = path.lastIndexOf("/");

@@ -1,0 +1,11 @@
+{
+  "menu": "Verschieben …",
+  "menuTip": "Submodul „{{path}}“ in einen anderen Ordner verschieben",
+  "title": "Submodul {{path}} verschieben",
+  "label": "Neuer Pfad im Repository",
+  "description": "Git verschiebt den Ordner und passt .gitmodules an; die Verschiebung ist danach gestagt.",
+  "confirm": "Verschieben",
+  "same": "Dort liegt das Submodul schon.",
+  "done": "Submodul nach {{path}} verschoben",
+  "action": "Submodul verschieben"
+}

@@ -1,0 +1,11 @@
+{
+  "menu": "Move …",
+  "menuTip": "Move submodule “{{path}}” to another folder",
+  "title": "Move submodule {{path}}",
+  "label": "New path in the repository",
+  "description": "Git moves the folder and updates .gitmodules; the move is staged afterwards.",
+  "confirm": "Move",
+  "same": "The submodule is already there.",
+  "done": "Submodule moved to {{path}}",
+  "action": "Move submodule"
+}

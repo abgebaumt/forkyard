@@ -5,13 +5,14 @@
 import { t } from "../../i18n";
 import { core, type ErrorCode, type Id, type Repo, type Submodule, type SubmoduleState } from "../../core";
 import { toast } from "../../ui/Feedback";
-import { confirm } from "../dialogs";
+import { confirm, promptText } from "../dialogs";
 import { errorInfo } from "../errors";
 import { shortSha } from "../format";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction, showError, type ActionResult } from "../run";
 import { clip } from "./context";
 import { openRepositoryAt } from "./repos";
+import { moveTargetProblem, normalizePath } from "../../screens/SubmoduleDialog/model";
 
 export const submoduleBusyKey = (repoId: Id) => `${repoId}:submodule`;
 
@@ -193,5 +194,27 @@ export async function removeSubmodule(repoId: Id, submodule: Submodule) {
     return result;
   }
   afterChange(repoId, result.value);
+  return result;
+}
+
+/** Asks for the new path (inside the repository) and moves the submodule there; the move is staged. */
+export async function moveSubmodule(repoId: Id, submodule: Submodule) {
+  const all = cachedList(repoId) ?? [submodule];
+  const target = await promptText({
+    title: t("submoduleMove.title", { path: clip(submodule.path, 40) }),
+    label: t("submoduleMove.label"),
+    description: t("submoduleMove.description"),
+    initial: submodule.path,
+    mono: true,
+    validate: (value) => moveTargetProblem(value, submodule, all),
+    confirmLabel: t("submoduleMove.confirm"),
+  });
+  if (target === null) return null;
+  const newPath = normalizePath(target);
+  const result = await runAction(t("submoduleMove.action"), () => core.submoduleMove({ repoId, path: submodule.path, newPath }), {
+    busyKey: submoduleBusyKey(repoId),
+    success: t("submoduleMove.done", { path: clip(newPath, 40) }),
+  });
+  if (result.ok) afterChange(repoId, result.value);
   return result;
 }
