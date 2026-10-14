@@ -24,6 +24,7 @@ pub mod repo_settings;
 pub mod repos;
 pub mod settings;
 pub mod ssh_keys;
+pub mod stats_cache;
 pub mod tabs;
 pub mod undo;
 pub mod view_state;
@@ -49,7 +50,20 @@ const UPGRADES: &[&str] = &[
     V5_PROFILE_LEVELS,
     // Collapsed merges in the graph (per repository): two columns of the view state.
     V_COLLAPSED_MERGES,
+    // Statistics cache (`stats_compute`). Written with `if not exists`: schema.sql creates the
+    // table for every database, including the version-1 database the upgrade test builds from it.
+    STATS_CACHE,
 ];
+
+const STATS_CACHE: &str = "
+create table if not exists stats_cache (
+  repository_id text not null references repositories (id) on delete cascade,
+  cache_key     text not null,
+  value         text not null check (json_valid(value)),
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  primary key (repository_id, cache_key)
+) strict;
+";
 
 const V_COLLAPSED_MERGES: &str = "
 alter table repo_view_state add column collapsed_merges text not null default '[]' check (json_valid(collapsed_merges));
@@ -332,7 +346,7 @@ mod tests {
         let kept: String = db.with(|c| Ok(c.query_row("select name from workspaces where id = 'w'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(kept, "Alt");
         let fresh = Db::open_in_memory().unwrap();
-        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state"] {
+        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state", "stats_cache"] {
             assert_eq!(columns(&db, table), columns(&fresh, table), "{table}");
         }
         // The view state of before keeps its fields and gets the new ones with their defaults.
@@ -386,6 +400,33 @@ mod tests {
         // Opening a second time changes nothing more.
         drop(db);
         Db::open(&path).unwrap();
+    }
+
+    /// The statistics cache step creates exactly the table schema.sql has, and may run twice.
+    #[test]
+    fn the_stats_cache_upgrade_matches_the_schema() {
+        assert!(UPGRADES.contains(&STATS_CACHE), "the step is part of UPGRADES");
+        let columns = |db: &Db| -> Vec<(String, String, i64)> {
+            db.with(|c| {
+                let mut stmt = c.prepare("select name, type, pk from pragma_table_info('stats_cache') order by cid")?;
+                let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .unwrap()
+        };
+        let fresh = Db::open_in_memory().unwrap();
+        let expected = columns(&fresh);
+        assert_eq!(expected.len(), 4, "{expected:?}");
+        let upgraded = Db::open_in_memory().unwrap();
+        upgraded
+            .with(|c| {
+                c.execute_batch("drop table stats_cache;")?;
+                c.execute_batch(STATS_CACHE)?;
+                c.execute_batch(STATS_CACHE)?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(columns(&upgraded), expected);
     }
 
     #[test]

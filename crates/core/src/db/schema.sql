@@ -163,6 +163,16 @@ create table commit_drafts (
   primary key (repository_id, worktree_path)
 ) strict, without rowid;
 
+-- Results of the statistics (stats_compute) as JSON: derived numbers only, never commits.
+-- cache_key names the tip commit, the period and the version of the computation.
+create table stats_cache (
+  repository_id text not null references repositories (id) on delete cascade,
+  cache_key     text not null,
+  value         text not null check (json_valid(value)),
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  primary key (repository_id, cache_key)
+) strict;
+
 -- Undo/redo. Before every reversible action the app records where HEAD and the
 -- affected ref were. For "discard", payload points to a backup commit under
 -- refs/<app>/undo/<id>, so that discarded work can be brought back.
