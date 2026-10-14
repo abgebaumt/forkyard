@@ -435,6 +435,7 @@ pub fn run() {
             commands::cherry_pick,
             commands::squash_commits,
             commands::revert_commit,
+            commands::conflict_preview,
             commands::reset_branch,
             commands::bisect_status,
             commands::bisect_start,

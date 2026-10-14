@@ -883,6 +883,34 @@ pub enum RebasePlan {
     },
 }
 
+/// What `conflict_preview` simulates (see `commands::preview`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
+pub enum PreviewOp {
+    /// `theirs` (branch, remote branch, tag or SHA) merged into HEAD.
+    Merge { theirs: String },
+    /// Applied onto HEAD in this order.
+    CherryPick { commits: Vec<Sha> },
+    /// Reverted on top of HEAD in this order.
+    Revert { commits: Vec<Sha> },
+    /// `branch` (default: HEAD) rebased onto `onto`. `upstream` limits the range (default: `onto`);
+    /// `commits` is an explicit order (interactive plan without the dropped rows).
+    Rebase { onto: String, upstream: Option<String>, branch: Option<String>, commits: Option<Vec<Sha>> },
+    /// Patch text as for `patch_apply`, checked against the working directory.
+    Patch { text: String },
+}
+
+/// Result of `conflict_preview`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
+pub enum ConflictPreview {
+    Clean,
+    /// `at_commit`: in a series, the first commit that conflicts.
+    Conflicts { files: Vec<String>, at_commit: Option<Sha> },
+    /// Could not be simulated (too many commits, merge commit, unrelated history, invalid patch …).
+    Unknown { reason: String },
+}
+
 // ---------------------------------------------------------------------------
 // Stash, undo, history, files
 // ---------------------------------------------------------------------------
@@ -1993,6 +2021,22 @@ mod tests {
         );
         let back: RebasePlan = serde_json::from_value(serde_json::to_value(&ok).unwrap()).unwrap();
         assert_eq!(back, ok);
+    }
+
+    #[test]
+    fn conflict_preview_json() {
+        let op: PreviewOp = serde_json::from_value(json!({"kind":"rebase","onto":"main"})).unwrap();
+        assert_eq!(op, PreviewOp::Rebase { onto: "main".into(), upstream: None, branch: None, commits: None });
+        let op: PreviewOp = serde_json::from_value(json!({"kind":"cherry_pick","commits":["a","b"]})).unwrap();
+        assert_eq!(op, PreviewOp::CherryPick { commits: vec!["a".into(), "b".into()] });
+        let op: PreviewOp = serde_json::from_value(json!({"kind":"patch","text":"diff"})).unwrap();
+        assert_eq!(op, PreviewOp::Patch { text: "diff".into() });
+        assert_eq!(serde_json::to_value(ConflictPreview::Clean).unwrap(), json!({"status":"clean"}));
+        assert_eq!(
+            serde_json::to_value(ConflictPreview::Conflicts { files: vec!["a.txt".into()], at_commit: Some("c".into()) }).unwrap(),
+            json!({"status":"conflicts","files":["a.txt"],"atCommit":"c"})
+        );
+        assert_eq!(serde_json::to_value(ConflictPreview::Unknown { reason: "x".into() }).unwrap(), json!({"status":"unknown","reason":"x"}));
     }
 
     #[test]

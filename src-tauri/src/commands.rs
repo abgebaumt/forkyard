@@ -422,6 +422,11 @@ pub async fn revert_commit(core: State<'_, Core>, repo_id: String, sha: String) 
 }
 
 #[tauri::command]
+pub async fn conflict_preview(core: State<'_, Core>, repo_id: String, job_id: String, op: PreviewOp) -> R<ConflictPreview> {
+    c::preview::conflict_preview(&core, repo_id, job_id, op).await
+}
+
+#[tauri::command]
 pub async fn reset_branch(core: State<'_, Core>, repo_id: String, sha: String, mode: ResetMode) -> R<Status> {
     c::merge::reset_branch(&core, repo_id, sha, mode).await
 }

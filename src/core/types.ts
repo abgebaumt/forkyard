@@ -731,6 +731,22 @@ export type RebasePlan =
       message: string;
     };
 
+/** What `conflictPreview` simulates. */
+export type PreviewOp =
+  | { kind: "merge"; theirs: string }
+  | { kind: "cherry_pick"; commits: Sha[] }
+  | { kind: "revert"; commits: Sha[] }
+  /** `branch: null` = HEAD; `upstream: null` = `onto`; `commits`: explicit order (interactive plan), null = what Git would replay. */
+  | { kind: "rebase"; onto: string; upstream: string | null; branch: string | null; commits: Sha[] | null }
+  | { kind: "patch"; text: string };
+
+export type ConflictPreview =
+  | { status: "clean" }
+  /** `atCommit`: in a series, the first commit that conflicts. */
+  | { status: "conflicts"; files: string[]; atCommit: Sha | null }
+  /** Not simulated (too many commits, merge commit, unrelated history, invalid patch, Git older than 2.40 for a series). */
+  | { status: "unknown"; reason: string };
+
 // ---------------------------------------------------------------------------
 // Stash, undo, history, files
 // ---------------------------------------------------------------------------

@@ -27,6 +27,7 @@ import type {
   CommitResult,
   CommitSummary,
   ConflictFile,
+  ConflictPreview,
   CoreEvents,
   DiffSource,
   ExternalTarget,
@@ -59,6 +60,7 @@ import type {
   PatchSelection,
   PatchText,
   PrDetails,
+  PreviewOp,
   PrListState,
   PrMergeMethod,
   PrPage,
@@ -339,6 +341,13 @@ export interface CoreCommands {
   /** Combine consecutive commits of the checked-out branch into one. */
   squashCommits(input: R & { shas: Sha[]; message: string }): Promise<OpResult>;
   revertCommit(input: R & { sha: Sha }): Promise<OpResult>;
+  /**
+   * Would the operation stop on conflicts? Simulated without touching working directory, index or
+   * refs (`git merge-tree`; a series is replayed commit by commit, at most 200; a patch via
+   * `git apply --check`). Background read as a job: `jobCancel(jobId)` stops it (`cancelled`).
+   * Git problems come back as `unknown` with a reason, not as an error.
+   */
+  conflictPreview(input: R & { jobId: string; op: PreviewOp }): Promise<ConflictPreview>;
   /** Resets the checked-out branch to `sha`. */
   resetBranch(input: R & { sha: Sha; mode: ResetMode }): Promise<Status>;
   /** Bisect state, read from the Git directory – also one started on the command line. */
