@@ -5,6 +5,10 @@
     "untrusted": "Für dieses Repository nicht freigegeben"
   },
   "app": {
+    "installCli": {
+      "title": "Kommandozeilenbefehl installieren",
+      "keywords": "cli,Terminal,PATH,forkyard-Befehl,Kommandozeile"
+    },
     "activity": {
       "keywords": "Activity, Log, Befehle, Verlauf",
       "title": "Protokoll anzeigen"

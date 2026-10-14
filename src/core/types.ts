@@ -1639,3 +1639,13 @@ export type CustomCommandResult =
   | { status: "finished"; exitCode: number | null; output: string }
   /** The UI opens the address in the system browser. */
   | { status: "open_url"; url: string };
+
+/** Whether the app can link the `forkyard` command into a folder on the PATH (AppImage, macOS app). */
+export interface CliStatus {
+  installable: boolean;
+  installed: boolean;
+  /** `~/.local/bin/forkyard` or `/usr/local/bin/forkyard`; null if not installable. */
+  linkPath: string | null;
+  /** The link's folder is on the PATH of the running app. */
+  onPath: boolean;
+}

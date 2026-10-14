@@ -5,6 +5,10 @@
     "untrusted": "Not approved for this repository"
   },
   "app": {
+    "installCli": {
+      "title": "Install command-line command",
+      "keywords": "cli,terminal,PATH,forkyard command"
+    },
     "activity": {
       "keywords": "activity, log, commands, history",
       "title": "Show activity log"

@@ -6,5 +6,9 @@ fn main() {
     if let Some(code) = gitcore::commands::rebase::editor_helper_entry() {
         std::process::exit(code);
     }
+    // `forkyard --help`, `--version` and the Windows installer's PATH switches answer without a window.
+    if let Some(code) = gitcore::commands::cli::early_exit(std::env::args_os().skip(1), env!("CARGO_PKG_VERSION")) {
+        std::process::exit(code);
+    }
     forkyard_lib::run()
 }

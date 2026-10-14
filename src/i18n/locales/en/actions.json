@@ -1,4 +1,12 @@
 {
+  "cli": {
+    "label": "Install command-line command",
+    "managed": "The forkyard command comes with this installation.",
+    "managedHint": "The package or installer has put it on the PATH already (deb/rpm: /usr/bin/forkyard, Windows: the program folder).",
+    "installed": "Linked {{path}}.",
+    "ready": "Open a new terminal and run “forkyard --help”.",
+    "notOnPath": "Its folder is not on your PATH yet – add it, then open a new terminal."
+  },
   "undoLabel": "Undo",
   "ancestry": {
     "atLeastTwo": "select at least two commits",

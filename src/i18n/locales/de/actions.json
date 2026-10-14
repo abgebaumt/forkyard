@@ -1,4 +1,12 @@
 {
+  "cli": {
+    "label": "Kommandozeilenbefehl installieren",
+    "managed": "Der Befehl forkyard gehört zu dieser Installation.",
+    "managedHint": "Das Paket bzw. der Installer hat ihn schon in den PATH gelegt (deb/rpm: /usr/bin/forkyard, Windows: der Programmordner).",
+    "installed": "{{path}} verknüpft.",
+    "ready": "Öffne ein neues Terminal und führe „forkyard --help“ aus.",
+    "notOnPath": "Sein Ordner steht noch nicht im PATH – füge ihn hinzu und öffne dann ein neues Terminal."
+  },
   "undoLabel": "Rückgängig",
   "ancestry": {
     "atLeastTwo": "mindestens zwei Commits wählen",

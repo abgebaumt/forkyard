@@ -928,6 +928,18 @@ pub async fn custom_commands_export(core: State<'_, Core>, path: String) -> R<()
     c::custom::custom_commands_export(&core, path).await
 }
 
+// --- Command line ------------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn cli_status(core: State<'_, Core>) -> R<CliStatus> {
+    c::cli::cli_status(&core).await
+}
+
+#[tauri::command]
+pub async fn cli_install(core: State<'_, Core>) -> R<CliStatus> {
+    c::cli::cli_install(&core).await
+}
+
 // --- Hosts: accounts, pull requests, issues ---------------------------------------------
 
 #[tauri::command]

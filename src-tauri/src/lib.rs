@@ -498,6 +498,8 @@ pub fn run() {
             commands::custom_command_run,
             commands::custom_commands_import,
             commands::custom_commands_export,
+            commands::cli_status,
+            commands::cli_install,
             commands::terminal_open,
             commands::terminal_write,
             commands::terminal_resize,
@@ -666,5 +668,26 @@ mod tests {
         assert!(!new.join("gitclient.db").exists());
         assert!(old.join("gitclient.db").exists());
         let _ = std::fs::remove_dir_all(&parent);
+    }
+
+    /// `forkyard` is the command on every system: the program's name (deb/rpm install
+    /// /usr/bin/forkyard, Windows forkyard.exe), the PATH entry of both Windows installers, and the
+    /// version that `forkyard --version` reports.
+    #[test]
+    fn the_command_line_command_is_set_up_by_the_installers() {
+        let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(config["mainBinaryName"], "forkyard");
+        assert_eq!(config["version"].as_str(), Some(env!("CARGO_PKG_VERSION")), "forkyard --version reports the app version");
+        let windows = &config["bundle"]["windows"];
+        assert_eq!(windows["nsis"]["installerHooks"], "windows/installer-hooks.nsh");
+        let hooks = include_str!("../windows/installer-hooks.nsh");
+        assert!(hooks.contains("!macro NSIS_HOOK_POSTINSTALL") && hooks.contains(r#""$INSTDIR\forkyard.exe" --register-path"#), "{hooks}");
+        assert!(hooks.contains("!macro NSIS_HOOK_PREUNINSTALL") && hooks.contains(r#""$INSTDIR\forkyard.exe" --unregister-path"#), "{hooks}");
+        assert_eq!(windows["wix"]["fragmentPaths"], serde_json::json!(["windows/cli-path.wxs"]));
+        assert_eq!(windows["wix"]["componentRefs"], serde_json::json!(["ForkyardCliPath"]));
+        let fragment = include_str!("../windows/cli-path.wxs");
+        for part in [r#"<Component Id="ForkyardCliPath""#, r#"Name="PATH""#, r#"Value="[INSTALLDIR]""#, r#"Permanent="no""#, r#"Part="last""#] {
+            assert!(fragment.contains(part), "{part}\n{fragment}");
+        }
     }
 }

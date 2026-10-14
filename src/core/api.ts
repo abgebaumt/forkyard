@@ -14,6 +14,7 @@
  * The UI never calls Git directly and never builds command lines.
  */
 import type {
+  CliStatus,
   CrashReportSummary,
   ActivityPage,
   ActivityScope,
@@ -539,6 +540,16 @@ export interface CoreCommands {
   customCommandsImport(input: { path: string }): Promise<CustomCommandDef[]>;
   /** Writes the user's own commands to `path` (absolute, from the save dialog). */
   customCommandsExport(input: { path: string }): Promise<void>;
+
+  // --- Command line ---------------------------------------------------------------------------
+  /** Whether this installation can link the `forkyard` command itself (AppImage, macOS app) and whether it is linked. */
+  cliStatus(): Promise<CliStatus>;
+  /**
+   * Links the command (AppImage: `~/.local/bin/forkyard`, macOS: `/usr/local/bin/forkyard`).
+   * Installers that do it themselves (Windows, deb, rpm): `unsupported`. Another file in the way:
+   * `path_exists`. No permission: `not_allowed` with the line to run in a terminal.
+   */
+  cliInstall(): Promise<CliStatus>;
 
   // --- Built-in terminal ---------------------------------------------------------
   /**
