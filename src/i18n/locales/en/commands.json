@@ -245,6 +245,14 @@
     "smartVisibility": {
       "keywords": "smart, visibility, filter, solo, main branch, tidy, fewer branches",
       "title": "Graph: show only current branch, upstream and target (on/off)"
+    },
+    "collapseAllMerges": {
+      "title": "Graph: collapse all merges",
+      "keywords": "collapse, fold, merges, hide side branches"
+    },
+    "expandAllMerges": {
+      "title": "Graph: expand all merges",
+      "keywords": "expand, unfold, merges, show side branches"
     }
   },
   "groups": {

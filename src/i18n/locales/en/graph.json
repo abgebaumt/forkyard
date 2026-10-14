@@ -77,7 +77,14 @@
     "stashOnBranch": "{{text}} on {{branch}}",
     "onBranch": "on {{branch}}",
     "noMessage": "No message",
-    "checkedOut": "{{kind}}, checked out"
+    "checkedOut": "{{kind}}, checked out",
+    "collapse": "Collapse merge (hide the commits it brought in)",
+    "expand": "Expand merge",
+    "collapseTooLarge": "Too many commits to collapse (over 20,000)",
+    "collapsedCount_one": "+1 commit",
+    "collapsedCount_other": "+{{formatted}} commits",
+    "notPushed": "Not pushed yet",
+    "notPulled": "Not pulled yet"
   },
   "refs": {
     "kind": {
@@ -96,5 +103,8 @@
     "showMore_one": "Show 1 more label",
     "showMore_other": "Show {{count}} more labels",
     "moreLabel": "More labels on this commit"
+  },
+  "collapse": {
+    "save": "Save collapsed merges"
   }
 }

@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
-import { Archive, Search } from "lucide-react";
-import type { DateFormat, GraphRow, Id, RefLabelInfo, Status } from "../../core";
+import { Archive, ChevronDown, ChevronRight, Search } from "lucide-react";
+import type { DateFormat, GraphRow, Id, RefLabelInfo, Status, SyncMark } from "../../core";
+import { toggleMergeCollapsed } from "../../app/actions/collapse";
 import { formatDate, formatDateTime, shortSha } from "../../app/format";
 import { useStatus } from "../../app/queries";
 import { useAppStore, type AppState, type Selection } from "../../app/store";
@@ -141,8 +142,38 @@ export function dateTooltip(iso: string): string {
   return `${formatDateTime(date)} (${utcDateTime.format(date)} UTC)`;
 }
 
-function messageCell(row: GraphRow, repoId: Id, hit: boolean): ReactNode {
-  if (row.kind === "wip") return <WipMessage repoId={repoId} />;
+/** Arrow on merge rows: collapse (hide the commits the merge brought in) or expand again. */
+function CollapseToggle({ repoId, sha, collapsed, tooLarge }: { repoId: Id; sha: string; collapsed: boolean; tooLarge: boolean }) {
+  const label = tooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("graph.row.expand") : t("graph.row.collapse");
+  return (
+    <button
+      type="button"
+      tabIndex={-1}
+      aria-label={label}
+      aria-expanded={!collapsed}
+      title={label}
+      data-collapse-toggle={collapsed ? "collapsed" : "expanded"}
+      className="flex size-4 shrink-0 items-center justify-center rounded-sm text-text-muted hover:bg-surface-raised hover:text-text"
+      onClick={() => void toggleMergeCollapsed(repoId, sha)}
+    >
+      {collapsed ? <ChevronRight className="size-3" aria-hidden /> : <ChevronDown className="size-3" aria-hidden />}
+    </button>
+  );
+}
+
+/** ↑ not pushed yet, ↓ not pulled yet (checked-out branch and its upstream). */
+function SyncArrow({ sync }: { sync: Exclude<SyncMark, "none"> }) {
+  const label = sync === "ahead" ? t("graph.row.notPushed") : t("graph.row.notPulled");
+  return (
+    <span data-sync={sync} title={label} className="shrink-0 font-mono text-sm text-text-muted">
+      <span aria-hidden>{sync === "ahead" ? "↑" : "↓"}</span>
+      <span className="sr-only">{label}</span>
+    </span>
+  );
+}
+
+function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode {
+  if (row.kind === "wip") return <WipMessage repoId={shared.repoId} />;
   const marker = hit ? (
     <>
       <Search className="size-3 shrink-0 text-warning" aria-hidden />
@@ -162,23 +193,38 @@ function messageCell(row: GraphRow, repoId: Id, hit: boolean): ReactNode {
       </>
     );
   }
+  const before = (
+    <>
+      {marker}
+      {row.kind === "merge" && row.sha ? <CollapseToggle repoId={shared.repoId} sha={row.sha} collapsed={row.collapsedCount !== null} tooLarge={row.collapseTooLarge} /> : null}
+      {row.sync !== "none" ? <SyncArrow sync={row.sync} /> : null}
+    </>
+  );
+  const after = row.collapsedCount ? (
+    <span data-collapsed-count={row.collapsedCount} className="shrink-0 text-sm text-text-muted">
+      {t("graph.row.collapsedCount", { count: row.collapsedCount, formatted: row.collapsedCount.toLocaleString(locale()) })}
+    </span>
+  ) : null;
   if (!row.summary) {
     return (
       <>
-        {marker}
+        {before}
         <span className="truncate text-text-muted italic">{t("graph.row.noMessage")}</span>
+        {after}
       </>
     );
   }
   return (
     <>
-      {marker}
+      {before}
       <span className={cn("truncate", row.kind === "merge" && "text-text-muted", row.isHead && "font-medium")} title={row.summary}>
         {row.summary}
       </span>
+      {after}
     </>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Row
@@ -286,7 +332,7 @@ const RowCells = memo(function RowCells({ row, index, layout, shared, ghost, hit
           case "message":
             return (
               <div key={column} role="gridcell" data-cell={column} className="flex h-full min-w-40 flex-1 items-center gap-1.5 overflow-hidden px-2">
-                {messageCell(row, shared.repoId, hit)}
+                {messageCell(row, shared, hit)}
               </div>
             );
           case "author": {

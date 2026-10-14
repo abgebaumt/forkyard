@@ -58,7 +58,8 @@
         "firstLast": "Erster / letzter geladener Commit",
         "openDetails": "Details im Commit Panel öffnen",
         "highlightBranch": "Branch der Zeile hervorheben (noch einmal oder Esc hebt auf)",
-        "contextMenu": "Kontextmenü der Zeile"
+        "contextMenu": "Kontextmenü der Zeile",
+        "collapseMerge": "Ausgewählten Merge ein- / ausklappen"
       },
       "title": "Commit-Graph",
       "where": "Fokus auf einer Zeile im Graphen"

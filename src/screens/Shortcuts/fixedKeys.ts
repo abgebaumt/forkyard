@@ -31,6 +31,7 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
       { keys: ["ArrowUp", "K"], label: t("shortcuts.fixed.graph.entries.previous") },
       { keys: ["H"], label: t("shortcuts.fixed.graph.entries.parent") },
       { keys: ["L"], label: t("shortcuts.fixed.graph.entries.child") },
+      { keys: ["ArrowLeft", "ArrowRight"], label: t("shortcuts.fixed.graph.entries.collapseMerge") },
       { keys: ["Shift+ArrowDown", "Shift+ArrowUp"], label: t("shortcuts.fixed.graph.entries.extendSelection") },
       { keys: ["PageDown", "PageUp"], label: t("shortcuts.fixed.graph.entries.page") },
       { keys: ["Home", "End"], label: t("shortcuts.fixed.graph.entries.firstLast") },

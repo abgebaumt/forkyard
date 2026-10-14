@@ -77,7 +77,14 @@
     "stashOnBranch": "{{text}} auf {{branch}}",
     "onBranch": "auf {{branch}}",
     "noMessage": "Ohne Message",
-    "checkedOut": "{{kind}}, ausgecheckt"
+    "checkedOut": "{{kind}}, ausgecheckt",
+    "collapse": "Merge einklappen (die mitgebrachten Commits ausblenden)",
+    "expand": "Merge ausklappen",
+    "collapseTooLarge": "Zu viele Commits zum Einklappen (über 20.000)",
+    "collapsedCount_one": "+1 Commit",
+    "collapsedCount_other": "+{{formatted}} Commits",
+    "notPushed": "Noch nicht gepusht",
+    "notPulled": "Noch nicht gepullt"
   },
   "refs": {
     "kind": {
@@ -96,5 +103,8 @@
     "showMore_one": "1 weiteres Label zeigen",
     "showMore_other": "{{count}} weitere Labels zeigen",
     "moreLabel": "Weitere Labels dieses Commits"
+  },
+  "collapse": {
+    "save": "Eingeklappte Merges speichern"
   }
 }

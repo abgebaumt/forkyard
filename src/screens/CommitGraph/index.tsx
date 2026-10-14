@@ -15,7 +15,8 @@
  * - “Only current branch, upstream and target”: via the view's solo refs (src/components/graph/smart.ts).
  *
  * Keys in the list: ↑ ↓ J K Home End PgUp PgDn (Shift extends), H / L (parent / child),
- * Enter (details), B (highlight the row's branch, again or Esc clears it), menu key.
+ * Enter (details), B (highlight the row's branch, again or Esc clears it), ← / → (collapse / expand
+ * the selected merge), menu key.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { InfiniteData } from "@tanstack/react-query";
@@ -23,6 +24,7 @@ import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/rea
 import { Filter, GitCommitHorizontal, Highlighter, Loader2, RefreshCw, TriangleAlert, Unplug } from "lucide-react";
 import { core, CoreError, type GraphPage, type GraphRow, type Id, type Ref, type RefLabelInfo, type RepoViewState, type Sha } from "../../core";
 import { checkout, createBranch } from "../../app/actions/branches";
+import { setMergeCollapsed } from "../../app/actions/collapse";
 import { setSmartVisibility, smartBlock, syncSmartVisibility } from "../../app/actions/graphView";
 import { confirm, showOutput } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
@@ -817,6 +819,13 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     } else if (plain && !event.shiftKey && key === "Enter") {
       event.preventDefault();
       openDetails(cursor);
+      return;
+    } else if (plain && !event.shiftKey && (key === "ArrowLeft" || key === "ArrowRight")) {
+      // ← collapses the selected merge, → expands it again. On other rows the keys keep their default.
+      const row = rows[cursor];
+      if (row?.kind !== "merge" || !row.sha) return;
+      event.preventDefault();
+      void setMergeCollapsed(repoId, row.sha, key === "ArrowLeft");
       return;
     } else if (key === "ContextMenu" || (key === "F10" && event.shiftKey)) {
       event.preventDefault();

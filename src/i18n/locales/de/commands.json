@@ -245,6 +245,14 @@
     "smartVisibility": {
       "keywords": "Smart, Sichtbarkeit, Filter, Solo, Hauptbranch, übersichtlich, weniger Branches",
       "title": "Graph: nur aktuellen Branch, Upstream und Ziel zeigen (ein/aus)"
+    },
+    "collapseAllMerges": {
+      "title": "Graph: alle Merges einklappen",
+      "keywords": "einklappen, falten, Merges, Seitenzweige ausblenden"
+    },
+    "expandAllMerges": {
+      "title": "Graph: alle Merges ausklappen",
+      "keywords": "ausklappen, entfalten, Merges, Seitenzweige zeigen"
     }
   },
   "groups": {

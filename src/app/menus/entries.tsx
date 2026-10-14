@@ -11,6 +11,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Check,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Cherry,
   CloudDownload,
   CloudUpload,
@@ -51,11 +53,12 @@ import {
   Workflow,
   Wrench,
 } from "lucide-react";
-import type { DiffSource, FileChange, Id, Ref, Remote, ResetMode, Sha, Stash } from "../../core";
+import type { DiffSource, FileChange, GraphRow, Id, Ref, Remote, ResetMode, Sha, Stash } from "../../core";
 import type { MenuAction, MenuEntry } from "../../ui/Menu";
 import { consecutiveOnHead, findRow, graphIndex, isAncestor } from "../actions/ancestry";
 import { checkout, checkoutCommit, chooseUpstream, createBranch, deleteBranches, renameBranch, setUpstream } from "../actions/branches";
 import { copyText } from "../actions/clipboard";
+import { setAllMergesCollapsed, setMergeCollapsed } from "../actions/collapse";
 import { cachedRefs, cachedRemotes, cachedStashes, cachedStatus, clipMiddle, currentBranch, headSha, short } from "../actions/context";
 import { interactiveRebaseOnto, mergeInto, pushTo, rebaseBranchOnto } from "../actions/drop";
 import { createFile, deleteFile } from "../commands/fileview";
@@ -140,6 +143,21 @@ function resetMenu(ctx: MenuBase, sha: Sha): MenuEntry[] {
   return [entry("soft", "Soft"), entry("mixed", "Mixed"), SEPARATOR, entry("hard", "Hard …", true)];
 }
 
+/** Collapse or expand a merge; plus "all merges" (also in the palette, Mod+Shift+[ / ]). */
+function mergeEntries(ctx: MenuBase, sha: Sha, row: GraphRow | undefined): MenuEntry[] {
+  if (row?.kind !== "merge") return [];
+  const collapsed = row.collapsedCount !== null;
+  // The row carries the full SHA; the view state stores full SHAs.
+  const merge = row.sha ?? sha;
+  return [
+    item(collapsed ? t("menus.commit.expandMerge") : t("menus.commit.collapseMerge"), collapsed ? ChevronsUpDown : ChevronsDownUp, () => void setMergeCollapsed(ctx.repoId, merge, !collapsed), {
+      hint: row.collapseTooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("menus.commit.hiddenCommits", { count: row.collapsedCount ?? 0 }) : undefined,
+    }),
+    item(t("menus.commit.collapseAll"), ChevronsDownUp, () => void setAllMergesCollapsed(ctx.repoId, true), { shortcut: "Mod+Shift+[" }),
+    item(t("menus.commit.expandAll"), ChevronsUpDown, () => void setAllMergesCollapsed(ctx.repoId, false), { shortcut: "Mod+Shift+]" }),
+  ];
+}
+
 export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
   const { repoId, tabId } = ctx;
   const shas = [...new Set(ctx.shas)];
@@ -210,6 +228,8 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
       blocked:
         busy ?? (detached ? t("menus.noBranch") : isHead ? t("menus.commit.noLaterCommit") : contained === false || above ? t("menus.commit.onlyCommitsOf", { name: current.label }) : null),
     }),
+    SEPARATOR,
+    ...mergeEntries(ctx, sha, row),
     SEPARATOR,
     isHead ? item(t("menus.commit.reword"), Pencil, () => void rewordHead(repoId, sha, tabId), { blocked: busy }) : null,
     item(t("menus.commit.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),

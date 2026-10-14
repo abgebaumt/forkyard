@@ -60,7 +60,8 @@
         "firstLast": "First / last loaded commit",
         "openDetails": "Open details in the commit panel",
         "highlightBranch": "Highlight the row’s branch (press again or Esc to clear)",
-        "contextMenu": "Row context menu"
+        "contextMenu": "Row context menu",
+        "collapseMerge": "Collapse / expand the selected merge"
       }
     },
     "lists": {
