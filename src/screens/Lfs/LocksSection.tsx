@@ -132,7 +132,7 @@ export function LocksSection({ repoId }: { repoId: Id }) {
             <Button size="sm" icon={<LockOpen className="size-3.5" aria-hidden />} disabled={actions.unlock.length === 0 || busy} onClick={() => void unlockFiles(repoId, actions.unlock, false)}>
               {t("lfs.locks.unlock")}
             </Button>
-            <Button size="sm" variant="danger" disabled={actions.force.length === 0 || busy} onClick={() => void unlockFiles(repoId, actions.force, true)}>
+            <Button size="sm" variant="danger" disabled={actions.force.length === 0 || busy} onClick={() => void unlockFiles(repoId, actions.force, true, shown)}>
               {t("lfs.locks.force")}
             </Button>
             {selected.size > 0 ? (

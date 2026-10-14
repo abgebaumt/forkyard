@@ -445,7 +445,8 @@
       "title_other": "Remove {{count}} locks held by others?",
       "body": "The others aren’t asked. If they’re still editing these files, their changes may later collide with yours. The LFS server has to allow forcing – usually only for administrators.",
       "action": "Force unlock",
-      "details": "Locks held by others"
+      "details": "Locks held by others",
+      "unknownOwner": "unknown owner"
     },
     "partial_one": "{{label}}: {{count}} file failed",
     "partial_other": "{{label}}: {{count}} files failed"

@@ -4,7 +4,7 @@
  */
 import { t } from "../../i18n";
 import { core, type ErrorCode, type Id, type LfsLock, type LfsLockFailure, type LfsLockList, type LfsLockOutcome, type LfsStatus } from "../../core";
-import { forceUnlockConfirm, lockIndex } from "../../screens/Lfs/locks";
+import { forceUnlockConfirm } from "../../screens/Lfs/locks";
 import { toast } from "../../ui/Feedback";
 import { confirm } from "../dialogs";
 import { qk, queryClient } from "../queries";
@@ -126,13 +126,46 @@ export async function lockFiles(repoId: Id, paths: string[]): Promise<ActionResu
 }
 
 /**
- * Unlocks the files. With `force` and other people's locks among them, it asks first (owner and
- * file named); `null` = declined.
+ * The locks on `paths` that belong to others. Looks in `known` (e.g. the list a panel shows), then
+ * in every cached lock list (filtered ones too), and reads the list again for paths still unknown –
+ * an empty answer must never come from a cache entry that was merely collected. If that read fails,
+ * unknown paths count as other people's locks, so the prompt still comes.
  */
-export async function unlockFiles(repoId: Id, paths: string[], force: boolean): Promise<ActionResult<LfsLockOutcome> | null> {
+async function foreignLocks(repoId: Id, paths: string[], known: LfsLock[]): Promise<LfsLock[]> {
+  const index = new Map<string, LfsLock>();
+  const add = (locks: LfsLock[]) => {
+    for (const lock of locks) if (!index.has(lock.path)) index.set(lock.path, lock);
+  };
+  add(known);
+  add(cachedLocks(repoId)?.locks ?? []);
+  for (const [, data] of queryClient.getQueriesData<LfsLockList>({ queryKey: qk.lfsLocksAll(repoId) })) add(data?.locks ?? []);
+  let unknown = paths.filter((path) => !index.has(path));
+  if (unknown.length > 0) {
+    try {
+      const fresh = await core.lfsLocks({ repoId, filter: null });
+      queryClient.setQueryData(qk.lfsLocks(repoId), fresh);
+      add(fresh.locks);
+      // Read successfully and still not listed: nobody holds a lock on these paths.
+      unknown = [];
+    } catch {
+      // Owner unknown: ask anyway.
+    }
+  }
+  const unknownOwner = t("actions.lfs.forceUnlock.unknownOwner");
+  return paths.flatMap((path) => {
+    const lock = index.get(path);
+    if (lock) return lock.ours ? [] : [lock];
+    return unknown.includes(path) ? [{ id: "", path, owner: unknownOwner, lockedAt: null, ours: false }] : [];
+  });
+}
+
+/**
+ * Unlocks the files. With `force` and other people's locks among them, it asks first (owner and
+ * file named); `null` = declined. `known` are locks the caller already shows (the panel's list).
+ */
+export async function unlockFiles(repoId: Id, paths: string[], force: boolean, known: LfsLock[] = []): Promise<ActionResult<LfsLockOutcome> | null> {
   if (force) {
-    const index = lockIndex(cachedLocks(repoId));
-    const foreign = paths.map((path) => index.get(path)).filter((lock): lock is LfsLock => Boolean(lock && !lock.ours));
+    const foreign = await foreignLocks(repoId, paths, known);
     if (foreign.length > 0 && !(await confirm(forceUnlockConfirm(foreign)))) return null;
   }
   const label = t("actions.lfs.unlock.label");

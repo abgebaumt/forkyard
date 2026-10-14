@@ -3,6 +3,7 @@ import type { LfsLock, LfsLockList, LfsLockOutcome } from "../../core";
 
 const lfsLock = vi.fn<(input: { repoId: string; paths: string[] }) => Promise<LfsLockOutcome>>();
 const lfsUnlock = vi.fn<(input: { repoId: string; paths: string[]; force: boolean }) => Promise<LfsLockOutcome>>();
+const lfsLocks = vi.fn<(input: { repoId: string; filter?: string | null }) => Promise<LfsLockList>>();
 const confirmSpy = vi.fn<(options: { title: string; details?: string[]; danger?: boolean }) => Promise<boolean>>();
 
 vi.mock("../../core", async (original) => ({
@@ -10,6 +11,7 @@ vi.mock("../../core", async (original) => ({
   core: {
     lfsLock: (input: { repoId: string; paths: string[] }) => lfsLock(input),
     lfsUnlock: (input: { repoId: string; paths: string[]; force: boolean }) => lfsUnlock(input),
+    lfsLocks: (input: { repoId: string; filter?: string | null }) => lfsLocks(input),
     on: () => () => undefined,
   },
 }));
@@ -31,6 +33,7 @@ beforeEach(() => {
   lfsLock.mockReset();
   lfsUnlock.mockReset();
   confirmSpy.mockReset();
+  lfsLocks.mockReset();
 });
 
 describe("LFS lock actions", () => {
@@ -73,5 +76,40 @@ describe("LFS lock actions", () => {
     await unlockFiles(REPO, ["plan.psd"], true);
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(lfsUnlock).toHaveBeenCalledWith({ repoId: REPO, paths: ["plan.psd"], force: true });
+  });
+
+  it("forcing under an active filter still asks when the unfiltered list is gone from the cache", async () => {
+    // The panel observes only the filtered key; the unfiltered entry was collected.
+    queryClient.setQueryData(qk.lfsLocks(REPO, "lena"), list(lock("karte.psd", "Lena Berg", false)));
+    lfsLocks.mockRejectedValue(new Error("no read expected"));
+    confirmSpy.mockResolvedValue(false);
+    expect(await unlockFiles(REPO, ["karte.psd"], true)).toBeNull();
+    expect(confirmSpy.mock.calls[0]?.[0].details).toEqual(["karte.psd – Lena Berg"]);
+    expect(lfsUnlock).not.toHaveBeenCalled();
+  });
+
+  it("forcing asks for the locks the caller hands in even with an empty cache", async () => {
+    confirmSpy.mockResolvedValue(false);
+    expect(await unlockFiles(REPO, ["karte.psd"], true, [lock("karte.psd", "Lena Berg", false)])).toBeNull();
+    expect(confirmSpy.mock.calls[0]?.[0].details).toEqual(["karte.psd – Lena Berg"]);
+    expect(lfsLocks).not.toHaveBeenCalled();
+    expect(lfsUnlock).not.toHaveBeenCalled();
+  });
+
+  it("forcing an unknown path reads the locks again before deciding no prompt is needed", async () => {
+    lfsLocks.mockResolvedValue(list(lock("karte.psd", "Lena Berg", false)));
+    confirmSpy.mockResolvedValue(false);
+    expect(await unlockFiles(REPO, ["karte.psd"], true)).toBeNull();
+    expect(lfsLocks).toHaveBeenCalledWith({ repoId: REPO, filter: null });
+    expect(confirmSpy.mock.calls[0]?.[0].details).toEqual(["karte.psd – Lena Berg"]);
+    expect(lfsUnlock).not.toHaveBeenCalled();
+  });
+
+  it("forcing still asks when the owner cannot be found out", async () => {
+    lfsLocks.mockRejectedValue(new Error("offline"));
+    confirmSpy.mockResolvedValue(false);
+    expect(await unlockFiles(REPO, ["karte.psd"], true)).toBeNull();
+    expect(confirmSpy).toHaveBeenCalledTimes(1);
+    expect(lfsUnlock).not.toHaveBeenCalled();
   });
 });

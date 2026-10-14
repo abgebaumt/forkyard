@@ -445,7 +445,8 @@
       "title_other": "{{count}} fremde Sperren aufheben?",
       "body": "Die anderen werden nicht gefragt. Bearbeiten sie die Dateien noch, kollidieren ihre Änderungen später womöglich mit deinen. Der LFS-Server muss das Erzwingen erlauben – meist nur für Administratoren.",
       "action": "Entsperren erzwingen",
-      "details": "Fremde Sperren"
+      "details": "Fremde Sperren",
+      "unknownOwner": "unbekannter Besitzer"
     },
     "partial_one": "{{label}}: {{count}} Datei ist fehlgeschlagen",
     "partial_other": "{{label}}: {{count}} Dateien sind fehlgeschlagen"
