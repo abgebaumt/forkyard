@@ -90,3 +90,90 @@ export function stackFrameStyle(geometry: Size): CSSProperties {
   const { width, height } = geometry;
   return { aspectRatio: `${width} / ${height}`, width: `min(100cqw, calc(100cqh * ${width} / ${height}), ${width}px)` };
 }
+
+// ---------------------------------------------------------------------------
+// Pixel difference
+// ---------------------------------------------------------------------------
+
+export type Rgb = readonly [number, number, number];
+
+/** RGBA, row by row, as `ImageData.data`. */
+export interface Pixels {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray;
+}
+
+export interface PixelDiff {
+  width: number;
+  height: number;
+  data: Uint8ClampedArray<ArrayBuffer>;
+  /** Number of differing pixels. */
+  changed: number;
+}
+
+/** Unchanged pixels keep this share of their brightness. */
+export const DIM = 0.25;
+
+/** Larger images are not compared pixel by pixel (four bytes per pixel, three bitmaps at once). */
+export const MAX_DIFF_PIXELS = 4096 * 4096;
+
+export function canCompare(a: Size, b: Size): boolean {
+  return Math.max(a.width, b.width) * Math.max(a.height, b.height) <= MAX_DIFF_PIXELS;
+}
+
+/** Offset of the pixel (x, y) in `image.data`, or -1 outside the image. */
+function offset(image: Pixels, x: number, y: number): number {
+  return x < image.width && y < image.height ? (y * image.width + x) * 4 : -1;
+}
+
+/**
+ * Both images aligned at the top left in a canvas as large as both together. Differing pixels
+ * get the highlight colour (opaque), the rest is dimmed. Pixels that are fully transparent on
+ * both sides – or that exist on one side only and are transparent there – count as equal.
+ */
+export function pixelDifference(before: Pixels, after: Pixels, highlight: Rgb): PixelDiff {
+  const width = Math.max(before.width, after.width);
+  const height = Math.max(before.height, after.height);
+  const data = new Uint8ClampedArray(width * height * 4);
+  let changed = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const a = offset(before, x, y);
+      const b = offset(after, x, y);
+      const out = (y * width + x) * 4;
+      const alphaA = a < 0 ? 0 : (before.data[a + 3] ?? 0);
+      const alphaB = b < 0 ? 0 : (after.data[b + 3] ?? 0);
+      if (alphaA === 0 && alphaB === 0) continue;
+      const same =
+        a >= 0 &&
+        b >= 0 &&
+        alphaA === alphaB &&
+        before.data[a] === after.data[b] &&
+        before.data[a + 1] === after.data[b + 1] &&
+        before.data[a + 2] === after.data[b + 2];
+      if (!same) {
+        changed += 1;
+        data[out] = highlight[0];
+        data[out + 1] = highlight[1];
+        data[out + 2] = highlight[2];
+        data[out + 3] = 255;
+        continue;
+      }
+      data[out] = (after.data[b] ?? 0) * DIM;
+      data[out + 1] = (after.data[b + 1] ?? 0) * DIM;
+      data[out + 2] = (after.data[b + 2] ?? 0) * DIM;
+      data[out + 3] = alphaB;
+    }
+  }
+  return { width, height, data, changed };
+}
+
+/** `#rgb` or `#rrggbb` (the token format); other notations yield null. */
+export function hexToRgb(value: string): Rgb | null {
+  const hex = value.trim().replace(/^#/, "");
+  const full = hex.length === 3 ? [...hex].map((char) => char + char).join("") : hex;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return null;
+  const number = Number.parseInt(full, 16);
+  return [(number >> 16) & 255, (number >> 8) & 255, number & 255];
+}
