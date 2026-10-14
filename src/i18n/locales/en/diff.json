@@ -155,7 +155,14 @@
     "noOld": "This image did not exist before.",
     "deleted": "The image was deleted.",
     "oldAlt": "{{name}}, old version",
-    "newAlt": "{{name}}, new version"
+    "newAlt": "{{name}}, new version",
+    "modes": {
+      "side": "Side by side",
+      "swipe": "Swipe",
+      "onion": "Onion skin",
+      "difference": "Difference"
+    },
+    "onlyOneSide": "Only one version exists – there is nothing to lay on top of each other."
   },
   "status": {
     "modified": "The content has changed.",

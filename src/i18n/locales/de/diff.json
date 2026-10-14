@@ -155,7 +155,14 @@
     "noOld": "Vorher gab es dieses Bild nicht.",
     "deleted": "Das Bild wurde gelöscht.",
     "oldAlt": "{{name}}, alte Fassung",
-    "newAlt": "{{name}}, neue Fassung"
+    "newAlt": "{{name}}, neue Fassung",
+    "modes": {
+      "side": "Nebeneinander",
+      "swipe": "Wischen",
+      "onion": "Überblenden",
+      "difference": "Differenz"
+    },
+    "onlyOneSide": "Es gibt nur eine Fassung – nichts zum Übereinanderlegen."
   },
   "status": {
     "modified": "Der Inhalt hat sich geändert.",
