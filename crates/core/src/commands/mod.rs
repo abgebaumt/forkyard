@@ -33,6 +33,7 @@ pub mod settings;
 pub mod signing;
 pub mod stage;
 pub mod stash;
+pub mod stats;
 pub mod status;
 pub mod submodule;
 pub mod sync;
