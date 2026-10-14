@@ -293,3 +293,17 @@ async fn a_cancelled_run_caches_nothing_and_job_ids_are_unique() {
     assert_eq!(error.code, ErrorCode::Duplicate);
     drop(busy);
 }
+
+#[tokio::test]
+async fn a_cancel_sent_before_the_computation_registers_stops_it() {
+    // StrictMode or a view closed at once: the UI's `job_cancel` overtakes `stats_compute`.
+    let (repo, _) = demo();
+    let (tc, id) = setup(&repo).await;
+    crate::commands::sync::job_cancel(&tc, "job-early".into()).await.unwrap();
+    let error = stats_compute(&tc, id.clone(), "job-early".into(), range(None, None, "HEAD")).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    let done = tc.events.named(names::JOB_DONE);
+    assert_eq!(done.len(), 1, "one job, one end");
+    assert_eq!(done[0]["cancelled"], true);
+    assert!(!tc.jobs.is_running("job-early"));
+}

@@ -1,7 +1,8 @@
 /**
- * Runs `statsCompute` for the statistics view: one job per period and branch (shown in the
- * status bar, cancellable there), cancelled when the view closes or the choice changes.
- * Errors stay in the view as state – no toast (spec: background checks report in the view).
+ * Runs `statsCompute` for the statistics view: one job per repository, period and branch (shown
+ * in the status bar, cancellable there), shared by every view that shows the same (runs.ts) and
+ * cancelled when the last of them closes. Errors stay in the view as state – no toast (spec:
+ * background checks report in the view).
  */
 import { useEffect, useReducer, useRef, useState } from "react";
 import { core, type Id, type StatsRange } from "../../core";
@@ -9,9 +10,20 @@ import { toCoreError } from "../../app/errors";
 import { newJobId } from "../../app/run";
 import { useAppStore, type Job } from "../../app/store";
 import { t } from "../../i18n";
+import { acquire, release, type RunDeps } from "./runs";
 import { shown, statsReducer, type StatsState } from "./state";
 
 const IDLE: StatsState = { kind: "idle" };
+
+const deps: RunDeps = {
+  compute: (input) => core.statsCompute(input),
+  cancel: (jobId) => void core.jobCancel({ jobId }).catch(() => undefined),
+  newJobId,
+  startJob: (job) => useAppStore.getState().startJob(job),
+  finishJob: (jobId) => useAppStore.getState().finishJob(jobId),
+  title: () => t("stats.job"),
+  toError: toCoreError,
+};
 
 export function useStats(repoId: Id, range: StatsRange) {
   const [state, dispatch] = useReducer(statsReducer, IDLE);
@@ -21,22 +33,14 @@ export function useStats(repoId: Id, range: StatsRange) {
 
   useEffect(() => {
     const [, ref, from, to] = JSON.parse(key) as [Id, string, string | null, string | null];
-    const jobId = newJobId();
-    dispatch({ type: "start", jobId, keep: lastKey.current === key });
+    const wanted: StatsRange = { ref, from, to };
+    const run = acquire(deps, repoId, wanted);
+    dispatch({ type: "start", jobId: run.jobId, keep: lastKey.current === key });
     lastKey.current = key;
-    let running = true;
-    useAppStore.getState().startJob({ id: jobId, title: t("stats.job"), repoId });
-    core
-      .statsCompute({ repoId, jobId, range: { ref, from, to } })
-      .then((stats) => dispatch({ type: "done", jobId, stats }))
-      .catch((raw: unknown) => dispatch({ type: "failed", jobId, error: toCoreError(raw) }))
-      .finally(() => {
-        running = false;
-        useAppStore.getState().finishJob(jobId);
-      });
-    return () => {
-      if (running) void core.jobCancel({ jobId }).catch(() => undefined);
-    };
+    void run.result.then((outcome) =>
+      dispatch(outcome.ok ? { type: "done", jobId: run.jobId, stats: outcome.stats } : { type: "failed", jobId: run.jobId, error: outcome.error }),
+    );
+    return () => release(deps, repoId, wanted, run);
   }, [repoId, key, nonce]);
 
   const jobId = state.kind === "running" ? state.jobId : null;

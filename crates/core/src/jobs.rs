@@ -1,7 +1,7 @@
 //! Long network actions (clone, fetch, pull, push) as jobs: cancellable via the
 //! `jobId` of the UI, with `job:progress` and `job:done`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -59,10 +59,17 @@ impl CancelToken {
     }
 }
 
+/// How many cancels for jobIds that are not running are remembered (see `JobRegistry::cancel`).
+const EARLY_CANCELS: usize = 64;
+
 /// jobId → cancel signal of the running jobs.
 #[derive(Default)]
 pub struct JobRegistry {
     jobs: Mutex<HashMap<String, CancelToken>>,
+    /// Cancels of jobIds that were not running (yet), newest last. The UI sends a command and,
+    /// if its view closes at once, `job_cancel` right after; both run concurrently, so the
+    /// cancel can arrive before the job registers. A job that registers later starts cancelled.
+    early: Mutex<VecDeque<String>>,
 }
 
 impl JobRegistry {
@@ -76,17 +83,33 @@ impl JobRegistry {
             return Err(CoreError::duplicate());
         }
         let token = CancelToken::new();
+        let mut early = self.early.lock();
+        if let Some(index) = early.iter().position(|id| id == job_id) {
+            early.remove(index);
+            token.cancel();
+        }
         jobs.insert(job_id.to_string(), token.clone());
         Ok(token)
     }
-    /// Cancels a job. `false` if the jobId is not running (any more).
+    /// Cancels a job. `false` if the jobId is not running (any more); it is then remembered, so
+    /// a job that only registers afterwards starts cancelled (the last `EARLY_CANCELS` ids).
     pub fn cancel(&self, job_id: &str) -> bool {
-        match self.jobs.lock().get(job_id) {
+        let jobs = self.jobs.lock();
+        match jobs.get(job_id) {
             Some(token) => {
                 token.cancel();
                 true
             }
-            None => false,
+            None => {
+                let mut early = self.early.lock();
+                if !early.iter().any(|id| id == job_id) {
+                    if early.len() >= EARLY_CANCELS {
+                        early.pop_front();
+                    }
+                    early.push_back(job_id.to_string());
+                }
+                false
+            }
         }
     }
     pub fn is_running(&self, job_id: &str) -> bool {
@@ -256,5 +279,30 @@ mod tests {
         assert_eq!(done[0]["cancelled"], true);
         assert_eq!(done[0]["jobId"], "j1");
         assert!(!reg.cancel("j1"));
+    }
+
+    #[test]
+    fn a_cancel_that_arrives_before_the_job_starts_still_counts() {
+        // The UI sends the command and, when its view closes at once, `job_cancel` right after.
+        // Both calls run concurrently, so the cancel can reach the core first.
+        let reg = Arc::new(JobRegistry::new());
+        let events = Arc::new(EventCollector::new());
+        assert!(!reg.cancel("early"), "not running yet");
+        let job = Job::new("early", None, reg.clone(), events.clone()).unwrap();
+        assert!(job.token().is_cancelled(), "the early cancel applies to the job that starts later");
+        job.finish::<()>(&Err(CoreError::cancelled()));
+        let again = Job::new("early", None, reg.clone(), events).unwrap();
+        assert!(!again.token().is_cancelled(), "an early cancel is used up once");
+    }
+
+    #[test]
+    fn early_cancels_are_bounded() {
+        let reg = JobRegistry::new();
+        for n in 0..EARLY_CANCELS + 10 {
+            reg.cancel(&format!("gone-{n}"));
+        }
+        assert_eq!(reg.early.lock().len(), EARLY_CANCELS);
+        assert!(!reg.register("gone-0").unwrap().is_cancelled(), "the oldest early cancel was dropped");
+        assert!(reg.register(&format!("gone-{}", EARLY_CANCELS + 9)).unwrap().is_cancelled());
     }
 }
