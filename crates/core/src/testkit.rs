@@ -197,6 +197,18 @@ impl TestRepo {
         self.head()
     }
 
+    /// Stages everything and commits as `name <email>` with author and committer date `date`
+    /// (Git's raw format, e.g. "@1750615200 +0200"); returns the SHA. For tests that need exact
+    /// times and several authors (statistics).
+    pub fn commit_as(&self, message: &str, name: &str, email: &str, date: &str) -> String {
+        self.git(&["add", "-A"]);
+        let mut cmd = git_command(&self.root, &self.global_config, &["commit", "-q", "--allow-empty", "-m", message], None);
+        cmd.env("GIT_AUTHOR_NAME", name).env("GIT_AUTHOR_EMAIL", email).env("GIT_AUTHOR_DATE", date);
+        cmd.env("GIT_COMMITTER_NAME", name).env("GIT_COMMITTER_EMAIL", email).env("GIT_COMMITTER_DATE", date);
+        check(cmd.output().expect("start git"), "commit");
+        self.head()
+    }
+
     pub fn head(&self) -> String {
         self.git(&["rev-parse", "HEAD"])
     }
