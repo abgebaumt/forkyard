@@ -98,7 +98,10 @@ const SPACE = charRange("\t", "\r") | charBit(" ") | OTHER;
 /** Punctuation the core allows after a backslash. */
 const ESCAPED_PUNCT = "\\.*+?()[]{}|^$-/#";
 
-/** Characters an escape matches; escapes the core refuses count as any character. */
+/**
+ * Characters an escape matches. Escapes the core refuses throw `Refused`: JavaScript reads some of
+ * them as one character (`\x41`, `\u0041`, `\101`), so reading them on would misplace quantifiers.
+ */
 function escapeChars(c: string): Chars {
   switch (c) {
     case "d":
@@ -114,7 +117,8 @@ function escapeChars(c: string): Chars {
     case "S":
       return not(SPACE);
     default:
-      return ESCAPED_PUNCT.includes(c) ? charBit(c) : ALL;
+      if (ESCAPED_PUNCT.includes(c)) return charBit(c);
+      throw new Refused();
   }
 }
 
@@ -122,6 +126,8 @@ function escapeChars(c: string): Chars {
 class Unreadable extends Error {}
 /** The construct the core rejects because JavaScript backtracks for long on it. */
 class Slow extends Error {}
+/** An escape the core refuses (`\x41`, `\1`, `\cA` …); the test field does not run such a pattern. */
+class Refused extends Error {}
 
 /** Index after the `]` of the class that opens at `start`, and the characters it matches. */
 function scanClass(pattern: string, start: number): [number, Chars] {
@@ -148,6 +154,7 @@ function scanClass(pattern: string, start: number): [number, Chars] {
       let to: string | null;
       if (pattern[i + 1] === "\\") {
         const escaped = pattern[i + 2];
+        if (escaped !== undefined) escapeChars(escaped);
         to = escaped !== undefined && !"dDwWsS".includes(escaped) ? escaped : null;
         i += to === null ? 2 : 3;
       } else {
@@ -192,8 +199,9 @@ interface Item {
  * The core's scan (commands/links/pattern.rs), read the way JavaScript reads the pattern: throws
  * `Slow` for a repeated group without a fixed width (`(a+)+`, `(aa?)+`) or with an alternative
  * (`(a|b)+`), and for repetitions in a row that can match the same characters (`\w+\w+`, `\w?\w?`).
- * Constructs the core refuses for other reasons but JavaScript accepts are read on, so a pattern
- * typed into the test field never runs into exponential backtracking.
+ * Escapes the core refuses throw `Refused`. Other constructs the core refuses but JavaScript
+ * accepts are read on, so a pattern typed into the test field never runs into exponential
+ * backtracking.
  */
 function scanSlow(pattern: string): void {
   const groups: Group[] = [];
@@ -295,12 +303,19 @@ function scanSlow(pattern: string): void {
  * repetitions in a row that share characters. Guards the test field before it runs a pattern.
  */
 export function hasNestedRepetition(pattern: string): boolean {
+  const outcome = scanOutcome(pattern);
+  // A refused escape hides where quantifiers attach, so it cannot be ruled out.
+  return outcome === "slow" || outcome === "refused";
+}
+
+function scanOutcome(pattern: string): "fine" | "slow" | "refused" | "unreadable" {
   try {
     scanSlow(pattern);
-    return false;
+    return "fine";
   } catch (error) {
-    if (error instanceof Slow) return true;
-    if (error instanceof Unreadable) return false;
+    if (error instanceof Slow) return "slow";
+    if (error instanceof Refused) return "refused";
+    if (error instanceof Unreadable) return "unreadable";
     throw error;
   }
 }
@@ -309,7 +324,9 @@ export type RuleTest = { kind: "invalid" } | { kind: "nested" } | { kind: "ok"; 
 
 /** For the test field in the settings: matches in `sample` (at most 20); the core checks again on saving. */
 export function tryRule(pattern: string, url: string, sample: string): RuleTest {
-  if (hasNestedRepetition(pattern)) return { kind: "nested" };
+  const outcome = scanOutcome(pattern);
+  if (outcome === "refused") return { kind: "invalid" };
+  if (outcome === "slow") return { kind: "nested" };
   let regex: RegExp;
   try {
     regex = new RegExp(pattern, "g");

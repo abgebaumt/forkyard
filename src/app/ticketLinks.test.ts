@@ -65,6 +65,10 @@ describe("ticket links", () => {
       String.raw`\w+\w?\w?!`,
       String.raw`\w+\w?-`,
       String.raw`\w{1,2}\w{1,2}\w{1,2}!`,
+      // Escapes the core refuses, which JavaScript reads as one character (`\x41` = "A").
+      String.raw`\x41?`.repeat(30) + "!",
+      String.raw`\101?`.repeat(30) + "!",
+      String.raw`\u0041?`.repeat(20) + "!",
     ];
     for (const pattern of slow) expect(hasNestedRepetition(pattern), pattern).toBe(true);
     const fine = [
@@ -86,6 +90,9 @@ describe("ticket links", () => {
   it("tries a rule for the test field", () => {
     expect(tryRule("(", "https://x.example/$0", "x")).toEqual({ kind: "invalid" });
     expect(tryRule("(a+)+", "https://x.example/$0", "aaa")).toEqual({ kind: "nested" });
+    // Escapes the core refuses never run, also inside a class and when they would backtrack.
+    for (const pattern of [String.raw`\x41?`.repeat(30) + "!", String.raw`\101?`.repeat(30) + "!", String.raw`OPS-\1`, String.raw`[\x41]+`, String.raw`[\b]`, String.raw`\cA`])
+      expect(tryRule(pattern, "https://x.example/$0", "A".repeat(30)), pattern).toEqual({ kind: "invalid" });
     expect(tryRule(String.raw`OPS-(\d+)`, " https://ops.example/$1 ", "see OPS-4, OPS-5")).toEqual({
       kind: "ok",
       links: [
