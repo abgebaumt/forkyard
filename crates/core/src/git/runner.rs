@@ -1039,7 +1039,7 @@ async fn sleep_until_opt(deadline: Option<tokio::time::Instant>) {
 /// Windows: a job object around Git and all its child processes so that a cancel ends the
 /// whole tree at once (taskkill needs seconds for that under load).
 #[cfg(windows)]
-struct ProcessTree(windows_sys::Win32::Foundation::HANDLE);
+pub(crate) struct ProcessTree(windows_sys::Win32::Foundation::HANDLE);
 
 // SAFETY: The handle is owned by this value alone; job objects may be used from any thread.
 #[cfg(windows)]
@@ -1050,7 +1050,7 @@ unsafe impl Sync for ProcessTree {}
 #[cfg(windows)]
 impl ProcessTree {
     /// Puts the just-started process into a new job object; `None` if Windows refuses.
-    fn attach(child: &tokio::process::Child) -> Option<ProcessTree> {
+    pub(crate) fn attach(child: &tokio::process::Child) -> Option<ProcessTree> {
         use windows_sys::Win32::Foundation::CloseHandle;
         use windows_sys::Win32::System::JobObjects::{AssignProcessToJobObject, CreateJobObjectW};
         let process = child.raw_handle()?;
@@ -1091,17 +1091,17 @@ impl Drop for ProcessTree {
 /// Unix needs no object of its own: there `kill_tree` kills the process group.
 #[cfg(not(windows))]
 #[allow(dead_code)]
-struct ProcessTree;
+pub(crate) struct ProcessTree;
 
 #[cfg(not(windows))]
 impl ProcessTree {
-    fn attach(_child: &tokio::process::Child) -> Option<ProcessTree> {
+    pub(crate) fn attach(_child: &tokio::process::Child) -> Option<ProcessTree> {
         None
     }
 }
 
 /// Kills Git including its child processes (git-remote-https, ssh, hooks).
-async fn kill_tree(child: &mut tokio::process::Child, tree: Option<&ProcessTree>) {
+pub(crate) async fn kill_tree(child: &mut tokio::process::Child, tree: Option<&ProcessTree>) {
     #[cfg(windows)]
     if let Some(tree) = tree {
         tree.terminate();

@@ -176,3 +176,229 @@ async fn a_locked_repository_lists_and_approves_nothing() {
     assert_eq!(custom_commands_list(&tc, Some(opened.repo.id.clone())).await.unwrap_err().code, ErrorCode::RepoUntrusted);
     assert_eq!(custom_commands_trust(&tc, opened.repo.id, None).await.unwrap_err().code, ErrorCode::RepoUntrusted);
 }
+
+use std::time::Duration;
+
+use crate::model::ActivityScope;
+
+async fn run(tc: &TestCore, repo_id: &str, key: &str, context: CustomCommandContext, inputs: &[(&str, &str)]) -> CoreResult<CustomCommandResult> {
+    let inputs: BTreeMap<String, String> = inputs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+    custom_command_run(tc, repo_id.to_string(), key.to_string(), context, inputs, util::new_id(), true).await
+}
+
+fn finished(result: CustomCommandResult) -> (Option<i32>, String) {
+    match result {
+        CustomCommandResult::Finished { exit_code, output } => (exit_code, output),
+        other => panic!("expected a finished run, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn url_commands_encode_values_and_stay_http() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let head = repo.head();
+    let mut ci = def("ci", CustomCommandKind::Url, "https://ci.example.com/build?branch=${branch}&sha=${sha}&q=${input:q}");
+    ci.inputs = vec![text_input("q")];
+    custom_commands_save(&tc, vec![ci]).await.unwrap();
+    tc.events.clear();
+    let context = CustomCommandContext { branch: Some("feature/äpfel+birnen".into()), ..Default::default() };
+    let result = run(&tc, &id, "global:ci", context, &[("q", "a&b=c d")]).await.unwrap();
+    assert_eq!(result, CustomCommandResult::OpenUrl { url: format!("https://ci.example.com/build?branch=feature%2F%C3%A4pfel%2Bbirnen&sha={head}&q=a%26b%3Dc%20d") });
+    // Without a context: HEAD and the current branch.
+    let result = run(&tc, &id, "global:ci", CustomCommandContext::default(), &[("q", "")]).await.unwrap();
+    assert_eq!(result, CustomCommandResult::OpenUrl { url: format!("https://ci.example.com/build?branch=main&sha={head}&q=") });
+    assert!(tc.events.named(names::JOB_DONE).is_empty(), "opening an address is not a job");
+}
+
+#[tokio::test]
+async fn repo_commands_run_only_while_their_approval_matches() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let head = repo.head();
+    repo.write_file(".forkyard/commands.json", FILE_V1);
+    assert_eq!(run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap_err().code, ErrorCode::CommandUntrusted);
+    let hash = custom_commands_list(&tc, Some(id.clone())).await.unwrap().repo.unwrap().hash;
+    custom_commands_trust(&tc, id.clone(), hash).await.unwrap();
+    assert_eq!(run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap(), CustomCommandResult::OpenUrl { url: format!("https://example.com/hallo/{head}") });
+    repo.write_file(".forkyard/commands.json", FILE_V2);
+    assert_eq!(run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap_err().code, ErrorCode::CommandUntrusted);
+    assert_eq!(run(&tc, &id, "repo:fehlt", Default::default(), &[]).await.unwrap_err().code, ErrorCode::NotFound);
+    assert_eq!(run(&tc, &id, "anders:hallo", Default::default(), &[]).await.unwrap_err().code, ErrorCode::NotFound);
+    // A global command with the same ID is a different command.
+    custom_commands_save(&tc, vec![def("hallo", CustomCommandKind::Url, "https://example.com/eigen")]).await.unwrap();
+    assert_eq!(run(&tc, &id, "global:hallo", Default::default(), &[]).await.unwrap(), CustomCommandResult::OpenUrl { url: "https://example.com/eigen".into() });
+}
+
+#[tokio::test]
+async fn the_context_is_checked_before_anything_runs() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    custom_commands_save(&tc, vec![def("ci", CustomCommandKind::Url, "https://ci.example.com/${file}?r=${remote}")]).await.unwrap();
+    let ctx = |sha: Option<&str>, branch: Option<&str>, file: Option<&str>, remote: Option<&str>| CustomCommandContext {
+        sha: sha.map(Into::into),
+        branch: branch.map(Into::into),
+        file: file.map(Into::into),
+        remote: remote.map(Into::into),
+    };
+    let code = |result: CoreResult<CustomCommandResult>| result.unwrap_err().code;
+    assert_eq!(code(run(&tc, &id, "global:ci", ctx(Some("HEAD; rm -rf /"), None, Some("a"), None), &[]).await), ErrorCode::NotAllowed);
+    assert_eq!(code(run(&tc, &id, "global:ci", ctx(None, Some("-x"), Some("a"), None), &[]).await), ErrorCode::InvalidName);
+    assert_eq!(code(run(&tc, &id, "global:ci", ctx(None, None, Some("../ausserhalb"), None), &[]).await), ErrorCode::NotAllowed);
+    assert_eq!(code(run(&tc, &id, "global:ci", ctx(None, None, Some("a"), Some("nirgendwo")), &[]).await), ErrorCode::NotFound);
+    // Without any remote the placeholder has nothing to stand for.
+    let error = run(&tc, &id, "global:ci", ctx(None, None, Some("docs/a b.md"), None), &[]).await.unwrap_err();
+    assert!(error.message.contains("remote"), "{}", error.message);
+    // With exactly one remote it is taken.
+    let _remote = repo.add_remote();
+    assert_eq!(
+        run(&tc, &id, "global:ci", ctx(None, None, Some("docs/a b.md"), None), &[]).await.unwrap(),
+        CustomCommandResult::OpenUrl { url: "https://ci.example.com/docs%2Fa%20b.md?r=origin".into() }
+    );
+}
+
+#[tokio::test]
+async fn confirm_returns_the_finished_command_and_runs_nothing() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let mut quote = def("vorsicht", CustomCommandKind::Shell, "git rev-parse --sq-quote ${input:text}");
+    quote.confirm = true;
+    quote.inputs = vec![text_input("text")];
+    let mut ci = def("ci", CustomCommandKind::Url, "https://ci.example.com/${sha}");
+    ci.confirm = true;
+    let mut main_tree = def("haupt", CustomCommandKind::Shell, "git status");
+    main_tree.confirm = true;
+    main_tree.cwd = CustomCommandCwd::Repo;
+    custom_commands_save(&tc, vec![quote, ci, main_tree]).await.unwrap();
+    tc.events.clear();
+
+    let inputs: BTreeMap<String, String> = [("text".to_string(), "zwei Wörter".to_string())].into();
+    let result = custom_command_run(&tc, id.clone(), "global:vorsicht".into(), Default::default(), inputs, "job-vorsicht".into(), false).await.unwrap();
+    let CustomCommandResult::Confirm { display, cwd } = result else { panic!("{result:?}") };
+    assert_eq!(display, "git rev-parse --sq-quote \"zwei Wörter\"");
+    assert_eq!(std::fs::canonicalize(&cwd).unwrap(), std::fs::canonicalize(repo.path()).unwrap());
+    assert!(tc.events.named(names::JOB_DONE).is_empty() && !tc.jobs.is_running("job-vorsicht"), "nothing ran");
+
+    let head = repo.head();
+    let result = custom_command_run(&tc, id.clone(), "global:ci".into(), Default::default(), BTreeMap::new(), util::new_id(), false).await.unwrap();
+    assert_eq!(result, CustomCommandResult::Confirm { display: format!("https://ci.example.com/{head}"), cwd: util::display_path(&tc.repo_path(&id).unwrap()) });
+
+    // `cwd: repo` in a linked worktree: the main working tree.
+    let linked = repo.temp_dir().join("zweiter");
+    repo.git(&["worktree", "add", "-q", &linked.to_string_lossy(), "-b", "nebenher"]);
+    let worktree = crate::commands::repos::repo_open(&tc, linked.to_string_lossy().into_owned()).await.unwrap();
+    let result = custom_command_run(&tc, worktree.repo.id, "global:haupt".into(), Default::default(), BTreeMap::new(), util::new_id(), false).await.unwrap();
+    let CustomCommandResult::Confirm { cwd, .. } = result else { panic!("{result:?}") };
+    assert_eq!(std::fs::canonicalize(&cwd).unwrap(), std::fs::canonicalize(repo.path()).unwrap());
+}
+
+#[tokio::test]
+async fn shell_values_stay_single_arguments_and_nothing_is_interpreted() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let mut quote = def("quote", CustomCommandKind::Shell, "git rev-parse --sq-quote ${input:text} ${branch}");
+    quote.inputs = vec![text_input("text")];
+    let failing = def("fehler", CustomCommandKind::Shell, "git rev-parse --verify --quiet gibt-es-nicht");
+    let missing = def("weg", CustomCommandKind::Shell, "forkyard-gibt-es-nicht-4711 --x");
+    custom_commands_save(&tc, vec![quote, failing, missing]).await.unwrap();
+
+    let hostile = "a b; touch PWNED && echo $(touch PWNED2) `touch PWNED3` | x > y";
+    let (exit_code, output) = finished(run(&tc, &id, "global:quote", CustomCommandContext::default(), &[("text", hostile)]).await.unwrap());
+    assert_eq!(exit_code, Some(0), "{output}");
+    assert_eq!(output.trim(), format!("'{hostile}' 'main'"), "one argument for the value, one for the branch");
+    for marker in ["PWNED", "PWNED2", "PWNED3", "y"] {
+        assert!(!repo.path().join(marker).exists(), "{marker} must not exist");
+    }
+    // A failing program is a result with its exit code, not an error.
+    assert_eq!(finished(run(&tc, &id, "global:fehler", Default::default(), &[]).await.unwrap()).0, Some(1));
+    let error = run(&tc, &id, "global:weg", Default::default(), &[]).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotFound);
+    assert!(error.message.contains("forkyard-gibt-es-nicht-4711"), "{}", error.message);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn with_shell_true_values_arrive_as_environment_variables() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let mut pipe = def("pipe", CustomCommandKind::Shell, "printf '%s' ${input:text} > ausgabe.txt");
+    pipe.shell = true;
+    pipe.inputs = vec![text_input("text")];
+    custom_commands_save(&tc, vec![pipe]).await.unwrap();
+    let hostile = "$(touch PWNED) `touch PWNED2`; touch PWNED3";
+    assert_eq!(finished(run(&tc, &id, "global:pipe", Default::default(), &[("text", hostile)]).await.unwrap()).0, Some(0));
+    assert_eq!(std::fs::read_to_string(repo.path().join("ausgabe.txt")).unwrap(), hostile);
+    for marker in ["PWNED", "PWNED2", "PWNED3"] {
+        assert!(!repo.path().join(marker).exists(), "{marker} must not exist");
+    }
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn with_shell_true_values_arrive_as_environment_variables() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let mut pipe = def("pipe", CustomCommandKind::Shell, "Set-Content -NoNewline -Path ausgabe.txt -Value ${input:text}");
+    pipe.shell = true;
+    pipe.inputs = vec![text_input("text")];
+    custom_commands_save(&tc, vec![pipe]).await.unwrap();
+    let hostile = "$(New-Item PWNED); New-Item PWNED2";
+    assert_eq!(finished(run(&tc, &id, "global:pipe", Default::default(), &[("text", hostile)]).await.unwrap()).0, Some(0));
+    assert_eq!(std::fs::read_to_string(repo.path().join("ausgabe.txt")).unwrap(), hostile);
+    assert!(!repo.path().join("PWNED").exists() && !repo.path().join("PWNED2").exists());
+}
+
+#[tokio::test]
+async fn shell_output_is_redacted_in_result_progress_and_log() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let secret = "geheim-12345";
+    custom_commands_save(&tc, vec![def("leak", CustomCommandKind::Shell, &format!("git rev-parse --sq-quote https://anna:{secret}@example.invalid/x.git"))]).await.unwrap();
+    tc.events.clear();
+    let (exit_code, output) = finished(run(&tc, &id, "global:leak", Default::default(), &[]).await.unwrap());
+    assert_eq!(exit_code, Some(0));
+    assert!(output.contains("example.invalid") && !output.contains(secret), "{output}");
+    let events = serde_json::to_string(&tc.events.all()).unwrap();
+    assert!(!events.contains(secret), "{events}");
+    assert!(tc.events.named(names::REPO_CHANGED).iter().any(|e| e["repoId"] == id.as_str()), "a program may have changed the repository");
+    let page = crate::commands::activity::activity_list(&tc, ActivityScope::Repo, Some(id.clone()), None, 50).await.unwrap();
+    let logged = page.entries.iter().find(|e| e.command.starts_with("git rev-parse --sq-quote")).expect("the run is in the activity log");
+    assert_eq!(logged.exit_code, Some(0));
+    assert!(logged.output.contains("example.invalid"));
+    assert!(page.entries.iter().all(|e| !e.command.contains(secret) && !e.output.contains(secret)));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_running_program_can_be_cancelled() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    #[cfg(unix)]
+    let wait = "sleep 30";
+    #[cfg(windows)]
+    let wait = "ping -n 30 127.0.0.1";
+    custom_commands_save(&tc, vec![def("warten", CustomCommandKind::Shell, wait)]).await.unwrap();
+    let (core, repo_id) = (tc.core.clone(), id.clone());
+    let started = std::time::Instant::now();
+    let task = tokio::spawn(async move { custom_command_run(&core, repo_id, "global:warten".into(), Default::default(), BTreeMap::new(), "job-warten".into(), true).await });
+    for _ in 0..500 {
+        if tc.jobs.is_running("job-warten") {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(tc.jobs.is_running("job-warten"), "the run is a job");
+    crate::commands::sync::job_cancel(&tc, "job-warten".into()).await.unwrap();
+    let result = tokio::time::timeout(Duration::from_secs(10), task).await.expect("ends after cancelling").unwrap();
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert!(started.elapsed() < Duration::from_secs(25));
+    assert!(tc.events.named(names::JOB_DONE).iter().any(|e| e["jobId"] == "job-warten" && e["cancelled"] == true));
+}

@@ -13,19 +13,32 @@
 
 pub mod definition;
 pub mod expand;
+mod process;
 
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
+use serde::{Deserialize, Serialize};
+
 use crate::app::Core;
+use crate::commands::history::normalize_rel_path;
+use crate::commands::remotes;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
-use crate::model::{AppChange, CustomCommandDef, CustomCommandEntry, CustomCommandList, CustomCommandSource, RepoCommands, RepoCommandsState};
+use crate::git::redact;
+use crate::model::{
+    AppChange, CustomCommandContext, CustomCommandCwd, CustomCommandDef, CustomCommandEntry, CustomCommandKind, CustomCommandList, CustomCommandResult, CustomCommandSource,
+    CustomInputType, RepoCommands, RepoCommandsState,
+};
+use crate::undo;
 use crate::util;
-use serde::{Deserialize, Serialize};
+use expand::{InputValue, Values};
+
+/// Longest value of one input.
+const MAX_INPUT_BYTES: usize = 4096;
 
 /// Key in `app_settings` under which the user's own commands are stored (same format as a file).
 const GLOBAL_KEY: &str = "customCommands";
@@ -229,4 +242,159 @@ pub async fn custom_commands_export(core: &Core, path: String) -> CoreResult<()>
     let mut text = serde_json::to_string_pretty(&file_value(&load_global(core)?))?;
     text.push('\n');
     util::write_file_atomic(&target, text.as_bytes()).map_err(|e| CoreError::io(format!("The custom commands couldn’t be exported: {e}")))
+}
+
+// ---------------------------------------------------------------------------
+// Running
+// ---------------------------------------------------------------------------
+
+/// The command behind `key` (`global:<id>`, `repo:<id>`). A repository command whose file is not
+/// approved in this version: `command_untrusted`.
+fn find_runnable(core: &Core, repo_id: &str, root: &Path, key: &str) -> CoreResult<CustomCommandDef> {
+    let gone = || CoreError::not_found(format!("The custom command “{key}” doesn’t exist (any more)."));
+    let (source, id) = key.split_once(':').ok_or_else(gone)?;
+    match source {
+        "global" => load_global(core)?.into_iter().find(|command| command.id == id).ok_or_else(gone),
+        "repo" => {
+            let (info, commands) = repo_part(core, repo_id, root)?;
+            let command = commands.into_iter().find(|command| command.id == id).ok_or_else(gone)?;
+            if info.state != RepoCommandsState::Trusted {
+                return Err(CoreError::command_untrusted());
+            }
+            Ok(command)
+        }
+        _ => Err(gone()),
+    }
+}
+
+async fn current_branch(core: &Core, repo_id: &str) -> CoreResult<Option<String>> {
+    let out = core.git_for(repo_id)?.args(["symbolic-ref", "--short", "-q", "HEAD"]).read_only().no_log().run_raw().await?;
+    Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
+}
+
+/// The remote of the branch's upstream, otherwise the only remote.
+async fn upstream_remote(core: &Core, repo_id: &str, branch: Option<&str>, remotes: &[String]) -> CoreResult<Option<String>> {
+    if let Some(branch) = branch {
+        let out = core.git_for(repo_id)?.args(["config", "--get", &format!("branch.{branch}.remote")]).read_only().no_log().run_raw().await?;
+        let name = out.stdout_text();
+        if out.success() && remotes.contains(&name) {
+            return Ok(Some(name));
+        }
+    }
+    Ok(if remotes.len() == 1 { remotes.first().cloned() } else { None })
+}
+
+/// The form's values, checked against the definition.
+fn input_values(def: &CustomCommandDef, given: &BTreeMap<String, String>) -> CoreResult<BTreeMap<String, InputValue>> {
+    let mut out = BTreeMap::new();
+    for input in &def.inputs {
+        let raw = given.get(&input.id).cloned().or_else(|| input.default.clone()).unwrap_or_default();
+        if raw.len() > MAX_INPUT_BYTES || raw.contains('\0') {
+            return Err(CoreError::not_allowed(format!("The value for “{}” is too long or contains a NUL character.", input.label)));
+        }
+        let value = match input.input_type {
+            CustomInputType::Text | CustomInputType::File => InputValue { value: raw, from_definition: false },
+            CustomInputType::Choice => {
+                let chosen = if raw.is_empty() { input.options.first().cloned().unwrap_or_default() } else { raw };
+                if !input.options.contains(&chosen) {
+                    return Err(CoreError::not_allowed(format!("“{chosen}” is not one of the choices for “{}”.", input.label)));
+                }
+                InputValue { value: chosen, from_definition: true }
+            }
+            CustomInputType::Checkbox => {
+                let ticked = match raw.as_str() {
+                    "true" => true,
+                    "false" | "" => false,
+                    other => return Err(CoreError::not_allowed(format!("The checkbox “{}” only takes “true” or “false”, not “{other}”.", input.label))),
+                };
+                let on = input.options.first().cloned().unwrap_or_else(|| "true".to_string());
+                InputValue { value: if ticked { on } else { String::new() }, from_definition: true }
+            }
+        };
+        out.insert(input.id.clone(), value);
+    }
+    Ok(out)
+}
+
+/// Every value a placeholder can stand for. A value the UI passes is checked; a missing one falls
+/// back to HEAD, the current branch and the upstream remote.
+async fn resolve(core: &Core, repo_id: &str, root: &Path, def: &CustomCommandDef, context: &CustomCommandContext, given: &BTreeMap<String, String>) -> CoreResult<Values> {
+    let sha = match context.sha.as_deref().map(str::trim).filter(|sha| !sha.is_empty()) {
+        Some(sha) if (4..=64).contains(&sha.len()) && sha.bytes().all(|b| b.is_ascii_hexdigit()) => Some(sha.to_ascii_lowercase()),
+        Some(other) => return Err(CoreError::not_allowed(format!("“{other}” is not a commit ID."))),
+        None => undo::rev_parse(core, repo_id, "HEAD^{commit}").await?,
+    };
+    let branch = match context.branch.as_deref().filter(|name| !name.is_empty()) {
+        Some(name) => {
+            util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("Branch “{name}”: {reason}")))?;
+            Some(name.to_string())
+        }
+        None => current_branch(core, repo_id).await?,
+    };
+    let file = match context.file.as_deref().filter(|path| !path.is_empty()) {
+        Some(path) => Some(normalize_rel_path(path)?),
+        None => None,
+    };
+    let remotes = remotes::remote_names(core, repo_id).await?;
+    let remote = match context.remote.as_deref().filter(|name| !name.is_empty()) {
+        Some(name) if remotes.iter().any(|known| known == name) => Some(name.to_string()),
+        Some(name) => return Err(CoreError::not_found(format!("The remote “{name}” doesn’t exist."))),
+        None => upstream_remote(core, repo_id, branch.as_deref(), &remotes).await?,
+    };
+    Ok(Values { repo: util::display_path(root), sha, branch, file, remote, inputs: input_values(def, given)? })
+}
+
+/// `worktree`: the open folder; `repo`: the main working tree (differs for a linked worktree).
+async fn working_dir(core: &Core, root: &Path, cwd: CustomCommandCwd) -> PathBuf {
+    if cwd == CustomCommandCwd::Worktree {
+        return root.to_path_buf();
+    }
+    match crate::commands::trust::common_dir(core, root).await {
+        Some(common) if common.file_name().is_some_and(|name| name == ".git") => common.parent().map(Path::to_path_buf).unwrap_or_else(|| root.to_path_buf()),
+        _ => root.to_path_buf(),
+    }
+}
+
+/// Runs a custom command. `id` is the key from the list (`global:<id>`, `repo:<id>`), `inputs`
+/// the form's values by input ID. With `confirm: true` and `confirmed: false` nothing runs: the
+/// result is `confirm` with the finished command line. `shell` and `git` run as job `job_id`
+/// (cancellable with `job_cancel`); `url` returns the address for the browser.
+pub async fn custom_command_run(
+    core: &Core,
+    repo_id: String,
+    id: String,
+    context: CustomCommandContext,
+    inputs: BTreeMap<String, String>,
+    job_id: String,
+    confirmed: bool,
+) -> CoreResult<CustomCommandResult> {
+    let root = core.repo_path(&repo_id)?;
+    let def = find_runnable(core, &repo_id, &root, &id)?;
+    let values = resolve(core, &repo_id, &root, &def, &context, &inputs).await?;
+    let cwd = working_dir(core, &root, def.cwd).await;
+    let ask = |display: String| CustomCommandResult::Confirm { display, cwd: util::display_path(&cwd) };
+    match def.kind {
+        CustomCommandKind::Url => {
+            let url = expand::url(&def, &values)?;
+            if def.confirm && !confirmed {
+                return Ok(ask(redact::redact(&url)));
+            }
+            Ok(CustomCommandResult::OpenUrl { url })
+        }
+        CustomCommandKind::Shell => {
+            let (program, args) = if def.shell { expand::shell_line(&def, &values, cfg!(windows))? } else { expand::shell_args(&def, &values)? };
+            let planned = process::Planned { program, args, env: expand::environment(&values) };
+            if def.confirm && !confirmed {
+                return Ok(ask(planned.display()));
+            }
+            process::run(core, &repo_id, &job_id, &def.title, &planned, &cwd).await
+        }
+        CustomCommandKind::Git => {
+            let args = expand::git_args(&def, &values)?;
+            if def.confirm && !confirmed {
+                return Ok(ask(process::display_line("git", &args)));
+            }
+            Err(CoreError::not_built("custom commands of kind “git”"))
+        }
+    }
 }

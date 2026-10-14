@@ -139,7 +139,7 @@ fn config_findings(entries: &[(String, String)], git_is_directory: bool) -> Vec<
 }
 
 /// The common Git directory (for worktrees the one of the main repository), as a full path.
-async fn common_dir(core: &Core, root: &Path) -> Option<PathBuf> {
+pub(crate) async fn common_dir(core: &Core, root: &Path) -> Option<PathBuf> {
     let out = core.git.cmd(root).args(["rev-parse", "--git-common-dir"]).read_only().no_log().guarded().run_raw().await.ok()?;
     if !out.success() {
         return None;
