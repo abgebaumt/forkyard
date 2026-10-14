@@ -18,6 +18,8 @@ export const MAX_LINKED_CHARS = 20_000;
 export function compileRules(rules: readonly LinkRule[]): CompiledRule[] {
   const compiled: CompiledRule[] = [];
   for (const rule of rules) {
+    // The core checked the pattern already; a rule that would still backtrack badly never runs.
+    if (hasNestedRepetition(rule.pattern)) continue;
     try {
       compiled.push({ rule, regex: new RegExp(rule.pattern, "g") });
     } catch {
@@ -186,6 +188,8 @@ interface Group {
   chars: Chars;
   openAtStart: Chars;
   branchEnds: Chars;
+  /** Number of alternatives (1 without `|`). */
+  branches: number;
 }
 
 interface Item {
@@ -207,6 +211,9 @@ function scanSlow(pattern: string): void {
   const groups: Group[] = [];
   let item: Item | null = null;
   let open: Chars = 0n;
+  // Alternatives per group with a `|` (and of the pattern itself): see `tooManyChoices`.
+  const choices: number[] = [];
+  let topBranches = 1;
   const atom = (set: Chars): Item => {
     const before = open;
     if ((set & before) === 0n) open = 0n;
@@ -235,11 +242,12 @@ function scanSlow(pattern: string): void {
       } else {
         i += 1;
       }
-      groups.push({ repeats: false, alternates: false, chars: 0n, openAtStart: open, branchEnds: 0n });
+      groups.push({ repeats: false, alternates: false, chars: 0n, openAtStart: open, branchEnds: 0n, branches: 1 });
       item = null;
     } else if (c === ")") {
       const group = groups.pop();
       if (!group) throw new Unreadable();
+      if (group.branches > 1) choices.push(group.branches);
       const outer = groups[groups.length - 1];
       if (outer) {
         outer.repeats ||= group.repeats;
@@ -254,8 +262,10 @@ function scanSlow(pattern: string): void {
       if (group) {
         group.alternates = true;
         group.branchEnds |= open;
+        group.branches += 1;
         open = group.openAtStart;
       } else {
+        topBranches += 1;
         open = 0n;
       }
       item = null;
@@ -295,12 +305,38 @@ function scanSlow(pattern: string): void {
       i += 1;
     }
   }
+  if (topBranches > 1) choices.push(topBranches);
+  if (tooManyChoices(choices)) throw new Slow();
+}
+
+/** At most this many ways through the groups with alternatives, leaving out the largest group. */
+const MAX_CHOICES = 64;
+
+/**
+ * Groups with alternatives in a row multiply the ways a failing match is retried (`(\w|\w)` 24
+ * times takes seconds on a 40-character word). One group may hold many alternatives (a preset with
+ * many keys); the product of all the others is capped – as `check_choices` in the core.
+ */
+function tooManyChoices(choices: readonly number[]): boolean {
+  const largest = Math.max(1, ...choices);
+  let product = 1;
+  let skipped = false;
+  for (const count of choices) {
+    if (count === largest && !skipped) {
+      skipped = true;
+      continue;
+    }
+    product *= count;
+    if (product > MAX_CHOICES) return true;
+  }
+  return false;
 }
 
 /**
  * The same rule as in the core: true for patterns that can take exponential time in JavaScript –
  * nested repetition (`(a+)+`), repeated groups with alternatives or of varying width, and
- * repetitions in a row that share characters. Guards the test field before it runs a pattern.
+ * repetitions in a row that share characters, and too many groups with alternatives. Guards the
+ * test field before it runs a pattern, and `compileRules`.
  */
 export function hasNestedRepetition(pattern: string): boolean {
   const outcome = scanOutcome(pattern);

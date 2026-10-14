@@ -197,6 +197,8 @@ struct Group {
     open_at_start: Chars,
     /// `open` at the end of each alternative so far.
     branch_ends: Chars,
+    /// Number of alternatives (1 without `|`).
+    branches: u64,
 }
 
 /// The item just before, which a quantifier would repeat.
@@ -215,7 +217,8 @@ struct Item {
 /// a row that can share characters (`\w+\w+`, `\w*a\w*`, `\w?\w?\w?`). For the latter the scan
 /// tracks `open`: the characters a repetition of variable length (`*`, `+`, `?`, `{n,m}`) before may
 /// still take, because nothing since has fixed where it ends. A mandatory item that matches none of
-/// them closes it; a new repetition of variable length must not match any of them.
+/// them closes it; a new repetition of variable length must not match any of them. A third: many
+/// groups with alternatives in a row (`check_choices`).
 fn scan(pattern: &str) -> Result<(), String> {
     let chars: Vec<char> = pattern.chars().collect();
     let mut groups: Vec<Group> = Vec::new();
@@ -223,6 +226,9 @@ fn scan(pattern: &str) -> Result<(), String> {
     // accepts some of them).
     let mut item: Option<Item> = None;
     let mut open: Chars = 0;
+    // Alternatives per group with a `|` (and of the pattern itself): see `check_choices`.
+    let mut choices: Vec<u64> = Vec::new();
+    let mut top_branches: u64 = 1;
     // A mandatory atom matching `set` follows.
     let atom = |set: Chars, open: &mut Chars, groups: &mut Vec<Group>| -> Item {
         let before = *open;
@@ -257,11 +263,14 @@ fn scan(pattern: &str) -> Result<(), String> {
                 } else {
                     i += 1;
                 }
-                groups.push(Group { repeats: false, alternates: false, chars: 0, open_at_start: open, branch_ends: 0 });
+                groups.push(Group { repeats: false, alternates: false, chars: 0, open_at_start: open, branch_ends: 0, branches: 1 });
                 item = None;
             }
             ')' => {
                 let group = groups.pop().ok_or_else(|| "A “)” has no matching “(”.".to_string())?;
+                if group.branches > 1 {
+                    choices.push(group.branches);
+                }
                 if let Some(outer) = groups.last_mut() {
                     outer.repeats |= group.repeats;
                     outer.alternates |= group.alternates;
@@ -276,9 +285,13 @@ fn scan(pattern: &str) -> Result<(), String> {
                     Some(group) => {
                         group.alternates = true;
                         group.branch_ends |= open;
+                        group.branches += 1;
                         open = group.open_at_start;
                     }
-                    None => open = 0,
+                    None => {
+                        top_branches += 1;
+                        open = 0;
+                    }
                 }
                 item = None;
                 i += 1;
@@ -346,6 +359,32 @@ fn scan(pattern: &str) -> Result<(), String> {
     if !groups.is_empty() {
         return Err("A “(” is not closed.".into());
     }
+    if top_branches > 1 {
+        choices.push(top_branches);
+    }
+    check_choices(&choices)
+}
+
+/// At most this many ways through the groups with alternatives, leaving out the largest group.
+const MAX_CHOICES: u64 = 64;
+
+/// Groups with alternatives in a row multiply the ways a failing match is retried: `(\w|\w)` 24
+/// times takes seconds on a 40-character word in JavaScript. One group may hold many alternatives
+/// (a preset with many keys); the product of all the others is capped.
+fn check_choices(choices: &[u64]) -> Result<(), String> {
+    let largest = choices.iter().copied().max().unwrap_or(1);
+    let mut product: u64 = 1;
+    let mut skipped = false;
+    for &count in choices {
+        if count == largest && !skipped {
+            skipped = true;
+            continue;
+        }
+        product = product.saturating_mul(count);
+    }
+    if product > MAX_CHOICES {
+        return Err("Too many groups with alternatives, e.g. (a|b)(c|d)(e|f)… – it can take very long to match; use character classes such as [ab] instead.".into());
+    }
     Ok(())
 }
 
@@ -372,6 +411,23 @@ mod tests {
         assert_eq!(check_pattern(r"(?:a+)?b"), Ok(0));
         assert_eq!(check_pattern(r"(?:a|b)?c+"), Ok(0));
         assert!(check_pattern(&"a".repeat(MAX_PATTERN_LEN)).is_ok());
+        // One group may hold many alternatives (a preset with many keys), and a few groups in a row are fine.
+        let keys: Vec<String> = (0..40).map(|n| format!("K{n}")).collect();
+        assert_eq!(check_pattern(&format!(r"\b(?:{})-\d+\b", keys.join("|"))), Ok(0));
+        assert_eq!(check_pattern(r"(?:a|b|c|d)-(?:x|y|z)"), Ok(0));
+        assert!(check_pattern(&format!("{}!", r"(\w|\w)".repeat(7))).is_ok());
+    }
+
+    #[test]
+    fn rejects_chains_of_alternations() {
+        // Each group doubles the ways to fail: 28 groups take minutes in JavaScript on a long word.
+        for count in [8, 28] {
+            let pattern = format!("{}!", r"(\w|\w)".repeat(count));
+            let error = check_pattern(&pattern).unwrap_err();
+            assert!(error.contains("alternatives"), "{count}: {error}");
+        }
+        assert!(check_pattern(&format!("{}!", "(?:a|a|a)".repeat(5))).is_err());
+        assert!(check_pattern(&format!("{}|x", "(a|a)".repeat(7))).is_err(), "the outer alternation counts too");
     }
 
     #[test]

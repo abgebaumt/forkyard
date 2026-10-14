@@ -87,6 +87,19 @@ describe("ticket links", () => {
     for (const pattern of fine) expect(hasNestedRepetition(pattern), pattern).toBe(false);
   });
 
+  it("finds chains of alternations like the core", () => {
+    for (const count of [8, 28]) expect(hasNestedRepetition(String.raw`(\w|\w)`.repeat(count) + "!"), String(count)).toBe(true);
+    expect(hasNestedRepetition("(?:a|a|a)".repeat(5) + "!")).toBe(true);
+    expect(hasNestedRepetition("(a|a)".repeat(7) + "|x")).toBe(true);
+    expect(hasNestedRepetition(String.raw`(\w|\w)`.repeat(7) + "!")).toBe(false);
+    const keys = Array.from({ length: 40 }, (_, n) => `K${n}`).join("|");
+    expect(hasNestedRepetition(String.raw`\b(?:${keys})-\d+\b`)).toBe(false);
+    expect(hasNestedRepetition("(?:a|b|c|d)-(?:x|y|z)")).toBe(false);
+    // A rule that reaches the UI unchecked is skipped, never run.
+    const rules = compileRules([rule("chain", String.raw`(\w|\w)`.repeat(28) + "!", "https://x.example/$0", "repo_file")]);
+    expect(rules).toEqual([]);
+  });
+
   it("tries a rule for the test field", () => {
     expect(tryRule("(", "https://x.example/$0", "x")).toEqual({ kind: "invalid" });
     expect(tryRule("(a+)+", "https://x.example/$0", "aaa")).toEqual({ kind: "nested" });
