@@ -1706,3 +1706,31 @@ async fn a_merge_bringing_in_too_many_commits_stays_expanded() {
     assert_eq!(collapse_for(&tc, &path, &id, &plan, &parents, 1).await.unwrap(), Collapse::TooLarge);
     assert_eq!(collapse_for(&tc, &path, &id, &plan, &parents, 2).await.unwrap(), Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] });
 }
+
+#[tokio::test]
+async fn a_large_hidden_block_at_the_page_boundary_needs_few_log_calls() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let a = repo.head();
+    repo.checkout_new("feature");
+    for i in 0..50 {
+        repo.commit_file("f.txt", format!("{i}\n"), &format!("Feature {i}"));
+    }
+    repo.checkout("main");
+    let m1 = repo.commit_file("m.txt", "1\n", "Main 1");
+    assert!(repo.merge("feature"));
+    let merge = repo.head();
+    let m2 = repo.commit_file("m.txt", "2\n", "Main 2");
+    repo.git(&["branch", "-D", "feature"]);
+    let id = tc.open(&repo).await.repo.id;
+    view_state_set(&tc, id.clone(), json!({"collapseAllMerges": true})).await.unwrap();
+
+    // Page size 2: the second page holds m1, then all 50 hidden commits follow before `a`.
+    super::page::LOG_READS.with(|n| n.set(0));
+    let rows = all_rows(&tc, &id, 2).await;
+    let reads = super::page::LOG_READS.with(std::cell::Cell::get);
+    assert_eq!(ids(&rows), vec![m2.as_str(), merge.as_str(), m1.as_str(), a.as_str()], "{}", sketch(&rows));
+    assert_eq!(find(&rows, &merge).collapsed_count, Some(50));
+    check_rows(&rows, true).unwrap();
+    assert!(reads <= 4, "{reads} `git log` calls for two pages");
+}

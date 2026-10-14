@@ -46,6 +46,10 @@ const LOG_FIELDS: usize = 6;
 const CURSOR_VERSION: u32 = 2;
 /// More commits than this under one merge: it stays expanded (`collapseTooLarge`).
 pub(super) const MAX_COLLAPSE: usize = 20_000;
+/// Records per `git log` call once hidden commits left the page short: at least this many, doubling
+/// up to `MAX_READ_CHUNK`.
+const MIN_READ_CHUNK: usize = 1_000;
+const MAX_READ_CHUNK: usize = 64_000;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Cursor {
@@ -370,8 +374,16 @@ async fn side_commits(core: &Core, path: &Path, repo_id: &str, first: &str, side
     Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_full_sha(sha)).collect())
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Number of `read_records` calls on this thread (tests run on a current-thread runtime).
+    pub(super) static LOG_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
 /// `limit` records of `git log` after the first `skip`, over the starting points in `stdin`.
 async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip: u64, limit: usize) -> CoreResult<Vec<Vec<Vec<u8>>>> {
+    #[cfg(test)]
+    LOG_READS.with(|n| n.set(n.get() + 1));
     let mut records = Records::new(LOG_FIELDS);
     let mut out = Vec::with_capacity(limit);
     let mut on_field = |field: &[u8]| -> bool {
@@ -466,9 +478,14 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
             stdin.push('\n');
         }
         // Hidden commits do not count towards `limit`: read on until the page is full or the history
-        // ends. One commit more than needed: if it comes, there is another page.
+        // ends. One commit more than needed: if it comes, there is another page. Every call sorts the
+        // whole history (`--date-order`), so after the first one the chunk grows: a long hidden run
+        // costs a few calls, not one per missing row. Extra records are harmless – `consumed` only
+        // counts the ones processed.
+        let mut chunk = limit + 1;
         loop {
-            let want = limit - builder.commits + 1;
+            let want = (limit - builder.commits + 1).max(chunk);
+            chunk = (chunk.max(MIN_READ_CHUNK / 2) * 2).min(MAX_READ_CHUNK);
             let records = read_records(core, &path, repo_id, &stdin, consumed, want).await?;
             let got = records.len();
             for fields in records {
