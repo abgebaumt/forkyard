@@ -166,5 +166,9 @@
   "repo_other_profile": {
     "text": "Dieses Repository gehört zu einem anderen Profil.",
     "hint": "Wechsle zu diesem Profil oder öffne es auch im aktuellen."
+  },
+  "bisect_active": {
+    "text": "Es läuft bereits ein Bisect.",
+    "hint": "Beende es in der Leiste über dem Graphen oder markiere weiter Commits."
   }
 }

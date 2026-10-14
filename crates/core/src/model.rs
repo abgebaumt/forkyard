@@ -541,6 +541,35 @@ pub struct Operation {
     pub message: Option<String>,
 }
 
+/// Verdict on a commit during a bisect.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BisectVerdict {
+    Good,
+    Bad,
+    Skip,
+}
+
+/// State of a bisect, read from the Git directory (`active: false` = none running).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectStatus {
+    pub active: bool,
+    pub bad: Option<Sha>,
+    pub good: Vec<Sha>,
+    pub skipped: Vec<Sha>,
+    /// The commit to test now (HEAD; with `--no-checkout` BISECT_HEAD).
+    pub current: Option<Sha>,
+    /// Git's estimate of the steps after this one; `None` until a bad and a good commit are known.
+    pub remaining_steps: Option<u32>,
+    /// Commits marked since the start.
+    pub steps_done: u32,
+    /// The first bad commit, as soon as it is certain.
+    pub result: Option<Sha>,
+    /// Only skipped commits are left between good and bad: the first bad one is among them.
+    pub only_skipped_left: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpstreamState {

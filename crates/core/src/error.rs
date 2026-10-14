@@ -60,11 +60,13 @@ pub enum ErrorCode {
     RepoUntrusted,
     /// The repository belongs only to other profiles; it is only opened on explicit request.
     RepoOtherProfile,
+    /// A bisect is already running in the repository.
+    BisectActive,
 }
 
 impl ErrorCode {
     /// All codes, for tests and cross-checks.
-    pub const ALL: [ErrorCode; 42] = [
+    pub const ALL: [ErrorCode; 43] = [
         ErrorCode::NotARepo,
         ErrorCode::PathNotFound,
         ErrorCode::PathExists,
@@ -107,6 +109,7 @@ impl ErrorCode {
         ErrorCode::HostForbidden,
         ErrorCode::RepoUntrusted,
         ErrorCode::RepoOtherProfile,
+        ErrorCode::BisectActive,
     ];
 
     /// The code as text, as it appears in the JSON (`"not_a_repo"`).
@@ -154,6 +157,7 @@ impl ErrorCode {
             ErrorCode::HostForbidden => "host_forbidden",
             ErrorCode::RepoUntrusted => "repo_untrusted",
             ErrorCode::RepoOtherProfile => "repo_other_profile",
+            ErrorCode::BisectActive => "bisect_active",
         }
     }
 }

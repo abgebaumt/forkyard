@@ -5,6 +5,7 @@ pub mod activity;
 pub mod app;
 pub mod auth;
 pub mod avatars;
+pub mod bisect;
 pub mod branches;
 pub mod clone_init;
 pub mod crash;

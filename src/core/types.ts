@@ -71,7 +71,9 @@ export type ErrorCode =
    */
   | "repo_untrusted"
   /** The repository belongs only to other profiles. `repoProfiles` names them; `repoOpen` with `addToProfile: true` opens it anyway. */
-  | "repo_other_profile";
+  | "repo_other_profile"
+  /** A bisect is already running (`bisectStart`). */
+  | "bisect_active";
 
 /** This is how every error comes from the core. `message` is English and meant for humans. */
 export interface CoreErrorData {
@@ -494,6 +496,27 @@ export interface Operation {
   totalSteps: number | null;
   /** Prepared commit message (MERGE_MSG). */
   message: string | null;
+}
+
+/** Verdict on a commit during a bisect. */
+export type BisectVerdict = "good" | "bad" | "skip";
+
+/** State of a bisect, read from the Git directory (`active: false` = none running). */
+export interface BisectStatus {
+  active: boolean;
+  bad: Sha | null;
+  good: Sha[];
+  skipped: Sha[];
+  /** The commit to test now. */
+  current: Sha | null;
+  /** Git's estimate of the steps after this one; null until a bad and a good commit are known. */
+  remainingSteps: number | null;
+  /** Commits marked since the start. */
+  stepsDone: number;
+  /** The first bad commit, as soon as it is certain. */
+  result: Sha | null;
+  /** Only skipped commits are left between good and bad: the first bad one is among them. */
+  onlySkippedLeft: boolean;
 }
 
 export interface UpstreamState {

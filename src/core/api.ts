@@ -18,6 +18,8 @@ import type {
   ActivityPage,
   ActivityScope,
   AppInfo,
+  BisectStatus,
+  BisectVerdict,
   BlameLine,
   CloneOptions,
   CommitDetails,
@@ -338,6 +340,18 @@ export interface CoreCommands {
   revertCommit(input: R & { sha: Sha }): Promise<OpResult>;
   /** Resets the checked-out branch to `sha`. */
   resetBranch(input: R & { sha: Sha; mode: ResetMode }): Promise<Status>;
+  /** Bisect state, read from the Git directory – also one started on the command line. */
+  bisectStatus(input: R): Promise<BisectStatus>;
+  /**
+   * Starts a bisect between `bad` and the `good` commits and checks out the first commit to test.
+   * Errors: `bisect_active`, `not_allowed` (working directory not clean, no good commit, the same
+   * commit twice, Git refuses the pair), `operation_in_progress`, `not_found`. Reports `repo:changed`.
+   */
+  bisectStart(input: R & { bad: Sha; good: Sha[] }): Promise<BisectStatus>;
+  /** Marks `sha` (null = the commit under test) and checks out the next one. Without a bisect: `no_operation`. */
+  bisectMark(input: R & { verdict: BisectVerdict; sha?: Sha | null }): Promise<BisectStatus>;
+  /** Ends the bisect and returns to where it started. Without a bisect: `no_operation`. */
+  bisectReset(input: R): Promise<BisectStatus>;
 
   // --- Remotes and syncing -----------------------------------------------------
   remoteList(input: R): Promise<Remote[]>;

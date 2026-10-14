@@ -52,6 +52,7 @@ const CODES: Record<ErrorCode, true> = {
   host_forbidden: true,
   repo_untrusted: true,
   repo_other_profile: true,
+  bisect_active: true,
 };
 
 /** Error code → understandable sentence with a suggested action. Covers every ErrorCode. */

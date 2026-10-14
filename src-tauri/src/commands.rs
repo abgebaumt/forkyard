@@ -427,6 +427,26 @@ pub async fn reset_branch(core: State<'_, Core>, repo_id: String, sha: String, m
 }
 
 #[tauri::command]
+pub async fn bisect_status(core: State<'_, Core>, repo_id: String) -> R<BisectStatus> {
+    c::bisect::bisect_status(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn bisect_start(core: State<'_, Core>, repo_id: String, bad: String, good: Vec<String>) -> R<BisectStatus> {
+    c::bisect::bisect_start(&core, repo_id, bad, good).await
+}
+
+#[tauri::command]
+pub async fn bisect_mark(core: State<'_, Core>, repo_id: String, verdict: BisectVerdict, sha: Option<String>) -> R<BisectStatus> {
+    c::bisect::bisect_mark(&core, repo_id, verdict, sha).await
+}
+
+#[tauri::command]
+pub async fn bisect_reset(core: State<'_, Core>, repo_id: String) -> R<BisectStatus> {
+    c::bisect::bisect_reset(&core, repo_id).await
+}
+
+#[tauri::command]
 pub async fn remote_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Remote>> {
     c::remotes::remote_list(&core, repo_id).await
 }
