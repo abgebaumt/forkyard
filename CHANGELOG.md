@@ -51,6 +51,17 @@ All notable changes to Forkyard are listed here. The format follows
   and the commit panel warns when staged files are locked by someone else (committing stays
   possible). The list is read again after every fetch; a server without file locking says so
   instead of showing an empty list.
+- Custom commands: your own programs, Git commands and web addresses with placeholders (`${repo}`,
+  `${sha}`, `${branch}`, `${file}`, `${remote}`, `${input:<id>}`) and an input form, in the command
+  palette and the context menus of commits, branches, files and submodules (Settings → Custom
+  commands, with import and export as JSON). Values are always passed as single arguments, never
+  through a shell; a command can show the finished line before it runs, and runs can be cancelled.
+  A repository can bring commands in `.forkyard/commands.json`; they only run after you approve
+  exactly that version of the file. See `docs/custom-commands.md`.
+- Command line: `forkyard --help` and `forkyard --version` answer without opening a window. The
+  Windows installers put the program folder on the PATH and remove it on uninstall, deb and rpm
+  install `/usr/bin/forkyard`, and for the AppImage and the macOS app the command palette offers
+  “Install command-line command”.
 
 ### Changed
 
