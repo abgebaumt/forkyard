@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Ref, RefsSnapshot, StatsBucket } from "../../core";
-import { ageShares, currentTip, defaultGranularity, fillMonths, fillWeeks, heatLevels, rangeFor } from "./model";
+import type { Ref, RefsSnapshot, StatsBucket, StatsFile } from "../../core";
+import { ageShares, buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, heatLevels, parentFolder, rangeFor, squarify } from "./model";
 
 const bucket = (period: string, commits: number): StatsBucket => ({ period, commits, added: commits, removed: 0 });
 
@@ -85,5 +85,59 @@ describe("tip of a ref", () => {
     expect(currentTip(refs, "refs/tags/v1")).toBeNull();
     expect(currentTip({ ...refs, head: { kind: "unborn", branch: "main" } }, "HEAD")).toBeNull();
     expect(currentTip(undefined, "HEAD")).toBeNull();
+  });
+});
+
+describe("treemap", () => {
+  const file = (path: string, commits: number): StatsFile => ({ path, commits, authors: 1, added: 0, removed: 0 });
+  const files = [file("src/app/main.rs", 4), file("docs/guide.md", 4), file("src/lib/util.rs", 2), file("README.md", 2)];
+
+  it("builds folders with summed commits, largest first", () => {
+    const root = buildTree(files);
+    expect(root.value).toBe(12);
+    expect(root.children.map((c) => [c.path, c.value, c.file ? "file" : "folder"])).toEqual([
+      ["src", 6, "folder"],
+      ["docs", 4, "folder"],
+      ["README.md", 2, "file"],
+    ]);
+    const src = findNode(root, "src");
+    expect(src?.children.map((c) => c.path)).toEqual(["src/app", "src/lib"]);
+    expect(findNode(root, "src/app")?.children[0]?.file?.path).toBe("src/app/main.rs");
+    expect(findNode(root, "")).toBe(root);
+    expect(findNode(root, "gibt/es/nicht")).toBeNull();
+    expect(findNode(root, "README.md")).toBeNull();
+    expect([parentFolder("src/app"), parentFolder("src")]).toEqual(["src", ""]);
+  });
+
+  const items = [6, 6, 4, 3, 2, 2, 1].map((value, index) => ({ value, item: index }));
+
+  it("squarifies like the paper's example", () => {
+    const tiles = squarify(items, { x: 0, y: 0, w: 6, h: 4 });
+    expect(tiles.map((t) => t.item)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(tiles.slice(0, 2).map(({ x, y, w, h }) => [x, y, w, h])).toEqual([
+      [0, 0, 3, 2],
+      [0, 2, 3, 2],
+    ]);
+    const third = tiles[2]!;
+    expect([third.x, third.y, third.h]).toEqual([3, 0, 7 / 3]);
+  });
+
+  it("the tiles fill the rectangle exactly and stay inside it", () => {
+    const rect = { x: 10, y: 20, w: 1000, h: 480 };
+    const tiles = squarify(items, rect);
+    const area = tiles.reduce((sum, t) => sum + t.w * t.h, 0);
+    expect(area).toBeCloseTo(rect.w * rect.h, 6);
+    for (const t of tiles) {
+      expect(t.x).toBeGreaterThanOrEqual(rect.x - 1e-9);
+      expect(t.y).toBeGreaterThanOrEqual(rect.y - 1e-9);
+      expect(t.x + t.w).toBeLessThanOrEqual(rect.x + rect.w + 1e-9);
+      expect(t.y + t.h).toBeLessThanOrEqual(rect.y + rect.h + 1e-9);
+    }
+  });
+
+  it("one item fills everything; zeros and empty input give no tiles", () => {
+    expect(squarify([{ value: 3, item: "a" }], { x: 0, y: 0, w: 10, h: 5 })).toEqual([{ x: 0, y: 0, w: 10, h: 5, item: "a" }]);
+    expect(squarify([{ value: 0, item: "a" }], { x: 0, y: 0, w: 10, h: 5 })).toEqual([]);
+    expect(squarify([], { x: 0, y: 0, w: 10, h: 5 })).toEqual([]);
   });
 });
