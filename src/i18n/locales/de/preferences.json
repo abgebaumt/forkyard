@@ -78,6 +78,10 @@
       "label": "Dateien und Hooks",
       "keywords": "Hooks-Ordner|Commit-Vorlage|Kodierung"
     },
+    "pLinks": {
+      "label": "Ticket-Links",
+      "keywords": "Ticket-Links|Issue-Nummern|Jira|Linear|YouTrack|Redmine|Muster|Regulärer Ausdruck|links.json"
+    },
     "about": {
       "label": "Über",
       "keywords": "Version|Lizenz|Datenschutz"
@@ -416,6 +420,43 @@
       "templatePlaceholder": "keine Vorlage",
       "templateBrowse": "Commit-Vorlage durchsuchen",
       "templatePick": "Commit-Vorlage wählen"
+    },
+    "links": {
+      "title": "Ticket-Links",
+      "hostCard": "Hoster",
+      "host": "Issue-Nummern zum Hoster verlinken",
+      "hostDescription": "#123 öffnet das Issue oder den Pull Request beim Hoster des Repositories; bei GitLab öffnet !123 den Merge Request.",
+      "noHost": "Kein Remote dieses Repositories liegt auf GitHub, GitLab oder einer verbundenen Instanz – es gibt kein Ziel für Links.",
+      "presetsCard": "Tracker",
+      "tracker": "Tracker",
+      "baseUrl": "Adresse",
+      "keys": "Projektschlüssel",
+      "keysHint": "Optional, durch Kommas getrennt: Nur diese Schlüssel werden verlinkt (z. B. ABC für ABC-123). Leer = jeder Schlüssel der Form ABC-123.",
+      "redmineHint": "Redmine verlinkt #123 auf seine Tickets; sind auch die Hoster-Links an, gewinnt dein Tracker.",
+      "keysList": "Schlüssel: {{keys}}",
+      "add": "Hinzufügen",
+      "removePreset": "{{name}} entfernen",
+      "customCard": "Eigene Regeln",
+      "pattern": "Muster",
+      "patternHint": "Regulärer Ausdruck (ASCII): Gruppen (…) und (?:…), \\d \\w \\s \\b; keine Lookarounds oder Rückverweise, höchstens 200 Zeichen.",
+      "url": "Adressvorlage",
+      "urlHint": "Beginnt mit http:// oder https:// und einem festen Host; $0 ist der ganze Treffer, $1 … die Gruppen.",
+      "test": "Ausprobieren",
+      "testPlaceholder": "Eine Commit-Message, z. B. Behebt OPS-42",
+      "testResult": "Links im Beispiel",
+      "testNone": "Kein Treffer im Beispiel.",
+      "testInvalid": "Das Muster ist kein gültiger regulärer Ausdruck.",
+      "testNested": "Eine wiederholte Gruppe darf selbst keine Wiederholung enthalten, z. B. (a+)+.",
+      "testNoUrl": "keine gültige Adresse",
+      "addRule": "Regel hinzufügen",
+      "removeRule": "Regel {{pattern}} entfernen",
+      "fileCard": "Aus dem Repository (.forkyard/links.json)",
+      "fileFromWorktree": "Aus dem Arbeitsverzeichnis gelesen. Diese Regeln kommen mit dem Repository und lassen sich nur in der Datei ändern.",
+      "fileFromHead": "Aus dem letzten Commit (HEAD) gelesen; im Arbeitsverzeichnis gibt es die Datei nicht.",
+      "fileNone": "Das Repository hat keine .forkyard/links.json.",
+      "fileError": "Die Regeln ließen sich nicht laden.",
+      "problems": "Ignorierte Einträge",
+      "problemAt": "Eintrag {{n}}: {{message}}"
     },
     "encodings": {
       "windows1252": "Windows-1252 (Westeuropa)",

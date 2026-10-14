@@ -21,6 +21,7 @@ export type SectionId =
   | "p-identity"
   | "p-git"
   | "p-files"
+  | "p-links"
   | "about";
 
 export interface SectionDef {
@@ -52,6 +53,7 @@ export const SECTIONS: SectionDef[] = [
   section("p-identity", "project", "pIdentity"),
   section("p-git", "project", "pGit"),
   section("p-files", "project", "pFiles"),
+  section("p-links", "project", "pLinks"),
   section("about", "help", "about"),
 ];
 

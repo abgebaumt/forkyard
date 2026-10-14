@@ -13,6 +13,7 @@ import {
   Globe,
   Info,
   KeyRound,
+  Link2,
   Network,
   Palette,
   Plug,
@@ -42,6 +43,7 @@ import { AppearanceSection, DiffSection, ExternalSection, GitSection, Notificati
 import { CredentialsSection } from "./sections/Credentials";
 import { ProfilesSection } from "./sections/Profiles";
 import { ProjectFilesSection, ProjectGitSection, ProjectIdentitySection } from "./sections/ProjectSections";
+import { TicketLinksSection } from "./sections/TicketLinks";
 import { SshSection } from "./sections/Ssh";
 import { NetworkSection } from "../Network/NetworkSection";
 import { HostsSection } from "../Hosts";
@@ -76,6 +78,7 @@ const icons: Record<SectionId, ReactNode> = {
   "p-identity": <FolderGit2 className={iconClass} aria-hidden />,
   "p-git": <GitBranch className={iconClass} aria-hidden />,
   "p-files": <FileCog className={iconClass} aria-hidden />,
+  "p-links": <Link2 className={iconClass} aria-hidden />,
   about: <Info className={iconClass} aria-hidden />,
 };
 
@@ -229,6 +232,8 @@ export function Preferences({
         return repoId ? <ProjectGitSection key={repoId} repoId={repoId} /> : null;
       case "p-files":
         return repoId ? <ProjectFilesSection key={repoId} repoId={repoId} /> : null;
+      case "p-links":
+        return repoId ? <TicketLinksSection key={repoId} repoId={repoId} /> : null;
       case "about":
         return <AboutSection />;
     }

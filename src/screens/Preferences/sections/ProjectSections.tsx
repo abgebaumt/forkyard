@@ -69,7 +69,7 @@ function inherit(repoId: Id, key: InheritKey, repo: RepoSettings, ctx: InheritCo
   };
 }
 
-function Intro({ repoId, children }: { repoId: Id; children: string }) {
+export function Intro({ repoId, children }: { repoId: Id; children: string }) {
   const { data: repo } = useRepo(repoId);
   return (
     <>

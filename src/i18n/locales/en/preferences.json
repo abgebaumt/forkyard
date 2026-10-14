@@ -78,6 +78,10 @@
       "label": "Files and hooks",
       "keywords": "Hooks folder|Commit template|Encoding"
     },
+    "pLinks": {
+      "label": "Ticket links",
+      "keywords": "Ticket links|Issue numbers|Jira|Linear|YouTrack|Redmine|Pattern|Regular expression|links.json"
+    },
     "about": {
       "label": "About",
       "keywords": "Version|License|Privacy"
@@ -416,6 +420,43 @@
       "templatePlaceholder": "no template",
       "templateBrowse": "Browse for commit template",
       "templatePick": "Choose commit template"
+    },
+    "links": {
+      "title": "Ticket links",
+      "hostCard": "Host",
+      "host": "Link issue numbers to the host",
+      "hostDescription": "#123 opens the issue or pull request on the repository's host; on GitLab, !123 opens the merge request.",
+      "noHost": "No remote of this repository is on GitHub, GitLab or a connected instance – there is nothing to link to.",
+      "presetsCard": "Trackers",
+      "tracker": "Tracker",
+      "baseUrl": "Address",
+      "keys": "Project keys",
+      "keysHint": "Optional, separated by commas: only these keys are linked (e.g. ABC for ABC-123). Empty = every key of the form ABC-123.",
+      "redmineHint": "Redmine links #123 to its issues; if the host links are on as well, your tracker wins.",
+      "keysList": "Keys: {{keys}}",
+      "add": "Add",
+      "removePreset": "Remove {{name}}",
+      "customCard": "Own rules",
+      "pattern": "Pattern",
+      "patternHint": "Regular expression (ASCII): groups (…) and (?:…), \\d \\w \\s \\b; no lookarounds or back-references, at most 200 characters.",
+      "url": "Address template",
+      "urlHint": "Starts with http:// or https:// and a fixed host; $0 is the whole match, $1 … the groups.",
+      "test": "Try it",
+      "testPlaceholder": "A commit message, e.g. Fixes OPS-42",
+      "testResult": "Links in the sample",
+      "testNone": "No match in the sample.",
+      "testInvalid": "The pattern is not a valid regular expression.",
+      "testNested": "A repeated group must not contain a repetition itself, e.g. (a+)+.",
+      "testNoUrl": "no valid address",
+      "addRule": "Add rule",
+      "removeRule": "Remove rule {{pattern}}",
+      "fileCard": "From the repository (.forkyard/links.json)",
+      "fileFromWorktree": "Read from the working directory. These rules come with the repository and can only be changed in the file.",
+      "fileFromHead": "Read from the last commit (HEAD); the working directory has no such file.",
+      "fileNone": "The repository has no .forkyard/links.json.",
+      "fileError": "The rules could not be loaded.",
+      "problems": "Ignored entries",
+      "problemAt": "Entry {{n}}: {{message}}"
     },
     "encodings": {
       "windows1252": "Windows-1252 (Western European)",

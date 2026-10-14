@@ -4,7 +4,10 @@ import { SECTIONS, searchSections, visibleSections } from "./nav";
 describe("settings navigation", () => {
   it("shows project sections only with an open repo", () => {
     expect(visibleSections(false).some((s) => s.level === "project")).toBe(false);
-    expect(visibleSections(true).filter((s) => s.level === "project").map((s) => s.id)).toEqual(["p-identity", "p-git", "p-files"]);
+    expect(visibleSections(true).filter((s) => s.level === "project").map((s) => s.id)).toEqual(["p-identity", "p-git", "p-files", "p-links"]);
+  });
+  it("finds the ticket links by tracker name", () => {
+    expect(searchSections("jira", visibleSections(true)).get("p-links")).toBe(1);
   });
   it("has unique IDs and the levels in the order global, profile, project, help", () => {
     expect(new Set(SECTIONS.map((s) => s.id)).size).toBe(SECTIONS.length);
