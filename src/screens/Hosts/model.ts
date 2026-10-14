@@ -60,6 +60,51 @@ export const tokenGuides: Record<HostKind, TokenGuide> = {
     ],
     notes: [t("hosts.guide.gitlab.roles")],
   },
+  gitea: {
+    path: t("hosts.guide.gitea.path").split("|"),
+    variants: [
+      {
+        title: t("hosts.guide.gitea.personal"),
+        intro: t("hosts.guide.gitea.personalIntro"),
+        permissions: [
+          { name: "write:repository", why: t("hosts.guide.gitea.repository") },
+          { name: "write:issue", why: t("hosts.guide.gitea.issue") },
+          { name: "read:user", why: t("hosts.guide.gitea.user") },
+        ],
+      },
+    ],
+    notes: [t("hosts.guide.gitea.forgejo")],
+  },
+  bitbucket: {
+    path: t("hosts.guide.bitbucket.path").split("|"),
+    variants: [
+      {
+        title: t("hosts.guide.bitbucket.personal"),
+        intro: t("hosts.guide.bitbucket.personalIntro"),
+        permissions: [
+          { name: "read:repository:bitbucket", why: t("hosts.guide.bitbucket.repository") },
+          { name: "write:pullrequest:bitbucket", why: t("hosts.guide.bitbucket.pullrequest") },
+          { name: "read:issue:bitbucket", why: t("hosts.guide.bitbucket.issue") },
+          { name: "read:user:bitbucket", why: t("hosts.guide.bitbucket.user") },
+        ],
+      },
+    ],
+    notes: [t("hosts.guide.bitbucket.email"), t("hosts.guide.bitbucket.appPasswords")],
+  },
+  azure_devops: {
+    path: t("hosts.guide.azure.path").split("|"),
+    variants: [
+      {
+        title: t("hosts.guide.azure.personal"),
+        intro: t("hosts.guide.azure.personalIntro"),
+        permissions: [
+          { name: "Code (Read & write)", why: t("hosts.guide.azure.code") },
+          { name: "Work Items (Read & write)", why: t("hosts.guide.azure.workItems") },
+        ],
+      },
+    ],
+    notes: [t("hosts.guide.azure.organization")],
+  },
 };
 
 export const instanceLabels: Record<HostKind, { public: string; own: string; ownHint: string; placeholder: string }> = {
@@ -75,4 +120,13 @@ export const instanceLabels: Record<HostKind, { public: string; own: string; own
     ownHint: t("hosts.instance.gitlabHint"),
     placeholder: t("hosts.instance.gitlabPlaceholder"),
   },
+  gitea: {
+    public: "codeberg.org",
+    own: t("hosts.instance.own"),
+    ownHint: t("hosts.instance.giteaHint"),
+    placeholder: t("hosts.instance.giteaPlaceholder"),
+  },
+  // Bitbucket Cloud and Azure DevOps have no self-hosted instance here (see hostHasInstances).
+  bitbucket: { public: "bitbucket.org", own: t("hosts.instance.own"), ownHint: "", placeholder: "" },
+  azure_devops: { public: "dev.azure.com", own: t("hosts.instance.own"), ownHint: "", placeholder: "" },
 };

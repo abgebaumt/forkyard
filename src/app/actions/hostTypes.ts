@@ -1,5 +1,5 @@
 /**
- * Host integration (GitHub and GitLab via their public REST APIs, with the user's token):
+ * Host integration (GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud, Azure DevOps via their public REST APIs, with the user's token):
  * the shapes the UI works with, and the one place that calls the core for it.
  *
  * The core is authoritative. What it returns is brought into a fixed shape here once
@@ -10,12 +10,21 @@
 import { core, CoreError, EMPTY_TREE_SHA, type Id, type Sha, type Status } from "../../core";
 import { locale, t } from "../../i18n";
 
-export type HostKind = "github" | "gitlab";
+export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops";
 
-export const hostKindLabels: Record<HostKind, string> = { github: "GitHub", gitlab: "GitLab" };
+/** In the order the app offers them. */
+export const HOST_KINDS: HostKind[] = ["github", "gitlab", "gitea", "bitbucket", "azure_devops"];
+
+export const hostKindLabels: Record<HostKind, string> = { github: "GitHub", gitlab: "GitLab", gitea: "Gitea/Forgejo", bitbucket: "Bitbucket", azure_devops: "Azure DevOps" };
 
 /** What the host calls the thing – GitLab speaks of merge requests. The app uniformly says pull request. */
-export const hostPrWord: Record<HostKind, string> = { github: t("actions.hosts.prWord.github"), gitlab: t("actions.hosts.prWord.gitlab") };
+export const hostPrWord: Record<HostKind, string> = {
+  github: t("actions.hosts.prWord.github"),
+  gitlab: t("actions.hosts.prWord.gitlab"),
+  gitea: t("actions.hosts.prWord.default"),
+  bitbucket: t("actions.hosts.prWord.default"),
+  azure_devops: t("actions.hosts.prWord.default"),
+};
 
 export interface HostUser {
   login: string;
@@ -28,6 +37,8 @@ export interface HostAccountInfo {
   kind: HostKind;
   /** Address of the web UI, e.g. `https://github.com` or that of the self-hosted instance; null = the public service. */
   baseUrl: string | null;
+  /** User name for Basic authentication (Bitbucket); null for the other hosts. */
+  username: string | null;
   /** null while the token is not (or no longer) valid. */
   user: HostUser | null;
   /** The last characters of the token, for recognition. Never the token. */
@@ -91,6 +102,9 @@ const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
 export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
   github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
   gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
+  gitea: { ...ALL_FEATURES, mergeMethods: ["merge", "squash", "rebase"] },
+  bitbucket: { ...ALL_FEATURES, prReopen: false, prReviewers: false, prLabels: false, forkCheckout: false, mergeMethods: ["merge", "squash"] },
+  azure_devops: { ...ALL_FEATURES, issueCreate: true, prReviewers: false, forkCheckout: false, mergeMethods: ["merge", "squash", "rebase"] },
 };
 
 export interface PrSummary {
@@ -203,7 +217,7 @@ export function toUser(value: unknown): HostUser | null {
 const toLabel = (value: unknown): string | null => (isObject(value) ? text(value.name) : text(value));
 const notNull = <T,>(value: T | null): value is T => value !== null;
 
-const toKind = (value: unknown): HostKind | null => (value === "github" || value === "gitlab" ? value : null);
+const toKind = (value: unknown): HostKind | null => ((HOST_KINDS as unknown[]).includes(value) ? (value as HostKind) : null);
 
 export function toAccount(value: unknown): HostAccountInfo | null {
   if (!isObject(value)) return null;
@@ -214,6 +228,7 @@ export function toAccount(value: unknown): HostAccountInfo | null {
     id,
     kind,
     baseUrl: text(value.baseUrl),
+    username: text(value.username),
     user: toUser(value.user),
     tokenHint: text(value.tokenHint),
     scopesOk: flag(value.scopesOk, true),
@@ -403,8 +418,9 @@ const need = <T,>(value: T | null, what: string): T => {
 /** The host integration commands from src/core/api.ts, with the results in the shape above. */
 export const hostApi = {
   accounts: async (): Promise<HostAccountInfo[]> => list(await core.hostAccounts()).map(toAccount).filter(notNull),
-  /** Checks the token against the API and stores it in the keychain. */
-  connect: async (input: { kind: HostKind; baseUrl: string | null; token: string }): Promise<HostAccountInfo> => need(toAccount(await core.hostConnect(input)), t("actions.hosts.what.account")),
+  /** Checks the token against the API and stores it in the keychain. `username` only for Bitbucket. */
+  connect: async (input: { kind: HostKind; baseUrl: string | null; token: string; username?: string | null }): Promise<HostAccountInfo> =>
+    need(toAccount(await core.hostConnect(input)), t("actions.hosts.what.account")),
   /** GitHub with the GitHub CLI's login: the core reads the token from gh itself. */
   connectGh: async (baseUrl: string | null): Promise<HostAccountInfo> => need(toAccount(await core.hostConnectGh({ baseUrl })), t("actions.hosts.what.account")),
   disconnect: (accountId: Id): Promise<unknown> => core.hostDisconnect({ accountId }),

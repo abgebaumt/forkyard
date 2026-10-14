@@ -308,7 +308,8 @@
   "hosts": {
     "prWord": {
       "github": "Pull Request",
-      "gitlab": "Merge Request"
+      "gitlab": "Merge Request",
+      "default": "Pull Request"
     },
     "unexpectedShape": "Der Kern hat {{what}} in einer unerwarteten Form geliefert.",
     "what": {
@@ -372,7 +373,11 @@
       "scheme": "Die Adresse muss mit https:// oder http:// beginnen.",
       "credentials": "Benutzername und Passwort gehören nicht in die Adresse.",
       "noHost": "In der Adresse fehlt der Servername.",
-      "insecure": "Unverschlüsselt (http://) geht nur zu diesem Rechner – nimm https://."
+      "insecure": "Unverschlüsselt (http://) geht nur zu diesem Rechner – nimm https://.",
+      "organization": "Gib die Organisation an – den Teil nach dev.azure.com/.",
+      "organizationInvalid": "Die Organisation darf nur Buchstaben, Ziffern, „-“, „_“ und „.“ enthalten.",
+      "username": "Gib die E-Mail-Adresse deines Atlassian-Kontos (oder deinen Bitbucket-Benutzernamen) an.",
+      "usernameInvalid": "Der Benutzername darf keine Leerzeichen oder Doppelpunkte enthalten."
     },
     "browser": {
       "page": "Seite",

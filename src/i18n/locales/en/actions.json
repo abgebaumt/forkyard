@@ -308,7 +308,8 @@
   "hosts": {
     "prWord": {
       "github": "pull request",
-      "gitlab": "merge request"
+      "gitlab": "merge request",
+      "default": "pull request"
     },
     "unexpectedShape": "The core returned {{what}} in an unexpected form.",
     "what": {
@@ -372,7 +373,11 @@
       "scheme": "The address must start with https:// or http://.",
       "credentials": "User name and password don’t belong in the address.",
       "noHost": "The address is missing the server name.",
-      "insecure": "Unencrypted (http://) only works to this computer – use https://."
+      "insecure": "Unencrypted (http://) only works to this computer – use https://.",
+      "organization": "Enter the organization – the part after dev.azure.com/.",
+      "organizationInvalid": "The organization may only contain letters, digits, “-”, “_” and “.”.",
+      "username": "Enter the e-mail of your Atlassian account (or your Bitbucket user name).",
+      "usernameInvalid": "The user name must not contain spaces or colons."
     },
     "browser": {
       "page": "page",

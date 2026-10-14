@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { CoreError } from "../../core";
-import { defaultCapabilities, describeHostError, hostErrorKind, localTimes, summarizeChecks, toAccount, toCapabilities, toHostRepo, toPrDetails, toPrSummary, toUser } from "./hostTypes";
-import { accountHost, accountState, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
+import { defaultCapabilities, describeHostError, HOST_KINDS, hostErrorKind, hostKindLabels, localTimes, summarizeChecks, toAccount, toCapabilities, toHostRepo, toPrDetails, toPrSummary, toUser, type HostKind } from "./hostTypes";
+import { accountHost, accountState, connectTarget, organizationOf, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
+import { issuesWebUrl } from "../../screens/Issues/actions";
 import { mergeBlock, pushState, suggestTitle, titleFromBranch } from "./pullrequests";
 
 const account = { id: "a1", kind: "github", baseUrl: "https://github.com", user: { login: "lena", name: "Lena Hartmann", avatarUrl: null }, tokenHint: "…1234", scopesOk: true, missingScopes: [], lastError: null };
@@ -35,7 +36,7 @@ describe("what the core returns, in a fixed shape", () => {
     const parsed = toAccount({ ...account, token: "ghp_geheim" });
     expect(parsed).toMatchObject({ id: "a1", kind: "github", tokenHint: "…1234", scopesOk: true });
     expect(JSON.stringify(parsed)).not.toContain("ghp_geheim");
-    expect(toAccount({ ...account, kind: "bitbucket" })).toBeNull();
+    expect(toAccount({ ...account, kind: "sourcehut" })).toBeNull();
     expect(toAccount({ ...account, kind: "azure" })).toBeNull();
     expect(toAccount({ ...account, missingScopes: ["repo"], scopesOk: false })?.missingScopes).toEqual(["repo"]);
   });
@@ -201,5 +202,56 @@ describe("preparing a pull request", () => {
     expect(mergeBlock({ ...pr, mergeable: null })).toMatch(/still checking/);
     expect(mergeBlock({ ...pr, state: "merged" })).toMatch(/merged/);
     expect(mergeBlock({ ...pr, state: "closed" })).toMatch(/closed/);
+  });
+});
+
+describe("the hosts the app knows", () => {
+  it("accounts of every kind are read, unknown ones dropped; the user name comes along", () => {
+    for (const kind of ["gitea", "bitbucket", "azure_devops"] as const) expect(toAccount({ ...account, kind })?.kind).toBe(kind);
+    expect(toAccount({ ...account, kind: "bitbucket", username: "lena@example.org" })?.username).toBe("lena@example.org");
+    expect(toAccount(account)?.username).toBeNull();
+    expect(HOST_KINDS.map((kind) => hostKindLabels[kind])).toEqual(["GitHub", "GitLab", "Gitea/Forgejo", "Bitbucket", "Azure DevOps"]);
+  });
+
+  it("defaults per host: what Bitbucket and Azure DevOps cannot do", () => {
+    expect(defaultCapabilities.bitbucket).toMatchObject({ prLabels: false, prReviewers: false, prReopen: false, forkCheckout: false, mergeMethods: ["merge", "squash"] });
+    expect(defaultCapabilities.azure_devops).toMatchObject({ issueCreate: true, prReviewers: false, prLabels: true, forkCheckout: false });
+    expect(defaultCapabilities.gitea.mergeMethods).toEqual(["merge", "squash", "rebase"]);
+    expect(toCapabilities(undefined, "azure_devops").issueCreate).toBe(true);
+  });
+
+  it("token pages and how accounts are named", () => {
+    expect(tokenPageUrl("gitea", null)).toBe("https://codeberg.org/user/settings/applications");
+    expect(tokenPageUrl("gitea", "https://git.firma.example/")).toBe("https://git.firma.example/user/settings/applications");
+    expect(tokenPageUrl("bitbucket", null)).toBe("https://id.atlassian.com/manage-profile/security/api-tokens");
+    expect(tokenPageUrl("azure_devops", "https://dev.azure.com/firma")).toBe("https://dev.azure.com/firma/_usersSettings/tokens");
+    expect(tokenPageUrl("azure_devops", null)).toBe("https://dev.azure.com");
+    expect(accountHost({ kind: "azure_devops", baseUrl: "https://dev.azure.com/firma" })).toBe("dev.azure.com/firma");
+    expect(accountHost({ kind: "bitbucket", baseUrl: null })).toBe("bitbucket.org");
+  });
+
+  it("what “Connect” sends per host", () => {
+    const base = { kind: "github" as HostKind, own: false, address: "", organization: "", username: "" };
+    expect(connectTarget(base)).toEqual({ ok: true, baseUrl: null, username: null });
+    expect(connectTarget({ ...base, kind: "gitea", own: true, address: "git.firma.example/" })).toEqual({ ok: true, baseUrl: "https://git.firma.example", username: null });
+    expect(connectTarget({ ...base, kind: "gitea", own: true, address: "" })).toMatchObject({ ok: false, field: "baseUrl" });
+    expect(connectTarget({ ...base, kind: "azure_devops", organization: " Firma " })).toEqual({ ok: true, baseUrl: "https://dev.azure.com/firma", username: null });
+    expect(connectTarget({ ...base, kind: "azure_devops", organization: "https://dev.azure.com/firma/projekt" })).toEqual({ ok: true, baseUrl: "https://dev.azure.com/firma", username: null });
+    expect(connectTarget({ ...base, kind: "azure_devops" })).toMatchObject({ ok: false, field: "organization" });
+    expect(connectTarget({ ...base, kind: "azure_devops", organization: "fir ma" })).toMatchObject({ ok: false, field: "organization" });
+    expect(connectTarget({ ...base, kind: "bitbucket", username: " lena@example.org " })).toEqual({ ok: true, baseUrl: null, username: "lena@example.org" });
+    expect(connectTarget({ ...base, kind: "bitbucket", own: true, address: "bitbucket.firma.example", username: "lena" })).toEqual({ ok: true, baseUrl: null, username: "lena" });
+    expect(connectTarget({ ...base, kind: "bitbucket" })).toMatchObject({ ok: false, field: "username" });
+    expect(connectTarget({ ...base, kind: "bitbucket", username: "lena:geheim" })).toMatchObject({ ok: false, field: "username" });
+    expect(organizationOf("https://dev.azure.com/firma")).toBe("firma");
+    expect(organizationOf(null)).toBe("");
+  });
+
+  it("the issue list at the host", () => {
+    const repo = (kind: HostKind, webUrl: string) => toHostRepo({ kind, account: null, owner: "o", name: "n", webUrl });
+    expect(issuesWebUrl(repo("gitlab", "https://gitlab.com/g/p"))).toBe("https://gitlab.com/g/p/-/issues");
+    expect(issuesWebUrl(repo("gitea", "https://codeberg.org/a/b"))).toBe("https://codeberg.org/a/b/issues");
+    expect(issuesWebUrl(repo("bitbucket", "https://bitbucket.org/team/demo"))).toBe("https://bitbucket.org/team/demo/issues");
+    expect(issuesWebUrl(repo("azure_devops", "https://dev.azure.com/firma/projekt/_git/demo"))).toBe("https://dev.azure.com/firma/projekt/_workitems");
   });
 });

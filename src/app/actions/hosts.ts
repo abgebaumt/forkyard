@@ -38,12 +38,34 @@ export function openIntegrations(): void {
 // Addresses
 // ---------------------------------------------------------------------------
 
-export const PUBLIC_HOSTS: Record<HostKind, string> = { github: "https://github.com", gitlab: "https://gitlab.com" };
+/** The public service per host; Azure DevOps has none (every organization has its own address). */
+export const PUBLIC_HOSTS: Record<HostKind, string | null> = {
+  github: "https://github.com",
+  gitlab: "https://gitlab.com",
+  gitea: "https://codeberg.org",
+  bitbucket: "https://bitbucket.org",
+  azure_devops: null,
+};
+
+/** Hosts that exist as self-hosted instances (address field in the connect dialog). */
+export const hostHasInstances = (kind: HostKind): boolean => kind === "github" || kind === "gitlab" || kind === "gitea";
 
 /** Where to create a token at the host. */
 export function tokenPageUrl(kind: HostKind, baseUrl: string | null): string {
-  const base = (baseUrl ?? PUBLIC_HOSTS[kind]).replace(/\/+$/, "");
-  return kind === "github" ? `${base}/settings/tokens` : `${base}/-/user_settings/personal_access_tokens`;
+  const base = (baseUrl ?? PUBLIC_HOSTS[kind] ?? "https://dev.azure.com").replace(/\/+$/, "");
+  switch (kind) {
+    case "github":
+      return `${base}/settings/tokens`;
+    case "gitlab":
+      return `${base}/-/user_settings/personal_access_tokens`;
+    case "gitea":
+      return `${base}/user/settings/applications`;
+    case "bitbucket":
+      return "https://id.atlassian.com/manage-profile/security/api-tokens";
+    case "azure_devops":
+      // Without an organization there is no token page yet – the sign-in leads there.
+      return baseUrl ? `${base}/_usersSettings/tokens` : "https://dev.azure.com";
+  }
 }
 
 /**
@@ -66,6 +88,48 @@ export function parseBaseUrl(input: string): { url: string; error: null } | { ur
   const loopback = parsed.hostname === "localhost" || parsed.hostname === "[::1]" || parsed.hostname.startsWith("127.");
   if (parsed.protocol === "http:" && !loopback) return { url: null, error: t("actions.hosts.url.insecure") };
   return { url: `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`, error: null };
+}
+
+export type ConnectField = "baseUrl" | "organization" | "username";
+
+/** What the connect dialog holds besides the token. */
+export interface ConnectFields {
+  kind: HostKind;
+  /** A self-hosted instance (only hosts with `hostHasInstances`). */
+  own: boolean;
+  address: string;
+  /** Azure DevOps: the part after dev.azure.com/. */
+  organization: string;
+  /** Bitbucket: account e-mail or user name. */
+  username: string;
+}
+
+export type ConnectTarget = { ok: true; baseUrl: string | null; username: string | null } | { ok: false; field: ConnectField; error: string };
+
+/** The organization from an Azure DevOps address (`https://dev.azure.com/<org>`), otherwise "". */
+export function organizationOf(baseUrl: string | null | undefined): string {
+  return baseUrl?.match(/^https:\/\/dev\.azure\.com\/([^/?#]+)/i)?.[1] ?? "";
+}
+
+/** What "Connect" sends for the chosen host – address and user name – or the field that is wrong. */
+export function connectTarget(fields: ConnectFields): ConnectTarget {
+  if (fields.kind === "azure_devops") {
+    const org = fields.organization.trim().replace(/^(?:https?:\/\/)?dev\.azure\.com\//i, "").split("/")[0] ?? "";
+    if (!org) return { ok: false, field: "organization", error: t("actions.hosts.url.organization") };
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(org)) return { ok: false, field: "organization", error: t("actions.hosts.url.organizationInvalid") };
+    return { ok: true, baseUrl: `https://dev.azure.com/${org.toLowerCase()}`, username: null };
+  }
+  let baseUrl: string | null = null;
+  if (fields.own && hostHasInstances(fields.kind)) {
+    const parsed = parseBaseUrl(fields.address);
+    if (parsed.error !== null) return { ok: false, field: "baseUrl", error: parsed.error };
+    baseUrl = parsed.url;
+  }
+  if (fields.kind !== "bitbucket") return { ok: true, baseUrl, username: null };
+  const username = fields.username.trim();
+  if (!username) return { ok: false, field: "username", error: t("actions.hosts.url.username") };
+  if (/[\s:]/.test(username)) return { ok: false, field: "username", error: t("actions.hosts.url.usernameInvalid") };
+  return { ok: true, baseUrl, username };
 }
 
 /** Opens a page in the system browser – never inside the app. Only http and https. */
@@ -140,7 +204,7 @@ export function accountState(account: HostAccountInfo): AccountState {
   return account.scopesOk ? "ok" : "scopes";
 }
 
-export const accountHost = (account: Pick<HostAccountInfo, "kind" | "baseUrl">) => (account.baseUrl ?? PUBLIC_HOSTS[account.kind]).replace(/^https?:\/\//, "").replace(/\/+$/, "");
+export const accountHost = (account: Pick<HostAccountInfo, "kind" | "baseUrl">) => (account.baseUrl ?? PUBLIC_HOSTS[account.kind] ?? "").replace(/^https?:\/\//, "").replace(/\/+$/, "");
 export const accountPerson = (account: HostAccountInfo) => account.user?.name ?? account.user?.login ?? null;
 export const accountTitle = (account: HostAccountInfo) => `${hostKindLabels[account.kind]} – ${accountHost(account)}`;
 
@@ -158,7 +222,7 @@ export type ConnectResult = { ok: true; account: HostAccountInfo } | { ok: false
  * Connects an account: the core checks the token against the host's API and stores it in the
  * system keychain. Errors go back to the dialog (without a message) – redacted.
  */
-export async function connectAccount(input: { kind: HostKind; baseUrl: string | null; token: string }): Promise<ConnectResult> {
+export async function connectAccount(input: { kind: HostKind; baseUrl: string | null; token: string; username?: string | null }): Promise<ConnectResult> {
   return finishConnect(await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connect(input), { busyKey: hostBusyKeys.connect, inline: true }), input.token);
 }
 

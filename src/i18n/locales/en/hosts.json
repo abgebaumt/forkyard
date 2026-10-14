@@ -60,6 +60,34 @@
       "personalIntro": "It needs one scope:",
       "api": "view, create, comment on and merge merge requests; read_api is only enough for viewing",
       "roles": "What the account may do in the project depends on its role: creating from Developer, merging – depending on the project's settings – only from Maintainer."
+    },
+    "gitea": {
+      "path": "Profile picture|Settings|Applications|Generate new token",
+      "personal": "Access token",
+      "personalIntro": "Select these permissions:",
+      "repository": "view, create, comment on and merge pull requests",
+      "issue": "list issues and comment on them",
+      "user": "show who is signed in",
+      "forgejo": "Forgejo and Codeberg use the same page and the same permissions."
+    },
+    "bitbucket": {
+      "path": "id.atlassian.com|Security|API tokens|Create API token with scopes|Bitbucket",
+      "personal": "API token with scopes",
+      "personalIntro": "You sign in with your Atlassian account e-mail and this token. It needs:",
+      "repository": "read the repository and its branches",
+      "pullrequest": "view, create, comment on, merge and decline pull requests",
+      "issue": "list issues",
+      "user": "show who is signed in",
+      "email": "Enter the e-mail of your Atlassian account as user name.",
+      "appPasswords": "An older app password works as well – then with your Bitbucket user name instead of the e-mail."
+    },
+    "azure": {
+      "path": "dev.azure.com/<organization>|User settings|Personal access tokens|New Token",
+      "personal": "Personal access token",
+      "personalIntro": "Choose your organization and these scopes:",
+      "code": "view, create, comment on and complete pull requests",
+      "workItems": "list, read and create work items",
+      "organization": "The token applies to the organization chosen when creating it; one for “All accessible organizations” works as well."
     }
   },
   "instance": {
@@ -67,7 +95,9 @@
     "githubHint": "Address of GitHub Enterprise Server, as you open it in the browser (without /api).",
     "githubPlaceholder": "https://github.company.example",
     "gitlabHint": "Address of your GitLab instance, as you open it in the browser.",
-    "gitlabPlaceholder": "https://gitlab.company.example"
+    "gitlabPlaceholder": "https://gitlab.company.example",
+    "giteaHint": "Address of your Gitea or Forgejo instance, as you open it in the browser.",
+    "giteaPlaceholder": "https://git.company.example"
   },
   "connect": {
     "pasteToken": "Paste the token.",

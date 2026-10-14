@@ -60,6 +60,34 @@
       "personalIntro": "Er braucht einen Scope:",
       "api": "Merge Requests ansehen, anlegen, kommentieren und mergen; read_api reicht nur zum Ansehen",
       "roles": "Was das Konto im Projekt darf, bestimmt seine Rolle: Anlegen ab Developer, Mergen je nach Einstellung des Projekts erst ab Maintainer."
+    },
+    "gitea": {
+      "path": "Profilbild|Einstellungen|Anwendungen|Neuen Token erzeugen",
+      "personal": "Zugriffstoken",
+      "personalIntro": "Wähle diese Berechtigungen:",
+      "repository": "Pull Requests ansehen, anlegen, kommentieren und mergen",
+      "issue": "Issues auflisten und kommentieren",
+      "user": "anzeigen, wer angemeldet ist",
+      "forgejo": "Forgejo und Codeberg verwenden dieselbe Seite und dieselben Berechtigungen."
+    },
+    "bitbucket": {
+      "path": "id.atlassian.com|Sicherheit|API-Token|API-Token mit Bereichen erstellen|Bitbucket",
+      "personal": "API-Token mit Bereichen",
+      "personalIntro": "Du meldest dich mit der E-Mail-Adresse deines Atlassian-Kontos und diesem Token an. Er braucht:",
+      "repository": "das Repository und seine Branches lesen",
+      "pullrequest": "Pull Requests ansehen, anlegen, kommentieren, mergen und ablehnen",
+      "issue": "Issues auflisten",
+      "user": "anzeigen, wer angemeldet ist",
+      "email": "Gib als Benutzernamen die E-Mail-Adresse deines Atlassian-Kontos an.",
+      "appPasswords": "Ein älteres App-Passwort funktioniert auch – dann mit deinem Bitbucket-Benutzernamen statt der E-Mail-Adresse."
+    },
+    "azure": {
+      "path": "dev.azure.com/<Organisation>|Benutzereinstellungen|Personal Access Tokens|New Token",
+      "personal": "Personal Access Token",
+      "personalIntro": "Wähle deine Organisation und diese Bereiche:",
+      "code": "Pull Requests ansehen, anlegen, kommentieren und abschließen",
+      "workItems": "Work Items auflisten, lesen und anlegen",
+      "organization": "Der Token gilt für die Organisation, die du beim Anlegen wählst; einer für „Alle zugänglichen Organisationen“ geht auch."
     }
   },
   "instance": {
@@ -67,7 +95,9 @@
     "githubHint": "Adresse von GitHub Enterprise Server, so wie du sie im Browser öffnest (ohne /api).",
     "githubPlaceholder": "https://github.firma.example",
     "gitlabHint": "Adresse deiner GitLab-Instanz, so wie du sie im Browser öffnest.",
-    "gitlabPlaceholder": "https://gitlab.firma.example"
+    "gitlabPlaceholder": "https://gitlab.firma.example",
+    "giteaHint": "Adresse deiner Gitea- oder Forgejo-Instanz, so wie du sie im Browser öffnest.",
+    "giteaPlaceholder": "https://git.firma.example"
   },
   "connect": {
     "pasteToken": "Füge den Token ein.",

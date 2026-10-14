@@ -1379,8 +1379,8 @@ export interface CoreEvents {
 // Hosts (GitHub, GitLab): accounts, pull requests, issues
 // ---------------------------------------------------------------------------
 
-/** Supported hosts, also as a self-hosted instance (GitHub Enterprise Server, GitLab self-managed). */
-export type HostKind = "github" | "gitlab";
+/** Supported hosts, also as a self-hosted instance where the host has one (GitHub Enterprise Server, GitLab self-managed, Gitea/Forgejo). */
+export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops";
 
 export interface HostUser {
   login: string;
@@ -1397,6 +1397,8 @@ export interface HosterAccount {
   kind: HostKind;
   /** Address of the web UI without a trailing slash, e.g. `https://github.com`. */
   baseUrl: string;
+  /** User name for Basic authentication (Bitbucket: the account e-mail); null for the other hosts. */
+  username: string | null;
   /** null as long as the account has never been checked successfully. */
   user: HostUser | null;
   tokenHint: string | null;

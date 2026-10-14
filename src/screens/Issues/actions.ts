@@ -31,11 +31,20 @@ export function refreshIssues(repoId: Id): Promise<void> {
   });
 }
 
-/** Address of the issue list at the host. */
+/** Address of the issue list at the host (Azure DevOps: the project's work items). */
 export function issuesWebUrl(repo: HostRepo | null | undefined): string | null {
   if (!repo?.webUrl) return null;
   const base = repo.webUrl.replace(/\/+$/, "");
-  return repo.kind === "gitlab" ? `${base}/-/issues` : `${base}/issues`;
+  switch (repo.kind) {
+    case "gitlab":
+      return `${base}/-/issues`;
+    case "azure_devops": {
+      const at = base.indexOf("/_git/");
+      return at < 0 ? null : `${base.slice(0, at)}/_workitems`;
+    }
+    default:
+      return `${base}/issues`;
+  }
 }
 
 export const openIssueInBrowser = (issue: Pick<IssueSummary, "webUrl">) => openInBrowser(issue.webUrl);
