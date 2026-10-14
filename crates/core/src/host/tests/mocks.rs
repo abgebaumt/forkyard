@@ -927,3 +927,236 @@ pub(crate) fn bitbucket(request: &MockRequest, state: &Mutex<MockState>) -> Mock
         _ => bb_error(404, "Resource not found"),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Azure DevOps
+// ---------------------------------------------------------------------------
+
+const AZ_REPO: &str = "/firma/projekt/_apis/git/repositories/demo";
+const AZ_WIT: &str = "/firma/projekt/_apis/wit";
+
+fn az_error(status: u16, message: &str) -> MockResponse {
+    MockResponse::json(status, json!({ "$id": "1", "message": message, "typeKey": "MockException", "errorCode": 0 }))
+}
+
+fn az_user(name: &str) -> Value {
+    json!({ "displayName": format!("{name} (Name)"), "uniqueName": format!("{name}@example.org"), "imageUrl": format!("https://avatars.example/{name}.png") })
+}
+
+fn az_list(values: Vec<Value>) -> MockResponse {
+    MockResponse::json(200, json!({ "count": values.len(), "value": values }))
+}
+
+fn az_status(number: u64, state: &MockState) -> &'static str {
+    match pr_state(number, state) {
+        "merged" => "completed",
+        "closed" => "abandoned",
+        _ => "active",
+    }
+}
+
+fn az_pr(number: u64, state: &MockState) -> Value {
+    let status = az_status(number, state);
+    let mut pr = json!({
+        "pullRequestId": number,
+        "title": format!("Thema {number} umsetzen"),
+        "description": format!("Beschreibung zu **Thema {number}**."),
+        "status": status,
+        "isDraft": number == 3,
+        "createdBy": az_user("jonas"),
+        "creationDate": updated(number),
+        "closedDate": if status == "active" { Value::Null } else { json!(updated(number)) },
+        "sourceRefName": format!("refs/heads/{}", source_branch(number)),
+        "targetRefName": "refs/heads/main",
+        "repository": { "name": "demo", "project": { "name": "projekt" } },
+        "labels": if number == 1 { json!([{ "name": "bug", "active": true }]) } else { json!([]) },
+        "reviewers": match number {
+            1 => json!([{ "vote": 10, "displayName": "mira (Name)", "uniqueName": "mira@example.org" }]),
+            2 => json!([{ "vote": 0, "displayName": "mira (Name)", "uniqueName": "mira@example.org" }]),
+            4 => json!([{ "vote": -10, "displayName": "jonas (Name)", "uniqueName": "jonas@example.org" }]),
+            _ => json!([]),
+        },
+        "mergeStatus": if number == 13 { "conflicts" } else { "succeeded" },
+        "lastMergeSourceCommit": { "commitId": sha(number) },
+    });
+    if number == 8 {
+        pr["forkSource"] = json!({ "repository": { "name": "demo", "project": { "name": "fremd" } } });
+    }
+    pr
+}
+
+fn az_work_item(number: u64) -> Value {
+    json!({
+        "id": number,
+        "fields": {
+            "System.Title": format!("Problem {number}"),
+            "System.State": if number % 4 == 0 { "Closed" } else { "Active" },
+            "System.CreatedBy": az_user("mira"),
+            "System.AssignedTo": if number == 2 { az_user("lena") } else { Value::Null },
+            "System.ChangedDate": updated(number),
+            "System.Tags": if number == 1 { "frage; ui" } else { "" },
+            "System.WorkItemType": "Issue",
+            "System.Description": format!("<p>Text zu Problem {number}</p>"),
+        }
+    })
+}
+
+fn azure_work_items(request: &MockRequest, state: &MockState, rest: &str) -> MockResponse {
+    let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+    match (request.method.as_str(), segments.as_slice()) {
+        ("POST", ["wiql"]) => {
+            let query = request.json()["query"].as_str().unwrap_or_default().to_string();
+            let top: usize = request.query("$top").and_then(|v| v.parse().ok()).unwrap_or(20_000);
+            let ids: Vec<Value> = (1..=12u64)
+                .rev()
+                .filter(|n| {
+                    if query.contains("NOT IN") {
+                        n % 4 != 0
+                    } else if query.contains("] IN (") {
+                        n % 4 == 0
+                    } else {
+                        true
+                    }
+                })
+                .filter(|n| !query.contains("CONTAINS") || *n <= 2)
+                .take(top)
+                .map(|n| json!({ "id": n, "url": format!("https://example.invalid/_apis/wit/workItems/{n}") }))
+                .collect();
+            MockResponse::json(200, json!({ "queryType": "flat", "workItems": ids }))
+        }
+        ("GET", ["workitems"]) => {
+            let mut ids: Vec<u64> = request.query("ids").unwrap_or_default().split(',').filter_map(|id| id.trim().parse().ok()).collect();
+            // In the host's own order, not in the one asked for.
+            ids.sort_unstable();
+            az_list(ids.into_iter().map(az_work_item).collect())
+        }
+        ("GET", ["workitems", id]) => match id.parse::<u64>() {
+            Ok(n) if (1..=200).contains(&n) => MockResponse::json(200, az_work_item(n)),
+            _ => az_error(404, "TF401232: Work item 999 does not exist, or you do not have permissions to read it."),
+        },
+        ("GET", ["workItems", _, "comments"]) => MockResponse::json(
+            200,
+            json!({ "totalCount": 1, "count": 1, "comments": [{ "id": 5, "text": "Danke fürs Ansehen!", "createdBy": az_user("jonas"), "createdDate": "2026-09-02T09:45:00Z" }] }),
+        ),
+        ("POST", ["workitems", kind]) if kind.starts_with('$') => {
+            if *kind == "$Issue" && state.no_issue_type {
+                return az_error(404, "VS402323: Work item type Issue does not exist in project projekt or you do not have permission to access it.");
+            }
+            let patch = request.json();
+            let field = |name: &str| patch.as_array().and_then(|ops| ops.iter().find(|op| op["path"] == format!("/fields/{name}"))).map(|op| op["value"].clone()).unwrap_or(Value::Null);
+            MockResponse::json(
+                200,
+                json!({ "id": 77, "fields": {
+                    "System.Title": field("System.Title"), "System.State": "New", "System.CreatedBy": az_user("lena"),
+                    "System.ChangedDate": "2026-09-05T08:00:00Z", "System.WorkItemType": kind.trim_start_matches('$'), "System.Description": field("System.Description"),
+                } }),
+            )
+        }
+        _ => az_error(404, "The resource cannot be found."),
+    }
+}
+
+pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
+    let base = origin(request);
+    if !basic(request).is_some_and(|(_, token)| token == TOKEN || token == WEAK_TOKEN) {
+        return az_error(401, "TF400813: The user is not authorized to access this resource.");
+    }
+    let mut state = state.lock();
+    let path = request.path().to_string();
+    let method = request.method.as_str();
+    if state.mode != "401" && state.mode != "slow" {
+        match path.as_str() {
+            "/firma/_apis/connectionData" => {
+                return MockResponse::json(
+                    200,
+                    json!({ "authenticatedUser": { "id": "6f1c0de2", "providerDisplayName": "Lena Hartmann", "isActive": true, "properties": { "Account": { "$type": "System.String", "$value": "lena@example.org" } } } }),
+                )
+            }
+            "/firma/_apis/projects" => return az_list(vec![json!({ "id": "p1", "name": "projekt" })]),
+            _ => {}
+        }
+    }
+    let rate = az_error(429, "TF400733: The request has been throttled.").header("retry-after", "30");
+    if let Some(response) = forced(state.mode, rate) {
+        return response;
+    }
+    if let Some(rest) = path.strip_prefix(AZ_WIT) {
+        return azure_work_items(request, &state, rest);
+    }
+    let Some(rest) = path.strip_prefix(AZ_REPO) else {
+        return az_error(404, "TF401019: The Git repository with name or identifier demo does not exist or you do not have permissions for the operation you are attempting.");
+    };
+    let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+    let number = segments.get(1).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+    match (method, segments.as_slice()) {
+        ("GET", []) => MockResponse::json(
+            200,
+            json!({ "id": "r1", "name": "demo", "defaultBranch": "refs/heads/main", "webUrl": format!("{base}/firma/projekt/_git/demo"), "project": { "name": "projekt" }, "isFork": true, "parentRepository": { "name": "demo", "project": { "name": "quelle" } } }),
+        ),
+        ("GET", ["pullrequests"]) => {
+            let wanted = request.query("searchCriteria.status").unwrap_or_else(|| "active".into());
+            let skip: usize = request.query("$skip").and_then(|v| v.parse().ok()).unwrap_or(0);
+            let top: usize = request.query("$top").and_then(|v| v.parse().ok()).unwrap_or(101);
+            let values: Vec<Value> = (1..=TOTAL).rev().filter(|n| wanted == "all" || wanted == az_status(*n, &state)).skip(skip).take(top).map(|n| az_pr(n, &state)).collect();
+            az_list(values)
+        }
+        ("POST", ["pullrequests"]) => {
+            let body = request.json();
+            if body["sourceRefName"] == "refs/heads/schon-da" {
+                return az_error(409, "TF401179: An active pull request for the source and target branch already exists.");
+            }
+            let mut created = az_pr(101, &state);
+            for key in ["title", "description", "isDraft", "sourceRefName", "targetRefName"] {
+                created[key] = body[key].clone();
+            }
+            if !body["labels"].is_null() {
+                created["labels"] = body["labels"].clone();
+            }
+            MockResponse::json(201, created)
+        }
+        ("GET", ["pullrequests", _]) if number == 0 || number > 200 => az_error(404, "TF401180: The requested pull request was not found."),
+        ("GET", ["pullrequests", _]) => MockResponse::json(200, az_pr(number, &state)),
+        ("PATCH", ["pullrequests", _]) => {
+            let body = request.json();
+            match body["status"].as_str() {
+                Some("completed") if number == 13 => return az_error(409, "TF401181: The pull request cannot be completed because it has merge conflicts."),
+                Some("completed") => state.merged.push(number),
+                Some("abandoned") => state.closed.push(number),
+                Some("active") => state.closed.retain(|n| *n != number),
+                _ => {}
+            }
+            let mut pr = az_pr(number, &state);
+            for key in ["title", "description", "isDraft", "targetRefName"] {
+                if !body[key].is_null() {
+                    pr[key] = body[key].clone();
+                }
+            }
+            MockResponse::json(200, pr)
+        }
+        ("GET", ["pullrequests", _, "statuses"]) => az_list(match number {
+            1 => vec![
+                json!({ "id": 1, "state": "succeeded", "context": { "name": "build", "genre": "ci" }, "targetUrl": "https://ci.example/1" }),
+                json!({ "id": 2, "state": "notApplicable", "context": { "name": "docs", "genre": "ci" } }),
+            ],
+            2 => vec![json!({ "id": 1, "state": "pending", "context": { "name": "build", "genre": "ci" } })],
+            4 => vec![json!({ "id": 1, "state": "failed", "context": { "name": "build", "genre": "ci" } })],
+            _ => Vec::new(),
+        }),
+        ("GET", ["pullrequests", _, "threads"]) => az_list(vec![
+            json!({ "id": 1, "comments": [{ "id": 1, "author": az_user("jonas"), "content": "Policy status has been updated", "publishedDate": "2026-09-02T08:00:00Z", "commentType": "system" }] }),
+            json!({ "id": 2, "comments": [{ "id": 1, "author": az_user("mira"), "content": "Sieht gut aus.", "publishedDate": "2026-09-02T09:00:00Z", "commentType": "text" }] }),
+            json!({ "id": 3, "threadContext": { "filePath": "/src/anmeldung.rs", "rightFileStart": { "line": 42, "offset": 1 } }, "comments": [{ "id": 1, "author": az_user("mira"), "content": "Hier bitte prüfen.", "publishedDate": "2026-09-02T09:30:00Z", "commentType": "text" }] }),
+        ]),
+        ("POST", ["pullrequests", _, "threads"]) => MockResponse::json(
+            200,
+            json!({ "id": 7, "comments": [{ "id": 1, "author": az_user("lena"), "content": request.json()["comments"][0]["content"], "publishedDate": "2026-09-05T08:00:00Z", "commentType": "text" }] }),
+        ),
+        ("GET", ["pullrequests", _, "commits"]) => az_list(vec![
+            json!({ "commitId": sha(number), "comment": "Meldung übersetzt", "author": { "name": "Jonas Weber", "date": "2026-09-01T13:00:00Z" } }),
+            json!({ "commitId": sha(number * 100 + 1), "comment": "Prüfung ergänzt\n\nLängere Erklärung.", "author": { "name": "Jonas Weber", "date": "2026-09-01T12:00:00Z" } }),
+        ]),
+        ("POST", ["pullrequests", _, "labels"]) => MockResponse::json(200, json!({ "name": request.json()["name"], "active": true })),
+        ("DELETE", ["pullrequests", _, "labels", _]) => MockResponse::empty(204),
+        _ => az_error(404, "The resource cannot be found."),
+    }
+}

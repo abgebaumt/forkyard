@@ -2,6 +2,7 @@
 //! in the shape of the public documentation of GitHub (REST) and GitLab (REST v4) – no real
 //! data, no call leaves this computer.
 
+mod azure_tests;
 mod github_tests;
 mod gitlab_tests;
 mod bitbucket_tests;
@@ -37,6 +38,8 @@ pub(crate) struct MockState {
     pub closed: Vec<u64>,
     /// The repository has its issue tracker switched off.
     pub issues_off: bool,
+    /// The project's process has no work item type "Issue" (Azure DevOps).
+    pub no_issue_type: bool,
 }
 
 pub(crate) struct Fixture {
@@ -55,6 +58,15 @@ fn mock_repo_path(kind: HostKind) -> &'static str {
         HostKind::Gitlab => "gruppe/unter/demo",
         HostKind::Gitea => "octo/demo",
         HostKind::Bitbucket => "team/demo",
+        HostKind::AzureDevops => "firma/projekt/_git/demo",
+    }
+}
+
+/// Address of the account on the test server: Azure DevOps keeps the organization in it.
+fn mock_base(kind: HostKind, url: &str) -> String {
+    match kind {
+        HostKind::AzureDevops => format!("{url}/firma"),
+        _ => url.to_string(),
     }
 }
 
@@ -74,6 +86,7 @@ impl Fixture {
                 HostKind::Gitlab => mocks::gitlab(request, &state),
                 HostKind::Gitea => mocks::gitea(request, &state),
                 HostKind::Bitbucket => mocks::bitbucket(request, &state),
+                HostKind::AzureDevops => mocks::azure(request, &state),
             })
         };
         let tc = TestCore::new().await;
@@ -81,7 +94,7 @@ impl Fixture {
             options.backoff = Duration::from_millis(5);
             options.retries = 1;
         });
-        let account = crate::host::connect_as(&tc, kind, Some(server.url()), mock_username(kind), TOKEN.to_string()).await.expect("connect account");
+        let account = crate::host::connect_as(&tc, kind, Some(mock_base(kind, &server.url())), mock_username(kind), TOKEN.to_string()).await.expect("connect account");
         let repo = TestRepo::with_commit();
         repo.git(&["remote", "add", "origin", &format!("{}/{}.git", server.url(), mock_repo_path(kind))]);
         let repo_id = tc.open(&repo).await.repo.id;

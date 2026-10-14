@@ -73,6 +73,28 @@ pub fn parse_remote_url(url: &str) -> Option<RemoteLocation> {
     Some(RemoteLocation { host, web_port, web_scheme, path: path.to_string() })
 }
 
+/// Decodes `%XX` in a path segment (Azure DevOps project names often contain `%20`). Invalid
+/// sequences stay as they are.
+pub(crate) fn percent_decode(segment: &str) -> String {
+    let bytes = segment.as_bytes();
+    let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut index = 0;
+    while index < bytes.len() {
+        let hex = bytes.get(index + 1..index + 3).and_then(|pair| std::str::from_utf8(pair).ok()).filter(|pair| pair.bytes().all(|b| b.is_ascii_hexdigit())).and_then(|pair| u8::from_str_radix(pair, 16).ok());
+        match (bytes[index], hex) {
+            (b'%', Some(byte)) => {
+                out.push(byte);
+                index += 3;
+            }
+            (byte, _) => {
+                out.push(byte);
+                index += 1;
+            }
+        }
+    }
+    String::from_utf8(out).unwrap_or_else(|_| segment.to_string())
+}
+
 /// Brings an account's address into its canonical form: `https://host[:port][/path]`, lower
 /// case, without trailing slash. Without input the public service applies (a host without one
 /// needs an address). `http://` is only allowed to this computer (tests against a local server).

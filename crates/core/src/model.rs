@@ -2303,11 +2303,13 @@ pub enum HostKind {
     Gitea,
     /// Bitbucket Cloud.
     Bitbucket,
+    /// Azure DevOps Services.
+    AzureDevops,
 }
 
 impl HostKind {
     /// Every host the app knows, in the order it lists them.
-    pub const ALL: &'static [HostKind] = &[HostKind::Github, HostKind::Gitlab, HostKind::Gitea, HostKind::Bitbucket];
+    pub const ALL: &'static [HostKind] = &[HostKind::Github, HostKind::Gitlab, HostKind::Gitea, HostKind::Bitbucket, HostKind::AzureDevops];
 
     /// Name in the contract and in `hoster_accounts.kind`.
     pub fn as_str(self) -> &'static str {
@@ -2316,6 +2318,7 @@ impl HostKind {
             HostKind::Gitlab => "gitlab",
             HostKind::Gitea => "gitea",
             HostKind::Bitbucket => "bitbucket",
+            HostKind::AzureDevops => "azure_devops",
         }
     }
 

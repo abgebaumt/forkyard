@@ -1,0 +1,160 @@
+//! Azure DevOps: success and error cases per command against the test server (organization
+//! `firma`, project `projekt`, repository `demo`; PAT via Basic authentication).
+
+use base64::Engine;
+use serde_json::json;
+
+use super::github_tests::back_origin_with_a_real_repository;
+use super::*;
+use crate::host::detect::normalize_base_url;
+use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
+
+const KIND: HostKind = HostKind::AzureDevops;
+const LABEL: &str = "Azure DevOps";
+
+#[tokio::test]
+async fn account_and_repository_are_recognised() {
+    let fx = Fixture::new(KIND).await;
+    let account = fx.account.clone();
+    assert_eq!((account.kind, account.base_url.clone()), (KIND, format!("{}/firma", fx.server.url())));
+    let user = account.user.clone().unwrap();
+    assert_eq!((user.login.as_str(), user.name.as_deref(), account.username.as_deref()), ("lena@example.org", Some("Lena Hartmann"), None));
+    assert_eq!(serde_json::to_value(&account).unwrap()["kind"], json!("azure_devops"));
+    cmd::host_check(&fx.tc, account.id.clone()).await.unwrap();
+    let seen = &fx.sent("GET", "/firma/_apis/connectionData")[0];
+    let expected = format!("Basic {}", base64::engine::general_purpose::STANDARD.encode(format!(":{TOKEN}")));
+    assert_eq!(seen.header("authorization"), Some(expected.as_str()));
+    assert_eq!(seen.header("x-tfs-fedauthredirect"), Some("Suppress"), "a 401 instead of a sign-in page");
+    assert_eq!(fx.sent("GET", "/firma/_apis/projects")[0].query("api-version").as_deref(), Some("7.1"));
+    let error = cmd::host_connect(&fx.tc, KIND, Some(format!("{}/firma", fx.server.url())), "ErfundenUndFalsch0000000000".into(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostAuthFailed);
+    assert!(error.message.contains(LABEL), "{}", error.message);
+    // The organization is part of the address.
+    assert_eq!(normalize_base_url(KIND, Some("https://dev.azure.com/Firma/")).unwrap(), "https://dev.azure.com/firma");
+    assert_eq!(normalize_base_url(KIND, Some("dev.azure.com/firma/projekt/_git/demo")).unwrap(), "https://dev.azure.com/firma");
+    assert_eq!(normalize_base_url(KIND, Some("https://firma.visualstudio.com/DefaultCollection")).unwrap(), "https://dev.azure.com/firma");
+    for bad in [None, Some("https://dev.azure.com"), Some("https://tfs.firma.example/tfs")] {
+        assert_eq!(normalize_base_url(KIND, bad).unwrap_err().code, ErrorCode::NotAllowed, "{bad:?}");
+    }
+
+    let info = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap();
+    assert_eq!((info.kind, info.owner.as_str(), info.name.as_str()), (KIND, "projekt", "demo"), "owner = project");
+    assert_eq!(info.web_url, format!("{}/firma/projekt/_git/demo", fx.server.url()));
+    assert_eq!((info.default_branch.as_deref(), info.can_push), (Some("main"), None));
+    assert_eq!(info.fork_parent, Some(HostRepoRef { owner: "quelle".into(), name: "demo".into(), web_url: format!("{}/firma/quelle/_git/demo", fx.server.url()) }));
+    let caps = &info.capabilities;
+    assert!(caps.issues && caps.pr_labels && !caps.pr_reviewers && !caps.fork_checkout && caps.draft_toggle && caps.pr_reopen);
+    assert_eq!(caps.merge_methods, vec![PrMergeMethod::Merge, PrMergeMethod::Squash, PrMergeMethod::Rebase]);
+    fx.mode("rate");
+    assert_eq!(cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().error.map(|e| e.code), Some(ErrorCode::HostRateLimited));
+    fx.mode("ok");
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn pull_requests_are_listed_and_read() {
+    let fx = Fixture::new(KIND).await;
+    let first = cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, None, None, None).await.unwrap();
+    assert_eq!((first.items.len(), first.next_page, first.items[0].number), (20, Some(2), 44));
+    let call = &fx.sent("GET", "/pullrequests")[0];
+    assert_eq!(
+        (call.query("api-version"), call.query("searchCriteria.status"), call.query("$top"), call.query("$skip")),
+        (Some("7.1".into()), Some("active".into()), Some("21".into()), Some("0".into())),
+        "one more than the page to know whether another follows"
+    );
+    let second = cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, Some(2), None, None).await.unwrap();
+    assert_eq!((second.items.len(), second.next_page), (16, None));
+    let by_number = |n: u64| second.items.iter().find(|pr| pr.number == n).unwrap_or_else(|| panic!("#{n}")).clone();
+    assert_eq!((by_number(1).checks, by_number(1).review_state), (Some(ChecksState::Passing), Some(PrReviewState::Approved)));
+    assert_eq!((by_number(2).checks, by_number(2).review_state), (Some(ChecksState::Pending), Some(PrReviewState::ReviewRequired)));
+    assert_eq!((by_number(4).checks, by_number(4).review_state), (Some(ChecksState::Failing), Some(PrReviewState::ChangesRequested)));
+    assert_eq!((by_number(6).checks, by_number(6).review_state), (None, None));
+    assert!(by_number(3).is_draft && by_number(8).is_fork && !by_number(7).is_fork);
+    assert_eq!((by_number(7).source_branch.as_str(), by_number(7).target_branch.as_str()), ("feature/login", "main"), "without refs/heads/");
+    assert_eq!(by_number(1).labels.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), vec!["bug"]);
+    assert_eq!(by_number(1).web_url, format!("{}/firma/projekt/_git/demo/pullrequest/1", fx.server.url()));
+    let merged = cmd::pr_list(&fx.tc, fx.id(), PrListState::Merged, None, None, None).await.unwrap();
+    assert_eq!(merged.items.iter().map(|pr| (pr.number, pr.state)).collect::<Vec<_>>(), vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]);
+    let closed = cmd::pr_list(&fx.tc, fx.id(), PrListState::Closed, None, None, None).await.unwrap();
+    assert_eq!(closed.items.iter().map(|pr| pr.number).collect::<Vec<_>>(), vec![45, 35, 25, 15, 5]);
+    let all = cmd::pr_list(&fx.tc, fx.id(), PrListState::All, None, Some(100), None).await.unwrap();
+    assert_eq!((all.items.len(), all.next_page), (45, None));
+
+    let pr = cmd::pr_get(&fx.tc, fx.id(), 1, None).await.unwrap();
+    assert!(pr.body.contains("**Thema 1**"));
+    assert_eq!(pr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(), vec![("mira@example.org", Some(PrReviewState::Approved))]);
+    assert_eq!(pr.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(), vec![("2-1", "Sieht gut aus."), ("3-1", "Hier bitte prüfen.")], "system comments are left out");
+    assert_eq!((pr.comments[1].path.as_deref(), pr.comments[1].line), (Some("src/anmeldung.rs"), Some(42)));
+    assert_eq!((pr.commits.len(), pr.commits[0].summary.as_str(), pr.commits[0].author_name.as_str()), (2, "Meldung übersetzt", "Jonas Weber"));
+    assert_eq!(pr.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(), vec![("ci/build", CheckRunState::Passing), ("ci/docs", CheckRunState::Skipped)]);
+    assert_eq!((pr.summary.checks, pr.mergeable, pr.head_sha.as_str()), (Some(ChecksState::Passing), Some(true), format!("{:040x}", 1).as_str()));
+    assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 13, None).await.unwrap().mergeable, Some(false));
+    assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 999, None).await.unwrap_err().message, "Pull request #999 does not exist in projekt/demo.");
+
+    check_error_modes(&fx, LABEL, "pr_list", || cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, None, None, None)).await;
+    check_error_modes(&fx, LABEL, "pr_get", || cmd::pr_get(&fx.tc, fx.id(), 1, None)).await;
+    check_broken_json(&fx, LABEL, "pr_list", || cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, None, None, None)).await;
+    check_broken_json(&fx, LABEL, "pr_get", || cmd::pr_get(&fx.tc, fx.id(), 1, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn work_items_are_listed_searched_and_read() {
+    let fx = Fixture::new(KIND).await;
+    let open = cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, None, None, None, None).await.unwrap();
+    assert_eq!(open.items.iter().map(|i| i.number).collect::<Vec<_>>(), vec![11, 10, 9, 7, 6, 5, 3, 2, 1], "in the order of the query, not of the batch");
+    assert_eq!((open.items[0].key.as_str(), open.items[0].state, open.next_page), ("#11", IssueState::Open, None));
+    assert_eq!(open.items[0].web_url, format!("{}/firma/projekt/_workitems/edit/11", fx.server.url()));
+    let one = open.items.iter().find(|i| i.number == 1).unwrap();
+    assert_eq!(one.labels.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), vec!["Issue", "frage", "ui"], "type, then tags");
+    let query = fx.sent("POST", "/_apis/wit/wiql")[0].json()["query"].as_str().unwrap().to_string();
+    assert!(
+        query.contains("[System.TeamProject] = @project")
+            && query.contains("[System.State] NOT IN ('Closed', 'Done', 'Removed', 'Resolved', 'Completed')")
+            && query.ends_with("ORDER BY [System.ChangedDate] DESC"),
+        "{query}"
+    );
+    assert_eq!(fx.sent("GET", "/_apis/wit/workitems")[0].query("ids").as_deref(), Some("11,10,9,7,6,5,3,2,1"), "one batch for the page");
+    let closed = cmd::issue_list(&fx.tc, fx.id(), IssueListState::Closed, None, None, None, None).await.unwrap();
+    assert_eq!(closed.items.iter().map(|i| (i.number, i.state)).collect::<Vec<_>>(), vec![(12, IssueState::Closed), (8, IssueState::Closed), (4, IssueState::Closed)]);
+    // A quote in the search text stays inside the WIQL literal.
+    fx.server.clear();
+    let found = cmd::issue_list(&fx.tc, fx.id(), IssueListState::All, Some("o'brien".into()), None, None, None).await.unwrap();
+    assert_eq!(found.items.iter().map(|i| i.number).collect::<Vec<_>>(), vec![2, 1]);
+    let query = fx.sent("POST", "/_apis/wit/wiql")[0].json()["query"].as_str().unwrap().to_string();
+    assert!(query.contains("[System.Title] CONTAINS 'o''brien'") && !query.contains("'o'brien'"), "{query}");
+    let paged = cmd::issue_list(&fx.tc, fx.id(), IssueListState::All, None, Some(2), Some(5), None).await.unwrap();
+    assert_eq!((paged.items.iter().map(|i| i.number).collect::<Vec<_>>(), paged.next_page), (vec![7, 6, 5, 4, 3], Some(3)));
+    assert_eq!(fx.sent("POST", "/_apis/wit/wiql").last().unwrap().query("$top").as_deref(), Some("11"), "the page plus one");
+
+    let issue = cmd::issue_get(&fx.tc, fx.id(), 2, None).await.unwrap();
+    assert_eq!((issue.body.as_str(), issue.summary.assignees[0].login.as_str()), ("<p>Text zu Problem 2</p>", "lena@example.org"));
+    assert_eq!(issue.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(), vec![("5", "Danke fürs Ansehen!")]);
+    assert_eq!(fx.sent("GET", "/comments")[0].query("api-version").as_deref(), Some("7.1-preview.4"));
+    let error = cmd::issue_get(&fx.tc, fx.id(), 999, None).await.unwrap_err();
+    assert_eq!((error.code, error.message.as_str()), (ErrorCode::HostNotFound, "Work item #999 does not exist in projekt."));
+    check_error_modes(&fx, LABEL, "issue_list", || cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, None, None, None, None)).await;
+    check_error_modes(&fx, LABEL, "issue_get", || cmd::issue_get(&fx.tc, fx.id(), 2, None)).await;
+    check_broken_json(&fx, LABEL, "issue_list", || cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, None, None, None, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn checkout_works_for_branches_of_the_repository_but_not_from_forks() {
+    let fx = Fixture::new(KIND).await;
+    let repo = &fx.repo;
+    let _bare = back_origin_with_a_real_repository(&fx, "firma/projekt/_git/demo");
+    repo.checkout_new("feature/login");
+    let login = repo.commit_file("login.txt", "anmeldung\n", "Anmeldung gebaut");
+    repo.git(&["push", "-q", "origin", "feature/login"]);
+    repo.checkout("main");
+    repo.git(&["branch", "-D", "feature/login"]);
+    repo.git(&["update-ref", "-d", "refs/remotes/origin/feature/login"]);
+    cmd::pr_checkout(&fx.tc, fx.id(), 7, None).await.unwrap();
+    assert_eq!((repo.current_branch(), repo.head()), ("feature/login".to_string(), login));
+    repo.checkout("main");
+    let error = cmd::pr_checkout(&fx.tc, fx.id(), 8, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported, "{error:?}");
+    assert!(error.message.contains("forks"), "{}", error.message);
+    fx.assert_token_stays_secret();
+}

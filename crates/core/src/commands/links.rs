@@ -195,6 +195,14 @@ pub fn host_rules(kind: HostKind, web_url: &str) -> Vec<LinkRule> {
         ],
         // Bitbucket links `#<n>` in commit messages to the issue of that number.
         HostKind::Bitbucket => vec![rule("host:issue", r"#(\d+)\b", format!("{web_url}/issues/$1"))],
+        // Azure DevOps: `#<n>` is a work item of the project, `!<n>` a pull request.
+        HostKind::AzureDevops => {
+            let project = web_url.rsplit_once("/_git/").map_or(web_url, |(project, _)| project);
+            vec![
+                rule("host:issue", r"#(\d+)\b", format!("{project}/_workitems/edit/$1")),
+                rule("host:merge_request", r"!(\d+)\b", format!("{web_url}/pullrequest/$1")),
+            ]
+        }
     }
 }
 
