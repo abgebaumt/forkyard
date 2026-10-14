@@ -12,3 +12,4 @@
 //! commands only produce an encoded http(s) address that the UI opens in the browser.
 
 pub mod definition;
+pub mod expand;
