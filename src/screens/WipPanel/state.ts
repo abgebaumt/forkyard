@@ -7,6 +7,7 @@
 import { create } from "zustand";
 import type { Id } from "../../core";
 import { nextFileSelection, type FileListView, type FileSelectModifiers } from "../../components/FileList";
+import type { PendingStash } from "../StashForm/selection";
 
 export type WipArea = "conflicts" | "unstaged" | "staged";
 
@@ -36,6 +37,8 @@ export interface WipTabState {
   stashMessage: string;
   stashUntracked: boolean;
   stashOnlySelected: boolean;
+  /** Lines selected in the diff view for a partial stash (see `StashForm/selection.ts`). */
+  stashSelection: PendingStash | null;
 }
 
 const emptySelection = (): AreaSelection => ({ selected: [], anchor: null });
@@ -52,6 +55,7 @@ const defaultTab = (): WipTabState => ({
   stashMessage: "",
   stashUntracked: true,
   stashOnlySelected: false,
+  stashSelection: null,
 });
 
 const fallbackTab = defaultTab();

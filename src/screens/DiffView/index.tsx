@@ -27,6 +27,7 @@ import { DiffHeader } from "./DiffHeader";
 import "./diff.css";
 import { LineView, type LineViewHandle, type PatchTarget } from "./LineView";
 import { WordDiffCache, buildFileRows, buildHunkRows, hunkToPatch, patchModeOf, selectionToPatch, sourceKey } from "./model";
+import { queueStashSelection } from "../StashForm/selection";
 import { BinaryDiffView, DiffError, DiffSkeleton, LfsDiffView, Notice, TooLargeView } from "./OtherKinds";
 import { ImageDiffView } from "./ImageDiff";
 import type { SplitViewHandle } from "./SplitView";
@@ -182,6 +183,12 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
     [text, selected, repoId, path, store, tabId, source, close],
   );
 
+  const onStash = useCallback(() => {
+    const patch = text ? selectionToPatch(text, selected) : null;
+    if (!patch || patchMode === "none") return;
+    if (queueStashSelection(repoId, tabId, patchMode, patch, selected.size)) setSelection({ id: "", keys: EMPTY });
+  }, [text, selected, patchMode, repoId, tabId]);
+
   const toggleFold = useCallback(
     (id: number) => {
       const next = new Set(collapsed);
@@ -309,6 +316,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
         selected={selected}
         onSelectedChange={setSelected}
         onPatch={(action, target) => void onPatch(action, target)}
+        onStash={patchMode !== "none" && canPatch ? onStash : undefined}
         onToggleFold={toggleFold}
         onChangeIndex={setChangeIndex}
         label={t("diff.view.changesLabel", { path })}

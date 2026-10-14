@@ -1,0 +1,12 @@
+{
+  "selection_one": "Auswahl stashen ({{count}} Zeile) …",
+  "selection_other": "Auswahl stashen ({{count}} Zeilen) …",
+  "only": "Nur Auswahl ({{files}}, {{lines}})",
+  "files_one": "{{count}} Datei",
+  "files_other": "{{count}} Dateien",
+  "lines_one": "{{count}} Zeile",
+  "lines_other": "{{count}} Zeilen",
+  "onlyHint": "Haken entfernen, um stattdessen ganze Dateien zu stashen. Wähle Zeilen in weiteren Dateien aus, um sie hinzuzufügen.",
+  "create": "Auswahl stashen",
+  "done": "Ausgewählte Zeilen gestasht"
+}

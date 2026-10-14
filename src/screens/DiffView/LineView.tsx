@@ -11,7 +11,7 @@
  *   Esc                         clear the selection
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
-import { ChevronDown, ChevronRight, Copy, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
+import { Archive, ChevronDown, ChevronRight, Copy, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
 import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import type { CodeSettings } from "../../components/code/settings";
 import type { LineTokens } from "../../components/code/highlight";
@@ -51,6 +51,8 @@ export interface LineViewProps {
   selected: ReadonlySet<string>;
   onSelectedChange: (next: Set<string>) => void;
   onPatch: (action: PatchAction, target: PatchTarget) => void;
+  /** Put the selected lines aside for a partial stash; missing = not offered. */
+  onStash?: () => void;
   onToggleFold: (id: number) => void;
   /** Reports which change block the cursor is in (−1 = before the first). */
   onChangeIndex?: (index: number) => void;
@@ -256,7 +258,7 @@ function FoldHead({ row, index, isCursor, onToggle }: { row: FoldRow; index: num
 // ---------------------------------------------------------------------------
 
 export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineView(
-  { diff, model, mode, wrap, patchMode, canPatch, busy, code, oldTokens, newTokens, words, selected, onSelectedChange, onPatch, onToggleFold, onChangeIndex, label },
+  { diff, model, mode, wrap, patchMode, canPatch, busy, code, oldTokens, newTokens, words, selected, onSelectedChange, onPatch, onStash, onToggleFold, onChangeIndex, label },
   ref,
 ) {
   const { rows, changeStarts } = model;
@@ -806,6 +808,11 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
               {t("diff.selection.unstage", { count: selectionCount })}
             </Button>
           )}
+          {onStash ? (
+            <Button size="sm" disabled={busy} icon={<Archive className="size-icon" aria-hidden />} data-action="stash-selection" onClick={onStash}>
+              {t("partialStash.selection", { count: selectionCount })}
+            </Button>
+          ) : null}
           <IconButton size="sm" label={t("diff.selection.clear")} shortcut="Escape" icon={<X className="size-icon" aria-hidden />} onClick={() => onSelectedChange(new Set())} />
         </div>
       ) : null}

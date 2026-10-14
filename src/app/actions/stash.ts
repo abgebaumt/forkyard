@@ -1,5 +1,5 @@
 import { t } from "../../i18n";
-import { core, type Id, type Sha, type Stash } from "../../core";
+import { core, type Id, type Sha, type Stash, type StashSelection } from "../../core";
 import { toast } from "../../ui/Feedback";
 import { confirm, promptText } from "../dialogs";
 import { qk, queryClient } from "../queries";
@@ -18,6 +18,8 @@ export interface StashOptions {
   quiet?: boolean;
   /** false: without its own undo entry ("stash and undo" – the undo afterwards means the action before). */
   undoable?: boolean;
+  /** Only these lines (partial stash); `paths` must then be null. */
+  selection?: StashSelection | null;
 }
 
 /** A stash as menus and lists pass it. With `sha` the action finds it again even if the list has shifted. */
@@ -55,11 +57,12 @@ export async function stashChanges(repoId: Id, options: StashOptions = {}) {
         paths,
         includeUntracked: options.includeUntracked ?? true,
         undoable: options.undoable ?? null,
+        selection: options.selection ?? null,
       }),
     ),
     {
       busyKey: busyKeys.stash(repoId),
-      success: options.quiet ? undefined : paths ? t("actions.stash.doneFiles", { count: paths.length }) : t("actions.stash.done"),
+      success: options.quiet ? undefined : options.selection ? t("partialStash.done") : paths ? t("actions.stash.doneFiles", { count: paths.length }) : t("actions.stash.done"),
     },
   );
   if (result.ok) queryClient.setQueryData(qk.stashes(repoId), result.value);
