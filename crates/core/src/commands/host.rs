@@ -291,7 +291,9 @@ pub async fn pr_checkout(core: &Core, repo_id: String, number: u64, remote: Opti
             e
         }
     })?;
-    let result = checkout_fetched(core, &repo_id, &local, &newest, same_repo.then(|| format!("{remote}/{}", head.source_branch)), word).await;
+    // Submodules follow the checkout and the fast-forward together (as after `branch_checkout`).
+    let checkout = checkout_fetched(core, &repo_id, &local, &newest, same_repo.then(|| format!("{remote}/{}", head.source_branch)), word);
+    let result = crate::commands::submodule::auto::follow(core, &repo_id, checkout).await;
     if !same_repo {
         // The helper ref has served its purpose, however it went.
         if let Ok(git) = core.git_for(&repo_id) {
@@ -309,13 +311,13 @@ async fn checkout_fetched(core: &Core, repo_id: &str, local: &str, newest: &str,
     if !local_exists {
         if let Some(tracking) = tracking {
             // Creates the local branch with an upstream.
-            return branches::branch_checkout(core, repo_id.to_string(), tracking).await;
+            return branches::checkout_branch(core, repo_id.to_string(), tracking).await;
         }
         core.with_write_lock(repo_id, &[RepoChange::Refs], async { core.git_for(repo_id)?.args(["branch", "--no-track", local, newest]).run().await.map(|_| ()) }).await?;
-        return branches::branch_checkout(core, repo_id.to_string(), local.to_string()).await;
+        return branches::checkout_branch(core, repo_id.to_string(), local.to_string()).await;
     }
     if !on_it {
-        branches::branch_checkout(core, repo_id.to_string(), local.to_string()).await?;
+        branches::checkout_branch(core, repo_id.to_string(), local.to_string()).await?;
     }
     // Fast-forward to the fetched state. Own commits on top stay; if the branch has diverged, it is refused.
     core.with_write_lock(repo_id, &[RepoChange::Head, RepoChange::Refs, RepoChange::Index, RepoChange::Worktree], async {

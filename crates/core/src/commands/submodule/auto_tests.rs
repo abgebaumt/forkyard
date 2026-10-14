@@ -127,3 +127,87 @@ async fn hard_reset_updates_but_mixed_reset_does_not() {
     assert_eq!(next_update(&f.tc).await["ok"], true);
     assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.first);
 }
+
+#[tokio::test]
+async fn creating_and_checking_out_a_branch_brings_submodules_along() {
+    let f = fixture().await;
+    let alt = f.repo.git(&["rev-parse", "alt"]);
+    crate::commands::branches::branch_create(&f.tc, f.id.clone(), "neu".into(), Some(alt), false).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(f.tc.events.count(names::SUBMODULES_UPDATED), 0, "without checkout nothing moves");
+
+    crate::commands::branches::branch_create(&f.tc, f.id.clone(), "neu2".into(), Some("alt".into()), true).await.unwrap();
+    assert_eq!(next_update(&f.tc).await["ok"], true);
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.first);
+}
+
+#[tokio::test]
+async fn undo_of_a_checkout_brings_submodules_back() {
+    let f = fixture().await;
+    let second = sub_git(&f.repo, &["rev-parse", "HEAD"]);
+    branch_checkout(&f.tc, f.id.clone(), "alt".into()).await.unwrap();
+    next_update(&f.tc).await;
+    f.tc.events.clear();
+    crate::commands::undo::undo(&f.tc, f.id.clone()).await.unwrap();
+    assert_eq!(f.repo.current_branch(), "main");
+    assert_eq!(next_update(&f.tc).await["ok"], true);
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), second);
+}
+
+#[tokio::test]
+async fn bisect_start_and_reset_bring_submodules_along() {
+    let f = fixture().await;
+    let second = sub_git(&f.repo, &["rev-parse", "HEAD"]);
+    let good = f.repo.head();
+    f.repo.checkout("alt");
+    // Only the new file: the submodule (still at the second commit) stays as `alt` records it.
+    for name in ["a.txt", "b.txt", "c.txt"] {
+        f.repo.write_file(name, "x\n");
+        f.repo.git(&["add", name]);
+        f.repo.git(&["commit", "-q", "-m", name]);
+    }
+    let bad = f.repo.head();
+    f.repo.checkout("main");
+    sub_git(&f.repo, &["checkout", "-q", &second]);
+    f.tc.events.clear();
+
+    crate::commands::bisect::bisect_start(&f.tc, f.id.clone(), bad, vec![good]).await.unwrap();
+    assert_eq!(next_update(&f.tc).await["ok"], true);
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.first, "every tested commit records the first library commit");
+    f.tc.events.clear();
+
+    crate::commands::bisect::bisect_reset(&f.tc, f.id.clone()).await.unwrap();
+    assert_eq!(next_update(&f.tc).await["ok"], true);
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), second);
+}
+
+#[tokio::test]
+async fn a_submodule_with_commits_on_no_ref_is_left_alone() {
+    let f = fixture().await;
+    sub_git(&f.repo, &["checkout", "-q", "--detach"]);
+    f.repo.write_file(&format!("{SUB}/eigen.txt"), "eigen\n");
+    sub_git(&f.repo, &["add", "eigen.txt"]);
+    sub_git(&f.repo, &["commit", "-q", "-m", "Eigener Stand"]);
+    let own = sub_git(&f.repo, &["rev-parse", "HEAD"]);
+    f.tc.events.clear();
+
+    branch_checkout(&f.tc, f.id.clone(), "alt".into()).await.unwrap();
+    let event = next_update(&f.tc).await;
+    assert_eq!((event["ok"].clone(), event["paths"].clone()), (json!(false), json!([SUB])));
+    assert!(event["message"].as_str().is_some_and(|text| text.contains("not on any branch")), "{event}");
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), own, "the own commit stays checked out");
+}
+
+#[tokio::test]
+async fn a_submodule_on_a_branch_follows_even_with_own_commits() {
+    let f = fixture().await;
+    sub_git(&f.repo, &["checkout", "-q", "-b", "arbeit"]);
+    f.repo.write_file(&format!("{SUB}/eigen.txt"), "eigen\n");
+    sub_git(&f.repo, &["add", "eigen.txt"]);
+    sub_git(&f.repo, &["commit", "-q", "-m", "Eigener Stand"]);
+    f.tc.events.clear();
+
+    branch_checkout(&f.tc, f.id.clone(), "alt".into()).await.unwrap();
+    assert_eq!(next_update(&f.tc).await["ok"], true, "the branch keeps the commit");
+    assert_eq!(sub_git(&f.repo, &["rev-parse", "HEAD"]), f.first);
+}

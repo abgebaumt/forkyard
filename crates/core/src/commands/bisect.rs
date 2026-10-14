@@ -12,6 +12,7 @@ use crate::app::Core;
 use crate::commands::graph::{is_full_sha, read_cmd, resolve_commit};
 use crate::commands::refs::for_each_ref;
 use crate::commands::status::{self, read_operation};
+use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
 use crate::model::{BisectStatus, BisectVerdict, RepoChange};
@@ -26,24 +27,24 @@ pub async fn bisect_status(core: &Core, repo_id: String) -> CoreResult<BisectSta
 
 /// Starts between `bad` and the `good` commits; Git checks out the first commit to test.
 pub async fn bisect_start(core: &Core, repo_id: String, bad: String, good: Vec<String>) -> CoreResult<BisectStatus> {
-    core.with_write_lock(&repo_id, &CHANGES, start_locked(core, &repo_id, &bad, &good)).await
+    auto::follow(core, &repo_id, core.with_write_lock(&repo_id, &CHANGES, start_locked(core, &repo_id, &bad, &good))).await
 }
 
 /// Marks `sha` (`None` = the commit under test); Git checks out the next one.
 pub async fn bisect_mark(core: &Core, repo_id: String, verdict: BisectVerdict, sha: Option<String>) -> CoreResult<BisectStatus> {
-    core.with_write_lock(&repo_id, &CHANGES, mark_locked(core, &repo_id, verdict, sha.as_deref())).await
+    auto::follow(core, &repo_id, core.with_write_lock(&repo_id, &CHANGES, mark_locked(core, &repo_id, verdict, sha.as_deref()))).await
 }
 
 /// Ends the bisect; Git returns to the branch (or commit) it started from.
 pub async fn bisect_reset(core: &Core, repo_id: String) -> CoreResult<BisectStatus> {
-    core.with_write_lock(&repo_id, &CHANGES, async {
+    let reset = core.with_write_lock(&repo_id, &CHANGES, async {
         if !read_bisect(core, &repo_id).await?.active {
             return Err(no_bisect());
         }
         core.git_for(&repo_id)?.args(["bisect", "reset"]).run().await?;
         read_bisect(core, &repo_id).await
-    })
-    .await
+    });
+    auto::follow(core, &repo_id, reset).await
 }
 
 async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) -> CoreResult<BisectStatus> {

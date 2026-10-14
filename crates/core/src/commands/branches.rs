@@ -25,6 +25,14 @@ const MAX_LISTED: usize = 8;
 
 /// Branch from HEAD (`start: None`) or a commit, optionally checked out.
 pub async fn branch_create(core: &Core, repo_id: String, name: String, start: Option<String>, checkout: bool) -> CoreResult<RefsSnapshot> {
+    if checkout {
+        let id = repo_id.clone();
+        return auto::follow(core, &id, create_branch(core, repo_id, name, start, true)).await;
+    }
+    create_branch(core, repo_id, name, start, false).await
+}
+
+async fn create_branch(core: &Core, repo_id: String, name: String, start: Option<String>, checkout: bool) -> CoreResult<RefsSnapshot> {
     let changes: &[RepoChange] = if checkout { &CHECKOUT_CHANGES } else { &[RepoChange::Refs] };
     core.with_write_lock(&repo_id, changes, async {
         let name = name.as_str();
@@ -63,7 +71,8 @@ pub async fn branch_checkout(core: &Core, repo_id: String, target: String) -> Co
     auto::follow(core, &id, checkout_branch(core, repo_id, target)).await
 }
 
-async fn checkout_branch(core: &Core, repo_id: String, target: String) -> CoreResult<Status> {
+/// `branch_checkout` without the submodule follow-up (for callers that schedule it themselves).
+pub(crate) async fn checkout_branch(core: &Core, repo_id: String, target: String) -> CoreResult<Status> {
     core.with_write_lock(&repo_id, &CHECKOUT_CHANGES, async {
         // Whoever leaves a detached HEAD with their own commits leaves them behind without a ref:
         // check beforehand so that the answer can say so.

@@ -326,7 +326,9 @@ pub async fn gitflow_finish(
         false => None,
     };
     let result = async {
-        let finished = core.with_write_lock(repo_id, &FINISH_CHANGES, finish_locked(core, repo_id, kind, name.trim(), &options)).await?;
+        // Finishing checks out and merges: submodules follow the result (a stop on conflicts is no result).
+        let finished = core.with_write_lock(repo_id, &FINISH_CHANGES, finish_locked(core, repo_id, kind, name.trim(), &options));
+        let finished = crate::commands::submodule::auto::follow(core, repo_id, finished).await?;
         let (Some(job), OpResult::Done { sha, fast_forward, summary }) = (&job, &finished.result) else {
             return Ok(finished.result);
         };
@@ -355,6 +357,12 @@ enum PushTarget {
 struct Finished {
     result: OpResult,
     pushes: Vec<PushTarget>,
+}
+
+impl crate::commands::submodule::auto::Concluded for Finished {
+    fn concluded(&self) -> bool {
+        crate::commands::submodule::auto::Concluded::concluded(&self.result)
+    }
 }
 
 /// A ref the finish moved, created (`before: None`) or deleted (`after: None`).

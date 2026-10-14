@@ -3,7 +3,8 @@
 //! (`git submodule update --init --recursive`). This runs as a follow-up job in the same queue –
 //! network lock, then write lock – so the main operation answers right away. A failure is a warning
 //! (event `submodules:updated` with `ok: false`, plus the activity log of the Git call), never an
-//! error of the main operation. Network access uses the usual credential prompts; Git's
+//! error of the main operation. A submodule whose detached HEAD holds commits that no branch, tag
+//! or remote branch contains is left where it is and reported the same way, so nothing is orphaned. Network access uses the usual credential prompts; Git's
 //! `protocol.allow` defaults stay as they are. Repository setting `submodulesAutoUpdate` (default on).
 
 use std::future::Future;
@@ -14,10 +15,10 @@ use crate::db;
 use crate::error::CoreResult;
 use crate::events::names;
 use crate::git::redact;
-use crate::model::{OpResult, RepoChange, Status, SubmodulesUpdatedEvent};
+use crate::model::{BisectStatus, OpResult, RefsSnapshot, RepoChange, Status, SubmodulesUpdatedEvent, UndoState};
 use crate::util;
 
-use super::{gitlinks, run_update};
+use super::{gitlinks, read_sub_head, run_update, sub_git_dir};
 
 /// Results that mean "the operation went through" (a conflict or "nothing to do" doesn't).
 pub(crate) trait Concluded {
@@ -31,6 +32,24 @@ impl Concluded for OpResult {
 }
 
 impl Concluded for Status {
+    fn concluded(&self) -> bool {
+        true
+    }
+}
+
+impl Concluded for RefsSnapshot {
+    fn concluded(&self) -> bool {
+        true
+    }
+}
+
+impl Concluded for BisectStatus {
+    fn concluded(&self) -> bool {
+        true
+    }
+}
+
+impl Concluded for UndoState {
     fn concluded(&self) -> bool {
         true
     }
@@ -134,6 +153,33 @@ async fn recorded(core: &Core, repo_id: &str) -> Vec<(Vec<u8>, String)> {
     }
 }
 
+/// The submodule at `raw` has a detached HEAD that is neither the commit recorded before (`old`) nor
+/// the one recorded now (`new`) and holds commits that no branch, tag or remote branch contains:
+/// `submodule update` would leave them reachable only from the reflog. Unreadable counts as yes.
+async fn leaves_commits_behind(core: &Core, repo_id: &str, raw: &[u8], old: Option<&str>, new: &str) -> bool {
+    let Ok(root) = core.repo_path(repo_id) else { return true };
+    let sub_root = util::join_from_git(&root, raw);
+    let Some(git_dir) = sub_git_dir(&sub_root) else { return false };
+    let head = match read_sub_head(&git_dir) {
+        (Some(_), _) => return false,
+        (None, Some(sha)) => sha,
+        (None, None) => return false,
+    };
+    if head == new || Some(head.as_str()) == old {
+        return false;
+    }
+    let counted = core
+        .git
+        .cmd(&sub_root)
+        .repo(repo_id)
+        .read_only()
+        .no_log()
+        .args(["rev-list", "--count", head.as_str(), "--not", "--branches", "--tags", "--remotes"])
+        .run_raw()
+        .await;
+    !counted.ok().filter(|out| out.success()).is_some_and(|out| out.stdout_text().trim() == "0")
+}
+
 /// `RepoSettings.submodules_auto_update` (default: on).
 fn enabled(core: &Core, repo_id: &str) -> bool {
     core.db
@@ -166,21 +212,49 @@ async fn update_changed(core: &Core, repo_id: &str, before: Vec<(Vec<u8>, String
         return;
     };
     let guard = core.write_lock(repo_id).await;
-    let paths = changed_paths(&before, &recorded(core, repo_id).await);
+    let after = recorded(core, repo_id).await;
+    let paths = changed_paths(&before, &after);
     if paths.is_empty() {
         drop(guard);
         job.finish::<()>(&Ok(()));
         return;
     }
-    job.progress("Submodules", None, &format!("Updating {} …", paths.join(", ")));
-    let result = run_update(core, repo_id, &job, &paths, true).await;
+    // Never move a submodule away from commits of its own that nothing else holds (hard rule 6).
+    let mut kept = Vec::new();
+    let mut moved = Vec::new();
+    for (raw, sha) in &after {
+        let path = util::decode_lossy(raw);
+        if !paths.contains(&path) {
+            continue;
+        }
+        let old = before.iter().find(|(old_path, _)| old_path == raw).map(|(_, old_sha)| old_sha.as_str());
+        if leaves_commits_behind(core, repo_id, raw, old, sha).await {
+            kept.push(path);
+        } else {
+            moved.push(path);
+        }
+    }
+    let result = if moved.is_empty() {
+        Ok(())
+    } else {
+        job.progress("Submodules", None, &format!("Updating {} …", moved.join(", ")));
+        run_update(core, repo_id, &job, &moved, true).await
+    };
     drop(guard);
     core.emit_repo_changed(repo_id, &[RepoChange::Worktree, RepoChange::Config]);
+    let mut message = result.as_ref().err().map(|e| redact::redact(&e.message));
+    if !kept.is_empty() {
+        let note = format!(
+            "{} not updated: it has commits checked out that are not on any branch, tag or remote branch. Create a branch for them in the submodule, then update it.",
+            kept.join(", ")
+        );
+        message = Some(message.map_or(note.clone(), |error| format!("{error} {note}")));
+    }
     let event = SubmodulesUpdatedEvent {
         repo_id: repo_id.to_string(),
-        ok: result.is_ok(),
+        ok: result.is_ok() && kept.is_empty(),
         paths,
-        message: result.as_ref().err().map(|e| redact::redact(&e.message)),
+        message,
     };
     core.emit(names::SUBMODULES_UPDATED, &event);
     job.finish(&result);

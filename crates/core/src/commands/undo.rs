@@ -46,12 +46,12 @@ enum Mode {
 
 /// Undoes the last undoable action.
 pub async fn undo(core: &Core, repo_id: String) -> CoreResult<UndoState> {
-    step(core, &repo_id, Direction::Undo).await
+    crate::commands::submodule::auto::follow(core, &repo_id, step(core, &repo_id, Direction::Undo)).await
 }
 
 /// Redoes the most recently undone action.
 pub async fn redo(core: &Core, repo_id: String) -> CoreResult<UndoState> {
-    step(core, &repo_id, Direction::Redo).await
+    crate::commands::submodule::auto::follow(core, &repo_id, step(core, &repo_id, Direction::Redo)).await
 }
 
 /// What undo and redo would do right now (tooltip and enabled state of the toolbar button).
