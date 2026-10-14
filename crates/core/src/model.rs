@@ -2299,17 +2299,20 @@ mod tests {
 pub enum HostKind {
     Github,
     Gitlab,
+    /// Gitea and Forgejo (including Codeberg).
+    Gitea,
 }
 
 impl HostKind {
     /// Every host the app knows, in the order it lists them.
-    pub const ALL: &'static [HostKind] = &[HostKind::Github, HostKind::Gitlab];
+    pub const ALL: &'static [HostKind] = &[HostKind::Github, HostKind::Gitlab, HostKind::Gitea];
 
     /// Name in the contract and in `hoster_accounts.kind`.
     pub fn as_str(self) -> &'static str {
         match self {
             HostKind::Github => "github",
             HostKind::Gitlab => "gitlab",
+            HostKind::Gitea => "gitea",
         }
     }
 

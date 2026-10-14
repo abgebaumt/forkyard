@@ -187,7 +187,8 @@ fn preset_rule(kind: LinkPresetKind, base_url: &str, keys: &[String]) -> (String
 pub fn host_rules(kind: HostKind, web_url: &str) -> Vec<LinkRule> {
     let rule = |id: &str, pattern: &str, url: String| LinkRule { id: id.to_string(), source: LinkRuleSource::Host, pattern: pattern.to_string(), url };
     match kind {
-        HostKind::Github => vec![rule("host:issue", r"#(\d+)\b", format!("{web_url}/issues/$1"))],
+        // Gitea/Forgejo send `/issues/<n>` of a pull request on to its page, like GitHub.
+        HostKind::Github | HostKind::Gitea => vec![rule("host:issue", r"#(\d+)\b", format!("{web_url}/issues/$1"))],
         HostKind::Gitlab => vec![
             rule("host:issue", r"#(\d+)\b", format!("{web_url}/-/issues/$1")),
             rule("host:merge_request", r"!(\d+)\b", format!("{web_url}/-/merge_requests/$1")),

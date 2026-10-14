@@ -13,6 +13,7 @@
 
 pub mod detect;
 pub mod gh_cli;
+pub mod gitea;
 pub mod github;
 pub mod gitlab;
 
@@ -29,7 +30,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{self, Method, Request, Response};
 use crate::model::{
     AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRepoRef, HostUser, HosterAccount, IssueDetails, IssueListState, IssuePage,
-    IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrSummary,
+    IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrSummary,
 };
 use crate::secrets;
 use crate::util;
@@ -89,6 +90,22 @@ pub(crate) fn summarize_checks(checks: &[PrCheck]) -> Option<ChecksState> {
         Some(ChecksState::Pending)
     } else if checks.iter().any(|c| c.state == CheckRunState::Passing) {
         Some(ChecksState::Passing)
+    } else {
+        None
+    }
+}
+
+/// Summarises the reviewers: requested changes win, then open requests, then approvals.
+pub(crate) fn review_summary(reviewers: &[PrReviewer]) -> Option<PrReviewState> {
+    let has = |state: Option<PrReviewState>| reviewers.iter().any(|r| r.state == state);
+    if has(Some(PrReviewState::ChangesRequested)) {
+        Some(PrReviewState::ChangesRequested)
+    } else if has(None) {
+        Some(PrReviewState::ReviewRequired)
+    } else if has(Some(PrReviewState::Approved)) {
+        Some(PrReviewState::Approved)
+    } else if has(Some(PrReviewState::Commented)) {
+        Some(PrReviewState::Commented)
     } else {
         None
     }
@@ -239,6 +256,7 @@ pub fn host(kind: HostKind) -> &'static dyn Host {
     match kind {
         HostKind::Github => &github::GithubHost,
         HostKind::Gitlab => &gitlab::GitlabHost,
+        HostKind::Gitea => &gitea::GiteaHost,
     }
 }
 

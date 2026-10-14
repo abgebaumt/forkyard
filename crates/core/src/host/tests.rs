@@ -4,6 +4,7 @@
 
 mod github_tests;
 mod gitlab_tests;
+mod gitea_tests;
 mod mocks;
 
 use std::sync::Arc;
@@ -31,6 +32,8 @@ pub(crate) struct MockState {
     pub mode: &'static str,
     pub merged: Vec<u64>,
     pub closed: Vec<u64>,
+    /// The repository has its issue tracker switched off.
+    pub issues_off: bool,
 }
 
 pub(crate) struct Fixture {
@@ -42,6 +45,15 @@ pub(crate) struct Fixture {
     pub account: HosterAccount,
 }
 
+/// Where the test server's repository lives, per host.
+fn mock_repo_path(kind: HostKind) -> &'static str {
+    match kind {
+        HostKind::Github => "octo/demo",
+        HostKind::Gitlab => "gruppe/unter/demo",
+        HostKind::Gitea => "octo/demo",
+    }
+}
+
 impl Fixture {
     /// Connected account on the test server and a repository whose `origin` points there.
     pub async fn new(kind: HostKind) -> Fixture {
@@ -51,6 +63,7 @@ impl Fixture {
             MockServer::start(move |request| match kind {
                 HostKind::Github => mocks::github(request, &state),
                 HostKind::Gitlab => mocks::gitlab(request, &state),
+                HostKind::Gitea => mocks::gitea(request, &state),
             })
         };
         let tc = TestCore::new().await;
@@ -60,11 +73,7 @@ impl Fixture {
         });
         let account = crate::host::connect(&tc, kind, Some(server.url()), TOKEN.to_string()).await.expect("connect account");
         let repo = TestRepo::with_commit();
-        let path = match kind {
-            HostKind::Github => "octo/demo",
-            HostKind::Gitlab => "gruppe/unter/demo",
-        };
-        repo.git(&["remote", "add", "origin", &format!("{}/{path}.git", server.url())]);
+        repo.git(&["remote", "add", "origin", &format!("{}/{}.git", server.url(), mock_repo_path(kind))]);
         let repo_id = tc.open(&repo).await.repo.id;
         server.clear();
         tc.events.clear();

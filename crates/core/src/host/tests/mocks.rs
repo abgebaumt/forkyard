@@ -1,5 +1,5 @@
-//! The test server's responses, in the shape of the public API documentation of GitHub
-//! and GitLab. All names, numbers and texts are made up.
+//! The test server's responses, in the shape of the public API documentation of GitHub, GitLab,
+//! Gitea/Forgejo, Bitbucket Cloud and Azure DevOps. All names, numbers and texts are made up.
 //!
 //! The data set: 45 pull requests / merge requests (numbers 1 to 45). Numbers ending in 0
 //! are merged; those ending in 5 are closed; the rest are open. No. 3 is a draft,
@@ -53,9 +53,10 @@ fn source_branch(number: u64) -> String {
     }
 }
 
-/// Pages through `numbers` and returns the page with a `Link` header for the next one.
-fn paginate(request: &MockRequest, numbers: Vec<u64>) -> (Vec<u64>, Option<(String, u64)>) {
-    let per_page: usize = request.query("per_page").and_then(|v| v.parse().ok()).unwrap_or(30);
+/// Pages through `numbers` (page size from the parameter `size_key`) and returns the page with
+/// the address and number of the next one.
+pub(crate) fn page_by(request: &MockRequest, numbers: Vec<u64>, size_key: &str) -> (Vec<u64>, Option<(String, u64)>) {
+    let per_page: usize = request.query(size_key).and_then(|v| v.parse().ok()).unwrap_or(30);
     let page: usize = request.query("page").and_then(|v| v.parse().ok()).unwrap_or(1).max(1);
     let start = (page - 1) * per_page;
     let items: Vec<u64> = numbers.iter().copied().skip(start).take(per_page).collect();
@@ -63,9 +64,15 @@ fn paginate(request: &MockRequest, numbers: Vec<u64>) -> (Vec<u64>, Option<(Stri
     let next = more.then(|| {
         let mut query: Vec<String> = request.target.split_once('?').map(|(_, q)| q).unwrap_or("").split('&').filter(|p| !p.is_empty() && !p.starts_with("page=")).map(str::to_string).collect();
         query.push(format!("page={}", page + 1));
-        (format!("<{}{}?{}>; rel=\"next\"", origin(request), request.path(), query.join("&")), page as u64 + 1)
+        (format!("{}{}?{}", origin(request), request.path(), query.join("&")), page as u64 + 1)
     });
     (items, next)
+}
+
+/// Pages through `numbers` and returns the page with a `Link` header for the next one.
+fn paginate(request: &MockRequest, numbers: Vec<u64>) -> (Vec<u64>, Option<(String, u64)>) {
+    let (items, next) = page_by(request, numbers, "per_page");
+    (items, next.map(|(url, page)| (format!("<{url}>; rel=\"next\""), page)))
 }
 
 /// Shared error modes; `None` = continue normally.
@@ -498,5 +505,199 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
         ("GET", ["issues", _]) if number == 0 || number > 200 => not_found("404 Not found"),
         ("GET", ["issues", _]) => MockResponse::json(200, gl_issue(&base, number)),
         _ => not_found("404 Not Found"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Gitea / Forgejo
+// ---------------------------------------------------------------------------
+
+fn gt_user(login: &str) -> Value {
+    json!({ "id": login.len(), "login": login, "full_name": format!("{login} (Name)"), "avatar_url": format!("https://avatars.example/{login}.png") })
+}
+
+fn gt_pr(base: &str, number: u64, state: &MockState) -> Value {
+    let status = pr_state(number, state);
+    let head_repo = if number == 8 { "fremd/demo" } else { "octo/demo" };
+    json!({
+        "number": number,
+        "title": if number == 3 { "WIP: Thema 3 umsetzen".to_string() } else { format!("Thema {number} umsetzen") },
+        "state": if status == "open" { "open" } else { "closed" },
+        "merged": status == "merged",
+        "user": gt_user("jonas"),
+        "body": format!("Beschreibung zu **Thema {number}**."),
+        "head": { "ref": source_branch(number), "sha": sha(number), "repo": { "full_name": head_repo } },
+        "base": { "ref": "main", "sha": sha(1000), "repo": { "full_name": "octo/demo" } },
+        "updated_at": updated(number),
+        "html_url": format!("{base}/octo/demo/pulls/{number}"),
+        "labels": if number == 1 { json!([{ "id": 11, "name": "bug", "color": "ee0701" }]) } else { json!([]) },
+        "requested_reviewers": if number == 2 { json!([gt_user("mira")]) } else { json!([]) },
+        "mergeable": number != 13,
+    })
+}
+
+fn gt_issue(base: &str, number: u64) -> Value {
+    json!({
+        "number": number,
+        "title": format!("Problem {number}"),
+        "state": if number % 4 == 0 { "closed" } else { "open" },
+        "user": gt_user("mira"),
+        "assignees": if number == 2 { json!([gt_user("lena")]) } else { Value::Null },
+        "labels": [{ "id": 12, "name": "frage", "color": "0e8a16" }],
+        "updated_at": updated(number),
+        "html_url": format!("{base}/octo/demo/issues/{number}"),
+        "body": format!("Text zu Problem {number}"),
+        // The issue endpoint knows pull requests too; no. 3 is one when asked for directly.
+        "pull_request": if number == 3 { json!({ "merged": false }) } else { Value::Null },
+    })
+}
+
+fn with_link(response: MockResponse, next: Option<(String, u64)>) -> MockResponse {
+    match next {
+        Some((url, _)) => response.header("link", format!("<{url}>; rel=\"next\"")),
+        None => response,
+    }
+}
+
+pub(crate) fn gitea(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
+    let base = origin(request);
+    let token = request.header("authorization").and_then(|value| value.strip_prefix("token ")).unwrap_or_default().to_string();
+    if token != TOKEN && token != WEAK_TOKEN {
+        return MockResponse::json(401, json!({ "message": "user does not exist [uid: 0, name: ]", "url": format!("{base}/api/swagger") }));
+    }
+    let mut state = state.lock();
+    let path = request.path().strip_prefix("/api/v1").unwrap_or("").to_string();
+    let method = request.method.as_str();
+    if path == "/user" && state.mode != "401" && state.mode != "slow" {
+        return MockResponse::json(200, json!({ "id": 1, "login": "lena", "full_name": "Lena Hartmann", "avatar_url": "https://avatars.example/lena.png" }));
+    }
+    let rate = MockResponse::json(429, json!({ "message": "rate limit exceeded" })).header("retry-after", "30");
+    if let Some(response) = forced(state.mode, rate) {
+        return response;
+    }
+    let Some(rest) = path.strip_prefix("/repos/octo/demo") else {
+        return not_found("The target couldn't be found.");
+    };
+    let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+    let number = segments.get(1).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+    match (method, segments.as_slice()) {
+        ("GET", []) => MockResponse::json(
+            200,
+            json!({
+                "name": "demo", "full_name": "octo/demo", "default_branch": "main", "html_url": format!("{base}/octo/demo"),
+                "permissions": { "admin": false, "push": true, "pull": true },
+                "has_issues": !state.issues_off, "fork": true,
+                "parent": { "name": "demo", "owner": { "login": "ursprung" }, "html_url": format!("{base}/ursprung/demo") },
+            }),
+        ),
+        ("GET", ["labels"]) => MockResponse::json(200, json!([{ "id": 11, "name": "bug" }, { "id": 12, "name": "frage" }, { "id": 13, "name": "ui" }])),
+        ("GET", ["pulls"]) => {
+            let wanted = request.query("state").unwrap_or_else(|| "open".into());
+            let numbers: Vec<u64> = (1..=TOTAL)
+                .rev()
+                .filter(|n| match wanted.as_str() {
+                    "open" => pr_state(*n, &state) == "open",
+                    "closed" => pr_state(*n, &state) != "open",
+                    _ => true,
+                })
+                .collect();
+            let (page, next) = page_by(request, numbers, "limit");
+            let body: Vec<Value> = page.iter().map(|n| gt_pr(&base, *n, &state)).collect();
+            with_link(MockResponse::json(200, json!(body)), next)
+        }
+        ("POST", ["pulls"]) => {
+            let body = request.json();
+            if body["head"] == "schon-da" {
+                return MockResponse::json(409, json!({ "message": "pull request already exists for these targets [id: 5, issue_id: 5, head_repo_id: 1, base_repo_id: 1, head_branch: schon-da, base_branch: main]" }));
+            }
+            let mut created = gt_pr(&base, 101, &state);
+            for key in ["title", "body"] {
+                created[key] = body[key].clone();
+            }
+            created["head"]["ref"] = body["head"].clone();
+            created["base"]["ref"] = body["base"].clone();
+            MockResponse::json(201, created)
+        }
+        ("GET", ["pulls", _]) if number == 0 || number > 200 => not_found("pull request does not exist [repo_id: 1, index: 999]"),
+        ("GET", ["pulls", _]) => MockResponse::json(200, gt_pr(&base, number, &state)),
+        ("PATCH", ["pulls", _]) => {
+            let body = request.json();
+            match body["state"].as_str() {
+                Some("closed") => state.closed.push(number),
+                Some("open") => state.closed.retain(|n| *n != number),
+                _ => {}
+            }
+            let mut pr = gt_pr(&base, number, &state);
+            for key in ["title", "body"] {
+                if !body[key].is_null() {
+                    pr[key] = body[key].clone();
+                }
+            }
+            if !body["base"].is_null() {
+                pr["base"]["ref"] = body["base"].clone();
+            }
+            MockResponse::json(201, pr)
+        }
+        ("GET", ["pulls", _, "reviews"]) => MockResponse::json(
+            200,
+            match number {
+                1 => json!([
+                    { "id": 11, "user": gt_user("mira"), "state": "COMMENT", "body": "Erster Blick: sieht gut aus.", "submitted_at": "2026-09-02T09:00:00Z", "dismissed": false },
+                    { "id": 12, "user": gt_user("mira"), "state": "APPROVED", "body": "", "submitted_at": "2026-09-02T10:00:00Z", "dismissed": false }
+                ]),
+                4 => json!([{ "id": 41, "user": gt_user("jonas"), "state": "REQUEST_CHANGES", "body": "Bitte die Tests ergänzen.", "submitted_at": "2026-09-03T10:00:00Z", "dismissed": false }]),
+                _ => json!([]),
+            },
+        ),
+        ("GET", ["pulls", _, "commits"]) => MockResponse::json(
+            200,
+            json!([
+                { "sha": sha(number * 100 + 1), "commit": { "message": "Prüfung ergänzt\n\nLängere Erklärung.", "author": { "name": "Jonas Weber", "date": "2026-09-01T12:00:00Z" } } },
+                { "sha": sha(number), "commit": { "message": "Meldung übersetzt", "author": { "name": "Jonas Weber", "date": "2026-09-01T13:00:00Z" } } }
+            ]),
+        ),
+        ("POST", ["pulls", _, "requested_reviewers"]) => MockResponse::json(201, json!([])),
+        ("DELETE", ["pulls", _, "requested_reviewers"]) => MockResponse::empty(204),
+        ("POST", ["pulls", _, "merge"]) => {
+            if number == 13 {
+                return MockResponse::json(405, json!({ "message": "The pull request cannot be merged: there are merge conflicts." }));
+            }
+            state.merged.push(number);
+            MockResponse::empty(200)
+        }
+        ("GET", ["commits", sha_text, "status"]) => {
+            let statuses = match u64::from_str_radix(sha_text, 16).unwrap_or(0) {
+                1 => json!([
+                    { "context": "build", "status": "success", "target_url": format!("{base}/octo/demo/actions/runs/1") },
+                    { "context": "docs", "status": "warning", "target_url": "https://ci.example/docs" }
+                ]),
+                2 => json!([{ "context": "build", "status": "pending", "target_url": format!("{base}/octo/demo/actions/runs/2") }]),
+                4 => json!([{ "context": "build", "status": "failure", "target_url": format!("{base}/octo/demo/actions/runs/4") }]),
+                _ => json!([]),
+            };
+            MockResponse::json(200, json!({ "state": "", "statuses": statuses }))
+        }
+        ("GET", ["issues"]) if state.issues_off => not_found("repo has no issue tracker"),
+        ("GET", ["issues"]) => {
+            let wanted = request.query("state").unwrap_or_else(|| "open".into());
+            let search = request.query("q");
+            let numbers: Vec<u64> = (1..=12).rev().filter(|n| wanted == "all" || (wanted == "closed") == (n % 4 == 0)).filter(|n| search.is_none() || *n <= 2).collect();
+            let (page, next) = page_by(request, numbers, "limit");
+            // `type=issues`: the list holds no pull requests.
+            let body: Vec<Value> = page
+                .iter()
+                .map(|n| {
+                    let mut issue = gt_issue(&base, *n);
+                    issue["pull_request"] = Value::Null;
+                    issue
+                })
+                .collect();
+            with_link(MockResponse::json(200, json!(body)), next)
+        }
+        ("GET", ["issues", _]) if number == 0 || number > 200 => not_found("issue does not exist [repo_id: 1, index: 999]"),
+        ("GET", ["issues", _]) => MockResponse::json(200, gt_issue(&base, number)),
+        ("GET", ["issues", _, "comments"]) => MockResponse::json(200, json!([{ "id": 21, "user": gt_user("jonas"), "body": "Danke fürs Ansehen!", "created_at": "2026-09-02T09:45:00Z" }])),
+        ("POST", ["issues", _, "comments"]) => MockResponse::json(201, json!({ "id": 99, "user": gt_user("lena"), "body": request.json()["body"], "created_at": "2026-09-05T08:00:00Z" })),
+        _ => not_found("The target couldn't be found."),
     }
 }

@@ -269,7 +269,7 @@ mod tests {
             "https://dev.azure.com/firma/projekt/_git/repo",
             "https://gitlab.firma.example/gruppe/projekt.git",
             "https://github.firma.example/octo/demo.git",
-            "https://codeberg.org/a/b.git",
+            "https://git.example.org/team/projekt.git",
             // GitHub has no subgroups; a single segment is not a repository.
             "https://github.com/octo/demo/extra",
             "https://github.com/octo",

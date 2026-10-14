@@ -5,7 +5,7 @@
 use serde_json::{json, Value};
 
 use super::{
-    color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging,
+    color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging,
     PrChange, RepoFacts, RepoPath,
 };
 use crate::app::Core;
@@ -188,21 +188,6 @@ fn reviewers(reviews: &[Value], requested: &[Value]) -> Vec<PrReviewer> {
         }
     }
     result
-}
-
-fn review_summary(reviewers: &[PrReviewer]) -> Option<PrReviewState> {
-    let has = |state: Option<PrReviewState>| reviewers.iter().any(|r| r.state == state);
-    if has(Some(PrReviewState::ChangesRequested)) {
-        Some(PrReviewState::ChangesRequested)
-    } else if has(None) {
-        Some(PrReviewState::ReviewRequired)
-    } else if has(Some(PrReviewState::Approved)) {
-        Some(PrReviewState::Approved)
-    } else if has(Some(PrReviewState::Commented)) {
-        Some(PrReviewState::Commented)
-    } else {
-        None
-    }
 }
 
 async fn reviews(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreResult<Vec<Value>> {
