@@ -38,6 +38,8 @@ import {
   History,
   Link,
   ListOrdered,
+  Lock,
+  LockOpen,
   LogIn,
   Milestone,
   Minus,
@@ -75,6 +77,8 @@ import { openRepositoryAt } from "../actions/repos";
 import { openWorktreeDialog } from "../../screens/Worktrees/Dialog";
 import { markBisect, startBisect } from "../../screens/Bisect/actions";
 import { applyStash, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
+import { cachedLocks, lockFiles, unlockFiles } from "../actions/lfs";
+import { lockIndex, lockMenuState } from "../../screens/Lfs/locks";
 import { fetchAll, pull, push, pushWithMore } from "../actions/sync";
 import { createTag, deleteTag, pushTag } from "../actions/tags";
 import { openDiffTool, openMergeTool } from "../actions/tools";
@@ -587,6 +591,30 @@ function ignoreMenu(repoId: Id, files: FileChange[]): MenuEntry[] {
   return suggestions.map((suggestion) => item(`${suggestion.label} …`, null, () => void ignoreFiles(repoId, files, suggestion.key as IgnorePreset), { hint: clipMiddle(suggestion.pattern, 28) }));
 }
 
+/** Lock / unlock via Git LFS – only when the repository's locks are known (server with locking). */
+function lockMenu(repoId: Id, paths: string[]): MenuEntry[] {
+  const list = cachedLocks(repoId);
+  if (!list) return [];
+  const { lockable, ownLocked, foreignLocked } = lockMenuState(paths, lockIndex(list));
+  const entries: MenuEntry[] = [];
+  if (lockable.length > 0) {
+    entries.push(item(lockable.length === 1 ? t("menus.file.lock") : t("menus.file.lockMany", { n: lockable.length }), Lock, () => void lockFiles(repoId, lockable)));
+  }
+  if (ownLocked.length > 0) {
+    entries.push(item(ownLocked.length === 1 ? t("menus.file.unlock") : t("menus.file.unlockMany", { n: ownLocked.length }), LockOpen, () => void unlockFiles(repoId, ownLocked, false)));
+  }
+  if (foreignLocked.length > 0) {
+    const single = foreignLocked.length === 1 ? foreignLocked[0]! : null;
+    entries.push(
+      item(single ? t("menus.file.forceUnlock") : t("menus.file.forceUnlockMany", { n: foreignLocked.length }), LockOpen, () => void unlockFiles(repoId, foreignLocked.map((lock) => lock.path), true, foreignLocked), {
+        danger: true,
+        hint: single ? t("menus.file.lockedBy", { owner: single.owner }) : undefined,
+      }),
+    );
+  }
+  return entries;
+}
+
 export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSource }): MenuEntry[] {
   const { repoId, tabId, files, source } = ctx;
   if (files.length === 0) return [];
@@ -648,6 +676,8 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
   const gone = single && !onDisk(single) ? t("menus.file.deleted") : null;
   return tidy([
     ...primary,
+    SEPARATOR,
+    ...lockMenu(repoId, paths),
     SEPARATOR,
     item(t("menus.file.history"), History, () => single && store().openHistory(tabId, single.path), { blocked: one }),
     item(t("menus.file.blame"), Users, () => single && store().openBlame(tabId, single.path, viewSha), {

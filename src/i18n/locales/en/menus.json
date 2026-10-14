@@ -218,7 +218,14 @@
     "paths": "{{n}} paths",
     "patch": "Create patch from this file …",
     "patchMany": "Create patch from {{n}} files …",
-    "binaryNoPatch": "binary files don’t fit in a text patch"
+    "binaryNoPatch": "binary files don’t fit in a text patch",
+    "lock": "Lock",
+    "lockMany": "Lock {{n}} files",
+    "unlock": "Unlock",
+    "unlockMany": "Unlock {{n}} files",
+    "forceUnlock": "Force unlock …",
+    "forceUnlockMany": "Force unlock {{n}} files …",
+    "lockedBy": "locked by {{owner}}"
   },
   "drop": {
     "sameBranch": "source and target are the same branch",

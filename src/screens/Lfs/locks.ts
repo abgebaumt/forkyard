@@ -67,3 +67,24 @@ export function fileLock(lock: LfsLock | undefined): FileLock | undefined {
   if (!lock) return undefined;
   return { ours: lock.ours, label: lock.ours ? t("lfs.locks.byYou") : t("lfs.locks.byOther", { owner: lock.owner }) };
 }
+
+export interface LockMenuState {
+  /** Not locked by anyone: "Lock". */
+  lockable: string[];
+  /** Locked by you: "Unlock". */
+  ownLocked: string[];
+  /** Locked by others: "Force unlock …". */
+  foreignLocked: LfsLock[];
+}
+
+/** Sorts the files of a context menu by their lock state (order kept). */
+export function lockMenuState(paths: string[], index: LockIndex): LockMenuState {
+  const state: LockMenuState = { lockable: [], ownLocked: [], foreignLocked: [] };
+  for (const path of paths) {
+    const lock = index.get(path);
+    if (!lock) state.lockable.push(path);
+    else if (lock.ours) state.ownLocked.push(path);
+    else state.foreignLocked.push(lock);
+  }
+  return state;
+}

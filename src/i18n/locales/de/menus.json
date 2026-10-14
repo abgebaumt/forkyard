@@ -218,7 +218,14 @@
     "paths": "{{n}} Pfade",
     "patch": "Patch aus dieser Datei erzeugen …",
     "patchMany": "Patch aus {{n}} Dateien erzeugen …",
-    "binaryNoPatch": "Binärdateien passen in keinen Text-Patch"
+    "binaryNoPatch": "Binärdateien passen in keinen Text-Patch",
+    "lock": "Sperren",
+    "lockMany": "{{n}} Dateien sperren",
+    "unlock": "Entsperren",
+    "unlockMany": "{{n}} Dateien entsperren",
+    "forceUnlock": "Entsperren erzwingen …",
+    "forceUnlockMany": "{{n}} Dateien zwangsweise entsperren …",
+    "lockedBy": "gesperrt von {{owner}}"
   },
   "drop": {
     "sameBranch": "Quelle und Ziel sind derselbe Branch",

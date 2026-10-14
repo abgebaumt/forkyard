@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LfsLock, LfsLockList, LfsStatus } from "../../core";
-import { fileLock, lockIndex, locksWanted, panelActions } from "./locks";
+import { fileLock, lockIndex, lockMenuState, locksWanted, panelActions } from "./locks";
 
 const lock = (path: string, owner: string, ours: boolean): LfsLock => ({ id: path, path, owner, lockedAt: "2026-01-02T03:04:05Z", ours });
 const list = (...locks: LfsLock[]): LfsLockList => ({ locks, fetchedAt: "2026-01-02T03:05:00.000Z" });
@@ -42,5 +42,19 @@ describe("File lists: the lock symbol", () => {
     expect(fileLock(lock("a.psd", "Lena Berg", false))).toEqual({ ours: false, label: "Locked by Lena Berg" });
     expect(fileLock(lock("b.psd", "Test Person", true))).toEqual({ ours: true, label: "Locked by you" });
     expect(fileLock(undefined)).toBeUndefined();
+  });
+});
+
+describe("File menu: lock entries", () => {
+  it("sorts the selected files into lockable, own and other people's locks", () => {
+    const index = lockIndex(list(lock("fremd.psd", "Lena Berg", false), lock("meins.psd", "Test Person", true)));
+    const state = lockMenuState(["frei.psd", "meins.psd", "fremd.psd", "auch-frei.psd"], index);
+    expect(state.lockable).toEqual(["frei.psd", "auch-frei.psd"]);
+    expect(state.ownLocked).toEqual(["meins.psd"]);
+    expect(state.foreignLocked.map((l) => `${l.path} ${l.owner}`)).toEqual(["fremd.psd Lena Berg"]);
+  });
+
+  it("without known locks every file is lockable", () => {
+    expect(lockMenuState(["a.psd"], lockIndex(undefined))).toEqual({ lockable: ["a.psd"], ownLocked: [], foreignLocked: [] });
   });
 });
