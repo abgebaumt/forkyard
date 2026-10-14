@@ -4,7 +4,7 @@
  * if something is missing from the cache, "unknown" applies and the core checks on execution.
  */
 import type { InfiniteData } from "@tanstack/react-query";
-import { core, type GraphPage, type GraphRow, type Id, type Ref, type RefsSnapshot, type Remote, type RepoViewState, type Settings, type Sha, type Stash, type Status, type UndoState } from "../../core";
+import { core, type BisectStatus, type GraphPage, type GraphRow, type Id, type Ref, type RefsSnapshot, type Remote, type RepoViewState, type Settings, type Sha, type Stash, type Status, type UndoState } from "../../core";
 import { qk, queryClient } from "../queries";
 import { loadStatus } from "../statusCache";
 
@@ -14,6 +14,7 @@ export const cachedRemotes = (repoId: Id) => queryClient.getQueryData<Remote[]>(
 export const cachedStashes = (repoId: Id) => queryClient.getQueryData<Stash[]>(qk.stashes(repoId));
 export const cachedSettings = () => queryClient.getQueryData<Settings>(qk.settings);
 export const cachedViewState = (repoId: Id) => queryClient.getQueryData<RepoViewState>(qk.viewState(repoId));
+export const cachedBisect = (repoId: Id) => queryClient.getQueryData<BisectStatus>(qk.bisect(repoId));
 export const cachedUndo = (repoId: Id) => queryClient.getQueryData<UndoState>(qk.undo(repoId));
 
 /** All loaded graph rows in display order (newest first). */

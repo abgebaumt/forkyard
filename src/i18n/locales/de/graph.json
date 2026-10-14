@@ -84,7 +84,10 @@
     "collapsedCount_one": "+1 Commit",
     "collapsedCount_other": "+{{formatted}} Commits",
     "notPushed": "Noch nicht gepusht",
-    "notPulled": "Noch nicht gepullt"
+    "notPulled": "Noch nicht gepullt",
+    "bisectGood": "gut",
+    "bisectBad": "schlecht",
+    "bisectSkip": "übersprungen"
   },
   "refs": {
     "kind": {

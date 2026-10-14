@@ -698,5 +698,20 @@
       "title": "Reflog anzeigen",
       "keywords": "Reflog, Verlauf von HEAD, verlorene Commits, wiederherstellen"
     }
+  },
+  "bisect": {
+    "good": {
+      "title": "Bisect: getesteten Commit als gut markieren"
+    },
+    "bad": {
+      "title": "Bisect: getesteten Commit als schlecht markieren"
+    },
+    "skip": {
+      "title": "Bisect: getesteten Commit überspringen"
+    },
+    "end": {
+      "title": "Bisect beenden"
+    },
+    "notRunning": "Es läuft kein Bisect"
   }
 }

@@ -10,6 +10,7 @@ import {
   ArchiveRestore,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Bug,
   Check,
   ChevronsDownUp,
   ChevronsUpDown,
@@ -59,7 +60,7 @@ import { consecutiveOnHead, findRow, graphIndex, isAncestor } from "../actions/a
 import { checkout, checkoutCommit, chooseUpstream, createBranch, deleteBranches, renameBranch, setUpstream } from "../actions/branches";
 import { copyText } from "../actions/clipboard";
 import { setAllMergesCollapsed, setMergeCollapsed } from "../actions/collapse";
-import { cachedRefs, cachedRemotes, cachedStashes, cachedStatus, clipMiddle, currentBranch, headSha, short } from "../actions/context";
+import { cachedBisect, cachedRefs, cachedRemotes, cachedStashes, cachedStatus, clipMiddle, currentBranch, headSha, short } from "../actions/context";
 import { interactiveRebaseOnto, mergeInto, pushTo, rebaseBranchOnto } from "../actions/drop";
 import { createFile, deleteFile } from "../commands/fileview";
 import { fastForwardBranch, pullBranch } from "../actions/fastForward";
@@ -72,6 +73,7 @@ import { cachedPrForBranch, hostLink, openPr, openPrCreate } from "../actions/pu
 import { editRemote, removeRemote } from "../actions/remotes";
 import { openRepositoryAt } from "../actions/repos";
 import { openWorktreeDialog } from "../../screens/Worktrees/Dialog";
+import { markBisect, startBisect } from "../../screens/Bisect/actions";
 import { applyStash, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
 import { fetchAll, pull, push } from "../actions/sync";
 import { createTag, deleteTag, pushTag } from "../actions/tags";
@@ -144,6 +146,25 @@ function resetMenu(ctx: MenuBase, sha: Sha): MenuEntry[] {
 }
 
 /** Collapse or expand a merge; plus "all merges" (also in the palette, Mod+Shift+[ / ]). */
+/** Start a bisect from the selected commit(s); while one runs, mark this commit. */
+function bisectEntries(ctx: MenuBase, shas: Sha[]): MenuEntry[] {
+  const running = cachedBisect(ctx.repoId)?.active ?? false;
+  const sha = shas[0];
+  if (running && shas.length === 1 && sha) {
+    return [
+      item(t("menus.commit.bisectGood"), null, () => void markBisect(ctx.repoId, "good", ctx.tabId, sha)),
+      item(t("menus.commit.bisectBad"), null, () => void markBisect(ctx.repoId, "bad", ctx.tabId, sha)),
+      item(t("menus.commit.bisectSkip"), null, () => void markBisect(ctx.repoId, "skip", ctx.tabId, sha)),
+    ];
+  }
+  if (shas.length === 0 || shas.length > 2) return [];
+  return [
+    item(t("menus.commit.bisectStart"), Bug, () => void startBisect(ctx.repoId, shas, ctx.tabId), {
+      blocked: operationBlock(ctx.repoId) ?? (running ? t("menus.commit.bisectRunning") : null),
+    }),
+  ];
+}
+
 function mergeEntries(ctx: MenuBase, sha: Sha, row: GraphRow | undefined): MenuEntry[] {
   if (row?.kind !== "merge") return [];
   const collapsed = row.collapsedCount !== null;
@@ -185,6 +206,8 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
         blocked: busy ?? (detached ? t("menus.noBranch") : squash.ok === false ? squash.reason : null),
       }),
       count === 2 && first && second ? item(t("menus.commit.compare"), GitCompareArrows, () => compareCommits(tabId, first, second), { hint: `${short(first)} ↔ ${short(second)}` }) : null,
+      SEPARATOR,
+      ...bisectEntries(ctx, shas),
       SEPARATOR,
       item(t("menus.commit.copyShas", { n: count }), Copy, () => void copyText(shas.join("\n"), t("menus.commit.shas", { n: count }))),
     ]);
@@ -230,6 +253,7 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
     }),
     SEPARATOR,
     ...mergeEntries(ctx, sha, row),
+    ...bisectEntries(ctx, [sha]),
     SEPARATOR,
     isHead ? item(t("menus.commit.reword"), Pencil, () => void rewordHead(repoId, sha, tabId), { blocked: busy }) : null,
     item(t("menus.commit.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),

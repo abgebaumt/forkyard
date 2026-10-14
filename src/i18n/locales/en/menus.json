@@ -55,7 +55,12 @@
     "hiddenCommits_one": "1 commit hidden",
     "hiddenCommits_other": "{{count}} commits hidden",
     "collapseAll": "Collapse all merges",
-    "expandAll": "Expand all merges"
+    "expandAll": "Expand all merges",
+    "bisectStart": "Start bisect …",
+    "bisectRunning": "A bisect is already running",
+    "bisectGood": "Bisect: mark as good",
+    "bisectBad": "Bisect: mark as bad",
+    "bisectSkip": "Bisect: skip this commit"
   },
   "wip": {
     "noChanges": "no changes",

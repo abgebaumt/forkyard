@@ -698,5 +698,20 @@
       "title": "Show reflog",
       "keywords": "reflog, history of HEAD, lost commits, recover"
     }
+  },
+  "bisect": {
+    "good": {
+      "title": "Bisect: mark the commit under test as good"
+    },
+    "bad": {
+      "title": "Bisect: mark the commit under test as bad"
+    },
+    "skip": {
+      "title": "Bisect: skip the commit under test"
+    },
+    "end": {
+      "title": "End bisect"
+    },
+    "notRunning": "No bisect is running"
   }
 }

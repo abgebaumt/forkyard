@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -67,6 +67,7 @@ export const qk = {
   status: (repoId: Id) => ["repo", repoId, "status"] as const,
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
   reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
+  bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
   commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
   diff: (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) =>
@@ -224,6 +225,10 @@ export const useReflog = (repoId: Id | null | undefined, refName: string | null)
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: enabledFor(repoId),
   });
+
+/** Bisect state from the Git directory (also one started on the command line). */
+export const useBisectStatus = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.bisect(repoId ?? ""), queryFn: (): Promise<BisectStatus> => core.bisectStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
 const isLive = (source: DiffSource) =>
@@ -468,11 +473,11 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog"]);
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL.
 const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo"]);
-const OPERATION_PARTS = new Set(["status", "conflict", "undo"]);
+const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
 
 /** What a `repo:changed` means for a repo's queries. */
 export function invalidateRepo(client: QueryClient, repoId: Id, what: RepoChange[]): Promise<void> {

@@ -1,0 +1,34 @@
+{
+  "bar": {
+    "title": "Bisect",
+    "step": "Step {{step}} of ~{{total}} · testing {{sha}}",
+    "waitingGood": "Mark a good commit to begin",
+    "waitingBad": "Mark a bad commit to begin",
+    "waitingBoth": "Mark a bad and a good commit to begin",
+    "found": "First bad commit: {{sha}}",
+    "onlySkipped": "Only skipped commits are left – the first bad commit is one of them",
+    "good": "Good",
+    "bad": "Bad",
+    "skip": "Skip",
+    "showResult": "Show details",
+    "end": "End bisect"
+  },
+  "start": {
+    "title": "Start bisect",
+    "label": "Start bisect",
+    "confirm": "Start bisect",
+    "twoBody": "Which of the two commits is bad (has the bug) and which is good?",
+    "option": "Bad: {{bad}} · Good: {{good}}",
+    "pickBody": "{{sha}} is the bad commit. Choose a branch or tag where everything still worked.",
+    "pickLabel": "Good commit",
+    "noRefs": "No other branch or tag – select two commits in the graph instead."
+  },
+  "mark": {
+    "good": "Mark as good",
+    "bad": "Mark as bad",
+    "skip": "Skip commit"
+  },
+  "end": {
+    "label": "End bisect"
+  }
+}

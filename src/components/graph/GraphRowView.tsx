@@ -12,6 +12,7 @@ import { graphStats } from "./GraphCanvas";
 import { DetachedHeadChip, GhostLabel, HEAD_CHIP_WIDTH, RowRefs } from "./RowRefs";
 import { useRowDim, useRowGhost, type RowMarks } from "./rowMarks";
 import { locale, t } from "../../i18n";
+import type { BisectMark } from "../../screens/Bisect/model";
 
 /** What all rows need in common; the object stays the same as long as none of it changes. */
 export interface RowShared {
@@ -26,6 +27,8 @@ export interface RowShared {
   pinned: ReadonlySet<string>;
   /** No branch checked out: the HEAD commit gets the "HEAD" marker. */
   detached: boolean;
+  /** Bisect marks per commit (good, bad, skipped); empty without a bisect. */
+  bisect: ReadonlyMap<string, BisectMark>;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +175,21 @@ function SyncArrow({ sync }: { sync: Exclude<SyncMark, "none"> }) {
   );
 }
 
+const BISECT_LABELS: Record<BisectMark, string> = {
+  good: t("graph.row.bisectGood"),
+  bad: t("graph.row.bisectBad"),
+  skip: t("graph.row.bisectSkip"),
+};
+const BISECT_TONES: Record<BisectMark, string> = { good: "text-success", bad: "text-danger", skip: "text-text-muted" };
+
+function BisectChip({ mark }: { mark: BisectMark }) {
+  return (
+    <span data-bisect={mark} className={cn("shrink-0 text-sm font-medium", BISECT_TONES[mark])}>
+      {BISECT_LABELS[mark]}
+    </span>
+  );
+}
+
 function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode {
   if (row.kind === "wip") return <WipMessage repoId={shared.repoId} />;
   const marker = hit ? (
@@ -193,10 +211,12 @@ function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode 
       </>
     );
   }
+  const mark = row.sha ? shared.bisect.get(row.sha) : undefined;
   const before = (
     <>
       {marker}
       {row.kind === "merge" && row.sha ? <CollapseToggle repoId={shared.repoId} sha={row.sha} collapsed={row.collapsedCount !== null} tooLarge={row.collapseTooLarge} /> : null}
+      {mark ? <BisectChip mark={mark} /> : null}
       {row.sync !== "none" ? <SyncArrow sync={row.sync} /> : null}
     </>
   );

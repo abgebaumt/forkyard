@@ -1,0 +1,34 @@
+{
+  "bar": {
+    "title": "Bisect",
+    "step": "Schritt {{step}} von ~{{total}} · teste {{sha}}",
+    "waitingGood": "Markiere einen guten Commit, um zu beginnen",
+    "waitingBad": "Markiere einen schlechten Commit, um zu beginnen",
+    "waitingBoth": "Markiere einen schlechten und einen guten Commit, um zu beginnen",
+    "found": "Erster schlechter Commit: {{sha}}",
+    "onlySkipped": "Nur noch übersprungene Commits übrig – der erste schlechte ist einer davon",
+    "good": "Gut",
+    "bad": "Schlecht",
+    "skip": "Überspringen",
+    "showResult": "Details zeigen",
+    "end": "Bisect beenden"
+  },
+  "start": {
+    "title": "Bisect starten",
+    "label": "Bisect starten",
+    "confirm": "Bisect starten",
+    "twoBody": "Welcher der beiden Commits ist schlecht (hat den Fehler) und welcher gut?",
+    "option": "Schlecht: {{bad}} · Gut: {{good}}",
+    "pickBody": "{{sha}} ist der schlechte Commit. Wähle einen Branch oder Tag, auf dem noch alles funktionierte.",
+    "pickLabel": "Guter Commit",
+    "noRefs": "Kein anderer Branch oder Tag – wähle stattdessen zwei Commits im Graphen."
+  },
+  "mark": {
+    "good": "Als gut markieren",
+    "bad": "Als schlecht markieren",
+    "skip": "Commit überspringen"
+  },
+  "end": {
+    "label": "Bisect beenden"
+  }
+}

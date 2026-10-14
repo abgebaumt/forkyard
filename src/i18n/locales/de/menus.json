@@ -55,7 +55,12 @@
     "hiddenCommits_one": "1 Commit ausgeblendet",
     "hiddenCommits_other": "{{count}} Commits ausgeblendet",
     "collapseAll": "Alle Merges einklappen",
-    "expandAll": "Alle Merges ausklappen"
+    "expandAll": "Alle Merges ausklappen",
+    "bisectStart": "Bisect starten …",
+    "bisectRunning": "Es läuft bereits ein Bisect",
+    "bisectGood": "Bisect: als gut markieren",
+    "bisectBad": "Bisect: als schlecht markieren",
+    "bisectSkip": "Bisect: diesen Commit überspringen"
   },
   "wip": {
     "noChanges": "keine Änderungen",

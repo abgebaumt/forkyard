@@ -30,7 +30,7 @@ import { confirm, showOutput } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
 import { shortSha } from "../../app/format";
 import { branchMenu, commitMenu, dropMenu, stashMenu, tagMenu, wipMenu } from "../../app/menus";
-import { qk, queryClient, useGraph, useRefs, useSettings, useStashes, useStatus, useViewState } from "../../app/queries";
+import { qk, queryClient, useBisectStatus, useGraph, useRefs, useSettings, useStashes, useStatus, useViewState } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { layoutColumns, normalizeColumns, type ColumnState } from "../../components/graph/columns";
@@ -38,6 +38,8 @@ import { branchLabelOf, computeHighlight, computePinnedChain, decorateRow, EdgeH
 import { graphWidthFor, readMetrics, rootZoom } from "../../components/graph/geometry";
 import { GraphCanvas, type GraphDecor } from "../../components/graph/GraphCanvas";
 import { GraphHeader, type SmartToggle } from "../../components/graph/GraphHeader";
+import { BisectBar } from "../Bisect/BisectBar";
+import { bisectMarks } from "../Bisect/model";
 import { activeKey, changeCount, GraphRowView, ROW_SELECTED, rowFlags, rowKey, selectionOf, type RowShared } from "../../components/graph/GraphRowView";
 import { clearHighlight, currentHighlight, endHoverHighlight, hoverHighlight, toggleStickyHighlight, useHighlightTarget } from "../../components/graph/highlightStore";
 import { PointMenu, type PointMenuState } from "../../components/graph/PointMenu";
@@ -432,9 +434,11 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     };
   }, [rows, highlight, chains, flat.maxLane]);
 
+  const { data: bisectStatus } = useBisectStatus(repoId);
+  const bisect = useMemo(() => bisectMarks(bisectStatus), [bisectStatus]);
   const shared = useMemo<RowShared>(
-    () => ({ repoId, tabId, dateFormat, upstreams, marks, pinned, detached }),
-    [repoId, tabId, dateFormat, upstreams, marks, pinned, detached],
+    () => ({ repoId, tabId, dateFormat, upstreams, marks, pinned, detached, bisect }),
+    [repoId, tabId, dateFormat, upstreams, marks, pinned, detached, bisect],
   );
 
   // --- Selection and focus ----------------------------------------------------------------------
@@ -1003,6 +1007,7 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
   const graph = useGraph(repoId);
   const { data: status } = useStatus(repoId);
   const { data: viewState } = useViewState(repoId);
+  const { data: bisect } = useBisectStatus(repoId);
   const flat = useMemo(() => flatten(graph.data?.pages), [graph.data]);
   const { refetch, isFetching, error, errorUpdatedAt, dataUpdatedAt } = graph;
   const hasData = graph.data !== undefined;
@@ -1055,7 +1060,8 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
     }),
     [smartOn, refs, selection, repoId],
   );
-  const detachedSha = status && status.head.kind === "detached" && !status.operation ? status.head.sha : null;
+  // During a bisect HEAD is detached on purpose; the bisect bar says what is going on.
+  const detachedSha = status && status.head.kind === "detached" && !status.operation && !bisect?.active ? status.head.sha : null;
 
   const filtered = Boolean(viewState && (viewState.hiddenRefs.length > 0 || viewState.soloRefs.length > 0));
   const empty = hasData && flat.rows.length <= 1;
@@ -1063,6 +1069,7 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
 
   return (
     <section data-screen="commit-graph" data-state={state} className="flex h-full min-h-0 w-full min-w-0 flex-col bg-bg">
+      <BisectBar repoId={repoId} tabId={tabId} />
       {detachedSha ? <DetachedBar repoId={repoId} tabId={tabId} sha={detachedSha} /> : null}
       {filtered && viewState && hasData ? <FilterBar repoId={repoId} view={viewState} smart={smartOn && viewState.soloRefs.length > 0 ? selection : null} /> : null}
       {state === "ready" && graph.isRefetchError && !stale && !isFetching ? (
