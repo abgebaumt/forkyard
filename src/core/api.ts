@@ -68,6 +68,7 @@ import type {
   Profile,
   ProfileRef,
   PullMode,
+  PushExtra,
   PushResult,
   RebasePlan,
   RebasePlanRow,
@@ -380,7 +381,12 @@ export interface CoreCommands {
    * `force` always uses `--force-with-lease`.
    */
   /** `expected` (only with `force`): the state of the remote branch the prompt showed – only that one is overwritten. */
-  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null }): Promise<PushResult>;
+  /**
+   * `extra`: further branches and tags in the same push (force per branch only with lease, tags never
+   * forced); `atomic` (default true) = all or nothing (`--atomic`). With `extra` the result is
+   * `multi` with one entry per ref; errors before sending: `invalid_name`, `not_found`, `not_allowed`.
+   */
+  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null }): Promise<PushResult>;
   jobCancel(input: { jobId: string }): Promise<void>;
 
   // --- Stash, tags, undo, history ------------------------------------------------

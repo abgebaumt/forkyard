@@ -489,8 +489,19 @@ pub async fn pull(core: State<'_, Core>, repo_id: String, job_id: String, mode: 
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn push(core: State<'_, Core>, repo_id: String, job_id: String, branch: Option<String>, remote: Option<String>, remote_branch: Option<String>, force: bool, expected: Option<String>) -> R<PushResult> {
-    c::sync::push(&core, repo_id, job_id, branch, remote, remote_branch, force, expected).await
+pub async fn push(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    branch: Option<String>,
+    remote: Option<String>,
+    remote_branch: Option<String>,
+    force: bool,
+    expected: Option<String>,
+    extra: Option<Vec<PushExtra>>,
+    atomic: Option<bool>,
+) -> R<PushResult> {
+    c::sync::push_with(&core, repo_id, job_id, branch, remote, remote_branch, force, expected, extra, atomic).await
 }
 
 #[tauri::command]

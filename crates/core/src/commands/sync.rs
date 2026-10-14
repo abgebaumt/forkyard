@@ -30,7 +30,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd};
 use crate::jobs::{CancelToken, Job};
-use crate::model::{FetchFailure, FetchResult, Head, OpResult, PullMode, PushResult, RepoChange};
+use crate::model::{FetchFailure, FetchResult, Head, OpResult, PullMode, PushExtra, PushRefResult, PushRefStatus, PushResult, RepoChange};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
@@ -529,14 +529,51 @@ pub async fn push(
     result
 }
 
-/// The actual push. The caller holds the network lock, NOT the write lock: it is
-/// only taken here briefly, to record the upstream after a successful transfer.
-/// Does not report `repo:changed`: after `Done`, `refs` are affected, with `created_upstream`
-/// also `config`.
-///
-/// A rejected push (the remote has foreign commits, or the state there has changed since the
-/// last fetch) is not an error but `PushResult::Rejected`.
-pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelToken, job: Option<&Job>, request: PushRequest<'_>) -> CoreResult<PushResult> {
+/// `push` with further branches and tags: `extra` goes along in the same `git push` (each force
+/// only as `--force-with-lease=<ref>:<expected>`), with `atomic` (default on) as `--atomic`. The
+/// result is `PushResult::Multi` with one line per ref; without `extra` it is exactly `push`.
+#[allow(clippy::too_many_arguments)]
+pub async fn push_with(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    branch: Option<String>,
+    remote: Option<String>,
+    remote_branch: Option<String>,
+    force: bool,
+    expected: Option<String>,
+    extra: Option<Vec<PushExtra>>,
+    atomic: Option<bool>,
+) -> CoreResult<PushResult> {
+    let extra = extra.unwrap_or_default();
+    if extra.is_empty() {
+        return push(core, repo_id, job_id, branch, remote, remote_branch, force, expected).await;
+    }
+    let job = core.start_job(&job_id, Some(&repo_id))?;
+    let request = PushRequest { branch: branch.as_deref(), remote: remote.as_deref(), remote_branch: remote_branch.as_deref(), force, expected: expected.as_deref() };
+    let result = with_network_lock(core, &repo_id, job.token(), push_many(core, &repo_id, &job, request, &extra, atomic.unwrap_or(true))).await;
+    if let Ok(PushResult::Multi { refs, .. }) = &result {
+        if refs.iter().any(|item| item.status == PushRefStatus::Ok) {
+            core.emit_repo_changed(&repo_id, &[RepoChange::Refs, RepoChange::Config]);
+        }
+    }
+    job.finish(&result);
+    result
+}
+
+/// Where the primary branch goes (see `push_transfer`).
+struct PushTarget {
+    branch: String,
+    local_ref: String,
+    remote: String,
+    remote_ref: String,
+    remote_branch: String,
+    /// The core records the upstream after a successful push.
+    set_upstream: bool,
+    created_upstream: bool,
+}
+
+async fn push_target(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> CoreResult<PushTarget> {
     let known = remotes::read_remotes(core, repo_id).await?;
     if known.is_empty() {
         return Err(no_remote());
@@ -580,32 +617,170 @@ pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelTok
     };
     let created_upstream = set_upstream && configured.as_ref() != Some(&(remote.clone(), remote_ref.clone()));
     let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(&remote_ref).to_string();
+    Ok(PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream })
+}
+
+/// `--force-with-lease=<remote_ref>:<expected>` for one branch: only the state we know from the
+/// tracking ref (or the one the prompt showed, `expected`) may be overwritten; if we don't know the
+/// branch there, it must not exist. `Err(Rejected)` if the tracking ref moved away from what the
+/// prompt showed.
+async fn lease(core: &Core, repo_id: &str, remote: &str, remote_ref: &str, expected: Option<&str>) -> CoreResult<Result<String, PushResult>> {
+    let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(remote_ref);
+    let tracking = format!("refs/remotes/{remote}/{remote_branch}");
+    let known_tip = resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default();
+    let expected = match expected.map(str::trim).filter(|sha| sha.len() >= 7 && sha.bytes().all(|b| b.is_ascii_hexdigit())) {
+        Some(shown) => {
+            if !known_tip.eq_ignore_ascii_case(shown) {
+                return Ok(Err(PushResult::Rejected {
+                    reason: format!(
+                        "The remote branch “{remote}/{remote_branch}” changed while the confirmation was open. Nothing was overwritten. Choose “Force push” again and check which commits would be lost now."
+                    ),
+                }));
+            }
+            shown.to_string()
+        }
+        None => known_tip,
+    };
+    Ok(Ok(format!("--force-with-lease={remote_ref}:{expected}")))
+}
+
+/// Source and target of an extra ref: `refs/heads/<b>` or `refs/tags/<t>` locally, the same kind on
+/// the remote under `remote_name` (default: the same name). Tags are never forced.
+async fn extra_refspec(core: &Core, repo_id: &str, item: &PushExtra) -> CoreResult<(String, String)> {
+    let local = item.local.trim();
+    let (kind, name) = if let Some(name) = local.strip_prefix("refs/heads/") {
+        ("refs/heads/", name)
+    } else if let Some(name) = local.strip_prefix("refs/tags/") {
+        ("refs/tags/", name)
+    } else {
+        return Err(CoreError::invalid_name(format!("“{local}” is neither a local branch nor a tag (expected refs/heads/… or refs/tags/…).")));
+    };
+    util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("Invalid name “{name}”: {reason}")))?;
+    if resolve_commit(core, repo_id, local).await?.is_none() {
+        return Err(CoreError::not_found(format!("“{name}” does not exist.")));
+    }
+    if item.force && kind == "refs/tags/" {
+        return Err(CoreError::not_allowed(format!("The tag “{name}” can't be forced; tags are only pushed when they are new on the remote.")));
+    }
+    let target = item.remote_name.as_deref().map(str::trim).filter(|n| !n.is_empty()).unwrap_or(name);
+    util::check_ref_name(target).map_err(|reason| CoreError::invalid_name(format!("Invalid name on the remote: {reason}")))?;
+    Ok((local.to_string(), format!("{kind}{target}")))
+}
+
+/// The primary branch plus `extra` in one `git push`. The caller holds the network lock.
+async fn push_many(core: &Core, repo_id: &str, job: &Job, request: PushRequest<'_>, extra: &[PushExtra], atomic: bool) -> CoreResult<PushResult> {
+    let cancel = job.token();
+    let target = push_target(core, repo_id, &request).await?;
+    let mut specs: Vec<(String, String)> = vec![(target.local_ref.clone(), target.remote_ref.clone())];
+    let mut leases: Vec<String> = Vec::new();
+    if request.force {
+        match lease(core, repo_id, &target.remote, &target.remote_ref, request.expected).await? {
+            Ok(arg) => leases.push(arg),
+            Err(rejected) => return Ok(rejected),
+        }
+    }
+    for item in extra {
+        let (local, remote_ref) = extra_refspec(core, repo_id, item).await?;
+        if specs.iter().any(|(_, known)| *known == remote_ref) {
+            return Err(CoreError::not_allowed(format!("“{remote_ref}” is named twice in the push.")));
+        }
+        if item.force {
+            match lease(core, repo_id, &target.remote, &remote_ref, None).await? {
+                Ok(arg) => leases.push(arg),
+                Err(rejected) => return Ok(rejected),
+            }
+        }
+        specs.push((local, remote_ref));
+    }
+
+    let hooks = Hooks::start(core, repo_id).await;
+    let mut cmd = hooks.wrap(core.git_for(repo_id)?).args(["push", "--porcelain", "--progress"]);
+    if atomic {
+        cmd = cmd.arg("--atomic");
+    }
+    cmd = cmd.args(&leases).arg("--").arg(&target.remote);
+    for (local, remote_ref) in &specs {
+        cmd = cmd.arg(format!("{local}:{remote_ref}"));
+    }
+    let out = cmd.check(false).network().run_stream(cancel, &mut |line| job.progress_line(line)).await;
+    let ran = hooks.finish(core, repo_id);
+    let out = out?;
+    if !out.success() {
+        if let Some(error) = hook_failure(&ran, &["pre-push"], &out, "the push") {
+            return Err(error);
+        }
+    }
+
+    let mut refs: Vec<PushRefResult> = Vec::with_capacity(specs.len());
+    let mut reported = false;
+    for (local, remote_ref) in &specs {
+        let line = exact_push_line(&out.stdout, remote_ref);
+        reported |= line.is_some();
+        let (status, forced, reason) = match line {
+            Some((' ' | '*' | '-', _)) => (PushRefStatus::Ok, false, None),
+            Some(('+', _)) => (PushRefStatus::Ok, true, None),
+            Some(('=', _)) => (PushRefStatus::UpToDate, false, None),
+            Some((_, summary)) => (PushRefStatus::Rejected, false, Some(rejection_reason(&summary))),
+            None => (PushRefStatus::Rejected, false, Some("Git reported nothing for this ref.".to_string())),
+        };
+        refs.push(PushRefResult { local: local.clone(), remote_ref: remote_ref.clone(), status, forced, reason });
+    }
+    if !reported {
+        return Err(push_error(core, repo_id, &out).await);
+    }
+    if target.set_upstream && refs[0].status != PushRefStatus::Rejected {
+        with_lock_cancellable(core, repo_id, cancel, async {
+            core.git_for(repo_id)?.args(["config", &format!("branch.{}.remote", target.branch), &target.remote]).run().await?;
+            core.git_for(repo_id)?.args(["config", &format!("branch.{}.merge", target.branch), &target.remote_ref]).run().await?;
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(PushResult::Multi { remote: target.remote, atomic, refs })
+}
+
+/// The `--porcelain` line for exactly `remote_ref` (unlike `parse_push_porcelain`, no fallback to
+/// the first line): flag and summary.
+fn exact_push_line(stdout: &[u8], remote_ref: &str) -> Option<(char, String)> {
+    for line in util::split_records(stdout, b'\n') {
+        let line = util::decode_lossy(line.strip_suffix(b"\r").unwrap_or(line));
+        let mut parts = line.splitn(3, '\t');
+        let (Some(flag), Some(refs), Some(summary)) = (parts.next(), parts.next(), parts.next()) else { continue };
+        let mut chars = flag.chars();
+        let (Some(flag), None) = (chars.next(), chars.next()) else { continue };
+        if refs.rsplit_once(':').is_some_and(|(_, to)| to == remote_ref) {
+            return Some((flag, summary.trim().to_string()));
+        }
+    }
+    None
+}
+
+/// "[rejected] (non-fast-forward)" → "non-fast-forward"; without parentheses the whole summary.
+fn rejection_reason(summary: &str) -> String {
+    match (summary.rfind('('), summary.rfind(')')) {
+        (Some(open), Some(close)) if close > open => summary[open + 1..close].trim().to_string(),
+        _ => summary.trim().to_string(),
+    }
+}
+
+/// The actual push. The caller holds the network lock, NOT the write lock: it is
+/// only taken here briefly, to record the upstream after a successful transfer.
+/// Does not report `repo:changed`: after `Done`, `refs` are affected, with `created_upstream`
+/// also `config`.
+///
+/// A rejected push (the remote has foreign commits, or the state there has changed since the
+/// last fetch) is not an error but `PushResult::Rejected`.
+pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelToken, job: Option<&Job>, request: PushRequest<'_>) -> CoreResult<PushResult> {
+    let PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream } = push_target(core, repo_id, &request).await?;
 
     // Without `--set-upstream`: the core writes the configuration itself afterwards, under the write lock.
     let hooks = Hooks::start(core, repo_id).await;
     let mut cmd = hooks.wrap(core.git_for(repo_id)?).args(["push", "--porcelain", "--progress"]);
     if request.force {
-        // Never a bare --force: only the state we know from the remote is overwritten.
-        // If we don't know the branch there at all, it must not exist either.
-        let tracking = format!("refs/remotes/{remote}/{remote_branch}");
-        let known_tip = resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default();
-        let expected = match request.expected.map(str::trim).filter(|sha| sha.len() >= 7 && sha.bytes().all(|b| b.is_ascii_hexdigit())) {
-            // The prompt showed a specific state: only that one may be overwritten.
-            // If a fetch (including the automatic one) has moved the tracking ref since, Git would
-            // not know – hence the comparison here, before anything is transferred.
-            Some(shown) => {
-                if !known_tip.eq_ignore_ascii_case(shown) {
-                    return Ok(PushResult::Rejected {
-                        reason: format!(
-                            "The remote branch “{remote}/{remote_branch}” changed while the confirmation was open. Nothing was overwritten. Choose “Force push” again and check which commits would be lost now."
-                        ),
-                    });
-                }
-                shown.to_string()
-            }
-            None => known_tip,
-        };
-        cmd = cmd.arg(format!("--force-with-lease={remote_ref}:{expected}"));
+        match lease(core, repo_id, &remote, &remote_ref, request.expected).await? {
+            Ok(arg) => cmd = cmd.arg(arg),
+            Err(rejected) => return Ok(rejected),
+        }
     }
     let out = cmd
         .arg("--")
@@ -796,6 +971,9 @@ pub async fn job_cancel(core: &Core, job_id: String) -> CoreResult<()> {
     core.jobs.cancel(&job_id);
     Ok(())
 }
+
+#[cfg(test)]
+mod push_many_tests;
 
 #[cfg(test)]
 mod tests {

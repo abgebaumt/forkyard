@@ -676,11 +676,35 @@ export type MergeMode = "default" | "ff_only" | "no_ff" | "squash";
 export type PullMode = "ff" | "ff_only" | "rebase";
 export type ResetMode = "soft" | "mixed" | "hard";
 
+/** A further branch or tag for the same push (`push` with `extra`). */
+export interface PushExtra {
+  /** `refs/heads/<branch>` or `refs/tags/<tag>`. */
+  local: string;
+  /** Name on the remote without `refs/heads/` / `refs/tags/`; null = the same name. */
+  remoteName: string | null;
+  /** Branches only: overwrite with `--force-with-lease`. Tags are never forced. */
+  force: boolean;
+}
+
+export type PushRefStatus = "ok" | "up_to_date" | "rejected";
+
+export interface PushRefResult {
+  local: string;
+  /** Full ref on the remote. */
+  remoteRef: string;
+  status: PushRefStatus;
+  forced: boolean;
+  /** Git's reason for a rejection, e.g. "non-fast-forward", "atomic push failed". */
+  reason: string | null;
+}
+
 export type PushResult =
   | { status: "done"; remote: string; branch: string; createdUpstream: boolean; forced: boolean }
   | { status: "up_to_date" }
   /** The remote has commits that are missing locally. */
-  | { status: "rejected"; reason: string };
+  | { status: "rejected"; reason: string }
+  /** Several refs in one push (`extra`): one result per ref, the primary branch first. */
+  | { status: "multi"; remote: string; atomic: boolean; refs: PushRefResult[] };
 
 export interface FetchResult {
   /** Number of changed remote refs. */

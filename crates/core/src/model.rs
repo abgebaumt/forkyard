@@ -786,6 +786,39 @@ pub enum ResetMode {
     Hard,
 }
 
+/// A further branch or tag for the same push (`push` with `extra`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushExtra {
+    /// Full local ref: `refs/heads/<branch>` or `refs/tags/<tag>`.
+    pub local: String,
+    /// Name on the remote without `refs/heads/` / `refs/tags/`; `None` = the same name.
+    pub remote_name: Option<String>,
+    /// Branches only: overwrite with `--force-with-lease` (against the tracking ref).
+    pub force: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PushRefStatus {
+    Ok,
+    UpToDate,
+    Rejected,
+}
+
+/// Result of one ref in a push with several refs (from `git push --porcelain`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PushRefResult {
+    pub local: String,
+    /// Full ref on the remote.
+    pub remote_ref: String,
+    pub status: PushRefStatus,
+    pub forced: bool,
+    /// Git's reason for a rejection, e.g. "non-fast-forward", "atomic push failed".
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum PushResult {
@@ -793,6 +826,8 @@ pub enum PushResult {
     UpToDate,
     /// The remote has commits that are missing locally.
     Rejected { reason: String },
+    /// Several refs in one push (`extra`): one result per ref, the primary branch first.
+    Multi { remote: String, atomic: bool, refs: Vec<PushRefResult> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1999,6 +2034,27 @@ mod tests {
         assert_eq!(
             serde_json::to_value(PushResult::Rejected { reason: "x".into() }).unwrap(),
             json!({"status":"rejected","reason":"x"})
+        );
+    }
+
+    #[test]
+    fn push_many_json() {
+        let extra: PushExtra = serde_json::from_value(json!({"local":"refs/tags/v1","remoteName":null,"force":false})).unwrap();
+        assert_eq!(extra, PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: false });
+        let multi = PushResult::Multi {
+            remote: "origin".into(),
+            atomic: true,
+            refs: vec![PushRefResult {
+                local: "refs/heads/main".into(),
+                remote_ref: "refs/heads/main".into(),
+                status: PushRefStatus::Rejected,
+                forced: false,
+                reason: Some("atomic push failed".into()),
+            }],
+        };
+        assert_eq!(
+            serde_json::to_value(&multi).unwrap(),
+            json!({"status":"multi","remote":"origin","atomic":true,"refs":[{"local":"refs/heads/main","remoteRef":"refs/heads/main","status":"rejected","forced":false,"reason":"atomic push failed"}]})
         );
     }
 
