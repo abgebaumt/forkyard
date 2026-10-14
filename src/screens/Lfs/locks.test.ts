@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { LfsLock, LfsLockList, LfsStatus } from "../../core";
-import { fileLock, lockIndex, lockMenuState, locksWanted, panelActions } from "./locks";
+import type { FileChange, LfsLock, LfsLockList, LfsStatus } from "../../core";
+import { fileLock, foreignStaged, foreignWarning, lockIndex, lockMenuState, locksWanted, panelActions } from "./locks";
 
 const lock = (path: string, owner: string, ours: boolean): LfsLock => ({ id: path, path, owner, lockedAt: "2026-01-02T03:04:05Z", ours });
 const list = (...locks: LfsLock[]): LfsLockList => ({ locks, fetchedAt: "2026-01-02T03:05:00.000Z" });
@@ -56,5 +56,24 @@ describe("File menu: lock entries", () => {
 
   it("without known locks every file is lockable", () => {
     expect(lockMenuState(["a.psd"], lockIndex(undefined))).toEqual({ lockable: ["a.psd"], ownLocked: [], foreignLocked: [] });
+  });
+});
+
+describe("Commit panel: staged files locked by others", () => {
+  const staged = (path: string): FileChange => ({ path, oldPath: null, status: "modified", area: "staged", isBinary: true, isLfs: true, added: null, removed: null, conflict: null });
+  const index = lockIndex(list(lock("plan.psd", "Lena Berg", false), lock("karte.psd", "Jonas Weiß", false), lock("meins.psd", "Test Person", true)));
+
+  it("finds only other people's locks among the staged files", () => {
+    expect(foreignStaged([staged("plan.psd"), staged("meins.psd"), staged("frei.psd")], index).map((l) => l.path)).toEqual(["plan.psd"]);
+    expect(foreignStaged([], index)).toEqual([]);
+  });
+
+  it("names the file and owner – or counts and lists the owners once", () => {
+    expect(foreignWarning([])).toBeNull();
+    expect(foreignWarning(foreignStaged([staged("plan.psd")], index))).toBe("“plan.psd” is locked by Lena Berg. You can commit, but the push may be refused.");
+    const many = foreignStaged([staged("plan.psd"), staged("karte.psd")], index);
+    expect(foreignWarning(many)).toBe("2 staged files are locked by others (Lena Berg, Jonas Weiß). You can commit, but the push may be refused.");
+    const sameOwner = [lock("a.psd", "Lena Berg", false), lock("b.psd", "Lena Berg", false)];
+    expect(foreignWarning(sameOwner)).toBe("2 staged files are locked by others (Lena Berg). You can commit, but the push may be refused.");
   });
 });

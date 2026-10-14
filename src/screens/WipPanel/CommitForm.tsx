@@ -1,5 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useState } from "react";
-import { GitCommitHorizontal } from "lucide-react";
+import { GitCommitHorizontal, Lock } from "lucide-react";
 import type { Id } from "../../core";
 import { useCommitDetails, useDraft, useRemotes, useSettings, useStatus } from "../../app/queries";
 import { useBusy } from "../../app/store";
@@ -8,6 +8,7 @@ import { Checkbox, TextArea, TextField } from "../../ui/Field";
 import { Tip } from "../../ui/Tooltip";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
+import { foreignStaged, foreignWarning, useLockIndex } from "../Lfs/locks";
 import { amendHeadMoved, commitChanges, planCommit, pushAfterState, setAmend, wipBusy } from "./actions";
 import { EMPTY_DRAFT, applyTemplate, flushDraft, getDraft, splitMessage, updateDraft, useCommitTemplate } from "./draft";
 import { useWipStore, useWipTab } from "./state";
@@ -99,6 +100,8 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const plan = planCommit(status, draft, shift);
   const push = pushAfterState(wip.pushAfter, settings, status, remotes);
   const busy = committing || continuing;
+  const locks = useLockIndex(repoId);
+  const lockWarning = foreignWarning(foreignStaged(status?.staged ?? [], locks));
 
   const amendBlocked = operation
     ? t("wip.form.amendOperation")
@@ -201,6 +204,12 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         />
         <Checkbox label={t("wip.form.skipHooks")} checked={wip.skipHooks} onCheckedChange={(checked) => patch(tabId, { skipHooks: checked })} />
       </div>
+      {lockWarning ? (
+        <p role="status" data-commit-lock-warning="" className="flex items-start gap-1.5 text-sm text-text-muted">
+          <Lock className="mt-0.5 size-3.5 shrink-0 text-warning" aria-hidden />
+          <span className="min-w-0 break-words">{lockWarning}</span>
+        </p>
+      ) : null}
       <Tip
         side="top"
         label={plan.blocked ?? (plan.stageAll ? t("wip.form.tipStageAll") : plan.mode === "commit" ? t("wip.form.tipCommit") : plan.label)}

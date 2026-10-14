@@ -169,6 +169,9 @@
     "pushAfter": "Push after commit",
     "skipHooks": "Skip Git hooks",
     "tipStageAll": "Stages all changes and commits",
-    "tipCommit": "Commits the staged files"
+    "tipCommit": "Commits the staged files",
+    "lockedByOther": "“{{path}}” is locked by {{owner}}. You can commit, but the push may be refused.",
+    "lockedByOthers_one": "{{count}} staged file is locked by others ({{owners}}). You can commit, but the push may be refused.",
+    "lockedByOthers_other": "{{count}} staged files are locked by others ({{owners}}). You can commit, but the push may be refused."
   }
 }

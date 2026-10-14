@@ -4,7 +4,7 @@
  * Pure functions plus `useLockIndex`; the actions are in app/actions/lfs.ts.
  */
 import { useMemo } from "react";
-import type { Id, LfsLock, LfsLockList, LfsStatus } from "../../core";
+import type { FileChange, Id, LfsLock, LfsLockList, LfsStatus } from "../../core";
 import { useLfsInUse, useLfsLocks } from "../../app/queries";
 import type { ConfirmOptions } from "../../app/dialogs";
 import { t } from "../../i18n";
@@ -87,4 +87,23 @@ export function lockMenuState(paths: string[], index: LockIndex): LockMenuState 
     else state.foreignLocked.push(lock);
   }
   return state;
+}
+
+/** Staged files someone else has locked (in the order of the staged list). */
+export function foreignStaged(staged: FileChange[], index: LockIndex): LfsLock[] {
+  const out: LfsLock[] = [];
+  for (const file of staged) {
+    const lock = index.get(file.path);
+    if (lock && !lock.ours) out.push(lock);
+  }
+  return out;
+}
+
+/** The commit panel's warning; null when there is nothing to warn about. Committing stays possible. */
+export function foreignWarning(locks: LfsLock[]): string | null {
+  const first = locks[0];
+  if (!first) return null;
+  if (locks.length === 1) return t("wip.form.lockedByOther", { path: first.path, owner: first.owner });
+  const owners = [...new Set(locks.map((lock) => lock.owner))].join(", ");
+  return t("wip.form.lockedByOthers", { count: locks.length, owners });
 }

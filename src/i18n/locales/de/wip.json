@@ -169,6 +169,9 @@
     "pushAfter": "Nach dem Commit pushen",
     "skipHooks": "Git Hooks überspringen",
     "tipStageAll": "Stagt alle Änderungen und committet",
-    "tipCommit": "Committet die gestagten Dateien"
+    "tipCommit": "Committet die gestagten Dateien",
+    "lockedByOther": "„{{path}}“ ist von {{owner}} gesperrt. Committen geht, der Push kann aber abgelehnt werden.",
+    "lockedByOthers_one": "{{count}} gestagte Datei ist von anderen gesperrt ({{owners}}). Committen geht, der Push kann aber abgelehnt werden.",
+    "lockedByOthers_other": "{{count}} gestagte Dateien sind von anderen gesperrt ({{owners}}). Committen geht, der Push kann aber abgelehnt werden."
   }
 }
