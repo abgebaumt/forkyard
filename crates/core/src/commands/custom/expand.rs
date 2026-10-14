@@ -142,6 +142,8 @@ fn ps_word_char(c: char) -> bool {
 /// both of which yield nothing. So a reference and the text around it in the same word become one
 /// expandable string: `"${env:FORKYARD_FILE}.bak"`. A leading `-Name:` stays outside the string,
 /// so it is still a named parameter. Inside a string of the template the bare reference is enough.
+/// A variable of the template right before (`$HOME/${file}`) joins the string; such a string at the
+/// start of a statement is called with `&` (`& "${env:FORKYARD_FILE}" --help`).
 fn powershell_line(pieces: &[Piece<'_>]) -> String {
     #[derive(Clone, Copy, PartialEq)]
     enum Quote {
@@ -155,8 +157,11 @@ fn powershell_line(pieces: &[Piece<'_>]) -> String {
     for piece in pieces {
         match piece {
             Piece::Text(literal) => {
-                for c in literal.chars() {
-                    let word = quote == Quote::None && !escaped && ps_word_char(c);
+                let chars: Vec<char> = literal.chars().collect();
+                for (at, &c) in chars.iter().enumerate() {
+                    // `$HOME`, `$env:TEMP`: a variable of the template expands inside the string as well.
+                    let variable = c == '$' && chars.get(at + 1).is_some_and(|&next| next.is_alphanumeric() || next == '_');
+                    let word = quote == Quote::None && !escaped && (ps_word_char(c) || variable);
                     if escaped {
                         escaped = false;
                     } else {
@@ -186,8 +191,18 @@ fn powershell_line(pieces: &[Piece<'_>]) -> String {
     };
     let mut line = String::new();
     let mut index = 0;
+    // At the start of a statement (line start, after `;`, `|`, `&&`, a line break): a quoted string
+    // there is a value, so it gets the call operator `&`.
+    let mut command_position = true;
+    let mut previous = ' ';
     while index < items.len() {
         if !in_word(&items[index]) {
+            if let PsItem::Char { c, .. } = items[index] {
+                if !c.is_whitespace() {
+                    command_position = matches!(c, ';' | '|' | '\n' | '\r') || (c == '&' && previous == '&');
+                    previous = c;
+                }
+            }
             push(&mut line, &items[index]);
             index += 1;
             continue;
@@ -203,12 +218,17 @@ fn powershell_line(pieces: &[Piece<'_>]) -> String {
                         start = colon + 1;
                     }
                 }
+                if start == 0 && command_position {
+                    line.push_str("& ");
+                }
                 word[..start].iter().for_each(|item| push(&mut line, item));
                 line.push('"');
                 word[start..].iter().for_each(|item| push(&mut line, item));
                 line.push('"');
             }
         }
+        command_position = false;
+        previous = 'a';
         index = end;
     }
     line
@@ -362,6 +382,27 @@ mod tests {
         assert_eq!(windows_line("echo \"x ${file}.bak\" 'y'"), "echo \"x ${env:FORKYARD_FILE}.bak\" 'y'");
     }
 
+    #[test]
+    fn powershell_keeps_a_variable_of_the_template_next_to_a_placeholder() {
+        // Inside an expandable string `$HOME` and `$env:TEMP` expand as they do unquoted.
+        assert_eq!(windows_line("copy x $HOME/${file}"), "copy x \"$HOME/${env:FORKYARD_FILE}\"");
+        assert_eq!(windows_line("copy x $env:TEMP\\${file}"), "copy x \"$env:TEMP\\${env:FORKYARD_FILE}\"");
+        // Without a placeholder in the word nothing changes.
+        assert_eq!(windows_line("echo $HOME ${file}"), "echo $HOME \"${env:FORKYARD_FILE}\"");
+        // A `$` that starts no variable stays outside.
+        assert_eq!(windows_line("echo $(${file})"), "echo $(\"${env:FORKYARD_FILE}\")");
+    }
+
+    #[test]
+    fn powershell_calls_a_placeholder_in_command_position() {
+        // A quoted string at the start of a statement is a value, not a call: `&` makes it one.
+        assert_eq!(windows_line("${file} --help"), "& \"${env:FORKYARD_FILE}\" --help");
+        assert_eq!(windows_line("cd x; ${file}.exe -v | ${file}"), "cd x; & \"${env:FORKYARD_FILE}.exe\" -v | & \"${env:FORKYARD_FILE}\"");
+        // Arguments, a call already written out and expressions stay as they are.
+        assert_eq!(windows_line("& ${file} -v"), "& \"${env:FORKYARD_FILE}\" -v");
+        assert_eq!(windows_line("echo (${file})"), "echo (\"${env:FORKYARD_FILE}\")");
+    }
+
     /// Prints its arguments joined with `|`.
     const ECHO_ARGS: &str = "& { [Console]::Out.Write(($args -join '|')) } ${file}.bak ${sha}[0] ${input:text}_old ${repo}:x \"q ${branch}.y\"";
 
@@ -390,5 +431,18 @@ mod tests {
             String::from_utf8_lossy(&output.stdout),
             "docs/read me.md.bak|abc1234[0]|a b; $(touch x)_old|C:\\Users\\anna\\my repo:x|q feature/apples+pears.y"
         );
+    }
+
+    /// A variable of the template next to a placeholder, in the real PowerShell.
+    #[cfg(windows)]
+    #[test]
+    fn powershell_expands_a_template_variable_next_to_a_placeholder() {
+        let mut d = def(Shell, "& { [Console]::Out.Write(($args -join '|')) } $env:FORKYARD_SHA/${file} x$env:FORKYARD_SHA");
+        d.shell = true;
+        let v = values();
+        let (program, args) = shell_line(&d, &v, true).unwrap();
+        let output = std::process::Command::new(program).args(args).envs(environment(&v)).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "abc1234/docs/read me.md|xabc1234");
     }
 }
