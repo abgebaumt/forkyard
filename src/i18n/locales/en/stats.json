@@ -1,0 +1,117 @@
+{
+  "title": "Statistics",
+  "ariaLabel": "Repository statistics",
+  "job": "Statistics",
+  "preset": {
+    "label": "Period",
+    "all": "All time",
+    "year": "12 months",
+    "quarter": "90 days",
+    "month": "30 days"
+  },
+  "ref": {
+    "label": "Branch",
+    "head": "Checked-out branch (HEAD)"
+  },
+  "recompute": "Recalculate",
+  "computing": "Computing statistics",
+  "phase": {
+    "history": "Reading the history …",
+    "blame": "Measuring the code age …"
+  },
+  "failed": "The statistics could not be computed",
+  "retry": "Try again",
+  "outdated": {
+    "title": "There are new commits since this calculation",
+    "action": "Recalculate"
+  },
+  "empty": {
+    "title": "No commits in this period",
+    "body": "Choose a longer period or another branch."
+  },
+  "summary_one": "{{count}} commit, {{first}} – {{last}}",
+  "summary_other": "{{count}} commits, {{first}} – {{last}}",
+  "heatmap": {
+    "title": "When commits happen",
+    "label": "Commits by weekday and hour, in the author’s local time",
+    "cell_one": "{{day}} {{hour}}:00 – {{count}} commit",
+    "cell_other": "{{day}} {{hour}}:00 – {{count}} commits"
+  },
+  "time": {
+    "title": "Commits over time",
+    "granularity": "Group by",
+    "weeks": "Weeks",
+    "months": "Months",
+    "label": "Commits per period",
+    "bar_one": "{{period}}: {{count}} commit",
+    "bar_other": "{{period}}: {{count}} commits"
+  },
+  "authors": {
+    "title_one": "{{count}} author",
+    "title_other": "{{count}} authors",
+    "name": "Author",
+    "commits": "Commits",
+    "added": "Added",
+    "removed": "Removed",
+    "share": "Share of commits",
+    "more_one": "and {{count}} more author",
+    "more_other": "and {{count}} more authors"
+  },
+  "treemap": {
+    "title": "Most changed files",
+    "hint": "Area = number of commits. A folder opens in place, a file shows its history.",
+    "label": "Files and folders in {{path}}",
+    "file_one": "{{path}} – {{count}} commit. Show history",
+    "file_other": "{{path}} – {{count}} commits. Show history",
+    "folder_one": "{{path}}/ – {{count}} commit. Open folder",
+    "folder_other": "{{path}}/ – {{count}} commits. Open folder",
+    "up": "Up to {{path}}",
+    "root": "Repository",
+    "partial": "Based on the {{files}} most changed files."
+  },
+  "hotspots": {
+    "title": "Hotspots",
+    "hint": "Files that many people change often: commits × authors.",
+    "detail": "Commits: {{commits}} · Authors: {{authors}}",
+    "open": "Show the history of {{path}}",
+    "empty": "None of the files changed in this period exists any more."
+  },
+  "knowledge": {
+    "title": "Knowledge per folder",
+    "hint": "Who changed most of a folder, and how few people together hold more than half of it (bus factor).",
+    "folder": "Folder",
+    "main": "Main author",
+    "share": "Share",
+    "busFactor": "Bus factor",
+    "root": "(whole repository)",
+    "open": "Open {{path}} in the treemap"
+  },
+  "age": {
+    "title": "Code age",
+    "hint": "Lines by the age of their last change, measured in the {{files}} largest text files.",
+    "label": "Code age",
+    "month": "Under a month",
+    "year": "Under a year",
+    "threeYears": "Under three years",
+    "older": "Older",
+    "lines_one": "{{count}} line",
+    "lines_other": "{{count}} lines",
+    "none": "There is no text file to measure.",
+    "skipped_one": "{{count}} file could not be read.",
+    "skipped_other": "{{count}} files could not be read."
+  },
+  "records": {
+    "title": "Records",
+    "streak": "Longest streak",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "biggest": "Biggest commit",
+    "lines_one": "{{count}} line",
+    "lines_other": "{{count}} lines",
+    "busiest": "Busiest day",
+    "commits_one": "{{count}} commit",
+    "commits_other": "{{count}} commits",
+    "showCommit": "Show {{sha}} in the graph",
+    "none": "–"
+  }
+}
