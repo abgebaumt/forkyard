@@ -31,6 +31,20 @@ All notable changes to Forkyard are listed here. The format follows
   and a `.forkyard/links.json` in the repository
   (`{ "version": 1, "rules": [{ "id": "ops", "pattern": "OPS-(\\d+)", "url": "https://ops.example/t/$1" }] }`).
   Patterns are checked; the file only creates links and runs nothing.
+- Conflict preview: before a merge, rebase, cherry-pick or revert the app checks – without touching
+  the working directory – whether Git would stop on conflicts, names the files (for a series also
+  the first conflicting commit) and lets you go ahead anyway. The rebase tool shows the result live.
+- Partial stash: selected lines and hunks from the diff view can be stashed (“Stash selection …”);
+  everything else stays in the index and the working directory. Undo restores the lines and drops
+  the stash.
+- Rebase with dependent branches: “Move dependent branches along” rebases stacked branches in the
+  same step (`--update-refs`); one undo resets all of them.
+- Push several branches and tags at once (“Push with more branches and tags …”), with “All or
+  nothing” (`--atomic`) and a result per ref. Forcing a branch always uses `--force-with-lease`.
+- Submodules can be moved to another folder (“Move …”).
+- After checkout, pull, merge, cherry-pick, revert, hard reset and a finished rebase, changed
+  submodules are updated in the background; a failure shows a warning. Can be switched off per
+  project.
 
 ### Changed
 
