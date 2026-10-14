@@ -4,9 +4,11 @@
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check, Cherry, GripVertical } from "lucide-react";
-import { core, type Id, type Sha } from "../../core";
+import { core, type Id, type PreviewOp, type Sha } from "../../core";
 import { graphIndex, isAncestor, oldestFirst } from "../../app/actions/ancestry";
 import { busyKeys } from "../../app/actions/keys";
+import { useConflictPreview } from "../../app/conflictPreview";
+import { ConflictPreviewNote } from "../../components/ConflictPreviewNote";
 import { operationNames, reportOpResult } from "../../app/actions/merge";
 import { shortSha } from "../../app/format";
 import { useSettings, useStatus } from "../../app/queries";
@@ -41,6 +43,13 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
   useEffect(() => {
     if (ready) listRef.current?.focus({ preventScroll: true });
   }, [ready]);
+
+  // Preview of the commits that are ticked, in the chosen order.
+  const previewOp = useMemo<PreviewOp | null>(() => {
+    const picked = order.filter((sha) => bySha.has(sha) && !excluded.has(sha));
+    return ready && picked.length > 0 ? { kind: "cherry_pick", commits: picked } : null;
+  }, [order, bySha, excluded, ready]);
+  const preview = useConflictPreview(repoId, previewOp);
 
   const head = status?.head;
   const headSha = head && head.kind !== "unborn" ? head.sha : null;
@@ -143,6 +152,9 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
   return (
     <>
       {header}
+      <div className="border-b border-border px-3 py-1.5" data-rebase-checks="">
+        <ConflictPreviewNote preview={preview} />
+      </div>
       <ColumnBar direction={t("rebase.pick.orderOnto", { target: targetText })} lead={<span className="w-14 shrink-0" />} />
       <div className="min-h-0 flex-1">
         <ReorderList

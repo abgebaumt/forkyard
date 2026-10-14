@@ -4,8 +4,10 @@
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { AlertTriangle, ChevronDown, CornerDownRight, GripVertical, ListOrdered, MessageSquareText, Milestone, Pencil, Play, RotateCcw } from "lucide-react";
-import { core, type Id, type RebaseAction, type RebasePlan, type RebasePlanRow } from "../../core";
+import { core, type Id, type PreviewOp, type RebaseAction, type RebasePlan, type RebasePlanRow } from "../../core";
 import { askMessage } from "../../app/actionDialogs";
+import { useConflictPreview } from "../../app/conflictPreview";
+import { ConflictPreviewNote } from "../../components/ConflictPreviewNote";
 import { confirm } from "../../app/dialogs";
 import { toCoreError } from "../../app/errors";
 import { busyKeys } from "../../app/actions/keys";
@@ -136,6 +138,12 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
   const roles = useMemo(() => rowRoles(current), [current]);
   const check = useMemo(() => checkPlan(current, original), [current, original]);
   const changed = planChanged(original, current);
+  // Preview of exactly this plan: dropped rows are left out, the order counts.
+  const previewOp = useMemo<PreviewOp | null>(
+    () => (okPlan ? { kind: "rebase", onto: okPlan.base, upstream: null, branch: null, commits: current.filter((row) => row.action !== "drop").map((row) => row.sha) } : null),
+    [okPlan, current],
+  );
+  const preview = useConflictPreview(repoId, previewOp);
 
   // A failed reload keeps the old plan in the cache; while the new attempt runs, the tool shows the
   // skeleton instead of briefly the earlier error.
@@ -413,6 +421,9 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
           {notice.text}
         </Banner>
       ) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-3 py-1.5" data-rebase-checks="">
+        <ConflictPreviewNote preview={preview} />
+      </div>
       <ColumnBar direction={t("rebase.direction.oldestTopNewestBottom")} lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>} />
       <div className="min-h-0 flex-1">
         <ReorderList

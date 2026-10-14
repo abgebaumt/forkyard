@@ -1,0 +1,10 @@
+{
+  "checking": "Checking for conflicts…",
+  "clean": "No conflicts expected",
+  "conflicts_one": "Conflicts in {{count}} file",
+  "conflicts_other": "Conflicts in {{count}} files",
+  "conflictsFrom": "{{files}}, from commit {{sha}}",
+  "unknown": "Not checked: {{reason}}",
+  "failed": "The check didn’t work – the action is still possible.",
+  "filesLabel": "Files with expected conflicts"
+}

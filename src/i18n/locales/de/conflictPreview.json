@@ -1,0 +1,10 @@
+{
+  "checking": "Prüfe auf Konflikte…",
+  "clean": "Ohne Konflikte",
+  "conflicts_one": "Konflikte in {{count}} Datei",
+  "conflicts_other": "Konflikte in {{count}} Dateien",
+  "conflictsFrom": "{{files}}, ab Commit {{sha}}",
+  "unknown": "Nicht geprüft: {{reason}}",
+  "failed": "Die Prüfung hat nicht geklappt – ausführen lässt es sich trotzdem.",
+  "filesLabel": "Dateien mit erwarteten Konflikten"
+}
