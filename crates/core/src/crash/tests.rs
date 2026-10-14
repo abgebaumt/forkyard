@@ -157,6 +157,35 @@ fn a_run_without_clean_exit_leaves_an_unexpected_exit_report() {
     assert!(!found[0].log.iter().any(|line| line.contains(&second.run_id)));
 }
 
+/// The report of a run that ended hard carries that run's lines only – from its start
+/// header to its end – not the earlier runs that share the log file.
+#[test]
+fn the_unexpected_exit_report_holds_only_the_lines_of_the_run_that_ended() {
+    let dir = tempfile::tempdir().unwrap();
+    let earlier = log_in(None);
+    earlier.attach(dir.path(), "1.2.3");
+    earlier.push_line("line of the earlier run");
+    earlier.clean_exit();
+    drop(earlier);
+    let crashed = log_in(None);
+    crashed.attach(dir.path(), "1.2.3");
+    crashed.push_line("line of the crashed run");
+    let crashed_id = crashed.run_id.clone();
+    drop(crashed);
+    let current = log_in(None);
+    current.attach(dir.path(), "1.2.3");
+    current.push_line("line of the current run");
+
+    let found = reports(dir.path());
+    assert_eq!(found.len(), 1, "{found:?}");
+    let log = &found[0].log;
+    assert!(log[0].contains(&format!("started (run {crashed_id})")), "{log:?}");
+    assert!(log.iter().any(|line| line.contains("line of the crashed run")), "{log:?}");
+    for foreign in ["earlier run", "exited cleanly", "current run", current.run_id.as_str()] {
+        assert!(!log.iter().any(|line| line.contains(foreign)), "{foreign} in {log:?}");
+    }
+}
+
 /// A child process spawned by another thread (fork before exec) briefly shares the marker's
 /// open file description. The end of a run must release the lock even then, or the next run
 /// (here: the next test) is wrongly turned away as a second instance.

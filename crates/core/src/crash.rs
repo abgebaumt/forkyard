@@ -11,7 +11,8 @@
 //! - **Marker:** `<data_dir>/running` names the current run and is held with an OS file lock
 //!   while it runs. It is removed on a clean exit. If it is still there on the next start, nobody
 //!   holds its lock and that run left no panic report, the run ended hard (stack overflow, abort,
-//!   killed): a report of kind `unexpected_exit` is made from the end of the log. A second
+//!   killed): a report of kind `unexpected_exit` is made from that run's lines in the log (from its
+//!   start header to its end). A second
 //!   instance with the same data directory does not get the lock and leaves the marker alone.
 //! - At most `MAX_REPORTS` reports are kept; nothing is ever sent anywhere.
 //!
@@ -40,7 +41,7 @@ pub const MAX_LOG_BYTES: u64 = 1024 * 1024;
 pub const LOG_FILES: usize = 3;
 /// Reports kept; older ones are deleted.
 pub const MAX_REPORTS: usize = 10;
-/// Lines from the end of the log that go into an `unexpected_exit` report.
+/// Most lines of the ended run that go into an `unexpected_exit` report.
 const TAIL_LINES: usize = 200;
 /// Longest single log line (a runaway message must not fill the file).
 const MAX_LINE_BYTES: usize = 8 * 1024;
@@ -356,7 +357,7 @@ impl CrashLog {
         let time_ms = last_seen.map_or(marker.started_ms, |d| d.as_millis() as i64);
         let message = format!("Forkyard {} ended without shutting down (started {}).", marker.app_version, iso(marker.started_ms));
         let mut report = ReportFile::new(ReportKind::UnexpectedExit, time_ms, &marker.app_version, &marker.run_id, message);
-        report.log = log_tail(&data_dir.join(LOG_DIR), TAIL_LINES).iter().map(|line| self.scrub(line)).collect();
+        report.log = run_lines(&data_dir.join(LOG_DIR), &marker.run_id, TAIL_LINES).iter().map(|line| self.scrub(line)).collect();
         write_report(data_dir, &report).ok()?;
         Some(report.id)
     }
@@ -456,16 +457,47 @@ fn rotate(dir: &Path) {
     }
 }
 
-/// The last `count` lines across the current and the previous log file.
-fn log_tail(dir: &Path, count: usize) -> Vec<String> {
+/// All lines of the log files, oldest first.
+fn log_lines(dir: &Path) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
-    for name in ["forkyard.1.log", LOG_FILE] {
+    for i in (0..LOG_FILES).rev() {
+        let name = if i == 0 { LOG_FILE.to_string() } else { format!("forkyard.{i}.log") };
         if let Ok(bytes) = std::fs::read(dir.join(name)) {
             lines.extend(String::from_utf8_lossy(&bytes).lines().map(str::to_string));
         }
     }
-    let skip = lines.len().saturating_sub(count);
-    lines.split_off(skip)
+    lines
+}
+
+/// The text after the time stamp of a log line.
+fn line_text(line: &str) -> &str {
+    line.split_once(' ').map_or("", |(_, rest)| rest)
+}
+
+/// `=== Forkyard <version> started (run <id>) ===` as `attach` writes it.
+fn is_start_header(line: &str) -> bool {
+    let text = line_text(line);
+    text.starts_with("=== Forkyard ") && text.contains(" started (run ") && text.ends_with(") ===")
+}
+
+/// The lines of the run `run_id`: from its start header up to the next start header (another
+/// run) or the end of the log. If the header has been rotated away, the lines before the first
+/// header still there. More than `count` lines: the header and the last `count - 1`.
+fn run_lines(dir: &Path, run_id: &str, count: usize) -> Vec<String> {
+    let lines = log_lines(dir);
+    let marker = format!(" started (run {run_id}) ===");
+    let start = lines.iter().rposition(|line| is_start_header(line) && line.ends_with(&marker));
+    let from = start.unwrap_or(0);
+    let body_from = if start.is_some() { from + 1 } else { from };
+    let to = lines[body_from..].iter().position(|line| is_start_header(line)).map_or(lines.len(), |at| body_from + at);
+    let mut section: Vec<String> = lines[from..to].to_vec();
+    if section.len() > count.max(1) {
+        let keep_from = section.len() - (count.max(1) - 1);
+        let head = if start.is_some() { vec![section[0].clone()] } else { Vec::new() };
+        let tail = section.split_off(keep_from);
+        section = head.into_iter().chain(tail).collect();
+    }
+    section
 }
 
 fn report_path(data_dir: &Path, id: &str) -> std::io::Result<PathBuf> {
