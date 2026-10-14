@@ -692,5 +692,11 @@
       "keywords": "Worktree, prune, aufräumen, Ordner fehlt, git worktree prune",
       "title": "Verwaiste Worktrees aufräumen …"
     }
+  },
+  "history": {
+    "reflog": {
+      "title": "Reflog anzeigen",
+      "keywords": "Reflog, Verlauf von HEAD, verlorene Commits, wiederherstellen"
+    }
   }
 }

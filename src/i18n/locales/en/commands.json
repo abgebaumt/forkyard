@@ -692,5 +692,11 @@
       "keywords": "worktree, prune, clean up, folder missing, git worktree prune",
       "title": "Clean up orphaned worktrees …"
     }
+  },
+  "history": {
+    "reflog": {
+      "title": "Show reflog",
+      "keywords": "reflog, history of HEAD, lost commits, recover"
+    }
   }
 }

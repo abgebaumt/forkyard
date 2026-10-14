@@ -119,7 +119,8 @@
     "createWorktreeHint": "checks it out in a second folder",
     "delete": "Delete {{name}} …",
     "deleteTip": "Delete {{name}}",
-    "cannotDeleteHead": "the checked-out branch can’t be deleted"
+    "cannotDeleteHead": "the checked-out branch can’t be deleted",
+    "reflog": "Show reflog"
   },
   "remoteBranch": {
     "switchesTo": "switches to {{name}}",
@@ -229,5 +230,8 @@
     "targetMustBeBranch": "the target must be a branch",
     "prTip": "Create pull request from {{source}} to {{target}}",
     "prTipNoAccount": "Create pull request from {{source}} to {{target}} – needs a connected account with the remote’s host (Settings › Integrations)"
+  },
+  "reflog": {
+    "gone": "The commit no longer exists"
   }
 }

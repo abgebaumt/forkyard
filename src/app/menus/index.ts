@@ -46,6 +46,11 @@ export function stashMenu(ctx: MenuBase & { stash: Stash }): MenuEntry[] {
   return entries.stashMenu(ctx);
 }
 
+/** Right-click on a reflog entry. `exists: false`: the commit is gone – only copying the SHA remains. */
+export function reflogMenu(ctx: MenuBase & { sha: Sha; exists: boolean }): MenuEntry[] {
+  return entries.reflogMenu(ctx);
+}
+
 export function remoteMenu(ctx: MenuBase & { remote: Remote }): MenuEntry[] {
   return entries.remoteMenu(ctx);
 }

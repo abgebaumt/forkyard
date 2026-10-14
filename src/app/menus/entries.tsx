@@ -407,6 +407,7 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     flow ? SEPARATOR : null,
     item(t("menus.rename"), Pencil, () => void renameBranch(repoId, ref.name)),
     item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("menus.branch.name"))),
+    item(t("menus.branch.reflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
     SEPARATOR,
     ...visibilityEntries(repoId, ref),
     SEPARATOR,
@@ -442,6 +443,7 @@ function remoteBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     ...combineEntries(ctx, ref),
     SEPARATOR,
     item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("menus.branch.name"))),
+    item(t("menus.branch.reflog"), History, () => useAppStore.getState().openReflog(tabId, ref.fullName)),
     SEPARATOR,
     ...visibilityEntries(repoId, ref),
     // "Delete on remote" is missing on purpose: the core has no command for it yet (push --delete).
@@ -518,6 +520,31 @@ export function remoteMenu(ctx: MenuBase & { remote: Remote }): MenuEntry[] {
     item(t("menus.remote.copyUrl"), Copy, () => void copyText(remote.fetchUrl, t("menus.remote.url")), { tooltip: t("menus.remote.copyUrlTip", { url: remote.fetchUrl }) }),
     SEPARATOR,
     item(t("menus.remote.remove"), Trash2, () => void removeRemote(repoId, remote), { danger: true }),
+  ]);
+}
+
+// ---------------------------------------------------------------------------
+// Reflog
+// ---------------------------------------------------------------------------
+
+/** Right-click on a reflog entry. If the commit is gone, only copying the SHA remains. */
+export function reflogMenu(ctx: MenuBase & { sha: Sha; exists: boolean }): MenuEntry[] {
+  const { repoId, tabId, sha } = ctx;
+  const blocked = ctx.exists ? operationBlock(repoId) : t("menus.reflog.gone");
+  const current = currentName(repoId);
+  const detached = cachedStatus(repoId)?.head.kind === "detached";
+  return tidy([
+    item(t("menus.createBranchHere"), GitBranchPlus, () => void createBranch(repoId, { start: sha, tabId }), { blocked }),
+    item(t("menus.commit.checkout"), LogIn, () => void checkoutCommit(repoId, sha, tabId), {
+      hint: t("menus.detachedHint"),
+      blocked: blocked ?? (headSha(repoId) === sha && detached ? t("menus.commit.alreadyCheckedOut") : null),
+    }),
+    item(t("menus.commit.resetHere", { name: current.label }), RotateCcw, () => undefined, {
+      tooltip: t("menus.commit.resetTip", { name: current.full, sha: short(sha) }),
+      ...(blocked ? { blocked } : { children: resetMenu(ctx, sha) }),
+    }),
+    SEPARATOR,
+    item(t("menus.commit.copySha"), Copy, () => void copyText(sha, "SHA"), { hint: short(sha) }),
   ]);
 }
 

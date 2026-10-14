@@ -1,5 +1,6 @@
 /**
- * Commands around the history in the graph. They change only the view, nothing in the repository.
+ * Commands around the history: collapse or expand all merges in the graph, show the reflog.
+ * They change nothing in the repository.
  */
 import { t } from "../../i18n";
 import { setAllMergesCollapsed } from "../actions/collapse";
@@ -42,5 +43,14 @@ export const commands: AppCommand[] = [
       showGraph(ctx);
       return setAllMergesCollapsed(ctx.repoId!, false);
     },
+  },
+  {
+    id: "history.reflog",
+    title: t("commands.history.reflog.title"),
+    group: "Repository",
+    keywords: kw("commands.history.reflog.keywords"),
+    when: hasRepo,
+    disabledReason: repoOnly,
+    run: (ctx) => ctx.store.openReflog(ctx.tabId!, null),
   },
 ];

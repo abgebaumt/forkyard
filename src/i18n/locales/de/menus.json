@@ -119,7 +119,8 @@
     "createWorktreeHint": "checkt ihn in einem zweiten Ordner aus",
     "delete": "{{name}} löschen …",
     "deleteTip": "{{name}} löschen",
-    "cannotDeleteHead": "der ausgecheckte Branch lässt sich nicht löschen"
+    "cannotDeleteHead": "der ausgecheckte Branch lässt sich nicht löschen",
+    "reflog": "Reflog anzeigen"
   },
   "remoteBranch": {
     "switchesTo": "wechselt zu {{name}}",
@@ -229,5 +230,8 @@
     "targetMustBeBranch": "das Ziel muss ein Branch sein",
     "prTip": "Pull Request von {{source}} nach {{target}} anlegen",
     "prTipNoAccount": "Pull Request von {{source}} nach {{target}} anlegen – braucht ein verbundenes Konto beim Hoster des Remotes (Einstellungen › Integrationen)"
+  },
+  "reflog": {
+    "gone": "Der Commit existiert nicht mehr"
   }
 }

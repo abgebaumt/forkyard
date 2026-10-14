@@ -33,7 +33,9 @@ export type CenterView =
   | { kind: "pr_create"; source?: string; target?: string }
   | { kind: "pr"; number: number }
   /** Issues of the host; `number`: the opened issue, null = just the list. */
-  | { kind: "issues"; number: number | null };
+  | { kind: "issues"; number: number | null }
+  /** Reflog of HEAD (`ref: null`) or of a branch (full name). */
+  | { kind: "reflog"; ref: string | null };
 
 export type RightPanel = "details" | "stash_form";
 
@@ -199,6 +201,8 @@ export interface AppState {
   openBlame(tabId: Id, path: string, sha: Sha | null): void;
   openConflict(tabId: Id, path: string): void;
   openRebase(tabId: Id, base: string, mode: RebaseToolMode, shas?: Sha[]): void;
+  /** Reflog of HEAD (`ref: null`) or a branch (`refs/heads/…`, `refs/remotes/…`). */
+  openReflog(tabId: Id, ref: string | null): void;
   /** Back to the graph. */
   closeCenter(tabId: Id): void;
 
@@ -293,6 +297,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     openBlame: (tabId, path, sha) => patchView(tabId, { center: { kind: "blame", path, sha } }),
     openConflict: (tabId, path) => patchView(tabId, { center: { kind: "conflict", path } }),
     openRebase: (tabId, base, mode, shas = []) => patchView(tabId, { center: { kind: "rebase", base, mode, shas } }),
+    openReflog: (tabId, ref) => patchView(tabId, { center: { kind: "reflog", ref } }),
     closeCenter: (tabId) => patchView(tabId, { center: { kind: "graph" } }),
 
     setRightPanel: (tabId, panel) => patchView(tabId, { rightPanel: panel, rightCollapsed: false }),

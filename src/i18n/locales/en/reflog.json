@@ -1,0 +1,31 @@
+{
+  "title": "Reflog",
+  "ariaLabel": "Reflog",
+  "filter": "Show the reflog of",
+  "listLabel": "Reflog entries",
+  "menuLabel": "Actions for {{selector}}",
+  "loading": "Loading the reflog …",
+  "loadingMore": "Loading more …",
+  "more": "More entries",
+  "noMessage": "No message",
+  "gone": "commit no longer exists",
+  "empty": {
+    "title": "No reflog entries",
+    "body": "Git has not recorded anything here yet, or the reflog is switched off (core.logAllRefUpdates)."
+  },
+  "error": {
+    "title": "The reflog could not be read",
+    "retry": "Try again"
+  },
+  "action": {
+    "checkout": "Checkout",
+    "commit": "Commit",
+    "reset": "Reset",
+    "rebase": "Rebase",
+    "merge": "Merge",
+    "pull": "Pull",
+    "cherryPick": "Cherry-pick",
+    "amend": "Amend",
+    "other": "Other"
+  }
+}

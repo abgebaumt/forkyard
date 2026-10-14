@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -66,6 +66,7 @@ export const qk = {
   refs: (repoId: Id) => ["repo", repoId, "refs"] as const,
   status: (repoId: Id) => ["repo", repoId, "status"] as const,
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
+  reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
   commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
   diff: (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) =>
@@ -210,6 +211,19 @@ export function useGraph(repoId: Id | null | undefined) {
     enabled: enabledFor(repoId) && settings !== undefined,
   });
 }
+
+/** Page size of the reflog view. */
+export const REFLOG_PAGE_SIZE = 500;
+
+/** Reflog of HEAD (`refName` null) or a branch, page by page. */
+export const useReflog = (repoId: Id | null | undefined, refName: string | null) =>
+  useInfiniteQuery({
+    queryKey: qk.reflog(repoId ?? "", refName),
+    queryFn: ({ pageParam }): Promise<ReflogPage> => core.reflogList({ repoId: repoId!, refName, cursor: pageParam, limit: REFLOG_PAGE_SIZE }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: enabledFor(repoId),
+  });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
 const isLive = (source: DiffSource) =>
@@ -454,7 +468,7 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees"]);
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL.
 const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo"]);
