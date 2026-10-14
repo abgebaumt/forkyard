@@ -431,6 +431,7 @@ pub fn run() {
             commands::operation_abort,
             commands::rebase_start,
             commands::rebase_plan,
+            commands::rebase_dependents,
             commands::rebase_apply,
             commands::cherry_pick,
             commands::squash_commits,

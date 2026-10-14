@@ -885,6 +885,9 @@ pub enum RebasePlan {
         /// Oldest commit first, as in Git's todo file.
         rows: Vec<RebasePlanRow>,
         rewrites_pushed: bool,
+        /// Local branches (except this one, and none checked out in a worktree) whose tip is one of
+        /// the commits – `update_refs` moves them along.
+        dependent_branches: Vec<String>,
     },
     Refused {
         reason: RebaseRefusal,
@@ -2014,10 +2017,11 @@ mod tests {
                 message: Some("neu".into()),
             }],
             rewrites_pushed: false,
+            dependent_branches: vec!["teil".into()],
         };
         assert_eq!(
             serde_json::to_value(&ok).unwrap(),
-            json!({"status":"ok","branch":"feature","base":"b","rows":[{"sha":"s","summary":"sum","description":"","author":{"name":"Ada","email":"ada@example.com"},"authoredAt":"2026-01-01T00:00:00.000Z","action":"reword","message":"neu"}],"rewritesPushed":false})
+            json!({"status":"ok","branch":"feature","base":"b","rows":[{"sha":"s","summary":"sum","description":"","author":{"name":"Ada","email":"ada@example.com"},"authoredAt":"2026-01-01T00:00:00.000Z","action":"reword","message":"neu"}],"rewritesPushed":false,"dependentBranches":["teil"]})
         );
         let refused =
             RebasePlan::Refused { reason: RebaseRefusal::NoCommonAncestor, detail: Some(RebaseRefusalDetail::NotAncestor), message: "m".into() };

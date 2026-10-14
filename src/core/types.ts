@@ -728,6 +728,8 @@ export type RebasePlan =
       rows: RebasePlanRow[];
       /** At least one of the commits is already on a remote. */
       rewritesPushed: boolean;
+      /** Local branches pointing into the range (except this one and branches checked out in a worktree) – `updateRefs` moves them along. */
+      dependentBranches: string[];
     }
   | {
       status: "refused";

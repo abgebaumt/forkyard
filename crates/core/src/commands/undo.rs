@@ -335,7 +335,24 @@ impl<'a> Probe<'a> {
             },
             _ => true,
         };
+        let fits = fits && self.updated_refs_fit(entry, dir).await?;
         Ok(fits.then_some(ref_sha))
+    }
+
+    /// Branches a rebase moved along must still be where it left them (undo) or where they were
+    /// before (redo); an unknown end (not settled yet) is not compared.
+    async fn updated_refs_fit(&mut self, entry: &UndoEntry, dir: Direction) -> CoreResult<bool> {
+        for step in updated_refs(&entry.payload) {
+            let expected = match dir {
+                Direction::Undo => step.after.as_deref(),
+                Direction::Redo => step.before.as_deref(),
+            };
+            let Some(expected) = expected else { continue };
+            if !same_sha(self.ref_sha(&step.name).await?.as_deref(), Some(expected)) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
     }
 
     /// If the most recently recorded action is a commit (or amend, squash …) that is now on a
@@ -402,6 +419,19 @@ fn composite_steps(payload: &Value) -> Vec<CompositeStep> {
     list.iter()
         .filter_map(|item| {
             let name = text(item, "ref").filter(|name| name.starts_with("refs/") && !name.contains(char::is_whitespace))?;
+            Some(CompositeStep { name, before: text(item, "before"), after: text(item, "after") })
+        })
+        .collect()
+}
+
+/// Branches a rebase moved along with `--update-refs` (`payload.updatedRefs`), in the shape of
+/// composite steps. `after: None` while a stopped rebase is not settled yet.
+fn updated_refs(payload: &Value) -> Vec<CompositeStep> {
+    let text = |item: &Value, key: &str| item.get(key).and_then(Value::as_str).map(str::to_string);
+    let list = payload.get("updatedRefs").and_then(Value::as_array).cloned().unwrap_or_default();
+    list.iter()
+        .filter_map(|item| {
+            let name = text(item, "ref").filter(|name| name.starts_with("refs/heads/") && !name.contains(char::is_whitespace))?;
             Some(CompositeStep { name, before: text(item, "before"), after: text(item, "after") })
         })
         .collect()
@@ -561,8 +591,39 @@ impl Run<'_> {
         Ok(u::rev_parse(self.core, self.repo_id, &format!("{sha}^{{commit}}")).await?.is_some())
     }
 
-    /// Executes the entry in this direction. `Probe::applicable` has checked the preconditions.
+    /// Executes the entry in this direction, then moves the branches a rebase took along.
     async fn execute(&mut self) -> CoreResult<()> {
+        self.execute_action().await?;
+        self.move_updated_refs().await
+    }
+
+    /// Branches a rebase moved along with `--update-refs`: back to `before` on undo (their position
+    /// after stays reachable for redo through `dep-after-<n>`), forward to `after` on redo. Never the
+    /// checked-out branch, so the working directory is not touched.
+    async fn move_updated_refs(&self) -> CoreResult<()> {
+        let steps = updated_refs(&Value::Object(self.payload.clone()));
+        for (index, step) in steps.iter().enumerate() {
+            let (from, to) = match self.dir {
+                Direction::Undo => (step.after.as_deref(), step.before.as_deref()),
+                Direction::Redo => (step.before.as_deref(), step.after.as_deref()),
+            };
+            let (Some(from), Some(to)) = (from, to) else { continue };
+            if same_sha(Some(from), Some(to)) {
+                continue;
+            }
+            if !self.commit_exists(to).await? {
+                return Err(self.lost());
+            }
+            if self.dir == Direction::Undo {
+                self.backup(&format!("dep-after-{index}"), from).await?;
+            }
+            self.update_ref(&step.name, Some(to), Some(from)).await?;
+        }
+        Ok(())
+    }
+
+    /// Executes the entry's own action in this direction. `Probe::applicable` has checked the preconditions.
+    async fn execute_action(&mut self) -> CoreResult<()> {
         let flag = |key: &str| self.payload.get(key).and_then(Value::as_bool) == Some(true);
         match self.action {
             UndoAction::Checkout => self.checkout().await,

@@ -392,8 +392,8 @@ pub async fn operation_abort(core: State<'_, Core>, repo_id: String) -> R<Status
 }
 
 #[tauri::command]
-pub async fn rebase_start(core: State<'_, Core>, repo_id: String, onto: String, branch: Option<String>) -> R<OpResult> {
-    c::rebase::rebase_start(&core, repo_id, onto, branch).await
+pub async fn rebase_start(core: State<'_, Core>, repo_id: String, onto: String, branch: Option<String>, update_refs: Option<bool>) -> R<OpResult> {
+    c::rebase::rebase_start_with(&core, repo_id, onto, branch, update_refs).await
 }
 
 #[tauri::command]
@@ -402,8 +402,13 @@ pub async fn rebase_plan(core: State<'_, Core>, repo_id: String, base: String) -
 }
 
 #[tauri::command]
-pub async fn rebase_apply(core: State<'_, Core>, repo_id: String, base: String, rows: Vec<RebasePlanRow>) -> R<OpResult> {
-    c::rebase::rebase_apply(&core, repo_id, base, rows).await
+pub async fn rebase_dependents(core: State<'_, Core>, repo_id: String, onto: String, branch: Option<String>) -> R<Vec<String>> {
+    c::rebase::rebase_dependents(&core, repo_id, onto, branch).await
+}
+
+#[tauri::command]
+pub async fn rebase_apply(core: State<'_, Core>, repo_id: String, base: String, rows: Vec<RebasePlanRow>, update_refs: Option<bool>) -> R<OpResult> {
+    c::rebase::rebase_apply_with(&core, repo_id, base, rows, update_refs).await
 }
 
 #[tauri::command]

@@ -431,7 +431,8 @@ async fn plan_lists_commits_oldest_first_and_detects_pushed_commits() {
     let b = repo.commit_file("b.txt", "b\n", "B: „Sonderzeichen“ & mehr");
 
     match rebase_plan(&tc, id.clone(), base.clone()).await.unwrap() {
-        RebasePlan::Ok { branch, base: plan_base, rows, rewrites_pushed } => {
+        RebasePlan::Ok { branch, base: plan_base, rows, rewrites_pushed, dependent_branches } => {
+            assert!(dependent_branches.is_empty(), "{dependent_branches:?}");
             assert_eq!(branch, "main");
             assert_eq!(plan_base, base);
             assert_eq!(rows.iter().map(|r| r.sha.as_str()).collect::<Vec<_>>(), [a.as_str(), b.as_str()]);

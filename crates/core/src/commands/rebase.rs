@@ -54,6 +54,15 @@ const REBASE_CONFIG: [&str; 12] = [
     "rebase.abbreviateCommands=false",
 ];
 
+/// `REBASE_CONFIG`, with `rebase.updateRefs=false` left out when the branches should move along
+/// (`--update-refs` is passed then).
+fn rebase_config(update_refs: bool) -> Vec<&'static str> {
+    if !update_refs {
+        return REBASE_CONFIG.to_vec();
+    }
+    REBASE_CONFIG.chunks(2).filter(|pair| pair[1] != "rebase.updateRefs=false").flatten().copied().collect()
+}
+
 /// Hooks whose failure refuses or halts a rebase, cherry-pick or revert.
 pub(crate) const REWRITE_ABORTING_HOOKS: [&str; 5] = ["pre-rebase", "pre-commit", "pre-merge-commit", "prepare-commit-msg", "commit-msg"];
 
@@ -92,8 +101,32 @@ const CHERRY_PICK_EMPTY_DROP: (u32, u32, u32) = (2, 45, 0);
 
 /// Rebases the checked-out branch (or `branch`) onto `onto`.
 pub async fn rebase_start(core: &Core, repo_id: String, onto: String, branch: Option<String>) -> CoreResult<OpResult> {
+    rebase_start_with(core, repo_id, onto, branch, None).await
+}
+
+/// Like `rebase_start`; `update_refs: Some(true)` moves dependent branches along (`--update-refs`),
+/// backed up for undo.
+pub async fn rebase_start_with(core: &Core, repo_id: String, onto: String, branch: Option<String>, update_refs: Option<bool>) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    write_action(core, &repo_id, &touched, start_rebase(core, &repo_id, &onto, branch.as_deref(), &touched)).await
+    write_action(core, &repo_id, &touched, start_rebase(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), &touched)).await
+}
+
+/// The local branches a rebase of `branch` (default: the checked-out one) onto `onto` would move
+/// along with `update_refs`. Empty for a detached HEAD.
+pub async fn rebase_dependents(core: &Core, repo_id: String, onto: String, branch: Option<String>) -> CoreResult<Vec<String>> {
+    let repo_id = repo_id.as_str();
+    let target = match branch.as_deref().map(|b| b.strip_prefix("refs/heads/").unwrap_or(b).trim()).filter(|b| !b.is_empty()) {
+        Some(name) => name.to_string(),
+        None => match refs::read_head(core, repo_id).await? {
+            Head::Branch { branch, .. } => branch,
+            _ => return Ok(Vec::new()),
+        },
+    };
+    let Some(tip) = rev_parse(core, repo_id, &format!("refs/heads/{target}^{{commit}}")).await? else {
+        return Ok(Vec::new());
+    };
+    let onto_sha = resolve_commit(core, repo_id, &onto).await?;
+    Ok(dependent_refs(core, repo_id, &onto_sha, &tip, &target).await?.into_iter().map(|(name, _)| name).collect())
 }
 
 /// Commits between `base` and HEAD as a plan, with the preconditions checked.
@@ -176,13 +209,19 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
             message: None,
         })
         .collect();
-    Ok(RebasePlan::Ok { branch, base: base_sha, rows, rewrites_pushed: !pushed.stdout_text().is_empty() })
+    let dependent_branches = dependent_refs(core, repo_id, &base_sha, &head_sha, &branch).await?.into_iter().map(|(name, _)| name).collect();
+    Ok(RebasePlan::Ok { branch, base: base_sha, rows, rewrites_pushed: !pushed.stdout_text().is_empty(), dependent_branches })
 }
 
 /// Execute a plan (pick, reword, squash, drop, order).
 pub async fn rebase_apply(core: &Core, repo_id: String, base: String, rows: Vec<RebasePlanRow>) -> CoreResult<OpResult> {
+    rebase_apply_with(core, repo_id, base, rows, None).await
+}
+
+/// Like `rebase_apply`; `update_refs: Some(true)` moves dependent branches along.
+pub async fn rebase_apply_with(core: &Core, repo_id: String, base: String, rows: Vec<RebasePlanRow>, update_refs: Option<bool>) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    write_action(core, &repo_id, &touched, apply_plan(core, &repo_id, &base, &rows, &touched)).await
+    write_action(core, &repo_id, &touched, apply_plan(core, &repo_id, &base, &rows, update_refs.unwrap_or(false), &touched)).await
 }
 
 /// Apply one or more commits.
@@ -252,6 +291,7 @@ pub(crate) async fn settle_entry(core: &Core, repo_id: &str, entry: &UndoEntry) 
     };
     let mut payload = entry.payload.clone();
     payload["pending"] = json!(false);
+    fill_updated_refs(core, repo_id, &mut payload).await?;
     // After finishing, HEAD is attached to the branch again; without a branch it points at the new commit.
     let head_after = entry.ref_name.clone().unwrap_or_else(|| current.clone());
     let ref_after = entry.ref_name.as_ref().map(|_| current);
@@ -264,11 +304,59 @@ pub(crate) async fn settle_entry(core: &Core, repo_id: &str, entry: &UndoEntry) 
     })
 }
 
+/// Local branches other than `target` whose tip lies in `from..tip` – those `--update-refs`
+/// moves along – as (short name, SHA), sorted by name. Branches checked out in a worktree are
+/// left out: Git does not move them either.
+pub(crate) async fn dependent_refs(core: &Core, repo_id: &str, from: &str, tip: &str, target: &str) -> CoreResult<Vec<(String, String)>> {
+    let range = read(core, repo_id)?.args(["rev-list", &format!("{from}..{tip}")]).run().await?;
+    let commits: HashSet<String> = range.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| !sha.is_empty()).collect();
+    if commits.is_empty() {
+        return Ok(Vec::new());
+    }
+    let listed = read(core, repo_id)?
+        .args(["for-each-ref", "--format=%(refname:strip=2)%00%(objectname)%00%(worktreepath)", "refs/heads"])
+        .run()
+        .await?;
+    let mut found: Vec<(String, String)> = Vec::new();
+    for line in listed.stdout_lines() {
+        let fields: Vec<&[u8]> = line.split(|&byte| byte == 0).collect();
+        let [name, sha, worktree] = fields.as_slice() else { continue };
+        let name = util::decode_lossy(name);
+        let sha = util::decode_lossy(sha);
+        if name != target && worktree.is_empty() && commits.contains(&sha) {
+            found.push((name, sha));
+        }
+    }
+    found.sort();
+    Ok(found)
+}
+
+/// Backs up the dependent branches (`dep-<n>`) and returns `payload.updatedRefs` for them.
+async fn back_up_dependents(core: &Core, repo_id: &str, undo_id: &str, dependents: &[(String, String)]) -> CoreResult<Value> {
+    let mut list = Vec::with_capacity(dependents.len());
+    for (index, (name, sha)) in dependents.iter().enumerate() {
+        undo::create_backup_ref(core, repo_id, undo_id, &format!("dep-{index}"), sha).await?;
+        list.push(json!({ "ref": format!("refs/heads/{name}"), "before": sha, "after": Value::Null }));
+    }
+    Ok(Value::Array(list))
+}
+
+/// Writes the current position of every ref in `payload.updatedRefs` as its `after`.
+pub(crate) async fn fill_updated_refs(core: &Core, repo_id: &str, payload: &mut Value) -> CoreResult<()> {
+    let Some(list) = payload.get_mut("updatedRefs").and_then(Value::as_array_mut) else { return Ok(()) };
+    for item in list.iter_mut() {
+        let Some(name) = item.get("ref").and_then(Value::as_str).map(str::to_string) else { continue };
+        let now = rev_parse(core, repo_id, &name).await?;
+        item["after"] = json!(now);
+    }
+    Ok(())
+}
+
 // ---------------------------------------------------------------------------
 // Rebase
 // ---------------------------------------------------------------------------
 
-async fn start_rebase(core: &Core, repo_id: &str, onto: &str, branch: Option<&str>, touched: &AtomicBool) -> CoreResult<OpResult> {
+async fn start_rebase(core: &Core, repo_id: &str, onto: &str, branch: Option<&str>, update_refs: bool, touched: &AtomicBool) -> CoreResult<OpResult> {
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
     let head = refs::read_head(core, repo_id).await?;
@@ -324,7 +412,7 @@ async fn start_rebase(core: &Core, repo_id: &str, onto: &str, branch: Option<&st
     let pushed = count(&[]).await?.saturating_sub(unpushed);
 
     let onto_name = display_rev(onto, &onto_sha);
-    let ctx = Rewrite {
+    let mut ctx = Rewrite {
         undo_id: undo::new_id(),
         action: UndoAction::Rebase,
         label: format!("Undo rebase of {target} onto {onto_name}"),
@@ -335,9 +423,24 @@ async fn start_rebase(core: &Core, repo_id: &str, onto: &str, branch: Option<&st
         what: "rebase",
     };
     undo::create_backup_ref(core, repo_id, &ctx.undo_id, "before", &old_tip).await?;
+    let dependents = if update_refs { dependent_refs(core, repo_id, &onto_sha, &old_tip, &target).await? } else { Vec::new() };
+    if !dependents.is_empty() {
+        match back_up_dependents(core, repo_id, &ctx.undo_id, &dependents).await {
+            Ok(list) => ctx.payload["updatedRefs"] = list,
+            Err(e) => {
+                undo::delete_backup_refs(core, repo_id, &ctx.undo_id).await?;
+                return Err(e);
+            }
+        }
+    }
     touched.store(true, Ordering::SeqCst);
     let hooks = Hooks::start(core, repo_id).await;
-    let mut cmd = hooks.wrap(core.git_for(repo_id)?).args(REBASE_CONFIG).args(["rebase", "--no-autostash", &onto_sha]);
+    let mut cmd = hooks
+        .wrap(core.git_for(repo_id)?)
+        .args(rebase_config(update_refs))
+        .arg("rebase")
+        .args(update_refs.then_some("--update-refs"))
+        .args(["--no-autostash", &onto_sha]);
     if current.as_deref() != Some(target.as_str()) {
         // The short name: with `refs/heads/…` Git would rebase the commit without a branch.
         cmd = cmd.arg(&target);
@@ -432,6 +535,11 @@ async fn record_rewrite(core: &Core, repo_id: &str, ctx: Rewrite, ref_after: Opt
     let pending = ref_after.is_none();
     let mut payload = ctx.payload;
     payload["pending"] = json!(pending);
+    if !pending {
+        if let Err(e) = fill_updated_refs(core, repo_id, &mut payload).await {
+            log::warn!("Positions of the branches moved along not recorded: {}", e.message);
+        }
+    }
     let branch_ref = format!("refs/heads/{}", ctx.branch);
     let record = UndoRecord {
         id: ctx.undo_id,
@@ -491,7 +599,7 @@ fn stopped_error(what: &str, subcommand: &str, out: &GitOutput) -> CoreError {
 // Interactive Rebase
 // ---------------------------------------------------------------------------
 
-async fn apply_plan(core: &Core, repo_id: &str, base: &str, rows: &[RebasePlanRow], touched: &AtomicBool) -> CoreResult<OpResult> {
+async fn apply_plan(core: &Core, repo_id: &str, base: &str, rows: &[RebasePlanRow], update_refs: bool, touched: &AtomicBool) -> CoreResult<OpResult> {
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
     let head = refs::read_head(core, repo_id).await?;
@@ -523,7 +631,7 @@ async fn apply_plan(core: &Core, repo_id: &str, base: &str, rows: &[RebasePlanRo
     ensure_clean(core, repo_id).await?;
 
     let (action, label) = stats.undo_label(&branch);
-    let ctx = Rewrite {
+    let mut ctx = Rewrite {
         undo_id: undo::new_id(),
         action,
         label,
@@ -533,10 +641,21 @@ async fn apply_plan(core: &Core, repo_id: &str, base: &str, rows: &[RebasePlanRo
         payload: json!({ "branch": branch, "base": base_sha, "summary": stats.single_summary() }),
         what: "interactive rebase",
     };
-    let todo = render_todo(core, repo_id, &entries).await?;
+    let dependents = if update_refs { dependent_refs(core, repo_id, &base_sha, &head_sha, &branch).await? } else { Vec::new() };
+    let updates: Vec<(String, String)> = dependents.iter().map(|(name, sha)| (format!("refs/heads/{name}"), sha.clone())).collect();
+    let todo = render_todo(core, repo_id, &entries, &updates).await?;
     undo::create_backup_ref(core, repo_id, &ctx.undo_id, "before", &head_sha).await?;
+    if !dependents.is_empty() {
+        match back_up_dependents(core, repo_id, &ctx.undo_id, &dependents).await {
+            Ok(list) => ctx.payload["updatedRefs"] = list,
+            Err(e) => {
+                undo::delete_backup_refs(core, repo_id, &ctx.undo_id).await?;
+                return Err(e);
+            }
+        }
+    }
     touched.store(true, Ordering::SeqCst);
-    let out = run_interactive(core, repo_id, Some(&base_sha), &todo).await;
+    let out = run_interactive(core, repo_id, Some(&base_sha), &todo, update_refs).await;
     let (out, ran) = match out {
         Ok(out) => out,
         Err(e) => {
@@ -726,11 +845,16 @@ fn plan_entries(steps: &[Step], commits: &[RangeCommit]) -> CoreResult<(Vec<Todo
 
 /// Writes the todo file. For every new message an empty commit is created on the
 /// target, which `fixup -C` folds in: it changes nothing and only contributes its message.
-async fn render_todo(core: &Core, repo_id: &str, entries: &[TodoEntry]) -> CoreResult<String> {
+/// `updates` (full ref name, SHA): after the entry that contains the SHA, an `update-ref` line
+/// moves that branch to the result (`--update-refs`).
+async fn render_todo(core: &Core, repo_id: &str, entries: &[TodoEntry], updates: &[(String, String)]) -> CoreResult<String> {
     let mut todo = String::new();
     for entry in entries {
-        match entry {
-            TodoEntry::Drop(sha) => todo.push_str(&format!("drop {sha}\n")),
+        let shas: Vec<&str> = match entry {
+            TodoEntry::Drop(sha) => {
+                todo.push_str(&format!("drop {sha}\n"));
+                vec![sha.as_str()]
+            }
             TodoEntry::Group { target, fixups, message } => {
                 todo.push_str(&format!("pick {target}\n"));
                 for sha in fixups {
@@ -740,6 +864,12 @@ async fn render_todo(core: &Core, repo_id: &str, entries: &[TodoEntry]) -> CoreR
                     let carrier = message_commit(core, repo_id, target, message).await?;
                     todo.push_str(&format!("fixup -C {carrier}\n"));
                 }
+                std::iter::once(target.as_str()).chain(fixups.iter().map(String::as_str)).collect()
+            }
+        };
+        for (name, sha) in updates {
+            if shas.contains(&sha.as_str()) {
+                todo.push_str(&format!("update-ref {name}\n"));
             }
         }
     }
@@ -765,7 +895,7 @@ async fn message_commit(core: &Core, repo_id: &str, target: &str, message: &str)
 
 /// `git rebase -i` with our todo file. `base = None` means `--root`. Also returns which
 /// hooks ran along the way (already reported as `hook:output`).
-async fn run_interactive(core: &Core, repo_id: &str, base: Option<&str>, todo: &str) -> CoreResult<(GitOutput, Vec<HookOutput>)> {
+async fn run_interactive(core: &Core, repo_id: &str, base: Option<&str>, todo: &str, update_refs: bool) -> CoreResult<(GitOutput, Vec<HookOutput>)> {
     let helper = find_editor_helper(core)?;
     let call = editor_call(&helper);
     let dir = core.data_dir().join("tmp");
@@ -777,8 +907,9 @@ async fn run_interactive(core: &Core, repo_id: &str, base: Option<&str>, todo: &
     let hooks = Hooks::start(core, repo_id).await;
     let mut cmd = hooks
         .wrap(core.git_for(repo_id)?)
-        .args(REBASE_CONFIG)
+        .args(rebase_config(update_refs))
         .args(["rebase", "--interactive", "--no-autostash", "--empty=keep"])
+        .args(update_refs.then_some("--update-refs"))
         .env("GIT_SEQUENCE_EDITOR", &call.command)
         .env(SEQUENCE_TODO_ENV, &file);
     if let Some(path) = &call.path {
@@ -884,10 +1015,10 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
         payload: json!({ "branch": branch, "base": base, "summary": summary_line, "count": wanted.len() }),
         what: "squash",
     };
-    let todo = render_todo(core, repo_id, &entries).await?;
+    let todo = render_todo(core, repo_id, &entries, &[]).await?;
     undo::create_backup_ref(core, repo_id, &ctx.undo_id, "before", &head_sha).await?;
     touched.store(true, Ordering::SeqCst);
-    let (out, ran) = match run_interactive(core, repo_id, base.as_deref(), &todo).await {
+    let (out, ran) = match run_interactive(core, repo_id, base.as_deref(), &todo, false).await {
         Ok(out) => out,
         Err(e) => {
             undo::delete_backup_refs(core, repo_id, &ctx.undo_id).await?;
@@ -1418,3 +1549,6 @@ fn sh_quote(text: &str) -> String {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod update_refs_tests;

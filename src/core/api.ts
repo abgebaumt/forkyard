@@ -333,11 +333,13 @@ export interface CoreCommands {
   /** `skipHooks`: the merge commit is created without hooks (as with a normal commit); otherwise no effect. */
   operationContinue(input: R & { message: string | null; skipHooks: boolean | null }): Promise<OpResult>;
   operationAbort(input: R): Promise<Status>;
-  /** Rebases the checked-out branch (or `branch`) onto `onto`. */
-  rebaseStart(input: R & { onto: string; branch: string | null }): Promise<OpResult>;
+  /** Rebases the checked-out branch (or `branch`) onto `onto`. `updateRefs`: dependent branches move along (`--update-refs`); one undo step resets all. */
+  rebaseStart(input: R & { onto: string; branch: string | null; updateRefs?: boolean | null }): Promise<OpResult>;
   /** Commits between `base` and HEAD as a plan, with a check of the preconditions. */
   rebasePlan(input: R & { base: string }): Promise<RebasePlan>;
-  rebaseApply(input: R & { base: Sha; rows: RebasePlanRow[] }): Promise<OpResult>;
+  /** The local branches `rebaseStart` with `updateRefs` would move along (`branch: null` = the checked-out one). */
+  rebaseDependents(input: R & { onto: string; branch: string | null }): Promise<string[]>;
+  rebaseApply(input: R & { base: Sha; rows: RebasePlanRow[]; updateRefs?: boolean | null }): Promise<OpResult>;
   cherryPick(input: R & { shas: Sha[] }): Promise<OpResult>;
   /** Combine consecutive commits of the checked-out branch into one. */
   squashCommits(input: R & { shas: Sha[]; message: string }): Promise<OpResult>;
