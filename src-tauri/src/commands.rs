@@ -208,6 +208,11 @@ pub async fn view_state_set(core: State<'_, Core>, repo_id: String, patch: Value
 }
 
 #[tauri::command]
+pub async fn reflog_list(core: State<'_, Core>, repo_id: String, ref_name: Option<String>, cursor: Option<String>, limit: u32) -> R<ReflogPage> {
+    c::reflog::reflog_list(&core, repo_id, ref_name, cursor, limit).await
+}
+
+#[tauri::command]
 pub async fn status_get(core: State<'_, Core>, repo_id: String) -> R<Status> {
     c::status::status_get(&core, repo_id).await
 }

@@ -67,6 +67,7 @@ import type {
   PushResult,
   RebasePlan,
   RebasePlanRow,
+  ReflogPage,
   Ref,
   RefsSnapshot,
   Remote,
@@ -187,6 +188,13 @@ export interface CoreCommands {
   treeList(input: R & { sha: Sha | null; filter: string | null }): Promise<string[]>;
   viewStateGet(input: R): Promise<RepoViewState>;
   viewStateSet(input: R & { patch: Partial<RepoViewState> }): Promise<RepoViewState>;
+  /**
+   * Reflog of HEAD (`refName` null) or a branch (`refs/heads/…`, `refs/remotes/…`), newest first.
+   * First page with `cursor: null`; entries added between two pages do not shift the next one.
+   * Entries whose commit Git has removed come with `exists: false`. Errors: `not_allowed` (other
+   * ref), `not_found` (branch gone), `stale_state` (the cursor no longer fits: reload).
+   */
+  reflogList(input: R & { refName?: string | null; cursor?: string | null; limit: number }): Promise<ReflogPage>;
 
   // --- Working directory, staging, committing -------------------------------------
   statusGet(input: R): Promise<Status>;

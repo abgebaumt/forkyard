@@ -366,6 +366,28 @@ export interface GraphPage {
   maxLane: number;
 }
 
+/** What a reflog entry records, from the start of its message. */
+export type ReflogAction = "checkout" | "commit" | "reset" | "rebase" | "merge" | "pull" | "cherry_pick" | "amend" | "other";
+
+export interface ReflogEntry {
+  /** Where the ref pointed after the change. */
+  sha: Sha;
+  /** `HEAD@{3}`, `main@{0}` … */
+  selector: string;
+  action: ReflogAction;
+  /** Git's text, without credentials. */
+  message: string;
+  time: IsoTime;
+  /** The commit still exists (Git may have removed it, e.g. after `gc`). */
+  exists: boolean;
+}
+
+export interface ReflogPage {
+  entries: ReflogEntry[];
+  /** null when the reflog has ended. */
+  nextCursor: string | null;
+}
+
 // ---------------------------------------------------------------------------
 // Commits and files
 // ---------------------------------------------------------------------------

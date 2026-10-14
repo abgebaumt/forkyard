@@ -396,6 +396,7 @@ pub fn run() {
             commands::tree_list,
             commands::view_state_get,
             commands::view_state_set,
+            commands::reflog_list,
             commands::status_get,
             commands::diff_file,
             commands::stage_paths,

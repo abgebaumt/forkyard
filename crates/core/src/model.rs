@@ -362,6 +362,44 @@ pub struct GraphPage {
     pub max_lane: u32,
 }
 
+/// What a reflog entry records, from the start of its message.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReflogAction {
+    Checkout,
+    Commit,
+    Reset,
+    Rebase,
+    Merge,
+    Pull,
+    CherryPick,
+    Amend,
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReflogEntry {
+    /// Where the ref pointed after the change.
+    pub sha: Sha,
+    /// `HEAD@{3}`, `main@{0}` …
+    pub selector: String,
+    pub action: ReflogAction,
+    /// Git's text, without credentials.
+    pub message: String,
+    pub time: IsoTime,
+    /// The commit still exists (Git may have removed it, e.g. after `gc`).
+    pub exists: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReflogPage {
+    pub entries: Vec<ReflogEntry>,
+    /// null when the reflog has ended.
+    pub next_cursor: Option<String>,
+}
+
 // ---------------------------------------------------------------------------
 // Commits and files
 // ---------------------------------------------------------------------------

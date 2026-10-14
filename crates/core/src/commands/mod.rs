@@ -20,6 +20,7 @@ pub mod lfs;
 pub mod merge;
 pub mod patch;
 pub mod rebase;
+pub mod reflog;
 pub mod refs;
 pub mod remotes;
 pub mod repos;
