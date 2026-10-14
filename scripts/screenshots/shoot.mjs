@@ -2,7 +2,7 @@
 // debug build of the app once per view, runs a showcase scenario (src/screens/Showcase/scenario.ts)
 // against the demo repository and saves the window as PNG in docs/images/.
 //
-//   cargo build && node scripts/screenshots/shoot.mjs [graph diff conflict rebase settings] [--light]
+//   cargo build && node scripts/screenshots/shoot.mjs [graph diff conflict rebase settings stats] [--light]
 //
 // Needs Xvfb (or XVFB=/path/to/Xvfb) and ImageMagick's `import`.
 
@@ -21,6 +21,7 @@ const SHOTS = {
   conflict: { demo: ["--conflict"] },
   rebase: { demo: ["--rebase"] },
   settings: { demo: [] },
+  stats: { demo: [] },
 };
 const wanted = args.filter((arg) => !arg.startsWith("--"));
 const names = wanted.length ? wanted : Object.keys(SHOTS);

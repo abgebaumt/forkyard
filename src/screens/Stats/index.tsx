@@ -1,8 +1,10 @@
 /**
- * Statistics of a repository in the centre: period and branch at the top, then when commits
- * happen, commits over time, authors, records, the treemap of the most changed files,
- * hotspots, knowledge per folder and code age. The core computes everything as one job
- * (status bar, cancellable); errors stay in the view.
+ * Statistics of a repository over the whole window (no side panels, see store.ts
+ * `showsSidePanels`). Header: branch, period, week or month, and whether the numbers are up to
+ * date. Cards: activity by weekday and hour, commits over time, records; where changes happen
+ * (treemap), hotspots, authors; knowledge per folder and code age. The core computes everything
+ * as one job (status bar, cancellable) and recomputes when the branch moves (useStats.ts);
+ * errors stay in the view.
  *
  * A file (treemap tile, hotspot) opens its history; a folder opens in the treemap; the biggest
  * commit is shown in the graph. It opens and closes through its toolbar button only (actions.ts).
@@ -10,18 +12,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Id } from "../../core";
 import { describeError } from "../../app/errors";
-import { formatShortDate } from "../../app/format";
-import { useRefs } from "../../app/queries";
-import { useAppStore, type Job } from "../../app/store";
+import { useCommitDetails, useRefs, useRepo } from "../../app/queries";
+import { useAppStore } from "../../app/store";
 import { t } from "../../i18n";
-import { Button, Spinner } from "../../ui/Button";
+import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { Banner, EmptyState } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { Select } from "../../ui/Select";
 import { showInGraph } from "../FileView/nav";
 import { leaveStats, rememberChoice, rememberedChoice } from "./actions";
-import { AuthorsTable, CodeAgeBar, formatPercent, Heatmap, HotspotList, KnowledgeTable, Records, TimeChart, Treemap } from "./charts";
+import { AuthorsList, CodeAgeChart, formatCount, formatPercent, Heatmap, HotspotList, KnowledgeTable, Records, TimeChart, Treemap } from "./charts";
+import { authorPalette, knowledgeRows, statusOf } from "./layout";
 import { buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, parentFolder, PRESETS, rangeFor, type Granularity, type StatsPreset } from "./model";
 import { useStats } from "./useStats";
 
@@ -37,28 +39,21 @@ const PRESET_LABELS: Record<StatsPreset, string> = {
   month: t("stats.preset.month"),
 };
 
-function Section({ id, title, hint, aside, wide = false, children }: { id: string; title: string; hint?: string; aside?: ReactNode; wide?: boolean; children: ReactNode }) {
+/** Rows of the knowledge card. */
+const KNOWLEDGE_ROWS = 6;
+
+function Card({ id, title, hint, aside, className, children }: { id: string; title: string; hint?: ReactNode; aside?: ReactNode; className?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={`stats-${id}`} data-stats-section={id} className={cn("flex min-w-0 flex-col gap-3 rounded-md border border-border bg-surface p-4", wide ? "xl:col-span-2" : "")}>
-      <div className="flex min-w-0 items-center gap-2">
-        <h2 id={`stats-${id}`} className="min-w-0 flex-1 truncate text-md font-semibold text-text">
+    <section aria-labelledby={`stats-${id}`} data-stats-section={id} className={cn("flex min-w-0 flex-col gap-3 rounded-md border border-border bg-surface p-3", className)}>
+      <div className="flex min-w-0 items-baseline gap-2">
+        <h2 id={`stats-${id}`} className="shrink-0 text-base font-semibold text-text">
           {title}
         </h2>
+        {hint ? <span className="min-w-0 flex-1 truncate text-sm text-text-muted">{hint}</span> : <span className="flex-1" />}
         {aside}
       </div>
-      {hint ? <p className="text-sm text-text-muted">{hint}</p> : null}
       {children}
     </section>
-  );
-}
-
-function Progress({ job }: { job: Job | undefined }) {
-  return (
-    <div role="status" data-stats-progress="" className="flex items-center gap-2 border-b border-border bg-surface px-3 py-1 text-sm text-text-muted">
-      <Spinner label={t("stats.computing")} />
-      <span>{job?.phase === "blame" ? t("stats.phase.blame") : t("stats.phase.history")}</span>
-      {typeof job?.percent === "number" ? <span className="tabular-nums">{formatPercent(job.percent)}</span> : null}
-    </div>
   );
 }
 
@@ -69,24 +64,43 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
   const [folder, setFolder] = useState("");
   const range = useMemo(() => rangeFor(preset, ref), [preset, ref]);
   const { data: refs } = useRefs(repoId);
+  const { data: repo } = useRepo(repoId);
   const { state, stats, job, recompute } = useStats(repoId, range, refs ? currentTip(refs, ref) : undefined);
   const tree = useMemo(() => buildTree(stats?.files ?? []), [stats]);
   const weeks = useMemo(() => fillWeeks(stats?.weeks ?? []), [stats]);
   const months = useMemo(() => fillMonths(stats?.months ?? []), [stats]);
+  const palette = useMemo(() => authorPalette(stats?.authors ?? []), [stats]);
+  const biggestSha = stats?.records.biggestCommit?.sha ?? null;
+  const { data: biggest } = useCommitDetails(repoId, biggestSha ? { kind: "commit", sha: biggestSha } : null);
   useEffect(() => setFolder(""), [range]);
   useEffect(() => rememberChoice(tabId, { preset, ref }), [tabId, preset, ref]);
 
+  const head = refs?.head;
+  const headLabel = head && head.kind !== "detached" ? t("stats.ref.head", { branch: head.branch }) : t("stats.ref.detached");
   const refOptions = useMemo(
     () => [
-      { value: "HEAD", label: t("stats.ref.head") },
+      { value: "HEAD", label: headLabel },
       ...(refs?.locals ?? []).map((item) => ({ value: item.fullName, label: item.name })),
       ...(refs?.remotes ?? []).map((item) => ({ value: item.fullName, label: item.name })),
     ],
-    [refs],
+    [refs, headLabel],
   );
+  const refName = ref === "HEAD" ? "HEAD" : (refOptions.find((option) => option.value === ref)?.label ?? ref);
+  const status = statusOf(state);
+  const statusText =
+    status === "updating"
+      ? typeof job?.percent === "number"
+        ? t("stats.status.updatingPercent", { percent: formatPercent(job.percent) })
+        : t("stats.status.updating")
+      : status === "cached"
+        ? t("stats.status.cached", { ref: refName })
+        : status === "fresh"
+          ? t("stats.status.fresh", { ref: refName })
+          : null;
   const running = state.kind === "running";
   const node = findNode(tree, folder) ?? tree;
   const shownGranularity = granularity ?? defaultGranularity(weeks);
+  const buckets = shownGranularity === "weeks" ? weeks : months;
   const openFile = (path: string) => leaveStats(() => useAppStore.getState().openHistory(tabId, path));
   const openFolder = (path: string) => {
     setFolder(path);
@@ -100,18 +114,33 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
       aria-label={t("stats.ariaLabel")}
       className="flex h-full min-h-0 flex-col bg-bg"
     >
-      <header className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-surface px-4 py-2">
         <h1 className="text-md font-semibold text-text">{t("stats.title")}</h1>
+        <span className="min-w-0 truncate text-base text-text-muted">{repo?.alias ?? repo?.name ?? ""}</span>
         <div className="flex-1" />
-        <SegmentedControl label={t("stats.preset.label")} value={preset} options={PRESETS.map((value) => ({ value, label: PRESET_LABELS[value] }))} onValueChange={setPreset} />
-        <div className="w-56">
-          <Select ariaLabel={t("stats.ref.label")} value={ref} options={refOptions} onValueChange={setRef} />
+        <div role="group" aria-label={t("stats.choice")} className="flex flex-wrap items-center gap-2">
+          <div className="w-48">
+            <Select ariaLabel={t("stats.ref.label")} prefix={t("stats.ref.label")} value={ref} options={refOptions} onValueChange={setRef} />
+          </div>
+          <div className="w-52">
+            <Select ariaLabel={t("stats.preset.label")} prefix={t("stats.preset.label")} value={preset} options={PRESETS.map((value) => ({ value, label: PRESET_LABELS[value] }))} onValueChange={setPreset} />
+          </div>
+          <SegmentedControl
+            label={t("stats.time.granularity")}
+            value={shownGranularity}
+            options={[
+              { value: "weeks", label: t("stats.time.weeks") },
+              { value: "months", label: t("stats.time.months") },
+            ]}
+            onValueChange={setGranularity}
+          />
         </div>
-        <Button size="sm" variant="ghost" disabled={running} onClick={recompute}>
-          {t("stats.recompute")}
-        </Button>
+        {statusText ? (
+          <span role="status" data-stats-status={status ?? ""} className="text-sm text-text-muted tabular-nums">
+            {statusText}
+          </span>
+        ) : null}
       </header>
-      {running ? <Progress job={job} /> : null}
       {state.kind === "failed" ? (
         <Banner
           tone="danger"
@@ -125,65 +154,63 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
           {describeError(state.error).text}
         </Banner>
       ) : null}
-      <div className={cn("min-h-0 flex-1 overflow-auto p-4", running && stats ? "opacity-60" : "")}>
+      <div className={cn("min-h-0 flex-1 overflow-auto p-4", running && stats ? "opacity-70" : "")}>
         {!stats ? null : stats.commits === 0 ? (
           <EmptyState title={t("stats.empty.title")}>{t("stats.empty.body")}</EmptyState>
         ) : (
-          <div className="flex flex-col gap-4">
-            <p data-stats-summary="" className="text-base text-text-muted">
-              {t("stats.summary", { count: stats.commits, first: formatShortDate(stats.firstAt ?? ""), last: formatShortDate(stats.lastAt ?? "") })}
-            </p>
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-              <Section id="heatmap" title={t("stats.heatmap.title")}>
-                <Heatmap heatmap={stats.heatmap} />
-              </Section>
-              <Section
-                id="time"
-                title={t("stats.time.title")}
-                aside={
-                  <SegmentedControl
-                    label={t("stats.time.granularity")}
-                    value={shownGranularity}
-                    options={[
-                      { value: "weeks", label: t("stats.time.weeks") },
-                      { value: "months", label: t("stats.time.months") },
-                    ]}
-                    onValueChange={setGranularity}
-                  />
-                }
-              >
-                <TimeChart buckets={shownGranularity === "weeks" ? weeks : months} />
-              </Section>
-              <Section id="authors" title={t("stats.authors.title", { count: stats.authorCount })}>
-                <AuthorsTable authors={stats.authors} total={stats.authorCount} />
-              </Section>
-              <Section id="records" title={t("stats.records.title")}>
-                <Records records={stats.records} onCommit={(sha) => leaveStats(() => showInGraph(tabId, sha))} />
-              </Section>
-              <Section id="treemap" title={t("stats.treemap.title")} hint={t("stats.treemap.hint")} wide>
-                <div className="flex min-w-0 items-center gap-2 text-sm">
-                  {node.path ? (
-                    <Button size="sm" variant="ghost" onClick={() => setFolder(parentFolder(node.path))}>
-                      {t("stats.treemap.up", { path: parentFolder(node.path) || t("stats.treemap.root") })}
-                    </Button>
-                  ) : null}
-                  <span data-stats-folder={node.path} className="truncate font-mono text-code text-text-muted">
-                    {node.path || t("stats.treemap.root")}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <Card id="heatmap" title={t("stats.heatmap.title")} hint={t("stats.heatmap.hint")}>
+              <Heatmap heatmap={stats.heatmap} />
+            </Card>
+            <Card
+              id="time"
+              title={t("stats.time.title")}
+              hint={t(shownGranularity === "weeks" ? "stats.time.hintWeeks" : "stats.time.hintMonths", { count: stats.commits, n: formatCount(stats.commits) })}
+            >
+              <TimeChart buckets={buckets} />
+            </Card>
+            <Card id="records" title={t("stats.records.title")}>
+              <Records
+                records={stats.records}
+                biggest={biggest?.commit ? { summary: biggest.commit.summary, author: biggest.commit.author.name } : null}
+                onCommit={(sha) => leaveStats(() => showInGraph(tabId, sha))}
+              />
+            </Card>
+            <Card
+              id="treemap"
+              title={t("stats.treemap.title")}
+              hint={
+                <>
+                  <span data-stats-folder={node.path} className="font-mono text-code">
+                    {node.path ? `${node.path}/` : t("stats.treemap.root")}
                   </span>
-                </div>
-                <Treemap node={node} onFile={openFile} onFolder={setFolder} />
-                {stats.fileCount > stats.files.length ? <p className="text-sm text-text-muted">{t("stats.treemap.partial", { files: stats.files.length })}</p> : null}
-              </Section>
-              <Section id="hotspots" title={t("stats.hotspots.title")} hint={t("stats.hotspots.hint")}>
-                <HotspotList hotspots={stats.hotspots} onFile={openFile} />
-              </Section>
-              <Section id="knowledge" title={t("stats.knowledge.title")} hint={t("stats.knowledge.hint")}>
-                <KnowledgeTable folders={stats.folders} onFolder={openFolder} />
-              </Section>
-              <Section id="age" title={t("stats.age.title")} hint={t("stats.age.hint", { files: stats.codeAge.files })} wide>
-                <CodeAgeBar age={stats.codeAge} />
-              </Section>
-            </div>
+                  {" · "}
+                  {t("stats.treemap.hint")}
+                </>
+              }
+              aside={
+                node.path ? (
+                  <Button size="sm" variant="ghost" onClick={() => setFolder(parentFolder(node.path))}>
+                    {t("stats.treemap.up", { path: parentFolder(node.path) || t("stats.treemap.root") })}
+                  </Button>
+                ) : null
+              }
+            >
+              <Treemap node={node} onFile={openFile} onFolder={setFolder} />
+              {stats.fileCount > stats.files.length ? <p className="text-sm text-text-muted">{t("stats.treemap.partial", { files: stats.files.length })}</p> : null}
+            </Card>
+            <Card id="hotspots" title={t("stats.hotspots.title")} hint={t("stats.hotspots.hint")}>
+              <HotspotList hotspots={stats.hotspots} onFile={openFile} />
+            </Card>
+            <Card id="authors" title={t("stats.authors.title")} hint={t("stats.authors.count", { count: stats.authorCount })}>
+              <AuthorsList authors={stats.authors} total={stats.authorCount} palette={palette} />
+            </Card>
+            <Card id="knowledge" title={t("stats.knowledge.title")} hint={t("stats.knowledge.hint")} className="md:col-span-2">
+              <KnowledgeTable folders={knowledgeRows(stats.folders, KNOWLEDGE_ROWS)} palette={palette} onFolder={openFolder} />
+            </Card>
+            <Card id="age" title={t("stats.age.title")} hint={t("stats.age.hint", { ref: refName, files: stats.codeAge.files })} className="md:col-span-2 xl:col-span-1">
+              <CodeAgeChart age={stats.codeAge} />
+            </Card>
           </div>
         )}
       </div>

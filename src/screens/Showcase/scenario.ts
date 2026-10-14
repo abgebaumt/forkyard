@@ -1,9 +1,10 @@
 /**
  * Scenarios for the README images (scripts/screenshots/shoot.mjs). They work on the demo
  * repository from scripts/screenshots/demo-repo.mjs (`?fixture=<path>`).
- * Usage: `?scenario=Showcase.graph`, `.diff`, `.conflict`, `.rebase`, `.settings`, `.tour` (for the GIF).
+ * Usage: `?scenario=Showcase.graph`, `.diff`, `.conflict`, `.rebase`, `.settings`, `.stats`, `.tour` (for the GIF).
  */
 import type { Scenario, ScenarioContext } from "../scenarios";
+import { openStats } from "../Stats/actions";
 
 async function open(ctx: ScenarioContext) {
   const opened = await ctx.repo();
@@ -50,6 +51,12 @@ export const scenarios: Record<string, Scenario> = {
   async settings(ctx) {
     await open(ctx);
     ctx.store.getState().openOverlay({ kind: "preferences", section: "repo" });
+  },
+
+  /** Statistics over the whole window. */
+  async stats(ctx) {
+    const { tabId } = await open(ctx);
+    openStats(tabId);
   },
 
   /** Tour for the GIF: look at commits, diff, command palette, settings. Starts after `?delay=` ms. */

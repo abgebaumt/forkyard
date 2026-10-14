@@ -2,22 +2,24 @@
   "title": "Statistik",
   "ariaLabel": "Statistik des Repositorys",
   "job": "Statistik",
+  "choice": "Zeitraum und Branch",
   "preset": {
     "label": "Zeitraum",
     "all": "Gesamt",
-    "year": "12 Monate",
-    "quarter": "90 Tage",
-    "month": "30 Tage"
+    "year": "Letzte 12 Monate",
+    "quarter": "Letzte 90 Tage",
+    "month": "Letzte 30 Tage"
   },
   "ref": {
     "label": "Branch",
-    "head": "Ausgecheckter Branch (HEAD)"
+    "head": "{{branch}} (HEAD)",
+    "detached": "HEAD"
   },
-  "recompute": "Neu berechnen",
-  "computing": "Statistik wird berechnet",
-  "phase": {
-    "history": "Historie wird gelesen …",
-    "blame": "Code-Alter wird gemessen …"
+  "status": {
+    "updating": "Wird aktualisiert …",
+    "updatingPercent": "Wird aktualisiert … {{percent}}",
+    "cached": "Zwischengespeichert · aktuell mit {{ref}}",
+    "fresh": "Aktuell mit {{ref}}"
   },
   "failed": "Die Statistik konnte nicht berechnet werden",
   "retry": "Erneut versuchen",
@@ -25,67 +27,74 @@
     "title": "Keine Commits in diesem Zeitraum",
     "body": "Wähle einen längeren Zeitraum oder einen anderen Branch."
   },
-  "summary_one": "{{count}} Commit, {{first}} – {{last}}",
-  "summary_other": "{{count}} Commits, {{first}} – {{last}}",
   "heatmap": {
-    "title": "Wann committet wird",
-    "label": "Commits nach Wochentag und Stunde, in der Ortszeit der Autoren",
+    "title": "Aktivität",
+    "hint": "Wochentag × Stunde",
+    "label": "Commits nach Wochentag und Stunde, in der Ortszeit der Autorin oder des Autors",
     "cell_one": "{{day}} {{hour}}:00 – {{count}} Commit",
     "cell_other": "{{day}} {{hour}}:00 – {{count}} Commits"
   },
   "time": {
-    "title": "Commits über die Zeit",
+    "title": "Commits im Zeitverlauf",
+    "hintWeeks_one": "{{n}} Commit · pro Woche",
+    "hintWeeks_other": "{{n}} Commits · pro Woche",
+    "hintMonths_one": "{{n}} Commit · pro Monat",
+    "hintMonths_other": "{{n}} Commits · pro Monat",
     "granularity": "Gruppieren nach",
-    "weeks": "Wochen",
-    "months": "Monate",
-    "label": "Commits pro Zeitabschnitt",
+    "weeks": "Woche",
+    "months": "Monat",
+    "label": "Commits pro Zeitraum",
     "bar_one": "{{period}}: {{count}} Commit",
     "bar_other": "{{period}}: {{count}} Commits"
   },
   "authors": {
-    "title_one": "{{count}} Autor",
-    "title_other": "{{count}} Autoren",
-    "name": "Autor",
+    "title": "Autoren",
+    "count_one": "{{count}} Person",
+    "count_other": "{{count}} Personen",
     "commits": "Commits",
-    "added": "Hinzugefügt",
-    "removed": "Entfernt",
-    "share": "Anteil an den Commits",
-    "more_one": "und {{count}} weiterer Autor",
-    "more_other": "und {{count}} weitere Autoren"
+    "added": "Hinzugefügte Zeilen",
+    "removed": "Gelöschte Zeilen",
+    "more_one": "und {{count}} weitere Person",
+    "more_other": "und {{count}} weitere Personen"
   },
   "treemap": {
-    "title": "Am häufigsten geänderte Dateien",
-    "hint": "Fläche = Anzahl der Commits. Ein Ordner öffnet sich hier, eine Datei zeigt ihre Historie.",
+    "title": "Wo sich etwas ändert",
+    "hint": "Ordner anklicken zum Hineinzoomen",
     "label": "Dateien und Ordner in {{path}}",
-    "file_one": "{{path}} – {{count}} Commit. Historie anzeigen",
-    "file_other": "{{path}} – {{count}} Commits. Historie anzeigen",
-    "folder_one": "{{path}}/ – {{count}} Commit. Ordner öffnen",
-    "folder_other": "{{path}}/ – {{count}} Commits. Ordner öffnen",
+    "file_one": "{{path}} – {{count}} Änderung. Historie anzeigen",
+    "file_other": "{{path}} – {{count}} Änderungen. Historie anzeigen",
+    "folder_one": "{{path}}/ – {{count}} Änderung. Ordner öffnen",
+    "folder_other": "{{path}}/ – {{count}} Änderungen. Ordner öffnen",
+    "changes_one": "{{n}} Änderung",
+    "changes_other": "{{n}} Änderungen",
     "up": "Hoch zu {{path}}",
     "root": "Repository",
-    "partial": "Auf Basis der {{files}} am häufigsten geänderten Dateien."
+    "partial": "Auf Grundlage der {{files}} am häufigsten geänderten Dateien."
   },
   "hotspots": {
     "title": "Hotspots",
-    "hint": "Dateien, die viele Personen oft ändern: Commits × Autoren.",
-    "detail": "Commits: {{commits}} · Autoren: {{authors}}",
+    "hint": "oft geändert, von vielen Leuten",
+    "file": "Datei",
+    "changes": "Änderungen",
+    "authors": "Autoren",
+    "score": "Änderungen × Autoren",
     "open": "Historie von {{path}} anzeigen",
-    "empty": "Keine der in diesem Zeitraum geänderten Dateien existiert noch."
+    "empty": "Keine der in diesem Zeitraum geänderten Dateien gibt es noch."
   },
   "knowledge": {
     "title": "Wissen pro Ordner",
-    "hint": "Wer einen Ordner am meisten geändert hat und wie wenige Personen zusammen mehr als die Hälfte davon tragen (Bus-Faktor).",
+    "hint": "Anteil der Zeilen pro Person · Bus-Faktor",
     "folder": "Ordner",
-    "main": "Hauptautor",
-    "share": "Anteil",
+    "lines": "Zeilen pro Person",
     "busFactor": "Bus-Faktor",
-    "root": "(gesamtes Repository)",
+    "others": "Weitere Personen",
+    "root": "(ganzes Repository)",
     "open": "{{path}} in der Treemap öffnen"
   },
   "age": {
     "title": "Code-Alter",
-    "hint": "Zeilen nach dem Alter ihrer letzten Änderung, gemessen in den {{files}} größten Textdateien.",
-    "label": "Code-Alter",
+    "hint": "Zeilen in {{ref}} · {{files}} größte Textdateien",
+    "label": "Zeilen nach dem Alter ihrer letzten Änderung",
     "month": "< 1 Mon.",
     "halfYear": "1–6 Mon.",
     "year": "6–12 Mon.",
@@ -103,8 +112,6 @@
     "days_one": "{{count}} Tag",
     "days_other": "{{count}} Tage",
     "biggest": "Größter Commit",
-    "lines_one": "{{count}} Zeile",
-    "lines_other": "{{count}} Zeilen",
     "busiest": "Aktivster Tag",
     "commits_one": "{{count}} Commit",
     "commits_other": "{{count}} Commits",

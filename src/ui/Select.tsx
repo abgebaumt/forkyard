@@ -25,6 +25,8 @@ export interface SelectProps<T extends string = string> {
   placeholder?: string;
   id?: string;
   className?: string;
+  /** Short muted text inside the field before the value ("Branch main"), for toolbars without a label above. */
+  prefix?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export function Select<T extends string = string>({
   placeholder,
   id,
   className,
+  prefix,
 }: SelectProps<T>) {
   const autoId = useId();
   const fieldId = id ?? autoId;
@@ -66,6 +69,11 @@ export function Select<T extends string = string>({
             className,
           )}
         >
+          {prefix ? (
+            <span className="shrink-0 text-text-muted" aria-hidden>
+              {prefix}
+            </span>
+          ) : null}
           <span className="min-w-0 flex-1 truncate">
             <RadixSelect.Value placeholder={placeholder} />
           </span>
