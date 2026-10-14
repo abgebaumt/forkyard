@@ -261,9 +261,11 @@ create unique index host_accounts_key on host_accounts (profile_id, host, userna
 create table hoster_accounts (
   id             text primary key,
   profile_id     text not null references profiles (id) on delete cascade,
-  kind           text not null check (kind in ('github', 'gitlab')),
+  kind           text not null check (kind in ('github', 'gitlab', 'gitea', 'bitbucket', 'azure_devops')),
   -- Address of the web UI without a trailing slash, e.g. https://github.com
   base_url       text not null,
+  -- User name for Basic authentication (Bitbucket); not secret, the token is in the keychain.
+  username       text,
   login          text,
   name           text,
   avatar_url     text,

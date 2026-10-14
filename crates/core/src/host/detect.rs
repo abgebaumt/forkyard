@@ -230,6 +230,7 @@ mod tests {
             profile_id: "p".into(),
             kind,
             base_url: base_url.into(),
+            username: None,
             login: Some("lena".into()),
             name: None,
             avatar_url: None,

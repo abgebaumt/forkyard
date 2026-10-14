@@ -53,6 +53,9 @@ const UPGRADES: &[&str] = &[
     // Statistics cache (`stats_compute`). Written with `if not exists`: schema.sql creates the
     // table for every database, including the version-1 database the upgrade test builds from it.
     STATS_CACHE,
+    // Host accounts: the new host kinds, user name for Basic authentication (table rebuilt,
+    // because SQLite cannot change a CHECK in place).
+    HOSTER_KINDS_AND_USERNAME,
 ];
 
 const STATS_CACHE: &str = "
@@ -131,6 +134,30 @@ create table hoster_accounts (
   created_at     text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at     text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 ) strict;
+create unique index hoster_accounts_key on hoster_accounts (profile_id, kind, base_url);
+";
+
+const HOSTER_KINDS_AND_USERNAME: &str = "
+create table hoster_accounts_next (
+  id             text primary key,
+  profile_id     text not null references profiles (id) on delete cascade,
+  kind           text not null check (kind in ('github', 'gitlab', 'gitea', 'bitbucket', 'azure_devops')),
+  base_url       text not null,
+  username       text,
+  login          text,
+  name           text,
+  avatar_url     text,
+  token_hint     text,
+  scopes_ok      integer not null default 1 check (scopes_ok in (0, 1)),
+  missing_scopes text not null default '',
+  last_error     text,
+  created_at     text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at     text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+insert into hoster_accounts_next (id, profile_id, kind, base_url, login, name, avatar_url, token_hint, scopes_ok, missing_scopes, last_error, created_at, updated_at)
+  select id, profile_id, kind, base_url, login, name, avatar_url, token_hint, scopes_ok, missing_scopes, last_error, created_at, updated_at from hoster_accounts;
+drop table hoster_accounts;
+alter table hoster_accounts_next rename to hoster_accounts;
 create unique index hoster_accounts_key on hoster_accounts (profile_id, kind, base_url);
 ";
 
@@ -434,6 +461,29 @@ mod tests {
         for key in app_settings::GLOBAL_KEYS {
             assert_eq!(V5_PROFILE_LEVELS.matches(&format!("'{key}'")).count(), 2, "{key} is missing from the upgrade (copy and delete)");
         }
+    }
+
+    /// The host accounts upgrade keeps existing rows, adds `username` and widens the list of kinds –
+    /// independent of the version number it ends up with.
+    #[test]
+    fn the_hoster_upgrade_keeps_accounts_and_accepts_the_new_kinds() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("pragma foreign_keys = on; create table profiles (id text primary key) strict; insert into profiles (id) values ('p');").unwrap();
+        conn.execute_batch(V3_HOSTER_ACCOUNTS).unwrap();
+        conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url, login, token_hint) values ('h', 'p', 'gitlab', 'https://gitlab.com', 'lena', '…abcd')", []).unwrap();
+        assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('x', 'p', 'gitea', 'https://codeberg.org')", []).is_err(), "before: only GitHub and GitLab");
+        conn.execute_batch(HOSTER_KINDS_AND_USERNAME).unwrap();
+        let kept: (String, String, Option<String>, Option<String>, Option<String>) = conn
+            .query_row("select kind, base_url, login, token_hint, username from hoster_accounts where id = 'h'", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+            .unwrap();
+        assert_eq!(kept, ("gitlab".into(), "https://gitlab.com".into(), Some("lena".into()), Some("…abcd".into()), None));
+        for (id, kind) in [("g", "gitea"), ("b", "bitbucket"), ("a", "azure_devops")] {
+            conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url, username) values (?1, 'p', ?2, ?3, 'lena')", rusqlite::params![id, kind, format!("https://{kind}.example")]).unwrap();
+        }
+        assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('s', 'p', 'svn', 'https://svn.example')", []).is_err());
+        let unique: i64 = conn.query_row("select count(*) from sqlite_master where type = 'index' and name = 'hoster_accounts_key'", [], |r| r.get(0)).unwrap();
+        assert_eq!(unique, 1, "the unique index is back");
+        assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('h2', 'p', 'gitlab', 'https://gitlab.com')", []).is_err(), "and works");
     }
 
     #[test]

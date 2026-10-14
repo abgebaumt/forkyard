@@ -2301,6 +2301,24 @@ pub enum HostKind {
     Gitlab,
 }
 
+impl HostKind {
+    /// Every host the app knows, in the order it lists them.
+    pub const ALL: &'static [HostKind] = &[HostKind::Github, HostKind::Gitlab];
+
+    /// Name in the contract and in `hoster_accounts.kind`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            HostKind::Github => "github",
+            HostKind::Gitlab => "gitlab",
+        }
+    }
+
+    /// The opposite of `as_str`; `None` for a name the app does not know.
+    pub fn parse(name: &str) -> Option<HostKind> {
+        HostKind::ALL.iter().copied().find(|kind| kind.as_str() == name)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HostUser {
@@ -2317,6 +2335,8 @@ pub struct HosterAccount {
     pub kind: HostKind,
     /// Address of the web UI, e.g. `https://github.com`.
     pub base_url: String,
+    /// User name for Basic authentication (Bitbucket); `None` for hosts that only need the token.
+    pub username: Option<String>,
     /// `None` as long as the account was never checked successfully.
     pub user: Option<HostUser>,
     /// `…` and the last four characters of the token.
@@ -2553,6 +2573,22 @@ pub struct IssueDetails {
     /// Markdown.
     pub body: String,
     pub comments: Vec<HostComment>,
+}
+
+#[cfg(test)]
+mod host_kind_tests {
+    use super::*;
+
+    #[test]
+    fn host_kinds_have_one_name_in_the_contract_and_in_the_database() {
+        for kind in HostKind::ALL.iter().copied() {
+            assert_eq!(serde_json::to_value(kind).unwrap(), kind.as_str(), "{kind:?}");
+            assert_eq!(HostKind::parse(kind.as_str()), Some(kind));
+        }
+        assert_eq!(HostKind::parse("svn"), None);
+        assert_eq!(HostKind::parse("GitHub"), None, "names are exact");
+        assert_eq!(HostKind::parse(""), None);
+    }
 }
 
 

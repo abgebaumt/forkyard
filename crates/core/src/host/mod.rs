@@ -399,7 +399,7 @@ pub async fn connect(core: &Core, kind: HostKind, base_url: Option<String>, toke
         not_found_as(e, || format!("No {} API responds at {web_base}. Check the address.", label(kind)))
     })?;
     let profile_id = core.active_profile_id()?;
-    let row = core.db.with(|c| db::hoster_accounts::upsert(c, &profile_id, kind, &web_base, &secrets::hint(&token), &facts))?;
+    let row = core.db.with(|c| db::hoster_accounts::upsert(c, &profile_id, kind, &web_base, None, &secrets::hint(&token), &facts))?;
     if let Err(e) = secrets::set(core, &secret_account(&row.id), &token).await {
         // Without a token the account would be useless.
         let _ = core.db.with(|c| db::hoster_accounts::delete(c, &profile_id, &row.id));
