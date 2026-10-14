@@ -22,6 +22,15 @@ All notable changes to Forkyard are listed here. The format follows
   Ctrl+Shift+]) also covers pages loaded later. Commits a branch or tag points to stay visible.
 - The graph marks commits of the checked-out branch that are not pushed yet (↑) and commits of its
   upstream that are not pulled yet (↓).
+- Image diff: besides side by side, images can be compared by swiping, as an onion skin (opacity
+  slider) or as a pixel difference that highlights changed pixels and dims the rest. Images of
+  different sizes are aligned at the top left; the last mode is remembered.
+- Ticket links: issue numbers and ticket keys in commit messages (details and graph) open in the
+  browser. Sources: the repository's host (`#123`, on GitLab also `!123`), presets for Jira, Linear,
+  YouTrack and Redmine, own patterns with an address template (Settings › Project › Ticket links),
+  and a `.forkyard/links.json` in the repository
+  (`{ "version": 1, "rules": [{ "id": "ops", "pattern": "OPS-(\\d+)", "url": "https://ops.example/t/$1" }] }`).
+  Patterns are checked; the file only creates links and runs nothing.
 
 ### Changed
 
