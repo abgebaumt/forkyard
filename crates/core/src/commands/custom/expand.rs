@@ -101,7 +101,8 @@ fn env_name(placeholder: &Placeholder) -> String {
 }
 
 /// `shell: true`: the line for `sh -c` (Unix) or PowerShell (Windows), in which every placeholder
-/// is a reference to its environment variable. Missing values are reported as for `shell_args`.
+/// is a reference to its environment variable (braced on Windows, `${env:NAME}`, so PowerShell
+/// never merges the name with the text that follows). Missing values are reported as for `shell_args`.
 pub fn shell_line(def: &CustomCommandDef, values: &Values, windows: bool) -> CoreResult<(String, Vec<String>)> {
     let mut line = String::new();
     for piece in parts(&def.run)? {
@@ -110,7 +111,7 @@ pub fn shell_line(def: &CustomCommandDef, values: &Values, windows: bool) -> Cor
             Piece::Var(placeholder) => {
                 values.lookup(&placeholder)?;
                 let name = env_name(&placeholder);
-                line.push_str(&if windows { format!("$env:{name}") } else { format!("\"${name}\"") });
+                line.push_str(&if windows { format!("${{env:{name}}}") } else { format!("\"${name}\"") });
             }
         }
     }
@@ -238,7 +239,15 @@ mod tests {
         assert_eq!(args, ["-c".to_string(), "echo \"$FORKYARD_INPUT_TEXT\" | tee \"$FORKYARD_FILE\"".to_string()]);
         let (program, args) = shell_line(&d, &values(), true).unwrap();
         assert_eq!(program, "powershell.exe");
-        assert_eq!(args.last().unwrap(), "echo $env:FORKYARD_INPUT_TEXT | tee $env:FORKYARD_FILE");
+        assert_eq!(args.last().unwrap(), "echo ${env:FORKYARD_INPUT_TEXT} | tee ${env:FORKYARD_FILE}");
+        // Braced, so PowerShell never merges the name with what follows (`.bak`, `_old`, `:x`).
+        let mut d = def(Shell, "copy ${file} ${file}.bak; echo ${input:text}_old ${repo}:x");
+        d.shell = true;
+        let (_, args) = shell_line(&d, &values(), true).unwrap();
+        assert_eq!(
+            args.last().unwrap(),
+            "copy ${env:FORKYARD_FILE} ${env:FORKYARD_FILE}.bak; echo ${env:FORKYARD_INPUT_TEXT}_old ${env:FORKYARD_REPO}:x"
+        );
         assert!(!args.iter().any(|a| a.contains("touch")), "no value is part of the line");
         let env = environment(&values());
         assert!(env.contains(&("FORKYARD_INPUT_TEXT".to_string(), "a b; $(touch x)".to_string())));
