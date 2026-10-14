@@ -12,6 +12,7 @@ import { commitsBetween, consecutiveOnHead, findRow, loadGraphIndex, oldestFirst
 import { clip, currentBranch, headSha, loadStatus, short } from "./context";
 import { copyText } from "./clipboard";
 import { busyKeys } from "./keys";
+import { preflight } from "./preflight";
 import { reportOpResult, showWip } from "./merge";
 
 /** A commit never changes: from the cache, otherwise directly from the core (and then into the cache). */
@@ -26,6 +27,8 @@ async function loadCommit(repoId: Id, sha: Sha) {
 
 /** Reverts a commit with a new commit. Conflict → WIP view. */
 export async function revertCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
+  const choice = await preflight(repoId, { title: t("preflight.revertTitle", { sha: short(sha) }), confirmLabel: t("actions.history.revert.label"), op: { kind: "revert", commits: [sha] } });
+  if (!choice) return null;
   const result = await runAction(t("actions.history.revert.label"), withFreshStatus(repoId, () => core.revertCommit({ repoId, sha })), { busyKey: busyKeys.history(repoId) });
   if (result.ok) {
     if (result.value.status === "up_to_date") {
@@ -127,6 +130,8 @@ export async function cherryPick(repoId: Id, shas: Sha[], tabId?: Id | null) {
   if (!shas.length) return null;
   const ordered = oldestFirst(await loadGraphIndex(repoId), shas);
   const label = ordered.length === 1 ? t("actions.history.cherryPick.label") : t("actions.history.cherryPick.labelMany", { count: ordered.length });
+  const choice = await preflight(repoId, { title: t("preflight.pickTitle", { count: ordered.length }), confirmLabel: label, op: { kind: "cherry_pick", commits: ordered } });
+  if (!choice) return null;
   const result = await runAction(label, withFreshStatus(repoId, () => core.cherryPick({ repoId, shas: ordered })), {
     busyKey: busyKeys.history(repoId),
   });

@@ -1,0 +1,14 @@
+{
+  "mergeTitle": "{{source}} in {{target}} mergen?",
+  "rebaseTitle": "{{branch}} auf {{onto}} rebasen?",
+  "pickTitle_one": "{{count}} Commit cherry-picken?",
+  "pickTitle_other": "{{count}} Commits cherry-picken?",
+  "revertTitle": "Commit {{sha}} rückgängig machen?",
+  "conflictsTitle_one": "Erwartete Konflikte in {{count}} Datei",
+  "conflictsTitle_other": "Erwartete Konflikte in {{count}} Dateien",
+  "conflictsBody": "Git hält an und lässt dich sie lösen. Ausführen lässt es sich trotzdem.",
+  "conflictsFromBody": "Commit {{sha}} ist der erste mit Konflikt; dort hält Git an und lässt dich ihn lösen. Ausführen lässt es sich trotzdem.",
+  "filesLabel": "Dateien",
+  "updateRefs": "Abhängige Branches mitziehen",
+  "updateRefsHint": "Rebaset auch: {{branches}}. Rückgängig setzt sie gemeinsam zurück."
+}

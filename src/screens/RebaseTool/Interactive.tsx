@@ -8,6 +8,7 @@ import { core, type Id, type PreviewOp, type RebaseAction, type RebasePlan, type
 import { askMessage } from "../../app/actionDialogs";
 import { useConflictPreview } from "../../app/conflictPreview";
 import { ConflictPreviewNote } from "../../components/ConflictPreviewNote";
+import { Checkbox } from "../../ui/Field";
 import { confirm } from "../../app/dialogs";
 import { toCoreError } from "../../app/errors";
 import { busyKeys } from "../../app/actions/keys";
@@ -144,6 +145,7 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
     [okPlan, current],
   );
   const preview = useConflictPreview(repoId, previewOp);
+  const [updateRefs, setUpdateRefs] = useState(false);
 
   // A failed reload keeps the old plan in the cache; while the new attempt runs, the tool shows the
   // skeleton instead of briefly the earlier error.
@@ -264,7 +266,7 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
     if (!okPlan || check.blocked) return;
     // After "Cancel" focus returns to where it was (list or start button); the plan stays.
     if (!(await confirmRewrite(okPlan, current))) return;
-    const result = await runAction(t("rebase.tool.interactive"), withFreshStatus(repoId, () => core.rebaseApply({ repoId, base: okPlan.base, rows: payloadRows(current) })), {
+    const result = await runAction(t("rebase.tool.interactive"), withFreshStatus(repoId, () => core.rebaseApply({ repoId, base: okPlan.base, rows: payloadRows(current), updateRefs: okPlan.dependentBranches.length > 0 && updateRefs })), {
       busyKey: busyKeys.history(repoId),
       quiet: ["stale_state"],
     });
@@ -360,6 +362,7 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
                   icon={<Milestone className="size-icon" aria-hidden />}
                   onClick={async () => {
                     const result = await rebaseOnto(repoId, base, null, tabId);
+                    if (!result) return;
                     if (result.ok && result.value.status !== "conflict") void planQuery.refetch();
                     else if (result.ok) onClose();
                   }}
@@ -423,6 +426,14 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
       ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border px-3 py-1.5" data-rebase-checks="">
         <ConflictPreviewNote preview={preview} />
+        {okPlan.dependentBranches.length > 0 ? (
+          <Checkbox
+            label={t("preflight.updateRefs")}
+            checked={updateRefs}
+            onCheckedChange={setUpdateRefs}
+            hint={t("preflight.updateRefsHint", { branches: okPlan.dependentBranches.join(", ") })}
+          />
+        ) : null}
       </div>
       <ColumnBar direction={t("rebase.direction.oldestTopNewestBottom")} lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>} />
       <div className="min-h-0 flex-1">

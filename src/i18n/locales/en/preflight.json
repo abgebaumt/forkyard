@@ -1,0 +1,14 @@
+{
+  "mergeTitle": "Merge {{source}} into {{target}}?",
+  "rebaseTitle": "Rebase {{branch}} onto {{onto}}?",
+  "pickTitle_one": "Cherry-pick {{count}} commit?",
+  "pickTitle_other": "Cherry-pick {{count}} commits?",
+  "revertTitle": "Revert commit {{sha}}?",
+  "conflictsTitle_one": "Expected conflicts in {{count}} file",
+  "conflictsTitle_other": "Expected conflicts in {{count}} files",
+  "conflictsBody": "Git will stop and let you resolve them. You can still go ahead.",
+  "conflictsFromBody": "Commit {{sha}} is the first to conflict; Git stops there and lets you resolve it. You can still go ahead.",
+  "filesLabel": "Files",
+  "updateRefs": "Move dependent branches along",
+  "updateRefsHint": "Also rebases: {{branches}}. Undo resets them together."
+}

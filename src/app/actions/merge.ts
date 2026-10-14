@@ -7,6 +7,7 @@ import { withFreshStatus, withStatus } from "../statusCache";
 import { useAppStore } from "../store";
 import { cachedSettings, currentBranch } from "./context";
 import { busyKeys } from "./keys";
+import { preflight } from "./preflight";
 
 export const operationNames: Record<OperationKind, string> = {
   merge: t("actions.merge.operation.merge"),
@@ -105,6 +106,10 @@ export async function mergeBranch(repoId: Id, source: string, mode?: MergeMode, 
   const effective = mode ?? defaultMergeMode();
   const target = currentBranch(repoId);
   const label = effective === "squash" ? t("actions.merge.squashLabel") : t("actions.merge.label");
+  if (effective !== "ff_only") {
+    const choice = await preflight(repoId, { title: t("preflight.mergeTitle", { source, target: target ?? "HEAD" }), confirmLabel: label, op: { kind: "merge", theirs: source } });
+    if (!choice) return null;
+  }
   const result = await runAction(label, withFreshStatus(repoId, () => core.mergeStart({ repoId, source, mode: effective })), {
     busyKey: busyKeys.history(repoId),
   });
@@ -160,9 +165,16 @@ export async function abortOperation(repoId: Id, kind: OperationKind) {
   return result;
 }
 
-/** Rebases the checked-out branch (or `branch`) onto `onto`. Conflict → WIP view. */
+/** Rebases the checked-out branch (or `branch`) onto `onto`. Conflict → WIP view. Offers to move dependent branches along. */
 export async function rebaseOnto(repoId: Id, onto: string, branch: string | null = null, tabId?: Id | null) {
-  const result = await runAction(t("actions.merge.rebaseLabel"), withFreshStatus(repoId, () => core.rebaseStart({ repoId, onto, branch })), {
+  const choice = await preflight(repoId, {
+    title: t("preflight.rebaseTitle", { branch: branch ?? currentBranch(repoId) ?? "HEAD", onto }),
+    confirmLabel: t("actions.merge.rebaseLabel"),
+    op: { kind: "rebase", onto, upstream: null, branch, commits: null },
+    rebase: { onto, branch },
+  });
+  if (!choice) return null;
+  const result = await runAction(t("actions.merge.rebaseLabel"), withFreshStatus(repoId, () => core.rebaseStart({ repoId, onto, branch, updateRefs: choice.updateRefs })), {
     busyKey: busyKeys.history(repoId),
   });
   if (result.ok) reportOpResult(t("actions.merge.rebaseLabel"), result.value, tabId, { reveal: true });

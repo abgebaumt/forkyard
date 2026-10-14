@@ -8,6 +8,7 @@ import { core, type ConflictPreview, type Id, type PreviewOp } from "../core";
 import { t } from "../i18n";
 import { toCoreError } from "./errors";
 import { newJobId } from "./run";
+import { useAppStore } from "./store";
 
 /** Wait this long after the last change before asking (reordering in the rebase tool). */
 export const PREVIEW_DELAY_MS = 300;
@@ -69,4 +70,24 @@ export function useConflictPreview(repoId: Id | null | undefined, op: PreviewOp 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoId, key]);
   return state;
+}
+
+/**
+ * One check without a view, with a time limit; null = no answer in time or the check failed.
+ * While it runs, the status bar shows “Checking for conflicts…” (with cancel).
+ */
+export async function previewOnce(repoId: Id, op: PreviewOp, limitMs: number): Promise<ConflictPreview | null> {
+  const jobId = newJobId();
+  let timer = 0;
+  const late = new Promise<null>((resolve) => {
+    timer = window.setTimeout(() => resolve(null), limitMs);
+  });
+  useAppStore.getState().startJob({ id: jobId, title: t("conflictPreview.checking"), repoId });
+  try {
+    return await Promise.race([core.conflictPreview({ repoId, jobId, op }).catch(() => null), late]);
+  } finally {
+    window.clearTimeout(timer);
+    useAppStore.getState().finishJob(jobId);
+    void core.jobCancel({ jobId }).catch(() => undefined);
+  }
 }
