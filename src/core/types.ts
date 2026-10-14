@@ -1325,8 +1325,8 @@ export interface GitflowFinishOptions {
 
 /** `locks`: LFS file locks (`lfsLocks`) – after locking/unlocking and after a fetch. */
 export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks";
-/** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `workspaces`: `workspaceList`. */
-export type AppChange = "tabs" | "repos" | "settings" | "profiles" | "credentials" | "ssh_keys" | "workspaces" | "host_accounts";
+/** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `workspaces`: `workspaceList`, `custom_commands`: `customCommandsList`. */
+export type AppChange = "tabs" | "repos" | "settings" | "profiles" | "credentials" | "ssh_keys" | "workspaces" | "host_accounts" | "custom_commands";
 
 export interface CoreEvents {
   "repo:changed": { repoId: Id; what: RepoChange[] };
@@ -1543,3 +1543,99 @@ export interface IssueDetails extends IssueSummary {
   body: string;
   comments: HostComment[];
 }
+
+// ---------------------------------------------------------------------------
+// Custom commands
+// ---------------------------------------------------------------------------
+
+export type CustomCommandKind = "shell" | "url" | "git";
+/** Working directory of a `shell` command: the open folder (`worktree`, default) or the main working tree (`repo`). */
+export type CustomCommandCwd = "repo" | "worktree";
+export type CustomInputType = "text" | "choice" | "checkbox" | "file";
+/** Where a command appears: `repo` = command palette; the others = context menus of commits, branches, files, submodules. */
+export type CustomCommandScope = "repo" | "commit" | "branch" | "file" | "submodule";
+
+export interface CustomCommandInput {
+  id: string;
+  label: string;
+  type: CustomInputType;
+  /** Start value; for a checkbox "true" or "false". */
+  default: string | null;
+  /** `choice`: the choices; `checkbox`: at most one entry – the value when ticked (otherwise "true"). */
+  options: string[];
+}
+
+/** One custom command, as stored or written in `.forkyard/commands.json` (format `{ "version": 1, "commands": [...] }`). */
+export interface CustomCommandDef {
+  id: string;
+  title: string;
+  kind: CustomCommandKind;
+  /** One line with placeholders `${repo}`, `${sha}`, `${branch}`, `${file}`, `${remote}`, `${input:<id>}`; for `git` Git's arguments without "git". */
+  run: string;
+  cwd: CustomCommandCwd;
+  /** Show the finished command before it runs. */
+  confirm: boolean;
+  /** Global `shell` commands only: through the system shell; values arrive as environment variables `FORKYARD_*`. */
+  shell: boolean;
+  inputs: CustomCommandInput[];
+  scope: CustomCommandScope[];
+}
+
+export type CustomCommandSource = "global" | "repo";
+
+export interface CustomCommandEntry {
+  /** `global:<id>` or `repo:<id>` – what `customCommandRun` takes. */
+  key: string;
+  source: CustomCommandSource;
+  command: CustomCommandDef;
+  /** false: a repository command whose file is not approved in this version. */
+  runnable: boolean;
+}
+
+export type RepoCommandsState = "missing" | "untrusted" | "changed" | "trusted";
+export type CustomCommandChangeKind = "added" | "removed" | "changed";
+
+export interface CustomCommandChange {
+  id: string;
+  title: string;
+  change: CustomCommandChangeKind;
+  /** `run` before and after; null for added or removed commands. */
+  before: string | null;
+  after: string | null;
+}
+
+export interface RepoCommands {
+  state: RepoCommandsState;
+  /** SHA-256 of the file as it is now – what `customCommandsTrust` expects; null without a usable file. */
+  hash: string | null;
+  /** ".forkyard/commands.json" */
+  path: string;
+  /** One sentence per rejected command or file problem. */
+  problems: string[];
+  /** Only for `changed`. */
+  changes: CustomCommandChange[];
+}
+
+export interface CustomCommandList {
+  /** Global commands first, then those of the repository. */
+  commands: CustomCommandEntry[];
+  /** null when listed without a repository. */
+  repo: RepoCommands | null;
+}
+
+/** Where a command was started; missing values fall back to HEAD, the current branch and the upstream remote. */
+export interface CustomCommandContext {
+  sha?: Sha | null;
+  branch?: string | null;
+  /** Relative path (in the submodule menu: the submodule's path). */
+  file?: string | null;
+  remote?: string | null;
+}
+
+export type CustomCommandResult =
+  /** `confirm: true` and not confirmed yet: nothing has run. */
+  | { status: "confirm"; display: string; cwd: string }
+  /** `output`: stdout and stderr, redacted, at most 64 KiB. */
+  | { status: "finished"; exitCode: number | null; output: string }
+  /** The UI opens the address in the system browser. */
+  | { status: "open_url"; url: string };

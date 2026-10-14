@@ -29,6 +29,10 @@ import type {
   ConflictFile,
   ConflictPreview,
   CoreEvents,
+  CustomCommandContext,
+  CustomCommandDef,
+  CustomCommandList,
+  CustomCommandResult,
   DiffSource,
   ExternalTarget,
   FetchResult,
@@ -506,6 +510,35 @@ export interface CoreCommands {
    * in the diff tool). The app does not wait for the tool; what it writes arrives as `repo:changed`.
    */
   openExternal(input: R & { target: ExternalTarget; path: string | null; source?: DiffSource | null }): Promise<void>;
+
+  // --- Custom commands (Settings → Custom commands, `.forkyard/commands.json`) ----------------
+  /**
+   * The user's own commands and – with `repoId` – those of the repository's `.forkyard/commands.json`
+   * with the state of their approval. Repository commands are listed for review but only `runnable`
+   * when exactly this version of the file is approved. A locked repository: `repo_untrusted`.
+   */
+  customCommandsList(input: { repoId: Id | null }): Promise<CustomCommandList>;
+  /** Replaces the user's own commands. One invalid command: `not_allowed` naming it, nothing changes. */
+  customCommandsSave(input: { commands: CustomCommandDef[] }): Promise<CustomCommandDef[]>;
+  /**
+   * Approves `.forkyard/commands.json` in the version with `hash` (from the list) or withdraws the
+   * approval (`hash: null`). File changed in between: `stale_state`; no usable file: `not_found`.
+   */
+  customCommandsTrust(input: R & { hash: string | null }): Promise<CustomCommandList>;
+  /**
+   * Runs a custom command. `id` is the entry's `key`. `inputs`: the form's values by input ID
+   * (checkbox "true"/"false"). With `confirm: true` and `confirmed: false` nothing runs: the result is
+   * `{ status: "confirm" }` with the finished command line – call again with `confirmed: true`.
+   * `shell` and `git` run as job `jobId` (`job:progress`, `jobCancel`); `url` returns the address.
+   * Errors: `command_untrusted` (repository file not approved in this version), `not_found` (gone,
+   * program missing), `not_allowed` (a value would become an option of Git, a choice that isn't
+   * offered, missing commit/branch/file/remote), `invalid_name` (branch in the context).
+   */
+  customCommandRun(input: R & { id: string; context: CustomCommandContext; inputs: Record<string, string>; jobId: string; confirmed: boolean }): Promise<CustomCommandResult>;
+  /** Reads commands from a JSON file (absolute path from the open dialog) without saving them. Any invalid command: `not_allowed`. */
+  customCommandsImport(input: { path: string }): Promise<CustomCommandDef[]>;
+  /** Writes the user's own commands to `path` (absolute, from the save dialog). */
+  customCommandsExport(input: { path: string }): Promise<void>;
 
   // --- Built-in terminal ---------------------------------------------------------
   /**

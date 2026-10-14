@@ -887,6 +887,47 @@ pub async fn open_external(core: State<'_, Core>, repo_id: String, target: Exter
     c::external::open_external(&core, repo_id, target, path, source).await
 }
 
+// --- Custom commands ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn custom_commands_list(core: State<'_, Core>, repo_id: Option<String>) -> R<CustomCommandList> {
+    c::custom::custom_commands_list(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn custom_commands_save(core: State<'_, Core>, commands: Vec<CustomCommandDef>) -> R<Vec<CustomCommandDef>> {
+    c::custom::custom_commands_save(&core, commands).await
+}
+
+#[tauri::command]
+pub async fn custom_commands_trust(core: State<'_, Core>, repo_id: String, hash: Option<String>) -> R<CustomCommandList> {
+    c::custom::custom_commands_trust(&core, repo_id, hash).await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn custom_command_run(
+    core: State<'_, Core>,
+    repo_id: String,
+    id: String,
+    context: CustomCommandContext,
+    inputs: std::collections::BTreeMap<String, String>,
+    job_id: String,
+    confirmed: bool,
+) -> R<CustomCommandResult> {
+    c::custom::custom_command_run(&core, repo_id, id, context, inputs, job_id, confirmed).await
+}
+
+#[tauri::command]
+pub async fn custom_commands_import(core: State<'_, Core>, path: String) -> R<Vec<CustomCommandDef>> {
+    c::custom::custom_commands_import(&core, path).await
+}
+
+#[tauri::command]
+pub async fn custom_commands_export(core: State<'_, Core>, path: String) -> R<()> {
+    c::custom::custom_commands_export(&core, path).await
+}
+
 // --- Hosts: accounts, pull requests, issues ---------------------------------------------
 
 #[tauri::command]
