@@ -192,6 +192,16 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
             <Switch id={ids.id} ariaDescribedBy={ids.descriptionId} checked={repo.autoFetch} onCheckedChange={(checked) => void applyRepoSettings(repoId, { autoFetch: checked })} />
           )}
         </InheritRow>
+        <SettingRow title={t("submoduleSync.setting.title")} description={t("submoduleSync.setting.description")}>
+          {(ids) => (
+            <Switch
+              id={ids.id}
+              ariaDescribedBy={ids.descriptionId}
+              checked={repo.submodulesAutoUpdate}
+              onCheckedChange={(checked) => void applyRepoSettings(repoId, { submodulesAutoUpdate: checked })}
+            />
+          )}
+        </SettingRow>
       </SettingsCard>
     </section>
   );

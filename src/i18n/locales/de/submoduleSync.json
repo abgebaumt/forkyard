@@ -1,0 +1,8 @@
+{
+  "setting": {
+    "title": "Submodule nach Checkout/Pull aktualisieren",
+    "description": "Nach Checkout, Pull, Merge, Cherry-Pick, Revert, hartem Reset und abgeschlossenem Rebase werden Submodule, deren eingetragener Commit sich geändert hat, auf diesen Commit gebracht."
+  },
+  "failedTitle": "Submodule nicht aktualisiert",
+  "failedPaths": "Betroffen: {{paths}}"
+}

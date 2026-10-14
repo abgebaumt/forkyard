@@ -19,6 +19,7 @@ import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
 import { reportHookOutput } from "./notifications/hooks";
+import { reportSubmoduleUpdate } from "./notifications/submodules";
 import { issueApi, type IssueFilter } from "../screens/Issues/api";
 import { desktopNotify, wasManualSync } from "./notify";
 import { readStatus } from "./statusOrder";
@@ -593,6 +594,11 @@ export function useCoreSync(activeRepoId: Id | null) {
       core.on("credential:request", (request) => store().enqueueCredential(request)),
       // Hook output and failures: one toast per incident, see notifications/hooks.ts.
       core.on("hook:output", (payload) => reportHookOutput(payload, queryClient.getQueryData<Settings>(qk.settings)?.notifyOnError)),
+      // Follow-up job after checkout, pull …: refresh the list; a failure is a warning toast.
+      core.on("submodules:updated", (event) => {
+        void queryClient.invalidateQueries({ queryKey: qk.submodules(event.repoId) });
+        reportSubmoduleUpdate(event);
+      }),
     ];
     return () => stops.forEach((stop) => stop());
   }, []);

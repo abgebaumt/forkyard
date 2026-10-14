@@ -1,0 +1,8 @@
+{
+  "setting": {
+    "title": "Update submodules after checkout and pull",
+    "description": "After checkout, pull, merge, cherry-pick, revert, hard reset and a finished rebase, submodules whose recorded commit changed are checked out at it."
+  },
+  "failedTitle": "Submodules not updated",
+  "failedPaths": "Affected: {{paths}}"
+}
