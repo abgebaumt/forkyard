@@ -1,9 +1,12 @@
 import { t } from "../../i18n";
 import { activateTab, changeZoom, closeTab, newTab, openRepository, setZoom, ZOOM_STEP } from "../actions/repos";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
+import { showsSidePanels } from "../store";
 import { focusAreaSoon } from "./focus";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
+/** The statistics hide both panels: their toggles would change what cannot be seen. */
+const hasPanels = (ctx: CommandContext) => hasRepo(ctx) && (!ctx.view || showsSidePanels(ctx.view));
 
 const tabNumberCommands: AppCommand[] = Array.from({ length: 9 }, (_, index) => ({
   id: `tab.goto.${index + 1}`,
@@ -65,7 +68,7 @@ export const commands: AppCommand[] = [
     title: t("commands.view.toggleLeftPanel.title"),
     group: "Ansicht",
     shortcut: "Mod+J",
-    when: hasRepo,
+    when: hasPanels,
     run: (ctx) => ctx.store.toggleLeftPanel(ctx.tabId!),
   },
   {
@@ -73,7 +76,7 @@ export const commands: AppCommand[] = [
     title: t("commands.view.toggleCommitPanel.title"),
     group: "Ansicht",
     shortcut: "Mod+K",
-    when: hasRepo,
+    when: hasPanels,
     run: (ctx) => ctx.store.toggleRightPanel(ctx.tabId!),
   },
   {

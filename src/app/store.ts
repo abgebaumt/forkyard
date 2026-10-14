@@ -414,6 +414,14 @@ export function useTabView(tabId: Id | null | undefined): TabView {
   return useAppStore((state) => (tabId ? state.views[tabId] : undefined) ?? fallbackView);
 }
 
+/**
+ * Whether the Left Panel and the Commit Panel are shown. The statistics take the whole width;
+ * the panels' own state (collapsed, width) stays and applies again when they close.
+ */
+export function showsSidePanels(view: TabView): boolean {
+  return view.center.kind !== "stats";
+}
+
 export function getTabView(tabId: Id): TabView {
   return useAppStore.getState().views[tabId] ?? fallbackView;
 }

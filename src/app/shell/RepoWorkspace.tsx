@@ -25,7 +25,7 @@ import { closeTab, forgetRepo, openRepository } from "../actions/repos";
 import { core } from "../../core";
 import { qk, queryClient, trustKey, useRepo, useRepoLocked, useRepoMissing, useRepoTrust } from "../queries";
 import { runAction } from "../run";
-import { PANEL_LIMITS, useAppStore, useLeftCollapsed, useTabView, type CenterView, type TabView } from "../store";
+import { PANEL_LIMITS, showsSidePanels, useAppStore, useLeftCollapsed, useTabView, type CenterView, type TabView } from "../store";
 import { FullPage } from "./FullPage";
 import { Splitter } from "./Splitter";
 import { t } from "../../i18n";
@@ -287,9 +287,11 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
     focusLater(next);
   };
 
+  const panels = showsSidePanels(view);
+
   return (
     <div ref={setContainer} className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-      {leftCollapsed ? (
+      {!panels ? null : leftCollapsed ? (
         <Rail side="left" onOpen={() => toggleLeft('[role="separator"][data-side="left"]')} />
       ) : (
         <>
@@ -321,7 +323,7 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
         {view.terminalOpen ? <TerminalPanel repoId={repoId} tabId={tabId} /> : null}
       </div>
 
-      {view.rightCollapsed ? (
+      {!panels ? null : view.rightCollapsed ? (
         <Rail side="right" onOpen={() => toggleRight('[role="separator"][data-side="right"]')} />
       ) : (
         <>

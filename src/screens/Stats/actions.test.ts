@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getCommands } from "../../app/registry";
-import { useAppStore } from "../../app/store";
+import type { CommandContext } from "../../app/commandTypes";
+import { getTabView, showsSidePanels, useAppStore } from "../../app/store";
 import { backLabel } from "../FileView/nav";
 import { closeStats, leaveStats, openStats, rememberChoice, rememberedChoice, toggleStats } from "./actions";
 
@@ -63,5 +64,20 @@ describe("opening the statistics", () => {
     openStats("tab-p");
     openStats("tab-p");
     expect(useAppStore.getState().views["tab-p"]?.center).toEqual({ kind: "stats" });
+  });
+
+  it("take the whole width: no side panels and no panel toggles while open, the layout comes back on close", () => {
+    const store = useAppStore.getState();
+    store.setRightCollapsed("tab-w", true);
+    openStats("tab-w");
+    expect(showsSidePanels(getTabView("tab-w"))).toBe(false);
+    const ctx = { repoId: "r", tabId: "tab-w", view: getTabView("tab-w") } as CommandContext;
+    for (const id of ["view.toggleLeftPanel", "view.toggleCommitPanel"]) {
+      expect(getCommands().find((item) => item.id === id)?.when?.(ctx), id).toBe(false);
+    }
+    toggleStats("tab-w");
+    const view = getTabView("tab-w");
+    expect(showsSidePanels(view)).toBe(true);
+    expect([view.leftCollapsed, view.rightCollapsed]).toEqual([false, true]);
   });
 });
