@@ -14,7 +14,7 @@ use crate::commands::repos::repo_open;
 use crate::commands::view::view_state_set;
 use crate::error::ErrorCode;
 use crate::events::names;
-use crate::model::{CommitInfo, FileArea, FileChange, FileStatus, GraphEdge, GraphRow, GraphRowKind, Person, SignatureStatus};
+use crate::model::{CommitInfo, FileArea, FileChange, FileStatus, GraphEdge, GraphRow, GraphRowKind, Person, SignatureStatus, SyncMark};
 use crate::testkit::{git_isolation_env, TestCore, TestRepo, AUTHOR_EMAIL, AUTHOR_NAME, BASE_TIME};
 
 // ---------------------------------------------------------------------------
@@ -1733,4 +1733,35 @@ async fn a_large_hidden_block_at_the_page_boundary_needs_few_log_calls() {
     assert_eq!(find(&rows, &merge).collapsed_count, Some(50));
     check_rows(&rows, true).unwrap();
     assert!(reads <= 4, "{reads} `git log` calls for two pages");
+}
+
+// ---------------------------------------------------------------------------
+// Not pushed / not pulled
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn rows_mark_commits_not_yet_pushed_or_pulled() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let base = repo.head();
+    let _remote = repo.add_remote();
+    let pulled_later = repo.commit_file("r.txt", "1\n", "Schon auf dem Remote");
+    repo.git(&["push", "-q"]);
+    repo.git(&["reset", "-q", "--hard", &base]);
+    let local = repo.commit_file("l.txt", "1\n", "Nur lokal");
+    let id = tc.open(&repo).await.repo.id;
+
+    let rows = all_rows(&tc, &id, 100).await;
+    assert_eq!(find(&rows, &local).sync, SyncMark::Ahead);
+    assert_eq!(find(&rows, &pulled_later).sync, SyncMark::Behind);
+    assert_eq!(find(&rows, &base).sync, SyncMark::None);
+
+    // Without an upstream there is nothing to compare with.
+    repo.git(&["branch", "--unset-upstream"]);
+    assert!(all_rows(&tc, &id, 100).await.iter().all(|r| r.sync == SyncMark::None));
+
+    // Detached HEAD: no branch, no marks.
+    repo.git(&["branch", "-u", "origin/main"]);
+    repo.git(&["checkout", "-q", "--detach"]);
+    assert!(all_rows(&tc, &id, 100).await.iter().all(|r| r.sync == SyncMark::None));
 }

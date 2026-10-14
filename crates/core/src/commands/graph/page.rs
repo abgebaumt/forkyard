@@ -46,6 +46,8 @@ const LOG_FIELDS: usize = 6;
 const CURSOR_VERSION: u32 = 2;
 /// More commits than this under one merge: it stays expanded (`collapseTooLarge`).
 pub(super) const MAX_COLLAPSE: usize = 20_000;
+/// At most this many commits per direction are marked as not pushed / not pulled.
+const MAX_SYNC: u32 = 5_000;
 /// Records per `git log` call once hidden commits left the page short: at least this many, doubling
 /// up to `MAX_READ_CHUNK`.
 const MIN_READ_CHUNK: usize = 1_000;
@@ -229,6 +231,8 @@ struct PageBuilder<'a> {
     commits: usize,
     /// Commits that only hidden commits (or a collapsed merge) lead to and that have not appeared yet.
     hidden: HashSet<String>,
+    /// Commits not pushed / not pulled yet.
+    sync: SyncSets,
 }
 
 impl PageBuilder<'_> {
@@ -317,6 +321,7 @@ impl PageBuilder<'_> {
         row.summary = display_text(&fields[5]);
         row.refs = self.plan.labels.get(&sha).cloned().unwrap_or_default();
         row.is_head = self.plan.head_sha.as_deref() == Some(sha.as_str());
+        row.sync = self.sync.mark(&sha);
         row.collapsed_count = collapsed_count;
         row.collapse_too_large = collapse_too_large;
         self.push(placed, row);
@@ -405,6 +410,38 @@ async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip
     Ok(out)
 }
 
+/// Commits of the checked-out branch that its upstream lacks (`@{u}..HEAD`) and the other way round.
+#[derive(Debug, Default)]
+struct SyncSets {
+    ahead: HashSet<String>,
+    behind: HashSet<String>,
+}
+
+impl SyncSets {
+    fn mark(&self, sha: &str) -> SyncMark {
+        if self.ahead.contains(sha) {
+            SyncMark::Ahead
+        } else if self.behind.contains(sha) {
+            SyncMark::Behind
+        } else {
+            SyncMark::None
+        }
+    }
+}
+
+/// Without an upstream (or with a detached HEAD) Git refuses `@{u}`: then both sets stay empty.
+async fn read_sync(core: &Core, path: &Path, repo_id: &str) -> SyncSets {
+    let range = |spec: &'static str| async move {
+        let out = read_cmd(core, path, repo_id).arg("rev-list").arg(format!("--max-count={MAX_SYNC}")).arg(spec).arg("--").run_raw().await;
+        match out {
+            Ok(out) if out.success() => out.stdout_lines().into_iter().map(util::decode_lossy).collect::<HashSet<String>>(),
+            _ => HashSet::new(),
+        }
+    };
+    let (ahead, behind) = tokio::join!(range("@{u}..HEAD"), range("HEAD..@{u}"));
+    SyncSets { ahead, behind }
+}
+
 fn empty_row(id: &str, kind: GraphRowKind) -> GraphRow {
     GraphRow {
         id: id.to_string(),
@@ -435,7 +472,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     let cursor = cursor.map(Cursor::decode).transpose()?;
     let first_page = cursor.is_none();
 
-    let (tips, head, stashes, wip_count) = tokio::join!(
+    let (tips, head, stashes, wip_count, sync) = tokio::join!(
         read_ref_tips(core, &path, repo_id, None),
         read_cmd(core, &path, repo_id).args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
         read_stashes(core, &path, repo_id),
@@ -446,6 +483,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
                 0
             }
         },
+        read_sync(core, &path, repo_id),
     );
     // If this fails there is no commit yet (or HEAD points nowhere): then nothing hangs off HEAD.
     let head_sha = Some(head?).filter(|out| out.success()).map(|out| out.stdout_text()).filter(|sha| is_full_sha(sha));
@@ -456,7 +494,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
         Some(_) => return Err(CoreError::stale_state()),
         None => (0, LayoutState::new(), HashSet::new()),
     };
-    let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0, hidden };
+    let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0, hidden, sync };
 
     if first_page && wip_count > 0 {
         let mut head = None;
@@ -685,7 +723,7 @@ mod tests {
     }
 
     fn builder(plan: &Plan) -> PageBuilder<'_> {
-        PageBuilder { plan, state: LayoutState::new(), rows: Vec::new(), max_lane: 0, commits: 0, hidden: HashSet::new() }
+        PageBuilder { plan, state: LayoutState::new(), rows: Vec::new(), max_lane: 0, commits: 0, hidden: HashSet::new(), sync: SyncSets::default() }
     }
 
     fn row_ids<'a>(b: &'a PageBuilder<'_>) -> Vec<&'a str> {
@@ -748,5 +786,11 @@ mod tests {
         assert!(b.commit(&record("b", ""), None));
         assert_eq!(row_ids(&b), vec!["f", "m", "s2", "p1", "b"]);
         crate::commands::graph::layout::check::check_rows(&b.rows, true).unwrap();
+    }
+
+    #[test]
+    fn sync_marks_come_from_the_two_ranges() {
+        let sync = SyncSets { ahead: HashSet::from(["a".to_string()]), behind: HashSet::from(["b".to_string()]) };
+        assert_eq!((sync.mark("a"), sync.mark("b"), sync.mark("c")), (SyncMark::Ahead, SyncMark::Behind, SyncMark::None));
     }
 }
