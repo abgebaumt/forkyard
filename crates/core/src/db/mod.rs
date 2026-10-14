@@ -47,7 +47,14 @@ const UPGRADES: &[&str] = &[
     // profile gets all known repos so nothing disappears), profile colour; the setting of the
     // removed AI feature is dropped.
     V5_PROFILE_LEVELS,
+    // Collapsed merges in the graph (per repository): two columns of the view state.
+    V_COLLAPSED_MERGES,
 ];
+
+const V_COLLAPSED_MERGES: &str = "
+alter table repo_view_state add column collapsed_merges text not null default '[]' check (json_valid(collapsed_merges));
+alter table repo_view_state add column collapse_all_merges integer not null default 0 check (collapse_all_merges in (0, 1));
+";
 
 const V5_PROFILE_LEVELS: &str = "
 alter table profiles add column color text check (color is null or color in ('1','2','3','4','5','6','7','8'));
@@ -262,7 +269,7 @@ mod tests {
         let v1: String = SCHEMA
             .lines()
             .filter(|l| {
-                let later = ["-- Since version 3: ", "-- Since version 4: ", "-- Since version 5: "].iter().any(|start| l.starts_with(start));
+                let later = l.starts_with("-- Since version ");
                 if later && (l.ends_with("begin") || l.ends_with("end")) {
                     in_later = l.ends_with("begin");
                     markers += 1;
@@ -272,7 +279,9 @@ mod tests {
             })
             .collect::<Vec<_>>()
             .join("\n");
-        assert_eq!(markers, 10, "schema.sql brackets the blocks of versions 3, 4 and 5");
+        assert_eq!(markers % 2, 0, "every block in schema.sql has a begin and an end");
+        assert!(markers >= 12, "schema.sql brackets the blocks of versions 3, 4, 5 and the collapsed merges");
+        assert!(!v1.contains("collapsed_merges") && !v1.contains("collapse_all_merges"));
         assert!(!v1.contains("hoster_accounts") && !v1.contains("repository_trust"));
         assert!(!v1.contains("create table app_settings") && !v1.contains("create table profile_repositories"));
         let v1 = format!("{v1}\n{OLD_INTEGRATIONS}");
@@ -298,6 +307,7 @@ mod tests {
                 [],
             )
             .unwrap();
+            conn.execute("insert into repo_view_state (repository_id, hidden_refs) values ('r', '[\"refs/heads/alt\"]')", []).unwrap();
             conn.execute_batch(
                 "insert into settings (profile_id, key, value) values ('p', 'theme', '\"light\"'), ('p', 'autoFetchMinutes', '5'),
                    ('q', 'theme', '\"dark\"'), ('q', 'aiModel', '\"x\"');",
@@ -322,9 +332,13 @@ mod tests {
         let kept: String = db.with(|c| Ok(c.query_row("select name from workspaces where id = 'w'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(kept, "Alt");
         let fresh = Db::open_in_memory().unwrap();
-        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories"] {
+        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state"] {
             assert_eq!(columns(&db, table), columns(&fresh, table), "{table}");
         }
+        // The view state of before keeps its fields and gets the new ones with their defaults.
+        let view = db.with(|c| view_state::get(c, "r")).unwrap();
+        assert_eq!(view.hidden_refs, vec!["refs/heads/alt"]);
+        assert!(view.collapsed_merges.is_empty() && !view.collapse_all_merges);
         // Version 5: every profile lists the known repos with favourite and group; the theme moves
         // from the active profile into the global table, the AI setting is gone.
         let listed: Vec<(String, i64, Option<String>, Option<String>)> = db

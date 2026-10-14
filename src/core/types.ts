@@ -755,6 +755,10 @@ export interface RepoViewState {
   collapsedFolders: string[];
   columns: { id: GraphColumnId; visible: boolean; width: number | null }[];
   sections: { id: SectionId; collapsed: boolean; hidden: boolean }[];
+  /** Merge commits whose side branch the graph hides (full SHAs). */
+  collapsedMerges: Sha[];
+  /** Every merge is collapsed – also those on pages loaded later. */
+  collapseAllMerges: boolean;
 }
 
 export interface CommitDraft {

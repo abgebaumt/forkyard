@@ -934,6 +934,12 @@ pub struct RepoViewState {
     pub collapsed_folders: Vec<String>,
     pub columns: Vec<ColumnState>,
     pub sections: Vec<SectionState>,
+    /// Merge commits whose side branch the graph hides (full SHAs).
+    #[serde(default)]
+    pub collapsed_merges: Vec<String>,
+    /// Every merge is collapsed – also those on pages loaded later.
+    #[serde(default)]
+    pub collapse_all_merges: bool,
 }
 
 impl Default for RepoViewState {
@@ -962,6 +968,8 @@ impl Default for RepoViewState {
                 sec(SectionId::Worktrees, false),
                 sec(SectionId::Submodules, true),
             ],
+            collapsed_merges: Vec::new(),
+            collapse_all_merges: false,
         }
     }
 }

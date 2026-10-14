@@ -3,10 +3,14 @@
 use serde_json::Value;
 
 use crate::app::Core;
+use crate::commands::graph::is_full_sha;
 use crate::db;
-use crate::error::CoreResult;
+use crate::error::{CoreError, CoreResult};
 use crate::model::{CommitDraft, RepoViewState};
 use crate::util;
+
+/// Upper limit for `collapsedMerges` ("collapse all" over many loaded pages stays well below).
+const MAX_COLLAPSED_MERGES: usize = 50_000;
 
 pub async fn view_state_get(core: &Core, repo_id: String) -> CoreResult<RepoViewState> {
     core.db.with(|c| {
@@ -25,9 +29,25 @@ pub async fn view_state_set(core: &Core, repo_id: String, patch: Value) -> CoreR
         dedup(&mut next.solo_refs);
         dedup(&mut next.pinned_refs);
         dedup(&mut next.collapsed_folders);
+        dedup(&mut next.collapsed_merges);
+        check_collapsed(&next.collapsed_merges)?;
         db::view_state::set(tx, &repo_id, &next)?;
         Ok(next)
     })
+}
+
+/// Only full commit SHAs: the graph compares them with the SHAs of its rows.
+fn check_collapsed(list: &[String]) -> CoreResult<()> {
+    if list.len() > MAX_COLLAPSED_MERGES {
+        return Err(CoreError::not_allowed(format!("View: at most {MAX_COLLAPSED_MERGES} collapsed merges.")));
+    }
+    match list.iter().find(|sha| !is_full_sha(sha)) {
+        Some(bad) => {
+            let shown: String = bad.chars().filter(|c| !c.is_control()).take(80).collect();
+            Err(CoreError::not_allowed(format!("View: “{shown}” is not a full commit SHA.")))
+        }
+        None => Ok(()),
+    }
 }
 
 fn dedup(list: &mut Vec<String>) {
@@ -109,5 +129,29 @@ mod tests {
         assert_eq!(draft_get(&tc, id.clone()).await.unwrap(), CommitDraft::default());
         let err = draft_set(&tc, "unbekannt".into(), draft).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotFound);
+    }
+
+    #[tokio::test]
+    async fn collapsed_merges_are_stored_deduplicated_and_validated() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        let sha = repo.head();
+        let id = tc.open(&repo).await.repo.id;
+
+        let state = view_state_get(&tc, id.clone()).await.unwrap();
+        assert!(state.collapsed_merges.is_empty());
+        assert!(!state.collapse_all_merges);
+
+        let next = view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&sha, &sha], "collapseAllMerges": true})).await.unwrap();
+        assert_eq!(next.collapsed_merges, vec![sha.clone()]);
+        assert!(next.collapse_all_merges);
+        assert_eq!(view_state_get(&tc, id.clone()).await.unwrap(), next);
+
+        let err = view_state_set(&tc, id.clone(), json!({"collapsedMerges": ["main"]})).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+        let err = view_state_set(&tc, id.clone(), json!({"collapseAllMerges": "ja"})).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+        // A rejected patch changes nothing.
+        assert_eq!(view_state_get(&tc, id.clone()).await.unwrap(), next);
     }
 }

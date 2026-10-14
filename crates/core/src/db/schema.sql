@@ -133,6 +133,11 @@ create table repo_view_state (
   columns            text not null default '[]' check (json_valid(columns)),
   section_visibility text not null default '{}' check (json_valid(section_visibility)),
   updated_at         text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+-- Since version 6: begin
+  -- Merge commits whose side branch the graph hides (JSON list of SHAs), and "collapse all".
+  , collapsed_merges    text not null default '[]' check (json_valid(collapsed_merges))
+  , collapse_all_merges integer not null default 0 check (collapse_all_merges in (0, 1))
+-- Since version 6: end
 ) strict;
 
 -- App-side settings per repository (the value is JSON).

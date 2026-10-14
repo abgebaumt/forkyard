@@ -15,6 +15,8 @@ export const EMPTY_VIEW: RepoViewState = {
   collapsedFolders: [],
   columns: [],
   sections: [],
+  collapsedMerges: [],
+  collapseAllMerges: false,
 };
 
 /** Running writes per repository – only the answer of the last one counts. */
