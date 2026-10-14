@@ -45,6 +45,12 @@ All notable changes to Forkyard are listed here. The format follows
 - After checkout, pull, merge, cherry-pick, revert, hard reset and a finished rebase, changed
   submodules are updated in the background; a failure shows a warning. Can be switched off per
   project.
+- Git LFS file locks: the Git LFS dialog lists the repository’s locks with a filter and unlocks
+  your own or – after a prompt naming owner and file – other people’s locks. Changed files and the
+  file list of a commit show a lock symbol with the owner, a right-click locks or unlocks files,
+  and the commit panel warns when staged files are locked by someone else (committing stays
+  possible). The list is read again after every fetch; a server without file locking says so
+  instead of showing an empty list.
 
 ### Changed
 
