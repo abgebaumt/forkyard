@@ -1,13 +1,15 @@
 /**
  * Test server for the host integration: answers on 127.0.0.1 in the shape of the public APIs of
- * GitHub (REST, under /api/v3) and GitLab (REST v4, under /api/v4). All data is made up; there are
- * no calls to the outside.
+ * GitHub (REST, under /api/v3), GitLab (REST v4, under /api/v4), Gitea/Forgejo (under /api/v1),
+ * Bitbucket Cloud (2.0, under /2.0) and Azure DevOps (organization `firma`, under /firma). All data
+ * is made up; there are no calls to the outside.
  * The Rust counterpart (for `cargo test`) is in crates/core/src/host/tests/mocks.rs.
  *
  *   import { startHostMock } from "./host-mock.mjs";
  *   const mock = await startHostMock();                 // { tls: true } for HTTPS with its own certificate
- *   await app.invoke("host_connect", { kind: "github", baseUrl: mock.url, token: mock.token });
- *   // remote of the test repository: mock.remoteUrl("github") or mock.remoteUrl("gitlab")
+ *   await app.invoke("host_connect", { kind: "github", baseUrl: mock.baseUrl("github"), token: mock.token });
+ *   await app.invoke("host_connect", { kind: "bitbucket", baseUrl: mock.baseUrl("bitbucket"), token: mock.token, username: "lena@example.org" });
+ *   // remote of the test repository: mock.remoteUrl("github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops")
  *
  *   mock.url          http://127.0.0.1:<port> – the baseUrl for BOTH hosts (the paths differ)
  *   mock.token        valid token;  mock.weakToken: valid, but without the required permission
@@ -30,7 +32,9 @@
  * requested reviewer, no. 3 is a draft, no. 4 has a failed check, no. 7 comes from the branch
  * feature/login, no. 8 from a fork, no. 13 cannot be merged. A new pull request from the branch
  * "schon-da" is rejected as a duplicate.
- * 12 issues (divisible by 4: closed). Repository: octo/demo (GitHub), gruppe/unter/demo (GitLab).
+ * 12 issues (divisible by 4: closed). Repository: octo/demo (GitHub, Gitea), gruppe/unter/demo
+ * (GitLab), team/demo (Bitbucket), firma/projekt/_git/demo (Azure DevOps). Work items (Azure
+ * DevOps) = the 12 issues.
  *
  * Called directly (to try it out):  node scripts/e2e/host-mock.mjs [--tls] [--port 8123]
  */
@@ -57,7 +61,7 @@ const stamp = (number) => `2026-09-${String(1 + (number % 28)).padStart(2, "0")}
 const sourceBranch = (number) => (number === 7 ? "feature/login" : number === 8 ? "korrektur" : `feature/thema-${number}`);
 
 function freshState() {
-  return { merged: new Set(), closed: new Set(), created: [], comments: [], titles: new Map() };
+  return { merged: new Set(), closed: new Set(), created: [], comments: [], titles: new Map(), workItems: [] };
 }
 
 function prState(number, state) {
@@ -352,6 +356,368 @@ function gitlab(ctx) {
   }
 }
 
+// --- Gitea / Forgejo -----------------------------------------------------------------------
+
+const gtUser = (login) => ({ id: login.length, login, full_name: `${login} (Name)`, avatar_url: `https://avatars.example/${login}.png` });
+
+function gtPull(base, number, state) {
+  const created = state.created.find((entry) => entry.number === number);
+  const status = prState(number, state);
+  return {
+    number,
+    title: state.titles.get(number) ?? created?.title ?? (number === 3 ? "WIP: Thema 3 umsetzen" : `Thema ${number} umsetzen`),
+    state: status === "open" ? "open" : "closed",
+    merged: status === "merged",
+    user: gtUser(created ? "lena" : "jonas"),
+    body: created?.body ?? `Beschreibung zu **Thema ${number}**.`,
+    head: { ref: created?.source ?? sourceBranch(number), sha: sha(number), repo: { full_name: number === 8 ? "fremd/demo" : "octo/demo" } },
+    base: { ref: created?.target ?? "main", sha: sha(1000), repo: { full_name: "octo/demo" } },
+    updated_at: stamp(number),
+    html_url: `${base}/octo/demo/pulls/${number}`,
+    labels: number === 1 ? [{ id: 11, name: "bug", color: "ee0701" }] : [],
+    requested_reviewers: number === 2 ? [gtUser("mira")] : [],
+    mergeable: number !== 13,
+  };
+}
+
+const gtIssue = (base, number) => ({
+  number,
+  title: `Problem ${number}`,
+  state: number % 4 === 0 ? "closed" : "open",
+  user: gtUser("mira"),
+  assignees: number === 2 ? [gtUser("lena")] : null,
+  labels: [{ id: 12, name: "frage", color: "0e8a16" }],
+  updated_at: stamp(number),
+  html_url: `${base}/octo/demo/issues/${number}`,
+  body: `Text zu Problem ${number}`,
+  pull_request: null,
+});
+
+function gitea(ctx) {
+  const { method, base, state, query, body, json, page, notFound } = ctx;
+  const path_ = ctx.path.slice("/api/v1".length);
+  if (path_ === "/user") return json(200, { id: 1, login: "lena", full_name: "Lena Hartmann", avatar_url: "https://avatars.example/lena.png" });
+  if (!path_.startsWith("/repos/octo/demo")) return notFound("The target couldn't be found.");
+  const parts = path_.slice("/repos/octo/demo".length).split("/").filter(Boolean);
+  const number = Number(parts[1]) || 0;
+  const route = `${method} ${parts.map((part, index) => (index === 1 ? ":n" : part)).join("/")}`;
+  const known = number >= 1 && (number <= TOTAL || state.created.some((entry) => entry.number === number));
+  switch (route) {
+    case "GET ":
+      return json(200, { name: "demo", full_name: "octo/demo", default_branch: "main", html_url: `${base}/octo/demo`, permissions: { admin: false, push: true, pull: true }, has_issues: true, parent: { name: "demo", owner: { login: "ursprung" }, html_url: `${base}/ursprung/demo` } });
+    case "GET labels":
+      return json(200, [{ id: 11, name: "bug" }, { id: 12, name: "frage" }, { id: 13, name: "ui" }]);
+    case "GET pulls": {
+      const wanted = query.get("state") ?? "open";
+      const numbers = range(TOTAL, 1).filter((n) => wanted === "all" || (wanted === "open") === (prState(n, state) === "open"));
+      return page(numbers.map((n) => gtPull(base, n, state)), "limit");
+    }
+    case "POST pulls": {
+      if (body.head === "schon-da") return json(409, { message: "pull request already exists for these targets" });
+      const number = 100 + state.created.length + 1;
+      state.created.push({ number, title: body.title, body: body.body ?? "", source: body.head, target: body.base, draft: /^WIP:/.test(body.title ?? "") });
+      return json(201, gtPull(base, number, state));
+    }
+    case "GET pulls/:n":
+      return known ? json(200, gtPull(base, number, state)) : notFound("pull request does not exist");
+    case "PATCH pulls/:n": {
+      if (!known) return notFound("pull request does not exist");
+      if (body.state === "closed") state.closed.add(number);
+      if (body.state === "open") state.closed.delete(number);
+      if (typeof body.title === "string") state.titles.set(number, body.title);
+      return json(201, gtPull(base, number, state));
+    }
+    case "GET pulls/:n/reviews":
+      return json(200, number === 1 ? [{ id: 12, user: gtUser("mira"), state: "APPROVED", body: "", submitted_at: "2026-09-02T10:00:00Z" }] : number === 4 ? [{ id: 41, user: gtUser("jonas"), state: "REQUEST_CHANGES", body: "Bitte die Tests ergänzen.", submitted_at: "2026-09-03T10:00:00Z" }] : []);
+    case "GET pulls/:n/commits":
+      return json(200, [{ sha: sha(number), commit: { message: "Meldung übersetzt", author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" } } }]);
+    case "POST pulls/:n/requested_reviewers":
+      return json(201, []);
+    case "DELETE pulls/:n/requested_reviewers":
+      return ctx.send(204, "", {});
+    case "POST pulls/:n/merge":
+      if (number === 13) return json(405, { message: "The pull request cannot be merged: there are merge conflicts." });
+      state.merged.add(number);
+      return ctx.send(200, "", {});
+    case "GET commits/:n/status": {
+      const which = parseInt(parts[1] ?? "0", 16);
+      const statuses = which === 1 ? [{ context: "build", status: "success", target_url: `${base}/octo/demo/actions/runs/1` }] : which === 2 ? [{ context: "build", status: "pending", target_url: null }] : which === 4 ? [{ context: "build", status: "failure", target_url: null }] : [];
+      return json(200, { state: "", statuses });
+    }
+    case "GET issues": {
+      const wanted = query.get("state") ?? "open";
+      const search = query.get("q");
+      const numbers = range(ISSUES, 1).filter((n) => wanted === "all" || (wanted === "closed") === (n % 4 === 0)).filter((n) => !search || n <= 2);
+      return page(numbers.map((n) => gtIssue(base, n)), "limit");
+    }
+    case "GET issues/:n":
+      return number >= 1 && number <= ISSUES ? json(200, gtIssue(base, number)) : notFound("issue does not exist");
+    case "GET issues/:n/comments":
+      return json(200, [{ id: 21, user: gtUser("jonas"), body: "Danke fürs Ansehen!", created_at: "2026-09-02T09:45:00Z" }]);
+    case "POST issues/:n/comments": {
+      const comment = { id: 900 + state.comments.length, user: gtUser("lena"), body: body.body ?? "", created_at: new Date().toISOString() };
+      state.comments.push(comment);
+      return json(201, comment);
+    }
+    default:
+      return notFound("The target couldn't be found.");
+  }
+}
+
+// --- Bitbucket Cloud -------------------------------------------------------------------------
+
+const bbUser = (nick) => ({ type: "user", display_name: `${nick} (Name)`, nickname: nick, account_id: `557058:${nick}`, links: { avatar: { href: `https://avatars.example/${nick}.png` } } });
+const bbState = (status) => (status === "merged" ? "MERGED" : status === "closed" ? "DECLINED" : "OPEN");
+
+function bbPull(base, number, state) {
+  const created = state.created.find((entry) => entry.number === number);
+  return {
+    type: "pullrequest",
+    id: number,
+    title: state.titles.get(number) ?? created?.title ?? `Thema ${number} umsetzen`,
+    description: created?.body ?? `Beschreibung zu **Thema ${number}**.`,
+    state: bbState(prState(number, state)),
+    draft: created?.draft ?? number === 3,
+    author: bbUser(created ? "lena" : "jonas"),
+    source: { branch: { name: created?.source ?? sourceBranch(number) }, commit: { hash: sha(number).slice(0, 12) }, repository: { full_name: number === 8 ? "fremd/demo" : "team/demo" } },
+    destination: { branch: { name: created?.target ?? "main" }, commit: { hash: sha(1000).slice(0, 12) }, repository: { full_name: "team/demo" } },
+    updated_on: stamp(number),
+    links: { html: { href: `${base}/team/demo/pull-requests/${number}` } },
+    participants: number === 1 ? [{ user: bbUser("mira"), role: "REVIEWER", approved: true, state: "approved" }] : number === 4 ? [{ user: bbUser("jonas"), role: "REVIEWER", approved: false, state: "changes_requested" }] : [],
+    reviewers: number === 2 ? [bbUser("mira")] : [],
+  };
+}
+
+const bbIssue = (base, number) => ({
+  type: "issue",
+  id: number,
+  title: `Problem ${number}`,
+  state: number % 4 === 0 ? "resolved" : number % 3 === 0 ? "new" : "open",
+  kind: "bug",
+  reporter: bbUser("mira"),
+  assignee: number === 2 ? bbUser("lena") : null,
+  updated_on: stamp(number),
+  links: { html: { href: `${base}/team/demo/issues/${number}` } },
+  content: { raw: `Text zu Problem ${number}` },
+});
+
+function bitbucket(ctx) {
+  const { method, base, state, query, body, json, bbPage } = ctx;
+  const path_ = ctx.path.slice("/2.0".length);
+  const bbError = (status, message) => json(status, { type: "error", error: { message } });
+  const values = (list) => json(200, { values: list, page: 1 });
+  if (path_ === "/user") {
+    return json(200, { type: "user", display_name: "Lena Hartmann", nickname: "lena", account_id: "557058:lena", links: { avatar: { href: "https://avatars.example/lena.png" } } }, { "x-oauth-scopes": ctx.token === MOCK_WEAK_TOKEN ? "account, repository" : "account, repository, pullrequest:write, issue" });
+  }
+  if (path_ === "/user/permissions/repositories") return values([{ permission: "write", repository: { full_name: "team/demo" } }]);
+  if (!path_.startsWith("/repositories/team/demo")) return bbError(404, "Repository not found");
+  const parts = path_.slice("/repositories/team/demo".length).split("/").filter(Boolean);
+  const number = Number(parts[1]) || 0;
+  const route = `${method} ${parts.map((part, index) => (index === 1 ? ":n" : part)).join("/")}`;
+  const known = number >= 1 && (number <= TOTAL || state.created.some((entry) => entry.number === number));
+  switch (route) {
+    case "GET ":
+      return json(200, { type: "repository", full_name: "team/demo", mainbranch: { name: "main" }, has_issues: true, links: { html: { href: `${base}/team/demo` } } });
+    case "GET pullrequests": {
+      const wanted = query.getAll("state");
+      const numbers = range(TOTAL, 1).filter((n) => wanted.length === 0 || wanted.includes(bbState(prState(n, state))));
+      return bbPage(numbers.map((n) => bbPull(base, n, state)));
+    }
+    case "POST pullrequests": {
+      if (body.source?.branch?.name === "schon-da") return bbError(400, "Only one pull request may be open for a given source and target branch");
+      const number = 100 + state.created.length + 1;
+      state.created.push({ number, title: body.title, body: body.description ?? "", source: body.source?.branch?.name, target: body.destination?.branch?.name, draft: Boolean(body.draft) });
+      return json(201, bbPull(base, number, state));
+    }
+    case "GET pullrequests/:n":
+      return known ? json(200, bbPull(base, number, state)) : bbError(404, "Pull request not found");
+    case "PUT pullrequests/:n":
+      if (!known) return bbError(404, "Pull request not found");
+      if (typeof body.title === "string") state.titles.set(number, body.title);
+      return json(200, bbPull(base, number, state));
+    case "POST pullrequests/:n/merge":
+      if (number === 13) return bbError(400, "You can't merge until you resolve all merge conflicts.");
+      state.merged.add(number);
+      return json(200, bbPull(base, number, state));
+    case "POST pullrequests/:n/decline":
+      state.closed.add(number);
+      return json(200, bbPull(base, number, state));
+    case "GET pullrequests/:n/statuses":
+      return values(number === 1 ? [{ key: "build", name: "build", state: "SUCCESSFUL", url: `${base}/team/demo/pipelines/1` }] : number === 4 ? [{ key: "build", name: "build", state: "FAILED", url: null }] : []);
+    case "GET pullrequests/:n/diffstat":
+      return values([{ status: number === 13 ? "merge conflict" : "modified", new: { path: "src/anmeldung.rs" } }]);
+    case "GET pullrequests/:n/comments":
+      return values([{ id: 2, user: bbUser("mira"), content: { raw: "Sieht gut aus." }, created_on: "2026-09-02T09:00:00Z", deleted: false }]);
+    case "POST pullrequests/:n/comments": {
+      const comment = { id: 900 + state.comments.length, user: bbUser("lena"), content: { raw: body.content?.raw ?? "" }, created_on: new Date().toISOString() };
+      state.comments.push(comment);
+      return json(201, comment);
+    }
+    case "GET pullrequests/:n/commits":
+      return values([{ hash: sha(number), message: "Meldung übersetzt", author: { raw: "Jonas Weber <jonas@example.org>" }, date: "2026-09-01T13:00:00Z" }]);
+    case "GET issues": {
+      const q = query.get("q") ?? "";
+      const numbers = range(ISSUES, 1)
+        .filter((n) => (q.includes('state!="new"') ? n % 4 === 0 : q.includes('state="new"') ? n % 4 !== 0 : true))
+        .filter((n) => !q.includes("title ~") || n <= 2);
+      return bbPage(numbers.map((n) => bbIssue(base, n)));
+    }
+    case "GET issues/:n":
+      return number >= 1 && number <= ISSUES ? json(200, bbIssue(base, number)) : bbError(404, "Issue not found");
+    case "GET issues/:n/comments":
+      return values([{ id: 21, user: bbUser("jonas"), content: { raw: "Danke fürs Ansehen!" }, created_on: "2026-09-02T09:45:00Z" }]);
+    default:
+      return bbError(404, "Resource not found");
+  }
+}
+
+// --- Azure DevOps ----------------------------------------------------------------------------
+
+const azUser = (name) => ({ displayName: `${name} (Name)`, uniqueName: `${name}@example.org`, imageUrl: `https://avatars.example/${name}.png` });
+const azStatus = (status) => (status === "merged" ? "completed" : status === "closed" ? "abandoned" : "active");
+
+function azPull(number, state) {
+  const created = state.created.find((entry) => entry.number === number);
+  const status = azStatus(prState(number, state));
+  const pr = {
+    pullRequestId: number,
+    title: state.titles.get(number) ?? created?.title ?? `Thema ${number} umsetzen`,
+    description: created?.body ?? `Beschreibung zu **Thema ${number}**.`,
+    status,
+    isDraft: created?.draft ?? number === 3,
+    createdBy: azUser(created ? "lena" : "jonas"),
+    creationDate: stamp(number),
+    closedDate: status === "active" ? null : stamp(number),
+    sourceRefName: `refs/heads/${created?.source ?? sourceBranch(number)}`,
+    targetRefName: `refs/heads/${created?.target ?? "main"}`,
+    repository: { name: "demo", project: { name: "projekt" } },
+    labels: number === 1 ? [{ name: "bug", active: true }] : [],
+    reviewers: number === 1 ? [{ ...azUser("mira"), vote: 10 }] : number === 2 ? [{ ...azUser("mira"), vote: 0 }] : number === 4 ? [{ ...azUser("jonas"), vote: -10 }] : [],
+    mergeStatus: number === 13 ? "conflicts" : "succeeded",
+    lastMergeSourceCommit: { commitId: sha(number) },
+  };
+  if (number === 8) pr.forkSource = { repository: { name: "demo", project: { name: "fremd" } } };
+  return pr;
+}
+
+const azWorkItem = (number) => ({
+  id: number,
+  fields: {
+    "System.Title": `Problem ${number}`,
+    "System.State": number % 4 === 0 ? "Closed" : "Active",
+    "System.CreatedBy": azUser("mira"),
+    "System.AssignedTo": number === 2 ? azUser("lena") : null,
+    "System.ChangedDate": stamp(number),
+    "System.Tags": number === 1 ? "frage; ui" : "",
+    "System.WorkItemType": "Issue",
+    "System.Description": `<p>Text zu Problem ${number}</p>`,
+  },
+});
+
+function azure(ctx) {
+  const { method, base, state, query, body, json } = ctx;
+  const azError = (status, message) => json(status, { $id: "1", message, typeKey: "MockException" });
+  const list = (value) => json(200, { count: value.length, value });
+  if (ctx.path === "/firma/_apis/connectionData") {
+    return json(200, { authenticatedUser: { id: "mock-user", providerDisplayName: "Lena Hartmann", isActive: true, properties: { Account: { $type: "System.String", $value: "lena@example.org" } } } });
+  }
+  if (ctx.path === "/firma/_apis/projects") return list([{ id: "p1", name: "projekt" }]);
+  const wit = "/firma/projekt/_apis/wit";
+  if (ctx.path.startsWith(wit)) {
+    const parts = ctx.path.slice(wit.length).split("/").filter(Boolean);
+    if (method === "POST" && parts[0] === "wiql") {
+      const text = String(body.query ?? "");
+      const ids = range(ISSUES, 1)
+        .filter((n) => (text.includes("NOT IN") ? n % 4 !== 0 : text.includes("] IN (") ? n % 4 === 0 : true))
+        .filter((n) => !text.includes("CONTAINS") || n <= 2);
+      const top = Number(query.get("$top")) || ids.length;
+      return json(200, { queryType: "flat", workItems: ids.slice(0, top).map((id) => ({ id, url: `${base}/firma/_apis/wit/workItems/${id}` })) });
+    }
+    if (method === "GET" && parts.length === 1 && parts[0] === "workitems") {
+      return list((query.get("ids") ?? "").split(",").map(Number).filter((n) => n > 0).sort((a, b) => a - b).map(azWorkItem));
+    }
+    if (method === "GET" && parts.length === 2 && parts[0] === "workitems") {
+      const n = Number(parts[1]);
+      return n >= 1 && n <= ISSUES ? json(200, azWorkItem(n)) : azError(404, `TF401232: Work item ${parts[1]} does not exist.`);
+    }
+    if (method === "GET" && parts[0] === "workItems" && parts[2] === "comments") {
+      return json(200, { totalCount: 1, count: 1, comments: [{ id: 5, text: "Danke fürs Ansehen!", createdBy: azUser("jonas"), createdDate: "2026-09-02T09:45:00Z" }] });
+    }
+    if (method === "POST" && parts[0] === "workitems" && String(parts[1] ?? "").startsWith("$")) {
+      const field = (name) => (Array.isArray(body) ? body.find((op) => op.path === `/fields/${name}`)?.value : null) ?? null;
+      const id = 500 + state.workItems.length + 1;
+      state.workItems.push({ id, title: field("System.Title") });
+      return json(200, { id, fields: { "System.Title": field("System.Title"), "System.State": "New", "System.CreatedBy": azUser("lena"), "System.ChangedDate": new Date().toISOString(), "System.WorkItemType": parts[1].slice(1), "System.Description": field("System.Description") } });
+    }
+    return azError(404, "The resource cannot be found.");
+  }
+  const repo = "/firma/projekt/_apis/git/repositories/demo";
+  if (!ctx.path.startsWith(repo)) return azError(404, "TF401019: The Git repository with name or identifier demo does not exist.");
+  const parts = ctx.path.slice(repo.length).split("/").filter(Boolean);
+  const number = Number(parts[1]) || 0;
+  const route = `${method} ${parts.map((part, index) => (index === 1 ? ":n" : part)).join("/")}`;
+  const known = number >= 1 && (number <= TOTAL || state.created.some((entry) => entry.number === number));
+  switch (route) {
+    case "GET ":
+      return json(200, { id: "r1", name: "demo", defaultBranch: "refs/heads/main", webUrl: `${base}/firma/projekt/_git/demo`, project: { name: "projekt" } });
+    case "GET pullrequests": {
+      const wanted = query.get("searchCriteria.status") ?? "active";
+      const skip = Number(query.get("$skip")) || 0;
+      const top = Number(query.get("$top")) || 101;
+      const all = range(TOTAL, 1).filter((n) => wanted === "all" || azStatus(prState(n, state)) === wanted);
+      return list(all.slice(skip, skip + top).map((n) => azPull(n, state)));
+    }
+    case "POST pullrequests": {
+      if (body.sourceRefName === "refs/heads/schon-da") return azError(409, "TF401179: An active pull request for the source and target branch already exists.");
+      const number = 100 + state.created.length + 1;
+      state.created.push({ number, title: body.title, body: body.description ?? "", source: String(body.sourceRefName ?? "").replace(/^refs\/heads\//, ""), target: String(body.targetRefName ?? "").replace(/^refs\/heads\//, ""), draft: Boolean(body.isDraft) });
+      return json(201, azPull(number, state));
+    }
+    case "GET pullrequests/:n":
+      return known ? json(200, azPull(number, state)) : azError(404, "TF401180: The requested pull request was not found.");
+    case "PATCH pullrequests/:n": {
+      if (!known) return azError(404, "TF401180: The requested pull request was not found.");
+      if (body.status === "completed") {
+        if (number === 13) return azError(409, "TF401181: The pull request cannot be completed because it has merge conflicts.");
+        state.merged.add(number);
+      }
+      if (body.status === "abandoned") state.closed.add(number);
+      if (body.status === "active") state.closed.delete(number);
+      if (typeof body.title === "string") state.titles.set(number, body.title);
+      return json(200, azPull(number, state));
+    }
+    case "GET pullrequests/:n/statuses":
+      return list(number === 1 ? [{ id: 1, state: "succeeded", context: { name: "build", genre: "ci" }, targetUrl: "https://ci.example/1" }] : number === 4 ? [{ id: 1, state: "failed", context: { name: "build", genre: "ci" } }] : []);
+    case "GET pullrequests/:n/threads":
+      return list([{ id: 2, comments: [{ id: 1, author: azUser("mira"), content: "Sieht gut aus.", publishedDate: "2026-09-02T09:00:00Z", commentType: "text" }] }]);
+    case "POST pullrequests/:n/threads": {
+      const thread = { id: 700 + state.comments.length, comments: [{ id: 1, author: azUser("lena"), content: body.comments?.[0]?.content ?? "", publishedDate: new Date().toISOString(), commentType: "text" }] };
+      state.comments.push(thread);
+      return json(200, thread);
+    }
+    case "GET pullrequests/:n/commits":
+      return list([{ commitId: sha(number), comment: "Meldung übersetzt", author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" } }]);
+    case "POST pullrequests/:n/labels":
+      return json(200, { name: body.name, active: true });
+    default:
+      if (method === "DELETE" && parts[2] === "labels") return ctx.send(204, "", {});
+      return azError(404, "The resource cannot be found.");
+  }
+}
+
+/** The token from the `Authorization` header, in the form each host uses. */
+function readToken(header, flavour) {
+  if (flavour === "gitea") return header.replace(/^token /, "");
+  if (flavour === "bitbucket" || flavour === "azure") {
+    const decoded = Buffer.from(header.replace(/^Basic /, ""), "base64").toString("utf8");
+    const at = decoded.indexOf(":");
+    // Bitbucket signs in with user name and token; Azure DevOps with an empty user name.
+    if (at < 0 || (flavour === "bitbucket" && at === 0)) return "";
+    return decoded.slice(at + 1);
+  }
+  return header.replace(/^Bearer /, "");
+}
+
 // --- Server ---------------------------------------------------------------------------------
 
 /**
@@ -382,9 +748,9 @@ function forcedAnswer(kind, flavour) {
       return { status: 401, body: JSON.stringify({ message: flavour === "gitlab" ? "401 Unauthorized" : "Bad credentials" }), headers: {} };
     case "rate_limit": {
       const reset = String(Math.floor(Date.now() / 1000) + 600);
-      return flavour === "gitlab"
-        ? { status: 429, body: "Retry later", headers: { "retry-after": "600", "ratelimit-remaining": "0", "ratelimit-reset": reset } }
-        : { status: 403, body: JSON.stringify({ message: "API rate limit exceeded for user ID 1." }), headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": reset } };
+      return flavour === "github"
+        ? { status: 403, body: JSON.stringify({ message: "API rate limit exceeded for user ID 1." }), headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": reset } }
+        : { status: 429, body: flavour === "gitlab" ? "Retry later" : JSON.stringify({ message: "Rate limit exceeded" }), headers: { "retry-after": "600", "ratelimit-remaining": "0", "ratelimit-reset": reset } };
     }
     case "not_found":
       return { status: 404, body: JSON.stringify({ message: flavour === "gitlab" ? "404 Not found" : "Not Found" }), headers: {} };
@@ -443,8 +809,8 @@ export async function startHostMock({ tls = false, port = 0 } = {}) {
         if (request.method === "GET" && status === 200 && request.headers["if-none-match"] === etag) return send(304, "", { etag, ...headers });
         return send(status, text, request.method === "GET" && status === 200 ? { etag, ...headers } : headers);
       };
-      const page = (items) => {
-        const perPage = Math.max(1, Number(target.searchParams.get("per_page")) || 30);
+      const page = (items, sizeKey = "per_page") => {
+        const perPage = Math.max(1, Number(target.searchParams.get(sizeKey)) || 30);
         const current = Math.max(1, Number(target.searchParams.get("page")) || 1);
         const slice = items.slice((current - 1) * perPage, current * perPage);
         const headers = { "x-page": String(current), "x-next-page": "" };
@@ -456,19 +822,43 @@ export async function startHostMock({ tls = false, port = 0 } = {}) {
         }
         return json(200, slice, headers);
       };
-      const flavour = target.pathname.startsWith("/api/v4") ? "gitlab" : target.pathname.startsWith("/api/v3") ? "github" : "other";
+      /** Bitbucket's lists: `{ values, page, pagelen, size, next }`. */
+      const bbPage = (items) => {
+        const perPage = Math.max(1, Number(target.searchParams.get("pagelen")) || 10);
+        const current = Math.max(1, Number(target.searchParams.get("page")) || 1);
+        const result = { values: items.slice((current - 1) * perPage, current * perPage), page: current, pagelen: perPage, size: items.length };
+        if (current * perPage < items.length) {
+          const next = new URL(target);
+          next.searchParams.set("page", String(current + 1));
+          result.next = next.toString();
+        }
+        return json(200, result);
+      };
+      const path0 = target.pathname;
+      const flavour = path0.startsWith("/api/v4")
+        ? "gitlab"
+        : path0.startsWith("/api/v3")
+          ? "github"
+          : path0.startsWith("/api/v1")
+            ? "gitea"
+            : path0.startsWith("/2.0/")
+              ? "bitbucket"
+              : path0.startsWith("/firma/")
+                ? "azure"
+                : "other";
       const notFound = (message) => json(404, { message });
 
       if (flavour === "other") return notFound("Not Found");
-      const token = (request.headers.authorization ?? "").replace(/^Bearer /, "");
+      const token = readToken(request.headers.authorization ?? "", flavour);
       if (token !== MOCK_TOKEN && token !== MOCK_WEAK_TOKEN) return json(401, { message: flavour === "gitlab" ? "401 Unauthorized" : "Bad credentials" });
       const forced = takeFailure(target.pathname);
       if (forced) {
         const answer = forcedAnswer(forced, flavour);
         return send(answer.status, answer.body, answer.headers);
       }
-      const ctx = { method: request.method, path: target.pathname, query: target.searchParams, body, base, state, token, json, send, page, notFound };
-      return flavour === "gitlab" ? gitlab(ctx) : github(ctx);
+      const ctx = { method: request.method, path: target.pathname, query: target.searchParams, body, base, state, token, json, send, page, bbPage, notFound };
+      const handlers = { github, gitlab, gitea, bitbucket, azure };
+      return handlers[flavour](ctx);
     });
   };
 
@@ -511,7 +901,12 @@ export async function startHostMock({ tls = false, port = 0 } = {}) {
     },
     /** URL for `git remote add`: this is how the core recognizes the repository on this server. */
     remoteUrl(kind = "github") {
-      return `${address}/${kind === "gitlab" ? "gruppe/unter/demo" : "octo/demo"}.git`;
+      const paths = { github: "octo/demo", gitlab: "gruppe/unter/demo", gitea: "octo/demo", bitbucket: "team/demo", azure_devops: "firma/projekt/_git/demo" };
+      return `${address}/${paths[kind] ?? paths.github}.git`;
+    },
+    /** `baseUrl` for `host_connect` – Azure DevOps keeps the organization in it. */
+    baseUrl(kind = "github") {
+      return kind === "azure_devops" ? `${address}/firma` : address;
     },
     /** Makes requests fail: `times` of them (default: all further ones) whose path contains `match`. */
     fail(kind, { times = Infinity, match = null } = {}) {
@@ -551,6 +946,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   console.log(`Test server running: ${mock.url}`);
   console.log(`  GitHub: baseUrl ${mock.url}, Remote ${mock.remoteUrl("github")}`);
   console.log(`  GitLab: baseUrl ${mock.url}, Remote ${mock.remoteUrl("gitlab")}`);
+  console.log(`  Gitea/Forgejo: baseUrl ${mock.baseUrl("gitea")}, Remote ${mock.remoteUrl("gitea")}`);
+  console.log(`  Bitbucket: baseUrl ${mock.baseUrl("bitbucket")} (user name lena@example.org), Remote ${mock.remoteUrl("bitbucket")}`);
+  console.log(`  Azure DevOps: baseUrl ${mock.baseUrl("azure_devops")}, Remote ${mock.remoteUrl("azure_devops")}`);
   console.log(`  Token: ${mock.token}   (without permission: ${mock.weakToken})`);
   if (mock.caFile) console.log(`  Certificate: ${mock.caFile}`);
   console.log("Stop with Ctrl+C.");
