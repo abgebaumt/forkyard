@@ -169,6 +169,21 @@ mod tests {
         }
     }
 
+    /// Rechecks until a Git is found right after `fake_git` wrote one. Linux: if a parallel test
+    /// is forking right now, its child holds the write descriptor of the script just written
+    /// until exec, and starting it briefly fails with ETXTBSY.
+    async fn recheck_until_found(tc: &TestCore) -> AppInfo {
+        let mut info = app_recheck_git(tc).await.unwrap();
+        for _ in 0..20 {
+            if info.git_version.is_some() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            info = app_recheck_git(tc).await.unwrap();
+        }
+        info
+    }
+
     #[tokio::test]
     async fn recheck_finds_git_installed_after_the_start() {
         let dir = tempfile::tempdir().unwrap();
@@ -182,21 +197,12 @@ mod tests {
 
         // "Installed": first too old, then suitable.
         let old = fake_git(&later, "2.30.0");
-        let info = app_recheck_git(&tc).await.unwrap();
+        let info = recheck_until_found(&tc).await;
         assert_eq!(info.git_version.as_deref(), Some("2.30.0"));
         assert_eq!(tc.git_at(tc.data_dir()).args(["status"]).run().await.unwrap_err().code, crate::ErrorCode::GitTooOld);
         std::fs::remove_file(old).unwrap();
         fake_git(&later, "2.50.1");
-        // Linux: if a parallel test is forking right now, its child holds the write descriptor of
-        // the script just written until exec, and starting it briefly fails with ETXTBSY.
-        let mut info = app_recheck_git(&tc).await.unwrap();
-        for _ in 0..20 {
-            if info.git_version.is_some() {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            info = app_recheck_git(&tc).await.unwrap();
-        }
+        let info = recheck_until_found(&tc).await;
         assert_eq!(info.git_version.as_deref(), Some("2.50.1"));
         assert_eq!(tc.git.info().unwrap().version_text, "2.50.1", "the following calls use the new Git");
         assert_eq!(app_info(&tc).await.unwrap(), info);
