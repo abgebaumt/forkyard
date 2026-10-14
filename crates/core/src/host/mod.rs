@@ -11,6 +11,7 @@
 //! (there: the last four characters) and is removed from everything that goes into the log or
 //! into error messages.
 
+pub mod bitbucket;
 pub mod detect;
 pub mod gh_cli;
 pub mod gitea;
@@ -257,6 +258,7 @@ pub fn host(kind: HostKind) -> &'static dyn Host {
         HostKind::Github => &github::GithubHost,
         HostKind::Gitlab => &gitlab::GitlabHost,
         HostKind::Gitea => &gitea::GiteaHost,
+        HostKind::Bitbucket => &bitbucket::BitbucketHost,
     }
 }
 

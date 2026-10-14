@@ -701,3 +701,229 @@ pub(crate) fn gitea(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
         _ => not_found("The target couldn't be found."),
     }
 }
+
+// ---------------------------------------------------------------------------
+// Bitbucket Cloud
+// ---------------------------------------------------------------------------
+
+/// User name and token from `Authorization: Basic …`.
+fn basic(request: &MockRequest) -> Option<(String, String)> {
+    use base64::Engine;
+    let encoded = request.header("authorization")?.strip_prefix("Basic ")?;
+    let decoded = String::from_utf8(base64::engine::general_purpose::STANDARD.decode(encoded).ok()?).ok()?;
+    let (user, token) = decoded.split_once(':')?;
+    Some((user.to_string(), token.to_string()))
+}
+
+fn bb_error(status: u16, message: &str) -> MockResponse {
+    MockResponse::json(status, json!({ "type": "error", "error": { "message": message } }))
+}
+
+fn bb_user(nick: &str) -> Value {
+    json!({ "type": "user", "display_name": format!("{nick} (Name)"), "nickname": nick, "account_id": format!("557058:{nick}"), "links": { "avatar": { "href": format!("https://avatars.example/{nick}.png") } } })
+}
+
+fn bb_state(number: u64, state: &MockState) -> &'static str {
+    match pr_state(number, state) {
+        "merged" => "MERGED",
+        "closed" => "DECLINED",
+        _ => "OPEN",
+    }
+}
+
+fn bb_pr(base: &str, number: u64, state: &MockState, single: bool) -> Value {
+    let source_repo = if number == 8 { "fremd/demo" } else { "team/demo" };
+    let mut pr = json!({
+        "type": "pullrequest",
+        "id": number,
+        "title": format!("Thema {number} umsetzen"),
+        "description": format!("Beschreibung zu **Thema {number}**."),
+        "state": bb_state(number, state),
+        "draft": number == 3,
+        "author": bb_user("jonas"),
+        "source": { "branch": { "name": source_branch(number) }, "commit": { "hash": sha(number)[..12].to_string() }, "repository": { "full_name": source_repo } },
+        "destination": { "branch": { "name": "main" }, "commit": { "hash": sha(1000)[..12].to_string() }, "repository": { "full_name": "team/demo" } },
+        "updated_on": updated(number),
+        "links": { "html": { "href": format!("{base}/team/demo/pull-requests/{number}") } },
+    });
+    // Participants and reviewers only come with the single pull request.
+    if single {
+        pr["participants"] = match number {
+            1 => json!([
+                { "user": bb_user("mira"), "role": "REVIEWER", "approved": true, "state": "approved" },
+                { "user": bb_user("jonas"), "role": "PARTICIPANT", "approved": false, "state": Value::Null }
+            ]),
+            4 => json!([{ "user": bb_user("jonas"), "role": "REVIEWER", "approved": false, "state": "changes_requested" }]),
+            _ => json!([]),
+        };
+        pr["reviewers"] = if number == 2 { json!([bb_user("mira")]) } else { json!([]) };
+    }
+    pr
+}
+
+fn bb_issue(base: &str, number: u64) -> Value {
+    let status = if number % 4 == 0 {
+        "resolved"
+    } else if number % 3 == 0 {
+        "new"
+    } else {
+        "open"
+    };
+    json!({
+        "type": "issue", "id": number, "title": format!("Problem {number}"), "state": status, "kind": "bug",
+        "reporter": bb_user("mira"), "assignee": if number == 2 { bb_user("lena") } else { Value::Null },
+        "updated_on": updated(number), "links": { "html": { "href": format!("{base}/team/demo/issues/{number}") } },
+        "content": { "raw": format!("Text zu Problem {number}") },
+    })
+}
+
+/// `{ values, page, next }` like Bitbucket's lists.
+fn bb_list(request: &MockRequest, numbers: Vec<u64>, item: impl Fn(u64) -> Value) -> MockResponse {
+    let (page, next) = page_by(request, numbers, "pagelen");
+    let mut body = json!({ "values": page.into_iter().map(item).collect::<Vec<_>>(), "page": request.query("page").and_then(|p| p.parse::<u64>().ok()).unwrap_or(1) });
+    if let Some((url, _)) = next {
+        body["next"] = json!(url);
+    }
+    MockResponse::json(200, body)
+}
+
+fn bb_values(values: Value) -> MockResponse {
+    MockResponse::json(200, json!({ "values": values, "page": 1 }))
+}
+
+/// The values of a parameter that may come several times (`state=OPEN&state=MERGED`).
+fn all_query(request: &MockRequest, name: &str) -> Vec<String> {
+    let prefix = format!("{name}=");
+    request.target.split_once('?').map(|(_, q)| q).unwrap_or("").split('&').filter_map(|pair| pair.strip_prefix(prefix.as_str())).map(str::to_string).collect()
+}
+
+pub(crate) fn bitbucket(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
+    let base = origin(request);
+    let Some((user, token)) = basic(request).filter(|(user, token)| !user.is_empty() && (token == TOKEN || token == WEAK_TOKEN)) else {
+        return bb_error(401, "Invalid credentials");
+    };
+    let mut state = state.lock();
+    let path = request.path().strip_prefix("/2.0").unwrap_or("").to_string();
+    let method = request.method.as_str();
+    if path == "/user" && state.mode != "401" && state.mode != "slow" {
+        let scopes = if token == WEAK_TOKEN { "account, repository" } else { "account, repository, pullrequest:write, issue" };
+        return MockResponse::json(
+            200,
+            json!({ "type": "user", "display_name": "Lena Hartmann", "nickname": "lena", "account_id": "557058:lena", "links": { "avatar": { "href": "https://avatars.example/lena.png" } }, "signed_in_with": user }),
+        )
+        .header("x-oauth-scopes", scopes);
+    }
+    let rate = bb_error(429, "Rate limit for this resource has been exceeded").header("retry-after", "30");
+    if let Some(response) = forced(state.mode, rate) {
+        return response;
+    }
+    if path == "/user/permissions/repositories" {
+        return bb_values(json!([{ "type": "repository_permission", "permission": "write", "repository": { "full_name": "team/demo" } }]));
+    }
+    let Some(rest) = path.strip_prefix("/repositories/team/demo") else {
+        return bb_error(404, "Repository not found");
+    };
+    let segments: Vec<&str> = rest.split('/').filter(|s| !s.is_empty()).collect();
+    let number = segments.get(1).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+    match (method, segments.as_slice()) {
+        ("GET", []) => MockResponse::json(
+            200,
+            json!({
+                "type": "repository", "full_name": "team/demo", "mainbranch": { "name": "main" }, "has_issues": !state.issues_off,
+                "links": { "html": { "href": format!("{base}/team/demo") } },
+                "parent": { "full_name": "quelle/demo", "links": { "html": { "href": format!("{base}/quelle/demo") } } },
+            }),
+        ),
+        ("GET", ["pullrequests"]) => {
+            let wanted = all_query(request, "state");
+            let numbers: Vec<u64> = (1..=TOTAL).rev().filter(|n| wanted.is_empty() || wanted.iter().any(|w| w == bb_state(*n, &state))).collect();
+            bb_list(request, numbers, |n| bb_pr(&base, n, &state, false))
+        }
+        ("POST", ["pullrequests"]) => {
+            let body = request.json();
+            if body["source"]["branch"]["name"] == "schon-da" {
+                return bb_error(400, "Only one pull request may be open for a given source and target branch");
+            }
+            let mut created = bb_pr(&base, 101, &state, true);
+            for key in ["title", "description", "draft"] {
+                created[key] = body[key].clone();
+            }
+            created["source"]["branch"] = body["source"]["branch"].clone();
+            created["destination"]["branch"] = body["destination"]["branch"].clone();
+            MockResponse::json(201, created)
+        }
+        ("GET", ["pullrequests", _]) if number == 0 || number > 200 => bb_error(404, "Pull request not found"),
+        ("GET", ["pullrequests", _]) => MockResponse::json(200, bb_pr(&base, number, &state, true)),
+        ("PUT", ["pullrequests", _]) => {
+            let body = request.json();
+            let mut pr = bb_pr(&base, number, &state, true);
+            for key in ["title", "description", "draft"] {
+                if !body[key].is_null() {
+                    pr[key] = body[key].clone();
+                }
+            }
+            if !body["destination"].is_null() {
+                pr["destination"]["branch"] = body["destination"]["branch"].clone();
+            }
+            MockResponse::json(200, pr)
+        }
+        ("POST", ["pullrequests", _, "merge"]) => {
+            if number == 13 {
+                return bb_error(400, "You can't merge until you resolve all merge conflicts.");
+            }
+            state.merged.push(number);
+            MockResponse::json(200, bb_pr(&base, number, &state, true))
+        }
+        ("POST", ["pullrequests", _, "decline"]) => {
+            state.closed.push(number);
+            MockResponse::json(200, bb_pr(&base, number, &state, true))
+        }
+        ("GET", ["pullrequests", _, "statuses"]) => bb_values(match number {
+            1 => json!([
+                { "key": "build", "name": "build", "state": "SUCCESSFUL", "url": format!("{base}/team/demo/pipelines/1") },
+                { "key": "docs", "name": "docs", "state": "STOPPED", "url": "https://ci.example/docs" }
+            ]),
+            2 => json!([{ "key": "build", "name": "build", "state": "INPROGRESS", "url": format!("{base}/team/demo/pipelines/2") }]),
+            4 => json!([{ "key": "build", "name": "build", "state": "FAILED", "url": format!("{base}/team/demo/pipelines/4") }]),
+            _ => json!([]),
+        }),
+        ("GET", ["pullrequests", _, "diffstat"]) => bb_values(json!([{ "status": if number == 13 { "merge conflict" } else { "modified" }, "new": { "path": "src/anmeldung.rs" } }])),
+        ("GET", ["pullrequests", _, "comments"]) => bb_values(json!([
+            { "id": 2, "user": bb_user("mira"), "content": { "raw": "Sieht gut aus." }, "created_on": "2026-09-02T09:00:00Z", "deleted": false },
+            { "id": 3, "user": bb_user("mira"), "content": { "raw": "Hier bitte prüfen." }, "created_on": "2026-09-02T09:30:00Z", "deleted": false, "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } },
+            { "id": 4, "user": bb_user("jonas"), "content": { "raw": "" }, "created_on": "2026-09-02T09:40:00Z", "deleted": true }
+        ])),
+        ("POST", ["pullrequests", _, "comments"]) => {
+            MockResponse::json(201, json!({ "id": 99, "user": bb_user("lena"), "content": { "raw": request.json()["content"]["raw"] }, "created_on": "2026-09-05T08:00:00Z" }))
+        }
+        ("GET", ["pullrequests", _, "commits"]) => bb_values(json!([
+            { "hash": sha(number), "message": "Meldung übersetzt\n", "author": { "raw": "Jonas Weber <jonas@example.org>", "user": bb_user("jonas") }, "date": "2026-09-01T13:00:00Z" },
+            { "hash": sha(number * 100 + 1), "message": "Prüfung ergänzt\n\nLängere Erklärung.", "author": { "raw": "Jonas Weber <jonas@example.org>" }, "date": "2026-09-01T12:00:00Z" }
+        ])),
+        ("GET", ["issues", ..]) if state.issues_off => bb_error(404, "Repository has no issue tracker."),
+        ("GET", ["issues"]) => {
+            let q = request.query("q").unwrap_or_default();
+            let numbers: Vec<u64> = (1..=12)
+                .rev()
+                .filter(|n| {
+                    if q.contains("state!=\"new\"") {
+                        n % 4 == 0
+                    } else if q.contains("state=\"new\"") {
+                        n % 4 != 0
+                    } else {
+                        true
+                    }
+                })
+                .filter(|n| !q.contains("title ~") || *n <= 2)
+                .collect();
+            bb_list(request, numbers, |n| bb_issue(&base, n))
+        }
+        ("GET", ["issues", _]) if number == 0 || number > 200 => bb_error(404, "Issue not found"),
+        ("GET", ["issues", _]) => MockResponse::json(200, bb_issue(&base, number)),
+        ("GET", ["issues", _, "comments"]) => bb_values(json!([
+            { "id": 21, "user": bb_user("jonas"), "content": { "raw": "Danke fürs Ansehen!" }, "created_on": "2026-09-02T09:45:00Z" },
+            { "id": 22, "user": bb_user("jonas"), "content": { "raw": "" }, "created_on": "2026-09-02T09:50:00Z" }
+        ])),
+        _ => bb_error(404, "Resource not found"),
+    }
+}

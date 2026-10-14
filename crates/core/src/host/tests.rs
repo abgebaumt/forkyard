@@ -4,6 +4,7 @@
 
 mod github_tests;
 mod gitlab_tests;
+mod bitbucket_tests;
 mod gitea_tests;
 mod mocks;
 
@@ -24,6 +25,8 @@ use crate::testkit::{MockRequest, MockServer, TestCore, TestRepo};
 pub(crate) const TOKEN: &str = "ghp_FreiErfundenesTestToken0123456789abcd";
 /// Valid, but with too few permissions.
 pub(crate) const WEAK_TOKEN: &str = "ghp_FreiErfundenOhneRechte0123456789wxyz";
+/// The account e-mail Bitbucket signs in with (Basic authentication) – made up.
+pub(crate) const USERNAME: &str = "lena@example.org";
 
 /// What the test server should currently do, and what it has remembered.
 #[derive(Default)]
@@ -51,7 +54,13 @@ fn mock_repo_path(kind: HostKind) -> &'static str {
         HostKind::Github => "octo/demo",
         HostKind::Gitlab => "gruppe/unter/demo",
         HostKind::Gitea => "octo/demo",
+        HostKind::Bitbucket => "team/demo",
     }
+}
+
+/// The user name the account signs in with (only Bitbucket needs one).
+fn mock_username(kind: HostKind) -> Option<String> {
+    (kind == HostKind::Bitbucket).then(|| USERNAME.to_string())
 }
 
 impl Fixture {
@@ -64,6 +73,7 @@ impl Fixture {
                 HostKind::Github => mocks::github(request, &state),
                 HostKind::Gitlab => mocks::gitlab(request, &state),
                 HostKind::Gitea => mocks::gitea(request, &state),
+                HostKind::Bitbucket => mocks::bitbucket(request, &state),
             })
         };
         let tc = TestCore::new().await;
@@ -71,7 +81,7 @@ impl Fixture {
             options.backoff = Duration::from_millis(5);
             options.retries = 1;
         });
-        let account = crate::host::connect(&tc, kind, Some(server.url()), TOKEN.to_string()).await.expect("connect account");
+        let account = crate::host::connect_as(&tc, kind, Some(server.url()), mock_username(kind), TOKEN.to_string()).await.expect("connect account");
         let repo = TestRepo::with_commit();
         repo.git(&["remote", "add", "origin", &format!("{}/{}.git", server.url(), mock_repo_path(kind))]);
         let repo_id = tc.open(&repo).await.repo.id;
@@ -197,7 +207,7 @@ async fn repositories_without_a_supported_hoster_or_account_fail_clearly() {
     let error = cmd::pr_list(&tc, id.clone(), crate::model::PrListState::Open, None, None, None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostUnsupported);
     // Other hosts are not recognised.
-    repo.git(&["remote", "add", "origin", "https://bitbucket.org/team/demo.git"]);
+    repo.git(&["remote", "add", "origin", "https://git.example.org/team/demo.git"]);
     repo.git(&["remote", "add", "azure", "https://dev.azure.com/firma/projekt/_git/demo"]);
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), None).await.unwrap(), None);
     assert_eq!(cmd::issue_list(&tc, id.clone(), crate::model::IssueListState::Open, None, None, None, None).await.unwrap_err().code, ErrorCode::HostUnsupported);

@@ -264,7 +264,6 @@ mod tests {
         assert_eq!((lab.kind, lab.owner.as_str(), lab.name.as_str()), (HostKind::Gitlab, "gruppe/unter", "projekt"));
         // Other hosts and self-hosted instances without an account: not recognised.
         for url in [
-            "https://bitbucket.org/team/projekt.git",
             "git@ssh.dev.azure.com:v3/firma/projekt/repo",
             "https://dev.azure.com/firma/projekt/_git/repo",
             "https://gitlab.firma.example/gruppe/projekt.git",

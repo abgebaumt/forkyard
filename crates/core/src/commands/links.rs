@@ -193,6 +193,8 @@ pub fn host_rules(kind: HostKind, web_url: &str) -> Vec<LinkRule> {
             rule("host:issue", r"#(\d+)\b", format!("{web_url}/-/issues/$1")),
             rule("host:merge_request", r"!(\d+)\b", format!("{web_url}/-/merge_requests/$1")),
         ],
+        // Bitbucket links `#<n>` in commit messages to the issue of that number.
+        HostKind::Bitbucket => vec![rule("host:issue", r"#(\d+)\b", format!("{web_url}/issues/$1"))],
     }
 }
 
