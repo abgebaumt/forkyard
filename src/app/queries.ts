@@ -97,6 +97,10 @@ export const qk = {
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
+  lfsLocks: (repoId: Id, filter: string | null = null) => ["repo", repoId, "lfsLocks", filter] as const,
+  lfsLocksAll: (repoId: Id) => ["repo", repoId, "lfsLocks"] as const,
+  /** LFS status for the lock symbols – a separate key so it is not re-read on every worktree change. */
+  lfsInUse: (repoId: Id) => ["repo", repoId, "lfsInUse"] as const,
 
   // Host integration (GitHub, GitLab): the app's accounts, the repository's host, pull requests.
   hostAccounts: ["app", "hostAccounts"] as const,
@@ -381,6 +385,32 @@ export const useSubmodules = (repoId: Id | null | undefined) =>
 export const useLfsStatus = (repoId: Id | null | undefined, enabled = true) =>
   useQuery({ queryKey: qk.lfs(repoId ?? ""), queryFn: () => core.lfsStatus({ repoId: repoId! }), enabled: enabledFor(repoId) && enabled });
 
+/**
+ * LFS file locks at the server. The core keeps the list and reads it again only after a fetch
+ * (`repo:changed` with `locks`) or on a manual refresh – so here it never goes stale by time.
+ */
+export const useLfsLocks = (repoId: Id | null | undefined, filter: string | null = null, enabled = true) =>
+  useQuery({
+    queryKey: qk.lfsLocks(repoId ?? "", filter),
+    queryFn: () => core.lfsLocks({ repoId: repoId!, filter }),
+    enabled: enabledFor(repoId) && enabled,
+    staleTime: Infinity,
+  });
+
+/**
+ * The LFS status as file lists, menus and the commit panel need it (does the repository use LFS?).
+ * Unlike `useLfsStatus` (`qk.lfs`, re-read on every worktree change) it is re-read only after a
+ * checkout (`head`) or a configuration change, and when a pattern is tracked in the LFS panel –
+ * otherwise every saved file would run `git lfs` twice in every open repository.
+ */
+export const useLfsInUse = (repoId: Id | null | undefined) =>
+  useQuery({
+    queryKey: qk.lfsInUse(repoId ?? ""),
+    queryFn: () => core.lfsStatus({ repoId: repoId! }),
+    enabled: enabledFor(repoId),
+    staleTime: Infinity,
+  });
+
 // ---------------------------------------------------------------------------
 // Host integration (GitHub, GitLab)
 // ---------------------------------------------------------------------------
@@ -511,6 +541,8 @@ export function invalidateRepo(client: QueryClient, repoId: Id, what: RepoChange
       if (changes.has("stash") && STASH_PARTS.has(name)) return true;
       if (changes.has("config") && CONFIG_PARTS.has(name)) return true;
       if (changes.has("operation") && OPERATION_PARTS.has(name)) return true;
+      if (changes.has("locks") && name === "lfsLocks") return true;
+      if ((changes.has("head") || changes.has("config")) && name === "lfsInUse") return true;
       return false;
     },
   });

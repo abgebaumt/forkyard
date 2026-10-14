@@ -186,6 +186,30 @@ describe("Invalidation after repo:changed", () => {
     await invalidateRepo(client, "r1", ["stash"]);
     expect(client.getQueryState(qk.linkRules("r1"))?.isInvalidated).toBe(false);
   });
+  it("locks → only the LFS lock lists; “LFS in use” only after checkout or config changes", async () => {
+    const client = new QueryClient();
+    const keys = {
+      all: qk.lfsLocks("r1"),
+      filtered: qk.lfsLocks("r1", "psd"),
+      inUse: qk.lfsInUse("r1"),
+      status: qk.status("r1"),
+      other: qk.lfsLocks("r2"),
+    };
+    const after = async (what: RepoChange[]) => {
+      client.clear();
+      for (const value of Object.values(keys)) client.setQueryData(value, 1);
+      await invalidateRepo(client, "r1", what);
+      return Object.entries(keys)
+        .filter(([, value]) => client.getQueryState(value)?.isInvalidated)
+        .map(([name]) => name)
+        .sort();
+    };
+    expect(await after(["locks"])).toEqual(["all", "filtered"]);
+    // Saving a file or a fetch must not re-run `git lfs` for every open repository.
+    expect(await after(["worktree", "index", "refs"])).toEqual(["status"]);
+    expect(await after(["config"])).toEqual(["inUse"]);
+    expect(await after(["head"])).toEqual(["inUse", "status"]);
+  });
 });
 
 describe("Command registry", () => {
