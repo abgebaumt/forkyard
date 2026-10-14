@@ -28,4 +28,9 @@ describe("settings navigation", () => {
     expect(searchSections("", SECTIONS).size).toBe(0);
     expect(searchSections("   ", SECTIONS).size).toBe(0);
   });
+  it("offers custom commands as a global section right after the external programs", () => {
+    const global = SECTIONS.filter((s) => s.level === "global").map((s) => s.id);
+    expect(global.indexOf("commands")).toBe(global.indexOf("external") + 1);
+    expect(searchSections("commands.json", SECTIONS).get("commands")).toBe(1);
+  });
 });

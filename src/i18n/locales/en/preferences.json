@@ -38,6 +38,10 @@
       "label": "External programs",
       "keywords": "Editor|Terminal|File manager|Diff tool|Merge tool"
     },
+    "commands": {
+      "label": "Custom commands",
+      "keywords": "Custom commands|Script|Program|Placeholder|Import|Export|.forkyard/commands.json"
+    },
     "notifications": {
       "label": "Notifications",
       "keywords": "On fetch results|On background errors"

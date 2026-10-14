@@ -1,4 +1,22 @@
 {
+  "kinds": {
+    "shell": "Program",
+    "git": "Git",
+    "url": "Web address"
+  },
+  "scopes": {
+    "repo": "Command palette",
+    "commit": "Commit",
+    "branch": "Branch",
+    "file": "File",
+    "submodule": "Submodule"
+  },
+  "inputTypes": {
+    "text": "Text",
+    "choice": "Choice",
+    "checkbox": "Checkbox",
+    "file": "File"
+  },
   "inputs": {
     "description": "Fill in the values for this run.",
     "run": "Run",
@@ -19,7 +37,83 @@
     "failed": "“{{title}}” ended with exit code {{code}}.",
     "showOutput": "Show output"
   },
+  "settings": {
+    "title": "Custom commands",
+    "intro": "Your own programs, Git commands and web addresses – in the command palette and in the context menus. Placeholders: ${repo}, ${sha}, ${branch}, ${file}, ${remote}, ${input:<id>}. Every value is passed as one argument, never through a shell.",
+    "card": "Your commands",
+    "empty": "No custom commands yet.",
+    "new": "New command",
+    "import": "Import…",
+    "export": "Export…",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmBadge": "Asks first",
+    "saveLabel": "Save custom commands",
+    "saved": "“{{title}}” saved.",
+    "deleteTitle": "Delete “{{title}}”?",
+    "deleteBody": "The command disappears from the palette and the menus. Export your commands first if you want to keep a copy.",
+    "deleteLabel": "Delete command",
+    "deleted": "“{{title}}” deleted.",
+    "importTitle": "Import custom commands",
+    "importLabel": "Import custom commands",
+    "imported": "Imported: {{added}} new, {{replaced}} replaced.",
+    "exportTitle": "Export custom commands",
+    "exportLabel": "Export custom commands",
+    "exported": "Saved to {{path}}.",
+    "jsonFilter": "JSON file",
+    "loadError": "The custom commands couldn’t be loaded."
+  },
+  "repo": {
+    "card": "From this repository ({{path}})",
+    "missing": "This repository brings no commands. A file {{path}} in the format of an export adds some – they only run after you approve them.",
+    "untrustedTitle": "Not approved",
+    "untrustedBody": "These commands come with the repository and can start programs. Approve them only if you trust everyone who can change this file.",
+    "changedTitle": "Changed since your approval",
+    "changedBody": "The file has changed. None of its commands run until you approve the new version.",
+    "trustedBody": "Approved for this version of the file. Every change needs a new approval.",
+    "allow": "Approve commands",
+    "revoke": "Withdraw approval",
+    "trustLabel": "Approve repository commands",
+    "trusted": "Repository commands approved.",
+    "revoked": "Approval withdrawn.",
+    "change": {
+      "added": "New: {{title}}",
+      "removed": "Removed: {{title}}",
+      "changed": "Changed: {{title}}"
+    }
+  },
   "editor": {
+    "newTitle": "New custom command",
+    "editTitle": "Edit “{{title}}”",
+    "description": "Forkyard checks the command again when saving and before every run.",
+    "title": "Title",
+    "id": "ID",
+    "idHint": "Lowercase letters, digits, “.”, “_” and “-”.",
+    "kind": "Kind",
+    "run": {
+      "shell": "Program and arguments",
+      "git": "Git arguments (without “git”)",
+      "url": "Web address"
+    },
+    "runHint": "Placeholders: ${repo}, ${sha}, ${branch}, ${file}, ${remote}, ${input:<id>}",
+    "cwd": "Working directory",
+    "cwdWorktree": "The open folder",
+    "cwdRepo": "The repository’s main working tree",
+    "confirm": "Show the finished command before it runs",
+    "shell": "Run through the system shell",
+    "shellHint": "Allows pipes and redirection. Values arrive as environment variables (FORKYARD_SHA, FORKYARD_INPUT_<ID> …), never as part of the command text.",
+    "scope": "Appears in",
+    "inputs": "Inputs",
+    "inputId": "ID",
+    "inputLabel": "Label",
+    "inputType": "Type",
+    "inputDefault": "Default",
+    "inputOptions": "Options (one per line)",
+    "inputChecked": "Value when ticked (empty: “true”)",
+    "addInput": "Add input",
+    "removeInput": "Remove input",
+    "cancel": "Cancel",
+    "save": "Save",
     "errors": {
       "id": "Use lowercase letters, digits, “.”, “_” and “-” (at most 64, starting with a letter or digit).",
       "idTaken": "Another command already uses this ID.",

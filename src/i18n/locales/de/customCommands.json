@@ -1,4 +1,22 @@
 {
+  "kinds": {
+    "shell": "Programm",
+    "git": "Git",
+    "url": "Webadresse"
+  },
+  "scopes": {
+    "repo": "Befehlspalette",
+    "commit": "Commit",
+    "branch": "Branch",
+    "file": "Datei",
+    "submodule": "Submodul"
+  },
+  "inputTypes": {
+    "text": "Text",
+    "choice": "Auswahl",
+    "checkbox": "Kontrollkästchen",
+    "file": "Datei"
+  },
   "inputs": {
     "description": "Trage die Werte für diesen Lauf ein.",
     "run": "Ausführen",
@@ -19,7 +37,83 @@
     "failed": "„{{title}}“ endete mit Exit-Code {{code}}.",
     "showOutput": "Ausgabe zeigen"
   },
+  "settings": {
+    "title": "Eigene Befehle",
+    "intro": "Eigene Programme, Git-Befehle und Webadressen – in der Befehlspalette und in den Kontextmenüs. Platzhalter: ${repo}, ${sha}, ${branch}, ${file}, ${remote}, ${input:<id>}. Jeder Wert wird als ein Argument übergeben, nie über eine Shell.",
+    "card": "Deine Befehle",
+    "empty": "Noch keine eigenen Befehle.",
+    "new": "Neuer Befehl",
+    "import": "Importieren…",
+    "export": "Exportieren…",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "confirmBadge": "Fragt vorher",
+    "saveLabel": "Eigene Befehle speichern",
+    "saved": "„{{title}}“ gespeichert.",
+    "deleteTitle": "„{{title}}“ löschen?",
+    "deleteBody": "Der Befehl verschwindet aus der Palette und den Menüs. Exportiere deine Befehle vorher, wenn du eine Kopie behalten möchtest.",
+    "deleteLabel": "Befehl löschen",
+    "deleted": "„{{title}}“ gelöscht.",
+    "importTitle": "Eigene Befehle importieren",
+    "importLabel": "Eigene Befehle importieren",
+    "imported": "Importiert: {{added}} neu, {{replaced}} ersetzt.",
+    "exportTitle": "Eigene Befehle exportieren",
+    "exportLabel": "Eigene Befehle exportieren",
+    "exported": "Gespeichert unter {{path}}.",
+    "jsonFilter": "JSON-Datei",
+    "loadError": "Die eigenen Befehle konnten nicht geladen werden."
+  },
+  "repo": {
+    "card": "Aus diesem Repository ({{path}})",
+    "missing": "Dieses Repository bringt keine Befehle mit. Eine Datei {{path}} im Format eines Exports fügt welche hinzu – sie laufen erst, wenn du sie freigibst.",
+    "untrustedTitle": "Nicht freigegeben",
+    "untrustedBody": "Diese Befehle kommen mit dem Repository und können Programme starten. Gib sie nur frei, wenn du allen vertraust, die diese Datei ändern können.",
+    "changedTitle": "Seit deiner Freigabe geändert",
+    "changedBody": "Die Datei hat sich geändert. Keiner ihrer Befehle läuft, bis du die neue Fassung freigibst.",
+    "trustedBody": "Für diese Fassung der Datei freigegeben. Jede Änderung braucht eine neue Freigabe.",
+    "allow": "Befehle freigeben",
+    "revoke": "Freigabe zurückziehen",
+    "trustLabel": "Repository-Befehle freigeben",
+    "trusted": "Repository-Befehle freigegeben.",
+    "revoked": "Freigabe zurückgezogen.",
+    "change": {
+      "added": "Neu: {{title}}",
+      "removed": "Entfernt: {{title}}",
+      "changed": "Geändert: {{title}}"
+    }
+  },
   "editor": {
+    "newTitle": "Neuer eigener Befehl",
+    "editTitle": "„{{title}}“ bearbeiten",
+    "description": "Forkyard prüft den Befehl beim Speichern und vor jedem Lauf noch einmal.",
+    "title": "Titel",
+    "id": "ID",
+    "idHint": "Kleinbuchstaben, Ziffern, „.“, „_“ und „-“.",
+    "kind": "Art",
+    "run": {
+      "shell": "Programm und Argumente",
+      "git": "Git-Argumente (ohne „git“)",
+      "url": "Webadresse"
+    },
+    "runHint": "Platzhalter: ${repo}, ${sha}, ${branch}, ${file}, ${remote}, ${input:<id>}",
+    "cwd": "Arbeitsverzeichnis",
+    "cwdWorktree": "Der geöffnete Ordner",
+    "cwdRepo": "Das Haupt-Arbeitsverzeichnis des Repositories",
+    "confirm": "Den fertigen Befehl vor dem Ausführen zeigen",
+    "shell": "Über die System-Shell ausführen",
+    "shellHint": "Erlaubt Pipes und Umleitungen. Werte kommen als Umgebungsvariablen an (FORKYARD_SHA, FORKYARD_INPUT_<ID> …), nie als Teil des Befehlstexts.",
+    "scope": "Erscheint in",
+    "inputs": "Eingaben",
+    "inputId": "ID",
+    "inputLabel": "Beschriftung",
+    "inputType": "Typ",
+    "inputDefault": "Vorgabe",
+    "inputOptions": "Möglichkeiten (eine pro Zeile)",
+    "inputChecked": "Wert, wenn angehakt (leer: „true“)",
+    "addInput": "Eingabe hinzufügen",
+    "removeInput": "Eingabe entfernen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
     "errors": {
       "id": "Nur Kleinbuchstaben, Ziffern, „.“, „_“ und „-“ (höchstens 64, am Anfang ein Buchstabe oder eine Ziffer).",
       "idTaken": "Ein anderer Befehl verwendet diese ID schon.",

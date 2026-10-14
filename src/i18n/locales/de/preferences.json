@@ -38,6 +38,10 @@
       "label": "Externe Programme",
       "keywords": "Editor|Terminal|Dateimanager|Diff-Programm|Merge-Programm"
     },
+    "commands": {
+      "label": "Eigene Befehle",
+      "keywords": "Eigene Befehle|Skript|Programm|Platzhalter|Import|Export|.forkyard/commands.json"
+    },
     "notifications": {
       "label": "Benachrichtigungen",
       "keywords": "Bei Fetch-Ergebnissen|Bei Fehlern im Hintergrund"

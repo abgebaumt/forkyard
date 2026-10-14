@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   Bell,
+  Command,
   FileCog,
   FolderGit2,
   GitBranch,
@@ -47,6 +48,7 @@ import { TicketLinksSection } from "./sections/TicketLinks";
 import { SshSection } from "./sections/Ssh";
 import { NetworkSection } from "../Network/NetworkSection";
 import { HostsSection } from "../Hosts";
+import { CustomCommandsSection } from "../CustomCommands/Section";
 
 /** The shell knows coarser names; here they land in the matching section. */
 const fromStore: Record<PreferencesSection, SectionId> = {
@@ -55,7 +57,7 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   signing: "git",
   editor: "diff",
   external: "external",
-  commands: "external",
+  commands: "commands",
   terminal: "external",
   notifications: "notifications",
   profiles: "identity",
@@ -69,6 +71,7 @@ const icons: Record<SectionId, ReactNode> = {
   appearance: <Palette className={iconClass} aria-hidden />,
   diff: <TextCursorInput className={iconClass} aria-hidden />,
   external: <SquareTerminal className={iconClass} aria-hidden />,
+  commands: <Command className={iconClass} aria-hidden />,
   notifications: <Bell className={iconClass} aria-hidden />,
   identity: <UserRound className={iconClass} aria-hidden />,
   git: <GitBranch className={iconClass} aria-hidden />,
@@ -213,6 +216,8 @@ export function Preferences({
         return withSettings((value) => <DiffSection settings={value} />);
       case "external":
         return withSettings((value) => <ExternalSection settings={value} />);
+      case "commands":
+        return <CustomCommandsSection repoId={repo?.trusted ? repoId : null} />;
       case "notifications":
         return withSettings((value) => <NotificationsSection settings={value} />);
       case "identity":
