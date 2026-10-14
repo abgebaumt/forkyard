@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
-import { ChevronRight, Folder, FolderOpen, List, ListTree } from "lucide-react";
+import { ChevronRight, Folder, FolderOpen, List, ListTree, Lock } from "lucide-react";
 import type { FileChange } from "../core";
 import { StatusBadge } from "../ui/Git";
 import { ContextMenu, type MenuEntry } from "../ui/Menu";
@@ -50,6 +50,14 @@ export interface FileSelectModifiers {
   source?: "pointer" | "keyboard";
 }
 
+/** LFS lock of a file as a row shows it. */
+export interface FileLock {
+  /** Held by the signed-in user. */
+  ours: boolean;
+  /** Tooltip and screen-reader text, e.g. "Locked by Lena Berg". */
+  label: string;
+}
+
 export interface FileListProps {
   files: FileChange[];
   /** Selected paths; the last one is the active one. */
@@ -78,6 +86,8 @@ export interface FileListProps {
   actionAlways?: boolean;
   /** Short extra text on the right of the row, e.g. the kind of a conflict. */
   detail?: (file: FileChange) => string | null | undefined;
+  /** LFS lock of a file: lock symbol with the owner as tooltip. */
+  lockFor?: (path: string) => FileLock | undefined;
   /** Tree only: every folder starts closed instead of open. */
   collapsed?: boolean;
   /** Tree only: action in a folder row, for all files below it. */
@@ -260,6 +270,7 @@ export function FileList({
   loading = false,
   actionAlways = false,
   detail,
+  lockFor,
   folderAction,
   onFolderKey,
   onSelectAll,
@@ -538,6 +549,7 @@ export function FileList({
     const isSelected = selectedSet.has(file.path);
     const action = rowAction?.(file);
     const extra = detail?.(file);
+    const lock = lockFor?.(file.path);
     const hasCounts = file.added !== null || file.removed !== null;
     const name = baseName(file.path);
     const dir = tree ? "" : dirName(file.path);
@@ -582,6 +594,12 @@ export function FileList({
         </span>
         {extra ? <span className="max-w-2/5 shrink-0 truncate text-sm text-text-muted">{extra}</span> : null}
         {file.isLfs ? <span className="shrink-0 rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span> : null}
+        {lock ? (
+          <span data-lfs-lock={lock.ours ? "ours" : "theirs"} title={lock.label} className={cn("inline-flex shrink-0", lock.ours ? "text-text-muted" : "text-warning")}>
+            <Lock className="size-3.5" aria-hidden />
+            <span className="sr-only">{lock.label}</span>
+          </span>
+        ) : null}
         {hasCounts && !(action && actionAlways) ? (
           <span className={cn("shrink-0 font-mono text-xs tabular-nums", action && "group-focus-within:hidden group-hover:hidden")}>
             {file.added ? <span className="text-success">+{file.added}</span> : null}

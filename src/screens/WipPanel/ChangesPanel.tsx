@@ -8,6 +8,7 @@ import { describeError } from "../../app/errors";
 import { openMergeTool } from "../../app/actions/tools";
 import { fileMenu } from "../../app/menus";
 import { useStatus } from "../../app/queries";
+import { fileLock, useLockIndex } from "../Lfs/locks";
 import { getTabView, useAppStore, useBusy } from "../../app/store";
 import { FileLayoutSwitch, FileList, type FileSelectModifiers } from "../../components/FileList";
 import { Button, IconButton } from "../../ui/Button";
@@ -271,6 +272,8 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   const conflicted = status?.conflicted ?? [];
   const operation = status?.operation ?? null;
   const sides = useMemo(() => conflictSides(operation, status), [operation, status]);
+  const locks = useLockIndex(repoId);
+  const lockFor = (path: string) => fileLock(locks.get(path));
   const total = unstaged.length + staged.length + conflicted.length;
 
   const paths = useMemo(
@@ -508,6 +511,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
               onActivate={(file) => open("unstaged", file.path)}
               onSelectAll={() => store().setSelected(tabId, "unstaged", paths.unstaged)}
               menuFor={menuFor("unstaged")}
+              lockFor={lockFor}
               empty={staged.length > 0 ? t("wip.panel.allStaged") : t("wip.panel.noChanges")}
               onKey={(event, file) => {
                 if (plainKey(event, "s")) {
@@ -578,6 +582,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
               onActivate={(file) => open("staged", file.path)}
               onSelectAll={() => store().setSelected(tabId, "staged", paths.staged)}
               menuFor={menuFor("staged")}
+              lockFor={lockFor}
               empty={unstaged.length > 0 ? t("wip.panel.nothingStagedHint") : t("wip.panel.nothingStaged")}
               onKey={(event, file) => {
                 if (!plainKey(event, "u")) return false;

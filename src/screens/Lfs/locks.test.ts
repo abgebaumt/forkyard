@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LfsLock, LfsLockList, LfsStatus } from "../../core";
-import { lockIndex, locksWanted, panelActions } from "./locks";
+import { fileLock, lockIndex, locksWanted, panelActions } from "./locks";
 
 const lock = (path: string, owner: string, ours: boolean): LfsLock => ({ id: path, path, owner, lockedAt: "2026-01-02T03:04:05Z", ours });
 const list = (...locks: LfsLock[]): LfsLockList => ({ locks, fetchedAt: "2026-01-02T03:05:00.000Z" });
@@ -34,5 +34,13 @@ describe("LFS panel: what the buttons do with the selection", () => {
   it("ignores selected paths that are no longer in the list", () => {
     expect(panelActions(locks, new Set(["weg.psd"]))).toEqual({ unlock: [], force: [], foreign: 0 });
     expect(panelActions([], new Set())).toEqual({ unlock: [], force: [], foreign: 0 });
+  });
+});
+
+describe("File lists: the lock symbol", () => {
+  it("names the owner, or says it is your own lock", () => {
+    expect(fileLock(lock("a.psd", "Lena Berg", false))).toEqual({ ours: false, label: "Locked by Lena Berg" });
+    expect(fileLock(lock("b.psd", "Test Person", true))).toEqual({ ours: true, label: "Locked by you" });
+    expect(fileLock(undefined)).toBeUndefined();
   });
 });

@@ -8,6 +8,7 @@ import type { Id, LfsLock, LfsLockList, LfsStatus } from "../../core";
 import { useLfsInUse, useLfsLocks } from "../../app/queries";
 import type { ConfirmOptions } from "../../app/dialogs";
 import { t } from "../../i18n";
+import type { FileLock } from "../../components/FileList";
 
 export type LockIndex = ReadonlyMap<string, LfsLock>;
 
@@ -59,4 +60,10 @@ export function panelActions(locks: LfsLock[], selected: ReadonlySet<string>): P
     force: chosen.map((lock) => lock.path),
     foreign: chosen.filter((lock) => !lock.ours).length,
   };
+}
+
+/** What a file row shows for a lock: symbol (own or someone else's) and the tooltip text. */
+export function fileLock(lock: LfsLock | undefined): FileLock | undefined {
+  if (!lock) return undefined;
+  return { ours: lock.ours, label: lock.ours ? t("lfs.locks.byYou") : t("lfs.locks.byOther", { owner: lock.owner }) };
 }

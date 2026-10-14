@@ -3,12 +3,13 @@
  * and – for a single commit – optionally all files of that revision with a filter.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ClipboardCopy, Eye, File, FileDiff, FileSearch, Search, X } from "lucide-react";
+import { ClipboardCopy, Eye, File, FileDiff, FileSearch, Lock, Search, X } from "lucide-react";
 import type { CommitDetails, DiffSource, FileChange, Id, Sha } from "../../core";
 import { fileMenu } from "../../app/menus";
 import { useTree } from "../../app/queries";
 import { useAppStore, useTabView } from "../../app/store";
-import { FileLayoutSwitch, FileList, nextFileSelection, type FileListView } from "../../components/FileList";
+import { FileLayoutSwitch, FileList, nextFileSelection, type FileLock, type FileListView } from "../../components/FileList";
+import { fileLock, useLockIndex } from "../Lfs/locks";
 import { Button, IconButton, Spinner } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { EmptyState, toast } from "../../ui/Feedback";
@@ -257,6 +258,7 @@ function AllFiles({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
   const all = useTree(repoId, sha, null);
   const filtered = useTree(repoId, sha, needle || null, needle.length > 0);
   const [active, setActive] = useState(-1);
+  const locks = useLockIndex(repoId);
 
   // While the next filtered list loads, the previous one stays (no flicker while typing).
   const lastShown = useRef<string[] | undefined>(undefined);
@@ -354,7 +356,7 @@ function AllFiles({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
             activateOnClick
             ariaLabel={t("commitDetails.files.allOfCommit")}
             getKey={(index) => paths[index] ?? index}
-            renderRow={(index) => <TreeRow path={paths[index] ?? ""} />}
+            renderRow={(index) => <TreeRow path={paths[index] ?? ""} lock={fileLock(locks.get(paths[index] ?? ""))} />}
           />
         )}
       </div>
@@ -362,7 +364,7 @@ function AllFiles({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
   );
 }
 
-function TreeRow({ path }: { path: string }) {
+function TreeRow({ path, lock }: { path: string; lock?: FileLock }) {
   const slash = path.lastIndexOf("/");
   const dir = slash >= 0 ? path.slice(0, slash + 1) : "";
   const name = slash >= 0 ? path.slice(slash + 1) : path;
@@ -373,6 +375,12 @@ function TreeRow({ path }: { path: string }) {
         <span>{name}</span>
         {dir ? <span className="ml-2 text-sm text-text-muted">{dir}</span> : null}
       </span>
+      {lock ? (
+        <span data-lfs-lock={lock.ours ? "ours" : "theirs"} title={lock.label} className={cn("inline-flex shrink-0", lock.ours ? "text-text-muted" : "text-warning")}>
+          <Lock className="size-3.5" aria-hidden />
+          <span className="sr-only">{lock.label}</span>
+        </span>
+      ) : null}
     </span>
   );
 }
