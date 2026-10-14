@@ -21,10 +21,6 @@
   },
   "failed": "The statistics could not be computed",
   "retry": "Try again",
-  "outdated": {
-    "title": "There are new commits since this calculation",
-    "action": "Recalculate"
-  },
   "empty": {
     "title": "No commits in this period",
     "body": "Choose a longer period or another branch."

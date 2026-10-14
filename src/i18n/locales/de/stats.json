@@ -21,10 +21,6 @@
   },
   "failed": "Die Statistik konnte nicht berechnet werden",
   "retry": "Erneut versuchen",
-  "outdated": {
-    "title": "Seit dieser Berechnung gibt es neue Commits",
-    "action": "Neu berechnen"
-  },
   "empty": {
     "title": "Keine Commits in diesem Zeitraum",
     "body": "Wähle einen längeren Zeitraum oder einen anderen Branch."

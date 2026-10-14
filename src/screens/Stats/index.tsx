@@ -71,8 +71,8 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
   const [granularity, setGranularity] = useState<Granularity | null>(null);
   const [folder, setFolder] = useState("");
   const range = useMemo(() => rangeFor(preset, ref), [preset, ref]);
-  const { state, stats, job, recompute } = useStats(repoId, range);
   const { data: refs } = useRefs(repoId);
+  const { state, stats, job, recompute } = useStats(repoId, range, refs ? currentTip(refs, ref) : undefined);
   const tree = useMemo(() => buildTree(stats?.files ?? []), [stats]);
   const weeks = useMemo(() => fillWeeks(stats?.weeks ?? []), [stats]);
   const months = useMemo(() => fillMonths(stats?.months ?? []), [stats]);
@@ -100,8 +100,6 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
     [refs],
   );
   const running = state.kind === "running";
-  const tip = currentTip(refs, ref);
-  const outdated = state.kind === "done" && Boolean(stats?.tip && tip && stats.tip !== tip);
   const node = findNode(tree, folder) ?? tree;
   const shownGranularity = granularity ?? defaultGranularity(weeks);
   const openFile = (path: string) => useAppStore.getState().openHistory(tabId, path);
@@ -130,16 +128,6 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
         </Button>
       </header>
       {running ? <Progress job={job} /> : null}
-      {outdated ? (
-        <Banner
-          title={t("stats.outdated.title")}
-          actions={
-            <Button size="sm" onClick={recompute}>
-              {t("stats.outdated.action")}
-            </Button>
-          }
-        />
-      ) : null}
       {state.kind === "failed" ? (
         <Banner
           tone="danger"

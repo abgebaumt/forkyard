@@ -12,9 +12,14 @@ export type StatsState =
   | { kind: "failed"; error: CoreError; previous: RepoStats | null };
 
 export type StatsEvent =
-  /** `keep`: the same period and branch again – the old numbers stay visible meanwhile. */
-  | { type: "start"; jobId: string; keep: boolean }
+  /**
+   * `keep`: the same period and branch again – the old numbers stay visible meanwhile.
+   * `fallback`: shown meanwhile when nothing else is (the last result of this session).
+   */
+  | { type: "start"; jobId: string; keep: boolean; fallback?: RepoStats | null }
   | { type: "done"; jobId: string; stats: RepoStats }
+  /** A result that needs no job (the session's last one, still up to date). */
+  | { type: "show"; stats: RepoStats }
   | { type: "failed"; jobId: string; error: CoreError };
 
 /** The statistics on screen (also while a new run is going). */
@@ -33,12 +38,24 @@ export function shown(state: StatsState): RepoStats | null {
 export function statsReducer(state: StatsState, event: StatsEvent): StatsState {
   switch (event.type) {
     case "start":
-      return { kind: "running", jobId: event.jobId, previous: event.keep ? shown(state) : null };
+      return { kind: "running", jobId: event.jobId, previous: (event.keep ? shown(state) : null) ?? event.fallback ?? null };
     case "done":
       return state.kind === "running" && state.jobId === event.jobId ? { kind: "done", stats: event.stats } : state;
+    case "show":
+      return { kind: "done", stats: event.stats };
     case "failed":
       if (state.kind !== "running" || state.jobId !== event.jobId) return state;
       if (event.error.code === "cancelled") return state.previous ? { kind: "done", stats: state.previous } : { kind: "idle" };
       return { kind: "failed", error: event.error, previous: state.previous };
   }
+}
+
+/**
+ * Whether the shown result is behind the branch: its tip is not the current one (`tip`;
+ * undefined = branches not loaded, null = no commit). `triedFor`: the tip a refresh already ran
+ * for – so a tip the core sees differently cannot loop.
+ */
+export function needsRefresh(state: StatsState, tip: string | null | undefined, triedFor: string | null): boolean {
+  if (state.kind !== "done" || !tip || tip === triedFor) return false;
+  return state.stats.tip !== tip;
 }
