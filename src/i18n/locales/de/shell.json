@@ -163,6 +163,7 @@
     "searchHint": "Commits nach Message, SHA oder Autor suchen",
     "stats": "Statistik",
     "statsHint": "Commits, Autoren, Hotspots und Code-Alter dieses Repositorys",
+    "statsHide": "Statistik schließen und zur vorigen Ansicht zurückkehren",
     "commands": "Befehle",
     "palette": "Command Palette",
     "settings": "Einstellungen",

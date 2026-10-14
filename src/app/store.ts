@@ -251,6 +251,11 @@ export const useAppStore = create<AppState>()((set, get) => {
     set((state) => {
       const current = state.views[tabId] ?? defaultTabView();
       let next = typeof patch === "function" ? patch(current) : patch;
+      // The statistics close only through their own button (src/screens/Stats/actions.ts).
+      if (next.center && current.center.kind === "stats" && next.center.kind !== "stats" && !statsLeaving) {
+        const { center: _stays, ...rest } = next;
+        next = rest;
+      }
       // Unsaved work in the centre (conflict tool): ask first, the centre stays as is meanwhile.
       if (next.center && next.center !== current.center && centerBlocked(tabId, next.center, (center) => patchView(tabId, { center }))) {
         const { center: _kept, ...rest } = next;
@@ -458,6 +463,23 @@ const pendingLeave = new Set<Id>();
 export function setCenterGuard(tabId: Id, guard: CenterGuard | null, owner?: CenterGuard): void {
   if (guard) centerGuards.set(tabId, guard);
   else if (!owner || centerGuards.get(tabId) === owner) centerGuards.delete(tabId);
+}
+
+let statsLeaving = false;
+
+/**
+ * Runs `change` with permission to replace the statistics in the centre. Without it, nothing
+ * moves the statistics out of the centre – no diff opened from a side panel, no "back to the
+ * graph", no Escape: they open and close through their button.
+ */
+export function leavingStats<T>(change: () => T): T {
+  const before = statsLeaving;
+  statsLeaving = true;
+  try {
+    return change();
+  } finally {
+    statsLeaving = before;
+  }
 }
 
 function centerBlocked(tabId: Id, center: CenterView, retry: (center: CenterView) => void): boolean {

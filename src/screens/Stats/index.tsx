@@ -5,14 +5,12 @@
  * (status bar, cancellable); errors stay in the view.
  *
  * A file (treemap tile, hotspot) opens its history; a folder opens in the treemap; the biggest
- * commit is shown in the graph. Esc: back.
+ * commit is shown in the graph. It opens and closes through its toolbar button only (actions.ts).
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Id } from "../../core";
-import { hasOpenDialog } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
 import { formatShortDate } from "../../app/format";
-import { hasOpenMenu } from "../../app/menus/host";
 import { useRefs } from "../../app/queries";
 import { useAppStore, type Job } from "../../app/store";
 import { t } from "../../i18n";
@@ -21,9 +19,8 @@ import { cn } from "../../ui/cn";
 import { Banner, EmptyState } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { Select } from "../../ui/Select";
-import { goBack, showInGraph } from "../FileView/nav";
-import { BackButton, isPlainEscape, ownsKey } from "../FileView/parts";
-import { rememberChoice, rememberedChoice } from "./actions";
+import { showInGraph } from "../FileView/nav";
+import { leaveStats, rememberChoice, rememberedChoice } from "./actions";
 import { AuthorsTable, CodeAgeBar, formatPercent, Heatmap, HotspotList, KnowledgeTable, Records, TimeChart, Treemap } from "./charts";
 import { buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, parentFolder, PRESETS, rangeFor, type Granularity, type StatsPreset } from "./model";
 import { useStats } from "./useStats";
@@ -79,18 +76,6 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
   useEffect(() => setFolder(""), [range]);
   useEffect(() => rememberChoice(tabId, { preset, ref }), [tabId, preset, ref]);
 
-  // Esc: back (the view itself does not use Esc).
-  useEffect(() => {
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (!isPlainEscape(event)) return;
-      if (!ownsKey(event, hasOpenDialog() || hasOpenMenu() || Boolean(useAppStore.getState().overlay))) return;
-      event.preventDefault();
-      goBack(tabId);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [tabId]);
-
   const refOptions = useMemo(
     () => [
       { value: "HEAD", label: t("stats.ref.head") },
@@ -102,7 +87,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
   const running = state.kind === "running";
   const node = findNode(tree, folder) ?? tree;
   const shownGranularity = granularity ?? defaultGranularity(weeks);
-  const openFile = (path: string) => useAppStore.getState().openHistory(tabId, path);
+  const openFile = (path: string) => leaveStats(() => useAppStore.getState().openHistory(tabId, path));
   const openFolder = (path: string) => {
     setFolder(path);
     document.querySelector('[data-stats-section="treemap"]')?.scrollIntoView({ block: "nearest" });
@@ -116,7 +101,6 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
       className="flex h-full min-h-0 flex-col bg-bg"
     >
       <header className="flex flex-wrap items-center gap-2 border-b border-border bg-surface px-3 py-2">
-        <BackButton tabId={tabId} />
         <h1 className="text-md font-semibold text-text">{t("stats.title")}</h1>
         <div className="flex-1" />
         <SegmentedControl label={t("stats.preset.label")} value={preset} options={PRESETS.map((value) => ({ value, label: PRESET_LABELS[value] }))} onValueChange={setPreset} />
@@ -174,7 +158,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
                 <AuthorsTable authors={stats.authors} total={stats.authorCount} />
               </Section>
               <Section id="records" title={t("stats.records.title")}>
-                <Records records={stats.records} onCommit={(sha) => showInGraph(tabId, sha)} />
+                <Records records={stats.records} onCommit={(sha) => leaveStats(() => showInGraph(tabId, sha))} />
               </Section>
               <Section id="treemap" title={t("stats.treemap.title")} hint={t("stats.treemap.hint")} wide>
                 <div className="flex min-w-0 items-center gap-2 text-sm">

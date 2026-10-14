@@ -22,7 +22,7 @@ import { operationNames } from "../actions/merge";
 import { popStash, stashChanges } from "../actions/stash";
 import { addRemote, fetchAll, pull, pullModeHints, pullModeLabels, push, setDefaultPullMode } from "../actions/sync";
 import { redo, undo } from "../actions/undo";
-import { openStats } from "../../screens/Stats/actions";
+import { toggleStats } from "../../screens/Stats/actions";
 import { useRemotes, useRepoSettings, useSettings, useStashes, useStatus, useUndoState } from "../queries";
 import { useAppStore, useBusy, useTabView } from "../store";
 import { t } from "../../i18n";
@@ -243,8 +243,8 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         icon={icon(ChartColumn)}
         compact={compact}
         pressed={view.center.kind === "stats"}
-        hint={t("shell.toolbar.statsHint")}
-        onClick={() => openStats(tabId)}
+        hint={view.center.kind === "stats" ? t("shell.toolbar.statsHide") : t("shell.toolbar.statsHint")}
+        onClick={() => toggleStats(tabId)}
       />
       <ToolbarButton
         label={t("shell.toolbar.search")}
