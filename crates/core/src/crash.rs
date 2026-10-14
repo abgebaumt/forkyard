@@ -310,7 +310,9 @@ impl CrashLog {
         {
             let mut sink = lock(&self.sink);
             let mut new_sink = Sink { dir: logs, file: None, size: 0 };
-            let header = format!("{} === Forkyard {version} started (run {}) ===", iso(now_ms()), self.run_id);
+            // Stamped with the start of the run: the lines waiting in `pending` were logged
+            // after it and follow the header, so the file stays in time order.
+            let header = format!("{} === Forkyard {version} started (run {}) ===", iso(self.started_ms), self.run_id);
             self.write_line(&mut new_sink, &header);
             for line in lock(&self.pending).drain(..) {
                 self.write_line(&mut new_sink, &line);

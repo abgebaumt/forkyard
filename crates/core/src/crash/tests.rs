@@ -61,6 +61,24 @@ fn lines_before_the_data_dir_is_known_are_flushed_on_attach() {
     assert!(one < two && two < late, "{text}");
 }
 
+/// Lines logged before the data directory is known are written after the header, so the
+/// header must not carry a later time than they do.
+#[test]
+fn the_start_header_is_not_stamped_later_than_the_lines_before_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = log_in(None);
+    log.push_line("early line");
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    log.attach(dir.path(), "1.2.3");
+    log.push_line("late line");
+    let text = log_text(dir.path());
+    let stamps: Vec<&str> = text.lines().map(|line| line.split(' ').next().unwrap()).collect();
+    assert!(text.lines().next().unwrap().contains("=== Forkyard 1.2.3 started"), "{text}");
+    let mut sorted = stamps.clone();
+    sorted.sort();
+    assert_eq!(stamps, sorted, "lines out of time order:\n{text}");
+}
+
 #[test]
 fn the_ring_keeps_only_the_newest_lines() {
     let log = log_in(None);
