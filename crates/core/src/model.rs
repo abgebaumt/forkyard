@@ -1214,6 +1214,10 @@ pub struct RepoSettings {
     /// enforced for the app's network calls, even with an SSH agent. `None` = like the profile.
     #[serde(default)]
     pub ssh_key_id: Option<String>,
+    /// Ticket link rules of this repository (presets, own rules, host links on/off). Checked on
+    /// saving; the effective rules (including `.forkyard/links.json`) come from `link_rules_get`.
+    #[serde(default)]
+    pub link_rules: LinkRulesConfig,
 }
 
 impl Default for RepoSettings {
@@ -1228,7 +1232,55 @@ impl Default for RepoSettings {
             author_name: None,
             author_email: None,
             ssh_key_id: None,
+            link_rules: LinkRulesConfig::default(),
         }
+    }
+}
+
+/// Trackers with a ready-made rule.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkPresetKind {
+    Jira,
+    Linear,
+    Youtrack,
+    Redmine,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkPreset {
+    pub kind: LinkPresetKind,
+    /// Address of the tracker, e.g. `https://firma.atlassian.net` (http/https, no trailing slash).
+    pub base_url: String,
+    /// Jira, Linear, YouTrack: only these project keys (`ABC` for `ABC-123`); empty = every key.
+    /// Always empty for Redmine (`#123`).
+    #[serde(default)]
+    pub keys: Vec<String>,
+}
+
+/// An own rule: matches of `pattern` link to `url` (`$0` = whole match, `$1` … = groups).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomLinkRule {
+    pub id: String,
+    pub pattern: String,
+    pub url: String,
+}
+
+/// Ticket links stored for a repository (`repo_settings`, key `linkRules`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct LinkRulesConfig {
+    /// `#123` (on GitLab also `!123`) link to the repository's host.
+    pub host_rules: bool,
+    pub presets: Vec<LinkPreset>,
+    pub custom: Vec<CustomLinkRule>,
+}
+
+impl Default for LinkRulesConfig {
+    fn default() -> Self {
+        LinkRulesConfig { host_rules: true, presets: Vec::new(), custom: Vec::new() }
     }
 }
 

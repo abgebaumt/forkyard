@@ -427,10 +427,14 @@ pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoS
 /// Changes only the fields passed. Git fields (hooksPath, commitTemplate, authorName,
 /// authorEmail) go into .git/config (`null` or empty = remove the entry).
 /// `commitTemplateText` is read-only and skipped in a patch.
+/// `linkRules` is checked (`not_allowed` with the reason) and stored in its canonical form.
 pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> CoreResult<RepoSettings> {
     let current = repo_settings_get(core, repo_id.clone()).await?;
-    let (next, mut changed) = util::apply_patch(&current, &patch, "Repository settings")?;
+    let (mut next, mut changed) = util::apply_patch(&current, &patch, "Repository settings")?;
     changed.retain(|key| !READ_ONLY_KEYS.contains(&key.as_str()));
+    if changed.iter().any(|k| k == "linkRules") {
+        next.link_rules = crate::commands::links::normalize_config(&next.link_rules)?;
+    }
     if changed.iter().any(|k| k == "encoding") && encoding_rs::Encoding::for_label(next.encoding.trim().as_bytes()).is_none() {
         return Err(CoreError::not_allowed(format!("Unknown encoding “{}”.", next.encoding)));
     }
