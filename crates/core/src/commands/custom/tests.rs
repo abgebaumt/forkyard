@@ -355,6 +355,24 @@ async fn with_shell_true_values_arrive_as_environment_variables() {
     }
 }
 
+/// Placeholders the template already quotes still arrive as one argument each, unexpanded.
+#[cfg(unix)]
+#[tokio::test]
+async fn with_shell_true_quoted_placeholders_stay_single_arguments() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let mut quoted = def("quoted", CustomCommandKind::Shell, "printf '<%s>' \"${input:text}\" '${input:text}' \"x ${input:text}_y\" > ausgabe.txt");
+    quoted.shell = true;
+    quoted.inputs = vec![text_input("text")];
+    custom_commands_save(&tc, vec![quoted]).await.unwrap();
+    repo.write_file("a.txt", "a\n");
+    repo.write_file("b.txt", "b\n");
+    let value = "zwei  Wörter *.txt";
+    assert_eq!(finished(run(&tc, &id, "global:quoted", Default::default(), &[("text", value)]).await.unwrap()).0, Some(0));
+    assert_eq!(std::fs::read_to_string(repo.path().join("ausgabe.txt")).unwrap(), format!("<{value}><{value}><x {value}_y>"));
+}
+
 #[cfg(windows)]
 #[tokio::test]
 async fn with_shell_true_values_arrive_as_environment_variables() {

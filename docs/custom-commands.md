@@ -64,7 +64,8 @@ Every value becomes part of exactly one argument – Forkyard never builds a she
 value from the context or a text field cannot become an option (it must not start with `-`), and a
 push can only be forced with `--force-with-lease`. With `"shell": true` the line only refers to
 environment variables (`FORKYARD_REPO`, `FORKYARD_SHA`, `FORKYARD_BRANCH`, `FORKYARD_FILE`,
-`FORKYARD_REMOTE`, `FORKYARD_INPUT_<ID>`); every program run gets them as well.
+`FORKYARD_REMOTE`, `FORKYARD_INPUT_<ID>`); every program run gets them as well. A placeholder
+stays one argument there too, whether the line puts it in quotes (`"${file}"`, `'${file}'`) or not.
 
 ## Commands from a repository
 

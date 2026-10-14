@@ -101,7 +101,8 @@ fn env_name(placeholder: &Placeholder) -> String {
 }
 
 /// `shell: true`: the line for `sh -c` (Unix) or PowerShell (Windows), in which every placeholder
-/// is a reference to its environment variable; the values themselves are never part of it.
+/// is a reference to its environment variable – one argument, whether the template quotes it or
+/// not; the values themselves are never part of it.
 /// Missing values are reported as for `shell_args`.
 pub fn shell_line(def: &CustomCommandDef, values: &Values, windows: bool) -> CoreResult<(String, Vec<String>)> {
     let pieces = parts(&def.run)?;
@@ -113,15 +114,57 @@ pub fn shell_line(def: &CustomCommandDef, values: &Values, windows: bool) -> Cor
     Ok(if windows {
         ("powershell.exe".to_string(), vec!["-NoProfile".into(), "-NonInteractive".into(), "-Command".into(), powershell_line(&pieces)])
     } else {
-        let mut line = String::new();
-        for piece in &pieces {
-            match piece {
-                Piece::Text(literal) => line.push_str(literal),
-                Piece::Var(placeholder) => line.push_str(&format!("\"${}\"", env_name(placeholder))),
+        ("sh".to_string(), vec!["-c".into(), posix_line(&pieces)])
+    })
+}
+
+/// The `sh` line, aware of the template's own quotes: unquoted a reference becomes `"$X"`; inside
+/// a double-quoted string the braced `${X}` (already one word there); inside a single-quoted string,
+/// where nothing expands, the string is closed around `"$X"` and reopened. A backslash right before
+/// a placeholder would only escape the quote or `$`; the reference wins.
+fn posix_line(pieces: &[Piece<'_>]) -> String {
+    #[derive(Clone, Copy, PartialEq)]
+    enum Quote {
+        None,
+        Single,
+        Double,
+    }
+    let mut line = String::new();
+    let mut quote = Quote::None;
+    let mut escaped = false;
+    for piece in pieces {
+        match piece {
+            Piece::Text(literal) => {
+                for c in literal.chars() {
+                    if escaped {
+                        escaped = false;
+                    } else {
+                        match (quote, c) {
+                            (Quote::None | Quote::Double, '\\') => escaped = true,
+                            (Quote::None, '\'') => quote = Quote::Single,
+                            (Quote::None, '"') => quote = Quote::Double,
+                            (Quote::Single, '\'') | (Quote::Double, '"') => quote = Quote::None,
+                            _ => {}
+                        }
+                    }
+                    line.push(c);
+                }
+            }
+            Piece::Var(placeholder) => {
+                if escaped {
+                    line.pop();
+                    escaped = false;
+                }
+                let name = env_name(placeholder);
+                match quote {
+                    Quote::None => line.push_str(&format!("\"${name}\"")),
+                    Quote::Double => line.push_str(&format!("${{{name}}}")),
+                    Quote::Single => line.push_str(&format!("'\"${name}\"'")),
+                }
             }
         }
-        ("sh".to_string(), vec!["-c".into(), line])
-    })
+    }
+    line
 }
 
 /// One character of the template or one placeholder, as PowerShell sees it.
@@ -358,6 +401,26 @@ mod tests {
         assert!(env.contains(&("FORKYARD_SHA".to_string(), "abc1234".to_string())));
         assert!(env.contains(&("FORKYARD_REPO".to_string(), "/home/anna/mein repo".to_string())));
         assert!(!env.iter().any(|(key, _)| key == "FORKYARD_REMOTE"), "only what is known");
+    }
+
+    fn posix_line(run: &str) -> String {
+        let mut d = def(Shell, run);
+        d.shell = true;
+        shell_line(&d, &values(), false).unwrap().1.pop().unwrap()
+    }
+
+    #[test]
+    fn posix_placeholders_already_in_quotes_stay_one_argument() {
+        // Inside double quotes the bare reference (braced, so text after it is not part of the name).
+        assert_eq!(posix_line("cat \"${file}\""), "cat \"${FORKYARD_FILE}\"");
+        assert_eq!(posix_line("cp \"${file}\" \"${file}_bak\""), "cp \"${FORKYARD_FILE}\" \"${FORKYARD_FILE}_bak\"");
+        assert_eq!(posix_line("echo \"a \\\" ${sha} b\""), "echo \"a \\\" ${FORKYARD_SHA} b\"");
+        // Inside single quotes nothing expands: the string is closed around the reference.
+        assert_eq!(posix_line("echo '${file}'"), "echo ''\"$FORKYARD_FILE\"''");
+        assert_eq!(posix_line("echo 'x ${sha} y'"), "echo 'x '\"$FORKYARD_SHA\"' y'");
+        // Unquoted as before; an escaped quote does not open a string.
+        assert_eq!(posix_line("echo \\' ${file}"), "echo \\' \"$FORKYARD_FILE\"");
+        assert_eq!(posix_line("echo ${file}.bak"), "echo \"$FORKYARD_FILE\".bak");
     }
 
     fn windows_line(run: &str) -> String {
