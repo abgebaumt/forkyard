@@ -158,3 +158,60 @@ async fn checkout_works_for_branches_of_the_repository_but_not_from_forks() {
     assert!(error.message.contains("forks"), "{}", error.message);
     fx.assert_token_stays_secret();
 }
+
+#[tokio::test]
+async fn pull_requests_are_created_changed_commented_completed_and_abandoned() {
+    let fx = Fixture::new(KIND).await;
+    let created = cmd::pr_create(&fx.tc, fx.id(), "Neue Anmeldung".into(), "Text".into(), "feature/neu".into(), "main".into(), true, None, Some(vec!["bug".into()]), None).await.unwrap();
+    assert_eq!((created.number, created.title.as_str(), created.is_draft, created.source_branch.as_str()), (101, "Neue Anmeldung", true, "feature/neu"));
+    let sent = &fx.sent("POST", "/pullrequests")[0];
+    assert_eq!(
+        sent.json(),
+        json!({ "sourceRefName": "refs/heads/feature/neu", "targetRefName": "refs/heads/main", "title": "Neue Anmeldung", "description": "Text", "isDraft": true, "labels": [{ "name": "bug" }] })
+    );
+    assert_eq!(sent.query("api-version").as_deref(), Some("7.1"));
+    fx.server.clear();
+    let error = cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "feature/neu".into(), "main".into(), false, Some(vec!["mira".into()]), None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported);
+    assert!(fx.server.requests().is_empty(), "reviewers need identity IDs – refused before anything goes out");
+    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NameExists);
+    assert!(error.message.contains("already an open pull request"), "{}", error.message);
+    check_error_modes(&fx, LABEL, "pr_create", || cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)).await;
+
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 3, Some("Neuer Titel".into()), Some("Neuer Text".into()), Some("develop".into()), Some(false), None, Some(vec!["ui".into()]), None).await.unwrap();
+    assert_eq!(fx.sent("PATCH", "/pullrequests/3")[0].json(), json!({ "title": "Neuer Titel", "description": "Neuer Text", "targetRefName": "refs/heads/develop", "isDraft": false }));
+    assert_eq!(fx.sent("POST", "/pullrequests/3/labels")[0].json(), json!({ "name": "ui" }));
+    fx.server.clear();
+    cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, None, Some(Vec::new()), None).await.unwrap();
+    assert!(fx.sent("PATCH", "/pullrequests/1").is_empty(), "only labels: no PATCH");
+    assert_eq!(fx.sent("DELETE", "/pullrequests/1/labels/bug").len(), 1);
+    assert_eq!(cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, Some(vec!["mira".into()]), None, None).await.unwrap_err().code, ErrorCode::HostUnsupported);
+
+    let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
+    assert_eq!((comment.id.as_str(), comment.body.as_str()), ("7-1", "Passt so."));
+    assert_eq!(fx.sent("POST", "/pullrequests/1/threads")[0].json(), json!({ "comments": [{ "parentCommentId": 0, "content": "Passt so.", "commentType": 1 }], "status": 1 }));
+
+    let merged = cmd::pr_merge(&fx.tc, fx.id(), 1, PrMergeMethod::Squash, true, None).await.unwrap();
+    assert_eq!(merged.state, PrState::Merged);
+    assert_eq!(
+        fx.sent("PATCH", "/pullrequests/1")[0].json(),
+        json!({ "status": "completed", "lastMergeSourceCommit": { "commitId": format!("{:040x}", 1) }, "completionOptions": { "mergeStrategy": "squash", "deleteSourceBranch": true } })
+    );
+    cmd::pr_merge(&fx.tc, fx.id(), 2, PrMergeMethod::Merge, false, None).await.unwrap();
+    assert_eq!(fx.sent("PATCH", "/pullrequests/2")[0].json()["completionOptions"]["mergeStrategy"], json!("noFastForward"));
+    cmd::pr_merge(&fx.tc, fx.id(), 4, PrMergeMethod::Rebase, false, None).await.unwrap();
+    assert_eq!(fx.sent("PATCH", "/pullrequests/4")[0].json()["completionOptions"]["mergeStrategy"], json!("rebase"));
+    let error = cmd::pr_merge(&fx.tc, fx.id(), 13, PrMergeMethod::Merge, false, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostRejected);
+    assert!(error.message.contains("merge conflicts"), "{}", error.message);
+
+    assert_eq!(cmd::pr_close(&fx.tc, fx.id(), 6, None).await.unwrap().state, PrState::Closed);
+    assert_eq!(cmd::pr_reopen(&fx.tc, fx.id(), 6, None).await.unwrap().state, PrState::Open);
+    let patches: Vec<_> = fx.sent("PATCH", "/pullrequests/6").iter().map(|r| r.json()).collect();
+    assert_eq!(patches, vec![json!({ "status": "abandoned" }), json!({ "status": "active" })]);
+    check_error_modes(&fx, LABEL, "pr_merge", || cmd::pr_merge(&fx.tc, fx.id(), 7, PrMergeMethod::Merge, false, None)).await;
+    check_error_modes(&fx, LABEL, "pr_comment", || cmd::pr_comment(&fx.tc, fx.id(), 7, "Text".into(), None)).await;
+    fx.assert_token_stays_secret();
+}

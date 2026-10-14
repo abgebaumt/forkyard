@@ -10,10 +10,13 @@
 use base64::Engine;
 use serde_json::{json, Value};
 
-use super::{detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, Api, Host, HostFuture, Paging, RepoFacts, RepoPath};
+use super::{
+    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, Api, Host, HostFuture,
+    NewPr, Paging, PrChange, RepoFacts, RepoPath,
+};
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
-use crate::error::{CoreError, CoreResult};
+use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary, PrCheck,
@@ -278,6 +281,108 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
 }
 
 // ---------------------------------------------------------------------------
+// Writing pull requests
+// ---------------------------------------------------------------------------
+
+fn no_reviewers() -> CoreError {
+    CoreError::new(ErrorCode::HostUnsupported, "On Azure DevOps, reviewers are added on the website (the API needs their identity IDs).")
+}
+
+fn heads(branch: &str) -> String {
+    format!("refs/heads/{branch}")
+}
+
+/// `POST …/pullrequests` (labels by name in the same call).
+pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) -> CoreResult<PrSummary> {
+    if !new.reviewers.is_empty() {
+        return Err(no_reviewers());
+    }
+    let mut body = json!({ "sourceRefName": heads(new.source_branch), "targetRefName": heads(new.target_branch), "title": new.title, "description": new.body, "isDraft": new.draft });
+    if !new.labels.is_empty() {
+        body["labels"] = json!(new.labels.iter().map(|name| json!({ "name": name })).collect::<Vec<_>>());
+    }
+    let created: Value = api
+        .send_json(core, Method::Post, &v(&format!("{}/pullrequests", repo_path(repo)), &[]), &body)
+        .await
+        .map_err(|e| {
+            if already_exists(&e) {
+                CoreError { code: ErrorCode::NameExists, message: format!("There is already an open pull request for the branch “{}”.", new.source_branch), git_output: e.git_output, retry_at: None }
+            } else {
+                not_found_as(e, missing_repo(repo))
+            }
+        })?
+        .json()?;
+    Ok(pr_summary(&repo_web(api, repo), &created))
+}
+
+/// `PATCH …/pullrequests/{id}` for title, description, target and draft; labels through `…/labels`.
+pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
+    if change.reviewers.is_some_and(|r| !r.is_empty()) {
+        return Err(no_reviewers());
+    }
+    let mut patch = serde_json::Map::new();
+    if let Some(title) = change.title {
+        patch.insert("title".into(), json!(title));
+    }
+    if let Some(body) = change.body {
+        patch.insert("description".into(), json!(body));
+    }
+    if let Some(target) = change.target_branch {
+        patch.insert("targetRefName".into(), json!(heads(target)));
+    }
+    if let Some(draft) = change.draft {
+        patch.insert("isDraft".into(), json!(draft));
+    }
+    if !patch.is_empty() {
+        api.send_json(core, Method::Patch, &v(&pr_path(repo, number), &[]), &Value::Object(patch)).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
+    }
+    if let Some(wanted) = change.labels {
+        let current = pr_raw(core, api, repo, number).await?;
+        let have: Vec<String> = list(&current, "labels").iter().filter(|l| l.get("active").and_then(Value::as_bool).unwrap_or(true)).map(|l| text(l, "name")).collect();
+        let labels = format!("{}/labels", pr_path(repo, number));
+        for name in wanted.iter().filter(|w| !have.iter().any(|h| h.eq_ignore_ascii_case(w))) {
+            api.send_json(core, Method::Post, &v(&labels, &[]), &json!({ "name": name })).await?;
+        }
+        for name in have.iter().filter(|h| !wanted.iter().any(|w| w.eq_ignore_ascii_case(h))) {
+            api.delete(core, &v(&format!("{labels}/{}", encode(name)), &[])).await?;
+        }
+    }
+    pr_head(core, api, repo, number).await
+}
+
+/// A new thread with one comment (`POST …/threads`, status "active").
+pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64, body: &str) -> CoreResult<HostComment> {
+    let thread: Value = api
+        .send_json(core, Method::Post, &v(&format!("{}/threads", pr_path(repo, number)), &[]), &json!({ "comments": [{ "parentCommentId": 0, "content": body, "commentType": 1 }], "status": 1 }))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
+        .json()?;
+    thread_comments(std::slice::from_ref(&thread)).into_iter().next().ok_or_else(structure)
+}
+
+/// Completing = `PATCH status=completed` with the commit the pull request currently points to (Azure
+/// refuses if it moved in the meantime) and the merge strategy.
+pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> CoreResult<PrSummary> {
+    let current = pr_raw(core, api, repo, number).await?;
+    let commit = current.get("lastMergeSourceCommit").map(|c| text(c, "commitId")).unwrap_or_default();
+    let strategy = match method {
+        PrMergeMethod::Merge => "noFastForward",
+        PrMergeMethod::Squash => "squash",
+        PrMergeMethod::Rebase => "rebase",
+    };
+    let body = json!({ "status": "completed", "lastMergeSourceCommit": { "commitId": commit }, "completionOptions": { "mergeStrategy": strategy, "deleteSourceBranch": delete_branch } });
+    let value: Value = api.send_json(core, Method::Patch, &v(&pr_path(repo, number), &[]), &body).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?.json()?;
+    Ok(pr_summary(&repo_web(api, repo), &value))
+}
+
+/// Abandon or reactivate: `PATCH status`.
+pub async fn pr_set_open(core: &Core, api: &Api, repo: &RepoPath, number: u64, open: bool) -> CoreResult<PrSummary> {
+    let status = if open { "active" } else { "abandoned" };
+    let value: Value = api.send_json(core, Method::Patch, &v(&pr_path(repo, number), &[]), &json!({ "status": status })).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?.json()?;
+    Ok(pr_summary(&repo_web(api, repo), &value))
+}
+
+// ---------------------------------------------------------------------------
 // Work items ("issues")
 // ---------------------------------------------------------------------------
 
@@ -485,6 +590,21 @@ impl Host for AzureHost {
     }
     fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_head(core, api, repo, number))
+    }
+    fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_create(core, api, repo, new))
+    }
+    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_update(core, api, repo, number, change))
+    }
+    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+        Box::pin(comment_create(core, api, repo, number, body))
+    }
+    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
+    }
+    fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
+        Box::pin(pr_set_open(core, api, repo, number, open))
     }
     fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage> {
         Box::pin(issue_list(core, api, repo, state, query, paging))
