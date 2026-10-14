@@ -4,6 +4,7 @@
 //! (`git@host:path`). Recognised are github.com and gitlab.com as well as self-hosted instances
 //! for which an account with a matching address is connected. All other hosts count as not recognised.
 
+use super::{host, RepoPath};
 use crate::db::hoster_accounts::HosterAccountRow;
 use crate::error::{CoreError, CoreResult};
 use crate::http;
@@ -73,15 +74,15 @@ pub fn parse_remote_url(url: &str) -> Option<RemoteLocation> {
 }
 
 /// Brings an account's address into its canonical form: `https://host[:port][/path]`, lower
-/// case, without trailing slash. Without input the public service applies.
-/// `http://` is only allowed to this computer (tests against a local server).
+/// case, without trailing slash. Without input the public service applies (a host without one
+/// needs an address). `http://` is only allowed to this computer (tests against a local server).
 pub fn normalize_base_url(kind: HostKind, input: Option<&str>) -> CoreResult<String> {
-    let default = match kind {
-        HostKind::Github => GITHUB_WEB,
-        HostKind::Gitlab => GITLAB_WEB,
-    };
+    let hoster = host(kind);
     let Some(text) = input.map(str::trim).filter(|text| !text.is_empty()) else {
-        return Ok(default.to_string());
+        return hoster
+            .public_web()
+            .map(str::to_string)
+            .ok_or_else(|| CoreError::not_allowed(format!("{} needs the address of your organization or instance.", hoster.label())));
     };
     let with_scheme = if text.contains("://") { text.to_string() } else { format!("https://{text}") };
     let target = http::Target::parse(&with_scheme)?;
@@ -98,25 +99,23 @@ pub fn normalize_base_url(kind: HostKind, input: Option<&str>) -> CoreResult<Str
         return Err(CoreError::not_allowed(format!("“{text}” is not a valid address.")));
     }
     // The public services have exactly one address, no matter how it was entered.
-    let public = match kind {
-        HostKind::Github => ["github.com", "www.github.com", "api.github.com"].contains(&target.host.as_str()),
-        HostKind::Gitlab => ["gitlab.com", "www.gitlab.com"].contains(&target.host.as_str()),
-    };
-    if public {
-        return Ok(default.to_string());
+    if hoster.public_hosts().contains(&target.host.as_str()) {
+        if let Some(web) = hoster.public_web() {
+            return Ok(web.to_string());
+        }
     }
     // The API paths are not part of the web UI's address.
-    let path = path.trim_end_matches("api/v3").trim_end_matches("api/v4").trim_end_matches('/');
-    Ok(if path.is_empty() { target.base } else { format!("{}/{path}", target.base) })
+    let mut path = path;
+    for suffix in HostKind::ALL.iter().flat_map(|kind| host(*kind).api_suffixes()) {
+        path = path.trim_end_matches(suffix).trim_end_matches('/');
+    }
+    let base = if path.is_empty() { target.base } else { format!("{}/{path}", target.base) };
+    hoster.check_base(base, target.loopback)
 }
 
 /// API address for a (normalised) web address.
 pub fn api_base(kind: HostKind, web_base: &str) -> String {
-    match kind {
-        HostKind::Github if web_base == GITHUB_WEB => "https://api.github.com".to_string(),
-        HostKind::Github => format!("{web_base}/api/v3"),
-        HostKind::Gitlab => format!("{web_base}/api/v4"),
-    }
+    host(kind).api_base(web_base)
 }
 
 /// Splits a web address into (host without port, port, path prefix without outer slashes).
@@ -184,37 +183,26 @@ pub struct Detected {
 
 impl Detected {
     pub fn web_url(&self) -> String {
-        format!("{}/{}/{}", self.web_base, self.owner, self.name)
+        host(self.kind).repo_web_url(&self.web_base, &RepoPath { owner: self.owner.clone(), name: self.name.clone() })
     }
-}
-
-fn split_owner(kind: HostKind, path: &str) -> Option<(String, String)> {
-    let (owner, name) = path.rsplit_once('/')?;
-    if owner.is_empty() || name.is_empty() {
-        return None;
-    }
-    // GitHub has exactly two levels; GitLab has arbitrarily deep groups.
-    if kind == HostKind::Github && owner.contains('/') {
-        return None;
-    }
-    Some((owner.to_string(), name.to_string()))
 }
 
 /// Recognises the host for a remote URL. Connected accounts take precedence (that's how
-/// self-hosted instances are recognised); without an account only github.com and gitlab.com are recognised.
+/// self-hosted instances are recognised); without an account only the public services are recognised.
 pub fn detect(url: &str, accounts: &[HosterAccountRow]) -> Option<Detected> {
     let location = parse_remote_url(url)?;
     for account in accounts {
         if let Some(path) = path_under(&account.base_url, &location) {
-            if let Some((owner, name)) = split_owner(account.kind, &path) {
-                return Some(Detected { kind: account.kind, account: Some(account.clone()), web_base: account.base_url.clone(), owner, name });
+            if let Some(repo) = host(account.kind).split_repo_path(&path) {
+                return Some(Detected { kind: account.kind, account: Some(account.clone()), web_base: account.base_url.clone(), owner: repo.owner, name: repo.name });
             }
         }
     }
-    for (kind, web_base) in [(HostKind::Github, GITHUB_WEB), (HostKind::Gitlab, GITLAB_WEB)] {
+    for kind in HostKind::ALL.iter().copied() {
+        let Some(web_base) = host(kind).public_web() else { continue };
         if let Some(path) = path_under(web_base, &location) {
-            let (owner, name) = split_owner(kind, &path)?;
-            return Some(Detected { kind, account: None, web_base: web_base.to_string(), owner, name });
+            let repo = host(kind).split_repo_path(&path)?;
+            return Some(Detected { kind, account: None, web_base: web_base.to_string(), owner: repo.owner, name: repo.name });
         }
     }
     None
@@ -343,5 +331,23 @@ mod tests {
         assert_eq!(api_base(HostKind::Github, "https://github.firma.example"), "https://github.firma.example/api/v3");
         assert_eq!(api_base(HostKind::Gitlab, GITLAB_WEB), "https://gitlab.com/api/v4");
         assert_eq!(api_base(HostKind::Gitlab, "http://127.0.0.1:8123"), "http://127.0.0.1:8123/api/v4");
+    }
+
+    #[test]
+    fn repository_paths_are_split_the_way_each_host_nests_them() {
+        let split = |kind: HostKind, path: &str| host(kind).split_repo_path(path).map(|r| (r.owner, r.name));
+        assert_eq!(split(HostKind::Github, "octo/demo"), Some(("octo".to_string(), "demo".to_string())));
+        assert_eq!(split(HostKind::Github, "octo/demo/extra"), None);
+        assert_eq!(split(HostKind::Gitlab, "gruppe/unter/projekt"), Some(("gruppe/unter".to_string(), "projekt".to_string())));
+        assert_eq!(split(HostKind::Gitlab, "projekt"), None);
+        for kind in HostKind::ALL.iter().copied() {
+            let web = host(kind).repo_web_url("https://x.example", &RepoPath { owner: "a".into(), name: "b".into() });
+            assert!(web.starts_with("https://x.example/") && web.ends_with('b'), "{kind:?}: {web}");
+            // Without input the public service applies; a host without one needs an address.
+            match host(kind).public_web() {
+                Some(web) => assert_eq!(normalize_base_url(kind, None).unwrap(), web),
+                None => assert_eq!(normalize_base_url(kind, None).unwrap_err().code, crate::ErrorCode::NotAllowed),
+            }
+        }
     }
 }
