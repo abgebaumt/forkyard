@@ -200,3 +200,123 @@ async fn credentials_in_the_lfs_url_never_reach_the_error() {
     let shown = format!("{} {}", error.message, error.git_output.clone().unwrap_or_default());
     assert!(!shown.contains("geheim-token-1234"), "{shown}");
 }
+
+#[tokio::test]
+async fn lock_and_unlock_own_files() {
+    let server = LockServer::start();
+    let (tc, _repo, id) = setup(&server.url()).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    tc.events.clear();
+    let paths: Vec<String> = vec!["bilder/karte.psd".into(), "mit leer/Größe.psd".into(), "-strich.psd".into()];
+    let outcome = lfs_lock(&tc, id.clone(), paths).await.unwrap();
+    assert!(outcome.failed.is_empty(), "{:?}", outcome.failed);
+    assert_eq!(server.paths(), ["-strich.psd", "bilder/karte.psd", "mit leer/Größe.psd"]);
+    assert_eq!(outcome.locks.locks.len(), 3);
+    assert!(outcome.locks.locks.iter().all(|l| l.ours && l.owner == ME), "{:?}", outcome.locks);
+    assert!(tc.events.named(names::REPO_CHANGED).iter().any(|e| e["what"] == json!(["locks"])));
+
+    // The cache holds the new state: listing needs no request.
+    let asked = server.count("POST /locks/verify");
+    assert_eq!(lfs_locks(&tc, id.clone(), None, None).await.unwrap(), outcome.locks);
+    assert_eq!(server.count("POST /locks/verify"), asked);
+
+    let outcome = lfs_unlock(&tc, id.clone(), vec!["bilder/karte.psd".into(), "-strich.psd".into()], false).await.unwrap();
+    assert!(outcome.failed.is_empty(), "{:?}", outcome.failed);
+    assert_eq!(server.paths(), ["mit leer/Größe.psd"]);
+    assert_eq!(outcome.locks.locks.iter().map(|l| l.path.as_str()).collect::<Vec<_>>(), ["mit leer/Größe.psd"]);
+}
+
+#[tokio::test]
+async fn partial_failures_are_reported_per_path() {
+    let server = LockServer::start();
+    server.seed("plan.psd", "Lena Berg");
+    let (tc, _repo, id) = setup(&server.url()).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    let outcome = lfs_lock(&tc, id.clone(), vec!["plan.psd".into(), "frei.psd".into()]).await.unwrap();
+    assert_eq!(outcome.failed, vec![LfsLockFailure { path: "plan.psd".into(), reason: "already created lock".into() }]);
+    assert_eq!(server.paths(), ["frei.psd", "plan.psd"]);
+    let plan = outcome.locks.locks.iter().find(|l| l.path == "plan.psd").unwrap();
+    assert!(!plan.ours && plan.owner == "Lena Berg", "{plan:?}");
+}
+
+#[tokio::test]
+async fn other_peoples_locks_need_force() {
+    let server = LockServer::start();
+    server.seed("plan.psd", "Lena Berg");
+    let (tc, _repo, id) = setup(&server.url()).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    let outcome = lfs_unlock(&tc, id.clone(), vec!["plan.psd".into()], false).await.unwrap();
+    assert_eq!(outcome.failed.len(), 1);
+    assert!(outcome.failed[0].reason.contains("admin access"), "{:?}", outcome.failed);
+    assert_eq!(server.paths(), ["plan.psd"]);
+
+    let outcome = lfs_unlock(&tc, id.clone(), vec!["plan.psd".into()], true).await.unwrap();
+    assert!(outcome.failed.is_empty(), "{:?}", outcome.failed);
+    assert!(server.paths().is_empty());
+    assert!(outcome.locks.locks.is_empty());
+}
+
+/// Git LFS refuses to unlock a file with uncommitted changes – also an own lock – unless forced.
+#[tokio::test]
+async fn own_lock_on_a_changed_file_needs_force() {
+    let server = LockServer::start();
+    let (tc, repo, id) = setup(&server.url()).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    repo.commit_file("plan.psd", "Fassung 1\n", "Plan angelegt");
+    lfs_lock(&tc, id.clone(), vec!["plan.psd".into()]).await.unwrap();
+    repo.write_file("plan.psd", "Fassung 2\n");
+    let outcome = lfs_unlock(&tc, id.clone(), vec!["plan.psd".into()], false).await.unwrap();
+    assert!(outcome.failed[0].reason.contains("uncommitted changes"), "{:?}", outcome.failed);
+    assert_eq!(server.paths(), ["plan.psd"]);
+    assert!(lfs_unlock(&tc, id.clone(), vec!["plan.psd".into()], true).await.unwrap().failed.is_empty());
+    assert!(server.paths().is_empty());
+}
+
+#[tokio::test]
+async fn locking_on_a_server_without_locking_is_unsupported() {
+    let plain = MockServer::start(|_| MockResponse::json(404, json!({ "message": "Not Found" })));
+    let (tc, _repo, id) = setup(&plain.url()).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    let error = lfs_lock(&tc, id.clone(), vec!["plan.psd".into(), "karte.psd".into()]).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Unsupported, "{error:?}");
+    let error = lfs_unlock(&tc, id.clone(), vec!["plan.psd".into()], false).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Unsupported, "{error:?}");
+}
+
+#[tokio::test]
+async fn lock_errors_keep_credentials_out() {
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let (tc, _repo, id) = setup(&format!("http://lena:geheim-token-1234@127.0.0.1:{port}/")).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    let error = lfs_lock(&tc, id.clone(), vec!["plan.psd".into()]).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Offline, "{error:?}");
+    let shown = format!("{} {}", error.message, error.git_output.clone().unwrap_or_default());
+    assert!(!shown.contains("geheim-token-1234"), "{shown}");
+}
+
+/// Paths are checked before Git runs – also without Git LFS.
+#[tokio::test]
+async fn invalid_paths_are_rejected_before_git_runs() {
+    let (tc, _repo, id) = setup("http://127.0.0.1:9/").await;
+    tc.state::<LfsState>().set_pretend_missing(true);
+    let too_many: Vec<String> = (0..201).map(|i| format!("f{i}.psd")).collect();
+    for paths in [vec![], vec!["../aussen.psd".to_string()], vec!["/etc/passwd".to_string()], vec!["a\0b".to_string()], vec![String::new()], too_many] {
+        assert_eq!(lfs_lock(&tc, id.clone(), paths.clone()).await.unwrap_err().code, ErrorCode::NotAllowed, "{paths:?}");
+        assert_eq!(lfs_unlock(&tc, id.clone(), paths.clone(), true).await.unwrap_err().code, ErrorCode::NotAllowed, "{paths:?}");
+    }
+    // Valid paths without Git LFS: unsupported.
+    assert_eq!(lfs_lock(&tc, id.clone(), vec!["a.psd".into()]).await.unwrap_err().code, ErrorCode::Unsupported);
+    assert_eq!(lfs_unlock(&tc, id.clone(), vec!["a.psd".into()], false).await.unwrap_err().code, ErrorCode::Unsupported);
+}

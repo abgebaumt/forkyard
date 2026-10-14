@@ -11,7 +11,7 @@ use serde::Deserialize;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::Job;
-use crate::model::{LfsLockList, LfsStatus, RepoChange};
+use crate::model::{LfsLockFailure, LfsLockList, LfsLockOutcome, LfsStatus, RepoChange};
 use crate::util;
 
 mod locks;
@@ -254,6 +254,53 @@ pub async fn lfs_locks(core: &Core, repo_id: String, filter: Option<String>, ref
         None => locks::read(core, repo_id, refresh).await?,
     };
     Ok(locks::filtered(list, filter.as_deref()))
+}
+
+/// Locks `paths` at the LFS server (`git lfs lock`). Paths that could not be locked (someone
+/// else holds the lock, …) are in `failed`; if none could be locked because the server has no
+/// locking API → `unsupported`. Under the write lock: Git LFS changes the file permissions of
+/// `lockable` files. Afterwards `repo:changed` with `locks`.
+pub async fn lfs_lock(core: &Core, repo_id: String, paths: Vec<String>) -> CoreResult<LfsLockOutcome> {
+    let repo_id = repo_id.as_str();
+    let paths = locks::check_paths(&paths)?;
+    require_installed(core, repo_id).await?;
+    core.with_write_lock(repo_id, &[RepoChange::Locks], async {
+        let out = core.git_for(repo_id)?.args(["lfs", "lock", "--json", "--"]).args(&paths).network().run_raw().await?;
+        let failed = locks::lock_failures(&paths, &out);
+        finish_lock_change(core, repo_id, &paths, failed).await
+    })
+    .await
+}
+
+/// Unlocks `paths` (`git lfs unlock`). `force` also removes other people's locks and own locks on
+/// files with uncommitted changes (the server decides whether forcing is allowed). Failures per
+/// path in `failed`. Afterwards `repo:changed` with `locks`.
+pub async fn lfs_unlock(core: &Core, repo_id: String, paths: Vec<String>, force: bool) -> CoreResult<LfsLockOutcome> {
+    let repo_id = repo_id.as_str();
+    let paths = locks::check_paths(&paths)?;
+    require_installed(core, repo_id).await?;
+    core.with_write_lock(repo_id, &[RepoChange::Locks], async {
+        let mut cmd = core.git_for(repo_id)?.args(["lfs", "unlock", "--json"]);
+        if force {
+            cmd = cmd.arg("--force");
+        }
+        let out = cmd.arg("--").args(&paths).network().run_raw().await?;
+        let failed = locks::unlock_failures(&paths, &out);
+        finish_lock_change(core, repo_id, &paths, failed).await
+    })
+    .await
+}
+
+/// After lock/unlock: every path failed for lack of a locking API → `unsupported`; otherwise the
+/// fresh list from the server (now in the cache) plus the failures.
+async fn finish_lock_change(core: &Core, repo_id: &str, paths: &[String], failed: Vec<LfsLockFailure>) -> CoreResult<LfsLockOutcome> {
+    if failed.len() == paths.len() && failed.iter().all(|failure| locks::lacks_locking(&failure.reason)) {
+        core.state::<locks::LockCache>().forget(repo_id);
+        let reason = failed.first().map(|failure| failure.reason.as_str()).unwrap_or_default();
+        return Err(CoreError::unsupported(locks::NO_LOCKING).with_git_output(reason));
+    }
+    let list = locks::read(core, repo_id, true).await?;
+    Ok(LfsLockOutcome { locks: list, failed })
 }
 
 #[cfg(test)]
