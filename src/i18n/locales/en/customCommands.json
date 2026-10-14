@@ -1,0 +1,24 @@
+{
+  "inputs": {
+    "pickOne": "Choose one of the options.",
+    "invalid": "This value contains a character that can’t be passed on."
+  },
+  "editor": {
+    "errors": {
+      "id": "Use lowercase letters, digits, “.”, “_” and “-” (at most 64, starting with a letter or digit).",
+      "idTaken": "Another command already uses this ID.",
+      "title": "Enter a title.",
+      "run": "Enter the command.",
+      "url": "A web address starts with http:// or https://.",
+      "gitPrefix": "Leave out “git” at the start – only Git’s arguments, e.g. “log --oneline”.",
+      "placeholder": "Unknown placeholder: {{names}}",
+      "scope": "Choose at least one place where the command appears.",
+      "inputId": "Use lowercase letters, digits and “_”, starting with a letter.",
+      "inputIdTaken": "Two inputs have the same ID.",
+      "inputLabel": "Enter a label.",
+      "options": "A choice needs at least one option.",
+      "defaultOption": "The default must be one of the options.",
+      "checkboxOptions": "A checkbox takes at most one value."
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "inputs": {
+    "pickOne": "Wähle eine der Möglichkeiten.",
+    "invalid": "Dieser Wert enthält ein Zeichen, das sich nicht weitergeben lässt."
+  },
+  "editor": {
+    "errors": {
+      "id": "Nur Kleinbuchstaben, Ziffern, „.“, „_“ und „-“ (höchstens 64, am Anfang ein Buchstabe oder eine Ziffer).",
+      "idTaken": "Ein anderer Befehl verwendet diese ID schon.",
+      "title": "Gib einen Titel ein.",
+      "run": "Gib den Befehl ein.",
+      "url": "Eine Webadresse beginnt mit http:// oder https://.",
+      "gitPrefix": "Lass „git“ am Anfang weg – nur die Argumente für Git, z. B. „log --oneline“.",
+      "placeholder": "Unbekannter Platzhalter: {{names}}",
+      "scope": "Wähle mindestens einen Ort, an dem der Befehl erscheint.",
+      "inputId": "Nur Kleinbuchstaben, Ziffern und „_“, am Anfang ein Buchstabe.",
+      "inputIdTaken": "Zwei Eingaben haben dieselbe ID.",
+      "inputLabel": "Gib eine Beschriftung ein.",
+      "options": "Eine Auswahl braucht mindestens eine Möglichkeit.",
+      "defaultOption": "Der Vorgabewert muss eine der Möglichkeiten sein.",
+      "checkboxOptions": "Ein Kontrollkästchen nimmt höchstens einen Wert."
+    }
+  }
+}
