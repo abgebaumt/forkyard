@@ -28,6 +28,9 @@ function row(sha: string, lane: number, parents: string[], edges: GraphEdge[], r
     isHead: false,
     stashIndex: null,
     wipCount: null,
+    collapsedCount: null,
+    collapseTooLarge: false,
+    sync: "none",
   };
 }
 

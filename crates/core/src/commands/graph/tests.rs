@@ -1556,3 +1556,153 @@ async fn performance_with_50k_commits() {
     assert!(first_times.iter().min().unwrap().as_secs_f64() < 2.0, "first page too slow: {first_times:?}");
     assert!(sorted[sorted.len() * 9 / 10].as_secs_f64() < 2.0, "follow-up pages too slow: {sorted:?}");
 }
+
+// ---------------------------------------------------------------------------
+// Collapsed merges
+// ---------------------------------------------------------------------------
+
+/// main: A ── m1 ── M (merge of feature) ── m2; feature: f1 ── f2 off A. The branch `feature`
+/// is deleted afterwards, so no ref keeps f1 and f2 visible. Returns `[a, f1, f2, m1, merge, m2]`.
+fn merged_feature() -> (TestRepo, [String; 6]) {
+    let repo = TestRepo::with_commit();
+    let a = repo.head();
+    repo.checkout_new("feature");
+    let f1 = repo.commit_file("f.txt", "1\n", "Feature 1");
+    let f2 = repo.commit_file("f.txt", "2\n", "Feature 2");
+    repo.checkout("main");
+    let m1 = repo.commit_file("m.txt", "1\n", "Main 1");
+    assert!(repo.merge("feature"));
+    let merge = repo.head();
+    let m2 = repo.commit_file("m.txt", "2\n", "Main 2");
+    repo.git(&["branch", "-D", "feature"]);
+    (repo, [a, f1, f2, m1, merge, m2])
+}
+
+#[tokio::test]
+async fn a_collapsed_merge_hides_its_side_commits_on_every_page_size() {
+    let tc = TestCore::new().await;
+    let (repo, [a, f1, f2, m1, merge, m2]) = merged_feature();
+    let id = tc.open(&repo).await.repo.id;
+    let before = graph_page(&tc, id.clone(), None, 1).await.unwrap();
+
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
+    // The view changed: a cursor from before no longer fits.
+    let err = graph_page(&tc, id.clone(), before.next_cursor, 1).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::StaleState);
+
+    for page_size in [100, 1, 2, 3] {
+        let rows = all_rows(&tc, &id, page_size).await;
+        assert_eq!(ids(&rows), vec![m2.as_str(), merge.as_str(), m1.as_str(), a.as_str()], "page size {page_size}\n{}", sketch(&rows));
+        assert!(!ids(&rows).contains(&f1.as_str()));
+        check_rows(&rows, true).unwrap();
+        let row = find(&rows, &merge);
+        assert_eq!((row.kind, row.collapsed_count, row.collapse_too_large), (GraphRowKind::Merge, Some(2), false));
+        assert_eq!(row.parents, vec![m1.clone(), f2.clone()]);
+        assert_eq!(find(&rows, &m2).collapsed_count, None);
+    }
+
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": []})).await.unwrap();
+    let rows = all_rows(&tc, &id, 100).await;
+    assert_eq!(rows.len(), 6);
+    assert_eq!(find(&rows, &merge).collapsed_count, None);
+    check_rows(&rows, true).unwrap();
+}
+
+#[tokio::test]
+async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
+    let tc = TestCore::new().await;
+    let (repo, [a, f1, f2, m1, merge, m2]) = merged_feature();
+    repo.git(&["branch", "keep", &f1]);
+    let id = tc.open(&repo).await.repo.id;
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
+
+    let rows = all_rows(&tc, &id, 100).await;
+    assert_eq!(ids(&rows), vec![m2.as_str(), merge.as_str(), m1.as_str(), f1.as_str(), a.as_str()], "{}", sketch(&rows));
+    assert_eq!(find(&rows, &merge).collapsed_count, Some(1), "only f2 disappears");
+    assert_eq!(ref_names(find(&rows, &f1)), vec!["keep"]);
+    check_rows(&rows, true).unwrap();
+
+    // A tag on the tip of the side branch keeps everything: the merge counts as collapsed, but hides nothing.
+    repo.git(&["tag", "v-side", &f2]);
+    for page_size in [1, 100] {
+        let rows = all_rows(&tc, &id, page_size).await;
+        assert_eq!(rows.len(), 6, "page size {page_size}\n{}", sketch(&rows));
+        assert_eq!(find(&rows, &merge).collapsed_count, Some(0));
+        check_rows(&rows, true).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn nested_merges_disappear_with_the_outer_one() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let a = repo.head();
+    repo.checkout_new("feature");
+    repo.commit_file("f.txt", "1\n", "Feature 1");
+    repo.checkout_new("sub");
+    repo.commit_file("s.txt", "1\n", "Sub 1");
+    repo.checkout("feature");
+    repo.commit_file("f.txt", "2\n", "Feature 2");
+    assert!(repo.merge("sub"));
+    let inner = repo.head();
+    repo.checkout("main");
+    let m1 = repo.commit_file("m.txt", "1\n", "Main 1");
+    assert!(repo.merge("feature"));
+    let outer = repo.head();
+    repo.git(&["branch", "-D", "feature", "sub"]);
+    let id = tc.open(&repo).await.repo.id;
+
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&inner]})).await.unwrap();
+    let rows = all_rows(&tc, &id, 100).await;
+    assert!(!rows.iter().any(|r| r.summary == "Sub 1"), "{}", sketch(&rows));
+    assert_eq!(find(&rows, &inner).collapsed_count, Some(1));
+    check_rows(&rows, true).unwrap();
+
+    for list in [json!([&outer]), json!([&outer, &inner])] {
+        view_state_set(&tc, id.clone(), json!({ "collapsedMerges": list })).await.unwrap();
+        for page_size in [1, 100] {
+            let rows = all_rows(&tc, &id, page_size).await;
+            assert_eq!(ids(&rows), vec![outer.as_str(), m1.as_str(), a.as_str()], "page size {page_size}\n{}", sketch(&rows));
+            assert_eq!(find(&rows, &outer).collapsed_count, Some(4));
+            check_rows(&rows, true).unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn collapse_all_merges_applies_to_pages_loaded_later() {
+    let tc = TestCore::new().await;
+    let repo = branchy_repo(30);
+    let features = repo.git(&["for-each-ref", "--format=%(refname:short)", "refs/heads/feature"]);
+    for name in features.lines() {
+        repo.git(&["branch", "-D", name]);
+    }
+    let id = tc.open(&repo).await.repo.id;
+    let expanded = all_rows(&tc, &id, 100).await;
+    let merges = expanded.iter().filter(|r| r.kind == GraphRowKind::Merge).count();
+    assert!(merges >= 5, "{}", sketch(&expanded));
+
+    view_state_set(&tc, id.clone(), json!({"collapseAllMerges": true})).await.unwrap();
+    for page_size in [4, 100] {
+        let rows = all_rows(&tc, &id, page_size).await;
+        assert!(rows.iter().all(|r| !r.summary.starts_with("Feature")), "page size {page_size}\n{}", sketch(&rows));
+        let collapsed: Vec<&GraphRow> = rows.iter().filter(|r| r.kind == GraphRowKind::Merge).collect();
+        assert_eq!(collapsed.len(), merges);
+        assert!(collapsed.iter().all(|r| r.collapsed_count == Some(2)), "page size {page_size}\n{}", sketch(&rows));
+        check_rows(&rows, true).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn a_merge_bringing_in_too_many_commits_stays_expanded() {
+    use super::page::{collapse_for, Collapse, Plan};
+    let tc = TestCore::new().await;
+    let (repo, [_, _, f2, m1, _, _]) = merged_feature();
+    let id = tc.open(&repo).await.repo.id;
+    let path = tc.repo_path(&id).unwrap();
+    let parents = vec![m1.clone(), f2.clone()];
+    let plan = Plan::default();
+
+    assert_eq!(collapse_for(&tc, &path, &id, &plan, &parents, 1).await.unwrap(), Collapse::TooLarge);
+    assert_eq!(collapse_for(&tc, &path, &id, &plan, &parents, 2).await.unwrap(), Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] });
+}

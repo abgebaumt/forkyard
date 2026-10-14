@@ -334,6 +334,24 @@ pub struct GraphRow {
     pub is_head: bool,
     pub stash_index: Option<u32>,
     pub wip_count: Option<u32>,
+    /// Only for merges: collapsed, with this many commits hidden below it; `None` = expanded.
+    pub collapsed_count: Option<u32>,
+    /// The merge is meant to be collapsed but brings in more than 20 000 commits: it stays expanded.
+    pub collapse_too_large: bool,
+    /// Commit of the checked-out branch not pushed yet, or of its upstream not pulled yet.
+    pub sync: SyncMark,
+}
+
+/// Position of a commit relative to the checked-out branch and its upstream.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncMark {
+    #[default]
+    None,
+    /// In the branch, not in its upstream (not pushed yet).
+    Ahead,
+    /// In the upstream, not in the branch (not pulled yet).
+    Behind,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1844,6 +1862,9 @@ mod tests {
             is_head: false,
             stash_index: None,
             wip_count: Some(3),
+            collapsed_count: None,
+            collapse_too_large: false,
+            sync: SyncMark::None,
         };
         assert_eq!(
             serde_json::to_value(&row).unwrap(),
@@ -1851,7 +1872,7 @@ mod tests {
               "edges":[{"top":null,"bottom":0,"color":0,"dashed":true}],
               "parents":["p"],"summary":"","authorName":"","authorEmail":"","authoredAt":null,
               "refs":[{"kind":"local","name":"main","fullName":"refs/heads/main","isHead":true}],
-              "isHead":false,"stashIndex":null,"wipCount":3})
+              "isHead":false,"stashIndex":null,"wipCount":3,"collapsedCount":null,"collapseTooLarge":false,"sync":"none"})
         );
     }
 

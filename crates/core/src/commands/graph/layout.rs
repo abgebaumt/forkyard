@@ -58,6 +58,11 @@ impl LayoutState {
         &self.lanes
     }
 
+    /// Whether an open lane waits for `id` (a row further down will connect to it).
+    pub fn awaits(&self, id: &str) -> bool {
+        self.lanes.iter().any(|l| l.as_ref().is_some_and(|l| l.target == id))
+    }
+
     /// Places the next row. `parents` in Git's order; `dashed` applies to
     /// the line to the first parent (only the WIP row).
     pub fn place(&mut self, id: &str, parents: &[String], dashed: bool) -> Placed {
@@ -301,6 +306,9 @@ mod tests {
             is_head: false,
             stash_index: None,
             wip_count: None,
+            collapsed_count: None,
+            collapse_too_large: false,
+            sync: crate::model::SyncMark::None,
         }
     }
 

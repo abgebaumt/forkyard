@@ -9,6 +9,13 @@
 //! of commits already delivered, the open lanes and a fingerprint of refs,
 //! HEAD, stashes and view. If any of these changed, the next page no longer
 //! fits the loaded ones: `stale_state`, the UI reloads.
+//!
+//! Collapsed merges (`RepoViewState.collapsedMerges`, `collapseAllMerges`): for each visible merge
+//! to be collapsed, `collapse_for` reads the commits it brought in (`rev-list M^2 --not M^1`, minus
+//! everything a ref, starting point or stash keeps). The merge row draws no line to those parents,
+//! and a commit is hidden as long as only hidden commits lead to it: it is in the frontier
+//! `PageBuilder.hidden` and no open lane waits for it. The frontier travels in the cursor, so hiding
+//! continues across pages; hidden commits do not count towards the page size.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -23,7 +30,7 @@ use crate::app::Core;
 use crate::commands::status;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
-use crate::model::{GraphPage, GraphRow, GraphRowKind, RefLabelInfo, RepoViewState};
+use crate::model::{GraphPage, GraphRow, GraphRowKind, RefLabelInfo, RepoViewState, SyncMark};
 use crate::util;
 
 /// Largest page; a call never returns more (the rest comes via the cursor).
@@ -35,7 +42,10 @@ pub const WIP_ID: &str = "wip";
 
 const LOG_FORMAT: &str = "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s";
 const LOG_FIELDS: usize = 6;
-const CURSOR_VERSION: u32 = 1;
+/// Version 2: the frontier of hidden commits (`f`).
+const CURSOR_VERSION: u32 = 2;
+/// More commits than this under one merge: it stays expanded (`collapseTooLarge`).
+pub(super) const MAX_COLLAPSE: usize = 20_000;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Cursor {
@@ -45,6 +55,9 @@ struct Cursor {
     /// Fingerprint of the plan the first page was built with.
     h: String,
     s: LayoutState,
+    /// Commits that only hidden commits lead to and that have not appeared yet.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    f: Vec<String>,
 }
 
 impl Cursor {
@@ -76,6 +89,19 @@ pub(crate) struct Plan {
     /// Solo mode: only the solo refs are starting points, HEAD need not be in the graph.
     pub solo: bool,
     pub fingerprint: String,
+    /// Commits a starting point, a visible ref or a stash keeps visible, even under a collapsed merge.
+    pub keep: HashSet<String>,
+    /// Every merge is collapsed.
+    pub collapse_all: bool,
+    /// Merges to collapse.
+    pub collapsed: HashSet<String>,
+}
+
+impl Plan {
+    /// Whether the merge `sha` is to be collapsed.
+    pub fn collapses(&self, sha: &str) -> bool {
+        self.collapse_all || self.collapsed.contains(sha)
+    }
 }
 
 /// `head_sha`: the commit HEAD is on; `None` in a repository without a commit.
@@ -149,7 +175,27 @@ pub(crate) fn build_plan(refs: Vec<RefTip>, head_sha: Option<String>, stashes: V
         by_base.entry(base).or_default().push(stash);
     }
 
-    Plan { tips, labels, stashes: by_base, head_sha, solo, fingerprint: hash.finish() }
+    hash.field("|");
+    hash.field(if view.collapse_all_merges { "all-collapsed" } else { "" });
+    let mut collapsed: Vec<&String> = view.collapsed_merges.iter().collect();
+    collapsed.sort_unstable();
+    collapsed.dedup();
+    for sha in &collapsed {
+        hash.field(sha);
+    }
+
+    let keep: HashSet<String> = tips.iter().chain(labels.keys()).chain(by_base.keys()).cloned().collect();
+    Plan {
+        tips,
+        labels,
+        stashes: by_base,
+        head_sha,
+        solo,
+        fingerprint: hash.finish(),
+        keep,
+        collapse_all: view.collapse_all_merges,
+        collapsed: collapsed.into_iter().cloned().collect(),
+    }
 }
 
 /// FNV-1a (64 bit) over fields with a separator; stable across restarts and versions.
@@ -177,6 +223,8 @@ struct PageBuilder<'a> {
     rows: Vec<GraphRow>,
     max_lane: u32,
     commits: usize,
+    /// Commits that only hidden commits (or a collapsed merge) lead to and that have not appeared yet.
+    hidden: HashSet<String>,
 }
 
 impl PageBuilder<'_> {
@@ -199,9 +247,34 @@ impl PageBuilder<'_> {
         self.push(placed, row);
     }
 
-    /// One record from `git log` (fields as in `LOG_FORMAT`); before it the stashes hanging off it.
-    fn commit(&mut self, fields: &[Vec<u8>]) {
+    /// Only hidden commits lead here: no visible line waits for it, and no ref, starting point or
+    /// stash keeps it.
+    fn is_hidden(&self, sha: &str) -> bool {
+        self.hidden.contains(sha) && !self.plan.keep.contains(sha) && !self.state.awaits(sha)
+    }
+
+    /// The parents of a visible merge that is to be collapsed; otherwise `None`.
+    fn wants_collapse(&self, fields: &[Vec<u8>]) -> Option<Vec<String>> {
+        let parents = split_shas(&fields[1]);
+        if parents.len() < 2 {
+            return None;
+        }
         let sha = util::decode_lossy(&fields[0]);
+        (self.plan.collapses(&sha) && !self.is_hidden(&sha)).then_some(parents)
+    }
+
+    /// One record from `git log` (fields as in `LOG_FORMAT`); before it the stashes hanging off it.
+    /// `collapse`: what `collapse_for` found for a merge to be collapsed. Returns whether the commit
+    /// got a row (hidden commits do not).
+    fn commit(&mut self, fields: &[Vec<u8>], collapse: Option<Collapse>) -> bool {
+        let sha = util::decode_lossy(&fields[0]);
+        let parents = split_shas(&fields[1]);
+        if self.is_hidden(&sha) {
+            self.hidden.remove(&sha);
+            self.hidden.extend(parents);
+            return false;
+        }
+        self.hidden.remove(&sha);
         if let Some(stashes) = self.plan.stashes.get(&sha) {
             for stash in stashes {
                 let placed = self.state.place_side(&stash.sha, &sha);
@@ -216,8 +289,21 @@ impl PageBuilder<'_> {
                 self.push(placed, row);
             }
         }
-        let parents = split_shas(&fields[1]);
-        let placed = self.state.place(&sha, &parents, false);
+        let mut lines = parents.clone();
+        let mut collapsed_count = None;
+        let mut collapse_too_large = false;
+        match collapse {
+            Some(Collapse::Hide { count, hidden_parents }) => {
+                // A parent another visible commit already waits for stays connected.
+                let dropped: Vec<String> = hidden_parents.into_iter().filter(|p| !self.state.awaits(p)).collect();
+                lines.retain(|p| !dropped.contains(p));
+                self.hidden.extend(dropped);
+                collapsed_count = Some(count);
+            }
+            Some(Collapse::TooLarge) => collapse_too_large = true,
+            None => {}
+        }
+        let placed = self.state.place(&sha, &lines, false);
         let mut row = empty_row(&sha, if parents.len() > 1 { GraphRowKind::Merge } else { GraphRowKind::Commit });
         row.sha = Some(sha.clone());
         row.parents = parents;
@@ -227,9 +313,84 @@ impl PageBuilder<'_> {
         row.summary = display_text(&fields[5]);
         row.refs = self.plan.labels.get(&sha).cloned().unwrap_or_default();
         row.is_head = self.plan.head_sha.as_deref() == Some(sha.as_str());
+        row.collapsed_count = collapsed_count;
+        row.collapse_too_large = collapse_too_large;
         self.push(placed, row);
         self.commits += 1;
+        true
     }
+}
+
+/// What collapsing a merge means for the graph.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum Collapse {
+    /// `count` commits disappear; no line is drawn to `hidden_parents`.
+    Hide { count: u32, hidden_parents: Vec<String> },
+    /// The merge brings in more than the limit: it stays expanded.
+    TooLarge,
+}
+
+/// The commits a merge brought in: reachable from its further parents but not from the first
+/// (`rev-list M^2 --not M^1`). Commits a ref, starting point or stash keeps visible – and everything
+/// they reach – stay out. More than `max`: `TooLarge`.
+pub(super) async fn collapse_for(core: &Core, path: &Path, repo_id: &str, plan: &Plan, parents: &[String], max: usize) -> CoreResult<Collapse> {
+    let Some((first, side)) = parents.split_first() else {
+        return Ok(Collapse::Hide { count: 0, hidden_parents: Vec::new() });
+    };
+    let all = side_commits(core, path, repo_id, first, side, &[], max).await?;
+    if all.len() > max {
+        return Ok(Collapse::TooLarge);
+    }
+    let kept: Vec<String> = all.iter().filter(|sha| plan.keep.contains(*sha)).cloned().collect();
+    let hidden = if kept.is_empty() { all } else { side_commits(core, path, repo_id, first, side, &kept, max).await? };
+    let set: HashSet<&str> = hidden.iter().map(String::as_str).collect();
+    let hidden_parents = side.iter().filter(|p| set.contains(p.as_str())).cloned().collect();
+    Ok(Collapse::Hide { count: u32::try_from(hidden.len()).unwrap_or(u32::MAX), hidden_parents })
+}
+
+/// `git rev-list <side…> --not <first> <kept…>`, at most `max + 1` commits.
+async fn side_commits(core: &Core, path: &Path, repo_id: &str, first: &str, side: &[String], kept: &[String], max: usize) -> CoreResult<Vec<String>> {
+    let mut stdin = String::with_capacity((side.len() + kept.len() + 1) * 42);
+    for sha in side {
+        stdin.push_str(sha);
+        stdin.push('\n');
+    }
+    for sha in std::iter::once(first).chain(kept.iter().map(String::as_str)) {
+        stdin.push('^');
+        stdin.push_str(sha);
+        stdin.push('\n');
+    }
+    let out = read_cmd(core, path, repo_id)
+        .args(["rev-list", "--ignore-missing"])
+        .arg(format!("--max-count={}", max + 1))
+        .arg("--stdin")
+        .stdin(stdin)
+        .run()
+        .await?;
+    Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_full_sha(sha)).collect())
+}
+
+/// `limit` records of `git log` after the first `skip`, over the starting points in `stdin`.
+async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip: u64, limit: usize) -> CoreResult<Vec<Vec<Vec<u8>>>> {
+    let mut records = Records::new(LOG_FIELDS);
+    let mut out = Vec::with_capacity(limit);
+    let mut on_field = |field: &[u8]| -> bool {
+        if let Some(record) = records.push(field) {
+            out.push(record);
+        }
+        true
+    };
+    read_cmd(core, path, repo_id)
+        .args(["log", "--date-order"])
+        .args(LOG_SAFE)
+        .args(["--ignore-missing", "-z", LOG_FORMAT])
+        .arg(format!("--skip={skip}"))
+        .arg(format!("--max-count={limit}"))
+        .arg("--stdin")
+        .stdin(stdin.to_owned())
+        .run_records(0, None, &mut on_field)
+        .await?;
+    Ok(out)
 }
 
 fn empty_row(id: &str, kind: GraphRowKind) -> GraphRow {
@@ -249,6 +410,9 @@ fn empty_row(id: &str, kind: GraphRowKind) -> GraphRow {
         is_head: false,
         stash_index: None,
         wip_count: None,
+        collapsed_count: None,
+        collapse_too_large: false,
+        sync: SyncMark::None,
     }
 }
 
@@ -275,12 +439,12 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     let head_sha = Some(head?).filter(|out| out.success()).map(|out| out.stdout_text()).filter(|sha| is_full_sha(sha));
     let plan = build_plan(tips?, head_sha, stashes?, &view);
 
-    let (offset, state) = match cursor {
-        Some(c) if c.h == plan.fingerprint => (c.o, c.s),
+    let (offset, state, hidden) = match cursor {
+        Some(c) if c.h == plan.fingerprint => (c.o, c.s, c.f.into_iter().collect()),
         Some(_) => return Err(CoreError::stale_state()),
-        None => (0, LayoutState::new()),
+        None => (0, LayoutState::new(), HashSet::new()),
     };
-    let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0 };
+    let mut builder = PageBuilder { plan: &plan, state, rows: Vec::new(), max_lane: 0, commits: 0, hidden };
 
     if first_page && wip_count > 0 {
         let mut head = None;
@@ -293,37 +457,43 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     }
 
     let mut has_more = false;
+    // Commits read from `git log` so far, hidden ones included: the next page starts after them.
+    let mut consumed = offset;
     if !plan.tips.is_empty() {
         let mut stdin = String::with_capacity(plan.tips.len() * 41);
         for tip in &plan.tips {
             stdin.push_str(tip);
             stdin.push('\n');
         }
-        let mut records = Records::new(LOG_FIELDS);
-        // One commit more than requested: if it comes, there is another page.
-        let mut on_field = |field: &[u8]| -> bool {
-            if builder.commits >= limit {
-                has_more = true;
-            } else if let Some(fields) = records.push(field) {
-                builder.commit(&fields);
+        // Hidden commits do not count towards `limit`: read on until the page is full or the history
+        // ends. One commit more than needed: if it comes, there is another page.
+        loop {
+            let want = limit - builder.commits + 1;
+            let records = read_records(core, &path, repo_id, &stdin, consumed, want).await?;
+            let got = records.len();
+            for fields in records {
+                if builder.commits >= limit {
+                    has_more = true;
+                    break;
+                }
+                consumed += 1;
+                let collapse = match builder.wants_collapse(&fields) {
+                    Some(parents) => Some(collapse_for(core, &path, repo_id, &plan, &parents, MAX_COLLAPSE).await?),
+                    None => None,
+                };
+                builder.commit(&fields, collapse);
             }
-            true
-        };
-        read_cmd(core, &path, repo_id)
-            .args(["log", "--date-order"])
-            .args(LOG_SAFE)
-            .args(["--ignore-missing", "-z", LOG_FORMAT])
-            .arg(format!("--skip={offset}"))
-            .arg(format!("--max-count={}", limit + 1))
-            .arg("--stdin")
-            .stdin(stdin)
-            .run_records(0, None, &mut on_field)
-            .await?;
+            if has_more || got < want {
+                break;
+            }
+        }
     }
 
-    let PageBuilder { state, rows, max_lane, commits, .. } = builder;
+    let PageBuilder { state, rows, max_lane, hidden, .. } = builder;
     let next_cursor = if has_more {
-        Some(Cursor { v: CURSOR_VERSION, o: offset + commits as u64, h: plan.fingerprint.clone(), s: state }.encode()?)
+        let mut f: Vec<String> = hidden.into_iter().collect();
+        f.sort_unstable();
+        Some(Cursor { v: CURSOR_VERSION, o: consumed, h: plan.fingerprint.clone(), s: state, f }.encode()?)
     } else {
         None
     };
@@ -470,11 +640,96 @@ mod tests {
     fn cursor_roundtrip_and_garbage() {
         let mut state = LayoutState::new();
         state.place("a", &["b".to_string()], false);
-        let text = Cursor { v: CURSOR_VERSION, o: 2000, h: "abc".into(), s: state.clone() }.encode().unwrap();
+        let text = Cursor { v: CURSOR_VERSION, o: 2000, h: "abc".into(), s: state.clone(), f: vec!["s1".into()] }.encode().unwrap();
         let back = Cursor::decode(&text).unwrap();
-        assert_eq!((back.o, back.h.as_str(), &back.s), (2000, "abc", &state));
-        for bad in ["", "%%%", "bm9wZQ", &URL_SAFE_NO_PAD.encode(br#"{"v":99,"o":0,"h":"","s":{"l":[],"n":0}}"#)] {
+        assert_eq!((back.o, back.h.as_str(), &back.s, back.f.as_slice()), (2000, "abc", &state, ["s1".to_string()].as_slice()));
+        let old = URL_SAFE_NO_PAD.encode(br#"{"v":1,"o":0,"h":"","s":{"l":[],"n":0}}"#);
+        let future = URL_SAFE_NO_PAD.encode(br#"{"v":99,"o":0,"h":"","s":{"l":[],"n":0}}"#);
+        for bad in ["", "%%%", "bm9wZQ", &future, &old] {
             assert_eq!(Cursor::decode(bad).unwrap_err().code, crate::error::ErrorCode::StaleState, "{bad}");
         }
+    }
+
+    #[test]
+    fn fingerprint_follows_collapsed_merges() {
+        let base = build_plan(refs(), head(), Vec::new(), &RepoViewState::default()).fingerprint;
+        let one = RepoViewState { collapsed_merges: vec!["m0".into()], ..Default::default() };
+        assert_ne!(base, build_plan(refs(), head(), Vec::new(), &one).fingerprint);
+        let all = RepoViewState { collapse_all_merges: true, ..Default::default() };
+        assert_ne!(base, build_plan(refs(), head(), Vec::new(), &all).fingerprint);
+        // The order of the list does not matter.
+        let a = RepoViewState { collapsed_merges: vec!["x".into(), "y".into()], ..Default::default() };
+        let b = RepoViewState { collapsed_merges: vec!["y".into(), "x".into()], ..Default::default() };
+        assert_eq!(build_plan(refs(), head(), Vec::new(), &a).fingerprint, build_plan(refs(), head(), Vec::new(), &b).fingerprint);
+    }
+
+    fn record(sha: &str, parents: &str) -> Vec<Vec<u8>> {
+        vec![sha.as_bytes().to_vec(), parents.as_bytes().to_vec(), b"Test".to_vec(), b"t@example.com".to_vec(), b"0".to_vec(), sha.as_bytes().to_vec()]
+    }
+
+    fn builder(plan: &Plan) -> PageBuilder<'_> {
+        PageBuilder { plan, state: LayoutState::new(), rows: Vec::new(), max_lane: 0, commits: 0, hidden: HashSet::new() }
+    }
+
+    fn row_ids<'a>(b: &'a PageBuilder<'_>) -> Vec<&'a str> {
+        b.rows.iter().map(|r| r.id.as_str()).collect()
+    }
+
+    #[test]
+    fn a_collapsed_merge_hides_what_only_it_leads_to() {
+        // m merges s2 (side branch s2 ── s1) into p1; s1 and p1 share the base b.
+        let plan = build_plan(vec![tip("refs/heads/main", "m", true)], Some("m".into()), Vec::new(), &RepoViewState::default());
+        let mut b = builder(&plan);
+        assert!(b.commit(&record("m", "p1 s2"), Some(Collapse::Hide { count: 2, hidden_parents: vec!["s2".into()] })));
+        assert!(!b.commit(&record("s2", "s1"), None));
+        assert!(b.commit(&record("p1", "b"), None));
+        assert!(!b.commit(&record("s1", "b"), None));
+        assert!(b.commit(&record("b", ""), None));
+        assert_eq!(row_ids(&b), vec!["m", "p1", "b"]);
+        assert_eq!(b.rows[0].collapsed_count, Some(2));
+        assert_eq!(b.rows[0].parents, vec!["p1".to_string(), "s2".to_string()], "the row still names both parents");
+        assert_eq!(b.commits, 3);
+        assert!(b.hidden.is_empty(), "nothing is left waiting: {:?}", b.hidden);
+        crate::commands::graph::layout::check::check_rows(&b.rows, true).unwrap();
+    }
+
+    #[test]
+    fn a_ref_keeps_a_hidden_commit_and_a_too_large_merge_keeps_its_lines() {
+        let plan = build_plan(
+            vec![tip("refs/heads/main", "m", true), tip("refs/heads/keep", "s1", false)],
+            Some("m".into()),
+            Vec::new(),
+            &RepoViewState::default(),
+        );
+        let mut b = builder(&plan);
+        b.commit(&record("m", "p1 s2"), Some(Collapse::Hide { count: 1, hidden_parents: vec!["s2".into()] }));
+        assert!(!b.commit(&record("s2", "s1"), None));
+        assert!(b.commit(&record("s1", "b"), None), "a branch points to s1");
+
+        let mut b = builder(&plan);
+        b.commit(&record("m", "p1 s2"), Some(Collapse::TooLarge));
+        assert!(b.rows[0].collapse_too_large);
+        assert_eq!(b.rows[0].collapsed_count, None);
+        assert_eq!(b.state.lanes().iter().flatten().count(), 2, "both parents stay awaited");
+        assert!(b.commit(&record("s2", "s1"), None));
+    }
+
+    #[test]
+    fn a_parent_that_a_lane_already_waits_for_keeps_its_line() {
+        // f (a branch that branches off the side branch) comes before m and already waits for s2.
+        let plan = build_plan(
+            vec![tip("refs/heads/f", "f", false), tip("refs/heads/main", "m", true)],
+            Some("m".into()),
+            Vec::new(),
+            &RepoViewState::default(),
+        );
+        let mut b = builder(&plan);
+        b.commit(&record("f", "s2"), None);
+        b.commit(&record("m", "p1 s2"), Some(Collapse::Hide { count: 1, hidden_parents: vec!["s2".into()] }));
+        assert!(b.commit(&record("s2", "b"), None));
+        assert!(b.commit(&record("p1", "b"), None));
+        assert!(b.commit(&record("b", ""), None));
+        assert_eq!(row_ids(&b), vec!["f", "m", "s2", "p1", "b"]);
+        crate::commands::graph::layout::check::check_rows(&b.rows, true).unwrap();
     }
 }

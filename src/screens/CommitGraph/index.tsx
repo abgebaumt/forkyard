@@ -77,6 +77,9 @@ const QUIET_WIP: GraphRow = Object.freeze({
   isHead: false,
   stashIndex: null,
   wipCount: null,
+  collapsedCount: null,
+  collapseTooLarge: false,
+  sync: "none",
 }) as GraphRow;
 
 interface FlatGraph {

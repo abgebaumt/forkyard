@@ -326,6 +326,9 @@ export interface GraphEdge {
 
 export type GraphRowKind = "commit" | "merge" | "wip" | "stash";
 
+/** Position of a commit relative to the checked-out branch and its upstream. */
+export type SyncMark = "none" | "ahead" | "behind";
+
 export interface GraphRow {
   /** For commits and stashes the SHA, for the WIP row `"wip"`. */
   id: string;
@@ -347,6 +350,12 @@ export interface GraphRow {
   stashIndex: number | null;
   /** Only for `wip`: number of changed files. */
   wipCount: number | null;
+  /** Only for merges: collapsed, with this many commits hidden below it; null = expanded. */
+  collapsedCount: number | null;
+  /** The merge is meant to be collapsed but brings in more than 20 000 commits: it stays expanded. */
+  collapseTooLarge: boolean;
+  /** Commit of the checked-out branch not pushed yet (`ahead`) or of its upstream not pulled yet (`behind`). */
+  sync: SyncMark;
 }
 
 export interface GraphPage {
