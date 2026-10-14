@@ -42,10 +42,14 @@ fn secret_key() -> Option<&'static Regex> {
 }
 
 /// Host tokens with a well-known prefix (GitHub `ghp_`/`gho_`/`ghu_`/`ghs_`/`ghr_`/`github_pat_`,
-/// GitLab `glpat-` and relatives), wherever they appear.
+/// GitLab `glpat-` and relatives, Atlassian API tokens `ATATT`, Bitbucket app passwords `ATBB`),
+/// wherever they appear.
 fn host_token() -> Option<&'static Regex> {
     static RE: OnceLock<Option<Regex>> = OnceLock::new();
-    compiled(&RE, r"\b(?:gh[pousr]_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,}|gl(?:pat|dt|rt|ptt|ft|oas|cbt|imt)-[A-Za-z0-9_\-]{10,})")
+    compiled(
+        &RE,
+        r"\b(?:gh[pousr]_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,}|gl(?:pat|dt|rt|ptt|ft|oas|cbt|imt)-[A-Za-z0-9_\-]{10,}|ATBB[A-Za-z0-9]{24,}|ATATT[A-Za-z0-9_\-=]{20,})",
+    )
 }
 
 /// A word that only introduces a question ("Password for 'https://…':") and is therefore
@@ -187,6 +191,8 @@ mod tests {
             ("gho_1234567890abcdefXYZ", "gho_1234567890abcdefXYZ"),
             ("token github_pat_11ABCDEFG0123456789_abcdefghijklmnop rejected", "github_pat_11ABCDEFG0123456789_abcdefghijklmnop"),
             ("gitlab says glpat-xYz12_3-AbCdEfGhIjK is expired", "glpat-xYz12_3-AbCdEfGhIjK"),
+            ("bitbucket said ATBBkUqP7XeN3QzFvJm8aR2sLdW5yH6tC1gZ0xB4 is wrong", "ATBBkUqP7XeN3QzFvJm8aR2sLdW5yH6tC1gZ0xB4"),
+            ("token ATATT3xFfGF0aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789=ABCD1234 expired", "ATATT3xFfGF0aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789=ABCD1234"),
         ] {
             let out = redact(line);
             assert!(!out.contains(secret), "{line} → {out}");
@@ -194,6 +200,7 @@ mod tests {
         }
         // Words that merely start like a prefix stay.
         assert_eq!(redact("ghp_ is the prefix of classic tokens"), "ghp_ is the prefix of classic tokens");
+        assert_eq!(redact("ATBB is the prefix of app passwords"), "ATBB is the prefix of app passwords");
     }
 
     #[test]

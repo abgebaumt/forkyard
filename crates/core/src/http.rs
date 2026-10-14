@@ -165,10 +165,22 @@ impl Request {
         self
     }
 
+    /// A further secret without a header of its own (e.g. the base64 form of `user:token` in
+    /// Basic authentication): removed from the log and from error messages like the others.
+    pub fn secret(mut self, secret: &str) -> Self {
+        self.secrets.push(secret.to_string());
+        self
+    }
+
     /// JSON as body (sets `content-type`).
-    pub fn json(mut self, body: &serde_json::Value) -> Self {
+    pub fn json(self, body: &serde_json::Value) -> Self {
+        self.json_with_type(body, "application/json")
+    }
+
+    /// JSON as body with its own media type (e.g. `application/json-patch+json`).
+    pub fn json_with_type(mut self, body: &serde_json::Value, content_type: &str) -> Self {
         self.body = Some(body.to_string().into_bytes());
-        self.headers.push(("content-type".to_string(), "application/json".to_string()));
+        self.headers.push(("content-type".to_string(), content_type.to_string()));
         self
     }
 
@@ -287,6 +299,14 @@ impl Response {
         let next = self.next_url()?;
         let query = next.split_once('?')?.1;
         query.split('&').find_map(|pair| pair.strip_prefix("page=")).and_then(|v| v.parse::<u32>().ok())
+    }
+}
+
+#[cfg(test)]
+impl Response {
+    /// A response as the remote side might send it (tests of the host integration).
+    pub(crate) fn for_test(status: u16, body: &str, label: &str) -> Response {
+        Response { status, headers: Vec::new(), body: body.as_bytes().to_vec(), from_cache: false, label: label.to_string() }
     }
 }
 

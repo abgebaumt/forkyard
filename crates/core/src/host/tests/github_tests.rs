@@ -40,14 +40,14 @@ async fn account_is_checked_stored_in_the_keyring_and_never_leaks() {
     assert_eq!(seen[0].header("user-agent"), Some("forkyard"));
 
     // Reconnect with a token lacking the required permission: same account, new state.
-    let weak = cmd::host_connect(&fx.tc, KIND, Some(format!("{}/", fx.server.url())), format!("  {WEAK_TOKEN}\n")).await.unwrap();
+    let weak = cmd::host_connect(&fx.tc, KIND, Some(format!("{}/", fx.server.url())), format!("  {WEAK_TOKEN}\n"), None).await.unwrap();
     assert_eq!(weak.id, account.id);
     assert_eq!((weak.scopes_ok, weak.missing_scopes.clone(), weak.token_hint.as_deref()), (false, vec!["repo".to_string()], Some("…wxyz")));
     assert_eq!(fx.tc.secrets.snapshot(), vec![(format!("hoster:{}", account.id), WEAK_TOKEN.to_string())]);
     assert!(fx.tc.events.named(names::APP_CHANGED).iter().any(|e| e["what"] == json!(["host_accounts"])));
 
     // A rejected token leaves nothing behind.
-    let error = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), "ghp_ErfundenUndFalsch0000000000".into()).await.unwrap_err();
+    let error = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), "ghp_ErfundenUndFalsch0000000000".into(), None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostAuthFailed);
     assert!(!error.message.contains("ghp_ErfundenUndFalsch"));
     assert_eq!(fx.tc.secrets.snapshot()[0].1, WEAK_TOKEN);
@@ -55,20 +55,20 @@ async fn account_is_checked_stored_in_the_keyring_and_never_leaks() {
     // Invalid input never goes out in the first place.
     fx.server.clear();
     for (base, token) in [(Some("http://github.firma.example".to_string()), TOKEN), (Some(fx.server.url()), "   "), (Some(fx.server.url()), "mit leer zeichen"), (Some("ftp://x".to_string()), TOKEN)] {
-        let error = cmd::host_connect(&fx.tc, KIND, base.clone(), token.to_string()).await.unwrap_err();
+        let error = cmd::host_connect(&fx.tc, KIND, base.clone(), token.to_string(), None).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::NotAllowed, "{base:?}");
         assert_clean(&error);
     }
     assert!(fx.server.requests().is_empty());
     // No API responds at the address.
     let elsewhere = MockServer::start(|_| MockResponse::json(404, json!({ "message": "Not Found" })));
-    let error = cmd::host_connect(&fx.tc, KIND, Some(elsewhere.url()), TOKEN.into()).await.unwrap_err();
+    let error = cmd::host_connect(&fx.tc, KIND, Some(elsewhere.url()), TOKEN.into(), None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostNotFound);
     assert!(error.message.contains("No GitHub API responds"), "{}", error.message);
     assert_eq!(cmd::host_accounts(&fx.tc).await.unwrap().len(), 1, "no second account created");
 
     // Checking with a token that has become invalid: no error, but `lastError`.
-    cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), TOKEN.into()).await.unwrap();
+    cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), TOKEN.into(), None).await.unwrap();
     fx.mode("401");
     let rejected = cmd::host_check(&fx.tc, account.id.clone()).await.unwrap();
     assert!(rejected.last_error.as_deref().is_some_and(|e| e.contains("rejects the token") && !e.contains(TOKEN)), "{:?}", rejected.last_error);

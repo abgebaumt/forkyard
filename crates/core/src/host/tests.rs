@@ -282,3 +282,25 @@ async fn repo_info_names_what_the_host_can_do() {
     assert_eq!(hub.capabilities.merge_methods.len(), 3);
     assert!(hub.account.is_none());
 }
+
+#[test]
+fn host_messages_are_found_also_when_nested_and_never_carry_the_token() {
+    let api = crate::host::Api::new(HostKind::Github, "a", "https://github.com", TOKEN.to_string());
+    let nested = http::Response::for_test(400, r#"{"type":"error","error":{"message":"Only one pull request may be open"}}"#, "GitHub");
+    assert_eq!(api.provider_message(&nested), "Only one pull request may be open");
+    let flat = http::Response::for_test(409, &format!(r#"{{"$id":"1","message":"TF401179: already exists ({TOKEN})"}}"#), "GitHub");
+    let text = api.provider_message(&flat);
+    assert!(text.contains("TF401179") && !text.contains(TOKEN), "{text}");
+    let fields = http::Response::for_test(400, r#"{"message":{"title":["is too long"]}}"#, "GitLab");
+    assert_eq!(api.provider_message(&fields), "title: is too long");
+}
+
+#[tokio::test]
+async fn hosts_that_only_need_a_token_ignore_a_user_name() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let account = cmd::host_connect(&fx.tc, HostKind::Github, Some(fx.server.url()), TOKEN.into(), Some("lena".into())).await.unwrap();
+    assert_eq!((account.id.as_str(), account.username.as_deref()), (fx.account.id.as_str(), None));
+    assert_eq!(fx.sent("GET", "/api/v3/user")[0].header("authorization"), Some(format!("Bearer {TOKEN}").as_str()));
+    assert!(serde_json::to_value(&account).unwrap()["username"].is_null());
+    fx.assert_token_stays_secret();
+}

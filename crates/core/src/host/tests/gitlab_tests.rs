@@ -24,10 +24,10 @@ async fn account_and_repository_are_recognised() {
     assert_eq!(fx.sent("GET", "/api/v4/user")[0].header("authorization"), Some(format!("Bearer {TOKEN}").as_str()));
     assert_eq!(fx.sent("GET", "/api/v4/personal_access_tokens/self").len(), 1);
     // A token without `api`.
-    let weak = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), WEAK_TOKEN.into()).await.unwrap();
+    let weak = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), WEAK_TOKEN.into(), None).await.unwrap();
     assert_eq!((weak.id.as_str(), weak.scopes_ok, weak.missing_scopes.clone()), (account.id.as_str(), false, vec!["api".to_string()]));
-    cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), TOKEN.into()).await.unwrap();
-    let error = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), format!("glpat-{}", "ErfundenUndFalsch000")).await.unwrap_err();
+    cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), TOKEN.into(), None).await.unwrap();
+    let error = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), format!("glpat-{}", "ErfundenUndFalsch000"), None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostAuthFailed);
     assert!(error.message.contains("GitLab"), "{}", error.message);
 

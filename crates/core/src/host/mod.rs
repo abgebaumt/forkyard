@@ -39,7 +39,7 @@ pub use detect::Detected;
 /// Entries per page when the UI doesn't ask for something else.
 pub const DEFAULT_PER_PAGE: u32 = 20;
 /// `Api::get_all` never loads more than this (comments, commits of a pull request).
-const MAX_ITEMS: usize = 500;
+pub(crate) const MAX_ITEMS: usize = 500;
 /// Concurrent calls when enriching a list (checks, reviews per pull request).
 const ENRICH_PARALLEL: usize = 6;
 
@@ -308,10 +308,16 @@ impl Api {
 
     fn request(&self, method: Method, path: &str) -> CoreResult<Request> {
         let hoster = host(self.kind);
+        let authorization = hoster.authorization(&self.token, self.username.as_deref());
+        // Basic authentication carries the token encoded – that form is just as secret.
+        let credential = authorization.split_once(' ').map(|(_, value)| value.to_string()).unwrap_or_default();
         let mut request = Request::new(method, self.url(path)?, self.label())
-            .secret_header("authorization", hoster.authorization(&self.token, self.username.as_deref()), &self.token)
+            .secret_header("authorization", authorization, &self.token)
             .alias(self.web_base.clone())
             .repo(self.repo_id.as_deref());
+        if !credential.is_empty() && credential != self.token {
+            request = request.secret(&credential);
+        }
         for (name, value) in hoster.request_headers() {
             request = request.header(name, *value);
         }
@@ -345,23 +351,29 @@ impl Api {
         let parsed: Option<Value> = serde_json::from_slice(&response.body).ok();
         let mut parts: Vec<String> = Vec::new();
         if let Some(value) = &parsed {
-            for key in ["message", "error_description", "error"] {
-                match value.get(key) {
-                    Some(Value::String(s)) if !s.trim().is_empty() => parts.push(s.trim().to_string()),
-                    Some(Value::Array(items)) => parts.extend(items.iter().filter_map(|i| i.as_str().map(str::to_string))),
-                    Some(Value::Object(map)) => {
-                        for (field, detail) in map {
-                            let detail = match detail {
-                                Value::Array(items) => items.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", "),
-                                other => other.as_str().unwrap_or_default().to_string(),
-                            };
-                            parts.push(format!("{field}: {detail}"));
+            // Bitbucket nests it: `{ "type": "error", "error": { "message": … } }`.
+            if let Some(message) = value.get("error").and_then(|e| e.get("message")).and_then(Value::as_str).filter(|m| !m.trim().is_empty()) {
+                parts.push(message.trim().to_string());
+            }
+            if parts.is_empty() {
+                for key in ["message", "error_description", "error"] {
+                    match value.get(key) {
+                        Some(Value::String(s)) if !s.trim().is_empty() => parts.push(s.trim().to_string()),
+                        Some(Value::Array(items)) => parts.extend(items.iter().filter_map(|i| i.as_str().map(str::to_string))),
+                        Some(Value::Object(map)) => {
+                            for (field, detail) in map {
+                                let detail = match detail {
+                                    Value::Array(items) => items.iter().filter_map(Value::as_str).collect::<Vec<_>>().join(", "),
+                                    other => other.as_str().unwrap_or_default().to_string(),
+                                };
+                                parts.push(format!("{field}: {detail}"));
+                            }
                         }
+                        _ => {}
                     }
-                    _ => {}
-                }
-                if !parts.is_empty() {
-                    break;
+                    if !parts.is_empty() {
+                        break;
+                    }
                 }
             }
             // GitHub gives details in `errors`.
@@ -445,6 +457,11 @@ impl Api {
         self.send(core, self.request(method, path)?.json(body)).await
     }
 
+    /// `POST` with a JSON Patch document (Azure DevOps work items).
+    pub async fn send_json_patch(&self, core: &Core, path: &str, body: &Value) -> CoreResult<Response> {
+        self.send(core, self.request(Method::Post, path)?.json_with_type(body, "application/json-patch+json")).await
+    }
+
     pub async fn delete(&self, core: &Core, path: &str) -> CoreResult<Response> {
         self.send(core, self.request(Method::Delete, path)?).await
     }
@@ -526,10 +543,17 @@ async fn facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
     host(api.kind).account_facts(core, api).await
 }
 
-/// Checks the token against the API (`/user`), stores it in the keychain and records the
-/// account. An existing account for the same address is replaced (new token).
+/// Checks the token against the API, stores it in the keychain and records the account. An
+/// existing account for the same address is replaced (new token).
 pub async fn connect(core: &Core, kind: HostKind, base_url: Option<String>, token: String) -> CoreResult<HosterAccount> {
+    connect_as(core, kind, base_url, None, token).await
+}
+
+/// Like `connect`, with the user name some hosts need besides the token (Bitbucket). Hosts that
+/// only need the token ignore it.
+pub async fn connect_as(core: &Core, kind: HostKind, base_url: Option<String>, username: Option<String>, token: String) -> CoreResult<HosterAccount> {
     let token = check_token(&token)?;
+    let username = check_username(host(kind), username)?;
     let web_base = detect::normalize_base_url(kind, base_url.as_deref())?;
     if !secrets::available(core).await {
         return Err(CoreError::io(
@@ -537,12 +561,13 @@ pub async fn connect(core: &Core, kind: HostKind, base_url: Option<String>, toke
         ));
     }
     // Check first, then store: a rejected token leaves nothing behind.
-    let probe = Api::new(kind, "", &web_base, token.clone());
+    let mut probe = Api::new(kind, "", &web_base, token.clone());
+    probe.username = username.clone();
     let facts = facts(core, &probe).await.map_err(|e| {
         not_found_as(e, || format!("No {} API responds at {web_base}. Check the address.", label(kind)))
     })?;
     let profile_id = core.active_profile_id()?;
-    let row = core.db.with(|c| db::hoster_accounts::upsert(c, &profile_id, kind, &web_base, None, &secrets::hint(&token), &facts))?;
+    let row = core.db.with(|c| db::hoster_accounts::upsert(c, &profile_id, kind, &web_base, username.as_deref(), &secrets::hint(&token), &facts))?;
     if let Err(e) = secrets::set(core, &secret_account(&row.id), &token).await {
         // Without a token the account would be useless.
         let _ = core.db.with(|c| db::hoster_accounts::delete(c, &profile_id, &row.id));
@@ -551,6 +576,22 @@ pub async fn connect(core: &Core, kind: HostKind, base_url: Option<String>, toke
     http::clear_cache(core);
     core.emit_app_changed(&[AppChange::HostAccounts]);
     Ok(row.to_model())
+}
+
+/// The user name for Basic authentication: required where the host needs one, never containing a
+/// colon (it separates name and token) or spaces; dropped for hosts that only need the token.
+fn check_username(hoster: &dyn Host, username: Option<String>) -> CoreResult<Option<String>> {
+    if !hoster.needs_username() {
+        return Ok(None);
+    }
+    let name = username.as_deref().map(str::trim).unwrap_or("");
+    if name.is_empty() {
+        return Err(CoreError::not_allowed(format!("{} needs your user name (or account e-mail) besides the token.", hoster.label())));
+    }
+    if name.len() > 256 || name.chars().any(|c| c == ':' || c.is_whitespace() || c.is_control()) {
+        return Err(CoreError::not_allowed("The user name must not contain spaces, colons or control characters."));
+    }
+    Ok(Some(name.to_string()))
 }
 
 /// Disconnects the account: entry and token are deleted. Unknown ID: no error.

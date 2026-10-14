@@ -948,8 +948,8 @@ pub async fn host_accounts(core: State<'_, Core>) -> R<Vec<HosterAccount>> {
 }
 
 #[tauri::command]
-pub async fn host_connect(core: State<'_, Core>, kind: HostKind, base_url: Option<String>, token: String) -> R<HosterAccount> {
-    c::host::host_connect(&core, kind, base_url, token).await
+pub async fn host_connect(core: State<'_, Core>, kind: HostKind, base_url: Option<String>, token: String, username: Option<String>) -> R<HosterAccount> {
+    c::host::host_connect(&core, kind, base_url, token, username).await
 }
 
 #[tauri::command]

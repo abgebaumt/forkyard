@@ -698,8 +698,10 @@ export interface CoreCommands {
    * Errors: `not_allowed` (token empty/with spaces, address invalid), `host_auth_failed`,
    * `host_not_found` (no API answers at the address), `io` (keychain not
    * reachable – then nothing is stored). Reports `app:changed` with `host_accounts`.
+   * `username`: only Bitbucket (Atlassian account e-mail or user name), required there; ignored by
+   * the other hosts. `not_allowed` if missing or with spaces/colons.
    */
-  hostConnect(input: { kind: HostKind; baseUrl: string | null; token: string }): Promise<HosterAccount>;
+  hostConnect(input: { kind: HostKind; baseUrl: string | null; token: string; username?: string | null }): Promise<HosterAccount>;
   /** GitHub with the login of the GitHub CLI (`gh auth token`); the token stays in the core. */
   hostConnectGh(input: { baseUrl: string | null }): Promise<HosterAccount>;
   /** Deletes account and token. Unknown ID: no error. Returns the remaining accounts. */

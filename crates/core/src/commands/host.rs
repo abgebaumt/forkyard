@@ -43,9 +43,10 @@ pub async fn host_accounts(core: &Core) -> CoreResult<Vec<HosterAccount>> {
     host::accounts(core)
 }
 
-/// Checks the token against the host's API and stores it in the keychain.
-pub async fn host_connect(core: &Core, kind: HostKind, base_url: Option<String>, token: String) -> CoreResult<HosterAccount> {
-    host::connect(core, kind, base_url, token).await
+/// Checks the token against the host's API and stores it in the keychain. `username`: only for
+/// hosts that sign in with user name and token (Bitbucket); ignored elsewhere.
+pub async fn host_connect(core: &Core, kind: HostKind, base_url: Option<String>, token: String, username: Option<String>) -> CoreResult<HosterAccount> {
+    host::connect_as(core, kind, base_url, username, token).await
 }
 
 /// Connects GitHub with the login of the GitHub CLI (`gh auth token`); the token never leaves the core.

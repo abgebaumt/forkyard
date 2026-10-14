@@ -397,3 +397,31 @@ fn values_are_encoded_for_urls() {
     assert_eq!(with_query("https://x/y", &[]), "https://x/y");
     assert_eq!(with_query("https://x/y?a=1", &[("b", "2 3".into())]), "https://x/y?a=1&b=2%203");
 }
+
+#[tokio::test]
+async fn a_body_can_carry_its_own_json_media_type() {
+    let tc = TestCore::new().await;
+    fast(&tc);
+    let server = MockServer::start(|_| MockResponse::json(200, json!({ "id": 1 })));
+    let patch = json!([{ "op": "add", "path": "/fields/System.Title", "value": "Neu" }]);
+    send(&tc, Request::new(Method::Post, format!("{}/patch", server.url()), "Testdienst").json_with_type(&patch, "application/json-patch+json")).await.unwrap();
+    let seen = server.requests();
+    assert_eq!(seen[0].header("content-type"), Some("application/json-patch+json"));
+    assert_eq!(seen[0].headers.iter().filter(|(name, _)| name == "content-type").count(), 1, "exactly one content type");
+    assert_eq!(seen[0].json(), patch);
+}
+
+/// Basic authentication sends the token encoded (`user:token` in base64): that form must not reach
+/// the log either.
+#[tokio::test]
+async fn extra_secrets_are_removed_from_the_log_as_well() {
+    let tc = TestCore::new().await;
+    fast(&tc);
+    let server = MockServer::start(|_| MockResponse::json(200, json!({})));
+    let encoded = "bGVuYTpnZWhlaW0tMDEyMzQ1Njc4OQ";
+    send(&tc, Request::get(format!("{}/x?echo={encoded}", server.url()), "Testdienst").secret(encoded)).await.unwrap();
+    let entries = log(&tc);
+    assert_eq!(entries.len(), 1);
+    assert!(!entries[0].command.contains(encoded) && !entries[0].output.contains(encoded), "{:?}", entries[0]);
+    assert!(entries[0].command.contains("***"), "{}", entries[0].command);
+}
