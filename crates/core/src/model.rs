@@ -1284,6 +1284,54 @@ impl Default for LinkRulesConfig {
     }
 }
 
+/// Where an effective ticket link rule comes from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkRuleSource {
+    Custom,
+    Preset,
+    RepoFile,
+    Host,
+}
+
+/// An effective rule: matches of `pattern` link to `url` (`$0` = whole match, `$1` … = groups).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRule {
+    /// `custom:<id>`, `preset:<kind>:<n>`, `file:<id or position>`, `host:issue`, `host:merge_request`.
+    pub id: String,
+    pub source: LinkRuleSource,
+    pub pattern: String,
+    pub url: String,
+}
+
+/// Where `.forkyard/links.json` was read from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LinkFileOrigin {
+    Worktree,
+    Head,
+}
+
+/// An ignored part of the repository file.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRuleProblem {
+    /// Position in the file's `rules` (from 0); `None` = the file as a whole.
+    pub index: Option<u32>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LinkRules {
+    /// In order of precedence: where two rules match at the same place, the earlier one wins.
+    pub rules: Vec<LinkRule>,
+    /// `None`: the repository has no `.forkyard/links.json`.
+    pub file: Option<LinkFileOrigin>,
+    pub problems: Vec<LinkRuleProblem>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Profile {
