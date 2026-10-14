@@ -62,6 +62,11 @@ All notable changes to Forkyard are listed here. The format follows
   Windows installers put the program folder on the PATH and remove it on uninstall, deb and rpm
   install `/usr/bin/forkyard`, and for the AppImage and the macOS app the command palette offers
   “Install command-line command”.
+- Statistics: a “Statistics” view per repository (toolbar or command palette) with commits by
+  weekday and hour, commits over time, authors, a treemap of the most changed files, hotspots,
+  knowledge per folder with bus factor, code age from `git blame` on the largest text files,
+  and records. It runs as a cancellable background job for a period and branch; results are
+  cached per commit and period (numbers only, never commit contents).
 
 ### Changed
 
