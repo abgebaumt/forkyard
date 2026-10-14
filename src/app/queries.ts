@@ -5,7 +5,7 @@
  * Keys are hierarchical: everything of a repo starts with ["repo", repoId, …],
  * so a repo can be invalidated as a whole.
  */
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   QueryClient,
   useInfiniteQuery,
@@ -23,6 +23,7 @@ import { issueApi, type IssueFilter } from "../screens/Issues/api";
 import { desktopNotify, wasManualSync } from "./notify";
 import { readStatus } from "./statusOrder";
 import { useAppStore } from "./store";
+import { compileRules, type CompiledRule } from "./ticketLinks";
 import { writesSettled } from "./writeQueue";
 
 export const queryClient = new QueryClient({
@@ -303,6 +304,14 @@ export const useRepoSettings = (repoId: Id | null | undefined) =>
 /** Effective ticket link rules (settings, `.forkyard/links.json`, host). */
 export const useLinkRules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.linkRules(repoId ?? ""), queryFn: () => core.linkRulesGet({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+const NO_RULES: readonly CompiledRule[] = [];
+
+/** The repository's ticket link rules, compiled for matching; empty while loading or on an error. */
+export function useTicketLinks(repoId: Id | null | undefined): readonly CompiledRule[] {
+  const { data } = useLinkRules(repoId);
+  return useMemo(() => (data ? compileRules(data.rules) : NO_RULES), [data]);
+}
 
 export const useReadme = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.readme(repoId ?? ""), queryFn: () => core.repoReadme({ repoId: repoId! }), enabled: enabledFor(repoId) });
