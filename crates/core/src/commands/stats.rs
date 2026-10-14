@@ -7,7 +7,8 @@
 //! the walk, because a commit's committer date is not older than its author date. With `to` the
 //! history of the last commit committed up to then is counted. `.mailmap` is not applied.
 //!
-//! The result holds derived numbers only – never commits or messages.
+//! The result – derived numbers only, never commits or messages – is cached in SQLite per tip
+//! commit, period and `STATS_VERSION`.
 
 mod aggregate;
 mod parse;
@@ -18,6 +19,7 @@ use std::collections::HashSet;
 
 use crate::app::Core;
 use crate::commands::graph::{resolve_commit, LOG_SAFE};
+use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::{CancelToken, Job};
 use crate::model::{RepoStats, StatsCodeAge, StatsRange};
@@ -26,6 +28,8 @@ use crate::util;
 use aggregate::Aggregator;
 use parse::{BlameAges, LogParser, LOG_FORMAT};
 
+/// Change it whenever the numbers are computed differently: old cache entries then no longer match.
+const STATS_VERSION: u32 = 1;
 /// Progress phases (`job:progress.phase`); the UI names them.
 const PHASE_HISTORY: &str = "history";
 const PHASE_BLAME: &str = "blame";
@@ -46,7 +50,7 @@ const BLAME_PARALLEL: usize = 4;
 ///
 /// `HEAD` without a commit (or nothing committed up to `to`) → empty statistics (`tip: None`).
 /// Unknown ref → `not_found`; `from`/`to` not ISO-8601 or `from` after `to` → `not_allowed`.
-/// Cancelled via `job_cancel` → `cancelled`.
+/// Cancelled via `job_cancel` → `cancelled`, nothing is cached.
 pub async fn stats_compute(core: &Core, repo_id: String, job_id: String, range: StatsRange) -> CoreResult<RepoStats> {
     let (from, to) = parse_range(&range)?;
     core.repo_path(&repo_id)?;
@@ -79,6 +83,11 @@ async fn compute(core: &Core, repo_id: &str, reference: &str, from: Option<i64>,
     let Some(tip) = resolve_tip(core, repo_id, reference, to).await? else {
         return Ok(aggregate::empty());
     };
+    let key = cache_key(&tip, from, to);
+    if let Some(mut stats) = read_cache(core, repo_id, &key) {
+        stats.cached = true;
+        return Ok(stats);
+    }
     let reference_time = match to {
         Some(to) => to,
         None => commit_time(core, repo_id, &tip).await?,
@@ -88,7 +97,10 @@ async fn compute(core: &Core, repo_id: &str, reference: &str, from: Option<i64>,
     let tree = list_tree(core, repo_id, &tip).await?;
     let code_age = code_age(core, repo_id, &tip, &tree, reference_time, job).await?;
     let existing: HashSet<String> = tree.iter().map(|file| file.path.clone()).collect();
-    Ok(aggregator.finish(&existing, code_age, tip, reference_time))
+    let stats = aggregator.finish(&existing, code_age, tip, reference_time);
+    job.token().check()?;
+    write_cache(core, repo_id, &key, &stats);
+    Ok(stats)
 }
 
 /// The commit whose history is counted: `reference` itself, or with `to` its last commit
@@ -272,4 +284,23 @@ fn percent(done: u32, total: u32, span: u32) -> u32 {
         return span;
     }
     (u64::from(done.min(total)) * u64::from(span) / u64::from(total)) as u32
+}
+
+fn cache_key(tip: &str, from: Option<i64>, to: Option<i64>) -> String {
+    let side = |value: Option<i64>| value.map(|v| v.to_string()).unwrap_or_default();
+    format!("v{STATS_VERSION}|{tip}|{}|{}", side(from), side(to))
+}
+
+/// A broken or unreadable entry counts as missing (it is computed again).
+fn read_cache(core: &Core, repo_id: &str, key: &str) -> Option<RepoStats> {
+    let text = core.db.with(|c| db::stats_cache::get(c, repo_id, key)).ok().flatten()?;
+    serde_json::from_str(&text).ok()
+}
+
+/// A cache that cannot be written only costs time on the next call.
+fn write_cache(core: &Core, repo_id: &str, key: &str, stats: &RepoStats) {
+    let Ok(text) = serde_json::to_string(stats) else { return };
+    if let Err(e) = core.db.with(|c| db::stats_cache::put(c, repo_id, key, &text)) {
+        log::warn!("Statistics not cached: {}", e.message);
+    }
 }

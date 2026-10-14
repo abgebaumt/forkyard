@@ -247,3 +247,49 @@ async fn code_age_counts_lines_by_the_age_of_their_last_change() {
     let early = run(&tc, &id, range(None, Some("2025-06-04T23:59:59Z"), "HEAD")).await;
     assert_eq!(early.code_age, StatsCodeAge { files: 4, skipped: 0, month: 9, year: 0, three_years: 14, older: 0 }, "measured at that tip, against `to`");
 }
+
+#[tokio::test]
+async fn results_are_cached_per_tip_and_period() {
+    let (repo, _) = demo();
+    let (tc, id) = setup(&repo).await;
+    let first = run(&tc, &id, range(None, None, "HEAD")).await;
+    let second = run(&tc, &id, range(None, None, "HEAD")).await;
+    assert!(!first.cached && second.cached);
+    assert_eq!(RepoStats { cached: false, ..second }, first);
+    assert!(!run(&tc, &id, range(Some("2025-06-16T00:00:00Z"), None, "HEAD")).await.cached, "another period is its own entry");
+    assert_eq!(tc.events.count(names::JOB_DONE), 3, "a cached run also ends its job");
+
+    repo.commit_as("Neu", ADA.0, ADA.1, "@1750701600 +0000");
+    let after = run(&tc, &id, range(None, None, "HEAD")).await;
+    assert!(!after.cached, "a new tip is computed again");
+    assert_eq!(after.commits, 10);
+
+    let stored: Vec<String> = tc
+        .db
+        .with(|c| {
+            let mut stmt = c.prepare("select value from stats_cache where repository_id = ?1")?;
+            let rows = stmt.query_map([&id], |r| r.get(0))?.collect::<rusqlite::Result<Vec<String>>>()?;
+            Ok(rows)
+        })
+        .unwrap();
+    assert_eq!(stored.len(), 3);
+    assert!(stored.iter().all(|text| !text.contains("Guide") && !text.contains("Tidy")), "no commit messages in the cache");
+}
+
+#[tokio::test]
+async fn a_cancelled_run_caches_nothing_and_job_ids_are_unique() {
+    let (repo, _) = demo();
+    let (tc, id) = setup(&repo).await;
+    let job = tc.start_job("job-cancelled", Some(&id)).unwrap();
+    job.token().cancel();
+    let error = compute(&tc, &id, "HEAD", None, None, &job).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    drop(job);
+    let rows: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from stats_cache where repository_id = ?1", [&id], |r| r.get(0))?)).unwrap();
+    assert_eq!(rows, 0);
+
+    let busy = tc.start_job("job-twice", Some(&id)).unwrap();
+    let error = stats_compute(&tc, id.clone(), "job-twice".into(), range(None, None, "HEAD")).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Duplicate);
+    drop(busy);
+}
