@@ -14,7 +14,7 @@ import { useRowDim, useRowGhost, type RowMarks } from "./rowMarks";
 import { locale, t } from "../../i18n";
 import type { BisectMark } from "../../screens/Bisect/model";
 import type { CompiledRule } from "../../app/ticketLinks";
-import { LinkedText } from "../LinkedText";
+import { keepFocus, LinkedText } from "../LinkedText";
 
 /** What all rows need in common; the object stays the same as long as none of it changes. */
 export interface RowShared {
@@ -150,12 +150,14 @@ export function dateTooltip(iso: string): string {
 }
 
 /** Arrow on merge rows: collapse (hide the commits the merge brought in) or expand again. */
-function CollapseToggle({ repoId, sha, collapsed, tooLarge }: { repoId: Id; sha: string; collapsed: boolean; tooLarge: boolean }) {
+/** Not focusable, also not by a mouse press: the row keeps the focus for the keyboard navigation. */
+export function CollapseToggle({ repoId, sha, collapsed, tooLarge }: { repoId: Id; sha: string; collapsed: boolean; tooLarge: boolean }) {
   const label = tooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("graph.row.expand") : t("graph.row.collapse");
   return (
     <button
       type="button"
       tabIndex={-1}
+      onMouseDown={keepFocus}
       aria-label={label}
       aria-expanded={!collapsed}
       title={label}
