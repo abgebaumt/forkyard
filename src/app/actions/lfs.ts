@@ -3,16 +3,21 @@
  * The UI for this is src/screens/Lfs.
  */
 import { t } from "../../i18n";
-import { core, type ErrorCode, type Id, type LfsStatus } from "../../core";
+import { core, type ErrorCode, type Id, type LfsLock, type LfsLockFailure, type LfsLockList, type LfsLockOutcome, type LfsStatus } from "../../core";
+import { forceUnlockConfirm, lockIndex } from "../../screens/Lfs/locks";
+import { toast } from "../../ui/Feedback";
 import { confirm } from "../dialogs";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction, type ActionResult } from "../run";
+import { useAppStore } from "../store";
 import { clip } from "./context";
 
-export const lfsBusyKey = (repoId: Id, what: "track" | "pull" | "prune") => `${repoId}:lfs:${what}`;
+export const lfsBusyKey = (repoId: Id, what: "track" | "pull" | "prune" | "locks") => `${repoId}:lfs:${what}`;
 
 function afterChange(repoId: Id, status: LfsStatus) {
   queryClient.setQueryData(qk.lfs(repoId), status);
+  // File lists, menus and the commit panel decide by the patterns whether they read locks.
+  queryClient.setQueryData(qk.lfsInUse(repoId), status);
   // The .gitattributes is now changed: the list of local changes shows that.
   void queryClient.invalidateQueries({ queryKey: qk.status(repoId) });
 }
@@ -79,4 +84,80 @@ export async function pruneLfs(repoId: Id) {
     busyKey: lfsBusyKey(repoId, "prune"),
     success: (summary) => (summary.trim() ? t("actions.lfs.prune.doneSummary", { summary: clip(summary.trim(), 120) }) : t("actions.lfs.prune.done")),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Locks
+// ---------------------------------------------------------------------------
+
+/** The unfiltered lock list from the query cache (for menus); undefined while unknown. */
+export function cachedLocks(repoId: Id): LfsLockList | undefined {
+  return queryClient.getQueryData<LfsLockList>(qk.lfsLocks(repoId));
+}
+
+function afterLocks(repoId: Id, label: string, outcome: LfsLockOutcome) {
+  // Filtered lists follow through `repo:changed` with `locks`.
+  queryClient.setQueryData(qk.lfsLocks(repoId), outcome.locks);
+  reportFailures(label, outcome.failed);
+}
+
+/** Paths that failed in an otherwise successful call: one warning with the reasons. */
+function reportFailures(label: string, failed: LfsLockFailure[]) {
+  if (failed.length === 0) return;
+  toast({
+    tone: "warning",
+    title: t("actions.lfs.partial", { label, count: failed.length }),
+    description: failed
+      .slice(0, 5)
+      .map((failure) => `${failure.path}: ${failure.reason}`)
+      .join("\n"),
+  });
+}
+
+/** Locks the files at the LFS server. */
+export async function lockFiles(repoId: Id, paths: string[]): Promise<ActionResult<LfsLockOutcome>> {
+  const label = t("actions.lfs.lock.label");
+  const result = await runAction(label, () => core.lfsLock({ repoId, paths }), {
+    busyKey: lfsBusyKey(repoId, "locks"),
+    success: (outcome) => (outcome.failed.length === 0 ? t("actions.lfs.lock.done", { count: paths.length }) : null),
+  });
+  if (result.ok) afterLocks(repoId, label, result.value);
+  return result;
+}
+
+/**
+ * Unlocks the files. With `force` and other people's locks among them, it asks first (owner and
+ * file named); `null` = declined.
+ */
+export async function unlockFiles(repoId: Id, paths: string[], force: boolean): Promise<ActionResult<LfsLockOutcome> | null> {
+  if (force) {
+    const index = lockIndex(cachedLocks(repoId));
+    const foreign = paths.map((path) => index.get(path)).filter((lock): lock is LfsLock => Boolean(lock && !lock.ours));
+    if (foreign.length > 0 && !(await confirm(forceUnlockConfirm(foreign)))) return null;
+  }
+  const label = t("actions.lfs.unlock.label");
+  const result = await runAction(label, () => core.lfsUnlock({ repoId, paths, force }), {
+    busyKey: lfsBusyKey(repoId, "locks"),
+    success: (outcome) => (outcome.failed.length === 0 ? t("actions.lfs.unlock.done", { count: paths.length }) : null),
+  });
+  if (result.ok) afterLocks(repoId, label, result.value);
+  return result;
+}
+
+/**
+ * Reads the locks from the server again – may ask for credentials. Errors show up as the state of
+ * the lock list (the core has dropped its list, so the next read reports them), not as a toast.
+ */
+export async function refreshLocks(repoId: Id): Promise<void> {
+  const key = lfsBusyKey(repoId, "locks");
+  if (useAppStore.getState().busy[key]) return;
+  useAppStore.getState().setBusy(key, true);
+  try {
+    queryClient.setQueryData(qk.lfsLocks(repoId), await core.lfsLocks({ repoId, filter: null, refresh: true }));
+  } catch {
+    // Shown by the lock list after the invalidation below.
+  } finally {
+    useAppStore.getState().setBusy(key, false);
+    void queryClient.invalidateQueries({ queryKey: qk.lfsLocksAll(repoId) });
+  }
 }

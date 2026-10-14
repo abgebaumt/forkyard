@@ -429,7 +429,26 @@
       "label": "LFS aufräumen",
       "done": "LFS aufgeräumt",
       "doneSummary": "LFS aufgeräumt: {{summary}}"
-    }
+    },
+    "lock": {
+      "label": "Dateien sperren",
+      "done_one": "Datei gesperrt",
+      "done_other": "{{count}} Dateien gesperrt"
+    },
+    "unlock": {
+      "label": "Dateien entsperren",
+      "done_one": "Datei entsperrt",
+      "done_other": "{{count}} Dateien entsperrt"
+    },
+    "forceUnlock": {
+      "title_one": "Sperre von {{owner}} aufheben?",
+      "title_other": "{{count}} fremde Sperren aufheben?",
+      "body": "Die anderen werden nicht gefragt. Bearbeiten sie die Dateien noch, kollidieren ihre Änderungen später womöglich mit deinen. Der LFS-Server muss das Erzwingen erlauben – meist nur für Administratoren.",
+      "action": "Entsperren erzwingen",
+      "details": "Fremde Sperren"
+    },
+    "partial_one": "{{label}}: {{count}} Datei ist fehlgeschlagen",
+    "partial_other": "{{label}}: {{count}} Dateien sind fehlgeschlagen"
   },
   "merge": {
     "operation": {

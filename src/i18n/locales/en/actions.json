@@ -429,7 +429,26 @@
       "label": "Clean up LFS",
       "done": "LFS cleaned up",
       "doneSummary": "LFS cleaned up: {{summary}}"
-    }
+    },
+    "lock": {
+      "label": "Lock files",
+      "done_one": "File locked",
+      "done_other": "{{count}} files locked"
+    },
+    "unlock": {
+      "label": "Unlock files",
+      "done_one": "File unlocked",
+      "done_other": "{{count}} files unlocked"
+    },
+    "forceUnlock": {
+      "title_one": "Remove the lock held by {{owner}}?",
+      "title_other": "Remove {{count}} locks held by others?",
+      "body": "The others aren’t asked. If they’re still editing these files, their changes may later collide with yours. The LFS server has to allow forcing – usually only for administrators.",
+      "action": "Force unlock",
+      "details": "Locks held by others"
+    },
+    "partial_one": "{{label}}: {{count}} file failed",
+    "partial_other": "{{label}}: {{count}} files failed"
   },
   "merge": {
     "operation": {
