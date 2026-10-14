@@ -101,25 +101,117 @@ fn env_name(placeholder: &Placeholder) -> String {
 }
 
 /// `shell: true`: the line for `sh -c` (Unix) or PowerShell (Windows), in which every placeholder
-/// is a reference to its environment variable (braced on Windows, `${env:NAME}`, so PowerShell
-/// never merges the name with the text that follows). Missing values are reported as for `shell_args`.
+/// is a reference to its environment variable; the values themselves are never part of it.
+/// Missing values are reported as for `shell_args`.
 pub fn shell_line(def: &CustomCommandDef, values: &Values, windows: bool) -> CoreResult<(String, Vec<String>)> {
-    let mut line = String::new();
-    for piece in parts(&def.run)? {
-        match piece {
-            Piece::Text(literal) => line.push_str(literal),
-            Piece::Var(placeholder) => {
-                values.lookup(&placeholder)?;
-                let name = env_name(&placeholder);
-                line.push_str(&if windows { format!("${{env:{name}}}") } else { format!("\"${name}\"") });
-            }
+    let pieces = parts(&def.run)?;
+    for piece in &pieces {
+        if let Piece::Var(placeholder) = piece {
+            values.lookup(placeholder)?;
         }
     }
     Ok(if windows {
-        ("powershell.exe".to_string(), vec!["-NoProfile".into(), "-NonInteractive".into(), "-Command".into(), line])
+        ("powershell.exe".to_string(), vec!["-NoProfile".into(), "-NonInteractive".into(), "-Command".into(), powershell_line(&pieces)])
     } else {
+        let mut line = String::new();
+        for piece in &pieces {
+            match piece {
+                Piece::Text(literal) => line.push_str(literal),
+                Piece::Var(placeholder) => line.push_str(&format!("\"${}\"", env_name(placeholder))),
+            }
+        }
         ("sh".to_string(), vec!["-c".into(), line])
     })
+}
+
+/// One character of the template or one placeholder, as PowerShell sees it.
+enum PsItem {
+    /// `word`: unquoted, unescaped and no operator or separator – text that can sit inside a string.
+    Char { c: char, word: bool },
+    /// `unquoted`: not already inside a string of the template.
+    Var { name: String, unquoted: bool },
+}
+
+/// Characters that PowerShell reads as plain text in argument mode and that mean the same inside
+/// a double-quoted string. Everything else (whitespace, `;|&(){},<>'"`$#@`) ends the word.
+fn ps_word_char(c: char) -> bool {
+    c.is_alphanumeric() || "._-:/\\[]=+~%!?*^".contains(c)
+}
+
+/// The PowerShell line. Unquoted, `${env:X}.bak` is member access and `${env:X}[0]` indexing,
+/// both of which yield nothing. So a reference and the text around it in the same word become one
+/// expandable string: `"${env:FORKYARD_FILE}.bak"`. A leading `-Name:` stays outside the string,
+/// so it is still a named parameter. Inside a string of the template the bare reference is enough.
+fn powershell_line(pieces: &[Piece<'_>]) -> String {
+    #[derive(Clone, Copy, PartialEq)]
+    enum Quote {
+        None,
+        Single,
+        Double,
+    }
+    let mut items = Vec::new();
+    let mut quote = Quote::None;
+    let mut escaped = false;
+    for piece in pieces {
+        match piece {
+            Piece::Text(literal) => {
+                for c in literal.chars() {
+                    let word = quote == Quote::None && !escaped && ps_word_char(c);
+                    if escaped {
+                        escaped = false;
+                    } else {
+                        match (quote, c) {
+                            (Quote::None | Quote::Double, '`') => escaped = true,
+                            (Quote::None, '\'') => quote = Quote::Single,
+                            (Quote::None, '"') => quote = Quote::Double,
+                            (Quote::Single, '\'') | (Quote::Double, '"') => quote = Quote::None,
+                            _ => {}
+                        }
+                    }
+                    items.push(PsItem::Char { c, word });
+                }
+            }
+            Piece::Var(placeholder) => {
+                // A backtick right before `${…}` would only escape the `$`; the reference wins.
+                escaped = false;
+                items.push(PsItem::Var { name: env_name(placeholder), unquoted: quote == Quote::None });
+            }
+        }
+    }
+
+    let in_word = |item: &PsItem| matches!(item, PsItem::Char { word: true, .. } | PsItem::Var { unquoted: true, .. });
+    let push = |line: &mut String, item: &PsItem| match item {
+        PsItem::Char { c, .. } => line.push(*c),
+        PsItem::Var { name, .. } => line.push_str(&format!("${{env:{name}}}")),
+    };
+    let mut line = String::new();
+    let mut index = 0;
+    while index < items.len() {
+        if !in_word(&items[index]) {
+            push(&mut line, &items[index]);
+            index += 1;
+            continue;
+        }
+        let end = items[index..].iter().position(|item| !in_word(item)).map_or(items.len(), |len| index + len);
+        let word = &items[index..end];
+        match word.iter().position(|item| matches!(item, PsItem::Var { .. })) {
+            None => word.iter().for_each(|item| push(&mut line, item)),
+            Some(first_var) => {
+                let mut start = 0;
+                if matches!(word[0], PsItem::Char { c: '-', .. }) {
+                    if let Some(colon) = word[..first_var].iter().position(|item| matches!(item, PsItem::Char { c: ':', .. })) {
+                        start = colon + 1;
+                    }
+                }
+                word[..start].iter().for_each(|item| push(&mut line, item));
+                line.push('"');
+                word[start..].iter().for_each(|item| push(&mut line, item));
+                line.push('"');
+            }
+        }
+        index = end;
+    }
+    line
 }
 
 /// `git`: Git's arguments. No value from the context or a text field may become an option.
@@ -239,20 +331,64 @@ mod tests {
         assert_eq!(args, ["-c".to_string(), "echo \"$FORKYARD_INPUT_TEXT\" | tee \"$FORKYARD_FILE\"".to_string()]);
         let (program, args) = shell_line(&d, &values(), true).unwrap();
         assert_eq!(program, "powershell.exe");
-        assert_eq!(args.last().unwrap(), "echo ${env:FORKYARD_INPUT_TEXT} | tee ${env:FORKYARD_FILE}");
-        // Braced, so PowerShell never merges the name with what follows (`.bak`, `_old`, `:x`).
-        let mut d = def(Shell, "copy ${file} ${file}.bak; echo ${input:text}_old ${repo}:x");
-        d.shell = true;
-        let (_, args) = shell_line(&d, &values(), true).unwrap();
-        assert_eq!(
-            args.last().unwrap(),
-            "copy ${env:FORKYARD_FILE} ${env:FORKYARD_FILE}.bak; echo ${env:FORKYARD_INPUT_TEXT}_old ${env:FORKYARD_REPO}:x"
-        );
+        assert_eq!(args.last().unwrap(), "echo \"${env:FORKYARD_INPUT_TEXT}\" | tee \"${env:FORKYARD_FILE}\"");
         assert!(!args.iter().any(|a| a.contains("touch")), "no value is part of the line");
         let env = environment(&values());
         assert!(env.contains(&("FORKYARD_INPUT_TEXT".to_string(), "a b; $(touch x)".to_string())));
         assert!(env.contains(&("FORKYARD_SHA".to_string(), "abc1234".to_string())));
         assert!(env.contains(&("FORKYARD_REPO".to_string(), "/home/anna/mein repo".to_string())));
         assert!(!env.iter().any(|(key, _)| key == "FORKYARD_REMOTE"), "only what is known");
+    }
+
+    fn windows_line(run: &str) -> String {
+        let mut d = def(Shell, run);
+        d.shell = true;
+        shell_line(&d, &values(), true).unwrap().1.pop().unwrap()
+    }
+
+    #[test]
+    fn powershell_reads_a_placeholder_and_its_neighbours_as_one_string() {
+        // Unquoted, `${env:X}.bak` is member access and `${env:X}[0]` indexing: both yield nothing.
+        // As one expandable string the text next to the reference stays text.
+        assert_eq!(
+            windows_line("copy ${file} ${file}.bak; echo ${input:text}_old ${repo}:x ${sha}[0]"),
+            "copy \"${env:FORKYARD_FILE}\" \"${env:FORKYARD_FILE}.bak\"; echo \"${env:FORKYARD_INPUT_TEXT}_old\" \"${env:FORKYARD_REPO}:x\" \"${env:FORKYARD_SHA}[0]\""
+        );
+        // Text before the reference joins the string; operators and separators stay outside.
+        assert_eq!(windows_line("echo pre_${sha}.x,(${branch})|out"), "echo \"pre_${env:FORKYARD_SHA}.x\",(\"${env:FORKYARD_BRANCH}\")|out");
+        // A named parameter keeps its `-Name:` outside the string.
+        assert_eq!(windows_line("Copy-Item -Destination:${file}.bak"), "Copy-Item -Destination:\"${env:FORKYARD_FILE}.bak\"");
+        // Already inside a string the reference needs no quotes of its own.
+        assert_eq!(windows_line("echo \"x ${file}.bak\" 'y'"), "echo \"x ${env:FORKYARD_FILE}.bak\" 'y'");
+    }
+
+    /// Prints its arguments joined with `|`.
+    const ECHO_ARGS: &str = "& { [Console]::Out.Write(($args -join '|')) } ${file}.bak ${sha}[0] ${input:text}_old ${repo}:x \"q ${branch}.y\"";
+
+    #[test]
+    fn the_powershell_probe_line_is_what_windows_runs() {
+        assert_eq!(
+            windows_line(ECHO_ARGS),
+            "& { [Console]::Out.Write(($args -join '|')) } \"${env:FORKYARD_FILE}.bak\" \"${env:FORKYARD_SHA}[0]\" \"${env:FORKYARD_INPUT_TEXT}_old\" \"${env:FORKYARD_REPO}:x\" \"q ${env:FORKYARD_BRANCH}.y\""
+        );
+    }
+
+    /// Runs the generated line in the real PowerShell and reads the arguments back.
+    #[cfg(windows)]
+    #[test]
+    fn powershell_receives_the_values_with_their_neighbours() {
+        let mut d = def(Shell, ECHO_ARGS);
+        d.shell = true;
+        // ASCII only: powershell.exe writes its output in the console code page.
+        let mut v = values();
+        v.branch = Some("feature/apples+pears".into());
+        v.repo = "C:\\Users\\anna\\my repo".into();
+        let (program, args) = shell_line(&d, &v, true).unwrap();
+        let output = std::process::Command::new(program).args(args).envs(environment(&v)).output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            "docs/read me.md.bak|abc1234[0]|a b; $(touch x)_old|C:\\Users\\anna\\my repo:x|q feature/apples+pears.y"
+        );
     }
 }
