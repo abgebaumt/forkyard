@@ -42,9 +42,10 @@ All notable changes to Forkyard are listed here. The format follows
 - Push several branches and tags at once (“Push with more branches and tags …”), with “All or
   nothing” (`--atomic`) and a result per ref. Forcing a branch always uses `--force-with-lease`.
 - Submodules can be moved to another folder (“Move …”).
-- After checkout, pull, merge, cherry-pick, revert, hard reset and a finished rebase, changed
-  submodules are updated in the background; a failure shows a warning. Can be switched off per
-  project.
+- After checkout (also of a new branch or a pull request), pull, merge, cherry-pick, revert, hard
+  reset, a finished rebase, gitflow finish, bisect steps and undo/redo, changed submodules are
+  updated in the background; a failure shows a warning. A submodule with commits checked out that
+  no branch holds is left alone and named in the warning. Can be switched off per project.
 - Git LFS file locks: the Git LFS dialog lists the repository’s locks with a filter and unlocks
   your own or – after a prompt naming owner and file – other people’s locks. Changed files and the
   file list of a commit show a lock symbol with the owner, a right-click locks or unlocks files,
