@@ -686,7 +686,7 @@ pub struct RepoHost {
 }
 
 /// Finds the remote that belongs to a host: the named one, else `origin`, else the first
-/// recognised one (by name). `None`: no remote belongs to GitHub, GitLab or a connected instance.
+/// recognised one (by name). `None`: no remote belongs to a supported host or a connected instance.
 pub async fn resolve(core: &Core, repo_id: &str, remote: Option<&str>) -> CoreResult<Option<RepoHost>> {
     let (_, accounts) = account_rows(core)?;
     let all = remotes::read_remotes(core, repo_id).await?;
@@ -714,7 +714,7 @@ pub async fn api_for_repo(core: &Core, repo_id: &str, remote: Option<&str>) -> C
     let Some(found) = resolve(core, repo_id, remote).await? else {
         return Err(CoreError::new(
             ErrorCode::HostUnsupported,
-            "None of this repository's remotes is on GitHub, GitLab or a connected self-hosted instance.",
+            "None of this repository's remotes is on a supported host or a connected self-hosted instance.",
         ));
     };
     let Some(account) = &found.detected.account else {

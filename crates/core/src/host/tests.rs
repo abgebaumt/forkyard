@@ -219,9 +219,9 @@ async fn repositories_without_a_supported_hoster_or_account_fail_clearly() {
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), None).await.unwrap(), None);
     let error = cmd::pr_list(&tc, id.clone(), crate::model::PrListState::Open, None, None, None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostUnsupported);
-    // Other hosts are not recognised.
+    // Hosts the app doesn't know are not recognised.
     repo.git(&["remote", "add", "origin", "https://git.example.org/team/demo.git"]);
-    repo.git(&["remote", "add", "azure", "https://dev.azure.com/firma/projekt/_git/demo"]);
+    repo.git(&["remote", "add", "azure", "https://code.example.net/firma/projekt/_git/demo"]);
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), None).await.unwrap(), None);
     assert_eq!(cmd::issue_list(&tc, id.clone(), crate::model::IssueListState::Open, None, None, None, None).await.unwrap_err().code, ErrorCode::HostUnsupported);
     // github.com without an account: recognised but not connected – and no network call.
@@ -345,4 +345,26 @@ async fn hosts_without_issue_creation_refuse_it_before_any_request() {
     assert!(error.message.contains("GitHub") && error.message.contains("creating issues"), "{}", error.message);
     assert!(fx.server.requests().is_empty());
     assert!(!cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities.issue_create);
+}
+
+#[tokio::test]
+async fn the_new_public_services_are_recognised_without_an_account() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    repo.git(&["remote", "add", "origin", "git@ssh.dev.azure.com:v3/firma/Mein%20Projekt/app"]);
+    repo.git(&["remote", "add", "bb", "git@bitbucket.org:team/demo.git"]);
+    repo.git(&["remote", "add", "cb", "https://codeberg.org/lena/notizen.git"]);
+    let id = tc.open(&repo).await.repo.id;
+    let azure = cmd::host_repo_info(&tc, id.clone(), None).await.unwrap().unwrap();
+    assert_eq!(
+        (azure.kind, azure.owner.as_str(), azure.name.as_str(), azure.web_url.as_str()),
+        (HostKind::AzureDevops, "Mein Projekt", "app", "https://dev.azure.com/firma/Mein%20Projekt/_git/app")
+    );
+    assert!(azure.capabilities.issue_create && azure.account.is_none());
+    let error = cmd::pr_list(&tc, id.clone(), crate::model::PrListState::Open, None, None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotConnected);
+    assert!(error.message.contains("https://dev.azure.com/firma"), "{}", error.message);
+    assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("bb".into())).await.unwrap().unwrap().kind, HostKind::Bitbucket);
+    assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("cb".into())).await.unwrap().unwrap().web_url, "https://codeberg.org/lena/notizen");
+    assert!(tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")), "no API call without an account");
 }

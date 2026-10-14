@@ -1,9 +1,11 @@
 //! Recognises from a remote's URL which host a repository lives on.
 //!
 //! Understood are `https://…`, `http://…`, `ssh://…`, `git://…` and the scp form
-//! (`git@host:path`). Recognised are github.com and gitlab.com as well as self-hosted instances
+//! (`git@host:path`). Recognised are the public services (github.com, gitlab.com, codeberg.org,
+//! bitbucket.org, Azure DevOps with its own HTTPS and SSH forms) as well as self-hosted instances
 //! for which an account with a matching address is connected. All other hosts count as not recognised.
 
+use super::azure::AZURE_WEB;
 use super::{host, RepoPath};
 use crate::db::hoster_accounts::HosterAccountRow;
 use crate::error::{CoreError, CoreResult};
@@ -158,11 +160,13 @@ fn base_parts(web_base: &str) -> Option<(String, Option<u16>, String)> {
     Some((host.to_ascii_lowercase(), port.filter(|p| *p != default_port), prefix.trim_matches('/').to_string()))
 }
 
-/// Names under which the public services additionally offer SSH (port 443).
+/// Names under which the public services additionally offer SSH (port 443) or their web UI.
 fn canonical_host(host: &str) -> &str {
     match host {
         "ssh.github.com" | "www.github.com" => "github.com",
         "altssh.gitlab.com" | "www.gitlab.com" => "gitlab.com",
+        "altssh.bitbucket.org" | "www.bitbucket.org" => "bitbucket.org",
+        "www.codeberg.org" => "codeberg.org",
         other => other,
     }
 }
@@ -189,6 +193,26 @@ fn path_under(web_base: &str, location: &RemoteLocation) -> Option<String> {
         None if location.web_scheme.is_none() => Some(location.path.clone()),
         None => None,
     }
+}
+
+/// Azure DevOps keeps the organization in the address and has its own SSH forms:
+/// `https://dev.azure.com/<org>/<project>/_git/<repo>`,
+/// `https://<org>.visualstudio.com/[DefaultCollection/]<project>/_git/<repo>`,
+/// `git@ssh.dev.azure.com:v3/<org>/<project>/<repo>`, `<org>@vs-ssh.visualstudio.com:v3/<org>/<project>/<repo>`.
+/// Returns the organization's web address and the repository (project = owner).
+fn azure_remote(location: &RemoteLocation) -> Option<(String, RepoPath)> {
+    let segments: Vec<String> = location.path.split('/').map(percent_decode).collect();
+    let parts: Vec<&str> = segments.iter().map(String::as_str).collect();
+    let (org, project, name): (&str, &str, &str) = match (location.host.as_str(), parts.as_slice()) {
+        ("dev.azure.com", [org, project, "_git", name]) => (*org, *project, *name),
+        ("ssh.dev.azure.com" | "vs-ssh.visualstudio.com", ["v3", org, project, name]) => (*org, *project, *name),
+        (host, [project, "_git", name] | ["DefaultCollection", project, "_git", name]) => (host.strip_suffix(".visualstudio.com")?, *project, *name),
+        _ => return None,
+    };
+    if [org, project, name].iter().any(|part| part.is_empty()) {
+        return None;
+    }
+    Some((format!("{AZURE_WEB}/{}", org.to_ascii_lowercase()), RepoPath { owner: project.to_string(), name: name.to_string() }))
 }
 
 /// A repository recognised on a host.
@@ -219,6 +243,11 @@ pub fn detect(url: &str, accounts: &[HosterAccountRow]) -> Option<Detected> {
                 return Some(Detected { kind: account.kind, account: Some(account.clone()), web_base: account.base_url.clone(), owner: repo.owner, name: repo.name });
             }
         }
+    }
+    // Azure DevOps: the organization comes from the address; an account for it is attached.
+    if let Some((web_base, repo)) = azure_remote(&location) {
+        let account = accounts.iter().find(|a| a.kind == HostKind::AzureDevops && a.base_url.eq_ignore_ascii_case(&web_base)).cloned();
+        return Some(Detected { kind: HostKind::AzureDevops, account, web_base, owner: repo.owner, name: repo.name });
     }
     for kind in HostKind::ALL.iter().copied() {
         let Some(web_base) = host(kind).public_web() else { continue };
@@ -286,8 +315,7 @@ mod tests {
         assert_eq!((lab.kind, lab.owner.as_str(), lab.name.as_str()), (HostKind::Gitlab, "gruppe/unter", "projekt"));
         // Other hosts and self-hosted instances without an account: not recognised.
         for url in [
-            "git@ssh.dev.azure.com:v3/firma/projekt/repo",
-            "https://dev.azure.com/firma/projekt/_git/repo",
+            "https://code.example.net/firma/projekt/_git/repo",
             "https://gitlab.firma.example/gruppe/projekt.git",
             "https://github.firma.example/octo/demo.git",
             "https://git.example.org/team/projekt.git",
@@ -296,6 +324,46 @@ mod tests {
             "https://github.com/octo",
             // A different port is a different service.
             "https://github.com:8443/octo/demo.git",
+        ] {
+            assert_eq!(detect(url, &[]), None, "{url}");
+        }
+    }
+
+    #[test]
+    fn the_new_public_services_are_detected_in_every_form() {
+        let cases = [
+            ("https://codeberg.org/forgejo/forgejo.git", HostKind::Gitea, "https://codeberg.org", "forgejo", "forgejo"),
+            ("git@codeberg.org:lena/notizen.git", HostKind::Gitea, "https://codeberg.org", "lena", "notizen"),
+            ("https://lena@bitbucket.org/team/projekt.git", HostKind::Bitbucket, "https://bitbucket.org", "team", "projekt"),
+            ("git@bitbucket.org:team/projekt.git", HostKind::Bitbucket, "https://bitbucket.org", "team", "projekt"),
+            ("ssh://git@altssh.bitbucket.org:443/team/projekt.git", HostKind::Bitbucket, "https://bitbucket.org", "team", "projekt"),
+            ("https://firma@dev.azure.com/firma/Mein%20Projekt/_git/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "Mein Projekt", "app"),
+            ("git@ssh.dev.azure.com:v3/Firma/projekt/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
+            ("https://firma.visualstudio.com/projekt/_git/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
+            ("https://firma.visualstudio.com/DefaultCollection/projekt/_git/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
+            ("firma@vs-ssh.visualstudio.com:v3/firma/projekt/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
+        ];
+        for (url, kind, web, owner, name) in cases {
+            let found = detect(url, &[]).unwrap_or_else(|| panic!("{url}"));
+            assert_eq!((found.kind, found.web_base.as_str(), found.owner.as_str(), found.name.as_str(), found.account.is_none()), (kind, web, owner, name, true), "{url}");
+        }
+        assert_eq!(detect("git@ssh.dev.azure.com:v3/firma/projekt/app", &[]).unwrap().web_url(), "https://dev.azure.com/firma/projekt/_git/app");
+        assert_eq!(detect("https://dev.azure.com/firma/Mein%20Projekt/_git/app", &[]).unwrap().web_url(), "https://dev.azure.com/firma/Mein%20Projekt/_git/app");
+        // With an account for the organization every form finds it; another organization doesn't.
+        let accounts = [account(HostKind::AzureDevops, "https://dev.azure.com/firma"), account(HostKind::Gitea, "https://git.firma.example")];
+        for url in ["git@ssh.dev.azure.com:v3/firma/projekt/app", "https://dev.azure.com/firma/projekt/_git/app", "https://firma.visualstudio.com/projekt/_git/app"] {
+            assert_eq!(detect(url, &accounts).unwrap().account.map(|a| a.base_url), Some("https://dev.azure.com/firma".to_string()), "{url}");
+        }
+        assert!(detect("git@ssh.dev.azure.com:v3/andere/projekt/app", &accounts).unwrap().account.is_none());
+        assert_eq!(detect("git@git.firma.example:team/app.git", &accounts).unwrap().kind, HostKind::Gitea);
+        // Not repositories: too short, too deep, the wrong form.
+        for url in [
+            "https://bitbucket.org/team",
+            "https://bitbucket.org/team/projekt/src",
+            "https://dev.azure.com/firma/projekt",
+            "https://dev.azure.com/firma/projekt/app",
+            "git@ssh.dev.azure.com:v2/firma/projekt/app",
+            "https://codeberg.org/a/b/c",
         ] {
             assert_eq!(detect(url, &[]), None, "{url}");
         }
