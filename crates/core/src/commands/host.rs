@@ -3,7 +3,7 @@
 //!
 //! All commands with `repo_id` recognise the host from the URL of a remote (`remote`: name of the
 //! remote; if not given `origin`, otherwise the first one recognised). Error codes: `host_unsupported`
-//! (no remote on GitHub/GitLab), `host_not_connected` (no account), `host_auth_failed`,
+//! (no remote on a supported host), `host_not_connected` (no account), `host_auth_failed`,
 //! `host_rate_limited`, `host_not_found`, `host_rejected`, plus `offline` and `timeout`.
 
 use std::path::Path;
@@ -12,7 +12,7 @@ use crate::app::Core;
 use crate::commands::branches;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::host::{self, github, gitlab, RepoApi, DEFAULT_PER_PAGE};
+use crate::host::{self, NewPr, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
 use crate::model::{
     HostComment, HostInfoError, HostKind, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, PrDetails, PrListState, PrMergeMethod, PrPage,
     PrSummary, RepoChange, Status,
@@ -28,6 +28,10 @@ fn per_page(value: Option<u32>) -> u32 {
 
 fn page(value: Option<u32>) -> u32 {
     value.unwrap_or(1).max(1)
+}
+
+fn paging(page_number: Option<u32>, per_page_count: Option<u32>) -> Paging {
+    Paging { page: page(page_number), per_page: per_page(per_page_count) }
 }
 
 // ---------------------------------------------------------------------------
@@ -65,6 +69,7 @@ pub async fn host_repo_info(core: &Core, repo_id: String, remote: Option<String>
         return Ok(None);
     };
     let detected = found.detected;
+    let hoster = host::host(detected.kind);
     let mut info = HostRepoInfo {
         remote: found.remote,
         kind: detected.kind,
@@ -75,6 +80,7 @@ pub async fn host_repo_info(core: &Core, repo_id: String, remote: Option<String>
         default_branch: None,
         can_push: None,
         fork_parent: None,
+        capabilities: hoster.capabilities(),
         error: None,
     };
     let Some(account) = &detected.account else {
@@ -84,17 +90,17 @@ pub async fn host_repo_info(core: &Core, repo_id: String, remote: Option<String>
     let facts = async {
         let mut api = host::api_for_account(core, account).await?;
         api.repo_id = Some(repo_id.clone());
-        match detected.kind {
-            HostKind::Github => github::repo_facts(core, &api, &repo).await.map(|f| (f.default_branch, f.can_push, f.fork_parent)),
-            HostKind::Gitlab => gitlab::repo_facts(core, &api, &repo).await.map(|f| (f.default_branch, f.can_push, f.fork_parent)),
-        }
+        hoster.repo_facts(core, &api, &repo).await
     }
     .await;
     match facts {
-        Ok((default_branch, can_push, fork_parent)) => {
-            info.default_branch = default_branch;
-            info.can_push = can_push;
-            info.fork_parent = fork_parent;
+        Ok(facts) => {
+            info.default_branch = facts.default_branch;
+            info.can_push = facts.can_push;
+            info.fork_parent = facts.fork_parent;
+            if facts.has_issues == Some(false) {
+                info.capabilities.issues = false;
+            }
         }
         Err(e) => info.error = Some(HostInfoError { code: e.code, message: e.message }),
     }
@@ -113,19 +119,12 @@ pub async fn host_repo_info(core: &Core, repo_id: String, remote: Option<String>
 /// (GitHub does not know "merged" as a filter – pages there may come out shorter.)
 pub async fn pr_list(core: &Core, repo_id: String, state: PrListState, page_number: Option<u32>, per_page_count: Option<u32>, remote: Option<String>) -> CoreResult<PrPage> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let (page, per_page) = (page(page_number), per_page(per_page_count));
-    match api.kind {
-        HostKind::Github => github::pr_list(core, &api, &repo, state, page, per_page).await,
-        HostKind::Gitlab => gitlab::pr_list(core, &api, &repo, state, page, per_page).await,
-    }
+    host::host(api.kind).pr_list(core, &api, &repo, state, paging(page_number, per_page_count)).await
 }
 
 pub async fn pr_get(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<PrDetails> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    match api.kind {
-        HostKind::Github => github::pr_get(core, &api, &repo, number).await,
-        HostKind::Gitlab => gitlab::pr_get(core, &api, &repo, number).await,
-    }
+    host::host(api.kind).pr_get(core, &api, &repo, number).await
 }
 
 fn clean_names(values: Option<Vec<String>>) -> Vec<String> {
@@ -174,11 +173,8 @@ pub async fn pr_create(
     }
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     let (reviewers, labels) = (clean_names(reviewers), clean_names(labels));
-    let new = host::NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
-    match api.kind {
-        HostKind::Github => github::pr_create(core, &api, &repo, new).await,
-        HostKind::Gitlab => gitlab::pr_create(core, &api, &repo, new).await,
-    }
+    let new = NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
+    host::host(api.kind).pr_create(core, &api, &repo, new).await
 }
 
 /// Changes only what is given (`None` = stays). `reviewers` and `labels` replace the list.
@@ -200,11 +196,8 @@ pub async fn pr_update(
     let reviewers = reviewers.map(|r| clean_names(Some(r)));
     let labels = labels.map(|l| clean_names(Some(l)));
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let change = host::PrChange { title: title.as_deref(), body: body.as_deref(), target_branch: target, draft, reviewers: reviewers.as_deref(), labels: labels.as_deref() };
-    match api.kind {
-        HostKind::Github => github::pr_update(core, &api, &repo, number, change).await,
-        HostKind::Gitlab => gitlab::pr_update(core, &api, &repo, number, change).await,
-    }
+    let change = PrChange { title: title.as_deref(), body: body.as_deref(), target_branch: target, draft, reviewers: reviewers.as_deref(), labels: labels.as_deref() };
+    host::host(api.kind).pr_update(core, &api, &repo, number, change).await
 }
 
 /// General comment (Markdown) on a pull request.
@@ -213,27 +206,18 @@ pub async fn pr_comment(core: &Core, repo_id: String, number: u64, body: String,
         return Err(CoreError::new(ErrorCode::EmptyMessage, "The comment must not be empty."));
     }
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    match api.kind {
-        HostKind::Github => github::comment_create(core, &api, &repo, number, &body).await,
-        HostKind::Gitlab => gitlab::comment_create(core, &api, &repo, number, &body).await,
-    }
+    host::host(api.kind).pr_comment(core, &api, &repo, number, &body).await
 }
 
 /// Merges at the host. Nothing changes locally – fetch afterwards.
 pub async fn pr_merge(core: &Core, repo_id: String, number: u64, method: PrMergeMethod, delete_branch: bool, remote: Option<String>) -> CoreResult<PrSummary> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    match api.kind {
-        HostKind::Github => github::pr_merge(core, &api, &repo, number, method, delete_branch).await,
-        HostKind::Gitlab => gitlab::pr_merge(core, &api, &repo, number, method, delete_branch).await,
-    }
+    host::host(api.kind).pr_merge(core, &api, &repo, number, method, delete_branch).await
 }
 
 async fn set_open(core: &Core, repo_id: &str, number: u64, remote: Option<&str>, open: bool) -> CoreResult<PrSummary> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, repo_id, remote).await?;
-    match api.kind {
-        HostKind::Github => github::pr_set_open(core, &api, &repo, number, open).await,
-        HostKind::Gitlab => gitlab::pr_set_open(core, &api, &repo, number, open).await,
-    }
+    host::host(api.kind).pr_set_open(core, &api, &repo, number, open).await
 }
 
 pub async fn pr_close(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<PrSummary> {
@@ -265,21 +249,29 @@ async fn current_branch(core: &Core, repo_id: &str) -> CoreResult<Option<String>
 /// if the local branch has its own commits that the pull request does not contain (any more).
 pub async fn pr_checkout(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<Status> {
     let RepoApi { api, repo, remote } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let (head, pr_ref, fork_branch) = match api.kind {
-        HostKind::Github => (github::pr_head(core, &api, &repo, number).await?, github::pr_ref(number), format!("pr-{number}")),
-        HostKind::Gitlab => (gitlab::pr_head(core, &api, &repo, number).await?, gitlab::pr_ref(number), format!("mr-{number}")),
-    };
-    let word = host::pr_word(api.kind);
+    let hoster = host::host(api.kind);
+    let head = hoster.pr_head(core, &api, &repo, number).await?;
+    let word = hoster.pr_word();
     let same_repo = !head.is_fork && !head.source_branch.is_empty();
-    let local = if same_repo { head.source_branch.clone() } else { fork_branch };
+    // From a fork the branch only comes through the ref the host offers for the pull request.
+    let fork_ref = if same_repo {
+        None
+    } else {
+        Some(hoster.pr_ref(number).ok_or_else(|| {
+            CoreError::new(
+                ErrorCode::HostUnsupported,
+                format!("{} offers no branch for {word}s from forks. Add the fork as a remote and check out its branch from there.", hoster.label()),
+            )
+        })?)
+    };
+    let local = if same_repo { head.source_branch.clone() } else { hoster.fork_branch(number) };
     util::check_ref_name(&local).map_err(|reason| CoreError::invalid_name(format!("The {word} branch can't be created here: {reason}")))?;
     // Same repository: fetch as a remote branch so the upstream is right. Fork: into a
     // separate ref of the app that disappears again at the end (an auto-fetch could
     // overwrite FETCH_HEAD in the meantime).
-    let (source, newest) = if same_repo {
-        (format!("refs/heads/{}", head.source_branch), format!("refs/remotes/{remote}/{}", head.source_branch))
-    } else {
-        (pr_ref, format!("refs/forkyard/pull/{number}"))
+    let (source, newest) = match fork_ref {
+        None => (format!("refs/heads/{}", head.source_branch), format!("refs/remotes/{remote}/{}", head.source_branch)),
+        Some(reference) => (reference, format!("refs/forkyard/pull/{number}")),
     };
     let refspec = format!("+{source}:{newest}");
     let fetched = {
@@ -382,12 +374,14 @@ fn template_in(dir: &Path) -> Option<String> {
 }
 
 /// Text of the pull request template from the working directory, if the repository
-/// ships one: `.github/`, `.gitlab/`, the root directory or `docs/` – each with
+/// ships one: `.github/`, `.gitlab/` (and the folders of the other hosts, see `host::template_folders`),
+/// the root directory or `docs/` – each with
 /// `pull_request_template.md` or a folder of templates (`PULL_REQUEST_TEMPLATE/`,
 /// `merge_request_templates/`; from it `Default.md`, otherwise the first). No network call.
 pub async fn pr_template(core: &Core, repo_id: String) -> CoreResult<Option<String>> {
     let root = core.repo_path(&repo_id)?;
-    let found = tokio::task::spawn_blocking(move || [".github", ".gitlab", "", "docs"].iter().find_map(|folder| template_in(&root.join(folder)))).await;
+    let folders = host::template_folders();
+    let found = tokio::task::spawn_blocking(move || folders.iter().find_map(|folder| template_in(&root.join(folder)))).await;
     found.map_err(|e| CoreError::unknown(format!("The search for the template was aborted: {e}")))
 }
 
@@ -406,17 +400,10 @@ pub async fn issue_list(
     remote: Option<String>,
 ) -> CoreResult<IssuePage> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let (page, per_page) = (page(page_number), per_page(per_page_count));
-    match api.kind {
-        HostKind::Github => github::issue_list(core, &api, &repo, state, query.as_deref(), page, per_page).await,
-        HostKind::Gitlab => gitlab::issue_list(core, &api, &repo, state, query.as_deref(), page, per_page).await,
-    }
+    host::host(api.kind).issue_list(core, &api, &repo, state, query.as_deref(), paging(page_number, per_page_count)).await
 }
 
 pub async fn issue_get(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<IssueDetails> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    match api.kind {
-        HostKind::Github => github::issue_get(core, &api, &repo, number).await,
-        HostKind::Gitlab => gitlab::issue_get(core, &api, &repo, number).await,
-    }
+    host::host(api.kind).issue_get(core, &api, &repo, number).await
 }

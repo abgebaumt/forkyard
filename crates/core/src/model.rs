@@ -2407,6 +2407,8 @@ pub struct HostRepoInfo {
     pub default_branch: Option<String>,
     pub can_push: Option<bool>,
     pub fork_parent: Option<HostRepoRef>,
+    /// What this host offers for the repository (`issues` reflects a tracker switched off in the repository).
+    pub capabilities: HostCapabilities,
     /// Set when there is an account but the host did not answer or refused.
     pub error: Option<HostInfoError>,
 }

@@ -256,3 +256,29 @@ fn every_kind_has_exactly_its_host_with_its_capabilities() {
     }
     assert_eq!(shape["mergeMethods"], serde_json::json!(["merge", "squash"]));
 }
+
+#[test]
+fn the_commands_only_talk_to_hosts_through_the_trait() {
+    let source = include_str!("../commands/host.rs");
+    for direct in ["github::", "gitlab::", "HostKind::"] {
+        assert!(!source.contains(direct), "commands/host.rs calls {direct} directly instead of the Host trait");
+    }
+}
+
+#[tokio::test]
+async fn repo_info_names_what_the_host_can_do() {
+    let fx = Fixture::new(HostKind::Gitlab).await;
+    let info = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap();
+    assert_eq!(info.capabilities, crate::host::host(HostKind::Gitlab).capabilities());
+    let shape = serde_json::to_value(&info).unwrap();
+    assert_eq!(shape["capabilities"]["mergeMethods"], serde_json::json!(["merge", "squash"]));
+    assert_eq!(shape["capabilities"]["draftToggle"], serde_json::json!(true));
+    // Without an account the capabilities are there as well: they come from the host, not from a call.
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    repo.git(&["remote", "add", "origin", "git@github.com:octo/demo.git"]);
+    let id = tc.open(&repo).await.repo.id;
+    let hub = cmd::host_repo_info(&tc, id, None).await.unwrap().unwrap();
+    assert_eq!(hub.capabilities.merge_methods.len(), 3);
+    assert!(hub.account.is_none());
+}

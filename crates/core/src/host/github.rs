@@ -440,11 +440,6 @@ pub async fn pr_set_open(core: &Core, api: &Api, repo: &RepoPath, number: u64, o
     Ok(pr_summary(&value))
 }
 
-/// Ref under which GitHub offers the head of a pull request.
-pub fn pr_ref(number: u64) -> String {
-    format!("refs/pull/{number}/head")
-}
-
 // ---------------------------------------------------------------------------
 // Issues
 // ---------------------------------------------------------------------------
@@ -563,7 +558,7 @@ impl Host for GithubHost {
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
-        Some(pr_ref(number))
+        Some(format!("refs/pull/{number}/head"))
     }
     fn template_folders(&self) -> &'static [&'static str] {
         &[".github"]

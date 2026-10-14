@@ -399,11 +399,6 @@ pub async fn pr_set_open(core: &Core, api: &Api, repo: &RepoPath, number: u64, o
     Ok(mr_summary(&value))
 }
 
-/// Ref under which GitLab offers the head of a merge request.
-pub fn pr_ref(number: u64) -> String {
-    format!("refs/merge-requests/{number}/head")
-}
-
 // ---------------------------------------------------------------------------
 // Issues
 // ---------------------------------------------------------------------------
@@ -495,7 +490,7 @@ impl Host for GitlabHost {
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
-        Some(pr_ref(number))
+        Some(format!("refs/merge-requests/{number}/head"))
     }
     fn fork_branch(&self, number: u64) -> String {
         format!("mr-{number}")

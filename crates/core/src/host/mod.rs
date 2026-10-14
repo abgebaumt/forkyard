@@ -52,11 +52,6 @@ pub fn label(kind: HostKind) -> &'static str {
     host(kind).label()
 }
 
-/// What the host calls a "pull request".
-pub fn pr_word(kind: HostKind) -> &'static str {
-    host(kind).pr_word()
-}
-
 // ---------------------------------------------------------------------------
 // JSON helpers
 // ---------------------------------------------------------------------------
@@ -273,6 +268,8 @@ pub struct Api {
     pub web_base: String,
     pub api_base: String,
     token: String,
+    /// User name for Basic authentication (only hosts with `needs_username`).
+    pub(crate) username: Option<String>,
     /// For assigning the log entries.
     pub repo_id: Option<String>,
     /// The account last carried an error; a success clears it.
@@ -285,8 +282,9 @@ impl Api {
             kind,
             account_id: account_id.to_string(),
             web_base: web_base.to_string(),
-            api_base: detect::api_base(kind, web_base),
+            api_base: host(kind).api_base(web_base),
             token,
+            username: None,
             repo_id: None,
             had_error: false,
         }
@@ -309,14 +307,14 @@ impl Api {
     }
 
     fn request(&self, method: Method, path: &str) -> CoreResult<Request> {
+        let hoster = host(self.kind);
         let mut request = Request::new(method, self.url(path)?, self.label())
-            .secret_header("authorization", format!("Bearer {}", self.token), &self.token)
+            .secret_header("authorization", hoster.authorization(&self.token, self.username.as_deref()), &self.token)
             .alias(self.web_base.clone())
             .repo(self.repo_id.as_deref());
-        request = match self.kind {
-            HostKind::Github => request.header("accept", "application/vnd.github+json").header("x-github-api-version", "2022-11-28"),
-            HostKind::Gitlab => request.header("accept", "application/json"),
-        };
+        for (name, value) in hoster.request_headers() {
+            request = request.header(name, *value);
+        }
         Ok(request)
     }
 
@@ -525,10 +523,7 @@ fn check_token(token: &str) -> CoreResult<String> {
 }
 
 async fn facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
-    match api.kind {
-        HostKind::Github => github::account_facts(core, api).await,
-        HostKind::Gitlab => gitlab::account_facts(core, api).await,
-    }
+    host(api.kind).account_facts(core, api).await
 }
 
 /// Checks the token against the API (`/user`), stores it in the keychain and records the
@@ -588,6 +583,7 @@ pub async fn api_for_account(core: &Core, row: &HosterAccountRow) -> CoreResult<
         )
     })?;
     let mut api = Api::new(row.kind, &row.id, &row.base_url, token);
+    api.username = row.username.clone();
     api.had_error = row.last_error.is_some();
     Ok(api)
 }
@@ -662,6 +658,21 @@ pub async fn api_for_repo(core: &Core, repo_id: &str, remote: Option<&str>) -> C
     let mut api = api_for_account(core, account).await?;
     api.repo_id = Some(repo_id.to_string());
     Ok(RepoApi { api, repo: RepoPath { owner: found.detected.owner, name: found.detected.name }, remote: found.remote })
+}
+
+/// Where pull request templates are looked for, in this order: the hosts' own folders, then the
+/// root directory and `docs/`.
+pub fn template_folders() -> Vec<&'static str> {
+    let mut folders: Vec<&'static str> = Vec::new();
+    for kind in HostKind::ALL.iter().copied() {
+        for folder in host(kind).template_folders() {
+            if !folders.contains(folder) {
+                folders.push(folder);
+            }
+        }
+    }
+    folders.extend(["", "docs"]);
+    folders
 }
 
 /// Colour of a label as `#rrggbb` (GitHub returns it without `#`).
