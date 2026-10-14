@@ -320,3 +320,54 @@ async fn invalid_paths_are_rejected_before_git_runs() {
     assert_eq!(lfs_lock(&tc, id.clone(), vec!["a.psd".into()]).await.unwrap_err().code, ErrorCode::Unsupported);
     assert_eq!(lfs_unlock(&tc, id.clone(), vec!["a.psd".into()], false).await.unwrap_err().code, ErrorCode::Unsupported);
 }
+
+fn locks_reported(tc: &TestCore) -> bool {
+    tc.events.named(names::REPO_CHANGED).iter().any(|e| e["what"] == json!(["locks"]))
+}
+
+#[tokio::test]
+async fn a_fetch_refreshes_cached_locks() {
+    let server = LockServer::start();
+    server.seed("plan.psd", "Lena Berg");
+    let (tc, repo, id) = setup(&server.url()).await;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    let _remote = repo.add_remote();
+    assert_eq!(lfs_locks(&tc, id.clone(), None, None).await.unwrap().locks.len(), 1);
+
+    // Manual fetch (no new commits – the locks are refreshed anyway).
+    server.seed("karte.psd", "Lena Berg");
+    tc.events.clear();
+    crate::commands::sync::fetch(&tc, id.clone(), "job-fetch".into(), None, false).await.unwrap();
+    assert!(locks_reported(&tc), "{:?}", tc.events.named(names::REPO_CHANGED));
+    assert_eq!(lfs_locks(&tc, id.clone(), None, None).await.unwrap().locks.len(), 2);
+
+    // Pull.
+    server.seed("drei.psd", "Lena Berg");
+    tc.events.clear();
+    crate::commands::sync::pull(&tc, id.clone(), "job-pull".into(), None).await.unwrap();
+    assert!(locks_reported(&tc));
+    assert_eq!(lfs_locks(&tc, id.clone(), None, None).await.unwrap().locks.len(), 3);
+
+    // Auto-fetch.
+    server.seed("vier.psd", "Lena Berg");
+    tc.events.clear();
+    let outcome = crate::autofetch::run_once(&tc, &id).await;
+    assert!(matches!(outcome, crate::autofetch::FetchOutcome::Fetched { .. }), "{outcome:?}");
+    assert!(locks_reported(&tc));
+    assert_eq!(lfs_locks(&tc, id.clone(), None, None).await.unwrap().locks.len(), 4);
+}
+
+/// Repositories whose locks nobody has looked at: a fetch leaves the LFS server alone.
+#[tokio::test]
+async fn fetch_without_cached_locks_stays_quiet() {
+    let server = LockServer::start();
+    let (tc, repo, id) = setup(&server.url()).await;
+    let _remote = repo.add_remote();
+    tc.events.clear();
+    crate::commands::sync::fetch(&tc, id.clone(), "job-fetch".into(), None, false).await.unwrap();
+    crate::autofetch::run_once(&tc, &id).await;
+    assert!(!locks_reported(&tc), "{:?}", tc.events.named(names::REPO_CHANGED));
+    assert!(server.server.requests().is_empty(), "no request to the LFS server");
+}

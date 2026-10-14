@@ -303,6 +303,15 @@ async fn finish_lock_change(core: &Core, repo_id: &str, paths: &[String], failed
     Ok(LfsLockOutcome { locks: list, failed })
 }
 
+/// After a fetch (manual, pull, auto-fetch): the locks may have changed at the server, too. Only
+/// repositories whose locks were read before are touched – their list goes stale and the UI hears
+/// `repo:changed` with `locks`; others get no LFS request.
+pub(crate) fn locks_after_fetch(core: &Core, repo_id: &str) {
+    if core.state::<locks::LockCache>().mark_stale(repo_id) {
+        core.emit_repo_changed(repo_id, &[RepoChange::Locks]);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

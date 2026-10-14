@@ -302,6 +302,7 @@ async fn try_fetch(core: &Core, repo_id: &str, stop: &CancelToken) -> CoreResult
                 record(core, &entry(Some(0), clean_progress(&out.stderr), None));
                 core.emit_repo_changed(repo_id, &[RepoChange::Refs]);
             }
+            crate::commands::lfs::locks_after_fetch(core, repo_id);
             return Ok(FetchOutcome::Fetched { refs_changed });
         }
         Ok(out) => {

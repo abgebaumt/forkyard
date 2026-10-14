@@ -216,6 +216,9 @@ pub(crate) async fn fetch_with_job(core: &Core, repo_id: &str, job: &Job, remote
     if !unchanged && !never_started {
         core.emit_repo_changed(repo_id, &[RepoChange::Refs]);
     }
+    if result.is_ok() {
+        crate::commands::lfs::locks_after_fetch(core, repo_id);
+    }
     result
 }
 
@@ -227,6 +230,7 @@ pub async fn fetch_background(core: &Core, repo_id: &str, prune: bool, cancel: &
     if result.updated_refs > 0 || result.pruned_refs > 0 {
         core.emit_repo_changed(repo_id, &[RepoChange::Refs]);
     }
+    crate::commands::lfs::locks_after_fetch(core, repo_id);
     Ok(result)
 }
 
@@ -283,6 +287,9 @@ pub(crate) async fn pull_with_job(core: &Core, repo_id: &str, job: &Job, mode: O
         // After the fetch the remote branches may have changed, even if the rest fails.
         Err(_) if fetched => core.emit_repo_changed(repo_id, &PULL_CHANGES),
         Err(_) => {}
+    }
+    if fetched {
+        crate::commands::lfs::locks_after_fetch(core, repo_id);
     }
     result
 }
