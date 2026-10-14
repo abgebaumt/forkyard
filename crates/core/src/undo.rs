@@ -406,7 +406,7 @@ fn copy_index(git_dir: &Path) -> Option<TempIndex> {
         return None;
     }
     let index = TempIndex::new(git_dir);
-    std::fs::copy(&real_index, &index.0).ok().map(|_| index)
+    util::copy_index_file(&real_index, &index.0).ok().map(|_| index)
 }
 
 async fn tree_from(core: &Core, repo_id: &str, git_dir: &Path, copy: Option<TempIndex>, paths: Option<&[String]>) -> CoreResult<String> {

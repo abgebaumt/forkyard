@@ -450,7 +450,7 @@ impl Backup {
         // re-read changed files instead of the whole working directory.
         let real_index = status::git_dir(core, repo_id).await?.join("index");
         if real_index.is_file() {
-            tokio::fs::copy(&real_index, temp.path()).await?;
+            util::copy_index_file(&real_index, temp.path())?;
         }
         let on_temp = |args: &[&str]| -> CoreResult<GitCmd> { Ok(quiet(core, repo_id)?.env("GIT_INDEX_FILE", temp.path()).args(args)) };
         let reset: &[&str] = if head_sha.is_some() { &["read-tree", "--reset", "HEAD"] } else { &["read-tree", "--empty"] };

@@ -158,7 +158,7 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             let temp = TempIndex::create(core)?;
             let real = status::git_dir(core, repo_id).await?.join("index");
             if real.is_file() {
-                tokio::fs::copy(&real, temp.path()).await?;
+                util::copy_index_file(&real, temp.path())?;
             }
             let mut add = git(core, repo_id)?.no_log().env("GIT_INDEX_FILE", temp.path()).args(["add", "-N", "--"]);
             add = if wanted.is_empty() { add.arg(".") } else { add.args(&wanted) };

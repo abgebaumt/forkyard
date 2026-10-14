@@ -1280,3 +1280,29 @@ fn labels_and_actions() {
     assert!(head_matches("ABCDEF1", &Head::Detached { sha: "abcdef1".into() }));
     assert!(!head_matches("refs/heads/main", &Head::Detached { sha: "abcdef1".into() }));
 }
+// --- Racy index ---------------------------------------------------------------
+
+/// A file rewritten with the same size in the same timestamp tick as the index: Git compares
+/// such "racily clean" entries by content because the index is not older than them. The backup
+/// works on a copy of the index – the copy must keep that property, or the backup silently takes
+/// the old content (seen as a flaky partial-stash undo under load).
+#[tokio::test]
+async fn snapshot_takes_content_of_racily_clean_files() {
+    use std::time::{Duration, SystemTime};
+    let fx = Fx::new().await;
+    fx.repo.git(&["config", "core.trustctime", "false"]);
+    fx.repo.commit_file("f.txt", "a\nb\n", "f");
+    let when = SystemTime::now() - Duration::from_secs(3600);
+    let touch = |rel: &str| std::fs::File::options().write(true).open(fx.repo.path().join(rel)).unwrap().set_modified(when).unwrap();
+    touch("f.txt");
+    fx.repo.git(&["update-index", "-q", "--refresh"]);
+    // Same size, same mtime as the index entry, and the index itself from the same tick.
+    fx.repo.write_file("f.txt", "A\nB\n");
+    touch("f.txt");
+    touch(".git/index");
+
+    let (snapshot, _) = u::snapshot_worktree(&fx.tc, &fx.id, None).await.unwrap();
+    assert_eq!(fx.repo.git(&["show", &format!("{snapshot}:f.txt")]), "A\nB");
+    let (snapshot, _) = u::snapshot_worktree(&fx.tc, &fx.id, Some(&["f.txt".to_string()])).await.unwrap();
+    assert_eq!(fx.repo.git(&["show", &format!("{snapshot}:f.txt")]), "A\nB");
+}

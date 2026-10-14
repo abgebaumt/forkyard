@@ -980,7 +980,7 @@ async fn snapshot_into(core: &Core, repo_id: &str, dir: &Path, temp: &Path, head
     // timestamps and only has to re-read what changed. The result of `add -A` is the same.
     let real = dir.join("index");
     if real.is_file() {
-        std::fs::copy(&real, temp)?;
+        util::copy_index_file(&real, temp)?;
     } else {
         with_index(core.git_for(repo_id)?).args(["read-tree", head]).run().await?;
     }

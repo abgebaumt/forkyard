@@ -382,9 +382,31 @@ pub fn dev_env(name: &str) -> Option<OsString> {
     std::env::var_os(name).filter(|value| !value.is_empty())
 }
 
+/// Copies the index to `to` for use as `GIT_INDEX_FILE` and keeps its modification time. Git
+/// compares entries by content that are not older than the index file ("racily clean"); a copy
+/// with a fresh timestamp would hide a same-size rewrite within that tick and take the old content.
+pub fn copy_index_file(from: &Path, to: &Path) -> std::io::Result<()> {
+    std::fs::copy(from, to)?;
+    let modified = std::fs::metadata(from)?.modified()?;
+    std::fs::File::options().write(true).open(to)?.set_modified(modified)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_index_copy_keeps_the_timestamp_of_the_real_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let real = dir.path().join("index");
+        std::fs::write(&real, b"DIRC").unwrap();
+        let when = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+        std::fs::File::options().write(true).open(&real).unwrap().set_modified(when).unwrap();
+        let copy = dir.path().join("copy");
+        copy_index_file(&real, &copy).unwrap();
+        assert_eq!(std::fs::read(&copy).unwrap(), b"DIRC");
+        assert_eq!(std::fs::metadata(&copy).unwrap().modified().unwrap(), when);
+    }
 
     /// Years beyond 9999 in the notation that `new Date()` understands.
     #[test]
