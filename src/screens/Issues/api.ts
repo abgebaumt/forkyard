@@ -139,4 +139,10 @@ export const issueApi = {
     if (!details) throw new CoreError({ code: "unknown", message: t("issues.unexpected"), gitOutput: null });
     return details;
   },
+  /** Creates a work item (Azure DevOps); other hosts answer `host_unsupported`. */
+  create: async (repoId: Id, title: string, body: string): Promise<IssueSummary> => {
+    const created = toIssueSummary(await core.issueCreate({ repoId, title, body }));
+    if (!created) throw new CoreError({ code: "unknown", message: t("issues.unexpected"), gitOutput: null });
+    return created;
+  },
 };

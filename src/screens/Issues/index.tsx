@@ -9,7 +9,7 @@
  * Jira and Trello are not integrated.
  */
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { CircleDot, ExternalLink, Inbox, MousePointerClick, RefreshCw, Search, SearchX, TriangleAlert, X } from "lucide-react";
+import { CircleDot, ExternalLink, Inbox, MousePointerClick, Plus, RefreshCw, Search, SearchX, TriangleAlert, X } from "lucide-react";
 import type { Id } from "../../core";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
 import { describeHostError, hostKindLabels } from "../../app/actions/hostTypes";
@@ -24,6 +24,7 @@ import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
 import type { IssueListState, IssueSummary } from "./api";
 import { issuesWebUrl, openIssues, refreshIssues, useIssueFilter, useIssueFilters } from "./actions";
+import { openCreateIssueDialog } from "./CreateDialog";
 import { IssueDetailsPane } from "./Details";
 import { describeIssue, isAssignedTo, issueSecondary, listStateLabels, localizeTimes } from "./model";
 import { Blank, HostProblem, Labels, NoHost, NotConnected, StateIcon } from "./parts";
@@ -334,6 +335,19 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
         <span className="flex-1" />
         {showControls ? (
           <>
+            {repo?.capabilities.issueCreate ? (
+              <IconButton
+                size="sm"
+                label={t("issues.create.open")}
+                data-action="issues-create"
+                icon={<Plus className="size-icon" aria-hidden />}
+                onClick={() =>
+                  void openCreateIssueDialog(repoId, where ?? "").then((created) => {
+                    if (created) openIssues(tabId, created.number);
+                  })
+                }
+              />
+            ) : null}
             <IconButton
               size="sm"
               label={t("issues.view.reload")}

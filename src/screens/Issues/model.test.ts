@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toIssueDetails, toIssueSummary } from "./api";
-import { isAssignedTo, issueBranchName, localizeTimes, matchesIssue, retryTime, slugify } from "./model";
+import { checkIssueTitle, isAssignedTo, issueBranchName, localizeTimes, matchesIssue, retryTime, slugify } from "./model";
 
 describe("branch name from an issue", () => {
   it("number, then the title in lower case with hyphens", () => {
@@ -96,5 +96,16 @@ describe("reading and filtering issues", () => {
     expect(retryTime(`ab ${tomorrow.toISOString()}`, now)).toBe("October 12 at 12:05 AM");
     expect(retryTime("Das Kontingent ist aufgebraucht.")).toBeNull();
     expect(localizeTimes("ohne Zeitpunkt")).toBe("ohne Zeitpunkt");
+  });
+});
+
+describe("new work item", () => {
+  it("the title must be one non-empty line of at most 255 characters", () => {
+    expect(checkIssueTitle("Anmeldung bricht ab")).toBeNull();
+    expect(checkIssueTitle(` ${"x".repeat(255)} `)).toBeNull();
+    expect(checkIssueTitle("")).not.toBeNull();
+    expect(checkIssueTitle("   ")).not.toBeNull();
+    expect(checkIssueTitle("zwei\nZeilen")).not.toBeNull();
+    expect(checkIssueTitle("x".repeat(256))).not.toBeNull();
   });
 });

@@ -125,5 +125,20 @@
     "listLabel": "Offene Issues",
     "stale": "Nicht aktuell – {{reason}}",
     "firstN": "Die ersten {{count}} – alle in der <view>Issue-Ansicht</view>."
+  },
+  "create": {
+    "open": "Neues Work Item …",
+    "title": "Neues Work Item",
+    "description": "Wird in {{where}} als „Issue“ angelegt – oder als „Bug“, wenn der Prozess des Projekts keinen Typ „Issue“ kennt.",
+    "titleField": "Titel",
+    "body": "Beschreibung",
+    "bodyHint": "Einfacher Text; Zeilenumbrüche bleiben erhalten.",
+    "submit": "Anlegen",
+    "cancel": "Abbrechen",
+    "label": "Work Item anlegen",
+    "done": "Work Item {{key}} angelegt",
+    "empty": "Der Titel darf nicht leer sein.",
+    "singleLine": "Der Titel muss eine einzelne Zeile sein.",
+    "tooLong": "Der Titel darf höchstens 255 Zeichen lang sein."
   }
 }

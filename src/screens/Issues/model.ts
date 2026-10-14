@@ -96,3 +96,12 @@ export function retryTime(message: string, now = new Date()): string | null {
   const iso = message.match(ISO_TIME)?.[0];
   return iso ? localTime(iso, now) : null;
 }
+
+/** Why a title cannot be used for a new work item, or null. Azure DevOps allows 255 characters. */
+export function checkIssueTitle(title: string): string | null {
+  const value = title.trim();
+  if (!value) return t("issues.create.empty");
+  if (/[\r\n]/.test(value)) return t("issues.create.singleLine");
+  if (value.length > 255) return t("issues.create.tooLong");
+  return null;
+}

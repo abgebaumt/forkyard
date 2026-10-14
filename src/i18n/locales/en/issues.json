@@ -125,5 +125,20 @@
     "listLabel": "Open issues",
     "stale": "Not up to date – {{reason}}",
     "firstN": "The first {{count}} – all of them in the <view>issue view</view>."
+  },
+  "create": {
+    "open": "New work item …",
+    "title": "New work item",
+    "description": "Created in {{where}} as an “Issue” – or as a “Bug” if the project's process has no Issue type.",
+    "titleField": "Title",
+    "body": "Description",
+    "bodyHint": "Plain text; line breaks are kept.",
+    "submit": "Create",
+    "cancel": "Cancel",
+    "label": "Create work item",
+    "done": "Work item {{key}} created",
+    "empty": "The title must not be empty.",
+    "singleLine": "The title must be a single line.",
+    "tooLong": "The title can have at most 255 characters."
   }
 }
