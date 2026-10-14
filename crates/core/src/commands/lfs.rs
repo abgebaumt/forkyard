@@ -11,10 +11,13 @@ use serde::Deserialize;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::Job;
-use crate::model::{LfsStatus, RepoChange};
+use crate::model::{LfsLockList, LfsStatus, RepoChange};
 use crate::util;
 
 mod locks;
+
+#[cfg(test)]
+mod lock_tests;
 
 /// For tests: pretend Git LFS is not installed (`core.state::<LfsState>()`).
 #[derive(Default)]
@@ -234,6 +237,23 @@ pub async fn lfs_prune(core: &Core, repo_id: String) -> CoreResult<String> {
         Ok(summary)
     })
     .await
+}
+
+/// LFS file locks of the repository at the LFS server (`git lfs locks --verify`): path, owner,
+/// time and whether it is our own, sorted by path. Served from the cache unless `refresh` is set
+/// or a fetch has marked it stale; `filter` narrows by path or owner. Without Git LFS or on a
+/// server without the locking API → `unsupported`. Only `refresh` may ask for credentials.
+pub async fn lfs_locks(core: &Core, repo_id: String, filter: Option<String>, refresh: Option<bool>) -> CoreResult<LfsLockList> {
+    let repo_id = repo_id.as_str();
+    core.repo_path(repo_id)?;
+    require_installed(core, repo_id).await?;
+    let refresh = refresh.unwrap_or(false);
+    let cached = if refresh { None } else { core.state::<locks::LockCache>().fresh(repo_id) };
+    let list = match cached {
+        Some(list) => list,
+        None => locks::read(core, repo_id, refresh).await?,
+    };
+    Ok(locks::filtered(list, filter.as_deref()))
 }
 
 #[cfg(test)]

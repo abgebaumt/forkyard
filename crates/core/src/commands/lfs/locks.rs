@@ -7,10 +7,12 @@ use std::collections::{HashMap, HashSet};
 use parking_lot::Mutex;
 use serde::Deserialize;
 
+use crate::app::Core;
 use crate::commands::history::normalize_rel_path;
 use crate::error::{CoreError, CoreResult};
-use crate::git::{errors, redact, GitOutput};
+use crate::git::{errors, redact, GitCmd, GitOutput};
 use crate::model::{LfsLock, LfsLockFailure, LfsLockList};
+use crate::util;
 
 /// At most this many paths per call: the command line stays well below the Windows limit.
 pub(super) const MAX_PATHS: usize = 200;
@@ -246,6 +248,47 @@ pub(super) fn check_paths(paths: &[String]) -> CoreResult<Vec<String>> {
         }
     }
     Ok(out)
+}
+
+// ---------------------------------------------------------------------------
+// Reading from the server
+// ---------------------------------------------------------------------------
+
+/// `git lfs locks --verify` plus `extra`. `interactive`: the user asked (manual refresh, after
+/// lock/unlock) – Git may then ask for credentials; in the background never, and without log.
+fn locks_cmd(core: &Core, repo_id: &str, interactive: bool, extra: &[&str]) -> CoreResult<GitCmd> {
+    let cmd = core.git_for(repo_id)?.args(["lfs", "locks", "--verify"]).args(extra).read_only().network();
+    Ok(if interactive { cmd } else { cmd.no_prompt().no_log() })
+}
+
+async fn read_uncached(core: &Core, repo_id: &str, interactive: bool) -> CoreResult<LfsLockList> {
+    let out = locks_cmd(core, repo_id, interactive, &["--json"])?.run_raw().await?;
+    if !out.success() {
+        return Err(read_error(&out));
+    }
+    let locks = parse_verified(&out.stdout)
+        .ok_or_else(|| CoreError::unknown("Git LFS returned a list of locks that cannot be read.").with_git_output(out.stdout_text()))?;
+    if locks.is_empty() {
+        // With `--json`, Git LFS 3.x reports a failed request as an empty list and exit code 0.
+        // The text form fails properly – so an empty list is confirmed once that way.
+        let probe = locks_cmd(core, repo_id, interactive, &["--limit", "1"])?.run_raw().await?;
+        if !probe.success() {
+            return Err(read_error(&probe));
+        }
+    }
+    Ok(LfsLockList { locks, fetched_at: util::now_iso() })
+}
+
+/// Reads the locks from the server and caches them; after an error the cache forgets the
+/// repository, so an old list never hides the problem.
+pub(super) async fn read(core: &Core, repo_id: &str, interactive: bool) -> CoreResult<LfsLockList> {
+    let result = read_uncached(core, repo_id, interactive).await;
+    let cache = core.state::<LockCache>();
+    match &result {
+        Ok(list) => cache.store(repo_id, list.clone()),
+        Err(_) => cache.forget(repo_id),
+    }
+    result
 }
 
 #[cfg(test)]
