@@ -75,7 +75,7 @@ import { openRepositoryAt } from "../actions/repos";
 import { openWorktreeDialog } from "../../screens/Worktrees/Dialog";
 import { markBisect, startBisect } from "../../screens/Bisect/actions";
 import { applyStash, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
-import { fetchAll, pull, push } from "../actions/sync";
+import { fetchAll, pull, push, pushWithMore } from "../actions/sync";
 import { createTag, deleteTag, pushTag } from "../actions/tags";
 import { openDiffTool, openMergeTool } from "../actions/tools";
 import { isPinned, togglePinned } from "../actions/graphView";
@@ -419,6 +419,9 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
       hint: !hasRemote ? undefined : upstream ? (ref.ahead ? t("menus.branch.pushHint", { count: ref.ahead, upstream: clipMiddle(upstream, 24) }) : undefined) : t("menus.branch.createsRemoteBranch"),
       blocked: !hasRemote ? t("menus.noRemote") : upstream && ref.ahead === 0 ? t("menus.nothingToPush") : null,
     }),
+    item(t("pushMany.menuSingle"), ArrowUpFromLine, () => void pushWithMore(repoId, { branch: ref.name }), {
+      blocked: !hasRemote ? t("menus.noRemote") : null,
+    }),
     item(ref.upstream ? t("menus.branch.changeUpstream") : t("menus.branch.setUpstream"), Link, () => void chooseUpstream(repoId, ref.name), {
       hint: ref.upstream ? (ref.upstreamGone ? t("menus.branch.upstreamMissing", { name: clipMiddle(ref.upstream, 24) }) : clipMiddle(ref.upstream, 24)) : undefined,
       blocked: !hasRemote ? t("menus.noRemote") : null,
@@ -486,6 +489,9 @@ export function branchesMenu(ctx: MenuBase & { refs: Ref[] }): MenuEntry[] {
   const skipped = locals.length - deletable.length;
   return tidy([
     item(t("menus.branches.copyNames", { count: ctx.refs.length }), Copy, () => void copyText(ctx.refs.map((ref) => ref.name).join("\n"), t("menus.branches.names", { count: ctx.refs.length }))),
+    item(t("pushMany.menu", { count: locals.length }), ArrowUpFromLine, () => void pushWithMore(repoId, { branch: locals[0]!.name, preselected: locals.slice(1).map((ref) => ref.fullName) }), {
+      blocked: locals.length < 2 ? t("pushMany.menuNeedsTwo") : null,
+    }),
     SEPARATOR,
     item(t("menus.branches.delete", { count: deletable.length }), Trash2, () => void deleteBranches(repoId, deletable.map((ref) => ref.name)), {
       danger: true,

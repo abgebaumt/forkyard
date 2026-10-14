@@ -1,0 +1,39 @@
+{
+  "title": "{{branch}} und mehr pushen",
+  "description": "Weitere Branches und Tags gehen im selben Push mit.",
+  "remote": "Remote",
+  "filter": "Filter",
+  "listLabel": "Weitere Branches/Tags hinzufügen",
+  "none": "Nichts passt zum Filter.",
+  "branch": "Branch",
+  "tag": "Tag",
+  "candidate": {
+    "new": "legt den Remote-Branch an",
+    "ahead_one": "{{count}} Commit nach {{upstream}}",
+    "ahead_other": "{{count}} Commits nach {{upstream}}"
+  },
+  "atomic": "Alles oder nichts",
+  "atomicHint": "Wird ein Ref abgelehnt, ändert sich auf dem Remote keiner (git push --atomic).",
+  "submit_one": "{{count}} Ref pushen",
+  "submit_other": "{{count}} Refs pushen",
+  "job_one": "Push ({{count}} Ref)",
+  "job_other": "Push ({{count}} Refs)",
+  "done_one": "{{count}} Ref gepusht",
+  "done_other": "{{count}} Refs gepusht",
+  "noBranch": "Erst einen Branch auschecken",
+  "result": {
+    "title": "Ergebnis des Push pro Ref",
+    "ok": "gepusht",
+    "forced": "gepusht (erzwungen)",
+    "upToDate": "schon aktuell",
+    "rejected": "abgelehnt: {{reason}}"
+  },
+  "command": {
+    "title": "Push mit weiteren Branches und Tags …",
+    "keywords": "push, atomar, mehrere, tags, branches"
+  },
+  "menu_one": "{{count}} Branch gemeinsam pushen …",
+  "menu_other": "{{count}} Branches gemeinsam pushen …",
+  "menuNeedsTwo": "mindestens zwei lokale Branches auswählen",
+  "menuSingle": "Push mit weiteren Branches und Tags …"
+}

@@ -2,7 +2,7 @@ import { locale, t } from "../../i18n";
 import { core, type Id, type PullMode, type PushResult, type Remote, type Settings } from "../../core";
 import { toast } from "../../ui/Feedback";
 import { askPushTarget } from "../actionDialogs";
-import { choose, confirm } from "../dialogs";
+import { choose, confirm, showOutput } from "../dialogs";
 import { desktopNotify, markManualSync } from "../notify";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction, showError, type ActionResult } from "../run";
@@ -14,6 +14,8 @@ import { cachedRemotes, cachedSettings, cachedStatus, clip, currentBranch, findL
 import { busyKeys } from "./keys";
 import { blockingFiles, reportOpResult } from "./merge";
 import { popStash, stashChanges } from "./stash";
+import { openPushDialog } from "../../screens/PushDialog";
+import { allThrough, resultLines } from "../../screens/PushDialog/model";
 
 export const pullModeLabels: Record<PullMode, string> = {
   ff: t("actions.sync.pullMode.ff"),
@@ -342,4 +344,39 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   }
 
   return finish(result);
+}
+
+/**
+ * “Push …” with further branches and tags: the dialog collects them, one push sends everything
+ * (“all or nothing” by default). Afterwards a toast, and with rejections a list per ref.
+ */
+export async function pushWithMore(repoId: Id, options: { branch?: string | null; preselected?: string[] } = {}): Promise<ActionResult<PushResult> | null> {
+  const status = cachedStatus(repoId);
+  const branch = options.branch ?? (status?.head.kind === "branch" ? status.head.branch : null) ?? currentBranch(repoId);
+  if (!branch) {
+    toast({ tone: "info", title: t("pushMany.noBranch") });
+    return null;
+  }
+  const plan = await openPushDialog(repoId, branch, options.preselected ?? []);
+  if (!plan) return null;
+  const refs = await loadRefs(repoId).catch(() => undefined);
+  const local = refs?.locals.find((ref) => ref.name === branch);
+  const upstreamRemote = local?.upstream ? (refs?.remotes.find((ref) => ref.name === local.upstream)?.remote ?? null) : null;
+  const remote = upstreamRemote === plan.remote ? null : plan.remote;
+  const jobId = newJobId();
+  markManualSync(repoId);
+  const result = await runAction(
+    t("actions.sync.push.label"),
+    withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch: null, force: false, expected: null, extra: plan.extras, atomic: plan.atomic })),
+    { busyKey: busyKeys.push(repoId), quiet: ["no_remote"], job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId } },
+  );
+  afterNetwork(repoId);
+  if (!result.ok) {
+    if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
+    return result;
+  }
+  const lines = resultLines(result.value);
+  if (allThrough(result.value)) toast({ tone: "success", title: t("pushMany.done", { count: lines.length }) });
+  else void showOutput(t("pushMany.result.title"), lines.map((line) => `${line.ref}  ${line.text}`).join("\n"));
+  return result;
 }

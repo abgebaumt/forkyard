@@ -14,7 +14,7 @@ import { cherryPick, compareCommits, copyCommitMessage, resetBranch, revertCommi
 import { fastForward, interactiveRebase, mergeBranch, rebaseOnto } from "../actions/merge";
 import { editRemote, removeRemote } from "../actions/remotes";
 import { applyStash, dropStash, renameStash } from "../actions/stash";
-import { fetchAll, push } from "../actions/sync";
+import { fetchAll, push, pushWithMore } from "../actions/sync";
 import { createTag, deleteTag, pushTag } from "../actions/tags";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { pickFromList } from "../dialogs";
@@ -108,6 +108,14 @@ export const commands: AppCommand[] = [
     keywords: kw("commands.sync.push.force.keywords"),
     when: (ctx) => hasRemote(ctx) && onBranch(ctx),
     run: (ctx) => push(ctx.repoId!, { force: true, tabId: ctx.tabId }),
+  },
+  {
+    id: "sync.push.more",
+    title: t("pushMany.command.title"),
+    group: "Remote",
+    keywords: kw("pushMany.command.keywords"),
+    when: (ctx) => hasRemote(ctx) && onBranch(ctx),
+    run: (ctx) => pushWithMore(ctx.repoId!),
   },
   {
     id: "sync.cancel",

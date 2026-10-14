@@ -1,0 +1,39 @@
+{
+  "title": "Push {{branch}} and more",
+  "description": "Further branches and tags go along in the same push.",
+  "remote": "Remote",
+  "filter": "Filter",
+  "listLabel": "Add more branches/tags",
+  "none": "Nothing matches the filter.",
+  "branch": "Branch",
+  "tag": "Tag",
+  "candidate": {
+    "new": "creates the remote branch",
+    "ahead_one": "{{count}} commit to {{upstream}}",
+    "ahead_other": "{{count}} commits to {{upstream}}"
+  },
+  "atomic": "All or nothing",
+  "atomicHint": "If one ref is rejected, none is updated on the remote (git push --atomic).",
+  "submit_one": "Push {{count}} ref",
+  "submit_other": "Push {{count}} refs",
+  "job_one": "Push ({{count}} ref)",
+  "job_other": "Push ({{count}} refs)",
+  "done_one": "{{count}} ref pushed",
+  "done_other": "{{count}} refs pushed",
+  "noBranch": "Check out a branch first",
+  "result": {
+    "title": "Push result per ref",
+    "ok": "pushed",
+    "forced": "pushed (forced)",
+    "upToDate": "already up to date",
+    "rejected": "rejected: {{reason}}"
+  },
+  "command": {
+    "title": "Push with more branches and tags …",
+    "keywords": "push, atomic, several, tags, branches"
+  },
+  "menu_one": "Push {{count}} branch together …",
+  "menu_other": "Push {{count}} branches together …",
+  "menuNeedsTwo": "select at least two local branches",
+  "menuSingle": "Push with more branches and tags …"
+}
