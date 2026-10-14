@@ -18,6 +18,7 @@ pub mod history;
 pub mod host;
 pub mod launch;
 pub mod lfs;
+pub mod links;
 pub mod merge;
 pub mod patch;
 pub mod rebase;
