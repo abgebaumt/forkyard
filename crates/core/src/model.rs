@@ -1864,6 +1864,8 @@ pub enum AppChange {
     Workspaces,
     /// Accounts at hosts (`host_accounts`).
     HostAccounts,
+    /// Custom commands: the user's own or the approval of a repository file (`custom_commands_list`).
+    CustomCommands,
 }
 
 /// `repo:changed`
