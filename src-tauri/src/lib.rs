@@ -545,6 +545,7 @@ pub fn run() {
             commands::pr_template,
             commands::issue_list,
             commands::issue_get,
+            commands::issue_create,
             commands::stats_compute
         ])
         .build(context);

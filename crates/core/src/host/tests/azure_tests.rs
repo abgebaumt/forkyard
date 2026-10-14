@@ -215,3 +215,35 @@ async fn pull_requests_are_created_changed_commented_completed_and_abandoned() {
     check_error_modes(&fx, LABEL, "pr_comment", || cmd::pr_comment(&fx.tc, fx.id(), 7, "Text".into(), None)).await;
     fx.assert_token_stays_secret();
 }
+
+#[tokio::test]
+async fn work_items_are_created_as_issue_or_as_bug() {
+    let fx = Fixture::new(KIND).await;
+    assert!(cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities.issue_create);
+    fx.server.clear();
+    let created = cmd::issue_create(&fx.tc, fx.id(), " Neuer Fehler ".into(), "Zeile 1\nZeile 2 <b>".into(), None).await.unwrap();
+    assert_eq!((created.number, created.key.as_str(), created.title.as_str(), created.state), (77, "#77", "Neuer Fehler", IssueState::Open));
+    assert_eq!(created.web_url, format!("{}/firma/projekt/_workitems/edit/77", fx.server.url()));
+    let sent = &fx.sent("POST", "/_apis/wit/workitems/$Issue")[0];
+    assert_eq!(sent.header("content-type"), Some("application/json-patch+json"));
+    assert_eq!(
+        sent.json(),
+        json!([
+            { "op": "add", "path": "/fields/System.Title", "value": "Neuer Fehler" },
+            { "op": "add", "path": "/fields/System.Description", "value": "Zeile 1<br>Zeile 2 &lt;b&gt;" }
+        ]),
+        "plain text becomes escaped HTML"
+    );
+    // A process without the type "Issue" (Scrum): it becomes a "Bug".
+    fx.state.lock().no_issue_type = true;
+    let bug = cmd::issue_create(&fx.tc, fx.id(), "Absturz".into(), String::new(), None).await.unwrap();
+    assert_eq!(bug.labels.first().map(|l| l.name.as_str()), Some("Bug"));
+    assert_eq!(fx.sent("POST", "/_apis/wit/workitems/$Bug").len(), 1);
+    fx.server.clear();
+    for (title, code) in [("  ", ErrorCode::EmptyMessage), ("zwei\nZeilen", ErrorCode::NotAllowed)] {
+        assert_eq!(cmd::issue_create(&fx.tc, fx.id(), title.into(), String::new(), None).await.unwrap_err().code, code, "{title:?}");
+    }
+    assert!(fx.server.requests().is_empty(), "invalid titles never go out");
+    check_error_modes(&fx, LABEL, "issue_create", || cmd::issue_create(&fx.tc, fx.id(), "Titel".into(), String::new(), None)).await;
+    fx.assert_token_stays_secret();
+}

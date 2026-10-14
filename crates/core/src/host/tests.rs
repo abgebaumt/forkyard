@@ -336,3 +336,13 @@ async fn hosts_that_only_need_a_token_ignore_a_user_name() {
     assert!(serde_json::to_value(&account).unwrap()["username"].is_null());
     fx.assert_token_stays_secret();
 }
+
+#[tokio::test]
+async fn hosts_without_issue_creation_refuse_it_before_any_request() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let error = cmd::issue_create(&fx.tc, fx.id(), "Titel".into(), String::new(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported);
+    assert!(error.message.contains("GitHub") && error.message.contains("creating issues"), "{}", error.message);
+    assert!(fx.server.requests().is_empty());
+    assert!(!cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities.issue_create);
+}

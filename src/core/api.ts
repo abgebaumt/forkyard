@@ -55,6 +55,7 @@ import type {
   InitTemplates,
   IssueDetails,
   IssuePage,
+  IssueSummary,
   IssueState,
   LaunchRequest,
   LfsStatus,
@@ -793,6 +794,12 @@ export interface CoreCommands {
   /** Like `prList`. `query` searches title and body (GitHub: via the search API, own limit of 30/min). */
   issueList(input: R & { state: IssueState | "all"; query?: string | null; page?: number | null; perPage?: number | null; remote?: string | null }): Promise<IssuePage>;
   issueGet(input: R & { number: number; remote?: string | null }): Promise<IssueDetails>;
+  /**
+   * Creates an issue – on Azure DevOps a work item (type "Issue", or "Bug" if the project's process
+   * has none). Only where `HostRepoInfo.capabilities.issueCreate`; elsewhere `host_unsupported`.
+   * Errors: `empty_message` (title empty), `not_allowed` (title with line breaks), host errors.
+   */
+  issueCreate(input: R & { title: string; body: string; remote?: string | null }): Promise<IssueSummary>;
 
   // --- Statistics -----------------------------------------------------------------------------
   /**

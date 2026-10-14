@@ -14,7 +14,7 @@ use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::host::{self, NewPr, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
 use crate::model::{
-    HostComment, HostInfoError, HostKind, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, PrDetails, PrListState, PrMergeMethod, PrPage,
+    HostComment, HostInfoError, HostKind, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary, PrDetails, PrListState, PrMergeMethod, PrPage,
     PrSummary, RepoChange, Status,
 };
 use crate::util;
@@ -407,4 +407,13 @@ pub async fn issue_list(
 pub async fn issue_get(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<IssueDetails> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     host::host(api.kind).issue_get(core, &api, &repo, number).await
+}
+
+/// Creates an issue (on Azure DevOps: a work item). Hosts that cannot do this answer
+/// `host_unsupported` before anything is sent. `empty_message` for an empty title, `not_allowed`
+/// for one with line breaks.
+pub async fn issue_create(core: &Core, repo_id: String, title: String, body: String, remote: Option<String>) -> CoreResult<IssueSummary> {
+    let title = check_title(&title)?;
+    let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
+    host::host(api.kind).issue_create(core, &api, &repo, &title, &body).await
 }

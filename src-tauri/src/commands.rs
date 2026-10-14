@@ -1066,6 +1066,11 @@ pub async fn issue_get(core: State<'_, Core>, repo_id: String, number: u64, remo
 }
 
 #[tauri::command]
+pub async fn issue_create(core: State<'_, Core>, repo_id: String, title: String, body: String, remote: Option<String>) -> R<IssueSummary> {
+    c::host::issue_create(&core, repo_id, title, body, remote).await
+}
+
+#[tauri::command]
 pub async fn stats_compute(core: State<'_, Core>, repo_id: String, job_id: String, range: StatsRange) -> R<RepoStats> {
     c::stats::stats_compute(&core, repo_id, job_id, range).await
 }

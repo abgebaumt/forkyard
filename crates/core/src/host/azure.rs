@@ -494,6 +494,35 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
     Ok(IssueDetails { summary: work_item_summary(api, repo, &item), body, comments })
 }
 
+/// Plain text as the HTML Azure keeps descriptions in: escaped, line breaks as `<br>`.
+fn as_html(text: &str) -> String {
+    text.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace("\r\n", "\n").replace('\n', "<br>")
+}
+
+/// "The process has no such work item type" (VS402323).
+fn unknown_type(error: &CoreError) -> bool {
+    matches!(error.code, ErrorCode::HostNotFound | ErrorCode::HostRejected) && error.git_output.as_deref().is_some_and(|detail| detail.contains("VS402323"))
+}
+
+async fn create_as(core: &Core, api: &Api, repo: &RepoPath, kind: &str, patch: &Value) -> CoreResult<Value> {
+    api.send_json_patch(core, &v(&format!("{}/_apis/wit/workitems/${kind}", project_path(repo)), &[]), patch).await?.json()
+}
+
+/// Creates a work item of type "Issue" (Basic, Agile, CMMI); a process without that type (Scrum)
+/// gets a "Bug" instead.
+pub async fn issue_create(core: &Core, api: &Api, repo: &RepoPath, title: &str, body: &str) -> CoreResult<IssueSummary> {
+    let patch = json!([
+        { "op": "add", "path": "/fields/System.Title", "value": title },
+        { "op": "add", "path": "/fields/System.Description", "value": as_html(body) },
+    ]);
+    let created = match create_as(core, api, repo, "Issue", &patch).await {
+        Err(e) if unknown_type(&e) => create_as(core, api, repo, "Bug", &patch).await,
+        other => other,
+    }
+    .map_err(|e| not_found_as(e, missing_project(repo)))?;
+    Ok(work_item_summary(api, repo, &created))
+}
+
 // ---------------------------------------------------------------------------
 // As a `Host`
 // ---------------------------------------------------------------------------
@@ -558,7 +587,7 @@ impl Host for AzureHost {
     fn capabilities(&self) -> HostCapabilities {
         HostCapabilities {
             issues: true,
-            issue_create: false,
+            issue_create: true,
             draft_prs: true,
             draft_toggle: true,
             merge_methods: vec![PrMergeMethod::Merge, PrMergeMethod::Squash, PrMergeMethod::Rebase],
@@ -611,5 +640,8 @@ impl Host for AzureHost {
     }
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
         Box::pin(issue_get(core, api, repo, number))
+    }
+    fn issue_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, title: &'a str, body: &'a str) -> HostFuture<'a, IssueSummary> {
+        Box::pin(issue_create(core, api, repo, title, body))
     }
 }
