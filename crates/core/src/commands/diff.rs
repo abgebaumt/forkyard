@@ -347,7 +347,8 @@ fn unknown_commit(rev: &str, cause: CoreError) -> CoreError {
     err
 }
 
-fn empty_tree(sha: &str) -> &'static str {
+/// The empty tree in the object format of `sha` (SHA-1 or SHA-256).
+pub(crate) fn empty_tree(sha: &str) -> &'static str {
     if sha.len() > 40 {
         EMPTY_TREE_SHA256
     } else {

@@ -141,7 +141,7 @@ fn path_arguments(paths: &Option<Vec<String>>) -> CoreResult<Vec<String>> {
 /// - `commit`: the commit in the format of `git format-patch` (author, date, message; also for `git am`).
 /// - `range`: the difference between two commits or up to the working directory (`to: None`,
 ///   without untracked files).
-/// - `stash`: the stash against the commit it was created on (without its untracked files).
+/// - `stash`: the stash against the commit it was created on, its untracked files as new files.
 ///
 /// `paths: None` = everything. An empty patch (nothing changed) is not an error: `text` is then empty.
 pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, paths: Option<Vec<String>>) -> CoreResult<PatchText> {
@@ -190,15 +190,19 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             cmd.arg("--").args(&wanted).run().await.map_err(|e| unknown_commit(from, e))?
         }
         DiffSource::Stash { index } => {
-            let stash = format!("stash@{{{index}}}");
-            diff(&[])?
-                .arg(format!("{stash}^"))
-                .arg(&stash)
-                .arg("--")
-                .args(&wanted)
-                .run()
-                .await
-                .map_err(|e| CoreError::not_found(format!("There is no stash number {index}.")).with_git_output(e.git_output.unwrap_or_default()))?
+            let missing = |e: CoreError| CoreError::not_found(format!("There is no stash number {index}.")).with_git_output(e.git_output.unwrap_or_default());
+            let parents = git(core, repo_id)?.read_only().no_log().args(["rev-list", "--parents", "-n", "1"]).arg(format!("stash@{{{index}}}")).arg("--").run().await.map_err(missing)?;
+            let shas: Vec<String> = parents.stdout_text().split_whitespace().map(str::to_string).collect();
+            let (Some(stash), Some(base)) = (shas.first(), shas.get(1)) else {
+                return Err(CoreError::not_found(format!("There is no stash number {index}.")));
+            };
+            let mut out = diff(&[])?.arg(base).arg(stash).arg("--").args(&wanted).run().await?;
+            // Untracked files (`--include-untracked`) live in a separate third parent: new files.
+            if let Some(untracked) = shas.get(3) {
+                let new_files = diff(&[])?.arg(crate::commands::diff::empty_tree(stash)).arg(untracked).arg("--").args(&wanted).run().await?;
+                out.stdout.extend_from_slice(&new_files.stdout);
+            }
+            out
         }
     };
     if out.stdout.len() > MAX_PATCH_BYTES {
@@ -466,6 +470,29 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         assert!(only.skipped.is_empty());
         let none = patch_create(&tc, id.clone(), DiffSource::Unstaged, Some(vec![])).await.unwrap();
         assert_eq!((none.text.as_str(), none.skipped.len()), ("", 0));
+    }
+
+    /// A stash with `--include-untracked`: its untracked files (third parent) are part of the
+    /// patch as new files, also when only they are selected.
+    #[tokio::test]
+    async fn stash_patch_includes_the_untracked_files() {
+        let (source, target) = twins();
+        source.write_file("a.txt", "eins\nzwei\ndrei\nvier\n");
+        source.write_file("notizen/neu.txt", "frisch notiert\n");
+        source.git(&["stash", "push", "-q", "--include-untracked", "-m", "mit neuen"]);
+        let (tc, id) = open(&source).await;
+        let target_id = tc.open(&target).await.repo.id;
+
+        let stash = patch_create(&tc, id.clone(), DiffSource::Stash { index: 0 }, None).await.unwrap();
+        assert!(stash.text.contains("+vier") && stash.text.contains("new file mode") && stash.text.contains("+frisch notiert"), "{}", stash.text);
+        patch_apply(&tc, target_id.clone(), stash.text.clone(), false).await.unwrap();
+        assert_eq!(target.read_file("a.txt"), b"eins\nzwei\ndrei\nvier\n");
+        assert_eq!(target.read_file("notizen/neu.txt"), b"frisch notiert\n");
+
+        let only = patch_create(&tc, id.clone(), DiffSource::Stash { index: 0 }, Some(vec!["notizen/neu.txt".into()])).await.unwrap();
+        assert!(only.text.contains("+frisch notiert") && !only.text.contains("+vier"), "{}", only.text);
+        let tracked = patch_create(&tc, id.clone(), DiffSource::Stash { index: 0 }, Some(vec!["a.txt".into()])).await.unwrap();
+        assert!(tracked.text.contains("+vier") && !tracked.text.contains("frisch"), "{}", tracked.text);
     }
 
     #[tokio::test]
