@@ -2,11 +2,9 @@
 //!
 //! Everything runs through `git lfs …`, so only when Git LFS is installed. `lfs_status` says so
 //! (`installed`); otherwise the other commands answer with `unsupported` and an explanation.
-//! The patterns live in the `.gitattributes`; without LFS the core reads them there itself.
+//! The patterns live in the `.gitattributes`; the core reads them there itself (with or without LFS).
 
 use std::sync::atomic::{AtomicBool, Ordering};
-
-use serde::Deserialize;
 
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
@@ -58,24 +56,7 @@ async fn require_installed(core: &Core, repo_id: &str) -> CoreResult<String> {
     installed_version(core, repo_id).await?.ok_or_else(not_installed)
 }
 
-#[derive(Deserialize)]
-struct TrackJson {
-    #[serde(default)]
-    patterns: Vec<TrackedPattern>,
-}
-
-#[derive(Deserialize)]
-struct TrackedPattern {
-    pattern: String,
-    #[serde(default = "yes")]
-    tracked: bool,
-}
-
-fn yes() -> bool {
-    true
-}
-
-/// Patterns with `filter=lfs` from the text of a `.gitattributes` (read without Git LFS).
+/// Patterns with `filter=lfs` from the text of a `.gitattributes`.
 /// A pattern in quotes or with `[[:space:]]` stands for one containing spaces.
 fn patterns_in_attributes(text: &str) -> Vec<String> {
     let mut out = Vec::new();
@@ -102,25 +83,10 @@ fn patterns_in_attributes(text: &str) -> Vec<String> {
     out
 }
 
-async fn patterns(core: &Core, repo_id: &str, installed: bool) -> CoreResult<Vec<String>> {
-    if installed {
-        let out = core.git_for(repo_id)?.args(["lfs", "track", "--json"]).read_only().no_log().run_raw().await?;
-        if out.success() {
-            if let Ok(parsed) = serde_json::from_slice::<TrackJson>(&out.stdout) {
-                let mut list: Vec<String> = Vec::new();
-                for entry in parsed.patterns.into_iter().filter(|p| p.tracked) {
-                    // In the .gitattributes a space is written as "[[:space:]]".
-                    let pattern = entry.pattern.replace("[[:space:]]", " ");
-                    if !list.contains(&pattern) {
-                        list.push(pattern);
-                    }
-                }
-                list.sort();
-                return Ok(list);
-            }
-        }
-    }
-    // Without Git LFS (or with an old version without `--json`): the .gitattributes in the root directory.
+/// The LFS patterns of the root `.gitattributes`. Read by the core itself, never via
+/// `git lfs track`: that command also sets up Git LFS in the repository (hooks, `lfs.*` config),
+/// which a read must not do.
+async fn patterns(core: &Core, repo_id: &str) -> CoreResult<Vec<String>> {
     let root = core.repo_path(repo_id)?;
     let text = match tokio::fs::read(root.join(".gitattributes")).await {
         Ok(bytes) => util::decode_text(&bytes).0,
@@ -133,7 +99,7 @@ async fn patterns(core: &Core, repo_id: &str, installed: bool) -> CoreResult<Vec
 
 async fn status(core: &Core, repo_id: &str) -> CoreResult<LfsStatus> {
     let version = installed_version(core, repo_id).await?;
-    let patterns = patterns(core, repo_id, version.is_some()).await?;
+    let patterns = patterns(core, repo_id).await?;
     Ok(LfsStatus { installed: version.is_some(), version, patterns })
 }
 
@@ -194,7 +160,7 @@ pub async fn lfs_untrack(core: &Core, repo_id: String, pattern: String) -> CoreR
     let pattern = check_pattern(&pattern)?;
     require_installed(core, repo_id).await?;
     core.with_write_lock(repo_id, &[RepoChange::Worktree], async {
-        if !patterns(core, repo_id, true).await?.contains(&pattern) {
+        if !patterns(core, repo_id).await?.contains(&pattern) {
             return Err(CoreError::not_found(format!("The pattern “{pattern}” is not tracked by LFS.")));
         }
         core.git_for(repo_id)?.args(["lfs", "untrack", "--"]).arg(&pattern).run().await?;
@@ -366,6 +332,33 @@ mod tests {
         let done = tc.events.named(names::JOB_DONE);
         assert_eq!((done.len(), done[0]["ok"].as_bool()), (1, Some(false)));
         assert_eq!(lfs_status(&tc, "unbekannt".into()).await.unwrap_err().code, ErrorCode::NotFound);
+    }
+
+    /// Reading the status is a read: it must not set up Git LFS in the repository (no hooks,
+    /// no `lfs.*` config), even though `git lfs track` would do exactly that.
+    #[tokio::test]
+    async fn reading_the_status_leaves_the_repository_untouched() {
+        let (tc, repo, id) = setup().await;
+        if !lfs_available(&tc, &id).await {
+            eprintln!("Git LFS is not installed – test skipped.");
+            return;
+        }
+        let hooks = repo.path().join(".git").join("hooks");
+        let hook_names = || -> Vec<String> {
+            let mut names: Vec<String> = std::fs::read_dir(&hooks)
+                .map(|dir| dir.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| !n.ends_with(".sample")).collect())
+                .unwrap_or_default();
+            names.sort();
+            names
+        };
+        let config_before = repo.git(&["config", "--local", "--list"]);
+        repo.write_file(".gitattributes", "*.psd filter=lfs diff=lfs merge=lfs -text\n\"mit leer/*.bin\" filter=lfs -text\n");
+
+        let status = lfs_status(&tc, id.clone()).await.unwrap();
+        assert!(status.installed);
+        assert_eq!(status.patterns, ["*.psd", "mit leer/*.bin"]);
+        assert!(hook_names().is_empty(), "hooks were installed: {:?}", hook_names());
+        assert_eq!(repo.git(&["config", "--local", "--list"]), config_before);
     }
 
     #[tokio::test]
