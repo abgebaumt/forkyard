@@ -1,12 +1,15 @@
 /**
  * What the statistics view shows while jobs come and go. Answers of a job that is no longer
- * the current one are ignored; a cancelled run falls back to what was shown before. Errors stay
- * in the view (no toast).
+ * the current one are ignored; a cancelled run falls back to what was shown before, or – with
+ * nothing to fall back to – says so in the view until it is started again. Errors stay in the view
+ * (no toast).
  */
 import type { CoreError, RepoStats } from "../../core";
 
 export type StatsState =
   | { kind: "idle" }
+  /** The first run was cancelled: nothing to show, computing again is up to the user. */
+  | { kind: "cancelled" }
   | { kind: "running"; jobId: string; previous: RepoStats | null }
   | { kind: "done"; stats: RepoStats }
   | { kind: "failed"; error: CoreError; previous: RepoStats | null };
@@ -31,6 +34,7 @@ export function shown(state: StatsState): RepoStats | null {
     case "failed":
       return state.previous;
     case "idle":
+    case "cancelled":
       return null;
   }
 }
@@ -45,7 +49,7 @@ export function statsReducer(state: StatsState, event: StatsEvent): StatsState {
       return { kind: "done", stats: event.stats };
     case "failed":
       if (state.kind !== "running" || state.jobId !== event.jobId) return state;
-      if (event.error.code === "cancelled") return state.previous ? { kind: "done", stats: state.previous } : { kind: "idle" };
+      if (event.error.code === "cancelled") return state.previous ? { kind: "done", stats: state.previous } : { kind: "cancelled" };
       return { kind: "failed", error: event.error, previous: state.previous };
   }
 }

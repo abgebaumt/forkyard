@@ -23,6 +23,11 @@
   },
   "failed": "Die Statistik konnte nicht berechnet werden",
   "retry": "Erneut versuchen",
+  "cancelled": {
+    "title": "Statistik nicht berechnet",
+    "body": "Die Berechnung wurde abgebrochen.",
+    "compute": "Statistik berechnen"
+  },
   "empty": {
     "title": "Keine Commits in diesem Zeitraum",
     "body": "Wähle einen längeren Zeitraum oder einen anderen Branch."

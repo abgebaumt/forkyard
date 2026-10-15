@@ -27,8 +27,16 @@ describe("statistics view state", () => {
     expect(failed.kind === "failed" && failed.error.code).toBe("not_found");
     expect(shown(failed)?.commits).toBe(3);
     expect(statsReducer(running, { type: "failed", jobId: "a", error: error("cancelled") })).toEqual({ kind: "done", stats: stats(3) });
-    expect(statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") })).toEqual(idle);
+    expect(statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") })).toEqual({ kind: "cancelled" });
     expect(statsReducer(running, { type: "failed", jobId: "old", error: error("not_found") })).toBe(running);
+  });
+
+  it("a cancelled first run says so, shows nothing and can be started again", () => {
+    const cancelled = statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") });
+    expect(cancelled).toEqual({ kind: "cancelled" });
+    expect(shown(cancelled)).toBeNull();
+    expect(needsRefresh(cancelled, "t2", null), "no automatic restart").toBe(false);
+    expect(statsReducer(cancelled, { type: "start", jobId: "b", keep: true })).toEqual({ kind: "running", jobId: "b", previous: null });
   });
 
   it("a view that comes back shows the remembered result at once while the new run goes", () => {

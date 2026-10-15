@@ -23,6 +23,11 @@
   },
   "failed": "The statistics could not be computed",
   "retry": "Try again",
+  "cancelled": {
+    "title": "Statistics not computed",
+    "body": "The calculation was cancelled.",
+    "compute": "Compute statistics"
+  },
   "empty": {
     "title": "No commits in this period",
     "body": "Choose a longer period or another branch."

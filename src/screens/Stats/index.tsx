@@ -57,6 +57,17 @@ function Card({ id, title, hint, aside, className, children }: { id: string; tit
   );
 }
 
+/** In place of the tiles when the first run was cancelled (status bar): say so and offer to compute again. */
+export function StatsCancelled({ onCompute }: { onCompute: () => void }) {
+  return (
+    <div data-stats-cancelled="">
+      <EmptyState title={t("stats.cancelled.title")} action={<Button onClick={onCompute}>{t("stats.cancelled.compute")}</Button>}>
+        {t("stats.cancelled.body")}
+      </EmptyState>
+    </div>
+  );
+}
+
 export function StatsView({ repoId, tabId }: StatsViewProps) {
   const [preset, setPreset] = useState<StatsPreset>(() => rememberedChoice(tabId).preset);
   const [ref, setRef] = useState(() => rememberedChoice(tabId).ref);
@@ -110,7 +121,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
   return (
     <section
       data-screen="stats"
-      data-stats={running ? "running" : state.kind === "failed" ? "failed" : stats ? "ready" : "idle"}
+      data-stats={running ? "running" : state.kind === "failed" || state.kind === "cancelled" ? state.kind : stats ? "ready" : "idle"}
       aria-label={t("stats.ariaLabel")}
       className="flex h-full min-h-0 flex-col bg-bg"
     >
@@ -155,7 +166,9 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
         </Banner>
       ) : null}
       <div className={cn("min-h-0 flex-1 overflow-auto p-4", running && stats ? "opacity-70" : "")}>
-        {!stats ? null : stats.commits === 0 ? (
+        {state.kind === "cancelled" ? (
+          <StatsCancelled onCompute={recompute} />
+        ) : !stats ? null : stats.commits === 0 ? (
           <EmptyState title={t("stats.empty.title")}>{t("stats.empty.body")}</EmptyState>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
