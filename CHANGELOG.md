@@ -43,6 +43,10 @@ All notable changes to Forkyard are listed here. The format follows
   same step (`--update-refs`); one undo resets all of them.
 - Push several branches and tags at once (“Push with more branches and tags …”), with “All or
   nothing” (`--atomic`) and a result per ref. Forcing a branch always uses `--force-with-lease`.
+- Delete a remote branch on its server: “Delete … on origin …” in the menu of a remote branch (sidebar
+  and graph), “Delete … on remote …” on a local branch with an upstream, and “Delete branch on remote …”
+  in the command palette. The prompt names remote and branch and the local branch that stays; if
+  someone else already deleted it, the app says so and removes the stale remote branch.
 - Submodules can be moved to another folder (“Move …”).
 - After checkout (also of a new branch or a pull request), pull, merge, cherry-pick, revert, hard
   reset, a finished rebase, gitflow finish, bisect steps and undo/redo, changed submodules are

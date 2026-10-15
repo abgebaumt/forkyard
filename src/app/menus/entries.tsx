@@ -79,7 +79,7 @@ import { markBisect, startBisect } from "../../screens/Bisect/actions";
 import { applyStash, applyStashFiles, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
 import { cachedLocks, lockFiles, unlockFiles } from "../actions/lfs";
 import { lockIndex, lockMenuState } from "../../screens/Lfs/locks";
-import { fetchAll, pull, push, pushWithMore } from "../actions/sync";
+import { deleteRemoteBranch, fetchAll, pull, push, pushWithMore } from "../actions/sync";
 import { createTag, deleteTag, pushTag } from "../actions/tags";
 import { openDiffTool, openMergeTool } from "../actions/tools";
 import { isPinned, togglePinned } from "../actions/graphView";
@@ -368,6 +368,8 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
   const busy = operationBlock(repoId);
   const hasRemote = (cachedRemotes(repoId)?.length ?? 1) > 0;
   const upstream = ref.upstream && !ref.upstreamGone ? ref.upstream : null;
+  // The remote branch behind the upstream – only if it is known here (it carries the remote's name).
+  const upstreamRef = upstream ? cachedRefs(repoId)?.remotes.find((candidate) => candidate.name === upstream && candidate.remote) : undefined;
   const flow = gitflowBranch(repoId, ref.name);
 
   const fastForwardBlock = !upstream
@@ -457,7 +459,26 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
       tooltip: t("menus.branch.deleteTip", { name: t("menus.quoted", { name: ref.name }) }),
       blocked: ref.isHead ? t("menus.branch.cannotDeleteHead") : ref.worktreePath ? t("menus.otherWorktree") : null,
     }),
+    upstreamRef
+      ? item(t("menus.branch.deleteUpstream", { name: q(upstreamRef.name) }), Trash2, () => void deleteRemoteBranch(repoId, upstreamRef), {
+          danger: true,
+          tooltip: t("menus.branch.deleteUpstreamTip", { name: t("menus.quoted", { name: upstreamRef.name }), local: t("menus.quoted", { name: ref.name }) }),
+          blocked: busy,
+        })
+      : null,
   ]);
+}
+
+/** "Delete … on <remote>": deletes the remote branch on its server (local branches stay). */
+function deleteOnRemoteEntry(repoId: Id, ref: Ref, busy: string | null): MenuAction | null {
+  const remote = ref.remote;
+  if (!remote) return null;
+  const name = ref.name.startsWith(`${remote}/`) ? ref.name.slice(remote.length + 1) : ref.name;
+  return item(t("menus.remoteBranch.delete", { name: q(name), remote: clipMiddle(remote, 24) }), Trash2, () => void deleteRemoteBranch(repoId, ref), {
+    danger: true,
+    tooltip: t("menus.remoteBranch.deleteTip", { name: t("menus.quoted", { name: ref.name }), remote }),
+    blocked: busy,
+  });
 }
 
 function remoteBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
@@ -481,7 +502,8 @@ function remoteBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     SEPARATOR,
     ...visibilityEntries(repoId, ref),
     ...customCommandEntries(repoId, "branch", { branch: ref.name, remote: ref.remote ?? null }),
-    // "Delete on remote" is missing on purpose: the core has no command for it yet (push --delete).
+    SEPARATOR,
+    deleteOnRemoteEntry(repoId, ref, busy),
   ]);
 }
 

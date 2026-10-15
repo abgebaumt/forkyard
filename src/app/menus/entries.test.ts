@@ -5,10 +5,10 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke }));
 // Menu actions run once the menu has closed (next frame).
 vi.stubGlobal("window", { requestAnimationFrame: (run: (time: number) => void) => run(0), setTimeout: (run: () => void) => run() });
 
-import type { FileChange, Stash } from "../../core";
+import type { FileChange, Ref, RefsSnapshot, Stash, Status } from "../../core";
 import type { MenuAction, MenuEntry } from "../../ui/Menu";
 import { qk, queryClient } from "../queries";
-import { fileMenu } from "./entries";
+import { branchMenu, fileMenu } from "./entries";
 
 const stash: Stash = { index: 0, sha: "a".repeat(40), message: "Halbfertig", branch: "main", baseSha: "c".repeat(40), createdAt: "2026-10-15T08:00:00Z", fileCount: 2 };
 const file = (path: string, status: FileChange["status"]) => ({ path, status }) as unknown as FileChange;
@@ -51,5 +51,66 @@ describe("file menu of a stash", () => {
   it("says that an untracked file comes back untracked", () => {
     const entries = fileMenu({ repoId: "r1", tabId: "t1", files: [file("notizen/neu.txt", "untracked")], source: { kind: "stash", index: 0 } });
     expect(find(entries, "Apply only this file from the stash …")?.hint).toBe("new file from the stash, stays untracked");
+  });
+});
+
+const ref = (partial: Partial<Ref>): Ref => ({
+  name: "",
+  fullName: "",
+  kind: "local",
+  sha: "a".repeat(40),
+  isHead: false,
+  upstream: null,
+  upstreamGone: false,
+  ahead: 0,
+  behind: 0,
+  remote: null,
+  annotation: null,
+  isAnnotated: false,
+  worktreePath: null,
+  ...partial,
+});
+
+describe("deleting a branch on the remote", () => {
+  const remote = ref({ name: "origin/feature/hafen", fullName: "refs/remotes/origin/feature/hafen", kind: "remote", remote: "origin" });
+  const local = ref({ name: "hafen", fullName: "refs/heads/hafen", upstream: "origin/feature/hafen" });
+  const last = (entries: MenuEntry[]) => entries[entries.length - 1] as MenuAction;
+
+  beforeEach(() => {
+    queryClient.clear();
+    queryClient.setQueryData(qk.refs("r1"), { locals: [local], remotes: [remote], tags: [] } as unknown as RefsSnapshot);
+    queryClient.setQueryData(qk.remotes("r1"), [{ name: "origin" }]);
+    queryClient.setQueryData(qk.status("r1"), { operation: null } as unknown as Status);
+  });
+
+  it("is the last entry of a remote branch, in its own group, red", () => {
+    const entries = branchMenu({ repoId: "r1", tabId: "t1", ref: remote });
+    const entry = last(entries);
+    expect(entry.label).toBe("Delete “feature/hafen” on origin …");
+    expect(entry.danger).toBe(true);
+    expect(entry.disabled).toBeFalsy();
+    expect(entries[entries.length - 2]).toEqual({ type: "separator" });
+  });
+
+  it("is blocked while a merge is running, with the reason", () => {
+    queryClient.setQueryData(qk.status("r1"), { operation: { kind: "merge" } } as unknown as Status);
+    const entry = last(branchMenu({ repoId: "r1", tabId: "t1", ref: remote }));
+    expect(entry.label).toBe("Delete “feature/hafen” on origin …");
+    expect(entry.disabled).toBe(true);
+    expect(entry.hint).toMatch(/^finish the running merge first$/);
+  });
+
+  it("a local branch with an upstream offers to delete the upstream on the remote next to delete", () => {
+    const entries = branchMenu({ repoId: "r1", tabId: "t1", ref: local });
+    const labels = entries.flatMap((entry) => ("label" in entry ? [entry.label] : []));
+    expect(labels.slice(-2)).toEqual(["Delete “hafen” …", "Delete “origin/feature/hafen” on remote …"]);
+    expect(find(entries, "Delete “origin/feature/hafen” on remote …")?.danger).toBe(true);
+  });
+
+  it("not for a local branch without upstream or with a gone upstream", () => {
+    for (const plain of [ref({ name: "solo", fullName: "refs/heads/solo" }), ref({ name: "alt", fullName: "refs/heads/alt", upstream: "origin/alt", upstreamGone: true })]) {
+      const labels = branchMenu({ repoId: "r1", tabId: "t1", ref: plain }).flatMap((entry) => ("label" in entry ? [entry.label] : []));
+      expect(labels.some((label) => /on remote/.test(label))).toBe(false);
+    }
   });
 });

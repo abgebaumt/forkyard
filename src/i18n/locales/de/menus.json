@@ -129,6 +129,8 @@
     "createWorktreeHint": "checkt ihn in einem zweiten Ordner aus",
     "delete": "{{name}} löschen …",
     "deleteTip": "{{name}} löschen",
+    "deleteUpstream": "{{name}} auf dem Remote löschen …",
+    "deleteUpstreamTip": "Löscht {{name}} auf dem Server. Der lokale Branch {{local}} bleibt.",
     "cannotDeleteHead": "der ausgecheckte Branch lässt sich nicht löschen",
     "reflog": "Reflog anzeigen"
   },
@@ -137,7 +139,9 @@
     "creates": "legt {{name}} an",
     "switchTip": "Zum lokalen Branch {{name}} wechseln",
     "createTip": "Lokalen Branch {{name}} anlegen, der {{remote}} folgt, und auschecken",
-    "isCheckedOut": "{{name}} ist ausgecheckt"
+    "isCheckedOut": "{{name}} ist ausgecheckt",
+    "delete": "{{name}} auf {{remote}} löschen …",
+    "deleteTip": "Löscht {{name}} auf dem Server, für alle, die {{remote}} nutzen. Lokale Branches bleiben."
   },
   "branches": {
     "copyNames_one": "{{count}} Name kopieren",

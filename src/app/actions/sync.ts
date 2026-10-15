@@ -1,5 +1,5 @@
 import { locale, t } from "../../i18n";
-import { core, type Id, type PullMode, type PushResult, type Remote, type Settings } from "../../core";
+import { core, type Id, type PullMode, type PushResult, type Ref, type Remote, type Settings } from "../../core";
 import { toast } from "../../ui/Feedback";
 import { askPushTarget } from "../actionDialogs";
 import { choose, confirm, showOutput } from "../dialogs";
@@ -10,7 +10,7 @@ import { withFreshStatus } from "../statusCache";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
 import { chooseUpstream } from "./branches";
-import { cachedRemotes, cachedSettings, cachedStatus, clip, currentBranch, findLocalBranch, loadRefs, loadRemotes, loadStatus, short } from "./context";
+import { cachedRefs, cachedRemotes, cachedSettings, cachedStatus, clip, currentBranch, findLocalBranch, loadRefs, loadRemotes, loadStatus, short } from "./context";
 import { busyKeys } from "./keys";
 import { blockingFiles, reportOpResult } from "./merge";
 import { popStash, stashChanges } from "./stash";
@@ -344,6 +344,42 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   }
 
   return finish(result);
+}
+
+/**
+ * Deletes a remote branch on its server (`git push <remote> --delete`) after a danger prompt that
+ * names remote and branch and the local branch that tracks it (it stays). `up_to_date` from the
+ * core means it was already gone there; the core then removed the stale remote branch here.
+ * Errors (protected branch, auth, offline) go through the normal error display.
+ */
+export async function deleteRemoteBranch(repoId: Id, ref: Ref): Promise<ActionResult<PushResult> | null> {
+  const remote = ref.remote;
+  if (!remote) return null;
+  const name = ref.name.startsWith(`${remote}/`) ? ref.name.slice(remote.length + 1) : ref.name;
+  const refs = cachedRefs(repoId) ?? (await loadRefs(repoId).catch(() => undefined));
+  const tracking = refs?.locals.find((local) => local.upstream === ref.name);
+  const ok = await confirm({
+    title: t("actions.sync.deleteRemote.title", { name: clip(name, 40), remote }),
+    body: tracking ? t("actions.sync.deleteRemote.bodyTracked", { remote, local: clip(tracking.name, 40) }) : t("actions.sync.deleteRemote.body", { remote }),
+    confirmLabel: t("actions.sync.deleteRemote.action", { remote: clip(remote, 24) }),
+    danger: true,
+  });
+  if (!ok) return null;
+  const jobId = newJobId();
+  const target = clip(ref.name);
+  const result = await runAction(t("actions.sync.deleteRemote.label"), withFreshStatus(repoId, () => core.branchDeleteRemote({ repoId, jobId, remote, name })), {
+    busyKey: busyKeys.push(repoId),
+    job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: clip(ref.name, 32) }), repoId },
+  });
+  afterNetwork(repoId);
+  if (!result.ok) return result;
+  if (result.value.status === "up_to_date") {
+    toast({ tone: "info", title: t("actions.sync.deleteRemote.gone", { target }), description: t("actions.sync.deleteRemote.goneDescription") });
+  } else {
+    toast({ tone: "success", title: t("actions.sync.deleteRemote.done", { target }) });
+  }
+  void queryClient.invalidateQueries({ queryKey: qk.refs(repoId) });
+  return result;
 }
 
 /**

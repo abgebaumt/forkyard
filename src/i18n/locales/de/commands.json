@@ -47,6 +47,11 @@
       "pick": "Branch löschen",
       "title": "Branch löschen …"
     },
+    "deleteRemote": {
+      "title": "Branch auf dem Remote löschen …",
+      "pick": "Branch auf dem Remote löschen",
+      "keywords": "Remote-Branch, Server, push --delete, origin, entfernen"
+    },
     "fastForward": {
       "keywords": "vorspulen, ff",
       "title": "Fast-forward auf den Upstream"

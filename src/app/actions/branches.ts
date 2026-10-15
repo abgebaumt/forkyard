@@ -375,6 +375,8 @@ export interface PickBranchOptions {
   confirmLabel: string;
   /** Also offer remote branches. */
   remotes?: boolean;
+  /** Offer only remote branches. */
+  remotesOnly?: boolean;
   /** Leave out the checked-out branch. */
   excludeCurrent?: boolean;
 }
@@ -383,7 +385,7 @@ export interface PickBranchOptions {
 export async function pickBranch(repoId: Id, options: PickBranchOptions): Promise<Ref | null> {
   const refs = cachedRefs(repoId) ?? (await loadRefs(repoId).catch(() => undefined));
   if (!refs) return null;
-  const all = [...refs.locals, ...(options.remotes ? refs.remotes : [])].filter((ref) => !(options.excludeCurrent && ref.isHead));
+  const all = [...(options.remotesOnly ? [] : refs.locals), ...(options.remotes || options.remotesOnly ? refs.remotes : [])].filter((ref) => !(options.excludeCurrent && ref.isHead));
   const picked = await pickFromList({
     title: options.title,
     description: options.description,

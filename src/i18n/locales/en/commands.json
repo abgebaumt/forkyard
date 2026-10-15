@@ -47,6 +47,11 @@
       "pick": "Delete branch",
       "title": "Delete branch …"
     },
+    "deleteRemote": {
+      "title": "Delete branch on remote …",
+      "pick": "Delete branch on remote",
+      "keywords": "remote branch, server, push --delete, origin"
+    },
     "fastForward": {
       "keywords": "fast forward, ff",
       "title": "Fast-forward to upstream"

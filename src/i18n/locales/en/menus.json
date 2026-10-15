@@ -129,6 +129,8 @@
     "createWorktreeHint": "checks it out in a second folder",
     "delete": "Delete {{name}} …",
     "deleteTip": "Delete {{name}}",
+    "deleteUpstream": "Delete {{name}} on remote …",
+    "deleteUpstreamTip": "Deletes {{name}} on the server. The local branch {{local}} stays.",
     "cannotDeleteHead": "the checked-out branch can’t be deleted",
     "reflog": "Show reflog"
   },
@@ -137,7 +139,9 @@
     "creates": "creates {{name}}",
     "switchTip": "Switch to local branch {{name}}",
     "createTip": "Create local branch {{name}} that tracks {{remote}}, and check it out",
-    "isCheckedOut": "{{name}} is checked out"
+    "isCheckedOut": "{{name}} is checked out",
+    "delete": "Delete {{name}} on {{remote}} …",
+    "deleteTip": "Deletes {{name}} on the server, for everyone who uses {{remote}}. Local branches stay."
   },
   "branches": {
     "copyNames_one": "Copy {{count}} name",

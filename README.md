@@ -69,7 +69,7 @@ actually happens, and makes the risky parts safe:
 - Interactive rebase: pick, reword, squash, drop and reorder
 - Three-pane conflict tool with an editable result
 - Conflict preview before a merge, rebase, cherry-pick or revert – without touching your files
-- Rebase stacked branches together (`--update-refs`), push several branches and tags at once
+- Rebase stacked branches together (`--update-refs`), push several branches and tags at once, delete branches on the remote
 - Cherry-pick, revert, reset (soft/mixed/hard), stashes with names and per-file apply
 
 **Everything around it**

@@ -14,7 +14,7 @@ import { cherryPick, compareCommits, copyCommitMessage, resetBranch, revertCommi
 import { fastForward, interactiveRebase, mergeBranch, rebaseOnto } from "../actions/merge";
 import { editRemote, removeRemote } from "../actions/remotes";
 import { applyStash, dropStash, renameStash } from "../actions/stash";
-import { fetchAll, push, pushWithMore } from "../actions/sync";
+import { deleteRemoteBranch, fetchAll, push, pushWithMore } from "../actions/sync";
 import { createTag, deleteTag, pushTag } from "../actions/tags";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { pickFromList } from "../dialogs";
@@ -187,6 +187,17 @@ export const commands: AppCommand[] = [
     run: async (ctx) => {
       const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.delete.pick"), description: t("commands.pick.confirmFollows"), confirmLabel: t("commands.pick.next"), excludeCurrent: true });
       if (ref) return deleteBranches(ctx.repoId!, [ref.name]);
+    },
+  },
+  {
+    id: "branch.deleteRemote",
+    title: t("commands.branch.deleteRemote.title"),
+    keywords: kw("commands.branch.deleteRemote.keywords"),
+    group: "Branch",
+    when: (ctx) => hasRemote(ctx) && (refs(ctx)?.remotes.length ?? 1) > 0,
+    run: async (ctx) => {
+      const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.deleteRemote.pick"), description: t("commands.pick.confirmFollows"), confirmLabel: t("commands.pick.next"), remotesOnly: true });
+      if (ref) return deleteRemoteBranch(ctx.repoId!, ref);
     },
   },
   {

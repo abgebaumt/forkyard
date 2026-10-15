@@ -796,6 +796,17 @@
       "pullDescription": "Holt die fehlenden Commits; danach wird noch einmal gepusht.",
       "force": "Push erzwingen …",
       "forceDescription": "Überschreibt den Remote-Branch. Vorher siehst du, welche Commits dort verloren gehen."
+    },
+    "deleteRemote": {
+      "label": "Remote-Branch löschen",
+      "job": "{{target}} auf dem Server löschen",
+      "title": "„{{name}}“ auf {{remote}} löschen?",
+      "body": "Der Branch wird auf dem Server gelöscht – für alle, die {{remote}} nutzen. Commits, zu denen nur dieser Branch führt, lassen sich dort danach nicht mehr holen. Lokale Branches bleiben.",
+      "bodyTracked": "Der Branch wird auf dem Server gelöscht – für alle, die {{remote}} nutzen. Commits, zu denen nur dieser Branch führt, lassen sich dort danach nicht mehr holen. Dein lokaler Branch „{{local}}“ bleibt; sein Upstream ist danach weg.",
+      "action": "Auf {{remote}} löschen",
+      "done": "„{{target}}“ auf dem Server gelöscht",
+      "gone": "„{{target}}“ gab es auf dem Server schon nicht mehr",
+      "goneDescription": "Jemand anderes hat ihn bereits gelöscht. Der veraltete Remote-Branch wurde hier entfernt."
     }
   },
   "tags": {

@@ -796,6 +796,17 @@
       "pullDescription": "Gets the missing commits; then pushes again.",
       "force": "Force push …",
       "forceDescription": "Overwrites the remote branch. You see beforehand which commits are lost there."
+    },
+    "deleteRemote": {
+      "label": "Delete remote branch",
+      "job": "Delete {{target}} on the server",
+      "title": "Delete “{{name}}” on {{remote}}?",
+      "body": "The branch will be deleted on the server – for everyone who uses {{remote}}. Commits that only this branch leads to can no longer be fetched from there. Local branches stay.",
+      "bodyTracked": "The branch will be deleted on the server – for everyone who uses {{remote}}. Commits that only this branch leads to can no longer be fetched from there. Your local branch “{{local}}” stays; afterwards its upstream is gone.",
+      "action": "Delete on {{remote}}",
+      "done": "“{{target}}” deleted on the server",
+      "gone": "“{{target}}” was already gone on the server",
+      "goneDescription": "Someone else deleted it already. The stale remote branch was removed here."
     }
   },
   "tags": {
