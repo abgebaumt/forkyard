@@ -5,7 +5,7 @@
  * every card – activity heatmap, commits over time, records, treemap, hotspots, authors,
  * knowledge per folder and code age – with the numbers of a real temp repository. The expected
  * numbers come from the fixture (what was committed when, by whom) and from git itself
- * (numstat, blame); the core's own result (`stats_compute`) is only a cross-check.
+ * (numstat, blame, `log --follow`); the core's own result (`stats_compute`) is only a cross-check.
  *
  *   node scripts/e2e-wd/features/stats.mjs
  *   E2E_WD_ONLY="recompute" node scripts/e2e-wd/features/stats.mjs
@@ -18,6 +18,7 @@ import {
   authorTotals,
   codeAgeFromBlame,
   dateOf,
+  knowledgeFromGit,
   makeBareStatsRepo,
   makeCrowdStatsRepo,
   makeOldStatsRepo,
@@ -691,9 +692,37 @@ scenario("a running computation is shown and can be cancelled in the status bar"
 // All cards
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Every knowledge row against git (fixtures/stats.mjs `knowledgeFromGit`, the core's definition
+ * implemented independently): bus factor, main author and their share.
+ */
+function checkKnowledge(s, repo) {
+  const truth = knowledgeFromGit(repo);
+  assert(s.knowledge.length > 0 && s.knowledge.length <= 6, `knowledge rows: ${s.knowledge.length}`);
+  for (const row of s.knowledge) {
+    const folder = truth[row.folder];
+    assert(folder, `folder ${row.folder} known to git: ${Object.keys(truth).join(", ")}`);
+    assertEqual(row.bus, folder.bus, `bus factor ${row.folder}`);
+    const main = row.shares[0];
+    assert(main, `shares of ${row.folder}`);
+    assertEqual(main.who.toLowerCase(), folder.main, `main author of ${row.folder}`);
+    assertEqual(Number(/: (\d+)\s?%$/.exec(main.title)?.[1] ?? NaN), folder.mainShare, `main share of ${row.folder} (${main.title})`);
+  }
+}
+
+scenario("knowledge per folder: bus factor, main author and share from git", "main", async (t) => {
+  const repo = makeStatsRepo();
+  const { app } = await openStatsRepo(t, repo);
+  await clickStats(app);
+  const s = await waitStats(app, (x) => commitsHint(x) === repo.expected.commits && x.knowledge.length > 0);
+  checkKnowledge(s, repo);
+  t.step(`knowledge rows: ${s.knowledge.map((row) => `${row.folder} bus ${row.bus}`).join(", ")}`);
+  await t.noConsoleErrors(app);
+});
+
 scenario("all cards show the repository's numbers", "main", async (t) => {
   const repo = makeStatsRepo();
-  const { app, repoId } = await openStatsRepo(t, repo);
+  const { app } = await openStatsRepo(t, repo);
   await clickStats(app);
   const s = await waitStats(app, (x) => commitsHint(x) === repo.expected.commits && x.biggest?.text.includes("·"));
   assertEqual(s.sections, ["heatmap", "time", "records", "treemap", "hotspots", "authors", "knowledge", "age"], "every card, in order");
@@ -722,7 +751,8 @@ scenario("all cards show the repository's numbers", "main", async (t) => {
   assert(!("funk" in kinds), "unmerged branch's folder not counted");
   assertMatch(s.tiles.find((tile) => tile.path === "src").label, /^src\/ – \d+ changes\. Open folder$/, "folder tile label");
 
-  // Hotspots: commits × authors, from git – following renames, like `git log --follow`.
+  // Hotspots: commits × authors, from git – following renames, like `git log --follow`. (--follow
+  // also follows copies; no file of this fixture resembles another, see fixtures `pathLineage`.)
   const gitCommits = (file) => repo.git("log", "--no-merges", "--follow", "--format=%ae", "HEAD", "--", file).split("\n").filter(Boolean);
   const top = gitCommits(repo.expected.topHotspot);
   same(s.hotspots[0], { path: repo.expected.topHotspot, commits: top.length, authors: new Set(top.map((mail) => mail.toLowerCase())).size, severity: s.hotspots[0].severity }, "top hotspot");
@@ -757,14 +787,7 @@ scenario("all cards show the repository's numbers", "main", async (t) => {
     columns: [...document.querySelectorAll(`${selector} [data-stats-knowledge] thead th`)].map((el) => el.textContent.trim()),
   }), VIEW);
   same(knowledgeTexts, { hint: "share of changed lines per person · bus factor", columns: ["Folder", "Share of changed lines per person", "Bus factor"] }, "knowledge card names its weight honestly");
-  const core = await compute(app, repoId, { from: null, to: null, ref: "HEAD" });
-  assert(s.knowledge.length > 0 && s.knowledge.length <= 6, `knowledge rows: ${s.knowledge.length}`);
-  for (const row of s.knowledge) {
-    const folder = core.folders.find((item) => item.path === row.folder);
-    assert(folder, `folder ${row.folder} in the core's result`);
-    assertEqual(row.bus, folder.busFactor, `bus factor ${row.folder}`);
-    assert(row.shares.length > 0, `shares of ${row.folder}`);
-  }
+  checkKnowledge(s, repo);
   const station = s.knowledge.find((row) => row.folder === "src/station");
   if (station) assertEqual(station.label, "src/station/", "folder label");
 
@@ -907,6 +930,8 @@ scenario("many authors and odd file names", "edge", async (t) => {
   assertEqual(s.authors.length, 8, "eight author rows");
   assertEqual(s.moreAuthors, "and 6 more authors", "the rest is counted");
   assertEqual(s.authorsHint, "14 people", "author count");
+  checkKnowledge(s, repo);
+  assert(s.knowledge.some((row) => row.bus > 1), `a folder with a bus factor above 1: ${JSON.stringify(s.knowledge.map((row) => [row.folder, row.bus]))}`);
   assertEqual(s.tiles.map((tile) => tile.path), ["tief"], "one top folder");
   await app.click(`${VIEW} [data-tile="tief"]`);
   await waitStats(app, (x) => x.folder === "tief");

@@ -291,3 +291,65 @@ export function codeAgeFromBlame(repo, rev = "HEAD", reference = Math.floor(Date
   }
   return buckets;
 }
+
+/**
+ * The paths a file at `rev` had before, newest first, from the real renames in the history
+ * (`-M`, a path that disappears and reappears elsewhere in one commit). Not `git log --follow`:
+ * that also follows copies – a new file that merely resembles another one (see the crowd
+ * repository) would inherit its history. Paths are assumed not to be reused after a rename.
+ */
+export function pathLineage(repo, file, rev = "HEAD") {
+  const out = repo.git("-c", "core.quotePath=false", "log", "--no-merges", "-M", "--diff-filter=R", "--name-status", "--format=", rev);
+  const renames = out.split("\n").filter((line) => line.startsWith("R")).map((line) => line.split("\t")).map(([, from, to]) => ({ from, to }));
+  const paths = [file];
+  for (const { from, to } of renames) if (to === paths.at(-1)) paths.push(from);
+  return paths;
+}
+
+/**
+ * Knowledge per folder from git, computed independently of the core with the definition of
+ * crates/core/src/commands/stats/aggregate.rs: every commit (no merges) that changed a file
+ * still present at `rev` – under any of its earlier paths (`pathLineage`) – gives its author
+ * `added + removed` lines of weight for that file, at least 1 (binary files and pure renames).
+ * A file counts towards the repository root ("") and its folders down to depth 2. Per folder:
+ * the main author (largest weight, lower-case address), their share in percent rounded half up,
+ * and the bus factor – the fewest authors who together hold MORE than half of the weight.
+ *
+ * Returns { [folder]: { total, authors, main, mainShare, bus } }.
+ */
+export function knowledgeFromGit(repo, rev = "HEAD") {
+  const files = repo.git("ls-tree", "-r", "--name-only", "-z", rev).split("\0").filter(Boolean);
+  /** folder → author → weight */
+  const folders = new Map();
+  for (const file of files) {
+    const out = repo.git("log", "--no-merges", "-M", "--numstat", "--format=@%ae", rev, "--", ...pathLineage(repo, file, rev));
+    const parts = file.split("/");
+    const keys = [""];
+    for (let depth = 1; depth < Math.min(parts.length, 3); depth += 1) keys.push(parts.slice(0, depth).join("/"));
+    let author = null;
+    for (const line of out.split("\n")) {
+      if (line.startsWith("@")) {
+        author = line.slice(1).toLowerCase();
+        continue;
+      }
+      const match = /^(\d+|-)\t(\d+|-)\t/.exec(line);
+      if (!author || !match) continue;
+      const lines = (match[1] === "-" ? 0 : Number(match[1])) + (match[2] === "-" ? 0 : Number(match[2]));
+      for (const key of keys) {
+        if (!folders.has(key)) folders.set(key, new Map());
+        const weights = folders.get(key);
+        weights.set(author, (weights.get(author) ?? 0) + Math.max(1, lines));
+      }
+    }
+  }
+  const result = {};
+  for (const [folder, weights] of folders) {
+    const ranked = [...weights].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+    const total = ranked.reduce((sum, [, weight]) => sum + weight, 0);
+    let bus = 0;
+    for (let sum = 0; bus < ranked.length && sum * 2 <= total; bus += 1) sum += ranked[bus][1];
+    const [main, top] = ranked[0];
+    result[folder] = { total, authors: ranked.length, main, mainShare: Math.floor((top * 100 + Math.floor(total / 2)) / total), bus };
+  }
+  return result;
+}
