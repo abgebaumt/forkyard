@@ -12,6 +12,8 @@ use crate::util;
 
 /// Git calls appended to a report when it is read.
 const ACTIVITY_ROWS: u32 = 20;
+/// Calls that started this long after the end of a run still count as its own.
+const ACTIVITY_SLACK_MS: i64 = 2_000;
 /// Longest message in the list.
 const SHORT_MESSAGE_CHARS: usize = 200;
 /// Output of one Git call in the report.
@@ -61,11 +63,9 @@ pub async fn crash_report_get(core: &Core, id: String) -> CoreResult<String> {
 
 fn full_text(core: &Core, report: &ReportFile) -> String {
     let mut text = crash::render_report(report);
-    // A little slack: the clock of the activity rows and of the report are the same, but a row
-    // can be written just after the last log line.
-    let until = iso(report.time_ms + 2_000);
+    let (from, until) = activity_window(report);
     let scrub = |s: &str| crash::global().scrub(s);
-    match core.db.with(|c| db::activity::latest_until(c, &until, ACTIVITY_ROWS)) {
+    match core.db.with(|c| db::activity::latest_between(c, &from, &until, ACTIVITY_ROWS)) {
         Ok(rows) => {
             text.push_str(&format!("\nLast Git calls ({}, newest first):\n", rows.len()));
             for row in rows {
@@ -82,6 +82,18 @@ fn full_text(core: &Core, report: &ReportFile) -> String {
         Err(e) => text.push_str(&format!("\nLast Git calls: not available ({})\n", scrub(&e.message))),
     }
     text
+}
+
+/// The Git calls that belong to the run of the report: from its start (if known) to the end of
+/// the run. A little slack after the end: a call can start just after the last log line – but
+/// never past the start of the next run, whose calls are not part of the report.
+fn activity_window(report: &ReportFile) -> (String, String) {
+    let from = report.run_started_ms.map(iso).unwrap_or_default();
+    let mut until = report.time_ms + ACTIVITY_SLACK_MS;
+    if let Some(next) = report.next_run_ms {
+        until = until.min(next - 1).max(report.time_ms);
+    }
+    (from, iso(until))
 }
 
 /// Writes the full text to `path` (absolute, chosen by the user in the save dialog).
@@ -168,6 +180,41 @@ mod tests {
         assert!(!text.contains("hunter2pass") && !text.contains("ghp_AbCdEf"), "{text}");
         let calls = text.split("Last Git calls").nth(1).unwrap();
         assert!(calls.lines().filter(|l| l.starts_with("20")).count() <= 20, "{calls}");
+    }
+
+    /// The Git calls of a report are those of the run that ended: from its start to its last
+    /// log line – not the calls of an earlier run, nor those of the run that found the report.
+    #[tokio::test]
+    async fn the_git_calls_are_those_of_the_run_that_ended() {
+        let tc = TestCore::new().await;
+        let (started, ended) = (1_700_000_000_000_i64, 1_700_000_060_000_i64);
+        for (command, at) in [("git earlier-run", started - 10_000), ("git crashed-run", started + 1_000), ("git current-run", ended + 600)] {
+            tc.db
+                .with(|c| {
+                    crate::db::activity::insert(
+                        c,
+                        &crate::db::activity::NewActivity {
+                            repo_id: None,
+                            description: command.into(),
+                            command: command.into(),
+                            exit_code: Some(0),
+                            duration_ms: 1,
+                            output: String::new(),
+                            started_at: iso(at),
+                            code: None,
+                        },
+                    )
+                })
+                .unwrap();
+        }
+        let mut report = ReportFile::new(ReportKind::UnexpectedExit, ended, "1.0.0", "run-1", "ended".into());
+        report.run_started_ms = Some(started);
+        report.next_run_ms = Some(ended + 500);
+        crash::write_report(tc.data_dir(), &report).unwrap();
+        let text = crash_report_get(&tc, report.id).await.unwrap();
+        let calls = text.split("Last Git calls").nth(1).unwrap();
+        assert!(calls.contains("git crashed-run"), "{calls}");
+        assert!(!calls.contains("git earlier-run") && !calls.contains("git current-run"), "{calls}");
     }
 
     #[tokio::test]

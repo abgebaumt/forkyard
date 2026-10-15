@@ -63,6 +63,10 @@ pub struct ReportFile {
     /// When that run started (reports from before this field: `None`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run_started_ms: Option<i64>,
+    /// `unexpected_exit`: when the run that found the report started – nothing after it belongs
+    /// to the run that ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_run_ms: Option<i64>,
     pub thread: Option<String>,
     pub message: String,
     pub location: Option<String>,
@@ -81,6 +85,7 @@ impl ReportFile {
             arch: std::env::consts::ARCH.to_string(),
             run_id: run_id.to_string(),
             run_started_ms: None,
+            next_run_ms: None,
             thread: None,
             message,
             location: None,
@@ -368,6 +373,7 @@ impl CrashLog {
         );
         let mut report = ReportFile::new(ReportKind::UnexpectedExit, ended_ms, &marker.app_version, &marker.run_id, message);
         report.run_started_ms = Some(marker.started_ms);
+        report.next_run_ms = Some(self.started_ms);
         report.log = lines.iter().map(|line| self.scrub(line)).collect();
         write_report(data_dir, &report).ok()?;
         Some(report.id)

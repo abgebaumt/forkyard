@@ -98,10 +98,12 @@ pub fn page(
     Ok(ActivityPage { entries, next_cursor })
 }
 
-/// The newest `limit` entries of all scopes that started no later than `until` (ISO time).
-pub fn latest_until(conn: &Connection, until: &str, limit: u32) -> CoreResult<Vec<ActivityEntry>> {
-    let mut stmt = conn.prepare(&format!("select {COLUMNS} from activity_log where started_at <= ?1 order by id desc limit ?2"))?;
-    let entries = stmt.query_map(params![until, limit as i64], from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
+/// The newest `limit` entries of all scopes that started between `from` and `until` (ISO
+/// times, both included; `from` empty: no lower bound).
+pub fn latest_between(conn: &Connection, from: &str, until: &str, limit: u32) -> CoreResult<Vec<ActivityEntry>> {
+    let mut stmt =
+        conn.prepare(&format!("select {COLUMNS} from activity_log where started_at >= ?1 and started_at <= ?2 order by id desc limit ?3"))?;
+    let entries = stmt.query_map(params![from, until, limit as i64], from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(entries)
 }
 
