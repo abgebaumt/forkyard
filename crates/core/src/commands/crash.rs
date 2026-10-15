@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::crash::{self, ReportFile};
+use crate::crash::{self, ReportFile, ReportKind};
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::model::CrashReportSummary;
@@ -85,14 +85,17 @@ fn full_text(core: &Core, report: &ReportFile) -> String {
 }
 
 /// The Git calls that belong to the run of the report: from its start (if known) to the end of
-/// the run. A little slack after the end: a call can start just after the last log line – but
-/// never past the start of the next run, whose calls are not part of the report.
+/// the run. An unexpected exit ended some time after its last log line (a run can make Git calls
+/// for minutes without logging), so its window reaches up to the start of the run that found
+/// the report – whose own calls are not part of it. A panic (or an older report without the next
+/// run) ends at its own time, with a little slack for a call that started just after it.
 fn activity_window(report: &ReportFile) -> (String, String) {
     let from = report.run_started_ms.map(iso).unwrap_or_default();
-    let mut until = report.time_ms + ACTIVITY_SLACK_MS;
-    if let Some(next) = report.next_run_ms {
-        until = until.min(next - 1).max(report.time_ms);
-    }
+    let until = match report.next_run_ms {
+        Some(next) if report.kind == ReportKind::UnexpectedExit => (next - 1).max(report.time_ms),
+        Some(next) => (report.time_ms + ACTIVITY_SLACK_MS).min(next - 1).max(report.time_ms),
+        None => report.time_ms + ACTIVITY_SLACK_MS,
+    };
     (from, iso(until))
 }
 
@@ -215,6 +218,41 @@ mod tests {
         let calls = text.split("Last Git calls").nth(1).unwrap();
         assert!(calls.contains("git crashed-run"), "{calls}");
         assert!(!calls.contains("git earlier-run") && !calls.contains("git current-run"), "{calls}");
+    }
+
+    /// A run that logs nothing after its start still made Git calls up to the moment it was
+    /// killed: they all belong to the report, up to the start of the run that found it.
+    #[tokio::test]
+    async fn calls_long_after_the_last_log_line_belong_to_the_ended_run() {
+        let tc = TestCore::new().await;
+        let (started, last_line, next_run) = (1_700_000_000_000_i64, 1_700_000_000_500_i64, 1_700_000_120_000_i64);
+        for (command, at) in [("git fetch-late", last_line + 30_000), ("git next-run", next_run + 10)] {
+            tc.db
+                .with(|c| {
+                    crate::db::activity::insert(
+                        c,
+                        &crate::db::activity::NewActivity {
+                            repo_id: None,
+                            description: command.into(),
+                            command: command.into(),
+                            exit_code: Some(0),
+                            duration_ms: 1,
+                            output: String::new(),
+                            started_at: iso(at),
+                            code: None,
+                        },
+                    )
+                })
+                .unwrap();
+        }
+        let mut report = ReportFile::new(ReportKind::UnexpectedExit, last_line, "1.0.0", "run-1", "ended".into());
+        report.run_started_ms = Some(started);
+        report.next_run_ms = Some(next_run);
+        crash::write_report(tc.data_dir(), &report).unwrap();
+        let text = crash_report_get(&tc, report.id).await.unwrap();
+        let calls = text.split("Last Git calls").nth(1).unwrap();
+        assert!(calls.contains("git fetch-late"), "{calls}");
+        assert!(!calls.contains("git next-run"), "{calls}");
     }
 
     #[tokio::test]
