@@ -3,7 +3,8 @@
  * (counter, new branch, rejected → force with lease), remotes (add, edit, remove, undo), HTTPS
  * credentials (prompt, cancel, wrong password, remember, forget), SSH keys and SSH remotes (real
  * sshd on 127.0.0.1, host key prompt), proxy (CONNECT proxy in this process) and – v1.1 – pushing
- * several branches and tags in one (atomic) push.
+ * several branches and tags in one (atomic) push, and deleting a remote branch on its server from the
+ * sidebar menu.
  *
  * Remotes are local bare repositories, scripts/e2e/git-http-server.mjs (HTTPS with a self-signed
  * certificate) and scripts/e2e/git-ssh-server.mjs. Nothing touches a real service.
@@ -319,6 +320,122 @@ scenario("Abgelehnter Push: erst pullen, dann automatisch erneut pushen", "edge"
     const remoteMain = git(repo.remotePath, "rev-parse", "main");
     assertEqual(remoteMain, repo.git("rev-parse", "HEAD"), "the remote has the local HEAD (git)");
     assertEqual(git(repo.remotePath, "merge-base", "--is-ancestor", remoteSha, "main") === "", true, "the foreign commit is kept");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
+// ---------------------------------------------------------------------------------------------
+// Delete a remote branch on its server
+// ---------------------------------------------------------------------------------------------
+
+const remoteRow = (name) => `[data-row-id="refs/remotes/${name}"]`;
+/** Branch names on the bare remote, read with real `git ls-remote`. */
+const lsRemoteHeads = (remotePath) =>
+  git(remotePath, "ls-remote", "--heads", remotePath)
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.split("\t")[1].replace(/^refs\/heads\//, ""))
+    .sort();
+
+/** Right-click on a sidebar row (real pointer events) and wait for the context menu. */
+async function rowContextMenu(app, css) {
+  const point = await app.waitFor(
+    () =>
+      app.exec((selector) => {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        el.scrollIntoView({ block: "nearest" });
+        const box = el.getBoundingClientRect();
+        return box.width ? { x: Math.round(box.left + Math.min(60, box.width / 2)), y: Math.round(box.top + box.height / 2) } : null;
+      }, css),
+    15_000,
+    { message: `row ${css}` },
+  );
+  const mouse = (actions) => ({ actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions }] });
+  await app.webdriver("POST", "/actions", mouse([{ type: "pointerMove", origin: "viewport", ...point }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }]));
+  await app.webdriver("DELETE", "/actions").catch(() => undefined);
+  await app.waitFor('[role="menu"]', 5000, { message: "context menu open" });
+}
+
+/** Items of the open menu: [{ text, disabled }]. */
+const menuItems = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll('[role="menu"] [role^="menuitem"]')].map((item) => ({
+      text: item.innerText.replace(/\s+/g, " ").trim(),
+      disabled: item.hasAttribute("data-disabled") || item.getAttribute("aria-disabled") === "true",
+    })),
+  );
+
+async function chooseMenu(app, pattern) {
+  const items = await menuItems(app);
+  const index = items.findIndex((item) => pattern.test(item.text));
+  assert(index >= 0, `menu item ${pattern} missing; menu: ${items.map((item) => item.text).join(" | ")}`);
+  assert(!items[index].disabled, `menu item ${pattern} is disabled: ${items[index].text}`);
+  const elements = await app.$$('[role="menu"] [role^="menuitem"]');
+  await elements[index].click();
+}
+
+scenario("Remote-Branch aus der Seitenleiste auf dem Server löschen, lokaler Branch bleibt", "main", async (t) => {
+  const repo = makeCleanRepoWithRemote();
+  try {
+    assertEqual(lsRemoteHeads(repo.remotePath), ["feature/export", "main"], "the fixture has the branch on the remote");
+    const { app, ui } = await start(t);
+    await open(app, ui, repo.path);
+    await rowContextMenu(app, remoteRow("origin/feature/export"));
+    const items = await menuItems(app);
+    const last = items.at(-1);
+    assertEqual(last?.text, "Delete “feature/export” on origin …", `last menu entry (${items.map((item) => item.text).join(" | ")})`);
+    assert(!last.disabled, "the entry is enabled");
+    await t.shot("delete-remote-branch-menu");
+    await chooseMenu(app, /^Delete “feature\/export” on origin/);
+    const confirm = await ui.waitDialog(/^Delete “feature\/export” on origin\?$/);
+    assertIncludes(confirm.text, "for everyone who uses origin", "the prompt says it is deleted on the server for everyone");
+    assertIncludes(confirm.text, "Your local branch “feature/export” stays", "and names the local branch that tracks it");
+    await t.shot("delete-remote-branch-confirm");
+    // Cancel first: nothing happens on the server.
+    await app.press("Escape");
+    await ui.waitNoDialog();
+    assertEqual(lsRemoteHeads(repo.remotePath), ["feature/export", "main"], "after cancelling the branch is still on the remote (git ls-remote)");
+
+    await rowContextMenu(app, remoteRow("origin/feature/export"));
+    await chooseMenu(app, /^Delete “feature\/export” on origin/);
+    await ui.waitDialog(/^Delete “feature\/export” on origin\?$/);
+    await ui.clickDialogButton("Delete on origin");
+    await ui.waitToast(/“origin\/feature\/export” deleted on the server/, "success", 60_000);
+    assertEqual(lsRemoteHeads(repo.remotePath), ["main"], "the branch is gone on the remote (git ls-remote)");
+    assertEqual(repo.git("for-each-ref", "refs/remotes/origin/feature/export"), "", "the remote branch is gone locally too (git)");
+    assertEqual(repo.git("rev-parse", "feature/export"), repo.info.featureHead, "the local branch stays (git)");
+    await app.waitFor(async () => !(await app.$(remoteRow("origin/feature/export"))), 15_000, { message: "the row disappears from the sidebar" });
+    assert(await app.$('[data-row-id="refs/heads/feature/export"]'), "the local branch row stays");
+    assertEqual(await ui.dangerToasts(), [], "no error message");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
+scenario("Remote-Branch löschen, den schon jemand anderes auf dem Server gelöscht hat", "edge", async (t) => {
+  const repo = makeCleanRepoWithRemote();
+  try {
+    const { app, ui } = await start(t);
+    await open(app, ui, repo.path);
+    await app.waitFor(remoteRow("origin/feature/export"), 15_000, { message: "remote branch row" });
+    // Someone else deletes it on the server; here nothing has been fetched since.
+    git(repo.remotePath, "branch", "-D", "feature/export");
+    assertEqual(lsRemoteHeads(repo.remotePath), ["main"], "gone on the server (git ls-remote)");
+    assert(repo.git("for-each-ref", "refs/remotes/origin/feature/export") !== "", "the stale remote branch is still here");
+    await rowContextMenu(app, remoteRow("origin/feature/export"));
+    await chooseMenu(app, /^Delete “feature\/export” on origin/);
+    await ui.waitDialog(/^Delete “feature\/export” on origin\?$/);
+    await ui.clickDialogButton("Delete on origin");
+    const toast = await ui.waitToast(/“origin\/feature\/export” was already gone on the server/, "info", 60_000);
+    assertMatch(toast.text, /stale remote branch was removed here/, "the toast explains the clean-up");
+    assertEqual(repo.git("for-each-ref", "refs/remotes/origin/feature/export"), "", "the stale remote branch is removed (git)");
+    await app.waitFor(async () => !(await app.$(remoteRow("origin/feature/export"))), 15_000, { message: "the stale row disappears" });
+    assertEqual((await ui.seenToasts()).filter((item) => /deleted on the server/.test(item.text)), [], "no claim that it was deleted now");
+    assertEqual(await ui.dangerToasts(), [], "no error message");
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
