@@ -63,3 +63,34 @@ jobs:
           git config --global init.defaultBranch main
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
+
+  e2e-linux:
+    name: E2E smoke (Linux, WebDriver)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install Linux dependencies, Xvfb and WebKitWebDriver
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev libdbus-1-dev \
+            xvfb webkit2gtk-driver
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: e2e-linux
+          cache-on-failure: true
+      - run: cargo install tauri-driver --locked
+      - run: npm ci
+      - run: node scripts/e2e-wd/prepare.mjs
+      - run: node scripts/e2e-wd/run.mjs smoke
+      - name: Show the E2E logs
+        if: failure()
+        run: |
+          tail -n 200 target/e2e-wd/logs/*.log target/e2e-wd/vite.log || true
+          cat target/e2e-wd/results/*.json || true
