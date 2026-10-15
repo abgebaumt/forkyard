@@ -548,6 +548,11 @@ scenario("periods: every range counts the commits of its days", "edge", async (t
   assertEqual(Number(repo.git("log", "--no-merges", "--format=%H", "HEAD").split("\n").filter((sha) => Number(repo.git("log", "-1", "--format=%at", sha)) * 1000 >= Date.parse(since)).length), repo.expected.presets.month, "git agrees on the last 30 days");
   const core = await compute(app, repoId, { from: since, to: null, ref: "HEAD" });
   assertEqual(core.commits, repo.expected.presets.month, "core agrees on the last 30 days");
+  // The rebased commit: committed within the last 30 days, written before – the period is the author time.
+  const [authored, committed] = repo.git("log", "-1", "--format=%at %ct", repo.rebased).split(" ").map((value) => Number(value) * 1000);
+  assert(authored < Date.parse(since) && committed >= Date.parse(since), `fixture: written before, committed within the last 30 days (${new Date(authored).toISOString()}, ${new Date(committed).toISOString()})`);
+  const byCommitTime = repo.git("log", "--no-merges", "--format=%ct", "HEAD").split("\n").filter((value) => Number(value) * 1000 >= Date.parse(since)).length;
+  assertEqual(byCommitTime, repo.expected.presets.month + 1, "by commit time it would be one more");
   await t.noConsoleErrors(app);
 });
 

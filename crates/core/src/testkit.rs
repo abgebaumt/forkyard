@@ -201,10 +201,16 @@ impl TestRepo {
     /// (Git's raw format, e.g. "@1750615200 +0200"); returns the SHA. For tests that need exact
     /// times and several authors (statistics).
     pub fn commit_as(&self, message: &str, name: &str, email: &str, date: &str) -> String {
+        self.commit_as_dates(message, name, email, date, date)
+    }
+
+    /// `commit_as` with different author and committer dates – a commit written at
+    /// `author_date` and rebased or cherry-picked at `committer_date`.
+    pub fn commit_as_dates(&self, message: &str, name: &str, email: &str, author_date: &str, committer_date: &str) -> String {
         self.git(&["add", "-A"]);
         let mut cmd = git_command(&self.root, &self.global_config, &["commit", "-q", "--allow-empty", "-m", message], None);
-        cmd.env("GIT_AUTHOR_NAME", name).env("GIT_AUTHOR_EMAIL", email).env("GIT_AUTHOR_DATE", date);
-        cmd.env("GIT_COMMITTER_NAME", name).env("GIT_COMMITTER_EMAIL", email).env("GIT_COMMITTER_DATE", date);
+        cmd.env("GIT_AUTHOR_NAME", name).env("GIT_AUTHOR_EMAIL", email).env("GIT_AUTHOR_DATE", author_date);
+        cmd.env("GIT_COMMITTER_NAME", name).env("GIT_COMMITTER_EMAIL", email).env("GIT_COMMITTER_DATE", committer_date);
         check(cmd.output().expect("start git"), "commit");
         self.head()
     }

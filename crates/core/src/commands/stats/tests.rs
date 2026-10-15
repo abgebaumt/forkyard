@@ -200,6 +200,30 @@ async fn the_period_filters_by_author_time_and_to_picks_the_tip() {
 }
 
 #[tokio::test]
+async fn a_rebased_commit_counts_by_its_author_time_not_its_commit_time() {
+    // Written long before the period, rebased (committed) inside it – and the other way round
+    // for the next one: written inside, committed later still. The period is the author time.
+    let repo = TestRepo::new();
+    repo.write_file("a.txt", "a\n");
+    repo.commit_as("Alt", ADA.0, ADA.1, "@1748000000 +0000");
+    repo.write_file("b.txt", "b\n");
+    let rebased = repo.commit_as_dates("Umgebaut", BEN.0, BEN.1, "@1748100000 +0000", "@1750200000 +0000");
+    repo.write_file("c.txt", "c\n");
+    let inside = repo.commit_as("Neu", ADA.0, ADA.1, "@1750300000 +0000");
+    assert_eq!(repo.git(&["log", "-1", "--format=%at %ct", &rebased]), "1748100000 1750200000", "author and committer date differ");
+    let (tc, id) = setup(&repo).await;
+
+    let period = run(&tc, &id, range(Some("2025-06-15T00:00:00Z"), None, "HEAD")).await;
+    assert_eq!(period.commits, 1, "the rebased commit was written before the period");
+    assert_eq!(period.authors.iter().map(|a| a.name.as_str()).collect::<Vec<_>>(), ["Ada"]);
+    assert_eq!(period.first_at.as_deref(), Some("2025-06-19T02:26:40.000Z"));
+    assert_eq!(period.records.biggest_commit.map(|big| big.sha), Some(inside));
+
+    let earlier = run(&tc, &id, range(Some("2025-05-24T00:00:00Z"), Some("2025-05-31T00:00:00Z"), "HEAD")).await;
+    assert_eq!(earlier.tip.as_deref(), Some(repo.git(&["rev-parse", "HEAD~2"]).as_str()), "`to` picks the tip by commit time");
+}
+
+#[tokio::test]
 async fn branches_count_their_own_history_and_merges_are_left_out() {
     let repo = TestRepo::with_commit();
     repo.checkout_new("side");

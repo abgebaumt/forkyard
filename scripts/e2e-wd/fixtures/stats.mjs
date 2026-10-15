@@ -63,7 +63,8 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
   fs.writeFileSync(globalConfig, globalGitConfig());
   const repoPath = path.join(root, name);
   fs.mkdirSync(repoPath);
-  let when = { person: PEOPLE.lena, time: stamp(0, 12) };
+  /** Author time and – for a rebased commit – a later committer time (Unix seconds). */
+  let when = { person: PEOPLE.lena, time: stamp(0, 12), committed: null };
   const env = () => ({
     ...process.env,
     ...gitIsolationEnv(globalConfig),
@@ -72,7 +73,7 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
     GIT_COMMITTER_NAME: when.person.name,
     GIT_COMMITTER_EMAIL: when.person.email,
     GIT_AUTHOR_DATE: `${when.time} ${ZONE}`,
-    GIT_COMMITTER_DATE: `${when.time} ${ZONE}`,
+    GIT_COMMITTER_DATE: `${when.committed ?? when.time} ${ZONE}`,
   });
   const git = (...args) => execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 }).toString().replace(/\n$/, "");
   const write = (rel, content) => {
@@ -84,14 +85,22 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
   const read = (rel) => fs.readFileSync(path.join(repoPath, rel), "utf8");
   /** Commits everything as `person` on the day `days` ago at `hour` (local, ZONE). */
   const commit = (person, days, hour, message, minute = 0) => {
-    when = { person, time: stamp(days, hour, minute) };
+    when = { person, time: stamp(days, hour, minute), committed: null };
     git("add", "-A");
     git("commit", "-q", "-m", message);
     return git("rev-parse", "HEAD");
   };
+  /** Like `commit`, written `days` ago at `hour` but committed (rebased) `committedDays` ago at `committedHour`. */
+  const commitRebased = (person, days, hour, committedDays, committedHour, message) => {
+    when = { person, time: stamp(days, hour), committed: stamp(committedDays, committedHour) };
+    git("add", "-A");
+    git("commit", "-q", "-m", message);
+    when = { ...when, committed: null };
+    return git("rev-parse", "HEAD");
+  };
   /** Runs git with the identity and time of the given commit moment. */
   const gitAt = (person, days, hour, ...args) => {
-    when = { person, time: stamp(days, hour) };
+    when = { person, time: stamp(days, hour), committed: null };
     return git(...args);
   };
   git("init", "-q", "-b", "main");
@@ -106,6 +115,7 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
     append,
     read,
     commit,
+    commitRebased,
     head: () => git("rev-parse", "HEAD"),
     cleanup() {
       // removed at process exit: the app may still write into .git (see the branches ledger ruling)
@@ -126,6 +136,7 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
  *   20       10    Aylin         src/station/sensor.rs
  *   15       14    Aylin         docs/benutzerhandbuch.md
  *   10       21    Jonas (Upper-case address)   daten/messwerte.csv (+500, the biggest commit)
+ *   45 (8)   11    Aylin         README.md – written 45 days ago, rebased (committed) 8 days ago at 12:00
  *    5       10    Lena          src/station/export.rs
  *    4  9, 11, 14  Lena          src/station/sensor.rs (three commits)
  *    4       12    Mehmet        src/kalibrierung/tabelle.rs  (branch feature/kalibrierung)
@@ -136,7 +147,7 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
  */
 export function makeStatsRepo(name = "messnetz-statistik") {
   const repo = makeBareStatsRepo(name);
-  const { write, append, commit, git, gitAt } = repo;
+  const { write, append, commit, commitRebased, git, gitAt } = repo;
   /** [person, days, hour] of every counted commit on main. */
   const counted = [];
   const add = (person, days, hour, message, minute = 0) => {
@@ -167,6 +178,10 @@ export function makeStatsRepo(name = "messnetz-statistik") {
   add(PEOPLE.aylin, 15, 14, "Wartung im Handbuch");
   write("daten/messwerte.csv", "zeit;wert\n" + lines("2026-01-01;", 499));
   const biggest = add(PEOPLE.jonasUpper, 10, 21, "Messwerte Januar importieren");
+  // Rebased: the author time is outside the last 30 days, the commit time inside.
+  append("README.md", "Hinweis zur Kalibrierung.\n");
+  counted.push({ person: PEOPLE.aylin, days: 45, hour: 11 });
+  const rebased = commitRebased(PEOPLE.aylin, 45, 11, 8, 12, "Kalibrierhinweis (umgebaut)");
   append("src/station/export.rs", lines("// CSV", 2));
   const branchBase = add(PEOPLE.lena, 5, 10, "Export als CSV");
   append("src/station/sensor.rs", "// Frühmessung\n");
@@ -198,6 +213,7 @@ export function makeStatsRepo(name = "messnetz-statistik") {
     ...repo,
     tip,
     biggest,
+    rebased,
     counted,
     expected: {
       commits: counted.length,
