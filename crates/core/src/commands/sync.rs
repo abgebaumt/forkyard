@@ -1337,6 +1337,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn deleting_a_protected_remote_branch_is_not_allowed() {
+        let f = fixture().await;
+        f.repo.checkout_new("release");
+        f.repo.git(&["push", "-q", "-u", "origin", "release"]);
+        f.repo.checkout("main");
+        // The server refuses deletions (as a protected branch does).
+        f.remote.git(&["config", "receive.denyDeletes", "true"]);
+        let before = f.remote.git(&["rev-parse", "refs/heads/release"]);
+        f.tc.events.clear();
+
+        let err = branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), "origin".into(), "release".into()).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
+        assert!(err.message.contains("origin/release"), "{}", err.message);
+        assert!(err.git_output.unwrap_or_default().contains("deletion prohibited"));
+        assert_eq!(f.remote_output(&["rev-parse", "--verify", "-q", "refs/heads/release"]), Some(before), "still on the remote");
+        assert!(tracking(&f.repo, "release").is_some(), "the remote branch stays locally too");
+        assert!(changes(&f.tc).is_empty(), "nothing changed");
+        let done = f.tc.events.named(names::JOB_DONE);
+        assert_eq!((done.len(), &done[0]["ok"]), (1, &json!(false)));
+    }
+
+    #[tokio::test]
     async fn background_fetch_needs_no_lock_and_reports_changes() {
         let f = fixture().await;
         let new_main = push_from_elsewhere(&f.remote, "neu.txt", "x\n");
