@@ -56,8 +56,11 @@ export function findRow(index: GraphIndex, sha: Sha): GraphRow | undefined {
   return undefined;
 }
 
-/** All loaded ancestors of `tip` (including `tip`). */
-function ancestors(index: GraphIndex, tip: Sha, stop?: Set<Sha>): { seen: Set<Sha>; open: boolean } {
+/** Parents of commits that are not graph rows (e.g. a commit only the reflog still knows). */
+export type OutsideParents = ReadonlyMap<Sha, readonly Sha[]>;
+
+/** All loaded ancestors of `tip` (including `tip`); `outside` bridges commits that are not graph rows. */
+function ancestors(index: GraphIndex, tip: Sha, stop?: Set<Sha>, outside?: OutsideParents): { seen: Set<Sha>; open: boolean } {
   const seen = new Set<Sha>();
   let open = false;
   const stack = [tip];
@@ -65,6 +68,12 @@ function ancestors(index: GraphIndex, tip: Sha, stop?: Set<Sha>): { seen: Set<Sh
     const sha = stack.pop()!;
     if (seen.has(sha) || stop?.has(sha)) continue;
     const row = index.rows.get(sha);
+    const bridge = row ? undefined : outside?.get(sha);
+    if (bridge) {
+      seen.add(sha);
+      for (const parent of bridge) stack.push(parent);
+      continue;
+    }
     if (!row) {
       // Beyond the loaded pages: from here on nothing is known.
       open = true;
@@ -93,11 +102,16 @@ export interface CommitRange {
   partial: boolean;
 }
 
-/** Commits reachable from `tip` but not from `base` (like `git log base..tip`). */
-export function commitsBetween(index: GraphIndex, base: Sha, tip: Sha): CommitRange | null {
+/**
+ * Commits reachable from `tip` but not from `base` (like `git log base..tip`). A `base` that is not a
+ * graph row (a commit only the reflog knows, an unfetched remote commit) needs its parents in `outside`
+ * up to the loaded rows; otherwise what it reaches is unknown and so is the range (null).
+ */
+export function commitsBetween(index: GraphIndex, base: Sha, tip: Sha, outside?: OutsideParents): CommitRange | null {
   if (!index.rows.has(tip)) return null;
-  if (!index.rows.has(base) && !index.complete) return null;
-  const excluded = ancestors(index, base).seen;
+  const { seen: excluded, open: baseOpen } = ancestors(index, base, undefined, outside);
+  // An unloaded base whose ancestry does not lead fully back into the rows: anything might be shared.
+  if (baseOpen && !index.rows.has(base)) return null;
   const { seen, open } = ancestors(index, tip, excluded);
   const rows = [...seen].map((sha) => index.rows.get(sha)!).sort((a, b) => index.order.get(a.sha!)! - index.order.get(b.sha!)!);
   return { rows, partial: open && !index.complete };

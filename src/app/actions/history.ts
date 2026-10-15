@@ -8,7 +8,7 @@ import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { withFreshStatus, withStatus } from "../statusCache";
 import { useAppStore } from "../store";
-import { commitsBetween, consecutiveOnHead, findRow, loadGraphIndex, oldestFirst } from "./ancestry";
+import { commitsBetween, consecutiveOnHead, findRow, loadGraphIndex, oldestFirst, type GraphIndex, type OutsideParents } from "./ancestry";
 import { clip, currentBranch, headSha, loadStatus, short } from "./context";
 import { copyText } from "./clipboard";
 import { busyKeys } from "./keys";
@@ -23,6 +23,24 @@ async function loadCommit(repoId: Id, sha: Sha) {
   const value = await core.commitDetails({ repoId, source: { kind: "commit", sha } });
   queryClient.setQueryData(key, value);
   return value;
+}
+
+/**
+ * Parents of `sha` and its ancestors up to the graph rows, for a commit that is not a graph row (e.g. a
+ * reset target from the reflog: the commit before an amend). At most `limit` commits are asked for.
+ */
+async function parentsOutsideGraph(repoId: Id, index: GraphIndex, sha: Sha, limit = 20): Promise<OutsideParents> {
+  const outside = new Map<Sha, Sha[]>();
+  const stack = [sha];
+  while (stack.length && outside.size < limit) {
+    const next = stack.pop()!;
+    if (index.rows.has(next) || outside.has(next)) continue;
+    const commit = (await loadCommit(repoId, next).catch(() => null))?.commit;
+    if (!commit) continue;
+    outside.set(next, commit.parents);
+    stack.push(...commit.parents);
+  }
+  return outside;
 }
 
 /** Reverts a commit with a new commit. Conflict → WIP view. */
@@ -62,7 +80,8 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
   const subject = branch ? t("actions.history.reset.subjectBranch", { name: clip(branch, 40) }) : "HEAD";
   const head = headSha(repoId);
   const index = await loadGraphIndex(repoId);
-  const range = index && head ? commitsBetween(index, sha, head) : null;
+  const outside = index && !index.rows.has(sha) ? await parentsOutsideGraph(repoId, index, sha) : undefined;
+  const range = index && head ? commitsBetween(index, sha, head, outside) : null;
   const dropped = range && !range.partial ? range.rows.length : null;
 
   if (mode === "hard") {
