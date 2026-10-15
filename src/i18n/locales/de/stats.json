@@ -88,9 +88,9 @@
   },
   "knowledge": {
     "title": "Wissen pro Ordner",
-    "hint": "Anteil der Zeilen pro Person · Bus-Faktor",
+    "hint": "Anteil der geänderten Zeilen pro Person · Bus-Faktor",
     "folder": "Ordner",
-    "lines": "Zeilen pro Person",
+    "lines": "Anteil der geänderten Zeilen pro Person",
     "busFactor": "Bus-Faktor",
     "others": "Weitere Personen",
     "root": "(ganzes Repository)",

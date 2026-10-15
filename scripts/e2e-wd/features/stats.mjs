@@ -751,7 +751,12 @@ scenario("all cards show the repository's numbers", "main", async (t) => {
   assertEqual(s.authors.filter((author) => author.name === "Jonas Becker").length, 1, "Jonas once despite two spellings of the address");
   assert(s.authors.some((author) => author.name === "Mehmet Yılmaz"), "name with dotless i");
 
-  // Knowledge per folder.
+  // Knowledge per folder: the weight is lines changed over the history, and the card says so.
+  const knowledgeTexts = await app.exec((selector) => ({
+    hint: document.querySelector(`${selector} [data-stats-section="knowledge"] h2 + span`)?.textContent.trim() ?? null,
+    columns: [...document.querySelectorAll(`${selector} [data-stats-knowledge] thead th`)].map((el) => el.textContent.trim()),
+  }), VIEW);
+  same(knowledgeTexts, { hint: "share of changed lines per person · bus factor", columns: ["Folder", "Share of changed lines per person", "Bus factor"] }, "knowledge card names its weight honestly");
   const core = await compute(app, repoId, { from: null, to: null, ref: "HEAD" });
   assert(s.knowledge.length > 0 && s.knowledge.length <= 6, `knowledge rows: ${s.knowledge.length}`);
   for (const row of s.knowledge) {
@@ -937,6 +942,8 @@ scenario("dark theme and German texts", "edge", async (t) => {
   assertIncludes(titles, "Aktivität", "German card title");
   assertIncludes(titles, "Autoren", "German card title");
   assertIncludes(titles, "Wo sich etwas ändert", "German card title");
+  const knowledgeColumns = await app.exec((selector) => [...document.querySelectorAll(`${selector} [data-stats-knowledge] thead th`)].map((el) => el.textContent.trim()), VIEW);
+  assertIncludes(knowledgeColumns, "Anteil der geänderten Zeilen pro Person", "German knowledge column");
   assertMatch(s.status.text, /HEAD/, "status in German");
   assert(!/Up to date|Largest commit|Longest streak/.test(s.text), `no English left: ${s.text.slice(0, 200)}`);
   const dark = await app.exec(() => document.documentElement.getAttribute("data-theme") ?? (document.documentElement.classList.contains("dark") ? "dark" : null));

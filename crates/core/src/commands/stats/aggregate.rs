@@ -474,7 +474,7 @@ mod tests {
         );
         assert_eq!(stats.folders[0].main_author.email, "ada@example.com");
         let root: Vec<(&str, u64)> = stats.folders[0].top.iter().map(|s| (s.author.name.as_str(), s.weight)).collect();
-        assert_eq!(root, [("Ada", 16), ("Ben", 10)], "lines per author, most first");
+        assert_eq!(root, [("Ada", 16), ("Ben", 10)], "changed lines per author, most first");
         let docs: Vec<(&str, u64)> = stats.folders[3].top.iter().map(|s| (s.author.name.as_str(), s.weight)).collect();
         assert_eq!(docs, [("Ben", 8)]);
     }

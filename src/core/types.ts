@@ -1732,7 +1732,7 @@ export interface StatsFolder {
   mainAuthor: Person;
   mainShare: number;
   busFactor: number;
-  /** The authors with the most lines, most first (at most 6); the rest of `weight` belongs to the others. */
+  /** The authors with the most changed lines, most first (at most 6); the rest of `weight` belongs to the others. */
   top: StatsFolderShare[];
 }
 

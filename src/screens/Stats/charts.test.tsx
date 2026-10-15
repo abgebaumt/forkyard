@@ -4,6 +4,8 @@ import type { StatsFolder } from "../../core";
 import { AuthorsList, CodeAgeChart, formatPeriod, Heatmap, HotspotList, KnowledgeTable, Records, TimeChart, Treemap } from "./charts";
 import { authorPalette } from "./layout";
 import { buildTree } from "./model";
+import de from "../../i18n/locales/de/stats.json";
+import en from "../../i18n/locales/en/stats.json";
 
 const none = () => undefined;
 
@@ -92,6 +94,14 @@ describe("statistics charts", () => {
     expect(html).toMatch(/data-share="ben@example.com"[^>]*bg-lane-2/);
     expect(html).toMatch(/data-share="others" title="Other authors: 10%"/);
     expect(html).toMatch(/text-danger">1</);
+  });
+
+  it("knowledge: the column says what the weight is – lines changed over the history, not lines owned", () => {
+    const html = renderToStaticMarkup(<KnowledgeTable folders={[]} palette={authorPalette([])} onFolder={none} />);
+    expect(html).toContain(">Share of changed lines per person<");
+    expect(en.knowledge.hint).toBe("share of changed lines per person · bus factor");
+    expect(de.knowledge.lines).toBe("Anteil der geänderten Zeilen pro Person");
+    expect(de.knowledge.hint).toBe("Anteil der geänderten Zeilen pro Person · Bus-Faktor");
   });
 
   it("code age: a bar per bucket with its compact line count", () => {

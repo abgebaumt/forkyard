@@ -88,9 +88,9 @@
   },
   "knowledge": {
     "title": "Knowledge per folder",
-    "hint": "share of lines by author · bus factor",
+    "hint": "share of changed lines per person · bus factor",
     "folder": "Folder",
-    "lines": "Lines by author",
+    "lines": "Share of changed lines per person",
     "busFactor": "Bus factor",
     "others": "Other authors",
     "root": "(whole repository)",

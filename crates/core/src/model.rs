@@ -2924,7 +2924,7 @@ pub struct StatsFolder {
     /// Share of the main author in percent (0–100).
     pub main_share: u32,
     pub bus_factor: u32,
-    /// The authors with the most lines in the folder, most first (at most 6); the rest of
+    /// The authors with the most changed lines in the folder, most first (at most 6); the rest of
     /// `weight` belongs to the others.
     pub top: Vec<StatsFolderShare>,
 }
