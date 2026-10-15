@@ -550,14 +550,13 @@ async fn operation_at(core: &Core, path: &Path, repo_id: &str, head: &Head) -> C
             None => None,
         };
         let message = read_text(&state.join("message")).and_then(|m| clean_message(&m)).or_else(merge_msg);
-        return Ok(Some(Operation {
-            kind: OperationKind::Rebase,
-            source,
-            target,
-            step: read_line(&state.join(step_file)).and_then(|n| n.parse().ok()),
-            total_steps: read_line(&state.join(total_file)).and_then(|n| n.parse().ok()),
-            message,
-        }));
+        let (step, total_steps) = rebase_commit_steps(&state).unwrap_or_else(|| {
+            (
+                read_line(&state.join(step_file)).and_then(|n| n.parse().ok()),
+                read_line(&state.join(total_file)).and_then(|n| n.parse().ok()),
+            )
+        });
+        return Ok(Some(Operation { kind: OperationKind::Rebase, source, target, step, total_steps, message }));
     }
 
     if let Some(merge_head) = read_line(&dir.join("MERGE_HEAD")) {
@@ -640,6 +639,29 @@ async fn count_commits_since(core: &Core, path: &Path, repo_id: &str, start: &st
 }
 
 /// Lines of the sequencer list as (command, SHA); comments and empty lines are dropped.
+/// Step and total of an interactive or merge rebase, counting only the commits it replays.
+/// Git's `msgnum`/`end` also count `update-ref` (`--update-refs`), `exec`, `label`, `reset` and
+/// `break` lines, so the third of three commits would read "4 of 4". `None` without `done` or
+/// `git-rebase-todo` (then Git's own counters apply).
+fn rebase_commit_steps(state: &Path) -> Option<(Option<u32>, Option<u32>)> {
+    let done = read_text(&state.join("done"))?;
+    let todo = read_text(&state.join("git-rebase-todo"))?;
+    let commits = |list: &str| -> u32 {
+        todo_lines(list).iter().filter(|(command, _)| is_commit_command(command)).count() as u32
+    };
+    let step = commits(&done);
+    let total = step + commits(&todo);
+    Some((Some(step), Some(total)))
+}
+
+/// Todo commands that replay or create a commit (long and short forms).
+fn is_commit_command(command: &str) -> bool {
+    matches!(
+        command,
+        "pick" | "p" | "reword" | "r" | "edit" | "e" | "squash" | "s" | "fixup" | "f" | "merge" | "m"
+    )
+}
+
 fn todo_lines(todo: &str) -> Vec<(String, String)> {
     todo.lines()
         .map(str::trim)
@@ -1162,6 +1184,31 @@ mod tests {
 
         repo.git(&["cherry-pick", "--continue"]);
         assert_eq!(read_status(&tc, &id).await.unwrap().operation, None);
+    }
+
+    /// `--update-refs` adds `update-ref` lines to the todo; the step counter only counts the
+    /// commits being replayed.
+    #[tokio::test]
+    async fn rebase_step_counts_commits_not_update_ref_lines() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        repo.checkout_new("teil");
+        repo.commit_file("t1.txt", "1\n", "Teil 1");
+        repo.commit_file("t2.txt", "2\n", "Teil 2");
+        repo.checkout_new("thema");
+        repo.commit_file("README.md", "# Thema\n", "Thema kollidiert");
+        repo.checkout("main");
+        repo.commit_file("README.md", "# Main\n", "Main ändert README");
+        repo.checkout("thema");
+        assert!(!repo.git_output(&["rebase", "--update-refs", "main"]).status.success());
+        let done = std::fs::read_to_string(repo.path().join(".git/rebase-merge/done")).unwrap();
+        assert!(done.contains("update-ref refs/heads/teil"), "{done}");
+
+        let id = tc.open(&repo).await.repo.id;
+        let op = read_status(&tc, &id).await.unwrap().operation.expect("running rebase");
+        assert_eq!(op.kind, OperationKind::Rebase);
+        assert_eq!((op.step, op.total_steps), (Some(3), Some(3)));
+        repo.git(&["rebase", "--abort"]);
     }
 
     #[tokio::test]
