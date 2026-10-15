@@ -885,8 +885,10 @@ scenario("empty states: no commits in the period, a repository without commits",
   await waitCenter(app, second.tabId, "stats");
   const unborn = await app.waitFor(async () => {
     const s = await readStats(app);
-    return s && s.state !== "running" && /No commits in this period/.test(s.text) ? s : null;
+    return s && s.state !== "running" && /No commits yet/.test(s.text) ? s : null;
   }, 20_000, { message: "repository without commits" });
+  assertIncludes(unborn.text, "The statistics appear after the first commit.", "hint of the unborn state");
+  assert(!/No commits in this period|Choose a longer period/.test(unborn.text), `no period hint without any commit: ${unborn.text}`);
   assertEqual(unborn.status, null, "no 'up to date' claim without a commit");
   assertEqual(await selectText(app, "Branch"), "Branch main (HEAD)", "branch select for an unborn branch");
   // The first commit arrives: the view follows.

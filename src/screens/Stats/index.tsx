@@ -10,7 +10,7 @@
  * commit is shown in the graph. It opens and closes through its toolbar button only (actions.ts).
  */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { Id } from "../../core";
+import type { Id, RepoStats } from "../../core";
 import { describeError } from "../../app/errors";
 import { useCommitDetails, useRefs, useRepo } from "../../app/queries";
 import { useAppStore } from "../../app/store";
@@ -64,6 +64,16 @@ export function StatsCancelled({ onCompute }: { onCompute: () => void }) {
       <EmptyState title={t("stats.cancelled.title")} action={<Button onClick={onCompute}>{t("stats.cancelled.compute")}</Button>}>
         {t("stats.cancelled.body")}
       </EmptyState>
+    </div>
+  );
+}
+
+/** In place of the tiles when nothing was counted: a branch without any commit, or none in the period. */
+export function StatsEmpty({ stats }: { stats: RepoStats }) {
+  const unborn = stats.tip === null;
+  return (
+    <div data-stats-empty={unborn ? "unborn" : "period"}>
+      <EmptyState title={unborn ? t("stats.unborn.title") : t("stats.empty.title")}>{unborn ? t("stats.unborn.body") : t("stats.empty.body")}</EmptyState>
     </div>
   );
 }
@@ -171,7 +181,7 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
         {state.kind === "cancelled" ? (
           <StatsCancelled onCompute={recompute} />
         ) : !stats ? null : stats.commits === 0 ? (
-          <EmptyState title={t("stats.empty.title")}>{t("stats.empty.body")}</EmptyState>
+          <StatsEmpty stats={stats} />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
             <Card id="heatmap" title={t("stats.heatmap.title")} hint={t("stats.heatmap.hint")}>

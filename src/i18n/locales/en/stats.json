@@ -32,6 +32,10 @@
     "title": "No commits in this period",
     "body": "Choose a longer period or another branch."
   },
+  "unborn": {
+    "title": "No commits yet",
+    "body": "The statistics appear after the first commit."
+  },
   "heatmap": {
     "title": "Activity",
     "hint": "weekday × hour",

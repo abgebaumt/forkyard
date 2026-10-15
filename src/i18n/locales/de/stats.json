@@ -32,6 +32,10 @@
     "title": "Keine Commits in diesem Zeitraum",
     "body": "Wähle einen längeren Zeitraum oder einen anderen Branch."
   },
+  "unborn": {
+    "title": "Noch keine Commits",
+    "body": "Die Statistik erscheint nach dem ersten Commit."
+  },
   "heatmap": {
     "title": "Aktivität",
     "hint": "Wochentag × Stunde",
