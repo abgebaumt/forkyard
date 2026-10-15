@@ -7,7 +7,7 @@ import { core, type CustomCommandContext, type CustomCommandEntry, type CustomCo
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
 import { askInputs } from "../../screens/CustomCommands/InputsDialog";
-import { confirm, showOutput } from "../dialogs";
+import { confirm, showOutput, type ConfirmOptions } from "../dialogs";
 import { newJobId, runAction } from "../run";
 import { useAppStore } from "../store";
 import { openInBrowser } from "./hosts";
@@ -34,6 +34,18 @@ async function report(title: string, result: CustomCommandResult): Promise<boole
   return ok;
 }
 
+/** The prompt before a `confirm: true` command: the finished command line, shown in full. */
+export function runConfirmation(title: string, result: Extract<CustomCommandResult, { status: "confirm" }>): ConfirmOptions {
+  return {
+    title: t("customCommands.run.confirmTitle", { title }),
+    body: t("customCommands.run.confirmBody", { cwd: result.cwd }),
+    details: [result.display],
+    detailsLabel: t("customCommands.run.confirmDetails"),
+    detailsWrap: true,
+    confirmLabel: t("customCommands.run.confirmLabel"),
+  };
+}
+
 /** Runs a command from the palette or a context menu. Returns whether it ran successfully. */
 export async function runCustomCommand(repoId: Id, entry: CustomCommandEntry, context: CustomCommandContext = {}): Promise<boolean> {
   if (!entry.runnable) {
@@ -57,13 +69,7 @@ export async function runCustomCommand(repoId: Id, entry: CustomCommandEntry, co
   };
   let result = await call(false);
   if (result.ok && result.value.status === "confirm") {
-    const go = await confirm({
-      title: t("customCommands.run.confirmTitle", { title: command.title }),
-      body: t("customCommands.run.confirmBody", { cwd: result.value.cwd }),
-      details: [result.value.display],
-      detailsLabel: t("customCommands.run.confirmDetails"),
-      confirmLabel: t("customCommands.run.confirmLabel"),
-    });
+    const go = await confirm(runConfirmation(command.title, result.value));
     if (!go) return false;
     result = await call(true);
   }

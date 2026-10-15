@@ -24,6 +24,8 @@ export interface ConfirmOptions {
   details?: string[];
   /** Heading of the list, e.g. "These changes will be lost". */
   detailsLabel?: string;
+  /** Show every entry in full, wrapped (a command line about to run), instead of cutting it off. */
+  detailsWrap?: boolean;
 }
 
 export interface PromptOptions {
@@ -163,7 +165,7 @@ export function DialogHost() {
             current.options.details?.length ? (
               <>
                 {current.options.body}
-                <DetailList items={current.options.details} label={current.options.detailsLabel} />
+                <DetailList items={current.options.details} label={current.options.detailsLabel} wrap={current.options.detailsWrap} />
               </>
             ) : (
               current.options.body
@@ -273,8 +275,11 @@ export function DialogHost() {
 
 const DETAIL_LIMIT = 8;
 
-/** Compact list of affected items in a prompt; truncated from nine entries on. Long lines get a tooltip. */
-export function DetailList({ items, label, className }: { items: string[]; label?: string; className?: string }) {
+/**
+ * Compact list of affected items in a prompt; truncated from nine entries on. Long lines are cut
+ * off with a tooltip, or with `wrap` shown in full across several lines.
+ */
+export function DetailList({ items, label, className, wrap }: { items: string[]; label?: string; className?: string; wrap?: boolean }) {
   const shown = items.slice(0, DETAIL_LIMIT);
   const rest = items.length - shown.length;
   // span instead of div/ul: the list also appears in a dialog's description, and that is a paragraph.
@@ -283,7 +288,7 @@ export function DetailList({ items, label, className }: { items: string[]; label
       {label ? <span className="mb-1 block text-sm font-medium text-text">{label}</span> : null}
       <span role="list" className="selectable block rounded-md border border-border bg-surface-sunken px-2 py-1 font-mono text-code text-text">
         {shown.map((item, index) => (
-          <span role="listitem" key={index} className="block truncate" title={item}>
+          <span role="listitem" key={index} className={wrap ? "block whitespace-pre-wrap break-all" : "block truncate"} title={wrap ? undefined : item}>
             {item}
           </span>
         ))}
