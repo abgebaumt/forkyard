@@ -88,7 +88,7 @@
     },
     "about": {
       "label": "About",
-      "keywords": "Version|License|Privacy"
+      "keywords": "Version|License|Privacy|Updates|Check for updates"
     }
   },
   "row": {
@@ -377,8 +377,9 @@
     "privacyTitle": "What leaves this computer",
     "privacyGit": "Git connections to the remotes of your repositories: clone, fetch, pull, push, submodules and LFS. This includes auto-fetch – by default every minute for every open repository, without asking and using saved credentials. To turn it off: Git behavior › Auto-fetch to 0, or per repository.",
     "privacyHosts": "Requests to GitHub, GitLab, Gitea/Forgejo, Bitbucket or Azure DevOps if you have connected an account there – only for pull requests and issues, with your own token.",
+    "privacyUpdates": "The update check: once a day a request to api.github.com for the newest stable Forkyard release. It sends nothing but the app version (in the user agent). Turn off: About › Updates › Check for updates automatically.",
     "privacyLinks": "Links from READMEs, pull requests and issues are opened by the system browser, and only after asking.",
-    "privacyRest": "Nothing else: no telemetry, no update checks, no images or fonts from the internet. Forkyard only runs commands a repository brings along after you have agreed.",
+    "privacyRest": "Nothing else: no telemetry, no images or fonts from the internet. Forkyard only runs commands a repository brings along after you have agreed.",
     "privacyAvatars": "Avatars of commit authors from GitHub (avatars.githubusercontent.com): the commit email address is sent to look up the account; results are kept for a week. Turn off: Appearance › Initials instead of avatars."
   },
   "project": {

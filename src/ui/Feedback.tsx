@@ -50,6 +50,8 @@ export interface ToastData {
   title: string;
   description?: string;
   action?: { label: string; onClick: () => void };
+  /** A second, quieter choice next to `action` (e.g. "Skip this version"). */
+  secondaryAction?: { label: string; onClick: () => void };
   /** Stays until it is closed – for notices with an action that need time to read. Errors always stay. */
   sticky?: boolean;
   /** When the message appeared (set by `toast()`). */
@@ -66,18 +68,26 @@ export function ToastCard({ toast, onClose }: { toast: Omit<ToastData, "id">; on
         {toast.description ? (
           <p className="selectable text-sm break-words whitespace-pre-line text-text-muted">{toast.description}</p>
         ) : null}
-        {toast.action ? (
-          <button
-            type="button"
-            onClick={() => {
-              toast.action?.onClick();
-              // The message has served its purpose (errors stay until they are closed).
-              if (toast.tone !== "danger") onClose?.();
-            }}
-            className="mt-1 rounded-sm text-sm font-medium text-accent hover:underline"
-          >
-            {toast.action.label}
-          </button>
+        {toast.action || toast.secondaryAction ? (
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            {[toast.action, toast.secondaryAction].map((action, index) =>
+              action ? (
+                <button
+                  key={index}
+                  type="button"
+                  data-toast-action={index === 0 ? "primary" : "secondary"}
+                  onClick={() => {
+                    action.onClick();
+                    // The message has served its purpose (errors stay until they are closed).
+                    if (toast.tone !== "danger") onClose?.();
+                  }}
+                  className={cn("rounded-sm text-sm font-medium hover:underline", index === 0 ? "text-accent" : "text-text-muted")}
+                >
+                  {action.label}
+                </button>
+              ) : null,
+            )}
+          </div>
         ) : null}
       </div>
       {onClose ? (
@@ -157,7 +167,7 @@ export function Toaster() {
           // Errors stay until they are closed – and so do messages with an action button: anyone who
           // wants to reach it by keyboard or screen reader (F8, Tab, Enter) cannot do that in
           // five seconds. Everything else disappears by itself.
-          duration={item.tone === "danger" || item.sticky || item.action ? Infinity : TOAST_TIME}
+          duration={item.tone === "danger" || item.sticky || item.action || item.secondaryAction ? Infinity : TOAST_TIME}
           type={item.tone === "danger" ? "foreground" : "background"}
           onOpenChange={(open) => {
             if (!open) dismissToast(item.id);

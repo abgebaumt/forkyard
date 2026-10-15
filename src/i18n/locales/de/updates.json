@@ -1,0 +1,24 @@
+{
+  "available": "Forkyard {{version}} ist verfügbar",
+  "hint": "Forkyard {{version}} ist verfügbar",
+  "hintTitle": "Release-Seite von Forkyard {{version}} im Browser öffnen",
+  "view": "Release ansehen",
+  "skip": "Diese Version überspringen",
+  "page": "die Release-Seite",
+  "upToDate": "Forkyard ist aktuell ({{version}})",
+  "checking": "Nach Updates suchen",
+  "command": {
+    "title": "Nach Updates suchen…",
+    "keywords": "Update, Updates, neue Version, Release, Aktualisierung"
+  },
+  "settings": {
+    "card": "Updates",
+    "auto": {
+      "title": "Automatisch nach Updates suchen",
+      "description": "Einmal am Tag fragt Forkyard bei GitHub (api.github.com) nach dem neuesten stabilen Release. Gesendet wird nur die App-Version. Eine neue Version erscheint in der Statusleiste; heruntergeladen oder installiert wird nichts."
+    },
+    "checkNow": "Jetzt prüfen",
+    "lastChecked": "Zuletzt geprüft {{time}}",
+    "neverChecked": "Noch nicht geprüft"
+  }
+}

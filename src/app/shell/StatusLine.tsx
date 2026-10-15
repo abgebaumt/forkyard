@@ -13,6 +13,8 @@ import { formatDateTime, formatRelative, shortSha } from "../format";
 import { useSettings, useStatus } from "../queries";
 import { runAction } from "../run";
 import { useAppStore, type Job } from "../store";
+import { useUpdateInfo, visibleUpdate } from "../updates";
+import { openInBrowser } from "../actions/hosts";
 import { t } from "../../i18n";
 
 /** Updates relative times once per minute. */
@@ -134,6 +136,24 @@ function JobItem({ job }: { job: Job }) {
   );
 }
 
+/** "Forkyard 1.2.0 is available" – opens the release page; gone once the version is skipped. */
+function UpdateHint() {
+  const release = visibleUpdate(useUpdateInfo());
+  if (!release) return null;
+  return (
+    <Tip label={t("updates.hintTitle", { version: release.version })}>
+      <button
+        type="button"
+        data-update-hint={release.version}
+        onClick={() => void openInBrowser(release.url, t("updates.page"))}
+        className="shrink-0 rounded-sm px-1 text-accent hover:bg-surface-raised"
+      >
+        {t("updates.hint", { version: release.version })}
+      </button>
+    </Tip>
+  );
+}
+
 /** Status bar: branch or detached HEAD, ahead/behind, running operation, jobs with progress and cancel, last fetch; on the right zoom and activity log. */
 export function StatusLine({ repoId }: { repoId: Id | null }) {
   useMinuteTick();
@@ -171,6 +191,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
       }
       right={
         <>
+          <UpdateHint />
           <span className="flex items-center" role="group" aria-label={t("shell.status.zoom")}>
             <IconButton
               size="sm"

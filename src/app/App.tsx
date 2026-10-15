@@ -28,6 +28,7 @@ import { useCrashReportsOnStart } from "../screens/CrashReport";
 import { useStartFocus } from "./shell/startFocus";
 import { StatusLine } from "./shell/StatusLine";
 import { TabStrip } from "./shell/TabStrip";
+import { useUpdateChecks } from "./updates";
 
 const APP_NAME = "forkyard";
 
@@ -148,6 +149,7 @@ function Shell({ info }: { info: AppInfo }) {
   useLaunchRequests(tabsQuery.isSuccess);
   // Not during a scenario (screenshots, tests): a dialog would cover the view.
   useCrashReportsOnStart(tabsQuery.isSuccess && !hasScenario);
+  useUpdateChecks(tabsQuery.isSuccess ? settings?.checkForUpdates : undefined);
 
   if (tabsQuery.isPending) return <StartupScreen />;
   if (tabsQuery.isError) {

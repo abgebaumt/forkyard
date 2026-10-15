@@ -1,13 +1,18 @@
 /** About: versions, paths and platform to read and copy. */
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { Copy, FolderOpen, GitBranch } from "lucide-react";
 import type { Platform } from "../../../core";
-import { useAppInfo } from "../../../app/queries";
+import { formatDateTime } from "../../../app/format";
+import { useAppInfo, useSettings } from "../../../app/queries";
+import { checkNow, useUpdateInfo } from "../../../app/updates";
 import { showError } from "../../../app/run";
 import { Button } from "../../../ui/Button";
 import { toast } from "../../../ui/Feedback";
-import { LoadError, Mono, SectionHeader, SettingsSkeleton } from "../parts";
+import { Switch } from "../../../ui/Switch";
+import { isChanged, resetPatch } from "../defaults";
+import { LoadError, Mono, SectionHeader, SettingRow, SettingsCard, SettingsSkeleton } from "../parts";
+import { applySettings } from "../settings";
 import { t } from "../../../i18n";
 
 const platformName: Record<Platform, string> = { windows: "Windows", linux: "Linux", macos: "macOS" };
@@ -18,6 +23,47 @@ function Fact({ name, children }: { name: string; children: ReactNode }) {
       <dt className="w-36 shrink-0 text-base text-text-muted">{name}</dt>
       <dd className="flex min-w-0 flex-1 items-center gap-2">{children}</dd>
     </div>
+  );
+}
+
+/** Automatic update check (global setting), the last check and "Check now". */
+function UpdatesCard() {
+  const { data: settings } = useSettings();
+  const info = useUpdateInfo();
+  const [checking, setChecking] = useState(false);
+  if (!settings) return null;
+  return (
+    <SettingsCard title={t("updates.settings.card")}>
+      <SettingRow
+        title={t("updates.settings.auto.title")}
+        description={t("updates.settings.auto.description")}
+        changed={isChanged(settings, "checkForUpdates") ? { onReset: () => void applySettings(resetPatch("checkForUpdates")) } : undefined}
+      >
+        {(ids) => (
+          <Switch
+            id={ids.id}
+            ariaDescribedBy={ids.descriptionId}
+            checked={settings.checkForUpdates}
+            onCheckedChange={(checked) => void applySettings({ checkForUpdates: checked })}
+          />
+        )}
+      </SettingRow>
+      <div className="flex min-h-9 items-center gap-3 border-t border-border py-2" data-update-status>
+        <span className="min-w-0 flex-1 text-sm text-text-muted">
+          {info?.checkedAt ? t("updates.settings.lastChecked", { time: formatDateTime(info.checkedAt) }) : t("updates.settings.neverChecked")}
+        </span>
+        <Button
+          size="sm"
+          disabled={checking}
+          onClick={() => {
+            setChecking(true);
+            void checkNow().finally(() => setChecking(false));
+          }}
+        >
+          {t("updates.settings.checkNow")}
+        </Button>
+      </div>
+    </SettingsCard>
   );
 }
 
@@ -94,11 +140,14 @@ export function AboutSection() {
         {t("preferences.about.dataDirHint")}
       </p>
 
+      <UpdatesCard />
+
       <h3 className="mt-5 mb-1 text-md font-semibold text-text">{t("preferences.about.privacyTitle")}</h3>
       <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-text-muted" data-privacy>
         <li>{t("preferences.about.privacyGit")}</li>
         <li>{t("preferences.about.privacyHosts")}</li>
         <li>{t("preferences.about.privacyAvatars")}</li>
+        <li>{t("preferences.about.privacyUpdates")}</li>
         <li>{t("preferences.about.privacyLinks")}</li>
       </ul>
       <p className="mt-2 text-sm text-text-muted">

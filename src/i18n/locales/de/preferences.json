@@ -88,7 +88,7 @@
     },
     "about": {
       "label": "Über",
-      "keywords": "Version|Lizenz|Datenschutz"
+      "keywords": "Version|Lizenz|Datenschutz|Updates|Nach Updates suchen"
     }
   },
   "row": {
@@ -377,8 +377,9 @@
     "privacyTitle": "Was diesen Rechner verlässt",
     "privacyGit": "Git-Verbindungen zu den Remotes deiner Repositories: Clone, Fetch, Pull, Push, Submodule und LFS. Dazu gehört der Auto-Fetch – ab Werk jede Minute für jedes offene Repository, ohne Rückfrage und mit gemerkten Zugangsdaten. Abschalten: Git-Verhalten › Auto-Fetch auf 0, oder je Repository.",
     "privacyHosts": "Aufrufe bei GitHub, GitLab, Gitea/Forgejo, Bitbucket oder Azure DevOps, wenn du dort ein Konto verbunden hast – nur für Pull Requests und Issues, mit deinem eigenen Token.",
+    "privacyUpdates": "Die Update-Prüfung: einmal am Tag eine Anfrage an api.github.com nach dem neuesten stabilen Forkyard-Release. Gesendet wird nur die App-Version (im User-Agent). Abschalten: Über › Updates › Automatisch nach Updates suchen.",
     "privacyLinks": "Links aus READMEs, Pull Requests und Issues öffnet der Browser des Systems, und erst nach Rückfrage.",
-    "privacyRest": "Sonst nichts: keine Telemetrie, keine Abfrage nach Updates, keine Bilder oder Schriften aus dem Netz. Ein Repository, das eigene Befehle mitbringt, führt Forkyard erst aus, wenn du dem zugestimmt hast.",
+    "privacyRest": "Sonst nichts: keine Telemetrie, keine Bilder oder Schriften aus dem Netz. Ein Repository, das eigene Befehle mitbringt, führt Forkyard erst aus, wenn du dem zugestimmt hast.",
     "privacyAvatars": "Avatare der Commit-Autoren von GitHub (avatars.githubusercontent.com): Dafür geht die E-Mail-Adresse aus dem Commit an GitHub; das Ergebnis bleibt eine Woche gespeichert. Abschalten: Darstellung › Initialen statt Avatare."
   },
   "project": {
