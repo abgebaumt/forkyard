@@ -54,6 +54,7 @@ const CODES: Record<ErrorCode, true> = {
   repo_other_profile: true,
   bisect_active: true,
   command_untrusted: true,
+  signing_failed: true,
 };
 
 /** Error code → understandable sentence with a suggested action. Covers every ErrorCode. */

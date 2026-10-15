@@ -174,5 +174,9 @@
   "command_untrusted": {
     "text": "Die Befehle dieses Repositories sind nicht freigegeben.",
     "hint": "Prüfe .forkyard/commands.json in den Einstellungen unter „Eigene Befehle“ und gib diese Fassung der Datei frei."
+  },
+  "signing_failed": {
+    "text": "Der Commit oder Tag konnte nicht signiert werden.",
+    "hint": "Prüfe Schlüssel und Programm in den Einstellungen unter „Commits signieren“ oder schalte das Signieren dort aus."
   }
 }

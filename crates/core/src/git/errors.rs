@@ -287,6 +287,39 @@ fn first_sha(text: &str) -> Option<&str> {
     text.split(|c: char| !c.is_ascii_hexdigit()).find(|word| word.len() == 40 || word.len() == 64)
 }
 
+/// Git could not sign a commit or tag. Names the key or program when the output does.
+fn signing(text: &str, lower: &str) -> Option<CoreError> {
+    let has = |needle: &str| lower.contains(needle);
+    if let Some(found) = rest_of_line(text, lower, "couldn't load public key ") {
+        let found = found.trim_end_matches('?');
+        let what = match found.rsplit_once(": ") {
+            Some((key, reason)) => format!("the signing key “{key}” can’t be loaded ({reason})"),
+            None => format!("the signing key “{found}” can’t be loaded"),
+        };
+        return Some(CoreError::new(ErrorCode::SigningFailed, format!("Git couldn’t sign: {what}.")));
+    }
+    let signing_context = has("failed to sign the data")
+        || has("unable to sign the tag")
+        || has("is needed for ssh signing")
+        || (has("needs to be configured") && has("signingkey"))
+        || has("failed writing ssh signing key")
+        || has("failed to get the ssh fingerprint")
+        || has("signing failed");
+    if !signing_context {
+        return None;
+    }
+    let program = ["cannot run ", "unable to start "].iter().find_map(|marker| {
+        let start = lower.find(marker)? + marker.len();
+        let name = text.get(start..)?.split(|c: char| c == ':' || c == '\n').next()?.trim();
+        Some(name).filter(|name| !name.is_empty())
+    });
+    let message = match program {
+        Some(program) => format!("Git couldn’t sign: the signing program “{program}” can’t be started."),
+        None => "Git couldn’t sign: the signing program reported an error.".to_string(),
+    };
+    Some(CoreError::new(ErrorCode::SigningFailed, message))
+}
+
 /// Cases where the output itself names the cause (file, line, object): the message takes it
 /// over instead of stopping at "exit code 128" or wrong advice.
 /// Runs before the general rules.
@@ -295,6 +328,12 @@ fn specific(text: &str) -> Option<CoreError> {
     let lower = text.to_ascii_lowercase();
     let has = |needle: &str| lower.contains(needle);
 
+    // Signing failed (key file gone, program missing). Before everything else: the output often
+    // also says "no such file or directory" or "permission denied", which would read as
+    // "changed outside the app" or as a locked file.
+    if let Some(error) = signing(text, &lower) {
+        return Some(error);
+    }
     // Name or path too long for the file system – never a "lock".
     if has("filename too long") || has("file name too long") {
         return Some(CoreError::invalid_name(
@@ -480,6 +519,21 @@ mod tests {
         assert_eq!(code("fatal: bad object refs/heads/kaputt"), ErrorCode::NotFound);
         assert_eq!(code(&format!("fatal: bad object {sha}")), ErrorCode::NotFound);
         assert_eq!(code("fatal: Could not read from remote repository."), ErrorCode::Offline);
+    }
+
+    /// Signing failures name the signing problem – never "not found" or "locked".
+    #[test]
+    fn signing_failures_have_their_own_code() {
+        let e = classify("commit", Some(128), b"", b"error: Couldn't load public key /home/a/.ssh/weg.pub: No such file or directory?\n\nfatal: failed to write commit object");
+        assert_eq!(e.code, ErrorCode::SigningFailed);
+        assert!(e.message.contains("“/home/a/.ssh/weg.pub”") && e.message.contains("No such file or directory"), "{}", e.message);
+        assert_eq!(code("error: gpg failed to sign the data\nfatal: failed to write commit object"), ErrorCode::SigningFailed);
+        assert_eq!(code("error: cannot run gpg: No such file or directory\nerror: gpg failed to sign the data\nfatal: failed to write commit object"), ErrorCode::SigningFailed);
+        assert_eq!(code("error: gpg failed to sign the data\nerror: unable to sign the tag"), ErrorCode::SigningFailed);
+        assert_eq!(code("fatal: either user.signingkey or gpg.ssh.defaultKeyCommand needs to be configured"), ErrorCode::SigningFailed);
+        assert_eq!(code("error: ssh-keygen -Y sign is needed for ssh signing (available in openssh version 8.2p1+)"), ErrorCode::SigningFailed);
+        // Unrelated "no such file" stays not_found.
+        assert_eq!(code("fatal: cannot stat 'x': No such file or directory"), ErrorCode::NotFound);
     }
 
     #[test]

@@ -65,11 +65,13 @@ pub enum ErrorCode {
     /// A command from the repository's `.forkyard/commands.json` that the user has not approved
     /// (or the file changed since the approval).
     CommandUntrusted,
+    /// Git could not sign the commit or tag (key missing, signing program missing or failing).
+    SigningFailed,
 }
 
 impl ErrorCode {
     /// All codes, for tests and cross-checks.
-    pub const ALL: [ErrorCode; 44] = [
+    pub const ALL: [ErrorCode; 45] = [
         ErrorCode::NotARepo,
         ErrorCode::PathNotFound,
         ErrorCode::PathExists,
@@ -114,6 +116,7 @@ impl ErrorCode {
         ErrorCode::RepoOtherProfile,
         ErrorCode::BisectActive,
         ErrorCode::CommandUntrusted,
+        ErrorCode::SigningFailed,
     ];
 
     /// The code as text, as it appears in the JSON (`"not_a_repo"`).
@@ -163,6 +166,7 @@ impl ErrorCode {
             ErrorCode::RepoOtherProfile => "repo_other_profile",
             ErrorCode::BisectActive => "bisect_active",
             ErrorCode::CommandUntrusted => "command_untrusted",
+            ErrorCode::SigningFailed => "signing_failed",
         }
     }
 }

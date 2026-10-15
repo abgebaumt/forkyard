@@ -75,7 +75,9 @@ export type ErrorCode =
   /** A bisect is already running (`bisectStart`). */
   | "bisect_active"
   /** A command from the repository's `.forkyard/commands.json` that is not approved for this version of the file. */
-  | "command_untrusted";
+  | "command_untrusted"
+  /** Git could not sign the commit or tag: key file missing, signing program missing or failing. */
+  | "signing_failed";
 
 /** This is how every error comes from the core. `message` is English and meant for humans. */
 export interface CoreErrorData {

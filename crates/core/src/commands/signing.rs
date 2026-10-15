@@ -205,6 +205,24 @@ mod tests {
         assert_eq!(signing_set(&tc, Some("unbekannt".into()), Some(true), None, None, None, None).await.unwrap_err().code, ErrorCode::NotFound);
     }
 
+    /// A signing key that is gone is a signing problem, not "changed outside the app".
+    #[tokio::test]
+    async fn commit_with_a_missing_signing_key_reports_a_signing_error() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        let id = tc.open(&repo).await.repo.id;
+        let missing = repo.temp_dir().join("fehlt").join("id_weg.pub").to_string_lossy().replace('\\', "/");
+        signing_set(&tc, Some(id.clone()), Some(true), Some(SigningFormat::Ssh), Some(missing.clone()), None, None).await.unwrap();
+        let before = repo.head();
+        repo.write_file("a.txt", "kann nicht signiert werden\n");
+        let error = crate::commands::commit::commit_create(&tc, id.clone(), "op-ohne-schluessel".into(), "Ohne Schlüssel".into(), String::new(), false, false, false, true, None)
+            .await
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::SigningFailed, "{error:?}");
+        assert!(error.message.contains("sign") && error.message.contains("id_weg.pub"), "{}", error.message);
+        assert_eq!(repo.head(), before, "no commit was created");
+    }
+
     /// `commit_create` signs when `commit.gpgSign` is on – here with an SSH key.
     #[tokio::test]
     async fn commits_are_signed_when_signing_is_enabled() {

@@ -174,5 +174,9 @@
   "command_untrusted": {
     "text": "This repository’s commands aren’t approved.",
     "hint": "Review .forkyard/commands.json in Settings under “Custom commands” and approve this version of the file."
+  },
+  "signing_failed": {
+    "text": "The commit or tag could not be signed.",
+    "hint": "Check the key and the program in Settings under “Sign commits”, or turn signing off there."
   }
 }
