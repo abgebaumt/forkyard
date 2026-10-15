@@ -23,7 +23,9 @@
     "e2e:smoke": "node scripts/e2e/smoke.mjs",
     "e2e:contract": "node scripts/e2e/contract.mjs",
     "e2e:shell": "node scripts/e2e/shell.mjs",
-    "e2e:shot": "node scripts/e2e/shot.mjs"
+    "e2e:shot": "node scripts/e2e/shot.mjs",
+    "e2e:wd:prepare": "node scripts/e2e-wd/prepare.mjs",
+    "e2e:wd": "node scripts/e2e-wd/run.mjs"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",

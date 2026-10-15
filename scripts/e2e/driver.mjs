@@ -41,7 +41,7 @@
  *
  * Platforms: Windows only (WebView2 is Chromium and speaks CDP). On Linux Tauri uses WebKitGTK,
  * on macOS WKWebView – neither has CDP, `launchApp` aborts there with a clear message. The only
- * E2E option there would be WebDriver via `tauri-driver` (Linux), which is not set up here.
+ * E2E option there is WebDriver via `tauri-driver`: see scripts/e2e-wd (Linux).
  *
  * Limits:
  * - Keys sent via `page.keyboard` arrive as DOM events but do not trigger shortcuts of the
@@ -405,7 +405,7 @@ export async function launchApp(options = {}) {
   if (process.platform !== "win32") {
     throw new Error(
       process.platform === "linux"
-        ? "E2E driver: on Linux the app uses WebKitGTK, which does not offer the Chrome DevTools Protocol. This driver only runs on Windows (WebView2). The option for Linux would be WebDriver via tauri-driver, which is not set up here."
+        ? "E2E driver: on Linux the app uses WebKitGTK, which does not offer the Chrome DevTools Protocol. This driver only runs on Windows (WebView2). On Linux use the WebDriver harness: scripts/e2e-wd (npm run e2e:wd)."
         : "E2E driver: on macOS the app uses WKWebView without the Chrome DevTools Protocol. This driver only runs on Windows (WebView2).",
     );
   }
