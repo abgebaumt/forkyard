@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { profileColor, switchLosses, switchWarning } from "./profiles";
+import { profileColor, switchAuthorNote, switchLosses, switchWarning } from "./profiles";
 
 describe("profileColor", () => {
   it("takes the stored colour, otherwise the position in the list", () => {
@@ -32,5 +32,14 @@ describe("switchLosses", () => {
   it("also counts actions that only run as \"busy\" (e.g. a commit)", () => {
     expect(switchLosses({ jobs: {}, busy: { "r1:commit": true } }, [], false).jobs).toEqual(["A Git action"]);
     expect(switchLosses({ jobs: {}, busy: {} }, ["a.txt"], true)).toEqual({ jobs: [], files: ["a.txt"], views: true });
+  });
+});
+
+describe("switchAuthorNote", () => {
+  it("promises the profile's author only when the profile writes it to the global gitconfig", () => {
+    expect(switchAuthorNote({ authorName: "Lena Firma", syncGitconfig: true })).toBe("Commits are now authored by Lena Firma.");
+    // Without sync Git keeps the identity from its own configuration.
+    expect(switchAuthorNote({ authorName: "Lena Firma", syncGitconfig: false })).toBeUndefined();
+    expect(switchAuthorNote({ authorName: "  ", syncGitconfig: true })).toBeUndefined();
   });
 });

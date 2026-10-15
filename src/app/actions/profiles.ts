@@ -50,6 +50,15 @@ export function refreshAfterProfileChange(switched: boolean) {
 }
 
 /**
+ * Second line of the switch toast. Only a profile that writes its identity into the global
+ * gitconfig decides the author of new commits; without that Git keeps its own configuration.
+ */
+export function switchAuthorNote(profile: Pick<Profile, "authorName" | "syncGitconfig">): string | undefined {
+  const author = profile.authorName.trim();
+  return profile.syncGitconfig && author ? t("actions.profiles.switch.author", { author }) : undefined;
+}
+
+/**
  * Switches the active profile. Asks only if something would be lost; commit drafts are
  * kept anyway. Returns whether it switched.
  */
@@ -70,7 +79,7 @@ export async function switchProfile(profile: Profile): Promise<boolean> {
   toast({
     tone: "success",
     title: t("actions.profiles.switch.done", { name: profile.name }),
-    description: profile.authorName ? t("actions.profiles.switch.author", { author: profile.authorName }) : undefined,
+    description: switchAuthorNote(profile),
   });
   return true;
 }

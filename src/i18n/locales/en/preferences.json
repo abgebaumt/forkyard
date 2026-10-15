@@ -313,6 +313,7 @@
     "authorName": {
       "title": "Author name",
       "description": "Appears as the author of every commit you create.",
+      "descriptionNoSync": "Written as the author of your commits once “Write name and email to the global gitconfig” is on. Until then Git takes the name from its own configuration.",
       "placeholder": "First name Last name"
     },
     "email": {

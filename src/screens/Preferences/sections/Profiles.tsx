@@ -115,7 +115,10 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
           />
         )}
       </SettingRow>
-      <SettingRow title={t("preferences.profiles.authorName.title")} description={t("preferences.profiles.authorName.description")}>
+      <SettingRow
+        title={t("preferences.profiles.authorName.title")}
+        description={active.syncGitconfig ? t("preferences.profiles.authorName.description") : t("preferences.profiles.authorName.descriptionNoSync")}
+      >
         {(ids) => (
           <CommitText
             key={active.id}
@@ -250,6 +253,9 @@ function ProfileRow({ profile, onlyOne }: { profile: Profile; onlyOne: boolean }
 }
 
 function NewProfileDialog({ onClose }: { onClose: () => void }) {
+  const profiles = useProfiles();
+  // A new profile handles the global gitconfig like the active one does.
+  const syncGitconfig = profiles.data?.find((profile) => profile.isActive)?.syncGitconfig ?? false;
   const [name, setName] = useState("");
   const [authorName, setAuthorName] = useState("");
   const [authorEmail, setAuthorEmail] = useState("");
@@ -267,7 +273,7 @@ function NewProfileDialog({ onClose }: { onClose: () => void }) {
     setBusy(true);
     const result = await runAction(
       t("preferences.profiles.create.action"),
-      () => core.profileSave({ id: null, name: name.trim(), authorName: authorName.trim(), authorEmail: authorEmail.trim(), syncGitconfig: false, color: null }),
+      () => core.profileSave({ id: null, name: name.trim(), authorName: authorName.trim(), authorEmail: authorEmail.trim(), syncGitconfig, color: null }),
       { quiet: ["invalid_name", "name_exists", "not_allowed"] },
     );
     setBusy(false);
