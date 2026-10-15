@@ -67,3 +67,17 @@ export function gitBisect(repo) {
     log: fs.existsSync(path.join(dir, "BISECT_LOG")) ? fs.readFileSync(path.join(dir, "BISECT_LOG"), "utf8") : "",
   };
 }
+
+/**
+ * Git's own step estimate for the running bisect, independent of the app: `done` = marks in
+ * BISECT_LOG (good, bad, skip), `remaining` = `bisect_steps` of
+ * `git rev-list --bisect-vars <bad> ^<good>…` – the "roughly N steps" Git prints after a mark.
+ */
+export function gitBisectSteps(repo) {
+  const state = gitBisect(repo);
+  const done = state.log.split("\n").filter((line) => /^git bisect (good|bad|skip) /.test(line)).length;
+  if (!state.bad || state.good.length === 0) return { done, remaining: null };
+  const vars = repo.git("rev-list", "--bisect-vars", state.bad, ...state.good.map((sha) => `^${sha}`));
+  const remaining = Number(/^bisect_steps=(\d+)$/m.exec(vars)?.[1] ?? NaN);
+  return { done, remaining };
+}

@@ -9,7 +9,7 @@
  *   E2E_WD_ONLY="extern" node scripts/e2e-wd/features/bisect.mjs
  */
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
-import { gitBisect, hasBug, makeBisectRepo } from "../fixtures/bisect.mjs";
+import { gitBisect, gitBisectSteps, hasBug, makeBisectRepo } from "../fixtures/bisect.mjs";
 import { closeToasts, nudge, parkMouse, rightClick, selection, waitToast } from "../fixtures/rebase.mjs";
 
 // ---------------------------------------------------------------------------------------------
@@ -343,7 +343,11 @@ scenario("marks: good and bad from the bar until the first bad commit is found",
     const marked = await bisectToEnd(app, repoId, repo, {
       onStep: async (status) => {
         const shown = await bar(app);
-        assertMatch(shown.text, new RegExp(`Step ${status.stepsDone + 1} of ~${status.stepsDone + 1 + (status.remainingSteps ?? 0)} · testing ${short(status.current)}`), "bar step text");
+        // The oracle is Git: marks from BISECT_LOG, the rest from `rev-list --bisect-vars`.
+        const steps = gitBisectSteps(repo);
+        assert(Number.isInteger(steps.remaining), `Git estimates the remaining steps: ${JSON.stringify(steps)}`);
+        t.step(`Git: ${steps.done} marks, roughly ${steps.remaining} steps left; bar: ${shown.text}`);
+        assertMatch(shown.text, new RegExp(`Step ${steps.done + 1} of ~${steps.done + 1 + steps.remaining} · testing ${short(status.current)}`), "bar step text");
         if (status.stepsDone === 1 && !shotTaken) {
           shotTaken = true;
           await parkMouse(app);
@@ -518,7 +522,11 @@ scenario("extern: bisect started on the command line is picked up on open and co
   const { repo, good, head, bug } = makeBisectRepo({ name: "bisect-extern" });
   try {
     repo.git("bisect", "start", head, good);
-    repo.git("bisect", hasBug(repo, repo.tip()) ? "bad" : "good");
+    const printed = repo.git("bisect", hasBug(repo, repo.tip()) ? "bad" : "good");
+    // Git's own words after the mark: "Bisecting: N revisions left to test after this (roughly S steps)".
+    const roughly = Number(/\(roughly (\d+) steps?\)/.exec(printed)?.[1] ?? NaN);
+    assert(Number.isInteger(roughly), `Git printed its estimate: ${printed}`);
+    assertEqual(gitBisectSteps(repo).remaining, roughly, "rev-list --bisect-vars agrees with what git bisect printed");
     const before = gitBisect(repo);
     const app = await launch(t);
     const { repoId } = await openGraph(app, repo);
@@ -526,7 +534,7 @@ scenario("extern: bisect started on the command line is picked up on open and co
     const status = await uiBisect(app, repoId);
     assertEqual(status.current, before.head, "UI commit under test = Git HEAD");
     assertEqual(status.stepsDone, 1, "the terminal mark counts as a step");
-    assertMatch(shown.text, new RegExp(`Step 2 of ~\\d+ · testing ${short(before.head)}`), "bar text");
+    assertMatch(shown.text, new RegExp(`Step 2 of ~${2 + roughly} · testing ${short(before.head)}`), "bar text: Git's estimate");
     await waitChip(app, head, "bad");
     // The graph does not also show its detached-HEAD bar (the bisect bar explains the state).
     assertEqual(await app.exec(() => document.querySelector('[data-screen="commit-graph"]').innerText.toLowerCase().includes("detached")), false, "no detached-HEAD bar above the graph");
