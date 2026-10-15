@@ -16,9 +16,12 @@ import path from "node:path";
 import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../e2e/fixtures.mjs";
 
 export const DAY_MS = 86_400_000;
-/** Time zone of every fixture commit (the heatmap uses the author's local time). */
+/** Time zone of the fixture commits (the heatmap uses the author's local time). */
 export const ZONE = "+0200";
 const ZONE_HOURS = 2;
+/** A second zone west of UTC: late evening there is already the next day in UTC. */
+export const WEST = "-0700";
+const zoneHours = (zone) => (zone.startsWith("-") ? -1 : 1) * (Number(zone.slice(1, 3)) + Number(zone.slice(3, 5)) / 60);
 
 export const PEOPLE = {
   lena: TEST_IDENTITY,
@@ -43,9 +46,10 @@ process.on("exit", () => {
 /** Midnight UTC of today minus `days`, as ms. */
 export const midnightDaysAgo = (days, now = Date.now()) => Math.floor(now / DAY_MS) * DAY_MS - days * DAY_MS;
 
-/** Unix seconds of `hour:minute` local time (ZONE) on the day `days` ago. */
-export function stamp(days, hour, minute = 0) {
-  return Math.round((midnightDaysAgo(days) + (hour - ZONE_HOURS) * 3_600_000 + minute * 60_000) / 1000);
+/** Unix seconds of `hour:minute` local time (`zone`, default ZONE) on the day `days` ago. */
+export function stamp(days, hour, minute = 0, zone = ZONE) {
+  const offset = zone === ZONE ? ZONE_HOURS : zoneHours(zone);
+  return Math.round((midnightDaysAgo(days) + (hour - offset) * 3_600_000 + minute * 60_000) / 1000);
 }
 
 /** Weekday index Monday first (0..6) of the local day `days` ago. */
@@ -64,7 +68,7 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
   const repoPath = path.join(root, name);
   fs.mkdirSync(repoPath);
   /** Author time and – for a rebased commit – a later committer time (Unix seconds). */
-  let when = { person: PEOPLE.lena, time: stamp(0, 12), committed: null };
+  let when = { person: PEOPLE.lena, time: stamp(0, 12), committed: null, zone: ZONE };
   const env = () => ({
     ...process.env,
     ...gitIsolationEnv(globalConfig),
@@ -72,8 +76,8 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
     GIT_AUTHOR_EMAIL: when.person.email,
     GIT_COMMITTER_NAME: when.person.name,
     GIT_COMMITTER_EMAIL: when.person.email,
-    GIT_AUTHOR_DATE: `${when.time} ${ZONE}`,
-    GIT_COMMITTER_DATE: `${when.committed ?? when.time} ${ZONE}`,
+    GIT_AUTHOR_DATE: `${when.time} ${when.zone}`,
+    GIT_COMMITTER_DATE: `${when.committed ?? when.time} ${when.zone}`,
   });
   const git = (...args) => execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 }).toString().replace(/\n$/, "");
   const write = (rel, content) => {
@@ -83,16 +87,16 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
   };
   const append = (rel, content) => fs.appendFileSync(path.join(repoPath, rel), content);
   const read = (rel) => fs.readFileSync(path.join(repoPath, rel), "utf8");
-  /** Commits everything as `person` on the day `days` ago at `hour` (local, ZONE). */
-  const commit = (person, days, hour, message, minute = 0) => {
-    when = { person, time: stamp(days, hour, minute), committed: null };
+  /** Commits everything as `person` on the day `days` ago at `hour:minute` (local time of `zone`). */
+  const commit = (person, days, hour, message, minute = 0, zone = ZONE) => {
+    when = { person, time: stamp(days, hour, minute, zone), committed: null, zone };
     git("add", "-A");
     git("commit", "-q", "-m", message);
     return git("rev-parse", "HEAD");
   };
   /** Like `commit`, written `days` ago at `hour` but committed (rebased) `committedDays` ago at `committedHour`. */
   const commitRebased = (person, days, hour, committedDays, committedHour, message) => {
-    when = { person, time: stamp(days, hour), committed: stamp(committedDays, committedHour) };
+    when = { person, time: stamp(days, hour), committed: stamp(committedDays, committedHour), zone: ZONE };
     git("add", "-A");
     git("commit", "-q", "-m", message);
     when = { ...when, committed: null };
@@ -100,7 +104,7 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
   };
   /** Runs git with the identity and time of the given commit moment. */
   const gitAt = (person, days, hour, ...args) => {
-    when = { person, time: stamp(days, hour), committed: null };
+    when = { person, time: stamp(days, hour), committed: null, zone: ZONE };
     return git(...args);
   };
   git("init", "-q", "-b", "main");
@@ -137,11 +141,16 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
  *   15       14    Aylin         docs/benutzerhandbuch.md
  *   10       21    Jonas (Upper-case address)   daten/messwerte.csv (+500, the biggest commit)
  *   45 (8)   11    Aylin         README.md – written 45 days ago, rebased (committed) 8 days ago at 12:00
+ *    6    23:30    Mehmet −0700  docs/Größen und Einheiten.md (in UTC already 5 days ago)
  *    5       10    Lena          src/station/export.rs
  *    4  9, 11, 14  Lena          src/station/sensor.rs (three commits)
+ *    4    23:45    Mehmet −0700  docs/Größen und Einheiten.md (in UTC already 3 days ago)
  *    4       12    Mehmet        src/kalibrierung/tabelle.rs  (branch feature/kalibrierung)
  *    3       16    Aylin         README.md
  *    3       18    Lena          merge of feature/kalibrierung (no-ff, not counted)
+ *
+ * By the authors' clocks the longest streak is 6 … 3 days ago (4 days) and the busiest day 4 days
+ * ago (5 commits); counted by UTC days it would be 5 … 3 (3 days) and 4 commits.
  *
  * Unmerged branch experiment/funk: one more commit by Mehmet two days ago at 20:00 (funk/modul.rs).
  */
@@ -150,9 +159,9 @@ export function makeStatsRepo(name = "messnetz-statistik") {
   const { write, append, commit, commitRebased, git, gitAt } = repo;
   /** [person, days, hour] of every counted commit on main. */
   const counted = [];
-  const add = (person, days, hour, message, minute = 0) => {
+  const add = (person, days, hour, message, minute = 0, zone = ZONE) => {
     counted.push({ person, days, hour });
-    return commit(person, days, hour, message, minute);
+    return commit(person, days, hour, message, minute, zone);
   };
 
   write("README.md", "# Messnetz\n\n" + lines("Hinweis", 8));
@@ -182,6 +191,8 @@ export function makeStatsRepo(name = "messnetz-statistik") {
   append("README.md", "Hinweis zur Kalibrierung.\n");
   counted.push({ person: PEOPLE.aylin, days: 45, hour: 11 });
   const rebased = commitRebased(PEOPLE.aylin, 45, 11, 8, 12, "Kalibrierhinweis (umgebaut)");
+  append("docs/Größen und Einheiten.md", "Spätschicht.\n");
+  add(PEOPLE.mehmet, 6, 23, "Größen nach Feierabend", 30, WEST);
   append("src/station/export.rs", lines("// CSV", 2));
   const branchBase = add(PEOPLE.lena, 5, 10, "Export als CSV");
   append("src/station/sensor.rs", "// Frühmessung\n");
@@ -190,6 +201,8 @@ export function makeStatsRepo(name = "messnetz-statistik") {
   add(PEOPLE.lena, 4, 11, "Mittagsmessung");
   append("src/station/sensor.rs", "// Nachmittagsmessung\n");
   add(PEOPLE.lena, 4, 14, "Nachmittagsmessung");
+  append("docs/Größen und Einheiten.md", "Nachtschicht.\n");
+  add(PEOPLE.mehmet, 4, 23, "Größen kurz vor Mitternacht", 45, WEST);
   // Side branch from "Export als CSV", one commit by Mehmet.
   git("branch", "feature/kalibrierung", branchBase);
   git("checkout", "-q", "feature/kalibrierung");
@@ -221,8 +234,8 @@ export function makeStatsRepo(name = "messnetz-statistik") {
       /** Commits within the presets (the fixture keeps clear of their borders). */
       presets: { all: counted.length, year: inLast(365), quarter: inLast(90), month: inLast(30) },
       authors: { all: 4 },
-      streak: { days: 3, start: dateOf(5), end: dateOf(3) },
-      busiest: { date: dateOf(4), commits: 4 },
+      streak: { days: 4, start: dateOf(6), end: dateOf(3) },
+      busiest: { date: dateOf(4), commits: 5 },
       topHotspot: "src/station/sensor.rs",
       /** Renamed 50 days ago; two of its four commits are from before the rename. */
       renamed: { from: "docs/handbuch.md", path: "docs/benutzerhandbuch.md" },
@@ -286,7 +299,7 @@ export function authorTotals(repo, rev = "HEAD") {
   return totals;
 }
 
-/** Code age buckets from git blame (author time of each line against the commit time of `rev`). */
+/** Code age buckets from git blame: author time of each line against `reference` (default: now, as the core does). */
 export function codeAgeFromBlame(repo, rev = "HEAD", reference = Math.floor(Date.now() / 1000)) {
   const files = repo.git("ls-tree", "-r", "--name-only", "-z", rev).split("\0").filter(Boolean);
   const buckets = { month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 };
@@ -368,4 +381,24 @@ export function knowledgeFromGit(repo, rev = "HEAD") {
     result[folder] = { total, authors: ranked.length, main, mainShare: Math.floor((top * 100 + Math.floor(total / 2)) / total), bus };
   }
   return result;
+}
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const parts = (iso) => {
+  const [year, month, day] = iso.split("-").map(Number);
+  return { year, month: MONTH_NAMES[month - 1], day };
+};
+/** "2026-10-11" as the English UI shows a day: "Oct 11, 2026". */
+export function dayText(iso) {
+  const { year, month, day } = parts(iso);
+  return `${month.slice(0, 3)} ${day}, ${year}`;
+}
+/** Two days as the English UI shows a range: "October 9 – 12, 2026", "September 30 – October 3, 2026", across years with both years. */
+export function dayRangeText(start, end) {
+  const a = parts(start);
+  const b = parts(end);
+  if (start === end) return `${a.month} ${a.day}, ${a.year}`;
+  if (a.year !== b.year) return `${a.month} ${a.day}, ${a.year} – ${b.month} ${b.day}, ${b.year}`;
+  if (a.month !== b.month) return `${a.month} ${a.day} – ${b.month} ${b.day}, ${a.year}`;
+  return `${a.month} ${a.day} – ${b.day}, ${a.year}`;
 }

@@ -18,6 +18,8 @@ import {
   authorTotals,
   codeAgeFromBlame,
   dateOf,
+  dayRangeText,
+  dayText,
   knowledgeFromGit,
   makeBareStatsRepo,
   makeCrowdStatsRepo,
@@ -563,7 +565,8 @@ scenario("branch choice: another branch is counted and follows when it moves", "
   await waitStats(app, (s) => commitsHint(s) === repo.expected.commits);
   await choose(app, "Branch", "experiment/funk");
   let stats = await waitStats(app, (s) => commitsHint(s) === repo.expected.commits + 1, "experiment/funk counted");
-  assertEqual(stats.authors.find((author) => author.email === PEOPLE.mehmet.email)?.commits, 2, "Mehmet with the branch's commit");
+  const mehmetOnMain = repo.counted.filter((item) => item.person === PEOPLE.mehmet).length;
+  assertEqual(stats.authors.find((author) => author.email === PEOPLE.mehmet.email)?.commits, mehmetOnMain + 1, "Mehmet with the branch's commit");
   same(stats.status, { kind: "fresh", text: "Up to date with experiment/funk" }, "status names the branch");
   assertEqual(repo.git("rev-parse", "--abbrev-ref", "HEAD"), "main", "git: HEAD stays on main");
 
@@ -573,7 +576,7 @@ scenario("branch choice: another branch is counted and follows when it moves", "
   const moved = repo.gitAt(PEOPLE.mehmet, 0, 7, "commit-tree", tree, "-p", parent, "-m", "Funkmodul nachjustieren");
   repo.git("update-ref", "refs/heads/experiment/funk", moved, parent);
   stats = await waitStats(app, (s) => commitsHint(s) === repo.expected.commits + 2, "follows the moved branch", 30_000);
-  assertEqual(stats.authors.find((author) => author.email === PEOPLE.mehmet.email)?.commits, 3, "Mehmet after the move");
+  assertEqual(stats.authors.find((author) => author.email === PEOPLE.mehmet.email)?.commits, mehmetOnMain + 2, "Mehmet after the move");
 
   // Commits on main do not concern the chosen branch.
   repo.write("main-only.txt", "x\n");
@@ -742,8 +745,12 @@ scenario("all cards show the repository's numbers", "main", async (t) => {
   assertEqual(commitsHint(s), repo.expected.commits, "time hint");
 
   // Records.
-  assertEqual(s.records["Longest streak"]?.[0], `${repo.expected.streak.days} days`, "longest streak");
-  assertEqual(s.records["Busiest day"]?.[0], `${repo.expected.busiest.commits} commits`, "busiest day");
+  // By the author's clock: two commits late in the evening at −0700 are already the next day in UTC.
+  const { streak, busiest } = repo.expected;
+  same(s.records["Longest streak"], [`${streak.days} days`, dayRangeText(streak.start, streak.end)], "longest streak and its days");
+  same(s.records["Busiest day"], [`${busiest.commits} commits`, dayText(busiest.date)], "busiest day and its date");
+  const west = repo.git("log", "--no-merges", "--format=%ad", "--date=format:%z %H:%M", "HEAD").split("\n").filter((line) => line.startsWith("-0700"));
+  same(west, ["-0700 23:45", "-0700 23:30"], "fixture: two late commits at −0700");
   assertEqual(s.biggest.sha, repo.biggest, "largest commit is the CSV import");
   assertEqual(s.records["Largest commit"]?.[0], "+500 −0", "largest commit lines");
   assertEqual(s.biggest.text, "Messwerte Januar importieren · Jonas Becker", "largest commit message and author");
