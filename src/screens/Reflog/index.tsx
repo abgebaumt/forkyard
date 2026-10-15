@@ -25,7 +25,7 @@ import type { MenuEntry } from "../../ui/Menu";
 import { Select } from "../../ui/Select";
 import { goBack } from "../FileView/nav";
 import { BackButton, isPlainEscape, ownsKey } from "../FileView/parts";
-import { actionLabel, refFromValue, refOptions, refValue } from "./model";
+import { actionLabel, entryKey, refFromValue, refOptions, refValue, resolveSelection, type ReflogSelection } from "./model";
 import { t } from "../../i18n";
 
 /** Two lines of text per entry (h-12). */
@@ -44,18 +44,20 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
   const { data: refs } = useRefs(repoId);
   const entries = useMemo(() => query.data?.pages.flatMap((page) => page.entries) ?? [], [query.data]);
   const options = useMemo(() => refOptions(refs, refName), [refs, refName]);
-  const [selected, setSelected] = useState(0);
-  useEffect(() => setSelected(0), [refName]);
+  // Kept by entry, not by HEAD@{n}: a new entry on top renumbers the selectors.
+  // Another ref starts again at its first entry.
+  const [selection, setSelection] = useState<(ReflogSelection & { ref: string | null }) | null>(null);
+  const resolved = useMemo(() => resolveSelection(entries, selection?.ref === refName ? selection : null), [entries, selection, refName]);
 
   const select = useCallback(
     (index: number) => {
       const entry = entries[index];
       if (!entry) return;
-      setSelected(index);
+      setSelection({ ref: refName, key: entryKey(entry), index });
       // The commit panel shows the commit – as long as it still exists.
       if (entry.exists) store().selectCommits(tabId, [entry.sha]);
     },
-    [entries, store, tabId],
+    [entries, refName, store, tabId],
   );
   const open = useCallback(
     (index: number) => {
@@ -121,7 +123,7 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
     content = (
       <ReflogList
         entries={entries}
-        selected={Math.min(selected, entries.length - 1)}
+        selected={resolved.index}
         hasMore={Boolean(hasNextPage)}
         loadingMore={query.isFetchingNextPage}
         onLoadMore={loadMore}

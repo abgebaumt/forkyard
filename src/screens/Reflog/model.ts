@@ -1,5 +1,5 @@
 /** Pure helpers of the reflog view: the ref filter and the action names. */
-import type { ReflogAction, RefsSnapshot } from "../../core";
+import type { ReflogAction, ReflogEntry, RefsSnapshot } from "../../core";
 import type { SelectOption } from "../../ui/Select";
 import { t } from "../../i18n";
 
@@ -32,3 +32,30 @@ const ACTION_LABELS: Record<ReflogAction, string> = {
 };
 
 export const actionLabel = (action: ReflogAction): string => ACTION_LABELS[action];
+
+/**
+ * The selected reflog entry, kept by what it is rather than by `HEAD@{n}`: a new entry on top
+ * renumbers every selector, but the entry itself (commit, time, Git's text) stays the same.
+ */
+export interface ReflogSelection {
+  key: string;
+  /** Position when it was selected – the fallback if the entry is gone. */
+  index: number;
+}
+
+export const entryKey = (entry: Pick<ReflogEntry, "sha" | "time" | "message">): string => `${entry.sha}\u0000${entry.time}\u0000${entry.message}`;
+
+/**
+ * Index of the selected entry in `entries`. `found: false` means the selection has to be (re)made –
+ * nothing chosen yet (the first entry) or the entry has gone (the nearest position).
+ */
+export function resolveSelection(entries: readonly Pick<ReflogEntry, "sha" | "time" | "message">[], selection: ReflogSelection | null): { index: number; found: boolean } {
+  if (!selection) return { index: 0, found: false };
+  let best = -1;
+  entries.forEach((entry, index) => {
+    if (entryKey(entry) !== selection.key) return;
+    if (best < 0 || Math.abs(index - selection.index) < Math.abs(best - selection.index)) best = index;
+  });
+  if (best >= 0) return { index: best, found: true };
+  return { index: Math.max(0, Math.min(selection.index, entries.length - 1)), found: false };
+}

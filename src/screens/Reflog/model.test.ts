@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RefsSnapshot } from "../../core";
-import { actionLabel, HEAD_VALUE, refFromValue, refOptions, refValue } from "./model";
+import { actionLabel, entryKey, HEAD_VALUE, refFromValue, refOptions, refValue, resolveSelection } from "./model";
 
 const refs = {
   head: { kind: "branch", branch: "main", sha: "a" },
@@ -37,5 +37,34 @@ describe("actionLabel", () => {
     expect(actionLabel("cherry_pick")).toBe("Cherry-pick");
     expect(actionLabel("amend")).toBe("Amend");
     expect(actionLabel("other")).toBe("Other");
+  });
+});
+
+describe("resolveSelection", () => {
+  const wind = { sha: "w1", time: "2026-10-15T10:00:03Z", message: "commit: Wind erfassen" };
+  const older = [
+    { sha: "c1", time: "2026-10-15T10:00:05Z", message: "checkout: moving from feature/wind to main" },
+    { sha: "c2", time: "2026-10-15T10:00:04Z", message: "commit: Messreihe" },
+    { sha: "c3", time: "2026-10-15T10:00:04Z", message: "commit: Regen" },
+    wind,
+  ];
+
+  it("starts with the first entry, which still has to be selected", () => {
+    expect(resolveSelection(older, null)).toEqual({ index: 0, found: false });
+  });
+
+  it("follows the selected entry when a new one arrives on top", () => {
+    const selection = { key: entryKey(wind), index: 3 };
+    const newer = [{ sha: "n1", time: "2026-10-15T10:01:00Z", message: "commit: neu" }, ...older];
+    expect(resolveSelection(newer, selection)).toEqual({ index: 4, found: true });
+  });
+
+  it("falls back to the nearest position when the entry is gone", () => {
+    expect(resolveSelection(older.slice(0, 2), { key: entryKey(wind), index: 3 })).toEqual({ index: 1, found: false });
+  });
+
+  it("picks the nearest of identical entries", () => {
+    const twice = [wind, older[0]!, wind];
+    expect(resolveSelection(twice, { key: entryKey(wind), index: 2 })).toEqual({ index: 2, found: true });
   });
 });
