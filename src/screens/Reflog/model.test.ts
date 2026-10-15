@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RefsSnapshot } from "../../core";
-import { actionLabel, entryKey, HEAD_VALUE, refFromValue, refOptions, refValue, resolveSelection } from "./model";
+import { actionLabel, entryKey, entryToSelect, HEAD_VALUE, refFromValue, refOptions, refValue, resolveSelection } from "./model";
 
 const refs = {
   head: { kind: "branch", branch: "main", sha: "a" },
@@ -66,5 +66,21 @@ describe("resolveSelection", () => {
   it("picks the nearest of identical entries", () => {
     const twice = [wind, older[0]!, wind];
     expect(resolveSelection(twice, { key: entryKey(wind), index: 2 })).toEqual({ index: 2, found: true });
+  });
+});
+
+describe("entryToSelect", () => {
+  const head = { sha: "05f23c35", time: "2026-10-15T10:00:05Z", message: "commit: Messreihe" };
+  const prev = { sha: "a1", time: "2026-10-15T10:00:04Z", message: "commit: Grundgerüst" };
+
+  it("selects HEAD@{0} for the commit panel as soon as the reflog has loaded", () => {
+    expect(entryToSelect([head, prev], resolveSelection([head, prev], null))).toBe(0);
+    expect(entryToSelect([], resolveSelection([], null))).toBeNull();
+  });
+
+  it("leaves a found selection alone and re-selects the nearest when it has gone", () => {
+    const selection = { key: entryKey(prev), index: 1 };
+    expect(entryToSelect([head, prev], resolveSelection([head, prev], selection))).toBeNull();
+    expect(entryToSelect([head], resolveSelection([head], selection))).toBe(0);
   });
 });

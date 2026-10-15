@@ -25,7 +25,7 @@ import type { MenuEntry } from "../../ui/Menu";
 import { Select } from "../../ui/Select";
 import { goBack } from "../FileView/nav";
 import { BackButton, isPlainEscape, ownsKey } from "../FileView/parts";
-import { actionLabel, entryKey, refFromValue, refOptions, refValue, resolveSelection, type ReflogSelection } from "./model";
+import { actionLabel, entryKey, entryToSelect, refFromValue, refOptions, refValue, resolveSelection, type ReflogSelection } from "./model";
 import { t } from "../../i18n";
 
 /** Two lines of text per entry (h-12). */
@@ -59,6 +59,12 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
     },
     [entries, refName, store, tabId],
   );
+  // The highlighted entry is also the one the commit panel shows: the first one on opening, the
+  // nearest one when the selected entry has gone.
+  useEffect(() => {
+    const index = entryToSelect(entries, resolved);
+    if (index !== null) select(index);
+  }, [entries, resolved, select]);
   const open = useCallback(
     (index: number) => {
       select(index);

@@ -59,3 +59,10 @@ export function resolveSelection(entries: readonly Pick<ReflogEntry, "sha" | "ti
   if (best >= 0) return { index: best, found: true };
   return { index: Math.max(0, Math.min(selection.index, entries.length - 1)), found: false };
 }
+
+/**
+ * The entry that still has to be selected so that the highlight and the commit panel agree: the first
+ * one when the reflog opens, the nearest one when the selected entry has gone. null = nothing to do.
+ */
+export const entryToSelect = (entries: readonly unknown[], resolved: { index: number; found: boolean }): number | null =>
+  !resolved.found && entries.length > 0 ? resolved.index : null;
