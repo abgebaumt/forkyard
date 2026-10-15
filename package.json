@@ -20,6 +20,7 @@
     "app": "tauri dev",
     "test": "vitest run",
     "check:commands": "node scripts/check-commands.mjs",
+    "check:case": "node scripts/check-case.mjs",
     "e2e:smoke": "node scripts/e2e/smoke.mjs",
     "e2e:contract": "node scripts/e2e/contract.mjs",
     "e2e:shell": "node scripts/e2e/shell.mjs",

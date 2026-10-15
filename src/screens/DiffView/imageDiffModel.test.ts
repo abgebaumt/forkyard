@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canCompare, effectiveMode, hexToRgb, loadImageMode, MAX_DIFF_PIXELS, modeOptions, pixelDifference, sameSize, saveImageMode, stackFrameStyle, stackGeometry, type Pixels } from "./imageDiff";
+import { canCompare, effectiveMode, hexToRgb, loadImageMode, MAX_DIFF_PIXELS, modeOptions, pixelDifference, sameSize, saveImageMode, stackFrameStyle, stackGeometry, type Pixels } from "./imageDiffModel";
 
 describe("image diff modes", () => {
   afterEach(() => vi.unstubAllGlobals());

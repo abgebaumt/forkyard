@@ -27,7 +27,7 @@ import {
   type Pixels,
   type Rgb,
   type Size,
-} from "./imageDiff";
+} from "./imageDiffModel";
 
 type ImageDiff = Extract<FileDiff, { kind: "image" }>;
 /** Natural size; null while loading, "failed" if the browser cannot decode the picture. */
