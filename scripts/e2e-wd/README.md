@@ -61,7 +61,7 @@ Every `launchApp()` gets:
   `scripts/e2e/fixtures.mjs`) and **XDG folders** (WebKit storage and caches);
 - a unique **keychain service** (`FORKYARD_KEYRING_SERVICE=forkyard-test-wd-<hash>`); on close the
   entries are cleared with `secret-tool` when it is installed;
-- `FORKYARD_WINDOW_SIZE`, `FORKYARD_AVATAR_URL=off`, `FORKYARD_E2E_WINDOW=visible` (the window
+- `FORKYARD_WINDOW_SIZE`, `FORKYARD_AVATAR_URL=off`, `FORKYARD_UPDATE_URL=off` (a feature points it at its own mock), `FORKYARD_E2E_WINDOW=visible` (the window
   lives on the private display).
 
 The app runs from a **copy** of `target/debug/forkyard` (with `forkyard-askpass` and
