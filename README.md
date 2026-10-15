@@ -33,6 +33,9 @@ actually happens, and makes the risky parts safe:
 - **Fast on big repositories.** The commit graph is laid out in Rust and drawn on a canvas; history
   loads page by page, file watching and status run in the background.
 - **Private by design.** Credentials live only in your OS keychain. No telemetry, no account, no server.
+  Besides your own Git and host operations (and author avatars from GitHub, which you can turn off),
+  the only automatic network request is an optional daily update check to api.github.com that sends
+  nothing but the app version in the User-Agent – it can be switched off in Settings › About.
 - **Safe with unknown repositories.** Repositories whose config or hooks would run programs stay
   locked until you trust them.
 
@@ -82,6 +85,7 @@ actually happens, and makes the risky parts safe:
 - Statistics per repository: activity, authors, hotspots, bus factor, code age
 - Command palette, keyboard shortcuts, embedded terminal, light and dark theme
 - A `forkyard` command line, and local crash reports that never leave your machine
+- Optional daily update check against the GitHub releases: a quiet hint when a new version is out
 
 </td>
 </tr>

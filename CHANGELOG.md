@@ -80,6 +80,12 @@ All notable changes to Forkyard are listed here. The format follows
   Remotes are recognised in their HTTPS and SSH forms (including `ssh.dev.azure.com`,
   `vs-ssh.visualstudio.com` and `altssh.bitbucket.org`). Tokens stay in the system keychain;
   Bitbucket signs in with the account e-mail and an API token.
+- Update check: once a day (and on “Check for updates…” in the command palette or Settings › About)
+  the app asks GitHub for the newest stable release. A newer version shows up quietly in the status
+  bar and once as a message with an excerpt of the release notes; “View release” opens the release
+  page in the browser, “Skip this version” silences it. The request sends nothing but the app version
+  in the user agent; drafts and prereleases are ignored, nothing is downloaded or installed. Turn it
+  off under Settings › About › Check for updates automatically.
 
 ### Changed
 

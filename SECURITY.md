@@ -20,4 +20,6 @@ Only the latest release receives security fixes.
 - Repositories whose configuration or hooks would run programs stay locked until you trust them.
 - Everything written to logs, errors or events is scrubbed of secrets.
 - No telemetry, no accounts, no server. Network access happens only for Git remotes, the
-  GitHub/GitLab APIs you connect and author avatars from GitHub (can be turned off in Settings).
+  GitHub/GitLab APIs you connect, author avatars from GitHub (can be turned off in Settings) and a
+  daily update check to api.github.com that sends nothing but the app version (can be turned off in
+  Settings › About).
