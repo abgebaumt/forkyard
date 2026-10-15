@@ -35,7 +35,7 @@ import { openConnectDialog } from "../Hosts";
 import { PrFiles } from "./Files";
 import { SafeMarkdown } from "./Markdown";
 import { openMergeDialog } from "./MergeDialog";
-import { BlockTitle, BranchChip, ChecksSummary, PhaseBadge, ReviewState, When, checkInfo, reviewLabel, userName } from "./parts";
+import { BlockTitle, BranchChip, ChecksSummary, LabelsBlock, PhaseBadge, ReviewState, When, checkInfo, reviewLabel, userName } from "./parts";
 
 export interface PullRequestViewProps {
   repoId: Id;
@@ -161,7 +161,7 @@ function CommentForm({ repoId, number }: { repoId: Id; number: number }) {
   );
 }
 
-function Conversation({ repoId, pr }: { repoId: Id; pr: PrDetails }) {
+function Conversation({ repoId, pr, capabilities }: { repoId: Id; pr: PrDetails; capabilities: HostCapabilities }) {
   const author = userName(pr.author);
   return (
     <div className="@container mx-auto flex w-full max-w-200 flex-col gap-5 px-6 py-5">
@@ -193,20 +193,7 @@ function Conversation({ repoId, pr }: { repoId: Id; pr: PrDetails }) {
             </ul>
           )}
         </section>
-        <section aria-label={t("pullRequest.view.labels")} data-pr-labels="">
-          <BlockTitle count={pr.labels.length || undefined}>{t("pullRequest.view.labels")}</BlockTitle>
-          {pr.labels.length === 0 ? (
-            <p className="text-base text-text-muted">{t("pullRequest.view.noLabels")}</p>
-          ) : (
-            <ul className="flex flex-wrap gap-1">
-              {pr.labels.map((label) => (
-                <li key={label} title={label} className="selectable max-w-full truncate rounded-pill border border-border bg-surface-raised px-2 text-sm text-text">
-                  {label}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <LabelsBlock labels={pr.labels} capabilities={capabilities} />
         <section aria-label={t("pullRequest.view.checks")} data-pr-checks="">
           <BlockTitle count={pr.checkRuns.length || undefined}>{t("pullRequest.view.checks")}</BlockTitle>
           {pr.checkRuns.length === 0 ? (
@@ -436,7 +423,7 @@ function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id
           ))}
         </Tabs.List>
         <Tabs.Content value="conversation" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
-          <Conversation repoId={repoId} pr={pr} />
+          <Conversation repoId={repoId} pr={pr} capabilities={capabilities} />
         </Tabs.Content>
         <Tabs.Content value="commits" tabIndex={-1} className="@container min-h-0 flex-1 overflow-y-auto outline-none">
           <Commits repoId={repoId} tabId={tabId} pr={pr} />

@@ -4,7 +4,7 @@
  */
 import type { ComponentType, ReactNode } from "react";
 import { CircleCheck, CircleDashed, CircleX, Clock, GitMerge, GitPullRequestArrow, GitPullRequestClosed, GitPullRequestDraft, MessageSquare, MessageSquareWarning, ThumbsUp } from "lucide-react";
-import type { CheckState, HostUser, PrCheck, PrState, PrSummary } from "../../app/actions/hostTypes";
+import type { CheckState, HostCapabilities, HostUser, PrCheck, PrState, PrSummary } from "../../app/actions/hostTypes";
 import { formatDateTime, formatRelative } from "../../app/format";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
@@ -122,5 +122,26 @@ export function BlockTitle({ children, count }: { children: ReactNode; count?: n
       {children}
       {count !== undefined ? <span className="font-normal tabular-nums">{count}</span> : null}
     </h3>
+  );
+}
+
+/** Labels of a pull request; left out entirely for hosts without labels (Bitbucket). */
+export function LabelsBlock({ labels, capabilities }: { labels: string[]; capabilities: Pick<HostCapabilities, "prLabels"> }) {
+  if (!capabilities.prLabels) return null;
+  return (
+    <section aria-label={t("pullRequest.view.labels")} data-pr-labels="">
+      <BlockTitle count={labels.length || undefined}>{t("pullRequest.view.labels")}</BlockTitle>
+      {labels.length === 0 ? (
+        <p className="text-base text-text-muted">{t("pullRequest.view.noLabels")}</p>
+      ) : (
+        <ul className="flex flex-wrap gap-1">
+          {labels.map((label) => (
+            <li key={label} title={label} className="selectable max-w-full truncate rounded-pill border border-border bg-surface-raised px-2 text-sm text-text">
+              {label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
