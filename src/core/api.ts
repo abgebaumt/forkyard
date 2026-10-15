@@ -103,6 +103,7 @@ import type {
   Submodule,
   Tab,
   UndoState,
+  UpdateInfo,
   Workspace,
   WorkspaceRunResult,
   Worktree,
@@ -115,6 +116,16 @@ export interface CoreCommands {
   appInfo(): Promise<AppInfo>;
   /** Looks for Git again ("Check again") and returns the new state; a Git installed later counts without a restart. */
   appRecheckGit(): Promise<AppInfo>;
+  /**
+   * Asks GitHub for the newest stable release (`/repos/abgebaumt/forkyard/releases/latest`, only
+   * the app version in the user agent). `manual: false`: only while `checkForUpdates` is on and at
+   * most once a day (also across restarts) – otherwise the remembered result. `manual: true` always
+   * asks. Errors: `host_rate_limited` (403/429), `offline`/`timeout`, `not_allowed` (release page not
+   * under github.com/abgebaumt/forkyard), `unknown`. No release yet (404) is "up to date".
+   */
+  updateCheck(input: { manual: boolean }): Promise<UpdateInfo>;
+  /** The notice for `version` was seen (`skip: false`, no second toast) or the version is skipped (`skip: true`, no notice at all). */
+  updateDismiss(input: { version: string; skip: boolean }): Promise<UpdateInfo>;
   /**
    * The request the app was started with (start argument or `forkyard://` link) –
    * exactly once, null afterwards. Call it at startup (after subscribing to `app:open_request`):

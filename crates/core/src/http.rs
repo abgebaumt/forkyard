@@ -123,6 +123,8 @@ pub struct Request {
     repo_id: Option<String>,
     label: String,
     min_timeout: Option<Duration>,
+    max_timeout: Option<Duration>,
+    max_retries: Option<u32>,
 }
 
 impl Request {
@@ -139,12 +141,22 @@ impl Request {
             repo_id: None,
             label: label.into(),
             min_timeout: None,
+            max_timeout: None,
+            max_retries: None,
         }
     }
 
     /// This call may take longer than usual: the timeout is at least `limit`.
     pub fn min_timeout(mut self, limit: Duration) -> Self {
         self.min_timeout = Some(limit);
+        self
+    }
+
+    /// This call must not hold anything up: at most `limit` per attempt (also to connect) and at
+    /// most `retries` further attempts.
+    pub fn quick(mut self, limit: Duration, retries: u32) -> Self {
+        self.max_timeout = Some(limit);
+        self.max_retries = Some(retries);
         self
     }
 
@@ -589,6 +601,13 @@ pub async fn send(core: &Core, request: Request) -> CoreResult<Response> {
     let mut options = state.options.lock().clone();
     if let Some(limit) = request.min_timeout {
         options.timeout = options.timeout.max(limit);
+    }
+    if let Some(limit) = request.max_timeout {
+        options.timeout = options.timeout.min(limit);
+        options.connect_timeout = options.connect_timeout.min(limit);
+    }
+    if let Some(retries) = request.max_retries {
+        options.retries = options.retries.min(retries);
     }
     let target = Target::parse(&request.url)?;
     if target.scheme == "http" && !target.loopback {

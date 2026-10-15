@@ -124,6 +124,30 @@ export interface AppInfo {
   keyringAvailable: boolean;
 }
 
+/** A stable Forkyard release on GitHub. */
+export interface UpdateRelease {
+  /** Without a leading "v", e.g. "1.2.0". */
+  version: string;
+  /** Release page; the core only lets addresses under https://github.com/abgebaumt/forkyard/ through. */
+  url: string;
+  /** Release notes as written (Markdown), shortened – show only as plain text. */
+  notes: string;
+  publishedAt: string | null;
+}
+
+export interface UpdateInfo {
+  /** Version of this build. */
+  current: string;
+  /** A newer stable release, if there is one. */
+  latest: UpdateRelease | null;
+  /** Last attempt to ask GitHub; null = never. */
+  checkedAt: string | null;
+  /** Version whose notice was already shown. */
+  notifiedVersion: string | null;
+  /** Version the user skipped: no notice for it. */
+  skippedVersion: string | null;
+}
+
 /**
  * Request from outside (start argument `<folder> [--commit <sha>]`, link
  * `forkyard://open?path=…&commit=…` or a second instance): open this folder and,
@@ -920,6 +944,8 @@ export interface Settings {
   externalMergeTool: string | null;
   notifyOnFetch: boolean;
   notifyOnError: boolean;
+  /** Ask GitHub once a day whether a newer stable release exists. Global. */
+  checkForUpdates: boolean;
   sshUseAgent: boolean;
   // --- Network (applies only to the app's network calls; the user's gitconfig stays untouched) ---
   /**

@@ -78,6 +78,7 @@ try {
       FORKYARD_DATA_DIR: data,
       FORKYARD_KEYRING_SERVICE: "forkyard-screenshots",
       FORKYARD_AVATAR_URL: "off",
+      FORKYARD_UPDATE_URL: "off",
       FORKYARD_WINDOW_SIZE: `${WIDTH}x${HEIGHT}`,
       FORKYARD_DEV_URL: `http://127.0.0.1:${PORT}/?${query}`,
       GIT_CONFIG_GLOBAL: path.join(os.tmpdir(), "projects", "nimbus.gitconfig"),

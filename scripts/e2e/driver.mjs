@@ -446,6 +446,7 @@ export async function launchApp(options = {}) {
     FORKYARD_DEV_URL: devUrl,
     // Tests rufen keine echten Dienste auf: keine Avatare von GitHub.
     FORKYARD_AVATAR_URL: "off",
+    FORKYARD_UPDATE_URL: "off",
     FORKYARD_E2E_WINDOW: options.show ? "visible" : "hidden",
     FORKYARD_WINDOW_SIZE: `${width}x${height}`,
     // Tokens, keys and passwords of the test instance live under their own service name in the

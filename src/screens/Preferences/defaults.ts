@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   externalMergeTool: null,
   notifyOnFetch: false,
   notifyOnError: true,
+  checkForUpdates: true,
   sshUseAgent: true,
   proxyUrl: null,
   proxyByHost: [],

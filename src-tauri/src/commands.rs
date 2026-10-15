@@ -34,6 +34,16 @@ pub async fn app_recheck_git(core: State<'_, Core>) -> R<AppInfo> {
 }
 
 #[tauri::command]
+pub async fn update_check(core: State<'_, Core>, manual: bool) -> R<UpdateInfo> {
+    c::update::update_check(&core, manual).await
+}
+
+#[tauri::command]
+pub async fn update_dismiss(core: State<'_, Core>, version: String, skip: bool) -> R<UpdateInfo> {
+    c::update::update_dismiss(&core, version, skip).await
+}
+
+#[tauri::command]
 pub async fn app_close_guard(core: State<'_, Core>, active: bool) -> R<()> {
     c::app::app_close_guard(&core, active).await
 }

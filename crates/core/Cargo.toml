@@ -38,6 +38,8 @@ log = "0.4"
 # the operating system's root certificates, SOCKS proxy.
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier", "socks-proxy"] }
 tempfile = { version = "3", optional = true }
+# Version comparison for the update check.
+semver = "1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

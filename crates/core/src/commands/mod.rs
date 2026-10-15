@@ -41,6 +41,7 @@ pub mod tags;
 pub mod terminal;
 pub mod trust;
 pub mod undo;
+pub mod update;
 pub mod view;
 pub mod workspace;
 pub mod worktree;

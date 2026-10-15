@@ -29,6 +29,9 @@ const WINDOW_SIZE_ENV: &str = "FORKYARD_WINDOW_SIZE";
 const KEYRING_SERVICE_ENV: &str = "FORKYARD_KEYRING_SERVICE";
 /// Development build only: a different avatar service; `off` disables the lookup (E2E, screenshots).
 const AVATAR_URL_ENV: &str = "FORKYARD_AVATAR_URL";
+/// Development build only: a different address for the update check instead of api.github.com;
+/// `off` turns it off (E2E, screenshots).
+const UPDATE_URL_ENV: &str = "FORKYARD_UPDATE_URL";
 const MAIN_WINDOW: &str = "main";
 
 fn env_value(name: &str) -> Option<std::ffi::OsString> {
@@ -178,6 +181,9 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     let core = tauri::async_runtime::block_on(Core::open(config))?;
     if let Some(base) = dev_env_value(AVATAR_URL_ENV).and_then(|v| v.into_string().ok()) {
         gitcore::commands::avatars::configure(&core, Some(if base == "off" { String::new() } else { base }));
+    }
+    if let Some(base) = dev_env_value(UPDATE_URL_ENV).and_then(|v| v.into_string().ok()) {
+        gitcore::commands::update::configure(&core, Some(if base == "off" { String::new() } else { base }));
     }
     // This launch's request waits for the UI; later ones arrive over the local channel.
     gitcore::commands::launch::set_initial(&core, launch);
@@ -399,6 +405,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             commands::app_recheck_git,
+            commands::update_check,
+            commands::update_dismiss,
             commands::app_launch_request,
             commands::app_close_guard,
             commands::app_quit,

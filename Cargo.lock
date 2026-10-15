@@ -1546,6 +1546,7 @@ dependencies = [
  "portable-pty",
  "regex",
  "rusqlite",
+ "semver",
  "serde",
  "serde_json",
  "sha2",

@@ -367,6 +367,8 @@ impl TestCore {
         let core = Core::open(config).await.expect("open core");
         // Tests do not call real services: avatars only if a test sets up a mock.
         crate::commands::avatars::configure(&core, Some(String::new()));
+        // Nor the update check.
+        crate::commands::update::configure(&core, Some(String::new()));
         TestCore { core, events, secrets, dir }
     }
 

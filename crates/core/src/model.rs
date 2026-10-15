@@ -48,6 +48,35 @@ pub struct AppInfo {
     pub keyring_available: bool,
 }
 
+/// A stable Forkyard release on GitHub (`update_check`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateRelease {
+    /// Version without a leading `v`, e.g. `1.2.0`.
+    pub version: String,
+    /// Release page on GitHub; always starts with `https://github.com/abgebaumt/forkyard/`.
+    pub url: String,
+    /// Release notes as written (Markdown), shortened; the UI shows them as plain text only.
+    pub notes: String,
+    pub published_at: Option<String>,
+}
+
+/// Result of the update check.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateInfo {
+    /// Version of this build.
+    pub current: String,
+    /// A newer stable release, if there is one (and the automatic check is on, or the check was manual).
+    pub latest: Option<UpdateRelease>,
+    /// Last attempt to ask GitHub (ISO-8601, UTC); `None` = never.
+    pub checked_at: Option<String>,
+    /// Version whose notice the user has already seen (shown once per version).
+    pub notified_version: Option<String>,
+    /// Version the user chose to skip: no notice for it at all.
+    pub skipped_version: Option<String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Repo {
@@ -1211,6 +1240,9 @@ pub struct Settings {
     pub external_merge_tool: Option<String>,
     pub notify_on_fetch: bool,
     pub notify_on_error: bool,
+    /// Ask GitHub once a day whether a newer stable release exists (`update_check`).
+    #[serde(default = "yes")]
+    pub check_for_updates: bool,
     pub ssh_use_agent: bool,
     /// Proxy for all HTTP(S) remotes (`http.proxy`); `None` = whatever Git already uses.
     #[serde(default)]
@@ -1225,6 +1257,10 @@ pub struct Settings {
     /// never global), in the form `https://host[:port]`.
     #[serde(default)]
     pub ssl_no_verify_hosts: Vec<String>,
+}
+
+fn yes() -> bool {
+    true
 }
 
 /// Level of a `Settings` field: the same for all profiles or per profile.
@@ -1264,6 +1300,7 @@ impl Default for Settings {
             external_merge_tool: None,
             notify_on_fetch: false,
             notify_on_error: true,
+            check_for_updates: true,
             ssh_use_agent: true,
             proxy_url: None,
             proxy_by_host: Vec::new(),

@@ -539,6 +539,7 @@ export async function launchApp(options = {}) {
     FORKYARD_DATA_DIR: dataDir,
     FORKYARD_DEV_URL: devUrl.toString(),
     FORKYARD_AVATAR_URL: "off",
+    FORKYARD_UPDATE_URL: "off",
     // Own display: the window may be visible there without disturbing anyone.
     FORKYARD_E2E_WINDOW: "visible",
     FORKYARD_WINDOW_SIZE: `${width}x${height}`,
