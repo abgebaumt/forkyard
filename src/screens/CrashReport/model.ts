@@ -15,8 +15,9 @@ function formatTime(iso: string): string {
   return new Intl.DateTimeFormat(locale(), { dateStyle: "medium", timeStyle: "short" }).format(time);
 }
 
+/** The line ends inside a sentence ("…: {{line}}. It contains…"), so a closing period goes. */
 function shorten(message: string): string {
-  const first = message.split("\n")[0]!.trim();
+  const first = message.split("\n")[0]!.trim().replace(/\.+$/, "");
   return first.length > MAX_MESSAGE ? `${first.slice(0, MAX_MESSAGE - 1)}…` : first;
 }
 

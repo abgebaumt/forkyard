@@ -36,6 +36,14 @@ describe("crash report model", () => {
     expect(line.endsWith("…")).toBe(true);
   });
 
+  it("leaves the closing period to the sentence the line is put in", () => {
+    const message = "Forkyard 1.0.0 ended without shutting down (run started x, last log line y).";
+    const line = crashReportLine(report({ kind: "unexpected_exit", message }));
+    expect(line.endsWith("y)")).toBe(true);
+    expect(t("crash.dialog.description", { line })).not.toContain("..");
+    expect(crashReportLine(report({ message: "wait..." })).endsWith("wait")).toBe(true);
+  });
+
   it("counts the pending reports in the title", () => {
     expect(crashReportTitle(1, 0)).toBe(t("crash.dialog.title"));
     expect(crashReportTitle(3, 1)).toBe(t("crash.dialog.titleOf", { index: 2, count: 3 }));
