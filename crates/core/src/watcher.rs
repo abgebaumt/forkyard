@@ -12,8 +12,9 @@
 //!   counts if it contains something Git sees.
 //! - `.git`: `index` → index, `HEAD` → head, `refs/**` and `packed-refs` → refs,
 //!   `refs/stash` and `logs/refs/stash` → stash, `config` → config, MERGE_HEAD /
-//!   CHERRY_PICK_HEAD / REVERT_HEAD / rebase-merge / rebase-apply / sequencer → operation.
-//!   Everything else there (objects, logs, lock files) is skipped.
+//!   CHERRY_PICK_HEAD / REVERT_HEAD / rebase-merge / rebase-apply / sequencer / BISECT_* →
+//!   operation. A new folder there counts by its own path (its first files may come without
+//!   events). Everything else there (objects, logs, lock files) is skipped.
 //!
 //! Callers: `commands::repos` calls `start_watching` as soon as a repository gets a tab,
 //! and `stop_watching` when its last tab is closed or it is forgotten; src-tauri calls
@@ -219,6 +220,10 @@ fn classify_git_path(rel: &str, scope: GitScope) -> Option<GitHit> {
         "index" if private => return Some(GitHit { change: RepoChange::Index, affects_ignore: true }),
         "HEAD" if private => return hit(RepoChange::Head),
         "MERGE_HEAD" | "CHERRY_PICK_HEAD" | "REVERT_HEAD" if private => return hit(RepoChange::Operation),
+        // A bisect (also one started in a terminal) lives in these files and in refs/bisect.
+        "BISECT_START" | "BISECT_LOG" | "BISECT_TERMS" | "BISECT_NAMES" | "BISECT_EXPECTED_REV" | "BISECT_ANCESTORS_OK" if private => {
+            return hit(RepoChange::Operation)
+        }
         "packed-refs" if shared => return hit(RepoChange::Refs),
         "refs/stash" | "logs/refs/stash" if shared => return hit(RepoChange::Stash),
         "config" if shared => return Some(GitHit { change: RepoChange::Config, affects_ignore: true }),
@@ -227,6 +232,10 @@ fn classify_git_path(rel: &str, scope: GitScope) -> Option<GitHit> {
     }
     if private && (under("rebase-merge") || under("rebase-apply") || under("sequencer")) {
         return hit(RepoChange::Operation);
+    }
+    // refs/bisect belongs to the worktree, not to the shared part.
+    if private && under("refs/bisect") {
+        return hit(RepoChange::Refs);
     }
     if shared && under("refs") && !under("refs/forkyard") {
         return hit(RepoChange::Refs);
@@ -303,10 +312,14 @@ impl Intake {
         self.ignored_dirs.clear();
     }
 
-    /// `path` is the full path: reports about folders (Windows also reports the folder when
-    /// something is created in it) are skipped – the file inside comes as its own event.
-    fn git_change(&mut self, path: &Path, rel: &[u8], scope: GitScope) -> bool {
-        if path.is_dir() {
+    /// `path` is the full path: reports about changed folders (Windows also reports the folder
+    /// when something is created in it) are skipped – the file inside comes as its own event.
+    /// A folder that appears (`appears`) counts by its own path, though: the recursive watcher
+    /// only starts watching it after its creation was reported, so files written into it right
+    /// away (`refs/bisect/bad` from the first `git bisect bad`, the first `refs/heads/feature/x`)
+    /// can come without an event of their own.
+    fn git_change(&mut self, path: &Path, rel: &[u8], scope: GitScope, appears: bool) -> bool {
+        if path.is_dir() && !appears {
             return false;
         }
         let Some(hit) = classify_git_path(&util::decode_lossy(rel), scope) else { return false };
@@ -342,7 +355,7 @@ impl Intake {
         for i in 0..self.git_roots.len() {
             if let Some(rel) = rel_bytes(&self.git_roots[i].path, path) {
                 let scope = self.git_roots[i].scope;
-                return self.git_change(path, &rel, scope);
+                return self.git_change(path, &rel, scope, appears);
             }
         }
         let Some(rel) = rel_bytes(&self.root, path) else { return false };
@@ -352,7 +365,7 @@ impl Intake {
         let mut parts = rel.split(|&b| b == b'/');
         let first = parts.next().unwrap_or_default();
         if first == b".git" {
-            return self.git_inside && rel.len() > 5 && self.git_change(path, &rel[5..], GitScope::Whole);
+            return self.git_inside && rel.len() > 5 && self.git_change(path, &rel[5..], GitScope::Whole, appears);
         }
         // Nested repository (submodule, unrelated clone): only its HEAD, index and refs count,
         // namely as a change to the folder it lives in.

@@ -114,7 +114,7 @@ fn git_paths_are_classified() {
     assert_eq!(whole("logs/refs/stash"), Some(RepoChange::Stash));
     assert_eq!(whole("config"), Some(RepoChange::Config));
     assert_eq!(whole("info/exclude"), Some(RepoChange::Worktree));
-    for op in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-merge/done", "rebase-apply/next", "sequencer/todo"] {
+    for op in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-merge/done", "rebase-apply/next", "sequencer/todo", "BISECT_START", "BISECT_LOG", "BISECT_TERMS"] {
         assert_eq!(whole(op), Some(RepoChange::Operation), "{op}");
     }
     assert_eq!(whole("modules/sub/HEAD"), Some(RepoChange::Worktree));
@@ -157,6 +157,9 @@ fn git_paths_are_classified() {
     assert_eq!(private("index"), Some(RepoChange::Index));
     assert_eq!(private("MERGE_HEAD"), Some(RepoChange::Operation));
     assert_eq!(private("rebase-merge/done"), Some(RepoChange::Operation));
+    // Bisect state and refs/bisect are per worktree.
+    assert_eq!(private("BISECT_START"), Some(RepoChange::Operation));
+    assert_eq!(private("refs/bisect/bad"), Some(RepoChange::Refs));
     assert_eq!((private("refs/heads/x"), private("config"), private("packed-refs")), (None, None, None));
     assert_eq!(shared("refs/heads/x"), Some(RepoChange::Refs));
     assert_eq!(shared("refs/stash"), Some(RepoChange::Stash));
@@ -600,4 +603,44 @@ async fn closing_the_last_tab_stops_watching() {
     let tab = tabs.iter().find(|t| t.repo_id.as_deref() == Some(id.as_str())).unwrap();
     crate::commands::repos::tab_close(&tc, tab.id.clone()).await.unwrap();
     assert!(!is_watching(&tc, &id));
+}
+
+#[tokio::test]
+async fn a_bisect_started_outside_is_reported() {
+    let repo = TestRepo::with_commit();
+    repo.commit_file("b.txt", "b\n", "B");
+    let (tc, id) = watched(&repo).await;
+
+    // `bisect start` only writes BISECT_* files: an operation begins.
+    repo.git(&["bisect", "start"]);
+    wait_for(&tc, &id, &["operation"]).await;
+    settle(&tc, &id).await;
+
+    // The first `bisect bad` creates the folder refs/bisect together with its first ref.
+    repo.git(&["bisect", "bad", "HEAD"]);
+    wait_for(&tc, &id, &["refs"]).await;
+    settle(&tc, &id).await;
+
+    // A ref rewritten inside the new folder is seen too.
+    repo.git(&["bisect", "bad", "HEAD~1"]);
+    wait_for(&tc, &id, &["refs"]).await;
+    settle(&tc, &id).await;
+    repo.git(&["bisect", "reset"]);
+    wait_for(&tc, &id, &["operation"]).await;
+    shutdown(&tc, &id).await;
+}
+
+#[test]
+fn new_folders_in_the_git_directory_count_by_their_path() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().to_path_buf();
+    std::fs::create_dir_all(root.join(".git/refs/bisect")).unwrap();
+    std::fs::create_dir_all(root.join(".git/objects/ab")).unwrap();
+    let mut intake = Intake::new(root.clone(), true, Vec::new());
+    // A changed folder says nothing; a folder that appears may hold refs whose own events were lost.
+    assert!(!intake.absorb_path(&root.join(".git/refs/bisect"), false));
+    assert!(!intake.absorb_path(&root.join(".git/objects/ab"), true));
+    assert!(intake.pending.kinds.is_empty());
+    assert!(intake.absorb_path(&root.join(".git/refs/bisect"), true));
+    assert_eq!(intake.pending.kinds, [RepoChange::Refs].into_iter().collect());
 }
