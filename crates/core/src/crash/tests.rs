@@ -1,6 +1,6 @@
 use super::*;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 fn log_in(home: Option<&Path>) -> CrashLog {
     CrashLog::with_options(home.map(Path::to_path_buf), 1024 * 1024)
@@ -279,6 +279,97 @@ fn a_second_instance_neither_reports_nor_takes_the_marker() {
     assert!(dir.path().join(MARKER_FILE).exists());
     first.clean_exit();
     assert!(!dir.path().join(MARKER_FILE).exists());
+}
+
+// --- Termination requests ---------------------------------------------------------------------
+
+/// Set for the child process of the termination tests: the data directory it runs in.
+#[cfg(unix)]
+const TERMINATION_CHILD_ENV: &str = "GITCORE_TEST_TERMINATION_CHILD";
+#[cfg(unix)]
+const TERMINATION_CHILD_TEST: &str = "crash::tests::termination_child";
+
+/// The child half of the termination tests (a run of the app in miniature); without the
+/// variable it does nothing. It ends the way the app's handler does: the clean exit, then exit.
+#[cfg(unix)]
+#[test]
+fn termination_child() {
+    let Some(dir) = std::env::var_os(TERMINATION_CHILD_ENV) else { return };
+    let dir = PathBuf::from(dir);
+    let log: &'static CrashLog = Box::leak(Box::new(log_in(None)));
+    assert!(log.attach(&dir, "1.2.3").owns_marker);
+    install_termination_handler(move |reason| {
+        log.push_line(&format!("termination requested ({reason})"));
+        log.clean_exit();
+        std::process::exit(0);
+    })
+    .unwrap();
+    std::fs::write(dir.join("ready"), b"").unwrap();
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+/// Starts the child, waits until it runs, sends `signal`, waits for its end.
+#[cfg(unix)]
+fn run_child_until(dir: &Path, signal: libc::c_int) -> std::process::ExitStatus {
+    use std::time::{Duration, Instant};
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", TERMINATION_CHILD_TEST, "--test-threads=1", "--quiet"])
+        .env(TERMINATION_CHILD_ENV, dir)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while !dir.join("ready").exists() {
+        assert!(child.try_wait().unwrap().is_none(), "the child ended before it was ready");
+        assert!(Instant::now() < deadline, "the child did not get ready");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    // SAFETY: a signal to the child this test started and still waits for.
+    assert_eq!(unsafe { libc::kill(child.id() as libc::pid_t, signal) }, 0);
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            return status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("the child did not end after signal {signal}");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// SIGTERM, SIGINT and SIGHUP ask the app to end: like quitting, not a crash.
+#[cfg(unix)]
+#[test]
+fn a_termination_signal_ends_the_run_cleanly() {
+    for (signal, name) in [(libc::SIGTERM, "SIGTERM"), (libc::SIGINT, "SIGINT"), (libc::SIGHUP, "SIGHUP")] {
+        let dir = tempfile::tempdir().unwrap();
+        let status = run_child_until(dir.path(), signal);
+        assert!(status.success(), "{name}: {status:?}");
+        assert!(!dir.path().join(MARKER_FILE).exists(), "{name}: the marker stayed");
+        let text = log_text(dir.path());
+        assert!(text.contains(&format!("termination requested ({name})")) && text.contains("exited cleanly"), "{name}:\n{text}");
+        let next = log_in(None);
+        assert_eq!(next.attach(dir.path(), "1.2.3").unexpected_report, None, "{name}");
+        assert!(reports(dir.path()).is_empty(), "{name}");
+    }
+}
+
+/// A killed process cannot clean up: the next start still reports it.
+#[cfg(unix)]
+#[test]
+fn a_killed_run_still_leaves_an_unexpected_exit_report() {
+    let dir = tempfile::tempdir().unwrap();
+    let status = run_child_until(dir.path(), libc::SIGKILL);
+    assert!(!status.success());
+    let next = log_in(None);
+    assert!(next.attach(dir.path(), "1.2.3").unexpected_report.is_some());
+    let found = reports(dir.path());
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].kind, ReportKind::UnexpectedExit);
 }
 
 // --- Panic hook ------------------------------------------------------------------------------

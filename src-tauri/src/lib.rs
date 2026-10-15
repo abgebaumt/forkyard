@@ -183,6 +183,11 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     gitcore::commands::launch::set_initial(&core, launch);
     tauri::async_runtime::spawn(gitcore::commands::launch::listen(core.clone()));
     app.manage(core.clone());
+    // SIGTERM, Ctrl+C, the console closing …: end like quitting, not as a crash.
+    let quit_handle = app.handle().clone();
+    if let Err(e) = gitcore::crash::install_termination_handler(move |reason| end_on_request(&quit_handle, reason)) {
+        log::warn!("Requests to end the app are not handled: {e}");
+    }
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let under_test = dev_env_value(E2E_WINDOW_ENV).is_some();
         // In the development build F5 and F12 keep working – except under the E2E driver.
@@ -329,6 +334,35 @@ fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
         let _ = gitcore::commands::app::app_quit(&core).await;
         let _ = window.close();
     });
+}
+
+/// The last steps of every orderly end (quitting, closing the window, a termination request).
+fn finish_exit(handle: &tauri::AppHandle) {
+    if let Some(core) = handle.try_state::<Core>() {
+        gitcore::commands::terminal::close_all(&core);
+        // Port and password of the local channel are only valid while the app is running.
+        gitcore::commands::launch::remove_instance_file(core.data_dir());
+    }
+    // Last: from here on, ending is not a crash.
+    gitcore::crash::global().clean_exit();
+}
+
+/// The app is asked to end from outside (SIGTERM, SIGINT, SIGHUP, console events; see
+/// `gitcore::crash::install_termination_handler`): the same path as quitting – running actions
+/// are cancelled, then the event loop ends with `RunEvent::Exit` (`finish_exit`). Should it not
+/// get there in time, the steps of `finish_exit` run here and the process ends.
+fn end_on_request(handle: &tauri::AppHandle, reason: &str) {
+    if let Some(core) = handle.try_state::<Core>() {
+        let core: Core = (*core).clone();
+        tauri::async_runtime::block_on(async move {
+            let _ = gitcore::commands::app::app_quit(&core).await;
+        });
+    }
+    handle.exit(0);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    log::warn!("The app did not end after {reason}; ending now");
+    finish_exit(handle);
+    std::process::exit(0);
 }
 
 pub fn run() {
@@ -553,13 +587,7 @@ pub fn run() {
         Ok(app) => app.run(|handle, event| {
             // On exit, close the shells of the built-in terminals together with their child processes.
             if let tauri::RunEvent::Exit = event {
-                if let Some(core) = handle.try_state::<Core>() {
-                    gitcore::commands::terminal::close_all(&core);
-                    // Port and password of the local channel are only valid while the app is running.
-                    gitcore::commands::launch::remove_instance_file(core.data_dir());
-                }
-                // Last: from here on, ending is not a crash.
-                gitcore::crash::global().clean_exit();
+                finish_exit(handle);
             }
         }),
         Err(e) => {

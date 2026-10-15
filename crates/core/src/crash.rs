@@ -656,5 +656,8 @@ pub fn install() {
     });
 }
 
+mod termination;
+pub use termination::install_termination_handler;
+
 #[cfg(test)]
 mod tests;
