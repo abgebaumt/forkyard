@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { CoreError, type RepoStats } from "../../core";
-import { needsRefresh, shown, statsReducer, type StatsState } from "./state";
+import { canReuse, needsRefresh, refreshMark, shown, statsReducer, type StatsState } from "./state";
 
-const stats = (commits: number, tip: string | null = "t1") => ({ commits, tip }) as RepoStats;
+/** The injected clock: 2026-10-15 10:00 UTC, as a UTC day number. */
+const NOW = Date.UTC(2026, 9, 15, 10, 0);
+const TODAY = Math.floor(NOW / 86_400_000);
+const TODAY_ISO = new Date(NOW).toISOString();
+const YESTERDAY_ISO = new Date(Date.UTC(2026, 9, 14, 23, 59)).toISOString();
+const stats = (commits: number, tip: string | null = "t1", referenceTime: string | null = TODAY_ISO) => ({ commits, tip, referenceTime }) as RepoStats;
 const error = (code: "cancelled" | "not_found") => new CoreError({ code, message: code, gitOutput: null });
 const idle: StatsState = { kind: "idle" };
 
@@ -35,7 +40,7 @@ describe("statistics view state", () => {
     const cancelled = statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") });
     expect(cancelled).toEqual({ kind: "cancelled" });
     expect(shown(cancelled)).toBeNull();
-    expect(needsRefresh(cancelled, "t2", null), "no automatic restart").toBe(false);
+    expect(needsRefresh(cancelled, "t2", null, TODAY), "no automatic restart").toBe(false);
     expect(statsReducer(cancelled, { type: "start", jobId: "b", keep: true })).toEqual({ kind: "running", jobId: "b", previous: null });
   });
 
@@ -48,13 +53,30 @@ describe("statistics view state", () => {
 
   it("recomputes once when the branch tip moved past the shown result", () => {
     const done: StatsState = { kind: "done", stats: stats(3, "t1") };
-    expect(needsRefresh(done, "t1", null)).toBe(false);
-    expect(needsRefresh(done, "t2", null)).toBe(true);
-    expect(needsRefresh(done, "t2", "t2"), "tried for this tip already").toBe(false);
-    expect(needsRefresh(done, null, null), "tip unknown or unborn").toBe(false);
-    expect(needsRefresh(done, undefined, null), "branches not loaded yet").toBe(false);
-    expect(needsRefresh({ kind: "running", jobId: "a", previous: stats(3) }, "t2", null), "a run is going").toBe(false);
-    expect(needsRefresh({ kind: "failed", error: error("not_found"), previous: null }, "t2", null)).toBe(false);
-    expect(needsRefresh({ kind: "done", stats: stats(0, null) }, "t2", null), "empty before, a first commit now").toBe(true);
+    expect(needsRefresh(done, "t1", null, TODAY)).toBe(false);
+    expect(needsRefresh(done, "t2", null, TODAY)).toBe(true);
+    expect(needsRefresh(done, "t2", refreshMark("t2", TODAY), TODAY), "tried for this tip already").toBe(false);
+    expect(needsRefresh(done, null, null, TODAY), "tip unknown or unborn").toBe(false);
+    expect(needsRefresh(done, undefined, null, TODAY), "branches not loaded yet").toBe(false);
+    expect(needsRefresh({ kind: "running", jobId: "a", previous: stats(3) }, "t2", null, TODAY), "a run is going").toBe(false);
+    expect(needsRefresh({ kind: "failed", error: error("not_found"), previous: null }, "t2", null, TODAY)).toBe(false);
+    expect(needsRefresh({ kind: "done", stats: stats(0, null) }, "t2", null, TODAY), "empty before, a first commit now").toBe(true);
+  });
+
+  it("a result from an earlier day is out of date even when the branch did not move", () => {
+    const yesterday: StatsState = { kind: "done", stats: stats(3, "t1", YESTERDAY_ISO) };
+    expect(needsRefresh(yesterday, "t1", null, TODAY), "the view stayed open past midnight").toBe(true);
+    expect(needsRefresh(yesterday, "t1", refreshMark("t1", TODAY), TODAY), "once per day and tip").toBe(false);
+    expect(needsRefresh({ kind: "done", stats: stats(3, "t1", TODAY_ISO) }, "t1", null, TODAY)).toBe(false);
+    expect(needsRefresh({ kind: "done", stats: stats(0, null, null) }, null, null, TODAY), "nothing committed: nothing to age").toBe(false);
+  });
+
+  it("the session's last result is reused only for the same tip and the same day", () => {
+    expect(canReuse(stats(3, "t1", TODAY_ISO), "t1", TODAY)).toBe(true);
+    expect(canReuse(stats(3, "t1", YESTERDAY_ISO), "t1", TODAY), "yesterday's period and code age").toBe(false);
+    expect(canReuse(stats(3, "t1", TODAY_ISO), "t2", TODAY), "the branch moved").toBe(false);
+    expect(canReuse(stats(3, "t1", TODAY_ISO), undefined, TODAY), "branches not loaded yet").toBe(false);
+    expect(canReuse(null, "t1", TODAY)).toBe(false);
+    expect(canReuse(stats(0, null, null), null, TODAY), "an unborn branch").toBe(true);
   });
 });

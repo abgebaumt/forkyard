@@ -12,7 +12,7 @@ import type { RefsSnapshot, StatsBucket, StatsCodeAge, StatsFile, StatsRange } f
 export type StatsPreset = "all" | "year" | "quarter" | "month";
 export const PRESETS: readonly StatsPreset[] = ["all", "year", "quarter", "month"];
 const PRESET_DAYS: Record<Exclude<StatsPreset, "all">, number> = { year: 365, quarter: 90, month: 30 };
-const DAY_MS = 86_400_000;
+export const DAY_MS = 86_400_000;
 
 /**
  * The range for a preset. `from` is midnight (UTC) `n` days before today, so that the same
@@ -23,6 +23,12 @@ export function rangeFor(preset: StatsPreset, ref: string, now: number = Date.no
   const today = Math.floor(now / DAY_MS) * DAY_MS;
   return { from: new Date(today - PRESET_DAYS[preset] * DAY_MS).toISOString(), to: null, ref };
 }
+
+/** The UTC day of `now` as a day number (days since 1970-01-01). */
+export const utcDay = (now: number = Date.now()): number => Math.floor(now / DAY_MS);
+
+/** Milliseconds from `now` until the next UTC day starts (a whole day at midnight exactly). */
+export const msToNextUtcDay = (now: number = Date.now()): number => (utcDay(now) + 1) * DAY_MS - now;
 
 export type Granularity = "weeks" | "months";
 /** Weeks as long as there are at most two years of them, otherwise months. */

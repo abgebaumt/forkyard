@@ -24,8 +24,8 @@ import { showInGraph } from "../FileView/nav";
 import { leaveStats, rememberChoice, rememberedChoice } from "./actions";
 import { AuthorsList, CodeAgeChart, formatCount, formatPercent, Heatmap, HotspotList, KnowledgeTable, Records, TimeChart, Treemap } from "./charts";
 import { authorPalette, knowledgeRows, statusOf } from "./layout";
-import { buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, parentFolder, PRESETS, rangeFor, type Granularity, type StatsPreset } from "./model";
-import { useStats } from "./useStats";
+import { buildTree, currentTip, DAY_MS, defaultGranularity, fillMonths, fillWeeks, findNode, parentFolder, PRESETS, rangeFor, type Granularity, type StatsPreset } from "./model";
+import { useStats, useUtcDay } from "./useStats";
 
 export interface StatsViewProps {
   repoId: Id;
@@ -73,17 +73,19 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
   const [ref, setRef] = useState(() => rememberedChoice(tabId).ref);
   const [granularity, setGranularity] = useState<Granularity | null>(null);
   const [folder, setFolder] = useState("");
-  const range = useMemo(() => rangeFor(preset, ref), [preset, ref]);
+  // The presets count back from today: a view left open past midnight moves on with the day.
+  const today = useUtcDay();
+  const range = useMemo(() => rangeFor(preset, ref, today * DAY_MS), [preset, ref, today]);
   const { data: refs } = useRefs(repoId);
   const { data: repo } = useRepo(repoId);
-  const { state, stats, job, recompute } = useStats(repoId, range, refs ? currentTip(refs, ref) : undefined);
+  const { state, stats, job, recompute } = useStats(repoId, range, refs ? currentTip(refs, ref) : undefined, today);
   const tree = useMemo(() => buildTree(stats?.files ?? []), [stats]);
   const weeks = useMemo(() => fillWeeks(stats?.weeks ?? []), [stats]);
   const months = useMemo(() => fillMonths(stats?.months ?? []), [stats]);
   const palette = useMemo(() => authorPalette(stats?.authors ?? []), [stats]);
   const biggestSha = stats?.records.biggestCommit?.sha ?? null;
   const { data: biggest } = useCommitDetails(repoId, biggestSha ? { kind: "commit", sha: biggestSha } : null);
-  useEffect(() => setFolder(""), [range]);
+  useEffect(() => setFolder(""), [preset, ref]);
   useEffect(() => rememberChoice(tabId, { preset, ref }), [tabId, preset, ref]);
 
   const head = refs?.head;

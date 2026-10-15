@@ -9,6 +9,10 @@
  * result at once; it computes again only when that result is behind `tip` (or `tip` is not known
  * yet – the core's cache then answers). A result that falls behind while the view is open is
  * recomputed in the background, the old numbers stay visible meanwhile.
+ *
+ * Keeping up with the calendar: `today` is the current UTC day (`useUtcDay`). A result measured
+ * on an earlier day – periods start at midnight UTC, the code age is measured against now – is
+ * recomputed too, also while the view stays open past midnight (the core's cache answers quickly).
  */
 import { useEffect, useReducer, useRef, useState } from "react";
 import { core, type Id, type StatsRange } from "../../core";
@@ -17,7 +21,8 @@ import { newJobId } from "../../app/run";
 import { useAppStore, type Job } from "../../app/store";
 import { t } from "../../i18n";
 import { acquire, lastResult, release, runKey, type RunDeps } from "./runs";
-import { needsRefresh, shown, statsReducer, type StatsState } from "./state";
+import { msToNextUtcDay, utcDay } from "./model";
+import { canReuse, needsRefresh, refreshMark, shown, statsReducer, type StatsState } from "./state";
 
 const IDLE: StatsState = { kind: "idle" };
 
@@ -31,7 +36,25 @@ const deps: RunDeps = {
   toError: toCoreError,
 };
 
-export function useStats(repoId: Id, range: StatsRange, tip: string | null | undefined) {
+/** The current UTC day (day number); changes at midnight UTC and when the window comes back after a sleep. */
+export function useUtcDay(): number {
+  const [day, setDay] = useState(() => utcDay());
+  useEffect(() => {
+    const check = () => setDay(utcDay());
+    // A second late, so the timer never fires just before midnight.
+    const timer = setTimeout(check, msToNextUtcDay() + 1000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [day]);
+  return day;
+}
+
+export function useStats(repoId: Id, range: StatsRange, tip: string | null | undefined, today: number) {
   const [state, dispatch] = useReducer(statsReducer, IDLE);
   const [nonce, setNonce] = useState(0);
   const lastKey = useRef<string | null>(null);
@@ -52,8 +75,8 @@ export function useStats(repoId: Id, range: StatsRange, tip: string | null | und
     lastNonce.current = nonce;
     const remembered = lastResult(key);
     if (!requested) {
-      // Nothing changed since the last time: show it, no job.
-      if (remembered && tipRef.current !== undefined && remembered.tip === tipRef.current) {
+      // Nothing changed since the last time (same tip, same day): show it, no job.
+      if (remembered && canReuse(remembered, tipRef.current, today)) {
         dispatch({ type: "show", stats: remembered });
         return;
       }
@@ -64,14 +87,14 @@ export function useStats(repoId: Id, range: StatsRange, tip: string | null | und
       dispatch(outcome.ok ? { type: "done", jobId: run.jobId, stats: outcome.stats } : { type: "failed", jobId: run.jobId, error: outcome.error }),
     );
     return () => release(deps, repoId, wanted, run);
-  }, [repoId, key, nonce]);
+  }, [repoId, key, nonce, today]);
 
-  // The branch moved on (commit, pull, checkout …): compute again, once per new tip.
+  // The branch moved on (commit, pull, checkout …) or a new day began: compute again, once per tip and day.
   useEffect(() => {
-    if (!needsRefresh(state, tip, triedFor.current)) return;
-    triedFor.current = tip ?? null;
+    if (!needsRefresh(state, tip, triedFor.current, today)) return;
+    triedFor.current = refreshMark(tip, today);
     setNonce((value) => value + 1);
-  }, [state, tip]);
+  }, [state, tip, today]);
 
   const jobId = state.kind === "running" ? state.jobId : null;
   const job: Job | undefined = useAppStore((store) => (jobId ? store.jobs[jobId] : undefined));

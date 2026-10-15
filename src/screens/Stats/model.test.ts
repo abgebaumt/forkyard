@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Ref, RefsSnapshot, StatsBucket, StatsFile } from "../../core";
-import { ageShares, buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, heatLevels, parentFolder, rangeFor, squarify } from "./model";
+import { ageShares, buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, heatLevels, msToNextUtcDay, parentFolder, rangeFor, squarify, utcDay } from "./model";
 
 const bucket = (period: string, commits: number): StatsBucket => ({ period, commits, added: commits, removed: 0 });
 
@@ -16,6 +16,15 @@ describe("periods", () => {
     expect(rangeFor("quarter", "HEAD", now).from).toBe("2026-07-16T00:00:00.000Z");
     expect(rangeFor("year", "HEAD", now).from).toBe("2025-10-14T00:00:00.000Z");
     expect(rangeFor("month", "HEAD", Date.UTC(2026, 9, 14, 23, 59))).toEqual(rangeFor("month", "HEAD", now));
+  });
+
+  it("the UTC day moves the preset's start, and the next day starts at midnight UTC", () => {
+    const evening = Date.UTC(2026, 9, 14, 23, 59, 30);
+    const morning = Date.UTC(2026, 9, 15, 0, 0, 30);
+    expect(utcDay(morning)).toBe(utcDay(evening) + 1);
+    expect(rangeFor("month", "HEAD", morning).from).not.toBe(rangeFor("month", "HEAD", evening).from);
+    expect(msToNextUtcDay(evening)).toBe(30_000);
+    expect(msToNextUtcDay(Date.UTC(2026, 9, 15)), "exactly midnight: a whole day").toBe(86_400_000);
   });
 });
 
