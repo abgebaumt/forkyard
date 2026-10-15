@@ -12,7 +12,7 @@
 //!   while it runs. It is removed on a clean exit. If it is still there on the next start, nobody
 //!   holds its lock and that run left no panic report, the run ended hard (stack overflow, abort,
 //!   killed): a report of kind `unexpected_exit` is made from that run's lines in the log (from its
-//!   start header to its end). A second
+//!   start header to its end), with the time of its last line as the time it ended. A second
 //!   instance with the same data directory does not get the lock and leaves the marker alone.
 //! - At most `MAX_REPORTS` reports are kept; nothing is ever sent anywhere.
 //!
@@ -60,6 +60,9 @@ pub struct ReportFile {
     pub arch: String,
     /// The run the report is about.
     pub run_id: String,
+    /// When that run started (reports from before this field: `None`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub run_started_ms: Option<i64>,
     pub thread: Option<String>,
     pub message: String,
     pub location: Option<String>,
@@ -77,6 +80,7 @@ impl ReportFile {
             os: std::env::consts::OS.to_string(),
             arch: std::env::consts::ARCH.to_string(),
             run_id: run_id.to_string(),
+            run_started_ms: None,
             thread: None,
             message,
             location: None,
@@ -352,12 +356,19 @@ impl CrashLog {
     }
 
     fn report_unexpected_exit(&self, data_dir: &Path, marker: &Marker) -> Option<String> {
-        let log_file = data_dir.join(LOG_DIR).join(LOG_FILE);
-        let last_seen = std::fs::metadata(&log_file).and_then(|m| m.modified()).ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok());
-        let time_ms = last_seen.map_or(marker.started_ms, |d| d.as_millis() as i64);
-        let message = format!("Forkyard {} ended without shutting down (started {}).", marker.app_version, iso(marker.started_ms));
-        let mut report = ReportFile::new(ReportKind::UnexpectedExit, time_ms, &marker.app_version, &marker.run_id, message);
-        report.log = run_lines(&data_dir.join(LOG_DIR), &marker.run_id, TAIL_LINES).iter().map(|line| self.scrub(line)).collect();
+        let lines = run_lines(&data_dir.join(LOG_DIR), &marker.run_id, TAIL_LINES);
+        // The run ended after its last line; the log file's own time can be later (another
+        // instance writing to it), the start of this run much later.
+        let ended_ms = lines.iter().rev().find_map(|line| line_time_ms(line)).unwrap_or(marker.started_ms).max(marker.started_ms);
+        let message = format!(
+            "Forkyard {} ended without shutting down (run started {}, last log line {}).",
+            marker.app_version,
+            iso(marker.started_ms),
+            iso(ended_ms)
+        );
+        let mut report = ReportFile::new(ReportKind::UnexpectedExit, ended_ms, &marker.app_version, &marker.run_id, message);
+        report.run_started_ms = Some(marker.started_ms);
+        report.log = lines.iter().map(|line| self.scrub(line)).collect();
         write_report(data_dir, &report).ok()?;
         Some(report.id)
     }
@@ -386,6 +397,7 @@ impl CrashLog {
             .unwrap_or_else(|| "(panic without a message)".to_string());
         let message = self.scrub(&message);
         let mut report = ReportFile::new(ReportKind::Panic, now_ms(), &attached.version, &self.run_id, message.clone());
+        report.run_started_ms = Some(self.started_ms);
         report.thread = Some(self.scrub(std::thread::current().name().unwrap_or("(unnamed)")));
         report.location = location.map(|l| self.scrub(&format!("{}:{}:{}", l.file(), l.line(), l.column())));
         report.backtrace = Some(self.scrub(&std::backtrace::Backtrace::force_capture().to_string()));
@@ -474,6 +486,12 @@ fn line_text(line: &str) -> &str {
     line.split_once(' ').map_or("", |(_, rest)| rest)
 }
 
+/// The time stamp at the start of a log line.
+fn line_time_ms(line: &str) -> Option<i64> {
+    let stamp = line.split(' ').next()?;
+    chrono::DateTime::parse_from_rfc3339(stamp).ok().map(|t| t.timestamp_millis())
+}
+
 /// `=== Forkyard <version> started (run <id>) ===` as `attach` writes it.
 fn is_start_header(line: &str) -> bool {
     let text = line_text(line);
@@ -560,6 +578,9 @@ pub fn render_report(report: &ReportFile) -> String {
     out.push_str("Forkyard crash report\n");
     out.push_str(&format!("Report:   {}\nKind:     {kind}\nTime:     {}\n", report.id, iso(report.time_ms)));
     out.push_str(&format!("Version:  {}\nPlatform: {} {}\nRun:      {}\n", report.app_version, report.os, report.arch, report.run_id));
+    if let Some(started) = report.run_started_ms {
+        out.push_str(&format!("Started:  {}\n", iso(started)));
+    }
     if let Some(thread) = &report.thread {
         out.push_str(&format!("Thread:   {thread}\n"));
     }

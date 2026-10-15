@@ -186,6 +186,40 @@ fn the_unexpected_exit_report_holds_only_the_lines_of_the_run_that_ended() {
     }
 }
 
+/// The report names the start of the run that ended (not of the run that finds it) and dates
+/// the end to that run's last log line, even if another instance wrote to the log later.
+#[test]
+fn the_unexpected_exit_report_dates_the_run_that_ended() {
+    let pause = || std::thread::sleep(std::time::Duration::from_millis(30));
+    let dir = tempfile::tempdir().unwrap();
+    let crashed = log_in(None);
+    crashed.attach(dir.path(), "1.2.3");
+    pause();
+    crashed.push_line("last line of the crashed run");
+    let last_line = crashed.recent_lines().last().unwrap().clone();
+    let (crashed_start, crashed_id) = (crashed.started_ms, crashed.run_id.clone());
+    let other = log_in(None);
+    assert!(!other.attach(dir.path(), "1.2.3").owns_marker);
+    pause();
+    other.push_line("a second instance is still writing");
+    drop(crashed);
+    pause();
+    let current = log_in(None);
+    current.attach(dir.path(), "1.2.3");
+
+    let found = reports(dir.path());
+    assert_eq!(found.len(), 1, "{found:?}");
+    let report = &found[0];
+    assert_eq!(report.run_id, crashed_id);
+    assert_eq!(report.run_started_ms, Some(crashed_start));
+    assert_eq!(Some(report.time_ms), line_time_ms(&last_line), "{report:?}");
+    assert!(report.message.contains(&iso(crashed_start)), "{}", report.message);
+    assert!(!report.message.contains(&iso(current.started_ms)), "{}", report.message);
+    let text = render_report(report);
+    assert!(text.contains(&format!("Started:  {}", iso(crashed_start))), "{text}");
+    assert!(text.contains(&format!("Time:     {}", iso(report.time_ms))), "{text}");
+}
+
 /// A child process spawned by another thread (fork before exec) briefly shares the marker's
 /// open file description. The end of a run must release the lock even then, or the next run
 /// (here: the next test) is wrongly turned away as a second instance.
