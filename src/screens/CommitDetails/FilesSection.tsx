@@ -155,12 +155,13 @@ interface ChangedFilesProps {
   listLabel: string;
 }
 
-function ChangedFiles({ repoId, tabId, source, files, view, emptyText, listLabel }: ChangedFilesProps) {
+export function ChangedFiles({ repoId, tabId, source, files, view, emptyText, listLabel }: ChangedFilesProps) {
   const center = useTabView(tabId).center;
   const store = useAppStore.getState;
   const openPath = center.kind === "diff" && sameSource(center.source, source) ? center.path : null;
   const [picked, setPicked] = useState<string[]>([]);
   const anchor = useRef<string | null>(null);
+  const locks = useLockIndex(repoId);
 
   // The file whose diff is in the middle is the marked one – even if it was opened from somewhere else.
   useEffect(() => {
@@ -224,6 +225,7 @@ function ChangedFiles({ repoId, tabId, source, files, view, emptyText, listLabel
         ariaLabel={listLabel}
         empty={emptyText}
         menuFor={menuFor}
+        lockFor={(path) => fileLock(locks.get(path))}
         onActivate={(file) => open(file.path)}
         onSelect={(path, modifiers) => {
           const next = nextFileSelection(paths, selected, anchor.current, path, modifiers);
