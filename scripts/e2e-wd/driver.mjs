@@ -9,7 +9,7 @@
  *   await app.click(await app.byText("Fetch"));
  *   await app.screenshot("target/e2e-wd/shots/demo/fetch.png");
  *   if ((await app.errors()).length) throw new Error(app.consoleErrors.join("\n"));
- *   await app.close();
+ *   await app.close();   // ends the app cleanly (SIGTERM), then the session
  *
  * Every launch is isolated: own Xvfb display (picked by Xvfb itself via -displayfd), own
  * tauri-driver port and native port, own data directory, own global gitconfig
@@ -304,6 +304,35 @@ function cmdline(pid) {
   }
 }
 
+/**
+ * The app processes of one launch (Linux): processes running `binary` whose environment carries
+ * this launch's unique keychain service name. WebKitWebDriver starts the app, so its PID is not
+ * known to us otherwise.
+ */
+function appProcesses(binary, keyringService) {
+  if (IS_WIN) return [];
+  const wanted = `FORKYARD_KEYRING_SERVICE=${keyringService}`;
+  const found = [];
+  let entries = [];
+  try {
+    entries = fs.readdirSync("/proc");
+  } catch {
+    return found;
+  }
+  for (const entry of entries) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      if (!samePath(fs.readlinkSync(`/proc/${entry}/exe`), binary)) continue;
+      if (!fs.readFileSync(`/proc/${entry}/environ`, "latin1").split("\0").includes(wanted)) continue;
+      if (/^State:\s+Z/m.test(fs.readFileSync(`/proc/${entry}/status`, "utf8"))) continue;
+      found.push(Number(entry));
+    } catch {
+      // Gone or not ours to read.
+    }
+  }
+  return found;
+}
+
 function freePort() {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
@@ -545,10 +574,36 @@ export async function launchApp(options = {}) {
   const instance = { killSync };
   running.add(instance);
 
+  const quitGracefully = async () => {
+    if (!wd.sessionId) return;
+    if (IS_WIN) {
+      // No signals: cancel running work like quitting, then destroy the window (ends the event loop).
+      await Promise.race([handle.invoke("app_quit").catch(() => undefined), sleep(10_000)]);
+      await Promise.race([handle.invoke("plugin:window|destroy", { label: "main" }).catch(() => undefined), sleep(5000)]);
+      return;
+    }
+    const pids = appProcesses(binary, keyringService);
+    for (const pid of pids) {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // Already gone.
+      }
+    }
+    // The app's own fallback ends the process at the latest 3 s after the request (plus app_quit).
+    const deadline = Date.now() + 15_000;
+    while (Date.now() < deadline && appProcesses(binary, keyringService).length) await sleep(100);
+  };
+
   const close = async () => {
     if (closed) return;
     closed = true;
     liveApps.delete(handle);
+    // End the app the way a user would before the session goes: deleting a WebDriver session
+    // kills the app hard, which the next start on the same data directory rightly reports as an
+    // unexpected exit. SIGTERM takes the app's quit path (crash marker removed). Scenarios that
+    // want an unexpected exit kill the app themselves (SIGKILL) before calling close().
+    await quitGracefully().catch(() => undefined);
     if (wd.sessionId) await Promise.race([wd.call("DELETE", "").catch(() => undefined), sleep(5000)]);
     if (driverChild) killGroup(driverChild.pid);
     if (xvfb) killGroup(xvfb.child.pid);

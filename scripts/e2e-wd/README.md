@@ -123,7 +123,7 @@ The returned `app`:
 | `pick(...paths)` | answers for the next system file/folder dialog (`window.__gcTestPicks`) |
 | `setTheme(theme)`, `size()` → `{ width, height, scale }` | |
 | `webdriver(method, route, body)` | raw W3C call relative to the session |
-| `close()` | ends the session, kills tauri-driver and Xvfb, removes the temp folder |
+| `close()` | ends the app cleanly (SIGTERM, the app's quit path: no crash report on the next start), then the session; kills tauri-driver and Xvfb, removes the temp folder. For an unexpected exit kill the app yourself (SIGKILL) first |
 | `dataDir`, `logPath`, `gitConfigPath`, `keyringService`, `display`, `port`, `nativePort`, `binary`, `devUrl`, `startupMs` | info |
 
 Element objects: `{ id, click(), type(text), text(), attr(name), prop(name), rect(), visible(), $(css), $$(css) }`.
