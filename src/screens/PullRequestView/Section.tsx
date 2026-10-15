@@ -308,18 +308,14 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
       onActivate={(pr) => openPr(tabId, pr.number)}
       rowMenu={(pr) => prMenu(repoId, tabId, pr)}
       sectionMenu={sectionMenu}
-      notice={
-        notice ? (
-          <>
-            {notice}
-            {prs.hasNextPage && !filtering ? (
-              <div className="px-2 pb-1">
-                <Button size="sm" variant="ghost" loading={prs.isFetchingNextPage} onClick={() => void prs.fetchNextPage()}>
-                  {t("pullRequest.view.section.loadMore")}
-                </Button>
-              </div>
-            ) : null}
-          </>
+      notice={notice}
+      footer={
+        notice && prs.hasNextPage && !filtering ? (
+          <div className="px-2 py-1">
+            <Button size="sm" variant="ghost" loading={prs.isFetchingNextPage} onClick={() => void prs.fetchNextPage()}>
+              {t("pullRequest.view.section.loadMore")}
+            </Button>
+          </div>
         ) : undefined
       }
       placeholder={placeholder}

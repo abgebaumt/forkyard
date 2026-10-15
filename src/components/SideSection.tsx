@@ -72,6 +72,8 @@ export interface SideSectionProps<T> {
   sectionMenu: MenuEntry[];
   /** Notice above the rows. */
   notice?: ReactNode;
+  /** Below the rows (e.g. "Load more"); not shown while a placeholder replaces them. */
+  footer?: ReactNode;
   /** Replaces the rows: skeleton, error, empty state. */
   placeholder?: ReactNode;
 }
@@ -101,6 +103,7 @@ export function SideSection<T>({
   rowMenu,
   sectionMenu,
   notice,
+  footer,
   placeholder,
 }: SideSectionProps<T>) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -371,6 +374,7 @@ export function SideSection<T>({
                 })}
               </div>
             )}
+            {placeholder ? null : footer}
           </PanelSection>
         </div>
       </ContextMenu>
