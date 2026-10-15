@@ -1,6 +1,6 @@
 use super::*;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 fn log_in(home: Option<&Path>) -> CrashLog {
     CrashLog::with_options(home.map(Path::to_path_buf), 1024 * 1024)
@@ -295,7 +295,7 @@ const TERMINATION_CHILD_TEST: &str = "crash::tests::termination_child";
 #[test]
 fn termination_child() {
     let Some(dir) = std::env::var_os(TERMINATION_CHILD_ENV) else { return };
-    let dir = PathBuf::from(dir);
+    let dir = std::path::PathBuf::from(dir);
     let log: &'static CrashLog = Box::leak(Box::new(log_in(None)));
     assert!(log.attach(&dir, "1.2.3").owns_marker);
     install_termination_handler(move |reason| {

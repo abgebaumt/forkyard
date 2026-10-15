@@ -290,7 +290,8 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         repo.git(&["bisect", "start", &bad, &good, "--", "mein ordner/f'x.txt", "fehlt.txt"]);
         let out = repo.git(&["bisect", "bad", &culprit]);
-        assert!(out.contains("is the first bad commit"), "{out}");
+        // Newer Git versions quote the term: "is the first 'bad' commit".
+        assert!(out.contains("is the first bad commit") || out.contains("is the first 'bad' commit"), "{out}");
 
         let status = bisect_status(&tc, id.clone()).await.unwrap();
         assert_eq!(status.result.as_deref(), Some(culprit.as_str()), "{status:?}");
