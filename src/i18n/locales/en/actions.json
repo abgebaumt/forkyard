@@ -642,6 +642,12 @@
     "pop": "Stash pop",
     "apply": "Apply stash",
     "inTheWay": "In the way",
+    "applyFiles": {
+      "label": "Restore from stash",
+      "doneOne": "“{{path}}” restored from the stash",
+      "doneMany_one": "{{count}} new file restored from the stash",
+      "doneMany_other": "{{count}} new files restored from the stash"
+    },
     "drop": {
       "title": "Delete stash “{{name}}”?",
       "body": "The changes in this stash are lost. A deleted stash cannot be brought back with Undo.",

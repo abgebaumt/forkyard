@@ -76,7 +76,7 @@ import { editRemote, removeRemote } from "../actions/remotes";
 import { openRepositoryAt } from "../actions/repos";
 import { openWorktreeDialog } from "../../screens/Worktrees/Dialog";
 import { markBisect, startBisect } from "../../screens/Bisect/actions";
-import { applyStash, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
+import { applyStash, applyStashFiles, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
 import { cachedLocks, lockFiles, unlockFiles } from "../actions/lfs";
 import { lockIndex, lockMenuState } from "../../screens/Lfs/locks";
 import { fetchAll, pull, push, pushWithMore } from "../actions/sync";
@@ -657,9 +657,10 @@ export function fileMenu(ctx: MenuBase & { files: FileChange[]; source: DiffSour
   } else if (sha) {
     primary.push(
       source.kind === "stash"
-        ? // Individual files from a stash: the same action, called by its name. The stash is kept.
-          item(single ? t("menus.file.applyFromStash") : t("menus.file.applyFromStashMany", { n: count }), ArchiveRestore, () => void restoreFile(repoId, sha, paths), {
-            hint: t("menus.file.fromStashHint"),
+        ? // Individual files from a stash, through the stash itself: its untracked files live in
+          // a parent of their own, not in the commit the list shows. The stash is kept.
+          item(single ? t("menus.file.applyFromStash") : t("menus.file.applyFromStashMany", { n: count }), ArchiveRestore, () => void applyStashFiles(repoId, { index: source.index, message: "", sha }, files), {
+            hint: files.every((file) => file.status === "untracked") ? t("menus.file.fromStashUntrackedHint") : t("menus.file.fromStashHint"),
             blocked: files.every((file) => file.status === "deleted") ? t("menus.file.goneInStash") : null,
           })
         : item(single ? t("menus.file.restore") : t("menus.file.restoreMany", { n: count }), RotateCcw, () => void restoreFile(repoId, sha, paths), {

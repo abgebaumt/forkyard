@@ -195,6 +195,7 @@
     "applyFromStash": "Apply only this file from the stash …",
     "applyFromStashMany": "Apply only these {{n}} files from the stash …",
     "fromStashHint": "version from the stash, ends up staged",
+    "fromStashUntrackedHint": "new file from the stash, stays untracked",
     "goneInStash": "the file no longer exists in the stash",
     "restore": "Restore this version …",
     "restoreMany": "Restore these versions ({{n}}) …",

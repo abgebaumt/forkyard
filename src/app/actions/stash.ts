@@ -1,11 +1,12 @@
 import { t } from "../../i18n";
-import { core, type Id, type Sha, type Stash, type StashSelection } from "../../core";
+import { core, type FileChange, type Id, type Sha, type Stash, type StashSelection } from "../../core";
 import { toast } from "../../ui/Feedback";
 import { confirm, promptText } from "../dialogs";
 import { qk, queryClient } from "../queries";
 import { newOpId, runAction, showError } from "../run";
-import { withFreshStatus } from "../statusCache";
+import { withFreshStatus, withStatus } from "../statusCache";
 import { clip, loadStashes } from "./context";
+import { restoreFile } from "./history";
 import { busyKeys } from "./keys";
 import { blockingFiles, reportOpResult } from "./merge";
 
@@ -98,6 +99,29 @@ export function popStash(repoId: Id, stash: number | StashRef = 0, tabId?: Id | 
 /** Applies a stash without removing it. */
 export function applyStash(repoId: Id, stash: number | StashRef, tabId?: Id | null) {
   return applyOrPop(repoId, "apply", typeof stash === "number" ? { index: stash, message: "" } : stash, tabId);
+}
+
+/**
+ * Takes single files out of a stash; the stash stays. Tracked files come back in the stash's
+ * version and staged (like restoring them from a commit, with the prompt before overwriting).
+ * Untracked files of the stash are not in the commit the list shows but in a parent of their
+ * own: the stash itself puts them back, untracked (an existing file is never overwritten).
+ */
+export async function applyStashFiles(repoId: Id, stash: StashRef & { sha: Sha }, files: Pick<FileChange, "path" | "status">[]) {
+  const untracked = files.filter((file) => file.status === "untracked").map((file) => file.path);
+  const tracked = files.filter((file) => file.status !== "untracked").map((file) => file.path);
+  if (tracked.length) {
+    const restored = await restoreFile(repoId, stash.sha, tracked);
+    if (!restored?.ok) return restored;
+  }
+  if (!untracked.length) return null;
+  const index = await resolveIndex(repoId, stash);
+  if (index === null) return null;
+  return runAction(t("actions.stash.applyFiles.label"), withStatus(repoId, () => core.stashApplyPaths({ repoId, index, paths: untracked })), {
+    busyKey: busyKeys.pop(repoId),
+    success:
+      untracked.length === 1 ? t("actions.stash.applyFiles.doneOne", { path: clip(untracked[0]!, 44) }) : t("actions.stash.applyFiles.doneMany", { count: untracked.length }),
+  });
 }
 
 export async function dropStash(repoId: Id, stash: StashRef) {

@@ -642,6 +642,12 @@
     "pop": "Stash Pop",
     "apply": "Stash anwenden",
     "inTheWay": "Im Weg sind",
+    "applyFiles": {
+      "label": "Aus dem Stash wiederherstellen",
+      "doneOne": "„{{path}}“ aus dem Stash wiederhergestellt",
+      "doneMany_one": "{{count}} neue Datei aus dem Stash wiederhergestellt",
+      "doneMany_other": "{{count}} neue Dateien aus dem Stash wiederhergestellt"
+    },
     "drop": {
       "title": "Stash „{{name}}“ löschen?",
       "body": "Die Änderungen in diesem Stash gehen verloren. Ein gelöschter Stash lässt sich nicht über Rückgängig zurückholen.",

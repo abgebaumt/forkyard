@@ -195,6 +195,7 @@
     "applyFromStash": "Nur diese Datei aus dem Stash anwenden …",
     "applyFromStashMany": "Nur diese {{n}} Dateien aus dem Stash anwenden …",
     "fromStashHint": "Fassung aus dem Stash, landet gestaged",
+    "fromStashUntrackedHint": "neue Datei aus dem Stash, bleibt nicht verfolgt",
     "goneInStash": "im Stash gibt es die Datei nicht mehr",
     "restore": "Diese Fassung wiederherstellen …",
     "restoreMany": "Diese Fassungen wiederherstellen ({{n}}) …",
