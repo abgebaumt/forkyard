@@ -261,8 +261,7 @@ export function authorTotals(repo, rev = "HEAD") {
 }
 
 /** Code age buckets from git blame (author time of each line against the commit time of `rev`). */
-export function codeAgeFromBlame(repo, rev = "HEAD") {
-  const reference = Number(repo.git("log", "-1", "--format=%ct", rev));
+export function codeAgeFromBlame(repo, rev = "HEAD", reference = Math.floor(Date.now() / 1000)) {
   const files = repo.git("ls-tree", "-r", "--name-only", "-z", rev).split("\0").filter(Boolean);
   const buckets = { month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 };
   const DAY = 86_400;

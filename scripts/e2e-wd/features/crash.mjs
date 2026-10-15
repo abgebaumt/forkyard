@@ -20,6 +20,9 @@ import { openApps } from "../driver.mjs";
 import { SHOTS_DIR, assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import { appPid, crashDir, crashFiles, logText, makeDataDir, markerPath, readMarker, reportFiles, waitForExit, writeReport } from "../fixtures/crash.mjs";
 
+/** The version the built app reports (the workspace version, same as package.json). */
+const APP_VERSION = JSON.parse(fs.readFileSync(new URL("../../../package.json", import.meta.url), "utf8")).version;
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const git = (cwd, args) => execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, LC_ALL: "C", GIT_CONFIG_NOSYSTEM: "1" } }).trim();
 
@@ -171,7 +174,7 @@ sc("unexpected exit: SIGKILL leaves the marker, the next start offers a report",
   const app = await t.launch({ dataDir, lang: "en", theme: "light" });
   const box = await waitDialog(app, TITLE);
   assertIncludes(box.text, "Unexpected exit", "kind in the dialog");
-  assertIncludes(box.text, "Forkyard 1.0.0", "version in the dialog");
+  assertIncludes(box.text, `Forkyard ${APP_VERSION}`, "version in the dialog");
   assertIncludes(box.text, "ended without shutting down", "message in the dialog");
   assertIncludes(box.text, "Nothing is sent anywhere", "privacy note");
   for (const label of ["View", "Save…", "Discard", "Cancel"]) assertIncludes(box.text, label, "options");
@@ -200,7 +203,7 @@ sc("view: the full report with the run's log and its last Git calls", "main", wi
   assertIncludes(text, `Run:      ${before.runId}`, "run line");
   assertIncludes(text, "Platform: linux", "platform");
   assertIncludes(text, "Started:  ", "start time of the run");
-  assertMatch(text, /Log \(\d+ lines\):\n.*=== Forkyard 1\.0\.0 started \(run /, "log section");
+  assertMatch(text, new RegExp(String.raw`Log \(\d+ lines\):\n.*=== Forkyard ${APP_VERSION.replaceAll(".", "\\.")} started \(run `), "log section");
   const calls = text.match(/Last Git calls \((\d+), newest first\):/);
   assert(calls, "section with the last Git calls");
   assert(Number(calls[1]) > 0, `the killed run made Git calls, the report lists ${calls[1]}`);

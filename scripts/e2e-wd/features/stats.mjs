@@ -763,6 +763,22 @@ scenario("all cards show the repository's numbers", "main", async (t) => {
   await t.noConsoleErrors(app);
 });
 
+scenario("code age is measured against today: lines of a repository untouched for years count as older than two years", "edge", async (t) => {
+  const repo = makeBareStatsRepo("ruhendes-archiv");
+  repo.write("chronik.md", "Anfang\nMitte\nEnde\n");
+  repo.commit(PEOPLE.lena, 1200, 10, "Chronik beginnen");
+  repo.write("notizen.md", "Erste Notiz\nZweite Notiz\n");
+  repo.commit(PEOPLE.aylin, 1100, 14, "Notizen");
+  const { app } = await openStatsRepo(t, repo);
+  await clickStats(app);
+  const s = await waitStats(app, (stats) => stats.age.length > 0, "code age");
+  const shown = Object.fromEntries(s.age.map((share) => [share.key, Number(/: ([\d,]+) lines?$/.exec(share.title)?.[1].replace(/,/g, "") ?? 0)]));
+  same(shown, { month: 0, halfYear: 0, year: 0, twoYears: 0, older: 5 }, "every line is over two years old today, not measured against the last commit");
+  same(shown, codeAgeFromBlame(repo), "code age buckets from git blame against now");
+  await t.shot("stats-code-age-old-repo");
+  await t.noConsoleErrors(app);
+});
+
 scenario("treemap: zoom into folders by click and keyboard, Up, a file opens its history", "edge", async (t) => {
   const repo = makeStatsRepo();
   const { app, tabId } = await openStatsRepo(t, repo);
