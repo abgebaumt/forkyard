@@ -1,7 +1,7 @@
 {
   "name": "forkyard",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fast, local Git client for the desktop: commit graph, line staging, merge tool, interactive rebase and Undo for Git. No account, no telemetry.",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/abgebaumt/forkyard",

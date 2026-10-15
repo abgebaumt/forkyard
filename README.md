@@ -49,11 +49,16 @@ actually happens, and makes the risky parts safe:
 - Search by message, SHA and author; file history and blame
 - Compare any two commits, or a commit with your working directory
 - Pin, hide or solo branches; smart branch visibility for large repos
+- Collapse merges, see unpushed and unpulled commits at a glance
+- Reflog view and bisect right in the graph
+- Issue numbers and ticket keys in messages become links (Jira, Linear, YouTrack, Redmine or your own)
 
 **Committing**
 - Stage files, hunks or single lines – CRLF, Latin-1 and missing final newlines included
 - Amend, commit and push in one step, commit templates, co-author trailers
 - Side-by-side and inline diff with word-level highlighting and syntax colours
+- Image diff side by side, as a swipe, an onion skin or a pixel difference
+- Stash single lines and hunks
 - Built-in editor with Markdown preview
 
 </td>
@@ -63,15 +68,20 @@ actually happens, and makes the risky parts safe:
 - Drag a branch onto another to merge, rebase or open a pull request
 - Interactive rebase: pick, reword, squash, drop and reorder
 - Three-pane conflict tool with an editable result
+- Conflict preview before a merge, rebase, cherry-pick or revert – without touching your files
+- Rebase stacked branches together (`--update-refs`), push several branches and tags at once
 - Cherry-pick, revert, reset (soft/mixed/hard), stashes with names and per-file apply
 
 **Everything around it**
 - Tabs for several repositories, workspaces, profiles (e.g. work and private)
 - Settings on three levels: global, per profile, per project (identity, SSH key, pull mode)
 - HTTPS and SSH credentials, SSH key generation, proxy and custom CA
-- GitHub and GitLab: pull requests and issues through the official APIs
-- Worktrees, submodules, Git LFS, Git Flow, commit signing (GPG/SSH), hooks
+- GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps: pull requests and issues through the official APIs
+- Worktrees, submodules that follow checkouts, Git LFS with file locks, Git Flow, commit signing (GPG/SSH), hooks
+- Custom commands with placeholders in the palette and context menus
+- Statistics per repository: activity, authors, hotspots, bus factor, code age
 - Command palette, keyboard shortcuts, embedded terminal, light and dark theme
+- A `forkyard` command line, and local crash reports that never leave your machine
 
 </td>
 </tr>

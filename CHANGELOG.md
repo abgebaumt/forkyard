@@ -5,6 +5,8 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] – 2026-10-16
+
 ### Added
 
 - Crash reports: the app now keeps a redacted log (`logs/forkyard.log` in the data folder). If it
@@ -82,12 +84,43 @@ All notable changes to Forkyard are listed here. The format follows
   out pull requests from forks and the issue tracker follow the host (and the repository's settings).
 - Settings › "GitHub and GitLab" is now Settings › Hosts.
 - Redaction also removes Atlassian API tokens and Bitbucket app passwords (`ATATT…`, `ATBB…`).
+- Switching profiles and the author name hint only promise the profile identity when it is written to
+  the gitconfig; a new profile takes over the active profile's gitconfig setting.
+- Ending the app with SIGTERM, SIGINT, SIGHUP or by closing the console counts as a clean exit.
 
 ### Fixed
 
 - A host request whose network read is interrupted by a signal (for example when a Git process ends at
   the same moment) is retried and no longer reported as "not reachable".
+- Statistics: the code age is measured against today instead of the last commit, so a repository
+  nobody touched for years no longer looks young; a cached result is sorted again against today.
+- A failed commit signature is reported as a signing error instead of "not found".
+- Applying a stash restores its untracked files through the stash itself, and a patch from a stash
+  includes them.
+- Partial patches keep an old last line without a final newline behind the lines it followed.
+- Backups and patch exports copy the index with its original timestamp, so files rewritten in the
+  same instant are no longer seen as unchanged.
+- Opening a repository reads the LFS patterns from `.gitattributes` and no longer installs LFS hooks.
+- A remembered account also answers the credential prompts of `git-lfs`.
+- The rebase step counter counts only the commits that are replayed.
+- Resetting to a commit outside the loaded graph counts only the commits that really leave the branch.
+- New refs in freshly created ref folders are noticed without a reload.
+- "Load more" in the sidebar sits below the pull request rows.
+- The pull request view leaves out the labels block for hosts without labels.
+- A commit's changed files show the LFS lock symbol.
+- A local (`file://`) remote counts as an LFS server without file locking.
+- The reflog keeps its selection when new entries arrive and shows the highlighted entry in the commit
+  panel when it opens.
+- A bisect started in a terminal is noticed.
+- A custom command's confirmation shows the full command line.
+- A cancelled first statistics run says so and offers to compute again.
+- The crash dialog no longer shows a doubled period, and a killed run's report lists its Git calls up
+  to the next start.
 
 ## [1.0.0] – 2026-10-13
 
 First public release.
+
+[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/abgebaumt/forkyard/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/abgebaumt/forkyard/releases/tag/v1.0.0
