@@ -22,6 +22,15 @@ async fn run(tc: &TestCore, id: &str, range: StatsRange) -> RepoStats {
     stats_compute(tc, id.to_string(), format!("job-{}", util::new_id()), range).await.unwrap()
 }
 
+/// Like `run`, with "now" fixed to `now` (Unix seconds).
+async fn run_at(tc: &TestCore, id: &str, range: StatsRange, now: i64) -> RepoStats {
+    stats_compute_at(tc, id.to_string(), format!("job-{}", util::new_id()), range, now).await.unwrap()
+}
+
+/// 2025-06-22T18:00:00Z: the commit time of the demo's tip.
+const TIP_TIME: i64 = 1_750_615_200;
+const DAY: i64 = 86_400;
+
 fn lines(items: &[&str]) -> String {
     items.iter().map(|line| format!("{line}\n")).collect()
 }
@@ -80,9 +89,9 @@ fn demo() -> (TestRepo, Vec<String>) {
 async fn the_demo_history_gives_the_expected_numbers() {
     let (repo, shas) = demo();
     let (tc, id) = setup(&repo).await;
-    let stats = run(&tc, &id, range(None, None, "HEAD")).await;
+    let stats = run_at(&tc, &id, range(None, None, "HEAD"), TIP_TIME).await;
     assert_eq!(stats.tip.as_deref(), Some(shas[8].as_str()));
-    assert_eq!(stats.reference_time.as_deref(), Some("2025-06-22T18:00:00.000Z"), "without `to`: the commit time of the tip");
+    assert_eq!(stats.reference_time.as_deref(), Some("2025-06-22T18:00:00.000Z"), "without `to`: now");
     assert_eq!((stats.commits, stats.added, stats.removed), (9, 36, 7));
     assert_eq!((stats.first_at.as_deref(), stats.last_at.as_deref()), (Some("2023-03-06T08:15:00.000Z"), Some("2025-06-22T18:00:00.000Z")));
 
@@ -242,10 +251,35 @@ async fn the_sample_takes_the_largest_text_files_and_skips_binaries() {
 async fn code_age_counts_lines_by_the_age_of_their_last_change() {
     let (repo, _) = demo();
     let (tc, id) = setup(&repo).await;
-    let stats = run(&tc, &id, range(None, None, "HEAD")).await;
+    let stats = run_at(&tc, &id, range(None, None, "HEAD"), TIP_TIME).await;
     assert_eq!(stats.code_age, StatsCodeAge { files: 4, skipped: 0, month: 18, half_year: 0, year: 0, two_years: 0, older: 11 });
     let early = run(&tc, &id, range(None, Some("2025-06-04T23:59:59Z"), "HEAD")).await;
     assert_eq!(early.code_age, StatsCodeAge { files: 4, skipped: 0, month: 9, half_year: 0, year: 0, two_years: 0, older: 14 }, "measured at that tip, against `to`");
+}
+
+#[tokio::test]
+async fn without_to_the_code_age_is_measured_against_today_not_the_last_commit() {
+    let (repo, _) = demo();
+    let (tc, id) = setup(&repo).await;
+    let later = TIP_TIME + 200 * DAY;
+    let stats = run_at(&tc, &id, range(None, None, "HEAD"), later).await;
+    assert_eq!(stats.code_age, StatsCodeAge { files: 4, skipped: 0, month: 0, half_year: 0, year: 18, two_years: 0, older: 11 });
+    assert_eq!(stats.reference_time, Some(util::unix_to_iso(later)));
+}
+
+#[tokio::test]
+async fn a_cached_result_sorts_the_code_age_again_against_today() {
+    let (repo, _) = demo();
+    let (tc, id) = setup(&repo).await;
+    let first = run_at(&tc, &id, range(None, None, "HEAD"), TIP_TIME).await;
+    assert_eq!(first.code_age.month, 18);
+    let years_later = TIP_TIME + 3 * 365 * DAY;
+    let again = run_at(&tc, &id, range(None, None, "HEAD"), years_later).await;
+    assert!(again.cached, "the blame result is reused");
+    assert_eq!(again.code_age, StatsCodeAge { files: 4, skipped: 0, month: 0, half_year: 0, year: 0, two_years: 0, older: 29 });
+    assert_eq!(again.reference_time, Some(util::unix_to_iso(years_later)));
+    let early = run_at(&tc, &id, range(None, Some("2025-06-04T23:59:59Z"), "HEAD"), years_later).await;
+    assert_eq!(early.code_age.month, 9, "with `to` the age stays measured against `to`");
 }
 
 #[tokio::test]
@@ -282,7 +316,7 @@ async fn a_cancelled_run_caches_nothing_and_job_ids_are_unique() {
     let (tc, id) = setup(&repo).await;
     let job = tc.start_job("job-cancelled", Some(&id)).unwrap();
     job.token().cancel();
-    let error = compute(&tc, &id, "HEAD", None, None, &job).await.unwrap_err();
+    let error = compute(&tc, &id, "HEAD", None, None, TIP_TIME, &job).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::Cancelled);
     drop(job);
     let rows: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from stats_cache where repository_id = ?1", [&id], |r| r.get(0))?)).unwrap();

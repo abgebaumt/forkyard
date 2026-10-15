@@ -2993,7 +2993,7 @@ pub struct StatsRecords {
 pub struct RepoStats {
     /// The commit whose history was counted; `None` = nothing to count.
     pub tip: Option<Sha>,
-    /// Reference point of the code age: `to`, otherwise the commit time of `tip`.
+    /// Reference point of the code age: `to`, otherwise now (also for a cached result).
     pub reference_time: Option<IsoTime>,
     pub commits: u32,
     pub added: u64,

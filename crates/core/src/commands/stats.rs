@@ -7,15 +7,19 @@
 //! the walk, because a commit's committer date is not older than its author date. With `to` the
 //! history of the last commit committed up to then is counted. `.mailmap` is not applied.
 //!
+//! The code age is measured against `to`, without `to` against now – not against the last
+//! commit, so a repository nobody touched for years shows its real age.
+//!
 //! The result – derived numbers only, never commits or messages – is cached in SQLite per tip
-//! commit, period and `STATS_VERSION`.
+//! commit, period and `STATS_VERSION`, together with the line times of the code age (one count
+//! per author time) so a cached result is sorted into the age buckets again against now.
 
 mod aggregate;
 mod parse;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 
 use crate::app::Core;
 use crate::commands::graph::{resolve_commit, LOG_SAFE};
@@ -29,7 +33,7 @@ use aggregate::Aggregator;
 use parse::{BlameAges, LogParser, LOG_FORMAT};
 
 /// Change it whenever the numbers are computed differently: old cache entries then no longer match.
-const STATS_VERSION: u32 = 2;
+const STATS_VERSION: u32 = 3;
 /// Progress phases (`job:progress.phase`); the UI names them.
 const PHASE_HISTORY: &str = "history";
 const PHASE_BLAME: &str = "blame";
@@ -52,10 +56,15 @@ const BLAME_PARALLEL: usize = 4;
 /// Unknown ref → `not_found`; `from`/`to` not ISO-8601 or `from` after `to` → `not_allowed`.
 /// Cancelled via `job_cancel` → `cancelled`, nothing is cached.
 pub async fn stats_compute(core: &Core, repo_id: String, job_id: String, range: StatsRange) -> CoreResult<RepoStats> {
+    stats_compute_at(core, repo_id, job_id, range, chrono::Utc::now().timestamp()).await
+}
+
+/// `stats_compute` with "now" (Unix seconds) given, for the code age without `to`.
+async fn stats_compute_at(core: &Core, repo_id: String, job_id: String, range: StatsRange, now: i64) -> CoreResult<RepoStats> {
     let (from, to) = parse_range(&range)?;
     core.repo_path(&repo_id)?;
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let result = compute(core, &repo_id, &range.reference, from, to, &job).await;
+    let result = compute(core, &repo_id, &range.reference, from, to, now, &job).await;
     job.finish(&result);
     result
 }
@@ -79,28 +88,37 @@ fn parse_range(range: &StatsRange) -> CoreResult<(Option<i64>, Option<i64>)> {
     Ok((from, to))
 }
 
-async fn compute(core: &Core, repo_id: &str, reference: &str, from: Option<i64>, to: Option<i64>, job: &Job) -> CoreResult<RepoStats> {
+async fn compute(core: &Core, repo_id: &str, reference: &str, from: Option<i64>, to: Option<i64>, now: i64, job: &Job) -> CoreResult<RepoStats> {
     let Some(tip) = resolve_tip(core, repo_id, reference, to).await? else {
         return Ok(aggregate::empty());
     };
+    let reference_time = to.unwrap_or(now);
     let key = cache_key(&tip, from, to);
-    if let Some(mut stats) = read_cache(core, repo_id, &key) {
+    if let Some(cached) = read_cache(core, repo_id, &key) {
+        let mut stats = cached.stats;
+        stats.code_age = StatsCodeAge { files: stats.code_age.files, skipped: stats.code_age.skipped, ..StatsCodeAge::default() };
+        aggregate::age_buckets(cached.line_times, reference_time, &mut stats.code_age);
+        stats.reference_time = Some(util::unix_to_iso(reference_time));
         stats.cached = true;
         return Ok(stats);
     }
-    let reference_time = match to {
-        Some(to) => to,
-        None => commit_time(core, repo_id, &tip).await?,
-    };
     let mut aggregator = Aggregator::new(from, to);
     read_log(core, repo_id, &tip, from, job, &mut aggregator).await?;
     let tree = list_tree(core, repo_id, &tip).await?;
-    let code_age = code_age(core, repo_id, &tip, &tree, reference_time, job).await?;
+    let (code_age, line_times) = code_age(core, repo_id, &tip, &tree, reference_time, job).await?;
     let existing: HashSet<String> = tree.iter().map(|file| file.path.clone()).collect();
     let stats = aggregator.finish(&existing, code_age, tip, reference_time);
     job.token().check()?;
-    write_cache(core, repo_id, &key, &stats);
-    Ok(stats)
+    let cached = CachedStats { stats, line_times };
+    write_cache(core, repo_id, &key, &cached);
+    Ok(cached.stats)
+}
+
+/// A cache entry: the result plus the line times of the code age (author time → lines).
+#[derive(serde::Serialize, serde::Deserialize)]
+struct CachedStats {
+    stats: RepoStats,
+    line_times: Vec<(i64, u64)>,
 }
 
 /// The commit whose history is counted: `reference` itself, or with `to` its last commit
@@ -126,20 +144,6 @@ async fn resolve_tip(core: &Core, repo_id: &str, reference: &str, to: Option<i64
         .run_text()
         .await?;
     Ok((!sha.is_empty()).then_some(sha))
-}
-
-/// Committer time of a commit (Unix seconds).
-async fn commit_time(core: &Core, repo_id: &str, sha: &str) -> CoreResult<i64> {
-    let text = core
-        .git_for(repo_id)?
-        .args(["log", "-1", "--format=%ct"])
-        .args(LOG_SAFE)
-        .args([sha, "--"])
-        .read_only()
-        .no_log()
-        .run_text()
-        .await?;
-    text.trim().parse().map_err(|_| CoreError::unknown(format!("Git reported no time for commit {sha}.")))
 }
 
 /// One pass over the log of `tip`; every commit goes to the aggregator as soon as it is read.
@@ -214,10 +218,12 @@ fn parse_tree_entry(record: &[u8]) -> Option<TreeFile> {
 
 /// Code age from `git blame` over the sample, `BLAME_PARALLEL` files at a time. A file Git
 /// cannot blame (e.g. a missing `blame.ignoreRevsFile`) only counts as skipped.
-async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], reference_time: i64, job: &Job) -> CoreResult<StatsCodeAge> {
+/// Also returns the line times of the sample (author time → number of lines).
+async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], reference_time: i64, job: &Job) -> CoreResult<(StatsCodeAge, Vec<(i64, u64)>)> {
     let sample = blame_sample(core, repo_id, tree, BLAME_SAMPLE, job.token()).await?;
     let total = sample.len() as u32;
     let mut age = StatsCodeAge::default();
+    let mut line_times: BTreeMap<i64, u64> = BTreeMap::new();
     let mut done: u32 = 0;
     let mut pending = sample.into_iter();
     let mut running = tokio::task::JoinSet::new();
@@ -230,7 +236,9 @@ async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], refe
         let Some(joined) = running.join_next().await else { break };
         match joined {
             Ok(Ok(times)) => {
-                aggregate::age_buckets(&times, reference_time, &mut age);
+                for time in times {
+                    *line_times.entry(time).or_default() += 1;
+                }
                 age.files += 1;
             }
             Ok(Err(e)) if e.code == ErrorCode::Cancelled => return Err(e),
@@ -241,7 +249,9 @@ async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], refe
     }
     job.token().check()?;
     job.progress(PHASE_BLAME, Some(100), &format!("{total}/{total}"));
-    Ok(age)
+    let line_times: Vec<(i64, u64)> = line_times.into_iter().collect();
+    aggregate::age_buckets(line_times.iter().copied(), reference_time, &mut age);
+    Ok((age, line_times))
 }
 
 /// The files for the code age: largest first, without symlinks, empty files, files over
@@ -292,13 +302,13 @@ fn cache_key(tip: &str, from: Option<i64>, to: Option<i64>) -> String {
 }
 
 /// A broken or unreadable entry counts as missing (it is computed again).
-fn read_cache(core: &Core, repo_id: &str, key: &str) -> Option<RepoStats> {
+fn read_cache(core: &Core, repo_id: &str, key: &str) -> Option<CachedStats> {
     let text = core.db.with(|c| db::stats_cache::get(c, repo_id, key)).ok().flatten()?;
     serde_json::from_str(&text).ok()
 }
 
 /// A cache that cannot be written only costs time on the next call.
-fn write_cache(core: &Core, repo_id: &str, key: &str, stats: &RepoStats) {
+fn write_cache(core: &Core, repo_id: &str, key: &str, stats: &CachedStats) {
     let Ok(text) = serde_json::to_string(stats) else { return };
     if let Err(e) = core.db.with(|c| db::stats_cache::put(c, repo_id, key, &text)) {
         log::warn!("Statistics not cached: {}", e.message);

@@ -1786,7 +1786,7 @@ export interface StatsRecords {
 export interface RepoStats {
   /** The commit whose history was counted; null = nothing to count. */
   tip: Sha | null;
-  /** Reference point of the code age: `to`, otherwise the commit time of `tip`. */
+  /** Reference point of the code age: `to`, otherwise now (also for a cached result). */
   referenceTime: IsoTime | null;
   commits: number;
   added: number;

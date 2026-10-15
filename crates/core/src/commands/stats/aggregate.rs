@@ -340,22 +340,24 @@ pub(super) fn busiest_day(days: &BTreeMap<NaiveDate, u32>) -> Option<StatsBusyDa
     best.map(|(date, commits)| StatsBusyDay { date: day_text(date), commits })
 }
 
-/// Sorts line times (Unix seconds) into the age buckets relative to `reference`.
-/// Lines younger than the reference point (clock skew) count as under a month.
-pub(super) fn age_buckets(times: &[i64], reference: i64, age: &mut StatsCodeAge) {
-    for &time in times {
+/// Sorts line times (Unix seconds, each with its number of lines) into the age buckets
+/// relative to `reference`. Lines younger than the reference point (clock skew) count as under
+/// a month.
+pub(super) fn age_buckets(times: impl IntoIterator<Item = (i64, u64)>, reference: i64, age: &mut StatsCodeAge) {
+    for (time, lines) in times {
         let seconds = reference.saturating_sub(time);
-        if seconds < MONTH {
-            age.month += 1;
+        let bucket = if seconds < MONTH {
+            &mut age.month
         } else if seconds < HALF_YEAR {
-            age.half_year += 1;
+            &mut age.half_year
         } else if seconds < YEAR {
-            age.year += 1;
+            &mut age.year
         } else if seconds < TWO_YEARS {
-            age.two_years += 1;
+            &mut age.two_years
         } else {
-            age.older += 1;
-        }
+            &mut age.older
+        };
+        *bucket += lines;
     }
 }
 
@@ -532,7 +534,7 @@ mod tests {
             now - (TWO_YEARS - 1),
             now - TWO_YEARS,
         ];
-        age_buckets(&times, now, &mut age);
+        age_buckets(times.iter().map(|&time| (time, 1)), now, &mut age);
         assert_eq!((age.month, age.half_year, age.year, age.two_years, age.older), (2, 2, 2, 2, 1));
     }
 
