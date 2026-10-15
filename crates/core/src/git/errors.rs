@@ -310,7 +310,7 @@ fn signing(text: &str, lower: &str) -> Option<CoreError> {
     }
     let program = ["cannot run ", "unable to start "].iter().find_map(|marker| {
         let start = lower.find(marker)? + marker.len();
-        let name = text.get(start..)?.split(|c: char| c == ':' || c == '\n').next()?.trim();
+        let name = text.get(start..)?.split([':', '\n']).next()?.trim();
         Some(name).filter(|name| !name.is_empty())
     });
     let message = match program {
