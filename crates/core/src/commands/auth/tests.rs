@@ -608,6 +608,9 @@ async fn remembered_password_roundtrip_through_the_keyring() {
     let session = fx.broker().begin(SessionMode::Silent).await;
     assert_eq!(helper(&session, "Username for 'https://git.example.com': ").await.unwrap().as_deref(), Some("anna"));
     assert_eq!(helper(&session, "Password for 'https://anna@git.example.com': ").await.unwrap().as_deref(), Some(SECRET));
+    // git-lfs (pre-push hook) asks with Go quoting and gets the same remembered account.
+    assert_eq!(helper(&session, "Username for \"https://git.example.com\"").await.unwrap().as_deref(), Some("anna"));
+    assert_eq!(helper(&session, "Password for \"https://anna@git.example.com\"").await.unwrap().as_deref(), Some(SECRET));
     assert_eq!(fx.request_count(), 0);
     // Another host or user does not get the password.
     assert_eq!(helper(&session, "Password for 'https://anna@anders.example.com': ").await.unwrap(), None);

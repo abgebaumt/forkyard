@@ -1,7 +1,8 @@
 //! Recognises what Git or SSH wants to know with a prompt.
 //!
 //! The texts are the fixed English templates from Git (`credential.c`) and OpenSSH
-//! (`sshconnect.c`, `sshconnect2.c`, `ssh-keygen.c`); Git runs with `LC_ALL=C`.
+//! (`sshconnect.c`, `sshconnect2.c`, `ssh-keygen.c`) and git-lfs (`creds/creds.go`, which asks
+//! through the same askpass); Git runs with `LC_ALL=C`.
 
 use crate::model::{CredentialKind, HostAccountKind};
 
@@ -58,7 +59,7 @@ pub fn classify(prompt: &str) -> Question {
         return host_key(text);
     }
     if let Some(target) = quoted_after(text, "Username for ") {
-        let url = parse_url(target);
+        let url = parse_url(&target);
         return Question {
             kind: CredentialKind::Username,
             host: url.host.clone(),
@@ -69,7 +70,7 @@ pub fn classify(prompt: &str) -> Question {
         };
     }
     if let Some(target) = quoted_after(text, "Password for ") {
-        let url = parse_url(target);
+        let url = parse_url(&target);
         let username = url.username.clone();
         return Question {
             kind: CredentialKind::Password,
@@ -185,12 +186,36 @@ fn ssh_password(text: &str) -> Option<Question> {
     })
 }
 
-/// Text between the first and the last single quote after `prefix`, if the question starts that way.
-fn quoted_after<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
+/// The quoted target after `prefix`, if the question starts that way. Git quotes with single
+/// quotes (`Username for 'https://host': `): text between the first and the last one. git-lfs
+/// asks through the same askpass with Go's `%q` (`Username for "https://host"`): a double-quoted
+/// string with backslash escapes, nothing but whitespace or a colon after it.
+fn quoted_after(text: &str, prefix: &str) -> Option<String> {
     let rest = text.strip_prefix(prefix)?;
+    if let Some(quoted) = rest.strip_prefix('"') {
+        return go_quoted(quoted);
+    }
     let start = rest.find('\'')?;
     let end = rest.rfind('\'')?;
-    (end > start).then(|| &rest[start + 1..end])
+    (end > start).then(|| rest[start + 1..end].to_string())
+}
+
+/// Body of a Go `%q` string after its opening quote; `None` without a closing quote. URLs only
+/// need the simple escapes; any other escape keeps the escaped character.
+fn go_quoted(quoted: &str) -> Option<String> {
+    let mut out = String::new();
+    let mut chars = quoted.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => out.push(chars.next()?),
+            '"' => {
+                let tail = chars.as_str().trim();
+                return (tail.is_empty() || tail == ":").then_some(out);
+            }
+            c => out.push(c),
+        }
+    }
+    None
 }
 
 struct UrlParts {
@@ -284,6 +309,36 @@ mod tests {
         assert_eq!(q.store, None);
     }
 
+    /// git-lfs asks through the same askpass, but with Go's `%q` quoting and without a colon
+    /// (`creds.AskPassCredentialHelper`). It must find the remembered account like Git's own question.
+    #[test]
+    fn git_lfs_https_prompts() {
+        let q = classify("Username for \"https://127.0.0.1:36039\"");
+        assert_eq!(q.kind, CredentialKind::Username);
+        assert_eq!(q.host, "127.0.0.1:36039");
+        assert_eq!(q.store, store(HostAccountKind::Password, "127.0.0.1:36039", ""));
+        assert!(q.from_git);
+
+        let q = classify("Password for \"https://anna@127.0.0.1:36039\"");
+        assert_eq!(q.kind, CredentialKind::Password);
+        assert_eq!(q.host, "127.0.0.1:36039");
+        assert_eq!(q.username.as_deref(), Some("anna"));
+        assert_eq!(q.store, store(HostAccountKind::Password, "127.0.0.1:36039", "anna"));
+        assert!(q.from_git);
+
+        // Path and Go escapes inside the quotes.
+        let q = classify("Password for \"https://anna%40firma.de@git.firma.de/team/projekt.git\"");
+        assert_eq!(q.username.as_deref(), Some("anna@firma.de"));
+        assert_eq!(q.store, store(HostAccountKind::Password, "git.firma.de/team/projekt.git", "anna@firma.de"));
+        let q = classify("Username for \"http://127.0.0.1:8080/a\\\"b\"");
+        assert_eq!(q.store, store(HostAccountKind::Password, "http://127.0.0.1:8080/a\"b", ""));
+
+        // An unterminated quote is no question from Git.
+        let q = classify("Username for \"https://github.com");
+        assert_eq!(q.store, None);
+        assert!(!q.from_git);
+    }
+
     #[test]
     fn ssh_passphrase_prompts() {
         let table = [
@@ -339,6 +394,7 @@ mod tests {
             "(git@server.example) Bad passphrase, try again for /home/anna/.ssh/id_ed25519: ",
             "(git@server.example) Password for 'https://anna@github.com': ",
             "(git@server.example) Username for 'https://github.com': ",
+            "(git@server.example) Password for \"https://anna@github.com\"",
             "(git@server.example) anna@github.com's password: ",
             "(git@server.example) (anna@github.com) Password: ",
             "(git@server.example) Bitte die passphrase eingeben: ",
