@@ -517,6 +517,24 @@ async fn stage_when_the_old_side_has_no_final_newline() {
     assert_eq!(changes(&repo, false, "f.txt"), strings(&["+c"]));
 }
 
+/// Discarding lines at a missing final newline keeps the order of the lines and adds no newline.
+#[tokio::test]
+async fn discard_lines_at_a_missing_final_newline_keeps_the_order() {
+    let repo = TestRepo::new();
+    repo.commit_file("f.txt", "alpha\nbeta\ngamma", "Basis");
+    repo.write_file("f.txt", "alpha\nBETA\ngamma\ndelta");
+    let (tc, id) = open(&repo).await;
+    let diff = unstaged(&tc, &id, "f.txt").await;
+    discard_patch(&tc, id.clone(), pick(&diff, &[("-", "gamma"), ("+", "gamma"), ("+", "delta")])).await.unwrap();
+    assert_eq!(repo.read_file("f.txt"), b"alpha\nBETA\ngamma");
+
+    // Without a line of the same content: the restored last line still stays last.
+    repo.write_file("f.txt", "alpha\nBETA\nGAMMA\ndelta");
+    let diff = unstaged(&tc, &id, "f.txt").await;
+    discard_patch(&tc, id.clone(), pick(&diff, &[("-", "gamma"), ("+", "GAMMA"), ("+", "delta")])).await.unwrap();
+    assert_eq!(repo.read_file("f.txt"), b"alpha\nBETA\ngamma");
+}
+
 #[tokio::test]
 async fn stage_when_the_new_side_has_no_final_newline() {
     let repo = TestRepo::new();
@@ -1233,6 +1251,18 @@ fn model(lines: &[crate::model::DiffLine], chosen: &[u32]) -> Vec<u8> {
         }
         at += (removes + adds).max(1);
     }
+    // The old last line (no newline) belongs to the "+" line of the same rank in its block,
+    // or goes to the end if there is none: it stays behind the lines it followed in the file.
+    if let Some(last) = lines.iter().position(|l| l.kind == DiffLineKind::Remove && l.no_newline) {
+        if lines[last + 1..].iter().all(|l| l.kind == DiffLineKind::Add) {
+            let rank = lines[..last].iter().rev().take_while(|l| l.kind == DiffLineKind::Remove).count();
+            order.retain(|&i| i != last);
+            match order.iter().position(|&i| i == last + 1 + rank) {
+                Some(at) => order.insert(at, last),
+                None => order.push(last),
+            }
+        }
+    }
     let kept: Vec<&crate::model::DiffLine> = order
         .into_iter()
         .map(|i| (i, &lines[i]))
@@ -1323,6 +1353,13 @@ async fn every_subset_without_final_newline_on_both_sides() {
 #[tokio::test]
 async fn every_subset_when_the_final_newline_disappears() {
     all_subsets_agree("x\ny\n", "x\nY").await;
+}
+
+/// The old last line without a newline is the second "−" line of a block with more "+" lines.
+#[tokio::test]
+async fn every_subset_when_lines_follow_the_old_last_line() {
+    all_subsets_agree("alpha\nbeta\ngamma", "alpha\nBETA\ngamma\ndelta").await;
+    all_subsets_agree("alpha\nbeta\ngamma", "alpha\nBETA\nGAMMA\ndelta\n").await;
 }
 
 #[tokio::test]

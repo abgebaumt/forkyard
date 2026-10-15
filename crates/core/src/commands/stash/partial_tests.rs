@@ -135,6 +135,21 @@ async fn crlf_without_final_newline_and_latin1_stay_byte_exact() {
     assert_eq!(stashed(&repo, "alt.txt").0, b"Gr\xfc\xdfe\nzwei\ndrei \xf6\n");
 }
 
+/// Stashing lines at a missing final newline: the working directory keeps the order of the
+/// remaining lines and gets no newline added.
+#[tokio::test]
+async fn stashing_lines_at_a_missing_final_newline_keeps_the_order() {
+    let repo = TestRepo::new();
+    repo.commit_file("f.txt", "alpha\nbeta\ngamma", "Basis");
+    repo.write_file("f.txt", "alpha\nBETA\ngamma\ndelta");
+    let (tc, id) = open(&repo).await;
+    let unstaged = diff(&tc, &id, "f.txt", false).await;
+    let picked = selection(&repo, vec![], vec![pick(&unstaged, &[("-", "gamma"), ("+", "gamma"), ("+", "delta")])]);
+    stash_lines(&tc, &id, picked).await.unwrap();
+    assert_eq!(repo.read_file("f.txt"), b"alpha\nBETA\ngamma");
+    assert_eq!(stashed(&repo, "f.txt").0, b"alpha\nbeta\ngamma\ndelta");
+}
+
 #[tokio::test]
 async fn a_failure_while_taking_the_selection_out_restores_everything() {
     let repo = TestRepo::new();

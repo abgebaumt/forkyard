@@ -409,7 +409,9 @@ pub(crate) fn pair_order(kinds: &[LineKind]) -> Vec<usize> {
 fn emit(hunk: &PatchHunk, marks: &[bool], direction: Direction) -> Vec<Emitted> {
     let mut out = Vec::with_capacity(hunk.lines.len());
     let kinds: Vec<LineKind> = hunk.lines.iter().map(|line| line.kind).collect();
-    for index in pair_order(&kinds) {
+    let mut order = pair_order(&kinds);
+    old_last_line_in_place(hunk, &mut order);
+    for index in order {
         let (line, picked) = (&hunk.lines[index], marks[index]);
         let sign = match (line.kind, direction, picked) {
             (LineKind::Context, _, _) => b' ',
@@ -421,6 +423,30 @@ fn emit(hunk: &PatchHunk, marks: &[bool], direction: Direction) -> Vec<Emitted> 
         out.push(Emitted { sign, content: line.content.clone(), no_newline: line.no_newline });
     }
     out
+}
+
+/// The old last line ("−" without a newline): Git writes it in front of all "+" lines of its
+/// block. In a partial patch the unselected "+" lines of the block become context (taking back)
+/// or are dropped, so the line would land in front of lines it followed in the file ("alpha,
+/// gamma, BETA" instead of "alpha, BETA, gamma"). Like [`pair_order`], the k-th "−" line belongs
+/// to the k-th "+" line of the block: the old last line goes in front of its partner, or to the
+/// end of the hunk if the block has fewer "+" lines. Only "+" lines follow it in the hunk (the old
+/// side ends there), so the order of the old and of the new side stays the same.
+fn old_last_line_in_place(hunk: &PatchHunk, order: &mut Vec<usize>) {
+    let Some(last) = hunk.lines.iter().position(|line| line.kind == LineKind::Remove && line.no_newline) else {
+        return;
+    };
+    if hunk.lines[last + 1..].iter().any(|later| later.kind != LineKind::Add) {
+        return;
+    }
+    let rank = hunk.lines[..last].iter().rev().take_while(|line| line.kind == LineKind::Remove).count();
+    let partner = last + 1 + rank;
+    let Some(from) = order.iter().position(|&i| i == last) else { return };
+    order.remove(from);
+    match order.iter().position(|&i| i == partner) {
+        Some(at) => order.insert(at, last),
+        None => order.push(last),
+    }
 }
 
 /// Makes sure that no line without a newline ends up in the middle of the file in the
@@ -731,6 +757,25 @@ mod tests {
         // A context line without a newline at the end stays as it is.
         let ctx = one("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n-a\n+A\n z\n\\ No newline at end of file\n");
         assert_eq!(built(&ctx, "f", &[whole(0)], Direction::Forward), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n-a\n+A\n z\n\\ No newline at end of file\n");
+    }
+
+    /// Taking back changes at the old last line (no newline): the restored line stays behind the
+    /// unselected "+" lines it followed instead of jumping in front of them.
+    #[test]
+    fn restored_last_line_without_newline_stays_at_the_end() {
+        // Old "alpha\nbeta\ngamma", new "alpha\nBETA\ngamma\ndelta" (both without newline).
+        let file = one("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,4 @@\n alpha\n-beta\n-gamma\n\\ No newline at end of file\n+BETA\n+gamma\n+delta\n\\ No newline at end of file\n");
+        // Take back −gamma, +gamma, +delta: BETA stays, gamma comes back as the last line.
+        assert_eq!(
+            built(&file, "f", &[pick(0, &[2, 4, 5])], Direction::Reverse),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,4 @@\n alpha\n BETA\n-gamma\n\\ No newline at end of file\n+gamma\n+delta\n\\ No newline at end of file\n"
+        );
+        // The same with a changed last line: gamma still comes back as the last line.
+        let other = one("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,4 @@\n alpha\n-beta\n-gamma\n\\ No newline at end of file\n+BETA\n+GAMMA\n+delta\n\\ No newline at end of file\n");
+        assert_eq!(
+            built(&other, "f", &[pick(0, &[2, 4, 5])], Direction::Reverse),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,4 @@\n alpha\n BETA\n-gamma\n\\ No newline at end of file\n+GAMMA\n+delta\n\\ No newline at end of file\n"
+        );
     }
 
     #[test]
