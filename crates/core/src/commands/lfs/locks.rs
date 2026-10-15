@@ -193,7 +193,8 @@ pub(super) fn unlock_failures(paths: &[String], out: &GitOutput) -> Vec<LfsLockF
 }
 
 /// Whether Git LFS's message means: this server has no locking API (404, 405, 501 or its own
-/// message "Not Found"). Messages about missing credentials never count.
+/// message "Not Found"), or there is no API server at all because the remote is a local
+/// repository (path or file:// URL). Messages about missing credentials never count.
 pub(super) fn lacks_locking(text: &str) -> bool {
     text.lines().any(|line| {
         let lower = line.trim().to_lowercase();
@@ -206,6 +207,8 @@ pub(super) fn lacks_locking(text: &str) -> bool {
             || lower.contains("not implemented")
             || ["from http 404", "from http 405", "from http 501"].iter().any(|status| lower.contains(status))
             || lower.contains("locking api")
+            || lower.contains("missing protocol: \"file://")
+            || lower.contains("resolves to a file:// url")
     })
 }
 
@@ -378,6 +381,9 @@ mod tests {
             "Remote \"origin\" does not support the Git LFS locking API. Consider disabling it with:",
             "unable to get lock ID: Not Found",
             "Not Found",
+            // A local remote (path or file://): git-lfs 3.7.1 has no API server to ask.
+            "hint: The remote resolves to a file:// URL, which can only work with a\nError while retrieving locks: missing protocol: \"file:///tmp/x/remote.git\"",
+            "Error while retrieving locks: missing protocol: \"file:///C:/x/remote.git\"",
         ] {
             assert!(lacks_locking(text), "{text}");
         }

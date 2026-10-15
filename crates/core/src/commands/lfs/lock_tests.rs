@@ -179,6 +179,24 @@ async fn server_without_locking_api_is_unsupported() {
 }
 
 #[tokio::test]
+async fn a_local_remote_has_no_locking() {
+    // origin is a bare repository on disk (path and file:// URL): Git LFS has no API server there.
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let remote = repo.add_remote();
+    let id = tc.open(&repo).await.repo.id;
+    if lfs_missing(&tc, &id).await {
+        return;
+    }
+    for url in [remote.url(), format!("file:///{}", remote.url().trim_start_matches('/'))] {
+        repo.git(&["remote", "set-url", "origin", &url]);
+        let error = lfs_locks(&tc, id.clone(), None, Some(true)).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::Unsupported, "{url}: {error:?}");
+        assert!(error.message.contains("file locking"), "{}", error.message);
+    }
+}
+
+#[tokio::test]
 async fn without_git_lfs_locks_are_unsupported() {
     let (tc, _repo, id) = setup("http://127.0.0.1:9/").await;
     tc.state::<LfsState>().set_pretend_missing(true);
