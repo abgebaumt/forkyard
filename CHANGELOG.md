@@ -94,6 +94,13 @@ All notable changes to Forkyard are listed here. The format follows
   the same moment) is retried and no longer reported as "not reachable".
 - Statistics: the code age is measured against today instead of the last commit, so a repository
   nobody touched for years no longer looks young; a cached result is sorted again against today.
+- Statistics: a renamed file or moved folder keeps its history from before the rename in hotspots,
+  the treemap and knowledge per folder.
+- Statistics: knowledge per folder says what it measures – the share of changed lines per person.
+- Statistics left open past midnight are computed again for the new day instead of showing
+  yesterday's period and code age as up to date.
+- Statistics of a repository without commits say "No commits yet" instead of pointing to a longer
+  period.
 - A failed commit signature is reported as a signing error instead of "not found".
 - Applying a stash restores its untracked files through the stash itself, and a patch from a stash
   includes them.
