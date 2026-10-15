@@ -2,9 +2,9 @@
 // debug build of the app once per view, runs a showcase scenario (src/screens/Showcase/scenario.ts)
 // against the demo repository and saves the window as PNG in docs/images/.
 //
-//   cargo build && node scripts/screenshots/shoot.mjs [graph diff conflict rebase settings stats] [--light]
+//   cargo build && node scripts/screenshots/shoot.mjs [graph diff conflict rebase settings stats reflog bisect imageDiff] [--light]
 //
-// Needs Xvfb (or XVFB=/path/to/Xvfb) and ImageMagick's `import`.
+// Needs Xvfb (or XVFB=/path/to/Xvfb) and ImageMagick's `import`; pngquant, if installed, shrinks the PNGs.
 
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
@@ -21,7 +21,10 @@ const SHOTS = {
   conflict: { demo: ["--conflict"] },
   rebase: { demo: ["--rebase"] },
   settings: { demo: [] },
-  stats: { demo: [] },
+  stats: { demo: ["--history"] },
+  reflog: { demo: ["--clean"] },
+  bisect: { demo: ["--clean"] },
+  imageDiff: { demo: ["--image"], file: "image-diff" },
 };
 const wanted = args.filter((arg) => !arg.startsWith("--"));
 const names = wanted.length ? wanted : Object.keys(SHOTS);
@@ -85,8 +88,14 @@ try {
       GIT_CONFIG_NOSYSTEM: "1",
     });
     await sleep(14_000);
-    const out = path.join(root, "docs/images", `${name}${light ? "-light" : ""}.png`);
+    const out = path.join(root, "docs/images", `${shot.file ?? name}${light ? "-light" : ""}.png`);
     execFileSync("import", ["-display", DISPLAY, "-window", "root", "-crop", `${WIDTH}x${HEIGHT}+0+0`, "+repage", `png:${out}`]);
+    try {
+      // Optional: about a third of the size, no visible difference.
+      execFileSync("pngquant", ["--quality=80-95", "--speed", "1", "--strip", "--force", "--output", out, out], { stdio: "ignore" });
+    } catch {
+      // pngquant missing: keep the full PNG
+    }
     console.log("written:", path.relative(root, out));
     app.kill();
     await sleep(800);

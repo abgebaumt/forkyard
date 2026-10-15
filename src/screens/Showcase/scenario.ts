@@ -1,10 +1,14 @@
 /**
  * Scenarios for the README images (scripts/screenshots/shoot.mjs). They work on the demo
  * repository from scripts/screenshots/demo-repo.mjs (`?fixture=<path>`).
- * Usage: `?scenario=Showcase.graph`, `.diff`, `.conflict`, `.rebase`, `.settings`, `.stats`, `.tour` (for the GIF).
+ * Usage: `?scenario=Showcase.graph`, `.diff`, `.conflict`, `.rebase`, `.settings`, `.stats`, `.reflog`,
+ * `.bisect`, `.imageDiff`, `.tour` (for the GIF).
  */
+import { qk } from "../../app/queries";
+import { markBisect } from "../Bisect/actions";
+import { saveImageMode } from "../DiffView/imageDiffModel";
 import type { Scenario, ScenarioContext } from "../scenarios";
-import { openStats } from "../Stats/actions";
+import { openStats, rememberChoice } from "../Stats/actions";
 
 async function open(ctx: ScenarioContext) {
   const opened = await ctx.repo();
@@ -53,17 +57,45 @@ export const scenarios: Record<string, Scenario> = {
     ctx.store.getState().openOverlay({ kind: "preferences", section: "repo" });
   },
 
-  /** Statistics over the whole window. */
+  /** Statistics of the last twelve months over the whole window (demo repo with `--history`). */
   async stats(ctx) {
     const { tabId } = await open(ctx);
+    rememberChoice(tabId, { preset: "year", ref: "HEAD" });
     openStats(tabId);
   },
 
-  /** Tour for the GIF: look at commits, diff, command palette, settings. Starts after `?delay=` ms. */
+  /** Reflog of HEAD (checkouts, merges, commits), the newest entry selected. */
+  async reflog(ctx) {
+    const { tabId } = await open(ctx);
+    ctx.store.getState().openReflog(tabId, null);
+  },
+
+  /** Bisect between v0.1.0 and main, one step answered: the bar above the graph (demo repo with `--clean`). */
+  async bisect(ctx) {
+    const { repoId, tabId } = await open(ctx);
+    const good = await shaOf(ctx, repoId, "Add HTTP server with /forecast route");
+    const bad = await shaOf(ctx, repoId, "Document the API in the README");
+    const status = await ctx.core.bisectStart({ repoId, bad, good: [good] });
+    ctx.queryClient.setQueryData(qk.bisect(repoId), status);
+    await markBisect(repoId, "good", tabId);
+  },
+
+  /** Image diff as a swipe: the rain front on the radar map moved east (demo repo with `--image`). */
+  async imageDiff(ctx) {
+    const { tabId } = await open(ctx);
+    saveImageMode("swipe");
+    ctx.store.getState().selectWip(tabId);
+    ctx.store.getState().openDiff(tabId, "docs/radar.png", { kind: "unstaged" });
+  },
+
+  /**
+   * Tour for the GIF: look at commits, diff, command palette, settings, statistics. Starts `?delay=` ms
+   * after the page started loading.
+   */
   async tour(ctx) {
     const { repoId, tabId } = await open(ctx);
     const store = ctx.store.getState();
-    await pause(Number(ctx.params.get("delay") ?? 0) + 1500);
+    await pause(Math.max(0, Number(ctx.params.get("delay") ?? 0) - performance.now()) + 1500);
     for (const subject of ["Merge branch 'feature/hourly-chart'", "Chart: show precipitation as second row", "Add storm alert thresholds"]) {
       store.revealCommit(tabId, await shaOf(ctx, repoId, subject));
       await pause(1300);
@@ -80,5 +112,8 @@ export const scenarios: Record<string, Scenario> = {
     store.openOverlay({ kind: "preferences", section: "repo" });
     await pause(2600);
     store.closeOverlay();
+    await pause(400);
+    rememberChoice(tabId, { preset: "year", ref: "HEAD" });
+    openStats(tabId);
   },
 };

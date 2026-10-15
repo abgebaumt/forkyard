@@ -119,14 +119,16 @@ export function Heatmap({ heatmap }: { heatmap: number[][] }) {
 const TIME_WIDTH = 600;
 const TIME_HEIGHT = 160;
 const MAX_TICKS = 7;
+/** Labels with the year ("Oct 2025") are about twice as wide. */
+const MAX_TICKS_WITH_YEAR = 4;
 /** A few buckets do not become wide blocks. */
 const MAX_BAR = 16;
 
 export function TimeChart({ buckets }: { buckets: StatsBucket[] }) {
   const max = Math.max(1, ...buckets.map((bucket) => bucket.commits));
   const step = TIME_WIDTH / Math.max(1, buckets.length);
-  const ticks = timeTicks(buckets, MAX_TICKS);
-  const years = new Set(ticks.map((tick) => tick.period.slice(0, 4))).size;
+  const years = new Set(buckets.map((bucket) => bucket.period.slice(0, 4))).size;
+  const ticks = timeTicks(buckets, years > 1 ? MAX_TICKS_WITH_YEAR : MAX_TICKS);
   const tickLabel = (period: string) => (years > 1 ? monthFormat.format(toDate(period)) : shortMonth.format(toDate(period)));
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1">

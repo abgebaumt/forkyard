@@ -39,7 +39,7 @@ actually happens, and makes the risky parts safe:
 - **Safe with unknown repositories.** Repositories whose config or hooks would run programs stay
   locked until you trust them.
 
-<p align="center"><img src="docs/images/tour.gif" alt="A short tour: browsing commits, a diff, the command palette and the settings" width="100%"></p>
+<p align="center"><img src="docs/images/tour.gif" alt="A short tour: browsing commits, a diff, the command palette, the settings and the statistics" width="100%"></p>
 
 ## Features
 
@@ -92,12 +92,20 @@ actually happens, and makes the risky parts safe:
 </table>
 
 <p align="center">
-  <img src="docs/images/diff.png" alt="Line staging in the diff view" width="49%">
-  <img src="docs/images/conflict.png" alt="Three-pane merge conflict tool" width="49%">
+  <img src="docs/images/diff.png" alt="Diff view with hunks and lines to stage, next to the list of local changes" width="49%">
+  <img src="docs/images/conflict.png" alt="Three-pane merge conflict tool: current, incoming and the editable result" width="49%">
 </p>
 <p align="center">
-  <img src="docs/images/rebase.png" alt="Interactive rebase" width="49%">
-  <img src="docs/images/settings.png" alt="Settings with global, profile and project levels" width="49%">
+  <img src="docs/images/rebase.png" alt="Interactive rebase of a feature branch with pick, reword, squash and drop" width="49%">
+  <img src="docs/images/settings.png" alt="Settings with global, profile and project levels; the project overrides the commit identity" width="49%">
+</p>
+<p align="center">
+  <img src="docs/images/stats.png" alt="Statistics for the last 12 months: activity by weekday and hour, commits per week, records, a treemap of changes, hotspots, authors and code age" width="49%">
+  <img src="docs/images/reflog.png" alt="Reflog of HEAD with checkouts, commits and merges, the selected entry's commit on the right" width="49%">
+</p>
+<p align="center">
+  <img src="docs/images/bisect.png" alt="Bisect bar above the graph at step 2 of about 3, with good and bad commits marked in the graph" width="49%">
+  <img src="docs/images/image-diff.png" alt="Image diff as a swipe between the old and the new version of a radar map" width="49%">
 </p>
 
 ## Install

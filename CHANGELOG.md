@@ -111,6 +111,7 @@ All notable changes to Forkyard are listed here. The format follows
   yesterday's period and code age as up to date.
 - Statistics of a repository without commits say "No commits yet" instead of pointing to a longer
   period.
+- Statistics: the dates under “Commits over time” no longer overlap when the period spans two years.
 - A failed commit signature is reported as a signing error instead of "not found".
 - Applying a stash restores its untracked files through the stash itself, and a patch from a stash
   includes them.

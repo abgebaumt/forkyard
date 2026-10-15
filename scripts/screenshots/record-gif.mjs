@@ -1,5 +1,5 @@
 // Records the README animation (docs/images/tour.gif): runs the showcase tour
-// (src/screens/Showcase/scenario.ts › tour) on the demo repository under Xvfb and captures it with ffmpeg.
+// (src/screens/Showcase/scenario.ts › tour) on the demo repository (with --history, for the statistics) under Xvfb and captures it with ffmpeg.
 //
 //   cargo build && node scripts/screenshots/record-gif.mjs
 //
@@ -18,7 +18,9 @@ const DISPLAY = ":92";
 const PORT = 1432;
 /** The app needs a few seconds to start; the tour waits that long before its first step. */
 const START_DELAY_MS = 10000;
-const LENGTH_S = 19;
+/** The page starts loading about this long after the process (the tour counts from page load). */
+const PAGE_LOAD_MS = 4000;
+const LENGTH_S = 20;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const children = [];
 const start = (command, argv, env = {}) => {
@@ -43,8 +45,8 @@ try {
       await sleep(300);
     }
   }
-  execFileSync("node", [path.join(root, "scripts/screenshots/demo-repo.mjs"), demo], { stdio: "ignore" });
-  const query = new URLSearchParams({ scenario: "Showcase.tour", fixture: demo, theme: "dark", lang: "en", delay: String(START_DELAY_MS) });
+  execFileSync("node", [path.join(root, "scripts/screenshots/demo-repo.mjs"), demo, "--history"], { stdio: "ignore" });
+  const query = new URLSearchParams({ scenario: "Showcase.tour", fixture: demo, theme: "dark", lang: "en", delay: String(START_DELAY_MS - PAGE_LOAD_MS) });
   start(path.join(root, "target/debug/forkyard"), [], {
     DISPLAY,
     GDK_BACKEND: "x11",
