@@ -476,7 +476,8 @@ scenario("a new commit on the branch recomputes the open statistics by themselve
   await clickStats(app);
   const first = await waitStats(app, (s) => commitsHint(s) === repo.expected.commits);
   const aylin = first.authors.find((author) => author.email === PEOPLE.aylin.email);
-  assertEqual(aylin.commits, 3, "Aylin before");
+  const aylinCommits = repo.counted.filter((item) => item.person === PEOPLE.aylin).length;
+  assertEqual(aylin.commits, aylinCommits, "Aylin before");
   await trackJobs(app);
 
   // Commit outside the app (another terminal): the watcher reports it, the view follows.
@@ -485,7 +486,7 @@ scenario("a new commit on the branch recomputes the open statistics by themselve
   assertEqual(Number(repo.git("rev-list", "--count", "--no-merges", "HEAD")), repo.expected.commits + 1, "git: one more commit");
   const after = await waitStats(app, (s) => commitsHint(s) === repo.expected.commits + 1, "recomputed with the new commit", 30_000);
   assert((await statsJobs(app)) >= 1, "a statistics job ran");
-  assertEqual(after.authors.find((author) => author.email === PEOPLE.aylin.email).commits, 4, "Aylin after");
+  assertEqual(after.authors.find((author) => author.email === PEOPLE.aylin.email).commits, aylinCommits + 1, "Aylin after");
   same(after.status, { kind: "fresh", text: "Up to date with HEAD" }, "status after the recomputation");
   assert(after.tiles.some((tile) => tile.path === "src"), "treemap still there");
   assertEqual(barTotal(after), repo.expected.commits + 1, "time chart counts the new commit");
@@ -721,10 +722,20 @@ scenario("all cards show the repository's numbers", "main", async (t) => {
   assert(!("funk" in kinds), "unmerged branch's folder not counted");
   assertMatch(s.tiles.find((tile) => tile.path === "src").label, /^src\/ – \d+ changes\. Open folder$/, "folder tile label");
 
-  // Hotspots: commits × authors, from git.
-  const gitCommits = (file) => repo.git("log", "--no-merges", "--format=%ae", "HEAD", "--", file).split("\n").filter(Boolean);
+  // Hotspots: commits × authors, from git – following renames, like `git log --follow`.
+  const gitCommits = (file) => repo.git("log", "--no-merges", "--follow", "--format=%ae", "HEAD", "--", file).split("\n").filter(Boolean);
   const top = gitCommits(repo.expected.topHotspot);
   same(s.hotspots[0], { path: repo.expected.topHotspot, commits: top.length, authors: new Set(top.map((mail) => mail.toLowerCase())).size, severity: s.hotspots[0].severity }, "top hotspot");
+  for (const spot of s.hotspots) {
+    const mails = gitCommits(spot.path);
+    same({ commits: spot.commits, authors: spot.authors }, { commits: mails.length, authors: new Set(mails.map((mail) => mail.toLowerCase())).size }, `hotspot ${spot.path}`);
+  }
+  const { renamed } = repo.expected;
+  const sinceRename = repo.git("log", "--no-merges", "--format=%H", "HEAD", "--", renamed.path).split("\n").filter(Boolean).length;
+  const renamedSpot = s.hotspots.find((spot) => spot.path === renamed.path);
+  assert(renamedSpot, `renamed file among the hotspots: ${s.hotspots.map((spot) => spot.path).join(", ")}`);
+  assert(renamedSpot.commits > sinceRename, `commits from before the rename count: ${renamedSpot.commits} shown, ${sinceRename} since the rename`);
+  assert(!s.hotspots.some((spot) => spot.path === renamed.from), "the old path is not listed");
   assert(!s.hotspots.some((spot) => spot.path === "funk/modul.rs"), "no file of the unmerged branch");
 
   // Authors: one row per person (address case folded), numbers from git numstat.
@@ -792,7 +803,7 @@ scenario("treemap: zoom into folders by click and keyboard, Up, a file opens its
   await app.press("Enter");
   s = await waitStats(app, (x) => x.folder === "src/station");
   assertEqual(s.tiles.map((tile) => `${tile.path}:${tile.kind}`).sort(), ["src/station/export.rs:file", "src/station/sensor.rs:file"], "files in src/station");
-  const sensorChanges = repo.git("log", "--no-merges", "--format=%H", "HEAD", "--", "src/station/sensor.rs").split("\n").filter(Boolean).length;
+  const sensorChanges = repo.git("log", "--no-merges", "--follow", "--format=%H", "HEAD", "--", "src/station/sensor.rs").split("\n").filter(Boolean).length;
   assertEqual(s.tiles.find((tile) => tile.path === "src/station/sensor.rs").label, `src/station/sensor.rs – ${sensorChanges} changes. Show history`, "file tile label with git's count");
   await t.shot("stats-treemap-folder");
   const up = await app.waitFor(() => app.exec((selector) => [...document.querySelectorAll(`${selector} button`)].find((el) => el.innerText.trim() === "Up to src") ?? null, VIEW), 5000, { message: "Up to src" });
@@ -815,7 +826,11 @@ scenario("treemap: zoom into folders by click and keyboard, Up, a file opens its
     return false;
   }, 10_000, { message: "treemap back at the root" });
   await app.click(`${VIEW} [data-tile="docs"]`);
-  await waitStats(app, (x) => x.folder === "docs");
+  const docs = await waitStats(app, (x) => x.folder === "docs");
+  const { renamed } = repo.expected;
+  const renamedChanges = repo.git("log", "--no-merges", "--follow", "--format=%H", "HEAD", "--", renamed.path).split("\n").filter(Boolean).length;
+  assertEqual(docs.tiles.find((tile) => tile.path === renamed.path)?.label, `${renamed.path} – ${renamedChanges} changes. Show history`, "renamed file: changes from before the rename count");
+  assert(!docs.tiles.some((tile) => tile.path === renamed.from), "no tile for the old path");
   await app.click(`${VIEW} [data-tile="docs/Größen und Einheiten.md"]`);
   await waitCenter(app, tabId, "history");
   same((await view(app, tabId)).center, { kind: "history", path: "docs/Größen und Einheiten.md" }, "history of the umlaut file");

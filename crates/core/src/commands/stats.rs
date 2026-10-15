@@ -7,6 +7,9 @@
 //! the walk, because a commit's committer date is not older than its author date. With `to` the
 //! history of the last commit committed up to then is counted. `.mailmap` is not applied.
 //!
+//! Renames (`-M`) are followed: a file counts with its whole history under its path at the tip,
+//! like `git log --follow` (files, hotspots, treemap, knowledge per folder).
+//!
 //! The code age is measured against `to`, without `to` against now – not against the last
 //! commit, so a repository nobody touched for years shows its real age.
 //!
@@ -33,7 +36,7 @@ use aggregate::Aggregator;
 use parse::{BlameAges, LogParser, LOG_FORMAT};
 
 /// Change it whenever the numbers are computed differently: old cache entries then no longer match.
-const STATS_VERSION: u32 = 3;
+const STATS_VERSION: u32 = 4;
 /// Progress phases (`job:progress.phase`); the UI names them.
 const PHASE_HISTORY: &str = "history";
 const PHASE_BLAME: &str = "blame";

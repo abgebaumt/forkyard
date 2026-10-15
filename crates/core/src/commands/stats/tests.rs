@@ -139,6 +139,46 @@ async fn the_demo_history_gives_the_expected_numbers() {
     assert!(!stats.cached);
 }
 
+/// A history with renames (oldest first): lib/ is moved to src/, notes/a.md renamed twice.
+///
+/// | # | who | changes                                                         |
+/// |---|-----|-----------------------------------------------------------------|
+/// | 0 | Ada | lib/core.rs (6), lib/util.rs (3), notes/a.md (5)                |
+/// | 1 | Ben | lib/core.rs +4, notes/a.md → notes/b.md                         |
+/// | 2 | Ada | `git mv lib src`, src/util.rs +1                                |
+/// | 3 | Ben | src/core.rs +1, notes/b.md → notes/c.md                         |
+fn renamed_demo() -> TestRepo {
+    let repo = TestRepo::new();
+    repo.write_file("lib/core.rs", lines(&["c1", "c2", "c3", "c4", "c5", "c6"]));
+    repo.write_file("lib/util.rs", lines(&["u1", "u2", "u3"]));
+    repo.write_file("notes/a.md", lines(&["Notiz eins", "Notiz zwei", "Notiz drei", "Notiz vier", "Notiz fünf"]));
+    repo.commit_as("Start", ADA.0, ADA.1, "@1750000000 +0000");
+    repo.write_file("lib/core.rs", lines(&["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10"]));
+    repo.git(&["mv", "notes/a.md", "notes/b.md"]);
+    repo.commit_as("Core", BEN.0, BEN.1, "@1750100000 +0000");
+    repo.git(&["mv", "lib", "src"]);
+    repo.write_file("src/util.rs", lines(&["u1", "u2", "u3", "u4"]));
+    repo.commit_as("Move", ADA.0, ADA.1, "@1750200000 +0000");
+    repo.write_file("src/core.rs", lines(&["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9", "c10", "c11"]));
+    repo.git(&["mv", "notes/b.md", "notes/c.md"]);
+    repo.commit_as("Rename", BEN.0, BEN.1, "@1750300000 +0000");
+    repo
+}
+
+#[tokio::test]
+async fn renamed_files_and_moved_folders_keep_their_history() {
+    let repo = renamed_demo();
+    let (tc, id) = setup(&repo).await;
+    let stats = run_at(&tc, &id, range(None, None, "HEAD"), 1_750_300_000).await;
+    let files: Vec<(&str, u32, u32, u64, u64)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
+    assert_eq!(files, [("src/core.rs", 4, 2, 11, 0), ("notes/c.md", 3, 2, 5, 0), ("src/util.rs", 2, 1, 4, 0)]);
+    let hotspots: Vec<(&str, u32)> = stats.hotspots.iter().map(|h| (h.path.as_str(), h.score)).collect();
+    assert_eq!(hotspots[0], ("src/core.rs", 8), "commits × authors since the file was created");
+    let folders: Vec<(&str, u64, &str, u32, u32)> = stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
+    // src: Ada 6 + 1 (move) + 3 + 1 = 11, Ben 4 + 1 = 5; notes: Ada 5, Ben 1 + 1.
+    assert_eq!(folders, [("", 23, "Ada", 70, 1), ("src", 16, "Ada", 69, 1), ("notes", 7, "Ada", 71, 1)]);
+}
+
 #[tokio::test]
 async fn the_period_filters_by_author_time_and_to_picks_the_tip() {
     let (repo, shas) = demo();

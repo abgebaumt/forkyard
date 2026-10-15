@@ -12,10 +12,13 @@ const COMMIT_MARK: &[u8] = b"\x01st\x01";
 pub(super) const LOG_FORMAT: &str = "--format=%x01st%x01%x00%H%x00%an%x00%ae%x00%ad%x00";
 const HEADER_FIELDS: usize = 4;
 
-/// One file of a commit (numstat). Binary files count with 0 lines; a rename under its new path.
+/// One file of a commit (numstat). Binary files count with 0 lines; a rename under its new path,
+/// with the old one in `from`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct FileDelta {
     pub path: String,
+    /// The path before the rename (`-M`), `None` for anything else.
+    pub from: Option<String>,
     pub added: u64,
     pub removed: u64,
 }
@@ -54,8 +57,9 @@ pub(super) struct LogParser {
     expect: Expect,
     header: Vec<Vec<u8>>,
     files: Vec<FileDelta>,
-    /// Line counts of a rename whose paths are the next two records.
+    /// Line counts of a rename whose paths are the next two records, then its old path.
     rename: Option<(u64, u64)>,
+    rename_from: Option<String>,
 }
 
 impl LogParser {
@@ -69,12 +73,14 @@ impl LogParser {
                 None
             }
             Expect::RenameOld => {
+                self.rename_from = Some(util::decode_lossy(record));
                 self.expect = Expect::RenameNew;
                 None
             }
             Expect::RenameNew => {
+                let from = self.rename_from.take();
                 if let Some((added, removed)) = self.rename.take() {
-                    self.files.push(FileDelta { path: util::decode_lossy(record), added, removed });
+                    self.files.push(FileDelta { path: util::decode_lossy(record), from, added, removed });
                 }
                 self.expect = Expect::Body;
                 None
@@ -107,7 +113,7 @@ impl LogParser {
                 self.rename = Some((added, removed));
                 self.expect = Expect::RenameOld;
             } else {
-                self.files.push(FileDelta { path: util::decode_lossy(path), added, removed });
+                self.files.push(FileDelta { path: util::decode_lossy(path), from: None, added, removed });
             }
         }
         None
@@ -117,6 +123,7 @@ impl LogParser {
         let header = std::mem::take(&mut self.header);
         let files = std::mem::take(&mut self.files);
         self.rename = None;
+        self.rename_from = None;
         if header.len() < HEADER_FIELDS {
             return None;
         }
@@ -199,7 +206,11 @@ mod tests {
     }
 
     fn delta(path: &str, added: u64, removed: u64) -> FileDelta {
-        FileDelta { path: path.into(), added, removed }
+        FileDelta { path: path.into(), from: None, added, removed }
+    }
+
+    fn renamed(from: &str, path: &str, added: u64, removed: u64) -> FileDelta {
+        FileDelta { path: path.into(), from: Some(from.into()), added, removed }
     }
 
     #[test]
@@ -208,7 +219,7 @@ mod tests {
         assert_eq!(commits.len(), 2);
         assert_eq!((commits[0].sha.as_str(), commits[0].name.as_str(), commits[0].email.as_str()), ("bbbb", "Ben", "ben@example.com"));
         assert_eq!((commits[0].time, commits[0].offset), (1_735_812_000, -18_000));
-        assert_eq!(commits[0].files, [delta("g.txt", 1, 0), delta("src/b.bin", 0, 0)], "rename under the new path, binary with 0 lines");
+        assert_eq!(commits[0].files, [renamed("f.txt", "g.txt", 1, 0), delta("src/b.bin", 0, 0)], "rename under the new path with the old one, binary with 0 lines");
         assert_eq!((commits[1].sha.as_str(), commits[1].offset), ("aaaa", 7_200));
         assert_eq!(commits[1].files, [delta("f.txt", 3, 0)]);
     }

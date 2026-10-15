@@ -79,6 +79,9 @@ pub(super) struct Aggregator {
     days: BTreeMap<NaiveDate, u32>,
     authors: HashMap<String, AuthorAcc>,
     files: HashMap<String, FileAcc>,
+    /// Renames seen so far: an older path → the path the file has at the tip. The log comes
+    /// newest first, so a rename is known before the commits that still use the old path.
+    aliases: HashMap<String, String>,
     biggest: Option<StatsBigCommit>,
 }
 
@@ -117,12 +120,33 @@ impl Aggregator {
             days: BTreeMap::new(),
             authors: HashMap::new(),
             files: HashMap::new(),
+            aliases: HashMap::new(),
             biggest: None,
         }
     }
 
-    /// Counts a commit whose author time lies in the period; returns whether it counted.
+    /// The path a file has at the tip, for a path of an older commit.
+    fn resolve(&self, path: &str) -> String {
+        self.aliases.get(path).cloned().unwrap_or_else(|| path.to_string())
+    }
+
+    /// The current path of every file of `commit`; then its renames are noted for the older
+    /// commits that follow – also for a commit outside the period.
+    fn follow_renames(&mut self, commit: &LogCommit) -> Vec<String> {
+        let paths: Vec<String> = commit.files.iter().map(|file| self.resolve(&file.path)).collect();
+        for (file, current) in commit.files.iter().zip(&paths) {
+            if let Some(from) = &file.from {
+                self.aliases.insert(from.clone(), current.clone());
+            }
+        }
+        paths
+    }
+
+    /// Counts a commit whose author time lies in the period; returns whether it counted. Feed
+    /// the commits newest first (as `git log` gives them): a file renamed later counts under its
+    /// path at the tip.
     pub fn add(&mut self, commit: &LogCommit) -> bool {
+        let paths = self.follow_renames(commit);
         if self.from.is_some_and(|from| commit.time < from) || self.to.is_some_and(|to| commit.time > to) {
             return false;
         }
@@ -153,8 +177,8 @@ impl Aggregator {
         author.first = author.first.min(commit.time);
         author.last = author.last.max(commit.time);
 
-        for file in &commit.files {
-            let acc = self.files.entry(file.path.clone()).or_default();
+        for (file, path) in commit.files.iter().zip(paths) {
+            let acc = self.files.entry(path).or_default();
             acc.commits += 1;
             acc.added += file.added;
             acc.removed += file.removed;
@@ -376,7 +400,7 @@ mod tests {
             email: who.1.into(),
             time,
             offset,
-            files: files.iter().map(|(path, added, removed)| FileDelta { path: (*path).into(), added: *added, removed: *removed }).collect(),
+            files: files.iter().map(|(path, added, removed)| FileDelta { path: (*path).into(), from: None, added: *added, removed: *removed }).collect(),
         }
     }
 
@@ -478,6 +502,53 @@ mod tests {
         let stats = agg.finish(&existing(), StatsCodeAge::default(), "c".into(), 1_749_024_000);
         assert_eq!(stats.commits, 2);
         assert_eq!(stats.authors.len(), 1);
+    }
+
+    fn moved(sha: &str, who: (&str, &str), time: i64, files: &[(&str, &str, u64, u64)]) -> LogCommit {
+        let mut out = commit(sha, who, time, 0, &[]);
+        out.files = files.iter().map(|(from, path, added, removed)| FileDelta { path: (*path).into(), from: Some((*from).into()), added: *added, removed: *removed }).collect();
+        out
+    }
+
+    /// Newest first: lib/ moved to src/, a.md renamed twice (a → b → c), b.rs edited before the move.
+    fn renamed_history() -> Vec<LogCommit> {
+        vec![
+            commit("5", ADA, 500, 0, &[("c.md", 1, 0)]),
+            moved("4", BEN, 400, &[("b.md", "c.md", 0, 0)]),
+            moved("3", ADA, 300, &[("lib/a.rs", "src/a.rs", 0, 0), ("lib/b.rs", "src/b.rs", 1, 0)]),
+            moved("2", BEN, 200, &[("a.md", "b.md", 2, 1)]),
+            commit("1", BEN, 100, 0, &[("lib/a.rs", 4, 0), ("a.md", 3, 0)]),
+            commit("0", ADA, 50, 0, &[("lib/a.rs", 6, 0), ("lib/b.rs", 3, 0), ("a.md", 5, 0)]),
+        ]
+    }
+
+    #[test]
+    fn a_renamed_file_keeps_its_history_from_before_the_rename() {
+        let mut agg = Aggregator::new(None, None);
+        for commit in renamed_history() {
+            agg.add(&commit);
+        }
+        let existing: HashSet<String> = ["src/a.rs", "src/b.rs", "c.md"].into_iter().map(String::from).collect();
+        let stats = agg.finish(&existing, StatsCodeAge::default(), "5".into(), 500);
+        let files: Vec<(&str, u32, u32, u64, u64)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
+        assert_eq!(files, [("c.md", 5, 2, 11, 1), ("src/a.rs", 3, 2, 10, 0), ("src/b.rs", 2, 1, 4, 0)], "every commit since the file was created, under its current path");
+        let folders: Vec<(&str, u64, &str, u32, u32)> = stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
+        // src: Ada 6 + 1 (move) + 3 + 1 = 11, Ben 4.
+        assert_eq!(folders[1], ("src", 15, "Ada", 73, 1), "the folder counts the history from before the move");
+        assert!(stats.folders.iter().all(|f| f.path != "lib"), "the old folder does not exist any more");
+    }
+
+    #[test]
+    fn a_rename_outside_the_period_still_maps_the_older_paths() {
+        // The rename commit is newer than `to` (or older than `from` by author time): not counted, but older paths follow it.
+        let mut agg = Aggregator::new(Some(0), Some(250));
+        for commit in renamed_history() {
+            agg.add(&commit);
+        }
+        let existing: HashSet<String> = ["src/a.rs", "src/b.rs", "c.md"].into_iter().map(String::from).collect();
+        let stats = agg.finish(&existing, StatsCodeAge::default(), "5".into(), 250);
+        let files: Vec<(&str, u32)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits)).collect();
+        assert_eq!(files, [("c.md", 3), ("src/a.rs", 2), ("src/b.rs", 1)]);
     }
 
     #[test]

@@ -122,7 +122,9 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
  *  200       11    Aylin         docs/handbuch.md
  *  100       13    Jonas         src/station/sensor.rs
  *   60       17    Lena          "docs/Größen und Einheiten.md"
+ *   50        9    Jonas         docs/handbuch.md renamed to docs/benutzerhandbuch.md (+1)
  *   20       10    Aylin         src/station/sensor.rs
+ *   15       14    Aylin         docs/benutzerhandbuch.md
  *   10       21    Jonas (Upper-case address)   daten/messwerte.csv (+500, the biggest commit)
  *    5       10    Lena          src/station/export.rs
  *    4  9, 11, 14  Lena          src/station/sensor.rs (three commits)
@@ -155,8 +157,14 @@ export function makeStatsRepo(name = "messnetz-statistik") {
   add(PEOPLE.jonas, 100, 13, "Sensor kalibrieren");
   write("docs/Größen und Einheiten.md", lines("Größe", 8));
   add(PEOPLE.lena, 60, 17, "Größen und Einheiten beschreiben");
+  // A rename: the statistics count the commits from before it under the new path.
+  git("mv", "docs/handbuch.md", "docs/benutzerhandbuch.md");
+  append("docs/benutzerhandbuch.md", "Umbenannt.\n");
+  add(PEOPLE.jonas, 50, 9, "Handbuch umbenennen");
   append("src/station/sensor.rs", lines("// Grenzwert", 3));
   add(PEOPLE.aylin, 20, 10, "Grenzwerte für den Sensor");
+  append("docs/benutzerhandbuch.md", lines("Wartung", 2));
+  add(PEOPLE.aylin, 15, 14, "Wartung im Handbuch");
   write("daten/messwerte.csv", "zeit;wert\n" + lines("2026-01-01;", 499));
   const biggest = add(PEOPLE.jonasUpper, 10, 21, "Messwerte Januar importieren");
   append("src/station/export.rs", lines("// CSV", 2));
@@ -200,6 +208,8 @@ export function makeStatsRepo(name = "messnetz-statistik") {
       streak: { days: 3, start: dateOf(5), end: dateOf(3) },
       busiest: { date: dateOf(4), commits: 4 },
       topHotspot: "src/station/sensor.rs",
+      /** Renamed 50 days ago; two of its four commits are from before the rename. */
+      renamed: { from: "docs/handbuch.md", path: "docs/benutzerhandbuch.md" },
     },
   };
 }
