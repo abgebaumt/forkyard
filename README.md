@@ -80,7 +80,7 @@ actually happens, and makes the risky parts safe:
 - Settings on three levels: global, per profile, per project (identity, SSH key, pull mode)
 - HTTPS and SSH credentials, SSH key generation, proxy and custom CA
 - GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps: pull requests and issues through the official APIs
-- Worktrees, submodules that follow checkouts, Git LFS with file locks, Git Flow, commit signing (GPG/SSH), hooks
+- Worktrees, submodules that follow checkouts and can be moved, Git LFS with file locks, Git Flow, commit signing (GPG/SSH), hooks
 - Custom commands with placeholders in the palette and context menus
 - Statistics per repository: activity, authors, hotspots, bus factor, code age
 - Command palette, keyboard shortcuts, embedded terminal, light and dark theme
