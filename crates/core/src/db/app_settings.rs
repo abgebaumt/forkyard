@@ -50,3 +50,9 @@ pub fn set(conn: &Connection, key: &str, value: &Value) -> CoreResult<()> {
     )?;
     Ok(())
 }
+
+/// Removes a key (no error if it is not there).
+pub fn delete(conn: &Connection, key: &str) -> CoreResult<()> {
+    conn.execute("delete from app_settings where key = ?1", [key])?;
+    Ok(())
+}

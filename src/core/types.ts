@@ -77,7 +77,22 @@ export type ErrorCode =
   /** A command from the repository's `.forkyard/commands.json` that is not approved for this version of the file. */
   | "command_untrusted"
   /** Git could not sign the commit or tag: key file missing, signing program missing or failing. */
-  | "signing_failed";
+  | "signing_failed"
+  /** AI is off: master switch, the function or "AI off for this repository". */
+  | "ai_disabled"
+  /** No provider/model/address/key set up, or the key was rejected – Settings › AI. */
+  | "ai_not_configured"
+  /** The provider does not answer, is overloaded (`retryAt` when it says so) or does not know the model. */
+  | "ai_provider_unavailable"
+  | "ai_not_logged_in"
+  /** The answer did not match the schema, also after one repair attempt. */
+  | "ai_invalid_answer"
+  /** The provider declined; the message carries its redacted text. */
+  | "ai_refused"
+  /** Monthly cost limit reached; confirm "send this time" with `aiPreviewConfirm` (trigger `limit`). */
+  | "ai_limit_reached"
+  | "ai_too_large"
+  | "ai_unsupported_version";
 
 /** This is how every error comes from the core. `message` is English and meant for humans. */
 export interface CoreErrorData {

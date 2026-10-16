@@ -302,3 +302,27 @@ create table workspace_repositories (
   primary key (workspace_id, repository_id)
 ) strict, without rowid;
 create index workspace_repositories_repo on workspace_repositories (repository_id);
+
+-- v1.2: AI usage per month, provider, model and function – numbers only, never contents.
+-- `cost_usd_micros`: estimated cost in millionths of a US dollar (0 for local models and
+-- unknown prices). Written with `if not exists` like stats_cache (see db/mod.rs).
+create table if not exists ai_usage (
+  month           text not null check (length(month) = 7),
+  provider        text not null,
+  model           text not null,
+  feature         text not null,
+  requests        integer not null default 0 check (requests >= 0),
+  input_tokens    integer not null default 0 check (input_tokens >= 0),
+  output_tokens   integer not null default 0 check (output_tokens >= 0),
+  cost_usd_micros integer not null default 0 check (cost_usd_micros >= 0),
+  primary key (month, provider, model, feature)
+) strict, without rowid;
+
+-- v1.2: confirmations of "What is sent?" that were already given ("first_use:<function>",
+-- "large", "cost" globally with repository_id null; "repo_first" per repository).
+create table if not exists ai_preview_seen (
+  repository_id text references repositories (id) on delete cascade,
+  ask           text not null,
+  seen_at       text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+create unique index if not exists ai_preview_seen_key on ai_preview_seen (coalesce(repository_id, ''), ask);

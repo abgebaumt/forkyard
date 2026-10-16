@@ -67,11 +67,29 @@ pub enum ErrorCode {
     CommandUntrusted,
     /// Git could not sign the commit or tag (key missing, signing program missing or failing).
     SigningFailed,
+    /// AI features are off: the master switch, the function or the repository ("AI off here").
+    AiDisabled,
+    /// AI is on, but no provider, model, address or key is set up (or the key was rejected).
+    AiNotConfigured,
+    /// The provider does not answer, is overloaded or does not know the model.
+    AiProviderUnavailable,
+    /// A command-line provider is installed but not signed in (Teilpaket 1b).
+    AiNotLoggedIn,
+    /// The answer is not JSON or does not match the schema, also after one repair attempt.
+    AiInvalidAnswer,
+    /// The provider declined the request; the message carries its (redacted) text.
+    AiRefused,
+    /// The monthly cost limit is reached; the message names this month's sum and the limit.
+    AiLimitReached,
+    /// The request does not fit into the model's context.
+    AiTooLarge,
+    /// A command-line provider lacks a required safety switch (Teilpaket 1b).
+    AiUnsupportedVersion,
 }
 
 impl ErrorCode {
     /// All codes, for tests and cross-checks.
-    pub const ALL: [ErrorCode; 45] = [
+    pub const ALL: [ErrorCode; 54] = [
         ErrorCode::NotARepo,
         ErrorCode::PathNotFound,
         ErrorCode::PathExists,
@@ -117,6 +135,15 @@ impl ErrorCode {
         ErrorCode::BisectActive,
         ErrorCode::CommandUntrusted,
         ErrorCode::SigningFailed,
+        ErrorCode::AiDisabled,
+        ErrorCode::AiNotConfigured,
+        ErrorCode::AiProviderUnavailable,
+        ErrorCode::AiNotLoggedIn,
+        ErrorCode::AiInvalidAnswer,
+        ErrorCode::AiRefused,
+        ErrorCode::AiLimitReached,
+        ErrorCode::AiTooLarge,
+        ErrorCode::AiUnsupportedVersion,
     ];
 
     /// The code as text, as it appears in the JSON (`"not_a_repo"`).
@@ -167,6 +194,15 @@ impl ErrorCode {
             ErrorCode::BisectActive => "bisect_active",
             ErrorCode::CommandUntrusted => "command_untrusted",
             ErrorCode::SigningFailed => "signing_failed",
+            ErrorCode::AiDisabled => "ai_disabled",
+            ErrorCode::AiNotConfigured => "ai_not_configured",
+            ErrorCode::AiProviderUnavailable => "ai_provider_unavailable",
+            ErrorCode::AiNotLoggedIn => "ai_not_logged_in",
+            ErrorCode::AiInvalidAnswer => "ai_invalid_answer",
+            ErrorCode::AiRefused => "ai_refused",
+            ErrorCode::AiLimitReached => "ai_limit_reached",
+            ErrorCode::AiTooLarge => "ai_too_large",
+            ErrorCode::AiUnsupportedVersion => "ai_unsupported_version",
         }
     }
 }
@@ -306,6 +342,47 @@ impl CoreError {
     pub fn unknown(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Unknown, message)
     }
+
+    // --- AI (v1.2) ------------------------------------------------------------
+
+    pub fn ai_disabled() -> Self {
+        Self::new(ErrorCode::AiDisabled, "AI features are turned off – in Settings › AI, for this function or for this repository.")
+    }
+    pub fn ai_not_configured(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::AiNotConfigured, message)
+    }
+    pub fn ai_provider_unavailable(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::AiProviderUnavailable, message)
+    }
+    pub fn ai_not_logged_in(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::AiNotLoggedIn, message)
+    }
+    /// `reason` says what was wrong (validator message); it never contains the answer itself
+    /// beyond a short quoted value.
+    pub fn ai_invalid_answer(reason: impl std::fmt::Display) -> Self {
+        Self::new(ErrorCode::AiInvalidAnswer, format!("The AI's answer could not be used ({reason})."))
+    }
+    /// The provider's own words, redacted and shortened.
+    pub fn ai_refused(text: &str) -> Self {
+        let text = crate::util::truncate_str(redact::redact(text).trim(), 500);
+        if text.is_empty() {
+            Self::new(ErrorCode::AiRefused, "The provider declined the request.")
+        } else {
+            Self::new(ErrorCode::AiRefused, format!("The provider declined the request: {text}"))
+        }
+    }
+    pub fn ai_limit_reached(spent_usd: f64, limit_usd: f64) -> Self {
+        Self::new(
+            ErrorCode::AiLimitReached,
+            format!("This month's AI costs are about {spent_usd:.2} USD and have reached the limit of {limit_usd:.2} USD."),
+        )
+    }
+    pub fn ai_too_large(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::AiTooLarge, message)
+    }
+    pub fn ai_unsupported_version(message: impl Into<String>) -> Self {
+        Self::new(ErrorCode::AiUnsupportedVersion, message)
+    }
 }
 
 /// What happened on a file error, in our own words. The operating system's text
@@ -418,5 +495,43 @@ mod tests {
         assert_eq!(serde_json::to_value(&error).unwrap()["code"], "command_untrusted");
         assert!(ErrorCode::ALL.contains(&ErrorCode::CommandUntrusted));
         assert!(error.message.contains(".forkyard/commands.json"), "{}", error.message);
+    }
+
+    /// The AI codes of v1.2 arrive in the UI under exactly these names (spec 1.6).
+    #[test]
+    fn ai_codes_have_their_wire_names() {
+        let expected = [
+            "ai_disabled",
+            "ai_not_configured",
+            "ai_provider_unavailable",
+            "ai_not_logged_in",
+            "ai_invalid_answer",
+            "ai_refused",
+            "ai_limit_reached",
+            "ai_too_large",
+            "ai_unsupported_version",
+        ];
+        for name in expected {
+            let code: ErrorCode = serde_json::from_value(serde_json::Value::String(name.to_string())).unwrap_or_else(|_| panic!("{name} is not an ErrorCode"));
+            assert!(ErrorCode::ALL.contains(&code), "{name} is missing from ErrorCode::ALL");
+            assert_eq!(code.as_str(), name);
+        }
+        let distinct: std::collections::HashSet<ErrorCode> = ErrorCode::ALL.into_iter().collect();
+        assert_eq!(distinct.len(), ErrorCode::ALL.len(), "no code twice in ALL");
+    }
+
+    #[test]
+    fn ai_errors_name_amounts_and_never_show_secrets() {
+        let limit = CoreError::ai_limit_reached(12.5, 10.0);
+        assert_eq!(limit.code, ErrorCode::AiLimitReached);
+        assert!(limit.message.contains("12.50") && limit.message.contains("10.00"), "{}", limit.message);
+        let refused = CoreError::ai_refused("I can't help with that. Authorization: Bearer ghp_abcdefghijklmnop1234");
+        assert_eq!(refused.code, ErrorCode::AiRefused);
+        assert!(refused.message.contains("I can't help with that"), "{}", refused.message);
+        assert!(!refused.message.contains("ghp_abcdefghijklmnop1234"), "{}", refused.message);
+        let long = CoreError::ai_refused(&"x".repeat(5000));
+        assert!(long.message.len() < 700, "the provider's text is shortened");
+        assert_eq!(CoreError::ai_disabled().code, ErrorCode::AiDisabled);
+        assert_eq!(CoreError::ai_invalid_answer("$.summary: expected text").message, "The AI's answer could not be used ($.summary: expected text).");
     }
 }

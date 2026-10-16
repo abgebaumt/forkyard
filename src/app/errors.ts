@@ -55,6 +55,15 @@ const CODES: Record<ErrorCode, true> = {
   bisect_active: true,
   command_untrusted: true,
   signing_failed: true,
+  ai_disabled: true,
+  ai_not_configured: true,
+  ai_provider_unavailable: true,
+  ai_not_logged_in: true,
+  ai_invalid_answer: true,
+  ai_refused: true,
+  ai_limit_reached: true,
+  ai_too_large: true,
+  ai_unsupported_version: true,
 };
 
 /** Error code → understandable sentence with a suggested action. Covers every ErrorCode. */

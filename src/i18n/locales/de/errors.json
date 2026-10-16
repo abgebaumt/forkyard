@@ -178,5 +178,41 @@
   "signing_failed": {
     "text": "Der Commit oder Tag konnte nicht signiert werden.",
     "hint": "Prüfe Schlüssel und Programm in den Einstellungen unter „Commits signieren“ oder schalte das Signieren dort aus."
+  },
+  "ai_disabled": {
+    "text": "Die KI-Funktionen sind ausgeschaltet.",
+    "hint": "Schalte sie in den Einstellungen unter „KI“ ein – für die App, die Funktion oder dieses Repository."
+  },
+  "ai_not_configured": {
+    "text": "Es ist kein KI-Anbieter eingerichtet.",
+    "hint": "Wähle in den Einstellungen unter „KI“ Anbieter, Modell und Schlüssel."
+  },
+  "ai_provider_unavailable": {
+    "text": "Der KI-Anbieter antwortet nicht.",
+    "hint": "Prüfe, ob der Dienst läuft und erreichbar ist, und versuche es erneut."
+  },
+  "ai_not_logged_in": {
+    "text": "Das KI-Kommandozeilenprogramm ist nicht angemeldet.",
+    "hint": "Öffne das eingebaute Terminal, starte das Programm dort und melde dich an."
+  },
+  "ai_invalid_answer": {
+    "text": "Die Antwort der KI ist unbrauchbar.",
+    "hint": "Versuche es noch einmal oder sieh dir an, was gesendet wurde."
+  },
+  "ai_refused": {
+    "text": "Der KI-Anbieter hat die Anfrage abgelehnt.",
+    "hint": "Formuliere sie anders oder lass Inhalte weg und versuche es erneut."
+  },
+  "ai_limit_reached": {
+    "text": "Das monatliche KI-Kostenlimit ist erreicht.",
+    "hint": "Sende diese Anfrage trotzdem oder erhöhe das Limit in den Einstellungen unter „KI“."
+  },
+  "ai_too_large": {
+    "text": "Die Anfrage ist zu groß für das Modell.",
+    "hint": "Lass die größten Dateien weg und versuche es erneut."
+  },
+  "ai_unsupported_version": {
+    "text": "Dieser Version des KI-Programms fehlt ein nötiger Sicherheitsschalter.",
+    "hint": "Aktualisiere das Programm und versuche es erneut."
   }
 }

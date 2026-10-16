@@ -14,6 +14,7 @@ use rusqlite::{Connection, Transaction};
 use crate::error::CoreResult;
 
 pub mod activity;
+pub mod ai;
 pub mod app_settings;
 pub mod drafts;
 pub mod host_accounts;
@@ -59,6 +60,9 @@ const UPGRADES: &[&str] = &[
     // Undo: the group actions of 1.2 (several refs and optionally a snapshot of working directory and
     // index in one entry). Table rebuilt, because SQLite cannot change a CHECK in place.
     UNDO_GROUP_ACTIONS,
+    // v1.2: AI usage and given preview confirmations; existing installations get the one-time
+    // notice about the new AI features (`ai.introPending`), new ones do not (schema.sql has no insert).
+    AI_USAGE_AND_PREVIEW,
 ];
 
 const STATS_CACHE: &str = "
@@ -69,6 +73,27 @@ create table if not exists stats_cache (
   created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   primary key (repository_id, cache_key)
 ) strict;
+";
+
+const AI_USAGE_AND_PREVIEW: &str = "
+create table if not exists ai_usage (
+  month           text not null check (length(month) = 7),
+  provider        text not null,
+  model           text not null,
+  feature         text not null,
+  requests        integer not null default 0 check (requests >= 0),
+  input_tokens    integer not null default 0 check (input_tokens >= 0),
+  output_tokens   integer not null default 0 check (output_tokens >= 0),
+  cost_usd_micros integer not null default 0 check (cost_usd_micros >= 0),
+  primary key (month, provider, model, feature)
+) strict, without rowid;
+create table if not exists ai_preview_seen (
+  repository_id text references repositories (id) on delete cascade,
+  ask           text not null,
+  seen_at       text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+create unique index if not exists ai_preview_seen_key on ai_preview_seen (coalesce(repository_id, ''), ask);
+insert or ignore into app_settings (key, value) values ('ai.introPending', 'true');
 ";
 
 const V_COLLAPSED_MERGES: &str = "
@@ -403,7 +428,7 @@ mod tests {
         let kept: String = db.with(|c| Ok(c.query_row("select name from workspaces where id = 'w'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(kept, "Alt");
         let fresh = Db::open_in_memory().unwrap();
-        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state", "stats_cache"] {
+        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state", "stats_cache", "ai_usage", "ai_preview_seen"] {
             assert_eq!(columns(&db, table), columns(&fresh, table), "{table}");
         }
         // The view state of before keeps its fields and gets the new ones with their defaults.
@@ -454,6 +479,12 @@ mod tests {
             .unwrap()
         };
         assert_eq!(indexes(&db), indexes(&fresh), "the same indexes");
+        // v1.2: an upgraded database announces the AI features once; a new installation does not.
+        let intro = |db: &Db| -> i64 {
+            db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'ai.introPending' and value = 'true'", [], |r| r.get(0))?)).unwrap()
+        };
+        assert_eq!(intro(&db), 1, "after the upgrade");
+        assert_eq!(intro(&fresh), 0, "not on a new installation");
         // Every undo action the core knows can be stored in the upgraded database.
         for (index, action) in crate::undo::UndoAction::ALL.iter().enumerate() {
             db.with(|c| {
@@ -492,6 +523,36 @@ mod tests {
             })
             .unwrap();
         assert_eq!(columns(&upgraded), expected);
+    }
+
+    /// The AI step creates exactly what schema.sql has, may run twice, and is part of UPGRADES.
+    #[test]
+    fn the_ai_step_matches_the_schema_and_may_run_twice() {
+        assert!(UPGRADES.contains(&AI_USAGE_AND_PREVIEW), "the step is part of UPGRADES");
+        let shape = |db: &Db, table: &str| -> Vec<(String, String, i64, i64)> {
+            db.with(|c| {
+                let mut stmt = c.prepare(&format!("select name, type, \"notnull\", pk from pragma_table_info('{table}') order by cid"))?;
+                let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok(rows)
+            })
+            .unwrap()
+        };
+        let fresh = Db::open_in_memory().unwrap();
+        let upgraded = Db::open_in_memory().unwrap();
+        upgraded
+            .with(|c| {
+                c.execute_batch("drop table ai_usage; drop table ai_preview_seen;")?;
+                c.execute_batch(AI_USAGE_AND_PREVIEW)?;
+                c.execute_batch(AI_USAGE_AND_PREVIEW)?;
+                Ok(())
+            })
+            .unwrap();
+        for table in ["ai_usage", "ai_preview_seen"] {
+            assert!(!shape(&fresh, table).is_empty(), "{table} exists");
+            assert_eq!(shape(&upgraded, table), shape(&fresh, table), "{table}");
+        }
+        let pending: i64 = upgraded.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'ai.introPending'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(pending, 1, "running the step twice keeps one entry");
     }
 
     #[test]

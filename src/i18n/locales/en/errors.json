@@ -178,5 +178,41 @@
   "signing_failed": {
     "text": "The commit or tag could not be signed.",
     "hint": "Check the key and the program in Settings under “Sign commits”, or turn signing off there."
+  },
+  "ai_disabled": {
+    "text": "AI features are turned off.",
+    "hint": "Turn them on in Settings › AI – for the app, the function or this repository."
+  },
+  "ai_not_configured": {
+    "text": "No AI provider is set up.",
+    "hint": "Choose a provider, a model and a key in Settings › AI."
+  },
+  "ai_provider_unavailable": {
+    "text": "The AI provider is not responding.",
+    "hint": "Check that the service is running and reachable, then try again."
+  },
+  "ai_not_logged_in": {
+    "text": "The AI command-line tool is not signed in.",
+    "hint": "Open the built-in terminal, start the tool there and sign in."
+  },
+  "ai_invalid_answer": {
+    "text": "The AI's answer could not be used.",
+    "hint": "Try again, or look at what was sent."
+  },
+  "ai_refused": {
+    "text": "The AI provider declined the request.",
+    "hint": "Rephrase it or leave out content, then try again."
+  },
+  "ai_limit_reached": {
+    "text": "The monthly AI cost limit has been reached.",
+    "hint": "Send this request anyway, or raise the limit in Settings › AI."
+  },
+  "ai_too_large": {
+    "text": "The request is too large for the model.",
+    "hint": "Leave out the largest files and try again."
+  },
+  "ai_unsupported_version": {
+    "text": "This version of the AI tool lacks a required safety switch.",
+    "hint": "Update the tool and try again."
   }
 }
