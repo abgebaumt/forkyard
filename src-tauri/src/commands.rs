@@ -526,6 +526,16 @@ pub async fn job_cancel(core: State<'_, Core>, job_id: String) -> R<()> {
 }
 
 #[tauri::command]
+pub async fn push_scan_ignore(core: State<'_, Core>, repo_id: String, ids: Vec<String>) -> R<u32> {
+    c::sync::push_scan_ignore(&core, repo_id, ids).await
+}
+
+#[tauri::command]
+pub async fn push_scan_forget(core: State<'_, Core>, repo_id: String) -> R<RepoSettings> {
+    c::sync::push_scan_forget(&core, repo_id).await
+}
+
+#[tauri::command]
 pub async fn stash_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Stash>> {
     c::stash::stash_list(&core, repo_id).await
 }

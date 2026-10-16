@@ -17,6 +17,8 @@ const base: RepoSettings = {
   sshKeyId: null,
   submodulesAutoUpdate: true,
   linkRules: { hostRules: true, presets: [], custom: [] },
+  aiReviewBeforePush: false,
+  secretScanIgnoredCount: 0,
   aiOff: false,
   aiCommitInstruction: null,
 };

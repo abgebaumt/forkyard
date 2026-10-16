@@ -507,6 +507,8 @@ pub fn run() {
             commands::pull,
             commands::push,
             commands::job_cancel,
+            commands::push_scan_ignore,
+            commands::push_scan_forget,
             commands::stash_list,
             commands::stash_create,
             commands::stash_apply,

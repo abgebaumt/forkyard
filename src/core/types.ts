@@ -1298,6 +1298,10 @@ export interface RepoSettings {
   aiOff: boolean;
   /** Own instruction for AI commit messages in this repository (at most 2000 characters); null = none. Stored in the app, not in .git/config. */
   aiCommitInstruction: string | null;
+  /** Project › AI and agents: run the AI review before every normal push. Stored in the app. */
+  aiReviewBeforePush: boolean;
+  /** Read-only: how many secret-scan findings this repository no longer reports. */
+  secretScanIgnoredCount: number;
 }
 
 export type LinkPresetKind = "jira" | "linear" | "youtrack" | "redmine";

@@ -1862,6 +1862,13 @@ pub struct RepoSettings {
     /// characters; stored in the app (`repo_settings`), never in .git/config.
     #[serde(default)]
     pub ai_commit_instruction: Option<String>,
+    /// Project › AI and agents: run the AI review before every normal push (v1.2, 6.2; off by default).
+    #[serde(default)]
+    pub ai_review_before_push: bool,
+    /// How many secret-scan findings this repository no longer reports ("Don't report again").
+    /// Read-only; only hashes are stored, never values.
+    #[serde(default)]
+    pub secret_scan_ignored_count: u32,
 }
 
 impl Default for RepoSettings {
@@ -1880,6 +1887,8 @@ impl Default for RepoSettings {
             link_rules: LinkRulesConfig::default(),
             ai_off: false,
             ai_commit_instruction: None,
+            ai_review_before_push: false,
+            secret_scan_ignored_count: 0,
         }
     }
 }

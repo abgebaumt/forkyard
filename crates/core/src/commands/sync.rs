@@ -1026,6 +1026,21 @@ pub async fn job_cancel(core: &Core, job_id: String) -> CoreResult<()> {
     Ok(())
 }
 
+/// "Don't report again" for secret-scan findings: stores the IDs (hashes of path + line, never the
+/// value) for this repository. Returns how many findings it no longer reports.
+pub async fn push_scan_ignore(core: &Core, repo_id: String, ids: Vec<String>) -> CoreResult<u32> {
+    core.repo_path(&repo_id)?;
+    let count = core.db.tx(|tx| secret_scan::ignore_ids(tx, &repo_id, &ids))?;
+    Ok(u32::try_from(count).unwrap_or(u32::MAX))
+}
+
+/// Settings › Project › Git "Report again": forgets every "Don't report again" of this repository.
+pub async fn push_scan_forget(core: &Core, repo_id: String) -> CoreResult<crate::model::RepoSettings> {
+    core.repo_path(&repo_id)?;
+    core.db.with(|c| secret_scan::forget_ignored(c, &repo_id))?;
+    crate::commands::settings::repo_settings_get(core, repo_id).await
+}
+
 #[cfg(test)]
 mod push_many_tests;
 

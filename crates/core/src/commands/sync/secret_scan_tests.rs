@@ -5,9 +5,11 @@ use serde_json::json;
 
 use super::*;
 use crate::commands::commit::commit_create;
+use crate::commands::settings::{repo_settings_get, repo_settings_set};
 use crate::commands::gitflow::{gitflow_finish, gitflow_init, gitflow_start};
 use crate::commands::tags::{tag_create, tag_push, tag_push_checked};
 use crate::events::names;
+use crate::model::RepoSettings;
 use crate::model::{GitflowFinishOptions, GitflowKind, PushExtra, PushRefStatus, SecretFinding, SecretRule};
 use crate::testkit::{TestCore, TestRemote, TestRepo};
 
@@ -165,4 +167,37 @@ async fn the_push_of_a_gitflow_finish_stops_and_names_the_place() {
     assert!(!err.message.contains(&fake_token()));
     assert_eq!(remote_sha(&f.remote, "refs/heads/develop"), Some(develop_before.clone()), "nothing was sent");
     assert_ne!(f.repo.git(&["rev-parse", "develop"]), develop_before, "the finish itself is done");
+}
+
+#[tokio::test]
+async fn dont_report_again_is_a_repository_setting_that_counts_hashes_only() {
+    let f = fixture().await;
+    f.repo.commit_file("dienst.py", format!("AWS_ZUGANG = \"{}\"\n", fake_key()), "Dienst");
+    let stopped = push_plain(&f, None).await;
+    let found = ids(&stopped);
+    assert_eq!(repo_settings_get(&f.tc, f.id.clone()).await.unwrap().secret_scan_ignored_count, 0);
+
+    assert_eq!(push_scan_ignore(&f.tc, f.id.clone(), found.clone()).await.unwrap(), 1);
+    assert_eq!(push_scan_ignore(&f.tc, f.id.clone(), found.clone()).await.unwrap(), 1, "the same ID twice counts once");
+    let settings = repo_settings_get(&f.tc, f.id.clone()).await.unwrap();
+    assert_eq!(settings.secret_scan_ignored_count, 1);
+    let patched = repo_settings_set(&f.tc, f.id.clone(), json!({"secretScanIgnoredCount": 0})).await.unwrap();
+    assert_eq!(patched.secret_scan_ignored_count, 1, "read-only in a patch");
+    assert!(matches!(push_plain(&f, None).await, PushResult::Done { .. }), "not reported any more: the push goes through");
+
+    assert_eq!(push_scan_forget(&f.tc, f.id.clone()).await.unwrap().secret_scan_ignored_count, 0);
+    assert_eq!(push_scan_ignore(&f.tc, f.id.clone(), vec!["kein-hash".into()]).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(push_scan_ignore(&f.tc, "gibt-es-nicht".into(), found).await.unwrap_err().code, ErrorCode::NotFound);
+}
+
+#[tokio::test]
+async fn the_ai_review_switch_is_off_by_default_and_kept_per_repository() {
+    let defaults = serde_json::to_value(RepoSettings::default()).unwrap();
+    assert_eq!((defaults["aiReviewBeforePush"].clone(), defaults["secretScanIgnoredCount"].clone()), (json!(false), json!(0)));
+    let f = fixture().await;
+    assert!(!repo_settings_get(&f.tc, f.id.clone()).await.unwrap().ai_review_before_push);
+    let on = repo_settings_set(&f.tc, f.id.clone(), json!({"aiReviewBeforePush": true})).await.unwrap();
+    assert!(on.ai_review_before_push);
+    assert!(repo_settings_get(&f.tc, f.id.clone()).await.unwrap().ai_review_before_push, "stored in the app");
+    assert_eq!(f.repo.git_output(&["config", "--local", "--get-regexp", "review"]).status.code(), Some(1), "nothing in .git/config");
 }

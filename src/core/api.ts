@@ -438,6 +438,10 @@ export interface CoreCommands {
   /** `acceptedSecrets`: IDs of the findings of a `secrets_found` result the user pushes anyway; other findings stop the push again. */
   push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null; acceptedSecrets?: string[] | null }): Promise<PushResult>;
   jobCancel(input: { jobId: string }): Promise<void>;
+  /** "Don't report again" for findings of the secret scan (IDs = hashes of path + line, never values). Returns how many this repository no longer reports. */
+  pushScanIgnore(input: R & { ids: string[] }): Promise<number>;
+  /** "Report again": forgets every "Don't report again" of the repository. */
+  pushScanForget(input: R): Promise<RepoSettings>;
 
   // --- Stash, tags, undo, history ------------------------------------------------
   stashList(input: R): Promise<Stash[]>;
