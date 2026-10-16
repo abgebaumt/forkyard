@@ -98,6 +98,9 @@ export const qk = {
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
+  /** Clean-up dialog: read fresh on every opening, never invalidated by `repo:changed` while a run changes the numbers. */
+  cleanupPreview: (repoId: Id) => ["repo", repoId, "cleanupPreview"] as const,
+  cleanupLfsEstimate: (repoId: Id) => ["repo", repoId, "cleanupLfsEstimate"] as const,
   /** Custom commands: with a repository its file and approval are included; without one only the user's own. */
   customCommands: (repoId: Id | null) => (repoId ? (["repo", repoId, "customCommands"] as const) : (["app", "customCommands"] as const)),
   lfsLocks: (repoId: Id, filter: string | null = null) => ["repo", repoId, "lfsLocks", filter] as const,

@@ -7,6 +7,7 @@ import { Preferences } from "../../screens/Preferences";
 import { RemoteDialog } from "../../screens/RemoteDialog";
 import { ShortcutOverlay } from "../../screens/Shortcuts";
 import { LfsDialog } from "../../screens/Lfs";
+import { RepoCleanupDialog } from "../../screens/RepoCleanup";
 import { SubmoduleDialog } from "../../screens/SubmoduleDialog";
 import { installDevHooks } from "../devHooks";
 import { MenuHost } from "../menus/host";
@@ -34,6 +35,8 @@ function OverlayContent({ overlay, repoId, close }: { overlay: NonNullable<Overl
       return repoId ? <SubmoduleDialog repoId={repoId} onClose={close} /> : null;
     case "lfs":
       return repoId ? <LfsDialog repoId={repoId} onClose={close} /> : null;
+    case "repo_cleanup":
+      return <RepoCleanupDialog repoId={overlay.repoId} onClose={close} />;
   }
 }
 

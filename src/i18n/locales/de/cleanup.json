@@ -1,0 +1,124 @@
+{
+  "title": "Repository aufräumen",
+  "description": "Gibt Speicherplatz frei, den Git-Objekte, alte Sicherungen und Protokolle belegen. Nichts davon läuft von selbst.",
+  "loading": "Repository wird vermessen …",
+  "previewFailed": "Das Repository ließ sich nicht vermessen.",
+  "retry": "Erneut versuchen",
+  "now": {
+    "heading": "Jetzt",
+    "objects": "Git-Objekte gesamt",
+    "loose": "Davon lose Objekte",
+    "packs": "Packs",
+    "lfs": "Git-LFS-Cache",
+    "undo": "Forkyard-Undo-Sicherungen",
+    "worktrees": "Verwaiste Worktrees",
+    "reflog": "Reflog-Einträge älter als 90 Tage",
+    "notCounted": "nicht gezählt",
+    "free": "Freier Platz auf dem Datenträger",
+    "unknown": "unbekannt",
+    "shared_one": "Betrifft das Repository und seinen Worktree.",
+    "shared_other": "Betrifft das Repository und alle {{count}} Worktrees."
+  },
+  "mode": {
+    "label": "Art",
+    "normal": {
+      "label": "Normal",
+      "frees": "Gibt frei: packt lose Objekte, entfernt unerreichbare Objekte älter als zwei Wochen und alte Reflog-Einträge nach Git-Standard (90 Tage, 30 Tage für unerreichbare), packt Refs."
+    },
+    "thorough": {
+      "label": "Gründlich",
+      "frees": "Gibt zusätzlich frei: packt alles neu mit besserer Kompression und entfernt unerreichbare Objekte sofort.",
+      "warning": "Kann bei großen Repositories lange dauern (Minuten bis Stunden) und braucht vorübergehend zusätzlichen Platz.",
+      "lowSpace": "Wahrscheinlich zu wenig freier Platz."
+    }
+  },
+  "extra": {
+    "heading": "Zusätzlich",
+    "lfs": {
+      "label": "Git-LFS-Cache aufräumen",
+      "frees": "Gibt frei: lokale LFS-Dateien, die weder der aktuelle Stand noch die jüngsten Refs noch ungepushte Commits brauchen.",
+      "estimating": "Git LFS wird gefragt, was es entfernen würde …",
+      "estimate_one": "Würde {{count}} Datei freigeben ({{size}}).",
+      "estimate_other": "Würde {{count}} Dateien freigeben ({{size}}).",
+      "estimateFailed": "Git LFS konnte nicht sagen, wie viel frei würde."
+    },
+    "worktrees": {
+      "label": "Verwaiste Worktrees",
+      "frees": "Gibt frei: Verwaltungsdaten von Worktrees, deren Ordner fehlt; deren Branches sind danach wieder auscheckbar."
+    },
+    "undo": {
+      "label": "Alte Forkyard-Undo-Sicherungen",
+      "frees": "Gibt frei: Objekte, die nur noch diese Sicherungen am Leben halten (verworfene Änderungen, alte Stände). Mitgemeint sind verwaiste Sicherungen ohne Undo-Eintrag.",
+      "days": "Älter als",
+      "unit": "Tage",
+      "count_one": "Betrifft {{count}} Sicherung.",
+      "count_other": "Betrifft {{count}} Sicherungen.",
+      "warning": "Rückgängig ist für diese Aktionen danach nicht mehr möglich."
+    },
+    "reflog": {
+      "label": "Reflog kürzen",
+      "frees": "Gibt frei: Reflog-Einträge älter als 90 Tage für alle Refs, auch wenn das Repository längere Fristen konfiguriert (gc.reflogExpire); ohne solche Konfiguration erledigt „Normal“ das bereits.",
+      "warningWord": "Zerstörerisch:",
+      "warning": "Commits, die nur noch im Reflog stehen, sind danach endgültig verloren – auch über die Reflog-Ansicht."
+    }
+  },
+  "irreversible": "Aufräumen lässt sich nicht rückgängig machen.",
+  "start": "Aufräumen",
+  "cancel": "Abbrechen",
+  "close": "Schließen",
+  "background": "Im Hintergrund weiter",
+  "progress": {
+    "step": "Schritt {{index}} von {{total}} – {{label}} …",
+    "waiting": "Wartet auf andere Aktionen in diesem Repository …",
+    "seconds": "{{seconds}} s",
+    "stopping": "Wird abgebrochen …",
+    "hint": "Du kannst den Dialog schließen; das Aufräumen läuft weiter und erscheint in der Statusleiste.",
+    "label": "Aufräumen läuft"
+  },
+  "step": {
+    "worktrees": "Entfernt verwaiste Worktrees",
+    "undo": "Entfernt alte Undo-Sicherungen",
+    "reflog": "Kürzt das Reflog",
+    "lfs": "Git LFS räumt seinen Cache auf",
+    "gc": "Git packt Objekte"
+  },
+  "result": {
+    "done": "Aufräumen abgeschlossen.",
+    "failed": "Aufräumen bei einem Schritt fehlgeschlagen.",
+    "cancelled": "Aufräumen abgebrochen. Erledigte Schritte bleiben; das Repository ist gültig.",
+    "cancelledEarly": "Aufräumen abgebrochen, bevor es begann. Nichts wurde verändert.",
+    "objects": "Git-Objekte: {{change}}",
+    "lfs": "LFS-Cache: {{change}}",
+    "steps": "Schritte",
+    "name": {
+      "worktrees": "Verwaiste Worktrees",
+      "undo": "Alte Undo-Sicherungen",
+      "reflog": "Reflog kürzen",
+      "lfs": "Git-LFS-Cache",
+      "gc": "Git-Aufräumen (gc)"
+    },
+    "status": {
+      "done": "erledigt",
+      "skipped": "übersprungen",
+      "failed": "fehlgeschlagen",
+      "cancelled": "abgebrochen",
+      "notRun": "nicht ausgeführt"
+    },
+    "removed_one": "{{count}} entfernt",
+    "removed_other": "{{count}} entfernt"
+  },
+  "duration": {
+    "seconds": "Dauer: {{seconds}} s",
+    "minutes": "Dauer: {{minutes}} min {{seconds}} s"
+  },
+  "failure": {
+    "gcRunning": "Git räumt dieses Repository bereits auf (Prozess {{pid}}). Später erneut versuchen.",
+    "diskFull": "Kein Platz mehr auf dem Datenträger. Das Repository ist unverändert gültig; Platz schaffen und erneut versuchen."
+  },
+  "toast": {
+    "done": "Repository aufgeräumt – {{change}}"
+  },
+  "action": {
+    "label": "Repository aufräumen"
+  }
+}

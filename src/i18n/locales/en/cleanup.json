@@ -1,0 +1,124 @@
+{
+  "title": "Clean up repository",
+  "description": "Frees disk space that Git objects, old backups and logs take up. Nothing here runs on its own.",
+  "loading": "Measuring the repository …",
+  "previewFailed": "The repository couldn’t be measured.",
+  "retry": "Try again",
+  "now": {
+    "heading": "Now",
+    "objects": "Git objects in total",
+    "loose": "Of which loose objects",
+    "packs": "Packs",
+    "lfs": "Git LFS cache",
+    "undo": "Forkyard undo backups",
+    "worktrees": "Orphaned worktrees",
+    "reflog": "Reflog entries older than 90 days",
+    "notCounted": "not counted",
+    "free": "Free disk space",
+    "unknown": "unknown",
+    "shared_one": "Affects the repository and its worktree.",
+    "shared_other": "Affects the repository and all {{count}} worktrees."
+  },
+  "mode": {
+    "label": "Kind",
+    "normal": {
+      "label": "Normal",
+      "frees": "Frees: packs loose objects, removes unreachable objects older than two weeks and old reflog entries by Git’s defaults (90 days, 30 days for unreachable ones), packs refs."
+    },
+    "thorough": {
+      "label": "Thorough",
+      "frees": "Frees in addition: repacks everything with better compression and removes unreachable objects right away.",
+      "warning": "Can take a long time on large repositories (minutes to hours) and needs extra space for a while.",
+      "lowSpace": "Probably not enough free space."
+    }
+  },
+  "extra": {
+    "heading": "In addition",
+    "lfs": {
+      "label": "Clean up the Git LFS cache",
+      "frees": "Frees: local LFS files that neither the current state, the recent refs nor unpushed commits need.",
+      "estimating": "Asking Git LFS what it would remove …",
+      "estimate_one": "Would free {{count}} file ({{size}}).",
+      "estimate_other": "Would free {{count}} files ({{size}}).",
+      "estimateFailed": "Git LFS couldn’t say how much it would free."
+    },
+    "worktrees": {
+      "label": "Orphaned worktrees",
+      "frees": "Frees: the records of worktrees whose folder is missing; their branches can be checked out again afterwards."
+    },
+    "undo": {
+      "label": "Old Forkyard undo backups",
+      "frees": "Frees: objects that only these backups keep alive (discarded changes, old states). Backups without an undo entry are included.",
+      "days": "Older than",
+      "unit": "days",
+      "count_one": "Affects {{count}} backup.",
+      "count_other": "Affects {{count}} backups.",
+      "warning": "Undo is no longer possible for these actions afterwards."
+    },
+    "reflog": {
+      "label": "Shorten the reflog",
+      "frees": "Frees: reflog entries older than 90 days for all refs, even if the repository sets longer periods (gc.reflogExpire). Without such a setting, Normal already does this.",
+      "warningWord": "Destructive:",
+      "warning": "Commits that are only in the reflog are lost for good afterwards – also in the reflog view."
+    }
+  },
+  "irreversible": "Clean-up can’t be undone.",
+  "start": "Clean up",
+  "cancel": "Cancel",
+  "close": "Close",
+  "background": "Continue in background",
+  "progress": {
+    "step": "Step {{index}} of {{total}} – {{label}} …",
+    "waiting": "Waiting for other actions in this repository …",
+    "seconds": "{{seconds}} s",
+    "stopping": "Stopping …",
+    "hint": "You can close this dialog; the clean-up goes on and shows up in the status bar.",
+    "label": "Clean-up running"
+  },
+  "step": {
+    "worktrees": "Removing orphaned worktrees",
+    "undo": "Removing old undo backups",
+    "reflog": "Shortening the reflog",
+    "lfs": "Git LFS clears its cache",
+    "gc": "Git packs objects"
+  },
+  "result": {
+    "done": "Clean-up finished.",
+    "failed": "Clean-up stopped at a failed step.",
+    "cancelled": "Clean-up cancelled. Finished steps stay; the repository is valid.",
+    "cancelledEarly": "Clean-up cancelled before it started. Nothing was changed.",
+    "objects": "Git objects: {{change}}",
+    "lfs": "LFS cache: {{change}}",
+    "steps": "Steps",
+    "name": {
+      "worktrees": "Orphaned worktrees",
+      "undo": "Old undo backups",
+      "reflog": "Shorten the reflog",
+      "lfs": "Git LFS cache",
+      "gc": "Git clean-up (gc)"
+    },
+    "status": {
+      "done": "done",
+      "skipped": "skipped",
+      "failed": "failed",
+      "cancelled": "cancelled",
+      "notRun": "not run"
+    },
+    "removed_one": "{{count}} removed",
+    "removed_other": "{{count}} removed"
+  },
+  "duration": {
+    "seconds": "Took {{seconds}} s",
+    "minutes": "Took {{minutes}} min {{seconds}} s"
+  },
+  "failure": {
+    "gcRunning": "Git is already cleaning up this repository (process {{pid}}). Try again later.",
+    "diskFull": "No space left on the disk. The repository is still valid; free up space and try again."
+  },
+  "toast": {
+    "done": "Repository cleaned up – {{change}}"
+  },
+  "action": {
+    "label": "Clean up repository"
+  }
+}

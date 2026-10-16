@@ -107,7 +107,9 @@ export type Overlay =
   | { kind: "activity" }
   | { kind: "add_submodule" }
   /** Git LFS for the repository in the active tab (src/screens/Lfs). */
-  | { kind: "lfs" };
+  | { kind: "lfs" }
+  /** Clean-up of a repository, also one not open in a tab (src/screens/RepoCleanup). */
+  | { kind: "repo_cleanup"; repoId: Id };
 
 export interface Job {
   id: string;
