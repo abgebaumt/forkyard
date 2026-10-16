@@ -133,7 +133,7 @@ pub struct Fitted {
 type NumstatRow = (Option<u64>, Option<u64>, Option<Vec<u8>>, Vec<u8>);
 
 /// `git diff --cached --numstat -z -M`: (added, deleted, old path, path) as bytes.
-fn parse_numstat(bytes: &[u8]) -> Vec<NumstatRow> {
+pub(crate) fn parse_numstat(bytes: &[u8]) -> Vec<NumstatRow> {
     let parts: Vec<&[u8]> = util::split_z(bytes).collect();
     let mut out = Vec::new();
     let mut index = 0;
