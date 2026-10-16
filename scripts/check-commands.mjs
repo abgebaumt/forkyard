@@ -6,6 +6,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { compareErrorCodes, readErrorCodeSources } from "./error-codes.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...parts) => readFileSync(join(root, ...parts), "utf8").replace(/\r\n/g, "\n");
@@ -170,6 +171,9 @@ for (const name of handlers) {
   if (seen.has(name)) problems.push(`Registered twice: ${name}`);
   seen.add(name);
 }
+
+// The error codes: Rust enum, TS union, errors.ts record and both locale files (scripts/error-codes.mjs).
+problems.push(...compareErrorCodes(readErrorCodeSources(root)));
 
 if (problems.length) {
   console.error(`check-commands: ${problems.length} mismatch(es)`);
