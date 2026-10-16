@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
-use crate::ai::{self, commit_message, context, gate, pricing, providers, run};
+use crate::ai::{self, commit_message, context, gate, pricing, providers, release_notes, run};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
@@ -195,6 +195,7 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
             context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?.built
         }
+        AiInput::ReleaseNotes { from, to } => release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), budget, &locale, &secrets).await?.built,
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {

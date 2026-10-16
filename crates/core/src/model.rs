@@ -1534,6 +1534,9 @@ pub enum AiInput {
     /// combined diff. Same target rules as `push`.
     #[serde(rename_all = "camelCase")]
     OutgoingChanges { branch: Option<String>, remote: Option<String>, remote_branch: Option<String> },
+    /// The commits of the release notes (7.2): after `from` (default: the nearest earlier tag,
+    /// tags on `to` left out) up to `to` (default `HEAD`), merges left out.
+    ReleaseNotes { from: Option<String>, to: Option<String> },
 }
 
 /// Kind of a hint of the review before a push (spec 6.2). Keys are never a kind: they come from
