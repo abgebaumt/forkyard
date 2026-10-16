@@ -412,8 +412,8 @@ pub async fn rebase_start(core: State<'_, Core>, repo_id: String, onto: String, 
 }
 
 #[tauri::command]
-pub async fn rebase_plan(core: State<'_, Core>, repo_id: String, base: String) -> R<RebasePlan> {
-    c::rebase::rebase_plan(&core, repo_id, base).await
+pub async fn rebase_plan(core: State<'_, Core>, repo_id: String, base: String, autosquash: Option<bool>) -> R<RebasePlan> {
+    c::rebase::rebase_plan_with(&core, repo_id, base, autosquash).await
 }
 
 #[tauri::command]

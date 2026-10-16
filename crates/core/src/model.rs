@@ -935,6 +935,8 @@ pub enum RebaseAction {
     Pick,
     Reword,
     Squash,
+    /// Folds into the row above like `Squash`, but its message is dropped (Git's `fixup`).
+    Fixup,
     Drop,
 }
 

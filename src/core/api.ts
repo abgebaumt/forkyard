@@ -392,8 +392,12 @@ export interface CoreCommands {
   operationAbort(input: R): Promise<Status>;
   /** Rebases the checked-out branch (or `branch`) onto `onto`. `updateRefs`: dependent branches move along (`--update-refs`); one undo step resets all. */
   rebaseStart(input: R & { onto: string; branch: string | null; updateRefs?: boolean | null }): Promise<OpResult>;
-  /** Commits between `base` and HEAD as a plan, with a check of the preconditions. */
-  rebasePlan(input: R & { base: string }): Promise<RebasePlan>;
+  /**
+   * Commits between `base` and HEAD as a plan, with a check of the preconditions. `autosquash: true` (8.2) orders it like Git's
+   * `--autosquash`: every `fixup! <subject>` / `squash! <subject>` commit right after the commit it names,
+   * with the action `fixup` / `squash`.
+   */
+  rebasePlan(input: R & { base: string; autosquash?: boolean | null }): Promise<RebasePlan>;
   /** The local branches `rebaseStart` with `updateRefs` would move along (`branch: null` = the checked-out one). */
   rebaseDependents(input: R & { onto: string; branch: string | null }): Promise<string[]>;
   rebaseApply(input: R & { base: Sha; rows: RebasePlanRow[]; updateRefs?: boolean | null }): Promise<OpResult>;
