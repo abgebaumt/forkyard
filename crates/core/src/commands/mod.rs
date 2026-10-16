@@ -7,6 +7,7 @@ pub mod auth;
 pub mod avatars;
 pub mod bisect;
 pub mod branches;
+pub mod cleanup;
 pub mod cli;
 pub mod clone_init;
 pub mod crash;
