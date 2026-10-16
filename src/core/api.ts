@@ -63,6 +63,10 @@ import type {
   LfsStatus,
   LfsLockList,
   LfsLockOutcome,
+  CleanupLfsEstimate,
+  CleanupOptions,
+  CleanupPreview,
+  CleanupResult,
   MergeMode,
   OpResult,
   OpenedRepo,
@@ -674,6 +678,25 @@ export interface CoreCommands {
   lfsLock(input: R & { paths: string[] }): Promise<LfsLockOutcome>;
   /** Unlocks; `force` also removes other people's locks and own locks on changed files. */
   lfsUnlock(input: R & { paths: string[]; force: boolean }): Promise<LfsLockOutcome>;
+
+  // --- Repository clean-up ------------------------------------------------------------
+  /**
+   * What takes space now: `git count-objects -v` (in bytes), the LFS cache (null without LFS),
+   * undo backups with their age, orphaned and linked worktrees, reflog entries older than 90 days
+   * (null: not counted within 2 s) and the free disk space. Only reads.
+   */
+  repoCleanupPreview(input: R): Promise<CleanupPreview>;
+  /** `git lfs prune --dry-run`: how many LFS files and bytes the LFS step would free. `unsupported` without Git LFS. */
+  repoCleanupLfsEstimate(input: R): Promise<CleanupLfsEstimate>;
+  /**
+   * Cleans up as job `jobId` (`job:progress` with the step key in `line`, cancellable via
+   * `jobCancel`) under the network and write lock of the repository and of all its listed
+   * worktrees: orphaned worktrees → undo backups → reflog → LFS → `git gc`. A cancel or a failed
+   * step still resolves with the result (`cancelled`, `failure`); errors before the first step:
+   * `repo_untrusted`, `not_allowed` (options), `cancelled` (while waiting), `duplicate`.
+   * Afterwards `repo:changed` with refs.
+   */
+  repoCleanupRun(input: R & { jobId: string; options: CleanupOptions }): Promise<CleanupResult>;
 
   // --- Patches ------------------------------------------------------------------------
   /**

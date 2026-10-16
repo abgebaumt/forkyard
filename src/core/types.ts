@@ -1237,6 +1237,94 @@ export interface LfsStatus {
   patterns: string[];
 }
 
+// --- Repository clean-up (`repoCleanupPreview`, `repoCleanupLfsEstimate`, `repoCleanupRun`) ---
+
+/** Numbers from `git count-objects -v`, with Git's KiB values converted to bytes. */
+export interface ObjectStats {
+  looseCount: number;
+  looseBytes: number;
+  inPack: number;
+  packs: number;
+  packBytes: number;
+  garbageCount: number;
+  garbageBytes: number;
+  /** Loose + packs + garbage: "Git objects in total". */
+  totalBytes: number;
+}
+
+/** An undo entry of the repository (or one of its worktrees), or a backup ref group without an entry. */
+export interface CleanupUndoBackup {
+  entryId: Id;
+  /** Entry: when it was recorded; orphaned: newest commit date of its refs; null = unknown (counts as older than any limit). */
+  createdAt: IsoTime | null;
+  orphaned: boolean;
+}
+
+export interface CleanupPreview {
+  objects: ObjectStats;
+  /** Bytes in the LFS object folder; null without Git LFS or when the repository does not use it. */
+  lfsBytes: number | null;
+  undoBackups: CleanupUndoBackup[];
+  /** Worktrees whose folder is missing. */
+  orphanedWorktrees: number;
+  /** Other working directories that share this repository. */
+  linkedWorktrees: number;
+  /** Reflog entries older than 90 days; null = not counted within 2 s. */
+  oldReflogEntries: number | null;
+  /** Free space on the disk of the Git directory; null if unknown. */
+  freeBytes: number | null;
+}
+
+/** What `git lfs prune` would free. */
+export interface CleanupLfsEstimate {
+  files: number;
+  bytes: number;
+}
+
+export type CleanupMode = "normal" | "thorough";
+
+export interface CleanupOptions {
+  mode: CleanupMode;
+  lfs: boolean;
+  worktrees: boolean;
+  /** Remove undo backups older than this many days (1–3650); null keeps them. */
+  undoOlderThanDays: number | null;
+  reflog: boolean;
+}
+
+/** The steps of a run, in the order they run. */
+export type CleanupStep = "worktrees" | "undo" | "reflog" | "lfs" | "gc";
+export type CleanupStepStatus = "done" | "skipped" | "failed" | "cancelled" | "not_run";
+
+export interface CleanupStepResult {
+  step: CleanupStep;
+  status: CleanupStepStatus;
+  /** How many were removed, where the step can say (worktrees, undo backups). */
+  removed: number | null;
+}
+
+export interface CleanupFailure {
+  step: CleanupStep;
+  error: CoreErrorData;
+  /** Another `git gc` runs: its process ID. */
+  gcPid: number | null;
+  diskFull: boolean;
+}
+
+/** Outcome of `repoCleanupRun`, also after a cancel or a failed step. */
+export interface CleanupResult {
+  before: ObjectStats;
+  after: ObjectStats;
+  /** LFS object folder before/after, only when the LFS step was chosen. */
+  lfsBefore: number | null;
+  lfsAfter: number | null;
+  /** All five steps in their order. */
+  steps: CleanupStepResult[];
+  durationMs: number;
+  cancelled: boolean;
+  failure: CleanupFailure | null;
+}
+
 /** A lock on a file at the LFS server (`lfsLocks`). */
 export interface LfsLock {
   /** The server's ID of the lock. */

@@ -851,6 +851,21 @@ pub async fn lfs_unlock(core: State<'_, Core>, repo_id: String, paths: Vec<Strin
 }
 
 #[tauri::command]
+pub async fn repo_cleanup_preview(core: State<'_, Core>, repo_id: String) -> R<CleanupPreview> {
+    c::cleanup::repo_cleanup_preview(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn repo_cleanup_lfs_estimate(core: State<'_, Core>, repo_id: String) -> R<CleanupLfsEstimate> {
+    c::cleanup::repo_cleanup_lfs_estimate(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn repo_cleanup_run(core: State<'_, Core>, repo_id: String, job_id: String, options: CleanupOptions) -> R<CleanupResult> {
+    c::cleanup::repo_cleanup_run(&core, repo_id, job_id, options).await
+}
+
+#[tauri::command]
 pub async fn patch_create(core: State<'_, Core>, repo_id: String, source: DiffSource, paths: Option<Vec<String>>) -> R<PatchText> {
     c::patch::patch_create(&core, repo_id, source, paths).await
 }
