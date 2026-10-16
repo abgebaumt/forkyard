@@ -920,7 +920,7 @@ export interface FileContent {
 // ---------------------------------------------------------------------------
 
 export type GraphColumnId = "refs" | "graph" | "message" | "author" | "date" | "sha";
-export type SectionId = "local" | "remote" | "tags" | "stashes" | "worktrees" | "submodules";
+export type SectionId = "local" | "remote" | "tags" | "stashes" | "worktrees" | "submodules" | "agents";
 
 export interface RepoViewState {
   /** `fullName` of the refs hidden in the graph. */
@@ -988,6 +988,8 @@ export interface Settings {
   notifyOnError: boolean;
   /** Ask GitHub once a day whether a newer stable release exists. Global. */
   checkForUpdates: boolean;
+  /** The user's own coding-agent templates (Settings › Coding agents). Global. */
+  agentTemplates: AgentTemplate[];
   sshUseAgent: boolean;
   // --- Network (applies only to the app's network calls; the user's gitconfig stays untouched) ---
   /**
@@ -1044,6 +1046,8 @@ export interface RepoSettings {
    * (`not_allowed` with the reason) and stores them in canonical form. The effective rules come from `linkRulesGet`.
    */
   linkRules: LinkRulesConfig;
+  /** Test command for coding agents, run in the agent's worktree when it is done. null = none. */
+  testCommand: string | null;
 }
 
 export type LinkPresetKind = "jira" | "linear" | "youtrack" | "redmine";
@@ -1965,4 +1969,98 @@ export interface RepoStats {
   records: StatsRecords;
   /** Came from the cache. */
   cached: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Coding agents (cockpit)
+// ---------------------------------------------------------------------------
+
+/** A template of the user's own. Placeholders: `${task}`, `${taskFile}`, `${worktree}`, `${branch}`. */
+export interface AgentTemplate {
+  /** `custom:<id>`. */
+  id: string;
+  name: string;
+  program: string;
+  args: string[];
+  /** Extra arguments for “without prompts”; null = not available. */
+  unattendedArgs: string[] | null;
+  /** Arguments for “Resume” (instead of `args`); null = no resume. */
+  resumeArgs: string[] | null;
+  /** The program reports its status itself through `$FORKYARD_AGENT_HELPER`. */
+  statusHook: boolean;
+}
+
+export type AgentTemplateKind = "claude" | "codex" | "opencode" | "custom";
+
+export interface AgentTemplateInfo {
+  id: string;
+  kind: AgentTemplateKind;
+  name: string;
+  program: string;
+  /** null = not found; the template can't be started. */
+  path: string | null;
+  version: string | null;
+  /** Why “without prompts” is not available; null = available. */
+  unattendedBlocked: string | null;
+  /** What “without prompts” does not cover on this system. */
+  unattendedNote: string | null;
+  canResume: boolean;
+  statusHook: boolean;
+}
+
+export type AgentStatus = "starting" | "running" | "waiting" | "done" | "failed" | "stopped" | "orphaned";
+/** `agent`: reported by the agent (hook, terminal signal); `guess`: no screen change for a while. */
+export type AgentStatusSource = "agent" | "guess";
+export type AgentTestState = "running" | "passed" | "failed";
+
+export interface AgentTestResult {
+  state: AgentTestState;
+  exitCode: number | null;
+  /** Last 4 KiB of the output, redacted. */
+  output: string;
+  startedAt: IsoTime;
+  finishedAt: IsoTime | null;
+}
+
+export interface Agent {
+  id: Id;
+  repoId: Id;
+  /** Repository row of the agent's worktree; null once the folder is gone. */
+  worktreeRepoId: Id | null;
+  shortName: string;
+  templateId: string;
+  templateName: string;
+  task: string;
+  branch: string;
+  worktreePath: string;
+  base: string;
+  baseSha: Sha;
+  unattended: boolean;
+  status: AgentStatus;
+  statusSource: AgentStatusSource;
+  terminalId: Id | null;
+  startedAt: IsoTime;
+  endedAt: IsoTime | null;
+  exitCode: number | null;
+  lastLine: string | null;
+  changedFiles: number;
+  commitsAhead: number;
+  test: AgentTestResult | null;
+}
+
+export interface AgentSuggestion {
+  shortName: string;
+  branch: string;
+  branchProblem: string | null;
+  path: string;
+  baseSha: Sha;
+  configs: string[];
+  running: number;
+}
+
+export interface AgentCleanupPreview {
+  unpushedCommits: number;
+  changedFiles: number;
+  running: boolean;
+  locked: boolean;
 }

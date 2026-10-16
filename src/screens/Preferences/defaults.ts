@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   notifyOnFetch: false,
   notifyOnError: true,
   checkForUpdates: true,
+  agentTemplates: [],
   sshUseAgent: true,
   proxyUrl: null,
   proxyByHost: [],

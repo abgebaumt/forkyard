@@ -685,6 +685,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn agent_templates_are_global_and_the_test_command_is_per_repository() {
+        let tc = TestCore::new().await;
+        let scopes = settings_scopes(&tc).await.unwrap();
+        assert_eq!(scopes["agentTemplates"], crate::model::SettingScope::Global);
+        let template = serde_json::json!([{ "id": "custom:a", "name": "Eigener Agent", "program": "eigen", "args": ["--task", "${taskFile}"] }]);
+        let saved = settings_set(&tc, serde_json::json!({ "agentTemplates": template })).await.unwrap();
+        assert_eq!(saved.agent_templates.len(), 1);
+        let stored: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(stored, 1, "global table");
+        let in_profile: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(in_profile, 0);
+
+        let repo = crate::testkit::TestRepo::with_commit();
+        let id = tc.open(&repo).await.repo.id;
+        assert_eq!(repo_settings_get(&tc, id.clone()).await.unwrap().test_command, None);
+        let next = repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": "cargo test --workspace" })).await.unwrap();
+        assert_eq!(next.test_command.as_deref(), Some("cargo test --workspace"));
+        let cleared = repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": null })).await.unwrap();
+        assert_eq!(cleared.test_command, None);
+        let rows: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from repo_settings where key = 'testCommand'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(rows, 0, "a cleared value leaves no row");
+    }
+
+    #[tokio::test]
     async fn profile_colour_is_stored_and_checked() {
         let tc = TestCore::new().await;
         let list = profile_save(&tc, None, "Arbeit".into(), "".into(), "".into(), false, Some(3)).await.unwrap();
