@@ -6,7 +6,24 @@ fn main() {
         // tauri_build requires the file from `bundle.externalBin`; without it the build fails anyway.
         panic!("Could not build the forkyard-askpass helper: {reason}");
     }
+    main_thread_stack();
     tauri_build::build()
+}
+
+/// Main thread stack as on Linux and macOS (8 MB) instead of the Windows default of 1 MB. Tauri
+/// builds every async command's future on the main thread (IPC handler, `async_runtime::spawn`);
+/// in release builds the handler and the larger futures (`branch_checkout`) together overflowed
+/// 1 MB and the app ended with 0xc00000fd. For all link targets, so the tests see it too.
+fn main_thread_stack() {
+    const STACK_BYTES: u32 = 8 * 1024 * 1024;
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows") {
+        return;
+    }
+    match std::env::var("CARGO_CFG_TARGET_ENV").as_deref() {
+        Ok("msvc") => println!("cargo:rustc-link-arg=/STACK:{STACK_BYTES}"),
+        Ok("gnu") => println!("cargo:rustc-link-arg=-Wl,--stack,{STACK_BYTES}"),
+        _ => {}
+    }
 }
 
 /// Compiles `crates/askpass/src/main.rs` (std only, no dependencies) directly with

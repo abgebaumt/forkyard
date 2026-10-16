@@ -728,4 +728,23 @@ mod tests {
             assert!(fragment.contains(part), "{part}\n{fragment}");
         }
     }
+
+    /// build.rs gives the main thread 8 MB on Windows: with the default 1 MB, a double-click on a
+    /// branch (IPC handler plus the `branch_checkout` future, both built on the main thread) ended
+    /// the release build with a stack overflow. Read from the PE header of this test executable,
+    /// which is linked with the same arguments as the app.
+    #[cfg(windows)]
+    #[test]
+    fn the_main_thread_gets_eight_megabytes_of_stack_on_windows() {
+        let exe = std::fs::read(std::env::current_exe().unwrap()).unwrap();
+        let u16_at = |at: usize| u16::from_le_bytes(exe[at..at + 2].try_into().unwrap());
+        let u32_at = |at: usize| u32::from_le_bytes(exe[at..at + 4].try_into().unwrap());
+        let pe = u32_at(0x3c) as usize;
+        assert_eq!(&exe[pe..pe + 4], b"PE\0\0");
+        // Optional header after the 4-byte signature and the 20-byte COFF header; PE32+ only.
+        let optional = pe + 24;
+        assert_eq!(u16_at(optional), 0x20b, "PE32+");
+        let reserve = u64::from_le_bytes(exe[optional + 72..optional + 80].try_into().unwrap());
+        assert!(reserve >= 8 * 1024 * 1024, "main thread stack reserve is {reserve} bytes");
+    }
 }
