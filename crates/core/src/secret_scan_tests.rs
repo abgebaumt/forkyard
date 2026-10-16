@@ -38,7 +38,7 @@ async fn only_added_lines_of_commits_missing_on_the_remote_are_scanned() {
     let id = tc.open(&repo).await.repo.id;
 
     // Written long ago in another time zone – the graph decides what goes out, not the date.
-    repo.write_file("-geheim/zugäng daten.txt", b"erste Zeile\r\nzweite Zeile\r\npassword = \"anders-2026x\"\r\n".to_vec());
+    repo.write_file("-geheim/zugäng daten.txt", b"erste Zeile\r\nzweite Zeile\r\npassword = \"anders-2026x\"\r\n");
     let old = repo.commit_as("Zugang aus alter Zeit", "Ältere Zeit", "alt@example.com", "@1262304000 +1400");
     // The pushed key is deleted, the hint file only moved: neither adds a line.
     repo.write_file("alt/zugang.txt", "zweite Zeile\n");
@@ -86,7 +86,7 @@ async fn ignored_findings_survive_a_rebase_and_store_only_hashes() {
     assert_eq!(first.findings.len(), 1);
     let expected: String = Sha256::digest([b"dienst.py".as_slice(), b"\0", line.as_bytes()].concat()).iter().map(|byte| format!("{byte:02x}")).collect();
     assert_eq!(first.findings[0].id, expected, "the ID is the hash of path and line content");
-    assert_eq!(tc.db.with(|c| ignore_ids(c, &id, &[expected.clone()])).unwrap(), 1);
+    assert_eq!(tc.db.with(|c| ignore_ids(c, &id, std::slice::from_ref(&expected))).unwrap(), 1);
     let stored = serde_json::to_string(&tc.db.with(|c| crate::db::repo_settings::get_all(c, &id)).unwrap()).unwrap();
     assert!(!stored.contains(&aws()) && !stored.contains("W3NB") && stored.contains(&expected), "only the hash is stored: {stored}");
     assert!(scan(&tc, &id).await.findings.is_empty());

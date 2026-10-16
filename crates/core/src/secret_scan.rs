@@ -53,7 +53,7 @@ pub fn real_value(value: &str) -> bool {
     let distinct: HashSet<char> = value.chars().collect();
     value.chars().count() >= 8
         && distinct.len() >= 5
-        && !value.contains(|c: char| matches!(c, '$' | '{' | '}' | '<' | '>' | '(' | ')' | '%'))
+        && !value.contains(['$', '{', '}', '<', '>', '(', ')', '%'])
         && !value.to_ascii_lowercase().contains("env")
 }
 
