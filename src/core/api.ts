@@ -41,6 +41,7 @@ import type {
   FileContent,
   FileDiff,
   FileHistoryEntry,
+  LineHistoryStep,
   GitflowFinishOptions,
   GitflowKind,
   GitflowPrefixes,
@@ -459,6 +460,11 @@ export interface CoreCommands {
    * `{ limit: 200, offset: <number already loaded> }`; fewer than `limit` entries means the end.
    */
   fileHistory(input: R & { path: string; limit: number; offset?: number | null }): Promise<FileHistoryEntry[]>;
+  /**
+   * The commits that shaped line `line` (1-based) of `path` at commit `sha`, newest first, at most 20
+   * (`git log -L`); follows renames. Each step names the file's path and the line range in that commit.
+   */
+  lineHistory(input: R & { path: string; line: number; sha: Sha }): Promise<LineHistoryStep[]>;
   /** `sha: null` = working directory. `encoding`: encoding for this one call, otherwise detected. */
   fileBlame(input: R & { path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
   /**

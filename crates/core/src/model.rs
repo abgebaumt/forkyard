@@ -1064,6 +1064,18 @@ pub struct FileHistoryEntry {
     pub removed: Option<u32>,
 }
 
+/// One step of `line_history`: a commit that changed the line, and where the line was in it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LineHistoryStep {
+    pub commit: CommitSummary,
+    /// Path of the file in this commit (follows renames).
+    pub path: String,
+    /// Line range in this commit's version of the file (1-based, inclusive).
+    pub start_line: u32,
+    pub end_line: u32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BlameLine {

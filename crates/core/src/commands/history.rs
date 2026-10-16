@@ -2,6 +2,7 @@
 //!
 //! - `file_history`: `git log --follow` with a fixed format, parsed as a stream.
 //! - `file_blame`: `git blame --porcelain`, parsed as a stream.
+//! - `line_history`: `git log -L` for one line – the commits that shaped it, with its range in each.
 //! - `file_read` / `file_write`: content for the editor, with encoding and line endings.
 //!
 //! Paths come from the UI relative to the repository (with `/`). Anything leading out of the
@@ -13,7 +14,7 @@ use std::path::{Path, PathBuf};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::{BlameLine, CommitSummary, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, Person, RepoChange};
+use crate::model::{BlameLine, CommitSummary, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, LineHistoryStep, Person, RepoChange};
 use crate::util;
 
 /// Above this size `file_read` no longer returns text (`text: null`, `isBinary: false`).
@@ -344,6 +345,100 @@ pub async fn file_history(core: &Core, repo_id: String, path: String, limit: u32
         })
         .await?;
     Ok(parser.finish().into_iter().skip(offset as usize).collect())
+}
+
+// ---------------------------------------------------------------------------
+// line_history
+// ---------------------------------------------------------------------------
+
+/// `line_history` returns at most this many steps.
+pub const LINE_HISTORY_STEPS: u32 = 20;
+/// Start of a commit in the output of `git log -L`. It stands at a line start, where a diff line never
+/// begins with 0x1e.
+const LINE_MARK: &[u8] = b"\x1e\x1efy\x1e";
+const LINE_FORMAT: &str = "--format=%x1e%x1efy%x1e%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00";
+
+/// The commits that shaped line `line` (1-based) of `path` at commit `sha`, newest first, at most
+/// `LINE_HISTORY_STEPS` (`git log -L<n>,<n>:<path>`); follows renames. Each step names the file's path
+/// and the line range in that commit. Pure read.
+pub async fn line_history(core: &Core, repo_id: String, path: String, line: u32, sha: String) -> CoreResult<Vec<LineHistoryStep>> {
+    let rel = normalize_rel_path(&path)?;
+    if line == 0 {
+        return Err(CoreError::not_allowed("Lines are counted from 1."));
+    }
+    let commit = crate::commands::graph::resolve_commit(core, &repo_id, &sha).await?;
+    let out = core
+        .git_for(&repo_id)?
+        .args(["-c", "core.quotePath=false", "log"])
+        .args(crate::commands::graph::LOG_SAFE)
+        .args(["--no-decorate", "--no-color", "--no-ext-diff", "-z"])
+        .arg(format!("--max-count={LINE_HISTORY_STEPS}"))
+        .arg(LINE_FORMAT)
+        .arg(format!("-L{line},{line}:{rel}"))
+        .arg(&commit)
+        .arg("--")
+        .read_only()
+        .no_log()
+        .run_raw()
+        .await?;
+    if !out.success() {
+        let text = out.stderr_text();
+        if text.contains("has only") || text.contains("no path") {
+            return Err(CoreError::not_found(format!("Line {line} of “{rel}” doesn’t exist at this commit.")).with_git_output(text));
+        }
+        return Err(crate::git::errors::classify("log", out.code, &out.stdout, &out.stderr));
+    }
+    Ok(parse_line_history(&out.stdout, &rel))
+}
+
+/// The records of `git log -L` with `LINE_FORMAT`: header fields, then the diff of the line range.
+fn parse_line_history(stdout: &[u8], newest_path: &str) -> Vec<LineHistoryStep> {
+    let mut steps = Vec::new();
+    let mut last_path = newest_path.to_string();
+    let mut starts: Vec<usize> = stdout.windows(LINE_MARK.len()).enumerate().filter(|(_, window)| *window == LINE_MARK).map(|(index, _)| index).collect();
+    starts.push(stdout.len());
+    for pair in starts.windows(2) {
+        let record = &stdout[pair[0] + LINE_MARK.len()..pair[1]];
+        let mut fields = record.splitn(7, |&byte| byte == 0);
+        let header: Vec<&[u8]> = (0..6).filter_map(|_| fields.next()).collect();
+        let [sha, parents, name, email, time, summary] = header.as_slice() else { continue };
+        let Some((path, start, count)) = hunk_of(fields.next().unwrap_or_default()) else { continue };
+        let path = path.unwrap_or_else(|| last_path.clone());
+        last_path = path.clone();
+        steps.push(LineHistoryStep {
+            commit: CommitSummary {
+                sha: util::decode_lossy(sha),
+                parents: util::decode_lossy(parents).split_whitespace().map(str::to_string).collect(),
+                author: Person { name: util::decode_lossy(name), email: util::decode_lossy(email) },
+                authored_at: util::unix_to_iso(util::decode_lossy(time).trim().parse().unwrap_or(0)),
+                summary: util::decode_lossy(summary),
+            },
+            path,
+            start_line: start,
+            end_line: if count == 0 { start } else { start + count - 1 },
+        });
+    }
+    steps
+}
+
+/// Path (`+++ b/…`; `None` if Git quoted it) and the new range (`+c,d`) of the first hunk.
+fn hunk_of(diff: &[u8]) -> Option<(Option<String>, u32, u32)> {
+    let mut path = None;
+    for line in diff.split(|&byte| byte == b'\n') {
+        let line = line.strip_prefix(b"\0").unwrap_or(line);
+        if let Some(rest) = line.strip_prefix(b"+++ ") {
+            path = rest.strip_prefix(b"b/").filter(|name| !name.starts_with(b"\"")).map(|name| util::decode_lossy(name).trim_end_matches('\t').to_string());
+        } else if line.starts_with(b"@@ ") {
+            let text = util::decode_lossy(line);
+            let new = text.split_whitespace().find(|part| part.starts_with('+'))?;
+            let (start, count) = match new[1..].split_once(',') {
+                Some((start, count)) => (start.parse().ok()?, count.parse().ok()?),
+                None => (new[1..].parse().ok()?, 1),
+            };
+            return Some((path, start, count));
+        }
+    }
+    None
 }
 
 #[derive(Default)]
@@ -819,3 +914,5 @@ fn write_atomic(target: &Path, bytes: &[u8]) -> CoreResult<()> {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod line_history_tests;

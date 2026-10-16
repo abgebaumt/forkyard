@@ -507,6 +507,7 @@ pub fn run() {
             commands::redo,
             commands::undo_peek,
             commands::file_history,
+            commands::line_history,
             commands::file_blame,
             commands::file_read,
             commands::file_write,

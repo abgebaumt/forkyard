@@ -869,6 +869,16 @@ export interface FileHistoryEntry {
   removed: number | null;
 }
 
+/** One step of `lineHistory`. */
+export interface LineHistoryStep {
+  commit: CommitSummary;
+  /** Path of the file in this commit (follows renames). */
+  path: string;
+  /** Line range in this commit's version of the file (1-based, inclusive). */
+  startLine: number;
+  endLine: number;
+}
+
 export interface BlameLine {
   lineNo: number;
   text: string;
