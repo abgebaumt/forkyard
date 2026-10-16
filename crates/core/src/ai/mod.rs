@@ -15,6 +15,7 @@ pub mod ignore;
 pub mod language;
 pub mod pricing;
 pub mod prompt;
+pub mod pr;
 pub mod provider;
 pub mod providers;
 pub mod run;

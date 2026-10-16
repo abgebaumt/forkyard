@@ -1482,6 +1482,19 @@ pub struct AiUsageSummary {
     pub rows: Vec<AiUsageRow>,
 }
 
+/// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
+/// anywhere; the form places it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPrDescription {
+    /// One line, at most 300 characters.
+    pub title: String,
+    /// Markdown; ends with `Closes #n` for every host issue the commits mention.
+    pub body: String,
+    /// Host issues the description closes – from the commits, never from the AI.
+    pub closes: Vec<u64>,
+}
+
 /// `ai_commit_message`: a draft for the commit form – the core never commits it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
