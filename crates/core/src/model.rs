@@ -3163,6 +3163,18 @@ pub struct HostCapabilities {
     pub pr_labels: bool,
     /// Pull requests from forks can be checked out (the host offers a ref for them).
     pub fork_checkout: bool,
+    /// Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo).
+    pub releases: bool,
+}
+
+/// A release at the host, as `release_create` returns it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostRelease {
+    pub tag: String,
+    pub name: String,
+    /// The release's page; `None` if the host does not name one.
+    pub web_url: Option<String>,
 }
 
 /// The repository at the host, recognized by the URL of a remote.

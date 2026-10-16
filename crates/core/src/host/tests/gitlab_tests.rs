@@ -196,3 +196,21 @@ async fn checkout_fetches_the_branch_of_a_merge_request() {
     assert_eq!(repo.git(&["for-each-ref", "refs/forkyard/pull"]), "");
     fx.assert_token_stays_secret();
 }
+
+#[tokio::test]
+async fn releases_are_created_with_the_tag_commit_as_ref() {
+    use crate::model::HostRelease;
+    let fx = Fixture::new(KIND).await;
+    fx.repo.git(&["tag", "-a", "v2.0.0", "-m", "Version 2"]);
+    let commit = fx.repo.git(&["rev-parse", "v2.0.0^{commit}"]);
+    let notes = "### Added\n\n- Merge requests for „Süd“";
+    let release = cmd::release_create(&fx.tc, fx.id(), "v2.0.0".into(), "Version 2".into(), notes.into(), true, None).await.unwrap();
+    assert_eq!(release, HostRelease { tag: "v2.0.0".into(), name: "Version 2".into(), web_url: Some(format!("{}/gruppe/unter/demo/-/releases/v2.0.0", fx.server.url())) });
+    let sent = fx.sent("POST", "/releases");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].path(), "/api/v4/projects/gruppe%2Funter%2Fdemo/releases");
+    assert_eq!(sent[0].json(), json!({"tag_name": "v2.0.0", "ref": commit, "name": "Version 2", "description": notes}), "GitLab has no prerelease flag");
+    fx.repo.tag("schon-da");
+    assert_eq!(cmd::release_create(&fx.tc, fx.id(), "schon-da".into(), String::new(), "x".into(), false, None).await.unwrap_err().code, ErrorCode::NameExists);
+    fx.assert_token_stays_secret();
+}

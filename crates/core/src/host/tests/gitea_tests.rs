@@ -209,3 +209,20 @@ async fn pull_requests_are_created_changed_commented_merged_and_closed() {
     check_error_modes(&fx, LABEL, "pr_close", || cmd::pr_close(&fx.tc, fx.id(), 7, None)).await;
     fx.assert_token_stays_secret();
 }
+
+#[tokio::test]
+async fn releases_are_created_for_the_commit_of_the_local_tag() {
+    use crate::model::HostRelease;
+    let fx = Fixture::new(KIND).await;
+    fx.repo.tag("v0.3.0");
+    let commit = fx.repo.git(&["rev-parse", "v0.3.0^{commit}"]);
+    let release = cmd::release_create(&fx.tc, fx.id(), "v0.3.0".into(), String::new(), "### Behoben\n\n- Größere Schrift".into(), false, None).await.unwrap();
+    assert_eq!(release, HostRelease { tag: "v0.3.0".into(), name: "v0.3.0".into(), web_url: Some(format!("{}/octo/demo/releases/tag/v0.3.0", fx.server.url())) });
+    let sent = fx.sent("POST", "/api/v1/repos/octo/demo/releases");
+    assert_eq!(sent[0].json(), json!({"tag_name": "v0.3.0", "target_commitish": commit, "name": "v0.3.0", "body": "### Behoben\n\n- Größere Schrift", "draft": false, "prerelease": false}));
+    assert_eq!(sent[0].header("authorization"), Some(format!("token {TOKEN}").as_str()));
+    fx.repo.tag("schon-da");
+    assert_eq!(cmd::release_create(&fx.tc, fx.id(), "schon-da".into(), String::new(), "x".into(), false, None).await.unwrap_err().code, ErrorCode::NameExists);
+    check_error_modes(&fx, LABEL, "release_create", || cmd::release_create(&fx.tc, fx.id(), "v0.3.0".into(), String::new(), "x".into(), false, None)).await;
+    fx.assert_token_stays_secret();
+}

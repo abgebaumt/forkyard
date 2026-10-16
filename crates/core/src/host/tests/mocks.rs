@@ -192,6 +192,14 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
                 None => response,
             }
         }
+        ("POST", ["releases"]) => {
+            let body = request.json();
+            if body["tag_name"] == "schon-da" {
+                return MockResponse::json(422, json!({ "message": "Validation Failed", "errors": [{ "resource": "Release", "code": "already_exists", "field": "tag_name" }] }));
+            }
+            let tag = body["tag_name"].as_str().unwrap_or_default().to_string();
+            MockResponse::json(201, json!({ "id": 7001, "tag_name": tag, "name": body["name"], "body": body["body"], "draft": false, "prerelease": body["prerelease"], "html_url": format!("{base}/octo/demo/releases/tag/{tag}") }))
+        }
         ("POST", ["pulls"]) => {
             let body = request.json();
             if body["head"] == "schon-da" {
@@ -432,6 +440,14 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             let body: Vec<Value> = page.iter().map(|n| gl_mr(&base, *n, &state, false)).collect();
             gl_page(request, body, next)
         }
+        ("POST", ["releases"]) => {
+            let body = request.json();
+            if body["tag_name"] == "schon-da" {
+                return MockResponse::json(409, json!({ "message": "Release already exists" }));
+            }
+            let tag = body["tag_name"].as_str().unwrap_or_default().to_string();
+            MockResponse::json(201, json!({ "tag_name": tag, "name": body["name"], "description": body["description"], "_links": { "self": format!("{base}/gruppe/unter/demo/-/releases/{tag}") } }))
+        }
         ("POST", ["merge_requests"]) => {
             let body = request.json();
             if body["source_branch"] == "schon-da" {
@@ -604,6 +620,14 @@ pub(crate) fn gitea(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
             let (page, next) = page_by(request, numbers, "limit");
             let body: Vec<Value> = page.iter().map(|n| gt_pr(&base, *n, &state)).collect();
             with_link(MockResponse::json(200, json!(body)), next)
+        }
+        ("POST", ["releases"]) => {
+            let body = request.json();
+            if body["tag_name"] == "schon-da" {
+                return MockResponse::json(409, json!({ "message": "release tag already exists" }));
+            }
+            let tag = body["tag_name"].as_str().unwrap_or_default().to_string();
+            MockResponse::json(201, json!({ "id": 5, "tag_name": tag, "name": body["name"], "body": body["body"], "html_url": format!("{base}/octo/demo/releases/tag/{tag}") }))
         }
         ("POST", ["pulls"]) => {
             let body = request.json();

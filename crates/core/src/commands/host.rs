@@ -12,9 +12,9 @@ use crate::app::Core;
 use crate::commands::branches;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::host::{self, NewPr, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
+use crate::host::{self, NewPr, NewRelease, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
 use crate::model::{
-    HostComment, HostInfoError, HostKind, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary, PrDetails, PrListState, PrMergeMethod, PrPage,
+    HostComment, HostInfoError, HostKind, HostRelease, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary, PrDetails, PrListState, PrMergeMethod, PrPage,
     PrSummary, RepoChange, Status,
 };
 use crate::util;
@@ -431,4 +431,39 @@ pub async fn issue_create(core: &Core, repo_id: String, title: String, body: Str
     let title = check_title(&title)?;
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     host::host(api.kind).issue_create(core, &api, &repo, &title, &body).await
+}
+
+// ---------------------------------------------------------------------------
+// Releases
+// ---------------------------------------------------------------------------
+
+/// Largest release text the hosts accept (GitHub: 125 000 characters).
+const MAX_RELEASE_BODY: usize = 125_000;
+
+/// Creates a release for the local tag `tag`. The commit the tag points to goes along, so a host
+/// that does not know the tag yet never creates it on its default branch (the UI pushes the tag
+/// first anyway). Hosts without releases answer `host_unsupported` before anything is sent.
+/// `name` empty = the tag. Errors: `not_allowed` (tag name, a name with line breaks, a text
+/// longer than 125 000 characters), `not_found` (no such local tag), `name_exists` (a release for
+/// the tag exists), host errors.
+pub async fn release_create(core: &Core, repo_id: String, tag: String, name: String, body: String, prerelease: bool, remote: Option<String>) -> CoreResult<HostRelease> {
+    let tag = tag.trim().to_string();
+    util::check_ref_name(&tag).map_err(CoreError::not_allowed)?;
+    let name = name.trim();
+    if name.contains(['\n', '\r']) {
+        return Err(CoreError::not_allowed("The release name must be a single line."));
+    }
+    let name = if name.is_empty() { tag.clone() } else { name.to_string() };
+    if body.chars().count() > MAX_RELEASE_BODY {
+        return Err(CoreError::not_allowed(format!("The release text is longer than {MAX_RELEASE_BODY} characters.")));
+    }
+    let spec = format!("refs/tags/{tag}^{{commit}}");
+    let out = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "--end-of-options"]).arg(&spec).read_only().no_log().run_raw().await?;
+    let target = out.stdout_text();
+    if !out.success() || target.is_empty() {
+        return Err(CoreError::not_found(format!("The tag “{tag}” does not exist in this repository.")));
+    }
+    let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
+    let new = NewRelease { tag: &tag, target_sha: &target, name: &name, body: &body, prerelease };
+    host::host(api.kind).release_create(core, &api, &repo, new).await
 }
