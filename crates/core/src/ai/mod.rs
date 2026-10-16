@@ -10,7 +10,10 @@
 
 pub mod context;
 pub mod ignore;
+pub mod pricing;
 pub mod prompt;
+pub mod provider;
+pub mod providers;
 pub mod schema;
 
 use std::collections::HashMap;

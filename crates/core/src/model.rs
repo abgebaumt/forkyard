@@ -1340,6 +1340,52 @@ pub struct AiOmitted {
     pub size: u64,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiPriceSource {
+    /// From Forkyard's table (`as_of` names its date).
+    Builtin,
+    /// Entered by the user (`Settings.ai_prices`).
+    Own,
+}
+
+/// Price of a model in USD per million tokens.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPrice {
+    pub input_usd_per_mtok: f64,
+    pub output_usd_per_mtok: f64,
+    pub source: AiPriceSource,
+    pub as_of: Option<String>,
+}
+
+/// A model of the provider (`ai_models`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiModelInfo {
+    pub id: String,
+    pub label: String,
+    /// Context window in tokens, if the provider says.
+    pub context_tokens: Option<u64>,
+}
+
+/// How a structured answer is requested: schema enforced by the provider, JSON only, or the
+/// schema in the prompt (the core validates in every case).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiStructuredMode {
+    JsonSchema,
+    JsonObject,
+    Prompt,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiModelList {
+    pub models: Vec<AiModelInfo>,
+    pub structured: AiStructuredMode,
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

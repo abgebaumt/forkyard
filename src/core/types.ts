@@ -989,6 +989,31 @@ export interface AiOmitted {
   size: number;
 }
 
+export type AiPriceSource = "builtin" | "own";
+
+/** USD per million tokens; `asOf` = date of the built-in table, null for own prices. */
+export interface AiPrice {
+  inputUsdPerMtok: number;
+  outputUsdPerMtok: number;
+  source: AiPriceSource;
+  asOf: string | null;
+}
+
+export interface AiModelInfo {
+  id: string;
+  label: string;
+  /** Context window in tokens, null if the provider does not say. */
+  contextTokens: number | null;
+}
+
+/** `json_schema`: enforced by the provider; `json_object`: JSON only; `prompt`: schema in the prompt. The core validates in every case. */
+export type AiStructuredMode = "json_schema" | "json_object" | "prompt";
+
+export interface AiModelList {
+  models: AiModelInfo[];
+  structured: AiStructuredMode;
+}
+
 /** Global settings of the active profile. The core sets the defaults. */
 export interface Settings {
   theme: Theme;
