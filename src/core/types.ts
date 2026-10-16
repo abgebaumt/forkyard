@@ -1017,6 +1017,63 @@ export interface AiModelList {
 /** Why the preview asks before sending: first use of a function, > 100 000 characters, cost above the threshold, first content of this repository, monthly limit reached. */
 export type AiAskTrigger = "first_use" | "large" | "cost" | "repo_first" | "limit";
 
+/** `aiStatus`: drives the visibility of every AI element and Settings › AI. */
+export interface AiStatus {
+  state: AiState;
+  provider: AiProviderKind | null;
+  model: string | null;
+  /** Provider, model, address and – where needed – the key are there. */
+  connected: boolean;
+  /** "…abcd" of the stored key of the chosen provider; never more. */
+  keyHint: string | null;
+  local: boolean;
+  /** Own or built-in price of the chosen model; null = unknown or local. */
+  price: AiPrice | null;
+  /** Only in "unset": the one-time notice after the update to 1.2 is due. */
+  introPending: boolean;
+  featuresOff: AiFeature[];
+}
+
+/** What `aiPreview` builds the text from; later packages add variants. */
+export type AiInput = { kind: "staged_changes" };
+
+/** "What is sent?" – exactly the text that would go out; nothing was sent. */
+export interface AiPreview {
+  text: string;
+  omitted: AiOmitted[];
+  /** Shortened to start and end of each hunk. */
+  shortened: string[];
+  chars: number;
+  estimatedTokens: number;
+  estimatedCostUsd: number | null;
+  /** Empty: goes out without a question. */
+  asks: AiAskTrigger[];
+  /** Pass to `aiPreviewConfirm`; binds the confirmation to exactly this text. */
+  fingerprint: string;
+  monthCostUsd: number;
+  limitUsd: number | null;
+}
+
+export interface AiUsageRow {
+  provider: string;
+  model: string;
+  feature: string;
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
+/** This month's usage (UTC), numbers only – never contents. */
+export interface AiUsageSummary {
+  month: string;
+  requests: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  rows: AiUsageRow[];
+}
+
 /** Global settings of the active profile. The core sets the defaults. */
 export interface Settings {
   theme: Theme;

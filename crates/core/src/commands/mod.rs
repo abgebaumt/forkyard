@@ -1,6 +1,7 @@
 //! The UI's commands (api.ts). Each file belongs to one area; every command is
 //! `pub async fn name(core: &Core, <keys of the input object in snake_case>)`.
 
+pub mod ai;
 pub mod activity;
 pub mod app;
 pub mod auth;

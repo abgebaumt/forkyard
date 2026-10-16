@@ -14,6 +14,14 @@
  * The UI never calls Git directly and never builds command lines.
  */
 import type {
+  AiAskTrigger,
+  AiFeature,
+  AiInput,
+  AiModelList,
+  AiPreview,
+  AiProviderKind,
+  AiStatus,
+  AiUsageSummary,
   CliStatus,
   CrashReportSummary,
   ActivityPage,
@@ -859,6 +867,35 @@ export interface CoreCommands {
    * (`tip: null`); unknown ref → `not_found`; `from`/`to` not ISO-8601 or `from` after `to` → `not_allowed`.
    */
   statsCompute(input: R & { jobId: string; range: StatsRange }): Promise<RepoStats>;
+
+  // --- AI (v1.2; one provider for all profiles; settings are `Settings.ai*` via settingsSet) ----
+  /** State (`unset`/`off`/`on`), chosen provider and model, whether it is connected, key hint, price, notice. */
+  aiStatus(): Promise<AiStatus>;
+  /** Stores the key in the keychain under `llm:<provider>`; success only after reading it back. `not_allowed` for local providers or a value that is no key. */
+  aiKeySet(input: { provider: AiProviderKind; key: string }): Promise<AiStatus>;
+  /** Removes the key; success only if it is really gone (`io` otherwise). */
+  aiKeyRemove(input: { provider: AiProviderKind }): Promise<AiStatus>;
+  /**
+   * "Check": lists the models with the entered values (`key`/`baseUrl` null = the stored ones); stores
+   * no key. For a compatible service with `model` it also probes and remembers the structured mode.
+   * Job under `jobId` (cancellable). Errors: `ai_not_configured` (no key/address, key rejected),
+   * `ai_provider_unavailable`, `not_allowed` (`http://` outside this computer), `cancelled`, `timeout`.
+   */
+  aiModels(input: { jobId: string; provider: AiProviderKind; baseUrl: string | null; key: string | null; model: string | null }): Promise<AiModelList>;
+  /** Clears the one-time notice after the update ("Set up …" or "Close"). */
+  aiIntroDismiss(): Promise<AiStatus>;
+  /**
+   * "What is sent?": the exact text for `feature` from `input`, the files left out and the confirmations
+   * that would be asked – sends nothing, works in every state. `locale` = `locale()` of the UI.
+   * Errors: `repo_untrusted`, `not_found`.
+   */
+  aiPreview(input: R & { feature: AiFeature; input: AiInput; locale: string }): Promise<AiPreview>;
+  /** "Send" in the preview: approves exactly this text (`fingerprint`) for the next request within 10 minutes; first use and repository are remembered, `large`/`cost` only with `dontAskAgain`, `limit` never. */
+  aiPreviewConfirm(input: { repoId: Id | null; feature: AiFeature; fingerprint: string; triggers: AiAskTrigger[]; dontAskAgain: boolean }): Promise<void>;
+  /** "Ask again everywhere": forgets every given confirmation. */
+  aiPreviewReset(): Promise<void>;
+  /** This month's usage (numbers only). */
+  aiUsage(): Promise<AiUsageSummary>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

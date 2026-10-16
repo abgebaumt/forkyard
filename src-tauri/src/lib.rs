@@ -185,6 +185,12 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     if let Some(base) = dev_env_value(UPDATE_URL_ENV).and_then(|v| v.into_string().ok()) {
         gitcore::commands::update::configure(&core, Some(if base == "off" { String::new() } else { base }));
     }
+    // Development build only: AI providers at local mock addresses (`FORKYARD_AI_BASE_URL_<PROVIDER>`).
+    for (kind, name) in gitcore::ai::BASE_URL_ENVS {
+        if let Some(base) = dev_env_value(name).and_then(|v| v.into_string().ok()) {
+            gitcore::ai::configure_base(&core, kind, Some(base));
+        }
+    }
     // This launch's request waits for the UI; later ones arrive over the local channel.
     gitcore::commands::launch::set_initial(&core, launch);
     tauri::async_runtime::spawn(gitcore::commands::launch::listen(core.clone()));
@@ -593,7 +599,16 @@ pub fn run() {
             commands::issue_list,
             commands::issue_get,
             commands::issue_create,
-            commands::stats_compute
+            commands::stats_compute,
+            commands::ai_status,
+            commands::ai_key_set,
+            commands::ai_key_remove,
+            commands::ai_models,
+            commands::ai_intro_dismiss,
+            commands::ai_preview,
+            commands::ai_preview_confirm,
+            commands::ai_preview_reset,
+            commands::ai_usage
         ])
         .build(context);
     match result {

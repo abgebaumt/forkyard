@@ -1109,3 +1109,64 @@ pub async fn issue_create(core: State<'_, Core>, repo_id: String, title: String,
 pub async fn stats_compute(core: State<'_, Core>, repo_id: String, job_id: String, range: StatsRange) -> R<RepoStats> {
     c::stats::stats_compute(&core, repo_id, job_id, range).await
 }
+
+// --- AI (v1.2) ------------------------------------------------------------------
+
+#[tauri::command]
+pub async fn ai_status(core: State<'_, Core>) -> R<AiStatus> {
+    c::ai::ai_status(&core).await
+}
+
+#[tauri::command]
+pub async fn ai_key_set(core: State<'_, Core>, provider: AiProviderKind, key: String) -> R<AiStatus> {
+    c::ai::ai_key_set(&core, provider, key).await
+}
+
+#[tauri::command]
+pub async fn ai_key_remove(core: State<'_, Core>, provider: AiProviderKind) -> R<AiStatus> {
+    c::ai::ai_key_remove(&core, provider).await
+}
+
+#[tauri::command]
+pub async fn ai_models(
+    core: State<'_, Core>,
+    job_id: String,
+    provider: AiProviderKind,
+    base_url: Option<String>,
+    key: Option<String>,
+    model: Option<String>,
+) -> R<AiModelList> {
+    c::ai::ai_models(&core, job_id, provider, base_url, key, model).await
+}
+
+#[tauri::command]
+pub async fn ai_intro_dismiss(core: State<'_, Core>) -> R<AiStatus> {
+    c::ai::ai_intro_dismiss(&core).await
+}
+
+#[tauri::command]
+pub async fn ai_preview(core: State<'_, Core>, repo_id: String, feature: AiFeature, input: AiInput, locale: String) -> R<AiPreview> {
+    c::ai::ai_preview(&core, repo_id, feature, input, locale).await
+}
+
+#[tauri::command]
+pub async fn ai_preview_confirm(
+    core: State<'_, Core>,
+    repo_id: Option<String>,
+    feature: AiFeature,
+    fingerprint: String,
+    triggers: Vec<AiAskTrigger>,
+    dont_ask_again: bool,
+) -> R<()> {
+    c::ai::ai_preview_confirm(&core, repo_id, feature, fingerprint, triggers, dont_ask_again).await
+}
+
+#[tauri::command]
+pub async fn ai_preview_reset(core: State<'_, Core>) -> R<()> {
+    c::ai::ai_preview_reset(&core).await
+}
+
+#[tauri::command]
+pub async fn ai_usage(core: State<'_, Core>) -> R<AiUsageSummary> {
+    c::ai::ai_usage(&core).await
+}

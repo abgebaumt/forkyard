@@ -1402,6 +1402,76 @@ pub enum AiAskTrigger {
     Limit,
 }
 
+/// `ai_status`: what the UI needs for the visibility of AI elements and Settings › AI.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiStatus {
+    pub state: AiState,
+    pub provider: Option<AiProviderKind>,
+    pub model: Option<String>,
+    /// Provider, model, address and – where needed – the key are there.
+    pub connected: bool,
+    /// `…abcd` of the stored key of the chosen provider.
+    pub key_hint: Option<String>,
+    pub local: bool,
+    /// Price of the chosen model (own or built-in); `None` = unknown or local.
+    pub price: Option<AiPrice>,
+    /// Only in `unset`: the one-time notice after the update to 1.2 is due.
+    pub intro_pending: bool,
+    pub features_off: Vec<AiFeature>,
+}
+
+/// What `ai_preview` builds the text from. Later packages add their own variants.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AiInput {
+    /// The staged diff of the repository.
+    StagedChanges,
+}
+
+/// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPreview {
+    pub text: String,
+    pub omitted: Vec<AiOmitted>,
+    /// Shortened to start and end of each hunk.
+    pub shortened: Vec<String>,
+    pub chars: u64,
+    pub estimated_tokens: u64,
+    pub estimated_cost_usd: Option<f64>,
+    /// Empty: the request goes out without a question (also while AI is not on).
+    pub asks: Vec<AiAskTrigger>,
+    /// Pass to `ai_preview_confirm`; binds the confirmation to exactly this text.
+    pub fingerprint: String,
+    pub month_cost_usd: f64,
+    pub limit_usd: Option<f64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiUsageRow {
+    pub provider: String,
+    pub model: String,
+    pub feature: String,
+    pub requests: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cost_usd: f64,
+}
+
+/// This month's usage (UTC month), numbers only.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiUsageSummary {
+    pub month: String,
+    pub requests: u64,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cost_usd: f64,
+    pub rows: Vec<AiUsageRow>,
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
