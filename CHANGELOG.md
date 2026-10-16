@@ -79,6 +79,15 @@ All notable changes to Forkyard are listed here. The format follows
   runs hooks and signing for every commit, never touches the working directory and creates one undo
   step for all commits; a failing hook, a hook that edits files or Cancel takes every commit of the run
   back. Changes that are not assigned stay as they are.
+- Git in plain language: with AI on, type `?` in the command palette – or a sentence that matches
+  nothing – and press Enter. Forkyard turns it into a plan of its own commands (create, check out,
+  rename or delete branches, reset, rebase, cherry-pick, revert, merge, stash, tag, change a commit
+  message, fetch, pull, push, delete a remote branch, push a tag) and shows every step with its class
+  and a conflict check before anything runs; E edits a step, Del removes it, Esc goes back to the text.
+  Steps that go out to a remote are confirmed one by one, say they can’t be undone and pass the same
+  secret scan as every push; Ctrl+Z takes the whole plan back locally (for 14 days). Settings,
+  repository trust, custom commands, the terminal, coding agents and cleaning up can never be part of
+  a plan, and a plan expires when the repository changes before it runs.
 
 ### Changed
 
