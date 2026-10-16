@@ -7,6 +7,16 @@ All notable changes to Forkyard are listed here. The format follows
 
 ### Added
 
+- Clean up repository: a dialog – from the command palette (“Clean up repository …”) and the context
+  menus of a repository in the list and of its tab – shows what takes space (Git objects, loose objects
+  and packs, the Git LFS cache, Forkyard’s undo backups, orphaned worktrees, reflog entries older than 90
+  days, free disk space) and frees it with `git gc` (Normal) or `git gc --aggressive --prune=now`
+  (Thorough), optionally also the LFS cache, orphaned worktrees, undo backups older than N days and the
+  reflog beyond 90 days. It says what each option frees and warns where something cannot be brought
+  back. The run counts its steps and seconds, can be cancelled, goes on when the dialog is closed, waits
+  for fetches and other actions in the repository and all its worktrees, never touches lock files of
+  other programs and keeps the objects of open undo steps. The result reads like “Git objects: 1.2 GB →
+  340 MB”.
 - Terminal tabs: the built-in terminal can hold several sessions per repository tab. “New shell” opens
   another one; each tab shows its name and its state as a word with a coloured dot, the arrow keys move
   between tabs, and closing a running session asks first.
