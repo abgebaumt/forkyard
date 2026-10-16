@@ -211,6 +211,81 @@
     "codex": "Codex",
     "opencode": "opencode"
   },
+  "setup": {
+    "title": "Set up AI",
+    "intro": "Forkyard looks for AI tools on this computer. Nothing is sent while setting up.",
+    "searching": "Searching …",
+    "failed": "The search failed: {{message}}",
+    "foundTitle": "Found on this computer",
+    "foundCount_one": "Search finished – {{count}} choice ready",
+    "foundCount_other": "Search finished – {{count}} choices ready",
+    "none": "No AI tool, local model or stored key was found.",
+    "cli": {
+      "version": "Version {{version}}",
+      "noVersion": "Version unknown",
+      "loggedIn": "Signed in",
+      "loggedInWith": "Signed in ({{method}})",
+      "loggedOut": "Not signed in",
+      "unknown": "Sign-in unknown",
+      "envKey": "Uses the API key from the environment (ANTHROPIC_API_KEY) instead of the sign-in.",
+      "unsupported": "Version not supported: {{problem}}",
+      "signInHint": "Sign in in a terminal: {{command}}",
+      "signIn": "Sign in in the terminal",
+      "source": {
+        "configured": "own path",
+        "path": "PATH",
+        "known_location": "usual install folder",
+        "login_shell": "PATH of the login shell"
+      }
+    },
+    "local": {
+      "running_one": "Running at {{address}} – {{count}} model",
+      "running_other": "Running at {{address}} – {{count}} models",
+      "noModels": "Running at {{address}} – no model installed yet"
+    },
+    "keyStored": "API key stored",
+    "turnOnWith": "Turn on with {{name}}",
+    "continue": "Continue",
+    "other": "Other choice",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "nothing": {
+      "title": "How do you want to use AI?",
+      "key": "Use an API key",
+      "local": "Install a local model",
+      "localHint": "Ollama runs models on this computer; nothing leaves it.",
+      "cockpit": "Only the cockpit, no AI",
+      "cockpitHint": "Coding agents work without an AI provider. AI can be turned on later in Settings › AI."
+    },
+    "provider": {
+      "title": "Provider",
+      "check": "Check",
+      "checkAction": "Check the provider",
+      "ok_one": "Connected – {{count}} model found",
+      "ok_other": "Connected – {{count}} models found",
+      "cliOk": "{{name}} is ready and signed in."
+    },
+    "model": {
+      "title": "Model",
+      "cliDefault": "Default of {{name}}",
+      "cliHint": "Leave empty to use the tool’s default model.",
+      "placeholder": "Model ID"
+    },
+    "features": {
+      "hint": "Every function can be switched off later in Settings › AI."
+    },
+    "turnOn": "Turn on",
+    "done": {
+      "whatIsSent": "What is sent?",
+      "noRepo": "Open a repository to see an example of what is sent."
+    },
+    "where": {
+      "cli": "Requests go to {{name}} on this computer, which passes them to its provider with your sign-in. Forkyard stores nothing of it.",
+      "local": "Requests stay on this computer ({{name}}).",
+      "api": "Requests go over the internet to {{name}}, with the key from your keychain."
+    }
+  },
   "command": {
     "setup": "Set up AI …",
     "keywords": "AI, KI, LLM, model, Claude, Codex, Ollama, provider"

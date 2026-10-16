@@ -211,6 +211,81 @@
     "codex": "Codex",
     "opencode": "opencode"
   },
+  "setup": {
+    "title": "KI einrichten",
+    "intro": "Forkyard sucht KI-Programme auf diesem Computer. Beim Einrichten wird nichts gesendet.",
+    "searching": "Suche …",
+    "failed": "Die Suche ist fehlgeschlagen: {{message}}",
+    "foundTitle": "Auf diesem Computer gefunden",
+    "foundCount_one": "Suche beendet – {{count}} Möglichkeit bereit",
+    "foundCount_other": "Suche beendet – {{count}} Möglichkeiten bereit",
+    "none": "Kein KI-Programm, kein lokales Modell und kein gespeicherter Schlüssel gefunden.",
+    "cli": {
+      "version": "Version {{version}}",
+      "noVersion": "Version unbekannt",
+      "loggedIn": "Angemeldet",
+      "loggedInWith": "Angemeldet ({{method}})",
+      "loggedOut": "Nicht angemeldet",
+      "unknown": "Anmeldestatus unbekannt",
+      "envKey": "Nutzt den API-Schlüssel aus der Umgebung (ANTHROPIC_API_KEY) statt der Anmeldung.",
+      "unsupported": "Version nicht unterstützt: {{problem}}",
+      "signInHint": "Im Terminal anmelden: {{command}}",
+      "signIn": "Im Terminal anmelden",
+      "source": {
+        "configured": "eigener Pfad",
+        "path": "PATH",
+        "known_location": "üblicher Installationsordner",
+        "login_shell": "PATH der Login-Shell"
+      }
+    },
+    "local": {
+      "running_one": "Läuft unter {{address}} – {{count}} Modell",
+      "running_other": "Läuft unter {{address}} – {{count}} Modelle",
+      "noModels": "Läuft unter {{address}} – noch kein Modell installiert"
+    },
+    "keyStored": "API-Schlüssel gespeichert",
+    "turnOnWith": "Mit {{name}} einschalten",
+    "continue": "Weiter",
+    "other": "Andere Wahl",
+    "back": "Zurück",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "nothing": {
+      "title": "Wie möchtest du KI nutzen?",
+      "key": "API-Schlüssel verwenden",
+      "local": "Lokales Modell installieren",
+      "localHint": "Ollama führt Modelle auf diesem Computer aus; nichts verlässt ihn.",
+      "cockpit": "Nur Cockpit, keine KI",
+      "cockpitHint": "Coding-Agenten funktionieren ohne KI-Anbieter. KI lässt sich später in den Einstellungen unter „KI“ einschalten."
+    },
+    "provider": {
+      "title": "Anbieter",
+      "check": "Prüfen",
+      "checkAction": "Anbieter prüfen",
+      "ok_one": "Verbunden – {{count}} Modell gefunden",
+      "ok_other": "Verbunden – {{count}} Modelle gefunden",
+      "cliOk": "{{name}} ist bereit und angemeldet."
+    },
+    "model": {
+      "title": "Modell",
+      "cliDefault": "Standard von {{name}}",
+      "cliHint": "Leer lassen, um das Standardmodell des Programms zu nutzen.",
+      "placeholder": "Modell-ID"
+    },
+    "features": {
+      "hint": "Jede Funktion lässt sich später in den Einstellungen unter „KI“ ausschalten."
+    },
+    "turnOn": "Einschalten",
+    "done": {
+      "whatIsSent": "Was wird gesendet?",
+      "noRepo": "Öffne ein Repository, um ein Beispiel zu sehen, was gesendet wird."
+    },
+    "where": {
+      "cli": "Anfragen gehen an {{name}} auf diesem Computer, das sie mit deiner Anmeldung an seinen Anbieter weitergibt. Forkyard speichert davon nichts.",
+      "local": "Anfragen bleiben auf diesem Computer ({{name}}).",
+      "api": "Anfragen gehen über das Internet an {{name}}, mit dem Schlüssel aus deinem Schlüsselbund."
+    }
+  },
   "command": {
     "setup": "KI einrichten …",
     "keywords": "KI, AI, LLM, Modell, Claude, Codex, Ollama, Anbieter"
