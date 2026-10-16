@@ -110,3 +110,84 @@ async fn cancelling_between_two_commits_takes_the_first_ones_back() {
     assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "");
     assert_eq!(backup_refs(&repo), "");
 }
+
+/// Hook body: on run `n`, commit like a terminal would (`commit-tree` + `update-ref` on HEAD's
+/// branch, not through the run's index) and remember the SHA in `.git/foreign`.
+fn foreign_commit_on_run(n: u32) -> String {
+    format!(
+        "dir=$(git rev-parse --git-dir)\n\
+         n=$(cat \"$dir/runs\" 2>/dev/null || echo 0)\n\
+         n=$((n+1))\n\
+         echo $n > \"$dir/runs\"\n\
+         if [ $n = {n} ]; then\n\
+           sha=$(git commit-tree 'HEAD^{{tree}}' -p HEAD -m 'Fremder Commit aus dem Terminal')\n\
+           git update-ref HEAD \"$sha\"\n\
+           echo $sha > \"$dir/foreign\"\n\
+         fi"
+    )
+}
+
+/// What every moved-branch case must leave: the foreign commit still on the branch, the backup
+/// refs kept, and an error that does not claim the commits were taken back.
+fn assert_branch_left_alone(repo: &TestRepo, err: &crate::error::CoreError) {
+    let foreign = std::fs::read_to_string(repo.path().join(".git/foreign")).expect("the hook made its commit");
+    let foreign = foreign.trim();
+    assert_eq!(err.code, ErrorCode::StaleState, "{err:?}");
+    assert!(
+        repo.git(&["merge-base", "--is-ancestor", foreign, "HEAD"]).is_empty(),
+        "the foreign commit stays on the branch"
+    );
+    assert!(repo.git(&["log", "--format=%s", "HEAD"]).contains("Fremder Commit aus dem Terminal"));
+    assert!(!err.message.contains("taken back"), "{}", err.message);
+    assert!(err.message.contains("left"), "{}", err.message);
+    assert_ne!(backup_refs(repo), "", "the backup refs stay so nothing is lost");
+}
+
+#[tokio::test]
+async fn a_commit_from_elsewhere_right_after_ours_leaves_the_branch_where_it_is() {
+    // post-commit of the first commit: someone commits on top of it before the run checks it.
+    let repo = repo_with(Some(("post-commit", &foreign_commit_on_run(1))));
+    let base = repo.head();
+    let (tc, id) = open(&repo).await;
+    let state = compose_units(&tc, id.clone()).await.unwrap();
+
+    let err = apply(
+        &tc,
+        &id,
+        &state,
+        vec![commit("Eins", "", &[unit(&state, "a.txt", Some(0))]), commit("Zwei", "", &[unit(&state, "b.txt", Some(0))])],
+    )
+    .await
+    .unwrap_err();
+
+    assert_branch_left_alone(&repo, &err);
+    assert_ne!(repo.head(), base, "the branch is not reset to the old HEAD");
+    assert_eq!(repo.git(&["rev-parse", "HEAD"]).trim(), std::fs::read_to_string(repo.path().join(".git/foreign")).unwrap().trim());
+}
+
+#[tokio::test]
+async fn a_commit_from_elsewhere_during_a_slow_hook_leaves_the_branch_where_it_is() {
+    // pre-commit of the second commit: a terminal commit lands while the hook runs.
+    let repo = repo_with(Some(("pre-commit", &foreign_commit_on_run(2))));
+    let base = repo.head();
+    let (tc, id) = open(&repo).await;
+    let state = compose_units(&tc, id.clone()).await.unwrap();
+
+    let err = apply(
+        &tc,
+        &id,
+        &state,
+        vec![commit("Eins", "", &[unit(&state, "a.txt", Some(0))]), commit("Zwei", "", &[unit(&state, "b.txt", Some(0))])],
+    )
+    .await
+    .unwrap_err();
+
+    // Depending on the Git version the second `git commit` fails on its ref lock or lands on top
+    // of the foreign commit; either way the foreign commit must not be dropped.
+    let foreign = std::fs::read_to_string(repo.path().join(".git/foreign")).unwrap();
+    assert!(repo.git(&["merge-base", "--is-ancestor", foreign.trim(), "HEAD"]).is_empty());
+    assert!(repo.git(&["log", "--format=%s", "HEAD"]).contains("Fremder Commit aus dem Terminal"));
+    assert_ne!(repo.head(), base);
+    assert!(!err.message.contains("taken back"), "{}", err.message);
+    assert_ne!(backup_refs(&repo), "");
+}

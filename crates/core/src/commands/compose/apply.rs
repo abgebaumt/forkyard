@@ -45,11 +45,15 @@ struct Step {
 #[derive(Default)]
 struct Done {
     commits: Vec<String>,
+    /// Every commit this run made, also one a later check rejected: only these may be dropped
+    /// when the branch is moved back.
+    created: Vec<String>,
     hooks: Vec<HookOutput>,
 }
 
 /// The whole run; call inside the write lock. Any failure after the snapshot moves the branch back
-/// to the old HEAD, restores the index and removes the backup refs.
+/// to the old HEAD, restores the index and removes the backup refs – but only while the branch holds
+/// nothing but this run's commits; otherwise all of it stays as it is.
 pub(crate) async fn apply(core: &Core, repo_id: &str, job: &Job, plan: &ComposePlan, expect_token: &str) -> CoreResult<ComposeResult> {
     let read = units::read(core, repo_id).await?;
     if read.token != expect_token {
@@ -71,8 +75,10 @@ pub(crate) async fn apply(core: &Core, repo_id: &str, job: &Job, plan: &ComposeP
     }
     .await;
     if let Err(error) = outcome {
-        roll_back(core, repo_id, &read, &branch_ref, &entry_id, index_before.as_deref()).await;
-        return Err(error);
+        return Err(match roll_back(core, repo_id, &read, &branch_ref, &entry_id, &done.created, index_before.as_deref()).await {
+            Rollback::LeftAlone => left_alone(error),
+            Rollback::Done => error,
+        });
     }
     Ok(ComposeResult { commits: done.commits, hooks: done.hooks })
 }
@@ -168,6 +174,7 @@ async fn commit_steps(
         if parent.as_deref() != Some(previous.as_str()) {
             return Err(moved_meanwhile());
         }
+        done.created.push(sha.clone());
         if committed.as_deref() != Some(tree.as_str()) {
             return Err(hook_changed(&done.hooks, "the content of a commit"));
         }
@@ -185,6 +192,19 @@ fn moved_meanwhile() -> CoreError {
         ErrorCode::StaleState,
         "The branch moved while the commits were being created. The commits were taken back; HEAD and the index are as before.",
     )
+}
+
+/// The branch holds commits this run did not make: it stays where it is, so does the index, and
+/// the backup refs keep what the run created. The hooks' output goes along.
+fn left_alone(error: CoreError) -> CoreError {
+    let left = CoreError::new(
+        ErrorCode::StaleState,
+        "The branch was moved by someone else while the commits were being created. Forkyard left the branch and the index where they are and kept its backup refs, so no commit is lost; check the history and reload.",
+    );
+    match error.git_output {
+        Some(output) => left.with_git_output(output),
+        None => left,
+    }
 }
 
 /// `hook_failed` for a hook that changed the index or files; the hooks' output goes along.
@@ -304,22 +324,61 @@ async fn record(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str
     Ok(())
 }
 
-/// After a failure: the branch back to the old HEAD (one transaction), the real index back if it
-/// changed, the backup refs removed. If something cannot be restored the backup refs stay, so
-/// nothing is lost.
-async fn roll_back(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str, entry_id: &str, index_before: Option<&str>) {
+enum Rollback {
+    /// The branch is back on the old HEAD (or never moved), as far as anything could be restored.
+    Done,
+    /// The branch holds commits this run did not make (or is gone): nothing was touched.
+    LeftAlone,
+}
+
+/// Whether the branch tip and its first parents down to the old HEAD are all commits of this run –
+/// only then may the branch be moved back without dropping someone else's work.
+async fn only_ours(core: &Core, repo_id: &str, read: &ComposeRead, created: &[String], now: &str) -> CoreResult<bool> {
+    let mut current = now.to_string();
+    for _ in 0..=created.len() {
+        if current == read.head {
+            return Ok(true);
+        }
+        if !created.contains(&current) {
+            return Ok(false);
+        }
+        let Some(parent) = undo::rev_parse(core, repo_id, &format!("{current}^1")).await? else { return Ok(false) };
+        current = parent;
+    }
+    Ok(false)
+}
+
+/// After a failure: if the branch holds only commits of this run, it goes back to the old HEAD
+/// (one transaction, compare-and-swap on the tip just checked), the real index back if it changed,
+/// the backup refs removed. If the branch was moved by someone else, nothing is touched and the
+/// backup refs stay; likewise if something cannot be restored, so nothing is lost.
+async fn roll_back(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str, entry_id: &str, created: &[String], index_before: Option<&str>) -> Rollback {
     let mut restored = true;
     match undo::rev_parse(core, repo_id, branch_ref).await {
-        Ok(Some(now)) if now != read.head => {
-            if let Err(e) = undo::apply_ref_moves(core, repo_id, &[RefMove::new(branch_ref, Some(&now), Some(&read.head))], ROLLBACK_MESSAGE).await {
-                log::error!("Compose: {branch_ref} not moved back to {}: {}", read.head, e.message);
-                restored = false;
+        Ok(Some(now)) if now == read.head => {}
+        Ok(Some(now)) => match only_ours(core, repo_id, read, created, &now).await {
+            Ok(true) => {
+                if let Err(e) = undo::apply_ref_moves(core, repo_id, &[RefMove::new(branch_ref, Some(&now), Some(&read.head))], ROLLBACK_MESSAGE).await {
+                    log::error!("Compose: {branch_ref} not moved back to {}: {}", read.head, e.message);
+                    restored = false;
+                }
             }
+            Ok(false) => {
+                log::warn!("Compose: {branch_ref} was moved by someone else (now {now}); left where it is, backup refs of {entry_id} kept");
+                return Rollback::LeftAlone;
+            }
+            Err(e) => {
+                log::error!("Compose: history of {branch_ref} not read after a failure: {}", e.message);
+                return Rollback::LeftAlone;
+            }
+        },
+        Ok(None) => {
+            log::warn!("Compose: {branch_ref} is gone after a failure; backup refs of {entry_id} kept");
+            return Rollback::LeftAlone;
         }
-        Ok(_) => {}
         Err(e) => {
-            log::error!("Compose: {branch_ref} not read after a failure: {}", e.message);
-            restored = false;
+            log::error!("Compose: {branch_ref} not read after a failure; left as it is: {}", e.message);
+            return Rollback::LeftAlone;
         }
     }
     if let Some(tree) = index_before {
@@ -336,4 +395,5 @@ async fn roll_back(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &
             log::warn!("Compose: backup refs of {entry_id} not removed: {}", e.message);
         }
     }
+    Rollback::Done
 }
