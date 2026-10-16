@@ -156,3 +156,10 @@ pub fn older_than(conn: &Connection, before: &str) -> CoreResult<Vec<(String, St
         .collect::<rusqlite::Result<Vec<(String, String)>>>()?;
     Ok(rows)
 }
+
+/// Every entry of a repository (all worktree paths, both stacks), oldest first.
+pub fn all_for_repo(conn: &Connection, repo_id: &str) -> CoreResult<Vec<UndoEntry>> {
+    let mut stmt = conn.prepare(&format!("select {COLUMNS} from undo_entries where repository_id = ?1 order by rowid"))?;
+    let rows = stmt.query_map([repo_id], from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows)
+}

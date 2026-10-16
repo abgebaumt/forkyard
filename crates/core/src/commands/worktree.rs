@@ -69,6 +69,29 @@ async fn read_raw(core: &Core, repo_id: &str) -> CoreResult<Vec<RawWorktree>> {
     Ok(parse_list(&out.stdout))
 }
 
+/// A worktree as the repository clean-up needs it – without reading its status.
+#[derive(Debug, Clone)]
+pub(crate) struct WorktreeEntry {
+    pub path: PathBuf,
+    pub is_main: bool,
+    /// The folder is missing (`git worktree prune` would drop the entry).
+    pub prunable: bool,
+}
+
+/// All worktrees from `git worktree list --porcelain -z`, the main one first.
+pub(crate) async fn entries(core: &Core, repo_id: &str) -> CoreResult<Vec<WorktreeEntry>> {
+    let raw = read_raw(core, repo_id).await?;
+    Ok(raw
+        .into_iter()
+        .enumerate()
+        .map(|(index, entry)| WorktreeEntry {
+            path: util::native_path(&util::bytes_to_path(&entry.path)),
+            is_main: index == 0,
+            prunable: entry.prunable.is_some(),
+        })
+        .collect())
+}
+
 /// Whether the working directory has changes or untracked files – exactly what makes Git
 /// refuse removal without `--force`.
 async fn has_changes(core: &Core, repo_id: &str, path: &Path) -> bool {

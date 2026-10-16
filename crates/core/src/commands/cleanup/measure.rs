@@ -1,12 +1,14 @@
 //! Reading what the repository occupies. Read-only; nothing here takes a lock.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use crate::app::Core;
+use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::ObjectStats;
+use crate::model::{CleanupLfsEstimate, ObjectStats};
+use crate::undo::BACKUP_REF_PREFIX;
 use crate::util;
 
 /// `git count-objects -v` (values in KiB) as bytes. Unknown or missing fields count as 0.
@@ -160,4 +162,146 @@ pub(super) async fn count_old_reflog(core: &Core, repo_id: &str, common: &Path, 
     }
     let common = common.to_path_buf();
     Ok(tokio::task::spawn_blocking(move || count_old_reflog_files(&common, cutoff, deadline)).await.unwrap_or(None))
+}
+
+/// An undo backup as the clean-up handles it.
+#[derive(Debug, Clone)]
+pub(super) struct Backup {
+    pub entry_id: String,
+    /// `undo_entries.created_at`, or for an orphaned group the newest committer date of its refs.
+    pub created_at: Option<String>,
+    pub orphaned: bool,
+    /// Its refs below `refs/forkyard/undo/<id>/`.
+    pub refs: Vec<String>,
+}
+
+/// Older than `cutoff` (ISO time in the format of `util::iso_days_ago`); an unknown age counts as older.
+pub(super) fn is_older(created_at: Option<&str>, cutoff: &str) -> bool {
+    created_at.map_or(true, |at| at < cutoff)
+}
+
+/// The undo entries of the repository and its listed worktrees.
+pub(super) fn undo_entries(core: &Core, ids: &[String]) -> CoreResult<Vec<UndoEntry>> {
+    core.db.with(|c| {
+        let mut all = Vec::new();
+        for id in ids {
+            all.extend(db::undo::all_for_repo(c, id)?);
+        }
+        Ok(all)
+    })
+}
+
+/// Undo backups of the repository and its listed worktrees (`ids`), plus orphaned groups of
+/// `refs/forkyard/undo/<id>/…` whose id has no row in any repository; oldest first. Groups whose
+/// id belongs to a repository outside `ids` are left out.
+pub(super) async fn undo_backups(core: &Core, repo_id: &str, ids: &[String]) -> CoreResult<Vec<Backup>> {
+    let out = core
+        .git_for(repo_id)?
+        .args(["for-each-ref", "--format=%(refname)%00%(committerdate:unix)", BACKUP_REF_PREFIX])
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
+    // id → (refs, newest commit time)
+    let mut groups: BTreeMap<String, (Vec<String>, Option<i64>)> = BTreeMap::new();
+    for line in out.stdout_lines() {
+        let mut fields = line.split(|&b| b == 0);
+        let name = util::decode_lossy(fields.next().unwrap_or_default());
+        let time = fields.next().and_then(|field| std::str::from_utf8(field).ok()).and_then(|field| field.trim().parse::<i64>().ok());
+        let Some(id) = name.strip_prefix(BACKUP_REF_PREFIX).and_then(|rest| rest.split('/').next()).filter(|id| !id.is_empty()) else {
+            continue;
+        };
+        let group = groups.entry(id.to_string()).or_default();
+        group.0.push(name.clone());
+        group.1 = group.1.max(time);
+    }
+    let mut backups = Vec::new();
+    let mut listed = HashSet::new();
+    for entry in undo_entries(core, ids)? {
+        let refs = groups.get(&entry.id).map(|group| group.0.clone()).unwrap_or_default();
+        listed.insert(entry.id.clone());
+        backups.push(Backup { entry_id: entry.id, created_at: Some(entry.created_at), orphaned: false, refs });
+    }
+    for (id, (refs, time)) in groups {
+        if listed.contains(&id) || core.db.with(|c| db::undo::get(c, &id))?.is_some() {
+            continue;
+        }
+        backups.push(Backup { entry_id: id, created_at: time.map(util::unix_to_iso), orphaned: true, refs });
+    }
+    backups.sort_by(|a, b| a.created_at.cmp(&b.created_at).then_with(|| a.entry_id.cmp(&b.entry_id)));
+    Ok(backups)
+}
+
+/// The LFS object folder: `lfs.storage` (relative paths below the common directory) or `<common>/lfs`, then `objects`.
+pub(super) async fn lfs_objects_dir(core: &Core, repo_id: &str, common: &Path) -> CoreResult<PathBuf> {
+    let out = core.git_for(repo_id)?.args(["config", "--get", "lfs.storage"]).read_only().no_log().run_raw().await?;
+    let configured = if out.success() { out.stdout_text().trim().to_string() } else { String::new() };
+    let storage = if configured.is_empty() {
+        common.join("lfs")
+    } else {
+        let path = PathBuf::from(&configured);
+        if path.is_absolute() {
+            path
+        } else {
+            common.join(path)
+        }
+    };
+    Ok(storage.join("objects"))
+}
+
+/// Bytes of all files below `dir` (0 if it is missing), off the async threads.
+pub(super) async fn dir_size(dir: PathBuf) -> u64 {
+    tokio::task::spawn_blocking(move || {
+        let mut files = Vec::new();
+        files_below(&dir, &mut files);
+        files.iter().filter_map(|file| std::fs::metadata(file).ok()).map(|meta| meta.len()).sum()
+    })
+    .await
+    .unwrap_or(0)
+}
+
+/// LFS cache size when Git LFS is installed and the repository uses it (patterns in
+/// `.gitattributes` or files in the cache); `None` otherwise – the dialog then hides LFS.
+pub(super) async fn lfs_cache(core: &Core, repo_id: &str, common: &Path) -> CoreResult<Option<u64>> {
+    let status = crate::commands::lfs::lfs_status(core, repo_id.to_string()).await?;
+    if !status.installed {
+        return Ok(None);
+    }
+    let bytes = dir_size(lfs_objects_dir(core, repo_id, common).await?).await;
+    if status.patterns.is_empty() && bytes == 0 {
+        return Ok(None);
+    }
+    Ok(Some(bytes))
+}
+
+/// Count and bytes from Git LFS's summary “2 files would be pruned (12 KB), done.” (decimal
+/// units, as Git LFS prints them). Without such a line nothing would be pruned.
+pub(super) fn parse_lfs_dry_run(text: &str) -> CleanupLfsEstimate {
+    const MARKER: &str = " would be pruned (";
+    for line in text.split(['\n', '\r']) {
+        let Some(at) = line.find(MARKER) else { continue };
+        let files = line[..at].split_whitespace().rev().nth(1).and_then(|count| count.parse().ok()).unwrap_or(0);
+        let size = line[at + MARKER.len()..].split(')').next().unwrap_or_default();
+        let mut parts = size.split_whitespace();
+        let number: f64 = parts.next().and_then(|value| value.parse().ok()).unwrap_or(0.0);
+        let factor = match parts.next().unwrap_or("B") {
+            "KB" => 1e3,
+            "MB" => 1e6,
+            "GB" => 1e9,
+            "TB" => 1e12,
+            "PB" => 1e15,
+            _ => 1.0,
+        };
+        return CleanupLfsEstimate { files, bytes: (number * factor).round() as u64 };
+    }
+    CleanupLfsEstimate { files: 0, bytes: 0 }
+}
+
+/// `git lfs prune --dry-run`: what the LFS step would free. `unsupported` without Git LFS.
+pub(super) async fn lfs_estimate(core: &Core, repo_id: &str) -> CoreResult<CleanupLfsEstimate> {
+    if !crate::commands::lfs::lfs_status(core, repo_id.to_string()).await?.installed {
+        return Err(crate::commands::lfs::not_installed());
+    }
+    let out = core.git_for(repo_id)?.args(["lfs", "prune", "--dry-run"]).read_only().run().await?;
+    Ok(parse_lfs_dry_run(&format!("{}\n{}", util::decode_lossy(&out.stdout), util::decode_lossy(&out.stderr))))
 }

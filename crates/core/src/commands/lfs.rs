@@ -48,7 +48,7 @@ async fn installed_version(core: &Core, repo_id: &str) -> CoreResult<Option<Stri
     Ok(parse_version(&out.stdout_text()).or_else(|| Some(out.stdout_text())).filter(|v| !v.is_empty()))
 }
 
-fn not_installed() -> CoreError {
+pub(crate) fn not_installed() -> CoreError {
     CoreError::unsupported("Git LFS is not installed. Install Git LFS (https://git-lfs.com); it becomes available without a restart.")
 }
 
