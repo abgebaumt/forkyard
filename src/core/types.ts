@@ -1537,6 +1537,8 @@ export interface CoreEvents {
   "submodules:updated": { repoId: Id; ok: boolean; paths: string[]; message: string | null };
   /** Coding agents of `repoId` changed (start, status, end, cleanup); `running`: agents running in all repositories. */
   "agents:changed": { repoId: Id; running: number };
+  /** The collision check of `repoId`'s coding agents started (`state: "checking"`) or has a new result. */
+  "agents:collisions": CollisionReport;
 }
 
 // ---------------------------------------------------------------------------
@@ -2065,4 +2067,62 @@ export interface AgentCleanupPreview {
   changedFiles: number;
   running: boolean;
   locked: boolean;
+}
+
+// --- Coding agents: collision warning (v1.2, package 2b) ---
+
+/** Lines of a file, 1-based and inclusive, in the version of the first agent of a collision. */
+export interface LineRange {
+  start: number;
+  end: number;
+}
+
+/** `conflict`: Git's merge of both states stops on conflicts; `overlap`: same files, clean merge. */
+export type CollisionKind = "conflict" | "overlap";
+
+export interface CollisionFile {
+  path: string;
+  conflict: boolean;
+  /** Only for conflicting text files. */
+  ranges: LineRange[];
+}
+
+/** Two agents – or an agent and the current tip of its base (`otherAgentId` null, `base` its name). `agentId` started first. */
+export interface AgentCollision {
+  id: string;
+  kind: CollisionKind;
+  agentId: Id;
+  otherAgentId: Id | null;
+  base: string | null;
+  files: CollisionFile[];
+}
+
+/** An agent the check left out (worktree or base not readable). */
+export interface CollisionSkip {
+  agentId: Id;
+  reason: string;
+}
+
+export type CollisionCheckState = "pending" | "checking" | "done" | "failed";
+
+export interface CollisionReport {
+  repoId: Id;
+  state: CollisionCheckState;
+  checkedAt: IsoTime | null;
+  error: string | null;
+  collisions: AgentCollision[];
+  skipped: CollisionSkip[];
+}
+
+export interface CollisionBlock {
+  range: LineRange;
+  ours: string;
+  theirs: string;
+}
+
+export interface CollisionPreview {
+  collisionId: string;
+  path: string;
+  blocks: CollisionBlock[];
+  truncated: boolean;
 }

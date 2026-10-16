@@ -98,6 +98,7 @@ export const qk = {
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   agents: (repoId: Id) => ["repo", repoId, "agents"] as const,
+  agentCollisions: (repoId: Id) => ["repo", repoId, "agentCollisions"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
   /** Clean-up dialog: read fresh on every opening, never invalidated by `repo:changed` while a run changes the numbers. */
@@ -405,6 +406,10 @@ export const useAgents = (repoId: Id | null | undefined) =>
 
 export const useAgentTemplates = () => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000 });
 
+/** The last collision report of the repository's agents; kept current by `agents:collisions`. */
+export const useAgentCollisions = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.agentCollisions(repoId ?? ""), queryFn: () => core.agentCollisions({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
 export const useSubmodules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.submodules(repoId ?? ""), queryFn: () => core.submoduleList({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
@@ -674,6 +679,10 @@ export function useCoreSync(activeRepoId: Id | null) {
       core.on("credential:request", (request) => store().enqueueCredential(request)),
       // Hook output and failures: one toast per incident, see notifications/hooks.ts.
       core.on("hook:output", (payload) => reportHookOutput(payload, queryClient.getQueryData<Settings>(qk.settings)?.notifyOnError)),
+      // Collision check of coding agents: the report replaces the cached one (no refetch needed).
+      core.on("agents:collisions", (report) => {
+        queryClient.setQueryData(qk.agentCollisions(report.repoId), report);
+      }),
       // Follow-up job after checkout, pull …: refresh the list; a failure is a warning toast.
       core.on("submodules:updated", (event) => {
         void queryClient.invalidateQueries({ queryKey: qk.submodules(event.repoId) });

@@ -332,6 +332,7 @@ if (isMain) {
       "app:close_requested": {},
       "submodules:updated": { repoId: "x", ok: true, paths: [], message: null },
       "agents:changed": { repoId: "x", running: 0 },
+      "agents:collisions": { repoId: "x", state: "pending", checkedAt: null, error: null, collisions: [], skipped: [] },
     };
     const emptyEvents = () => structuredClone(placeholders);
     const whatOf = (list, name) => list.filter((event) => event.name === name).flatMap((event) => event.payload.what ?? []);

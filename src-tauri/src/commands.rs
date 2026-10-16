@@ -837,6 +837,26 @@ pub async fn agent_run_tests(core: State<'_, Core>, agent_id: String, job_id: St
 }
 
 #[tauri::command]
+pub async fn agent_collisions(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
+    c::agents::agent_collisions(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn agent_collision_check(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
+    c::agents::agent_collision_check(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn agent_collision_preview(core: State<'_, Core>, repo_id: String, collision_id: String, path: String) -> R<CollisionPreview> {
+    c::agents::agent_collision_preview(&core, repo_id, collision_id, path).await
+}
+
+#[tauri::command]
+pub async fn agent_inform(core: State<'_, Core>, agent_id: String, text: String) -> R<()> {
+    c::agents::agent_inform(&core, agent_id, text).await
+}
+
+#[tauri::command]
 pub async fn submodule_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Submodule>> {
     c::submodule::submodule_list(&core, repo_id).await
 }

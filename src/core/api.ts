@@ -28,6 +28,8 @@ import type {
   BisectVerdict,
   BlameLine,
   CloneOptions,
+  CollisionPreview,
+  CollisionReport,
   CommitDetails,
   CommitDraft,
   CommitResult,
@@ -669,6 +671,14 @@ export interface CoreCommands {
   agentCleanup(input: { agentId: Id }): Promise<UndoState>;
   /** Runs the repository's test command in the agent's worktree (job). Errors: `not_allowed`, `cancelled`, `timeout`. */
   agentRunTests(input: { agentId: Id; jobId: string }): Promise<AgentTestResult>;
+  /** The last collision report of the repository's coding agents (`pending` before the first check; asking starts one). */
+  agentCollisions(input: R): Promise<CollisionReport>;
+  /** Checks the agents for collisions now; a failure is `state: "failed"` of the report. Errors: `repo_untrusted`. */
+  agentCollisionCheck(input: R): Promise<CollisionReport>;
+  /** Both sides of every conflict of `path` in the collision `collisionId` of the last report. Errors: `not_found`. */
+  agentCollisionPreview(input: R & { collisionId: string; path: string }): Promise<CollisionPreview>;
+  /** Types `text` (confirmed by the user) into the running agent's terminal. Errors: `not_allowed` (empty, > 4 KB, not running), `not_found`. */
+  agentInform(input: { agentId: Id; text: string }): Promise<void>;
 
   // --- Submodules -------------------------------------------------------------------
   submoduleList(input: R): Promise<Submodule[]>;
