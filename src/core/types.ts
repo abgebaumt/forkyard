@@ -982,6 +982,13 @@ export interface AiPriceOverride {
 /** Why a file is not sent (completely): secret/ignored = never, not even the name; generated/binary = name and size; budget = name and line counts. */
 export type AiOmitReason = "secret" | "ignored" | "generated" | "binary" | "budget";
 
+/** A file of the context that is not sent (completely); `size` in bytes, 0 if unknown. */
+export interface AiOmitted {
+  path: string;
+  reason: AiOmitReason;
+  size: number;
+}
+
 /** Global settings of the active profile. The core sets the defaults. */
 export interface Settings {
   theme: Theme;

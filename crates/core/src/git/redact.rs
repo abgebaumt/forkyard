@@ -52,6 +52,19 @@ fn host_token() -> Option<&'static Regex> {
     )
 }
 
+/// API keys of AI and cloud providers (Anthropic `sk-ant-`, OpenAI `sk-`/`sk-proj-`/`sk-svcacct-`,
+/// Google `AIza…`, AWS access key IDs `AKIA…`), wherever they appear.
+fn provider_key() -> Option<&'static Regex> {
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    compiled(&RE, r"\b(?:sk-ant-[A-Za-z0-9_\-]{16,}|sk-(?:proj-|svcacct-)?[A-Za-z0-9_\-]{20,}|AIza[0-9A-Za-z_\-]{35}|AKIA[0-9A-Z]{16})")
+}
+
+/// A private key in PEM form, also as added lines of a diff.
+fn private_key_block() -> Option<&'static Regex> {
+    static RE: OnceLock<Option<Regex>> = OnceLock::new();
+    compiled(&RE, r"-----BEGIN ([A-Z0-9 ]*)PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----")
+}
+
 /// A word that only introduces a question ("Password for 'https://…':") and is therefore
 /// not a value.
 fn is_plain_word(value: &str) -> bool {
@@ -142,6 +155,16 @@ pub fn redact(text: &str) -> String {
             out = changed;
         }
     }
+    if let Some(re) = private_key_block() {
+        if let std::borrow::Cow::Owned(changed) = re.replace_all(&out, "-----BEGIN ${1}PRIVATE KEY----- *** -----END ${1}PRIVATE KEY-----") {
+            out = changed;
+        }
+    }
+    if let Some(re) = provider_key() {
+        if let std::borrow::Cow::Owned(changed) = re.replace_all(&out, MASK) {
+            out = changed;
+        }
+    }
     out
 }
 
@@ -201,6 +224,30 @@ mod tests {
         // Words that merely start like a prefix stay.
         assert_eq!(redact("ghp_ is the prefix of classic tokens"), "ghp_ is the prefix of classic tokens");
         assert_eq!(redact("ATBB is the prefix of app passwords"), "ATBB is the prefix of app passwords");
+    }
+
+    /// AI and cloud keys and private keys never reach a log, an error or an AI prompt.
+    #[test]
+    fn ai_and_cloud_keys_and_private_keys_are_removed() {
+        for (line, secret) in [
+            ("const KEY = \"sk-ant-api03-AbCdEfGhIjKlMnOpQrSt\";", "sk-ant-api03-AbCdEfGhIjKlMnOpQrSt"),
+            ("OPENAI=sk-proj-AbCdEfGhIjKlMnOpQrStUvWx", "sk-proj-AbCdEfGhIjKlMnOpQrStUvWx"),
+            ("legacy sk-AbCdEfGhIjKlMnOpQrStUvWx12", "sk-AbCdEfGhIjKlMnOpQrStUvWx12"),
+            ("maps: AIzaSyA-1234567890abcdefghijklmnopqrstu", "AIzaSyA-1234567890abcdefghijklmnopqrstu"),
+            ("aws AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
+        ] {
+            let out = redact(line);
+            assert!(!out.contains(secret), "{line} → {out}");
+            assert!(out.contains("***"), "{out}");
+        }
+        let pem = "+-----BEGIN OPENSSH PRIVATE KEY-----\n+b3BlbnNzaC1rZXktdjEAAAAABG5vbmU\n+AAAAEbm9uZQAAAAAAAAABAAAAMwAAAAt\n+-----END OPENSSH PRIVATE KEY-----\n";
+        let out = redact(pem);
+        assert!(!out.contains("b3BlbnNzaC1rZXktdjEAAAAABG5vbmU") && !out.contains("AAAAEbm9uZQ"), "{out}");
+        assert!(out.contains("PRIVATE KEY"), "the reader still sees what was there: {out}");
+        assert!(redact("-----BEGIN PUBLIC KEY-----\nMIIBIjAN\n-----END PUBLIC KEY-----").contains("MIIBIjAN"), "public keys stay");
+        for harmless in ["task-runner-configuration-for-ci", "risk-assessment-for-the-quarter-2026", "sk-short"] {
+            assert_eq!(redact(harmless), harmless);
+        }
     }
 
     #[test]

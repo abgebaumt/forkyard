@@ -1330,6 +1330,16 @@ pub enum AiOmitReason {
     Budget,
 }
 
+/// A file of the context that is not sent (completely).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiOmitted {
+    pub path: String,
+    pub reason: AiOmitReason,
+    /// Bytes in the index (0 if unknown).
+    pub size: u64,
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

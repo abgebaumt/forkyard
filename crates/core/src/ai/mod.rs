@@ -8,7 +8,9 @@
 //!   a random token per request (`prompt`).
 //! - No streaming; every request is a cancellable job (`run`).
 
+pub mod context;
 pub mod ignore;
+pub mod prompt;
 pub mod schema;
 
 use std::collections::HashMap;
