@@ -4,6 +4,7 @@
 
 pub mod channel;
 pub mod cmdline;
+pub mod machine;
 pub mod names;
 pub mod templates;
 #[cfg(test)]
