@@ -20,6 +20,8 @@ import type {
   AgentTemplateInfo,
   AgentTestResult,
   CliStatus,
+  AgentReview,
+  AgentReviewSource,
   CrashReportSummary,
   ActivityPage,
   ActivityScope,
@@ -671,6 +673,12 @@ export interface CoreCommands {
   agentCleanup(input: { agentId: Id }): Promise<UndoState>;
   /** Runs the repository's test command in the agent's worktree (job). Errors: `not_allowed`, `cancelled`, `timeout`. */
   agentRunTests(input: { agentId: Id; jobId: string }): Promise<AgentTestResult>;
+  /**
+   * The two commits the review of an agent compares: `to` is its state (a snapshot of its worktree;
+   * the branch tip if the worktree is clean or `source: "branch"`), `from` the commit it forked from.
+   * Diffs and `rangeApply` use exactly these two SHAs. Errors: `not_found`, `not_allowed` (orphaned), `repo_untrusted`.
+   */
+  agentReview(input: { agentId: Id; source: AgentReviewSource }): Promise<AgentReview>;
   /** The last collision report of the repository's coding agents (`pending` before the first check; asking starts one). */
   agentCollisions(input: R): Promise<CollisionReport>;
   /** Checks the agents for collisions now; a failure is `state: "failed"` of the report. Errors: `repo_untrusted`. */

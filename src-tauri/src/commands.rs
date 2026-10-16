@@ -837,6 +837,11 @@ pub async fn agent_run_tests(core: State<'_, Core>, agent_id: String, job_id: St
 }
 
 #[tauri::command]
+pub async fn agent_review(core: State<'_, Core>, agent_id: String, source: AgentReviewSource) -> R<AgentReview> {
+    c::agents::agent_review(&core, agent_id, source).await
+}
+
+#[tauri::command]
 pub async fn agent_collisions(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
     c::agents::agent_collisions(&core, repo_id).await
 }

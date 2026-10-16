@@ -2126,3 +2126,32 @@ export interface CollisionPreview {
   blocks: CollisionBlock[];
   truncated: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Review of a coding agent's work (package 2c)
+// ---------------------------------------------------------------------------
+
+/** Which state of an agent the review compares with its base: its working state (commits plus uncommitted and new files) or only its branch. */
+export type AgentReviewSource = "snapshot" | "branch";
+
+/** The two commits the review of an agent compares, and what its actions need to know. */
+export interface AgentReview {
+  agentId: Id;
+  /** The repository the agent belongs to – where the takeover lands. */
+  repoId: Id;
+  /** Repository row of the agent's worktree. */
+  worktreeRepoId: Id | null;
+  /** Effective source: `snapshot` only if the worktree differs from its HEAD. */
+  source: AgentReviewSource;
+  /** The fork point. */
+  from: Sha;
+  /** The agent's state: snapshot commit or branch tip. */
+  to: Sha;
+  tip: Sha;
+  /** The base chosen at the start, e.g. "main". */
+  base: string;
+  /** Files of the worktree that differ from its HEAD. */
+  uncommittedFiles: number;
+  /** The agent's program is running. */
+  running: boolean;
+}

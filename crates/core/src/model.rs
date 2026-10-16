@@ -3653,3 +3653,75 @@ mod collision_model_tests {
         assert_eq!(serde_json::to_value(CollisionCheckState::Failed).unwrap(), json!("failed"));
     }
 }
+
+// ---------------------------------------------------------------------------
+// Review of a coding agent's work (package 2c)
+// ---------------------------------------------------------------------------
+
+/// Which state of a coding agent its review compares with the base.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentReviewSource {
+    /// The agent's working state: its commits plus uncommitted and new files (a snapshot commit).
+    #[default]
+    Snapshot,
+    /// Only what the agent committed on its branch.
+    Branch,
+}
+
+/// The two commits the review of an agent compares, and what the review's actions need to know.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentReview {
+    pub agent_id: String,
+    /// The repository the agent belongs to (where the takeover lands).
+    pub repo_id: String,
+    /// Repository row of the agent's worktree; `None` if its folder has none.
+    pub worktree_repo_id: Option<String>,
+    /// The effective source: `Snapshot` only if the worktree differs from its HEAD.
+    pub source: AgentReviewSource,
+    /// The fork point (`git merge-base` of the base and `to`).
+    pub from: String,
+    /// The agent's state: the snapshot commit or the branch tip.
+    pub to: String,
+    /// The branch tip.
+    pub tip: String,
+    /// The agent's base as it was chosen at the start (e.g. `main`).
+    pub base: String,
+    /// Files of the worktree that differ from its HEAD (uncommitted, including new ones).
+    pub uncommitted_files: u32,
+    /// The agent's program is running.
+    pub running: bool,
+}
+
+#[cfg(test)]
+mod agent_review_json_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn the_review_is_camel_case_and_its_source_snake_case() {
+        let review = AgentReview {
+            agent_id: "agent-liste".into(),
+            repo_id: "r1".into(),
+            worktree_repo_id: None,
+            source: AgentReviewSource::Snapshot,
+            from: "a".repeat(40),
+            to: "b".repeat(40),
+            tip: "c".repeat(40),
+            base: "main".into(),
+            uncommitted_files: 2,
+            running: true,
+        };
+        assert_eq!(
+            serde_json::to_value(&review).unwrap(),
+            json!({
+                "agentId": "agent-liste", "repoId": "r1", "worktreeRepoId": null, "source": "snapshot",
+                "from": "a".repeat(40), "to": "b".repeat(40), "tip": "c".repeat(40), "base": "main",
+                "uncommittedFiles": 2, "running": true,
+            })
+        );
+        assert_eq!(serde_json::from_value::<AgentReviewSource>(json!("branch")).unwrap(), AgentReviewSource::Branch);
+        assert_eq!(AgentReviewSource::default(), AgentReviewSource::Snapshot);
+    }
+}

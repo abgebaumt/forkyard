@@ -4,6 +4,7 @@
 
 pub mod channel;
 pub mod checks;
+pub mod review;
 pub mod cleanup;
 pub mod cmdline;
 pub mod machine;
@@ -91,6 +92,12 @@ pub async fn agent_suggest(core: &Core, repo_id: String, task: String, branch: O
 /// Runs the repository's test command in the agent's worktree now (a cancellable job).
 pub async fn agent_run_tests(core: &Core, agent_id: String, job_id: String) -> CoreResult<crate::model::AgentTestResult> {
     checks::run_tests(core, &agent_id, &job_id).await
+}
+
+/// The two commits the review of an agent compares (`to`: a snapshot of its worktree or its branch
+/// tip, `from`: the fork point). `not_found`, `not_allowed` (orphaned), `repo_untrusted`.
+pub async fn agent_review(core: &Core, agent_id: String, source: crate::model::AgentReviewSource) -> CoreResult<crate::model::AgentReview> {
+    review::review(core, &agent_id, source).await
 }
 
 /// After every status change of a session: when the agent is done and the repository has a test
