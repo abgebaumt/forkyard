@@ -169,3 +169,40 @@ fn an_api_key_in_the_environment_is_noticed_for_claude_code_only() {
     assert!(!env_key_present(ClaudeCode, |_| Some(OsString::new())), "an empty variable does not count");
     assert!(!env_key_present(ClaudeCode, |_| None));
 }
+use crate::testkit::fake_cli::claude_result;
+
+#[test]
+fn claude_code_answers_are_read_from_its_result() {
+    let ok = output(0, &claude_result(&json!({"summary": "Fix login", "body": null})).to_string(), "");
+    let answer = claude::parse_answer(&ok).unwrap();
+    assert_eq!(serde_json::from_str::<serde_json::Value>(&answer.text).unwrap(), json!({"summary": "Fix login", "body": null}));
+    assert_eq!(answer.usage, Usage { input_tokens: 3120, output_tokens: 9 }, "120 + 0 cache writes + 3000 cache reads");
+    assert_eq!(answer.cost_micros, Some(12_300), "total_cost_usd 0.0123");
+
+    // Schema in the prompt: the answer is the text in `result` (the core validates it).
+    let prompt_mode = output(0, r#"{"type":"result","subtype":"success","is_error":false,"result":"```json\n{\"summary\":\"Fix\",\"body\":null}\n```","usage":{"input_tokens":10,"output_tokens":4}}"#, "");
+    let answer = claude::parse_answer(&prompt_mode).unwrap();
+    assert_eq!(answer.text, "```json\n{\"summary\":\"Fix\",\"body\":null}\n```");
+    assert_eq!((answer.usage, answer.cost_micros), (Usage { input_tokens: 10, output_tokens: 4 }, None));
+
+    let signed_out = claude::parse_answer(&output(1, r#"{"type":"result","subtype":"success","is_error":true,"result":"Not logged in · Please run /login"}"#, "")).unwrap_err();
+    assert_eq!(signed_out.code, ErrorCode::AiNotLoggedIn);
+    assert!(signed_out.message.contains("claude auth login"), "{}", signed_out.message);
+    let credit = claude::parse_answer(&output(1, r#"{"type":"result","subtype":"success","is_error":true,"result":"Credit balance is too low"}"#, "")).unwrap_err();
+    assert_eq!(credit.code, ErrorCode::AiProviderUnavailable);
+    assert!(credit.message.contains("Credit balance is too low"), "{}", credit.message);
+    let crashed = claude::parse_answer(&output(3, "", "Error: request failed\nAuthorization: Bearer ghp_abcdefghijklmnopqrstuvwxyz0123")).unwrap_err();
+    assert_eq!(crashed.code, ErrorCode::AiProviderUnavailable);
+    assert!(crashed.message.contains("exit code 3"), "{}", crashed.message);
+    let detail = crashed.git_output.clone().unwrap_or_default();
+    assert!(detail.contains("request failed") && !detail.contains("ghp_abcdefghijklmnopqrstuvwxyz0123"), "stderr tail, redacted: {detail}");
+    assert_eq!(claude::parse_answer(&output(0, "kein JSON", "")).unwrap_err().code, ErrorCode::AiInvalidAnswer);
+    assert_eq!(claude::parse_answer(&output(1, "", "Error: Invalid API key · Please run /login")).unwrap_err().code, ErrorCode::AiNotLoggedIn);
+}
+
+#[test]
+fn only_claude_code_suggests_model_aliases() {
+    let ids: Vec<String> = model_suggestions(ClaudeCode).into_iter().map(|model| model.id).collect();
+    assert_eq!(ids, ["sonnet", "opus", "haiku"]);
+    assert!(model_suggestions(Codex).is_empty() && model_suggestions(Opencode).is_empty(), "free text, empty = the tool's default");
+}

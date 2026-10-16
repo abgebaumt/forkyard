@@ -21,11 +21,15 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use parking_lot::Mutex;
+use serde_json::Value;
 
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
 use crate::app::Core;
+use crate::db;
 use crate::error::{CoreError, CoreResult};
+use crate::git::redact;
 use crate::jobs::CancelToken;
-use crate::model::{AiLoginState, AiProviderKind};
+use crate::model::{AiLoginState, AiModelInfo, AiProviderKind, Settings};
 use crate::proc::{Proc, ProcOutput};
 use crate::tools::locate;
 use crate::util;
@@ -301,5 +305,244 @@ async fn probe(core: &Core, program: &Path, args: &[&str], limit: Duration) -> C
     proc.run(&CancelToken::new()).await
 }
 
+// --- Where the program is ---------------------------------------------------------------------
+
+/// `app_settings` key of the programs the search found, per provider (`{"claude_code": "/…/claude"}`).
+pub const FOUND_KEY: &str = "ai.cliFound";
+
+fn not_a_tool(kind: AiProviderKind) -> CoreError {
+    CoreError::not_allowed(format!("{} is not a command-line tool.", kind.label()))
+}
+
+/// The own path from Settings › AI.
+pub fn configured_path(settings: &Settings, kind: AiProviderKind) -> Option<PathBuf> {
+    settings.ai_cli_paths.get(kind).map(PathBuf::from)
+}
+
+fn found_map(conn: &rusqlite::Connection) -> CoreResult<serde_json::Map<String, Value>> {
+    Ok(db::app_settings::get_all(conn)?.into_iter().find(|(key, _)| key == FOUND_KEY).and_then(|(_, value)| value.as_object().cloned()).unwrap_or_default())
+}
+
+/// The program the last search found (it may be gone since).
+pub fn remembered(core: &Core, kind: AiProviderKind) -> Option<PathBuf> {
+    let map = core.db.with(found_map).ok()?;
+    map.get(kind.as_str()).and_then(Value::as_str).map(PathBuf::from)
+}
+
+pub fn remember(core: &Core, kind: AiProviderKind, path: &Path) -> CoreResult<()> {
+    let text = path.to_string_lossy().into_owned();
+    core.db.with(|conn| {
+        let mut map = found_map(conn)?;
+        if map.get(kind.as_str()).and_then(Value::as_str) == Some(text.as_str()) {
+            return Ok(());
+        }
+        map.insert(kind.as_str().to_string(), Value::String(text.clone()));
+        db::app_settings::set(conn, FOUND_KEY, &Value::Object(map))
+    })
+}
+
+/// The program as far as it is known without starting anything: the own path, else the remembered
+/// one – if the file exists.
+pub fn known_path(core: &Core, settings: &Settings, kind: AiProviderKind) -> Option<PathBuf> {
+    if let Some(own) = configured_path(settings, kind) {
+        return own.is_file().then_some(own);
+    }
+    remembered(core, kind).filter(|path| path.is_file())
+}
+
+/// Searches the tool: only in the search folder if one is set, else PATH → install folders → login shell.
+pub async fn locate_cli(core: &Core, kind: AiProviderKind, configured: Option<&Path>) -> Option<locate::ToolInfo> {
+    let name = kind.tool_name()?;
+    match search_dir(core) {
+        Some(dir) => {
+            let spec = locate::SearchSpec { configured: configured.map(Path::to_path_buf), path_var: Some(dir.into_os_string()), known: Vec::new(), login_path: None };
+            locate::locate_in(core, name, &spec).await
+        }
+        None => locate::locate(core, name, configured).await,
+    }
+}
+
+/// The program to start: the own path (it must exist), else the remembered one if it still exists,
+/// else a new search (remembered from then on).
+pub async fn program_for(core: &Core, kind: AiProviderKind, settings: &Settings) -> CoreResult<PathBuf> {
+    if !kind.is_cli() {
+        return Err(not_a_tool(kind));
+    }
+    if let Some(own) = configured_path(settings, kind) {
+        return if own.is_file() {
+            Ok(own)
+        } else {
+            Err(CoreError::ai_not_configured(format!("The program set for {} in Settings › AI does not exist: {}", kind.label(), util::display_path(&own))))
+        };
+    }
+    if let Some(path) = remembered(core, kind).filter(|path| path.is_file()) {
+        return Ok(path);
+    }
+    let found = locate_cli(core, kind, None)
+        .await
+        .ok_or_else(|| CoreError::ai_not_configured(format!("{} was not found on this computer. Install it, or set its path in Settings › AI.", kind.label())))?;
+    remember(core, kind, &found.path)?;
+    Ok(found.path)
+}
+
+// --- Failures ---------------------------------------------------------------------------------
+
+/// Phrases with which the tools say that they are not signed in.
+const SIGNED_OUT: [&str; 9] = ["not logged in", "not signed in", "please run /login", "codex login", "providers login", "unauthorized", "invalid api key", "authentication", "providerautherror"];
+
+pub fn looks_signed_out(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    SIGNED_OUT.iter().any(|phrase| lower.contains(phrase))
+}
+
+/// Spec Fehlerbehandlung: „Claude Code ist nicht angemeldet – im Terminal … anmelden“.
+pub fn not_logged_in(kind: AiProviderKind) -> CoreError {
+    CoreError::ai_not_logged_in(format!("{} is not signed in. Sign in in the terminal: {}", kind.label(), login_command(kind)))
+}
+
+/// A tool's own error text for a message: redacted, at most 300 characters.
+fn reported(text: &str) -> String {
+    util::truncate_str(&redact::redact(text.trim()), 300)
+}
+
+/// The last 1 000 characters of stderr, redacted – for `gitOutput`; stdout never goes into an error.
+fn stderr_tail(out: &ProcOutput) -> String {
+    let text = redact::redact(String::from_utf8_lossy(&out.stderr).trim());
+    let start = text.char_indices().rev().nth(999).map(|(at, _)| at).unwrap_or(0);
+    text[start..].to_string()
+}
+
+/// A non-zero exit without a readable answer.
+pub fn exit_failure(kind: AiProviderKind, out: &ProcOutput) -> CoreError {
+    if looks_signed_out(&String::from_utf8_lossy(&out.stderr)) || looks_signed_out(&String::from_utf8_lossy(&out.stdout)) {
+        return not_logged_in(kind);
+    }
+    let how = match out.code {
+        Some(code) => format!("ended with exit code {code}"),
+        None => "was ended by a signal".to_string(),
+    };
+    CoreError::ai_provider_unavailable(format!("{} {how}.", kind.label())).with_git_output(stderr_tail(out))
+}
+
+fn count(value: &Value, pointer: &str) -> u64 {
+    value.pointer(pointer).and_then(Value::as_u64).unwrap_or(0)
+}
+
+/// What a tool answered: the answer text (JSON, validated by `ai::run`), tokens, reported cost.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CliAnswer {
+    pub text: String,
+    pub usage: Usage,
+    pub cost_micros: Option<i64>,
+}
+
+/// Model choices offered in the settings; free text otherwise, empty = the tool's default.
+pub fn model_suggestions(kind: AiProviderKind) -> Vec<AiModelInfo> {
+    match kind {
+        AiProviderKind::ClaudeCode => ["sonnet", "opus", "haiku"].iter().map(|id| AiModelInfo { id: id.to_string(), label: id.to_string(), context_tokens: None }).collect(),
+        _ => Vec::new(),
+    }
+}
+
+// --- The provider -----------------------------------------------------------------------------
+
+pub struct CliProvider {
+    kind: AiProviderKind,
+    program: PathBuf,
+    model: Option<String>,
+    caps: CliCaps,
+    context_tokens: u64,
+    path_env: Option<OsString>,
+    /// Cost the tool reported for the requests of this instance (micro-USD).
+    cost_micros: Mutex<Option<i64>>,
+}
+
+impl CliProvider {
+    pub fn program(&self) -> &Path {
+        &self.program
+    }
+
+    /// The schema goes as a switch (Claude Code: the JSON text, Codex: a file) – not for a batch
+    /// shim of Claude Code, whose command line can't carry `"` (Paket 0, `batch_command_line`).
+    pub fn schema_as_switch(&self) -> bool {
+        self.caps.schema && !(self.kind == AiProviderKind::ClaudeCode && crate::proc::is_batch(&self.program))
+    }
+
+    async fn call(&self, core: &Core, request: &CompletionRequest, cancel: &CancelToken) -> CoreResult<CliAnswer> {
+        let scratch = ScratchDir::new(core)?;
+        let switch = self.schema_as_switch();
+        let args = match self.kind {
+            AiProviderKind::ClaudeCode => claude::args(switch.then(|| request.schema.to_string()).as_deref(), self.model.as_deref()),
+            other => return Err(CoreError::not_built(other.label())),
+        };
+        let stdin = stdin_text(&request.system, &request.user, (!switch).then_some(&request.schema));
+        let mut proc = Proc::new(&self.program).args(&args).cwd(scratch.path()).stdin(stdin.into_bytes()).timeout(cli_timeout(request.timeout));
+        if let Some(path) = &self.path_env {
+            proc = proc.env("PATH", path);
+        }
+        let out = proc.run(cancel).await?;
+        claude::parse_answer(&out)
+    }
+}
+
+impl Provider for CliProvider {
+    fn id(&self) -> AiProviderKind {
+        self.kind
+    }
+
+    fn label(&self) -> String {
+        self.kind.label().to_string()
+    }
+
+    fn capabilities(&self) -> ProviderCaps {
+        ProviderCaps { structured_output: self.schema_as_switch(), embeddings: false, max_context_tokens: Some(self.context_tokens), pricing: None }
+    }
+
+    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+        Box::pin(async move {
+            let answer = self.call(core, request, cancel).await?;
+            if let Some(micros) = answer.cost_micros {
+                let mut cost = self.cost_micros.lock();
+                *cost = Some(cost.unwrap_or(0) + micros);
+            }
+            Ok(Completion { text: answer.text, finish: Finish::Complete, usage: answer.usage })
+        })
+    }
+
+    fn models<'a>(&'a self, _core: &'a Core, _cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>> {
+        Box::pin(async move { Ok(model_suggestions(self.kind)) })
+    }
+
+    fn take_reported_cost_micros(&self) -> Option<i64> {
+        self.cost_micros.lock().take()
+    }
+}
+
+/// Finds the program, checks the model name and the safety switches – before anything is sent.
+async fn prepare(core: &Core, kind: AiProviderKind, settings: &Settings) -> CoreResult<CliProvider> {
+    if !kind.is_cli() {
+        return Err(not_a_tool(kind));
+    }
+    let model = settings.ai_model.clone();
+    if let Some(model) = model.as_deref() {
+        check_model(model)?;
+    }
+    let program = program_for(core, kind, settings).await?;
+    let version = locate::version_of(core, &program).await;
+    let caps = caps(core, kind, &program, version.as_deref(), PROBE_TIMEOUT).await;
+    if let Some(problem) = caps.problem(kind) {
+        return Err(CoreError::ai_unsupported_version(problem));
+    }
+    if model.is_some() && !caps.model {
+        return Err(CoreError::ai_unsupported_version(format!("This {0} version can’t choose a model. Clear the model in Settings › AI or update {0}.", kind.label())));
+    }
+    let context_tokens = crate::ai::providers::context_tokens(core, kind, model.as_deref().unwrap_or_default());
+    Ok(CliProvider { kind, program, model, caps, context_tokens, path_env: child_path(core).await, cost_micros: Mutex::new(None) })
+}
+
+/// The provider for `ai::providers::active` (the command-line tools are not built by `providers::build`).
+pub async fn provider(core: &Core, kind: AiProviderKind, settings: &Settings) -> CoreResult<Box<dyn Provider>> {
+    Ok(Box::new(prepare(core, kind, settings).await?))
+}
 #[cfg(test)]
 mod tests;

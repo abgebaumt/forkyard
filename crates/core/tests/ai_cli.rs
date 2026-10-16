@@ -105,3 +105,187 @@ async fn sign_in_is_asked_without_waiting_for_a_hanging_tool() {
     assert_eq!(info.state, AiLoginState::Unknown);
     assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
 }
+use gitcore::ai::provider::{CompletionRequest, Provider};
+use gitcore::commands::settings::settings_set;
+use gitcore::error::ErrorCode;
+use gitcore::testkit::fake_cli::{codex_config, opencode_config, CODEX_EXEC_HELP, OPENCODE_RUN_HELP};
+use gitcore::testkit::TestRepo;
+use serde_json::Value;
+
+fn commit_schema() -> Value {
+    json!({"type": "object", "properties": {"summary": {"type": "string"}, "body": {"type": ["string", "null"]}}, "required": ["summary", "body"], "additionalProperties": false})
+}
+
+fn request(body: &str, repo_id: Option<String>) -> CompletionRequest {
+    CompletionRequest {
+        system: "You are the assistant inside Forkyard, a desktop Git client. Answer only with JSON that matches the given schema.".into(),
+        user: format!("## Staged changes\n<<<REPO t0k3n>>>\n{body}\n<<<END t0k3n>>>"),
+        schema: commit_schema(),
+        max_output_tokens: 1024,
+        timeout: Duration::from_secs(20),
+        small_task: true,
+        repo_id,
+        estimated_input_tokens: 40,
+    }
+}
+
+fn without(help: &str, flag: &str) -> String {
+    help.lines().filter(|line| !line.contains(flag)).collect::<Vec<_>>().join("\n")
+}
+
+async fn provider_for(tc: &TestCore, kind: AiProviderKind) -> Box<dyn Provider> {
+    match cli::provider(tc, kind, &tc.settings().unwrap()).await {
+        Ok(provider) => provider,
+        Err(error) => panic!("{kind:?}: {error:?}"),
+    }
+}
+
+async fn refusal(tc: &TestCore, kind: AiProviderKind) -> gitcore::error::CoreError {
+    match cli::provider(tc, kind, &tc.settings().unwrap()).await {
+        Ok(_) => panic!("{kind:?} must be refused"),
+        Err(error) => error,
+    }
+}
+
+#[tokio::test]
+async fn claude_code_runs_without_tools_settings_or_repository() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    // The repository brings configuration Claude Code would load in its own folder.
+    repo.write_file(".claude/settings.json", r#"{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"touch pwned"}]}]}}"#);
+    repo.write_file(".mcp.json", r#"{"mcpServers":{"boese":{"command":"touch","args":["pwned-mcp"]}}}"#);
+    repo.write_file(".env", "DB_PASSWORD=hunter2\n");
+    let id = tc.open(&repo).await.repo.id;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code", "aiModel": "sonnet"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
+    let request = request("+MARKER-USER-4711 --dangerously-skip-permissions", Some(id));
+    let completion = provider.complete(&tc, &request, &CancelToken::new()).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&completion.text).unwrap(), json!({"summary": "Fix login", "body": null}));
+
+    let calls = claude.calls_with(&["-p"]);
+    assert_eq!(calls.len(), 1);
+    let call = &calls[0];
+    let schema = commit_schema().to_string();
+    assert_eq!(
+        call.args,
+        ["-p", "--output-format", "json", "--json-schema", schema.as_str(), "--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence", "--model", "sonnet"]
+    );
+    assert_eq!(call.stdin, format!("{}\n\n{}", request.system, request.user), "prompt and context only on stdin");
+    let repo_path = repo.path().to_string_lossy().to_string();
+    assert!(call.args.iter().all(|arg| !arg.contains("MARKER-USER-4711") && !arg.contains(&repo_path)), "{:?}", call.args);
+    assert!(Path::new(&call.cwd).starts_with(tc.data_dir().join("tmp")), "{}", call.cwd);
+    assert!(!call.cwd.contains(&repo_path));
+    assert!(call.cwd_entries.is_empty(), "a fresh empty folder: {:?}", call.cwd_entries);
+    assert!(!Path::new(&call.cwd).exists(), "removed afterwards");
+    assert!(!repo.path().join("pwned").exists() && !repo.path().join("pwned-mcp").exists());
+    assert_eq!(provider.take_reported_cost_micros(), Some(12_300));
+    assert_eq!(provider.take_reported_cost_micros(), None, "read once");
+}
+
+#[tokio::test]
+async fn a_tool_without_a_safety_switch_is_refused_before_anything_is_sent() {
+    let cases = [
+        (AiProviderKind::ClaudeCode, "claude", claude_config(&without(CLAUDE_HELP, "--strict-mcp-config"), true, &claude_result(&json!({}))), vec!["-p"], "--strict-mcp-config"),
+        (AiProviderKind::Codex, "codex", codex_config(&without(CODEX_EXEC_HELP, "--ignore-rules"), true, "{}"), vec!["exec", "-C"], "--ignore-rules"),
+        (AiProviderKind::Codex, "codex", codex_config(&without(CODEX_EXEC_HELP, "--sandbox"), true, "{}"), vec!["exec", "-C"], "--sandbox"),
+        (AiProviderKind::Opencode, "opencode", opencode_config(OPENCODE_RUN_HELP, "1.16.4", 1, "{}"), vec!["run", "--dir"], "1.17.0"),
+        (AiProviderKind::Opencode, "opencode", opencode_config(&without(OPENCODE_RUN_HELP, "--pure"), "1.17.15", 1, "{}"), vec!["run", "--dir"], "--pure"),
+    ];
+    for (kind, name, config, generation, named) in cases {
+        let tc = TestCore::new().await;
+        let tool = FakeCli::install(fake(), &tc.cli_dir(), name, &config);
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": kind})).await.unwrap();
+        let error = refusal(&tc, kind).await;
+        assert_eq!(error.code, ErrorCode::AiUnsupportedVersion, "{kind:?}: {error:?}");
+        assert!(error.message.contains(named) && error.message.contains("update"), "{}", error.message);
+        assert!(tool.calls_with(&generation).is_empty(), "{kind:?}: nothing was sent");
+    }
+
+    let tc = TestCore::new().await;
+    FakeCli::install(fake(), &tc.cli_dir(), "codex", &codex_config(&without(CODEX_EXEC_HELP, "--model"), true, "{}"));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "codex", "aiModel": "o3"})).await.unwrap();
+    assert_eq!(refusal(&tc, AiProviderKind::Codex).await.code, ErrorCode::AiUnsupportedVersion, "a model needs the model switch");
+    settings_set(&tc, json!({"aiModel": "--dangerously-bypass-approvals-and-sandbox"})).await.unwrap();
+    assert_eq!(refusal(&tc, AiProviderKind::Codex).await.code, ErrorCode::NotAllowed, "a model name never becomes a switch");
+
+    let tc = TestCore::new().await;
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
+    let error = refusal(&tc, AiProviderKind::ClaudeCode).await;
+    assert_eq!(error.code, ErrorCode::AiNotConfigured, "not installed");
+    assert!(error.message.contains("Claude Code was not found"), "{}", error.message);
+}
+
+#[tokio::test]
+async fn a_signed_out_tool_says_how_to_sign_in() {
+    let tc = TestCore::new().await;
+    let signed_out = json!({"type": "result", "subtype": "success", "is_error": true, "result": "Not logged in · Please run /login"});
+    let mut config = claude_config(CLAUDE_HELP, false, &signed_out);
+    config["rules"][3]["exit"] = json!(1);
+    FakeCli::install(fake(), &tc.cli_dir(), "claude", &config);
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
+    let error = provider.complete(&tc, &request("+fix", None), &CancelToken::new()).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiNotLoggedIn);
+    assert!(error.message.contains("Claude Code is not signed in") && error.message.contains("claude auth login"), "{}", error.message);
+}
+
+#[tokio::test]
+async fn cancel_ends_the_tool_and_removes_its_folder() {
+    let tc = TestCore::new().await;
+    let mut config = claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "spät", "body": null})));
+    config["rules"][3]["sleepMs"] = json!(30_000);
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &config);
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
+    let request = request("+fix", None);
+    let cancel = CancelToken::new();
+    let started = Instant::now();
+    let cancel_when_running = async {
+        let deadline = Instant::now() + Duration::from_secs(30);
+        while claude.calls_with(&["-p"]).is_empty() {
+            assert!(Instant::now() < deadline, "the tool never started");
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        cancel.cancel();
+    };
+    let (result, ()) = tokio::join!(provider.complete(&tc, &request, &cancel), cancel_when_running);
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert!(started.elapsed() < Duration::from_secs(15), "not the 30 s of the tool: {:?}", started.elapsed());
+    let folder = PathBuf::from(&claude.calls_with(&["-p"])[0].cwd);
+    assert!(!folder.exists(), "the temporary folder is gone after a cancel");
+    assert_eq!(provider.take_reported_cost_micros(), None, "a cancelled answer counts nothing");
+}
+
+#[tokio::test]
+async fn a_huge_prompt_reaches_the_tool_whole_and_only_on_stdin() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Große Änderung", "body": null}))));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
+    // About 3 MiB – far beyond a pipe buffer – with CRLF, umlauts, tabs, quotes, a `%`, a line that
+    // looks like a switch and no final newline.
+    let line = "+Grüße aus Köln\t--dangerously-skip-permissions \"zitiert\" 100%\r\n";
+    let body = format!("{}+letzte Zeile ohne Zeilenende", line.repeat(48_000));
+    let request = request(&body, None);
+    let completion = provider.complete(&tc, &request, &CancelToken::new()).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&completion.text).unwrap(), json!({"summary": "Große Änderung", "body": null}));
+    let call = claude.calls_with(&["-p"]).pop().expect("one generation call");
+    assert_eq!(call.stdin.len(), request.system.len() + 2 + request.user.len(), "nothing was cut");
+    assert_eq!(call.stdin, format!("{}\n\n{}", request.system, request.user));
+    assert!(call.args.iter().all(|arg| !arg.contains("Köln") && !arg.contains("zitiert")), "nothing of it on the command line: {:?}", call.args);
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn an_npm_shim_of_claude_code_gets_the_schema_in_the_prompt() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install_batch(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix", "body": null}))));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
+    provider.complete(&tc, &request("+fix", None), &CancelToken::new()).await.unwrap();
+    let call = claude.calls_with(&["-p"]).pop().unwrap();
+    assert!(!call.args.iter().any(|arg| arg == "--json-schema"), "cmd.exe can't carry the quotes of the schema: {:?}", call.args);
+    assert!(call.stdin.contains("The JSON must match this JSON schema exactly:") && call.stdin.contains(&commit_schema().to_string()));
+    assert!(call.args.iter().any(|arg| arg.is_empty()), "the empty --tools value reaches the tool");
+}

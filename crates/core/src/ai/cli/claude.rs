@@ -54,3 +54,31 @@ pub fn args(schema: Option<&str>, model: Option<&str>) -> Vec<std::ffi::OsString
     }
     args
 }
+
+/// The JSON line of `--output-format json`: `structured_output` (schema as switch) or `result`
+/// (schema in the prompt), tokens from `usage`, the cost from `total_cost_usd`.
+pub fn parse_answer(out: &ProcOutput) -> crate::error::CoreResult<super::CliAnswer> {
+    use crate::error::CoreError;
+    let kind = crate::model::AiProviderKind::ClaudeCode;
+    let Ok(value) = serde_json::from_slice::<Value>(&out.stdout) else {
+        return Err(if out.success() { CoreError::ai_invalid_answer("Claude Code sent no JSON result") } else { super::exit_failure(kind, out) });
+    };
+    let result = value.get("result").and_then(Value::as_str).unwrap_or_default();
+    let failed = value.get("is_error").and_then(Value::as_bool).unwrap_or(false) || value.get("subtype").and_then(Value::as_str).is_some_and(|subtype| subtype != "success");
+    if failed {
+        if super::looks_signed_out(result) {
+            return Err(super::not_logged_in(kind));
+        }
+        return Err(CoreError::ai_provider_unavailable(format!("Claude Code reported an error: {}", super::reported(result))));
+    }
+    let usage = crate::ai::provider::Usage {
+        input_tokens: super::count(&value, "/usage/input_tokens") + super::count(&value, "/usage/cache_creation_input_tokens") + super::count(&value, "/usage/cache_read_input_tokens"),
+        output_tokens: super::count(&value, "/usage/output_tokens"),
+    };
+    let cost_micros = value.get("total_cost_usd").and_then(Value::as_f64).map(crate::ai::pricing::micros);
+    let text = match value.get("structured_output") {
+        Some(structured) if !structured.is_null() => structured.to_string(),
+        _ => result.to_string(),
+    };
+    Ok(super::CliAnswer { text, usage, cost_micros })
+}

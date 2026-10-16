@@ -75,4 +75,10 @@ pub trait Provider: Send + Sync {
         let _ = (core, texts, cancel);
         Box::pin(async { Err(CoreError::unsupported("This provider offers no embeddings in this version.")) })
     }
+    /// Cost the provider reported itself for the requests made through this instance (the
+    /// command-line tools, spec 1.5), in micro-USD; read once after the request. `None` = nothing
+    /// reported – API providers are priced by `ai::pricing`.
+    fn take_reported_cost_micros(&self) -> Option<i64> {
+        None
+    }
 }
