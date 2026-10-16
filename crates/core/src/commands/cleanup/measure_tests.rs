@@ -59,3 +59,69 @@ fn free_space_of_a_missing_folder_is_unknown() {
     let dir = crate::testkit::temp_folder();
     assert_eq!(disk::free_bytes(&dir.path().join("gibt es nicht")), None);
 }
+
+#[test]
+fn reflog_lines_and_selectors_carry_their_time() {
+    let line = "0000000000000000000000000000000000000000 1111111111111111111111111111111111111111 Mats Öztürk <mats@example.com> 1767225600 +0545\tcommit (initial): Erster";
+    assert_eq!(measure::reflog_time(line.as_bytes()), Some(1_767_225_600));
+    // A '>' in the name and digits in the message do not confuse the time.
+    assert_eq!(measure::reflog_time(b"a b Bob <bob> Bobsen <b@x> 1700000000 -0700\tmerge 1600000000"), Some(1_700_000_000));
+    assert_eq!(measure::reflog_time(b""), None);
+    assert_eq!(measure::reflog_time(b"kaputt ohne Zeit"), None);
+    assert_eq!(measure::selector_time(b"refs/heads/feature/x@{1767225600}"), Some(1_767_225_600));
+    assert_eq!(measure::selector_time(b"main"), None);
+}
+
+/// Commits around the 90-day line in five time zones, plus a worktree with an old commit. Each
+/// commit writes one entry to HEAD's and one to its branch's reflog (Git's documented behaviour).
+#[tokio::test]
+async fn old_reflog_entries_are_counted_in_every_worktree() {
+    let tc = crate::testkit::TestCore::new().await;
+    let repo = crate::testkit::TestRepo::new();
+    let now = now();
+    for (days, zone) in [(400, "+0200"), (200, "-0700"), (91, "+0545"), (89, "+0000"), (1, "+1300")] {
+        git_dated(&repo, repo.path(), now - days * DAY, zone, &["commit", "-q", "--allow-empty", "-m", &format!("vor {days} Tagen")]);
+    }
+    let worktree = repo.temp_dir().join("zweiter Baum");
+    git_dated(&repo, repo.path(), now - DAY, "+0100", &["worktree", "add", "-q", "-b", "wt", &worktree.to_string_lossy()]);
+    git_dated(&repo, &worktree, now - 300 * DAY, "-0300", &["commit", "-q", "--allow-empty", "-m", "alt im Worktree"]);
+    let id = tc.open(&repo).await.repo.id;
+    let common = measure::common_dir(&tc, &id).await.unwrap();
+    // 3 old commits on main × (HEAD + main) + 1 old commit in the worktree × (its HEAD + wt).
+    assert_eq!(measure::count_old_reflog(&tc, &id, &common, measure::REFLOG_BUDGET).await.unwrap(), Some(8));
+}
+
+#[tokio::test]
+async fn reflog_count_gives_up_after_its_time_budget() {
+    let (tc, _repo, id) = setup().await;
+    let common = measure::common_dir(&tc, &id).await.unwrap();
+    assert_eq!(measure::count_old_reflog(&tc, &id, &common, std::time::Duration::ZERO).await.unwrap(), None);
+}
+
+#[tokio::test]
+async fn old_reflog_entries_are_counted_with_reftable() {
+    let tc = crate::testkit::TestCore::new().await;
+    let dir = crate::testkit::temp_folder();
+    let global = dir.path().join("gitconfig");
+    std::fs::write(&global, "[user]\n\tname = Test Person\n\temail = test@example.com\n").unwrap();
+    let root = dir.path().join("Reftable Repo");
+    let init = std::process::Command::new("git")
+        .args(["init", "-q", "-b", "main", "--ref-format=reftable"])
+        .arg(&root)
+        .envs(crate::testkit::git_isolation_env(&global))
+        .output()
+        .unwrap();
+    if !init.status.success() {
+        eprintln!("This Git has no reftable – test skipped.");
+        return;
+    }
+    let now = now();
+    for (days, zone) in [(120, "+0100"), (95, "-0500"), (3, "+0900")] {
+        git_dated_at(&root, &global, now - days * DAY, zone, &["commit", "-q", "--allow-empty", "-m", "Messung"]);
+    }
+    let id = crate::commands::repos::repo_open(&tc, root.to_string_lossy().into_owned()).await.unwrap().repo.id;
+    crate::commands::trust::repo_trust_set(&tc, id.clone(), true).await.unwrap();
+    let common = measure::common_dir(&tc, &id).await.unwrap();
+    // 2 old commits × (HEAD + main).
+    assert_eq!(measure::count_old_reflog(&tc, &id, &common, measure::REFLOG_BUDGET).await.unwrap(), Some(4));
+}
