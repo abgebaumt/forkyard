@@ -121,3 +121,17 @@ async fn at_most_twenty_steps_and_long_messages_and_changes_are_clipped() {
     assert_eq!((rewritten.steps[1].start_line, rewritten.steps[1].end_line), (1, 60));
     assert_eq!(rewritten.steps[1].diff[MAX_DIFF_LINES], "… 20 more lines", "60 lines, 40 shown");
 }
+
+#[tokio::test]
+async fn without_an_account_the_links_stay_without_titles() {
+    let repo = TestRepo::with_commit();
+    repo.git(&["remote", "add", "origin", "https://gitlab.com/gruppe/projekt.git"]);
+    repo.commit_file("werte.txt", "eins\n", "Siehe #12");
+    repo.commit_file("ohne.txt", "eins\n", "Kein Verweis");
+    let (tc, id) = setup(&repo).await;
+    let linked = line_archaeology(&tc, id.clone(), "werte.txt".into(), 1, Some("HEAD".into())).await.unwrap();
+    assert_eq!(linked.host_lookup, crate::model::ArchaeologyHostLookup::NotConnected);
+    assert_eq!(linked.steps[0].refs[0].title, None);
+    let plain = line_archaeology(&tc, id, "ohne.txt".into(), 1, Some("HEAD".into())).await.unwrap();
+    assert_eq!(plain.host_lookup, crate::model::ArchaeologyHostLookup::None, "nothing to look up");
+}

@@ -23,9 +23,9 @@ use crate::app::Core;
 use crate::commands::graph::{is_full_sha, resolve_commit, LOG_SAFE};
 use crate::commands::history::{decode_line, line_history_with_diffs, normalize_rel_path, repo_encoding, LINE_HISTORY_STEPS};
 use crate::commands::links::link_rules_get;
-use crate::error::{CoreError, CoreResult};
+use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
-use crate::model::{ArchaeologyHostLookup, ArchaeologyStep, LineArchaeology, LinkRule};
+use crate::model::{ArchaeologyHostLookup, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, LinkRule};
 use crate::util;
 
 pub use refs::{number_of, CompiledRules, MAX_REFS_PER_MESSAGE};
@@ -37,6 +37,10 @@ pub const MAX_DIFF_LINES: usize = 40;
 pub const MAX_DIFF_LINE_BYTES: usize = 400;
 /// Lines of code shown around the selected line, on each side.
 pub const CODE_CONTEXT: u32 = 3;
+/// Distinct host references whose titles are looked up per timeline, newest steps first.
+pub const MAX_HOST_LOOKUPS: usize = 5;
+/// Longer titles from the host are cut.
+const MAX_TITLE_BYTES: usize = 300;
 const CACHE_TTL: Duration = Duration::from_secs(600);
 const CACHE_ENTRIES: usize = 16;
 
@@ -150,7 +154,7 @@ async fn build(core: &Core, repo_id: &str, sha: &str, path: &str, line: u32, rul
     let messages = full_messages(core, repo_id, &wanted).await?;
     let rules = CompiledRules::new(rules);
     let may_have_more = records.len() >= LINE_HISTORY_STEPS as usize;
-    let steps: Vec<ArchaeologyStep> = records
+    let mut steps: Vec<ArchaeologyStep> = records
         .into_iter()
         .map(|(step, diff)| {
             let message = messages.get(&step.commit.sha).cloned().unwrap_or_else(|| step.commit.summary.clone());
@@ -158,8 +162,73 @@ async fn build(core: &Core, repo_id: &str, sha: &str, path: &str, line: u32, rul
             ArchaeologyStep { commit: step.commit, path: step.path, start_line: step.start_line, end_line: step.end_line, message, diff: clip_diff(diff), refs }
         })
         .collect();
-    let host_lookup = ArchaeologyHostLookup::None;
+    let host_lookup = lookup_titles(core, repo_id, &mut steps).await;
     Ok(LineArchaeology { path: path.to_string(), line, sha: sha.to_string(), code_start, code, steps, may_have_more, host_lookup })
+}
+
+/// Titles of the pull requests and issues the steps name, from the host: at most
+/// `MAX_HOST_LOOKUPS` distinct numbers in the order of the steps (newest first). `#n` is asked as an
+/// issue first and, if the host does not know such an issue, as a pull request (GitHub and Gitea
+/// answer pull requests on the issue address); `!n` as a pull request. No account or no supported
+/// host → `NotConnected`; any other error stops the lookups → `Failed`. The links always stay.
+/// Only titles are kept – bodies and comments `issue_get` reads are dropped here.
+async fn lookup_titles(core: &Core, repo_id: &str, steps: &mut [ArchaeologyStep]) -> ArchaeologyHostLookup {
+    let mut wanted: Vec<(ArchaeologyRefKind, u64)> = Vec::new();
+    for reference in steps.iter().flat_map(|step| step.refs.iter()) {
+        if reference.kind == ArchaeologyRefKind::Ticket {
+            continue;
+        }
+        let Some(number) = number_of(reference) else { continue };
+        if wanted.len() < MAX_HOST_LOOKUPS && !wanted.contains(&(reference.kind, number)) {
+            wanted.push((reference.kind, number));
+        }
+    }
+    if wanted.is_empty() {
+        return ArchaeologyHostLookup::None;
+    }
+    let repo_api = match crate::host::api_for_repo(core, repo_id, None).await {
+        Ok(found) => found,
+        Err(error) if matches!(error.code, ErrorCode::HostNotConnected | ErrorCode::HostUnsupported) => return ArchaeologyHostLookup::NotConnected,
+        Err(_) => return ArchaeologyHostLookup::Failed,
+    };
+    let hoster = crate::host::host(repo_api.api.kind);
+    let mut outcome = ArchaeologyHostLookup::Done;
+    let mut titles: Vec<((ArchaeologyRefKind, u64), ArchaeologyRefKind, String)> = Vec::new();
+    for (kind, number) in wanted {
+        let found = match kind {
+            ArchaeologyRefKind::Issue => match hoster.issue_get(core, &repo_api.api, &repo_api.repo, number).await {
+                Ok(issue) => Ok(Some((ArchaeologyRefKind::Issue, issue.summary.title))),
+                Err(error) if error.code == ErrorCode::HostNotFound => pull_title(core, hoster, &repo_api, number).await,
+                Err(error) => Err(error),
+            },
+            _ => pull_title(core, hoster, &repo_api, number).await,
+        };
+        match found {
+            Ok(Some((shown, title))) => titles.push(((kind, number), shown, clip(title.trim(), MAX_TITLE_BYTES))),
+            Ok(None) => {}
+            Err(_) => {
+                outcome = ArchaeologyHostLookup::Failed;
+                break;
+            }
+        }
+    }
+    for reference in steps.iter_mut().flat_map(|step| step.refs.iter_mut()) {
+        let Some(number) = number_of(reference) else { continue };
+        if let Some((_, shown, title)) = titles.iter().find(|(key, _, _)| *key == (reference.kind, number)) {
+            reference.kind = *shown;
+            reference.title = Some(title.clone());
+        }
+    }
+    outcome
+}
+
+/// Title of pull request `number` (header only, `pr_head`); `None` if the host does not know it.
+async fn pull_title(core: &Core, hoster: &dyn crate::host::Host, repo_api: &crate::host::RepoApi, number: u64) -> CoreResult<Option<(ArchaeologyRefKind, String)>> {
+    match hoster.pr_head(core, &repo_api.api, &repo_api.repo, number).await {
+        Ok(pull) => Ok(Some((ArchaeologyRefKind::PullRequest, pull.title))),
+        Err(error) if error.code == ErrorCode::HostNotFound => Ok(None),
+        Err(error) => Err(error),
+    }
 }
 
 /// Full messages of the commits, by SHA (`%B`, at most `MAX_MESSAGE_BYTES` each). Records end with
