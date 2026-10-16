@@ -1007,11 +1007,35 @@ pub(crate) fn bitbucket(request: &MockRequest, state: &Mutex<MockState>) -> Mock
             _ => json!([]),
         }),
         ("GET", ["pullrequests", _, "diffstat"]) => bb_values(json!([{ "status": if number == 13 { "merge conflict" } else { "modified" }, "new": { "path": "src/anmeldung.rs" } }])),
+        ("GET", ["pullrequests", _, "comments"]) if number == 9 => bb_values(json!([
+            { "id": 901, "user": bb_user("mira"), "content": { "raw": "Hier fehlt die Prüfung auf leer." }, "created_on": "2026-09-02T09:30:00Z", "deleted": false,
+              "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null, "start_to": 40 } },
+            { "id": 902, "user": bb_user("jonas"), "content": { "raw": "Stimmt, mache ich." }, "created_on": "2026-09-02T10:00:00Z", "deleted": false, "parent": { "id": 901 },
+              "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } },
+            { "id": 903, "user": bb_user("mira"), "content": { "raw": "Danke!" }, "created_on": "2026-09-02T10:10:00Z", "deleted": false, "parent": { "id": 902 } },
+            { "id": 911, "user": bb_user("mira"), "content": { "raw": "Tippfehler: „Fehler“." }, "created_on": "2026-09-02T09:40:00Z", "deleted": false,
+              "inline": { "path": "src/meldung.rs", "to": 7, "from": Value::Null }, "resolution": { "type": "comment_resolution", "user": bb_user("mira"), "created_on": "2026-09-03T08:00:00Z" } },
+            { "id": 921, "user": bb_user("mira"), "content": { "raw": "Diese Zeile gibt es so nicht mehr." }, "created_on": "2026-09-02T09:50:00Z", "deleted": false,
+              "inline": { "path": "src/alt.rs", "to": Value::Null, "from": 12 } },
+            { "id": 931, "user": bb_user("mira"), "content": { "raw": "Allgemeiner Kommentar" }, "created_on": "2026-09-02T11:00:00Z", "deleted": false },
+            { "id": 941, "user": bb_user("jonas"), "content": { "raw": "" }, "created_on": "2026-09-02T11:10:00Z", "deleted": true, "inline": { "path": "src/x.rs", "to": 1 } }
+        ])),
         ("GET", ["pullrequests", _, "comments"]) => bb_values(json!([
             { "id": 2, "user": bb_user("mira"), "content": { "raw": "Sieht gut aus." }, "created_on": "2026-09-02T09:00:00Z", "deleted": false },
             { "id": 3, "user": bb_user("mira"), "content": { "raw": "Hier bitte prüfen." }, "created_on": "2026-09-02T09:30:00Z", "deleted": false, "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } },
             { "id": 4, "user": bb_user("jonas"), "content": { "raw": "" }, "created_on": "2026-09-02T09:40:00Z", "deleted": true }
         ])),
+        ("POST", ["pullrequests", _, "comments"]) if !request.json()["parent"].is_null() => {
+            let body = request.json();
+            if body["parent"]["id"].as_u64() != Some(901) {
+                return bb_error(404, "Comment not found");
+            }
+            MockResponse::json(
+                201,
+                json!({ "id": 904, "user": bb_user("lena"), "content": { "raw": body["content"]["raw"] }, "created_on": "2026-09-05T08:00:00Z", "parent": { "id": 901 },
+                    "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } }),
+            )
+        }
         ("POST", ["pullrequests", _, "comments"]) => {
             MockResponse::json(201, json!({ "id": 99, "user": bb_user("lena"), "content": { "raw": request.json()["content"]["raw"] }, "created_on": "2026-09-05T08:00:00Z" }))
         }

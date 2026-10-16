@@ -19,7 +19,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 pub const BITBUCKET_WEB: &str = "https://bitbucket.org";
@@ -481,6 +481,82 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
 }
 
 // ---------------------------------------------------------------------------
+// Review threads (8.2)
+// ---------------------------------------------------------------------------
+
+fn inline_line(inline: &Value, key: &str) -> Option<u32> {
+    inline.get(key).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
+}
+
+fn parent_of(value: &Value) -> Option<u64> {
+    value.get("parent").and_then(|p| p.get("id")).and_then(Value::as_u64)
+}
+
+/// Inline comments without `parent` start a thread; every comment whose `parent` chain leads there
+/// (answers to answers too) belongs to it. `inline.to` is the new side, `inline.from` the old one;
+/// resolved = the top comment carries a `resolution`. Deleted comments are left out.
+pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) -> CoreResult<Vec<ReviewThread>> {
+    let values = all_of(core, api, &format!("{}/comments?pagelen=100", pr_path(repo, pr))).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    let live: Vec<&Value> = values.iter().filter(|c| !flag(c, "deleted")).collect();
+    let root_of = |start: u64| -> u64 {
+        let mut id = start;
+        for _ in 0..MAX_ITEMS {
+            match live.iter().find(|c| number(c, "id") == id).and_then(|c| parent_of(c)) {
+                Some(parent) => id = parent,
+                None => break,
+            }
+        }
+        id
+    };
+    let mut threads: Vec<ReviewThread> = Vec::new();
+    for top in live.iter().filter(|c| parent_of(c).is_none()) {
+        let Some(inline) = top.get("inline").filter(|i| i.is_object()) else { continue };
+        let Some(path) = opt_text(inline, "path") else { continue };
+        let (side, line, start_key) = match (inline_line(inline, "to"), inline_line(inline, "from")) {
+            (Some(to), _) => (ReviewSide::New, Some(to), "start_to"),
+            (None, Some(from)) => (ReviewSide::Old, Some(from), "start_from"),
+            (None, None) => (ReviewSide::New, None, "start_to"),
+        };
+        let id = number(top, "id");
+        let mut comments: Vec<HostComment> = live
+            .iter()
+            .filter(|c| root_of(number(c, "id")) == id)
+            .map(|c| {
+                let mut entry = comment(c);
+                entry.path = Some(path.clone());
+                entry.line = line;
+                entry
+            })
+            .collect();
+        comments.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        threads.push(ReviewThread {
+            id: id.to_string(),
+            path,
+            line,
+            start_line: inline_line(inline, start_key).filter(|start| line.is_some_and(|end| *start < end)),
+            side,
+            commit: None,
+            resolved: top.get("resolution").is_some_and(Value::is_object),
+            outdated: flag(inline, "outdated"),
+            comments,
+        });
+    }
+    Ok(threads)
+}
+
+/// `POST …/pullrequests/{id}/comments` with `parent.id` = the thread's top comment.
+pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thread_id: &str, body: &str) -> CoreResult<ReviewReply> {
+    let missing = || CoreError::new(ErrorCode::HostNotFound, format!("The review thread does not exist (anymore) in pull request #{pr}."));
+    let parent: u64 = thread_id.parse().map_err(|_| missing())?;
+    let value: Value = api
+        .send_json(core, Method::Post, &format!("{}/comments", pr_path(repo, pr)), &json!({ "content": { "raw": body }, "parent": { "id": parent } }))
+        .await
+        .map_err(|e| if e.code == ErrorCode::HostNotFound { missing() } else { e })?
+        .json()?;
+    Ok(ReviewReply { comment: comment(&value), quoted: false })
+}
+
+// ---------------------------------------------------------------------------
 // As a `Host`
 // ---------------------------------------------------------------------------
 
@@ -542,8 +618,8 @@ impl Host for BitbucketHost {
             pr_reviewers: false,
             pr_labels: false,
             fork_checkout: false,
-            review_threads: false,
-            review_reply: false,
+            review_threads: true,
+            review_reply: true,
             review_reply_quotes: false,
         }
     }
@@ -585,5 +661,11 @@ impl Host for BitbucketHost {
     }
     fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_set_open(core, api, repo, number, open))
+    }
+    fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+        Box::pin(review_threads(core, api, repo, number))
+    }
+    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+        Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

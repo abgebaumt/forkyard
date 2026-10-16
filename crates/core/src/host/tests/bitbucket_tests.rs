@@ -7,7 +7,7 @@ use serde_json::json;
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
 use crate::host::detect::normalize_base_url;
-use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
+use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState, ReviewSide};
 
 const KIND: HostKind = HostKind::Bitbucket;
 const LABEL: &str = "Bitbucket";
@@ -231,5 +231,44 @@ async fn pull_requests_are_created_changed_commented_merged_and_declined() {
     assert!(fx.server.requests().is_empty());
     check_error_modes(&fx, LABEL, "pr_merge", || cmd::pr_merge(&fx.tc, fx.id(), 7, PrMergeMethod::Merge, false, None)).await;
     check_error_modes(&fx, LABEL, "pr_comment", || cmd::pr_comment(&fx.tc, fx.id(), 7, "Text".into(), None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn review_threads_are_inline_comments_with_their_answers() {
+    let fx = Fixture::new(KIND).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let rows: Vec<_> = threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved)).collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("901", "src/anmeldung.rs", Some(42), Some(40), ReviewSide::New, false),
+            ("911", "src/meldung.rs", Some(7), None, ReviewSide::New, true),
+            ("921", "src/alt.rs", Some(12), None, ReviewSide::Old, false),
+        ],
+        "general and deleted comments are no threads"
+    );
+    let answers: Vec<_> = threads[0].comments.iter().map(|c| (c.id.as_str(), c.body.as_str(), c.line)).collect();
+    assert_eq!(answers, vec![("901", "Hier fehlt die Prüfung auf leer.", Some(42)), ("902", "Stimmt, mache ich.", Some(42)), ("903", "Danke!", Some(42))], "answers to answers belong to the thread");
+    check_error_modes(&fx, "Bitbucket", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    check_broken_json(&fx, "Bitbucket", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn a_reply_names_the_top_comment_as_parent() {
+    let fx = Fixture::new(KIND).await;
+    let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "901".into(), "Erledigt.".into(), None).await.unwrap();
+    assert!(!reply.quoted);
+    assert_eq!((reply.comment.id.as_str(), reply.comment.body.as_str(), reply.comment.path.as_deref()), ("904", "Erledigt.", Some("src/anmeldung.rs")));
+    let sent = fx.sent("POST", "/pullrequests/9/comments");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].json(), json!({ "content": { "raw": "Erledigt." }, "parent": { "id": 901 } }));
+    for missing in ["4711", "abc"] {
+        let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, missing.into(), "Danke".into(), None).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::HostNotFound, "{missing}");
+    }
+    let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
+    assert!(caps.review_threads && caps.review_reply && !caps.review_reply_quotes);
     fx.assert_token_stays_secret();
 }
