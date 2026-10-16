@@ -84,6 +84,12 @@ export interface HostCapabilities {
   prReviewers: boolean;
   prLabels: boolean;
   forkCheckout: boolean;
+  /** Review threads can be read (8.2). */
+  reviewThreads: boolean;
+  /** Answers can be posted to a review thread. */
+  reviewReply: boolean;
+  /** Answers are posted as a quoted new comment on the same line (Gitea/Forgejo). */
+  reviewReplyQuotes: boolean;
 }
 
 const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
@@ -96,13 +102,16 @@ const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
   prReviewers: true,
   prLabels: true,
   forkCheckout: true,
+  reviewThreads: true,
+  reviewReply: true,
+  reviewReplyQuotes: false,
 };
 
 /** GitLab has no "rebase" when merging via the API; GitHub cannot toggle drafts there. */
 export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
   github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
   gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
-  gitea: { ...ALL_FEATURES, mergeMethods: ["merge", "squash", "rebase"] },
+  gitea: { ...ALL_FEATURES, reviewReplyQuotes: true, mergeMethods: ["merge", "squash", "rebase"] },
   bitbucket: { ...ALL_FEATURES, prReopen: false, prReviewers: false, prLabels: false, forkCheckout: false, mergeMethods: ["merge", "squash"] },
   azure_devops: { ...ALL_FEATURES, issueCreate: true, prReviewers: false, forkCheckout: false, mergeMethods: ["merge", "squash", "rebase"] },
 };
@@ -238,7 +247,7 @@ export function toAccount(value: unknown): HostAccountInfo | null {
 }
 
 type CapabilityFlag = Exclude<keyof HostCapabilities, "mergeMethods">;
-const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout"];
+const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout", "reviewThreads", "reviewReply", "reviewReplyQuotes"];
 const isMergeMethod = (value: unknown): value is MergeMethod => value === "merge" || value === "squash" || value === "rebase";
 
 /** The core's capabilities; whatever is missing or malformed comes from the host kind's defaults. */

@@ -1082,6 +1082,16 @@ pub async fn pr_template(core: State<'_, Core>, repo_id: String) -> R<Option<Str
 }
 
 #[tauri::command]
+pub async fn pr_review_threads(core: State<'_, Core>, repo_id: String, number: u64, remote: Option<String>) -> R<Vec<ReviewThread>> {
+    c::host::pr_review_threads(&core, repo_id, number, remote).await
+}
+
+#[tauri::command]
+pub async fn pr_review_reply(core: State<'_, Core>, repo_id: String, number: u64, thread_id: String, body: String, remote: Option<String>) -> R<ReviewReply> {
+    c::host::pr_review_reply(&core, repo_id, number, thread_id, body, remote).await
+}
+
+#[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn issue_list(
     core: State<'_, Core>,

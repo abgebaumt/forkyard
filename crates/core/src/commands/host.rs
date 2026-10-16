@@ -15,7 +15,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::host::{self, NewPr, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
 use crate::model::{
     HostComment, HostInfoError, HostKind, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary, PrDetails, PrListState, PrMergeMethod, PrPage,
-    PrSummary, RepoChange, Status,
+    PrSummary, RepoChange, ReviewReply, ReviewThread, Status,
 };
 use crate::util;
 
@@ -208,6 +208,56 @@ pub async fn pr_comment(core: &Core, repo_id: String, number: u64, body: String,
     }
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     host::host(api.kind).pr_comment(core, &api, &repo, number, &body).await
+}
+
+/// A review thread ID as the hosts hand them out (numbers, GitLab's hex discussion IDs): it goes into
+/// an API path, so only letters, digits, `_` and `-` (not first), at most 128 characters.
+fn check_thread_id(thread_id: &str) -> CoreResult<&str> {
+    let id = thread_id.trim();
+    let valid = !id.is_empty() && id.len() <= 128 && !id.starts_with('-') && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+    if valid {
+        Ok(id)
+    } else {
+        Err(CoreError::not_allowed("This review thread ID is not valid."))
+    }
+}
+
+/// Review threads of a pull request (8.2): comments on lines with their answers, resolved and outdated
+/// state, in the host's order. A "not found" for the threads while the pull request itself exists means
+/// an instance without this API (an older self-hosted version): `host_unsupported`.
+pub async fn pr_review_threads(core: &Core, repo_id: String, number: u64, remote: Option<String>) -> CoreResult<Vec<ReviewThread>> {
+    let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
+    let hoster = host::host(api.kind);
+    if !hoster.capabilities().review_threads {
+        return Err(CoreError::new(ErrorCode::HostUnsupported, format!("{} offers no review threads through its API.", hoster.label())));
+    }
+    match hoster.review_threads(core, &api, &repo, number).await {
+        Err(error) if error.code == ErrorCode::HostNotFound => match hoster.pr_head(core, &api, &repo, number).await {
+            Ok(_) => Err(CoreError::new(
+                ErrorCode::HostUnsupported,
+                format!("This {} instance offers no review threads through its API (an older version?).", hoster.label()),
+            )
+            .with_git_output(error.git_output.unwrap_or_default())),
+            Err(_) => Err(error),
+        },
+        other => other,
+    }
+}
+
+/// Posts `body` as an answer in a review thread – only on the user's click. Where the host's API has no
+/// answers inside threads (`review_reply_quotes`), it becomes a new review comment on the same line that
+/// quotes the thread.
+pub async fn pr_review_reply(core: &Core, repo_id: String, number: u64, thread_id: String, body: String, remote: Option<String>) -> CoreResult<ReviewReply> {
+    if body.trim().is_empty() {
+        return Err(CoreError::new(ErrorCode::EmptyMessage, "The answer must not be empty."));
+    }
+    let thread_id = check_thread_id(&thread_id)?.to_string();
+    let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
+    let hoster = host::host(api.kind);
+    if !hoster.capabilities().review_reply {
+        return Err(CoreError::new(ErrorCode::HostUnsupported, format!("{} offers no answers to review comments through its API.", hoster.label())));
+    }
+    hoster.review_reply(core, &api, &repo, number, &thread_id, &body).await
 }
 
 /// Merges at the host. Nothing changes locally – fetch afterwards.

@@ -99,6 +99,8 @@ import type {
   PushResult,
   RebasePlan,
   RebasePlanRow,
+  ReviewReply,
+  ReviewThread,
   ReflogPage,
   Ref,
   RefsSnapshot,
@@ -857,6 +859,19 @@ export interface CoreCommands {
    * No network call, needs no account.
    */
   prTemplate(input: R): Promise<string | null>;
+  /**
+   * Review threads of a pull request (8.2): comments on lines with their answers, resolved and
+   * outdated state, in the host's order (Gitea/Forgejo groups its review comments by file and line).
+   * Errors as for `prGet`; `host_unsupported` where the host (an older self-hosted instance) has none.
+   */
+  prReviewThreads(input: R & { number: number; remote?: string | null }): Promise<ReviewThread[]>;
+  /**
+   * Posts `body` (Markdown) as an answer in a review thread – only on the user's click. Where the API has
+   * no answers inside threads (`capabilities.reviewReplyQuotes`, Gitea/Forgejo) it becomes a new review
+   * comment on the same line that quotes the thread (`quoted: true`). Errors: `empty_message`,
+   * `not_allowed` (invalid thread ID), `host_not_found` (thread gone), host errors.
+   */
+  prReviewReply(input: R & { number: number; threadId: string; body: string; remote?: string | null }): Promise<ReviewReply>;
 
   // --- Issues ----------------------------------------------------------------------------------
   /** Like `prList`. `query` searches title and body (GitHub: via the search API, own limit of 30/min). */

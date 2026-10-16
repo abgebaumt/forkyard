@@ -483,6 +483,9 @@ impl Host for GitlabHost {
             pr_reviewers: true,
             pr_labels: true,
             fork_checkout: true,
+            review_threads: false,
+            review_reply: false,
+            review_reply_quotes: false,
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {

@@ -388,3 +388,56 @@ async fn the_new_public_services_are_recognised_without_an_account() {
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("cb".into())).await.unwrap().unwrap().web_url, "https://codeberg.org/lena/notizen");
     assert!(tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")), "no API call without an account");
 }
+
+#[test]
+fn review_threads_reach_the_ui_in_camel_case() {
+    use crate::model::{HostComment, HostUser, ReviewReply, ReviewSide, ReviewThread};
+    let comment = HostComment {
+        id: "9001".into(),
+        author: Some(HostUser { login: "mira".into(), name: None, avatar_url: None }),
+        body: "Prüfen!".into(),
+        created_at: "2026-09-02T09:30:00Z".into(),
+        path: Some("src/ä b.rs".into()),
+        line: Some(42),
+    };
+    let thread = ReviewThread {
+        id: "9001".into(),
+        path: "src/ä b.rs".into(),
+        line: Some(42),
+        start_line: Some(40),
+        side: ReviewSide::New,
+        commit: None,
+        resolved: false,
+        outdated: true,
+        comments: vec![comment.clone()],
+    };
+    let shape = serde_json::to_value(&thread).unwrap();
+    assert_eq!(shape["startLine"], 40);
+    assert_eq!(shape["side"], "new");
+    assert_eq!(shape["outdated"], true);
+    assert_eq!(shape["commit"], serde_json::Value::Null);
+    assert_eq!(shape["path"], "src/ä b.rs");
+    assert_eq!(shape["comments"][0]["createdAt"], "2026-09-02T09:30:00Z");
+    assert_eq!(serde_json::to_value(ReviewSide::Old).unwrap(), "old");
+    assert_eq!(serde_json::to_value(ReviewReply { comment, quoted: true }).unwrap()["quoted"], true);
+    for kind in HostKind::ALL.iter().copied() {
+        let caps = serde_json::to_value(crate::host::host(kind).capabilities()).unwrap();
+        for key in ["reviewThreads", "reviewReply", "reviewReplyQuotes"] {
+            assert!(caps[key].is_boolean(), "{kind:?}: {key} missing in {caps}");
+        }
+    }
+}
+
+#[tokio::test]
+async fn review_replies_check_their_input_before_any_request() {
+    let fx = Fixture::new(HostKind::Github).await;
+    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), " \n\t".into(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::EmptyMessage);
+    let long = "9".repeat(129);
+    for bad in ["", "-9001", "../9001", "9001/replies", "90 01", "9001?x=1", "ä", long.as_str()] {
+        let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, bad.to_string(), "Danke".into(), None).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::NotAllowed, "{bad:?}");
+        assert_clean(&error);
+    }
+    assert!(fx.server.requests().is_empty(), "nothing went out");
+}

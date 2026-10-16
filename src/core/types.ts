@@ -1803,6 +1803,12 @@ export interface HostCapabilities {
   prLabels: boolean;
   /** Pull requests from forks can be checked out. */
   forkCheckout: boolean;
+  /** Review threads (comments on lines with their answers and resolved state) can be read. */
+  reviewThreads: boolean;
+  /** Answers can be posted to a review thread. */
+  reviewReply: boolean;
+  /** Answers go out as a new review comment on the same line with a quote (no answers inside threads). */
+  reviewReplyQuotes: boolean;
 }
 
 export interface HostRepoInfo {
@@ -1877,6 +1883,34 @@ export interface HostComment {
   /** Only for comments on a line of the diff. */
   path: string | null;
   line: number | null;
+}
+
+/** Which version of the file a review comment refers to. */
+export type ReviewSide = "new" | "old";
+
+/** A review thread: comments on lines of the diff with their answers (`prReviewThreads`). */
+export interface ReviewThread {
+  /** What `prReviewReply` takes (per host the first comment's, the discussion's or the thread's ID). */
+  id: string;
+  path: string;
+  /** Last commented line on `side`; null = no longer in the pull request. */
+  line: number | null;
+  /** First line of a multi-line range; null = one line. */
+  startLine: number | null;
+  side: ReviewSide;
+  commit: Sha | null;
+  resolved: boolean;
+  /** The host marks the thread as outdated. */
+  outdated: boolean;
+  /** Oldest first. */
+  comments: HostComment[];
+}
+
+/** What `prReviewReply` posted. */
+export interface ReviewReply {
+  comment: HostComment;
+  /** Posted as a new review comment on the same line with a quote (the host has no answers inside threads). */
+  quoted: boolean;
 }
 
 export interface PrCommit {

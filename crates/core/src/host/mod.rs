@@ -32,7 +32,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{self, Method, Request, Response};
 use crate::model::{
     AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRepoRef, HostUser, HosterAccount, IssueDetails, IssueListState, IssuePage,
-    IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrSummary,
+    IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrSummary, ReviewReply, ReviewThread,
 };
 use crate::secrets;
 use crate::util;
@@ -250,6 +250,15 @@ pub trait Host: Sync {
     }
     fn issue_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _title: &'a str, _body: &'a str) -> HostFuture<'a, IssueSummary> {
         unsupported(self.label(), "creating issues")
+    }
+    /// Review threads of a pull request: comments on lines with their answers and resolved state.
+    fn review_threads<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+        unsupported(self.label(), "review threads")
+    }
+    /// Answer in a review thread (`thread_id` as `ReviewThread.id`). Hosts without answers inside
+    /// threads post a new comment on the same line with a quote (`ReviewReply.quoted`).
+    fn review_reply<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _thread_id: &'a str, _body: &'a str) -> HostFuture<'a, ReviewReply> {
+        unsupported(self.label(), "answers to review comments")
     }
 }
 

@@ -3035,6 +3035,13 @@ pub struct HostCapabilities {
     pub pr_labels: bool,
     /// Pull requests from forks can be checked out (the host offers a ref for them).
     pub fork_checkout: bool,
+    /// Review threads (comments on lines with their answers and resolved state) can be read.
+    pub review_threads: bool,
+    /// Answers can be posted to a review thread.
+    pub review_reply: bool,
+    /// The API has no answers inside a thread: an answer goes out as a new review comment on the same
+    /// line that quotes the thread.
+    pub review_reply_quotes: bool,
 }
 
 /// The repository at the host, recognized by the URL of a remote.
@@ -3149,6 +3156,48 @@ pub struct HostComment {
     /// For comments on a line of the diff.
     pub path: Option<String>,
     pub line: Option<u32>,
+}
+
+/// Which version of the file a review comment refers to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewSide {
+    /// The pull request's version (added or unchanged lines).
+    New,
+    /// The target's version (removed lines).
+    Old,
+}
+
+/// A review thread: comments on lines of the diff with their answers (8.2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewThread {
+    /// What `pr_review_reply` takes: GitHub, Gitea/Forgejo – ID of the first comment; GitLab – the
+    /// discussion ID; Bitbucket – ID of the top comment; Azure DevOps – the thread ID.
+    pub id: String,
+    pub path: String,
+    /// Last commented line on `side`; `None` = the lines are no longer in the pull request.
+    pub line: Option<u32>,
+    /// First line of a range of several lines; `None` = one line.
+    pub start_line: Option<u32>,
+    pub side: ReviewSide,
+    /// Commit the comment was written on, as far as the host says.
+    pub commit: Option<Sha>,
+    pub resolved: bool,
+    /// The host marks the thread as outdated (the code changed since).
+    pub outdated: bool,
+    /// Oldest first.
+    pub comments: Vec<HostComment>,
+}
+
+/// What `pr_review_reply` posted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewReply {
+    pub comment: HostComment,
+    /// Posted as a new review comment on the same line that quotes the thread (no answers inside
+    /// threads in the host's API).
+    pub quoted: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

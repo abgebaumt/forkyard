@@ -604,6 +604,8 @@ pub fn run() {
             commands::pr_reopen,
             commands::pr_checkout,
             commands::pr_template,
+            commands::pr_review_threads,
+            commands::pr_review_reply,
             commands::issue_list,
             commands::issue_get,
             commands::issue_create,
