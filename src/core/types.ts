@@ -949,6 +949,64 @@ export interface LineHistoryStep {
   endLine: number;
 }
 
+/** What a reference in a commit message points to. */
+export type ArchaeologyRefKind = "issue" | "pull_request" | "ticket";
+
+/** A pull request, issue or ticket a commit message names (`#12`, `!7`, `ABC-42`). */
+export interface ArchaeologyRef {
+  text: string;
+  url: string;
+  kind: ArchaeologyRefKind;
+  /** Title from the host; null for tickets, without an account, or when the host does not know it. */
+  title: string | null;
+}
+
+/** One commit that shaped the line. */
+export interface ArchaeologyStep {
+  commit: CommitSummary;
+  /** Path of the file in this commit (follows renames). */
+  path: string;
+  startLine: number;
+  endLine: number;
+  /** Full commit message (at most 4 000 bytes). */
+  message: string;
+  /** The change of the line range: " ", "+", "-" lines (at most 40, then "… n more lines"). */
+  diff: string[];
+  refs: ArchaeologyRef[];
+}
+
+export type ArchaeologyHostLookup = "none" | "done" | "not_connected" | "failed";
+
+/** `lineArchaeology`: the history of one line, newest first. */
+export interface LineArchaeology {
+  /** Where the history starts – for a working-directory line the commit that last changed it. */
+  path: string;
+  line: number;
+  sha: Sha;
+  codeStart: number;
+  /** The line with up to three lines around it. */
+  code: string[];
+  steps: ArchaeologyStep[];
+  /** Exactly 20 steps came back: older changes may exist. */
+  mayHaveMore: boolean;
+  hostLookup: ArchaeologyHostLookup;
+}
+
+export type ArchaeologyConfidence = "high" | "medium" | "low";
+
+export interface ArchaeologyNote {
+  sha: Sha;
+  note: string;
+}
+
+/** `aiArchaeology`: the summary, checked against the timeline (notes only for its commits). */
+export interface ArchaeologyAnswer {
+  summary: string;
+  notes: ArchaeologyNote[];
+  confidence: ArchaeologyConfidence;
+  costUsd: number | null;
+}
+
 export interface BlameLine {
   lineNo: number;
   text: string;

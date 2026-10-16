@@ -57,6 +57,7 @@ import type {
   FileDiff,
   FileHistoryEntry,
   LineHistoryStep,
+  LineArchaeology,
   GitflowFinishOptions,
   GitflowKind,
   GitflowPrefixes,
@@ -501,6 +502,13 @@ export interface CoreCommands {
    * (`git log -L`); follows renames. Each step names the file's path and the line range in that commit.
    */
   lineHistory(input: R & { path: string; line: number; sha: Sha }): Promise<LineHistoryStep[]>;
+  /**
+   * Why a line looks the way it does (no AI): the commits that shaped line `line` of `path` at `sha`
+   * (`null` = working directory, traced to the commit that last changed it), newest first, at most 20,
+   * with full messages, the change of the line and the references they name. Cached ten minutes.
+   * Errors: `not_allowed` (line 0, path outside, line not committed yet), `not_found`, `repo_untrusted`.
+   */
+  lineArchaeology(input: R & { path: string; line: number; sha: Sha | null }): Promise<LineArchaeology>;
   /** `sha: null` = working directory. `encoding`: encoding for this one call, otherwise detected. */
   fileBlame(input: R & { path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
   /**

@@ -525,6 +525,7 @@ pub fn run() {
             commands::undo_peek,
             commands::file_history,
             commands::line_history,
+            commands::line_archaeology,
             commands::file_blame,
             commands::file_read,
             commands::file_write,

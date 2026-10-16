@@ -625,6 +625,11 @@ pub async fn line_history(core: State<'_, Core>, repo_id: String, path: String, 
 }
 
 #[tauri::command]
+pub async fn line_archaeology(core: State<'_, Core>, repo_id: String, path: String, line: u32, sha: Option<String>) -> R<LineArchaeology> {
+    c::archaeology::line_archaeology(&core, repo_id, path, line, sha).await
+}
+
+#[tauri::command]
 pub async fn file_blame(core: State<'_, Core>, repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> R<Vec<BlameLine>> {
     c::history::file_blame(&core, repo_id, path, sha, encoding).await
 }
