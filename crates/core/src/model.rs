@@ -1479,6 +1479,16 @@ pub struct AiUsageSummary {
     pub rows: Vec<AiUsageRow>,
 }
 
+/// Sign-in of an AI command-line tool, as the tool reports it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiLoginState {
+    LoggedIn,
+    LoggedOut,
+    /// The tool gave no readable answer (in time).
+    Unknown,
+}
+
 /// Own paths of the AI command-line tools (`Settings.ai_cli_paths`, global); `None` = found
 /// automatically (PATH, the usual install folders, the login shell's PATH).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

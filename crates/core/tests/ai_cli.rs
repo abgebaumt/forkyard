@@ -68,3 +68,40 @@ async fn the_fake_cli_records_what_it_gets() {
     drop(scratch);
     assert!(!folder.exists(), "the scratch folder is removed with its guard");
 }
+
+use std::time::{Duration, Instant};
+
+use gitcore::model::{AiLoginState, AiProviderKind};
+use gitcore::testkit::fake_cli::{claude_config, claude_result, CLAUDE_HELP};
+
+#[tokio::test]
+async fn capabilities_are_read_once_per_program_version() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    let limit = Duration::from_secs(10);
+    let first = cli::caps(&tc, AiProviderKind::ClaudeCode, &claude.program, Some("2.1.301"), limit).await;
+    let again = cli::caps(&tc, AiProviderKind::ClaudeCode, &claude.program, Some("2.1.301"), limit).await;
+    assert!(first.supported() && first.schema, "{first:?}");
+    assert_eq!(first, again);
+    assert_eq!(claude.calls_with(&["--help"]).len(), 1, "the second look comes from the cache");
+    cli::caps(&tc, AiProviderKind::ClaudeCode, &claude.program, Some("2.1.302"), limit).await;
+    assert_eq!(claude.calls_with(&["--help"]).len(), 2, "an updated tool is read again");
+    let call = &claude.calls_with(&["--help"])[0];
+    assert!(Path::new(&call.cwd).starts_with(tc.data_dir().join("tmp")) && call.cwd_entries.is_empty(), "{call:?}");
+    assert!(!Path::new(&call.cwd).exists());
+}
+
+#[tokio::test]
+async fn sign_in_is_asked_without_waiting_for_a_hanging_tool() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    let info = cli::login_status(&tc, AiProviderKind::ClaudeCode, &claude.program, Duration::from_secs(10)).await;
+    assert_eq!((info.state, info.method.as_deref()), (AiLoginState::LoggedIn, Some("claude.ai")));
+    assert_eq!(claude.calls_with(&["auth"])[0].args, ["auth", "status", "--json"]);
+
+    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &json!({ "rules": [{ "args": ["login", "status"], "sleepMs": 20000, "stdout": "Logged in using ChatGPT\n" }] }));
+    let started = Instant::now();
+    let info = cli::login_status(&tc, AiProviderKind::Codex, &codex.program, Duration::from_millis(500)).await;
+    assert_eq!(info.state, AiLoginState::Unknown);
+    assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+}
