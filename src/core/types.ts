@@ -790,6 +790,32 @@ export interface ConflictFile {
   encoding: string | null;
 }
 
+/** One conflict block of the conflict tool: 0-based first line and number of lines on both sides (stages 2 and 3). */
+export interface ConflictBlockRange {
+  oursStart: number;
+  oursCount: number;
+  theirsStart: number;
+  theirsCount: number;
+}
+
+/** How a block went to the AI: completely; start and end only, or with masked values (both: explanation only); not at all. */
+export type IntentSent = "full" | "shortened" | "redacted" | "left_out";
+
+/** The answer for one conflict block; `block` is the 0-based conflict index, `text` only for `full`. */
+export interface ConflictIntentBlock {
+  block: number;
+  sent: IntentSent;
+  oursWhy: string | null;
+  theirsWhy: string | null;
+  text: string | null;
+}
+
+/** `aiConflictIntent`: one entry per conflict block, in order. */
+export interface ConflictIntent {
+  path: string;
+  blocks: ConflictIntentBlock[];
+}
+
 export type RebaseAction = "pick" | "reword" | "squash" | "drop";
 
 export interface RebasePlanRow {
@@ -1035,7 +1061,7 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "conflict_intent"; path: string; blocks: ConflictBlockRange[] };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {

@@ -922,6 +922,58 @@ pub struct ConflictFile {
     pub encoding: Option<String>,
 }
 
+// ---------------------------------------------------------------------------
+// Conflicts with intent (v1.2, Teilpaket 6.1)
+// ---------------------------------------------------------------------------
+
+/// One conflict block of the conflict tool as line ranges of the current side (index stage 2)
+/// and the incoming side (stage 3): 0-based first line and number of lines. The core cuts the
+/// text itself from the versions in the index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictBlockRange {
+    pub ours_start: u32,
+    pub ours_count: u32,
+    pub theirs_start: u32,
+    pub theirs_count: u32,
+}
+
+/// How a conflict block went to the AI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IntentSent {
+    /// Completely: explanation and proposal.
+    Full,
+    /// Start and end only, to stay within the size limit: explanation only.
+    Shortened,
+    /// Values in the block were masked before sending: explanation only.
+    Redacted,
+    /// Not sent, to stay within the size limit.
+    LeftOut,
+}
+
+/// The answer for one conflict block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictIntentBlock {
+    /// Index among the conflicts of the file (0-based, the order of the ranges sent).
+    pub block: u32,
+    pub sent: IntentSent,
+    /// What the current side wanted; `None` for `left_out`.
+    pub ours_why: Option<String>,
+    pub theirs_why: Option<String>,
+    /// Text that replaces the block's range in the result, every line ending in `\n`; only for `full`.
+    pub text: Option<String>,
+}
+
+/// `ai_conflict_intent`: one entry per conflict block, in order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictIntent {
+    pub path: String,
+    pub blocks: Vec<ConflictIntentBlock>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ConflictSide {
@@ -1440,6 +1492,8 @@ pub enum AiInput {
     /// Paket 4: the commits of `source` that `target` does not have (full ref names, e.g.
     /// `refs/heads/feature/x` and `refs/remotes/origin/main`).
     PrDescription { source: String, target: String },
+    /// Teilpaket 6.1: the conflict blocks of one conflicted file, as line ranges of the conflict tool.
+    ConflictIntent { path: String, blocks: Vec<ConflictBlockRange> },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
@@ -3677,5 +3731,55 @@ mod stats_json_tests {
         assert_eq!((v["authorCount"].clone(), v["fileCount"].clone(), v["cached"].clone()), (json!(0), json!(0), json!(false)));
         let back: RepoStats = serde_json::from_value(v).unwrap();
         assert_eq!(back, stats);
+    }
+}
+
+#[cfg(test)]
+mod conflict_intent_json_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// The UI sends line ranges and gets explanations and proposals back in exactly this shape (v1.2, 6.1).
+    #[test]
+    fn conflict_intent_types_have_their_wire_shape() {
+        let input: AiInput = serde_json::from_value(json!({
+            "kind": "conflict_intent",
+            "path": "src/-anmeldung ä.txt",
+            "blocks": [{ "oursStart": 1, "oursCount": 0, "theirsStart": 1, "theirsCount": 2 }]
+        }))
+        .unwrap();
+        assert_eq!(
+            input,
+            AiInput::ConflictIntent {
+                path: "src/-anmeldung ä.txt".into(),
+                blocks: vec![ConflictBlockRange { ours_start: 1, ours_count: 0, theirs_start: 1, theirs_count: 2 }]
+            }
+        );
+        assert_eq!(serde_json::to_value(AiInput::StagedChanges).unwrap(), json!({ "kind": "staged_changes" }), "the variant of 1a keeps its shape");
+
+        let intent = ConflictIntent {
+            path: "a.txt".into(),
+            blocks: vec![
+                ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None },
+                ConflictIntentBlock { block: 1, sent: IntentSent::Full, ours_why: Some("x".into()), theirs_why: Some("y".into()), text: Some("z\n".into()) },
+            ],
+        };
+        assert_eq!(
+            serde_json::to_value(&intent).unwrap(),
+            json!({
+                "path": "a.txt",
+                "blocks": [
+                    { "block": 0, "sent": "left_out", "oursWhy": null, "theirsWhy": null, "text": null },
+                    { "block": 1, "sent": "full", "oursWhy": "x", "theirsWhy": "y", "text": "z\n" }
+                ]
+            })
+        );
+        for sent in ["full", "shortened", "redacted", "left_out"] {
+            assert!(serde_json::from_value::<IntentSent>(json!(sent)).is_ok(), "{sent}");
+        }
+        assert!(
+            serde_json::from_value::<ConflictBlockRange>(json!({ "oursStart": -1, "oursCount": 0, "theirsStart": 0, "theirsCount": 0 })).is_err(),
+            "no negative line numbers"
+        );
     }
 }

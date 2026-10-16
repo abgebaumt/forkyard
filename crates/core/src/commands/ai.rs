@@ -180,6 +180,8 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::StagedChanges => context::staged_changes(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,
+        // Teilpaket 6.1, Task 7 replaces this arm with `ai::conflict::build`.
+        AiInput::ConflictIntent { .. } => return Err(CoreError::not_allowed("Explaining conflict intent is not available yet.")),
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {
