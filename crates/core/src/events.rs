@@ -29,8 +29,10 @@ pub mod names {
     pub const SUBMODULES_UPDATED: &str = "submodules:updated";
     /// Coding agents of a repository changed (started, status, ended, cleaned up).
     pub const AGENTS_CHANGED: &str = "agents:changed";
+    /// New result (or start) of the collision check of a repository's coding agents (payload `CollisionReport`).
+    pub const AGENT_COLLISIONS: &str = "agents:collisions";
 
-    pub const ALL: [&str; 14] = [
+    pub const ALL: [&str; 15] = [
         REPO_CHANGED,
         JOB_PROGRESS,
         JOB_DONE,
@@ -45,6 +47,7 @@ pub mod names {
         APP_CLOSE_REQUESTED,
         SUBMODULES_UPDATED,
         AGENTS_CHANGED,
+        AGENT_COLLISIONS,
     ];
 }
 

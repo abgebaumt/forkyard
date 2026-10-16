@@ -288,6 +288,8 @@ impl Core {
         let mut what = what.to_vec();
         what.sort();
         what.dedup();
+        // Coding agents: a change in an agent's worktree (or of the base's refs) schedules the collision check.
+        crate::commands::agents::collision::note_change(self, repo_id, &what);
         self.emit(names::REPO_CHANGED, &RepoChangedEvent { repo_id: repo_id.to_string(), what });
     }
 

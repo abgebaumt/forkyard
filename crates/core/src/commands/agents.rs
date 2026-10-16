@@ -269,6 +269,7 @@ pub async fn agent_list(core: &Core, repo_id: String) -> CoreResult<Vec<Agent>> 
         }
         out.push(agent);
     }
+    collision::track(core, &repo_id, &out);
     Ok(out)
 }
 

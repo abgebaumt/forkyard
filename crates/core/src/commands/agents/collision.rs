@@ -9,14 +9,21 @@
 //! read (`GIT_OPTIONAL_LOCKS=0`, not in the activity log).
 
 use std::collections::{BTreeSet, HashMap};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
+use parking_lot::Mutex;
+use tokio::time::Instant;
 
 use crate::app::Core;
 use crate::commands::preview::{self, Merged, MergedConflict};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::git::GitCmd;
+use crate::events::names;
+use crate::git::{redact, GitCmd};
 use crate::jobs::CancelToken;
-use crate::model::{Agent, AgentCollision, AgentStatus, CollisionFile, CollisionKind, CollisionSkip};
+use crate::model::{Agent, AgentCollision, AgentStatus, CollisionCheckState, CollisionFile, CollisionKind, CollisionReport, CollisionSkip, RepoChange};
 use crate::undo;
 use crate::util;
 
@@ -143,7 +150,6 @@ impl Computed {
 /// Compares the repository's present agents with each other (pairs whose changed files intersect)
 /// and each with the current tip of its base. Orphaned agents are left out; an agent whose
 /// worktree or base cannot be read is named in `skipped`. Conflicts come first.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) async fn compute(core: &Core, repo_id: &str, cancel: &CancelToken) -> CoreResult<Computed> {
     core.repo_path(repo_id)?;
     let rows = core.db.with(|c| db::agents::list_for_repo(c, repo_id))?;
@@ -206,6 +212,263 @@ pub(crate) async fn compute(core: &Core, repo_id: &str, cancel: &CancelToken) ->
     }
     computed.collisions.sort_by_key(|collision| collision.kind == CollisionKind::Overlap);
     Ok(computed)
+}
+
+// ---------------------------------------------------------------------------
+// When to check: debounce, one check at a time, the report
+// ---------------------------------------------------------------------------
+
+/// Timings of the collision check (shortened in tests with `set_timing`).
+#[derive(Debug, Clone, Copy)]
+pub struct CollisionTiming {
+    /// Quiet period after the last change before the check runs.
+    pub debounce: Duration,
+    /// At the latest this long after the first change, even if changes keep coming.
+    pub max_delay: Duration,
+}
+
+impl Default for CollisionTiming {
+    fn default() -> Self {
+        CollisionTiming { debounce: Duration::from_secs(10), max_delay: Duration::from_secs(60) }
+    }
+}
+
+#[derive(Default)]
+struct RepoState {
+    report: CollisionReport,
+    stored: HashMap<String, StoredConflict>,
+    /// Present agents at the last `track` (a change of the set checks right away).
+    agents: BTreeSet<String>,
+    due: Option<Instant>,
+    first: Option<Instant>,
+    timer: bool,
+}
+
+/// State of the collision check, via `core.state::<CollisionWatch>()`. In memory only.
+pub struct CollisionWatch {
+    enabled: AtomicBool,
+    timing: Mutex<CollisionTiming>,
+    repos: Mutex<HashMap<String, RepoState>>,
+    /// Agent worktree repository → the repository the agent belongs to.
+    owners: Mutex<HashMap<String, String>>,
+    locks: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+    checks: AtomicU64,
+    active: AtomicU32,
+    peak: AtomicU32,
+}
+
+impl Default for CollisionWatch {
+    fn default() -> Self {
+        CollisionWatch {
+            enabled: AtomicBool::new(!cfg!(any(test, feature = "testkit"))),
+            timing: Mutex::new(CollisionTiming::default()),
+            repos: Mutex::new(HashMap::new()),
+            owners: Mutex::new(HashMap::new()),
+            locks: Mutex::new(HashMap::new()),
+            checks: AtomicU64::new(0),
+            active: AtomicU32::new(0),
+            peak: AtomicU32::new(0),
+        }
+    }
+}
+
+impl CollisionWatch {
+    fn lock_for(&self, repo_id: &str) -> Arc<tokio::sync::Mutex<()>> {
+        self.locks.lock().entry(repo_id.to_string()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
+    }
+
+    fn update(&self, repo_id: &str, change: impl FnOnce(&mut RepoState)) -> CollisionReport {
+        let mut repos = self.repos.lock();
+        let state = repos.entry(repo_id.to_string()).or_default();
+        change(state);
+        state.report.repo_id = repo_id.to_string();
+        state.report.clone()
+    }
+
+    fn has_agents(&self, repo_id: &str) -> bool {
+        self.repos.lock().get(repo_id).is_some_and(|state| !state.agents.is_empty())
+    }
+}
+
+/// Switches the automatic check on or off (on in the app, off in tests).
+pub fn set_enabled(core: &Core, enabled: bool) {
+    core.state::<CollisionWatch>().enabled.store(enabled, Ordering::SeqCst);
+}
+
+pub fn set_timing(core: &Core, timing: CollisionTiming) {
+    *core.state::<CollisionWatch>().timing.lock() = timing;
+}
+
+/// Checks finished since the start (all repositories).
+pub fn checks_run(core: &Core) -> u64 {
+    core.state::<CollisionWatch>().checks.load(Ordering::SeqCst)
+}
+
+/// Most checks that ever ran at the same time, over all repositories (tests use one repository,
+/// where it must stay 1).
+pub fn peak_parallel(core: &Core) -> u32 {
+    core.state::<CollisionWatch>().peak.load(Ordering::SeqCst)
+}
+
+/// The last report of the repository (`pending` before the first check).
+pub fn report(core: &Core, repo_id: &str) -> CollisionReport {
+    core.state::<CollisionWatch>().update(repo_id, |_| {})
+}
+
+/// Remembers which worktree belongs to which repository (from `agent_list`); a changed set of
+/// present agents (started, cleaned up, brought back) is checked right away.
+pub(crate) fn track(core: &Core, repo_id: &str, agents: &[Agent]) {
+    let watch = core.state::<CollisionWatch>();
+    let present: Vec<&Agent> = agents.iter().filter(|agent| agent.status != AgentStatus::Orphaned && agent.worktree_repo_id.is_some()).collect();
+    {
+        let mut owners = watch.owners.lock();
+        owners.retain(|_, owner| owner != repo_id);
+        for agent in &present {
+            if let Some(worktree) = &agent.worktree_repo_id {
+                owners.insert(worktree.clone(), repo_id.to_string());
+            }
+        }
+    }
+    let ids: BTreeSet<String> = present.iter().map(|agent| agent.id.clone()).collect();
+    let changed = {
+        let mut repos = watch.repos.lock();
+        let state = repos.entry(repo_id.to_string()).or_default();
+        let changed = state.agents != ids;
+        state.agents = ids;
+        changed
+    };
+    if changed {
+        check_soon(core, repo_id);
+    }
+}
+
+/// Called for every `repo:changed`: a change in an agent's worktree, or of the refs of a
+/// repository with agents, schedules the check of that repository (debounced).
+pub fn note_change(core: &Core, repo_id: &str, what: &[RepoChange]) {
+    let watch = core.state::<CollisionWatch>();
+    if !watch.enabled.load(Ordering::SeqCst) {
+        return;
+    }
+    let tree_moved = what.iter().any(|change| matches!(change, RepoChange::Worktree | RepoChange::Index | RepoChange::Head | RepoChange::Refs));
+    let refs_moved = what.iter().any(|change| matches!(change, RepoChange::Head | RepoChange::Refs));
+    let owner = watch.owners.lock().get(repo_id).cloned();
+    let target = match owner {
+        Some(main) if tree_moved => main,
+        None if refs_moved && watch.has_agents(repo_id) => repo_id.to_string(),
+        _ => return,
+    };
+    let debounce = watch.timing.lock().debounce;
+    schedule(core, &target, debounce);
+}
+
+/// Checks the repository as soon as possible (no debounce) – if the automatic check is on.
+pub(crate) fn check_soon(core: &Core, repo_id: &str) {
+    if core.state::<CollisionWatch>().enabled.load(Ordering::SeqCst) {
+        schedule(core, repo_id, Duration::ZERO);
+    }
+}
+
+fn schedule(core: &Core, repo_id: &str, delay: Duration) {
+    let Ok(handle) = tokio::runtime::Handle::try_current() else { return };
+    let watch = core.state::<CollisionWatch>();
+    let now = Instant::now();
+    let spawn = {
+        let mut repos = watch.repos.lock();
+        let state = repos.entry(repo_id.to_string()).or_default();
+        state.due = Some(now + delay);
+        state.first.get_or_insert(now);
+        !std::mem::replace(&mut state.timer, true)
+    };
+    if spawn {
+        handle.spawn(timer(core.clone(), repo_id.to_string()));
+    }
+}
+
+/// One timer per repository: waits for the quiet period (at the latest `max_delay` after the
+/// first change), checks, and goes on while changes came in during the check.
+async fn timer(core: Core, repo_id: String) {
+    let watch = core.state::<CollisionWatch>();
+    loop {
+        loop {
+            let max_delay = watch.timing.lock().max_delay;
+            let at = {
+                let repos = watch.repos.lock();
+                let Some(state) = repos.get(&repo_id) else { return };
+                match (state.due, state.first) {
+                    (Some(due), Some(first)) => due.min(first + max_delay),
+                    _ => break,
+                }
+            };
+            if Instant::now() >= at {
+                break;
+            }
+            tokio::time::sleep_until(at).await;
+        }
+        if let Some(state) = watch.repos.lock().get_mut(&repo_id) {
+            state.due = None;
+            state.first = None;
+        }
+        if let Err(e) = run_check(&core, &repo_id).await {
+            log::warn!("collision check of {repo_id} not run: {}", redact::redact(&e.message));
+        }
+        let again = match watch.repos.lock().get_mut(&repo_id) {
+            Some(state) if state.due.is_some() => true,
+            Some(state) => {
+                state.timer = false;
+                false
+            }
+            None => false,
+        };
+        if !again {
+            return;
+        }
+    }
+}
+
+/// Runs one check now (waits for a running one of the same repository), stores and reports it.
+/// A failure becomes the state `failed` of the report.
+pub(crate) async fn run_check(core: &Core, repo_id: &str) -> CoreResult<CollisionReport> {
+    let watch = core.state::<CollisionWatch>();
+    let lock = watch.lock_for(repo_id);
+    let _guard = lock.lock().await;
+    let active = watch.active.fetch_add(1, Ordering::SeqCst) + 1;
+    watch.peak.fetch_max(active, Ordering::SeqCst);
+    let checking = watch.update(repo_id, |state| state.report.state = CollisionCheckState::Checking);
+    core.emit(names::AGENT_COLLISIONS, &checking);
+    let outcome = compute(core, repo_id, &CancelToken::new()).await;
+    let report = watch.update(repo_id, |state| {
+        state.report.checked_at = Some(util::now_iso());
+        match outcome {
+            Ok(computed) => {
+                state.report.state = CollisionCheckState::Done;
+                state.report.error = None;
+                state.report.collisions = computed.collisions;
+                state.report.skipped = computed.skipped;
+                state.stored = computed.stored;
+            }
+            Err(e) => {
+                state.report.state = CollisionCheckState::Failed;
+                state.report.error = Some(redact::redact(&e.message));
+                state.report.collisions.clear();
+                state.report.skipped.clear();
+                state.stored.clear();
+            }
+        }
+    });
+    watch.active.fetch_sub(1, Ordering::SeqCst);
+    watch.checks.fetch_add(1, Ordering::SeqCst);
+    core.emit(names::AGENT_COLLISIONS, &report);
+    Ok(report)
+}
+
+/// Result tree and raw path of `path` in the conflict `collision_id` of the last report.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn stored_conflict(core: &Core, repo_id: &str, collision_id: &str, path: &str) -> Option<(String, Vec<u8>)> {
+    let watch = core.state::<CollisionWatch>();
+    let repos = watch.repos.lock();
+    let stored = repos.get(repo_id)?.stored.get(collision_id)?;
+    let raw = stored.files.iter().find(|(shown, _)| shown == path)?.1.clone();
+    Some((stored.tree.clone(), raw))
 }
 
 #[cfg(test)]

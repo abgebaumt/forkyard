@@ -258,3 +258,80 @@ async fn orphaned_agents_are_left_out_and_broken_ones_named_with_a_reason() {
     assert!(computed.collisions.is_empty());
     assert_eq!(computed.skipped, vec![CollisionSkip { agent_id: "agent-d-kaputt".into(), reason: "The base commit 0000000 of the agent no longer exists.".into() }]);
 }
+
+use std::time::Duration;
+
+use serde_json::json;
+
+use crate::events::names;
+use crate::model::{CollisionCheckState, RepoChange};
+
+async fn wait_checks(tc: &TestCore, wanted: u64) {
+    let deadline = std::time::Instant::now() + Duration::from_secs(30);
+    while checks_run(tc) < wanted {
+        assert!(std::time::Instant::now() < deadline, "only {} checks, wanted {wanted}", checks_run(tc));
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+}
+
+#[tokio::test]
+async fn changes_are_debounced_and_one_check_runs_at_a_time() {
+    let (tc, repo, id) = setup().await;
+    repo.commit_file("f.txt", "f\n", "Basis");
+    agent_without_session(&tc, &repo, &id, "a-eins").await;
+    agent_without_session(&tc, &repo, &id, "b-zwei").await;
+    // Off in tests by default, like the file watcher: nothing is scheduled.
+    let agents = crate::commands::agents::agent_list(&tc, id.clone()).await.unwrap();
+    let worktree = agents[0].worktree_repo_id.clone().unwrap();
+    tc.emit_repo_changed(&worktree, &[RepoChange::Worktree]);
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(checks_run(&tc), 0);
+
+    set_enabled(&tc, true);
+    set_timing(&tc, CollisionTiming { debounce: Duration::from_millis(150), max_delay: Duration::from_millis(600) });
+    // The same set of agents again: no check. A new agent changes the set: the list checks right away.
+    crate::commands::agents::agent_list(&tc, id.clone()).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(checks_run(&tc), 0);
+    agent_without_session(&tc, &repo, &id, "c-drei").await;
+    crate::commands::agents::agent_list(&tc, id.clone()).await.unwrap();
+    wait_checks(&tc, 1).await;
+    // A burst of changes in a worktree (through the core's own event) gives one check.
+    for _ in 0..4 {
+        tc.emit_repo_changed(&worktree, &[RepoChange::Worktree]);
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    wait_checks(&tc, 2).await;
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(checks_run(&tc), 2);
+    // Unknown repositories, changes that cannot move a tree and the main working directory start nothing.
+    tc.emit_repo_changed("unbekannt", &[RepoChange::Worktree]);
+    tc.emit_repo_changed(&worktree, &[RepoChange::Config]);
+    tc.emit_repo_changed(&id, &[RepoChange::Worktree]);
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    assert_eq!(checks_run(&tc), 2);
+    // The main repository's refs (the base may have moved) count.
+    tc.emit_repo_changed(&id, &[RepoChange::Refs]);
+    wait_checks(&tc, 3).await;
+    // Changes that never stop are checked at the latest after max_delay.
+    let start = checks_run(&tc);
+    for _ in 0..60 {
+        tc.emit_repo_changed(&worktree, &[RepoChange::Worktree]);
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(checks_run(&tc) >= start + 2, "{} checks during 3 s of changes", checks_run(&tc) - start);
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    // Manual checks wait for each other; no two checks ever ran at the same time.
+    let (one, two) = tokio::join!(run_check(&tc, &id), run_check(&tc, &id));
+    assert_eq!(one.unwrap().state, CollisionCheckState::Done);
+    assert_eq!(two.unwrap().state, CollisionCheckState::Done);
+    assert_eq!(peak_parallel(&tc), 1);
+    // Every check is reported as "checking", then with its result.
+    let events = tc.events.named(names::AGENT_COLLISIONS);
+    assert!(events.iter().any(|e| e["state"] == json!("checking")));
+    let last = events.last().unwrap();
+    assert_eq!((last["repoId"].clone(), last["state"].clone()), (json!(id), json!("done")));
+    assert_eq!(report(&tc, &id).state, CollisionCheckState::Done);
+    // The agents changed nothing, so no conflict result is kept for a preview.
+    assert_eq!(stored_conflict(&tc, &id, "a-eins+b-zwei", "f.txt"), None);
+}
