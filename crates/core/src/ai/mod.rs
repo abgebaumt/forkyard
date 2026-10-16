@@ -19,6 +19,7 @@ pub mod pr;
 pub mod provider;
 pub mod providers;
 pub mod run;
+pub mod plan_commands;
 pub mod cli;
 pub mod detect;
 pub mod schema;

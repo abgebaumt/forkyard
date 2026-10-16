@@ -1573,6 +1573,148 @@ pub struct AiUsageSummary {
     pub rows: Vec<AiUsageRow>,
 }
 
+// ---------------------------------------------------------------------------
+// Git in plain language (v1.2, Paket 5)
+// ---------------------------------------------------------------------------
+
+/// A command a plan may contain (allow list in `ai::plan_commands`); wire names as in
+/// `CoreCommands` (`branchCreate` …).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PlanCommand {
+    BranchCreate,
+    BranchCheckout,
+    BranchRename,
+    BranchDelete,
+    ResetBranch,
+    RebaseStart,
+    CherryPick,
+    RevertCommit,
+    MergeStart,
+    StashCreate,
+    TagCreate,
+    CommitReword,
+    Fetch,
+    Pull,
+    Push,
+    BranchDeleteRemote,
+    TagPush,
+}
+
+/// `local`: changes only this repository and is undone with the plan; `outward`: reaches a
+/// remote, is confirmed on its own and cannot be undone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanClass {
+    Local,
+    Outward,
+}
+
+/// JSON type of an argument and how the step editor shows it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanArgKind {
+    Text,
+    OptionalText,
+    Boolean,
+    List,
+    Choice,
+    OptionalChoice,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanArgField {
+    pub name: String,
+    pub kind: PlanArgKind,
+    /// Allowed values of `choice` / `optional_choice`; empty otherwise.
+    pub choices: Vec<String>,
+}
+
+/// One step as the model proposed it or the user edited it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanStep {
+    pub command: PlanCommand,
+    /// The command's arguments as JSON values (`null` = not given).
+    pub args: serde_json::Map<String, serde_json::Value>,
+    /// Why the step is needed – the model's words, plain text.
+    pub why: String,
+}
+
+/// Pre-check of one step.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
+pub enum PlanCheck {
+    /// Simulated: no conflicts.
+    Clean,
+    /// The step cannot stop on conflicts.
+    NotNeeded,
+    /// Simulated: would stop on conflicts in these files. Blocks the plan.
+    Conflicts { files: Vec<String> },
+    /// Not simulated (depends on an earlier step or a fetch, or Git cannot simulate it).
+    Unknown { reason: String },
+    /// The arguments do not fit the allow list or the repository. Blocks the plan.
+    Invalid { reason: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanStepView {
+    pub command: PlanCommand,
+    pub args: serde_json::Map<String, serde_json::Value>,
+    pub why: String,
+    pub class: PlanClass,
+    /// Deletes a branch or discards changes (shown with the word "destructive").
+    pub destructive: bool,
+    /// The command's arguments for the step editor.
+    pub fields: Vec<PlanArgField>,
+    pub check: PlanCheck,
+}
+
+/// A checked plan. Nothing in the repository has changed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanPreview {
+    pub steps: Vec<PlanStepView>,
+    /// The model's note (why nothing fits, what it left out), plain text.
+    pub note: Option<String>,
+    /// An operation (merge, rebase, cherry-pick, revert, `git am`) or open conflicts block every plan.
+    pub blocked: bool,
+    /// Expected state; `ai_plan_run` refuses with `stale_state` when it no longer holds.
+    pub expect: String,
+    /// No step is invalid or conflicts, nothing blocks and there is at least one step.
+    pub runnable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlanStepStatus {
+    Done,
+    Failed,
+    NotRun,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanStepOutcome {
+    pub index: u32,
+    pub status: PlanStepStatus,
+    /// Only for `failed`.
+    pub error: Option<crate::error::CoreError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanRunResult {
+    pub steps: Vec<PlanStepOutcome>,
+    /// One group undo entry `plan` was recorded (Mod+Z takes the done steps back).
+    pub undo_recorded: bool,
+    /// Every step is done.
+    pub completed: bool,
+    pub cancelled: bool,
+}
+
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
