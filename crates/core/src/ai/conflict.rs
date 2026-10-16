@@ -635,6 +635,10 @@ mod tests {
     use crate::model::{AiOmitReason, IntentSent, Settings};
     use crate::model::{ConflictIntent, ConflictIntentBlock};
     use serde_json::{json, Value};
+    use crate::commands::ai::{ai_conflict_intent, ai_preview};
+    use crate::commands::settings::{repo_settings_set, settings_set};
+    use crate::model::{AiFeature, AiInput, AiProviderKind};
+    use crate::testkit::{MockResponse, MockServer};
 
     fn range(ours_start: u32, ours_count: u32, theirs_start: u32, theirs_count: u32) -> ConflictBlockRange {
         ConflictBlockRange { ours_start, ours_count, theirs_start, theirs_count }
@@ -1179,5 +1183,94 @@ mod tests {
         let intent = accept(&tight, &json!({ "blocks": [{ "block": 2, "ours": "Token", "theirs": "klein", "text": "x\n" }] })).unwrap();
         assert_eq!(intent.blocks[0], ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None });
         assert_eq!(intent.blocks[1].text, None);
+    }
+
+    fn ollama_answer(content: &Value) -> MockResponse {
+        MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content.to_string()}, "done": true, "done_reason": "stop", "prompt_eval_count": 900, "eval_count": 60}))
+    }
+
+    fn ollama(answer: Value) -> MockServer {
+        MockServer::start(move |request| match request.route().as_str() {
+            "POST /api/show" => MockResponse::json(200, json!({"model_info": {"qwen3.context_length": 40960}})),
+            "POST /api/chat" => ollama_answer(&answer),
+            _ => MockResponse::json(404, json!({"error": "not found"})),
+        })
+    }
+
+    async fn with_ollama(server: &MockServer) -> TestCore {
+        let tc = TestCore::new().await;
+        crate::ai::configure_base(&tc, AiProviderKind::Ollama, Some(server.url()));
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b"})).await.unwrap();
+        tc
+    }
+
+    /// The random token differs per request by design; the rest must be identical.
+    fn untokened(text: &str) -> String {
+        regex::Regex::new(r"<<<(REPO|END) [0-9a-f]+>>>").unwrap().replace_all(text, "<<<$1 T>>>").into_owned()
+    }
+
+    fn chats(server: &MockServer) -> Vec<Value> {
+        server.requests().into_iter().filter(|request| request.route() == "POST /api/chat").map(|request| request.json()).collect()
+    }
+
+    #[tokio::test]
+    async fn explaining_sends_exactly_the_previewed_text() {
+        let server = ollama(json!({"blocks": [{"block": 1, "ours": "Main misst öfter.", "theirs": "Nachts seltener messen.", "text": "- Temperatur: alle 5 Minuten, nachts alle 30"}]}));
+        let tc = with_ollama(&server).await;
+        let repo = rebase_conflict();
+        let id = tc.open(&repo).await.repo.id;
+
+        let input = AiInput::ConflictIntent { path: PLAN.into(), blocks: vec![plan_range()] };
+        let preview = ai_preview(&tc, id.clone(), AiFeature::ConflictIntent, input, "de-DE".into()).await.unwrap();
+        assert!(preview.asks.is_empty(), "a local provider asks nothing (Grundregel 4)");
+        assert!(preview.text.contains("- Temperatur: alle 10 Minuten, nachts alle 30"));
+        assert!(chats(&server).is_empty(), "the preview sends nothing");
+
+        let intent = ai_conflict_intent(&tc, id.clone(), "job-intent-1".into(), PLAN.into(), vec![plan_range()], "de-DE".into()).await.unwrap();
+        assert_eq!(
+            intent,
+            ConflictIntent {
+                path: PLAN.into(),
+                blocks: vec![ConflictIntentBlock {
+                    block: 0,
+                    sent: IntentSent::Full,
+                    ours_why: Some("Main misst öfter.".into()),
+                    theirs_why: Some("Nachts seltener messen.".into()),
+                    text: Some("- Temperatur: alle 5 Minuten, nachts alle 30\n".into()),
+                }],
+            }
+        );
+        let sent = chats(&server);
+        assert_eq!(sent.len(), 1);
+        let text = format!("{}\n\n{}", sent[0]["messages"][0]["content"].as_str().unwrap(), sent[0]["messages"][1]["content"].as_str().unwrap());
+        assert_eq!(untokened(&text), untokened(&preview.text), "“What is sent?” shows exactly what goes out");
+        assert_eq!(sent[0]["format"], schema());
+        assert_eq!(repo.git(&["ls-files", "-u", "--", PLAN]).lines().count(), 3, "explaining changes nothing in the repository");
+    }
+
+    #[tokio::test]
+    async fn nothing_is_sent_while_ai_is_off_for_the_function_or_the_repository() {
+        let server = ollama(json!({"blocks": []}));
+        let tc = with_ollama(&server).await;
+        let repo = rebase_conflict();
+        let id = tc.open(&repo).await.repo.id;
+        let code = |result: CoreResult<ConflictIntent>| result.unwrap_err().code;
+
+        let explain = |job: &'static str| ai_conflict_intent(&tc, id.clone(), job.into(), PLAN.into(), vec![plan_range()], "en".into());
+
+        settings_set(&tc, json!({"aiFeaturesOff": ["conflict_intent"]})).await.unwrap();
+        assert_eq!(code(explain("j1").await), ErrorCode::AiDisabled, "this function is off");
+        settings_set(&tc, json!({"aiFeaturesOff": []})).await.unwrap();
+        repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
+        assert_eq!(code(explain("j2").await), ErrorCode::AiDisabled, "AI off for this repository");
+        repo_settings_set(&tc, id.clone(), json!({"aiOff": false})).await.unwrap();
+        settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
+        assert_eq!(code(explain("j3").await), ErrorCode::AiDisabled, "AI turned off");
+        settings_set(&tc, json!({"aiEnabled": true})).await.unwrap();
+        crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
+        assert_eq!(code(explain("j4").await), ErrorCode::RepoUntrusted, "the AI core checks trust itself");
+        let input = AiInput::ConflictIntent { path: PLAN.into(), blocks: vec![plan_range()] };
+        assert_eq!(ai_preview(&tc, id.clone(), AiFeature::ConflictIntent, input, "en".into()).await.unwrap_err().code, ErrorCode::RepoUntrusted, "not even the preview reads it");
+        assert!(chats(&server).is_empty(), "nothing went out");
     }
 }

@@ -39,7 +39,9 @@ import type {
   CommitResult,
   CommitSummary,
   CommitSearchFilters,
+  ConflictBlockRange,
   ConflictFile,
+  ConflictIntent,
   ConflictPreview,
   CoreEvents,
   CustomCommandContext,
@@ -899,6 +901,15 @@ export interface CoreCommands {
   aiPreviewReset(): Promise<void>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+  /**
+   * Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
+   * wanted (block texts, commit messages of both sides, pull request texts if a host account is
+   * connected) and a proposed text per block. `blocks`: the conflict blocks of the tool's model as
+   * line ranges, in order; the core reads the text itself from the index. A job (`jobCancel`).
+   * Errors: the AI codes, `not_found` (no open conflict), `not_allowed` (file excluded from AI,
+   * binary or one-sided, ranges out of date), `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiConflictIntent(input: R & { jobId: string; path: string; blocks: ConflictBlockRange[]; locale: string }): Promise<ConflictIntent>;
   /**
    * Paket 4: title and description of a pull request from the commits of `source` that `target`
    * does not have (full ref names: `refs/heads/…`, `refs/remotes/<remote>/…`). Fills the repository's

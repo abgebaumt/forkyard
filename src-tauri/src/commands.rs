@@ -1190,3 +1190,15 @@ pub async fn ai_cli_login(core: State<'_, Core>, repo_id: String, provider: AiPr
 pub async fn ai_pr_description(core: State<'_, Core>, repo_id: String, job_id: String, source: String, target: String, locale: String) -> R<AiPrDescription> {
     c::ai::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
 }
+
+#[tauri::command]
+pub async fn ai_conflict_intent(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    path: String,
+    blocks: Vec<ConflictBlockRange>,
+    locale: String,
+) -> R<ConflictIntent> {
+    c::ai::ai_conflict_intent(&core, repo_id, job_id, path, blocks, locale).await
+}

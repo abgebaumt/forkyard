@@ -13,7 +13,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
 use crate::model::{
-    AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, Settings,
+    AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, ConflictBlockRange, ConflictIntent, Settings,
 };
 use crate::secrets;
 
@@ -180,8 +180,7 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::StagedChanges => context::staged_changes(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,
-        // Teilpaket 6.1, Task 7 replaces this arm with `ai::conflict::build`.
-        AiInput::ConflictIntent { .. } => return Err(CoreError::not_allowed("Explaining conflict intent is not available yet.")),
+        AiInput::ConflictIntent { path, blocks } => ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?.built,
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {
@@ -296,6 +295,25 @@ pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind
     }
     let launch = crate::commands::terminal::ProgramLaunch { program, args: ai::cli::login_args(provider), cwd: PathBuf::new(), env, title: provider.label().to_string() };
     crate::commands::terminal::terminal_open_login(core, &repo_id, launch, cols, rows).await
+}
+
+/// Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
+/// wanted and a proposed text per block (`ai::conflict`). Checks that AI is on for this function and
+/// repository before anything is read, builds exactly the text `ai_preview` shows for
+/// `AiInput::ConflictIntent` (same builder, same `request_frame`), asks the provider as job `job_id`
+/// (confirmations, usage and the activity entry by `complete_json`) and checks the answer per block.
+/// Changes nothing in the repository.
+pub async fn ai_conflict_intent(core: &Core, repo_id: String, job_id: String, path: String, blocks: Vec<ConflictBlockRange>, locale: String) -> CoreResult<ConflictIntent> {
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::ConflictIntent)?;
+    let (budget, secrets) = request_frame(core, &settings, AiFeature::ConflictIntent).await;
+    let plan = ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?;
+    let schema = ai::conflict::schema();
+    let answer = run::complete_json(
+        core,
+        run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::ConflictIntent, job_id: &job_id, prompt: &plan.built.prompt, schema: &schema },
+    )
+    .await?;
+    ai::conflict::accept(&plan, &answer.value)
 }
 
 #[cfg(test)]
