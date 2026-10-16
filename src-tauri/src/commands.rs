@@ -1210,3 +1210,8 @@ pub async fn stack_status(core: State<'_, Core>, repo_id: String, branch: String
 pub async fn stack_restack(core: State<'_, Core>, repo_id: String, branch: String, expected_top: String) -> R<OpResult> {
     c::stack::stack_restack(&core, repo_id, branch, expected_top).await
 }
+
+#[tauri::command]
+pub async fn stack_push(core: State<'_, Core>, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool) -> R<PushResult> {
+    c::stack::stack_push(&core, repo_id, job_id, branches, remote, force).await
+}

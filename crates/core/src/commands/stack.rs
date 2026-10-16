@@ -15,9 +15,9 @@ use serde_json::{json, Map};
 
 use crate::app::Core;
 use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
-use crate::commands::{rebase, refs, remotes};
+use crate::commands::{rebase, refs, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::{OpResult, RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackRestack, StackStatus, StackStatusPart};
+use crate::model::{OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackRestack, StackStatus, StackStatusPart};
 use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
 use crate::util;
 
@@ -310,6 +310,40 @@ pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expecte
         return Err(CoreError::new(ErrorCode::StaleState, "The stack has changed since it was shown. Nothing was rebased; check it again."));
     }
     rebase::rebase_start_with(core, repo_id, restack.onto, Some(restack.top), Some(true)).await
+}
+
+/// Pushes every part in one atomic push (v1.1 `push_with`: the first part as the primary branch,
+/// the others as extra refs) and records the upstream of every part that arrived. `force`: each ref
+/// only with `--force-with-lease` against its tracking ref (after a restack).
+pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool) -> CoreResult<PushResult> {
+    let names: Vec<String> = branches.iter().map(|branch| branch_name_of(branch)).collect::<CoreResult<_>>()?;
+    let Some((first, rest)) = names.split_first() else {
+        return Err(CoreError::not_allowed("There is no part to push."));
+    };
+    let mut seen = HashSet::new();
+    if let Some(twice) = names.iter().find(|name| !seen.insert(name.as_str())) {
+        return Err(CoreError::not_allowed(format!("“{twice}” is named twice in the push.")));
+    }
+    let remote = remote.trim().to_string();
+    if remote.is_empty() || remote.starts_with('-') || remote.chars().any(char::is_control) {
+        return Err(CoreError::not_allowed("Choose the remote to push the stack to."));
+    }
+    let extra: Vec<PushExtra> = rest.iter().map(|name| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force }).collect();
+    let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, None, Some(extra), Some(true)).await?;
+    if let PushResult::Multi { refs, .. } = &result {
+        let arrived: Vec<&String> = rest.iter().filter(|name| refs.iter().any(|r| r.local == format!("refs/heads/{name}") && r.status != PushRefStatus::Rejected)).collect();
+        if !arrived.is_empty() {
+            core.with_write_lock(&repo_id, &[RepoChange::Config], async {
+                for name in &arrived {
+                    core.git_for(&repo_id)?.args(["config", "--local"]).arg(format!("branch.{name}.remote")).arg(&remote).run().await?;
+                    core.git_for(&repo_id)?.args(["config", "--local"]).arg(format!("branch.{name}.merge")).arg(format!("refs/heads/{name}")).run().await?;
+                }
+                Ok(())
+            })
+            .await?;
+        }
+    }
+    Ok(result)
 }
 
 #[cfg(test)]

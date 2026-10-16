@@ -960,6 +960,13 @@ export interface CoreCommands {
    * `stale_state`, everything of `rebaseStart`.
    */
   stackRestack(input: R & { branch: string; expectedTop: Sha }): Promise<OpResult>;
+  /**
+   * Pushes every part in one atomic push (`--atomic`: all arrive or none) and records each part's
+   * upstream. `force`: every ref only with `--force-with-lease` (after a restack). Result: one line
+   * per part (`status: "multi"`; a single part: as `push`). Job `jobId` (cancellable). Errors:
+   * `not_allowed`, `invalid_name`, everything of `push`.
+   */
+  stackPush(input: R & { jobId: string; branches: string[]; remote: string; force: boolean }): Promise<PushResult>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */
