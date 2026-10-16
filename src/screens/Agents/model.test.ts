@@ -12,11 +12,13 @@ import {
   sortAgents,
   startBlocker,
   startLabel,
+  statusChanges,
   statusLabel,
   statusOrigin,
   statusTone,
   templateOptionLabel,
   testLabel,
+  toolbarLabel,
   unattendedChoice,
   type StartDraft,
 } from "./model";
@@ -152,5 +154,34 @@ describe("agents: actions and cleanup", () => {
       { tone: "info", text: "The agent is still running and will be stopped." },
       { tone: "info", text: "The worktree folder and the branch are removed. Undo (Ctrl+Z) brings them back for 14 days." },
     ]);
+  });
+});
+
+describe("agents: status changes worth a notification", () => {
+  it("reports waiting, done and failed once, only after a known earlier status", () => {
+    const before = new Map([
+      ["1", "running"],
+      ["2", "running"],
+      ["3", "running"],
+      ["4", "waiting"],
+    ] as const);
+    const now = [
+      agent({ id: "1", status: "waiting" }),
+      agent({ id: "2", status: "done" }),
+      agent({ id: "3", status: "failed", terminalId: null }),
+      agent({ id: "4", status: "waiting" }),
+      agent({ id: "5", status: "waiting" }),
+      agent({ id: "6", status: "stopped", terminalId: null }),
+    ];
+    expect(statusChanges(new Map(before), now).map((change) => [change.agent.id, change.kind])).toEqual([
+      ["1", "waiting"],
+      ["2", "done"],
+      ["3", "failed"],
+    ]);
+    expect(statusChanges(new Map(), now)).toEqual([]);
+  });
+  it("names the running agents on the toolbar button", () => {
+    expect(toolbarLabel(0)).toBe("Agents");
+    expect(toolbarLabel(3)).toBe("Agents 3");
   });
 });

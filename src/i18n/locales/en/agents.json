@@ -95,7 +95,8 @@
     "locked": "The worktree is locked. Unlock it in the Worktrees section first.",
     "confirm": "Clean up",
     "action": "Clean up coding agent",
-    "done": "Agent “{{name}}” cleaned up"
+    "done": "Agent “{{name}}” cleaned up",
+    "undo": "Undo"
   },
   "panel": {
     "title": "Coding agent",

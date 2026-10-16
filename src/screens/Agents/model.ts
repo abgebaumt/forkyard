@@ -2,7 +2,7 @@
  * Pure helpers of the agent cockpit: status as dot + word (never colour alone), runtime, counts,
  * the start dialog's rules and the actions per agent. No React, no core calls.
  */
-import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTestResult } from "../../core";
+import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTestResult, Id } from "../../core";
 import { t } from "../../i18n";
 
 export type StatusTone = "accent" | "warning" | "success" | "danger" | "muted";
@@ -151,3 +151,25 @@ export function cleanupLines(preview: AgentCleanupPreview): CleanupLine[] {
   lines.push({ tone: "info", text: t("agents.cleanup.removed") });
   return lines;
 }
+
+export interface StatusChange {
+  agent: Agent;
+  kind: "waiting" | "done" | "failed";
+}
+
+/**
+ * Agents whose status became “waiting”, “done” or “failed” since `before` (status per agent id of the
+ * previous list). Agents without an earlier status (first load, newly started) report nothing.
+ */
+export function statusChanges(before: Map<Id, AgentStatus>, agents: Agent[]): StatusChange[] {
+  const out: StatusChange[] = [];
+  for (const agent of agents) {
+    const previous = before.get(agent.id);
+    if (previous === undefined || previous === agent.status) continue;
+    if (agent.status === "waiting" || agent.status === "done" || agent.status === "failed") out.push({ agent, kind: agent.status });
+  }
+  return out;
+}
+
+/** “Agents n” with the agents whose program runs (spec: toolbar switch “Agenten n”); without any just “Agents”. */
+export const toolbarLabel = (running: number): string => (running > 0 ? t("agents.toolbar.labelCount", { count: running }) : t("agents.toolbar.label"));

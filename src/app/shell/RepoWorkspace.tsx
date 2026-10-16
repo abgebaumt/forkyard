@@ -2,6 +2,9 @@ import { useLayoutEffect, useState } from "react";
 import { FileCog, FolderX, PanelLeftOpen, PanelRightOpen, RefreshCw, ShieldAlert, SquareTerminal } from "lucide-react";
 import type { Id, Tab } from "../../core";
 import { Button, IconButton } from "../../ui/Button";
+import { Cockpit } from "../../screens/Agents/Cockpit";
+import { AgentDetailsPanel } from "../../screens/Agents/DetailsPanel";
+import { AgentWatch } from "../../screens/Agents/Watch";
 import { BlameView } from "../../screens/Blame";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
@@ -62,12 +65,15 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       return <IssuesView {...props} number={center.number} />;
     case "stats":
       return <StatsView {...props} />;
+    case "cockpit":
+      return <Cockpit {...props} />;
     case "reflog":
       return <ReflogView {...props} refName={center.ref} />;
   }
 }
 
 function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabView }) {
+  if (view.rightPanel === "agent") return <AgentDetailsPanel repoId={repoId} tabId={tabId} agentId={view.agentId} />;
   if (view.rightPanel === "stash_form") return <StashForm repoId={repoId} tabId={tabId} />;
   const selection = view.selection;
   if (!selection) {
@@ -321,6 +327,7 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
           </div>
         </main>
         {view.terminalOpen ? <TerminalPanel repoId={repoId} tabId={tabId} /> : null}
+        <AgentWatch repoId={repoId} tabId={tabId} />
       </div>
 
       {!panels ? null : view.rightCollapsed ? (

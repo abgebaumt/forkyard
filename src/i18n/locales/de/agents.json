@@ -95,7 +95,8 @@
     "locked": "Der Worktree ist gesperrt. Entsperre ihn zuerst im Bereich „Worktrees“.",
     "confirm": "Aufräumen",
     "action": "Coding-Agent aufräumen",
-    "done": "Agent „{{name}}“ aufgeräumt"
+    "done": "Agent „{{name}}“ aufgeräumt",
+    "undo": "Rückgängig"
   },
   "panel": {
     "title": "Coding-Agent",

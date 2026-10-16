@@ -5,11 +5,11 @@
  */
 import { useEffect, type ReactNode } from "react";
 import { Copy, Eraser, FolderGit2, FolderLock, FolderX, Loader2, Lock, LockOpen, PencilLine, Plus, SquareArrowOutUpRight, Trash2, TriangleAlert } from "lucide-react";
-import type { Id, Worktree } from "../../core";
+import type { Agent, Id, Worktree } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
-import { folderName, lockWorktree, openWorktree, pruneWorktrees, removeBlock, removeWorktree, unlockWorktree, worktreeBusyKey } from "../../app/actions/worktrees";
-import { qk, queryClient, useViewState, useWorktrees } from "../../app/queries";
-import { useBusy } from "../../app/store";
+import { folderName, lockWorktree, openWorktree, pruneWorktrees, removeBlock, removeWorktree, samePath, unlockWorktree, worktreeBusyKey } from "../../app/actions/worktrees";
+import { qk, queryClient, useAgents, useViewState, useWorktrees } from "../../app/queries";
+import { useAppStore, useBusy } from "../../app/store";
 import { Marked, MENU_SEPARATOR, menuItem, SideEmpty, SideLoadError, SideSection, SideSkeleton, type SideRowState } from "../../components/SideSection";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -33,14 +33,16 @@ async function changeLock(repoId: Id, worktree: Worktree) {
   if (answer) await lockWorktree(repoId, worktree, answer.reason || null);
 }
 
-function worktreeMenu(repoId: Id, worktree: Worktree, anyOrphans: boolean): MenuEntry[] {
+function worktreeMenu(repoId: Id, worktree: Worktree, anyOrphans: boolean, agent: Agent | undefined, tabId: Id): MenuEntry[] {
   const name = folderName(worktree.path);
   const lockBlock = worktree.isMain ? t("worktrees.menu.mainNoLock") : null;
   return [
-    menuItem(t("worktrees.dialog.openInTab"), SquareArrowOutUpRight, () => void openWorktree(worktree), {
-      shortcut: "Enter",
-      blocked: worktree.isPrunable ? t("worktrees.menu.folderMissing") : worktree.isCurrent ? t("worktrees.menu.alreadyOpen") : null,
-    }),
+    agent
+      ? menuItem(t("agents.actions.details"), SquareArrowOutUpRight, () => useAppStore.getState().showAgent(tabId, agent.id), { shortcut: "Enter", tooltip: t("agents.worktreeOpenBlocked") })
+      : menuItem(t("worktrees.dialog.openInTab"), SquareArrowOutUpRight, () => void openWorktree(worktree), {
+          shortcut: "Enter",
+          blocked: worktree.isPrunable ? t("worktrees.menu.folderMissing") : worktree.isCurrent ? t("worktrees.menu.alreadyOpen") : null,
+        }),
     menuItem(t("worktrees.menu.copyPath"), Copy, () => void copyText(worktree.path, t("worktrees.menu.pathWhat"))),
     MENU_SEPARATOR,
     worktree.isLocked
@@ -57,7 +59,7 @@ function worktreeMenu(repoId: Id, worktree: Worktree, anyOrphans: boolean): Menu
   ].filter((entry): entry is MenuEntry => entry !== null);
 }
 
-function WorktreeRow({ worktree, state, query, busy, repoName }: { worktree: Worktree; state: SideRowState; query: string; busy: boolean; repoName: string }) {
+function WorktreeRow({ worktree, state, query, busy, repoName, agent }: { worktree: Worktree; state: SideRowState; query: string; busy: boolean; repoName: string; agent: boolean }) {
   const name = folderName(worktree.path);
   // The prefix shared by all folders is only there for screen readers (full path in the tooltip); while filtering the name stays whole so the match is right.
   const [prefix, rest] = query.trim() ? ["", name] : splitFolderName(name, repoName);
@@ -70,6 +72,11 @@ function WorktreeRow({ worktree, state, query, busy, repoName }: { worktree: Wor
       <span className="min-w-0 truncate text-xs text-text-muted" data-worktree-detail>
         {detail}
       </span>
+      {agent ? (
+        <span className="shrink-0 text-xs text-text-muted" data-flag="agent">
+          {t("agents.worktreeBadge")}
+        </span>
+      ) : null}
       {worktree.hasChanges && !worktree.isPrunable ? (
         <Tip label={t("worktrees.tip.changes")} side="right">
           <span className="inline-flex size-1.5 shrink-0 rounded-full bg-warning" data-flag="changed" aria-hidden />
@@ -122,7 +129,7 @@ function WorktreeRow({ worktree, state, query, busy, repoName }: { worktree: Wor
       meta={flags}
       metaFills
       trailing={
-        worktree.isCurrent || worktree.isPrunable ? undefined : (
+        worktree.isCurrent || worktree.isPrunable || agent ? undefined : (
           <IconButton
             size="sm"
             tabIndex={-1}
@@ -150,12 +157,14 @@ function WorktreeRow({ worktree, state, query, busy, repoName }: { worktree: Wor
 }
 
 /** "Worktrees" section – sits below the ref sections of the left panel. */
-export function WorktreesSection({ repoId, query }: WorktreesSectionProps) {
+export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps) {
   const worktrees = useWorktrees(repoId);
   const viewQuery = useViewState(repoId);
   const view = viewQuery.data ?? EMPTY_VIEW;
   const state = sectionState(view, "worktrees");
   const busy = useBusy(worktreeBusyKey(repoId));
+  const agents = useAgents(repoId);
+  const agentAt = (item: Worktree) => (agents.data ?? []).find((agent) => samePath(agent.worktreePath, item.path));
 
   // The app does not watch other folders: refetch the state when coming back to the window.
   useEffect(() => {
@@ -218,10 +227,14 @@ export function WorktreesSection({ repoId, query }: WorktreesSectionProps) {
       items={items}
       itemId={(item) => item.path}
       itemText={(item) => folderName(item.path)}
-      renderRow={(item, rowState) => <WorktreeRow key={item.path} worktree={item} state={rowState} query={query} busy={false} repoName={repoName} />}
-      onActivate={(item) => void openWorktree(item)}
+      renderRow={(item, rowState) => <WorktreeRow key={item.path} worktree={item} state={rowState} query={query} busy={false} repoName={repoName} agent={Boolean(agentAt(item))} />}
+      onActivate={(item) => {
+        const agent = agentAt(item);
+        if (agent) useAppStore.getState().showAgent(tabId, agent.id);
+        else void openWorktree(item);
+      }}
       onRemove={(item) => void removeWorktree(repoId, item)}
-      rowMenu={(item) => worktreeMenu(repoId, item, orphans.length > 0)}
+      rowMenu={(item) => worktreeMenu(repoId, item, orphans.length > 0, agentAt(item), tabId)}
       sectionMenu={sectionMenu}
       placeholder={placeholder}
       actions={<IconButton size="sm" data-action="add" label={t("worktrees.dialog.title")} icon={<Plus className="size-3.5" aria-hidden />} onClick={() => void openWorktreeDialog(repoId)} />}

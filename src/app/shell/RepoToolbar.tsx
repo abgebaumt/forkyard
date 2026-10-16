@@ -3,6 +3,7 @@ import {
   ArchiveRestore,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Bot,
   ChartColumn,
   CloudDownload,
   Command,
@@ -22,8 +23,10 @@ import { operationNames } from "../actions/merge";
 import { popStash, stashChanges } from "../actions/stash";
 import { addRemote, fetchAll, pull, pullModeHints, pullModeLabels, push, setDefaultPullMode } from "../actions/sync";
 import { redo, undo } from "../actions/undo";
+import { toggleCockpit } from "../../screens/Agents/actions";
+import { agentCounts, toolbarLabel } from "../../screens/Agents/model";
 import { toggleStats } from "../../screens/Stats/actions";
-import { useRemotes, useRepoSettings, useSettings, useStashes, useStatus, useUndoState } from "../queries";
+import { useAgents, useRemotes, useRepoSettings, useSettings, useStashes, useStatus, useUndoState } from "../queries";
 import { useAppStore, useBusy, useTabView } from "../store";
 import { t } from "../../i18n";
 
@@ -53,6 +56,8 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const { data: settings } = useSettings();
   const { data: repoSettings } = useRepoSettings(repoId);
   const view = useTabView(tabId);
+  const { data: agents } = useAgents(repoId);
+  const counts = agentCounts(agents ?? []);
   const openOverlay = useAppStore((state) => state.openOverlay);
   const toggleTerminal = useAppStore((state) => state.toggleTerminal);
   const setSearchOpen = useAppStore((state) => state.setSearchOpen);
@@ -238,6 +243,18 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         onClick={() => toggleTerminal(tabId)}
       />
       <div className="flex-1" />
+      <span data-toolbar="agents" className="contents">
+        <ToolbarButton
+          label={toolbarLabel(counts.running)}
+          icon={icon(Bot)}
+          compact={compact}
+          pressed={view.center.kind === "cockpit"}
+          badge={counts.waiting || undefined}
+          badgeLabel={counts.waiting ? t("agents.toolbar.waiting", { count: counts.waiting }) : undefined}
+          hint={view.center.kind === "cockpit" ? t("agents.toolbar.hide") : t("agents.toolbar.hint")}
+          onClick={() => toggleCockpit(tabId)}
+        />
+      </span>
       <ToolbarButton
         label={t("shell.toolbar.stats")}
         icon={icon(ChartColumn)}

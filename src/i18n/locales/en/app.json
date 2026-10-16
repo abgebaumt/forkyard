@@ -59,6 +59,8 @@
     "jobRunning": "“{{job}}” is still running and will be cancelled.",
     "jobsRunning_one": "{{count}} action is still running and will be cancelled.",
     "jobsRunning_other": "{{count}} actions are still running and will be cancelled.",
+    "agentsRunning_one": "{{count}} coding agent is running and will be stopped.",
+    "agentsRunning_other": "{{count}} coding agents are running and will be stopped.",
     "quit": "Quit",
     "save": "Save and quit",
     "saveFailed": "Not everything could be saved",

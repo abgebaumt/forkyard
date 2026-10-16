@@ -25,7 +25,8 @@ export function profileColor(profile: Pick<Profile, "color">, index: number): nu
 export function switchLosses(state: Pick<AppState, "jobs" | "busy">, files: string[], views: boolean): Losses {
   const jobs = Object.values(state.jobs).map((job) => job.title);
   if (jobs.length === 0 && Object.keys(state.busy).length > 0) jobs.push(t("actions.profiles.someAction"));
-  return { jobs, files, views };
+  // Agents are not part of the switch prompt (the quit prompt names them).
+  return { jobs, files, views, agents: 0 };
 }
 
 /** Text of the prompt before the switch, or null if nothing will be lost. */

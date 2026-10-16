@@ -4,6 +4,7 @@
  */
 import type { Id, RepoViewState } from "../../core";
 import type { MenuEntry } from "../../ui/Menu";
+import { AgentsSection } from "../Agents/Section";
 import { PullRequestsSection } from "../PullRequestView/Section";
 import { SubmodulesSection } from "../SubmoduleDialog/Section";
 import { issueSectionState, setIssueSection } from "../Issues/actions";
@@ -16,6 +17,7 @@ export function ExtraSections({ repoId, tabId, query }: { repoId: Id; tabId: Id;
   return (
     <>
       <WorktreesSection repoId={repoId} tabId={tabId} query={query} />
+      <AgentsSection repoId={repoId} tabId={tabId} query={query} />
       <SubmodulesSection repoId={repoId} tabId={tabId} query={query} />
       {/* Only for repositories whose remote belongs to GitHub or GitLab. */}
       <PullRequestsSection repoId={repoId} tabId={tabId} query={query} />
@@ -36,6 +38,7 @@ function builtIn(repoId: Id, view: RepoViewState): MenuEntry[] {
   return (
     [
       ["worktrees", t("sidebar.section.worktrees")],
+      ["agents", t("agents.section.title")],
       ["submodules", t("sidebar.section.submodules")],
     ] as const
   ).map(([id, label]) => {
