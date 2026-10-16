@@ -19,6 +19,7 @@ pub mod prompt;
 pub mod pr;
 pub mod provider;
 pub mod providers;
+pub mod release_notes;
 pub mod run;
 pub mod cli;
 pub mod detect;

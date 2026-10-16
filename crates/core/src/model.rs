@@ -1613,6 +1613,71 @@ pub struct AiUsageSummary {
     pub rows: Vec<AiUsageRow>,
 }
 
+/// The four groups of the release notes (Entscheidung 5, Keep a Changelog).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReleaseGroupKind {
+    Added,
+    Changed,
+    Fixed,
+    Other,
+}
+
+/// The language the entries were written in; German and English have their own headings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReleaseLanguage {
+    De,
+    En,
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseNoteGroup {
+    pub kind: ReleaseGroupKind,
+    /// `Added` / `Neu` …
+    pub heading: String,
+    /// One line each, without the bullet.
+    pub entries: Vec<String>,
+}
+
+/// The commits of the release notes: after `from` (a tag or the given start) up to `to_sha`, merges left out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseNotesRange {
+    /// `None`: from the first commit (no earlier tag).
+    pub from: Option<String>,
+    pub from_sha: Option<String>,
+    pub to_sha: String,
+    /// All commits of the range (`git rev-list --no-merges --count`).
+    pub commits: u32,
+    /// How many of them (newest first) go to the provider.
+    pub included: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseNotes {
+    pub range: ReleaseNotesRange,
+    pub language: ReleaseLanguage,
+    /// Non-empty groups in the order Added, Changed, Fixed, Other.
+    pub groups: Vec<ReleaseNoteGroup>,
+    /// `### <heading>` blocks with `- ` entries; empty without commits.
+    pub markdown: String,
+    /// Commits no entry is based on (no visible change).
+    pub unmentioned: u32,
+}
+
+/// `changelog_insert`: which file (relative to the working directory) and how.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangelogInsertResult {
+    pub path: String,
+    pub created: bool,
+    pub keep_a_changelog: bool,
+}
+
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
