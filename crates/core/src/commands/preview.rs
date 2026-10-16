@@ -236,6 +236,7 @@ async fn wrap_tree(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str)
 
 /// `branch` (default `head`) onto `onto`: the commits `git rebase` would replay (own commits
 /// without merges and without those already upstream), or the explicit order `commits`.
+#[allow(clippy::too_many_arguments)]
 async fn rebase(
     core: &Core,
     repo_id: &str,
