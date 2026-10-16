@@ -95,13 +95,16 @@ pub fn runs_on_this_computer(core: &Core, kind: AiProviderKind, settings: &Setti
 }
 
 impl AiProviderKind {
-    pub const ALL: [AiProviderKind; 6] = [
+    pub const ALL: [AiProviderKind; 9] = [
         AiProviderKind::Anthropic,
         AiProviderKind::Openai,
         AiProviderKind::OpenaiCompatible,
         AiProviderKind::Gemini,
         AiProviderKind::Ollama,
         AiProviderKind::Lmstudio,
+        AiProviderKind::ClaudeCode,
+        AiProviderKind::Codex,
+        AiProviderKind::Opencode,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -112,6 +115,9 @@ impl AiProviderKind {
             AiProviderKind::Gemini => "gemini",
             AiProviderKind::Ollama => "ollama",
             AiProviderKind::Lmstudio => "lmstudio",
+            AiProviderKind::ClaudeCode => "claude_code",
+            AiProviderKind::Codex => "codex",
+            AiProviderKind::Opencode => "opencode",
         }
     }
 
@@ -124,6 +130,9 @@ impl AiProviderKind {
             AiProviderKind::Gemini => "Gemini",
             AiProviderKind::Ollama => "Ollama",
             AiProviderKind::Lmstudio => "LM Studio",
+            AiProviderKind::ClaudeCode => "Claude Code",
+            AiProviderKind::Codex => "Codex",
+            AiProviderKind::Opencode => "opencode",
         }
     }
 
@@ -154,6 +163,22 @@ impl AiProviderKind {
             AiProviderKind::Gemini => "https://generativelanguage.googleapis.com/v1beta",
             AiProviderKind::Ollama => "http://127.0.0.1:11434",
             AiProviderKind::Lmstudio => "http://127.0.0.1:1234/v1",
+            AiProviderKind::ClaudeCode | AiProviderKind::Codex | AiProviderKind::Opencode => "",
+        }
+    }
+
+    /// A command-line tool with its own sign-in (Teilpaket 1b, `ai::cli`).
+    pub fn is_cli(self) -> bool {
+        matches!(self, AiProviderKind::ClaudeCode | AiProviderKind::Codex | AiProviderKind::Opencode)
+    }
+
+    /// The program name the tool is searched by; `None` for API and local providers.
+    pub fn tool_name(self) -> Option<&'static str> {
+        match self {
+            AiProviderKind::ClaudeCode => Some("claude"),
+            AiProviderKind::Codex => Some("codex"),
+            AiProviderKind::Opencode => Some("opencode"),
+            _ => None,
         }
     }
 }
@@ -320,5 +345,34 @@ mod tests {
         assert_eq!(base_url_for(&tc, AiProviderKind::Anthropic, &settings).as_deref(), Some("http://127.0.0.1:9/v1"));
         configure_base(&tc, AiProviderKind::Anthropic, None);
         assert_eq!(base_url_for(&tc, AiProviderKind::Anthropic, &settings).as_deref(), Some("https://api.anthropic.com/v1"));
+    }
+
+    #[test]
+    fn command_line_tools_take_no_key_no_address_and_no_price() {
+        let cli = [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode];
+        assert_eq!(AiProviderKind::ALL.iter().copied().filter(|kind| kind.is_cli()).collect::<Vec<_>>(), cli);
+        let settings = Settings {
+            ai_prices: vec![crate::model::AiPriceOverride { model: "sonnet".into(), input_usd_per_mtok: 3.0, output_usd_per_mtok: 15.0 }],
+            ..Settings::default()
+        };
+        for kind in cli {
+            assert!(!kind.is_local() && !kind.needs_key() && !kind.accepts_key() && !kind.uses_base_url(), "{kind:?}");
+            assert_eq!(kind.default_base(), "");
+            assert!(crate::ai::pricing::price_for(&settings, kind, "sonnet").is_none(), "billed through the tool (spec 1.5): {kind:?}");
+        }
+        assert_eq!(cli.map(AiProviderKind::tool_name), [Some("claude"), Some("codex"), Some("opencode")]);
+        assert_eq!(cli.map(|kind| serde_json::to_value(kind).unwrap()), [serde_json::json!("claude_code"), serde_json::json!("codex"), serde_json::json!("opencode")]);
+        assert_eq!(cli.map(AiProviderKind::label), ["Claude Code", "Codex", "opencode"]);
+        assert!(AiProviderKind::ALL.iter().filter(|kind| !kind.is_cli()).all(|kind| kind.tool_name().is_none()));
+        assert_eq!(cli.map(crate::ai::providers::default_context), [200_000, 128_000, 32_000]);
+    }
+
+    #[tokio::test]
+    async fn command_line_tools_have_no_address() {
+        let tc = crate::testkit::TestCore::new().await;
+        let settings = Settings { ai_base_url: Some("https://llm.firma.example/v1".into()), ..Settings::default() };
+        for kind in [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode] {
+            assert_eq!(base_url_for(&tc, kind, &settings), None, "{kind:?}");
+        }
     }
 }

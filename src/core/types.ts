@@ -953,7 +953,7 @@ export type DiffMode = "hunks" | "inline" | "split";
 // --- AI (v1.2) ------------------------------------------------------------------
 
 /** One provider for every AI function and every profile (Settings › AI). */
-export type AiProviderKind = "anthropic" | "openai" | "openai_compatible" | "gemini" | "ollama" | "lmstudio";
+export type AiProviderKind = "anthropic" | "openai" | "openai_compatible" | "gemini" | "ollama" | "lmstudio" | "claude_code" | "codex" | "opencode";
 
 /** AI functions; each one can be switched off (`Settings.aiFeaturesOff`). */
 export type AiFeature =
@@ -1075,6 +1075,13 @@ export interface AiUsageSummary {
 }
 
 /** Global settings of the active profile. The core sets the defaults. */
+/** Own paths of the AI command-line tools; null = found automatically (PATH, install folders, login shell). */
+export interface AiCliPaths {
+  claudeCode: string | null;
+  codex: string | null;
+  opencode: string | null;
+}
+
 export interface Settings {
   theme: Theme;
   /** 0.8 to 1.5 */
@@ -1148,6 +1155,8 @@ export interface Settings {
   /** Ask before every further request once this month's estimated costs reach this (USD). null = no limit. */
   aiMonthlyLimitUsd: number | null;
   aiPrices: AiPriceOverride[];
+  /** Own paths of Claude Code, Codex and opencode; absolute or null. */
+  aiCliPaths: AiCliPaths;
 }
 
 /** App-side settings per repository. */

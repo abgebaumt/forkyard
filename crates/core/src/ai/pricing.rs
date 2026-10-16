@@ -37,7 +37,8 @@ pub fn builtin_price(kind: AiProviderKind, model: &str) -> Option<AiPrice> {
 }
 
 pub fn price_for(settings: &Settings, kind: AiProviderKind, model: &str) -> Option<AiPrice> {
-    if kind.is_local() {
+    // Local models cost nothing; command-line tools are billed through the tool (spec 1.5).
+    if kind.is_local() || kind.is_cli() {
         return None;
     }
     if let Some(own) = settings.ai_prices.iter().find(|price| price.model == model) {

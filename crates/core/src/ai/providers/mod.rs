@@ -43,6 +43,10 @@ pub fn default_context(kind: AiProviderKind) -> u64 {
         AiProviderKind::OpenaiCompatible => 32_000,
         AiProviderKind::Gemini => 128_000,
         AiProviderKind::Ollama | AiProviderKind::Lmstudio => 8_192,
+        // The tools choose the model themselves; the budget follows their usual context size.
+        AiProviderKind::ClaudeCode => 200_000,
+        AiProviderKind::Codex => 128_000,
+        AiProviderKind::Opencode => 32_000,
     }
 }
 
@@ -111,6 +115,9 @@ pub fn build(kind: AiProviderKind, base: String, key: Option<String>, model: Str
         AiProviderKind::Lmstudio => Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema, context_tokens))),
         AiProviderKind::Gemini => Ok(Box::new(gemini::Gemini::new(base, key.unwrap_or_default(), model, context_tokens))),
         AiProviderKind::Ollama => Ok(Box::new(ollama::Ollama::new(base, model, context_tokens))),
+        AiProviderKind::ClaudeCode | AiProviderKind::Codex | AiProviderKind::Opencode => {
+            Err(CoreError::unknown(format!("Internal error: {} is started through ai::cli::provider.", kind.label())))
+        }
     }
 }
 

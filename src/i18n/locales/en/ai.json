@@ -5,7 +5,10 @@
     "gemini": "Google Gemini (API key)",
     "openai_compatible": "OpenAI-compatible service (own address)",
     "ollama": "Ollama (on this computer)",
-    "lmstudio": "LM Studio (on this computer)"
+    "lmstudio": "LM Studio (on this computer)",
+    "claude_code": "Claude Code (command-line tool, your sign-in)",
+    "codex": "Codex (command-line tool, your sign-in)",
+    "opencode": "opencode (command-line tool, your sign-in)"
   },
   "features": {
     "commit_message": "Commit message",

@@ -1263,7 +1263,8 @@ fn default_ai_confirm_cost() -> f64 {
 }
 
 /// AI provider (`Settings.ai_provider`, one for every function and profile). The command-line
-/// providers come with Teilpaket 1b.
+/// tools (`ClaudeCode`, `Codex`, `Opencode`) use the sign-in the user already has; Forkyard stores
+/// nothing of it (`ai::cli`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AiProviderKind {
@@ -1276,6 +1277,12 @@ pub enum AiProviderKind {
     Ollama,
     /// Local, OpenAI protocol, default `http://127.0.0.1:1234/v1`.
     Lmstudio,
+    /// Claude Code (`claude -p`), signed in by the user.
+    ClaudeCode,
+    /// Codex (`codex exec`), signed in by the user.
+    Codex,
+    /// opencode (`opencode run`), with the providers the user signed in to.
+    Opencode,
 }
 
 /// An AI function; each one can be switched off (`Settings.ai_features_off`).
@@ -1472,6 +1479,36 @@ pub struct AiUsageSummary {
     pub rows: Vec<AiUsageRow>,
 }
 
+/// Own paths of the AI command-line tools (`Settings.ai_cli_paths`, global); `None` = found
+/// automatically (PATH, the usual install folders, the login shell's PATH).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AiCliPaths {
+    pub claude_code: Option<String>,
+    pub codex: Option<String>,
+    pub opencode: Option<String>,
+}
+
+impl AiCliPaths {
+    /// The own path for a command-line tool; `None` for every other provider.
+    pub fn get(&self, kind: AiProviderKind) -> Option<&str> {
+        match kind {
+            AiProviderKind::ClaudeCode => self.claude_code.as_deref(),
+            AiProviderKind::Codex => self.codex.as_deref(),
+            AiProviderKind::Opencode => self.opencode.as_deref(),
+            _ => None,
+        }
+    }
+
+    pub fn entries(&self) -> [(AiProviderKind, Option<&str>); 3] {
+        [
+            (AiProviderKind::ClaudeCode, self.claude_code.as_deref()),
+            (AiProviderKind::Codex, self.codex.as_deref()),
+            (AiProviderKind::Opencode, self.opencode.as_deref()),
+        ]
+    }
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1548,6 +1585,9 @@ pub struct Settings {
     pub ai_monthly_limit_usd: Option<f64>,
     #[serde(default)]
     pub ai_prices: Vec<AiPriceOverride>,
+    /// Own paths of the AI command-line tools; empty = found automatically.
+    #[serde(default)]
+    pub ai_cli_paths: AiCliPaths,
 }
 
 fn yes() -> bool {
@@ -1606,6 +1646,7 @@ impl Default for Settings {
             ai_confirm_cost_usd: DEFAULT_AI_CONFIRM_COST_USD,
             ai_monthly_limit_usd: None,
             ai_prices: Vec::new(),
+            ai_cli_paths: AiCliPaths::default(),
         }
     }
 }

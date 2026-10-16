@@ -46,6 +46,7 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   aiConfirmCostUsd: 0.1,
   aiMonthlyLimitUsd: null,
   aiPrices: [],
+  aiCliPaths: { claudeCode: null, codex: null, opencode: null },
 };
 
 /** Does the field deviate from the default? */

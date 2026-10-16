@@ -8,7 +8,7 @@ use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::netconfig;
-use crate::model::{AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings, DEFAULT_AI_CONFIRM_COST_USD};
+use crate::model::{AiCliPaths, AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings, DEFAULT_AI_CONFIRM_COST_USD};
 use crate::util;
 
 // ---------------------------------------------------------------------------
@@ -37,7 +37,7 @@ fn normalize(mut s: Settings) -> Settings {
 }
 
 /// Fields of the AI settings; changing one also reports `app:changed` with `ai`.
-const AI_KEYS: [&str; 9] = [
+const AI_KEYS: [&str; 10] = [
     "aiEnabled",
     "aiProvider",
     "aiModel",
@@ -47,6 +47,7 @@ const AI_KEYS: [&str; 9] = [
     "aiConfirmCostUsd",
     "aiMonthlyLimitUsd",
     "aiPrices",
+    "aiCliPaths",
 ];
 
 fn normalize_ai(s: &mut Settings) {
@@ -75,6 +76,21 @@ fn normalize_ai(s: &mut Settings) {
         prices.push(AiPriceOverride { model, input_usd_per_mtok: price.input_usd_per_mtok, output_usd_per_mtok: price.output_usd_per_mtok });
     }
     s.ai_prices = prices;
+    for path in [&mut s.ai_cli_paths.claude_code, &mut s.ai_cli_paths.codex, &mut s.ai_cli_paths.opencode] {
+        *path = util::non_empty(path.take()).map(|value| value.trim().to_string());
+    }
+}
+
+/// Own paths of the AI command-line tools must be absolute: a bare name would be searched like PATH.
+fn check_cli_paths(paths: &AiCliPaths) -> CoreResult<()> {
+    let example = if cfg!(windows) { r"C:\Users\name\.local\bin\claude.exe" } else { "/usr/local/bin/claude" };
+    for (kind, path) in paths.entries() {
+        let Some(path) = path.map(str::trim).filter(|path| !path.is_empty()) else { continue };
+        if !std::path::Path::new(path).is_absolute() {
+            return Err(CoreError::not_allowed(format!("Enter the full path of the program for {}, e.g. {example}.", kind.label())));
+        }
+    }
+    Ok(())
 }
 
 /// An AI service address: http(s), no credentials in it, unencrypted `http://` only to this computer.
@@ -128,6 +144,9 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
         if let Err(reason) = util::check_ref_name(next.default_branch_name.trim()) {
             return Err(CoreError::invalid_name(format!("Invalid default branch name: {reason}")));
         }
+    }
+    if changed.iter().any(|k| k == "aiCliPaths") {
+        check_cli_paths(&next.ai_cli_paths)?;
     }
     if changed.iter().any(|k| k == "aiBaseUrl") {
         if let Some(url) = next.ai_base_url.as_deref().map(str::trim).filter(|url| !url.is_empty()) {
@@ -702,7 +721,7 @@ mod tests {
     use super::*;
     use crate::error::ErrorCode;
     use crate::events::names;
-    use crate::model::{AiFeature, AiProviderKind};
+    use crate::model::{AiCliPaths, AiFeature, AiProviderKind};
     use crate::model::{PullMode, Theme};
     use crate::testkit::{TestCore, TestRepo};
     use serde_json::json;
@@ -826,6 +845,37 @@ mod tests {
         assert!(!config.contains("aioff"), "stored in the app database, not in .git/config: {config}");
         let tc = tc.restart().await;
         assert!(repo_settings_get(&tc, id).await.unwrap().ai_off, "kept across a restart");
+    }
+
+    #[tokio::test]
+    async fn cli_paths_are_global_tidied_and_must_be_absolute() {
+        let tc = TestCore::new().await;
+        assert_eq!(settings_get(&tc).await.unwrap().ai_cli_paths, AiCliPaths::default(), "found automatically by default");
+        let own = std::env::temp_dir().join("Programme mit Leerzeichen").join("Grüße").join("claude");
+        tc.events.clear();
+        let s = settings_set(&tc, json!({"aiCliPaths": {"claudeCode": format!("  {}  ", own.display()), "codex": "   ", "opencode": null}})).await.unwrap();
+        assert_eq!(s.ai_cli_paths.claude_code.as_deref(), Some(own.to_str().unwrap()), "trimmed, spaces and umlauts inside kept");
+        assert_eq!((s.ai_cli_paths.codex.clone(), s.ai_cli_paths.opencode.clone()), (None, None), "blank = found automatically");
+        let ai_events = tc
+            .events
+            .all()
+            .into_iter()
+            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .count();
+        assert_eq!(ai_events, 1, "a path change is an AI change");
+
+        for relative in ["bin/claude", "claude", "-claude"] {
+            let err = settings_set(&tc, json!({"aiCliPaths": {"claudeCode": null, "codex": relative, "opencode": null}})).await.unwrap_err();
+            assert_eq!(err.code, ErrorCode::NotAllowed, "{relative}");
+            assert!(err.message.contains("full path") && err.message.contains("Codex"), "{}", err.message);
+        }
+        assert_eq!(settings_get(&tc).await.unwrap().ai_cli_paths.claude_code.as_deref(), Some(own.to_str().unwrap()), "a refused change keeps the old value");
+
+        // Global like every AI setting (Entscheidung 1).
+        let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
+        let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
+        profile_activate(&tc, other).await.unwrap();
+        assert_eq!(settings_get(&tc).await.unwrap().ai_cli_paths.claude_code.as_deref(), Some(own.to_str().unwrap()));
     }
 
     #[tokio::test]

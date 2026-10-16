@@ -1,8 +1,20 @@
 /** Pure helpers of Settings › AI (provider kinds, patterns, amounts, own prices). */
-import type { AiFeature, AiPriceOverride, AiProviderKind } from "../../../core";
+import type { AiCliPaths, AiFeature, AiPriceOverride, AiProviderKind } from "../../../core";
 
-/** In the order of the provider menu. */
-export const PROVIDERS: AiProviderKind[] = ["anthropic", "openai", "gemini", "openai_compatible", "ollama", "lmstudio"];
+/** In the order of the provider menu: the tools with the user's own sign-in first. */
+export const PROVIDERS: AiProviderKind[] = ["claude_code", "codex", "opencode", "anthropic", "openai", "gemini", "openai_compatible", "ollama", "lmstudio"];
+
+export type CliProvider = "claude_code" | "codex" | "opencode";
+export const CLI_PROVIDERS: CliProvider[] = ["claude_code", "codex", "opencode"];
+export const isCli = (provider: AiProviderKind): provider is CliProvider => provider === "claude_code" || provider === "codex" || provider === "opencode";
+
+const CLI_PATH_FIELD: Record<CliProvider, keyof AiCliPaths> = { claude_code: "claudeCode", codex: "codex", opencode: "opencode" };
+export const cliPathField = (provider: CliProvider): keyof AiCliPaths => CLI_PATH_FIELD[provider];
+
+/** Sets the own path of one tool; blank = found automatically. */
+export function withCliPath(paths: AiCliPaths, provider: CliProvider, value: string): AiCliPaths {
+  return { ...paths, [CLI_PATH_FIELD[provider]]: value.trim() || null };
+}
 
 export const FEATURES: AiFeature[] = [
   "commit_message",

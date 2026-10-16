@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { acceptsKey, FEATURES, featureToggle, isLocal, needsKey, parsePatterns, parsePricePair, parseUsd, patternsText, pricePairText, PROVIDERS, usesBaseUrl, withOwnPrice } from "./model";
+import { acceptsKey, cliPathField, FEATURES, featureToggle, isCli, isLocal, needsKey, parsePatterns, parsePricePair, parseUsd, patternsText, pricePairText, PROVIDERS, usesBaseUrl, withCliPath, withOwnPrice } from "./model";
 
 describe("AI settings model", () => {
   it("knows which providers need a key, an address or run locally", () => {
-    expect(PROVIDERS).toHaveLength(6);
+    expect(PROVIDERS).toHaveLength(9);
+    expect(PROVIDERS.filter(isCli)).toEqual(["claude_code", "codex", "opencode"]);
+    expect(PROVIDERS.filter(isCli).some((provider) => acceptsKey(provider) || usesBaseUrl(provider) || isLocal(provider))).toBe(false);
     expect(PROVIDERS.filter(needsKey)).toEqual(["anthropic", "openai", "gemini"]);
     expect(acceptsKey("openai_compatible") && !needsKey("openai_compatible")).toBe(true);
     expect(PROVIDERS.filter(usesBaseUrl)).toEqual(["openai_compatible", "ollama", "lmstudio"]);
@@ -43,5 +45,14 @@ describe("AI settings model", () => {
     expect(withOwnPrice(prices, "a", null)).toEqual([]);
     expect(pricePairText(prices[0])).toBe("3 / 4");
     expect(pricePairText(undefined)).toBe("");
+  });
+
+  it("keeps one own path per command-line tool, blank = found automatically", () => {
+    const none = { claudeCode: null, codex: null, opencode: null };
+    expect(cliPathField("claude_code")).toBe("claudeCode");
+    const paths = withCliPath(none, "codex", "  /opt/Programme mit Leerzeichen/codex  ");
+    expect(paths).toEqual({ claudeCode: null, codex: "/opt/Programme mit Leerzeichen/codex", opencode: null });
+    expect(withCliPath(paths, "codex", "   ")).toEqual(none);
+    expect(withCliPath(none, "opencode", String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`).opencode).toBe(String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`);
   });
 });
