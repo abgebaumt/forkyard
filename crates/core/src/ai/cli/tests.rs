@@ -89,3 +89,83 @@ fn sign_in_commands_per_tool() {
     assert_eq!(login_args(Codex), [OsString::from("login")]);
     assert!(login_args(AiProviderKind::Gemini).is_empty());
 }
+
+use serde_json::json;
+
+use crate::error::ErrorCode;
+use crate::model::AiFeature;
+
+fn strings(args: Vec<OsString>) -> Vec<String> {
+    args.into_iter().map(|arg| arg.to_string_lossy().into_owned()).collect()
+}
+
+#[test]
+fn command_lines_carry_only_switches_and_temp_paths() {
+    assert_eq!(
+        strings(claude::args(Some(r#"{"type":"object"}"#), Some("sonnet"))),
+        ["-p", "--output-format", "json", "--json-schema", r#"{"type":"object"}"#, "--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence", "--model", "sonnet"]
+    );
+    assert_eq!(strings(claude::args(None, None)), ["-p", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence"]);
+
+    // A Windows profile with a space and an umlaut: the paths are single arguments.
+    let dir = Path::new(r"C:\Users\Max Müller\AppData\Roaming\Forkyard\tmp\ai-7f3a");
+    let (schema, out) = (dir.join("schema.json"), dir.join("out.json"));
+    let shown = |path: &Path| path.to_string_lossy().into_owned();
+    let with_all: Vec<String> = [
+        "exec", "-C", &shown(dir), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--output-schema", &shown(&schema), "-o", &shown(&out), "--json", "-m", "gpt-5.1-codex", "-",
+    ]
+    .iter()
+    .map(|arg| arg.to_string())
+    .collect();
+    assert_eq!(strings(codex::args(dir, Some(&schema), &out, Some("gpt-5.1-codex"))), with_all);
+    let bare: Vec<String> =
+        ["exec", "-C", &shown(dir), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "-o", &shown(&out), "--json", "-"].iter().map(|arg| arg.to_string()).collect();
+    assert_eq!(strings(codex::args(dir, None, &out, None)), bare, "without a schema switch the schema goes into the prompt");
+
+    let opencode_args: Vec<String> = ["run", "--dir", &shown(dir), "--pure", "--format", "json", "-m", "anthropic/claude-sonnet-5-5"].iter().map(|arg| arg.to_string()).collect();
+    assert_eq!(strings(opencode::args(dir, Some("anthropic/claude-sonnet-5-5"))), opencode_args);
+    assert_eq!(serde_json::from_str::<serde_json::Value>(opencode::CONFIG).unwrap(), json!({"share": "disabled", "permission": {"*": "deny"}}));
+
+    let forbidden = ["--dangerously-skip-permissions", "--dangerously-bypass-approvals-and-sandbox", "--dangerously-bypass-hook-trust", "bypassPermissions", "--bare", "workspace-write", "danger-full-access", "--permission-mode"];
+    for args in [claude::args(Some("{}"), Some("sonnet")), codex::args(dir, Some(&schema), &out, Some("o3")), opencode::args(dir, Some("x/y"))] {
+        let args = strings(args);
+        assert!(forbidden.iter().all(|switch| !args.iter().any(|arg| arg == switch)), "{args:?}");
+    }
+}
+
+#[test]
+fn model_names_never_become_switches() {
+    for fine in ["sonnet", "claude-sonnet-5-5", "claude-opus-4-6[1m]", "anthropic/claude-sonnet-5-5", "gpt-5.1-codex", "qwen3:8b", "openrouter/meta-llama/llama-3.3-70b@latest", "a+b"] {
+        assert!(check_model(fine).is_ok(), "{fine}");
+    }
+    let long = "m".repeat(201);
+    for bad in ["--dangerously-skip-permissions", "-m", "", "son net", "x;rm -rf ~", "a\"b", "100%", "ä-modell", "a\nb", "a&b", long.as_str()] {
+        assert_eq!(check_model(bad).unwrap_err().code, ErrorCode::NotAllowed, "{bad:?}");
+    }
+}
+
+#[test]
+fn the_prompt_goes_to_stdin_with_or_without_the_schema() {
+    assert_eq!(
+        stdin_text("SYSTEM", "## Staged changes\n<<<REPO t0k>>>\n+a\n<<<END t0k>>>", None),
+        "SYSTEM\n\n## Staged changes\n<<<REPO t0k>>>\n+a\n<<<END t0k>>>",
+        "exactly what “What is sent?” shows"
+    );
+    assert_eq!(stdin_text("SYSTEM", "USER", Some(&json!({"type": "object"}))), "SYSTEM\n\nThe JSON must match this JSON schema exactly:\n{\"type\":\"object\"}\n\nUSER");
+}
+
+#[test]
+fn command_line_tools_get_thirty_seconds_more_to_start() {
+    assert_eq!(cli_timeout(AiFeature::CommitMessage.timeout()), Duration::from_secs(90));
+    assert_eq!(cli_timeout(AiFeature::Compose.timeout()), Duration::from_secs(210));
+    assert_eq!(cli_timeout(AiFeature::ReleaseNotes.timeout()), Duration::from_secs(150));
+}
+
+#[test]
+fn an_api_key_in_the_environment_is_noticed_for_claude_code_only() {
+    let with_key = |name: &str| (name == "ANTHROPIC_API_KEY").then(|| OsString::from("sk-ant-env-0123456789"));
+    assert!(env_key_present(ClaudeCode, with_key));
+    assert!(!env_key_present(Codex, with_key));
+    assert!(!env_key_present(ClaudeCode, |_| Some(OsString::new())), "an empty variable does not count");
+    assert!(!env_key_present(ClaudeCode, |_| None));
+}

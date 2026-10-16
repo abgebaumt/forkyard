@@ -88,6 +88,45 @@ impl Drop for ScratchDir {
     }
 }
 
+// --- Command lines and stdin ------------------------------------------------------------------
+
+/// Extra time for a tool to start (spec 1.2: „Zeitlimit wie API-Anbieter + 30 s Start“).
+pub const CLI_START_GRACE: Duration = Duration::from_secs(30);
+const MAX_MODEL_LEN: usize = 200;
+
+pub fn cli_timeout(limit: Duration) -> Duration {
+    limit + CLI_START_GRACE
+}
+
+/// The model name is the only chosen value on a command line: no switch, no shell or cmd.exe
+/// character, nothing but the characters model IDs use.
+pub fn check_model(model: &str) -> CoreResult<()> {
+    let fine = !model.is_empty()
+        && model.len() <= MAX_MODEL_LEN
+        && !model.starts_with('-')
+        && model.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | ':' | '/' | '@' | '+' | '-' | '[' | ']'));
+    if fine {
+        Ok(())
+    } else {
+        Err(CoreError::not_allowed("A model name for a command-line tool may only contain letters, digits and . _ : / @ + - [ ] and must not start with “-”."))
+    }
+}
+
+/// What the tool reads on stdin: exactly the text of “What is sent?” (`Prompt::text`), with the
+/// schema after the system text when it can't go as a switch.
+pub fn stdin_text(system: &str, user: &str, schema_in_prompt: Option<&serde_json::Value>) -> String {
+    match schema_in_prompt {
+        Some(schema) => format!("{system}\n\nThe JSON must match this JSON schema exactly:\n{schema}\n\n{user}"),
+        None => format!("{system}\n\n{user}"),
+    }
+}
+
+/// Claude Code uses `ANTHROPIC_API_KEY` from the environment instead of the sign-in when it is set;
+/// detection says so. Only the presence is looked at, never the value.
+pub fn env_key_present(kind: AiProviderKind, lookup: impl Fn(&str) -> Option<OsString>) -> bool {
+    kind == AiProviderKind::ClaudeCode && lookup("ANTHROPIC_API_KEY").is_some_and(|value| !value.is_empty())
+}
+
 // --- What a tool can (`--help`) ---------------------------------------------------------------
 
 /// A command-line switch and the spellings `--help` shows for it.

@@ -55,3 +55,13 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
         None => LoginInfo::unknown(),
     }
 }
+
+/// The command line; the configuration goes through `CONFIG_ENV`, the prompt through stdin.
+pub fn args(dir: &std::path::Path, model: Option<&str>) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = vec!["run".into(), "--dir".into(), dir.into(), "--pure".into(), "--format".into(), "json".into()];
+    if let Some(model) = model {
+        args.push("-m".into());
+        args.push(model.into());
+    }
+    args
+}

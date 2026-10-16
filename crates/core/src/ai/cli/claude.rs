@@ -39,3 +39,18 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
         None => LoginInfo::unknown(),
     }
 }
+
+/// The command line; `schema` = the schema's JSON text (Forkyard's own text, never repository data).
+pub fn args(schema: Option<&str>, model: Option<&str>) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = ["-p", "--output-format", "json"].iter().map(std::ffi::OsString::from).collect();
+    if let Some(schema) = schema {
+        args.push("--json-schema".into());
+        args.push(schema.into());
+    }
+    args.extend(["--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence"].iter().map(std::ffi::OsString::from));
+    if let Some(model) = model {
+        args.push("--model".into());
+        args.push(model.into());
+    }
+    args
+}

@@ -37,3 +37,20 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
         None => LoginInfo::unknown(),
     }
 }
+
+/// The command line: working root and answer file in `dir`, prompt from stdin (`-`).
+pub fn args(dir: &std::path::Path, schema_file: Option<&std::path::Path>, out_file: &std::path::Path, model: Option<&str>) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> =
+        vec!["exec".into(), "-C".into(), dir.into(), "--skip-git-repo-check".into(), "--sandbox".into(), "read-only".into(), "--ephemeral".into(), "--ignore-rules".into()];
+    if let Some(schema) = schema_file {
+        args.push("--output-schema".into());
+        args.push(schema.into());
+    }
+    args.extend(["-o".into(), out_file.into(), "--json".into()]);
+    if let Some(model) = model {
+        args.push("-m".into());
+        args.push(model.into());
+    }
+    args.push("-".into());
+    args
+}
