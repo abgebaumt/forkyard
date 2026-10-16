@@ -629,6 +629,7 @@ export function useCoreSync(activeRepoId: Id | null) {
     const stops = [
       core.on("agents:changed", ({ repoId, running }) => {
         store().setAgentsRunning(running);
+        store().noteAgentRepo(repoId);
         void queryClient.invalidateQueries({ queryKey: qk.agents(repoId) });
       }),
       core.on("repo:changed", ({ repoId, what }) => {

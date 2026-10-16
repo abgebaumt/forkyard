@@ -4,7 +4,6 @@ import type { Id, Tab } from "../../core";
 import { Button, IconButton } from "../../ui/Button";
 import { Cockpit } from "../../screens/Agents/Cockpit";
 import { AgentDetailsPanel } from "../../screens/Agents/DetailsPanel";
-import { AgentWatch } from "../../screens/Agents/Watch";
 import { BlameView } from "../../screens/Blame";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
@@ -327,7 +326,6 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
           </div>
         </main>
         {view.terminalOpen ? <TerminalPanel repoId={repoId} tabId={tabId} /> : null}
-        <AgentWatch repoId={repoId} tabId={tabId} />
       </div>
 
       {!panels ? null : view.rightCollapsed ? (

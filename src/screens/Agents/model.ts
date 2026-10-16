@@ -2,7 +2,7 @@
  * Pure helpers of the agent cockpit: status as dot + word (never colour alone), runtime, counts,
  * the start dialog's rules and the actions per agent. No React, no core calls.
  */
-import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTestResult, Id } from "../../core";
+import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTestResult, Id, Tab } from "../../core";
 import { t } from "../../i18n";
 
 export type StatusTone = "accent" | "warning" | "success" | "danger" | "muted";
@@ -169,6 +169,60 @@ export function statusChanges(before: Map<Id, AgentStatus>, agents: Agent[]): St
     if (agent.status === "waiting" || agent.status === "done" || agent.status === "failed") out.push({ agent, kind: agent.status });
   }
   return out;
+}
+
+/**
+ * Last known status per agent, kept per repository for the whole session: the first list of a
+ * repository only sets the baseline, every later one reports what changed. Lives outside any
+ * component, so a repository that is not in the active tab keeps its baseline.
+ */
+export function createStatusMemory() {
+  const byRepo = new Map<Id, Map<Id, AgentStatus>>();
+  return {
+    observe(repoId: Id, agents: Agent[]): StatusChange[] {
+      const before = byRepo.get(repoId);
+      byRepo.set(repoId, new Map(agents.map((agent) => [agent.id, agent.status])));
+      return before ? statusChanges(before, agents) : [];
+    },
+  };
+}
+
+/** Repositories whose agents are watched: every open repository tab (active or not) and every repository that reported agents. */
+export function watchedRepos(tabs: Tab[], agentRepos: Iterable<Id>): Id[] {
+  const out = new Set<Id>();
+  for (const tab of tabs) if (tab.kind === "repo" && tab.repoId) out.add(tab.repoId);
+  for (const repoId of agentRepos) out.add(repoId);
+  return [...out];
+}
+
+export type CockpitKeyAction = "next" | "previous" | "first" | "last" | "details" | "cleanup" | "menu";
+
+/**
+ * The cockpit's list keys. `rowId` is the agent row the key was pressed on, null for anything
+ * else (a button, the header): keys there belong to that element, so Enter still presses a button.
+ */
+export function cockpitKeyAction(key: string, shiftKey: boolean, rowId: Id | null): CockpitKeyAction | null {
+  if (rowId === null) return null;
+  switch (key) {
+    case "ArrowDown":
+      return "next";
+    case "ArrowUp":
+      return "previous";
+    case "Home":
+      return "first";
+    case "End":
+      return "last";
+    case "Enter":
+      return "details";
+    case "Delete":
+      return "cleanup";
+    case "ContextMenu":
+      return "menu";
+    case "F10":
+      return shiftKey ? "menu" : null;
+    default:
+      return null;
+  }
 }
 
 /** “Agents n” with the agents whose program runs (spec: toolbar switch “Agenten n”); without any just “Agents”. */

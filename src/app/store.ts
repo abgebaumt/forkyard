@@ -194,6 +194,8 @@ export interface AppState {
   lastFetch: Record<Id, number>;
   /** Coding agents running in all repositories (from `agents:changed`; the quit prompt counts them). */
   agentsRunning: number;
+  /** Repositories that reported agents this session (from `agents:changed`); their agents stay watched without an open tab. */
+  agentRepos: Id[];
 
   // --- per tab ---
   selectWip(tabId: Id): void;
@@ -253,6 +255,7 @@ export interface AppState {
   setBusy(key: string, busy: boolean): void;
   markFetched(repoId: Id, at?: number): void;
   setAgentsRunning(count: number): void;
+  noteAgentRepo(repoId: Id): void;
 }
 
 const initialWidths = loadWidths();
@@ -291,6 +294,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     busy: {},
     lastFetch: {},
     agentsRunning: 0,
+    agentRepos: [],
 
     selectWip: (tabId) => patchView(tabId, { selection: { kind: "wip" }, rightPanel: "details" }),
     selectCommits: (tabId, shas) =>
@@ -415,6 +419,7 @@ export const useAppStore = create<AppState>()((set, get) => {
       }),
     markFetched: (repoId, at = Date.now()) => set((state) => ({ lastFetch: { ...state.lastFetch, [repoId]: at } })),
     setAgentsRunning: (agentsRunning) => set((state) => (state.agentsRunning === agentsRunning ? state : { agentsRunning })),
+    noteAgentRepo: (repoId) => set((state) => (state.agentRepos.includes(repoId) ? state : { agentRepos: [...state.agentRepos, repoId] })),
   };
 });
 

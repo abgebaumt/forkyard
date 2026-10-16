@@ -20,7 +20,7 @@ import { Banner, EmptyState } from "../../ui/Feedback";
 import { t } from "../../i18n";
 import { isPlainEscape, ownsKey } from "../FileView/parts";
 import { closeCockpit } from "./actions";
-import { actionsFor, displayName, formatRuntime, hasSession, sortAgents, statusOrigin, testLabel } from "./model";
+import { actionsFor, cockpitKeyAction, displayName, formatRuntime, hasSession, sortAgents, statusOrigin, testLabel } from "./model";
 import { StatusWord } from "./parts";
 import { ACTION_LABELS, agentMenu, runAgentAction, useActionOptions } from "./rowActions";
 
@@ -113,40 +113,37 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       closeCockpit(tabId);
       return;
     }
-    if (!ownsKey(event.nativeEvent, hasOpenDialog()) || !active) return;
-    const index = list.findIndex((agent) => agent.id === active.id);
-    const options = optionsFor(active);
-    switch (event.key) {
-      case "ArrowDown":
-        event.preventDefault();
+    if (!ownsKey(event.nativeEvent, hasOpenDialog())) return;
+    // Only on an agent row: Enter, Delete and the menu key on a button belong to that button.
+    const rowId = event.target instanceof Element ? event.target.getAttribute("data-agent-row") : null;
+    const action = cockpitKeyAction(event.key, event.shiftKey, rowId);
+    const index = list.findIndex((agent) => agent.id === rowId);
+    const agent = list[index];
+    if (!action || !agent) return;
+    event.preventDefault();
+    const options = optionsFor(agent);
+    switch (action) {
+      case "next":
         focusRow(list[Math.min(list.length - 1, index + 1)]);
         return;
-      case "ArrowUp":
-        event.preventDefault();
+      case "previous":
         focusRow(list[Math.max(0, index - 1)]);
         return;
-      case "Home":
-        event.preventDefault();
+      case "first":
         focusRow(list[0]);
         return;
-      case "End":
-        event.preventDefault();
+      case "last":
         focusRow(list[list.length - 1]);
         return;
-      case "Enter":
-        event.preventDefault();
-        useAppStore.getState().showAgent(tabId, active.id);
+      case "details":
+        useAppStore.getState().showAgent(tabId, agent.id);
         return;
-      case "Delete":
-        event.preventDefault();
-        if (actionsFor(active, options).includes("cleanup")) void runAgentAction("cleanup", active, tabId);
-        else if (actionsFor(active, options).includes("forget")) void runAgentAction("forget", active, tabId);
+      case "cleanup":
+        if (actionsFor(agent, options).includes("cleanup")) void runAgentAction("cleanup", agent, tabId);
+        else if (actionsFor(agent, options).includes("forget")) void runAgentAction("forget", agent, tabId);
         return;
-      case "ContextMenu":
-      case "F10":
-        if (event.key === "F10" && !event.shiftKey) return;
-        event.preventDefault();
-        openMenuAtElement(event.target as Element, agentMenu(active, tabId, options), displayName(active));
+      case "menu":
+        openMenuAtElement(event.target as Element, agentMenu(agent, tabId, options), displayName(agent));
         return;
     }
   };
