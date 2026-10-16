@@ -42,9 +42,12 @@ export type CenterView =
   /** Statistics of the repository (src/screens/Stats). */
   | { kind: "stats" }
   /** The coding agents of the repository (src/screens/Agents). */
-  | { kind: "cockpit" };
+  | { kind: "cockpit" }
+  /** Review of one or two coding agents (src/screens/AgentReview); `show` picks the columns when there are two. */
+  | { kind: "agent_review"; agentIds: Id[]; show: AgentReviewShow };
 
-export type RightPanel = "details" | "stash_form" | "agent";
+/** `review_commit`: the commit field of the agent review (only while `center.kind === "agent_review"`). */
+export type RightPanel = "details" | "stash_form" | "agent" | "review_commit";
 
 /** Search in the graph. Hits and the active hit, so the graph can highlight them. */
 export interface GraphSearch {

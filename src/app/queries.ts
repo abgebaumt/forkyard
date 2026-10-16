@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -98,6 +98,7 @@ export const qk = {
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   agents: (repoId: Id) => ["repo", repoId, "agents"] as const,
+  agentReview: (repoId: Id, agentId: Id, source: AgentReviewSource) => ["repo", repoId, "agents", "review", agentId, source] as const,
   agentCollisions: (repoId: Id) => ["repo", repoId, "agentCollisions"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
@@ -402,6 +403,14 @@ export const useAgents = (repoId: Id | null | undefined) =>
       return agents;
     },
     enabled: enabledFor(repoId),
+  });
+
+/** What the review of an agent compares (refetched with the agents: their watcher and `agents:changed`). */
+export const useAgentReview = (repoId: Id | null | undefined, agentId: Id | null | undefined, source: AgentReviewSource) =>
+  useQuery({
+    queryKey: qk.agentReview(repoId ?? "", agentId ?? "", source),
+    queryFn: () => core.agentReview({ agentId: agentId!, source }),
+    enabled: enabledFor(repoId) && Boolean(agentId),
   });
 
 export const useAgentTemplates = () => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000 });
