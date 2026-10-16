@@ -175,6 +175,28 @@
     "setup": "Einrichten …",
     "close": "Schließen"
   },
+  "state": {
+    "loading": "Schreibt …",
+    "loadingFor": "{{label}} ({{seconds}} s)",
+    "cancel": "Abbrechen",
+    "slowLocal": "Lokale Modelle brauchen länger",
+    "slowRemote": "Anbieter antwortet langsam",
+    "retry": "Erneut versuchen",
+    "invalid": "Antwort unbrauchbar",
+    "again": "Nochmal",
+    "showSent": "Gesendetes ansehen",
+    "exclude": "Ausschließen",
+    "limitSend": "Diesmal senden",
+    "limitChange": "Limit ändern",
+    "setup": "KI einrichten …"
+  },
+  "suggestion": {
+    "draft": "Entwurf",
+    "ready": "Vorschlag liegt bereit",
+    "replace": "Ersetzen",
+    "append": "Anhängen",
+    "discard": "Verwerfen"
+  },
   "command": {
     "setup": "KI einrichten …",
     "keywords": "KI, AI, LLM, Modell, Claude, Codex, Ollama, Anbieter"
