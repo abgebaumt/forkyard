@@ -258,7 +258,7 @@ async fn commit_locked(core: &Core, repo_id: &str, req: &CommitRequest<'_>) -> C
 }
 
 /// Summary, blank line, description – exactly as it should be in the commit.
-fn build_message(summary: &str, description: &str) -> CoreResult<String> {
+pub(crate) fn build_message(summary: &str, description: &str) -> CoreResult<String> {
     let summary = summary.replace("\r\n", "\n");
     let summary = summary.trim();
     if summary.is_empty() {
@@ -281,7 +281,7 @@ fn build_message(summary: &str, description: &str) -> CoreResult<String> {
 }
 
 /// Identity set, no open conflict.
-fn check_committable(status: &Status) -> CoreResult<()> {
+pub(crate) fn check_committable(status: &Status) -> CoreResult<()> {
     if !status.identity_set {
         return Err(CoreError::new(
             ErrorCode::IdentityMissing,
@@ -376,8 +376,18 @@ async fn drop_backup(core: &Core, repo_id: &str, undo_id: &str) {
 /// Runs `git commit` with the message on stdin, captures the hook output and reports it as
 /// `hook:output`. A hook that rejects the commit yields `hook_failed`.
 async fn run_commit(core: &Core, repo_id: &str, args: &[&str], message: &str) -> CoreResult<Vec<HookOutput>> {
+    run_commit_on(core, repo_id, args, message, None).await
+}
+
+/// `run_commit` on another index file (`GIT_INDEX_FILE`): "Compose commits" builds every commit
+/// on a temporary index; hooks see that index, as with `git commit <paths>` in the terminal.
+pub(crate) async fn run_commit_on(core: &Core, repo_id: &str, args: &[&str], message: &str, index_file: Option<&Path>) -> CoreResult<Vec<HookOutput>> {
     let capture = Hooks::start(core, repo_id).await;
-    let out = capture.wrap(core.git_for(repo_id)?).args(args).stdin(message.as_bytes().to_vec()).check(false).run().await;
+    let mut cmd = capture.wrap(core.git_for(repo_id)?);
+    if let Some(index) = index_file {
+        cmd = cmd.env("GIT_INDEX_FILE", index);
+    }
+    let out = cmd.args(args).stdin(message.as_bytes().to_vec()).check(false).run().await;
     let hooks = capture.finish(core, repo_id);
     let out = out?;
     if out.success() {
