@@ -219,3 +219,208 @@ async fn unknown_and_orphaned_agents_are_refused() {
     assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
     assert_eq!(err.message, ORPHANED);
 }
+
+// ---------------------------------------------------------------------------
+// Taking a selection over (Paket 0's range_apply from the agent's diff) and committing it
+// ---------------------------------------------------------------------------
+
+use crate::commands::agents::agent_review_commit;
+use crate::commands::diff::diff_file;
+use crate::commands::range_apply::range_apply;
+use crate::model::{DiffLineKind, FileDiff, HunkSelection, PatchSelection, RangeApplyTarget, TextDiff};
+
+/// The agent changed the list (uncommitted, CRLF) and created the odd Latin-1 file.
+async fn agent_work(fx: &Fx) -> AgentReview {
+    std::fs::write(fx.folder.join("liste.txt"), CRLF_AGENT).unwrap();
+    std::fs::write(fx.folder.join(ODD), LATIN1).unwrap();
+    agent_review(&fx.tc, fx.row.id.clone(), AgentReviewSource::Snapshot).await.unwrap()
+}
+
+async fn range_diff(fx: &Fx, review: &AgentReview, path: &str) -> TextDiff {
+    let source = DiffSource::Range { from: review.from.clone(), to: Some(review.to.clone()) };
+    match diff_file(&fx.tc, fx.id.clone(), path.to_string(), source, None, None, None).await.unwrap() {
+        FileDiff::Text(text) => text,
+        other => panic!("{other:?}"),
+    }
+}
+
+fn whole(diff: &TextDiff) -> PatchSelection {
+    PatchSelection {
+        path: diff.path.clone(),
+        hunks: diff.hunks.iter().map(|hunk| HunkSelection { index: hunk.index, lines: None }).collect(),
+        expect: diff.range_token.clone().expect("range token"),
+    }
+}
+
+/// Only the changed lines with these texts, from the first hunk.
+fn lines(diff: &TextDiff, texts: &[&str]) -> PatchSelection {
+    let hunk = &diff.hunks[0];
+    let picked: Vec<u32> =
+        hunk.lines.iter().enumerate().filter(|(_, line)| line.kind != DiffLineKind::Context && texts.contains(&line.text.as_str())).map(|(index, _)| index as u32).collect();
+    assert_eq!(picked.len(), texts.len(), "{:?}", hunk.lines);
+    PatchSelection { path: diff.path.clone(), hunks: vec![HunkSelection { index: hunk.index, lines: Some(picked) }], expect: diff.range_token.clone().expect("range token") }
+}
+
+/// The list's first pair of lines and the whole new file.
+async fn usual_selection(fx: &Fx, review: &AgentReview) -> Vec<PatchSelection> {
+    let liste = range_diff(fx, review, "liste.txt").await;
+    let odd = range_diff(fx, review, ODD).await;
+    vec![lines(&liste, &["eins", "EINS"]), whole(&odd)]
+}
+
+fn staged(repo: &TestRepo) -> String {
+    repo.git(&["-c", "core.quotepath=false", "diff", "--cached", "--name-only"])
+}
+
+#[tokio::test]
+async fn taking_over_lines_from_the_agent_changes_only_my_working_directory() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let selection = usual_selection(&fx, &review).await;
+    range_apply(&fx.tc, fx.id.clone(), review.from.clone(), review.to.clone(), selection, RangeApplyTarget::Worktree).await.unwrap();
+    assert_eq!(fx.repo.read_file("liste.txt"), b"EINS\r\nzwei\r\ndrei", "only the first pair; CRLF and the missing final newline stay");
+    assert_eq!(fx.repo.read_file(ODD), LATIN1, "the new file byte for byte");
+    assert_eq!(staged(&fx.repo), "", "unstaged: the index is untouched");
+    assert_eq!(std::fs::read(fx.folder.join("liste.txt")).unwrap(), CRLF_AGENT, "the agent's worktree keeps its state");
+}
+
+#[tokio::test]
+async fn taking_over_staged_puts_the_lines_into_index_and_folder() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let liste = range_diff(&fx, &review, "liste.txt").await;
+    range_apply(&fx.tc, fx.id.clone(), review.from.clone(), review.to.clone(), vec![lines(&liste, &["drei", "DREI"])], RangeApplyTarget::Both).await.unwrap();
+    assert_eq!(fx.repo.git_output(&["show", ":liste.txt"]).stdout, b"eins\r\nzwei\r\nDREI");
+    assert_eq!(fx.repo.read_file("liste.txt"), b"eins\r\nzwei\r\nDREI");
+    assert_eq!(staged(&fx.repo), "liste.txt");
+}
+
+#[tokio::test]
+async fn my_own_change_on_the_same_line_ends_in_a_conflict_and_changes_nothing() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let liste = range_diff(&fx, &review, "liste.txt").await;
+    let mine: &[u8] = b"mein\r\nzwei\r\ndrei";
+    fx.repo.write_file("liste.txt", mine);
+    let err = range_apply(&fx.tc, fx.id.clone(), review.from.clone(), review.to.clone(), vec![whole(&liste)], RangeApplyTarget::Worktree).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::Conflict, "{err:?}");
+    assert!(err.message.contains("liste.txt"), "names the file: {}", err.message);
+    assert_eq!(fx.repo.read_file("liste.txt"), mine, "own change kept, no conflict markers");
+}
+
+#[tokio::test]
+async fn commit_selection_commits_only_the_selection_on_my_branch() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let before = fx.repo.head();
+    let selection = usual_selection(&fx, &review).await;
+    let result = agent_review_commit(
+        &fx.tc,
+        fx.row.id.clone(),
+        "op-review-1".into(),
+        review.from.clone(),
+        review.to.clone(),
+        selection,
+        "Liste groß schreiben".into(),
+        "und die Größe ergänzen".into(),
+        false,
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.sha, fx.repo.head());
+    assert_eq!(fx.repo.git(&["rev-parse", "HEAD^"]), before, "one new commit on top");
+    assert_eq!(fx.repo.current_branch(), "main");
+    assert_eq!(fx.repo.git(&["log", "-1", "--format=%B"]), "Liste groß schreiben\n\nund die Größe ergänzen");
+    let mut files: Vec<String> =
+        fx.repo.git(&["-c", "core.quotepath=false", "show", "--format=", "--name-only", "HEAD"]).lines().filter(|line| !line.is_empty()).map(str::to_string).collect();
+    files.sort();
+    assert_eq!(files, vec![ODD.to_string(), "liste.txt".to_string()]);
+    assert_eq!(fx.repo.git_output(&["show", "HEAD:liste.txt"]).stdout, b"EINS\r\nzwei\r\ndrei");
+    assert_eq!(blob(&fx.repo, &format!("HEAD:{ODD}")), LATIN1);
+    assert_eq!(fx.repo.git(&["status", "--porcelain"]), "", "nothing is left over in my working directory");
+    assert_eq!(fx.repo.git(&["rev-parse", "agent/liste"]), review.tip, "the agent's branch did not move");
+    assert_eq!(std::fs::read(fx.folder.join("liste.txt")).unwrap(), CRLF_AGENT);
+}
+
+#[tokio::test]
+async fn commit_selection_refuses_a_staging_area_with_my_own_changes() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let before = fx.repo.head();
+    fx.repo.write_file("eigen.txt", "meins\n");
+    fx.repo.git(&["add", "eigen.txt"]);
+    let selection = usual_selection(&fx, &review).await;
+    let err = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-2".into(), review.from.clone(), review.to.clone(), selection, "Liste".into(), String::new(), false)
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
+    assert_eq!(err.message, STAGED);
+    assert_eq!(fx.repo.head(), before, "nothing committed");
+    assert_eq!(fx.repo.read_file("liste.txt"), CRLF_BASE, "nothing taken over");
+    assert!(!fx.repo.path().join(ODD).exists());
+    assert_eq!(staged(&fx.repo), "eigen.txt", "my own staged change stays as it was");
+}
+
+#[tokio::test]
+async fn commit_selection_without_a_summary_or_a_selection_changes_nothing() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let selection = usual_selection(&fx, &review).await;
+    let empty = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-3".into(), review.from.clone(), review.to.clone(), selection, "   ".into(), String::new(), false)
+        .await
+        .unwrap_err();
+    assert_eq!(empty.code, ErrorCode::EmptyMessage);
+    let nothing = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-4".into(), review.from.clone(), review.to.clone(), Vec::new(), "Liste".into(), String::new(), false)
+        .await
+        .unwrap_err();
+    assert_eq!(nothing.code, ErrorCode::NothingToCommit);
+    assert_eq!(fx.repo.read_file("liste.txt"), CRLF_BASE);
+    assert_eq!(staged(&fx.repo), "");
+}
+
+#[tokio::test]
+async fn commit_selection_refuses_while_a_merge_is_in_progress() {
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let selection = usual_selection(&fx, &review).await;
+    // A real merge conflict in my repository: README.md changed on both sides.
+    fx.repo.checkout_new("seite");
+    fx.repo.commit_file("README.md", "# Seite\n", "Seite");
+    fx.repo.checkout("main");
+    fx.repo.commit_file("README.md", "# Haupt\n", "Haupt");
+    assert!(!fx.repo.git_output(&["merge", "seite"]).status.success(), "the merge stops at the conflict");
+    let before = fx.repo.head();
+    let err = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-6".into(), review.from.clone(), review.to.clone(), selection, "Liste".into(), String::new(), false)
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::OperationInProgress, "{err:?}");
+    assert_eq!(err.message, OPERATION);
+    assert_eq!(fx.repo.head(), before, "nothing committed");
+    assert!(fx.repo.path().join(".git").join("MERGE_HEAD").exists(), "the merge is left as it was");
+    assert_eq!(fx.repo.read_file("liste.txt"), CRLF_BASE, "nothing taken over");
+    assert!(!fx.repo.path().join(ODD).exists());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_failing_hook_keeps_the_selection_staged() {
+    use std::os::unix::fs::PermissionsExt;
+    let fx = fixture().await;
+    let review = agent_work(&fx).await;
+    let before = fx.repo.head();
+    let hooks = fx.repo.path().join(".git").join("hooks");
+    std::fs::create_dir_all(&hooks).unwrap();
+    std::fs::write(hooks.join("pre-commit"), "#!/bin/sh\necho 'Linter: Fehler' >&2\nexit 3\n").unwrap();
+    std::fs::set_permissions(hooks.join("pre-commit"), std::fs::Permissions::from_mode(0o755)).unwrap();
+    let selection = usual_selection(&fx, &review).await;
+    let err = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-5".into(), review.from.clone(), review.to.clone(), selection, "Liste".into(), String::new(), false)
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::HookFailed, "{err:?}");
+    assert!(err.message.ends_with(STAYS_STAGED), "{}", err.message);
+    assert_eq!(fx.repo.head(), before);
+    let mut list: Vec<String> = staged(&fx.repo).lines().filter(|line| !line.is_empty()).map(str::to_string).collect();
+    list.sort();
+    assert_eq!(list, vec![ODD.to_string(), "liste.txt".to_string()], "the selection stays staged");
+    assert_eq!(fx.repo.git_output(&["show", ":liste.txt"]).stdout, b"EINS\r\nzwei\r\ndrei");
+}

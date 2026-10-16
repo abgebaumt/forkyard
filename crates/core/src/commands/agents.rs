@@ -100,6 +100,25 @@ pub async fn agent_review(core: &Core, agent_id: String, source: crate::model::A
     review::review(core, &agent_id, source).await
 }
 
+/// Commits a selection of the agent's changes on the user's checked-out branch (nothing of the
+/// user's may be staged, no merge or rebase may be in progress). Errors: `empty_message`,
+/// `nothing_to_commit`, `operation_in_progress`, `not_allowed`, `conflict`, `stale_state`,
+/// `hook_failed`, `signing_failed` (the selection then stays staged).
+#[allow(clippy::too_many_arguments)]
+pub async fn agent_review_commit(
+    core: &Core,
+    agent_id: String,
+    op_id: String,
+    from: String,
+    to: String,
+    selections: Vec<crate::model::PatchSelection>,
+    summary: String,
+    description: String,
+    skip_hooks: bool,
+) -> CoreResult<crate::model::CommitResult> {
+    review::commit_selection(core, &agent_id, op_id, from, to, selections, summary, description, skip_hooks).await
+}
+
 /// After every status change of a session: when the agent is done and the repository has a test
 /// command, the tests run by themselves (once at a time).
 pub(crate) async fn after_status_change(core: &Core, session: &registry::Session) {

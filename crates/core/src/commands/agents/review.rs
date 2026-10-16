@@ -9,10 +9,13 @@
 
 use super::describe;
 use crate::app::Core;
+use crate::commands::commit::commit_create;
 use crate::commands::graph;
+use crate::commands::range_apply::range_apply;
+use crate::commands::status::read_status;
 use crate::db::{self, agents::AgentRow};
-use crate::error::{CoreError, CoreResult};
-use crate::model::{AgentReview, AgentReviewSource, AgentStatus};
+use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::model::{AgentReview, AgentReviewSource, AgentStatus, CommitResult, PatchSelection, RangeApplyTarget};
 use crate::undo;
 use crate::util;
 
@@ -32,6 +35,9 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
 ];
 
 pub(crate) const ORPHANED: &str = "The coding agent's worktree or branch no longer exists. Remove its entry in the cockpit.";
+pub(crate) const STAGED: &str = "Your staging area already holds changes. Commit or unstage them first, so that the commit contains only the agent's selection.";
+pub(crate) const OPERATION: &str = "A merge, rebase, cherry-pick or revert is in progress in your repository. Finish or abort it first, so that the commit contains only the agent's selection.";
+pub(crate) const STAYS_STAGED: &str = "The selection stays staged: commit it in the commit panel or undo the takeover.";
 
 /// The working state of an agent's worktree compared with its HEAD.
 pub(crate) struct WorkingState {
@@ -123,5 +129,48 @@ pub(crate) async fn review(core: &Core, agent_id: &str, source: AgentReviewSourc
         base: row.base.clone(),
         uncommitted_files: state.changed,
         running: agent.terminal_id.is_some(),
+    })
+}
+
+/// Commits a selection of the agent's changes (`from..to` as `review` named them) on the branch
+/// checked out in the user's own working directory: nothing of the user's may be staged, then
+/// `range_apply` stages and writes the selection, and the normal commit path commits it (hooks,
+/// signing, undo). A failing commit leaves the selection staged.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn commit_selection(
+    core: &Core,
+    agent_id: &str,
+    op_id: String,
+    from: String,
+    to: String,
+    selections: Vec<PatchSelection>,
+    summary: String,
+    description: String,
+    skip_hooks: bool,
+) -> CoreResult<CommitResult> {
+    let row = row_of(core, agent_id)?;
+    let repo_id = row.repo_id.clone();
+    core.repo_path(&repo_id)?;
+    if summary.trim().is_empty() {
+        return Err(CoreError::new(ErrorCode::EmptyMessage, "The commit message is empty. Enter a summary."));
+    }
+    if selections.is_empty() {
+        return Err(CoreError::new(ErrorCode::NothingToCommit, "Nothing of the agent's changes is selected."));
+    }
+    let status = read_status(core, &repo_id).await?;
+    // During a merge (or with open conflicts) the commit would become that operation's commit.
+    if status.operation.is_some() || !status.conflicted.is_empty() {
+        return Err(CoreError::new(ErrorCode::OperationInProgress, OPERATION));
+    }
+    if !status.staged.is_empty() {
+        return Err(CoreError::not_allowed(STAGED));
+    }
+    let applied = range_apply(core, repo_id.clone(), from, to, selections, RangeApplyTarget::Both).await?;
+    if applied.staged.is_empty() {
+        return Err(CoreError::new(ErrorCode::NothingToCommit, "The selection changes nothing on your branch – it is already there."));
+    }
+    commit_create(core, repo_id, op_id, summary, description, false, skip_hooks, false, false, None).await.map_err(|mut e| {
+        e.message = format!("{} {STAYS_STAGED}", e.message);
+        e
     })
 }

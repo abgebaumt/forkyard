@@ -565,6 +565,7 @@ pub fn run() {
             commands::agent_cleanup,
             commands::agent_run_tests,
             commands::agent_review,
+            commands::agent_review_commit,
             commands::agent_collisions,
             commands::agent_collision_check,
             commands::agent_collision_preview,

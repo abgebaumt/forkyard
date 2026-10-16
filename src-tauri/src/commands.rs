@@ -842,6 +842,22 @@ pub async fn agent_review(core: State<'_, Core>, agent_id: String, source: Agent
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn agent_review_commit(
+    core: State<'_, Core>,
+    agent_id: String,
+    op_id: String,
+    from: String,
+    to: String,
+    selections: Vec<PatchSelection>,
+    summary: String,
+    description: String,
+    skip_hooks: bool,
+) -> R<CommitResult> {
+    c::agents::agent_review_commit(&core, agent_id, op_id, from, to, selections, summary, description, skip_hooks).await
+}
+
+#[tauri::command]
 pub async fn agent_collisions(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
     c::agents::agent_collisions(&core, repo_id).await
 }

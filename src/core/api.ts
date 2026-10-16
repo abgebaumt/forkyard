@@ -679,6 +679,14 @@ export interface CoreCommands {
    * Diffs and `rangeApply` use exactly these two SHAs. Errors: `not_found`, `not_allowed` (orphaned), `repo_untrusted`.
    */
   agentReview(input: { agentId: Id; source: AgentReviewSource }): Promise<AgentReview>;
+  /**
+   * Commits a selection of the agent's changes (`from`/`to` from `agentReview`, `selections[].expect`
+   * = `TextDiff.rangeToken`) on the checked-out branch. Nothing of your own may be staged (`not_allowed`)
+   * and no merge, rebase, cherry-pick or revert may be in progress (`operation_in_progress`).
+   * Errors: `empty_message`, `nothing_to_commit`, `conflict`, `stale_state`, `hook_failed`,
+   * `signing_failed` – after a failed commit the selection stays staged.
+   */
+  agentReviewCommit(input: { agentId: Id; opId: string; from: Sha; to: Sha; selections: PatchSelection[]; summary: string; description: string; skipHooks: boolean }): Promise<CommitResult>;
   /** The last collision report of the repository's coding agents (`pending` before the first check; asking starts one). */
   agentCollisions(input: R): Promise<CollisionReport>;
   /** Checks the agents for collisions now; a failure is `state: "failed"` of the report. Errors: `repo_untrusted`. */
