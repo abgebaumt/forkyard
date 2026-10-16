@@ -415,7 +415,7 @@ scenario("settings levels: a global value applies in every profile, a profile va
   const nav = await settingsNav(app);
   const heads = nav.map((group) => group.head);
   assertEqual(heads.map((head) => head?.toLowerCase()), ["global", `profile · ${first.name}`.toLowerCase(), "help"], "group heads without a repository");
-  assertEqual(nav[0].tabs.map((tab) => tab.label), ["Appearance", "Diff and editor", "External programs", "Custom commands", "Notifications"], "global sections");
+  assertEqual(nav[0].tabs.map((tab) => tab.label), ["Appearance", "Diff and editor", "External programs", "Custom commands", "Notifications", "AI"], "global sections");
   assertIncludes(nav[1].tabs.map((tab) => tab.label).join("|"), "Git behavior", "profile sections");
   t.step("dialog shows the levels Global and Profile, no project level without a repository");
 
@@ -509,7 +509,7 @@ scenario("project overrides the profile: author in .git/config, used by a commit
   await openSettings(app);
   const nav = await settingsNav(app);
   assertEqual(nav.map((group) => group.head)[2]?.toLowerCase(), "project · messnetz", "project group head names the repository");
-  assertEqual(nav[2].tabs.map((tab) => tab.label), ["Identity and access", "Pull and fetch", "Files and hooks", "Ticket links"], "project sections");
+  assertEqual(nav[2].tabs.map((tab) => tab.label), ["Identity and access", "Pull and fetch", "Files and hooks", "Ticket links", "AI and agents"], "project sections");
   await openSection(app, "Identity and access");
   assertEqual((await activeSection(app)).scope, `Only in messnetz · overrides ${profile.name}`, "project scope pill");
   const inherited = await rowState(app, "Author name");
