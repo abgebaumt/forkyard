@@ -621,7 +621,9 @@ pub fn run() {
             commands::ai_cli_login,
             commands::ai_commit_message,
             commands::ai_pr_description,
-            commands::stack_plan
+            commands::stack_plan,
+            commands::stack_create,
+            commands::stack_status
         ])
         .build(context);
     match result {

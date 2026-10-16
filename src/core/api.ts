@@ -118,6 +118,7 @@ import type {
   StatsRange,
   StackCut,
   StackPlan,
+  StackStatus,
   StashSelection,
   Status,
   Submodule,
@@ -942,6 +943,15 @@ export interface CoreCommands {
    * `repo_untrusted`.
    */
   stackPlan(input: R & { branch: string; base: string; cuts: StackCut[] }): Promise<StackPlan>;
+  /**
+   * Creates the branches of the plan for `cuts` without a checkout, in one ref transaction, and
+   * links them in the config; one undo step removes them together. `expectedBase`/`expectedTip`: the
+   * tips the plan showed (`stale_state` if they moved). Errors: everything of `stackPlan`,
+   * `name_exists`, `invalid_name`, `stale_state`.
+   */
+  stackCreate(input: R & { branch: string; base: string; cuts: StackCut[]; expectedBase: Sha; expectedTip: Sha }): Promise<StackStatus>;
+  /** The stack `branch` is a part of (from the parent links in the repository's config); null if it is no part. */
+  stackStatus(input: R & { branch: string }): Promise<StackStatus | null>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

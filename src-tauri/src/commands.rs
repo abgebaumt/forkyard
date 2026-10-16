@@ -1195,3 +1195,13 @@ pub async fn ai_pr_description(core: State<'_, Core>, repo_id: String, job_id: S
 pub async fn stack_plan(core: State<'_, Core>, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> R<StackPlan> {
     c::stack::stack_plan(&core, repo_id, branch, base, cuts).await
 }
+
+#[tauri::command]
+pub async fn stack_create(core: State<'_, Core>, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>, expected_base: String, expected_tip: String) -> R<StackStatus> {
+    c::stack::stack_create(&core, repo_id, branch, base, cuts, expected_base, expected_tip).await
+}
+
+#[tauri::command]
+pub async fn stack_status(core: State<'_, Core>, repo_id: String, branch: String) -> R<Option<StackStatus>> {
+    c::stack::stack_status(&core, repo_id, branch).await
+}

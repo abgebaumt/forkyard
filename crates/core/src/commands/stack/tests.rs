@@ -153,3 +153,115 @@ async fn more_than_a_hundred_commits_are_refused() {
     assert_eq!(error.code, ErrorCode::NotAllowed);
     assert_eq!(error.message, "“lang” has 101 commits; a stack is cut from at most 100.");
 }
+
+// --- Creating and reading back (Task 4) ---------------------------------------------------------
+
+/// `stack_repo` opened and split into the three parts of `three_parts`.
+pub(crate) async fn created(repo: &TestRepo) -> (TestCore, String) {
+    let (tc, id) = opened(repo).await;
+    let plan = stack_plan(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts()).await.unwrap();
+    stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts(), plan.base_sha, plan.tip).await.unwrap();
+    (tc, id)
+}
+
+fn worktree_state(repo: &TestRepo) -> String {
+    repo.git(&["status", "--porcelain=v1", "-z", "--untracked-files=all"])
+}
+
+#[tokio::test]
+async fn creating_moves_only_refs_and_lands_on_gits_commits() {
+    let repo = stack_repo();
+    let (tc, id) = opened(&repo).await;
+    let plan = stack_plan(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts()).await.unwrap();
+    let before = worktree_state(&repo);
+    let readme = repo.read_file("README.md");
+    let index_tree = repo.git(&["write-tree"]);
+    let created = stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts(), plan.base_sha.clone(), plan.tip.clone()).await.unwrap();
+
+    // Oracle: the commits Git names relative to the branch tip.
+    assert_eq!(sha_of(&repo, P1), sha_of(&repo, "feature/auswertung~2"));
+    assert_eq!(sha_of(&repo, P2), sha_of(&repo, "feature/auswertung~1"));
+    assert_eq!(sha_of(&repo, P3), sha_of(&repo, BRANCH));
+    assert_eq!(repo.current_branch(), BRANCH, "nothing was checked out");
+    assert_eq!(worktree_state(&repo), before, "working directory and untracked files untouched");
+    assert_eq!(repo.git(&["write-tree"]), index_tree, "index untouched");
+    assert_eq!(repo.read_file("README.md"), readme);
+
+    assert_eq!(repo.git(&["config", &format!("branch.{P1}.forkyardStackParent")]), MAIN);
+    assert_eq!(repo.git(&["config", &format!("branch.{P2}.forkyardStackParent")]), format!("refs/heads/{P1}"));
+    assert_eq!(repo.git(&["config", &format!("branch.{P3}.forkyardStackParent")]), format!("refs/heads/{P2}"));
+    assert_eq!(created.parts.iter().map(|p| p.branch.as_str()).collect::<Vec<_>>(), [P1, P2, P3]);
+    assert_eq!((created.base.as_str(), created.base_name.as_str()), (MAIN, "main"));
+    assert!(created.restack.is_none());
+}
+
+#[tokio::test]
+async fn undo_removes_every_stack_branch_and_redo_brings_them_back() {
+    let repo = stack_repo();
+    let (tc, id) = created(&repo).await;
+    let tips: Vec<Option<String>> = [P1, P2, P3].iter().map(|b| sha_of(&repo, b)).collect();
+    let step = crate::commands::undo::undo_peek(&tc, id.clone()).await.unwrap().undo.expect("one undo step");
+    assert_eq!(step.action, "stack_create");
+    assert_eq!(step.label, "Undo splitting “feature/auswertung” into 3 stacked branches");
+
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+    for branch in [P1, P2, P3] {
+        assert_eq!(sha_of(&repo, branch), None, "{branch} removed");
+    }
+    assert_eq!(repo.current_branch(), BRANCH);
+    assert_eq!(repo.read_file("notizen.txt"), b"unversioniert\n");
+
+    crate::commands::undo::redo(&tc, id.clone()).await.unwrap();
+    assert_eq!([P1, P2, P3].iter().map(|b| sha_of(&repo, b)).collect::<Vec<_>>(), tips);
+
+    // A part moved meanwhile: the step is no longer offered (Paket 0 checks every ref of a group).
+    repo.git(&["update-ref", &format!("refs/heads/{P2}"), "main"]);
+    assert!(crate::commands::undo::undo_peek(&tc, id).await.unwrap().undo.is_none());
+}
+
+#[tokio::test]
+async fn a_moved_branch_or_a_taken_name_creates_nothing() {
+    let repo = stack_repo();
+    let (tc, id) = opened(&repo).await;
+    let plan = stack_plan(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts()).await.unwrap();
+    let create = || stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts(), plan.base_sha.clone(), plan.tip.clone());
+
+    repo.branch_at(P2, "main");
+    let error = create().await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NameExists);
+    assert_eq!(error.message, format!("A branch “{P2}” already exists."));
+    assert_eq!((sha_of(&repo, P1), sha_of(&repo, P3)), (None, None), "all or nothing");
+
+    repo.git(&["branch", "-D", P2]);
+    repo.git(&["stash", "-u"]);
+    repo.commit_file("spaet.txt", "später\n", "Später");
+    assert_eq!(create().await.unwrap_err().code, ErrorCode::StaleState, "the branch moved since the plan was shown");
+    assert_eq!([P1, P2, P3].iter().map(|b| sha_of(&repo, b)).collect::<Vec<_>>(), [None, None, None]);
+    assert!(!repo.git_output(&["config", &format!("branch.{P1}.forkyardStackParent")]).status.success(), "no parent link written");
+    assert!(crate::commands::undo::undo_peek(&tc, id).await.unwrap().undo.is_none(), "no undo step for nothing");
+}
+
+#[tokio::test]
+async fn the_status_follows_the_parent_links_in_the_config() {
+    let repo = stack_repo();
+    let (tc, id) = created(&repo).await;
+    for start in [P1, P2, P3] {
+        let status = stack_status(&tc, id.clone(), start.into()).await.unwrap().expect("part of a stack");
+        assert_eq!(status.parts.iter().map(|p| p.branch.as_str()).collect::<Vec<_>>(), [P1, P2, P3], "from {start}");
+    }
+    let status = stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap();
+    assert_eq!(status.parts.iter().map(|p| p.parent.clone()).collect::<Vec<_>>(), vec![MAIN.to_string(), format!("refs/heads/{P1}"), format!("refs/heads/{P2}")]);
+    assert!(status.parts.iter().all(|p| p.contains_parent));
+    assert_eq!(status.parts[0].subjects, ["Datenmodell für Stationen", "Import der Messwerte"]);
+    assert_eq!(status.parts[2].subjects, ["Diagramme"]);
+    assert_eq!(status.parts[0].tip, repo.git(&["rev-parse", "feature/auswertung~2"]));
+    assert!(status.parts.iter().all(|p| p.worktree_path.is_none()), "no part is checked out");
+    assert!(status.restack.is_none());
+    assert_eq!(stack_status(&tc, id.clone(), BRANCH.into()).await.unwrap(), None, "the split branch itself is no part");
+    assert_eq!(stack_status(&tc, id.clone(), "main".into()).await.unwrap(), None);
+
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+    assert_eq!(stack_status(&tc, id.clone(), P2.into()).await.unwrap(), None, "undone: the parts are gone");
+    crate::commands::undo::redo(&tc, id.clone()).await.unwrap();
+    assert!(stack_status(&tc, id, P2.into()).await.unwrap().is_some(), "redo: the parent links in the config still hold");
+}

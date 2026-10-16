@@ -8,13 +8,17 @@
 
 pub mod plan;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
+use std::path::Path;
+
+use serde_json::{json, Map};
 
 use crate::app::Core;
-use crate::commands::graph::{read_cmd, resolve_commit, LOG_SAFE};
-use crate::commands::remotes;
-use crate::error::{CoreError, CoreResult};
-use crate::model::{StackCommit, StackCut, StackPart, StackPlan};
+use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
+use crate::commands::{rebase, refs, remotes};
+use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::model::{RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackRestack, StackStatus, StackStatusPart};
+use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
 use crate::util;
 
 use plan::{SourceCommit, MAX_COMMITS};
@@ -148,6 +152,148 @@ pub(crate) async fn plan_for(core: &Core, repo_id: &str, source: &Source, cuts: 
 pub async fn stack_plan(core: &Core, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> CoreResult<StackPlan> {
     let source = read_source(core, &repo_id, &branch, &base).await?;
     plan_for(core, &repo_id, &source, &cuts).await
+}
+
+/// Writes `branch.<part>.forkyardStackParent` for every part: part 1 → the base, part n → part n-1.
+async fn set_parents(core: &Core, repo_id: &str, planned: &StackPlan) -> CoreResult<()> {
+    let mut parent = planned.base.clone();
+    for part in &planned.parts {
+        core.git_for(repo_id)?.args(["config", "--local"]).arg(format!("branch.{}.{}", part.branch, plan::PARENT_KEY)).arg(&parent).run().await?;
+        parent = format!("refs/heads/{}", part.branch);
+    }
+    Ok(())
+}
+
+/// Creates the branches of the plan for `cuts` – without a checkout, in one ref transaction, as one
+/// undo step – and returns the new stack. `expected_base`/`expected_tip`: the tips the plan showed.
+pub async fn stack_create(core: &Core, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>, expected_base: String, expected_tip: String) -> CoreResult<StackStatus> {
+    let id = repo_id.as_str();
+    let top = core
+        .with_write_lock(id, &[RepoChange::Refs, RepoChange::Config], async {
+            let source = read_source(core, id, &branch, &base).await?;
+            if source.tip != expected_tip.trim() || source.base_sha != expected_base.trim() {
+                return Err(CoreError::new(
+                    ErrorCode::StaleState,
+                    format!("“{}” or its base has moved since the plan was shown. Nothing was created; check the plan again.", source.branch),
+                ));
+            }
+            let planned = plan_for(core, id, &source, &cuts).await?;
+            if let Some(part) = planned.parts.iter().find(|part| part.problem.is_some()) {
+                let code = if util::check_ref_name(&part.branch).is_err() { ErrorCode::InvalidName } else { ErrorCode::NameExists };
+                return Err(CoreError::new(code, part.problem.clone().unwrap_or_default()));
+            }
+            let moves: Vec<RefMove> = planned.parts.iter().map(|part| RefMove::new(&format!("refs/heads/{}", part.branch), None, Some(part.tip.as_str()))).collect();
+            let head = refs::read_head(core, id).await?;
+            let entry_id = u::new_id();
+            u::apply_ref_moves(core, id, &moves, "forkyard: stacked branches").await?;
+            if let Err(error) = set_parents(core, id, &planned).await {
+                let back: Vec<RefMove> = moves.iter().map(RefMove::reversed).collect();
+                let _ = u::apply_ref_moves(core, id, &back, "forkyard: stacked branches (rolled back)").await;
+                return Err(error);
+            }
+            let mut extra = Map::new();
+            extra.insert(
+                "stack".into(),
+                json!({ "branch": planned.branch, "base": planned.base, "parts": planned.parts.iter().map(|part| part.branch.clone()).collect::<Vec<_>>() }),
+            );
+            u::record_group(
+                core,
+                GroupRecord {
+                    id: entry_id,
+                    repo_id: id.to_string(),
+                    action: UndoAction::StackCreate,
+                    label: format!("Undo splitting “{}” into {} stacked branches", planned.branch, planned.parts.len()),
+                    refs: moves,
+                    head_before: u::head_token(&head),
+                    head_after: Some(u::head_token(&head)),
+                    snapshot: None,
+                    extra,
+                },
+            )
+            .await?;
+            Ok(planned.parts.last().map(|part| part.branch.clone()).unwrap_or_default())
+        })
+        .await?;
+    status_of(core, id, &top).await?.ok_or_else(|| CoreError::unknown("The new stack could not be read back."))
+}
+
+/// Subjects of the commits of `tip` that `parent` does not have, oldest first, at most 50
+/// (without a parent: only the tip's own subject).
+async fn subjects(core: &Core, repo_id: &str, parent: Option<&str>, tip: &str) -> CoreResult<Vec<String>> {
+    let path = core.repo_path(repo_id)?;
+    let limit = if parent.is_some() { "--max-count=50" } else { "--max-count=1" };
+    let mut cmd = read_cmd(core, &path, repo_id).args(["log", "--reverse", "-z", limit, "--format=%s"]).args(LOG_SAFE).arg(tip);
+    if let Some(parent) = parent {
+        cmd = cmd.args(["--not", parent]);
+    }
+    let out = cmd.arg("--").run().await?;
+    Ok(out.stdout_z().into_iter().map(display_text).collect())
+}
+
+async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, of: &str) -> CoreResult<bool> {
+    let path = core.repo_path(repo_id)?;
+    Ok(read_cmd(core, &path, repo_id).args(["merge-base", "--is-ancestor", ancestor, of]).run_raw().await?.success())
+}
+
+fn same_place(a: &str, b: &Path) -> bool {
+    let key = |p: &Path| std::fs::canonicalize(p).map(|c| util::path_key(&c)).unwrap_or_else(|_| util::path_key(p));
+    key(Path::new(a)) == key(b)
+}
+
+/// The lowest part that no longer contains the part (or base) below it decides what to rebase.
+async fn restack_for(core: &Core, repo_id: &str, parts: &[StackStatusPart]) -> CoreResult<Option<StackRestack>> {
+    let Some(index) = parts.iter().position(|part| !part.contains_parent) else { return Ok(None) };
+    let top = &parts[parts.len() - 1];
+    let here = core.repo_path(repo_id)?;
+    let blocked = top
+        .worktree_path
+        .as_deref()
+        .filter(|path| !same_place(path, &here))
+        .map(|path| format!("“{}” is checked out in another worktree ({path}); restack it there.", top.branch));
+    let moves = rebase::rebase_dependents(core, repo_id.to_string(), parts[index].parent.clone(), Some(top.branch.clone())).await?;
+    let left_behind = parts[index..parts.len() - 1].iter().filter(|part| part.worktree_path.is_some()).map(|part| part.branch.clone()).collect();
+    Ok(Some(StackRestack { onto: parts[index].parent.clone(), top: top.branch.clone(), top_tip: top.tip.clone(), moves, left_behind, blocked }))
+}
+
+/// The stack `name` (short name) is a part of, from the parent links in the config.
+pub(crate) async fn status_of(core: &Core, repo_id: &str, name: &str) -> CoreResult<Option<StackStatus>> {
+    let pattern = format!(r"^branch\..*\.{}$", plan::PARENT_KEY.to_ascii_lowercase());
+    let out = core.git_for(repo_id)?.args(["config", "--local", "-z", "--get-regexp", pattern.as_str()]).read_only().no_log().run_raw().await?;
+    // Exit code 1: no such entry.
+    let parents = if out.success() { plan::parse_parents(&out.stdout) } else { BTreeMap::new() };
+    let branches = local_branches(core, repo_id).await?;
+    let existing: HashSet<String> = branches.iter().map(|branch| branch.name.clone()).collect();
+    let Some(chain) = plan::chain(&parents, &existing, name) else { return Ok(None) };
+    let base = parents[&chain[0]].clone();
+    let remotes: Vec<String> = remotes::read_remotes(core, repo_id).await?.into_iter().map(|r| r.name).collect();
+    let mut parts = Vec::with_capacity(chain.len());
+    let mut parent = base.clone();
+    for part in &chain {
+        let Some(info) = branches.iter().find(|branch| &branch.name == part) else { continue };
+        // A base that is gone (pruned remote branch) can't be compared; the part counts as fine.
+        let parent_sha = resolve_commit(core, repo_id, &parent).await.ok();
+        let contains_parent = match &parent_sha {
+            Some(sha) => is_ancestor(core, repo_id, sha, &info.sha).await?,
+            None => true,
+        };
+        parts.push(StackStatusPart {
+            branch: part.clone(),
+            parent: parent.clone(),
+            tip: info.sha.clone(),
+            contains_parent,
+            worktree_path: info.worktree.clone(),
+            subjects: subjects(core, repo_id, parent_sha.as_deref(), &info.sha).await?,
+        });
+        parent = format!("refs/heads/{part}");
+    }
+    let restack = restack_for(core, repo_id, &parts).await?;
+    Ok(Some(StackStatus { base_name: plan::target_name(&base, &remotes), base, parts, restack }))
+}
+
+/// The stack `branch` is a part of; `None` if it is no part.
+pub async fn stack_status(core: &Core, repo_id: String, branch: String) -> CoreResult<Option<StackStatus>> {
+    let name = branch_name_of(&branch)?;
+    status_of(core, &repo_id, &name).await
 }
 
 #[cfg(test)]
