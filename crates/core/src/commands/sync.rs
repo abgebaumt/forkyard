@@ -32,6 +32,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd};
 use crate::jobs::{CancelToken, Job};
 use crate::model::{FetchFailure, FetchResult, Head, OpResult, PullMode, PushExtra, PushRefResult, PushRefStatus, PushResult, RepoChange};
+use crate::secret_scan;
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
@@ -510,9 +511,13 @@ pub struct PushRequest<'a> {
     /// (SHA). If something else is there by now – even after a background fetch –,
     /// nothing is overwritten. `None` = the state of the tracking ref at the time of the push.
     pub expected: Option<&'a str>,
+    /// IDs of secret-scan findings the user saw and pushes anyway (`PushResult::SecretsFound`).
+    /// `None` = nothing accepted: any finding stops the push.
+    pub accepted_secrets: Option<&'a [String]>,
 }
 
-/// Push; without an upstream `remote` must be set. `force` uses `--force-with-lease`.
+/// Push; without an upstream `remote` must be set. `force` uses `--force-with-lease`. Runs the
+/// secret scan with nothing accepted (commit-and-push, PR push).
 #[allow(clippy::too_many_arguments)]
 pub async fn push(
     core: &Core,
@@ -524,8 +529,32 @@ pub async fn push(
     force: bool,
     expected: Option<String>,
 ) -> CoreResult<PushResult> {
+    push_checked(core, repo_id, job_id, branch, remote, remote_branch, force, expected, None).await
+}
+
+/// `push` with the IDs of secret-scan findings the user saw and pushes anyway. Any finding
+/// outside `accepted_secrets` stops the push again (`PushResult::SecretsFound`, nothing sent).
+#[allow(clippy::too_many_arguments)]
+pub async fn push_checked(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    branch: Option<String>,
+    remote: Option<String>,
+    remote_branch: Option<String>,
+    force: bool,
+    expected: Option<String>,
+    accepted_secrets: Option<Vec<String>>,
+) -> CoreResult<PushResult> {
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let request = PushRequest { branch: branch.as_deref(), remote: remote.as_deref(), remote_branch: remote_branch.as_deref(), force, expected: expected.as_deref() };
+    let request = PushRequest {
+        branch: branch.as_deref(),
+        remote: remote.as_deref(),
+        remote_branch: remote_branch.as_deref(),
+        force,
+        expected: expected.as_deref(),
+        accepted_secrets: accepted_secrets.as_deref(),
+    };
     // The transfer runs under the network lock; `push_transfer` takes the write lock
     // only briefly, to record the upstream.
     let result = with_network_lock(core, &repo_id, job.token(), push_transfer(core, &repo_id, job.token(), Some(&job), request)).await;
@@ -552,13 +581,21 @@ pub async fn push_with(
     expected: Option<String>,
     extra: Option<Vec<PushExtra>>,
     atomic: Option<bool>,
+    accepted_secrets: Option<Vec<String>>,
 ) -> CoreResult<PushResult> {
     let extra = extra.unwrap_or_default();
     if extra.is_empty() {
-        return push(core, repo_id, job_id, branch, remote, remote_branch, force, expected).await;
+        return push_checked(core, repo_id, job_id, branch, remote, remote_branch, force, expected, accepted_secrets).await;
     }
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let request = PushRequest { branch: branch.as_deref(), remote: remote.as_deref(), remote_branch: remote_branch.as_deref(), force, expected: expected.as_deref() };
+    let request = PushRequest {
+        branch: branch.as_deref(),
+        remote: remote.as_deref(),
+        remote_branch: remote_branch.as_deref(),
+        force,
+        expected: expected.as_deref(),
+        accepted_secrets: accepted_secrets.as_deref(),
+    };
     let result = with_network_lock(core, &repo_id, job.token(), push_many(core, &repo_id, &job, request, &extra, atomic.unwrap_or(true))).await;
     if let Ok(PushResult::Multi { refs, .. }) = &result {
         if refs.iter().any(|item| item.status == PushRefStatus::Ok) {
@@ -701,6 +738,11 @@ async fn push_many(core: &Core, repo_id: &str, job: &Job, request: PushRequest<'
         specs.push((local, remote_ref));
     }
 
+    // The local secret scan (spec 6.2) runs before hooks and before anything is sent.
+    let tips: Vec<String> = specs.iter().map(|(local, _)| local.clone()).collect();
+    if let Some(stop) = secret_scan::check_push(core, repo_id, &tips, &target.remote, request.accepted_secrets, Some(job), cancel).await? {
+        return Ok(stop);
+    }
     let hooks = Hooks::start(core, repo_id).await;
     let mut cmd = hooks.wrap(core.git_for(repo_id)?).args(["push", "--porcelain", "--progress"]);
     if atomic {
@@ -780,6 +822,10 @@ fn rejection_reason(summary: &str) -> String {
 /// last fetch) is not an error but `PushResult::Rejected`.
 pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelToken, job: Option<&Job>, request: PushRequest<'_>) -> CoreResult<PushResult> {
     let PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream } = push_target(core, repo_id, &request).await?;
+    // The local secret scan (spec 6.2) runs before hooks and before anything is sent.
+    if let Some(stop) = secret_scan::check_push(core, repo_id, std::slice::from_ref(&local_ref), &remote, request.accepted_secrets, job, cancel).await? {
+        return Ok(stop);
+    }
 
     // Without `--set-upstream`: the core writes the configuration itself afterwards, under the write lock.
     let hooks = Hooks::start(core, repo_id).await;
@@ -982,6 +1028,9 @@ pub async fn job_cancel(core: &Core, job_id: String) -> CoreResult<()> {
 
 #[cfg(test)]
 mod push_many_tests;
+
+#[cfg(test)]
+mod secret_scan_tests;
 
 #[cfg(test)]
 mod tests {

@@ -16,8 +16,8 @@ use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact::{self, SecretKind};
-use crate::jobs::CancelToken;
-use crate::model::{AiOmitReason, SecretFinding, SecretRule};
+use crate::jobs::{CancelToken, Job};
+use crate::model::{AiOmitReason, PushResult, SecretFinding, SecretRule};
 use crate::{secrets, util};
 
 /// The scan stops after this many outgoing commits (newest first) …
@@ -403,6 +403,28 @@ pub fn ignore_ids(conn: &Connection, repo_id: &str, ids: &[String]) -> CoreResul
 /// "Report again": forgets every "Don't report again" of the repository.
 pub fn forget_ignored(conn: &Connection, repo_id: &str) -> CoreResult<()> {
     db::repo_settings::delete(conn, repo_id, IGNORED_KEY)
+}
+
+/// Before every push: `Some(SecretsFound)` if an outgoing added line looks like a key and is not
+/// among `accepted` (the IDs the user saw and pushed anyway); then nothing may be sent.
+pub async fn check_push(core: &Core, repo_id: &str, tips: &[String], remote: &str, accepted: Option<&[String]>, job: Option<&Job>, cancel: &CancelToken) -> CoreResult<Option<PushResult>> {
+    if let Some(job) = job {
+        job.progress("Push", None, "Checking the added lines for keys …");
+    }
+    let scan = scan_outgoing(core, repo_id, tips, remote, cancel).await?;
+    let accepted: HashSet<&str> = accepted.unwrap_or_default().iter().map(String::as_str).collect();
+    if scan.findings.iter().all(|finding| accepted.contains(finding.id.as_str())) {
+        return Ok(None);
+    }
+    Ok(Some(PushResult::SecretsFound { findings: scan.findings, commits: scan.commits, partial: scan.partial }))
+}
+
+/// For pushes without a dialog of their own (Gitflow): names at most three places, never a value.
+pub fn stopped_message(label: &str, findings: &[SecretFinding]) -> String {
+    let places: Vec<String> = findings.iter().take(3).map(|finding| format!("{}:{}", finding.path, finding.line)).collect();
+    let more = if findings.len() > 3 { ", …" } else { "" };
+    let what = if findings.len() == 1 { "1 added line looks".to_string() } else { format!("{} added lines look", findings.len()) };
+    format!("{label} was not pushed: {what} like a key ({}{more}). Push it with “Push” to see the findings and decide.", places.join(", "))
 }
 
 #[cfg(test)]

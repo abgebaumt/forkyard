@@ -889,6 +889,9 @@ pub enum PushResult {
     Rejected { reason: String },
     /// Several refs in one push (`extra`): one result per ref, the primary branch first.
     Multi { remote: String, atomic: bool, refs: Vec<PushRefResult> },
+    /// The local secret scan found added lines that look like a key; nothing was sent. Push again
+    /// with `accepted_secrets` = the IDs of these findings to push anyway.
+    SecretsFound { findings: Vec<SecretFinding>, commits: u32, partial: bool },
 }
 
 /// Why the local secret scan before a push (v1.2, 6.2) reported a line.

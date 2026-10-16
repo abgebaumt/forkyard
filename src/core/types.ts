@@ -764,7 +764,26 @@ export type PushResult =
   /** The remote has commits that are missing locally. */
   | { status: "rejected"; reason: string }
   /** Several refs in one push (`extra`): one result per ref, the primary branch first. */
-  | { status: "multi"; remote: string; atomic: boolean; refs: PushRefResult[] };
+  | { status: "multi"; remote: string; atomic: boolean; refs: PushRefResult[] }
+  /** The local secret scan stopped the push; nothing was sent. Push again with `acceptedSecrets` = the IDs to push anyway. */
+  | { status: "secrets_found"; findings: SecretFinding[]; commits: number; partial: boolean };
+
+/** Why the secret scan before a push reported a line: known token format, private key, named password/token, password in an address, random-looking string. */
+export type SecretRule = "known_token" | "private_key" | "credential" | "url_password" | "high_entropy";
+
+/** One added line that looks like a key. The value never leaves the core: `excerpt` masks it, `hint` is at most its last four characters. */
+export interface SecretFinding {
+  /** Hash of path and line content; "Don't report again" stores it. */
+  id: string;
+  path: string;
+  /** Line in the new version of the file. */
+  line: number;
+  /** The newest outgoing commit that adds the line. */
+  commit: Sha;
+  rule: SecretRule;
+  excerpt: string;
+  hint: string;
+}
 
 export interface FetchResult {
   /** Number of changed remote refs. */

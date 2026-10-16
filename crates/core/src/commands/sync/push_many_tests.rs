@@ -32,7 +32,7 @@ fn extra(local: &str) -> PushExtra {
 }
 
 async fn push_refs(f: &Fixture, extra: Vec<PushExtra>, atomic: bool) -> CoreResult<PushResult> {
-    push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(atomic)).await
+    push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(atomic), None).await
 }
 
 fn statuses(result: &PushResult) -> Vec<(String, PushRefStatus)> {

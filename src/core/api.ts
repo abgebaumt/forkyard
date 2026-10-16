@@ -435,7 +435,8 @@ export interface CoreCommands {
    * forced); `atomic` (default true) = all or nothing (`--atomic`). With `extra` the result is
    * `multi` with one entry per ref; errors before sending: `invalid_name`, `not_found`, `not_allowed`.
    */
-  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null }): Promise<PushResult>;
+  /** `acceptedSecrets`: IDs of the findings of a `secrets_found` result the user pushes anyway; other findings stop the push again. */
+  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null; acceptedSecrets?: string[] | null }): Promise<PushResult>;
   jobCancel(input: { jobId: string }): Promise<void>;
 
   // --- Stash, tags, undo, history ------------------------------------------------
@@ -466,7 +467,8 @@ export interface CoreCommands {
   tagCreate(input: R & { name: string; sha: Sha | null; message: string | null }): Promise<RefsSnapshot>;
   /** `remote` set: delete it there too. */
   tagDelete(input: R & { name: string; remote: string | null }): Promise<RefsSnapshot>;
-  tagPush(input: R & { jobId: string; name: string; remote: string }): Promise<PushResult>;
+  /** Runs the secret scan like `push`; `acceptedSecrets` as there. */
+  tagPush(input: R & { jobId: string; name: string; remote: string; acceptedSecrets?: string[] | null }): Promise<PushResult>;
 
   undo(input: R): Promise<UndoState>;
   redo(input: R): Promise<UndoState>;

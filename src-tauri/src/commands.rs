@@ -515,8 +515,9 @@ pub async fn push(
     expected: Option<String>,
     extra: Option<Vec<PushExtra>>,
     atomic: Option<bool>,
+    accepted_secrets: Option<Vec<String>>,
 ) -> R<PushResult> {
-    c::sync::push_with(&core, repo_id, job_id, branch, remote, remote_branch, force, expected, extra, atomic).await
+    c::sync::push_with(&core, repo_id, job_id, branch, remote, remote_branch, force, expected, extra, atomic, accepted_secrets).await
 }
 
 #[tauri::command]
@@ -580,8 +581,8 @@ pub async fn tag_delete(core: State<'_, Core>, repo_id: String, name: String, re
 }
 
 #[tauri::command]
-pub async fn tag_push(core: State<'_, Core>, repo_id: String, job_id: String, name: String, remote: String) -> R<PushResult> {
-    c::tags::tag_push(&core, repo_id, job_id, name, remote).await
+pub async fn tag_push(core: State<'_, Core>, repo_id: String, job_id: String, name: String, remote: String, accepted_secrets: Option<Vec<String>>) -> R<PushResult> {
+    c::tags::tag_push_checked(&core, repo_id, job_id, name, remote, accepted_secrets).await
 }
 
 #[tauri::command]

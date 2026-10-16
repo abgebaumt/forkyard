@@ -12,6 +12,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
 use crate::jobs::Job;
 use crate::model::{PushResult, RefsSnapshot, RepoChange};
+use crate::secret_scan;
 use crate::undo;
 use crate::util;
 
@@ -114,13 +115,16 @@ fn parse_push_porcelain(stdout: &[u8], target_ref: &str) -> Option<(u8, String)>
     None
 }
 
-pub(crate) async fn push_tag(core: &Core, repo_id: &str, job: &Job, name: &str, remote: &str) -> CoreResult<PushResult> {
+pub(crate) async fn push_tag(core: &Core, repo_id: &str, job: &Job, name: &str, remote: &str, accepted: Option<&[String]>) -> CoreResult<PushResult> {
     check_name(name)?;
     let full = tag_ref(name);
     if undo::rev_parse(core, repo_id, &full).await?.is_none() {
         return Err(CoreError::not_found(format!("The tag “{name}” doesn’t exist (anymore).")));
     }
     ensure_remote(core, repo_id, remote).await?;
+    if let Some(stop) = secret_scan::check_push(core, repo_id, std::slice::from_ref(&full), remote, accepted, Some(job), job.token()).await? {
+        return Ok(stop);
+    }
     let hooks = Hooks::start(core, repo_id).await;
     let out = hooks
         .wrap(core.git_for(repo_id)?)
@@ -156,11 +160,16 @@ pub(crate) async fn push_tag(core: &Core, repo_id: &str, job: &Job, name: &str, 
 }
 
 /// Pushes a tag to a remote (cancellable job with progress and `job:done`).
-/// In `PushResult::Done` the tag name is in the `branch` field.
+/// In `PushResult::Done` the tag name is in the `branch` field. Runs the secret scan.
 pub async fn tag_push(core: &Core, repo_id: String, job_id: String, name: String, remote: String) -> CoreResult<PushResult> {
+    tag_push_checked(core, repo_id, job_id, name, remote, None).await
+}
+
+/// `tag_push` with the IDs of secret-scan findings the user saw and pushes anyway.
+pub async fn tag_push_checked(core: &Core, repo_id: String, job_id: String, name: String, remote: String, accepted_secrets: Option<Vec<String>>) -> CoreResult<PushResult> {
     core.repo_path(&repo_id)?;
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let result = push_tag(core, &repo_id, &job, &name, &remote).await;
+    let result = push_tag(core, &repo_id, &job, &name, &remote, accepted_secrets.as_deref()).await;
     job.finish(&result);
     result
 }
@@ -385,7 +394,7 @@ mod tests {
         running.finish::<()>(&Ok(()));
         let job = tc.start_job("abbruch", None).unwrap();
         job.token().cancel();
-        let err = push_tag(&tc, &id, &job, "v1", "origin").await.unwrap_err();
+        let err = push_tag(&tc, &id, &job, "v1", "origin", None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::Cancelled);
     }
 
