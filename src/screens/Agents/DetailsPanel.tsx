@@ -8,6 +8,7 @@ import { EmptyState } from "../../ui/Feedback";
 import { t } from "../../i18n";
 import { actionsFor, displayName, formatRuntime, statusOrigin, testLabel } from "./model";
 import { StatusWord } from "./parts";
+import { CollisionBanners } from "./Collisions";
 import { ACTION_LABELS, runAgentAction, useActionOptions } from "./rowActions";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -68,6 +69,7 @@ export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabI
           </Field>
         ) : null}
       </dl>
+      <CollisionBanners repoId={repoId} agentId={agent.id} />
       <div className="flex flex-wrap gap-2">
         {actionsFor(agent, optionsFor(agent)).map((action) => (
           <Button key={action} size="sm" variant={action === "cleanup" ? "danger" : "secondary"} data-action={action} onClick={() => void runAgentAction(action, agent, tabId)}>

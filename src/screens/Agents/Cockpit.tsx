@@ -22,6 +22,7 @@ import { isPlainEscape, ownsKey } from "../FileView/parts";
 import { closeCockpit } from "./actions";
 import { actionsFor, cockpitKeyAction, displayName, formatRuntime, hasSession, sortAgents, statusOrigin, testLabel } from "./model";
 import { StatusWord } from "./parts";
+import { CollisionBanners } from "./Collisions";
 import { ACTION_LABELS, agentMenu, runAgentAction, useActionOptions } from "./rowActions";
 
 /** Re-renders every second while an agent runs (runtime). */
@@ -162,6 +163,7 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           {t("agents.cockpit.back")}
         </Button>
       </header>
+      <CollisionBanners repoId={repoId} showSkipped inset />
       {agents.isError ? (
         <div className="p-4">
           <Banner tone="danger" title={t("agents.section.loadError")}>
