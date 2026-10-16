@@ -3,6 +3,8 @@
 
 pub mod anthropic;
 pub mod compatible;
+pub mod gemini;
+pub mod ollama;
 pub mod openai;
 
 use std::collections::HashMap;
@@ -107,7 +109,8 @@ pub fn build(kind: AiProviderKind, base: String, key: Option<String>, model: Str
         AiProviderKind::Openai => Ok(Box::new(openai::OpenAi::new(base, key.unwrap_or_default(), model, context_tokens))),
         AiProviderKind::OpenaiCompatible => Ok(Box::new(compatible::Compatible::new(kind, base, key, model, mode, context_tokens))),
         AiProviderKind::Lmstudio => Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema, context_tokens))),
-        other => Err(CoreError::not_built(other.label())),
+        AiProviderKind::Gemini => Ok(Box::new(gemini::Gemini::new(base, key.unwrap_or_default(), model, context_tokens))),
+        AiProviderKind::Ollama => Ok(Box::new(ollama::Ollama::new(base, model, context_tokens))),
     }
 }
 
