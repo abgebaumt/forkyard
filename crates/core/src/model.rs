@@ -1520,6 +1520,8 @@ pub struct AiStatus {
 pub enum AiInput {
     /// The staged diff of the repository.
     StagedChanges,
+    /// "Compose commits": every local change since HEAD, as units with aliases (3.2).
+    Compose,
     /// The commit message of the staged changes (spec 3.1): diff, branch, style examples,
     /// template and own instruction – exactly what `ai_commit_message` sends.
     CommitMessage,

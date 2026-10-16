@@ -27,7 +27,7 @@ async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
 
 /// Budget (tokens) and known secrets of a request for `feature` – the same for "What is sent?"
 /// and for the request itself, so both build the same text (the confirmation is bound to it).
-async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
+pub(crate) async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
     let context_size = match (settings.ai_provider, settings.ai_model.as_deref()) {
         (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
         _ => 32_000,
@@ -178,6 +178,7 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
     let (budget, secrets) = request_frame(core, &settings, feature).await;
     let built = match input {
         AiInput::StagedChanges => context::staged_changes(core, &repo_id, &settings, budget, &locale, &secrets).await?,
+        AiInput::Compose => crate::commands::compose::preview_built(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,
     };
