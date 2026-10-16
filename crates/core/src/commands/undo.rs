@@ -499,12 +499,18 @@ fn swaps_snapshots(action: UndoAction, payload: &Value) -> bool {
 async fn pushed_to(core: &Core, repo_id: &str, tip: &str) -> CoreResult<Option<String>> {
     let out = core
         .git_for(repo_id)?
-        .args(["for-each-ref", "--count=1", "--format=%(refname:short)", "--contains", tip, "refs/remotes"])
+        .args(["for-each-ref", "--format=%(symref)%00%(refname:short)", "--contains", tip, "refs/remotes"])
         .read_only()
         .no_log()
         .run_raw()
         .await?;
-    Ok(Some(out.stdout_text()).filter(|name| out.success() && !name.is_empty()))
+    if !out.success() {
+        return Ok(None);
+    }
+    // Skip symbolic refs such as `origin/HEAD` (short name "origin"): name the real branch.
+    let text = out.stdout_text();
+    let name = text.lines().filter_map(|line| line.split_once('\0')).find(|(symref, name)| symref.is_empty() && !name.is_empty()).map(|(_, name)| name.to_string());
+    Ok(name)
 }
 
 /// The state the UI based its decision on: ref and HEAD must still be where the entry
