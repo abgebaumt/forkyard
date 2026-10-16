@@ -128,9 +128,12 @@ scenario("Compose suggests one commit per file, creates both and one Undo takes 
   await t.shot("compose-created");
 
   await app.click({ text: "Undo", within: "[data-toast]" });
-  await eventually(() => repo.git("rev-parse", "HEAD"), before, "Undo takes both commits back");
-  assertEqual(lines(repo.git("diff", "--name-only")), ["README.md", "stationen.csv"], "git: the changes are back, unstaged as before");
-  assertEqual(repo.git("diff", "--cached", "--name-only"), "", "git: nothing staged, as before");
+  // Undo moves the branch first and restores the index snapshot after that: wait for the whole end state.
+  await eventually(
+    () => ({ head: repo.git("rev-parse", "HEAD"), unstaged: lines(repo.git("diff", "--name-only")), staged: repo.git("diff", "--cached", "--name-only") }),
+    { head: before, unstaged: ["README.md", "stationen.csv"], staged: "" },
+    "git: Undo takes both commits back, the changes are unstaged as before",
+  );
   await t.noConsoleErrors(app);
 }));
 
