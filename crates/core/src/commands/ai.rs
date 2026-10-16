@@ -16,6 +16,7 @@ use crate::model::{
     AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, ConflictBlockRange, ConflictIntent, Settings,
 };
 use crate::secrets;
+use crate::commands::sync::{push_destination, PushRequest};
 
 /// The stored key of a provider; `None` if there is none or the keychain is unreachable.
 async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
@@ -166,6 +167,13 @@ pub async fn ai_intro_dismiss(core: &Core) -> CoreResult<AiStatus> {
     ai_status(core).await
 }
 
+/// The outgoing changes of a push with these arguments (`AiInput::OutgoingChanges`, `ai_push_review`).
+async fn outgoing_for(core: &Core, repo_id: &str, branch: Option<&str>, remote: Option<&str>, remote_branch: Option<&str>) -> CoreResult<context::Outgoing> {
+    let request = PushRequest { branch, remote, remote_branch, ..PushRequest::default() };
+    let (local_ref, remote, _) = push_destination(core, repo_id, &request).await?;
+    context::outgoing(core, repo_id, &local_ref, &remote).await
+}
+
 /// "What is sent?": builds the exact text without sending anything. Works in every state; the
 /// confirmation triggers are computed only while AI is on with a provider and a model.
 pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input: AiInput, locale: String) -> CoreResult<AiPreview> {
@@ -181,6 +189,10 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,
         AiInput::ConflictIntent { path, blocks } => ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?.built,
+        AiInput::OutgoingChanges { branch, remote, remote_branch } => {
+            let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
+            context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?.built
+        }
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {

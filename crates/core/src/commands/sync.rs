@@ -665,6 +665,14 @@ async fn push_target(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> C
     Ok(PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream })
 }
 
+/// Where a push with these arguments would go: (local ref, remote, branch on the remote). Same
+/// rules and errors as `push` (`no_remote`, `no_upstream`, `not_found`, `not_allowed`) – for the
+/// AI review of what the push sends.
+pub(crate) async fn push_destination(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> CoreResult<(String, String, String)> {
+    let target = push_target(core, repo_id, request).await?;
+    Ok((target.local_ref, target.remote, target.remote_branch))
+}
+
 /// `--force-with-lease=<remote_ref>:<expected>` for one branch: only the state we know from the
 /// tracking ref (or the one the prompt showed, `expected`) may be overwritten; if we don't know the
 /// branch there, it must not exist. `Err(Rejected)` if the tracking ref moved away from what the

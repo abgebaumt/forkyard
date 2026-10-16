@@ -1530,6 +1530,10 @@ pub enum AiInput {
     PrDescription { source: String, target: String },
     /// Teilpaket 6.1: the conflict blocks of one conflicted file, as line ranges of the conflict tool.
     ConflictIntent { path: String, blocks: Vec<ConflictBlockRange> },
+    /// What a push with these arguments would send (v1.2, 6.2): the outgoing commits and their
+    /// combined diff. Same target rules as `push`.
+    #[serde(rename_all = "camelCase")]
+    OutgoingChanges { branch: Option<String>, remote: Option<String>, remote_branch: Option<String> },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.

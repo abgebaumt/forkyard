@@ -1080,7 +1080,10 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "conflict_intent"; path: string; blocks: ConflictBlockRange[] };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "conflict_intent"; path: string; blocks: ConflictBlockRange[] }
+
+  /** What a push with these arguments would send (review before a push): the outgoing commits and their combined diff. */
+  | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
