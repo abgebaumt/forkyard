@@ -13,7 +13,7 @@ import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import { applyLanguage, codeExtensions, createCodeCompartments, setTabSize, type CodeCompartments } from "../../components/code/extensions";
 import { codeVars, type CodeSettings } from "../../components/code/settings";
-import type { ChunkKind } from "./model";
+import { shiftBounds, type ChunkKind } from "./model";
 
 /** Display of a block in the result. */
 export type ChunkLook = "plain" | "auto" | "open" | "done";
@@ -123,8 +123,8 @@ export interface ResultEditorHandle {
   /** Text of the blocks (per block the current range in the editor). */
   chunkTexts(): string[];
   bounds(): number[];
-  /** Replaces the ranges of the given blocks. Not in the undo history. */
-  replaceChunks(changes: { chunk: number; text: string }[]): void;
+  /** Replaces the ranges of the given blocks. Not in the undo history unless `history` is set (“Apply” in the intent column). */
+  replaceChunks(changes: { chunk: number; text: string }[], options?: { history?: boolean }): void;
   setLooks(looks: ChunkLook[]): void;
   /** Top and height of a block in pixels, relative to the scroll content. */
   chunkBox(chunk: number): { top: number; height: number } | null;
@@ -232,23 +232,15 @@ export const ResultEditor = forwardRef<ResultEditorHandle, ResultEditorProps>(fu
           const { pos } = current.bounds;
           return pos.slice(0, -1).map((from, index) => current.view.state.doc.sliceString(from, pos[index + 1]));
         },
-        replaceChunks: (changes) => {
+        replaceChunks: (changes, options) => {
           const current = state();
           if (!current || changes.length === 0) return;
           const old = current.bounds.pos;
           const sorted = [...changes].sort((a, b) => a.chunk - b.chunk);
-          const next = old.slice();
-          let delta = 0;
-          let cursor = 0;
-          for (const change of sorted) {
-            for (; cursor <= change.chunk; cursor++) next[cursor] = old[cursor]! + delta;
-            delta += change.text.length - (old[change.chunk + 1]! - old[change.chunk]!);
-          }
-          for (; cursor < old.length; cursor++) next[cursor] = old[cursor]! + delta;
           current.view.dispatch({
             changes: sorted.map((change) => ({ from: old[change.chunk]!, to: old[change.chunk + 1]!, insert: change.text })),
-            effects: setBounds.of(next),
-            annotations: [programmatic.of(true), Transaction.addToHistory.of(false)],
+            effects: setBounds.of(shiftBounds(old, sorted)),
+            annotations: [programmatic.of(true), Transaction.addToHistory.of(options?.history === true)],
           });
         },
         setLooks: (looks) => {

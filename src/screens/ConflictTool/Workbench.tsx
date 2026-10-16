@@ -26,6 +26,7 @@ import {
   emptyChoice,
   finalizeText,
   isResolved,
+  manualOf,
   markerLines,
   sideState,
   swapOrder,
@@ -128,7 +129,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   }
   const derive = useCallback(
     (texts: string[], doc: string): Derived => ({
-      manual: texts.map((text, index) => (text === expected.current[index] ? null : text)),
+      manual: manualOf(texts, expected.current),
       markers: markerLines(doc, known),
     }),
     [known],
