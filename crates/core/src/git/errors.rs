@@ -267,6 +267,20 @@ pub static RULES: &[Rule] = &[
 /// too, the user would read it twice.
 const LOCKED_MESSAGE: &str = "Another Git program is currently working in this repository (lock file present).";
 
+/// Sentence for a full disk. Git writes packs atomically, so the repository stays valid; the
+/// clean-up recognizes the case by this text (`CleanupFailure.diskFull`).
+pub const DISK_FULL_MESSAGE: &str = "There is no space left on the disk. The repository is still valid; free up space and try again.";
+
+/// Process ID from Git's “gc is already running on machine '<host>' pid <n> (use --force if not)”.
+pub fn gc_running_pid(text: &str) -> Option<u32> {
+    // ASCII lowercase: the byte positions stay those of the original.
+    let lower = text.to_ascii_lowercase();
+    let start = lower.find("gc is already running on machine '")?;
+    let rest = &lower[start..];
+    let at = rest.find("' pid ")? + "' pid ".len();
+    rest[at..].chars().take_while(char::is_ascii_digit).collect::<String>().parse().ok()
+}
+
 /// Text between `open` and the next `close` after the first occurrence of `marker`
 /// (searched case-insensitively, cut from the original).
 fn between<'a>(text: &'a str, lower: &str, marker: &str, close: char) -> Option<&'a str> {
@@ -333,6 +347,15 @@ fn specific(text: &str) -> Option<CoreError> {
     // "changed outside the app" or as a locked file.
     if let Some(error) = signing(text, &lower) {
         return Some(error);
+    }
+    // A full disk – before everything else: the same output often says “unable to create '…'”,
+    // which would read as a lock file.
+    if has("no space left on device") || has("not enough space on the disk") {
+        return Some(CoreError::io(DISK_FULL_MESSAGE));
+    }
+    // `git gc` while another gc of this repository runs (its gc.pid names a live process).
+    if let Some(pid) = gc_running_pid(text) {
+        return Some(CoreError::locked(format!("Git is already cleaning up this repository (process {pid}). Try again later.")));
     }
     // Name or path too long for the file system – never a "lock".
     if has("filename too long") || has("file name too long") {
@@ -534,6 +557,30 @@ mod tests {
         assert_eq!(code("error: ssh-keygen -Y sign is needed for ssh signing (available in openssh version 8.2p1+)"), ErrorCode::SigningFailed);
         // Unrelated "no such file" stays not_found.
         assert_eq!(code("fatal: cannot stat 'x': No such file or directory"), ErrorCode::NotFound);
+    }
+
+    /// A full disk and a running `git gc` name their cause; foreign lock files stay `locked`.
+    #[test]
+    fn full_disk_and_running_gc_are_named() {
+        for text in [
+            "fatal: write error: No space left on device\nerror: failed to run repack",
+            "fatal: Unable to create temporary file '/r/.git/objects/pack/tmp_pack_Ab12Cd': No space left on device",
+            "error: unable to write file C:/r/.git/objects/pack/tmp_pack_x: There is not enough space on the disk.",
+        ] {
+            let e = classify("gc", Some(128), b"", text.as_bytes());
+            assert_eq!((e.code, e.message.as_str()), (ErrorCode::Io, DISK_FULL_MESSAGE), "{text}");
+            assert!(e.git_output.is_some(), "Git's own words stay readable");
+        }
+        let running = "fatal: gc is already running on machine 'werkstatt-pc' pid 4711 (use --force if not)";
+        let e = classify("gc", Some(128), b"", running.as_bytes());
+        assert_eq!(e.code, ErrorCode::Locked);
+        assert!(e.message.contains("process 4711") && !e.message.contains("--force"), "{}", e.message);
+        assert_eq!(gc_running_pid(running), Some(4711));
+        // A host name with " pid " in it does not confuse the number.
+        assert_eq!(gc_running_pid("fatal: gc is already running on machine 'box pid 9' pid 12 (use --force if not)"), Some(12));
+        assert_eq!(gc_running_pid("fatal: Unable to create '/r/.git/gc.pid.lock': File exists."), None);
+        assert_eq!(code("fatal: Unable to create '/r/.git/gc.pid.lock': File exists.\n\nAnother git process seems to be running"), ErrorCode::Locked);
+        assert_eq!(code("fatal: Unable to create 'C:/r/.git/index.lock': File exists.\n\nAnother git process seems to be running"), ErrorCode::Locked);
     }
 
     #[test]
