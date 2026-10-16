@@ -71,6 +71,14 @@ All notable changes to Forkyard are listed here. The format follows
   commits mention on GitHub, GitLab and Gitea/Forgejo become “Closes #n”; the AI cannot add any
   others. A description you wrote is never replaced unasked, the title only while it is still the
   automatic suggestion, and Ctrl+Z takes an insertion back. “What is sent?” shows the exact text first.
+- Conflicts with intent: the conflict tool has a new column “Intent” to the right of the sides and the
+  result (collapsible, width remembered). On “Explain intent” it shows for every conflict what each side
+  wanted – from the block texts, the commit messages of both sides and, with a connected host account,
+  the pull request texts of both branches – and proposes a text that keeps both. The proposal appears as a
+  small diff against the block's current text; “Apply” replaces only that block in the result (undo it there
+  like typing), “Discard” leaves it; saving stays with you. Blocks too large for one request or containing
+  masked values are explained only. Needs AI to be on; nothing is sent before the click, “What is sent?”
+  shows the exact text, and files with secrets, excluded files and lock files are never sent.
 
 ### Changed
 
