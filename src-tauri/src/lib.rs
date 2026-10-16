@@ -623,7 +623,10 @@ pub fn run() {
             commands::ai_detect,
             commands::ai_cli_login,
             commands::ai_commit_message,
-            commands::ai_pr_description
+            commands::ai_pr_description,
+            commands::ai_plan,
+            commands::ai_plan_check,
+            commands::ai_plan_run,
         ])
         .build(context);
     match result {

@@ -1090,7 +1090,7 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "compose" };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "compose" } | { kind: "plan"; text: string };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
@@ -1127,6 +1127,88 @@ export interface AiUsageSummary {
   outputTokens: number;
   costUsd: number;
   rows: AiUsageRow[];
+}
+
+// --- Git in plain language (v1.2, Paket 5) ---------------------------------------------------
+
+/** A command a plan may contain (the allow list of the core). */
+export type PlanCommand =
+  | "branchCreate"
+  | "branchCheckout"
+  | "branchRename"
+  | "branchDelete"
+  | "resetBranch"
+  | "rebaseStart"
+  | "cherryPick"
+  | "revertCommit"
+  | "mergeStart"
+  | "stashCreate"
+  | "tagCreate"
+  | "commitReword"
+  | "fetch"
+  | "pull"
+  | "push"
+  | "branchDeleteRemote"
+  | "tagPush";
+
+/** `local`: undone with the plan; `outward`: reaches a remote, confirmed on its own, cannot be undone. */
+export type PlanClass = "local" | "outward";
+
+export type PlanArgKind = "text" | "optional_text" | "boolean" | "list" | "choice" | "optional_choice";
+
+export interface PlanArgField {
+  name: string;
+  kind: PlanArgKind;
+  /** Allowed values of `choice` / `optional_choice`. */
+  choices: string[];
+}
+
+export type PlanArgValue = string | boolean | string[] | null;
+
+export interface PlanStep {
+  command: PlanCommand;
+  args: Record<string, PlanArgValue>;
+  /** Why the step is needed – the model's words, plain text. */
+  why: string;
+}
+
+export type PlanCheck =
+  | { status: "clean" }
+  | { status: "not_needed" }
+  | { status: "conflicts"; files: string[] }
+  | { status: "unknown"; reason: string }
+  | { status: "invalid"; reason: string };
+
+export interface PlanStepView extends PlanStep {
+  class: PlanClass;
+  destructive: boolean;
+  fields: PlanArgField[];
+  check: PlanCheck;
+}
+
+export interface PlanPreview {
+  steps: PlanStepView[];
+  note: string | null;
+  /** An operation or open conflicts block every plan. */
+  blocked: boolean;
+  /** Expected state; `aiPlanRun` answers `stale_state` once it no longer holds. */
+  expect: string;
+  runnable: boolean;
+}
+
+export type PlanStepStatus = "done" | "failed" | "not_run";
+
+export interface PlanStepOutcome {
+  index: number;
+  status: PlanStepStatus;
+  error: CoreErrorData | null;
+}
+
+export interface PlanRunResult {
+  steps: PlanStepOutcome[];
+  undoRecorded: boolean;
+  completed: boolean;
+  cancelled: boolean;
 }
 
 /** `aiPrDescription`: a suggestion for title and description – nothing is written anywhere. */

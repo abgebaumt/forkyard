@@ -89,6 +89,9 @@ import type {
   PatchSelection,
   RangeApplyTarget,
   PatchText,
+  PlanPreview,
+  PlanRunResult,
+  PlanStep,
   PrDetails,
   PreviewOp,
   PrListState,
@@ -948,6 +951,21 @@ export interface CoreCommands {
    * command-line tool, more than 16 terminals), `ai_not_configured` (tool not found), `unsupported` (batch shim).
    */
   aiCliLogin(input: R & { provider: AiProviderKind; cols: number; rows: number }): Promise<Id>;
+  // --- Git in plain language (v1.2, Paket 5) -----------------------------------------------
+  /**
+   * A sentence → a checked plan of allowed steps. The AI request runs as job `jobId` (cancel with
+   * `jobCancel`), the check as job `${jobId}:check`. Nothing in the repository changes. Errors as
+   * for every AI request (`ai_*`); more than 10 steps: `ai_invalid_answer` with "plan too long".
+   */
+  aiPlan(input: R & { jobId: string; text: string; locale: string }): Promise<PlanPreview>;
+  /** Checks (edited) steps again: arguments, conflicts, expected state. Sends nothing. */
+  aiPlanCheck(input: R & { jobId: string; steps: PlanStep[] }): Promise<PlanPreview>;
+  /**
+   * Runs a checked plan step by step as job `jobId` (`job:progress` line "n/total"). `confirmed`:
+   * indexes of the outward steps the user confirmed one by one. `stale_state` when `expect` no longer
+   * holds; `not_allowed` for an unconfirmed outward step or a plan that cannot run.
+   */
+  aiPlanRun(input: R & { jobId: string; text: string; steps: PlanStep[]; expect: string; confirmed: number[] }): Promise<PlanRunResult>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

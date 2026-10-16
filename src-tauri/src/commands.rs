@@ -1205,3 +1205,26 @@ pub async fn ai_cli_login(core: State<'_, Core>, repo_id: String, provider: AiPr
 pub async fn ai_pr_description(core: State<'_, Core>, repo_id: String, job_id: String, source: String, target: String, locale: String) -> R<AiPrDescription> {
     c::ai::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
 }
+
+#[tauri::command]
+pub async fn ai_plan(core: State<'_, Core>, repo_id: String, job_id: String, text: String, locale: String) -> R<PlanPreview> {
+    c::plan::ai_plan(&core, repo_id, job_id, text, locale).await
+}
+
+#[tauri::command]
+pub async fn ai_plan_check(core: State<'_, Core>, repo_id: String, job_id: String, steps: Vec<PlanStep>) -> R<PlanPreview> {
+    c::plan::ai_plan_check(&core, repo_id, job_id, steps).await
+}
+
+#[tauri::command]
+pub async fn ai_plan_run(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    text: String,
+    steps: Vec<PlanStep>,
+    expect: String,
+    confirmed: Vec<u32>,
+) -> R<PlanRunResult> {
+    c::plan::ai_plan_run(&core, repo_id, job_id, text, steps, expect, confirmed).await
+}
