@@ -231,6 +231,95 @@ pub async fn build(core: &Core, repo_id: &str, from: Option<&str>, to: Option<&s
     Ok(ReleaseContext { built: Built { prompt, omitted: Vec::new(), shortened: Vec::new() }, range, ids })
 }
 
+const GROUPS: [(ReleaseGroupKind, &str); 4] = [(ReleaseGroupKind::Added, "added"), (ReleaseGroupKind::Changed, "changed"), (ReleaseGroupKind::Fixed, "fixed"), (ReleaseGroupKind::Other, "other")];
+
+/// Four fixed groups of `{ text, commits }` and the language – in the dialect of `ai::schema`.
+pub fn schema() -> Value {
+    let entries = json!({
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": { "text": { "type": "string" }, "commits": { "type": "array", "items": { "type": "string" } } },
+            "required": ["text", "commits"],
+            "additionalProperties": false
+        }
+    });
+    json!({
+        "type": "object",
+        "properties": {
+            "language": { "type": "string", "enum": ["de", "en", "other"] },
+            "added": entries,
+            "changed": entries,
+            "fixed": entries,
+            "other": entries
+        },
+        "required": ["language", "added", "changed", "fixed", "other"],
+        "additionalProperties": false
+    })
+}
+
+/// One line: whitespace collapsed, a leading bullet removed, at most 300 characters; `None` if empty.
+pub fn clean_entry(text: &str) -> Option<String> {
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let flat = ["- ", "* ", "• "].iter().find_map(|bullet| flat.strip_prefix(bullet)).unwrap_or(&flat).trim();
+    (!flat.is_empty()).then(|| cut(flat, MAX_ENTRY_CHARS))
+}
+
+/// `### <heading>` and `- <entry>` lines; groups separated by a blank line, no trailing newline.
+pub fn render(groups: &[ReleaseNoteGroup]) -> String {
+    groups
+        .iter()
+        .map(|group| {
+            let lines = group.entries.iter().map(|entry| format!("- {entry}")).collect::<Vec<_>>().join("\n");
+            format!("### {}\n\n{lines}", group.heading)
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+/// The answer as notes. Headings: those of an existing changelog, else German for `de`, else
+/// English. Commit ids are matched by prefix (at least 7 characters); unknown ids are ignored.
+pub fn notes_from_answer(answer: &Value, context: &ReleaseContext, file_headings: Option<HeadingLanguage>) -> ReleaseNotes {
+    let language = match answer["language"].as_str() {
+        Some("de") => ReleaseLanguage::De,
+        Some("en") => ReleaseLanguage::En,
+        _ => ReleaseLanguage::Other,
+    };
+    let headings = file_headings.unwrap_or(if language == ReleaseLanguage::De { HeadingLanguage::De } else { HeadingLanguage::En }).headings();
+    let mut mentioned: Vec<&str> = Vec::new();
+    let mut groups: Vec<ReleaseNoteGroup> = Vec::new();
+    for (index, (kind, key)) in GROUPS.iter().enumerate() {
+        let mut entries: Vec<String> = Vec::new();
+        for item in answer[*key].as_array().map(Vec::as_slice).unwrap_or(&[]) {
+            let Some(text) = item["text"].as_str().and_then(clean_entry) else { continue };
+            for cited in item["commits"].as_array().map(Vec::as_slice).unwrap_or(&[]).iter().filter_map(Value::as_str) {
+                let cited = cited.trim().to_ascii_lowercase();
+                if cited.len() < 7 {
+                    continue;
+                }
+                if let Some(known) = context.ids.iter().find(|known| known.starts_with(&cited) || cited.starts_with(known.as_str())) {
+                    if !mentioned.contains(&known.as_str()) {
+                        mentioned.push(known.as_str());
+                    }
+                }
+            }
+            if !entries.contains(&text) {
+                entries.push(text);
+            }
+        }
+        if !entries.is_empty() {
+            groups.push(ReleaseNoteGroup { kind: *kind, heading: headings[index].to_string(), entries });
+        }
+    }
+    let markdown = render(&groups);
+    ReleaseNotes { range: context.range.clone(), language, groups, markdown, unmentioned: (context.ids.len() - mentioned.len()) as u32 }
+}
+
+/// No commits in the range: nothing was sent.
+pub fn empty_notes(range: ReleaseNotesRange) -> ReleaseNotes {
+    ReleaseNotes { range, language: ReleaseLanguage::Other, groups: Vec::new(), markdown: String::new(), unmentioned: 0 }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -420,5 +509,68 @@ mod tests {
         for (from, to) in [(Some("--all"), None), (None, Some("-n")), (Some("v9.9.9"), None), (None, Some("gibt-es-nicht"))] {
             assert_eq!(resolve(&tc, &id, from, to).await.unwrap_err().code, ErrorCode::NotFound, "{from:?} {to:?}");
         }
+    }
+
+    const A: &str = "1a2b3c4d5e6f";
+    const B: &str = "abcdefabcdef";
+    const C: &str = "0123456789ab";
+
+    fn context_with(ids: &[&str]) -> ReleaseContext {
+        let prompt = prompt::build_with_token(INSTRUCTION, "en", &[], "t0k");
+        let range = ReleaseNotesRange { from: Some("v1.1.0".into()), from_sha: Some("a".repeat(40)), to_sha: "b".repeat(40), commits: ids.len() as u32, included: ids.len() as u32 };
+        ReleaseContext { built: Built { prompt, omitted: Vec::new(), shortened: Vec::new() }, range, ids: ids.iter().map(|id| id.to_string()).collect() }
+    }
+
+    #[test]
+    fn the_schema_fits_the_dialect() {
+        crate::ai::schema::check_dialect(&schema()).unwrap();
+        assert_eq!(schema()["required"], json!(["language", "added", "changed", "fixed", "other"]));
+    }
+
+    #[test]
+    fn groups_come_in_the_fixed_order_with_german_or_english_headings() {
+        let answer = json!({"language": "de", "other": [{"text": "Abhängigkeiten aktualisiert", "commits": [C]}], "fixed": [{"text": "Kein Absturz bei leerem Namen", "commits": [B]}], "changed": [], "added": [{"text": "Export als CSV", "commits": [A]}]});
+        let notes = notes_from_answer(&answer, &context_with(&[A, B, C]), None);
+        assert_eq!(notes.markdown, "### Neu\n\n- Export als CSV\n\n### Behoben\n\n- Kein Absturz bei leerem Namen\n\n### Sonstiges\n\n- Abhängigkeiten aktualisiert");
+        assert_eq!(notes.groups.iter().map(|group| group.kind).collect::<Vec<_>>(), vec![ReleaseGroupKind::Added, ReleaseGroupKind::Fixed, ReleaseGroupKind::Other]);
+        assert_eq!((notes.language, notes.unmentioned), (ReleaseLanguage::De, 0));
+        assert_eq!(notes.range.from.as_deref(), Some("v1.1.0"));
+
+        let english = notes_from_answer(&json!({"language": "en", "added": [], "changed": [{"text": "Faster start", "commits": [A]}], "fixed": [], "other": []}), &context_with(&[A, B]), None);
+        assert_eq!((english.markdown.as_str(), english.unmentioned), ("### Changed\n\n- Faster start", 1));
+        let french = notes_from_answer(&json!({"language": "other", "added": [{"text": "Export en CSV", "commits": [A]}], "changed": [], "fixed": [], "other": []}), &context_with(&[A]), None);
+        assert_eq!(french.markdown, "### Added\n\n- Export en CSV", "only German has its own headings");
+        // An English changelog keeps its English headings in a German repository.
+        let file = notes_from_answer(&answer, &context_with(&[A, B, C]), Some(HeadingLanguage::En));
+        assert!(file.markdown.starts_with("### Added\n\n- Export als CSV\n\n### Fixed\n\n"), "{}", file.markdown);
+        assert_eq!(file.language, ReleaseLanguage::De);
+    }
+
+    #[test]
+    fn entries_are_one_clean_line_and_unknown_commits_are_ignored() {
+        let long = "x".repeat(400);
+        let with_suffix = format!("{C}0000");
+        let answer = json!({"language": "en", "added": [
+            {"text": "- Export\nas CSV\t file ", "commits": [A.to_uppercase()]},
+            {"text": "Export as CSV file", "commits": ["ffffffffffff"]},
+            {"text": "   ", "commits": [B]},
+            {"text": "--force-with-lease is used for force pushes", "commits": [with_suffix]},
+            {"text": long, "commits": []}
+        ], "changed": [], "fixed": [], "other": []});
+        let notes = notes_from_answer(&answer, &context_with(&[A, B, C]), None);
+        let entries = &notes.groups[0].entries;
+        assert_eq!(entries.len(), 3, "the duplicate and the empty entry are dropped: {entries:?}");
+        assert_eq!(entries[0], "Export as CSV file");
+        assert_eq!(entries[1], "--force-with-lease is used for force pushes", "dashes that are not a bullet stay");
+        assert_eq!(entries[2].chars().count(), 301, "300 characters and …");
+        assert_eq!(notes.unmentioned, 1, "only an empty entry pointed at B");
+        assert_eq!(clean_entry("• Größere Schrift"), Some("Größere Schrift".to_string()));
+        assert_eq!(clean_entry("\n\t "), None);
+    }
+
+    #[test]
+    fn no_commits_mean_empty_notes() {
+        let notes = empty_notes(context_with(&[]).range);
+        assert_eq!((notes.markdown.as_str(), notes.groups.len(), notes.unmentioned), ("", 0, 0));
     }
 }
