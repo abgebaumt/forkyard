@@ -150,7 +150,7 @@ fn short_rev(rev: &str) -> String {
 // ---------------------------------------------------------------------------
 
 /// The encoding preferred in the repository (`RepoSettings.encoding`), otherwise "utf-8".
-fn repo_encoding(core: &Core, repo_id: &str) -> String {
+pub(crate) fn repo_encoding(core: &Core, repo_id: &str) -> String {
     core.db
         .with(|c| db::repo_settings::get_all(c, repo_id))
         .ok()
@@ -295,7 +295,7 @@ pub fn normalize_eol(text: &str, eol: LineEnding) -> String {
 }
 
 /// Decodes a single line (blame): UTF-8, otherwise the preferred encoding or windows-1252.
-fn decode_line(bytes: &[u8], preferred: &str) -> String {
+pub(crate) fn decode_line(bytes: &[u8], preferred: &str) -> String {
     match std::str::from_utf8(bytes) {
         Ok(text) => text.to_string(),
         Err(_) => {
@@ -362,13 +362,20 @@ const LINE_FORMAT: &str = "--format=%x1e%x1efy%x1e%H%x00%P%x00%an%x00%ae%x00%at%
 /// `LINE_HISTORY_STEPS` (`git log -L<n>,<n>:<path>`); follows renames. Each step names the file's path
 /// and the line range in that commit. Pure read.
 pub async fn line_history(core: &Core, repo_id: String, path: String, line: u32, sha: String) -> CoreResult<Vec<LineHistoryStep>> {
-    let rel = normalize_rel_path(&path)?;
+    Ok(line_history_with_diffs(core, &repo_id, &path, line, &sha).await?.into_iter().map(|(step, _)| step).collect())
+}
+
+/// `line_history` plus the change of the line range in each step: the ` `, `+` and `-` lines of its
+/// hunks without headers, `\ No newline` notes and CR, decoded like blame lines. For the line
+/// archaeology (v1.2); the output holds file contents and is never logged.
+pub(crate) async fn line_history_with_diffs(core: &Core, repo_id: &str, path: &str, line: u32, sha: &str) -> CoreResult<Vec<(LineHistoryStep, Vec<String>)>> {
+    let rel = normalize_rel_path(path)?;
     if line == 0 {
         return Err(CoreError::not_allowed("Lines are counted from 1."));
     }
-    let commit = crate::commands::graph::resolve_commit(core, &repo_id, &sha).await?;
+    let commit = crate::commands::graph::resolve_commit(core, repo_id, sha).await?;
     let out = core
-        .git_for(&repo_id)?
+        .git_for(repo_id)?
         .args(["-c", "core.quotePath=false", "log"])
         .args(crate::commands::graph::LOG_SAFE)
         .args(["--no-decorate", "--no-color", "--no-ext-diff", "-z"])
@@ -388,11 +395,11 @@ pub async fn line_history(core: &Core, repo_id: String, path: String, line: u32,
         }
         return Err(crate::git::errors::classify("log", out.code, &out.stdout, &out.stderr));
     }
-    Ok(parse_line_history(&out.stdout, &rel))
+    Ok(parse_line_records(&out.stdout, &rel, &repo_encoding(core, repo_id)))
 }
 
 /// The records of `git log -L` with `LINE_FORMAT`: header fields, then the diff of the line range.
-fn parse_line_history(stdout: &[u8], newest_path: &str) -> Vec<LineHistoryStep> {
+fn parse_line_records(stdout: &[u8], newest_path: &str, preferred: &str) -> Vec<(LineHistoryStep, Vec<String>)> {
     let mut steps = Vec::new();
     let mut last_path = newest_path.to_string();
     let mut starts: Vec<usize> = stdout.windows(LINE_MARK.len()).enumerate().filter(|(_, window)| *window == LINE_MARK).map(|(index, _)| index).collect();
@@ -402,10 +409,11 @@ fn parse_line_history(stdout: &[u8], newest_path: &str) -> Vec<LineHistoryStep> 
         let mut fields = record.splitn(7, |&byte| byte == 0);
         let header: Vec<&[u8]> = (0..6).filter_map(|_| fields.next()).collect();
         let [sha, parents, name, email, time, summary] = header.as_slice() else { continue };
-        let Some((path, start, count)) = hunk_of(fields.next().unwrap_or_default()) else { continue };
+        let diff = fields.next().unwrap_or_default();
+        let Some((path, start, count)) = hunk_of(diff) else { continue };
         let path = path.unwrap_or_else(|| last_path.clone());
         last_path = path.clone();
-        steps.push(LineHistoryStep {
+        let step = LineHistoryStep {
             commit: CommitSummary {
                 sha: util::decode_lossy(sha),
                 parents: util::decode_lossy(parents).split_whitespace().map(str::to_string).collect(),
@@ -416,9 +424,28 @@ fn parse_line_history(stdout: &[u8], newest_path: &str) -> Vec<LineHistoryStep> 
             path,
             start_line: start,
             end_line: if count == 0 { start } else { start + count - 1 },
-        });
+        };
+        steps.push((step, hunk_lines(diff, preferred)));
     }
     steps
+}
+
+/// The ` `, `+` and `-` lines after the first `@@` header (later headers are skipped); without CR.
+fn hunk_lines(diff: &[u8], preferred: &str) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut inside = false;
+    for raw in diff.split(|&byte| byte == b'\n') {
+        let raw = raw.strip_prefix(b"\0").unwrap_or(raw);
+        if raw.starts_with(b"@@ ") {
+            inside = true;
+            continue;
+        }
+        if inside && matches!(raw.first(), Some(b' ' | b'+' | b'-')) {
+            let content = raw.strip_suffix(b"\r").unwrap_or(raw);
+            lines.push(decode_line(content, preferred));
+        }
+    }
+    lines
 }
 
 /// Path (`+++ b/…`; `None` if Git quoted it) and the new range (`+c,d`) of the first hunk.

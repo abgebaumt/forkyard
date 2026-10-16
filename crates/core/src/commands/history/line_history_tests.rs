@@ -62,3 +62,21 @@ async fn wrong_lines_paths_and_commits_are_clear_errors() {
     assert_eq!(steps.len(), 1);
     assert_eq!((steps[0].commit.sha.as_str(), steps[0].start_line, steps[0].end_line), (head.as_str(), 1, 1));
 }
+
+#[tokio::test]
+async fn each_step_keeps_the_lines_of_its_change_with_crlf_and_latin1() {
+    let repo = TestRepo::new();
+    let one = repo.commit_file("mess werte.txt", b"kopf\r\nalt\r\nfuss\r\n", "Eins");
+    // 0xFC is “ü” in Latin-1 / Windows-1252 and invalid UTF-8.
+    let two = repo.commit_file("mess werte.txt", b"kopf\r\nneu \xfc\r\nfuss\r\n", "Zwei: Latin-1");
+    let (tc, id) = setup(&repo).await;
+
+    let steps = line_history_with_diffs(&tc, &id, "mess werte.txt", 2, "HEAD").await.unwrap();
+    assert_eq!(steps.iter().map(|(step, _)| step.commit.sha.clone()).collect::<Vec<_>>(), vec![two, one]);
+    assert_eq!(steps[0].1, vec!["-alt".to_string(), "+neu ü".to_string()], "the change of the line, CR removed, Latin-1 decoded");
+    assert!(steps[1].1.contains(&"+alt".to_string()), "the first commit adds the line: {:?}", steps[1].1);
+    assert!(steps.iter().all(|(_, lines)| lines.iter().all(|line| !line.ends_with('\r') && !line.starts_with("@@"))));
+
+    let public = line_history(&tc, id.clone(), "mess werte.txt".into(), 2, "HEAD".into()).await.unwrap();
+    assert_eq!(public, steps.into_iter().map(|(step, _)| step).collect::<Vec<_>>(), "the command returns the same steps as before");
+}
