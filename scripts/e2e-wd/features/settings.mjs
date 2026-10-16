@@ -415,7 +415,7 @@ scenario("settings levels: a global value applies in every profile, a profile va
   const nav = await settingsNav(app);
   const heads = nav.map((group) => group.head);
   assertEqual(heads.map((head) => head?.toLowerCase()), ["global", `profile · ${first.name}`.toLowerCase(), "help"], "group heads without a repository");
-  assertEqual(nav[0].tabs.map((tab) => tab.label), ["Appearance", "Diff and editor", "External programs", "Custom commands", "Notifications"], "global sections");
+  assertEqual(nav[0].tabs.map((tab) => tab.label), ["Appearance", "Diff and editor", "External programs", "Custom commands", "Notifications", "Coding agents"], "global sections");
   assertIncludes(nav[1].tabs.map((tab) => tab.label).join("|"), "Git behavior", "profile sections");
   t.step("dialog shows the levels Global and Profile, no project level without a repository");
 
