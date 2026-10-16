@@ -338,11 +338,16 @@ impl Api {
     }
 
     fn request(&self, method: Method, path: &str) -> CoreResult<Request> {
+        self.request_at(method, self.url(path)?)
+    }
+
+    /// A request to a full address the caller has checked (`url` or `graphql`).
+    fn request_at(&self, method: Method, url: String) -> CoreResult<Request> {
         let hoster = host(self.kind);
         let authorization = hoster.authorization(&self.token, self.username.as_deref());
         // Basic authentication carries the token encoded – that form is just as secret.
         let credential = authorization.split_once(' ').map(|(_, value)| value.to_string()).unwrap_or_default();
-        let mut request = Request::new(method, self.url(path)?, self.label())
+        let mut request = Request::new(method, url, self.label())
             .secret_header("authorization", authorization, &self.token)
             .alias(self.web_base.clone())
             .repo(self.repo_id.as_deref());
@@ -496,6 +501,29 @@ impl Api {
     pub async fn delete(&self, core: &Core, path: &str) -> CoreResult<Response> {
         self.send(core, self.request(Method::Delete, path)?).await
     }
+    /// `POST` of a GraphQL query (GitHub) to `endpoint`, which must have the scheme, server and port of
+    /// the API address – otherwise nothing is sent. Errors in the answer (`errors`) become
+    /// `host_not_found` (`NOT_FOUND`), `host_forbidden` (`FORBIDDEN`, `INSUFFICIENT_SCOPES`) or
+    /// `host_rejected`, the host's message without the token. Returns `data`.
+    pub async fn graphql(&self, core: &Core, endpoint: &str, query: &str, variables: Value) -> CoreResult<Value> {
+        let same_server = origin_of(endpoint).is_some() && origin_of(endpoint) == origin_of(&self.api_base);
+        if !same_server {
+            return Err(CoreError::unknown(format!("{} redirected to a different address; the request was not sent.", self.label())));
+        }
+        let body = serde_json::json!({ "query": query, "variables": variables });
+        let value: Value = self.send(core, self.request_at(Method::Post, endpoint.to_string())?.json(&body)).await?.json()?;
+        if let Some(first) = list(&value, "errors").first() {
+            let label = self.label();
+            let detail = util::truncate_str(&secrets::scrub(&text(first, "message"), std::slice::from_ref(&self.token)), 600);
+            let error = match text(first, "type").as_str() {
+                "NOT_FOUND" => CoreError::new(ErrorCode::HostNotFound, format!("{label} could not find this – or the token is not allowed to see it.")),
+                "FORBIDDEN" | "INSUFFICIENT_SCOPES" => CoreError::new(ErrorCode::HostForbidden, format!("{label} denies access: the token lacks the permission for this.")),
+                _ => CoreError::new(ErrorCode::HostRejected, format!("{label} rejected the request: {detail}")),
+            };
+            return Err(if detail.is_empty() { error } else { error.with_git_output(&detail) });
+        }
+        Ok(value.get("data").cloned().unwrap_or(Value::Null))
+    }
 }
 
 fn as_items(label: &str, value: Value) -> CoreResult<Vec<Value>> {
@@ -503,6 +531,16 @@ fn as_items(label: &str, value: Value) -> CoreResult<Vec<Value>> {
         Value::Array(items) => Ok(items),
         _ => Err(CoreError::unknown(format!("The response from {label} could not be read (unexpected structure)."))),
     }
+}
+/// `scheme://server:port` of an address in lower case; `None` without `http(s)://`.
+fn origin_of(url: &str) -> Option<String> {
+    let (scheme, rest) = url.split_once("://")?;
+    let scheme = scheme.to_ascii_lowercase();
+    if scheme != "https" && scheme != "http" {
+        return None;
+    }
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    (!authority.is_empty()).then(|| format!("{scheme}://{}", authority.to_ascii_lowercase()))
 }
 
 /// Turns a "not found" from the host into a message that says what is missing.

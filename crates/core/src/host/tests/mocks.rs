@@ -137,6 +137,43 @@ fn gh_issue(base: &str, number: u64) -> Value {
     issue
 }
 
+/// GitHub's GraphQL endpoint (`POST /api/graphql`): the review threads of pull request 9, two per page
+/// (cursor `seite-<n>`); unknown repositories and pull requests answer with GraphQL errors (status 200).
+fn gh_graphql(request: &MockRequest) -> MockResponse {
+    let body = request.json();
+    let vars = &body["variables"];
+    if request.method != "POST" || !body["query"].as_str().unwrap_or("").contains("reviewThreads") || vars["owner"] != "octo" || vars["name"] != "demo" {
+        return MockResponse::json(200, json!({ "data": Value::Null, "errors": [{ "type": "NOT_FOUND", "message": "Could not resolve to a Repository with the name 'demo'." }] }));
+    }
+    let number = vars["number"].as_u64().unwrap_or(0);
+    if number == 0 || number > 200 {
+        return MockResponse::json(
+            200,
+            json!({ "data": { "repository": { "pullRequest": Value::Null } }, "errors": [{ "type": "NOT_FOUND", "path": ["repository", "pullRequest"], "message": format!("Could not resolve to a PullRequest with the number of {number}.") }] }),
+        );
+    }
+    let comment = |id: u64, login: &str, body: &str, at: &str| {
+        json!({ "databaseId": id, "author": { "login": login, "avatarUrl": format!("https://avatars.example/{login}.png") }, "body": body, "createdAt": at, "originalCommit": { "oid": sha(9) } })
+    };
+    let threads: Vec<Value> = if number == 9 {
+        vec![
+            json!({ "isResolved": false, "isOutdated": false, "path": "src/anmeldung.rs", "line": 42, "startLine": 40, "originalLine": 42, "originalStartLine": 40, "diffSide": "RIGHT",
+                "comments": { "nodes": [comment(9001, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z"), comment(9002, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z")] } }),
+            json!({ "isResolved": true, "isOutdated": false, "path": "src/meldung.rs", "line": 7, "startLine": Value::Null, "originalLine": 7, "originalStartLine": Value::Null, "diffSide": "RIGHT",
+                "comments": { "nodes": [comment(9011, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z")] } }),
+            json!({ "isResolved": false, "isOutdated": true, "path": "src/alt.rs", "line": Value::Null, "startLine": Value::Null, "originalLine": 12, "originalStartLine": Value::Null, "diffSide": "RIGHT",
+                "comments": { "nodes": [comment(9021, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z")] } }),
+        ]
+    } else {
+        Vec::new()
+    };
+    let after: usize = vars["after"].as_str().and_then(|cursor| cursor.strip_prefix("seite-")).and_then(|n| n.parse().ok()).unwrap_or(0);
+    let page: Vec<Value> = threads.iter().skip(after).take(2).cloned().collect();
+    let more = after + 2 < threads.len();
+    let cursor = if more { json!(format!("seite-{}", after + 2)) } else { Value::Null };
+    MockResponse::json(200, json!({ "data": { "repository": { "pullRequest": { "reviewThreads": { "pageInfo": { "hasNextPage": more, "endCursor": cursor }, "nodes": page } } } } }))
+}
+
 pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
     let base = origin(request);
     let token = bearer(request);
@@ -153,6 +190,9 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
     let rate = MockResponse::json(403, json!({ "message": "API rate limit exceeded for user ID 1." })).header("x-ratelimit-remaining", "0").header("x-ratelimit-reset", "1791720000");
     if let Some(response) = forced(state.mode, rate) {
         return response;
+    }
+    if request.path() == "/api/graphql" {
+        return gh_graphql(request);
     }
     if path == "/search/issues" {
         let q = request.query("q").unwrap_or_default();
@@ -251,6 +291,11 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
                 { "sha": sha(number), "commit": { "message": "Meldung übersetzt", "author": { "name": "Jonas Weber", "date": "2026-09-01T13:00:00Z" } } }
             ]),
         ),
+        ("POST", ["pulls", _, "comments", id, "replies"]) if *id == "9001" => MockResponse::json(
+            201,
+            json!({ "id": 9003, "user": gh_user("lena-hartmann"), "body": request.json()["body"], "created_at": "2026-09-05T08:00:00Z", "path": "src/anmeldung.rs", "line": 42, "in_reply_to_id": 9001 }),
+        ),
+        ("POST", ["pulls", _, "comments", _, "replies"]) => not_found("Not Found"),
         ("POST" | "DELETE", ["pulls", _, "requested_reviewers"]) => MockResponse::json(if method == "POST" { 201 } else { 200 }, gh_pr(&base, number, &state)),
         ("PUT", ["pulls", _, "merge"]) => {
             if number == 13 {
