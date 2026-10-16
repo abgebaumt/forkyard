@@ -614,35 +614,42 @@ impl Run<'_> {
         Ok(u::rev_parse(self.core, self.repo_id, &format!("{sha}^{{commit}}")).await?.is_some())
     }
 
-    /// Executes the entry in this direction, then moves the branches a rebase took along.
+    /// Executes the entry in this direction. Branches a rebase took along (`--update-refs`) move first,
+    /// in one transaction, and move back if the action itself fails: all or nothing.
     async fn execute(&mut self) -> CoreResult<()> {
-        self.execute_action().await?;
-        self.move_updated_refs().await
+        let moves = self.updated_ref_moves().await?;
+        u::apply_ref_moves(self.core, self.repo_id, &moves, UNDO_MESSAGE).await?;
+        if let Err(e) = self.execute_action().await {
+            self.roll_back(&moves).await;
+            return Err(e);
+        }
+        Ok(())
     }
 
     /// Branches a rebase moved along with `--update-refs`: back to `before` on undo (their position
     /// after stays reachable for redo through `dep-after-<n>`), forward to `after` on redo. Never the
     /// checked-out branch, so the working directory is not touched.
-    async fn move_updated_refs(&self) -> CoreResult<()> {
+    async fn updated_ref_moves(&self) -> CoreResult<Vec<u::RefMove>> {
         let steps = updated_refs(&Value::Object(self.payload.clone()));
+        let mut moves = Vec::new();
         for (index, step) in steps.iter().enumerate() {
             let (from, to) = match self.dir {
-                Direction::Undo => (step.after.as_deref(), step.before.as_deref()),
-                Direction::Redo => (step.before.as_deref(), step.after.as_deref()),
+                Direction::Undo => (step.after.clone(), step.before.clone()),
+                Direction::Redo => (step.before.clone(), step.after.clone()),
             };
             let (Some(from), Some(to)) = (from, to) else { continue };
-            if same_sha(Some(from), Some(to)) {
+            if same_sha(Some(&from), Some(&to)) {
                 continue;
             }
-            if !self.commit_exists(to).await? {
+            if !self.commit_exists(&to).await? {
                 return Err(self.lost());
             }
             if self.dir == Direction::Undo {
-                self.backup(&format!("dep-after-{index}"), from).await?;
+                self.backup(&format!("dep-after-{index}"), &from).await?;
             }
-            self.update_ref(&step.name, Some(to), Some(from)).await?;
+            moves.push(u::RefMove { name: step.name.clone(), from: Some(from), to: Some(to) });
         }
-        Ok(())
+        Ok(moves)
     }
 
     /// Executes the entry's own action in this direction. `Probe::applicable` has checked the preconditions.

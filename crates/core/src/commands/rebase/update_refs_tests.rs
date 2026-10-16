@@ -160,3 +160,38 @@ async fn dependents_of_a_stopped_rebase_are_recorded_when_it_finishes() {
     crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
     assert_eq!(sha_of(&repo, "part"), old_part);
 }
+
+/// A foreign lock on a dependent branch: nothing at all is undone – not the rebase either.
+#[tokio::test]
+async fn a_locked_dependent_branch_stops_the_whole_undo() {
+    let (tc, repo, id) = setup().await;
+    stacked(&repo);
+    rebase_start_with(&tc, id.clone(), "main".into(), None, Some(true)).await.unwrap();
+    let (new_tip, new_part) = (repo.head(), sha_of(&repo, "part"));
+    let lock = repo.path().join(".git").join("refs").join("heads").join("part.lock");
+    std::fs::write(&lock, b"").unwrap();
+    let err = crate::commands::undo::undo(&tc, id.clone()).await.unwrap_err();
+    std::fs::remove_file(&lock).unwrap();
+    assert_eq!(err.code, ErrorCode::Locked, "{err:?}");
+    assert_eq!(repo.head(), new_tip, "the rebase stays");
+    assert_eq!(sha_of(&repo, "part"), new_part, "the dependent branch stays");
+    // Without the lock the same entry works.
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+    assert_ne!(repo.head(), new_tip);
+    assert_ne!(sha_of(&repo, "part"), new_part);
+}
+
+/// The rebase cannot be undone (local changes): the dependent branches stay where the rebase put them.
+#[tokio::test]
+async fn a_dirty_working_directory_leaves_the_dependent_branches_in_place() {
+    let (tc, repo, id) = setup().await;
+    stacked(&repo);
+    rebase_start_with(&tc, id.clone(), "main".into(), None, Some(true)).await.unwrap();
+    let (new_tip, new_part) = (repo.head(), sha_of(&repo, "part"));
+    repo.write_file("b.txt", "lokal geändert\n");
+    let err = crate::commands::undo::undo(&tc, id.clone()).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::DirtyWorktree, "{err:?}");
+    assert_eq!(repo.head(), new_tip);
+    assert_eq!(sha_of(&repo, "part"), new_part, "moved back after the failed undo");
+    assert_eq!(repo.read_file("b.txt"), "lokal geändert\n".as_bytes());
+}
