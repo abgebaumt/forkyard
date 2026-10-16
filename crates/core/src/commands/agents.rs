@@ -3,6 +3,7 @@
 //! only keeps metadata, and the running session (terminal, status) lives in memory.
 
 pub mod names;
+pub mod templates;
 #[cfg(test)]
 mod tests;
 

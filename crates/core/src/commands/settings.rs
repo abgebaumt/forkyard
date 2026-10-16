@@ -76,6 +76,9 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
         }
     }
     let mut next = next;
+    if changed.iter().any(|k| k == "agentTemplates") {
+        next.agent_templates = crate::commands::agents::templates::validate_custom(&next.agent_templates)?;
+    }
     if changed.iter().any(|k| NETWORK_KEYS.contains(&k.as_str())) {
         // Strict when saving: an invalid value (placeholder instead of a host, broken
         // proxy address) is an error, so that nothing other than what was entered ever applies.
@@ -638,6 +641,17 @@ mod tests {
     use crate::model::{PullMode, Theme};
     use crate::testkit::{TestCore, TestRepo};
     use serde_json::json;
+
+    #[tokio::test]
+    async fn own_agent_templates_with_a_bypass_flag_are_refused_and_nothing_is_stored() {
+        let tc = TestCore::new().await;
+        let bad = serde_json::json!({ "agentTemplates": [{ "id": "custom:x", "name": "X", "program": "x", "unattendedArgs": ["--dangerously-skip-permissions"] }] });
+        let err = settings_set(&tc, bad).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+        assert!(load_settings(&tc).unwrap().agent_templates.is_empty());
+        let good = serde_json::json!({ "agentTemplates": [{ "id": "custom:x", "name": " X ", "program": "x", "unattendedArgs": ["--yes"] }] });
+        assert_eq!(settings_set(&tc, good).await.unwrap().agent_templates[0].name, "X");
+    }
 
     #[tokio::test]
     async fn global_settings_are_shared_and_profile_settings_are_not() {
