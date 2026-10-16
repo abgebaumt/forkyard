@@ -204,5 +204,32 @@
   "sides": {
     "single": "{{side}} – Zeilen zum Übernehmen",
     "both": "{{ours}} und {{theirs}} nebeneinander"
+  },
+  "intent": {
+    "toggle": "Absicht",
+    "toggleTip": "Spalte ein- oder ausblenden, die erklärt, was beide Seiten wollten",
+    "region": "Absicht beider Seiten",
+    "title": "Absicht",
+    "hide": "Ausblenden",
+    "resize": "Breite der Spalte „Absicht“",
+    "intro": "Erklärt für jeden Konflikt, was jede Seite wollte – aus Commit-Nachrichten, Pull Requests und den Blocktexten – und schlägt einen Text vor, der beides erhält. Gesendet wird erst nach dem Klick.",
+    "explain": "Absicht erklären",
+    "again": "Neu erklären",
+    "whatIsSent": "Was wird gesendet?",
+    "loading": "Erklärt …",
+    "ready_one": "Absicht für {{count}} Konflikt erklärt.",
+    "ready_other": "Absicht für {{count}} Konflikte erklärt.",
+    "card": "Konflikt {{number}}",
+    "current": "aktueller Konflikt",
+    "proposal": "Vorgeschlagener Text im Vergleich zum aktuellen Text",
+    "diffLabel": "Vorgeschlagener Text für Konflikt {{number}}: hinzugefügte Zeilen mit Plus, entfernte mit Minus markiert",
+    "same": "Der Vorschlag entspricht dem aktuellen Text dieses Blocks.",
+    "apply": "Übernehmen",
+    "discard": "Verwerfen",
+    "applied": "Übernommen – der Block gilt jetzt als von Hand bearbeitet. Rückgängig geht im Ergebnis wie beim Tippen; gespeichert wird wie gewohnt.",
+    "discarded": "Verworfen – das Ergebnis bleibt unverändert.",
+    "shortened": "Nur erklärt – der Block ist zu groß für einen Textvorschlag.",
+    "redacted": "Nur erklärt – der Block enthält Werte, die vor dem Senden maskiert wurden.",
+    "leftOut": "Nicht erklärt – weggelassen, um die Größengrenze einzuhalten."
   }
 }

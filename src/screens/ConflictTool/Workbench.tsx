@@ -9,7 +9,9 @@
 import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, Link2, Link2Off, RotateCcw, Save, Search } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import type { ConflictFile, Id } from "../../core";
+import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { choose, confirm } from "../../app/dialogs";
+import { useAiStatus, useRepoSettings } from "../../app/queries";
 import { setCenterGuard, useBusy, type CenterGuard } from "../../app/store";
 import { useLineTokens } from "../../components/code/highlight";
 import { codeVars, useCodeSettings } from "../../components/code/settings";
@@ -39,6 +41,8 @@ import {
 } from "./model";
 import { Divider, Strip, Tag, ToolHeader, splitPath } from "./parts";
 import { ResultEditor, type ChunkLook, type ResultEditorHandle } from "./ResultEditor";
+import { clampIntentWidth, conflictRanges, DEFAULT_INTENT_WIDTH, INTENT_WIDTH_MAX, INTENT_WIDTH_MIN, rememberIntentOpen, rememberIntentWidth, storedIntentOpen, storedIntentWidth } from "./intent";
+import { IntentColumn } from "./IntentColumn";
 import { dropSession, loadSession, saveSession } from "./session";
 import { SidesView, type SidesViewHandle } from "./SidesView";
 import type { SideTitles } from "./titles";
@@ -451,6 +455,55 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
 
   const tokens = { ours: useLineTokens(path, ours), theirs: useLineTokens(path, theirs) };
 
+  // --- Intent (v1.2, Teilpaket 6.1) -----------------------------------------------------
+  const { data: aiStatus } = useAiStatus();
+  const { data: repoSettings } = useRepoSettings(repoId);
+  const intentAvailable = featureVisible(aiStatus, "conflict_intent", repoSettings?.aiOff ?? false);
+  const [intentOpen, setIntentOpenState] = useState(storedIntentOpen);
+  const setIntentOpen = (open: boolean) => {
+    setIntentOpenState(open);
+    rememberIntentOpen(open);
+  };
+  const [intentWidth, setIntentWidthState] = useState(storedIntentWidth);
+  const setIntentWidth = (value: number) => {
+    const next = clampIntentWidth(value);
+    setIntentWidthState(next);
+    rememberIntentWidth(next);
+  };
+  const layout = useRef<HTMLDivElement>(null);
+  const ranges = useMemo(() => conflictRanges(model), [model]);
+  /** Current text of a conflict block in the result – what the proposal is compared with. */
+  const blockText = (conflict: number) => {
+    const id = model.conflicts[conflict];
+    return id === undefined ? "" : (manual[id] ?? expected.current[id] ?? "");
+  };
+  const applyProposal = useCallback(
+    (conflict: number, text: string) => {
+      const id = model.conflicts[conflict];
+      if (id === undefined) return;
+      // Into the editor's history: Mod+Z in the result takes “Apply” back like typing.
+      editor.current?.replaceChunks([{ chunk: id, text }], { history: true });
+      recompute();
+    },
+    [model, recompute],
+  );
+  const onIntentGripKey = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+    if (event.key === "ArrowLeft") setIntentWidth(intentWidth + 0.05);
+    else if (event.key === "ArrowRight") setIntentWidth(intentWidth - 0.05);
+    else if (event.key === "Home") setIntentWidth(INTENT_WIDTH_MAX);
+    else if (event.key === "End") setIntentWidth(INTENT_WIDTH_MIN);
+    else if (event.key === "Enter") setIntentWidth(DEFAULT_INTENT_WIDTH);
+    else return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+  const onIntentGripPointer = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.buttons !== 1 || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const box = layout.current?.getBoundingClientRect();
+    if (box && box.width > 0) setIntentWidth((box.right - event.clientX) / box.width);
+  };
+
   // --- Darstellung ----------------------------------------------------------------------
   const allDone = total > 0 && open === 0;
   const counter =
@@ -503,6 +556,16 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
               onClick={() => setLinked(!linked)}
             />
             <IconButton size="sm" label={t("conflict.reset.tip")} disabled={!dirty} data-action="reset" icon={<RotateCcw className="size-icon" aria-hidden />} onClick={() => void reset()} />
+            {intentAvailable ? (
+              <>
+                <Divider />
+                <Tip label={t("conflict.intent.toggleTip")}>
+                  <Button size="sm" variant="ghost" aria-pressed={intentOpen} data-intent-toggle="" className={intentOpen ? "bg-surface-raised" : undefined} onClick={() => setIntentOpen(!intentOpen)}>
+                    {t("conflict.intent.toggle")}
+                  </Button>
+                </Tip>
+              </>
+            ) : null}
           </div>
         }
       />
@@ -532,7 +595,8 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
       ) : null}
       {!model.hasBase ? <Strip id="no-base">{t("conflict.noBase")}</Strip> : null}
 
-      <div ref={container} style={codeVars(code)} className="flex min-h-0 flex-1 flex-col">
+      <div ref={layout} className="flex min-h-0 min-w-0 flex-1" data-intent-layout="">
+      <div ref={container} style={codeVars(code)} className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div style={{ flex: `${split} 1 0%` }} className="flex min-h-24 min-w-0 flex-col" data-pane="sides">
           {single ? (
             <div className="flex min-h-control-lg shrink-0 flex-wrap items-center gap-x-2 border-b border-border bg-surface py-0.5 pr-1 pl-3">
@@ -639,6 +703,41 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
             />
           </div>
         </div>
+      </div>
+      {intentAvailable && intentOpen ? (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={t("conflict.intent.resize")}
+          aria-valuenow={Math.round(intentWidth * 100)}
+          aria-valuemin={Math.round(INTENT_WIDTH_MIN * 100)}
+          aria-valuemax={Math.round(INTENT_WIDTH_MAX * 100)}
+          tabIndex={0}
+          data-intent-grip=""
+          className="gc-cf-vgrip relative w-2 shrink-0 cursor-col-resize touch-none border-x border-border bg-surface"
+          onKeyDown={onIntentGripKey}
+          onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+          onPointerMove={onIntentGripPointer}
+          onDoubleClick={() => setIntentWidth(DEFAULT_INTENT_WIDTH)}
+        />
+      ) : null}
+      {intentAvailable ? (
+        <IntentColumn
+          repoId={repoId}
+          path={path}
+          ranges={ranges}
+          current={current}
+          blockText={blockText}
+          titles={titles}
+          local={aiStatus?.local ?? false}
+          provider={aiStatus?.provider ?? null}
+          openSetup={aiVisibility(aiStatus).elementsOpenSetup}
+          hidden={!intentOpen}
+          onApply={applyProposal}
+          onHide={() => setIntentOpen(false)}
+          style={{ flex: `0 0 ${intentWidth * 100}%` }}
+        />
+      ) : null}
       </div>
 
       <footer className="flex min-h-control-lg shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 border-t border-border bg-surface px-3 py-1.5" data-conflict-footer="">
