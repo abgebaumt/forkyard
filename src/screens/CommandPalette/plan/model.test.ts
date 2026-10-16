@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { CoreError, type PlanPreview, type PlanStepView } from "../../../core";
+import { CoreError, type AiStatus, type PlanPreview, type PlanRunResult, type PlanStepView } from "../../../core";
 import {
+  afterRun,
   applyDraft,
+  askMode,
   askQuery,
   checkView,
   classView,
@@ -11,8 +13,11 @@ import {
   offerAskRow,
   planErrorText,
   planKey,
+  liveText,
+  resultText,
   runBlocker,
   shiftConfirmed,
+  stepProgress,
   stepTitle,
   withoutStep,
   type PlanPhase,
@@ -155,5 +160,71 @@ describe("errors of the plan request", () => {
     const stale = new CoreError({ code: "stale_state", message: "The repository changed since the plan was shown. The plan has expired; ask again.", gitOutput: null });
     expect(planErrorText(stale)).toBe("The repository changed since the plan was shown. The plan has expired – ask again.");
     expect(planErrorText(new CoreError({ code: "cancelled", message: "Cancelled.", gitOutput: null }))).toBe("");
+  });
+});
+
+describe("when the palette offers asking (spec 1.3: unset / off / on)", () => {
+  const status = (patch: Partial<AiStatus>): AiStatus => ({
+    state: "on",
+    provider: "ollama",
+    model: "qwen3:8b",
+    connected: true,
+    keyHint: null,
+    local: true,
+    price: null,
+    introPending: false,
+    featuresOff: [],
+    ...patch,
+  });
+
+  it("asks only with AI on, for this function, this repository and in a repository tab", () => {
+    expect(askMode(status({}), false, true)).toBe("ask");
+    expect(askMode(status({ state: "unset", provider: null, model: null, connected: false }), false, true), "not set up").toBe("hidden");
+    expect(askMode(status({ state: "off" }), false, true), "switched off").toBe("hidden");
+    expect(askMode(status({ featuresOff: ["plan"] }), false, true), "this function off").toBe("hidden");
+    expect(askMode(status({ featuresOff: ["commit_message"] }), false, true), "another function off").toBe("ask");
+    expect(askMode(status({}), true, true), "AI off for this repository").toBe("hidden");
+    expect(askMode(status({}), false, false), "no repository tab").toBe("hidden");
+    expect(askMode(undefined, false, true), "status not loaded yet").toBe("hidden");
+  });
+
+  it("with AI on but no provider connected the row opens the setup instead of sending", () => {
+    expect(askMode(status({ provider: null, model: null, connected: false }), false, true)).toBe("setup");
+  });
+});
+
+describe("running and the result", () => {
+  const result = (statuses: ("done" | "failed" | "not_run")[], patch: Partial<PlanRunResult> = {}): PlanRunResult => ({
+    steps: statuses.map((status, index) => ({ index, status, error: status === "failed" ? { code: "nothing_to_commit", message: "There are no changes to stash.", gitOutput: null } : null })),
+    undoRecorded: statuses.includes("done"),
+    completed: statuses.every((status) => status === "done"),
+    cancelled: false,
+    ...patch,
+  });
+
+  it("reads the step counter of the job", () => {
+    expect(stepProgress("2/4")).toEqual({ n: 2, total: 4 });
+    expect(stepProgress("")).toBeNull();
+    expect(stepProgress("x/4")).toBeNull();
+  });
+
+  it("a finished plan closes the palette with a toast; a stopped one stays to show why", () => {
+    expect(afterRun(result(["done", "done", "done"]))).toEqual({ close: true, toast: "Plan done: 3 steps" });
+    expect(afterRun(result(["done"]))).toEqual({ close: true, toast: "Plan done: 1 step" });
+    expect(afterRun(result(["done", "failed", "not_run"])).close).toBe(false);
+  });
+
+  it("says where the plan stopped and what Mod+Z does", () => {
+    expect(resultText(result(["done", "failed", "not_run"]))).toContain("stopped at step 2");
+    expect(resultText(result(["done", "failed", "not_run"]))).toContain("takes them back");
+    expect(resultText(result(["failed", "not_run"]))).toBe("Step 1 failed; nothing was changed.");
+    expect(resultText(result(["done", "not_run"], { cancelled: true }))).toContain("Cancelled. The steps already done stay done");
+    expect(resultText(result(["not_run", "not_run"], { cancelled: true }))).toBe("Cancelled; nothing was changed.");
+  });
+
+  it("announces a ready plan politely", () => {
+    expect(liveText(previewPhase(plan([create, push])))).toBe("Plan with 2 steps ready");
+    expect(liveText(previewPhase(plan([create]), 0, [], true))).toBe("");
+    expect(liveText({ kind: "loading", text: "x", jobId: "j", startedAt: 0 })).toBe("");
   });
 });

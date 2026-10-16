@@ -4,7 +4,8 @@
  * classes, checks and outcomes, the step editor's drafts and the texts around a run. The palette
  * (`index.tsx`) and `usePlanSession.ts` render it and call the core.
  */
-import type { PlanArgValue, PlanCheck, PlanPreview, PlanRunResult, PlanStep, PlanStepOutcome, PlanStepView } from "../../../core";
+import type { AiStatus, PlanArgValue, PlanCheck, PlanPreview, PlanRunResult, PlanStep, PlanStepOutcome, PlanStepView } from "../../../core";
+import { aiVisibility, featureVisible } from "../../../app/ai/visibility";
 import { errorView } from "../../../app/ai/requestState";
 import { describeError, toCoreError } from "../../../app/errors";
 import { t } from "../../../i18n";
@@ -326,4 +327,42 @@ export function footerKeys(phase: PlanPhase): [string, string][] {
       return keys;
     }
   }
+}
+
+export type AskMode = "hidden" | "setup" | "ask";
+
+/**
+ * What the ask row does (spec 1.3 table): nothing in `unset`/`off`, with this function or this
+ * repository switched off and outside a repository tab; with `on` but no provider connected it
+ * opens the setup instead of sending (1a `elementsOpenSetup`, 1b `openAiSetup`).
+ */
+export function askMode(status: AiStatus | null | undefined, repoAiOff: boolean, hasRepo: boolean): AskMode {
+  if (!hasRepo || !featureVisible(status, "plan", repoAiOff)) return "hidden";
+  return aiVisibility(status).elementsOpenSetup ? "setup" : "ask";
+}
+
+/** The line of `job:progress` of `aiPlanRun`: "n/total". */
+export function stepProgress(line: string): { n: number; total: number } | null {
+  const match = /^(\d+)\/(\d+)$/.exec(line.trim());
+  return match ? { n: Number(match[1]), total: Number(match[2]) } : null;
+}
+
+export function afterRun(result: PlanRunResult): { close: boolean; toast: string } {
+  const done = result.steps.filter((step) => step.status === "done").length;
+  return result.completed ? { close: true, toast: t("palette.plan.doneToast", { count: done }) } : { close: false, toast: "" };
+}
+
+export function resultText(result: PlanRunResult): string {
+  const done = result.steps.some((step) => step.status === "done");
+  if (result.cancelled) return done ? t("palette.plan.cancelled") : t("palette.plan.nothingDone");
+  const failed = result.steps.find((step) => step.status === "failed");
+  if (!failed) return "";
+  return done ? t("palette.plan.stopped", { n: failed.index + 1 }) : t("palette.plan.stoppedFirst");
+}
+
+/** For `aria-live="polite"`: a plan that is ready, the end of a run. */
+export function liveText(phase: PlanPhase): string {
+  if (phase.kind === "preview" && !phase.busy) return t("palette.plan.ready", { count: phase.preview.steps.length });
+  if (phase.kind === "result") return resultText(phase.result);
+  return "";
 }

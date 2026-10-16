@@ -21,6 +21,7 @@ import {
   GitBranch,
   GitCommitHorizontal,
   Globe,
+  MessageSquareText,
   RefreshCw,
   Search,
   SearchX,
@@ -33,14 +34,18 @@ import { buildCommandContext, isAvailable, useCommands } from "../../app/registr
 import { describeError } from "../../app/errors";
 import { showError } from "../../app/run";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
-import { useActiveTab, useCommitSearch, useRefs, useRepos, useStatus, useStashes, useRemotes, useTree } from "../../app/queries";
+import { useActiveTab, useAiStatus, useCommitSearch, useRefs, useRepoSettings, useRepos, useStatus, useStashes, useRemotes, useTree } from "../../app/queries";
 import { Kbd } from "../../ui/Kbd";
 import { Spinner } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { fuzzyBest, fuzzyMatch, highlightParts, isWeakMatch, prepareQuery } from "./fuzzy";
 import { readRecent } from "./recent";
 import { locale, t } from "../../i18n";
-import { changedFirst, commandItems, commitItems, fileItems, kindLabels, refItems, repoItems, type PaletteItem, type PaletteKind } from "./sources";
+import { askItem, changedFirst, commandItems, commitItems, fileItems, kindLabels, refItems, repoItems, type PaletteItem, type PaletteKind } from "./sources";
+import { openAiSetup } from "../../app/ai/open";
+import { askMode, askQuery, offerAskRow } from "./plan/model";
+import { usePlanSession } from "./plan/usePlanSession";
+import { PlanFooter, PlanPanel } from "./plan/PlanPanel";
 
 export interface CommandPaletteProps {
   mode: PaletteMode;
@@ -116,6 +121,7 @@ const kindIcons: Record<PaletteKind, ReactNode> = {
   repo: <FolderGit2 className="size-icon" aria-hidden />,
   commit: <GitCommitHorizontal className="size-icon" aria-hidden />,
   action: <CornerDownRight className="size-icon" aria-hidden />,
+  ask: <MessageSquareText className="size-icon" aria-hidden />,
 };
 
 function Highlighted({ text, positions, offset = 0 }: { text: string; positions: readonly number[]; offset?: number }) {
@@ -258,6 +264,24 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
   const tabId = tab?.id ?? null;
   const target = repoId && tabId ? { repoId, tabId } : null;
 
+  // Git in plain language (v1.2): "?" asks, and so does the last row when nothing matched.
+  const aiStatus = useAiStatus();
+  const repoSettings = useRepoSettings(repoId);
+  const ask = askMode(aiStatus.data, repoSettings.data?.aiOff ?? false, repoId !== null);
+  const askEnabled = ask !== "hidden";
+  const plan = usePlanSession(repoId, onClose, () => inputRef.current?.focus());
+  const askText = stage || plan.active ? null : askQuery(raw, askEnabled);
+  const startAsk = useRef<(request: string) => void>(() => undefined);
+  startAsk.current = (request: string) => {
+    // On, but no provider connected yet: the row leads to 1b's setup dialog instead of sending.
+    if (ask === "setup") {
+      onClose();
+      afterFocusReturn(() => void openAiSetup());
+      return;
+    }
+    void plan.start(request);
+  };
+
   const parsed = parseQuery(stage ? "" : raw);
   const scope = parsed.scope;
   const text = stage ? raw.trim() : parsed.text;
@@ -311,6 +335,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
     const push = (item: PaletteItem, positions: number[] = []) => out.push({ type: "option", item, positions, option: option++ });
     const header = (label: string) => out.push({ type: "header", label });
     const q = deferredText;
+
+    if (askText !== null) {
+      if (askText) push(askItem(askText, () => startAsk.current(askText)));
+      return { rows: out, total: option };
+    }
 
     if (stage) {
       const list = q ? rank(stageList, q) : stageList.map((item) => ({ item, positions: [] as number[], score: 0 }));
@@ -376,6 +405,10 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
       case "all":
         ranked = [...rank(commandList, q), ...rank(refList, q).slice(0, 100), ...rank(fileList, q).slice(0, 200), ...rank(repoList, q)];
         ranked.sort((a, b) => b.score - a.score || a.item.title.length - b.item.title.length);
+        if (offerAskRow(askEnabled, scope, q, ranked.length)) {
+          push(askItem(q, () => startAsk.current(q)));
+          return { rows: out, total: option };
+        }
         break;
       case "commands":
         ranked = rank(commandList, q);
@@ -396,7 +429,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
     }
     for (const entry of ranked.slice(0, MAX_RESULTS)) push(entry.item, entry.positions);
     return { rows: out, total: Math.min(ranked.length, MAX_RESULTS) };
-  }, [stage, stageList, deferredText, scope, commandList, refList, fileList, repoList, commitList]);
+  }, [stage, stageList, deferredText, scope, commandList, refList, fileList, repoList, commitList, askText, askEnabled]);
 
   const options = useMemo(() => rows.filter((row): row is Extract<Row, { type: "option" }> => row.type === "option"), [rows]);
   const activeIndex = Math.max(
@@ -404,6 +437,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
     options.findIndex((row) => row.item.key === activeKey),
   );
   const active = options[activeIndex] ?? null;
+  const askRequest = options.find((row) => row.item.kind === "ask")?.item.request ?? null;
 
   // New matches: selection back to the top.
   useEffect(() => {
@@ -434,6 +468,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
   const close = () => onClose();
   const execute = (item: PaletteItem | null | undefined) => {
     if (!item) return;
+    if (item.kind === "ask") {
+      // The plan appears inside the palette; nothing closes.
+      void item.run();
+      return;
+    }
     if (item.disabledReason) {
       setNotice(t("palette.notice", { title: item.title, reason: item.disabledReason }));
       return;
@@ -473,6 +512,10 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.nativeEvent.isComposing) return;
+    if (plan.active) {
+      plan.onKeyDown(event);
+      return;
+    }
     switch (event.key) {
       case "ArrowDown":
         event.preventDefault();
@@ -559,8 +602,14 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
               : t("palette.placeholder.all");
 
   let empty: ReactNode = null;
-  if (!rows.length && !loading && !failure) {
-    if (noRepo) {
+  if (!rows.length && !loading && !failure && !plan.active) {
+    if (askText === "") {
+      empty = (
+        <PaletteEmpty icon={<MessageSquareText className="size-6" aria-hidden />} title={t("palette.ask.emptyTitle")}>
+          {t("palette.ask.hint")}
+        </PaletteEmpty>
+      );
+    } else if (noRepo) {
       empty = (
         <PaletteEmpty icon={<FolderGit2 className="size-6" aria-hidden />} title={t("palette.empty.noRepo")}>
           {scope === "files" ? t("palette.empty.noRepoFiles") : scope === "commits" ? t("palette.empty.noRepoCommits") : t("palette.empty.noRepoBranches")}
@@ -609,6 +658,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             }
           }}
           onEscapeKeyDown={(event) => {
+            if (plan.active) {
+              event.preventDefault();
+              plan.escape();
+              return;
+            }
             if (stage) {
               event.preventDefault();
               leaveStage();
@@ -630,14 +684,15 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             <input
               ref={inputRef}
               role="combobox"
-              aria-label={stage ? t("palette.inputAction", { title: stage.item.title }) : t("palette.input")}
+              aria-label={plan.active ? t("palette.plan.inputLabel", { text: plan.text }) : stage ? t("palette.inputAction", { title: stage.item.title }) : t("palette.input")}
               aria-expanded={rows.length > 0}
               aria-controls={listId}
               aria-autocomplete="list"
-              aria-activedescendant={activeId}
+              aria-activedescendant={plan.active ? plan.activeDescendant(listId) : activeId}
               autoComplete="off"
               spellCheck={false}
               value={raw}
+              readOnly={plan.active}
               placeholder={placeholder}
               onChange={(event) => setRaw(event.target.value)}
               onKeyDown={onKeyDown}
@@ -659,7 +714,8 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           ) : null}
 
           <div ref={scrollRef} className="max-h-palette-list min-h-0 overflow-y-auto overscroll-contain p-1" data-scroll>
-            {failure ? (
+            {plan.active ? <PlanPanel session={plan} idPrefix={listId} /> : null}
+            {!plan.active && failure ? (
               <div role="alert" className="flex items-start gap-2 rounded-md bg-danger-surface px-3 py-2 text-sm text-text" data-failure>
                 <TriangleAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
                 <span className="min-w-0 flex-1">
@@ -680,7 +736,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
               id={listId}
               role="listbox"
               aria-label={stage ? t("palette.actions") : t("palette.results")}
-              className="relative w-full"
+              className={cn("relative w-full", plan.active && "hidden")}
               style={{ height: virtualizer.getTotalSize() }}
             >
               {items.map((virtual) => {
@@ -711,8 +767,8 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                 );
               })}
             </div>
-            {loading && !rows.length ? <SkeletonRows count={wantsCommits ? 5 : 6} /> : null}
-            {loading && rows.length > 0 && wantsFiles ? (
+            {!plan.active && loading && !rows.length ? <SkeletonRows count={wantsCommits ? 5 : 6} /> : null}
+            {!plan.active && loading && rows.length > 0 && wantsFiles ? (
               <p className="flex h-control-lg items-center gap-2 px-2 text-sm text-text-muted" data-loading-files>
                 <Spinner label={loadingLabel} /> {loadingLabel}
               </p>
@@ -721,7 +777,9 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           </div>
 
           <footer className="flex h-control-md shrink-0 items-center gap-3 border-t border-border bg-bg px-3 text-xs text-text-muted" data-footer>
-            {!stage && !raw ? (
+            {plan.active ? (
+              <PlanFooter session={plan} />
+            ) : !stage && !raw ? (
               <span className="flex min-w-0 flex-1 items-center gap-3 truncate" data-prefix-help>
                 {PREFIXES.map((entry) => (
                   <button
@@ -739,6 +797,22 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                     {entry.label}
                   </button>
                 ))}
+                {askEnabled ? (
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    data-prefix="?"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => {
+                      setRaw("?");
+                      inputRef.current?.focus();
+                    }}
+                    className="inline-flex shrink-0 items-center gap-1 hover:text-text"
+                  >
+                    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-sm border border-border bg-surface px-1 font-mono text-xs text-text">?</kbd>
+                    {t("palette.scope.ask")}
+                  </button>
+                ) : null}
               </span>
             ) : (
               <span className="flex min-w-0 flex-1 items-center gap-3 truncate">
@@ -757,11 +831,22 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                 <span className="inline-flex items-center gap-1">
                   <Kbd>Esc</Kbd> {stage ? t("palette.footer.back") : t("palette.footer.close")}
                 </span>
+                {askRequest !== null ? (
+                  <button
+                    type="button"
+                    data-plan-what-is-sent
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => void plan.whatIsSent(askRequest)}
+                    className="inline-flex items-center hover:text-text hover:underline"
+                  >
+                    {t("palette.ask.whatIsSent")}
+                  </button>
+                ) : null}
               </span>
             )}
             <span className="shrink-0 tabular-nums" aria-live="polite" data-count>
-              {loading ? "" : t("palette.count", { count: total })}
-              {total >= MAX_RESULTS ? t("palette.countMore") : ""}
+              {loading || plan.active ? "" : t("palette.count", { count: total })}
+              {!plan.active && total >= MAX_RESULTS ? t("palette.countMore") : ""}
             </span>
           </footer>
         </RadixDialog.Content>

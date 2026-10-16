@@ -20,7 +20,7 @@ import { unavailableReason } from "./reasons";
 import { fold } from "./fuzzy";
 import { t } from "../../i18n";
 
-export type PaletteKind = "command" | "branch" | "remote" | "tag" | "file" | "repo" | "commit" | "action";
+export type PaletteKind = "command" | "branch" | "remote" | "tag" | "file" | "repo" | "commit" | "action" | "ask";
 
 export const kindLabels: Record<PaletteKind, string> = {
   command: t("palette.kind.command"),
@@ -31,6 +31,7 @@ export const kindLabels: Record<PaletteKind, string> = {
   repo: t("palette.kind.repo"),
   commit: t("palette.kind.commit"),
   action: t("palette.kind.action"),
+  ask: t("palette.kind.ask"),
 };
 
 /** Display names of the command groups (the groups themselves are fixed identifiers). */
@@ -69,12 +70,19 @@ export interface PaletteItem {
   path?: boolean;
   /** Bonus when sorting across sources. */
   boost?: number;
+  /** The ask row (v1.2): the request it would send. */
+  request?: string;
   run(): void | Promise<unknown>;
   /** Zweite Stufe (Tab). */
   actions?(): PaletteItem[];
 }
 
 const item = (value: Omit<PaletteItem, "folded">): PaletteItem => ({ ...value, folded: fold(value.title) });
+
+/** The row "Ask in plain language: “…”" (v1.2, Paket 5): Enter makes a plan inside the palette. */
+export function askItem(text: string, run: () => void): PaletteItem {
+  return item({ key: "ask:plain-language", kind: "ask", title: t("palette.ask.row", { text }), request: text, run });
+}
 
 // ---------------------------------------------------------------------------
 // Befehle
