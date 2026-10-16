@@ -1190,3 +1190,8 @@ pub async fn ai_cli_login(core: State<'_, Core>, repo_id: String, provider: AiPr
 pub async fn ai_pr_description(core: State<'_, Core>, repo_id: String, job_id: String, source: String, target: String, locale: String) -> R<AiPrDescription> {
     c::ai::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
 }
+
+#[tauri::command]
+pub async fn stack_plan(core: State<'_, Core>, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> R<StackPlan> {
+    c::stack::stack_plan(&core, repo_id, branch, base, cuts).await
+}

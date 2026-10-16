@@ -116,6 +116,8 @@ import type {
   SshKey,
   Stash,
   StatsRange,
+  StackCut,
+  StackPlan,
   StashSelection,
   Status,
   Submodule,
@@ -930,6 +932,16 @@ export interface CoreCommands {
    * command-line tool, more than 16 terminals), `ai_not_configured` (tool not found), `unsupported` (batch shim).
    */
   aiCliLogin(input: R & { provider: AiProviderKind; cols: number; rows: number }): Promise<Id>;
+
+  // --- Stacked pull requests (v1.2, Paket 8.1) --------------------------------------
+  /**
+   * The commits of `branch` that `base` (full ref: `refs/heads/…`, `refs/remotes/…`) does not have,
+   * oldest first, and the parts `cuts` makes of them (empty = one part), with branch names
+   * `<branch>-<n>-<name>` and why a name can't be used. Creates nothing. Errors: `invalid_name`,
+   * `not_found`, `not_allowed` (base, merge commits, no commits, more than 100, invalid cuts),
+   * `repo_untrusted`.
+   */
+  stackPlan(input: R & { branch: string; base: string; cuts: StackCut[] }): Promise<StackPlan>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

@@ -2176,3 +2176,111 @@ export interface RepoStats {
   /** Came from the cache. */
   cached: boolean;
 }
+
+// --- Stacked pull requests (v1.2, Paket 8.1) ---------------------------------------
+
+/** A part ends after commit number `end` (1 = the oldest commit of the branch); `name` empty = the subject of its first commit. */
+export interface StackCut {
+  end: number;
+  name: string;
+}
+
+export interface StackCommit {
+  sha: Sha;
+  subject: string;
+  files: number;
+  added: number;
+  deleted: number;
+}
+
+export interface StackPart {
+  number: number;
+  /** `<branch>-<n>-<name>`. */
+  branch: string;
+  first: number;
+  end: number;
+  tip: Sha;
+  /** The name is taken, blocked by a folder of branches or invalid. */
+  problem: string | null;
+}
+
+export interface StackPlan {
+  branch: string;
+  /** Full ref name (`refs/heads/main`, `refs/remotes/origin/main`). */
+  base: string;
+  /** The base's branch name on the host: target of the first pull request. */
+  baseName: string;
+  baseSha: Sha;
+  tip: Sha;
+  commits: StackCommit[];
+  parts: StackPart[];
+}
+
+export interface StackStatusPart {
+  branch: string;
+  /** Full ref name of the part below (part 1: the base). */
+  parent: string;
+  tip: Sha;
+  /** false = the part has to be restacked. */
+  containsParent: boolean;
+  worktreePath: string | null;
+  /** Subjects of the part's own commits, oldest first (at most 50). */
+  subjects: string[];
+}
+
+export interface StackRestack {
+  onto: string;
+  top: string;
+  topTip: Sha;
+  /** Local branches Git moves along. */
+  moves: string[];
+  /** Parts checked out in a worktree: Git leaves them where they are. */
+  leftBehind: string[];
+  blocked: string | null;
+}
+
+export interface StackStatus {
+  base: string;
+  baseName: string;
+  parts: StackStatusPart[];
+  restack: StackRestack | null;
+}
+
+export type StackCheckState = "passed" | "failed" | "timed_out";
+
+export interface StackCheckResult {
+  part: number;
+  tip: Sha;
+  state: StackCheckState;
+  exitCode: number | null;
+  /** The last 4 KiB of the output, redacted. */
+  output: string;
+  durationMs: number;
+}
+
+export interface StackPrPart {
+  branch: string;
+  title: string;
+  body: string;
+  draft: boolean;
+}
+
+export interface StackPrOutcome {
+  created: { part: number; pr: PrSummary }[];
+  /** The first failure; the parts above it were not sent. */
+  failed: { part: number; error: CoreErrorData } | null;
+}
+
+/** A part the AI proposes: it ends after commit `end`. */
+export interface AiStackPart {
+  end: number;
+  name: string;
+  title: string;
+  /** Why this part stands on its own (UI language). */
+  why: string;
+}
+
+/** `aiStackSplit`: a suggestion only – nothing is created. */
+export interface AiStackSplit {
+  parts: AiStackPart[];
+}
