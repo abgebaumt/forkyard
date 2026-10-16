@@ -891,6 +891,39 @@ pub enum PushResult {
     Multi { remote: String, atomic: bool, refs: Vec<PushRefResult> },
 }
 
+/// Why the local secret scan before a push (v1.2, 6.2) reported a line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretRule {
+    /// A token or key with a well-known prefix.
+    KnownToken,
+    /// The first line of a private key.
+    PrivateKey,
+    /// The value of a password, token or secret named as such.
+    Credential,
+    /// The password in an address `scheme://user:password@host`.
+    UrlPassword,
+    /// A random-looking string in quotes or after `=` / `:`.
+    HighEntropy,
+}
+
+/// One added line that looks like a key. The value never leaves the core: `excerpt` is the line
+/// with every value masked, `hint` at most its last four characters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecretFinding {
+    /// SHA-256 (hex) of path and line content; "Don't report again" stores it.
+    pub id: String,
+    pub path: String,
+    /// Line in the new version of the file (1-based).
+    pub line: u32,
+    /// The newest outgoing commit that adds this line.
+    pub commit: String,
+    pub rule: SecretRule,
+    pub excerpt: String,
+    pub hint: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FetchFailure {

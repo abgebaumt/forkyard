@@ -19,6 +19,7 @@ pub mod jobs;
 pub mod model;
 pub mod proc;
 pub mod secrets;
+pub mod secret_scan;
 pub mod tools;
 pub mod undo;
 pub mod util;
