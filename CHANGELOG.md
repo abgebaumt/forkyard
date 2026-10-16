@@ -65,6 +65,12 @@ All notable changes to Forkyard are listed here. The format follows
   instruction per repository (Project › AI and agents) go along. Empty fields get the draft, your own
   text is never replaced unasked (Replace / Append / Discard), Ctrl+Z takes an inserted draft back, and
   “What is sent?” shows the exact text first. Nothing is committed without you.
+- Pull request description from the commits: “Write from commits” in “Create pull request” writes
+  title and description from the branch's commits, the changed files (statistics only, no contents),
+  ticket references and the repository's template – every heading of the template stays. Issues the
+  commits mention on GitHub, GitLab and Gitea/Forgejo become “Closes #n”; the AI cannot add any
+  others. A description you wrote is never replaced unasked, the title only while it is still the
+  automatic suggestion, and Ctrl+Z takes an insertion back. “What is sent?” shows the exact text first.
 
 ### Changed
 
