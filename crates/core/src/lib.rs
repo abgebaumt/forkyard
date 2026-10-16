@@ -7,6 +7,7 @@
 pub mod ai;
 pub mod app;
 pub mod autofetch;
+pub mod changelog;
 pub mod commands;
 pub mod crash;
 pub mod db;
