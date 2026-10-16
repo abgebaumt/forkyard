@@ -1170,3 +1170,8 @@ pub async fn ai_preview_reset(core: State<'_, Core>) -> R<()> {
 pub async fn ai_usage(core: State<'_, Core>) -> R<AiUsageSummary> {
     c::ai::ai_usage(&core).await
 }
+
+#[tauri::command]
+pub async fn ai_detect(core: State<'_, Core>) -> R<AiDetection> {
+    c::ai::ai_detect(&core).await
+}

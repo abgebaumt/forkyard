@@ -15,6 +15,7 @@
  */
 import type {
   AiAskTrigger,
+  AiDetection,
   AiFeature,
   AiInput,
   AiModelList,
@@ -896,6 +897,12 @@ export interface CoreCommands {
   aiPreviewReset(): Promise<void>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+  /**
+   * Setup dialog (Teilpaket 1b): Claude Code, Codex and opencode with version, path and sign-in, Ollama /
+   * LM Studio on this computer and the providers with a stored key – about two seconds at most, sends
+   * nothing. Remembers the found programs.
+   */
+  aiDetect(): Promise<AiDetection>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

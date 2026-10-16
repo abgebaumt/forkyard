@@ -1074,6 +1074,46 @@ export interface AiUsageSummary {
   rows: AiUsageRow[];
 }
 
+/** Sign-in of an AI command-line tool, as the tool reports it. */
+export type AiLoginState = "logged_in" | "logged_out" | "unknown";
+
+/** Where a program was found: own path, PATH, a usual install folder, the login shell's PATH. */
+export type ToolSource = "configured" | "path" | "known_location" | "login_shell";
+
+/** An AI command-line tool the setup found. */
+export interface AiCliFound {
+  provider: AiProviderKind;
+  path: string;
+  version: string | null;
+  source: ToolSource;
+  login: AiLoginState;
+  /** "claude.ai", "ChatGPT" … – never an account name. */
+  loginMethod: string | null;
+  /** Claude Code would use ANTHROPIC_API_KEY from the environment instead of the sign-in. */
+  usesEnvKey: boolean;
+  /** All safety switches are there; otherwise `problem` names the missing ones. */
+  supported: boolean;
+  problem: string | null;
+  /** The sign-in as text, e.g. "claude auth login" (only shown). */
+  loginCommand: string;
+}
+
+/** Ollama or LM Studio answering on this computer. */
+export interface AiLocalFound {
+  provider: AiProviderKind;
+  baseUrl: string;
+  models: string[];
+}
+
+/** `aiDetect`: what the setup offers; nothing was sent. */
+export interface AiDetection {
+  clis: AiCliFound[];
+  local: AiLocalFound[];
+  /** Providers with a stored API key. */
+  keys: AiProviderKind[];
+  elapsedMs: number;
+}
+
 /** Global settings of the active profile. The core sets the defaults. */
 /** Own paths of the AI command-line tools; null = found automatically (PATH, install folders, login shell). */
 export interface AiCliPaths {

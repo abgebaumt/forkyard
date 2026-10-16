@@ -419,3 +419,90 @@ async fn a_remembered_program_that_is_gone_is_searched_again() {
     FakeCli::install(fake(), &own_dir, "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
     assert_eq!(cli::program_for(&tc, AiProviderKind::ClaudeCode, &tc.settings().unwrap()).await.unwrap(), own);
 }
+
+use gitcore::ai::configure_base;
+use gitcore::commands::ai::ai_detect;
+use gitcore::model::{AiLocalFound, ToolSource};
+use gitcore::testkit::{MockResponse, MockServer};
+
+/// An address on this computer where nothing listens.
+fn closed_address() -> String {
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    format!("http://127.0.0.1:{port}")
+}
+
+/// No local model of this machine may show up in a test.
+fn no_local_services(tc: &TestCore) {
+    configure_base(tc, AiProviderKind::Ollama, Some(closed_address()));
+    configure_base(tc, AiProviderKind::Lmstudio, Some(format!("{}/v1", closed_address())));
+}
+
+#[tokio::test]
+async fn detection_lists_tools_local_services_and_keys() {
+    let tc = TestCore::new().await;
+    let ollama = MockServer::start(|request| match request.route().as_str() {
+        "GET /api/tags" => MockResponse::json(200, json!({"models": [{"name": "qwen3:8b"}, {"name": "llama3.2:3b"}]})),
+        _ => MockResponse::json(404, json!({})),
+    });
+    configure_base(&tc, AiProviderKind::Ollama, Some(ollama.url()));
+    configure_base(&tc, AiProviderKind::Lmstudio, Some(format!("{}/v1", closed_address())));
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &codex_config(CODEX_EXEC_HELP, false, "{}"));
+    let opencode = FakeCli::install(fake(), &tc.cli_dir(), "opencode", &opencode_config(OPENCODE_RUN_HELP, "1.16.4", 1, "{}"));
+    gitcore::secrets::set(&tc, "llm:gemini", "AIzaSyTest-0123456789abcdef").await.unwrap();
+
+    let found = ai_detect(&tc).await.unwrap();
+    assert_eq!(found.clis.iter().map(|cli| cli.provider).collect::<Vec<_>>(), [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode]);
+    let by = |kind: AiProviderKind| found.clis.iter().find(|cli| cli.provider == kind).unwrap();
+    let c = by(AiProviderKind::ClaudeCode);
+    assert_eq!(
+        (c.version.as_deref(), c.source, c.login, c.login_method.as_deref(), c.supported, c.problem.as_deref(), c.login_command.as_str()),
+        (Some("2.1.301"), ToolSource::Path, AiLoginState::LoggedIn, Some("claude.ai"), true, None, "claude auth login")
+    );
+    assert_eq!(std::fs::canonicalize(&c.path).unwrap(), std::fs::canonicalize(&claude.program).unwrap());
+    let x = by(AiProviderKind::Codex);
+    assert_eq!((x.version.as_deref(), x.login, x.supported, x.login_command.as_str()), (Some("0.162.0"), AiLoginState::LoggedOut, true, "codex login"));
+    let o = by(AiProviderKind::Opencode);
+    assert_eq!(o.version.as_deref(), Some("1.16.4"));
+    assert!(!o.supported && o.problem.as_deref().is_some_and(|problem| problem.contains("1.17.0")), "{o:?}");
+    assert_eq!(found.local, vec![AiLocalFound { provider: AiProviderKind::Ollama, base_url: ollama.url(), models: vec!["qwen3:8b".into(), "llama3.2:3b".into()] }]);
+    assert_eq!(found.keys, vec![AiProviderKind::Gemini]);
+    for kind in [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode] {
+        assert_eq!(cli::remembered(&tc, kind), Some(PathBuf::from(&by(kind).path)), "{kind:?} is remembered");
+    }
+    assert!(claude.calls_with(&["-p"]).is_empty() && codex.calls_with(&["exec", "-C"]).is_empty() && opencode.calls_with(&["run", "--dir"]).is_empty(), "detection sends nothing");
+    assert!(ollama.requests().iter().all(|request| request.route() == "GET /api/tags"));
+    assert!(found.elapsed_ms < 3_000, "{}", found.elapsed_ms);
+}
+
+#[tokio::test]
+async fn detection_does_not_wait_for_a_hanging_tool() {
+    let tc = TestCore::new().await;
+    no_local_services(&tc);
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    let mut config = codex_config(CODEX_EXEC_HELP, true, "{}");
+    config["rules"][2]["sleepMs"] = json!(20_000); // `codex login status` hangs
+    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &config);
+    let started = Instant::now();
+    let found = ai_detect(&tc).await.unwrap();
+    assert!(started.elapsed() < Duration::from_secs(3), "about two seconds at most (spec 1.3): {:?}", started.elapsed());
+    let state = |kind: AiProviderKind| found.clis.iter().find(|cli| cli.provider == kind).map(|cli| cli.login);
+    assert_eq!(state(AiProviderKind::ClaudeCode), Some(AiLoginState::LoggedIn));
+    assert_eq!(state(AiProviderKind::Codex), Some(AiLoginState::Unknown), "what has not answered counts as unknown");
+    assert!(claude.calls_with(&["-p"]).is_empty() && codex.calls_with(&["exec", "-C"]).is_empty());
+}
+
+#[tokio::test]
+async fn detection_on_an_empty_computer_finds_nothing_but_a_missing_own_path() {
+    let tc = TestCore::new().await;
+    no_local_services(&tc);
+    let found = ai_detect(&tc).await.unwrap();
+    assert!(found.clis.is_empty() && found.local.is_empty() && found.keys.is_empty(), "{found:?}");
+    let gone = tc.cli_dir().join("weg").join("codex");
+    settings_set(&tc, json!({"aiCliPaths": {"claudeCode": null, "codex": gone.to_string_lossy(), "opencode": null}})).await.unwrap();
+    let found = ai_detect(&tc).await.unwrap();
+    assert_eq!(found.clis.len(), 1);
+    let codex = &found.clis[0];
+    assert_eq!((codex.provider, codex.source, codex.supported), (AiProviderKind::Codex, ToolSource::Configured, false));
+    assert!(codex.problem.as_deref().is_some_and(|problem| problem.contains("does not exist")), "{codex:?}");
+}

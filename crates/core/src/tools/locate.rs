@@ -29,14 +29,8 @@ const LOGIN_SHELL_TIMEOUT: Duration = Duration::from_secs(2);
 const MARK: &[u8] = b"__FY__";
 const SMALL_OUTPUT: usize = 64 * 1024;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ToolSource {
-    Configured,
-    Path,
-    KnownLocation,
-    LoginShell,
-}
+/// Lives in `crate::model` since the AI setup sends it to the UI (Teilpaket 1b).
+pub use crate::model::ToolSource;
 
 /// A located program.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]

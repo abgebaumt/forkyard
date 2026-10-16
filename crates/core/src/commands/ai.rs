@@ -9,7 +9,7 @@ use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
-use crate::model::{AiAskTrigger, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange};
+use crate::model::{AiAskTrigger, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange};
 use crate::secrets;
 
 /// The stored key of a provider; `None` if there is none or the keychain is unreachable.
@@ -232,6 +232,12 @@ pub async fn ai_usage(core: &Core) -> CoreResult<AiUsageSummary> {
         month,
         rows,
     })
+}
+
+/// Setup dialog: Claude Code, Codex and opencode with version, path and sign-in, Ollama / LM Studio on
+/// this computer and the providers with a stored key – about two seconds at most, sends nothing.
+pub async fn ai_detect(core: &Core) -> CoreResult<AiDetection> {
+    ai::detect::detect(core).await
 }
 
 #[cfg(test)]

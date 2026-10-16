@@ -1489,6 +1489,56 @@ pub enum AiLoginState {
     Unknown,
 }
 
+/// Where a program was found (`tools::locate`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolSource {
+    Configured,
+    Path,
+    KnownLocation,
+    LoginShell,
+}
+
+/// An AI command-line tool the setup found (`ai_detect`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiCliFound {
+    pub provider: AiProviderKind,
+    pub path: String,
+    pub version: Option<String>,
+    pub source: ToolSource,
+    pub login: AiLoginState,
+    /// "claude.ai", "ChatGPT" … – never an account name.
+    pub login_method: Option<String>,
+    /// Claude Code would use `ANTHROPIC_API_KEY` from the environment instead of the sign-in.
+    pub uses_env_key: bool,
+    /// All safety switches are there; otherwise `problem` names the missing ones.
+    pub supported: bool,
+    pub problem: Option<String>,
+    /// The sign-in as text ("claude auth login").
+    pub login_command: String,
+}
+
+/// Ollama or LM Studio answering on this computer.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiLocalFound {
+    pub provider: AiProviderKind,
+    pub base_url: String,
+    pub models: Vec<String>,
+}
+
+/// What the setup dialog offers (`ai_detect`); nothing was sent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiDetection {
+    pub clis: Vec<AiCliFound>,
+    pub local: Vec<AiLocalFound>,
+    /// Providers with a stored API key.
+    pub keys: Vec<AiProviderKind>,
+    pub elapsed_ms: u64,
+}
+
 /// Own paths of the AI command-line tools (`Settings.ai_cli_paths`, global); `None` = found
 /// automatically (PATH, the usual install folders, the login shell's PATH).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

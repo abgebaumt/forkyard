@@ -32,6 +32,9 @@ const AVATAR_URL_ENV: &str = "FORKYARD_AVATAR_URL";
 /// Development build only: a different address for the update check instead of api.github.com;
 /// `off` turns it off (E2E, screenshots).
 const UPDATE_URL_ENV: &str = "FORKYARD_UPDATE_URL";
+/// Development build only: search the AI command-line tools only in this folder – no PATH, no login
+/// shell (E2E with the fake tool target/debug/forkyard-fake-cli).
+const AI_CLI_DIR_ENV: &str = "FORKYARD_AI_CLI_DIR";
 const MAIN_WINDOW: &str = "main";
 
 fn env_value(name: &str) -> Option<std::ffi::OsString> {
@@ -191,6 +194,9 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
             gitcore::ai::configure_base(&core, kind, Some(base));
         }
     }
+    if let Some(dir) = dev_env_value(AI_CLI_DIR_ENV) {
+        gitcore::ai::cli::configure_dir(&core, Some(PathBuf::from(dir)));
+    }
     // This launch's request waits for the UI; later ones arrive over the local channel.
     gitcore::commands::launch::set_initial(&core, launch);
     tauri::async_runtime::spawn(gitcore::commands::launch::listen(core.clone()));
@@ -220,6 +226,8 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
         if let Err(e) = core.startup_cleanup().await {
             log::warn!("Startup cleanup failed: {}", e.message);
         }
+        // Spec 1.3: the login shell's PATH once per start, so the AI setup does not wait for it.
+        gitcore::ai::detect::warm_up(&core).await;
     });
     Ok(())
 }
@@ -608,7 +616,8 @@ pub fn run() {
             commands::ai_preview,
             commands::ai_preview_confirm,
             commands::ai_preview_reset,
-            commands::ai_usage
+            commands::ai_usage,
+            commands::ai_detect
         ])
         .build(context);
     match result {
