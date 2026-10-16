@@ -56,6 +56,9 @@ const UPGRADES: &[&str] = &[
     // Host accounts: the new host kinds, user name for Basic authentication (table rebuilt,
     // because SQLite cannot change a CHECK in place).
     HOSTER_KINDS_AND_USERNAME,
+    // Undo: the group actions of 1.2 (several refs and optionally a snapshot of working directory and
+    // index in one entry). Table rebuilt, because SQLite cannot change a CHECK in place.
+    UNDO_GROUP_ACTIONS,
 ];
 
 const STATS_CACHE: &str = "
@@ -159,6 +162,33 @@ insert into hoster_accounts_next (id, profile_id, kind, base_url, login, name, a
 drop table hoster_accounts;
 alter table hoster_accounts_next rename to hoster_accounts;
 create unique index hoster_accounts_key on hoster_accounts (profile_id, kind, base_url);
+";
+
+const UNDO_GROUP_ACTIONS: &str = "
+create table undo_entries_next (
+  id            text primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  worktree_path text not null default '',
+  action        text not null check (action in (
+                  'checkout', 'commit', 'amend', 'discard', 'delete_branch',
+                  'remove_remote', 'reset', 'rebase', 'cherry_pick', 'squash',
+                  'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop',
+                  'compose', 'plan', 'agent_cleanup', 'range_apply', 'stack_create', 'review_fixups')),
+  label         text not null default '',
+  ref_name      text,
+  ref_before    text,
+  ref_after     text,
+  head_before   text not null,
+  head_after    text,
+  payload       text not null default '{}' check (json_valid(payload)),
+  state         text not null default 'done' check (state in ('done', 'undone')),
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+insert into undo_entries_next (id, repository_id, worktree_path, action, label, ref_name, ref_before, ref_after, head_before, head_after, payload, state, created_at)
+  select id, repository_id, worktree_path, action, label, ref_name, ref_before, ref_after, head_before, head_after, payload, state, created_at from undo_entries;
+drop table undo_entries;
+alter table undo_entries_next rename to undo_entries;
+create index undo_entries_repo_time on undo_entries (repository_id, created_at desc);
 ";
 
 /// The table `integrations` as versions 1 and 2 created it (only for the migration test; new
@@ -424,6 +454,14 @@ mod tests {
             .unwrap()
         };
         assert_eq!(indexes(&db), indexes(&fresh), "the same indexes");
+        // Every undo action the core knows can be stored in the upgraded database.
+        for (index, action) in crate::undo::UndoAction::ALL.iter().enumerate() {
+            db.with(|c| {
+                c.execute("insert into undo_entries (id, repository_id, action, head_before) values (?1, 'r', ?2, 'refs/heads/main')", rusqlite::params![format!("a{index}"), action.as_str()])?;
+                Ok(())
+            })
+            .unwrap();
+        }
         // Opening a second time changes nothing more.
         drop(db);
         Db::open(&path).unwrap();
@@ -486,6 +524,59 @@ mod tests {
         let unique: i64 = conn.query_row("select count(*) from sqlite_master where type = 'index' and name = 'hoster_accounts_key'", [], |r| r.get(0)).unwrap();
         assert_eq!(unique, 1, "the unique index is back");
         assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('h2', 'p', 'gitlab', 'https://gitlab.com')", []).is_err(), "and works");
+    }
+
+    /// `undo_entries` as versions 1 to 8 created it (only for this test).
+    const OLD_UNDO_ENTRIES: &str = "
+create table undo_entries (
+  id            text primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  worktree_path text not null default '',
+  action        text not null check (action in (
+                  'checkout', 'commit', 'amend', 'discard', 'delete_branch',
+                  'remove_remote', 'reset', 'rebase', 'cherry_pick', 'squash',
+                  'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop')),
+  label         text not null default '',
+  ref_name      text,
+  ref_before    text,
+  ref_after     text,
+  head_before   text not null,
+  head_after    text,
+  payload       text not null default '{}' check (json_valid(payload)),
+  state         text not null default 'done' check (state in ('done', 'undone')),
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+create index undo_entries_repo_time on undo_entries (repository_id, created_at desc);
+";
+
+    /// The undo upgrade keeps existing entries and accepts the group actions of 1.2 – independent of the
+    /// version number it ends up with.
+    #[test]
+    fn the_undo_upgrade_keeps_entries_and_accepts_the_group_actions() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch("pragma foreign_keys = on; create table repositories (id text primary key) strict; insert into repositories (id) values ('r');").unwrap();
+        conn.execute_batch(OLD_UNDO_ENTRIES).unwrap();
+        conn.execute(
+            "insert into undo_entries (id, repository_id, action, label, ref_name, ref_before, ref_after, head_before, head_after, payload, state, created_at)
+             values ('u1', 'r', 'commit', 'Undo commit', 'refs/heads/main', 'aaa', 'bbb', 'refs/heads/main', 'refs/heads/main', '{\"x\":1}', 'undone', '2026-10-01T00:00:00.000Z')",
+            [],
+        )
+        .unwrap();
+        let insert = |id: &str, action: &str| conn.execute("insert into undo_entries (id, repository_id, action, head_before) values (?1, 'r', ?2, 'refs/heads/main')", rusqlite::params![id, action]);
+        assert!(insert("vorher", "compose").is_err(), "before: no group actions");
+        assert!(UPGRADES.contains(&UNDO_GROUP_ACTIONS), "the step is part of UPGRADES");
+        conn.execute_batch(UNDO_GROUP_ACTIONS).unwrap();
+        let kept: (String, String, String, String, String, String) = conn
+            .query_row("select action, label, ref_after, payload, state, created_at from undo_entries where id = 'u1'", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))
+            .unwrap();
+        assert_eq!(kept, ("commit".into(), "Undo commit".into(), "bbb".into(), "{\"x\":1}".into(), "undone".into(), "2026-10-01T00:00:00.000Z".into()));
+        for (index, action) in ["compose", "plan", "agent_cleanup", "range_apply", "stack_create", "review_fixups"].iter().enumerate() {
+            insert(&format!("g{index}"), action).unwrap();
+        }
+        assert!(insert("falsch", "bogus").is_err(), "unknown actions stay forbidden");
+        assert!(conn.execute("insert into undo_entries (id, repository_id, action, head_before) values ('fk', 'gibt-es-nicht', 'plan', 'x')", []).is_err(), "the foreign key holds");
+        let index: i64 = conn.query_row("select count(*) from sqlite_master where type = 'index' and name = 'undo_entries_repo_time'", [], |r| r.get(0)).unwrap();
+        assert_eq!(index, 1);
     }
 
     #[test]

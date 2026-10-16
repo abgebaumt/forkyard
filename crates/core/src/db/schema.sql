@@ -183,7 +183,8 @@ create table undo_entries (
   action        text not null check (action in (
                   'checkout', 'commit', 'amend', 'discard', 'delete_branch',
                   'remove_remote', 'reset', 'rebase', 'cherry_pick', 'squash',
-                  'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop')),
+                  'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop',
+                  'compose', 'plan', 'agent_cleanup', 'range_apply', 'stack_create', 'review_fixups')),
   -- Complete sentence for the tooltip of the undo button.
   label         text not null default '',
   ref_name      text,

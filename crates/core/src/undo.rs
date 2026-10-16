@@ -17,9 +17,10 @@
 //! }).await?;
 //! ```
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use serde_json::Value;
+use serde_json::{json, Map, Value};
 
 use crate::app::Core;
 use crate::commands::status;
@@ -51,10 +52,22 @@ pub enum UndoAction {
     Revert,
     Stash,
     StashPop,
+    /// Several commits from the working directory at once (3.2).
+    Compose,
+    /// A plan of several Git steps (5).
+    Plan,
+    /// Coding agent ended and cleaned up: branch and worktree gone (2a).
+    AgentCleanup,
+    /// Lines taken over from a range of commits (`range_apply`).
+    RangeApply,
+    /// Branch split into stacked branches (8.1).
+    StackCreate,
+    /// Review comments taken over as `fixup!` commits (8.2).
+    ReviewFixups,
 }
 
 impl UndoAction {
-    pub const ALL: [UndoAction; 16] = [
+    pub const ALL: [UndoAction; 22] = [
         UndoAction::Checkout,
         UndoAction::Commit,
         UndoAction::Amend,
@@ -71,6 +84,12 @@ impl UndoAction {
         UndoAction::Revert,
         UndoAction::Stash,
         UndoAction::StashPop,
+        UndoAction::Compose,
+        UndoAction::Plan,
+        UndoAction::AgentCleanup,
+        UndoAction::RangeApply,
+        UndoAction::StackCreate,
+        UndoAction::ReviewFixups,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -91,12 +110,23 @@ impl UndoAction {
             UndoAction::Revert => "revert",
             UndoAction::Stash => "stash",
             UndoAction::StashPop => "stash_pop",
+            UndoAction::Compose => "compose",
+            UndoAction::Plan => "plan",
+            UndoAction::AgentCleanup => "agent_cleanup",
+            UndoAction::RangeApply => "range_apply",
+            UndoAction::StackCreate => "stack_create",
+            UndoAction::ReviewFixups => "review_fixups",
         }
     }
 
     /// Inverse of `as_str` (value from `undo_entries.action`).
     pub fn parse(value: &str) -> Option<UndoAction> {
         Self::ALL.into_iter().find(|a| a.as_str() == value)
+    }
+
+    /// Actions recorded with `record_group`: several refs and optionally a snapshot in one entry.
+    pub fn is_group(self) -> bool {
+        matches!(self, UndoAction::Compose | UndoAction::Plan | UndoAction::AgentCleanup | UndoAction::RangeApply | UndoAction::StackCreate | UndoAction::ReviewFixups)
     }
 }
 
@@ -1064,4 +1094,185 @@ pub async fn restore_index(core: &Core, repo_id: &str, tree: &str) -> CoreResult
     // Refresh timestamps so the next status doesn't have to rehash everything.
     core.git_for(repo_id)?.args(["update-index", "-q", "--refresh"]).no_log().run_raw().await?;
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Group entries: several refs (and a snapshot) undone together
+// ---------------------------------------------------------------------------
+
+/// One ref of a group: where it was and where it is to go. `None` = the ref does not exist.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RefMove {
+    pub name: String,
+    pub from: Option<String>,
+    pub to: Option<String>,
+}
+
+impl RefMove {
+    pub fn new(name: &str, from: Option<&str>, to: Option<&str>) -> RefMove {
+        RefMove { name: name.to_string(), from: from.map(str::to_string), to: to.map(str::to_string) }
+    }
+
+    /// The way back.
+    pub fn reversed(&self) -> RefMove {
+        RefMove { name: self.name.clone(), from: self.to.clone(), to: self.from.clone() }
+    }
+}
+
+/// State of working directory and index before a group action (`snapshot_for_group`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupSnapshot {
+    /// Backup commit of the working directory (`refs/forkyard/undo/<id>/worktree`).
+    pub worktree: String,
+    /// Tree of the index; `None` while conflicts are open.
+    pub index_tree: Option<String>,
+}
+
+/// What a group action records; see `record_group`.
+#[derive(Debug, Clone)]
+pub struct GroupRecord {
+    pub id: String,
+    pub repo_id: String,
+    pub action: UndoAction,
+    pub label: String,
+    /// `from` = before the action, `to` = after it.
+    pub refs: Vec<RefMove>,
+    pub head_before: String,
+    pub head_after: Option<String>,
+    pub snapshot: Option<GroupSnapshot>,
+    /// Further payload fields of the action.
+    pub extra: Map<String, Value>,
+}
+
+/// Refs a group entry may move: below `refs/` (not the app's own), no spaces, no `..`.
+fn check_group_ref(name: &str) -> CoreResult<()> {
+    let bad = !name.starts_with("refs/")
+        || name.starts_with("refs/forkyard/")
+        || name.chars().any(|c| c.is_whitespace() || c.is_control())
+        || name.contains("..")
+        || name.ends_with('/');
+    if bad {
+        return Err(CoreError::not_allowed(format!("“{name}” can’t be part of an undo entry.")));
+    }
+    Ok(())
+}
+
+/// Backs up working directory and index for a group action, under the entry's backup refs
+/// `worktree` and `index`. Call BEFORE the action, inside the write lock.
+pub async fn snapshot_for_group(core: &Core, repo_id: &str, entry_id: &str) -> CoreResult<GroupSnapshot> {
+    let snap = snapshot(core, repo_id, None).await?;
+    create_backup_ref(core, repo_id, entry_id, "worktree", &snap.commit).await?;
+    if let Some(tree) = &snap.index_tree {
+        // A commit of its own keeps the index tree alive as long as the entry exists.
+        let mut cmd = core.git_for(repo_id)?.args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: backup (index)"]).no_log();
+        for (key, value) in SNAPSHOT_IDENTITY {
+            cmd = cmd.env(key, value);
+        }
+        let commit = cmd.run_text().await?;
+        create_backup_ref(core, repo_id, entry_id, "index", &commit).await?;
+    }
+    Ok(GroupSnapshot { worktree: snap.commit, index_tree: snap.index_tree })
+}
+
+/// Stores a group entry (after the action, inside the write lock): backs up every `from`/`to`
+/// (`before-<n>`/`after-<n>`) so the commits survive garbage collection, writes the composite payload
+/// the undo probe checks, and – with a snapshot – records the state after the action.
+pub async fn record_group(core: &Core, rec: GroupRecord) -> CoreResult<UndoEntry> {
+    if !rec.action.is_group() {
+        return Err(CoreError::not_allowed(format!("“{}” is not a group action.", rec.action.as_str())));
+    }
+    let mut seen = HashSet::new();
+    for m in &rec.refs {
+        check_group_ref(&m.name)?;
+        if !seen.insert(m.name.as_str()) {
+            return Err(CoreError::not_allowed(format!("“{}” appears twice in one undo entry.", m.name)));
+        }
+    }
+    for (index, m) in rec.refs.iter().enumerate() {
+        if let Some(sha) = &m.from {
+            create_backup_ref(core, &rec.repo_id, &rec.id, &format!("before-{index}"), sha).await?;
+        }
+        if let Some(sha) = &m.to {
+            create_backup_ref(core, &rec.repo_id, &rec.id, &format!("after-{index}"), sha).await?;
+        }
+    }
+    let mut payload = rec.extra.clone();
+    payload.insert("composite".into(), Value::Bool(true));
+    payload.insert("group".into(), Value::Bool(true));
+    payload.insert("steps".into(), Value::Array(rec.refs.iter().map(|m| json!({ "ref": m.name, "before": m.from, "after": m.to })).collect()));
+    if let Some(snap) = &rec.snapshot {
+        payload.insert("worktreeSnapshot".into(), json!(snap.worktree));
+        payload.insert("indexTree".into(), json!(snap.index_tree));
+    }
+    if rec.refs.is_empty() {
+        // Nothing marks the state but HEAD: undo only fits on the same commit.
+        if let Some(head) = rev_parse(core, &rec.repo_id, "HEAD^{commit}").await? {
+            payload.insert("headSha".into(), json!(head));
+        }
+    }
+    let (id, repo_id, with_snapshot) = (rec.id.clone(), rec.repo_id.clone(), rec.snapshot.is_some());
+    let entry = record(
+        core,
+        UndoRecord {
+            id: rec.id,
+            repo_id: rec.repo_id,
+            worktree_path: String::new(),
+            action: rec.action,
+            label: rec.label,
+            ref_name: None,
+            ref_before: None,
+            ref_after: None,
+            head_before: rec.head_before,
+            head_after: rec.head_after,
+            payload: Value::Object(payload),
+        },
+    )
+    .await?;
+    if with_snapshot {
+        record_result(core, &repo_id, &id, None).await;
+    }
+    Ok(entry)
+}
+
+/// Moves refs in ONE transaction (`git update-ref --stdin`): each only if it is still at `from`
+/// (`None` = must not exist). If one does not match, none moves and the result is `stale_state`.
+/// Moves with `from == to` are skipped. Does NOT take the write lock itself.
+pub async fn apply_ref_moves(core: &Core, repo_id: &str, moves: &[RefMove], message: &str) -> CoreResult<()> {
+    let mut script = String::new();
+    for m in moves {
+        check_group_ref(&m.name)?;
+        match (&m.from, &m.to) {
+            (from, to) if from == to => {}
+            (Some(from), Some(to)) => script.push_str(&format!("update {} {to} {from}\n", m.name)),
+            (None, Some(to)) => script.push_str(&format!("create {} {to}\n", m.name)),
+            (Some(from), None) => script.push_str(&format!("delete {} {from}\n", m.name)),
+            (None, None) => {}
+        }
+    }
+    if script.is_empty() {
+        return Ok(());
+    }
+    let out = core.git_for(repo_id)?.args(["update-ref", "-m", message, "--stdin"]).stdin(script).run_raw().await?;
+    if out.success() {
+        return Ok(());
+    }
+    let text = out.stderr_text().to_ascii_lowercase();
+    if ["but expected", "reference already exists", "unable to resolve reference"].iter().any(|needle| text.contains(needle)) {
+        return Err(CoreError::stale_state().with_git_output(out.stderr_text()));
+    }
+    Err(errors::classify("update-ref", out.code, &out.stdout, &out.stderr))
+}
+
+#[cfg(test)]
+mod group_action_tests {
+    use super::*;
+
+    #[test]
+    fn group_actions_have_their_database_names() {
+        let names: Vec<&str> = UndoAction::ALL.iter().filter(|action| action.is_group()).map(|action| action.as_str()).collect();
+        assert_eq!(names, ["compose", "plan", "agent_cleanup", "range_apply", "stack_create", "review_fixups"]);
+        for action in UndoAction::ALL {
+            assert_eq!(UndoAction::parse(action.as_str()), Some(action));
+        }
+    }
 }

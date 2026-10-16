@@ -15,6 +15,7 @@
 //! either path, even if work continued between undo and redo.
 
 use std::collections::HashMap;
+use std::path::Path;
 
 use serde_json::{json, Map, Value};
 
@@ -83,6 +84,9 @@ pub async fn undo_peek(core: &Core, repo_id: String) -> CoreResult<UndoState> {
 
 /// At most this many entries are searched for an applicable one.
 const MAX_SCAN: usize = 50;
+
+/// Reflog message of every ref undo and redo move.
+pub(crate) const UNDO_MESSAGE: &str = "forkyard: Undo";
 
 async fn step(core: &Core, repo_id: &str, dir: Direction) -> CoreResult<UndoState> {
     core.repo_path(repo_id)?;
@@ -645,6 +649,9 @@ impl Run<'_> {
     async fn execute_action(&mut self) -> CoreResult<()> {
         let flag = |key: &str| self.payload.get(key).and_then(Value::as_bool) == Some(true);
         match self.action {
+            UndoAction::Compose | UndoAction::Plan | UndoAction::AgentCleanup | UndoAction::RangeApply | UndoAction::StackCreate | UndoAction::ReviewFixups => {
+                self.group().await
+            }
             UndoAction::Checkout => self.checkout().await,
             // A commit that concluded a merge is a merge: with `reset --soft` the merged
             // changes would remain staged, but without MERGE_HEAD.
@@ -716,7 +723,7 @@ impl Run<'_> {
     }
 
     async fn update_ref(&self, name: &str, new: Option<&str>, old: Option<&str>) -> CoreResult<()> {
-        let cmd = self.git()?.args(["update-ref", "-m", "forkyard: Undo"]);
+        let cmd = self.git()?.args(["update-ref", "-m", UNDO_MESSAGE]);
         match new {
             Some(sha) => cmd.args([name, sha, old.unwrap_or("")]).run().await?,
             None => match old {
@@ -974,6 +981,121 @@ impl Run<'_> {
             }
         }
         Ok(())
+    }
+
+    /// Group entry (`undo::record_group`): every ref of `payload.steps` to the state of the other
+    /// direction in one transaction, then – with a snapshot – working directory and index swapped like
+    /// discard. If HEAD has to switch, the refs that come back move first, then HEAD, then the rest
+    /// (no ref is deleted while checked out). A ref checked out in another worktree is never moved:
+    /// `stale_state`. Without a snapshot nothing would restore index and files, so the branch that is
+    /// checked out here at the end moves with `reset --keep` (clean working directory required) after
+    /// the transaction, like `composite`.
+    async fn group(&mut self) -> CoreResult<()> {
+        let steps = composite_steps(&Value::Object(self.payload.clone()));
+        let moves: Vec<u::RefMove> = steps
+            .iter()
+            .map(|step| match self.dir {
+                Direction::Undo => u::RefMove { name: step.name.clone(), from: step.after.clone(), to: step.before.clone() },
+                Direction::Redo => u::RefMove { name: step.name.clone(), from: step.before.clone(), to: step.after.clone() },
+            })
+            .collect();
+        for m in &moves {
+            if let Some(to) = &m.to {
+                if !self.commit_exists(to).await? {
+                    return Err(self.lost());
+                }
+            }
+            if m.from != m.to && self.checked_out_elsewhere(&m.name).await? {
+                return Err(self.stale());
+            }
+        }
+        let with_snapshot = self.text("worktreeSnapshot").is_some();
+        // The branch checked out here once HEAD is where this direction wants it.
+        let head_branch = match self.desired_head().filter(|head| !head.is_empty()) {
+            Some(desired) => desired.starts_with("refs/heads/").then(|| desired.to_string()),
+            None => match &self.head {
+                Head::Branch { branch, .. } | Head::Unborn { branch } => Some(format!("refs/heads/{branch}")),
+                Head::Detached { .. } => None,
+            },
+        };
+        let (keep, moves): (Vec<u::RefMove>, Vec<u::RefMove>) = if with_snapshot {
+            (Vec::new(), moves)
+        } else {
+            moves.into_iter().partition(|m| m.from.is_some() && m.from != m.to && head_branch.as_deref() == Some(m.name.as_str()))
+        };
+        if let Some(m) = keep.first() {
+            // A checked-out branch cannot be deleted: the state does not match the entry.
+            if m.to.is_none() {
+                return Err(self.stale());
+            }
+            self.require_clean().await?;
+        }
+        if self.dir == Direction::Undo {
+            for (index, step) in steps.iter().enumerate() {
+                if let Some(after) = &step.after {
+                    self.backup(&format!("after-{index}"), after).await?;
+                }
+            }
+        }
+        let switching = self.head_must_move();
+        let (first, rest): (Vec<u::RefMove>, Vec<u::RefMove>) = if switching { moves.into_iter().partition(|m| m.from.is_none()) } else { (moves, Vec::new()) };
+        u::apply_ref_moves(self.core, self.repo_id, &first, UNDO_MESSAGE).await?;
+        if switching {
+            if let Err(e) = self.restore_head(self.desired_head()).await {
+                self.roll_back(&first).await;
+                return Err(e);
+            }
+            u::apply_ref_moves(self.core, self.repo_id, &rest, UNDO_MESSAGE).await?;
+        }
+        if let Some(m) = keep.first() {
+            let now = u::rev_parse(self.core, self.repo_id, &m.name).await;
+            let result = match (now, &m.from, &m.to) {
+                (Ok(now), Some(from), Some(to)) if same_sha(now.as_deref(), Some(from.as_str())) => self.reset_to(Mode::Keep, to).await,
+                (Err(e), _, _) => Err(e),
+                _ => Err(self.stale()),
+            };
+            if let Err(e) = result {
+                if !switching {
+                    self.roll_back(&first).await;
+                }
+                return Err(e);
+            }
+        }
+        if with_snapshot {
+            if let Err(e) = self.swap_state(None, None).await {
+                // Before a HEAD switch the refs can still go back; after it they belong to the new HEAD.
+                if !switching {
+                    self.roll_back(&first).await;
+                }
+                return Err(e);
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether HEAD has to move for this direction (other branch or other detached commit).
+    fn head_must_move(&self) -> bool {
+        self.desired_head().filter(|head| !head.is_empty()).is_some_and(|desired| !head_matches(desired, &self.head))
+    }
+
+    /// Moves refs back after a failed step; a failure here is only logged (the first error counts).
+    pub(crate) async fn roll_back(&self, applied: &[u::RefMove]) {
+        let back: Vec<u::RefMove> = applied.iter().map(u::RefMove::reversed).collect();
+        if let Err(e) = u::apply_ref_moves(self.core, self.repo_id, &back, UNDO_MESSAGE).await {
+            log::warn!("refs of undo entry {} not moved back: {}", self.entry.id, e.message);
+        }
+    }
+
+    /// Whether the branch `name` is checked out in a worktree other than this repository's.
+    async fn checked_out_elsewhere(&self, name: &str) -> CoreResult<bool> {
+        if !name.starts_with("refs/heads/") {
+            return Ok(false);
+        }
+        let out = self.git()?.args(["for-each-ref", "--format=%(worktreepath)", name]).read_only().no_log().run().await?;
+        let own = self.core.repo_path(self.repo_id)?;
+        let key = |path: &Path| util::path_key(&std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()));
+        let own_key = key(&own);
+        Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|path| !path.is_empty()).any(|path| key(Path::new(&path)) != own_key))
     }
 
     /// Reset: back to the previous commit in the matching mode.
@@ -1311,3 +1433,6 @@ mod tests;
 
 #[cfg(test)]
 mod roundtrip_tests;
+
+#[cfg(test)]
+mod group_tests;

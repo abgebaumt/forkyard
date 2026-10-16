@@ -1108,7 +1108,9 @@ fn every_action_is_covered_here() {
         "checkout", "commit", "amend", "discard", "delete_branch", "remove_remote", "reset", "rebase", "cherry_pick", "squash", "reword", "drop", "merge",
         "revert", "stash", "stash_pop",
     ];
-    for action in UndoAction::ALL {
+    // Group actions (`record_group`) have no command of their own yet: `group_tests.rs` covers their
+    // executor; the package that adds the command adds its round trip here.
+    for action in UndoAction::ALL.into_iter().filter(|action| !action.is_group()) {
         assert!(covered.contains(&action.as_str()), "{} has no test with the real command", action.as_str());
     }
 }
