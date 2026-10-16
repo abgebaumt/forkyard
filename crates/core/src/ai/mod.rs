@@ -8,6 +8,7 @@
 //!   a random token per request (`prompt`).
 //! - No streaming; every request is a cancellable job (`run`).
 
+pub mod archaeology;
 pub mod commit_message;
 pub mod context;
 pub mod gate;
