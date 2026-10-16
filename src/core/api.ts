@@ -21,6 +21,7 @@ import type {
   AiInput,
   AiModelList,
   AiPreview,
+  AiPrDescription,
   AiProviderKind,
   AiStatus,
   AiUsageSummary,
@@ -898,6 +899,16 @@ export interface CoreCommands {
   aiPreviewReset(): Promise<void>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+  /**
+   * Paket 4: title and description of a pull request from the commits of `source` that `target`
+   * does not have (full ref names: `refs/heads/…`, `refs/remotes/<remote>/…`). Fills the repository's
+   * template (all its headings stay) and adds "Closes #n" for host issues of the commits. Job `jobId`
+   * (cancellable). Show and confirm `aiPreview` with `{ kind: "pr_description", source, target }`
+   * first. Errors: `ai_disabled`, `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`,
+   * `ai_refused`, `ai_limit_reached`, `ai_too_large`, `not_allowed` (not confirmed, or no commits to
+   * describe), `not_found` (ref), `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiPrDescription(input: R & { jobId: string; source: string; target: string; locale: string }): Promise<AiPrDescription>;
   /**
    * "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, never
    * committed. Built exactly like `aiPreview` with `{ kind: "commit_message" }`, so a confirmation

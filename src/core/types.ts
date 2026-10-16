@@ -1035,7 +1035,7 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
@@ -1072,6 +1072,16 @@ export interface AiUsageSummary {
   outputTokens: number;
   costUsd: number;
   rows: AiUsageRow[];
+}
+
+/** `aiPrDescription`: a suggestion for title and description – nothing is written anywhere. */
+export interface AiPrDescription {
+  /** One line, at most 300 characters. */
+  title: string;
+  /** Markdown; ends with "Closes #n" for every host issue the commits mention. */
+  body: string;
+  /** Host issues the description closes – from the commits, never from the AI. */
+  closes: number[];
 }
 
 /** `aiCommitMessage`: a draft for the commit form – never committed by the core. `summary` is one line of at most 72 characters. */

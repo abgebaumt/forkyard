@@ -1185,3 +1185,8 @@ pub async fn ai_detect(core: State<'_, Core>) -> R<AiDetection> {
 pub async fn ai_cli_login(core: State<'_, Core>, repo_id: String, provider: AiProviderKind, cols: u16, rows: u16) -> R<String> {
     c::ai::ai_cli_login(&core, repo_id, provider, cols, rows).await
 }
+
+#[tauri::command]
+pub async fn ai_pr_description(core: State<'_, Core>, repo_id: String, job_id: String, source: String, target: String, locale: String) -> R<AiPrDescription> {
+    c::ai::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
+}

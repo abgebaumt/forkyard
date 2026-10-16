@@ -1429,7 +1429,7 @@ pub struct AiStatus {
 }
 
 /// What `ai_preview` builds the text from. Later packages add their own variants.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum AiInput {
     /// The staged diff of the repository.
@@ -1437,6 +1437,9 @@ pub enum AiInput {
     /// The commit message of the staged changes (spec 3.1): diff, branch, style examples,
     /// template and own instruction – exactly what `ai_commit_message` sends.
     CommitMessage,
+    /// Paket 4: the commits of `source` that `target` does not have (full ref names, e.g.
+    /// `refs/heads/feature/x` and `refs/remotes/origin/main`).
+    PrDescription { source: String, target: String },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
