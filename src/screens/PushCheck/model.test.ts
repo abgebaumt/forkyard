@@ -103,5 +103,6 @@ describe("push review", () => {
     expect(reviewFirst(status({ state: "off" }), repo)).toBe(false);
     expect(reviewFirst(undefined, repo)).toBe(false);
     expect(reviewFirst(status({}), undefined)).toBe(false);
+    expect(reviewFirst(status({ connected: false }), repo), "no provider: a plain push, never blocked by the setup").toBe(false);
   });
 });

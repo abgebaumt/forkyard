@@ -276,7 +276,7 @@ async function confirmForcePush(repoId: Id, branch: string | null): Promise<{ ex
  * if the push is rejected, it offers "Pull first" or "Force push".
  */
 export async function push(repoId: Id, options: PushOptions = {}): Promise<ActionResult<PushResult> | null> {
-  // Project switch "AI review before every push" (spec 6.2): only where the review is visible.
+  // Project switch "AI review before every push" (spec 6.2): only where the review can run (visible, provider connected).
   if (!options.force && !options.reviewed) {
     const { status, repo } = await reviewContext(repoId);
     if (reviewFirst(status, repo)) return reviewAndPush(repoId, options);

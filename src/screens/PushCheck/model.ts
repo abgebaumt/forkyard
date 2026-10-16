@@ -3,7 +3,7 @@
  * ("Looks like a key") and the result of the AI review before a push.
  */
 import type { AiPushFindingKind, AiPushReview, AiStatus, RepoSettings, SecretFinding, SecretRule } from "../../core";
-import { featureVisible } from "../../app/ai/visibility";
+import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { t } from "../../i18n";
 
 /** The fields of the push result `secrets_found`. */
@@ -99,5 +99,10 @@ type ReviewRepo = Pick<RepoSettings, "aiOff" | "aiReviewBeforePush">;
 /** "Review and push …" appears (menu, palette) exactly where the function is visible (1a, 1.3). */
 export const reviewOffered = (status: AiStatus | null | undefined, repo: ReviewRepo | null | undefined): boolean => featureVisible(status, "push_review", repo?.aiOff ?? false);
 
-/** A normal push reviews first: the project opted in and the function is visible here. */
-export const reviewFirst = (status: AiStatus | null | undefined, repo: ReviewRepo | null | undefined): boolean => Boolean(repo?.aiReviewBeforePush) && reviewOffered(status, repo);
+/**
+ * A normal push reviews first: the project opted in, the function is visible here and the provider
+ * is connected. Without a provider the review cannot run, so the normal push stays a plain push
+ * (pushing must always be possible); only the explicit "Review and push …" opens the setup.
+ */
+export const reviewFirst = (status: AiStatus | null | undefined, repo: ReviewRepo | null | undefined): boolean =>
+  Boolean(repo?.aiReviewBeforePush) && reviewOffered(status, repo) && !aiVisibility(status).elementsOpenSetup;
