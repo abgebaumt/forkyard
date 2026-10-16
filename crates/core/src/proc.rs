@@ -77,6 +77,8 @@ struct LogTo {
 pub struct Proc {
     program: OsString,
     args: Vec<OsString>,
+    /// Appended verbatim after `args` on Windows, without std's MSVC quoting (see [`Proc::raw_arg`]).
+    raw: Option<OsString>,
     cwd: Option<PathBuf>,
     env: Vec<(OsString, Option<OsString>)>,
     stdin: Option<Vec<u8>>,
@@ -107,6 +109,7 @@ impl Proc {
         Proc {
             program: program.as_ref().to_os_string(),
             args: Vec::new(),
+            raw: None,
             cwd: None,
             env: Vec::new(),
             stdin: None,
@@ -129,6 +132,14 @@ impl Proc {
         S: AsRef<OsStr>,
     {
         self.args.extend(args.into_iter().map(|arg| arg.as_ref().to_os_string()));
+        self
+    }
+
+    /// A command-line tail that goes onto the Windows command line exactly as given – for
+    /// `cmd.exe /s /c "<line>"`, which strips the outer quotes and knows no backslash escapes, so the
+    /// usual `\"` quoting would mangle quotes inside the line. Elsewhere it is one ordinary argument.
+    pub fn raw_arg(mut self, line: impl AsRef<OsStr>) -> Self {
+        self.raw = Some(line.as_ref().to_os_string());
         self
     }
 
@@ -179,7 +190,7 @@ impl Proc {
 
     /// The command line for confirmations and the log, redacted.
     pub fn command_line(&self) -> String {
-        let args: Vec<String> = self.args.iter().map(|arg| arg.to_string_lossy().into_owned()).collect();
+        let args: Vec<String> = self.args.iter().chain(&self.raw).map(|arg| arg.to_string_lossy().into_owned()).collect();
         display_line(&self.program.to_string_lossy(), &args)
     }
 
@@ -215,6 +226,12 @@ impl Proc {
         }
         let mut cmd = tokio::process::Command::new(program);
         cmd.args(&self.args);
+        if let Some(raw) = &self.raw {
+            #[cfg(windows)]
+            cmd.raw_arg(raw);
+            #[cfg(not(windows))]
+            cmd.arg(raw);
+        }
         Ok(cmd)
     }
 

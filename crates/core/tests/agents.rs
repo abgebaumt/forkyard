@@ -169,8 +169,18 @@ async fn stopping_resuming_and_closing_the_terminal_end_as_stopped() {
     let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Bleib da".into(), "agent/bleib".into(), "main".into(), false, 80, 24).await.unwrap();
     wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     agent_stop(&f.tc, agent.id.clone()).await.unwrap();
-    let stopped = wait_status(&f, &agent.id, AgentStatus::Stopped).await;
-    assert!(stopped.terminal_id.is_none() && stopped.ended_at.is_some());
+    // The status turns Stopped as soon as the stop is requested; the program's end (no terminal,
+    // ended_at) follows when it has exited. Wait for that concrete end.
+    let deadline = Instant::now() + WAIT;
+    let stopped = loop {
+        let found = wait_status(&f, &agent.id, AgentStatus::Stopped).await;
+        if found.terminal_id.is_none() && found.ended_at.is_some() {
+            break found;
+        }
+        assert!(Instant::now() < deadline, "the stopped agent never ended: {found:?}");
+        tokio::time::sleep(Duration::from_millis(80)).await;
+    };
+    assert_eq!(stopped.status, AgentStatus::Stopped);
     let row = f.tc.db.with(|c| gitcore::db::agents::require(c, &agent.id)).unwrap();
     assert_eq!(row.end_reason, Some(gitcore::db::agents::EndReason::Stopped));
     // Stopping again is no error and changes nothing.

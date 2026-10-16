@@ -287,6 +287,25 @@ fn the_output_tail_keeps_the_end_and_hides_secrets() {
 }
 
 #[tokio::test]
+async fn a_test_command_with_quotes_reaches_the_program_unchanged() {
+    let token = crate::jobs::CancelToken::new();
+    if cfg!(windows) {
+        // cmd.exe's own echo prints its argument text literally: quotes stay, no backslashes appear.
+        let out = checks::shell_command(r#"echo "slow test""#).run(&token).await.unwrap();
+        assert_eq!(out.stdout_text().trim_end(), r#""slow test""#);
+        // A quoted program path, as in `"C:\Program Files\nodejs\npm.cmd" test`.
+        let root = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+        let line = format!(r#""{root}\System32\cmd.exe" /d /c echo "a b" c"#);
+        let out = checks::shell_command(&line).run(&token).await.unwrap();
+        assert!(out.success(), "{}", String::from_utf8_lossy(&out.stderr));
+        assert_eq!(out.stdout_text().trim_end(), r#""a b" c"#);
+    } else {
+        let out = checks::shell_command(r#"printf '%s|' "slow test" two"#).run(&token).await.unwrap();
+        assert_eq!(out.stdout_text(), "slow test|two|");
+    }
+}
+
+#[tokio::test]
 async fn the_test_command_runs_in_the_agents_worktree() {
     let (tc, repo, id) = setup().await;
     let (row, folder) = agent_without_session(&tc, &repo, &id, "pruefen").await;

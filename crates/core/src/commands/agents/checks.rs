@@ -18,10 +18,12 @@ use super::registry::{emit_changed, AgentRegistry};
 pub const TEST_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 pub const OUTPUT_TAIL: usize = 4096;
 
-/// `sh -c <command>`, on Windows `cmd.exe /d /s /c <command>`.
+/// `sh -c <command>`, on Windows `cmd.exe /d /s /c "<command>"`. On Windows the line goes on raw:
+/// cmd.exe strips only the outer quotes, so std's `\"` escaping would mangle every quote the user's
+/// command contains (`cargo test -- --skip "slow test"`, `"C:\Program Files\…\npm.cmd" test`).
 pub fn shell_command(command: &str) -> Proc {
     if cfg!(windows) {
-        Proc::new("cmd.exe").args(["/d", "/s", "/c"]).arg(command)
+        Proc::new("cmd.exe").raw_arg(format!("/d /s /c \"{command}\""))
     } else {
         Proc::new("sh").args(["-c", command])
     }

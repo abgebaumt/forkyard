@@ -255,3 +255,18 @@ async fn batch_files_receive_arguments_with_spaces_and_parentheses() {
     let out = Proc::new(&script).arg(r"C:\Temp\fy (1)\a b.json").run(&CancelToken::new()).await.unwrap();
     assert_eq!(out.stdout_text(), r"[C:\Temp\fy (1)\a b.json]");
 }
+
+#[cfg(not(windows))]
+#[tokio::test]
+async fn a_raw_argument_is_one_ordinary_argument_outside_windows() {
+    let out = Proc::new("/bin/sh").args(["-c", "printf '%s' \"$0\""]).raw_arg(r#"a "b" c"#).run(&CancelToken::new()).await.unwrap();
+    assert_eq!(out.stdout_text(), r#"a "b" c"#);
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn a_raw_argument_goes_onto_the_windows_command_line_verbatim() {
+    // cmd.exe /s /c strips only the outer quotes; with std's quoting echo would print \"x y\".
+    let out = Proc::new("cmd.exe").raw_arg(r#"/d /s /c "echo "x y"""#).run(&CancelToken::new()).await.unwrap();
+    assert_eq!(out.stdout_text().trim_end(), r#""x y""#);
+}
