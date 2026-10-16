@@ -14,7 +14,7 @@
 
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
-use crate::model::ConflictBlockRange;
+use crate::model::{ConflictBlockRange, PrListState};
 use crate::util;
 
 /// At most this many conflict blocks of one file go into one request.
@@ -25,6 +25,10 @@ const CONTEXT_LINES: usize = 3;
 const MAX_COMMITS: usize = 10;
 /// Where the incoming side comes from, read from the Git directory (rule 7), in this order.
 const INCOMING_HEADS: [&str; 4] = ["MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"];
+/// Pull requests looked at per lookup (most recently updated first, all states).
+const PR_PAGE: u32 = 50;
+/// Longest pull request text that goes out.
+const MAX_PR_BODY: usize = 4_000;
 
 /// Lines without line endings, exactly as the conflict tool splits a version (`splitText` in
 /// `src/screens/ConflictTool/model.ts`): CRLF counts as LF, a final line break starts no new line.
@@ -210,6 +214,30 @@ fn parse_log(stdout: &[u8]) -> Vec<SideCommit> {
             body: chunk.get(2).map(|body| util::decode_lossy(body)).unwrap_or_default(),
         })
         .collect()
+}
+
+/// Number, title and text of the pull request whose source branch is `branch` (also written as
+/// `<remote>/<branch>`) – only with a connected host account, never from a fork. `None` without a
+/// host, without a match or on any host error: the explanation then works from the commits alone
+/// (a background lookup never shows a toast).
+pub async fn pull_request_text(core: &Core, repo_id: &str, branch: Option<&str>) -> Option<String> {
+    let branch = branch.map(str::trim).filter(|name| !name.is_empty())?;
+    let found = crate::host::api_for_repo(core, repo_id, None).await.ok()?;
+    let remote = found.remote;
+    let page = crate::commands::host::pr_list(core, repo_id.to_string(), PrListState::All, Some(1), Some(PR_PAGE), Some(remote.clone())).await.ok()?;
+    let prefix = format!("{remote}/");
+    let number = page
+        .items
+        .iter()
+        .find(|pr| !pr.is_fork && (pr.source_branch == branch || branch.strip_prefix(prefix.as_str()) == Some(pr.source_branch.as_str())))?
+        .number;
+    let details = crate::commands::host::pr_get(core, repo_id.to_string(), number, Some(remote)).await.ok()?;
+    Some(format!(
+        "#{} {}\n\n{}",
+        details.summary.number,
+        details.summary.title.trim(),
+        util::truncate_str(details.body.trim_end(), MAX_PR_BODY)
+    ))
 }
 
 #[cfg(test)]

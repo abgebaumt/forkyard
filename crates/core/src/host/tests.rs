@@ -7,6 +7,7 @@ mod github_tests;
 mod gitlab_tests;
 mod bitbucket_tests;
 mod gitea_tests;
+mod conflict_intent_tests;
 mod mocks;
 
 use std::sync::Arc;
