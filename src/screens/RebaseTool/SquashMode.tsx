@@ -4,7 +4,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Combine, ListOrdered } from "lucide-react";
-import { core, type Id, type Sha } from "../../core";
+import { core, SUMMARY_LIMIT, type Id, type Sha } from "../../core";
 import { busyKeys } from "../../app/actions/keys";
 import { reportOpResult } from "../../app/actions/merge";
 import { confirm } from "../../app/dialogs";
@@ -23,7 +23,6 @@ import { useCommitRows } from "./useCommitRows";
 import { t } from "../../i18n";
 
 const SUMMARY_NOTICE = 50;
-const SUMMARY_LIMIT = 72;
 
 export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId: Id; tabId: Id; shas: Sha[]; onClose: () => void; startRef: StartRef }) {
   startRef.current = null;

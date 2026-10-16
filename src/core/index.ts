@@ -6,6 +6,7 @@ import { t } from "../i18n";
 import { CoreError, type CoreErrorData, type CoreEvents } from "./types";
 
 export * from "./types";
+export * from "./limits";
 export type { Core, CoreCommands, CommandName, Unsubscribe } from "./api";
 
 const toSnake = (name: string) => name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);

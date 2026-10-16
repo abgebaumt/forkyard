@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useState } from "react";
 import { GitCommitHorizontal, Lock } from "lucide-react";
-import type { Id } from "../../core";
+import { SUMMARY_LIMIT, type Id } from "../../core";
 import { useCommitDetails, useDraft, useRemotes, useSettings, useStatus } from "../../app/queries";
 import { useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
@@ -15,7 +15,6 @@ import { useWipStore, useWipTab } from "./state";
 
 /** From here on the summary shows its counter, from `SUMMARY_LIMIT` in the warning colour. */
 const SUMMARY_COUNTER_FROM = 50;
-const SUMMARY_LIMIT = 72;
 
 /** Shift pressed? Then the primary button offers "Stage all and commit". */
 function useShiftHeld(): boolean {

@@ -3,7 +3,7 @@
  * the commit gets a new SHA, the selection follows.
  */
 import { useRef, useState } from "react";
-import { core, type CommitInfo, type Id, type Sha } from "../../core";
+import { core, SUMMARY_LIMIT, type CommitInfo, type Id, type Sha } from "../../core";
 import { busyKeys } from "../../app/actions/keys";
 import { runAction } from "../../app/run";
 import { useAppStore, useBusy } from "../../app/store";
@@ -14,7 +14,6 @@ import { t } from "../../i18n";
 
 /** Common practice: summary at most 72 characters; from 50 on the field shows the length. */
 const SUMMARY_NOTICE = 50;
-const SUMMARY_LIMIT = 72;
 
 export interface MessageEditorProps {
   repoId: Id;
