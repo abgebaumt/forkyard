@@ -15,6 +15,8 @@
 use std::cmp::Reverse;
 use std::collections::HashSet;
 
+use serde_json::{json, Value};
+
 use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
@@ -24,7 +26,7 @@ use crate::commands::refs::read_head;
 use crate::commands::status::read_operation;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
-use crate::model::{AiOmitReason, AiOmitted, ConflictBlockRange, Head, IntentSent, OperationKind, PrListState, Settings};
+use crate::model::{AiOmitReason, AiOmitted, ConflictBlockRange, ConflictIntent, ConflictIntentBlock, Head, IntentSent, OperationKind, PrListState, Settings};
 use crate::util;
 
 /// At most this many conflict blocks of one file go into one request.
@@ -45,6 +47,8 @@ const MAX_COMMIT_BODY: usize = 1_000;
 /// A shortened side keeps its first 20 and last 10 lines.
 const HEAD_LINES: usize = 20;
 const TAIL_LINES: usize = 10;
+/// Longest explanation of one side kept.
+const MAX_WHY: usize = 2_000;
 /// What a line touched by a multi-line redaction becomes.
 const MASK_LINE: &str = "***";
 
@@ -494,6 +498,85 @@ fn changed_by_redaction(block: &BlockText, git: &BlockText, secrets: &[String]) 
     context::redact_for_ai(&text, secrets) != text
 }
 
+/// The answer schema (dialect of `ai::schema`, all fields required).
+pub fn schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "blocks": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "block": { "type": "integer" },
+                        "ours": { "type": "string" },
+                        "theirs": { "type": "string" },
+                        "text": { "type": "string" }
+                    },
+                    "required": ["block", "ours", "theirs", "text"],
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["blocks"],
+        "additionalProperties": false
+    })
+}
+
+/// Checks a schema-valid answer against the plan: every block that went out exactly once, no other
+/// block; proposals only for `full` blocks, with `\n` line endings and without conflict markers.
+pub fn accept(plan: &IntentPlan, answer: &Value) -> CoreResult<ConflictIntent> {
+    let field = |item: &Value, key: &str| item.get(key).and_then(Value::as_str).unwrap_or_default().to_string();
+    let mut answered: Vec<Option<(String, String, String)>> = vec![None; plan.sent.len()];
+    for item in answer.get("blocks").and_then(Value::as_array).into_iter().flatten() {
+        let number = item.get("block").and_then(Value::as_u64).unwrap_or(0);
+        let index = usize::try_from(number)
+            .ok()
+            .and_then(|n| n.checked_sub(1))
+            .filter(|&i| plan.sent.get(i).is_some_and(|sent| *sent != IntentSent::LeftOut));
+        let Some(index) = index else {
+            return Err(CoreError::ai_invalid_answer(format!("block {number} was not asked for")));
+        };
+        if answered[index].is_some() {
+            return Err(CoreError::ai_invalid_answer(format!("block {number} is answered twice")));
+        }
+        answered[index] = Some((field(item, "ours"), field(item, "theirs"), field(item, "text")));
+    }
+    let mut blocks = Vec::with_capacity(plan.sent.len());
+    for (index, sent) in plan.sent.iter().copied().enumerate() {
+        let block = index as u32;
+        if sent == IntentSent::LeftOut {
+            blocks.push(ConflictIntentBlock { block, sent, ours_why: None, theirs_why: None, text: None });
+            continue;
+        }
+        let Some((ours, theirs, text)) = answered[index].take() else {
+            return Err(CoreError::ai_invalid_answer(format!("block {} is missing", index + 1)));
+        };
+        let text = if sent == IntentSent::Full { Some(proposal(&text, index, &plan.known_markers)?) } else { None };
+        blocks.push(ConflictIntentBlock { block, sent, ours_why: Some(why(&ours)), theirs_why: Some(why(&theirs)), text });
+    }
+    Ok(ConflictIntent { path: plan.path.clone(), blocks })
+}
+
+fn why(text: &str) -> String {
+    util::truncate_str(text.trim(), MAX_WHY)
+}
+
+fn proposal(text: &str, index: usize, known: &HashSet<String>) -> CoreResult<String> {
+    let mut out = text.replace("\r\n", "\n");
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    if let Some(line) = out.lines().find(|line| is_marker_line(line) && !known.contains(*line)) {
+        return Err(CoreError::ai_invalid_answer(format!(
+            "the proposal for block {} still contains the conflict marker “{}”",
+            index + 1,
+            util::truncate_str(line, 40)
+        )));
+    }
+    Ok(out)
+}
+
 /// One version redacted as a whole, before it is cut into blocks and shortened, with the line count
 /// kept: every line a multi-line rule (a private key in PEM form, `extraheader` with its value on the
 /// next line) touches becomes a mask line, one-line rules mask inside the line. A cut can then no
@@ -550,6 +633,8 @@ mod tests {
     use crate::testkit::{TestCore, TestRepo};
     use crate::ai::prompt::Prompt;
     use crate::model::{AiOmitReason, IntentSent, Settings};
+    use crate::model::{ConflictIntent, ConflictIntentBlock};
+    use serde_json::{json, Value};
 
     fn range(ours_start: u32, ours_count: u32, theirs_start: u32, theirs_count: u32) -> ConflictBlockRange {
         ConflictBlockRange { ours_start, ours_count, theirs_start, theirs_count }
@@ -1027,5 +1112,72 @@ mod tests {
             ErrorCode::NotAllowed,
             "a path outside the repository"
         );
+    }
+
+    #[test]
+    fn the_answer_schema_is_in_the_dialect() {
+        assert_eq!(crate::ai::schema::check_dialect(&schema()), Ok(()));
+    }
+
+    #[tokio::test]
+    async fn answers_are_checked_block_by_block() {
+        let tc = TestCore::new().await;
+        let repo = rebase_conflict();
+        let id = tc.open(&repo).await.repo.id;
+        let plan = build(&tc, &id, PLAN, &[plan_range()], &Settings::default(), 32_000, "en", &[]).await.unwrap();
+        let answer = |blocks: Value| json!({ "blocks": blocks });
+        let one = |block: u64, text: &str| json!({ "block": block, "ours": "  Öfter messen.  ", "theirs": "Nachts seltener.", "text": text });
+
+        let intent = accept(&plan, &answer(json!([one(1, "- Temperatur: alle 5 Minuten, nachts alle 30\r\n")]))).unwrap();
+        assert_eq!(
+            intent,
+            ConflictIntent {
+                path: PLAN.into(),
+                blocks: vec![ConflictIntentBlock {
+                    block: 0,
+                    sent: IntentSent::Full,
+                    ours_why: Some("Öfter messen.".into()),
+                    theirs_why: Some("Nachts seltener.".into()),
+                    text: Some("- Temperatur: alle 5 Minuten, nachts alle 30\n".into()),
+                }],
+            }
+        );
+        assert_eq!(accept(&plan, &answer(json!([one(1, "zwei\r\ndrei")]))).unwrap().blocks[0].text.as_deref(), Some("zwei\ndrei\n"), "LF, and a final newline is added");
+        assert_eq!(accept(&plan, &answer(json!([one(1, "")]))).unwrap().blocks[0].text.as_deref(), Some(""), "an empty proposal removes the block's lines");
+
+        let refused = |value: Value| {
+            let error = accept(&plan, &value).unwrap_err();
+            assert_eq!(error.code, ErrorCode::AiInvalidAnswer);
+            error.message
+        };
+        assert!(refused(answer(json!([]))).contains("block 1 is missing"));
+        assert!(refused(answer(json!([one(1, "a"), one(1, "b")]))).contains("block 1 is answered twice"));
+        assert!(refused(answer(json!([one(1, "a"), one(2, "b")]))).contains("block 2 was not asked for"));
+        assert!(refused(answer(json!([one(0, "a")]))).contains("block 0 was not asked for"));
+        assert!(refused(answer(json!([one(1, "<<<<<<< main\nalt\n=======\nneu\n>>>>>>> feature\n")]))).contains("conflict marker"), "a proposal with markers would block saving");
+    }
+
+    #[tokio::test]
+    async fn explain_only_blocks_never_carry_a_proposal() {
+        let tc = TestCore::new().await;
+        let repo = big_merge_conflict();
+        let id = tc.open(&repo).await.repo.id;
+        let both = json!({ "blocks": [
+            { "block": 1, "ours": "geprüft", "theirs": "korrigiert", "text": "Messpunkt 00000;beides\n" },
+            { "block": 2, "ours": "Token", "theirs": "klein", "text": "api_token = \"***\"\n" }
+        ]});
+        let medium = build(&tc, &id, BIG, &big_ranges(), &Settings::default(), 2_000, "en", &[]).await.unwrap();
+        let intent = accept(&medium, &both).unwrap();
+        assert_eq!(
+            intent.blocks.iter().map(|block| (block.sent, block.text.clone(), block.ours_why.is_some())).collect::<Vec<_>>(),
+            vec![(IntentSent::Shortened, None, true), (IntentSent::Redacted, None, true)],
+            "shortened and masked blocks are explained, never proposed"
+        );
+
+        let tight = build(&tc, &id, BIG, &big_ranges(), &Settings::default(), 300, "en", &[]).await.unwrap();
+        assert!(accept(&tight, &both).unwrap_err().message.contains("block 1 was not asked for"), "a left-out block cannot be answered");
+        let intent = accept(&tight, &json!({ "blocks": [{ "block": 2, "ours": "Token", "theirs": "klein", "text": "x\n" }] })).unwrap();
+        assert_eq!(intent.blocks[0], ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None });
+        assert_eq!(intent.blocks[1].text, None);
     }
 }
