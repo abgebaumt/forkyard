@@ -41,6 +41,8 @@ pub(crate) struct MockState {
     pub issues_off: bool,
     /// The project's process has no work item type "Issue" (Azure DevOps).
     pub no_issue_type: bool,
+    /// The review-thread route answers 404 (an older self-hosted version without it).
+    pub no_review_threads: bool,
 }
 
 pub(crate) struct Fixture {

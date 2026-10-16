@@ -7,6 +7,8 @@ use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
 use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
 
+use crate::model::ReviewSide;
+
 const KIND: HostKind = HostKind::Gitlab;
 const PROJECT: &str = "/api/v4/projects/gruppe%2Funter%2Fdemo";
 
@@ -195,4 +197,59 @@ async fn checkout_fetches_the_branch_of_a_merge_request() {
     assert_eq!((repo.current_branch(), repo.head()), ("mr-8".to_string(), from_fork));
     assert_eq!(repo.git(&["for-each-ref", "refs/forkyard/pull"]), "");
     fx.assert_token_stays_secret();
+}
+
+const DISCUSSION_A: &str = "6a9c1750b37d513a43987b574953fceb50b03ce7";
+
+#[tokio::test]
+async fn review_threads_are_the_diff_discussions_with_their_notes() {
+    let fx = Fixture::new(KIND).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let rows: Vec<_> = threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved)).collect();
+    assert_eq!(
+        rows,
+        vec![
+            (DISCUSSION_A, "src/anmeldung.rs", Some(42), Some(40), ReviewSide::New, false),
+            ("2b7e0c11d0aa6e4c3f9a59a2b1e5c7d8e9f01234", "src/meldung.rs", Some(7), None, ReviewSide::New, true),
+            ("3c8f1d22e1bb7f5d4a0b6ab3c2f6d8e9fa012345", "src/alt.rs", Some(12), None, ReviewSide::Old, false),
+        ],
+        "general discussions and system notes are no review threads"
+    );
+    assert_eq!(threads[0].commit.as_deref(), Some(format!("{:040x}", 9).as_str()));
+    let notes: Vec<_> = threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str(), c.line)).collect();
+    assert_eq!(notes, vec![("901", Some("mira"), "Hier fehlt die Prüfung auf leer.", Some(42)), ("902", Some("jonas"), "Stimmt, mache ich.", Some(42))]);
+    let call = &fx.sent("GET", "/merge_requests/9/discussions")[0];
+    assert_eq!(call.path(), "/api/v4/projects/gruppe%2Funter%2Fdemo/merge_requests/9/discussions");
+    assert_eq!(call.query("per_page").as_deref(), Some("100"));
+    check_error_modes(&fx, "GitLab", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    check_broken_json(&fx, "GitLab", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn a_reply_is_a_new_note_of_the_discussion() {
+    let fx = Fixture::new(KIND).await;
+    let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, DISCUSSION_A.into(), "Erledigt.".into(), None).await.unwrap();
+    assert!(!reply.quoted);
+    assert_eq!((reply.comment.id.as_str(), reply.comment.body.as_str()), ("903", "Erledigt."));
+    let sent = fx.sent("POST", &format!("/merge_requests/9/discussions/{DISCUSSION_A}/notes"));
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].json(), json!({ "body": "Erledigt." }));
+    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "0000000000000000000000000000000000000000".into(), "Danke".into(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotFound);
+    let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
+    assert!(caps.review_threads && caps.review_reply && !caps.review_reply_quotes);
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn an_old_instance_without_discussions_is_named_as_such() {
+    let fx = Fixture::new(KIND).await;
+    fx.state.lock().no_review_threads = true;
+    let error = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostUnsupported);
+    assert!(error.message.contains("GitLab") && error.message.contains("review threads"), "{}", error.message);
+    // A merge request that does not exist stays "not found".
+    let error = cmd::pr_review_threads(&fx.tc, fx.id(), 999, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotFound);
 }

@@ -531,6 +531,45 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             None,
         ),
         ("POST", ["merge_requests", _, "notes"]) => MockResponse::json(201, json!({ "id": 99, "system": false, "body": request.json()["body"], "author": gl_user("lena.hartmann"), "created_at": "2026-09-05T08:00:00Z" })),
+        ("GET", ["merge_requests", _, "discussions"]) if state.no_review_threads => not_found("404 Not Found"),
+        ("GET", ["merge_requests", _, "discussions"]) if number == 0 || number > 200 => not_found("404 Not found"),
+        ("GET", ["merge_requests", _, "discussions"]) => {
+            let position = |path: &str, old: Option<u64>, new: Option<u64>, start: Option<u64>| {
+                json!({ "base_sha": sha(1000), "start_sha": sha(1000), "head_sha": sha(9), "position_type": "text", "old_path": path, "new_path": path, "old_line": old, "new_line": new,
+                    "line_range": start.map(|s| json!({ "start": { "line_code": format!("x_{s}"), "type": "new", "old_line": Value::Null, "new_line": s }, "end": { "line_code": "x_end", "type": "new", "old_line": Value::Null, "new_line": new } })) })
+            };
+            let diff_note = |id: u64, who: &str, body: &str, at: &str, resolved: bool, pos: Value| {
+                json!({ "id": id, "type": "DiffNote", "body": body, "author": gl_user(who), "created_at": at, "system": false, "resolvable": true, "resolved": resolved, "position": pos })
+            };
+            let body = if number == 9 {
+                vec![
+                    json!({ "id": "6a9c1750b37d513a43987b574953fceb50b03ce7", "individual_note": false, "notes": [
+                        diff_note(901, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z", false, position("src/anmeldung.rs", None, Some(42), Some(40))),
+                        diff_note(902, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z", false, position("src/anmeldung.rs", None, Some(42), Some(40))),
+                    ] }),
+                    json!({ "id": "2b7e0c11d0aa6e4c3f9a59a2b1e5c7d8e9f01234", "individual_note": false, "notes": [
+                        diff_note(911, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z", true, position("src/meldung.rs", None, Some(7), None)),
+                    ] }),
+                    json!({ "id": "3c8f1d22e1bb7f5d4a0b6ab3c2f6d8e9fa012345", "individual_note": false, "notes": [
+                        diff_note(921, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z", false, position("src/alt.rs", Some(12), None, None)),
+                    ] }),
+                    json!({ "id": "4d9a2e33f2cc8a6e5b1c7bc4d3a7e9f0ab123456", "individual_note": true, "notes": [
+                        { "id": 931, "type": Value::Null, "body": "Allgemeiner Kommentar", "author": gl_user("mira"), "created_at": "2026-09-02T11:00:00Z", "system": false, "resolvable": false }
+                    ] }),
+                    json!({ "id": "5e0b3f44a3dd9b7f6c2d8cd5e4b8fa01bc234567", "individual_note": true, "notes": [
+                        { "id": 941, "type": Value::Null, "body": "added 1 commit", "author": gl_user("jonas"), "created_at": "2026-09-02T12:00:00Z", "system": true }
+                    ] }),
+                ]
+            } else {
+                Vec::new()
+            };
+            gl_page(request, body, None)
+        }
+        ("POST", ["merge_requests", _, "discussions", id, "notes"]) if *id == "6a9c1750b37d513a43987b574953fceb50b03ce7" => MockResponse::json(
+            201,
+            json!({ "id": 903, "type": "DiffNote", "system": false, "body": request.json()["body"], "author": gl_user("lena.hartmann"), "created_at": "2026-09-05T08:00:00Z" }),
+        ),
+        ("POST", ["merge_requests", _, "discussions", _, "notes"]) => not_found("404 Discussion Not Found"),
         ("GET", ["merge_requests", _, "commits"]) => gl_page(
             request,
             vec![
