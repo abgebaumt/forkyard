@@ -181,6 +181,11 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::Compose => crate::commands::compose::preview_built(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,
+        AiInput::Plan { text } => context::Built {
+            prompt: crate::ai::plan::build_prompt(core, &repo_id, &text, &locale, &secrets, budget).await?,
+            omitted: Vec::new(),
+            shortened: Vec::new(),
+        },
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {

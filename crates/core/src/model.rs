@@ -1528,6 +1528,8 @@ pub enum AiInput {
     /// Paket 4: the commits of `source` that `target` does not have (full ref names, e.g.
     /// `refs/heads/feature/x` and `refs/remotes/origin/main`).
     PrDescription { source: String, target: String },
+    /// "Git in plain language": the user's sentence (Paket 5).
+    Plan { text: String },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
