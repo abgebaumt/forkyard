@@ -16,6 +16,7 @@ pub mod host;
 pub mod http;
 pub mod jobs;
 pub mod model;
+pub mod proc;
 pub mod secrets;
 pub mod undo;
 pub mod util;
