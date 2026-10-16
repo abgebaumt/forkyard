@@ -184,3 +184,14 @@ pub(super) fn dangling_blob(repo: &TestRepo, content: &str) -> String {
     std::fs::write(&file, content).unwrap();
     repo.git(&["hash-object", "-w", &file.to_string_lossy()])
 }
+
+/// Waits until `check` holds (at most 30 s). Unix only: its one user, the cancel-during-gc test,
+/// is Unix-only, and an unused helper would be a `dead_code` warning on Windows.
+#[cfg(unix)]
+pub(super) async fn eventually(what: &str, mut check: impl FnMut() -> bool) {
+    let started = std::time::Instant::now();
+    while !check() {
+        assert!(started.elapsed() < std::time::Duration::from_secs(30), "did not happen: {what}");
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+}

@@ -7,6 +7,7 @@ use crate::app::Core;
 use crate::commands::{lfs, worktree};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::errors;
 use crate::jobs::Job;
 use crate::model::{CleanupFailure, CleanupMode, CleanupOptions, CleanupResult, CleanupStep, CleanupStepResult, CleanupStepStatus, RepoChange};
 use crate::util;
@@ -117,7 +118,7 @@ pub(super) async fn run(core: &Core, repo_id: &str, job: &Job, options: &Cleanup
                 steps.push(entry(step, CleanupStepStatus::Cancelled, None));
             }
             Err(error) => {
-                failure = Some(CleanupFailure { step, error, gc_pid: None, disk_full: false });
+                failure = Some(failure_of(step, error));
                 steps.push(entry(step, CleanupStepStatus::Failed, None));
             }
         }
@@ -277,6 +278,14 @@ async fn delete_refs_under(core: &Core, repo_id: &str, prefix: &str) -> CoreResu
     let script: String = names.iter().map(|name| format!("delete {name}\n")).collect();
     core.git_for(repo_id)?.args(["update-ref", "--stdin"]).stdin(script).run().await?;
     Ok(names.len())
+}
+
+/// The failed step with what the dialog needs to explain it in the user's language: the process
+/// of a running `git gc`, or that the disk is full.
+pub(super) fn failure_of(step: CleanupStep, error: CoreError) -> CleanupFailure {
+    let gc_pid = if error.code == ErrorCode::Locked { error.git_output.as_deref().and_then(errors::gc_running_pid) } else { None };
+    let disk_full = error.code == ErrorCode::Io && error.message == errors::DISK_FULL_MESSAGE;
+    CleanupFailure { step, error, gc_pid, disk_full }
 }
 
 /// What `job:done` reports: a run that stopped at a failed step or was cancelled is not “ok”,
