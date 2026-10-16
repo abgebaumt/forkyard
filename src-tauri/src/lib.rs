@@ -446,6 +446,7 @@ pub fn run() {
             commands::stage_patch,
             commands::unstage_patch,
             commands::discard_patch,
+            commands::range_apply,
             commands::discard_paths,
             commands::commit_create,
             commands::commit_reword,

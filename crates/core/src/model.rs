@@ -691,6 +691,10 @@ pub struct TextDiff {
     pub new_text: Option<String>,
     pub encoding: String,
     pub token: Option<String>,
+    /// Only for a range between two commits (`DiffSource::Range` with `to`): fingerprint for
+    /// `range_apply` (`PatchSelection.expect`). Kept apart from `token`, which enables line staging.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub range_token: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -746,6 +750,18 @@ pub struct PatchSelection {
     pub path: String,
     pub hunks: Vec<HunkSelection>,
     pub expect: String,
+}
+
+/// Where `range_apply` puts the selected changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RangeApplyTarget {
+    /// Unstaged, into the working directory.
+    Worktree,
+    /// Staged only; the working directory stays.
+    Index,
+    /// Working directory and index.
+    Both,
 }
 
 /// Selected hunks and lines for a partial stash (`stash_create` with `selection`). Each entry is a
@@ -2080,6 +2096,7 @@ mod tests {
             new_text: Some("x".into()),
             encoding: "utf-8".into(),
             token: Some("tok".into()),
+            range_token: None,
         });
         assert_eq!(
             serde_json::to_value(&text).unwrap(),

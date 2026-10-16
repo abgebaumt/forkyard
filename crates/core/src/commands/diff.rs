@@ -50,6 +50,8 @@ pub(crate) fn is_empty_tree(rev: &str) -> bool {
 }
 const ABSENT_MODE: &str = "000000";
 const GITLINK_MODE: &str = "160000";
+/// Kind of diff in the token of a commit range (`range_token`).
+const RANGE_TAG: &str = "range";
 
 /// Fixed options for every `git diff`, so the user's settings (prefixes,
 /// external diff, textconv, colours) do not change the output. Without
@@ -277,6 +279,8 @@ struct Target {
     path: Vec<u8>,
     /// "unstaged" or "staged" – a token exists only for these.
     tag: Option<&'static str>,
+    /// Comparison of two commits (`DiffSource::Range` with `to`): gets a `range_token`.
+    range: bool,
 }
 
 impl Target {
@@ -306,7 +310,9 @@ async fn resolve(ctx: &Ctx<'_>, path: &str, source: &DiffSource) -> CoreResult<T
         DiffSource::Range { from, to: Some(to) } => {
             check_rev(from)?;
             check_rev(to)?;
-            resolve_stored(ctx, path, Endpoints::Trees(from.clone(), to.clone()), None).await
+            let mut target = resolve_stored(ctx, path, Endpoints::Trees(from.clone(), to.clone()), None).await?;
+            target.range = true;
+            Ok(target)
         }
         DiffSource::Range { from, to: None } => {
             check_rev(from)?;
@@ -387,7 +393,7 @@ async fn resolve_stored(ctx: &Ctx<'_>, path: Vec<u8>, endpoints: Endpoints, tag:
     let entries = raw(ctx, &endpoints, None, &["--no-renames"], Some(&path)).await?;
     let conflicted = entries.iter().any(|e| e.status == b'U');
     let mut entry = entries.into_iter().find(|e| e.status != b'U' && e.path == path);
-    let mut target = Target { endpoints, renames: false, ours: false, temp_index: None, entry: None, status: FileStatus::Modified, path, tag };
+    let mut target = Target { endpoints, renames: false, ours: false, temp_index: None, entry: None, status: FileStatus::Modified, path, tag, range: false };
     if conflicted {
         target.status = FileStatus::Conflicted;
         return Ok(target);
@@ -422,7 +428,7 @@ async fn resolve_against_worktree(ctx: &Ctx<'_>, path: Vec<u8>, endpoints: Endpo
     let entries = raw(ctx, &endpoints, None, &["--no-renames"], Some(&path)).await?;
     let conflicted = entries.iter().any(|e| e.status == b'U');
     let mut entry = entries.into_iter().find(|e| e.status != b'U' && e.path == path);
-    let mut target = Target { endpoints, renames: false, ours: false, temp_index: None, entry: None, status: FileStatus::Modified, path, tag };
+    let mut target = Target { endpoints, renames: false, ours: false, temp_index: None, entry: None, status: FileStatus::Modified, path, tag, range: false };
     if conflicted {
         target.status = FileStatus::Conflicted;
         target.ours = against_index;
@@ -461,7 +467,7 @@ async fn untracked_target(ctx: &Ctx<'_>, path: Vec<u8>, tag: Option<&'static str
     ctx.git().env("GIT_INDEX_FILE", temp.path()).args(["add", "-N", "-f", "--"]).arg_bytes(&path).run().await?;
     let entries = raw(ctx, &Endpoints::IndexWorktree, Some(temp.path()), &["--no-renames"], Some(&path)).await?;
     let entry = entries.into_iter().find(|e| e.path == path).ok_or_else(|| missing(&path))?;
-    Ok(Target { endpoints: Endpoints::IndexWorktree, renames: false, ours: false, temp_index: Some(temp), entry: Some(entry), status: FileStatus::Untracked, path, tag })
+    Ok(Target { endpoints: Endpoints::IndexWorktree, renames: false, ours: false, temp_index: Some(temp), entry: Some(entry), status: FileStatus::Untracked, path, tag, range: false })
 }
 
 // ---------------------------------------------------------------------------
@@ -858,7 +864,11 @@ async fn build(ctx: &Ctx<'_>, target: Target, force: bool, ignore_whitespace: bo
         }
         _ => None,
     };
-    Ok(FileDiff::Text(text_diff(path, old_path, status, &files, old_bytes.as_deref(), new_bytes.as_deref(), token, forced)))
+    // Range token: only where the view's hunks are the real ones (no "ignore whitespace").
+    let range_token = (target.range && files.len() <= 1 && !ignore_whitespace).then(|| token_of(RANGE_TAG, &raw_patch));
+    let mut text = text_diff(path, old_path, status, &files, old_bytes.as_deref(), new_bytes.as_deref(), token, forced);
+    text.range_token = range_token;
+    Ok(FileDiff::Text(text))
 }
 
 /// Conflicted files, submodule entries and unchanged files: only the hunks, without
@@ -961,7 +971,7 @@ fn text_diff(
         None if new_bytes.is_some() || old_bytes.is_none() => new_encoding.to_string(),
         None => old_encoding.to_string(),
     };
-    TextDiff { path, old_path, status, hunks: out, old_text: whole(old_bytes), new_text: whole(new_bytes), encoding, token }
+    TextDiff { path, old_path, status, hunks: out, old_text: whole(old_bytes), new_text: whole(new_bytes), encoding, token, range_token: None }
 }
 
 // ---------------------------------------------------------------------------
@@ -1001,4 +1011,16 @@ pub(crate) async fn patch_basis(core: &Core, repo_id: &str, path: &str, staged: 
     }
     let raw_patch = if target.entry.is_some() { run_patch(&ctx, &target, false).await? } else { Vec::new() };
     Ok(PatchBasis { token: token_of(tag, &raw_patch), path: target.path.clone(), files: patch::parse_diff(&raw_patch) })
+}
+
+/// The raw diff of one file between two commits, as `diff_file` with `DiffSource::Range` showed it;
+/// `token` equals `TextDiff.range_token`. `from` and `to` are full SHAs (or the empty tree as `from`).
+pub(crate) async fn range_patch_basis(core: &Core, repo_id: &str, path: &str, from: &str, to: &str) -> CoreResult<PatchBasis> {
+    let ctx = Ctx::new(core, repo_id)?;
+    let target = resolve(&ctx, path, &DiffSource::Range { from: from.to_string(), to: Some(to.to_string()) }).await?;
+    if target.has_gitlink() {
+        return Err(CoreError::not_allowed("You can't select individual lines in a submodule."));
+    }
+    let raw_patch = if target.entry.is_some() { run_patch(&ctx, &target, false).await? } else { Vec::new() };
+    Ok(PatchBasis { token: token_of(RANGE_TAG, &raw_patch), path: target.path.clone(), files: patch::parse_diff(&raw_patch) })
 }

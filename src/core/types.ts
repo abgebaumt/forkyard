@@ -625,6 +625,8 @@ export interface TextDiff {
   encoding: string;
   /** Only for `unstaged` and `staged`: fingerprint for `stagePatch` etc. */
   token: string | null;
+  /** Only for a range between two commits: fingerprint for `rangeApply` (`PatchSelection.expect`). */
+  rangeToken?: string | null;
 }
 
 export type FileDiff =
@@ -665,6 +667,9 @@ export interface PatchSelection {
   /** `TextDiff.token` of the diff the selection was made on. */
   expect: string;
 }
+
+/** Where `rangeApply` puts the selected changes. */
+export type RangeApplyTarget = "worktree" | "index" | "both";
 
 /** Selected lines for `stashCreate` (partial stash). Each entry as `stagePatch` takes it. */
 export interface StashSelection {

@@ -267,6 +267,11 @@ pub async fn discard_patch(core: State<'_, Core>, repo_id: String, selection: Pa
 }
 
 #[tauri::command]
+pub async fn range_apply(core: State<'_, Core>, repo_id: String, from: String, to: String, selections: Vec<PatchSelection>, target: RangeApplyTarget) -> R<Status> {
+    c::range_apply::range_apply(&core, repo_id, from, to, selections, target).await
+}
+
+#[tauri::command]
 pub async fn discard_paths(core: State<'_, Core>, repo_id: String, paths: Option<Vec<String>>) -> R<Status> {
     c::stage::discard_paths(&core, repo_id, paths).await
 }

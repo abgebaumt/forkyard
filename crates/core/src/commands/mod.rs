@@ -23,6 +23,7 @@ pub mod lfs;
 pub mod links;
 pub mod merge;
 pub mod patch;
+pub mod range_apply;
 pub mod preview;
 pub mod rebase;
 pub mod reflog;

@@ -66,6 +66,7 @@ import type {
   OpenedRepo,
   RepoTrust,
   PatchSelection,
+  RangeApplyTarget,
   PatchText,
   PrDetails,
   PreviewOp,
@@ -240,6 +241,13 @@ export interface CoreCommands {
   unstagePatch(input: R & { selection: PatchSelection }): Promise<Status>;
   /** Discard the selection from the `unstaged` diff in the working directory. Reversible via undo. */
   discardPatch(input: R & { selection: PatchSelection }): Promise<Status>;
+  /**
+   * Takes selected hunks or lines of the diff `from..to` (refs or SHAs; `from` may be the empty tree)
+   * into the working directory, the index or both. `selections[].expect` is `TextDiff.rangeToken` of
+   * that file's range diff. A conflict with own changes → `conflict` naming the files, nothing changes;
+   * a selected file that changed in the range → `stale_state`. One undo entry (`range_apply`).
+   */
+  rangeApply(input: R & { from: string; to: string; selections: PatchSelection[]; target: RangeApplyTarget }): Promise<Status>;
   /** `paths: null` means everything, including untracked files. Creates a backup for undo first. */
   discardPaths(input: R & { paths: string[] | null }): Promise<Status>;
   commitCreate(
