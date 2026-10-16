@@ -84,6 +84,7 @@ export interface HostCapabilities {
   prReviewers: boolean;
   prLabels: boolean;
   forkCheckout: boolean;
+  releases: boolean;
 }
 
 const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
@@ -96,6 +97,7 @@ const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
   prReviewers: true,
   prLabels: true,
   forkCheckout: true,
+  releases: true,
 };
 
 /** GitLab has no "rebase" when merging via the API; GitHub cannot toggle drafts there. */
@@ -103,8 +105,8 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
   github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
   gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
   gitea: { ...ALL_FEATURES, mergeMethods: ["merge", "squash", "rebase"] },
-  bitbucket: { ...ALL_FEATURES, prReopen: false, prReviewers: false, prLabels: false, forkCheckout: false, mergeMethods: ["merge", "squash"] },
-  azure_devops: { ...ALL_FEATURES, issueCreate: true, prReviewers: false, forkCheckout: false, mergeMethods: ["merge", "squash", "rebase"] },
+  bitbucket: { ...ALL_FEATURES, prReopen: false, prReviewers: false, prLabels: false, forkCheckout: false, releases: false, mergeMethods: ["merge", "squash"] },
+  azure_devops: { ...ALL_FEATURES, issueCreate: true, prReviewers: false, forkCheckout: false, releases: false, mergeMethods: ["merge", "squash", "rebase"] },
 };
 
 export interface PrSummary {
@@ -238,7 +240,7 @@ export function toAccount(value: unknown): HostAccountInfo | null {
 }
 
 type CapabilityFlag = Exclude<keyof HostCapabilities, "mergeMethods">;
-const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout"];
+const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout", "releases"];
 const isMergeMethod = (value: unknown): value is MergeMethod => value === "merge" || value === "squash" || value === "rebase";
 
 /** The core's capabilities; whatever is missing or malformed comes from the host kind's defaults. */

@@ -1117,6 +1117,11 @@ pub async fn issue_create(core: State<'_, Core>, repo_id: String, title: String,
 }
 
 #[tauri::command]
+pub async fn release_create(core: State<'_, Core>, repo_id: String, tag: String, name: String, body: String, prerelease: bool, remote: Option<String>) -> R<HostRelease> {
+    c::host::release_create(&core, repo_id, tag, name, body, prerelease, remote).await
+}
+
+#[tauri::command]
 pub async fn stats_compute(core: State<'_, Core>, repo_id: String, job_id: String, range: StatsRange) -> R<RepoStats> {
     c::stats::stats_compute(&core, repo_id, job_id, range).await
 }

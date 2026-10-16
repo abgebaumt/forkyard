@@ -1871,6 +1871,16 @@ export interface HostCapabilities {
   prLabels: boolean;
   /** Pull requests from forks can be checked out. */
   forkCheckout: boolean;
+  /** Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo). */
+  releases: boolean;
+}
+
+/** A release at the host (`releaseCreate`). */
+export interface HostRelease {
+  tag: string;
+  name: string;
+  /** The release's page; null if the host names none. */
+  webUrl: string | null;
 }
 
 export interface HostRepoInfo {

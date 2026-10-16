@@ -609,6 +609,7 @@ pub fn run() {
             commands::issue_list,
             commands::issue_get,
             commands::issue_create,
+            commands::release_create,
             commands::stats_compute,
             commands::ai_status,
             commands::ai_key_set,

@@ -64,6 +64,7 @@ import type {
   HostAccount,
   HostComment,
   HostKind,
+  HostRelease,
   HostRepoInfo,
   HosterAccount,
   Id,
@@ -870,6 +871,16 @@ export interface CoreCommands {
    * Errors: `empty_message` (title empty), `not_allowed` (title with line breaks), host errors.
    */
   issueCreate(input: R & { title: string; body: string; remote?: string | null }): Promise<IssueSummary>;
+
+  // --- Releases --------------------------------------------------------------------------------
+  /**
+   * Creates a release for the local tag `tag`; its commit is sent along, so a host that does not
+   * know the tag yet never creates it on its default branch. Only where
+   * `HostRepoInfo.capabilities.releases` (GitHub, GitLab, Gitea/Forgejo); elsewhere
+   * `host_unsupported` before anything is sent. `name` empty = the tag. Errors: `name_exists`
+   * (a release for the tag exists), `not_found` (no such local tag), `not_allowed`, host errors.
+   */
+  releaseCreate(input: R & { tag: string; name: string; body: string; prerelease: boolean; remote?: string | null }): Promise<HostRelease>;
 
   // --- Statistics -----------------------------------------------------------------------------
   /**

@@ -265,3 +265,15 @@ describe("the hosts the app knows", () => {
     expect(issuesWebUrl(repo("azure_devops", "https://dev.azure.com/firma/projekt/_git/demo"))).toBe("https://dev.azure.com/firma/projekt/_workitems");
   });
 });
+
+describe("releases", () => {
+  it("only GitHub, GitLab and Gitea/Forgejo offer releases by default", () => {
+    expect(HOST_KINDS.filter((kind) => defaultCapabilities[kind].releases)).toEqual(["github", "gitlab", "gitea"]);
+  });
+
+  it("takes the core's flag and falls back to the host kind", () => {
+    expect(toCapabilities({ releases: false }, "github").releases).toBe(false);
+    expect(toCapabilities({}, "bitbucket").releases).toBe(false);
+    expect(toCapabilities({ mergeMethods: ["merge"] }, "gitlab").releases).toBe(true);
+  });
+});
