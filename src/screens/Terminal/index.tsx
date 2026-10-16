@@ -10,7 +10,7 @@
  * Registered in src/screens/Shortcuts/fixedKeys.ts.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ChevronDown, CircleStop, ClipboardPaste, Copy, Eraser, ExternalLink, RotateCw, SquareTerminal, TextSelect, Trash2 } from "lucide-react";
+import { ChevronDown, CircleStop, ClipboardPaste, Copy, Eraser, ExternalLink, Plus, RotateCw, SquareTerminal, TextSelect, Trash2, X } from "lucide-react";
 import type { Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { openExternal } from "../../app/actions/files";
@@ -24,11 +24,25 @@ import { Banner, toast } from "../../ui/Feedback";
 import { formatShortcut } from "../../ui/Kbd";
 import type { MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
-import { clearTerminal, endTerminal, hideTerminal, restartTerminal } from "./actions";
+import { clearTerminal, closeTerminalSession, endTerminal, hideTerminal, newTerminalShell, restartTerminal } from "./actions";
 import { onTerminalFocusRequest, takeTerminalFocus } from "./control";
 import { HeightHandle } from "./HeightHandle";
 import { TERMINAL_HEIGHT, maxTerminalHeight, setTerminalHeight, shownTerminalHeight, useTerminalHeight } from "./height";
-import { acquireSession, setTerminalCopier, setTerminalFont, setTerminalMenuOpener, setTerminalPassthrough, type Session, type TerminalStatus, TERMINAL_HINT_ID } from "./sessions";
+import {
+  acquireSession,
+  selectSession,
+  sessionByKey,
+  setTerminalCopier,
+  setTerminalFont,
+  setTerminalMenuOpener,
+  setTerminalPassthrough,
+  subscribeTerminalTabs,
+  terminalTabs,
+  type Session,
+  type TerminalStatus,
+  TERMINAL_HINT_ID,
+} from "./sessions";
+import { STATE_TONE, neighbour, sessionState, type StatusTone, type TabEntry, type TerminalTabs } from "./tabsModel";
 import { t } from "../../i18n";
 
 export interface TerminalPanelProps {
@@ -123,9 +137,70 @@ function failureTitle(status: Extract<TerminalStatus, { kind: "failed" }>): stri
   return t("terminal.failure.other");
 }
 
+const DOT: Record<StatusTone, string> = { accent: "bg-accent", warning: "bg-warning", success: "bg-success", danger: "bg-danger", muted: "bg-text-muted" };
+const STARTING: TerminalStatus = { kind: "starting" };
+const noSubscribe = () => () => undefined;
+
+function SessionTab({ tabId, entry, active, onArrow }: { tabId: Id; entry: TabEntry; active: boolean; onArrow: (key: Id, delta: number) => void }) {
+  const session = sessionByKey(tabId, entry.key);
+  const status = useSyncExternalStore(session?.subscribe ?? noSubscribe, session?.getStatus ?? (() => STARTING));
+  const state = sessionState(entry.kind, status);
+  return (
+    <div data-terminal-tab={entry.key} data-active={active ? "true" : undefined} data-state={state} className={`flex shrink-0 items-center rounded-sm ${active ? "bg-surface-sunken" : ""}`}>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={active}
+        tabIndex={active ? 0 : -1}
+        data-action="select-session"
+        className="flex h-control-sm items-center gap-1.5 rounded-sm px-2 text-sm text-text"
+        onClick={() => selectSession(tabId, entry.key)}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+          event.preventDefault();
+          onArrow(entry.key, event.key === "ArrowRight" ? 1 : -1);
+        }}
+      >
+        <span className={`inline-flex size-1.5 shrink-0 rounded-full ${DOT[STATE_TONE[state]]}`} aria-hidden />
+        <span className="max-w-40 truncate">{entry.title}</span>
+        <span className="text-xs text-text-muted">{t(`terminal.tabs.status.${state}`)}</span>
+      </button>
+      <IconButton
+        size="sm"
+        label={t("terminal.tabs.close", { name: entry.title })}
+        data-action="close-session"
+        icon={<X className="size-icon" aria-hidden />}
+        onClick={() => void closeTerminalSession(tabId, entry.key, entry.title)}
+      />
+    </div>
+  );
+}
+
+function SessionTabs({ tabId, tabs }: { tabId: Id; tabs: TerminalTabs }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const move = (key: Id, delta: number) => {
+    const next = neighbour(tabs, key, delta);
+    if (!next) return;
+    selectSession(tabId, next);
+    // Roving focus: the keyboard selected the tab, the focus follows it.
+    requestAnimationFrame(() => listRef.current?.querySelector<HTMLElement>(`[data-terminal-tab="${next}"] [role="tab"]`)?.focus());
+  };
+  return (
+    <div ref={listRef} role="tablist" aria-label={t("terminal.tabs.label")} className="flex min-w-0 items-center gap-1 overflow-x-auto">
+      {tabs.entries.map((entry) => (
+        <SessionTab key={entry.key} tabId={tabId} entry={entry} active={entry.key === tabs.active} onArrow={move} />
+      ))}
+      <IconButton size="sm" label={t("terminal.tabs.new")} data-action="new-shell" icon={<Plus className="size-icon" aria-hidden />} onClick={() => newTerminalShell(tabId)} />
+    </div>
+  );
+}
+
 export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
   const session = acquireSession(tabId, repoId);
   const status = useSyncExternalStore(session.subscribe, session.getStatus);
+  const tabs = useSyncExternalStore(subscribeTerminalTabs, () => terminalTabs(tabId));
+  const shownEntry = tabs.entries.find((entry) => entry.key === tabs.active) ?? null;
+  const liveText = shownEntry ? t("terminal.tabs.live", { name: shownEntry.title, status: t(`terminal.tabs.status.${sessionState(shownEntry.kind, status)}`) }) : "";
   const { data: repo } = useRepo(repoId);
   const { data: info } = useAppInfo();
   const mac = info?.platform === "macos";
@@ -235,9 +310,10 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
       <header className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <SquareTerminal className="size-icon shrink-0 text-text-muted" aria-hidden />
         <h2 className="shrink-0 text-sm font-medium text-text">{t("terminal.title")}</h2>
+        <SessionTabs tabId={tabId} tabs={tabs} />
         {path ? (
           <Tip label={path}>
-            <span className="min-w-0 truncate font-mono text-code text-text-muted">{path}</span>
+            <span className="min-w-0 flex-1 basis-0 truncate font-mono text-code text-text-muted">{path}</span>
           </Tip>
         ) : null}
         {status.kind === "exited" ? <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.exited")}</span> : null}
@@ -271,6 +347,9 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           />
         </div>
       </header>
+      <p className="sr-only" aria-live="polite">
+        {liveText}
+      </p>
 
       {status.kind === "failed" ? (
         <Banner

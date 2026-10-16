@@ -40,6 +40,22 @@
   "height": "Höhe des Terminals",
   "promptLabel": "Terminal-Eingabe",
   "tooMuchOutput": "Zu viel Ausgabe zum Vorlesen. Mit den Pfeiltasten lässt sie sich zeilenweise lesen.",
+  "tabs": {
+    "label": "Terminal-Sitzungen",
+    "shell": "Shell",
+    "shellNumbered": "Shell {{n}}",
+    "new": "Neue Shell",
+    "close": "„{{name}}“ schließen",
+    "live": "{{name}}: {{status}}",
+    "status": {
+      "starting": "startet",
+      "running": "läuft",
+      "waiting": "wartet auf dich",
+      "done": "fertig",
+      "failed": "Fehler",
+      "exited": "beendet"
+    }
+  },
   "confirm": {
     "restartTitle": "Terminal neu starten?",
     "restartBody": "Die Shell wird beendet – samt allem, was gerade darin läuft. Die bisherige Ausgabe verschwindet.",
@@ -48,6 +64,9 @@
     "closeTabNamed": "Tab „{{name}}“ schließen und Terminal beenden?",
     "closeTab": "Tab schließen und Terminal beenden?",
     "closeTabBody": "Im Terminal dieses Tabs läuft noch eine Shell, in der du gearbeitet hast. Mit dem Tab endet sie – samt allem, was gerade darin läuft.",
-    "closeTabConfirm": "Tab schließen"
+    "closeTabConfirm": "Tab schließen",
+    "closeSessionTitle": "„{{name}}“ schließen?",
+    "closeSessionBody": "Die Sitzung wird beendet – samt allem, was gerade darin läuft. Ihre Ausgabe geht verloren.",
+    "closeSessionConfirm": "Sitzung schließen"
   }
 }

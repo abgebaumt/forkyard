@@ -1,5 +1,5 @@
 /**
- * Terminal sessions: one shell per repository tab, in the repository's folder.
+ * Terminal sessions: several per repository tab (shells in the repository's folder, later also programs such as coding agents), shown as terminal tabs (tabsModel.ts).
  *
  * A session lives outside React. The panel (index.tsx) only mounts and unmounts its element – on
  * tab switches and when hiding, the shell keeps running and output keeps landing in xterm.js's
@@ -20,6 +20,7 @@ import { dropTerminalFocus, isTerminalReply, registerTerminalController, request
 import { WIN32_PART_LIMIT, inputParts, trackWin32Input } from "./win32Input";
 import { readTerminalFontFamily, readTerminalTheme, terminalLineHeight, watchTerminalTheme } from "./theme";
 import { t } from "../../i18n";
+import { EMPTY_TABS, addProgram, addShell, closeEntry, selectEntry, type TerminalTabs } from "./tabsModel";
 
 export type TerminalStatus =
   | { kind: "starting" }
@@ -66,7 +67,7 @@ function readZoom(): number {
 export function setTerminalFont(size: number, lineHeight: number): void {
   if (font.size === size && font.lineHeight === lineHeight) return;
   font = { size, lineHeight };
-  for (const session of sessions.values()) session.applyAppearance();
+  for (const session of allSessions()) session.applyAppearance();
 }
 
 /** The font must be loaded before xterm.js measures the character width – otherwise the grid is off. */
@@ -92,7 +93,7 @@ function detectWindowsBuild(): void {
       const major = Number.parseInt(values.platformVersion ?? "", 10);
       if (!Number.isFinite(major)) return;
       windowsBuild = major >= 13 ? 22000 : 19045;
-      for (const session of sessions.values()) session.applyAppearance();
+      for (const session of allSessions()) session.applyAppearance();
     })
     .catch(() => undefined);
 }
@@ -106,7 +107,6 @@ const isMac = () => queryClient.getQueryData<AppInfo>(qk.appInfo)?.platform === 
 
 type Early = { kind: "data"; data: string } | { kind: "exit"; code: number | null };
 
-const sessions = new Map<Id, Session>();
 const byTerminalId = new Map<Id, Session>();
 /** What arrives before `terminalOpen` has returned the ID. */
 const early = new Map<Id, Early[]>();
@@ -194,6 +194,9 @@ const isFunctionKey = (event: KeyboardEvent) => /^F\d{1,2}$/.test(event.key);
 // Session
 // ---------------------------------------------------------------------------
 
+/** Starts the session's process in the core and returns its terminal ID. */
+export type Opener = (size: { cols: number; rows: number }) => Promise<Id>;
+
 export class Session {
   readonly term: Terminal;
   /** Own element: xterm.js is opened into it once, the panel mounts and unmounts it. */
@@ -225,10 +228,13 @@ export class Session {
   constructor(
     readonly tabId: Id,
     readonly repoId: Id,
+    readonly key: Id,
+    private readonly opener: Opener,
   ) {
     this.host = document.createElement("div");
     this.host.className = "h-full w-full";
     this.host.dataset.terminalHost = tabId;
+    this.host.dataset.terminalSession = key;
     this.term = new Terminal({
       allowProposedApi: false,
       cursorBlink: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -425,7 +431,7 @@ export class Session {
     const { cols, rows } = this.term;
     opening++;
     try {
-      const terminalId = await core.terminalOpen({ repoId: this.repoId, cols, rows });
+      const terminalId = await this.opener({ cols, rows });
       if (!current()) {
         early.delete(terminalId);
         void core.terminalClose({ terminalId }).catch(() => undefined);
@@ -666,44 +672,158 @@ export class Session {
 // Management
 // ---------------------------------------------------------------------------
 
-/** The tab's session; creates it if there is none yet (or the tab now shows a different repository). */
-export function acquireSession(tabId: Id, repoId: Id): Session {
-  const existing = sessions.get(tabId);
+interface TabGroup {
+  repoId: Id;
+  tabs: TerminalTabs;
+  sessions: Map<Id, Session>;
+}
+
+const groups = new Map<Id, TabGroup>();
+const tabListeners = new Set<() => void>();
+let keyCounter = 0;
+const newKey = (): Id => `term-${Date.now().toString(36)}-${(keyCounter++).toString(36)}`;
+const shellTitle = (number: number) => (number === 1 ? t("terminal.tabs.shell") : t("terminal.tabs.shellNumbered", { n: number }));
+const shellOpener =
+  (repoId: Id): Opener =>
+  ({ cols, rows }) =>
+    core.terminalOpen({ repoId, cols, rows });
+const isLiveStatus = (status: TerminalStatus) => status.kind === "starting" || status.kind === "running";
+
+function* allSessions(): Generator<Session> {
+  for (const group of groups.values()) yield* group.sessions.values();
+}
+
+/** Tells the tab strips. Deferred: sessions are also created while a panel renders. */
+function notifyTabs(): void {
+  queueMicrotask(() => tabListeners.forEach((listener) => listener()));
+}
+
+export function subscribeTerminalTabs(listener: () => void): () => void {
+  tabListeners.add(listener);
+  return () => tabListeners.delete(listener);
+}
+
+/** The terminal tabs of a repository tab (the same object until something changes). */
+export function terminalTabs(tabId: Id): TerminalTabs {
+  return groups.get(tabId)?.tabs ?? EMPTY_TABS;
+}
+
+function groupOf(tabId: Id, repoId: Id): TabGroup {
+  const existing = groups.get(tabId);
   if (existing && existing.repoId === repoId) return existing;
-  existing?.dispose();
-  const session = new Session(tabId, repoId);
-  sessions.set(tabId, session);
+  if (existing) disposeSession(tabId);
+  const group: TabGroup = { repoId, tabs: EMPTY_TABS, sessions: new Map() };
+  groups.set(tabId, group);
+  return group;
+}
+
+function addSession(group: TabGroup, tabId: Id, key: Id, opener: Opener, tabs: TerminalTabs): Session {
+  const session = new Session(tabId, group.repoId, key, opener);
+  group.sessions.set(key, session);
+  group.tabs = tabs;
+  notifyTabs();
   return session;
 }
 
+/** The shown session of the tab; the first time (or after the last one ended) a shell. */
+export function acquireSession(tabId: Id, repoId: Id): Session {
+  const group = groupOf(tabId, repoId);
+  const shown = group.tabs.active ? group.sessions.get(group.tabs.active) : undefined;
+  if (shown) return shown;
+  const key = newKey();
+  return addSession(group, tabId, key, shellOpener(repoId), addShell(group.tabs, key, shellTitle));
+}
+
+/** Another shell in the same repository tab; it is shown right away. */
+export function newShellSession(tabId: Id, repoId: Id): Session {
+  const group = groupOf(tabId, repoId);
+  const key = newKey();
+  return addSession(group, tabId, key, shellOpener(repoId), addShell(group.tabs, key, shellTitle));
+}
+
+/** A session with its own program (coding agents, 2a): `open` starts it in the core. */
+export function openProgramSession(tabId: Id, repoId: Id, title: string, open: Opener): Session {
+  const group = groupOf(tabId, repoId);
+  const key = newKey();
+  return addSession(group, tabId, key, open, addProgram(group.tabs, key, title));
+}
+
+export function selectSession(tabId: Id, key: Id): void {
+  const group = groups.get(tabId);
+  if (!group) return;
+  const next = selectEntry(group.tabs, key);
+  if (next === group.tabs) return;
+  group.tabs = next;
+  notifyTabs();
+}
+
+/** The shown session of the tab, or null. */
 export function getSession(tabId: Id): Session | null {
-  return sessions.get(tabId) ?? null;
+  const group = groups.get(tabId);
+  if (!group || !group.tabs.active) return null;
+  return group.sessions.get(group.tabs.active) ?? null;
 }
 
-export function disposeSession(tabId: Id): void {
-  const session = sessions.get(tabId);
-  if (!session) return;
-  sessions.delete(tabId);
-  dropTerminalFocus(tabId);
+export function sessionByKey(tabId: Id, key: Id): Session | null {
+  return groups.get(tabId)?.sessions.get(key) ?? null;
+}
+
+/** Ends one session; returns how many are left in the tab. */
+export function closeSession(tabId: Id, key: Id): number {
+  const group = groups.get(tabId);
+  const session = group?.sessions.get(key);
+  if (!group || !session) return group?.tabs.entries.length ?? 0;
+  group.sessions.delete(key);
+  group.tabs = closeEntry(group.tabs, key);
   session.dispose();
+  const left = group.tabs.entries.length;
+  if (left === 0) {
+    groups.delete(tabId);
+    dropTerminalFocus(tabId);
+  }
+  notifyTabs();
+  return left;
 }
 
-/** End sessions of tabs that no longer exist (or that show a different repository). */
+/** Ends every session of the tab. */
+export function disposeSession(tabId: Id): void {
+  const group = groups.get(tabId);
+  if (!group) return;
+  groups.delete(tabId);
+  dropTerminalFocus(tabId);
+  for (const session of group.sessions.values()) session.dispose();
+  notifyTabs();
+}
+
+/** End the sessions of tabs that no longer exist (or that show a different repository). */
 function reconcileWithTabs(): void {
-  if (sessions.size === 0) return;
+  if (groups.size === 0) return;
   const tabs = queryClient.getQueryData<Tab[]>(qk.tabs);
   if (!tabs) return;
-  for (const session of [...sessions.values()]) {
-    const tab = tabs.find((item) => item.id === session.tabId);
-    if (!tab || tab.kind !== "repo" || tab.repoId !== session.repoId) disposeSession(session.tabId);
+  for (const [tabId, group] of [...groups]) {
+    const tab = tabs.find((item) => item.id === tabId);
+    if (!tab || tab.kind !== "repo" || tab.repoId !== group.repoId) disposeSession(tabId);
   }
 }
 
 registerTerminalController({
-  statusOf: (tabId) => sessions.get(tabId)?.getStatus().kind ?? null,
-  hadInput: (tabId) => sessions.get(tabId)?.hadInput ?? false,
-  restart: (tabId) => sessions.get(tabId)?.start(),
-  clear: (tabId) => sessions.get(tabId)?.clear(),
+  statusOf: (tabId) => getSession(tabId)?.getStatus().kind ?? null,
+  hadInput: (tabId) => [...(groups.get(tabId)?.sessions.values() ?? [])].some((session) => isLiveStatus(session.getStatus()) && session.hadInput),
+  isLive: (tabId, key) => {
+    const session = sessionByKey(tabId, key);
+    return session ? isLiveStatus(session.getStatus()) : false;
+  },
+  restart: (tabId) => getSession(tabId)?.start(),
+  clear: (tabId) => getSession(tabId)?.clear(),
+  endActive: (tabId) => {
+    const key = groups.get(tabId)?.tabs.active;
+    return key ? closeSession(tabId, key) : 0;
+  },
+  close: closeSession,
+  newShell: (tabId) => {
+    const group = groups.get(tabId);
+    if (group) newShellSession(tabId, group.repoId);
+  },
   dispose: disposeSession,
 });
 
@@ -723,7 +843,7 @@ if (typeof window !== "undefined") {
   });
 
   watchTerminalTheme(() => {
-    for (const session of sessions.values()) session.applyAppearance();
+    for (const session of allSessions()) session.applyAppearance();
   });
   detectWindowsBuild();
 
@@ -732,7 +852,7 @@ if (typeof window !== "undefined") {
     const next = readZoom();
     if (next === zoom) return;
     zoom = next;
-    for (const session of sessions.values()) session.applyAppearance();
+    for (const session of allSessions()) session.applyAppearance();
   }).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
 
   // Reloading or closing the window: leave nothing behind (the core only cleans up when the app quits).
@@ -745,18 +865,28 @@ if (typeof window !== "undefined") {
   if (import.meta.env.DEV) {
     // For the E2E driver (scripts/e2e/screens/terminal.mjs) and the console.
     window.__gcTerminal = {
-      tabs: () => [...sessions.keys()],
+      tabs: () => [...groups.keys()],
       openIds: () => [...byTerminalId.keys()],
-      status: (tabId) => sessions.get(tabId)?.getStatus() ?? null,
-      id: (tabId) => sessions.get(tabId)?.id ?? null,
-      text: (tabId) => sessions.get(tabId)?.bufferText() ?? null,
+      sessions: (tabId) => {
+        const tabs = terminalTabs(tabId);
+        return tabs.entries.map((entry) => ({
+          key: entry.key,
+          title: entry.title,
+          kind: entry.kind,
+          active: entry.key === tabs.active,
+          status: sessionByKey(tabId, entry.key)?.getStatus().kind ?? null,
+        }));
+      },
+      status: (tabId) => getSession(tabId)?.getStatus() ?? null,
+      id: (tabId) => getSession(tabId)?.id ?? null,
+      text: (tabId) => getSession(tabId)?.bufferText() ?? null,
       size: (tabId) => {
-        const term = sessions.get(tabId)?.term;
+        const term = getSession(tabId)?.term;
         return term ? { cols: term.cols, rows: term.rows, lines: term.buffer.active.length, viewportY: term.buffer.active.viewportY, baseY: term.buffer.active.baseY } : null;
       },
-      selection: (tabId) => sessions.get(tabId)?.selection() ?? null,
+      selection: (tabId) => getSession(tabId)?.selection() ?? null,
       options: (tabId) => {
-        const term = sessions.get(tabId)?.term;
+        const term = getSession(tabId)?.term;
         return term ? { theme: { ...term.options.theme }, fontFamily: term.options.fontFamily, fontSize: term.options.fontSize, lineHeight: term.options.lineHeight, scrollback: term.options.scrollback } : null;
       },
     };
@@ -768,6 +898,7 @@ declare global {
     __gcTerminal?: {
       tabs(): Id[];
       openIds(): Id[];
+      sessions(tabId: Id): { key: Id; title: string; kind: "shell" | "program"; active: boolean; status: TerminalStatus["kind"] | null }[];
       status(tabId: Id): TerminalStatus | null;
       id(tabId: Id): Id | null;
       text(tabId: Id): string | null;

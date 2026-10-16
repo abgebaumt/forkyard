@@ -11,14 +11,23 @@ import type { Id } from "../../core";
 export type TerminalStatusKind = "starting" | "running" | "exited" | "failed";
 
 export interface TerminalController {
+  /** State of the session shown in the tab. */
   statusOf(tabId: Id): TerminalStatusKind | null;
-  /** Whether the shell has received anything from the user since its start (typed or pasted). */
+  /** Whether a running session of the tab has received anything from the user since its start. */
   hadInput(tabId: Id): boolean;
-  /** End the shell and start it fresh (without a prompt – the caller asks). */
+  /** Whether the session `key` of the tab is still running. */
+  isLive(tabId: Id, key: Id): boolean;
+  /** End the shown shell and start it fresh (without a prompt – the caller asks). */
   restart(tabId: Id): void;
-  /** Clear the scrollback; the shell keeps running. */
+  /** Clear the scrollback of the shown session; it keeps running. */
   clear(tabId: Id): void;
-  /** End the session and forget it. */
+  /** End the shown session; returns how many sessions are left in the tab. */
+  endActive(tabId: Id): number;
+  /** End the session `key`; returns how many sessions are left in the tab. */
+  close(tabId: Id, key: Id): number;
+  /** Another shell in the tab, shown at once. */
+  newShell(tabId: Id): void;
+  /** End every session of the tab and forget them. */
   dispose(tabId: Id): void;
 }
 
@@ -31,8 +40,12 @@ export function registerTerminalController(next: TerminalController): void {
 export const terminalControl: TerminalController = {
   statusOf: (tabId) => controller?.statusOf(tabId) ?? null,
   hadInput: (tabId) => controller?.hadInput(tabId) ?? false,
+  isLive: (tabId, key) => controller?.isLive(tabId, key) ?? false,
   restart: (tabId) => controller?.restart(tabId),
   clear: (tabId) => controller?.clear(tabId),
+  endActive: (tabId) => controller?.endActive(tabId) ?? 0,
+  close: (tabId, key) => controller?.close(tabId, key) ?? 0,
+  newShell: (tabId) => controller?.newShell(tabId),
   dispose: (tabId) => controller?.dispose(tabId),
 };
 

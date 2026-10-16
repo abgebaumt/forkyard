@@ -53,19 +53,19 @@ export async function endTerminal(tabId: Id): Promise<boolean> {
     });
     if (!ok) return false;
   }
-  hideTerminal(tabId);
-  terminalControl.dispose(tabId);
+  // The last session closes the region; otherwise the neighbouring tab is shown.
+  if (terminalControl.endActive(tabId) === 0) hideTerminal(tabId);
   return true;
 }
 
 /**
- * Before closing a tab: if its shell is still running and has been worked in, everything running
+ * Before closing a tab: if one of its shells is still running and has been worked in, everything running
  * in it ends with the tab – that asks first. A shell that has only shown its prompt ends without
  * a prompt. (The core does not report whether a program is currently running; hence the rule:
  * always ask as soon as the shell has received input since its start.)
  */
 export async function confirmCloseTerminal(tabId: Id, tabName?: string | null): Promise<boolean> {
-  if (!isLive(terminalControl.statusOf(tabId)) || !terminalControl.hadInput(tabId)) return true;
+  if (!terminalControl.hadInput(tabId)) return true;
   return confirm({
     title: tabName ? t("terminal.confirm.closeTabNamed", { name: tabName }) : t("terminal.confirm.closeTab"),
     body: t("terminal.confirm.closeTabBody"),
@@ -77,4 +77,26 @@ export async function confirmCloseTerminal(tabId: Id, tabName?: string | null): 
 /** Clear the scrollback: what has scrolled off the top. */
 export function clearTerminal(tabId: Id): void {
   terminalControl.clear(tabId);
+}
+
+/** Another shell in the tab's terminal; it is shown and gets the focus. */
+export function newTerminalShell(tabId: Id): void {
+  terminalControl.newShell(tabId);
+  requestTerminalFocus(tabId);
+}
+
+/** Close one terminal tab. A running session asks first – whatever runs in it ends too. */
+export async function closeTerminalSession(tabId: Id, key: Id, name: string): Promise<boolean> {
+  if (terminalControl.isLive(tabId, key)) {
+    const ok = await confirm({
+      title: t("terminal.confirm.closeSessionTitle", { name }),
+      body: t("terminal.confirm.closeSessionBody"),
+      confirmLabel: t("terminal.confirm.closeSessionConfirm"),
+      danger: true,
+    });
+    if (!ok) return false;
+  }
+  if (terminalControl.close(tabId, key) === 0) hideTerminal(tabId);
+  else afterFocusReturn(() => requestTerminalFocus(tabId));
+  return true;
 }

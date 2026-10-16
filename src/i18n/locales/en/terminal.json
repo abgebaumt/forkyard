@@ -40,6 +40,22 @@
   "height": "Terminal height",
   "promptLabel": "Terminal input",
   "tooMuchOutput": "Too much output to read aloud. Use the arrow keys to read it line by line.",
+  "tabs": {
+    "label": "Terminal sessions",
+    "shell": "Shell",
+    "shellNumbered": "Shell {{n}}",
+    "new": "New shell",
+    "close": "Close “{{name}}”",
+    "live": "{{name}}: {{status}}",
+    "status": {
+      "starting": "starting",
+      "running": "running",
+      "waiting": "waiting for you",
+      "done": "done",
+      "failed": "error",
+      "exited": "ended"
+    }
+  },
   "confirm": {
     "restartTitle": "Restart terminal?",
     "restartBody": "The shell is ended – along with everything running in it. The previous output disappears.",
@@ -48,6 +64,9 @@
     "closeTabNamed": "Close tab “{{name}}” and end the terminal?",
     "closeTab": "Close tab and end the terminal?",
     "closeTabBody": "The terminal of this tab is still running a shell you worked in. It ends with the tab – along with everything running in it.",
-    "closeTabConfirm": "Close tab"
+    "closeTabConfirm": "Close tab",
+    "closeSessionTitle": "Close “{{name}}”?",
+    "closeSessionBody": "The session ends – along with everything running in it. Its output is lost.",
+    "closeSessionConfirm": "Close session"
   }
 }
