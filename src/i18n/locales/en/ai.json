@@ -43,7 +43,7 @@
     "master": {
       "title": "AI features",
       "description": "Turns every AI function on or off. Turning it off cancels running requests at once.",
-      "unset": "Not set up yet. Choose a provider below and turn this on."
+      "unset": "Not set up yet. “Set up …” finds the AI tools on this computer – or choose a provider below and turn this on."
     },
     "providerCard": "Provider",
     "provider": {
@@ -124,7 +124,22 @@
       "summary_one": "{{count}} request, {{input}} input and {{output}} output tokens, {{cost}}",
       "summary_other": "{{count}} requests, {{input}} input and {{output}} output tokens, {{cost}}"
     },
-    "invalidAmount": "Enter an amount in USD, e.g. 0.10."
+    "invalidAmount": "Enter an amount in USD, e.g. 0.10.",
+    "setup": {
+      "title": "Setup",
+      "description": "Finds Claude Code, Codex, opencode, local models and stored keys on this computer and turns AI on in a few steps. Nothing is sent.",
+      "button": "Set up …"
+    },
+    "cliCard": "Command-line tools",
+    "cliPath": {
+      "description": "Own path to the program. Empty = found automatically (PATH, the usual install folders, the login shell’s PATH).",
+      "placeholder": "Found automatically"
+    },
+    "opencodeNote": "opencode stores its sessions on this computer.",
+    "cliPrice": "Billed through {{name}}: Forkyard estimates no costs, and the monthly limit does not apply. Usage is counted when the tool reports it.",
+    "cliModel": "Default of the tool",
+    "cliCheckOk": "{{name}} is ready and signed in.",
+    "signInNoRepo": "Open a repository to sign in in its terminal, or run the sign-in command in a terminal of your own."
   },
   "project": {
     "title": "AI and agents",

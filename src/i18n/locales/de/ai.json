@@ -43,7 +43,7 @@
     "master": {
       "title": "KI-Funktionen",
       "description": "Schaltet alle KI-Funktionen ein oder aus. Ausschalten bricht laufende Anfragen sofort ab.",
-      "unset": "Noch nicht eingerichtet. Wähle unten einen Anbieter und schalte dies ein."
+      "unset": "Noch nicht eingerichtet. „Einrichten …“ findet die KI-Programme auf diesem Computer – oder wähle unten einen Anbieter und schalte dies ein."
     },
     "providerCard": "Anbieter",
     "provider": {
@@ -124,7 +124,22 @@
       "summary_one": "{{count}} Anfrage, {{input}} Eingabe- und {{output}} Ausgabe-Tokens, {{cost}}",
       "summary_other": "{{count}} Anfragen, {{input}} Eingabe- und {{output}} Ausgabe-Tokens, {{cost}}"
     },
-    "invalidAmount": "Gib einen Betrag in USD ein, z. B. 0,10."
+    "invalidAmount": "Gib einen Betrag in USD ein, z. B. 0,10.",
+    "setup": {
+      "title": "Einrichtung",
+      "description": "Findet Claude Code, Codex, opencode, lokale Modelle und gespeicherte Schlüssel auf diesem Computer und schaltet KI in wenigen Schritten ein. Dabei wird nichts gesendet.",
+      "button": "Einrichten …"
+    },
+    "cliCard": "Kommandozeilenprogramme",
+    "cliPath": {
+      "description": "Eigener Pfad zum Programm. Leer = automatisch gefunden (PATH, die üblichen Installationsordner, der PATH der Login-Shell).",
+      "placeholder": "Automatisch gefunden"
+    },
+    "opencodeNote": "opencode speichert seine Sitzungen auf diesem Computer.",
+    "cliPrice": "Abrechnung über {{name}}: Forkyard schätzt keine Kosten, und das Monatslimit gilt nicht. Der Verbrauch wird gezählt, wenn das Programm ihn meldet.",
+    "cliModel": "Standard des Programms",
+    "cliCheckOk": "{{name}} ist bereit und angemeldet.",
+    "signInNoRepo": "Öffne ein Repository, um dich in seinem Terminal anzumelden, oder führe den Anmeldebefehl in einem eigenen Terminal aus."
   },
   "project": {
     "title": "KI und Agenten",
