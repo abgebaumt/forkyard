@@ -17,6 +17,7 @@ const base: RepoSettings = {
   sshKeyId: null,
   submodulesAutoUpdate: true,
   linkRules: { hostRules: true, presets: [], custom: [] },
+  aiOff: false,
 };
 
 describe("inheritance in the project", () => {

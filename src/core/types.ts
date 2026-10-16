@@ -950,6 +950,35 @@ export type SettingScope = "global" | "profile";
 export type DateFormat = "relative" | "local" | "iso";
 export type DiffMode = "hunks" | "inline" | "split";
 
+// --- AI (v1.2) ------------------------------------------------------------------
+
+/** One provider for every AI function and every profile (Settings › AI). */
+export type AiProviderKind = "anthropic" | "openai" | "openai_compatible" | "gemini" | "ollama" | "lmstudio";
+
+/** AI functions; each one can be switched off (`Settings.aiFeaturesOff`). */
+export type AiFeature =
+  | "commit_message"
+  | "pr_description"
+  | "compose"
+  | "conflict_intent"
+  | "push_review"
+  | "plan"
+  | "archaeology"
+  | "release_notes"
+  | "bisect_script"
+  | "semantic_search"
+  | "review_fix";
+
+/** `unset`: never set up and never turned off; `off`: turned off on purpose; `on`. */
+export type AiState = "unset" | "off" | "on";
+
+/** Own price for a model, USD per million tokens; wins over the built-in table. */
+export interface AiPriceOverride {
+  model: string;
+  inputUsdPerMtok: number;
+  outputUsdPerMtok: number;
+}
+
 /** Global settings of the active profile. The core sets the defaults. */
 export interface Settings {
   theme: Theme;
@@ -1008,6 +1037,22 @@ export interface Settings {
    * for `proxyByHost.host`; wildcards (`*`) are rejected with `not_allowed`.
    */
   sslNoVerifyHosts?: string[];
+  // --- AI (v1.2, all global) ---
+  /** Master switch: null = not set up yet ("unset"), false = turned off on purpose, true = on. */
+  aiEnabled: boolean | null;
+  aiProvider: AiProviderKind | null;
+  /** Model ID as the provider names it. */
+  aiModel: string | null;
+  /** Address of the OpenAI-compatible service, or another address for Ollama / LM Studio. `http://` only to this computer. */
+  aiBaseUrl: string | null;
+  aiFeaturesOff: AiFeature[];
+  /** gitignore patterns excluded in every repository (besides `.forkyard/ai-ignore`). */
+  aiExclude: string[];
+  /** Ask before a request whose estimated cost is above this (USD). Default 0.10. */
+  aiConfirmCostUsd: number;
+  /** Ask before every further request once this month's estimated costs reach this (USD). null = no limit. */
+  aiMonthlyLimitUsd: number | null;
+  aiPrices: AiPriceOverride[];
 }
 
 /** App-side settings per repository. */
@@ -1044,6 +1089,8 @@ export interface RepoSettings {
    * (`not_allowed` with the reason) and stores them in canonical form. The effective rules come from `linkRulesGet`.
    */
   linkRules: LinkRulesConfig;
+  /** "AI off for this repository": no AI element, nothing of it is sent. Stored in the app, not in .git/config. */
+  aiOff: boolean;
 }
 
 export type LinkPresetKind = "jira" | "linear" | "youtrack" | "redmine";
@@ -1484,7 +1531,7 @@ export interface GitflowFinishOptions {
 /** `locks`: LFS file locks (`lfsLocks`) – after locking/unlocking and after a fetch. */
 export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks";
 /** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `workspaces`: `workspaceList`, `custom_commands`: `customCommandsList`. */
-export type AppChange = "tabs" | "repos" | "settings" | "profiles" | "credentials" | "ssh_keys" | "workspaces" | "host_accounts" | "custom_commands";
+export type AppChange = "tabs" | "repos" | "settings" | "profiles" | "credentials" | "ssh_keys" | "workspaces" | "host_accounts" | "custom_commands" | "ai";
 
 export interface CoreEvents {
   "repo:changed": { repoId: Id; what: RepoChange[] };

@@ -8,7 +8,7 @@ use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::netconfig;
-use crate::model::{AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings};
+use crate::model::{AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings, DEFAULT_AI_CONFIRM_COST_USD};
 use crate::util;
 
 // ---------------------------------------------------------------------------
@@ -30,9 +30,63 @@ fn normalize(mut s: Settings) -> Settings {
     s.external_terminal = util::non_empty(s.external_terminal.take());
     s.external_diff_tool = util::non_empty(s.external_diff_tool.take());
     s.external_merge_tool = util::non_empty(s.external_merge_tool.take());
+    normalize_ai(&mut s);
     // Stored network values that are not (or no longer) valid are dropped one by one.
     crate::git::netconfig::normalize_lenient(&mut s);
     s
+}
+
+/// Fields of the AI settings; changing one also reports `app:changed` with `ai`.
+const AI_KEYS: [&str; 9] = [
+    "aiEnabled",
+    "aiProvider",
+    "aiModel",
+    "aiBaseUrl",
+    "aiFeaturesOff",
+    "aiExclude",
+    "aiConfirmCostUsd",
+    "aiMonthlyLimitUsd",
+    "aiPrices",
+];
+
+fn normalize_ai(s: &mut Settings) {
+    s.ai_model = util::non_empty(s.ai_model.take()).map(|model| model.trim().to_string());
+    s.ai_base_url = util::non_empty(s.ai_base_url.take()).map(|url| url.trim().trim_end_matches('/').to_string());
+    s.ai_confirm_cost_usd = if s.ai_confirm_cost_usd.is_finite() { s.ai_confirm_cost_usd.clamp(0.0, 100.0) } else { DEFAULT_AI_CONFIRM_COST_USD };
+    s.ai_monthly_limit_usd = s.ai_monthly_limit_usd.filter(|limit| limit.is_finite() && *limit >= 0.0).map(|limit| limit.min(100_000.0));
+    let mut known = std::collections::HashSet::new();
+    s.ai_exclude = s
+        .ai_exclude
+        .iter()
+        .map(|pattern| pattern.trim().to_string())
+        .filter(|pattern| !pattern.is_empty() && known.insert(pattern.clone()))
+        .take(200)
+        .collect();
+    s.ai_features_off.sort();
+    s.ai_features_off.dedup();
+    let mut prices: Vec<AiPriceOverride> = Vec::new();
+    for price in std::mem::take(&mut s.ai_prices) {
+        let model = price.model.trim().to_string();
+        let valid = |value: f64| value.is_finite() && value >= 0.0;
+        if model.is_empty() || !valid(price.input_usd_per_mtok) || !valid(price.output_usd_per_mtok) {
+            continue;
+        }
+        prices.retain(|known| known.model != model);
+        prices.push(AiPriceOverride { model, input_usd_per_mtok: price.input_usd_per_mtok, output_usd_per_mtok: price.output_usd_per_mtok });
+    }
+    s.ai_prices = prices;
+}
+
+/// An AI service address: http(s), no credentials in it, unencrypted `http://` only to this computer.
+pub(crate) fn check_ai_base_url(url: &str) -> CoreResult<()> {
+    let target = crate::http::Target::parse(url)?;
+    if target.scheme == "http" && !target.loopback {
+        return Err(CoreError::not_allowed(format!(
+            "Unencrypted addresses (http://) are only allowed to this computer. Use https://{} or a tunnel to this computer.",
+            target.host
+        )));
+    }
+    Ok(())
 }
 
 /// Fields of the network settings (proxy, CA bundle, exceptions from certificate verification).
@@ -75,6 +129,11 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
             return Err(CoreError::invalid_name(format!("Invalid default branch name: {reason}")));
         }
     }
+    if changed.iter().any(|k| k == "aiBaseUrl") {
+        if let Some(url) = next.ai_base_url.as_deref().map(str::trim).filter(|url| !url.is_empty()) {
+            check_ai_base_url(url)?;
+        }
+    }
     let mut next = next;
     if changed.iter().any(|k| NETWORK_KEYS.contains(&k.as_str())) {
         // Strict when saving: an invalid value (placeholder instead of a host, broken
@@ -109,7 +168,11 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
         }
         Ok(())
     })?;
-    core.emit_app_changed(&[AppChange::Settings]);
+    if changed.iter().any(|k| AI_KEYS.contains(&k.as_str())) {
+        core.emit_app_changed(&[AppChange::Settings, AppChange::Ai]);
+    } else {
+        core.emit_app_changed(&[AppChange::Settings]);
+    }
     Ok(next)
 }
 
@@ -635,6 +698,7 @@ mod tests {
     use super::*;
     use crate::error::ErrorCode;
     use crate::events::names;
+    use crate::model::{AiFeature, AiProviderKind};
     use crate::model::{PullMode, Theme};
     use crate::testkit::{TestCore, TestRepo};
     use serde_json::json;
@@ -682,6 +746,82 @@ mod tests {
             assert_eq!(scopes[key], crate::model::SettingScope::Global, "{key}");
         }
         assert_eq!(scopes["proxyUrl"], crate::model::SettingScope::Profile);
+    }
+
+    #[tokio::test]
+    async fn ai_settings_are_global_tidied_and_checked() {
+        let tc = TestCore::new().await;
+        let s = settings_get(&tc).await.unwrap();
+        assert_eq!(s.ai_enabled, None, "not set up: neither on nor off");
+        assert_eq!(s.ai_confirm_cost_usd, 0.10, "ask above 0.10 USD by default (spec Grundregel 4)");
+        let s = settings_set(
+            &tc,
+            json!({
+                "aiEnabled": true,
+                "aiProvider": "openai_compatible",
+                "aiBaseUrl": " https://llm.firma.example/v1/ ",
+                "aiModel": "  mistral-large-latest ",
+                "aiConfirmCostUsd": -3,
+                "aiMonthlyLimitUsd": 25.5,
+                "aiExclude": [" *.sql ", "", "*.sql", "geheim/**"],
+                "aiFeaturesOff": ["plan", "compose", "plan"],
+                "aiPrices": [
+                    {"model": " mistral-large-latest ", "inputUsdPerMtok": 2, "outputUsdPerMtok": 6},
+                    {"model": "", "inputUsdPerMtok": 1, "outputUsdPerMtok": 1},
+                    {"model": "x", "inputUsdPerMtok": -1, "outputUsdPerMtok": 1}
+                ]
+            }),
+        )
+        .await
+        .unwrap();
+        assert_eq!(s.ai_base_url.as_deref(), Some("https://llm.firma.example/v1"));
+        assert_eq!(s.ai_model.as_deref(), Some("mistral-large-latest"));
+        assert_eq!(s.ai_confirm_cost_usd, 0.0);
+        assert_eq!(s.ai_monthly_limit_usd, Some(25.5));
+        assert_eq!(s.ai_exclude, vec!["*.sql".to_string(), "geheim/**".to_string()]);
+        assert_eq!(s.ai_features_off, vec![AiFeature::Compose, AiFeature::Plan]);
+        assert_eq!(s.ai_prices.len(), 1);
+        assert_eq!((s.ai_prices[0].model.as_str(), s.ai_prices[0].input_usd_per_mtok, s.ai_prices[0].output_usd_per_mtok), ("mistral-large-latest", 2.0, 6.0));
+        let ai_events = tc
+            .events
+            .all()
+            .into_iter()
+            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .count();
+        assert_eq!(ai_events, 1, "an AI change also reports app:changed with ai");
+
+        // Global (Entscheidung 1): another profile sees the same values.
+        let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
+        let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
+        profile_activate(&tc, other).await.unwrap();
+        let s = settings_get(&tc).await.unwrap();
+        assert_eq!((s.ai_enabled, s.ai_provider), (Some(true), Some(AiProviderKind::OpenaiCompatible)));
+
+        // Unencrypted only to this computer.
+        let err = settings_set(&tc, json!({"aiBaseUrl": "http://llm.firma.example/v1"})).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+        assert!(err.message.contains("https://"), "{}", err.message);
+        let err = settings_set(&tc, json!({"aiBaseUrl": "https://user:pass@llm.firma.example/v1"})).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed, "no credentials in the address");
+        assert!(!err.message.contains("pass@"), "{}", err.message);
+        let s = settings_set(&tc, json!({"aiBaseUrl": "http://127.0.0.1:11435"})).await.unwrap();
+        assert_eq!(s.ai_base_url.as_deref(), Some("http://127.0.0.1:11435"));
+        let s = settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
+        assert_eq!(s.ai_enabled, Some(false), "off on purpose is kept apart from unset");
+    }
+
+    #[tokio::test]
+    async fn ai_off_is_a_repository_setting_outside_the_git_config() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        let id = tc.open(&repo).await.repo.id;
+        assert!(!repo_settings_get(&tc, id.clone()).await.unwrap().ai_off);
+        let s = repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
+        assert!(s.ai_off);
+        let config = String::from_utf8_lossy(&repo.read_file(".git/config")).to_lowercase();
+        assert!(!config.contains("aioff"), "stored in the app database, not in .git/config: {config}");
+        let tc = tc.restart().await;
+        assert!(repo_settings_get(&tc, id).await.unwrap().ai_off, "kept across a restart");
     }
 
     #[tokio::test]

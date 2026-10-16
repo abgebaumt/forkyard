@@ -37,6 +37,15 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   proxyByHost: [],
   sslCaFile: null,
   sslNoVerifyHosts: [],
+  aiEnabled: null,
+  aiProvider: null,
+  aiModel: null,
+  aiBaseUrl: null,
+  aiFeaturesOff: [],
+  aiExclude: [],
+  aiConfirmCostUsd: 0.1,
+  aiMonthlyLimitUsd: null,
+  aiPrices: [],
 };
 
 /** Does the field deviate from the default? */

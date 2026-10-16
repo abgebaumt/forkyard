@@ -1251,6 +1251,69 @@ pub struct HostProxy {
     pub proxy: String,
 }
 
+// ---------------------------------------------------------------------------
+// AI (v1.2)
+// ---------------------------------------------------------------------------
+
+/// Default of `Settings.ai_confirm_cost_usd`: ask before a request estimated above 0.10 USD.
+pub const DEFAULT_AI_CONFIRM_COST_USD: f64 = 0.10;
+
+fn default_ai_confirm_cost() -> f64 {
+    DEFAULT_AI_CONFIRM_COST_USD
+}
+
+/// AI provider (`Settings.ai_provider`, one for every function and profile). The command-line
+/// providers come with Teilpaket 1b.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiProviderKind {
+    Anthropic,
+    Openai,
+    /// Own address speaking the OpenAI chat-completions protocol (OpenRouter, Mistral, Groq, company proxy).
+    OpenaiCompatible,
+    Gemini,
+    /// Local, native API (`/api/chat`), default `http://127.0.0.1:11434`.
+    Ollama,
+    /// Local, OpenAI protocol, default `http://127.0.0.1:1234/v1`.
+    Lmstudio,
+}
+
+/// An AI function; each one can be switched off (`Settings.ai_features_off`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiFeature {
+    CommitMessage,
+    PrDescription,
+    Compose,
+    ConflictIntent,
+    PushReview,
+    Plan,
+    Archaeology,
+    ReleaseNotes,
+    BisectScript,
+    SemanticSearch,
+    ReviewFix,
+}
+
+/// From `Settings.ai_enabled`: `None` = `Unset` (never set up, never turned off), `Some(false)` =
+/// `Off` (turned off on purpose), `Some(true)` = `On`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiState {
+    Unset,
+    Off,
+    On,
+}
+
+/// Own price for a model (USD per million tokens); wins over the built-in table.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPriceOverride {
+    pub model: String,
+    pub input_usd_per_mtok: f64,
+    pub output_usd_per_mtok: f64,
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -1301,6 +1364,32 @@ pub struct Settings {
     /// never global), in the form `https://host[:port]`.
     #[serde(default)]
     pub ssl_no_verify_hosts: Vec<String>,
+    // --- AI (v1.2; all global, see db::app_settings::GLOBAL_KEYS) ---
+    /// Master switch: `None` = not set up yet, `Some(false)` = turned off on purpose.
+    #[serde(default)]
+    pub ai_enabled: Option<bool>,
+    #[serde(default)]
+    pub ai_provider: Option<AiProviderKind>,
+    /// Model ID as the provider names it (`claude-sonnet-5-5`, `qwen3:8b` …).
+    #[serde(default)]
+    pub ai_model: Option<String>,
+    /// Address of the OpenAI-compatible service, or another address for Ollama / LM Studio.
+    #[serde(default)]
+    pub ai_base_url: Option<String>,
+    /// Functions that are switched off.
+    #[serde(default)]
+    pub ai_features_off: Vec<AiFeature>,
+    /// Exclusion patterns (gitignore syntax) for every repository.
+    #[serde(default)]
+    pub ai_exclude: Vec<String>,
+    /// Ask before a request whose estimated cost is above this (USD).
+    #[serde(default = "default_ai_confirm_cost")]
+    pub ai_confirm_cost_usd: f64,
+    /// Ask before every further request once this month's estimated API costs reach this (USD).
+    #[serde(default)]
+    pub ai_monthly_limit_usd: Option<f64>,
+    #[serde(default)]
+    pub ai_prices: Vec<AiPriceOverride>,
 }
 
 fn yes() -> bool {
@@ -1350,6 +1439,15 @@ impl Default for Settings {
             proxy_by_host: Vec::new(),
             ssl_ca_file: None,
             ssl_no_verify_hosts: Vec::new(),
+            ai_enabled: None,
+            ai_provider: None,
+            ai_model: None,
+            ai_base_url: None,
+            ai_features_off: Vec::new(),
+            ai_exclude: Vec::new(),
+            ai_confirm_cost_usd: DEFAULT_AI_CONFIRM_COST_USD,
+            ai_monthly_limit_usd: None,
+            ai_prices: Vec::new(),
         }
     }
 }
@@ -1379,6 +1477,9 @@ pub struct RepoSettings {
     /// saving; the effective rules (including `.forkyard/links.json`) come from `link_rules_get`.
     #[serde(default)]
     pub link_rules: LinkRulesConfig,
+    /// "AI off for this repository": no AI element appears for it, nothing of it is sent.
+    #[serde(default)]
+    pub ai_off: bool,
 }
 
 impl Default for RepoSettings {
@@ -1395,6 +1496,7 @@ impl Default for RepoSettings {
             ssh_key_id: None,
             submodules_auto_update: true,
             link_rules: LinkRulesConfig::default(),
+            ai_off: false,
         }
     }
 }
@@ -2096,6 +2198,8 @@ pub enum AppChange {
     HostAccounts,
     /// Custom commands: the user's own or the approval of a repository file (`custom_commands_list`).
     CustomCommands,
+    /// AI status (`ai_status`): master switch, provider, model, key, given confirmations.
+    Ai,
 }
 
 /// `repo:changed`

@@ -12,4 +12,10 @@ describe("settings defaults", () => {
     expect(resetPatch("defaultPullMode")).toEqual({ defaultPullMode: "ff" });
     expect(resetPatch("externalEditor")).toEqual({ externalEditor: null });
   });
+  it("AI is neither on nor off by default and asks above 0.10 USD", () => {
+    expect(DEFAULT_SETTINGS.aiEnabled).toBeNull();
+    expect(DEFAULT_SETTINGS.aiConfirmCostUsd).toBe(0.1);
+    expect(isChanged({ ...DEFAULT_SETTINGS, aiFeaturesOff: ["compose"] }, "aiFeaturesOff")).toBe(true);
+    expect(resetPatch("aiEnabled")).toEqual({ aiEnabled: null });
+  });
 });

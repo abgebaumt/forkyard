@@ -10,7 +10,7 @@ use crate::util;
 
 /// Fields of `Settings` that apply globally. Network (proxy, certificates) deliberately belongs to
 /// the profile: a company proxy only applies in the "Work" profile.
-pub const GLOBAL_KEYS: [&str; 17] = [
+pub const GLOBAL_KEYS: [&str; 26] = [
     "theme",
     "zoom",
     "dateFormat",
@@ -28,6 +28,16 @@ pub const GLOBAL_KEYS: [&str; 17] = [
     "notifyOnFetch",
     "notifyOnError",
     "checkForUpdates",
+    // AI (v1.2): one provider and one key for all profiles (Entscheidung 1).
+    "aiEnabled",
+    "aiProvider",
+    "aiModel",
+    "aiBaseUrl",
+    "aiFeaturesOff",
+    "aiExclude",
+    "aiConfirmCostUsd",
+    "aiMonthlyLimitUsd",
+    "aiPrices",
 ];
 
 pub fn is_global(key: &str) -> bool {
