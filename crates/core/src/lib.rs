@@ -4,6 +4,7 @@
 //! `pub async fn name(core: &Core, <parameters>) -> CoreResult<T>`. Git is only called
 //! through the Git runner (`git::GitRunner`, `Core::git_for`).
 
+pub mod ai;
 pub mod app;
 pub mod autofetch;
 pub mod commands;
