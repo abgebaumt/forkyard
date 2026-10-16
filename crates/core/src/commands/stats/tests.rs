@@ -350,8 +350,10 @@ async fn a_cached_result_sorts_the_code_age_again_against_today() {
 async fn results_are_cached_per_tip_and_period() {
     let (repo, _) = demo();
     let (tc, id) = setup(&repo).await;
-    let first = run(&tc, &id, range(None, None, "HEAD")).await;
-    let second = run(&tc, &id, range(None, None, "HEAD")).await;
+    // "Now" is fixed: with the wall clock the two runs can straddle a second and differ in
+    // `reference_time` although the cached result is the same.
+    let first = run_at(&tc, &id, range(None, None, "HEAD"), TIP_TIME).await;
+    let second = run_at(&tc, &id, range(None, None, "HEAD"), TIP_TIME).await;
     assert!(!first.cached && second.cached);
     assert_eq!(RepoStats { cached: false, ..second }, first);
     assert!(!run(&tc, &id, range(Some("2025-06-16T00:00:00Z"), None, "HEAD")).await.cached, "another period is its own entry");
