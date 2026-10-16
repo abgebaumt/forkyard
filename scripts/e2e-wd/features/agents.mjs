@@ -55,16 +55,18 @@ async function setUp(t, lang = "en") {
   return { fx, app, repoId, tabId, log };
 }
 
-async function startFromDialog(app, task) {
+const agentBranches = (repoPath) =>
+  git(repoPath, "branch", "--list", "--format=%(refname:short)", "agent/*").split("\n").filter(Boolean);
+
+/** Starts an agent through the dialog; returns the branch Git has for it afterwards. */
+async function startFromDialog(app, repoPath, task) {
+  const before = new Set(agentBranches(repoPath));
   await app.press("Control+Shift+a");
   await app.waitFor('[role="dialog"] [data-field="task"]', 15_000, { message: "start dialog" });
+  // The dialog first suggests a branch for the empty task. Type only once that answer is in, so the
+  // task's own suggestion has to replace it (a branch read from the field too early would be stale).
+  await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [data-field="branch"] input, [role="dialog"] input[data-field="branch"]')?.value === "agent/agent"), 15_000, { message: "suggestion for the empty task" });
   await app.type('[role="dialog"] [data-field="task"]', task);
-  // The branch is suggested from the task and checked live.
-  const branch = await app.waitFor(
-    () => app.exec(() => document.querySelector('[role="dialog"] [data-field="branch"] input, [role="dialog"] input[data-field="branch"]')?.value || null),
-    15_000,
-    { message: "suggested branch" },
-  );
   // The live check can enable the button for a moment and disable it again (a suggestion that
   // changes the branch starts one more check), so a WebDriver click may hit a disabled button. Check
   // and click in one turn of the page instead.
@@ -80,14 +82,19 @@ async function startFromDialog(app, task) {
     { message: "start enabled and clicked" },
   );
   await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-field="task"]')), 30_000, { message: "dialog closed after the start" });
-  return branch;
+  // Which branch the agent got is Git's answer, not whatever the field showed at some moment.
+  const created = await app.waitFor(() => {
+    const fresh = agentBranches(repoPath).filter((name) => !before.has(name));
+    return fresh.length === 1 ? fresh : null;
+  }, 15_000, { message: "agent branch in git" });
+  return created[0];
 }
 
 const rowStatus = (app) => app.exec(() => [...document.querySelectorAll("[data-agent-row]")].map((row) => ({ id: row.dataset.agentRow, status: row.dataset.status, text: row.innerText.replace(/\s+/g, " ") })));
 
 scenario("start an agent: own worktree, typed task, waiting for you, cockpit and notification", "main", async (t) => {
   const { fx, app, log } = await setUp(t);
-  const branch = await startFromDialog(app, "Größe der Übersicht anpassen");
+  const branch = await startFromDialog(app, fx.path, "Größe der Übersicht anpassen");
   assertEqual(branch, "agent/groesse-der-uebersicht-anpassen", "branch suggested from the task (umlauts folded)");
   t.step("agent started");
   // Git has the worktree next to the repository, on the new branch.
@@ -127,8 +134,8 @@ scenario("start an agent: own worktree, typed task, waiting for you, cockpit and
 });
 
 scenario("an agent in a background repository tab still notifies", "main", async (t) => {
-  const { app, repoId, tabId } = await setUp(t);
-  const branch = await startFromDialog(app, "Im Hintergrund fertig werden");
+  const { fx, app, repoId, tabId } = await setUp(t);
+  const branch = await startFromDialog(app, fx.path, "Im Hintergrund fertig werden");
   const short = branch.replace("agent/", "");
   const agent = await app.waitFor(async () => (await app.invoke("agent_list", { repoId })).find((item) => item.status === "waiting" && item.terminalId) ?? null, 60_000, { message: "agent waiting" });
   // Another repository becomes the active tab; the agent's tab is in the background now.
@@ -150,7 +157,7 @@ scenario("an agent in a background repository tab still notifies", "main", async
 
 scenario("clean up an agent with the warning about unpushed commits, then undo brings it back", "main", async (t) => {
   const { fx, app } = await setUp(t);
-  const branch = await startFromDialog(app, "Aufräumen und zurückholen");
+  const branch = await startFromDialog(app, fx.path, "Aufräumen und zurückholen");
   const short = branch.replace("agent/", "");
   const folder = path.join(path.dirname(fx.path), `${path.basename(fx.path)}.agents`, short);
   // A commit only the agent's branch has.
@@ -195,8 +202,8 @@ scenario("without prompts: unavailable for a template without arguments, warning
 });
 
 scenario("quitting asks while an agent runs", "edge", async (t) => {
-  const { app } = await setUp(t);
-  await startFromDialog(app, "Läuft beim Beenden");
+  const { fx, app } = await setUp(t);
+  await startFromDialog(app, fx.path, "Läuft beim Beenden");
   await app.waitFor(() => app.exec(() => window.__gc?.store.getState().agentsRunning === 1), 30_000, { message: "agent counted" });
   await app.exec(() => window.__TAURI_INTERNALS__.invoke("plugin:event|emit", { event: "app:close_requested", payload: {} }));
   // The app's confirm() renders a plain dialog (role="dialog"), not an alertdialog.
@@ -206,8 +213,8 @@ scenario("quitting asks while an agent runs", "edge", async (t) => {
 });
 
 scenario("German texts in the cockpit", "edge", async (t) => {
-  const { app } = await setUp(t, "de");
-  await startFromDialog(app, "Deutsch prüfen");
+  const { fx, app } = await setUp(t, "de");
+  await startFromDialog(app, fx.path, "Deutsch prüfen");
   await app.click('[data-toolbar="agents"] button');
   const row = await app.waitFor(async () => (await rowStatus(app)).find((item) => item.status === "waiting") ?? null, 60_000);
   assertMatch(row.text, /wartet auf dich/, "Status auf Deutsch");
