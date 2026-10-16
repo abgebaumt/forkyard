@@ -71,6 +71,15 @@ All notable changes to Forkyard are listed here. The format follows
   commits mention on GitHub, GitLab and Gitea/Forgejo become “Closes #n”; the AI cannot add any
   others. A description you wrote is never replaced unasked, the title only while it is still the
   automatic suggestion, and Ctrl+Z takes an insertion back. “What is sent?” shows the exact text first.
+- Stacked pull requests: “Split into stacked pull requests …” in a branch’s menu (and in the command
+  palette) shows the branch’s commits oldest first and cuts them at commit boundaries – with the
+  keyboard (Space) or, with AI on, from a suggestion of names, cuts and titles. “Check each part” runs
+  the project’s test command on every part in a temporary worktree that is removed afterwards.
+  “Create branches” makes `<branch>-1-…`, `<branch>-2-…` without a checkout as one undo step; the parts
+  are pushed in one atomic push and get pull requests that each target the part below them (GitHub,
+  GitLab, Gitea/Forgejo, Bitbucket Cloud, Azure DevOps). After a change further down, “Restack” rebases
+  the parts above with `--update-refs` and names the parts it leaves behind because they are checked
+  out in another worktree.
 
 ### Changed
 
