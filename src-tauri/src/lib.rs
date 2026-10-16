@@ -618,6 +618,7 @@ pub fn run() {
             commands::ai_preview,
             commands::ai_preview_confirm,
             commands::ai_preview_reset,
+            commands::ai_push_review,
             commands::ai_usage,
             commands::ai_detect,
             commands::ai_cli_login,

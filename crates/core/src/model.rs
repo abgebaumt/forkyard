@@ -1536,6 +1536,40 @@ pub enum AiInput {
     OutgoingChanges { branch: Option<String>, remote: Option<String>, remote_branch: Option<String> },
 }
 
+/// Kind of a hint of the review before a push (spec 6.2). Keys are never a kind: they come from
+/// the local secret scan only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiPushFindingKind {
+    DebugOutput,
+    CommentedCode,
+    LikelyBug,
+}
+
+/// One hint of the review before a push; no promise of severity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPushFinding {
+    /// One of the files the model saw.
+    pub path: String,
+    /// Line in the new version, if the model named one.
+    pub line: Option<u32>,
+    pub kind: AiPushFindingKind,
+    /// Redacted, at most 300 characters.
+    pub note: String,
+}
+
+/// Result of `ai_push_review`. `commits = 0`: nothing goes out, nothing was sent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPushReview {
+    pub findings: Vec<AiPushFinding>,
+    pub commits: u32,
+    pub files: u32,
+    /// More than `MAX_REVIEW_COMMITS` commits go out: only the newest were reviewed.
+    pub partial: bool,
+}
+
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

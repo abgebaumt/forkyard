@@ -21,6 +21,7 @@ import type {
   AiInput,
   AiModelList,
   AiPreview,
+  AiPushReview,
   AiPrDescription,
   AiProviderKind,
   AiStatus,
@@ -905,6 +906,14 @@ export interface CoreCommands {
   aiPreviewConfirm(input: { repoId: Id | null; feature: AiFeature; fingerprint: string; triggers: AiAskTrigger[]; dontAskAgain: boolean }): Promise<void>;
   /** "Ask again everywhere": forgets every given confirmation. */
   aiPreviewReset(): Promise<void>;
+  /**
+   * Review before a push (6.2): asks the AI provider about debug output, commented-out code and
+   * likely mistakes in what a `push` with these arguments would send (same target rules and errors:
+   * `no_upstream`, `no_remote`, `not_found`). Hints only; keys come from the local scan. Nothing
+   * outgoing → `commits: 0`, no request. Errors like every AI request (`ai_disabled`, `not_allowed`
+   * before "What is sent?" with `{ kind: "outgoing_changes" }` was confirmed, `cancelled` via `jobCancel`).
+   */
+  aiPushReview(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; locale: string }): Promise<AiPushReview>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
   /**

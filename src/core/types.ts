@@ -1085,6 +1085,26 @@ export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | 
   /** What a push with these arguments would send (review before a push): the outgoing commits and their combined diff. */
   | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null };
 
+/** Kind of a hint of the review before a push. Keys are never a kind – they come from the local scan. */
+export type AiPushFindingKind = "debug_output" | "commented_code" | "likely_bug";
+
+/** One hint of the review before a push; no promise of severity. */
+export interface AiPushFinding {
+  path: string;
+  line: number | null;
+  kind: AiPushFindingKind;
+  note: string;
+}
+
+/** Result of `aiPushReview`. `commits: 0` = nothing goes out, nothing was sent. */
+export interface AiPushReview {
+  findings: AiPushFinding[];
+  commits: number;
+  files: number;
+  /** Very large push: only the newest commits were reviewed. */
+  partial: boolean;
+}
+
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
   text: string;

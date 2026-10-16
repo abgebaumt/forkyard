@@ -1178,6 +1178,19 @@ pub async fn ai_preview_reset(core: State<'_, Core>) -> R<()> {
 }
 
 #[tauri::command]
+pub async fn ai_push_review(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    branch: Option<String>,
+    remote: Option<String>,
+    remote_branch: Option<String>,
+    locale: String,
+) -> R<AiPushReview> {
+    c::ai::ai_push_review(&core, repo_id, job_id, branch, remote, remote_branch, locale).await
+}
+
+#[tauri::command]
 pub async fn ai_usage(core: State<'_, Core>) -> R<AiUsageSummary> {
     c::ai::ai_usage(&core).await
 }
