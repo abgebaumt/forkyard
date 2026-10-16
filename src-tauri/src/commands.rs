@@ -1225,3 +1225,8 @@ pub async fn stack_prs_create(core: State<'_, Core>, repo_id: String, target: St
 pub async fn stack_check(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> R<Vec<StackCheckResult>> {
     c::stack::stack_check(&core, repo_id, job_id, branch, base, cuts).await
 }
+
+#[tauri::command]
+pub async fn ai_stack_split(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, locale: String) -> R<AiStackSplit> {
+    c::ai::ai_stack_split(&core, repo_id, job_id, branch, base, locale).await
+}

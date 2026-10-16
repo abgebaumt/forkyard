@@ -1,11 +1,15 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+
 use serde_json::{json, Value};
 
 use super::*;
 use crate::ai::prompt::Prompt;
-use crate::commands::settings::settings_set;
+use crate::commands::ai::{ai_preview, ai_preview_confirm, ai_stack_split};
+use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::error::ErrorCode;
-use crate::model::{AiOmitReason, AiOmitted};
-use crate::testkit::{TestCore, TestRepo};
+use crate::model::{AiAskTrigger, AiFeature, AiInput, AiOmitReason, AiOmitted, AiProviderKind};
+use crate::testkit::{MockRequest, MockResponse, MockServer, TestCore, TestRepo};
 
 const BRANCH: &str = "feature/auswertung";
 const MAIN: &str = "refs/heads/main";
@@ -181,4 +185,155 @@ async fn a_small_budget_drops_bodies_then_files_but_keeps_every_subject() {
     assert_eq!(subjects_only.built.omitted.iter().filter(|o| o.reason == AiOmitReason::Budget).count(), files);
 
     assert_eq!(at(100).await.unwrap_err().code, ErrorCode::AiTooLarge);
+}
+
+// --- The command (Task 10) ----------------------------------------------------------------------
+
+const KEY: &str = "sk-ant-api03-testkey-0123456789abcdef";
+
+fn chat(content: &str) -> MockResponse {
+    MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}))
+}
+
+/// Local stand-in for Ollama: answers the chat requests in turn (the last answer repeats).
+fn ollama(answers: Vec<String>) -> MockServer {
+    let calls = Arc::new(AtomicUsize::new(0));
+    MockServer::start(move |request| match request.route().as_str() {
+        "POST /api/show" => MockResponse::json(200, json!({"model_info": {"qwen3.context_length": 40960}})),
+        "POST /api/chat" => chat(&answers[calls.fetch_add(1, Ordering::SeqCst).min(answers.len() - 1)]),
+        _ => MockResponse::json(404, json!({"error": "not found"})),
+    })
+}
+
+async fn ai_on_with_ollama(tc: &TestCore, server: &MockServer) {
+    crate::ai::configure_base(tc, AiProviderKind::Ollama, Some(server.url()));
+    settings_set(tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b"})).await.unwrap();
+}
+
+fn chats(server: &MockServer) -> Vec<MockRequest> {
+    server.requests().into_iter().filter(|r| r.route() == "POST /api/chat").collect()
+}
+
+/// Every message of a chat request, joined.
+fn all_messages(request: &MockRequest) -> String {
+    request.json()["messages"].as_array().unwrap().iter().map(|m| m["content"].as_str().unwrap_or("").to_string()).collect::<Vec<_>>().join("\n")
+}
+
+/// The text with the per-request token replaced (as the fingerprint does).
+fn untokened(text: &str) -> String {
+    let token = regex::Regex::new(r"<<<REPO ([0-9A-Za-z]+)>>>").unwrap().captures(text).expect("a delimited section")[1].to_string();
+    text.replace(&token, "TOKEN")
+}
+
+fn split(parts: &[(u32, &str, &str)]) -> String {
+    json!({ "parts": parts.iter().map(|(end, name, title)| json!({ "end": end, "name": name, "title": title, "why": "Eigenes Thema." })).collect::<Vec<_>>() }).to_string()
+}
+
+#[test]
+fn the_preview_input_reads_and_writes_as_the_ui_sends_it() {
+    let input: AiInput = serde_json::from_value(json!({"kind": "stack_split", "branch": BRANCH, "base": MAIN})).unwrap();
+    assert_eq!(input, AiInput::StackSplit { branch: BRANCH.into(), base: MAIN.into() });
+    assert_eq!(serde_json::to_value(&input).unwrap(), json!({"kind": "stack_split", "branch": BRANCH, "base": MAIN}));
+}
+
+#[tokio::test]
+async fn a_suggestion_that_ends_too_early_gets_one_repair() {
+    let repo = ai_repo();
+    let (tc, id) = opened(&repo).await;
+    let server = ollama(vec![
+        split(&[(2, "Modell", "Datenmodell"), (3, "Rest", "Auswertung")]),
+        split(&[(2, " Modell und Import ", "Datenmodell und Import"), (4, "Auswertung", "Auswertung und Diagramme")]),
+    ]);
+    ai_on_with_ollama(&tc, &server).await;
+    let answer = ai_stack_split(&tc, id, "s1".into(), BRANCH.into(), MAIN.into(), "de".into()).await.unwrap();
+    assert_eq!(
+        answer.parts.iter().map(|p| (p.end, p.name.as_str(), p.title.as_str())).collect::<Vec<_>>(),
+        [(2, "Modell und Import", "Datenmodell und Import"), (4, "Auswertung", "Auswertung und Diagramme")]
+    );
+    let sent = chats(&server);
+    assert_eq!(sent.len(), 2, "exactly one repair attempt");
+    assert!(all_messages(&sent[1]).contains("the last part ends at commit 3, but the branch has 4 commits"), "{}", all_messages(&sent[1]));
+    assert!(all_messages(&sent[0]).contains("1. Datenmodell für Stationen"));
+}
+
+#[tokio::test]
+async fn a_suggestion_wrong_twice_ends_with_ai_invalid_answer() {
+    let repo = ai_repo();
+    let (tc, id) = opened(&repo).await;
+    let server = ollama(vec![split(&[(5, "Zu weit", "Zu weit")])]);
+    ai_on_with_ollama(&tc, &server).await;
+    let error = ai_stack_split(&tc, id, "s2".into(), BRANCH.into(), MAIN.into(), "en".into()).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiInvalidAnswer);
+    assert_eq!(chats(&server).len(), 2);
+}
+
+#[tokio::test]
+async fn suggesting_needs_ai_on_a_trusted_repository_and_ai_not_off_here() {
+    let server = ollama(vec![split(&[(4, "Alles", "Auswertung")])]);
+    let repo = ai_repo();
+    let (tc, id) = opened(&repo).await;
+    crate::ai::configure_base(&tc, AiProviderKind::Ollama, Some(server.url()));
+    let ask = |job: &'static str| ai_stack_split(&tc, id.clone(), job.into(), BRANCH.into(), MAIN.into(), "en".into());
+    assert_eq!(ask("d1").await.unwrap_err().code, ErrorCode::AiDisabled, "AI not set up");
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b"})).await.unwrap();
+    repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
+    assert_eq!(ask("d2").await.unwrap_err().code, ErrorCode::AiDisabled, "AI off for this repository");
+    repo_settings_set(&tc, id.clone(), json!({"aiOff": false})).await.unwrap();
+    settings_set(&tc, json!({"aiFeaturesOff": ["stack_split"]})).await.unwrap();
+    assert_eq!(ask("d3").await.unwrap_err().code, ErrorCode::AiDisabled, "the function is off");
+    settings_set(&tc, json!({"aiFeaturesOff": []})).await.unwrap();
+    crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
+    assert_eq!(ask("d4").await.unwrap_err().code, ErrorCode::RepoUntrusted, "the AI core checks trust itself");
+    assert!(chats(&server).is_empty(), "nothing was sent so far");
+    crate::commands::trust::repo_trust_set(&tc, id.clone(), true).await.unwrap();
+    assert_eq!(ask("d5").await.unwrap().parts.len(), 1, "one part: one pull request is enough");
+}
+
+#[tokio::test]
+async fn the_preview_works_while_ai_is_not_set_up() {
+    let repo = ai_repo();
+    let (tc, id) = opened(&repo).await;
+    let input = AiInput::StackSplit { branch: BRANCH.into(), base: MAIN.into() };
+    let preview = ai_preview(&tc, id, AiFeature::StackSplit, input, "en".into()).await.unwrap();
+    assert!(preview.text.contains("4. Diagramme\n"), "{}", preview.text);
+    assert!(preview.asks.is_empty(), "nothing to confirm while AI is not on");
+    assert_eq!(preview.omitted.iter().map(|o| o.path.as_str()).collect::<Vec<_>>(), [".env"]);
+}
+
+#[tokio::test]
+async fn the_request_sends_exactly_the_previewed_text() {
+    let answer = split(&[(2, "Modell", "Datenmodell"), (4, "Auswertung", "Auswertung")]);
+    let server = MockServer::start(move |_| {
+        MockResponse::json(200, json!({"content": [{"type": "text", "text": answer}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 40}}))
+    });
+    let tc = TestCore::new().await;
+    crate::ai::configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
+    crate::secrets::set(&tc, "llm:anthropic", KEY).await.unwrap();
+    // Ask before every request (any cost is above 0.00 USD): only the confirmed text may go out.
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiConfirmCostUsd": 0.0})).await.unwrap();
+    let repo = ai_repo();
+    let id = tc.open(&repo).await.repo.id;
+    let messages = |server: &MockServer| server.requests().into_iter().filter(|r| r.path().ends_with("/messages")).collect::<Vec<_>>();
+    let ask = |job: &'static str| ai_stack_split(&tc, id.clone(), job.into(), BRANCH.into(), MAIN.into(), "de".into());
+
+    let input = AiInput::StackSplit { branch: BRANCH.into(), base: MAIN.into() };
+    let preview = ai_preview(&tc, id.clone(), AiFeature::StackSplit, input, "de".into()).await.unwrap();
+    assert!(preview.asks.contains(&AiAskTrigger::Cost) && preview.asks.contains(&AiAskTrigger::RepoFirst), "{:?}", preview.asks);
+    assert_eq!(ask("f1").await.unwrap_err().code, ErrorCode::NotAllowed, "unconfirmed: nothing goes out");
+    assert!(messages(&server).is_empty());
+
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::StackSplit, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+    let done = ask("f2").await.unwrap();
+    assert_eq!(done.parts.iter().map(|p| p.end).collect::<Vec<_>>(), [2, 4]);
+    let sent = messages(&server);
+    assert_eq!(sent.len(), 1);
+    let body = sent[0].json();
+    let sent_text = format!("{}\n\n{}", body["system"].as_str().unwrap(), body["messages"][0]["content"].as_str().unwrap());
+    assert_eq!(untokened(&sent_text), untokened(&preview.text), "the request is the previewed text; only the per-request token differs");
+    assert!(!sent_text.contains(KEY));
+
+    // A new commit changes the text: the earlier confirmation does not cover it.
+    repo.commit_file("nachtrag.md", "Nachtrag\n", "Nachtrag zur Auswertung");
+    assert_eq!(ask("f3").await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(messages(&server).len(), 1);
 }

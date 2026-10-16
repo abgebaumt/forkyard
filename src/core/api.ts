@@ -21,6 +21,7 @@ import type {
   AiInput,
   AiModelList,
   AiPreview,
+  AiStackSplit,
   AiPrDescription,
   AiProviderKind,
   AiStatus,
@@ -985,6 +986,15 @@ export interface CoreCommands {
    * `stackPlan`; a part that runs too long is `timed_out`.
    */
   stackCheck(input: R & { jobId: string; branch: string; base: string; cuts: StackCut[] }): Promise<StackCheckResult[]>;
+  /**
+   * Paket 8.1: where to cut `branch` above `base` (full ref) into stacked pull requests – parts with
+   * the number of their last commit, a name for the branch, a pull request title and a reason. A
+   * suggestion only. Job `jobId` (cancellable). Show and confirm `aiPreview` with
+   * `{ kind: "stack_split", branch, base }` first. Errors: `ai_disabled`, `ai_not_configured`,
+   * `ai_provider_unavailable`, `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`, `ai_too_large`,
+   * `not_allowed` (not confirmed, merges, no commits), `not_found`, `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiStackSplit(input: R & { jobId: string; branch: string; base: string; locale: string }): Promise<AiStackSplit>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

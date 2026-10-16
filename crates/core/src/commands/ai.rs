@@ -180,6 +180,7 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::StagedChanges => context::staged_changes(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,
+        AiInput::StackSplit { branch, base } => ai::stack::build(core, &repo_id, &settings, &branch, &base, budget, &locale, &secrets).await?.built,
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {
@@ -216,6 +217,20 @@ pub async fn ai_pr_description(core: &Core, repo_id: String, job_id: String, sou
     let request = run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::PrDescription, job_id: &job_id, prompt: &pr.built.prompt, schema: &schema };
     let answer = run::complete_json_checked(core, request, &|value: &serde_json::Value| ai::pr::check_answer(value, &pr.headings)).await?;
     Ok(ai::pr::finish(&answer.value, &pr.closes))
+}
+
+/// Paket 8.1: where to cut `branch` into stacked pull requests – a suggestion only, nothing is
+/// created. The prompt is the one `ai_preview` shows for `AiInput::StackSplit` with the same refs;
+/// the cuts must rise and end with the last commit (one repair attempt).
+pub async fn ai_stack_split(core: &Core, repo_id: String, job_id: String, branch: String, base: String, locale: String) -> CoreResult<crate::model::AiStackSplit> {
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::StackSplit)?;
+    let (budget, secrets) = request_frame(core, &settings, AiFeature::StackSplit).await;
+    let stack = ai::stack::build(core, &repo_id, &settings, &branch, &base, budget, &locale, &secrets).await?;
+    let schema = ai::stack::schema();
+    let request = run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::StackSplit, job_id: &job_id, prompt: &stack.built.prompt, schema: &schema };
+    let commits = stack.commits;
+    let answer = run::complete_json_checked(core, request, &|value: &serde_json::Value| ai::stack::check_answer(value, commits)).await?;
+    Ok(ai::stack::finish(&answer.value))
 }
 
 /// "Send" in the preview dialog: approves exactly this text and remembers what is remembered.

@@ -1442,6 +1442,8 @@ pub enum AiInput {
     /// Paket 4: the commits of `source` that `target` does not have (full ref names, e.g.
     /// `refs/heads/feature/x` and `refs/remotes/origin/main`).
     PrDescription { source: String, target: String },
+    /// Paket 8.1: where to cut `branch` (short or `refs/heads/…`) above `base` (full ref of a branch).
+    StackSplit { branch: String, base: String },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
