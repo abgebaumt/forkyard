@@ -1014,6 +1014,9 @@ export interface AiModelList {
   structured: AiStructuredMode;
 }
 
+/** Why the preview asks before sending: first use of a function, > 100 000 characters, cost above the threshold, first content of this repository, monthly limit reached. */
+export type AiAskTrigger = "first_use" | "large" | "cost" | "repo_first" | "limit";
+
 /** Global settings of the active profile. The core sets the defaults. */
 export interface Settings {
   theme: Theme;

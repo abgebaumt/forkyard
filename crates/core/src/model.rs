@@ -1386,6 +1386,22 @@ pub struct AiModelList {
     pub structured: AiStructuredMode,
 }
 
+/// Why "What is sent?" asks before sending (Grundregel 4; `limit` from spec 1.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiAskTrigger {
+    /// First use of this function at all (API providers only).
+    FirstUse,
+    /// More than 100 000 characters.
+    Large,
+    /// Estimated cost above `Settings.ai_confirm_cost_usd`.
+    Cost,
+    /// An API provider gets content of this repository for the first time.
+    RepoFirst,
+    /// This month's costs reached the limit; never remembered ("send this time").
+    Limit,
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

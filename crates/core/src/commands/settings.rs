@@ -168,6 +168,10 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
         }
         Ok(())
     })?;
+    if changed.iter().any(|k| k == "aiEnabled") && next.ai_enabled != Some(true) {
+        // Grundregel 1: switching off cancels running requests at once.
+        crate::ai::run::cancel_all(core);
+    }
     if changed.iter().any(|k| AI_KEYS.contains(&k.as_str())) {
         core.emit_app_changed(&[AppChange::Settings, AppChange::Ai]);
     } else {

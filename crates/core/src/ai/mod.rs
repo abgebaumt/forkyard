@@ -9,11 +9,13 @@
 //! - No streaming; every request is a cancellable job (`run`).
 
 pub mod context;
+pub mod gate;
 pub mod ignore;
 pub mod pricing;
 pub mod prompt;
 pub mod provider;
 pub mod providers;
+pub mod run;
 pub mod schema;
 
 use std::collections::HashMap;
