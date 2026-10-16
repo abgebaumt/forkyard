@@ -80,6 +80,11 @@ export interface AppCommand {
   /** Only executable if true. If missing, the command is always available. */
   when?(ctx: CommandContext): boolean;
   /**
+   * Not offered at all while true: neither in the palette nor by shortcut (unlike `when`, which
+   * shows the command greyed out with a reason). For things that must not appear, e.g. AI in "off".
+   */
+  hidden?(ctx: CommandContext): boolean;
+  /**
    * Optional: why the command is not possible right now (a short phrase, e.g. "No stash present").
    * The Command Palette shows it for disabled commands; if missing, it guesses a generic reason.
    */

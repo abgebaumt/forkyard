@@ -13,6 +13,7 @@ import { WrappingPath } from "../CloneDialog/PathText";
 import { baseName } from "../CloneDialog/paths";
 import { openInitDialogAt } from "../InitDialog/preset";
 import { ReadmePreview } from "./ReadmePreview";
+import { AiSetupEntry } from "./AiSetupEntry";
 import { RepoList, type ListItem, type RepoListHandle } from "./RepoList";
 import { resolveMissing } from "./repoActions";
 import { locale, t } from "../../i18n";
@@ -79,6 +80,7 @@ function EntryButtons({ onOpen }: { onOpen: () => void }) {
       <Button icon={<FolderPlus className="size-icon" aria-hidden />} onClick={() => openOverlay({ kind: "init" })}>
         {t("repos.entry.init")}
       </Button>
+      <AiSetupEntry />
     </div>
   );
 }

@@ -86,9 +86,17 @@ const item = (value: Omit<PaletteItem, "folded">): PaletteItem => ({ ...value, f
  */
 const HIDDEN_COMMANDS = new Set(["app.palette", "palette.commands", "changes.discardAll"]);
 
+const isHidden = (command: AppCommand, ctx: CommandContext) => {
+  try {
+    return command.hidden?.(ctx) ?? false;
+  } catch {
+    return true;
+  }
+};
+
 export function commandItems(commands: readonly AppCommand[], ctx: CommandContext, available: (command: AppCommand) => boolean): PaletteItem[] {
   return commands
-    .filter((command) => !HIDDEN_COMMANDS.has(command.id))
+    .filter((command) => !HIDDEN_COMMANDS.has(command.id) && !isHidden(command, ctx))
     .map((command) => {
       const ok = available(command);
       return item({

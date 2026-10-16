@@ -80,6 +80,7 @@ export function buildCommandContext(source: CommandContext["source"] = "menu"): 
 
 export function isAvailable(command: AppCommand, ctx: CommandContext): boolean {
   try {
+    if (command.hidden?.(ctx)) return false;
     return command.when ? command.when(ctx) : true;
   } catch {
     return false;
