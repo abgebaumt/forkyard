@@ -7,7 +7,7 @@
  * "name as text instead of object" everywhere. The token itself never comes back: the core
  * stores it in the system keychain and reveals at most the last characters (`tokenHint`).
  */
-import { core, CoreError, EMPTY_TREE_SHA, type Id, type Sha, type Status } from "../../core";
+import { core, CoreError, EMPTY_TREE_SHA, type Id, type ReviewReply, type ReviewThread, type Sha, type Status } from "../../core";
 import { locale, t } from "../../i18n";
 
 export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops";
@@ -454,6 +454,10 @@ export const hostApi = {
   prCheckout: (repoId: Id, number: number): Promise<Status> => core.prCheckout({ repoId, number }),
   /** From the working directory; no network call. */
   prTemplate: async (repoId: Id): Promise<string | null> => text(await core.prTemplate({ repoId })),
+  /** Review threads (comments on lines) with their resolved state; `host_unsupported` where the host has none. */
+  reviewThreads: (repoId: Id, number: number): Promise<ReviewThread[]> => core.prReviewThreads({ repoId, number }),
+  /** Answer in a review thread; `quoted: true` = posted as a new comment on the same line with a quote. */
+  reviewReply: (repoId: Id, number: number, threadId: string, body: string): Promise<ReviewReply> => core.prReviewReply({ repoId, number, threadId, body }),
   prRange,
 };
 

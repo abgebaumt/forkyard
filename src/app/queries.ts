@@ -120,6 +120,7 @@ export const qk = {
   prList: (repoId: Id, state: PrListState) => ["repo", repoId, "prs", state] as const,
   prs: (repoId: Id) => ["repo", repoId, "pr"] as const,
   pr: (repoId: Id, number: number) => ["repo", repoId, "pr", number] as const,
+  prReviewThreads: (repoId: Id, number: number) => ["repo", repoId, "pr", number, "threads"] as const,
   prTemplate: (repoId: Id) => ["repo", repoId, "prTemplate"] as const,
 
   // Issues of the host.
@@ -485,6 +486,15 @@ export const usePrRange = (repoId: Id | null | undefined, pr: Pick<PrDetails, "n
     queryFn: () => hostApi.prRange(repoId!, pr!),
     enabled: enabledFor(repoId) && Boolean(pr) && enabled,
     staleTime: 0,
+  });
+
+/** Review threads of a pull request (8.2) – only where the host offers them; refreshed with the pull request. */
+export const usePrReviewThreads = (repoId: Id | null | undefined, number: number | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: qk.prReviewThreads(repoId ?? "", number ?? 0),
+    queryFn: () => hostApi.reviewThreads(repoId!, number!),
+    enabled: enabledFor(repoId) && typeof number === "number" && enabled,
+    staleTime: HOST_STALE_MS,
   });
 
 /** Text of the pull request template from the repository; null if there is none. */
