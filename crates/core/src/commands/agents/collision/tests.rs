@@ -94,3 +94,167 @@ async fn the_fork_follows_a_rebase_and_changed_paths_are_byte_exact() {
     let expected: BTreeSet<Vec<u8>> = ["-Größe übersicht.txt", "Lies mich.md", "README.md", "agent.txt", "g.txt"].iter().map(|p| p.as_bytes().to_vec()).collect();
     assert_eq!(changed, expected);
 }
+
+use crate::jobs::CancelToken;
+use crate::model::{AgentCollision, CollisionFile, CollisionKind, CollisionSkip, LineRange};
+
+fn overlap_file(path: &str) -> CollisionFile {
+    CollisionFile { path: path.to_string(), conflict: false, ranges: Vec::new() }
+}
+
+#[tokio::test]
+async fn two_agents_with_uncommitted_changes_collide_with_line_ranges() {
+    let (tc, repo, id) = setup().await;
+    repo.write_file("src/auth.ts", numbered(80, 0, 0, ""));
+    // An old base commit from other time zones.
+    repo.commit_as_dates("Anmeldung aus alter Zeit", "Ältere Person", "alt@example.com", "@1234567890 +1300", "@1234567899 -0930");
+    let (_a, folder_a) = agent_without_session(&tc, &repo, &id, "a-login").await;
+    let (_b, folder_b) = agent_without_session(&tc, &repo, &id, "b-auth").await;
+    // a: uncommitted, plus an untracked file only it has; b: committed on its branch.
+    std::fs::write(folder_a.join("src/auth.ts"), numbered(80, 40, 62, "a")).unwrap();
+    std::fs::write(folder_a.join("notiz a.txt"), "nur a\n").unwrap();
+    std::fs::write(folder_b.join("src/auth.ts"), numbered(80, 40, 62, "b")).unwrap();
+    repo.git(&["-C", &dir(&folder_b), "commit", "-q", "-am", "B ändert die Anmeldung"]);
+    let porcelain = |folder: &Path| repo.git(&["-C", &dir(folder), "status", "--porcelain=v1", "-z", "--untracked-files=all"]);
+    let looks = || (repo.git(&["for-each-ref"]), porcelain(repo.path()), porcelain(&folder_a), porcelain(&folder_b));
+    let before = looks();
+    tc.events.clear();
+
+    let computed = compute(&tc, &id, &CancelToken::new()).await.unwrap();
+    // Both changed lines 40–62 (fixture); a was started first (same time, smaller id) and is "ours".
+    assert_eq!(
+        computed.collisions,
+        vec![AgentCollision {
+            id: "agent-a-login+agent-b-auth".into(),
+            kind: CollisionKind::Conflict,
+            agent_id: "agent-a-login".into(),
+            other_agent_id: Some("agent-b-auth".into()),
+            base: None,
+            files: vec![CollisionFile { path: "src/auth.ts".into(), conflict: true, ranges: vec![LineRange { start: 40, end: 62 }] }],
+        }]
+    );
+    assert!(computed.skipped.is_empty());
+    // The result tree is kept for the preview and holds both sides.
+    let stored = &computed.stored["agent-a-login+agent-b-auth"];
+    assert_eq!(stored.files, vec![("src/auth.ts".to_string(), b"src/auth.ts".to_vec())]);
+    let merged = repo.git(&["cat-file", "blob", &format!("{}:src/auth.ts", stored.tree)]);
+    assert!(merged.contains("a 40\n") && merged.contains("b 62\n"), "{merged}");
+    // Nothing changed: refs, the three working directories and their indexes; no repo:changed.
+    assert_eq!(looks(), before);
+    assert_eq!(tc.events.count(crate::events::names::REPO_CHANGED), 0);
+}
+
+#[tokio::test]
+async fn overlaps_without_conflict_renames_and_disjoint_files() {
+    let (tc, repo, id) = setup().await;
+    repo.write_file("f.txt", numbered(10, 0, 0, ""));
+    repo.write_file("alt.txt", "eins\nzwei\ndrei\n");
+    repo.write_file("x.txt", "x\n");
+    repo.commit_file("y.txt", "y\n", "Basis");
+    let (_a, folder_a) = agent_without_session(&tc, &repo, &id, "a-umbenennen").await;
+    let (_b, folder_b) = agent_without_session(&tc, &repo, &id, "b-ergaenzen").await;
+    // a: line 2 of f.txt, renames alt.txt, x.txt. b: line 9 of f.txt, edits alt.txt, y.txt.
+    std::fs::write(folder_a.join("f.txt"), numbered(10, 2, 2, "a")).unwrap();
+    repo.git(&["-C", &dir(&folder_a), "mv", "alt.txt", "neu name.txt"]);
+    std::fs::write(folder_a.join("x.txt"), "x von a\n").unwrap();
+    std::fs::write(folder_b.join("f.txt"), numbered(10, 9, 9, "b")).unwrap();
+    std::fs::write(folder_b.join("alt.txt"), "eins\nzwei\ndrei\nvier\n").unwrap();
+    std::fs::write(folder_b.join("y.txt"), "y von b\n").unwrap();
+
+    let computed = compute(&tc, &id, &CancelToken::new()).await.unwrap();
+    // Git merges both (the rename takes b's line along): the same files, but no conflict.
+    assert_eq!(
+        computed.collisions,
+        vec![AgentCollision {
+            id: "agent-a-umbenennen+agent-b-ergaenzen".into(),
+            kind: CollisionKind::Overlap,
+            agent_id: "agent-a-umbenennen".into(),
+            other_agent_id: Some("agent-b-ergaenzen".into()),
+            base: None,
+            files: vec![overlap_file("alt.txt"), overlap_file("f.txt")],
+        }]
+    );
+    assert!(computed.stored.is_empty());
+
+    // a takes back f.txt and the rename: only x.txt and y.txt are left – nothing in common.
+    std::fs::write(folder_a.join("f.txt"), numbered(10, 0, 0, "")).unwrap();
+    repo.git(&["-C", &dir(&folder_a), "mv", "neu name.txt", "alt.txt"]);
+    assert!(compute(&tc, &id, &CancelToken::new()).await.unwrap().collisions.is_empty());
+}
+
+#[tokio::test]
+async fn the_base_tip_counts_and_a_rebased_agent_is_measured_from_its_new_fork() {
+    let (tc, repo, id) = setup().await;
+    repo.commit_file("g.txt", "eins\nzwei\ndrei\n", "Basis");
+    let (_a, folder_a) = agent_without_session(&tc, &repo, &id, "a-zwei").await;
+    let (_b, folder_b) = agent_without_session(&tc, &repo, &id, "b-neben").await;
+    std::fs::write(folder_a.join("g.txt"), "eins\nzwei agent\ndrei\n").unwrap();
+    repo.git(&["-C", &dir(&folder_a), "commit", "-q", "-am", "Agent ändert zwei"]);
+    std::fs::write(folder_b.join("b.txt"), "neben\n").unwrap();
+    repo.git(&["-C", &dir(&folder_b), "add", "b.txt"]);
+    repo.git(&["-C", &dir(&folder_b), "commit", "-q", "-m", "Agent b"]);
+    // main moves on: the same line as a, and a file b does not touch.
+    repo.write_file("h.txt", "main\n");
+    repo.commit_file("g.txt", "eins\nzwei main\ndrei\n", "Main ändert zwei");
+    // b follows main.
+    repo.git(&["-C", &dir(&folder_b), "rebase", "-q", "main"]);
+
+    let computed = compute(&tc, &id, &CancelToken::new()).await.unwrap();
+    // a against main's tip: line 2. b, measured from main's tip, has only b.txt – no collision,
+    // although main's own changes are part of its branch now.
+    assert_eq!(
+        computed.collisions,
+        vec![AgentCollision {
+            id: "agent-a-zwei+base".into(),
+            kind: CollisionKind::Conflict,
+            agent_id: "agent-a-zwei".into(),
+            other_agent_id: None,
+            base: Some("main".into()),
+            files: vec![CollisionFile { path: "g.txt".into(), conflict: true, ranges: vec![LineRange { start: 2, end: 2 }] }],
+        }]
+    );
+}
+
+#[tokio::test]
+async fn paths_with_umlauts_spaces_leading_dashes_crlf_and_a_huge_file() {
+    let (tc, repo, id) = setup().await;
+    repo.write_file("-Größe übersicht.txt", "eins\r\nzwei\r\ndrei\r\n");
+    repo.commit_file("groß/daten.csv", numbered(20_000, 0, 0, ""), "Basis");
+    let (_a, folder_a) = agent_without_session(&tc, &repo, &id, "a-gross").await;
+    let (_b, folder_b) = agent_without_session(&tc, &repo, &id, "b-gross").await;
+    std::fs::write(folder_a.join("-Größe übersicht.txt"), "eins\r\nzwei\r\nDREI a\r\n").unwrap();
+    std::fs::write(folder_b.join("-Größe übersicht.txt"), "eins\r\nzwei\r\ndrei b\r\n").unwrap();
+    std::fs::write(folder_a.join("groß/daten.csv"), numbered(20_000, 15_001, 15_200, "a")).unwrap();
+    std::fs::write(folder_b.join("groß/daten.csv"), numbered(20_000, 15_001, 15_200, "b")).unwrap();
+
+    let computed = compute(&tc, &id, &CancelToken::new()).await.unwrap();
+    assert_eq!(computed.collisions.len(), 1);
+    assert_eq!(
+        computed.collisions[0].files,
+        vec![
+            CollisionFile { path: "-Größe übersicht.txt".into(), conflict: true, ranges: vec![LineRange { start: 3, end: 3 }] },
+            CollisionFile { path: "groß/daten.csv".into(), conflict: true, ranges: vec![LineRange { start: 15_001, end: 15_200 }] },
+        ]
+    );
+}
+
+#[tokio::test]
+async fn orphaned_agents_are_left_out_and_broken_ones_named_with_a_reason() {
+    let (tc, repo, id) = setup().await;
+    repo.commit_file("f.txt", "f\n", "Basis");
+    let (_c, folder_c) = agent_without_session(&tc, &repo, &id, "c-weg").await;
+    let (d, _folder_d) = agent_without_session(&tc, &repo, &id, "d-kaputt").await;
+    // c's folder is gone (orphaned); d's recorded base exists no more.
+    std::fs::remove_dir_all(&folder_c).unwrap();
+    let broken = db::agents::AgentRow { base: "gibt-es-nicht".into(), base_sha: "0000000000000000000000000000000000000001".into(), ..d.clone() };
+    tc.db
+        .with(|c| {
+            db::agents::delete(c, &d.id)?;
+            db::agents::insert(c, &broken)
+        })
+        .unwrap();
+
+    let computed = compute(&tc, &id, &CancelToken::new()).await.unwrap();
+    assert!(computed.collisions.is_empty());
+    assert_eq!(computed.skipped, vec![CollisionSkip { agent_id: "agent-d-kaputt".into(), reason: "The base commit 0000000 of the agent no longer exists.".into() }]);
+}
