@@ -30,6 +30,22 @@ All notable changes to Forkyard are listed here. The format follows
   run a program in a worktree and report bells, titles and notifications, locating coding-agent CLIs, the
   history of a single line (`lineHistory`), and a check that every error code exists in Rust, TypeScript
   and both languages.
+- Coding agents: start Claude Code, Codex, opencode or an own program on a task (“New coding agent …”,
+  Ctrl+Shift+A). Each agent works in a worktree of its own next to the repository
+  (`<repo>.agents/<name>`) on a branch `agent/<name>`; your working directory stays untouched. The
+  task is typed in after the start. “Without prompts” only uses switches that keep the agent inside
+  its worktree and is marked as such everywhere.
+- Agent cockpit: the toolbar button “Agents”, the “Agents” section in the left panel and the status
+  bar show every agent with its status as a word (running, waiting for you, done, failed, stopped,
+  orphaned) and whether the agent reported it or it is guessed, its changed files, commits ahead of
+  the base, runtime and test result. A system notification tells you when an agent waits or is done
+  while the window is in the background. Agents run in their own terminal tabs; quitting asks first.
+- “Stop agent and clean up” removes worktree and branch after a warning about unpushed commits;
+  Undo brings both back, including uncommitted changes, for 14 days. Stopped agents can be resumed,
+  orphaned entries removed.
+- Settings › Coding agents: own templates with placeholders `${task}`, `${taskFile}`, `${worktree}`,
+  `${branch}`; switches that lift an agent's safety limits are refused. Project setting “Test
+  command for coding agents” runs in the agent's worktree when it is done.
 
 ### Changed
 
