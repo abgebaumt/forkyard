@@ -22,6 +22,7 @@ pub mod run;
 pub mod plan;
 pub mod plan_check;
 pub mod plan_commands;
+pub mod plan_run;
 pub mod cli;
 pub mod detect;
 pub mod schema;

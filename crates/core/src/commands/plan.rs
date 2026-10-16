@@ -3,10 +3,10 @@
 //! (`ai_plan_run`). The logic lives in `ai::plan`, `ai::plan_check`, `ai::plan_commands` and
 //! `ai::plan_run`.
 
-use crate::ai::{plan, plan_check, plan_commands, run};
+use crate::ai::{plan, plan_check, plan_commands, plan_run, run};
 use crate::app::Core;
 use crate::error::CoreResult;
-use crate::model::{AiFeature, PlanPreview, PlanStep};
+use crate::model::{AiFeature, PlanPreview, PlanRunResult, PlanStep};
 
 /// A sentence → a checked plan of allowed steps. The AI request runs as job `job_id`, the check as
 /// job `{job_id}:check`; nothing in the repository changes.
@@ -33,8 +33,22 @@ pub async fn ai_plan_check(core: &Core, repo_id: String, job_id: String, steps: 
     result
 }
 
+/// Runs a checked plan step by step (job `job_id`). `confirmed`: the indexes of the outward steps
+/// the user confirmed one by one. `stale_state` when `expect` no longer holds; the result names
+/// every step as done, failed or not run.
+pub async fn ai_plan_run(core: &Core, repo_id: String, job_id: String, text: String, steps: Vec<PlanStep>, expect: String, confirmed: Vec<u32>) -> CoreResult<PlanRunResult> {
+    core.repo_path(&repo_id)?;
+    let job = core.start_job(&job_id, Some(&repo_id))?;
+    let result = plan_run::run(core, &repo_id, &job, &text, &steps, &expect, &confirmed).await;
+    job.finish(&result);
+    result
+}
+
 #[cfg(test)]
 mod check_tests;
 
 #[cfg(test)]
 mod ai_tests;
+
+#[cfg(test)]
+mod run_tests;
