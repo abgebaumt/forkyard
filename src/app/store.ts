@@ -21,6 +21,9 @@ export type CommitSelection = Extract<NonNullable<Selection>, { kind: "commits" 
 
 export type RebaseToolMode = "interactive" | "squash" | "cherry_pick";
 
+/** Which agents the agent review shows when two are compared (src/screens/AgentReview). */
+export type AgentReviewShow = "first" | "second" | "both";
+
 export type CenterView =
   | { kind: "graph" }
   | { kind: "diff"; path: string; source: DiffSource }
