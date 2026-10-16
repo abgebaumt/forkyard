@@ -87,6 +87,13 @@ pub fn base_url_for(core: &Core, kind: AiProviderKind, settings: &Settings) -> O
     (!default.is_empty()).then(|| default.to_string())
 }
 
+/// Whether requests stay on this computer: a local provider (Ollama, LM Studio) whose resolved
+/// address is a loopback host. Grundregel 4 skips the first-use and per-repository confirmation
+/// only then; `is_local` alone says "no price", not "no data leaves the machine".
+pub fn runs_on_this_computer(core: &Core, kind: AiProviderKind, settings: &Settings) -> bool {
+    kind.is_local() && base_url_for(core, kind, settings).is_some_and(|base| crate::http::Target::parse(&base).is_ok_and(|target| target.loopback))
+}
+
 impl AiProviderKind {
     pub const ALL: [AiProviderKind; 6] = [
         AiProviderKind::Anthropic,
@@ -120,7 +127,8 @@ impl AiProviderKind {
         }
     }
 
-    /// Runs on this computer (loopback): no costs, no first-use and per-repository confirmation.
+    /// A provider that usually runs on this computer: no costs. Whether it really does (and may
+    /// skip confirmations) depends on its address, see `runs_on_this_computer`.
     pub fn is_local(self) -> bool {
         matches!(self, AiProviderKind::Ollama | AiProviderKind::Lmstudio)
     }

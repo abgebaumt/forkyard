@@ -104,6 +104,20 @@ pub fn estimate(core: &Core, settings: &Settings, kind: AiProviderKind, model: &
     Ok(Estimate { chars, tokens, cost_usd, spent_usd, limit_usd, limit_reached })
 }
 
+/// What the gate weighs for this request. `local` (no first-use and no per-repository
+/// confirmation) only when the provider really answers on this computer: an Ollama or LM Studio
+/// pointed at another machine by `ai_base_url` receives repository content like any API.
+pub fn situation<'a>(core: &Core, settings: &Settings, kind: AiProviderKind, repo_id: Option<&'a str>, feature: AiFeature, estimate: &Estimate) -> Situation<'a> {
+    Situation {
+        repo_id,
+        feature,
+        chars: estimate.chars,
+        estimated_cost_usd: estimate.cost_usd,
+        local: crate::ai::runs_on_this_computer(core, kind, settings),
+        limit_reached: estimate.limit_reached,
+    }
+}
+
 pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<AiAnswer> {
     schema::check_dialect(request.schema).map_err(|reason| CoreError::unknown(format!("Internal error: the answer schema is invalid ({reason}).")))?;
     let settings = ensure_allowed(core, request.repo_id, request.feature)?;
@@ -111,14 +125,7 @@ pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<Ai
     let kind = provider.id();
     let model = settings.ai_model.clone().unwrap_or_default();
     let estimate = estimate(core, &settings, kind, &model, request.feature, request.prompt)?;
-    let situation = Situation {
-        repo_id: request.repo_id,
-        feature: request.feature,
-        chars: estimate.chars,
-        estimated_cost_usd: estimate.cost_usd,
-        local: kind.is_local(),
-        limit_reached: estimate.limit_reached,
-    };
+    let situation = situation(core, &settings, kind, request.repo_id, request.feature, &estimate);
     let pending = gate::pending(core, &settings, &situation)?;
     gate::require(core, &request.prompt.fingerprint(), &pending, estimate.spent_usd, estimate.limit_usd)?;
 
@@ -436,6 +443,25 @@ mod tests {
         let other_id = tc.open(&other).await.repo.id;
         assert_eq!(complete_json(&tc, request(Some(&other_id), "a3", &prompt, &schema)).await.unwrap_err().code, ErrorCode::NotAllowed, "another repository asks for its own first time");
         assert_eq!(server.requests().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_local_provider_on_another_machine_asks_like_an_api() {
+        let tc = TestCore::new().await;
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b", "aiBaseUrl": "https://ollama.firma.example"})).await.unwrap();
+        let repo = TestRepo::with_commit();
+        let id = tc.open(&repo).await.repo.id;
+        let settings = tc.settings().unwrap();
+        let prompt = prompt_with("+fix");
+        let asks = |settings: &Settings| {
+            let estimate = estimate(&tc, settings, AiProviderKind::Ollama, "qwen3:8b", AiFeature::CommitMessage, &prompt).unwrap();
+            gate::pending(&tc, settings, &situation(&tc, settings, AiProviderKind::Ollama, Some(&id), AiFeature::CommitMessage, &estimate)).unwrap()
+        };
+        assert_eq!(asks(&settings), vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst], "repository content leaves this computer");
+        let on_this_computer = Settings { ai_base_url: Some("http://127.0.0.1:11434".into()), ..settings.clone() };
+        assert_eq!(asks(&on_this_computer), Vec::<AiAskTrigger>::new(), "Ollama on loopback asks nothing");
+        let default_address = Settings { ai_base_url: None, ..settings };
+        assert_eq!(asks(&default_address), Vec::<AiAskTrigger>::new(), "the default address is localhost");
     }
 
     #[tokio::test]
