@@ -17,6 +17,7 @@ import { hostApi, hostErrorKind, hostPrWord, type HostAccountInfo, type HostRepo
 import { cachedHostAccounts, runHostAction } from "./hosts";
 import { busyKeys } from "./keys";
 import { fetchAll } from "./sync";
+import { guardSecrets } from "./pushCheck";
 
 // ---------------------------------------------------------------------------
 // From the cache
@@ -136,10 +137,13 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
   const ref = cachedRefs(repoId)?.locals.find((item) => item.name === branch);
   const needsTarget = !ref?.upstream || ref.upstreamGone;
   const remote = needsTarget ? preferredRemote(repoId, await loadRemotes(repoId).catch(() => [] as Remote[])) : null;
-  const result = await runAction(t("actions.sync.push.label"), () => core.push({ repoId, jobId, branch, remote, remoteBranch: needsTarget ? branch : null, force: false, expected: null }), {
-    busyKey: busyKeys.push(repoId),
-    job: { id: jobId, title: t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }), repoId },
-  });
+  // The same jobId may be used again once the first attempt has ended.
+  const result = await guardSecrets(repoId, (acceptedSecrets) =>
+    runAction(t("actions.sync.push.label"), () => core.push({ repoId, jobId, branch, remote, remoteBranch: needsTarget ? branch : null, force: false, expected: null, acceptedSecrets }), {
+      busyKey: busyKeys.push(repoId),
+      job: { id: jobId, title: t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }), repoId },
+    }),
+  );
   await loadRefs(repoId).catch(() => undefined);
   if (result.ok && result.value.status === "rejected") toast({ tone: "danger", title: t("actions.pullrequests.pushRejected"), description: result.value.reason });
   return result;

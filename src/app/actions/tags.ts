@@ -6,6 +6,7 @@ import { choose, confirm } from "../dialogs";
 import { desktopNotify } from "../notify";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction } from "../run";
+import { guardSecrets } from "./pushCheck";
 import { refNameValidator } from "./branches";
 import { cachedSettings, clip, loadRemotes, short } from "./context";
 import { addRemote } from "./sync";
@@ -78,13 +79,16 @@ export async function deleteTag(repoId: Id, name: string, remote: string | true 
 export async function pushTag(repoId: Id, name: string, remote?: string | null) {
   const target = remote ?? (await pickRemote(repoId, t("actions.tags.push.pickRemote"), t("actions.tags.push.pickRemoteDescription", { name: clip(name, 40) })));
   if (!target) return null;
-  const jobId = newJobId();
-  const result = await runAction(t("actions.tags.push.label"), () => core.tagPush({ repoId, jobId, name, remote: target }), {
-    busyKey: `${repoId}:tag:${name}`,
-    job: { id: jobId, title: t("actions.tags.push.job", { name: clip(name, 32) }), repoId },
+  const result = await guardSecrets(repoId, (acceptedSecrets) => {
+    const jobId = newJobId();
+    return runAction(t("actions.tags.push.label"), () => core.tagPush({ repoId, jobId, name, remote: target, acceptedSecrets }), {
+      busyKey: `${repoId}:tag:${name}`,
+      job: { id: jobId, title: t("actions.tags.push.job", { name: clip(name, 32) }), repoId },
+    });
   });
   void queryClient.invalidateQueries({ queryKey: qk.credentials });
   if (!result.ok) return result;
+  if (result.value.status === "secrets_found") return result;
   if (result.value.status === "rejected") {
     toast({ tone: "danger", title: t("actions.tags.push.rejected", { name: clip(name) }), description: result.value.reason });
     desktopNotify(cachedSettings()?.notifyOnError, t("actions.tags.push.rejectedShort"), result.value.reason);

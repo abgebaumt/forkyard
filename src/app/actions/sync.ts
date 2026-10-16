@@ -7,6 +7,7 @@ import { desktopNotify, markManualSync } from "../notify";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction, showError, type ActionResult } from "../run";
 import { withFreshStatus } from "../statusCache";
+import { guardSecrets } from "./pushCheck";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
 import { chooseUpstream } from "./branches";
@@ -269,16 +270,21 @@ async function confirmForcePush(repoId: Id, branch: string | null): Promise<{ ex
  */
 export async function push(repoId: Id, options: PushOptions = {}): Promise<ActionResult<PushResult> | null> {
   const branch = options.branch ?? null;
-  const run = (remote: string | null, remoteBranch: string | null, force: boolean, expected: string | null = null) => {
-    const jobId = newJobId();
-    const title = force ? t("actions.sync.push.jobForced") : branch ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }) : t("actions.sync.push.label");
-    markManualSync(repoId);
-    return runAction(force ? t("actions.sync.push.labelForced") : t("actions.sync.push.label"), withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch, force, expected })), {
-      busyKey: busyKeys.push(repoId),
-      quiet: ["no_upstream", "push_rejected", "no_remote"],
-      job: { id: jobId, title, repoId },
+  const run = (remote: string | null, remoteBranch: string | null, force: boolean, expected: string | null = null) =>
+    guardSecrets(repoId, (acceptedSecrets) => {
+      const jobId = newJobId();
+      const title = force ? t("actions.sync.push.jobForced") : branch ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }) : t("actions.sync.push.label");
+      markManualSync(repoId);
+      return runAction(
+        force ? t("actions.sync.push.labelForced") : t("actions.sync.push.label"),
+        withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch, force, expected, acceptedSecrets })),
+        {
+          busyKey: busyKeys.push(repoId),
+          quiet: ["no_upstream", "push_rejected", "no_remote"],
+          job: { id: jobId, title, repoId },
+        },
+      );
     });
-  };
   const finish = (result: ActionResult<PushResult>) => {
     afterNetwork(repoId);
     if (!result.ok) {
@@ -399,18 +405,21 @@ export async function pushWithMore(repoId: Id, options: { branch?: string | null
   const local = refs?.locals.find((ref) => ref.name === branch);
   const upstreamRemote = local?.upstream ? (refs?.remotes.find((ref) => ref.name === local.upstream)?.remote ?? null) : null;
   const remote = upstreamRemote === plan.remote ? null : plan.remote;
-  const jobId = newJobId();
-  markManualSync(repoId);
-  const result = await runAction(
-    t("actions.sync.push.label"),
-    withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch: null, force: false, expected: null, extra: plan.extras, atomic: plan.atomic })),
-    { busyKey: busyKeys.push(repoId), quiet: ["no_remote"], job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId } },
-  );
+  const result = await guardSecrets(repoId, (acceptedSecrets) => {
+    const jobId = newJobId();
+    markManualSync(repoId);
+    return runAction(
+      t("actions.sync.push.label"),
+      withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch: null, force: false, expected: null, extra: plan.extras, atomic: plan.atomic, acceptedSecrets })),
+      { busyKey: busyKeys.push(repoId), quiet: ["no_remote"], job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId } },
+    );
+  });
   afterNetwork(repoId);
   if (!result.ok) {
     if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
     return result;
   }
+  if (result.value.status === "secrets_found") return result;
   const lines = resultLines(result.value);
   if (allThrough(result.value)) toast({ tone: "success", title: t("pushMany.done", { count: lines.length }) });
   else void showOutput(t("pushMany.result.title"), lines.map((line) => `${line.ref}  ${line.text}`).join("\n"));
