@@ -6,6 +6,7 @@ import { BlameView } from "../../screens/Blame";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
 import { CommitSearch } from "../../screens/CommitSearch";
+import { ComposeView } from "../../screens/Compose";
 import { ConflictTool } from "../../screens/ConflictTool";
 import { DiffView } from "../../screens/DiffView";
 import { FileHistory } from "../../screens/FileHistory";
@@ -64,6 +65,8 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       return <StatsView {...props} />;
     case "reflog":
       return <ReflogView {...props} refName={center.ref} />;
+    case "compose":
+      return <ComposeView {...props} />;
   }
 }
 

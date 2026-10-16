@@ -37,7 +37,9 @@ export type CenterView =
   /** Reflog of HEAD (`ref: null`) or of a branch (full name). */
   | { kind: "reflog"; ref: string | null }
   /** Statistics of the repository (src/screens/Stats). */
-  | { kind: "stats" };
+  | { kind: "stats" }
+  /** "Compose commits" (v1.2, 3.2): the local changes as units, grouped into commits. */
+  | { kind: "compose" };
 
 export type RightPanel = "details" | "stash_form";
 
