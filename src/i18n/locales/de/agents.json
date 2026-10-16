@@ -79,6 +79,7 @@
     "forget": "Eintrag entfernen",
     "details": "Details",
     "copyPath": "Ordnerpfad kopieren",
+    "review": "Änderungen prüfen",
     "stopAction": "Coding-Agent beenden",
     "resumeAction": "Coding-Agent fortsetzen",
     "forgetAction": "Eintrag des Coding-Agenten entfernen",
@@ -223,7 +224,9 @@
     "new": "Neuer Coding-Agent …",
     "newKeywords": "agent, coding-agent, claude, codex, opencode, worktree, ki",
     "cockpit": "Coding-Agenten zeigen",
-    "cockpitKeywords": "agenten, cockpit, coding-agent, claude, codex, opencode"
+    "cockpitKeywords": "agenten, cockpit, coding-agent, claude, codex, opencode",
+    "review": "Coding-Agent prüfen …",
+    "reviewKeywords": "review, prüfen, agent, coding-agent, übernehmen, diff, mergen"
   },
   "review": {
     "label": "Review der Coding-Agenten",

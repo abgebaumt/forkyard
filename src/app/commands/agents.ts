@@ -2,6 +2,7 @@
 import { t } from "../../i18n";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { openCockpit } from "../../screens/Agents/actions";
+import { reviewAgentFromPalette } from "../../screens/AgentReview/actions";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 
@@ -25,5 +26,13 @@ export const commands: AppCommand[] = [
     keywords: kw("agents.commands.cockpitKeywords"),
     when: hasRepo,
     run: (ctx) => openCockpit(ctx.tabId!),
+  },
+  {
+    id: "agents.review",
+    title: t("agents.commands.review"),
+    group: "Repository",
+    keywords: kw("agents.commands.reviewKeywords"),
+    when: hasRepo,
+    run: (ctx) => reviewAgentFromPalette(ctx.repoId!, ctx.tabId!),
   },
 ];

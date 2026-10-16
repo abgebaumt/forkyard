@@ -1,5 +1,5 @@
 /** What the cockpit, the left section and the details panel can do with an agent. */
-import { Copy, FlaskConical, GitPullRequestArrow, Play, Square, SquareTerminal, Trash2, X } from "lucide-react";
+import { Copy, FileDiff, FlaskConical, GitPullRequestArrow, Play, Square, SquareTerminal, Trash2, X } from "lucide-react";
 import { core, type Agent, type Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { openPrCreate } from "../../app/actions/pullrequests";
@@ -13,19 +13,21 @@ import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
 import { actionsFor, cleanupLines, type AgentAction } from "./model";
 import { resumeAgent, showAgentTerminal } from "./session";
+import { openAgentReview } from "../AgentReview/navigation";
 
 export const ACTION_LABELS: Record<AgentAction, string> = {
   terminal: t("agents.actions.terminal"),
   stop: t("agents.actions.stop"),
   resume: t("agents.actions.resume"),
   copyPath: t("agents.actions.copyPath"),
+  review: t("agents.actions.review"),
   tests: t("agents.actions.tests"),
   pr: t("agents.actions.pr"),
   cleanup: t("agents.actions.cleanup"),
   forget: t("agents.actions.forget"),
 };
 
-const ICONS = { terminal: SquareTerminal, stop: Square, resume: Play, copyPath: Copy, tests: FlaskConical, pr: GitPullRequestArrow, cleanup: Trash2, forget: X } as const;
+const ICONS = { terminal: SquareTerminal, stop: Square, resume: Play, copyPath: Copy, review: FileDiff, tests: FlaskConical, pr: GitPullRequestArrow, cleanup: Trash2, forget: X } as const;
 
 export interface ActionOptions {
   canResume: boolean;
@@ -81,6 +83,9 @@ export async function runAgentAction(action: AgentAction, agent: Agent, tabId: I
       return;
     case "copyPath":
       await copyText(agent.worktreePath, t("agents.actions.copyPath"));
+      return;
+    case "review":
+      openAgentReview(tabId, agent.id);
       return;
     case "tests": {
       const jobId = newJobId();

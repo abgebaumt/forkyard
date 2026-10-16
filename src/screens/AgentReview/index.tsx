@@ -18,7 +18,8 @@ import { t } from "../../i18n";
 import { displayName } from "../Agents/model";
 import { isPlainEscape } from "../FileView/parts";
 import { reviewColumns } from "./model";
-import { closeAgentReview, showColumns } from "./navigation";
+import { closeAgentReview, showColumns, stopComparing } from "./navigation";
+import { pickComparison } from "./actions";
 import { ReviewPane } from "./ReviewPane";
 
 export function AgentReviewView({ repoId, tabId, agentIds, show }: { repoId: Id; tabId: Id; agentIds: Id[]; show: AgentReviewShow }) {
@@ -63,6 +64,15 @@ export function AgentReviewView({ repoId, tabId, agentIds, show }: { repoId: Id;
               { value: "both", label: t("agents.review.sideBySide") },
             ]}
           />
+        ) : null}
+        {second ? (
+          <Button size="sm" variant="ghost" data-action="review-stop-comparing" onClick={() => stopComparing(tabId)}>
+            {t("agents.review.stopComparing")}
+          </Button>
+        ) : first ? (
+          <Button size="sm" variant="ghost" data-action="review-compare" onClick={() => void pickComparison(repoId, tabId, agentIds)}>
+            {t("agents.review.compare")}
+          </Button>
         ) : null}
         <Button size="sm" variant="ghost" data-action="review-close" onClick={() => closeAgentReview(tabId)}>
           {t("agents.review.close")}

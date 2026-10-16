@@ -9,15 +9,16 @@ import { busyKeys } from "../../app/actions/keys";
 import { abortOperation, mergeBranch, reportOpResult } from "../../app/actions/merge";
 import { preflight } from "../../app/actions/preflight";
 import { undo } from "../../app/actions/undo";
-import { confirm } from "../../app/dialogs";
+import { confirm, pickFromList } from "../../app/dialogs";
 import { qk, queryClient } from "../../app/queries";
 import { newOpId, runAction } from "../../app/run";
 import { withFreshStatus, withStatus } from "../../app/statusCache";
 import { toast } from "../../ui/Feedback";
 import { t } from "../../i18n";
 import { displayName } from "../Agents/model";
-import { buildSelections, rangeSource, type FilePicks } from "./model";
+import { buildSelections, compareCandidates, rangeSource, type FilePicks } from "./model";
 import { getPane, useReviewStore } from "./state";
+import { compareWith, openAgentReview } from "./navigation";
 
 export const reviewBusyKey = (repoId: Id) => busyKeys.write(repoId, "agent-review");
 
@@ -143,4 +144,37 @@ export async function discardRest(agent: Agent, uncommitted: number): Promise<bo
   if (!result.ok) return false;
   toast({ tone: "info", title: t("agents.review.discarded", { name: displayName(agent) }), action: { label: t("agents.review.undo"), onClick: () => void undo(worktree) } });
   return true;
+}
+
+const pickItems = (agents: Agent[]) => agents.map((agent) => ({ key: agent.id, label: displayName(agent), description: agent.branch }));
+
+const loadAgents = (repoId: Id, label: string) => runAction(label, () => queryClient.fetchQuery({ queryKey: qk.agents(repoId), queryFn: () => core.agentList({ repoId }) }));
+
+/** Palette “Review coding agent …”: the only agent directly, otherwise a pick list. */
+export async function reviewAgentFromPalette(repoId: Id, tabId: Id): Promise<void> {
+  const loaded = await loadAgents(repoId, t("agents.review.pickTitle"));
+  if (!loaded.ok) return;
+  const open = loaded.value.filter((agent) => agent.status !== "orphaned");
+  if (open.length === 0) {
+    toast({ tone: "info", title: t("agents.review.noAgents") });
+    return;
+  }
+  const chosen =
+    open.length === 1
+      ? open[0]!.id
+      : await pickFromList({ title: t("agents.review.pickTitle"), label: t("agents.review.pickLabel"), items: pickItems(open), confirmLabel: t("agents.review.pickConfirm") });
+  if (chosen) openAgentReview(tabId, chosen);
+}
+
+/** “Compare with …” in the review's header: a second agent, shown side by side. */
+export async function pickComparison(repoId: Id, tabId: Id, current: Id[]): Promise<void> {
+  const loaded = await loadAgents(repoId, t("agents.review.compare"));
+  if (!loaded.ok) return;
+  const candidates = compareCandidates(loaded.value, current);
+  if (candidates.length === 0) {
+    toast({ tone: "info", title: t("agents.review.noOtherAgents") });
+    return;
+  }
+  const chosen = await pickFromList({ title: t("agents.review.compareTitle"), label: t("agents.review.compareLabel"), items: pickItems(candidates), confirmLabel: t("agents.review.compareConfirm") });
+  if (chosen) compareWith(tabId, chosen);
 }

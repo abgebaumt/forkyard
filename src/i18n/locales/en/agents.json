@@ -79,6 +79,7 @@
     "forget": "Remove entry",
     "details": "Details",
     "copyPath": "Copy folder path",
+    "review": "Review changes",
     "stopAction": "Stop coding agent",
     "resumeAction": "Resume coding agent",
     "forgetAction": "Remove coding agent entry",
@@ -223,7 +224,9 @@
     "new": "New coding agent …",
     "newKeywords": "agent, coding agent, claude, codex, opencode, worktree, ai",
     "cockpit": "Show coding agents",
-    "cockpitKeywords": "agents, cockpit, coding agent, claude, codex, opencode"
+    "cockpitKeywords": "agents, cockpit, coding agent, claude, codex, opencode",
+    "review": "Review coding agent …",
+    "reviewKeywords": "review, agent, coding agent, take over, diff, merge, accept"
   },
   "review": {
     "label": "Review of coding agents",

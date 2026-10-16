@@ -123,7 +123,7 @@ export const manyAgentsHint = (running: number): string | null => (running >= MA
 
 // --- Actions ----------------------------------------------------------------------------
 
-export type AgentAction = "terminal" | "stop" | "resume" | "copyPath" | "tests" | "pr" | "cleanup" | "forget";
+export type AgentAction = "terminal" | "stop" | "resume" | "copyPath" | "review" | "tests" | "pr" | "cleanup" | "forget";
 
 export function actionsFor(agent: Agent, options: { canResume: boolean; hasTestCommand: boolean; hasHost: boolean }): AgentAction[] {
   if (agent.status === "orphaned") return ["forget"];
@@ -131,6 +131,7 @@ export function actionsFor(agent: Agent, options: { canResume: boolean; hasTestC
   if (hasSession(agent)) out.push("terminal", "stop");
   else if (options.canResume) out.push("resume");
   out.push("copyPath");
+  if (agent.changedFiles > 0 || agent.commitsAhead > 0) out.push("review");
   if (options.hasTestCommand) out.push("tests");
   if (options.hasHost && agent.commitsAhead > 0) out.push("pr");
   out.push("cleanup");

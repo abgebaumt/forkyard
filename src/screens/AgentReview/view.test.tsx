@@ -137,3 +137,19 @@ describe("AgentReviewView", () => {
     expect(html).toContain("This coding agent no longer exists.");
   });
 });
+
+describe("AgentReviewView: comparing", () => {
+  it("one agent offers “Compare with …”, two offer “Stop comparing”", () => {
+    const one = render([agent(), agent({ id: "a2", shortName: "tabelle" })], ["a1"], "first", (client) => seed(client, "a1", pinned));
+    expect(one).toContain('data-action="review-compare"');
+    expect(one).toContain("Compare with …");
+    expect(one).not.toContain('data-action="review-stop-comparing"');
+    setPanes({ "t1:a1": pane(), "t1:a2": pane() });
+    const two = render([agent(), agent({ id: "a2", shortName: "tabelle" })], ["a1", "a2"], "both", (client) => {
+      seed(client, "a1", pinned);
+      seed(client, "a2", { ...pinned, agentId: "a2" });
+    });
+    expect(two).toContain('data-action="review-stop-comparing"');
+    expect(two).not.toContain('data-action="review-compare"');
+  });
+});

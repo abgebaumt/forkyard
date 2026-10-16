@@ -141,7 +141,8 @@ describe("agents: actions and cleanup", () => {
     expect(actionsFor(agent({}), opts)).toEqual(["terminal", "stop", "copyPath", "cleanup"]);
     expect(actionsFor(agent({ terminalId: null, status: "stopped" }), opts)).toEqual(["resume", "copyPath", "cleanup"]);
     expect(actionsFor(agent({ terminalId: null, status: "stopped" }), { ...opts, canResume: false })).toEqual(["copyPath", "cleanup"]);
-    expect(actionsFor(agent({ commitsAhead: 2 }), { canResume: true, hasTestCommand: true, hasHost: true })).toEqual(["terminal", "stop", "copyPath", "tests", "pr", "cleanup"]);
+    expect(actionsFor(agent({ commitsAhead: 2 }), { canResume: true, hasTestCommand: true, hasHost: true })).toEqual(["terminal", "stop", "copyPath", "review", "tests", "pr", "cleanup"]);
+    expect(actionsFor(agent({ terminalId: null, status: "done", changedFiles: 3 }), opts)).toEqual(["resume", "copyPath", "review", "cleanup"]);
     expect(actionsFor(agent({ status: "orphaned", terminalId: null }), opts)).toEqual(["forget"]);
   });
   it("warns about unpushed commits and names what is kept", () => {
