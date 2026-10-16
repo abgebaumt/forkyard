@@ -46,6 +46,10 @@
       "label": "Notifications",
       "keywords": "On fetch results|On background errors"
     },
+    "ai": {
+      "label": "AI",
+      "keywords": "AI features|KI|Provider|Model|API key|LLM|Claude|Codex|Ollama|LM Studio|Gemini|OpenAI|Coding agent|Costs|Monthly limit|What is sent"
+    },
     "identity": {
       "label": "Profile and identity",
       "keywords": "Profile|Profile name|Color|Author name|Email|gitconfig"
@@ -85,6 +89,10 @@
     "pLinks": {
       "label": "Ticket links",
       "keywords": "Ticket links|Issue numbers|Jira|Linear|YouTrack|Redmine|Pattern|Regular expression|links.json"
+    },
+    "pAi": {
+      "label": "AI and agents",
+      "keywords": "AI off for this repository|KI|AI|Coding agent"
     },
     "about": {
       "label": "About",

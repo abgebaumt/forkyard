@@ -1,0 +1,182 @@
+{
+  "providers": {
+    "anthropic": "Anthropic (API key)",
+    "openai": "OpenAI (API key)",
+    "gemini": "Google Gemini (API key)",
+    "openai_compatible": "OpenAI-compatible service (own address)",
+    "ollama": "Ollama (on this computer)",
+    "lmstudio": "LM Studio (on this computer)"
+  },
+  "features": {
+    "commit_message": "Commit message",
+    "pr_description": "Pull request description",
+    "compose": "Compose commits",
+    "conflict_intent": "Explain conflicts",
+    "push_review": "Review before push",
+    "plan": "Git in plain language",
+    "archaeology": "Why is this so? (blame)",
+    "release_notes": "Release notes",
+    "bisect_script": "Bisect autopilot",
+    "semantic_search": "Search by meaning",
+    "review_fix": "Address review comments"
+  },
+  "featureHints": {
+    "commit_message": "Writes a draft from the staged changes.",
+    "pr_description": "Writes title and description from the commits of a branch.",
+    "compose": "Proposes how to split the changes into commits.",
+    "conflict_intent": "Explains what both sides of a conflict wanted.",
+    "push_review": "Looks for leftovers before you push.",
+    "plan": "Turns a sentence in the command palette into Forkyard steps.",
+    "archaeology": "Summarises the history of a line.",
+    "release_notes": "Groups the commits since the last tag.",
+    "bisect_script": "Writes a test script for bisect.",
+    "semantic_search": "Finds commits by what they are about.",
+    "review_fix": "Proposes fixes for open review comments."
+  },
+  "settings": {
+    "title": "AI",
+    "intro": "Commit messages, pull request texts and more with a provider of your choice. Off until you turn it on; one provider and one key for every profile.",
+    "masterCard": "AI features",
+    "master": {
+      "title": "AI features",
+      "description": "Turns every AI function on or off. Turning it off cancels running requests at once.",
+      "unset": "Not set up yet. Choose a provider below and turn this on."
+    },
+    "providerCard": "Provider",
+    "provider": {
+      "title": "Provider",
+      "description": "Who answers the requests. Local models run on this computer, and nothing leaves it.",
+      "placeholder": "Choose a provider"
+    },
+    "baseUrl": {
+      "title": "Address",
+      "description": "Address of the service including the version, e.g. https://openrouter.ai/api/v1. Unencrypted http:// only to this computer.",
+      "descriptionLocal": "Leave empty for the standard port on this computer."
+    },
+    "key": {
+      "title": "API key",
+      "description": "Stored only in the operating system’s keychain; Forkyard shows at most the last four characters. “Check” saves it.",
+      "stored": "Stored key {{hint}}",
+      "none": "No key stored",
+      "placeholder": "Paste the key",
+      "save": "Save the key",
+      "remove": "Remove key",
+      "removed": "Key removed"
+    },
+    "check": {
+      "title": "Connection",
+      "description": "Asks the provider for its models – with the key entered above, if there is one.",
+      "button": "Check",
+      "action": "Check the provider",
+      "ok_one": "Connected – {{count}} model found",
+      "ok_other": "Connected – {{count}} models found"
+    },
+    "model": {
+      "title": "Model",
+      "description": "Check the connection to choose from the provider’s models, or enter the model ID.",
+      "placeholder": "Model ID"
+    },
+    "price": {
+      "title": "Price",
+      "known": "{{input}} USD per million input tokens, {{output}} USD per million output tokens (price list of {{asOf}})",
+      "own": "Own price: {{input}} / {{output}} USD per million tokens",
+      "unknown": "Price unknown – no cost estimate and no protection by the monthly limit. You can enter your own price below.",
+      "local": "Runs on this computer – no costs."
+    },
+    "ownPrice": {
+      "title": "Own price",
+      "description": "USD per million tokens as “input / output”, e.g. 2 / 10. Empty = the price list."
+    },
+    "featuresCard": "Functions",
+    "privacyCard": "What is sent",
+    "exclude": {
+      "title": "Never send",
+      "description": "Patterns in .gitignore syntax, one per line, for every repository. A repository can add its own in .forkyard/ai-ignore. Secrets, .env files and keys are never sent anyway."
+    },
+    "whatIsSent": {
+      "title": "What is sent?",
+      "description": "Shows the exact text for the staged changes of the open repository – without sending anything.",
+      "button": "Show example",
+      "noRepo": "Open a repository to see an example."
+    },
+    "costThreshold": {
+      "title": "Ask above",
+      "description": "Ask before a request whose estimated cost is higher than this (USD)."
+    },
+    "askAgain": {
+      "title": "Confirmations",
+      "description": "Forkyard asks before the first use of a function, before more than 100,000 characters, above the amount above, and before a provider gets content of a repository for the first time.",
+      "button": "Ask again everywhere",
+      "done": "Forkyard will ask again."
+    },
+    "costCard": "Costs",
+    "limit": {
+      "title": "Monthly limit",
+      "description": "Ask before every further request once this month’s estimated costs reach this amount (USD). Empty = no limit. Only for API providers with a known price.",
+      "placeholder": "No limit"
+    },
+    "usage": {
+      "title": "This month",
+      "none": "No requests this month.",
+      "summary_one": "{{count}} request, {{input}} input and {{output}} output tokens, {{cost}}",
+      "summary_other": "{{count}} requests, {{input}} input and {{output}} output tokens, {{cost}}"
+    },
+    "invalidAmount": "Enter an amount in USD, e.g. 0.10."
+  },
+  "project": {
+    "title": "AI and agents",
+    "intro": "Applies to this repository only.",
+    "card": "AI",
+    "off": {
+      "title": "AI off for this repository",
+      "description": "No AI element appears for this repository, and nothing of it is sent."
+    }
+  },
+  "preview": {
+    "title": "What is sent?",
+    "lookIntro": "Exactly this text would go to the provider. Nothing was sent.",
+    "confirmIntro": "Please confirm before this goes to the provider.",
+    "size": "{{chars}} characters, about {{tokens}} tokens",
+    "cost": "Estimated cost: {{cost}}",
+    "omittedTitle": "Left out",
+    "shortened": "Shortened to the start and end of each hunk: {{files}}",
+    "dontAskAgain": "Don’t ask again for this",
+    "send": "Send",
+    "cancel": "Cancel",
+    "close": "Close",
+    "loading": "Prepare “What is sent?”",
+    "confirmAction": "Confirm sending",
+    "ask": {
+      "firstUse": "This function sends content to the provider for the first time.",
+      "large": "The request is large ({{chars}} characters).",
+      "cost": "The estimated cost is {{cost}}.",
+      "repoFirst": "The provider gets content of this repository for the first time.",
+      "limit": "This month’s costs ({{spent}}) have reached the limit ({{limit}}). Send this request anyway?"
+    },
+    "reason": {
+      "secret": "looks like a secret – never sent",
+      "ignored": "excluded by a pattern – never sent",
+      "generated": "generated or lock file – only name and size",
+      "binary": "binary file – only name and size",
+      "budget": "too large – only name and line counts"
+    }
+  },
+  "cost": {
+    "about": "about {{amount}} USD",
+    "under": "under {{amount}} USD",
+    "exact": "{{amount}} USD"
+  },
+  "entry": {
+    "label": "Set up AI features",
+    "tooltip": "Commit messages, PR texts and more with an AI provider of your choice. Off by default."
+  },
+  "intro": {
+    "title": "New in 1.2: AI features and coding agents – off by default.",
+    "setup": "Set up …",
+    "close": "Close"
+  },
+  "command": {
+    "setup": "Set up AI …",
+    "keywords": "AI, KI, LLM, model, Claude, Codex, Ollama, provider"
+  }
+}

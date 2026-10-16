@@ -1,0 +1,182 @@
+{
+  "providers": {
+    "anthropic": "Anthropic (API-Schlüssel)",
+    "openai": "OpenAI (API-Schlüssel)",
+    "gemini": "Google Gemini (API-Schlüssel)",
+    "openai_compatible": "OpenAI-kompatibler Dienst (eigene Adresse)",
+    "ollama": "Ollama (auf diesem Computer)",
+    "lmstudio": "LM Studio (auf diesem Computer)"
+  },
+  "features": {
+    "commit_message": "Commit-Nachricht",
+    "pr_description": "Pull-Request-Beschreibung",
+    "compose": "Commits zusammenstellen",
+    "conflict_intent": "Konflikte erklären",
+    "push_review": "Prüfung vor dem Push",
+    "plan": "Git in Alltagssprache",
+    "archaeology": "Warum ist das so? (Blame)",
+    "release_notes": "Release Notes",
+    "bisect_script": "Bisect-Autopilot",
+    "semantic_search": "Suche nach Bedeutung",
+    "review_fix": "Review-Kommentare abarbeiten"
+  },
+  "featureHints": {
+    "commit_message": "Schreibt einen Entwurf aus den gestagten Änderungen.",
+    "pr_description": "Schreibt Titel und Beschreibung aus den Commits eines Branches.",
+    "compose": "Schlägt vor, wie sich die Änderungen auf Commits verteilen.",
+    "conflict_intent": "Erklärt, was beide Seiten eines Konflikts wollten.",
+    "push_review": "Sucht vor dem Push nach Resten.",
+    "plan": "Macht aus einem Satz in der Befehlspalette Forkyard-Schritte.",
+    "archaeology": "Fasst die Geschichte einer Zeile zusammen.",
+    "release_notes": "Gruppiert die Commits seit dem letzten Tag.",
+    "bisect_script": "Schreibt ein Testskript für Bisect.",
+    "semantic_search": "Findet Commits nach ihrem Inhalt.",
+    "review_fix": "Schlägt Korrekturen für offene Review-Kommentare vor."
+  },
+  "settings": {
+    "title": "KI",
+    "intro": "Commit-Nachrichten, Pull-Request-Texte und mehr mit einem Anbieter deiner Wahl. Aus, bis du sie einschaltest; ein Anbieter und ein Schlüssel für alle Profile.",
+    "masterCard": "KI-Funktionen",
+    "master": {
+      "title": "KI-Funktionen",
+      "description": "Schaltet alle KI-Funktionen ein oder aus. Ausschalten bricht laufende Anfragen sofort ab.",
+      "unset": "Noch nicht eingerichtet. Wähle unten einen Anbieter und schalte dies ein."
+    },
+    "providerCard": "Anbieter",
+    "provider": {
+      "title": "Anbieter",
+      "description": "Wer die Anfragen beantwortet. Lokale Modelle laufen auf diesem Computer, und nichts verlässt ihn.",
+      "placeholder": "Anbieter wählen"
+    },
+    "baseUrl": {
+      "title": "Adresse",
+      "description": "Adresse des Dienstes mit Version, z. B. https://openrouter.ai/api/v1. Unverschlüsseltes http:// nur zu diesem Computer.",
+      "descriptionLocal": "Leer lassen für den Standardport auf diesem Computer."
+    },
+    "key": {
+      "title": "API-Schlüssel",
+      "description": "Nur im Schlüsselbund des Betriebssystems gespeichert; Forkyard zeigt höchstens die letzten vier Zeichen. „Prüfen“ speichert ihn.",
+      "stored": "Gespeicherter Schlüssel {{hint}}",
+      "none": "Kein Schlüssel gespeichert",
+      "placeholder": "Schlüssel einfügen",
+      "save": "Schlüssel speichern",
+      "remove": "Schlüssel entfernen",
+      "removed": "Schlüssel entfernt"
+    },
+    "check": {
+      "title": "Verbindung",
+      "description": "Fragt den Anbieter nach seinen Modellen – mit dem oben eingegebenen Schlüssel, falls einer da ist.",
+      "button": "Prüfen",
+      "action": "Anbieter prüfen",
+      "ok_one": "Verbunden – {{count}} Modell gefunden",
+      "ok_other": "Verbunden – {{count}} Modelle gefunden"
+    },
+    "model": {
+      "title": "Modell",
+      "description": "Prüfe die Verbindung, um aus den Modellen des Anbieters zu wählen, oder gib die Modell-ID ein.",
+      "placeholder": "Modell-ID"
+    },
+    "price": {
+      "title": "Preis",
+      "known": "{{input}} USD je Million Eingabe-Tokens, {{output}} USD je Million Ausgabe-Tokens (Preisliste vom {{asOf}})",
+      "own": "Eigener Preis: {{input}} / {{output}} USD je Million Tokens",
+      "unknown": "Preis unbekannt – keine Kostenschätzung und kein Schutz durch das Monatslimit. Du kannst unten einen eigenen Preis eingeben.",
+      "local": "Läuft auf diesem Computer – keine Kosten."
+    },
+    "ownPrice": {
+      "title": "Eigener Preis",
+      "description": "USD je Million Tokens als „Eingabe / Ausgabe“, z. B. 2 / 10. Leer = Preisliste."
+    },
+    "featuresCard": "Funktionen",
+    "privacyCard": "Was gesendet wird",
+    "exclude": {
+      "title": "Nie senden",
+      "description": "Muster in .gitignore-Syntax, eines pro Zeile, für jedes Repository. Ein Repository kann in .forkyard/ai-ignore eigene ergänzen. Geheimnisse, .env-Dateien und Schlüssel werden ohnehin nie gesendet."
+    },
+    "whatIsSent": {
+      "title": "Was wird gesendet?",
+      "description": "Zeigt den genauen Text für die gestagten Änderungen des offenen Repositorys – ohne etwas zu senden.",
+      "button": "Beispiel zeigen",
+      "noRepo": "Öffne ein Repository, um ein Beispiel zu sehen."
+    },
+    "costThreshold": {
+      "title": "Nachfragen ab",
+      "description": "Vor einer Anfrage nachfragen, deren geschätzte Kosten höher sind (USD)."
+    },
+    "askAgain": {
+      "title": "Rückfragen",
+      "description": "Forkyard fragt vor dem ersten Einsatz einer Funktion, ab mehr als 100.000 Zeichen, oberhalb des Betrags oben und bevor ein Anbieter zum ersten Mal Inhalte eines Repositorys bekommt.",
+      "button": "Überall wieder nachfragen",
+      "done": "Forkyard fragt wieder nach."
+    },
+    "costCard": "Kosten",
+    "limit": {
+      "title": "Monatslimit",
+      "description": "Vor jeder weiteren Anfrage nachfragen, sobald die geschätzten Kosten dieses Monats diesen Betrag erreichen (USD). Leer = kein Limit. Nur für API-Anbieter mit bekanntem Preis.",
+      "placeholder": "Kein Limit"
+    },
+    "usage": {
+      "title": "Dieser Monat",
+      "none": "Diesen Monat keine Anfragen.",
+      "summary_one": "{{count}} Anfrage, {{input}} Eingabe- und {{output}} Ausgabe-Tokens, {{cost}}",
+      "summary_other": "{{count}} Anfragen, {{input}} Eingabe- und {{output}} Ausgabe-Tokens, {{cost}}"
+    },
+    "invalidAmount": "Gib einen Betrag in USD ein, z. B. 0,10."
+  },
+  "project": {
+    "title": "KI und Agenten",
+    "intro": "Gilt nur für dieses Repository.",
+    "card": "KI",
+    "off": {
+      "title": "KI für dieses Repository aus",
+      "description": "Für dieses Repository erscheint kein KI-Element, und nichts daraus wird gesendet."
+    }
+  },
+  "preview": {
+    "title": "Was wird gesendet?",
+    "lookIntro": "Genau dieser Text ginge an den Anbieter. Es wurde nichts gesendet.",
+    "confirmIntro": "Bitte bestätige, bevor dies an den Anbieter geht.",
+    "size": "{{chars}} Zeichen, ca. {{tokens}} Tokens",
+    "cost": "Geschätzte Kosten: {{cost}}",
+    "omittedTitle": "Weggelassen",
+    "shortened": "Auf Anfang und Ende jedes Hunks gekürzt: {{files}}",
+    "dontAskAgain": "Hierfür nicht mehr fragen",
+    "send": "Senden",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "loading": "„Was wird gesendet?“ vorbereiten",
+    "confirmAction": "Senden bestätigen",
+    "ask": {
+      "firstUse": "Diese Funktion sendet zum ersten Mal Inhalte an den Anbieter.",
+      "large": "Die Anfrage ist groß ({{chars}} Zeichen).",
+      "cost": "Die geschätzten Kosten betragen {{cost}}.",
+      "repoFirst": "Der Anbieter bekommt zum ersten Mal Inhalte dieses Repositorys.",
+      "limit": "Die Kosten dieses Monats ({{spent}}) haben das Limit ({{limit}}) erreicht. Diese Anfrage trotzdem senden?"
+    },
+    "reason": {
+      "secret": "sieht nach einem Geheimnis aus – nie gesendet",
+      "ignored": "durch ein Muster ausgeschlossen – nie gesendet",
+      "generated": "generierte oder Lock-Datei – nur Name und Größe",
+      "binary": "Binärdatei – nur Name und Größe",
+      "budget": "zu groß – nur Name und Zeilenzahlen"
+    }
+  },
+  "cost": {
+    "about": "ca. {{amount}} USD",
+    "under": "unter {{amount}} USD",
+    "exact": "{{amount}} USD"
+  },
+  "entry": {
+    "label": "KI-Funktionen einrichten",
+    "tooltip": "Commit-Nachrichten, PR-Texte und mehr mit einem KI-Anbieter deiner Wahl. Standardmäßig aus."
+  },
+  "intro": {
+    "title": "Neu in 1.2: KI-Funktionen und Coding-Agenten – standardmäßig aus.",
+    "setup": "Einrichten …",
+    "close": "Schließen"
+  },
+  "command": {
+    "setup": "KI einrichten …",
+    "keywords": "KI, AI, LLM, Modell, Claude, Codex, Ollama, Anbieter"
+  }
+}

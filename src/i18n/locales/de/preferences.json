@@ -46,6 +46,10 @@
       "label": "Benachrichtigungen",
       "keywords": "Bei Fetch-Ergebnissen|Bei Fehlern im Hintergrund"
     },
+    "ai": {
+      "label": "KI",
+      "keywords": "KI-Funktionen|KI|AI|Anbieter|Modell|API-Schlüssel|LLM|Claude|Codex|Ollama|LM Studio|Gemini|OpenAI|Coding-Agent|Kosten|Monatslimit|Was wird gesendet"
+    },
     "identity": {
       "label": "Profil und Identität",
       "keywords": "Profil|Profilname|Farbe|Autorname|E-Mail|gitconfig"
@@ -85,6 +89,10 @@
     "pLinks": {
       "label": "Ticket-Links",
       "keywords": "Ticket-Links|Issue-Nummern|Jira|Linear|YouTrack|Redmine|Muster|Regulärer Ausdruck|links.json"
+    },
+    "pAi": {
+      "label": "KI und Agenten",
+      "keywords": "KI für dieses Repository aus|KI|AI|Coding-Agent"
     },
     "about": {
       "label": "Über",

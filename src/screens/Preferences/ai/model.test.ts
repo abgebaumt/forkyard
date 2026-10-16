@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+import { acceptsKey, FEATURES, featureToggle, isLocal, needsKey, parsePatterns, parsePricePair, parseUsd, patternsText, pricePairText, PROVIDERS, usesBaseUrl, withOwnPrice } from "./model";
+
+describe("AI settings model", () => {
+  it("knows which providers need a key, an address or run locally", () => {
+    expect(PROVIDERS).toHaveLength(6);
+    expect(PROVIDERS.filter(needsKey)).toEqual(["anthropic", "openai", "gemini"]);
+    expect(acceptsKey("openai_compatible") && !needsKey("openai_compatible")).toBe(true);
+    expect(PROVIDERS.filter(usesBaseUrl)).toEqual(["openai_compatible", "ollama", "lmstudio"]);
+    expect(PROVIDERS.filter(isLocal)).toEqual(["ollama", "lmstudio"]);
+    expect(acceptsKey("ollama")).toBe(false);
+    expect(FEATURES).toHaveLength(11);
+  });
+
+  it("reads exclusion patterns line by line, without blanks and doubles", () => {
+    expect(parsePatterns(" *.sql \r\n\n*.sql\ngeheim/**\n")).toEqual(["*.sql", "geheim/**"]);
+    expect(patternsText(["*.sql", "geheim/**"])).toBe("*.sql\ngeheim/**");
+    expect(parsePatterns("   \n")).toEqual([]);
+  });
+
+  it("reads amounts with a dot or a comma", () => {
+    expect(parseUsd("0,10")).toBe(0.1);
+    expect(parseUsd(" 25 USD")).toBe(25);
+    expect(parseUsd("")).toBeNull();
+    expect(parseUsd("-1")).toBe("invalid");
+    expect(parseUsd("1e3")).toBe("invalid");
+    expect(parseUsd("zehn")).toBe("invalid");
+  });
+
+  it("switches single functions off and on", () => {
+    expect(featureToggle([], "compose", false)).toEqual(["compose"]);
+    expect(featureToggle(["compose", "plan"], "compose", true)).toEqual(["plan"]);
+    expect(featureToggle(["plan"], "plan", false)).toEqual(["plan"]);
+  });
+
+  it("keeps one own price per model", () => {
+    expect(parsePricePair("2 / 10")).toEqual({ input: 2, output: 10 });
+    expect(parsePricePair("2,5/12")).toEqual({ input: 2.5, output: 12 });
+    expect(parsePricePair("")).toBeNull();
+    expect(parsePricePair("2")).toBe("invalid");
+    const prices = withOwnPrice([{ model: "a", inputUsdPerMtok: 1, outputUsdPerMtok: 2 }], "a", { input: 3, output: 4 });
+    expect(prices).toEqual([{ model: "a", inputUsdPerMtok: 3, outputUsdPerMtok: 4 }]);
+    expect(withOwnPrice(prices, "a", null)).toEqual([]);
+    expect(pricePairText(prices[0])).toBe("3 / 4");
+    expect(pricePairText(undefined)).toBe("");
+  });
+});

@@ -94,7 +94,8 @@ export type PreferencesSection =
   | "signing"
   | "editor"
   | "terminal"
-  | "repo";
+  | "repo"
+  | "ai";
 
 export type Overlay =
   | null

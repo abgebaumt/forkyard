@@ -13,6 +13,7 @@ export type SectionId =
   | "external"
   | "commands"
   | "notifications"
+  | "ai"
   | "identity"
   | "git"
   | "ssh"
@@ -23,6 +24,7 @@ export type SectionId =
   | "p-git"
   | "p-files"
   | "p-links"
+  | "p-ai"
   | "about";
 
 export interface SectionDef {
@@ -46,6 +48,7 @@ export const SECTIONS: SectionDef[] = [
   section("external", "global", "external"),
   section("commands", "global", "commands"),
   section("notifications", "global", "notifications"),
+  section("ai", "global", "ai"),
   section("identity", "profile", "identity"),
   section("git", "profile", "git"),
   section("ssh", "profile", "ssh"),
@@ -56,6 +59,7 @@ export const SECTIONS: SectionDef[] = [
   section("p-git", "project", "pGit"),
   section("p-files", "project", "pFiles"),
   section("p-links", "project", "pLinks"),
+  section("p-ai", "project", "pAi"),
   section("about", "help", "about"),
 ];
 

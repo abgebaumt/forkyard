@@ -61,6 +61,9 @@ export const qk = {
   initTemplates: ["app", "initTemplates"] as const,
   sshKeys: ["app", "sshKeys"] as const,
   credentials: ["app", "credentials"] as const,
+  // AI (v1.2): state and connection, this month's usage.
+  aiStatus: ["app", "aiStatus"] as const,
+  aiUsage: ["app", "aiUsage"] as const,
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,
 
@@ -136,6 +139,10 @@ export const useTabs = () => useQuery({ queryKey: qk.tabs, queryFn: () => core.t
 export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core.repoList() });
 // Settings and profiles are read only once no change to them is in flight (see writeQueue.ts).
 export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: () => writesSettled().then(() => core.settingsGet()) });
+/** AI state and connection (`aiStatus`); reloads on `app:changed` with `ai`. */
+export const useAiStatus = () => useQuery({ queryKey: qk.aiStatus, queryFn: () => core.aiStatus() });
+/** This month's AI usage (numbers only). */
+export const useAiUsage = () => useQuery({ queryKey: qk.aiUsage, queryFn: () => core.aiUsage() });
 /**
  * Avatar from GitHub for an email address – for `AvatarSourceContext` (called as a hook in every
  * `Avatar`). Off while "Initials instead of avatars" is set; without an image the initials remain.
@@ -598,6 +605,7 @@ const APP_KEYS: Record<string, QueryKey> = {
   repos: qk.repos,
   settings: qk.settings,
   profiles: qk.profiles,
+  ai: qk.aiStatus,
 };
 
 /**

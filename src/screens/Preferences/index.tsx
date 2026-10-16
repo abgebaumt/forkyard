@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import {
   Bell,
   Command,
+  Cpu,
   FileCog,
   FolderGit2,
   GitBranch,
@@ -40,6 +41,8 @@ import { ownCount, SECTION_KEYS } from "./inherit";
 import { searchSections, visibleSections, type Level, type SectionId } from "./nav";
 import { LoadError, ScopePill, SettingsSearch, SettingsSkeleton } from "./parts";
 import { AboutSection } from "./sections/About";
+import { AiSection } from "./sections/Ai";
+import { ProjectAiSection } from "./sections/ProjectAi";
 import { AppearanceSection, DiffSection, ExternalSection, GitSection, NotificationsSection } from "./sections/AppSections";
 import { CredentialsSection } from "./sections/Credentials";
 import { ProfilesSection } from "./sections/Profiles";
@@ -64,6 +67,7 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   ssh: "ssh",
   integrations: "integrations",
   repo: "p-identity",
+  ai: "ai",
 };
 
 const iconClass = "size-icon shrink-0";
@@ -73,6 +77,7 @@ const icons: Record<SectionId, ReactNode> = {
   external: <SquareTerminal className={iconClass} aria-hidden />,
   commands: <Command className={iconClass} aria-hidden />,
   notifications: <Bell className={iconClass} aria-hidden />,
+  ai: <Cpu className={iconClass} aria-hidden />,
   identity: <UserRound className={iconClass} aria-hidden />,
   git: <GitBranch className={iconClass} aria-hidden />,
   ssh: <KeyRound className={iconClass} aria-hidden />,
@@ -83,6 +88,7 @@ const icons: Record<SectionId, ReactNode> = {
   "p-git": <GitBranch className={iconClass} aria-hidden />,
   "p-files": <FileCog className={iconClass} aria-hidden />,
   "p-links": <Link2 className={iconClass} aria-hidden />,
+  "p-ai": <Cpu className={iconClass} aria-hidden />,
   about: <Info className={iconClass} aria-hidden />,
 };
 
@@ -220,6 +226,8 @@ export function Preferences({
         return <CustomCommandsSection repoId={repo?.trusted ? repoId : null} />;
       case "notifications":
         return withSettings((value) => <NotificationsSection settings={value} />);
+      case "ai":
+        return withSettings((value) => <AiSection settings={value} repoId={repo?.trusted ? repoId : null} />);
       case "identity":
         return <ProfilesSection create={createProfile} />;
       case "git":
@@ -240,6 +248,8 @@ export function Preferences({
         return repoId ? <ProjectFilesSection key={repoId} repoId={repoId} /> : null;
       case "p-links":
         return repoId ? <TicketLinksSection key={repoId} repoId={repoId} /> : null;
+      case "p-ai":
+        return repoId ? <ProjectAiSection key={repoId} repoId={repoId} /> : null;
       case "about":
         return <AboutSection />;
     }
