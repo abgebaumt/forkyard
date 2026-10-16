@@ -1037,7 +1037,8 @@ export interface AiStatus {
 
 /** What `aiPreview` builds the text from; later packages add variants. */
 export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string }
-  | { kind: "stack_split"; branch: string; base: string };
+  | { kind: "stack_split"; branch: string; base: string }
+  | { kind: "review_fix"; number: number; threadId: string };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
@@ -1911,6 +1912,54 @@ export interface ReviewReply {
   comment: HostComment;
   /** Posted as a new review comment on the same line with a quote (the host has no answers inside threads). */
   quoted: boolean;
+}
+
+/** What a line of a suggested fix is in its diff. */
+export type ReviewFixLineKind = "context" | "removed" | "added";
+
+/** One line of the hunk of a suggested fix, decoded for display. */
+export interface ReviewFixLine {
+  kind: ReviewFixLineKind;
+  text: string;
+  /** Line number in the pull request's version; null for added lines. */
+  old: number | null;
+  /** Line number after the fix; null for removed lines. */
+  new: number | null;
+}
+
+/** Why the core chose a fixup target: blame of the commented lines, or the newest commit changing the file. */
+export type FixupReason = "blame" | "file";
+
+/** A commit of the pull request a fix can be a `fixup!` for. */
+export interface FixupTarget {
+  sha: Sha;
+  summary: string;
+  /** null for the candidates the user can choose from. */
+  reason: FixupReason | null;
+}
+
+/** `aiReviewFix`: a suggested fix for one review thread – nothing is written. */
+export interface AiReviewFix {
+  threadId: string;
+  path: string;
+  /** The replaced lines at `headSha` (1-based, inclusive). */
+  startLine: number;
+  endLine: number;
+  newText: string;
+  /** The AI's reason (for the user and the reply draft). */
+  why: string;
+  headSha: Sha;
+  oldText: string;
+  /** The hunk, built by the core. */
+  lines: ReviewFixLine[];
+  /** null = the user chooses from `candidates`. */
+  target: FixupTarget | null;
+  /** The pull request's commits, newest first. */
+  candidates: FixupTarget[];
+  /** The local branch of the pull request. */
+  branch: string;
+  /** `branch` is checked out (otherwise "Check out branch"). */
+  onBranch: boolean;
 }
 
 export interface PrCommit {

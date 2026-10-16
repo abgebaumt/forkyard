@@ -10,7 +10,8 @@ use crate::commands::graph;
 use crate::commands::history::{self, UTF8_BOM};
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
-use crate::model::{FixupReason, FixupTarget, ReviewFixLine, ReviewFixLineKind};
+use crate::host::Host;
+use crate::model::{FixupReason, FixupTarget, PrSummary, ReviewFixLine, ReviewFixLineKind};
 use crate::util;
 
 /// Lines of context around the replaced ones.
@@ -271,6 +272,19 @@ pub(crate) async fn fixup_target(core: &Core, repo_id: &str, range: &PrRange, pa
     let sha = out.stdout_text();
     Ok(range.commits.iter().find(|commit| commit.sha == sha).map(|commit| FixupTarget { reason: Some(FixupReason::File), ..commit.clone() }))
 }
+
+/// The local branch of a pull request, as `pr_checkout` creates it: the source branch, or the host's
+/// branch name for a pull request from another repository.
+pub(crate) fn local_branch(hoster: &dyn Host, summary: &PrSummary, number: u64) -> String {
+    if summary.is_fork || summary.source_branch.is_empty() {
+        hoster.fork_branch(number)
+    } else {
+        summary.source_branch.clone()
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod test_host;
 
 #[cfg(test)]
 mod tests;

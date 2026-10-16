@@ -1240,3 +1240,8 @@ pub async fn stack_check(core: State<'_, Core>, repo_id: String, job_id: String,
 pub async fn ai_stack_split(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, locale: String) -> R<AiStackSplit> {
     c::ai::ai_stack_split(&core, repo_id, job_id, branch, base, locale).await
 }
+
+#[tauri::command]
+pub async fn ai_review_fix(core: State<'_, Core>, repo_id: String, job_id: String, number: u64, thread_id: String, locale: String) -> R<AiReviewFix> {
+    c::ai::ai_review_fix(&core, repo_id, job_id, number, thread_id, locale).await
+}

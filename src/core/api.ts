@@ -23,6 +23,7 @@ import type {
   AiPreview,
   AiStackSplit,
   AiPrDescription,
+  AiReviewFix,
   AiProviderKind,
   AiStatus,
   AiUsageSummary,
@@ -935,6 +936,17 @@ export interface CoreCommands {
    * describe), `not_found` (ref), `repo_untrusted`, `cancelled`, `timeout`.
    */
   aiPrDescription(input: R & { jobId: string; source: string; target: string; locale: string }): Promise<AiPrDescription>;
+  /**
+   * 8.2: a fix for one review thread – the AI's replacement for the commented lines at the pull
+   * request's newest commit, checked by the core (only the thread's file, only lines of the excerpt it
+   * saw; the patch is built by the core) together with the commit it is a fixup for. Nothing is written.
+   * Show and confirm `aiPreview` with `{ kind: "review_fix", number, threadId }` first. Job `jobId`
+   * (cancellable). Errors: `ai_disabled`, `ai_not_configured`, `ai_provider_unavailable`,
+   * `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`, `ai_too_large`, `not_allowed` (not confirmed,
+   * outdated thread, file excluded or not changed by the pull request), `not_found` (thread, or the pull
+   * request's commits not fetched), host errors, `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiReviewFix(input: R & { jobId: string; number: number; threadId: string; locale: string }): Promise<AiReviewFix>;
   /**
    * "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, never
    * committed. Built exactly like `aiPreview` with `{ kind: "commit_message" }`, so a confirmation

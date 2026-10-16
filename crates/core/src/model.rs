@@ -1446,6 +1446,10 @@ pub enum AiInput {
     PrDescription { source: String, target: String },
     /// Paket 8.1: where to cut `branch` (short or `refs/heads/…`) above `base` (full ref of a branch).
     StackSplit { branch: String, base: String },
+    /// 8.2: one review thread of pull request `number`; the core reads thread, pull request and file
+    /// itself (`{"kind": "review_fix", "number": 7, "threadId": "…"}`).
+    #[serde(rename_all = "camelCase")]
+    ReviewFix { number: u64, thread_id: String },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
@@ -3240,6 +3244,34 @@ pub struct FixupTarget {
     pub summary: String,
     /// `None` for the candidates the user can choose from.
     pub reason: Option<FixupReason>,
+}
+
+/// `aiReviewFix` (8.2): a suggested fix for one review thread – nothing is written.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiReviewFix {
+    pub thread_id: String,
+    pub path: String,
+    /// The replaced lines at `head_sha` (1-based, inclusive).
+    pub start_line: u32,
+    pub end_line: u32,
+    pub new_text: String,
+    /// The AI's reason, for the user and the reply draft.
+    pub why: String,
+    /// The pull request's newest commit the fix was built for.
+    pub head_sha: Sha,
+    /// The replaced lines as they are.
+    pub old_text: String,
+    /// The hunk for display (built by the core).
+    pub lines: Vec<ReviewFixLine>,
+    /// The commit the fix belongs to; `None` = the user chooses from `candidates`.
+    pub target: Option<FixupTarget>,
+    /// The pull request's commits, newest first.
+    pub candidates: Vec<FixupTarget>,
+    /// The local branch of the pull request.
+    pub branch: String,
+    /// `branch` is checked out here (otherwise the UI offers "Check out branch").
+    pub on_branch: bool,
 }
 
 

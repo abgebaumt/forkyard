@@ -18,6 +18,7 @@ pub mod prompt;
 pub mod pr;
 pub mod provider;
 pub mod providers;
+pub mod review;
 pub mod run;
 pub mod cli;
 pub mod detect;
