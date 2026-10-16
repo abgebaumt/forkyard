@@ -317,5 +317,7 @@ fn patch_conflicts(stderr: &str) -> Vec<String> {
     files
 }
 
+pub mod markers;
+
 #[cfg(test)]
 mod tests;
