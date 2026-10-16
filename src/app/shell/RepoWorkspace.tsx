@@ -66,7 +66,9 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
     case "reflog":
       return <ReflogView {...props} refName={center.ref} />;
     case "stack":
-      return <StackView {...props} branch={center.branch} />;
+      // Keyed by branch: switching from one branch's stack view to another's starts with a fresh plan
+      // (no cuts, names, base or AI offer of the previous branch).
+      return <StackView key={center.branch} {...props} branch={center.branch} />;
   }
 }
 
