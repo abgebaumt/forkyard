@@ -110,6 +110,13 @@ fn main() -> ExitCode {
             let _ = write!(out, "last words before exit\r\n");
             let _ = out.flush();
             return ExitCode::from(code.trim().parse::<u8>().unwrap_or(1));
+        } else {
+            // Anything else typed in (a note from "Inform agent"): logged without the paste markers.
+            let text = command.replace(PASTE_START, "").replace(PASTE_END, "");
+            let text = text.trim();
+            if !text.is_empty() {
+                note(&mut log, &format!("line: {}", escape(text)));
+            }
         }
         // Keep reading a little longer than the line discipline needs.
         let mut rest = [0u8; 0];

@@ -18,12 +18,13 @@ use tokio::time::Instant;
 
 use crate::app::Core;
 use crate::commands::preview::{self, Merged, MergedConflict};
+use crate::commands::preview::markers;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
 use crate::git::{redact, GitCmd};
 use crate::jobs::CancelToken;
-use crate::model::{Agent, AgentCollision, AgentStatus, CollisionCheckState, CollisionFile, CollisionKind, CollisionReport, CollisionSkip, RepoChange};
+use crate::model::{Agent, AgentCollision, AgentStatus, CollisionBlock, CollisionCheckState, CollisionFile, CollisionKind, CollisionPreview, CollisionReport, CollisionSkip, RepoChange};
 use crate::undo;
 use crate::util;
 
@@ -462,13 +463,52 @@ pub(crate) async fn run_check(core: &Core, repo_id: &str) -> CoreResult<Collisio
 }
 
 /// Result tree and raw path of `path` in the conflict `collision_id` of the last report.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn stored_conflict(core: &Core, repo_id: &str, collision_id: &str, path: &str) -> Option<(String, Vec<u8>)> {
     let watch = core.state::<CollisionWatch>();
     let repos = watch.repos.lock();
     let stored = repos.get(repo_id)?.stored.get(collision_id)?;
     let raw = stored.files.iter().find(|(shown, _)| shown == path)?.1.clone();
     Some((stored.tree.clone(), raw))
+}
+
+// ---------------------------------------------------------------------------
+// Preview
+// ---------------------------------------------------------------------------
+
+/// At most this many conflicts of a file in the preview …
+pub const MAX_PREVIEW_BLOCKS: usize = 20;
+/// … with at most this many lines per side.
+pub const MAX_PREVIEW_LINES: usize = 200;
+
+fn side_text(bytes: &[u8], truncated: &mut bool) -> String {
+    let mut end = bytes.len();
+    let mut lines = 0;
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte == b'\n' {
+            lines += 1;
+            if lines == MAX_PREVIEW_LINES {
+                end = index + 1;
+                break;
+            }
+        }
+    }
+    if end < bytes.len() {
+        *truncated = true;
+    }
+    util::decode_lossy(&bytes[..end])
+}
+
+/// Both sides of every conflict in the merged `blob` (with markers), limited for display.
+pub fn preview_of(collision_id: &str, path: &str, blob: &[u8]) -> CollisionPreview {
+    let all = markers::blocks(blob);
+    let mut truncated = all.len() > MAX_PREVIEW_BLOCKS;
+    let mut blocks = Vec::new();
+    for block in all.into_iter().take(MAX_PREVIEW_BLOCKS) {
+        let ours = side_text(&block.ours, &mut truncated);
+        let theirs = side_text(&block.theirs, &mut truncated);
+        blocks.push(CollisionBlock { range: block.range, ours, theirs });
+    }
+    CollisionPreview { collision_id: collision_id.to_string(), path: path.to_string(), blocks, truncated }
 }
 
 #[cfg(test)]

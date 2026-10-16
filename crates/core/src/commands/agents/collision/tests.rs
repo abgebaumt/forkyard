@@ -335,3 +335,84 @@ async fn changes_are_debounced_and_one_check_runs_at_a_time() {
     // The agents changed nothing, so no conflict result is kept for a preview.
     assert_eq!(stored_conflict(&tc, &id, "a-eins+b-zwei", "f.txt"), None);
 }
+
+use crate::commands::agents::{agent_collision_check, agent_collision_preview, agent_collisions, agent_inform, MAX_INFORM_BYTES};
+use crate::error::ErrorCode;
+use crate::model::{CollisionBlock, CollisionPreview};
+
+#[test]
+fn the_preview_is_limited_in_blocks_and_lines() {
+    let mut blob = Vec::new();
+    for n in 1..=25 {
+        blob.extend_from_slice(format!("<<<<<<< a\nA{n}\n=======\nB{n}\n>>>>>>> b\n").as_bytes());
+    }
+    let preview = preview_of("a+b", "f.txt", &blob);
+    assert_eq!(preview.blocks.len(), MAX_PREVIEW_BLOCKS);
+    assert!(preview.truncated);
+    assert_eq!(preview.blocks[1], CollisionBlock { range: LineRange { start: 2, end: 2 }, ours: "A2\n".into(), theirs: "B2\n".into() });
+    let mut long = b"<<<<<<< a\n".to_vec();
+    for n in 1..=250 {
+        long.extend_from_slice(format!("a {n}\n").as_bytes());
+    }
+    long.extend_from_slice(b"=======\nb\n>>>>>>> b\n");
+    let preview = preview_of("a+b", "f.txt", &long);
+    assert_eq!(preview.blocks[0].ours.lines().count(), MAX_PREVIEW_LINES);
+    assert_eq!(preview.blocks[0].range, LineRange { start: 1, end: 250 });
+    assert!(preview.truncated);
+    let short = preview_of("a+b", "f.txt", b"<<<<<<< a\nx\n=======\ny\n>>>>>>> b\n");
+    assert_eq!(short, CollisionPreview { collision_id: "a+b".into(), path: "f.txt".into(), blocks: vec![CollisionBlock { range: LineRange { start: 1, end: 1 }, ours: "x\n".into(), theirs: "y\n".into() }], truncated: false });
+}
+
+#[tokio::test]
+async fn the_preview_shows_both_sides_of_each_conflict() {
+    let (tc, repo, id) = setup().await;
+    repo.commit_file("src/auth.ts", numbered(80, 0, 0, ""), "Basis");
+    let (_a, folder_a) = agent_without_session(&tc, &repo, &id, "a-login").await;
+    let (_b, folder_b) = agent_without_session(&tc, &repo, &id, "b-auth").await;
+    std::fs::write(folder_a.join("src/auth.ts"), numbered(80, 40, 62, "a")).unwrap();
+    std::fs::write(folder_b.join("src/auth.ts"), numbered(80, 40, 62, "b")).unwrap();
+    // Never checked: pending.
+    assert_eq!(agent_collisions(&tc, id.clone()).await.unwrap().state, CollisionCheckState::Pending);
+
+    let report = agent_collision_check(&tc, id.clone()).await.unwrap();
+    assert_eq!(report.state, CollisionCheckState::Done);
+    assert!(report.checked_at.is_some());
+    let preview = agent_collision_preview(&tc, id.clone(), "agent-a-login+agent-b-auth".into(), "src/auth.ts".into()).await.unwrap();
+    let side = |prefix: &str| (40..=62).map(|n| format!("{prefix} {n}\n")).collect::<String>();
+    assert_eq!(preview.blocks, vec![CollisionBlock { range: LineRange { start: 40, end: 62 }, ours: side("a"), theirs: side("b") }]);
+    assert!(!preview.truncated);
+    // Only files and collisions of the last report.
+    let unknown_file = agent_collision_preview(&tc, id.clone(), "agent-a-login+agent-b-auth".into(), "README.md".into()).await.unwrap_err();
+    assert_eq!(unknown_file.code, ErrorCode::NotFound);
+    let unknown = agent_collision_preview(&tc, id.clone(), "x+y".into(), "src/auth.ts".into()).await.unwrap_err();
+    assert_eq!(unknown.code, ErrorCode::NotFound);
+    // The last report is kept.
+    assert_eq!(agent_collisions(&tc, id.clone()).await.unwrap(), report);
+}
+
+#[tokio::test]
+async fn an_untrusted_repository_is_refused_and_a_failed_check_is_a_state() {
+    let (tc, _repo, id) = setup().await;
+    tc.db.with(|c| db::repos::set_trusted(c, &id, false)).unwrap();
+    assert_eq!(agent_collision_check(&tc, id.clone()).await.unwrap_err().code, ErrorCode::RepoUntrusted);
+    assert_eq!(agent_collisions(&tc, id.clone()).await.unwrap_err().code, ErrorCode::RepoUntrusted);
+    // A background check (no command in front of it) records the failure as a state.
+    let report = run_check(&tc, &id).await.unwrap();
+    assert_eq!(report.state, CollisionCheckState::Failed);
+    assert!(report.error.as_deref().is_some_and(|e| !e.is_empty()), "{report:?}");
+    assert_eq!(tc.events.named(names::AGENT_COLLISIONS).last().unwrap()["state"], json!("failed"));
+}
+
+#[tokio::test]
+async fn informing_needs_a_running_agent_and_a_sensible_text() {
+    let (tc, repo, id) = setup().await;
+    let (row, _folder) = agent_without_session(&tc, &repo, &id, "still").await;
+    let inform = |text: String| agent_inform(&tc, row.id.clone(), text);
+    let not_running = inform("Bitte warten".into()).await.unwrap_err();
+    assert_eq!((not_running.code, not_running.message.as_str()), (ErrorCode::NotAllowed, "“still” is not running – there is no terminal to type into."));
+    let empty = inform("   \n".into()).await.unwrap_err();
+    assert_eq!((empty.code, empty.message.as_str()), (ErrorCode::NotAllowed, "Write the note for the agent."));
+    let long = inform("x".repeat(MAX_INFORM_BYTES + 1)).await.unwrap_err();
+    assert_eq!((long.code, long.message.as_str()), (ErrorCode::NotAllowed, "The note is too long (more than 4 KB)."));
+    assert_eq!(agent_inform(&tc, "gibt-es-nicht".into(), "x".into()).await.unwrap_err().code, ErrorCode::NotFound);
+}

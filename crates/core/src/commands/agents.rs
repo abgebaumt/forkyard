@@ -474,3 +474,60 @@ async fn roll_back(core: &Core, row: &AgentRow, folder: &Path) {
         log::warn!("worktree of the failed agent start not removed: {}", e.message);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Collision warning (package 2b)
+// ---------------------------------------------------------------------------
+
+/// Longest note “Inform agent” types into an agent's terminal.
+pub const MAX_INFORM_BYTES: usize = 4 * 1024;
+
+/// The last collision report of the repository's coding agents. Before the first check it is
+/// `pending`, and asking for it starts one. Errors: `repo_untrusted`, `not_found`.
+pub async fn agent_collisions(core: &Core, repo_id: String) -> CoreResult<crate::model::CollisionReport> {
+    core.repo_path(&repo_id)?;
+    let report = collision::report(core, &repo_id);
+    if report.state == crate::model::CollisionCheckState::Pending {
+        collision::check_soon(core, &repo_id);
+    }
+    Ok(report)
+}
+
+/// Checks the repository's agents for collisions now (after a check that is running) and returns
+/// the report; a failed check is the report's state `failed`, not an error.
+/// Errors: `repo_untrusted`, `not_found`.
+pub async fn agent_collision_check(core: &Core, repo_id: String) -> CoreResult<crate::model::CollisionReport> {
+    core.repo_path(&repo_id)?;
+    collision::run_check(core, &repo_id).await
+}
+
+/// Both sides of every conflict of `path` in the collision `collision_id` of the last report.
+/// Errors: `not_found` (no such collision or file in the last report, or the result is gone), `repo_untrusted`.
+pub async fn agent_collision_preview(core: &Core, repo_id: String, collision_id: String, path: String) -> CoreResult<crate::model::CollisionPreview> {
+    core.repo_path(&repo_id)?;
+    let gone = || CoreError::not_found("This collision is no longer current or too large to show. Check again.");
+    let (tree, raw) = collision::stored_conflict(core, &repo_id, &collision_id, &path).ok_or_else(gone)?;
+    let blob = crate::commands::preview::conflicted_blob(core, &repo_id, &crate::jobs::CancelToken::new(), &tree, &raw).await?.ok_or_else(gone)?;
+    Ok(collision::preview_of(&collision_id, &path, &blob))
+}
+
+/// Types `text`, which the user confirmed, into the running agent's terminal – as bracketed paste
+/// plus Enter, like the task at the start. The text is never logged.
+/// Errors: `not_found` (agent), `repo_untrusted`, `not_allowed` (empty, longer than 4 KB, agent not running).
+pub async fn agent_inform(core: &Core, agent_id: String, text: String) -> CoreResult<()> {
+    let row = core.db.with(|c| db::agents::require(c, &agent_id))?;
+    core.repo_path(&row.repo_id)?;
+    let text = text.trim();
+    if text.is_empty() {
+        return Err(CoreError::not_allowed("Write the note for the agent."));
+    }
+    if text.len() > MAX_INFORM_BYTES {
+        return Err(CoreError::not_allowed("The note is too long (more than 4 KB)."));
+    }
+    let session = core
+        .state::<AgentRegistry>()
+        .get(&agent_id)
+        .filter(|session| !session.snapshot().finished)
+        .ok_or_else(|| CoreError::not_allowed(format!("“{}” is not running – there is no terminal to type into.", row.short_name)))?;
+    crate::commands::terminal::terminal_write(core, session.terminal_id().to_string(), registry::paste(text)).await
+}

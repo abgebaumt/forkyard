@@ -264,3 +264,17 @@ async fn the_test_command_runs_by_itself_when_the_agent_is_done() {
     }
     assert_eq!(std::fs::read_to_string(&marker).unwrap().trim(), "automatisch");
 }
+
+#[tokio::test]
+async fn informing_types_the_confirmed_text_into_the_agents_terminal() {
+    let f = fixture(&[]).await;
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Anmeldung umbauen".into(), "agent/umbauen".into(), "main".into(), false, 120, 40).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Waiting).await;
+    let note = "Hinweis von Forkyard: „b“ ändert ebenfalls src/auth.ts (Zeilen 40–62).\nBitte dort nichts ändern.";
+    gitcore::commands::agents::agent_inform(&f.tc, agent.id.clone(), note.into()).await.unwrap();
+    wait_for("the note in the agent's input", || log_text(&f).contains("line: Bitte dort nichts ändern.")).await;
+    let log = log_text(&f);
+    assert!(log.contains("line: Hinweis von Forkyard: „b“ ändert ebenfalls src/auth.ts (Zeilen 40–62)."), "{log}");
+    // Exactly the confirmed text, as two lines – nothing else was typed.
+    assert_eq!(log.matches("line: ").count(), 2, "{log}");
+}
