@@ -7,10 +7,16 @@ use std::collections::HashSet;
 use std::sync::OnceLock;
 
 use regex::Regex;
+use rusqlite::Connection;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::ai::ignore::builtin_reason;
+use crate::app::Core;
+use crate::db;
+use crate::error::{CoreError, CoreResult};
 use crate::git::redact::{self, SecretKind};
+use crate::jobs::CancelToken;
 use crate::model::{AiOmitReason, SecretFinding, SecretRule};
 use crate::{secrets, util};
 
@@ -336,6 +342,69 @@ impl<'a> PatchScanner<'a> {
     }
 }
 
+/// `repo_settings` key of "Don't report again": a JSON array of finding IDs (hashes, never values).
+pub const IGNORED_KEY: &str = "secretScanIgnoredIds";
+/// At most this many IDs are kept per repository (the newest).
+pub const MAX_IGNORED: usize = 2000;
+
+/// Scans the added lines of every commit reachable from `tips` (full refs) but not from a
+/// remote-tracking branch of `remote` – newest first, within `MAX_COMMITS` and `MAX_PATCH_BYTES`.
+/// Read-only and without a log entry: the patch holds file contents.
+pub async fn scan_outgoing(core: &Core, repo_id: &str, tips: &[String], remote: &str, cancel: &CancelToken) -> CoreResult<SecretScan> {
+    let ignored = core.db.with(|c| ignored_ids(c, repo_id))?;
+    let mut scanner = PatchScanner::new(&ignored, MAX_COMMITS, MAX_PATCH_BYTES);
+    core.git_for(repo_id)?
+        .args(["log", "--format=%x00%H", "-p", "-U0", "-M", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"])
+        .arg(format!("--max-count={}", MAX_COMMITS + 1))
+        .args(tips)
+        .arg("--not")
+        .arg(format!("--remotes={remote}"))
+        .arg("--")
+        .read_only()
+        .no_log()
+        .run_records(b'\n', Some(cancel), &mut |line: &[u8]| scanner.feed(line))
+        .await?;
+    Ok(scanner.finish())
+}
+
+fn stored_ids(conn: &Connection, repo_id: &str) -> CoreResult<Vec<String>> {
+    let value = db::repo_settings::get_all(conn, repo_id)?.into_iter().find(|(key, _)| key == IGNORED_KEY).map(|(_, value)| value);
+    Ok(match value {
+        Some(Value::Array(items)) => items.into_iter().filter_map(|item| item.as_str().map(str::to_string)).collect(),
+        _ => Vec::new(),
+    })
+}
+
+/// The findings this repository no longer reports.
+pub fn ignored_ids(conn: &Connection, repo_id: &str) -> CoreResult<HashSet<String>> {
+    Ok(stored_ids(conn, repo_id)?.into_iter().collect())
+}
+
+/// "Don't report again": stores the IDs (64 lower-case hex characters each); returns how many
+/// IDs are stored now.
+pub fn ignore_ids(conn: &Connection, repo_id: &str, ids: &[String]) -> CoreResult<usize> {
+    if let Some(bad) = ids.iter().find(|id| id.len() != 64 || !id.bytes().all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'))) {
+        return Err(CoreError::not_allowed(format!("“{}” is not the ID of a finding.", util::truncate_str(bad, 80))));
+    }
+    let mut list = stored_ids(conn, repo_id)?;
+    for id in ids {
+        if !list.contains(id) {
+            list.push(id.clone());
+        }
+    }
+    if list.len() > MAX_IGNORED {
+        let excess = list.len() - MAX_IGNORED;
+        list.drain(..excess);
+    }
+    db::repo_settings::set(conn, repo_id, IGNORED_KEY, &Value::Array(list.iter().cloned().map(Value::String).collect()))?;
+    Ok(list.len())
+}
+
+/// "Report again": forgets every "Don't report again" of the repository.
+pub fn forget_ignored(conn: &Connection, repo_id: &str) -> CoreResult<()> {
+    db::repo_settings::delete(conn, repo_id, IGNORED_KEY)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -551,3 +620,7 @@ mod tests {
         assert!(elapsed.as_millis() < 200, "spec target: < 200 ms, took {elapsed:?}");
     }
 }
+
+#[cfg(test)]
+#[path = "secret_scan_tests.rs"]
+mod repo_tests;
