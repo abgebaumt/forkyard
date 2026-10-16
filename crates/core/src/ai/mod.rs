@@ -9,6 +9,7 @@
 //! - No streaming; every request is a cancellable job (`run`).
 
 pub mod commit_message;
+pub mod conflict;
 pub mod context;
 pub mod gate;
 pub mod ignore;
