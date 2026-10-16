@@ -22,6 +22,7 @@ pub mod run;
 pub mod cli;
 pub mod detect;
 pub mod schema;
+pub mod stack;
 
 use std::collections::HashMap;
 use std::time::Duration;
