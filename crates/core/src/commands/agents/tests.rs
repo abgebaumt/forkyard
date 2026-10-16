@@ -102,3 +102,35 @@ async fn the_agents_folder_follows_the_main_worktree_even_with_spaces_and_umlaut
     let s = agent_suggest(&tc2, from_linked.repo.id, "Neben".into(), None, None).await.unwrap();
     assert!(same(&s.path, &expected_folder(&repo, "neben")), "{}", s.path);
 }
+#[test]
+fn porcelain_v2_entries_are_counted_once_each() {
+    // Written by hand: one modified file, one rename (its original path is an extra NUL field),
+    // one conflict, two untracked – a path with a space, an umlaut and a leading "-".
+    let out = "1 .M N... 100644 100644 100644 a a src/a.rs\x002 R. N... 100644 100644 100644 b b R100 neu name.txt\x00alt name.txt\x00u UU N... 100644 100644 100644 100644 c c c konflikt.txt\x00? -Größe.md\x00? ordner/datei mit leer.txt\x00".as_bytes();
+    assert_eq!(count_status_entries(out), 5);
+    assert_eq!(count_status_entries(b""), 0);
+    assert_eq!(count_status_entries(b"# branch.oid abc\x00? x\x00"), 1, "header lines are no entries");
+}
+
+#[tokio::test]
+async fn templates_list_built_ins_first_and_find_own_programs_by_path() {
+    let (tc, repo, _) = setup().await;
+    let program = repo.temp_dir().join("Mein Agent.sh");
+    std::fs::write(&program, "#!/bin/sh\n").unwrap();
+    let missing = repo.temp_dir().join("fehlt").join("agent");
+    let mine = serde_json::json!({ "agentTemplates": [
+        { "id": "custom:da", "name": "Da", "program": program.to_string_lossy(), "args": [], "resumeArgs": ["--weiter"] },
+        { "id": "custom:weg", "name": "Weg", "program": missing.to_string_lossy(), "args": [], "unattendedArgs": ["--ja"] },
+    ] });
+    crate::commands::settings::settings_set(&tc, mine).await.unwrap();
+    let list = agent_templates(&tc).await.unwrap();
+    let ids: Vec<&str> = list.iter().map(|t| t.id.as_str()).collect();
+    assert_eq!(ids, vec!["claude", "codex", "opencode", "custom:da", "custom:weg"]);
+    let da = &list[3];
+    assert!(same(da.path.as_deref().unwrap(), &program), "{:?}", da.path);
+    assert_eq!((da.version.as_deref(), da.can_resume, da.status_hook), (None, true, false), "the script prints no version");
+    assert!(da.unattended_blocked.is_some(), "no unattended arguments");
+    let weg = &list[4];
+    assert_eq!((weg.path.as_deref(), weg.can_resume, weg.unattended_blocked.as_deref()), (None, false, None));
+    assert!(list[0].status_hook && list[1].status_hook && !list[2].status_hook);
+}

@@ -149,6 +149,11 @@ pub(crate) async fn main_worktree_path(core: &Core, repo_id: &str) -> CoreResult
     Ok(util::native_path(&util::bytes_to_path(&first.path)))
 }
 
+/// Every worktree of the repository as (folder, full ref of the checked-out branch).
+pub(crate) async fn listed_worktrees(core: &Core, repo_id: &str) -> CoreResult<Vec<(PathBuf, Option<String>)>> {
+    Ok(read_raw(core, repo_id).await?.into_iter().map(|w| (util::native_path(&util::bytes_to_path(&w.path)), w.branch)).collect())
+}
+
 fn same_path(a: &Path, b: &Path) -> bool {
     util::path_key(a) == util::path_key(b)
 }

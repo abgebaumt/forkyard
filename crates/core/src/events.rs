@@ -27,8 +27,10 @@ pub mod names {
     pub const APP_CLOSE_REQUESTED: &str = "app:close_requested";
     /// The follow-up job brought changed submodules along (or failed – a warning).
     pub const SUBMODULES_UPDATED: &str = "submodules:updated";
+    /// Coding agents of a repository changed (started, status, ended, cleaned up).
+    pub const AGENTS_CHANGED: &str = "agents:changed";
 
-    pub const ALL: [&str; 13] = [
+    pub const ALL: [&str; 14] = [
         REPO_CHANGED,
         JOB_PROGRESS,
         JOB_DONE,
@@ -42,6 +44,7 @@ pub mod names {
         APP_OPEN_REQUEST,
         APP_CLOSE_REQUESTED,
         SUBMODULES_UPDATED,
+        AGENTS_CHANGED,
     ];
 }
 
