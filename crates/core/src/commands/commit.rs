@@ -297,7 +297,7 @@ fn check_committable(status: &Status) -> CoreResult<()> {
     Ok(())
 }
 
-fn operation_error(kind: OperationKind, what: &str) -> CoreError {
+pub(crate) fn operation_error(kind: OperationKind, what: &str) -> CoreError {
     let (name, hint) = match kind {
         OperationKind::Merge => ("a merge", "Finish the merge with a commit or abort it first."),
         OperationKind::Rebase => ("a rebase", "Continue the rebase with “Continue” or abort it."),

@@ -792,6 +792,92 @@ pub struct StashSelection {
 }
 
 // ---------------------------------------------------------------------------
+// Compose commits (v1.2, Teilpaket 3.2)
+// ---------------------------------------------------------------------------
+
+/// What one unit of "Compose commits" is: one hunk of a text file or a whole file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ComposeUnitKind {
+    Hunk,
+    /// A text file that is not split (beyond `MAX_SPLIT_FILES`, or without hunks).
+    File,
+    Added,
+    Deleted,
+    Renamed,
+    Binary,
+    Submodule,
+    Lfs,
+    /// File mode or type changed.
+    Mode,
+    /// Symbolic link.
+    Link,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeUnit {
+    /// `<path>#<hunk index>@<token>`; whole files `<path>#file@<token>`.
+    pub id: String,
+    pub path: String,
+    pub old_path: Option<String>,
+    pub kind: ComposeUnitKind,
+    pub hunk_index: Option<u32>,
+    /// `@@ -a,b +c,d @@ section` as `git diff` prints it; empty for whole files.
+    pub header: String,
+    pub added: u32,
+    pub removed: u32,
+    /// For display only, at most `MAX_UNIT_LINES`; the commit always takes the whole unit.
+    pub lines: Vec<DiffLine>,
+    pub lines_cut: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeState {
+    /// Over HEAD, the index and the working directory; `compose_apply` expects it back.
+    pub token: String,
+    pub branch: String,
+    pub head: Sha,
+    pub units: Vec<ComposeUnit>,
+    /// `commit.gpgSign` is on: one passphrase prompt per commit is possible.
+    pub signing: bool,
+}
+
+/// A commit of a proposal or a plan: message and the unit IDs it takes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeGroup {
+    pub title: String,
+    pub body: String,
+    pub units: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeProposal {
+    pub state: ComposeState,
+    /// In creation order; units in no group stay uncommitted.
+    pub groups: Vec<ComposeGroup>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposePlan {
+    /// In creation order (the first is the oldest).
+    pub commits: Vec<ComposeGroup>,
+    pub skip_hooks: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeResult {
+    /// The new commits, oldest first.
+    pub commits: Vec<Sha>,
+    pub hooks: Vec<HookOutput>,
+}
+
+// ---------------------------------------------------------------------------
 // Results of write actions
 // ---------------------------------------------------------------------------
 

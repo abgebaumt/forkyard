@@ -351,7 +351,7 @@ pub fn parse_numstat_z(stdout: &[u8]) -> HashMap<Vec<u8>, LineCounts> {
 // ---------------------------------------------------------------------------
 
 /// Paths to which the attribute `filter=lfs` applies (`git check-attr`).
-async fn lfs_paths(core: &Core, path: &Path, repo_id: &str, paths: &[&[u8]]) -> CoreResult<HashSet<Vec<u8>>> {
+pub(crate) async fn lfs_paths(core: &Core, path: &Path, repo_id: &str, paths: &[&[u8]]) -> CoreResult<HashSet<Vec<u8>>> {
     let mut out = HashSet::new();
     if paths.is_empty() {
         return Ok(out);

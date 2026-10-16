@@ -56,7 +56,7 @@ const RANGE_TAG: &str = "range";
 /// Fixed options for every `git diff`, so the user's settings (prefixes,
 /// external diff, textconv, colours) do not change the output. Without
 /// `diff.autoRefreshIndex=false` a reading diff would write the index back.
-const DIFF_COMMAND: [&str; 12] = [
+pub(crate) const DIFF_COMMAND: [&str; 12] = [
     "-c",
     "diff.autoRefreshIndex=false",
     "-c",
@@ -201,19 +201,19 @@ fn diff_cmd(ctx: &Ctx<'_>, endpoints: &Endpoints, index_file: Option<&Path>, opt
 
 /// One entry from `git diff --raw -z`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct RawEntry {
-    old_mode: String,
-    new_mode: String,
-    old_id: String,
-    new_id: String,
+pub(crate) struct RawEntry {
+    pub(crate) old_mode: String,
+    pub(crate) new_mode: String,
+    pub(crate) old_id: String,
+    pub(crate) new_id: String,
     /// A, D, M, R, T, U …
-    status: u8,
-    path: Vec<u8>,
-    old_path: Option<Vec<u8>>,
+    pub(crate) status: u8,
+    pub(crate) path: Vec<u8>,
+    pub(crate) old_path: Option<Vec<u8>>,
 }
 
 /// `:<mode> <mode> <id> <id> <status>NUL<path>NUL[<target path>NUL]`
-fn parse_raw_z(stdout: &[u8]) -> Vec<RawEntry> {
+pub(crate) fn parse_raw_z(stdout: &[u8]) -> Vec<RawEntry> {
     let mut out = Vec::new();
     let mut records = util::split_z(stdout);
     while let Some(record) = records.next() {
@@ -500,7 +500,7 @@ async fn run_patch(ctx: &Ctx<'_>, target: &Target, ignore_whitespace: bool) -> C
 /// the sections of the files inside it – the diff of the one file showed foreign lines.
 /// What remains is the section with exactly this path; if there is none (Git puts paths with
 /// special characters in quotes), the output stays as it is.
-fn only_this_file(patch: Vec<u8>, path: &[u8], old_path: Option<&[u8]>) -> Vec<u8> {
+pub(crate) fn only_this_file(patch: Vec<u8>, path: &[u8], old_path: Option<&[u8]>) -> Vec<u8> {
     let mut starts: Vec<usize> = Vec::new();
     let mut at = 0;
     while at < patch.len() {
@@ -543,7 +543,7 @@ async fn binary_by_numstat(ctx: &Ctx<'_>, target: &Target) -> CoreResult<bool> {
 /// `--full-index` it contains the blob IDs of both sides (for the working directory the
 /// hash of the content), plus every line of the hunks: if the file changes in the index
 /// or in the working directory, the token changes.
-fn token_of(tag: &str, patch: &[u8]) -> String {
+pub(crate) fn token_of(tag: &str, patch: &[u8]) -> String {
     const OFFSET: u128 = 0x6c62272e07bb014262b821756295c58d;
     const PRIME: u128 = 0x0000000001000000000000000000013b;
     let mut hash = OFFSET;

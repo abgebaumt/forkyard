@@ -14,6 +14,7 @@ pub mod clone_init;
 pub mod crash;
 pub mod custom;
 pub mod commit;
+pub mod compose;
 pub mod diff;
 pub mod external;
 pub mod gitflow;
