@@ -16,7 +16,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 /// Codeberg, the public Forgejo instance: what "no address" means for this host.
@@ -468,6 +468,92 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
 }
 
 // ---------------------------------------------------------------------------
+// Review threads (8.2)
+// ---------------------------------------------------------------------------
+
+/// A review comment (`…/reviews/{id}/comments`) as a comment of a thread: `position` > 0 is the new
+/// side, otherwise `original_position` on the old side.
+fn review_comment(value: &Value) -> (HostComment, ReviewSide, Option<u32>) {
+    let position = number(value, "position");
+    let (side, line) = if position > 0 { (ReviewSide::New, position) } else { (ReviewSide::Old, number(value, "original_position")) };
+    let line = u32::try_from(line).ok().filter(|n| *n > 0);
+    let comment = HostComment {
+        id: number(value, "id").to_string(),
+        author: value.get("user").and_then(user),
+        body: text(value, "body"),
+        created_at: text(value, "created_at"),
+        path: opt_text(value, "path"),
+        line,
+    };
+    (comment, side, line)
+}
+
+/// Gitea has no thread object: the comments of all submitted reviews (not `PENDING`, with comments)
+/// are grouped by file, side and line in the order they were written. The thread ID is the first
+/// comment's; a thread is resolved if one of its comments names a `resolver`.
+pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, index: u64) -> CoreResult<Vec<ReviewThread>> {
+    let base = repo_path(repo);
+    let submitted = reviews(core, api, repo, index).await.map_err(|e| not_found_as(e, pr_not_found(repo, index)))?;
+    let mut all: Vec<Value> = Vec::new();
+    for review in submitted.iter().filter(|r| text(r, "state") != "PENDING" && number(r, "comments_count") > 0) {
+        all.extend(api.get_all(core, &format!("{base}/pulls/{index}/reviews/{}/comments", number(review, "id"))).await?);
+    }
+    all.sort_by(|a, b| text(a, "created_at").cmp(&text(b, "created_at")).then(number(a, "id").cmp(&number(b, "id"))));
+    let mut threads: Vec<ReviewThread> = Vec::new();
+    for value in &all {
+        let (comment, side, line) = review_comment(value);
+        let Some(path) = comment.path.clone() else { continue };
+        let resolved = value.get("resolver").is_some_and(Value::is_object);
+        match threads.iter_mut().find(|t| t.path == path && t.side == side && t.line == line) {
+            Some(thread) => {
+                thread.resolved |= resolved;
+                thread.comments.push(comment);
+            }
+            None => threads.push(ReviewThread { id: comment.id.clone(), path, line, start_line: None, side, commit: opt_text(value, "commit_id"), resolved, outdated: false, comments: vec![comment] }),
+        }
+    }
+    Ok(threads)
+}
+
+/// `> **login:**` and up to three lines of the thread's first comment (`> …` if there are more).
+pub(crate) fn quote(thread: &ReviewThread) -> String {
+    let Some(first) = thread.comments.first() else { return String::new() };
+    let who = first.author.as_ref().map(|a| a.login.as_str()).unwrap_or("?");
+    let mut lines: Vec<String> = first.body.lines().take(3).map(|line| format!("> {line}")).collect();
+    if first.body.lines().count() > 3 {
+        lines.push("> …".to_string());
+    }
+    format!("> **{who}:**\n{}", lines.join("\n"))
+}
+
+/// Gitea's API cannot answer inside a review conversation: the answer becomes a new review comment on
+/// the same file and line (`POST …/pulls/{index}/reviews`, event `COMMENT`) that quotes the thread.
+pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, index: u64, thread_id: &str, body: &str) -> CoreResult<ReviewReply> {
+    let thread = review_threads(core, api, repo, index)
+        .await?
+        .into_iter()
+        .find(|t| t.id == thread_id)
+        .ok_or_else(|| CoreError::new(ErrorCode::HostNotFound, format!("The review thread does not exist (anymore) in pull request #{index}.")))?;
+    let Some(line) = thread.line else {
+        return Err(CoreError::not_allowed("This review comment no longer has a line to answer on."));
+    };
+    let quoted = format!("{}\n\n{body}", quote(&thread));
+    let comment = match thread.side {
+        ReviewSide::New => json!({ "path": thread.path, "body": quoted, "new_position": line }),
+        ReviewSide::Old => json!({ "path": thread.path, "body": quoted, "old_position": line }),
+    };
+    let base = repo_path(repo);
+    let review: Value = api
+        .send_json(core, Method::Post, &format!("{base}/pulls/{index}/reviews"), &json!({ "event": "COMMENT", "body": "", "comments": [comment] }))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, index)))?
+        .json()?;
+    let created = api.get_all(core, &format!("{base}/pulls/{index}/reviews/{}/comments", number(&review, "id"))).await?;
+    let first = created.first().ok_or_else(|| CoreError::unknown(format!("The response from {LABEL} could not be read (the new review has no comment).")))?;
+    Ok(ReviewReply { comment: review_comment(first).0, quoted: true })
+}
+
+// ---------------------------------------------------------------------------
 // As a `Host`
 // ---------------------------------------------------------------------------
 
@@ -516,9 +602,9 @@ impl Host for GiteaHost {
             pr_reviewers: true,
             pr_labels: true,
             fork_checkout: true,
-            review_threads: false,
-            review_reply: false,
-            review_reply_quotes: false,
+            review_threads: true,
+            review_reply: true,
+            review_reply_quotes: true,
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
@@ -562,5 +648,11 @@ impl Host for GiteaHost {
     }
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
         Box::pin(issue_get(core, api, repo, number))
+    }
+    fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+        Box::pin(review_threads(core, api, repo, number))
+    }
+    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+        Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

@@ -722,6 +722,41 @@ pub(crate) fn gitea(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
             }
             MockResponse::json(201, pr)
         }
+        ("GET", ["pulls", _, "reviews"]) if number == 9 => MockResponse::json(
+            200,
+            json!([
+                { "id": 91, "user": gt_user("mira"), "state": "COMMENT", "body": "", "submitted_at": "2026-09-02T09:30:00Z", "dismissed": false, "comments_count": 3 },
+                { "id": 92, "user": gt_user("jonas"), "state": "COMMENT", "body": "", "submitted_at": "2026-09-02T10:00:00Z", "dismissed": false, "comments_count": 1 },
+                { "id": 93, "user": gt_user("lena"), "state": "PENDING", "body": "", "submitted_at": Value::Null, "dismissed": false, "comments_count": 1 },
+                { "id": 94, "user": gt_user("mira"), "state": "APPROVED", "body": "", "submitted_at": "2026-09-02T11:00:00Z", "dismissed": false, "comments_count": 0 }
+            ]),
+        ),
+        ("GET", ["pulls", _, "reviews", id, "comments"]) => {
+            let review_comment = |id: u64, review: u64, who: &str, body: &str, path: &str, position: u64, original: u64, at: &str, resolver: Value| {
+                json!({ "id": id, "pull_request_review_id": review, "user": gt_user(who), "body": body, "path": path, "position": position, "original_position": original,
+                    "commit_id": sha(9), "original_commit_id": sha(9), "created_at": at, "updated_at": at, "resolver": resolver, "diff_hunk": "@@ -40,3 +40,3 @@" })
+            };
+            match *id {
+                "91" => MockResponse::json(200, json!([
+                    review_comment(9101, 91, "mira", "Hier fehlt die Prüfung auf leer.", "src/anmeldung.rs", 42, 0, "2026-09-02T09:30:00Z", Value::Null),
+                    review_comment(9102, 91, "mira", "Tippfehler: „Fehler“.", "src/meldung.rs", 7, 0, "2026-09-02T09:31:00Z", gt_user("mira")),
+                    review_comment(9103, 91, "mira", "Diese Zeile gibt es so nicht mehr.", "src/alt.rs", 0, 12, "2026-09-02T09:32:00Z", Value::Null),
+                ])),
+                "92" => MockResponse::json(200, json!([review_comment(9201, 92, "jonas", "Stimmt, mache ich.", "src/anmeldung.rs", 42, 0, "2026-09-02T10:00:00Z", Value::Null)])),
+                "95" => {
+                    let body = state.review_bodies.last().cloned().unwrap_or_default();
+                    MockResponse::json(200, json!([review_comment(9501, 95, "lena", &body, "src/anmeldung.rs", 42, 0, "2026-09-05T08:00:00Z", Value::Null)]))
+                }
+                _ => MockResponse::json(200, json!([])),
+            }
+        }
+        ("POST", ["pulls", _, "reviews"]) => {
+            let body = request.json();
+            if let Some(text) = body["comments"][0]["body"].as_str() {
+                state.review_bodies.push(text.to_string());
+            }
+            MockResponse::json(200, json!({ "id": 95, "user": gt_user("lena"), "state": "COMMENT", "body": "", "submitted_at": "2026-09-05T08:00:00Z", "dismissed": false, "comments_count": 1 }))
+        }
         ("GET", ["pulls", _, "reviews"]) => MockResponse::json(
             200,
             match number {

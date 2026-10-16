@@ -6,7 +6,7 @@ use serde_json::json;
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
 use crate::host::detect::normalize_base_url;
-use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
+use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState, ReviewSide};
 
 const KIND: HostKind = HostKind::Gitea;
 const LABEL: &str = "Gitea/Forgejo";
@@ -208,4 +208,60 @@ async fn pull_requests_are_created_changed_commented_merged_and_closed() {
     check_error_modes(&fx, LABEL, "pr_comment", || cmd::pr_comment(&fx.tc, fx.id(), 7, "Text".into(), None)).await;
     check_error_modes(&fx, LABEL, "pr_close", || cmd::pr_close(&fx.tc, fx.id(), 7, None)).await;
     fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn review_comments_are_grouped_into_threads_by_file_side_and_line() {
+    let fx = Fixture::new(KIND).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let rows: Vec<_> = threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved)).collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("9101", "src/anmeldung.rs", Some(42), None, ReviewSide::New, false),
+            ("9102", "src/meldung.rs", Some(7), None, ReviewSide::New, true),
+            ("9103", "src/alt.rs", Some(12), None, ReviewSide::Old, false),
+        ]
+    );
+    let first: Vec<_> = threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str())).collect();
+    assert_eq!(first, vec![("9101", Some("mira"), "Hier fehlt die Prüfung auf leer."), ("9201", Some("jonas"), "Stimmt, mache ich.")], "answers of another review join the thread");
+    assert_eq!(threads[0].commit.as_deref(), Some(format!("{:040x}", 9).as_str()));
+    // Only submitted reviews with comments are read; the pending draft (93) and the approval without comments (94) are not.
+    assert_eq!(fx.sent("GET", "/reviews/91/comments").len(), 1);
+    assert_eq!(fx.sent("GET", "/reviews/92/comments").len(), 1);
+    assert!(fx.sent("GET", "/reviews/93/comments").is_empty() && fx.sent("GET", "/reviews/94/comments").is_empty());
+    check_error_modes(&fx, LABEL, "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    check_broken_json(&fx, LABEL, "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn without_thread_answers_the_reply_is_a_quoted_comment_on_the_same_line() {
+    let fx = Fixture::new(KIND).await;
+    let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
+    assert!(caps.review_threads && caps.review_reply && caps.review_reply_quotes, "the UI says it before posting");
+    let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9101".into(), "Erledigt.".into(), None).await.unwrap();
+    assert!(reply.quoted);
+    let expected = "> **mira:**\n> Hier fehlt die Prüfung auf leer.\n\nErledigt.";
+    assert_eq!(reply.comment.body, expected);
+    assert_eq!((reply.comment.id.as_str(), reply.comment.path.as_deref(), reply.comment.line), ("9501", Some("src/anmeldung.rs"), Some(42)));
+    let sent = fx.sent("POST", "/repos/octo/demo/pulls/9/reviews");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].json(), json!({ "event": "COMMENT", "body": "", "comments": [{ "path": "src/anmeldung.rs", "body": expected, "new_position": 42 }] }));
+    // On the old side the comment goes to `old_position`.
+    cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9103".into(), "Ist weg.".into(), None).await.unwrap();
+    let old = fx.sent("POST", "/repos/octo/demo/pulls/9/reviews");
+    assert_eq!(old[1].json()["comments"][0]["old_position"], 12);
+    assert!(old[1].json()["comments"][0].get("new_position").is_none());
+    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "4711".into(), "Danke".into(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotFound);
+    fx.assert_token_stays_secret();
+}
+
+#[test]
+fn a_quote_keeps_three_lines_of_the_first_comment() {
+    use crate::model::{HostComment, HostUser, ReviewThread};
+    let comment = |login: &str, body: &str| HostComment { id: "1".into(), author: Some(HostUser { login: login.into(), name: None, avatar_url: None }), body: body.into(), created_at: String::new(), path: None, line: None };
+    let thread = ReviewThread { id: "1".into(), path: "a.rs".into(), line: Some(1), start_line: None, side: ReviewSide::New, commit: None, resolved: false, outdated: false, comments: vec![comment("mira", "eins\nzwei\ndrei\nvier"), comment("jonas", "Antwort")] };
+    assert_eq!(crate::host::gitea::quote(&thread), "> **mira:**\n> eins\n> zwei\n> drei\n> …");
 }

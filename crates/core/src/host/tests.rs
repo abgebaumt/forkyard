@@ -43,6 +43,8 @@ pub(crate) struct MockState {
     pub no_issue_type: bool,
     /// The review-thread route answers 404 (an older self-hosted version without it).
     pub no_review_threads: bool,
+    /// Bodies of the review comments posted to the test server (Gitea), oldest first.
+    pub review_bodies: Vec<String>,
 }
 
 pub(crate) struct Fixture {
