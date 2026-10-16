@@ -1300,6 +1300,8 @@ pub enum AiFeature {
     BisectScript,
     SemanticSearch,
     ReviewFix,
+    /// Paket 8.1: where to cut a branch into stacked pull requests.
+    StackSplit,
 }
 
 /// From `Settings.ai_enabled`: `None` = `Unset` (never set up, never turned off), `Some(false)` =

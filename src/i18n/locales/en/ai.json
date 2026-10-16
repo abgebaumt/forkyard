@@ -21,7 +21,8 @@
     "release_notes": "Release notes",
     "bisect_script": "Bisect autopilot",
     "semantic_search": "Search by meaning",
-    "review_fix": "Address review comments"
+    "review_fix": "Address review comments",
+    "stack_split": "Split into stacked pull requests"
   },
   "featureHints": {
     "commit_message": "Writes a draft from the staged changes.",
@@ -34,7 +35,8 @@
     "release_notes": "Groups the commits since the last tag.",
     "bisect_script": "Writes a test script for bisect.",
     "semantic_search": "Finds commits by what they are about.",
-    "review_fix": "Proposes fixes for open review comments."
+    "review_fix": "Proposes fixes for open review comments.",
+    "stack_split": "Proposes where to cut a branch into pull requests that build on each other."
   },
   "settings": {
     "title": "AI",

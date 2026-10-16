@@ -21,7 +21,8 @@
     "release_notes": "Release Notes",
     "bisect_script": "Bisect-Autopilot",
     "semantic_search": "Suche nach Bedeutung",
-    "review_fix": "Review-Kommentare abarbeiten"
+    "review_fix": "Review-Kommentare abarbeiten",
+    "stack_split": "In gestapelte PRs zerlegen"
   },
   "featureHints": {
     "commit_message": "Schreibt einen Entwurf aus den gestagten Änderungen.",
@@ -34,7 +35,8 @@
     "release_notes": "Gruppiert die Commits seit dem letzten Tag.",
     "bisect_script": "Schreibt ein Testskript für Bisect.",
     "semantic_search": "Findet Commits nach ihrem Inhalt.",
-    "review_fix": "Schlägt Korrekturen für offene Review-Kommentare vor."
+    "review_fix": "Schlägt Korrekturen für offene Review-Kommentare vor.",
+    "stack_split": "Schlägt vor, wo ein Branch in aufeinander aufbauende Pull Requests geteilt wird."
   },
   "settings": {
     "title": "KI",

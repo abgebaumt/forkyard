@@ -189,7 +189,7 @@ impl AiProviderKind {
 }
 
 impl AiFeature {
-    pub const ALL: [AiFeature; 11] = [
+    pub const ALL: [AiFeature; 12] = [
         AiFeature::CommitMessage,
         AiFeature::PrDescription,
         AiFeature::Compose,
@@ -201,6 +201,7 @@ impl AiFeature {
         AiFeature::BisectScript,
         AiFeature::SemanticSearch,
         AiFeature::ReviewFix,
+        AiFeature::StackSplit,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -216,6 +217,7 @@ impl AiFeature {
             AiFeature::BisectScript => "bisect_script",
             AiFeature::SemanticSearch => "semantic_search",
             AiFeature::ReviewFix => "review_fix",
+            AiFeature::StackSplit => "stack_split",
         }
     }
 
@@ -233,6 +235,7 @@ impl AiFeature {
             AiFeature::BisectScript => "bisect-script",
             AiFeature::SemanticSearch => "semantic-search",
             AiFeature::ReviewFix => "review-fix",
+            AiFeature::StackSplit => "stack-split",
         }
     }
 
@@ -259,6 +262,7 @@ impl AiFeature {
             AiFeature::BisectScript => 16_000,
             AiFeature::SemanticSearch => 16_000,
             AiFeature::ReviewFix => 24_000,
+            AiFeature::StackSplit => 24_000,
         }
     }
 
@@ -321,7 +325,20 @@ mod tests {
             assert_eq!(serde_json::to_value(feature).unwrap(), feature.as_str());
             assert_eq!(feature.log_name(), feature.as_str().replace('_', "-"));
         }
-        assert_eq!(AiFeature::ALL.len(), 11);
+        assert_eq!(AiFeature::ALL.len(), 12);
+    }
+
+    #[test]
+    fn the_stack_split_function_has_its_name_budget_and_limits() {
+        assert_eq!(serde_json::to_value(AiFeature::StackSplit).unwrap(), serde_json::json!("stack_split"));
+        assert_eq!(serde_json::from_value::<AiFeature>(serde_json::json!("stack_split")).unwrap(), AiFeature::StackSplit);
+        assert_eq!(AiFeature::StackSplit.as_str(), "stack_split");
+        assert_eq!(AiFeature::StackSplit.log_name(), "stack-split");
+        assert_eq!(AiFeature::StackSplit.timeout(), Duration::from_secs(120));
+        assert_eq!(AiFeature::StackSplit.budget_tokens(), 24_000);
+        assert_eq!(AiFeature::StackSplit.max_output_tokens(), 4_096);
+        assert!(!AiFeature::StackSplit.small_task());
+        assert_eq!(AiFeature::ALL.last(), Some(&AiFeature::StackSplit));
     }
 
     #[test]

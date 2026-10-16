@@ -967,7 +967,8 @@ export type AiFeature =
   | "release_notes"
   | "bisect_script"
   | "semantic_search"
-  | "review_fix";
+  | "review_fix"
+  | "stack_split";
 
 /** `unset`: never set up and never turned off; `off`: turned off on purpose; `on`. */
 export type AiState = "unset" | "off" | "on";
