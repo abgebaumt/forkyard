@@ -1314,6 +1314,22 @@ pub struct AiPriceOverride {
     pub output_usd_per_mtok: f64,
 }
 
+/// Why a file of the context is not sent (completely) – shown in "What is sent?".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiOmitReason {
+    /// Looks like a secret (`.env*`, keys, keystores): never sent, not even the name.
+    Secret,
+    /// Matched by `.forkyard/ai-ignore` or the global list: never sent, not even the name.
+    Ignored,
+    /// Lock file or generated file: only name and size.
+    Generated,
+    /// Binary: only name and size.
+    Binary,
+    /// Too large for the budget: only name and line counts.
+    Budget,
+}
+
 /// Global settings of the active profile.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
