@@ -46,6 +46,19 @@ All notable changes to Forkyard are listed here. The format follows
 - Until AI is set up, the start page shows one muted entry “Set up AI features” and the command palette
   “Set up AI …”; turned off on purpose, nothing of it appears. After the update a one-time notice
   introduces the new features.
+- AI through the command-line tools you already use: Claude Code, Codex and opencode, each with its own
+  sign-in – Forkyard stores nothing of it. They run in an empty temporary folder, never in the
+  repository, get the prompt on stdin and run without tools, MCP servers, project settings or stored
+  sessions (Codex in its read-only sandbox, opencode with every permission denied); a version without
+  these safety switches is refused instead of being used less safely. Their paths are found
+  automatically or set in Settings › AI; costs a tool reports are counted, the monthly limit does not
+  apply to them.
+- Set up AI: a dialog finds the command-line tools (version, path, sign-in), Ollama and LM Studio on
+  this computer and stored keys within about two seconds, without sending anything. With exactly one
+  signed-in tool, “Turn on with Claude Code” is one click; otherwise provider, model and functions
+  step by step. If nothing is found it offers an API key, a local model or only the coding-agent
+  cockpit. A signed-out tool can be signed in in the built-in terminal. It opens from Settings › AI
+  (“Set up …”) and when AI is switched on without a provider.
 
 ### Changed
 
