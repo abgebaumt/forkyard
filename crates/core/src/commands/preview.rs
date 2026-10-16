@@ -45,12 +45,19 @@ fn stays_error(code: ErrorCode) -> bool {
 }
 
 async fn preview(core: &Core, repo_id: &str, cancel: &CancelToken, op: PreviewOp) -> CoreResult<ConflictPreview> {
+    simulate(core, repo_id, cancel, "HEAD", op).await
+}
+
+/// `preview` starting at `head` (a SHA or `HEAD`) instead of HEAD – for the steps of a plan
+/// (`ai::plan_check`), whose earlier steps move HEAD. A patch is always checked against the working
+/// directory. Takes no job; the caller passes its cancel token.
+pub(crate) async fn simulate(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, op: PreviewOp) -> CoreResult<ConflictPreview> {
     let outcome = match op {
-        PreviewOp::Merge { theirs } => merge(core, repo_id, cancel, &theirs).await,
-        PreviewOp::CherryPick { commits } => series(core, repo_id, cancel, &commits, Step::Pick).await,
-        PreviewOp::Revert { commits } => series(core, repo_id, cancel, &commits, Step::Revert).await,
+        PreviewOp::Merge { theirs } => merge(core, repo_id, cancel, head, &theirs).await,
+        PreviewOp::CherryPick { commits } => series(core, repo_id, cancel, head, &commits, Step::Pick).await,
+        PreviewOp::Revert { commits } => series(core, repo_id, cancel, head, &commits, Step::Revert).await,
         PreviewOp::Rebase { onto, upstream, branch, commits } => {
-            rebase(core, repo_id, cancel, &onto, upstream.as_deref(), branch.as_deref(), commits.as_deref()).await
+            rebase(core, repo_id, cancel, head, &onto, upstream.as_deref(), branch.as_deref(), commits.as_deref()).await
         }
         PreviewOp::Patch { text } => patch(core, repo_id, cancel, &text).await,
     };
@@ -144,8 +151,8 @@ async fn merge_tree(core: &Core, repo_id: &str, cancel: &CancelToken, base: Opti
     }
 }
 
-async fn merge(core: &Core, repo_id: &str, cancel: &CancelToken, theirs: &str) -> CoreResult<ConflictPreview> {
-    let ours = commit_of(core, repo_id, cancel, "HEAD").await?;
+async fn merge(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, theirs: &str) -> CoreResult<ConflictPreview> {
+    let ours = commit_of(core, repo_id, cancel, head).await?;
     let theirs = commit_of(core, repo_id, cancel, theirs).await?;
     Ok(match merge_tree(core, repo_id, cancel, None, &ours, &theirs).await? {
         Merged::Tree(_) => ConflictPreview::Clean,
@@ -157,12 +164,12 @@ fn too_many() -> ConflictPreview {
     ConflictPreview::Unknown { reason: format!("More than {MAX_SERIES} commits – the preview only checks series of up to {MAX_SERIES}.") }
 }
 
-/// Cherry-pick or revert of `commits` on top of HEAD.
-async fn series(core: &Core, repo_id: &str, cancel: &CancelToken, commits: &[String], step: Step) -> CoreResult<ConflictPreview> {
+/// Cherry-pick or revert of `commits` on top of `head`.
+async fn series(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, commits: &[String], step: Step) -> CoreResult<ConflictPreview> {
     if commits.len() > MAX_SERIES {
         return Ok(too_many());
     }
-    let start = commit_of(core, repo_id, cancel, "HEAD").await?;
+    let start = commit_of(core, repo_id, cancel, head).await?;
     let mut resolved = Vec::with_capacity(commits.len());
     for rev in commits {
         resolved.push(commit_of(core, repo_id, cancel, rev).await?);
@@ -227,12 +234,13 @@ async fn wrap_tree(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str)
     Ok(out.stdout_text())
 }
 
-/// `branch` (default HEAD) onto `onto`: the commits `git rebase` would replay (own commits
+/// `branch` (default `head`) onto `onto`: the commits `git rebase` would replay (own commits
 /// without merges and without those already upstream), or the explicit order `commits`.
 async fn rebase(
     core: &Core,
     repo_id: &str,
     cancel: &CancelToken,
+    head: &str,
     onto: &str,
     upstream: Option<&str>,
     branch: Option<&str>,
@@ -253,7 +261,7 @@ async fn rebase(
         None => {
             let tip_rev = match branch.map(|name| name.trim().trim_start_matches("refs/heads/")).filter(|name| !name.is_empty()) {
                 Some(name) => format!("refs/heads/{name}"),
-                None => "HEAD".to_string(),
+                None => head.to_string(),
             };
             let tip = commit_of(core, repo_id, cancel, &tip_rev).await?;
             let from = match upstream.map(str::trim).filter(|rev| !rev.is_empty()) {

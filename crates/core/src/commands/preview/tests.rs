@@ -185,3 +185,43 @@ async fn long_series_are_unknown_and_the_preview_runs_as_a_cancellable_job() {
     cancelled.cancel();
     assert_eq!(preview(&tc, &id, &cancelled, merge_op("main")).await.unwrap_err().code, ErrorCode::Cancelled);
 }
+
+/// The plan pre-check (Paket 5) simulates a step from the state the earlier steps leave – not
+/// from HEAD. The oracle is `git merge-tree` itself.
+#[tokio::test]
+async fn a_simulation_can_start_at_any_commit() {
+    let (tc, repo, id) = setup().await;
+    repo.commit_file("f.txt", "eins\nzwei\ndrei\n", "Basis");
+    repo.checkout_new("seite");
+    let seite = repo.commit_file("f.txt", "eins\nZWEI seite\ndrei\n", "Seite ändert Zeile 2");
+    repo.checkout("main");
+    repo.checkout_new("sauber");
+    let sauber = repo.commit_file("g.txt", "neu\n", "Neue Datei g");
+    repo.checkout("main");
+    let main = repo.commit_file("f.txt", "eins\nzwei main\ndrei\n", "Main ändert Zeile 2");
+    repo.checkout("sauber");
+    let cancel = CancelToken::new();
+
+    let from_seite = repo.git_output(&["merge-tree", "--write-tree", "--name-only", "--no-messages", &seite, &main]);
+    assert_eq!(from_seite.status.code(), Some(1), "git itself: seite and main conflict");
+    let from_sauber = repo.git_output(&["merge-tree", "--write-tree", "--name-only", "--no-messages", &sauber, &main]);
+    assert_eq!(from_sauber.status.code(), Some(0), "git itself: sauber and main merge cleanly");
+
+    assert_eq!(simulate(&tc, &id, &cancel, "HEAD", merge_op(&main)).await.unwrap(), ConflictPreview::Clean, "HEAD is sauber");
+    assert_eq!(simulate(&tc, &id, &cancel, &seite, merge_op(&main)).await.unwrap(), conflicts(&["f.txt"], None));
+    assert!(
+        matches!(simulate(&tc, &id, &cancel, "--output=/tmp/x", merge_op(&main)).await.unwrap(), ConflictPreview::Unknown { .. }),
+        "a start with a leading dash is never passed to Git"
+    );
+    if tc.git.info().unwrap().version >= (2, 40, 0) {
+        assert_eq!(
+            simulate(&tc, &id, &cancel, &seite, PreviewOp::CherryPick { commits: vec![main.clone()] }).await.unwrap(),
+            conflicts(&["f.txt"], Some(main.as_str()))
+        );
+        let rebase = PreviewOp::Rebase { onto: main.clone(), upstream: None, branch: None, commits: None };
+        assert_eq!(simulate(&tc, &id, &cancel, &sauber, rebase).await.unwrap(), ConflictPreview::Clean, "sauber's own commit replays onto main");
+    }
+    assert_eq!(repo.current_branch(), "sauber");
+    assert_eq!(repo.head(), sauber);
+    assert_eq!(repo.git(&["status", "--porcelain"]), "", "simulating changes nothing");
+}
