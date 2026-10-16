@@ -4,6 +4,7 @@
 pub mod ai;
 pub mod activity;
 pub mod app;
+pub mod archaeology;
 pub mod auth;
 pub mod avatars;
 pub mod bisect;
