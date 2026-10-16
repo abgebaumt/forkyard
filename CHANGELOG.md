@@ -59,6 +59,12 @@ All notable changes to Forkyard are listed here. The format follows
   step by step. If nothing is found it offers an API key, a local model or only the coding-agent
   cockpit. A signed-out tool can be signed in in the built-in terminal. It opens from Settings › AI
   (“Set up …”) and when AI is switched on without a provider.
+- Commit message from the staged changes: “Write” in the summary field (also Ctrl+Shift+M and the
+  command palette) asks the AI provider for a summary of at most 72 characters and a body, styled like
+  the last 30 commits and in the language the repository's commits use; the commit template and an own
+  instruction per repository (Project › AI and agents) go along. Empty fields get the draft, your own
+  text is never replaced unasked (Replace / Append / Discard), Ctrl+Z takes an inserted draft back, and
+  “What is sent?” shows the exact text first. Nothing is committed without you.
 
 ### Changed
 
