@@ -174,6 +174,15 @@ pub fn render(timeline: &LineArchaeology, exclusions: &Exclusions, budget_chars:
     if let Some(reason @ (AiOmitReason::Secret | AiOmitReason::Ignored)) = start_reason {
         return Err(CoreError::not_allowed(format!("“{}” is excluded from AI requests ({}), so “Why is this so?” is not available for it.", timeline.path, reason_word(reason))));
     }
+    // As in `Exclusions::reason_for`: a renamed secret stays a secret under its new name, so an
+    // excluded earlier name keeps the current code and every change of the file out.
+    let earlier = timeline.steps.iter().find_map(|step| match exclusions.reason(&step.path) {
+        Some(reason @ (AiOmitReason::Secret | AiOmitReason::Ignored)) => Some(reason),
+        _ => None,
+    });
+    if let Some(reason) = earlier {
+        return Err(CoreError::not_allowed(format!("An earlier name of “{}” is excluded from AI requests ({}), so “Why is this so?” is not available for it.", timeline.path, reason_word(reason))));
+    }
     let line = line_text(timeline, start_reason == Some(AiOmitReason::Generated));
     let mut omitted = Vec::new();
     let mut steps: Vec<StepText> = timeline.steps.iter().enumerate().map(|(index, step)| StepText::new(index, step, exclusions, &mut omitted)).collect();
@@ -345,16 +354,36 @@ mod tests {
         let key = "sk-ant-api03-testkey-0123456789abcdef";
         let steps = vec![
             step(1, "src/zugang.py", &format!("Token getauscht\n\nalt: ghp_abcdefghijklmnopqrstuvwxyz0123456789 neu: {key}"), &["+TOKEN = lesen()"]),
-            step(2, "intern/zugang.py", "Aus dem internen Ordner geholt", &["+GEHEIMER_INHALT = 1"]),
+            step(2, "src/alt/zugang.py", "Umgezogen", &["+TOKEN = 1"]),
         ];
         let rendered = render(&timeline("src/zugang.py", steps), &ignored, 100_000, &[key.to_string()]).unwrap();
         let all = format!("{}\n{}", rendered.line, rendered.history);
         assert!(!all.contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"), "tokens in messages are redacted");
         assert!(!all.contains(key), "the provider key is scrubbed literally");
-        assert!(!all.contains("intern/zugang.py") && !all.contains("GEHEIMER_INHALT"), "an ignored older path and its change stay out: {all}");
-        assert!(all.contains("File: (left out)"));
-        assert!(all.contains("Aus dem internen Ordner geholt"), "the commit message itself is not a file");
-        assert_eq!(rendered.omitted, vec![AiOmitted { path: "intern/zugang.py".into(), reason: AiOmitReason::Ignored, size: 0 }]);
+        assert!(all.contains("Umgezogen") && all.contains("File: src/alt/zugang.py"));
+        assert!(rendered.omitted.is_empty());
+    }
+
+    #[test]
+    fn a_file_renamed_away_from_a_secret_or_ignored_path_stays_excluded() {
+        // `.env.production` became `config/prod.txt`: the same DB line, now under a harmless name.
+        let mut renamed_secret = timeline(
+            "config/prod.txt",
+            vec![step(1, "config/prod.txt", "Konfiguration umbenannt", &[]), step(2, ".env.production", "Zugang angelegt", &["+DB=postgres://admin:geheim@db.intern/prod"])],
+        );
+        renamed_secret.code = vec!["# Produktion".into(), "HOST=db.intern".into(), "DB=postgres://admin:geheim@db.intern/prod".into()];
+        let refused = render(&renamed_secret, &none(), 100_000, &[]).unwrap_err();
+        assert_eq!(refused.code, ErrorCode::NotAllowed, "an earlier secret name keeps the file out of AI requests");
+        assert!(!refused.message.contains("geheim"));
+
+        // `intern/plan.txt` moved to `src/plan.txt` while `intern/**` is excluded.
+        let ignored = Exclusions::new(&["intern/**".to_string()], "");
+        let moved = timeline("src/plan.txt", vec![step(1, "src/plan.txt", "Verschoben", &["+INTERVALL = 5"]), step(2, "intern/plan.txt", "Plan", &["+INTERVALL = 10"])]);
+        assert_eq!(render(&moved, &ignored, 100_000, &[]).unwrap_err().code, ErrorCode::NotAllowed, "an earlier ignored name keeps the file out too");
+
+        // A generated older name is not a reason to refuse.
+        let from_lock = timeline("src/versionen.txt", vec![step(1, "src/versionen.txt", "Umbenannt", &["+INTERVALL = 5"]), step(2, "package-lock.json", "Alt", &["+x"])]);
+        assert!(render(&from_lock, &none(), 100_000, &[]).is_ok());
     }
 
     #[test]
