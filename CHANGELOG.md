@@ -53,6 +53,14 @@ All notable changes to Forkyard are listed here. The format follows
   “… both change …”, with a preview of both sides of each conflict and “Inform agent …”, which types
   a note you confirmed into that agent's terminal. A failed check shows up in the cockpit with
   “Check again”.
+- Agent review: “Review changes” in the cockpit (or “Review coding agent …” in the command palette)
+  shows a coding agent's work against the commit it started from – its working state including
+  uncommitted and new files, or only its commits. Files are listed as “Selected” and “Not selected”,
+  single lines are checked in the diff. Take the selection into your working directory unstaged or
+  staged (a conflict with your own changes stops before anything changes and names the files),
+  commit it on your branch with the message prefilled from the task, merge the agent's branch or
+  rebase it onto its base in the agent's worktree, or discard what is left uncommitted there – each
+  with undo. Two agents can be compared side by side.
 
 ### Changed
 
