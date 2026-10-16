@@ -13,4 +13,10 @@ describe("commit summary limit", () => {
       .map(([file]) => file.split("/").pop());
     expect(owners).toEqual(["limits.ts"]);
   });
+
+  it("is the number the core cuts AI summaries at", () => {
+    const files = import.meta.glob("../../crates/core/src/ai/commit_message.rs", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+    const rust = Object.values(files)[0] ?? "";
+    expect(rust).toMatch(new RegExp(`pub const SUMMARY_LIMIT: usize = ${SUMMARY_LIMIT};`));
+  });
 });

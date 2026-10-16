@@ -1074,6 +1074,12 @@ export interface AiUsageSummary {
   rows: AiUsageRow[];
 }
 
+/** `aiCommitMessage`: a draft for the commit form – never committed by the core. `summary` is one line of at most 72 characters. */
+export interface AiCommitMessage {
+  summary: string;
+  body: string | null;
+}
+
 /** Sign-in of an AI command-line tool, as the tool reports it. */
 export type AiLoginState = "logged_in" | "logged_out" | "unknown";
 

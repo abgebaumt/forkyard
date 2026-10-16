@@ -1479,6 +1479,16 @@ pub struct AiUsageSummary {
     pub rows: Vec<AiUsageRow>,
 }
 
+/// `ai_commit_message`: a draft for the commit form – the core never commits it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiCommitMessage {
+    /// One line, at most 72 characters (`ai::commit_message::SUMMARY_LIMIT`).
+    pub summary: String,
+    /// `None` when the summary says everything.
+    pub body: Option<String>,
+}
+
 /// Sign-in of an AI command-line tool, as the tool reports it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
