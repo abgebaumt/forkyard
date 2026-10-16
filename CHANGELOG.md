@@ -5,6 +5,27 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Terminal tabs: the built-in terminal can hold several sessions per repository tab. “New shell” opens
+  another one; each tab shows its name and its state as a word with a coloured dot, the arrow keys move
+  between tabs, and closing a running session asks first.
+- Commit search: `code:text` finds commits that add or remove the text, `path:src/app` limits the search
+  to a file or folder, and `since:2026-01-01` / `until:2026-06-30` to a time window (also with a time and
+  time zone, e.g. `since:2026-01-31T18:00:00Z`).
+- Groundwork for 1.2 without visible AI: a runner for programs other than Git (time limit, cancel ends
+  the whole process tree, output limits, nothing of stdin or stdout in the log, batch files only with safe
+  arguments), cancellable HTTP calls with their own time limit, undo entries that move several refs and
+  restore a snapshot together, taking over lines from a range of commits (`rangeApply`), terminals that
+  run a program in a worktree and report bells, titles and notifications, locating coding-agent CLIs, the
+  history of a single line (`lineHistory`), and a check that every error code exists in Rust, TypeScript
+  and both languages.
+
+### Changed
+
+- Undoing a rebase that moved dependent branches along now happens all or nothing: if a branch is locked
+  or the working directory has changes, nothing moves.
+
 ## [1.1.0] – 2026-10-16
 
 ### Added
