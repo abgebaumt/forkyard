@@ -903,6 +903,12 @@ export interface CoreCommands {
    * nothing. Remembers the found programs.
    */
   aiDetect(): Promise<AiDetection>;
+  /**
+   * “Sign in in the terminal”: a terminal in this repository's tab runs the tool's own sign-in in an empty
+   * folder of the app (never the repository); returns the terminal ID. Errors: `not_allowed` (not a
+   * command-line tool, more than 16 terminals), `ai_not_configured` (tool not found), `unsupported` (batch shim).
+   */
+  aiCliLogin(input: R & { provider: AiProviderKind; cols: number; rows: number }): Promise<Id>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

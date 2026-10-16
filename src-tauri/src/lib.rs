@@ -617,7 +617,8 @@ pub fn run() {
             commands::ai_preview_confirm,
             commands::ai_preview_reset,
             commands::ai_usage,
-            commands::ai_detect
+            commands::ai_detect,
+            commands::ai_cli_login
         ])
         .build(context);
     match result {

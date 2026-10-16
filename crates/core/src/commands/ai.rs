@@ -2,6 +2,9 @@
 //! confirmations and this month's usage. The AI settings themselves are `Settings` fields
 //! (`settings_set`); the AI functions of later packages call `ai::run::complete_json`.
 
+use std::ffi::OsString;
+use std::path::PathBuf;
+
 use serde_json::Value;
 
 use crate::ai::{self, context, gate, pricing, providers, run};
@@ -240,6 +243,23 @@ pub async fn ai_detect(core: &Core) -> CoreResult<AiDetection> {
     ai::detect::detect(core).await
 }
 
+/// „Sign in in the terminal“ (spec „Zustände“, `ai_not_logged_in`): a terminal in this repository's
+/// tab runs the tool's own sign-in (`claude auth login`, `codex login`, `opencode providers login`) in
+/// an empty folder of the app. Returns the terminal ID.
+pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind, cols: u16, rows: u16) -> CoreResult<String> {
+    if !provider.is_cli() {
+        return Err(CoreError::not_allowed(format!("{} has no sign-in in the terminal.", provider.label())));
+    }
+    let settings = core.settings()?;
+    let program = ai::cli::program_for(core, provider, &settings).await?;
+    let mut env: Vec<(OsString, OsString)> = Vec::new();
+    if let Some(path) = ai::cli::child_path(core).await {
+        env.push((OsString::from("PATH"), path));
+    }
+    let launch = crate::commands::terminal::ProgramLaunch { program, args: ai::cli::login_args(provider), cwd: PathBuf::new(), env, title: provider.label().to_string() };
+    crate::commands::terminal::terminal_open_login(core, &repo_id, launch, cols, rows).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -340,6 +360,40 @@ mod tests {
         settings_set(&tc, json!({"aiCliPaths": {"claudeCode": null, "codex": own.to_string_lossy(), "opencode": null}})).await.unwrap();
         assert!(ai_status(&tc).await.unwrap().connected, "an own path that exists");
         assert_eq!(ai_key_set(&tc, AiProviderKind::Codex, "sk-irrelevant-0123456".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "a tool takes no key");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn signing_in_runs_the_tool_in_an_empty_folder_of_the_app() {
+        use std::os::unix::fs::PermissionsExt;
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        repo.write_file(".claude/settings.json", r#"{"hooks":{}}"#);
+        let id = tc.open(&repo).await.repo.id;
+        let log = tc.cli_dir().join("anmeldung.log");
+        let script = tc.cli_dir().join("claude");
+        // `--version` (the search) is answered with nothing; the sign-in records where it ran.
+        std::fs::write(
+            &script,
+            format!("#!/bin/sh\n[ \"$1\" = auth ] || exit 0\nprintf '%s|' \"$(pwd -P)\" \"$@\" > '{log}.tmp'\nls -A >> '{log}.tmp'\nmv '{log}.tmp' '{log}'\n", log = log.display()),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let terminal = ai_cli_login(&tc, id.clone(), AiProviderKind::ClaudeCode, 100, 30).await.unwrap();
+        assert!(!terminal.is_empty());
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        let text = loop {
+            if let Ok(text) = std::fs::read_to_string(&log) {
+                break text;
+            }
+            assert!(std::time::Instant::now() < deadline, "the sign-in never ran");
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        };
+        let folder = std::fs::canonicalize(tc.data_dir().join("tmp").join("cli-login")).unwrap();
+        assert_eq!(text, format!("{}|auth|login|", folder.display()), "in the app's empty folder, not in the repository");
+        for kind in [AiProviderKind::Anthropic, AiProviderKind::Ollama] {
+            assert_eq!(ai_cli_login(&tc, id.clone(), kind, 100, 30).await.unwrap_err().code, ErrorCode::NotAllowed, "{kind:?}");
+        }
     }
 
     #[tokio::test]

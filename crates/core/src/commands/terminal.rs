@@ -372,6 +372,35 @@ async fn registered_worktree(core: &Core, repo_id: &str, cwd: &Path) -> CoreResu
     }
 }
 
+/// Opens a terminal for signing in to an AI command-line tool (`claude auth login` …). It runs in
+/// Forkyard's own empty folder `<data>/tmp/cli-login` – `launch.cwd` is replaced by it –, never in the
+/// repository, so the tool loads no configuration of the repository; the terminal belongs to the
+/// repository's tab like every other. A batch file can't run in the built-in terminal (Paket 0).
+pub async fn terminal_open_login(core: &Core, repo_id: &str, mut launch: ProgramLaunch, cols: u16, rows: u16) -> CoreResult<String> {
+    core.repo_path(repo_id)?;
+    if core.state::<TerminalState>().sessions.lock().len() >= MAX_TERMINALS {
+        return Err(too_many());
+    }
+    if !launch.program.is_absolute() || !launch.program.is_file() {
+        return Err(CoreError::not_found(format!("The program “{}” was not found.", util::display_path(&launch.program))));
+    }
+    if crate::proc::is_batch(&launch.program) {
+        return Err(CoreError::unsupported(format!(
+            "“{}” is a batch file; it can’t run in the built-in terminal. Sign in in a terminal of your own.",
+            util::display_path(&launch.program)
+        )));
+    }
+    let cwd = core.data_dir().join("tmp").join("cli-login");
+    // Emptied for every sign-in; a folder still in use by an earlier sign-in (Windows) stays.
+    let _ = std::fs::remove_dir_all(&cwd);
+    std::fs::create_dir_all(&cwd).map_err(|e| CoreError::io(format!("The folder for signing in could not be created: {e}")))?;
+    launch.cwd = cwd;
+    let core = core.clone();
+    tokio::task::spawn_blocking(move || open_program_blocking(&core, launch, cols, rows, None))
+        .await
+        .map_err(|e| CoreError::io(format!("The terminal could not be started: {e}")))?
+}
+
 /// What the core knows about an open terminal; `None` once it has ended.
 pub fn terminal_info(core: &Core, terminal_id: &str) -> Option<TerminalInfo> {
     let session = core.state::<TerminalState>().sessions.lock().get(terminal_id).cloned()?;
