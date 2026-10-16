@@ -3,7 +3,7 @@
  * and "Send" approves exactly this text in the core (`aiPreviewConfirm`). The core refuses
  * unconfirmed requests itself; this is the friendly way there.
  */
-import { core, type AiFeature, type AiPreview, type Id } from "../../core";
+import { core, type AiFeature, type AiInput, type AiPreview, type Id } from "../../core";
 import { locale, t } from "../../i18n";
 import { runAction } from "../run";
 import { showAiPreview } from "./PreviewDialog";
@@ -18,8 +18,8 @@ export async function confirmSend(repoId: Id | null, feature: AiFeature, preview
   return result.ok;
 }
 
-/** "What is sent?" without sending: the staged changes of the repository. */
-export async function showWhatIsSent(repoId: Id, feature: AiFeature): Promise<void> {
-  const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature, input: { kind: "staged_changes" }, locale: locale() }));
+/** "What is sent?" without sending: the text `input` builds (default: the staged changes of the repository). */
+export async function showWhatIsSent(repoId: Id, feature: AiFeature, input: AiInput = { kind: "staged_changes" }): Promise<void> {
+  const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature, input, locale: locale() }));
   if (result.ok) await showAiPreview(result.value, "look");
 }
