@@ -4,14 +4,20 @@
 
 use std::collections::HashSet;
 
+use serde_json::{json, Map};
+
 use crate::app::Core;
+use crate::commands::commit;
 use crate::commands::diff::patch::quote_path;
 use crate::commands::graph;
 use crate::commands::history::{self, UTF8_BOM};
-use crate::error::{CoreError, CoreResult};
+use crate::commands::status::read_status;
+use crate::db::{self, undo::UndoEntry};
+use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
-use crate::host::Host;
-use crate::model::{FixupReason, FixupTarget, PrSummary, ReviewFixLine, ReviewFixLineKind};
+use crate::host::{self, Host, RepoApi};
+use crate::model::{FixupReason, FixupTarget, Head, PrSummary, RepoChange, ReviewFixApplied, ReviewFixInput, ReviewFixLine, ReviewFixLineKind};
+use crate::undo::{self, GroupRecord, RefMove, UndoAction};
 use crate::util;
 
 /// Lines of context around the replaced ones.
@@ -273,6 +279,149 @@ pub(crate) async fn fixup_target(core: &Core, repo_id: &str, range: &PrRange, pa
     Ok(range.commits.iter().find(|commit| commit.sha == sha).map(|commit| FixupTarget { reason: Some(FixupReason::File), ..commit.clone() }))
 }
 
+// ---------------------------------------------------------------------------
+// Taking a fix over
+// ---------------------------------------------------------------------------
+
+/// What a takeover can change.
+const CHANGES: [RepoChange; 4] = [RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Worktree];
+/// `git apply` as line staging calls it.
+const APPLY: [&str; 6] = ["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"];
+
+/// Commits a suggested fix as `fixup! <subject of target>` on the checked-out pull request branch
+/// through the normal commit path (hooks, signing). Everything is checked again: path and lines, the
+/// target among the pull request's commits, the file among its changed files; inside the write lock the
+/// branch, that it contains the pull request's newest commit, that nothing is staged, that the file is
+/// unchanged and that the patch fits. Consecutive takeovers for the same pull request form one undo step.
+pub async fn review_fix_apply(core: &Core, repo_id: String, number: u64, fix: ReviewFixInput, target: String) -> CoreResult<ReviewFixApplied> {
+    let path = history::normalize_rel_path(&fix.path)?;
+    let RepoApi { api, repo, remote } = host::api_for_repo(core, &repo_id, None).await?;
+    let hoster = host::host(api.kind);
+    let summary = hoster.pr_head(core, &api, &repo, number).await?;
+    let branch = local_branch(hoster, &summary, number);
+    let range = pr_range(core, &repo_id, &fix.head_sha, &target_ref(&remote, &summary.target_branch)?).await?;
+    let wanted = target.trim().to_ascii_lowercase();
+    let Some(chosen) = range.commits.iter().find(|commit| commit.sha == wanted).cloned() else {
+        return Err(CoreError::not_allowed("The chosen commit is not one of the pull request's commits."));
+    };
+    if !changed_paths(core, &repo_id, &range).await?.contains(&path) {
+        return Err(CoreError::not_allowed(format!("“{path}” is not changed by this pull request.")));
+    }
+    let blob = head_blob(core, &repo_id, &range.head, &path).await?;
+    let patch = line_patch(&path, &blob, fix.start_line, fix.end_line, &fix.new_text)?;
+    let message = format!("fixup! {}\n", chosen.summary);
+    let take = TakeOver { repo_id: &repo_id, number, branch: &branch, path: &path, range: &range, patch: &patch.patch, message: &message };
+    core.with_write_lock(&repo_id, &CHANGES, take.run(core)).await
+}
+
+struct TakeOver<'a> {
+    repo_id: &'a str,
+    number: u64,
+    branch: &'a str,
+    path: &'a str,
+    range: &'a PrRange,
+    patch: &'a [u8],
+    message: &'a str,
+}
+
+impl TakeOver<'_> {
+    async fn run(self, core: &Core) -> CoreResult<ReviewFixApplied> {
+        let TakeOver { repo_id, number, branch, path, range, patch, message } = self;
+        let status = read_status(core, repo_id).await?;
+        if status.operation.is_some() {
+            return Err(CoreError::new(ErrorCode::OperationInProgress, "A merge, rebase, cherry-pick or revert is in progress. Finish or abort it first."));
+        }
+        let head_before = match &status.head {
+            Head::Branch { branch: current, sha } if current == branch => sha.clone(),
+            _ => return Err(CoreError::not_allowed(format!("Check out “{branch}” first – the fixup commit belongs on the pull request's branch."))),
+        };
+        let contains = read(core, repo_id)?.args(["merge-base", "--is-ancestor", range.head.as_str(), head_before.as_str()]).run_raw().await?.success();
+        if !contains {
+            return Err(CoreError::new(ErrorCode::StaleState, format!("“{branch}” does not contain the pull request's newest commit yet. Pull first, then take the fix over again.")));
+        }
+        if !status.staged.is_empty() {
+            return Err(CoreError::new(ErrorCode::DirtyWorktree, "Something is staged. Commit or unstage it first – the fixup commit contains only the fix."));
+        }
+        if status.unstaged.iter().chain(status.conflicted.iter()).any(|file| file.path == path) {
+            return Err(CoreError::new(ErrorCode::DirtyWorktree, format!("“{path}” has uncommitted changes. Commit or discard them first.")));
+        }
+        let check = core.git_for(repo_id)?.args(APPLY).args(["--check", "--index"]).stdin(patch.to_vec()).run_raw().await?;
+        if !check.success() {
+            return Err(CoreError::new(ErrorCode::Conflict, format!("The fix no longer fits “{path}” – its lines changed since the suggestion. Suggest the fix again."))
+                .with_git_output(check.stderr_text()));
+        }
+        core.git_for(repo_id)?.args(APPLY).arg("--index").stdin(patch.to_vec()).run().await?;
+        if let Err(error) = commit::run_commit(core, repo_id, &["commit", "--cleanup=verbatim", "-F", "-"], message).await {
+            restore(core, repo_id, path).await;
+            return Err(error);
+        }
+        let after = read(core, repo_id)?.args(["rev-parse", "--verify", "HEAD^{commit}"]).run_text().await?;
+        let undo_label = record_fixups(core, repo_id, number, &format!("refs/heads/{branch}"), &head_before, &after).await?;
+        let subjects = read(core, repo_id)?.args(["log", "-z", "--format=%s"]).arg(format!("{}..HEAD", range.base)).run().await?;
+        let fixups = util::split_z(&subjects.stdout).filter(|subject| subject.starts_with(b"fixup!")).count() as u32;
+        Ok(ReviewFixApplied { commit: after, summary: message.trim_end().to_string(), fixups, base: range.base.clone(), undo_label })
+    }
+}
+
+/// After a failed commit (hook, signing): index and file of `path` back to HEAD – the file had no own
+/// changes before (checked), so this is exactly the state before the takeover.
+async fn restore(core: &Core, repo_id: &str, path: &str) {
+    for args in [["reset", "-q", "HEAD", "--", path], ["checkout", "-q", "HEAD", "--", path]] {
+        let result = match core.git_for(repo_id) {
+            Ok(git) => git.env("GIT_LITERAL_PATHSPECS", "1").args(args).run().await.map(|_| ()),
+            Err(error) => Err(error),
+        };
+        if let Err(error) = result {
+            log::warn!("“{path}” not restored after the failed fixup commit: {}", error.message);
+        }
+    }
+}
+
+/// Whether the newest undo entry is this pull request's `review_fixups` entry and ends where this
+/// takeover started.
+fn continues(entry: &UndoEntry, number: u64, branch_ref: &str, before: &str) -> bool {
+    let step = &entry.payload["steps"][0];
+    entry.action == UndoAction::ReviewFixups.as_str()
+        && entry.payload["pr"].as_u64() == Some(number)
+        && entry.payload["steps"].as_array().is_some_and(|steps| steps.len() == 1)
+        && step["ref"].as_str() == Some(branch_ref)
+        && step["after"].as_str() == Some(before)
+}
+
+/// One undo step for a row of takeovers: a continuing entry is replaced by one from its start to `after`.
+async fn record_fixups(core: &Core, repo_id: &str, number: u64, branch_ref: &str, before: &str, after: &str) -> CoreResult<String> {
+    let mut from = before.to_string();
+    let mut count: u64 = 1;
+    if let Some(entry) = undo::next_undo(core, repo_id, "")?.filter(|entry| continues(entry, number, branch_ref, before)) {
+        from = entry.payload["steps"][0]["before"].as_str().unwrap_or(before).to_string();
+        count = entry.payload["fixups"].as_u64().unwrap_or(1) + 1;
+        core.db.with(|c| db::undo::delete(c, &entry.id))?;
+        undo::delete_backup_refs(core, repo_id, &entry.id).await?;
+    }
+    let label = if count == 1 { format!("Undo 1 fixup commit for #{number}") } else { format!("Undo {count} fixup commits for #{number}") };
+    let mut extra = Map::new();
+    extra.insert("pr".into(), json!(number));
+    extra.insert("branch".into(), json!(branch_ref));
+    extra.insert("fixups".into(), json!(count));
+    extra.insert("refuseIfPushed".into(), json!(true));
+    undo::record_group(
+        core,
+        GroupRecord {
+            id: undo::new_id(),
+            repo_id: repo_id.to_string(),
+            action: UndoAction::ReviewFixups,
+            label: label.clone(),
+            refs: vec![RefMove::new(branch_ref, Some(from.as_str()), Some(after))],
+            head_before: branch_ref.to_string(),
+            head_after: Some(branch_ref.to_string()),
+            snapshot: None,
+            extra,
+        },
+    )
+    .await?;
+    Ok(label)
+}
+
 /// The local branch of a pull request, as `pr_checkout` creates it: the source branch, or the host's
 /// branch name for a pull request from another repository.
 pub(crate) fn local_branch(hoster: &dyn Host, summary: &PrSummary, number: u64) -> String {
@@ -288,3 +437,6 @@ pub(crate) mod test_host;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod apply_tests;

@@ -607,6 +607,7 @@ pub fn run() {
             commands::pr_review_threads,
             commands::pr_review_reply,
             commands::ai_review_fix,
+            commands::review_fix_apply,
             commands::issue_list,
             commands::issue_get,
             commands::issue_create,

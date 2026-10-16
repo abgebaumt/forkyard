@@ -3274,6 +3274,32 @@ pub struct AiReviewFix {
     pub on_branch: bool,
 }
 
+/// What `review_fix_apply` takes from a suggestion – the core checks and rebuilds everything.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFixInput {
+    pub path: String,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub new_text: String,
+    /// The pull request's newest commit the suggestion was made for.
+    pub head_sha: Sha,
+}
+
+/// What `review_fix_apply` committed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFixApplied {
+    pub commit: Sha,
+    /// `fixup! <subject of the target>`.
+    pub summary: String,
+    /// `fixup!` commits between `base` and HEAD now (for "n fixup commits – squash now?").
+    pub fixups: u32,
+    /// Merge base with the pull request's target: the base of the autosquash plan.
+    pub base: Sha,
+    pub undo_label: String,
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

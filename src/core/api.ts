@@ -101,6 +101,8 @@ import type {
   RebasePlan,
   RebasePlanRow,
   ReviewReply,
+  ReviewFixApplied,
+  ReviewFixInput,
   ReviewThread,
   ReflogPage,
   Ref,
@@ -877,6 +879,16 @@ export interface CoreCommands {
    * `not_allowed` (invalid thread ID), `host_not_found` (thread gone), host errors.
    */
   prReviewReply(input: R & { number: number; threadId: string; body: string; remote?: string | null }): Promise<ReviewReply>;
+  /**
+   * 8.2: commits a suggested fix as `fixup! <subject of target>` on the checked-out pull request branch
+   * through the normal commit path (hooks, signing). Needs the branch checked out and containing the pull
+   * request's newest commit, nothing staged, the file unchanged. Consecutive takeovers for one pull
+   * request form one undo step (refused once the fixups are on a remote). Errors: `not_allowed` (other
+   * branch, target or path not in the pull request, lines outside the file), `dirty_worktree`,
+   * `stale_state` (branch behind), `conflict` (the lines changed), `operation_in_progress`,
+   * `hook_failed`, `signing_failed`, `not_found` (commits not fetched), host errors.
+   */
+  reviewFixApply(input: R & { number: number; fix: ReviewFixInput; target: Sha }): Promise<ReviewFixApplied>;
 
   // --- Issues ----------------------------------------------------------------------------------
   /** Like `prList`. `query` searches title and body (GitHub: via the search API, own limit of 30/min). */

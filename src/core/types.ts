@@ -1962,6 +1962,27 @@ export interface AiReviewFix {
   onBranch: boolean;
 }
 
+/** What `reviewFixApply` takes from a suggestion; the core checks and rebuilds everything. */
+export interface ReviewFixInput {
+  path: string;
+  startLine: number;
+  endLine: number;
+  newText: string;
+  headSha: Sha;
+}
+
+/** What `reviewFixApply` committed. */
+export interface ReviewFixApplied {
+  commit: Sha;
+  /** `fixup! <subject of the target>`. */
+  summary: string;
+  /** `fixup!` commits between `base` and HEAD now. */
+  fixups: number;
+  /** Base for the autosquash plan (merge base with the pull request's target). */
+  base: Sha;
+  undoLabel: string;
+}
+
 export interface PrCommit {
   sha: Sha;
   summary: string;
