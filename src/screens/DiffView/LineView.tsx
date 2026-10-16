@@ -9,6 +9,7 @@
  *   Enter (or S / U)            stage or unstage the selection; without a selection the hunk
  *   Del                         discard the selection or hunk (with a prompt)
  *   Esc                         clear the selection
+ * In "pick" mode (agent review) only the selection keys apply.
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
 import { Archive, ChevronDown, ChevronRight, Copy, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
@@ -23,7 +24,7 @@ import { ContextMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import type { PatchAction } from "./actions";
 import { DiffMinimap, type MinimapSource } from "./Minimap";
-import { hunkRange, isSelectable, keysBetween, lineKey, segmentsOf, type FoldRow, type HunkRow, type LineRow, type NoteRow, type PatchMode, type Row, type RowModel, type WordDiffCache } from "./model";
+import { hunkRange, isSelectable, keysBetween, lineCaps, lineKey, segmentsOf, type FoldRow, type HunkRow, type LineRow, type NoteRow, type PatchMode, type Row, type RowModel, type WordDiffCache } from "./model";
 import { t } from "../../i18n";
 
 export type PatchTarget = { kind: "selection" } | { kind: "hunk"; hunkOrd: number };
@@ -273,7 +274,8 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   selectedRef.current = selected;
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
-  const allowSelect = patchMode !== "none" && canPatch;
+  const caps = lineCaps(patchMode, canPatch);
+  const allowSelect = caps.select;
 
   const sizes = useMemo(() => ({ hunk: tokenPx("--gc-size-control-lg", 32), row: tokenPx("--gc-size-row", 24), gap: 8 }), []);
   // The cursor is always on a focusable row – also after the content has changed.
@@ -497,7 +499,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     return null;
   };
 
-  const primaryAction: PatchAction | null = !allowSelect ? null : patchMode === "unstaged" ? "stage" : "unstage";
+  const primaryAction: PatchAction | null = caps.primary;
 
   const runOn = (action: PatchAction, index: number) => {
     if (!allowSelect || busy) return;
@@ -623,13 +625,13 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
         if (patchMode === "unstaged") {
           entries.push({ label: t("diff.selection.stage", { count }), icon: <Plus className="size-icon" />, shortcut: "Enter", disabled: busy, onSelect: () => onPatch("stage", { kind: "selection" }) });
           entries.push({ label: t("diff.selection.discard", { count }), icon: <Trash2 className="size-icon" />, shortcut: "Delete", danger: true, disabled: busy, onSelect: () => onPatch("discard", { kind: "selection" }) });
-        } else {
+        } else if (patchMode === "staged") {
           entries.push({ label: t("diff.selection.unstage", { count }), icon: <Minus className="size-icon" />, shortcut: "Enter", disabled: busy, onSelect: () => onPatch("unstage", { kind: "selection" }) });
         }
         entries.push({ label: t("diff.selection.clear"), icon: <X className="size-icon" />, shortcut: "Escape", onSelect: () => onSelectedChange(new Set()) });
         entries.push({ type: "separator" });
       }
-      if (hunkOrd !== null) {
+      if (hunkOrd !== null && caps.patchActions) {
         const target: PatchTarget = { kind: "hunk", hunkOrd };
         if (patchMode === "unstaged") {
           entries.push({ label: t("diff.hunk.stageN", { index: hunkOrd + 1 }), icon: <Plus className="size-icon" />, disabled: busy, onSelect: () => onPatch("stage", target) });
@@ -784,7 +786,7 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
       </ContextMenu>
       {changeStarts.length > 0 ? <DiffMinimap source={minimap} version={`${rows.length}:${Math.round(totalSize)}:${wrap}:${model.changedLines}:${model.foldCount}:${code.lineHeight}`} /> : null}
 
-      {selectionCount > 0 && allowSelect ? (
+      {selectionCount > 0 && caps.patchActions ? (
         <div
           role="toolbar"
           aria-label={t("diff.selection.toolbar")}

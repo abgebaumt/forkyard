@@ -185,7 +185,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
 
   const onStash = useCallback(() => {
     const patch = text ? selectionToPatch(text, selected) : null;
-    if (!patch || patchMode === "none") return;
+    if (!patch || (patchMode !== "unstaged" && patchMode !== "staged")) return;
     if (queueStashSelection(repoId, tabId, patchMode, patch, selected.size)) setSelection({ id: "", keys: EMPTY });
   }, [text, selected, patchMode, repoId, tabId]);
 
