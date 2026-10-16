@@ -321,6 +321,101 @@ async fn register_and_spawn(core: &Core, row: &AgentRow, def: &TemplateDef, prog
     registry::spawn_session(core, row, def, program, false, cols, rows).await.map(|_| ())
 }
 
+fn running_session(core: &Core, agent_id: &str) -> Option<std::sync::Arc<registry::Session>> {
+    core.state::<AgentRegistry>().get(agent_id).filter(|s| !s.snapshot().finished)
+}
+
+/// Ends the agent's program (the whole process tree). The status becomes “stopped” as soon as it
+/// has ended (`agents:changed`). Without a running session the agent is returned unchanged.
+pub async fn agent_stop(core: &Core, agent_id: String) -> CoreResult<Agent> {
+    let row = core.db.with(|c| db::agents::require(c, &agent_id))?;
+    if let Some(session) = running_session(core, &agent_id) {
+        crate::commands::terminal::terminal_close(core, session.terminal_id().to_string()).await?;
+    }
+    Ok(describe(core, &row).await)
+}
+
+/// Starts the template again in the same worktree with its resume arguments (Claude Code
+/// `--continue`, Codex `resume --last`, opencode `--continue`) and the same permission mode.
+pub async fn agent_resume(core: &Core, agent_id: String, cols: u16, rows: u16) -> CoreResult<Agent> {
+    let row = core.db.with(|c| db::agents::require(c, &agent_id))?;
+    core.repo_path(&row.repo_id)?;
+    if running_session(core, &agent_id).is_some() {
+        return Err(CoreError::not_allowed("This agent is still running."));
+    }
+    if describe(core, &row).await.status == AgentStatus::Orphaned {
+        return Err(CoreError::not_allowed("The agent's branch or worktree no longer exists; it can't be resumed."));
+    }
+    let settings = core.settings()?;
+    let def = templates::find(&settings.agent_templates, &row.template_id)?;
+    if def.kind == AgentTemplateKind::Custom && def.resume_args.is_none() {
+        return Err(CoreError::not_allowed(format!("The template “{}” has no arguments for “Resume”.", def.name)));
+    }
+    let program = resolve_program(core, &def)
+        .await
+        .ok_or_else(|| CoreError::not_allowed(format!("“{}” was not found. Install it or set its path under Settings › Coding agents.", def.name)))?;
+    if row.unattended {
+        if let Some(reason) = templates::unattended_blocked(&def, program.version.as_deref()) {
+            return Err(CoreError::not_allowed(reason));
+        }
+    }
+    let started = util::now_iso();
+    core.db.with(|c| db::agents::set_restarted(c, &row.id, &started))?;
+    let row = AgentRow { started_at: started, ended_at: None, exit_code: None, end_reason: None, ..row };
+    if let Err(e) = registry::spawn_session(core, &row, &def, &program.path, true, cols, rows).await {
+        let _ = core.db.with(|c| db::agents::set_ended(c, &row.id, &util::now_iso(), None, EndReason::Stopped));
+        return Err(e);
+    }
+    Ok(describe(core, &row).await)
+}
+
+/// Removes the entry of an orphaned agent (branch or worktree gone). Git is not touched.
+pub async fn agent_forget(core: &Core, agent_id: String) -> CoreResult<()> {
+    let row = core.db.with(|c| db::agents::require(c, &agent_id))?;
+    if running_session(core, &agent_id).is_some() || describe(core, &row).await.status != AgentStatus::Orphaned {
+        return Err(CoreError::not_allowed("Only orphaned agents can be removed from the list. Use “Stop agent and clean up” for the others."));
+    }
+    let folder = PathBuf::from(&row.worktree_path);
+    if !folder.is_dir() {
+        if let Some(entry) = core.db.with(|c| db::repos::find_by_path(c, &folder))? {
+            let _ = crate::watcher::stop_watching(core, &entry.id);
+            core.db.with(|c| db::repos::delete(c, &entry.id))?;
+        }
+    }
+    core.db.with(|c| db::agents::delete(c, &row.id))?;
+    core.state::<AgentRegistry>().remove(&row.id);
+    registry::emit_changed(core, &row.repo_id);
+    Ok(())
+}
+
+/// The app is closing: every running agent is recorded as ended by the app before its terminal
+/// ends, so the exit that follows does not count as a failure.
+pub fn close_all(core: &Core) {
+    for session in core.state::<AgentRegistry>().all() {
+        if session.snapshot().finished {
+            continue;
+        }
+        session.mark_closed();
+        if let Err(e) = core.db.with(|c| db::agents::set_ended(c, &session.agent_id, &util::now_iso(), None, EndReason::AppClosed)) {
+            log::warn!("end of agent {} not recorded: {}", session.agent_id, e.message);
+        }
+    }
+}
+
+/// At startup: sessions the last run did not record as ended (crash, killed process) are ended by
+/// the app; they show “stopped” with “Resume”.
+pub fn reconcile_on_start(core: &Core) -> CoreResult<u32> {
+    let open = core.db.with(db::agents::list_open)?;
+    let now = util::now_iso();
+    core.db.tx(|tx| {
+        for row in &open {
+            db::agents::set_ended(tx, &row.id, &now, None, EndReason::AppClosed)?;
+        }
+        Ok(())
+    })?;
+    Ok(open.len() as u32)
+}
+
 /// Takes back what `agent_start` created after the worktree: row, repository entry, worktree, branch.
 async fn roll_back(core: &Core, row: &AgentRow, folder: &Path) {
     let _ = core.db.with(|c| db::agents::delete(c, &row.id));

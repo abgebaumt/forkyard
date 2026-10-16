@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use gitcore::commands::agents::{agent_list, agent_start};
+use gitcore::commands::agents::{agent_forget, agent_list, agent_resume, agent_start, agent_stop};
 use gitcore::model::{Agent, AgentStatus, AgentStatusSource};
 use gitcore::testkit::{TestCore, TestRepo};
 use gitcore::ErrorCode;
@@ -160,4 +160,65 @@ async fn start_refuses_bad_input_and_leaves_nothing_behind() {
     // An untrusted repository: repo_untrusted, nothing created.
     f.tc.db.with(|c| gitcore::db::repos::set_trusted(c, &f.id, false)).unwrap();
     assert_eq!(start("custom:fake", "agent/f", "main").await.unwrap_err().code, ErrorCode::RepoUntrusted);
+}
+
+
+#[tokio::test]
+async fn stopping_resuming_and_closing_the_terminal_end_as_stopped() {
+    let f = fixture(&[]).await;
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Bleib da".into(), "agent/bleib".into(), "main".into(), false, 80, 24).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Waiting).await;
+    agent_stop(&f.tc, agent.id.clone()).await.unwrap();
+    let stopped = wait_status(&f, &agent.id, AgentStatus::Stopped).await;
+    assert!(stopped.terminal_id.is_none() && stopped.ended_at.is_some());
+    let row = f.tc.db.with(|c| gitcore::db::agents::require(c, &agent.id)).unwrap();
+    assert_eq!(row.end_reason, Some(gitcore::db::agents::EndReason::Stopped));
+    // Stopping again is no error and changes nothing.
+    assert_eq!(agent_stop(&f.tc, agent.id.clone()).await.unwrap().status, AgentStatus::Stopped);
+
+    // Resume: the template's resume arguments, same worktree, nothing typed.
+    let before = log_text(&f).matches("cwd: ").count();
+    let resumed = agent_resume(&f.tc, agent.id.clone(), 80, 24).await.unwrap();
+    assert!(resumed.terminal_id.is_some());
+    wait_for("second start", || log_text(&f).matches("cwd: ").count() == before + 1).await;
+    let row = f.tc.db.with(|c| gitcore::db::agents::require(c, &agent.id)).unwrap();
+    assert_eq!((row.ended_at, row.end_reason), (None, None));
+    assert_eq!(agent_resume(&f.tc, agent.id.clone(), 80, 24).await.unwrap_err().code, ErrorCode::NotAllowed, "already running");
+
+    // Closing its terminal (the terminal tab's ×) counts as stopping, not as a failure.
+    gitcore::commands::terminal::terminal_close(&f.tc, resumed.terminal_id.clone().unwrap()).await.unwrap();
+    let closed = wait_status(&f, &agent.id, AgentStatus::Stopped).await;
+    assert_ne!(closed.status, AgentStatus::Failed);
+}
+
+#[tokio::test]
+async fn quitting_records_running_agents_as_closed_by_the_app() {
+    let f = fixture(&[]).await;
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Läuft".into(), "agent/laeuft".into(), "main".into(), false, 80, 24).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Waiting).await;
+    gitcore::commands::terminal::close_all(&f.tc);
+    let row = f.tc.db.with(|c| gitcore::db::agents::require(c, &agent.id)).unwrap();
+    assert_eq!(row.end_reason, Some(gitcore::db::agents::EndReason::AppClosed), "recorded before the terminals end");
+    let after = wait_status(&f, &agent.id, AgentStatus::Stopped).await;
+    assert!(after.terminal_id.is_none());
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert_eq!(agent_list(&f.tc, f.id.clone()).await.unwrap()[0].status, AgentStatus::Stopped, "the exit afterwards changes nothing");
+}
+
+#[tokio::test]
+async fn an_orphaned_agent_can_only_be_forgotten_and_git_keeps_its_branch() {
+    let f = fixture(&["--exit-after-task", "0"]).await;
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Weg damit".into(), "agent/weg".into(), "main".into(), false, 80, 24).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Done).await;
+    assert_eq!(agent_forget(&f.tc, agent.id.clone()).await.unwrap_err().code, ErrorCode::NotAllowed, "not orphaned");
+    // The folder is deleted outside Forkyard.
+    std::fs::remove_dir_all(f.repo.temp_dir().join("repo.agents").join("weg")).unwrap();
+    let orphaned = wait_status(&f, &agent.id, AgentStatus::Orphaned).await;
+    assert_eq!((orphaned.changed_files, orphaned.worktree_repo_id), (0, None));
+    assert_eq!(agent_resume(&f.tc, agent.id.clone(), 80, 24).await.unwrap_err().code, ErrorCode::NotAllowed);
+    agent_forget(&f.tc, agent.id.clone()).await.unwrap();
+    assert!(agent_list(&f.tc, f.id.clone()).await.unwrap().is_empty());
+    // `for-each-ref`, not `branch --list`: the latter marks a branch of a (missing) linked worktree with "+".
+    assert_eq!(f.repo.git(&["for-each-ref", "--format=%(refname)", "refs/heads/agent/weg"]), "refs/heads/agent/weg", "forgetting never touches Git");
+    assert_eq!(agent_forget(&f.tc, agent.id).await.unwrap_err().code, ErrorCode::NotFound);
 }

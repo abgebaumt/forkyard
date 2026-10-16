@@ -342,9 +342,33 @@ async fn drive(core: Core, session: Arc<Session>, mut rx: mpsc::UnboundedReceive
     }
 }
 
+impl Session {
+    /// The app is closing: the session ends as stopped (recorded synchronously, the exit that
+    /// follows changes nothing).
+    pub fn mark_closed(&self) {
+        let mut machine = self.machine.lock();
+        machine.apply(Event::AppClosed, Instant::now());
+    }
+}
+
+/// `terminal_close` on an agent's terminal (the × of its terminal tab, the cockpit's “Stop”):
+/// the user ended it, so the end counts as “stopped”.
+pub fn stop_requested_for_terminal(core: &Core, terminal_id: &str) {
+    for session in core.state::<AgentRegistry>().all() {
+        if session.terminal_id == terminal_id {
+            session.send(Event::StopRequested);
+            session.machine.lock().apply(Event::StopRequested, Instant::now());
+        }
+    }
+}
+
 /// Writes the end of the session to the `agents` table and closes its status token.
 fn record_end(core: &Core, session: &Session) {
     core.state::<StatusChannel>().unregister(&session.token);
+    let already = core.db.with(|c| db::agents::get(c, &session.agent_id)).ok().flatten().and_then(|row| row.end_reason);
+    if already == Some(EndReason::AppClosed) {
+        return;
+    }
     let (status, code) = {
         let machine = session.machine.lock();
         (machine.status(), machine.exit_code())

@@ -258,6 +258,9 @@ impl Core {
         }
         let before = util::iso_days_ago(ACTIVITY_MAX_DAYS);
         self.db.with(|c| db::activity::cleanup(c, &before, ACTIVITY_MAX_PER_REPO))?;
+        if let Err(e) = crate::commands::agents::reconcile_on_start(self) {
+            log::warn!("agent sessions of the last run not recorded as ended: {}", e.message);
+        }
         crate::undo::cleanup_older_than(self, UNDO_MAX_DAYS).await
     }
 

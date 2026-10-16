@@ -134,3 +134,36 @@ async fn templates_list_built_ins_first_and_find_own_programs_by_path() {
     assert_eq!((weg.path.as_deref(), weg.can_resume, weg.unattended_blocked.as_deref()), (None, false, None));
     assert!(list[0].status_hook && list[1].status_hook && !list[2].status_hook);
 }
+
+#[tokio::test]
+async fn after_a_restart_unfinished_sessions_count_as_closed_by_the_app() {
+    let (tc, repo, id) = setup().await;
+    let folder = expected_folder(&repo, "alt");
+    std::fs::create_dir_all(folder.parent().unwrap()).unwrap();
+    repo.git(&["worktree", "add", "-q", "-b", "agent/alt", &folder.to_string_lossy()]);
+    let row = db::agents::AgentRow {
+        id: "a-alt".into(),
+        repo_id: id.clone(),
+        short_name: "alt".into(),
+        template_id: "claude".into(),
+        task: "Alt".into(),
+        branch: "agent/alt".into(),
+        worktree_path: folder.to_string_lossy().into_owned(),
+        base: "main".into(),
+        base_sha: repo.head(),
+        unattended: true,
+        started_at: "2026-10-15T20:00:00.000Z".into(),
+        ended_at: None,
+        exit_code: None,
+        end_reason: None,
+    };
+    tc.db.with(|c| db::agents::insert(c, &row)).unwrap();
+    let tc = tc.restart().await;
+    tc.startup_cleanup().await.unwrap();
+    let stored = tc.db.with(|c| db::agents::require(c, "a-alt")).unwrap();
+    assert_eq!(stored.end_reason, Some(db::agents::EndReason::AppClosed));
+    assert!(stored.ended_at.is_some());
+    let listed = agent_list(&tc, id.clone()).await.unwrap();
+    assert_eq!((listed[0].status, listed[0].unattended, listed[0].terminal_id.as_deref()), (AgentStatus::Stopped, true, None));
+    assert_eq!(reconcile_on_start(&tc).unwrap(), 0, "nothing left to reconcile");
+}

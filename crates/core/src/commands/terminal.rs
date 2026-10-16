@@ -703,6 +703,7 @@ pub async fn terminal_resize(core: &Core, terminal_id: String, cols: u16, rows: 
 /// Closes the terminal and ends the shell along with its child processes. `terminal:exit`
 /// still follows. An unknown ID is not an error (already ended).
 pub async fn terminal_close(core: &Core, terminal_id: String) -> CoreResult<()> {
+    crate::commands::agents::registry::stop_requested_for_terminal(core, &terminal_id);
     let Ok(session) = session(core, &terminal_id) else { return Ok(()) };
     tokio::task::spawn_blocking(move || session.kill_tree())
         .await
@@ -711,6 +712,7 @@ pub async fn terminal_close(core: &Core, terminal_id: String) -> CoreResult<()> 
 
 /// Closes all terminals (when the app quits).
 pub fn close_all(core: &Core) {
+    crate::commands::agents::close_all(core);
     let sessions: Vec<Arc<Session>> = core.state::<TerminalState>().sessions.lock().values().cloned().collect();
     for session in sessions {
         session.kill_tree();
