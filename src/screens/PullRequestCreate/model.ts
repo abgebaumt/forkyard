@@ -49,3 +49,18 @@ export function targetBranches(remoteRefs: Pick<Ref, "name" | "remote">[], remot
   }
   return names;
 }
+
+/**
+ * The ref a pull request's target branch stands for in this repository: `<remote>/<name>` of the
+ * given remote (the host's or the original's), else of any remote, else the local branch; null if
+ * none is known. The AI request passes its `fullName`, so a local branch called `origin/main`
+ * cannot be mistaken for the remote one.
+ */
+export function targetRef<T extends Pick<Ref, "name" | "remote">>(remoteRefs: T[], locals: T[], remote: string | null, name: string): T | null {
+  return (
+    remoteRefs.find((ref) => remote !== null && ref.name === `${remote}/${name}`) ??
+    remoteRefs.find((ref) => ref.remote !== null && ref.name === `${ref.remote}/${name}`) ??
+    locals.find((ref) => ref.name === name) ??
+    null
+  );
+}

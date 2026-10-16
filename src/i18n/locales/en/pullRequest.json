@@ -256,6 +256,14 @@
     "yourAccount": "your account",
     "cancel": "Cancel",
     "pushAndCreate": "Push and create",
-    "createDraft": "Create draft"
+    "createDraft": "Create draft",
+    "ai": {
+      "blocked": {
+        "noSource": "Choose a source branch first.",
+        "noTarget": "Choose a target branch first.",
+        "same": "Source and target are the same branch.",
+        "nothing": "The branch has no commits the target does not have."
+      }
+    }
   }
 }

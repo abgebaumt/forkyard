@@ -256,6 +256,14 @@
     "yourAccount": "deinem Konto",
     "cancel": "Abbrechen",
     "pushAndCreate": "Pushen und anlegen",
-    "createDraft": "Entwurf anlegen"
+    "createDraft": "Entwurf anlegen",
+    "ai": {
+      "blocked": {
+        "noSource": "Wähle zuerst einen Quell-Branch.",
+        "noTarget": "Wähle zuerst einen Ziel-Branch.",
+        "same": "Quelle und Ziel sind derselbe Branch.",
+        "nothing": "Der Branch hat keine Commits, die dem Ziel fehlen."
+      }
+    }
   }
 }
