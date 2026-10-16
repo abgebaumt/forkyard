@@ -16,6 +16,7 @@ pub mod prompt;
 pub mod provider;
 pub mod providers;
 pub mod run;
+pub mod cli;
 pub mod schema;
 
 use std::collections::HashMap;

@@ -25,6 +25,9 @@ use tempfile::TempDir;
 pub mod mock_http;
 
 pub use mock_http::{MockRequest, MockResponse, MockServer, TunnelProxy};
+pub mod fake_cli;
+
+pub use fake_cli::{FakeCall, FakeCli};
 
 use crate::app::{Core, CoreConfig};
 use crate::events::EventCollector;
@@ -369,6 +372,10 @@ impl TestCore {
         crate::commands::avatars::configure(&core, Some(String::new()));
         // Nor the update check.
         crate::commands::update::configure(&core, Some(String::new()));
+        // Nor a real AI command-line tool: they are searched only in this core's own folder.
+        let cli_dir = dir.path().join("cli-bin");
+        std::fs::create_dir_all(&cli_dir).expect("cli folder");
+        crate::ai::cli::configure_dir(&core, Some(cli_dir));
         TestCore { core, events, secrets, dir }
     }
 
@@ -382,6 +389,11 @@ impl TestCore {
     /// Path of this core's global Git configuration (instead of ~/.gitconfig).
     pub fn global_config_path(&self) -> PathBuf {
         self.dir.path().join("gitconfig")
+    }
+
+    /// The only folder this core searches AI command-line tools in (empty until a test installs one).
+    pub fn cli_dir(&self) -> PathBuf {
+        self.dir.path().join("cli-bin")
     }
 
     /// Opens a TestRepo via `repo_open` – as the user's own repository: if it brings

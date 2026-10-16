@@ -1,0 +1,70 @@
+//! The AI command-line tools (Teilpaket 1b) against `forkyard-fake-cli`, a test program that plays
+//! `claude`, `codex` or `opencode` and records every call. Nothing here starts a real tool or
+//! talks to a real service.
+
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+
+use gitcore::ai::cli;
+use gitcore::jobs::CancelToken;
+use gitcore::proc::Proc;
+use gitcore::testkit::{FakeCli, TestCore};
+use serde_json::json;
+
+const FAKE: &str = env!("CARGO_BIN_EXE_forkyard-fake-cli");
+
+fn fake() -> &'static Path {
+    Path::new(FAKE)
+}
+
+#[tokio::test]
+async fn the_fake_cli_records_what_it_gets() {
+    let tc = TestCore::new().await;
+    assert!(std::fs::read_dir(tc.cli_dir()).unwrap().next().is_none(), "every test core searches the tools in its own empty folder");
+    let claude = FakeCli::install(
+        fake(),
+        &tc.cli_dir(),
+        "claude",
+        &json!({
+            "rules": [
+                { "args": ["--version"], "stdout": "2.1.301 (Claude Code)\n" },
+                { "prefix": ["-p"], "stdout": "{\"ok\":true}", "exit": 3, "writeAfterFlag": { "flag": "-o", "content": "Antwort für Süd" } }
+            ],
+            "fallback": { "exit": 2, "stderr": "fake: no rule" }
+        }),
+    );
+    let scratch = cli::ScratchDir::new(&tc).unwrap();
+    let folder: PathBuf = scratch.path().to_path_buf();
+    assert!(folder.starts_with(tc.data_dir().join("tmp")), "{}", folder.display());
+    let schema = folder.join("schema.json");
+    std::fs::write(&schema, "{\"type\":\"object\"}").unwrap();
+    let out_file = folder.join("out.json");
+    let args: Vec<OsString> = vec!["-p".into(), "--tools".into(), "".into(), "-o".into(), out_file.clone().into(), schema.clone().into()];
+    let out = Proc::new(&claude.program)
+        .args(&args)
+        .cwd(&folder)
+        .stdin("Grüße\r\nZeile 2".as_bytes().to_vec())
+        .env("FORKYARD_FAKE_MARK", "gesehen")
+        .run(&CancelToken::new())
+        .await
+        .unwrap();
+    assert_eq!((out.code, out.stdout_text()), (Some(3), "{\"ok\":true}".to_string()));
+    assert_eq!(std::fs::read_to_string(&out_file).unwrap(), "Antwort für Süd");
+
+    let calls = claude.calls();
+    assert_eq!(calls.len(), 1);
+    let call = &calls[0];
+    assert_eq!(call.args, ["-p", "--tools", "", "-o", out_file.to_str().unwrap(), schema.to_str().unwrap()]);
+    assert_eq!(Path::new(&call.cwd), folder.as_path());
+    assert_eq!(call.cwd_entries, ["schema.json"], "recorded before it answered");
+    assert_eq!(call.stdin, "Grüße\r\nZeile 2");
+    assert_eq!(call.env.get("FORKYARD_FAKE_MARK").map(String::as_str), Some("gesehen"));
+    assert_eq!(call.files.get(schema.to_str().unwrap()).map(String::as_str), Some("{\"type\":\"object\"}"));
+    assert_eq!(claude.calls_with(&["-p"]).len(), 1);
+    assert!(claude.calls_with(&["--version"]).is_empty());
+
+    let unknown = Proc::new(&claude.program).arg("--frage").run(&CancelToken::new()).await.unwrap();
+    assert_eq!((unknown.code, String::from_utf8_lossy(&unknown.stderr).to_string()), (Some(2), "fake: no rule".to_string()));
+    drop(scratch);
+    assert!(!folder.exists(), "the scratch folder is removed with its guard");
+}
