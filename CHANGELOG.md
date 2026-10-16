@@ -46,6 +46,13 @@ All notable changes to Forkyard are listed here. The format follows
 - Settings › Coding agents: own templates with placeholders `${task}`, `${taskFile}`, `${worktree}`,
   `${branch}`; switches that lift an agent's safety limits are refused. Project setting “Test
   command for coding agents” runs in the agent's worktree when it is done.
+- Collision warning for coding agents: about ten seconds after an agent changes something,
+  Forkyard compares the work of all agents of the repository – uncommitted changes included – with
+  each other and with the current tip of their base, without touching any working directory,
+  index or branch. The cockpit shows ““a” and “b” would collide in src/auth.ts (lines 40–62)” or
+  “… both change …”, with a preview of both sides of each conflict and “Inform agent …”, which types
+  a note you confirmed into that agent's terminal. A failed check shows up in the cockpit with
+  “Check again”.
 
 ### Changed
 
