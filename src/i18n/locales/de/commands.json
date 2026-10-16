@@ -681,6 +681,10 @@
       "keywords": "commit all, stage all",
       "title": "Alles stagen und committen"
     },
+    "compose": {
+      "keywords": "zusammenstellen, aufteilen, mehrere Commits, Hunks gruppieren, KI, compose",
+      "title": "Commits zusammenstellen …"
+    },
     "discardAll": {
       "keywords": "discard, zurücksetzen",
       "title": "Alle Änderungen verwerfen …"

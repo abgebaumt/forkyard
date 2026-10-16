@@ -13,6 +13,7 @@ import { foreignStaged, foreignWarning, useLockIndex } from "../Lfs/locks";
 import { amendHeadMoved, commitChanges, planCommit, pushAfterState, setAmend, wipBusy } from "./actions";
 import { EMPTY_DRAFT, applyTemplate, flushDraft, getDraft, splitMessage, updateDraft, useCommitTemplate } from "./draft";
 import { useWipStore, useWipTab } from "./state";
+import { ComposeButton } from "../Compose/ComposeButton";
 import { AiDraftStatus, AiWriteButton } from "./AiDraftControls";
 import { cancelWriteMessage, noteEdited, settleAiDraft, undoInsertion } from "./aiDraftActions";
 
@@ -257,6 +258,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           <span className="truncate">{plan.label}</span>
         </Button>
       </Tip>
+      <ComposeButton repoId={repoId} tabId={tabId} />
     </form>
   );
 }

@@ -681,6 +681,10 @@
       "keywords": "commit all, stage all",
       "title": "Stage all and commit"
     },
+    "compose": {
+      "keywords": "compose, split, several commits, group hunks, AI",
+      "title": "Compose commits …"
+    },
     "discardAll": {
       "keywords": "discard, reset",
       "title": "Discard all changes …"
