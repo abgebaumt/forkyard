@@ -12,10 +12,11 @@ use crate::app::Core;
 use crate::commands::commit::commit_create;
 use crate::commands::graph;
 use crate::commands::range_apply::range_apply;
+use crate::commands::stage::discard_paths;
 use crate::commands::status::read_status;
 use crate::db::{self, agents::AgentRow};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::{AgentReview, AgentReviewSource, AgentStatus, CommitResult, PatchSelection, RangeApplyTarget};
+use crate::model::{AgentReview, AgentReviewSource, AgentStatus, CommitResult, PatchSelection, RangeApplyTarget, Status};
 use crate::undo;
 use crate::util;
 
@@ -38,6 +39,7 @@ pub(crate) const ORPHANED: &str = "The coding agent's worktree or branch no long
 pub(crate) const STAGED: &str = "Your staging area already holds changes. Commit or unstage them first, so that the commit contains only the agent's selection.";
 pub(crate) const OPERATION: &str = "A merge, rebase, cherry-pick or revert is in progress in your repository. Finish or abort it first, so that the commit contains only the agent's selection.";
 pub(crate) const STAYS_STAGED: &str = "The selection stays staged: commit it in the commit panel or undo the takeover.";
+pub(crate) const RUNNING: &str = "The coding agent is still running. Stop it first – otherwise it keeps writing into its worktree.";
 
 /// The working state of an agent's worktree compared with its HEAD.
 pub(crate) struct WorkingState {
@@ -173,4 +175,23 @@ pub(crate) async fn commit_selection(
         e.message = format!("{} {STAYS_STAGED}", e.message);
         e
     })
+}
+
+/// Discards every uncommitted change in the agent's worktree (tracked and untracked files; ignored
+/// ones and the agent's commits stay) through the existing discard, which backs everything up first:
+/// the undo entry belongs to the worktree's repository row. Refused while the agent's program runs.
+pub(crate) async fn discard_rest(core: &Core, agent_id: &str) -> CoreResult<Status> {
+    let row = row_of(core, agent_id)?;
+    core.repo_path(&row.repo_id)?;
+    let agent = describe(core, &row).await;
+    if agent.status == AgentStatus::Orphaned {
+        return Err(CoreError::not_allowed(ORPHANED));
+    }
+    if agent.terminal_id.is_some() {
+        return Err(CoreError::not_allowed(RUNNING));
+    }
+    let Some(worktree) = agent.worktree_repo_id else {
+        return Err(CoreError::not_allowed(ORPHANED));
+    };
+    discard_paths(core, worktree, None).await
 }

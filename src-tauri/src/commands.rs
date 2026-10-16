@@ -858,6 +858,11 @@ pub async fn agent_review_commit(
 }
 
 #[tauri::command]
+pub async fn agent_discard_rest(core: State<'_, Core>, agent_id: String) -> R<Status> {
+    c::agents::agent_discard_rest(&core, agent_id).await
+}
+
+#[tauri::command]
 pub async fn agent_collisions(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
     c::agents::agent_collisions(&core, repo_id).await
 }

@@ -278,3 +278,25 @@ async fn informing_types_the_confirmed_text_into_the_agents_terminal() {
     // Exactly the confirmed text, as two lines – nothing else was typed.
     assert_eq!(log.matches("line: ").count(), 2, "{log}");
 }
+
+use gitcore::commands::agents::{agent_discard_rest, agent_review};
+use gitcore::model::AgentReviewSource;
+
+#[tokio::test]
+async fn a_running_agent_can_be_reviewed_but_its_rest_is_not_discarded() {
+    let f = fixture(&[]).await;
+    let task = "Größe prüfen";
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), task.into(), "agent/pruefen".into(), "main".into(), false, 80, 24).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Waiting).await;
+    let folder = f.repo.temp_dir().join("repo.agents").join("pruefen");
+
+    let review = agent_review(&f.tc, agent.id.clone(), AgentReviewSource::Snapshot).await.unwrap();
+    assert!(review.running);
+    assert_eq!(review.source, AgentReviewSource::Snapshot, "the fake agent's new file is uncommitted");
+    let shown = f.repo.git_output(&["cat-file", "blob", &format!("{}:AGENT_RESULT.md", review.to)]);
+    assert_eq!(shown.stdout, task.as_bytes(), "the snapshot has the file the agent wrote");
+
+    let err = agent_discard_rest(&f.tc, agent.id.clone()).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
+    assert!(folder.join("AGENT_RESULT.md").exists(), "nothing was discarded");
+}

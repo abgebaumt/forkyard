@@ -687,6 +687,12 @@ export interface CoreCommands {
    * `signing_failed` – after a failed commit the selection stays staged.
    */
   agentReviewCommit(input: { agentId: Id; opId: string; from: Sha; to: Sha; selections: PatchSelection[]; summary: string; description: string; skipHooks: boolean }): Promise<CommitResult>;
+  /**
+   * Discards every uncommitted change in the agent's worktree (ignored files and its commits stay)
+   * and returns that worktree's status. Undo: `undo` with `repoId: worktreeRepoId`. Errors: `not_allowed`
+   * (the agent runs, orphaned), `operation_in_progress`, `not_found`.
+   */
+  agentDiscardRest(input: { agentId: Id }): Promise<Status>;
   /** The last collision report of the repository's coding agents (`pending` before the first check; asking starts one). */
   agentCollisions(input: R): Promise<CollisionReport>;
   /** Checks the agents for collisions now; a failure is `state: "failed"` of the report. Errors: `repo_untrusted`. */

@@ -424,3 +424,46 @@ async fn a_failing_hook_keeps_the_selection_staged() {
     assert_eq!(list, vec![ODD.to_string(), "liste.txt".to_string()], "the selection stays staged");
     assert_eq!(fx.repo.git_output(&["show", ":liste.txt"]).stdout, b"EINS\r\nzwei\r\ndrei");
 }
+
+// ---------------------------------------------------------------------------
+// Discarding the rest in the agent's worktree
+// ---------------------------------------------------------------------------
+
+use crate::commands::agents::agent_discard_rest;
+
+fn worktree_id(fx: &Fx) -> String {
+    fx.tc.db.with(|c| db::repos::find_by_path(c, &fx.folder)).unwrap().expect("worktree row").id
+}
+
+#[tokio::test]
+async fn discarding_the_rest_cleans_the_agent_worktree_and_undo_brings_it_back() {
+    let fx = fixture().await;
+    agent_commit(&fx, "agent.txt", b"committet\n", "Agent", None);
+    let tip = fx.repo.git(&["rev-parse", "agent/liste"]);
+    std::fs::write(fx.folder.join("liste.txt"), CRLF_AGENT).unwrap();
+    std::fs::write(fx.folder.join(ODD), LATIN1).unwrap();
+    std::fs::write(fx.folder.join("debug.log"), "laut\n").unwrap();
+    let wt = worktree_id(&fx);
+
+    agent_discard_rest(&fx.tc, fx.row.id.clone()).await.unwrap();
+    assert_eq!(git_in(&fx.repo, &fx.folder, &["status", "--porcelain", "--untracked-files=all"]), "", "nothing uncommitted is left");
+    assert_eq!(std::fs::read(fx.folder.join("liste.txt")).unwrap(), CRLF_BASE);
+    assert!(!fx.folder.join(ODD).exists());
+    assert!(fx.folder.join("debug.log").exists(), "ignored files stay");
+    assert_eq!(fx.repo.git(&["rev-parse", "agent/liste"]), tip, "the agent's commits stay");
+    assert_eq!(std::fs::read(fx.folder.join("agent.txt")).unwrap(), b"committet\n");
+    assert_eq!(fx.repo.git(&["status", "--porcelain"]), "", "my own working directory is untouched");
+
+    crate::commands::undo::undo(&fx.tc, wt).await.unwrap();
+    assert_eq!(std::fs::read(fx.folder.join("liste.txt")).unwrap(), CRLF_AGENT, "byte for byte back");
+    assert_eq!(std::fs::read(fx.folder.join(ODD)).unwrap(), LATIN1);
+}
+
+#[tokio::test]
+async fn unknown_and_orphaned_agents_cannot_discard() {
+    let fx = fixture().await;
+    assert_eq!(agent_discard_rest(&fx.tc, "gibt-es-nicht".into()).await.unwrap_err().code, ErrorCode::NotFound);
+    fx.repo.git(&["worktree", "remove", "--force", &fx.folder.to_string_lossy()]);
+    let err = agent_discard_rest(&fx.tc, fx.row.id.clone()).await.unwrap_err();
+    assert_eq!((err.code, err.message.as_str()), (ErrorCode::NotAllowed, ORPHANED));
+}

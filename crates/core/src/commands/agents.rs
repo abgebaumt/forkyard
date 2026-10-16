@@ -119,6 +119,12 @@ pub async fn agent_review_commit(
     review::commit_selection(core, &agent_id, op_id, from, to, selections, summary, description, skip_hooks).await
 }
 
+/// Discards what is left uncommitted in the agent's worktree (undo on the worktree's repository).
+/// `not_allowed` while the agent runs or when it is orphaned.
+pub async fn agent_discard_rest(core: &Core, agent_id: String) -> CoreResult<crate::model::Status> {
+    review::discard_rest(core, &agent_id).await
+}
+
 /// After every status change of a session: when the agent is done and the repository has a test
 /// command, the tests run by themselves (once at a time).
 pub(crate) async fn after_status_change(core: &Core, session: &registry::Session) {
