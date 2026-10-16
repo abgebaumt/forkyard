@@ -6,6 +6,8 @@
 //!   The operating system's root certificates are trusted.
 //! - Timeouts per attempt; retries only for reading calls (GET), on
 //!   connection errors and 502/503/504.
+//! - `send_cancellable` returns at once on cancel (the blocking call is abandoned); 429/529 answers
+//!   become errors with the wait time through `Response::busy_error`.
 //! - Response size is limited; the user agent is `forkyard`.
 //! - `If-None-Match` with a remembered ETag where the caller asks for it (`Request::cached`).
 //! - Unencrypted (`http://`) only to this computer (tests against a local server).
@@ -27,6 +29,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
 use crate::git::{netconfig, redact};
+use crate::jobs::CancelToken;
 use crate::model::Settings;
 use crate::secrets;
 use crate::util;
@@ -125,6 +128,7 @@ pub struct Request {
     min_timeout: Option<Duration>,
     max_timeout: Option<Duration>,
     max_retries: Option<u32>,
+    timeout: Option<Duration>,
 }
 
 impl Request {
@@ -143,6 +147,7 @@ impl Request {
             min_timeout: None,
             max_timeout: None,
             max_retries: None,
+            timeout: None,
         }
     }
 
@@ -157,6 +162,13 @@ impl Request {
     pub fn quick(mut self, limit: Duration, retries: u32) -> Self {
         self.max_timeout = Some(limit);
         self.max_retries = Some(retries);
+        self
+    }
+
+    /// Time limit per attempt for exactly this call, longer (generations) or shorter than the default.
+    /// `min_timeout` and `quick` still apply on top of it.
+    pub fn timeout(mut self, limit: Duration) -> Self {
+        self.timeout = Some(limit);
         self
     }
 
@@ -276,6 +288,19 @@ impl Response {
     pub fn is_rate_limited(&self) -> bool {
         let limit = self.rate_limit();
         self.status == 429 || (self.status == 403 && (limit.remaining == Some(0) || limit.retry_after.is_some()))
+    }
+
+    /// 429 (too many requests) and 529 (overloaded) as an error that says when to try again, as far as
+    /// the remote side tells (`retry-after`). Such answers are never repeated automatically.
+    pub fn busy_error(&self) -> Option<CoreError> {
+        if self.status != 429 && self.status != 529 {
+            return None;
+        }
+        let message = match self.rate_limit().retry_after {
+            Some(seconds) => format!("{} is busy (HTTP {}). Try again in {seconds} s.", self.label, self.status),
+            None => format!("{} is busy (HTTP {}). Try again in a moment.", self.label, self.status),
+        };
+        Some(CoreError::new(ErrorCode::HostRateLimited, message).with_retry_at(self.retry_at()))
     }
 
     /// Earliest time to continue (UTC, ISO-8601), as far as the remote side says.
@@ -599,6 +624,9 @@ fn display_url(url: &str, secrets: &[String]) -> String {
 pub async fn send(core: &Core, request: Request) -> CoreResult<Response> {
     let state = core.state::<HttpState>();
     let mut options = state.options.lock().clone();
+    if let Some(limit) = request.timeout {
+        options.timeout = limit;
+    }
     if let Some(limit) = request.min_timeout {
         options.timeout = options.timeout.max(limit);
     }
@@ -684,6 +712,42 @@ pub async fn send(core: &Core, request: Request) -> CoreResult<Response> {
 
     log_call(core, &request, &route, &secret_values, started_at, duration, tries, &result);
     result.map(|(_, response)| response)
+}
+
+/// Like `send`, but returns `cancelled` as soon as `cancel` fires. ureq cannot interrupt a call: the
+/// blocking thread is left to finish on its own and its answer is discarded (no log entry for it).
+/// The cancelled call gets one log entry with code `cancelled`.
+pub async fn send_cancellable(core: &Core, request: Request, cancel: &CancelToken) -> CoreResult<Response> {
+    if cancel.is_cancelled() {
+        return Err(CoreError::cancelled());
+    }
+    let shown = request.clone();
+    let started_at = util::now_iso();
+    let started = Instant::now();
+    tokio::select! {
+        result = send(core, request) => result,
+        _ = cancel.cancelled() => {
+            log_cancelled(core, &shown, started_at, started.elapsed());
+            Err(CoreError::cancelled())
+        }
+    }
+}
+
+fn log_cancelled(core: &Core, request: &Request, started_at: String, duration: Duration) {
+    let entry = db::activity::NewActivity {
+        repo_id: request.repo_id.clone(),
+        description: format!("{} {}", request.label, request.method.as_str()),
+        command: format!("{} {}", request.method.as_str(), display_url(&request.url, &request.secrets)),
+        exit_code: None,
+        duration_ms: duration.as_millis() as u64,
+        output: "Cancelled.".to_string(),
+        started_at,
+        code: Some(ErrorCode::Cancelled),
+    };
+    match core.db.with(|c| db::activity::insert(c, &entry)) {
+        Ok(saved) => core.emit(names::LOG_APPENDED, &saved),
+        Err(e) => log::warn!("Activity log entry not saved: {}", e.message),
+    }
 }
 
 /// Headers of a 304 response (limits, date) take precedence over the cached ones.

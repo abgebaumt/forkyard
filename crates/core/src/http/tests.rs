@@ -9,6 +9,7 @@ use serde_json::json;
 
 use super::*;
 use crate::commands::settings::settings_set;
+use crate::jobs::CancelToken;
 use crate::model::{ActivityEntry, ActivityScope, HostProxy};
 use crate::testkit::{MockResponse, MockServer, TestCore, TunnelProxy};
 
@@ -436,4 +437,94 @@ async fn extra_secrets_are_removed_from_the_log_as_well() {
     assert_eq!(entries.len(), 1);
     assert!(!entries[0].command.contains(encoded) && !entries[0].output.contains(encoded), "{:?}", entries[0]);
     assert!(entries[0].command.contains("***"), "{}", entries[0].command);
+}
+
+#[tokio::test]
+async fn request_timeout_overrides_the_default_in_both_directions() {
+    let tc = TestCore::new().await;
+    configure(&tc, |options| {
+        options.timeout = Duration::from_millis(300);
+        options.connect_timeout = Duration::from_millis(300);
+        options.retries = 0;
+    });
+    let server = MockServer::start(|_| MockResponse::json(200, json!({ "ok": true })).delay(Duration::from_millis(1000)));
+    // Longer than the default: a slow generation gets its answer.
+    let response = send(&tc, Request::new(Method::Post, format!("{}/generieren", server.url()), "Testdienst").json(&json!({})).timeout(Duration::from_secs(5))).await.unwrap();
+    assert_eq!(response.status, 200);
+    // Shorter than the default.
+    configure(&tc, |options| options.timeout = Duration::from_secs(30));
+    let error = send(&tc, Request::get(format!("{}/langsam", server.url()), "Testdienst").timeout(Duration::from_millis(200))).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Timeout, "{error:?}");
+}
+
+#[tokio::test]
+async fn send_cancellable_returns_at_once_and_discards_the_late_answer() {
+    let tc = TestCore::new().await;
+    fast(&tc);
+    let server = MockServer::start(|_| MockResponse::json(200, json!({ "spät": true })).delay(Duration::from_millis(2000)));
+    let cancel = CancelToken::new();
+    {
+        let cancel = cancel.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            cancel.cancel();
+        });
+    }
+    let url = format!("{}/generieren", server.url());
+    let started = std::time::Instant::now();
+    let request = Request::new(Method::Post, &url, "Testdienst").json(&json!({ "a": 1 })).secret_header("authorization", format!("Bearer {SECRET}"), SECRET);
+    let error = send_cancellable(&tc, request, &cancel).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Cancelled, "{error:?}");
+    assert!(started.elapsed() < Duration::from_millis(1500), "returns before the answer: {:?}", started.elapsed());
+    assert_eq!(server.count("POST /generieren"), 1, "the request went out once");
+    let entry = log(&tc).into_iter().find(|e| e.command == format!("POST {url}")).expect("log entry");
+    assert_eq!(entry.code, Some(ErrorCode::Cancelled));
+    assert!(!entry.output.contains(SECRET) && !entry.command.contains(SECRET));
+    // The late answer is discarded: after it arrived there is still exactly this one entry.
+    tokio::time::sleep(Duration::from_millis(2200)).await;
+    assert_eq!(log(&tc).iter().filter(|e| e.command == format!("POST {url}")).count(), 1);
+}
+
+#[tokio::test]
+async fn send_cancellable_with_a_cancelled_token_sends_nothing() {
+    let tc = TestCore::new().await;
+    let server = MockServer::start(|_| MockResponse::json(200, json!({})));
+    let cancel = CancelToken::new();
+    cancel.cancel();
+    let error = send_cancellable(&tc, Request::get(format!("{}/x", server.url()), "Testdienst"), &cancel).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::Cancelled);
+    assert!(server.requests().is_empty(), "nothing was sent");
+}
+
+#[tokio::test]
+async fn send_cancellable_without_a_cancel_is_a_normal_send() {
+    let tc = TestCore::new().await;
+    fast(&tc);
+    let server = MockServer::start(|_| MockResponse::json(200, json!({ "wert": 7 })));
+    let response = send_cancellable(&tc, Request::get(format!("{}/x", server.url()), "Testdienst"), &CancelToken::new()).await.unwrap();
+    assert_eq!(response.json::<serde_json::Value>().unwrap()["wert"], 7);
+}
+
+#[tokio::test]
+async fn busy_answers_become_errors_with_the_wait_time_and_are_not_retried() {
+    let tc = TestCore::new().await;
+    fast(&tc);
+    let server = MockServer::start(|request| match request.route().as_str() {
+        "POST /voll" => MockResponse::json(429, json!({ "error": "rate_limit" })).header("retry-after", "7"),
+        "GET /voll" => MockResponse::json(429, json!({})).header("retry-after", "7"),
+        "POST /ueberlastet" => MockResponse::json(529, json!({ "error": "overloaded" })),
+        _ => MockResponse::json(200, json!({})),
+    });
+    let response = send(&tc, Request::new(Method::Post, format!("{}/voll", server.url()), "Testdienst").json(&json!({}))).await.unwrap();
+    assert_eq!(server.count("POST /voll"), 1);
+    let error = response.busy_error().expect("429 is an error");
+    assert_eq!(error.code, ErrorCode::HostRateLimited);
+    assert!(error.message.contains("7 s"), "{}", error.message);
+    assert!(error.retry_at.is_some());
+    send(&tc, Request::get(format!("{}/voll", server.url()), "Testdienst")).await.unwrap();
+    assert_eq!(server.count("GET /voll"), 1, "a reading call is not retried on 429 either");
+    let error = send(&tc, Request::new(Method::Post, format!("{}/ueberlastet", server.url()), "Testdienst").json(&json!({}))).await.unwrap().busy_error().unwrap();
+    assert!(error.message.contains("529") && error.message.contains("in a moment"), "{}", error.message);
+    assert!(error.retry_at.is_none());
+    assert!(send(&tc, Request::get(format!("{}/gut", server.url()), "Testdienst")).await.unwrap().busy_error().is_none());
 }
