@@ -126,6 +126,10 @@ pub async fn active(core: &Core, settings: &Settings) -> CoreResult<Box<dyn Prov
     let Some(kind) = settings.ai_provider else {
         return Err(CoreError::ai_not_configured("No AI provider is chosen yet. Choose one in Settings › AI."));
     };
+    if kind.is_cli() {
+        // The command-line tools use the user's own sign-in: no model, address or key needed.
+        return crate::ai::cli::provider(core, kind, settings).await;
+    }
     let Some(model) = settings.ai_model.clone() else {
         return Err(CoreError::ai_not_configured(format!("No model is chosen for {}. Choose one in Settings › AI.", kind.label())));
     };

@@ -29,7 +29,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
 use crate::jobs::CancelToken;
-use crate::model::{AiLoginState, AiModelInfo, AiProviderKind, Settings};
+use crate::model::{AiLoginState, AiModelInfo, AiModelList, AiProviderKind, AiStructuredMode, Settings};
 use crate::proc::{Proc, ProcOutput};
 use crate::tools::locate;
 use crate::util;
@@ -564,5 +564,21 @@ async fn prepare(core: &Core, kind: AiProviderKind, settings: &Settings) -> Core
 pub async fn provider(core: &Core, kind: AiProviderKind, settings: &Settings) -> CoreResult<Box<dyn Provider>> {
     Ok(Box::new(prepare(core, kind, settings).await?))
 }
+
+/// „Check“ for a tool (`ai_models`): found, all safety switches, not signed out – nothing is sent.
+/// The model of another provider does not count. `models` are the suggestions; `structured` says
+/// whether the schema goes as a switch or into the prompt.
+pub async fn check(core: &Core, kind: AiProviderKind, settings: &Settings, cancel: &CancelToken) -> CoreResult<AiModelList> {
+    cancel.check()?;
+    let settings = if settings.ai_provider == Some(kind) { settings.clone() } else { Settings { ai_model: None, ..settings.clone() } };
+    let prepared = prepare(core, kind, &settings).await?;
+    cancel.check()?;
+    if login_status(core, kind, &prepared.program, PROBE_TIMEOUT).await.state == AiLoginState::LoggedOut {
+        return Err(not_logged_in(kind));
+    }
+    let structured = if prepared.schema_as_switch() { AiStructuredMode::JsonSchema } else { AiStructuredMode::Prompt };
+    Ok(AiModelList { models: model_suggestions(kind), structured })
+}
+
 #[cfg(test)]
 mod tests;

@@ -139,7 +139,9 @@ pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<Ai
         Ok((value, usage)) => (usage, Ok(value)),
         Err((usage, error)) => (usage, Err(error)),
     };
-    let cost_usd = pricing::price_for(&settings, kind, &model).map(|price| pricing::cost_usd(&price, &usage));
+    // API providers by the price table; the command-line tools report their own cost (spec 1.5).
+    let reported_usd = provider.take_reported_cost_micros().map(|micros| micros as f64 / 1_000_000.0);
+    let cost_usd = pricing::price_for(&settings, kind, &model).map(|price| pricing::cost_usd(&price, &usage)).or(reported_usd);
     record(
         core,
         &Record {
@@ -233,11 +235,11 @@ fn record(core: &Core, record: &Record<'_>) {
     let entry = db::activity::NewActivity {
         repo_id: record.repo_id.map(str::to_string),
         description: format!("ai: {}", record.feature.log_name()),
+        // "ai: commit-message (Anthropic · claude-sonnet-5-5) · …", or "(Claude Code)" with the tool's default model.
         command: format!(
-            "ai: {} ({} · {}) · {} → {} tokens",
+            "ai: {} ({}) · {} → {} tokens",
             record.feature.log_name(),
-            record.label,
-            record.model,
+            if record.model.is_empty() { record.label.clone() } else { format!("{} · {}", record.label, record.model) },
             record.usage.input_tokens,
             record.usage.output_tokens
         ),

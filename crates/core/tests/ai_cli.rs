@@ -342,3 +342,80 @@ async fn opencode_runs_pure_with_everything_denied_and_the_schema_in_the_prompt(
     assert!(call.cwd_entries.is_empty() && !Path::new(&folder).exists());
     assert_eq!(provider.take_reported_cost_micros(), Some(4_200));
 }
+
+use gitcore::ai::gate;
+use gitcore::ai::pricing;
+use gitcore::ai::prompt::{self, Section};
+use gitcore::ai::run::{complete_json, AiRequest};
+use gitcore::model::{ActivityScope, AiAskTrigger, AiFeature, AiStructuredMode};
+
+#[tokio::test]
+async fn an_ai_request_through_claude_code_counts_its_cost_outside_the_limit() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code", "aiMonthlyLimitUsd": 0.01})).await.unwrap();
+    // This month's API costs are above the limit already – the limit is not for the tools (spec 1.5).
+    let month = pricing::current_month();
+    tc.db
+        .with(|c| gitcore::db::ai::add_usage(c, &gitcore::db::ai::NewUsage { month: &month, provider: "anthropic", model: "claude-sonnet-5-5", feature: "compose", input_tokens: 1, output_tokens: 1, cost_usd_micros: 50_000 }))
+        .unwrap();
+    let prompt = prompt::build("Write a commit message.", "de-DE", &[Section { title: "Staged changes".into(), body: "+fix".into() }]);
+    let schema = commit_schema();
+    let ask = |job_id: &'static str| AiRequest { repo_id: None, feature: AiFeature::CommitMessage, job_id, prompt: &prompt, schema: &schema };
+    assert_eq!(complete_json(&tc, ask("cli-1")).await.unwrap_err().code, ErrorCode::NotAllowed, "a tool sends to its provider: the first use asks");
+    assert!(claude.calls_with(&["-p"]).is_empty(), "nothing went out unconfirmed");
+    gate::confirm(&tc, None, AiFeature::CommitMessage, &prompt.fingerprint(), &[AiAskTrigger::FirstUse], false).unwrap();
+    let answer = complete_json(&tc, ask("cli-2")).await.unwrap();
+    assert_eq!(answer.value, json!({"summary": "Fix login", "body": null}));
+    assert_eq!(answer.usage, Usage { input_tokens: 3120, output_tokens: 9 });
+    assert_eq!(answer.cost_usd.map(pricing::micros), Some(12_300), "the cost Claude Code reported");
+    assert_eq!(claude.calls_with(&["-p"])[0].stdin, prompt.text(), "exactly what “What is sent?” shows");
+
+    let rows = tc.db.with(|c| gitcore::db::ai::usage_rows(c, &month)).unwrap();
+    let row = rows.iter().find(|row| row.provider == "claude_code").expect("usage of the tool");
+    assert_eq!((row.requests, row.input_tokens, row.output_tokens, row.cost_usd_micros), (1, 3120, 9, 12_300));
+    let log = tc.db.with(|c| gitcore::db::activity::page(c, ActivityScope::App, None, None, 50)).unwrap();
+    let commands: Vec<&str> = log.entries.iter().map(|entry| entry.command.as_str()).collect();
+    assert!(commands.contains(&"ai: commit-message (Claude Code) · 3120 → 9 tokens"), "{commands:?}");
+    assert!(log.entries.iter().all(|entry| !entry.command.contains("+fix") && !entry.output.contains("+fix")), "no contents in the log");
+}
+
+#[tokio::test]
+async fn checking_a_tool_asks_for_its_sign_in_and_sends_nothing() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &codex_config(CODEX_EXEC_HELP, false, "{}"));
+    // The model of another provider does not count for the check of a tool.
+    settings_set(&tc, json!({"aiProvider": "ollama", "aiModel": "qwen3:8b"})).await.unwrap();
+    let list = gitcore::commands::ai::ai_models(&tc, "check-claude".into(), AiProviderKind::ClaudeCode, None, None, None).await.unwrap();
+    assert_eq!(list.structured, AiStructuredMode::JsonSchema);
+    assert_eq!(list.models.iter().map(|model| model.id.as_str()).collect::<Vec<_>>(), ["sonnet", "opus", "haiku"]);
+    let error = gitcore::commands::ai::ai_models(&tc, "check-codex".into(), AiProviderKind::Codex, None, None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiNotLoggedIn);
+    assert!(error.message.contains("codex login"), "{}", error.message);
+    let error = gitcore::commands::ai::ai_models(&tc, "check-opencode".into(), AiProviderKind::Opencode, None, None, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiNotConfigured, "not installed");
+    assert!(claude.calls_with(&["-p"]).is_empty() && codex.calls_with(&["exec", "-C"]).is_empty(), "checking sends nothing");
+}
+
+#[tokio::test]
+async fn a_remembered_program_that_is_gone_is_searched_again() {
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    cli::remember(&tc, AiProviderKind::ClaudeCode, &tc.cli_dir().join("alter Ort").join("claude")).unwrap();
+    assert_eq!(cli::known_path(&tc, &tc.settings().unwrap(), AiProviderKind::ClaudeCode), None, "the remembered file is gone");
+    let found = cli::program_for(&tc, AiProviderKind::ClaudeCode, &tc.settings().unwrap()).await.unwrap();
+    assert_eq!(std::fs::canonicalize(&found).unwrap(), std::fs::canonicalize(&claude.program).unwrap());
+    assert_eq!(cli::remembered(&tc, AiProviderKind::ClaudeCode), Some(found.clone()), "the new place is remembered");
+    assert_eq!(cli::known_path(&tc, &tc.settings().unwrap(), AiProviderKind::ClaudeCode), Some(found));
+
+    // An own path wins – and must exist.
+    let own_dir = tc.cli_dir().join("eigener Ordner");
+    let own = own_dir.join(format!("claude{}", std::env::consts::EXE_SUFFIX));
+    settings_set(&tc, json!({"aiCliPaths": {"claudeCode": own.to_string_lossy(), "codex": null, "opencode": null}})).await.unwrap();
+    let error = cli::program_for(&tc, AiProviderKind::ClaudeCode, &tc.settings().unwrap()).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiNotConfigured);
+    assert!(error.message.contains("eigener Ordner"), "{}", error.message);
+    FakeCli::install(fake(), &own_dir, "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({}))));
+    assert_eq!(cli::program_for(&tc, AiProviderKind::ClaudeCode, &tc.settings().unwrap()).await.unwrap(), own);
+}

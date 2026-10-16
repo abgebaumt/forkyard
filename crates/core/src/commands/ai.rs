@@ -32,6 +32,8 @@ pub async fn ai_status(core: &Core) -> CoreResult<AiStatus> {
     };
     let connected = match kind {
         None => false,
+        // A command-line tool needs only its program (own path or remembered); no process is started here.
+        Some(kind) if kind.is_cli() => ai::cli::known_path(core, &settings, kind).is_some(),
         Some(kind) => settings.ai_model.is_some() && ai::base_url_for(core, kind, &settings).is_some() && (!kind.needs_key() || key.is_some()),
     };
     let price = match (kind, settings.ai_model.as_deref()) {
@@ -84,6 +86,12 @@ pub async fn ai_key_remove(core: &Core, provider: AiProviderKind) -> CoreResult<
 /// sizes and – for a compatible service with a model – probes and remembers its structured mode.
 pub async fn ai_models(core: &Core, job_id: String, provider: AiProviderKind, base_url: Option<String>, key: Option<String>, model: Option<String>) -> CoreResult<AiModelList> {
     let mut settings = core.settings()?;
+    if provider.is_cli() {
+        let job = core.start_job(&job_id, None)?;
+        let result = ai::cli::check(core, provider, &settings, job.token()).await;
+        job.finish(&result);
+        return result;
+    }
     let stored_base = ai::base_url_for(core, provider, &settings);
     if let Some(url) = base_url.map(|url| url.trim().trim_end_matches('/').to_string()).filter(|url| !url.is_empty()) {
         crate::commands::settings::check_ai_base_url(&url)?;
@@ -305,6 +313,27 @@ mod tests {
         assert!(ai_status(&tc).await.unwrap().connected, "a company proxy may need no key");
         settings_set(&tc, json!({"aiProvider": "gemini", "aiModel": "gemini-2.5-flash"})).await.unwrap();
         assert!(!ai_status(&tc).await.unwrap().connected, "Gemini needs a key");
+    }
+
+    #[tokio::test]
+    async fn command_line_tools_are_connected_once_their_program_is_known() {
+        let tc = TestCore::new().await;
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "codex"})).await.unwrap();
+        let status = ai_status(&tc).await.unwrap();
+        assert!(!status.connected && !status.local && status.price.is_none() && status.key_hint.is_none(), "{status:?}");
+        // As the detection leaves it: a remembered program, no model (the tool's default).
+        let program = tc.cli_dir().join("codex-programm");
+        std::fs::write(&program, "").unwrap();
+        crate::ai::cli::remember(&tc, AiProviderKind::Codex, &program).unwrap();
+        assert!(ai_status(&tc).await.unwrap().connected, "no model and no key needed");
+        std::fs::remove_file(&program).unwrap();
+        assert!(!ai_status(&tc).await.unwrap().connected, "the program is gone");
+        let own = tc.cli_dir().join("eigener Ordner mit Ü").join("codex");
+        std::fs::create_dir_all(own.parent().unwrap()).unwrap();
+        std::fs::write(&own, "").unwrap();
+        settings_set(&tc, json!({"aiCliPaths": {"claudeCode": null, "codex": own.to_string_lossy(), "opencode": null}})).await.unwrap();
+        assert!(ai_status(&tc).await.unwrap().connected, "an own path that exists");
+        assert_eq!(ai_key_set(&tc, AiProviderKind::Codex, "sk-irrelevant-0123456".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "a tool takes no key");
     }
 
     #[tokio::test]
