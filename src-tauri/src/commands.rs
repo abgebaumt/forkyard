@@ -1215,3 +1215,8 @@ pub async fn stack_restack(core: State<'_, Core>, repo_id: String, branch: Strin
 pub async fn stack_push(core: State<'_, Core>, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool) -> R<PushResult> {
     c::stack::stack_push(&core, repo_id, job_id, branches, remote, force).await
 }
+
+#[tauri::command]
+pub async fn stack_prs_create(core: State<'_, Core>, repo_id: String, target: String, parts: Vec<StackPrPart>, from: u32, remote: Option<String>) -> R<StackPrOutcome> {
+    c::stack::stack_prs_create(&core, repo_id, target, parts, from, remote).await
+}

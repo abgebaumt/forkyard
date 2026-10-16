@@ -625,7 +625,8 @@ pub fn run() {
             commands::stack_create,
             commands::stack_status,
             commands::stack_restack,
-            commands::stack_push
+            commands::stack_push,
+            commands::stack_prs_create
         ])
         .build(context);
     match result {

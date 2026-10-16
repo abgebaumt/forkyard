@@ -118,6 +118,8 @@ import type {
   StatsRange,
   StackCut,
   StackPlan,
+  StackPrOutcome,
+  StackPrPart,
   StackStatus,
   StashSelection,
   Status,
@@ -967,6 +969,13 @@ export interface CoreCommands {
    * `not_allowed`, `invalid_name`, everything of `push`.
    */
   stackPush(input: R & { jobId: string; branches: string[]; remote: string; force: boolean }): Promise<PushResult>;
+  /**
+   * Opens the pull requests of `parts[from..]` one after the other, each targeting the part below it
+   * (the first one `target`, the base's branch name on the host). Titles and branches are checked
+   * before anything is sent; the first failure stops the rest (`failed`, with its part number from 1).
+   * Errors (nothing sent): `not_allowed`, `invalid_name`, `not_found`, `empty_message`.
+   */
+  stackPrsCreate(input: R & { target: string; parts: StackPrPart[]; from: number; remote?: string | null }): Promise<StackPrOutcome>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

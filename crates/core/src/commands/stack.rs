@@ -15,9 +15,12 @@ use serde_json::{json, Map};
 
 use crate::app::Core;
 use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
-use crate::commands::{rebase, refs, remotes, sync};
+use crate::commands::{host, rebase, refs, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::{OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackRestack, StackStatus, StackStatusPart};
+use crate::model::{
+    OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackPrCreated, StackPrFailed, StackPrOutcome, StackPrPart, StackRestack,
+    StackStatus, StackStatusPart,
+};
 use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
 use crate::util;
 
@@ -344,6 +347,56 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
         }
     }
     Ok(result)
+}
+
+/// Opens the pull requests of `parts[from..]` one after the other, each onto the part below it
+/// (the first part onto `target`, the base's branch name on the host). Everything is checked before
+/// the first request; the first failure stops the rest and is reported with its part.
+pub async fn stack_prs_create(core: &Core, repo_id: String, target: String, parts: Vec<StackPrPart>, from: u32, remote: Option<String>) -> CoreResult<StackPrOutcome> {
+    let target = target.trim().to_string();
+    if target.is_empty() || target.starts_with('-') {
+        return Err(CoreError::not_allowed("The stack needs the target branch of its first pull request."));
+    }
+    if parts.is_empty() {
+        return Err(CoreError::not_allowed("There is no part to open a pull request for."));
+    }
+    let from = from as usize;
+    if from >= parts.len() {
+        return Err(CoreError::not_allowed(format!("Part {} does not exist; the stack has {} parts.", from + 1, parts.len())));
+    }
+    let names: Vec<String> = parts.iter().map(|part| branch_name_of(&part.branch)).collect::<CoreResult<_>>()?;
+    let existing: HashSet<String> = local_branches(core, &repo_id).await?.into_iter().map(|branch| branch.name).collect();
+    let mut seen = HashSet::new();
+    for (index, name) in names.iter().enumerate() {
+        if !existing.contains(name) {
+            return Err(CoreError::not_found(format!("The branch “{name}” does not exist.")));
+        }
+        if *name == target || !seen.insert(name.as_str()) {
+            return Err(CoreError::not_allowed(format!("“{name}” appears twice in the stack.")));
+        }
+        if index >= from {
+            let title = parts[index].title.trim();
+            if title.is_empty() {
+                return Err(CoreError::new(ErrorCode::EmptyMessage, format!("The title of part {} must not be empty.", index + 1)));
+            }
+            if title.contains(['\n', '\r']) {
+                return Err(CoreError::not_allowed(format!("The title of part {} must be a single line.", index + 1)));
+            }
+        }
+    }
+    let mut outcome = StackPrOutcome { created: Vec::new(), failed: None };
+    for (index, part) in parts.iter().enumerate().skip(from) {
+        let into = if index == 0 { target.clone() } else { names[index - 1].clone() };
+        let number = index as u32 + 1;
+        match host::pr_create(core, repo_id.clone(), part.title.clone(), part.body.clone(), names[index].clone(), into, part.draft, None, None, remote.clone()).await {
+            Ok(pr) => outcome.created.push(StackPrCreated { part: number, pr }),
+            Err(error) => {
+                outcome.failed = Some(StackPrFailed { part: number, error });
+                break;
+            }
+        }
+    }
+    Ok(outcome)
 }
 
 #[cfg(test)]
