@@ -9,20 +9,24 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::app::Core;
+use crate::app::{Core, WriteGuard};
 use crate::commands::worktree::{self, WorktreeEntry};
 use crate::db;
-use crate::error::CoreResult;
-use crate::model::{CleanupLfsEstimate, CleanupPreview, CleanupUndoBackup};
+use crate::error::{CoreError, CoreResult};
+use crate::jobs::CancelToken;
+use crate::model::{CleanupLfsEstimate, CleanupOptions, CleanupPreview, CleanupResult, CleanupUndoBackup};
 use crate::util;
 
 mod disk;
 mod measure;
+mod run;
 
 #[cfg(test)]
 mod measure_tests;
 #[cfg(test)]
 mod preview_tests;
+#[cfg(test)]
+mod run_tests;
 #[cfg(test)]
 mod test_support;
 
@@ -70,4 +74,43 @@ pub async fn repo_cleanup_preview(core: &Core, repo_id: String) -> CoreResult<Cl
 /// What `git lfs prune` would free (`git lfs prune --dry-run`). `unsupported` without Git LFS.
 pub async fn repo_cleanup_lfs_estimate(core: &Core, repo_id: String) -> CoreResult<CleanupLfsEstimate> {
     measure::lfs_estimate(core, &repo_id).await
+}
+
+/// The locks of a run: first every network lock, then every write lock, in id order (the order
+/// documented in `app.rs`). Dropped together at the end of the run.
+struct Held {
+    _write: Vec<WriteGuard>,
+    _network: Vec<WriteGuard>,
+}
+
+/// Takes the locks of all `ids`; each wait can be cancelled.
+async fn lock_all(core: &Core, ids: &[String], cancel: &CancelToken) -> CoreResult<Held> {
+    let mut network = Vec::with_capacity(ids.len());
+    for id in ids {
+        tokio::select! {
+            guard = core.network_lock(id) => network.push(guard),
+            _ = cancel.cancelled() => return Err(CoreError::cancelled()),
+        }
+    }
+    let mut write = Vec::with_capacity(ids.len());
+    for id in ids {
+        tokio::select! {
+            guard = core.write_lock(id) => write.push(guard),
+            _ = cancel.cancelled() => return Err(CoreError::cancelled()),
+        }
+    }
+    Ok(Held { _write: write, _network: network })
+}
+
+/// Cleans up as job `job_id` (`job:progress`, `job:done`, cancellable with `job_cancel`): checks
+/// trust and options, waits for the locks of the repository and all its listed worktrees, then runs
+/// the chosen steps in order – worktrees, undo backups, reflog, LFS, `git gc` – and reports
+/// `repo:changed` (refs). The result also describes a cancelled or failed run.
+pub async fn repo_cleanup_run(core: &Core, repo_id: String, job_id: String, options: CleanupOptions) -> CoreResult<CleanupResult> {
+    core.repo_path(&repo_id)?;
+    run::check_options(&options)?;
+    let job = core.start_job(&job_id, Some(&repo_id))?;
+    let result = run::run(core, &repo_id, &job, &options).await;
+    job.finish(&run::job_outcome(&result));
+    result
 }

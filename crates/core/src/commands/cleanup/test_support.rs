@@ -160,3 +160,27 @@ pub(super) async fn lfs_fixture(tc: &TestCore, repo: &TestRepo, id: &str) -> Opt
     }
     Some(remote)
 }
+
+pub(super) fn only_gc(mode: crate::model::CleanupMode) -> crate::model::CleanupOptions {
+    crate::model::CleanupOptions { mode, lfs: false, worktrees: false, undo_older_than_days: None, reflog: false }
+}
+
+/// `repo_cleanup_run` with a fresh job id.
+pub(super) async fn run_cleanup(core: &crate::app::Core, id: &str, options: crate::model::CleanupOptions) -> crate::error::CoreResult<crate::model::CleanupResult> {
+    super::repo_cleanup_run(core, id.to_string(), format!("job-cleanup-{}", util::new_id()), options).await
+}
+
+pub(super) fn status_of(result: &crate::model::CleanupResult, step: crate::model::CleanupStep) -> crate::model::CleanupStepStatus {
+    result.steps.iter().find(|entry| entry.step == step).map(|entry| entry.status).expect("every step is listed")
+}
+
+pub(super) fn object_exists(repo: &TestRepo, sha: &str) -> bool {
+    repo.git_output(&["cat-file", "-e", sha]).status.success()
+}
+
+/// A blob no ref, index or reflog reaches (written from a file outside the working directory).
+pub(super) fn dangling_blob(repo: &TestRepo, content: &str) -> String {
+    let file = repo.temp_dir().join(format!("lose {}.txt", util::new_id()));
+    std::fs::write(&file, content).unwrap();
+    repo.git(&["hash-object", "-w", &file.to_string_lossy()])
+}
