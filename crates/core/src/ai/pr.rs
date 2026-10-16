@@ -209,12 +209,13 @@ const CLOSING_REF: &str = r"(?:issues?\s+)?(?:#\d+\b|[\w.-]+(?:/[\w.-]+)*#\d+\b|
 
 /// A closing statement as the hosts read it: one keyword of the GitHub/Gitea set or GitLab's
 /// larger one (`closing`, `implements`, `fixing`, `resolving` …), then a list of references joined
-/// by commas and/or `and` – GitLab closes every issue of such a list.
+/// as GitLab joins them: an optional comma and/or `and`, plain spaces or nothing at all
+/// (`#12 #77`, `#12#77`) – GitLab closes every issue of such a list.
 fn closing_keyword() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
         let keyword = r"clos(?:e[sd]?|ing)|fix(?:e[sd]|ing)?|resol(?:ve[sd]?|ving)|implement(?:s|ed|ing)?";
-        let list = format!(r"{CLOSING_REF}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+){CLOSING_REF})*");
+        let list = format!(r"{CLOSING_REF}(?:(?:\s*,?\s*and\s+|\s*,?\s*){CLOSING_REF})*");
         Regex::new(&format!(r"(?i)\b(?:{keyword})\s*:?\s*({list})")).expect("valid pattern")
     })
 }
