@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   Bell,
+  Bot,
   Command,
   FileCog,
   FolderGit2,
@@ -49,6 +50,7 @@ import { SshSection } from "./sections/Ssh";
 import { NetworkSection } from "../Network/NetworkSection";
 import { HostsSection } from "../Hosts";
 import { CustomCommandsSection } from "../CustomCommands/Section";
+import { AgentTemplatesSection } from "../Agents/SettingsSection";
 
 /** The shell knows coarser names; here they land in the matching section. */
 const fromStore: Record<PreferencesSection, SectionId> = {
@@ -64,8 +66,7 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   ssh: "ssh",
   integrations: "integrations",
   repo: "p-identity",
-  // Until the "Coding agents" section exists, agent settings land next to the terminal's.
-  agents: "external",
+  agents: "agents",
 };
 
 const iconClass = "size-icon shrink-0";
@@ -75,6 +76,7 @@ const icons: Record<SectionId, ReactNode> = {
   external: <SquareTerminal className={iconClass} aria-hidden />,
   commands: <Command className={iconClass} aria-hidden />,
   notifications: <Bell className={iconClass} aria-hidden />,
+  agents: <Bot className={iconClass} aria-hidden />,
   identity: <UserRound className={iconClass} aria-hidden />,
   git: <GitBranch className={iconClass} aria-hidden />,
   ssh: <KeyRound className={iconClass} aria-hidden />,
@@ -222,6 +224,8 @@ export function Preferences({
         return <CustomCommandsSection repoId={repo?.trusted ? repoId : null} />;
       case "notifications":
         return withSettings((value) => <NotificationsSection settings={value} />);
+      case "agents":
+        return withSettings((value) => <AgentTemplatesSection settings={value} />);
       case "identity":
         return <ProfilesSection create={createProfile} />;
       case "git":

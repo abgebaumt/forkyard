@@ -46,6 +46,10 @@
       "label": "Notifications",
       "keywords": "On fetch results|On background errors"
     },
+    "agents": {
+      "label": "Coding agents",
+      "keywords": "Agent|Coding agent|Templates|Claude Code|Codex|opencode|Without prompts|Resume|Test command"
+    },
     "identity": {
       "label": "Profile and identity",
       "keywords": "Profile|Profile name|Color|Author name|Email|gitconfig"

@@ -46,6 +46,10 @@
       "label": "Benachrichtigungen",
       "keywords": "Bei Fetch-Ergebnissen|Bei Fehlern im Hintergrund"
     },
+    "agents": {
+      "label": "Coding-Agenten",
+      "keywords": "Agent|Coding-Agent|Vorlagen|Claude Code|Codex|opencode|Ohne Rückfragen|Fortsetzen|Testbefehl"
+    },
     "identity": {
       "label": "Profil und Identität",
       "keywords": "Profil|Profilname|Farbe|Autorname|E-Mail|gitconfig"
