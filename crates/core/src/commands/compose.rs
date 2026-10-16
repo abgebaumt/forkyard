@@ -8,6 +8,8 @@ mod units;
 mod units_tests;
 #[cfg(test)]
 mod apply_tests;
+#[cfg(test)]
+mod hook_tests;
 
 use crate::app::Core;
 use crate::error::CoreResult;

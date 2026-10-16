@@ -30,6 +30,8 @@ use crate::undo::{self, GroupRecord, GroupSnapshot, RefMove, UndoAction};
 pub(crate) const CHANGES: [RepoChange; 3] = [RepoChange::Index, RepoChange::Refs, RepoChange::Head];
 /// Job phase of `job:progress`; the line is "<n>/<total>".
 const PHASE: &str = "compose";
+/// Reflog message when a failed run moves the branch back.
+const ROLLBACK_MESSAGE: &str = "forkyard: compose rolled back";
 
 /// Per file of `ComposeRead::files`: `None` = the whole file, otherwise these hunks.
 type Parts = BTreeMap<usize, Option<BTreeSet<usize>>>;
@@ -46,7 +48,8 @@ struct Done {
     hooks: Vec<HookOutput>,
 }
 
-/// The whole run; call inside the write lock.
+/// The whole run; call inside the write lock. Any failure after the snapshot moves the branch back
+/// to the old HEAD, restores the index and removes the backup refs.
 pub(crate) async fn apply(core: &Core, repo_id: &str, job: &Job, plan: &ComposePlan, expect_token: &str) -> CoreResult<ComposeResult> {
     let read = units::read(core, repo_id).await?;
     if read.token != expect_token {
@@ -57,18 +60,20 @@ pub(crate) async fn apply(core: &Core, repo_id: &str, job: &Job, plan: &ComposeP
     let branch_ref = format!("refs/heads/{}", read.branch);
     let entry_id = undo::new_id();
     let snapshot = undo::snapshot_for_group(core, repo_id, &entry_id).await?;
+    let index_before = snapshot.index_tree.clone();
     let temp = TempIndex::create(core)?;
     let mut done = Done::default();
-    let parts = match commit_steps(core, repo_id, job, &read, &steps, plan.skip_hooks, &branch_ref, temp.path(), &mut done).await {
-        Ok(parts) => parts,
-        Err(error) => {
-            give_up(core, repo_id, &entry_id).await;
-            return Err(error);
-        }
-    };
-    let tip = done.commits.last().cloned().unwrap_or_else(|| read.head.clone());
-    reset_committed_paths(core, repo_id, &read, &parts, &tip).await?;
-    record(core, repo_id, &read, &branch_ref, entry_id, snapshot, &done.commits).await?;
+    let outcome = async {
+        let parts = commit_steps(core, repo_id, job, &read, &steps, plan.skip_hooks, &branch_ref, temp.path(), &mut done).await?;
+        let tip = done.commits.last().cloned().unwrap_or_else(|| read.head.clone());
+        reset_committed_paths(core, repo_id, &read, &parts, &tip).await?;
+        record(core, repo_id, &read, &branch_ref, entry_id.clone(), snapshot, &done.commits).await
+    }
+    .await;
+    if let Err(error) = outcome {
+        roll_back(core, repo_id, &read, &branch_ref, &entry_id, index_before.as_deref()).await;
+        return Err(error);
+    }
     Ok(ComposeResult { commits: done.commits, hooks: done.hooks })
 }
 
@@ -128,7 +133,10 @@ fn percent(number: usize, total: usize) -> u32 {
     ((number * 100) / total.max(1)) as u32
 }
 
-/// Creates the commits one after another.
+/// Creates the commits one after another. Before each: cancelled? branch still where the previous
+/// step left it? After each: the commit sits on the previous tip, has exactly the tree that was
+/// built (a hook that staged more fails this), and the working directory is unchanged (a hook that
+/// edited files fails this).
 #[allow(clippy::too_many_arguments)]
 async fn commit_steps(
     core: &Core,
@@ -142,17 +150,57 @@ async fn commit_steps(
     done: &mut Done,
 ) -> CoreResult<Parts> {
     let mut parts = Parts::new();
+    let mut previous = read.head.clone();
     for (number, step) in steps.iter().enumerate() {
+        job.token().check()?;
         job.progress(PHASE, Some(percent(number, steps.len())), &format!("{}/{}", number + 1, steps.len()));
+        if undo::rev_parse(core, repo_id, branch_ref).await?.as_deref() != Some(previous.as_str()) {
+            return Err(moved_meanwhile());
+        }
         for unit in &step.units {
             add_unit(&mut parts, *unit);
         }
-        build_index(core, repo_id, read, &parts, index).await?;
+        let tree = build_index(core, repo_id, read, &parts, index).await?;
         done.hooks.extend(run_commit_on(core, repo_id, &commit_args(skip_hooks), &step.message, Some(index)).await?);
-        let sha = undo::rev_parse(core, repo_id, branch_ref).await?.ok_or_else(CoreError::stale_state)?;
-        done.commits.push(sha);
+        let Some(sha) = undo::rev_parse(core, repo_id, branch_ref).await? else { return Err(moved_meanwhile()) };
+        let parent = undo::rev_parse(core, repo_id, &format!("{sha}^1")).await?;
+        let committed = undo::rev_parse(core, repo_id, &format!("{sha}^{{tree}}")).await?;
+        if parent.as_deref() != Some(previous.as_str()) {
+            return Err(moved_meanwhile());
+        }
+        if committed.as_deref() != Some(tree.as_str()) {
+            return Err(hook_changed(&done.hooks, "the content of a commit"));
+        }
+        if undo::worktree_tree(core, repo_id, None).await? != read.worktree_tree {
+            return Err(hook_changed(&done.hooks, "files in the working directory"));
+        }
+        done.commits.push(sha.clone());
+        previous = sha;
     }
     Ok(parts)
+}
+
+fn moved_meanwhile() -> CoreError {
+    CoreError::new(
+        ErrorCode::StaleState,
+        "The branch moved while the commits were being created. The commits were taken back; HEAD and the index are as before.",
+    )
+}
+
+/// `hook_failed` for a hook that changed the index or files; the hooks' output goes along.
+fn hook_changed(hooks: &[HookOutput], what: &str) -> CoreError {
+    let output = hooks.iter().filter(|hook| !hook.output.is_empty()).map(|hook| format!("{}:\n{}", hook.hook, hook.output)).collect::<Vec<_>>().join("\n\n");
+    let error = CoreError::new(
+        ErrorCode::HookFailed,
+        format!(
+            "A Git hook changed {what} while the commits were being created. The commits were taken back; HEAD and the index are as before, changes the hook made to files stay. Create the commits without hooks or let the hook run first."
+        ),
+    );
+    if output.is_empty() {
+        error
+    } else {
+        error.with_git_output(output)
+    }
 }
 
 /// Fills the temporary index: HEAD as it was, complete files from the working-directory tree,
@@ -256,9 +304,36 @@ async fn record(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str
     Ok(())
 }
 
-/// After a failure: the snapshot refs are not needed any more.
-async fn give_up(core: &Core, repo_id: &str, entry_id: &str) {
-    if let Err(e) = undo::delete_backup_refs(core, repo_id, entry_id).await {
-        log::warn!("Compose: backup refs of {entry_id} not removed: {}", e.message);
+/// After a failure: the branch back to the old HEAD (one transaction), the real index back if it
+/// changed, the backup refs removed. If something cannot be restored the backup refs stay, so
+/// nothing is lost.
+async fn roll_back(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str, entry_id: &str, index_before: Option<&str>) {
+    let mut restored = true;
+    match undo::rev_parse(core, repo_id, branch_ref).await {
+        Ok(Some(now)) if now != read.head => {
+            if let Err(e) = undo::apply_ref_moves(core, repo_id, &[RefMove::new(branch_ref, Some(&now), Some(&read.head))], ROLLBACK_MESSAGE).await {
+                log::error!("Compose: {branch_ref} not moved back to {}: {}", read.head, e.message);
+                restored = false;
+            }
+        }
+        Ok(_) => {}
+        Err(e) => {
+            log::error!("Compose: {branch_ref} not read after a failure: {}", e.message);
+            restored = false;
+        }
+    }
+    if let Some(tree) = index_before {
+        let same = units::index_tree_of_copy(core, repo_id).await.is_ok_and(|now| now == tree);
+        if !same {
+            if let Err(e) = undo::restore_index(core, repo_id, tree).await {
+                log::error!("Compose: index not restored to {tree}: {}", e.message);
+                restored = false;
+            }
+        }
+    }
+    if restored {
+        if let Err(e) = undo::delete_backup_refs(core, repo_id, entry_id).await {
+            log::warn!("Compose: backup refs of {entry_id} not removed: {}", e.message);
+        }
     }
 }
