@@ -18,6 +18,7 @@ const base: RepoSettings = {
   submodulesAutoUpdate: true,
   linkRules: { hostRules: true, presets: [], custom: [] },
   aiOff: false,
+  aiCommitInstruction: null,
 };
 
 describe("inheritance in the project", () => {

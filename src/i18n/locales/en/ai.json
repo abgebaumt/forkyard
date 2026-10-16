@@ -148,6 +148,11 @@
     "off": {
       "title": "AI off for this repository",
       "description": "No AI element appears for this repository, and nothing of it is sent."
+    },
+    "commitInstruction": {
+      "title": "Own commit instruction",
+      "description": "Goes along with every commit-message request for this repository, e.g. “End the summary with the ticket key.” At most 2,000 characters.",
+      "placeholder": "e.g. Use English and the prefixes feat:, fix:, docs:"
     }
   },
   "preview": {

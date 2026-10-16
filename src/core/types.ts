@@ -1241,6 +1241,8 @@ export interface RepoSettings {
   linkRules: LinkRulesConfig;
   /** "AI off for this repository": no AI element, nothing of it is sent. Stored in the app, not in .git/config. */
   aiOff: boolean;
+  /** Own instruction for AI commit messages in this repository (at most 2000 characters); null = none. Stored in the app, not in .git/config. */
+  aiCommitInstruction: string | null;
 }
 
 export type LinkPresetKind = "jira" | "linear" | "youtrack" | "redmine";

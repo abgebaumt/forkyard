@@ -529,6 +529,13 @@ pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> Co
             return Err(CoreError::not_allowed("The email address is invalid."));
         }
     }
+    if changed.iter().any(|k| k == "aiCommitInstruction") {
+        next.ai_commit_instruction = next.ai_commit_instruction.as_deref().map(str::trim).filter(|text| !text.is_empty()).map(str::to_string);
+        let limit = crate::ai::commit_message::MAX_INSTRUCTION_CHARS;
+        if next.ai_commit_instruction.as_deref().is_some_and(|text| text.chars().count() > limit) {
+            return Err(CoreError::not_allowed(format!("The own commit instruction is too long: at most {limit} characters.")));
+        }
+    }
     let as_json = serde_json::to_value(&next)?;
     core.db.tx(|tx| {
         let profile_id = db::profiles::active_id(tx)?;
@@ -845,6 +852,33 @@ mod tests {
         assert!(!config.contains("aioff"), "stored in the app database, not in .git/config: {config}");
         let tc = tc.restart().await;
         assert!(repo_settings_get(&tc, id).await.unwrap().ai_off, "kept across a restart");
+    }
+
+    #[tokio::test]
+    async fn the_own_commit_instruction_is_a_trimmed_repository_setting_with_a_limit() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        let id = tc.open(&repo).await.repo.id;
+        assert_eq!(repo_settings_get(&tc, id.clone()).await.unwrap().ai_commit_instruction, None);
+        let s = repo_settings_set(&tc, id.clone(), json!({"aiCommitInstruction": "  Betreff endet mit dem Ticket-Schlüssel („AB-123“).\n"})).await.unwrap();
+        assert_eq!(s.ai_commit_instruction.as_deref(), Some("Betreff endet mit dem Ticket-Schlüssel („AB-123“)."));
+        let config = String::from_utf8_lossy(&repo.read_file(".git/config")).to_lowercase();
+        assert!(!config.contains("aicommitinstruction") && !config.contains("ticket"), "stored in the app database: {config}");
+
+        let s = repo_settings_set(&tc, id.clone(), json!({"aiCommitInstruction": "   \n"})).await.unwrap();
+        assert_eq!(s.ai_commit_instruction, None, "blank means none");
+        let stored = tc.db.with(|c| db::repo_settings::get_all(c, &id)).unwrap();
+        assert!(stored.iter().all(|(key, _)| key != "aiCommitInstruction"), "and nothing is kept");
+
+        let err = repo_settings_set(&tc, id.clone(), json!({"aiCommitInstruction": "ä".repeat(2001)})).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+        assert!(err.message.contains("2000"), "{}", err.message);
+        let exact = "ä".repeat(2000);
+        let s = repo_settings_set(&tc, id.clone(), json!({"aiCommitInstruction": exact.clone()})).await.unwrap();
+        assert_eq!(s.ai_commit_instruction, Some(exact), "2000 characters – not bytes – are allowed");
+
+        let tc = tc.restart().await;
+        assert_eq!(repo_settings_get(&tc, id).await.unwrap().ai_commit_instruction.map(|text| text.chars().count()), Some(2000), "kept across a restart");
     }
 
     #[tokio::test]

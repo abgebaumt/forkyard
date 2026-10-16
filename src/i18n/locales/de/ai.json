@@ -148,6 +148,11 @@
     "off": {
       "title": "KI für dieses Repository aus",
       "description": "Für dieses Repository erscheint kein KI-Element, und nichts daraus wird gesendet."
+    },
+    "commitInstruction": {
+      "title": "Eigene Commit-Anweisung",
+      "description": "Geht bei jeder Anfrage für eine Commit-Nachricht dieses Repositorys mit, z. B. „Betreff endet mit dem Ticket-Schlüssel.“ Höchstens 2 000 Zeichen.",
+      "placeholder": "z. B. Auf Deutsch, Betreff im Imperativ, Ticket-Schlüssel am Ende"
     }
   },
   "preview": {

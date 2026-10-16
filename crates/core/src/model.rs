@@ -1749,6 +1749,10 @@ pub struct RepoSettings {
     /// "AI off for this repository": no AI element appears for it, nothing of it is sent.
     #[serde(default)]
     pub ai_off: bool,
+    /// Own instruction for AI commit messages in this repository (spec 3.1), at most 2000
+    /// characters; stored in the app (`repo_settings`), never in .git/config.
+    #[serde(default)]
+    pub ai_commit_instruction: Option<String>,
 }
 
 impl Default for RepoSettings {
@@ -1766,6 +1770,7 @@ impl Default for RepoSettings {
             submodules_auto_update: true,
             link_rules: LinkRulesConfig::default(),
             ai_off: false,
+            ai_commit_instruction: None,
         }
     }
 }
