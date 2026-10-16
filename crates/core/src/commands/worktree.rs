@@ -138,6 +138,17 @@ pub async fn worktree_list(core: &Core, repo_id: String) -> CoreResult<Vec<Workt
     list(core, &repo_id).await
 }
 
+/// Folder of the main worktree (the first entry of `git worktree list`), also when `repo_id` is a
+/// linked worktree.
+pub(crate) async fn main_worktree_path(core: &Core, repo_id: &str) -> CoreResult<PathBuf> {
+    let raw = read_raw(core, repo_id).await?;
+    let first = raw.first().ok_or_else(|| CoreError::not_found("The repository has no working directory."))?;
+    if first.bare {
+        return Err(CoreError::not_allowed("The repository is bare; coding agents need a working directory next to it."));
+    }
+    Ok(util::native_path(&util::bytes_to_path(&first.path)))
+}
+
 fn same_path(a: &Path, b: &Path) -> bool {
     util::path_key(a) == util::path_key(b)
 }
@@ -149,7 +160,7 @@ async fn find(core: &Core, repo_id: &str, path: &str) -> CoreResult<(usize, RawW
     found.ok_or_else(|| CoreError::not_found(format!("There’s no worktree of this repository at “{}”.", path.trim())))
 }
 
-async fn local_branch_exists(core: &Core, repo_id: &str, name: &str) -> CoreResult<bool> {
+pub(crate) async fn local_branch_exists(core: &Core, repo_id: &str, name: &str) -> CoreResult<bool> {
     let out = read(core, repo_id)?.args(["show-ref", "--verify", "--quiet", &format!("refs/heads/{name}")]).run_raw().await?;
     Ok(out.success())
 }

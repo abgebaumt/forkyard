@@ -2,6 +2,7 @@
 //! `pub async fn name(core: &Core, <keys of the input object in snake_case>)`.
 
 pub mod activity;
+pub mod agents;
 pub mod app;
 pub mod auth;
 pub mod avatars;
