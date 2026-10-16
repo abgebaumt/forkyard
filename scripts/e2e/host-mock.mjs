@@ -15,7 +15,9 @@
  *   mock.token        valid token;  mock.weakToken: valid, but without the required permission
  *   mock.caFile       certificate of the test CA for settings.sslCaFile (tls only)
  *   mock.requests     [{ method, path, query, headers, body, status }] in order of arrival
- *   mock.state        mutable data: { merged: Set, closed: Set, created: [], comments: [] }
+ *   mock.state        mutable data: { merged: Set, closed: Set, created: [], comments: [],
+ *                     prOverrides: Map(number → { source, head, commits: [{ sha, message }] }),
+ *                     reviewThreads: Map(number → GitHub GraphQL review-thread nodes), replies: [] }
  *
  * Control:
  *   mock.fail("unauthorized")                          all further requests fail like this …
@@ -61,7 +63,7 @@ const stamp = (number) => `2026-09-${String(1 + (number % 28)).padStart(2, "0")}
 const sourceBranch = (number) => (number === 7 ? "feature/login" : number === 8 ? "korrektur" : `feature/thema-${number}`);
 
 function freshState() {
-  return { merged: new Set(), closed: new Set(), created: [], comments: [], titles: new Map(), workItems: [] };
+  return { merged: new Set(), closed: new Set(), created: [], comments: [], titles: new Map(), workItems: [], prOverrides: new Map(), reviewThreads: new Map(), replies: [] };
 }
 
 function prState(number, state) {
@@ -76,6 +78,7 @@ const ghUser = (login) => ({ login, id: login.length, avatar_url: `https://avata
 
 function ghPull(base, number, state) {
   const created = state.created.find((entry) => entry.number === number);
+  const override = state.prOverrides.get(number);
   const status = prState(number, state);
   return {
     number,
@@ -85,7 +88,7 @@ function ghPull(base, number, state) {
     draft: created?.draft ?? number === 3,
     user: ghUser(created ? "lena-hartmann" : "jonas"),
     body: created?.body ?? `Beschreibung zu **Thema ${number}**.\n\n- [x] Tests\n- [ ] Doku`,
-    head: { ref: created?.source ?? sourceBranch(number), sha: sha(number), repo: { full_name: number === 8 ? "fremd/demo" : "octo/demo" } },
+    head: { ref: override?.source ?? created?.source ?? sourceBranch(number), sha: override?.head ?? sha(number), repo: { full_name: number === 8 ? "fremd/demo" : "octo/demo" } },
     base: { ref: created?.target ?? "main", sha: sha(1000), repo: { full_name: "octo/demo" } },
     updated_at: stamp(number),
     html_url: `${base}/octo/demo/pull/${number}`,
@@ -112,8 +115,20 @@ function ghIssue(base, number) {
   return issue;
 }
 
+/** GitHub's GraphQL endpoint (`POST /api/graphql`): only review threads, from `state.reviewThreads`. */
+function githubGraphql(ctx) {
+  const { method, body, json, state } = ctx;
+  const vars = body?.variables ?? {};
+  if (method !== "POST" || !String(body?.query ?? "").includes("reviewThreads") || vars.owner !== "octo" || vars.name !== "demo") {
+    return json(200, { data: null, errors: [{ type: "NOT_FOUND", message: "Could not resolve to a Repository with the name 'demo'." }] });
+  }
+  const nodes = state.reviewThreads.get(Number(vars.number)) ?? [];
+  return json(200, { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes } } } } });
+}
+
 function github(ctx) {
   const { method, base, state, query, body, json, notFound } = ctx;
+  if (ctx.path === "/api/graphql") return githubGraphql(ctx);
   const path_ = ctx.path.slice("/api/v3".length);
   if (path_ === "/user") {
     return json(200, { login: "lena-hartmann", name: "Lena Hartmann", avatar_url: "https://avatars.example/lena-hartmann.png" }, { "x-oauth-scopes": ctx.token === MOCK_WEAK_TOKEN ? "gist, read:org" : "repo, read:org" });
@@ -170,6 +185,9 @@ function github(ctx) {
     case "GET pulls/:n/comments":
       return json(200, number === 1 ? [{ id: 31, user: ghUser("mira"), body: "Hier fehlt die Prüfung auf leer.", created_at: "2026-09-02T09:30:00Z", path: "src/anmeldung.rs", line: 42 }] : []);
     case "GET pulls/:n/commits":
+      if (state.prOverrides.has(number)) {
+        return json(200, state.prOverrides.get(number).commits.map((commit) => ({ sha: commit.sha, commit: { message: commit.message, author: { name: "Jonas Weber", date: "2026-09-01T12:00:00Z" } } })));
+      }
       return json(200, [
         { sha: sha(number * 100 + 1), commit: { message: "Prüfung ergänzt\n\nLängere Erklärung.", author: { name: "Jonas Weber", date: "2026-09-01T12:00:00Z" } } },
         { sha: sha(number), commit: { message: "Meldung übersetzt", author: { name: "Jonas Weber", date: "2026-09-01T13:00:00Z" } } },
@@ -219,6 +237,11 @@ function github(ctx) {
     case "PUT issues/:n/labels":
       return json(200, []);
     default:
+      if (method === "POST" && parts[0] === "pulls" && parts[2] === "comments" && parts[4] === "replies") {
+        const entry = { id: 8000 + state.replies.length, number, inReplyTo: Number(parts[3]), body: body.body };
+        state.replies.push(entry);
+        return json(201, { id: entry.id, user: ghUser("lena-hartmann"), body: entry.body, created_at: "2026-09-05T08:00:00Z", in_reply_to_id: entry.inReplyTo });
+      }
       if (method === "DELETE" && parts[0] === "git") return ctx.send(204, "", {});
       return notFound("Not Found");
   }
@@ -835,7 +858,9 @@ export async function startHostMock({ tls = false, port = 0 } = {}) {
         return json(200, result);
       };
       const path0 = target.pathname;
-      const flavour = path0.startsWith("/api/v4")
+      const flavour = path0 === "/api/graphql"
+        ? "github"
+        : path0.startsWith("/api/v4")
         ? "gitlab"
         : path0.startsWith("/api/v3")
           ? "github"
