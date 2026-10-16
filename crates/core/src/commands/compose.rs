@@ -10,6 +10,8 @@ mod units_tests;
 mod apply_tests;
 #[cfg(test)]
 mod hook_tests;
+#[cfg(test)]
+mod undo_tests;
 
 use crate::app::Core;
 use crate::error::CoreResult;

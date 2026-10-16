@@ -308,6 +308,12 @@ impl<'a> Probe<'a> {
                         break;
                     }
                 }
+                // "Compose commits": once its commits are on a remote, undoing would rewrite them.
+                if all && action == UndoAction::Compose && dir == Direction::Undo {
+                    if let Some(first) = first_composed(&entry.payload) {
+                        all = pushed_to(self.core, self.repo_id, &first).await?.is_none();
+                    }
+                }
                 all
             }
             (_, Direction::Undo) if creates_commit(action) => {
@@ -384,6 +390,9 @@ impl<'a> Probe<'a> {
         let Some(top) = candidates(self.core, self.repo_id, Direction::Undo)?.into_iter().next() else { return Ok(None) };
         let entry = normalized(&top);
         let Some(action) = UndoAction::parse(&entry.action) else { return Ok(None) };
+        if action == UndoAction::Compose {
+            return self.compose_pushed_reason(&entry).await;
+        }
         if !creates_commit(action) || is_composite(&entry.payload) {
             return Ok(None);
         }
@@ -398,6 +407,20 @@ impl<'a> Probe<'a> {
         let Some(tip) = tip else { return Ok(None) };
         Ok(pushed_to(self.core, self.repo_id, &tip).await?.map(|remote| {
             format!("The last commit is already on the remote ({remote}), so it can no longer be undone locally. Use Revert instead.")
+        }))
+    }
+
+    /// The reason for a compose entry whose refs are still where it left them but whose commits are
+    /// on a remote by now.
+    async fn compose_pushed_reason(&mut self, entry: &UndoEntry) -> CoreResult<Option<String>> {
+        for step in composite_steps(&entry.payload) {
+            if !same_sha(self.ref_sha(&step.name).await?.as_deref(), step.after.as_deref()) {
+                return Ok(None);
+            }
+        }
+        let Some(first) = first_composed(&entry.payload) else { return Ok(None) };
+        Ok(pushed_to(self.core, self.repo_id, &first).await?.map(|remote| {
+            format!("The commits created with “Compose commits” are already on the remote ({remote}), so they can no longer be undone locally. Use Revert instead.")
         }))
     }
 
@@ -420,6 +443,11 @@ fn creates_commit(action: UndoAction) -> bool {
         action,
         UndoAction::Commit | UndoAction::Amend | UndoAction::Reword | UndoAction::Squash | UndoAction::CherryPick | UndoAction::Revert
     )
+}
+
+/// The first commit a compose entry created (`payload.commits[0]`).
+fn first_composed(payload: &Value) -> Option<String> {
+    payload.get("commits")?.as_array()?.first()?.as_str().map(str::to_string)
 }
 
 /// One step of a composite entry: a ref with its position before and after
