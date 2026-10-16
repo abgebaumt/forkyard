@@ -2,6 +2,8 @@
 //! the remembered context sizes, building the active provider from the settings.
 
 pub mod anthropic;
+pub mod compatible;
+pub mod openai;
 
 use std::collections::HashMap;
 
@@ -100,9 +102,11 @@ pub fn json_body(label: &str, response: &Response) -> CoreResult<Value> {
 
 /// A provider for exactly these values (used by `active` and by "Check" with unsaved values).
 pub fn build(kind: AiProviderKind, base: String, key: Option<String>, model: String, mode: AiStructuredMode, context_tokens: u64) -> CoreResult<Box<dyn Provider>> {
-    let _ = &mode;
     match kind {
         AiProviderKind::Anthropic => Ok(Box::new(anthropic::Anthropic::new(base, key.unwrap_or_default(), model, context_tokens))),
+        AiProviderKind::Openai => Ok(Box::new(openai::OpenAi::new(base, key.unwrap_or_default(), model, context_tokens))),
+        AiProviderKind::OpenaiCompatible => Ok(Box::new(compatible::Compatible::new(kind, base, key, model, mode, context_tokens))),
+        AiProviderKind::Lmstudio => Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema, context_tokens))),
         other => Err(CoreError::not_built(other.label())),
     }
 }
@@ -122,7 +126,7 @@ pub async fn active(core: &Core, settings: &Settings) -> CoreResult<Box<dyn Prov
     if kind.needs_key() && key.is_none() {
         return Err(CoreError::ai_not_configured(format!("No API key for {} is stored. Enter it in Settings › AI.", kind.label())));
     }
-    let mode = AiStructuredMode::Prompt;
+    let mode = if kind == AiProviderKind::OpenaiCompatible { compatible::stored_mode(core, &base) } else { AiStructuredMode::JsonSchema };
     let context = context_tokens(core, kind, &model);
     build(kind, base, key, model, mode, context)
 }
