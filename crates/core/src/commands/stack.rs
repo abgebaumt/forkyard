@@ -17,7 +17,7 @@ use crate::app::Core;
 use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
 use crate::commands::{rebase, refs, remotes};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::{RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackRestack, StackStatus, StackStatusPart};
+use crate::model::{OpResult, RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackRestack, StackStatus, StackStatusPart};
 use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
 use crate::util;
 
@@ -294,6 +294,22 @@ pub(crate) async fn status_of(core: &Core, repo_id: &str, name: &str) -> CoreRes
 pub async fn stack_status(core: &Core, repo_id: String, branch: String) -> CoreResult<Option<StackStatus>> {
     let name = branch_name_of(&branch)?;
     status_of(core, &repo_id, &name).await
+}
+
+/// "Restack": the lowest part that no longer contains the part below it – and everything above it –
+/// is rebased onto that part with `--update-refs` (v1.1, checks the top part out here).
+/// `expected_top`: the top part's tip the view showed.
+pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expected_top: String) -> CoreResult<OpResult> {
+    let name = branch_name_of(&branch)?;
+    let status = status_of(core, &repo_id, &name).await?.ok_or_else(|| CoreError::not_found(format!("“{name}” is not part of a stack.")))?;
+    let restack = status.restack.ok_or_else(|| CoreError::not_allowed("Every part contains the part below it; there is nothing to restack."))?;
+    if let Some(reason) = restack.blocked {
+        return Err(CoreError::not_allowed(reason));
+    }
+    if restack.top_tip != expected_top.trim() {
+        return Err(CoreError::new(ErrorCode::StaleState, "The stack has changed since it was shown. Nothing was rebased; check it again."));
+    }
+    rebase::rebase_start_with(core, repo_id, restack.onto, Some(restack.top), Some(true)).await
 }
 
 #[cfg(test)]

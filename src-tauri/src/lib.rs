@@ -623,7 +623,8 @@ pub fn run() {
             commands::ai_pr_description,
             commands::stack_plan,
             commands::stack_create,
-            commands::stack_status
+            commands::stack_status,
+            commands::stack_restack
         ])
         .build(context);
     match result {

@@ -265,3 +265,68 @@ async fn the_status_follows_the_parent_links_in_the_config() {
     crate::commands::undo::redo(&tc, id.clone()).await.unwrap();
     assert!(stack_status(&tc, id, P2.into()).await.unwrap().is_some(), "redo: the parent links in the config still hold");
 }
+
+// --- Restack (Task 5) ---------------------------------------------------------------------------
+
+use crate::model::OpResult;
+
+/// Stashes the uncommitted changes and adds a commit to part 1 (checked out here afterwards).
+pub(crate) fn change_part_one(repo: &TestRepo, file: &str) {
+    repo.git(&["stash", "-u"]);
+    repo.checkout(P1);
+    repo.commit_file(file, "Nachtrag\n", "Nachtrag zum Datenmodell");
+}
+
+#[tokio::test]
+async fn a_new_commit_on_a_lower_part_is_pulled_through_the_stack() {
+    let repo = stack_repo();
+    let (tc, id) = created(&repo).await;
+    change_part_one(&repo, "src/notiz.md");
+    let old_top = sha_of(&repo, P3).unwrap();
+    let status = stack_status(&tc, id.clone(), P3.into()).await.unwrap().unwrap();
+    assert_eq!(status.parts.iter().map(|p| p.contains_parent).collect::<Vec<_>>(), [true, false, true]);
+    let restack = status.restack.expect("restack offered");
+    assert_eq!(restack.onto, format!("refs/heads/{P1}"));
+    assert_eq!((restack.top.as_str(), restack.top_tip.as_str()), (P3, old_top.as_str()));
+    assert_eq!(restack.moves, [BRANCH, P2], "what --update-refs moves: the split branch points at the top and is not checked out");
+    assert!(restack.left_behind.is_empty() && restack.blocked.is_none());
+
+    assert_eq!(stack_restack(&tc, id.clone(), P3.into(), "0".repeat(40)).await.unwrap_err().code, ErrorCode::StaleState);
+    let result = stack_restack(&tc, id.clone(), P3.into(), old_top).await.unwrap();
+    assert!(matches!(result, OpResult::Done { .. }), "{result:?}");
+    // Oracle: Git's ancestry.
+    for (lower, upper) in [(P1, P2), (P2, P3)] {
+        assert!(repo.git_output(&["merge-base", "--is-ancestor", lower, upper]).status.success(), "{lower} in {upper}");
+    }
+    assert_eq!(repo.git(&["rev-list", "--count", &format!("{P1}..{P3}")]), "2", "the commits of parts 2 and 3, once each");
+    assert_eq!(sha_of(&repo, BRANCH), sha_of(&repo, P3), "the split branch moved along");
+    assert!(stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap().restack.is_none());
+    assert_eq!(stack_restack(&tc, id.clone(), P1.into(), "x".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "up to date");
+    assert_eq!(stack_restack(&tc, id, BRANCH.into(), "x".into()).await.unwrap_err().code, ErrorCode::NotFound, "no part");
+}
+
+#[tokio::test]
+async fn parts_checked_out_in_a_worktree_stay_behind_and_a_checked_out_top_blocks() {
+    let repo = stack_repo();
+    let (tc, id) = created(&repo).await;
+    change_part_one(&repo, "src/notiz.md");
+    let other = repo.temp_dir().join("zweiter Baum");
+    repo.git(&["worktree", "add", "-q", other.to_str().unwrap(), P2]);
+    let old_p2 = sha_of(&repo, P2);
+    let restack = stack_status(&tc, id.clone(), P2.into()).await.unwrap().unwrap().restack.unwrap();
+    assert_eq!(restack.left_behind, [P2]);
+    assert_eq!(restack.moves, [BRANCH], "Git does not move a branch checked out in a worktree");
+    stack_restack(&tc, id.clone(), P2.into(), restack.top_tip.clone()).await.unwrap();
+    assert_eq!(sha_of(&repo, P2), old_p2, "left behind, as the hint said");
+    assert!(repo.git_output(&["merge-base", "--is-ancestor", P1, P3]).status.success());
+
+    // The top part checked out in another worktree: restacking here would fail, so it is blocked.
+    repo.git(&["worktree", "remove", other.to_str().unwrap()]);
+    repo.checkout(P1);
+    repo.commit_file("src/notiz2.md", "Noch einer\n", "Zweiter Nachtrag");
+    let third = repo.temp_dir().join("oben");
+    repo.git(&["worktree", "add", "-q", third.to_str().unwrap(), P3]);
+    let restack = stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap().restack.unwrap();
+    assert!(restack.blocked.as_deref().is_some_and(|reason| reason.contains("checked out in another worktree")), "{:?}", restack.blocked);
+    assert_eq!(stack_restack(&tc, id, P1.into(), restack.top_tip).await.unwrap_err().code, ErrorCode::NotAllowed);
+}

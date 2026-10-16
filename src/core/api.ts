@@ -952,6 +952,14 @@ export interface CoreCommands {
   stackCreate(input: R & { branch: string; base: string; cuts: StackCut[]; expectedBase: Sha; expectedTip: Sha }): Promise<StackStatus>;
   /** The stack `branch` is a part of (from the parent links in the repository's config); null if it is no part. */
   stackStatus(input: R & { branch: string }): Promise<StackStatus | null>;
+  /**
+   * "Restack": rebases the lowest part that no longer contains the part below it – and everything
+   * above it – onto that part with `--update-refs`, like `rebaseStart` (checks the top part out here).
+   * Parts checked out in a worktree stay behind (`StackRestack.leftBehind`). `expectedTop`: the top
+   * part's tip the view showed. Errors: `not_found` (no part), `not_allowed` (up to date, blocked),
+   * `stale_state`, everything of `rebaseStart`.
+   */
+  stackRestack(input: R & { branch: string; expectedTop: Sha }): Promise<OpResult>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */
