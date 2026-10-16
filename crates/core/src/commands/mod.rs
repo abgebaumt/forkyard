@@ -28,6 +28,7 @@ pub mod patch;
 pub mod range_apply;
 pub mod preview;
 pub mod rebase;
+pub mod review_fix;
 pub mod reflog;
 pub mod refs;
 pub mod remotes;

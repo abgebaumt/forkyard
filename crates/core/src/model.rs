@@ -3201,6 +3201,47 @@ pub struct ReviewReply {
     /// threads in the host's API).
     pub quoted: bool,
 }
+/// What a line of a suggested fix is in its diff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewFixLineKind {
+    Context,
+    Removed,
+    Added,
+}
+
+/// One line of the hunk of a suggested fix, decoded for display.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFixLine {
+    pub kind: ReviewFixLineKind,
+    pub text: String,
+    /// Line number in the pull request's version; `None` for added lines.
+    pub old: Option<u32>,
+    /// Line number after the fix; `None` for removed lines.
+    pub new: Option<u32>,
+}
+
+/// Why the core chose a fixup target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FixupReason {
+    /// Blame of the commented lines points to this pull request commit.
+    Blame,
+    /// The newest pull request commit that changes the file.
+    File,
+}
+
+/// A commit of the pull request a fix can be a `fixup!` for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FixupTarget {
+    pub sha: Sha,
+    pub summary: String,
+    /// `None` for the candidates the user can choose from.
+    pub reason: Option<FixupReason>,
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
