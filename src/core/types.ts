@@ -790,7 +790,8 @@ export interface ConflictFile {
   encoding: string | null;
 }
 
-export type RebaseAction = "pick" | "reword" | "squash" | "drop";
+/** `fixup`: folds into the row above like `squash`, its message is dropped (8.2 autosquash). */
+export type RebaseAction = "pick" | "reword" | "squash" | "fixup" | "drop";
 
 export interface RebasePlanRow {
   sha: Sha;

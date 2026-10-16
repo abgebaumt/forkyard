@@ -54,7 +54,7 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
     case "conflict":
       return <ConflictTool {...props} path={center.path} />;
     case "rebase":
-      return <RebaseTool {...props} base={center.base} mode={center.mode} shas={center.shas} />;
+      return <RebaseTool {...props} base={center.base} mode={center.mode} shas={center.shas} autosquash={center.autosquash ?? false} />;
     case "pr_create":
       return <PullRequestCreate {...props} />;
     case "pr":

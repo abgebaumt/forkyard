@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RebaseAction, RebasePlanRow } from "../../core";
 import { t } from "../../i18n";
-import { chainOldestFirst, checkPlan, combinedMessage, moveItem, payloadRows, planChanged, planSummary, resultCount, rowRoles, splitMessage } from "./model";
+import { ACTIONS, actionForKey, actionInfo, chainOldestFirst, checkPlan, combinedMessage, moveItem, payloadRows, planChanged, planSummary, resultCount, rowRoles, splitMessage } from "./model";
 
 const row = (sha: string, action: RebaseAction = "pick", message: string | null = null): RebasePlanRow => ({
   sha,
@@ -70,5 +70,33 @@ describe("helpers", () => {
     expect(chainOldestFirst([{ sha: "c", parents: ["b"] }, { sha: "a", parents: ["root"] }, { sha: "b", parents: ["a"] }])).toEqual(["a", "b", "c"]);
     expect(chainOldestFirst([{ sha: "c", parents: ["x"] }, { sha: "a", parents: ["root"] }])).toBeNull();
     expect(chainOldestFirst([{ sha: "m", parents: ["a", "b"] }, { sha: "a", parents: [] }])).toBeNull();
+  });
+});
+
+describe("fixup", () => {
+  it("folds into the next remaining row above, like squash", () => {
+    const roles = rowRoles([row("a"), row("b", "fixup"), row("c", "squash"), row("d", "drop"), row("e", "fixup")]);
+    expect(roles[1]!.target).toBe(0);
+    expect(roles[4]!.target).toBe(0);
+    expect(roles[0]!.squashed).toEqual([1, 2, 4]);
+  });
+  it("a fixup on top has nothing to fold into and blocks the start", () => {
+    const result = checkPlan([row("a", "fixup"), row("b")], [row("a"), row("b")]);
+    expect(result.rowProblems.has(0)).toBe(true);
+    expect(result.blocked).not.toBeNull();
+  });
+  it("an autosquash plan from the core can start as it is and counts fixups as squashed", () => {
+    const plan = [row("a"), row("f", "fixup"), row("b")];
+    expect(checkPlan(plan, plan).blocked).toBeNull();
+    expect(planChanged(plan, plan)).toBe(true);
+    expect(planSummary(plan, plan)).toBe("1 squashed");
+    expect(payloadRows(plan).map((item) => item.message)).toEqual([null, null, null]);
+    expect(resultCount(plan)).toBe(2);
+  });
+  it("F is the key, between squash and drop", () => {
+    expect(actionForKey("f")).toBe("fixup");
+    expect(actionForKey("F")).toBe("fixup");
+    expect(ACTIONS).toEqual(["pick", "reword", "squash", "fixup", "drop"]);
+    expect(actionInfo.fixup).toMatchObject({ label: "Fixup", key: "F" });
   });
 });

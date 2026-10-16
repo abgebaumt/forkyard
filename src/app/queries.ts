@@ -98,7 +98,7 @@ export const qk = {
   fileAll: (repoId: Id) => ["repo", repoId, "file"] as const,
   conflict: (repoId: Id, path: string) => ["repo", repoId, "conflict", path] as const,
   conflictAll: (repoId: Id) => ["repo", repoId, "conflict"] as const,
-  rebasePlan: (repoId: Id, base: string) => ["repo", repoId, "rebasePlan", base] as const,
+  rebasePlan: (repoId: Id, base: string, autosquash = false) => ["repo", repoId, "rebasePlan", base, autosquash] as const,
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
@@ -388,10 +388,11 @@ export const useCommitInfos = (repoId: Id | null | undefined, shas: Sha[]) =>
     })),
   });
 
-export const useRebasePlan = (repoId: Id | null | undefined, base: string | null | undefined) =>
+/** `autosquash`: the plan in Git's autosquash order (8.2: fixup commits below their targets). */
+export const useRebasePlan = (repoId: Id | null | undefined, base: string | null | undefined, autosquash = false) =>
   useQuery({
-    queryKey: qk.rebasePlan(repoId ?? "", base ?? ""),
-    queryFn: () => core.rebasePlan({ repoId: repoId!, base: base! }),
+    queryKey: qk.rebasePlan(repoId ?? "", base ?? "", autosquash),
+    queryFn: () => core.rebasePlan({ repoId: repoId!, base: base!, autosquash }),
     enabled: enabledFor(repoId) && Boolean(base),
   });
 
