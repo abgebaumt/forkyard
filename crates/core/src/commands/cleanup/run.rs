@@ -19,6 +19,8 @@ pub(super) const ORDER: [CleanupStep; 5] = [CleanupStep::Worktrees, CleanupStep:
 pub(super) const MAX_UNDO_DAYS: u32 = 3650;
 /// `job:progress.line` while the run waits for the locks.
 pub(super) const WAITING: &str = "waiting";
+/// Temporary refs that keep the objects of open undo entries alive during `git gc`.
+pub(super) const KEEP_REF_PREFIX: &str = "refs/forkyard/keep/";
 
 /// Refuses options the dialog never sends.
 pub(super) fn check_options(options: &CleanupOptions) -> CoreResult<()> {
@@ -81,6 +83,8 @@ pub(super) async fn run(core: &Core, repo_id: &str, job: &Job, options: &Cleanup
     let _held = super::lock_all(core, &ids, job.token()).await?;
     let started = Instant::now();
     let common = measure::common_dir(core, repo_id).await?;
+    // Keep refs of a run that was interrupted (crash, power loss) must not protect objects forever.
+    delete_refs_under(core, repo_id, KEEP_REF_PREFIX).await?;
     let before = measure::count_objects(core, repo_id).await?;
     let lfs_dir = if options.lfs { Some(measure::lfs_objects_dir(core, repo_id, &common).await?) } else { None };
     let lfs_before = match &lfs_dir {
@@ -147,7 +151,7 @@ async fn run_step(core: &Core, repo_id: &str, ids: &[String], job: &Job, options
         },
         CleanupStep::Reflog => trim_reflog(core, repo_id, job).await,
         CleanupStep::Lfs => prune_lfs(core, repo_id, job).await,
-        CleanupStep::Gc => gc(core, repo_id, job, options.mode).await,
+        CleanupStep::Gc => gc(core, repo_id, ids, job, options.mode).await,
     }
 }
 
@@ -201,14 +205,78 @@ async fn prune_lfs(core: &Core, repo_id: &str, job: &Job) -> CoreResult<Ran> {
     Ok(Ran::Done(None))
 }
 
-/// `git gc`, or `git gc --aggressive --prune=now`. Never `--force`.
-async fn gc(core: &Core, repo_id: &str, job: &Job, mode: CleanupMode) -> CoreResult<Ran> {
+/// `git gc`, or `git gc --aggressive --prune=now`; never `--force`. Meanwhile every object an open
+/// undo entry names is held by a keep ref, so `--prune=now` cannot take the undo history of the
+/// last 14 days. The keep refs go away afterwards, also after an error or a cancel.
+async fn gc(core: &Core, repo_id: &str, ids: &[String], job: &Job, mode: CleanupMode) -> CoreResult<Ran> {
+    keep_undo_objects(core, repo_id, ids).await?;
     let mut cmd = core.git_for(repo_id)?.arg("gc");
     if mode == CleanupMode::Thorough {
         cmd = cmd.args(["--aggressive", "--prune=now"]);
     }
-    cmd.run_stream(job.token(), &mut |_: &str| {}).await?;
+    let ran = cmd.run_stream(job.token(), &mut |_: &str| {}).await;
+    if let Err(error) = delete_refs_under(core, repo_id, KEEP_REF_PREFIX).await {
+        log::warn!("keep refs not removed after gc (the next clean-up removes them): {}", error.message);
+    }
+    ran?;
     Ok(Ran::Done(None))
+}
+
+/// A full object ID (SHA-1 or SHA-256) rather than a ref name like `refs/heads/main`.
+fn is_object_id(value: &str) -> bool {
+    matches!(value.len(), 40 | 64) && value.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// Puts `refs/forkyard/keep/<sha>` on every existing object that `head_before`, `ref_before` or
+/// `ref_after` of a remaining undo entry of the group names. Objects that are gone are skipped.
+async fn keep_undo_objects(core: &Core, repo_id: &str, ids: &[String]) -> CoreResult<()> {
+    let entries = measure::undo_entries(core, ids)?;
+    let mut shas: Vec<&str> = entries
+        .iter()
+        .flat_map(|entry| [Some(entry.head_before.as_str()), entry.ref_before.as_deref(), entry.ref_after.as_deref()])
+        .flatten()
+        .filter(|value| is_object_id(value))
+        .collect();
+    shas.sort_unstable();
+    shas.dedup();
+    if shas.is_empty() {
+        return Ok(());
+    }
+    let mut query = shas.join("\n");
+    query.push('\n');
+    let out = core
+        .git_for(repo_id)?
+        .args(["cat-file", "--batch-check=%(objectname) %(objecttype)"])
+        .stdin(query)
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
+    let script: String = out
+        .stdout_lines()
+        .iter()
+        .map(|line| util::decode_lossy(line))
+        .filter_map(|line| {
+            let (sha, kind) = line.split_once(' ')?;
+            (kind != "missing" && is_object_id(sha)).then(|| format!("update {KEEP_REF_PREFIX}{sha} {sha}\n"))
+        })
+        .collect();
+    if !script.is_empty() {
+        core.git_for(repo_id)?.args(["update-ref", "--stdin"]).stdin(script).run().await?;
+    }
+    Ok(())
+}
+
+/// Deletes every ref below `prefix` in one transaction; returns how many.
+async fn delete_refs_under(core: &Core, repo_id: &str, prefix: &str) -> CoreResult<usize> {
+    let out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(refname)", prefix]).read_only().no_log().run().await?;
+    let names: Vec<String> = out.stdout_lines().iter().map(|line| util::decode_lossy(line)).filter(|name| !name.is_empty()).collect();
+    if names.is_empty() {
+        return Ok(0);
+    }
+    let script: String = names.iter().map(|name| format!("delete {name}\n")).collect();
+    core.git_for(repo_id)?.args(["update-ref", "--stdin"]).stdin(script).run().await?;
+    Ok(names.len())
 }
 
 /// What `job:done` reports: a run that stopped at a failed step or was cancelled is not “ok”,

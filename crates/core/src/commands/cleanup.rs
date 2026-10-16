@@ -28,6 +28,8 @@ mod preview_tests;
 #[cfg(test)]
 mod run_tests;
 #[cfg(test)]
+mod keep_tests;
+#[cfg(test)]
 mod test_support;
 
 /// The repository and every listed repository (any profile) that is one of its worktrees, sorted
