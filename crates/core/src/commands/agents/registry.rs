@@ -22,7 +22,7 @@ use crate::db::{self, agents::{AgentRow, EndReason}};
 use crate::error::{CoreError, CoreResult};
 use crate::events::names;
 use crate::git::redact;
-use crate::model::{AgentStatus, AgentStatusSource, AgentTestResult, AgentsChangedEvent};
+use crate::model::{AgentStatus, AgentStatusSource, AgentTestResult, AgentTestState, AgentsChangedEvent};
 use crate::util;
 
 const TICK: Duration = Duration::from_millis(250);
@@ -151,6 +151,23 @@ impl AgentRegistry {
 
     pub(crate) fn set_test(&self, agent_id: &str, result: AgentTestResult) {
         self.tests.lock().insert(agent_id.to_string(), result);
+    }
+
+    pub(crate) fn tests_forget(&self, agent_id: &str) {
+        self.tests.lock().remove(agent_id);
+    }
+
+    /// Marks a test run as started unless one runs already (one lock for check and mark).
+    pub(crate) fn try_begin_test(&self, agent_id: &str, started_at: &str) -> bool {
+        let mut tests = self.tests.lock();
+        if tests.get(agent_id).is_some_and(|t| t.state == AgentTestState::Running) {
+            return false;
+        }
+        tests.insert(
+            agent_id.to_string(),
+            AgentTestResult { state: AgentTestState::Running, exit_code: None, output: String::new(), started_at: started_at.to_string(), finished_at: None },
+        );
+        true
     }
 
     pub fn get(&self, agent_id: &str) -> Option<Arc<Session>> {
@@ -401,5 +418,15 @@ mod tests {
         open.push("Erste\r\nnoch offen");
         assert_eq!(open.last().as_deref(), Some("noch offen"));
         assert_eq!(LineTail::default().last(), None);
+    }
+
+    #[test]
+    fn only_one_test_run_is_claimed_at_a_time() {
+        let registry = AgentRegistry::default();
+        assert!(registry.try_begin_test("a1", "2026-10-16T08:00:00.000Z"));
+        assert!(!registry.try_begin_test("a1", "2026-10-16T08:00:00.001Z"), "the second done report starts nothing");
+        assert!(registry.try_begin_test("a2", "2026-10-16T08:00:00.002Z"), "another agent is independent");
+        registry.set_test("a1", AgentTestResult { state: AgentTestState::Passed, exit_code: Some(0), output: String::new(), started_at: "x".into(), finished_at: Some("y".into()) });
+        assert!(registry.try_begin_test("a1", "2026-10-16T08:05:00.000Z"), "after the run ended a new one may start");
     }
 }

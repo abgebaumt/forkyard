@@ -275,3 +275,54 @@ async fn cleanup_refuses_locked_worktrees_and_undo_is_not_offered_when_the_branc
     // An unknown agent.
     assert_eq!(agent_cleanup(&tc, "gibt-es-nicht".into()).await.unwrap_err().code, ErrorCode::NotFound);
 }
+
+#[test]
+fn the_output_tail_keeps_the_end_and_hides_secrets() {
+    let out = format!("{}ENDE-STDOUT\n", "x".repeat(10_000));
+    let tail = checks::tail(out.as_bytes(), b"token ghp_abcdefghijklmnopqrstuvwxyz0123456789\n");
+    assert!(tail.len() <= checks::OUTPUT_TAIL + 8, "{}", tail.len());
+    assert!(tail.contains("ENDE-STDOUT"));
+    assert!(tail.contains("token ") && !tail.contains("ghp_abcdefghijklmnopqrstuvwxyz0123456789"));
+    assert_eq!(checks::tail(b"", b""), "");
+}
+
+#[tokio::test]
+async fn the_test_command_runs_in_the_agents_worktree() {
+    let (tc, repo, id) = setup().await;
+    let (row, folder) = agent_without_session(&tc, &repo, &id, "pruefen").await;
+    assert_eq!(agent_run_tests(&tc, row.id.clone(), "job-0".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "no test command yet");
+
+    // Passing: prints its working directory and a line on stderr.
+    let pass = if cfg!(windows) { "cd & echo läuft 1>&2 & exit /b 0" } else { "pwd; echo 'läuft' >&2; exit 0" };
+    crate::commands::settings::repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": pass })).await.unwrap();
+    let ok = agent_run_tests(&tc, row.id.clone(), "job-1".into()).await.unwrap();
+    assert_eq!((ok.state, ok.exit_code), (crate::model::AgentTestState::Passed, Some(0)));
+    let expected = std::fs::canonicalize(&folder).unwrap();
+    let printed = ok.output.lines().next().unwrap_or_default().trim().to_string();
+    assert_eq!(std::fs::canonicalize(&printed).unwrap(), expected, "cwd is the agent's worktree, not the main folder");
+    assert!(ok.output.contains("läuft") && ok.finished_at.is_some());
+    assert_eq!(agent_list(&tc, id.clone()).await.unwrap()[0].test.as_ref().map(|t| t.state), Some(crate::model::AgentTestState::Passed));
+
+    // Failing with code 7.
+    let fail = if cfg!(windows) { "exit /b 7" } else { "exit 7" };
+    crate::commands::settings::repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": fail })).await.unwrap();
+    let failed = agent_run_tests(&tc, row.id.clone(), "job-2".into()).await.unwrap();
+    assert_eq!((failed.state, failed.exit_code), (crate::model::AgentTestState::Failed, Some(7)));
+
+    // Cancelled through the job.
+    let slow = if cfg!(windows) { "ping -n 30 127.0.0.1 > nul" } else { "sleep 30" };
+    crate::commands::settings::repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": slow })).await.unwrap();
+    let tc2 = tc.core.clone();
+    let canceller = tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+        tc2.jobs.cancel("job-3");
+    });
+    let started = std::time::Instant::now();
+    assert_eq!(agent_run_tests(&tc, row.id.clone(), "job-3".into()).await.unwrap_err().code, ErrorCode::Cancelled);
+    assert!(started.elapsed() < std::time::Duration::from_secs(10));
+    canceller.await.unwrap();
+
+    // Without the worktree there is nothing to test.
+    std::fs::remove_dir_all(&folder).unwrap();
+    assert_eq!(agent_run_tests(&tc, row.id.clone(), "job-4".into()).await.unwrap_err().code, ErrorCode::NotAllowed);
+}

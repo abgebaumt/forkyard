@@ -233,3 +233,24 @@ async fn cleanup_ends_a_running_agent_first() {
     assert_eq!(f.tc.state::<gitcore::commands::agents::registry::AgentRegistry>().running_total(), 0);
     assert!(agent_list(&f.tc, f.id.clone()).await.unwrap().is_empty());
 }
+
+#[tokio::test]
+async fn the_test_command_runs_by_itself_when_the_agent_is_done() {
+    let f = fixture(&["--exit-after-task", "0"]).await;
+    let marker = f.repo.temp_dir().join("auto-test.txt");
+    let command = format!("echo automatisch > '{}'", marker.display());
+    gitcore::commands::settings::repo_settings_set(&f.tc, f.id.clone(), serde_json::json!({ "testCommand": command })).await.unwrap();
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Fertig werden".into(), "agent/fertig".into(), "main".into(), false, 80, 24).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Done).await;
+    wait_for("the test command's file", || marker.exists()).await;
+    let deadline = Instant::now() + WAIT;
+    loop {
+        let listed = agent_list(&f.tc, f.id.clone()).await.unwrap();
+        if listed[0].test.as_ref().is_some_and(|t| t.state == gitcore::model::AgentTestState::Passed) {
+            break;
+        }
+        assert!(Instant::now() < deadline, "test result missing: {:?}", listed[0].test);
+        tokio::time::sleep(Duration::from_millis(80)).await;
+    }
+    assert_eq!(std::fs::read_to_string(&marker).unwrap().trim(), "automatisch");
+}

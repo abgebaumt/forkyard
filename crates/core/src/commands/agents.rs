@@ -3,6 +3,7 @@
 //! only keeps metadata, and the running session (terminal, status) lives in memory.
 
 pub mod channel;
+pub mod checks;
 pub mod cleanup;
 pub mod cmdline;
 pub mod machine;
@@ -86,8 +87,34 @@ pub async fn agent_suggest(core: &Core, repo_id: String, task: String, branch: O
     Ok(AgentSuggestion { short_name, branch, branch_problem, path, base_sha, configs, running })
 }
 
-/// Runs after every status change of a session (the test command when an agent is done – Task 11).
-pub(crate) async fn after_status_change(_core: &Core, _session: &registry::Session) {}
+/// Runs the repository's test command in the agent's worktree now (a cancellable job).
+pub async fn agent_run_tests(core: &Core, agent_id: String, job_id: String) -> CoreResult<crate::model::AgentTestResult> {
+    checks::run_tests(core, &agent_id, &job_id).await
+}
+
+/// After every status change of a session: when the agent is done and the repository has a test
+/// command, the tests run by themselves (once at a time).
+pub(crate) async fn after_status_change(core: &Core, session: &registry::Session) {
+    if session.snapshot().status != AgentStatus::Done {
+        return;
+    }
+    let configured = crate::commands::settings::repo_settings_get(core, session.repo_id.clone())
+        .await
+        .ok()
+        .and_then(|s| s.test_command)
+        .is_some_and(|c| !c.trim().is_empty());
+    let registry = core.state::<AgentRegistry>();
+    if !configured || registry.test_of(&session.agent_id).is_some_and(|t| t.state == crate::model::AgentTestState::Running) {
+        return;
+    }
+    let (core, agent_id) = (core.clone(), session.agent_id.clone());
+    let job_id = format!("agent-test:{agent_id}:{}", util::new_id());
+    tokio::spawn(async move {
+        if let Err(e) = checks::run_tests(&core, &agent_id, &job_id).await {
+            log::warn!("tests of agent {agent_id} not run: {}", e.message);
+        }
+    });
+}
 
 /// Largest task text.
 pub const MAX_TASK_BYTES: usize = 64 * 1024;
