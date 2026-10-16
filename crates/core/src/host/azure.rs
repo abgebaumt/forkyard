@@ -20,7 +20,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary, PrCheck,
-    PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 pub const AZURE_WEB: &str = "https://dev.azure.com";
@@ -278,6 +278,90 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
     summary.checks = summarize_checks(&check_runs);
     let head_sha = value.get("lastMergeSourceCommit").map(|c| text(c, "commitId")).unwrap_or_default();
     Ok(PrDetails { summary, body: text(&value, "description"), reviewers, comments: thread_comments(&threads), commits, mergeable: mergeable(&value), check_runs, head_sha })
+}
+
+// ---------------------------------------------------------------------------
+// Review threads (8.2)
+// ---------------------------------------------------------------------------
+
+fn file_line(context: &Value, key: &str) -> Option<u32> {
+    context.get(key).and_then(|s| s.get("line")).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
+}
+
+/// Statuses in which a thread counts as resolved.
+const RESOLVED: [&str; 4] = ["fixed", "wontFix", "closed", "byDesign"];
+
+/// A thread with a file position (`threadContext`); `rightFile…` is the new side, `leftFile…` the old.
+/// Without system comments; deleted threads and comments are left out.
+fn review_thread(thread: &Value) -> Option<ReviewThread> {
+    if flag(thread, "isDeleted") {
+        return None;
+    }
+    let context = thread.get("threadContext").filter(|c| c.is_object())?;
+    let path = opt_text(context, "filePath")?.trim_start_matches('/').to_string();
+    let (side, end, start) = match file_line(context, "rightFileEnd").or_else(|| file_line(context, "rightFileStart")) {
+        Some(end) => (ReviewSide::New, Some(end), file_line(context, "rightFileStart")),
+        None => (ReviewSide::Old, file_line(context, "leftFileEnd").or_else(|| file_line(context, "leftFileStart")), file_line(context, "leftFileStart")),
+    };
+    let id = number(thread, "id");
+    let comments: Vec<HostComment> = list(thread, "comments")
+        .iter()
+        .filter(|c| text(c, "commentType") != "system" && !flag(c, "isDeleted"))
+        .map(|c| HostComment {
+            id: format!("{id}-{}", number(c, "id")),
+            author: c.get("author").and_then(identity),
+            body: text(c, "content"),
+            created_at: text(c, "publishedDate"),
+            path: Some(path.clone()),
+            line: end,
+        })
+        .collect();
+    if comments.is_empty() {
+        return None;
+    }
+    Some(ReviewThread {
+        id: id.to_string(),
+        path,
+        line: end,
+        start_line: start.filter(|s| end.is_some_and(|e| *s < e)),
+        side,
+        commit: None,
+        resolved: RESOLVED.contains(&text(thread, "status").as_str()),
+        outdated: false,
+        comments,
+    })
+}
+
+/// `GET …/pullrequests/{id}/threads`
+pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) -> CoreResult<Vec<ReviewThread>> {
+    let threads = values_of(api.get_json(core, &v(&format!("{}/threads", pr_path(repo, pr)), &[])).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?)?;
+    Ok(threads.iter().filter_map(review_thread).collect())
+}
+
+/// `POST …/pullrequests/{id}/threads/{threadId}/comments` with `parentCommentId` = the thread's
+/// first (non-system) comment, read from `GET …/threads/{threadId}`.
+pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thread_id: &str, body: &str) -> CoreResult<ReviewReply> {
+    let missing = || format!("The review thread does not exist (anymore) in pull request #{pr}.");
+    let path = format!("{}/threads/{}", pr_path(repo, pr), encode(thread_id));
+    let thread = api.get_json(core, &v(&path, &[])).await.map_err(|e| not_found_as(e, missing))?;
+    let parent = list(&thread, "comments").iter().find(|c| text(c, "commentType") != "system").map(|c| number(c, "id")).ok_or_else(structure)?;
+    let value: Value = api
+        .send_json(core, Method::Post, &v(&format!("{path}/comments"), &[]), &json!({ "content": body, "parentCommentId": parent, "commentType": 1 }))
+        .await
+        .map_err(|e| not_found_as(e, missing))?
+        .json()?;
+    let shown = review_thread(&thread);
+    Ok(ReviewReply {
+        comment: HostComment {
+            id: format!("{thread_id}-{}", number(&value, "id")),
+            author: value.get("author").and_then(identity),
+            body: text(&value, "content"),
+            created_at: text(&value, "publishedDate"),
+            path: shown.as_ref().map(|t| t.path.clone()),
+            line: shown.and_then(|t| t.line),
+        },
+        quoted: false,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -596,8 +680,8 @@ impl Host for AzureHost {
             pr_reviewers: false,
             pr_labels: true,
             fork_checkout: false,
-            review_threads: false,
-            review_reply: false,
+            review_threads: true,
+            review_reply: true,
             review_reply_quotes: false,
         }
     }
@@ -646,5 +730,11 @@ impl Host for AzureHost {
     }
     fn issue_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, title: &'a str, body: &'a str) -> HostFuture<'a, IssueSummary> {
         Box::pin(issue_create(core, api, repo, title, body))
+    }
+    fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+        Box::pin(review_threads(core, api, repo, number))
+    }
+    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+        Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

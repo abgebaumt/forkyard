@@ -1199,6 +1199,23 @@ fn azure_work_items(request: &MockRequest, state: &MockState, rest: &str) -> Moc
     }
 }
 
+/// The review threads of pull request 9 (Azure DevOps).
+fn az_review_threads() -> Vec<Value> {
+    let text = |id: u64, parent: u64, who: &str, body: &str, at: &str| json!({ "id": id, "parentCommentId": parent, "author": az_user(who), "content": body, "publishedDate": at, "commentType": "text" });
+    vec![
+        json!({ "id": 91, "status": "active", "threadContext": { "filePath": "/src/anmeldung.rs", "rightFileStart": { "line": 40, "offset": 1 }, "rightFileEnd": { "line": 42, "offset": 20 } },
+            "comments": [text(1, 0, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z"), text(2, 1, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z")] }),
+        json!({ "id": 92, "status": "fixed", "threadContext": { "filePath": "/src/meldung.rs", "rightFileStart": { "line": 7, "offset": 1 }, "rightFileEnd": { "line": 7, "offset": 9 } },
+            "comments": [text(1, 0, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z")] }),
+        json!({ "id": 93, "status": "active", "threadContext": { "filePath": "/src/alt.rs", "leftFileStart": { "line": 12, "offset": 1 }, "leftFileEnd": { "line": 12, "offset": 30 } },
+            "comments": [text(1, 0, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z")] }),
+        json!({ "id": 94, "status": "active", "comments": [text(1, 0, "mira", "Allgemeiner Kommentar", "2026-09-02T11:00:00Z")] }),
+        json!({ "id": 95, "status": "active", "isDeleted": true, "threadContext": { "filePath": "/src/x.rs", "rightFileStart": { "line": 1 } }, "comments": [text(1, 0, "jonas", "weg", "2026-09-02T11:10:00Z")] }),
+        json!({ "id": 96, "status": "active", "threadContext": { "filePath": "/src/y.rs", "rightFileStart": { "line": 2 } },
+            "comments": [{ "id": 1, "author": az_user("jonas"), "content": "Policy status has been updated", "publishedDate": "2026-09-02T12:00:00Z", "commentType": "system" }] }),
+    ]
+}
+
 pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
     let base = origin(request);
     if !basic(request).is_some_and(|(_, token)| token == TOKEN || token == WEAK_TOKEN) {
@@ -1285,6 +1302,16 @@ pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
             4 => vec![json!({ "id": 1, "state": "failed", "context": { "name": "build", "genre": "ci" } })],
             _ => Vec::new(),
         }),
+        ("GET", ["pullrequests", _, "threads"]) if number == 9 => az_list(az_review_threads()),
+        ("GET", ["pullrequests", _, "threads", id]) => match az_review_threads().into_iter().find(|t| t["id"].as_u64().is_some() && t["id"].as_u64() == id.parse::<u64>().ok()) {
+            Some(thread) if number == 9 => MockResponse::json(200, thread),
+            _ => az_error(404, "TF401181: The requested pull request thread was not found."),
+        },
+        ("POST", ["pullrequests", _, "threads", id, "comments"]) if number == 9 && *id == "91" => MockResponse::json(
+            200,
+            json!({ "id": 3, "parentCommentId": request.json()["parentCommentId"], "author": az_user("lena"), "content": request.json()["content"], "publishedDate": "2026-09-05T08:00:00Z", "commentType": "text" }),
+        ),
+        ("POST", ["pullrequests", _, "threads", _, "comments"]) => az_error(404, "TF401181: The requested pull request thread was not found."),
         ("GET", ["pullrequests", _, "threads"]) => az_list(vec![
             json!({ "id": 1, "comments": [{ "id": 1, "author": az_user("jonas"), "content": "Policy status has been updated", "publishedDate": "2026-09-02T08:00:00Z", "commentType": "system" }] }),
             json!({ "id": 2, "comments": [{ "id": 1, "author": az_user("mira"), "content": "Sieht gut aus.", "publishedDate": "2026-09-02T09:00:00Z", "commentType": "text" }] }),
