@@ -1070,6 +1070,35 @@ mod tests {
         assert_eq!(key_lines(&plan.built.prompt, &all), Vec::<String>::new());
     }
 
+    #[tokio::test]
+    async fn a_key_begun_on_the_current_side_and_ended_on_the_incoming_side_never_goes_out() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        let lines = |middle: &[&str]| {
+            let mut all = vec!["service: messstation", "tls_key: |"];
+            all.extend_from_slice(middle);
+            all.push("region: eu-central");
+            all.iter().map(|line| format!("{line}\n")).collect::<String>()
+        };
+        let ours_key = ["  MIIEowIBAAKCAQEAhauptseite01x7Qk3VbN0rTz9LsW", "  MIIEowIBAAKCAQEAhauptseite02x7Qk3VbN0rTz9LsW"];
+        let theirs_key = ["  MIIEowIBAAKCAQEAfeatureseite01x7Qk3VbN0rTz9LsW", "  MIIEowIBAAKCAQEAfeatureseite02x7Qk3VbN0rTz9LsW"];
+        repo.commit_file(DEPLOY, lines(&["  platzhalter"]), "Deployment angelegt");
+        repo.checkout_new("feature/schluesselende");
+        repo.commit_file(DEPLOY, lines(&[theirs_key[0], theirs_key[1], END_KEY]), "Schlüsselende eingetragen");
+        repo.checkout("main");
+        repo.commit_file(DEPLOY, lines(&[BEGIN_KEY, ours_key[0], ours_key[1]]), "Schlüsselanfang eingetragen");
+        assert!(!repo.merge("feature/schluesselende"));
+        // The oracle: git's markers put the block on line 3 (0-based 2), three lines on each side.
+        let merged = String::from_utf8(repo.read_file(DEPLOY)).unwrap();
+        let marked: Vec<&str> = merged.lines().collect();
+        assert_eq!((marked[2], marked[6], marked[10]), ("<<<<<<< HEAD", "=======", ">>>>>>> feature/schluesselende"), "{merged}");
+        let id = tc.open(&repo).await.repo.id;
+        let plan = build(&tc, &id, DEPLOY, &[range(2, 3, 2, 3)], &Settings::default(), 32_000, "en", &[]).await.unwrap();
+        assert_eq!(plan.sent, vec![IntentSent::Redacted], "a key spanning both sides makes the block explain only");
+        let all: Vec<String> = ours_key.iter().chain(theirs_key.iter()).map(|line| line.to_string()).collect();
+        assert_eq!(key_lines(&plan.built.prompt, &all), Vec::<String>::new(), "no key line goes out");
+    }
+
     #[test]
     fn masking_keeps_the_line_count() {
         let lines: Vec<String> = ["a", BEGIN_KEY, "  MIIEowIBAAKCAQEAzz", END_KEY, "b", "http.extraheader", "Bearer geheim123", "c"].iter().map(|line| line.to_string()).collect();
