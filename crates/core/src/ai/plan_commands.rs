@@ -9,6 +9,10 @@ use serde::de::DeserializeOwned;
 use serde_json::{json, Map, Value};
 
 use crate::ai::schema;
+use crate::app::Core;
+use crate::commands::{branches, commit, merge, rebase, stash, status, sync, tags};
+use crate::error::ErrorCode;
+use crate::model::{OpResult, PushResult};
 use crate::error::{CoreError, CoreResult};
 use crate::model::PlanArgKind::{Boolean, Choice, List, OptionalChoice, OptionalText, Text};
 use crate::model::{MergeMode, PlanArgField, PlanArgKind, PlanClass, PlanCommand, PullMode, ResetMode};
@@ -336,6 +340,85 @@ pub fn prompt_reference() -> String {
         .join("\n")
 }
 
+/// Runs one checked action through the existing core command (each takes the write lock itself and
+/// records its own undo entry; `ai::plan_run` folds them into one). Network actions run as job
+/// `job_id`.
+pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanAction) -> CoreResult<()> {
+    let id = repo_id.to_string();
+    let job = job_id.to_string();
+    match action.clone() {
+        PlanAction::BranchCreate { name, start, checkout } => branches::branch_create(core, id, name, Some(start), checkout).await.map(drop),
+        PlanAction::BranchCheckout { target } => branches::branch_checkout(core, id, target).await.map(drop),
+        PlanAction::BranchRename { name, new_name } => branches::branch_rename(core, id, name, new_name).await.map(drop),
+        PlanAction::BranchDelete { name, force } => branches::branch_delete(core, id, vec![name], force).await.map(drop),
+        PlanAction::ResetBranch { sha, mode } => merge::reset_branch(core, id, sha, mode).await.map(drop),
+        PlanAction::RebaseStart { onto, branch } => settle(core, repo_id, rebase::rebase_start(core, id, onto, branch).await).await,
+        PlanAction::CherryPick { shas } => settle(core, repo_id, rebase::cherry_pick(core, id, shas).await).await,
+        PlanAction::RevertCommit { sha } => settle(core, repo_id, merge::revert_commit(core, id, sha).await).await,
+        PlanAction::MergeStart { source, mode } => settle(core, repo_id, merge::merge_start(core, id, source, mode).await).await,
+        PlanAction::StashCreate { message, include_untracked, paths } => {
+            let paths = (!paths.is_empty()).then_some(paths);
+            stash::stash_create(core, id, crate::util::new_id(), message, paths, include_untracked, None).await.map(drop)
+        }
+        PlanAction::TagCreate { name, sha, message } => tags::tag_create(core, id, name, sha, message).await.map(drop),
+        PlanAction::CommitReword { sha, summary, description } => commit::commit_reword(core, id, summary, description, sha).await.map(drop),
+        PlanAction::Fetch { remote, prune } => {
+            let result = sync::fetch(core, id, job, remote, prune).await?;
+            match result.failed.first() {
+                Some(failure) => Err(CoreError::unknown(format!("Fetching from “{}” failed: {}", failure.remote, failure.message))),
+                None => Ok(()),
+            }
+        }
+        PlanAction::Pull { mode } => settle(core, repo_id, sync::pull(core, id, job, mode).await).await,
+        PlanAction::Push { branch, remote, force, expected } => {
+            let label = format!("“{branch}”");
+            pushed(&label, sync::push(core, id, job, Some(branch), remote, None, force, expected).await?)
+        }
+        PlanAction::BranchDeleteRemote { remote, name } => {
+            let label = format!("Deleting “{name}” on {remote}");
+            pushed(&label, sync::branch_delete_remote(core, id, job, remote, name).await?)
+        }
+        PlanAction::TagPush { name, remote } => {
+            let label = format!("Tag “{name}”");
+            pushed(&label, tags::tag_push(core, id, job, name, remote).await?)
+        }
+    }
+}
+
+/// A step that stopped on conflicts – or failed half-way, e.g. on a hook – is taken back at once: a
+/// plan never leaves a half-done merge, rebase, cherry-pick or revert behind (`operation_abort` also
+/// settles its open undo entry). The check refuses plans while an operation runs, so any operation
+/// found here belongs to this step.
+async fn settle(core: &Core, repo_id: &str, result: CoreResult<OpResult>) -> CoreResult<()> {
+    match result {
+        Ok(OpResult::Conflict { files, .. }) => {
+            merge::operation_abort(core, repo_id.to_string()).await?;
+            Err(CoreError::new(
+                ErrorCode::Conflict,
+                format!("This step stopped on conflicts ({}) and was taken back; the plan ends here.", files.join(", ")),
+            ))
+        }
+        Ok(OpResult::Done { .. } | OpResult::UpToDate) => Ok(()),
+        Err(error) => {
+            if status::read_operation(core, repo_id).await?.is_some() {
+                merge::operation_abort(core, repo_id.to_string()).await?;
+            }
+            Err(error)
+        }
+    }
+}
+
+/// The outcome of an outward step. `label` names what was to be pushed ("“main”", "Tag “v3”"); the
+/// secret-scan arm of Paket 6.2 (`PushResult::SecretsFound` → `not_allowed` with
+/// `secret_scan::stopped_message(label, …)`) joins here when that package is on this branch.
+fn pushed(label: &str, result: PushResult) -> CoreResult<()> {
+    let _ = label;
+    match result {
+        PushResult::Rejected { reason } => Err(CoreError::new(ErrorCode::PushRejected, reason)),
+        PushResult::Done { .. } | PushResult::UpToDate | PushResult::Multi { .. } => Ok(()),
+    }
+}
+
 /// Every union argument, `null` unless `partial` sets it – how a model answers.
 #[cfg(test)]
 pub(crate) fn full_args(partial: Value) -> Value {
@@ -483,3 +566,6 @@ mod tests {
         assert_eq!(serde_json::to_value(crate::model::PlanStepStatus::NotRun).unwrap(), json!("not_run"));
     }
 }
+
+#[cfg(test)]
+mod execute_tests;
