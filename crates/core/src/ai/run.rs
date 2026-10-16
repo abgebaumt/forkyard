@@ -119,6 +119,16 @@ pub fn situation<'a>(core: &Core, settings: &Settings, kind: AiProviderKind, rep
 }
 
 pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<AiAnswer> {
+    complete_json_checked(core, request, &|_: &Value| Ok::<(), String>(())).await
+}
+
+/// A check of the answer's meaning after the schema check (e.g. "every heading of the template is
+/// still there"). `Err(reason)` is treated like a schema failure: one repair attempt with the
+/// reason, then `ai_invalid_answer`.
+pub type AnswerCheck<'a> = &'a (dyn Fn(&Value) -> Result<(), String> + Send + Sync);
+
+/// `complete_json` with a meaning check inside the same single repair attempt.
+pub async fn complete_json_checked(core: &Core, request: AiRequest<'_>, check: AnswerCheck<'_>) -> CoreResult<AiAnswer> {
     schema::check_dialect(request.schema).map_err(|reason| CoreError::unknown(format!("Internal error: the answer schema is invalid ({reason}).")))?;
     let settings = ensure_allowed(core, request.repo_id, request.feature)?;
     let provider = providers::active(core, &settings).await?;
@@ -133,7 +143,7 @@ pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<Ai
     core.state::<AiJobs>().ids.lock().insert(request.job_id.to_string());
     let started_at = util::now_iso();
     let started = Instant::now();
-    let outcome = ask(core, provider.as_ref(), &request, estimate.tokens, job.token()).await;
+    let outcome = ask(core, provider.as_ref(), &request, estimate.tokens, job.token(), check).await;
     core.state::<AiJobs>().ids.lock().remove(request.job_id);
     let (usage, result) = match outcome {
         Ok((value, usage)) => (usage, Ok(value)),
@@ -162,7 +172,14 @@ pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<Ai
     answer
 }
 
-async fn ask(core: &Core, provider: &dyn Provider, request: &AiRequest<'_>, estimated: u64, cancel: &CancelToken) -> Result<(Value, Usage), (Usage, CoreError)> {
+async fn ask(
+    core: &Core,
+    provider: &dyn Provider,
+    request: &AiRequest<'_>,
+    estimated: u64,
+    cancel: &CancelToken,
+    check: AnswerCheck<'_>,
+) -> Result<(Value, Usage), (Usage, CoreError)> {
     let mut usage = Usage::default();
     let mut call = CompletionRequest {
         system: request.prompt.system.clone(),
@@ -190,7 +207,9 @@ async fn ask(core: &Core, provider: &dyn Provider, request: &AiRequest<'_>, esti
             call.max_output_tokens = call.max_output_tokens.saturating_mul(2).min(MAX_RAISED_OUTPUT);
             continue;
         }
-        let checked = schema::parse_answer(&completion.text).and_then(|value| schema::validate(request.schema, &value).map(|()| value));
+        let checked = schema::parse_answer(&completion.text)
+            .and_then(|value| schema::validate(request.schema, &value).map(|()| value))
+            .and_then(|value| check(&value).map(|()| value));
         match checked {
             Ok(value) => return Ok((value, usage)),
             Err(reason) if !repaired => {
@@ -375,6 +394,55 @@ mod tests {
         let error = complete_json(&tc, request(None, "r2", &prompt, &schema)).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::AiInvalidAnswer);
         assert_eq!(chats(&server).len(), 2, "exactly one repair attempt");
+    }
+
+    #[tokio::test]
+    async fn a_failed_meaning_check_uses_the_one_repair_attempt() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let counter = calls.clone();
+        let server = MockServer::start(move |request| match request.route().as_str() {
+            "POST /api/show" => ollama_show(),
+            _ if counter.fetch_add(1, Ordering::SeqCst) == 0 => ollama_chat("{\"summary\":\"WIP\",\"body\":null}", "stop"),
+            _ => ollama_chat("{\"summary\":\"Fix login\",\"body\":null}", "stop"),
+        });
+        let tc = with_ollama(&server).await;
+        let (prompt, schema) = (prompt_with("+fix"), schema());
+        let check = |value: &Value| if value["summary"] == "WIP" { Err("$.summary: “WIP” is not a summary".to_string()) } else { Ok(()) };
+        let answer = complete_json_checked(&tc, request(None, "c1", &prompt, &schema), &check).await.unwrap();
+        assert_eq!(answer.value, json!({"summary": "Fix login", "body": null}));
+        let sent = chats(&server);
+        assert_eq!(sent.len(), 2, "one repair, as for a schema failure");
+        let second = sent[1].json()["messages"][1]["content"].as_str().unwrap().to_string();
+        assert!(second.contains("could not be used: $.summary: “WIP” is not a summary"), "{second}");
+        assert!(second.starts_with(&prompt.user), "the repair repeats the original request");
+    }
+
+    #[tokio::test]
+    async fn a_meaning_check_that_fails_twice_ends_with_ai_invalid_answer() {
+        let server = MockServer::start(|request| match request.route().as_str() {
+            "POST /api/show" => ollama_show(),
+            _ => ollama_chat("{\"summary\":\"WIP\",\"body\":null}", "stop"),
+        });
+        let tc = with_ollama(&server).await;
+        let (prompt, schema) = (prompt_with("+fix"), schema());
+        let check = |_: &Value| Err::<(), String>("$.summary: never good enough".to_string());
+        let error = complete_json_checked(&tc, request(None, "c2", &prompt, &schema), &check).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::AiInvalidAnswer);
+        assert!(error.message.contains("never good enough"), "{}", error.message);
+        assert_eq!(chats(&server).len(), 2, "no third request");
+    }
+
+    #[tokio::test]
+    async fn complete_json_still_accepts_every_answer_that_matches_the_schema() {
+        let server = MockServer::start(|request| match request.route().as_str() {
+            "POST /api/show" => ollama_show(),
+            _ => ollama_chat("{\"summary\":\"WIP\",\"body\":null}", "stop"),
+        });
+        let tc = with_ollama(&server).await;
+        let (prompt, schema) = (prompt_with("+fix"), schema());
+        let answer = complete_json(&tc, request(None, "c3", &prompt, &schema)).await.unwrap();
+        assert_eq!(answer.value["summary"], "WIP");
+        assert_eq!(chats(&server).len(), 1);
     }
 
     #[tokio::test]
