@@ -206,3 +206,43 @@ fn only_claude_code_suggests_model_aliases() {
     assert_eq!(ids, ["sonnet", "opus", "haiku"]);
     assert!(model_suggestions(Codex).is_empty() && model_suggestions(Opencode).is_empty(), "free text, empty = the tool's default");
 }
+
+use crate::testkit::fake_cli::{codex_events, opencode_events};
+
+#[test]
+fn codex_answers_come_from_the_output_file_and_tokens_from_its_events() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_file = dir.path().join("out.json");
+    std::fs::write(&out_file, "{\"summary\":\"Fix login\",\"body\":null}\n").unwrap();
+    let answer = codex::parse_answer(&output(0, &codex_events("ignored"), ""), &out_file).unwrap();
+    assert_eq!(answer.text, "{\"summary\":\"Fix login\",\"body\":null}", "the file wins");
+    assert_eq!(answer.usage, Usage { input_tokens: 2400, output_tokens: 31 }, "input_tokens already contain the cached ones");
+    assert_eq!(answer.cost_micros, None, "Codex reports no cost");
+
+    let missing = dir.path().join("fehlt.json");
+    let answer = codex::parse_answer(&output(0, &codex_events("{\"summary\":\"aus dem Ereignis\",\"body\":null}"), ""), &missing).unwrap();
+    assert_eq!(answer.text, "{\"summary\":\"aus dem Ereignis\",\"body\":null}");
+
+    let failed = "{\"type\":\"turn.failed\",\"error\":{\"message\":\"unexpected status 401 Unauthorized: Missing bearer or basic authentication in header\"}}\n";
+    let error = codex::parse_answer(&output(1, failed, ""), &missing).unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiNotLoggedIn);
+    assert!(error.message.contains("codex login"), "{}", error.message);
+    let overloaded = "{\"type\":\"error\",\"message\":\"stream error: 503 Service Unavailable\"}\n";
+    let error = codex::parse_answer(&output(1, overloaded, ""), &missing).unwrap_err();
+    assert_eq!(error.code, ErrorCode::AiProviderUnavailable);
+    assert!(error.message.contains("503"), "{}", error.message);
+    assert_eq!(codex::parse_answer(&output(0, "", ""), &missing).unwrap_err().code, ErrorCode::AiInvalidAnswer);
+}
+
+#[test]
+fn opencode_answers_are_the_text_of_its_events() {
+    let answer = opencode::parse_answer(&output(0, &opencode_events("{\"summary\":\"Fix login\",\"body\":null}"), "")).unwrap();
+    assert_eq!(answer.text, "{\"summary\":\"Fix login\",\"body\":null}");
+    assert_eq!(answer.usage, Usage { input_tokens: 2000, output_tokens: 25 }, "1800 + 200 read from the cache");
+    assert_eq!(answer.cost_micros, Some(4_200));
+    let auth = "{\"type\":\"error\",\"error\":{\"name\":\"ProviderAuthError\",\"data\":{\"providerID\":\"anthropic\",\"message\":\"Missing credentials\"}}}\n";
+    assert_eq!(opencode::parse_answer(&output(1, auth, "")).unwrap_err().code, ErrorCode::AiNotLoggedIn);
+    assert_eq!(opencode::parse_answer(&output(0, "", "")).unwrap_err().code, ErrorCode::AiInvalidAnswer);
+    let free = opencode_events("{}").replace("\"cost\":0.0042", "\"cost\":0");
+    assert_eq!(opencode::parse_answer(&output(0, &free, "")).unwrap().cost_micros, None, "a free model reports no cost");
+}

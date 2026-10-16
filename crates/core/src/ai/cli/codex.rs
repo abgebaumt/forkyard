@@ -54,3 +54,45 @@ pub fn args(dir: &std::path::Path, schema_file: Option<&std::path::Path>, out_fi
     args.push("-".into());
     args
 }
+
+/// The answer is the last message in `out_file` (`-o`), else the last `agent_message` event; tokens
+/// from `turn.completed`; errors from `error` / `turn.failed`.
+pub fn parse_answer(out: &ProcOutput, out_file: &std::path::Path) -> crate::error::CoreResult<super::CliAnswer> {
+    use crate::error::CoreError;
+    use serde_json::Value;
+    let kind = crate::model::AiProviderKind::Codex;
+    let mut usage = crate::ai::provider::Usage::default();
+    let mut last_message: Option<String> = None;
+    let mut errors: Vec<String> = Vec::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let Ok(event) = serde_json::from_str::<Value>(line) else { continue };
+        match event.get("type").and_then(Value::as_str) {
+            Some("turn.completed") => {
+                usage.input_tokens += super::count(&event, "/usage/input_tokens");
+                usage.output_tokens += super::count(&event, "/usage/output_tokens");
+            }
+            Some("item.completed") if event.pointer("/item/type").and_then(Value::as_str) == Some("agent_message") => {
+                last_message = event.pointer("/item/text").and_then(Value::as_str).map(str::to_string);
+            }
+            Some("error") => errors.extend(event.get("message").and_then(Value::as_str).map(str::to_string)),
+            Some("turn.failed") => errors.extend(event.pointer("/error/message").and_then(Value::as_str).map(str::to_string)),
+            _ => {}
+        }
+    }
+    let joined = errors.join("\n");
+    if super::looks_signed_out(&joined) {
+        return Err(super::not_logged_in(kind));
+    }
+    if !out.success() {
+        return Err(if errors.is_empty() { super::exit_failure(kind, out) } else { CoreError::ai_provider_unavailable(format!("Codex reported an error: {}", super::reported(&joined))) });
+    }
+    let from_file = std::fs::read_to_string(out_file).ok().map(|text| text.trim().to_string()).filter(|text| !text.is_empty());
+    let text = from_file.or(last_message).ok_or_else(|| {
+        if errors.is_empty() {
+            CoreError::ai_invalid_answer("Codex wrote no answer")
+        } else {
+            CoreError::ai_provider_unavailable(format!("Codex reported an error: {}", super::reported(&joined)))
+        }
+    })?;
+    Ok(super::CliAnswer { text, usage, cost_micros: None })
+}

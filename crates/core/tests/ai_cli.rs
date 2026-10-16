@@ -289,3 +289,56 @@ async fn an_npm_shim_of_claude_code_gets_the_schema_in_the_prompt() {
     assert!(call.stdin.contains("The JSON must match this JSON schema exactly:") && call.stdin.contains(&commit_schema().to_string()));
     assert!(call.args.iter().any(|arg| arg.is_empty()), "the empty --tools value reaches the tool");
 }
+
+use gitcore::ai::provider::Usage;
+
+#[tokio::test]
+async fn codex_gets_its_schema_as_a_file_and_answers_through_the_output_file() {
+    let tc = TestCore::new().await;
+    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &codex_config(CODEX_EXEC_HELP, true, r#"{"summary":"Fix login","body":null}"#));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "codex", "aiModel": "gpt-5.1-codex"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::Codex).await;
+    let request = request("+fix", None);
+    let completion = provider.complete(&tc, &request, &CancelToken::new()).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&completion.text).unwrap(), json!({"summary": "Fix login", "body": null}));
+    assert_eq!(completion.usage, Usage { input_tokens: 2400, output_tokens: 31 });
+
+    let call = codex.calls_with(&["exec", "-C"]).pop().expect("one generation call");
+    let folder = PathBuf::from(&call.cwd);
+    let shown = |path: &Path| path.to_string_lossy().into_owned();
+    let (schema_file, out_file) = (folder.join("schema.json"), folder.join("out.json"));
+    let expected: Vec<String> = [
+        "exec", "-C", &shown(&folder), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--output-schema", &shown(&schema_file), "-o", &shown(&out_file), "--json", "-m", "gpt-5.1-codex", "-",
+    ]
+    .iter()
+    .map(|arg| arg.to_string())
+    .collect();
+    assert_eq!(call.args, expected);
+    assert_eq!(serde_json::from_str::<Value>(&call.files[&shown(&schema_file)]).unwrap(), commit_schema(), "the schema as a file in the empty folder");
+    assert_eq!(call.cwd_entries, ["schema.json"]);
+    assert_eq!(call.stdin, format!("{}\n\n{}", request.system, request.user));
+    assert!(folder.starts_with(tc.data_dir().join("tmp")) && !folder.exists());
+    assert_eq!(provider.take_reported_cost_micros(), None);
+}
+
+#[tokio::test]
+async fn opencode_runs_pure_with_everything_denied_and_the_schema_in_the_prompt() {
+    let tc = TestCore::new().await;
+    let opencode = FakeCli::install(fake(), &tc.cli_dir(), "opencode", &opencode_config(OPENCODE_RUN_HELP, "1.17.15", 1, r#"{"summary":"Fix login","body":null}"#));
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "opencode", "aiModel": "anthropic/claude-sonnet-5-5"})).await.unwrap();
+    let provider = provider_for(&tc, AiProviderKind::Opencode).await;
+    let request = request("+fix", None);
+    let completion = provider.complete(&tc, &request, &CancelToken::new()).await.unwrap();
+    assert_eq!(serde_json::from_str::<Value>(&completion.text).unwrap(), json!({"summary": "Fix login", "body": null}));
+    assert_eq!(completion.usage, Usage { input_tokens: 2000, output_tokens: 25 });
+
+    let call = opencode.calls_with(&["run", "--dir"]).pop().expect("one generation call");
+    let folder = call.cwd.clone();
+    assert_eq!(call.args, ["run", "--dir", folder.as_str(), "--pure", "--format", "json", "-m", "anthropic/claude-sonnet-5-5"]);
+    let config: Value = serde_json::from_str(&call.env["OPENCODE_CONFIG_CONTENT"]).unwrap();
+    assert_eq!(config, json!({"share": "disabled", "permission": {"*": "deny"}}));
+    assert!(call.stdin.starts_with(&request.system) && call.stdin.ends_with(&request.user), "{}", call.stdin);
+    assert!(call.stdin.contains(&format!("The JSON must match this JSON schema exactly:\n{}", commit_schema())), "the schema goes into the prompt");
+    assert!(call.cwd_entries.is_empty() && !Path::new(&folder).exists());
+    assert_eq!(provider.take_reported_cost_micros(), Some(4_200));
+}

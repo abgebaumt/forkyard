@@ -65,3 +65,47 @@ pub fn args(dir: &std::path::Path, model: Option<&str>) -> Vec<std::ffi::OsStrin
     }
     args
 }
+
+/// The answer is the text of the `text` events; tokens and cost from `step_finish`; errors from
+/// `error` (`ProviderAuthError` = not signed in).
+pub fn parse_answer(out: &ProcOutput) -> crate::error::CoreResult<super::CliAnswer> {
+    use crate::error::CoreError;
+    use serde_json::Value;
+    let kind = crate::model::AiProviderKind::Opencode;
+    let mut text = String::new();
+    let mut usage = crate::ai::provider::Usage::default();
+    let mut cost = 0.0_f64;
+    let mut errors: Vec<String> = Vec::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let Ok(event) = serde_json::from_str::<Value>(line) else { continue };
+        match event.get("type").and_then(Value::as_str) {
+            Some("text") => text.push_str(event.pointer("/part/text").and_then(Value::as_str).unwrap_or_default()),
+            Some("step_finish") => {
+                usage.input_tokens += super::count(&event, "/part/tokens/input") + super::count(&event, "/part/tokens/cache/read");
+                usage.output_tokens += super::count(&event, "/part/tokens/output");
+                cost += event.pointer("/part/cost").and_then(Value::as_f64).unwrap_or(0.0);
+            }
+            Some("error") => {
+                let name = event.pointer("/error/name").and_then(Value::as_str).unwrap_or_default();
+                let message = event.pointer("/error/data/message").or_else(|| event.pointer("/error/message")).and_then(Value::as_str).unwrap_or_default();
+                errors.push(format!("{name}: {message}"));
+            }
+            _ => {}
+        }
+    }
+    let joined = errors.join("\n");
+    if super::looks_signed_out(&joined) {
+        return Err(super::not_logged_in(kind));
+    }
+    if !errors.is_empty() {
+        return Err(CoreError::ai_provider_unavailable(format!("opencode reported an error: {}", super::reported(&joined))));
+    }
+    if !out.success() {
+        return Err(super::exit_failure(kind, out));
+    }
+    let text = text.trim().to_string();
+    if text.is_empty() {
+        return Err(CoreError::ai_invalid_answer("opencode wrote no answer"));
+    }
+    Ok(super::CliAnswer { text, usage, cost_micros: (cost > 0.0).then(|| crate::ai::pricing::micros(cost)) })
+}

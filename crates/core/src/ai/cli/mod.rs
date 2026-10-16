@@ -470,18 +470,38 @@ impl CliProvider {
 
     async fn call(&self, core: &Core, request: &CompletionRequest, cancel: &CancelToken) -> CoreResult<CliAnswer> {
         let scratch = ScratchDir::new(core)?;
+        let dir = scratch.path();
         let switch = self.schema_as_switch();
+        let model = self.model.as_deref();
+        let out_file = dir.join("out.json");
         let args = match self.kind {
-            AiProviderKind::ClaudeCode => claude::args(switch.then(|| request.schema.to_string()).as_deref(), self.model.as_deref()),
-            other => return Err(CoreError::not_built(other.label())),
+            AiProviderKind::ClaudeCode => claude::args(switch.then(|| request.schema.to_string()).as_deref(), model),
+            AiProviderKind::Codex => {
+                let schema_file = dir.join("schema.json");
+                if switch {
+                    let text = serde_json::to_vec_pretty(&request.schema).map_err(|e| CoreError::unknown(format!("Internal error: the answer schema can't be written ({e}).")))?;
+                    std::fs::write(&schema_file, text).map_err(|e| CoreError::io(format!("The answer schema for Codex could not be written: {e}")))?;
+                }
+                codex::args(dir, switch.then_some(schema_file.as_path()), &out_file, model)
+            }
+            AiProviderKind::Opencode => opencode::args(dir, model),
+            other => return Err(not_a_tool(other)),
         };
         let stdin = stdin_text(&request.system, &request.user, (!switch).then_some(&request.schema));
-        let mut proc = Proc::new(&self.program).args(&args).cwd(scratch.path()).stdin(stdin.into_bytes()).timeout(cli_timeout(request.timeout));
+        let mut proc = Proc::new(&self.program).args(&args).cwd(dir).stdin(stdin.into_bytes()).timeout(cli_timeout(request.timeout));
+        if self.kind == AiProviderKind::Opencode {
+            proc = proc.env(opencode::CONFIG_ENV, opencode::CONFIG);
+        }
         if let Some(path) = &self.path_env {
             proc = proc.env("PATH", path);
         }
         let out = proc.run(cancel).await?;
-        claude::parse_answer(&out)
+        // Read before `scratch` is dropped: the answer file of Codex lives in it.
+        match self.kind {
+            AiProviderKind::Codex => codex::parse_answer(&out, &out_file),
+            AiProviderKind::Opencode => opencode::parse_answer(&out),
+            _ => claude::parse_answer(&out),
+        }
     }
 }
 
