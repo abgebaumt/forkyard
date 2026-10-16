@@ -2,6 +2,7 @@
 //! cleanup. The cockpit needs no AI provider. Branch and worktree are Git's; the `agents` table
 //! only keeps metadata, and the running session (terminal, status) lives in memory.
 
+pub mod channel;
 pub mod cmdline;
 pub mod names;
 pub mod templates;
