@@ -200,6 +200,17 @@
     "append": "Anhängen",
     "discard": "Verwerfen"
   },
+  "names": {
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+    "gemini": "Gemini",
+    "openai_compatible": "OpenAI-kompatibler Dienst",
+    "ollama": "Ollama",
+    "lmstudio": "LM Studio",
+    "claude_code": "Claude Code",
+    "codex": "Codex",
+    "opencode": "opencode"
+  },
   "command": {
     "setup": "KI einrichten …",
     "keywords": "KI, AI, LLM, Modell, Claude, Codex, Ollama, Anbieter"
