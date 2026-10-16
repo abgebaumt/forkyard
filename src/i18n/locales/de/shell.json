@@ -110,6 +110,7 @@
     "backTo": "wieder „{{name}}“",
     "moveLeft": "Nach links verschieben",
     "moveRight": "Nach rechts verschieben",
+    "cleanup": "Repository aufräumen …",
     "showInFileManager": "{{revealInFileManager}}",
     "copyPath": "Pfad kopieren",
     "pathCopied": "Pfad kopiert",

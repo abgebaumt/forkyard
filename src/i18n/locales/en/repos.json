@@ -70,6 +70,7 @@
     "groupSubmenu": "Group “{{group}}”",
     "color": "Color",
     "noColor": "No color",
+    "cleanup": "Clean up repository …",
     "showInFileManager": "{{revealInFileManager}}",
     "remove": "Remove from list"
   },

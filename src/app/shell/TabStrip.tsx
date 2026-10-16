@@ -6,6 +6,7 @@ import { TabBar, type RepoTab, type TabMenuActions } from "../../ui/Chrome";
 import { toast } from "../../ui/Feedback";
 import type { MenuEntry } from "../../ui/Menu";
 import { openExternal } from "../actions/files";
+import { openRepoCleanup } from "../../screens/RepoCleanup";
 import { activateTab, closeOtherTabs, closeTab, moveTab, newTab } from "../actions/repos";
 import { qk, useRepos } from "../queries";
 import { readStatus } from "../statusOrder";
@@ -90,6 +91,7 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
       const repoId = tab.repoId;
       entries.push(
         { type: "separator" },
+        { label: t("shell.tabMenu.cleanup"), disabled: gone.has(tab.id), onSelect: () => void openRepoCleanup(repoId) },
         { label: t("shell.tabMenu.showInFileManager"), onSelect: () => void openExternal(repoId, "file_manager") },
         {
           label: t("shell.tabMenu.copyPath"),

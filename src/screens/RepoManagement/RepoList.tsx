@@ -8,6 +8,7 @@ import { IconButton } from "../../ui/Button";
 import { cn, laneColor } from "../../ui/cn";
 import { ContextMenu, DropdownMenu, type MenuEntry } from "../../ui/Menu";
 import { splitForDisplay } from "../CloneDialog/paths";
+import { openRepoCleanup } from "../RepoCleanup";
 import { openGroupSync } from "./GroupSync";
 import { REPO_COLORS, assignGroup, clearAlias, clearGroup, displayName, dissolveGroup, editAlias, relocateRepo, renameGroup, setColor, setFavorite } from "./repoActions";
 import { t } from "../../i18n";
@@ -124,6 +125,8 @@ function repoMenu(repo: Repo, props: Pick<RepoListProps, "onOpen" | "onOpenInTab
   if (repo.color !== null) entries.push({ label: t("repos.menu.noColor"), icon: <X className="size-icon" />, onSelect: () => run(() => setColor(repo, null)) });
   entries.push(
     { type: "separator" },
+    // Resolves when the dialog closes, so the focus goes back to the row only then.
+    { label: t("repos.menu.cleanup"), disabled: repo.missing, onSelect: () => run(() => openRepoCleanup(repo.id)) },
     { label: t("repos.menu.showInFileManager"), icon: <ExternalLink className="size-icon" />, disabled: repo.missing, onSelect: () => run(() => openExternal(repo.id, "file_manager")) },
     { type: "separator" },
     { label: t("repos.menu.remove"), icon: <Trash2 className="size-icon" />, shortcut: "Delete", danger: true, onSelect: () => run(() => props.onRemove(repo)) },

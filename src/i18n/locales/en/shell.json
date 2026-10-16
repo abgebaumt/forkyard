@@ -110,6 +110,7 @@
     "backTo": "back to “{{name}}”",
     "moveLeft": "Move left",
     "moveRight": "Move right",
+    "cleanup": "Clean up repository …",
     "showInFileManager": "{{revealInFileManager}}",
     "copyPath": "Copy path",
     "pathCopied": "Path copied",

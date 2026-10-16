@@ -479,6 +479,10 @@
     }
   },
   "repo": {
+    "cleanup": {
+      "keywords": "gc, garbage, prune, storage, size, clean up",
+      "title": "Clean up repository …"
+    },
     "clone": {
       "keywords": "clone, URL",
       "title": "Clone repository …"
