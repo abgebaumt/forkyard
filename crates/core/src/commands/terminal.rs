@@ -15,12 +15,18 @@
 //! Three threads per session (the pseudo-terminal only supports blocking reads):
 //! reader (reads the output), sender (batches and sends events), watcher (waits for the
 //! shell to end and then closes the pseudo-terminal so the reader sees end-of-file).
+//!
+//! Besides the shell, the core can start a program (coding agents) in a registered worktree of the
+//! repository (`terminal_open_program`). The reader thread of every session scans the output for BEL,
+//! the window title (OSC 0/2) and notifications (OSC 9, OSC 777) and remembers when the screen last
+//! changed (`terminal_info`); an optional `TerminalObserver` hears the same.
 
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use parking_lot::{Condvar, Mutex};
 use portable_pty::{native_pty_system, ChildKiller, CommandBuilder, MasterPty, PtySize};
@@ -64,6 +70,7 @@ struct Session {
     killer: Mutex<Box<dyn ChildKiller + Send + Sync>>,
     pid: Option<u32>,
     tree: Option<tree::ProcessTree>,
+    info: Mutex<TerminalInfo>,
 }
 
 /// What the reader has read and the sender has not sent yet.
@@ -88,6 +95,198 @@ fn pty_error(what: &str, error: impl std::fmt::Display) -> CoreError {
 
 fn clamp_size(cols: u16, rows: u16) -> PtySize {
     PtySize { cols: cols.clamp(MIN_SIZE, MAX_SIZE), rows: rows.clamp(MIN_SIZE, MAX_SIZE), pixel_width: 0, pixel_height: 0 }
+}
+
+/// A program instead of the shell (coding agents). Built by the core only, never from a command line
+/// the UI sent.
+#[derive(Debug, Clone)]
+pub struct ProgramLaunch {
+    /// Absolute path of the program (from `tools::locate`).
+    pub program: PathBuf,
+    pub args: Vec<OsString>,
+    /// Must be a registered worktree of the repository.
+    pub cwd: PathBuf,
+    pub env: Vec<(OsString, OsString)>,
+    /// Short name for the terminal tab.
+    pub title: String,
+}
+
+/// Something the program in a terminal signalled.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TerminalSignal {
+    /// BEL outside an escape sequence.
+    Bell,
+    /// Window title (OSC 0 or 2).
+    Title(String),
+    /// Notification: OSC 9 (`body`) or OSC 777 `notify;title;body`.
+    Notify { title: Option<String>, body: String },
+}
+
+/// Hears what a terminal's output shows. Called on the terminal's reader thread: return quickly.
+pub trait TerminalObserver: Send + Sync {
+    fn screen_changed(&self, terminal_id: &str);
+    fn signal(&self, terminal_id: &str, signal: &TerminalSignal);
+}
+
+/// What the core knows about an open terminal.
+#[derive(Debug, Clone)]
+pub struct TerminalInfo {
+    pub title: String,
+    /// `true` for `terminal_open_program`, `false` for the shell.
+    pub program: bool,
+    pub cwd: PathBuf,
+    /// Last output that changed the screen (OSC sequences and BEL do not count).
+    pub last_screen_change: Option<Instant>,
+    pub last_signal: Option<TerminalSignal>,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+enum ScanState {
+    #[default]
+    Text,
+    Escape,
+    Csi,
+    Osc,
+    OscEscape,
+}
+
+/// Longest OSC sequence that is read; the rest of a longer one is dropped.
+const MAX_OSC: usize = 4096;
+/// Longest title or notification text that is kept.
+const MAX_SIGNAL_TEXT: usize = 200;
+
+/// Finds BEL and the OSC sequences 0/2 (title), 9 and 777 (notifications) in a terminal's output –
+/// also when a sequence is split across reads. Everything outside OSC sequences and BEL counts as a
+/// screen change.
+#[derive(Debug, Default)]
+pub struct SignalScanner {
+    state: ScanState,
+    osc: Vec<u8>,
+}
+
+/// What one chunk of output contained.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct Scanned {
+    pub screen_changed: bool,
+    pub signals: Vec<TerminalSignal>,
+}
+
+impl SignalScanner {
+    pub fn feed(&mut self, bytes: &[u8]) -> Scanned {
+        let mut out = Scanned::default();
+        for &byte in bytes {
+            match self.state {
+                ScanState::Text => match byte {
+                    0x1b => self.state = ScanState::Escape,
+                    0x07 => out.signals.push(TerminalSignal::Bell),
+                    _ => out.screen_changed = true,
+                },
+                ScanState::Escape => self.escape(byte, &mut out),
+                ScanState::Csi => {
+                    if (0x40..=0x7e).contains(&byte) {
+                        self.state = ScanState::Text;
+                    }
+                }
+                ScanState::Osc => match byte {
+                    0x07 => {
+                        self.finish(&mut out);
+                        self.state = ScanState::Text;
+                    }
+                    0x1b => self.state = ScanState::OscEscape,
+                    _ => {
+                        if self.osc.len() < MAX_OSC {
+                            self.osc.push(byte);
+                        }
+                    }
+                },
+                ScanState::OscEscape => {
+                    // ESC \ ends the sequence; any other ESC begins the next sequence.
+                    self.finish(&mut out);
+                    if byte == b'\\' {
+                        self.state = ScanState::Text;
+                    } else {
+                        self.escape(byte, &mut out);
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// The byte after an ESC.
+    fn escape(&mut self, byte: u8, out: &mut Scanned) {
+        match byte {
+            b']' => {
+                self.osc.clear();
+                self.state = ScanState::Osc;
+            }
+            b'[' => {
+                out.screen_changed = true;
+                self.state = ScanState::Csi;
+            }
+            _ => {
+                out.screen_changed = true;
+                self.state = ScanState::Text;
+            }
+        }
+    }
+
+    fn finish(&mut self, out: &mut Scanned) {
+        let osc = std::mem::take(&mut self.osc);
+        let text = String::from_utf8_lossy(&osc);
+        let (code, rest) = text.split_once(';').unwrap_or((&text, ""));
+        let clean = |value: &str| -> String { value.chars().filter(|c| !c.is_control()).take(MAX_SIGNAL_TEXT).collect() };
+        match code {
+            "0" | "2" => out.signals.push(TerminalSignal::Title(clean(rest))),
+            // OSC 9;4;… is a progress report (ConEmu, Windows Terminal), not a notification.
+            "9" if !rest.starts_with("4;") => out.signals.push(TerminalSignal::Notify { title: None, body: clean(rest) }),
+            "777" => {
+                if let Some(notify) = rest.strip_prefix("notify;") {
+                    let (title, body) = notify.split_once(';').unwrap_or((notify, ""));
+                    out.signals.push(TerminalSignal::Notify { title: Some(clean(title)), body: clean(body) });
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Scans what a session's reader read; updates `TerminalInfo` and tells the observer.
+struct Watch {
+    id: String,
+    scanner: SignalScanner,
+    session: Arc<Session>,
+    observer: Option<Arc<dyn TerminalObserver>>,
+}
+
+impl Watch {
+    fn feed(&mut self, bytes: &[u8]) {
+        let scanned = self.scanner.feed(bytes);
+        if !scanned.screen_changed && scanned.signals.is_empty() {
+            return;
+        }
+        {
+            let mut info = self.session.info.lock();
+            if scanned.screen_changed {
+                info.last_screen_change = Some(Instant::now());
+            }
+            if let Some(last) = scanned.signals.last() {
+                info.last_signal = Some(last.clone());
+            }
+        }
+        if let Some(observer) = &self.observer {
+            if scanned.screen_changed {
+                observer.screen_changed(&self.id);
+            }
+            for signal in &scanned.signals {
+                observer.signal(&self.id, signal);
+            }
+        }
+    }
+}
+
+fn too_many() -> CoreError {
+    CoreError::not_allowed(format!("{MAX_TERMINALS} terminals are already open. Close one first."))
 }
 
 /// The user's shell: program and arguments.
@@ -119,14 +318,65 @@ pub async fn terminal_open(core: &Core, repo_id: String, cols: u16, rows: u16) -
     let root = core.repo_path(&repo_id)?;
     let state = core.state::<TerminalState>();
     if state.sessions.lock().len() >= MAX_TERMINALS {
-        return Err(CoreError::not_allowed(format!(
-            "{MAX_TERMINALS} terminals are already open. Close one first."
-        )));
+        return Err(too_many());
     }
     let core = core.clone();
     tokio::task::spawn_blocking(move || open_blocking(&core, &root, cols, rows))
         .await
         .map_err(|e| CoreError::io(format!("The terminal could not be started: {e}")))?
+}
+
+/// Opens a terminal that runs `launch.program` in `launch.cwd`, which must be a registered worktree of
+/// the repository (the repository itself or a linked one). Output and end arrive like a shell's.
+pub async fn terminal_open_program(
+    core: &Core,
+    repo_id: &str,
+    launch: ProgramLaunch,
+    cols: u16,
+    rows: u16,
+    observer: Option<Arc<dyn TerminalObserver>>,
+) -> CoreResult<String> {
+    core.repo_path(repo_id)?;
+    if core.state::<TerminalState>().sessions.lock().len() >= MAX_TERMINALS {
+        return Err(too_many());
+    }
+    if !launch.program.is_absolute() || !launch.program.is_file() {
+        return Err(CoreError::not_found(format!("The program “{}” was not found.", util::display_path(&launch.program))));
+    }
+    if crate::proc::is_batch(&launch.program) {
+        return Err(CoreError::unsupported(format!(
+            "“{}” is a batch file; it can’t run in the built-in terminal. Point to the program itself (.exe).",
+            util::display_path(&launch.program)
+        )));
+    }
+    registered_worktree(core, repo_id, &launch.cwd).await?;
+    let core = core.clone();
+    tokio::task::spawn_blocking(move || open_program_blocking(&core, launch, cols, rows, observer))
+        .await
+        .map_err(|e| CoreError::io(format!("The terminal could not be started: {e}")))?
+}
+
+/// `cwd` is a worktree of the repository that still exists – otherwise `not_allowed`.
+async fn registered_worktree(core: &Core, repo_id: &str, cwd: &Path) -> CoreResult<()> {
+    let refuse = || {
+        CoreError::not_allowed(format!("“{}” is not a worktree of this repository. Programs only start in one of its worktrees.", util::display_path(cwd)))
+    };
+    let wanted = std::fs::canonicalize(cwd).map_err(|_| refuse())?;
+    let key = util::path_key(&wanted);
+    let worktrees = crate::commands::worktree::worktree_list(core, repo_id.to_string()).await?;
+    let found = worktrees.iter().filter(|worktree| !worktree.is_prunable).any(|worktree| std::fs::canonicalize(&worktree.path).is_ok_and(|path| util::path_key(&path) == key));
+    if found {
+        Ok(())
+    } else {
+        Err(refuse())
+    }
+}
+
+/// What the core knows about an open terminal; `None` once it has ended.
+pub fn terminal_info(core: &Core, terminal_id: &str) -> Option<TerminalInfo> {
+    let session = core.state::<TerminalState>().sessions.lock().get(terminal_id).cloned()?;
+    let info = session.info.lock().clone();
+    Some(info)
 }
 
 /// Makes sure that Ctrl+C interrupts something in the shell and its child processes.
@@ -153,18 +403,42 @@ fn open_blocking(core: &Core, root: &Path, cols: u16, rows: u16) -> CoreResult<S
     let env_shell = std::env::var("SHELL").ok();
     let (shell, args) = default_shell(env_shell.as_deref(), &program_exists);
     let program = which::which(&shell).map_err(|_| CoreError::not_found(format!("The shell “{shell}” was not found.")))?;
-
-    let pair = native_pty_system().openpty(clamp_size(cols, rows)).map_err(|e| pty_error("The pseudo terminal could not be created", e))?;
     // `CommandBuilder::new` takes over this process's environment, i.e. the user's.
     let mut command = CommandBuilder::new(program.as_os_str());
     command.args(&args);
     command.cwd(root.as_os_str());
+    let info = TerminalInfo { title: shell.clone(), program: false, cwd: root.to_path_buf(), last_screen_change: None, last_signal: None };
+    spawn_session(core, command, &format!("The shell “{shell}” could not be started"), clamp_size(cols, rows), info, None)
+}
+
+fn open_program_blocking(core: &Core, launch: ProgramLaunch, cols: u16, rows: u16, observer: Option<Arc<dyn TerminalObserver>>) -> CoreResult<String> {
+    let mut command = CommandBuilder::new(launch.program.as_os_str());
+    command.args(&launch.args);
+    command.cwd(launch.cwd.as_os_str());
+    for (key, value) in &launch.env {
+        command.env(key, value);
+    }
+    let name = launch.program.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
+    let info = TerminalInfo { title: launch.title.clone(), program: true, cwd: launch.cwd.clone(), last_screen_change: None, last_signal: None };
+    spawn_session(core, command, &format!("“{name}” could not be started"), clamp_size(cols, rows), info, observer)
+}
+
+/// Starts `command` on a new pseudo-terminal, registers the session and starts its three threads.
+fn spawn_session(
+    core: &Core,
+    mut command: CommandBuilder,
+    failure: &str,
+    size: PtySize,
+    info: TerminalInfo,
+    observer: Option<Arc<dyn TerminalObserver>>,
+) -> CoreResult<String> {
+    let pair = native_pty_system().openpty(size).map_err(|e| pty_error("The pseudo terminal could not be created", e))?;
     command.env("TERM", "xterm-256color");
     command.env("COLORTERM", "truecolor");
     command.env("TERM_PROGRAM", "forkyard");
     restore_ctrl_c();
-    let mut child = pair.slave.spawn_command(command).map_err(|e| pty_error(&format!("The shell “{shell}” could not be started"), e))?;
-    // Only the shell keeps its side of the pseudo-terminal open.
+    let mut child = pair.slave.spawn_command(command).map_err(|e| pty_error(failure, e))?;
+    // Only the program keeps its side of the pseudo-terminal open.
     drop(pair.slave);
     let pid = child.process_id();
     let tree = pid.and_then(tree::ProcessTree::attach);
@@ -186,12 +460,14 @@ fn open_blocking(core: &Core, root: &Path, cols: u16, rows: u16) -> CoreResult<S
         killer: Mutex::new(killer),
         pid,
         tree,
+        info: Mutex::new(info),
     });
     core.state::<TerminalState>().sessions.lock().insert(id.clone(), session.clone());
 
+    let mut watch = Watch { id: id.clone(), scanner: SignalScanner::default(), session: session.clone(), observer };
     spawn_thread("terminal-leser", {
         let output = output.clone();
-        move || read_loop(reader, &output)
+        move || read_loop(reader, &output, &mut watch)
     });
     spawn_thread("terminal-sender", {
         let (core, id, output, session) = (core.clone(), id.clone(), output.clone(), session.clone());
@@ -244,14 +520,15 @@ impl Session {
     }
 }
 
-/// Reads the output until the pseudo-terminal is closed.
-fn read_loop(mut reader: Box<dyn Read + Send>, output: &Output) {
+/// Reads the output until the pseudo-terminal is closed; `watch` sees every chunk first.
+fn read_loop(mut reader: Box<dyn Read + Send>, output: &Output, watch: &mut Watch) {
     let mut chunk = vec![0u8; 16 * 1024];
     loop {
         let read = match reader.read(&mut chunk) {
             Ok(0) | Err(_) => break,
             Ok(read) => read,
         };
+        watch.feed(&chunk[..read]);
         let mut pending = output.pending.lock();
         // If output backs up, the reader waits: that throttles the shell through the pseudo-terminal.
         while pending.bytes.len() > MAX_PENDING_BYTES {
@@ -500,3 +777,6 @@ mod tree {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod program_tests;
