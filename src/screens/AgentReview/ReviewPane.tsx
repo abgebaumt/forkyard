@@ -16,6 +16,7 @@ import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
 import { notPickable, rangeSource, splitFiles, toggleFile, withLines } from "./model";
 import { ReviewDiff } from "./ReviewDiff";
+import { ReviewActions } from "./ReviewActions";
 import { initPicks, pin, usePane, useReviewStore } from "./state";
 
 const TOGGLE = "inline-flex h-5 items-center rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text hover:border-border-input";
@@ -160,6 +161,7 @@ export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabI
           )}
         </div>
       </div>
+      <ReviewActions repoId={repoId} tabId={tabId} agent={agent} latest={latest.data ?? null} chosen={chosen.length} />
     </div>
   );
 }

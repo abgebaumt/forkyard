@@ -6,6 +6,7 @@ import { Cockpit } from "../../screens/Agents/Cockpit";
 import { AgentDetailsPanel } from "../../screens/Agents/DetailsPanel";
 import { BlameView } from "../../screens/Blame";
 import { AgentReviewView } from "../../screens/AgentReview";
+import { ReviewCommitPanel } from "../../screens/AgentReview/CommitPanel";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
 import { CommitSearch } from "../../screens/CommitSearch";
@@ -76,6 +77,7 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
 
 function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabView }) {
   if (view.rightPanel === "agent") return <AgentDetailsPanel repoId={repoId} tabId={tabId} agentId={view.agentId} />;
+  if (view.rightPanel === "review_commit" && view.center.kind === "agent_review") return <ReviewCommitPanel repoId={repoId} tabId={tabId} agentIds={view.center.agentIds} />;
   if (view.rightPanel === "stash_form") return <StashForm repoId={repoId} tabId={tabId} />;
   const selection = view.selection;
   if (!selection) {
