@@ -708,6 +708,61 @@ export interface StashSelection {
   unstaged: PatchSelection[];
 }
 
+/** What one unit of "Compose commits" is: one hunk of a text file or a whole file. */
+export type ComposeUnitKind = "hunk" | "file" | "added" | "deleted" | "renamed" | "binary" | "submodule" | "lfs" | "mode" | "link";
+
+export interface ComposeUnit {
+  /** `<path>#<hunk index>@<token>`; whole files `<path>#file@<token>`. */
+  id: string;
+  path: string;
+  oldPath: string | null;
+  kind: ComposeUnitKind;
+  hunkIndex: number | null;
+  /** `@@ -a,b +c,d @@ …` as `git diff` prints it; empty for whole files. */
+  header: string;
+  added: number;
+  removed: number;
+  /** For display only, at most 400 lines (`linesCut`); the commit takes the whole unit. */
+  lines: DiffLine[];
+  linesCut: boolean;
+}
+
+export interface ComposeState {
+  /** Pass back as `expectToken`; anything else is `stale_state`. */
+  token: string;
+  branch: string;
+  head: Sha;
+  units: ComposeUnit[];
+  /** `commit.gpgSign` is on: one passphrase prompt per commit is possible. */
+  signing: boolean;
+}
+
+/** A commit of a proposal or a plan. */
+export interface ComposeGroup {
+  title: string;
+  body: string;
+  /** Unit IDs. */
+  units: string[];
+}
+
+export interface ComposeProposal {
+  state: ComposeState;
+  /** In creation order; units in no group stay uncommitted. */
+  groups: ComposeGroup[];
+}
+
+export interface ComposePlan {
+  /** In creation order – the first is the oldest. */
+  commits: ComposeGroup[];
+  skipHooks: boolean;
+}
+
+export interface ComposeResult {
+  /** The new commits, oldest first. */
+  commits: Sha[];
+  hooks: HookOutput[];
+}
+
 // ---------------------------------------------------------------------------
 // Results of write actions
 // ---------------------------------------------------------------------------
@@ -1035,7 +1090,7 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "compose" };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {

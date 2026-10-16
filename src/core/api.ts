@@ -38,6 +38,10 @@ import type {
   CommitDraft,
   CommitResult,
   CommitSummary,
+  ComposePlan,
+  ComposeProposal,
+  ComposeResult,
+  ComposeState,
   CommitSearchFilters,
   ConflictFile,
   ConflictPreview,
@@ -290,6 +294,20 @@ export interface CoreCommands {
    * message was edited – if HEAD has become a different one in the meantime, `stale_state` comes back.
    */
   commitReword(input: R & { summary: string; description: string; sha: Sha | null }): Promise<CommitResult>;
+  /** "Compose commits" (v1.2): every change since HEAD as units (hunks, whole files). Reads only, no AI. */
+  composeUnits(input: R): Promise<ComposeState>;
+  /**
+   * The AI provider's grouping of the units, as job `jobId` (`jobCancel` → `cancelled`). Show and
+   * confirm `aiPreview({ input: { kind: "compose" } })` first – the core refuses an unconfirmed text.
+   */
+  composeProposal(input: R & { jobId: string; locale: string }): Promise<ComposeProposal>;
+  /**
+   * Creates the planned commits under ONE undo entry, hooks and signing per commit, the working
+   * directory untouched. `expectToken` from the units shown (otherwise `stale_state`). Job `jobId`:
+   * `job:progress` phase "compose", line "<n>/<total>"; cancellable between commits. Any failure takes
+   * every commit of the run back.
+   */
+  composeApply(input: R & { jobId: string; plan: ComposePlan; expectToken: string }): Promise<ComposeResult>;
   draftGet(input: R): Promise<CommitDraft>;
   draftSet(input: R & { draft: CommitDraft }): Promise<void>;
   /** Pattern into the .gitignore in the root directory; optionally `git rm --cached`. */

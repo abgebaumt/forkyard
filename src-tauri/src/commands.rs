@@ -288,6 +288,21 @@ pub async fn commit_reword(core: State<'_, Core>, repo_id: String, summary: Stri
 }
 
 #[tauri::command]
+pub async fn compose_units(core: State<'_, Core>, repo_id: String) -> R<ComposeState> {
+    c::compose::compose_units(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn compose_proposal(core: State<'_, Core>, repo_id: String, job_id: String, locale: String) -> R<ComposeProposal> {
+    c::compose::compose_proposal(&core, repo_id, job_id, locale).await
+}
+
+#[tauri::command]
+pub async fn compose_apply(core: State<'_, Core>, repo_id: String, job_id: String, plan: ComposePlan, expect_token: String) -> R<ComposeResult> {
+    c::compose::compose_apply(&core, repo_id, job_id, plan, expect_token).await
+}
+
+#[tauri::command]
 pub async fn draft_get(core: State<'_, Core>, repo_id: String) -> R<CommitDraft> {
     c::view::draft_get(&core, repo_id).await
 }
