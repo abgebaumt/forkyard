@@ -357,11 +357,11 @@ fn read_template(path: &Path) -> Option<String> {
     Some(util::decode_text(&bytes).0)
 }
 
-/// Looks for a template in a folder (case-insensitive).
-fn template_in(dir: &Path) -> Option<String> {
+/// Looks for a template in a folder (case-insensitive); returns its file and text.
+fn template_in(dir: &Path) -> Option<(std::path::PathBuf, String)> {
     let mut entries: Vec<(String, std::path::PathBuf)> = std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path())).collect();
     entries.sort();
-    if let Some(found) = entries.iter().filter(|(name, _)| TEMPLATE_FILES.contains(&name.as_str())).find_map(|(_, path)| read_template(path)) {
+    if let Some(found) = entries.iter().filter(|(name, _)| TEMPLATE_FILES.contains(&name.as_str())).find_map(|(_, path)| read_template(path).map(|text| (path.clone(), text))) {
         return Some(found);
     }
     for (_, folder) in entries.iter().filter(|(name, path)| TEMPLATE_DIRS.contains(&name.as_str()) && path.is_dir()) {
@@ -369,11 +369,27 @@ fn template_in(dir: &Path) -> Option<String> {
             std::fs::read_dir(folder).ok()?.filter_map(|e| e.ok()).map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path())).filter(|(name, _)| name.ends_with(".md")).collect();
         // "Default.md" first (that is how GitLab picks), otherwise by name.
         files.sort_by_key(|(name, _)| (name != "default.md", name.clone()));
-        if let Some(found) = files.iter().find_map(|(_, path)| read_template(path)) {
+        if let Some(found) = files.iter().find_map(|(_, path)| read_template(path).map(|text| (path.clone(), text))) {
             return Some(found);
         }
     }
     None
+}
+
+/// Like `pr_template`, with the template's path relative to the repository root (`/` as
+/// separator) – for the AI context, whose exclusion rules work on paths (Paket 4).
+pub(crate) async fn find_pr_template(core: &Core, repo_id: &str) -> CoreResult<Option<(String, String)>> {
+    let root = core.repo_path(repo_id)?;
+    let folders = host::template_folders();
+    let base = root.clone();
+    let found = tokio::task::spawn_blocking(move || folders.iter().find_map(|folder| template_in(&root.join(folder))))
+        .await
+        .map_err(|e| CoreError::unknown(format!("The search for the template was aborted: {e}")))?;
+    Ok(found.map(|(path, text)| {
+        let relative = path.strip_prefix(&base).unwrap_or(&path);
+        let parts: Vec<String> = relative.components().map(|part| part.as_os_str().to_string_lossy().into_owned()).collect();
+        (parts.join("/"), text)
+    }))
 }
 
 /// Text of the pull request template from the working directory, if the repository
@@ -382,10 +398,7 @@ fn template_in(dir: &Path) -> Option<String> {
 /// `pull_request_template.md` or a folder of templates (`PULL_REQUEST_TEMPLATE/`,
 /// `merge_request_templates/`; from it `Default.md`, otherwise the first). No network call.
 pub async fn pr_template(core: &Core, repo_id: String) -> CoreResult<Option<String>> {
-    let root = core.repo_path(&repo_id)?;
-    let folders = host::template_folders();
-    let found = tokio::task::spawn_blocking(move || folders.iter().find_map(|folder| template_in(&root.join(folder)))).await;
-    found.map_err(|e| CoreError::unknown(format!("The search for the template was aborted: {e}")))
+    Ok(find_pr_template(core, &repo_id).await?.map(|(_, text)| text))
 }
 
 // ---------------------------------------------------------------------------

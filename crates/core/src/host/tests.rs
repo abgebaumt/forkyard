@@ -263,6 +263,25 @@ async fn pr_template_is_found_in_the_usual_places() {
     assert_eq!(cmd::pr_template(&tc, "unbekannt".into()).await.unwrap_err().code, ErrorCode::NotFound);
 }
 
+#[tokio::test]
+async fn the_template_is_found_with_its_path() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    assert_eq!(cmd::find_pr_template(&tc, &id).await.unwrap(), None);
+    repo.write_file(".gitlab/merge_request_templates/Default.md", "## Was ändert sich?\n");
+    assert_eq!(
+        cmd::find_pr_template(&tc, &id).await.unwrap(),
+        Some((".gitlab/merge_request_templates/Default.md".to_string(), "## Was ändert sich?\n".to_string()))
+    );
+    // The actual spelling of the name, `/` as separator on every system.
+    repo.write_file(".github/PULL_REQUEST_TEMPLATE.md", "## Änderung\n");
+    repo.write_file("docs/pull_request_template.md", "Docs\n");
+    assert_eq!(cmd::find_pr_template(&tc, &id).await.unwrap(), Some((".github/PULL_REQUEST_TEMPLATE.md".to_string(), "## Änderung\n".to_string())));
+    assert_eq!(cmd::pr_template(&tc, id.clone()).await.unwrap().as_deref(), Some("## Änderung\n"), "pr_template answers as before");
+    assert_eq!(cmd::find_pr_template(&tc, "unbekannt").await.unwrap_err().code, ErrorCode::NotFound);
+}
+
 #[test]
 fn every_kind_has_exactly_its_host_with_its_capabilities() {
     use crate::host::host;
