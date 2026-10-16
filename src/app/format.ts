@@ -70,8 +70,8 @@ export function countLabel(count: number, one: string, many: string): string {
   return `${count.toLocaleString(locale())} ${plural.select(count) === "one" ? one : many}`;
 }
 
-/** Human-readable bytes: "12,4 KB" or "12.4 KB". */
-export function formatBytes(bytes: number): string {
+/** Human-readable bytes: "12,4 KB" or "12.4 KB" (UI language; `loc` lets tests pick one). */
+export function formatBytes(bytes: number, loc: string = locale()): string {
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
   let value = bytes / 1024;
@@ -80,5 +80,5 @@ export function formatBytes(bytes: number): string {
     value /= 1024;
     unit++;
   }
-  return `${value.toLocaleString(locale(), { maximumFractionDigits: 1 })} ${units[unit]}`;
+  return `${value.toLocaleString(loc, { maximumFractionDigits: 1 })} ${units[unit]}`;
 }
