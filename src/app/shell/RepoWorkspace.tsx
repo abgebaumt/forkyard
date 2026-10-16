@@ -5,6 +5,7 @@ import { Button, IconButton } from "../../ui/Button";
 import { Cockpit } from "../../screens/Agents/Cockpit";
 import { AgentDetailsPanel } from "../../screens/Agents/DetailsPanel";
 import { BlameView } from "../../screens/Blame";
+import { AgentReviewView } from "../../screens/AgentReview";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
 import { CommitSearch } from "../../screens/CommitSearch";
@@ -62,6 +63,8 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       return <PullRequestView {...props} number={center.number} />;
     case "issues":
       return <IssuesView {...props} number={center.number} />;
+    case "agent_review":
+      return <AgentReviewView {...props} agentIds={center.agentIds} show={center.show} />;
     case "stats":
       return <StatsView {...props} />;
     case "cockpit":
