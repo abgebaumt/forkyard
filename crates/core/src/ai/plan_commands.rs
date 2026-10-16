@@ -5,11 +5,13 @@
 //! `gc`/`prune`, force push without lease) has no entry and therefore cannot be in a plan;
 //! extending the list is work per command.
 
+use serde::de::DeserializeOwned;
 use serde_json::{json, Map, Value};
 
 use crate::ai::schema;
+use crate::error::{CoreError, CoreResult};
 use crate::model::PlanArgKind::{Boolean, Choice, List, OptionalChoice, OptionalText, Text};
-use crate::model::{PlanArgField, PlanArgKind, PlanClass, PlanCommand};
+use crate::model::{MergeMode, PlanArgField, PlanArgKind, PlanClass, PlanCommand, PullMode, ResetMode};
 use crate::undo;
 
 /// One argument of a command.
@@ -234,6 +236,80 @@ pub fn destructive(command: PlanCommand, args: &Map<String, Value>) -> bool {
         PlanCommand::BranchDelete => true,
         PlanCommand::ResetBranch => args.get("resetMode").and_then(Value::as_str) == Some("hard"),
         _ => false,
+    }
+}
+
+/// Typed access to the projected arguments of a step (`project` has checked the types).
+pub struct Args<'a> {
+    map: &'a Map<String, Value>,
+}
+
+impl<'a> Args<'a> {
+    pub fn new(map: &'a Map<String, Value>) -> Self {
+        Args { map }
+    }
+
+    pub fn text(&self, name: &str) -> String {
+        self.map.get(name).and_then(Value::as_str).unwrap_or_default().to_string()
+    }
+
+    /// Trimmed; empty or `null` → `None`.
+    pub fn opt(&self, name: &str) -> Option<String> {
+        self.map.get(name).and_then(Value::as_str).map(str::trim).filter(|text| !text.is_empty()).map(str::to_string)
+    }
+
+    pub fn flag(&self, name: &str) -> bool {
+        self.map.get(name).and_then(Value::as_bool).unwrap_or(false)
+    }
+
+    /// Trimmed entries, empty ones dropped.
+    pub fn list(&self, name: &str) -> Vec<String> {
+        self.map
+            .get(name)
+            .and_then(Value::as_array)
+            .map(|items| items.iter().filter_map(Value::as_str).map(str::trim).filter(|text| !text.is_empty()).map(str::to_string).collect())
+            .unwrap_or_default()
+    }
+
+    /// A mode in its wire name (`ResetMode`, `MergeMode`, `Option<PullMode>` …).
+    pub fn choice<T: DeserializeOwned>(&self, name: &str) -> CoreResult<T> {
+        serde_json::from_value(self.map.get(name).cloned().unwrap_or(Value::Null))
+            .map_err(|_| CoreError::not_allowed(format!("“{name}” has a value the command does not know.")))
+    }
+}
+
+/// A checked step, ready to run: names and SHAs as the check resolved them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PlanAction {
+    /// `start`: a SHA, or the name of a branch an earlier step moves.
+    BranchCreate { name: String, start: String, checkout: bool },
+    BranchCheckout { target: String },
+    BranchRename { name: String, new_name: String },
+    BranchDelete { name: String, force: bool },
+    ResetBranch { sha: String, mode: ResetMode },
+    RebaseStart { onto: String, branch: Option<String> },
+    CherryPick { shas: Vec<String> },
+    RevertCommit { sha: String },
+    MergeStart { source: String, mode: MergeMode },
+    /// `paths` normalised by `normalize_rel_path`; empty = every change.
+    StashCreate { message: Option<String>, include_untracked: bool, paths: Vec<String> },
+    /// `sha: None` = HEAD at the moment the step runs.
+    TagCreate { name: String, sha: Option<String>, message: Option<String> },
+    CommitReword { sha: Option<String>, summary: String, description: String },
+    Fetch { remote: Option<String>, prune: bool },
+    Pull { mode: Option<PullMode> },
+    /// `remote: None` = the branch's upstream; `expected` = the lease of a force push.
+    Push { branch: String, remote: Option<String>, force: bool, expected: Option<String> },
+    BranchDeleteRemote { remote: String, name: String },
+    TagPush { name: String, remote: String },
+}
+
+impl PlanAction {
+    pub fn class(&self) -> PlanClass {
+        match self {
+            PlanAction::Push { .. } | PlanAction::BranchDeleteRemote { .. } | PlanAction::TagPush { .. } => PlanClass::Outward,
+            _ => PlanClass::Local,
+        }
     }
 }
 
