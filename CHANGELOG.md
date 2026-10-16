@@ -71,6 +71,14 @@ All notable changes to Forkyard are listed here. The format follows
   commits mention on GitHub, GitLab and Gitea/Forgejo become “Closes #n”; the AI cannot add any
   others. A description you wrote is never replaced unasked, the title only while it is still the
   automatic suggestion, and Ctrl+Z takes an insertion back. “What is sent?” shows the exact text first.
+- Compose commits: “Compose …” in the Commit Panel (or “Compose commits …” in the command palette)
+  opens a view in the centre that splits all local changes – staged, unstaged and new files – into
+  several commits. The AI provider suggests the grouping and the messages; every hunk can be moved by
+  keyboard (Alt+↑/↓, 1–9, 0 for “Don't commit”, Ctrl+↑/↓ to reorder commits, F2 for the message) or by
+  dragging. New, deleted, renamed, binary, LFS and submodule files move as a whole. “Create n commits”
+  runs hooks and signing for every commit, never touches the working directory and creates one undo
+  step for all commits; a failing hook, a hook that edits files or Cancel takes every commit of the run
+  back. Changes that are not assigned stay as they are.
 
 ### Changed
 
