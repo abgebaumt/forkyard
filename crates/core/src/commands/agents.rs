@@ -7,6 +7,7 @@ pub mod checks;
 pub mod cleanup;
 pub mod cmdline;
 pub mod machine;
+pub mod collision;
 pub mod names;
 pub mod registry;
 pub mod templates;
