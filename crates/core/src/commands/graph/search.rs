@@ -8,9 +8,10 @@ use parking_lot::Mutex;
 
 use super::{display_text, is_full_sha, parse_i64, read_cmd, resolve_commit_at, split_shas, Records, LOG_SAFE};
 use crate::app::Core;
-use crate::error::CoreResult;
+use crate::commands::history::normalize_rel_path;
+use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
-use crate::model::{CommitSummary, Person};
+use crate::model::{CommitSearchFilters, CommitSummary, Person};
 use crate::util;
 
 /// A search never returns more hits than this.
@@ -21,6 +22,65 @@ pub const MIN_SHA_PREFIX: usize = 4;
 const MAX_QUERY_CHARS: usize = 500;
 /// At most this many objects with a matching prefix are looked at.
 const MAX_SHA_CANDIDATES: usize = 200;
+
+/// At most this many paths narrow one search.
+pub const MAX_SEARCH_PATHS: usize = 100;
+
+/// The checked narrowing of a search: extra `git log` options and literal paths after `--`.
+#[derive(Debug, Default)]
+struct Narrowing {
+    args: Vec<String>,
+    paths: Vec<String>,
+}
+
+impl Narrowing {
+    fn is_empty(&self) -> bool {
+        self.args.is_empty() && self.paths.is_empty()
+    }
+}
+
+/// `YYYY-MM-DD`, optionally with `THH:MM[:SS]` and `Z` or an offset – nothing Git's free-form date
+/// parser could read differently from what was typed.
+fn is_search_date(value: &str) -> bool {
+    regex::Regex::new(r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$").is_ok_and(|pattern| pattern.is_match(value))
+}
+
+/// `--since=`/`--until=` for a checked date; a bare date covers the whole day (local time, as Git reads it).
+fn date_arg(option: &str, value: &str, end_of_day: bool) -> CoreResult<String> {
+    if !is_search_date(value) {
+        return Err(CoreError::not_allowed(format!("“{value}” is not a date. Use YYYY-MM-DD or an ISO date with a time, e.g. 2026-01-31T18:00:00Z.")));
+    }
+    let value = match (value.len() == 10, end_of_day) {
+        (true, false) => format!("{value} 00:00:00"),
+        (true, true) => format!("{value} 23:59:59"),
+        (false, _) => value.to_string(),
+    };
+    Ok(format!("{option}={value}"))
+}
+
+fn narrowing(filters: Option<&CommitSearchFilters>) -> CoreResult<Narrowing> {
+    let mut out = Narrowing::default();
+    let Some(filters) = filters else { return Ok(out) };
+    if let Some(text) = filters.pickaxe.as_deref().map(clean_query).filter(|text| !text.is_empty()) {
+        out.args.push(format!("-S{text}"));
+    }
+    if let Some(since) = filters.since.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        out.args.push(date_arg("--since", since, false)?);
+    }
+    if let Some(until) = filters.until.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        out.args.push(date_arg("--until", until, true)?);
+    }
+    for path in filters.paths.iter().flatten() {
+        let rel = normalize_rel_path(path)?;
+        if !out.paths.contains(&rel) {
+            out.paths.push(rel);
+        }
+        if out.paths.len() > MAX_SEARCH_PATHS {
+            return Err(CoreError::not_allowed(format!("At most {MAX_SEARCH_PATHS} paths can narrow a search.")));
+        }
+    }
+    Ok(out)
+}
 
 const SEARCH_FORMAT: &str = "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%ct%x00%s";
 const SEARCH_FIELDS: usize = 7;
@@ -89,10 +149,18 @@ fn clean_query(query: &str) -> String {
     line.trim().to_string()
 }
 
-pub(super) async fn commit_search(core: &Core, repo_id: &str, query: &str, limit: u32, search_id: Option<&str>) -> CoreResult<Vec<CommitSummary>> {
+pub(super) async fn commit_search(
+    core: &Core,
+    repo_id: &str,
+    query: &str,
+    limit: u32,
+    search_id: Option<&str>,
+    filters: Option<&CommitSearchFilters>,
+) -> CoreResult<Vec<CommitSummary>> {
     let path = core.repo_path(repo_id)?;
     let query = clean_query(query);
-    if query.is_empty() {
+    let narrowing = narrowing(filters)?;
+    if query.is_empty() && narrowing.is_empty() {
         return Ok(Vec::new());
     }
     let limit = limit.clamp(1, MAX_SEARCH_RESULTS) as usize;
@@ -100,20 +168,33 @@ pub(super) async fn commit_search(core: &Core, repo_id: &str, query: &str, limit
     let state = core.state::<SearchState>();
     let key = SearchState::key(repo_id, search_id.map(str::trim).filter(|id| !id.is_empty()));
     let (generation, token) = state.begin(&key);
-    let result = search(core, &path, repo_id, &query, limit, &token).await;
+    let result = search(core, &path, repo_id, &query, &narrowing, limit, &token).await;
     state.end(&key, generation);
     result
 }
 
-async fn search(core: &Core, path: &Path, repo_id: &str, query: &str, limit: usize, token: &CancelToken) -> CoreResult<Vec<CommitSummary>> {
-    let (by_message, by_author, by_sha) = tokio::join!(
-        log_search(core, path, repo_id, format!("--grep={query}"), limit, token),
-        log_search(core, path, repo_id, format!("--author={query}"), limit, token),
-        sha_search(core, path, repo_id, query, token),
-    );
-    let mut hits = by_sha?;
-    hits.extend(by_message?);
-    hits.extend(by_author?);
+async fn search(core: &Core, path: &Path, repo_id: &str, query: &str, narrowing: &Narrowing, limit: usize, token: &CancelToken) -> CoreResult<Vec<CommitSummary>> {
+    let mut hits = if query.is_empty() {
+        // Only the narrowing: one `git log` with it.
+        log_search(core, path, repo_id, None, narrowing, limit, token).await?
+    } else {
+        let (by_message, by_author, by_sha) = tokio::join!(
+            log_search(core, path, repo_id, Some(format!("--grep={query}")), narrowing, limit, token),
+            log_search(core, path, repo_id, Some(format!("--author={query}")), narrowing, limit, token),
+            async {
+                // A SHA is an exact address: a time window or path does not narrow it.
+                if narrowing.is_empty() {
+                    sha_search(core, path, repo_id, query, token).await
+                } else {
+                    Ok(Vec::new())
+                }
+            },
+        );
+        let mut hits = by_sha?;
+        hits.extend(by_message?);
+        hits.extend(by_author?);
+        hits
+    };
     let mut seen = HashSet::new();
     hits.retain(|h| seen.insert(h.commit.sha.clone()));
     // Newest first; for equal times Git's order is kept.
@@ -122,8 +203,8 @@ async fn search(core: &Core, path: &Path, repo_id: &str, query: &str, limit: usi
     Ok(hits.into_iter().map(|h| h.commit).collect())
 }
 
-/// `git log` with a filter (`--grep=…` or `--author=…`): as fixed text, case-insensitive.
-async fn log_search(core: &Core, path: &Path, repo_id: &str, filter: String, limit: usize, token: &CancelToken) -> CoreResult<Vec<Hit>> {
+/// `git log` with an optional text filter (`--grep=…` or `--author=…`: fixed text, ignoring case) and the narrowing options.
+async fn log_search(core: &Core, path: &Path, repo_id: &str, filter: Option<String>, narrowing: &Narrowing, limit: usize, token: &CancelToken) -> CoreResult<Vec<Hit>> {
     let run = |refs: Vec<String>| async {
         let mut hits = Vec::new();
         let mut records = Records::new(SEARCH_FIELDS);
@@ -134,13 +215,17 @@ async fn log_search(core: &Core, path: &Path, repo_id: &str, filter: String, lim
             true
         };
         read_cmd(core, path, repo_id)
+            // Paths are meant literally, even with `*` or `[`.
+            .env("GIT_LITERAL_PATHSPECS", "1")
             .arg("log")
             .args(LOG_SAFE)
             .args(["-z", SEARCH_FORMAT, "--fixed-strings", "--regexp-ignore-case"])
-            .arg(&filter)
+            .args(filter.iter())
+            .args(&narrowing.args)
             .arg(format!("--max-count={limit}"))
             .args(refs)
             .arg("--")
+            .args(&narrowing.paths)
             .run_records(0, Some(token), &mut on_field)
             .await?;
         Ok::<_, crate::error::CoreError>(hits)

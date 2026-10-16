@@ -16,6 +16,7 @@ import type { CommitSummary, Id } from "../../core";
 import { describeError, toCoreError } from "../../app/errors";
 import { formatDate, formatDateTime, shortSha } from "../../app/format";
 import { useCommitSearch, useSettings } from "../../app/queries";
+import { parseSearchQuery } from "../../app/searchFilters";
 import { useAppStore, useTabView } from "../../app/store";
 import { Button, IconButton, Spinner } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -64,6 +65,8 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
   const [text, setText] = useState(view.search.query);
   const query = useDebounced(text.trim(), DEBOUNCE_MS);
   const search = useCommitSearch(repoId, query, SEARCH_LIMIT + 1);
+  /** What is highlighted: the search text without the filters. */
+  const needle = parseSearchQuery(query).query;
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const listId = useId();
@@ -233,6 +236,7 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
       {!text.trim() ? (
         <p data-testid="search-hint" className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pb-1.5 text-sm text-text-muted">
           <span>{t("commitSearch.hint")}</span>
+          <span>{t("commitSearch.filtersHint")}</span>
           <span className="hidden items-center gap-1 @2xl:inline-flex">
             <Trans i18nKey="commitSearch.keys" components={{ enter: <Kbd>Enter</Kbd>, shift: <Kbd>Shift+Enter</Kbd>, esc: <Kbd>Esc</Kbd> }} />
           </span>
@@ -281,7 +285,7 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
             {hits.map((hit, index) => {
               const isCursor = index === cursor;
               const isActive = index === active;
-              const shaLength = shaMatchLength(hit.sha, query);
+              const shaLength = shaMatchLength(hit.sha, needle);
               const short = shortSha(hit.sha);
               return (
                 <div
@@ -302,10 +306,10 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
                     {isActive ? <span className="sr-only">{t("commitSearch.current")}</span> : null}
                   </span>
                   <span className={cn("min-w-0 flex-1 truncate", isActive && "font-medium")}>
-                    <Marked text={hit.summary || t("commitSearch.noMessage")} needle={query} />
+                    <Marked text={hit.summary || t("commitSearch.noMessage")} needle={needle} />
                   </span>
                   <span className="hidden w-36 shrink-0 truncate text-sm text-text-muted @xl:block">
-                    <Marked text={hit.author.name} needle={query} />
+                    <Marked text={hit.author.name} needle={needle} />
                   </span>
                   <span className="hidden w-28 shrink-0 truncate text-right text-sm text-text-muted @md:block">{formatDate(hit.authoredAt, dateFormat)}</span>
                   <code className="w-14 shrink-0 font-mono text-code text-text-muted">

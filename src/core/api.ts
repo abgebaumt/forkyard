@@ -27,6 +27,7 @@ import type {
   CommitDraft,
   CommitResult,
   CommitSummary,
+  CommitSearchFilters,
   ConflictFile,
   ConflictPreview,
   CoreEvents,
@@ -212,7 +213,8 @@ export interface CoreCommands {
    * searches with different IDs (e.g. "palette", "searchbar") run side by side.
    * Without `searchId` all callers share a common one.
    */
-  commitSearch(input: R & { query: string; limit: number; searchId?: string | null }): Promise<CommitSummary[]>;
+  /** `filters` narrow the search (code, time window, paths); with filters a SHA prefix is not searched as such. */
+  commitSearch(input: R & { query: string; limit: number; searchId?: string | null; filters?: CommitSearchFilters | null }): Promise<CommitSummary[]>;
   /** All files of a commit (`sha: null` = working directory), optionally filtered. */
   treeList(input: R & { sha: Sha | null; filter: string | null }): Promise<string[]>;
   viewStateGet(input: R): Promise<RepoViewState>;

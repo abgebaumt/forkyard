@@ -13,6 +13,7 @@
   "next": "Next match",
   "close": "Close search",
   "hint": "Searches message, author and SHA (from 4 characters) of all branches and tags – including beyond the loaded rows.",
+  "filtersHint": "Narrow it with code:text (added or removed code), path:src/app, since:2026-01-01 or until:2026-06-30.",
   "keys": "<enter>Enter</enter> next <shift>Shift+Enter</shift> previous <esc>Esc</esc> close",
   "failed": "The search failed",
   "retry": "Try again",

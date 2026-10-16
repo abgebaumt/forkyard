@@ -507,6 +507,18 @@ export interface CommitSummary {
   parents: Sha[];
 }
 
+/** Narrowing for `commitSearch`; every field is optional. */
+export interface CommitSearchFilters {
+  /** Commits that add or remove this text in a file (`git log -S`, ignoring case). */
+  pickaxe?: string | null;
+  /** Committed at or after: `YYYY-MM-DD` (start of that day, local time) or ISO-8601 with time. */
+  since?: string | null;
+  /** Committed at or before: `YYYY-MM-DD` (end of that day, local time) or ISO-8601 with time. */
+  until?: string | null;
+  /** Only commits touching these paths (files or folders, relative to the repository, literal). */
+  paths?: string[] | null;
+}
+
 // ---------------------------------------------------------------------------
 // Status and running operations
 // ---------------------------------------------------------------------------

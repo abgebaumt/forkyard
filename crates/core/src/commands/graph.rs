@@ -15,6 +15,8 @@ mod page;
 mod search;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod search_filter_tests;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -22,12 +24,12 @@ use std::path::Path;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
-use crate::model::{CommitDetails, CommitSummary, DiffSource, GraphPage, RefKind, RefLabelInfo};
+use crate::model::{CommitDetails, CommitSearchFilters, CommitSummary, DiffSource, GraphPage, RefKind, RefLabelInfo};
 use crate::util;
 
 pub use details::parse_co_authors;
 pub use page::{MAX_PAGE_SIZE, STASH_REF, WIP_ID};
-pub use search::{MAX_SEARCH_RESULTS, MIN_SHA_PREFIX};
+pub use search::{MAX_SEARCH_PATHS, MAX_SEARCH_RESULTS, MIN_SHA_PREFIX};
 
 /// One page of the graph with a finished lane layout; first page with `cursor: None` (with WIP and stash rows).
 pub async fn graph_page(core: &Core, repo_id: String, cursor: Option<String>, limit: u32) -> CoreResult<GraphPage> {
@@ -39,11 +41,19 @@ pub async fn commit_details(core: &Core, repo_id: String, source: DiffSource) ->
     details::commit_details(core, &repo_id, source).await
 }
 
-/// Search in message, SHA and author across the whole history. A new search cancels the one
-/// still running with the same `search_id` in the same repository (`cancelled`); searches with
-/// different IDs run side by side. Without a `search_id` all callers share one.
-pub async fn commit_search(core: &Core, repo_id: String, query: String, limit: u32, search_id: Option<String>) -> CoreResult<Vec<CommitSummary>> {
-    search::commit_search(core, &repo_id, &query, limit, search_id.as_deref()).await
+/// Search in message, SHA and author across the whole history, optionally narrowed by `filters`
+/// (code, time window, paths). A new search cancels the one still running with the same `search_id`
+/// in the same repository (`cancelled`); searches with different IDs run side by side. Without a
+/// `search_id` all callers share one.
+pub async fn commit_search(
+    core: &Core,
+    repo_id: String,
+    query: String,
+    limit: u32,
+    search_id: Option<String>,
+    filters: Option<CommitSearchFilters>,
+) -> CoreResult<Vec<CommitSummary>> {
+    search::commit_search(core, &repo_id, &query, limit, search_id.as_deref(), filters.as_ref()).await
 }
 
 /// All files of a commit (`sha: None` = working directory), optionally filtered.

@@ -546,6 +546,20 @@ pub struct CommitSummary {
     pub parents: Vec<Sha>,
 }
 
+/// Narrowing for `commit_search`; every field is optional.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CommitSearchFilters {
+    /// Commits that add or remove this text in a file (`git log -S`, ignoring case).
+    pub pickaxe: Option<String>,
+    /// Committed at or after: `YYYY-MM-DD` (start of that day, local time) or ISO-8601 with time.
+    pub since: Option<String>,
+    /// Committed at or before: `YYYY-MM-DD` (end of that day, local time) or ISO-8601 with time.
+    pub until: Option<String>,
+    /// Only commits that touch these paths (files or folders, relative to the repository, literal).
+    pub paths: Option<Vec<String>>,
+}
+
 // ---------------------------------------------------------------------------
 // Status and running operations
 // ---------------------------------------------------------------------------

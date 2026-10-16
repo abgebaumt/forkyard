@@ -198,8 +198,8 @@ pub async fn commit_details(core: State<'_, Core>, repo_id: String, source: Diff
 }
 
 #[tauri::command]
-pub async fn commit_search(core: State<'_, Core>, repo_id: String, query: String, limit: u32, search_id: Option<String>) -> R<Vec<CommitSummary>> {
-    c::graph::commit_search(&core, repo_id, query, limit, search_id).await
+pub async fn commit_search(core: State<'_, Core>, repo_id: String, query: String, limit: u32, search_id: Option<String>, filters: Option<CommitSearchFilters>) -> R<Vec<CommitSummary>> {
+    c::graph::commit_search(&core, repo_id, query, limit, search_id, filters).await
 }
 
 #[tauri::command]

@@ -559,7 +559,7 @@ async fn shallow_clone_ends_cleanly_at_the_boundary() {
     // The missing parent of the boundary commit leaves no open line.
     check_rows(&rows, true).unwrap();
     assert!(rows[1].edges.iter().all(|e| e.bottom.is_none()));
-    let found = commit_search(&tc, id.clone(), "Commit".into(), 50, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "Commit".into(), 50, None, None).await.unwrap();
     assert_eq!(found.len(), 2);
     let d = details_of(&tc, &id, &rows[1].id).await;
     assert!(d.commit.is_some());
@@ -589,7 +589,7 @@ async fn works_during_a_conflict_and_beside_a_foreign_index_lock() {
     assert_eq!(d.files.len(), 1);
     assert_eq!((d.files[0].status, d.files[0].path.as_str()), (FileStatus::Conflicted, "README.md"));
     assert!(d.commit.is_none());
-    assert!(!commit_search(&tc, id.clone(), "Feature".into(), 10, None).await.unwrap().is_empty());
+    assert!(!commit_search(&tc, id.clone(), "Feature".into(), 10, None, None).await.unwrap().is_empty());
     assert!(tree_list(&tc, id.clone(), None, None).await.unwrap().contains(&"README.md".to_string()));
     assert!(details_of(&tc, &id, &head).await.commit.is_some());
     // The foreign lock stays untouched.
@@ -622,7 +622,7 @@ async fn user_config_does_not_change_the_parsing() {
     let d = details_of(&tc, &id, &umlaut).await;
     assert_eq!(d.commit.unwrap().summary, "Größe: äöü ß €");
     assert_eq!(details_of(&tc, &id, &latin).await.commit.unwrap().summary, "Größe ändern: äöü ß");
-    let found = commit_search(&tc, id.clone(), "Größe".into(), 10, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "Größe".into(), 10, None, None).await.unwrap();
     assert_eq!(found.iter().map(|c| c.summary.as_str()).collect::<Vec<_>>(), vec!["Größe: äöü ß €", "Größe ändern: äöü ß"]);
 }
 
@@ -630,7 +630,7 @@ async fn user_config_does_not_change_the_parsing() {
 async fn unknown_repo_and_missing_folder() {
     let tc = TestCore::new().await;
     assert_eq!(graph_page(&tc, "unbekannt".into(), None, 10).await.unwrap_err().code, ErrorCode::NotFound);
-    assert_eq!(commit_search(&tc, "unbekannt".into(), "x".into(), 10, None).await.unwrap_err().code, ErrorCode::NotFound);
+    assert_eq!(commit_search(&tc, "unbekannt".into(), "x".into(), 10, None, None).await.unwrap_err().code, ErrorCode::NotFound);
     assert_eq!(tree_list(&tc, "unbekannt".into(), None, None).await.unwrap_err().code, ErrorCode::NotFound);
     let err = commit_details(&tc, "unbekannt".into(), DiffSource::Unstaged).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NotFound);
@@ -642,7 +642,7 @@ async fn unknown_repo_and_missing_folder() {
     // The folder is no longer a repository (.git missing): that is reported, not "commit not found".
     std::fs::rename(repo.path().join(".git"), repo.temp_dir().join("git-weg")).unwrap();
     assert_eq!(graph_page(&tc, id.clone(), None, 10).await.unwrap_err().code, ErrorCode::NotARepo);
-    assert_eq!(commit_search(&tc, id.clone(), "Erster".into(), 10, None).await.unwrap_err().code, ErrorCode::NotARepo);
+    assert_eq!(commit_search(&tc, id.clone(), "Erster".into(), 10, None, None).await.unwrap_err().code, ErrorCode::NotARepo);
     assert_eq!(tree_list(&tc, id.clone(), None, None).await.unwrap_err().code, ErrorCode::NotARepo);
     assert_eq!(tree_list(&tc, id.clone(), Some("HEAD".into()), None).await.unwrap_err().code, ErrorCode::NotARepo);
     for source in [DiffSource::Commit { sha: head.clone() }, DiffSource::Commit { sha: "HEAD".into() }, DiffSource::Staged, DiffSource::Range { from: head.clone(), to: None }] {
@@ -685,10 +685,10 @@ async fn old_commits_in_other_encodings_are_readable() {
     assert_eq!(find(&rows, &undeclared).author_name, "Jörg Weiß");
     let c = details_of(&tc, &id, &undeclared).await.commit.unwrap();
     assert_eq!((c.author.name.as_str(), c.author_offset_minutes), ("Jörg Weiß", 120));
-    let found = commit_search(&tc, id.clone(), "joerg@example.com".into(), 10, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "joerg@example.com".into(), 10, None, None).await.unwrap();
     assert_eq!(found.iter().map(|c| (c.summary.as_str(), c.author.name.as_str())).collect::<Vec<_>>(), vec![("Grüße aus München", "Jörg Weiß")]);
     // The search only reliably finds what Git can re-encode to UTF-8.
-    let found = commit_search(&tc, id.clone(), "München".into(), 10, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "München".into(), 10, None, None).await.unwrap();
     assert!(found.iter().any(|c| c.sha == declared));
     assert!(found.iter().all(|c| c.summary == "Grüße aus München"));
 }
@@ -1130,7 +1130,7 @@ async fn search_covers_message_author_and_sha_over_all_refs() {
     repo.checkout("main");
     let id = tc.open(&repo).await.repo.id;
     tc.events.clear();
-    let search = |q: &str, limit: u32| commit_search(&tc, id.clone(), q.to_string(), limit, None);
+    let search = |q: &str, limit: u32| commit_search(&tc, id.clone(), q.to_string(), limit, None, None);
     let shas = |found: &[CommitSummary]| found.iter().map(|c| c.sha.clone()).collect::<Vec<_>>();
 
     // Message: case-insensitive, also in the body below the first line; newest first.
@@ -1185,12 +1185,12 @@ async fn search_ignores_objects_the_graph_cannot_show() {
     let id = tc.open(&repo).await.repo.id;
 
     // The commit still exists in the object store but hangs off no ref.
-    assert!(commit_search(&tc, id.clone(), dropped[..10].to_string(), 10, None).await.unwrap().is_empty());
-    assert!(commit_search(&tc, id.clone(), "Verworfener".into(), 10, None).await.unwrap().is_empty());
+    assert!(commit_search(&tc, id.clone(), dropped[..10].to_string(), 10, None, None).await.unwrap().is_empty());
+    assert!(commit_search(&tc, id.clone(), "Verworfener".into(), 10, None, None).await.unwrap().is_empty());
     for other in [&blob, &tree, &tag_object] {
-        assert!(commit_search(&tc, id.clone(), other[..10].to_string(), 10, None).await.unwrap().is_empty(), "{other}");
+        assert!(commit_search(&tc, id.clone(), other[..10].to_string(), 10, None, None).await.unwrap().is_empty(), "{other}");
     }
-    assert_eq!(commit_search(&tc, id.clone(), keep[..10].to_string(), 10, None).await.unwrap().len(), 1);
+    assert_eq!(commit_search(&tc, id.clone(), keep[..10].to_string(), 10, None, None).await.unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -1198,18 +1198,18 @@ async fn search_in_an_empty_repo_and_on_a_detached_head() {
     let tc = TestCore::new().await;
     let empty = TestRepo::new();
     let id = tc.open(&empty).await.repo.id;
-    assert!(commit_search(&tc, id.clone(), "irgendwas".into(), 10, None).await.unwrap().is_empty());
-    assert!(commit_search(&tc, id.clone(), "abcd".into(), 10, None).await.unwrap().is_empty());
+    assert!(commit_search(&tc, id.clone(), "irgendwas".into(), 10, None, None).await.unwrap().is_empty());
+    assert!(commit_search(&tc, id.clone(), "abcd".into(), 10, None, None).await.unwrap().is_empty());
 
     let repo = TestRepo::with_commit();
     repo.git(&["checkout", "-q", "--detach"]);
     let detached = repo.commit_file("d.txt", "d\n", "Losgelöst");
     let id = tc.open(&repo).await.repo.id;
-    let found = commit_search(&tc, id.clone(), "losgelöst".into(), 10, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "losgelöst".into(), 10, None, None).await.unwrap();
     // Case-insensitivity applies to ASCII; umlauts must match exactly.
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].sha, detached);
-    assert_eq!(commit_search(&tc, id.clone(), detached[..6].to_string(), 10, None).await.unwrap().len(), 1);
+    assert_eq!(commit_search(&tc, id.clone(), detached[..6].to_string(), 10, None, None).await.unwrap().len(), 1);
 }
 
 #[tokio::test]
@@ -1219,8 +1219,8 @@ async fn a_newer_search_cancels_the_running_one() {
     let id = tc.open(&repo).await.repo.id;
     // Both start in the same tick: the second request cancels the first.
     let (first, second) = tokio::join!(
-        commit_search(&tc, id.clone(), "Main".into(), 10, None),
-        commit_search(&tc, id.clone(), "Feature".into(), 10, None),
+        commit_search(&tc, id.clone(), "Main".into(), 10, None, None),
+        commit_search(&tc, id.clone(), "Feature".into(), 10, None, None),
     );
     // Whether the older search is still running when the new one starts depends on the platform (on
     // Linux it is often already finished): cancelled or complete, never a wrong result.
@@ -1232,7 +1232,7 @@ async fn a_newer_search_cancels_the_running_one() {
     // Four feature commits and the merge commit ("Merge branch 'feature/0'").
     assert_eq!(second.unwrap().len(), 5);
     // Nothing is left hanging afterwards; another repository would be untouched anyway.
-    assert_eq!(commit_search(&tc, id.clone(), "Main".into(), 10, None).await.unwrap().len(), 4);
+    assert_eq!(commit_search(&tc, id.clone(), "Main".into(), 10, None, None).await.unwrap().len(), 4);
 }
 
 /// Palette and search bar search at the same time: with their own `searchId` neither cancels the other.
@@ -1242,18 +1242,18 @@ async fn searches_with_their_own_id_run_side_by_side() {
     let repo = branchy_repo(4);
     let id = tc.open(&repo).await.repo.id;
     let (palette, bar, shared) = tokio::join!(
-        commit_search(&tc, id.clone(), "Main".into(), 10, Some("palette".into())),
-        commit_search(&tc, id.clone(), "Feature".into(), 10, Some("searchbar".into())),
-        commit_search(&tc, id.clone(), "Main".into(), 10, None),
+        commit_search(&tc, id.clone(), "Main".into(), 10, Some("palette".into()), None),
+        commit_search(&tc, id.clone(), "Feature".into(), 10, Some("searchbar".into()), None),
+        commit_search(&tc, id.clone(), "Main".into(), 10, None, None),
     );
     assert_eq!(palette.unwrap().len(), 4);
     assert_eq!(bar.unwrap().len(), 5);
     assert_eq!(shared.unwrap().len(), 4);
     // The same ID still cancels the older search; an empty ID counts as none.
     let (first, second, third) = tokio::join!(
-        commit_search(&tc, id.clone(), "Main".into(), 10, Some("palette".into())),
-        commit_search(&tc, id.clone(), "Feature".into(), 10, Some("palette".into())),
-        commit_search(&tc, id.clone(), "Main".into(), 10, Some("  ".into())),
+        commit_search(&tc, id.clone(), "Main".into(), 10, Some("palette".into()), None),
+        commit_search(&tc, id.clone(), "Feature".into(), 10, Some("palette".into()), None),
+        commit_search(&tc, id.clone(), "Main".into(), 10, Some("  ".into()), None),
     );
     // Whether the older search is still running when the new one starts depends on the platform (on
     // Linux it is often already finished): cancelled or complete, never a wrong result.
@@ -1278,7 +1278,7 @@ async fn command_futures_are_send() {
     let head = repo.head();
     assert_eq!(assert_send(graph_page(&tc, id.clone(), None, 10)).await.unwrap().rows.len(), 1);
     assert!(assert_send(commit_details(&tc, id.clone(), DiffSource::Commit { sha: head.clone() })).await.is_ok());
-    assert_eq!(assert_send(commit_search(&tc, id.clone(), "Erster".into(), 10, None)).await.unwrap().len(), 1);
+    assert_eq!(assert_send(commit_search(&tc, id.clone(), "Erster".into(), 10, None, None)).await.unwrap().len(), 1);
     assert_eq!(assert_send(tree_list(&tc, id.clone(), Some(head.clone()), None)).await.unwrap(), vec!["README.md"]);
     assert_eq!(assert_send(resolve_commit(&tc, &id, "main")).await.unwrap(), head);
 }
@@ -1501,16 +1501,16 @@ async fn performance_with_50k_commits() {
     println!("layout across all {} rows checked in {:?}", rows.len(), t.elapsed());
 
     let t = Instant::now();
-    let found = commit_search(&tc, id.clone(), "Arbeit 3500.1".into(), 100, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "Arbeit 3500.1".into(), 100, None, None).await.unwrap();
     println!("search by message across the whole history: {:?} ({} hits)", t.elapsed(), found.len());
     assert_eq!(found.len(), 1);
     let old = rows[rows.len() - 10].id.clone();
     let t = Instant::now();
-    let found = commit_search(&tc, id.clone(), old[..10].to_string(), 100, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), old[..10].to_string(), 100, None, None).await.unwrap();
     println!("search by SHA prefix: {:?} ({} hits)", t.elapsed(), found.len());
     assert_eq!(found.len(), 1);
     let t = Instant::now();
-    let found = commit_search(&tc, id.clone(), "person7@example.com".into(), 200, None).await.unwrap();
+    let found = commit_search(&tc, id.clone(), "person7@example.com".into(), 200, None, None).await.unwrap();
     println!("search by author: {:?} ({} hits)", t.elapsed(), found.len());
     assert_eq!(found.len(), 200);
 

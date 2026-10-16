@@ -26,6 +26,7 @@ import { readStatus } from "./statusOrder";
 import { useAppStore } from "./store";
 import { compileRules, type CompiledRule } from "./ticketLinks";
 import { writesSettled } from "./writeQueue";
+import { parseSearchQuery } from "./searchFilters";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -265,13 +266,15 @@ export const useDiff = (
     staleTime: source && !isLive(source) && source.kind !== "stash" ? Infinity : undefined,
   });
 
-/** Search across the whole history; an empty search does not ask the core. */
-export const useCommitSearch = (repoId: Id | null | undefined, query: string, limit = 200) =>
-  useQuery({
+/** Search across the whole history; `code:`, `path:`, `since:`, `until:` in the text narrow it. An empty search does not ask the core. */
+export const useCommitSearch = (repoId: Id | null | undefined, query: string, limit = 200) => {
+  const parsed = parseSearchQuery(query);
+  return useQuery({
     queryKey: qk.search(repoId ?? "", query),
-    queryFn: () => core.commitSearch({ repoId: repoId!, query, limit }),
-    enabled: enabledFor(repoId) && query.trim().length > 0,
+    queryFn: () => core.commitSearch({ repoId: repoId!, query: parsed.query, limit, filters: parsed.filters }),
+    enabled: enabledFor(repoId) && (parsed.query.length > 0 || parsed.filters !== null),
   });
+};
 
 export const useTree = (repoId: Id | null | undefined, sha: Sha | null, filter: string | null = null, enabled = true) =>
   useQuery({

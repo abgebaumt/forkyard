@@ -13,6 +13,7 @@
   "next": "Nächster Treffer",
   "close": "Suche schließen",
   "hint": "Durchsucht Message, Autor und SHA (ab 4 Zeichen) aller Branches und Tags – auch außerhalb der geladenen Zeilen.",
+  "filtersHint": "Eingrenzen mit code:Text (hinzugefügter oder entfernter Code), path:src/app, since:2026-01-01 oder until:2026-06-30.",
   "keys": "<enter>Enter</enter> nächster <shift>Shift+Enter</shift> voriger <esc>Esc</esc> schließen",
   "failed": "Die Suche ist fehlgeschlagen",
   "retry": "Erneut versuchen",
