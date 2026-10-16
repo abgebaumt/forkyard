@@ -15,6 +15,7 @@
  */
 import type {
   AiAskTrigger,
+  AiCommitMessage,
   AiDetection,
   AiFeature,
   AiInput,
@@ -897,6 +898,15 @@ export interface CoreCommands {
   aiPreviewReset(): Promise<void>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+  /**
+   * "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, never
+   * committed. Built exactly like `aiPreview` with `{ kind: "commit_message" }`, so a confirmation
+   * given there holds. Job under `jobId` (`jobCancel` → `cancelled`). Errors: `nothing_to_commit`
+   * (nothing staged), `ai_disabled`, `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`,
+   * `ai_refused`, `ai_limit_reached`, `ai_too_large`, `not_allowed` (not confirmed), `repo_untrusted`,
+   * `timeout`, `cancelled`.
+   */
+  aiCommitMessage(input: R & { jobId: string; locale: string }): Promise<AiCommitMessage>;
   /**
    * Setup dialog (Teilpaket 1b): Claude Code, Codex and opencode with version, path and sign-in, Ollama /
    * LM Studio on this computer and the providers with a stored key – about two seconds at most, sends

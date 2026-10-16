@@ -1035,7 +1035,7 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {

@@ -7,12 +7,14 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
-use crate::ai::{self, context, gate, pricing, providers, run};
+use crate::ai::{self, commit_message, context, gate, pricing, providers, run};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
-use crate::model::{AiAskTrigger, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange};
+use crate::model::{
+    AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, Settings,
+};
 use crate::secrets;
 
 /// The stored key of a provider; `None` if there is none or the keychain is unreachable.
@@ -21,6 +23,20 @@ async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
         return None;
     }
     secrets::get(core, &ai::key_account(kind)).await.ok().flatten()
+}
+
+/// Budget (tokens) and known secrets of a request for `feature` – the same for "What is sent?"
+/// and for the request itself, so both build the same text (the confirmation is bound to it).
+async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
+    let context_size = match (settings.ai_provider, settings.ai_model.as_deref()) {
+        (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
+        _ => 32_000,
+    };
+    let secrets = match settings.ai_provider {
+        Some(kind) => stored_key(core, kind).await.into_iter().collect(),
+        None => Vec::new(),
+    };
+    (context::budget_tokens(feature.budget_tokens(), context_size), secrets)
 }
 
 pub async fn ai_status(core: &Core) -> CoreResult<AiStatus> {
@@ -159,17 +175,10 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
     let settings = core.settings()?;
     let kind = settings.ai_provider;
     let model = settings.ai_model.clone();
-    let context_size = match (kind, model.as_deref()) {
-        (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
-        _ => 32_000,
-    };
-    let budget = context::budget_tokens(feature.budget_tokens(), context_size);
-    let secrets: Vec<String> = match kind {
-        Some(kind) => stored_key(core, kind).await.into_iter().collect(),
-        None => Vec::new(),
-    };
+    let (budget, secrets) = request_frame(core, &settings, feature).await;
     let built = match input {
         AiInput::StagedChanges => context::staged_changes(core, &repo_id, &settings, budget, &locale, &secrets).await?,
+        AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {
@@ -235,6 +244,18 @@ pub async fn ai_usage(core: &Core) -> CoreResult<AiUsageSummary> {
         month,
         rows,
     })
+}
+
+/// "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, the
+/// core commits nothing. Built exactly as `ai_preview` with `AiInput::CommitMessage` shows it, so a
+/// confirmation given there holds here; `complete_json` refuses everything unconfirmed.
+pub async fn ai_commit_message(core: &Core, repo_id: String, job_id: String, locale: String) -> CoreResult<AiCommitMessage> {
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::CommitMessage)?;
+    let (budget, secrets) = request_frame(core, &settings, AiFeature::CommitMessage).await;
+    let built = commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?;
+    let schema = commit_message::schema();
+    let answer = run::complete_json(core, run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::CommitMessage, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
+    commit_message::parse(&answer.value)
 }
 
 /// Setup dialog: Claude Code, Codex and opencode with version, path and sign-in, Ollama / LM Studio on
@@ -477,5 +498,112 @@ mod tests {
         assert_eq!((usage.month.as_str(), usage.requests, usage.input_tokens, usage.output_tokens), (month.as_str(), 2, 6000, 1000));
         assert!((usage.cost_usd - 0.022).abs() < 1e-9, "{}", usage.cost_usd);
         assert_eq!(usage.rows.len(), 2);
+    }
+
+    /// A repository with German subjects and one staged file.
+    fn messnetz() -> TestRepo {
+        let repo = TestRepo::with_commit();
+        repo.commit_file("README.md", "# Messnetz\n", "Projekt für das Messnetz angelegt");
+        repo.commit_file("stationen.csv", "kürzel;name\nN;Nord\n", "Liste der Stationen");
+        repo.commit_file("src/vergleich.py", "def differenz(a, b):\n    return a - b\n", "Vergleich der Tagesmittel zweier Stationen");
+        repo.write_file("src/export.py", "def zeile(station, wert):\n    return f\"{station};{wert}\"\n");
+        repo.git(&["add", "src/export.py"]);
+        repo
+    }
+
+    fn without_token(text: &str) -> String {
+        let token = text.split("<<<REPO ").nth(1).and_then(|rest| rest.split(">>>").next()).unwrap_or_default().to_string();
+        assert!(!token.is_empty(), "the text has a delimiter token");
+        text.replace(&token, "TOKEN")
+    }
+
+    #[tokio::test]
+    async fn the_commit_message_comes_from_the_staged_diff_with_a_local_model() {
+        let server = MockServer::start(|request| match request.route().as_str() {
+            "POST /api/show" => MockResponse::json(200, json!({"model_info": {"qwen3.context_length": 40960}})),
+            _ => MockResponse::json(
+                200,
+                json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": "{\"summary\":\"  CSV-Export je Station ergänzt  \",\"body\":\"Schreibt je Station eine Zeile.\\r\\n\"}"}, "done": true, "done_reason": "stop", "prompt_eval_count": 420, "eval_count": 31}),
+            ),
+        });
+        let tc = TestCore::new().await;
+        configure_base(&tc, AiProviderKind::Ollama, Some(server.url()));
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b"})).await.unwrap();
+        let repo = messnetz();
+        let id = tc.open(&repo).await.repo.id;
+
+        let message = ai_commit_message(&tc, id.clone(), "cm-local".into(), "de-DE".into()).await.unwrap();
+        assert_eq!(message, AiCommitMessage { summary: "CSV-Export je Station ergänzt".into(), body: Some("Schreibt je Station eine Zeile.".into()) });
+
+        let chat = server.requests().into_iter().find(|r| r.route() == "POST /api/chat").expect("one request");
+        let body = chat.json();
+        assert_eq!(body["format"], commit_message::schema());
+        let system = body["messages"][0]["content"].as_str().unwrap();
+        let user = body["messages"][1]["content"].as_str().unwrap();
+        assert!(system.contains("in German"), "{system}");
+        assert!(user.contains("File: src/export.py") && user.contains("+def zeile(station, wert):"), "{user}");
+        for subject in repo.git(&["log", "--no-merges", "--format=%s"]).lines() {
+            assert!(user.contains(subject), "style example {subject}: {user}");
+        }
+        assert!(user.contains("\nmain\n"), "the branch: {user}");
+        assert_eq!(server.count("POST /api/chat"), 1);
+        assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "src/export.py", "the core commits and unstages nothing");
+    }
+
+    #[tokio::test]
+    async fn the_preview_approves_exactly_the_text_the_command_sends() {
+        assert_eq!(serde_json::from_value::<AiInput>(json!({"kind": "commit_message"})).unwrap(), AiInput::CommitMessage);
+        let server = MockServer::start(|_| {
+            MockResponse::json(200, json!({"content": [{"type": "text", "text": "{\"summary\":\"CSV-Export je Station ergänzt\",\"body\":null}"}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 12}}))
+        });
+        let tc = TestCore::new().await;
+        configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
+        crate::secrets::set(&tc, "llm:anthropic", "sk-ant-api03-testkey-0123456789abcdef").await.unwrap();
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5"})).await.unwrap();
+        let repo = messnetz();
+        let id = tc.open(&repo).await.repo.id;
+        let messages = || server.requests().into_iter().filter(|r| r.route() == "POST /v1/messages").collect::<Vec<_>>();
+
+        let error = ai_commit_message(&tc, id.clone(), "cm-1".into(), "de-DE".into()).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::NotAllowed, "{error:?}");
+        assert!(messages().is_empty(), "nothing goes out before “What is sent?” was confirmed");
+
+        let preview = ai_preview(&tc, id.clone(), AiFeature::CommitMessage, AiInput::CommitMessage, "de-DE".into()).await.unwrap();
+        assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst]);
+        assert!(preview.text.contains("## Recent commit subjects") && preview.text.contains("File: src/export.py"), "{}", preview.text);
+        ai_preview_confirm(&tc, Some(id.clone()), AiFeature::CommitMessage, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+
+        let message = ai_commit_message(&tc, id.clone(), "cm-2".into(), "de-DE".into()).await.unwrap();
+        assert_eq!(message, AiCommitMessage { summary: "CSV-Export je Station ergänzt".into(), body: None });
+        let sent = messages();
+        assert_eq!(sent.len(), 1);
+        let body = sent[0].json();
+        let sent_text = format!("{}\n\n{}", body["system"].as_str().unwrap(), body["messages"][0]["content"].as_str().unwrap());
+        assert_eq!(without_token(&sent_text), without_token(&preview.text), "exactly the previewed text went out");
+        assert_ne!(sent_text, preview.text, "with its own delimiter token");
+        assert!(!sent_text.contains("sk-ant-api03-testkey"), "the key is never part of the text");
+    }
+
+    #[tokio::test]
+    async fn nothing_is_sent_while_ai_is_off_untrusted_or_nothing_is_staged() {
+        let server = MockServer::start(|_| MockResponse::json(200, json!({"model_info": {}})));
+        let tc = TestCore::new().await;
+        configure_base(&tc, AiProviderKind::Ollama, Some(server.url()));
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b"})).await.unwrap();
+        let repo = messnetz();
+        let id = tc.open(&repo).await.repo.id;
+        crate::commands::settings::repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
+        assert_eq!(ai_commit_message(&tc, id.clone(), "cm-off".into(), "en".into()).await.unwrap_err().code, ErrorCode::AiDisabled, "AI off for this repository");
+        crate::commands::settings::repo_settings_set(&tc, id.clone(), json!({"aiOff": false})).await.unwrap();
+        settings_set(&tc, json!({"aiFeaturesOff": ["commit_message"]})).await.unwrap();
+        assert_eq!(ai_commit_message(&tc, id.clone(), "cm-feature".into(), "en".into()).await.unwrap_err().code, ErrorCode::AiDisabled, "the function is off");
+        settings_set(&tc, json!({"aiFeaturesOff": []})).await.unwrap();
+        repo.git(&["reset", "-q"]);
+        assert_eq!(ai_commit_message(&tc, id.clone(), "cm-empty".into(), "en".into()).await.unwrap_err().code, ErrorCode::NothingToCommit);
+        assert_eq!(ai_preview(&tc, id.clone(), AiFeature::CommitMessage, AiInput::CommitMessage, "en".into()).await.unwrap_err().code, ErrorCode::NothingToCommit);
+        repo.git(&["add", "src/export.py"]);
+        crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
+        assert_eq!(ai_commit_message(&tc, id, "cm-untrusted".into(), "en".into()).await.unwrap_err().code, ErrorCode::RepoUntrusted, "the AI core checks repository trust itself");
+        assert!(server.requests().iter().all(|r| r.route() != "POST /api/chat"), "nothing was sent");
     }
 }

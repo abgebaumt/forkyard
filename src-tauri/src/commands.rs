@@ -1172,6 +1172,11 @@ pub async fn ai_usage(core: State<'_, Core>) -> R<AiUsageSummary> {
 }
 
 #[tauri::command]
+pub async fn ai_commit_message(core: State<'_, Core>, repo_id: String, job_id: String, locale: String) -> R<AiCommitMessage> {
+    c::ai::ai_commit_message(&core, repo_id, job_id, locale).await
+}
+
+#[tauri::command]
 pub async fn ai_detect(core: State<'_, Core>) -> R<AiDetection> {
     c::ai::ai_detect(&core).await
 }

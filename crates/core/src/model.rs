@@ -1434,6 +1434,9 @@ pub struct AiStatus {
 pub enum AiInput {
     /// The staged diff of the repository.
     StagedChanges,
+    /// The commit message of the staged changes (spec 3.1): diff, branch, style examples,
+    /// template and own instruction – exactly what `ai_commit_message` sends.
+    CommitMessage,
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
