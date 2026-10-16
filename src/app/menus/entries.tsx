@@ -363,6 +363,13 @@ function pullRequestEntry(ctx: MenuBase, ref: Ref): MenuEntry | null {
   });
 }
 
+/** "Split into stacked pull requests …": the stack view for this local branch (Paket 8.1). */
+function stackEntry(ctx: MenuBase, ref: Ref): MenuEntry {
+  return item(t("menus.pr.stack"), null, () => useAppStore.getState().setCenter(ctx.tabId, { kind: "stack", branch: ref.name }), {
+    tooltip: t("menus.pr.stackTip", { name: t("menus.quoted", { name: ref.name }) }),
+  });
+}
+
 function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
   const { repoId, tabId } = ctx;
   const busy = operationBlock(repoId);
@@ -436,6 +443,7 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
     }),
     ref.upstream ? item(t("menus.branch.unsetUpstream"), Unlink, () => void setUpstream(repoId, ref.name, null)) : null,
     pullRequestEntry(ctx, ref),
+    stackEntry(ctx, ref),
     SEPARATOR,
     // Gitflow: a running feature, release or hotfix can be finished here.
     flow ? item(t("menus.branch.gitflowFinish", { kind: kindLabels[flow.kind] }), Workflow, () => void openGitflowFinish(repoId, tabId, flow), { blocked: busy }) : null,

@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type StackStatus, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -73,6 +73,8 @@ export const qk = {
   status: (repoId: Id) => ["repo", repoId, "status"] as const,
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
   reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
+  stackPlan: (repoId: Id, branch: string, base: string, cuts: string) => ["repo", repoId, "stack", "plan", branch, base, cuts] as const,
+  stackStatus: (repoId: Id, branch: string) => ["repo", repoId, "stack", "status", branch] as const,
   bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
   commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
@@ -321,6 +323,10 @@ export const useRepoSettings = (repoId: Id | null | undefined) =>
     enabled: enabledFor(repoId),
   });
 
+/** The stack `branch` is a part of; null if it is no part. */
+export const useStackStatus = (repoId: Id, branch: string) =>
+  useQuery<StackStatus | null>({ queryKey: qk.stackStatus(repoId, branch), queryFn: () => core.stackStatus({ repoId, branch }), enabled: enabledFor(repoId) });
+
 /** Effective ticket link rules (settings, `.forkyard/links.json`, host). */
 export const useLinkRules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.linkRules(repoId ?? ""), queryFn: () => core.linkRulesGet({ repoId: repoId! }), enabled: enabledFor(repoId) });
@@ -542,10 +548,10 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect"]);
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect", "stack"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
-const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules"]);
+const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "stack"]);
 const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
 
 /** What a `repo:changed` means for a repo's queries. */

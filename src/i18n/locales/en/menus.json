@@ -98,7 +98,9 @@
     "create": "Create pull request …",
     "toBranch": "to {{name}}",
     "noHostAccount": "no host account connected",
-    "isDefaultBranch": "this is the default branch"
+    "isDefaultBranch": "this is the default branch",
+    "stack": "Split into stacked pull requests …",
+    "stackTip": "Cuts {{name}} at commit boundaries into branches that build on each other"
   },
   "branch": {
     "isCheckedOutBranch": "this is the checked-out branch",

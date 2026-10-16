@@ -37,7 +37,9 @@ export type CenterView =
   /** Reflog of HEAD (`ref: null`) or of a branch (full name). */
   | { kind: "reflog"; ref: string | null }
   /** Statistics of the repository (src/screens/Stats). */
-  | { kind: "stats" };
+  | { kind: "stats" }
+  /** Stacked pull requests of a local branch or of the stack it is part of (src/screens/Stack). */
+  | { kind: "stack"; branch: string };
 
 export type RightPanel = "details" | "stash_form";
 
