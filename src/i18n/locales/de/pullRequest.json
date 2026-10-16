@@ -258,6 +258,14 @@
     "pushAndCreate": "Pushen und anlegen",
     "createDraft": "Entwurf anlegen",
     "ai": {
+      "write": "Aus Commits schreiben",
+      "whatIsSent": "Was wird gesendet?",
+      "draftHint": "Entwurf aus den Commits des Branches – vor dem Anlegen prüfen.",
+      "titleOffer": "Titel ersetzen?",
+      "replaceTitle": "Titel ersetzen",
+      "keepTitle": "Behalten",
+      "bodyOffer": "Eine Beschreibung aus den Commits liegt bereit. Dein Text bleibt, bis du wählst.",
+      "suggested": "Vorgeschlagene Beschreibung",
       "blocked": {
         "noSource": "Wähle zuerst einen Quell-Branch.",
         "noTarget": "Wähle zuerst einen Ziel-Branch.",

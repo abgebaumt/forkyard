@@ -258,6 +258,14 @@
     "pushAndCreate": "Push and create",
     "createDraft": "Create draft",
     "ai": {
+      "write": "Write from commits",
+      "whatIsSent": "What is sent?",
+      "draftHint": "Draft from the commits of the branch – check it before you create.",
+      "titleOffer": "Replace title?",
+      "replaceTitle": "Replace title",
+      "keepTitle": "Keep",
+      "bodyOffer": "A description from the commits is ready. Your text stays unless you choose.",
+      "suggested": "Suggested description",
       "blocked": {
         "noSource": "Choose a source branch first.",
         "noTarget": "Choose a target branch first.",

@@ -31,7 +31,8 @@ import { isPlainEscape, ownsKey } from "../FileView/parts";
 import { SafeMarkdown } from "../PullRequestView/Markdown";
 import { openConnectDialog } from "../Hosts";
 import { t } from "../../i18n";
-import { parentRemote, splitNames, targetBranches } from "./model";
+import { usePrAiWriter } from "./AiWrite";
+import { parentRemote, splitNames, targetBranches, targetRef } from "./model";
 
 export interface PullRequestCreateProps {
   repoId: Id;
@@ -220,6 +221,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
   const [intoParent, setIntoParent] = useState(false);
   const [title, setTitle] = useState("");
   const [titleTouched, setTitleTouched] = useState(false);
+  const [autoTitle, setAutoTitle] = useState("");
   const [text, setText] = useState("");
   const [textTouched, setTextTouched] = useState(false);
   const [fromTemplate, setFromTemplate] = useState(false);
@@ -256,12 +258,11 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
   const sameBranch = Boolean(sourceName && targetName && sourceName === targetName && !toParent);
 
   // Title suggestion: the only commit, otherwise the branch name – as long as nobody has typed.
-  const targetSha = useMemo(() => {
-    if (!targetName) return null;
-    const all = refs.data?.remotes ?? [];
-    const remote = toParent ? upstream : (repo.remote ?? "origin");
-    return (all.find((ref) => ref.name === `${remote}/${targetName}`) ?? all.find((ref) => ref.remote && ref.name === `${ref.remote}/${targetName}`) ?? refs.data?.locals.find((ref) => ref.name === targetName))?.sha ?? null;
-  }, [refs.data, targetName, toParent, upstream, repo.remote]);
+  const targetMatch = useMemo(
+    () => (targetName ? targetRef(refs.data?.remotes ?? [], refs.data?.locals ?? [], toParent ? upstream : (repo.remote ?? "origin"), targetName) : null),
+    [refs.data, targetName, toParent, upstream, repo.remote],
+  );
+  const targetSha = targetMatch?.sha ?? null;
   useEffect(() => {
     if (!sourceName) return;
     let current = true;
@@ -270,7 +271,9 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
       const commits = sourceSha && targetSha ? await commitsAhead(repoId, sourceSha, targetSha) : null;
       if (!current) return;
       setAhead(commits ? commits.length : null);
-      if (!titleTouched) setTitle(suggestTitle(sourceName, commits ? commits.map((commit) => commit.summary) : null));
+      const suggested = suggestTitle(sourceName, commits ? commits.map((commit) => commit.summary) : null);
+      setAutoTitle(suggested);
+      if (!titleTouched) setTitle(suggested);
     })();
     return () => {
       current = false;
@@ -352,6 +355,31 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
           : ahead === 0 && !needsPush
             ? t("pullRequest.create.blocked.nothing", { source: sourceName, target: targetName })
             : null;
+
+  // "Write from commits" (v1.2 Paket 4): visible only while AI is on for this function and repository.
+  const ai = usePrAiWriter({
+    repoId,
+    source: sourceRef?.fullName ?? null,
+    target: targetMatch?.fullName ?? null,
+    ahead,
+    sameBranch,
+    fields: {
+      title,
+      setTitle: (next) => {
+        setTitle(next);
+        setTitleTouched(true);
+        setTitleError(null);
+      },
+      autoTitle,
+      text,
+      setText: (next) => {
+        setText(next);
+        setTextTouched(true);
+        setFromTemplate(false);
+      },
+      untouchedTemplate: fromTemplate && !textTouched,
+    },
+  });
 
   const submit = async () => {
     if (creating || pushing || blockedReason || !sourceName || !targetName) return;
@@ -559,6 +587,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
               maxLength={TITLE_LIMIT}
               hint={[...title].length >= TITLE_LIMIT - 40 ? `${t("pullRequest.create.titleLength", { count: [...title].length, max: TITLE_LIMIT })}${title.length >= TITLE_LIMIT ? t("pullRequest.create.titleCut") : ""}` : undefined}
               error={titleError ?? undefined}
+              onKeyDown={ai.onTitleKeyDown}
               onChange={(event) => {
                 setTitle(event.target.value);
                 setTitleTouched(true);
@@ -567,10 +596,11 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
             />
 
             <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <label htmlFor="s23-body" className="flex-1 text-sm font-medium text-text-muted">
                   {t("pullRequest.create.bodyLabel")}
                 </label>
+                {ai.control}
                 <SegmentedControl
                   label={t("pullRequest.create.bodyMode")}
                   value={mode}
@@ -589,7 +619,16 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   value={text}
                   className="font-mono text-code"
                   spellCheck
-                  hint={template.isPending ? t("pullRequest.create.templateLoading") : fromTemplate && !textTouched ? t("pullRequest.create.fromTemplate") : t("pullRequest.create.bodyHint")}
+                  hint={
+                    ai.draft
+                      ? t("pullRequest.create.ai.draftHint")
+                      : template.isPending
+                        ? t("pullRequest.create.templateLoading")
+                        : fromTemplate && !textTouched
+                          ? t("pullRequest.create.fromTemplate")
+                          : t("pullRequest.create.bodyHint")
+                  }
+                  onKeyDown={ai.onBodyKeyDown}
                   onChange={(event) => {
                     setText(event.target.value);
                     setTextTouched(true);
@@ -600,6 +639,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   <SafeMarkdown source={text} origin={t("pullRequest.create.previewOrigin")} empty={t("pullRequest.create.noDescription")} />
                 </div>
               )}
+              {ai.notices}
             </div>
 
             {repo.capabilities.draftPrs ? <Checkbox label={t("pullRequest.create.draft")} hint={t("pullRequest.create.draftHint")} checked={draft} onCheckedChange={setDraft} /> : null}
