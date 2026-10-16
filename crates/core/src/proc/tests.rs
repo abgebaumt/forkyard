@@ -187,3 +187,71 @@ async fn the_log_names_the_command_but_never_stdin_stdout_or_stderr() {
     assert_eq!(events.len(), 1, "{events:?}");
     assert_eq!(events[0]["command"], entry.command.as_str());
 }
+
+/// A small program in `dir` that prints "fake-tool 1.2.3 <first argument>": a shell script on Unix,
+/// a batch file on Windows.
+fn fake_tool(dir: &Path, name: &str) -> PathBuf {
+    if cfg!(windows) {
+        let path = dir.join(format!("{name}.cmd"));
+        std::fs::write(&path, "@echo off\r\necho fake-tool 1.2.3 %~1\r\n").unwrap();
+        path
+    } else {
+        let path = dir.join(name);
+        std::fs::write(&path, "#!/bin/sh\nprintf 'fake-tool 1.2.3 %s\\n' \"$1\"\n").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        path
+    }
+}
+
+#[test]
+fn batch_command_lines_quote_paths_and_refuse_cmd_metacharacters() {
+    let program = Path::new(r"C:\Users\Max Muster\AppData\Roaming\npm\claude.cmd");
+    let line = batch_command_line(program, &["--version".into(), r"C:\Temp\fy (1)\schema.json".into(), "".into()]).unwrap();
+    assert_eq!(line, r#""C:\Users\Max Muster\AppData\Roaming\npm\claude.cmd" --version "C:\Temp\fy (1)\schema.json" """#);
+    for bad in ["a&b", "100%", "x|y", "\"q\"", "a^b", "!x!", "a<b", "a>b", "a\nb", "a\rb"] {
+        let err = batch_command_line(program, &[bad.into()]).unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed, "{bad:?}");
+    }
+    assert!(is_batch(Path::new(r"C:\x\CLAUDE.CMD")) && is_batch(Path::new("run.bat")));
+    assert!(!is_batch(Path::new("claude.exe")) && !is_batch(Path::new("claude")));
+}
+
+#[tokio::test]
+async fn programs_are_found_on_an_extra_search_path() {
+    let dir = temp_folder();
+    let bin = dir.path().join("mit Leerzeichen");
+    std::fs::create_dir_all(&bin).unwrap();
+    fake_tool(&bin, "fy-proc-fake-tool");
+    // Windows: found without the extension (PATHEXT) and started through cmd.exe.
+    let out = Proc::new("fy-proc-fake-tool").search_path(bin.as_os_str()).arg("--version").run(&CancelToken::new()).await.unwrap();
+    assert!(out.success(), "{out:?}");
+    assert_eq!(out.stdout_text(), "fake-tool 1.2.3 --version");
+    let err = Proc::new("fy-proc-fake-tool").run(&CancelToken::new()).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotFound, "not on PATH without the extra search path");
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn batch_files_never_receive_cmd_metacharacters() {
+    let dir = temp_folder();
+    let script = dir.path().join("tool.cmd");
+    std::fs::write(&script, "@echo off\r\necho ran> ran.txt\r\n").unwrap();
+    let err = Proc::new(&script).cwd(dir.path()).arg("x & echo pwned> pwned.txt").run(&CancelToken::new()).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
+    assert!(!dir.path().join("ran.txt").exists(), "nothing started");
+    assert!(!dir.path().join("pwned.txt").exists());
+}
+
+#[cfg(windows)]
+#[tokio::test]
+async fn batch_files_receive_arguments_with_spaces_and_parentheses() {
+    let dir = temp_folder();
+    let script = dir.path().join("zeig mich.cmd");
+    std::fs::write(&script, "@echo off\r\necho [%~1]\r\n").unwrap();
+    let out = Proc::new(&script).arg(r"C:\Temp\fy (1)\a b.json").run(&CancelToken::new()).await.unwrap();
+    assert_eq!(out.stdout_text(), r"[C:\Temp\fy (1)\a b.json]");
+}

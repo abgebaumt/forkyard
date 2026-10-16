@@ -83,6 +83,7 @@ pub struct Proc {
     timeout: Option<Duration>,
     max_stdout: usize,
     max_stderr: usize,
+    search_path: Option<OsString>,
     log: Option<LogTo>,
 }
 
@@ -112,6 +113,7 @@ impl Proc {
             timeout: None,
             max_stdout: MAX_STDOUT,
             max_stderr: MAX_STDERR,
+            search_path: None,
             log: None,
         }
     }
@@ -162,6 +164,13 @@ impl Proc {
         self
     }
 
+    /// Folders searched before PATH (separated like PATH), e.g. the login shell's PATH. On Windows the
+    /// extensions from PATHEXT apply.
+    pub fn search_path(mut self, paths: impl Into<OsString>) -> Self {
+        self.search_path = Some(paths.into());
+        self
+    }
+
     /// Writes one entry into the activity log (app log with `repo_id: None`).
     pub fn logged(mut self, core: &Core, repo_id: Option<&str>, description: impl Into<String>) -> Self {
         self.log = Some(LogTo { core: core.clone(), repo_id: repo_id.map(str::to_string), description: description.into() });
@@ -186,16 +195,24 @@ impl Proc {
         result
     }
 
-    /// The program to start: a path as given, otherwise found on the search path.
+    /// The program to start: a path as given, otherwise found on `search_path`, then on PATH.
     fn resolve(&self) -> CoreResult<PathBuf> {
         let given = Path::new(&self.program);
         if given.is_absolute() || given.components().count() > 1 {
             return if given.is_file() { Ok(given.to_path_buf()) } else { Err(not_found(&self.program)) };
         }
-        which::which(&self.program).map_err(|_| not_found(&self.program))
+        let cwd = self.cwd.clone().unwrap_or_else(std::env::temp_dir);
+        self.search_path
+            .as_ref()
+            .and_then(|paths| which::which_in(&self.program, Some(paths), &cwd).ok())
+            .or_else(|| which::which(&self.program).ok())
+            .ok_or_else(|| not_found(&self.program))
     }
 
     fn command(&self, program: &Path) -> CoreResult<tokio::process::Command> {
+        if is_batch(program) {
+            return batch_command(&batch_command_line(program, &self.args)?);
+        }
         let mut cmd = tokio::process::Command::new(program);
         cmd.args(&self.args);
         Ok(cmd)
@@ -356,6 +373,60 @@ impl Proc {
             Err(e) => log::warn!("Log entry not saved: {}", e.message),
         }
     }
+}
+
+/// `.cmd` or `.bat`: Windows runs it through `cmd.exe`, which reads the command line itself.
+pub fn is_batch(path: &Path) -> bool {
+    path.extension().and_then(OsStr::to_str).is_some_and(|ext| ext.eq_ignore_ascii_case("cmd") || ext.eq_ignore_ascii_case("bat"))
+}
+
+/// Characters `cmd.exe` interprets even inside quotes, or that end the command line.
+const BATCH_FORBIDDEN: &[char] = &['"', '%', '!', '^', '&', '|', '<', '>', '\r', '\n', '\0'];
+
+/// The command line for `cmd.exe /d /s /c "<line>"`: program and arguments, quoted where they contain
+/// spaces or characters cmd splits at. An argument `cmd.exe` would interpret is refused – user text
+/// belongs into stdin or a file, never onto a batch command line.
+pub fn batch_command_line(program: &Path, args: &[OsString]) -> CoreResult<String> {
+    let refuse = |text: &str| {
+        CoreError::not_allowed(format!(
+            "A batch file can’t be started with “{}”: it contains a character cmd.exe would interpret. Such data goes through stdin or a file.",
+            redact::redact(text)
+        ))
+    };
+    let program = program.to_str().ok_or_else(|| CoreError::not_allowed("The path of the batch file is not valid Unicode."))?;
+    if program.contains(BATCH_FORBIDDEN) {
+        return Err(refuse(program));
+    }
+    let mut line = format!("\"{program}\"");
+    for arg in args {
+        let text = arg.to_str().ok_or_else(|| CoreError::not_allowed("An argument for the batch file is not valid Unicode."))?;
+        if text.contains(BATCH_FORBIDDEN) {
+            return Err(refuse(text));
+        }
+        line.push(' ');
+        if text.is_empty() || text.contains([' ', '\t', '(', ')', ',', ';', '=']) {
+            line.push('"');
+            line.push_str(text);
+            line.push('"');
+        } else {
+            line.push_str(text);
+        }
+    }
+    Ok(line)
+}
+
+#[cfg(windows)]
+fn batch_command(line: &str) -> CoreResult<tokio::process::Command> {
+    // Not ComSpec: the environment must not choose the interpreter.
+    let shell = std::env::var_os("SystemRoot").map(|root| PathBuf::from(root).join("System32").join("cmd.exe")).unwrap_or_else(|| PathBuf::from("cmd.exe"));
+    let mut cmd = tokio::process::Command::new(shell);
+    cmd.raw_arg(format!("/d /s /c \"{line}\""));
+    Ok(cmd)
+}
+
+#[cfg(not(windows))]
+fn batch_command(_line: &str) -> CoreResult<tokio::process::Command> {
+    Err(CoreError::not_allowed("Batch files (.cmd, .bat) only run on Windows."))
 }
 
 fn not_found(program: &OsStr) -> CoreError {
