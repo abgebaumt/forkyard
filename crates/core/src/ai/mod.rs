@@ -11,6 +11,7 @@
 pub mod context;
 pub mod gate;
 pub mod ignore;
+pub mod language;
 pub mod pricing;
 pub mod prompt;
 pub mod provider;
