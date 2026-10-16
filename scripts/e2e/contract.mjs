@@ -331,6 +331,7 @@ if (isMain) {
       "app:open_request": { path: "x", commit: null },
       "app:close_requested": {},
       "submodules:updated": { repoId: "x", ok: true, paths: [], message: null },
+      "agents:changed": { repoId: "x", running: 0 },
     };
     const emptyEvents = () => structuredClone(placeholders);
     const whatOf = (list, name) => list.filter((event) => event.name === name).flatMap((event) => event.payload.what ?? []);

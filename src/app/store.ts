@@ -37,9 +37,11 @@ export type CenterView =
   /** Reflog of HEAD (`ref: null`) or of a branch (full name). */
   | { kind: "reflog"; ref: string | null }
   /** Statistics of the repository (src/screens/Stats). */
-  | { kind: "stats" };
+  | { kind: "stats" }
+  /** The coding agents of the repository (src/screens/Agents). */
+  | { kind: "cockpit" };
 
-export type RightPanel = "details" | "stash_form";
+export type RightPanel = "details" | "stash_form" | "agent";
 
 /** Search in the graph. Hits and the active hit, so the graph can highlight them. */
 export interface GraphSearch {
@@ -53,6 +55,8 @@ export interface TabView {
   selection: Selection;
   center: CenterView;
   rightPanel: RightPanel;
+  /** Agent shown in the right panel (`rightPanel: "agent"`). */
+  agentId: Id | null;
   searchOpen: boolean;
   search: GraphSearch;
   terminalOpen: boolean;
@@ -68,6 +72,7 @@ export const defaultTabView = (): TabView => ({
   selection: { kind: "wip" },
   center: { kind: "graph" },
   rightPanel: "details",
+  agentId: null,
   searchOpen: false,
   search: { query: "", hits: [], active: -1 },
   terminalOpen: false,
@@ -90,6 +95,7 @@ export type PreferencesSection =
   | "external"
   | "commands"
   | "notifications"
+  | "agents"
   | "ui"
   | "signing"
   | "editor"
@@ -186,6 +192,8 @@ export interface AppState {
   busy: Record<string, true>;
   /** Time of the last successful fetch per repository (ms since epoch). */
   lastFetch: Record<Id, number>;
+  /** Coding agents running in all repositories (from `agents:changed`; the quit prompt counts them). */
+  agentsRunning: number;
 
   // --- per tab ---
   selectWip(tabId: Id): void;
@@ -212,6 +220,7 @@ export interface AppState {
   closeCenter(tabId: Id): void;
 
   setRightPanel(tabId: Id, panel: RightPanel): void;
+  showAgent(tabId: Id, agentId: Id): void;
   openStashForm(tabId: Id): void;
 
   setSearchOpen(tabId: Id, open: boolean): void;
@@ -243,6 +252,7 @@ export interface AppState {
 
   setBusy(key: string, busy: boolean): void;
   markFetched(repoId: Id, at?: number): void;
+  setAgentsRunning(count: number): void;
 }
 
 const initialWidths = loadWidths();
@@ -280,6 +290,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     credentialQueue: [],
     busy: {},
     lastFetch: {},
+    agentsRunning: 0,
 
     selectWip: (tabId) => patchView(tabId, { selection: { kind: "wip" }, rightPanel: "details" }),
     selectCommits: (tabId, shas) =>
@@ -311,6 +322,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     closeCenter: (tabId) => patchView(tabId, { center: { kind: "graph" } }),
 
     setRightPanel: (tabId, panel) => patchView(tabId, { rightPanel: panel, rightCollapsed: false }),
+    showAgent: (tabId, agentId) => patchView(tabId, { rightPanel: "agent", agentId, rightCollapsed: false }),
     openStashForm: (tabId) => patchView(tabId, { rightPanel: "stash_form", rightCollapsed: false }),
 
     setSearchOpen: (tabId, open) =>
@@ -402,6 +414,7 @@ export const useAppStore = create<AppState>()((set, get) => {
         return { busy: next };
       }),
     markFetched: (repoId, at = Date.now()) => set((state) => ({ lastFetch: { ...state.lastFetch, [repoId]: at } })),
+    setAgentsRunning: (agentsRunning) => set((state) => (state.agentsRunning === agentsRunning ? state : { agentsRunning })),
   };
 });
 

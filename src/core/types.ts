@@ -1535,6 +1535,8 @@ export interface CoreEvents {
   "app:close_requested": {};
   /** The follow-up job brought changed submodules along; `ok: false` is a warning (`message` says why), the main operation went through. */
   "submodules:updated": { repoId: Id; ok: boolean; paths: string[]; message: string | null };
+  /** Coding agents of `repoId` changed (start, status, end, cleanup); `running`: agents running in all repositories. */
+  "agents:changed": { repoId: Id; running: number };
 }
 
 // ---------------------------------------------------------------------------

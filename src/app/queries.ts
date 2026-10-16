@@ -61,6 +61,7 @@ export const qk = {
   initTemplates: ["app", "initTemplates"] as const,
   sshKeys: ["app", "sshKeys"] as const,
   credentials: ["app", "credentials"] as const,
+  agentTemplates: ["app", "agentTemplates"] as const,
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,
 
@@ -96,6 +97,7 @@ export const qk = {
   rebasePlan: (repoId: Id, base: string) => ["repo", repoId, "rebasePlan", base] as const,
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
+  agents: (repoId: Id) => ["repo", repoId, "agents"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
   /** Clean-up dialog: read fresh on every opening, never invalidated by `repo:changed` while a run changes the numbers. */
@@ -386,6 +388,23 @@ export const useRebasePlan = (repoId: Id | null | undefined, base: string | null
 export const useWorktrees = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.worktrees(repoId ?? ""), queryFn: () => core.worktreeList({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
+/** Worktree repository → repository the agent belongs to (filled by `useAgents`), so a change in an agent's worktree refreshes the cockpit. */
+const agentOwners = new Map<Id, Id>();
+export const agentOwner = (worktreeRepoId: Id): Id | undefined => agentOwners.get(worktreeRepoId);
+
+export const useAgents = (repoId: Id | null | undefined) =>
+  useQuery({
+    queryKey: qk.agents(repoId ?? ""),
+    queryFn: async () => {
+      const agents = await core.agentList({ repoId: repoId! });
+      for (const agent of agents) if (agent.worktreeRepoId) agentOwners.set(agent.worktreeRepoId, agent.repoId);
+      return agents;
+    },
+    enabled: enabledFor(repoId),
+  });
+
+export const useAgentTemplates = () => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000 });
+
 export const useSubmodules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.submodules(repoId ?? ""), queryFn: () => core.submoduleList({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
@@ -535,7 +554,7 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect"]);
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect", "agents"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
 const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules"]);
@@ -608,14 +627,23 @@ export function useCoreSync(activeRepoId: Id | null) {
   useEffect(() => {
     const store = useAppStore.getState;
     const stops = [
+      core.on("agents:changed", ({ repoId, running }) => {
+        store().setAgentsRunning(running);
+        void queryClient.invalidateQueries({ queryKey: qk.agents(repoId) });
+      }),
       core.on("repo:changed", ({ repoId, what }) => {
         void invalidateRepo(queryClient, repoId, what);
+        const owner = agentOwner(repoId);
+        if (owner && (what.includes("worktree") || what.includes("index") || what.includes("refs") || what.includes("head"))) {
+          void queryClient.invalidateQueries({ queryKey: qk.agents(owner) });
+        }
       }),
       core.on("app:changed", ({ what }) => {
         for (const item of what) {
           const key = APP_KEYS[item];
           if (key) void queryClient.invalidateQueries({ queryKey: key });
         }
+        if (what.includes("settings")) void queryClient.invalidateQueries({ queryKey: qk.agentTemplates });
         // Host accounts have changed (connected, token replaced, disconnected): whatever is loaded about issues –
         // including a list that failed because of the expired token – counts as stale and reloads; link rules follow from the recognised host.
         if (what.includes("host_accounts")) {

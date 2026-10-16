@@ -64,6 +64,8 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   ssh: "ssh",
   integrations: "integrations",
   repo: "p-identity",
+  // Until the "Coding agents" section exists, agent settings land next to the terminal's.
+  agents: "external",
 };
 
 const iconClass = "size-icon shrink-0";

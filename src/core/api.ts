@@ -14,6 +14,11 @@
  * The UI never calls Git directly and never builds command lines.
  */
 import type {
+  Agent,
+  AgentCleanupPreview,
+  AgentSuggestion,
+  AgentTemplateInfo,
+  AgentTestResult,
   CliStatus,
   CrashReportSummary,
   ActivityPage,
@@ -627,6 +632,43 @@ export interface CoreCommands {
   worktreeUnlock(input: R & { path: string }): Promise<Worktree[]>;
   /** Cleans up entries whose folder is missing (`isPrunable`); locked ones stay. */
   worktreePrune(input: R): Promise<Worktree[]>;
+
+  // --- Coding agents (cockpit) ---------------------------------------------------------
+  // Each agent works in a worktree `<parent>/<repo>.agents/<short name>` on its own branch. The core
+  // builds every command line; the UI passes only the template and the task.
+  /** Built-in templates (Claude Code, Codex, opencode) and the user's own, with where their program is. */
+  agentTemplates(): Promise<AgentTemplateInfo[]>;
+  /**
+   * Defaults for the start dialog: short name and branch from the task (or from `branch`, checked
+   * live: `branchProblem`), worktree folder, base commit, agent configurations in the base commit.
+   * Errors: `not_found` (base), `name_exists` (no free name left).
+   */
+  agentSuggest(input: R & { task: string; branch: string | null; base: string | null }): Promise<AgentSuggestion>;
+  /**
+   * Creates branch and worktree from `base` and starts the template in a terminal there (`cols`/`rows`:
+   * its size); the task is typed in once the program is ready. Listen to `terminal:data` before the call
+   * (as for `terminalOpen`). Errors: `repo_untrusted`; `not_allowed` (template or program missing,
+   * “without prompts” not available, empty task, 16 terminals); `invalid_name`; `name_exists`; `not_found`.
+   */
+  agentStart(input: R & { templateId: string; task: string; branch: string; base: string; unattended: boolean; cols: number; rows: number }): Promise<Agent>;
+  /** The repository's agents, newest first; branch and worktree checked against Git (`orphaned`). */
+  agentList(input: R): Promise<Agent[]>;
+  /** Ends the agent's program; the status follows with `agents:changed`. */
+  agentStop(input: { agentId: Id }): Promise<Agent>;
+  /** Starts the template again in the same worktree (`--continue` …) with the same permission mode. Errors: `not_allowed`. */
+  agentResume(input: { agentId: Id; cols: number; rows: number }): Promise<Agent>;
+  /** Removes the entry of an orphaned agent; Git is not touched. Errors: `not_allowed` (not orphaned). */
+  agentForget(input: { agentId: Id }): Promise<void>;
+  /** What cleaning up would destroy (unpushed commits, uncommitted files, running, locked). */
+  agentCleanupPreview(input: { agentId: Id }): Promise<AgentCleanupPreview>;
+  /**
+   * “Stop agent and clean up”: ends the program, removes worktree and branch; one undo step in the
+   * repository brings both back (with the uncommitted changes). Returns its undo state.
+   * Errors: `not_allowed` (worktree locked), `repo_untrusted`, `not_found`.
+   */
+  agentCleanup(input: { agentId: Id }): Promise<UndoState>;
+  /** Runs the repository's test command in the agent's worktree (job). Errors: `not_allowed`, `cancelled`, `timeout`. */
+  agentRunTests(input: { agentId: Id; jobId: string }): Promise<AgentTestResult>;
 
   // --- Submodules -------------------------------------------------------------------
   submoduleList(input: R): Promise<Submodule[]>;
