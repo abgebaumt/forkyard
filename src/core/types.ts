@@ -1250,6 +1250,8 @@ export interface RepoSettings {
    * (`not_allowed` with the reason) and stores them in canonical form. The effective rules come from `linkRulesGet`.
    */
   linkRules: LinkRulesConfig;
+  /** Test command for coding agents, run in the agent's worktree when it is done. null = none. */
+  testCommand: string | null;
   /** "AI off for this repository": no AI element, nothing of it is sent. Stored in the app, not in .git/config. */
   aiOff: boolean;
   /** Own instruction for AI commit messages in this repository (at most 2000 characters); null = none. Stored in the app, not in .git/config. */

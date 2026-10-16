@@ -7,6 +7,7 @@
 //! full ref of the part below (part 1: the base). Nothing about a stack is kept in the database.
 
 pub mod plan;
+pub mod check;
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
@@ -18,7 +19,7 @@ use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
 use crate::commands::{host, rebase, refs, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{
-    OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCommit, StackCut, StackPart, StackPlan, StackPrCreated, StackPrFailed, StackPrOutcome, StackPrPart, StackRestack,
+    OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCheckResult, StackCommit, StackCut, StackPart, StackPlan, StackPrCreated, StackPrFailed, StackPrOutcome, StackPrPart, StackRestack,
     StackStatus, StackStatusPart,
 };
 use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
@@ -397,6 +398,14 @@ pub async fn stack_prs_create(core: &Core, repo_id: String, target: String, part
         }
     }
     Ok(outcome)
+}
+
+/// "Check each part": the repository's test command on the tip of every planned part, each in its
+/// own temporary worktree (see `check`). Job `job_id`, cancellable.
+pub async fn stack_check(core: &Core, repo_id: String, job_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> CoreResult<Vec<StackCheckResult>> {
+    let source = read_source(core, &repo_id, &branch, &base).await?;
+    let planned = plan_for(core, &repo_id, &source, &cuts).await?;
+    check::run(core, &repo_id, &job_id, &planned.parts).await
 }
 
 #[cfg(test)]

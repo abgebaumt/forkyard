@@ -117,6 +117,7 @@ import type {
   Stash,
   StatsRange,
   StackCut,
+  StackCheckResult,
   StackPlan,
   StackPrOutcome,
   StackPrPart,
@@ -976,6 +977,14 @@ export interface CoreCommands {
    * Errors (nothing sent): `not_allowed`, `invalid_name`, `not_found`, `empty_message`.
    */
   stackPrsCreate(input: R & { target: string; parts: StackPrPart[]; from: number; remote?: string | null }): Promise<StackPrOutcome>;
+  /**
+   * "Check each part": runs the repository's test command (Settings › Project) on the tip of every
+   * planned part, each in a temporary worktree `<repo>.agents/stack-check-<n>` that is removed
+   * afterwards. Job `jobId` (cancellable, progress "Checking part n of m"). Errors: `not_allowed`
+   * (no test command), `path_exists` (a foreign folder of that name), `cancelled`, everything of
+   * `stackPlan`; a part that runs too long is `timed_out`.
+   */
+  stackCheck(input: R & { jobId: string; branch: string; base: string; cuts: StackCut[] }): Promise<StackCheckResult[]>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

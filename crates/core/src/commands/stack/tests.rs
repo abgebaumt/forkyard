@@ -418,3 +418,109 @@ async fn bad_push_input_sends_nothing() {
     assert_eq!(push(vec![P1.into(), "-x".into()], "origin").await.unwrap_err().code, ErrorCode::InvalidName);
     assert_eq!(remote_sha(&remote, P1), None);
 }
+
+// --- Check each part (Task 8; `sh -c` and POSIX tools, so Unix only) -----------------------------
+
+#[cfg(unix)]
+mod checks {
+    use serde_json::json;
+
+    use super::*;
+    use crate::commands::settings::repo_settings_set;
+    use crate::model::StackCheckState;
+
+    fn agents_folder(repo: &TestRepo) -> std::path::PathBuf {
+        // Entscheidung 3 written out: `<parent>/<repo>.agents` – not from `names::agents_dir`.
+        repo.temp_dir().join("repo.agents")
+    }
+
+    /// `pruefen`: commit 1 without `ok.txt`, commit 2 adds it. The own working directory is dirty.
+    fn checked_repo() -> TestRepo {
+        let repo = TestRepo::with_commit();
+        repo.checkout_new("pruefen");
+        repo.commit_file("a.txt", "a\n", "Ohne Prüfdatei");
+        repo.commit_file("ok.txt", "ok\n", "Prüfdatei");
+        repo.write_file("README.md", "# Test\n\nungespeichert\n");
+        repo
+    }
+
+    fn worktrees(repo: &TestRepo) -> usize {
+        repo.git(&["worktree", "list", "--porcelain"]).lines().filter(|line| line.starts_with("worktree ")).count()
+    }
+
+    #[tokio::test]
+    async fn each_part_is_checked_in_its_own_temporary_worktree() {
+        let repo = checked_repo();
+        let (tc, id) = opened(&repo).await;
+        repo_settings_set(&tc, id.clone(), json!({ "testCommand": "test -f ok.txt && pwd && echo grün" })).await.unwrap();
+        let results = stack_check(&tc, id.clone(), "chk-1".into(), "pruefen".into(), MAIN.into(), vec![cut(1, "Ohne"), cut(2, "Mit")]).await.unwrap();
+        assert_eq!(results.iter().map(|r| (r.part, r.state)).collect::<Vec<_>>(), [(1, StackCheckState::Failed), (2, StackCheckState::Passed)]);
+        assert_eq!(results[0].exit_code, Some(1), "POSIX `test` exits with 1 when the file is missing");
+        assert_eq!(results[0].tip, repo.git(&["rev-parse", "pruefen~1"]));
+        assert!(results[1].output.contains("grün"), "{}", results[1].output);
+        assert!(results[1].output.contains("stack-check-2"), "ran in the part's temporary worktree: {}", results[1].output);
+        let folder = agents_folder(&repo);
+        assert!(!folder.join("stack-check-1").exists() && !folder.join("stack-check-2").exists(), "temporary worktrees removed");
+        assert_eq!(worktrees(&repo), 1, "only the main worktree is left");
+        assert_eq!(repo.read_file("README.md"), b"# Test\n\nungespeichert\n", "the own working directory may be dirty and stays so");
+        assert_eq!(repo.current_branch(), "pruefen");
+    }
+
+    #[tokio::test]
+    async fn without_a_test_command_nothing_runs_and_a_foreign_folder_is_left_alone() {
+        let repo = checked_repo();
+        let (tc, id) = opened(&repo).await;
+        let cuts = || vec![cut(1, ""), cut(2, "")];
+        let error = stack_check(&tc, id.clone(), "chk-2".into(), "pruefen".into(), MAIN.into(), cuts()).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::NotAllowed);
+        assert!(error.message.contains("no test command"), "{}", error.message);
+
+        repo_settings_set(&tc, id.clone(), json!({ "testCommand": "true" })).await.unwrap();
+        let foreign = agents_folder(&repo).join("stack-check-1");
+        std::fs::create_dir_all(&foreign).unwrap();
+        std::fs::write(foreign.join("eigene Notiz.txt"), "bleibt\n").unwrap();
+        let error = stack_check(&tc, id.clone(), "chk-3".into(), "pruefen".into(), MAIN.into(), cuts()).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::PathExists);
+        assert_eq!(std::fs::read(foreign.join("eigene Notiz.txt")).unwrap(), b"bleibt\n", "not Forkyard's: untouched");
+        assert_eq!(worktrees(&repo), 1);
+    }
+
+    #[tokio::test]
+    async fn a_leftover_worktree_of_an_earlier_check_is_replaced() {
+        let repo = checked_repo();
+        let (tc, id) = opened(&repo).await;
+        repo_settings_set(&tc, id.clone(), json!({ "testCommand": "test -f ok.txt" })).await.unwrap();
+        let leftover = agents_folder(&repo).join("stack-check-1");
+        std::fs::create_dir_all(agents_folder(&repo)).unwrap();
+        repo.git(&["worktree", "add", "-q", "--detach", leftover.to_str().unwrap(), "main"]);
+        let results = stack_check(&tc, id.clone(), "chk-4".into(), "pruefen".into(), MAIN.into(), vec![cut(2, "")]).await.unwrap();
+        assert_eq!(results.iter().map(|r| r.state).collect::<Vec<_>>(), [StackCheckState::Passed], "the leftover at main has no ok.txt – the new one at the tip has");
+        assert!(!leftover.exists());
+        assert_eq!(worktrees(&repo), 1);
+    }
+
+    #[tokio::test]
+    async fn cancelling_a_check_removes_its_worktree() {
+        let repo = checked_repo();
+        let (tc, id) = opened(&repo).await;
+        repo_settings_set(&tc, id.clone(), json!({ "testCommand": "sleep 30" })).await.unwrap();
+        let folder = agents_folder(&repo).join("stack-check-1");
+        let check = stack_check(&tc, id.clone(), "chk-5".into(), "pruefen".into(), MAIN.into(), vec![cut(2, "")]);
+        let cancel = async {
+            // Wait for the concrete condition: the worktree is there (the program starts right after).
+            for _ in 0..400 {
+                if folder.join("ok.txt").exists() {
+                    break;
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+            }
+            crate::commands::sync::job_cancel(&tc, "chk-5".into()).await.unwrap();
+        };
+        let started = std::time::Instant::now();
+        let (result, ()) = tokio::join!(check, cancel);
+        assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+        assert!(started.elapsed() < std::time::Duration::from_secs(20), "the program was stopped, not waited for");
+        assert!(!folder.exists(), "removed after the cancel");
+        assert_eq!(worktrees(&repo), 1);
+    }
+}

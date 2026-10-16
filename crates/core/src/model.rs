@@ -1767,6 +1767,10 @@ pub struct RepoSettings {
     /// saving; the effective rules (including `.forkyard/links.json`) come from `link_rules_get`.
     #[serde(default)]
     pub link_rules: LinkRulesConfig,
+    /// Test command for coding agents (run in the agent's worktree when it is done). `None` = none.
+    /// App side (`repo_settings`), never read from the repository.
+    #[serde(default)]
+    pub test_command: Option<String>,
     /// "AI off for this repository": no AI element appears for it, nothing of it is sent.
     #[serde(default)]
     pub ai_off: bool,
@@ -1790,6 +1794,7 @@ impl Default for RepoSettings {
             ssh_key_id: None,
             submodules_auto_update: true,
             link_rules: LinkRulesConfig::default(),
+            test_command: None,
             ai_off: false,
             ai_commit_instruction: None,
         }
