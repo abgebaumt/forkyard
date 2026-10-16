@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use gitcore::commands::agents::{agent_forget, agent_list, agent_resume, agent_start, agent_stop};
+use gitcore::commands::agents::{agent_cleanup, agent_forget, agent_list, agent_resume, agent_start, agent_stop};
 use gitcore::model::{Agent, AgentStatus, AgentStatusSource};
 use gitcore::testkit::{TestCore, TestRepo};
 use gitcore::ErrorCode;
@@ -221,4 +221,15 @@ async fn an_orphaned_agent_can_only_be_forgotten_and_git_keeps_its_branch() {
     // `for-each-ref`, not `branch --list`: the latter marks a branch of a (missing) linked worktree with "+".
     assert_eq!(f.repo.git(&["for-each-ref", "--format=%(refname)", "refs/heads/agent/weg"]), "refs/heads/agent/weg", "forgetting never touches Git");
     assert_eq!(agent_forget(&f.tc, agent.id).await.unwrap_err().code, ErrorCode::NotFound);
+}
+
+#[tokio::test]
+async fn cleanup_ends_a_running_agent_first() {
+    let f = fixture(&[]).await;
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Läuft noch".into(), "agent/noch".into(), "main".into(), false, 80, 24).await.unwrap();
+    wait_status(&f, &agent.id, AgentStatus::Waiting).await;
+    agent_cleanup(&f.tc, agent.id.clone()).await.unwrap();
+    assert!(!f.repo.temp_dir().join("repo.agents").join("noch").exists());
+    assert_eq!(f.tc.state::<gitcore::commands::agents::registry::AgentRegistry>().running_total(), 0);
+    assert!(agent_list(&f.tc, f.id.clone()).await.unwrap().is_empty());
 }

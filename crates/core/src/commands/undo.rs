@@ -656,7 +656,8 @@ impl Run<'_> {
     async fn execute_action(&mut self) -> CoreResult<()> {
         let flag = |key: &str| self.payload.get(key).and_then(Value::as_bool) == Some(true);
         match self.action {
-            UndoAction::Compose | UndoAction::Plan | UndoAction::AgentCleanup | UndoAction::RangeApply | UndoAction::StackCreate | UndoAction::ReviewFixups => {
+            UndoAction::AgentCleanup => self.agent_cleanup().await,
+            UndoAction::Compose | UndoAction::Plan | UndoAction::RangeApply | UndoAction::StackCreate | UndoAction::ReviewFixups => {
                 self.group().await
             }
             UndoAction::Checkout => self.checkout().await,
@@ -1077,6 +1078,72 @@ impl Run<'_> {
                 return Err(e);
             }
         }
+        Ok(())
+    }
+
+    /// Agent cleanup: undo = branch back (group), worktree recreated from it, backed-up changes
+    /// written back, repository and agent row back; redo = changes backed up again, worktree
+    /// removed, branch deleted (group). A folder that is in the way or a running session: stale.
+    async fn agent_cleanup(&mut self) -> CoreResult<()> {
+        use crate::commands::agents::{cleanup, registry::AgentRegistry};
+        let info = self.payload.get("agentWorktree").cloned().unwrap_or(Value::Null);
+        let agent = self.payload.get("agent").cloned().unwrap_or(Value::Null);
+        let row = cleanup::row_from_payload(self.repo_id, &agent).ok_or_else(|| self.lost())?;
+        let folder = std::path::PathBuf::from(info.get("path").and_then(Value::as_str).ok_or_else(|| self.lost())?);
+        match self.dir {
+            Direction::Undo => {
+                let occupied = folder.exists() && std::fs::read_dir(&folder).map(|mut d| d.next().is_some()).unwrap_or(true);
+                if occupied {
+                    return Err(self.stale());
+                }
+                self.group().await?;
+                let restored = self.recreate_agent_worktree(&row, &folder, info.get("snapshot").and_then(Value::as_str)).await;
+                if let Err(e) = restored {
+                    let moves: Vec<u::RefMove> = composite_steps(&Value::Object(self.payload.clone()))
+                        .iter()
+                        .map(|step| u::RefMove { name: step.name.clone(), from: step.after.clone(), to: step.before.clone() })
+                        .collect();
+                    let _ = self.git()?.args(["worktree", "remove", "--force"]).arg(&folder).run_raw().await;
+                    self.roll_back(&moves).await;
+                    return Err(e);
+                }
+                Ok(())
+            }
+            Direction::Redo => {
+                if self.core.state::<AgentRegistry>().get(&row.id).is_some_and(|s| !s.snapshot().finished) {
+                    return Err(self.stale());
+                }
+                let snapshot = cleanup::back_up_changes(self.core, self.repo_id, &folder, &self.entry.id).await?;
+                self.payload.insert("agentWorktree".into(), json!({ "path": row.worktree_path, "snapshot": snapshot }));
+                self.save_payload()?;
+                cleanup::remove_worktree(self.core, self.repo_id, &folder).await?;
+                self.core.db.with(|c| db::agents::delete(c, &row.id))?;
+                self.core.state::<AgentRegistry>().remove(&row.id);
+                self.group().await?;
+                crate::commands::agents::registry::emit_changed(self.core, self.repo_id);
+                Ok(())
+            }
+        }
+    }
+
+    async fn recreate_agent_worktree(&self, row: &db::agents::AgentRow, folder: &Path, snapshot: Option<&str>) -> CoreResult<()> {
+        if let Some(parent) = folder.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| CoreError::io(format!("{}: {e}", util::display_path(parent))))?;
+        }
+        self.git()?.args(["worktree", "add"]).arg(folder).arg(&row.branch).run().await?;
+        if let Some(snapshot) = snapshot {
+            self.core
+                .git
+                .cmd(folder)
+                .repo(self.repo_id)
+                .args(["restore", "--source", snapshot, "--worktree", "--", ":/"])
+                .run()
+                .await?;
+        }
+        let entry = self.core.db.with(|c| db::repos::upsert(c, folder))?;
+        crate::commands::trust::settle_on_open(self.core, &entry.id, folder).await?;
+        self.core.db.with(|c| db::agents::insert(c, row))?;
+        crate::commands::agents::registry::emit_changed(self.core, self.repo_id);
         Ok(())
     }
 

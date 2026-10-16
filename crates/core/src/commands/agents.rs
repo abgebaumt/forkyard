@@ -3,6 +3,7 @@
 //! only keeps metadata, and the running session (terminal, status) lives in memory.
 
 pub mod channel;
+pub mod cleanup;
 pub mod cmdline;
 pub mod machine;
 pub mod names;
@@ -386,6 +387,16 @@ pub async fn agent_forget(core: &Core, agent_id: String) -> CoreResult<()> {
     core.state::<AgentRegistry>().remove(&row.id);
     registry::emit_changed(core, &row.repo_id);
     Ok(())
+}
+
+/// What “Stop agent and clean up” would destroy (see `cleanup::preview`).
+pub async fn agent_cleanup_preview(core: &Core, agent_id: String) -> CoreResult<crate::model::AgentCleanupPreview> {
+    cleanup::preview(core, agent_id).await
+}
+
+/// “Stop agent and clean up” with one undo entry in the main repository (see `cleanup::run`).
+pub async fn agent_cleanup(core: &Core, agent_id: String) -> CoreResult<crate::model::UndoState> {
+    cleanup::run(core, agent_id).await
 }
 
 /// The app is closing: every running agent is recorded as ended by the app before its terminal

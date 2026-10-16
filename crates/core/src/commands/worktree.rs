@@ -257,7 +257,7 @@ pub async fn worktree_add(core: &Core, repo_id: String, path: String, branch: St
 
 /// The file watcher of a worktree opened as a repository keeps its folder open; it is
 /// stopped before removal.
-fn stop_watching(core: &Core, path: &Path) {
+pub(crate) fn stop_watching(core: &Core, path: &Path) {
     let known = core.db.with(db::repos::list_all).unwrap_or_default();
     for row in known.iter().filter(|row| same_path(Path::new(&row.path), path)) {
         let _ = crate::watcher::stop_watching(core, &row.id);
@@ -267,7 +267,7 @@ fn stop_watching(core: &Core, path: &Path) {
 
 /// Removes repository list entries that point to a removed worktree (it was opened as a
 /// repository of its own), closes their tabs and reports `app:changed`.
-fn forget_listed(core: &Core, path: &Path) {
+pub(crate) fn forget_listed(core: &Core, path: &Path) {
     let known = core.db.with(db::repos::list_all).unwrap_or_default();
     let ids: Vec<String> = known.iter().filter(|row| same_path(Path::new(&row.path), path)).map(|row| row.id.clone()).collect();
     if ids.is_empty() {

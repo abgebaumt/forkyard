@@ -167,3 +167,111 @@ async fn after_a_restart_unfinished_sessions_count_as_closed_by_the_app() {
     assert_eq!((listed[0].status, listed[0].unattended, listed[0].terminal_id.as_deref()), (AgentStatus::Stopped, true, None));
     assert_eq!(reconcile_on_start(&tc).unwrap(), 0, "nothing left to reconcile");
 }
+/// An agent as `agent_start` leaves it, without a session: worktree + branch from Git, rows.
+pub(super) async fn agent_without_session(tc: &TestCore, repo: &TestRepo, id: &str, short: &str) -> (db::agents::AgentRow, PathBuf) {
+    let folder = expected_folder(repo, short);
+    std::fs::create_dir_all(folder.parent().unwrap()).unwrap();
+    repo.git(&["worktree", "add", "-q", "-b", &format!("agent/{short}"), &folder.to_string_lossy()]);
+    let row = db::agents::AgentRow {
+        id: format!("agent-{short}"),
+        repo_id: id.to_string(),
+        short_name: short.to_string(),
+        template_id: "claude".into(),
+        task: "Aufräumen testen".into(),
+        branch: format!("agent/{short}"),
+        worktree_path: folder.to_string_lossy().into_owned(),
+        base: "main".into(),
+        base_sha: repo.head(),
+        unattended: false,
+        started_at: "2026-10-16T08:00:00.000Z".into(),
+        ended_at: Some("2026-10-16T08:30:00.000Z".into()),
+        exit_code: Some(0),
+        end_reason: Some(db::agents::EndReason::Exited),
+    };
+    let entry = tc.db.with(|c| db::repos::upsert(c, &folder)).unwrap();
+    crate::commands::trust::settle_on_open(tc, &entry.id, &folder).await.unwrap();
+    tc.db.with(|c| db::agents::insert(c, &row)).unwrap();
+    (row, folder)
+}
+
+/// git in an agent's worktree with the test repository's isolated configuration (no system or user
+/// config: `core.quotePath` and identity are Git's defaults on every machine).
+fn git_in(repo: &TestRepo, dir: &Path, args: &[&str]) -> String {
+    let mut cmd = Command::new("git");
+    cmd.args(args).current_dir(dir);
+    for (key, value) in git_isolation_env(&repo.temp_dir().join("gitconfig")) {
+        cmd.env(key, value);
+    }
+    let out = cmd.output().unwrap();
+    assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
+    String::from_utf8_lossy(&out.stdout).trim_end().to_string()
+}
+
+#[tokio::test]
+async fn cleanup_backs_up_branch_and_changes_and_undo_brings_everything_back() {
+    let (tc, repo, id) = setup().await;
+    let (row, folder) = agent_without_session(&tc, &repo, &id, "fix-login").await;
+    // Two commits only the agent's branch has, then uncommitted work: CRLF without a final newline,
+    // a Latin-1 file whose name has an umlaut, a space and a leading "-".
+    for n in 1..=2 {
+        std::fs::write(folder.join(format!("agent-{n}.txt")), format!("Schritt {n}\n")).unwrap();
+        git_in(&repo, &folder, &["add", "-A"]);
+        git_in(&repo, &folder, &["-c", "user.name=Agent", "-c", "user.email=agent@example.com", "commit", "-q", "-m", &format!("Schritt {n}")]);
+    }
+    let tip = repo.git(&["rev-parse", "agent/fix-login"]);
+    let crlf: &[u8] = b"Zeile eins\r\nZeile zwei ohne Ende";
+    let latin1: &[u8] = b"Gr\xf6\xdfe: 3\n";
+    std::fs::write(folder.join("README.md"), crlf).unwrap();
+    std::fs::write(folder.join("-Größe neu.txt"), latin1).unwrap();
+
+    let preview = agent_cleanup_preview(&tc, row.id.clone()).await.unwrap();
+    let unpushed: u32 = repo.git(&["rev-list", "--count", "agent/fix-login", "--not", "main", "--remotes"]).parse().unwrap();
+    assert_eq!((preview.unpushed_commits, unpushed), (2, 2));
+    assert_eq!((preview.changed_files, preview.running, preview.locked), (2, false, false));
+
+    let state = agent_cleanup(&tc, row.id.clone()).await.unwrap();
+    assert!(state.undo.as_ref().unwrap().label.contains("fix-login"), "{:?}", state.undo);
+    assert!(!folder.exists());
+    assert_eq!(repo.git(&["branch", "--list", "agent/fix-login"]), "");
+    assert_eq!(repo.git(&["worktree", "list", "--porcelain"]).matches("worktree ").count(), 1);
+    assert!(agent_list(&tc, id.clone()).await.unwrap().is_empty());
+    assert!(tc.db.with(|c| db::repos::find_by_path(c, &folder)).unwrap().is_none(), "the worktree's repository row is gone");
+    let backups = repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard/undo/"]);
+    assert!(backups.lines().any(|r| r.ends_with("/agent-worktree")) && backups.lines().any(|r| r.ends_with("/before-0")), "{backups}");
+
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+    assert_eq!(repo.git(&["rev-parse", "agent/fix-login"]), tip, "the branch is back at its tip");
+    assert_eq!(std::fs::read(folder.join("README.md")).unwrap(), crlf, "byte for byte");
+    assert_eq!(std::fs::read(folder.join("-Größe neu.txt")).unwrap(), latin1);
+    let status = git_in(&repo, &folder, &["status", "--porcelain", "--untracked-files=all"]);
+    assert!(status.contains(" M README.md") && status.contains("?? \"-Gr"), "{status}");
+    assert_eq!(git_in(&repo, &folder, &["rev-parse", "HEAD"]), tip);
+    let back = agent_list(&tc, id.clone()).await.unwrap();
+    assert_eq!((back.len(), back[0].status, back[0].short_name.as_str(), back[0].task.as_str()), (1, AgentStatus::Stopped, "fix-login", "Aufräumen testen"));
+    assert!(back[0].worktree_repo_id.is_some());
+
+    // Redo removes it again; a second undo still finds the (re-taken) backup.
+    crate::commands::undo::redo(&tc, id.clone()).await.unwrap();
+    assert!(!folder.exists());
+    assert_eq!(repo.git(&["branch", "--list", "agent/fix-login"]), "");
+    crate::commands::undo::undo(&tc, id.clone()).await.unwrap();
+    assert_eq!(std::fs::read(folder.join("README.md")).unwrap(), crlf);
+}
+
+#[tokio::test]
+async fn cleanup_refuses_locked_worktrees_and_undo_is_not_offered_when_the_branch_came_back() {
+    let (tc, repo, id) = setup().await;
+    let (row, folder) = agent_without_session(&tc, &repo, &id, "gesperrt").await;
+    repo.git(&["worktree", "lock", "--reason", "auf dem Stick", &folder.to_string_lossy()]);
+    assert!(agent_cleanup_preview(&tc, row.id.clone()).await.unwrap().locked);
+    assert_eq!(agent_cleanup(&tc, row.id.clone()).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert!(folder.exists());
+    repo.git(&["worktree", "unlock", &folder.to_string_lossy()]);
+
+    agent_cleanup(&tc, row.id.clone()).await.unwrap();
+    // Someone creates a branch of that name again: the entry no longer fits and is not offered.
+    repo.branch("agent/gesperrt");
+    assert_eq!(crate::commands::undo::undo(&tc, id.clone()).await.unwrap_err().code, ErrorCode::NothingToUndo);
+    // An unknown agent.
+    assert_eq!(agent_cleanup(&tc, "gibt-es-nicht".into()).await.unwrap_err().code, ErrorCode::NotFound);
+}
