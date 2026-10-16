@@ -4,8 +4,9 @@
 //! characters, and every heading of the repository's template still there – otherwise the one
 //! repair attempt of `run::complete_json_checked`. Afterwards the core adds `Closes #n` for every
 //! host issue the commits mention and reduces closing keywords before any other number to the
-//! plain reference: closing an issue is an effect at the host the user did not ask for, so neither
-//! the model nor a prompt injection in a commit may add one.
+//! plain reference – every form the hosts act on (other repositories, issue URLs, GitLab's
+//! keywords and lists after one keyword): closing an issue is an effect at the host the user did
+//! not ask for, so neither the model nor a prompt injection in a commit may add one.
 
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
@@ -201,28 +202,49 @@ pub fn issue_numbers(messages: &[String], rules: &[LinkRule]) -> Vec<u64> {
     out
 }
 
+/// One reference a closing keyword can act on: `#n`, `owner/repo#n` or `group/sub/project#n`, an
+/// issue URL, or an upper-case external ticket (`PROJ-7`, GitLab's Jira form); GitLab also allows
+/// `issue`/`issues` in front of each.
+const CLOSING_REF: &str = r"(?:issues?\s+)?(?:#\d+\b|[\w.-]+(?:/[\w.-]+)*#\d+\b|https?://[^\s,]+|(?-i:[A-Z][A-Z0-9_]+-\d+\b))";
+
+/// A closing statement as the hosts read it: one keyword of the GitHub/Gitea set or GitLab's
+/// larger one (`closing`, `implements`, `fixing`, `resolving` …), then a list of references joined
+/// by commas and/or `and` – GitLab closes every issue of such a list.
 fn closing_keyword() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?)(\s*:?\s+)#(\d+)\b").expect("valid pattern"))
+    RE.get_or_init(|| {
+        let keyword = r"clos(?:e[sd]?|ing)|fix(?:e[sd]|ing)?|resol(?:ve[sd]?|ving)|implement(?:s|ed|ing)?";
+        let list = format!(r"{CLOSING_REF}(?:(?:\s*,\s*(?:and\s+)?|\s+and\s+){CLOSING_REF})*");
+        Regex::new(&format!(r"(?i)\b(?:{keyword})\s*:?\s*({list})")).expect("valid pattern")
+    })
 }
 
-/// "Fixes #77" → "#77" for every number that is not one of `closes`.
+fn closing_ref() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(&format!("(?i){CLOSING_REF}")).expect("valid pattern"))
+}
+
+/// The issue numbers a closing statement's list closes, or `None` when one of its references is
+/// anything but a plain `#n` (another repository, a URL, an `issue` prefix, a ticket).
+fn plain_numbers(list: &str) -> Option<Vec<u64>> {
+    closing_ref().find_iter(list).map(|item| item.as_str().strip_prefix('#').and_then(|digits| digits.parse().ok())).collect()
+}
+
+/// "Fixes #77" → "#77": a closing statement keeps its keyword only when every reference in it is
+/// a plain `#n` of `closes`; otherwise the keyword goes and the references stay as plain text.
 pub fn strip_foreign_closes(body: &str, closes: &[u64]) -> String {
     closing_keyword()
-        .replace_all(body, |caps: &regex::Captures<'_>| {
-            let number: u64 = caps[3].parse().unwrap_or(0);
-            if closes.contains(&number) {
-                caps[0].to_string()
-            } else {
-                format!("#{}", &caps[3])
-            }
+        .replace_all(body, |caps: &regex::Captures<'_>| match plain_numbers(&caps[1]) {
+            Some(numbers) if numbers.iter().all(|n| closes.contains(n)) => caps[0].to_string(),
+            _ => caps[1].to_string(),
         })
         .into_owned()
 }
 
 /// Appends `Closes #n` for every number the text does not close yet.
 pub fn with_closes(body: &str, closes: &[u64]) -> String {
-    let present: BTreeSet<u64> = closing_keyword().captures_iter(body).filter_map(|caps| caps[3].parse().ok()).collect();
+    let present: BTreeSet<u64> =
+        closing_keyword().captures_iter(body).filter_map(|caps| plain_numbers(&caps[1])).flatten().collect();
     let lines: Vec<String> = closes.iter().filter(|n| !present.contains(n)).map(|n| format!("Closes #{n}")).collect();
     if lines.is_empty() {
         body.to_string()

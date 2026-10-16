@@ -98,3 +98,36 @@ fn closing_keywords_come_only_from_the_commits() {
     assert_eq!(with_closes("Fix #9 and close #9", &[9]), "Fix #9 and close #9", "already closed in the text");
     assert_eq!(strip_foreign_closes("Closes #1; see #2", &[]), "#1; see #2");
 }
+
+#[test]
+fn no_closing_form_of_the_hosts_survives_for_a_foreign_issue() {
+    // Each line is a form GitHub, Gitea or GitLab acts on; #12 is the only issue the commits name.
+    let cases = [
+        ("Fixes octo/other#77", "octo/other#77"),
+        ("Closes https://github.com/octo/demo/issues/77", "https://github.com/octo/demo/issues/77"),
+        ("resolves: https://gitlab.example/group/demo/-/issues/77.", "https://gitlab.example/group/demo/-/issues/77."),
+        ("Closes #12, #77", "#12, #77"),
+        ("Closes #12 and #77", "#12 and #77"),
+        ("Closes #12, and #77", "#12, and #77"),
+        ("Closing #5", "#5"),
+        ("Implements #5", "#5"),
+        ("Implemented #5", "#5"),
+        ("Fixing #5", "#5"),
+        ("Resolving #5", "#5"),
+        ("Resolves issue #5", "issue #5"),
+        ("Closes issues #12 and #5", "issues #12 and #5"),
+        ("Fixes group/project#5", "group/project#5"),
+        ("Fixes group/sub.group/my-project#5", "group/sub.group/my-project#5"),
+        ("Fixes:#5", "#5"),
+        ("Closes PROJ-7", "PROJ-7"),
+    ];
+    for (body, stripped) in cases {
+        assert_eq!(strip_foreign_closes(body, &[12]), stripped, "{body}");
+        assert_eq!(finish(&json!({"title": "T", "body": body}), &[12]).body, format!("{stripped}\n\nCloses #12"), "{body}");
+    }
+    // Only exact `#n` lists of issues the commits name keep their keyword.
+    assert_eq!(strip_foreign_closes("Closes #12 and #3, fixes #3", &[12, 3]), "Closes #12 and #3, fixes #3");
+    assert_eq!(finish(&json!({"title": "T", "body": "Closes #12, #3"}), &[12, 3]).body, "Closes #12, #3");
+    // Words that only look like keywords stay prose.
+    assert_eq!(strip_foreign_closes("The prefixes #5 and suffixes #6 stay; enclosing #7 too.", &[]), "The prefixes #5 and suffixes #6 stay; enclosing #7 too.");
+}
