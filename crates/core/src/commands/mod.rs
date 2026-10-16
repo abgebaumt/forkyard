@@ -34,6 +34,7 @@ pub mod remotes;
 pub mod repos;
 pub mod settings;
 pub mod signing;
+pub mod stack;
 pub mod stage;
 pub mod stash;
 pub mod stats;
