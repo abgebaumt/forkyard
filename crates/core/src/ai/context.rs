@@ -158,7 +158,9 @@ fn parse_numstat(bytes: &[u8]) -> Vec<NumstatRow> {
 }
 
 /// The staged files with their patches (excluded, generated and binary files without content).
-pub async fn staged_files(core: &Core, repo_id: &str, exclusions: &Exclusions) -> CoreResult<Vec<DiffFile>> {
+/// Each patch is redacted here, before `fit` measures and `shorten_patch` cuts it: a cut may
+/// separate the BEGIN and END lines of a private key, and the cut text no longer matches the rule.
+pub async fn staged_files(core: &Core, repo_id: &str, exclusions: &Exclusions, secrets: &[String]) -> CoreResult<Vec<DiffFile>> {
     let out = core
         .git_for(repo_id)?
         .args(["diff", "--cached", "--numstat", "-z", "-M", "--no-color", "--no-ext-diff", "--no-textconv"])
@@ -185,7 +187,7 @@ pub async fn staged_files(core: &Core, repo_id: &str, exclusions: &Exclusions) -
             Some(_) => file.size = staged_size(core, repo_id, &file).await,
             None if file.is_binary() => file.size = staged_size(core, repo_id, &file).await,
             None if read < MAX_FILES => {
-                file.patch = staged_patch(core, repo_id, &file).await?;
+                file.patch = redact_for_ai(&staged_patch(core, repo_id, &file).await?, secrets);
                 file.size = file.patch.len() as u64;
                 read += 1;
             }
@@ -342,6 +344,7 @@ pub fn redact_for_ai(text: &str, secrets: &[String]) -> String {
     secrets::scrub(&redact::redact(text), secrets)
 }
 
+/// Redacts the whole text once more (headers with paths); patches are already redacted on reading.
 pub fn render(fitted: &Fitted, secrets: &[String]) -> String {
     let text = fitted.entries.iter().map(|(file, shown)| render_entry(file, *shown)).collect::<Vec<_>>().join("\n");
     redact_for_ai(&text, secrets)
@@ -359,7 +362,7 @@ pub struct Built {
 /// `secrets`: values known to be secret (the provider key), scrubbed literally.
 pub async fn staged_changes(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<Built> {
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
-    let files = staged_files(core, repo_id, &exclusions).await?;
+    let files = staged_files(core, repo_id, &exclusions, secrets).await?;
     let fitted = fit(files, &exclusions, (budget_tokens as f64 * CHARS_PER_TOKEN) as usize);
     let body = render(&fitted, secrets);
     let body = if body.trim().is_empty() { "(nothing staged)".to_string() } else { body };
@@ -477,6 +480,47 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         let built = staged_changes(&tc, &id, &Settings::default(), 24_000, "en", &["plainword-9f8e7d6c".to_string()]).await.unwrap();
         assert!(!built.prompt.text().contains("plainword-9f8e7d6c"));
+    }
+
+    /// A private key whose BEGIN line falls in the kept head of a shortened hunk and whose END
+    /// line falls in the cut middle: none of its base64 lines may go out.
+    #[tokio::test]
+    async fn a_private_key_across_the_cut_of_a_shortened_hunk_is_not_sent() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        // 49 base64 lines of 64 characters, like the body of a 4096-bit RSA key.
+        let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let key_lines: Vec<String> = (0..49usize).map(|n| (0..64usize).map(|i| alphabet[(n * 7 + i * 13 + n * i) % 64] as char).collect()).collect();
+        let mut content = String::new();
+        for n in 1..=14 {
+            content.push_str(&format!("setting_{n}: wert {n}\n"));
+        }
+        content.push_str("tls_key: |\n");
+        content.push_str("-----BEGIN RSA PRIVATE KEY-----\n");
+        for line in &key_lines {
+            content.push_str(line);
+            content.push('\n');
+        }
+        content.push_str("-----END RSA PRIVATE KEY-----\n");
+        for n in 15..=214 {
+            content.push_str(&format!("setting_{n}: wert {n}\n"));
+        }
+        repo.write_file("deploy/values.yaml", &content);
+        repo.git(&["add", "-A"]);
+        // The oracle: line 16 of the hunk is the BEGIN line, in the kept head of 20 lines.
+        let diff = repo.git(&["diff", "--cached", "--", "deploy/values.yaml"]);
+        let hunk: Vec<&str> = diff.lines().skip_while(|line| !line.starts_with("@@")).skip(1).collect();
+        assert_eq!(hunk[15], "+-----BEGIN RSA PRIVATE KEY-----", "the oracle");
+        assert!(hunk.len() > 31 + 49, "the hunk is long enough to be shortened");
+        let id = tc.open(&repo).await.repo.id;
+
+        let built = staged_changes(&tc, &id, &Settings::default(), 400, "en", &[]).await.unwrap();
+        let text = built.prompt.text();
+        assert_eq!(built.shortened, vec!["deploy/values.yaml".to_string()], "{text}");
+        for line in &key_lines {
+            assert!(!text.contains(line.as_str()), "a key line went out: {line}\n{text}");
+        }
+        assert!(text.contains("PRIVATE KEY"), "the reader still sees what was there: {text}");
     }
 
     #[test]
