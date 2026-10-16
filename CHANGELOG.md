@@ -30,6 +30,22 @@ All notable changes to Forkyard are listed here. The format follows
   run a program in a worktree and report bells, titles and notifications, locating coding-agent CLIs, the
   history of a single line (`lineHistory`), and a check that every error code exists in Rust, TypeScript
   and both languages.
+- AI foundation, off until you turn it on: Settings › AI connects one provider for every profile –
+  Anthropic, OpenAI, Google Gemini, an OpenAI-compatible service with its own address, or Ollama /
+  LM Studio on this computer. Keys live only in the operating system's keychain (Forkyard shows at most
+  the last four characters); “Check” lists the models and stores the key only after the provider
+  accepted it. Every function can be switched off on its own, and every repository (“AI off for this
+  repository”).
+- “What is sent?” shows the exact text without sending anything. Secrets, `.env` files, keys and
+  patterns from `.forkyard/ai-ignore` (gitignore syntax) or the global list are never sent; lock files
+  and binaries only by name and size; keys inside the text are redacted. Forkyard asks before the first
+  use of a function, before a provider gets content of a repository for the first time, above 100,000
+  characters and above a cost threshold (default 0.10 USD).
+- AI costs: an estimate for providers with a known price (dated price list, own price per model), an
+  optional monthly limit and this month's usage – counted locally, numbers only, never contents.
+- Until AI is set up, the start page shows one muted entry “Set up AI features” and the command palette
+  “Set up AI …”; turned off on purpose, nothing of it appears. After the update a one-time notice
+  introduces the new features.
 
 ### Changed
 
