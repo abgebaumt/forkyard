@@ -146,10 +146,7 @@ scenario("connecting a local Ollama in Settings › AI removes the entry and the
   await app.click(await app.waitFor(ENTRY, 15_000, { message: "start-page entry" }));
   await app.waitFor("[data-ai-settings]", 10_000, { message: "the AI section" });
 
-  await app.click(await masterSwitch(app));
-  await eventually(async () => (await app.invoke("ai_status")).state, "on", "core: AI on");
-  assertEqual((await app.invoke("ai_status")).connected, false, "on, but no provider yet");
-
+  // Teilpaket 1b: switching on without a provider opens the setup dialog – so provider and model first.
   await chooseOption(app, '[data-ai-provider] button[role="combobox"]', "Ollama (on this computer)");
   await eventually(async () => (await app.invoke("settings_get")).aiProvider, "ollama", "core: provider ollama");
   await app.click(await app.waitFor("[data-ai-check]", 5000, { message: "Check" }));
@@ -159,6 +156,9 @@ scenario("connecting a local Ollama in Settings › AI removes the entry and the
 
   await chooseOption(app, '[data-ai-model] button[role="combobox"]', "qwen3:8b");
   await eventually(async () => (await app.invoke("ai_status")).connected, true, "core: connected");
+  assertEqual((await app.invoke("ai_status")).state, "unset", "connected, but not switched on yet");
+  await app.click(await masterSwitch(app));
+  await eventually(async () => (await app.invoke("ai_status")).state, "on", "core: AI on");
   await t.shot("ai-connected");
   await closeSettings(app);
   await entryGone(app);
