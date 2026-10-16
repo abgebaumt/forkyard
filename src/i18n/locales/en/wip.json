@@ -173,5 +173,14 @@
     "lockedByOther": "“{{path}}” is locked by {{owner}}. You can commit, but the push may be refused.",
     "lockedByOthers_one": "{{count}} staged file is locked by others ({{owners}}). You can commit, but the push may be refused.",
     "lockedByOthers_other": "{{count}} staged files are locked by others ({{owners}}). You can commit, but the push may be refused."
+  },
+  "ai": {
+    "write": "Write",
+    "again": "New",
+    "writeTip": "Write a commit message from the staged changes",
+    "nothingStaged": "Nothing staged",
+    "hint": "Draft from the staged diff, styled like the last 30 commits",
+    "offer": "Suggestion – your text stays until you choose",
+    "whatIsSent": "What is sent?"
   }
 }

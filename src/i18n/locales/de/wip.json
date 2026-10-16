@@ -173,5 +173,14 @@
     "lockedByOther": "„{{path}}“ ist von {{owner}} gesperrt. Committen geht, der Push kann aber abgelehnt werden.",
     "lockedByOthers_one": "{{count}} gestagte Datei ist von anderen gesperrt ({{owners}}). Committen geht, der Push kann aber abgelehnt werden.",
     "lockedByOthers_other": "{{count}} gestagte Dateien sind von anderen gesperrt ({{owners}}). Committen geht, der Push kann aber abgelehnt werden."
+  },
+  "ai": {
+    "write": "Schreiben",
+    "again": "Neu",
+    "writeTip": "Commit-Nachricht aus den gestagten Änderungen schreiben",
+    "nothingStaged": "Nichts gestagt",
+    "hint": "Entwurf aus dem gestagten Diff, Stil wie die letzten 30 Commits",
+    "offer": "Vorschlag – dein Text bleibt, bis du wählst",
+    "whatIsSent": "Was wird gesendet?"
   }
 }
