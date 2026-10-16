@@ -1,10 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("../../screens/PushCheck/SecretDialog", () => ({ showSecretFindings: vi.fn() }));
+const queries = vi.hoisted(() => ({ cache: new Map<string, unknown>(), fetched: [] as string[] }));
+vi.mock("../queries", () => ({
+  qk: { aiStatus: ["app", "aiStatus"], repoSettings: (repoId: string) => ["repo", repoId, "repoSettings"] },
+  queryClient: {
+    getQueryData: (key: unknown[]) => queries.cache.get(JSON.stringify(key)),
+    fetchQuery: async ({ queryKey }: { queryKey: unknown[] }) => {
+      queries.fetched.push(JSON.stringify(queryKey));
+      if (JSON.stringify(queryKey).includes("repoSettings")) throw new Error("offline");
+      return { state: "on" };
+    },
+    setQueryData: vi.fn(),
+  },
+}));
 
 import { CoreError, type PushResult, type SecretFinding } from "../../core";
 import type { ActionResult } from "../run";
-import { guardSecrets } from "./pushCheck";
+import { guardSecrets, reviewContext } from "./pushCheck";
 
 const A = "a".repeat(64);
 const B = "b".repeat(64);
@@ -48,5 +61,14 @@ describe("guardSecrets", () => {
     const rejected = ok({ status: "rejected", reason: "non-fast-forward" });
     expect(await guardSecrets("repo-1", async () => rejected, show)).toBe(rejected);
     expect(show).not.toHaveBeenCalled();
+  });
+});
+
+describe("reviewContext", () => {
+  it("takes the cache, loads what is missing and survives a failed load", async () => {
+    queries.cache.set(JSON.stringify(["repo", "repo-1", "repoSettings"]), { aiOff: false, aiReviewBeforePush: true });
+    expect(await reviewContext("repo-1")).toEqual({ status: { state: "on" }, repo: { aiOff: false, aiReviewBeforePush: true } });
+    expect(queries.fetched).toEqual([JSON.stringify(["app", "aiStatus"])]);
+    expect(await reviewContext("repo-2")).toEqual({ status: { state: "on" }, repo: undefined });
   });
 });

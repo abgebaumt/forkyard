@@ -6,6 +6,7 @@ import { FolderOpen } from "lucide-react";
 import { Trans } from "react-i18next";
 import { core, type Id, type PullMode, type RepoSettings } from "../../../core";
 import { pullModeHints } from "../../../app/actions/sync";
+import { forgetIgnoredFindings } from "../../../app/actions/pushCheck";
 import { useHostRepo, useProfiles, useRepo, useRepoSettings, useSettings, useSshKeys } from "../../../app/queries";
 import { Button } from "../../../ui/Button";
 import { Select } from "../../../ui/Select";
@@ -200,6 +201,16 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
               checked={repo.submodulesAutoUpdate}
               onCheckedChange={(checked) => void applyRepoSettings(repoId, { submodulesAutoUpdate: checked })}
             />
+          )}
+        </SettingRow>
+        <SettingRow
+          title={t("pushCheck.ignored.title")}
+          description={repo.secretScanIgnoredCount ? t("pushCheck.ignored.description", { count: repo.secretScanIgnoredCount }) : t("pushCheck.ignored.none")}
+        >
+          {(ids) => (
+            <Button id={ids.id} aria-describedby={ids.descriptionId} data-action="secret-scan-forget" disabled={repo.secretScanIgnoredCount === 0} onClick={() => void forgetIgnoredFindings(repoId)}>
+              {t("pushCheck.ignored.action")}
+            </Button>
           )}
         </SettingRow>
       </SettingsCard>

@@ -351,7 +351,7 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
   if (pushed?.status === "secrets_found") {
     // The commit exists; the push stopped in the core. The normal push scans again and shows the findings.
     toast({ tone: "success", title: done, description: what });
-    void push(repoId, { tabId });
+    void push(repoId, { tabId, reviewed: true });
   } else if (pushed?.status === "rejected") {
     toast({
       tone: "warning",

@@ -20,10 +20,11 @@ import { createBranch, selectedBranchStart } from "../actions/branches";
 import { busyKeys } from "../actions/keys";
 import { operationNames } from "../actions/merge";
 import { popStash, stashChanges } from "../actions/stash";
-import { addRemote, fetchAll, pull, pullModeHints, pullModeLabels, push, setDefaultPullMode } from "../actions/sync";
+import { addRemote, fetchAll, pull, pullModeHints, pullModeLabels, push, reviewAndPush, setDefaultPullMode } from "../actions/sync";
+import { reviewOffered } from "../../screens/PushCheck/model";
 import { redo, undo } from "../actions/undo";
 import { toggleStats } from "../../screens/Stats/actions";
-import { useRemotes, useRepoSettings, useSettings, useStashes, useStatus, useUndoState } from "../queries";
+import { useAiStatus, useRemotes, useRepoSettings, useSettings, useStashes, useStatus, useUndoState } from "../queries";
 import { useAppStore, useBusy, useTabView } from "../store";
 import { t } from "../../i18n";
 
@@ -52,6 +53,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const { data: undoState } = useUndoState(repoId);
   const { data: settings } = useSettings();
   const { data: repoSettings } = useRepoSettings(repoId);
+  const { data: aiStatus } = useAiStatus();
   const view = useTabView(tabId);
   const openOverlay = useAppStore((state) => state.openOverlay);
   const toggleTerminal = useAppStore((state) => state.toggleTerminal);
@@ -129,6 +131,17 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     ...(hasRemote === false ? [{ label: t("shell.toolbar.addRemote"), onSelect: addRemote } satisfies MenuEntry] : []),
   ];
 
+  // "Review and push …" (v1.2, 6.2): the Push button becomes a split button only where the review is visible.
+  const pushMenu: MenuEntry[] | undefined = reviewOffered(aiStatus, repoSettings)
+    ? [
+        {
+          label: t("pushCheck.review.menu"),
+          disabled: Boolean(pushBlocked),
+          tooltip: pushBlocked ? `${t("pushCheck.review.menu")} – ${pushBlocked}` : t("pushCheck.review.menuHint"),
+          onSelect: () => void reviewAndPush(repoId, { tabId }),
+        },
+      ]
+    : undefined;
   const stashTop = stashes?.[0];
 
   return (
@@ -184,6 +197,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         }
         badge={ahead || undefined}
         badgeLabel={ahead ? t("shell.toolbar.toPush", { count: ahead }) : undefined}
+        menu={pushMenu}
         onClick={() => void push(repoId, { tabId })}
       />
       <ToolbarButton
