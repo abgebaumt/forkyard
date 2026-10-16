@@ -23,6 +23,7 @@ use crate::commands::merge::{conflict_get, is_marker_line};
 use crate::commands::refs::read_head;
 use crate::commands::status::read_operation;
 use crate::error::{CoreError, CoreResult};
+use crate::git::redact;
 use crate::model::{AiOmitReason, AiOmitted, ConflictBlockRange, Head, IntentSent, OperationKind, PrListState, Settings};
 use crate::util;
 
@@ -44,6 +45,8 @@ const MAX_COMMIT_BODY: usize = 1_000;
 /// A shortened side keeps its first 20 and last 10 lines.
 const HEAD_LINES: usize = 20;
 const TAIL_LINES: usize = 10;
+/// What a line touched by a multi-line redaction becomes.
+const MASK_LINE: &str = "***";
 
 /// What the AI is asked (the part of the system text that `ai::prompt::build` frames).
 pub const INSTRUCTION: &str = "Explain a conflict between two versions of a file. For every section \"Conflict block n\" give one entry: \"block\" is n, \"ours\" says in one or two sentences what the current side wanted with its change, \"theirs\" the same for the incoming side - judged from the block texts, the commit messages and the pull request texts. \"text\" holds the lines that should replace the block so that the intent of both sides is kept: only the block's own lines, not the lines before or after it, without conflict markers, line numbers or remarks. For a block marked \"explain only\" give the explanations; its \"text\" is not used. Answer every block section exactly once.";
@@ -298,7 +301,10 @@ pub async fn build(core: &Core, repo_id: &str, path: &str, ranges: &[ConflictBlo
     };
     let ours = split_lines(ours_text);
     let theirs = split_lines(theirs_text);
-    let blocks = slice_blocks(&ours, &theirs, ranges)?;
+    // Redacted as whole versions before cutting and shortening (a cut may separate the BEGIN and END
+    // lines of a private key); `git_blocks` keeps Git's lines to see which blocks the masks changed.
+    let git_blocks = slice_blocks(&ours, &theirs, ranges)?;
+    let blocks = slice_blocks(&mask_secret_lines(&ours, secrets), &mask_secret_lines(&theirs, secrets), ranges)?;
     let known_markers: HashSet<String> = ours.iter().chain(&theirs).filter(|line| is_marker_line(line)).cloned().collect();
 
     let operation = read_operation(core, repo_id).await?;
@@ -364,10 +370,11 @@ pub async fn build(core: &Core, repo_id: &str, path: &str, ranges: &[ConflictBlo
     let sent: Vec<IntentSent> = blocks
         .iter()
         .zip(&shown)
-        .map(|(block, shown)| match shown {
+        .enumerate()
+        .map(|(index, (block, shown))| match shown {
             BlockShown::LeftOut => IntentSent::LeftOut,
             BlockShown::Shortened => IntentSent::Shortened,
-            BlockShown::Full if changed_by_redaction(block, secrets) => IntentSent::Redacted,
+            BlockShown::Full if changed_by_redaction(block, &git_blocks[index], secrets) => IntentSent::Redacted,
             BlockShown::Full => IntentSent::Full,
         })
         .collect();
@@ -476,12 +483,64 @@ fn render_block(block: &BlockText, shortened: bool) -> String {
     out.join("\n")
 }
 
-/// Redaction changed a line of the block: a proposal would contain the masks.
-fn changed_by_redaction(block: &BlockText, secrets: &[String]) -> bool {
-    [&block.ours, &block.theirs].into_iter().any(|lines| {
-        let text = lines.join("\n");
-        context::redact_for_ai(&text, secrets) != text
-    })
+/// Redaction changed a line of the block (`block` is cut from the masked versions, `git` from Git's),
+/// or the redaction of the whole section would still change it – a key from the current side's
+/// context into the incoming side, say: a proposal would contain masks or mangled lines.
+fn changed_by_redaction(block: &BlockText, git: &BlockText, secrets: &[String]) -> bool {
+    if block.ours != git.ours || block.theirs != git.theirs {
+        return true;
+    }
+    let text = render_block(block, false);
+    context::redact_for_ai(&text, secrets) != text
+}
+
+/// One version redacted as a whole, before it is cut into blocks and shortened, with the line count
+/// kept: every line a multi-line rule (a private key in PEM form, `extraheader` with its value on the
+/// next line) touches becomes a mask line, one-line rules mask inside the line. A cut can then no
+/// longer separate the BEGIN and END lines of a key, and a block whose lines differ from Git's is
+/// known to contain masks.
+fn mask_secret_lines(lines: &[String], secrets: &[String]) -> Vec<String> {
+    let mut out = lines.to_vec();
+    // Index of the line that holds byte `offset` of `out.join("\n")`.
+    let line_at = |out: &[String], offset: usize| {
+        let mut end = 0usize;
+        for (index, line) in out.iter().enumerate() {
+            end += line.len() + 1;
+            if offset < end {
+                return index;
+            }
+        }
+        out.len().saturating_sub(1)
+    };
+    let joined = out.join("\n");
+    for span in redact::private_key_spans(&joined) {
+        let (first, last) = (line_at(&out, span.start), line_at(&out, span.end.saturating_sub(1)));
+        for line in &mut out[first..=last] {
+            *line = MASK_LINE.to_string();
+        }
+    }
+    for line in &mut out {
+        *line = context::redact_for_ai(line, secrets);
+    }
+    // Whatever another rule still finds across lines: mask from its first to its last changed line.
+    loop {
+        let joined = out.join("\n");
+        let redacted = context::redact_for_ai(&joined, secrets);
+        if redacted == joined {
+            return out;
+        }
+        let prefix = joined.bytes().zip(redacted.bytes()).take_while(|(a, b)| a == b).count();
+        let suffix = joined.bytes().rev().zip(redacted.bytes().rev()).take_while(|(a, b)| a == b).count().min(joined.len() - prefix);
+        let (first, last) = (line_at(&out, prefix), line_at(&out, (joined.len() - suffix).max(prefix + 1) - 1));
+        let before = out.clone();
+        for line in &mut out[first..=last] {
+            *line = MASK_LINE.to_string();
+        }
+        if out == before {
+            // Nothing left to mask line by line (a mask line itself matches): the whole version.
+            return vec![MASK_LINE.to_string(); out.len()];
+        }
+    }
 }
 
 #[cfg(test)]
@@ -818,6 +877,118 @@ mod tests {
         assert_eq!(tight.built.omitted.iter().map(|item| (item.path.as_str(), item.reason)).collect::<Vec<_>>(), vec![(left.as_str(), AiOmitReason::Budget)]);
 
         assert_eq!(build(&tc, &id, BIG, &big_ranges(), &settings, 50, "en", &[]).await.unwrap_err().code, ErrorCode::AiTooLarge, "nothing left to send");
+    }
+
+    const DEPLOY: &str = "config/deploy.yaml";
+    const BEGIN_KEY: &str = "  -----BEGIN RSA PRIVATE KEY-----";
+    const END_KEY: &str = "  -----END RSA PRIVATE KEY-----";
+
+    /// Twelve base64 lines of a key; lines 5–8 carry `variant`, the others are shared.
+    fn key_body(variant: &str) -> Vec<String> {
+        (1..=12)
+            .map(|n| if (5..=8).contains(&n) { format!("  MIIEowIBAAKCAQEA{variant}{n:02}x7Qk3VbN0rTz9LsW") } else { format!("  MIIEpAIBAAKCAQEAgemeinsam{n:02}q2Lw") })
+            .collect()
+    }
+
+    fn deploy_file(variant: &str) -> String {
+        let mut lines = vec!["service: messstation".to_string(), "tls_key: |".to_string(), BEGIN_KEY.to_string()];
+        lines.extend(key_body(variant));
+        lines.extend([END_KEY.to_string(), "region: eu-central".to_string()]);
+        lines.iter().map(|line| format!("{line}\n")).collect()
+    }
+
+    /// A key rotation in a file whose name says nothing about secrets: both sides changed lines
+    /// 5–8 of the key body, so the conflict block holds key lines only and BEGIN and END sit more
+    /// than three lines outside it.
+    fn key_rotation_conflict() -> TestRepo {
+        let repo = TestRepo::new();
+        repo.commit_file(DEPLOY, deploy_file("Basis"), "Deployment angelegt");
+        repo.checkout_new("feature/schluessel");
+        repo.commit_file(DEPLOY, deploy_file("Feature"), "Schlüssel getauscht");
+        repo.checkout("main");
+        repo.commit_file(DEPLOY, deploy_file("Haupt"), "Schlüssel erneuert");
+        assert!(!repo.merge("feature/schluessel"));
+        repo
+    }
+
+    fn key_lines(prompt: &Prompt, lines: &[String]) -> Vec<String> {
+        lines.iter().filter(|line| prompt.text().contains(line.trim())).cloned().collect()
+    }
+
+    #[tokio::test]
+    async fn a_key_body_without_its_begin_and_end_lines_never_goes_out() {
+        let tc = TestCore::new().await;
+        let repo = key_rotation_conflict();
+        let id = tc.open(&repo).await.repo.id;
+        // The oracle: git's own conflict markers put the block on lines 8–11 (0-based 7–10) of both sides.
+        let merged = String::from_utf8(repo.read_file(DEPLOY)).unwrap();
+        let lines: Vec<&str> = merged.lines().collect();
+        assert_eq!(lines[7], "<<<<<<< HEAD", "{merged}");
+        assert_eq!(lines[2], BEGIN_KEY);
+        let plan = build(&tc, &id, DEPLOY, &[range(7, 4, 7, 4)], &Settings::default(), 32_000, "en", &[]).await.unwrap();
+        let prompt = &plan.built.prompt;
+        let all: Vec<String> = key_body("Haupt").into_iter().chain(key_body("Feature")).collect();
+        assert_eq!(key_lines(prompt, &all), Vec::<String>::new(), "no key line goes out");
+        assert_eq!(plan.sent, vec![IntentSent::Redacted], "a block of masked key lines is explained only");
+        let block = section(prompt, "Conflict block 1 (explain only)").unwrap();
+        assert!(block.contains("Current side, lines 8–11:\n") && block.contains("Incoming side, lines 8–11:\n"), "{block}");
+    }
+
+    #[tokio::test]
+    async fn a_shortened_block_never_cuts_a_key_open() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        let file = |tag: &str, key: bool| {
+            let mut lines = vec!["kopf".to_string()];
+            for index in 0..200 {
+                lines.push(match index {
+                    5 if key => BEGIN_KEY.to_string(),
+                    6..=23 if key => format!("  MIIEowIBAAKCAQEAschluessel{index:02}x7Qk3VbN0rTz9LsW"),
+                    24 if key => END_KEY.to_string(),
+                    _ => format!("Messwert {index:03};{tag}"),
+                });
+            }
+            lines.push("ende".to_string());
+            lines.iter().map(|line| format!("{line}\n")).collect::<String>()
+        };
+        repo.commit_file(DEPLOY, file("roh", false), "Messwerte angelegt");
+        repo.checkout_new("feature/werte");
+        repo.commit_file(DEPLOY, file("korrigiert", false), "Messwerte korrigiert");
+        repo.checkout("main");
+        repo.commit_file(DEPLOY, file("geprüft", true), "Messwerte geprüft, Schlüssel ergänzt");
+        assert!(!repo.merge("feature/werte"));
+        let id = tc.open(&repo).await.repo.id;
+        let plan = build(&tc, &id, DEPLOY, &[range(1, 200, 1, 200)], &Settings::default(), 1_200, "en", &[]).await.unwrap();
+        assert_eq!(plan.sent, vec![IntentSent::Shortened]);
+        let keys: Vec<String> = (6..=23).map(|index| format!("  MIIEowIBAAKCAQEAschluessel{index:02}x7Qk3VbN0rTz9LsW")).collect();
+        // The oracle: block line 6 is in the kept head of 20 lines, the END line (24) in the dropped middle.
+        assert!(section(&plan.built.prompt, "Conflict block 1 (explain only)").unwrap().contains("Messwert 019;korrigiert"));
+        assert_eq!(key_lines(&plan.built.prompt, &keys), Vec::<String>::new(), "no key line goes out");
+    }
+
+    #[tokio::test]
+    async fn a_key_that_starts_before_the_block_keeps_the_labels_and_is_explain_only() {
+        let tc = TestCore::new().await;
+        let repo = key_rotation_conflict();
+        let id = tc.open(&repo).await.repo.id;
+        // A block that reaches the END line (line 16): BEGIN (line 3) is outside, in the file above it.
+        let plan = build(&tc, &id, DEPLOY, &[range(13, 3, 13, 3)], &Settings::default(), 32_000, "en", &[]).await.unwrap();
+        assert_eq!(plan.sent, vec![IntentSent::Redacted], "its lines were masked, a proposal would contain masks");
+        let block = section(&plan.built.prompt, "Conflict block 1 (explain only)").unwrap();
+        assert!(block.contains("Current side, lines 14–16:\n") && block.contains("Incoming side, lines 14–16:\n"), "the labels survive: {block}");
+        assert!(block.ends_with("After the block:\nregion: eu-central"), "{block}");
+        let all: Vec<String> = key_body("Haupt").into_iter().chain(key_body("Feature")).collect();
+        assert_eq!(key_lines(&plan.built.prompt, &all), Vec::<String>::new());
+    }
+
+    #[test]
+    fn masking_keeps_the_line_count() {
+        let lines: Vec<String> = ["a", BEGIN_KEY, "  MIIEowIBAAKCAQEAzz", END_KEY, "b", "http.extraheader", "Bearer geheim123", "c"].iter().map(|line| line.to_string()).collect();
+        let masked = mask_secret_lines(&lines, &[]);
+        assert_eq!(masked, vec!["a", "***", "***", "***", "b", "http.extraheader", "***", "c"]);
+        let token = vec!["x".to_string(), "token = abcdef123456".to_string()];
+        assert_eq!(mask_secret_lines(&token, &[]), vec!["x", "token = ***"], "one-line rules mask inside the line");
+        assert_eq!(mask_secret_lines(&["passt fein".to_string()], &["fein".to_string()]), vec!["passt ***"]);
     }
 
     #[tokio::test]

@@ -65,6 +65,12 @@ fn private_key_block() -> Option<&'static Regex> {
     compiled(&RE, r"-----BEGIN ([A-Z0-9 ]*)PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----")
 }
 
+/// Byte ranges of the private keys in PEM form in `text` (what `redact` replaces with one mask),
+/// for callers that must mask whole lines and keep the line count.
+pub(crate) fn private_key_spans(text: &str) -> Vec<std::ops::Range<usize>> {
+    private_key_block().map(|re| re.find_iter(text).map(|found| found.range()).collect()).unwrap_or_default()
+}
+
 /// A word that only introduces a question ("Password for 'https://…':") and is therefore
 /// not a value.
 fn is_plain_word(value: &str) -> bool {
