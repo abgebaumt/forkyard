@@ -1,5 +1,10 @@
 import { t } from "../../i18n";
+import type { AiStatus, RepoSettings } from "../../core";
+import { showWhatIsSent } from "../ai/gate";
+import { featureVisible } from "../ai/visibility";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
+import { qk } from "../queries";
+import { toggleWriteMessage } from "../../screens/WipPanel/aiDraftActions";
 import { commitChanges, discardEverything, stageEverything, unstageEverything } from "../../screens/WipPanel/actions";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
@@ -10,6 +15,16 @@ const wipShown = (ctx: CommandContext) => {
   const view = ctx.view;
   return view === null || (view.selection?.kind === "wip" && view.rightPanel === "details" && !view.rightCollapsed);
 };
+
+/** "Write" exists where the commit form shows it: AI shown, the function on, the repository not "AI off" (unknown counts as off). */
+const writeHidden = (ctx: CommandContext) => {
+  if (!ctx.repoId) return true;
+  const status = ctx.queryClient.getQueryData<AiStatus>(qk.aiStatus);
+  const repoSettings = ctx.queryClient.getQueryData<RepoSettings>(qk.repoSettings(ctx.repoId));
+  return !featureVisible(status, "commit_message", repoSettings?.aiOff ?? true);
+};
+const hasStaged = (ctx: CommandContext) => hasRepo(ctx) && Boolean(ctx.status?.staged.length);
+const nothingStaged = (ctx: CommandContext) => (hasRepo(ctx) && !ctx.status?.staged.length ? t("wip.ai.nothingStaged") : null);
 
 /** Commands of the core loop: stage, unstage, commit. */
 export const commands: AppCommand[] = [
@@ -56,5 +71,26 @@ export const commands: AppCommand[] = [
     keywords: kw("commands.wip.discardAll.keywords"),
     when: (ctx) => hasRepo(ctx) && Boolean(ctx.status && ctx.status.unstaged.length + ctx.status.staged.length > 0 && !ctx.status.operation),
     run: (ctx) => discardEverything(ctx.repoId!, ctx.tabId!),
+  },
+  {
+    id: "wip.writeMessage",
+    title: t("commands.wip.writeMessage.title"),
+    group: "Commit",
+    shortcut: "Mod+Shift+M",
+    keywords: kw("commands.wip.writeMessage.keywords"),
+    hidden: writeHidden,
+    when: hasStaged,
+    disabledReason: nothingStaged,
+    run: (ctx) => toggleWriteMessage(ctx.repoId!),
+  },
+  {
+    id: "wip.writeMessagePreview",
+    title: t("commands.wip.writeMessagePreview.title"),
+    group: "Commit",
+    keywords: kw("commands.wip.writeMessagePreview.keywords"),
+    hidden: writeHidden,
+    when: hasStaged,
+    disabledReason: nothingStaged,
+    run: (ctx) => showWhatIsSent(ctx.repoId!, "commit_message", { kind: "commit_message" }),
   },
 ];

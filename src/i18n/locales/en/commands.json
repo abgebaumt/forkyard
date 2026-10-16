@@ -692,6 +692,14 @@
     "unstageAll": {
       "keywords": "unstage all, reset",
       "title": "Unstage everything"
+    },
+    "writeMessage": {
+      "keywords": "AI, KI, commit message, suggest, draft, generate, LLM",
+      "title": "Write commit message"
+    },
+    "writeMessagePreview": {
+      "keywords": "AI, KI, commit message, preview, privacy, what is sent",
+      "title": "Commit message: what is sent?"
     }
   },
   "worktree": {

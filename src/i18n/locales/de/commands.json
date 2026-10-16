@@ -692,6 +692,14 @@
     "unstageAll": {
       "keywords": "unstage all, reset",
       "title": "Alles Gestagte zurücknehmen"
+    },
+    "writeMessage": {
+      "keywords": "KI, AI, Commit-Nachricht, vorschlagen, Entwurf, schreiben, LLM",
+      "title": "Commit-Nachricht schreiben"
+    },
+    "writeMessagePreview": {
+      "keywords": "KI, AI, Commit-Nachricht, Vorschau, Datenschutz, was wird gesendet",
+      "title": "Commit-Nachricht: Was wird gesendet?"
     }
   },
   "worktree": {
