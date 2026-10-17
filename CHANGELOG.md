@@ -67,6 +67,11 @@ All notable changes to Forkyard are listed here. The format follows
 - Undoing a rebase that moved dependent branches along now happens all or nothing: if a branch is locked
   or the working directory has changes, nothing moves.
 
+### Fixed
+
+- A request that is still waiting for its answer – an AI suggestion, a new pull request – is no longer
+  ended with “connection was interrupted” when a Git process finishes at the same moment (Linux, macOS).
+
 ## [1.1.0] – 2026-10-16
 
 ### Added
