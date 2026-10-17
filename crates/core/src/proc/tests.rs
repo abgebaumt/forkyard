@@ -270,3 +270,28 @@ async fn a_raw_argument_goes_onto_the_windows_command_line_verbatim() {
     let out = Proc::new("cmd.exe").raw_arg(r#"/d /s /c "echo "x y"""#).run(&CancelToken::new()).await.unwrap();
     assert_eq!(out.stdout_text().trim_end(), r#""x y""#);
 }
+
+/// Linux refuses to start a program file that is still open for writing (ETXTBSY). A fake CLI that a
+/// test (or an update) has just written can be held open for a moment by a child process another
+/// thread forked in that window; the start is tried again instead of failing at once.
+#[cfg(target_os = "linux")]
+#[tokio::test]
+async fn a_program_file_still_open_for_writing_is_started_once_it_is_closed() {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+    let dir = temp_folder();
+    let path = dir.path().join("frisch geschrieben");
+    let mut file = std::fs::File::create(&path).unwrap();
+    file.write_all(b"#!/bin/sh\necho 'fy-tool 4.2.0'\n").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let busy = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+    assert_eq!(std::process::Command::new(&path).output().map_err(|e| e.raw_os_error()).err(), Some(Some(26)), "the file is busy while open for writing");
+    drop(file);
+    let release = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(150));
+        drop(busy);
+    });
+    let out = Proc::new(&path).run(&CancelToken::new()).await.expect("started after the writer closed the file");
+    release.join().unwrap();
+    assert_eq!(out.stdout, b"fy-tool 4.2.0\n");
+}

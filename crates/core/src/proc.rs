@@ -260,7 +260,7 @@ impl Proc {
         cmd.process_group(0);
 
         let start = Instant::now();
-        let mut child = cmd.spawn().map_err(|e| spawn_error(&self.name(), e))?;
+        let mut child = spawn(&mut cmd, cancel).await.map_err(|e| spawn_error(&self.name(), e))?;
         let tree = ProcessTree::attach(&child);
         let (stdin_pipe, stdout_pipe, stderr_pipe) = (child.stdin.take(), child.stdout.take(), child.stderr.take());
         let data = self.stdin.clone();
@@ -448,6 +448,33 @@ fn batch_command(_line: &str) -> CoreResult<tokio::process::Command> {
 
 fn not_found(program: &OsStr) -> CoreError {
     CoreError::not_found(format!("The program “{}” was not found.", program.to_string_lossy()))
+}
+
+/// Starts `cmd`. A program file that is still open for writing ("Text file busy" on Unix: just
+/// written or updated, or held for a moment by a child another thread forked in that window) is
+/// tried again a few times, about 0.6 s in all, instead of failing at once.
+async fn spawn(cmd: &mut tokio::process::Command, cancel: &CancelToken) -> std::io::Result<tokio::process::Child> {
+    let mut delay = Duration::from_millis(10);
+    for _ in 0..6 {
+        match cmd.spawn() {
+            Err(e) if is_busy(&e) && !cancel.is_cancelled() => {
+                tokio::time::sleep(delay).await;
+                delay *= 2;
+            }
+            other => return other,
+        }
+    }
+    cmd.spawn()
+}
+
+#[cfg(unix)]
+fn is_busy(e: &std::io::Error) -> bool {
+    e.raw_os_error() == Some(libc::ETXTBSY)
+}
+
+#[cfg(not(unix))]
+fn is_busy(_: &std::io::Error) -> bool {
+    false
 }
 
 fn spawn_error(name: &str, e: std::io::Error) -> CoreError {
