@@ -580,7 +580,44 @@ struct RawResponse {
     body: Vec<u8>,
 }
 
+/// Keeps asynchronous signals away from the current thread while it lives. The kernel does not
+/// restart a socket read that has a timeout when a caught signal arrives (not even with
+/// `SA_RESTART`), so SIGCHLD of a Git process ending at the same moment would end the request with
+/// EINTR; a POST cannot be retried. Blocked here, the signal goes to another thread of the process.
+#[cfg(unix)]
+struct SignalsElsewhere(libc::sigset_t);
+
+#[cfg(unix)]
+impl SignalsElsewhere {
+    fn new() -> Self {
+        // SAFETY: plain calls on locally owned signal sets; pthread_sigmask only affects this thread.
+        unsafe {
+            let mut block: libc::sigset_t = std::mem::zeroed();
+            libc::sigfillset(&mut block);
+            // Faults are raised by this thread itself and must stay deliverable.
+            for fault in [libc::SIGSEGV, libc::SIGBUS, libc::SIGFPE, libc::SIGILL, libc::SIGTRAP, libc::SIGSYS, libc::SIGABRT] {
+                libc::sigdelset(&mut block, fault);
+            }
+            let mut previous: libc::sigset_t = std::mem::zeroed();
+            libc::pthread_sigmask(libc::SIG_BLOCK, &block, &mut previous);
+            SignalsElsewhere(previous)
+        }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for SignalsElsewhere {
+    fn drop(&mut self) {
+        // SAFETY: restores the mask saved in `new` on the same thread.
+        unsafe {
+            libc::pthread_sigmask(libc::SIG_SETMASK, &self.0, std::ptr::null_mut());
+        }
+    }
+}
+
 fn perform(agent: &ureq::Agent, parts: &Parts) -> Result<RawResponse, Failure> {
+    #[cfg(unix)]
+    let _signals = SignalsElsewhere::new();
     let mut builder = h::Request::builder().method(parts.method.as_str()).uri(parts.url.as_str());
     for (name, value) in &parts.headers {
         builder = builder.header(name.as_str(), value.as_str());
