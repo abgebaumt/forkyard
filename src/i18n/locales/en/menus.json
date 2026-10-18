@@ -36,6 +36,7 @@
     "copyShas": "Copy {{n}} SHAs",
     "shas": "{{n}} SHAs",
     "createTagHere": "Create tag here …",
+    "releaseNotes": "Write release notes …",
     "checkout": "Check out commit",
     "alreadyCheckedOut": "already checked out",
     "cherryPick": "Cherry-pick",
@@ -160,7 +161,8 @@
     "name": "Tag name",
     "deleteLocal": "Delete locally …",
     "deleteLocalAndRemote": "Delete locally and on a remote …",
-    "deleteRemoteToo": "Also delete on the remote …"
+    "deleteRemoteToo": "Also delete on the remote …",
+    "releaseNotes": "Write release notes …"
   },
   "stash": {
     "resolveOpenConflicts": "resolve the open conflicts first",
