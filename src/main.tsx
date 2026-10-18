@@ -10,6 +10,7 @@ import { useAppStore } from "./app/store";
 import { installCloseGuard } from "./app/closeGuard";
 import { installEscapeGuard } from "./app/escapeGuard";
 import { installWebviewGuards } from "./app/webviewGuards";
+import { installScrollPin } from "./app/scrollPin";
 import { core, type Core } from "./core";
 import { DesignPage } from "./design/DesignPage";
 import { Toaster } from "./ui/Feedback";
@@ -34,6 +35,8 @@ if (theme === "light" || theme === "dark") {
 const showDesign = params.has("design");
 
 installWebviewGuards({ mac: /Mac/i.test(navigator.platform), dev: import.meta.env.DEV });
+// The window itself never scrolls (focus, scrollIntoView, selections dragged past the edge).
+installScrollPin();
 
 // Kind of the last input on the root element (app.css): a focus set by a keyboard shortcut shows
 // its ring even if the mouse was clicked before.

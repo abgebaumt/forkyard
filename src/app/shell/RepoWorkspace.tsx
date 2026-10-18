@@ -290,12 +290,12 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
   const panels = showsSidePanels(view);
 
   return (
-    <div ref={setContainer} className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+    <div ref={setContainer} data-no-scroll className="flex min-h-0 min-w-0 flex-1">
       {!panels ? null : leftCollapsed ? (
         <Rail side="left" onOpen={() => toggleLeft('[role="separator"][data-side="left"]')} />
       ) : (
         <>
-          <aside data-area="left" aria-label={t("shell.workspace.left")} className="flex min-h-0 shrink-0 flex-col overflow-hidden border-r border-border bg-surface" style={{ width: shownLeft }}>
+          <aside data-area="left" data-no-scroll aria-label={t("shell.workspace.left")} className="flex min-h-0 shrink-0 flex-col border-r border-border bg-surface" style={{ width: shownLeft }}>
             <LeftPanel repoId={repoId} tabId={tabId} />
           </aside>
           <Splitter
@@ -313,8 +313,8 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
       )}
 
       {/* Centre column: the view, below it the terminal as a separate area (own height with handle, own stop for F6). */}
-      <div className="flex min-h-0 min-w-80 flex-1 flex-col">
-        <main data-area="center" aria-label={t("shell.workspace.center")} className="flex min-h-0 flex-1 flex-col bg-bg">
+      <div data-no-scroll className="flex min-h-0 min-w-80 flex-1 flex-col">
+        <main data-area="center" data-no-scroll aria-label={t("shell.workspace.center")} className="flex min-h-0 flex-1 flex-col bg-bg">
           {view.searchOpen ? <CommitSearch repoId={repoId} tabId={tabId} /> : null}
           <div className="min-h-0 flex-1">
             <Center repoId={repoId} tabId={tabId} center={view.center} />
@@ -338,7 +338,7 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
             onChange={(width) => store().setRightWidth(width)}
             onCollapse={() => toggleRight('[data-rail="right"] button')}
           />
-          <aside data-area="right" aria-label={t("shell.workspace.right")} className="flex min-h-0 shrink-0 flex-col overflow-hidden border-l border-border bg-surface" style={{ width: shownRight }}>
+          <aside data-area="right" data-no-scroll aria-label={t("shell.workspace.right")} className="flex min-h-0 shrink-0 flex-col border-l border-border bg-surface" style={{ width: shownRight }}>
             <RightPanel repoId={repoId} tabId={tabId} view={view} />
           </aside>
         </>

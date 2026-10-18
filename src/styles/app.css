@@ -5,10 +5,25 @@
 @import "./theme.css";
 
 @layer base {
+  /* The window never scrolls: html, body and #root fill it exactly and clip whatever sticks out.
+     `clip` (unlike `hidden`) is no scroll container, so neither scrollIntoView(), focus() nor the
+     browser's "scroll the focused element into view" can move it; `hidden` is the fallback for
+     engines without `clip`. On html the value goes to the viewport, which still counts as
+     scrollable for script – src/app/scrollPin.ts puts it back. */
   html,
   body,
   #root {
     height: 100%;
+    overflow: hidden;
+    overflow: clip;
+    overscroll-behavior: none;
+  }
+
+  /* Pure layout containers of the shell (frame, workspace, panels): the same, see scrollPin.ts. */
+  [data-no-scroll] {
+    overflow: hidden;
+    overflow: clip;
+    overscroll-behavior: none;
   }
 
   body {
