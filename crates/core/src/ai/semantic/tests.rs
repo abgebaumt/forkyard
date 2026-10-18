@@ -108,3 +108,253 @@ async fn a_large_first_index_shows_200_entries_and_counts_all() {
     assert!(preview.chars > preview.text.chars().count() as u64, "the size counts every entry");
     assert!(server.requests().is_empty());
 }
+
+use std::collections::HashSet;
+use std::time::{Duration, Instant};
+
+use crate::commands::ai::ai_preview_confirm;
+use crate::commands::settings::repo_settings_set;
+use crate::model::AiAskTrigger;
+
+fn log_commands(tc: &TestCore) -> Vec<(String, String)> {
+    tc.db
+        .with(|c| {
+            let mut stmt = c.prepare("select coalesce(command, ''), coalesce(output, '') from activity_log where command like 'ai: semantic-search%'")?;
+            let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+            Ok(rows)
+        })
+        .unwrap()
+}
+
+fn shas_of(result: &AiSemanticResult) -> Vec<String> {
+    result.hits.iter().map(|hit| hit.commit.sha.clone()).collect()
+}
+
+fn git_set(repo: &TestRepo, args: &[&str]) -> HashSet<String> {
+    repo.git(args).lines().filter(|line| !line.is_empty()).map(str::to_string).collect()
+}
+
+#[test]
+fn matched_terms_name_the_words_of_the_question() {
+    assert_eq!(matched_terms("Wo wurde die Anmeldung repariert?", "Weiterleitung nach der Anmeldung repariert"), vec!["anmeldung", "repariert"]);
+    assert_eq!(matched_terms("Probleme mit dem Login", "Login-Formular: Fehlertext"), vec!["login"]);
+    assert_eq!(matched_terms("ÄRGER mit der GRÖSSE", "Größe angepasst"), Vec::<String>::new(), "ß and SS are different words");
+    assert_eq!(matched_terms("Wer hat der Datei", "Datei geändert"), vec!["der", "datei"], "a word inside another word counts too: “der” in “geändert”");
+    assert_eq!(matched_terms("Größe", "GRÖßE geändert"), vec!["größe"]);
+    assert_eq!(matched_terms("a b", "a b"), Vec::<String>::new(), "words from three characters");
+}
+
+#[tokio::test]
+async fn semantic_hits_follow_the_meaning_of_the_fake_embeddings() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    repo.commit_file("src/main.rs", "x\n", "Absturz beim Öffnen behoben");
+    repo.commit_file("README.md", "x\n", "Doku ergänzt");
+    let redirect = repo.commit_file("src/zugang/weiterleitung.rs", "x\n", "Weiterleitung nach der Anmeldung repariert");
+    let form = repo.commit_file("src/login/form.rs", "x\n", "Login-Formular: Fehlertext");
+    let id = tc.open(&repo).await.repo.id;
+    let result = search(&tc, &id, "m1", "Probleme mit dem Login", "de").await.unwrap();
+    assert_eq!(result.route, AiSearchRoute::LocalEmbeddings);
+    assert!(result.ranked && !result.capped && result.filters.is_none());
+    let order = shas_of(&result);
+    assert_eq!(order.len(), 4, "every reachable commit, sorted");
+    assert_eq!(order[..2].iter().cloned().collect::<HashSet<_>>(), [redirect.clone(), form.clone()].into_iter().collect(), "both sign-in commits come first");
+    assert!(result.hits[0].score.unwrap() > 0.9 && result.hits[3].score.unwrap() < 0.2, "{:?}", result.hits.iter().map(|hit| hit.score).collect::<Vec<_>>());
+    let form_hit = result.hits.iter().find(|hit| hit.commit.sha == form).unwrap();
+    assert_eq!((form_hit.commit.summary.as_str(), form_hit.matched_terms.clone(), form_hit.reason.clone()), ("Login-Formular: Fehlertext", vec!["login".to_string()], None));
+    let log = log_commands(&tc);
+    assert_eq!(log.len(), 1, "one activity entry per search");
+    assert!(log[0].0.starts_with("ai: semantic-search (Ollama · embeddinggemma) · ") && log[0].0.ends_with(" → 0 tokens"), "{}", log[0].0);
+    assert!(!log[0].0.contains("Anmeldung") && log[0].1.is_empty(), "no contents in the log");
+}
+
+#[tokio::test]
+async fn the_index_grows_incrementally_and_follows_rebased_history() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    repo.commit_file("a.txt", "a\n", "Absturz beim Öffnen behoben");
+    repo.commit_file("b.txt", "b\n", "README ergänzt");
+    repo.commit_file("src/login.rs", "x\n", "Login-Formular: Fehlertext");
+    let id = tc.open(&repo).await.repo.id;
+    let first = search(&tc, &id, "s1", "Login", "de").await.unwrap();
+    assert_eq!(first.indexed, 3);
+    assert_eq!(embed_inputs(&server).iter().map(Vec::len).collect::<Vec<_>>(), vec![3, 1], "three entries, then the question");
+
+    let added = repo.commit_file("src/zugang/weiterleitung.rs", "w\n", "Weiterleitung nach der Anmeldung repariert");
+    server.clear();
+    let second = search(&tc, &id, "s2", "Login", "de").await.unwrap();
+    assert_eq!(embed_inputs(&server).iter().map(Vec::len).collect::<Vec<_>>(), vec![1, 1], "only the new commit, then the question");
+    assert_eq!(second.indexed, 4);
+
+    // Rewritten history: the amended commit replaces the old one.
+    repo.git(&["commit", "-q", "--amend", "-m", "Weiterleitung nach dem Login repariert"]);
+    let amended = repo.head();
+    server.clear();
+    let third = search(&tc, &id, "s3", "Login", "de").await.unwrap();
+    assert_eq!(embed_inputs(&server)[0].len(), 1, "only the amended commit");
+    let found: HashSet<String> = shas_of(&third).into_iter().collect();
+    assert_eq!(found, git_set(&repo, &["rev-list", "--branches", "--tags", "HEAD"]), "every reachable commit and only those");
+    assert!(!found.contains(&added) && found.contains(&amended));
+    assert_eq!(third.indexed, 4, "the replaced commit left the index");
+
+    // A deleted branch takes its commits along.
+    repo.checkout_new("seite");
+    let side = repo.commit_file("s.txt", "s\n", "Seitenzweig");
+    repo.checkout("main");
+    assert_eq!(search(&tc, &id, "s4", "Login", "de").await.unwrap().indexed, 5);
+    repo.git(&["branch", "-D", "seite"]);
+    let after = search(&tc, &id, "s5", "Login", "de").await.unwrap();
+    assert!(!shas_of(&after).contains(&side) && after.indexed == 4);
+}
+
+#[tokio::test]
+async fn a_model_change_builds_a_new_index() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    for message in ["Absturz behoben", "Doku ergänzt", "Login repariert"] {
+        repo.empty_commit(message);
+    }
+    let id = tc.open(&repo).await.repo.id;
+    search(&tc, &id, "a1", "Login", "de").await.unwrap();
+    settings_set(&tc, json!({"aiSearchEmbedModel": "nomic-embed-text"})).await.unwrap();
+    server.clear();
+    search(&tc, &id, "a2", "Login", "de").await.unwrap();
+    assert_eq!(embed_inputs(&server).iter().map(Vec::len).collect::<Vec<_>>(), vec![3, 1], "another model, its own index");
+    assert!(server.requests().iter().all(|request| request.json()["model"] == "nomic-embed-text"));
+    settings_set(&tc, json!({"aiSearchEmbedModel": "embeddinggemma"})).await.unwrap();
+    server.clear();
+    search(&tc, &id, "a3", "Login", "de").await.unwrap();
+    assert_eq!(embed_inputs(&server).iter().map(Vec::len).collect::<Vec<_>>(), vec![1], "the first index is still there");
+}
+
+#[tokio::test]
+async fn the_index_keeps_the_newest_commits_up_to_the_cap() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    for message in ["Erster", "Zweiter", "Dritter", "Vierter"] {
+        repo.empty_commit(message);
+    }
+    let id = tc.open(&repo).await.repo.id;
+    let result = search_with_cap(&tc, &id, "c1", "Login", "de", 2).await.unwrap();
+    assert_eq!((result.indexed, result.capped), (2, true));
+    assert_eq!(shas_of(&result).into_iter().collect::<HashSet<_>>(), git_set(&repo, &["rev-list", "--max-count=2", "--branches", "--tags", "HEAD"]));
+}
+
+#[tokio::test]
+async fn what_goes_out_is_what_the_preview_showed() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    repo.commit_file("src/zugang/weiterleitung.rs", "x\n", "Weiterleitung nach der Anmeldung repariert");
+    repo.commit_file("config/server.key", "-----BEGIN PRIVATE KEY-----\n", "Schlüssel abgelegt");
+    let id = tc.open(&repo).await.repo.id;
+    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("Anmeldung"), "de".into()).await.unwrap();
+    search(&tc, &id, "w1", "Anmeldung", "de").await.unwrap();
+    let sent = embed_inputs(&server);
+    let entries: Vec<String> = sent[0].clone();
+    assert_eq!(entries.len(), 2);
+    for entry in &entries {
+        assert!(preview.text.contains(&format!("\n{entry}\n")), "{entry:?} was shown before");
+        assert!(!entry.contains("server.key"), "a key file is not even named");
+    }
+    assert_eq!(sent[1], vec!["Anmeldung".to_string()], "the question goes alone");
+}
+
+#[tokio::test]
+async fn an_external_embedder_asks_before_the_first_index_of_a_repository() {
+    let server = openai_server();
+    let tc = with_openai(&server).await;
+    let repo = TestRepo::new();
+    repo.commit_file("src/zugang/weiterleitung.rs", "x\n", "Weiterleitung nach der Anmeldung repariert");
+    repo.commit_file("keys.txt", "x\n", "Schlüssel sk-proj-AbCdEfGhIjKlMnOpQrStUvWx0123 rotiert");
+    let id = tc.open(&repo).await.repo.id;
+    let refused = search(&tc, &id, "e1", "Anmeldung", "de").await.unwrap_err();
+    assert_eq!(refused.code, ErrorCode::NotAllowed, "{refused:?}");
+    assert!(server.requests().is_empty(), "nothing leaves before the confirmation");
+
+    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("Anmeldung"), "de".into()).await.unwrap();
+    assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst]);
+    assert!(preview.text.contains("Weiterleitung nach der Anmeldung repariert"));
+    assert!(!preview.text.contains("sk-proj-AbCdEfGhIjKlMnOpQrStUvWx0123"), "keys in messages are redacted");
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::SemanticSearch, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+    let result = search(&tc, &id, "e2", "Anmeldung", "de").await.unwrap();
+    assert_eq!(result.route, AiSearchRoute::ProviderEmbeddings);
+    let sent = server.requests();
+    assert_eq!(sent.len(), 2, "the new entries, then the question");
+    for request in &sent {
+        assert_eq!((request.route().as_str(), request.json()["model"].clone(), request.json()["dimensions"].clone()), ("POST /v1/embeddings", json!("text-embedding-3-small"), json!(512)));
+        assert!(!request.body_text().contains("sk-proj-AbCdEfGhIjKlMnOpQrStUvWx0123"));
+        let auth = format!("Bearer {OPENAI_KEY}");
+        assert_eq!(request.header("authorization"), Some(auth.as_str()));
+    }
+
+    // Remembered: the next search of this repository needs no confirmation …
+    repo.commit_file("c.txt", "c\n", "Login-Seite übersetzt");
+    search(&tc, &id, "e3", "Anmeldung", "de").await.unwrap();
+    // … but another repository asks for its own first time.
+    let other = TestRepo::new();
+    other.commit_file("x.txt", "x\n", "Anderes Projekt");
+    let other_id = tc.open(&other).await.repo.id;
+    server.clear();
+    assert_eq!(search(&tc, &other_id, "e4", "Anmeldung", "de").await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert!(server.requests().is_empty());
+}
+
+#[tokio::test]
+async fn turning_ai_off_cancels_an_index_build_and_keeps_the_index() {
+    let server = embed_server_with_delay(Duration::from_secs(5));
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    repo.empty_commit("Login repariert");
+    let id = tc.open(&repo).await.repo.id;
+    let started = Instant::now();
+    let off = async {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
+    };
+    let (result, ()) = tokio::join!(search(&tc, &id, "off-1", "Login", "de"), off);
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    assert!(started.elapsed() < Duration::from_secs(3), "{:?}", started.elapsed());
+    assert!(tc.data_dir().join(index::INDEX_FILE).exists(), "the index stays until “Delete index” (Grundregel 1)");
+}
+
+#[tokio::test]
+async fn semantic_search_respects_ai_off_and_trust() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let code = |result: CoreResult<AiSemanticResult>| result.unwrap_err().code;
+    repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
+    assert_eq!(code(search(&tc, &id, "t1", "Login", "de").await), ErrorCode::AiDisabled, "AI off for this repository");
+    repo_settings_set(&tc, id.clone(), json!({"aiOff": false})).await.unwrap();
+    settings_set(&tc, json!({"aiFeaturesOff": ["semantic_search"]})).await.unwrap();
+    assert_eq!(code(search(&tc, &id, "t2", "Login", "de").await), ErrorCode::AiDisabled, "the function is off");
+    settings_set(&tc, json!({"aiFeaturesOff": []})).await.unwrap();
+    crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
+    assert_eq!(code(search(&tc, &id, "t3", "Login", "de").await), ErrorCode::RepoUntrusted);
+    assert!(server.requests().is_empty());
+}
+
+#[tokio::test]
+async fn a_key_typed_into_the_question_is_redacted_before_it_goes_out() {
+    let server = embed_server();
+    let tc = with_local_embedder(&server, "embeddinggemma").await;
+    let repo = TestRepo::new();
+    repo.empty_commit("Login repariert");
+    let id = tc.open(&repo).await.repo.id;
+    let token = "ghp_abcdefghijklmnopqrstuvwxyz0123456789";
+    let question = format!("Login mit {token} kaputt");
+    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic(&question), "de".into()).await.unwrap();
+    assert!(preview.text.contains("Search question:\nLogin mit ") && !preview.text.contains(token), "{}", preview.text);
+    search(&tc, &id, "k1", &question, "de").await.unwrap();
+    let sent = embed_inputs(&server);
+    let asked = sent.last().unwrap();
+    assert_eq!(asked.len(), 1, "the question alone");
+    assert!(asked[0].starts_with("Login mit ") && !asked[0].contains(token), "{asked:?}");
+    assert!(sent.iter().flatten().all(|text| !text.contains(token)), "nowhere in what went out");
+}

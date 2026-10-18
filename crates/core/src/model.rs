@@ -1509,6 +1509,40 @@ pub enum AiSearchRoute {
     Rephrase,
 }
 
+/// One hit of the search by meaning.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticHit {
+    pub commit: CommitSummary,
+    /// Cosine similarity of the embedding routes.
+    pub score: Option<f64>,
+    /// The model's reason (rephrase route).
+    pub reason: Option<String>,
+    /// Words of the question that occur in the subject (lower case).
+    pub matched_terms: Vec<String>,
+}
+
+/// Result of `ai_semantic_search`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticResult {
+    pub route: AiSearchRoute,
+    /// Best first, at most 50.
+    pub hits: Vec<AiSemanticHit>,
+    /// Commits in the index of this repository and model (0 for rephrasing).
+    pub indexed: u64,
+    /// More reachable commits than the index takes (200 000).
+    pub capped: bool,
+    /// Sorted by meaning or by the model; `false`: the ranking request was skipped (newest first).
+    pub ranked: bool,
+    /// Rephrase route: the narrowing that was searched with (`pickaxe` = the code text).
+    pub filters: Option<CommitSearchFilters>,
+    pub terms: Vec<String>,
+    pub author: Option<String>,
+    /// Paths or dates of the model's answer that were not valid and not used.
+    pub ignored: Vec<String>,
+}
+
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

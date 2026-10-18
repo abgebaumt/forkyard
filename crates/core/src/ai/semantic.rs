@@ -23,7 +23,9 @@ pub(crate) mod fakes;
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::time::Instant;
 
 use sha2::{Digest, Sha256};
 
@@ -33,9 +35,11 @@ use crate::ai::provider::{Provider, Usage};
 use crate::ai::{pricing, providers, run};
 use crate::app::Core;
 use crate::db;
-use crate::error::{CoreError, CoreResult};
-use crate::jobs::CancelToken;
-use crate::model::{AiFeature, AiOmitReason, AiOmitted, AiPreview, AiProviderKind, AiSearchRoute, AiState, AiStructuredMode, Settings};
+use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::jobs::{CancelToken, Job};
+use crate::commands::graph::commit_summaries;
+use crate::model::{AiFeature, AiOmitReason, AiOmitted, AiPreview, AiProviderKind, AiSearchRoute, AiSemanticHit, AiSemanticResult, AiState, AiStructuredMode, CommitSummary, Settings};
+use crate::util;
 
 /// At most this many commits are indexed (newest first); spec: "Obergrenze 200 000 Commits".
 pub const MAX_COMMITS: usize = 200_000;
@@ -45,6 +49,22 @@ pub const DEFAULT_OPENAI_MODEL: &str = "text-embedding-3-small";
 pub const DEFAULT_GEMINI_MODEL: &str = "gemini-embedding-001";
 /// The preview shows this many new index entries verbatim.
 const PREVIEW_ENTRIES: usize = 200;
+
+/// At most this many hits per search.
+pub const MAX_HITS: usize = 50;
+/// Texts per embedding request.
+pub const BATCH: usize = 64;
+
+/// One index update per repository at a time (search or background).
+#[derive(Default)]
+struct IndexLocks {
+    map: parking_lot::Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
+}
+
+fn index_lock(core: &Core, repo_id: &str) -> Arc<tokio::sync::Mutex<()>> {
+    core.state::<IndexLocks>().map.lock().entry(repo_id.to_string()).or_default().clone()
+}
+
 /// At most this many left-out paths are listed in the preview.
 const MAX_OMITTED: usize = 200;
 
@@ -249,4 +269,169 @@ pub async fn preview(core: &Core, repo_id: &str, query: &str, locale: &str) -> C
         month_cost_usd: costs.spent_usd,
         limit_usd: costs.limit_usd,
     })
+}
+
+/// Words of the question (from 3 characters) that occur in `text`, lower case, in order.
+pub fn matched_terms(query: &str, text: &str) -> Vec<String> {
+    let haystack = text.to_lowercase();
+    let mut found: Vec<String> = Vec::new();
+    for word in query.split(|c: char| !(c.is_alphanumeric() || c == '-' || c == '_')) {
+        let word = word.trim_matches('-').to_lowercase();
+        if word.chars().count() >= 3 && haystack.contains(&word) && !found.contains(&word) {
+            found.push(word);
+        }
+    }
+    found
+}
+
+/// What one embedding run sent, for usage and the activity log.
+struct Sending {
+    started_at: String,
+    started: Instant,
+    chars: u64,
+}
+
+impl Sending {
+    fn new() -> Self {
+        Sending { started_at: util::now_iso(), started: Instant::now(), chars: 0 }
+    }
+}
+
+/// Embeds the new entries batch by batch; finished batches stay in the index when cancelled.
+async fn embed_pending(core: &Core, id: i64, job: Option<&Job>, token: &CancelToken, embedder: &Embedder, pending: &[(String, String)], sending: &mut Sending) -> CoreResult<u64> {
+    let total = pending.len();
+    let mut done = 0usize;
+    for batch in pending.chunks(BATCH) {
+        token.check()?;
+        let texts: Vec<String> = batch.iter().map(|(_, text)| text.clone()).collect();
+        let vectors = embedder.provider.embed(core, &texts, token).await?;
+        sending.chars += texts.iter().map(|text| text.chars().count() as u64).sum::<u64>();
+        if vectors.len() != batch.len() {
+            return Err(CoreError::ai_invalid_answer(format!("{} returned {} embeddings for {} texts", embedder.label, vectors.len(), batch.len())));
+        }
+        let mut rows = Vec::with_capacity(batch.len());
+        for ((sha, _), values) in batch.iter().zip(vectors) {
+            let prepared = vector::prepare(values).ok_or_else(|| CoreError::ai_invalid_answer(format!("{} returned an empty embedding", embedder.label)))?;
+            rows.push((sha.clone(), prepared));
+        }
+        index::insert(core, id, &rows)?;
+        done += batch.len();
+        if let Some(job) = job {
+            job.progress("index", Some((done * 100 / total.max(1)) as u32), &format!("{done} / {total}"));
+        }
+    }
+    Ok(done as u64)
+}
+
+/// Usage (numbers only) and one activity-log entry; nothing when nothing went out.
+fn record_embedding(core: &Core, repo_id: &str, settings: &Settings, embedder: &Embedder, sending: &Sending, error: Option<ErrorCode>) {
+    if sending.chars == 0 {
+        return;
+    }
+    let usage = Usage { input_tokens: context::estimate_tokens(sending.chars), output_tokens: 0 };
+    let cost_usd = pricing::price_for(settings, embedder.choice.kind, &embedder.choice.model).map(|price| pricing::cost_usd(&price, &usage));
+    run::record(
+        core,
+        &run::Record {
+            repo_id: Some(repo_id),
+            feature: AiFeature::SemanticSearch,
+            kind: embedder.choice.kind,
+            label: embedder.label.clone(),
+            model: &embedder.choice.model,
+            usage,
+            cost_usd,
+            started_at: sending.started_at.clone(),
+            duration_ms: sending.started.elapsed().as_millis() as u64,
+            error,
+        },
+    );
+}
+
+/// `ai_semantic_search`: one cancellable job; the route follows the settings (Entscheidung 7).
+pub async fn search(core: &Core, repo_id: &str, job_id: &str, query: &str, locale: &str) -> CoreResult<AiSemanticResult> {
+    search_with_cap(core, repo_id, job_id, query, locale, MAX_COMMITS).await
+}
+
+pub(crate) async fn search_with_cap(core: &Core, repo_id: &str, job_id: &str, query: &str, locale: &str, cap: usize) -> CoreResult<AiSemanticResult> {
+    let settings = run::ensure_allowed(core, Some(repo_id), AiFeature::SemanticSearch)?;
+    let query = clean_question(query)?;
+    let job = core.start_job(job_id, Some(repo_id))?;
+    run::track(core, job_id);
+    let result = match embedder(core, &settings).await {
+        Ok(Some(embedder)) => search_embedded(core, repo_id, &job, &settings, &embedder, &query, cap).await,
+        Ok(None) => {
+            let _ = locale;
+            Err(CoreError::unsupported("Without embeddings the search by meaning rephrases the question; that way is not built yet."))
+        }
+        Err(error) => Err(error),
+    };
+    run::untrack(core, job_id);
+    job.finish(&result);
+    result
+}
+
+async fn search_embedded(core: &Core, repo_id: &str, job: &Job, settings: &Settings, embedder: &Embedder, query: &str, cap: usize) -> CoreResult<AiSemanticResult> {
+    let token = job.token();
+    let lock = index_lock(core, repo_id);
+    let _guard = tokio::select! {
+        guard = lock.lock_owned() => guard,
+        _ = token.cancelled() => return Err(CoreError::cancelled()),
+    };
+    let plan = plan(core, repo_id, embedder, settings, cap, token).await?;
+    // Exactly the text of the preview: the redacted question and the new entries.
+    let sent = context::redact_for_ai(query, &embedder.secrets);
+    let text = request_text(Some(&sent), &plan.pending);
+    let chars = text.chars().count() as u64;
+    let costs = costs(core, settings, embedder, chars)?;
+    let asks = gate::pending(core, settings, &situation(repo_id, chars, &costs, embedder.local()))?;
+    gate::require(core, &fingerprint(&text), &asks, costs.spent_usd, costs.limit_usd)?;
+
+    let id = match plan.index_id {
+        Some(id) => id,
+        None => index::create(core, repo_id, embedder.choice.kind.as_str(), &embedder.choice.model)?,
+    };
+    index::remove(core, id, &plan.stale)?;
+    let mut sending = Sending::new();
+    let outcome = embed_and_score(core, id, job, embedder, &sent, &plan.pending, &mut sending).await;
+    record_embedding(core, repo_id, settings, embedder, &sending, outcome.as_ref().err().map(|error| error.code));
+    let scored = outcome?;
+    index::touch(core, id)?;
+
+    // Best first; equal scores newest first. Only commits that are reachable now.
+    let position: HashMap<&str, usize> = plan.reachable.iter().enumerate().map(|(n, sha)| (sha.as_str(), n)).collect();
+    let mut ranked: Vec<(String, f32, usize)> = scored.into_iter().filter_map(|(sha, score)| position.get(sha.as_str()).copied().map(|n| (sha, score, n))).collect();
+    ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.2.cmp(&b.2)));
+    ranked.truncate(MAX_HITS);
+    let shas: Vec<String> = ranked.iter().map(|(sha, _, _)| sha.clone()).collect();
+    let path = core.repo_path(repo_id)?;
+    let mut by_sha: HashMap<String, CommitSummary> = commit_summaries(core, &path, repo_id, &shas, token).await?.into_iter().map(|commit| (commit.sha.clone(), commit)).collect();
+    let hits = ranked
+        .into_iter()
+        .filter_map(|(sha, score, _)| by_sha.remove(&sha).map(|commit| AiSemanticHit { matched_terms: matched_terms(query, &commit.summary), commit, score: Some(f64::from(score)), reason: None }))
+        .collect();
+    Ok(AiSemanticResult {
+        route: embedder.choice.route,
+        hits,
+        indexed: index::count(core, id)?,
+        capped: plan.capped,
+        ranked: true,
+        filters: None,
+        terms: Vec::new(),
+        author: None,
+        ignored: Vec::new(),
+    })
+}
+
+async fn embed_and_score(core: &Core, id: i64, job: &Job, embedder: &Embedder, query: &str, pending: &[(String, String)], sending: &mut Sending) -> CoreResult<Vec<(String, f32)>> {
+    embed_pending(core, id, Some(job), job.token(), embedder, pending, sending).await?;
+    let question = vec![query.to_string()];
+    let mut answered = embedder.provider.embed(core, &question, job.token()).await?;
+    sending.chars += query.chars().count() as u64;
+    let asked = answered
+        .pop()
+        .and_then(vector::prepare)
+        .ok_or_else(|| CoreError::ai_invalid_answer(format!("{} returned no embedding for the question", embedder.label)))?;
+    // The linear scan reads the whole index: off the async threads.
+    let core = core.clone();
+    tokio::task::spawn_blocking(move || index::scores(&core, id, &asked)).await.map_err(|error| CoreError::unknown(format!("The search stopped: {error}")))?
 }

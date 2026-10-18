@@ -73,6 +73,16 @@ pub fn cancel_all(core: &Core) -> usize {
     ids.len()
 }
 
+/// An AI job that does not run through `complete_json` (the search by meaning): "master switch
+/// off" cancels it as well.
+pub(crate) fn track(core: &Core, job_id: &str) {
+    core.state::<AiJobs>().ids.lock().insert(job_id.to_string());
+}
+
+pub(crate) fn untrack(core: &Core, job_id: &str) {
+    core.state::<AiJobs>().ids.lock().remove(job_id);
+}
+
 pub fn repo_ai_off(core: &Core, repo_id: &str) -> CoreResult<bool> {
     core.db.with(|c| Ok(db::repo_settings::get_all(c, repo_id)?.into_iter().any(|(key, value)| key == "aiOff" && value == Value::Bool(true))))
 }
@@ -221,21 +231,21 @@ async fn ask(
     }
 }
 
-struct Record<'a> {
-    repo_id: Option<&'a str>,
-    feature: AiFeature,
-    kind: AiProviderKind,
-    label: String,
-    model: &'a str,
-    usage: Usage,
-    cost_usd: Option<f64>,
-    started_at: String,
-    duration_ms: u64,
-    error: Option<ErrorCode>,
+pub(crate) struct Record<'a> {
+    pub(crate) repo_id: Option<&'a str>,
+    pub(crate) feature: AiFeature,
+    pub(crate) kind: AiProviderKind,
+    pub(crate) label: String,
+    pub(crate) model: &'a str,
+    pub(crate) usage: Usage,
+    pub(crate) cost_usd: Option<f64>,
+    pub(crate) started_at: String,
+    pub(crate) duration_ms: u64,
+    pub(crate) error: Option<ErrorCode>,
 }
 
 /// Numbers into `ai_usage`, one entry into the activity log – never contents.
-fn record(core: &Core, record: &Record<'_>) {
+pub(crate) fn record(core: &Core, record: &Record<'_>) {
     if record.usage.input_tokens + record.usage.output_tokens > 0 {
         let month = pricing::current_month();
         let usage = db::ai::NewUsage {
