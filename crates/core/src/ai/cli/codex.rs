@@ -1,6 +1,13 @@
 //! Codex (`codex`, checked with codex-cli 0.162.0): `codex exec -C <tmp> --skip-git-repo-check
-//! --sandbox read-only --ephemeral --ignore-rules --output-schema <tmp>/schema.json -o
-//! <tmp>/out.json --json [-m <m>] -`, prompt on stdin. Sign-in: `codex login status`.
+//! --sandbox read-only --ephemeral --ignore-rules --ignore-user-config --disable shell_tool
+//! --disable view_image --output-schema <tmp>/schema.json -o <tmp>/out.json --json [-m <m>] -`,
+//! prompt on stdin. Sign-in: `codex login status`.
+//!
+//! The read-only sandbox stops writes and the network, not reading: the model could still run
+//! `cat` on any file through its shell tool, open images through `view_image`, or reach files
+//! through an MCP server of the user's `config.toml`. So the shell and image tools are switched off
+//! and the user config is not loaded (the sign-in still is) – Grundregel 5: no access to the
+//! repository. A version without `--disable` or `--ignore-user-config` is refused.
 
 use super::{Flag, LoginInfo};
 use crate::model::AiLoginState;
@@ -10,13 +17,16 @@ pub const HELP_ARGS: [&str; 2] = ["exec", "--help"];
 pub const STATUS_ARGS: [&str; 2] = ["login", "status"];
 pub const LOGIN_ARGS: [&str; 1] = ["login"];
 /// Another working folder, no Git repository needed, read-only sandbox, no stored session, no
-/// execpolicy rules, answer into a file, events as JSON.
-pub const SAFETY: [Flag; 7] = [
+/// execpolicy rules, no user config (no MCP servers), no shell or image tool, answer into a file,
+/// events as JSON.
+pub const SAFETY: [Flag; 9] = [
     Flag { name: "--cd", tokens: &["--cd"] },
     Flag { name: "--skip-git-repo-check", tokens: &["--skip-git-repo-check"] },
     Flag { name: "--sandbox", tokens: &["--sandbox"] },
     Flag { name: "--ephemeral", tokens: &["--ephemeral"] },
     Flag { name: "--ignore-rules", tokens: &["--ignore-rules"] },
+    Flag { name: "--ignore-user-config", tokens: &["--ignore-user-config"] },
+    Flag { name: "--disable", tokens: &["--disable"] },
     Flag { name: "--output-last-message", tokens: &["--output-last-message"] },
     Flag { name: "--json", tokens: &["--json"] },
 ];
@@ -42,6 +52,8 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
 pub fn args(dir: &std::path::Path, schema_file: Option<&std::path::Path>, out_file: &std::path::Path, model: Option<&str>) -> Vec<std::ffi::OsString> {
     let mut args: Vec<std::ffi::OsString> =
         vec!["exec".into(), "-C".into(), dir.into(), "--skip-git-repo-check".into(), "--sandbox".into(), "read-only".into(), "--ephemeral".into(), "--ignore-rules".into()];
+    // Codex's own tools: no shell (it would read any file despite the read-only sandbox), no images.
+    args.extend(["--ignore-user-config".into(), "--disable".into(), "shell_tool".into(), "--disable".into(), "view_image".into()]);
     if let Some(schema) = schema_file {
         args.push("--output-schema".into());
         args.push(schema.into());

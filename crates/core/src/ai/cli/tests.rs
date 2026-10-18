@@ -36,6 +36,10 @@ fn capabilities_follow_the_help_text() {
     assert!(no_schema.supported() && !no_schema.schema, "{no_schema:?}");
     assert_eq!(parse_caps(Codex, &without(CODEX_EXEC_HELP, "--sandbox"), Some("0.150.0")).missing, ["--sandbox"]);
     assert_eq!(parse_caps(Codex, &without(CODEX_EXEC_HELP, "--ignore-rules"), Some("0.150.0")).missing, ["--ignore-rules"]);
+    // Without these two Codex could read any file through its shell or image tool, or through an
+    // MCP server of the user's config: such a version is refused.
+    assert_eq!(parse_caps(Codex, &without(CODEX_EXEC_HELP, "--disable"), Some("0.150.0")).missing, ["--disable"]);
+    assert_eq!(parse_caps(Codex, &without(CODEX_EXEC_HELP, "--ignore-user-config"), Some("0.150.0")).missing, ["--ignore-user-config"]);
     assert!(!parse_caps(Codex, &without(CODEX_EXEC_HELP, "--model"), Some("0.162.0")).model);
 
     // opencode's config keys do not show in --help: a minimum version stands in for them.
@@ -112,14 +116,14 @@ fn command_lines_carry_only_switches_and_temp_paths() {
     let (schema, out) = (dir.join("schema.json"), dir.join("out.json"));
     let shown = |path: &Path| path.to_string_lossy().into_owned();
     let with_all: Vec<String> = [
-        "exec", "-C", &shown(dir), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--output-schema", &shown(&schema), "-o", &shown(&out), "--json", "-m", "gpt-5.1-codex", "-",
+        "exec", "-C", &shown(dir), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--ignore-user-config", "--disable", "shell_tool", "--disable", "view_image", "--output-schema", &shown(&schema), "-o", &shown(&out), "--json", "-m", "gpt-5.1-codex", "-",
     ]
     .iter()
     .map(|arg| arg.to_string())
     .collect();
     assert_eq!(strings(codex::args(dir, Some(&schema), &out, Some("gpt-5.1-codex"))), with_all);
     let bare: Vec<String> =
-        ["exec", "-C", &shown(dir), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "-o", &shown(&out), "--json", "-"].iter().map(|arg| arg.to_string()).collect();
+        ["exec", "-C", &shown(dir), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--ignore-user-config", "--disable", "shell_tool", "--disable", "view_image", "-o", &shown(&out), "--json", "-"].iter().map(|arg| arg.to_string()).collect();
     assert_eq!(strings(codex::args(dir, None, &out, None)), bare, "without a schema switch the schema goes into the prompt");
 
     let opencode_args: Vec<String> = ["run", "--dir", &shown(dir), "--pure", "--format", "json", "-m", "anthropic/claude-sonnet-5-5"].iter().map(|arg| arg.to_string()).collect();

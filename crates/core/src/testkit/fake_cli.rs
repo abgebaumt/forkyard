@@ -143,6 +143,12 @@ Options:
       --ephemeral
           Run without persisting session files to disk
 
+      --disable <FEATURE>
+          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`
+
+      --ignore-user-config
+          Do not load `$CODEX_HOME/config.toml`; auth still uses `CODEX_HOME`
+
       --ignore-rules
           Do not load user or project execpolicy `.rules` files
 

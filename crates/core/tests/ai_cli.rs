@@ -308,7 +308,7 @@ async fn codex_gets_its_schema_as_a_file_and_answers_through_the_output_file() {
     let shown = |path: &Path| path.to_string_lossy().into_owned();
     let (schema_file, out_file) = (folder.join("schema.json"), folder.join("out.json"));
     let expected: Vec<String> = [
-        "exec", "-C", &shown(&folder), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--output-schema", &shown(&schema_file), "-o", &shown(&out_file), "--json", "-m", "gpt-5.1-codex", "-",
+        "exec", "-C", &shown(&folder), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--ignore-user-config", "--disable", "shell_tool", "--disable", "view_image", "--output-schema", &shown(&schema_file), "-o", &shown(&out_file), "--json", "-m", "gpt-5.1-codex", "-",
     ]
     .iter()
     .map(|arg| arg.to_string())

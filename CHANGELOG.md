@@ -49,7 +49,8 @@ All notable changes to Forkyard are listed here. The format follows
 - AI through the command-line tools you already use: Claude Code, Codex and opencode, each with its own
   sign-in – Forkyard stores nothing of it. They run in an empty temporary folder, never in the
   repository, get the prompt on stdin and run without tools, MCP servers, project settings or stored
-  sessions (Codex in its read-only sandbox, opencode with every permission denied); a version without
+  sessions (Codex in its read-only sandbox without its shell and image tools or your config.toml, opencode
+  with every permission denied); a version without
   these safety switches is refused instead of being used less safely. Their paths are found
   automatically or set in Settings › AI; costs a tool reports are counted, the monthly limit does not
   apply to them.
