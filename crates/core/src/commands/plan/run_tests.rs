@@ -206,3 +206,16 @@ async fn a_cancelled_run_changes_nothing() {
     assert!(!has_ref(&repo, "refs/heads/eins") && !has_ref(&repo, "refs/heads/zwei"));
     assert!(undo_peek(&tc, id).await.unwrap().undo.is_none());
 }
+
+/// The app polls commands on Tauri's Tokio workers, which have Tokio's default stack of 2 MiB. A
+/// future that large is copied onto that stack more than once while it starts; a real plan run
+/// once overflowed it (SIGSEGV in the app). Whatever a step does belongs on the heap.
+#[tokio::test]
+async fn a_plan_run_future_stays_small() {
+    let (tc, _repo, id) = setup().await;
+    let preview = plan(&tc, &id, vec![step(C::TagCreate, json!({"name": "probe", "commit": null, "message": null}))]).await;
+    let future = run(&tc, &id, "Tag", &preview, vec![]);
+    let size = std::mem::size_of_val(&future);
+    assert!(size <= 64 * 1024, "the plan run's future takes {size} bytes");
+    drop(future);
+}

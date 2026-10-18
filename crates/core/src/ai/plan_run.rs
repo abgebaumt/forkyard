@@ -68,7 +68,10 @@ pub async fn run(core: &Core, repo_id: &str, job: &Job, text: &str, steps: &[Pla
         }
         job.progress("plan", Some((index * 100 / total.max(1)) as u32), &format!("{}/{}", index + 1, total));
         let step_job = format!("{}:{index}", job.id());
-        let (result, ids) = undo::recording(follow_cancel(core, job.token(), &step_job, plan_commands::execute(core, repo_id, &step_job, action))).await;
+        // On the heap: one step can be any command, and its future is far too large to be
+        // copied around on a worker's 2 MiB stack.
+        let step = Box::pin(plan_commands::execute(core, repo_id, &step_job, action));
+        let (result, ids) = undo::recording(follow_cancel(core, job.token(), &step_job, step)).await;
         recorded.extend(ids);
         match result {
             Ok(()) => outcomes.push(PlanStepOutcome { index: index32, status: PlanStepStatus::Done, error: None }),
