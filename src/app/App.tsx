@@ -176,7 +176,7 @@ function Shell({ info }: { info: AppInfo }) {
   const repoTab = active?.kind === "repo" && repoId ? active : null;
 
   return (
-    <div data-shell="app" className="flex h-full flex-col overflow-hidden bg-bg text-text">
+    <div data-shell="app" data-no-scroll className="flex h-full flex-col bg-bg text-text">
       <TabStrip tabs={tabs} />
       {repoTab && repoId && !missing ? <RepoToolbar key={`toolbar-${repoTab.id}`} repoId={repoId} tabId={repoTab.id} /> : <ManagementToolbar />}
       {repoTab && repoId ? (

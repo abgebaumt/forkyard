@@ -215,7 +215,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
           <UpdateHint />
           <span className="flex items-center" role="group" aria-label={t("shell.status.zoom")}>
             <IconButton
-              size="sm"
+              size="xs"
               label={t("shell.status.zoomOut")}
               shortcut="Mod+-"
               disabled={zoom <= ZOOM_MIN + 0.001}
@@ -234,7 +234,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
               </button>
             </Tip>
             <IconButton
-              size="sm"
+              size="xs"
               label={t("shell.status.zoomIn")}
               shortcut="Mod++"
               disabled={zoom >= ZOOM_MAX - 0.001}
