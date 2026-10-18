@@ -214,6 +214,22 @@ pub async fn delete_backup_refs(core: &Core, repo_id: &str, entry_id: &str) -> C
     Ok(())
 }
 
+tokio::task_local! {
+    /// Ids of the undo entries recorded inside a [`recording`] scope.
+    static RECORDED: std::cell::RefCell<Vec<String>>;
+}
+
+/// Runs `work` and returns the ids of the undo entries it recorded – only its own, not those of
+/// other actions that run meanwhile (a plan step's entries, for example).
+pub async fn recording<T>(work: impl std::future::Future<Output = T>) -> (T, Vec<String>) {
+    RECORDED
+        .scope(std::cell::RefCell::new(Vec::new()), async move {
+            let out = work.await;
+            (out, RECORDED.with(|ids| ids.take()))
+        })
+        .await
+}
+
 /// Stores an undo entry and clears the repository's redo stack
 /// (including its backup refs). Call within the write lock.
 pub async fn record(core: &Core, rec: UndoRecord) -> CoreResult<UndoEntry> {
@@ -240,6 +256,7 @@ pub async fn record(core: &Core, rec: UndoRecord) -> CoreResult<UndoEntry> {
         db::undo::insert(tx, &entry)?;
         Ok(redo)
     })?;
+    let _ = RECORDED.try_with(|ids| ids.borrow_mut().push(entry.id.clone()));
     for old in dropped {
         if let Err(e) = delete_backup_refs(core, &old.repo_id, &old.id).await {
             log::warn!("Backup refs of {} not removed: {}", old.id, e.message);
