@@ -10,7 +10,6 @@ import { useHostRepo, useProfiles, useRepo, useRepoSettings, useSettings, useSsh
 import { Button } from "../../../ui/Button";
 import { Select } from "../../../ui/Select";
 import { Switch } from "../../../ui/Switch";
-import { TestCommandRow } from "../../Agents/SettingsSection";
 import { LfsPanel } from "../../Lfs/LfsPanel";
 import { SigningSettings } from "../../Signing/SigningSettings";
 import { inheritedValue, overridePatch, resetPatch, type InheritContext, type InheritKey } from "../inherit";
@@ -203,7 +202,6 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
             />
           )}
         </SettingRow>
-        <TestCommandRow repoId={repoId} />
       </SettingsCard>
     </section>
   );

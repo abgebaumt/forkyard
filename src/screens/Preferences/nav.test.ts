@@ -39,4 +39,11 @@ describe("settings navigation", () => {
     for (const term of ["ollama", "claude", "llm", "model", "codex"]) expect(searchSections(term, SECTIONS).get("ai") ?? 0, term).toBeGreaterThan(0);
     expect(SECTIONS.find((s) => s.id === "p-ai")?.level).toBe("project");
   });
+
+  it("puts Coding agents right after AI and finds the agent test command under Project › AI and agents", () => {
+    const global = SECTIONS.filter((s) => s.level === "global").map((s) => s.id);
+    expect(global.indexOf("agents")).toBe(global.indexOf("ai") + 1);
+    expect(searchSections("test command", visibleSections(true)).get("p-ai") ?? 0).toBeGreaterThan(0);
+    expect(searchSections("test command", visibleSections(true)).has("p-git")).toBe(false);
+  });
 });

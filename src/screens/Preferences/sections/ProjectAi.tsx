@@ -1,4 +1,4 @@
-/** Project › AI and agents: "AI off for this repository" (later packages add their fields here). */
+/** Project › AI and agents: "AI off for this repository", the own commit instruction and the coding agents' test command. */
 import { useEffect, useState } from "react";
 import type { Id } from "../../../core";
 import { useRepoSettings } from "../../../app/queries";
@@ -7,6 +7,7 @@ import { Switch } from "../../../ui/Switch";
 import { LoadError, SectionHeader, SettingRow, SettingsCard, SettingsSkeleton } from "../parts";
 import { applyRepoSettings, fieldError } from "../settings";
 import { t } from "../../../i18n";
+import { TestCommandRow } from "../../Agents/SettingsSection";
 
 export function ProjectAiSection({ repoId }: { repoId: Id }) {
   const repoSettings = useRepoSettings(repoId);
@@ -21,6 +22,7 @@ export function ProjectAiSection({ repoId }: { repoId: Id }) {
           {(ids) => <Switch id={ids.id} ariaDescribedBy={ids.descriptionId} checked={value.aiOff} onCheckedChange={(checked) => void applyRepoSettings(repoId, { aiOff: checked })} />}
         </SettingRow>
         <CommitInstructionRow repoId={repoId} value={value.aiCommitInstruction} />
+        <TestCommandRow repoId={repoId} />
       </SettingsCard>
     </section>
   );
