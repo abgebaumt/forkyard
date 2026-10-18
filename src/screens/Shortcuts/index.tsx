@@ -8,13 +8,14 @@
  */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
-import { Command, Search, SearchX, X } from "lucide-react";
+import { Search, SearchX, X } from "lucide-react";
 import type { AppCommand, CommandGroup } from "../../app/commandTypes";
 import { useCommands } from "../../app/registry";
 import { useAppStore } from "../../app/store";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
 import { Button } from "../../ui/Button";
 import { dialogSurface } from "../../ui/Dialog";
+import { CommandIcon } from "../../ui/commandIcon";
 import { Kbd } from "../../ui/Kbd";
 import { formatShortcut, isMacShortcuts } from "../../ui/shortcut";
 import { matchesShortcut } from "../../app/commandTypes";
@@ -299,7 +300,7 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
             <span className="min-w-0 flex-1 truncate">
               {t("shortcuts.footer")}
             </span>
-            <Button size="sm" icon={<Command className="size-icon" aria-hidden />} onClick={openPalette}>
+            <Button size="sm" icon={<CommandIcon className="size-icon" aria-hidden />} onClick={openPalette}>
               {t("shortcuts.openPalette")}
             </Button>
           </footer>
