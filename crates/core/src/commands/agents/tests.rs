@@ -276,6 +276,32 @@ async fn cleanup_refuses_locked_worktrees_and_undo_is_not_offered_when_the_branc
     assert_eq!(agent_cleanup(&tc, "gibt-es-nicht".into()).await.unwrap_err().code, ErrorCode::NotFound);
 }
 
+/// The agent switched its worktree to another branch and the user checked its branch out in the
+/// main worktree: deleting the branch would leave that worktree on an unborn HEAD, so cleaning up
+/// refuses and changes nothing.
+#[tokio::test]
+async fn cleanup_refuses_while_the_branch_is_checked_out_in_another_worktree() {
+    let (tc, repo, id) = setup().await;
+    let (row, folder) = agent_without_session(&tc, &repo, &id, "umgezogen").await;
+    std::fs::write(folder.join("agent.txt"), "vom Agenten\n").unwrap();
+    git_in(&repo, &folder, &["add", "-A"]);
+    git_in(&repo, &folder, &["-c", "user.name=Agent", "-c", "user.email=agent@example.com", "commit", "-q", "-m", "Agent"]);
+    let tip = repo.git(&["rev-parse", "agent/umgezogen"]);
+    git_in(&repo, &folder, &["switch", "-q", "-c", "anderes"]);
+    std::fs::write(folder.join("offen.txt"), "noch nicht committet\n").unwrap();
+    repo.checkout("agent/umgezogen");
+
+    let error = agent_cleanup(&tc, row.id.clone()).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotAllowed, "{error:?}");
+    assert!(error.message.contains("agent/umgezogen"), "{}", error.message);
+    assert_eq!(repo.git(&["rev-parse", "agent/umgezogen"]), tip, "the branch stays");
+    assert_eq!(repo.current_branch(), "agent/umgezogen");
+    assert_eq!(repo.head(), tip, "the main worktree keeps its commit");
+    assert_eq!(repo.git(&["status", "--porcelain"]), "", "nothing shows as staged new");
+    assert_eq!(std::fs::read(folder.join("offen.txt")).unwrap(), b"noch nicht committet\n", "the agent's worktree stays");
+    assert_eq!(agent_list(&tc, id.clone()).await.unwrap().len(), 1);
+}
+
 #[test]
 fn the_output_tail_keeps_the_end_and_hides_secrets() {
     let out = format!("{}ENDE-STDOUT\n", "x".repeat(10_000));

@@ -133,6 +133,14 @@ pub(crate) async fn remove_worktree(core: &Core, repo_id: &str, folder: &Path) -
     Ok(())
 }
 
+/// The worktree other than the agent's own `folder` that has `branch_ref` checked out, if any.
+async fn checked_out_elsewhere(core: &Core, repo_id: &str, branch_ref: &str, folder: &Path) -> CoreResult<Option<String>> {
+    let out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(worktreepath)", branch_ref]).read_only().no_log().run().await?;
+    let key = |path: &Path| util::path_key(&std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()));
+    let own = key(folder);
+    Ok(out.stdout_lines().into_iter().map(util::decode_lossy).find(|path| !path.is_empty() && key(Path::new(path)) != own))
+}
+
 /// “Stop agent and clean up”. Returns the main repository's undo state.
 pub async fn run(core: &Core, agent_id: String) -> CoreResult<UndoState> {
     let row = core.db.with(|c| db::agents::require(c, &agent_id))?;
@@ -141,16 +149,27 @@ pub async fn run(core: &Core, agent_id: String) -> CoreResult<UndoState> {
     if folder.is_dir() && locked(core, &row.repo_id, &folder).await? {
         return Err(CoreError::not_allowed(format!("The worktree “{}” is locked. Unlock it first.", row.worktree_path)));
     }
+    let branch_ref = format!("refs/heads/{}", row.branch);
+    let busy = |other: String| CoreError::not_allowed(format!("The branch “{}” is checked out in “{other}”. Switch to another branch there first.", row.branch));
+    // Checked before the program is stopped, and again inside the write lock.
+    if let Some(other) = checked_out_elsewhere(core, &row.repo_id, &branch_ref, &folder).await? {
+        return Err(busy(other));
+    }
     stop_and_wait(core, &row.id).await?;
     let repo_id = row.repo_id.clone();
     core.with_write_lock(&repo_id, &[RepoChange::Refs, RepoChange::Worktree], async {
         let entry_id = u::new_id();
-        let branch_ref = format!("refs/heads/{}", row.branch);
+        if let Some(other) = checked_out_elsewhere(core, &repo_id, &branch_ref, &folder).await? {
+            return Err(busy(other));
+        }
         let tip = u::rev_parse(core, &repo_id, &branch_ref).await?;
         let snapshot = if folder.is_dir() { back_up_changes(core, &repo_id, &folder, &entry_id).await? } else { None };
         let head = refs::read_head(core, &repo_id).await?;
         remove_worktree(core, &repo_id, &folder).await?;
         if let Some(tip) = &tip {
+            // The tip is backed up before the branch goes (hard rule 6): should recording the entry
+            // fail, the commits are still reachable. `record_group` writes the same ref again.
+            u::create_backup_ref(core, &repo_id, &entry_id, "before-0", tip).await?;
             let delete = RefMove::new(&branch_ref, Some(tip.as_str()), None);
             u::apply_ref_moves(core, &repo_id, std::slice::from_ref(&delete), "forkyard: agent cleanup").await?;
             let mut extra = Map::new();
