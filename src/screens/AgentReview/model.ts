@@ -7,6 +7,7 @@ import type { Agent, AgentReview, DiffSource, FileChange, FileDiff, Id, PatchSel
 import type { AgentReviewShow } from "../../app/store";
 import { lineKey } from "../DiffView/model";
 import { t } from "../../i18n";
+import { SUMMARY_LIMIT } from "../../core/limits";
 
 /** A selected file: all its changes, or only some lines (`lineKey`s of its range diff). */
 export type FilePick = { kind: "all" } | { kind: "lines"; keys: string[] };
@@ -15,9 +16,6 @@ export type FilePicks = Readonly<Record<string, FilePick>>;
 
 /** Where “Selection into my working directory” puts it: unstaged, or staged (index and files). */
 export type TakeOverTarget = "worktree" | "both";
-
-/** The summary limit of the commit form. */
-export const SUMMARY_LIMIT = 72;
 
 // --- Files -------------------------------------------------------------------------------
 
