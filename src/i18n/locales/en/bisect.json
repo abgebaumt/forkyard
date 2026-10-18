@@ -30,5 +30,53 @@
   },
   "end": {
     "label": "End bisect"
+  },
+  "autopilot": {
+    "title": "Bisect autopilot",
+    "open": "Autopilot …",
+    "chooseConfirm": "Continue",
+    "range": "Bad: {{bad}} · Good: {{good}}",
+    "intro": "Describe the problem. The AI writes a test script; you check it, then it runs commit by commit in a temporary worktree next to the repository. Your working directory stays as it is.",
+    "description": "What is wrong?",
+    "descriptionPlaceholder": "e.g. Fahrenheit values are too low since last week",
+    "testCommand": "Test command (optional)",
+    "testCommandHint": "A command that shows the problem, e.g. npm test",
+    "write": "Write script",
+    "writeAgain": "Write again",
+    "whatIsSent": "What is sent?",
+    "script": "Test script ({{shell}})",
+    "scriptHint": "Exit 0 = good, 1–127 except 125 = bad, 125 = skip. It runs on your computer, in the temporary worktree.",
+    "shell": {
+      "sh": "sh",
+      "powershell": "PowerShell"
+    },
+    "scriptTooLong": "The script is longer than 64 KiB.",
+    "stepTimeout": "Time limit per step",
+    "stepTimeoutHint": "A step over the limit counts as skipped.",
+    "minutes": "min",
+    "run": "Run",
+    "cancel": "Cancel",
+    "runLabel": "Bisect autopilot",
+    "jobTitle": "Bisect autopilot",
+    "barTitle": "Bisect autopilot",
+    "state": {
+      "running": "Running",
+      "done": "Done",
+      "undecided": "Undecided",
+      "failed": "Failed"
+    },
+    "preparing": "Setting up the temporary worktree …",
+    "step": "Step {{step}} of ~{{total}} · testing {{sha}}",
+    "found_one": "First bad commit: {{sha}} after {{count}} step",
+    "found_other": "First bad commit: {{sha}} after {{count}} steps",
+    "onlySkipped_one": "Only skipped commits are left – {{count}} candidate remains",
+    "onlySkipped_other": "Only skipped commits are left – the first bad commit is among {{count}} candidates",
+    "timedOut_one": "{{count}} step skipped after the time limit",
+    "timedOut_other": "{{count}} steps skipped after the time limit",
+    "stop": "Stop",
+    "showResult": "Show details",
+    "keep": "Keep worktree",
+    "remove": "Remove worktree",
+    "kept": "The worktree stays at {{path}}."
   }
 }

@@ -30,5 +30,53 @@
   },
   "end": {
     "label": "Bisect beenden"
+  },
+  "autopilot": {
+    "title": "Bisect-Autopilot",
+    "open": "Autopilot …",
+    "chooseConfirm": "Weiter",
+    "range": "Schlecht: {{bad}} · Gut: {{good}}",
+    "intro": "Beschreibe den Fehler. Die KI schreibt ein Testskript; du prüfst es, dann läuft es Commit für Commit in einem temporären Worktree neben dem Repository. Dein Arbeitsverzeichnis bleibt, wie es ist.",
+    "description": "Was ist falsch?",
+    "descriptionPlaceholder": "z. B. Fahrenheit-Werte sind seit letzter Woche zu niedrig",
+    "testCommand": "Testbefehl (optional)",
+    "testCommandHint": "Ein Befehl, der den Fehler zeigt, z. B. npm test",
+    "write": "Skript schreiben",
+    "writeAgain": "Neu schreiben",
+    "whatIsSent": "Was wird gesendet?",
+    "script": "Testskript ({{shell}})",
+    "scriptHint": "Exit 0 = gut, 1–127 außer 125 = schlecht, 125 = überspringen. Es läuft auf deinem Rechner, im temporären Worktree.",
+    "shell": {
+      "sh": "sh",
+      "powershell": "PowerShell"
+    },
+    "scriptTooLong": "Das Skript ist länger als 64 KiB.",
+    "stepTimeout": "Zeitlimit pro Schritt",
+    "stepTimeoutHint": "Ein Schritt über dem Limit gilt als übersprungen.",
+    "minutes": "Min.",
+    "run": "Ausführen",
+    "cancel": "Abbrechen",
+    "runLabel": "Bisect-Autopilot",
+    "jobTitle": "Bisect-Autopilot",
+    "barTitle": "Bisect-Autopilot",
+    "state": {
+      "running": "Läuft",
+      "done": "Fertig",
+      "undecided": "Unentschieden",
+      "failed": "Fehler"
+    },
+    "preparing": "Temporärer Worktree wird eingerichtet …",
+    "step": "Schritt {{step}} von ~{{total}} · teste {{sha}}",
+    "found_one": "Erster schlechter Commit: {{sha}} nach {{count}} Schritt",
+    "found_other": "Erster schlechter Commit: {{sha}} nach {{count}} Schritten",
+    "onlySkipped_one": "Nur noch übersprungene Commits übrig – {{count}} Kandidat bleibt",
+    "onlySkipped_other": "Nur noch übersprungene Commits übrig – der erste schlechte ist unter {{count}} Kandidaten",
+    "timedOut_one": "{{count}} Schritt nach dem Zeitlimit übersprungen",
+    "timedOut_other": "{{count}} Schritte nach dem Zeitlimit übersprungen",
+    "stop": "Stoppen",
+    "showResult": "Details zeigen",
+    "keep": "Worktree behalten",
+    "remove": "Worktree entfernen",
+    "kept": "Der Worktree bleibt unter {{path}}."
   }
 }
