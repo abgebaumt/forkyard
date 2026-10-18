@@ -66,7 +66,8 @@
     "bisectRunning": "Es läuft bereits ein Bisect",
     "bisectGood": "Bisect: als gut markieren",
     "bisectBad": "Bisect: als schlecht markieren",
-    "bisectSkip": "Bisect: diesen Commit überspringen"
+    "bisectSkip": "Bisect: diesen Commit überspringen",
+    "bisectAutopilot": "Bisect-Autopilot …"
   },
   "wip": {
     "noChanges": "keine Änderungen",

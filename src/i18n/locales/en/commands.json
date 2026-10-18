@@ -744,6 +744,11 @@
     "end": {
       "title": "End bisect"
     },
+    "autopilot": {
+      "title": "Bisect autopilot …",
+      "keywords": "bisect, autopilot, find bug, regression, test script",
+      "running": "The bisect autopilot is already running"
+    },
     "notRunning": "No bisect is running"
   }
 }

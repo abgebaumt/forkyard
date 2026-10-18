@@ -1,12 +1,14 @@
 /** Bar above the graph while a bisect runs: progress, Good / Bad / Skip, End; afterwards the result. */
 import type { Id, Sha } from "../../core";
 import { shortSha } from "../../app/format";
-import { useBisectStatus } from "../../app/queries";
+import { useAiStatus, useBisectStatus, useRepoSettings } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { t } from "../../i18n";
 import { bisectBusyKey, endBisect, markBisect } from "./actions";
 import { bisectBar, type BisectBarState } from "./model";
+import { autopilotBusyKey, startAutopilot } from "./autopilotActions";
+import { autopilotAccess } from "./autopilotModel";
 
 function barText(bar: BisectBarState): string {
   switch (bar.kind) {
@@ -26,6 +28,10 @@ function barText(bar: BisectBarState): string {
 export function BisectBar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const { data: status } = useBisectStatus(repoId);
   const busy = useBusy(bisectBusyKey(repoId));
+  const { data: ai } = useAiStatus();
+  const { data: repoSettings } = useRepoSettings(repoId);
+  const autopilotBusy = useBusy(autopilotBusyKey(repoId));
+  const access = autopilotAccess(ai, repoSettings?.aiOff ?? false);
   const bar = bisectBar(status);
   if (bar.kind === "off") return null;
   const marking = bar.kind === "running" || bar.kind === "waiting";
@@ -56,6 +62,11 @@ export function BisectBar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       {bar.kind === "found" ? (
         <Button size="sm" variant="ghost" onClick={() => showResult(bar.sha)}>
           {t("bisect.bar.showResult")}
+        </Button>
+      ) : null}
+      {bar.kind === "running" && access !== "hidden" ? (
+        <Button size="sm" variant="ghost" disabled={busy || autopilotBusy} data-bisect-autopilot-open onClick={() => void startAutopilot(repoId, [], tabId)}>
+          {t("bisect.autopilot.open")}
         </Button>
       ) : null}
       <Button size="sm" variant="ghost" disabled={busy} onClick={() => void endBisect(repoId, tabId)}>

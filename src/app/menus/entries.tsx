@@ -78,6 +78,7 @@ import { editRemote, removeRemote } from "../actions/remotes";
 import { openRepositoryAt } from "../actions/repos";
 import { openWorktreeDialog } from "../../screens/Worktrees/Dialog";
 import { markBisect, startBisect } from "../../screens/Bisect/actions";
+import { autopilotAccessFor, autopilotRunning, startAutopilot } from "../../screens/Bisect/autopilotActions";
 import { applyStash, applyStashFiles, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
 import { cachedLocks, lockFiles, unlockFiles } from "../actions/lfs";
 import { lockIndex, lockMenuState } from "../../screens/Lfs/locks";
@@ -165,10 +166,19 @@ function bisectEntries(ctx: MenuBase, shas: Sha[]): MenuEntry[] {
     ];
   }
   if (shas.length === 0 || shas.length > 2) return [];
+  const autopilot = autopilotAccessFor(ctx.repoId);
   return [
     item(t("menus.commit.bisectStart"), Bug, () => void startBisect(ctx.repoId, shas, ctx.tabId), {
       blocked: operationBlock(ctx.repoId) ?? (running ? t("menus.commit.bisectRunning") : null),
     }),
+    // The autopilot works in its own worktree: neither an operation nor a manual bisect here blocks it.
+    ...(autopilot === "hidden"
+      ? []
+      : [
+          item(t("menus.commit.bisectAutopilot"), null, () => void startAutopilot(ctx.repoId, shas, ctx.tabId), {
+            blocked: autopilotRunning(ctx.repoId) ? t("commands.bisect.autopilot.running") : null,
+          }),
+        ]),
   ];
 }
 

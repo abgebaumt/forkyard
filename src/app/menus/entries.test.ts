@@ -8,7 +8,7 @@ vi.stubGlobal("window", { requestAnimationFrame: (run: (time: number) => void) =
 import type { FileChange, Ref, RefsSnapshot, Stash, Status } from "../../core";
 import type { MenuAction, MenuEntry } from "../../ui/Menu";
 import { qk, queryClient } from "../queries";
-import { branchMenu, fileMenu } from "./entries";
+import { branchMenu, commitMenu, fileMenu } from "./entries";
 
 const stash: Stash = { index: 0, sha: "a".repeat(40), message: "Halbfertig", branch: "main", baseSha: "c".repeat(40), createdAt: "2026-10-15T08:00:00Z", fileCount: 2 };
 const file = (path: string, status: FileChange["status"]) => ({ path, status }) as unknown as FileChange;
@@ -146,6 +146,56 @@ describe("release notes in the tag menu", () => {
       if (status) queryClient.setQueryData(qk.aiStatus, status);
       if (settings) queryClient.setQueryData(qk.repoSettings("r1"), settings);
       expect(find(entries(), "Write release notes …"), JSON.stringify({ status, settings })).toBeUndefined();
+    }
+  });
+});
+
+describe("bisect autopilot in the commit menu", () => {
+  const on = { state: "on", provider: "ollama", model: "qwen3:8b", connected: true, keyHint: null, local: true, price: null, introPending: false, featuresOff: [] as string[] };
+  const one = ["1".repeat(40)];
+  const two = ["1".repeat(40), "2".repeat(40)];
+  const label = "Bisect autopilot …";
+  const run = (phase: string) => ({ jobId: "j1", phase, worktreePath: "/tmp/repo.agents/bisect-1", bad: two[0], good: [two[1]], current: null, remainingSteps: null, steps: [], result: null, candidates: [], stepTimeoutSecs: 600, message: null, startedAt: "2026-10-18T09:00:00Z" });
+
+  beforeEach(() => {
+    queryClient.clear();
+    queryClient.setQueryData(qk.aiStatus, on);
+    queryClient.setQueryData(qk.repoSettings("r1"), { aiOff: false });
+  });
+
+  it("offers it next to “Start bisect …” on one or two commits while AI is on", () => {
+    for (const shas of [one, two]) {
+      const entry = find(commitMenu({ repoId: "r1", tabId: "t1", shas }), label);
+      expect(entry, String(shas.length)).toBeTruthy();
+      expect(entry?.disabled).toBeFalsy();
+    }
+  });
+
+  it("is not blocked by a manual bisect in the own working directory, but by a running autopilot", () => {
+    queryClient.setQueryData(qk.bisect("r1"), { active: true, bad: two[0], good: [two[1]], skipped: [], current: "3".repeat(40), remainingSteps: 1, stepsDone: 0, result: null, onlySkippedLeft: false });
+    expect(find(commitMenu({ repoId: "r1", tabId: "t1", shas: two }), label)?.disabled).toBeFalsy();
+    queryClient.setQueryData(qk.bisect("r1"), undefined);
+    queryClient.setQueryData(qk.bisectAutopilot("r1"), run("testing"));
+    const blocked = find(commitMenu({ repoId: "r1", tabId: "t1", shas: two }), label);
+    expect(blocked?.disabled).toBe(true);
+    expect(blocked?.hint).toBe("The bisect autopilot is already running");
+    queryClient.setQueryData(qk.bisectAutopilot("r1"), run("found"));
+    expect(find(commitMenu({ repoId: "r1", tabId: "t1", shas: two }), label)?.disabled).toBeFalsy();
+  });
+
+  it("hides it when AI is not set up, off, the function is off or the repository has AI off", () => {
+    const cases: [object | undefined, object][] = [
+      [undefined, { aiOff: false }],
+      [{ ...on, state: "unset" }, { aiOff: false }],
+      [{ ...on, state: "off" }, { aiOff: false }],
+      [{ ...on, featuresOff: ["bisect_script"] }, { aiOff: false }],
+      [on, { aiOff: true }],
+    ];
+    for (const [status, settings] of cases) {
+      queryClient.clear();
+      if (status) queryClient.setQueryData(qk.aiStatus, status);
+      queryClient.setQueryData(qk.repoSettings("r1"), settings);
+      expect(find(commitMenu({ repoId: "r1", tabId: "t1", shas: two }), label), JSON.stringify({ status, settings })).toBeUndefined();
     }
   });
 });

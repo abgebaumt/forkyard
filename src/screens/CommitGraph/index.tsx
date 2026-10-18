@@ -39,6 +39,7 @@ import { graphWidthFor, readMetrics, rootZoom } from "../../components/graph/geo
 import { GraphCanvas, type GraphDecor } from "../../components/graph/GraphCanvas";
 import { GraphHeader, type SmartToggle } from "../../components/graph/GraphHeader";
 import { BisectBar } from "../Bisect/BisectBar";
+import { AutopilotBar } from "../Bisect/AutopilotBar";
 import { bisectMarks } from "../Bisect/model";
 import { activeKey, changeCount, GraphRowView, ROW_SELECTED, rowFlags, rowKey, selectionOf, type RowShared } from "../../components/graph/GraphRowView";
 import { clearHighlight, currentHighlight, endHoverHighlight, hoverHighlight, toggleStickyHighlight, useHighlightTarget } from "../../components/graph/highlightStore";
@@ -1071,6 +1072,7 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
   return (
     <section data-screen="commit-graph" data-state={state} className="flex h-full min-h-0 w-full min-w-0 flex-col bg-bg">
       <BisectBar repoId={repoId} tabId={tabId} />
+      <AutopilotBar repoId={repoId} tabId={tabId} />
       {detachedSha ? <DetachedBar repoId={repoId} tabId={tabId} sha={detachedSha} /> : null}
       {filtered && viewState && hasData ? <FilterBar repoId={repoId} view={viewState} smart={smartOn && viewState.soloRefs.length > 0 ? selection : null} /> : null}
       {state === "ready" && graph.isRefetchError && !stale && !isFetching ? (
