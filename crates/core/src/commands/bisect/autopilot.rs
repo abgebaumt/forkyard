@@ -19,8 +19,9 @@ use parking_lot::Mutex;
 
 use crate::ai::bisect::{check_range, normalize_script, script_problem};
 use crate::app::Core;
+use crate::commands::agents::names;
 use crate::commands::bisect::read_bisect_at;
-use crate::commands::worktree;
+use crate::commands::worktree::{self, main_worktree_path};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
 use crate::git::{redact, GitCmd};
@@ -38,31 +39,6 @@ const MAX_FOLDERS: u32 = 99;
 /// A bisect over a million commits needs about 20 marks; a script that keeps skipping stops here.
 const MAX_STEPS: usize = 200;
 const OUTPUT_TAIL: usize = 2_000;
-
-/// Stand-in for Paket 2a's `crate::commands::agents::names::agents_dir` (2a is not on this
-/// branch); same rule, replaced by the import at the merge.
-mod names {
-    use std::path::{Path, PathBuf};
-
-    use crate::error::{CoreError, CoreResult};
-
-    /// `<parent>/<repo>.agents` for the main worktree `<parent>/<repo>`.
-    pub fn agents_dir(main_root: &Path) -> CoreResult<PathBuf> {
-        let refuse = || CoreError::not_allowed("The bisect autopilot needs a folder next to the repository; the repository is at the top of the drive.");
-        let name = main_root.file_name().ok_or_else(refuse)?;
-        let parent = main_root.parent().ok_or_else(refuse)?;
-        let mut folder = name.to_os_string();
-        folder.push(".agents");
-        Ok(parent.join(folder))
-    }
-}
-
-/// Stand-in for Paket 2a's `worktree::main_worktree_path`: the first entry of `git worktree list`,
-/// also when `repo_id` is a linked worktree.
-async fn main_worktree_path(core: &Core, repo_id: &str) -> CoreResult<PathBuf> {
-    let entries = worktree::entries(core, repo_id).await?;
-    entries.into_iter().next().map(|entry| entry.path).ok_or_else(|| CoreError::not_found("The repository has no working directory."))
-}
 
 /// The run of each repository: running, or finished with its worktree still there.
 #[derive(Default)]
