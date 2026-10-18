@@ -126,6 +126,33 @@ async fn the_autopilot_finds_the_first_bad_commit_and_leaves_the_own_working_dir
     assert_eq!(bisect_autopilot_status(&tc, id).await.unwrap(), None);
 }
 
+/// The bar reloads the run on every `job:progress` of the autopilot: the first step must not be
+/// swallowed by the progress throttle right after "Preparing" (same phase, both at 0 %).
+#[tokio::test]
+async fn every_tested_step_is_reported_as_progress() {
+    let tc = TestCore::new().await;
+    let f = fixture();
+    let id = tc.open(&f.repo).await.repo.id;
+    tc.events.clear();
+
+    let done = run(&tc, &id, &f, &formula_script()).await.unwrap();
+
+    let lines: Vec<String> = tc
+        .events
+        .named(crate::events::names::JOB_PROGRESS)
+        .iter()
+        .filter(|p| p["jobId"] == "auto" && p["phase"] == PROGRESS_PHASE)
+        .map(|p| p["line"].as_str().unwrap_or_default().to_string())
+        .collect();
+    assert_eq!(lines.first().map(String::as_str), Some("Preparing the bisect worktree"), "{lines:?}");
+    let steps: Vec<&String> = lines.iter().filter(|line| line.starts_with("Step ")).collect();
+    assert_eq!(steps.len(), done.steps.len(), "{lines:?}");
+    for (index, line) in steps.iter().enumerate() {
+        assert!(line.starts_with(&format!("Step {} of ~", index + 1)), "{lines:?}");
+    }
+    bisect_autopilot_close(&tc, id, false).await.unwrap();
+}
+
 #[tokio::test]
 async fn a_bisect_running_in_the_own_working_directory_is_not_touched() {
     let tc = TestCore::new().await;

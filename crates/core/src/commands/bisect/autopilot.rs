@@ -249,7 +249,9 @@ pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, bad: &str, goo
             return Err(error);
         }
     };
-    job.progress(PROGRESS_PHASE, Some(0), "Preparing the bisect worktree");
+    // No percentage yet: step 1 reports 0 %, and the job throttle drops a second event with the
+    // same phase and percentage within 100 ms – the bar would stay on "Preparing".
+    job.progress(PROGRESS_PHASE, None, "Preparing the bisect worktree");
     let result = drive(core, repo_id, &job, &bad, &good, script, Duration::from_secs(step_timeout_secs)).await;
     if result.is_err() {
         runs.remove(repo_id);
