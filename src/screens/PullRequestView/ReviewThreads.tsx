@@ -7,7 +7,8 @@
  * fixups in the interactive rebase (autosquash). AI errors stay inline; a late answer never moves focus.
  */
 import { useEffect, useRef, useState } from "react";
-import { core, type AiPreview, type AiReviewFix, type Id, type ReviewFixApplied, type ReviewThread } from "../../core";
+import { core, type AiPreview, type AiProviderKind, type AiReviewFix, type Id, type ReviewFixApplied, type ReviewThread } from "../../core";
+import { signInInTerminal } from "../../app/ai/cliLogin";
 import { confirmSend } from "../../app/ai/gate";
 import { openAiSettings } from "../../app/ai/open";
 import { showAiPreview } from "../../app/ai/PreviewDialog";
@@ -27,13 +28,14 @@ import { Avatar } from "../../ui/Git";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
+import { isCli } from "../Preferences/ai/model";
 import { SafeMarkdown } from "./Markdown";
 import { BlockTitle, When, userName } from "./parts";
 import { REVIEW_FEATURE, fixAvailability, replyDraft, splitThreads, targetHint, threadLines } from "./reviewModel";
 
 type FailedView = Exclude<AiErrorView, { kind: "cancelled" }>;
 type Run = { kind: "idle" } | { kind: "running"; startedAt: number } | { kind: "failed"; view: FailedView } | { kind: "error"; text: string };
-type Ai = { visible: boolean; opensSetup: boolean; local: boolean };
+type Ai = { visible: boolean; opensSetup: boolean; local: boolean; provider: AiProviderKind | null };
 
 /** The hunk of a suggestion; the sign and a hidden word say what a line is, not only the colour. */
 function DiffLines({ fix }: { fix: AiReviewFix }) {
@@ -56,30 +58,61 @@ function DiffLines({ fix }: { fix: AiReviewFix }) {
   );
 }
 
-function FailedNote({ view, onAgain, onLook }: { view: FailedView; onAgain: () => void; onLook: () => void }) {
+/**
+ * The inline error of a thread with its actions. Over the limit, "Send this time" sends this one
+ * request again; a signed-out command-line tool gets "Sign in in the terminal", and without an open
+ * repository tab the line says how to sign in instead.
+ */
+export function FailedNote({ view, provider, onAgain, onLook }: { view: FailedView; provider: AiProviderKind | null; onAgain: () => void; onLook: () => void }) {
+  const [noTerminal, setNoTerminal] = useState(false);
   return (
-    <div role="alert" data-review-error={view.kind} className="flex flex-wrap items-center gap-2 px-3 pb-2 text-sm text-text">
-      <span className="min-w-0 flex-1">{view.text}</span>
-      {view.kind === "invalid" ? (
-        <>
+    <div role="alert" data-review-error={view.kind} className="flex flex-col gap-2 px-3 pb-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-text">
+        <span className="min-w-0 flex-1">{view.text}</span>
+        {view.kind === "invalid" ? (
+          <>
+            <Button size="sm" onClick={onAgain}>
+              {t("pullRequest.view.reviewThreads.again")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onLook}>
+              {t("pullRequest.view.reviewThreads.lookSent")}
+            </Button>
+          </>
+        ) : null}
+        {view.kind === "unavailable" ? (
           <Button size="sm" onClick={onAgain}>
-            {t("pullRequest.view.reviewThreads.again")}
+            {t("pullRequest.view.reviewThreads.retry")}
           </Button>
-          <Button size="sm" variant="ghost" onClick={onLook}>
-            {t("pullRequest.view.reviewThreads.lookSent")}
+        ) : null}
+        {view.kind === "setup" ? (
+          <Button size="sm" onClick={openAiSettings}>
+            {t("pullRequest.view.reviewThreads.openSettings")}
           </Button>
-        </>
-      ) : null}
-      {view.kind === "unavailable" ? (
-        <Button size="sm" onClick={onAgain}>
-          {t("pullRequest.view.reviewThreads.retry")}
-        </Button>
-      ) : null}
-      {view.kind === "setup" || view.kind === "limit" ? (
-        <Button size="sm" onClick={openAiSettings}>
-          {t("pullRequest.view.reviewThreads.openSettings")}
-        </Button>
-      ) : null}
+        ) : null}
+        {view.kind === "limit" ? (
+          <>
+            <Button size="sm" data-review-limit-send="" onClick={onAgain}>
+              {t("ai.state.limitSend")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={openAiSettings}>
+              {t("ai.state.limitChange")}
+            </Button>
+          </>
+        ) : null}
+        {view.kind === "notLoggedIn" ? (
+          <>
+            {provider && isCli(provider) ? (
+              <Button size="sm" data-review-sign-in="" onClick={() => setNoTerminal(!signInInTerminal(provider))}>
+                {t("ai.setup.cli.signIn")}
+              </Button>
+            ) : null}
+            <Button size="sm" onClick={onAgain}>
+              {t("pullRequest.view.reviewThreads.again")}
+            </Button>
+          </>
+        ) : null}
+      </div>
+      {noTerminal ? <p className="text-sm break-words text-text-muted">{t("ai.settings.signInNoRepo")}</p> : null}
     </div>
   );
 }
@@ -258,7 +291,7 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
       <p aria-live="polite" data-review-status="" className="px-3 text-sm text-text-muted">
         {loading ? `${loading.text}${loading.slow ? ` ${loading.slow}` : ""}` : ""}
       </p>
-      {run.kind === "failed" ? <FailedNote view={run.view} onAgain={() => void suggest()} onLook={() => void whatIsSent()} /> : null}
+      {run.kind === "failed" ? <FailedNote view={run.view} provider={ai.provider} onAgain={() => void suggest()} onLook={() => void whatIsSent()} /> : null}
       {run.kind === "error" ? (
         <p role="alert" data-review-error="apply" className="px-3 pb-2 text-sm text-text">
           {run.text}
@@ -351,6 +384,7 @@ export function ReviewThreads({ repoId, tabId, pr, capabilities, hostName }: { r
     visible: featureVisible(status.data, REVIEW_FEATURE, repoSettings.data?.aiOff ?? false),
     opensSetup: aiVisibility(status.data).elementsOpenSetup,
     local: status.data?.local ?? false,
+    provider: status.data?.provider ?? null,
   };
   const { open, resolved } = splitThreads(query.data ?? []);
   return (
