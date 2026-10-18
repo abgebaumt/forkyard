@@ -195,6 +195,22 @@ impl AgentRegistry {
     pub(crate) fn all(&self) -> Vec<Arc<Session>> {
         self.sessions.lock().values().cloned().collect()
     }
+
+    /// A session whose program counts as running, without a terminal (tests of other areas).
+    #[cfg(test)]
+    pub(crate) fn insert_running_for_test(&self, agent_id: &str, repo_id: &str) {
+        let (events, _rx) = mpsc::unbounded_channel();
+        let session = Session {
+            agent_id: agent_id.to_string(),
+            repo_id: repo_id.to_string(),
+            terminal_id: format!("term-{agent_id}"),
+            token: String::new(),
+            machine: Mutex::new(Machine::new(Instant::now(), false)),
+            tail: Arc::new(Mutex::new(LineTail::default())),
+            events,
+        };
+        self.sessions.lock().insert(agent_id.to_string(), Arc::new(session));
+    }
 }
 
 /// `agents:changed` for the repository, with the number of running agents of all repositories.

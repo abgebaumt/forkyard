@@ -75,6 +75,27 @@ fn entry(step: CleanupStep, status: CleanupStepStatus, removed: Option<u64>) -> 
     CleanupStepResult { step, status, removed }
 }
 
+/// `--prune=now` is unsafe while another process writes objects, and a coding agent that Forkyard
+/// started writes into the same object store from its worktree – the locks do not cover it. Thorough
+/// therefore refuses while an agent of the group runs (checked once the locks are held; a new
+/// agent's worktree needs the write lock); Normal keeps two weeks of grace and may run.
+fn refuse_while_agents_run(core: &Core, ids: &[String], options: &CleanupOptions) -> CoreResult<()> {
+    if !(chosen(options, CleanupStep::Gc) && options.mode == CleanupMode::Thorough) {
+        return Ok(());
+    }
+    let registry = core.state::<crate::commands::agents::registry::AgentRegistry>();
+    let running: u32 = ids.iter().map(|id| registry.running_in(id)).sum();
+    if running == 0 {
+        return Ok(());
+    }
+    Err(CoreError::not_allowed(format!(
+        "{running} coding agent{} still run{} in this repository and may be writing objects. Stop {} first, or choose Normal.",
+        if running == 1 { "" } else { "s" },
+        if running == 1 { "s" } else { "" },
+        if running == 1 { "it" } else { "them" },
+    )))
+}
+
 /// The run under the locks of the whole group. A cancel or a failed step ends it with `Ok`
 /// (see `CleanupResult`); `Err` only before the first step.
 pub(super) async fn run(core: &Core, repo_id: &str, job: &Job, options: &CleanupOptions) -> CoreResult<CleanupResult> {
@@ -82,6 +103,7 @@ pub(super) async fn run(core: &Core, repo_id: &str, job: &Job, options: &Cleanup
     let ids = super::sharing_ids(core, repo_id, &worktrees)?;
     job.progress("Waiting for other actions in this repository", None, WAITING);
     let _held = super::lock_all(core, &ids, job.token()).await?;
+    refuse_while_agents_run(core, &ids, options)?;
     let started = Instant::now();
     let common = measure::common_dir(core, repo_id).await?;
     // Keep refs of a run that was interrupted (crash, power loss) must not protect objects forever.

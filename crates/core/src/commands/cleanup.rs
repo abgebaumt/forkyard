@@ -3,8 +3,9 @@
 //! Nothing here runs on its own (spec Paket 10: no automatism, no AI). The preview only reads
 //! (`GIT_OPTIONAL_LOCKS=0`). The run is a cancellable job under the network lock and then the
 //! write lock of the repository and of every listed worktree that shares its Git directory, so no
-//! fetch, commit or agent clean-up from Forkyard writes objects meanwhile. It never passes
-//! `--force` to `git gc` and never deletes a lock file.
+//! fetch, commit or agent clean-up from Forkyard writes objects meanwhile. The coding agents' own
+//! programs are not covered by these locks, so Thorough (`--prune=now`) refuses while one runs. It
+//! never passes `--force` to `git gc` and never deletes a lock file.
 
 use std::collections::HashSet;
 use std::path::Path;

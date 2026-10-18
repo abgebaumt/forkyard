@@ -47,6 +47,27 @@ async fn thorough_removes_unreachable_loose_objects_at_once() {
     repo.git(&["fsck", "--no-progress"]);
 }
 
+/// A coding agent may be writing objects in its worktree (same object store): `--prune=now` could
+/// remove the loose objects of its commit in progress. Thorough refuses while one runs and leaves
+/// everything as it was; Normal (two weeks of grace) still runs.
+#[tokio::test]
+async fn thorough_waits_until_no_coding_agent_runs() {
+    let (tc, repo, id) = setup().await;
+    let dangling = dangling_blob(&repo, "Objekt eines Agenten in Arbeit\n");
+    tc.state::<crate::commands::agents::registry::AgentRegistry>().insert_running_for_test("agent-läuft", &id);
+    let error = run_cleanup(&tc, &id, only_gc(CleanupMode::Thorough)).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NotAllowed, "{error:?}");
+    assert!(error.message.contains("coding agent"), "{}", error.message);
+    assert!(object_exists(&repo, &dangling), "nothing was pruned");
+    let normal = run_cleanup(&tc, &id, only_gc(CleanupMode::Normal)).await.unwrap();
+    assert_eq!(status_of(&normal, CleanupStep::Gc), CleanupStepStatus::Done);
+    assert!(object_exists(&repo, &dangling), "Normal keeps young unreachable objects");
+
+    tc.state::<crate::commands::agents::registry::AgentRegistry>().remove("agent-läuft");
+    run_cleanup(&tc, &id, only_gc(CleanupMode::Thorough)).await.unwrap();
+    assert!(!object_exists(&repo, &dangling));
+}
+
 #[tokio::test]
 async fn orphaned_worktrees_are_pruned_only_when_asked() {
     let (tc, repo, id) = setup().await;
