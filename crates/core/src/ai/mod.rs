@@ -271,7 +271,7 @@ impl AiFeature {
 
     pub fn max_output_tokens(self) -> u32 {
         match self {
-            AiFeature::CommitMessage | AiFeature::Plan | AiFeature::SemanticSearch => 1_024,
+            AiFeature::CommitMessage | AiFeature::Plan => 1_024,
             AiFeature::Compose => 8_192,
             _ => 4_096,
         }

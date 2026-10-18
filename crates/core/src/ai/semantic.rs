@@ -16,6 +16,7 @@
 
 pub mod history;
 pub mod index;
+mod rephrase;
 pub mod vector;
 
 #[cfg(test)]
@@ -247,8 +248,7 @@ pub async fn preview(core: &Core, repo_id: &str, query: &str, locale: &str) -> C
     let settings = core.settings()?;
     let query = clean_question(query)?;
     let Some(embedder) = embedder(core, &settings).await? else {
-        let _ = locale;
-        return Err(CoreError::unsupported("Without embeddings the search by meaning rephrases the question; that way is not built yet."));
+        return rephrase::preview(core, repo_id, &settings, &query, locale).await;
     };
     let plan = plan(core, repo_id, &embedder, &settings, MAX_COMMITS, &CancelToken::new()).await?;
     // The question is redacted like repository text (a pasted token is a secret too).
@@ -359,10 +359,7 @@ pub(crate) async fn search_with_cap(core: &Core, repo_id: &str, job_id: &str, qu
     run::track(core, job_id);
     let result = match embedder(core, &settings).await {
         Ok(Some(embedder)) => search_embedded(core, repo_id, &job, &settings, &embedder, &query, cap).await,
-        Ok(None) => {
-            let _ = locale;
-            Err(CoreError::unsupported("Without embeddings the search by meaning rephrases the question; that way is not built yet."))
-        }
+        Ok(None) => rephrase::search(core, repo_id, &job, &settings, &query, locale).await,
         Err(error) => Err(error),
     };
     run::untrack(core, job_id);
