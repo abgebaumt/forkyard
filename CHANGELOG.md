@@ -88,6 +88,14 @@ All notable changes to Forkyard are listed here. The format follows
   one undo step for several takeovers in a row. Replies are posted only on click (on Gitea/Forgejo as a
   quoted comment on the same line). Afterwards “Squash now” opens the interactive rebase with the fixups
   below their commits (autosquash, new action “Fixup”).
+- Search by meaning: while AI is on, the commit search gets a switch “Text | Meaning”. A question such
+  as “where was the sign-in fixed?” finds commits by what they are about, each with a reason, on Enter.
+  It uses an embedding provider on this computer (Ollama or LM Studio, chosen in Settings › AI),
+  otherwise the main provider's embeddings, and without embeddings the main provider turns the question
+  into a search with terms, code, paths, author and time window and sorts the matches. The index lives
+  in its own file in the data folder, per repository and model (the newest 200,000 commits), grows after
+  fetches and commits once the search was used, follows rewritten history and can be deleted in
+  Settings › AI. What goes out passes the same exclusions, redaction and confirmations as every AI request.
 
 ### Changed
 
