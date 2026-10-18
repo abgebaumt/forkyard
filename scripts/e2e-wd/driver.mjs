@@ -35,6 +35,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { TEST_IDENTITY, globalGitConfig, isAlive } from "../e2e/fixtures.mjs";
+import { startPrivateKeyring } from "./fixtures/gitea-keyring.mjs";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 export const STATE_DIR = path.join(ROOT, "target", "e2e-wd");
@@ -559,6 +560,11 @@ export async function launchApp(options = {}) {
     env.LIBGL_ALWAYS_SOFTWARE = "1";
     if (tools.libPath) env.LD_LIBRARY_PATH = [tools.libPath, process.env.LD_LIBRARY_PATH].filter(Boolean).join(":");
   }
+  // Own unlocked Secret Service unless the feature brings its own bus: the user's keychain may be
+  // locked (after its daemon restarted, or overnight), and the app then fails wherever it touches
+  // a secret. Without dbus-daemon/gnome-keyring-daemon the session bus is used as before.
+  const keyring = !IS_WIN && !options.env?.DBUS_SESSION_BUS_ADDRESS && options.privateKeyring !== false ? await startPrivateKeyring() : null;
+  if (keyring) env.DBUS_SESSION_BUS_ADDRESS = keyring.address;
 
   let xvfb = null;
   let driverChild = null;
@@ -609,7 +615,8 @@ export async function launchApp(options = {}) {
     if (driverChild) killGroup(driverChild.pid);
     if (xvfb) killGroup(xvfb.child.pid);
     running.delete(instance);
-    if (!IS_WIN && !options.keepKeyring) {
+    if (keyring) await keyring.close().catch(() => undefined);
+    else if (!IS_WIN && !options.keepKeyring) {
       // Entries the app stored under its test service name (Secret Service), if the tool is there.
       if (onPath("secret-tool")) spawnSync("secret-tool", ["clear", "service", keyringService], { stdio: "ignore", timeout: 5000 });
     }

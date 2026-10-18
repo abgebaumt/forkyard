@@ -45,6 +45,9 @@ export async function startPrivateKeyring({ secrets = true } = {}) {
   const address = `unix:path=${path.join(dir, "bus")}`;
 
   const bus = spawn("dbus-daemon", ["--session", "--nofork", "--nopidfile", `--address=${address}`], { stdio: "ignore" });
+  // A bus or daemon left behind by a failed setup must not keep the feature process alive; the
+  // exit hook still ends them.
+  bus.unref();
   started.add(bus);
   const env = { ...process.env, DBUS_SESSION_BUS_ADDRESS: address, XDG_RUNTIME_DIR: runtime, XDG_DATA_HOME: data };
   const busUp = async () => spawnSync("gdbus", ["call", "--session", "--dest", "org.freedesktop.DBus", "--object-path", "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.ListNames"], { env, encoding: "utf8", timeout: 3000 }).status === 0;
@@ -64,6 +67,7 @@ export async function startPrivateKeyring({ secrets = true } = {}) {
   }
 
   const daemon = spawn("gnome-keyring-daemon", ["--foreground", "--unlock", "--components=secrets"], { env, stdio: ["pipe", "ignore", "ignore"] });
+  daemon.unref();
   started.add(daemon);
   daemon.stdin.end("forkyard-e2e\n");
 

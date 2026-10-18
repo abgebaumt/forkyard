@@ -59,8 +59,11 @@ Every `launchApp()` gets:
 - its own temp folder `$TMPDIR/fy-e2e-wd-*` with the **data directory** (`FORKYARD_DATA_DIR`), a
   **global gitconfig** (`GIT_CONFIG_GLOBAL`, `GIT_CONFIG_NOSYSTEM=1`, test identity from
   `scripts/e2e/fixtures.mjs`) and **XDG folders** (WebKit storage and caches);
-- a unique **keychain service** (`FORKYARD_KEYRING_SERVICE=forkyard-test-wd-<hash>`); on close the
-  entries are cleared with `secret-tool` when it is installed;
+- its own unlocked **Secret Service** (a private D-Bus session bus plus `gnome-keyring-daemon` in a
+  temp folder, `fixtures/gitea-keyring.mjs`) unless the feature passes its own
+  `DBUS_SESSION_BUS_ADDRESS` or `privateKeyring: false`, so a locked user keychain does not matter;
+  without those programs the session bus is used and the entries of the unique **keychain service**
+  (`FORKYARD_KEYRING_SERVICE=forkyard-test-wd-<hash>`) are cleared with `secret-tool` on close;
 - `FORKYARD_WINDOW_SIZE`, `FORKYARD_AVATAR_URL=off`, `FORKYARD_UPDATE_URL=off` (a feature points it at its own mock), `FORKYARD_E2E_WINDOW=visible` (the window
   lives on the private display).
 
