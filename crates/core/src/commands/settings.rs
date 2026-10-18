@@ -37,7 +37,7 @@ fn normalize(mut s: Settings) -> Settings {
 }
 
 /// Fields of the AI settings; changing one also reports `app:changed` with `ai`.
-const AI_KEYS: [&str; 10] = [
+const AI_KEYS: [&str; 13] = [
     "aiEnabled",
     "aiProvider",
     "aiModel",
@@ -48,6 +48,9 @@ const AI_KEYS: [&str; 10] = [
     "aiMonthlyLimitUsd",
     "aiPrices",
     "aiCliPaths",
+    "aiSearchEmbedProvider",
+    "aiSearchEmbedModel",
+    "aiSearchEmbedBaseUrl",
 ];
 
 fn normalize_ai(s: &mut Settings) {
@@ -76,6 +79,8 @@ fn normalize_ai(s: &mut Settings) {
         prices.push(AiPriceOverride { model, input_usd_per_mtok: price.input_usd_per_mtok, output_usd_per_mtok: price.output_usd_per_mtok });
     }
     s.ai_prices = prices;
+    s.ai_search_embed_model = util::non_empty(s.ai_search_embed_model.take()).map(|model| model.trim().to_string());
+    s.ai_search_embed_base_url = util::non_empty(s.ai_search_embed_base_url.take()).map(|url| url.trim().trim_end_matches('/').to_string());
     for path in [&mut s.ai_cli_paths.claude_code, &mut s.ai_cli_paths.codex, &mut s.ai_cli_paths.opencode] {
         *path = util::non_empty(path.take()).map(|value| value.trim().to_string());
     }
@@ -99,6 +104,19 @@ pub(crate) fn check_ai_base_url(url: &str) -> CoreResult<()> {
     if target.scheme == "http" && !target.loopback {
         return Err(CoreError::not_allowed(format!(
             "Unencrypted addresses (http://) are only allowed to this computer. Use https://{} or a tunnel to this computer.",
+            target.host
+        )));
+    }
+    Ok(())
+}
+
+/// The address of the local embedding provider of the search: only this computer, whatever the
+/// scheme – a provider elsewhere would be a second external provider (Entscheidung 7).
+pub(crate) fn check_local_embed_url(url: &str) -> CoreResult<()> {
+    let target = crate::http::Target::parse(url)?;
+    if !target.loopback {
+        return Err(CoreError::not_allowed(format!(
+            "The embedding provider of the search runs on this computer only. Use an address like http://127.0.0.1:11434 instead of {}.",
             target.host
         )));
     }
@@ -151,6 +169,16 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
     if changed.iter().any(|k| k == "aiBaseUrl") {
         if let Some(url) = next.ai_base_url.as_deref().map(str::trim).filter(|url| !url.is_empty()) {
             check_ai_base_url(url)?;
+        }
+    }
+    if changed.iter().any(|k| k == "aiSearchEmbedProvider") && next.ai_search_embed_provider.is_some_and(|kind| !kind.is_local()) {
+        return Err(CoreError::not_allowed(
+            "The embedding provider of the search must run on this computer: choose Ollama or LM Studio, or use the main provider.",
+        ));
+    }
+    if changed.iter().any(|k| k == "aiSearchEmbedBaseUrl") {
+        if let Some(url) = next.ai_search_embed_base_url.as_deref().map(str::trim).filter(|url| !url.is_empty()) {
+            check_local_embed_url(url)?;
         }
     }
     let mut next = next;
@@ -867,6 +895,51 @@ mod tests {
         assert!(!config.contains("aioff"), "stored in the app database, not in .git/config: {config}");
         let tc = tc.restart().await;
         assert!(repo_settings_get(&tc, id).await.unwrap().ai_off, "kept across a restart");
+    }
+
+    #[tokio::test]
+    async fn search_embedding_settings_are_global_and_local_only() {
+        let tc = TestCore::new().await;
+        let s = settings_get(&tc).await.unwrap();
+        assert_eq!(
+            (s.ai_search_embed_provider, s.ai_search_embed_model.as_deref(), s.ai_search_embed_base_url.as_deref()),
+            (None, None, None),
+            "by default the main provider's embeddings"
+        );
+        let s = settings_set(
+            &tc,
+            json!({"aiSearchEmbedProvider": "lmstudio", "aiSearchEmbedModel": "  text-embedding-nomic-embed-text-v1.5 ", "aiSearchEmbedBaseUrl": " http://localhost:1235/v1/ "}),
+        )
+        .await
+        .unwrap();
+        assert_eq!(s.ai_search_embed_provider, Some(AiProviderKind::Lmstudio));
+        assert_eq!(s.ai_search_embed_model.as_deref(), Some("text-embedding-nomic-embed-text-v1.5"));
+        assert_eq!(s.ai_search_embed_base_url.as_deref(), Some("http://localhost:1235/v1"));
+        let ai_events = tc
+            .events
+            .all()
+            .into_iter()
+            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .count();
+        assert!(ai_events >= 1, "a change of the search embedder reports app:changed with ai");
+
+        // Entscheidung 7: the extra provider of the search is a local one.
+        for kind in ["openai", "anthropic", "gemini", "openai_compatible"] {
+            let err = settings_set(&tc, json!({"aiSearchEmbedProvider": kind})).await.unwrap_err();
+            assert_eq!(err.code, ErrorCode::NotAllowed, "{kind}");
+        }
+        for url in ["https://embed.firma.example/v1", "http://192.168.1.20:11434"] {
+            let err = settings_set(&tc, json!({"aiSearchEmbedBaseUrl": url})).await.unwrap_err();
+            assert_eq!(err.code, ErrorCode::NotAllowed, "{url}");
+            assert!(err.message.contains("this computer"), "{}", err.message);
+        }
+        assert_eq!(settings_get(&tc).await.unwrap().ai_search_embed_base_url.as_deref(), Some("http://localhost:1235/v1"), "a refused value changes nothing");
+
+        // Global (Entscheidung 1): another profile sees the same embedder.
+        let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
+        let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
+        profile_activate(&tc, other).await.unwrap();
+        assert_eq!(settings_get(&tc).await.unwrap().ai_search_embed_provider, Some(AiProviderKind::Lmstudio));
     }
 
     #[tokio::test]

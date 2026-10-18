@@ -2,6 +2,7 @@
 //! `pub async fn name(core: &Core, <keys of the input object in snake_case>)`.
 
 pub mod ai;
+pub mod ai_search;
 pub mod activity;
 pub mod agents;
 pub mod app;
@@ -32,6 +33,7 @@ pub mod plan;
 pub mod range_apply;
 pub mod preview;
 pub mod rebase;
+pub mod review_fix;
 pub mod reflog;
 pub mod release_notes;
 pub mod refs;
@@ -39,6 +41,7 @@ pub mod remotes;
 pub mod repos;
 pub mod settings;
 pub mod signing;
+pub mod stack;
 pub mod stage;
 pub mod stash;
 pub mod stats;

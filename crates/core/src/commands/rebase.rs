@@ -214,6 +214,94 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
     Ok(RebasePlan::Ok { branch, base: base_sha, rows, rewrites_pushed: !pushed.stdout_text().is_empty(), dependent_branches })
 }
 
+
+/// `rebase_plan`; with `autosquash: Some(true)` the rows come in Git's autosquash order (8.2): every
+/// `fixup! <subject>` / `squash! <subject>` commit directly after the commit it names, with the action
+/// `fixup` / `squash`.
+pub async fn rebase_plan_with(core: &Core, repo_id: String, base: String, autosquash: Option<bool>) -> CoreResult<RebasePlan> {
+    Ok(match rebase_plan(core, repo_id, base).await? {
+        RebasePlan::Ok { branch, base, rows, rewrites_pushed, dependent_branches } if autosquash == Some(true) => {
+            RebasePlan::Ok { branch, base, rows: autosquash_rows(rows), rewrites_pushed, dependent_branches }
+        }
+        other => other,
+    })
+}
+
+/// The action a subject asks for and the subject it names: `fixup! X` → (`Fixup`, `X`), `squash! X` →
+/// (`Squash`, `X`); repeated `fixup!` / `squash!` / `amend!` prefixes and the spaces after them are
+/// stripped, the action comes from the first prefix (`amend!` first: no action – it stays a pick).
+fn fixup_kind(subject: &str) -> (Option<RebaseAction>, &str) {
+    let mut kind: Option<Option<RebaseAction>> = None;
+    let mut rest = subject;
+    loop {
+        let (action, after) = if let Some(after) = rest.strip_prefix("fixup!") {
+            (Some(RebaseAction::Fixup), after)
+        } else if let Some(after) = rest.strip_prefix("squash!") {
+            (Some(RebaseAction::Squash), after)
+        } else if let Some(after) = rest.strip_prefix("amend!") {
+            (None, after)
+        } else {
+            break;
+        };
+        kind.get_or_insert(action);
+        rest = after.trim_start();
+    }
+    (kind.flatten(), rest)
+}
+
+/// Git's `--autosquash` on the rows of a plan (oldest first): a `fixup!`/`squash!` commit names the first
+/// earlier row whose subject equals the rest, else an earlier row whose SHA starts with it (at least four
+/// hex digits), else the first earlier row whose subject starts with it. It moves directly after its
+/// target, after the ones already moved there; a commit that names nothing stays where it is.
+pub(crate) fn autosquash_rows(rows: Vec<RebasePlanRow>) -> Vec<RebasePlanRow> {
+    let count = rows.len();
+    let mut next: Vec<Option<usize>> = vec![None; count];
+    let mut tail: Vec<Option<usize>> = vec![None; count];
+    let mut folded = vec![false; count];
+    let mut actions: Vec<RebaseAction> = rows.iter().map(|row| row.action).collect();
+    let mut first_with_subject: HashMap<&str, usize> = HashMap::new();
+    for (index, row) in rows.iter().enumerate() {
+        let (kind, rest) = fixup_kind(&row.summary);
+        let target = kind.and_then(|_| {
+            let hex = rest.len() >= 4 && rest.bytes().all(|b| b.is_ascii_hexdigit());
+            first_with_subject
+                .get(rest)
+                .copied()
+                .or_else(|| hex.then(|| rows[..index].iter().position(|r| r.sha.starts_with(&rest.to_ascii_lowercase()))).flatten())
+                .or_else(|| rows[..index].iter().position(|r| r.summary.starts_with(rest)))
+        });
+        match (kind, target) {
+            (Some(kind), Some(target)) => {
+                actions[index] = kind;
+                folded[index] = true;
+                let after = tail[target].unwrap_or(target);
+                next[index] = next[after];
+                next[after] = Some(index);
+                tail[target] = Some(index);
+            }
+            _ => {
+                first_with_subject.entry(row.summary.as_str()).or_insert(index);
+            }
+        }
+    }
+    let mut slots: Vec<Option<RebasePlanRow>> = rows.into_iter().map(Some).collect();
+    let mut ordered = Vec::with_capacity(count);
+    for (start, &moved) in folded.iter().enumerate() {
+        if moved {
+            continue;
+        }
+        let mut current = Some(start);
+        while let Some(index) = current {
+            if let Some(mut row) = slots[index].take() {
+                row.action = actions[index];
+                ordered.push(row);
+            }
+            current = next[index];
+        }
+    }
+    ordered
+}
+
 /// Execute a plan (pick, reword, squash, drop, order).
 pub async fn rebase_apply(core: &Core, repo_id: String, base: String, rows: Vec<RebasePlanRow>) -> CoreResult<OpResult> {
     rebase_apply_with(core, repo_id, base, rows, None).await
@@ -764,6 +852,8 @@ fn plan_entries(steps: &[Step], commits: &[RangeCommit]) -> CoreResult<(Vec<Todo
         /// Message of the target row or of the last squash row that carries one.
         own: Option<String>,
         from_squash: Option<String>,
+        /// The `squash` rows of the group (their messages join the result; `fixup` rows' do not).
+        squashes: Vec<String>,
     }
     let by_sha: HashMap<&str, &RangeCommit> = commits.iter().map(|c| (c.sha.as_str(), c)).collect();
     let summary_of = |sha: &str| by_sha.get(sha).map(|c| c.summary.clone()).unwrap_or_else(|| short_sha(sha));
@@ -787,18 +877,23 @@ fn plan_entries(steps: &[Step], commits: &[RangeCommit]) -> CoreResult<(Vec<Todo
                     ));
                 }
                 kept.push(&step.sha);
-                groups.push(Open { index: entries.len(), action: step.action, own: message, from_squash: None });
+                groups.push(Open { index: entries.len(), action: step.action, own: message, from_squash: None, squashes: Vec::new() });
                 entries.push(TodoEntry::Group { target: step.sha.clone(), fixups: Vec::new(), message: None });
             }
-            RebaseAction::Squash => {
+            RebaseAction::Squash | RebaseAction::Fixup => {
                 let Some(open) = groups.last_mut() else {
-                    return Err(CoreError::not_allowed(
-                        "The first commit in the plan can't be “squash”: there has to be a commit before it to squash into.",
-                    ));
+                    return Err(CoreError::not_allowed(if step.action == RebaseAction::Squash {
+                        "The first commit in the plan can't be “squash”: there has to be a commit before it to squash into."
+                    } else {
+                        "The first commit in the plan can't be “fixup”: there has to be a commit before it to fold it into."
+                    }));
                 };
                 kept.push(&step.sha);
-                if message.is_some() {
-                    open.from_squash = message;
+                if step.action == RebaseAction::Squash {
+                    if message.is_some() {
+                        open.from_squash = message;
+                    }
+                    open.squashes.push(step.sha.clone());
                 }
                 if let Some(TodoEntry::Group { fixups, .. }) = entries.get_mut(open.index) {
                     fixups.push(step.sha.clone());
@@ -825,9 +920,14 @@ fn plan_entries(steps: &[Step], commits: &[RangeCommit]) -> CoreResult<(Vec<Todo
         }
         stats.squashed += fixups.len();
         stats.squash_targets += 1;
+        if open.squashes.is_empty() {
+            // Only `fixup` rows: the target keeps its message unless the result got its own.
+            *message = open.own;
+            continue;
+        }
         let combined = || {
             let parts: Vec<String> = std::iter::once(target.as_str())
-                .chain(fixups.iter().map(String::as_str))
+                .chain(open.squashes.iter().map(String::as_str))
                 .filter_map(|sha| by_sha.get(sha).and_then(|c| normalize_message(&c.message)))
                 .map(|m| m.trim_end().to_string())
                 .collect();
@@ -1553,3 +1653,6 @@ mod tests;
 
 #[cfg(test)]
 mod update_refs_tests;
+
+#[cfg(test)]
+mod autosquash_tests;

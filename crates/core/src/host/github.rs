@@ -5,7 +5,7 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging,
+    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, review_summary, summarize_checks, text, two_levels, MAX_ITEMS, Api, Host, HostFuture, NewPr, NewRelease, Paging,
     PrChange, RepoFacts, RepoPath,
 };
 use crate::app::Core;
@@ -14,7 +14,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 fn repo_path(repo: &RepoPath) -> String {
@@ -486,6 +486,89 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
 }
 
 // ---------------------------------------------------------------------------
+// Review threads (8.2)
+// ---------------------------------------------------------------------------
+
+/// GraphQL endpoint: `https://api.github.com/graphql`; on GitHub Enterprise Server `<instance>/api/graphql`.
+pub(crate) fn graphql_url(api_base: &str) -> String {
+    match api_base.strip_suffix("/api/v3") {
+        Some(web) => format!("{web}/api/graphql"),
+        None => format!("{api_base}/graphql"),
+    }
+}
+
+/// 50 threads per page, up to 100 comments each. Fields: documented `PullRequestReviewThread`.
+const REVIEW_THREADS: &str = "query($owner: String!, $name: String!, $number: Int!, $after: String) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { reviewThreads(first: 50, after: $after) { pageInfo { hasNextPage endCursor } nodes { isResolved isOutdated path line startLine originalLine originalStartLine diffSide comments(first: 100) { nodes { databaseId author { login avatarUrl } body createdAt originalCommit { oid } } } } } } } }";
+
+fn positive_line(value: &Value, key: &str) -> Option<u32> {
+    value.get(key).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
+}
+
+/// One `PullRequestReviewThread`; the ID is the `databaseId` of its first comment (what `…/replies` takes).
+fn review_thread(node: &Value) -> Option<ReviewThread> {
+    let nodes = node.get("comments").map(|c| list(c, "nodes")).unwrap_or(&[]);
+    let first = nodes.first()?;
+    let path = opt_text(node, "path")?;
+    let line = positive_line(node, "line");
+    let shown = line.or_else(|| positive_line(node, "originalLine"));
+    let comments = nodes
+        .iter()
+        .map(|entry| HostComment {
+            id: number(entry, "databaseId").to_string(),
+            author: entry.get("author").filter(|a| a.is_object()).and_then(|a| host_user(text(a, "login"), None, opt_text(a, "avatarUrl"))),
+            body: text(entry, "body"),
+            created_at: text(entry, "createdAt"),
+            path: Some(path.clone()),
+            line: shown,
+        })
+        .collect();
+    Some(ReviewThread {
+        id: number(first, "databaseId").to_string(),
+        path,
+        line,
+        start_line: positive_line(node, "startLine").filter(|start| line.is_some_and(|end| *start < end)),
+        side: if text(node, "diffSide") == "LEFT" { ReviewSide::Old } else { ReviewSide::New },
+        commit: first.get("originalCommit").and_then(|c| opt_text(c, "oid")),
+        resolved: flag(node, "isResolved"),
+        outdated: flag(node, "isOutdated"),
+        comments,
+    })
+}
+
+/// The review threads through GraphQL (REST has no resolved state), page by page up to `MAX_ITEMS`.
+pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) -> CoreResult<Vec<ReviewThread>> {
+    let endpoint = graphql_url(&api.api_base);
+    let mut threads: Vec<ReviewThread> = Vec::new();
+    let mut after: Option<String> = None;
+    loop {
+        let variables = json!({ "owner": repo.owner, "name": repo.name, "number": pr, "after": after });
+        let data = api.graphql(core, &endpoint, REVIEW_THREADS, variables).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+        let Some(page) = data.get("repository").and_then(|r| r.get("pullRequest")).filter(|p| p.is_object()).and_then(|p| p.get("reviewThreads")) else {
+            return Err(CoreError::new(ErrorCode::HostNotFound, pr_not_found(repo, pr)()));
+        };
+        threads.extend(list(page, "nodes").iter().filter_map(review_thread));
+        let info = page.get("pageInfo").cloned().unwrap_or(Value::Null);
+        match (flag(&info, "hasNextPage"), opt_text(&info, "endCursor")) {
+            (true, Some(cursor)) if threads.len() < MAX_ITEMS => after = Some(cursor),
+            _ => break,
+        }
+    }
+    threads.truncate(MAX_ITEMS);
+    Ok(threads)
+}
+
+/// `POST /repos/{owner}/{repo}/pulls/{number}/comments/{comment_id}/replies`.
+pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thread_id: &str, body: &str) -> CoreResult<ReviewReply> {
+    let path = format!("{}/pulls/{pr}/comments/{}/replies", repo_path(repo), encode(thread_id));
+    let value: Value = api
+        .send_json(core, Method::Post, &path, &json!({ "body": body }))
+        .await
+        .map_err(|e| not_found_as(e, || format!("The review thread does not exist (anymore) in pull request #{pr}.")))?
+        .json()?;
+    Ok(ReviewReply { comment: comment("", &value, "created_at"), quoted: false })
+}
+
+// ---------------------------------------------------------------------------
 // As a `Host`
 // ---------------------------------------------------------------------------
 
@@ -547,6 +630,9 @@ impl Host for GithubHost {
             pr_labels: true,
             fork_checkout: true,
             releases: true,
+            review_threads: true,
+            review_reply: true,
+            review_reply_quotes: false,
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
@@ -594,5 +680,11 @@ impl Host for GithubHost {
 
     fn release_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewRelease<'a>) -> HostFuture<'a, HostRelease> {
         Box::pin(release_create(core, api, repo, new))
+    }
+    fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+        Box::pin(review_threads(core, api, repo, number))
+    }
+    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+        Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

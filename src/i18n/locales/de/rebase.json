@@ -45,6 +45,10 @@
       "label": "Zusammenfassen",
       "hint": "geht im Commit darüber auf"
     },
+    "fixup": {
+      "label": "Einarbeiten",
+      "hint": "geht im Commit darüber auf, seine Message entfällt"
+    },
     "drop": {
       "label": "Weglassen",
       "hint": "fällt aus dem Branch"
@@ -116,7 +120,9 @@
     "messageEdited": "Message bearbeitet",
     "editMessage": "Message bearbeiten",
     "editResultMessage": "Message des Ergebnisses bearbeiten",
-    "keysHelp": "Pfeiltasten wählen einen Commit. P übernimmt, R formuliert um, S fasst zusammen, D lässt weg. Alt mit Pfeil verschiebt. Leertaste öffnet die Auswahl der Aktion, Enter bearbeitet die Message.",
+    "keysHelp": "Pfeiltasten wählen einen Commit. P übernimmt, R formuliert um, S fasst zusammen, F arbeitet ohne Message ein, D lässt weg. Alt mit Pfeil verschiebt. Leertaste öffnet die Auswahl der Aktion, Enter bearbeitet die Message.",
+    "forcePushTitle": "Der nächste Push braucht --force-with-lease",
+    "forcePushBody": "Die fixup-Commits sind in schon gepushte Commits eingearbeitet. Pushe den Branch mit --force-with-lease, damit der Remote die neue Historie übernimmt.",
     "resetTip": "Alle Änderungen am Plan verwerfen",
     "nothingChanged": "Noch nichts geändert",
     "reset": "Zurücksetzen"

@@ -375,7 +375,7 @@ async fn drop_backup(core: &Core, repo_id: &str, undo_id: &str) {
 
 /// Runs `git commit` with the message on stdin, captures the hook output and reports it as
 /// `hook:output`. A hook that rejects the commit yields `hook_failed`.
-async fn run_commit(core: &Core, repo_id: &str, args: &[&str], message: &str) -> CoreResult<Vec<HookOutput>> {
+pub(crate) async fn run_commit(core: &Core, repo_id: &str, args: &[&str], message: &str) -> CoreResult<Vec<HookOutput>> {
     run_commit_on(core, repo_id, args, message, None).await
 }
 

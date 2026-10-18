@@ -15,6 +15,9 @@ use crate::model::{AiModelInfo, AiPrice, AiProviderKind};
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
+/// Time limit of one embedding request (spec 1.4: "sonst 120 s").
+pub const EMBED_TIMEOUT: Duration = Duration::from_secs(120);
+
 /// One request: system text and user text (from `prompt::Prompt`) and the answer schema.
 #[derive(Debug, Clone)]
 pub struct CompletionRequest {

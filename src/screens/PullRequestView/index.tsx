@@ -35,6 +35,7 @@ import { openConnectDialog } from "../Hosts";
 import { PrFiles } from "./Files";
 import { SafeMarkdown } from "./Markdown";
 import { openMergeDialog } from "./MergeDialog";
+import { ReviewThreads } from "./ReviewThreads";
 import { BlockTitle, BranchChip, ChecksSummary, LabelsBlock, PhaseBadge, ReviewState, When, checkInfo, reviewLabel, userName } from "./parts";
 
 export interface PullRequestViewProps {
@@ -161,7 +162,7 @@ function CommentForm({ repoId, number }: { repoId: Id; number: number }) {
   );
 }
 
-function Conversation({ repoId, pr, capabilities }: { repoId: Id; pr: PrDetails; capabilities: HostCapabilities }) {
+function Conversation({ repoId, tabId, pr, capabilities, hostName }: { repoId: Id; tabId: Id; pr: PrDetails; capabilities: HostCapabilities; hostName: string }) {
   const author = userName(pr.author);
   return (
     <div className="@container mx-auto flex w-full max-w-200 flex-col gap-5 px-6 py-5">
@@ -218,6 +219,8 @@ function Conversation({ repoId, pr, capabilities }: { repoId: Id; pr: PrDetails;
           )}
         </section>
       </div>
+
+      <ReviewThreads repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} />
 
       <section aria-label={t("pullRequest.view.comments")} data-pr-comments="">
         <BlockTitle count={pr.comments.length || undefined}>{t("pullRequest.view.comments")}</BlockTitle>
@@ -423,7 +426,7 @@ function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id
           ))}
         </Tabs.List>
         <Tabs.Content value="conversation" tabIndex={-1} className="min-h-0 flex-1 overflow-y-auto outline-none">
-          <Conversation repoId={repoId} pr={pr} capabilities={capabilities} />
+          <Conversation repoId={repoId} tabId={tabId} pr={pr} capabilities={capabilities} hostName={hostName} />
         </Tabs.Content>
         <Tabs.Content value="commits" tabIndex={-1} className="@container min-h-0 flex-1 overflow-y-auto outline-none">
           <Commits repoId={repoId} tabId={tabId} pr={pr} />

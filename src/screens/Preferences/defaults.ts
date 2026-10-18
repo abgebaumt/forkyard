@@ -48,6 +48,9 @@ export const DEFAULT_SETTINGS: Required<Settings> = {
   aiMonthlyLimitUsd: null,
   aiPrices: [],
   aiCliPaths: { claudeCode: null, codex: null, opencode: null },
+  aiSearchEmbedProvider: null,
+  aiSearchEmbedModel: null,
+  aiSearchEmbedBaseUrl: null,
 };
 
 /** Does the field deviate from the default? */

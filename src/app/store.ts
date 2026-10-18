@@ -31,7 +31,8 @@ export type CenterView =
   | { kind: "history"; path: string }
   | { kind: "blame"; path: string; sha: Sha | null }
   | { kind: "conflict"; path: string }
-  | { kind: "rebase"; base: string; mode: RebaseToolMode; shas: Sha[] }
+  /** `autosquash`: the interactive plan in Git's autosquash order (8.2). */
+  | { kind: "rebase"; base: string; mode: RebaseToolMode; shas: Sha[]; autosquash?: boolean }
   /** `source`/`target`: preselected branches (from the branch or drop menu), otherwise the checked-out and the default branch. */
   | { kind: "pr_create"; source?: string; target?: string }
   | { kind: "pr"; number: number }
@@ -46,7 +47,9 @@ export type CenterView =
   /** The coding agents of the repository (src/screens/Agents). */
   | { kind: "cockpit" }
   /** Review of one or two coding agents (src/screens/AgentReview); `show` picks the columns when there are two. */
-  | { kind: "agent_review"; agentIds: Id[]; show: AgentReviewShow };
+  | { kind: "agent_review"; agentIds: Id[]; show: AgentReviewShow }
+  /** Stacked pull requests of a local branch or of the stack it is part of (src/screens/Stack). */
+  | { kind: "stack"; branch: string };
 
 /** `review_commit`: the commit field of the agent review (only while `center.kind === "agent_review"`). */
 export type RightPanel = "details" | "stash_form" | "archaeology" | "agent" | "review_commit";
@@ -234,7 +237,7 @@ export interface AppState {
   openHistory(tabId: Id, path: string): void;
   openBlame(tabId: Id, path: string, sha: Sha | null): void;
   openConflict(tabId: Id, path: string): void;
-  openRebase(tabId: Id, base: string, mode: RebaseToolMode, shas?: Sha[]): void;
+  openRebase(tabId: Id, base: string, mode: RebaseToolMode, shas?: Sha[], options?: { autosquash?: boolean }): void;
   /** Reflog of HEAD (`ref: null`) or a branch (`refs/heads/…`, `refs/remotes/…`). */
   openReflog(tabId: Id, ref: string | null): void;
   /** Back to the graph. */
@@ -342,7 +345,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     openHistory: (tabId, path) => patchView(tabId, { center: { kind: "history", path } }),
     openBlame: (tabId, path, sha) => patchView(tabId, { center: { kind: "blame", path, sha } }),
     openConflict: (tabId, path) => patchView(tabId, { center: { kind: "conflict", path } }),
-    openRebase: (tabId, base, mode, shas = []) => patchView(tabId, { center: { kind: "rebase", base, mode, shas } }),
+    openRebase: (tabId, base, mode, shas = [], options = {}) => patchView(tabId, { center: { kind: "rebase", base, mode, shas, ...(options.autosquash ? { autosquash: true } : {}) } }),
     openReflog: (tabId, ref) => patchView(tabId, { center: { kind: "reflog", ref } }),
     closeCenter: (tabId) => patchView(tabId, { center: { kind: "graph" } }),
 

@@ -21,6 +21,7 @@ import { PullRequestCreate } from "../../screens/PullRequestCreate";
 import { PullRequestView } from "../../screens/PullRequestView";
 import { IssuesView } from "../../screens/Issues";
 import { StatsView } from "../../screens/Stats";
+import { StackView } from "../../screens/Stack";
 import { RebaseTool } from "../../screens/RebaseTool";
 import { ReflogView } from "../../screens/Reflog";
 import { StashForm } from "../../screens/StashForm";
@@ -59,7 +60,7 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
     case "conflict":
       return <ConflictTool {...props} path={center.path} />;
     case "rebase":
-      return <RebaseTool {...props} base={center.base} mode={center.mode} shas={center.shas} />;
+      return <RebaseTool {...props} base={center.base} mode={center.mode} shas={center.shas} autosquash={center.autosquash ?? false} />;
     case "pr_create":
       return <PullRequestCreate {...props} />;
     case "pr":
@@ -76,6 +77,10 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       return <ReflogView {...props} refName={center.ref} />;
     case "compose":
       return <ComposeView {...props} />;
+    case "stack":
+      // Keyed by branch: switching from one branch's stack view to another's starts with a fresh plan
+      // (no cuts, names, base or AI offer of the previous branch).
+      return <StackView key={center.branch} {...props} branch={center.branch} />;
   }
 }
 

@@ -87,6 +87,9 @@ const MAX_SCAN: usize = 50;
 
 /// Reflog message of every ref undo and redo move.
 pub(crate) const UNDO_MESSAGE: &str = "forkyard: Undo";
+/// Group entries with `refuseIfPushed` (8.2 review fixups) are not undone once their commits are on a remote.
+pub(crate) const PUSHED_FIXUPS: &str =
+    "These commits are already on a remote. Undoing them would rewrite published history – revert them, or squash them and push with --force-with-lease.";
 
 async fn step(core: &Core, repo_id: &str, dir: Direction) -> CoreResult<UndoState> {
     core.repo_path(repo_id)?;
@@ -1034,6 +1037,15 @@ impl Run<'_> {
     /// the transaction, like `composite`.
     async fn group(&mut self) -> CoreResult<()> {
         let steps = composite_steps(&Value::Object(self.payload.clone()));
+        if self.dir == Direction::Undo && self.payload.get("refuseIfPushed").and_then(Value::as_bool) == Some(true) {
+            for step in &steps {
+                if let Some(after) = &step.after {
+                    if self.on_a_remote(after).await? {
+                        return Err(CoreError::not_allowed(PUSHED_FIXUPS));
+                    }
+                }
+            }
+        }
         let moves: Vec<u::RefMove> = steps
             .iter()
             .map(|step| match self.dir {
@@ -1192,6 +1204,12 @@ impl Run<'_> {
         if let Err(e) = u::apply_ref_moves(self.core, self.repo_id, &back, UNDO_MESSAGE).await {
             log::warn!("refs of undo entry {} not moved back: {}", self.entry.id, e.message);
         }
+    }
+
+    /// Whether a remote-tracking ref contains `sha` (it was pushed, or fetched from elsewhere).
+    async fn on_a_remote(&self, sha: &str) -> CoreResult<bool> {
+        let out = self.git()?.args(["for-each-ref", "--count=1", "--format=%(refname)", "--contains", sha, "refs/remotes"]).read_only().no_log().run().await?;
+        Ok(!out.stdout_text().is_empty())
     }
 
     /// Whether the branch `name` is checked out in a worktree other than this repository's.

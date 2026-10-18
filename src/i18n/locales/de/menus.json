@@ -100,7 +100,9 @@
     "create": "Pull Request anlegen …",
     "toBranch": "nach {{name}}",
     "noHostAccount": "kein Hoster-Konto verbunden",
-    "isDefaultBranch": "das ist der Standard-Branch"
+    "isDefaultBranch": "das ist der Standard-Branch",
+    "stack": "In gestapelte PRs zerlegen …",
+    "stackTip": "Teilt {{name}} an Commit-Grenzen in aufeinander aufbauende Branches"
   },
   "branch": {
     "isCheckedOutBranch": "das ist der ausgecheckte Branch",

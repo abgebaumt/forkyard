@@ -5,8 +5,9 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
-use crate::ai::providers::{host_of, http_failure, json_body, send};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send};
+use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::http::{Method, Request};
@@ -109,6 +110,22 @@ impl Provider for OpenAi {
                 return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
             }
             Ok(model_ids(&json_body(LABEL, &response)?))
+        })
+    }
+
+    fn embed<'a>(&'a self, core: &'a Core, texts: &'a [String], cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            let mut body = json!({ "model": self.model, "input": texts, "encoding_format": "float" });
+            // Only the v3 models can be shortened; older ones answer 400 to `dimensions`.
+            if self.model.starts_with("text-embedding-3") {
+                body["dimensions"] = json!(MAX_DIMS);
+            }
+            let request = self.authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), LABEL)).json(&body).timeout(EMBED_TIMEOUT);
+            let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
+            if !response.is_success() {
+                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
+            }
+            openai_vectors(LABEL, &json_body(LABEL, &response)?, texts.len())
         })
     }
 }

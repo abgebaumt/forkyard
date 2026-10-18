@@ -427,8 +427,8 @@ pub async fn rebase_start(core: State<'_, Core>, repo_id: String, onto: String, 
 }
 
 #[tauri::command]
-pub async fn rebase_plan(core: State<'_, Core>, repo_id: String, base: String) -> R<RebasePlan> {
-    c::rebase::rebase_plan(&core, repo_id, base).await
+pub async fn rebase_plan(core: State<'_, Core>, repo_id: String, base: String, autosquash: Option<bool>) -> R<RebasePlan> {
+    c::rebase::rebase_plan_with(&core, repo_id, base, autosquash).await
 }
 
 #[tauri::command]
@@ -1243,6 +1243,16 @@ pub async fn pr_template(core: State<'_, Core>, repo_id: String) -> R<Option<Str
 }
 
 #[tauri::command]
+pub async fn pr_review_threads(core: State<'_, Core>, repo_id: String, number: u64, remote: Option<String>) -> R<Vec<ReviewThread>> {
+    c::host::pr_review_threads(&core, repo_id, number, remote).await
+}
+
+#[tauri::command]
+pub async fn pr_review_reply(core: State<'_, Core>, repo_id: String, number: u64, thread_id: String, body: String, remote: Option<String>) -> R<ReviewReply> {
+    c::host::pr_review_reply(&core, repo_id, number, thread_id, body, remote).await
+}
+
+#[tauri::command]
 #[allow(clippy::too_many_arguments)]
 pub async fn issue_list(
     core: State<'_, Core>,
@@ -1418,4 +1428,76 @@ pub async fn ai_conflict_intent(
     locale: String,
 ) -> R<ConflictIntent> {
     c::ai::ai_conflict_intent(&core, repo_id, job_id, path, blocks, locale).await
+}
+
+#[tauri::command]
+pub async fn stack_plan(core: State<'_, Core>, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> R<StackPlan> {
+    c::stack::stack_plan(&core, repo_id, branch, base, cuts).await
+}
+
+#[tauri::command]
+pub async fn stack_create(core: State<'_, Core>, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>, expected_base: String, expected_tip: String) -> R<StackStatus> {
+    c::stack::stack_create(&core, repo_id, branch, base, cuts, expected_base, expected_tip).await
+}
+
+#[tauri::command]
+pub async fn stack_status(core: State<'_, Core>, repo_id: String, branch: String) -> R<Option<StackStatus>> {
+    c::stack::stack_status(&core, repo_id, branch).await
+}
+
+#[tauri::command]
+pub async fn stack_restack(core: State<'_, Core>, repo_id: String, branch: String, expected_top: String) -> R<OpResult> {
+    c::stack::stack_restack(&core, repo_id, branch, expected_top).await
+}
+
+#[tauri::command]
+pub async fn stack_push(core: State<'_, Core>, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool) -> R<PushResult> {
+    c::stack::stack_push(&core, repo_id, job_id, branches, remote, force).await
+}
+
+#[tauri::command]
+pub async fn stack_prs_create(core: State<'_, Core>, repo_id: String, target: String, parts: Vec<StackPrPart>, from: u32, remote: Option<String>) -> R<StackPrOutcome> {
+    c::stack::stack_prs_create(&core, repo_id, target, parts, from, remote).await
+}
+
+#[tauri::command]
+pub async fn stack_check(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> R<Vec<StackCheckResult>> {
+    c::stack::stack_check(&core, repo_id, job_id, branch, base, cuts).await
+}
+
+#[tauri::command]
+pub async fn ai_stack_split(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, locale: String) -> R<AiStackSplit> {
+    c::ai::ai_stack_split(&core, repo_id, job_id, branch, base, locale).await
+}
+
+#[tauri::command]
+pub async fn ai_review_fix(core: State<'_, Core>, repo_id: String, job_id: String, number: u64, thread_id: String, locale: String) -> R<AiReviewFix> {
+    c::ai::ai_review_fix(&core, repo_id, job_id, number, thread_id, locale).await
+}
+
+#[tauri::command]
+pub async fn review_fix_apply(core: State<'_, Core>, repo_id: String, number: u64, fix: ReviewFixInput, target: String) -> R<ReviewFixApplied> {
+    c::review_fix::review_fix_apply(&core, repo_id, number, fix, target).await
+}
+
+// --- Search by meaning (v1.2) ---------------------------------------------------
+
+#[tauri::command]
+pub async fn ai_semantic_status(core: State<'_, Core>, repo_id: String) -> R<AiSemanticStatus> {
+    c::ai_search::ai_semantic_status(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn ai_semantic_search(core: State<'_, Core>, repo_id: String, job_id: String, query: String, locale: String) -> R<AiSemanticResult> {
+    c::ai_search::ai_semantic_search(&core, repo_id, job_id, query, locale).await
+}
+
+#[tauri::command]
+pub async fn ai_semantic_index_update(core: State<'_, Core>, repo_id: String, job_id: String) -> R<AiSemanticIndexUpdate> {
+    c::ai_search::ai_semantic_index_update(&core, repo_id, job_id).await
+}
+
+#[tauri::command]
+pub async fn ai_semantic_index_delete(core: State<'_, Core>) -> R<u64> {
+    c::ai_search::ai_semantic_index_delete(&core).await
 }

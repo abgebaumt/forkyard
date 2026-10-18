@@ -5,8 +5,9 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
-use crate::ai::providers::{host_of, http_failure, json_body, send};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::providers::{expect_count, host_of, http_failure, json_body, numbers, send};
+use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::http::{self, Method, Request};
@@ -121,6 +122,31 @@ impl Provider for Gemini {
                 }
             }
             Ok(models)
+        })
+    }
+
+    fn embed<'a>(&'a self, core: &'a Core, texts: &'a [String], cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            let model = format!("models/{}", self.model_id());
+            let requests: Vec<Value> = texts
+                .iter()
+                .map(|text| json!({ "model": model, "content": { "parts": [{ "text": text }] }, "outputDimensionality": MAX_DIMS }))
+                .collect();
+            let url = format!("{}/models/{}:batchEmbedContents", self.base, http::encode(self.model_id()));
+            let request = self.authorized(Request::new(Method::Post, url, LABEL)).json(&json!({ "requests": requests })).timeout(EMBED_TIMEOUT);
+            let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
+            if !response.is_success() {
+                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
+            }
+            let value = json_body(LABEL, &response)?;
+            let vectors = value
+                .get("embeddings")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .map(|item| numbers(LABEL, item.get("values")))
+                .collect::<CoreResult<Vec<_>>>()?;
+            expect_count(LABEL, vectors, texts.len())
         })
     }
 }

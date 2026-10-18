@@ -277,3 +277,12 @@ describe("releases", () => {
     expect(toCapabilities({ mergeMethods: ["merge"] }, "gitlab").releases).toBe(true);
   });
 });
+
+describe("review capabilities", () => {
+  it("come from the core; the fallback lets every host read threads and only Gitea quote", () => {
+    expect(toCapabilities({ reviewThreads: false, reviewReply: true, reviewReplyQuotes: true }, "github")).toMatchObject({ reviewThreads: false, reviewReply: true, reviewReplyQuotes: true });
+    expect(toCapabilities({}, "gitea")).toMatchObject({ reviewThreads: true, reviewReply: true, reviewReplyQuotes: true });
+    expect(toCapabilities(null, "azure_devops")).toMatchObject({ reviewThreads: true, reviewReply: true, reviewReplyQuotes: false });
+    expect(defaultCapabilities.bitbucket.reviewReplyQuotes).toBe(false);
+  });
+});

@@ -21,7 +21,8 @@
     "release_notes": "Release notes",
     "bisect_script": "Bisect autopilot",
     "semantic_search": "Search by meaning",
-    "review_fix": "Address review comments"
+    "review_fix": "Address review comments",
+    "stack_split": "Split into stacked pull requests"
   },
   "featureHints": {
     "commit_message": "Writes a draft from the staged changes.",
@@ -34,7 +35,8 @@
     "release_notes": "Groups the commits since the last tag.",
     "bisect_script": "Writes a test script for bisect.",
     "semantic_search": "Finds commits by what they are about.",
-    "review_fix": "Proposes fixes for open review comments."
+    "review_fix": "Proposes fixes for open review comments.",
+    "stack_split": "Proposes where to cut a branch into pull requests that build on each other."
   },
   "settings": {
     "title": "AI",
@@ -188,6 +190,41 @@
     "about": "about {{amount}} USD",
     "under": "under {{amount}} USD",
     "exact": "{{amount}} USD"
+  },
+  "search": {
+    "card": "Search by meaning",
+    "embedder": {
+      "title": "Embeddings for the search",
+      "description": "A provider on this computer can serve the search alone. Otherwise the main provider’s embeddings are used; without embeddings the main provider rephrases the question into a search.",
+      "main": "Main provider",
+      "ollama": "Ollama (on this computer)",
+      "lmstudio": "LM Studio (on this computer)"
+    },
+    "baseUrl": {
+      "title": "Address",
+      "description": "Only addresses on this computer."
+    },
+    "model": {
+      "title": "Embedding model",
+      "description": "Empty: the main provider’s default, if it has one."
+    },
+    "index": {
+      "title": "Index of this repository",
+      "noRepo": "Open a repository to see its index.",
+      "none": "No index yet – it is built on the first search by meaning.",
+      "rephrase": "No index: without embeddings the question is rephrased into a search.",
+      "count_one": "{{count}} commit with {{model}}",
+      "count_other": "{{count}} commits with {{model}}"
+    },
+    "delete": {
+      "title": "Delete index",
+      "description": "Removes the index of every repository and model. The next search by meaning builds it again.",
+      "button": "Delete index",
+      "confirmTitle": "Delete the search index of every repository?",
+      "confirmBody": "The index only serves the search by meaning; nothing in your repositories changes. This cannot be undone – the next search by meaning builds it again and sends the commit texts to the embedding provider once more.",
+      "done_one": "{{count}} index deleted",
+      "done_other": "{{count}} indexes deleted"
+    }
   },
   "entry": {
     "label": "Set up AI features",

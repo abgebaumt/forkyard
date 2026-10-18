@@ -7,7 +7,7 @@
  * "name as text instead of object" everywhere. The token itself never comes back: the core
  * stores it in the system keychain and reveals at most the last characters (`tokenHint`).
  */
-import { core, CoreError, EMPTY_TREE_SHA, type Id, type Sha, type Status } from "../../core";
+import { core, CoreError, EMPTY_TREE_SHA, type Id, type ReviewReply, type ReviewThread, type Sha, type Status } from "../../core";
 import { locale, t } from "../../i18n";
 
 export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops";
@@ -85,6 +85,12 @@ export interface HostCapabilities {
   prLabels: boolean;
   forkCheckout: boolean;
   releases: boolean;
+  /** Review threads can be read (8.2). */
+  reviewThreads: boolean;
+  /** Answers can be posted to a review thread. */
+  reviewReply: boolean;
+  /** Answers are posted as a quoted new comment on the same line (Gitea/Forgejo). */
+  reviewReplyQuotes: boolean;
 }
 
 const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
@@ -98,13 +104,16 @@ const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
   prLabels: true,
   forkCheckout: true,
   releases: true,
+  reviewThreads: true,
+  reviewReply: true,
+  reviewReplyQuotes: false,
 };
 
 /** GitLab has no "rebase" when merging via the API; GitHub cannot toggle drafts there. */
 export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
   github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
   gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
-  gitea: { ...ALL_FEATURES, mergeMethods: ["merge", "squash", "rebase"] },
+  gitea: { ...ALL_FEATURES, reviewReplyQuotes: true, mergeMethods: ["merge", "squash", "rebase"] },
   bitbucket: { ...ALL_FEATURES, prReopen: false, prReviewers: false, prLabels: false, forkCheckout: false, releases: false, mergeMethods: ["merge", "squash"] },
   azure_devops: { ...ALL_FEATURES, issueCreate: true, prReviewers: false, forkCheckout: false, releases: false, mergeMethods: ["merge", "squash", "rebase"] },
 };
@@ -240,7 +249,7 @@ export function toAccount(value: unknown): HostAccountInfo | null {
 }
 
 type CapabilityFlag = Exclude<keyof HostCapabilities, "mergeMethods">;
-const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout", "releases"];
+const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout", "releases", "reviewThreads", "reviewReply", "reviewReplyQuotes"];
 const isMergeMethod = (value: unknown): value is MergeMethod => value === "merge" || value === "squash" || value === "rebase";
 
 /** The core's capabilities; whatever is missing or malformed comes from the host kind's defaults. */
@@ -447,6 +456,10 @@ export const hostApi = {
   prCheckout: (repoId: Id, number: number): Promise<Status> => core.prCheckout({ repoId, number }),
   /** From the working directory; no network call. */
   prTemplate: async (repoId: Id): Promise<string | null> => text(await core.prTemplate({ repoId })),
+  /** Review threads (comments on lines) with their resolved state; `host_unsupported` where the host has none. */
+  reviewThreads: (repoId: Id, number: number): Promise<ReviewThread[]> => core.prReviewThreads({ repoId, number }),
+  /** Answer in a review thread; `quoted: true` = posted as a new comment on the same line with a quote. */
+  reviewReply: (repoId: Id, number: number, threadId: string, body: string): Promise<ReviewReply> => core.prReviewReply({ repoId, number, threadId, body }),
   prRange,
 };
 

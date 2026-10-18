@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectAutopilot, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectAutopilot, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type StackStatus, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -28,6 +28,9 @@ import { useAppStore, type ArchaeologyTarget } from "./store";
 import { compileRules, type CompiledRule } from "./ticketLinks";
 import { writesSettled } from "./writeQueue";
 import { parseSearchQuery } from "./searchFilters";
+import { createIndexScheduler } from "./ai/indexScheduler";
+import { featureVisible } from "./ai/visibility";
+import type { AiStatus as SemanticAiStatus, RepoSettings as SemanticRepoSettings } from "../core";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,6 +69,8 @@ export const qk = {
   aiStatus: ["app", "aiStatus"] as const,
   aiUsage: ["app", "aiUsage"] as const,
   agentTemplates: ["app", "agentTemplates"] as const,
+  // Search by meaning (v1.2, 9.2): way and index per repository.
+  aiSemanticStatus: (repoId: Id) => ["repo", repoId, "aiSemantic"] as const,
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,
 
@@ -75,6 +80,8 @@ export const qk = {
   status: (repoId: Id) => ["repo", repoId, "status"] as const,
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
   reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
+  stackPlan: (repoId: Id, branch: string, base: string, cuts: string) => ["repo", repoId, "stack", "plan", branch, base, cuts] as const,
+  stackStatus: (repoId: Id, branch: string) => ["repo", repoId, "stack", "status", branch] as const,
   bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,
   bisectAutopilot: (repoId: Id) => ["repo", repoId, "bisectAutopilot"] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
@@ -100,7 +107,7 @@ export const qk = {
   fileAll: (repoId: Id) => ["repo", repoId, "file"] as const,
   conflict: (repoId: Id, path: string) => ["repo", repoId, "conflict", path] as const,
   conflictAll: (repoId: Id) => ["repo", repoId, "conflict"] as const,
-  rebasePlan: (repoId: Id, base: string) => ["repo", repoId, "rebasePlan", base] as const,
+  rebasePlan: (repoId: Id, base: string, autosquash = false) => ["repo", repoId, "rebasePlan", base, autosquash] as const,
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
   agents: (repoId: Id) => ["repo", repoId, "agents"] as const,
@@ -127,6 +134,7 @@ export const qk = {
   prList: (repoId: Id, state: PrListState) => ["repo", repoId, "prs", state] as const,
   prs: (repoId: Id) => ["repo", repoId, "pr"] as const,
   pr: (repoId: Id, number: number) => ["repo", repoId, "pr", number] as const,
+  prReviewThreads: (repoId: Id, number: number) => ["repo", repoId, "pr", number, "threads"] as const,
   prTemplate: (repoId: Id) => ["repo", repoId, "prTemplate"] as const,
 
   // Issues of the host.
@@ -150,6 +158,10 @@ export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core
 export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: () => writesSettled().then(() => core.settingsGet()) });
 /** AI state and connection (`aiStatus`); reloads on `app:changed` with `ai`. */
 export const useAiStatus = () => useQuery({ queryKey: qk.aiStatus, queryFn: () => core.aiStatus() });
+
+/** Way and index of the search by meaning for this repository (`aiSemanticStatus`, sends nothing). */
+export const useAiSemanticStatus = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.aiSemanticStatus(repoId ?? ""), queryFn: () => core.aiSemanticStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
 /** This month's AI usage (numbers only). */
 export const useAiUsage = () => useQuery({ queryKey: qk.aiUsage, queryFn: () => core.aiUsage() });
 /**
@@ -334,6 +346,10 @@ export const useRepoSettings = (repoId: Id | null | undefined) =>
     enabled: enabledFor(repoId),
   });
 
+/** The stack `branch` is a part of; null if it is no part. */
+export const useStackStatus = (repoId: Id, branch: string) =>
+  useQuery<StackStatus | null>({ queryKey: qk.stackStatus(repoId, branch), queryFn: () => core.stackStatus({ repoId, branch }), enabled: enabledFor(repoId) });
+
 /** Effective ticket link rules (settings, `.forkyard/links.json`, host). */
 export const useLinkRules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.linkRules(repoId ?? ""), queryFn: () => core.linkRulesGet({ repoId: repoId! }), enabled: enabledFor(repoId) });
@@ -405,10 +421,11 @@ export const useCommitInfos = (repoId: Id | null | undefined, shas: Sha[]) =>
     })),
   });
 
-export const useRebasePlan = (repoId: Id | null | undefined, base: string | null | undefined) =>
+/** `autosquash`: the plan in Git's autosquash order (8.2: fixup commits below their targets). */
+export const useRebasePlan = (repoId: Id | null | undefined, base: string | null | undefined, autosquash = false) =>
   useQuery({
-    queryKey: qk.rebasePlan(repoId ?? "", base ?? ""),
-    queryFn: () => core.rebasePlan({ repoId: repoId!, base: base! }),
+    queryKey: qk.rebasePlan(repoId ?? "", base ?? "", autosquash),
+    queryFn: () => core.rebasePlan({ repoId: repoId!, base: base!, autosquash }),
     enabled: enabledFor(repoId) && Boolean(base),
   });
 
@@ -540,6 +557,15 @@ export const usePrRange = (repoId: Id | null | undefined, pr: Pick<PrDetails, "n
     staleTime: 0,
   });
 
+/** Review threads of a pull request (8.2) – only where the host offers them; refreshed with the pull request. */
+export const usePrReviewThreads = (repoId: Id | null | undefined, number: number | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: qk.prReviewThreads(repoId ?? "", number ?? 0),
+    queryFn: () => hostApi.reviewThreads(repoId!, number!),
+    enabled: enabledFor(repoId) && typeof number === "number" && enabled,
+    staleTime: HOST_STALE_MS,
+  });
+
 /** Text of the pull request template from the repository; null if there is none. */
 export const usePrTemplate = (repoId: Id | null | undefined, enabled = true) =>
   useQuery({ queryKey: qk.prTemplate(repoId ?? ""), queryFn: () => hostApi.prTemplate(repoId!), enabled: enabledFor(repoId) && enabled, staleTime: Infinity });
@@ -605,10 +631,10 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect", "agents"]);
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect", "agents", "stack"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
-const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology"]);
+const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology", "stack"]);
 const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
 
 /** What a `repo:changed` means for a repo's queries. */
@@ -661,6 +687,17 @@ function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: stri
   desktopNotify(true, t("app.queries.fetchFailed", { where }), reason);
 }
 
+/** Grows the index of the search by meaning after fetch and commit; the core does nothing before the first search. */
+const semanticIndex = createIndexScheduler({
+  delayMs: 3000,
+  enabled: (repoId) =>
+    featureVisible(queryClient.getQueryData<SemanticAiStatus>(qk.aiStatus), "semantic_search", queryClient.getQueryData<SemanticRepoSettings>(qk.repoSettings(repoId))?.aiOff ?? false),
+  update: async (repoId) => {
+    const done = await core.aiSemanticIndexUpdate({ repoId, jobId: `semantic-index-${repoId}-${Date.now().toString(36)}` });
+    if (done.added > 0 || done.removed > 0) await queryClient.invalidateQueries({ queryKey: qk.aiSemanticStatus(repoId) });
+  },
+});
+
 const APP_KEYS: Record<string, QueryKey> = {
   // Host accounts (connected, disconnected, verified).
   host_accounts: qk.hostAccounts,
@@ -690,6 +727,7 @@ export function useCoreSync(activeRepoId: Id | null) {
         if (owner && (what.includes("worktree") || what.includes("index") || what.includes("refs") || what.includes("head"))) {
           void queryClient.invalidateQueries({ queryKey: qk.agents(owner) });
         }
+        semanticIndex.changed(repoId, what);
       }),
       core.on("app:changed", ({ what }) => {
         for (const item of what) {
@@ -708,6 +746,10 @@ export function useCoreSync(activeRepoId: Id | null) {
           void queryClient.invalidateQueries({
             predicate: (query) => (query.queryKey[0] === "app" && query.queryKey[1] === "customCommands") || (query.queryKey[0] === "repo" && part(query) === "customCommands"),
           });
+        }
+        // AI settings (embedder, model) or "Delete index": way and index of the search by meaning.
+        if (what.includes("ai")) {
+          void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && part(query) === "aiSemantic" });
         }
         // Switching profile changes settings, tabs and identity
         if (what.includes("profiles")) {

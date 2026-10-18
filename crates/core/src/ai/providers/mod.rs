@@ -106,6 +106,32 @@ pub fn json_body(label: &str, response: &Response) -> CoreResult<Value> {
     serde_json::from_slice(&response.body).map_err(|_| CoreError::ai_invalid_answer(format!("{label} sent a response that is not JSON")))
 }
 
+/// A list of numbers as one embedding.
+pub(crate) fn numbers(label: &str, value: Option<&Value>) -> CoreResult<Vec<f32>> {
+    let invalid = || CoreError::ai_invalid_answer(format!("{label} sent an embedding that is not a list of numbers"));
+    let values = value.and_then(Value::as_array).ok_or_else(invalid)?;
+    values.iter().map(|number| number.as_f64().map(|n| n as f32).ok_or_else(invalid)).collect()
+}
+
+/// Exactly one embedding per text.
+pub(crate) fn expect_count(label: &str, vectors: Vec<Vec<f32>>, wanted: usize) -> CoreResult<Vec<Vec<f32>>> {
+    if vectors.len() != wanted {
+        return Err(CoreError::ai_invalid_answer(format!("{label} returned {} embeddings for {wanted} texts", vectors.len())));
+    }
+    Ok(vectors)
+}
+
+/// `{"data": [{"index": n, "embedding": […]}]}` of the OpenAI protocol, in the order of the input.
+pub(crate) fn openai_vectors(label: &str, value: &Value, wanted: usize) -> CoreResult<Vec<Vec<f32>>> {
+    let mut rows: Vec<(usize, Vec<f32>)> = Vec::new();
+    for (position, item) in value.get("data").and_then(Value::as_array).into_iter().flatten().enumerate() {
+        let index = item.get("index").and_then(Value::as_u64).map(|index| index as usize).unwrap_or(position);
+        rows.push((index, numbers(label, item.get("embedding"))?));
+    }
+    rows.sort_by_key(|(index, _)| *index);
+    expect_count(label, rows.into_iter().map(|(_, vector)| vector).collect(), wanted)
+}
+
 /// A provider for exactly these values (used by `active` and by "Check" with unsaved values).
 pub fn build(kind: AiProviderKind, base: String, key: Option<String>, model: String, mode: AiStructuredMode, context_tokens: u64) -> CoreResult<Box<dyn Provider>> {
     match kind {
@@ -158,3 +184,6 @@ pub(crate) fn test_request(schema: serde_json::Value) -> crate::ai::provider::Co
         estimated_input_tokens: 40,
     }
 }
+
+#[cfg(test)]
+mod embed_tests;

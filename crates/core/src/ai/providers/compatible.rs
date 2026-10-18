@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::openai::model_ids;
-use crate::ai::providers::{host_of, http_failure, json_body, send};
+use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send};
 use crate::ai::schema;
 use crate::app::Core;
 use crate::db;
@@ -166,6 +166,21 @@ impl Provider for Compatible {
                 return Err(http_failure(&label, &response, &self.secrets()));
             }
             Ok(model_ids(&json_body(&label, &response)?))
+        })
+    }
+
+    fn embed<'a>(&'a self, core: &'a Core, texts: &'a [String], cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            let label = self.label_text();
+            let request = self
+                .authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), label.clone()))
+                .json(&json!({ "model": self.model, "input": texts }))
+                .timeout(EMBED_TIMEOUT);
+            let response = send(core, request, cancel, &label, &host_of(&self.base)).await?;
+            if !response.is_success() {
+                return Err(http_failure(&label, &response, &self.secrets()));
+            }
+            openai_vectors(&label, &json_body(&label, &response)?, texts.len())
         })
     }
 }

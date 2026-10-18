@@ -50,6 +50,7 @@ const pillTone: Record<RebaseAction, string> = {
   pick: "border-border-input text-text",
   reword: "border-accent bg-accent-surface text-accent",
   squash: "border-warning bg-warning-surface text-warning",
+  fixup: "border-warning bg-warning-surface text-warning",
   drop: "border-danger bg-danger-surface text-danger",
 };
 
@@ -98,9 +99,9 @@ async function confirmRewrite(plan: Extract<RebasePlan, { status: "ok" }>, rows:
   });
 }
 
-export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { repoId: Id; tabId: Id; base: string; onClose: () => void; startRef: StartRef }) {
+export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onClose, startRef }: { repoId: Id; tabId: Id; base: string; autosquash?: boolean; onClose: () => void; startRef: StartRef }) {
   startRef.current = null;
-  const planQuery = useRebasePlan(repoId, base);
+  const planQuery = useRebasePlan(repoId, base, autosquash);
   const { data: settings } = useSettings();
   const busy = useBusy(busyKeys.history(repoId));
   const plan = planQuery.data;
@@ -185,7 +186,8 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
     const list = rowsRef.current;
     const root = list?.[index];
     if (!list || !root) return;
-    const members = rowRoles(list)[index]!.squashed.map((position) => list[position]!);
+    // Only "Squash" rows add their message; "Fixup" rows only add their changes.
+    const members = rowRoles(list)[index]!.squashed.map((position) => list[position]!).filter((row) => row.action === "squash");
     const start = root.message
       ? splitMessage(root.message)
       : combinedMessage([{ summary: root.summary, description: root.description }, ...members.map((row) => ({ summary: row.summary, description: row.description }))]);
@@ -288,6 +290,8 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
     }
     onClose();
     reportOpResult(t("rebase.tool.interactive"), result.value, tabId, { reveal: true });
+    // Squashed review fixups of a pushed pull request branch have to replace it on the remote.
+    if (autosquash && okPlan.rewritesPushed) toast({ tone: "info", title: t("rebase.interactive.forcePushTitle"), description: t("rebase.interactive.forcePushBody") });
   };
 
   // --- Header -----------------------------------------------------------------------------------
@@ -396,7 +400,7 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
   const after = resultCount(current);
   // The letters are already shown in every row next to the action – here only briefly what the keys do.
   const keys: [string, string][] = [
-    ["P R S D", t("rebase.keys.action")],
+    ["P R S F D", t("rebase.keys.action")],
     ["Alt+↑ Alt+↓", t("rebase.keys.move")],
     ["Enter", t("rebase.keys.message")],
     [t("rebase.keys.spaceKey"), t("rebase.keys.choose")],
@@ -487,14 +491,14 @@ export function InteractiveRebase({ repoId, tabId, base, onClose, startRef }: { 
                   <span className="min-w-0 flex-1 truncate text-left">{actionInfo[row.action].label}</span>
                   <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden />
                 </button>
-                <span className={cn("flex min-w-0 flex-1 items-center gap-1.5", row.action === "squash" && "pl-5")}>
-                  {row.action === "squash" ? (
+                <span className={cn("flex min-w-0 flex-1 items-center gap-1.5", (row.action === "squash" || row.action === "fixup") && "pl-5")}>
+                  {row.action === "squash" || row.action === "fixup" ? (
                     <Tip label={target ? t("rebase.interactive.squashInto", { summary: shownSummary(target) }) : t("rebase.interactive.noTarget")}>
                       <CornerDownRight className={cn("size-icon shrink-0", target ? "text-warning" : "text-danger")} aria-hidden />
                     </Tip>
                   ) : null}
                   <span
-                    className={cn("min-w-0 truncate", row.action === "drop" ? "text-text-muted line-through opacity-60" : row.action === "squash" ? "text-text-muted" : "text-text")}
+                    className={cn("min-w-0 truncate", row.action === "drop" ? "text-text-muted line-through opacity-60" : row.action === "squash" || row.action === "fixup" ? "text-text-muted" : "text-text")}
                     title={summary !== row.summary ? t("rebase.interactive.previously", { summary: row.summary }) : summary}
                     data-summary=""
                   >

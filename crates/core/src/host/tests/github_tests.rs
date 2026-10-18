@@ -4,7 +4,7 @@ use serde_json::json;
 
 use super::*;
 use crate::model::{
-    CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState,
+    CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState, ReviewSide,
 };
 use crate::testkit::{MockResponse, TestRemote};
 
@@ -436,5 +436,81 @@ async fn releases_are_created_for_the_commit_of_the_local_tag() {
     assert!(fx.server.requests().is_empty());
 
     check_error_modes(&fx, "GitHub", "release_create", || cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), "x".into(), false, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[test]
+fn the_graphql_endpoint_belongs_to_the_api() {
+    assert_eq!(crate::host::github::graphql_url("https://api.github.com"), "https://api.github.com/graphql");
+    assert_eq!(crate::host::github::graphql_url("https://git.firma.example/api/v3"), "https://git.firma.example/api/graphql");
+}
+
+#[tokio::test]
+async fn graphql_never_sends_the_token_to_another_server() {
+    let fx = Fixture::new(KIND).await;
+    let api = crate::host::api_for_repo(&fx.tc, &fx.id(), None).await.unwrap().api;
+    for elsewhere in ["https://evil.example/api/graphql", "ftp://127.0.0.1/api/graphql", "graphql"] {
+        let error = api.graphql(&fx.tc, elsewhere, "query { viewer { login } }", json!({})).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::Unknown, "{elsewhere}");
+    }
+    assert!(fx.server.requests().is_empty(), "nothing was sent");
+}
+
+#[tokio::test]
+async fn review_threads_come_from_graphql_with_resolved_and_outdated_state() {
+    let fx = Fixture::new(KIND).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let rows: Vec<_> = threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved, t.outdated)).collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("9001", "src/anmeldung.rs", Some(42), Some(40), ReviewSide::New, false, false),
+            ("9011", "src/meldung.rs", Some(7), None, ReviewSide::New, true, false),
+            ("9021", "src/alt.rs", None, None, ReviewSide::New, false, true),
+        ]
+    );
+    let first = &threads[0];
+    assert_eq!(first.commit.as_deref(), Some(format!("{:040x}", 9).as_str()));
+    let comments: Vec<_> = first.comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str(), c.path.as_deref(), c.line)).collect();
+    assert_eq!(
+        comments,
+        vec![
+            ("9001", Some("mira"), "Hier fehlt die Prüfung auf leer.", Some("src/anmeldung.rs"), Some(42)),
+            ("9002", Some("jonas"), "Stimmt, mache ich.", Some("src/anmeldung.rs"), Some(42)),
+        ]
+    );
+    assert_eq!(threads[2].comments[0].line, Some(12), "an outdated comment still names its original line");
+    // Two pages of two threads: the cursor of the first answer comes back as `after`.
+    let calls = fx.sent("POST", "/api/graphql");
+    assert_eq!(calls.len(), 2);
+    assert_eq!(calls[0].json()["variables"], json!({ "owner": "octo", "name": "demo", "number": 9, "after": null }));
+    assert_eq!(calls[1].json()["variables"]["after"], "seite-2");
+    assert!(calls[0].json()["query"].as_str().unwrap().contains("reviewThreads"));
+    assert_eq!(calls[0].header("authorization"), Some(format!("Bearer {TOKEN}").as_str()));
+    // A pull request that does not exist.
+    let error = cmd::pr_review_threads(&fx.tc, fx.id(), 999, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotFound);
+    assert!(error.message.contains("#999"), "{}", error.message);
+    check_error_modes(&fx, "GitHub", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    check_broken_json(&fx, "GitHub", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn a_reply_goes_into_the_thread_of_its_first_comment() {
+    let fx = Fixture::new(KIND).await;
+    let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), "Erledigt in abc1234 – „leer“ wird geprüft.".into(), None).await.unwrap();
+    assert!(!reply.quoted);
+    let comment = &reply.comment;
+    assert_eq!((comment.id.as_str(), comment.body.as_str(), comment.path.as_deref(), comment.line), ("9003", "Erledigt in abc1234 – „leer“ wird geprüft.", Some("src/anmeldung.rs"), Some(42)));
+    let sent = fx.sent("POST", "/pulls/9/comments/9001/replies");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].json(), json!({ "body": "Erledigt in abc1234 – „leer“ wird geprüft." }));
+    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "4711".into(), "Danke".into(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotFound);
+    assert!(error.message.contains("review thread"), "{}", error.message);
+    let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
+    assert!(caps.review_threads && caps.review_reply && !caps.review_reply_quotes);
+    check_error_modes(&fx, "GitHub", "review reply", || cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), "Danke".into(), None)).await;
     fx.assert_token_stays_secret();
 }

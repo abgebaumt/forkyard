@@ -940,7 +940,8 @@ export interface ConflictIntent {
   blocks: ConflictIntentBlock[];
 }
 
-export type RebaseAction = "pick" | "reword" | "squash" | "drop";
+/** `fixup`: folds into the row above like `squash`, its message is dropped (8.2 autosquash). */
+export type RebaseAction = "pick" | "reword" | "squash" | "fixup" | "drop";
 
 export interface RebasePlanRow {
   sha: Sha;
@@ -1175,7 +1176,8 @@ export type AiFeature =
   | "release_notes"
   | "bisect_script"
   | "semantic_search"
-  | "review_fix";
+  | "review_fix"
+  | "stack_split";
 
 /** `unset`: never set up and never turned off; `off`: turned off on purpose; `on`. */
 export type AiState = "unset" | "off" | "on";
@@ -1254,7 +1256,10 @@ export type AiInput =
   /** What a push with these arguments would send (review before a push): the outgoing commits and their combined diff. */
   | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null }
   | { kind: "release_notes"; from: string | null; to: string | null }
-  | ({ kind: "bisect_script" } & BisectScriptRequest);
+  | ({ kind: "bisect_script" } & BisectScriptRequest)
+  | { kind: "stack_split"; branch: string; base: string }
+  | { kind: "review_fix"; number: number; threadId: string }
+  | { kind: "semantic_search"; query: string };
 
 /** Kind of a hint of the review before a push. Keys are never a kind – they come from the local scan. */
 export type AiPushFindingKind = "debug_output" | "commented_code" | "likely_bug";
@@ -1437,6 +1442,55 @@ export interface ChangelogInsertResult {
   keepAChangelog: boolean;
 }
 
+/** Which way the search by meaning goes (Entscheidung 7). */
+export type AiSearchRoute = "local_embeddings" | "provider_embeddings" | "rephrase";
+
+/** `aiSemanticStatus`: the way of the search and the index of this repository. */
+export interface AiSemanticStatus {
+  route: AiSearchRoute;
+  /** The embedder, or the main provider when rephrasing. */
+  provider: AiProviderKind | null;
+  model: string | null;
+  indexed: number;
+  /** "Meaning" was used for this repository with this model. */
+  used: boolean;
+  local: boolean;
+}
+
+export interface AiSemanticHit {
+  commit: CommitSummary;
+  /** Cosine similarity (embedding routes). */
+  score: number | null;
+  /** The model's reason (rephrase route). */
+  reason: string | null;
+  /** Words of the question found in the subject. */
+  matchedTerms: string[];
+}
+
+export interface AiSemanticResult {
+  route: AiSearchRoute;
+  /** Best first, at most 50. */
+  hits: AiSemanticHit[];
+  indexed: number;
+  /** More commits than the index takes (200 000). */
+  capped: boolean;
+  /** false: the ranking request would have needed a confirmation and was skipped (newest first). */
+  ranked: boolean;
+  /** Rephrase route: the search that ran (`pickaxe` = code text). */
+  filters: CommitSearchFilters | null;
+  terms: string[];
+  author: string | null;
+  /** Paths or dates of the model's answer that were invalid and not used. */
+  ignored: string[];
+}
+
+/** Background growth: `waiting` = new commits need a confirmation, left for the next search. */
+export interface AiSemanticIndexUpdate {
+  added: number;
+  removed: number;
+  waiting: boolean;
+}
+
 /** `aiPrDescription`: a suggestion for title and description – nothing is written anywhere. */
 export interface AiPrDescription {
   /** One line, at most 300 characters. */
@@ -1578,6 +1632,12 @@ export interface Settings {
   aiPrices: AiPriceOverride[];
   /** Own paths of Claude Code, Codex and opencode; absolute or null. */
   aiCliPaths: AiCliPaths;
+  /** Optional embedding provider of the search by meaning – only on this computer (Ollama, LM Studio). null = the main provider's embeddings. */
+  aiSearchEmbedProvider: AiProviderKind | null;
+  /** Embedding model of the local provider above, otherwise of the main provider (null = its default). */
+  aiSearchEmbedModel: string | null;
+  /** Other address of the local embedding provider (only this computer). */
+  aiSearchEmbedBaseUrl: string | null;
 }
 
 /** App-side settings per repository. */
@@ -1614,6 +1674,8 @@ export interface RepoSettings {
    * (`not_allowed` with the reason) and stores them in canonical form. The effective rules come from `linkRulesGet`.
    */
   linkRules: LinkRulesConfig;
+  /** Test command for coding agents, run in the agent's worktree when it is done. null = none. */
+  testCommand: string | null;
   /** "AI off for this repository": no AI element, nothing of it is sent. Stored in the app, not in .git/config. */
   aiOff: boolean;
   /** Project › AI and agents: run the AI review before every normal push. Stored in the app. */
@@ -1622,8 +1684,6 @@ export interface RepoSettings {
   secretScanIgnoredCount: number;
   /** Own instruction for AI commit messages in this repository (at most 2000 characters); null = none. Stored in the app, not in .git/config. */
   aiCommitInstruction: string | null;
-  /** Test command for coding agents, run in the agent's worktree when it is done. null = none. */
-  testCommand: string | null;
 }
 
 export type LinkPresetKind = "jira" | "linear" | "youtrack" | "redmine";
@@ -2174,6 +2234,12 @@ export interface HostCapabilities {
   prLabels: boolean;
   /** Pull requests from forks can be checked out. */
   forkCheckout: boolean;
+  /** Review threads (comments on lines with their answers and resolved state) can be read. */
+  reviewThreads: boolean;
+  /** Answers can be posted to a review thread. */
+  reviewReply: boolean;
+  /** Answers go out as a new review comment on the same line with a quote (no answers inside threads). */
+  reviewReplyQuotes: boolean;
   /** Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo). */
   releases: boolean;
 }
@@ -2258,6 +2324,103 @@ export interface HostComment {
   /** Only for comments on a line of the diff. */
   path: string | null;
   line: number | null;
+}
+
+/** Which version of the file a review comment refers to. */
+export type ReviewSide = "new" | "old";
+
+/** A review thread: comments on lines of the diff with their answers (`prReviewThreads`). */
+export interface ReviewThread {
+  /** What `prReviewReply` takes (per host the first comment's, the discussion's or the thread's ID). */
+  id: string;
+  path: string;
+  /** Last commented line on `side`; null = no longer in the pull request. */
+  line: number | null;
+  /** First line of a multi-line range; null = one line. */
+  startLine: number | null;
+  side: ReviewSide;
+  commit: Sha | null;
+  resolved: boolean;
+  /** The host marks the thread as outdated. */
+  outdated: boolean;
+  /** Oldest first. */
+  comments: HostComment[];
+}
+
+/** What `prReviewReply` posted. */
+export interface ReviewReply {
+  comment: HostComment;
+  /** Posted as a new review comment on the same line with a quote (the host has no answers inside threads). */
+  quoted: boolean;
+}
+
+/** What a line of a suggested fix is in its diff. */
+export type ReviewFixLineKind = "context" | "removed" | "added";
+
+/** One line of the hunk of a suggested fix, decoded for display. */
+export interface ReviewFixLine {
+  kind: ReviewFixLineKind;
+  text: string;
+  /** Line number in the pull request's version; null for added lines. */
+  old: number | null;
+  /** Line number after the fix; null for removed lines. */
+  new: number | null;
+}
+
+/** Why the core chose a fixup target: blame of the commented lines, or the newest commit changing the file. */
+export type FixupReason = "blame" | "file";
+
+/** A commit of the pull request a fix can be a `fixup!` for. */
+export interface FixupTarget {
+  sha: Sha;
+  summary: string;
+  /** null for the candidates the user can choose from. */
+  reason: FixupReason | null;
+}
+
+/** `aiReviewFix`: a suggested fix for one review thread – nothing is written. */
+export interface AiReviewFix {
+  threadId: string;
+  path: string;
+  /** The replaced lines at `headSha` (1-based, inclusive). */
+  startLine: number;
+  endLine: number;
+  newText: string;
+  /** The AI's reason (for the user and the reply draft). */
+  why: string;
+  headSha: Sha;
+  oldText: string;
+  /** The hunk, built by the core. */
+  lines: ReviewFixLine[];
+  /** null = the user chooses from `candidates`. */
+  target: FixupTarget | null;
+  /** The pull request's commits, newest first. */
+  candidates: FixupTarget[];
+  /** The local branch of the pull request. */
+  branch: string;
+  /** `branch` is checked out (otherwise "Check out branch"). */
+  onBranch: boolean;
+}
+
+/** What `reviewFixApply` takes from a suggestion; the core checks and rebuilds everything. */
+export interface ReviewFixInput {
+  path: string;
+  startLine: number;
+  endLine: number;
+  newText: string;
+  headSha: Sha;
+}
+
+/** What `reviewFixApply` committed. */
+export interface ReviewFixApplied {
+  commit: Sha;
+  /** `fixup! <subject of the target>`. */
+  summary: string;
+  /** `fixup!` commits between `base` and HEAD now. */
+  fixups: number;
+  /** Base for the autosquash plan (merge base with the pull request's target). */
+  base: Sha;
+  undoLabel: string;
 }
 
 export interface PrCommit {
@@ -2740,4 +2903,112 @@ export interface AgentReview {
   uncommittedFiles: number;
   /** The agent's program is running. */
   running: boolean;
+}
+
+// --- Stacked pull requests (v1.2, Paket 8.1) ---------------------------------------
+
+/** A part ends after commit number `end` (1 = the oldest commit of the branch); `name` empty = the subject of its first commit. */
+export interface StackCut {
+  end: number;
+  name: string;
+}
+
+export interface StackCommit {
+  sha: Sha;
+  subject: string;
+  files: number;
+  added: number;
+  deleted: number;
+}
+
+export interface StackPart {
+  number: number;
+  /** `<branch>-<n>-<name>`. */
+  branch: string;
+  first: number;
+  end: number;
+  tip: Sha;
+  /** The name is taken, blocked by a folder of branches or invalid. */
+  problem: string | null;
+}
+
+export interface StackPlan {
+  branch: string;
+  /** Full ref name (`refs/heads/main`, `refs/remotes/origin/main`). */
+  base: string;
+  /** The base's branch name on the host: target of the first pull request. */
+  baseName: string;
+  baseSha: Sha;
+  tip: Sha;
+  commits: StackCommit[];
+  parts: StackPart[];
+}
+
+export interface StackStatusPart {
+  branch: string;
+  /** Full ref name of the part below (part 1: the base). */
+  parent: string;
+  tip: Sha;
+  /** false = the part has to be restacked. */
+  containsParent: boolean;
+  worktreePath: string | null;
+  /** Subjects of the part's own commits, oldest first (at most 50). */
+  subjects: string[];
+}
+
+export interface StackRestack {
+  onto: string;
+  top: string;
+  topTip: Sha;
+  /** Local branches Git moves along. */
+  moves: string[];
+  /** Parts checked out in a worktree: Git leaves them where they are. */
+  leftBehind: string[];
+  blocked: string | null;
+}
+
+export interface StackStatus {
+  base: string;
+  baseName: string;
+  parts: StackStatusPart[];
+  restack: StackRestack | null;
+}
+
+export type StackCheckState = "passed" | "failed" | "timed_out";
+
+export interface StackCheckResult {
+  part: number;
+  tip: Sha;
+  state: StackCheckState;
+  exitCode: number | null;
+  /** The last 4 KiB of the output, redacted. */
+  output: string;
+  durationMs: number;
+}
+
+export interface StackPrPart {
+  branch: string;
+  title: string;
+  body: string;
+  draft: boolean;
+}
+
+export interface StackPrOutcome {
+  created: { part: number; pr: PrSummary }[];
+  /** The first failure; the parts above it were not sent. */
+  failed: { part: number; error: CoreErrorData } | null;
+}
+
+/** A part the AI proposes: it ends after commit `end`. */
+export interface AiStackPart {
+  end: number;
+  name: string;
+  title: string;
+  /** Why this part stands on its own (UI language). */
+  why: string;
+}
+
+/** `aiStackSplit`: a suggestion only – nothing is created. */
+export interface AiStackSplit {
+  parts: AiStackPart[];
 }

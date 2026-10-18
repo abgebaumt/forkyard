@@ -1192,6 +1192,8 @@ pub enum RebaseAction {
     Pick,
     Reword,
     Squash,
+    /// Folds into the row above like `Squash`, but its message is dropped (Git's `fixup`).
+    Fixup,
     Drop,
 }
 
@@ -1660,6 +1662,8 @@ pub enum AiFeature {
     BisectScript,
     SemanticSearch,
     ReviewFix,
+    /// Paket 8.1: where to cut a branch into stacked pull requests.
+    StackSplit,
 }
 
 /// From `Settings.ai_enabled`: `None` = `Unset` (never set up, never turned off), `Some(false)` =
@@ -1818,6 +1822,14 @@ pub enum AiInput {
     Plan { text: String },
     /// One line's history for “Why is this so?” (Paket 7.1); `sha: None` = working directory.
     Archaeology { path: String, line: u32, sha: Option<String> },
+    /// Paket 8.1: where to cut `branch` (short or `refs/heads/…`) above `base` (full ref of a branch).
+    StackSplit { branch: String, base: String },
+    /// 8.2: one review thread of pull request `number`; the core reads thread, pull request and file
+    /// itself (`{"kind": "review_fix", "number": 7, "threadId": "…"}`).
+    #[serde(rename_all = "camelCase")]
+    ReviewFix { number: u64, thread_id: String },
+    /// The search by meaning (9.2): the question and – with embeddings – the new index entries.
+    SemanticSearch { query: String },
 }
 
 /// Kind of a hint of the review before a push (spec 6.2). Keys are never a kind: they come from
@@ -2104,6 +2116,78 @@ pub struct ChangelogInsertResult {
     pub keep_a_changelog: bool,
 }
 
+/// Which way the search by meaning goes (Entscheidung 7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiSearchRoute {
+    /// The embedding provider on this computer from Settings › AI.
+    LocalEmbeddings,
+    /// The embeddings API of the main provider.
+    ProviderEmbeddings,
+    /// No embeddings: the main provider turns the question into a Git search and sorts the hits.
+    Rephrase,
+}
+
+/// One hit of the search by meaning.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticHit {
+    pub commit: CommitSummary,
+    /// Cosine similarity of the embedding routes.
+    pub score: Option<f64>,
+    /// The model's reason (rephrase route).
+    pub reason: Option<String>,
+    /// Words of the question that occur in the subject (lower case).
+    pub matched_terms: Vec<String>,
+}
+
+/// Result of `ai_semantic_search`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticResult {
+    pub route: AiSearchRoute,
+    /// Best first, at most 50.
+    pub hits: Vec<AiSemanticHit>,
+    /// Commits in the index of this repository and model (0 for rephrasing).
+    pub indexed: u64,
+    /// More reachable commits than the index takes (200 000).
+    pub capped: bool,
+    /// Sorted by meaning or by the model; `false`: the ranking request was skipped (newest first).
+    pub ranked: bool,
+    /// Rephrase route: the narrowing that was searched with (`pickaxe` = the code text).
+    pub filters: Option<CommitSearchFilters>,
+    pub terms: Vec<String>,
+    pub author: Option<String>,
+    /// Paths or dates of the model's answer that were not valid and not used.
+    pub ignored: Vec<String>,
+}
+
+/// `ai_semantic_status`: the way of the search and the index of this repository (sends nothing).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticStatus {
+    pub route: AiSearchRoute,
+    /// The embedder (embedding routes) or the main provider (rephrasing).
+    pub provider: Option<AiProviderKind>,
+    pub model: Option<String>,
+    /// Commits in the index of this repository and model.
+    pub indexed: u64,
+    /// An index of this repository and model exists – "Meaning" was used.
+    pub used: bool,
+    /// Runs on this computer (for "local models take longer").
+    pub local: bool,
+}
+
+/// `ai_semantic_index_update`: what the background growth did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticIndexUpdate {
+    pub added: u64,
+    pub removed: u64,
+    /// New commits would need a confirmation: left for the next search.
+    pub waiting: bool,
+}
+
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2300,6 +2384,17 @@ pub struct Settings {
     /// Own paths of the AI command-line tools; empty = found automatically.
     #[serde(default)]
     pub ai_cli_paths: AiCliPaths,
+    /// Optional embedding provider of the search by meaning (spec 9.2, Entscheidung 7): only on
+    /// this computer (Ollama, LM Studio). `None` = the main provider's embeddings, if it has any.
+    #[serde(default)]
+    pub ai_search_embed_provider: Option<AiProviderKind>,
+    /// Embedding model: of the local provider above, otherwise of the main provider (empty = its
+    /// default: `text-embedding-3-small` for OpenAI, `gemini-embedding-001` for Gemini).
+    #[serde(default)]
+    pub ai_search_embed_model: Option<String>,
+    /// Other address of the local embedding provider (only this computer).
+    #[serde(default)]
+    pub ai_search_embed_base_url: Option<String>,
 }
 
 fn yes() -> bool {
@@ -2360,6 +2455,9 @@ impl Default for Settings {
             ai_monthly_limit_usd: None,
             ai_prices: Vec::new(),
             ai_cli_paths: AiCliPaths::default(),
+            ai_search_embed_provider: None,
+            ai_search_embed_model: None,
+            ai_search_embed_base_url: None,
         }
     }
 }
@@ -2389,6 +2487,10 @@ pub struct RepoSettings {
     /// saving; the effective rules (including `.forkyard/links.json`) come from `link_rules_get`.
     #[serde(default)]
     pub link_rules: LinkRulesConfig,
+    /// Test command for coding agents (run in the agent's worktree when it is done). `None` = none.
+    /// App side (`repo_settings`), never read from the repository.
+    #[serde(default)]
+    pub test_command: Option<String>,
     /// "AI off for this repository": no AI element appears for it, nothing of it is sent.
     #[serde(default)]
     pub ai_off: bool,
@@ -2403,10 +2505,6 @@ pub struct RepoSettings {
     /// characters; stored in the app (`repo_settings`), never in .git/config.
     #[serde(default)]
     pub ai_commit_instruction: Option<String>,
-    /// Test command for coding agents (run in the agent's worktree when it is done). `None` = none.
-    /// App side (`repo_settings`), never read from the repository.
-    #[serde(default)]
-    pub test_command: Option<String>,
 }
 
 impl Default for RepoSettings {
@@ -2425,9 +2523,9 @@ impl Default for RepoSettings {
             ssh_key_id: None,
             submodules_auto_update: true,
             link_rules: LinkRulesConfig::default(),
+            test_command: None,
             ai_off: false,
             ai_commit_instruction: None,
-            test_command: None,
         }
     }
 }
@@ -3664,6 +3762,13 @@ pub struct HostCapabilities {
     pub pr_labels: bool,
     /// Pull requests from forks can be checked out (the host offers a ref for them).
     pub fork_checkout: bool,
+    /// Review threads (comments on lines with their answers and resolved state) can be read.
+    pub review_threads: bool,
+    /// Answers can be posted to a review thread.
+    pub review_reply: bool,
+    /// The API has no answers inside a thread: an answer goes out as a new review comment on the same
+    /// line that quotes the thread.
+    pub review_reply_quotes: bool,
     /// Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo).
     pub releases: bool,
 }
@@ -3791,6 +3896,144 @@ pub struct HostComment {
     pub path: Option<String>,
     pub line: Option<u32>,
 }
+
+/// Which version of the file a review comment refers to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewSide {
+    /// The pull request's version (added or unchanged lines).
+    New,
+    /// The target's version (removed lines).
+    Old,
+}
+
+/// A review thread: comments on lines of the diff with their answers (8.2).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewThread {
+    /// What `pr_review_reply` takes: GitHub, Gitea/Forgejo – ID of the first comment; GitLab – the
+    /// discussion ID; Bitbucket – ID of the top comment; Azure DevOps – the thread ID.
+    pub id: String,
+    pub path: String,
+    /// Last commented line on `side`; `None` = the lines are no longer in the pull request.
+    pub line: Option<u32>,
+    /// First line of a range of several lines; `None` = one line.
+    pub start_line: Option<u32>,
+    pub side: ReviewSide,
+    /// Commit the comment was written on, as far as the host says.
+    pub commit: Option<Sha>,
+    pub resolved: bool,
+    /// The host marks the thread as outdated (the code changed since).
+    pub outdated: bool,
+    /// Oldest first.
+    pub comments: Vec<HostComment>,
+}
+
+/// What `pr_review_reply` posted.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewReply {
+    pub comment: HostComment,
+    /// Posted as a new review comment on the same line that quotes the thread (no answers inside
+    /// threads in the host's API).
+    pub quoted: bool,
+}
+
+/// What a line of a suggested fix is in its diff.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReviewFixLineKind {
+    Context,
+    Removed,
+    Added,
+}
+
+/// One line of the hunk of a suggested fix, decoded for display.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFixLine {
+    pub kind: ReviewFixLineKind,
+    pub text: String,
+    /// Line number in the pull request's version; `None` for added lines.
+    pub old: Option<u32>,
+    /// Line number after the fix; `None` for removed lines.
+    pub new: Option<u32>,
+}
+
+/// Why the core chose a fixup target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FixupReason {
+    /// Blame of the commented lines points to this pull request commit.
+    Blame,
+    /// The newest pull request commit that changes the file.
+    File,
+}
+
+/// A commit of the pull request a fix can be a `fixup!` for.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FixupTarget {
+    pub sha: Sha,
+    pub summary: String,
+    /// `None` for the candidates the user can choose from.
+    pub reason: Option<FixupReason>,
+}
+
+/// `aiReviewFix` (8.2): a suggested fix for one review thread – nothing is written.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiReviewFix {
+    pub thread_id: String,
+    pub path: String,
+    /// The replaced lines at `head_sha` (1-based, inclusive).
+    pub start_line: u32,
+    pub end_line: u32,
+    pub new_text: String,
+    /// The AI's reason, for the user and the reply draft.
+    pub why: String,
+    /// The pull request's newest commit the fix was built for.
+    pub head_sha: Sha,
+    /// The replaced lines as they are.
+    pub old_text: String,
+    /// The hunk for display (built by the core).
+    pub lines: Vec<ReviewFixLine>,
+    /// The commit the fix belongs to; `None` = the user chooses from `candidates`.
+    pub target: Option<FixupTarget>,
+    /// The pull request's commits, newest first.
+    pub candidates: Vec<FixupTarget>,
+    /// The local branch of the pull request.
+    pub branch: String,
+    /// `branch` is checked out here (otherwise the UI offers "Check out branch").
+    pub on_branch: bool,
+}
+
+/// What `review_fix_apply` takes from a suggestion – the core checks and rebuilds everything.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFixInput {
+    pub path: String,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub new_text: String,
+    /// The pull request's newest commit the suggestion was made for.
+    pub head_sha: Sha,
+}
+
+/// What `review_fix_apply` committed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReviewFixApplied {
+    pub commit: Sha,
+    /// `fixup! <subject of the target>`.
+    pub summary: String,
+    /// `fixup!` commits between `base` and HEAD now (for "n fixup commits – squash now?").
+    pub fixups: u32,
+    /// Merge base with the pull request's target: the base of the autosquash plan.
+    pub base: Sha,
+    pub undo_label: String,
+}
+
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -4294,6 +4537,170 @@ pub struct RepoStats {
     pub records: StatsRecords,
     /// Came from the cache.
     pub cached: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Stacked pull requests (v1.2, Paket 8.1)
+// ---------------------------------------------------------------------------
+
+/// Where a part of a stack ends: after commit number `end` (1 = the oldest commit of the branch).
+/// `name`: words for its branch name; empty = the subject of the part's first commit.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackCut {
+    pub end: u32,
+    pub name: String,
+}
+
+/// A commit of the branch being split, oldest first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackCommit {
+    pub sha: Sha,
+    pub subject: String,
+    pub files: u32,
+    pub added: u64,
+    pub deleted: u64,
+}
+
+/// A planned part: commits `first..=end` (1-based), its branch and why it can't be created yet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackPart {
+    pub number: u32,
+    pub branch: String,
+    pub first: u32,
+    pub end: u32,
+    pub tip: Sha,
+    /// The name is taken, blocked by a folder of branches or invalid.
+    pub problem: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackPlan {
+    /// The branch being split (short name).
+    pub branch: String,
+    /// Full ref name of the base (`refs/heads/main`, `refs/remotes/origin/main`).
+    pub base: String,
+    /// The base's branch name on the host: the target of the first pull request.
+    pub base_name: String,
+    pub base_sha: Sha,
+    pub tip: Sha,
+    pub commits: Vec<StackCommit>,
+    pub parts: Vec<StackPart>,
+}
+
+/// A part of an existing stack (from the parent links in `.git/config`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackStatusPart {
+    pub branch: String,
+    /// Full ref name of the part below (part 1: the base).
+    pub parent: String,
+    pub tip: Sha,
+    /// The part still contains its parent's tip; `false` = it has to be restacked.
+    pub contains_parent: bool,
+    /// Checked out in this or another worktree.
+    pub worktree_path: Option<String>,
+    /// Subjects of the part's own commits, oldest first (at most 50).
+    pub subjects: Vec<String>,
+}
+
+/// "Restack": rebase `top` onto `onto` with `--update-refs`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackRestack {
+    pub onto: String,
+    pub top: String,
+    pub top_tip: Sha,
+    /// Local branches Git moves along (`rebase_dependents`).
+    pub moves: Vec<String>,
+    /// Parts that would have to move but are checked out in a worktree: Git leaves them.
+    pub left_behind: Vec<String>,
+    /// Why it can't run here (the top part is checked out in another worktree).
+    pub blocked: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackStatus {
+    pub base: String,
+    pub base_name: String,
+    pub parts: Vec<StackStatusPart>,
+    pub restack: Option<StackRestack>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StackCheckState {
+    Passed,
+    Failed,
+    TimedOut,
+}
+
+/// Result of the test command on one part, in its temporary worktree.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackCheckResult {
+    pub part: u32,
+    pub tip: Sha,
+    pub state: StackCheckState,
+    pub exit_code: Option<i32>,
+    /// The last 4 KiB of stdout and stderr, redacted.
+    pub output: String,
+    pub duration_ms: u64,
+}
+
+/// A pull request to open for a part.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackPrPart {
+    pub branch: String,
+    pub title: String,
+    pub body: String,
+    pub draft: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackPrCreated {
+    pub part: u32,
+    pub pr: PrSummary,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackPrFailed {
+    pub part: u32,
+    pub error: crate::error::CoreError,
+}
+
+/// What `stack_prs_create` did: the pull requests created in order, and the first failure (the
+/// parts above it were not sent).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StackPrOutcome {
+    pub created: Vec<StackPrCreated>,
+    pub failed: Option<StackPrFailed>,
+}
+
+/// A part the AI proposes (Paket 8.1): it ends after commit `end`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiStackPart {
+    pub end: u32,
+    pub name: String,
+    pub title: String,
+    /// One sentence in the UI language: why this part stands on its own.
+    pub why: String,
+}
+
+/// `aiStackSplit`: a suggestion only – nothing is created.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiStackSplit {
+    pub parts: Vec<AiStackPart>,
 }
 
 #[cfg(test)]

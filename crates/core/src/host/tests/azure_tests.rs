@@ -7,7 +7,7 @@ use serde_json::json;
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
 use crate::host::detect::normalize_base_url;
-use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
+use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState, ReviewSide};
 
 const KIND: HostKind = HostKind::AzureDevops;
 const LABEL: &str = "Azure DevOps";
@@ -245,5 +245,48 @@ async fn work_items_are_created_as_issue_or_as_bug() {
     }
     assert!(fx.server.requests().is_empty(), "invalid titles never go out");
     check_error_modes(&fx, LABEL, "issue_create", || cmd::issue_create(&fx.tc, fx.id(), "Titel".into(), String::new(), None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn review_threads_are_the_threads_with_a_file_position() {
+    let fx = Fixture::new(KIND).await;
+    let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
+    let rows: Vec<_> = threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved)).collect();
+    assert_eq!(
+        rows,
+        vec![
+            ("91", "src/anmeldung.rs", Some(42), Some(40), ReviewSide::New, false),
+            ("92", "src/meldung.rs", Some(7), None, ReviewSide::New, true),
+            ("93", "src/alt.rs", Some(12), None, ReviewSide::Old, false),
+            ("97", "src/neu.rs", Some(5), None, ReviewSide::New, false),
+        ],
+        "general, deleted and system-only threads are no review threads"
+    );
+    let comments: Vec<_> = threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str())).collect();
+    assert_eq!(comments, vec![("91-1", Some("mira@example.org"), "Hier fehlt die Prüfung auf leer."), ("91-2", Some("jonas@example.org"), "Stimmt, mache ich.")]);
+    assert_eq!(fx.sent("GET", "/pullrequests/9/threads")[0].query("api-version").as_deref(), Some("7.1"));
+    check_error_modes(&fx, "Azure DevOps", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    check_broken_json(&fx, "Azure DevOps", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
+    fx.assert_token_stays_secret();
+}
+
+#[tokio::test]
+async fn a_reply_answers_the_first_comment_of_the_thread() {
+    let fx = Fixture::new(KIND).await;
+    let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "91".into(), "Erledigt.".into(), None).await.unwrap();
+    assert!(!reply.quoted);
+    assert_eq!((reply.comment.id.as_str(), reply.comment.body.as_str(), reply.comment.path.as_deref(), reply.comment.line), ("91-3", "Erledigt.", Some("src/anmeldung.rs"), Some(42)));
+    let sent = fx.sent("POST", "/pullrequests/9/threads/91/comments");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].json(), json!({ "content": "Erledigt.", "parentCommentId": 1, "commentType": 1 }));
+    assert_eq!(sent[0].query("api-version").as_deref(), Some("7.1"));
+    // A thread whose first comment was deleted: the answer goes to the first comment still there.
+    cmd::pr_review_reply(&fx.tc, fx.id(), 9, "97".into(), "Umbenannt.".into(), None).await.unwrap();
+    assert_eq!(fx.sent("POST", "/pullrequests/9/threads/97/comments")[0].json(), json!({ "content": "Umbenannt.", "parentCommentId": 2, "commentType": 1 }));
+    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "4711".into(), "Danke".into(), None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::HostNotFound);
+    let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
+    assert!(caps.review_threads && caps.review_reply && !caps.review_reply_quotes);
     fx.assert_token_stays_secret();
 }

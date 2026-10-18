@@ -137,6 +137,43 @@ fn gh_issue(base: &str, number: u64) -> Value {
     issue
 }
 
+/// GitHub's GraphQL endpoint (`POST /api/graphql`): the review threads of pull request 9, two per page
+/// (cursor `seite-<n>`); unknown repositories and pull requests answer with GraphQL errors (status 200).
+fn gh_graphql(request: &MockRequest) -> MockResponse {
+    let body = request.json();
+    let vars = &body["variables"];
+    if request.method != "POST" || !body["query"].as_str().unwrap_or("").contains("reviewThreads") || vars["owner"] != "octo" || vars["name"] != "demo" {
+        return MockResponse::json(200, json!({ "data": Value::Null, "errors": [{ "type": "NOT_FOUND", "message": "Could not resolve to a Repository with the name 'demo'." }] }));
+    }
+    let number = vars["number"].as_u64().unwrap_or(0);
+    if number == 0 || number > 200 {
+        return MockResponse::json(
+            200,
+            json!({ "data": { "repository": { "pullRequest": Value::Null } }, "errors": [{ "type": "NOT_FOUND", "path": ["repository", "pullRequest"], "message": format!("Could not resolve to a PullRequest with the number of {number}.") }] }),
+        );
+    }
+    let comment = |id: u64, login: &str, body: &str, at: &str| {
+        json!({ "databaseId": id, "author": { "login": login, "avatarUrl": format!("https://avatars.example/{login}.png") }, "body": body, "createdAt": at, "originalCommit": { "oid": sha(9) } })
+    };
+    let threads: Vec<Value> = if number == 9 {
+        vec![
+            json!({ "isResolved": false, "isOutdated": false, "path": "src/anmeldung.rs", "line": 42, "startLine": 40, "originalLine": 42, "originalStartLine": 40, "diffSide": "RIGHT",
+                "comments": { "nodes": [comment(9001, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z"), comment(9002, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z")] } }),
+            json!({ "isResolved": true, "isOutdated": false, "path": "src/meldung.rs", "line": 7, "startLine": Value::Null, "originalLine": 7, "originalStartLine": Value::Null, "diffSide": "RIGHT",
+                "comments": { "nodes": [comment(9011, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z")] } }),
+            json!({ "isResolved": false, "isOutdated": true, "path": "src/alt.rs", "line": Value::Null, "startLine": Value::Null, "originalLine": 12, "originalStartLine": Value::Null, "diffSide": "RIGHT",
+                "comments": { "nodes": [comment(9021, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z")] } }),
+        ]
+    } else {
+        Vec::new()
+    };
+    let after: usize = vars["after"].as_str().and_then(|cursor| cursor.strip_prefix("seite-")).and_then(|n| n.parse().ok()).unwrap_or(0);
+    let page: Vec<Value> = threads.iter().skip(after).take(2).cloned().collect();
+    let more = after + 2 < threads.len();
+    let cursor = if more { json!(format!("seite-{}", after + 2)) } else { Value::Null };
+    MockResponse::json(200, json!({ "data": { "repository": { "pullRequest": { "reviewThreads": { "pageInfo": { "hasNextPage": more, "endCursor": cursor }, "nodes": page } } } } }))
+}
+
 pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
     let base = origin(request);
     let token = bearer(request);
@@ -153,6 +190,9 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
     let rate = MockResponse::json(403, json!({ "message": "API rate limit exceeded for user ID 1." })).header("x-ratelimit-remaining", "0").header("x-ratelimit-reset", "1791720000");
     if let Some(response) = forced(state.mode, rate) {
         return response;
+    }
+    if request.path() == "/api/graphql" {
+        return gh_graphql(request);
     }
     if path == "/search/issues" {
         let q = request.query("q").unwrap_or_default();
@@ -259,6 +299,11 @@ pub(crate) fn github(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
                 { "sha": sha(number), "commit": { "message": "Meldung übersetzt", "author": { "name": "Jonas Weber", "date": "2026-09-01T13:00:00Z" } } }
             ]),
         ),
+        ("POST", ["pulls", _, "comments", id, "replies"]) if *id == "9001" => MockResponse::json(
+            201,
+            json!({ "id": 9003, "user": gh_user("lena-hartmann"), "body": request.json()["body"], "created_at": "2026-09-05T08:00:00Z", "path": "src/anmeldung.rs", "line": 42, "in_reply_to_id": 9001 }),
+        ),
+        ("POST", ["pulls", _, "comments", _, "replies"]) => not_found("Not Found"),
         ("POST" | "DELETE", ["pulls", _, "requested_reviewers"]) => MockResponse::json(if method == "POST" { 201 } else { 200 }, gh_pr(&base, number, &state)),
         ("PUT", ["pulls", _, "merge"]) => {
             if number == 13 {
@@ -502,6 +547,45 @@ pub(crate) fn gitlab(request: &MockRequest, state: &Mutex<MockState>) -> MockRes
             None,
         ),
         ("POST", ["merge_requests", _, "notes"]) => MockResponse::json(201, json!({ "id": 99, "system": false, "body": request.json()["body"], "author": gl_user("lena.hartmann"), "created_at": "2026-09-05T08:00:00Z" })),
+        ("GET", ["merge_requests", _, "discussions"]) if state.no_review_threads => not_found("404 Not Found"),
+        ("GET", ["merge_requests", _, "discussions"]) if number == 0 || number > 200 => not_found("404 Not found"),
+        ("GET", ["merge_requests", _, "discussions"]) => {
+            let position = |path: &str, old: Option<u64>, new: Option<u64>, start: Option<u64>| {
+                json!({ "base_sha": sha(1000), "start_sha": sha(1000), "head_sha": sha(9), "position_type": "text", "old_path": path, "new_path": path, "old_line": old, "new_line": new,
+                    "line_range": start.map(|s| json!({ "start": { "line_code": format!("x_{s}"), "type": "new", "old_line": Value::Null, "new_line": s }, "end": { "line_code": "x_end", "type": "new", "old_line": Value::Null, "new_line": new } })) })
+            };
+            let diff_note = |id: u64, who: &str, body: &str, at: &str, resolved: bool, pos: Value| {
+                json!({ "id": id, "type": "DiffNote", "body": body, "author": gl_user(who), "created_at": at, "system": false, "resolvable": true, "resolved": resolved, "position": pos })
+            };
+            let body = if number == 9 {
+                vec![
+                    json!({ "id": "6a9c1750b37d513a43987b574953fceb50b03ce7", "individual_note": false, "notes": [
+                        diff_note(901, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z", false, position("src/anmeldung.rs", None, Some(42), Some(40))),
+                        diff_note(902, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z", false, position("src/anmeldung.rs", None, Some(42), Some(40))),
+                    ] }),
+                    json!({ "id": "2b7e0c11d0aa6e4c3f9a59a2b1e5c7d8e9f01234", "individual_note": false, "notes": [
+                        diff_note(911, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z", true, position("src/meldung.rs", None, Some(7), None)),
+                    ] }),
+                    json!({ "id": "3c8f1d22e1bb7f5d4a0b6ab3c2f6d8e9fa012345", "individual_note": false, "notes": [
+                        diff_note(921, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z", false, position("src/alt.rs", Some(12), None, None)),
+                    ] }),
+                    json!({ "id": "4d9a2e33f2cc8a6e5b1c7bc4d3a7e9f0ab123456", "individual_note": true, "notes": [
+                        { "id": 931, "type": Value::Null, "body": "Allgemeiner Kommentar", "author": gl_user("mira"), "created_at": "2026-09-02T11:00:00Z", "system": false, "resolvable": false }
+                    ] }),
+                    json!({ "id": "5e0b3f44a3dd9b7f6c2d8cd5e4b8fa01bc234567", "individual_note": true, "notes": [
+                        { "id": 941, "type": Value::Null, "body": "added 1 commit", "author": gl_user("jonas"), "created_at": "2026-09-02T12:00:00Z", "system": true }
+                    ] }),
+                ]
+            } else {
+                Vec::new()
+            };
+            gl_page(request, body, None)
+        }
+        ("POST", ["merge_requests", _, "discussions", id, "notes"]) if *id == "6a9c1750b37d513a43987b574953fceb50b03ce7" => MockResponse::json(
+            201,
+            json!({ "id": 903, "type": "DiffNote", "system": false, "body": request.json()["body"], "author": gl_user("lena.hartmann"), "created_at": "2026-09-05T08:00:00Z" }),
+        ),
+        ("POST", ["merge_requests", _, "discussions", _, "notes"]) => not_found("404 Discussion Not Found"),
         ("GET", ["merge_requests", _, "commits"]) => gl_page(
             request,
             vec![
@@ -661,6 +745,41 @@ pub(crate) fn gitea(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
                 pr["base"]["ref"] = body["base"].clone();
             }
             MockResponse::json(201, pr)
+        }
+        ("GET", ["pulls", _, "reviews"]) if number == 9 => MockResponse::json(
+            200,
+            json!([
+                { "id": 91, "user": gt_user("mira"), "state": "COMMENT", "body": "", "submitted_at": "2026-09-02T09:30:00Z", "dismissed": false, "comments_count": 3 },
+                { "id": 92, "user": gt_user("jonas"), "state": "COMMENT", "body": "", "submitted_at": "2026-09-02T10:00:00Z", "dismissed": false, "comments_count": 1 },
+                { "id": 93, "user": gt_user("lena"), "state": "PENDING", "body": "", "submitted_at": Value::Null, "dismissed": false, "comments_count": 1 },
+                { "id": 94, "user": gt_user("mira"), "state": "APPROVED", "body": "", "submitted_at": "2026-09-02T11:00:00Z", "dismissed": false, "comments_count": 0 }
+            ]),
+        ),
+        ("GET", ["pulls", _, "reviews", id, "comments"]) => {
+            let review_comment = |id: u64, review: u64, who: &str, body: &str, path: &str, position: u64, original: u64, at: &str, resolver: Value| {
+                json!({ "id": id, "pull_request_review_id": review, "user": gt_user(who), "body": body, "path": path, "position": position, "original_position": original,
+                    "commit_id": sha(9), "original_commit_id": sha(9), "created_at": at, "updated_at": at, "resolver": resolver, "diff_hunk": "@@ -40,3 +40,3 @@" })
+            };
+            match *id {
+                "91" => MockResponse::json(200, json!([
+                    review_comment(9101, 91, "mira", "Hier fehlt die Prüfung auf leer.", "src/anmeldung.rs", 42, 0, "2026-09-02T09:30:00Z", Value::Null),
+                    review_comment(9102, 91, "mira", "Tippfehler: „Fehler“.", "src/meldung.rs", 7, 0, "2026-09-02T09:31:00Z", gt_user("mira")),
+                    review_comment(9103, 91, "mira", "Diese Zeile gibt es so nicht mehr.", "src/alt.rs", 0, 12, "2026-09-02T09:32:00Z", Value::Null),
+                ])),
+                "92" => MockResponse::json(200, json!([review_comment(9201, 92, "jonas", "Stimmt, mache ich.", "src/anmeldung.rs", 42, 0, "2026-09-02T10:00:00Z", Value::Null)])),
+                "95" => {
+                    let body = state.review_bodies.last().cloned().unwrap_or_default();
+                    MockResponse::json(200, json!([review_comment(9501, 95, "lena", &body, "src/anmeldung.rs", 42, 0, "2026-09-05T08:00:00Z", Value::Null)]))
+                }
+                _ => MockResponse::json(200, json!([])),
+            }
+        }
+        ("POST", ["pulls", _, "reviews"]) => {
+            let body = request.json();
+            if let Some(text) = body["comments"][0]["body"].as_str() {
+                state.review_bodies.push(text.to_string());
+            }
+            MockResponse::json(200, json!({ "id": 95, "user": gt_user("lena"), "state": "COMMENT", "body": "", "submitted_at": "2026-09-05T08:00:00Z", "dismissed": false, "comments_count": 1 }))
         }
         ("GET", ["pulls", _, "reviews"]) => MockResponse::json(
             200,
@@ -912,11 +1031,35 @@ pub(crate) fn bitbucket(request: &MockRequest, state: &Mutex<MockState>) -> Mock
             _ => json!([]),
         }),
         ("GET", ["pullrequests", _, "diffstat"]) => bb_values(json!([{ "status": if number == 13 { "merge conflict" } else { "modified" }, "new": { "path": "src/anmeldung.rs" } }])),
+        ("GET", ["pullrequests", _, "comments"]) if number == 9 => bb_values(json!([
+            { "id": 901, "user": bb_user("mira"), "content": { "raw": "Hier fehlt die Prüfung auf leer." }, "created_on": "2026-09-02T09:30:00Z", "deleted": false,
+              "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null, "start_to": 40 } },
+            { "id": 902, "user": bb_user("jonas"), "content": { "raw": "Stimmt, mache ich." }, "created_on": "2026-09-02T10:00:00Z", "deleted": false, "parent": { "id": 901 },
+              "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } },
+            { "id": 903, "user": bb_user("mira"), "content": { "raw": "Danke!" }, "created_on": "2026-09-02T10:10:00Z", "deleted": false, "parent": { "id": 902 } },
+            { "id": 911, "user": bb_user("mira"), "content": { "raw": "Tippfehler: „Fehler“." }, "created_on": "2026-09-02T09:40:00Z", "deleted": false,
+              "inline": { "path": "src/meldung.rs", "to": 7, "from": Value::Null }, "resolution": { "type": "comment_resolution", "user": bb_user("mira"), "created_on": "2026-09-03T08:00:00Z" } },
+            { "id": 921, "user": bb_user("mira"), "content": { "raw": "Diese Zeile gibt es so nicht mehr." }, "created_on": "2026-09-02T09:50:00Z", "deleted": false,
+              "inline": { "path": "src/alt.rs", "to": Value::Null, "from": 12 } },
+            { "id": 931, "user": bb_user("mira"), "content": { "raw": "Allgemeiner Kommentar" }, "created_on": "2026-09-02T11:00:00Z", "deleted": false },
+            { "id": 941, "user": bb_user("jonas"), "content": { "raw": "" }, "created_on": "2026-09-02T11:10:00Z", "deleted": true, "inline": { "path": "src/x.rs", "to": 1 } }
+        ])),
         ("GET", ["pullrequests", _, "comments"]) => bb_values(json!([
             { "id": 2, "user": bb_user("mira"), "content": { "raw": "Sieht gut aus." }, "created_on": "2026-09-02T09:00:00Z", "deleted": false },
             { "id": 3, "user": bb_user("mira"), "content": { "raw": "Hier bitte prüfen." }, "created_on": "2026-09-02T09:30:00Z", "deleted": false, "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } },
             { "id": 4, "user": bb_user("jonas"), "content": { "raw": "" }, "created_on": "2026-09-02T09:40:00Z", "deleted": true }
         ])),
+        ("POST", ["pullrequests", _, "comments"]) if !request.json()["parent"].is_null() => {
+            let body = request.json();
+            if body["parent"]["id"].as_u64() != Some(901) {
+                return bb_error(404, "Comment not found");
+            }
+            MockResponse::json(
+                201,
+                json!({ "id": 904, "user": bb_user("lena"), "content": { "raw": body["content"]["raw"] }, "created_on": "2026-09-05T08:00:00Z", "parent": { "id": 901 },
+                    "inline": { "path": "src/anmeldung.rs", "to": 42, "from": Value::Null } }),
+            )
+        }
         ("POST", ["pullrequests", _, "comments"]) => {
             MockResponse::json(201, json!({ "id": 99, "user": bb_user("lena"), "content": { "raw": request.json()["content"]["raw"] }, "created_on": "2026-09-05T08:00:00Z" }))
         }
@@ -1080,6 +1223,26 @@ fn azure_work_items(request: &MockRequest, state: &MockState, rest: &str) -> Moc
     }
 }
 
+/// The review threads of pull request 9 (Azure DevOps).
+fn az_review_threads() -> Vec<Value> {
+    let text = |id: u64, parent: u64, who: &str, body: &str, at: &str| json!({ "id": id, "parentCommentId": parent, "author": az_user(who), "content": body, "publishedDate": at, "commentType": "text" });
+    vec![
+        json!({ "id": 91, "status": "active", "threadContext": { "filePath": "/src/anmeldung.rs", "rightFileStart": { "line": 40, "offset": 1 }, "rightFileEnd": { "line": 42, "offset": 20 } },
+            "comments": [text(1, 0, "mira", "Hier fehlt die Prüfung auf leer.", "2026-09-02T09:30:00Z"), text(2, 1, "jonas", "Stimmt, mache ich.", "2026-09-02T10:00:00Z")] }),
+        json!({ "id": 92, "status": "fixed", "threadContext": { "filePath": "/src/meldung.rs", "rightFileStart": { "line": 7, "offset": 1 }, "rightFileEnd": { "line": 7, "offset": 9 } },
+            "comments": [text(1, 0, "mira", "Tippfehler: „Fehler“.", "2026-09-02T09:40:00Z")] }),
+        json!({ "id": 93, "status": "active", "threadContext": { "filePath": "/src/alt.rs", "leftFileStart": { "line": 12, "offset": 1 }, "leftFileEnd": { "line": 12, "offset": 30 } },
+            "comments": [text(1, 0, "mira", "Diese Zeile gibt es so nicht mehr.", "2026-09-02T09:50:00Z")] }),
+        json!({ "id": 94, "status": "active", "comments": [text(1, 0, "mira", "Allgemeiner Kommentar", "2026-09-02T11:00:00Z")] }),
+        json!({ "id": 95, "status": "active", "isDeleted": true, "threadContext": { "filePath": "/src/x.rs", "rightFileStart": { "line": 1 } }, "comments": [text(1, 0, "jonas", "weg", "2026-09-02T11:10:00Z")] }),
+        json!({ "id": 96, "status": "active", "threadContext": { "filePath": "/src/y.rs", "rightFileStart": { "line": 2 } },
+            "comments": [{ "id": 1, "author": az_user("jonas"), "content": "Policy status has been updated", "publishedDate": "2026-09-02T12:00:00Z", "commentType": "system" }] }),
+        json!({ "id": 97, "status": "active", "threadContext": { "filePath": "/src/neu.rs", "rightFileStart": { "line": 5, "offset": 1 }, "rightFileEnd": { "line": 5, "offset": 9 } },
+            "comments": [{ "id": 1, "parentCommentId": 0, "author": az_user("mira"), "content": "", "publishedDate": "2026-09-02T12:10:00Z", "commentType": "text", "isDeleted": true },
+                text(2, 1, "jonas", "Bitte umbenennen.", "2026-09-02T12:20:00Z")] }),
+    ]
+}
+
 pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResponse {
     let base = origin(request);
     if !basic(request).is_some_and(|(_, token)| token == TOKEN || token == WEAK_TOKEN) {
@@ -1166,6 +1329,16 @@ pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
             4 => vec![json!({ "id": 1, "state": "failed", "context": { "name": "build", "genre": "ci" } })],
             _ => Vec::new(),
         }),
+        ("GET", ["pullrequests", _, "threads"]) if number == 9 => az_list(az_review_threads()),
+        ("GET", ["pullrequests", _, "threads", id]) => match az_review_threads().into_iter().find(|t| t["id"].as_u64().is_some() && t["id"].as_u64() == id.parse::<u64>().ok()) {
+            Some(thread) if number == 9 => MockResponse::json(200, thread),
+            _ => az_error(404, "TF401181: The requested pull request thread was not found."),
+        },
+        ("POST", ["pullrequests", _, "threads", id, "comments"]) if number == 9 && (*id == "91" || *id == "97") => MockResponse::json(
+            200,
+            json!({ "id": 3, "parentCommentId": request.json()["parentCommentId"], "author": az_user("lena"), "content": request.json()["content"], "publishedDate": "2026-09-05T08:00:00Z", "commentType": "text" }),
+        ),
+        ("POST", ["pullrequests", _, "threads", _, "comments"]) => az_error(404, "TF401181: The requested pull request thread was not found."),
         ("GET", ["pullrequests", _, "threads"]) => az_list(vec![
             json!({ "id": 1, "comments": [{ "id": 1, "author": az_user("jonas"), "content": "Policy status has been updated", "publishedDate": "2026-09-02T08:00:00Z", "commentType": "system" }] }),
             json!({ "id": 2, "comments": [{ "id": 1, "author": az_user("mira"), "content": "Sieht gut aus.", "publishedDate": "2026-09-02T09:00:00Z", "commentType": "text" }] }),

@@ -443,6 +443,11 @@
       "keywords": "GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, Hoster, Browser, Webseite, extern",
       "title": "Repository beim Hoster im Browser öffnen",
       "unknownUrl": "die Adresse beim Hoster ist nicht bekannt"
+    },
+    "stack": {
+      "title": "Ausgecheckten Branch in gestapelte PRs zerlegen …",
+      "keywords": "Stapel, gestapelt, zerlegen, teilen, Teile",
+      "noBranch": "kein Branch ausgecheckt"
     }
   },
   "profile": {

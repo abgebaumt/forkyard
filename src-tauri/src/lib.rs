@@ -632,6 +632,10 @@ pub fn run() {
             commands::pr_reopen,
             commands::pr_checkout,
             commands::pr_template,
+            commands::pr_review_threads,
+            commands::pr_review_reply,
+            commands::ai_review_fix,
+            commands::review_fix_apply,
             commands::issue_list,
             commands::issue_get,
             commands::issue_create,
@@ -658,6 +662,18 @@ pub fn run() {
             commands::ai_plan_check,
             commands::ai_plan_run,
             commands::ai_conflict_intent,
+            commands::stack_plan,
+            commands::stack_create,
+            commands::stack_status,
+            commands::stack_restack,
+            commands::stack_push,
+            commands::stack_prs_create,
+            commands::stack_check,
+            commands::ai_stack_split,
+            commands::ai_semantic_status,
+            commands::ai_semantic_search,
+            commands::ai_semantic_index_update,
+            commands::ai_semantic_index_delete
         ])
         .build(context);
     match result {

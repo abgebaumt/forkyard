@@ -11,7 +11,7 @@ describe("AI settings model", () => {
     expect(PROVIDERS.filter(usesBaseUrl)).toEqual(["openai_compatible", "ollama", "lmstudio"]);
     expect(PROVIDERS.filter(isLocal)).toEqual(["ollama", "lmstudio"]);
     expect(acceptsKey("ollama")).toBe(false);
-    expect(FEATURES).toHaveLength(11);
+    expect(FEATURES).toHaveLength(12);
   });
 
   it("reads exclusion patterns line by line, without blanks and doubles", () => {
@@ -54,5 +54,17 @@ describe("AI settings model", () => {
     expect(paths).toEqual({ claudeCode: null, codex: "/opt/Programme mit Leerzeichen/codex", opencode: null });
     expect(withCliPath(paths, "codex", "   ")).toEqual(none);
     expect(withCliPath(none, "opencode", String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`).opencode).toBe(String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`);
+  });
+});
+
+describe("stacked pull requests", () => {
+  it("lists the function last, with its texts in both languages", async () => {
+    expect(FEATURES[FEATURES.length - 1]).toBe("stack_split");
+    const en = (await import("../../../i18n/locales/en/ai.json")).default as { features: Record<string, string>; featureHints: Record<string, string> };
+    const de = (await import("../../../i18n/locales/de/ai.json")).default as { features: Record<string, string>; featureHints: Record<string, string> };
+    expect(en.features.stack_split).toBe("Split into stacked pull requests");
+    expect(de.features.stack_split).toBe("In gestapelte PRs zerlegen");
+    expect(en.featureHints.stack_split).toBeTruthy();
+    expect(de.featureHints.stack_split).toBeTruthy();
   });
 });

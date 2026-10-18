@@ -159,6 +159,31 @@ All notable changes to Forkyard are listed here. The format follows
   (default 10 minutes; a step over it counts as skipped), a bar above the graph shows the progress and
   then the first bad commit, and the worktree can be kept for a closer look or is removed. Start it from
   the bisect bar, a commit’s context menu or the command palette; “What is sent?” shows the exact request.
+- Stacked pull requests: “Split into stacked pull requests …” in a branch’s menu (and in the command
+  palette) shows the branch’s commits oldest first and cuts them at commit boundaries – with the
+  keyboard (Space) or, with AI on, from a suggestion of names, cuts and titles. “Check each part” runs
+  the project’s test command on every part in a temporary worktree that is removed afterwards.
+  “Create branches” makes `<branch>-1-…`, `<branch>-2-…` without a checkout as one undo step; the parts
+  are pushed in one atomic push and get pull requests that each target the part below them (GitHub,
+  GitLab, Gitea/Forgejo, Bitbucket Cloud, Azure DevOps). After a change further down, “Restack” rebases
+  the parts above with `--update-refs` and names the parts it leaves behind because they are checked
+  out in another worktree.
+- Review comments: the pull request view lists the open review threads (file, lines, comments) for
+  GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps. With AI on, “Suggest fix” proposes a
+  replacement for the commented lines as a small diff with a reason; Forkyard builds the patch itself,
+  picks the commit it belongs to (blame of the commented lines inside the pull request) and “Take over
+  as fixup” commits it as `fixup! <subject>` on the checked-out branch – hooks and signing included,
+  one undo step for several takeovers in a row. Replies are posted only on click (on Gitea/Forgejo as a
+  quoted comment on the same line). Afterwards “Squash now” opens the interactive rebase with the fixups
+  below their commits (autosquash, new action “Fixup”).
+- Search by meaning: while AI is on, the commit search gets a switch “Text | Meaning”. A question such
+  as “where was the sign-in fixed?” finds commits by what they are about, each with a reason, on Enter.
+  It uses an embedding provider on this computer (Ollama or LM Studio, chosen in Settings › AI),
+  otherwise the main provider's embeddings, and without embeddings the main provider turns the question
+  into a search with terms, code, paths, author and time window and sorts the matches. The index lives
+  in its own file in the data folder, per repository and model (the newest 200,000 commits), grows after
+  fetches and commits once the search was used, follows rewritten history and can be deleted in
+  Settings › AI. What goes out passes the same exclusions, redaction and confirmations as every AI request.
 
 ### Changed
 

@@ -4,6 +4,7 @@
  *
  * Order everywhere: oldest commit on top, as in Git's todo file. "Squash" folds a commit into the
  * one above it (the older one) – exactly like `squash` in Git.
+ * "Fixup" does the same without adding its message (Git's `fixup`).
  */
 import type { RebaseAction, RebasePlanRow, Sha } from "../../core";
 import { t } from "../../i18n";
@@ -16,12 +17,13 @@ export interface ActionInfo {
   hint: string;
 }
 
-export const ACTIONS: RebaseAction[] = ["pick", "reword", "squash", "drop"];
+export const ACTIONS: RebaseAction[] = ["pick", "reword", "squash", "fixup", "drop"];
 
 export const actionInfo: Record<RebaseAction, ActionInfo> = {
   pick: { label: t("rebase.action.pick.label"), key: "P", hint: t("rebase.action.pick.hint") },
   reword: { label: t("rebase.action.reword.label"), key: "R", hint: t("rebase.action.reword.hint") },
   squash: { label: t("rebase.action.squash.label"), key: "S", hint: t("rebase.action.squash.hint") },
+  fixup: { label: t("rebase.action.fixup.label"), key: "F", hint: t("rebase.action.fixup.hint") },
   drop: { label: t("rebase.action.drop.label"), key: "D", hint: t("rebase.action.drop.hint") },
 };
 
@@ -34,6 +36,8 @@ export function actionForKey(key: string): RebaseAction | null {
       return "reword";
     case "s":
       return "squash";
+    case "f":
+      return "fixup";
     case "d":
       return "drop";
     default:
@@ -81,7 +85,7 @@ export function shownSummary(row: RebasePlanRow): string {
 // ---------------------------------------------------------------------------
 
 export interface RowRole {
-  /** For "Squash": index of the row the commit is folded into; null = there is none. */
+  /** For "Squash" and "Fixup": index of the row the commit is folded into; null = there is none. */
   target: number | null;
   /** For pick/reword: indices of the rows folded into it. */
   squashed: number[];
@@ -96,7 +100,7 @@ export function rowRoles(rows: RebasePlanRow[]): RowRole[] {
   let root: number | null = null;
   rows.forEach((row, index) => {
     if (row.action === "pick" || row.action === "reword") root = index;
-    else if (row.action === "squash") {
+    else if (row.action === "squash" || row.action === "fixup") {
       roles[index]!.target = root;
       if (root !== null) roles[root]!.squashed.push(index);
     }
@@ -121,7 +125,7 @@ export function checkPlan(rows: RebasePlanRow[], original: RebasePlanRow[]): Pla
   // Whether the first problem is a squash without a target – that gets its own sentence for the start button.
   let firstIsOrphan: boolean | null = null;
   rows.forEach((row, index) => {
-    if (row.action === "squash" && roles[index]!.target === null) {
+    if ((row.action === "squash" || row.action === "fixup") && roles[index]!.target === null) {
       rowProblems.set(index, t("rebase.check.noTarget"));
       firstIsOrphan ??= true;
     }
@@ -179,7 +183,7 @@ export function planSummary(original: RebasePlanRow[], rows: RebasePlanRow[]): s
   const count = (action: RebaseAction) => rows.filter((row) => row.action === action).length;
   const parts: string[] = [];
   const reword = count("reword");
-  const squash = count("squash");
+  const squash = count("squash") + count("fixup");
   const drop = count("drop");
   if (reword) parts.push(t("rebase.summary.reworded", { count: reword }));
   if (squash) parts.push(t("rebase.summary.squashed", { count: squash }));

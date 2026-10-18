@@ -22,7 +22,9 @@ import type {
   AiModelList,
   AiPreview,
   AiPushReview,
+  AiStackSplit,
   AiPrDescription,
+  AiReviewFix,
   AiProviderKind,
   AiStatus,
   AiUsageSummary,
@@ -126,6 +128,10 @@ import type {
   PushResult,
   RebasePlan,
   RebasePlanRow,
+  ReviewReply,
+  ReviewFixApplied,
+  ReviewFixInput,
+  ReviewThread,
   ReflogPage,
   Ref,
   RefsSnapshot,
@@ -144,6 +150,12 @@ import type {
   SshKey,
   Stash,
   StatsRange,
+  StackCut,
+  StackCheckResult,
+  StackPlan,
+  StackPrOutcome,
+  StackPrPart,
+  StackStatus,
   StashSelection,
   Status,
   Submodule,
@@ -153,6 +165,9 @@ import type {
   Workspace,
   WorkspaceRunResult,
   Worktree,
+  AiSemanticIndexUpdate,
+  AiSemanticResult,
+  AiSemanticStatus,
 } from "./types";
 
 type R = { repoId: Id };
@@ -425,8 +440,12 @@ export interface CoreCommands {
   operationAbort(input: R): Promise<Status>;
   /** Rebases the checked-out branch (or `branch`) onto `onto`. `updateRefs`: dependent branches move along (`--update-refs`); one undo step resets all. */
   rebaseStart(input: R & { onto: string; branch: string | null; updateRefs?: boolean | null }): Promise<OpResult>;
-  /** Commits between `base` and HEAD as a plan, with a check of the preconditions. */
-  rebasePlan(input: R & { base: string }): Promise<RebasePlan>;
+  /**
+   * Commits between `base` and HEAD as a plan, with a check of the preconditions. `autosquash: true` (8.2) orders it like Git's
+   * `--autosquash`: every `fixup! <subject>` / `squash! <subject>` commit right after the commit it names,
+   * with the action `fixup` / `squash`.
+   */
+  rebasePlan(input: R & { base: string; autosquash?: boolean | null }): Promise<RebasePlan>;
   /** The local branches `rebaseStart` with `updateRefs` would move along (`branch: null` = the checked-out one). */
   rebaseDependents(input: R & { onto: string; branch: string | null }): Promise<string[]>;
   rebaseApply(input: R & { base: Sha; rows: RebasePlanRow[]; updateRefs?: boolean | null }): Promise<OpResult>;
@@ -995,6 +1014,29 @@ export interface CoreCommands {
    * No network call, needs no account.
    */
   prTemplate(input: R): Promise<string | null>;
+  /**
+   * Review threads of a pull request (8.2): comments on lines with their answers, resolved and
+   * outdated state, in the host's order (Gitea/Forgejo groups its review comments by file and line).
+   * Errors as for `prGet`; `host_unsupported` where the host (an older self-hosted instance) has none.
+   */
+  prReviewThreads(input: R & { number: number; remote?: string | null }): Promise<ReviewThread[]>;
+  /**
+   * Posts `body` (Markdown) as an answer in a review thread – only on the user's click. Where the API has
+   * no answers inside threads (`capabilities.reviewReplyQuotes`, Gitea/Forgejo) it becomes a new review
+   * comment on the same line that quotes the thread (`quoted: true`). Errors: `empty_message`,
+   * `not_allowed` (invalid thread ID), `host_not_found` (thread gone), host errors.
+   */
+  prReviewReply(input: R & { number: number; threadId: string; body: string; remote?: string | null }): Promise<ReviewReply>;
+  /**
+   * 8.2: commits a suggested fix as `fixup! <subject of target>` on the checked-out pull request branch
+   * through the normal commit path (hooks, signing). Needs the branch checked out and containing the pull
+   * request's newest commit, nothing staged, the file unchanged. Consecutive takeovers for one pull
+   * request form one undo step (refused once the fixups are on a remote). Errors: `not_allowed` (other
+   * branch, target or path not in the pull request, lines outside the file), `dirty_worktree`,
+   * `stale_state` (branch behind), `conflict` (the lines changed), `operation_in_progress`,
+   * `hook_failed`, `signing_failed`, `not_found` (commits not fetched), host errors.
+   */
+  reviewFixApply(input: R & { number: number; fix: ReviewFixInput; target: Sha }): Promise<ReviewFixApplied>;
 
   // --- Issues ----------------------------------------------------------------------------------
   /** Like `prList`. `query` searches title and body (GitHub: via the search API, own limit of 30/min). */
@@ -1092,6 +1134,20 @@ export interface CoreCommands {
    * binary or one-sided, ranges out of date), `repo_untrusted`, `cancelled`, `timeout`.
    */
   aiConflictIntent(input: R & { jobId: string; path: string; blocks: ConflictBlockRange[]; locale: string }): Promise<ConflictIntent>;
+  // --- Search by meaning (v1.2, 9.2) ---
+  /** The way of the search by meaning for this repository and the size of its index – sends nothing. */
+  aiSemanticStatus(input: R): Promise<AiSemanticStatus>;
+  /**
+   * Search by meaning as job `jobId` (`job:progress` phase `index` while the index grows; `jobCancel`).
+   * Confirm `aiPreview` with `{ kind: "semantic_search", query }` first when it asks. Errors: `ai_disabled`,
+   * `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`,
+   * `not_allowed` (not confirmed, empty question), `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiSemanticSearch(input: R & { jobId: string; query: string; locale: string }): Promise<AiSemanticResult>;
+  /** Background growth after fetch/commit: nothing before the first search, never a question (`waiting`). */
+  aiSemanticIndexUpdate(input: R & { jobId: string }): Promise<AiSemanticIndexUpdate>;
+  /** "Delete index": every repository and model; returns the number of indexes removed. */
+  aiSemanticIndexDelete(): Promise<number>;
   /**
    * Paket 4: title and description of a pull request from the commits of `source` that `target`
    * does not have (full ref names: `refs/heads/…`, `refs/remotes/<remote>/…`). Fills the repository's
@@ -1102,6 +1158,17 @@ export interface CoreCommands {
    * describe), `not_found` (ref), `repo_untrusted`, `cancelled`, `timeout`.
    */
   aiPrDescription(input: R & { jobId: string; source: string; target: string; locale: string }): Promise<AiPrDescription>;
+  /**
+   * 8.2: a fix for one review thread – the AI's replacement for the commented lines at the pull
+   * request's newest commit, checked by the core (only the thread's file, only lines of the excerpt it
+   * saw; the patch is built by the core) together with the commit it is a fixup for. Nothing is written.
+   * Show and confirm `aiPreview` with `{ kind: "review_fix", number, threadId }` first. Job `jobId`
+   * (cancellable). Errors: `ai_disabled`, `ai_not_configured`, `ai_provider_unavailable`,
+   * `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`, `ai_too_large`, `not_allowed` (not confirmed,
+   * outdated thread, file excluded or not changed by the pull request), `not_found` (thread, or the pull
+   * request's commits not fetched), host errors, `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiReviewFix(input: R & { jobId: string; number: number; threadId: string; locale: string }): Promise<AiReviewFix>;
   /**
    * "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, never
    * committed. Built exactly like `aiPreview` with `{ kind: "commit_message" }`, so a confirmation
@@ -1138,6 +1205,64 @@ export interface CoreCommands {
    * holds; `not_allowed` for an unconfirmed outward step or a plan that cannot run.
    */
   aiPlanRun(input: R & { jobId: string; text: string; steps: PlanStep[]; expect: string; confirmed: number[] }): Promise<PlanRunResult>;
+
+  // --- Stacked pull requests (v1.2, Paket 8.1) --------------------------------------
+  /**
+   * The commits of `branch` that `base` (full ref: `refs/heads/…`, `refs/remotes/…`) does not have,
+   * oldest first, and the parts `cuts` makes of them (empty = one part), with branch names
+   * `<branch>-<n>-<name>` and why a name can't be used. Creates nothing. Errors: `invalid_name`,
+   * `not_found`, `not_allowed` (base, merge commits, no commits, more than 100, invalid cuts),
+   * `repo_untrusted`.
+   */
+  stackPlan(input: R & { branch: string; base: string; cuts: StackCut[] }): Promise<StackPlan>;
+  /**
+   * Creates the branches of the plan for `cuts` without a checkout, in one ref transaction, and
+   * links them in the config; one undo step removes them together. `expectedBase`/`expectedTip`: the
+   * tips the plan showed (`stale_state` if they moved). Errors: everything of `stackPlan`,
+   * `name_exists`, `invalid_name`, `stale_state`.
+   */
+  stackCreate(input: R & { branch: string; base: string; cuts: StackCut[]; expectedBase: Sha; expectedTip: Sha }): Promise<StackStatus>;
+  /** The stack `branch` is a part of (from the parent links in the repository's config); null if it is no part. */
+  stackStatus(input: R & { branch: string }): Promise<StackStatus | null>;
+  /**
+   * "Restack": rebases the lowest part that no longer contains the part below it – and everything
+   * above it – onto that part with `--update-refs`, like `rebaseStart` (checks the top part out here).
+   * Parts checked out in a worktree stay behind (`StackRestack.leftBehind`). `expectedTop`: the top
+   * part's tip the view showed. Errors: `not_found` (no part), `not_allowed` (up to date, blocked),
+   * `stale_state`, everything of `rebaseStart`.
+   */
+  stackRestack(input: R & { branch: string; expectedTop: Sha }): Promise<OpResult>;
+  /**
+   * Pushes every part in one atomic push (`--atomic`: all arrive or none) and records each part's
+   * upstream. `force`: every ref only with `--force-with-lease` (after a restack). Result: one line
+   * per part (`status: "multi"`; a single part: as `push`). Job `jobId` (cancellable). Errors:
+   * `not_allowed`, `invalid_name`, everything of `push`.
+   */
+  stackPush(input: R & { jobId: string; branches: string[]; remote: string; force: boolean }): Promise<PushResult>;
+  /**
+   * Opens the pull requests of `parts[from..]` one after the other, each targeting the part below it
+   * (the first one `target`, the base's branch name on the host). Titles and branches are checked
+   * before anything is sent; the first failure stops the rest (`failed`, with its part number from 1).
+   * Errors (nothing sent): `not_allowed`, `invalid_name`, `not_found`, `empty_message`.
+   */
+  stackPrsCreate(input: R & { target: string; parts: StackPrPart[]; from: number; remote?: string | null }): Promise<StackPrOutcome>;
+  /**
+   * "Check each part": runs the repository's test command (Settings › Project) on the tip of every
+   * planned part, each in a temporary worktree `<repo>.agents/stack-check-<n>` that is removed
+   * afterwards. Job `jobId` (cancellable, progress "Checking part n of m"). Errors: `not_allowed`
+   * (no test command), `path_exists` (a foreign folder of that name), `cancelled`, everything of
+   * `stackPlan`; a part that runs too long is `timed_out`.
+   */
+  stackCheck(input: R & { jobId: string; branch: string; base: string; cuts: StackCut[] }): Promise<StackCheckResult[]>;
+  /**
+   * Paket 8.1: where to cut `branch` above `base` (full ref) into stacked pull requests – parts with
+   * the number of their last commit, a name for the branch, a pull request title and a reason. A
+   * suggestion only. Job `jobId` (cancellable). Show and confirm `aiPreview` with
+   * `{ kind: "stack_split", branch, base }` first. Errors: `ai_disabled`, `ai_not_configured`,
+   * `ai_provider_unavailable`, `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`, `ai_too_large`,
+   * `not_allowed` (not confirmed, merges, no commits), `not_found`, `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiStackSplit(input: R & { jobId: string; branch: string; base: string; locale: string }): Promise<AiStackSplit>;
 }
 
 /** Unsubscribes an event subscription; `ready` resolves as soon as the subscription is in place at the core. */

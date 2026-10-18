@@ -443,6 +443,11 @@
       "keywords": "GitHub, GitLab, Gitea, Bitbucket, Azure DevOps, host, browser, website, external",
       "title": "Open repository on host in browser",
       "unknownUrl": "the address on the host is not known"
+    },
+    "stack": {
+      "title": "Split checked-out branch into stacked pull requests …",
+      "keywords": "stack, stacked, split, cut, parts",
+      "noBranch": "no branch is checked out"
     }
   },
   "profile": {

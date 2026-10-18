@@ -16,7 +16,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
     CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
+    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 /// Prefix with which GitLab marks a merge request as a draft.
@@ -436,6 +436,69 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
 }
 
 // ---------------------------------------------------------------------------
+// Review threads (8.2)
+// ---------------------------------------------------------------------------
+
+fn position_line(position: &Value, key: &str) -> Option<u32> {
+    position.get(key).and_then(Value::as_u64).and_then(|n| u32::try_from(n).ok()).filter(|n| *n > 0)
+}
+
+/// A discussion whose first note sits on a line of the diff (`DiffNote` with `position`); general
+/// discussions and system notes are no review threads. Resolved: every resolvable note is resolved.
+fn discussion_thread(value: &Value) -> Option<ReviewThread> {
+    let notes: Vec<&Value> = list(value, "notes").iter().filter(|n| !flag(n, "system")).collect();
+    let first = *notes.first()?;
+    if text(first, "type") != "DiffNote" {
+        return None;
+    }
+    let position = first.get("position").filter(|p| p.is_object())?;
+    let id = opt_text(value, "id")?;
+    let (side, line, path, start_key) = match (position_line(position, "new_line"), position_line(position, "old_line")) {
+        (Some(new), _) => (ReviewSide::New, Some(new), opt_text(position, "new_path")?, "new_line"),
+        (None, Some(old)) => (ReviewSide::Old, Some(old), opt_text(position, "old_path")?, "old_line"),
+        (None, None) => (ReviewSide::New, None, opt_text(position, "new_path")?, "new_line"),
+    };
+    let start_line = position.get("line_range").and_then(|r| r.get("start")).and_then(|s| position_line(s, start_key)).filter(|start| line.is_some_and(|end| *start < end));
+    let resolvable: Vec<&&Value> = notes.iter().filter(|n| flag(n, "resolvable")).collect();
+    let comments = notes
+        .iter()
+        .map(|n| {
+            let mut comment = note(n);
+            comment.path = Some(path.clone());
+            comment.line = line;
+            comment
+        })
+        .collect();
+    Some(ReviewThread {
+        id,
+        path,
+        line,
+        start_line,
+        side,
+        commit: opt_text(position, "head_sha"),
+        resolved: !resolvable.is_empty() && resolvable.iter().all(|n| flag(n, "resolved")),
+        outdated: false,
+        comments,
+    })
+}
+
+/// `GET /projects/:id/merge_requests/:iid/discussions`
+pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, mr: u64) -> CoreResult<Vec<ReviewThread>> {
+    let discussions = api.get_all(core, &format!("{}/discussions?per_page=100", mr_path(repo, mr))).await.map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
+    Ok(discussions.iter().filter_map(discussion_thread).collect())
+}
+
+/// `POST /projects/:id/merge_requests/:iid/discussions/:discussion_id/notes`
+pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, mr: u64, thread_id: &str, body: &str) -> CoreResult<ReviewReply> {
+    let value: Value = api
+        .send_json(core, Method::Post, &format!("{}/discussions/{}/notes", mr_path(repo, mr), encode(thread_id)), &json!({ "body": body }))
+        .await
+        .map_err(|e| not_found_as(e, || format!("The review thread does not exist (anymore) in merge request !{mr}.")))?
+        .json()?;
+    Ok(ReviewReply { comment: note(&value), quoted: false })
+}
+
+// ---------------------------------------------------------------------------
 // As a `Host`
 // ---------------------------------------------------------------------------
 
@@ -497,6 +560,9 @@ impl Host for GitlabHost {
             pr_labels: true,
             fork_checkout: true,
             releases: true,
+            review_threads: true,
+            review_reply: true,
+            review_reply_quotes: false,
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
@@ -547,5 +613,11 @@ impl Host for GitlabHost {
 
     fn release_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewRelease<'a>) -> HostFuture<'a, HostRelease> {
         Box::pin(release_create(core, api, repo, new))
+    }
+    fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+        Box::pin(review_threads(core, api, repo, number))
+    }
+    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+        Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

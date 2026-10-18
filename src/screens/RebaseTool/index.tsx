@@ -25,12 +25,14 @@ export interface RebaseToolProps {
   mode: RebaseToolMode;
   /** Preselected commits (squash, cherry-pick). */
   shas: Sha[];
+  /** Interactive mode: start from Git's autosquash order (fixup commits below their targets). */
+  autosquash?: boolean;
 }
 
 const isTextField = (element: Element | null) => Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 /** Reorder, combine, transfer commits. */
-export function RebaseTool({ repoId, tabId, base, mode, shas }: RebaseToolProps) {
+export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false }: RebaseToolProps) {
   const root = useRef<HTMLElement>(null);
   const close = useCallback(() => useAppStore.getState().closeCenter(tabId), [tabId]);
 
@@ -74,11 +76,11 @@ export function RebaseTool({ repoId, tabId, base, mode, shas }: RebaseToolProps)
     startRef.current?.();
   };
 
-  const key = `${mode}:${base}:${shas.join(",")}`;
+  const key = `${mode}:${base}:${shas.join(",")}:${autosquash ? "autosquash" : ""}`;
   return (
     <section ref={root} aria-label={mode === "interactive" ? t("rebase.tool.interactive") : mode === "squash" ? t("rebase.tool.squash") : t("rebase.tool.cherryPick")} data-screen="rebase" data-mode={mode} onKeyDown={onKeyDown} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
       {mode === "interactive" ? (
-        <InteractiveRebase key={key} repoId={repoId} tabId={tabId} base={base} onClose={close} startRef={startRef} />
+        <InteractiveRebase key={key} repoId={repoId} tabId={tabId} base={base} autosquash={autosquash} onClose={close} startRef={startRef} />
       ) : mode === "squash" ? (
         <SquashMode key={key} repoId={repoId} tabId={tabId} shas={shas} onClose={close} startRef={startRef} />
       ) : (

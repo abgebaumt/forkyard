@@ -45,6 +45,10 @@
       "label": "Squash",
       "hint": "merges into the commit above"
     },
+    "fixup": {
+      "label": "Fixup",
+      "hint": "merges into the commit above, its message is dropped"
+    },
     "drop": {
       "label": "Drop",
       "hint": "leaves the branch"
@@ -116,7 +120,9 @@
     "messageEdited": "message edited",
     "editMessage": "Edit message",
     "editResultMessage": "Edit message of the result",
-    "keysHelp": "Arrow keys select a commit. P picks, R rewords, S squashes, D drops. Alt with an arrow moves. Space opens the action choice, Enter edits the message.",
+    "keysHelp": "Arrow keys select a commit. P picks, R rewords, S squashes, F folds in without the message, D drops. Alt with an arrow moves. Space opens the action choice, Enter edits the message.",
+    "forcePushTitle": "The next push needs --force-with-lease",
+    "forcePushBody": "The fixup commits were folded into commits that were already pushed. Push the branch with --force-with-lease so the remote takes the new history.",
     "resetTip": "Discard all changes to the plan",
     "nothingChanged": "Nothing changed yet",
     "reset": "Reset"
