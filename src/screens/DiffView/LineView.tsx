@@ -135,7 +135,7 @@ const CodeLine = memo(function CodeLine({ row, index, wrap, selected, selectable
       <span
         // With the syntax colours the whole content of the cell changes: rebuild instead of sorting
         // in segment by segment (React looks up the neighbours for every new node – quadratic).
-        key={lineTokens ? "gefärbt" : "schlicht"}
+        key={lineTokens ? "coloured" : "plain"}
         role="gridcell"
         className={cn("selectable min-w-0 flex-1 pr-4 pl-1 text-text", wrap ? "whitespace-pre-wrap wrap-anywhere" : "whitespace-pre")}
         onClick={() => onCodeClick(index)}
