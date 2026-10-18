@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { EMPTY_TREE_SHA, type ArchaeologyStep, type LineArchaeology } from "../../core";
 import { t } from "../../i18n";
-import { blameTarget, confidenceLabel, diffLineTarget, isFixedRev, timelineRows, whyEntry, whyLabel } from "./model";
+import { blameTarget, confidenceLabel, diffLineTarget, errorActions, explainView, isFixedRev, timelineRows, whyEntry, whyLabel } from "./model";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -119,5 +119,51 @@ describe("timelineRows", () => {
     const rows = timelineRows(data, { summary: "s", notes: [{ sha: B, note: "Legt die Zeile an." }], confidence: "low", costUsd: null });
     expect(rows.map((item) => item.note)).toEqual([null, "Legt die Zeile an."]);
     expect(confidenceLabel("low")).toBe("The history says little about the reason");
+  });
+});
+
+describe("explainView", () => {
+  const answer = { summary: "s", notes: [], confidence: "high" as const, costUsd: null };
+
+  it("idle explains, loading cancels with a seconds counter from 3 s, done offers again", () => {
+    expect(explainView({ kind: "idle" }, 0, false)).toEqual({ button: "explain", label: "Explain", status: null, slow: null, urgent: false });
+    const started = 1_000_000;
+    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 1_000, false)).toMatchObject({ button: "cancel", label: "Cancel", status: "Explaining …", slow: null });
+    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 12_400, false).status).toBe("Explaining … (12 s)");
+    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 31_000, true).slow).toBe(t("ai.state.slowLocal"));
+    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 31_000, false).slow).toBe(t("ai.state.slowRemote"));
+    expect(explainView({ kind: "done", answer }, 0, false)).toEqual({ button: "again", label: "Explain again", status: "Explanation ready", slow: null, urgent: false });
+  });
+
+  it("errors are announced urgently with their text", () => {
+    expect(explainView({ kind: "error", error: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } }, 0, true)).toEqual({
+      button: "again",
+      label: "Explain again",
+      status: "Ollama is not responding (127.0.0.1:11434).",
+      slow: null,
+      urgent: true,
+    });
+  });
+});
+
+describe("errorActions", () => {
+  it("a signed-out command-line tool offers the sign-in in the terminal, an API provider only the settings", () => {
+    const error = { kind: "notLoggedIn" as const, text: "Claude Code is not signed in." };
+    expect(errorActions(error, "claude_code")).toEqual(["signIn", "setup"]);
+    expect(errorActions(error, "codex")).toEqual(["signIn", "setup"]);
+    expect(errorActions(error, "anthropic")).toEqual(["setup"]);
+    expect(errorActions(error, null)).toEqual(["setup"]);
+  });
+
+  it("over the limit offers “Send this time” next to the settings", () => {
+    expect(errorActions({ kind: "limit", text: "The daily limit of 1.00 USD is reached." }, "openai")).toEqual(["sendOnce", "setup"]);
+  });
+
+  it("setup, unusable answers and the rest", () => {
+    expect(errorActions({ kind: "setup", text: "No provider." }, null)).toEqual(["setup"]);
+    expect(errorActions({ kind: "invalid", text: "Answer unusable" }, "ollama")).toEqual(["showSent"]);
+    expect(errorActions({ kind: "unavailable", text: "down", retryAt: null }, "ollama")).toEqual([]);
+    expect(errorActions({ kind: "refused", text: "no" }, "anthropic")).toEqual([]);
+    expect(errorActions({ kind: "other", text: "x" }, "anthropic")).toEqual([]);
   });
 });

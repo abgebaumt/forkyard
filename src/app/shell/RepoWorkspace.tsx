@@ -3,6 +3,7 @@ import { FileCog, FolderX, PanelLeftOpen, PanelRightOpen, RefreshCw, ShieldAlert
 import type { Id, Tab } from "../../core";
 import { Button, IconButton } from "../../ui/Button";
 import { BlameView } from "../../screens/Blame";
+import { ArchaeologyPanel } from "../../screens/Archaeology";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
 import { CommitSearch } from "../../screens/CommitSearch";
@@ -71,6 +72,10 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
 }
 
 function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabView }) {
+  if (view.rightPanel === "archaeology" && view.archaeology) {
+    const target = view.archaeology;
+    return <ArchaeologyPanel key={`${target.path}|${target.line}|${target.sha ?? ""}`} repoId={repoId} tabId={tabId} target={target} />;
+  }
   if (view.rightPanel === "stash_form") return <StashForm repoId={repoId} tabId={tabId} />;
   const selection = view.selection;
   if (!selection) {

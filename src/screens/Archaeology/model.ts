@@ -2,11 +2,13 @@
  * Line archaeology in the UI (v1.2, 7.1): which line a blame or diff row means, the rows of the
  * timeline panel and the AI notes next to their steps. Pure – no core calls.
  */
-import { EMPTY_TREE_SHA, type ArchaeologyAnswer, type ArchaeologyConfidence, type ArchaeologyRef, type DiffLine, type DiffSource, type LineArchaeology, type Sha } from "../../core";
+import { EMPTY_TREE_SHA, type ArchaeologyAnswer, type ArchaeologyConfidence, type ArchaeologyRef, type DiffLine, type AiProviderKind, type DiffSource, type LineArchaeology, type Sha } from "../../core";
 import { shortSha } from "../../app/format";
+import { loadingView, type AiErrorView } from "../../app/ai/requestState";
 import type { ArchaeologyTarget } from "../../app/store";
 import type { MenuEntry } from "../../ui/Menu";
 import { locale, t } from "../../i18n";
+import { isCli } from "../Preferences/ai/model";
 
 export type TargetOrReason = { target: ArchaeologyTarget } | { reason: string };
 
@@ -119,5 +121,62 @@ export function confidenceLabel(confidence: ArchaeologyConfidence): string {
       return t("blame.archaeology.confidence.medium");
     case "low":
       return t("blame.archaeology.confidence.low");
+  }
+}
+
+/** State of “Explain” in the panel. A cancelled request returns to `idle` – there are no half results. */
+export type ExplainState =
+  | { kind: "idle" }
+  | { kind: "loading"; jobId: string; startedAt: number }
+  | { kind: "done"; answer: ArchaeologyAnswer }
+  | { kind: "error"; error: Exclude<AiErrorView, { kind: "cancelled" }> };
+
+export interface ExplainView {
+  /** What the main button does. */
+  button: "explain" | "cancel" | "again";
+  label: string;
+  /** Text of the live region; null = nothing to announce. */
+  status: string | null;
+  /** “Local models take longer” / “The provider is answering slowly” after 30 s. */
+  slow: string | null;
+  /** Errors are announced assertively, everything else politely. */
+  urgent: boolean;
+}
+
+export function explainView(state: ExplainState, now: number, local: boolean): ExplainView {
+  switch (state.kind) {
+    case "idle":
+      return { button: "explain", label: t("blame.archaeology.explain"), status: null, slow: null, urgent: false };
+    case "loading": {
+      const shown = loadingView(now - state.startedAt, local, t("blame.archaeology.explaining"));
+      return { button: "cancel", label: t("blame.archaeology.cancel"), status: shown.text, slow: shown.slow, urgent: false };
+    }
+    case "done":
+      return { button: "again", label: t("blame.archaeology.again"), status: t("blame.archaeology.done"), slow: null, urgent: false };
+    case "error":
+      return { button: "again", label: t("blame.archaeology.again"), status: state.error.text, slow: null, urgent: true };
+  }
+}
+
+/** Extra buttons under an error of “Explain” (the main button already reads “Explain again”). */
+export type ExplainErrorAction = "signIn" | "sendOnce" | "setup" | "showSent";
+
+/**
+ * Spec “Zustände jedes KI-Elements”: a signed-out command-line tool offers “Sign in in the terminal”,
+ * the limit offers “Send this time” (a new request whose preview asks with the limit trigger), both
+ * next to “Set up AI …” (Settings › AI holds the sign-in of API providers and the limit).
+ */
+export function errorActions(error: Exclude<AiErrorView, { kind: "cancelled" }>, provider: AiProviderKind | null): ExplainErrorAction[] {
+  switch (error.kind) {
+    case "setup":
+      return ["setup"];
+    case "notLoggedIn":
+      return provider && isCli(provider) ? ["signIn", "setup"] : ["setup"];
+    case "limit":
+      return ["sendOnce", "setup"];
+    case "invalid":
+      return ["showSent"];
+    default:
+      return [];
   }
 }
