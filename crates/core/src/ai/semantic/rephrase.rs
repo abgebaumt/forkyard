@@ -249,7 +249,7 @@ pub(super) async fn preview(core: &Core, repo_id: &str, settings: &Settings, que
         preview.asks = gate::pending(
             core,
             settings,
-            &Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars, estimated_cost_usd: estimate.cost_usd, local: kind.is_local(), limit_reached: estimate.limit_reached },
+            &Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars, estimated_cost_usd: estimate.cost_usd, local: crate::ai::runs_on_this_computer(core, kind, settings), limit_reached: estimate.limit_reached },
         )?;
     }
     Ok(preview)
@@ -310,7 +310,7 @@ fn goes_out_without_asking(core: &Core, settings: &Settings, repo_id: &str, prom
     let asks = gate::pending(
         core,
         settings,
-        &Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars: estimate.chars, estimated_cost_usd: estimate.cost_usd, local: kind.is_local(), limit_reached: estimate.limit_reached },
+        &Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars: estimate.chars, estimated_cost_usd: estimate.cost_usd, local: crate::ai::runs_on_this_computer(core, kind, settings), limit_reached: estimate.limit_reached },
     )?;
     Ok(asks.is_empty())
 }

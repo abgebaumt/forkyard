@@ -106,8 +106,11 @@ pub struct Embedder {
 }
 
 impl Embedder {
+    /// Whether the embedding requests stay on this computer: a local provider type at a loopback
+    /// address (like `ai::runs_on_this_computer`). An Ollama on another computer is not local –
+    /// Grundregel 4 asks before the first request there.
     pub fn local(&self) -> bool {
-        self.choice.kind.is_local()
+        self.choice.kind.is_local() && crate::http::Target::parse(&self.base).is_ok_and(|target| target.loopback)
     }
 }
 

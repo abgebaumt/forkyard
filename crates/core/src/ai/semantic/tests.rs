@@ -358,3 +358,23 @@ async fn a_key_typed_into_the_question_is_redacted_before_it_goes_out() {
     assert!(asked[0].starts_with("Login mit ") && !asked[0].contains(token), "{asked:?}");
     assert!(sent.iter().flatten().all(|text| !text.contains(token)), "nowhere in what went out");
 }
+
+/// Ollama is a "local" provider type, but this one runs on another computer: the search sends
+/// commit texts there only after the first-use and per-repository confirmation – on the
+/// embeddings route and on the rephrase route alike.
+#[tokio::test]
+async fn a_local_provider_type_on_another_computer_asks_first() {
+    let tc = TestCore::new().await;
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "llama3.2", "aiBaseUrl": "https://ollama.firma.example", "aiSearchEmbedModel": "bge-m3"})).await.unwrap();
+    let repo = TestRepo::new();
+    repo.commit_file("src/zugang/weiterleitung.rs", "x\n", "Weiterleitung nach der Anmeldung repariert");
+    let id = tc.open(&repo).await.repo.id;
+    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("Anmeldung"), "de".into()).await.unwrap();
+    assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst], "embeddings to another computer");
+    let refused = search(&tc, &id, "r1", "Anmeldung", "de").await.unwrap_err();
+    assert_eq!(refused.code, ErrorCode::NotAllowed, "refused before anything is sent: {refused:?}");
+
+    settings_set(&tc, json!({"aiSearchEmbedModel": null})).await.unwrap();
+    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("Anmeldung"), "de".into()).await.unwrap();
+    assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst], "rephrasing on another computer");
+}
