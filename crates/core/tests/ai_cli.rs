@@ -506,3 +506,17 @@ async fn detection_on_an_empty_computer_finds_nothing_but_a_missing_own_path() {
     assert_eq!((codex.provider, codex.source, codex.supported), (AiProviderKind::Codex, ToolSource::Configured, false));
     assert!(codex.problem.as_deref().is_some_and(|problem| problem.contains("does not exist")), "{codex:?}");
 }
+
+/// Spec 2a: the start dialog lists the templates "with version and sign-in state". The sign-in comes
+/// from the tool itself (`claude auth status`, `codex login status`); own programs have none.
+#[tokio::test]
+async fn agent_templates_know_whether_the_built_in_tools_are_signed_in() {
+    use gitcore::commands::agents::template_login;
+    use gitcore::model::{AgentTemplateKind, AiLoginState};
+    let tc = TestCore::new().await;
+    let claude = FakeCli::install(fake(), &tc.cli_dir().join("c"), "claude", &claude_config(CLAUDE_HELP, false, &claude_result(&json!({}))));
+    let codex = FakeCli::install(fake(), &tc.cli_dir().join("x"), "codex", &codex_config(CODEX_EXEC_HELP, true, "{}"));
+    assert_eq!(template_login(&tc, AgentTemplateKind::Claude, &claude.program).await, Some(AiLoginState::LoggedOut));
+    assert_eq!(template_login(&tc, AgentTemplateKind::Codex, &codex.program).await, Some(AiLoginState::LoggedIn));
+    assert_eq!(template_login(&tc, AgentTemplateKind::Custom, &codex.program).await, None, "an own program has no known sign-in");
+}

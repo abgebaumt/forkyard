@@ -4792,6 +4792,8 @@ pub struct AgentTemplateInfo {
     pub can_resume: bool,
     /// Status comes from the agent itself (“according to Claude Code”), not only from guessing.
     pub status_hook: bool,
+    /// Sign-in of a found built-in tool; `None` for own programs and tools not found.
+    pub login: Option<AiLoginState>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]

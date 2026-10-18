@@ -2759,6 +2759,8 @@ export interface AgentTemplateInfo {
   unattendedNote: string | null;
   canResume: boolean;
   statusHook: boolean;
+  /** Sign-in of a found built-in tool; null for own programs and tools not found. */
+  login: AiLoginState | null;
 }
 
 export type AgentStatus = "starting" | "running" | "waiting" | "done" | "failed" | "stopped" | "orphaned";

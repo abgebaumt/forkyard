@@ -166,6 +166,22 @@ pub(crate) async fn resolve_program(core: &Core, def: &TemplateDef) -> Option<To
     locate(core, &def.program, None).await
 }
 
+/// How long the start dialog waits for a tool's answer on its sign-in.
+const LOGIN_LIMIT: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Whether a built-in tool is signed in (spec 2a: "mit Version und Anmeldestatus"), asked from the
+/// tool itself like the AI setup does; `None` for own programs.
+pub async fn template_login(core: &Core, kind: AgentTemplateKind, program: &Path) -> Option<crate::model::AiLoginState> {
+    use crate::model::AiProviderKind;
+    let provider = match kind {
+        AgentTemplateKind::Claude => AiProviderKind::ClaudeCode,
+        AgentTemplateKind::Codex => AiProviderKind::Codex,
+        AgentTemplateKind::Opencode => AiProviderKind::Opencode,
+        AgentTemplateKind::Custom => return None,
+    };
+    Some(crate::ai::cli::login_status(core, provider, program, LOGIN_LIMIT).await.state)
+}
+
 /// The templates with where their programs are (start dialog, settings).
 pub async fn agent_templates(core: &Core) -> CoreResult<Vec<AgentTemplateInfo>> {
     let settings = core.settings()?;
@@ -173,7 +189,12 @@ pub async fn agent_templates(core: &Core) -> CoreResult<Vec<AgentTemplateInfo>> 
     for def in templates::all(&settings.agent_templates) {
         let found = resolve_program(core, &def).await;
         let version = found.as_ref().and_then(|f| f.version.clone());
+        let login = match &found {
+            Some(found) => template_login(core, def.kind, &found.path).await,
+            None => None,
+        };
         out.push(AgentTemplateInfo {
+            login,
             unattended_blocked: templates::unattended_blocked(&def, version.as_deref()),
             unattended_note: templates::unattended_note(&def, cfg!(windows)),
             can_resume: def.kind != AgentTemplateKind::Custom || def.resume_args.is_some(),

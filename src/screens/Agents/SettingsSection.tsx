@@ -5,13 +5,14 @@
  * switch is refused with its name. Plus the project row “Test command for coding agents”.
  */
 import { useEffect, useState } from "react";
-import type { Id, Settings } from "../../core";
+import type { AgentTemplateInfo, Id, Settings } from "../../core";
 import { useAgentTemplates, useRepoSettings } from "../../app/queries";
 import { Button } from "../../ui/Button";
 import { Checkbox, TextArea, TextField } from "../../ui/Field";
 import { t } from "../../i18n";
 import { CommitText, SectionHeader, SettingRow, SettingsCard } from "../Preferences/parts";
 import { applyRepoSettings, applySettings, fieldError } from "../Preferences/settings";
+import { templateLoginWord } from "./model";
 import { formFromTemplate, newTemplateForm, templateFromForm, type TemplateForm } from "./templateForm";
 
 function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChange: (next: TemplateForm) => void; onRemove: () => void }) {
@@ -36,6 +37,14 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
   );
 }
 
+/** Version, path and sign-in of a built-in template (spec 2a). */
+function builtInDescription(item: AgentTemplateInfo): string {
+  if (!item.path) return t("agents.settings.missing");
+  const found = item.version ? t("agents.settings.found", { version: item.version, path: item.path }) : t("agents.settings.foundNoVersion", { path: item.path });
+  const login = templateLoginWord(item);
+  return login ? t("agents.settings.foundLogin", { found, login }) : found;
+}
+
 export function AgentTemplatesSection({ settings }: { settings: Settings }) {
   const templates = useAgentTemplates();
   const [forms, setForms] = useState<TemplateForm[]>(() => settings.agentTemplates.map(formFromTemplate));
@@ -55,7 +64,7 @@ export function AgentTemplatesSection({ settings }: { settings: Settings }) {
       <SectionHeader title={t("agents.settings.title")}>{t("agents.settings.intro")}</SectionHeader>
       <SettingsCard title={t("agents.settings.builtIn")}>
         {builtIn.map((item) => (
-          <SettingRow key={item.id} title={item.name} description={item.path ? (item.version ? t("agents.settings.found", { version: item.version, path: item.path }) : t("agents.settings.foundNoVersion", { path: item.path })) : t("agents.settings.missing")}>
+          <SettingRow key={item.id} title={item.name} description={builtInDescription(item)}>
             {() => null}
           </SettingRow>
         ))}

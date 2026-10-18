@@ -2,7 +2,7 @@
  * Pure helpers of the agent cockpit: status as dot + word (never colour alone), runtime, counts,
  * the start dialog's rules and the actions per agent. No React, no core calls.
  */
-import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTestResult, Id, Tab } from "../../core";
+import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTemplateKind, AgentTestResult, AiProviderKind, Id, Tab } from "../../core";
 import { t } from "../../i18n";
 
 export type StatusTone = "accent" | "warning" | "success" | "danger" | "muted";
@@ -89,9 +89,25 @@ export function unattendedChoice(template: AgentTemplateInfo | undefined): Unatt
   return { available: template.unattendedBlocked === null, reason: template.unattendedBlocked, note: template.unattendedNote };
 }
 
+/** "signed in" / "not signed in" for a found built-in tool; null when unknown or for own programs. */
+export function templateLoginWord(template: AgentTemplateInfo): string | null {
+  if (template.login === "logged_in") return t("agents.start.signedIn");
+  if (template.login === "logged_out") return t("agents.start.signedOut");
+  return null;
+}
+
 export function templateOptionLabel(template: AgentTemplateInfo): string {
   if (template.path === null) return t("agents.start.optionMissing", { name: template.name });
-  return template.version ? t("agents.start.optionVersion", { name: template.name, version: template.version }) : template.name;
+  const named = template.version ? t("agents.start.optionVersion", { name: template.name, version: template.version }) : template.name;
+  return template.login === "logged_out" ? t("agents.start.optionSignedOut", { label: named }) : named;
+}
+
+const PROVIDERS: Record<AgentTemplateKind, AiProviderKind | null> = { claude: "claude_code", codex: "codex", opencode: "opencode", custom: null };
+
+/** The tool to sign in in the terminal: a found built-in tool that says it is signed out. */
+export function templateSignIn(template: AgentTemplateInfo | undefined): AiProviderKind | null {
+  if (!template || template.path === null || template.login !== "logged_out") return null;
+  return PROVIDERS[template.kind];
 }
 
 export const defaultTemplateId = (templates: AgentTemplateInfo[]): string | null => templates.find((item) => item.path !== null)?.id ?? null;

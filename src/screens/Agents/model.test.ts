@@ -16,7 +16,9 @@ import {
   statusLabel,
   statusOrigin,
   statusTone,
+  templateLoginWord,
   templateOptionLabel,
+  templateSignIn,
   testLabel,
   toolbarLabel,
   unattendedChoice,
@@ -60,6 +62,7 @@ const template = (patch: Partial<AgentTemplateInfo>): AgentTemplateInfo => ({
   unattendedNote: null,
   canResume: true,
   statusHook: true,
+  login: "logged_in",
   ...patch,
 });
 
@@ -117,6 +120,27 @@ describe("agents: start dialog", () => {
     expect(templateOptionLabel(template({ version: null }))).toBe("Claude Code");
     expect(defaultTemplateId(templates)).toBe("claude");
     expect(defaultTemplateId([templates[1]!])).toBeNull();
+  });
+
+  it("names the sign-in state of a built-in tool (spec 2a: version and sign-in)", () => {
+    expect(templateOptionLabel(template({ login: "logged_out" }))).toBe("Claude Code · 2.1.301 · not signed in");
+    expect(templateOptionLabel(template({ login: "logged_out", version: null }))).toBe("Claude Code · not signed in");
+    // No readable answer: nothing is claimed.
+    expect(templateOptionLabel(template({ login: "unknown" }))).toBe("Claude Code · 2.1.301");
+    expect(templateOptionLabel(template({ kind: "custom", id: "custom:x", name: "Mein Agent", login: null }))).toBe("Mein Agent · 2.1.301");
+    expect(templateLoginWord(template({}))).toBe("signed in");
+    expect(templateLoginWord(template({ login: "logged_out" }))).toBe("not signed in");
+    expect(templateLoginWord(template({ login: null }))).toBeNull();
+  });
+
+  it("offers the sign-in in the terminal only for a signed-out built-in tool", () => {
+    expect(templateSignIn(template({ login: "logged_out" }))).toBe("claude_code");
+    expect(templateSignIn(template({ id: "codex", kind: "codex", name: "Codex", login: "logged_out" }))).toBe("codex");
+    expect(templateSignIn(template({ id: "opencode", kind: "opencode", name: "opencode", login: "logged_out" }))).toBe("opencode");
+    expect(templateSignIn(template({}))).toBeNull();
+    expect(templateSignIn(template({ login: "unknown" }))).toBeNull();
+    expect(templateSignIn(template({ login: "logged_out", path: null }))).toBeNull();
+    expect(templateSignIn(undefined)).toBeNull();
   });
   it("names the first reason the start is not possible", () => {
     const ok = { branchProblem: null };

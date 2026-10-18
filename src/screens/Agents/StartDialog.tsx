@@ -8,8 +8,9 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { core, type AgentSuggestion, type Id } from "../../core";
 import { showDialog } from "../../app/dialogs";
+import { signInInTerminal } from "../../app/ai/cliLogin";
 import { describeError } from "../../app/errors";
-import { useAgentTemplates, useAgents, useRefs, useStatus } from "../../app/queries";
+import { qk, queryClient, useAgentTemplates, useAgents, useRefs, useStatus } from "../../app/queries";
 import { useAppStore } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -18,7 +19,7 @@ import { TextArea, TextField } from "../../ui/Field";
 import { Select, type SelectOption } from "../../ui/Select";
 import { Switch } from "../../ui/Switch";
 import { t } from "../../i18n";
-import { agentCounts, defaultTemplateId, manyAgentsHint, startBlocker, startLabel, templateOptionLabel, unattendedChoice, type StartDraft } from "./model";
+import { agentCounts, defaultTemplateId, manyAgentsHint, startBlocker, startLabel, templateOptionLabel, templateSignIn, unattendedChoice, type StartDraft } from "./model";
 import { startAgent } from "./session";
 
 const CHECK_DELAY_MS = 250;
@@ -71,6 +72,7 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
 
   const template = list.find((item) => item.id === draft.templateId);
   const unattended = unattendedChoice(template);
+  const signIn = templateSignIn(template);
   const effective: StartDraft = { ...draft, base, unattended: draft.unattended && unattended.available };
   const blocker = startBlocker(effective, list, suggestion, checking);
   const running = agentCounts(agents.data ?? []).running;
@@ -140,6 +142,23 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
             onValueChange={(templateId) => setDraft((d) => ({ ...d, templateId, unattended: false }))}
             hint={template?.path ? t("agents.start.where", { path: template.path }) : undefined}
           />
+        ) : null}
+        {template && signIn ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm text-text" data-field="sign-in">
+            <span className="min-w-0 flex-1">{t("agents.start.signInHint", { name: template.name })}</span>
+            <Button
+              size="sm"
+              data-agent-sign-in=""
+              onClick={() => {
+                // The terminal sits behind this dialog; the list is asked again once it opens next time.
+                onDone(null);
+                void queryClient.invalidateQueries({ queryKey: qk.agentTemplates });
+                signInInTerminal(signIn);
+              }}
+            >
+              {t("ai.setup.cli.signIn")}
+            </Button>
+          </div>
         ) : null}
         <TextArea
           label={t("agents.start.task")}
