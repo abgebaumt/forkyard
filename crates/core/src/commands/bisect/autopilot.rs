@@ -193,6 +193,27 @@ async fn remove_worktree(core: &Core, repo_id: &str, wt: &Path) -> CoreResult<()
     worktree::worktree_remove(core, repo_id.to_string(), shown, true).await.map(|_| ())
 }
 
+/// Worktrees locked with `LOCK_REASON` that no run in memory owns: an app that ended during a run
+/// (or before its result was closed) left them. Only these are removed – never one the user kept.
+async fn remove_leftovers(core: &Core, repo_id: &str) {
+    let Ok(list) = worktree::worktree_list(core, repo_id.to_string()).await else { return };
+    let owned = core.state::<AutopilotRuns>().owned_paths();
+    for entry in list.iter().filter(|entry| !entry.is_main && entry.lock_reason.as_deref() == Some(LOCK_REASON)) {
+        if owned.iter().any(|path| util::path_key(Path::new(path)) == util::path_key(Path::new(&entry.path))) {
+            continue;
+        }
+        let removed = if entry.is_prunable {
+            let _ = worktree::worktree_unlock(core, repo_id.to_string(), entry.path.clone()).await;
+            worktree::worktree_prune(core, repo_id.to_string()).await.map(|_| ())
+        } else {
+            remove_worktree(core, repo_id, Path::new(&entry.path)).await
+        };
+        if let Err(error) = removed {
+            log::warn!("leftover bisect worktree not removed: {}", error.message);
+        }
+    }
+}
+
 pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, bad: &str, good: &[String], script: &str, step_timeout_secs: u64) -> CoreResult<BisectAutopilot> {
     core.repo_path(repo_id)?;
     if let Some(problem) = script_problem(script) {
@@ -238,6 +259,7 @@ pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, bad: &str, goo
 }
 
 async fn drive(core: &Core, repo_id: &str, job: &Job, bad: &str, good: &[String], script: &str, limit: Duration) -> CoreResult<BisectAutopilot> {
+    remove_leftovers(core, repo_id).await;
     let main = main_worktree_path(core, repo_id).await?;
     let dir = names::agents_dir(&main)?;
     std::fs::create_dir_all(&dir).map_err(|e| CoreError::io(format!("Couldn’t create “{}”: {e}", util::display_path(&dir))))?;
@@ -301,6 +323,14 @@ impl Session<'_> {
                     run.result = Some(result);
                 });
             }
+            if status.only_skipped_left {
+                let candidates = self.candidates(&status).await?;
+                self.reset(None).await?;
+                return finish(self.core, self.repo_id, |run| {
+                    run.phase = BisectAutopilotPhase::OnlySkipped;
+                    run.candidates = candidates;
+                });
+            }
             let done = runs.get(self.repo_id).map(|run| run.steps.len()).unwrap_or(0);
             if done >= MAX_STEPS {
                 return Err(CoreError::not_allowed(format!("The autopilot stopped after {MAX_STEPS} steps without a result.")));
@@ -308,10 +338,28 @@ impl Session<'_> {
             let current = status.current.clone().ok_or_else(|| CoreError::unknown("Git did not check out a commit to test."))?;
             self.report(&status, done, &current);
             let started = Instant::now();
-            let output = self.run_script(&current).await?;
-            let verdict = verdict_for(output.code)
-                .ok_or_else(|| CoreError::not_allowed(format!("The test script ended with exit code {:?} on {}; the autopilot stopped.", output.code, short(&current))))?;
-            let record = BisectAutopilotStep { sha: current.clone(), verdict, exit_code: output.code, timed_out: false, duration_ms: elapsed_ms(started), output_tail: tail(&output.stdout, &output.stderr) };
+            let record = match self.run_script(&current).await {
+                Ok(output) => match verdict_for(output.code) {
+                    Some(verdict) => BisectAutopilotStep { sha: current.clone(), verdict, exit_code: output.code, timed_out: false, duration_ms: elapsed_ms(started), output_tail: tail(&output.stdout, &output.stderr) },
+                    None => {
+                        // As with `git bisect run`: such an exit means the script itself is broken.
+                        self.reset(Some(&current)).await?;
+                        let message = match output.code {
+                            Some(code) => format!("The test script ended with exit code {code} on {}. Exit codes above 127 stop the autopilot; use 125 to skip a commit.", short(&current)),
+                            None => format!("The test script was ended by a signal on {}; the autopilot stopped.", short(&current)),
+                        };
+                        return finish(self.core, self.repo_id, |run| {
+                            run.phase = BisectAutopilotPhase::Failed;
+                            run.message = Some(message);
+                        });
+                    }
+                },
+                // Over the time limit: `proc.rs` ended the process tree; the commit counts as skipped.
+                Err(error) if error.code == ErrorCode::Timeout => {
+                    BisectAutopilotStep { sha: current.clone(), verdict: BisectVerdict::Skip, exit_code: None, timed_out: true, duration_ms: elapsed_ms(started), output_tail: String::new() }
+                }
+                Err(error) => return Err(error),
+            };
             status = self.mark(record.verdict, &current).await?;
             runs.update(self.repo_id, |run| run.steps.push(record));
         }
@@ -327,6 +375,14 @@ impl Session<'_> {
         });
         let percent = u32::try_from(done * 100 / total).unwrap_or(100);
         self.job.progress(PROGRESS_PHASE, Some(percent), &format!("Step {step} of ~{total} · testing {}", short(current)));
+    }
+
+    /// The commits among which the first bad one is: what lies between the bad and the good marks.
+    async fn candidates(&self, status: &BisectStatus) -> CoreResult<Vec<String>> {
+        let Some(bad) = &status.bad else { return Ok(Vec::new()) };
+        let not_good: Vec<String> = status.good.iter().map(|sha| format!("^{sha}")).collect();
+        let out = self.git().read_only().no_log().arg("rev-list").arg(bad).args(&not_good).arg("--").run().await?;
+        Ok(out.stdout_lines().into_iter().map(util::decode_lossy).collect())
     }
 
     async fn run_script(&self, sha: &str) -> CoreResult<ProcOutput> {

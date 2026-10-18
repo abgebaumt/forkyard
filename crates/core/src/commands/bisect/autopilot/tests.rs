@@ -252,3 +252,107 @@ async fn the_run_checks_trust_script_time_limit_and_range_first() {
     crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
     assert_eq!(attempt(&f.bad, goods, "exit 0", 60).await.unwrap_err().code, ErrorCode::RepoUntrusted);
 }
+
+/// A linear history: `shas[0]` good, the commit at `bug_at` swaps the factors, the last one is HEAD.
+fn linear(total: usize, bug_at: usize) -> (TestRepo, Vec<String>) {
+    let repo = TestRepo::new();
+    let mut shas = vec![repo.commit_file("umrechnung.py", GOOD, "Umrechnung in Fahrenheit")];
+    for index in 1..total {
+        if index == bug_at {
+            shas.push(repo.commit_file("umrechnung.py", BAD, "Umrechnung vereinfacht"));
+        } else {
+            shas.push(repo.commit_file("messwerte.csv", format!("2026-04-{index:02};{}\n", 10 + index), &format!("Messwert {index}")));
+        }
+    }
+    (repo, shas)
+}
+
+#[tokio::test]
+async fn a_step_over_its_time_limit_counts_as_skipped() {
+    let tc = TestCore::new().await;
+    let (repo, shas) = linear(16, 12);
+    let (good, culprit, bad) = (shas[0].clone(), shas[12].clone(), shas[15].clone());
+    let id = tc.open(&repo).await.repo.id;
+    // Git's own first pick: the commit `git bisect start` checks out.
+    let first = repo.git(&["rev-list", "--bisect", &bad, &format!("^{good}")]);
+    assert!(first != culprit && first != shas[11], "fixture: the slow commit is not next to the bug");
+    let script = if cfg!(windows) {
+        format!("if ($env:FORKYARD_BISECT_COMMIT -eq '{first}') {{ Start-Sleep -Seconds 120 }}\r\n{}", formula_script())
+    } else {
+        format!("if [ \"$FORKYARD_BISECT_COMMIT\" = '{first}' ]; then sleep 120; fi\n{}", formula_script())
+    };
+    let done = bisect_autopilot_run(&tc, id.clone(), "langsam".into(), bad, vec![good], script, 3).await.unwrap();
+    let step = &done.steps[0];
+    assert_eq!((step.sha.as_str(), step.verdict, step.timed_out, step.exit_code), (first.as_str(), BisectVerdict::Skip, true, None));
+    assert_eq!(done.steps.iter().filter(|step| step.timed_out).count(), 1);
+    assert_eq!((done.phase, done.result.as_deref()), (BisectAutopilotPhase::Found, Some(culprit.as_str())));
+    bisect_autopilot_close(&tc, id, false).await.unwrap();
+}
+
+#[tokio::test]
+async fn an_exit_code_above_127_stops_the_run_and_keeps_the_worktree_for_a_look() {
+    let tc = TestCore::new().await;
+    let (repo, shas) = linear(6, 3);
+    let id = tc.open(&repo).await.repo.id;
+    let first = repo.git(&["rev-list", "--bisect", &shas[5], &format!("^{}", shas[0])]);
+    let script = if cfg!(windows) { "exit 130\r\n" } else { "exit 130\n" };
+    let done = bisect_autopilot_run(&tc, id.clone(), "kaputt".into(), shas[5].clone(), vec![shas[0].clone()], script.into(), 60).await.unwrap();
+    assert_eq!(done.phase, BisectAutopilotPhase::Failed, "{done:?}");
+    assert!(done.message.as_deref().is_some_and(|message| message.contains("130")), "{:?}", done.message);
+    assert!(done.steps.is_empty() && done.result.is_none());
+    assert_eq!(repo.git(&["-C", &done.worktree_path, "rev-parse", "HEAD"]), first, "the worktree stays on the commit the script failed on");
+    assert!(!repo.git_output(&["-C", &done.worktree_path, "bisect", "log"]).status.success(), "no bisect left in the worktree");
+    bisect_autopilot_close(&tc, id, false).await.unwrap();
+    assert!(!Path::new(&done.worktree_path).exists());
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn a_script_ended_by_a_signal_stops_the_run() {
+    let tc = TestCore::new().await;
+    let (repo, shas) = linear(4, 2);
+    let id = tc.open(&repo).await.repo.id;
+    let done = bisect_autopilot_run(&tc, id.clone(), "signal".into(), shas[3].clone(), vec![shas[0].clone()], "kill -9 $$\n".into(), 60).await.unwrap();
+    assert_eq!(done.phase, BisectAutopilotPhase::Failed);
+    assert!(done.message.as_deref().is_some_and(|message| message.contains("signal")), "{:?}", done.message);
+    bisect_autopilot_close(&tc, id, false).await.unwrap();
+}
+
+#[tokio::test]
+async fn only_skipped_commits_left_name_the_candidates() {
+    let tc = TestCore::new().await;
+    let (repo, shas) = linear(4, 2);
+    let id = tc.open(&repo).await.repo.id;
+    let script = if cfg!(windows) { "exit 125\r\n" } else { "exit 125\n" };
+    let done = bisect_autopilot_run(&tc, id.clone(), "alle".into(), shas[3].clone(), vec![shas[0].clone()], script.into(), 60).await.unwrap();
+    assert_eq!(done.phase, BisectAutopilotPhase::OnlySkipped, "{done:?}");
+    let mut candidates = done.candidates.clone();
+    candidates.sort();
+    let mut expected = vec![shas[1].clone(), shas[2].clone(), shas[3].clone()];
+    expected.sort();
+    assert_eq!(candidates, expected, "everything after the good commit, the bad one included");
+    assert!(done.steps.iter().all(|step| step.verdict == BisectVerdict::Skip && step.exit_code == Some(125)));
+    bisect_autopilot_close(&tc, id, false).await.unwrap();
+}
+
+#[tokio::test]
+async fn leftovers_of_an_ended_app_are_removed_and_the_users_worktrees_stay() {
+    let tc = TestCore::new().await;
+    let f = fixture();
+    let id = tc.open(&f.repo).await.repo.id;
+    let dir = f.repo.temp_dir().join("repo.agents");
+    std::fs::create_dir_all(&dir).unwrap();
+    let leftover = dir.join("bisect-1");
+    let users = dir.join("bisect-2");
+    f.repo.git(&["worktree", "add", "-q", "--detach", "--lock", "--reason", LOCK_REASON, leftover.to_str().unwrap(), &f.bad]);
+    f.repo.git(&["worktree", "add", "-q", "--detach", users.to_str().unwrap(), &f.good]);
+    std::fs::write(users.join("meine notiz.txt"), "bleibt\n").unwrap();
+
+    let done = run(&tc, &id, &f, &formula_script()).await.unwrap();
+    assert!(same(Path::new(&done.worktree_path), &expected_worktree(&f.repo, 1)), "the leftover's name is free again: {}", done.worktree_path);
+    assert!(users.join("meine notiz.txt").exists(), "a worktree without the autopilot's lock is the user's");
+    bisect_autopilot_close(&tc, id, false).await.unwrap();
+    let listed = worktrees(&f.repo);
+    assert!(!listed.contains("bisect-1") && listed.contains("bisect-2"), "{listed}");
+    assert!(dir.exists(), "the .agents folder stays while it is not empty");
+}
