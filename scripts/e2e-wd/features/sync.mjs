@@ -710,7 +710,15 @@ async function httpsSetup() {
   const repo = makeCleanRepoWithRemote();
   const bare = server.createBare("messnetz.git", { from: repo.path });
   repo.git("remote", "set-url", "origin", server.url("messnetz.git"));
-  const keyring = await startPrivateKeyring();
+  const keyring = await startPrivateKeyring().catch(async (error) => {
+    await server.close();
+    repo.cleanup();
+    throw error;
+  });
+  if (!keyring) {
+    await server.close();
+    repo.cleanup();
+  }
   assert(keyring, "a private Secret Service (dbus-daemon + gnome-keyring-daemon) could be started");
   const env = { server, repo, bare, keyring, app: null };
   env.cleanup = async () => {
@@ -1197,9 +1205,23 @@ async function proxySetup(t) {
   const hostPort = new URL(server.url("messnetz.git")).host;
   repo.git("remote", "set-url", "origin", `https://${HTTPS_USER}:${HTTPS_PASSWORD}@${hostPort}/messnetz.git`);
   const proxy = await startConnectProxy();
-  const { app, ui } = await start(t);
-  await app.invoke("settings_set", { patch: { sslCaFile: server.caFile, proxyUrl: null, proxyByHost: [] } });
-  const { repoId } = await open(app, ui, repo.path);
+  const cleanup = async () => {
+    await proxy.close();
+    await server.close();
+    repo.cleanup();
+  };
+  let started;
+  try {
+    started = await start(t);
+    await started.app.invoke("settings_set", { patch: { sslCaFile: server.caFile, proxyUrl: null, proxyByHost: [] } });
+    started.repoId = (await open(started.app, started.ui, repo.path)).repoId;
+  } catch (error) {
+    // The scenario never gets the cleanup: left running, the servers keep this feature process
+    // alive after its last scenario and the whole run waits for it.
+    await cleanup().catch(() => undefined);
+    throw error;
+  }
+  const { app, ui, repoId } = started;
   /** New commit on the server, fetched through the toolbar: { arrived, toast }. */
   const fetchNow = async () => {
     await ui.closeToasts();
@@ -1209,11 +1231,6 @@ async function proxySetup(t) {
     const toast = await ui.waitToast(/Fetch/, null, 90_000);
     await app.settle();
     return { arrived: revParse(repo.path, "refs/remotes/origin/main") === wanted, toast };
-  };
-  const cleanup = async () => {
-    await proxy.close();
-    await server.close();
-    repo.cleanup();
   };
   return { server, repo, bare, hostPort, proxy, app, ui, repoId, fetchNow, cleanup };
 }
