@@ -3205,6 +3205,7 @@ pub struct ReviewReply {
     /// threads in the host's API).
     pub quoted: bool,
 }
+
 /// What a line of a suggested fix is in its diff.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
