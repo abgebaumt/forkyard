@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type BisectAutopilot, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -74,6 +74,7 @@ export const qk = {
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
   reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
   bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,
+  bisectAutopilot: (repoId: Id) => ["repo", repoId, "bisectAutopilot"] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
   commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
   diff: (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) =>
@@ -251,6 +252,10 @@ export const useReflog = (repoId: Id | null | undefined, refName: string | null)
 /** Bisect state from the Git directory (also one started on the command line). */
 export const useBisectStatus = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.bisect(repoId ?? ""), queryFn: (): Promise<BisectStatus> => core.bisectStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+/** The bisect autopilot's run of the repository (null = none); reloaded on its `job:progress`. */
+export const useBisectAutopilot = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.bisectAutopilot(repoId ?? ""), queryFn: (): Promise<BisectAutopilot | null> => core.bisectAutopilotStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
 const isLive = (source: DiffSource) =>
@@ -658,7 +663,11 @@ export function useCoreSync(activeRepoId: Id | null) {
         if (entry.exitCode === 0) store().markFetched(entry.repoId);
         reportBackgroundFetch(entry.repoId, entry.exitCode, entry.output, entry.code ?? null);
       }),
-      core.on("job:progress", (payload) => store().updateJob(payload)),
+      core.on("job:progress", (payload) => {
+        store().updateJob(payload);
+        // The bisect autopilot reports each step under its own phase (`PROGRESS_PHASE` in the core): its bar reloads the run.
+        if (payload.phase === "bisect-autopilot" && payload.repoId) void queryClient.invalidateQueries({ queryKey: qk.bisectAutopilot(payload.repoId) });
+      }),
       core.on("job:done", ({ jobId }) => store().finishJob(jobId)),
       core.on("credential:request", (request) => store().enqueueCredential(request)),
       // Hook output and failures: one toast per incident, see notifications/hooks.ts.
