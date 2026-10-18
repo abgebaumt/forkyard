@@ -89,6 +89,12 @@ All notable changes to Forkyard are listed here. The format follows
   the AI provider about debug output, commented-out code and likely mistakes in what the push sends.
   Hints only; “Push anyway” is always possible, cancelling never pushes. Settings › Project › AI and
   agents can run the review before every push (off by default).
+- Release notes: “Write release notes” in the tag dialog – and “Write release notes …” on a commit or
+  tag – groups the commits since the last tag into Added, Changed, Fixed and Other, in the language of
+  the repository (an existing changelog keeps its headings). The text can go into the tag message, into
+  CHANGELOG.md (Keep a Changelog is recognised; inserted as a normal change you commit yourself), into a
+  release on GitHub, GitLab or Gitea/Forgejo (the tag is pushed first; confirmed separately because it
+  cannot be undone) and to the clipboard. “What is sent?” shows the exact text; hidden while AI is off.
 
 ### Changed
 
