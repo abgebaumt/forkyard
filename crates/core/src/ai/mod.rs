@@ -20,6 +20,7 @@ pub mod provider;
 pub mod providers;
 pub mod review;
 pub mod run;
+pub mod semantic;
 pub mod cli;
 pub mod detect;
 pub mod schema;
