@@ -204,5 +204,11 @@
     "title": "The diff could not be loaded",
     "retry": "Try again",
     "backToGraph": "Back to graph"
+  },
+  "whyLine": {
+    "noLine": "this row has no line number",
+    "notCommitted": "the line is not committed yet",
+    "indexOnly": "the removed line is only in the staging area, not in a commit",
+    "stash": "not available for stashes"
   }
 }

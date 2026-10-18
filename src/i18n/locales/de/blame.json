@@ -76,5 +76,51 @@
     "ageScaleLabel": "Farbe nach Alter des Commits: kräftig ist neu ({{newest}}), blass ist alt ({{oldest}})",
     "new": "neu",
     "old": "alt"
+  },
+  "menu": {
+    "label": "Zeile {{line}}",
+    "copyLine": "Zeile kopieren",
+    "showCommit": "Commit zeigen",
+    "previousVersion": "Blame der Vorversion",
+    "why": "Warum ist das so?",
+    "lineHistory": "Geschichte dieser Zeile"
+  },
+  "archaeology": {
+    "ariaLabel": "Geschichte von Zeile {{line}} in {{path}}",
+    "where": "Zeile {{line}} · {{path}}",
+    "close": "Schließen",
+    "loading": "Geschichte der Zeile wird geladen …",
+    "failed": "Die Geschichte dieser Zeile ließ sich nicht laden",
+    "retry": "Erneut versuchen",
+    "notCommitted": "die Zeile ist noch nicht committet",
+    "steps_one": "{{count}} Änderung",
+    "steps_other": "{{count}} Änderungen",
+    "timelineLabel": "Änderungen der Zeile, neueste zuerst",
+    "mayHaveMore": "Gezeigt werden nur die letzten 20 Änderungen.",
+    "introduced": "Hier beginnt die Zeile.",
+    "renamedFrom": "Vor dieser Änderung hieß die Datei {{path}}",
+    "openStep": "Änderung von {{sha}} in dieser Datei zeigen",
+    "inGraph": "Im Graph",
+    "inGraphLabel": "{{sha}} im Graph zeigen",
+    "linked": "Verknüpft",
+    "linkWhat": "die verknüpfte Seite",
+    "hostNotConnected": "Verbinde den Hoster unter Einstellungen › Hoster, um die Titel von Pull Requests und Issues zu sehen.",
+    "hostFailed": "Der Hoster hat nicht geantwortet; die Links stehen ohne Titel da.",
+    "explain": "Erklären",
+    "explainHint": "Lässt den KI-Anbieter aus den Commits, Nachrichten und Links unten zusammenfassen, warum die Zeile so aussieht. Es wird nichts geändert.",
+    "explaining": "Erklärt …",
+    "cancel": "Abbrechen",
+    "again": "Erneut erklären",
+    "done": "Erklärung liegt vor",
+    "whatIsSent": "Was wird gesendet?",
+    "summaryLabel": "Erklärung",
+    "fromAi": "Vom KI-Anbieter aus der Geschichte unten geschrieben – mit den Commits abgleichen.",
+    "setup": "KI einrichten …",
+    "showSent": "Gesendetes ansehen",
+    "confidence": {
+      "high": "Aus der Geschichte klar",
+      "medium": "Aus der Geschichte teilweise klar",
+      "low": "Die Geschichte sagt wenig über den Grund"
+    }
   }
 }

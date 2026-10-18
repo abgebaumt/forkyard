@@ -204,5 +204,11 @@
     "title": "Der Diff ließ sich nicht laden",
     "retry": "Erneut versuchen",
     "backToGraph": "Zurück zum Graphen"
+  },
+  "whyLine": {
+    "noLine": "diese Zeile hat keine Zeilennummer",
+    "notCommitted": "die Zeile ist noch nicht committet",
+    "indexOnly": "die entfernte Zeile steht nur im Staging-Bereich, in keinem Commit",
+    "stash": "für Stashes nicht verfügbar"
   }
 }

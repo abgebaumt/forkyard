@@ -41,7 +41,14 @@ export type CenterView =
   /** "Compose commits" (v1.2, 3.2): the local changes as units, grouped into commits. */
   | { kind: "compose" };
 
-export type RightPanel = "details" | "stash_form";
+export type RightPanel = "details" | "stash_form" | "archaeology";
+
+/** Line whose history the right panel shows (`rightPanel: "archaeology"`); `sha: null` = working directory. */
+export interface ArchaeologyTarget {
+  path: string;
+  line: number;
+  sha: Sha | null;
+}
 
 /** Search in the graph. Hits and the active hit, so the graph can highlight them. */
 export interface GraphSearch {
@@ -64,6 +71,8 @@ export interface TabView {
   /** Request to the graph to scroll to this commit. `nonce` changes with every request. */
   /** `key`: graph row to scroll to when it is not the commit row itself (a stash row). */
   reveal: { sha: Sha; nonce: number; key?: string } | null;
+  /** Line shown in the right panel (`rightPanel: "archaeology"`). */
+  archaeology: ArchaeologyTarget | null;
 }
 
 export const defaultTabView = (): TabView => ({
@@ -76,6 +85,7 @@ export const defaultTabView = (): TabView => ({
   leftCollapsed: false,
   rightCollapsed: false,
   reveal: null,
+  archaeology: null,
 });
 
 // ---------------------------------------------------------------------------
@@ -215,6 +225,8 @@ export interface AppState {
   closeCenter(tabId: Id): void;
 
   setRightPanel(tabId: Id, panel: RightPanel): void;
+  /** Opens the history of one line in the right panel. */
+  openArchaeology(tabId: Id, target: ArchaeologyTarget): void;
   openStashForm(tabId: Id): void;
 
   setSearchOpen(tabId: Id, open: boolean): void;
@@ -315,6 +327,7 @@ export const useAppStore = create<AppState>()((set, get) => {
 
     setRightPanel: (tabId, panel) => patchView(tabId, { rightPanel: panel, rightCollapsed: false }),
     openStashForm: (tabId) => patchView(tabId, { rightPanel: "stash_form", rightCollapsed: false }),
+    openArchaeology: (tabId, target) => patchView(tabId, { rightPanel: "archaeology", archaeology: { ...target }, rightCollapsed: false }),
 
     setSearchOpen: (tabId, open) =>
       patchView(tabId, (view) => ({ searchOpen: open, search: open ? view.search : { query: "", hits: [], active: -1 } })),

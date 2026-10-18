@@ -14,16 +14,17 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
 import { reportHookOutput } from "./notifications/hooks";
 import { reportSubmoduleUpdate } from "./notifications/submodules";
 import { issueApi, type IssueFilter } from "../screens/Issues/api";
+import { isFixedRev } from "../screens/Archaeology/model";
 import { desktopNotify, wasManualSync } from "./notify";
 import { readStatus } from "./statusOrder";
-import { useAppStore } from "./store";
+import { useAppStore, type ArchaeologyTarget } from "./store";
 import { compileRules, type CompiledRule } from "./ticketLinks";
 import { writesSettled } from "./writeQueue";
 import { parseSearchQuery } from "./searchFilters";
@@ -92,6 +93,7 @@ export const qk = {
   fileHistoryAll: (repoId: Id) => ["repo", repoId, "fileHistory"] as const,
   blame: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "blame", sha, path] as const,
   blameAll: (repoId: Id) => ["repo", repoId, "blame"] as const,
+  lineArchaeology: (repoId: Id, path: string, line: number, sha: Sha | null) => ["repo", repoId, "lineArchaeology", sha, path, line] as const,
   file: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "file", sha, path] as const,
   fileAll: (repoId: Id) => ["repo", repoId, "file"] as const,
   conflict: (repoId: Id, path: string) => ["repo", repoId, "conflict", path] as const,
@@ -353,6 +355,16 @@ export const useBlame = (repoId: Id | null | undefined, path: string | null | un
     staleTime: sha ? Infinity : undefined,
   });
 
+/** History of one line (no AI); a committed state never changes, the working directory follows its changes. */
+export const useLineArchaeology = (repoId: Id | null | undefined, target: ArchaeologyTarget | null) =>
+  useQuery<LineArchaeology>({
+    queryKey: qk.lineArchaeology(repoId ?? "", target?.path ?? "", target?.line ?? 0, target?.sha ?? null),
+    queryFn: () => core.lineArchaeology({ repoId: repoId!, path: target!.path, line: target!.line, sha: target!.sha }),
+    enabled: enabledFor(repoId) && Boolean(target),
+    staleTime: isFixedRev(target?.sha) ? Infinity : undefined,
+    retry: false,
+  });
+
 export const useFileContent = (repoId: Id | null | undefined, path: string | null | undefined, sha: Sha | null) =>
   useQuery({
     queryKey: qk.file(repoId ?? "", path ?? "", sha),
@@ -528,6 +540,9 @@ function dependsOnWorktree(query: Query): boolean {
     case "blame":
     case "tree":
       return key[3] === null;
+    // A working-directory line is traced through blame; `HEAD` moves; a full SHA never changes.
+    case "lineArchaeology":
+      return !isFixedRev(key[3]);
     // Submodule state and the LFS patterns (.gitattributes) depend on the working directory.
     // `.forkyard/commands.json` (custom commands) as well.
     case "submodules":
@@ -545,7 +560,7 @@ function dependsOnWorktree(query: Query): boolean {
 const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
-const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules"]);
+const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology"]);
 const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
 
 /** What a `repo:changed` means for a repo's queries. */

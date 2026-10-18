@@ -76,5 +76,51 @@
     "ageScaleLabel": "Color by commit age: strong is new ({{newest}}), pale is old ({{oldest}})",
     "new": "new",
     "old": "old"
+  },
+  "menu": {
+    "label": "Line {{line}}",
+    "copyLine": "Copy line",
+    "showCommit": "Show commit",
+    "previousVersion": "Blame of the previous version",
+    "why": "Why is this so?",
+    "lineHistory": "History of this line"
+  },
+  "archaeology": {
+    "ariaLabel": "History of line {{line}} in {{path}}",
+    "where": "Line {{line}} · {{path}}",
+    "close": "Close",
+    "loading": "Loading the history of the line …",
+    "failed": "The history of this line could not be loaded",
+    "retry": "Try again",
+    "notCommitted": "the line is not committed yet",
+    "steps_one": "{{count}} change",
+    "steps_other": "{{count}} changes",
+    "timelineLabel": "Changes of the line, newest first",
+    "mayHaveMore": "Only the latest 20 changes are shown.",
+    "introduced": "The line starts here.",
+    "renamedFrom": "Before this change the file was called {{path}}",
+    "openStep": "Show the change of {{sha}} in this file",
+    "inGraph": "In graph",
+    "inGraphLabel": "Show {{sha}} in the graph",
+    "linked": "Linked",
+    "linkWhat": "the linked page",
+    "hostNotConnected": "Connect the host in Settings › Hosts to see the titles of pull requests and issues.",
+    "hostFailed": "The host did not answer; the links are shown without titles.",
+    "explain": "Explain",
+    "explainHint": "Lets the AI provider summarise why the line looks like this, from the commits, messages and links below. Nothing is changed.",
+    "explaining": "Explaining …",
+    "cancel": "Cancel",
+    "again": "Explain again",
+    "done": "Explanation ready",
+    "whatIsSent": "What is sent?",
+    "summaryLabel": "Explanation",
+    "fromAi": "Written by the AI provider from the history below – check it against the commits.",
+    "setup": "Set up AI …",
+    "showSent": "Show what was sent",
+    "confidence": {
+      "high": "Clear from the history",
+      "medium": "Partly clear from the history",
+      "low": "The history says little about the reason"
+    }
   }
 }
