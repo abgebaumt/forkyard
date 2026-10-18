@@ -1,10 +1,11 @@
 //! "Check each part" (Paket 8.1): the repository's test command on every planned part, each in a
 //! temporary detached worktree `<parent>/<repo>.agents/stack-check-<n>` (Entscheidung 3) that is
 //! removed right afterwards – also after a cancel or an error. The own working directory may be
-//! dirty; it is never touched. A folder of that name that Git does not know as a worktree is never
-//! touched either.
+//! dirty; it is never touched. Coding agents share that folder (an agent on `agent/stack-check-1`
+//! gets `stack-check-1`), so an existing folder of that name – a worktree or not – is never touched:
+//! the check takes the next free name (`stack-check-<n>-2`, …) and removes only what it created.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::app::Core;
@@ -17,29 +18,19 @@ use crate::util;
 
 pub const CHECK_PREFIX: &str = "stack-check-";
 
-fn key(path: &Path) -> String {
-    std::fs::canonicalize(path).map(|c| util::path_key(&c)).unwrap_or_else(|_| util::path_key(path))
-}
+/// How many names per part are tried before the check gives up.
+const MAX_FOLDERS: u32 = 99;
 
-/// Whether Git lists `folder` as a worktree of this repository.
-async fn registered(core: &Core, repo_id: &str, folder: &Path) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.args(["worktree", "list", "--porcelain", "-z"]).read_only().no_log().run().await?;
-    let wanted = key(folder);
-    let found = util::split_z(&out.stdout).filter_map(|field| field.strip_prefix(&b"worktree "[..])).any(|path| key(&util::bytes_to_path(path)) == wanted);
-    Ok(found)
-}
-
-/// A detached worktree at `tip`; a leftover registered worktree of the same name goes first.
-async fn add_worktree(core: &Core, repo_id: &str, folder: &Path, tip: &str) -> CoreResult<()> {
+/// A detached worktree at `tip` in a folder that does not exist yet – the first free one of
+/// `stack-check-<part>`, `stack-check-<part>-2`, …; claimed inside the write lock.
+async fn add_worktree(core: &Core, repo_id: &str, dir: &Path, part: u32, tip: &str) -> CoreResult<PathBuf> {
     core.with_write_lock(repo_id, &[RepoChange::Refs], async {
-        if folder.exists() {
-            if !registered(core, repo_id, folder).await? {
-                return Err(CoreError::path_exists(util::display_path(folder)));
-            }
-            core.git_for(repo_id)?.args(["worktree", "remove", "--force", "--force"]).arg(folder).run().await?;
-        }
-        core.git_for(repo_id)?.args(["worktree", "add", "--detach"]).arg(folder).arg(tip).run().await?;
-        Ok(())
+        let folder = (1..=MAX_FOLDERS)
+            .map(|n| if n == 1 { dir.join(format!("{CHECK_PREFIX}{part}")) } else { dir.join(format!("{CHECK_PREFIX}{part}-{n}")) })
+            .find(|path| !path.exists() && std::fs::symlink_metadata(path).is_err())
+            .ok_or_else(|| CoreError::path_exists(util::display_path(&dir.join(format!("{CHECK_PREFIX}{part}")))))?;
+        core.git_for(repo_id)?.args(["worktree", "add", "--detach"]).arg(&folder).arg(tip).run().await?;
+        Ok(folder)
     })
     .await
 }
@@ -66,8 +57,7 @@ async fn check_all(core: &Core, repo_id: &str, job: &Job, dir: &Path, command: &
     let mut results = Vec::with_capacity(total);
     for part in parts {
         job.progress(&format!("Checking part {} of {total}", part.number), Some(((part.number as usize - 1) * 100 / total) as u32), "");
-        let folder = dir.join(format!("{CHECK_PREFIX}{}", part.number));
-        add_worktree(core, repo_id, &folder, &part.tip).await?;
+        let folder = add_worktree(core, repo_id, dir, part.number, &part.tip).await?;
         let started = Instant::now();
         let mut proc = checks::shell_command(command).cwd(folder.clone()).timeout(checks::TEST_TIMEOUT).logged(core, Some(repo_id), format!("Stack check: part {}", part.number));
         if let Some(path) = &path {

@@ -479,24 +479,32 @@ mod checks {
         let foreign = agents_folder(&repo).join("stack-check-1");
         std::fs::create_dir_all(&foreign).unwrap();
         std::fs::write(foreign.join("eigene Notiz.txt"), "bleibt\n").unwrap();
-        let error = stack_check(&tc, id.clone(), "chk-3".into(), "pruefen".into(), MAIN.into(), cuts()).await.unwrap_err();
-        assert_eq!(error.code, ErrorCode::PathExists);
+        let results = stack_check(&tc, id.clone(), "chk-3".into(), "pruefen".into(), MAIN.into(), cuts()).await.unwrap();
+        assert_eq!(results.iter().map(|r| r.state).collect::<Vec<_>>(), [StackCheckState::Passed; 2], "checked in another folder");
         assert_eq!(std::fs::read(foreign.join("eigene Notiz.txt")).unwrap(), b"bleibt\n", "not Forkyard's: untouched");
+        assert_eq!(std::fs::read_dir(&foreign).unwrap().count(), 1, "nothing was added to the foreign folder");
         assert_eq!(worktrees(&repo), 1);
     }
 
+    /// An agent started on `agent/stack-check-1` lives in `<repo>.agents/stack-check-1` – the folder
+    /// a check of part 1 would take. Its worktree, lock and uncommitted work stay untouched.
     #[tokio::test]
-    async fn a_leftover_worktree_of_an_earlier_check_is_replaced() {
+    async fn an_agent_worktree_in_the_checks_folder_is_left_alone() {
         let repo = checked_repo();
         let (tc, id) = opened(&repo).await;
-        repo_settings_set(&tc, id.clone(), json!({ "testCommand": "test -f ok.txt" })).await.unwrap();
-        let leftover = agents_folder(&repo).join("stack-check-1");
+        repo_settings_set(&tc, id.clone(), json!({ "testCommand": "test -f ok.txt && pwd" })).await.unwrap();
+        let agent = agents_folder(&repo).join("stack-check-1");
         std::fs::create_dir_all(agents_folder(&repo)).unwrap();
-        repo.git(&["worktree", "add", "-q", "--detach", leftover.to_str().unwrap(), "main"]);
-        let results = stack_check(&tc, id.clone(), "chk-4".into(), "pruefen".into(), MAIN.into(), vec![cut(2, "")]).await.unwrap();
-        assert_eq!(results.iter().map(|r| r.state).collect::<Vec<_>>(), [StackCheckState::Passed], "the leftover at main has no ok.txt – the new one at the tip has");
-        assert!(!leftover.exists());
-        assert_eq!(worktrees(&repo), 1);
+        repo.git(&["worktree", "add", "-q", "-b", "agent/stack-check-1", agent.to_str().unwrap(), "main"]);
+        repo.git(&["worktree", "lock", "--reason", "Coding agent", agent.to_str().unwrap()]);
+        std::fs::write(agent.join("halbfertig.txt"), b"Arbeit des Agenten\r\nohne Schluss").unwrap();
+        let results = stack_check(&tc, id.clone(), "chk-4".into(), "pruefen".into(), MAIN.into(), vec![cut(1, ""), cut(2, "")]).await.unwrap();
+        assert_eq!(results.iter().map(|r| r.state).collect::<Vec<_>>(), [StackCheckState::Failed, StackCheckState::Passed]);
+        assert!(!results[1].output.trim().ends_with("/stack-check-1"), "not run in the agent's folder: {}", results[1].output);
+        assert_eq!(std::fs::read(agent.join("halbfertig.txt")).unwrap(), b"Arbeit des Agenten\r\nohne Schluss", "the agent's work stays");
+        let listed = repo.git(&["worktree", "list", "--porcelain"]);
+        assert!(listed.contains("branch refs/heads/agent/stack-check-1") && listed.contains("locked Coding agent"), "{listed}");
+        assert_eq!(worktrees(&repo), 2, "main and the agent's worktree, the check's are gone");
     }
 
     #[tokio::test]
