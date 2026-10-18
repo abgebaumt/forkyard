@@ -38,11 +38,6 @@ async function setup(t, { connect = true, open = true, prepare = null } = {}) {
   // Own Secret Service per app: tokens never reach the user's keychain, and a locked desktop
   // keyring (overnight runs) does not break the scenarios.
   const keyring = await startPrivateKeyring();
-  const app = await t.launch({ lang: "en", theme: "light", width: 1440, height: 900, env: keyring?.env ?? {} });
-  await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
-  if (connect) await app.invoke("host_connect", { kind: "gitea", baseUrl: gitea.base, token: gitea.token, username: null });
-  const ids = open ? await app.openRepo(repo.path) : null;
-  if (open) await app.settle();
   // The app itself is closed by lib.mjs after the scenario (after a FAIL screenshot); the private
   // keyring with the test token disappears here.
   const cleanup = async () => {
@@ -50,7 +45,19 @@ async function setup(t, { connect = true, open = true, prepare = null } = {}) {
     await keyring?.close();
     repo.cleanup();
   };
-  return { repo, gitea, app, ids, cleanup };
+  try {
+    const app = await t.launch({ lang: "en", theme: "light", width: 1440, height: 900, env: keyring?.env ?? {} });
+    await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
+    if (connect) await app.invoke("host_connect", { kind: "gitea", baseUrl: gitea.base, token: gitea.token, username: null });
+    const ids = open ? await app.openRepo(repo.path) : null;
+    if (open) await app.settle();
+    return { repo, gitea, app, ids, cleanup };
+  } catch (error) {
+    // The scenario never gets the cleanup: left running, the servers and the bus keep this
+    // feature process alive after its last scenario and the whole run waits for it.
+    await cleanup().catch(() => undefined);
+    throw error;
+  }
 }
 
 /** JSON with sorted keys – request bodies are compared independent of key order. */
