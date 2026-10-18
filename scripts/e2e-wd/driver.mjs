@@ -756,9 +756,18 @@ export async function launchApp(options = {}) {
 
     /** Clicks an element (element, CSS selector or { text }); waits for selectors to appear. */
     async click(target) {
-      const el = await resolveTarget(target);
-      await wd.call("POST", `/element/${el.id}/click`, {});
-      return el;
+      // A selector or text names whatever the page shows now: when React replaced the node
+      // between finding and clicking it (a refetch re-rendered the list), find it again – a
+      // user's click would hit the new node. An element handle is clicked as it is.
+      for (let attempt = 1; ; attempt++) {
+        const el = await resolveTarget(target);
+        try {
+          await wd.call("POST", `/element/${el.id}/click`, {});
+          return el;
+        } catch (error) {
+          if (target?.__element || attempt >= 3 || !/stale element reference/.test(error.message)) throw error;
+        }
+      }
     },
 
     /** Types text into an element (element, CSS selector or { text }). */
