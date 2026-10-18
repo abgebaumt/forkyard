@@ -458,6 +458,42 @@ scenario("palette: arrows and Ctrl+P move the selection, Esc returns the focus",
   }
 });
 
+scenario("palette: shortcuts read as Ctrl/Strg text on Linux, never as macOS glyphs", "main", async (t) => {
+  const MAC_GLYPHS = /[⌘⌥⇧⌃↩]/;
+  for (const [lang, ctrl] of [["en", "Ctrl"], ["de", "Strg"]]) {
+    const app = await t.launch({ ...LAUNCH, lang });
+    await openPalette(app, "F1");
+    const settingsKeys = await app.waitFor(
+      () => app.exec((root) => {
+        const row = document.querySelector(`${root} [role="option"][data-key="command:app.preferences"]`);
+        return row ? [...row.querySelectorAll("kbd")].map((kbd) => kbd.textContent) : null;
+      }, PALETTE),
+      5000,
+      { message: `settings command listed (${lang})` },
+    );
+    assertEqual(settingsKeys, [ctrl, ","], `settings shortcut as key caps (${lang})`);
+    const caps = await app.exec((root) => [...document.querySelectorAll(`${root} kbd`)].map((kbd) => kbd.textContent), PALETTE);
+    assert(caps.includes(ctrl), `palette shows ${ctrl} (${lang}): ${caps.join(" ")}`);
+    assert(caps.includes("Shift"), `palette shows Shift (${lang}): ${caps.join(" ")}`);
+    const glyphs = caps.filter((cap) => MAC_GLYPHS.test(cap));
+    assertEqual(glyphs, [], `no macOS glyph among the key caps (${lang})`);
+    assert(!MAC_GLYPHS.test(await paletteText(app)), `no macOS glyph in the palette text (${lang})`);
+    await t.shot(`palette-linux-keys-${lang}`);
+    await app.press("Escape");
+    await paletteClosed(app);
+
+    // The shortcut overview names the same keys the same way.
+    await app.press("Control+/");
+    await app.waitFor('[data-screen="shortcuts"]', 5000, { message: `shortcut overlay (${lang})` });
+    const overview = await app.exec(() => document.querySelector('[data-screen="shortcuts"]')?.innerText ?? "");
+    assertIncludes(overview, ctrl, `overview shows ${ctrl} (${lang})`);
+    assert(!MAC_GLYPHS.test(overview), `no macOS glyph in the shortcut overview (${lang})`);
+    await app.press("Control+/");
+    await t.noConsoleErrors(app);
+    await app.close();
+  }
+});
+
 // ---------------------------------------------------------------------------------------------
 // Keyboard shortcuts (1.0)
 // ---------------------------------------------------------------------------------------------
