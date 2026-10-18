@@ -30,6 +30,8 @@ fn line_patch_keeps_bytes_crlf_latin1_bom_and_missing_newline() {
     // No final newline: replacing the last line keeps it open; replacing another line leaves it alone.
     assert_eq!(applied("b.txt", b"a\nb\nc", 3, 3, "C"), b"a\nb\nC");
     assert_eq!(applied("b.txt", b"a\nb\nc", 2, 2, "B\nB2\n"), b"a\nB\nB2\nc");
+    // CRLF without final newline: lines added before the open last line still end in CRLF.
+    assert_eq!(applied("c.txt", b"a\r\nb\r\nc", 3, 3, "C\nD"), b"a\r\nb\r\nC\r\nD");
     // Latin-1 (windows-1252): the text goes back in the file's encoding.
     assert_eq!(applied("l.txt", b"Gr\xfc\xdfe\nzwei\n", 1, 1, "Grüße, neu"), b"Gr\xfc\xdfe, neu\nzwei\n");
     // UTF-8 with BOM: the mark stays in front of the first line.

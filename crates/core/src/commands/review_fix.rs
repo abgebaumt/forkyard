@@ -90,9 +90,9 @@ fn emit(patch: &mut Vec<u8>, sign: u8, line: &[u8]) {
 }
 
 /// The patch that replaces lines `start..=end` (1-based) of `blob` with `new_text`, with three lines of
-/// context. The new lines get the line ending of the first replaced line; a range ending at a last line
-/// without final newline keeps it that way; the text is encoded like the file (UTF-8, UTF-8 with BOM,
-/// otherwise windows-1252). Refused (`not_allowed`): binary and UTF-16 files, lines outside the file, a
+/// context. The new lines get the line ending of the first replaced line (of the line before it when that
+/// one is an open last line); a range ending at a last line without final newline keeps it that way; the
+/// text is encoded like the file (UTF-8, UTF-8 with BOM, otherwise windows-1252). Refused (`not_allowed`): binary and UTF-16 files, lines outside the file, a
 /// text with NUL, over 64 KiB or with characters the encoding cannot hold, and a text that changes nothing.
 pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str) -> CoreResult<LinePatch> {
     if history::is_binary_content(blob) {
@@ -111,7 +111,9 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
         return Err(CoreError::not_allowed(format!("Lines {start}–{end} are not in “{path}”, which has {count} lines.")));
     }
     let (first, last) = (start as usize - 1, end as usize);
-    let eol: &[u8] = if lines[first].ends_with(b"\r\n") { b"\r\n" } else { b"\n" };
+    // An open last line has no ending of its own; then the line before it tells the file's ending.
+    let eol_line = if lines[first].ends_with(b"\n") || first == 0 { lines[first] } else { lines[first - 1] };
+    let eol: &[u8] = if eol_line.ends_with(b"\r\n") { b"\r\n" } else { b"\n" };
     let open_end = last == count && !lines[last - 1].ends_with(b"\n");
     let bom: &[u8] = if first == 0 && encoding == UTF8_BOM { &blob[..3] } else { &[] };
     let plain = if encoding == UTF8_BOM { "utf-8" } else { encoding.as_str() };
