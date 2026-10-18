@@ -189,7 +189,10 @@ async fn the_log_names_the_command_but_never_stdin_stdout_or_stderr() {
 }
 
 /// A small program in `dir` that prints "fake-tool 1.2.3 <first argument>": a shell script on Unix,
-/// a batch file on Windows.
+/// a batch file on Windows. On Unix the script is written under a draft name and copied into place
+/// by a separate `cp` process: a write handle held by this (multi-threaded) test process would be
+/// inherited by a child another test forks at that moment, and starting the script would then fail
+/// with "Text file busy" (ETXTBSY).
 fn fake_tool(dir: &Path, name: &str) -> PathBuf {
     if cfg!(windows) {
         let path = dir.join(format!("{name}.cmd"));
@@ -197,12 +200,15 @@ fn fake_tool(dir: &Path, name: &str) -> PathBuf {
         path
     } else {
         let path = dir.join(name);
-        std::fs::write(&path, "#!/bin/sh\nprintf 'fake-tool 1.2.3 %s\\n' \"$1\"\n").unwrap();
+        let draft = dir.join(format!("{name}.draft"));
+        std::fs::write(&draft, "#!/bin/sh\nprintf 'fake-tool 1.2.3 %s\\n' \"$1\"\n").unwrap();
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+            std::fs::set_permissions(&draft, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
+        let status = std::process::Command::new("cp").arg("--").arg(&draft).arg(&path).status();
+        assert!(matches!(status, Ok(status) if status.success()), "copy {} → {}: {status:?}", draft.display(), path.display());
         path
     }
 }
