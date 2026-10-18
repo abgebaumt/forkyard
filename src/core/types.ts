@@ -1079,6 +1079,55 @@ export interface AiUsageSummary {
   rows: AiUsageRow[];
 }
 
+/** Which way the search by meaning goes (Entscheidung 7). */
+export type AiSearchRoute = "local_embeddings" | "provider_embeddings" | "rephrase";
+
+/** `aiSemanticStatus`: the way of the search and the index of this repository. */
+export interface AiSemanticStatus {
+  route: AiSearchRoute;
+  /** The embedder, or the main provider when rephrasing. */
+  provider: AiProviderKind | null;
+  model: string | null;
+  indexed: number;
+  /** "Meaning" was used for this repository with this model. */
+  used: boolean;
+  local: boolean;
+}
+
+export interface AiSemanticHit {
+  commit: CommitSummary;
+  /** Cosine similarity (embedding routes). */
+  score: number | null;
+  /** The model's reason (rephrase route). */
+  reason: string | null;
+  /** Words of the question found in the subject. */
+  matchedTerms: string[];
+}
+
+export interface AiSemanticResult {
+  route: AiSearchRoute;
+  /** Best first, at most 50. */
+  hits: AiSemanticHit[];
+  indexed: number;
+  /** More commits than the index takes (200 000). */
+  capped: boolean;
+  /** false: the ranking request would have needed a confirmation and was skipped (newest first). */
+  ranked: boolean;
+  /** Rephrase route: the search that ran (`pickaxe` = code text). */
+  filters: CommitSearchFilters | null;
+  terms: string[];
+  author: string | null;
+  /** Paths or dates of the model's answer that were invalid and not used. */
+  ignored: string[];
+}
+
+/** Background growth: `waiting` = new commits need a confirmation, left for the next search. */
+export interface AiSemanticIndexUpdate {
+  added: number;
+  removed: number;
+  waiting: boolean;
+}
+
 /** `aiPrDescription`: a suggestion for title and description – nothing is written anywhere. */
 export interface AiPrDescription {
   /** One line, at most 300 characters. */

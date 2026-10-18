@@ -1250,3 +1250,25 @@ pub async fn ai_review_fix(core: State<'_, Core>, repo_id: String, job_id: Strin
 pub async fn review_fix_apply(core: State<'_, Core>, repo_id: String, number: u64, fix: ReviewFixInput, target: String) -> R<ReviewFixApplied> {
     c::review_fix::review_fix_apply(&core, repo_id, number, fix, target).await
 }
+
+// --- Search by meaning (v1.2) ---------------------------------------------------
+
+#[tauri::command]
+pub async fn ai_semantic_status(core: State<'_, Core>, repo_id: String) -> R<AiSemanticStatus> {
+    c::ai_search::ai_semantic_status(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn ai_semantic_search(core: State<'_, Core>, repo_id: String, job_id: String, query: String, locale: String) -> R<AiSemanticResult> {
+    c::ai_search::ai_semantic_search(&core, repo_id, job_id, query, locale).await
+}
+
+#[tauri::command]
+pub async fn ai_semantic_index_update(core: State<'_, Core>, repo_id: String, job_id: String) -> R<AiSemanticIndexUpdate> {
+    c::ai_search::ai_semantic_index_update(&core, repo_id, job_id).await
+}
+
+#[tauri::command]
+pub async fn ai_semantic_index_delete(core: State<'_, Core>) -> R<u64> {
+    c::ai_search::ai_semantic_index_delete(&core).await
+}

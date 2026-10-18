@@ -137,6 +137,9 @@ import type {
   Workspace,
   WorkspaceRunResult,
   Worktree,
+  AiSemanticIndexUpdate,
+  AiSemanticResult,
+  AiSemanticStatus,
 } from "./types";
 
 type R = { repoId: Id };
@@ -938,6 +941,20 @@ export interface CoreCommands {
   aiPreviewReset(): Promise<void>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+  // --- Search by meaning (v1.2, 9.2) ---
+  /** The way of the search by meaning for this repository and the size of its index – sends nothing. */
+  aiSemanticStatus(input: R): Promise<AiSemanticStatus>;
+  /**
+   * Search by meaning as job `jobId` (`job:progress` phase `index` while the index grows; `jobCancel`).
+   * Confirm `aiPreview` with `{ kind: "semantic_search", query }` first when it asks. Errors: `ai_disabled`,
+   * `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`, `ai_refused`, `ai_limit_reached`,
+   * `not_allowed` (not confirmed, empty question), `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiSemanticSearch(input: R & { jobId: string; query: string; locale: string }): Promise<AiSemanticResult>;
+  /** Background growth after fetch/commit: nothing before the first search, never a question (`waiting`). */
+  aiSemanticIndexUpdate(input: R & { jobId: string }): Promise<AiSemanticIndexUpdate>;
+  /** "Delete index": every repository and model; returns the number of indexes removed. */
+  aiSemanticIndexDelete(): Promise<number>;
   /**
    * Paket 4: title and description of a pull request from the commits of `source` that `target`
    * does not have (full ref names: `refs/heads/…`, `refs/remotes/<remote>/…`). Fills the repository's

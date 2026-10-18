@@ -632,7 +632,11 @@ pub fn run() {
             commands::stack_push,
             commands::stack_prs_create,
             commands::stack_check,
-            commands::ai_stack_split
+            commands::ai_stack_split,
+            commands::ai_semantic_status,
+            commands::ai_semantic_search,
+            commands::ai_semantic_index_update,
+            commands::ai_semantic_index_delete
         ])
         .build(context);
     match result {

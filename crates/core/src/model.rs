@@ -1543,6 +1543,32 @@ pub struct AiSemanticResult {
     pub ignored: Vec<String>,
 }
 
+/// `ai_semantic_status`: the way of the search and the index of this repository (sends nothing).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticStatus {
+    pub route: AiSearchRoute,
+    /// The embedder (embedding routes) or the main provider (rephrasing).
+    pub provider: Option<AiProviderKind>,
+    pub model: Option<String>,
+    /// Commits in the index of this repository and model.
+    pub indexed: u64,
+    /// An index of this repository and model exists – "Meaning" was used.
+    pub used: bool,
+    /// Runs on this computer (for "local models take longer").
+    pub local: bool,
+}
+
+/// `ai_semantic_index_update`: what the background growth did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiSemanticIndexUpdate {
+    pub added: u64,
+    pub removed: u64,
+    /// New commits would need a confirmation: left for the next search.
+    pub waiting: bool,
+}
+
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

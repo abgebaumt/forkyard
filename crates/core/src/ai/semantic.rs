@@ -39,7 +39,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::{CancelToken, Job};
 use crate::commands::graph::commit_summaries;
-use crate::model::{AiFeature, AiOmitReason, AiOmitted, AiPreview, AiProviderKind, AiSearchRoute, AiSemanticHit, AiSemanticResult, AiState, AiStructuredMode, CommitSummary, Settings};
+use crate::model::{AiFeature, AiOmitReason, AiOmitted, AiPreview, AiProviderKind, AiSearchRoute, AiSemanticHit, AiSemanticIndexUpdate, AiSemanticResult, AiSemanticStatus, AiState, AiStructuredMode, CommitSummary, Settings};
 use crate::util;
 
 /// At most this many commits are indexed (newest first); spec: "Obergrenze 200 000 Commits".
@@ -431,4 +431,66 @@ async fn embed_and_score(core: &Core, id: i64, job: &Job, embedder: &Embedder, q
     // The linear scan reads the whole index: off the async threads.
     let core = core.clone();
     tokio::task::spawn_blocking(move || index::scores(&core, id, &asked)).await.map_err(|error| CoreError::unknown(format!("The search stopped: {error}")))?
+}
+
+/// The way, the model and the size of the index of this repository – sends nothing.
+pub fn status(core: &Core, repo_id: &str) -> CoreResult<AiSemanticStatus> {
+    let settings = core.settings()?;
+    let Some(choice) = choose(&settings) else {
+        return Ok(AiSemanticStatus {
+            route: AiSearchRoute::Rephrase,
+            provider: settings.ai_provider,
+            model: settings.ai_model.clone(),
+            indexed: 0,
+            used: false,
+            local: settings.ai_provider.is_some_and(AiProviderKind::is_local),
+        });
+    };
+    let (indexed, used) = match index::find(core, repo_id, choice.kind.as_str(), &choice.model)? {
+        Some(id) => (index::count(core, id)?, true),
+        None => (0, false),
+    };
+    Ok(AiSemanticStatus { route: choice.route, provider: Some(choice.kind), local: choice.kind.is_local(), model: Some(choice.model), indexed, used })
+}
+
+/// Background growth after a fetch or commit: nothing before the first search of this repository
+/// with this model, nothing while AI is off, never a confirmation (`waiting` instead).
+pub async fn index_update(core: &Core, repo_id: &str, job_id: &str) -> CoreResult<AiSemanticIndexUpdate> {
+    let nothing = AiSemanticIndexUpdate { added: 0, removed: 0, waiting: false };
+    let settings = match run::ensure_allowed(core, Some(repo_id), AiFeature::SemanticSearch) {
+        Ok(settings) => settings,
+        Err(error) if error.code == ErrorCode::AiDisabled => return Ok(nothing),
+        Err(error) => return Err(error),
+    };
+    let Some(embedder) = embedder(core, &settings).await? else { return Ok(nothing) };
+    if index::find(core, repo_id, embedder.choice.kind.as_str(), &embedder.choice.model)?.is_none() {
+        return Ok(nothing);
+    }
+    // A search or another update is busy with this index: it takes the new commits along.
+    let Ok(_guard) = index_lock(core, repo_id).try_lock_owned() else { return Ok(nothing) };
+    let job = core.start_job(job_id, Some(repo_id))?;
+    run::track(core, job_id);
+    let result = grow(core, repo_id, &job, &settings, &embedder).await;
+    run::untrack(core, job_id);
+    job.finish(&result);
+    result
+}
+
+async fn grow(core: &Core, repo_id: &str, job: &Job, settings: &Settings, embedder: &Embedder) -> CoreResult<AiSemanticIndexUpdate> {
+    let plan = plan(core, repo_id, embedder, settings, MAX_COMMITS, job.token()).await?;
+    let Some(id) = plan.index_id else { return Ok(AiSemanticIndexUpdate { added: 0, removed: 0, waiting: false }) };
+    let removed = index::remove(core, id, &plan.stale)? as u64;
+    if plan.pending.is_empty() {
+        return Ok(AiSemanticIndexUpdate { added: 0, removed, waiting: false });
+    }
+    let text = request_text(None, &plan.pending);
+    let chars = text.chars().count() as u64;
+    let costs = costs(core, settings, embedder, chars)?;
+    if !gate::pending(core, settings, &situation(repo_id, chars, &costs, embedder.local()))?.is_empty() {
+        return Ok(AiSemanticIndexUpdate { added: 0, removed, waiting: true });
+    }
+    let mut sending = Sending::new();
+    let outcome = embed_pending(core, id, None, job.token(), embedder, &plan.pending, &mut sending).await;
+    record_embedding(core, repo_id, settings, embedder, &sending, outcome.as_ref().err().map(|error| error.code));
+    Ok(AiSemanticIndexUpdate { added: outcome?, removed, waiting: false })
 }
