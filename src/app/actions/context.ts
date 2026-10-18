@@ -4,7 +4,7 @@
  * if something is missing from the cache, "unknown" applies and the core checks on execution.
  */
 import type { InfiniteData } from "@tanstack/react-query";
-import { core, type BisectStatus, type GraphPage, type GraphRow, type Id, type Ref, type RefsSnapshot, type Remote, type RepoViewState, type Settings, type Sha, type Stash, type Status, type UndoState } from "../../core";
+import { core, type AiStatus, type BisectStatus, type GraphPage, type GraphRow, type Id, type Ref, type RefsSnapshot, type Remote, type RepoSettings, type RepoViewState, type Settings, type Sha, type Stash, type Status, type UndoState } from "../../core";
 import { qk, queryClient } from "../queries";
 import { loadStatus } from "../statusCache";
 
@@ -16,6 +16,8 @@ export const cachedSettings = () => queryClient.getQueryData<Settings>(qk.settin
 export const cachedViewState = (repoId: Id) => queryClient.getQueryData<RepoViewState>(qk.viewState(repoId));
 export const cachedBisect = (repoId: Id) => queryClient.getQueryData<BisectStatus>(qk.bisect(repoId));
 export const cachedUndo = (repoId: Id) => queryClient.getQueryData<UndoState>(qk.undo(repoId));
+export const cachedAiStatus = () => queryClient.getQueryData<AiStatus>(qk.aiStatus);
+export const cachedRepoSettings = (repoId: Id) => queryClient.getQueryData<RepoSettings>(qk.repoSettings(repoId));
 
 /** All loaded graph rows in display order (newest first). */
 export function cachedGraphRows(repoId: Id): GraphRow[] {

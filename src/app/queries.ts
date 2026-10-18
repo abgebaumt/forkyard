@@ -114,6 +114,8 @@ export const qk = {
   // Host integration (GitHub, GitLab): the app's accounts, the repository's host, pull requests.
   hostAccounts: ["app", "hostAccounts"] as const,
   hostRepo: (repoId: Id) => ["repo", repoId, "hostRepo"] as const,
+  /** Release notes: the commits since the last tag up to `to` (null = HEAD). */
+  releaseNotesRange: (repoId: Id, to: string | null) => ["repo", repoId, "releaseNotesRange", to ?? "HEAD"] as const,
   prLists: (repoId: Id) => ["repo", repoId, "prs"] as const,
   prList: (repoId: Id, state: PrListState) => ["repo", repoId, "prs", state] as const,
   prs: (repoId: Id) => ["repo", repoId, "pr"] as const,
@@ -447,6 +449,14 @@ export const useHostRepo = (repoId: Id | null | undefined) =>
     queryFn: () => hostApi.repoInfo(repoId!, queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts) ?? []),
     enabled: enabledFor(repoId),
     staleTime: HOST_STALE_MS,
+  });
+
+/** "n commits since v1.1.0" of the release notes – no AI, no network. */
+export const useReleaseNotesRange = (repoId: Id | null | undefined, to: string | null) =>
+  useQuery({
+    queryKey: qk.releaseNotesRange(repoId ?? "", to),
+    queryFn: () => core.releaseNotesRange({ repoId: repoId!, from: null, to }),
+    enabled: enabledFor(repoId),
   });
 
 /** Pull requests page by page (page 1 first). */

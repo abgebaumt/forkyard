@@ -1201,6 +1201,21 @@ pub async fn ai_usage(core: State<'_, Core>) -> R<AiUsageSummary> {
 }
 
 #[tauri::command]
+pub async fn release_notes_range(core: State<'_, Core>, repo_id: String, from: Option<String>, to: Option<String>) -> R<ReleaseNotesRange> {
+    c::release_notes::release_notes_range(&core, repo_id, from, to).await
+}
+
+#[tauri::command]
+pub async fn ai_release_notes(core: State<'_, Core>, repo_id: String, job_id: String, from: Option<String>, to: Option<String>, locale: String) -> R<ReleaseNotes> {
+    c::release_notes::ai_release_notes(&core, repo_id, job_id, from, to, locale).await
+}
+
+#[tauri::command]
+pub async fn changelog_insert(core: State<'_, Core>, repo_id: String, version: String, date: String, notes: String) -> R<ChangelogInsertResult> {
+    c::release_notes::changelog_insert(&core, repo_id, version, date, notes).await
+}
+
+#[tauri::command]
 pub async fn ai_commit_message(core: State<'_, Core>, repo_id: String, job_id: String, locale: String) -> R<AiCommitMessage> {
     c::ai::ai_commit_message(&core, repo_id, job_id, locale).await
 }

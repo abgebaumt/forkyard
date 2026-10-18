@@ -26,6 +26,9 @@ import type {
   AiProviderKind,
   AiStatus,
   AiUsageSummary,
+  ChangelogInsertResult,
+  ReleaseNotes,
+  ReleaseNotesRange,
   CliStatus,
   CrashReportSummary,
   ActivityPage,
@@ -927,6 +930,27 @@ export interface CoreCommands {
   aiPushReview(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; locale: string }): Promise<AiPushReview>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+
+  // --- Release notes (v1.2) ----------------------------------------------------------------------
+  /**
+   * The commits after `from` (null: the nearest earlier tag, tags on `to` itself left out) up to
+   * `to` (null: HEAD), without merges – for "12 commits since v1.1.0". No AI, no network; works in
+   * every AI state. `included` is at most 300 here. `not_found` for unknown refs or a leading "-".
+   */
+  releaseNotesRange(input: R & { from: string | null; to: string | null }): Promise<ReleaseNotesRange>;
+  /**
+   * Writes release notes with the AI provider as job `jobId` (`jobCancel` cancels). Errors as for
+   * every AI request (`ai_disabled`, `ai_not_configured`, `not_allowed` before the confirmation of
+   * "What is sent?", `ai_invalid_answer`, `timeout` …). Without commits: empty `markdown`, nothing sent.
+   */
+  aiReleaseNotes(input: R & { jobId: string; from: string | null; to: string | null; locale: string }): Promise<ReleaseNotes>;
+  /**
+   * Inserts a section "## [<version>] - <date>" (style of the file) with `notes` into CHANGELOG.md
+   * of the working directory, created if missing – a normal, uncommitted change. `date`:
+   * "YYYY-MM-DD". Errors: `name_exists` (the version has a section), `not_allowed` (version, date,
+   * a symbolic link, not UTF-8), `empty_message`, `io`.
+   */
+  changelogInsert(input: R & { version: string; date: string; notes: string }): Promise<ChangelogInsertResult>;
   /**
    * Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
    * wanted (block texts, commit messages of both sides, pull request texts if a host account is

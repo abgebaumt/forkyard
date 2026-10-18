@@ -1083,7 +1083,8 @@ export interface AiStatus {
 export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "conflict_intent"; path: string; blocks: ConflictBlockRange[] }
 
   /** What a push with these arguments would send (review before a push): the outgoing commits and their combined diff. */
-  | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null };
+  | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null }
+  | { kind: "release_notes"; from: string | null; to: string | null };
 
 /** Kind of a hint of the review before a push. Keys are never a kind – they come from the local scan. */
 export type AiPushFindingKind = "debug_output" | "commented_code" | "likely_bug";
@@ -1140,6 +1141,48 @@ export interface AiUsageSummary {
   outputTokens: number;
   costUsd: number;
   rows: AiUsageRow[];
+}
+
+/** The four groups of release notes (Keep a Changelog). */
+export type ReleaseGroupKind = "added" | "changed" | "fixed" | "other";
+/** Language the entries were written in; German and English have their own headings. */
+export type ReleaseLanguage = "de" | "en" | "other";
+
+export interface ReleaseNoteGroup {
+  kind: ReleaseGroupKind;
+  /** "Added" / "Neu" … */
+  heading: string;
+  /** One line each, without the bullet. */
+  entries: string[];
+}
+
+/** Commits after `from` (a tag or the given start; null = from the first commit) up to `toSha`, merges left out. */
+export interface ReleaseNotesRange {
+  from: string | null;
+  fromSha: Sha | null;
+  toSha: Sha;
+  /** All commits of the range. */
+  commits: number;
+  /** How many of them (newest first) go to the provider. */
+  included: number;
+}
+
+export interface ReleaseNotes {
+  range: ReleaseNotesRange;
+  language: ReleaseLanguage;
+  /** Non-empty groups in the order Added, Changed, Fixed, Other. */
+  groups: ReleaseNoteGroup[];
+  /** "### <heading>" blocks with "- " entries; empty without commits. */
+  markdown: string;
+  /** Commits no entry is based on (no visible change). */
+  unmentioned: number;
+}
+
+export interface ChangelogInsertResult {
+  /** Relative to the working directory, e.g. "CHANGELOG.md". */
+  path: string;
+  created: boolean;
+  keepAChangelog: boolean;
 }
 
 /** `aiPrDescription`: a suggestion for title and description – nothing is written anywhere. */
