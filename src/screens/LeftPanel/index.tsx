@@ -14,7 +14,7 @@ import { useBranchHover } from "../../components/graph/useBranchHover";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { PanelSection } from "../../ui/Git";
-import { formatShortcut } from "../../ui/shortcut";
+import { ariaShortcut, formatShortcut } from "../../ui/shortcut";
 import { ContextMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { dropEntries, rowMenu, sectionMenu, sectionTitles } from "./menus";
@@ -831,7 +831,7 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
             role="searchbox"
             data-left-filter
             aria-label={t("sidebar.filter.label")}
-            aria-keyshortcuts={filterHint}
+            aria-keyshortcuts={ariaShortcut(FILTER_SHORTCUT)}
             placeholder={t("sidebar.filter.placeholder", { shortcut: filterHint })}
             spellCheck={false}
             autoComplete="off"

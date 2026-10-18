@@ -1,7 +1,7 @@
 import i18next from "i18next";
 import { afterEach, describe, expect, it } from "vitest";
 import { detectPlatform, t } from "../i18n";
-import { formatShortcut, isMacShortcuts, setShortcutPlatform, shortcutKeys, shortcutPlatform } from "./shortcut";
+import { ariaShortcut, formatShortcut, isMacShortcuts, setShortcutPlatform, shortcutKeys, shortcutPlatform } from "./shortcut";
 
 const en = i18next.getFixedT("en");
 const de = i18next.getFixedT("de");
@@ -101,5 +101,35 @@ describe("shortcut platform", () => {
     expect(detectPlatform(spoofed, "MacIntel")).toBe("mac");
     expect(detectPlatform("Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15", "Linux x86_64")).toBe("linux");
     expect(detectPlatform("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0", "Win32")).toBe("windows");
+  });
+});
+
+describe("ariaShortcut", () => {
+  it("uses the standard key names in every language", () => {
+    expect(ariaShortcut("Mod+Alt+F", { platform: "linux" })).toBe("Control+Alt+F");
+    expect(ariaShortcut("Mod+Alt+F", { platform: "windows" })).toBe("Control+Alt+F");
+    expect(ariaShortcut("Mod+Shift+P", { platform: "windows" })).toBe("Control+Shift+P");
+    expect(ariaShortcut("Ctrl+Tab", { platform: "linux" })).toBe("Control+Tab");
+  });
+
+  it("names Command Meta on macOS and keeps Control apart", () => {
+    expect(ariaShortcut("Mod+Alt+F", { platform: "mac" })).toBe("Alt+Meta+F");
+    expect(ariaShortcut("Ctrl+Tab", { platform: "mac" })).toBe("Control+Tab");
+  });
+
+  it("writes keys as KeyboardEvent.key values", () => {
+    expect(ariaShortcut("Esc", { platform: "linux" })).toBe("Escape");
+    expect(ariaShortcut("Escape", { platform: "linux" })).toBe("Escape");
+    expect(ariaShortcut("Alt+ArrowUp", { platform: "linux" })).toBe("Alt+ArrowUp");
+    expect(ariaShortcut("Mod++", { platform: "linux" })).toBe("Control+Plus");
+    expect(ariaShortcut("Mod+s", { platform: "linux" })).toBe("Control+S");
+    expect(ariaShortcut("F2", { platform: "linux" })).toBe("F2");
+  });
+
+  it("does not depend on the current language or platform", () => {
+    const before = shortcutPlatform();
+    setShortcutPlatform("windows");
+    expect(ariaShortcut("Mod+Alt+F")).toBe("Control+Alt+F");
+    setShortcutPlatform(before);
   });
 });

@@ -106,3 +106,26 @@ export function formatShortcut(shortcut: string, options: ShortcutOptions = {}):
   const mac = (options.platform ?? current) === "mac";
   return shortcutKeys(shortcut, options).join(mac ? "" : "+");
 }
+
+const ARIA_MODIFIERS: Record<Modifier, string> = { Ctrl: "Control", Alt: "Alt", Shift: "Shift", Mod: "Meta" };
+const ARIA_KEYS: Record<string, string> = { Esc: "Escape", "+": "Plus", Del: "Delete" };
+
+/**
+ * Shortcut for `aria-keyshortcuts`: standard KeyboardEvent.key names joined with "+"
+ * ("Control+Alt+F"), independent of the UI language. "Mod" is Meta on macOS, Control elsewhere.
+ */
+export function ariaShortcut(shortcut: string, options: Pick<ShortcutOptions, "platform"> = {}): string {
+  const mac = (options.platform ?? current) === "mac";
+  const parts = shortcut
+    .split("+")
+    .map((part, index, all) => (part === "" && index === all.length - 1 ? "+" : part))
+    .filter(Boolean);
+  const modifiers = new Set<Modifier>();
+  const keys: string[] = [];
+  for (const part of parts) {
+    const modifier = MODIFIER_ALIASES.get(part);
+    if (modifier) modifiers.add(mac || modifier !== "Mod" ? modifier : "Ctrl");
+    else keys.push(ARIA_KEYS[part] ?? (part.length === 1 ? part.toUpperCase() : part));
+  }
+  return [...MODIFIERS.filter((modifier) => modifiers.has(modifier)).map((modifier) => ARIA_MODIFIERS[modifier]), ...keys].join("+");
+}
