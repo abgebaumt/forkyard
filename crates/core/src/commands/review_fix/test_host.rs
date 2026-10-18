@@ -34,7 +34,8 @@ pub(crate) struct PrRepo {
     pub tc: TestCore,
     pub repo: TestRepo,
     pub id: String,
-    pub server: MockServer,
+    /// Only held so the stand-in keeps answering until the test ends.
+    pub _server: MockServer,
     pub state: Arc<Mutex<PrState>>,
     pub main: String,
     pub p1: String,
@@ -91,5 +92,5 @@ pub(crate) async fn pr_repo(threads: Vec<Value>) -> PrRepo {
     crate::host::connect(&tc, HostKind::Github, Some(server.url()), TOKEN.to_string()).await.expect("connect the stand-in");
     let id = tc.open(&repo).await.repo.id;
     server.clear();
-    PrRepo { tc, repo, id, server, state, main, p1, p2 }
+    PrRepo { tc, repo, id, _server: server, state, main, p1, p2 }
 }
