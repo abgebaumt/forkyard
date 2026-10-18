@@ -53,6 +53,8 @@ export interface LineViewProps {
   onPatch: (action: PatchAction, target: PatchTarget) => void;
   /** Put the selected lines aside for a partial stash; missing = not offered. */
   onStash?: () => void;
+  /** More entries for a code row, after a separator (v1.2: “Why is this so?”); missing = none. */
+  lineMenu?: (row: LineRow) => MenuEntry[];
   onToggleFold: (id: number) => void;
   /** Reports which change block the cursor is in (−1 = before the first). */
   onChangeIndex?: (index: number) => void;
@@ -258,7 +260,7 @@ function FoldHead({ row, index, isCursor, onToggle }: { row: FoldRow; index: num
 // ---------------------------------------------------------------------------
 
 export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineView(
-  { diff, model, mode, wrap, patchMode, canPatch, busy, code, oldTokens, newTokens, words, selected, onSelectedChange, onPatch, onStash, onToggleFold, onChangeIndex, label },
+  { diff, model, mode, wrap, patchMode, canPatch, busy, code, oldTokens, newTokens, words, selected, onSelectedChange, onPatch, onStash, lineMenu, onToggleFold, onChangeIndex, label },
   ref,
 ) {
   const { rows, changeStarts } = model;
@@ -657,6 +659,10 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
             [`@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@${hunk.section ? ` ${hunk.section}` : ""}`, ...hunk.lines.map((line) => `${line.kind === "add" ? "+" : line.kind === "remove" ? "-" : " "}${line.text}`)].join("\n"),
           ),
       });
+    }
+    if (row?.type === "line" && lineMenu) {
+      const more = lineMenu(row);
+      if (more.length) entries.push({ type: "separator" }, ...more);
     }
     return entries;
   };

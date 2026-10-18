@@ -13,8 +13,9 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type
 import type { DiffMode, DiffSource, FileChange, FileDiff, Id, TextDiff } from "../../core";
 import { openDiffTool } from "../../app/actions/tools";
 import { hasOpenDialog } from "../../app/dialogs";
+import { featureVisible } from "../../app/ai/visibility";
 import { toCoreError } from "../../app/errors";
-import { useCommitDetails, useDiff, useSettings, useStatus } from "../../app/queries";
+import { useAiStatus, useCommitDetails, useDiff, useRepoSettings, useSettings, useStatus } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { useLineTokens } from "../../components/code/highlight";
@@ -28,6 +29,7 @@ import "./diff.css";
 import { LineView, type LineViewHandle, type PatchTarget } from "./LineView";
 import { WordDiffCache, buildFileRows, buildHunkRows, hunkToPatch, patchModeOf, selectionToPatch, sourceKey } from "./model";
 import { queueStashSelection } from "../StashForm/selection";
+import { whyLineEntries } from "./whyLine";
 import { BinaryDiffView, DiffError, DiffSkeleton, LfsDiffView, Notice, TooLargeView } from "./OtherKinds";
 import { ImageDiffView } from "./ImageDiff";
 import type { SplitViewHandle } from "./SplitView";
@@ -97,6 +99,9 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   const patchMode = patchModeOf(source);
   const canPatch = Boolean(text?.token) && text?.status !== "conflicted";
   const busy = useBusy(patchBusyKey(repoId));
+  const { data: aiStatus } = useAiStatus();
+  const { data: repoSettings } = useRepoSettings(repoId);
+  const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
 
   // The list the file comes from – for “previous/next file”.
   const { data: status } = useStatus(repoId);
@@ -317,6 +322,7 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
         onSelectedChange={setSelected}
         onPatch={(action, target) => void onPatch(action, target)}
         onStash={patchMode !== "none" && canPatch ? onStash : undefined}
+        lineMenu={(row) => whyLineEntries(source, diff, row, aiVisible, (target) => store().openArchaeology(tabId, target))}
         onToggleFold={toggleFold}
         onChangeIndex={setChangeIndex}
         label={t("diff.view.changesLabel", { path })}
