@@ -14,7 +14,7 @@ import type { AiInput, Id } from "../../core";
 import { core } from "../../core";
 import { signInInTerminal } from "../../app/ai/cliLogin";
 import { confirmSend, showWhatIsSent } from "../../app/ai/gate";
-import { openAiSettings } from "../../app/ai/open";
+import { openAiSetup } from "../../app/ai/open";
 import { errorView } from "../../app/ai/requestState";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { describeError, toCoreError } from "../../app/errors";
@@ -74,7 +74,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
 
   const explain = async () => {
     if (opensSetup) {
-      openAiSettings();
+      void openAiSetup();
       return;
     }
     const jobId = newJobId();
@@ -196,7 +196,7 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
                       );
                     case "setup":
                       return (
-                        <Button key={action} size="sm" variant="ghost" onClick={openAiSettings}>
+                        <Button key={action} size="sm" variant="ghost" onClick={() => void openAiSetup()}>
                           {t("blame.archaeology.setup")}
                         </Button>
                       );

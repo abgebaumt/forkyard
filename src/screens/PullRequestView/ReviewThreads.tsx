@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import { core, type AiPreview, type AiProviderKind, type AiReviewFix, type Id, type ReviewFixApplied, type ReviewThread } from "../../core";
 import { signInInTerminal } from "../../app/ai/cliLogin";
 import { confirmSend } from "../../app/ai/gate";
-import { openAiSettings } from "../../app/ai/open";
+import { openAiSettings, openAiSetup } from "../../app/ai/open";
 import { showAiPreview } from "../../app/ai/PreviewDialog";
 import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
@@ -86,8 +86,8 @@ export function FailedNote({ view, provider, onAgain, onLook }: { view: FailedVi
           </Button>
         ) : null}
         {view.kind === "setup" ? (
-          <Button size="sm" onClick={openAiSettings}>
-            {t("pullRequest.view.reviewThreads.openSettings")}
+          <Button size="sm" onClick={() => void openAiSetup()}>
+            {t("ai.state.setup")}
           </Button>
         ) : null}
         {view.kind === "limit" ? (
@@ -158,7 +158,7 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
 
   const suggest = async () => {
     if (availability === "setup") {
-      openAiSettings();
+      void openAiSetup();
       return;
     }
     if (availability !== "ready" || active.current) return;

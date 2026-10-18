@@ -12,7 +12,7 @@ import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, 
 import { core, type AiInput, type AiPrDescription, type AiPreview, type AiProviderKind, type Id } from "../../core";
 import { signInInTerminal } from "../../app/ai/cliLogin";
 import { confirmSend } from "../../app/ai/gate";
-import { openAiSettings } from "../../app/ai/open";
+import { openAiSettings, openAiSetup } from "../../app/ai/open";
 import { showAiPreview } from "../../app/ai/PreviewDialog";
 import { errorView, loadingView, type AiErrorView } from "../../app/ai/requestState";
 import { applySuggestion } from "../../app/ai/suggestion";
@@ -79,7 +79,7 @@ export function PrAiErrorNotice({ view, provider, onAgain, onShowSent }: { view:
   switch (view.kind) {
     case "setup":
       actions = (
-        <Button size="sm" onClick={openAiSettings}>
+        <Button size="sm" onClick={() => void openAiSetup()}>
           {t("ai.state.setup")}
         </Button>
       );
@@ -206,7 +206,7 @@ export function usePrAiWriter({ repoId, source, target, ahead, sameBranch, field
 
   const start = async () => {
     if (opensSetup) {
-      openAiSettings();
+      void openAiSetup();
       return;
     }
     if (!input || blocked || active.current) return;

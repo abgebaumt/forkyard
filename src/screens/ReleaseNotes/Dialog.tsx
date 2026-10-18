@@ -11,7 +11,7 @@ import { Dialog } from "../../ui/Dialog";
 import { TextArea } from "../../ui/Field";
 import { cachedAiStatus, short } from "../../app/actions/context";
 import { signInInTerminal } from "../../app/ai/cliLogin";
-import { openAiSettings } from "../../app/ai/open";
+import { openAiSetup } from "../../app/ai/open";
 import { aiVisibility } from "../../app/ai/visibility";
 import { showDialog } from "../../app/dialogs";
 import { useAiStatus, useReleaseNotesRange } from "../../app/queries";
@@ -27,7 +27,7 @@ export type ReleaseNotesSubject = { kind: "tag"; name: string } | { kind: "commi
 
 export function openReleaseNotes(repoId: Id, subject: ReleaseNotesSubject): Promise<void> {
   if (aiVisibility(cachedAiStatus()).elementsOpenSetup) {
-    openAiSettings();
+    void openAiSetup();
     return Promise.resolve();
   }
   return showDialog<null>((done) => <ReleaseNotesDialog repoId={repoId} subject={subject} onDone={done} />).then(() => undefined);
@@ -42,6 +42,14 @@ export function signInFor(provider: AiProviderKind | null, close: () => void): (
   return () => {
     close();
     signInInTerminal(provider);
+  };
+}
+
+/** "Set up AI": the setup dialog is queued behind this modal dialog, so this one closes first. */
+export function setupFor(close: () => void): () => void {
+  return () => {
+    close();
+    void openAiSetup();
   };
 }
 
@@ -101,10 +109,7 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
           writer={writer}
           openSetup={availability.openSetup}
           local={availability.local}
-          onSetup={() => {
-            onDone(null);
-            openAiSettings();
-          }}
+          onSetup={setupFor(() => onDone(null))}
           onSignIn={signInFor(provider, () => onDone(null))}
         />
         <TextArea
