@@ -1,7 +1,7 @@
 import { t } from "../../i18n";
 import { core, type Id, type ResetMode, type Sha } from "../../core";
 import { toast } from "../../ui/Feedback";
-import { formatShortcut } from "../../ui/Kbd";
+import { formatShortcut } from "../../ui/shortcut";
 import { askMessage } from "../actionDialogs";
 import { confirm } from "../dialogs";
 import { qk, queryClient } from "../queries";

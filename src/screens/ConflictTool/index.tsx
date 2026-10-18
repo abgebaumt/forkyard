@@ -23,7 +23,7 @@ import { useConflict, useSettings, useStatus } from "../../app/queries";
 import { getTabView, useAppStore } from "../../app/store";
 import { preventedByGuard } from "../../app/webviewGuards";
 import { IconButton } from "../../ui/Button";
-import { isMacShortcuts } from "../../ui/Kbd";
+import { isMacShortcuts } from "../../ui/shortcut";
 import { focusCommitPanel } from "./actions";
 import "./conflict.css";
 import { isLarge } from "./model";

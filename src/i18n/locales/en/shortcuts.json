@@ -35,17 +35,6 @@
     "stash": "Stash",
     "file": "File"
   },
-  "keyNames": {
-    "pageUp": "PgUp",
-    "pageDown": "PgDn",
-    "home": "Home",
-    "end": "End",
-    "delete": "Del",
-    "insert": "Ins",
-    "backspace": "Backspace",
-    "space": "Space",
-    "contextMenu": "Menu"
-  },
   "fixed": {
     "graph": {
       "title": "Commit graph",

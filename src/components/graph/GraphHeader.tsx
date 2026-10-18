@@ -2,7 +2,7 @@ import { useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEven
 import { UserRound, Waypoints } from "lucide-react";
 import type { GraphColumnId } from "../../core";
 import { IconButton } from "../../ui/Button";
-import { formatShortcut } from "../../ui/Kbd";
+import { formatShortcut } from "../../ui/shortcut";
 import type { MenuEntry } from "../../ui/Menu";
 import { cn } from "../../ui/cn";
 import {

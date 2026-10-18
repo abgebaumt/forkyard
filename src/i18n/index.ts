@@ -69,10 +69,17 @@ const language = forcedLanguage() ?? resolveLanguage(languageSetting());
 
 export type Platform = "windows" | "mac" | "linux";
 
-/** Operating system from the WebView's user agent – synchronous, so that module-level texts fit too. */
-export function detectPlatform(agent = globalThis.navigator?.userAgent ?? ""): Platform {
-  if (/Mac|iPhone|iPad/i.test(agent)) return "mac";
-  if (/Windows/i.test(agent)) return "windows";
+/**
+ * Operating system from the WebView – synchronous, so that module-level texts fit too. Only a
+ * first guess: the shortcut formatter switches to the core's answer at startup. WebKitGTK may
+ * send a macOS user agent; `navigator.platform` still says Linux there, so that wins.
+ */
+export function detectPlatform(agent?: string, navPlatform?: string): Platform {
+  const ua = agent ?? globalThis.navigator?.userAgent ?? "";
+  const os = (agent === undefined ? globalThis.navigator?.platform : navPlatform) ?? "";
+  if (/Win/i.test(os) || /Windows/i.test(ua)) return "windows";
+  if (/Linux|X11|BSD/i.test(os)) return "linux";
+  if (/Mac|iPhone|iPad/i.test(os) || /Mac|iPhone|iPad/i.test(ua)) return "mac";
   return "linux";
 }
 

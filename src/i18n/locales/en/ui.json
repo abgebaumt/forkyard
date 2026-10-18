@@ -29,7 +29,9 @@
     "backspace": "Backspace",
     "space": "Space",
     "menu": "Menu",
-    "ctrl": "Ctrl"
+    "ctrl": "Ctrl",
+    "alt": "Alt",
+    "shift": "Shift"
   },
   "ref": {
     "local": "Local branch",

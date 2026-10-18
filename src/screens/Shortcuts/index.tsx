@@ -4,7 +4,7 @@
  * At the top the shortcuts from the command registry, grouped as in the command palette; below
  * them the fixed keys of the lists and views (graph, files, diff, conflict and rebase tool).
  * A filter field searches description, group and keys. Two columns once wide enough.
- * Kbd shows "Mod" per platform as Ctrl or ⌘.
+ * Kbd shows the keys per platform (see `src/ui/shortcut.ts`).
  */
 import { useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Dialog as RadixDialog } from "radix-ui";
@@ -15,11 +15,12 @@ import { useAppStore } from "../../app/store";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
 import { Button } from "../../ui/Button";
 import { dialogSurface } from "../../ui/Dialog";
-import { Kbd, formatShortcut, isMacShortcuts } from "../../ui/Kbd";
+import { Kbd } from "../../ui/Kbd";
+import { formatShortcut, isMacShortcuts } from "../../ui/shortcut";
 import { matchesShortcut } from "../../app/commandTypes";
 import { cn } from "../../ui/cn";
 import { fold } from "../CommandPalette/fuzzy";
-import { displayShortcut, fixedKeyGroups } from "./fixedKeys";
+import { fixedKeyGroups } from "./fixedKeys";
 import { t } from "../../i18n";
 
 export interface ShortcutOverlayProps {
@@ -84,7 +85,7 @@ const fixedSections: Section[] = fixedKeyGroups.map((group) => ({
 }));
 
 function searchText(section: Section, entry: Entry): string {
-  const keys = entry.keys.flat().map((key) => `${key} ${formatShortcut(displayShortcut(key))}`);
+  const keys = entry.keys.flat().map((key) => `${key} ${formatShortcut(key)}`);
   return fold(`${entry.label} ${section.title} ${keys.join(" ")}`);
 }
 
@@ -114,7 +115,7 @@ function Keys({ keys }: { keys: string[][] }) {
                 {t("shortcuts.to")}
               </span>
             ) : (
-              <Kbd key={part}>{displayShortcut(key)}</Kbd>
+              <Kbd key={part}>{key}</Kbd>
             ),
           )}
         </span>

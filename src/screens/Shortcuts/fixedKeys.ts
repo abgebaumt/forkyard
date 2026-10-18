@@ -4,7 +4,7 @@
  * (left panel, graph, local changes, diff, file, history, blame, conflict tool, rebase tool,
  * search); whoever adds a key there adds it here.
  *
- * `keys`: alternatives (each in shortcut notation, "Mod" = Ctrl or ⌘).
+ * `keys`: alternatives (each in shortcut notation, see `src/ui/shortcut.ts`).
  */
 import { t } from "../../i18n";
 
@@ -215,29 +215,3 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
     ],
   },
 ];
-
-const KEY_NAMES: Record<string, string> = {
-  ArrowUp: "↑",
-  ArrowDown: "↓",
-  ArrowLeft: "←",
-  ArrowRight: "→",
-  PageUp: t("shortcuts.keyNames.pageUp"),
-  PageDown: t("shortcuts.keyNames.pageDown"),
-  Home: t("shortcuts.keyNames.home"),
-  End: t("shortcuts.keyNames.end"),
-  Delete: t("shortcuts.keyNames.delete"),
-  Insert: t("shortcuts.keyNames.insert"),
-  Backspace: t("shortcuts.keyNames.backspace"),
-  Escape: "Esc",
-  Space: t("shortcuts.keyNames.space"),
-  ContextMenu: t("shortcuts.keyNames.contextMenu"),
-};
-
-/** Make key names readable ("Alt+ArrowUp" → "Alt+↑"); Kbd then handles Mod/Ctrl/⌘. */
-export function displayShortcut(shortcut: string): string {
-  if (shortcut === "+" || shortcut.length === 1) return shortcut;
-  return shortcut
-    .split("+")
-    .map((part) => KEY_NAMES[part] ?? part)
-    .join("+");
-}
