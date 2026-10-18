@@ -1451,8 +1451,16 @@ pub async fn stack_restack(core: State<'_, Core>, repo_id: String, branch: Strin
 }
 
 #[tauri::command]
-pub async fn stack_push(core: State<'_, Core>, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool) -> R<PushResult> {
-    c::stack::stack_push(&core, repo_id, job_id, branches, remote, force).await
+pub async fn stack_push(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    branches: Vec<String>,
+    remote: String,
+    force: bool,
+    accepted_secrets: Option<Vec<String>>,
+) -> R<PushResult> {
+    c::stack::stack_push(&core, repo_id, job_id, branches, remote, force, accepted_secrets).await
 }
 
 #[tauri::command]

@@ -318,8 +318,10 @@ pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expecte
 
 /// Pushes every part in one atomic push (v1.1 `push_with`: the first part as the primary branch,
 /// the others as extra refs) and records the upstream of every part that arrived. `force`: each ref
-/// only with `--force-with-lease` against its tracking ref (after a restack).
-pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool) -> CoreResult<PushResult> {
+/// only with `--force-with-lease` against its tracking ref (after a restack). The secret scan runs
+/// as for every push (v1.2, 6.2): `accepted_secrets` as in `push_with`.
+#[allow(clippy::too_many_arguments)]
+pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool, accepted_secrets: Option<Vec<String>>) -> CoreResult<PushResult> {
     let names: Vec<String> = branches.iter().map(|branch| branch_name_of(branch)).collect::<CoreResult<_>>()?;
     let Some((first, rest)) = names.split_first() else {
         return Err(CoreError::not_allowed("There is no part to push."));
@@ -333,7 +335,7 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
         return Err(CoreError::not_allowed("Choose the remote to push the stack to."));
     }
     let extra: Vec<PushExtra> = rest.iter().map(|name| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force }).collect();
-    let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, None, Some(extra), Some(true), None).await?;
+    let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, None, Some(extra), Some(true), accepted_secrets).await?;
     if let PushResult::Multi { refs, .. } = &result {
         let arrived: Vec<&String> = rest.iter().filter(|name| refs.iter().any(|r| r.local == format!("refs/heads/{name}") && r.status != PushRefStatus::Rejected)).collect();
         if !arrived.is_empty() {

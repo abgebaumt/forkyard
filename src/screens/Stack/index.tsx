@@ -52,6 +52,7 @@ import {
   type CheckTone,
   type DraftPart,
 } from "./model";
+import { pushStack } from "./push";
 import { useStackSuggest } from "./Suggest";
 
 /** Titles typed before "Create", for the pull requests of that stack (in memory, per repository). */
@@ -458,11 +459,7 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
       detailsWrap: true,
     });
     if (!ok) return;
-    const jobId = newJobId();
-    const result = await runAction(t("pullRequest.stack.pushAction"), () => core.stackPush({ repoId, jobId, branches, remote, force }), {
-      busyKey: `${repoId}:push`,
-      job: { id: jobId, title: t("pullRequest.stack.pushAction"), repoId },
-    });
+    const result = await pushStack(repoId, branches, remote, force);
     if (!result.ok) return;
     const refused = rejectedRefs(result.value);
     setPushNote(refused.length ? t("pullRequest.stack.pushRejected", { reasons: refused.join("; ") }) : null);

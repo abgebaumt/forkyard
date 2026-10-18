@@ -363,7 +363,7 @@ fn statuses(result: &PushResult) -> Vec<PushRefStatus> {
 async fn all_parts_go_out_in_one_push_with_their_upstreams() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false).await.unwrap();
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
     assert!(matches!(result, PushResult::Multi { atomic: true, .. }), "{result:?}");
     assert_eq!(statuses(&result), [PushRefStatus::Ok; 3]);
     for branch in [P1, P2, P3] {
@@ -381,7 +381,7 @@ async fn one_rejected_part_pushes_nothing() {
     let other = TestRepo::clone_of(&remote);
     other.commit_file("fremd.txt", "fremd\n", "Fremder Stand");
     other.git(&["push", "-q", "origin", &format!("HEAD:refs/heads/{P2}")]);
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false).await.unwrap();
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
     assert_eq!(statuses(&result), [PushRefStatus::Rejected; 3], "atomic: one refusal refuses all");
     assert_eq!((remote_sha(&remote, P1), remote_sha(&remote, P3)), (None, None), "nothing arrived");
     for branch in [P1, P3] {
@@ -393,14 +393,14 @@ async fn one_rejected_part_pushes_nothing() {
 async fn restacked_parts_need_force_with_lease() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false).await.unwrap();
+    stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
     change_part_one(&repo, "src/notiz.md");
     let top = stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap().restack.unwrap().top_tip;
     stack_restack(&tc, id.clone(), P1.into(), top).await.unwrap();
 
-    let plain = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false).await.unwrap();
+    let plain = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
     assert_eq!(statuses(&plain), [PushRefStatus::Rejected; 3], "rewritten parts are no fast-forward, and the push is atomic");
-    let forced = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true).await.unwrap();
+    let forced = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, None).await.unwrap();
     assert_eq!(statuses(&forced), [PushRefStatus::Ok; 3]);
     for branch in [P1, P2, P3] {
         assert_eq!(remote_sha(&remote, branch), sha_of(&repo, branch), "{branch}");
@@ -411,7 +411,7 @@ async fn restacked_parts_need_force_with_lease() {
 async fn bad_push_input_sends_nothing() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    let push = |branches: Vec<String>, remote: &str| stack_push(&tc, id.clone(), util::new_id(), branches, remote.to_string(), false);
+    let push = |branches: Vec<String>, remote: &str| stack_push(&tc, id.clone(), util::new_id(), branches, remote.to_string(), false, None);
     assert_eq!(push(vec![], "origin").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(vec![P1.into(), P1.into()], "origin").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(all_parts(), "--mirror").await.unwrap_err().code, ErrorCode::NotAllowed);
@@ -522,5 +522,39 @@ mod checks {
         assert!(started.elapsed() < std::time::Duration::from_secs(20), "the program was stopped, not waited for");
         assert!(!folder.exists(), "removed after the cancel");
         assert_eq!(worktrees(&repo), 1);
+    }
+}
+
+#[tokio::test]
+async fn a_key_in_a_part_stops_the_stack_push_until_it_is_accepted() {
+    // Spec 6.2: the secret scan runs before every push, also a push with further refs.
+    let repo = TestRepo::with_commit();
+    let remote = TestRemote::new();
+    repo.git(&["remote", "add", "origin", &remote.url()]);
+    repo.git(&["push", "-q", "origin", "main"]);
+    repo.checkout_new(BRANCH);
+    repo.commit_file("src/eins.rs", "pub fn eins() {}\n", "Erster Teil");
+    // Built at run time: no literal key format in this file.
+    let key = format!("AKIA{}", "Q7RZ4M2XK9PLW3NB");
+    repo.commit_file("dienst/zugang.py", format!("AWS_ZUGANG = \"{key}\"\n"), "Zugang für den Dienst");
+    let (tc, id) = opened(&repo).await;
+    let cuts = vec![cut(1, "Eins"), cut(2, "Zwei")];
+    let plan = stack_plan(&tc, id.clone(), BRANCH.into(), MAIN.into(), cuts.clone()).await.unwrap();
+    stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), cuts, plan.base_sha, plan.tip).await.unwrap();
+    let parts = vec![format!("{BRANCH}-1-eins"), format!("{BRANCH}-2-zwei")];
+
+    let stopped = stack_push(&tc, id.clone(), util::new_id(), parts.clone(), "origin".into(), false, None).await.unwrap();
+    let PushResult::SecretsFound { findings, .. } = &stopped else { panic!("expected secrets_found, got {stopped:?}") };
+    assert_eq!(findings.iter().map(|f| (f.path.as_str(), f.line)).collect::<Vec<_>>(), [("dienst/zugang.py", 1)]);
+    assert!(!findings[0].excerpt.contains(&key), "the value is masked");
+    for part in &parts {
+        assert_eq!(remote_sha(&remote, part), None, "nothing went out before the confirmation");
+    }
+
+    let accepted: Vec<String> = findings.iter().map(|f| f.id.clone()).collect();
+    let pushed = stack_push(&tc, id.clone(), util::new_id(), parts.clone(), "origin".into(), false, Some(accepted)).await.unwrap();
+    assert_eq!(statuses(&pushed), [PushRefStatus::Ok; 2]);
+    for part in &parts {
+        assert_eq!(remote_sha(&remote, part), sha_of(&repo, part), "{part} on the remote");
     }
 }

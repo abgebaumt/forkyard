@@ -140,8 +140,8 @@ All notable changes to Forkyard are listed here. The format follows
   AI – and stops a push when one looks like a key, token, password or private key. The dialog names
   file and line and shows only the last four characters; “Back” pushes nothing, “Push anyway” pushes,
   “Don't report again” remembers only a hash of file and line. Applies to Push, “Push …” with more
-  branches and tags, tag push, commit and push, the push of a pull request branch and the push at the
-  end of a Gitflow finish. Settings › Project › Git can report every finding again.
+  branches and tags, tag push, commit and push, the push of a pull request branch, the push of stacked
+  pull requests and the push at the end of a Gitflow finish. Settings › Project › Git can report every finding again.
 - Review before a push (AI, optional): “Review and push …” in the Push menu and the command palette asks
   the AI provider about debug output, commented-out code and likely mistakes in what the push sends.
   Hints only; “Push anyway” is always possible, cancelling never pushes. Settings › Project › AI and
