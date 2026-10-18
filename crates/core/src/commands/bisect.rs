@@ -145,12 +145,19 @@ fn valid_term(term: &str) -> bool {
 /// The state as Git keeps it; `BisectStatus::default()` if no bisect is running.
 pub(crate) async fn read_bisect(core: &Core, repo_id: &str) -> CoreResult<BisectStatus> {
     let path = core.repo_path(repo_id)?;
-    let dir = status::git_dir(core, repo_id).await?;
+    read_bisect_at(core, &path, repo_id).await
+}
+
+/// The bisect of the worktree at `path` (the main one or a linked one). Every worktree has its own:
+/// `BISECT_*` lie in its own Git directory (`.git/worktrees/<name>` for a linked one) and
+/// `refs/bisect/*` are per-worktree refs.
+pub(crate) async fn read_bisect_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<BisectStatus> {
+    let dir = status::git_dir_at(core, path, repo_id).await?;
     if !dir.join("BISECT_START").is_file() {
         return Ok(BisectStatus::default());
     }
     let terms = read_terms(&dir);
-    let listed = for_each_ref(core, &path, repo_id, &["--format=%(refname)%00%(objectname)".to_string()], &["refs/bisect"]).await?;
+    let listed = for_each_ref(core, path, repo_id, &["--format=%(refname)%00%(objectname)".to_string()], &["refs/bisect"]).await?;
     let bad_ref = format!("refs/bisect/{}", terms.bad);
     let good_prefix = format!("refs/bisect/{}-", terms.good);
     let mut status = BisectStatus { active: true, ..Default::default() };
@@ -170,9 +177,9 @@ pub(crate) async fn read_bisect(core: &Core, repo_id: &str) -> CoreResult<Bisect
     }
     let log = std::fs::read(dir.join("BISECT_LOG")).map(|b| util::decode_lossy(&b)).unwrap_or_default();
     status.steps_done = count_steps(&log, &terms);
-    status.current = current_commit(core, &path, repo_id, &dir).await;
+    status.current = current_commit(core, path, repo_id, &dir).await;
     if let (Some(bad), false) = (status.bad.clone(), status.good.is_empty()) {
-        evaluate(core, &path, repo_id, &dir, &bad, &mut status).await?;
+        evaluate(core, path, repo_id, &dir, &bad, &mut status).await?;
     }
     Ok(status)
 }
@@ -502,5 +509,33 @@ mod tests {
         assert_eq!(value["stepTimeoutSecs"], 600);
         assert_eq!(serde_json::to_value(BisectShell::Powershell).unwrap(), "powershell");
         assert_eq!(serde_json::to_value(BisectAutopilotPhase::Found).unwrap(), "found");
+    }
+
+    /// Each worktree has its own bisect: `BISECT_*` lie in its own Git directory and `refs/bisect/*`
+    /// are per-worktree refs. One in a linked worktree is read there and never shows in the main one.
+    #[tokio::test]
+    async fn a_bisect_in_a_linked_worktree_is_read_from_its_own_git_directory() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        let shas = chain(&repo, 6);
+        let id = tc.open(&repo).await.repo.id;
+        let linked = repo.temp_dir().join("zweiter Baum ä");
+        let linked_s = linked.to_str().unwrap();
+        repo.git(&["worktree", "add", "-q", "--detach", linked_s, &shas[5]]);
+        repo.git(&["-C", linked_s, "bisect", "start", &shas[5], &shas[0], "--"]);
+
+        let there = read_bisect_at(&tc, &linked, &id).await.unwrap();
+        assert!(there.active);
+        assert_eq!((there.bad.as_deref(), there.good.clone()), (Some(shas[5].as_str()), vec![shas[0].clone()]));
+        assert_eq!(there.current, Some(repo.git(&["-C", linked_s, "rev-parse", "HEAD"])));
+        assert!(there.remaining_steps.is_some());
+        assert_eq!(bisect_status(&tc, id.clone()).await.unwrap(), BisectStatus::default(), "the main worktree has no bisect");
+        assert!(!repo.path().join(".git").join("BISECT_START").exists());
+
+        // The other way round: a bisect in the main worktree does not change the linked one's.
+        bisect_start(&tc, id.clone(), shas[3].clone(), vec![shas[1].clone()]).await.unwrap();
+        let again = read_bisect_at(&tc, &linked, &id).await.unwrap();
+        assert_eq!((again.bad.as_deref(), again.good), (Some(shas[5].as_str()), vec![shas[0].clone()]));
+        assert_eq!(bisect_status(&tc, id.clone()).await.unwrap().bad.as_deref(), Some(shas[3].as_str()));
     }
 }

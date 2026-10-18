@@ -479,7 +479,7 @@ pub async fn git_dir(core: &Core, repo_id: &str) -> CoreResult<PathBuf> {
     git_dir_at(core, &path, repo_id).await
 }
 
-async fn git_dir_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<PathBuf> {
+pub(crate) async fn git_dir_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<PathBuf> {
     let dot_git = path.join(".git");
     if dot_git.is_dir() {
         return Ok(dot_git);
