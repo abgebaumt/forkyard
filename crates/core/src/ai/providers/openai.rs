@@ -123,7 +123,7 @@ impl Provider for OpenAi {
             let request = self.authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), LABEL)).json(&body).timeout(EMBED_TIMEOUT);
             let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
             if !response.is_success() {
-                return Err(http_failure(LABEL, &response, &[self.key.clone()]));
+                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
             }
             openai_vectors(LABEL, &json_body(LABEL, &response)?, texts.len())
         })

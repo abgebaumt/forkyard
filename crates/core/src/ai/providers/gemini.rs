@@ -136,7 +136,7 @@ impl Provider for Gemini {
             let request = self.authorized(Request::new(Method::Post, url, LABEL)).json(&json!({ "requests": requests })).timeout(EMBED_TIMEOUT);
             let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
             if !response.is_success() {
-                return Err(http_failure(LABEL, &response, &[self.key.clone()]));
+                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
             }
             let value = json_body(LABEL, &response)?;
             let vectors = value
