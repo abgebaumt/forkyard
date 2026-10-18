@@ -114,3 +114,38 @@ describe("deleting a branch on the remote", () => {
     }
   });
 });
+
+describe("release notes in the tag menu", () => {
+  const tag = ref({ name: "v1.1.0", fullName: "refs/tags/v1.1.0", kind: "tag" });
+  const on = { state: "on", provider: "ollama", model: "qwen3:8b", connected: true, keyHint: null, local: true, price: null, introPending: false, featuresOff: [] as string[] };
+  const entries = () => branchMenu({ repoId: "r1", tabId: "t1", ref: tag });
+
+  beforeEach(() => {
+    queryClient.clear();
+    queryClient.setQueryData(qk.remotes("r1"), []);
+  });
+
+  it("offers “Write release notes …” while AI is on for this repository", () => {
+    queryClient.setQueryData(qk.aiStatus, on);
+    queryClient.setQueryData(qk.repoSettings("r1"), { aiOff: false });
+    expect(find(entries(), "Write release notes …")).toBeTruthy();
+  });
+
+  it("hides it when AI is not set up, off, the function is off, the repository has AI off or its settings are unknown", () => {
+    const cases: [object | undefined, object | undefined][] = [
+      [undefined, { aiOff: false }],
+      [{ ...on, state: "unset" }, { aiOff: false }],
+      [{ ...on, state: "off" }, { aiOff: false }],
+      [{ ...on, featuresOff: ["release_notes"] }, { aiOff: false }],
+      [on, { aiOff: true }],
+      [on, undefined],
+    ];
+    for (const [status, settings] of cases) {
+      queryClient.clear();
+      queryClient.setQueryData(qk.remotes("r1"), []);
+      if (status) queryClient.setQueryData(qk.aiStatus, status);
+      if (settings) queryClient.setQueryData(qk.repoSettings("r1"), settings);
+      expect(find(entries(), "Write release notes …"), JSON.stringify({ status, settings })).toBeUndefined();
+    }
+  });
+});
