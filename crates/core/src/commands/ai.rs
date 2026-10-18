@@ -196,6 +196,8 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?.built
         }
         AiInput::ReleaseNotes { from, to } => release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), budget, &locale, &secrets).await?.built,
+        // The prompt builder comes with the bisect autopilot's script command (p09-1 Task 5).
+        AiInput::BisectScript(_) => return Err(CoreError::not_allowed("The preview of a bisect test script is not available yet.")),
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {

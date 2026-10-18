@@ -574,6 +574,56 @@ export interface BisectStatus {
   onlySkippedLeft: boolean;
 }
 
+/** What the AI writes a bisect test script from (`bisectAutopilotScript`). */
+export interface BisectScriptRequest {
+  /** The problem in the user's words. */
+  description: string;
+  /** A command that shows the problem, if the user knows one. */
+  testCommand: string | null;
+  bad: Sha;
+  good: Sha[];
+}
+
+/** `sh` on Linux and macOS, Windows PowerShell on Windows. */
+export type BisectShell = "sh" | "powershell";
+
+/** The AI's test script – shown and editable, never run by `bisectAutopilotScript`. */
+export interface BisectScript {
+  script: string;
+  summary: string;
+  shell: BisectShell;
+}
+
+export type BisectAutopilotPhase = "preparing" | "testing" | "found" | "only_skipped" | "failed";
+
+export interface BisectAutopilotStep {
+  sha: Sha;
+  verdict: BisectVerdict;
+  /** null when the step hit its time limit. */
+  exitCode: number | null;
+  timedOut: boolean;
+  durationMs: number;
+  outputTail: string;
+}
+
+/** The bisect autopilot run of a repository (`bisectAutopilotStatus`). */
+export interface BisectAutopilot {
+  jobId: string;
+  phase: BisectAutopilotPhase;
+  /** `<parent>/<repo>.agents/bisect-<n>`; empty until the folder is chosen. */
+  worktreePath: string;
+  bad: Sha;
+  good: Sha[];
+  current: Sha | null;
+  remainingSteps: number | null;
+  steps: BisectAutopilotStep[];
+  result: Sha | null;
+  candidates: Sha[];
+  stepTimeoutSecs: number;
+  message: string | null;
+  startedAt: string;
+}
+
 export interface UpstreamState {
   name: string;
   ahead: number;
@@ -1084,7 +1134,8 @@ export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | 
 
   /** What a push with these arguments would send (review before a push): the outgoing commits and their combined diff. */
   | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null }
-  | { kind: "release_notes"; from: string | null; to: string | null };
+  | { kind: "release_notes"; from: string | null; to: string | null }
+  | ({ kind: "bisect_script" } & BisectScriptRequest);
 
 /** Kind of a hint of the review before a push. Keys are never a kind – they come from the local scan. */
 export type AiPushFindingKind = "debug_output" | "commented_code" | "likely_bug";

@@ -615,6 +615,89 @@ pub struct BisectStatus {
     pub only_skipped_left: bool,
 }
 
+/// What the AI writes a bisect test script from (`bisect_autopilot_script`, `AiInput::BisectScript`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectScriptRequest {
+    /// The problem in the user's words.
+    pub description: String,
+    /// A command that shows the problem (`npm test`), if the user knows one.
+    pub test_command: Option<String>,
+    pub bad: String,
+    pub good: Vec<String>,
+}
+
+/// The shell a bisect test script runs with: `/bin/sh` on Linux and macOS, Windows PowerShell on Windows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BisectShell {
+    Sh,
+    Powershell,
+}
+
+/// The AI's test script – shown and editable; `bisect_autopilot_script` never runs it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectScript {
+    pub script: String,
+    /// One sentence in the UI language: what the script checks.
+    pub summary: String,
+    pub shell: BisectShell,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BisectAutopilotPhase {
+    /// Worktree and bisect are being set up.
+    Preparing,
+    /// The script runs commit by commit.
+    Testing,
+    /// The first bad commit is certain (`result`).
+    Found,
+    /// Only skipped commits are left; the first bad one is among `candidates`.
+    OnlySkipped,
+    /// The script ended with an exit code above 127 or by a signal (`message`).
+    Failed,
+}
+
+/// One tested commit of an autopilot run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectAutopilotStep {
+    pub sha: Sha,
+    pub verdict: BisectVerdict,
+    /// `None` when the step hit its time limit.
+    pub exit_code: Option<i32>,
+    /// Over the time limit: counted as skipped.
+    pub timed_out: bool,
+    pub duration_ms: u64,
+    /// The end of the script's output (stdout, then stderr), redacted.
+    pub output_tail: String,
+}
+
+/// The bisect autopilot run of a repository. Kept in memory as job state; the bisect itself lives in
+/// the temporary worktree's own Git directory and is read from there after every mark.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectAutopilot {
+    pub job_id: String,
+    pub phase: BisectAutopilotPhase,
+    /// `<parent>/<repo>.agents/bisect-<n>`; empty until the folder is chosen.
+    pub worktree_path: String,
+    pub bad: Sha,
+    pub good: Vec<Sha>,
+    /// The commit under test.
+    pub current: Option<Sha>,
+    /// Git's estimate of the steps after the current one.
+    pub remaining_steps: Option<u32>,
+    pub steps: Vec<BisectAutopilotStep>,
+    pub result: Option<Sha>,
+    pub candidates: Vec<Sha>,
+    pub step_timeout_secs: u64,
+    pub message: Option<String>,
+    pub started_at: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpstreamState {
@@ -1522,6 +1605,9 @@ pub struct AiStatus {
 pub enum AiInput {
     /// The staged diff of the repository.
     StagedChanges,
+    /// Bisect autopilot (9.1): the user's description and test command, the range's commit
+    /// subjects, top-level names, build files and changed paths.
+    BisectScript(BisectScriptRequest),
     /// The commit message of the staged changes (spec 3.1): diff, branch, style examples,
     /// template and own instruction – exactly what `ai_commit_message` sends.
     CommitMessage,

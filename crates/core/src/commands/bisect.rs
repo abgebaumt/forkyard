@@ -457,4 +457,50 @@ mod tests {
         let err = bisect_mark(&tc, id.clone(), BisectVerdict::Good, None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NoOperation);
     }
+
+    /// The JSON spelling the UI uses (types.ts): camelCase fields, snake_case enum values, and the
+    /// AI input as one flat object with `kind`.
+    #[test]
+    fn autopilot_types_use_the_contract_spelling() {
+        use crate::model::{AiInput, BisectAutopilot, BisectAutopilotPhase, BisectAutopilotStep, BisectScriptRequest, BisectShell};
+        let request: BisectScriptRequest =
+            serde_json::from_value(serde_json::json!({"description": "Fahrenheit falsch", "testCommand": null, "bad": "b", "good": ["g"]})).unwrap();
+        assert_eq!(request.test_command, None);
+        let input: AiInput = serde_json::from_value(serde_json::json!({
+            "kind": "bisect_script", "description": "Fahrenheit falsch", "testCommand": "make test", "bad": "b", "good": ["g1", "g2"]
+        }))
+        .unwrap();
+        assert_eq!(
+            input,
+            AiInput::BisectScript(BisectScriptRequest {
+                description: "Fahrenheit falsch".into(),
+                test_command: Some("make test".into()),
+                bad: "b".into(),
+                good: vec!["g1".into(), "g2".into()],
+            })
+        );
+        let run = BisectAutopilot {
+            job_id: "j".into(),
+            phase: BisectAutopilotPhase::OnlySkipped,
+            worktree_path: "/home/anna/Mein Projekt.agents/bisect-1".into(),
+            bad: "b".into(),
+            good: vec!["g".into()],
+            current: None,
+            remaining_steps: Some(0),
+            steps: vec![BisectAutopilotStep { sha: "s".into(), verdict: BisectVerdict::Skip, exit_code: None, timed_out: true, duration_ms: 5, output_tail: String::new() }],
+            result: None,
+            candidates: vec!["s".into(), "b".into()],
+            step_timeout_secs: 600,
+            message: None,
+            started_at: "2026-10-16T08:00:00Z".into(),
+        };
+        let value = serde_json::to_value(&run).unwrap();
+        assert_eq!(value["phase"], "only_skipped");
+        assert_eq!(value["worktreePath"], "/home/anna/Mein Projekt.agents/bisect-1");
+        assert_eq!(value["steps"][0]["timedOut"], true);
+        assert_eq!(value["steps"][0]["exitCode"], serde_json::Value::Null);
+        assert_eq!(value["stepTimeoutSecs"], 600);
+        assert_eq!(serde_json::to_value(BisectShell::Powershell).unwrap(), "powershell");
+        assert_eq!(serde_json::to_value(BisectAutopilotPhase::Found).unwrap(), "found");
+    }
 }
