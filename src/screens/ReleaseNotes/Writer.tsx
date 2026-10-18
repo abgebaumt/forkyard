@@ -39,7 +39,6 @@ function ErrorLine({ error, writer, onSetup, onSignIn }: { error: AiErrorView; w
           {t("ai.state.limitChange")}
         </Button>
       ) : null}
-      {writer.preview ? <AiPreviewDialog preview={writer.preview.preview} mode={writer.preview.mode} onDone={writer.closePreview} /> : null}
     </div>
   );
 }
@@ -113,6 +112,7 @@ export function ReleaseNotesWriter({
           </Button>
         </div>
       ) : null}
+      {writer.preview ? <AiPreviewDialog preview={writer.preview.preview} mode={writer.preview.mode} onDone={writer.closePreview} /> : null}
     </div>
   );
 }
