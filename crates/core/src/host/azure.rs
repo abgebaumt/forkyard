@@ -339,12 +339,12 @@ pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) ->
 }
 
 /// `POST …/pullrequests/{id}/threads/{threadId}/comments` with `parentCommentId` = the thread's
-/// first (non-system) comment, read from `GET …/threads/{threadId}`.
+/// first comment that is neither a system comment nor deleted, read from `GET …/threads/{threadId}`.
 pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thread_id: &str, body: &str) -> CoreResult<ReviewReply> {
     let missing = || format!("The review thread does not exist (anymore) in pull request #{pr}.");
     let path = format!("{}/threads/{}", pr_path(repo, pr), encode(thread_id));
     let thread = api.get_json(core, &v(&path, &[])).await.map_err(|e| not_found_as(e, missing))?;
-    let parent = list(&thread, "comments").iter().find(|c| text(c, "commentType") != "system").map(|c| number(c, "id")).ok_or_else(structure)?;
+    let parent = list(&thread, "comments").iter().find(|c| text(c, "commentType") != "system" && !flag(c, "isDeleted")).map(|c| number(c, "id")).ok_or_else(structure)?;
     let value: Value = api
         .send_json(core, Method::Post, &v(&format!("{path}/comments"), &[]), &json!({ "content": body, "parentCommentId": parent, "commentType": 1 }))
         .await

@@ -1213,6 +1213,9 @@ fn az_review_threads() -> Vec<Value> {
         json!({ "id": 95, "status": "active", "isDeleted": true, "threadContext": { "filePath": "/src/x.rs", "rightFileStart": { "line": 1 } }, "comments": [text(1, 0, "jonas", "weg", "2026-09-02T11:10:00Z")] }),
         json!({ "id": 96, "status": "active", "threadContext": { "filePath": "/src/y.rs", "rightFileStart": { "line": 2 } },
             "comments": [{ "id": 1, "author": az_user("jonas"), "content": "Policy status has been updated", "publishedDate": "2026-09-02T12:00:00Z", "commentType": "system" }] }),
+        json!({ "id": 97, "status": "active", "threadContext": { "filePath": "/src/neu.rs", "rightFileStart": { "line": 5, "offset": 1 }, "rightFileEnd": { "line": 5, "offset": 9 } },
+            "comments": [{ "id": 1, "parentCommentId": 0, "author": az_user("mira"), "content": "", "publishedDate": "2026-09-02T12:10:00Z", "commentType": "text", "isDeleted": true },
+                text(2, 1, "jonas", "Bitte umbenennen.", "2026-09-02T12:20:00Z")] }),
     ]
 }
 
@@ -1307,7 +1310,7 @@ pub(crate) fn azure(request: &MockRequest, state: &Mutex<MockState>) -> MockResp
             Some(thread) if number == 9 => MockResponse::json(200, thread),
             _ => az_error(404, "TF401181: The requested pull request thread was not found."),
         },
-        ("POST", ["pullrequests", _, "threads", id, "comments"]) if number == 9 && *id == "91" => MockResponse::json(
+        ("POST", ["pullrequests", _, "threads", id, "comments"]) if number == 9 && (*id == "91" || *id == "97") => MockResponse::json(
             200,
             json!({ "id": 3, "parentCommentId": request.json()["parentCommentId"], "author": az_user("lena"), "content": request.json()["content"], "publishedDate": "2026-09-05T08:00:00Z", "commentType": "text" }),
         ),

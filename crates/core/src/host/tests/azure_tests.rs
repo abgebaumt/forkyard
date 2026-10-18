@@ -259,6 +259,7 @@ async fn review_threads_are_the_threads_with_a_file_position() {
             ("91", "src/anmeldung.rs", Some(42), Some(40), ReviewSide::New, false),
             ("92", "src/meldung.rs", Some(7), None, ReviewSide::New, true),
             ("93", "src/alt.rs", Some(12), None, ReviewSide::Old, false),
+            ("97", "src/neu.rs", Some(5), None, ReviewSide::New, false),
         ],
         "general, deleted and system-only threads are no review threads"
     );
@@ -280,6 +281,9 @@ async fn a_reply_answers_the_first_comment_of_the_thread() {
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].json(), json!({ "content": "Erledigt.", "parentCommentId": 1, "commentType": 1 }));
     assert_eq!(sent[0].query("api-version").as_deref(), Some("7.1"));
+    // A thread whose first comment was deleted: the answer goes to the first comment still there.
+    cmd::pr_review_reply(&fx.tc, fx.id(), 9, "97".into(), "Umbenannt.".into(), None).await.unwrap();
+    assert_eq!(fx.sent("POST", "/pullrequests/9/threads/97/comments")[0].json(), json!({ "content": "Umbenannt.", "parentCommentId": 2, "commentType": 1 }));
     let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "4711".into(), "Danke".into(), None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostNotFound);
     let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
