@@ -19,6 +19,7 @@ import { Switch } from "../../../ui/Switch";
 import { CommitText, SectionHeader, SettingRow, SettingsCard } from "../parts";
 import { applySettings, fieldError } from "../settings";
 import { acceptsKey, CLI_PROVIDERS, cliPathField, FEATURES, featureToggle, isCli, isLocal, parsePatterns, parsePricePair, parseUsd, patternsText, pricePairText, PROVIDERS, usesBaseUrl, withCliPath, withOwnPrice } from "../ai/model";
+import { AiSearchCard } from "./AiSearch";
 import { locale, t } from "../../../i18n";
 
 const providerOptions = PROVIDERS.map((value) => ({ value: value as string, label: t(`ai.providers.${value}`) }));
@@ -73,6 +74,7 @@ export function AiSection({ settings, repoId }: { settings: Settings; repoId: Id
         ))}
       </SettingsCard>
       <PrivacyCard settings={settings} repoId={repoId} />
+      <AiSearchCard settings={settings} repoId={repoId} />
       <CostCard settings={settings} />
     </section>
   );

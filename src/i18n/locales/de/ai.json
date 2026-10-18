@@ -191,6 +191,41 @@
     "under": "unter {{amount}} USD",
     "exact": "{{amount}} USD"
   },
+  "search": {
+    "card": "Suche nach Bedeutung",
+    "embedder": {
+      "title": "Embeddings für die Suche",
+      "description": "Ein Anbieter auf diesem Computer kann die Suche allein übernehmen. Sonst werden die Embeddings des Hauptanbieters genutzt; ohne Embeddings übersetzt der Hauptanbieter die Frage in eine Suche.",
+      "main": "Hauptanbieter",
+      "ollama": "Ollama (auf diesem Computer)",
+      "lmstudio": "LM Studio (auf diesem Computer)"
+    },
+    "baseUrl": {
+      "title": "Adresse",
+      "description": "Nur Adressen auf diesem Computer."
+    },
+    "model": {
+      "title": "Embedding-Modell",
+      "description": "Leer: das Standardmodell des Hauptanbieters, falls er eins hat."
+    },
+    "index": {
+      "title": "Index dieses Repositorys",
+      "noRepo": "Öffne ein Repository, um seinen Index zu sehen.",
+      "none": "Noch kein Index – er entsteht bei der ersten Suche nach Bedeutung.",
+      "rephrase": "Kein Index: ohne Embeddings wird die Frage in eine Suche übersetzt.",
+      "count_one": "{{count}} Commit mit {{model}}",
+      "count_other": "{{count}} Commits mit {{model}}"
+    },
+    "delete": {
+      "title": "Index löschen",
+      "description": "Entfernt den Index aller Repositorys und Modelle. Die nächste Suche nach Bedeutung baut ihn neu auf.",
+      "button": "Index löschen",
+      "confirmTitle": "Suchindex aller Repositorys löschen?",
+      "confirmBody": "Der Index dient nur der Suche nach Bedeutung; an deinen Repositorys ändert sich nichts. Das lässt sich nicht rückgängig machen – die nächste Suche nach Bedeutung baut ihn neu auf und sendet die Commit-Texte dafür erneut an den Embedding-Anbieter.",
+      "done_one": "{{count}} Index gelöscht",
+      "done_other": "{{count}} Indizes gelöscht"
+    }
+  },
   "entry": {
     "label": "KI-Funktionen einrichten",
     "tooltip": "Commit-Nachrichten, PR-Texte und mehr mit einem KI-Anbieter deiner Wahl. Standardmäßig aus."
