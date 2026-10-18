@@ -488,11 +488,7 @@ impl HookCapture {
         let log = root.join("log");
         std::fs::create_dir_all(&wrap)?;
         std::fs::create_dir_all(&log)?;
-        for name in &hooks {
-            let path = wrap.join(name);
-            std::fs::write(&path, HOOK_WRAPPER)?;
-            make_executable(&path)?;
-        }
+        write_wrappers(&wrap, &hooks).await?;
         Ok(Some(HookCapture { root, wrap, log, real }))
     }
 
@@ -524,6 +520,42 @@ impl HookCapture {
         hooks.retain(|h| !h.output.is_empty() || h.exit_code != 0);
         hooks
     }
+}
+
+/// Writes one wrapper script per hook name into `wrap`.
+///
+/// On Unix a short-lived `sh` writes the files, not this process: a file this process held open
+/// for writing would also be held by every child another thread forks in that moment, until that
+/// child's exec, and Linux refuses to start a program file open for writing ("Text file busy"),
+/// so Git could not start the hook. `sh` writes with its built-in `printf` and forks nothing
+/// while the file is open.
+#[cfg(unix)]
+async fn write_wrappers(wrap: &Path, names: &[String]) -> CoreResult<()> {
+    let paths: Vec<PathBuf> = names.iter().map(|name| wrap.join(name)).collect();
+    let out = crate::proc::Proc::new("/bin/sh")
+        .args(["-c", r#"for path do printf '%s' "$FORKYARD_HOOK_WRAPPER" > "$path" || exit 1; done"#, "sh"])
+        .args(&paths)
+        .env("FORKYARD_HOOK_WRAPPER", HOOK_WRAPPER)
+        .run(&crate::jobs::CancelToken::new())
+        .await?;
+    if !out.success() {
+        return Err(CoreError::unknown("The hook wrappers could not be written.").with_git_output(util::decode_lossy(&out.stderr).trim_end()));
+    }
+    for path in &paths {
+        make_executable(path)?;
+    }
+    Ok(())
+}
+
+/// Writes one wrapper script per hook name into `wrap`.
+#[cfg(not(unix))]
+async fn write_wrappers(wrap: &Path, names: &[String]) -> CoreResult<()> {
+    for name in names {
+        let path = wrap.join(name);
+        std::fs::write(&path, HOOK_WRAPPER)?;
+        make_executable(&path)?;
+    }
+    Ok(())
 }
 
 /// Names of the hooks in the folder: executable files without an extension (on Windows also `.exe`).
@@ -1190,6 +1222,48 @@ mod tests {
 
         let result = commit_reword(&tc, id, "Erlaubt".into(), String::new(), None).await.unwrap();
         assert_eq!(result.hooks, vec![HookOutput { hook: "commit-msg".into(), output: "geprüft".into(), exit_code: 0 }]);
+    }
+
+    /// Linux refuses to start a program file that a process still holds open for writing
+    /// (ETXTBSY, "Text file busy"). A child that another thread forks while the wrapper is being
+    /// written inherits that file handle until its own exec, and Git then cannot start the hook.
+    /// The wrappers must be startable at once, however busy the other threads are.
+    #[cfg(target_os = "linux")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn wrappers_can_be_started_at_once_while_other_threads_start_programs() {
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let forkers: Vec<_> = (0..3)
+            .map(|_| {
+                let stop = stop.clone();
+                std::thread::spawn(move || {
+                    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                        let _ = std::process::Command::new("/bin/true").status();
+                    }
+                })
+            })
+            .collect();
+        let dir = tempfile::tempdir().unwrap();
+        let names: Vec<String> = ["pre-commit", "commit-msg", "post-commit"].map(String::from).to_vec();
+        let mut busy = 0;
+        for round in 0..400 {
+            let wrap = dir.path().join(format!("runde {round}"));
+            std::fs::create_dir(&wrap).unwrap();
+            write_wrappers(&wrap, &names).await.unwrap();
+            for name in &names {
+                // Without FORKYARD_HOOK_REAL the wrapper ends at once with 0.
+                match std::process::Command::new(wrap.join(name)).env_remove("FORKYARD_HOOK_REAL").status() {
+                    Ok(status) => assert!(status.success(), "{name}: {status}"),
+                    Err(e) if e.raw_os_error() == Some(26) => busy += 1,
+                    Err(e) => panic!("{name}: {e}"),
+                }
+            }
+        }
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        for forker in forkers {
+            forker.join().unwrap();
+        }
+        assert_eq!(busy, 0, "wrapper starts refused with Text file busy");
+        assert_eq!(std::fs::read_to_string(dir.path().join("runde 7").join("commit-msg")).unwrap(), HOOK_WRAPPER);
     }
 
     #[test]
