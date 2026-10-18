@@ -36,6 +36,7 @@
     "copyShas": "{{n}} SHAs kopieren",
     "shas": "{{n}} SHAs",
     "createTagHere": "Tag hier anlegen …",
+    "releaseNotes": "Release Notes schreiben …",
     "checkout": "Commit auschecken",
     "alreadyCheckedOut": "ist schon ausgecheckt",
     "cherryPick": "Cherry-Pick",
@@ -65,7 +66,8 @@
     "bisectRunning": "Es läuft bereits ein Bisect",
     "bisectGood": "Bisect: als gut markieren",
     "bisectBad": "Bisect: als schlecht markieren",
-    "bisectSkip": "Bisect: diesen Commit überspringen"
+    "bisectSkip": "Bisect: diesen Commit überspringen",
+    "bisectAutopilot": "Bisect-Autopilot …"
   },
   "wip": {
     "noChanges": "keine Änderungen",
@@ -160,7 +162,8 @@
     "name": "Name des Tags",
     "deleteLocal": "Lokal löschen …",
     "deleteLocalAndRemote": "Lokal und auf einem Remote löschen …",
-    "deleteRemoteToo": "Auch auf dem Remote löschen …"
+    "deleteRemoteToo": "Auch auf dem Remote löschen …",
+    "releaseNotes": "Release Notes schreiben …"
   },
   "stash": {
     "resolveOpenConflicts": "erst die offenen Konflikte lösen",

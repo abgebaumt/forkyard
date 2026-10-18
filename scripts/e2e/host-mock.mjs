@@ -15,7 +15,7 @@
  *   mock.token        valid token;  mock.weakToken: valid, but without the required permission
  *   mock.caFile       certificate of the test CA for settings.sslCaFile (tls only)
  *   mock.requests     [{ method, path, query, headers, body, status }] in order of arrival
- *   mock.state        mutable data: { merged: Set, closed: Set, created: [], comments: [] }
+ *   mock.state        mutable data: { merged: Set, closed: Set, created: [], comments: [], releases: [] }
  *
  * Control:
  *   mock.fail("unauthorized")                          all further requests fail like this …
@@ -32,6 +32,7 @@
  * requested reviewer, no. 3 is a draft, no. 4 has a failed check, no. 7 comes from the branch
  * feature/login, no. 8 from a fork, no. 13 cannot be merged. A new pull request from the branch
  * "schon-da" is rejected as a duplicate.
+ * Releases (GitHub, GitLab, Gitea/Forgejo) are recorded in state.releases; a release for the tag "schon-da" is rejected as a duplicate.
  * 12 issues (divisible by 4: closed). Repository: octo/demo (GitHub, Gitea), gruppe/unter/demo
  * (GitLab), team/demo (Bitbucket), firma/projekt/_git/demo (Azure DevOps). Work items (Azure
  * DevOps) = the 12 issues.
@@ -61,7 +62,14 @@ const stamp = (number) => `2026-09-${String(1 + (number % 28)).padStart(2, "0")}
 const sourceBranch = (number) => (number === 7 ? "feature/login" : number === 8 ? "korrektur" : `feature/thema-${number}`);
 
 function freshState() {
-  return { merged: new Set(), closed: new Set(), created: [], comments: [], titles: new Map(), workItems: [] };
+  return { merged: new Set(), closed: new Set(), created: [], comments: [], titles: new Map(), workItems: [], releases: [] };
+}
+
+/** Records a release; `target` is the commit (`target_commitish`, on GitLab `ref`). */
+function recordRelease(state, body, target, description) {
+  const entry = { id: 7001 + state.releases.length, tag: body.tag_name, target: target ?? null, name: body.name || body.tag_name, body: description ?? "", prerelease: Boolean(body.prerelease) };
+  state.releases.push(entry);
+  return entry;
 }
 
 function prState(number, state) {
@@ -139,6 +147,11 @@ function github(ctx) {
       const wanted = query.get("state") ?? "open";
       const numbers = [...state.created.map((entry) => entry.number).reverse(), ...range(TOTAL, 1)].filter((n) => wanted === "all" || (wanted === "open") === (prState(n, state) === "open"));
       return ctx.page(numbers.map((n) => ghPull(base, n, state)));
+    }
+    case "POST releases": {
+      if (body.tag_name === "schon-da") return json(422, { message: "Validation Failed", errors: [{ resource: "Release", code: "already_exists", field: "tag_name" }] });
+      const entry = recordRelease(state, body, body.target_commitish, body.body);
+      return json(201, { id: entry.id, tag_name: entry.tag, name: entry.name, body: entry.body, draft: false, prerelease: entry.prerelease, html_url: `${base}/octo/demo/releases/tag/${encodeURIComponent(entry.tag)}` });
     }
     case "POST pulls": {
       if (body.head === "schon-da") {
@@ -307,6 +320,11 @@ function gitlab(ctx) {
       const numbers = [...state.created.map((entry) => entry.number).reverse(), ...range(TOTAL, 1)].filter((n) => wanted === "all" || wanted === (prState(n, state) === "open" ? "opened" : prState(n, state)));
       return ctx.page(numbers.map((n) => glMerge(base, n, state, false)));
     }
+    case "POST releases": {
+      if (body.tag_name === "schon-da") return json(409, { message: "Release already exists" });
+      const entry = recordRelease(state, body, body.ref, body.description);
+      return json(201, { tag_name: entry.tag, name: entry.name, description: entry.body, _links: { self: `${base}/gruppe/unter/demo/-/releases/${encodeURIComponent(entry.tag)}` } });
+    }
     case "POST merge_requests": {
       if (body.source_branch === "schon-da") return json(409, { message: ["Another open merge request already exists for this source branch: !5"] });
       const entry = { number: 101 + state.created.length, title: body.title, body: body.description ?? "", source: body.source_branch, target: body.target_branch };
@@ -411,6 +429,11 @@ function gitea(ctx) {
       const wanted = query.get("state") ?? "open";
       const numbers = range(TOTAL, 1).filter((n) => wanted === "all" || (wanted === "open") === (prState(n, state) === "open"));
       return page(numbers.map((n) => gtPull(base, n, state)), "limit");
+    }
+    case "POST releases": {
+      if (body.tag_name === "schon-da") return json(409, { message: "release tag already exists" });
+      const entry = recordRelease(state, body, body.target_commitish, body.body);
+      return json(201, { id: entry.id, tag_name: entry.tag, name: entry.name, body: entry.body, html_url: `${base}/octo/demo/releases/tag/${encodeURIComponent(entry.tag)}` });
     }
     case "POST pulls": {
       if (body.head === "schon-da") return json(409, { message: "pull request already exists for these targets" });

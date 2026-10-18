@@ -839,6 +839,59 @@
       "rejectedShort": "Tag was rejected",
       "upToDate": "Tag “{{name}}” is already on {{remote}}",
       "done": "Tag “{{name}}” pushed to {{remote}}"
+    },
+    "releaseNotes": {
+      "label": "Release notes",
+      "write": "Write release notes",
+      "rewrite": "Write again",
+      "writing": "Writing release notes …",
+      "whatIsSent": "What is sent?",
+      "range_one": "{{count}} commit since {{from}}",
+      "range_other": "{{count}} commits since {{from}}",
+      "rangeFromStart_one": "{{count}} commit since the first commit",
+      "rangeFromStart_other": "{{count}} commits since the first commit",
+      "rangeCut": "only the newest {{included}} are sent",
+      "drafted_one": "Draft from {{count}} commit since {{from}}.",
+      "drafted_other": "Draft from {{count}} commits since {{from}}.",
+      "draftedFromStart_one": "Draft from {{count}} commit since the first commit.",
+      "draftedFromStart_other": "Draft from {{count}} commits since the first commit.",
+      "unmentioned_one": "{{count}} commit without a visible change is not mentioned.",
+      "unmentioned_other": "{{count}} commits without a visible change are not mentioned.",
+      "empty": "No commits since {{from}} – nothing to write.",
+      "emptyFromStart": "No commits – nothing to write.",
+      "suggestion": "Release notes are ready",
+      "also": "Also",
+      "external": "External",
+      "targets": {
+        "changelog": "Insert into CHANGELOG.md",
+        "changelogHint": "As a normal change in the working directory – review and commit it yourself.",
+        "hostRelease": "Create release on {{host}}",
+        "hostReleaseHint": "Pushes the tag to {{remote}} first. Leaves this computer and cannot be undone.",
+        "clipboard": "Copy to clipboard"
+      },
+      "titleTag": "Release notes for {{name}}",
+      "titleCommit": "Release notes up to {{sha}}",
+      "notes": "Release notes",
+      "apply": "Apply",
+      "close": "Close",
+      "changelogLabel": "Insert into CHANGELOG.md",
+      "releaseLabel": "Create release",
+      "noRelease": {
+        "title": "No release created",
+        "body": "Forkyard found no connected account with releases for this repository’s remote. Connect one under Settings › Hosts."
+      },
+      "confirmRelease": {
+        "title": "Create release on {{host}}?",
+        "body": "Forkyard pushes the tag “{{tag}}” to {{remote}} and creates a release with these notes. Both leave this computer and cannot be undone.",
+        "action": "Push and create release"
+      },
+      "done": {
+        "changelog": "Release notes inserted into {{path}}",
+        "changelogCreated": "{{path}} created with the release notes",
+        "release": "Release “{{tag}}” created on {{host}}",
+        "openRelease": "Open",
+        "clipboard": "Release notes"
+      }
     }
   },
   "tools": {

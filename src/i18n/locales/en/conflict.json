@@ -204,5 +204,32 @@
   "sides": {
     "single": "{{side}} – lines to take",
     "both": "{{ours}} and {{theirs}} side by side"
+  },
+  "intent": {
+    "toggle": "Intent",
+    "toggleTip": "Show or hide the column that explains what both sides wanted",
+    "region": "Intent of both sides",
+    "title": "Intent",
+    "hide": "Hide",
+    "resize": "Width of the intent column",
+    "intro": "Explains for every conflict what each side wanted – from the commit messages, pull requests and the block texts – and proposes a text that keeps both. Nothing is sent before you click.",
+    "explain": "Explain intent",
+    "again": "Explain again",
+    "whatIsSent": "What is sent?",
+    "loading": "Explaining …",
+    "ready_one": "Intent explained for {{count}} conflict.",
+    "ready_other": "Intent explained for {{count}} conflicts.",
+    "card": "Conflict {{number}}",
+    "current": "current conflict",
+    "proposal": "Proposed text compared with the current text",
+    "diffLabel": "Proposed text for conflict {{number}}: added lines marked with plus, removed lines with minus",
+    "same": "The proposal is the current text of this block.",
+    "apply": "Apply",
+    "discard": "Discard",
+    "applied": "Applied – the block now counts as edited by hand. Undo works in the result as for typing; save as usual when you are done.",
+    "discarded": "Discarded – the result is unchanged.",
+    "shortened": "Explained only – the block is too large to propose a text for it.",
+    "redacted": "Explained only – the block contains values that were masked before sending.",
+    "leftOut": "Not explained – left out to stay within the size limit."
   }
 }

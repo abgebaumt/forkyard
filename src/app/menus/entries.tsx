@@ -62,7 +62,9 @@ import { consecutiveOnHead, findRow, graphIndex, isAncestor } from "../actions/a
 import { checkout, checkoutCommit, chooseUpstream, createBranch, deleteBranches, renameBranch, setUpstream } from "../actions/branches";
 import { copyText } from "../actions/clipboard";
 import { setAllMergesCollapsed, setMergeCollapsed } from "../actions/collapse";
-import { cachedBisect, cachedRefs, cachedRemotes, cachedStashes, cachedStatus, clipMiddle, currentBranch, headSha, short } from "../actions/context";
+import { cachedAiStatus, cachedBisect, cachedRefs, cachedRemotes, cachedRepoSettings, cachedStashes, cachedStatus, clipMiddle, currentBranch, headSha, short } from "../actions/context";
+import { featureVisible } from "../ai/visibility";
+import { openReleaseNotes, type ReleaseNotesSubject } from "../../screens/ReleaseNotes/Dialog";
 import { interactiveRebaseOnto, mergeInto, pushTo, rebaseBranchOnto } from "../actions/drop";
 import { createFile, deleteFile } from "../commands/fileview";
 import { fastForwardBranch, pullBranch } from "../actions/fastForward";
@@ -76,6 +78,7 @@ import { editRemote, removeRemote } from "../actions/remotes";
 import { openRepositoryAt } from "../actions/repos";
 import { openWorktreeDialog } from "../../screens/Worktrees/Dialog";
 import { markBisect, startBisect } from "../../screens/Bisect/actions";
+import { autopilotAccessFor, autopilotRunning, startAutopilot } from "../../screens/Bisect/autopilotActions";
 import { applyStash, applyStashFiles, dropStash, popStash, renameStash, stashChanges } from "../actions/stash";
 import { cachedLocks, lockFiles, unlockFiles } from "../actions/lfs";
 import { lockIndex, lockMenuState } from "../../screens/Lfs/locks";
@@ -163,10 +166,19 @@ function bisectEntries(ctx: MenuBase, shas: Sha[]): MenuEntry[] {
     ];
   }
   if (shas.length === 0 || shas.length > 2) return [];
+  const autopilot = autopilotAccessFor(ctx.repoId);
   return [
     item(t("menus.commit.bisectStart"), Bug, () => void startBisect(ctx.repoId, shas, ctx.tabId), {
       blocked: operationBlock(ctx.repoId) ?? (running ? t("menus.commit.bisectRunning") : null),
     }),
+    // The autopilot works in its own worktree: neither an operation nor a manual bisect here blocks it.
+    ...(autopilot === "hidden"
+      ? []
+      : [
+          item(t("menus.commit.bisectAutopilot"), null, () => void startAutopilot(ctx.repoId, shas, ctx.tabId), {
+            blocked: autopilotRunning(ctx.repoId) ? t("commands.bisect.autopilot.running") : null,
+          }),
+        ]),
   ];
 }
 
@@ -182,6 +194,17 @@ function mergeEntries(ctx: MenuBase, sha: Sha, row: GraphRow | undefined): MenuE
     item(t("menus.commit.collapseAll"), ChevronsDownUp, () => void setAllMergesCollapsed(ctx.repoId, true), { shortcut: "Mod+Shift+[" }),
     item(t("menus.commit.expandAll"), ChevronsUpDown, () => void setAllMergesCollapsed(ctx.repoId, false), { shortcut: "Mod+Shift+]" }),
   ];
+}
+
+/**
+ * "Write release notes …" – only while the AI function is visible (AI on, function on, repository
+ * not "AI off"). Unknown repository settings count as "AI off here" (the repository toolbar keeps
+ * them loaded for the open repository).
+ */
+function releaseNotesEntry(repoId: Id, subject: ReleaseNotesSubject): MenuAction | null {
+  if (!featureVisible(cachedAiStatus(), "release_notes", cachedRepoSettings(repoId)?.aiOff ?? true)) return null;
+  const label = subject.kind === "tag" ? t("menus.tag.releaseNotes") : t("menus.commit.releaseNotes");
+  return item(label, FileText, () => void openReleaseNotes(repoId, subject));
 }
 
 export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
@@ -227,6 +250,7 @@ export function commitMenu(ctx: MenuBase & { shas: Sha[] }): MenuEntry[] {
   return tidy([
     item(t("menus.createBranchHere"), GitBranchPlus, () => void createBranch(repoId, { start: sha, tabId }), { blocked: busy }),
     item(t("menus.commit.createTagHere"), Tag, () => void createTag(repoId, sha)),
+    releaseNotesEntry(repoId, { kind: "commit", sha }),
     SEPARATOR,
     item(t("menus.commit.checkout"), LogIn, () => void checkoutCommit(repoId, sha, tabId), {
       hint: t("menus.detachedHint"),
@@ -548,6 +572,7 @@ export function tagMenu(ctx: MenuBase & { ref: Ref }): MenuEntry[] {
     SEPARATOR,
     item(several ? t("menus.tag.pushToRemoteChoose") : only ? t("menus.tag.pushTo", { name: clipMiddle(only, 24) }) : t("menus.tag.pushToRemote"), CloudUpload, () => void pushTag(repoId, ref.name), { blocked: noRemote }),
     item(t("menus.copyName"), Copy, () => void copyText(ref.name, t("menus.tag.name"))),
+    releaseNotesEntry(repoId, { kind: "tag", name: ref.name }),
     SEPARATOR,
     item(t("menus.tag.deleteLocal"), Trash2, () => void deleteTag(repoId, ref.name, null), { danger: true }),
     item(several ? t("menus.tag.deleteLocalAndRemote") : t("menus.tag.deleteRemoteToo"), Trash2, () => void deleteTag(repoId, ref.name, true), { danger: true, blocked: noRemote }),

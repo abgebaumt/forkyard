@@ -615,6 +615,89 @@ pub struct BisectStatus {
     pub only_skipped_left: bool,
 }
 
+/// What the AI writes a bisect test script from (`bisect_autopilot_script`, `AiInput::BisectScript`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectScriptRequest {
+    /// The problem in the user's words.
+    pub description: String,
+    /// A command that shows the problem (`npm test`), if the user knows one.
+    pub test_command: Option<String>,
+    pub bad: String,
+    pub good: Vec<String>,
+}
+
+/// The shell a bisect test script runs with: `/bin/sh` on Linux and macOS, Windows PowerShell on Windows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BisectShell {
+    Sh,
+    Powershell,
+}
+
+/// The AI's test script – shown and editable; `bisect_autopilot_script` never runs it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectScript {
+    pub script: String,
+    /// One sentence in the UI language: what the script checks.
+    pub summary: String,
+    pub shell: BisectShell,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BisectAutopilotPhase {
+    /// Worktree and bisect are being set up.
+    Preparing,
+    /// The script runs commit by commit.
+    Testing,
+    /// The first bad commit is certain (`result`).
+    Found,
+    /// Only skipped commits are left; the first bad one is among `candidates`.
+    OnlySkipped,
+    /// The script ended with an exit code above 127 or by a signal (`message`).
+    Failed,
+}
+
+/// One tested commit of an autopilot run.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectAutopilotStep {
+    pub sha: Sha,
+    pub verdict: BisectVerdict,
+    /// `None` when the step hit its time limit.
+    pub exit_code: Option<i32>,
+    /// Over the time limit: counted as skipped.
+    pub timed_out: bool,
+    pub duration_ms: u64,
+    /// The end of the script's output (stdout, then stderr), redacted.
+    pub output_tail: String,
+}
+
+/// The bisect autopilot run of a repository. Kept in memory as job state; the bisect itself lives in
+/// the temporary worktree's own Git directory and is read from there after every mark.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectAutopilot {
+    pub job_id: String,
+    pub phase: BisectAutopilotPhase,
+    /// `<parent>/<repo>.agents/bisect-<n>`; empty until the folder is chosen.
+    pub worktree_path: String,
+    pub bad: Sha,
+    pub good: Vec<Sha>,
+    /// The commit under test.
+    pub current: Option<Sha>,
+    /// Git's estimate of the steps after the current one.
+    pub remaining_steps: Option<u32>,
+    pub steps: Vec<BisectAutopilotStep>,
+    pub result: Option<Sha>,
+    pub candidates: Vec<Sha>,
+    pub step_timeout_secs: u64,
+    pub message: Option<String>,
+    pub started_at: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpstreamState {
@@ -975,6 +1058,42 @@ pub enum PushResult {
     Rejected { reason: String },
     /// Several refs in one push (`extra`): one result per ref, the primary branch first.
     Multi { remote: String, atomic: bool, refs: Vec<PushRefResult> },
+    /// The local secret scan found added lines that look like a key; nothing was sent. Push again
+    /// with `accepted_secrets` = the IDs of these findings to push anyway.
+    SecretsFound { findings: Vec<SecretFinding>, commits: u32, partial: bool },
+}
+
+/// Why the local secret scan before a push (v1.2, 6.2) reported a line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SecretRule {
+    /// A token or key with a well-known prefix.
+    KnownToken,
+    /// The first line of a private key.
+    PrivateKey,
+    /// The value of a password, token or secret named as such.
+    Credential,
+    /// The password in an address `scheme://user:password@host`.
+    UrlPassword,
+    /// A random-looking string in quotes or after `=` / `:`.
+    HighEntropy,
+}
+
+/// One added line that looks like a key. The value never leaves the core: `excerpt` is the line
+/// with every value masked, `hint` at most its last four characters.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SecretFinding {
+    /// SHA-256 (hex) of path and line content; "Don't report again" stores it.
+    pub id: String,
+    pub path: String,
+    /// Line in the new version of the file (1-based).
+    pub line: u32,
+    /// The newest outgoing commit that adds this line.
+    pub commit: String,
+    pub rule: SecretRule,
+    pub excerpt: String,
+    pub hint: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1006,6 +1125,58 @@ pub struct ConflictFile {
     pub theirs_label: String,
     /// `None` for binary files.
     pub encoding: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
+// Conflicts with intent (v1.2, Teilpaket 6.1)
+// ---------------------------------------------------------------------------
+
+/// One conflict block of the conflict tool as line ranges of the current side (index stage 2)
+/// and the incoming side (stage 3): 0-based first line and number of lines. The core cuts the
+/// text itself from the versions in the index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictBlockRange {
+    pub ours_start: u32,
+    pub ours_count: u32,
+    pub theirs_start: u32,
+    pub theirs_count: u32,
+}
+
+/// How a conflict block went to the AI.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum IntentSent {
+    /// Completely: explanation and proposal.
+    Full,
+    /// Start and end only, to stay within the size limit: explanation only.
+    Shortened,
+    /// Values in the block were masked before sending: explanation only.
+    Redacted,
+    /// Not sent, to stay within the size limit.
+    LeftOut,
+}
+
+/// The answer for one conflict block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictIntentBlock {
+    /// Index among the conflicts of the file (0-based, the order of the ranges sent).
+    pub block: u32,
+    pub sent: IntentSent,
+    /// What the current side wanted; `None` for `left_out`.
+    pub ours_why: Option<String>,
+    pub theirs_why: Option<String>,
+    /// Text that replaces the block's range in the result, every line ending in `\n`; only for `full`.
+    pub text: Option<String>,
+}
+
+/// `ai_conflict_intent`: one entry per conflict block, in order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConflictIntent {
+    pub path: String,
+    pub blocks: Vec<ConflictIntentBlock>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1625,16 +1796,62 @@ pub enum AiInput {
     StagedChanges,
     /// "Compose commits": every local change since HEAD, as units with aliases (3.2).
     Compose,
+    /// Bisect autopilot (9.1): the user's description and test command, the range's commit
+    /// subjects, top-level names, build files and changed paths.
+    BisectScript(BisectScriptRequest),
     /// The commit message of the staged changes (spec 3.1): diff, branch, style examples,
     /// template and own instruction – exactly what `ai_commit_message` sends.
     CommitMessage,
     /// Paket 4: the commits of `source` that `target` does not have (full ref names, e.g.
     /// `refs/heads/feature/x` and `refs/remotes/origin/main`).
     PrDescription { source: String, target: String },
+    /// Teilpaket 6.1: the conflict blocks of one conflicted file, as line ranges of the conflict tool.
+    ConflictIntent { path: String, blocks: Vec<ConflictBlockRange> },
+    /// What a push with these arguments would send (v1.2, 6.2): the outgoing commits and their
+    /// combined diff. Same target rules as `push`.
+    #[serde(rename_all = "camelCase")]
+    OutgoingChanges { branch: Option<String>, remote: Option<String>, remote_branch: Option<String> },
+    /// The commits of the release notes (7.2): after `from` (default: the nearest earlier tag,
+    /// tags on `to` left out) up to `to` (default `HEAD`), merges left out.
+    ReleaseNotes { from: Option<String>, to: Option<String> },
     /// "Git in plain language": the user's sentence (Paket 5).
     Plan { text: String },
     /// One line's history for “Why is this so?” (Paket 7.1); `sha: None` = working directory.
     Archaeology { path: String, line: u32, sha: Option<String> },
+}
+
+/// Kind of a hint of the review before a push (spec 6.2). Keys are never a kind: they come from
+/// the local secret scan only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiPushFindingKind {
+    DebugOutput,
+    CommentedCode,
+    LikelyBug,
+}
+
+/// One hint of the review before a push; no promise of severity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPushFinding {
+    /// One of the files the model saw.
+    pub path: String,
+    /// Line in the new version, if the model named one.
+    pub line: Option<u32>,
+    pub kind: AiPushFindingKind,
+    /// Redacted, at most 300 characters.
+    pub note: String,
+}
+
+/// Result of `ai_push_review`. `commits = 0`: nothing goes out, nothing was sent.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AiPushReview {
+    pub findings: Vec<AiPushFinding>,
+    pub commits: u32,
+    pub files: u32,
+    /// More than `MAX_REVIEW_COMMITS` commits go out: only the newest were reviewed.
+    pub partial: bool,
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
@@ -1820,6 +2037,71 @@ pub struct PlanRunResult {
     /// Every step is done.
     pub completed: bool,
     pub cancelled: bool,
+}
+
+/// The four groups of the release notes (Entscheidung 5, Keep a Changelog).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReleaseGroupKind {
+    Added,
+    Changed,
+    Fixed,
+    Other,
+}
+
+/// The language the entries were written in; German and English have their own headings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReleaseLanguage {
+    De,
+    En,
+    Other,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseNoteGroup {
+    pub kind: ReleaseGroupKind,
+    /// `Added` / `Neu` …
+    pub heading: String,
+    /// One line each, without the bullet.
+    pub entries: Vec<String>,
+}
+
+/// The commits of the release notes: after `from` (a tag or the given start) up to `to_sha`, merges left out.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseNotesRange {
+    /// `None`: from the first commit (no earlier tag).
+    pub from: Option<String>,
+    pub from_sha: Option<String>,
+    pub to_sha: String,
+    /// All commits of the range (`git rev-list --no-merges --count`).
+    pub commits: u32,
+    /// How many of them (newest first) go to the provider.
+    pub included: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseNotes {
+    pub range: ReleaseNotesRange,
+    pub language: ReleaseLanguage,
+    /// Non-empty groups in the order Added, Changed, Fixed, Other.
+    pub groups: Vec<ReleaseNoteGroup>,
+    /// `### <heading>` blocks with `- ` entries; empty without commits.
+    pub markdown: String,
+    /// Commits no entry is based on (no visible change).
+    pub unmentioned: u32,
+}
+
+/// `changelog_insert`: which file (relative to the working directory) and how.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangelogInsertResult {
+    pub path: String,
+    pub created: bool,
+    pub keep_a_changelog: bool,
 }
 
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
@@ -2110,6 +2392,13 @@ pub struct RepoSettings {
     /// "AI off for this repository": no AI element appears for it, nothing of it is sent.
     #[serde(default)]
     pub ai_off: bool,
+    /// Project › AI and agents: run the AI review before every normal push (v1.2, 6.2; off by default).
+    #[serde(default)]
+    pub ai_review_before_push: bool,
+    /// How many secret-scan findings this repository no longer reports ("Don't report again").
+    /// Read-only; only hashes are stored, never values.
+    #[serde(default)]
+    pub secret_scan_ignored_count: u32,
     /// Own instruction for AI commit messages in this repository (spec 3.1), at most 2000
     /// characters; stored in the app (`repo_settings`), never in .git/config.
     #[serde(default)]
@@ -2127,6 +2416,8 @@ impl Default for RepoSettings {
             hooks_path: None,
             commit_template: None,
             commit_template_text: None,
+            ai_review_before_push: false,
+            secret_scan_ignored_count: 0,
             default_pull_mode: None,
             auto_fetch: true,
             author_name: None,
@@ -3373,6 +3664,18 @@ pub struct HostCapabilities {
     pub pr_labels: bool,
     /// Pull requests from forks can be checked out (the host offers a ref for them).
     pub fork_checkout: bool,
+    /// Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo).
+    pub releases: bool,
+}
+
+/// A release at the host, as `release_create` returns it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HostRelease {
+    pub tag: String,
+    pub name: String,
+    /// The release's page; `None` if the host does not name one.
+    pub web_url: Option<String>,
 }
 
 /// The repository at the host, recognized by the URL of a remote.
@@ -4454,5 +4757,55 @@ mod agent_review_json_tests {
         );
         assert_eq!(serde_json::from_value::<AgentReviewSource>(json!("branch")).unwrap(), AgentReviewSource::Branch);
         assert_eq!(AgentReviewSource::default(), AgentReviewSource::Snapshot);
+    }
+}
+
+#[cfg(test)]
+mod conflict_intent_json_tests {
+    use super::*;
+    use serde_json::json;
+
+    /// The UI sends line ranges and gets explanations and proposals back in exactly this shape (v1.2, 6.1).
+    #[test]
+    fn conflict_intent_types_have_their_wire_shape() {
+        let input: AiInput = serde_json::from_value(json!({
+            "kind": "conflict_intent",
+            "path": "src/-anmeldung ä.txt",
+            "blocks": [{ "oursStart": 1, "oursCount": 0, "theirsStart": 1, "theirsCount": 2 }]
+        }))
+        .unwrap();
+        assert_eq!(
+            input,
+            AiInput::ConflictIntent {
+                path: "src/-anmeldung ä.txt".into(),
+                blocks: vec![ConflictBlockRange { ours_start: 1, ours_count: 0, theirs_start: 1, theirs_count: 2 }]
+            }
+        );
+        assert_eq!(serde_json::to_value(AiInput::StagedChanges).unwrap(), json!({ "kind": "staged_changes" }), "the variant of 1a keeps its shape");
+
+        let intent = ConflictIntent {
+            path: "a.txt".into(),
+            blocks: vec![
+                ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None },
+                ConflictIntentBlock { block: 1, sent: IntentSent::Full, ours_why: Some("x".into()), theirs_why: Some("y".into()), text: Some("z\n".into()) },
+            ],
+        };
+        assert_eq!(
+            serde_json::to_value(&intent).unwrap(),
+            json!({
+                "path": "a.txt",
+                "blocks": [
+                    { "block": 0, "sent": "left_out", "oursWhy": null, "theirsWhy": null, "text": null },
+                    { "block": 1, "sent": "full", "oursWhy": "x", "theirsWhy": "y", "text": "z\n" }
+                ]
+            })
+        );
+        for sent in ["full", "shortened", "redacted", "left_out"] {
+            assert!(serde_json::from_value::<IntentSent>(json!(sent)).is_ok(), "{sent}");
+        }
+        assert!(
+            serde_json::from_value::<ConflictBlockRange>(json!({ "oursStart": -1, "oursCount": 0, "theirsStart": 0, "theirsCount": 0 })).is_err(),
+            "no negative line numbers"
+        );
     }
 }

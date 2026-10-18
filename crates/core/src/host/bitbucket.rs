@@ -542,6 +542,7 @@ impl Host for BitbucketHost {
             pr_reviewers: false,
             pr_labels: false,
             fork_checkout: false,
+            releases: false,
         }
     }
     fn pr_ref(&self, _number: u64) -> Option<String> {

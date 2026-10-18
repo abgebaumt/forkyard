@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, summarize_checks, text, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts,
+    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, summarize_checks, text, Api, Host, HostFuture, NewPr, NewRelease, Paging, PrChange, RepoFacts,
     RepoPath,
 };
 use crate::app::Core;
@@ -15,7 +15,7 @@ use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
     PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
 };
 
@@ -441,6 +441,19 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
 
 pub struct GitlabHost;
 
+/// `POST /projects/:id/releases`. `ref` is only used when the tag does not exist on GitLab yet;
+/// GitLab has no pre-release flag.
+pub async fn release_create(core: &Core, api: &Api, repo: &RepoPath, new: NewRelease<'_>) -> CoreResult<HostRelease> {
+    let body = json!({ "tag_name": new.tag, "ref": new.target_sha, "name": new.name, "description": new.body });
+    let created: Value = api
+        .send_json(core, Method::Post, &format!("{}/releases", project_path(repo)), &body)
+        .await
+        .map_err(|e| release_error(e, new.tag, project_missing(repo)))?
+        .json()?;
+    let web_url = created.get("_links").and_then(|links| opt_text(links, "self"));
+    Ok(HostRelease { tag: text(&created, "tag_name"), name: text(&created, "name"), web_url })
+}
+
 impl Host for GitlabHost {
     fn kind(&self) -> HostKind {
         HostKind::Gitlab
@@ -483,6 +496,7 @@ impl Host for GitlabHost {
             pr_reviewers: true,
             pr_labels: true,
             fork_checkout: true,
+            releases: true,
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
@@ -529,5 +543,9 @@ impl Host for GitlabHost {
     }
     fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_set_open(core, api, repo, number, open))
+    }
+
+    fn release_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewRelease<'a>) -> HostFuture<'a, HostRelease> {
+        Box::pin(release_create(core, api, repo, new))
     }
 }

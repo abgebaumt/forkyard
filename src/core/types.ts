@@ -574,6 +574,56 @@ export interface BisectStatus {
   onlySkippedLeft: boolean;
 }
 
+/** What the AI writes a bisect test script from (`bisectAutopilotScript`). */
+export interface BisectScriptRequest {
+  /** The problem in the user's words. */
+  description: string;
+  /** A command that shows the problem, if the user knows one. */
+  testCommand: string | null;
+  bad: Sha;
+  good: Sha[];
+}
+
+/** `sh` on Linux and macOS, Windows PowerShell on Windows. */
+export type BisectShell = "sh" | "powershell";
+
+/** The AI's test script – shown and editable, never run by `bisectAutopilotScript`. */
+export interface BisectScript {
+  script: string;
+  summary: string;
+  shell: BisectShell;
+}
+
+export type BisectAutopilotPhase = "preparing" | "testing" | "found" | "only_skipped" | "failed";
+
+export interface BisectAutopilotStep {
+  sha: Sha;
+  verdict: BisectVerdict;
+  /** null when the step hit its time limit. */
+  exitCode: number | null;
+  timedOut: boolean;
+  durationMs: number;
+  outputTail: string;
+}
+
+/** The bisect autopilot run of a repository (`bisectAutopilotStatus`). */
+export interface BisectAutopilot {
+  jobId: string;
+  phase: BisectAutopilotPhase;
+  /** `<parent>/<repo>.agents/bisect-<n>`; empty until the folder is chosen. */
+  worktreePath: string;
+  bad: Sha;
+  good: Sha[];
+  current: Sha | null;
+  remainingSteps: number | null;
+  steps: BisectAutopilotStep[];
+  result: Sha | null;
+  candidates: Sha[];
+  stepTimeoutSecs: number;
+  message: string | null;
+  startedAt: string;
+}
+
 export interface UpstreamState {
   name: string;
   ahead: number;
@@ -819,7 +869,26 @@ export type PushResult =
   /** The remote has commits that are missing locally. */
   | { status: "rejected"; reason: string }
   /** Several refs in one push (`extra`): one result per ref, the primary branch first. */
-  | { status: "multi"; remote: string; atomic: boolean; refs: PushRefResult[] };
+  | { status: "multi"; remote: string; atomic: boolean; refs: PushRefResult[] }
+  /** The local secret scan stopped the push; nothing was sent. Push again with `acceptedSecrets` = the IDs to push anyway. */
+  | { status: "secrets_found"; findings: SecretFinding[]; commits: number; partial: boolean };
+
+/** Why the secret scan before a push reported a line: known token format, private key, named password/token, password in an address, random-looking string. */
+export type SecretRule = "known_token" | "private_key" | "credential" | "url_password" | "high_entropy";
+
+/** One added line that looks like a key. The value never leaves the core: `excerpt` masks it, `hint` is at most its last four characters. */
+export interface SecretFinding {
+  /** Hash of path and line content; "Don't report again" stores it. */
+  id: string;
+  path: string;
+  /** Line in the new version of the file. */
+  line: number;
+  /** The newest outgoing commit that adds the line. */
+  commit: Sha;
+  rule: SecretRule;
+  excerpt: string;
+  hint: string;
+}
 
 export interface FetchResult {
   /** Number of changed remote refs. */
@@ -843,6 +912,32 @@ export interface ConflictFile {
   theirsLabel: string;
   /** Encoding in which `conflictResolve` writes the text; null for binary files. */
   encoding: string | null;
+}
+
+/** One conflict block of the conflict tool: 0-based first line and number of lines on both sides (stages 2 and 3). */
+export interface ConflictBlockRange {
+  oursStart: number;
+  oursCount: number;
+  theirsStart: number;
+  theirsCount: number;
+}
+
+/** How a block went to the AI: completely; start and end only, or with masked values (both: explanation only); not at all. */
+export type IntentSent = "full" | "shortened" | "redacted" | "left_out";
+
+/** The answer for one conflict block; `block` is the 0-based conflict index, `text` only for `full`. */
+export interface ConflictIntentBlock {
+  block: number;
+  sent: IntentSent;
+  oursWhy: string | null;
+  theirsWhy: string | null;
+  text: string | null;
+}
+
+/** `aiConflictIntent`: one entry per conflict block, in order. */
+export interface ConflictIntent {
+  path: string;
+  blocks: ConflictIntentBlock[];
 }
 
 export type RebaseAction = "pick" | "reword" | "squash" | "drop";
@@ -1148,7 +1243,38 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "compose" } | { kind: "plan"; text: string } | { kind: "archaeology"; path: string; line: number; sha: Sha | null };
+export type AiInput =
+  | { kind: "staged_changes" }
+  | { kind: "commit_message" }
+  | { kind: "pr_description"; source: string; target: string }
+  | { kind: "compose" }
+  | { kind: "plan"; text: string }
+  | { kind: "archaeology"; path: string; line: number; sha: Sha | null }
+  | { kind: "conflict_intent"; path: string; blocks: ConflictBlockRange[] }
+  /** What a push with these arguments would send (review before a push): the outgoing commits and their combined diff. */
+  | { kind: "outgoing_changes"; branch: string | null; remote: string | null; remoteBranch: string | null }
+  | { kind: "release_notes"; from: string | null; to: string | null }
+  | ({ kind: "bisect_script" } & BisectScriptRequest);
+
+/** Kind of a hint of the review before a push. Keys are never a kind – they come from the local scan. */
+export type AiPushFindingKind = "debug_output" | "commented_code" | "likely_bug";
+
+/** One hint of the review before a push; no promise of severity. */
+export interface AiPushFinding {
+  path: string;
+  line: number | null;
+  kind: AiPushFindingKind;
+  note: string;
+}
+
+/** Result of `aiPushReview`. `commits: 0` = nothing goes out, nothing was sent. */
+export interface AiPushReview {
+  findings: AiPushFinding[];
+  commits: number;
+  files: number;
+  /** Very large push: only the newest commits were reviewed. */
+  partial: boolean;
+}
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
@@ -1267,6 +1393,48 @@ export interface PlanRunResult {
   undoRecorded: boolean;
   completed: boolean;
   cancelled: boolean;
+}
+
+/** The four groups of release notes (Keep a Changelog). */
+export type ReleaseGroupKind = "added" | "changed" | "fixed" | "other";
+/** Language the entries were written in; German and English have their own headings. */
+export type ReleaseLanguage = "de" | "en" | "other";
+
+export interface ReleaseNoteGroup {
+  kind: ReleaseGroupKind;
+  /** "Added" / "Neu" … */
+  heading: string;
+  /** One line each, without the bullet. */
+  entries: string[];
+}
+
+/** Commits after `from` (a tag or the given start; null = from the first commit) up to `toSha`, merges left out. */
+export interface ReleaseNotesRange {
+  from: string | null;
+  fromSha: Sha | null;
+  toSha: Sha;
+  /** All commits of the range. */
+  commits: number;
+  /** How many of them (newest first) go to the provider. */
+  included: number;
+}
+
+export interface ReleaseNotes {
+  range: ReleaseNotesRange;
+  language: ReleaseLanguage;
+  /** Non-empty groups in the order Added, Changed, Fixed, Other. */
+  groups: ReleaseNoteGroup[];
+  /** "### <heading>" blocks with "- " entries; empty without commits. */
+  markdown: string;
+  /** Commits no entry is based on (no visible change). */
+  unmentioned: number;
+}
+
+export interface ChangelogInsertResult {
+  /** Relative to the working directory, e.g. "CHANGELOG.md". */
+  path: string;
+  created: boolean;
+  keepAChangelog: boolean;
 }
 
 /** `aiPrDescription`: a suggestion for title and description – nothing is written anywhere. */
@@ -1448,6 +1616,10 @@ export interface RepoSettings {
   linkRules: LinkRulesConfig;
   /** "AI off for this repository": no AI element, nothing of it is sent. Stored in the app, not in .git/config. */
   aiOff: boolean;
+  /** Project › AI and agents: run the AI review before every normal push. Stored in the app. */
+  aiReviewBeforePush: boolean;
+  /** Read-only: how many secret-scan findings this repository no longer reports. */
+  secretScanIgnoredCount: number;
   /** Own instruction for AI commit messages in this repository (at most 2000 characters); null = none. Stored in the app, not in .git/config. */
   aiCommitInstruction: string | null;
   /** Test command for coding agents, run in the agent's worktree when it is done. null = none. */
@@ -2002,6 +2174,16 @@ export interface HostCapabilities {
   prLabels: boolean;
   /** Pull requests from forks can be checked out. */
   forkCheckout: boolean;
+  /** Releases can be created for a tag (GitHub, GitLab, Gitea/Forgejo). */
+  releases: boolean;
+}
+
+/** A release at the host (`releaseCreate`). */
+export interface HostRelease {
+  tag: string;
+  name: string;
+  /** The release's page; null if the host names none. */
+  webUrl: string | null;
 }
 
 export interface HostRepoInfo {

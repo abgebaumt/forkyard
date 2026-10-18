@@ -10,6 +10,8 @@
 
 pub mod archaeology;
 pub mod commit_message;
+pub mod conflict;
+pub mod bisect;
 pub mod context;
 pub mod gate;
 pub mod ignore;
@@ -19,6 +21,7 @@ pub mod prompt;
 pub mod pr;
 pub mod provider;
 pub mod providers;
+pub mod release_notes;
 pub mod run;
 pub mod plan;
 pub mod plan_check;

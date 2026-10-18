@@ -748,6 +748,11 @@
     "end": {
       "title": "Bisect beenden"
     },
+    "autopilot": {
+      "title": "Bisect-Autopilot …",
+      "keywords": "Bisect, Autopilot, Fehler finden, Regression, Testskript",
+      "running": "Der Bisect-Autopilot läuft bereits"
+    },
     "notRunning": "Es läuft kein Bisect"
   }
 }

@@ -2,20 +2,23 @@
 //! confirmations and this month's usage. The AI settings themselves are `Settings` fields
 //! (`settings_set`); the AI functions of later packages call `ai::run::complete_json`.
 
+use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use serde_json::Value;
+use serde_json::{json, Value};
 
-use crate::ai::{self, commit_message, context, gate, pricing, providers, run};
+use crate::ai::{self, commit_message, context, gate, pricing, providers, release_notes, run};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
 use crate::model::{
-    AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, Settings,
+    AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, AiPushFinding, AiPushFindingKind, AiPushReview, ConflictBlockRange, ConflictIntent, Settings,
 };
 use crate::secrets;
+use crate::util;
+use crate::commands::sync::{push_destination, PushRequest};
 
 /// The stored key of a provider; `None` if there is none or the keychain is unreachable.
 async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
@@ -166,6 +169,13 @@ pub async fn ai_intro_dismiss(core: &Core) -> CoreResult<AiStatus> {
     ai_status(core).await
 }
 
+/// The outgoing changes of a push with these arguments (`AiInput::OutgoingChanges`, `ai_push_review`).
+async fn outgoing_for(core: &Core, repo_id: &str, branch: Option<&str>, remote: Option<&str>, remote_branch: Option<&str>) -> CoreResult<context::Outgoing> {
+    let request = PushRequest { branch, remote, remote_branch, ..PushRequest::default() };
+    let (local_ref, remote, _) = push_destination(core, repo_id, &request).await?;
+    context::outgoing(core, repo_id, &local_ref, &remote).await
+}
+
 /// "What is sent?": builds the exact text without sending anything. Works in every state; the
 /// confirmation triggers are computed only while AI is on with a provider and a model.
 pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input: AiInput, locale: String) -> CoreResult<AiPreview> {
@@ -190,6 +200,16 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             let timeline = crate::commands::archaeology::timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
             crate::ai::archaeology::build(core, &repo_id, &settings, budget, &locale, &secrets, &timeline).await?
         }
+        AiInput::ConflictIntent { path, blocks } => ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?.built,
+        AiInput::OutgoingChanges { branch, remote, remote_branch } => {
+            let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
+            context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?.built
+        }
+        AiInput::ReleaseNotes { from, to } => release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), budget, &locale, &secrets).await?.built,
+        AiInput::BisectScript(request) => {
+            let checked = ai::bisect::check(core, &repo_id, &request).await?;
+            ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?
+        }
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {
@@ -212,6 +232,88 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         preview.asks = gate::pending(core, &settings, &run::situation(core, &settings, kind, Some(&repo_id), feature, &estimate))?;
     }
     Ok(preview)
+}
+
+const MAX_REVIEW_FINDINGS: usize = 50;
+const MAX_NOTE_CHARS: usize = 300;
+
+/// Answer schema of the review before a push (1a's dialect: every field required, no formats).
+fn push_review_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "findings": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "line": {"type": ["integer", "null"]},
+                        "kind": {"type": "string", "enum": ["debug_output", "commented_code", "likely_bug"]},
+                        "note": {"type": "string"}
+                    },
+                    "required": ["path", "line", "kind", "note"],
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["findings"],
+        "additionalProperties": false
+    })
+}
+
+/// The answer is data (Grundregel 3): only files the model saw, sensible lines, redacted notes,
+/// no duplicates, at most `MAX_REVIEW_FINDINGS`; sorted by path and line.
+fn review_findings(value: &Value, shown: &[String], secrets: &[String]) -> Vec<AiPushFinding> {
+    let known: HashSet<&str> = shown.iter().map(String::as_str).collect();
+    let mut seen: HashSet<(String, Option<u32>, AiPushFindingKind)> = HashSet::new();
+    let mut out = Vec::new();
+    for item in value.get("findings").and_then(Value::as_array).into_iter().flatten() {
+        let Some(raw) = item.get("path").and_then(Value::as_str) else { continue };
+        let Some(path) = [raw.to_string(), raw.replace('\\', "/")]
+            .into_iter()
+            .filter_map(|candidate| crate::commands::history::normalize_rel_path(&candidate).ok())
+            .find(|candidate| known.contains(candidate.as_str()))
+        else {
+            continue;
+        };
+        let kind = match item.get("kind").and_then(Value::as_str) {
+            Some("debug_output") => AiPushFindingKind::DebugOutput,
+            Some("commented_code") => AiPushFindingKind::CommentedCode,
+            Some("likely_bug") => AiPushFindingKind::LikelyBug,
+            _ => continue,
+        };
+        let line = item.get("line").and_then(Value::as_u64).filter(|number| *number >= 1).and_then(|number| u32::try_from(number).ok());
+        let note = context::redact_for_ai(item.get("note").and_then(Value::as_str).unwrap_or("").trim(), secrets);
+        let note = util::truncate_str(&note, MAX_NOTE_CHARS);
+        if note.trim().is_empty() || !seen.insert((path.clone(), line, kind)) {
+            continue;
+        }
+        out.push(AiPushFinding { path, line, kind, note });
+        if out.len() == MAX_REVIEW_FINDINGS {
+            break;
+        }
+    }
+    out.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
+    out
+}
+
+/// "Review and push …" (spec 6.2): asks the provider about leftovers in what a `push` with these
+/// arguments would send. Same target rules and errors as `push`; nothing outgoing → no request.
+/// Budget, secrets (`request_frame`) and builder are those of `ai_preview` for `AiInput::OutgoingChanges`, so the
+/// confirmation of "What is sent?" matches.
+pub async fn ai_push_review(core: &Core, repo_id: String, job_id: String, branch: Option<String>, remote: Option<String>, remote_branch: Option<String>, locale: String) -> CoreResult<AiPushReview> {
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::PushReview)?;
+    let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
+    if outgoing.commits.is_empty() {
+        return Ok(AiPushReview { findings: Vec::new(), commits: 0, files: 0, partial: false });
+    }
+    // Budget and known secrets exactly as `ai_preview` computes them (Paket 3.1's `request_frame`).
+    let (budget, secrets) = request_frame(core, &settings, AiFeature::PushReview).await;
+    let built = context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?;
+    let schema = push_review_schema();
+    let answer = run::complete_json(core, run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::PushReview, job_id: &job_id, prompt: &built.built.prompt, schema: &schema }).await?;
+    Ok(AiPushReview { findings: review_findings(&answer.value, &built.shown, &secrets), commits: built.commits, files: built.files, partial: built.partial })
 }
 
 /// Paket 4: title and description of a pull request from the commits of `source` that `target`
@@ -304,6 +406,25 @@ pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind
     }
     let launch = crate::commands::terminal::ProgramLaunch { program, args: ai::cli::login_args(provider), cwd: PathBuf::new(), env, title: provider.label().to_string() };
     crate::commands::terminal::terminal_open_login(core, &repo_id, launch, cols, rows).await
+}
+
+/// Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
+/// wanted and a proposed text per block (`ai::conflict`). Checks that AI is on for this function and
+/// repository before anything is read, builds exactly the text `ai_preview` shows for
+/// `AiInput::ConflictIntent` (same builder, same `request_frame`), asks the provider as job `job_id`
+/// (confirmations, usage and the activity entry by `complete_json`) and checks the answer per block.
+/// Changes nothing in the repository.
+pub async fn ai_conflict_intent(core: &Core, repo_id: String, job_id: String, path: String, blocks: Vec<ConflictBlockRange>, locale: String) -> CoreResult<ConflictIntent> {
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::ConflictIntent)?;
+    let (budget, secrets) = request_frame(core, &settings, AiFeature::ConflictIntent).await;
+    let plan = ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?;
+    let schema = ai::conflict::schema();
+    let answer = run::complete_json(
+        core,
+        run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::ConflictIntent, job_id: &job_id, prompt: &plan.built.prompt, schema: &schema },
+    )
+    .await?;
+    ai::conflict::accept(&plan, &answer.value)
 }
 
 #[cfg(test)]
@@ -632,3 +753,7 @@ mod tests {
         assert!(server.requests().iter().all(|r| r.route() != "POST /api/chat"), "nothing was sent");
     }
 }
+
+#[cfg(test)]
+#[path = "ai_push_review_tests.rs"]
+mod push_review_tests;

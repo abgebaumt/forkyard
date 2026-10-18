@@ -133,6 +133,31 @@ async fn a_force_push_never_overwrites_what_its_lease_has_not_seen() {
     assert_eq!(remote.git(&["rev-parse", "refs/heads/main"]), theirs, "the remote keeps the other commit");
 }
 
+/// Paket 6.2: the local secret scan runs before every push, plan steps included, and a plan never
+/// pushes past a finding. The fake key is built at run time (6.2's rule: no literal key formats in
+/// the sources); the oracle is the bare remote itself.
+#[tokio::test]
+async fn a_push_step_with_a_key_stops_before_anything_is_sent() {
+    let (tc, repo, id) = setup().await;
+    let remote = repo.add_remote();
+    let before = remote.git(&["rev-parse", "refs/heads/main"]);
+    let key = format!("AKIA{}", "Q7RZ4M2XK9PLW3NB");
+    repo.commit_file("dienst/zugang.env", format!("AWS_ZUGANG={key}\n"), "Zugang für den Dienst");
+
+    let err = exec(&tc, &id, PlanAction::Push { branch: "main".into(), remote: None, force: false, expected: None }).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed);
+    assert!(err.message.starts_with("“main” was not pushed"), "{}", err.message);
+    assert!(err.message.contains("dienst/zugang.env:1"), "the place is named: {}", err.message);
+    assert!(!err.message.contains(&key) && !err.message.contains("Q7RZ4M2XK9PLW3NB"), "the value is never shown: {}", err.message);
+    assert_eq!(remote.git(&["rev-parse", "refs/heads/main"]), before, "nothing was sent");
+
+    repo.git(&["tag", "-a", "v3", "-m", "Version 3"]);
+    let err = exec(&tc, &id, PlanAction::TagPush { name: "v3".into(), remote: "origin".into() }).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed);
+    assert!(err.message.starts_with("Tag “v3” was not pushed"), "{}", err.message);
+    assert!(!remote.git_output(&["rev-parse", "--verify", "-q", "refs/tags/v3"]).status.success(), "the tag stayed local");
+}
+
 #[tokio::test]
 async fn a_failed_fetch_ends_the_step() {
     let (tc, repo, id) = setup().await;

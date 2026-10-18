@@ -487,6 +487,26 @@ pub async fn bisect_reset(core: State<'_, Core>, repo_id: String) -> R<BisectSta
 }
 
 #[tauri::command]
+pub async fn bisect_autopilot_script(core: State<'_, Core>, repo_id: String, job_id: String, request: BisectScriptRequest, locale: String) -> R<BisectScript> {
+    c::bisect::bisect_autopilot_script(&core, repo_id, job_id, request, locale).await
+}
+
+#[tauri::command]
+pub async fn bisect_autopilot_run(core: State<'_, Core>, repo_id: String, job_id: String, bad: String, good: Vec<String>, script: String, step_timeout_secs: u64) -> R<BisectAutopilot> {
+    c::bisect::bisect_autopilot_run(&core, repo_id, job_id, bad, good, script, step_timeout_secs).await
+}
+
+#[tauri::command]
+pub async fn bisect_autopilot_status(core: State<'_, Core>, repo_id: String) -> R<Option<BisectAutopilot>> {
+    c::bisect::bisect_autopilot_status(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn bisect_autopilot_close(core: State<'_, Core>, repo_id: String, keep_worktree: bool) -> R<Option<String>> {
+    c::bisect::bisect_autopilot_close(&core, repo_id, keep_worktree).await
+}
+
+#[tauri::command]
 pub async fn remote_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Remote>> {
     c::remotes::remote_list(&core, repo_id).await
 }
@@ -530,13 +550,24 @@ pub async fn push(
     expected: Option<String>,
     extra: Option<Vec<PushExtra>>,
     atomic: Option<bool>,
+    accepted_secrets: Option<Vec<String>>,
 ) -> R<PushResult> {
-    c::sync::push_with(&core, repo_id, job_id, branch, remote, remote_branch, force, expected, extra, atomic).await
+    c::sync::push_with(&core, repo_id, job_id, branch, remote, remote_branch, force, expected, extra, atomic, accepted_secrets).await
 }
 
 #[tauri::command]
 pub async fn job_cancel(core: State<'_, Core>, job_id: String) -> R<()> {
     c::sync::job_cancel(&core, job_id).await
+}
+
+#[tauri::command]
+pub async fn push_scan_ignore(core: State<'_, Core>, repo_id: String, ids: Vec<String>) -> R<u32> {
+    c::sync::push_scan_ignore(&core, repo_id, ids).await
+}
+
+#[tauri::command]
+pub async fn push_scan_forget(core: State<'_, Core>, repo_id: String) -> R<RepoSettings> {
+    c::sync::push_scan_forget(&core, repo_id).await
 }
 
 #[tauri::command]
@@ -595,8 +626,8 @@ pub async fn tag_delete(core: State<'_, Core>, repo_id: String, name: String, re
 }
 
 #[tauri::command]
-pub async fn tag_push(core: State<'_, Core>, repo_id: String, job_id: String, name: String, remote: String) -> R<PushResult> {
-    c::tags::tag_push(&core, repo_id, job_id, name, remote).await
+pub async fn tag_push(core: State<'_, Core>, repo_id: String, job_id: String, name: String, remote: String, accepted_secrets: Option<Vec<String>>) -> R<PushResult> {
+    c::tags::tag_push_checked(&core, repo_id, job_id, name, remote, accepted_secrets).await
 }
 
 #[tauri::command]
@@ -1236,6 +1267,11 @@ pub async fn issue_create(core: State<'_, Core>, repo_id: String, title: String,
 }
 
 #[tauri::command]
+pub async fn release_create(core: State<'_, Core>, repo_id: String, tag: String, name: String, body: String, prerelease: bool, remote: Option<String>) -> R<HostRelease> {
+    c::host::release_create(&core, repo_id, tag, name, body, prerelease, remote).await
+}
+
+#[tauri::command]
 pub async fn stats_compute(core: State<'_, Core>, repo_id: String, job_id: String, range: StatsRange) -> R<RepoStats> {
     c::stats::stats_compute(&core, repo_id, job_id, range).await
 }
@@ -1297,8 +1333,36 @@ pub async fn ai_preview_reset(core: State<'_, Core>) -> R<()> {
 }
 
 #[tauri::command]
+pub async fn ai_push_review(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    branch: Option<String>,
+    remote: Option<String>,
+    remote_branch: Option<String>,
+    locale: String,
+) -> R<AiPushReview> {
+    c::ai::ai_push_review(&core, repo_id, job_id, branch, remote, remote_branch, locale).await
+}
+
+#[tauri::command]
 pub async fn ai_usage(core: State<'_, Core>) -> R<AiUsageSummary> {
     c::ai::ai_usage(&core).await
+}
+
+#[tauri::command]
+pub async fn release_notes_range(core: State<'_, Core>, repo_id: String, from: Option<String>, to: Option<String>) -> R<ReleaseNotesRange> {
+    c::release_notes::release_notes_range(&core, repo_id, from, to).await
+}
+
+#[tauri::command]
+pub async fn ai_release_notes(core: State<'_, Core>, repo_id: String, job_id: String, from: Option<String>, to: Option<String>, locale: String) -> R<ReleaseNotes> {
+    c::release_notes::ai_release_notes(&core, repo_id, job_id, from, to, locale).await
+}
+
+#[tauri::command]
+pub async fn changelog_insert(core: State<'_, Core>, repo_id: String, version: String, date: String, notes: String) -> R<ChangelogInsertResult> {
+    c::release_notes::changelog_insert(&core, repo_id, version, date, notes).await
 }
 
 #[tauri::command]
@@ -1342,4 +1406,16 @@ pub async fn ai_plan_run(
     confirmed: Vec<u32>,
 ) -> R<PlanRunResult> {
     c::plan::ai_plan_run(&core, repo_id, job_id, text, steps, expect, confirmed).await
+}
+
+#[tauri::command]
+pub async fn ai_conflict_intent(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    path: String,
+    blocks: Vec<ConflictBlockRange>,
+    locale: String,
+) -> R<ConflictIntent> {
+    c::ai::ai_conflict_intent(&core, repo_id, job_id, path, blocks, locale).await
 }

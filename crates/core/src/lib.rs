@@ -7,6 +7,7 @@
 pub mod ai;
 pub mod app;
 pub mod autofetch;
+pub mod changelog;
 pub mod commands;
 pub mod crash;
 pub mod db;
@@ -19,6 +20,7 @@ pub mod jobs;
 pub mod model;
 pub mod proc;
 pub mod secrets;
+pub mod secret_scan;
 pub mod tools;
 pub mod undo;
 pub mod util;

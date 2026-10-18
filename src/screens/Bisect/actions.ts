@@ -28,13 +28,16 @@ function showState(repoId: Id, tabId: Id | null | undefined, status: BisectStatu
   if (tabId && next) useAppStore.getState().revealCommit(tabId, next);
 }
 
-/** Bad and good commit: from two selected commits (the user confirms the order), otherwise good from the branches and tags. */
-async function chooseRange(repoId: Id, shas: Sha[]): Promise<{ bad: Sha; good: Sha } | null> {
+/**
+ * Bad and good commit: from two selected commits (the user confirms the order), otherwise good from
+ * the branches and tags. `title` and `confirmLabel` let the autopilot reuse the chooser.
+ */
+export async function chooseRange(repoId: Id, shas: Sha[], title = t("bisect.start.title"), confirmLabel = t("bisect.start.confirm")): Promise<{ bad: Sha; good: Sha } | null> {
   const [first, second] = shas;
   if (!first) return null;
   if (second) {
     const choice = await choose<"as_selected" | "swapped">({
-      title: t("bisect.start.title"),
+      title,
       description: t("bisect.start.twoBody"),
       options: [
         { key: "as_selected", label: t("bisect.start.option", { bad: shortSha(first), good: shortSha(second) }) },
@@ -47,12 +50,12 @@ async function chooseRange(repoId: Id, shas: Sha[]): Promise<{ bad: Sha; good: S
   const refs = cachedRefs(repoId) ?? (await loadRefs(repoId).catch(() => undefined));
   const candidates = [...(refs?.tags ?? []), ...(refs?.locals ?? []), ...(refs?.remotes ?? [])].filter((ref) => ref.sha !== first);
   const picked = await pickFromList({
-    title: t("bisect.start.title"),
+    title,
     description: t("bisect.start.pickBody", { sha: shortSha(first) }),
     label: t("bisect.start.pickLabel"),
     items: candidates.map((ref) => ({ key: ref.fullName, label: ref.name, description: shortSha(ref.sha) })),
     empty: t("bisect.start.noRefs"),
-    confirmLabel: t("bisect.start.confirm"),
+    confirmLabel,
     mono: true,
   });
   const good = candidates.find((ref) => ref.fullName === picked)?.sha;

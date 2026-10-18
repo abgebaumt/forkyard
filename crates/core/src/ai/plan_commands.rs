@@ -408,13 +408,13 @@ async fn settle(core: &Core, repo_id: &str, result: CoreResult<OpResult>) -> Cor
     }
 }
 
-/// The outcome of an outward step. `label` names what was to be pushed ("“main”", "Tag “v3”"); the
-/// secret-scan arm of Paket 6.2 (`PushResult::SecretsFound` → `not_allowed` with
-/// `secret_scan::stopped_message(label, …)`) joins here when that package is on this branch.
+/// The outcome of an outward step. `label` names what was to be pushed ("“main”", "Tag “v3”"). A
+/// secret-scan finding (Paket 6.2) stops the step: nothing was sent, the user decides in the push
+/// dialog; a plan never passes accepted findings.
 fn pushed(label: &str, result: PushResult) -> CoreResult<()> {
-    let _ = label;
     match result {
         PushResult::Rejected { reason } => Err(CoreError::new(ErrorCode::PushRejected, reason)),
+        PushResult::SecretsFound { findings, .. } => Err(CoreError::not_allowed(crate::secret_scan::stopped_message(label, &findings))),
         PushResult::Done { .. } | PushResult::UpToDate | PushResult::Multi { .. } => Ok(()),
     }
 }

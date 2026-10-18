@@ -23,6 +23,16 @@ export function ProjectAiSection({ repoId }: { repoId: Id }) {
         </SettingRow>
         <CommitInstructionRow repoId={repoId} value={value.aiCommitInstruction} />
         <TestCommandRow repoId={repoId} />
+        <SettingRow title={t("pushCheck.setting.title")} description={t("pushCheck.setting.description")}>
+          {(ids) => (
+            <Switch
+              id={ids.id}
+              ariaDescribedBy={ids.descriptionId}
+              checked={value.aiReviewBeforePush}
+              onCheckedChange={(checked) => void applyRepoSettings(repoId, { aiReviewBeforePush: checked })}
+            />
+          )}
+        </SettingRow>
       </SettingsCard>
     </section>
   );

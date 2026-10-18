@@ -5,6 +5,7 @@
 import { t } from "../../i18n";
 import { cachedBisect } from "../actions/context";
 import { endBisect, markBisect } from "../../screens/Bisect/actions";
+import { autopilotAccessFor, autopilotRunning, startAutopilot } from "../../screens/Bisect/autopilotActions";
 import { setAllMergesCollapsed } from "../actions/collapse";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 
@@ -88,5 +89,16 @@ export const commands: AppCommand[] = [
     when: bisectRunning,
     disabledReason: notRunning,
     run: (ctx) => endBisect(ctx.repoId!, ctx.tabId),
+  },
+  {
+    id: "bisect.autopilot",
+    title: t("commands.bisect.autopilot.title"),
+    group: "Commit",
+    keywords: kw("commands.bisect.autopilot.keywords"),
+    // An AI element: hidden while AI is not set up, off, or off for this repository (spec 1.3).
+    hidden: (ctx) => autopilotAccessFor(ctx.repoId) === "hidden",
+    when: (ctx) => hasRepo(ctx) && !autopilotRunning(ctx.repoId),
+    disabledReason: (ctx) => (!hasRepo(ctx) ? t("commands.reason.repoTabOnly") : autopilotRunning(ctx.repoId) ? t("commands.bisect.autopilot.running") : null),
+    run: (ctx) => startAutopilot(ctx.repoId!, [], ctx.tabId),
   },
 ];

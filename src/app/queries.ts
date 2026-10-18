@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectAutopilot, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -76,6 +76,7 @@ export const qk = {
   graph: (repoId: Id) => ["repo", repoId, "graph"] as const,
   reflog: (repoId: Id, ref: string | null) => ["repo", repoId, "reflog", ref] as const,
   bisect: (repoId: Id) => ["repo", repoId, "bisect"] as const,
+  bisectAutopilot: (repoId: Id) => ["repo", repoId, "bisectAutopilot"] as const,
   commitDetails: (repoId: Id, source: DiffSource) => ["repo", repoId, "commit", source] as const,
   commitDetailsAll: (repoId: Id) => ["repo", repoId, "commit"] as const,
   diff: (repoId: Id, path: string, source: DiffSource, options: DiffOptions = {}) =>
@@ -120,6 +121,8 @@ export const qk = {
   // Host integration (GitHub, GitLab): the app's accounts, the repository's host, pull requests.
   hostAccounts: ["app", "hostAccounts"] as const,
   hostRepo: (repoId: Id) => ["repo", repoId, "hostRepo"] as const,
+  /** Release notes: the commits since the last tag up to `to` (null = HEAD). */
+  releaseNotesRange: (repoId: Id, to: string | null) => ["repo", repoId, "releaseNotesRange", to ?? "HEAD"] as const,
   prLists: (repoId: Id) => ["repo", repoId, "prs"] as const,
   prList: (repoId: Id, state: PrListState) => ["repo", repoId, "prs", state] as const,
   prs: (repoId: Id) => ["repo", repoId, "pr"] as const,
@@ -255,6 +258,10 @@ export const useReflog = (repoId: Id | null | undefined, refName: string | null)
 /** Bisect state from the Git directory (also one started on the command line). */
 export const useBisectStatus = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.bisect(repoId ?? ""), queryFn: (): Promise<BisectStatus> => core.bisectStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
+/** The bisect autopilot's run of the repository (null = none); reloaded on its `job:progress`. */
+export const useBisectAutopilot = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.bisectAutopilot(repoId ?? ""), queryFn: (): Promise<BisectAutopilot | null> => core.bisectAutopilotStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
 const isLive = (source: DiffSource) =>
@@ -480,7 +487,7 @@ export const useLfsInUse = (repoId: Id | null | undefined) =>
 // ---------------------------------------------------------------------------
 
 /** What lives at the host changes without an event from the core: after two minutes it counts as stale. */
-const HOST_STALE_MS = 2 * 60_000;
+export const HOST_STALE_MS = 2 * 60_000;
 
 /** The connected accounts – without token; that lives in the system keychain. */
 export const useHostAccounts = () => useQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
@@ -492,6 +499,14 @@ export const useHostRepo = (repoId: Id | null | undefined) =>
     queryFn: () => hostApi.repoInfo(repoId!, queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts) ?? []),
     enabled: enabledFor(repoId),
     staleTime: HOST_STALE_MS,
+  });
+
+/** "n commits since v1.1.0" of the release notes – no AI, no network. */
+export const useReleaseNotesRange = (repoId: Id | null | undefined, to: string | null) =>
+  useQuery({
+    queryKey: qk.releaseNotesRange(repoId ?? "", to),
+    queryFn: () => core.releaseNotesRange({ repoId: repoId!, from: null, to }),
+    enabled: enabledFor(repoId),
   });
 
 /** Pull requests page by page (page 1 first). */
@@ -706,7 +721,11 @@ export function useCoreSync(activeRepoId: Id | null) {
         if (entry.exitCode === 0) store().markFetched(entry.repoId);
         reportBackgroundFetch(entry.repoId, entry.exitCode, entry.output, entry.code ?? null);
       }),
-      core.on("job:progress", (payload) => store().updateJob(payload)),
+      core.on("job:progress", (payload) => {
+        store().updateJob(payload);
+        // The bisect autopilot reports each step under its own phase (`PROGRESS_PHASE` in the core): its bar reloads the run.
+        if (payload.phase === "bisect-autopilot" && payload.repoId) void queryClient.invalidateQueries({ queryKey: qk.bisectAutopilot(payload.repoId) });
+      }),
       core.on("job:done", ({ jobId }) => store().finishJob(jobId)),
       core.on("credential:request", (request) => store().enqueueCredential(request)),
       // Hook output and failures: one toast per incident, see notifications/hooks.ts.

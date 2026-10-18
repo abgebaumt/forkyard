@@ -1,0 +1,64 @@
+{
+  "secrets": {
+    "title_one": "{{count}} hinzugefügte Zeile sieht aus wie ein Schlüssel",
+    "title_other": "{{count}} hinzugefügte Zeilen sehen aus wie ein Schlüssel",
+    "description": "Es wurde nichts gepusht. Prüfe die Zeilen unten; ihre Werte sind bis auf die letzten vier Zeichen verborgen.",
+    "listLabel": "Funde",
+    "inCommit": "in Commit {{sha}}",
+    "rule": {
+      "knownToken": "Bekanntes Token-Format",
+      "privateKey": "Privater Schlüssel",
+      "credential": "Passwort oder Token",
+      "urlPassword": "Passwort in einer Adresse",
+      "highEntropy": "Zufällig wirkende Zeichenkette"
+    },
+    "ignore": "Nicht mehr melden",
+    "ignored": "Wird nicht mehr gemeldet",
+    "scanned_one": "Geprüft: die hinzugefügten Zeilen von {{count}} Commit, der noch nicht im Remote ist.",
+    "scanned_other": "Geprüft: die hinzugefügten Zeilen von {{count}} Commits, die noch nicht im Remote sind.",
+    "partial": "Sehr großer Push: nur die neuesten Commits wurden geprüft.",
+    "back": "Zurück",
+    "pushAnyway": "Trotzdem pushen",
+    "stopped": "Der Push wurde angehalten."
+  },
+  "review": {
+    "label": "Prüfung vor dem Push",
+    "menu": "Prüfen und pushen …",
+    "menuHint": "Fragt den KI-Anbieter nach Resten in dem, was der Push sendet.",
+    "title": "Prüfung vor dem Push",
+    "description": "Hinweise ohne Gewähr: Debug-Ausgaben, auskommentierter Code, wahrscheinliche Fehler. Schlüssel findet die lokale Prüfung, nicht diese.",
+    "loading": "Prüft …",
+    "none": "Keine Auffälligkeiten",
+    "nothing": "Nichts Neues zu pushen.",
+    "found_one": "{{count}} Fund",
+    "found_other": "{{count}} Funde",
+    "commits_one": "in {{count}} Commit",
+    "commits_other": "in {{count}} Commits",
+    "partial": "Sehr großer Push: nur die neuesten Commits wurden geprüft.",
+    "kind": {
+      "debugOutput": "Debug-Ausgabe",
+      "commentedCode": "Auskommentierter Code",
+      "likelyBug": "Wahrscheinlicher Fehler"
+    },
+    "listLabel": "Funde der Prüfung",
+    "back": "Zurück",
+    "push": "Pushen",
+    "pushAnyway": "Trotzdem pushen",
+    "command": {
+      "title": "Prüfen und pushen …",
+      "keywords": "prüfen,review,push,ki,reste,debug"
+    }
+  },
+  "setting": {
+    "title": "Vor jedem Push KI-Prüfung",
+    "description": "Push (der Knopf in der Werkzeugleiste und sein Tastenkürzel) fragt zuerst den KI-Anbieter nach Resten. Standardmäßig aus."
+  },
+  "ignored": {
+    "title": "Funde der Schlüssel-Prüfung",
+    "description_one": "{{count}} Fund wird in diesem Repository nicht mehr gemeldet.",
+    "description_other": "{{count}} Funde werden in diesem Repository nicht mehr gemeldet.",
+    "none": "Jeder Fund wird gemeldet. „Nicht mehr melden“ in der Push-Prüfung blendet einen aus.",
+    "action": "Wieder melden",
+    "done": "Alle Funde werden wieder gemeldet"
+  }
+}

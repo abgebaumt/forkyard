@@ -7,6 +7,7 @@ import { desktopNotify, markManualSync } from "../notify";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction, showError, type ActionResult } from "../run";
 import { withFreshStatus } from "../statusCache";
+import { guardSecrets, reviewContext } from "./pushCheck";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
 import { chooseUpstream } from "./branches";
@@ -16,6 +17,11 @@ import { blockingFiles, reportOpResult } from "./merge";
 import { popStash, stashChanges } from "./stash";
 import { openPushDialog } from "../../screens/PushDialog";
 import { allThrough, resultLines } from "../../screens/PushDialog/model";
+import { reviewFirst } from "../../screens/PushCheck/model";
+import { showPushReview, type ReviewTarget } from "../../screens/PushCheck/ReviewDialog";
+import { confirmSend } from "../ai/gate";
+import { openAiSetup } from "../ai/open";
+import { aiVisibility } from "../ai/visibility";
 
 export const pullModeLabels: Record<PullMode, string> = {
   ff: t("actions.sync.pullMode.ff"),
@@ -210,6 +216,8 @@ export interface PushOptions {
   /** Preset the target (drop menu "push X to origin/Y"); sets the upstream. */
   remote?: string | null;
   remoteBranch?: string | null;
+  /** No AI review first: it ran already ("Review and push …"), or this push never reviews (commit and push, retry after pull). */
+  reviewed?: boolean;
 }
 
 function isRejected(result: ActionResult<PushResult>): boolean {
@@ -268,17 +276,27 @@ async function confirmForcePush(repoId: Id, branch: string | null): Promise<{ ex
  * if the push is rejected, it offers "Pull first" or "Force push".
  */
 export async function push(repoId: Id, options: PushOptions = {}): Promise<ActionResult<PushResult> | null> {
+  // Project switch "AI review before every push" (spec 6.2): only where the review can run (visible, provider connected).
+  if (!options.force && !options.reviewed) {
+    const { status, repo } = await reviewContext(repoId);
+    if (reviewFirst(status, repo)) return reviewAndPush(repoId, options);
+  }
   const branch = options.branch ?? null;
-  const run = (remote: string | null, remoteBranch: string | null, force: boolean, expected: string | null = null) => {
-    const jobId = newJobId();
-    const title = force ? t("actions.sync.push.jobForced") : branch ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }) : t("actions.sync.push.label");
-    markManualSync(repoId);
-    return runAction(force ? t("actions.sync.push.labelForced") : t("actions.sync.push.label"), withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch, force, expected })), {
-      busyKey: busyKeys.push(repoId),
-      quiet: ["no_upstream", "push_rejected", "no_remote"],
-      job: { id: jobId, title, repoId },
+  const run = (remote: string | null, remoteBranch: string | null, force: boolean, expected: string | null = null) =>
+    guardSecrets(repoId, (acceptedSecrets) => {
+      const jobId = newJobId();
+      const title = force ? t("actions.sync.push.jobForced") : branch ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }) : t("actions.sync.push.label");
+      markManualSync(repoId);
+      return runAction(
+        force ? t("actions.sync.push.labelForced") : t("actions.sync.push.label"),
+        withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch, force, expected, acceptedSecrets })),
+        {
+          busyKey: busyKeys.push(repoId),
+          quiet: ["no_upstream", "push_rejected", "no_remote"],
+          job: { id: jobId, title, repoId },
+        },
+      );
     });
-  };
   const finish = (result: ActionResult<PushResult>) => {
     afterNetwork(repoId);
     if (!result.ok) {
@@ -334,7 +352,7 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     });
     if (next === "pull") {
       const pulled = await pull(repoId, null, options.tabId);
-      if (pulled.ok && pulled.value.status !== "conflict") return push(repoId, { tabId: options.tabId, branch });
+      if (pulled.ok && pulled.value.status !== "conflict") return push(repoId, { tabId: options.tabId, branch, reviewed: true });
       return result;
     }
     if (next !== "force") return result;
@@ -344,6 +362,43 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   }
 
   return finish(result);
+}
+
+/**
+ * "Review and push …" (spec 6.2): the AI review of what the push sends, then – only on "Push" /
+ * "Push anyway" – the normal push with its secret scan. Without an upstream it asks "Push where?"
+ * first; "What is sent?" asks before the first request (`confirmSend`). Back or Cancel pushes nothing.
+ */
+export async function reviewAndPush(repoId: Id, options: PushOptions = {}): Promise<ActionResult<PushResult> | null> {
+  const { status } = await reviewContext(repoId);
+  if (aiVisibility(status).elementsOpenSetup) {
+    // AI on without a provider: the element is visible, a click opens 1b's setup dialog.
+    void openAiSetup();
+    return null;
+  }
+  const branch = options.branch ?? null;
+  let target: ReviewTarget = { branch, remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null };
+  const preview = () =>
+    runAction(t("pushCheck.review.label"), () => core.aiPreview({ repoId, feature: "push_review", input: { kind: "outgoing_changes", ...target }, locale: locale() }), {
+      quiet: ["no_upstream", "no_remote"],
+    });
+  let previewed = await preview();
+  if (!previewed.ok && previewed.error.code === "no_upstream") {
+    const remotes = await loadRemotes(repoId).catch(() => [] as Remote[]);
+    const current = cachedStatus(repoId);
+    const name = branch ?? (current?.head.kind === "branch" || current?.head.kind === "unborn" ? current.head.branch : (currentBranch(repoId) ?? ""));
+    const chosen = remotes.length ? await askPushTarget(name, remotes) : null;
+    if (!chosen) return null;
+    target = { ...target, remote: chosen.remote, remoteBranch: chosen.remoteBranch };
+    previewed = await preview();
+  }
+  if (!previewed.ok) {
+    if (previewed.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
+    return null;
+  }
+  if (!(await confirmSend(repoId, "push_review", previewed.value))) return null;
+  if (!(await showPushReview(repoId, target, status?.local ?? false, status?.provider ?? null))) return null;
+  return push(repoId, { ...options, remote: target.remote, remoteBranch: target.remoteBranch, reviewed: true });
 }
 
 /**
@@ -399,18 +454,21 @@ export async function pushWithMore(repoId: Id, options: { branch?: string | null
   const local = refs?.locals.find((ref) => ref.name === branch);
   const upstreamRemote = local?.upstream ? (refs?.remotes.find((ref) => ref.name === local.upstream)?.remote ?? null) : null;
   const remote = upstreamRemote === plan.remote ? null : plan.remote;
-  const jobId = newJobId();
-  markManualSync(repoId);
-  const result = await runAction(
-    t("actions.sync.push.label"),
-    withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch: null, force: false, expected: null, extra: plan.extras, atomic: plan.atomic })),
-    { busyKey: busyKeys.push(repoId), quiet: ["no_remote"], job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId } },
-  );
+  const result = await guardSecrets(repoId, (acceptedSecrets) => {
+    const jobId = newJobId();
+    markManualSync(repoId);
+    return runAction(
+      t("actions.sync.push.label"),
+      withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch: null, force: false, expected: null, extra: plan.extras, atomic: plan.atomic, acceptedSecrets })),
+      { busyKey: busyKeys.push(repoId), quiet: ["no_remote"], job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId } },
+    );
+  });
   afterNetwork(repoId);
   if (!result.ok) {
     if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
     return result;
   }
+  if (result.value.status === "secrets_found") return result;
   const lines = resultLines(result.value);
   if (allThrough(result.value)) toast({ tone: "success", title: t("pushMany.done", { count: lines.length }) });
   else void showOutput(t("pushMany.result.title"), lines.map((line) => `${line.ref}  ${line.text}`).join("\n"));

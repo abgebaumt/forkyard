@@ -15,8 +15,11 @@ use crate::commands::status::{self, read_operation};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
-use crate::model::{BisectStatus, BisectVerdict, RepoChange};
+use crate::ai::{self, run::AiRequest};
+use crate::model::{AiFeature, BisectAutopilot, BisectScript, BisectScriptRequest, BisectShell, BisectStatus, BisectVerdict, RepoChange};
 use crate::util;
+
+mod autopilot;
 
 /// A bisect checks out other commits and moves refs under `refs/bisect/`.
 const CHANGES: [RepoChange; 5] = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
@@ -45,6 +48,37 @@ pub async fn bisect_reset(core: &Core, repo_id: String) -> CoreResult<BisectStat
         read_bisect(core, &repo_id).await
     });
     auto::follow(core, &repo_id, reset).await
+}
+
+/// Bisect autopilot (9.1): the AI writes a test script for the range. Only text comes back – shown
+/// and editable in the UI; nothing runs here. Job `job_id` (`jobCancel`).
+pub async fn bisect_autopilot_script(core: &Core, repo_id: String, job_id: String, request: BisectScriptRequest, locale: String) -> CoreResult<BisectScript> {
+    let settings = ai::run::ensure_allowed(core, Some(&repo_id), AiFeature::BisectScript)?;
+    let checked = ai::bisect::check(core, &repo_id, &request).await?;
+    let (budget, secrets) = crate::commands::ai::request_frame(core, &settings, AiFeature::BisectScript).await;
+    let built = ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?;
+    let schema = ai::bisect::schema();
+    let answer = ai::run::complete_json(core, AiRequest { repo_id: Some(&repo_id), feature: AiFeature::BisectScript, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
+    ai::bisect::parse_answer(&answer.value, BisectShell::current())
+}
+
+/// Bisect autopilot (9.1): runs the confirmed `script` commit by commit in a temporary, detached
+/// worktree next to the repository (base: `bad`) and returns the final state. Job `job_id`:
+/// `jobCancel` ends the script's process tree, resets the bisect and removes the worktree.
+pub async fn bisect_autopilot_run(core: &Core, repo_id: String, job_id: String, bad: String, good: Vec<String>, script: String, step_timeout_secs: u64) -> CoreResult<BisectAutopilot> {
+    autopilot::run(core, &repo_id, &job_id, &bad, &good, &script, step_timeout_secs).await
+}
+
+/// The running or finished autopilot run of the repository; `None` = none.
+pub async fn bisect_autopilot_status(core: &Core, repo_id: String) -> CoreResult<Option<BisectAutopilot>> {
+    core.repo_path(&repo_id)?;
+    Ok(autopilot::status(core, &repo_id))
+}
+
+/// Closes a finished run: `keep_worktree` unlocks the worktree and returns its path, otherwise it
+/// is removed.
+pub async fn bisect_autopilot_close(core: &Core, repo_id: String, keep_worktree: bool) -> CoreResult<Option<String>> {
+    autopilot::close(core, &repo_id, keep_worktree).await
 }
 
 async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) -> CoreResult<BisectStatus> {
@@ -145,12 +179,19 @@ fn valid_term(term: &str) -> bool {
 /// The state as Git keeps it; `BisectStatus::default()` if no bisect is running.
 pub(crate) async fn read_bisect(core: &Core, repo_id: &str) -> CoreResult<BisectStatus> {
     let path = core.repo_path(repo_id)?;
-    let dir = status::git_dir(core, repo_id).await?;
+    read_bisect_at(core, &path, repo_id).await
+}
+
+/// The bisect of the worktree at `path` (the main one or a linked one). Every worktree has its own:
+/// `BISECT_*` lie in its own Git directory (`.git/worktrees/<name>` for a linked one) and
+/// `refs/bisect/*` are per-worktree refs.
+pub(crate) async fn read_bisect_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<BisectStatus> {
+    let dir = status::git_dir_at(core, path, repo_id).await?;
     if !dir.join("BISECT_START").is_file() {
         return Ok(BisectStatus::default());
     }
     let terms = read_terms(&dir);
-    let listed = for_each_ref(core, &path, repo_id, &["--format=%(refname)%00%(objectname)".to_string()], &["refs/bisect"]).await?;
+    let listed = for_each_ref(core, path, repo_id, &["--format=%(refname)%00%(objectname)".to_string()], &["refs/bisect"]).await?;
     let bad_ref = format!("refs/bisect/{}", terms.bad);
     let good_prefix = format!("refs/bisect/{}-", terms.good);
     let mut status = BisectStatus { active: true, ..Default::default() };
@@ -170,9 +211,9 @@ pub(crate) async fn read_bisect(core: &Core, repo_id: &str) -> CoreResult<Bisect
     }
     let log = std::fs::read(dir.join("BISECT_LOG")).map(|b| util::decode_lossy(&b)).unwrap_or_default();
     status.steps_done = count_steps(&log, &terms);
-    status.current = current_commit(core, &path, repo_id, &dir).await;
+    status.current = current_commit(core, path, repo_id, &dir).await;
     if let (Some(bad), false) = (status.bad.clone(), status.good.is_empty()) {
-        evaluate(core, &path, repo_id, &dir, &bad, &mut status).await?;
+        evaluate(core, path, repo_id, &dir, &bad, &mut status).await?;
     }
     Ok(status)
 }
@@ -264,6 +305,9 @@ fn bisect_names(raw: &[u8]) -> Vec<Vec<u8>> {
     names.extend(current);
     names
 }
+
+#[cfg(test)]
+mod script_tests;
 
 #[cfg(test)]
 mod tests {
@@ -456,5 +500,79 @@ mod tests {
         assert_eq!(bisect_status(&tc, id.clone()).await.unwrap(), BisectStatus::default());
         let err = bisect_mark(&tc, id.clone(), BisectVerdict::Good, None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NoOperation);
+    }
+
+    /// The JSON spelling the UI uses (types.ts): camelCase fields, snake_case enum values, and the
+    /// AI input as one flat object with `kind`.
+    #[test]
+    fn autopilot_types_use_the_contract_spelling() {
+        use crate::model::{AiInput, BisectAutopilot, BisectAutopilotPhase, BisectAutopilotStep, BisectScriptRequest, BisectShell};
+        let request: BisectScriptRequest =
+            serde_json::from_value(serde_json::json!({"description": "Fahrenheit falsch", "testCommand": null, "bad": "b", "good": ["g"]})).unwrap();
+        assert_eq!(request.test_command, None);
+        let input: AiInput = serde_json::from_value(serde_json::json!({
+            "kind": "bisect_script", "description": "Fahrenheit falsch", "testCommand": "make test", "bad": "b", "good": ["g1", "g2"]
+        }))
+        .unwrap();
+        assert_eq!(
+            input,
+            AiInput::BisectScript(BisectScriptRequest {
+                description: "Fahrenheit falsch".into(),
+                test_command: Some("make test".into()),
+                bad: "b".into(),
+                good: vec!["g1".into(), "g2".into()],
+            })
+        );
+        let run = BisectAutopilot {
+            job_id: "j".into(),
+            phase: BisectAutopilotPhase::OnlySkipped,
+            worktree_path: "/home/anna/Mein Projekt.agents/bisect-1".into(),
+            bad: "b".into(),
+            good: vec!["g".into()],
+            current: None,
+            remaining_steps: Some(0),
+            steps: vec![BisectAutopilotStep { sha: "s".into(), verdict: BisectVerdict::Skip, exit_code: None, timed_out: true, duration_ms: 5, output_tail: String::new() }],
+            result: None,
+            candidates: vec!["s".into(), "b".into()],
+            step_timeout_secs: 600,
+            message: None,
+            started_at: "2026-10-16T08:00:00Z".into(),
+        };
+        let value = serde_json::to_value(&run).unwrap();
+        assert_eq!(value["phase"], "only_skipped");
+        assert_eq!(value["worktreePath"], "/home/anna/Mein Projekt.agents/bisect-1");
+        assert_eq!(value["steps"][0]["timedOut"], true);
+        assert_eq!(value["steps"][0]["exitCode"], serde_json::Value::Null);
+        assert_eq!(value["stepTimeoutSecs"], 600);
+        assert_eq!(serde_json::to_value(BisectShell::Powershell).unwrap(), "powershell");
+        assert_eq!(serde_json::to_value(BisectAutopilotPhase::Found).unwrap(), "found");
+    }
+
+    /// Each worktree has its own bisect: `BISECT_*` lie in its own Git directory and `refs/bisect/*`
+    /// are per-worktree refs. One in a linked worktree is read there and never shows in the main one.
+    #[tokio::test]
+    async fn a_bisect_in_a_linked_worktree_is_read_from_its_own_git_directory() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        let shas = chain(&repo, 6);
+        let id = tc.open(&repo).await.repo.id;
+        let linked = repo.temp_dir().join("zweiter Baum ä");
+        let linked_s = linked.to_str().unwrap();
+        repo.git(&["worktree", "add", "-q", "--detach", linked_s, &shas[5]]);
+        repo.git(&["-C", linked_s, "bisect", "start", &shas[5], &shas[0], "--"]);
+
+        let there = read_bisect_at(&tc, &linked, &id).await.unwrap();
+        assert!(there.active);
+        assert_eq!((there.bad.as_deref(), there.good.clone()), (Some(shas[5].as_str()), vec![shas[0].clone()]));
+        assert_eq!(there.current, Some(repo.git(&["-C", linked_s, "rev-parse", "HEAD"])));
+        assert!(there.remaining_steps.is_some());
+        assert_eq!(bisect_status(&tc, id.clone()).await.unwrap(), BisectStatus::default(), "the main worktree has no bisect");
+        assert!(!repo.path().join(".git").join("BISECT_START").exists());
+
+        // The other way round: a bisect in the main worktree does not change the linked one's.
+        bisect_start(&tc, id.clone(), shas[3].clone(), vec![shas[1].clone()]).await.unwrap();
+        let again = read_bisect_at(&tc, &linked, &id).await.unwrap();
+        assert_eq!((again.bad.as_deref(), again.good), (Some(shas[5].as_str()), vec![shas[0].clone()]));
+        assert_eq!(bisect_status(&tc, id.clone()).await.unwrap().bad.as_deref(), Some(shas[3].as_str()));
     }
 }

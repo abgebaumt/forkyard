@@ -18,6 +18,8 @@ const base: RepoSettings = {
   submodulesAutoUpdate: true,
   testCommand: null,
   linkRules: { hostRules: true, presets: [], custom: [] },
+  aiReviewBeforePush: false,
+  secretScanIgnoredCount: 0,
   aiOff: false,
   aiCommitInstruction: null,
 };

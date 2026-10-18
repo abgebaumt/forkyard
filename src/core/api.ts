@@ -21,6 +21,7 @@ import type {
   AiInput,
   AiModelList,
   AiPreview,
+  AiPushReview,
   AiPrDescription,
   AiProviderKind,
   AiStatus,
@@ -31,6 +32,9 @@ import type {
   AgentSuggestion,
   AgentTemplateInfo,
   AgentTestResult,
+  ChangelogInsertResult,
+  ReleaseNotes,
+  ReleaseNotesRange,
   CliStatus,
   AgentReview,
   AgentReviewSource,
@@ -39,6 +43,9 @@ import type {
   ActivityScope,
   AppInfo,
   BisectStatus,
+  BisectScript,
+  BisectScriptRequest,
+  BisectAutopilot,
   BisectVerdict,
   BlameLine,
   CloneOptions,
@@ -53,7 +60,9 @@ import type {
   ComposeResult,
   ComposeState,
   CommitSearchFilters,
+  ConflictBlockRange,
   ConflictFile,
+  ConflictIntent,
   ConflictPreview,
   CoreEvents,
   CustomCommandContext,
@@ -76,6 +85,7 @@ import type {
   HostAccount,
   HostComment,
   HostKind,
+  HostRelease,
   HostRepoInfo,
   HosterAccount,
   Id,
@@ -445,6 +455,24 @@ export interface CoreCommands {
   bisectMark(input: R & { verdict: BisectVerdict; sha?: Sha | null }): Promise<BisectStatus>;
   /** Ends the bisect and returns to where it started. Without a bisect: `no_operation`. */
   bisectReset(input: R): Promise<BisectStatus>;
+  /**
+   * Bisect autopilot: the AI writes a test script for the range (exit 0 good, 1–127 except 125 bad,
+   * 125 skip). Only text – nothing runs. Job `jobId` (`jobCancel`). Errors: `ai_*` of the AI
+   * foundation, `repo_untrusted`, `not_allowed` (description missing, range invalid), `not_found`.
+   */
+  bisectAutopilotScript(input: R & { jobId: string; request: BisectScriptRequest; locale: string }): Promise<BisectScript>;
+  /**
+   * Bisect autopilot: runs the confirmed `script` in a temporary worktree `<parent>/<repo>.agents/bisect-<n>`
+   * (base `bad`) and resolves with the final state. Progress as `job:progress` (phase
+   * `bisect-autopilot`); `jobCancel(jobId)` ends the script, resets and removes the worktree
+   * (`cancelled`). Errors: `bisect_active` (already running), `not_allowed` (empty script, time
+   * limit outside 1 s–24 h, invalid range, last result not closed), `not_found`, `repo_untrusted`.
+   */
+  bisectAutopilotRun(input: R & { jobId: string; bad: Sha; good: Sha[]; script: string; stepTimeoutSecs: number }): Promise<BisectAutopilot>;
+  /** The running or finished autopilot run of the repository, null = none. */
+  bisectAutopilotStatus(input: R): Promise<BisectAutopilot | null>;
+  /** Closes a finished run: keeps the worktree (unlocked, returns its path) or removes it (null). `not_allowed` while running. */
+  bisectAutopilotClose(input: R & { keepWorktree: boolean }): Promise<string | null>;
 
   // --- Remotes and syncing -----------------------------------------------------
   remoteList(input: R): Promise<Remote[]>;
@@ -465,8 +493,13 @@ export interface CoreCommands {
    * forced); `atomic` (default true) = all or nothing (`--atomic`). With `extra` the result is
    * `multi` with one entry per ref; errors before sending: `invalid_name`, `not_found`, `not_allowed`.
    */
-  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null }): Promise<PushResult>;
+  /** `acceptedSecrets`: IDs of the findings of a `secrets_found` result the user pushes anyway; other findings stop the push again. */
+  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null; acceptedSecrets?: string[] | null }): Promise<PushResult>;
   jobCancel(input: { jobId: string }): Promise<void>;
+  /** "Don't report again" for findings of the secret scan (IDs = hashes of path + line, never values). Returns how many this repository no longer reports. */
+  pushScanIgnore(input: R & { ids: string[] }): Promise<number>;
+  /** "Report again": forgets every "Don't report again" of the repository. */
+  pushScanForget(input: R): Promise<RepoSettings>;
 
   // --- Stash, tags, undo, history ------------------------------------------------
   stashList(input: R): Promise<Stash[]>;
@@ -496,7 +529,8 @@ export interface CoreCommands {
   tagCreate(input: R & { name: string; sha: Sha | null; message: string | null }): Promise<RefsSnapshot>;
   /** `remote` set: delete it there too. */
   tagDelete(input: R & { name: string; remote: string | null }): Promise<RefsSnapshot>;
-  tagPush(input: R & { jobId: string; name: string; remote: string }): Promise<PushResult>;
+  /** Runs the secret scan like `push`; `acceptedSecrets` as there. */
+  tagPush(input: R & { jobId: string; name: string; remote: string; acceptedSecrets?: string[] | null }): Promise<PushResult>;
 
   undo(input: R): Promise<UndoState>;
   redo(input: R): Promise<UndoState>;
@@ -973,6 +1007,16 @@ export interface CoreCommands {
    */
   issueCreate(input: R & { title: string; body: string; remote?: string | null }): Promise<IssueSummary>;
 
+  // --- Releases --------------------------------------------------------------------------------
+  /**
+   * Creates a release for the local tag `tag`; its commit is sent along, so a host that does not
+   * know the tag yet never creates it on its default branch. Only where
+   * `HostRepoInfo.capabilities.releases` (GitHub, GitLab, Gitea/Forgejo); elsewhere
+   * `host_unsupported` before anything is sent. `name` empty = the tag. Errors: `name_exists`
+   * (a release for the tag exists), `not_found` (no such local tag), `not_allowed`, host errors.
+   */
+  releaseCreate(input: R & { tag: string; name: string; body: string; prerelease: boolean; remote?: string | null }): Promise<HostRelease>;
+
   // --- Statistics -----------------------------------------------------------------------------
   /**
    * Statistics of the history of `range.ref` as a job: `job:progress` with the phases `history`
@@ -1008,8 +1052,46 @@ export interface CoreCommands {
   aiPreviewConfirm(input: { repoId: Id | null; feature: AiFeature; fingerprint: string; triggers: AiAskTrigger[]; dontAskAgain: boolean }): Promise<void>;
   /** "Ask again everywhere": forgets every given confirmation. */
   aiPreviewReset(): Promise<void>;
+  /**
+   * Review before a push (6.2): asks the AI provider about debug output, commented-out code and
+   * likely mistakes in what a `push` with these arguments would send (same target rules and errors:
+   * `no_upstream`, `no_remote`, `not_found`). Hints only; keys come from the local scan. Nothing
+   * outgoing → `commits: 0`, no request. Errors like every AI request (`ai_disabled`, `not_allowed`
+   * before "What is sent?" with `{ kind: "outgoing_changes" }` was confirmed, `cancelled` via `jobCancel`).
+   */
+  aiPushReview(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; locale: string }): Promise<AiPushReview>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
+
+  // --- Release notes (v1.2) ----------------------------------------------------------------------
+  /**
+   * The commits after `from` (null: the nearest earlier tag, tags on `to` itself left out) up to
+   * `to` (null: HEAD), without merges – for "12 commits since v1.1.0". No AI, no network; works in
+   * every AI state. `included` is at most 300 here. `not_found` for unknown refs or a leading "-".
+   */
+  releaseNotesRange(input: R & { from: string | null; to: string | null }): Promise<ReleaseNotesRange>;
+  /**
+   * Writes release notes with the AI provider as job `jobId` (`jobCancel` cancels). Errors as for
+   * every AI request (`ai_disabled`, `ai_not_configured`, `not_allowed` before the confirmation of
+   * "What is sent?", `ai_invalid_answer`, `timeout` …). Without commits: empty `markdown`, nothing sent.
+   */
+  aiReleaseNotes(input: R & { jobId: string; from: string | null; to: string | null; locale: string }): Promise<ReleaseNotes>;
+  /**
+   * Inserts a section "## [<version>] - <date>" (style of the file) with `notes` into CHANGELOG.md
+   * of the working directory, created if missing – a normal, uncommitted change. `date`:
+   * "YYYY-MM-DD". Errors: `name_exists` (the version has a section), `not_allowed` (version, date,
+   * a symbolic link, not UTF-8), `empty_message`, `io`.
+   */
+  changelogInsert(input: R & { version: string; date: string; notes: string }): Promise<ChangelogInsertResult>;
+  /**
+   * Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
+   * wanted (block texts, commit messages of both sides, pull request texts if a host account is
+   * connected) and a proposed text per block. `blocks`: the conflict blocks of the tool's model as
+   * line ranges, in order; the core reads the text itself from the index. A job (`jobCancel`).
+   * Errors: the AI codes, `not_found` (no open conflict), `not_allowed` (file excluded from AI,
+   * binary or one-sided, ranges out of date), `repo_untrusted`, `cancelled`, `timeout`.
+   */
+  aiConflictIntent(input: R & { jobId: string; path: string; blocks: ConflictBlockRange[]; locale: string }): Promise<ConflictIntent>;
   /**
    * Paket 4: title and description of a pull request from the commits of `source` that `target`
    * does not have (full ref names: `refs/heads/…`, `refs/remotes/<remote>/…`). Fills the repository's

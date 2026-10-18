@@ -128,6 +128,37 @@ All notable changes to Forkyard are listed here. The format follows
   commit it on your branch with the message prefilled from the task, merge the agent's branch or
   rebase it onto its base in the agent's worktree, or discard what is left uncommitted there – each
   with undo. Two agents can be compared side by side.
+- Conflicts with intent: the conflict tool has a new column “Intent” to the right of the sides and the
+  result (collapsible, width remembered). On “Explain intent” it shows for every conflict what each side
+  wanted – from the block texts, the commit messages of both sides and, with a connected host account,
+  the pull request texts of both branches – and proposes a text that keeps both. The proposal appears as a
+  small diff against the block's current text; “Apply” replaces only that block in the result (undo it there
+  like typing), “Discard” leaves it; saving stays with you. Blocks too large for one request or containing
+  masked values are explained only. Needs AI to be on; nothing is sent before the click, “What is sent?”
+  shows the exact text, and files with secrets, excluded files and lock files are never sent.
+- Key check before every push: Forkyard looks at the lines the outgoing commits add – locally, without
+  AI – and stops a push when one looks like a key, token, password or private key. The dialog names
+  file and line and shows only the last four characters; “Back” pushes nothing, “Push anyway” pushes,
+  “Don't report again” remembers only a hash of file and line. Applies to Push, “Push …” with more
+  branches and tags, tag push, commit and push, the push of a pull request branch and the push at the
+  end of a Gitflow finish. Settings › Project › Git can report every finding again.
+- Review before a push (AI, optional): “Review and push …” in the Push menu and the command palette asks
+  the AI provider about debug output, commented-out code and likely mistakes in what the push sends.
+  Hints only; “Push anyway” is always possible, cancelling never pushes. Settings › Project › AI and
+  agents can run the review before every push (off by default).
+- Release notes: “Write release notes” in the tag dialog – and “Write release notes …” on a commit or
+  tag – groups the commits since the last tag into Added, Changed, Fixed and Other, in the language of
+  the repository (an existing changelog keeps its headings). The text can go into the tag message, into
+  CHANGELOG.md (Keep a Changelog is recognised; inserted as a normal change you commit yourself), into a
+  release on GitHub, GitLab or Gitea/Forgejo (the tag is pushed first; confirmed separately because it
+  cannot be undone) and to the clipboard. “What is sent?” shows the exact text; hidden while AI is off.
+- Bisect autopilot: describe a bug (and, if you know one, a test command), and the AI writes a test
+  script for the range – shown and editable, nothing runs before “Run”. The script then runs commit by
+  commit in a temporary worktree next to the repository (`<repo>.agents/bisect-<n>`), so your own
+  working directory may have changes and a manual bisect stays as it is. Each step has a time limit
+  (default 10 minutes; a step over it counts as skipped), a bar above the graph shows the progress and
+  then the first bad commit, and the worktree can be kept for a closer look or is removed. Start it from
+  the bisect bar, a commit’s context menu or the command palette; “What is sent?” shows the exact request.
 
 ### Changed
 

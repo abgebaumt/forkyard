@@ -428,7 +428,7 @@ const GIT_KEYS: [(&str, &str); 4] = [
 ];
 
 /// Fields of `RepoSettings` that the core only returns (never stored, skipped in a patch).
-const READ_ONLY_KEYS: [&str; 1] = ["commitTemplateText"];
+const READ_ONLY_KEYS: [&str; 2] = ["commitTemplateText", "secretScanIgnoredCount"];
 /// Larger template files are not returned.
 const MAX_TEMPLATE_BYTES: u64 = 256 * 1024;
 
@@ -490,7 +490,7 @@ pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoS
     let mut settings = RepoSettings::default();
     for (key, value) in stored {
         // The key choice is stored per profile under `sshKeyId:<profile>` (see below).
-        if GIT_KEYS.iter().any(|(field, _)| *field == key) || READ_ONLY_KEYS.contains(&key.as_str()) || key.starts_with("sshKeyId") {
+        if GIT_KEYS.iter().any(|(field, _)| *field == key) || READ_ONLY_KEYS.contains(&key.as_str()) || key.starts_with("sshKeyId") || key == crate::secret_scan::IGNORED_KEY {
             continue;
         }
         let mut one = Map::new();
@@ -510,6 +510,7 @@ pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoS
     settings.author_email = lookup("user.email");
     settings.commit_template_text = commit_template_text(core, &repo_id).await;
     settings.ssh_key_id = ssh_key_id;
+    settings.secret_scan_ignored_count = u32::try_from(core.db.with(|c| crate::secret_scan::ignored_ids(c, &repo_id))?.len()).unwrap_or(u32::MAX);
     Ok(settings)
 }
 

@@ -33,6 +33,7 @@ pub mod range_apply;
 pub mod preview;
 pub mod rebase;
 pub mod reflog;
+pub mod release_notes;
 pub mod refs;
 pub mod remotes;
 pub mod repos;

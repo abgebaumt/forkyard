@@ -113,10 +113,10 @@ export function syncUi(app) {
     }
   };
 
-  /** Toolbar button of the repository toolbar by its visible label ("Fetch", "Pull", "Push" …). */
+  /** Toolbar button of the repository toolbar (English or German UI) by its visible label ("Fetch", "Pull", "Push" …). */
   const toolButton = (label) =>
     exec((wanted) => {
-      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) => item.getAttribute("aria-label") === "Repository actions");
+      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) => ["Repository actions", "Repository-Aktionen"].includes(item.getAttribute("aria-label")));
       const named = (button) => {
         const aria = button.getAttribute("aria-label");
         if (aria) return aria === wanted || aria.startsWith(`${wanted},`);
@@ -128,7 +128,7 @@ export function syncUi(app) {
     }, label);
   const toolState = (label) =>
     exec((wanted) => {
-      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) => item.getAttribute("aria-label") === "Repository actions");
+      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) => ["Repository actions", "Repository-Aktionen"].includes(item.getAttribute("aria-label")));
       const named = (item) => {
         const aria = item.getAttribute("aria-label");
         if (aria) return aria === wanted || aria.startsWith(`${wanted},`);

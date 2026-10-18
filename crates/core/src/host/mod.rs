@@ -31,7 +31,7 @@ use crate::db::hoster_accounts::{AccountFacts, HosterAccountRow};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{self, Method, Request, Response};
 use crate::model::{
-    AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRepoRef, HostUser, HosterAccount, IssueDetails, IssueListState, IssuePage,
+    AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRelease, HostRepoRef, HostUser, HosterAccount, IssueDetails, IssueListState, IssuePage,
     IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrSummary,
 };
 use crate::secrets;
@@ -149,6 +149,17 @@ pub struct NewPr<'a> {
     pub labels: &'a [String],
 }
 
+/// A new release, the same for every host.
+pub struct NewRelease<'a> {
+    pub tag: &'a str,
+    /// The commit the local tag points to: hosts that do not know the tag yet create it there,
+    /// never on their default branch.
+    pub target_sha: &'a str,
+    pub name: &'a str,
+    pub body: &'a str,
+    pub prerelease: bool,
+}
+
 /// Changes to a pull request; `None` = stays as it is.
 pub struct PrChange<'a> {
     pub title: Option<&'a str>,
@@ -250,6 +261,9 @@ pub trait Host: Sync {
     }
     fn issue_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _title: &'a str, _body: &'a str) -> HostFuture<'a, IssueSummary> {
         unsupported(self.label(), "creating issues")
+    }
+    fn release_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _new: NewRelease<'a>) -> HostFuture<'a, HostRelease> {
+        unsupported(self.label(), "releases")
     }
 }
 
@@ -508,6 +522,16 @@ pub(crate) fn not_found_as(error: CoreError, what: impl FnOnce() -> String) -> C
 /// Recognises "one already exists for this" in a rejection (all hosts word it like that).
 pub(crate) fn already_exists(error: &CoreError) -> bool {
     error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
+}
+
+/// A rejected release: "already exists" (GitHub: `already_exists`) becomes `name_exists`; a
+/// missing repository gets the message `what`.
+pub(crate) fn release_error(error: CoreError, tag: &str, what: impl FnOnce() -> String) -> CoreError {
+    let detail = error.git_output.as_deref().unwrap_or_default().to_ascii_lowercase();
+    if error.code == ErrorCode::HostRejected && (detail.contains("already exists") || detail.contains("already_exists")) {
+        return CoreError { code: ErrorCode::NameExists, message: format!("There is already a release for the tag “{tag}”."), git_output: error.git_output, retry_at: None };
+    }
+    not_found_as(error, what)
 }
 
 /// Runs `work` for each element, at most `ENRICH_PARALLEL` at a time, and returns the

@@ -659,11 +659,14 @@ async fn push_all(core: &Core, repo_id: &str, job: &Job, targets: &[PushTarget])
                     tag_remote = remote.clone();
                 }
                 let remote = if upstream.is_some() { None } else { Some(fallback.as_str()) };
-                let request = PushRequest { branch: Some(branch), remote, remote_branch: None, force: false, expected: None };
+                let request = PushRequest { branch: Some(branch), remote, remote_branch: None, force: false, expected: None, accepted_secrets: None };
                 (format!("Branch “{branch}”"), sync::push_transfer(core, repo_id, job.token(), Some(job), request).await?)
             }
-            PushTarget::Tag(tag) => (format!("Tag “{tag}”"), tags::push_tag(core, repo_id, job, tag, &tag_remote).await?),
+            PushTarget::Tag(tag) => (format!("Tag “{tag}”"), tags::push_tag(core, repo_id, job, tag, &tag_remote, None).await?),
         };
+        if let PushResult::SecretsFound { findings, .. } = &result {
+            return Err(CoreError::not_allowed(crate::secret_scan::stopped_message(&label, findings)));
+        }
         if let PushResult::Rejected { reason } = result {
             return Err(CoreError::new(ErrorCode::PushRejected, format!("{label} was rejected: {reason}")));
         }

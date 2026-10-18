@@ -8,6 +8,7 @@ mod gitlab_tests;
 mod bitbucket_tests;
 mod gitea_tests;
 mod archaeology_tests;
+mod conflict_intent_tests;
 mod mocks;
 
 use std::sync::Arc;
@@ -387,4 +388,27 @@ async fn the_new_public_services_are_recognised_without_an_account() {
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("bb".into())).await.unwrap().unwrap().kind, HostKind::Bitbucket);
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("cb".into())).await.unwrap().unwrap().web_url, "https://codeberg.org/lena/notizen");
     assert!(tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")), "no API call without an account");
+}
+
+#[test]
+fn only_github_gitlab_and_gitea_offer_releases() {
+    use crate::host::host;
+    let offering: Vec<HostKind> = HostKind::ALL.iter().copied().filter(|kind| host(*kind).capabilities().releases).collect();
+    assert_eq!(offering, vec![HostKind::Github, HostKind::Gitlab, HostKind::Gitea]);
+    let shape = serde_json::to_value(host(HostKind::Gitea).capabilities()).unwrap();
+    assert_eq!(shape["releases"], serde_json::json!(true));
+}
+
+#[tokio::test]
+async fn bitbucket_and_azure_refuse_releases_before_any_request() {
+    for kind in [HostKind::Bitbucket, HostKind::AzureDevops] {
+        let fx = Fixture::new(kind).await;
+        fx.repo.tag("v1.0.0");
+        assert!(!cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities.releases, "{kind:?}");
+        fx.server.clear();
+        let error = cmd::release_create(&fx.tc, fx.id(), "v1.0.0".into(), String::new(), "### Added\n\n- x".into(), false, None).await.unwrap_err();
+        assert_eq!(error.code, ErrorCode::HostUnsupported, "{kind:?}");
+        assert!(error.message.contains("releases"), "{}", error.message);
+        assert!(fx.server.requests().is_empty(), "{kind:?}: nothing was sent");
+    }
 }

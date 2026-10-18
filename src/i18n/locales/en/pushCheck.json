@@ -1,0 +1,64 @@
+{
+  "secrets": {
+    "title_one": "{{count}} added line looks like a key",
+    "title_other": "{{count}} added lines look like a key",
+    "description": "Nothing was pushed. Check the lines below; their values are hidden except for the last four characters.",
+    "listLabel": "Findings",
+    "inCommit": "in commit {{sha}}",
+    "rule": {
+      "knownToken": "Known token format",
+      "privateKey": "Private key",
+      "credential": "Password or token",
+      "urlPassword": "Password in an address",
+      "highEntropy": "Random-looking string"
+    },
+    "ignore": "Don't report again",
+    "ignored": "Won't be reported again",
+    "scanned_one": "Checked the added lines of {{count}} commit that is not on the remote yet.",
+    "scanned_other": "Checked the added lines of {{count}} commits that are not on the remote yet.",
+    "partial": "Very large push: only the newest commits were checked.",
+    "back": "Back",
+    "pushAnyway": "Push anyway",
+    "stopped": "The push was stopped."
+  },
+  "review": {
+    "label": "Review before push",
+    "menu": "Review and push …",
+    "menuHint": "Asks the AI provider about leftovers in what the push sends.",
+    "title": "Review before push",
+    "description": "Hints without a promise: debug output, commented-out code, likely mistakes. Keys are found by the local check, not here.",
+    "loading": "Reviewing …",
+    "none": "No findings",
+    "nothing": "Nothing new to push.",
+    "found_one": "{{count}} finding",
+    "found_other": "{{count}} findings",
+    "commits_one": "in {{count}} commit",
+    "commits_other": "in {{count}} commits",
+    "partial": "Very large push: only the newest commits were reviewed.",
+    "kind": {
+      "debugOutput": "Debug output",
+      "commentedCode": "Commented-out code",
+      "likelyBug": "Likely mistake"
+    },
+    "listLabel": "Findings of the review",
+    "back": "Back",
+    "push": "Push",
+    "pushAnyway": "Push anyway",
+    "command": {
+      "title": "Review and push …",
+      "keywords": "review,check,push,ai,leftovers,debug"
+    }
+  },
+  "setting": {
+    "title": "AI review before every push",
+    "description": "Push (the toolbar button and its shortcut) first asks the AI provider about leftovers. Off by default."
+  },
+  "ignored": {
+    "title": "Findings of the key check",
+    "description_one": "{{count}} finding is no longer reported in this repository.",
+    "description_other": "{{count}} findings are no longer reported in this repository.",
+    "none": "Every finding is reported. “Don't report again” in the push check hides one.",
+    "action": "Report again",
+    "done": "Every finding is reported again"
+  }
+}

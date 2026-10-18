@@ -370,6 +370,174 @@ pub async fn staged_changes(core: &Core, repo_id: &str, settings: &Settings, bud
     Ok(Built { prompt, omitted: fitted.omitted, shortened: fitted.shortened })
 }
 
+/// The review before a push looks at most at this many outgoing first-parent commits.
+pub const MAX_REVIEW_COMMITS: usize = 200;
+
+/// Instruction of `AiInput::OutgoingChanges` (the review before a push, spec 6.2).
+pub const PUSH_REVIEW_INSTRUCTION: &str = "Review the changes that are about to be pushed and report only leftovers: debug output \
+(print, console.log, dbg!, var_dump and similar), commented-out code, and likely mistakes (obvious bugs, unfinished code). \
+Do not report secrets, style or formatting. For each finding give the file path exactly as in a \"File:\" line, the line \
+number in the new version if you know it (otherwise null), the kind, and one short sentence in the UI language. If \
+nothing stands out, return an empty list.";
+
+/// What a push of `tip_ref` to `remote` sends along its first-parent line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Outgoing {
+    pub tip: String,
+    /// Where the combined diff starts: the parent of the oldest outgoing commit, the empty tree for
+    /// a first push, the tip itself when nothing goes out.
+    pub base: String,
+    /// (SHA, subject), newest first, at most `MAX_REVIEW_COMMITS`.
+    pub commits: Vec<(String, String)>,
+    pub partial: bool,
+}
+
+/// The outgoing first-parent commits of `tip_ref` (not reachable from a remote-tracking branch of
+/// `remote`) and the base of their combined diff.
+pub async fn outgoing(core: &Core, repo_id: &str, tip_ref: &str, remote: &str) -> CoreResult<Outgoing> {
+    let tip = core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet"]).arg(format!("{tip_ref}^{{commit}}")).read_only().no_log().run().await?.stdout_text().trim().to_string();
+    let out = core
+        .git_for(repo_id)?
+        .args(["log", "--first-parent", "-z", "--format=%H%x1f%s"])
+        .arg(format!("--max-count={}", MAX_REVIEW_COMMITS + 1))
+        .arg(&tip)
+        .arg("--not")
+        .arg(format!("--remotes={remote}"))
+        .arg("--")
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
+    let mut commits: Vec<(String, String)> = util::split_z(&out.stdout)
+        .filter_map(|record| {
+            let text = util::decode_lossy(record);
+            let (sha, subject) = text.split_once('\x1f')?;
+            let sha = sha.trim();
+            (!sha.is_empty()).then(|| (sha.to_string(), subject.trim_end().to_string()))
+        })
+        .collect();
+    let partial = commits.len() > MAX_REVIEW_COMMITS;
+    commits.truncate(MAX_REVIEW_COMMITS);
+    let base = match commits.last() {
+        None => tip.clone(),
+        Some((oldest, _)) => {
+            let parent = core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet"]).arg(format!("{oldest}^1")).read_only().no_log().run_raw().await?;
+            if parent.success() {
+                parent.stdout_text().trim().to_string()
+            } else {
+                crate::commands::diff::empty_tree(&tip).to_string()
+            }
+        }
+    };
+    Ok(Outgoing { tip, base, commits, partial })
+}
+
+/// The files of `git diff from to` with their patches (excluded, generated and binary files
+/// without content), like `staged_files` for the staged changes – each patch redacted on reading.
+pub async fn range_files(core: &Core, repo_id: &str, from: &str, to: &str, exclusions: &Exclusions, secrets: &[String]) -> CoreResult<Vec<DiffFile>> {
+    let out = core
+        .git_for(repo_id)?
+        .args(["diff", "--numstat", "-z", "-M", "--no-color", "--no-ext-diff", "--no-textconv", from, to, "--"])
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
+    let mut files = Vec::new();
+    let mut read = 0usize;
+    for (added, deleted, old_raw, raw) in parse_numstat(&out.stdout) {
+        let mut file = DiffFile {
+            path: util::decode_lossy(&raw),
+            old_path: old_raw.as_deref().map(util::decode_lossy),
+            added,
+            deleted,
+            size: 0,
+            patch: String::new(),
+            unread: false,
+            raw,
+            old_raw,
+        };
+        match exclusions.reason_for(&file) {
+            Some(AiOmitReason::Secret | AiOmitReason::Ignored) => {}
+            Some(_) => file.size = range_size(core, repo_id, from, to, &file).await,
+            None if file.is_binary() => file.size = range_size(core, repo_id, from, to, &file).await,
+            None if read < MAX_FILES => {
+                file.patch = redact_for_ai(&range_patch(core, repo_id, from, to, &file).await?, secrets);
+                file.size = file.patch.len() as u64;
+                read += 1;
+            }
+            None => file.unread = true,
+        }
+        files.push(file);
+    }
+    Ok(files)
+}
+
+async fn range_patch(core: &Core, repo_id: &str, from: &str, to: &str, file: &DiffFile) -> CoreResult<String> {
+    // Literal pathspecs, as for the staged changes.
+    let mut cmd = core
+        .git_for(repo_id)?
+        .env("GIT_LITERAL_PATHSPECS", "1")
+        .args(["diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", "-U3", from, to, "--"]);
+    if let Some(old) = &file.old_raw {
+        cmd = cmd.arg_bytes(old);
+    }
+    let out = cmd.arg_bytes(&file.raw).read_only().no_log().run().await?;
+    let text = util::decode_text(&out.stdout).0;
+    Ok(match text.find("\n@@") {
+        Some(start) => text[start + 1..].to_string(),
+        None => String::new(),
+    })
+}
+
+/// Size in `to`, for a deleted file in `from`; 0 if neither is known.
+async fn range_size(core: &Core, repo_id: &str, from: &str, to: &str, file: &DiffFile) -> u64 {
+    for rev in [to, from] {
+        let spec = [rev.as_bytes(), b":".as_slice(), file.raw.as_slice()].concat();
+        let Ok(cmd) = core.git_for(repo_id) else { return 0 };
+        if let Ok(out) = cmd.args(["cat-file", "-s"]).arg_bytes(&spec).read_only().no_log().run_raw().await {
+            if let (true, Ok(size)) = (out.success(), out.stdout_text().trim().parse::<u64>()) {
+                return size;
+            }
+        }
+    }
+    0
+}
+
+/// Result of `outgoing_changes`: the prompt, the files the model sees in full or shortened, and
+/// the counts for the dialog.
+#[derive(Debug, Clone)]
+pub struct OutgoingBuilt {
+    pub built: Built,
+    pub shown: Vec<String>,
+    pub commits: u32,
+    pub files: u32,
+    pub partial: bool,
+}
+
+/// `AiInput::OutgoingChanges`: the outgoing commit subjects and their combined diff, filtered,
+/// redacted and within the budget.
+pub async fn outgoing_changes(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String], outgoing: &Outgoing) -> CoreResult<OutgoingBuilt> {
+    let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
+    let files = if outgoing.commits.is_empty() { Vec::new() } else { range_files(core, repo_id, &outgoing.base, &outgoing.tip, &exclusions, secrets).await? };
+    let file_count = u32::try_from(files.len()).unwrap_or(u32::MAX);
+    let list = outgoing.commits.iter().map(|(sha, subject)| format!("- {} {}", &sha[..sha.len().min(10)], subject)).collect::<Vec<_>>().join("\n");
+    let list = redact_for_ai(&list, secrets);
+    let budget_chars = ((budget_tokens as f64 * CHARS_PER_TOKEN) as usize).saturating_sub(list.len());
+    let fitted = fit(files, &exclusions, budget_chars);
+    let shown = fitted.entries.iter().filter(|(_, shown)| matches!(shown, Shown::Full | Shown::Shortened)).map(|(file, _)| file.path.clone()).collect();
+    let body = render(&fitted, secrets);
+    let body = if body.trim().is_empty() { "(no changes)".to_string() } else { body };
+    let list = if list.is_empty() { "(nothing to push)".to_string() } else { list };
+    let prompt = prompt::build(PUSH_REVIEW_INSTRUCTION, locale, &[Section { title: "Commits to push".into(), body: list }, Section { title: "Changes to push".into(), body }]);
+    Ok(OutgoingBuilt {
+        built: Built { prompt, omitted: fitted.omitted, shortened: fitted.shortened },
+        shown,
+        commits: u32::try_from(outgoing.commits.len()).unwrap_or(u32::MAX),
+        files: file_count,
+        partial: outgoing.partial,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -579,3 +747,7 @@ mod tests {
         assert_eq!(shorten_patch(small), small, "short hunks stay as they are");
     }
 }
+
+#[cfg(test)]
+#[path = "outgoing_tests.rs"]
+mod outgoing_tests;

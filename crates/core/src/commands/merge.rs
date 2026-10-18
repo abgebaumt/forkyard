@@ -1247,7 +1247,7 @@ fn encode_content(content: &str, format: &TextFormat) -> CoreResult<Vec<u8>> {
 
 /// Line that looks like a conflict marker: seven identical characters from `<`, `=`, `>`,
 /// `|` at the start of the line, followed by end of line or whitespace.
-fn is_marker_line(line: &str) -> bool {
+pub(crate) fn is_marker_line(line: &str) -> bool {
     let line = line.trim_end_matches('\r');
     let bytes = line.as_bytes();
     bytes.len() >= 7

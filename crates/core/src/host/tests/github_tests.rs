@@ -398,3 +398,43 @@ async fn checkout_fetches_the_branch_of_a_pull_request() {
     assert!(error.message.contains("does not offer the branch"), "{}", error.message);
     fx.assert_token_stays_secret();
 }
+
+#[tokio::test]
+async fn releases_are_created_for_the_commit_of_the_local_tag() {
+    use crate::model::HostRelease;
+    let fx = Fixture::new(KIND).await;
+    fx.repo.git(&["tag", "-a", "v2.0.0-beta.1", "-m", "Beta für die Schulen"]);
+    let commit = fx.repo.git(&["rev-parse", "v2.0.0-beta.1^{commit}"]);
+    assert_ne!(commit, fx.repo.git(&["rev-parse", "v2.0.0-beta.1"]), "an annotated tag is an object of its own");
+    let notes = "### Neu\n\n- Export als CSV für „Süd“\n\n### Behoben\n\n- Absturz bei leerem Namen";
+    let release = cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), "  ".into(), notes.into(), true, None).await.unwrap();
+    assert_eq!(
+        release,
+        HostRelease { tag: "v2.0.0-beta.1".into(), name: "v2.0.0-beta.1".into(), web_url: Some(format!("{}/octo/demo/releases/tag/v2.0.0-beta.1", fx.server.url())) }
+    );
+    let sent = fx.sent("POST", "/api/v3/repos/octo/demo/releases");
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].json(), json!({"tag_name": "v2.0.0-beta.1", "target_commitish": commit, "name": "v2.0.0-beta.1", "body": notes, "draft": false, "prerelease": true}));
+    assert_eq!(serde_json::to_value(&release).unwrap()["webUrl"], json!(format!("{}/octo/demo/releases/tag/v2.0.0-beta.1", fx.server.url())));
+
+    // GitHub answers 422 "already_exists" for a second release of the same tag.
+    fx.repo.tag("schon-da");
+    let error = cmd::release_create(&fx.tc, fx.id(), "schon-da".into(), String::new(), "x".into(), false, None).await.unwrap_err();
+    assert_eq!(error.code, ErrorCode::NameExists);
+    assert!(error.message.contains("schon-da"), "{}", error.message);
+    assert_clean(&error);
+
+    // Invalid input and a tag that does not exist locally never reach the host.
+    fx.server.clear();
+    for (tag, name) in [("v9.9.9", ""), ("-v1", ""), ("v2.0.0-beta.1", "zwei\nZeilen"), ("mit leer", "")] {
+        let error = cmd::release_create(&fx.tc, fx.id(), tag.into(), name.into(), "x".into(), false, None).await.unwrap_err();
+        let expected = if tag == "v9.9.9" { ErrorCode::NotFound } else { ErrorCode::NotAllowed };
+        assert_eq!(error.code, expected, "{tag:?} {name:?}");
+    }
+    let too_long = "ä".repeat(125_001);
+    assert_eq!(cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), too_long, false, None).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert!(fx.server.requests().is_empty());
+
+    check_error_modes(&fx, "GitHub", "release_create", || cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), "x".into(), false, None)).await;
+    fx.assert_token_stays_secret();
+}

@@ -5,7 +5,7 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging,
+    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging,
     PrChange, RepoFacts, RepoPath,
 };
 use crate::app::Core;
@@ -13,7 +13,7 @@ use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
     PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary,
 };
 
@@ -491,6 +491,17 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
 
 pub struct GithubHost;
 
+/// `POST /repos/{owner}/{repo}/releases` with the tag's commit as `target_commitish`.
+pub async fn release_create(core: &Core, api: &Api, repo: &RepoPath, new: NewRelease<'_>) -> CoreResult<HostRelease> {
+    let body = json!({ "tag_name": new.tag, "target_commitish": new.target_sha, "name": new.name, "body": new.body, "draft": false, "prerelease": new.prerelease });
+    let created: Value = api
+        .send_json(core, Method::Post, &format!("{}/releases", repo_path(repo)), &body)
+        .await
+        .map_err(|e| release_error(e, new.tag, || format!("GitHub could not find the repository {} – or the token is not allowed to create releases there.", repo.full())))?
+        .json()?;
+    Ok(HostRelease { tag: text(&created, "tag_name"), name: text(&created, "name"), web_url: opt_text(&created, "html_url") })
+}
+
 impl Host for GithubHost {
     fn kind(&self) -> HostKind {
         HostKind::Github
@@ -535,6 +546,7 @@ impl Host for GithubHost {
             pr_reviewers: true,
             pr_labels: true,
             fork_checkout: true,
+            releases: true,
         }
     }
     fn pr_ref(&self, number: u64) -> Option<String> {
@@ -578,5 +590,9 @@ impl Host for GithubHost {
     }
     fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_set_open(core, api, repo, number, open))
+    }
+
+    fn release_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewRelease<'a>) -> HostFuture<'a, HostRelease> {
+        Box::pin(release_create(core, api, repo, new))
     }
 }

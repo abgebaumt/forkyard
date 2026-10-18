@@ -482,6 +482,11 @@ export function blockState(choice: Choice, manual: string | null): BlockState {
   return choice.order[0]!;
 }
 
+/** Per block: its text if it differs from what the selection would produce (“edited by hand”), otherwise null. */
+export function manualOf(texts: string[], expected: string[]): (string | null)[] {
+  return texts.map((text, index) => (text === expected[index] ? null : text));
+}
+
 /** Lines (1-based) with conflict markers. Lines that were already in a version do not count. */
 export function markerLines(text: string, known: ReadonlySet<string>): number[] {
   const found: number[] = [];
@@ -512,6 +517,23 @@ export function finalizeText(doc: string, model: { eol: Eol; finalNewline: boole
   let text = doc;
   if (!model.finalNewline && text.endsWith("\n")) text = text.slice(0, -1);
   return model.eol === "crlf" ? text.replace(/\r?\n/g, "\r\n") : text;
+}
+
+/**
+ * Block bounds after replacing the ranges of `changes` (block i lies in [bounds[i], bounds[i + 1])).
+ * Only the bounds after a replaced block move; every other block keeps its text.
+ */
+export function shiftBounds(old: number[], changes: { chunk: number; text: string }[]): number[] {
+  const sorted = [...changes].sort((a, b) => a.chunk - b.chunk);
+  const next = old.slice();
+  let delta = 0;
+  let cursor = 0;
+  for (const change of sorted) {
+    for (; cursor <= change.chunk; cursor++) next[cursor] = old[cursor]! + delta;
+    delta += change.text.length - (old[change.chunk + 1]! - old[change.chunk]!);
+  }
+  for (; cursor < old.length; cursor++) next[cursor] = old[cursor]! + delta;
+  return next;
 }
 
 // ---------------------------------------------------------------------------

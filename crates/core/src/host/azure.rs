@@ -596,6 +596,7 @@ impl Host for AzureHost {
             pr_reviewers: false,
             pr_labels: true,
             fork_checkout: false,
+            releases: false,
         }
     }
     /// Azure only offers `refs/pull/<id>/merge` – a merge result, not the head of the fork.

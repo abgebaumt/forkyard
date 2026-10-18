@@ -60,6 +60,23 @@
   background: var(--gc-accent);
 }
 
+/* Handle between the conflict tool and the intent column (v1.2). */
+.gc-cf-vgrip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--gc-size-edge);
+  height: calc(var(--gc-size-icon) * 2);
+  transform: translate(-50%, -50%);
+  border-radius: var(--gc-radius-pill);
+  background: var(--gc-border-input);
+}
+.gc-cf-vgrip:hover::after,
+.gc-cf-vgrip:focus-visible::after {
+  background: var(--gc-accent);
+}
+
 @keyframes gc-cf-pulse {
   50% {
     opacity: 0.45;
