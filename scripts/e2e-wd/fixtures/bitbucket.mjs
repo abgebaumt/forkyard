@@ -237,9 +237,9 @@ function secretServiceUnlocked(address) {
 }
 
 export async function startPrivateSecretService() {
-  // gnome-keyring-daemon can abort (seen with 50.0: g_variant_new on a vanished caller); every
-  // scenario then fails with "keychain not available". Reuse the service only while it still works.
-  if (privateService && secretServiceUnlocked(privateService.address)) return privateService;
+  // gnome-keyring-daemon can abort (seen with 50.0: g_variant_new on a vanished caller, such as
+  // the app of the previous scenario that quit during a call), even after a check that it still
+  // works. Every scenario therefore gets a fresh service; the previous app is closed by now.
   if (privateService) privateService.stop();
   if (process.platform !== "linux") return null;
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fy-e2e-wd-keyring-"));
