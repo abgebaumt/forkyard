@@ -229,6 +229,8 @@ class SpacerMarker extends GutterMarker {
 export interface BlameGutterHandlers {
   onActivate(block: BlameBlock): void;
   onHover(block: BlameBlock | null, view: EditorView, line: BlockInfo | null): void;
+  /** Right click on the column: the line menu for this line. */
+  onMenu(line: number, event: MouseEvent): void;
 }
 
 export function blameGutter(model: BlameModel, handlers: BlameGutterHandlers): Extension {
@@ -258,6 +260,11 @@ export function blameGutter(model: BlameModel, handlers: BlameGutterHandlers): E
       click: (view, line) => {
         const block = blockAt(view, line);
         if (block) handlers.onActivate(block);
+        return true;
+      },
+      contextmenu: (view, line, event) => {
+        event.preventDefault();
+        handlers.onMenu(view.state.doc.lineAt(line.from).number, event as MouseEvent);
         return true;
       },
       mousemove: (view, line) => {

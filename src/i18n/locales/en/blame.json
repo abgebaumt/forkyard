@@ -83,7 +83,8 @@
     "showCommit": "Show commit",
     "previousVersion": "Blame of the previous version",
     "why": "Why is this so?",
-    "lineHistory": "History of this line"
+    "lineHistory": "History of this line",
+    "whyDisabled": "{{label}} – {{reason}}"
   },
   "archaeology": {
     "ariaLabel": "History of line {{line}} in {{path}}",

@@ -7,31 +7,36 @@
  * Mouse: hovering shows the full commit as a card, clicking shows it in the graph.
  * Keyboard: move through the text with the arrows; the bar at the bottom shows the commit of the
  * current line. I: card with the full commit on/off (it follows the cursor) · Enter: show in the
- * graph · P: blame of the parent revision (“What was here before?”) · Ctrl+F: search ·
- * Esc: close the card, otherwise go back.
+ * graph · P: blame of the parent revision (“What was here before?”) · W: why is this so? (the
+ * line's history in the right panel) · menu key / Shift+F10: line menu · Ctrl+F: search ·
+ * Esc: close the card, otherwise go back. A right click on a line opens the line menu.
  */
 import { Prec } from "@codemirror/state";
 import { EditorView, keymap, type BlockInfo } from "@codemirror/view";
-import { ChevronDown, Crosshair, Eye, FileQuestion, FileWarning, History, Info, RefreshCw, Undo2, UserSearch } from "lucide-react";
+import { ChevronDown, Crosshair, Eye, FileQuestion, FileWarning, History, Info, RefreshCw, ScrollText, Undo2, UserSearch } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FileHistoryEntry, Id, Sha } from "../../core";
 import { hasOpenDialog } from "../../app/dialogs";
+import { featureVisible } from "../../app/ai/visibility";
 import { describeError, toCoreError } from "../../app/errors";
 import { formatDateTime, formatRelative, shortSha } from "../../app/format";
-import { hasOpenMenu } from "../../app/menus/host";
+import { hasOpenMenu, openMenuAt, openMenuAtElement } from "../../app/menus/host";
 import { viewMayTakeFocus } from "../../app/viewFocus";
-import { useBlame, useFileHistory } from "../../app/queries";
+import { useAiStatus, useBlame, useFileHistory, useRepoSettings } from "../../app/queries";
 import { useAppStore } from "../../app/store";
 import { CodeEditor } from "../../components/code";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
+import { toast } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import { DropdownMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { Notice } from "../DiffView/OtherKinds";
+import { blameTarget, whyLabel } from "../Archaeology/model";
 import { goBack, showInGraph } from "../FileView/nav";
 import { BackButton, CodeSkeleton, Divider, FileTitle, isPlainEscape, ownsKey } from "../FileView/parts";
 import "./blame.css";
+import { blameLineMenu } from "./lineMenu";
 import { AGE_STEPS, ageColor, blameGutter, buildModel, initials, type BlameBlock, type BlameColorMode } from "./model";
 import { locale, t } from "../../i18n";
 
@@ -174,9 +179,64 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     setCardOpen((open) => !open);
   }, []);
 
+  // --- Line menu and “Why is this so?” -----------------------------------------------------------
+  const { data: aiStatus } = useAiStatus();
+  const { data: repoSettings } = useRepoSettings(repoId);
+  const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
+  const blockAtLine = useCallback((lineNo: number): BlameBlock | null => (model ? (model.blocks[model.blockOfLine[lineNo - 1] ?? -1] ?? null) : null), [model]);
+  const why = useCallback(
+    (lineNo: number) => {
+      const found = blameTarget(path, sha, lineNo, blockAtLine(lineNo)?.uncommitted ?? true);
+      if ("target" in found) store().openArchaeology(tabId, found.target);
+    },
+    [blockAtLine, path, sha, store, tabId],
+  );
+  const copyLine = useCallback((text: string) => {
+    navigator.clipboard.writeText(text).then(
+      () => toast({ tone: "success", title: t("diff.copy.done") }),
+      () => toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
+    );
+  }, []);
+  const menuFor = useCallback(
+    (lineNo: number) => {
+      const block = blockAtLine(lineNo);
+      const doc = viewRef.current?.state.doc;
+      return blameLineMenu({
+        text: doc ? doc.line(Math.min(Math.max(1, lineNo), doc.lines)).text : "",
+        block,
+        parent: parentOf(block),
+        why: blameTarget(path, sha, lineNo, block?.uncommitted ?? true),
+        aiVisible,
+        copy: copyLine,
+        reveal: (target) => reveal(target),
+        previous: () => goToParent(block),
+        open: (target) => store().openArchaeology(tabId, target),
+      });
+    },
+    [aiVisible, blockAtLine, copyLine, goToParent, parentOf, path, reveal, sha, store, tabId],
+  );
+  /** Puts the cursor on the line (the bar below follows) and opens the menu at `point` or below the line. */
+  const openLineMenu = useCallback(
+    (lineNo: number, point: { x: number; y: number } | null) => {
+      const view = viewRef.current;
+      if (!view) return;
+      const line = view.state.doc.line(Math.min(Math.max(1, lineNo), view.state.doc.lines));
+      if (view.state.doc.lineAt(view.state.selection.main.head).number !== line.number) view.dispatch({ selection: { anchor: line.from } });
+      lineRef.current = line.number;
+      const label = t("blame.menu.label", { line: line.number.toLocaleString(locale()) });
+      if (point) {
+        openMenuAt(point, menuFor(line.number), label);
+        return;
+      }
+      const node = view.domAtPos(line.from).node;
+      openMenuAtElement(node instanceof Element ? node : node.parentElement, menuFor(line.number), label);
+    },
+    [menuFor],
+  );
+
   // --- Editor ----------------------------------------------------------------------------------
-  const handlers = useRef({ reveal, goToParent, current, toggleCard, placeKeyCard });
-  handlers.current = { reveal, goToParent, current, toggleCard, placeKeyCard };
+  const handlers = useRef({ reveal, goToParent, current, toggleCard, placeKeyCard, why, openLineMenu });
+  handlers.current = { reveal, goToParent, current, toggleCard, placeKeyCard, why, openLineMenu };
   // The card follows the cursor: reposition when it opens, the line changes or a new blame arrives.
   useEffect(() => {
     placeKeyCard();
@@ -184,7 +244,11 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   const extensions = useMemo(() => {
     if (!model) return [];
     return [
-      blameGutter(model, { onActivate: (block) => handlers.current.reveal(block), onHover }),
+      blameGutter(model, {
+        onActivate: (block) => handlers.current.reveal(block),
+        onHover,
+        onMenu: (lineNo, event) => handlers.current.openLineMenu(lineNo, { x: event.clientX, y: event.clientY }),
+      }),
       Prec.high(
         keymap.of([
           { key: "Enter", run: () => (handlers.current.reveal(handlers.current.current), true) },
@@ -192,6 +256,10 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
           { key: "P", run: () => (handlers.current.goToParent(handlers.current.current), true) },
           { key: "i", run: () => (handlers.current.toggleCard(), true) },
           { key: "I", run: () => (handlers.current.toggleCard(), true) },
+          { key: "w", run: () => (handlers.current.why(lineRef.current), true) },
+          { key: "W", run: () => (handlers.current.why(lineRef.current), true) },
+          { key: "Shift-F10", run: () => (handlers.current.openLineMenu(lineRef.current, null), true) },
+          { key: "ContextMenu", run: () => (handlers.current.openLineMenu(lineRef.current, null), true) },
         ]),
       ),
       EditorView.updateListener.of((update) => {
@@ -200,6 +268,13 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
         setCurrentLine((before) => (before === line ? before : line));
       }),
       EditorView.domEventHandlers({
+        contextmenu: (event, view) => {
+          const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+          if (pos === null) return false;
+          event.preventDefault();
+          handlers.current.openLineMenu(view.state.doc.lineAt(pos).number, { x: event.clientX, y: event.clientY });
+          return true;
+        },
         scroll: () => {
           setHover(null);
           // The keyboard card stays at its line.
@@ -311,6 +386,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   }
 
   const parent = parentOf(current);
+  const whyHere = current ? blameTarget(path, sha, currentLine, current.uncommitted) : { reason: t("blame.parent.noLine") };
   return (
     <section aria-label={t("blame.ariaLabel", { path })} data-screen="blame" data-stand={sha ?? "worktree"} data-blame-color={colorMode} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
       <header className="shrink-0 border-b border-border bg-surface">
@@ -384,6 +460,11 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
           <Tip label={"sha" in parent ? t("blame.parent.tip") : t("blame.parent.tipDisabled", { reason: parent.reason })} shortcut="P">
             <Button size="sm" variant="ghost" icon={<Undo2 className="size-icon" aria-hidden />} disabled={!("sha" in parent)} onClick={() => goToParent(current)} aria-label={t("blame.parent.label")}>
               <span className="hidden @3xl:inline">{t("blame.parent.label")}</span>
+            </Button>
+          </Tip>
+          <Tip label={"target" in whyHere ? whyLabel(aiVisible) : t("blame.menu.whyDisabled", { label: whyLabel(aiVisible), reason: whyHere.reason })} shortcut="W">
+            <Button size="sm" variant="ghost" data-action="why-line" icon={<ScrollText className="size-icon" aria-hidden />} disabled={!("target" in whyHere)} onClick={() => why(currentLine)} aria-label={whyLabel(aiVisible)}>
+              <span className="hidden @3xl:inline">{whyLabel(aiVisible)}</span>
             </Button>
           </Tip>
         </footer>
