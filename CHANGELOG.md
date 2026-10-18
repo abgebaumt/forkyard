@@ -88,6 +88,15 @@ All notable changes to Forkyard are listed here. The format follows
   secret scan as every push; Ctrl+Z takes the whole plan back locally (for 14 days). Settings,
   repository trust, custom commands, the terminal, coding agents and cleaning up can never be part of
   a plan, and a plan expires when the repository changes before it runs.
+- Why is this so? Right-click a line in Blame (or press W, the menu key or Shift+F10) or a line in a
+  diff and choose “History of this line”: the right panel lists every commit that shaped the line,
+  newest first, with its message, the change of the line and the pull requests, issues and tickets it
+  names (titles from the host when an account is connected). A line of the working directory is
+  traced to the commit that last changed it; renames are followed. Each step opens its diff. With AI
+  on, the entry reads “Why is this so?” and “Explain” lets the provider summarise the history – shown
+  next to the commits it refers to, with “What is sent?” beforehand; author e-mails and excluded files
+  are never sent. The Blame line menu also copies the line, shows its commit and opens the blame of
+  the previous version.
 
 ### Changed
 
