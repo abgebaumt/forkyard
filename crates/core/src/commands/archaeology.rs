@@ -14,18 +14,23 @@ mod refs;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod ai_tests;
+
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
+use crate::ai::{archaeology as ai_archaeology_context, run};
 use crate::app::Core;
+use crate::commands::ai::request_frame;
 use crate::commands::graph::{is_full_sha, resolve_commit, LOG_SAFE};
 use crate::commands::history::{decode_line, line_history_with_diffs, normalize_rel_path, repo_encoding, LINE_HISTORY_STEPS};
 use crate::commands::links::link_rules_get;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
-use crate::model::{ArchaeologyHostLookup, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, LinkRule};
+use crate::model::{AiFeature, ArchaeologyAnswer, ArchaeologyHostLookup, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, LinkRule};
 use crate::util;
 
 pub use refs::{number_of, CompiledRules, MAX_REFS_PER_MESSAGE};
@@ -72,6 +77,22 @@ impl ArchaeologyCache {
 /// newest first. See the module documentation.
 pub async fn line_archaeology(core: &Core, repo_id: String, path: String, line: u32, sha: Option<String>) -> CoreResult<LineArchaeology> {
     timeline(core, &repo_id, &path, line, sha.as_deref()).await
+}
+
+/// “Why is this so?”: the AI provider summarises the timeline of the line. Builds exactly the text
+/// “What is sent?” shows for `AiInput::Archaeology` (same timeline from the cache, same budget and
+/// secrets from `request_frame`), sends it through `run::complete_json` as job `job_id` and checks the answer against the
+/// timeline – nothing is executed, the answer is only text.
+pub async fn ai_archaeology(core: &Core, repo_id: String, job_id: String, path: String, line: u32, sha: Option<String>, locale: String) -> CoreResult<ArchaeologyAnswer> {
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Archaeology)?;
+    let found = timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
+    let (budget, secrets) = request_frame(core, &settings, AiFeature::Archaeology).await;
+    let built = ai_archaeology_context::build(core, &repo_id, &settings, budget, &locale, &secrets, &found).await?;
+    let schema = ai_archaeology_context::schema();
+    let answer = run::complete_json(core, run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::Archaeology, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
+    let mut parsed = ai_archaeology_context::parse_answer(&answer.value, &found)?;
+    parsed.cost_usd = answer.cost_usd;
+    Ok(parsed)
 }
 
 /// `line_archaeology` for the core's own callers (preview, AI request); cached.

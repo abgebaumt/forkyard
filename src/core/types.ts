@@ -1148,7 +1148,7 @@ export interface AiStatus {
 }
 
 /** What `aiPreview` builds the text from; later packages add variants. */
-export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "compose" } | { kind: "plan"; text: string };
+export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string } | { kind: "compose" } | { kind: "plan"; text: string } | { kind: "archaeology"; path: string; line: number; sha: Sha | null };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {

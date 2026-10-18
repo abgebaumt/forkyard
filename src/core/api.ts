@@ -25,6 +25,7 @@ import type {
   AiProviderKind,
   AiStatus,
   AiUsageSummary,
+  ArchaeologyAnswer,
   CliStatus,
   CrashReportSummary,
   ActivityPage,
@@ -509,6 +510,13 @@ export interface CoreCommands {
    * Errors: `not_allowed` (line 0, path outside, line not committed yet), `not_found`, `repo_untrusted`.
    */
   lineArchaeology(input: R & { path: string; line: number; sha: Sha | null }): Promise<LineArchaeology>;
+  /**
+   * “Why is this so?”: the AI provider summarises the timeline of `lineArchaeology` – exactly the text
+   * `aiPreview` shows for `{ kind: "archaeology", path, line, sha }`. Job `jobId` (`jobCancel` → `cancelled`).
+   * Notes only for commits of the timeline. Errors: `ai_disabled`, `ai_not_configured`, `not_allowed`
+   * (confirm what is sent first, file excluded from AI), `repo_untrusted`, `ai_*`, `timeout`, `cancelled`.
+   */
+  aiArchaeology(input: R & { jobId: string; path: string; line: number; sha: Sha | null; locale: string }): Promise<ArchaeologyAnswer>;
   /** `sha: null` = working directory. `encoding`: encoding for this one call, otherwise detected. */
   fileBlame(input: R & { path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
   /**

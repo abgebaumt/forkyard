@@ -186,6 +186,10 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             omitted: Vec::new(),
             shortened: Vec::new(),
         },
+        AiInput::Archaeology { path, line, sha } => {
+            let timeline = crate::commands::archaeology::timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
+            crate::ai::archaeology::build(core, &repo_id, &settings, budget, &locale, &secrets, &timeline).await?
+        }
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {

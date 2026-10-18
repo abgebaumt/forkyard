@@ -526,6 +526,7 @@ pub fn run() {
             commands::file_history,
             commands::line_history,
             commands::line_archaeology,
+            commands::ai_archaeology,
             commands::file_blame,
             commands::file_read,
             commands::file_write,

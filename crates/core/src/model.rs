@@ -1630,6 +1630,8 @@ pub enum AiInput {
     PrDescription { source: String, target: String },
     /// "Git in plain language": the user's sentence (Paket 5).
     Plan { text: String },
+    /// One line's history for “Why is this so?” (Paket 7.1); `sha: None` = working directory.
+    Archaeology { path: String, line: u32, sha: Option<String> },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
