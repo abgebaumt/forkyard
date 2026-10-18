@@ -595,9 +595,12 @@ fn mask_secret_lines(lines: &[String], secrets: &[String]) -> Vec<String> {
         }
         out.len().saturating_sub(1)
     };
-    let joined = out.join("\n");
-    for span in redact::private_key_spans(&joined) {
-        let (first, last) = (line_at(&out, span.start), line_at(&out, span.end.saturating_sub(1)));
+    // Map every key span to its lines in the original text first: masking one key changes the
+    // byte offsets of every later line, so mapping after masking would miss the next key.
+    let joined = lines.join("\n");
+    let key_lines: Vec<(usize, usize)> =
+        redact::private_key_spans(&joined).into_iter().map(|span| (line_at(lines, span.start), line_at(lines, span.end.saturating_sub(1)))).collect();
+    for (first, last) in key_lines {
         for line in &mut out[first..=last] {
             *line = MASK_LINE.to_string();
         }
@@ -1107,6 +1110,26 @@ mod tests {
         let token = vec!["x".to_string(), "token = abcdef123456".to_string()];
         assert_eq!(mask_secret_lines(&token, &[]), vec!["x", "token = ***"], "one-line rules mask inside the line");
         assert_eq!(mask_secret_lines(&["passt fein".to_string()], &["fein".to_string()]), vec!["passt ***"]);
+    }
+
+    /// Two PEM keys in one version: the second key's lines must be found in the original text,
+    /// not in the text where the first key is already masked.
+    #[test]
+    fn two_keys_in_one_version_are_both_masked() {
+        let mut lines = vec!["service: messstation".to_string(), "tls_key: |".to_string(), BEGIN_KEY.to_string()];
+        lines.extend(key_body("erster"));
+        lines.extend([END_KEY.to_string(), "ca_key: |".to_string(), BEGIN_KEY.to_string()]);
+        lines.extend(key_body("zweiter"));
+        lines.extend([END_KEY.to_string(), "region: eu-central".to_string(), "replicas: 3".to_string()]);
+        assert_eq!(lines.len(), 33);
+        let masked = mask_secret_lines(&lines, &[]);
+        let mut expected = vec!["service: messstation".to_string(), "tls_key: |".to_string()];
+        expected.extend(vec![MASK_LINE.to_string(); 14]);
+        expected.push("ca_key: |".to_string());
+        expected.extend(vec![MASK_LINE.to_string(); 14]);
+        expected.extend(["region: eu-central".to_string(), "replicas: 3".to_string()]);
+        assert_eq!(masked, expected, "both keys masked from BEGIN to END, the lines around them kept");
+        assert!(masked.iter().all(|line| !line.contains("MIIE") && !line.contains("PRIVATE KEY")), "no key line goes out: {masked:?}");
     }
 
     #[tokio::test]
