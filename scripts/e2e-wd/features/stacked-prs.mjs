@@ -4,7 +4,8 @@
  * FORKYARD_AI_BASE_URL_OLLAMA (debug builds only). Nothing reaches a real service.
  *
  * - main: the AI suggests two parts, "Create branches" makes them without a checkout, "Push all parts"
- *   pushes both, "Create pull requests" opens one into main and one into part 1 – the .env file is never sent;
+ *   pushes both (after "Push anyway" in the key check, which stops at the .env file's password),
+ *   "Create pull requests" opens one into main and one into part 1 – the .env file is never sent;
  * - edge: without AI there is no "Suggest parts"; Space cuts and joins, Ctrl+Z removes both branches;
  * - edge: with AI switched off, "Check each part" runs the test command in temporary worktrees – part 1
  *   fails, part 2 passes, no worktree is left behind; AI on without a provider shows only "Suggest parts";
@@ -182,6 +183,15 @@ scenario("the ai suggests the parts; create, push and open the stacked pull requ
 
   await app.click(await app.waitFor(`${VIEW} [data-stack-push]`, 5000));
   await dialogButton(app, "Push");
+  // The .env file of part 2 holds a password: the secret scan stops the stack push like every push.
+  const dialogText = () => app.exec(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop()?.innerText ?? "");
+  await until(async () => /looks like a key/.test(await dialogText()), "the key check stops the stack push", 20_000);
+  const shown = await dialogText();
+  assertIncludes(shown, ".env:1", "file:line of the finding");
+  assert(!shown.includes("hunter2-sehr-geheim"), "the value itself is never shown");
+  assertEqual(forge.bareBranch("github", P1), null, "nothing was pushed before “Push anyway”");
+  await t.shot("stack-push-key-check", app);
+  await dialogButton(app, "Push anyway");
   await until(() => forge.bareBranch("github", P2) !== null, "part 2 on the server", 20_000);
   assertEqual(String(forge.bareBranch("github", P1)).trim(), sha(repo, P1));
   assertEqual(String(forge.bareBranch("github", P2)).trim(), sha(repo, P2));
