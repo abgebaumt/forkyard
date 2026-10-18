@@ -27,6 +27,9 @@ import { useAppStore } from "./store";
 import { compileRules, type CompiledRule } from "./ticketLinks";
 import { writesSettled } from "./writeQueue";
 import { parseSearchQuery } from "./searchFilters";
+import { createIndexScheduler } from "./ai/indexScheduler";
+import { featureVisible } from "./ai/visibility";
+import type { AiStatus as SemanticAiStatus, RepoSettings as SemanticRepoSettings } from "../core";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +67,8 @@ export const qk = {
   // AI (v1.2): state and connection, this month's usage.
   aiStatus: ["app", "aiStatus"] as const,
   aiUsage: ["app", "aiUsage"] as const,
+  // Search by meaning (v1.2, 9.2): way and index per repository.
+  aiSemanticStatus: (repoId: Id) => ["repo", repoId, "aiSemantic"] as const,
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,
 
@@ -144,6 +149,10 @@ export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core
 export const useSettings = () => useQuery({ queryKey: qk.settings, queryFn: () => writesSettled().then(() => core.settingsGet()) });
 /** AI state and connection (`aiStatus`); reloads on `app:changed` with `ai`. */
 export const useAiStatus = () => useQuery({ queryKey: qk.aiStatus, queryFn: () => core.aiStatus() });
+
+/** Way and index of the search by meaning for this repository (`aiSemanticStatus`, sends nothing). */
+export const useAiSemanticStatus = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.aiSemanticStatus(repoId ?? ""), queryFn: () => core.aiSemanticStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
 /** This month's AI usage (numbers only). */
 export const useAiUsage = () => useQuery({ queryKey: qk.aiUsage, queryFn: () => core.aiUsage() });
 /**
@@ -615,6 +624,17 @@ function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: stri
   desktopNotify(true, t("app.queries.fetchFailed", { where }), reason);
 }
 
+/** Grows the index of the search by meaning after fetch and commit; the core does nothing before the first search. */
+const semanticIndex = createIndexScheduler({
+  delayMs: 3000,
+  enabled: (repoId) =>
+    featureVisible(queryClient.getQueryData<SemanticAiStatus>(qk.aiStatus), "semantic_search", queryClient.getQueryData<SemanticRepoSettings>(qk.repoSettings(repoId))?.aiOff ?? false),
+  update: async (repoId) => {
+    const done = await core.aiSemanticIndexUpdate({ repoId, jobId: `semantic-index-${repoId}-${Date.now().toString(36)}` });
+    if (done.added > 0 || done.removed > 0) await queryClient.invalidateQueries({ queryKey: qk.aiSemanticStatus(repoId) });
+  },
+});
+
 const APP_KEYS: Record<string, QueryKey> = {
   // Host accounts (connected, disconnected, verified).
   host_accounts: qk.hostAccounts,
@@ -635,6 +655,7 @@ export function useCoreSync(activeRepoId: Id | null) {
     const stops = [
       core.on("repo:changed", ({ repoId, what }) => {
         void invalidateRepo(queryClient, repoId, what);
+        semanticIndex.changed(repoId, what);
       }),
       core.on("app:changed", ({ what }) => {
         for (const item of what) {
@@ -652,6 +673,10 @@ export function useCoreSync(activeRepoId: Id | null) {
           void queryClient.invalidateQueries({
             predicate: (query) => (query.queryKey[0] === "app" && query.queryKey[1] === "customCommands") || (query.queryKey[0] === "repo" && part(query) === "customCommands"),
           });
+        }
+        // AI settings (embedder, model) or "Delete index": way and index of the search by meaning.
+        if (what.includes("ai")) {
+          void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && part(query) === "aiSemantic" });
         }
         // Switching profile changes settings, tabs and identity
         if (what.includes("profiles")) {
