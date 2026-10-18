@@ -1450,6 +1450,8 @@ pub enum AiInput {
     /// itself (`{"kind": "review_fix", "number": 7, "threadId": "…"}`).
     #[serde(rename_all = "camelCase")]
     ReviewFix { number: u64, thread_id: String },
+    /// The search by meaning (9.2): the question and – with embeddings – the new index entries.
+    SemanticSearch { query: String },
 }
 
 /// "What is sent?": the exact text, what is left out, and whether Forkyard asks before sending.
@@ -1493,6 +1495,18 @@ pub struct AiUsageSummary {
     pub output_tokens: u64,
     pub cost_usd: f64,
     pub rows: Vec<AiUsageRow>,
+}
+
+/// Which way the search by meaning goes (Entscheidung 7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AiSearchRoute {
+    /// The embedding provider on this computer from Settings › AI.
+    LocalEmbeddings,
+    /// The embeddings API of the main provider.
+    ProviderEmbeddings,
+    /// No embeddings: the main provider turns the question into a Git search and sorts the hits.
+    Rephrase,
 }
 
 /// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written

@@ -1039,7 +1039,8 @@ export interface AiStatus {
 /** What `aiPreview` builds the text from; later packages add variants. */
 export type AiInput = { kind: "staged_changes" } | { kind: "commit_message" } | { kind: "pr_description"; source: string; target: string }
   | { kind: "stack_split"; branch: string; base: string }
-  | { kind: "review_fix"; number: number; threadId: string };
+  | { kind: "review_fix"; number: number; threadId: string }
+  | { kind: "semantic_search"; query: string };
 
 /** "What is sent?" – exactly the text that would go out; nothing was sent. */
 export interface AiPreview {
