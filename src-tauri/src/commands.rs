@@ -477,6 +477,21 @@ pub async fn bisect_autopilot_script(core: State<'_, Core>, repo_id: String, job
 }
 
 #[tauri::command]
+pub async fn bisect_autopilot_run(core: State<'_, Core>, repo_id: String, job_id: String, bad: String, good: Vec<String>, script: String, step_timeout_secs: u64) -> R<BisectAutopilot> {
+    c::bisect::bisect_autopilot_run(&core, repo_id, job_id, bad, good, script, step_timeout_secs).await
+}
+
+#[tauri::command]
+pub async fn bisect_autopilot_status(core: State<'_, Core>, repo_id: String) -> R<Option<BisectAutopilot>> {
+    c::bisect::bisect_autopilot_status(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn bisect_autopilot_close(core: State<'_, Core>, repo_id: String, keep_worktree: bool) -> R<Option<String>> {
+    c::bisect::bisect_autopilot_close(&core, repo_id, keep_worktree).await
+}
+
+#[tauri::command]
 pub async fn remote_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Remote>> {
     c::remotes::remote_list(&core, repo_id).await
 }

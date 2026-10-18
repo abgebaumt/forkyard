@@ -16,8 +16,10 @@ use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
 use crate::ai::{self, run::AiRequest};
-use crate::model::{AiFeature, BisectScript, BisectScriptRequest, BisectShell, BisectStatus, BisectVerdict, RepoChange};
+use crate::model::{AiFeature, BisectAutopilot, BisectScript, BisectScriptRequest, BisectShell, BisectStatus, BisectVerdict, RepoChange};
 use crate::util;
+
+mod autopilot;
 
 /// A bisect checks out other commits and moves refs under `refs/bisect/`.
 const CHANGES: [RepoChange; 5] = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
@@ -58,6 +60,25 @@ pub async fn bisect_autopilot_script(core: &Core, repo_id: String, job_id: Strin
     let schema = ai::bisect::schema();
     let answer = ai::run::complete_json(core, AiRequest { repo_id: Some(&repo_id), feature: AiFeature::BisectScript, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
     ai::bisect::parse_answer(&answer.value, BisectShell::current())
+}
+
+/// Bisect autopilot (9.1): runs the confirmed `script` commit by commit in a temporary, detached
+/// worktree next to the repository (base: `bad`) and returns the final state. Job `job_id`:
+/// `jobCancel` ends the script's process tree, resets the bisect and removes the worktree.
+pub async fn bisect_autopilot_run(core: &Core, repo_id: String, job_id: String, bad: String, good: Vec<String>, script: String, step_timeout_secs: u64) -> CoreResult<BisectAutopilot> {
+    autopilot::run(core, &repo_id, &job_id, &bad, &good, &script, step_timeout_secs).await
+}
+
+/// The running or finished autopilot run of the repository; `None` = none.
+pub async fn bisect_autopilot_status(core: &Core, repo_id: String) -> CoreResult<Option<BisectAutopilot>> {
+    core.repo_path(&repo_id)?;
+    Ok(autopilot::status(core, &repo_id))
+}
+
+/// Closes a finished run: `keep_worktree` unlocks the worktree and returns its path, otherwise it
+/// is removed.
+pub async fn bisect_autopilot_close(core: &Core, repo_id: String, keep_worktree: bool) -> CoreResult<Option<String>> {
+    autopilot::close(core, &repo_id, keep_worktree).await
 }
 
 async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) -> CoreResult<BisectStatus> {

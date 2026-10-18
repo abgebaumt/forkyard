@@ -37,6 +37,7 @@ import type {
   BisectStatus,
   BisectScript,
   BisectScriptRequest,
+  BisectAutopilot,
   BisectVerdict,
   BlameLine,
   CloneOptions,
@@ -428,6 +429,18 @@ export interface CoreCommands {
    * foundation, `repo_untrusted`, `not_allowed` (description missing, range invalid), `not_found`.
    */
   bisectAutopilotScript(input: R & { jobId: string; request: BisectScriptRequest; locale: string }): Promise<BisectScript>;
+  /**
+   * Bisect autopilot: runs the confirmed `script` in a temporary worktree `<parent>/<repo>.agents/bisect-<n>`
+   * (base `bad`) and resolves with the final state. Progress as `job:progress` (phase
+   * `bisect-autopilot`); `jobCancel(jobId)` ends the script, resets and removes the worktree
+   * (`cancelled`). Errors: `bisect_active` (already running), `not_allowed` (empty script, time
+   * limit outside 1 s–24 h, invalid range, last result not closed), `not_found`, `repo_untrusted`.
+   */
+  bisectAutopilotRun(input: R & { jobId: string; bad: Sha; good: Sha[]; script: string; stepTimeoutSecs: number }): Promise<BisectAutopilot>;
+  /** The running or finished autopilot run of the repository, null = none. */
+  bisectAutopilotStatus(input: R): Promise<BisectAutopilot | null>;
+  /** Closes a finished run: keeps the worktree (unlocked, returns its path) or removes it (null). `not_allowed` while running. */
+  bisectAutopilotClose(input: R & { keepWorktree: boolean }): Promise<string | null>;
 
   // --- Remotes and syncing -----------------------------------------------------
   remoteList(input: R): Promise<Remote[]>;
