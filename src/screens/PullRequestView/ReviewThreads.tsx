@@ -59,9 +59,10 @@ function DiffLines({ fix }: { fix: AiReviewFix }) {
 }
 
 /**
- * The inline error of a thread with its actions. Over the limit, "Send this time" sends this one
- * request again; a signed-out command-line tool gets "Sign in in the terminal", and without an open
- * repository tab the line says how to sign in instead.
+ * The inline error of a thread with its actions. An invalid or too large request can be sent again or
+ * looked at; over the limit, "Send this time" sends this one request again; a signed-out command-line
+ * tool gets "Sign in in the terminal", and without an open repository tab the line says how to sign in
+ * instead.
  */
 export function FailedNote({ view, provider, onAgain, onLook }: { view: FailedView; provider: AiProviderKind | null; onAgain: () => void; onLook: () => void }) {
   const [noTerminal, setNoTerminal] = useState(false);
@@ -69,7 +70,7 @@ export function FailedNote({ view, provider, onAgain, onLook }: { view: FailedVi
     <div role="alert" data-review-error={view.kind} className="flex flex-col gap-2 px-3 pb-2">
       <div className="flex flex-wrap items-center gap-2 text-sm text-text">
         <span className="min-w-0 flex-1">{view.text}</span>
-        {view.kind === "invalid" ? (
+        {view.kind === "invalid" || view.kind === "tooLarge" ? (
           <>
             <Button size="sm" onClick={onAgain}>
               {t("pullRequest.view.reviewThreads.again")}

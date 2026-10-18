@@ -34,4 +34,13 @@ describe("errors of “Suggest fix” (spec “Zustände jedes KI-Elements”)",
     expect(markup).toContain("Change limit</button>");
     expect(markup).not.toContain("Open settings");
   });
+
+  it("offers “Again” and the sent text when the thread does not fit the model", () => {
+    const text = "The review thread and the lines around it do not fit the context of the model.";
+    const markup = renderToStaticMarkup(<FailedNote view={{ kind: "tooLarge", text }} provider="ollama" onAgain={none} onLook={none} />);
+    expect(markup).toContain('data-review-error="tooLarge"');
+    expect(markup).toContain(text);
+    expect(markup).toContain("Again</button>");
+    expect(markup).toContain("Show what was sent</button>");
+  });
 });
