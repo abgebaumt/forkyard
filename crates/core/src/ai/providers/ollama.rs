@@ -6,8 +6,8 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
-use crate::ai::providers::{host_of, http_failure, json_body, send, ContextCache};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::providers::{expect_count, host_of, http_failure, json_body, numbers, send, ContextCache};
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::http::{Method, Request};
@@ -114,6 +114,27 @@ impl Provider for Ollama {
                 .filter_map(|entry| entry.get("name").and_then(Value::as_str))
                 .map(|name| AiModelInfo { id: name.to_string(), label: name.to_string(), context_tokens: None })
                 .collect())
+        })
+    }
+
+    fn embed<'a>(&'a self, core: &'a Core, texts: &'a [String], cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<Vec<f32>>>> {
+        Box::pin(async move {
+            // `truncate`: a text longer than the model's context is cut by Ollama instead of failing.
+            let body = json!({ "model": self.model, "input": texts, "truncate": true });
+            let request = Request::new(Method::Post, format!("{}/api/embed", self.base), LABEL).json(&body).timeout(EMBED_TIMEOUT);
+            let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
+            if !response.is_success() {
+                return Err(http_failure(LABEL, &response, &[]));
+            }
+            let value = json_body(LABEL, &response)?;
+            let vectors = value
+                .get("embeddings")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .map(|item| numbers(LABEL, Some(item)))
+                .collect::<CoreResult<Vec<_>>>()?;
+            expect_count(LABEL, vectors, texts.len())
         })
     }
 }
