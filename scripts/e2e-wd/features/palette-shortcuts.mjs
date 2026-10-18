@@ -494,6 +494,55 @@ scenario("palette: shortcuts read as Ctrl/Strg text on Linux, never as macOS gly
   }
 });
 
+scenario("palette: on Linux the palette button and the commands settings carry no ⌘ icon", "main", async (t) => {
+  const repo = makeBranchRepo();
+  try {
+    const { app } = await start(t, repo);
+    const commandIcons = () => app.exec(() => document.querySelectorAll("svg.lucide-command").length);
+
+    // Toolbar: the palette button ("Commands") draws the neutral prompt icon.
+    const paletteButton = await app.waitFor(
+      () => app.exec(() => {
+        // The toolbar button holds its label and, for screen readers, the hint ("Command palette").
+        const button = [...document.querySelectorAll("button")].find((node) => node.textContent.trim().startsWith("Commands"));
+        return button ? [...button.querySelectorAll("svg")].map((svg) => svg.getAttribute("class")) : null;
+      }),
+      5000,
+      { message: "palette button in the toolbar" },
+    );
+    assert(paletteButton.some((cls) => /lucide-square-chevron-right/.test(cls)), `palette button icon: ${paletteButton.join(" | ")}`);
+    assert(!paletteButton.some((cls) => /lucide-command/.test(cls)), "no lucide-command icon on the palette button");
+    assertEqual(await commandIcons(), 0, "no lucide-command icon in the window");
+    assertEqual(await app.exec(() => document.querySelector("[data-left-filter]")?.getAttribute("aria-keyshortcuts")), "Control+Alt+F", "sidebar filter announces standard key names");
+
+    // Settings: the “Custom commands” nav entry.
+    await app.press("Control+,");
+    const navIcon = await app.waitFor(
+      () => app.exec(() => {
+        const tab = document.querySelector('[role="tab"][id$="-trigger-commands"]');
+        return tab ? [...tab.querySelectorAll("svg")].map((svg) => svg.getAttribute("class")).join(" ") : null;
+      }),
+      5000,
+      { message: "commands entry in the settings navigation" },
+    );
+    assertMatch(navIcon, /lucide-square-chevron-right/, "commands nav icon");
+    assert(!/lucide-command/.test(navIcon), "no lucide-command icon on the commands nav entry");
+    assertEqual(await commandIcons(), 0, "no lucide-command icon with the settings open");
+    await t.shot("settings-commands-icon-linux");
+    await app.press("Escape");
+    await app.waitFor(async () => !(await app.$('[role="tab"][id$="-trigger-commands"]')), 5000, { message: "settings closed" });
+
+    // Shortcut overview: the “open palette” button.
+    await app.press("Control+/");
+    await app.waitFor('[data-screen="shortcuts"]', 5000, { message: "shortcut overlay" });
+    assertEqual(await commandIcons(), 0, "no lucide-command icon in the shortcut overview");
+    await app.press("Control+/");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});
+
 // ---------------------------------------------------------------------------------------------
 // Keyboard shortcuts (1.0)
 // ---------------------------------------------------------------------------------------------
