@@ -12,6 +12,7 @@ const releaseCreate = vi.fn(async (input: unknown) => {
   return { tag: "v1.2.0", name: "v1.2.0", webUrl: null };
 });
 let hostInfo: unknown = null;
+let accounts: unknown[] = [];
 const confirmSpy = vi.fn(async (options: { title: string; body: unknown; confirmLabel: string; danger?: boolean }) => {
   void options;
   return true;
@@ -35,6 +36,7 @@ vi.mock("../../core", async (original) => ({
     changelogInsert: (input: unknown) => changelogInsert(input),
     releaseCreate: (input: unknown) => releaseCreate(input),
     hostRepoInfo: async () => hostInfo,
+    hostAccounts: async () => accounts,
     on: () => () => undefined,
   },
 }));
@@ -46,6 +48,7 @@ vi.mock("../../app/actions/tags", () => ({ pushTag: (repoId: string, name: strin
 vi.mock("../../app/actions/clipboard", () => ({ copyText: (text: string, what: string) => copySpy(text, what) }));
 vi.mock("../../ui/Feedback", async (original) => ({ ...(await original<typeof import("../../ui/Feedback")>()), toast: vi.fn() }));
 
+const { toast } = await import("../../ui/Feedback");
 const { queryClient } = await import("../../app/queries");
 const { applyReleaseTargets } = await import("./apply");
 
@@ -57,6 +60,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   queryClient.clear();
   hostInfo = github;
+  accounts = [];
   pushStatus = "pushed";
   confirmSpy.mockImplementation(async () => true);
 });
@@ -104,6 +108,21 @@ describe("applying release notes", () => {
     expect(await applyReleaseTargets({ repoId: "r1", tag: "v1.2.0", notes: NOTES, targets: ["host_release"] })).toEqual([]);
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(calls).toEqual([]);
+  });
+
+  it("finds the account although the account list was never loaded", async () => {
+    hostInfo = { ...github, account: undefined, accountId: "a1" };
+    accounts = [{ id: "a1", kind: "github", username: "octo" }];
+    expect(await applyReleaseTargets({ repoId: "r1", tag: "v1.2.0", notes: NOTES, targets: ["host_release"] })).toEqual(["host_release"]);
+    expect(calls).toEqual(["tag_push v1.2.0 origin", "release_create"]);
+  });
+
+  it("says why it stops when no release can be created", async () => {
+    hostInfo = { ...github, account: undefined, accountId: "a1" };
+    accounts = [];
+    expect(await applyReleaseTargets({ repoId: "r1", tag: "v1.2.0", notes: NOTES, targets: ["host_release", "clipboard"] })).toEqual([]);
+    expect(calls, "nothing pushed, nothing copied").toEqual([]);
+    expect(toast).toHaveBeenCalledWith(expect.objectContaining({ tone: "danger", title: "No release created" }));
   });
 
   it("without a tag only the clipboard can be applied", async () => {

@@ -876,6 +876,10 @@
       "close": "Close",
       "changelogLabel": "Insert into CHANGELOG.md",
       "releaseLabel": "Create release",
+      "noRelease": {
+        "title": "No release created",
+        "body": "Forkyard found no connected account with releases for this repository’s remote. Connect one under Settings › Hosts."
+      },
       "confirmRelease": {
         "title": "Create release on {{host}}?",
         "body": "Forkyard pushes the tag “{{tag}}” to {{remote}} and creates a release with these notes. Both leave this computer and cannot be undone.",

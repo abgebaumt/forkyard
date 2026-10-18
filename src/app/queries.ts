@@ -437,7 +437,7 @@ export const useLfsInUse = (repoId: Id | null | undefined) =>
 // ---------------------------------------------------------------------------
 
 /** What lives at the host changes without an event from the core: after two minutes it counts as stale. */
-const HOST_STALE_MS = 2 * 60_000;
+export const HOST_STALE_MS = 2 * 60_000;
 
 /** The connected accounts – without token; that lives in the system keychain. */
 export const useHostAccounts = () => useQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });

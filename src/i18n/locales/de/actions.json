@@ -876,6 +876,10 @@
       "close": "Schließen",
       "changelogLabel": "In CHANGELOG.md einfügen",
       "releaseLabel": "Release anlegen",
+      "noRelease": {
+        "title": "Kein Release angelegt",
+        "body": "Forkyard hat für den Remote dieses Repositorys kein verbundenes Konto mit Releases gefunden. Verbinde eines unter Einstellungen › Hoster."
+      },
       "confirmRelease": {
         "title": "Release auf {{host}} anlegen?",
         "body": "Forkyard pusht den Tag „{{tag}}“ nach {{remote}} und legt ein Release mit diesen Notes an. Beides verlässt diesen Computer und lässt sich nicht rückgängig machen.",
