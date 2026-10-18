@@ -584,7 +584,8 @@ mod tests {
         let (prompt, schema) = (prompt_with("+fix"), schema());
         let started = std::time::Instant::now();
         let cancel = async {
-            tokio::time::sleep(Duration::from_millis(300)).await;
+            // The request is on its way (the job exists): only then cancel.
+            server.received("POST /api/chat").await;
             tc.jobs.cancel("job-cancel")
         };
         let (result, was_running) = tokio::join!(complete_json(&tc, request(None, "job-cancel", &prompt, &schema)), cancel);
@@ -604,7 +605,7 @@ mod tests {
         let tc = with_ollama(&server).await;
         let (prompt, schema) = (prompt_with("+fix"), schema());
         let off = async {
-            tokio::time::sleep(Duration::from_millis(300)).await;
+            server.received("POST /api/chat").await;
             settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
         };
         let (result, ()) = tokio::join!(complete_json(&tc, request(None, "job-off", &prompt, &schema)), off);

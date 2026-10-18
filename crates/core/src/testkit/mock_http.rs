@@ -191,6 +191,16 @@ impl MockServer {
         self.requests.lock().iter().filter(|r| r.route() == route).count()
     }
 
+    /// Waits until a request with this route has arrived – the concrete condition a test needs
+    /// before it cancels a running request (a fixed sleep races under load). Panics after 30 s.
+    pub async fn received(&self, route: &str) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(30);
+        while self.count(route) == 0 {
+            assert!(std::time::Instant::now() < deadline, "no request {route} arrived within 30 s");
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    }
+
     pub fn clear(&self) {
         self.requests.lock().clear();
     }

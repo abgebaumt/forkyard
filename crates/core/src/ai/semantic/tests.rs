@@ -313,7 +313,8 @@ async fn turning_ai_off_cancels_an_index_build_and_keeps_the_index() {
     let id = tc.open(&repo).await.repo.id;
     let started = Instant::now();
     let off = async {
-        tokio::time::sleep(Duration::from_millis(300)).await;
+        // The index build is sending (its request arrived): only then turn AI off.
+        server.received("POST /api/embed").await;
         settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
     };
     let (result, ()) = tokio::join!(search(&tc, &id, "off-1", "Login", "de"), off);
