@@ -472,6 +472,11 @@ pub async fn bisect_reset(core: State<'_, Core>, repo_id: String) -> R<BisectSta
 }
 
 #[tauri::command]
+pub async fn bisect_autopilot_script(core: State<'_, Core>, repo_id: String, job_id: String, request: BisectScriptRequest, locale: String) -> R<BisectScript> {
+    c::bisect::bisect_autopilot_script(&core, repo_id, job_id, request, locale).await
+}
+
+#[tauri::command]
 pub async fn remote_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Remote>> {
     c::remotes::remote_list(&core, repo_id).await
 }

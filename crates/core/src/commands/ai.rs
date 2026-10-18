@@ -30,7 +30,7 @@ async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
 
 /// Budget (tokens) and known secrets of a request for `feature` – the same for "What is sent?"
 /// and for the request itself, so both build the same text (the confirmation is bound to it).
-async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
+pub(crate) async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
     let context_size = match (settings.ai_provider, settings.ai_model.as_deref()) {
         (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
         _ => 32_000,
@@ -196,8 +196,10 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?.built
         }
         AiInput::ReleaseNotes { from, to } => release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), budget, &locale, &secrets).await?.built,
-        // The prompt builder comes with the bisect autopilot's script command (p09-1 Task 5).
-        AiInput::BisectScript(_) => return Err(CoreError::not_allowed("The preview of a bisect test script is not available yet.")),
+        AiInput::BisectScript(request) => {
+            let checked = ai::bisect::check(core, &repo_id, &request).await?;
+            ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?
+        }
     };
     let chars = built.prompt.chars();
     let mut preview = AiPreview {

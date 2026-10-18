@@ -15,7 +15,8 @@ use crate::commands::status::{self, read_operation};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
-use crate::model::{BisectStatus, BisectVerdict, RepoChange};
+use crate::ai::{self, run::AiRequest};
+use crate::model::{AiFeature, BisectScript, BisectScriptRequest, BisectShell, BisectStatus, BisectVerdict, RepoChange};
 use crate::util;
 
 /// A bisect checks out other commits and moves refs under `refs/bisect/`.
@@ -45,6 +46,18 @@ pub async fn bisect_reset(core: &Core, repo_id: String) -> CoreResult<BisectStat
         read_bisect(core, &repo_id).await
     });
     auto::follow(core, &repo_id, reset).await
+}
+
+/// Bisect autopilot (9.1): the AI writes a test script for the range. Only text comes back – shown
+/// and editable in the UI; nothing runs here. Job `job_id` (`jobCancel`).
+pub async fn bisect_autopilot_script(core: &Core, repo_id: String, job_id: String, request: BisectScriptRequest, locale: String) -> CoreResult<BisectScript> {
+    let settings = ai::run::ensure_allowed(core, Some(&repo_id), AiFeature::BisectScript)?;
+    let checked = ai::bisect::check(core, &repo_id, &request).await?;
+    let (budget, secrets) = crate::commands::ai::request_frame(core, &settings, AiFeature::BisectScript).await;
+    let built = ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?;
+    let schema = ai::bisect::schema();
+    let answer = ai::run::complete_json(core, AiRequest { repo_id: Some(&repo_id), feature: AiFeature::BisectScript, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
+    ai::bisect::parse_answer(&answer.value, BisectShell::current())
 }
 
 async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) -> CoreResult<BisectStatus> {
@@ -271,6 +284,9 @@ fn bisect_names(raw: &[u8]) -> Vec<Vec<u8>> {
     names.extend(current);
     names
 }
+
+#[cfg(test)]
+mod script_tests;
 
 #[cfg(test)]
 mod tests {

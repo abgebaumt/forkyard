@@ -499,6 +499,7 @@ pub fn run() {
             commands::bisect_start,
             commands::bisect_mark,
             commands::bisect_reset,
+            commands::bisect_autopilot_script,
             commands::remote_list,
             commands::remote_add,
             commands::remote_edit,

@@ -35,6 +35,8 @@ import type {
   ActivityScope,
   AppInfo,
   BisectStatus,
+  BisectScript,
+  BisectScriptRequest,
   BisectVerdict,
   BlameLine,
   CloneOptions,
@@ -420,6 +422,12 @@ export interface CoreCommands {
   bisectMark(input: R & { verdict: BisectVerdict; sha?: Sha | null }): Promise<BisectStatus>;
   /** Ends the bisect and returns to where it started. Without a bisect: `no_operation`. */
   bisectReset(input: R): Promise<BisectStatus>;
+  /**
+   * Bisect autopilot: the AI writes a test script for the range (exit 0 good, 1–127 except 125 bad,
+   * 125 skip). Only text – nothing runs. Job `jobId` (`jobCancel`). Errors: `ai_*` of the AI
+   * foundation, `repo_untrusted`, `not_allowed` (description missing, range invalid), `not_found`.
+   */
+  bisectAutopilotScript(input: R & { jobId: string; request: BisectScriptRequest; locale: string }): Promise<BisectScript>;
 
   // --- Remotes and syncing -----------------------------------------------------
   remoteList(input: R): Promise<Remote[]>;
