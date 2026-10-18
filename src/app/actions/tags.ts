@@ -17,6 +17,8 @@ import { addRemote } from "./sync";
  */
 export async function createTag(repoId: Id, sha: Sha | null, annotated = false) {
   const input = await askTag({
+    repoId,
+    sha,
     target: sha ? short(sha) : t("actions.tags.currentCommit"),
     annotated,
     validate: refNameValidator(repoId, "tag"),
@@ -26,6 +28,11 @@ export async function createTag(repoId: Id, sha: Sha | null, annotated = false) 
     success: input.message ? t("actions.tags.create.doneAnnotated", { name: clip(input.name) }) : t("actions.tags.create.done", { name: clip(input.name) }),
   });
   if (result.ok) queryClient.setQueryData(qk.refs(repoId), result.value);
+  if (result.ok && input.message && input.targets.length > 0) {
+    // Loaded on demand: the release-notes screen imports this module (pushTag).
+    const { applyReleaseTargets } = await import("../../screens/ReleaseNotes/apply");
+    await applyReleaseTargets({ repoId, tag: input.name, notes: input.message, targets: input.targets });
+  }
   return result;
 }
 

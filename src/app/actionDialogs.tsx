@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Trans } from "react-i18next";
-import type { Remote } from "../core";
+import type { Id, Remote, Sha } from "../core";
 import { t } from "../i18n";
 import { Button } from "../ui/Button";
 import { Dialog } from "../ui/Dialog";
@@ -13,6 +13,15 @@ import { Banner } from "../ui/Feedback";
 import { Checkbox, TextArea, TextField } from "../ui/Field";
 import { cn } from "../ui/cn";
 import { showDialog } from "./dialogs";
+import { signInInTerminal } from "./ai/cliLogin";
+import { openAiSettings } from "./ai/open";
+import { useAiStatus } from "./queries";
+import { isCli } from "../screens/Preferences/ai/model";
+import { availableTargets, type ReleaseTarget } from "../screens/ReleaseNotes/model";
+import { ReleaseTargets } from "../screens/ReleaseNotes/Targets";
+import { useReleaseNotesAvailability } from "../screens/ReleaseNotes/useAvailability";
+import { useReleaseNotesWriter } from "../screens/ReleaseNotes/useWriter";
+import { ReleaseNotesWriter } from "../screens/ReleaseNotes/Writer";
 
 /** Spaces turn into "-" while typing (branch and tag names). */
 const dashed = (value: string) => value.replace(/\s/g, "-");
@@ -270,14 +279,21 @@ export interface TagInput {
   name: string;
   /** null = lightweight tag. */
   message: string | null;
+  /** Release notes (v1.2): where the annotation also goes once the tag exists. */
+  targets: ReleaseTarget[];
 }
 
 function TagDialog({
+  repoId,
+  sha,
   target,
   annotated,
   validate,
   onDone,
 }: {
+  repoId: Id;
+  /** null = HEAD. */
+  sha: Sha | null;
   /** What the tag points at, as text. */
   target: string;
   /** The annotation is required (command "Create annotated tag"). */
@@ -287,9 +303,18 @@ function TagDialog({
 }) {
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
+  const messageRef = useRef("");
+  const setText = (value: string) => {
+    messageRef.current = value;
+    setMessage(value);
+  };
+  const [targets, setTargets] = useState<ReleaseTarget[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const check = useRef(0);
+  const notes = useReleaseNotesAvailability(repoId);
+  const writer = useReleaseNotesWriter({ repoId, to: sha, current: () => messageRef.current, apply: setText });
+  const provider = useAiStatus().data?.provider ?? null;
 
   useEffect(() => {
     const id = ++check.current;
@@ -317,13 +342,14 @@ function TagDialog({
       setError(result);
       return;
     }
-    onDone({ name: value, message: message.trim() || null });
+    const text = message.trim();
+    onDone({ name: value, message: text || null, targets: notes.visible && text ? targets : [] });
   };
 
   return (
     <Dialog
       open
-      size="sm"
+      size={notes.visible ? "md" : "sm"}
       title={annotated ? t("app.actionDialogs.tag.titleAnnotated") : t("app.actionDialogs.tag.title")}
       description={t("app.actionDialogs.tag.description", { target })}
       onOpenChange={(open) => {
@@ -345,11 +371,12 @@ function TagDialog({
           void submit();
         }}
       >
-        <TextField autoFocus label={t("app.actionDialogs.tag.name")} value={name} placeholder="v1.0.0" mono autoComplete="off" error={error ?? undefined} onChange={(event) => setName(dashed(event.target.value))} />
+        <TextField data-tag-name="" autoFocus label={t("app.actionDialogs.tag.name")} value={name} placeholder="v1.0.0" mono autoComplete="off" error={error ?? undefined} onChange={(event) => setName(dashed(event.target.value))} />
         <TextArea
+          data-tag-annotation=""
           label={annotated ? t("app.actionDialogs.tag.annotation") : t("app.actionDialogs.tag.annotationOptional")}
           value={message}
-          rows={3}
+          rows={notes.visible ? 8 : 3}
           hint={
             message.trim()
               ? t("app.actionDialogs.tag.hintAnnotated")
@@ -357,7 +384,10 @@ function TagDialog({
                 ? t("app.actionDialogs.tag.hintNeedsText")
                 : t("app.actionDialogs.tag.hintLightweight")
           }
-          onChange={(event) => setMessage(event.target.value)}
+          onChange={(event) => {
+            setText(event.target.value);
+            writer.edited();
+          }}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
               event.preventDefault();
@@ -365,13 +395,38 @@ function TagDialog({
             }
           }}
         />
+        {notes.visible ? (
+          <ReleaseNotesWriter
+            repoId={repoId}
+            to={sha}
+            writer={writer}
+            openSetup={notes.openSetup}
+            local={notes.local}
+            onSetup={() => {
+              onDone(null);
+              openAiSettings();
+            }}
+            onSignIn={
+              provider && isCli(provider)
+                ? () => {
+                    // The terminal sits behind this modal dialog: close it first.
+                    onDone(null);
+                    signInInTerminal(provider);
+                  }
+                : undefined
+            }
+          />
+        ) : null}
+        {notes.visible && message.trim() ? (
+          <ReleaseTargets available={availableTargets("tag", notes.hostReleases)} selected={targets} onChange={setTargets} hostName={notes.hostName} remote={notes.remote} />
+        ) : null}
         <button type="submit" hidden />
       </form>
     </Dialog>
   );
 }
 
-export function askTag(options: { target: string; annotated: boolean; validate: (name: string) => Promise<string | null> }): Promise<TagInput | null> {
+export function askTag(options: { repoId: Id; sha: Sha | null; target: string; annotated: boolean; validate: (name: string) => Promise<string | null> }): Promise<TagInput | null> {
   return showDialog<TagInput>((done) => <TagDialog {...options} onDone={done} />);
 }
 

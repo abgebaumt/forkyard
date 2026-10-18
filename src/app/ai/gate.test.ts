@@ -76,6 +76,20 @@ describe("send gate", () => {
     expect(confirmed).toEqual([{ repoId: "r", feature: "compose", fingerprint: "abc", triggers: ["large", "repo_first"], dontAskAgain: true }]);
   });
 
+  it("asks through the given dialog when the caller sits inside a dialog itself", async () => {
+    // The dialog host shows one dialog at a time: a writer inside the tag dialog shows the preview
+    // nested in its own dialog instead of queueing it behind the dialog that waits for it.
+    const nested: string[] = [];
+    const send = await confirmSend("r", "release_notes", preview(["limit"]), (_preview, mode) => {
+      nested.push(mode);
+      return Promise.resolve({ send: true, dontAskAgain: false });
+    });
+    expect(send).toBe(true);
+    expect(nested).toEqual(["confirm"]);
+    expect(shown).toEqual([]);
+    expect(confirmed).toEqual([{ repoId: "r", feature: "release_notes", fingerprint: "abc", triggers: ["limit"], dontAskAgain: false }]);
+  });
+
   it("“What is sent?” builds the preview of the given input and only shows it", async () => {
     previewed.length = 0;
     shown.length = 0;

@@ -16,7 +16,11 @@ export interface PreviewChoice {
   dontAskAgain: boolean;
 }
 
-function PreviewDialog({ preview, mode, onDone }: { preview: AiPreview; mode: "look" | "confirm"; onDone: (choice: PreviewChoice | null) => void }) {
+/**
+ * The dialog itself, for a caller that is a dialog already and shows it nested (Radix stacks
+ * nested dialogs; Escape closes only the top one). Everyone else uses `showAiPreview`.
+ */
+export function AiPreviewDialog({ preview, mode, onDone }: { preview: AiPreview; mode: "look" | "confirm"; onDone: (choice: PreviewChoice | null) => void }) {
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const asks = mode === "confirm" ? askLines(preview) : [];
   return (
@@ -85,5 +89,5 @@ function PreviewDialog({ preview, mode, onDone }: { preview: AiPreview; mode: "l
 
 /** `look`: only shows (Close). `confirm`: Send / Cancel and, for size and cost, "Don't ask again". */
 export function showAiPreview(preview: AiPreview, mode: "look" | "confirm"): Promise<PreviewChoice | null> {
-  return showDialog<PreviewChoice>((done) => <PreviewDialog preview={preview} mode={mode} onDone={done} />);
+  return showDialog<PreviewChoice>((done) => <AiPreviewDialog preview={preview} mode={mode} onDone={done} />);
 }

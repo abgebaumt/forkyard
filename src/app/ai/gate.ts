@@ -6,11 +6,20 @@
 import { core, type AiFeature, type AiInput, type AiPreview, type Id } from "../../core";
 import { locale, t } from "../../i18n";
 import { runAction } from "../run";
-import { showAiPreview } from "./PreviewDialog";
+import { showAiPreview, type PreviewChoice } from "./PreviewDialog";
 
-export async function confirmSend(repoId: Id | null, feature: AiFeature, preview: AiPreview): Promise<boolean> {
+/**
+ * `show` presents the preview. The dialog host shows one dialog at a time, so a caller that sits
+ * inside a dialog itself passes its own nested dialog here instead of queueing one behind itself.
+ */
+export async function confirmSend(
+  repoId: Id | null,
+  feature: AiFeature,
+  preview: AiPreview,
+  show: (preview: AiPreview, mode: "confirm") => Promise<PreviewChoice | null> = showAiPreview,
+): Promise<boolean> {
   if (preview.asks.length === 0) return true;
-  const choice = await showAiPreview(preview, "confirm");
+  const choice = await show(preview, "confirm");
   if (!choice?.send) return false;
   const result = await runAction(t("ai.preview.confirmAction"), () =>
     core.aiPreviewConfirm({ repoId, feature, fingerprint: preview.fingerprint, triggers: preview.asks, dontAskAgain: choice.dontAskAgain }),
