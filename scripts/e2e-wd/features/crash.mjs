@@ -84,7 +84,7 @@ async function paletteCrashReports(app) {
   // The list re-renders while filtering: read the title and click inside the page (no stale node).
   const title = await app.waitFor(() => app.exec((s) => document.querySelector(s)?.innerText ?? null, sel), 10_000, { message: "palette entry app.crashReports" });
   assertIncludes(title, "Show crash reports", "palette entry title");
-  await app.settle(300);
+  await app.settle();
   await app.click(sel);
   await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="command-palette"]')), 5000, { message: "palette closed" });
 }

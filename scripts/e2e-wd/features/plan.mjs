@@ -89,6 +89,15 @@ async function openPalette(app, text) {
   return input;
 }
 
+/**
+ * Before asserting that something is absent: the palette holds the typed text and no query runs
+ * any more (the AI status among them), so the rows are the final ones for that text.
+ */
+async function typedAndSettled(app, input, text) {
+  await app.waitFor(() => app.exec((el, want) => el.value === want, input, text), 10_000, { message: `palette holds “${text}”` });
+  await app.settle();
+}
+
 const shownSteps = (app) =>
   app.exec(
     (root) =>
@@ -269,12 +278,10 @@ scenario("German texts; nothing of it once AI is off", "edge", withCleanup(async
 
   await app.invoke("settings_set", { patch: { aiEnabled: false } });
   await eventually(async () => (await app.invoke("ai_status")).state, "off", "AI off");
-  await openPalette(app, "hol alles Neue vom Server");
-  await app.settle(300);
+  await typedAndSettled(app, await openPalette(app, "hol alles Neue vom Server"), "hol alles Neue vom Server");
   assert(!(await app.exec((css) => document.querySelector(css), ASK_ROW)), "no ask row with AI off");
   await app.press("Escape");
-  await openPalette(app, "?hol alles");
-  await app.settle(300);
+  await typedAndSettled(app, await openPalette(app, "?hol alles"), "?hol alles");
   assert(!(await app.exec((css) => document.querySelector(css), ASK_ROW)), "“?” is plain text with AI off");
   await t.noConsoleErrors(app);
 }));
