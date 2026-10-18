@@ -14,5 +14,6 @@
 //! What goes to an embedder is repository content: the same exclusions, redaction and
 //! confirmations (`ai::gate`) as every AI request, bound to exactly the sent text.
 
+pub mod history;
 pub mod index;
 pub mod vector;

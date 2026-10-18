@@ -41,7 +41,7 @@ impl Narrowing {
 
 /// `YYYY-MM-DD`, optionally with `THH:MM[:SS]` and `Z` or an offset – nothing Git's free-form date
 /// parser could read differently from what was typed.
-fn is_search_date(value: &str) -> bool {
+pub(crate) fn is_search_date(value: &str) -> bool {
     regex::Regex::new(r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$").is_ok_and(|pattern| pattern.is_match(value))
 }
 
@@ -87,7 +87,7 @@ const SEARCH_FIELDS: usize = 7;
 /// What is searched is what can appear in the graph: branches, remote branches, tags and HEAD
 /// (for detached HEAD) – not the app's backup refs and not the stash internals.
 /// `--ignore-missing`: in a repository without a commit HEAD does not exist yet.
-const SEARCH_REFS: [&str; 5] = ["--branches", "--remotes", "--tags", "--ignore-missing", "HEAD"];
+pub(crate) const SEARCH_REFS: [&str; 5] = ["--branches", "--remotes", "--tags", "--ignore-missing", "HEAD"];
 
 /// Running searches per repository and caller (`searchId`): a new search only cancels the
 /// previous one of the same caller. That way the search bar and the command palette do not interfere.
@@ -325,6 +325,34 @@ async fn sha_search(core: &Core, path: &Path, repo_id: &str, query: &str, token:
     // A tag object with a matching prefix points to a commit with a different SHA: no hit.
     hits.retain(|h| h.commit.sha.starts_with(&prefix) && !orphaned.contains(&h.commit.sha));
     Ok(hits)
+}
+
+/// The list entries of these commits (full SHAs), in the given order.
+pub(crate) async fn commit_summaries(core: &Core, path: &Path, repo_id: &str, shas: &[String], token: &CancelToken) -> CoreResult<Vec<CommitSummary>> {
+    if shas.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut stdin = String::new();
+    for sha in shas.iter().filter(|sha| is_full_sha(sha)) {
+        stdin.push_str(sha);
+        stdin.push('\n');
+    }
+    let mut found = Vec::new();
+    let mut records = Records::new(SEARCH_FIELDS);
+    let mut on_field = |field: &[u8]| -> bool {
+        if let Some(fields) = records.push(field) {
+            found.push(hit(&fields).commit);
+        }
+        true
+    };
+    read_cmd(core, path, repo_id)
+        .args(["log", "--no-walk=unsorted"])
+        .args(LOG_SAFE)
+        .args(["-z", SEARCH_FORMAT, "--stdin"])
+        .stdin(stdin)
+        .run_records(0, Some(token), &mut on_field)
+        .await?;
+    Ok(found)
 }
 
 /// All files of a commit or of the working directory (tracked and untracked,

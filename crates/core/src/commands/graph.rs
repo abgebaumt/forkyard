@@ -30,6 +30,7 @@ use crate::util;
 pub use details::parse_co_authors;
 pub use page::{MAX_PAGE_SIZE, STASH_REF, WIP_ID};
 pub use search::{MAX_SEARCH_PATHS, MAX_SEARCH_RESULTS, MIN_SHA_PREFIX};
+pub(crate) use search::{commit_summaries, is_search_date, SEARCH_REFS};
 
 /// One page of the graph with a finished lane layout; first page with `cursor: None` (with WIP and stash rows).
 pub async fn graph_page(core: &Core, repo_id: String, cursor: Option<String>, limit: u32) -> CoreResult<GraphPage> {
