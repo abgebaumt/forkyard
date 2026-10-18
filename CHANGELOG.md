@@ -80,6 +80,14 @@ All notable changes to Forkyard are listed here. The format follows
   GitLab, Gitea/Forgejo, Bitbucket Cloud, Azure DevOps). After a change further down, “Restack” rebases
   the parts above with `--update-refs` and names the parts it leaves behind because they are checked
   out in another worktree.
+- Review comments: the pull request view lists the open review threads (file, lines, comments) for
+  GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps. With AI on, “Suggest fix” proposes a
+  replacement for the commented lines as a small diff with a reason; Forkyard builds the patch itself,
+  picks the commit it belongs to (blame of the commented lines inside the pull request) and “Take over
+  as fixup” commits it as `fixup! <subject>` on the checked-out branch – hooks and signing included,
+  one undo step for several takeovers in a row. Replies are posted only on click (on Gitea/Forgejo as a
+  quoted comment on the same line). Afterwards “Squash now” opens the interactive rebase with the fixups
+  below their commits (autosquash, new action “Fixup”).
 
 ### Changed
 
