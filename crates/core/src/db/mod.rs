@@ -14,6 +14,7 @@ use rusqlite::{Connection, Transaction};
 use crate::error::CoreResult;
 
 pub mod activity;
+pub mod agents;
 pub mod ai;
 pub mod app_settings;
 pub mod drafts;
@@ -63,6 +64,8 @@ const UPGRADES: &[&str] = &[
     // v1.2: AI usage and given preview confirmations; existing installations get the one-time
     // notice about the new AI features (`ai.introPending`), new ones do not (schema.sql has no insert).
     AI_USAGE_AND_PREVIEW,
+    // Coding agents of the cockpit (metadata only). Written with `if not exists`, like STATS_CACHE.
+    AGENTS,
 ];
 
 const STATS_CACHE: &str = "
@@ -73,6 +76,27 @@ create table if not exists stats_cache (
   created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   primary key (repository_id, cache_key)
 ) strict;
+";
+
+const AGENTS: &str = "
+create table if not exists agents (
+  id            text primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  short_name    text not null,
+  template_id   text not null,
+  task          text not null default '',
+  branch        text not null,
+  worktree_path text not null,
+  base          text not null,
+  base_sha      text not null,
+  unattended    integer not null default 0 check (unattended in (0, 1)),
+  started_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ended_at      text,
+  exit_code     integer,
+  end_reason    text check (end_reason is null or end_reason in ('exited', 'stopped', 'app_closed'))
+) strict;
+create unique index if not exists agents_short_name on agents (repository_id, short_name);
+create index if not exists agents_repo_time on agents (repository_id, started_at desc);
 ";
 
 const AI_USAGE_AND_PREVIEW: &str = "
@@ -428,7 +452,7 @@ mod tests {
         let kept: String = db.with(|c| Ok(c.query_row("select name from workspaces where id = 'w'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(kept, "Alt");
         let fresh = Db::open_in_memory().unwrap();
-        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state", "stats_cache", "ai_usage", "ai_preview_seen"] {
+        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state", "stats_cache", "ai_usage", "ai_preview_seen", "agents"] {
             assert_eq!(columns(&db, table), columns(&fresh, table), "{table}");
         }
         // The view state of before keeps its fields and gets the new ones with their defaults.
@@ -525,6 +549,39 @@ mod tests {
         assert_eq!(columns(&upgraded), expected);
     }
 
+    /// The agents step creates exactly the table and indexes schema.sql has, and may run twice.
+    #[test]
+    fn the_agents_upgrade_matches_the_schema() {
+        // `contains`, not `last()`: later packages append their own steps behind this one.
+        assert!(UPGRADES.contains(&AGENTS), "the step is part of UPGRADES");
+        // Columns (name, type, notnull, pk) and index names.
+        type Shape = (Vec<(String, String, i64, i64)>, Vec<String>);
+        let shape = |db: &Db| -> Shape {
+            db.with(|c| {
+                let mut stmt = c.prepare("select name, type, \"notnull\", pk from pragma_table_info('agents') order by cid")?;
+                let columns = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                let mut stmt = c.prepare("select name from sqlite_master where type = 'index' and tbl_name = 'agents' and name not like 'sqlite_%' order by name")?;
+                let indexes = stmt.query_map([], |r| r.get(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                Ok((columns, indexes))
+            })
+            .unwrap()
+        };
+        let fresh = Db::open_in_memory().unwrap();
+        let expected = shape(&fresh);
+        assert_eq!(expected.0.len(), 14, "{expected:?}");
+        assert_eq!(expected.1, vec!["agents_repo_time".to_string(), "agents_short_name".to_string()]);
+        let upgraded = Db::open_in_memory().unwrap();
+        upgraded
+            .with(|c| {
+                c.execute_batch("drop table agents;")?;
+                c.execute_batch(AGENTS)?;
+                c.execute_batch(AGENTS)?;
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(shape(&upgraded), expected);
+    }
+
     /// The AI step creates exactly what schema.sql has, may run twice, and is part of UPGRADES.
     #[test]
     fn the_ai_step_matches_the_schema_and_may_run_twice() {
@@ -558,7 +615,7 @@ mod tests {
     #[test]
     fn the_upgrade_moves_exactly_the_global_keys() {
         // Settings added after version 5 never existed at the profile level.
-        const ADDED_LATER: [&str; 11] = [
+        const ADDED_LATER: [&str; 12] = [
             "checkForUpdates",
             "aiEnabled",
             "aiProvider",
@@ -570,6 +627,7 @@ mod tests {
             "aiMonthlyLimitUsd",
             "aiPrices",
             "aiCliPaths",
+            "agentTemplates",
         ];
         for key in app_settings::GLOBAL_KEYS.into_iter().filter(|key| !ADDED_LATER.contains(key)) {
             assert_eq!(V5_PROFILE_LEVELS.matches(&format!("'{key}'")).count(), 2, "{key} is missing from the upgrade (copy and delete)");

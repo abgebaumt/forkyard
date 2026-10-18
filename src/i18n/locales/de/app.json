@@ -59,6 +59,8 @@
     "jobRunning": "„{{job}}“ läuft noch und wird abgebrochen.",
     "jobsRunning_one": "{{count}} Aktion läuft noch und wird abgebrochen.",
     "jobsRunning_other": "{{count}} Aktionen laufen noch und werden abgebrochen.",
+    "agentsRunning_one": "{{count}} Coding-Agent läuft und wird beendet.",
+    "agentsRunning_other": "{{count}} Coding-Agenten laufen und werden beendet.",
     "quit": "Beenden",
     "save": "Speichern und beenden",
     "saveFailed": "Nicht alles ließ sich speichern",

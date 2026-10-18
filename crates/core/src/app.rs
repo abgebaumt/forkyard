@@ -258,6 +258,9 @@ impl Core {
         }
         let before = util::iso_days_ago(ACTIVITY_MAX_DAYS);
         self.db.with(|c| db::activity::cleanup(c, &before, ACTIVITY_MAX_PER_REPO))?;
+        if let Err(e) = crate::commands::agents::reconcile_on_start(self) {
+            log::warn!("agent sessions of the last run not recorded as ended: {}", e.message);
+        }
         crate::undo::cleanup_older_than(self, UNDO_MAX_DAYS).await
     }
 
@@ -285,6 +288,8 @@ impl Core {
         let mut what = what.to_vec();
         what.sort();
         what.dedup();
+        // Coding agents: a change in an agent's worktree (or of the base's refs) schedules the collision check.
+        crate::commands::agents::collision::note_change(self, repo_id, &what);
         self.emit(names::REPO_CHANGED, &RepoChangedEvent { repo_id: repo_id.to_string(), what });
     }
 

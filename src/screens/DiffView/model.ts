@@ -380,8 +380,31 @@ export function hunkToPatch(diff: TextDiff, hunkOrd: number): PatchSelection | n
 // Beschriftungen
 // ---------------------------------------------------------------------------
 
-/** What is possible with hunks and lines of this source. */
-export type PatchMode = "unstaged" | "staged" | "none";
+/** What is possible with hunks and lines of this source. `pick`: lines can only be selected (agent review), nothing is staged. */
+export type PatchMode = "unstaged" | "staged" | "pick" | "none";
+
+/** What the line grid offers. */
+export interface LineCaps {
+  /** Lines can be selected. */
+  select: boolean;
+  /** Enter (and the hunk button) does this with the selection or the hunk. */
+  primary: "stage" | "unstage" | null;
+  /** Delete discards. */
+  discard: boolean;
+  /** Stage/unstage/discard entries, hunk buttons and the selection bar. */
+  patchActions: boolean;
+}
+
+export function lineCaps(mode: PatchMode, canPatch: boolean): LineCaps {
+  const select = mode !== "none" && canPatch;
+  const staging = select && (mode === "unstaged" || mode === "staged");
+  return {
+    select,
+    primary: !staging ? null : mode === "unstaged" ? "stage" : "unstage",
+    discard: staging && mode === "unstaged",
+    patchActions: staging,
+  };
+}
 
 export const patchModeOf = (source: DiffSource): PatchMode => (source.kind === "unstaged" ? "unstaged" : source.kind === "staged" ? "staged" : "none");
 

@@ -14,6 +14,7 @@ export type SectionId =
   | "commands"
   | "notifications"
   | "ai"
+  | "agents"
   | "identity"
   | "git"
   | "ssh"
@@ -49,6 +50,7 @@ export const SECTIONS: SectionDef[] = [
   section("commands", "global", "commands"),
   section("notifications", "global", "notifications"),
   section("ai", "global", "ai"),
+  section("agents", "global", "agents"),
   section("identity", "profile", "identity"),
   section("git", "profile", "git"),
   section("ssh", "profile", "ssh"),

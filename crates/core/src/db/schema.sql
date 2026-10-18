@@ -173,6 +173,29 @@ create table stats_cache (
   primary key (repository_id, cache_key)
 ) strict;
 
+-- Coding agents started from the cockpit: metadata only. Branch and worktree are checked against
+-- `git worktree list` on every read; the running session (terminal, status) lives in memory.
+-- No "Since version" marker: the upgrade step uses `if not exists` (like stats_cache).
+create table if not exists agents (
+  id            text primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  short_name    text not null,
+  template_id   text not null,
+  -- The task the user typed (prefills the commit message on takeover).
+  task          text not null default '',
+  branch        text not null,
+  worktree_path text not null,
+  base          text not null,
+  base_sha      text not null,
+  unattended    integer not null default 0 check (unattended in (0, 1)),
+  started_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  ended_at      text,
+  exit_code     integer,
+  end_reason    text check (end_reason is null or end_reason in ('exited', 'stopped', 'app_closed'))
+) strict;
+create unique index if not exists agents_short_name on agents (repository_id, short_name);
+create index if not exists agents_repo_time on agents (repository_id, started_at desc);
+
 -- Undo/redo. Before every reversible action the app records where HEAD and the
 -- affected ref were. For "discard", payload points to a backup commit under
 -- refs/<app>/undo/<id>, so that discarded work can be brought back.

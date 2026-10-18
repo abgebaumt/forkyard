@@ -11,7 +11,7 @@ describe("profileColor", () => {
 });
 
 describe("switchWarning", () => {
-  const nothing = { files: [], views: false, jobs: [] };
+  const nothing = { files: [], views: false, jobs: [], agents: 0 };
   it("without open work there is no prompt", () => {
     expect(switchWarning(nothing)).toBeNull();
   });
@@ -31,7 +31,7 @@ describe("switchLosses", () => {
   });
   it("also counts actions that only run as \"busy\" (e.g. a commit)", () => {
     expect(switchLosses({ jobs: {}, busy: { "r1:commit": true } }, [], false).jobs).toEqual(["A Git action"]);
-    expect(switchLosses({ jobs: {}, busy: {} }, ["a.txt"], true)).toEqual({ jobs: [], files: ["a.txt"], views: true });
+    expect(switchLosses({ jobs: {}, busy: {} }, ["a.txt"], true)).toEqual({ jobs: [], files: ["a.txt"], views: true, agents: 0 });
   });
 });
 

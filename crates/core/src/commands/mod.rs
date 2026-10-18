@@ -3,6 +3,7 @@
 
 pub mod ai;
 pub mod activity;
+pub mod agents;
 pub mod app;
 pub mod archaeology;
 pub mod auth;

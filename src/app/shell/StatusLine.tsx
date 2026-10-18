@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, CircleDot, CloudDownload, GitBranch, GitCommitHorizontal, Minus, Plus, ScrollText, TriangleAlert, X } from "lucide-react";
-import { core, type Id, type Operation } from "../../core";
+import { core, type Id, type Operation, type Tab } from "../../core";
 import { IconButton } from "../../ui/Button";
 import { StatusBar } from "../../ui/Chrome";
 import { toast } from "../../ui/Feedback";
@@ -10,11 +10,13 @@ import { useEffectiveZoom } from "../zoom";
 import { operationNames } from "../actions/merge";
 import { describeError } from "../errors";
 import { formatDateTime, formatRelative, shortSha } from "../format";
-import { useSettings, useStatus } from "../queries";
+import { qk, queryClient, useAgents, useSettings, useStatus } from "../queries";
 import { runAction } from "../run";
 import { useAppStore, type Job } from "../store";
 import { useUpdateInfo, visibleUpdate } from "../updates";
 import { openInBrowser } from "../actions/hosts";
+import { openCockpit } from "../../screens/Agents/actions";
+import { agentCounts } from "../../screens/Agents/model";
 import { t } from "../../i18n";
 
 /** Updates relative times once per minute. */
@@ -155,6 +157,24 @@ function UpdateHint() {
 }
 
 /** Status bar: branch or detached HEAD, ahead/behind, running operation, jobs with progress and cancel, last fetch; on the right zoom and activity log. */
+/** “n agents running” – opens the cockpit of the repository in the active tab. */
+function AgentsRunning({ repoId }: { repoId: Id }) {
+  const { data: agents } = useAgents(repoId);
+  const running = agentCounts(agents ?? []).running;
+  if (running === 0) return null;
+  const open = () => {
+    const tab = queryClient.getQueryData<Tab[]>(qk.tabs)?.find((item) => item.isActive && item.repoId === repoId);
+    if (tab) openCockpit(tab.id);
+  };
+  return (
+    <Tip label={t("agents.statusLine.hint")}>
+      <button type="button" data-status="agents" onClick={open} className="flex shrink-0 items-center gap-1 rounded-sm px-1 hover:bg-surface-raised hover:text-text">
+        {t("agents.statusLine.running", { count: running })}
+      </button>
+    </Tip>
+  );
+}
+
 export function StatusLine({ repoId }: { repoId: Id | null }) {
   useMinuteTick();
   const jobs = useAppStore((state) => state.jobs);
@@ -174,6 +194,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
       left={
         <>
           {repoId ? <BranchInfo repoId={repoId} /> : null}
+          {repoId ? <AgentsRunning repoId={repoId} /> : null}
           {visibleJobs.length ? (
             <span role="status" aria-live="polite" className="flex min-w-0 items-center gap-3">
               {visibleJobs.map((job) => (

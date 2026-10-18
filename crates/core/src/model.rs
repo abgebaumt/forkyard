@@ -1328,6 +1328,8 @@ pub enum SectionId {
     Stashes,
     Worktrees,
     Submodules,
+    /// The coding agents of the cockpit (left panel).
+    Agents,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1388,6 +1390,7 @@ impl Default for RepoViewState {
                 sec(SectionId::Stashes, true),
                 sec(SectionId::Worktrees, false),
                 sec(SectionId::Submodules, true),
+                sec(SectionId::Agents, false),
             ],
             collapsed_merges: Vec::new(),
             collapse_all_merges: false,
@@ -1968,6 +1971,10 @@ pub struct Settings {
     /// Ask GitHub once a day whether a newer stable release exists (`update_check`).
     #[serde(default = "yes")]
     pub check_for_updates: bool,
+    /// The user's own coding-agent templates (Settings › Coding agents). Global; the built-in
+    /// templates (Claude Code, Codex, opencode) are not stored.
+    #[serde(default)]
+    pub agent_templates: Vec<AgentTemplate>,
     pub ssh_use_agent: bool,
     /// Proxy for all HTTP(S) remotes (`http.proxy`); `None` = whatever Git already uses.
     #[serde(default)]
@@ -2055,6 +2062,7 @@ impl Default for Settings {
             notify_on_fetch: false,
             notify_on_error: true,
             check_for_updates: true,
+            agent_templates: Vec::new(),
             ssh_use_agent: true,
             proxy_url: None,
             proxy_by_host: Vec::new(),
@@ -2106,6 +2114,10 @@ pub struct RepoSettings {
     /// characters; stored in the app (`repo_settings`), never in .git/config.
     #[serde(default)]
     pub ai_commit_instruction: Option<String>,
+    /// Test command for coding agents (run in the agent's worktree when it is done). `None` = none.
+    /// App side (`repo_settings`), never read from the repository.
+    #[serde(default)]
+    pub test_command: Option<String>,
 }
 
 impl Default for RepoSettings {
@@ -2124,6 +2136,7 @@ impl Default for RepoSettings {
             link_rules: LinkRulesConfig::default(),
             ai_off: false,
             ai_commit_instruction: None,
+            test_command: None,
         }
     }
 }
@@ -4011,5 +4024,435 @@ mod stats_json_tests {
         assert_eq!((v["authorCount"].clone(), v["fileCount"].clone(), v["cached"].clone()), (json!(0), json!(0), json!(false)));
         let back: RepoStats = serde_json::from_value(v).unwrap();
         assert_eq!(back, stats);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Coding agents (cockpit)
+// ---------------------------------------------------------------------------
+
+/// A coding-agent template of the user's own. Placeholders in `args`, `unattended_args` and
+/// `resume_args`: `${task}`, `${taskFile}`, `${worktree}`, `${branch}`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTemplate {
+    /// `custom:<id>`.
+    pub id: String,
+    pub name: String,
+    /// Program name (looked up on PATH) or full path.
+    pub program: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Extra arguments for “without prompts”; `None` = the switch is not available for this template.
+    #[serde(default)]
+    pub unattended_args: Option<Vec<String>>,
+    /// Arguments for “Resume” (instead of `args`); `None` = no resume.
+    #[serde(default)]
+    pub resume_args: Option<Vec<String>>,
+    /// The program reports “waiting”/“done” itself through `$FORKYARD_AGENT_HELPER`.
+    #[serde(default)]
+    pub status_hook: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentTemplateKind {
+    Claude,
+    Codex,
+    Opencode,
+    Custom,
+}
+
+/// A template as the start dialog and the settings show it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTemplateInfo {
+    /// `claude`, `codex`, `opencode` or `custom:<id>`.
+    pub id: String,
+    pub kind: AgentTemplateKind,
+    pub name: String,
+    pub program: String,
+    /// Where the program was found; `None` = not found (the template can't be started).
+    pub path: Option<String>,
+    pub version: Option<String>,
+    /// Why “without prompts” is not available; `None` = available.
+    pub unattended_blocked: Option<String>,
+    /// What “without prompts” does not cover on this system (Windows: Claude Code still asks before commands).
+    pub unattended_note: Option<String>,
+    pub can_resume: bool,
+    /// Status comes from the agent itself (“according to Claude Code”), not only from guessing.
+    pub status_hook: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentStatus {
+    #[default]
+    Starting,
+    Running,
+    Waiting,
+    Done,
+    Failed,
+    Stopped,
+    /// Branch or worktree no longer exist.
+    Orphaned,
+}
+
+/// Where the status comes from: the agent reported it (hook, terminal signal) or the core guesses
+/// it (no screen change for a while).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentStatusSource {
+    Agent,
+    #[default]
+    Guess,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentTestState {
+    Running,
+    Passed,
+    Failed,
+}
+
+/// Last run of the repository's test command in the agent's worktree.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentTestResult {
+    pub state: AgentTestState,
+    pub exit_code: Option<i32>,
+    /// The last 4 KiB of stdout and stderr, redacted.
+    pub output: String,
+    pub started_at: IsoTime,
+    pub finished_at: Option<IsoTime>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Agent {
+    pub id: String,
+    /// The repository the agent was started from (undo, cleanup and the cockpit live there).
+    pub repo_id: String,
+    /// Repository row of the agent's worktree (status, diff, watcher); `None` once the folder is gone.
+    pub worktree_repo_id: Option<String>,
+    pub short_name: String,
+    pub template_id: String,
+    pub template_name: String,
+    pub task: String,
+    pub branch: String,
+    pub worktree_path: String,
+    /// What the user chose as the base (branch name or SHA) and the commit it resolved to.
+    pub base: String,
+    pub base_sha: String,
+    pub unattended: bool,
+    pub status: AgentStatus,
+    pub status_source: AgentStatusSource,
+    /// Terminal of the running session; `None` when no session runs.
+    pub terminal_id: Option<String>,
+    pub started_at: IsoTime,
+    pub ended_at: Option<IsoTime>,
+    pub exit_code: Option<i32>,
+    /// Last non-empty screen line after a failure (redacted).
+    pub last_line: Option<String>,
+    pub changed_files: u32,
+    /// Commits on the agent's branch that the base does not have.
+    pub commits_ahead: u32,
+    pub test: Option<AgentTestResult>,
+}
+
+/// Defaults for the start dialog, checked live.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSuggestion {
+    pub short_name: String,
+    pub branch: String,
+    /// Why the branch can't be used (invalid name, already exists); `None` = fine.
+    pub branch_problem: Option<String>,
+    /// Folder the worktree will get.
+    pub path: String,
+    pub base_sha: String,
+    /// Agent configurations in the base commit (`.claude/`, `.codex/`, `opencode.json`).
+    pub configs: Vec<String>,
+    /// Agents of this repository with a running session.
+    pub running: u32,
+}
+
+/// What “Stop agent and clean up” would destroy.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentCleanupPreview {
+    /// Commits of the branch that are on no remote branch and not in the base.
+    pub unpushed_commits: u32,
+    pub changed_files: u32,
+    pub running: bool,
+    /// The worktree is locked (`git worktree lock`); cleaning up is refused.
+    pub locked: bool,
+}
+
+/// Payload of `agents:changed`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentsChangedEvent {
+    /// The repository whose agents changed (status, start, end, cleanup).
+    pub repo_id: String,
+    /// Agents with a running session in all repositories (for the prompt when quitting).
+    pub running: u32,
+}
+
+#[cfg(test)]
+mod agent_json_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn agent_types_are_camel_case_and_template_options_default() {
+        let template: AgentTemplate = serde_json::from_value(json!({ "id": "custom:1", "name": "Mein Agent", "program": "mein-agent" })).unwrap();
+        assert_eq!(
+            template,
+            AgentTemplate { id: "custom:1".into(), name: "Mein Agent".into(), program: "mein-agent".into(), args: vec![], unattended_args: None, resume_args: None, status_hook: false }
+        );
+        let full = serde_json::to_value(AgentTemplate { unattended_args: Some(vec!["--yes".into()]), status_hook: true, ..template }).unwrap();
+        assert_eq!(full["unattendedArgs"], json!(["--yes"]));
+        assert_eq!(full["resumeArgs"], json!(null));
+        assert_eq!(full["statusHook"], json!(true));
+
+        let agent = Agent { status: AgentStatus::Waiting, status_source: AgentStatusSource::Agent, ..Agent::default() };
+        let v = serde_json::to_value(&agent).unwrap();
+        assert_eq!((v["status"].clone(), v["statusSource"].clone()), (json!("waiting"), json!("agent")));
+        for key in ["worktreeRepoId", "terminalId", "endedAt", "exitCode", "lastLine", "test"] {
+            assert!(v[key].is_null(), "{key}");
+        }
+        assert_eq!((v["changedFiles"].clone(), v["commitsAhead"].clone(), v["unattended"].clone()), (json!(0), json!(0), json!(false)));
+        let back: Agent = serde_json::from_value(v).unwrap();
+        assert_eq!(back, agent);
+        assert_eq!(Agent::default().status, AgentStatus::Starting);
+        assert_eq!(Agent::default().status_source, AgentStatusSource::Guess);
+
+        let all = [AgentStatus::Starting, AgentStatus::Running, AgentStatus::Waiting, AgentStatus::Done, AgentStatus::Failed, AgentStatus::Stopped, AgentStatus::Orphaned];
+        let names: Vec<serde_json::Value> = all.iter().map(|s| serde_json::to_value(s).unwrap()).collect();
+        assert_eq!(names, vec![json!("starting"), json!("running"), json!("waiting"), json!("done"), json!("failed"), json!("stopped"), json!("orphaned")]);
+        assert_eq!(serde_json::to_value(AgentTemplateKind::Opencode).unwrap(), json!("opencode"));
+        assert_eq!(serde_json::to_value(SectionId::Agents).unwrap(), json!("agents"));
+        let test = AgentTestResult { state: AgentTestState::Passed, exit_code: Some(0), output: "ok".into(), started_at: "2026-10-16T08:00:00.000Z".into(), finished_at: None };
+        assert_eq!(serde_json::to_value(&test).unwrap()["startedAt"], json!("2026-10-16T08:00:00.000Z"));
+        assert_eq!(serde_json::to_value(AgentsChangedEvent { repo_id: "r".into(), running: 2 }).unwrap(), json!({ "repoId": "r", "running": 2 }));
+
+        // Old stored settings (without the field) still load; the default is an empty list.
+        assert_eq!(serde_json::to_value(Settings::default()).unwrap()["agentTemplates"], json!([]));
+        assert_eq!(serde_json::to_value(RepoSettings::default()).unwrap()["testCommand"], json!(null));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Coding agents: collision warning (v1.2, package 2b)
+// ---------------------------------------------------------------------------
+
+/// Lines of a file, 1-based and inclusive, counted in the version of the first side of a
+/// collision (the agent started first; against the base: the agent).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LineRange {
+    pub start: u32,
+    pub end: u32,
+}
+
+/// `conflict`: Git's merge of both states stops on conflicts. `overlap`: both change the same
+/// files, but they merge cleanly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollisionKind {
+    Conflict,
+    Overlap,
+}
+
+/// A file of a collision; `ranges` only for conflicting text files.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollisionFile {
+    pub path: String,
+    pub conflict: bool,
+    pub ranges: Vec<LineRange>,
+}
+
+/// Two coding agents – or an agent and the current tip of its base (`other_agent_id` null,
+/// `base` its name) – whose work touches the same files. `agent_id` is the agent started first.
+/// `id`: `<agent>+<other agent>` or `<agent>+base`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentCollision {
+    pub id: String,
+    pub kind: CollisionKind,
+    pub agent_id: String,
+    pub other_agent_id: Option<String>,
+    pub base: Option<String>,
+    pub files: Vec<CollisionFile>,
+}
+
+/// An agent the check left out because its worktree or base could not be read.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollisionSkip {
+    pub agent_id: String,
+    pub reason: String,
+}
+
+/// `pending`: never checked; `checking`: a check runs (the last collisions stay);
+/// `failed`: the check failed (`error`), no collisions.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CollisionCheckState {
+    #[default]
+    Pending,
+    Checking,
+    Done,
+    Failed,
+}
+
+/// The last collision check of a repository's coding agents (event `agents:collisions`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollisionReport {
+    pub repo_id: String,
+    pub state: CollisionCheckState,
+    pub checked_at: Option<IsoTime>,
+    pub error: Option<String>,
+    pub collisions: Vec<AgentCollision>,
+    pub skipped: Vec<CollisionSkip>,
+}
+
+/// One conflict of a file: where it sits (first side's lines) and what both sides wrote.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollisionBlock {
+    pub range: LineRange,
+    pub ours: String,
+    pub theirs: String,
+}
+
+/// Both sides of every conflict of one file of a collision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CollisionPreview {
+    pub collision_id: String,
+    pub path: String,
+    pub blocks: Vec<CollisionBlock>,
+    pub truncated: bool,
+}
+
+#[cfg(test)]
+mod collision_model_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn collision_types_have_the_contract_shape() {
+        let collision = AgentCollision {
+            id: "a+b".into(),
+            kind: CollisionKind::Conflict,
+            agent_id: "a".into(),
+            other_agent_id: None,
+            base: Some("main".into()),
+            files: vec![CollisionFile { path: "src/auth.ts".into(), conflict: true, ranges: vec![LineRange { start: 40, end: 62 }] }],
+        };
+        assert_eq!(
+            serde_json::to_value(&collision).unwrap(),
+            json!({
+                "id": "a+b", "kind": "conflict", "agentId": "a", "otherAgentId": null, "base": "main",
+                "files": [{ "path": "src/auth.ts", "conflict": true, "ranges": [{ "start": 40, "end": 62 }] }]
+            })
+        );
+        let report = CollisionReport { repo_id: "r".into(), ..Default::default() };
+        assert_eq!(
+            serde_json::to_value(&report).unwrap(),
+            json!({ "repoId": "r", "state": "pending", "checkedAt": null, "error": null, "collisions": [], "skipped": [] })
+        );
+        let skip = CollisionSkip { agent_id: "d".into(), reason: "kaputt".into() };
+        assert_eq!(serde_json::to_value(&skip).unwrap(), json!({ "agentId": "d", "reason": "kaputt" }));
+        let preview = CollisionPreview {
+            collision_id: "a+b".into(),
+            path: "x".into(),
+            blocks: vec![CollisionBlock { range: LineRange { start: 1, end: 1 }, ours: "a\n".into(), theirs: "b\n".into() }],
+            truncated: false,
+        };
+        assert_eq!(
+            serde_json::to_value(&preview).unwrap(),
+            json!({ "collisionId": "a+b", "path": "x", "blocks": [{ "range": { "start": 1, "end": 1 }, "ours": "a\n", "theirs": "b\n" }], "truncated": false })
+        );
+        assert_eq!(serde_json::to_value(CollisionKind::Overlap).unwrap(), json!("overlap"));
+        assert_eq!(serde_json::to_value(CollisionCheckState::Checking).unwrap(), json!("checking"));
+        assert_eq!(serde_json::to_value(CollisionCheckState::Failed).unwrap(), json!("failed"));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Review of a coding agent's work (package 2c)
+// ---------------------------------------------------------------------------
+
+/// Which state of a coding agent its review compares with the base.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentReviewSource {
+    /// The agent's working state: its commits plus uncommitted and new files (a snapshot commit).
+    #[default]
+    Snapshot,
+    /// Only what the agent committed on its branch.
+    Branch,
+}
+
+/// The two commits the review of an agent compares, and what the review's actions need to know.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentReview {
+    pub agent_id: String,
+    /// The repository the agent belongs to (where the takeover lands).
+    pub repo_id: String,
+    /// Repository row of the agent's worktree; `None` if its folder has none.
+    pub worktree_repo_id: Option<String>,
+    /// The effective source: `Snapshot` only if the worktree differs from its HEAD.
+    pub source: AgentReviewSource,
+    /// The fork point (`git merge-base` of the base and `to`).
+    pub from: String,
+    /// The agent's state: the snapshot commit or the branch tip.
+    pub to: String,
+    /// The branch tip.
+    pub tip: String,
+    /// The agent's base as it was chosen at the start (e.g. `main`).
+    pub base: String,
+    /// Files of the worktree that differ from its HEAD (uncommitted, including new ones).
+    pub uncommitted_files: u32,
+    /// The agent's program is running.
+    pub running: bool,
+}
+
+#[cfg(test)]
+mod agent_review_json_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn the_review_is_camel_case_and_its_source_snake_case() {
+        let review = AgentReview {
+            agent_id: "agent-liste".into(),
+            repo_id: "r1".into(),
+            worktree_repo_id: None,
+            source: AgentReviewSource::Snapshot,
+            from: "a".repeat(40),
+            to: "b".repeat(40),
+            tip: "c".repeat(40),
+            base: "main".into(),
+            uncommitted_files: 2,
+            running: true,
+        };
+        assert_eq!(
+            serde_json::to_value(&review).unwrap(),
+            json!({
+                "agentId": "agent-liste", "repoId": "r1", "worktreeRepoId": null, "source": "snapshot",
+                "from": "a".repeat(40), "to": "b".repeat(40), "tip": "c".repeat(40), "base": "main",
+                "uncommittedFiles": 2, "running": true,
+            })
+        );
+        assert_eq!(serde_json::from_value::<AgentReviewSource>(json!("branch")).unwrap(), AgentReviewSource::Branch);
+        assert_eq!(AgentReviewSource::default(), AgentReviewSource::Snapshot);
     }
 }

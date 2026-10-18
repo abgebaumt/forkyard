@@ -71,6 +71,7 @@ struct Session {
     pid: Option<u32>,
     tree: Option<tree::ProcessTree>,
     info: Mutex<TerminalInfo>,
+    observer: Option<Arc<dyn TerminalObserver>>,
 }
 
 /// What the reader has read and the sender has not sent yet.
@@ -126,6 +127,10 @@ pub enum TerminalSignal {
 pub trait TerminalObserver: Send + Sync {
     fn screen_changed(&self, terminal_id: &str);
     fn signal(&self, terminal_id: &str, signal: &TerminalSignal);
+    /// Every chunk the reader read (raw bytes, before batching). Default: nothing.
+    fn output(&self, _terminal_id: &str, _bytes: &[u8]) {}
+    /// The program has ended, after its last output and before `terminal:exit`; `None` without an exit code.
+    fn exited(&self, _terminal_id: &str, _code: Option<i32>) {}
 }
 
 /// What the core knows about an open terminal.
@@ -261,6 +266,9 @@ struct Watch {
 
 impl Watch {
     fn feed(&mut self, bytes: &[u8]) {
+        if let Some(observer) = &self.observer {
+            observer.output(&self.id, bytes);
+        }
         let scanned = self.scanner.feed(bytes);
         if !scanned.screen_changed && scanned.signals.is_empty() {
             return;
@@ -490,6 +498,7 @@ fn spawn_session(
         pid,
         tree,
         info: Mutex::new(info),
+        observer: observer.clone(),
     });
     core.state::<TerminalState>().sessions.lock().insert(id.clone(), session.clone());
 
@@ -631,6 +640,9 @@ fn send_loop(core: &Core, id: &str, output: &Output, session: &Session) {
         pending.exit.flatten()
     };
     core.state::<TerminalState>().sessions.lock().remove(id);
+    if let Some(observer) = &session.observer {
+        observer.exited(id, code);
+    }
     core.emit(names::TERMINAL_EXIT, &TerminalExitEvent { terminal_id: id.to_string(), code });
 }
 
@@ -720,6 +732,7 @@ pub async fn terminal_resize(core: &Core, terminal_id: String, cols: u16, rows: 
 /// Closes the terminal and ends the shell along with its child processes. `terminal:exit`
 /// still follows. An unknown ID is not an error (already ended).
 pub async fn terminal_close(core: &Core, terminal_id: String) -> CoreResult<()> {
+    crate::commands::agents::registry::stop_requested_for_terminal(core, &terminal_id);
     let Ok(session) = session(core, &terminal_id) else { return Ok(()) };
     tokio::task::spawn_blocking(move || session.kill_tree())
         .await
@@ -728,6 +741,7 @@ pub async fn terminal_close(core: &Core, terminal_id: String) -> CoreResult<()> 
 
 /// Closes all terminals (when the app quits).
 pub fn close_all(core: &Core) {
+    crate::commands::agents::close_all(core);
     let sessions: Vec<Arc<Session>> = core.state::<TerminalState>().sessions.lock().values().cloned().collect();
     for session in sessions {
         session.kill_tree();

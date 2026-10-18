@@ -50,6 +50,10 @@
       "label": "AI",
       "keywords": "AI features|KI|Provider|Model|API key|LLM|Claude|Codex|Ollama|LM Studio|Gemini|OpenAI|Coding agent|Costs|Monthly limit|What is sent"
     },
+    "agents": {
+      "label": "Coding agents",
+      "keywords": "Agent|Coding agent|Templates|Claude Code|Codex|opencode|Without prompts|Resume|Test command"
+    },
     "identity": {
       "label": "Profile and identity",
       "keywords": "Profile|Profile name|Color|Author name|Email|gitconfig"

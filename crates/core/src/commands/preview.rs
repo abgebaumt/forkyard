@@ -13,15 +13,19 @@
 use crate::app::Core;
 use crate::commands::patch::MAX_PATCH_BYTES;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::git::GitOutput;
+use crate::git::{GitCmd, GitOutput};
 use crate::jobs::CancelToken;
-use crate::model::{ConflictPreview, PreviewOp};
+use crate::model::{ConflictPreview, LineRange, PreviewOp};
 use crate::util;
 
 /// At most this many commits of a series are replayed.
 pub const MAX_SERIES: usize = 200;
 /// `git merge-tree --merge-base` exists from this version on.
-const MERGE_BASE_OPTION: (u32, u32, u32) = (2, 40, 0);
+pub(crate) const MERGE_BASE_OPTION: (u32, u32, u32) = (2, 40, 0);
+/// Conflicted blobs larger than this get no line ranges (a huge file stays a file name).
+pub(crate) const MAX_RANGE_BLOB: u64 = 8 * 1024 * 1024;
+/// At most this many conflicted files of one merge get line ranges.
+pub(crate) const MAX_RANGE_FILES: usize = 50;
 /// Identity of the intermediate commits (never on a ref, never shown).
 const PREVIEW_IDENTITY: [(&str, &str); 4] = [
     ("GIT_AUTHOR_NAME", "forkyard"),
@@ -117,15 +121,35 @@ async fn commit_of(core: &Core, repo_id: &str, cancel: &CancelToken, rev: &str) 
     Ok(sha)
 }
 
-/// Result of one `git merge-tree --write-tree`.
-enum Merged {
-    Tree(String),
-    Conflicts(Vec<String>),
+/// One conflicted file of a `git merge-tree` result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MergedConflict {
+    /// For display (lossy UTF-8).
+    pub path: String,
+    /// As Git wrote it (`-z`), byte for byte.
+    pub raw_path: Vec<u8>,
+    /// Where the conflicts sit, in the first side's lines (only with `with_ranges`).
+    pub ranges: Vec<LineRange>,
 }
 
-async fn merge_tree(core: &Core, repo_id: &str, cancel: &CancelToken, base: Option<&str>, ours: &str, theirs: &str) -> CoreResult<Merged> {
+/// Result of one `git merge-tree --write-tree`.
+pub(crate) enum Merged {
+    Tree(String),
+    /// `tree`: the merge result, with conflict markers in the conflicted text files.
+    Conflicts { tree: String, files: Vec<MergedConflict> },
+}
+
+fn paths(files: Vec<MergedConflict>) -> Vec<String> {
+    files.into_iter().map(|file| file.path).collect()
+}
+
+/// `git merge-tree --write-tree` of `ours` and `theirs`, with `base` as the merge base (otherwise
+/// Git finds it). `with_ranges`: for each conflicted file (at most `MAX_RANGE_FILES`) the merged
+/// blob is read from the result tree and its conflict markers give the line ranges. The conflict
+/// style is fixed to `merge`, so the repository's `merge.conflictStyle` does not move them.
+pub(crate) async fn merge_tree(core: &Core, repo_id: &str, cancel: &CancelToken, base: Option<&str>, ours: &str, theirs: &str, with_ranges: bool) -> CoreResult<Merged> {
     let base_arg = base.map(|sha| format!("--merge-base={sha}"));
-    let mut args = vec!["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z"];
+    let mut args = vec!["-c", "merge.conflictStyle=merge", "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z"];
     if let Some(arg) = &base_arg {
         args.push(arg.as_str());
     }
@@ -138,25 +162,52 @@ async fn merge_tree(core: &Core, repo_id: &str, cancel: &CancelToken, base: Opti
     match out.code {
         Some(0) if !tree.is_empty() => Ok(Merged::Tree(tree)),
         Some(1) => {
-            let mut files: Vec<String> = Vec::new();
+            let mut files: Vec<MergedConflict> = Vec::new();
             for record in records {
-                let path = util::decode_lossy(record);
-                if !path.is_empty() && !files.contains(&path) {
-                    files.push(path);
+                if record.is_empty() || files.iter().any(|file| file.raw_path == record) {
+                    continue;
+                }
+                files.push(MergedConflict { path: util::decode_lossy(record), raw_path: record.to_vec(), ranges: Vec::new() });
+            }
+            if with_ranges {
+                for file in files.iter_mut().take(MAX_RANGE_FILES) {
+                    cancel.check()?;
+                    if let Some(blob) = conflicted_blob(core, repo_id, cancel, &tree, &file.raw_path).await? {
+                        file.ranges = markers::ranges(&blob);
+                    }
                 }
             }
-            Ok(Merged::Conflicts(files))
+            Ok(Merged::Conflicts { tree, files })
         }
         _ => Err(git_failure(&out)),
     }
 }
 
+/// The merged version of a conflicted file from a `merge-tree` result tree (with its conflict
+/// markers); `None` if it is no blob there (deleted, submodule) or larger than `MAX_RANGE_BLOB`.
+pub(crate) async fn conflicted_blob(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str, raw_path: &[u8]) -> CoreResult<Option<Vec<u8>>> {
+    let mut spec = format!("{tree}:").into_bytes();
+    spec.extend_from_slice(raw_path);
+    let read = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.read_only().no_log().check(false)) };
+    let kind = read()?.args(["cat-file", "-t"]).arg_bytes(&spec).run_stream(cancel, &mut |_| {}).await?;
+    if !kind.success() || kind.stdout_text().trim() != "blob" {
+        return Ok(None);
+    }
+    let size = read()?.args(["cat-file", "-s"]).arg_bytes(&spec).run_stream(cancel, &mut |_| {}).await?;
+    let bytes: u64 = size.stdout_text().trim().parse().unwrap_or(u64::MAX);
+    if !size.success() || bytes > MAX_RANGE_BLOB {
+        return Ok(None);
+    }
+    let blob = read()?.args(["cat-file", "blob"]).arg_bytes(&spec).run_stream(cancel, &mut |_| {}).await?;
+    Ok(blob.success().then_some(blob.stdout))
+}
+
 async fn merge(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, theirs: &str) -> CoreResult<ConflictPreview> {
     let ours = commit_of(core, repo_id, cancel, head).await?;
     let theirs = commit_of(core, repo_id, cancel, theirs).await?;
-    Ok(match merge_tree(core, repo_id, cancel, None, &ours, &theirs).await? {
+    Ok(match merge_tree(core, repo_id, cancel, None, &ours, &theirs, false).await? {
         Merged::Tree(_) => ConflictPreview::Clean,
-        Merged::Conflicts(files) => ConflictPreview::Conflicts { files, at_commit: None },
+        Merged::Conflicts { files, .. } => ConflictPreview::Conflicts { files: paths(files), at_commit: None },
     })
 }
 
@@ -196,9 +247,9 @@ async fn replay(core: &Core, repo_id: &str, cancel: &CancelToken, start: String,
             Step::Pick => (parent.as_str(), commit.as_str()),
             Step::Revert => (commit.as_str(), parent.as_str()),
         };
-        let merged = merge_tree(core, repo_id, cancel, Some(base), &current, theirs).await?;
+        let merged = merge_tree(core, repo_id, cancel, Some(base), &current, theirs, false).await?;
         match merged {
-            Merged::Conflicts(files) => return Ok(ConflictPreview::Conflicts { files, at_commit: Some(commit.clone()) }),
+            Merged::Conflicts { files, .. } => return Ok(ConflictPreview::Conflicts { files: paths(files), at_commit: Some(commit.clone()) }),
             Merged::Tree(tree) if index + 1 < commits.len() => current = wrap_tree(core, repo_id, cancel, &tree).await?,
             Merged::Tree(_) => {}
         }
@@ -325,6 +376,8 @@ fn patch_conflicts(stderr: &str) -> Vec<String> {
     }
     files
 }
+
+pub mod markers;
 
 #[cfg(test)]
 mod tests;

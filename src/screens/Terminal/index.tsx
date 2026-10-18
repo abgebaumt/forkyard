@@ -42,6 +42,7 @@ import {
   type TerminalStatus,
   TERMINAL_HINT_ID,
 } from "./sessions";
+import { useAgentSessionWaiting } from "../Agents/session";
 import { STATE_TONE, neighbour, sessionState, type StatusTone, type TabEntry, type TerminalTabs } from "./tabsModel";
 import { t } from "../../i18n";
 
@@ -144,7 +145,8 @@ const noSubscribe = () => () => undefined;
 function SessionTab({ tabId, entry, active, onArrow }: { tabId: Id; entry: TabEntry; active: boolean; onArrow: (key: Id, delta: number) => void }) {
   const session = sessionByKey(tabId, entry.key);
   const status = useSyncExternalStore(session?.subscribe ?? noSubscribe, session?.getStatus ?? (() => STARTING));
-  const state = sessionState(entry.kind, status);
+  const waiting = useAgentSessionWaiting(entry.key);
+  const state = sessionState(entry.kind, status, waiting);
   return (
     <div data-terminal-tab={entry.key} data-active={active ? "true" : undefined} data-state={state} className={`flex shrink-0 items-center rounded-sm ${active ? "bg-surface-sunken" : ""}`}>
       <button

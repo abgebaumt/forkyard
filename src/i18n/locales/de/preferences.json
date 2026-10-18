@@ -50,6 +50,10 @@
       "label": "KI",
       "keywords": "KI-Funktionen|KI|AI|Anbieter|Modell|API-Schlüssel|LLM|Claude|Codex|Ollama|LM Studio|Gemini|OpenAI|Coding-Agent|Kosten|Monatslimit|Was wird gesendet"
     },
+    "agents": {
+      "label": "Coding-Agenten",
+      "keywords": "Agent|Coding-Agent|Vorlagen|Claude Code|Codex|opencode|Ohne Rückfragen|Fortsetzen|Testbefehl"
+    },
     "identity": {
       "label": "Profil und Identität",
       "keywords": "Profil|Profilname|Farbe|Autorname|E-Mail|gitconfig"

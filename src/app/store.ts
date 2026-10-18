@@ -21,6 +21,9 @@ export type CommitSelection = Extract<NonNullable<Selection>, { kind: "commits" 
 
 export type RebaseToolMode = "interactive" | "squash" | "cherry_pick";
 
+/** Which agents the agent review shows when two are compared (src/screens/AgentReview). */
+export type AgentReviewShow = "first" | "second" | "both";
+
 export type CenterView =
   | { kind: "graph" }
   | { kind: "diff"; path: string; source: DiffSource }
@@ -39,9 +42,14 @@ export type CenterView =
   /** Statistics of the repository (src/screens/Stats). */
   | { kind: "stats" }
   /** "Compose commits" (v1.2, 3.2): the local changes as units, grouped into commits. */
-  | { kind: "compose" };
+  | { kind: "compose" }
+  /** The coding agents of the repository (src/screens/Agents). */
+  | { kind: "cockpit" }
+  /** Review of one or two coding agents (src/screens/AgentReview); `show` picks the columns when there are two. */
+  | { kind: "agent_review"; agentIds: Id[]; show: AgentReviewShow };
 
-export type RightPanel = "details" | "stash_form" | "archaeology";
+/** `review_commit`: the commit field of the agent review (only while `center.kind === "agent_review"`). */
+export type RightPanel = "details" | "stash_form" | "archaeology" | "agent" | "review_commit";
 
 /** Line whose history the right panel shows (`rightPanel: "archaeology"`); `sha: null` = working directory. */
 export interface ArchaeologyTarget {
@@ -62,6 +70,8 @@ export interface TabView {
   selection: Selection;
   center: CenterView;
   rightPanel: RightPanel;
+  /** Agent shown in the right panel (`rightPanel: "agent"`). */
+  agentId: Id | null;
   searchOpen: boolean;
   search: GraphSearch;
   terminalOpen: boolean;
@@ -79,6 +89,7 @@ export const defaultTabView = (): TabView => ({
   selection: { kind: "wip" },
   center: { kind: "graph" },
   rightPanel: "details",
+  agentId: null,
   searchOpen: false,
   search: { query: "", hits: [], active: -1 },
   terminalOpen: false,
@@ -102,6 +113,7 @@ export type PreferencesSection =
   | "external"
   | "commands"
   | "notifications"
+  | "agents"
   | "ui"
   | "signing"
   | "editor"
@@ -199,6 +211,10 @@ export interface AppState {
   busy: Record<string, true>;
   /** Time of the last successful fetch per repository (ms since epoch). */
   lastFetch: Record<Id, number>;
+  /** Coding agents running in all repositories (from `agents:changed`; the quit prompt counts them). */
+  agentsRunning: number;
+  /** Repositories that reported agents this session (from `agents:changed`); their agents stay watched without an open tab. */
+  agentRepos: Id[];
 
   // --- per tab ---
   selectWip(tabId: Id): void;
@@ -227,6 +243,7 @@ export interface AppState {
   setRightPanel(tabId: Id, panel: RightPanel): void;
   /** Opens the history of one line in the right panel. */
   openArchaeology(tabId: Id, target: ArchaeologyTarget): void;
+  showAgent(tabId: Id, agentId: Id): void;
   openStashForm(tabId: Id): void;
 
   setSearchOpen(tabId: Id, open: boolean): void;
@@ -258,6 +275,8 @@ export interface AppState {
 
   setBusy(key: string, busy: boolean): void;
   markFetched(repoId: Id, at?: number): void;
+  setAgentsRunning(count: number): void;
+  noteAgentRepo(repoId: Id): void;
 }
 
 const initialWidths = loadWidths();
@@ -295,6 +314,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     credentialQueue: [],
     busy: {},
     lastFetch: {},
+    agentsRunning: 0,
+    agentRepos: [],
 
     selectWip: (tabId) => patchView(tabId, { selection: { kind: "wip" }, rightPanel: "details" }),
     selectCommits: (tabId, shas) =>
@@ -326,6 +347,7 @@ export const useAppStore = create<AppState>()((set, get) => {
     closeCenter: (tabId) => patchView(tabId, { center: { kind: "graph" } }),
 
     setRightPanel: (tabId, panel) => patchView(tabId, { rightPanel: panel, rightCollapsed: false }),
+    showAgent: (tabId, agentId) => patchView(tabId, { rightPanel: "agent", agentId, rightCollapsed: false }),
     openStashForm: (tabId) => patchView(tabId, { rightPanel: "stash_form", rightCollapsed: false }),
     openArchaeology: (tabId, target) => patchView(tabId, { rightPanel: "archaeology", archaeology: { ...target }, rightCollapsed: false }),
 
@@ -418,6 +440,8 @@ export const useAppStore = create<AppState>()((set, get) => {
         return { busy: next };
       }),
     markFetched: (repoId, at = Date.now()) => set((state) => ({ lastFetch: { ...state.lastFetch, [repoId]: at } })),
+    setAgentsRunning: (agentsRunning) => set((state) => (state.agentsRunning === agentsRunning ? state : { agentsRunning })),
+    noteAgentRepo: (repoId) => set((state) => (state.agentRepos.includes(repoId) ? state : { agentRepos: [...state.agentRepos, repoId] })),
   };
 });
 

@@ -8,6 +8,7 @@ import { PlugZap, RefreshCw, TriangleAlert } from "lucide-react";
 import type { AppInfo, Platform, Settings, Tab } from "../core";
 import { Button } from "../ui/Button";
 import { setShortcutPlatform } from "../ui/Kbd";
+import { AgentWatch } from "../screens/Agents/Watch";
 import { RepoManagement } from "../screens/RepoManagement";
 import { runScenarioFromUrl } from "../screens/scenarios";
 import { DialogHost } from "./dialogs";
@@ -186,6 +187,7 @@ function Shell({ info }: { info: AppInfo }) {
         </main>
       )}
       <StatusLine repoId={missing ? null : repoId} />
+      <AgentWatch tabs={tabs} />
       <OverlayHost repoId={repoId} />
       <DialogHost />
       <CredentialHost />

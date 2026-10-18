@@ -138,6 +138,22 @@ pub async fn worktree_list(core: &Core, repo_id: String) -> CoreResult<Vec<Workt
     list(core, &repo_id).await
 }
 
+/// Folder of the main worktree (the first entry of `git worktree list`), also when `repo_id` is a
+/// linked worktree.
+pub(crate) async fn main_worktree_path(core: &Core, repo_id: &str) -> CoreResult<PathBuf> {
+    let raw = read_raw(core, repo_id).await?;
+    let first = raw.first().ok_or_else(|| CoreError::not_found("The repository has no working directory."))?;
+    if first.bare {
+        return Err(CoreError::not_allowed("The repository is bare; coding agents need a working directory next to it."));
+    }
+    Ok(util::native_path(&util::bytes_to_path(&first.path)))
+}
+
+/// Every worktree of the repository as (folder, full ref of the checked-out branch).
+pub(crate) async fn listed_worktrees(core: &Core, repo_id: &str) -> CoreResult<Vec<(PathBuf, Option<String>)>> {
+    Ok(read_raw(core, repo_id).await?.into_iter().map(|w| (util::native_path(&util::bytes_to_path(&w.path)), w.branch)).collect())
+}
+
 fn same_path(a: &Path, b: &Path) -> bool {
     util::path_key(a) == util::path_key(b)
 }
@@ -149,7 +165,7 @@ async fn find(core: &Core, repo_id: &str, path: &str) -> CoreResult<(usize, RawW
     found.ok_or_else(|| CoreError::not_found(format!("There’s no worktree of this repository at “{}”.", path.trim())))
 }
 
-async fn local_branch_exists(core: &Core, repo_id: &str, name: &str) -> CoreResult<bool> {
+pub(crate) async fn local_branch_exists(core: &Core, repo_id: &str, name: &str) -> CoreResult<bool> {
     let out = read(core, repo_id)?.args(["show-ref", "--verify", "--quiet", &format!("refs/heads/{name}")]).run_raw().await?;
     Ok(out.success())
 }
@@ -241,7 +257,7 @@ pub async fn worktree_add(core: &Core, repo_id: String, path: String, branch: St
 
 /// The file watcher of a worktree opened as a repository keeps its folder open; it is
 /// stopped before removal.
-fn stop_watching(core: &Core, path: &Path) {
+pub(crate) fn stop_watching(core: &Core, path: &Path) {
     let known = core.db.with(db::repos::list_all).unwrap_or_default();
     for row in known.iter().filter(|row| same_path(Path::new(&row.path), path)) {
         let _ = crate::watcher::stop_watching(core, &row.id);
@@ -251,7 +267,7 @@ fn stop_watching(core: &Core, path: &Path) {
 
 /// Removes repository list entries that point to a removed worktree (it was opened as a
 /// repository of its own), closes their tabs and reports `app:changed`.
-fn forget_listed(core: &Core, path: &Path) {
+pub(crate) fn forget_listed(core: &Core, path: &Path) {
     let known = core.db.with(db::repos::list_all).unwrap_or_default();
     let ids: Vec<String> = known.iter().filter(|row| same_path(Path::new(&row.path), path)).map(|row| row.id.clone()).collect();
     if ids.is_empty() {

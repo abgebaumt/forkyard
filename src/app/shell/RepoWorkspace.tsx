@@ -2,8 +2,12 @@ import { useLayoutEffect, useState } from "react";
 import { FileCog, FolderX, PanelLeftOpen, PanelRightOpen, RefreshCw, ShieldAlert, SquareTerminal } from "lucide-react";
 import type { Id, Tab } from "../../core";
 import { Button, IconButton } from "../../ui/Button";
+import { Cockpit } from "../../screens/Agents/Cockpit";
+import { AgentDetailsPanel } from "../../screens/Agents/DetailsPanel";
 import { BlameView } from "../../screens/Blame";
 import { ArchaeologyPanel } from "../../screens/Archaeology";
+import { AgentReviewView } from "../../screens/AgentReview";
+import { ReviewCommitPanel } from "../../screens/AgentReview/CommitPanel";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
 import { CommitSearch } from "../../screens/CommitSearch";
@@ -62,8 +66,12 @@ function Center({ repoId, tabId, center }: { repoId: Id; tabId: Id; center: Cent
       return <PullRequestView {...props} number={center.number} />;
     case "issues":
       return <IssuesView {...props} number={center.number} />;
+    case "agent_review":
+      return <AgentReviewView {...props} agentIds={center.agentIds} show={center.show} />;
     case "stats":
       return <StatsView {...props} />;
+    case "cockpit":
+      return <Cockpit {...props} />;
     case "reflog":
       return <ReflogView {...props} refName={center.ref} />;
     case "compose":
@@ -76,6 +84,8 @@ function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabV
     const target = view.archaeology;
     return <ArchaeologyPanel key={`${target.path}|${target.line}|${target.sha ?? ""}`} repoId={repoId} tabId={tabId} target={target} />;
   }
+  if (view.rightPanel === "agent") return <AgentDetailsPanel repoId={repoId} tabId={tabId} agentId={view.agentId} />;
+  if (view.rightPanel === "review_commit" && view.center.kind === "agent_review") return <ReviewCommitPanel repoId={repoId} tabId={tabId} agentIds={view.center.agentIds} />;
   if (view.rightPanel === "stash_form") return <StashForm repoId={repoId} tabId={tabId} />;
   const selection = view.selection;
   if (!selection) {

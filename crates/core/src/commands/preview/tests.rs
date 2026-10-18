@@ -225,3 +225,62 @@ async fn a_simulation_can_start_at_any_commit() {
     assert_eq!(repo.head(), sauber);
     assert_eq!(repo.git(&["status", "--porcelain"]), "", "simulating changes nothing");
 }
+
+/// `total` lines "line n"; lines `from..=to` read "<side> n" instead.
+fn numbered(total: u32, from: u32, to: u32, side: &str) -> String {
+    (1..=total).map(|n| if n >= from && n <= to { format!("{side} {n}\n") } else { format!("line {n}\n") }).collect()
+}
+
+#[tokio::test]
+async fn merge_tree_with_ranges_reads_the_marker_lines_of_each_conflicted_file() {
+    let (tc, repo, id) = setup().await;
+    repo.write_file("src/auth.ts", numbered(80, 0, 0, ""));
+    repo.write_file("-Größe übersicht.txt", "eins\r\nzwei\r\ndrei\r\n");
+    repo.write_file("bild.bin", b"\x00\x01basis");
+    let base = repo.commit("Basis");
+    repo.checkout_new("seite-a");
+    repo.write_file("src/auth.ts", numbered(80, 40, 62, "a"));
+    repo.write_file("-Größe übersicht.txt", "eins\r\nzwei\r\nDREI a\r\n");
+    repo.write_file("bild.bin", b"\x00\x02a");
+    let a = repo.commit("Seite A");
+    repo.git(&["checkout", "-q", "-b", "seite-b", &base]);
+    repo.write_file("src/auth.ts", numbered(80, 40, 62, "b"));
+    repo.write_file("-Größe übersicht.txt", "eins\r\nzwei\r\ndrei b\r\n");
+    repo.write_file("bild.bin", b"\x00\x03b");
+    let b = repo.commit("Seite B");
+    let cancel = CancelToken::new();
+    let conflict = |path: &str, ranges: Vec<LineRange>| MergedConflict { path: path.to_string(), raw_path: path.as_bytes().to_vec(), ranges };
+    // Lines 40–62 of src/auth.ts and line 3 of the CRLF file were changed on both sides (fixture);
+    // the binary file conflicts as a whole and has no lines.
+    let expected = vec![
+        conflict("-Größe übersicht.txt", vec![LineRange { start: 3, end: 3 }]),
+        conflict("bild.bin", vec![]),
+        conflict("src/auth.ts", vec![LineRange { start: 40, end: 62 }]),
+    ];
+
+    let Merged::Conflicts { tree, files } = merge_tree(&tc, &id, &cancel, Some(base.as_str()), &a, &b, true).await.unwrap() else {
+        panic!("conflicts expected")
+    };
+    assert_eq!(files, expected);
+    // The ranges were read from the result tree, which holds the file with markers.
+    let merged = repo.git(&["cat-file", "blob", &format!("{tree}:src/auth.ts")]);
+    assert!(merged.contains("<<<<<<< ") && merged.contains("a 40\n") && merged.contains("b 62\n"), "{merged}");
+
+    // Without the option: the same files, no ranges.
+    let Merged::Conflicts { files: plain, .. } = merge_tree(&tc, &id, &cancel, Some(base.as_str()), &a, &b, false).await.unwrap() else {
+        panic!("conflicts expected")
+    };
+    assert_eq!(plain.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), ["-Größe übersicht.txt", "bild.bin", "src/auth.ts"]);
+    assert!(plain.iter().all(|f| f.ranges.is_empty()));
+
+    // A repository configured for diff3 and a merge base Git finds itself give the same ranges.
+    repo.git(&["config", "merge.conflictStyle", "diff3"]);
+    let Merged::Conflicts { files: diff3, .. } = merge_tree(&tc, &id, &cancel, None, &a, &b, true).await.unwrap() else {
+        panic!("conflicts expected")
+    };
+    assert_eq!(diff3, expected);
+
+    // Nothing changed.
+    assert_eq!(repo.current_branch(), "seite-b");
+    assert_eq!(repo.git(&["status", "--porcelain"]), "");
+}

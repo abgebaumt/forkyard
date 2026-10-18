@@ -97,6 +97,37 @@ All notable changes to Forkyard are listed here. The format follows
   next to the commits it refers to, with “What is sent?” beforehand; author e-mails and excluded files
   are never sent. The Blame line menu also copies the line, shows its commit and opens the blame of
   the previous version.
+- Coding agents: start Claude Code, Codex, opencode or an own program on a task (“New coding agent …”,
+  Ctrl+Shift+A). Each agent works in a worktree of its own next to the repository
+  (`<repo>.agents/<name>`) on a branch `agent/<name>`; your working directory stays untouched. The
+  task is typed in after the start. “Without prompts” only uses switches that keep the agent inside
+  its worktree and is marked as such everywhere.
+- Agent cockpit: the toolbar button “Agents”, the “Agents” section in the left panel and the status
+  bar show every agent with its status as a word (running, waiting for you, done, failed, stopped,
+  orphaned) and whether the agent reported it or it is guessed, its changed files, commits ahead of
+  the base, runtime and test result. A system notification tells you when an agent waits or is done
+  while the window is in the background. Agents run in their own terminal tabs; quitting asks first.
+- “Stop agent and clean up” removes worktree and branch after a warning about unpushed commits;
+  Undo brings both back, including uncommitted changes, for 14 days. Stopped agents can be resumed,
+  orphaned entries removed.
+- Settings › Coding agents: own templates with placeholders `${task}`, `${taskFile}`, `${worktree}`,
+  `${branch}`; switches that lift an agent's safety limits are refused. Project setting “Test
+  command for coding agents” runs in the agent's worktree when it is done.
+- Collision warning for coding agents: about ten seconds after an agent changes something,
+  Forkyard compares the work of all agents of the repository – uncommitted changes included – with
+  each other and with the current tip of their base, without touching any working directory,
+  index or branch. The cockpit shows ““a” and “b” would collide in src/auth.ts (lines 40–62)” or
+  “… both change …”, with a preview of both sides of each conflict and “Inform agent …”, which types
+  a note you confirmed into that agent's terminal. A failed check shows up in the cockpit with
+  “Check again”.
+- Agent review: “Review changes” in the cockpit (or “Review coding agent …” in the command palette)
+  shows a coding agent's work against the commit it started from – its working state including
+  uncommitted and new files, or only its commits. Files are listed as “Selected” and “Not selected”,
+  single lines are checked in the diff. Take the selection into your working directory unstaged or
+  staged (a conflict with your own changes stops before anything changes and names the files),
+  commit it on your branch with the message prefilled from the task, merge the agent's branch or
+  rebase it onto its base in the agent's worktree, or discard what is left uncommitted there – each
+  with undo. Two agents can be compared side by side.
 
 ### Changed
 

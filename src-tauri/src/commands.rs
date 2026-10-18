@@ -819,6 +819,103 @@ pub async fn worktree_prune(core: State<'_, Core>, repo_id: String) -> R<Vec<Wor
 }
 
 #[tauri::command]
+pub async fn agent_templates(core: State<'_, Core>) -> R<Vec<AgentTemplateInfo>> {
+    c::agents::agent_templates(&core).await
+}
+
+#[tauri::command]
+pub async fn agent_suggest(core: State<'_, Core>, repo_id: String, task: String, branch: Option<String>, base: Option<String>) -> R<AgentSuggestion> {
+    c::agents::agent_suggest(&core, repo_id, task, branch, base).await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn agent_start(core: State<'_, Core>, repo_id: String, template_id: String, task: String, branch: String, base: String, unattended: bool, cols: u16, rows: u16) -> R<Agent> {
+    c::agents::agent_start(&core, repo_id, template_id, task, branch, base, unattended, cols, rows).await
+}
+
+#[tauri::command]
+pub async fn agent_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Agent>> {
+    c::agents::agent_list(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn agent_stop(core: State<'_, Core>, agent_id: String) -> R<Agent> {
+    c::agents::agent_stop(&core, agent_id).await
+}
+
+#[tauri::command]
+pub async fn agent_resume(core: State<'_, Core>, agent_id: String, cols: u16, rows: u16) -> R<Agent> {
+    c::agents::agent_resume(&core, agent_id, cols, rows).await
+}
+
+#[tauri::command]
+pub async fn agent_forget(core: State<'_, Core>, agent_id: String) -> R<()> {
+    c::agents::agent_forget(&core, agent_id).await
+}
+
+#[tauri::command]
+pub async fn agent_cleanup_preview(core: State<'_, Core>, agent_id: String) -> R<AgentCleanupPreview> {
+    c::agents::agent_cleanup_preview(&core, agent_id).await
+}
+
+#[tauri::command]
+pub async fn agent_cleanup(core: State<'_, Core>, agent_id: String) -> R<UndoState> {
+    c::agents::agent_cleanup(&core, agent_id).await
+}
+
+#[tauri::command]
+pub async fn agent_run_tests(core: State<'_, Core>, agent_id: String, job_id: String) -> R<AgentTestResult> {
+    c::agents::agent_run_tests(&core, agent_id, job_id).await
+}
+
+#[tauri::command]
+pub async fn agent_review(core: State<'_, Core>, agent_id: String, source: AgentReviewSource) -> R<AgentReview> {
+    c::agents::agent_review(&core, agent_id, source).await
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn agent_review_commit(
+    core: State<'_, Core>,
+    agent_id: String,
+    op_id: String,
+    from: String,
+    to: String,
+    selections: Vec<PatchSelection>,
+    summary: String,
+    description: String,
+    skip_hooks: bool,
+) -> R<CommitResult> {
+    c::agents::agent_review_commit(&core, agent_id, op_id, from, to, selections, summary, description, skip_hooks).await
+}
+
+#[tauri::command]
+pub async fn agent_discard_rest(core: State<'_, Core>, agent_id: String) -> R<Status> {
+    c::agents::agent_discard_rest(&core, agent_id).await
+}
+
+#[tauri::command]
+pub async fn agent_collisions(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
+    c::agents::agent_collisions(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn agent_collision_check(core: State<'_, Core>, repo_id: String) -> R<CollisionReport> {
+    c::agents::agent_collision_check(&core, repo_id).await
+}
+
+#[tauri::command]
+pub async fn agent_collision_preview(core: State<'_, Core>, repo_id: String, collision_id: String, path: String) -> R<CollisionPreview> {
+    c::agents::agent_collision_preview(&core, repo_id, collision_id, path).await
+}
+
+#[tauri::command]
+pub async fn agent_inform(core: State<'_, Core>, agent_id: String, text: String) -> R<()> {
+    c::agents::agent_inform(&core, agent_id, text).await
+}
+
+#[tauri::command]
 pub async fn submodule_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Submodule>> {
     c::submodule::submodule_list(&core, repo_id).await
 }

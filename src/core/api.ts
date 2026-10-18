@@ -26,7 +26,14 @@ import type {
   AiStatus,
   AiUsageSummary,
   ArchaeologyAnswer,
+  Agent,
+  AgentCleanupPreview,
+  AgentSuggestion,
+  AgentTemplateInfo,
+  AgentTestResult,
   CliStatus,
+  AgentReview,
+  AgentReviewSource,
   CrashReportSummary,
   ActivityPage,
   ActivityScope,
@@ -35,6 +42,8 @@ import type {
   BisectVerdict,
   BlameLine,
   CloneOptions,
+  CollisionPreview,
+  CollisionReport,
   CommitDetails,
   CommitDraft,
   CommitResult,
@@ -675,6 +684,71 @@ export interface CoreCommands {
   worktreeUnlock(input: R & { path: string }): Promise<Worktree[]>;
   /** Cleans up entries whose folder is missing (`isPrunable`); locked ones stay. */
   worktreePrune(input: R): Promise<Worktree[]>;
+
+  // --- Coding agents (cockpit) ---------------------------------------------------------
+  // Each agent works in a worktree `<parent>/<repo>.agents/<short name>` on its own branch. The core
+  // builds every command line; the UI passes only the template and the task.
+  /** Built-in templates (Claude Code, Codex, opencode) and the user's own, with where their program is. */
+  agentTemplates(): Promise<AgentTemplateInfo[]>;
+  /**
+   * Defaults for the start dialog: short name and branch from the task (or from `branch`, checked
+   * live: `branchProblem`), worktree folder, base commit, agent configurations in the base commit.
+   * Errors: `not_found` (base), `name_exists` (no free name left).
+   */
+  agentSuggest(input: R & { task: string; branch: string | null; base: string | null }): Promise<AgentSuggestion>;
+  /**
+   * Creates branch and worktree from `base` and starts the template in a terminal there (`cols`/`rows`:
+   * its size); the task is typed in once the program is ready. Listen to `terminal:data` before the call
+   * (as for `terminalOpen`). Errors: `repo_untrusted`; `not_allowed` (template or program missing,
+   * “without prompts” not available, empty task, 16 terminals); `invalid_name`; `name_exists`; `not_found`.
+   */
+  agentStart(input: R & { templateId: string; task: string; branch: string; base: string; unattended: boolean; cols: number; rows: number }): Promise<Agent>;
+  /** The repository's agents, newest first; branch and worktree checked against Git (`orphaned`). */
+  agentList(input: R): Promise<Agent[]>;
+  /** Ends the agent's program; the status follows with `agents:changed`. */
+  agentStop(input: { agentId: Id }): Promise<Agent>;
+  /** Starts the template again in the same worktree (`--continue` …) with the same permission mode. Errors: `not_allowed`. */
+  agentResume(input: { agentId: Id; cols: number; rows: number }): Promise<Agent>;
+  /** Removes the entry of an orphaned agent; Git is not touched. Errors: `not_allowed` (not orphaned). */
+  agentForget(input: { agentId: Id }): Promise<void>;
+  /** What cleaning up would destroy (unpushed commits, uncommitted files, running, locked). */
+  agentCleanupPreview(input: { agentId: Id }): Promise<AgentCleanupPreview>;
+  /**
+   * “Stop agent and clean up”: ends the program, removes worktree and branch; one undo step in the
+   * repository brings both back (with the uncommitted changes). Returns its undo state.
+   * Errors: `not_allowed` (worktree locked), `repo_untrusted`, `not_found`.
+   */
+  agentCleanup(input: { agentId: Id }): Promise<UndoState>;
+  /** Runs the repository's test command in the agent's worktree (job). Errors: `not_allowed`, `cancelled`, `timeout`. */
+  agentRunTests(input: { agentId: Id; jobId: string }): Promise<AgentTestResult>;
+  /**
+   * The two commits the review of an agent compares: `to` is its state (a snapshot of its worktree;
+   * the branch tip if the worktree is clean or `source: "branch"`), `from` the commit it forked from.
+   * Diffs and `rangeApply` use exactly these two SHAs. Errors: `not_found`, `not_allowed` (orphaned), `repo_untrusted`.
+   */
+  agentReview(input: { agentId: Id; source: AgentReviewSource }): Promise<AgentReview>;
+  /**
+   * Commits a selection of the agent's changes (`from`/`to` from `agentReview`, `selections[].expect`
+   * = `TextDiff.rangeToken`) on the checked-out branch. Nothing of your own may be staged (`not_allowed`)
+   * and no merge, rebase, cherry-pick or revert may be in progress (`operation_in_progress`).
+   * Errors: `empty_message`, `nothing_to_commit`, `conflict`, `stale_state`, `hook_failed`,
+   * `signing_failed` – after a failed commit the selection stays staged.
+   */
+  agentReviewCommit(input: { agentId: Id; opId: string; from: Sha; to: Sha; selections: PatchSelection[]; summary: string; description: string; skipHooks: boolean }): Promise<CommitResult>;
+  /**
+   * Discards every uncommitted change in the agent's worktree (ignored files and its commits stay)
+   * and returns that worktree's status. Undo: `undo` with `repoId: worktreeRepoId`. Errors: `not_allowed`
+   * (the agent runs, orphaned), `operation_in_progress`, `not_found`.
+   */
+  agentDiscardRest(input: { agentId: Id }): Promise<Status>;
+  /** The last collision report of the repository's coding agents (`pending` before the first check; asking starts one). */
+  agentCollisions(input: R): Promise<CollisionReport>;
+  /** Checks the agents for collisions now; a failure is `state: "failed"` of the report. Errors: `repo_untrusted`. */
+  agentCollisionCheck(input: R): Promise<CollisionReport>;
+  /** Both sides of every conflict of `path` in the collision `collisionId` of the last report. Errors: `not_found`. */
+  agentCollisionPreview(input: R & { collisionId: string; path: string }): Promise<CollisionPreview>;
+  /** Types `text` (confirmed by the user) into the running agent's terminal. Errors: `not_allowed` (empty, > 4 KB, not running), `not_found`. */
+  agentInform(input: { agentId: Id; text: string }): Promise<void>;
 
   // --- Submodules -------------------------------------------------------------------
   submoduleList(input: R): Promise<Submodule[]>;

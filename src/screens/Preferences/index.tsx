@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   Bell,
+  Bot,
   Command,
   Cpu,
   FileCog,
@@ -52,6 +53,7 @@ import { SshSection } from "./sections/Ssh";
 import { NetworkSection } from "../Network/NetworkSection";
 import { HostsSection } from "../Hosts";
 import { CustomCommandsSection } from "../CustomCommands/Section";
+import { AgentTemplatesSection } from "../Agents/SettingsSection";
 
 /** The shell knows coarser names; here they land in the matching section. */
 const fromStore: Record<PreferencesSection, SectionId> = {
@@ -68,6 +70,7 @@ const fromStore: Record<PreferencesSection, SectionId> = {
   integrations: "integrations",
   repo: "p-identity",
   ai: "ai",
+  agents: "agents",
 };
 
 const iconClass = "size-icon shrink-0";
@@ -78,6 +81,7 @@ const icons: Record<SectionId, ReactNode> = {
   commands: <Command className={iconClass} aria-hidden />,
   notifications: <Bell className={iconClass} aria-hidden />,
   ai: <Cpu className={iconClass} aria-hidden />,
+  agents: <Bot className={iconClass} aria-hidden />,
   identity: <UserRound className={iconClass} aria-hidden />,
   git: <GitBranch className={iconClass} aria-hidden />,
   ssh: <KeyRound className={iconClass} aria-hidden />,
@@ -228,6 +232,8 @@ export function Preferences({
         return withSettings((value) => <NotificationsSection settings={value} />);
       case "ai":
         return withSettings((value) => <AiSection settings={value} repoId={repo?.trusted ? repoId : null} />);
+      case "agents":
+        return withSettings((value) => <AgentTemplatesSection settings={value} />);
       case "identity":
         return <ProfilesSection create={createProfile} />;
       case "git":

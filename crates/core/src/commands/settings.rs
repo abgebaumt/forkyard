@@ -154,6 +154,9 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
         }
     }
     let mut next = next;
+    if changed.iter().any(|k| k == "agentTemplates") {
+        next.agent_templates = crate::commands::agents::templates::validate_custom(&next.agent_templates)?;
+    }
     if changed.iter().any(|k| NETWORK_KEYS.contains(&k.as_str())) {
         // Strict when saving: an invalid value (placeholder instead of a host, broken
         // proxy address) is an error, so that nothing other than what was entered ever applies.
@@ -734,6 +737,17 @@ mod tests {
     use serde_json::json;
 
     #[tokio::test]
+    async fn own_agent_templates_with_a_bypass_flag_are_refused_and_nothing_is_stored() {
+        let tc = TestCore::new().await;
+        let bad = serde_json::json!({ "agentTemplates": [{ "id": "custom:x", "name": "X", "program": "x", "unattendedArgs": ["--dangerously-skip-permissions"] }] });
+        let err = settings_set(&tc, bad).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::NotAllowed);
+        assert!(load_settings(&tc).unwrap().agent_templates.is_empty());
+        let good = serde_json::json!({ "agentTemplates": [{ "id": "custom:x", "name": " X ", "program": "x", "unattendedArgs": ["--yes"] }] });
+        assert_eq!(settings_set(&tc, good).await.unwrap().agent_templates[0].name, "X");
+    }
+
+    #[tokio::test]
     async fn global_settings_are_shared_and_profile_settings_are_not() {
         let tc = TestCore::new().await;
         settings_set(&tc, json!({"theme": "light", "autoFetchMinutes": 7})).await.unwrap();
@@ -910,6 +924,30 @@ mod tests {
         let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
         profile_activate(&tc, other).await.unwrap();
         assert_eq!(settings_get(&tc).await.unwrap().ai_cli_paths.claude_code.as_deref(), Some(own.to_str().unwrap()));
+    }
+
+    #[tokio::test]
+    async fn agent_templates_are_global_and_the_test_command_is_per_repository() {
+        let tc = TestCore::new().await;
+        let scopes = settings_scopes(&tc).await.unwrap();
+        assert_eq!(scopes["agentTemplates"], crate::model::SettingScope::Global);
+        let template = serde_json::json!([{ "id": "custom:a", "name": "Eigener Agent", "program": "eigen", "args": ["--task", "${taskFile}"] }]);
+        let saved = settings_set(&tc, serde_json::json!({ "agentTemplates": template })).await.unwrap();
+        assert_eq!(saved.agent_templates.len(), 1);
+        let stored: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(stored, 1, "global table");
+        let in_profile: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(in_profile, 0);
+
+        let repo = crate::testkit::TestRepo::with_commit();
+        let id = tc.open(&repo).await.repo.id;
+        assert_eq!(repo_settings_get(&tc, id.clone()).await.unwrap().test_command, None);
+        let next = repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": "cargo test --workspace" })).await.unwrap();
+        assert_eq!(next.test_command.as_deref(), Some("cargo test --workspace"));
+        let cleared = repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": null })).await.unwrap();
+        assert_eq!(cleared.test_command, None);
+        let rows: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from repo_settings where key = 'testCommand'", [], |r| r.get(0))?)).unwrap();
+        assert_eq!(rows, 0, "a cleared value leaves no row");
     }
 
     #[tokio::test]

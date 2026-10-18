@@ -14,7 +14,7 @@ import {
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type Tab } from "../core";
+import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type Tab } from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -65,6 +65,7 @@ export const qk = {
   // AI (v1.2): state and connection, this month's usage.
   aiStatus: ["app", "aiStatus"] as const,
   aiUsage: ["app", "aiUsage"] as const,
+  agentTemplates: ["app", "agentTemplates"] as const,
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,
 
@@ -101,6 +102,9 @@ export const qk = {
   rebasePlan: (repoId: Id, base: string) => ["repo", repoId, "rebasePlan", base] as const,
   rebasePlanAll: (repoId: Id) => ["repo", repoId, "rebasePlan"] as const,
   worktrees: (repoId: Id) => ["repo", repoId, "worktrees"] as const,
+  agents: (repoId: Id) => ["repo", repoId, "agents"] as const,
+  agentReview: (repoId: Id, agentId: Id, source: AgentReviewSource) => ["repo", repoId, "agents", "review", agentId, source] as const,
+  agentCollisions: (repoId: Id) => ["repo", repoId, "agentCollisions"] as const,
   submodules: (repoId: Id) => ["repo", repoId, "submodules"] as const,
   lfs: (repoId: Id) => ["repo", repoId, "lfs"] as const,
   /** Clean-up dialog: read fresh on every opening, never invalidated by `repo:changed` while a run changes the numbers. */
@@ -405,6 +409,35 @@ export const useRebasePlan = (repoId: Id | null | undefined, base: string | null
 export const useWorktrees = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.worktrees(repoId ?? ""), queryFn: () => core.worktreeList({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
+/** Worktree repository → repository the agent belongs to (filled by `useAgents`), so a change in an agent's worktree refreshes the cockpit. */
+const agentOwners = new Map<Id, Id>();
+export const agentOwner = (worktreeRepoId: Id): Id | undefined => agentOwners.get(worktreeRepoId);
+
+export const useAgents = (repoId: Id | null | undefined) =>
+  useQuery({
+    queryKey: qk.agents(repoId ?? ""),
+    queryFn: async () => {
+      const agents = await core.agentList({ repoId: repoId! });
+      for (const agent of agents) if (agent.worktreeRepoId) agentOwners.set(agent.worktreeRepoId, agent.repoId);
+      return agents;
+    },
+    enabled: enabledFor(repoId),
+  });
+
+/** What the review of an agent compares (refetched with the agents: their watcher and `agents:changed`). */
+export const useAgentReview = (repoId: Id | null | undefined, agentId: Id | null | undefined, source: AgentReviewSource) =>
+  useQuery({
+    queryKey: qk.agentReview(repoId ?? "", agentId ?? "", source),
+    queryFn: () => core.agentReview({ agentId: agentId!, source }),
+    enabled: enabledFor(repoId) && Boolean(agentId),
+  });
+
+export const useAgentTemplates = () => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000 });
+
+/** The last collision report of the repository's agents; kept current by `agents:collisions`. */
+export const useAgentCollisions = (repoId: Id | null | undefined) =>
+  useQuery({ queryKey: qk.agentCollisions(repoId ?? ""), queryFn: () => core.agentCollisions({ repoId: repoId! }), enabled: enabledFor(repoId) });
+
 export const useSubmodules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.submodules(repoId ?? ""), queryFn: () => core.submoduleList({ repoId: repoId! }), enabled: enabledFor(repoId) });
 
@@ -557,7 +590,7 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect"]);
+const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect", "agents"]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
 const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology"]);
@@ -631,14 +664,24 @@ export function useCoreSync(activeRepoId: Id | null) {
   useEffect(() => {
     const store = useAppStore.getState;
     const stops = [
+      core.on("agents:changed", ({ repoId, running }) => {
+        store().setAgentsRunning(running);
+        store().noteAgentRepo(repoId);
+        void queryClient.invalidateQueries({ queryKey: qk.agents(repoId) });
+      }),
       core.on("repo:changed", ({ repoId, what }) => {
         void invalidateRepo(queryClient, repoId, what);
+        const owner = agentOwner(repoId);
+        if (owner && (what.includes("worktree") || what.includes("index") || what.includes("refs") || what.includes("head"))) {
+          void queryClient.invalidateQueries({ queryKey: qk.agents(owner) });
+        }
       }),
       core.on("app:changed", ({ what }) => {
         for (const item of what) {
           const key = APP_KEYS[item];
           if (key) void queryClient.invalidateQueries({ queryKey: key });
         }
+        if (what.includes("settings")) void queryClient.invalidateQueries({ queryKey: qk.agentTemplates });
         // Host accounts have changed (connected, token replaced, disconnected): whatever is loaded about issues –
         // including a list that failed because of the expired token – counts as stale and reloads; link rules follow from the recognised host.
         if (what.includes("host_accounts")) {
@@ -668,6 +711,10 @@ export function useCoreSync(activeRepoId: Id | null) {
       core.on("credential:request", (request) => store().enqueueCredential(request)),
       // Hook output and failures: one toast per incident, see notifications/hooks.ts.
       core.on("hook:output", (payload) => reportHookOutput(payload, queryClient.getQueryData<Settings>(qk.settings)?.notifyOnError)),
+      // Collision check of coding agents: the report replaces the cached one (no refetch needed).
+      core.on("agents:collisions", (report) => {
+        queryClient.setQueryData(qk.agentCollisions(report.repoId), report);
+      }),
       // Follow-up job after checkout, pull …: refresh the list; a failure is a warning toast.
       core.on("submodules:updated", (event) => {
         void queryClient.invalidateQueries({ queryKey: qk.submodules(event.repoId) });
