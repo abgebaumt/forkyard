@@ -65,3 +65,47 @@ describe("search by meaning", () => {
     expect(searchedFor(result({}))).toBeNull();
   });
 });
+
+import { runMeaning } from "./meaningModel";
+import type { AiPreview } from "../../core";
+
+const PREVIEW: AiPreview = {
+  text: "Search question:\nLogin\n",
+  omitted: [],
+  shortened: [],
+  chars: 23,
+  estimatedTokens: 7,
+  estimatedCostUsd: null,
+  asks: ["first_use"],
+  fingerprint: "f".repeat(64),
+  monthCostUsd: 0,
+  limitUsd: null,
+};
+const RESULT = result({ route: "local_embeddings", hits: [hit({ score: 0.9 })], indexed: 3 });
+
+describe("one search by meaning", () => {
+  it("previews, asks, searches – and only after “Send”", async () => {
+    const calls: string[] = [];
+    const deps = {
+      preview: async () => (calls.push("preview"), PREVIEW),
+      confirm: async () => (calls.push("confirm"), true),
+      search: async () => (calls.push("search"), RESULT),
+    };
+    expect(await runMeaning(deps, () => true)).toEqual({ kind: "done", result: RESULT });
+    expect(calls).toEqual(["preview", "confirm", "search"]);
+    calls.length = 0;
+    expect(await runMeaning({ ...deps, confirm: async () => (calls.push("confirm"), false) }, () => true)).toEqual({ kind: "declined" });
+    expect(calls, "nothing is searched without “Send”").toEqual(["preview", "confirm"]);
+  });
+
+  it("drops the answer of an older run and reports cancel and errors", async () => {
+    let current = true;
+    const deps = { preview: async () => PREVIEW, confirm: async () => true, search: async () => ((current = false), RESULT) };
+    expect(await runMeaning(deps, () => current)).toEqual({ kind: "stale" });
+    const cancelled = { ...deps, search: async () => Promise.reject({ code: "cancelled", message: "", gitOutput: null }) };
+    expect(await runMeaning(cancelled, () => true)).toEqual({ kind: "cancelled" });
+    const offline = { ...deps, search: async () => Promise.reject({ code: "ai_provider_unavailable", message: "Ollama is not responding (127.0.0.1:11434).", gitOutput: null }) };
+    const failed = await runMeaning(offline, () => true);
+    expect(failed.kind === "failed" ? [failed.error.code, failed.error.message] : failed).toEqual(["ai_provider_unavailable", "Ollama is not responding (127.0.0.1:11434)."]);
+  });
+});

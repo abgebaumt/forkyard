@@ -2,7 +2,8 @@
  * Pure helpers of the search by meaning (spec 9.2): when Enter runs a search, how the reason of a
  * hit reads, what the note about the way and the "searched for" line say.
  */
-import type { AiSemanticHit, AiSemanticResult, AiSemanticStatus } from "../../core";
+import type { AiPreview, AiSemanticHit, AiSemanticResult, AiSemanticStatus, CoreError } from "../../core";
+import { toCoreError } from "../../app/errors";
 import { locale, t } from "../../i18n";
 
 export type SearchMode = "text" | "meaning";
@@ -43,4 +44,35 @@ export function searchedFor(result: AiSemanticResult): string | null {
   if (filters?.since) parts.push(t("commitSearch.meaning.since", { date: filters.since }));
   if (filters?.until) parts.push(t("commitSearch.meaning.until", { date: filters.until }));
   return parts.length > 0 ? t("commitSearch.meaning.searchedFor", { parts: parts.join(", ") }) : null;
+}
+
+export interface MeaningDeps {
+  preview(): Promise<AiPreview>;
+  /** The send gate: asks only when the preview has triggers (1a `confirmSend`). */
+  confirm(preview: AiPreview): Promise<boolean>;
+  search(): Promise<AiSemanticResult>;
+}
+
+export type MeaningOutcome =
+  | { kind: "done"; result: AiSemanticResult }
+  | { kind: "declined" }
+  | { kind: "cancelled" }
+  | { kind: "failed"; error: CoreError }
+  | { kind: "stale" };
+
+/** One search: "What is sent?" → confirmation → search. `current() === false`: a newer run or "Cancel" – the answer is dropped. */
+export async function runMeaning(deps: MeaningDeps, current: () => boolean): Promise<MeaningOutcome> {
+  try {
+    const preview = await deps.preview();
+    if (!current()) return { kind: "stale" };
+    const send = await deps.confirm(preview);
+    if (!current()) return { kind: "stale" };
+    if (!send) return { kind: "declined" };
+    const result = await deps.search();
+    return current() ? { kind: "done", result } : { kind: "stale" };
+  } catch (raw) {
+    if (!current()) return { kind: "stale" };
+    const error = toCoreError(raw);
+    return error.code === "cancelled" ? { kind: "cancelled" } : { kind: "failed", error };
+  }
 }

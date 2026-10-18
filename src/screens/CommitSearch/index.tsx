@@ -15,7 +15,7 @@ import { ChevronDown, ChevronRight, ChevronUp, Search, SearchX, X } from "lucide
 import type { CommitSummary, Id } from "../../core";
 import { describeError, toCoreError } from "../../app/errors";
 import { formatDate, formatDateTime, shortSha } from "../../app/format";
-import { useCommitSearch, useSettings } from "../../app/queries";
+import { useAiStatus, useCommitSearch, useRepoSettings, useSettings } from "../../app/queries";
 import { parseSearchQuery } from "../../app/searchFilters";
 import { useAppStore, useTabView } from "../../app/store";
 import { Button, IconButton, Spinner } from "../../ui/Button";
@@ -23,6 +23,12 @@ import { cn } from "../../ui/cn";
 import { Banner } from "../../ui/Feedback";
 import { Kbd } from "../../ui/Kbd";
 import { highlightParts, shaMatchLength } from "./highlight";
+import { aiVisibility, featureVisible } from "../../app/ai/visibility";
+import { openAiSetup } from "../../app/ai/open";
+import { SegmentedControl } from "../../ui/Field";
+import { MeaningSearch } from "./MeaningSearch";
+import type { SearchMode } from "./meaningModel";
+import type { SearchPartProps } from "./types";
 import { Trans } from "react-i18next";
 import { locale, t } from "../../i18n";
 
@@ -58,11 +64,10 @@ function Marked({ text, needle }: { text: string; needle: string }): ReactNode {
   );
 }
 
-export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
+function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProps) {
   const view = useTabView(tabId);
   const store = useAppStore.getState;
   const { data: settings } = useSettings();
-  const [text, setText] = useState(view.search.query);
   const query = useDebounced(text.trim(), DEBOUNCE_MS);
   const search = useCommitSearch(repoId, query, SEARCH_LIMIT + 1);
   /** What is highlighted: the search text without the filters. */
@@ -225,6 +230,7 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
             </span>
           ) : null}
         </div>
+        {modeSwitch}
         <span role="status" data-testid="search-counter" className="min-w-16 shrink-0 px-1 text-right text-sm text-text-muted tabular-nums">
           {counter}
         </span>
@@ -328,4 +334,43 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
       )}
     </div>
   );
+}
+
+/**
+ * The commit search: "Text" (as you type) or – while AI is on for this repository – "Meaning"
+ * (on Enter, spec 9.2). The typed text stays when switching; the switch opens the AI setup while
+ * no provider is connected.
+ */
+export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
+  const view = useTabView(tabId);
+  const [text, setText] = useState(view.search.query);
+  const [mode, setMode] = useState<SearchMode>("text");
+  const { data: aiStatus } = useAiStatus();
+  const { data: repoSettings } = useRepoSettings(repoId);
+  const meaningShown = featureVisible(aiStatus, "semantic_search", repoSettings?.aiOff ?? false);
+  const current: SearchMode = meaningShown ? mode : "text";
+  const choose = (next: SearchMode) => {
+    if (next === "meaning" && aiVisibility(aiStatus).elementsOpenSetup) {
+      // On, but no provider connected: the setup dialog of 1b (spec "Klick öffnet die Ersteinrichtung").
+      void openAiSetup();
+      return;
+    }
+    useAppStore.getState().setSearch(tabId, { query: "", hits: [], active: -1 });
+    setMode(next);
+  };
+  const modeSwitch = meaningShown ? (
+    <div data-search-mode className="shrink-0">
+      <SegmentedControl<SearchMode>
+        label={t("commitSearch.mode.label")}
+        value={current}
+        options={[
+          { value: "text", label: t("commitSearch.mode.text") },
+          { value: "meaning", label: t("commitSearch.mode.meaning") },
+        ]}
+        onValueChange={choose}
+      />
+    </div>
+  ) : null;
+  const props: SearchPartProps = { repoId, tabId, text, setText, modeSwitch };
+  return current === "meaning" ? <MeaningSearch {...props} /> : <TextSearch {...props} />;
 }
