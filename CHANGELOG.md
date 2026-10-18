@@ -95,6 +95,13 @@ All notable changes to Forkyard are listed here. The format follows
   CHANGELOG.md (Keep a Changelog is recognised; inserted as a normal change you commit yourself), into a
   release on GitHub, GitLab or Gitea/Forgejo (the tag is pushed first; confirmed separately because it
   cannot be undone) and to the clipboard. “What is sent?” shows the exact text; hidden while AI is off.
+- Bisect autopilot: describe a bug (and, if you know one, a test command), and the AI writes a test
+  script for the range – shown and editable, nothing runs before “Run”. The script then runs commit by
+  commit in a temporary worktree next to the repository (`<repo>.agents/bisect-<n>`), so your own
+  working directory may have changes and a manual bisect stays as it is. Each step has a time limit
+  (default 10 minutes; a step over it counts as skipped), a bar above the graph shows the progress and
+  then the first bad commit, and the worktree can be kept for a closer look or is removed. Start it from
+  the bisect bar, a commit’s context menu or the command palette; “What is sent?” shows the exact request.
 
 ### Changed
 
