@@ -1217,6 +1217,12 @@ export interface Settings {
   aiPrices: AiPriceOverride[];
   /** Own paths of Claude Code, Codex and opencode; absolute or null. */
   aiCliPaths: AiCliPaths;
+  /** Optional embedding provider of the search by meaning – only on this computer (Ollama, LM Studio). null = the main provider's embeddings. */
+  aiSearchEmbedProvider: AiProviderKind | null;
+  /** Embedding model of the local provider above, otherwise of the main provider (null = its default). */
+  aiSearchEmbedModel: string | null;
+  /** Other address of the local embedding provider (only this computer). */
+  aiSearchEmbedBaseUrl: string | null;
 }
 
 /** App-side settings per repository. */

@@ -10,7 +10,7 @@ use crate::util;
 
 /// Fields of `Settings` that apply globally. Network (proxy, certificates) deliberately belongs to
 /// the profile: a company proxy only applies in the "Work" profile.
-pub const GLOBAL_KEYS: [&str; 27] = [
+pub const GLOBAL_KEYS: [&str; 30] = [
     "theme",
     "zoom",
     "dateFormat",
@@ -39,6 +39,10 @@ pub const GLOBAL_KEYS: [&str; 27] = [
     "aiMonthlyLimitUsd",
     "aiPrices",
     "aiCliPaths",
+    // Search by meaning (v1.2, 9.2): the optional local embedding provider.
+    "aiSearchEmbedProvider",
+    "aiSearchEmbedModel",
+    "aiSearchEmbedBaseUrl",
 ];
 
 pub fn is_global(key: &str) -> bool {

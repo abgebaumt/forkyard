@@ -558,7 +558,7 @@ mod tests {
     #[test]
     fn the_upgrade_moves_exactly_the_global_keys() {
         // Settings added after version 5 never existed at the profile level.
-        const ADDED_LATER: [&str; 11] = [
+        const ADDED_LATER: [&str; 14] = [
             "checkForUpdates",
             "aiEnabled",
             "aiProvider",
@@ -570,6 +570,9 @@ mod tests {
             "aiMonthlyLimitUsd",
             "aiPrices",
             "aiCliPaths",
+            "aiSearchEmbedProvider",
+            "aiSearchEmbedModel",
+            "aiSearchEmbedBaseUrl",
         ];
         for key in app_settings::GLOBAL_KEYS.into_iter().filter(|key| !ADDED_LATER.contains(key)) {
             assert_eq!(V5_PROFILE_LEVELS.matches(&format!("'{key}'")).count(), 2, "{key} is missing from the upgrade (copy and delete)");

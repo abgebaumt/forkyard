@@ -1687,6 +1687,17 @@ pub struct Settings {
     /// Own paths of the AI command-line tools; empty = found automatically.
     #[serde(default)]
     pub ai_cli_paths: AiCliPaths,
+    /// Optional embedding provider of the search by meaning (spec 9.2, Entscheidung 7): only on
+    /// this computer (Ollama, LM Studio). `None` = the main provider's embeddings, if it has any.
+    #[serde(default)]
+    pub ai_search_embed_provider: Option<AiProviderKind>,
+    /// Embedding model: of the local provider above, otherwise of the main provider (empty = its
+    /// default: `text-embedding-3-small` for OpenAI, `gemini-embedding-001` for Gemini).
+    #[serde(default)]
+    pub ai_search_embed_model: Option<String>,
+    /// Other address of the local embedding provider (only this computer).
+    #[serde(default)]
+    pub ai_search_embed_base_url: Option<String>,
 }
 
 fn yes() -> bool {
@@ -1746,6 +1757,9 @@ impl Default for Settings {
             ai_monthly_limit_usd: None,
             ai_prices: Vec::new(),
             ai_cli_paths: AiCliPaths::default(),
+            ai_search_embed_provider: None,
+            ai_search_embed_model: None,
+            ai_search_embed_base_url: None,
         }
     }
 }
