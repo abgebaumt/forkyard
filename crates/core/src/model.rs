@@ -913,6 +913,12 @@ pub struct ComposeUnit {
     /// For display only, at most `MAX_UNIT_LINES`; the commit always takes the whole unit.
     pub lines: Vec<DiffLine>,
     pub lines_cut: bool,
+    /// Units this one needs to build ("doesn't build on its own" when they come later or not at
+    /// all); found by fixed rules, never by the AI.
+    pub requires: Vec<String>,
+    /// Secret or excluded from AI (`.env.local`, `.forkyard/ai-ignore`): never sent, never
+    /// committed by "Compose commits"; it stays in "Don't commit".
+    pub protected: Option<AiOmitReason>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -922,9 +928,13 @@ pub struct ComposeState {
     pub token: String,
     pub branch: String,
     pub head: Sha,
+    /// Subject of HEAD, the start of the history preview.
+    pub head_subject: String,
     pub units: Vec<ComposeUnit>,
     /// `commit.gpgSign` is on: one passphrase prompt per commit is possible.
     pub signing: bool,
+    /// Commit hooks of the repository that run for every commit ("pre-commit", "commit-msg" …).
+    pub hooks: Vec<String>,
 }
 
 /// A commit of a proposal or a plan: message and the unit IDs it takes.
@@ -934,14 +944,39 @@ pub struct ComposeGroup {
     pub title: String,
     pub body: String,
     pub units: Vec<String>,
+    /// The AI provider's short reason why these changes form one commit; empty in a plan.
+    #[serde(default)]
+    pub reason: String,
+}
+
+/// The AI provider's note on one unit it placed.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeNote {
+    pub unit: String,
+    /// One short sentence: why the unit is in its commit.
+    pub reason: String,
+    /// Another commit (or not committing) would have been as plausible.
+    pub unsure: bool,
+}
+
+/// A unit the user placed: a new proposal leaves it where it is.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeKeep {
+    pub unit: String,
+    /// Summary of the commit it is in; `None` = "Don't commit".
+    pub commit: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeProposal {
     pub state: ComposeState,
-    /// In creation order; units in no group stay uncommitted.
+    /// In creation order; units in no group stay uncommitted. Kept units are in no group.
     pub groups: Vec<ComposeGroup>,
+    /// Per placed unit, in the order of the answer.
+    pub notes: Vec<ComposeNote>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -958,6 +993,15 @@ pub struct ComposeResult {
     /// The new commits, oldest first.
     pub commits: Vec<Sha>,
     pub hooks: Vec<HookOutput>,
+    /// Per new commit, oldest first: the hooks that ran for it.
+    pub steps: Vec<ComposeStep>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComposeStep {
+    pub sha: Sha,
+    pub hooks: Vec<String>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1798,8 +1842,14 @@ pub struct AiStatus {
 pub enum AiInput {
     /// The staged diff of the repository.
     StagedChanges,
-    /// "Compose commits": every local change since HEAD, as units with aliases (3.2).
-    Compose,
+    /// "Compose commits": every local change since HEAD, as units with aliases (3.2), with the
+    /// user's instruction for a new proposal and the units they placed themselves.
+    Compose {
+        #[serde(default)]
+        instruction: Option<String>,
+        #[serde(default)]
+        keep: Vec<ComposeKeep>,
+    },
     /// Bisect autopilot (9.1): the user's description and test command, the range's commit
     /// subjects, top-level names, build files and changed paths.
     BisectScript(BisectScriptRequest),

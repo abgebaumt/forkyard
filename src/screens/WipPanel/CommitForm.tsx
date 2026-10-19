@@ -239,26 +239,28 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           <span className="min-w-0 break-words">{lockWarning}</span>
         </p>
       ) : null}
-      <Tip
-        side="top"
-        label={plan.blocked ?? (plan.stageAll ? t("wip.form.tipStageAll") : plan.mode === "commit" ? t("wip.form.tipCommit") : plan.label)}
-        shortcut={plan.blocked ? undefined : plan.stageAll ? "Mod+Shift+Enter" : "Mod+Enter"}
-      >
-        <Button
-          variant="primary"
-          size="lg"
-          loading={busy}
-          icon={<GitCommitHorizontal className="size-icon" aria-hidden />}
-          data-action="commit"
-          data-blocked={plan.blocked ? "" : undefined}
-          {...(plan.blocked ? { "aria-disabled": true } : {})}
-          className="w-full data-[blocked]:cursor-default data-[blocked]:bg-surface-raised data-[blocked]:text-text-disabled data-[blocked]:hover:brightness-100"
-          onClick={(event) => void commitChanges(repoId, tabId, { stageAll: event.shiftKey })}
+      <div className="flex items-center gap-2" data-commit-row="">
+        <Tip
+          side="top"
+          label={plan.blocked ?? (plan.stageAll ? t("wip.form.tipStageAll") : plan.mode === "commit" ? t("wip.form.tipCommit") : plan.label)}
+          shortcut={plan.blocked ? undefined : plan.stageAll ? "Mod+Shift+Enter" : "Mod+Enter"}
         >
-          <span className="truncate">{plan.label}</span>
-        </Button>
-      </Tip>
-      <ComposeButton repoId={repoId} tabId={tabId} />
+          <Button
+            variant="primary"
+            size="lg"
+            loading={busy}
+            icon={<GitCommitHorizontal className="size-icon" aria-hidden />}
+            data-action="commit"
+            data-blocked={plan.blocked ? "" : undefined}
+            {...(plan.blocked ? { "aria-disabled": true } : {})}
+            className="min-w-0 flex-1 data-[blocked]:cursor-default data-[blocked]:bg-surface-raised data-[blocked]:text-text-disabled data-[blocked]:hover:brightness-100"
+            onClick={(event) => void commitChanges(repoId, tabId, { stageAll: event.shiftKey })}
+          >
+            <span className="truncate">{plan.label}</span>
+          </Button>
+        </Tip>
+        <ComposeButton repoId={repoId} tabId={tabId} />
+      </div>
     </form>
   );
 }

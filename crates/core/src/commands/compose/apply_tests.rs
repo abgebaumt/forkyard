@@ -11,7 +11,7 @@ use crate::testkit::TestRepo;
 use crate::util;
 
 pub(super) fn commit(title: &str, body: &str, units: &[&str]) -> ComposeGroup {
-    ComposeGroup { title: title.to_string(), body: body.to_string(), units: units.iter().map(|unit| unit.to_string()).collect() }
+    ComposeGroup { title: title.to_string(), body: body.to_string(), units: units.iter().map(|unit| unit.to_string()).collect(), reason: String::new() }
 }
 
 pub(super) async fn apply(tc: &Core, id: &str, state: &ComposeState, commits: Vec<ComposeGroup>) -> CoreResult<ComposeResult> {

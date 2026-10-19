@@ -57,6 +57,7 @@ import type {
   CommitDraft,
   CommitResult,
   CommitSummary,
+  ComposeKeep,
   ComposePlan,
   ComposeProposal,
   ComposeResult,
@@ -337,9 +338,11 @@ export interface CoreCommands {
   composeUnits(input: R): Promise<ComposeState>;
   /**
    * The AI provider's grouping of the units, as job `jobId` (`jobCancel` → `cancelled`). Show and
-   * confirm `aiPreview({ input: { kind: "compose" } })` first – the core refuses an unconfirmed text.
+   * confirm `aiPreview({ input: { kind: "compose", instruction, keep } })` first – the core refuses an
+   * unconfirmed text. `instruction`: the user's words for a new proposal (at most 300 characters);
+   * `keep`: units the user placed – the answer leaves them out, the UI keeps them where they are.
    */
-  composeProposal(input: R & { jobId: string; locale: string }): Promise<ComposeProposal>;
+  composeProposal(input: R & { jobId: string; locale: string; instruction: string | null; keep: ComposeKeep[] }): Promise<ComposeProposal>;
   /**
    * Creates the planned commits under ONE undo entry, hooks and signing per commit, the working
    * directory untouched. `expectToken` from the units shown (otherwise `stale_state`). Job `jobId`:

@@ -1,4 +1,4 @@
-/** "Compose …" under the commit button of the Commit Panel – only where the AI element is visible. */
+/** "Compose …" small, to the right of the commit button of the Commit Panel – only where the AI element is visible. */
 import type { Id } from "../../core";
 import { useAiStatus, useRepoSettings, useStatus } from "../../app/queries";
 import { Button } from "../../ui/Button";
@@ -16,11 +16,11 @@ export function ComposeButton({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     <Tip label={nothing ? t("wip.compose.nothing") : t("wip.compose.openTip")}>
       <Button
         type="button"
-        variant="ghost"
+        variant="secondary"
         size="sm"
         data-compose-open=""
         {...(nothing ? { "aria-disabled": true } : {})}
-        className="self-start aria-disabled:cursor-default aria-disabled:text-text-disabled"
+        className="aria-disabled:cursor-default aria-disabled:text-text-disabled"
         onClick={() => {
           if (!nothing) startCompose(tabId);
         }}

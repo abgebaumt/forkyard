@@ -1015,7 +1015,7 @@ async fn push_error(core: &Core, repo_id: &str, out: &crate::git::GitOutput) -> 
 }
 
 /// Whether the hook exists (respects `core.hooksPath`).
-async fn hook_exists(core: &Core, repo_id: &str, hook: &str) -> bool {
+pub(crate) async fn hook_exists(core: &Core, repo_id: &str, hook: &str) -> bool {
     let Ok(root) = core.repo_path(repo_id) else { return false };
     let Ok(cmd) = probe(core, repo_id) else { return false };
     match cmd.args(["rev-parse", "--git-path", &format!("hooks/{hook}")]).run_raw().await {
