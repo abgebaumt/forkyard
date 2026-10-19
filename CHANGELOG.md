@@ -211,6 +211,8 @@ All notable changes to Forkyard are listed here. The format follows
 - The start no longer runs the coding-agent tools (`claude`, `codex`, `opencode` with `--version` and
   their sign-in check, one after another): the left panel's Agents section only asks for the templates
   once an agent could be resumed.
+- Less code to load at startup: the diff, file, blame, conflict, rebase, pull request, statistics and
+  other views and most dialogs load when first opened (CodeMirror with them).
 
 ## [1.1.0] – 2026-10-16
 

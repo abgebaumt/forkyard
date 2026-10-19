@@ -1,29 +1,13 @@
-import { useLayoutEffect, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useState } from "react";
 import { FileCog, FolderX, PanelLeftOpen, PanelRightOpen, RefreshCw, ShieldAlert, SquareTerminal } from "lucide-react";
 import type { Id, Tab } from "../../core";
 import { Button, IconButton } from "../../ui/Button";
 import { Cockpit } from "../../screens/Agents/Cockpit";
 import { AgentDetailsPanel } from "../../screens/Agents/DetailsPanel";
-import { BlameView } from "../../screens/Blame";
-import { ArchaeologyPanel } from "../../screens/Archaeology";
-import { AgentReviewView } from "../../screens/AgentReview";
-import { ReviewCommitPanel } from "../../screens/AgentReview/CommitPanel";
 import { CommitDetailsPanel } from "../../screens/CommitDetails";
 import { CommitGraph } from "../../screens/CommitGraph";
 import { CommitSearch } from "../../screens/CommitSearch";
-import { ComposeView } from "../../screens/Compose";
-import { ConflictTool } from "../../screens/ConflictTool";
-import { DiffView } from "../../screens/DiffView";
-import { FileHistory } from "../../screens/FileHistory";
-import { FileView } from "../../screens/FileView";
 import { LeftPanel } from "../../screens/LeftPanel";
-import { PullRequestCreate } from "../../screens/PullRequestCreate";
-import { PullRequestView } from "../../screens/PullRequestView";
-import { IssuesView } from "../../screens/Issues";
-import { StatsView } from "../../screens/Stats";
-import { StackView } from "../../screens/Stack";
-import { RebaseTool } from "../../screens/RebaseTool";
-import { ReflogView } from "../../screens/Reflog";
 import { StashForm } from "../../screens/StashForm";
 import { TerminalPanel } from "../../screens/Terminal";
 import { WipPanel } from "../../screens/WipPanel";
@@ -36,6 +20,25 @@ import { PANEL_LIMITS, showsSidePanels, useAppStore, useLeftCollapsed, useTabVie
 import { FullPage } from "./FullPage";
 import { Splitter } from "./Splitter";
 import { t } from "../../i18n";
+
+// The views that are not on screen right after the start load when first opened: their code
+// (and CodeMirror with them) is not parsed during the start (separate chunks).
+const BlameView = lazy(() => import("../../screens/Blame").then((module) => ({ default: module.BlameView })));
+const ArchaeologyPanel = lazy(() => import("../../screens/Archaeology").then((module) => ({ default: module.ArchaeologyPanel })));
+const AgentReviewView = lazy(() => import("../../screens/AgentReview").then((module) => ({ default: module.AgentReviewView })));
+const ReviewCommitPanel = lazy(() => import("../../screens/AgentReview/CommitPanel").then((module) => ({ default: module.ReviewCommitPanel })));
+const ComposeView = lazy(() => import("../../screens/Compose").then((module) => ({ default: module.ComposeView })));
+const ConflictTool = lazy(() => import("../../screens/ConflictTool").then((module) => ({ default: module.ConflictTool })));
+const DiffView = lazy(() => import("../../screens/DiffView").then((module) => ({ default: module.DiffView })));
+const FileHistory = lazy(() => import("../../screens/FileHistory").then((module) => ({ default: module.FileHistory })));
+const FileView = lazy(() => import("../../screens/FileView").then((module) => ({ default: module.FileView })));
+const PullRequestCreate = lazy(() => import("../../screens/PullRequestCreate").then((module) => ({ default: module.PullRequestCreate })));
+const PullRequestView = lazy(() => import("../../screens/PullRequestView").then((module) => ({ default: module.PullRequestView })));
+const IssuesView = lazy(() => import("../../screens/Issues").then((module) => ({ default: module.IssuesView })));
+const StatsView = lazy(() => import("../../screens/Stats").then((module) => ({ default: module.StatsView })));
+const StackView = lazy(() => import("../../screens/Stack").then((module) => ({ default: module.StackView })));
+const RebaseTool = lazy(() => import("../../screens/RebaseTool").then((module) => ({ default: module.RebaseTool })));
+const ReflogView = lazy(() => import("../../screens/Reflog").then((module) => ({ default: module.ReflogView })));
 
 /** Minimum width of the centre and width of the strip of a collapsed panel. */
 // 480 px: that is how wide the diff view's header needs to be for its buttons. With 320, when both
@@ -340,7 +343,9 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
         <main data-area="center" data-no-scroll aria-label={t("shell.workspace.center")} className="flex min-h-0 flex-1 flex-col bg-bg">
           {view.searchOpen ? <CommitSearch repoId={repoId} tabId={tabId} /> : null}
           <div className="min-h-0 flex-1">
-            <Center repoId={repoId} tabId={tabId} center={view.center} />
+            <Suspense fallback={null}>
+              <Center repoId={repoId} tabId={tabId} center={view.center} />
+            </Suspense>
           </div>
         </main>
         {view.terminalOpen ? <TerminalPanel repoId={repoId} tabId={tabId} /> : null}
@@ -362,7 +367,9 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
             onCollapse={() => toggleRight('[data-rail="right"] button')}
           />
           <aside data-area="right" data-no-scroll aria-label={t("shell.workspace.right")} className="flex min-h-0 shrink-0 flex-col border-l border-border bg-surface" style={{ width: shownRight }}>
-            <RightPanel repoId={repoId} tabId={tabId} view={view} />
+            <Suspense fallback={null}>
+              <RightPanel repoId={repoId} tabId={tabId} view={view} />
+            </Suspense>
           </aside>
         </>
       )}
