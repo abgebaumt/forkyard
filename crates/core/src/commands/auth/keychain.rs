@@ -27,7 +27,15 @@ fn unavailable() -> CoreError {
 }
 
 fn entry(service: &str, account: &str) -> CoreResult<keyring::Entry> {
+    use_shared_connection();
     keyring::Entry::new(service, account).map_err(|_| unavailable())
+}
+
+/// Linux: every keychain call of this process goes over one Secret Service connection
+/// (`secret_service.rs`); elsewhere `keyring`'s own backends stay.
+pub(crate) fn use_shared_connection() {
+    #[cfg(target_os = "linux")]
+    super::secret_service::install();
 }
 
 async fn blocking<T: Send + 'static>(work: impl FnOnce() -> CoreResult<T> + Send + 'static) -> CoreResult<T> {
@@ -154,7 +162,7 @@ pub fn remove_test_entries(core: &crate::app::Core, service: &str) -> usize {
     let _guard = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
     accounts
         .iter()
-        .filter(|account| keyring::Entry::new(service, account).is_ok_and(|entry| entry.delete_credential().is_ok()))
+        .filter(|account| entry(service, account).is_ok_and(|entry| entry.delete_credential().is_ok()))
         .count()
 }
 

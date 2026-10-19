@@ -14,6 +14,8 @@
 
 pub mod broker;
 pub mod keychain;
+#[cfg(target_os = "linux")]
+mod secret_service;
 pub mod prompt;
 pub mod ssh;
 

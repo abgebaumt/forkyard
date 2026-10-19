@@ -476,6 +476,7 @@ impl Core {
 }
 
 fn probe_keyring() -> bool {
+    crate::commands::auth::keychain::use_shared_connection();
     match keyring::Entry::new("forkyard", "__probe__") {
         Ok(entry) => matches!(entry.get_password(), Ok(_) | Err(keyring::Error::NoEntry)),
         Err(_) => false,
