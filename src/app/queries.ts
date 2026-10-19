@@ -459,7 +459,11 @@ export const useAgentReview = (repoId: Id | null | undefined, agentId: Id | null
     enabled: enabledFor(repoId) && Boolean(agentId),
   });
 
-export const useAgentTemplates = () => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000 });
+/**
+ * The agent templates with their programs' version and sign-in state – asking that starts every
+ * tool (`claude --version`, `claude auth status` …), so only where it is needed (`enabled`).
+ */
+export const useAgentTemplates = (enabled = true) => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000, enabled });
 
 /** The last collision report of the repository's agents; kept current by `agents:collisions`. */
 export const useAgentCollisions = (repoId: Id | null | undefined) =>

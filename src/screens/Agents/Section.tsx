@@ -19,7 +19,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
   const viewQuery = useViewState(repoId);
   const view = viewQuery.data ?? EMPTY_VIEW;
   const state = sectionState(view, "agents");
-  const optionsFor = useActionOptions(repoId);
+  const optionsFor = useActionOptions(repoId, agents.data ?? []);
   if (state.hidden) return null;
   const all = sortAgents(agents.data ?? []);
   const filtering = query.trim().length > 0;

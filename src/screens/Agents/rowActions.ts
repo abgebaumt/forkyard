@@ -11,7 +11,7 @@ import { menuItem } from "../../components/SideSection";
 import { toast } from "../../ui/Feedback";
 import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
-import { actionsFor, cleanupLines, type AgentAction } from "./model";
+import { actionsFor, cleanupLines, mayResume, type AgentAction } from "./model";
 import { resumeAgent, showAgentTerminal } from "./session";
 import { openAgentReview } from "../AgentReview/navigation";
 
@@ -35,9 +35,13 @@ export interface ActionOptions {
   hasHost: boolean;
 }
 
-/** The options `actionsFor` needs, from the templates, the project settings and the host. */
-export function useActionOptions(repoId: Id): (agent: Agent) => ActionOptions {
-  const templates = useAgentTemplates();
+/**
+ * The options `actionsFor` needs, from the templates, the project settings and the host. The
+ * templates (which start every agent tool to read its version and sign-in) are only asked once one
+ * of `agents` could be resumed – not at every start for the left panel's section.
+ */
+export function useActionOptions(repoId: Id, agents: readonly Agent[]): (agent: Agent) => ActionOptions {
+  const templates = useAgentTemplates(mayResume(agents));
   const { data: repoSettings } = useRepoSettings(repoId);
   const { data: hostRepo } = useHostRepo(repoId);
   return (agent) => ({

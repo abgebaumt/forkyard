@@ -208,6 +208,9 @@ All notable changes to Forkyard are listed here. The format follows
 - Setting up file watching for a very large working directory (hundreds of thousands of folders, e.g.
   node_modules) no longer holds up the app's other work while it walks the tree.
 - The start no longer waits for the system keychain; only the screens that store secrets ask for it.
+- The start no longer runs the coding-agent tools (`claude`, `codex`, `opencode` with `--version` and
+  their sign-in check, one after another): the left panel's Agents section only asks for the templates
+  once an agent could be resumed.
 
 ## [1.1.0] – 2026-10-16
 
