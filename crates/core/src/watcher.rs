@@ -47,6 +47,8 @@ const EARLY_CHECK_PATHS: usize = 256;
 /// If the watcher reports nothing but errors this many times in a row, watching stops
 /// instead of flooding the UI with “everything might have changed”.
 const MAX_ERRORS_IN_A_ROW: u32 = 20;
+/// Setting up the watches taking at least this long is logged (a large working directory).
+const SLOW_SETUP: Duration = Duration::from_millis(500);
 
 /// Watcher timings (can be shortened in tests via `set_timing`).
 #[derive(Debug, Clone, Copy)]
@@ -473,22 +475,20 @@ async fn watch_repo(
     }
 
     let (tx, mut rx) = mpsc::unbounded_channel::<notify::Result<notify::Event>>();
-    let failed = |e: notify::Error| CoreError::io(format!("File watching couldn’t be set up: {e}"));
-    let mut watcher = notify::recommended_watcher(move |event| {
-        let _ = tx.send(event);
-    })
-    .map_err(failed)?;
-    watcher.watch(root, RecursiveMode::Recursive).map_err(failed)?;
-    // Shortest paths first: if a directory lies below one already watched (a worktree's own
-    // part below the common one), watching that one is enough.
-    let mut outside: Vec<&Path> = git_roots.iter().map(|g| g.path.as_path()).collect();
-    outside.sort_by_key(|path| path.components().count());
-    let mut watched: Vec<&Path> = vec![root.as_path()];
-    for path in outside {
-        if !watched.iter().any(|w| path.starts_with(w)) {
-            watcher.watch(path, RecursiveMode::Recursive).map_err(failed)?;
-            watched.push(path);
-        }
+    // A recursive watch walks the whole working directory (ignored folders like node_modules
+    // included) and blocks while doing so – seconds for a large tree. It runs on a blocking
+    // thread so it never holds up a worker of the async runtime that serves the UI's calls.
+    let started = std::time::Instant::now();
+    let paths: Vec<PathBuf> = git_roots.iter().map(|g| g.path.clone()).collect();
+    let watch_root = root.clone();
+    let setup = tokio::task::spawn_blocking(move || set_up_watches(&watch_root, &paths, tx));
+    let _watcher = tokio::select! {
+        _ = stop.cancelled() => return Ok(()),
+        result = setup => result.map_err(|_| CoreError::unknown("File watching couldn’t be set up."))??,
+    };
+    let took = started.elapsed();
+    if took >= SLOW_SETUP {
+        log::info!("File watching for {} took {} ms to set up", util::display_path(root), took.as_millis());
     }
     let mut intake = Intake::new(root.to_path_buf(), git_inside, git_roots.clone());
     phase.send_replace(Phase::Watching);
@@ -547,6 +547,28 @@ async fn watch_repo(
     // The folder has disappeared: report once so the UI notices, then stop.
     core.emit_repo_changed(repo_id, &[RepoChange::Worktree]);
     Ok(())
+}
+
+/// Creates the watcher and adds the recursive watches (blocking: walks the trees). The working
+/// directory first, then the Git directories outside it – shortest paths first: if one lies below
+/// another (a worktree's own part below the common one), watching that one is enough.
+fn set_up_watches(root: &Path, git_roots: &[PathBuf], tx: mpsc::UnboundedSender<notify::Result<notify::Event>>) -> CoreResult<notify::RecommendedWatcher> {
+    let failed = |e: notify::Error| CoreError::io(format!("File watching couldn’t be set up: {e}"));
+    let mut watcher = notify::recommended_watcher(move |event| {
+        let _ = tx.send(event);
+    })
+    .map_err(failed)?;
+    watcher.watch(root, RecursiveMode::Recursive).map_err(failed)?;
+    let mut outside: Vec<&Path> = git_roots.iter().map(PathBuf::as_path).collect();
+    outside.sort_by_key(|path| path.components().count());
+    let mut watched: Vec<&Path> = vec![root];
+    for path in outside {
+        if !watched.iter().any(|w| path.starts_with(w)) {
+            watcher.watch(path, RecursiveMode::Recursive).map_err(failed)?;
+            watched.push(path);
+        }
+    }
+    Ok(watcher)
 }
 
 async fn sleep_until_due(due: Option<Instant>) {

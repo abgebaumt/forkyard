@@ -205,6 +205,8 @@ All notable changes to Forkyard are listed here. The format follows
   powered-down second GPU (e.g. NVIDIA) wakes up. WebKitGTK woke it to watch the display's refresh; with
   more than one GPU Forkyard now has it use its timer instead (`WEBKIT_FORCE_VBLANK_TIMER`, a value you
   set yourself is kept), and the GPU stays asleep.
+- Setting up file watching for a very large working directory (hundreds of thousands of folders, e.g.
+  node_modules) no longer holds up the app's other work while it walks the tree.
 
 ## [1.1.0] – 2026-10-16
 

@@ -644,3 +644,28 @@ fn new_folders_in_the_git_directory_count_by_their_path() {
     assert!(intake.absorb_path(&root.join(".git/refs/bisect"), true));
     assert_eq!(intake.pending.kinds, [RepoChange::Refs].into_iter().collect());
 }
+
+/// The recursive watch walks the whole working directory (node_modules and other ignored
+/// folders included) – seconds for a large tree. That walk must not run on a thread of the async
+/// runtime: at startup every open tab starts watching, and a blocked worker holds up the UI's
+/// calls. On a single-threaded runtime: once the watcher's task has had its turn, the test task
+/// runs again while the watch is still being set up (before: the walk ran right inside the task,
+/// so the test only got its turn back once watching already ran).
+#[tokio::test(flavor = "current_thread")]
+async fn setting_up_the_watch_does_not_hold_up_the_runtime() {
+    let repo = TestRepo::with_commit();
+    for index in 0..200 {
+        repo.subdir(&format!("node_modules/paket-{index}/lib"));
+    }
+    let tc = TestCore::new().await;
+    // Opened while watching is still off, so that nothing else is awaited from here on.
+    let id = tc.open(&repo).await.repo.id;
+    set_enabled(&tc, true);
+    start_watching(&tc, &id).unwrap();
+    tokio::task::yield_now().await;
+    let phase = *tc.state::<Watchers>().running.lock().get(&id).expect("watcher registered").phase.borrow();
+    assert_eq!(phase, Phase::Starting, "the walk must not have run on the runtime's thread");
+    assert!(wait_until_watching(&tc, &id, PATIENCE).await, "watching still starts");
+    repo.write_file("neu.txt", "x");
+    wait_for(&tc, &id, &["worktree"]).await;
+}
