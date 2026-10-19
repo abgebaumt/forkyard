@@ -22,7 +22,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import type { InfiniteData } from "@tanstack/react-query";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import { Filter, GitCommitHorizontal, Highlighter, Loader2, RefreshCw, TriangleAlert, Unplug } from "lucide-react";
-import { core, CoreError, type GraphPage, type GraphRow, type Id, type Ref, type RefLabelInfo, type RepoViewState, type Sha } from "../../core";
+import { core, CoreError, startupMark, type GraphPage, type GraphRow, type Id, type Ref, type RefLabelInfo, type RepoViewState, type Sha } from "../../core";
 import { checkout, createBranch } from "../../app/actions/branches";
 import { setMergeCollapsed } from "../../app/actions/collapse";
 import { setSmartVisibility, smartBlock, syncSmartVisibility } from "../../app/actions/graphView";
@@ -1011,6 +1011,10 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
   const { data: viewState } = useViewState(repoId);
   const { data: bisect } = useBisectStatus(repoId);
   const flat = useMemo(() => flatten(graph.data?.pages), [graph.data]);
+  const hasRows = flat.rows.length > 1;
+  useEffect(() => {
+    if (hasRows) startupMark("graph");
+  }, [hasRows]);
   const { refetch, isFetching, error, errorUpdatedAt, dataUpdatedAt } = graph;
   const hasData = graph.data !== undefined;
   const stale = error instanceof CoreError && error.code === "stale_state";

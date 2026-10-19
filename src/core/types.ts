@@ -126,6 +126,14 @@ export class CoreError extends Error implements CoreErrorData {
 
 export type Platform = "windows" | "linux" | "macos";
 
+/** Startup milestones of the UI (`appStartupReport`); times in ms since `timeOrigin`. */
+export interface StartupReport {
+  /** `performance.timeOrigin` (Unix time in ms). */
+  timeOrigin: number;
+  marks: { name: string; at: number }[];
+  calls: { command: string; start: number; ms: number }[];
+}
+
 export interface AppInfo {
   version: string;
   platform: Platform;

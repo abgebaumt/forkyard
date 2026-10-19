@@ -49,6 +49,11 @@ pub async fn update_dismiss(core: State<'_, Core>, version: String, skip: bool) 
 }
 
 #[tauri::command]
+pub async fn app_startup_report(core: State<'_, Core>, report: StartupReport) -> R<()> {
+    c::app::app_startup_report(&core, report).await
+}
+
+#[tauri::command]
 pub async fn app_close_guard(core: State<'_, Core>, active: bool) -> R<()> {
     c::app::app_close_guard(&core, active).await
 }

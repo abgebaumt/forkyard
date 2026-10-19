@@ -215,7 +215,7 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     );
     config.git_path = env_value(GIT_PATH_ENV).map(PathBuf::from);
     config.keyring_service = dev_env_value(KEYRING_SERVICE_ENV).and_then(|v| v.into_string().ok());
-    let core = tauri::async_runtime::block_on(Core::open(config))?;
+    let core = gitcore::startup::timed("core open", || tauri::async_runtime::block_on(Core::open(config)))?;
     if let Some(base) = dev_env_value(AVATAR_URL_ENV).and_then(|v| v.into_string().ok()) {
         gitcore::commands::avatars::configure(&core, Some(if base == "off" { String::new() } else { base }));
     }
@@ -251,17 +251,21 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
         }
     }
     tauri::async_runtime::spawn(async move {
+        gitcore::startup::reached("setup done");
         // File watching and auto-fetch for the tabs of the last session.
-        if let Ok(tabs) = gitcore::commands::repos::tabs_list(&core).await {
-            for repo_id in tabs.into_iter().filter_map(|t| t.repo_id) {
-                gitcore::commands::repos::start_background(&core, &repo_id);
+        gitcore::startup::timed_async("file watching and auto-fetch for the open tabs", async {
+            if let Ok(tabs) = gitcore::commands::repos::tabs_list(&core).await {
+                for repo_id in tabs.into_iter().filter_map(|t| t.repo_id) {
+                    gitcore::commands::repos::start_background(&core, &repo_id);
+                }
             }
-        }
-        if let Err(e) = core.startup_cleanup().await {
+        })
+        .await;
+        if let Err(e) = gitcore::startup::timed_async("cleanup", core.startup_cleanup()).await {
             log::warn!("Startup cleanup failed: {}", e.message);
         }
         // Spec 1.3: the login shell's PATH once per start, so the AI setup does not wait for it.
-        gitcore::ai::detect::warm_up(&core).await;
+        gitcore::startup::timed_async("login shell PATH", gitcore::ai::detect::warm_up(&core)).await;
     });
     Ok(())
 }
@@ -422,6 +426,7 @@ fn end_on_request(handle: &tauri::AppHandle, reason: &str) {
 pub fn run() {
     // First of all: the log and the panic hook. Until the data directory is known (`setup`), lines
     // wait in memory; with `windows_subsystem = "windows"` there is no console to see a panic in.
+    gitcore::startup::mark_process_start();
     #[cfg(target_os = "linux")]
     let vblank_timer = avoid_waking_idle_gpus();
     gitcore::crash::install();
@@ -454,7 +459,15 @@ pub fn run() {
         // rejects every request) and clipboard access without a WebView prompt.
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .setup(move |app| setup(app, launch))
+        .setup(move |app| {
+            gitcore::startup::reached("window created");
+            setup(app, launch)
+        })
+        .on_page_load(|_, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                gitcore::startup::reached("page loaded");
+            }
+        })
         .on_window_event(on_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
@@ -464,6 +477,7 @@ pub fn run() {
             commands::update_dismiss,
             commands::app_launch_request,
             commands::app_close_guard,
+            commands::app_startup_report,
             commands::app_quit,
             commands::repo_open,
             commands::repo_trust_get,

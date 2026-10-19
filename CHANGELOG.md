@@ -205,14 +205,16 @@ All notable changes to Forkyard are listed here. The format follows
   powered-down second GPU (e.g. NVIDIA) wakes up. WebKitGTK woke it to watch the display's refresh; with
   more than one GPU Forkyard now has it use its timer instead (`WEBKIT_FORCE_VBLANK_TIMER`, a value you
   set yourself is kept), and the GPU stays asleep.
+- The start no longer waits for the system keychain; only the screens that store secrets ask for it.
 - Setting up file watching for a very large working directory (hundreds of thousands of folders, e.g.
   node_modules) no longer holds up the app's other work while it walks the tree.
-- The start no longer waits for the system keychain; only the screens that store secrets ask for it.
 - The start no longer runs the coding-agent tools (`claude`, `codex`, `opencode` with `--version` and
   their sign-in check, one after another): the left panel's Agents section only asks for the templates
   once an agent could be resumed.
 - Less code to load at startup: the diff, file, blame, conflict, rebase, pull request, statistics and
   other views and most dialogs load when first opened (CodeMirror with them).
+- The log now says how long the phases of a start took (`Startup: …`), including the window's own
+  milestones up to the first graph rows and the slowest calls of the start.
 
 ## [1.1.0] – 2026-10-16
 

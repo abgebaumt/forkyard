@@ -44,6 +44,7 @@ import type {
   ActivityPage,
   ActivityScope,
   AppInfo,
+  StartupReport,
   BisectStatus,
   BisectScript,
   BisectScriptRequest,
@@ -201,6 +202,11 @@ export interface CoreCommands {
    * counts as a sign of life in response to such a request.
    */
   appCloseGuard(input: { active: boolean }): Promise<void>;
+  /**
+   * The UI's startup milestones (once per run, later calls are ignored): logged as one
+   * `Startup (UI): …` line, with the slowest core calls of the start.
+   */
+  appStartupReport(input: { report: StartupReport }): Promise<void>;
   /** Quits the app: cancels running actions (cleans up a half-finished clone) and closes the window. */
   appQuit(): Promise<void>;
 

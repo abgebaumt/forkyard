@@ -11,7 +11,7 @@ import { installCloseGuard } from "./app/closeGuard";
 import { installEscapeGuard } from "./app/escapeGuard";
 import { installWebviewGuards } from "./app/webviewGuards";
 import { installScrollPin } from "./app/scrollPin";
-import { core, type Core } from "./core";
+import { core, startupMark, type Core } from "./core";
 import { Toaster } from "./ui/Feedback";
 import { TooltipProvider } from "./ui/Tooltip";
 import { AvatarSourceContext } from "./ui/Git";
@@ -55,6 +55,7 @@ if (import.meta.env.DEV) {
   window.__gc = { core, store: useAppStore, queryClient };
 }
 
+startupMark("script");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <TooltipProvider>

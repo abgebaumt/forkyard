@@ -49,6 +49,32 @@ pub struct AppInfo {
     pub data_dir: String,
 }
 
+/// The UI's startup milestones (`app_startup_report`): times in ms since `time_origin`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupReport {
+    /// `performance.timeOrigin`: when the page started loading, Unix time in ms.
+    pub time_origin: f64,
+    pub marks: Vec<StartupMark>,
+    /// Core calls made during the start.
+    pub calls: Vec<StartupCall>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupMark {
+    pub name: String,
+    pub at: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StartupCall {
+    pub command: String,
+    pub start: f64,
+    pub ms: f64,
+}
+
 /// A stable Forkyard release on GitHub (`update_check`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
