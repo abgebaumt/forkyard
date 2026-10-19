@@ -7,7 +7,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PlugZap, RefreshCw, TriangleAlert } from "lucide-react";
 import type { AppInfo, Platform, Settings, Tab } from "../core";
 import { Button } from "../ui/Button";
-import { setShortcutPlatform } from "../ui/Kbd";
+import { setShortcutPlatform } from "../ui/shortcut";
 import { AgentWatch } from "../screens/Agents/Watch";
 import { RepoManagement } from "../screens/RepoManagement";
 import { runScenarioFromUrl } from "../screens/scenarios";
@@ -86,7 +86,7 @@ export function App() {
   }
 
   const info = appInfo.data;
-  setShortcutPlatform(info.platform === "macos");
+  setShortcutPlatform(info.platform);
 
   if (!info.gitVersion) {
     return (

@@ -26,7 +26,7 @@ import { Button } from "../../ui/Button";
 import { DiffHunk, type DiffLine as UiDiffLine } from "../../ui/Diff";
 import { Banner, EmptyState, toast } from "../../ui/Feedback";
 import { Checkbox, TextArea, TextField } from "../../ui/Field";
-import { isMacShortcuts } from "../../ui/Kbd";
+import { isMacShortcuts } from "../../ui/shortcut";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
 import { ReorderList } from "../RebaseTool/ReorderList";

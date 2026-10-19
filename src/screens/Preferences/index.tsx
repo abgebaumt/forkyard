@@ -8,7 +8,6 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import {
   Bell,
   Bot,
-  Command,
   Cpu,
   FileCog,
   FolderGit2,
@@ -33,6 +32,7 @@ import { profileColor } from "../../app/actions/profiles";
 import { useProfiles, useRepo, useRepoSettings, useSettings } from "../../app/queries";
 import { ProfileDot, profileMenuEntries } from "../../app/shell/ProfileChip";
 import type { PreferencesSection } from "../../app/store";
+import { CommandIcon } from "../../ui/commandIcon";
 import { dialogSurface, shiftTabFromFrame } from "../../ui/Dialog";
 import { DropdownMenu } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
@@ -78,7 +78,7 @@ const icons: Record<SectionId, ReactNode> = {
   appearance: <Palette className={iconClass} aria-hidden />,
   diff: <TextCursorInput className={iconClass} aria-hidden />,
   external: <SquareTerminal className={iconClass} aria-hidden />,
-  commands: <Command className={iconClass} aria-hidden />,
+  commands: <CommandIcon className={iconClass} aria-hidden />,
   notifications: <Bell className={iconClass} aria-hidden />,
   ai: <Cpu className={iconClass} aria-hidden />,
   agents: <Bot className={iconClass} aria-hidden />,

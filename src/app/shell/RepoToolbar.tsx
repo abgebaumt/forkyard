@@ -6,7 +6,6 @@ import {
   Bot,
   ChartColumn,
   CloudDownload,
-  Command,
   GitBranchPlus,
   Redo2,
   Search,
@@ -15,6 +14,7 @@ import {
   Undo2,
 } from "lucide-react";
 import type { Id, PullMode, Status } from "../../core";
+import { CommandIcon } from "../../ui/commandIcon";
 import { Toolbar, ToolbarButton, ToolbarSeparator } from "../../ui/Chrome";
 import type { MenuEntry } from "../../ui/Menu";
 import { createBranch, selectedBranchStart } from "../actions/branches";
@@ -288,7 +288,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       />
       <ToolbarButton
         label={t("shell.toolbar.commands")}
-        icon={icon(Command)}
+        icon={<CommandIcon className="size-icon" aria-hidden />}
         shortcut="Mod+P"
         compact={compact}
         hint={t("shell.toolbar.palette")}
@@ -315,7 +315,7 @@ export function ManagementToolbar() {
       <div className="flex-1" />
       <ToolbarButton
         label={t("shell.toolbar.commands")}
-        icon={icon(Command)}
+        icon={<CommandIcon className="size-icon" aria-hidden />}
         shortcut="Mod+P"
         compact={compact}
         hint={t("shell.toolbar.palette")}

@@ -35,17 +35,6 @@
     "stash": "Stash",
     "file": "Datei"
   },
-  "keyNames": {
-    "pageUp": "Bild↑",
-    "pageDown": "Bild↓",
-    "home": "Pos1",
-    "end": "Ende",
-    "delete": "Entf",
-    "insert": "Einfg",
-    "backspace": "Rück",
-    "space": "Leertaste",
-    "contextMenu": "Menü"
-  },
   "fixed": {
     "graph": {
       "entries": {

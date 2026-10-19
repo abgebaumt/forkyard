@@ -21,7 +21,7 @@ import { getCommands } from "../../app/registry";
 import { useCodeSettings } from "../../components/code/settings";
 import { Button, IconButton, Spinner } from "../../ui/Button";
 import { Banner, toast } from "../../ui/Feedback";
-import { formatShortcut } from "../../ui/Kbd";
+import { formatShortcut } from "../../ui/shortcut";
 import type { MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { clearTerminal, closeTerminalSession, endTerminal, hideTerminal, newTerminalShell, restartTerminal } from "./actions";
