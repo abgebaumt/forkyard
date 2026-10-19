@@ -336,9 +336,10 @@ scenario("the view's own links leave it: hotspot opens the history, the largest 
   const repo = makeStatsRepo();
   const { app, tabId } = await openStatsRepo(t, repo);
   await clickStats(app);
-  await trackJobs(app);
   const first = await waitStats(app, (s) => s.hotspots.length > 0 && s.biggest !== null);
-  assertEqual(await statsJobs(app), 0, "tracking started after the first run");
+  // Track only from here: the view may load after the click, so the first run can start late.
+  await trackJobs(app);
+  assertEqual(await statsJobs(app), 0, "no second run after the first result");
 
   await app.click(`${VIEW} [data-hotspot="${repo.expected.topHotspot}"]`);
   await waitCenter(app, tabId, "history");

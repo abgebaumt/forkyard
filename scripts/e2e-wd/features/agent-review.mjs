@@ -179,6 +179,11 @@ scenario("German texts in the review", "edge", async (t) => {
   assertIncludes(await listText(app, "rest"), "Nicht ausgewählt (0)");
   assertEqual(await app.exec(() => document.querySelector('[data-action="review-take-over"]')?.innerText.trim()), "Auswahl in meinen Arbeitsbereich");
   assertIncludes(await app.exec(() => document.querySelector('[data-action="review-discard"]')?.innerText ?? ""), "(zerstörerisch)");
-  assertIncludes(await app.exec(() => document.querySelector('[data-panel="review-commit"]')?.innerText ?? ""), "Auswahl committen (2 Dateien)");
+  const commitPanel = await app.waitFor(
+    () => app.exec(() => document.querySelector('[data-panel="review-commit"]')?.innerText ?? null),
+    10_000,
+    { message: "commit panel of the review" },
+  );
+  assertIncludes(commitPanel, "Auswahl committen (2 Dateien)");
   await t.shot("review-de");
 });
