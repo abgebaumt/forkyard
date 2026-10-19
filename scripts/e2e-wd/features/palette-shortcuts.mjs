@@ -474,7 +474,16 @@ scenario("palette: shortcuts read as Ctrl/Strg text on Linux, never as macOS gly
     assertEqual(settingsKeys, [ctrl, ","], `settings shortcut as key caps (${lang})`);
     const caps = await app.exec((root) => [...document.querySelectorAll(`${root} kbd`)].map((kbd) => kbd.textContent), PALETTE);
     assert(caps.includes(ctrl), `palette shows ${ctrl} (${lang}): ${caps.join(" ")}`);
-    assert(caps.includes("Shift"), `palette shows Shift (${lang}): ${caps.join(" ")}`);
+    await app.type(PALETTE_INPUT, lang === "de" ? "Voriger Bereich" : "Previous area");
+    const shiftKeys = await app.waitFor(
+      () => app.exec((root) => {
+        const row = document.querySelector(`${root} [role="option"][data-key="command:focus.previous"]`);
+        return row ? [...row.querySelectorAll("kbd")].map((kbd) => kbd.textContent) : null;
+      }, PALETTE),
+      5000,
+      { message: `previous-area command listed (${lang})` },
+    );
+    assertEqual(shiftKeys, ["Shift", "F6"], `Shift shortcut as key caps (${lang})`);
     const glyphs = caps.filter((cap) => MAC_GLYPHS.test(cap));
     assertEqual(glyphs, [], `no macOS glyph among the key caps (${lang})`);
     assert(!MAC_GLYPHS.test(await paletteText(app)), `no macOS glyph in the palette text (${lang})`);
