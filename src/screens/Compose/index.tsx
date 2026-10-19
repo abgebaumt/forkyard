@@ -1,14 +1,18 @@
 /**
  * "Compose commits" (v1.2, Teilpaket 3.2) in the centre of the repo tab: the local changes since
- * HEAD as units (hunks, whole files), "Don't commit" on top, below the commits in the order they
- * will be created. The AI provider suggests the grouping; the user moves units by keyboard
- * (↑/↓, Alt+↑/↓, 1–9, 0, Mod+↑/↓, F2) or by dragging and creates every commit at once (Mod+Enter)
- * under one undo entry. A suggestion never replaces an arrangement the user already changed, and
- * an answer that arrives later never moves the focus.
+ * HEAD as units (hunks, whole files), grouped into the commits the AI provider proposes.
+ *
+ * On top the history as it will look afterwards; on the left the commits with inline messages,
+ * reasons and the dependency check ("doesn't build on its own"), "Don't commit" at the end; on the
+ * right the selected unit with the AI's reason and its diff; below an instruction for a new
+ * proposal and "Create n commits". Keyboard: ↑/↓ choose, Shift+↑/↓ extend, 1–9 / 0 move, Alt+↑/↓
+ * previous/next commit, N new commit from the selection, U next unsure, Enter confirm, F2 message,
+ * Mod+↑/↓ reorder, Mod+Enter create. Units the user moved stay where they are in a new proposal; a
+ * proposal that arrives later never moves the focus.
  */
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { GitCommitHorizontal } from "lucide-react";
-import { core, type AiPreview, type AiStatus, type ComposeState, type ComposeUnit, type Id } from "../../core";
+import { core, type AiPreview, type AiStatus, type ComposeKeep, type ComposeNote, type ComposeState, type Id } from "../../core";
 import { confirmSend } from "../../app/ai/gate";
 import { showAiPreview } from "../../app/ai/PreviewDialog";
 import { openAiSetup } from "../../app/ai/open";
@@ -23,127 +27,69 @@ import { newJobId, runAction } from "../../app/run";
 import { setCenterGuard, useAppStore, type CenterGuard } from "../../app/store";
 import { viewMayTakeFocus } from "../../app/viewFocus";
 import { Button } from "../../ui/Button";
-import { DiffHunk, type DiffLine as UiDiffLine } from "../../ui/Diff";
-import { Banner, EmptyState, toast } from "../../ui/Feedback";
-import { Checkbox, TextArea, TextField } from "../../ui/Field";
+import { Banner, EmptyState } from "../../ui/Feedback";
+import { Checkbox, SegmentedControl } from "../../ui/Field";
+import { Kbd } from "../../ui/Kbd";
 import { isMacShortcuts } from "../../ui/shortcut";
-import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
-import { ReorderList } from "../RebaseTool/ReorderList";
-import { SkeletonRows, StartButton, ToolFooter, ToolHeader } from "../RebaseTool/parts";
+import { SkeletonRows, ToolHeader } from "../RebaseTool/parts";
 import { useWipTab } from "../WipPanel/state";
 import { closeCompose, composeVisible } from "./actions";
+import { askBroken, showApply, type Settled } from "./ApplyDialog";
+import { CommitList } from "./CommitList";
+import { Detail } from "./Detail";
+import { FileMatrix } from "./FileMatrix";
+import { History } from "./History";
 import { RequestError } from "./RequestError";
 import {
   SKIP,
-  addCommit,
   blockedReason,
-  dropRow,
-  fromGroups,
+  commitProblems,
+  displayOrder,
+  emptySelection,
+  extendSelection,
+  firstProblem,
+  fromProposal,
+  groupOf,
+  keepOf,
   keyAction,
+  mergeWithNext,
   moveCommit,
-  moveUnit,
+  moveUnits,
+  nextUnsure,
+  notesOf,
   orderOf,
   planOf,
-  progressOf,
+  rangeSelection,
   refreshed,
-  rowsOf,
-  sameArrangement,
-  setMessage,
-  stepUnit,
-  unitDetail,
+  reproposed,
+  selectOne,
+  setTitle,
+  splitPath,
+  stepTarget,
+  summaryOf,
+  toggleSelection,
+  unsureUnits,
   type Arrangement,
-  type Row,
+  type Review,
+  type Selection,
 } from "./model";
 
 type Request =
   | { kind: "idle" }
-  | { kind: "loading"; jobId: string; startedAt: number; atStart: Arrangement }
+  | { kind: "loading"; jobId: string; startedAt: number; instruction: string | null }
   | { kind: "failed"; error: AiErrorView }
-  | { kind: "ready"; proposal: Arrangement }
   | { kind: "done"; enough: boolean };
 
 const EMPTY: Arrangement = { skip: [], commits: [] };
+const NO_REVIEW: Review = { pinned: new Set(), confirmed: new Set() };
+/** How long a notice under the list stays. */
+const NOTICE_MS = 2600;
 
-function toUiLines(unit: ComposeUnit): UiDiffLine[] {
-  return unit.lines.map((line) => ({ kind: line.kind, oldNo: line.oldNo ?? undefined, newNo: line.newNo ?? undefined, segments: [{ text: line.text }] }));
-}
-
-function groupName(group: number): string {
-  return group === SKIP ? t("wip.compose.skip") : t("wip.compose.commit", { number: group + 1 });
-}
-
-function rowLabel(row: Row, arrangement: Arrangement, units: Map<string, ComposeUnit>): string {
-  if (row.kind === "group") {
-    const commit = row.group === SKIP ? null : arrangement.commits[row.group];
-    const count = commit ? commit.units.length : arrangement.skip.length;
-    const title = commit ? commit.title.trim() || t("wip.compose.untitled") : "";
-    return [groupName(row.group), title, t("wip.compose.units", { count })].filter(Boolean).join(", ");
-  }
-  const unit = units.get(row.unit);
-  return unit ? `${unit.path}, ${unitDetail(unit)}, ${t("wip.compose.inGroup", { group: groupName(row.group) })}` : row.unit;
-}
-
-function RowView({ row, arrangement, units, draft }: { row: Row; arrangement: Arrangement; units: Map<string, ComposeUnit>; draft: boolean }) {
-  if (row.kind === "group") {
-    if (row.group === SKIP) {
-      return (
-        <div data-compose-group="skip" className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm font-semibold text-text-muted">
-          <span className="truncate">{t("wip.compose.skip")}</span>
-          <span className="ml-auto shrink-0 font-normal">{t("wip.compose.units", { count: arrangement.skip.length })}</span>
-        </div>
-      );
-    }
-    const commit = arrangement.commits[row.group];
-    if (!commit) return null;
-    const title = commit.title.trim();
-    return (
-      <div data-compose-group={String(row.group)} className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm">
-        <span className="shrink-0 font-semibold text-text">{t("wip.compose.commit", { number: row.group + 1 })}</span>
-        <span data-compose-commit-title="" className={cn("min-w-0 truncate", title ? "text-text" : "text-text-muted")}>
-          {title || t("wip.compose.untitled")}
-        </span>
-        {draft ? <span className="shrink-0 text-xs text-text-muted">{t("ai.suggestion.draft")}</span> : null}
-        <span className="ml-auto shrink-0 text-text-muted">{t("wip.compose.units", { count: commit.units.length })}</span>
-      </div>
-    );
-  }
-  const unit = units.get(row.unit);
-  if (!unit) return null;
-  return (
-    <div data-compose-unit="" data-path={unit.path} data-group={row.group === SKIP ? "skip" : String(row.group)} className="flex min-w-0 flex-1 items-center gap-2 pr-3 pl-8 text-sm">
-      <span className="min-w-0 truncate font-mono text-code text-text">{unit.path}</span>
-      <span className="shrink-0 truncate text-text-muted">{unitDetail(unit)}</span>
-      <span className="ml-auto shrink-0 font-mono text-code text-text-muted">{t("wip.compose.lines", { added: unit.added, removed: unit.removed })}</span>
-    </div>
-  );
-}
-
-function Side({ row, arrangement, units, onMessage }: { row: Row | undefined; arrangement: Arrangement; units: Map<string, ComposeUnit>; onMessage: (index: number, title: string, body: string) => void }) {
-  if (!row) return null;
-  if (row.kind === "group") {
-    if (row.group === SKIP) return <p className="m-0 text-sm text-text-muted">{t("wip.compose.skipHint")}</p>;
-    const commit = arrangement.commits[row.group];
-    if (!commit) return null;
-    return (
-      <div className="flex flex-col gap-3" data-compose-message="">
-        <TextField label={t("wip.compose.titleLabel")} data-compose-title="" value={commit.title} onChange={(event) => onMessage(row.group, event.target.value, commit.body)} />
-        <TextArea label={t("wip.compose.bodyLabel")} rows={6} value={commit.body} onChange={(event) => onMessage(row.group, commit.title, event.target.value)} />
-      </div>
-    );
-  }
-  const unit = units.get(row.unit);
-  if (!unit) return null;
-  return (
-    <div className="flex flex-col gap-2" data-compose-hunk="">
-      <p className="m-0 font-mono text-code break-all text-text">{unit.path}</p>
-      {unit.lines.length > 0 ? <DiffHunk header={unit.header || unitDetail(unit)} lines={toUiLines(unit)} /> : <p className="m-0 text-sm text-text-muted">{unitDetail(unit)}</p>}
-      {unit.linesCut ? <p className="m-0 text-sm text-text-muted">{t("wip.compose.cut", { count: unit.lines.length })}</p> : null}
-    </div>
-  );
-}
+const fileOf = (path: string) => splitPath(path).name;
 
 export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
+  const listId = useId();
   const root = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const focusedOnce = useRef(false);
@@ -155,21 +101,28 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [arrangement, setArrangement] = useState<Arrangement>(EMPTY);
   const arrangementRef = useRef<Arrangement>(EMPTY);
+  const [original, setOriginal] = useState<Arrangement | null>(null);
+  const [notes, setNotes] = useState<ReadonlyMap<string, ComposeNote>>(new Map());
+  const [review, setReviewState] = useState<Review>(NO_REVIEW);
+  const reviewRef = useRef<Review>(NO_REVIEW);
+  const [selection, setSelectionState] = useState<Selection>(emptySelection);
+  const selectionRef = useRef<Selection>(emptySelection);
+  const [view, setView] = useState<"commits" | "files">("commits");
+  const [moved, setMoved] = useState<ReadonlySet<string>>(new Set());
+  const [notice, setNotice] = useState<{ text: string; id: number } | null>(null);
   const dirty = useRef(false);
-  const [draft, setDraft] = useState(false);
-  const [active, setActive] = useState(0);
   const [request, setRequestState] = useState<Request>({ kind: "idle" });
   const requestRef = useRef<Request>({ kind: "idle" });
   const [now, setNow] = useState(() => Date.now());
   const [outdated, setOutdated] = useState(false);
   const [skipHooks, setSkipHooks] = useState(wip.skipHooks);
-  const [applying, setApplying] = useState<string | null>(null);
+  const [instruction, setInstruction] = useState("");
+  const [applying, setApplying] = useState(false);
   const applyingRef = useRef(false);
-  const progressLine = useAppStore((store) => (applying ? store.jobs[applying]?.line : undefined));
 
   const order = useMemo(() => orderOf(state?.units ?? []), [state]);
   const units = useMemo(() => new Map((state?.units ?? []).map((unit) => [unit.id, unit])), [state]);
-  const rows = useMemo(() => rowsOf(arrangement), [arrangement]);
+  const unsure = useMemo(() => new Set(unsureUnits(arrangement, notes, review)), [arrangement, notes, review]);
 
   const setRequest = (next: Request) => {
     requestRef.current = next;
@@ -179,14 +132,44 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     stateRef.current = next;
     setState(next);
   };
-  /** `byUser`: unsaved work from now on, and the "draft" mark ends. */
+  const setReview = (next: Review) => {
+    reviewRef.current = next;
+    setReviewState(next);
+  };
+  const setSelection = (next: Selection) => {
+    selectionRef.current = next;
+    setSelectionState(next);
+  };
   const arrange = (next: Arrangement, byUser: boolean) => {
     arrangementRef.current = next;
     setArrangement(next);
-    if (byUser) {
-      dirty.current = true;
-      setDraft(false);
-    }
+    if (byUser) dirty.current = true;
+  };
+  const say = (text: string) => setNotice({ text, id: Date.now() });
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+  useEffect(() => {
+    if (moved.size === 0) return;
+    const timer = window.setTimeout(() => setMoved(new Set()), 900);
+    return () => window.clearTimeout(timer);
+  }, [moved]);
+
+  // The cursor row stays in view.
+  useEffect(() => {
+    if (!selection.cursor) return;
+    root.current?.querySelector(`[data-cursor]`)?.scrollIntoView?.({ block: "nearest" });
+  }, [selection.cursor, view]);
+
+  /** A unit ID the selection may point at after the units changed. */
+  const keepSelection = (ids: Set<string>) => {
+    const current = selectionRef.current;
+    const kept = current.ids.filter((id) => ids.has(id));
+    if (current.cursor && ids.has(current.cursor)) setSelection({ ...current, ids: kept.length ? kept : [current.cursor] });
+    else setSelection(emptySelection);
   };
 
   const load = async (): Promise<ComposeState | null> => {
@@ -195,7 +178,9 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       show(next);
       setOutdated(false);
       setLoadError(null);
-      arrange(refreshed(arrangementRef.current, next.units), false);
+      const fresh = arrangementRef.current === EMPTY ? { skip: next.units.map((unit) => unit.id), commits: [] } : refreshed(arrangementRef.current, next.units);
+      arrange(fresh, false);
+      keepSelection(new Set(next.units.map((unit) => unit.id)));
       return next;
     } catch (error) {
       setLoadError(describeError(toCoreError(error)).text);
@@ -203,15 +188,16 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     }
   };
 
-  const propose = async () => {
+  const propose = async (text: string | null) => {
     if (requestRef.current.kind === "loading") return;
     if (aiVisibility(queryClient.getQueryData<AiStatus>(qk.aiStatus)).elementsOpenSetup) {
       void openAiSetup();
       return;
     }
+    const keep: ComposeKeep[] = keepOf(arrangementRef.current, reviewRef.current.pinned);
     let preview: AiPreview;
     try {
-      preview = await core.aiPreview({ repoId, feature: "compose", input: { kind: "compose" }, locale: locale() });
+      preview = await core.aiPreview({ repoId, feature: "compose", input: { kind: "compose", instruction: text, keep }, locale: locale() });
     } catch (error) {
       setRequest({ kind: "failed", error: errorView(error) });
       return;
@@ -221,30 +207,37 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       return;
     }
     const jobId = newJobId();
-    setRequest({ kind: "loading", jobId, startedAt: Date.now(), atStart: arrangementRef.current });
+    setRequest({ kind: "loading", jobId, startedAt: Date.now(), instruction: text });
     try {
-      const proposal = await core.composeProposal({ repoId, jobId, locale: locale() });
-      // Read back through a widened type: the await may have changed it.
+      // The units placed meanwhile go along as well: they stay where the user put them.
+      const proposal = await core.composeProposal({ repoId, jobId, locale: locale(), instruction: text, keep: keepOf(arrangementRef.current, reviewRef.current.pinned) });
       const current = requestRef.current as Request;
       // Cancelled or replaced meanwhile: the answer is dropped – there are no half results.
       if (current.kind !== "loading" || current.jobId !== jobId) return;
-      const untouched = sameArrangement(arrangementRef.current, current.atStart);
       show(proposal.state);
-      const proposed = fromGroups(proposal.state.units, proposal.groups);
-      if (untouched) {
-        arrange(proposed, false);
-        dirty.current = false;
-        setDraft(true);
-        setRequest({ kind: "done", enough: proposal.groups.length === 1 });
-      } else {
-        arrange(refreshed(arrangementRef.current, proposal.state.units), false);
-        setRequest({ kind: "ready", proposal: proposed });
+      const ids = new Set(proposal.state.units.map((unit) => unit.id));
+      const pinned = new Set([...reviewRef.current.pinned].filter((id) => ids.has(id)));
+      const nextOrder = orderOf(proposal.state.units);
+      const fresh = fromProposal(proposal.state.units, proposal.groups);
+      const merged = reproposed(fresh, refreshed(arrangementRef.current, proposal.state.units), pinned, nextOrder);
+      arrange(merged, false);
+      dirty.current = pinned.size > 0;
+      setOriginal(fresh);
+      setNotes(notesOf(proposal.notes));
+      setReview({ pinned, confirmed: new Set() });
+      keepSelection(ids);
+      if (!selectionRef.current.cursor) {
+        const first = nextUnsure(merged, notesOf(proposal.notes), { pinned, confirmed: new Set() }, null) ?? displayOrder(merged)[0];
+        if (first) setSelection(selectOne(emptySelection, first));
       }
+      setRequest({ kind: "done", enough: proposal.groups.length === 1 && pinned.size === 0 });
+      if (text !== null) say(pinned.size > 0 ? t("wip.compose.reproposedKept", { count: pinned.size }) : t("wip.compose.reproposed"));
+      if (text !== null) setInstruction("");
     } catch (error) {
       const current = requestRef.current as Request;
       if (current.kind !== "loading" || current.jobId !== jobId) return;
-      const view = errorView(error);
-      setRequest(view.kind === "cancelled" ? { kind: "idle" } : { kind: "failed", error: view });
+      const failed = errorView(error);
+      setRequest(failed.kind === "cancelled" ? { kind: "idle" } : { kind: "failed", error: failed });
     }
   };
 
@@ -256,43 +249,147 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   };
 
   const whatIsSent = async () => {
-    const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "compose", input: { kind: "compose" }, locale: locale() }));
+    const keep = keepOf(arrangementRef.current, reviewRef.current.pinned);
+    const text = instruction.trim() || null;
+    const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "compose", input: { kind: "compose", instruction: text, keep }, locale: locale() }));
     if (result.ok) await showAiPreview(result.value, "look");
   };
 
+  // ---- Selection and moves -------------------------------------------------------------------
+
+  const select = (unit: string, mode: "one" | "toggle" | "range") => {
+    const current = selectionRef.current;
+    const next = mode === "toggle" ? toggleSelection(current, unit) : mode === "range" ? rangeSelection(current, unit, displayOrder(arrangementRef.current)) : selectOne(current, unit);
+    setSelection(next);
+  };
+
+  const groupName = (group: number) => (group === SKIP ? t("wip.compose.skipQuoted") : t("wip.compose.commit", { number: group + 1 }));
+
+  /** Moves the selection (or `ids`) and marks the moved units as placed by the user. */
+  const moveTo = (target: number | "new", ids = selectionRef.current.ids) => {
+    const result = moveUnits(arrangementRef.current, ids, target, order, units);
+    if (result.moved.length === 0) {
+      const locked = ids.map((id) => units.get(id)).find((unit) => unit?.protected);
+      if (locked) say(t("wip.compose.protectedToast", { file: fileOf(locked.path) }));
+      return null;
+    }
+    arrange(result.arrangement, true);
+    setReview({ ...reviewRef.current, pinned: new Set([...reviewRef.current.pinned, ...result.moved]) });
+    setMoved(new Set(result.moved));
+    const cursor = selectionRef.current.cursor;
+    setSelection({ cursor: cursor && result.moved.includes(cursor) ? cursor : result.moved[0]!, ids: result.moved, anchor: result.moved[0]! });
+    const name = groupName(result.target);
+    say(result.moved.length === 1 ? t("wip.compose.movedTo", { group: name }) : t("wip.compose.movedManyTo", { count: result.moved.length, group: name }));
+    return result;
+  };
+
+  const focusSubject = (index: number) => {
+    setView("commits");
+    requestAnimationFrame(() => {
+      const input = root.current?.querySelector<HTMLInputElement>(`[data-compose-subject="${index}"]`);
+      input?.focus();
+      input?.select();
+    });
+  };
+
+  const newCommit = () => {
+    const result = moveTo("new");
+    if (result) focusSubject(result.target);
+  };
+
+  const confirmUnit = (unit: string) => {
+    const next: Review = { ...reviewRef.current, confirmed: new Set([...reviewRef.current.confirmed, unit]) };
+    setReview(next);
+    const left = unsureUnits(arrangementRef.current, notes, next);
+    say(left.length > 0 ? t("wip.compose.confirmed", { count: left.length }) : t("wip.compose.allConfirmed"));
+    const following = nextUnsure(arrangementRef.current, notes, next, unit);
+    if (following) setSelection(selectOne(selectionRef.current, following));
+  };
+
+  const goNextUnsure = () => {
+    const next = nextUnsure(arrangementRef.current, notes, reviewRef.current, selectionRef.current.cursor);
+    if (!next) return;
+    setView("commits");
+    setSelection(selectOne(selectionRef.current, next));
+    listRef.current?.focus({ preventScroll: true });
+  };
+
+  const goto = (unit: string) => {
+    setView("commits");
+    setSelection(selectOne(selectionRef.current, unit));
+    requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
+  };
+
+  const jumpToCommit = (index: number) => {
+    const own = commitProblems(arrangementRef.current, units, index)[0]?.unit ?? arrangementRef.current.commits[index]?.units[0];
+    if (own) goto(own);
+  };
+
+  const restart = () => {
+    if (!original || !state) return;
+    arrange(refreshed(original, state.units), false);
+    dirty.current = false;
+    setReview(NO_REVIEW);
+    say(t("wip.compose.restarted"));
+  };
+
+  // ---- Apply ---------------------------------------------------------------------------------
+
   const apply = async () => {
     const current = stateRef.current;
-    if (!current || applyingRef.current || blockedReason(arrangementRef.current)) return;
-    const commits = planOf(arrangementRef.current);
+    const plan = arrangementRef.current;
+    if (!current || applyingRef.current || blockedReason(plan)) return;
+    const problem = firstProblem(plan, units);
+    if (problem) {
+      const file = fileOf(units.get(problem.need)?.path ?? "");
+      const text =
+        problem.group === SKIP
+          ? t("wip.compose.broken.skipped", { commit: problem.commit + 1, file })
+          : t("wip.compose.broken.later", { commit: problem.commit + 1, file, number: problem.group + 1 });
+      const choice = await askBroken(text);
+      if (choice !== "go") {
+        if (choice === "fix") goto(problem.unit);
+        return;
+      }
+    }
+    const commits = planOf(plan);
     const jobId = newJobId();
     applyingRef.current = true;
-    setApplying(jobId);
-    const result = await runAction(
-      t("wip.compose.applyAction"),
-      () => core.composeApply({ repoId, jobId, plan: { commits, skipHooks }, expectToken: current.token }),
-      { busyKey: `${repoId}:compose`, job: { id: jobId, title: t("wip.compose.title"), repoId } },
+    setApplying(true);
+    useAppStore.getState().startJob({ id: jobId, title: t("wip.compose.title"), repoId });
+    const settled: Promise<Settled<{ steps: { hooks: string[] }[] }>> = core.composeApply({ repoId, jobId, plan: { commits, skipHooks }, expectToken: current.token }).then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error: toCoreError(error) }),
     );
+    const choice = await showApply({ jobId, steps: commits.map((commit) => ({ title: commit.title })), hooks: current.hooks, skipHooks, settled });
+    const outcome = await settled;
+    useAppStore.getState().finishJob(jobId);
     applyingRef.current = false;
-    setApplying(null);
-    if (!result.ok) {
-      if (result.error.code === "stale_state") setOutdated(true);
+    setApplying(false);
+    if (!outcome.ok) {
+      if (outcome.error.code === "stale_state") setOutdated(true);
+      return;
+    }
+    if (choice === "undo") {
+      applyingRef.current = true;
+      const undone = await undo(repoId);
+      dirty.current = true;
+      await load();
+      applyingRef.current = false;
+      if (undone.ok) say(t("wip.compose.run.undone"));
       return;
     }
     dirty.current = false;
-    toast({
-      tone: "success",
-      title: t("wip.compose.created", { count: result.value.commits.length }),
-      description: t("wip.compose.undoHint"),
-      action: { label: t("wip.compose.undo"), onClick: () => void undo(repoId) },
-    });
     closeCompose(tabId);
   };
 
-  // Open: read the changes, then ask for a suggestion right away (the click on "Compose …" is the request).
+  // ---- Effects -------------------------------------------------------------------------------
+
+  // Open: read the changes, then ask for a proposal right away (the click on "Compose …" is the request).
   useEffect(() => {
     let alive = true;
     void load().then((next) => {
-      if (alive && next && next.units.length > 0) void propose();
+      if (alive && next && next.units.length > 0) void propose(null);
     });
     return () => {
       alive = false;
@@ -309,12 +406,29 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   }, [request.kind]);
 
   // Changes from outside (terminal, editor, the Commit Panel): offer to read them again.
+  // Only a real difference counts: the core's state token is compared (our own undo also sends events).
   useEffect(() => {
+    let timer = 0;
+    const check = () => {
+      const shown = stateRef.current?.token;
+      if (!shown || applyingRef.current) return;
+      void core
+        .composeUnits({ repoId })
+        .then((next) => {
+          if (!applyingRef.current && stateRef.current && next.token !== stateRef.current.token) setOutdated(true);
+        })
+        .catch(() => setOutdated(true));
+    };
     const stop = core.on("repo:changed", ({ repoId: changed, what }) => {
       if (changed !== repoId || applyingRef.current) return;
-      if (what.some((part) => part === "worktree" || part === "index" || part === "head")) setOutdated(true);
+      if (!what.some((part) => part === "worktree" || part === "index" || part === "head")) return;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(check, 400);
     });
-    return () => stop();
+    return () => {
+      window.clearTimeout(timer);
+      stop();
+    };
   }, [repoId]);
 
   // Grundregel 1: AI switched off (globally, for compose or for this repository) – the view goes away.
@@ -337,57 +451,67 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
 
   // Keyboard first: once the units are there, the list takes the focus – exactly once (the click
   // on "Compose …" asked for the view), and only while no dialog, menu or overlay is open. The
-  // suggestion that arrives later never moves the focus.
+  // proposal that arrives later never moves the focus.
   useEffect(() => {
     if (focusedOnce.current || !state || state.units.length === 0) return;
     focusedOnce.current = true;
-    if (viewMayTakeFocus()) listRef.current?.focus({ preventScroll: true });
+    if (viewMayTakeFocus()) requestAnimationFrame(() => listRef.current?.focus({ preventScroll: true }));
   }, [state]);
 
-  const activeRow: Row | undefined = rows[active];
-  const activeGroup = activeRow?.group ?? SKIP;
+  // ---- Keys ----------------------------------------------------------------------------------
 
-  const follow = (next: Arrangement, unit: string) => {
-    if (next === arrangementRef.current) return;
-    arrange(next, true);
-    const index = rowsOf(next).findIndex((row) => row.kind === "unit" && row.unit === unit);
-    if (index >= 0) setActive(index);
-  };
-
-  const editMessage = (group: number) => {
-    if (group === SKIP || !arrangementRef.current.commits[group]) return;
-    const header = rowsOf(arrangementRef.current).findIndex((row) => row.kind === "group" && row.group === group);
-    if (header >= 0) setActive(header);
-    requestAnimationFrame(() => root.current?.querySelector<HTMLInputElement>("[data-compose-title]")?.focus());
-  };
-
-  /** Capture phase: Alt+↑/↓ must not reach the list's own reordering. */
-  const onListKey = (event: ReactKeyboardEvent) => {
+  /** Keys of the list (and of the detail buttons): moves, selection, review. */
+  const onKey = (event: ReactKeyboardEvent) => {
+    // Typing in a commit's message is text, not shortcuts (Mod+Enter is handled by the view).
+    if ((event.target as HTMLElement).closest("input, textarea, select, [contenteditable]")) return;
     const action = keyAction(event, isMacShortcuts());
-    if (!action || !activeRow) return;
+    if (!action) return;
     const current = arrangementRef.current;
+    const sel = selectionRef.current;
+    const ids = displayOrder(current);
+    const cursor = sel.cursor;
     switch (action.kind) {
-      case "step":
-        if (activeRow.kind === "unit") follow(stepUnit(current, activeRow.unit, action.delta, order), activeRow.unit);
-        break;
-      case "to":
-        if (activeRow.kind === "unit") follow(moveUnit(current, activeRow.unit, action.group, order), activeRow.unit);
-        break;
-      case "moveCommit": {
-        if (activeGroup === SKIP) break;
-        const next = moveCommit(current, activeGroup, action.delta);
-        if (next === current) break;
-        arrange(next, true);
-        const index =
-          activeRow.kind === "unit"
-            ? rowsOf(next).findIndex((row) => row.kind === "unit" && row.unit === activeRow.unit)
-            : rowsOf(next).findIndex((row) => row.kind === "group" && row.group === activeGroup + action.delta);
-        if (index >= 0) setActive(index);
+      case "step": {
+        const at = cursor ? ids.indexOf(cursor) : -1;
+        const next = ids[Math.max(0, Math.min(ids.length - 1, at + action.delta))] ?? ids[0];
+        if (next) setSelection(selectOne(sel, next));
         break;
       }
-      case "edit":
-        editMessage(activeGroup);
+      case "extend":
+        setSelection(extendSelection(sel, action.delta, ids));
         break;
+      case "shift": {
+        if (!cursor) break;
+        const target = stepTarget(current, cursor, action.delta);
+        if (target !== null) moveTo(target);
+        break;
+      }
+      case "moveCommit": {
+        const group = cursor ? groupOf(current, cursor) : null;
+        if (group === null || group === SKIP) break;
+        const next = moveCommit(current, group, action.delta);
+        if (next !== current) arrange(next, true);
+        break;
+      }
+      case "to":
+        if (action.group !== SKIP && action.group >= current.commits.length) return;
+        moveTo(action.group);
+        break;
+      case "newCommit":
+        newCommit();
+        break;
+      case "nextUnsure":
+        goNextUnsure();
+        break;
+      case "confirm":
+        if (!cursor || !unsure.has(cursor)) return;
+        confirmUnit(cursor);
+        break;
+      case "edit": {
+        const group = cursor ? groupOf(current, cursor) : null;
+        if (group !== null && group !== SKIP) focusSubject(group);
+        break;
+      }
       case "apply":
         void apply();
         break;
@@ -396,20 +520,32 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     event.stopPropagation();
   };
 
-  /** Esc closes, Mod+Enter creates – also from the message fields. */
+  /** Esc closes, Mod+Enter creates – also from the message fields; the list keys from anywhere else in the view that is no field or button. */
   const onRootKey = (event: ReactKeyboardEvent) => {
     if (event.defaultPrevented) return;
+    const target = event.target as HTMLElement;
     if (event.key === "Escape" && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
-      if (hasOpenDialog() || hasOpenMenu() || root.current?.querySelector("[data-dragging]")) return;
+      if (hasOpenDialog() || hasOpenMenu() || root.current?.querySelector("[data-compose-list][data-dragging]")) return;
+      if (target.matches("input[data-compose-subject]")) {
+        event.preventDefault();
+        listRef.current?.focus({ preventScroll: true });
+        return;
+      }
       event.preventDefault();
       closeCompose(tabId);
       return;
     }
-    if (keyAction(event, isMacShortcuts())?.kind === "apply") {
+    const action = keyAction(event, isMacShortcuts());
+    if (action?.kind === "apply") {
       event.preventDefault();
       void apply();
+      return;
     }
+    if (target.closest("input, textarea, select, button, a, [role=switch], [contenteditable]")) return;
+    onKey(event);
   };
+
+  // ---- Render --------------------------------------------------------------------------------
 
   const header = (
     <ToolHeader
@@ -420,7 +556,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     />
   );
   const shell = (body: ReactNode) => (
-    <section ref={root} data-screen="compose" className="@container flex h-full min-w-0 flex-col bg-surface" onKeyDown={onRootKey}>
+    <section ref={root} data-screen="compose" className="@container relative flex h-full min-w-0 flex-col bg-bg" onKeyDown={onRootKey}>
       {header}
       {body}
     </section>
@@ -430,72 +566,69 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   if (!state) return shell(<SkeletonRows />);
   if (state.units.length === 0) return shell(<EmptyState title={t("wip.compose.empty")} />);
 
-  const loading = request.kind === "loading" ? loadingView(now - request.startedAt, aiStatus?.local ?? false, t("wip.compose.proposing")) : null;
-  const progress = applying ? progressOf(progressLine) : null;
-  const statusText = progress
-    ? t("wip.compose.progress", progress)
-    : loading
-      ? [loading.text, loading.slow].filter(Boolean).join(" – ")
-      : request.kind === "done" && request.enough
-        ? t("wip.compose.enough")
-        : draft
-          ? t("wip.compose.draftHint")
-          : "";
+  const loading = request.kind === "loading" ? loadingView(now - request.startedAt, aiStatus?.local ?? false, request.instruction ? t("wip.compose.proposingFor", { text: request.instruction }) : t("wip.compose.proposing")) : null;
+  const statusText = loading ? [loading.text, loading.slow].filter(Boolean).join(" – ") : request.kind === "done" && request.enough ? t("wip.compose.enough") : "";
+  const summary = summaryOf(arrangement);
   const blocked = blockedReason(arrangement);
   const blockedText = !blocked ? null : blocked.reason === "nothing" ? t("wip.compose.nothingPlanned") : t("wip.compose.titleMissing", { number: blocked.commit + 1 });
+  const broken = firstProblem(arrangement, units) !== null;
+  const files = new Set(state.units.map((unit) => unit.path)).size;
+  const unsureCount = unsure.size;
   const planned = planOf(arrangement).length;
-  const keys: [string, string][] = [
-    ["Alt+↑ Alt+↓", t("wip.compose.keys.move")],
-    ["1–9 0", t("wip.compose.keys.number")],
-    ["Mod+↑ Mod+↓", t("wip.compose.keys.order")],
-    ["F2", t("wip.compose.keys.edit")],
-    ["Mod+Enter", t("wip.compose.keys.apply")],
-  ];
+  const mac = isMacShortcuts();
 
   return shell(
     <>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border px-3 py-1.5">
-        {request.kind === "loading" ? (
-          <Button size="sm" variant="secondary" data-compose-cancel="" onClick={cancelRequest}>
-            {t("ai.state.cancel")}
-          </Button>
-        ) : (
-          <Button size="sm" variant="secondary" data-compose-propose="" onClick={() => void propose()}>
-            {t("wip.compose.propose")}
-          </Button>
-        )}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
+        <span className="text-sm text-text-muted" data-compose-meta="">
+          {t("wip.compose.meta", { count: state.units.length, files })}
+          {original ? ` · ${t("wip.compose.metaProposed")}` : ""}
+        </span>
+        <span className="flex-1" />
         <Button size="sm" variant="ghost" data-compose-what-is-sent="" onClick={() => void whatIsSent()}>
           {t("wip.compose.whatIsSent")}
         </Button>
-        <p className="m-0 min-w-0 flex-1 truncate text-sm text-text-muted" aria-live="polite" data-compose-status="">
-          {statusText}
-        </p>
-      </div>
-      {request.kind === "failed" ? <RequestError error={request.error} provider={aiStatus?.provider ?? null} onAgain={() => void propose()} onShowSent={() => void whatIsSent()} /> : null}
-      {request.kind === "ready" ? (
-        <Banner
-          tone="info"
-          title={t("ai.suggestion.ready")}
-          actions={
-            <>
-              <Button
-                size="sm"
-                onClick={() => {
-                  arrange(request.proposal, false);
-                  dirty.current = true;
-                  setDraft(true);
-                  setRequest({ kind: "done", enough: request.proposal.commits.length === 1 });
-                }}
-              >
-                {t("wip.compose.readyApply")}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => setRequest({ kind: "idle" })}>
-                {t("ai.suggestion.discard")}
-              </Button>
-            </>
-          }
+        {original ? (
+          <Button
+            size="sm"
+            variant="secondary"
+            data-compose-review=""
+            disabled={unsureCount === 0}
+            onClick={goNextUnsure}
+            className={unsureCount > 0 ? "border-transparent bg-warning-surface text-warning" : "disabled:bg-success-surface! disabled:text-success!"}
+          >
+            {unsureCount > 0 ? t("wip.compose.review", { count: unsureCount }) : t("wip.compose.reviewed")}
+          </Button>
+        ) : null}
+        <SegmentedControl
+          label={t("wip.compose.viewLabel")}
+          value={view}
+          onValueChange={setView}
+          options={[
+            { value: "commits", label: t("wip.compose.byCommits") },
+            { value: "files", label: t("wip.compose.byFiles") },
+          ]}
         />
+        {original ? (
+          <Button size="sm" variant="secondary" data-compose-restart="" onClick={restart}>
+            {t("wip.compose.restart")}
+          </Button>
+        ) : null}
+      </div>
+      <History arrangement={arrangement} units={units} branch={state.branch} headSubject={state.headSubject} onJump={jumpToCommit} />
+      {request.kind === "loading" || statusText ? (
+        <div className="flex items-center gap-3 border-b border-border px-4 py-1.5">
+          <p className="m-0 min-w-0 flex-1 truncate text-sm text-text-muted" aria-live="polite" data-compose-status="">
+            {statusText}
+          </p>
+          {request.kind === "loading" ? (
+            <Button size="sm" variant="secondary" data-compose-cancel="" onClick={cancelRequest}>
+              {t("ai.state.cancel")}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
+      {request.kind === "failed" ? <RequestError error={request.error} provider={aiStatus?.provider ?? null} onAgain={() => void propose(null)} onShowSent={() => void whatIsSent()} /> : null}
       {state.signing ? <Banner tone="info" title={t("wip.compose.signing", { count: Math.max(planned, 1) })} /> : null}
       {outdated ? (
         <Banner
@@ -510,51 +643,99 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           {t("wip.compose.outdatedHint")}
         </Banner>
       ) : null}
-      <div className="flex min-h-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col border-r border-border" onKeyDownCapture={onListKey}>
-          <ReorderList
-            count={rows.length}
-            getKey={(index) => rows[index]?.key ?? String(index)}
-            active={active}
-            onActiveChange={setActive}
-            ariaLabel={t("wip.compose.list")}
-            listRef={listRef}
-            reorderable
-            onMove={(from, to) => {
-              const row = rows[from];
-              if (row?.kind === "unit") follow(dropRow(arrangementRef.current, rows, from, to, order), row.unit);
-            }}
-            renderRow={(index) => <RowView row={rows[index]!} arrangement={arrangement} units={units} draft={draft} />}
-            rowLabel={(index) => rowLabel(rows[index]!, arrangement, units)}
-            dragLabel={(index) => {
-              const row = rows[index];
-              return row?.kind === "unit" ? (units.get(row.unit)?.path ?? "") : "";
-            }}
-          />
+      <div className="relative flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-[1.05] flex-col border-r border-border">
+          {view === "commits" ? (
+            <CommitList
+              listId={listId}
+              listRef={listRef}
+              arrangement={arrangement}
+              units={units}
+              notes={notes}
+              review={review}
+              unsure={unsure}
+              selection={selection}
+              moved={moved}
+              onSelect={select}
+              onDrop={(ids, group) => {
+                setSelection({ cursor: ids[0] ?? null, ids, anchor: ids[0] ?? null });
+                moveTo(group, ids);
+              }}
+              onTitle={(index, title) => arrange(setTitle(arrangementRef.current, index, title), true)}
+              onMoveCommit={(index, delta) => arrange(moveCommit(arrangementRef.current, index, delta), true)}
+              onMerge={(index) => {
+                arrange(mergeWithNext(arrangementRef.current, index, order), true);
+                say(t("wip.compose.mergedToast", { first: index + 1, second: index + 2 }));
+              }}
+              onGoto={goto}
+              onKeyDown={onKey}
+            />
+          ) : (
+            <FileMatrix arrangement={arrangement} units={state.units} onGoto={goto} />
+          )}
         </div>
-        <aside className="flex w-2/5 min-w-0 flex-col gap-2 overflow-auto p-3">
-          <Side row={activeRow} arrangement={arrangement} units={units} onMessage={(index, title, body) => arrange(setMessage(arrangementRef.current, index, title, body), true)} />
+        <aside className="min-w-0 flex-1 overflow-auto" aria-live="polite" onKeyDown={onRootKeyFromDetail(onKey)}>
+          <Detail arrangement={arrangement} units={units} notes={notes} review={review} unsure={unsure} selection={selection} onMove={(target) => (target === "new" ? newCommit() : moveTo(target))} onConfirm={confirmUnit} />
         </aside>
-      </div>
-      <ToolFooter info={t("wip.compose.undoHint")} keys={keys}>
-        <Checkbox label={t("wip.form.skipHooks")} checked={skipHooks} onCheckedChange={setSkipHooks} />
-        <Button variant="secondary" data-compose-add="" onClick={() => arrange(addCommit(arrangementRef.current), true)}>
-          {t("wip.compose.addCommit")}
-        </Button>
-        {applying ? (
-          <Button variant="ghost" onClick={() => void core.jobCancel({ jobId: applying })}>
-            {t("ai.state.cancel")}
-          </Button>
+        {notice ? (
+          <div key={notice.id} role="status" data-compose-notice="" className="pointer-events-none absolute bottom-3 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md bg-text px-3.5 py-2 text-sm text-bg shadow-pop">
+            {notice.text}
+          </div>
         ) : null}
-        <StartButton
-          action="compose-apply"
-          label={t("wip.compose.apply", { count: Math.max(planned, 1) })}
-          blocked={blockedText}
-          loading={Boolean(applying)}
-          icon={<GitCommitHorizontal className="size-icon" aria-hidden />}
-          onClick={() => void apply()}
-        />
-      </ToolFooter>
+      </div>
+      <footer className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-t border-border bg-surface px-4 py-3">
+        <form
+          className="flex min-w-0 grow basis-96 items-center gap-2"
+          autoComplete="off"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const text = instruction.trim();
+            if (!text) return;
+            void propose(text);
+          }}
+        >
+          <input
+            data-compose-instruction=""
+            value={instruction}
+            maxLength={300}
+            onChange={(event) => setInstruction(event.target.value)}
+            aria-label={t("wip.compose.instruction")}
+            placeholder={t("wip.compose.instructionPlaceholder")}
+            className="h-control-md min-w-0 flex-1 rounded-md border border-border-input bg-surface-raised px-2.5 text-sm text-text outline-none placeholder:text-text-disabled focus-visible:border-accent"
+          />
+          <Button type="submit" variant="secondary" data-compose-repropose="" disabled={request.kind === "loading"}>
+            {t("wip.compose.repropose")}
+          </Button>
+        </form>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+          <span className="text-sm text-text-muted" data-compose-summary="">
+            {t("wip.compose.summary", { count: summary.commits, units: summary.units })} · {t("wip.compose.staying", { count: summary.skipped })}
+            {summary.untitled > 0 ? <span className="text-danger"> · {t("wip.compose.untitledCount", { count: summary.untitled })}</span> : broken ? <span className="text-warning"> · {t("wip.compose.checkOrder")}</span> : null}
+          </span>
+          <Checkbox label={t("wip.form.skipHooks")} checked={skipHooks} onCheckedChange={setSkipHooks} />
+          <Button
+            variant="primary"
+            data-action="compose-apply"
+            data-blocked={blockedText ? "" : undefined}
+            disabled={Boolean(blockedText) || applying}
+            title={blockedText ?? undefined}
+            loading={applying}
+            onClick={() => void apply()}
+          >
+            {t("wip.compose.apply", { count: Math.max(planned, 1) })}
+            <Kbd className="ml-1 opacity-75">{mac ? "⌘ ↵" : t("wip.compose.applyKeys")}</Kbd>
+          </Button>
+        </div>
+      </footer>
     </>,
   );
+}
+
+/** Keys pressed on a move button in the detail act like in the list – except Enter and space, which press the button. */
+function onRootKeyFromDetail(onKey: (event: ReactKeyboardEvent) => void) {
+  return (event: ReactKeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") return;
+    if ((event.target as HTMLElement).closest("input, textarea, select")) return;
+    onKey(event);
+  };
 }

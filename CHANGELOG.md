@@ -72,14 +72,25 @@ All notable changes to Forkyard are listed here. The format follows
   commits mention on GitHub, GitLab and Gitea/Forgejo become “Closes #n”; the AI cannot add any
   others. A description you wrote is never replaced unasked, the title only while it is still the
   automatic suggestion, and Ctrl+Z takes an insertion back. “What is sent?” shows the exact text first.
-- Compose commits: “Compose …” in the Commit Panel (or “Compose commits …” in the command palette)
-  opens a view in the centre that splits all local changes – staged, unstaged and new files – into
-  several commits. The AI provider suggests the grouping and the messages; every hunk can be moved by
-  keyboard (Alt+↑/↓, 1–9, 0 for “Don't commit”, Ctrl+↑/↓ to reorder commits, F2 for the message) or by
-  dragging. New, deleted, renamed, binary, LFS and submodule files move as a whole. “Create n commits”
-  runs hooks and signing for every commit, never touches the working directory and creates one undo
-  step for all commits; a failing hook, a hook that edits files or Cancel takes every commit of the run
-  back. Changes that are not assigned stay as they are.
+- Compose commits: “Compose …” (small, next to the commit button of the Commit Panel, or “Compose
+  commits …” in the command palette) opens a view in the centre that splits all local changes – staged,
+  unstaged and new files – into several commits. A strip on top shows the history as it will look
+  afterwards. The AI provider suggests the grouping and the messages and gives a short reason for every
+  change; where it was unsure, “Review n unsure” (or U) goes there and Enter or “Looks right” confirms.
+  Each row shows the first changed lines of its hunk. Forkyard checks without the AI whether a commit
+  needs something that only comes later or is not committed at all (a new file it imports, a new
+  function it calls, the source file of a changed test) and says so on the change, on the commit and in
+  the history strip; creating such commits asks first (“Go to the problem” / “Create anyway”). Changes
+  can be selected with Ctrl and Shift (also Shift+↑/↓) and moved together by keyboard (1–9, 0 for
+  “Don't commit”, Alt+↑/↓), by dragging, or into a new commit with N; Ctrl+↑/↓ reorders commits and the
+  message is edited right in the commit's header with a 72-character counter. “By files” shows which
+  file goes into which commit. An instruction for the AI (“Tests in a separate commit”) asks for a new
+  proposal that leaves every change you moved where it is. Secret and excluded files such as `.env.local`
+  stay locked in “Don't commit”. New, deleted, renamed, binary, LFS and submodule files move as a whole.
+  “Create n commits” shows each commit and its hooks while it runs, never touches the working directory
+  and creates one undo step for all commits (“Undo” right in the dialog); a failing hook, a hook that
+  edits files or Cancel takes every commit of the run back. Changes that are not assigned stay as they
+  are.
 - Git in plain language: with AI on, type `?` in the command palette – or a sentence that matches
   nothing – and press Enter. Forkyard turns it into a plan of its own commands (create, check out,
   rename or delete branches, reset, rebase, cherry-pick, revert, merge, stash, tag, change a commit
