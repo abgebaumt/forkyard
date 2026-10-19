@@ -387,3 +387,39 @@ scenario("window resized to a small height and back", "edge", async (t) => {
     repo.cleanup();
   }
 });
+
+scenario("the version at the right end of the status bar fits and keyboard focus on it moves nothing", "main", async (t) => {
+  const expected = `v${JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version}`;
+  const repo = makeRichRepo();
+  try {
+    const app = await start(t, repo);
+    const version = await app.waitFor(
+      () => app.exec((statusSelector) => {
+        const bar = document.querySelector(statusSelector);
+        const button = bar?.querySelector('[data-status="version"]');
+        if (!bar || !button) return null;
+        const barBox = bar.getBoundingClientRect();
+        const box = button.getBoundingClientRect();
+        const buttons = [...bar.querySelectorAll("button")];
+        return {
+          text: button.textContent,
+          inside: box.top >= barBox.top && box.bottom <= barBox.bottom && box.right <= barBox.right,
+          last: buttons[buttons.length - 1] === button,
+        };
+      }, STATUS_BAR),
+      10_000,
+      { message: "version in the status bar" },
+    );
+    if (version.text !== expected) throw new AssertionError(`version shows ${version.text}, package.json says ${expected}`);
+    if (!version.inside) throw new AssertionError("version button sticks out of the status bar");
+    if (!version.last) throw new AssertionError("version is not the last entry on the right");
+    await app.exec((statusSelector) => document.querySelector(`${statusSelector} [data-status="version"]`).focus(), STATUS_BAR);
+    await frames(app);
+    await assertPinned(app, "focus on the version");
+    t.step("version");
+    await t.shot("status-version");
+    await t.noConsoleErrors(app);
+  } finally {
+    repo.cleanup();
+  }
+});

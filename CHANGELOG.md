@@ -185,6 +185,8 @@ All notable changes to Forkyard are listed here. The format follows
   in its own file in the data folder, per repository and model (the newest 200,000 commits), grows after
   fetches and commits once the search was used, follows rewritten history and can be deleted in
   Settings › AI. What goes out passes the same exclusions, redaction and confirmations as every AI request.
+- **Version in the status bar**: the running version at the right end of the status bar; a click opens
+  the changelog on GitHub.
 
 ### Changed
 

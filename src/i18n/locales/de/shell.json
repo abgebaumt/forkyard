@@ -98,7 +98,9 @@
     "zoomLabel": "Zoom {{zoom}} %, zurücksetzen",
     "zoomLabelLimited": "Zoom {{zoom}} %, in diesem Fenster wirken {{applied}} %, zurücksetzen",
     "activityHint": "Protokoll der ausgeführten Git-Befehle",
-    "activity": "Protokoll"
+    "activity": "Protokoll",
+    "versionHint": "Forkyard {{version}} – Änderungsprotokoll auf GitHub öffnen",
+    "versionLabel": "Forkyard-Version {{version}}, Änderungsprotokoll"
   },
   "tabMenu": {
     "close": "Tab schließen",

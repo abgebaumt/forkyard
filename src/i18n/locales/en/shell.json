@@ -98,7 +98,9 @@
     "zoomLabel": "Zoom {{zoom}}%, reset",
     "zoomLabelLimited": "Zoom {{zoom}}%, this window applies {{applied}}%, reset",
     "activityHint": "Log of the Git commands that were run",
-    "activity": "Log"
+    "activity": "Log",
+    "versionHint": "Forkyard {{version}} – open the changelog on GitHub",
+    "versionLabel": "Forkyard version {{version}}, changelog"
   },
   "tabMenu": {
     "close": "Close tab",

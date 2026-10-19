@@ -10,7 +10,8 @@ import { useEffectiveZoom } from "../zoom";
 import { operationNames } from "../actions/merge";
 import { describeError } from "../errors";
 import { formatDateTime, formatRelative, shortSha } from "../format";
-import { qk, queryClient, useAgents, useSettings, useStatus } from "../queries";
+import { qk, queryClient, useAgents, useAppInfo, useSettings, useStatus } from "../queries";
+import { CHANGELOG_URL, versionLabel } from "../appVersion";
 import { runAction } from "../run";
 import { useAppStore, type Job } from "../store";
 import { useUpdateInfo, visibleUpdate } from "../updates";
@@ -156,6 +157,25 @@ function UpdateHint() {
   );
 }
 
+/** "v1.2.0" at the right end – opens the changelog on GitHub. */
+function AppVersion() {
+  const { data: info } = useAppInfo();
+  if (!info) return null;
+  return (
+    <Tip label={t("shell.status.versionHint", { version: info.version })}>
+      <button
+        type="button"
+        data-status="version"
+        aria-label={t("shell.status.versionLabel", { version: info.version })}
+        onClick={() => void openInBrowser(CHANGELOG_URL, t("shell.status.versionHint", { version: info.version }))}
+        className="shrink-0 rounded-sm px-1 tabular-nums hover:bg-surface-raised hover:text-text"
+      >
+        {versionLabel(info.version)}
+      </button>
+    </Tip>
+  );
+}
+
 /** Status bar: branch or detached HEAD, ahead/behind, running operation, jobs with progress and cancel, last fetch; on the right zoom and activity log. */
 /** “n agents running” – opens the cockpit of the repository in the active tab. */
 function AgentsRunning({ repoId }: { repoId: Id }) {
@@ -252,6 +272,7 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
               {t("shell.status.activity")}
             </button>
           </Tip>
+          <AppVersion />
         </>
       }
     />
