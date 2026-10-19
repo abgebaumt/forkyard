@@ -458,6 +458,7 @@ pub fn run() {
         .on_window_event(on_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            commands::app_keyring_available,
             commands::app_recheck_git,
             commands::update_check,
             commands::update_dismiss,

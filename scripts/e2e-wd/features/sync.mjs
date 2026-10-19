@@ -776,7 +776,7 @@ scenario("HTTPS: Anmeldung beim Fetch, im Schlüsselbund merken, nächster Fetch
   const env = await httpsSetup();
   try {
     const { app, ui } = await httpsApp(t, env);
-    assertEqual((await app.invoke("app_info")).keyringAvailable, true, "the (private) system keychain is available");
+    assertEqual(await app.invoke("app_keyring_available"), true, "the (private) system keychain is available");
     assertEqual(await app.invoke("credentials_list"), [], "nothing remembered at the start");
     await open(app, ui, env.repo.path);
     const first = commitOnServer(env.bare, "Nachtrag auf dem Server");

@@ -29,6 +29,11 @@ pub async fn app_info(core: State<'_, Core>) -> R<AppInfo> {
 }
 
 #[tauri::command]
+pub async fn app_keyring_available(core: State<'_, Core>) -> R<bool> {
+    c::app::app_keyring_available(&core).await
+}
+
+#[tauri::command]
 pub async fn app_recheck_git(core: State<'_, Core>) -> R<AppInfo> {
     c::app::app_recheck_git(&core).await
 }

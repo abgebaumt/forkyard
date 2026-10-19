@@ -354,7 +354,7 @@ scenario("connect: rejected token shows the reason, stores nothing and clears th
 
 scenario("connect: without a keychain the dialog warns and nothing is stored", "edge", async (t) => {
   await withAzure(t, { connect: false, open: false, secrets: false }, async ({ app, mock }) => {
-    assertEqual((await app.invoke("app_info")).keyringAvailable, false, "the app sees no keychain");
+    assertEqual(await app.invoke("app_keyring_available"), false, "the app sees no keychain");
     await openAzureConnect(app);
     const warning = await app.waitFor(`${CONNECT_FORM} [data-state="no-keyring"]`, 10_000, { message: "no-keyring banner in the dialog" });
     assertMatch(await warning.text(), /keychain/i, "banner explains the keychain");

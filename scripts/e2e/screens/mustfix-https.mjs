@@ -75,8 +75,7 @@ try {
   // it is checked separately in mustfix-sync.mjs.
   await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
 
-  const info = await app.invoke("app_info");
-  const keyring = info.keyringAvailable === true;
+  const keyring = (await app.invoke("app_keyring_available")) === true;
   check(keyring, "the system keychain is available (otherwise \"remember\" cannot be checked)");
 
   const form = page.locator('[data-screen="clone"]');

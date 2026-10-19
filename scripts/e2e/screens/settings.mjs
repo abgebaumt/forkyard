@@ -770,7 +770,7 @@ try {
 
     await page.evaluate(() => {
       const client = window.__gc.queryClient;
-      client.setQueryData(["app", "info"], { ...client.getQueryData(["app", "info"]), keyringAvailable: false });
+      client.setQueryData(["app", "keyring"], false);
     });
     await dialog().locator('[data-state="no-keyring"]').waitFor();
     check(/No keychain available/.test(await dialog().locator('[data-state="no-keyring"]').innerText()), "hint without a keychain");

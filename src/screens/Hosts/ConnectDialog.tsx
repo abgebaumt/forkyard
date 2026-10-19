@@ -24,7 +24,7 @@ import {
 } from "../../app/actions/hosts";
 import { HOST_KINDS, hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "../../app/actions/hostTypes";
 import { showDialog } from "../../app/dialogs";
-import { useAppInfo } from "../../app/queries";
+import { useKeyringAvailable } from "../../app/queries";
 import { useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
@@ -90,7 +90,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
   const [failure, setFailure] = useState<HostErrorText | null>(null);
   const form = useRef<HTMLFormElement>(null);
   const busy = useBusy(hostBusyKeys.connect);
-  const keyring = useAppInfo().data?.keyringAvailable;
+  const keyring = useKeyringAvailable();
   const labels = instanceLabels[kind];
   const inputs = connectInputs(kind, own, replace !== null);
 

@@ -456,6 +456,12 @@ impl Core {
         available
     }
 
+    /// Tests: whether the keychain has been probed in this run.
+    #[cfg(any(test, feature = "testkit"))]
+    pub fn keyring_probed(&self) -> bool {
+        self.keyring.get().is_some()
+    }
+
     // --- State for other modules ------------------------------------------
 
     /// Shared state of a module (e.g. file watching, open prompts), created with `Default`

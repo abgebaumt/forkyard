@@ -207,6 +207,7 @@ All notable changes to Forkyard are listed here. The format follows
   set yourself is kept), and the GPU stays asleep.
 - Setting up file watching for a very large working directory (hundreds of thousands of folders, e.g.
   node_modules) no longer holds up the app's other work while it walks the tree.
+- The start no longer waits for the system keychain; only the screens that store secrets ask for it.
 
 ## [1.1.0] – 2026-10-16
 

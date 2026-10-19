@@ -175,6 +175,8 @@ type R = { repoId: Id };
 export interface CoreCommands {
   // --- App -----------------------------------------------------------------
   appInfo(): Promise<AppInfo>;
+  /** Whether the operating system's keychain is reachable (checked once per run; not part of `appInfo`, so the start never waits for it). */
+  appKeyringAvailable(): Promise<boolean>;
   /** Looks for Git again ("Check again") and returns the new state; a Git installed later counts without a restart. */
   appRecheckGit(): Promise<AppInfo>;
   /**

@@ -414,7 +414,7 @@ try {
     // Without a keychain no token can be stored: the section and the dialog say so.
     await page.evaluate(() => {
       const client = window.__gc.queryClient;
-      client.setQueryData(["app", "info"], { ...client.getQueryData(["app", "info"]), keyringAvailable: false });
+      client.setQueryData(["app", "keyring"], false);
     });
     await eventually(() => hosts.locator('[data-state="no-keyring"]').count(), 1, "notice in the section: no keychain");
     await hosts.getByRole("button", { name: "Connect account …" }).first().click();
@@ -424,7 +424,7 @@ try {
     await page.keyboard.press("Escape");
     await page.evaluate(() => {
       const client = window.__gc.queryClient;
-      client.setQueryData(["app", "info"], { ...client.getQueryData(["app", "info"]), keyringAvailable: true });
+      client.setQueryData(["app", "keyring"], true);
     });
   });
 

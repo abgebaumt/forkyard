@@ -135,8 +135,6 @@ export interface AppInfo {
   /** Minimum version from the architecture (2.39). */
   gitMinVersion: string;
   dataDir: string;
-  /** Whether the operating system's keychain is reachable. */
-  keyringAvailable: boolean;
 }
 
 /** A stable Forkyard release on GitHub. */

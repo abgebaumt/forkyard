@@ -47,7 +47,6 @@ pub struct AppInfo {
     pub git_path: Option<String>,
     pub git_min_version: String,
     pub data_dir: String,
-    pub keyring_available: bool,
 }
 
 /// A stable Forkyard release on GitHub (`update_check`).
