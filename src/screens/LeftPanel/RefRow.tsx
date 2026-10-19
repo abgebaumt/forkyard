@@ -1,6 +1,9 @@
 import { memo, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Archive, Cloud, CloudOff, Eye, EyeOff, Focus, Folder, FolderGit2, FolderOpen, GitBranch, GitCommitHorizontal, Loader2, Tag } from "lucide-react";
 import { normalizeRefName } from "../../app/actions/branches";
+import { outgoing, refPublishState } from "../../app/publishState";
+
+import type { Ref } from "../../core";
 import { formatDateTime, formatRelative, shortSha } from "../../app/format";
 import { IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
@@ -69,6 +72,31 @@ export function syncText(ahead: number, behind: number, upstream: string | null)
   return upstream ? t("sidebar.sync.against", { text, upstream }) : text;
 }
 
+/**
+ * Counters and their tooltip for a row. A local branch that is not on its remote (no upstream, gone,
+ * or an upstream of another name a plain push doesn't reach) shows its unpublished commits as
+ * outgoing – with the arrow even at 0, the branch itself is still to push. "Behind" an upstream of
+ * another name still counts.
+ */
+export function rowSync(ref: Ref): { ahead: number; behind: number; outgoing: boolean; tip: string } {
+  const state = ref.kind === "local" ? refPublishState(ref) : null;
+  const pending = state ? outgoing(state) : null;
+  if (state && pending?.isNew) {
+    const behind = state.kind === "elsewhere" ? state.behind : 0;
+    const parts = [
+      pending.count ? t("sidebar.sync.unpublished", { count: pending.count }) : t("sidebar.sync.unpublishedNone"),
+      state.kind === "elsewhere" ? t("sidebar.sync.followsOther", { upstream: state.upstream }) : null,
+      behind ? t("sidebar.sync.behind", { count: behind }) : null,
+    ].filter(Boolean);
+    return { ahead: pending.count, behind, outgoing: true, tip: parts.join(", ") };
+  }
+  if (state?.kind === "elsewhere") {
+    const behind = state.behind ? `, ${t("sidebar.sync.behind", { count: state.behind })}` : "";
+    return { ahead: 0, behind: state.behind, outgoing: false, tip: `${t("sidebar.sync.followsOther", { upstream: state.upstream })}${behind}` };
+  }
+  return { ahead: ref.ahead, behind: ref.behind, outgoing: false, tip: syncText(ref.ahead, ref.behind, ref.upstream) };
+}
+
 const kindText: Record<TreeNode["kind"], string> = {
   branch: t("sidebar.kind.branch"),
   remote_branch: t("sidebar.kind.remoteBranch"),
@@ -85,7 +113,13 @@ function tipLines(node: TreeNode): string[] {
   if (node.kind === "branch" && ref) {
     return [
       ref.name,
-      ref.upstreamGone ? t("sidebar.tip.upstreamGone", { upstream: ref.upstream ?? "" }) : ref.upstream ? t("sidebar.tip.upstream", { upstream: ref.upstream }) : t("sidebar.tip.noUpstream"),
+      ref.upstreamGone
+        ? t("sidebar.tip.upstreamGone", { upstream: ref.upstream ?? "" })
+        : ref.upstream
+          ? ref.pushesToUpstream
+            ? t("sidebar.tip.upstream", { upstream: ref.upstream })
+            : t("sidebar.tip.followsOther", { upstream: ref.upstream })
+          : t("sidebar.tip.noUpstream"),
       ...(ref.worktreePath ? [t("sidebar.tip.inWorktree", { path: ref.worktreePath })] : []),
     ];
   }
@@ -118,7 +152,9 @@ function describe(node: TreeNode, hidden: Tri, solo: Tri): string {
   if (ref?.isHead) parts.push(t("sidebar.describe.checkedOut"));
   if (head?.kind === "detached") parts.push(t("sidebar.describe.detached"));
   if (head?.kind === "unborn") parts.push(t("sidebar.describe.unborn"));
-  if (ref && (ref.ahead || ref.behind)) parts.push(syncText(ref.ahead, ref.behind, ref.upstream));
+  const sync = ref && ref.kind === "local" ? rowSync(ref) : null;
+  if (sync && (sync.outgoing || refPublishState(ref!).kind === "elsewhere")) parts.push(sync.tip);
+  else if (ref && (ref.ahead || ref.behind)) parts.push(syncText(ref.ahead, ref.behind, ref.upstream));
   if (ref?.upstreamGone) parts.push(t("sidebar.describe.upstreamMissing"));
   if (node.kind === "branch" && ref?.worktreePath) parts.push(t("sidebar.describe.inWorktree"));
   if (ref?.isAnnotated && ref.annotation) parts.push(ref.annotation.trim());
@@ -235,6 +271,7 @@ function InlineRename({ node, api, onError }: { node: TreeNode; api: RowApi; onE
 function RefRowInner({ row, query, selected, focusable, hidden, solo, dimmed, canToggle, dragging, dropTarget, busy, editing, gutter, api }: RefRowProps) {
   const { node, depth, expanded, posInSet, setSize } = row;
   const { ref, stash, head } = node;
+  const sync = ref ? rowSync(ref) : undefined;
   const [renameError, setRenameError] = useState<{ reason: string; id: string } | null>(null);
 
   useEffect(() => {
@@ -355,9 +392,11 @@ function RefRowInner({ row, query, selected, focusable, hidden, solo, dimmed, ca
       focusable={focusable}
       expanded={expanded}
       arrowSpace={gutter}
-      ahead={ref?.ahead}
-      behind={ref?.behind}
-      syncTip={ref ? syncText(ref.ahead, ref.behind, ref.upstream) : undefined}
+      ahead={sync?.ahead}
+      behind={sync?.behind}
+      outgoing={sync?.outgoing}
+      syncTip={sync?.tip}
+
       hidden={dimmed}
       solo={solo === "all"}
       dragging={dragging}

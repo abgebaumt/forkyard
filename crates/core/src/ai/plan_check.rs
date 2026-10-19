@@ -509,8 +509,17 @@ impl<'a> Sim<'a> {
                 let given = a.opt("remote");
                 let (remote, remote_branch) = match &given {
                     Some(name) => (self.remote(name)?, branch.clone()),
-                    None => self.upstream_of(&branch).await?,
+                    None => {
+                        let (remote, remote_branch) = self.upstream_of(&branch).await?;
+                        // Same rule as the push itself: not onto an upstream of another name.
+                        let merge = format!("refs/heads/{remote_branch}");
+                        if !sync::pushes_to_upstream(self.core, self.repo_id, &branch, &merge).await? {
+                            return Err(sync::upstream_has_another_name(&branch, &remote, &merge));
+                        }
+                        (remote, remote_branch)
+                    }
                 };
+
                 let force = a.flag("force");
                 let expected = if force {
                     // Force only with lease: the state of the remote branch the user sees now.

@@ -1,5 +1,6 @@
 /** Pure helpers of the push dialog: which refs can come along, what goes to the core, result lines. No React, no core calls. */
-import type { PushExtra, PushRefStatus, PushResult, RefsSnapshot } from "../../core";
+import type { PushExtra, PushRefStatus, PushResult, Ref, RefsSnapshot } from "../../core";
+import { refPublishState } from "../../app/publishState";
 import { t } from "../../i18n";
 
 export interface PushCandidate {
@@ -18,10 +19,18 @@ export function pushCandidates(refs: RefsSnapshot, primary: string): PushCandida
       key: ref.fullName,
       label: ref.name,
       kind: "branch",
-      hint: ref.upstream ? (ref.ahead > 0 ? t("pushMany.candidate.ahead", { count: ref.ahead, upstream: ref.upstream }) : ref.upstream) : t("pushMany.candidate.new"),
+      hint: candidateHint(ref),
     }));
   const tags: PushCandidate[] = refs.tags.map((ref) => ({ key: ref.fullName, label: ref.name, kind: "tag", hint: null }));
   return [...branches, ...tags];
+}
+
+function candidateHint(ref: Ref): string {
+  const state = refPublishState(ref);
+  if (state.kind === "published") return state.ahead > 0 ? t("pushMany.candidate.ahead", { count: state.ahead, upstream: state.upstream }) : state.upstream;
+  // Not on the remote yet (no upstream, gone, or an upstream of another name): a new branch there.
+  return state.unpublished ? t("pushMany.candidate.newCount", { count: state.unpublished }) : t("pushMany.candidate.new");
+
 }
 
 export function filterCandidates(list: PushCandidate[], query: string): PushCandidate[] {
@@ -29,12 +38,17 @@ export function filterCandidates(list: PushCandidate[], query: string): PushCand
   return needle ? list.filter((item) => item.label.toLowerCase().includes(needle)) : list;
 }
 
-/** `extra` for the core. A branch keeps its upstream's name if that upstream is on `remote`. */
+/**
+ * `extra` for the core. A branch keeps its upstream's name if that upstream is on `remote` – but
+ * only if a plain push goes there: one that follows a branch of another name (created from
+ * `origin/develop`) goes under its own name, never onto `develop`.
+ */
 export function toExtras(selected: string[], refs: RefsSnapshot, remote: string): PushExtra[] {
   const prefix = `${remote}/`;
   return selected.map((key) => {
     const local = refs.locals.find((ref) => ref.fullName === key);
-    const upstream = local?.upstream ?? null;
+    const upstream = local?.pushesToUpstream ? local.upstream : null;
+
     return { local: key, remoteName: upstream?.startsWith(prefix) ? upstream.slice(prefix.length) : null, force: false };
   });
 }

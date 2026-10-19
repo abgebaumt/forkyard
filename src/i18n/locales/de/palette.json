@@ -258,6 +258,8 @@
   },
   "ref": {
     "tracks": "folgt {{upstream}}",
+    "notOnRemote": "noch nicht auf dem Remote",
+    "followsOther": "folgt {{upstream}} (anderer Name)",
     "checkedOut": "ausgecheckt",
     "otherWorktree": "in anderem Worktree"
   },

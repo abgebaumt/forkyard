@@ -212,6 +212,17 @@ All notable changes to Forkyard are listed here. The format follows
   ended with “connection was interrupted” when a Git process finishes at the same moment (Linux, macOS).
 - Forkyard no longer opens a new keychain session for every token it reads or stores (Linux). With
   GNOME Keyring 50 that could crash the keyring service, which then came back locked.
+- A branch that follows a remote branch of another name – created with
+  `git checkout -b qa/blackbox origin/develop` – is no longer pushed onto that branch. A push without a
+  chosen target went to `origin/develop`, while the branch showed “↑0 ↓0” and “nothing to push”. Like
+  Git’s default (`push.default=simple`), Push now asks where to push it and records the new upstream.
+  Pushing goes to an upstream of another name only with `push.default=upstream`, or after you pushed the
+  branch there yourself in Forkyard.
+- A branch that is local but not on its remote – no upstream, an upstream that is gone, or one of another
+  name – now shows as to push: the status bar reads “↑3 · not on origin yet”, Push carries a badge (a
+  dot for a branch without commits of its own), the branch menu says “creates origin/<name>”, the sidebar
+  shows the outgoing arrow, and the push dialog lists the branch as new with its commits. The count is
+  the commits that are on no remote branch.
 
 ## [1.1.0] – 2026-10-16
 

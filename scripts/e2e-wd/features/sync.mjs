@@ -585,7 +585,9 @@ scenario("Mehrere Branches und einen Tag in einem atomaren Push senden", "main",
     const dialog = await openPushMany(app, ui);
     assertIncludes(dialog.text, "Branch feature/export", "feature/export is offered");
     assertIncludes(dialog.text, "1 commit to origin/feature/export", "with what it carries");
-    assertIncludes(dialog.text, "creates the remote branch", "a new branch says it creates the remote branch");
+    // A branch not on the remote yet is "new", with its commits on no remote branch (Git's count).
+    const unpublished = repo.git("rev-list", "--count", "auswertung/neu", "--not", "--remotes");
+    assertIncludes(dialog.text, `new · ${unpublished} commits`, "a new branch is listed as new, with what it carries");
     assertIncludes(dialog.text, "Tag v1.0", "the tag is offered");
     const atomic = await ui.waitField("All or nothing");
     assertEqual(await ui.checked(atomic), false, "with nothing selected, all or nothing is off");

@@ -341,9 +341,9 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
         if !arrived.is_empty() {
             core.with_write_lock(&repo_id, &[RepoChange::Config], async {
                 for name in &arrived {
-                    core.git_for(&repo_id)?.args(["config", "--local"]).arg(format!("branch.{name}.remote")).arg(&remote).run().await?;
-                    core.git_for(&repo_id)?.args(["config", "--local"]).arg(format!("branch.{name}.merge")).arg(format!("refs/heads/{name}")).run().await?;
+                    sync::record_upstream(core, &repo_id, name, &remote, &format!("refs/heads/{name}")).await?;
                 }
+
                 Ok(())
             })
             .await?;

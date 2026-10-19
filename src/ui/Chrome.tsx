@@ -460,7 +460,9 @@ export interface ToolbarButtonProps {
   busy?: boolean;
   /** Number on the icon, e.g. commits to push. */
   badge?: number;
-  /** Describes the number for screen readers, e.g. "3 commits to push". */
+  /** A dot on the icon instead of a number (pending without a count, e.g. a branch to create on the remote). */
+  badgeDot?: boolean;
+  /** Describes the number (or dot) for screen readers, e.g. "3 commits to push". */
   badgeLabel?: string;
   /** Turns the button into a split button with a selection menu. */
   menu?: MenuEntry[];
@@ -493,6 +495,7 @@ export function ToolbarButton({
   disabled,
   busy,
   badge,
+  badgeDot,
   badgeLabel,
   menu,
   pressed,
@@ -513,7 +516,7 @@ export function ToolbarButton({
         aria-disabled={blocked || undefined}
         aria-busy={busy || undefined}
         aria-pressed={pressed}
-        aria-label={badge && badgeLabel ? `${label}, ${badgeLabel}` : undefined}
+        aria-label={(badge || badgeDot) && badgeLabel ? `${label}, ${badgeLabel}` : undefined}
         className={cn(
           "relative flex h-11 min-w-14 flex-col items-center justify-center gap-1 px-2 text-xs font-medium",
           menu ? "rounded-l-md" : "rounded-md",
@@ -535,7 +538,10 @@ export function ToolbarButton({
             >
               {badge > 999 ? "999+" : badge}
             </span>
+          ) : badgeDot ? (
+            <span aria-hidden={badgeLabel ? true : undefined} data-badge-dot="" className="absolute -top-0.5 left-4 size-2 rounded-pill bg-accent" />
           ) : null}
+
         </span>
         <span className={cn(compact && "sr-only")}>{label}</span>
         {described ? (

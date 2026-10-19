@@ -10,7 +10,8 @@ import { useEffectiveZoom } from "../zoom";
 import { operationNames } from "../actions/merge";
 import { describeError } from "../errors";
 import { formatDateTime, formatRelative, shortSha } from "../format";
-import { qk, queryClient, useAgents, useAppInfo, useSettings, useStatus } from "../queries";
+import { outgoing, publishRemote, statusPublishState } from "../publishState";
+import { qk, queryClient, useAgents, useAppInfo, useRemotes, useSettings, useStatus } from "../queries";
 import { CHANGELOG_URL, versionLabel } from "../appVersion";
 import { runAction } from "../run";
 import { useAppStore, type Job } from "../store";
@@ -42,6 +43,7 @@ function operationText(operation: Operation): { short: string; full: string } {
 
 function BranchInfo({ repoId }: { repoId: Id }) {
   const { data: status, error } = useStatus(repoId);
+  const { data: remotes } = useRemotes(repoId);
   if (!status) {
     if (!error) return null;
     // The status could not be read: note it quietly here, the details are in the tooltip.
@@ -62,6 +64,9 @@ function BranchInfo({ repoId }: { repoId: Id }) {
         ? t("shell.status.detachedHint", { sha: head.sha })
         : name;
   const upstream = status.upstream;
+  const publish = statusPublishState(status);
+  const pending = outgoing(publish);
+  const remote = publishRemote(publish.kind === "none" ? null : (upstream?.name ?? null), remotes?.map((item) => item.name) ?? []);
   const operation = status.operation ? operationText(status.operation) : null;
   return (
     <>
@@ -69,7 +74,32 @@ function BranchInfo({ repoId }: { repoId: Id }) {
         {detached ? <GitCommitHorizontal className="size-3 shrink-0" aria-hidden /> : <GitBranch className="size-3 shrink-0" aria-hidden />}
         <span className="truncate">{name}</span>
       </span>
-      {upstream ? (
+      {pending?.isNew && remote && head.kind === "branch" ? (
+        // Local but not on the remote (no upstream, gone, or an upstream of another name): pending work, "↑3 · not on origin yet".
+        <span
+          className="flex shrink-0 items-center gap-1.5 tabular-nums"
+          data-publish={publish.kind}
+          title={
+            publish.kind === "elsewhere"
+              ? t("shell.status.notPublishedHint", { name: publish.upstream })
+              : publish.kind === "gone"
+                ? t("shell.status.upstreamGone", { name: publish.upstream })
+                : t("shell.status.noUpstreamHint")
+          }
+        >
+          <span className="inline-flex items-center" aria-label={t("shell.status.ahead", { count: pending.count })}>
+            <ArrowUp className="size-3" aria-hidden />
+            {pending.count}
+          </span>
+          {publish.kind === "elsewhere" && publish.behind ? (
+            <span className="inline-flex items-center" aria-label={t("shell.status.behind", { count: publish.behind })}>
+              <ArrowDown className="size-3" aria-hidden />
+              {publish.behind}
+            </span>
+          ) : null}
+          <span>{t("shell.status.notOnRemote", { remote })}</span>
+        </span>
+      ) : upstream ? (
         <span className="flex shrink-0 items-center gap-1.5 tabular-nums" title={upstream.gone ? t("shell.status.upstreamGone", { name: upstream.name }) : t("shell.status.upstream", { name: upstream.name })}>
           {upstream.gone ? (
             <span className="text-warning">{t("shell.status.upstreamMissing")}</span>

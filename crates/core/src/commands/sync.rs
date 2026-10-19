@@ -116,6 +116,160 @@ pub async fn branch_upstream(core: &Core, repo_id: &str, branch: &str) -> CoreRe
 }
 
 // ---------------------------------------------------------------------------
+// Where a push without a named remote goes
+// ---------------------------------------------------------------------------
+
+/// Forkyard's marker `branch.<b>.forkyardPushToUpstream=true`: the user pushed the branch to an
+/// upstream of another name themselves, so a plain push goes there too.
+const PUSH_TO_UPSTREAM_KEY: &str = "forkyardPushToUpstream";
+
+/// The upstream ref on the remote (`refs/heads/x`) has the branch's own name.
+pub(crate) fn same_name_upstream(branch: &str, merge: &str) -> bool {
+    merge.strip_prefix("refs/heads/").unwrap_or(merge) == branch
+}
+
+/// A Git boolean (`true`, `yes`, `on`, `1`; a key without a value is true too).
+fn config_true(value: Option<&str>) -> bool {
+    match value {
+        None => true,
+        Some(v) => matches!(v.trim().to_ascii_lowercase().as_str(), "true" | "yes" | "on" | "1"),
+    }
+}
+
+/// What decides whether a plain push goes to an upstream of another name: `push.default` and
+/// Forkyard's markers – plus, if read in full, each branch's `merge` and `remote` and the remotes.
+#[derive(Debug, Default)]
+pub(crate) struct PushRule {
+    upstream_default: bool,
+    marked: std::collections::HashSet<String>,
+    merges: HashMap<String, String>,
+    branch_remotes: HashMap<String, String>,
+    remotes: std::collections::HashSet<String>,
+}
+
+impl PushRule {
+    /// The rule that keeps a plain push from landing on another branch (Git's `push.default=simple`
+    /// refuses the same): a push without a named remote goes to the upstream `merge` of `branch`
+    /// only if it has the same name, if `push.default` is `upstream`/`tracking`, or if Forkyard
+    /// recorded that destination itself.
+    pub(crate) fn pushes_to_upstream(&self, branch: &str, merge: &str) -> bool {
+        same_name_upstream(branch, merge) || self.allows_another_name(branch)
+    }
+
+    /// A plain push of `branch` may go to an upstream of another name.
+    pub(crate) fn allows_another_name(&self, branch: &str) -> bool {
+        self.upstream_default || self.marked.contains(branch)
+    }
+
+    /// `branch.<branch>.merge` (only when read in full).
+    pub(crate) fn merge_of(&self, branch: &str) -> Option<&str> {
+        self.merges.get(branch).map(String::as_str)
+    }
+
+    /// `branch.<branch>.remote` (only when read in full).
+    pub(crate) fn remote_of(&self, branch: &str) -> Option<&str> {
+        self.branch_remotes.get(branch).map(String::as_str)
+    }
+
+    /// The repository has a remote (only when read in full).
+    pub(crate) fn has_remote(&self) -> bool {
+        !self.remotes.is_empty()
+    }
+}
+
+/// Reads the `PushRule` with one `git config --get-regexp` (all levels, like Git's own push).
+pub(crate) async fn read_push_rule(core: &Core, repo_id: &str, full: bool) -> CoreResult<PushRule> {
+    let pattern = if full {
+        r"^(push\.default|branch\..+\.(forkyardpushtoupstream|merge|remote)|remote\..+\.url)$"
+    } else {
+        r"^(push\.default|branch\..+\.forkyardpushtoupstream)$"
+    };
+    let out = probe(core, repo_id)?.args(["config", "-z", "--get-regexp", pattern]).run_raw().await?;
+    // Exit code 1: nothing set.
+    Ok(if out.success() { parse_push_rule(&out.stdout) } else { PushRule::default() })
+}
+
+/// Output of `git config -z --get-regexp`: `key\nvalue\0` (or `key\0` without a value). Section
+/// and key name come lowercased, the branch name (subsection) as written; the last value wins.
+fn parse_push_rule(stdout: &[u8]) -> PushRule {
+    let mut rule = PushRule::default();
+    for entry in util::split_records(stdout, 0) {
+        let entry = util::decode_lossy(entry);
+        let (key, value) = match entry.split_once('\n') {
+            Some((key, value)) => (key, Some(value)),
+            None => (entry.as_str(), None),
+        };
+        if key == "push.default" {
+            rule.upstream_default = matches!(value.map(|v| v.trim().to_ascii_lowercase()).as_deref(), Some("upstream" | "tracking"));
+            continue;
+        }
+        if let Some(remote) = key.strip_prefix("remote.").and_then(|rest| rest.strip_suffix(".url")) {
+            rule.remotes.insert(remote.to_string());
+            continue;
+        }
+        let Some((branch, name)) = key.strip_prefix("branch.").and_then(|rest| rest.rsplit_once('.')) else { continue };
+        match (name, value) {
+            ("merge", Some(merge)) => {
+                rule.merges.insert(branch.to_string(), merge.to_string());
+            }
+            ("remote", Some(remote)) => {
+                rule.branch_remotes.insert(branch.to_string(), remote.to_string());
+            }
+            ("forkyardpushtoupstream", _) => {
+                if config_true(value) {
+                    rule.marked.insert(branch.to_string());
+                } else {
+                    rule.marked.remove(branch);
+                }
+            }
+            _ => {}
+        }
+    }
+    rule
+}
+
+/// Does a push of `branch` without a named remote go to its upstream `merge`? Same rule as
+/// `PushRule::pushes_to_upstream`; reads the configuration only when the names differ.
+pub(crate) async fn pushes_to_upstream(core: &Core, repo_id: &str, branch: &str, merge: &str) -> CoreResult<bool> {
+    if same_name_upstream(branch, merge) {
+        return Ok(true);
+    }
+    Ok(read_push_rule(core, repo_id, false).await?.pushes_to_upstream(branch, merge))
+}
+
+/// The error for a plain push of a branch whose upstream has another name.
+pub(crate) fn upstream_has_another_name(branch: &str, remote: &str, merge: &str) -> CoreError {
+    let upstream = format!("{remote}/{}", merge.strip_prefix("refs/heads/").unwrap_or(merge));
+    CoreError::new(ErrorCode::NoUpstream, format!("“{branch}” follows {upstream}, which has another name. Choose where to push it."))
+}
+
+/// Records `remote`/`remote_ref` as the upstream of `branch` after an explicit push. Under another
+/// name than the branch's own, Forkyard's marker says that a plain push goes there too; under the
+/// same name, an old marker is dropped. The caller holds the write lock.
+pub(crate) async fn record_upstream(core: &Core, repo_id: &str, branch: &str, remote: &str, remote_ref: &str) -> CoreResult<()> {
+    core.git_for(repo_id)?.args(["config", &format!("branch.{branch}.remote"), remote]).run().await?;
+    core.git_for(repo_id)?.args(["config", &format!("branch.{branch}.merge"), remote_ref]).run().await?;
+    if same_name_upstream(branch, remote_ref) {
+        forget_push_to_upstream(core, repo_id, branch).await
+    } else {
+        core.git_for(repo_id)?.args(["config", &format!("branch.{branch}.{PUSH_TO_UPSTREAM_KEY}"), "true"]).run().await?;
+        Ok(())
+    }
+}
+
+/// Removes Forkyard's marker from `branch` (nothing happens if it isn't set).
+pub(crate) async fn forget_push_to_upstream(core: &Core, repo_id: &str, branch: &str) -> CoreResult<()> {
+    let key = format!("branch.{branch}.{PUSH_TO_UPSTREAM_KEY}");
+    let out = core.git_for(repo_id)?.args(["config", "--local", "--unset-all", &key]).run_raw().await?;
+    // Exit code 5: the key wasn't set.
+    if out.success() || out.code == Some(5) {
+        Ok(())
+    } else {
+        Err(errors::classify("config", out.code, &out.stdout, &out.stderr))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Fetch
 // ---------------------------------------------------------------------------
 
@@ -656,7 +810,12 @@ async fn push_target(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> C
                     "The upstream of “{branch}” is a local branch; you can't push to it."
                 )));
             }
-            Some((name, merge)) => (name.clone(), merge.clone(), false),
+            Some((name, merge)) => {
+                if !pushes_to_upstream(core, repo_id, &branch, merge).await? {
+                    return Err(upstream_has_another_name(&branch, name, merge));
+                }
+                (name.clone(), merge.clone(), false)
+            }
             None => return Err(no_upstream(&branch)),
         },
     };
@@ -787,12 +946,7 @@ async fn push_many(core: &Core, repo_id: &str, job: &Job, request: PushRequest<'
         return Err(push_error(core, repo_id, &out).await);
     }
     if target.set_upstream && refs[0].status != PushRefStatus::Rejected {
-        with_lock_cancellable(core, repo_id, cancel, async {
-            core.git_for(repo_id)?.args(["config", &format!("branch.{}.remote", target.branch), &target.remote]).run().await?;
-            core.git_for(repo_id)?.args(["config", &format!("branch.{}.merge", target.branch), &target.remote_ref]).run().await?;
-            Ok(())
-        })
-        .await?;
+        with_lock_cancellable(core, repo_id, cancel, record_upstream(core, repo_id, &target.branch, &target.remote, &target.remote_ref)).await?;
     }
     Ok(PushResult::Multi { remote: target.remote, atomic, refs })
 }
@@ -866,12 +1020,7 @@ pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelTok
 
     let outcome = parse_push_porcelain(&out.stdout, &remote_ref);
     if set_upstream && out.success() && matches!(outcome, Some((flag, _)) if flag != '!') {
-        with_lock_cancellable(core, repo_id, cancel, async {
-            core.git_for(repo_id)?.args(["config", &format!("branch.{branch}.remote"), &remote]).run().await?;
-            core.git_for(repo_id)?.args(["config", &format!("branch.{branch}.merge"), &remote_ref]).run().await?;
-            Ok(())
-        })
-        .await?;
+        with_lock_cancellable(core, repo_id, cancel, record_upstream(core, repo_id, &branch, &remote, &remote_ref)).await?;
     }
     match outcome {
         Some(('!', detail)) => {
@@ -1054,6 +1203,12 @@ mod push_many_tests;
 
 #[cfg(test)]
 mod secret_scan_tests;
+
+#[cfg(test)]
+mod upstream_name_tests;
+
+#[cfg(test)]
+mod unpublished_tests;
 
 #[cfg(test)]
 mod tests {

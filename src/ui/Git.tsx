@@ -275,6 +275,8 @@ export interface TreeRowProps extends Omit<ComponentProps<"div">, "children" | "
   arrowSpace?: boolean;
   ahead?: number;
   behind?: number;
+  /** Pending push even without commits (a branch not on the remote yet): the up arrow shows at 0 too. */
+  outgoing?: boolean;
   /** Tooltip on the counters, e.g. "2 commits ahead of, 3 behind origin/main". */
   syncTip?: string;
   /** Hidden in the graph. */
@@ -311,6 +313,7 @@ export function TreeRow({
   arrowSpace,
   ahead,
   behind,
+  outgoing,
   syncTip,
   hidden,
   solo,
@@ -328,15 +331,16 @@ export function TreeRow({
     <span className={cn("block truncate", active && "font-semibold", solo && "font-medium text-accent")}>{labelContent ?? label}</span>
   );
   const counters =
-    behind || ahead ? (
+    behind || ahead || outgoing ? (
       <span className="inline-flex shrink-0 items-center gap-1 text-xs text-text-muted tabular-nums">
         {/* Same order as in the status bar: ahead first, then behind. */}
-        {ahead ? (
-          <span className="inline-flex items-center">
+        {ahead || outgoing ? (
+          <span className="inline-flex items-center" data-outgoing={outgoing ? "" : undefined}>
             <ArrowUp className="size-3" aria-hidden />
-            {ahead}
+            {ahead || null}
           </span>
         ) : null}
+
         {behind ? (
           <span className="inline-flex items-center">
             <ArrowDown className="size-3" aria-hidden />

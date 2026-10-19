@@ -28,6 +28,8 @@ import { toggleCockpit } from "../../screens/Agents/actions";
 import { agentCounts, toolbarLabel } from "../../screens/Agents/model";
 import { toggleStats } from "../../screens/Stats/actions";
 import { useAgents, useAiStatus, useRemotes, useRepoSettings, useSettings, useStashes, useStatus, useUndoState } from "../queries";
+import { nothingToPush, outgoing, statusPublishState } from "../publishState";
+
 import { useAppStore, useBusy, useTabView } from "../store";
 import { t } from "../../i18n";
 
@@ -76,7 +78,11 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const compact = settings ? !settings.toolbarLabels : false;
   const hasRemote = remotes ? remotes.length > 0 : undefined;
   const upstream = status?.upstream ?? null;
-  const ahead = upstream?.ahead ?? 0;
+  const publish = statusPublishState(status);
+  // What a push sends: commits ahead of the upstream, or – not on the remote yet – the unpublished
+  // ones (a dot for 0: the branch itself goes there).
+  const pending = outgoing(publish);
+  const ahead = pending?.count ?? 0;
   const behind = upstream?.behind ?? 0;
   const changes = status ? status.unstaged.length + status.staged.length : 0;
   const defaultMode: PullMode = repoSettings?.defaultPullMode ?? settings?.defaultPullMode ?? "ff";
@@ -97,7 +103,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     noRemote ??
     headBlocker(status, "push") ??
     operation ??
-    (upstream && !upstream.gone && ahead === 0 ? t("shell.toolbar.nothingToPush", { name: upstream.name }) : null) ??
+    (upstream && nothingToPush(publish) ? t("shell.toolbar.nothingToPush", { name: upstream.name }) : null) ??
     waitFor(pushing);
   const fetchBlocked = noRemote ?? waitFor(fetching);
   const branchBlocked = status?.head.kind === "unborn" ? t("shell.toolbar.noCommit") : operation;
@@ -196,12 +202,17 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           pushBlocked ??
           (pushing
             ? t("shell.toolbar.pushRunning")
-            : upstream && !upstream.gone
-              ? t("shell.toolbar.pushTo", { count: ahead, name: upstream.name })
-              : t("shell.toolbar.pushNew"))
+            : publish.kind === "published"
+              ? t("shell.toolbar.pushTo", { count: ahead, name: publish.upstream })
+              : publish.kind === "elsewhere"
+                ? t("shell.toolbar.pushNotPublished", { name: publish.upstream })
+                : publish.kind === "gone"
+                  ? t("shell.toolbar.pushTo", { count: ahead, name: publish.upstream })
+                  : t("shell.toolbar.pushNew"))
         }
         badge={ahead || undefined}
-        badgeLabel={ahead ? t("shell.toolbar.toPush", { count: ahead }) : undefined}
+        badgeDot={pending?.isNew && ahead === 0}
+        badgeLabel={pending ? (ahead ? t("shell.toolbar.toPush", { count: ahead }) : t("shell.toolbar.toPushNew")) : undefined}
         menu={pushMenu}
         onClick={() => void push(repoId, { tabId })}
       />

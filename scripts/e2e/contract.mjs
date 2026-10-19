@@ -487,7 +487,7 @@ if (isMain) {
       const status = await app.invoke("status_get", { repoId });
       shape("Status", status, "status_get");
       equal(status.head, { kind: "branch", branch: "main", sha: rich.info.head }, "head");
-      equal(status.upstream, { name: "origin/main", ahead: 2, behind: 1, gone: false }, "upstream");
+      equal(status.upstream, { name: "origin/main", ahead: 2, behind: 1, gone: false, pushesToUpstream: true }, "upstream");
       equal(status.staged.map((file) => file.path), rich.info.changes.staged, "staged");
       equal(status.unstaged.map((file) => file.path), rich.info.changes.unstaged, "unstaged");
       equal([status.conflicted, status.operation, status.identitySet], [[], null, true], "no conflict, no operation, identity set");

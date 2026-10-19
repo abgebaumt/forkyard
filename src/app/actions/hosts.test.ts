@@ -182,11 +182,12 @@ describe("preparing a pull request", () => {
   });
 
   it("is the branch on the remote?", () => {
-    const ref = { name: "x", upstream: "origin/x", upstreamGone: false, ahead: 0 } as Parameters<typeof pushState>[0];
+    const ref = { name: "x", upstream: "origin/x", upstreamGone: false, pushesToUpstream: true, ahead: 0 } as Parameters<typeof pushState>[0];
     expect(pushState(ref)).toEqual({ state: "pushed", upstream: "origin/x" });
     expect(pushState({ ...ref!, ahead: 2 })).toEqual({ state: "ahead", upstream: "origin/x", count: 2 });
     expect(pushState({ ...ref!, upstream: null })).toEqual({ state: "no_upstream" });
     expect(pushState({ ...ref!, upstreamGone: true })).toEqual({ state: "no_upstream" });
+    expect(pushState({ ...ref!, upstream: "origin/develop", pushesToUpstream: false })).toEqual({ state: "no_upstream" });
     expect(pushState(undefined)).toEqual({ state: "unknown" });
   });
 

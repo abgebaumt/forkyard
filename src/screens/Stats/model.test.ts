@@ -75,6 +75,8 @@ describe("tip of a ref", () => {
     isHead: false,
     upstream: null,
     upstreamGone: false,
+    pushesToUpstream: true,
+    unpublished: null,
     ahead: 0,
     behind: 0,
     remote: kind === "remote" ? "origin" : null,

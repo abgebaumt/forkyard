@@ -4,7 +4,11 @@
     "ahead_other": "{{count, number}} commits ahead",
     "behind_one": "{{count, number}} commit behind",
     "behind_other": "{{count, number}} commits behind",
-    "against": "{{text}} relative to {{upstream}}"
+    "against": "{{text}} relative to {{upstream}}",
+    "unpublished_one": "{{count, number}} commit not on the remote yet",
+    "unpublished_other": "{{count, number}} commits not on the remote yet",
+    "unpublishedNone": "Not on the remote yet",
+    "followsOther": "follows {{upstream}} (another name)"
   },
   "kind": {
     "branch": "Local branch",
@@ -28,7 +32,8 @@
     "entries_one": "{{count, number}} entry",
     "entries_other": "{{count, number}} entries",
     "detached": "No branch checked out. HEAD points directly to {{sha}}.",
-    "unborn": "{{branch}} has no commit yet."
+    "unborn": "{{branch}} has no commit yet.",
+    "followsOther": "Follows {{upstream}} (another name) – a push asks where to"
   },
   "describe": {
     "checkedOut": "checked out",

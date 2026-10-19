@@ -9,7 +9,10 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::refs::short_ref_name;
+use crate::commands::refs::{self, short_ref_name};
+
+use crate::commands::sync;
+
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
 use crate::model::{ConflictKind, FileArea, FileChange, FileStatus, Head, Operation, OperationKind, Status, UpstreamState};
@@ -68,13 +71,37 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
         .take(MAX_UNTRACKED_INSPECTED)
         .map(|e| e.path.clone())
         .collect();
-    let (lfs_paths, untracked_info, operation) = tokio::join!(
+    let branch_tip = match &head {
+        Head::Branch { branch, sha } => Some((branch.as_str(), sha.as_str())),
+        _ => None,
+    };
+    let push_rule = async {
+        match branch_tip {
+            Some(_) => sync::read_push_rule(core, repo_id, true).await.map(Some),
+            None => Ok(None),
+        }
+    };
+    let (lfs_paths, untracked_info, operation, push_rule) = tokio::join!(
         lfs_paths(core, &path, repo_id, &all_paths),
         inspect_untracked(path.clone(), untracked),
         operation_at(core, &path, repo_id, &head),
+        push_rule,
     );
     let lfs_paths = lfs_paths?;
     let operation = operation?;
+    let mut upstream = parsed.upstream.clone();
+    let mut unpublished = None;
+    if let (Some((branch, sha)), Some(rule)) = (branch_tip, push_rule?) {
+        if let Some(state) = upstream.as_mut() {
+            state.pushes_to_upstream = rule.merge_of(branch).is_some_and(|merge| rule.pushes_to_upstream(branch, merge));
+        }
+        // Not on the remote under a name a plain push reaches: how much of it is on no remote branch.
+        let published = upstream.as_ref().is_some_and(|state| !state.gone && state.pushes_to_upstream);
+        if rule.has_remote() && !published {
+            let remote = rule.remote_of(branch).filter(|name| *name != ".").map(str::to_string);
+            unpublished = refs::unpublished_counts(core, &path, repo_id, &[(sha.to_string(), remote)]).await?.first().copied();
+        }
+    }
     // What is already resolved in this operation is known to the index (the "resolve-undo" extension) – not
     // only to the UI's memory. Otherwise after a restart the banner would count "0 of 1" instead of
     // "1 of 2 conflicts resolved". It is only read while there is something to count.
@@ -96,7 +123,7 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
 
     let mut out = Status {
         head,
-        upstream: parsed.upstream.clone(),
+        upstream,
         unstaged: Vec::new(),
         staged: Vec::new(),
         conflicted: Vec::new(),
@@ -104,6 +131,7 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
         resolved_conflicts,
         foreign_operation,
         left_behind: None,
+        unpublished,
         identity_set,
         token,
     };
@@ -281,7 +309,8 @@ pub fn parse_porcelain_v2(stdout: &[u8]) -> ParsedStatus {
     // If an upstream is set but gone, Git omits the branch.ab line.
     out.upstream = upstream_name.map(|name| {
         let (ahead, behind) = ahead_behind.unwrap_or((0, 0));
-        UpstreamState { name, ahead, behind, gone: ahead_behind.is_none() }
+        // Where a plain push goes is in the configuration: `read_status` fills it in.
+        UpstreamState { name, ahead, behind, gone: ahead_behind.is_none(), pushes_to_upstream: false }
     });
     out
 }
@@ -1257,7 +1286,7 @@ mod tests {
         let remote = repo.add_remote();
         let id = tc.open(&repo).await.repo.id;
         let status = read_status(&tc, &id).await.unwrap();
-        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: false }));
+        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: false, pushes_to_upstream: true }));
 
         let other = TestRepo::clone_of(&remote);
         other.commit_file("fremd.txt", "x\n", "Fremder Commit");
@@ -1266,11 +1295,11 @@ mod tests {
         repo.commit_file("zwei.txt", "2\n", "Zwei");
         repo.git(&["fetch", "-q", "origin"]);
         let status = read_status(&tc, &id).await.unwrap();
-        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 2, behind: 1, gone: false }));
+        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 2, behind: 1, gone: false, pushes_to_upstream: true }));
 
         repo.git(&["update-ref", "-d", "refs/remotes/origin/main"]);
         let status = read_status(&tc, &id).await.unwrap();
-        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: true }));
+        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: true, pushes_to_upstream: true }));
 
         repo.checkout_new("ohne-upstream");
         assert_eq!(read_status(&tc, &id).await.unwrap().upstream, None);
@@ -1414,7 +1443,7 @@ mod tests {
         let parsed = parse_porcelain_v2(raw.as_bytes());
         assert_eq!(parsed.oid.as_deref(), Some("abc123"));
         assert_eq!(parsed.branch.as_deref(), Some("main"));
-        assert_eq!(parsed.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 3, behind: 12, gone: false }));
+        assert_eq!(parsed.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 3, behind: 12, gone: false, pushes_to_upstream: false }));
         let got: Vec<(EntryKind, char, char, String, Option<String>)> = parsed
             .entries
             .iter()
@@ -1433,7 +1462,7 @@ mod tests {
 
         let gone = parse_porcelain_v2(b"# branch.oid (initial)\0# branch.head main\0# branch.upstream origin/weg\0");
         assert_eq!(gone.oid, None);
-        assert_eq!(gone.upstream, Some(UpstreamState { name: "origin/weg".into(), ahead: 0, behind: 0, gone: true }));
+        assert_eq!(gone.upstream, Some(UpstreamState { name: "origin/weg".into(), ahead: 0, behind: 0, gone: true, pushes_to_upstream: false }));
         assert_eq!(gone.head().unwrap(), Head::Unborn { branch: "main".into() });
         let detached = parse_porcelain_v2(b"# branch.oid abc\0# branch.head (detached)\0");
         assert_eq!(detached.head().unwrap(), Head::Detached { sha: "abc".into() });
