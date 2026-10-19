@@ -775,6 +775,10 @@ export interface ComposeUnit {
   /** For display only, at most 400 lines (`linesCut`); the commit takes the whole unit. */
   lines: DiffLine[];
   linesCut: boolean;
+  /** Units this one needs to build (fixed rules in the core, never the AI): placed later or not at all = "doesn't build on its own". */
+  requires: string[];
+  /** Secret or excluded from AI: never sent, never committed by "Compose commits"; stays in "Don't commit". */
+  protected: "secret" | "ignored" | null;
 }
 
 export interface ComposeState {
@@ -782,9 +786,13 @@ export interface ComposeState {
   token: string;
   branch: string;
   head: Sha;
+  /** Subject of HEAD, the start of the history preview. */
+  headSubject: string;
   units: ComposeUnit[];
   /** `commit.gpgSign` is on: one passphrase prompt per commit is possible. */
   signing: boolean;
+  /** Commit hooks that run for every commit, in Git's order ("pre-commit", "commit-msg" …). */
+  hooks: string[];
 }
 
 /** A commit of a proposal or a plan. */
@@ -793,12 +801,31 @@ export interface ComposeGroup {
   body: string;
   /** Unit IDs. */
   units: string[];
+  /** The AI provider's short reason for the grouping; not needed in a plan. */
+  reason?: string;
+}
+
+/** The AI provider's note on one unit it placed. */
+export interface ComposeNote {
+  unit: string;
+  reason: string;
+  /** Another commit (or not committing) would have been about as plausible. */
+  unsure: boolean;
+}
+
+/** A unit the user placed; a new proposal leaves it where it is. */
+export interface ComposeKeep {
+  unit: string;
+  /** Summary of its commit; `null` = "Don't commit". */
+  commit: string | null;
 }
 
 export interface ComposeProposal {
   state: ComposeState;
-  /** In creation order; units in no group stay uncommitted. */
+  /** In creation order; units in no group stay uncommitted. Kept units are in no group. */
   groups: ComposeGroup[];
+  /** Per placed unit. */
+  notes: ComposeNote[];
 }
 
 export interface ComposePlan {
@@ -811,6 +838,8 @@ export interface ComposeResult {
   /** The new commits, oldest first. */
   commits: Sha[];
   hooks: HookOutput[];
+  /** Per new commit, oldest first: the hooks that ran for it. */
+  steps: { sha: Sha; hooks: string[] }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -1249,7 +1278,8 @@ export type AiInput =
   | { kind: "staged_changes" }
   | { kind: "commit_message" }
   | { kind: "pr_description"; source: string; target: string }
-  | { kind: "compose" }
+  /** `instruction`: the user's words for a new proposal; `keep`: units the user placed. */
+  | { kind: "compose"; instruction?: string | null; keep?: ComposeKeep[] }
   | { kind: "plan"; text: string }
   | { kind: "archaeology"; path: string; line: number; sha: Sha | null }
   | { kind: "conflict_intent"; path: string; blocks: ConflictBlockRange[] }

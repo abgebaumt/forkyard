@@ -188,7 +188,7 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
     let (budget, secrets) = request_frame(core, &settings, feature).await;
     let built = match input {
         AiInput::StagedChanges => context::staged_changes(core, &repo_id, &settings, budget, &locale, &secrets).await?,
-        AiInput::Compose => crate::commands::compose::preview_built(core, &repo_id, &settings, budget, &locale, &secrets).await?,
+        AiInput::Compose { instruction, keep } => crate::commands::compose::preview_built(core, &repo_id, &settings, budget, &locale, &secrets, instruction, keep).await?,
         AiInput::SemanticSearch { query } => return crate::ai::semantic::preview(core, &repo_id, &query, &locale).await,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built,

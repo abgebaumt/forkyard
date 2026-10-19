@@ -23,7 +23,7 @@ use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
 use crate::jobs::Job;
-use crate::model::{ComposePlan, ComposeResult, HookOutput, HunkSelection, RepoChange};
+use crate::model::{ComposePlan, ComposeResult, ComposeStep, HookOutput, HunkSelection, RepoChange};
 use crate::undo::{self, GroupRecord, GroupSnapshot, RefMove, UndoAction};
 
 /// What a compose run can change.
@@ -49,6 +49,7 @@ struct Done {
     /// when the branch is moved back.
     created: Vec<String>,
     hooks: Vec<HookOutput>,
+    steps: Vec<ComposeStep>,
 }
 
 /// The whole run; call inside the write lock. Any failure after the snapshot moves the branch back
@@ -80,7 +81,7 @@ pub(crate) async fn apply(core: &Core, repo_id: &str, job: &Job, plan: &ComposeP
             Rollback::Done => error,
         });
     }
-    Ok(ComposeResult { commits: done.commits, hooks: done.hooks })
+    Ok(ComposeResult { commits: done.commits, hooks: done.hooks, steps: done.steps })
 }
 
 /// Unknown or doubled units, commits without units, empty summaries – before anything is written.
@@ -100,6 +101,12 @@ fn checked_plan(read: &ComposeRead, plan: &ComposePlan) -> CoreResult<Vec<Step>>
             };
             if !seen.insert(id.as_str()) {
                 return Err(CoreError::not_allowed(format!("The change “{}” is assigned to more than one commit.", short_id(id))));
+            }
+            if read.files[unit.0].protected.is_some() {
+                return Err(CoreError::not_allowed(format!(
+                    "“{}” is protected (a secret or excluded from AI) and is never committed by “Compose commits”. Commit it yourself in the Commit Panel if you really want it versioned.",
+                    read.files[unit.0].path
+                )));
             }
             units.push(*unit);
         }
@@ -167,7 +174,10 @@ async fn commit_steps(
             add_unit(&mut parts, *unit);
         }
         let tree = build_index(core, repo_id, read, &parts, index).await?;
-        done.hooks.extend(run_commit_on(core, repo_id, &commit_args(skip_hooks), &step.message, Some(index)).await?);
+        let ran = run_commit_on(core, repo_id, &commit_args(skip_hooks), &step.message, Some(index)).await?;
+        // Every commit hook of the repository runs for every commit (the capture only keeps hooks with output).
+        let names = if skip_hooks { Vec::new() } else { read.hooks.clone() };
+        done.hooks.extend(ran);
         let Some(sha) = undo::rev_parse(core, repo_id, branch_ref).await? else { return Err(moved_meanwhile()) };
         let parent = undo::rev_parse(core, repo_id, &format!("{sha}^1")).await?;
         let committed = undo::rev_parse(core, repo_id, &format!("{sha}^{{tree}}")).await?;
@@ -182,6 +192,7 @@ async fn commit_steps(
             return Err(hook_changed(&done.hooks, "files in the working directory"));
         }
         done.commits.push(sha.clone());
+        done.steps.push(ComposeStep { sha: sha.clone(), hooks: names });
         previous = sha;
     }
     Ok(parts)

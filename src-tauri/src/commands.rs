@@ -293,8 +293,15 @@ pub async fn compose_units(core: State<'_, Core>, repo_id: String) -> R<ComposeS
 }
 
 #[tauri::command]
-pub async fn compose_proposal(core: State<'_, Core>, repo_id: String, job_id: String, locale: String) -> R<ComposeProposal> {
-    c::compose::compose_proposal(&core, repo_id, job_id, locale).await
+pub async fn compose_proposal(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    locale: String,
+    instruction: Option<String>,
+    keep: Vec<ComposeKeep>,
+) -> R<ComposeProposal> {
+    c::compose::compose_proposal(&core, repo_id, job_id, locale, instruction, keep).await
 }
 
 #[tauri::command]
