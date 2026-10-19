@@ -255,6 +255,26 @@ impl PageBuilder<'_> {
         self.push(placed, row);
     }
 
+    /// All stash rows at the top of the first page (below the WIP row), `stash@{0}` first; each
+    /// keeps a line at the side down to its base commit, across page boundaries.
+    fn stashes(&mut self) {
+        let mut all: Vec<(&String, &StashEntry)> =
+            self.plan.stashes.iter().flat_map(|(base, list)| list.iter().map(move |stash| (base, stash))).collect();
+        all.sort_by_key(|(_, stash)| stash.index);
+        for (base, stash) in all {
+            let placed = self.state.place_side(&stash.sha, base);
+            let mut row = empty_row(&stash.sha, GraphRowKind::Stash);
+            row.sha = Some(stash.sha.clone());
+            row.parents = vec![base.clone()];
+            row.summary = stash.message.clone();
+            row.author_name = stash.author_name.clone();
+            row.author_email = stash.author_email.clone();
+            row.authored_at = Some(util::unix_to_iso(stash.authored_at));
+            row.stash_index = Some(stash.index);
+            self.push(placed, row);
+        }
+    }
+
     /// Only hidden commits lead here: no visible line waits for it, and no ref, starting point or
     /// stash keeps it.
     fn is_hidden(&self, sha: &str) -> bool {
@@ -271,7 +291,7 @@ impl PageBuilder<'_> {
         (self.plan.collapses(&sha) && !self.is_hidden(&sha)).then_some(parents)
     }
 
-    /// One record from `git log` (fields as in `LOG_FORMAT`); before it the stashes hanging off it.
+    /// One record from `git log` (fields as in `LOG_FORMAT`).
     /// `collapse`: what `collapse_for` found for a merge to be collapsed. Returns whether the commit
     /// got a row (hidden commits do not).
     fn commit(&mut self, fields: &[Vec<u8>], collapse: Option<Collapse>) -> bool {
@@ -283,20 +303,6 @@ impl PageBuilder<'_> {
             return false;
         }
         self.hidden.remove(&sha);
-        if let Some(stashes) = self.plan.stashes.get(&sha) {
-            for stash in stashes {
-                let placed = self.state.place_side(&stash.sha, &sha);
-                let mut row = empty_row(&stash.sha, GraphRowKind::Stash);
-                row.sha = Some(stash.sha.clone());
-                row.parents = vec![sha.clone()];
-                row.summary = stash.message.clone();
-                row.author_name = stash.author_name.clone();
-                row.author_email = stash.author_email.clone();
-                row.authored_at = Some(util::unix_to_iso(stash.authored_at));
-                row.stash_index = Some(stash.index);
-                self.push(placed, row);
-            }
-        }
         let mut lines = parents.clone();
         let mut collapsed_count = None;
         let mut collapse_too_large = false;
@@ -504,6 +510,9 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
             }
         }
         builder.wip(wip_count, head);
+    }
+    if first_page {
+        builder.stashes();
     }
 
     let mut has_more = false;

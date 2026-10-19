@@ -9,7 +9,8 @@
 //! - The first parent stays in the node's lane.
 //! - Further parents branch off: into a lane already waiting for them, otherwise into the first free one.
 //! - Lines passing through never change lanes; lanes that become free are reused.
-//! - A stash hangs off the side of its base commit: the base's node does not take over the stash's lane.
+//! - A stash sits at the top and hangs off the side of its base commit: the base's node does not take
+//!   over the stash's lane.
 //! - A lane keeps its colour from assignment to the end.
 
 use serde::{Deserialize, Serialize};

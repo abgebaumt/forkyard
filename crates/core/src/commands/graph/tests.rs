@@ -323,7 +323,7 @@ async fn branches_merges_tags_and_remote_refs() {
 }
 
 #[tokio::test]
-async fn stash_rows_hang_on_their_base_commit() {
+async fn stash_rows_sit_at_the_top_with_a_line_to_their_base_commit() {
     let tc = TestCore::new().await;
     let repo = TestRepo::with_commit();
     let a = repo.head();
@@ -341,7 +341,8 @@ async fn stash_rows_hang_on_their_base_commit() {
     let rows = all_rows(&tc, &id, 100).await;
     check_rows(&rows, true).unwrap();
     // Only the stash commits themselves, not their helper commits (index, untracked files).
-    assert_eq!(ids(&rows), vec![s0.as_str(), c.as_str(), s1.as_str(), b.as_str(), a.as_str()]);
+    // All stashes at the top, newest first, each on its own line down to its base commit.
+    assert_eq!(ids(&rows), vec![s0.as_str(), s1.as_str(), c.as_str(), b.as_str(), a.as_str()]);
     let newer = find(&rows, &s0);
     assert_eq!((newer.kind, newer.stash_index, newer.sha.as_deref()), (GraphRowKind::Stash, Some(0), Some(s0.as_str())));
     assert_eq!(newer.parents, vec![c.clone()]);
@@ -354,11 +355,11 @@ async fn stash_rows_hang_on_their_base_commit() {
     assert_eq!(older.summary, "On main: älterer Stash");
     // At the side: the base commit stays in the main lane.
     assert_eq!((find(&rows, &c).lane, find(&rows, &b).lane), (0, 0));
-    assert_eq!((newer.lane, older.lane), (1, 1));
+    assert_eq!((newer.lane, older.lane), (1, 2));
     // Clean working directory after the stash: no WIP row.
     assert!(rows.iter().all(|r| r.kind != GraphRowKind::Wip));
 
-    // Across the page boundary: the stash is on the same page directly before its base.
+    // Across the page boundary: the stash lines continue to their base commits on later pages.
     assert_eq!(all_rows(&tc, &id, 1).await, rows);
 
     view_state_set(&tc, id.clone(), json!({ "hiddenRefs": [STASH_REF] })).await.unwrap();

@@ -187,6 +187,8 @@ All notable changes to Forkyard are listed here. The format follows
   Settings › AI. What goes out passes the same exclusions, redaction and confirmations as every AI request.
 - **Version in the status bar**: the running version at the right end of the status bar; a click opens
   the changelog on GitHub.
+- Stashes sit at the top of the graph, below the uncommitted changes, newest first; a line at the side
+  leads down to the commit each one was made on.
 
 ### Changed
 
