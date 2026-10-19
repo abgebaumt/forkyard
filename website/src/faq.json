@@ -1,0 +1,62 @@
+[
+  {
+    "q": {
+      "en": "Is Forkyard free?",
+      "de": "Ist Forkyard kostenlos?"
+    },
+    "a": {
+      "en": "Yes. Forkyard is free and open-source software under the GNU General Public License v3.0. There is no paid edition and no feature behind a login.",
+      "de": "Ja. Forkyard ist freie Open-Source-Software unter der GNU General Public License v3.0. Es gibt keine Bezahlversion und keine Funktion hinter einem Login."
+    }
+  },
+  {
+    "q": {
+      "en": "Do I need an account?",
+      "de": "Brauche ich ein Konto?"
+    },
+    "a": {
+      "en": "No. Forkyard works with the repositories on your disk. You only sign in to GitHub or GitLab if you want to see pull requests and issues, and that token stays in your system keychain.",
+      "de": "Nein. Forkyard arbeitet mit den Repositories auf deiner Festplatte. Bei GitHub oder GitLab meldest du dich nur an, wenn du Pull Requests und Issues sehen willst, und dieses Token bleibt im Schlüsselbund deines Systems."
+    }
+  },
+  {
+    "q": {
+      "en": "Which Git version does it need?",
+      "de": "Welche Git-Version wird gebraucht?"
+    },
+    "a": {
+      "en": "Forkyard uses the Git installed on your system, version 2.39 or newer. It runs the real git, so your config, hooks, SSH setup and credential helpers keep working.",
+      "de": "Forkyard nutzt das auf deinem System installierte Git ab Version 2.39. Es ruft das echte git auf, deshalb funktionieren deine Konfiguration, Hooks, SSH-Einstellungen und Credential-Helper weiter."
+    }
+  },
+  {
+    "q": {
+      "en": "Which systems are supported?",
+      "de": "Welche Systeme werden unterstützt?"
+    },
+    "a": {
+      "en": "Windows 10 and 11 (x64 and ARM64), macOS (Apple Silicon and Intel) and Linux on x64 as deb, rpm and AppImage. The interface is available in English and German.",
+      "de": "Windows 10 und 11 (x64 und ARM64), macOS (Apple Silicon und Intel) und Linux auf x64 als deb, rpm und AppImage. Die Oberfläche gibt es auf Englisch und Deutsch."
+    }
+  },
+  {
+    "q": {
+      "en": "Does Forkyard send any data?",
+      "de": "Sendet Forkyard Daten?"
+    },
+    "a": {
+      "en": "No. There is no telemetry, no crash reporting and no Forkyard server. The app only talks to the remotes you push to and pull from, and to GitHub or GitLab when you connect an account.",
+      "de": "Nein. Es gibt keine Telemetrie, keine Absturzberichte und keinen Forkyard-Server. Die App spricht nur mit den Remotes, zu denen du pushst und von denen du pullst, und mit GitHub oder GitLab, wenn du ein Konto verbindest."
+    }
+  },
+  {
+    "q": {
+      "en": "How does it compare to other Git clients?",
+      "de": "Wie schneidet Forkyard im Vergleich zu anderen Git-Clients ab?"
+    },
+    "a": {
+      "en": "If you know GitHub Desktop, Sourcetree or GitKraken, the layout will feel familiar: commit graph in the middle, branches on the left, changes on the right. Forkyard focuses on showing what Git actually does, line staging that keeps every byte, and staying fully local and open source.",
+      "de": "Wer GitHub Desktop, Sourcetree oder GitKraken kennt, findet sich schnell zurecht: Commit-Graph in der Mitte, Branches links, Änderungen rechts. Forkyard legt den Schwerpunkt darauf, zu zeigen, was Git wirklich tut, auf Zeilen-Staging, das jedes Byte erhält, und darauf, komplett lokal und quelloffen zu bleiben."
+    }
+  }
+]
