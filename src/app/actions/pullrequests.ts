@@ -119,8 +119,10 @@ export type PushState =
 /** Is the branch fully on the remote? */
 export function pushState(ref: Ref | undefined): PushState {
   if (!ref) return { state: "unknown" };
-  if (!ref.upstream || ref.upstreamGone) return { state: "no_upstream" };
+  // Following a branch of another name (e.g. created from origin/develop) is not being on the remote.
+  if (!ref.upstream || ref.upstreamGone || !ref.pushesToUpstream) return { state: "no_upstream" };
   return ref.ahead > 0 ? { state: "ahead", upstream: ref.upstream, count: ref.ahead } : { state: "pushed", upstream: ref.upstream };
+
 }
 
 /** The remote the host belongs to; if it is not known, the one named `origin`, otherwise the first. */
@@ -135,7 +137,8 @@ function preferredRemote(repoId: Id, remotes: Remote[]): string | null {
  */
 export async function pushBranchForPr(repoId: Id, branch: string, jobId: string): Promise<ActionResult<PushResult>> {
   const ref = cachedRefs(repoId)?.locals.find((item) => item.name === branch);
-  const needsTarget = !ref?.upstream || ref.upstreamGone;
+  // Following a branch of another name: the PR branch goes to the remote under its own name.
+  const needsTarget = !ref?.upstream || ref.upstreamGone || !ref.pushesToUpstream;
   const remote = needsTarget ? preferredRemote(repoId, await loadRemotes(repoId).catch(() => [] as Remote[])) : null;
   // The same jobId may be used again once the first attempt has ended.
   const result = await guardSecrets(repoId, (acceptedSecrets) =>

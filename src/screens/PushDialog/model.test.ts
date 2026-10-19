@@ -11,6 +11,8 @@ const ref = (patch: Partial<Ref>): Ref => ({
   isHead: false,
   upstream: null,
   upstreamGone: false,
+  pushesToUpstream: true,
+  unpublished: null,
   ahead: 0,
   behind: 0,
   remote: null,
@@ -30,6 +32,21 @@ const refs: RefsSnapshot = {
   remotes: [ref({ name: "origin/main", fullName: "refs/remotes/origin/main", kind: "remote", remote: "origin" })],
   tags: [ref({ name: "v1.0", fullName: "refs/tags/v1.0", kind: "tag" })],
 };
+
+describe("push dialog with a branch that follows another name", () => {
+  // Created from origin/develop on the command line: the upstream is develop, but a push doesn't go there.
+  const qa = ref({ name: "qa/blackbox", fullName: "refs/heads/qa/blackbox", upstream: "origin/develop", pushesToUpstream: false, unpublished: 2, ahead: 3 });
+  const withQa: RefsSnapshot = { ...refs, locals: [...refs.locals, qa] };
+
+  it("lists it as new with its own commits instead of counting commits to develop", () => {
+    const hint = pushCandidates(withQa, "main").find((item) => item.key === "refs/heads/qa/blackbox")!.hint;
+    expect(hint).toBe(t("pushMany.candidate.newCount", { count: 2 }));
+  });
+
+  it("sends it under its own name, never onto develop", () => {
+    expect(toExtras(["refs/heads/qa/blackbox"], withQa, "origin")).toEqual([{ local: "refs/heads/qa/blackbox", remoteName: null, force: false }]);
+  });
+});
 
 describe("push dialog", () => {
   it("offers the other local branches and all tags", () => {

@@ -319,7 +319,10 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     return finish(await run(options.remote ?? null, options.remoteBranch ?? null, true, confirmed.expected));
   }
 
-  let result = await run(options.remote ?? null, options.remoteBranch ?? null, false);
+  // Where this push goes: what the caller named, or what "Push where?" answers. A force after a
+  // rejection goes to the same place – never back to an upstream of another name.
+  let destination = { remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null };
+  let result = await run(destination.remote, destination.remoteBranch, false);
 
   if (!result.ok && result.error.code === "no_upstream") {
     const remotes = await loadRemotes(repoId).catch(() => [] as Remote[]);
@@ -331,7 +334,8 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     const name = branch ?? (status?.head.kind === "branch" || status?.head.kind === "unborn" ? status.head.branch : (currentBranch(repoId) ?? ""));
     const target = await askPushTarget(name, remotes);
     if (!target) return result;
-    result = await run(target.remote, target.remoteBranch, false);
+    destination = { remote: target.remote, remoteBranch: target.remoteBranch };
+    result = await run(destination.remote, destination.remoteBranch, false);
   }
 
   if (isRejected(result)) {
@@ -358,7 +362,8 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     if (next !== "force") return result;
     const confirmed = await confirmForcePush(repoId, branch);
     if (!confirmed) return result;
-    result = await run(null, null, true, confirmed.expected);
+    result = await run(destination.remote, destination.remoteBranch, true, confirmed.expected);
+
   }
 
   return finish(result);

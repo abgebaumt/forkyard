@@ -12,6 +12,8 @@ import { fastForwardBranch } from "../../app/actions/fastForward";
 import { fastForward, mergeBranch, rebaseOnto } from "../../app/actions/merge";
 import { openRepoTab } from "../../app/actions/repos";
 import { deleteTag, pushTag } from "../../app/actions/tags";
+import { outgoing, refPublishState } from "../../app/publishState";
+
 import { formatRelative, shortSha } from "../../app/format";
 import { useAppStore } from "../../app/store";
 import { runCommand } from "../../app/registry";
@@ -214,14 +216,36 @@ function tagActions(target: RepoTarget, ref: Ref): PaletteItem[] {
   ];
 }
 
+/** "tracks origin/main · ↑1 ↓2" – or, following a branch of another name, "not published · follows …". */
+export function refDetail(ref: Ref): string {
+  const state = ref.kind === "local" ? refPublishState(ref) : null;
+  const pending = state ? outgoing(state) : null;
+  if (state && pending?.isNew) {
+    // Not on the remote yet: pending work, like an ahead count.
+    const behind = state.kind === "elsewhere" ? state.behind : 0;
+    return [
+      `↑${pending.count}`,
+      t("palette.ref.notOnRemote"),
+      state.kind === "elsewhere" ? t("palette.ref.followsOther", { upstream: state.upstream }) : null,
+      behind ? `↓${behind}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  if (!ref.upstream) return shortSha(ref.sha);
+  if (state?.kind === "elsewhere") return `${t("palette.ref.followsOther", { upstream: ref.upstream })}${state.behind ? ` · ↓${state.behind}` : ""}`;
+  return `${t("palette.ref.tracks", { upstream: ref.upstream })}${ref.ahead || ref.behind ? ` · ↑${ref.ahead} ↓${ref.behind}` : ""}`;
+}
+
 export function refItems(target: RepoTarget, refs: RefsSnapshot): PaletteItem[] {
+
   const current = refs.head.kind === "branch" ? refs.head.branch : null;
   const branch = (ref: Ref): PaletteItem =>
     item({
       key: `ref:${ref.fullName}`,
       kind: ref.kind === "remote" ? "remote" : "branch",
       title: ref.name,
-      detail: ref.upstream ? `${t("palette.ref.tracks", { upstream: ref.upstream })}${ref.ahead || ref.behind ? ` · ↑${ref.ahead} ↓${ref.behind}` : ""}` : shortSha(ref.sha),
+      detail: refDetail(ref),
       marker: ref.isHead ? t("palette.ref.checkedOut") : ref.worktreePath ? t("palette.ref.otherWorktree") : undefined,
       boost: ref.kind === "local" ? 2 : 1,
       // The checked-out branch: Enter shows it in the graph instead of a pointless checkout.

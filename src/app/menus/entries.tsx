@@ -88,6 +88,7 @@ import { openDiffTool, openMergeTool } from "../actions/tools";
 import { isPinned, togglePinned } from "../actions/graphView";
 import { isHidden, isSolo, toggleHidden, toggleSolo } from "../actions/view";
 import { t } from "../../i18n";
+import { nothingToPush, publishTarget, refPublishState } from "../publishState";
 import { useAppStore } from "../store";
 import { customCommandEntries } from "./custom";
 import { openGitflowFinish } from "../../screens/Gitflow";
@@ -394,7 +395,16 @@ function stackEntry(ctx: MenuBase, ref: Ref): MenuEntry {
   });
 }
 
+/** Hint on "Push" for a local branch: what goes where – or, not on the remote yet, what it creates there. */
+export function pushHint(ref: Ref, remotes: readonly string[]): string | undefined {
+  const state = refPublishState(ref);
+  if (state.kind === "published") return state.ahead ? t("menus.branch.pushHint", { count: state.ahead, upstream: clipMiddle(state.upstream, 24) }) : undefined;
+  const target = publishTarget(state, ref.name, remotes);
+  return target ? t("menus.branch.createsRemote", { target: clipMiddle(target, 32) }) : t("menus.branch.createsRemoteBranch");
+}
+
 function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
+
   const { repoId, tabId } = ctx;
   const busy = operationBlock(repoId);
   const hasRemote = (cachedRemotes(repoId)?.length ?? 1) > 0;
@@ -455,8 +465,8 @@ function localBranchMenu(ctx: MenuBase, ref: Ref): MenuEntry[] {
         }),
     item(t("menus.branch.push"), ArrowUpFromLine, () => void push(repoId, { branch: ref.isHead ? null : ref.name, tabId }), {
       shortcut: ref.isHead ? "Mod+Shift+P" : undefined,
-      hint: !hasRemote ? undefined : upstream ? (ref.ahead ? t("menus.branch.pushHint", { count: ref.ahead, upstream: clipMiddle(upstream, 24) }) : undefined) : t("menus.branch.createsRemoteBranch"),
-      blocked: !hasRemote ? t("menus.noRemote") : upstream && ref.ahead === 0 ? t("menus.nothingToPush") : null,
+      hint: !hasRemote ? undefined : pushHint(ref, cachedRemotes(repoId)?.map((remote) => remote.name) ?? []),
+      blocked: !hasRemote ? t("menus.noRemote") : nothingToPush(refPublishState(ref)) ? t("menus.nothingToPush") : null,
     }),
     item(t("pushMany.menuSingle"), ArrowUpFromLine, () => void pushWithMore(repoId, { branch: ref.name }), {
       blocked: !hasRemote ? t("menus.noRemote") : null,

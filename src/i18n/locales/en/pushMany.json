@@ -9,6 +9,8 @@
   "tag": "Tag",
   "candidate": {
     "new": "creates the remote branch",
+    "newCount_one": "new · {{count}} commit",
+    "newCount_other": "new · {{count}} commits",
     "ahead_one": "{{count}} commit to {{upstream}}",
     "ahead_other": "{{count}} commits to {{upstream}}"
   },

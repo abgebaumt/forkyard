@@ -120,6 +120,7 @@
     "pushHint_one": "{{count}} Commit nach {{upstream}}",
     "pushHint_other": "{{count}} Commits nach {{upstream}}",
     "createsRemoteBranch": "legt den Remote-Branch an",
+    "createsRemote": "legt {{target}} an",
     "changeUpstream": "Upstream ändern …",
     "setUpstream": "Upstream setzen …",
     "upstreamMissing": "{{name}} fehlt",

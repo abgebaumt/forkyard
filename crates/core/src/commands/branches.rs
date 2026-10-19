@@ -164,6 +164,10 @@ pub async fn branch_set_upstream(core: &Core, repo_id: String, name: String, ups
                 }
             }
         }
+        // An upstream chosen by hand is what the branch follows, not where a plain push goes:
+        // under another name, the push asks again (and records its own answer).
+        crate::commands::sync::forget_push_to_upstream(core, &repo_id, name).await?;
+
         read_refs(core, &repo_id).await
     })
     .await

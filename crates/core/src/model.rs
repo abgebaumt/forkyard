@@ -270,6 +270,10 @@ pub struct Ref {
     pub is_head: bool,
     pub upstream: Option<String>,
     pub upstream_gone: bool,
+    /// Only for local branches with an upstream: see `UpstreamState::pushes_to_upstream`.
+    pub pushes_to_upstream: bool,
+    /// Only for local branches: see `Status::unpublished`.
+    pub unpublished: Option<u32>,
     pub ahead: u32,
     pub behind: u32,
     pub remote: Option<String>,
@@ -705,6 +709,10 @@ pub struct UpstreamState {
     pub ahead: u32,
     pub behind: u32,
     pub gone: bool,
+    /// A push without a named remote goes to this upstream (same branch name, `push.default`
+    /// `upstream`/`tracking`, or Forkyard recorded it after an explicit push). Otherwise the
+    /// branch counts as not published: a push asks where to.
+    pub pushes_to_upstream: bool,
 }
 
 /// Commits that after a checkout are only reachable by their SHA.
@@ -739,6 +747,11 @@ pub struct Status {
     /// commits are not attached to any branch, tag or remote branch.
     #[serde(default)]
     pub left_behind: Option<LeftBehind>,
+    /// The checked-out branch is not on its remote under a name a plain push reaches (no upstream,
+    /// upstream gone, or an upstream of another name): the number of its commits on no
+    /// remote-tracking ref of that remote (all remotes without an upstream). `Some(0)` is still
+    /// "to push" – the branch itself is missing there. `None`: published, detached, or no remote.
+    pub unpublished: Option<u32>,
     pub identity_set: bool,
     /// Fingerprint of HEAD and index (for `stale_state` checks).
     pub token: String,
@@ -3345,7 +3358,7 @@ mod tests {
     fn status_json() {
         let s = Status {
             head: Head::Branch { branch: "main".into(), sha: "abc".into() },
-            upstream: Some(UpstreamState { name: "origin/main".into(), ahead: 1, behind: 0, gone: false }),
+            upstream: Some(UpstreamState { name: "origin/main".into(), ahead: 1, behind: 0, gone: false, pushes_to_upstream: true }),
             unstaged: vec![change(FileStatus::Untracked, FileArea::Unstaged)],
             staged: vec![],
             conflicted: vec![FileChange {
@@ -3363,6 +3376,8 @@ mod tests {
             resolved_conflicts: vec!["b.txt".into()],
             foreign_operation: None,
             left_behind: None,
+            unpublished: None,
+
             identity_set: true,
             token: "t".into(),
         };
@@ -3371,7 +3386,7 @@ mod tests {
             v,
             json!({
                 "head": {"kind":"branch","branch":"main","sha":"abc"},
-                "upstream": {"name":"origin/main","ahead":1,"behind":0,"gone":false},
+                "upstream": {"name":"origin/main","ahead":1,"behind":0,"gone":false,"pushesToUpstream":true},
                 "unstaged": [{"path":"a.txt","oldPath":null,"status":"untracked","area":"unstaged","isBinary":false,"isLfs":false,"added":1,"removed":null,"conflict":null}],
                 "staged": [],
                 "conflicted": [{"path":"a.txt","oldPath":null,"status":"conflicted","area":"unstaged","isBinary":false,"isLfs":false,"added":1,"removed":null,"conflict":"both_modified"}],
@@ -3379,6 +3394,7 @@ mod tests {
                 "resolvedConflicts": ["b.txt"],
                 "foreignOperation": null,
                 "leftBehind": null,
+                "unpublished": null,
                 "identitySet": true,
                 "token": "t"
             })

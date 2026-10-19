@@ -5,6 +5,7 @@
 use std::path::Path;
 
 use crate::app::Core;
+use crate::commands::sync;
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
 use crate::model::{Head, Ref, RefKind, RefsSnapshot};
@@ -12,8 +13,8 @@ use crate::util;
 
 /// Fields per ref, each terminated by NUL. The tag message is only included for annotated
 /// tags; otherwise every branch would bring along the whole commit message.
-const FORMAT: &str = "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(HEAD)%00%(upstream)%00%(upstream:track)%00%(worktreepath)%00%(symref)%00%(if:equals=tag)%(objecttype)%(then)%(contents)%(end)%00";
-const FIELDS: usize = 10;
+const FORMAT: &str = "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(HEAD)%00%(upstream)%00%(upstream:track)%00%(worktreepath)%00%(symref)%00%(if:equals=tag)%(objecttype)%(then)%(contents)%(end)%00%(upstream:remoteref)%00%(upstream:remotename)%00";
+const FIELDS: usize = 12;
 
 /// Local and remote branches, tags, HEAD, upstream, ahead/behind (`git for-each-ref`).
 pub async fn refs_list(core: &Core, repo_id: String) -> CoreResult<RefsSnapshot> {
@@ -33,7 +34,26 @@ pub async fn read_refs(core: &Core, repo_id: &str) -> CoreResult<RefsSnapshot> {
         Ok(out) if out.success() => out.stdout_lines().into_iter().map(util::decode_lossy).filter(|n| !n.is_empty()).collect(),
         _ => Vec::new(),
     };
-    let parsed = parse_for_each_ref(&refs.stdout, &remote_names, &path);
+    let mut parsed = parse_for_each_ref(&refs.stdout, &remote_names, &path);
+    // Upstreams of another name: whether a plain push goes there is in the configuration.
+    if parsed.locals.iter().any(|r| r.upstream.is_some() && !r.pushes_to_upstream) {
+        let rule = sync::read_push_rule(core, repo_id, false).await?;
+        for local in parsed.locals.iter_mut().filter(|r| r.upstream.is_some() && !r.pushes_to_upstream) {
+            local.pushes_to_upstream = rule.allows_another_name(&local.name);
+        }
+    }
+    // Not on the remote under a name a plain push reaches: how much of it is on no remote branch.
+    if !remote_names.is_empty() {
+        let unpublished = |r: &Ref| r.upstream.is_none() || r.upstream_gone || !r.pushes_to_upstream;
+        let wanted: Vec<(String, Option<String>)> =
+            parsed.locals.iter().filter(|r| unpublished(r)).map(|r| (r.sha.clone(), parsed.upstream_remotes.get(&r.name).cloned())).collect();
+        if !wanted.is_empty() {
+            let mut counts = unpublished_counts(core, &path, repo_id, &wanted).await?.into_iter();
+            for local in parsed.locals.iter_mut().filter(|r| unpublished(r)) {
+                local.unpublished = counts.next();
+            }
+        }
+    }
     let head = match parsed.locals.iter().find(|r| r.is_head) {
         Some(current) => Head::Branch { branch: current.name.clone(), sha: current.sha.clone() },
         // Detached or without a commit: for-each-ref does not tell us that.
@@ -127,6 +147,51 @@ pub(crate) async fn broken_refs(core: &Core, path: &Path, repo_id: &str) -> Vec<
     broken
 }
 
+/// For each `(tip, remote)`: the commits reachable from `tip` that no remote-tracking ref of `remote`
+/// (all remotes for `None`) contains – `git rev-list --count <tip> --not --remotes[=<remote>]`, but
+/// with one `git rev-list --parents` per remote for all tips together.
+pub(crate) async fn unpublished_counts(core: &Core, path: &Path, repo_id: &str, wanted: &[(String, Option<String>)]) -> CoreResult<Vec<u32>> {
+    use std::collections::{HashMap, HashSet};
+    // A remote name with glob characters can't be a `--remotes=` pattern: count against all remotes.
+    let filter = |remote: &Option<String>| remote.as_ref().filter(|name| !name.contains(['*', '?', '[', '\\'])).cloned();
+    let mut groups: HashMap<Option<String>, Vec<&str>> = HashMap::new();
+    for (tip, remote) in wanted {
+        let tips = groups.entry(filter(remote)).or_default();
+        if !tips.contains(&tip.as_str()) {
+            tips.push(tip);
+        }
+    }
+    let mut counts: HashMap<(Option<String>, String), u32> = HashMap::new();
+    for (remote, tips) in groups {
+        let not = match &remote {
+            Some(name) => format!("--remotes={name}"),
+            None => "--remotes".to_string(),
+        };
+        let out = read_cmd(core, path, repo_id).arg("rev-list").arg("--parents").args(&tips).args(["--not", not.as_str(), "--"]).run().await?;
+        // The commits on no remote branch, with their parents (only those in the set matter).
+        let mut parents: HashMap<String, Vec<String>> = HashMap::new();
+        for line in out.stdout_lines() {
+            let line = util::decode_lossy(line);
+            let mut shas = line.split(' ').map(str::to_string);
+            if let Some(sha) = shas.next() {
+                parents.insert(sha, shas.collect());
+            }
+        }
+        for tip in tips {
+            let mut seen: HashSet<&str> = HashSet::new();
+            let mut stack: Vec<&str> = vec![tip];
+            while let Some(sha) = stack.pop() {
+                let Some(up) = parents.get(sha) else { continue };
+                if seen.insert(sha) {
+                    stack.extend(up.iter().map(String::as_str));
+                }
+            }
+            counts.insert((remote.clone(), tip.to_string()), u32::try_from(seen.len()).unwrap_or(u32::MAX));
+        }
+    }
+    Ok(wanted.iter().map(|(tip, remote)| counts.get(&(filter(remote), tip.clone())).copied().unwrap_or(0)).collect())
+}
+
 fn read_cmd(core: &Core, path: &Path, repo_id: &str) -> GitCmd {
     core.git.cmd(path).repo(repo_id).read_only().no_log()
 }
@@ -166,6 +231,8 @@ pub struct ParsedRefs {
     pub locals: Vec<Ref>,
     pub remotes: Vec<Ref>,
     pub tags: Vec<Ref>,
+    /// Local branch → the remote of its upstream (`branch.<b>.remote`, not for a local upstream).
+    pub upstream_remotes: std::collections::HashMap<String, String>,
 }
 
 /// Parses the output of `git for-each-ref` with `FORMAT`.
@@ -211,6 +278,8 @@ pub fn parse_for_each_ref(stdout: &[u8], remote_names: &[String], worktree: &Pat
         let track = text(6);
         let upstream_gone = upstream.is_some() && (track.contains("gone") || !known.contains(upstream_full.as_str()));
         let (ahead, behind) = if upstream.is_some() && !upstream_gone { parse_track(&track) } else { (0, 0) };
+        // Same name on the remote; `read_refs` asks the configuration for the others.
+        let pushes_to_upstream = upstream.is_some() && sync::same_name_upstream(name, &text(10));
 
         let worktree_raw = f[7];
         let worktree_path = (kind == RefKind::Local && !is_head && !worktree_raw.is_empty())
@@ -226,6 +295,8 @@ pub fn parse_for_each_ref(stdout: &[u8], remote_names: &[String], worktree: &Pat
             is_head,
             upstream,
             upstream_gone,
+            pushes_to_upstream,
+            unpublished: None,
             ahead,
             behind,
             remote: (kind == RefKind::Remote).then(|| remote_of(name, remote_names)),
@@ -233,8 +304,13 @@ pub fn parse_for_each_ref(stdout: &[u8], remote_names: &[String], worktree: &Pat
             is_annotated,
             worktree_path,
         };
+        let upstream_remote = text(11);
+        if kind == RefKind::Local && item.upstream.is_some() && !upstream_remote.is_empty() && upstream_remote != "." {
+            out.upstream_remotes.insert(item.name.clone(), upstream_remote);
+        }
         match kind {
             RefKind::Local => out.locals.push(item),
+
             RefKind::Remote => out.remotes.push(item),
             RefKind::Tag => out.tags.push(item),
         }

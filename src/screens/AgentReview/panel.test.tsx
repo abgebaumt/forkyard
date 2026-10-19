@@ -37,6 +37,7 @@ const staged = (path: string): FileChange => ({ path, oldPath: null, status: "ad
 const status = (patch: Partial<Status> = {}): Status => ({
   head: { kind: "branch", branch: "main", sha: "4".repeat(40) },
   upstream: null,
+  unpublished: null,
   unstaged: [],
   staged: [],
   conflicted: [],

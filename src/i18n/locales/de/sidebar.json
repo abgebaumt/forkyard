@@ -4,7 +4,11 @@
     "ahead_other": "{{count, number}} Commits voraus",
     "behind_one": "{{count, number}} Commit zurück",
     "behind_other": "{{count, number}} Commits zurück",
-    "against": "{{text}} gegenüber {{upstream}}"
+    "against": "{{text}} gegenüber {{upstream}}",
+    "unpublished_one": "{{count, number}} Commit noch nicht auf dem Remote",
+    "unpublished_other": "{{count, number}} Commits noch nicht auf dem Remote",
+    "unpublishedNone": "Noch nicht auf dem Remote",
+    "followsOther": "folgt {{upstream}} (anderer Name)"
   },
   "kind": {
     "branch": "Lokaler Branch",
@@ -28,7 +32,8 @@
     "entries_one": "{{count, number}} Eintrag",
     "entries_other": "{{count, number}} Einträge",
     "detached": "Kein Branch ausgecheckt. HEAD zeigt direkt auf {{sha}}.",
-    "unborn": "{{branch}} hat noch keinen Commit."
+    "unborn": "{{branch}} hat noch keinen Commit.",
+    "followsOther": "Folgt {{upstream}} (anderer Name) – ein Push fragt, wohin"
   },
   "describe": {
     "checkedOut": "ausgecheckt",

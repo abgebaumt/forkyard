@@ -306,6 +306,14 @@ export interface Ref {
   upstream: string | null;
   /** The upstream is set but no longer exists. */
   upstreamGone: boolean;
+  /**
+   * Only for local branches with an upstream: a push without a named remote goes there (same
+   * branch name, `push.default` `upstream`/`tracking`, or Forkyard recorded it after an explicit
+   * push). Otherwise the branch counts as not published – a push asks where to.
+   */
+  pushesToUpstream: boolean;
+  /** Only for local branches: see `Status.unpublished`. */
+  unpublished: number | null;
   ahead: number;
   behind: number;
   /** Name of the remote, only for remote branches. */
@@ -629,12 +637,23 @@ export interface UpstreamState {
   ahead: number;
   behind: number;
   gone: boolean;
+  /** See `Ref.pushesToUpstream`. */
+  pushesToUpstream: boolean;
 }
+
 
 export interface Status {
   head: Head;
   upstream: UpstreamState | null;
+  /**
+   * The checked-out branch is not on its remote under a name a plain push reaches (no upstream,
+   * upstream gone, or an upstream of another name): its commits on no remote-tracking ref of that
+   * remote. `0` is still "to push" – the branch itself is missing there. `null`: published,
+   * detached, or no remote.
+   */
+  unpublished: number | null;
   unstaged: FileChange[];
+
   staged: FileChange[];
   conflicted: FileChange[];
   operation: Operation | null;
