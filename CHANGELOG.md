@@ -201,6 +201,10 @@ All notable changes to Forkyard are listed here. The format follows
   ended with “connection was interrupted” when a Git process finishes at the same moment (Linux, macOS).
 - Forkyard no longer opens a new keychain session for every token it reads or stores (Linux). With
   GNOME Keyring 50 that could crash the keyring service, which then came back locked.
+- Faster start on Linux laptops with two GPUs: the window no longer waits about 3 seconds while the
+  powered-down second GPU (e.g. NVIDIA) wakes up. WebKitGTK woke it to watch the display's refresh; with
+  more than one GPU Forkyard now has it use its timer instead (`WEBKIT_FORCE_VBLANK_TIMER`, a value you
+  set yourself is kept), and the GPU stays asleep.
 
 ## [1.1.0] – 2026-10-16
 
