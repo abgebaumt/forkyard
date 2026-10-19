@@ -195,6 +195,8 @@ All notable changes to Forkyard are listed here. The format follows
 
 - A request that is still waiting for its answer – an AI suggestion, a new pull request – is no longer
   ended with “connection was interrupted” when a Git process finishes at the same moment (Linux, macOS).
+- Forkyard no longer opens a new keychain session for every token it reads or stores (Linux). With
+  GNOME Keyring 50 that could crash the keyring service, which then came back locked.
 
 ## [1.1.0] – 2026-10-16
 
