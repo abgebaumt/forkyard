@@ -188,7 +188,8 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     }
   };
 
-  const propose = async (text: string | null) => {
+  /** `again`: the user asked for a new proposal (with or without an instruction). */
+  const propose = async (text: string | null, again = text !== null) => {
     if (requestRef.current.kind === "loading") return;
     if (aiVisibility(queryClient.getQueryData<AiStatus>(qk.aiStatus)).elementsOpenSetup) {
       void openAiSetup();
@@ -231,8 +232,8 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         if (first) setSelection(selectOne(emptySelection, first));
       }
       setRequest({ kind: "done", enough: proposal.groups.length === 1 && pinned.size === 0 });
-      if (text !== null) say(pinned.size > 0 ? t("wip.compose.reproposedKept", { count: pinned.size }) : t("wip.compose.reproposed"));
-      if (text !== null) setInstruction("");
+      if (again) say(pinned.size > 0 ? t("wip.compose.reproposedKept", { count: pinned.size }) : t("wip.compose.reproposed"));
+      if (again) setInstruction("");
     } catch (error) {
       const current = requestRef.current as Request;
       if (current.kind !== "loading" || current.jobId !== jobId) return;
@@ -689,9 +690,8 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           autoComplete="off"
           onSubmit={(event) => {
             event.preventDefault();
-            const text = instruction.trim();
-            if (!text) return;
-            void propose(text);
+            // Without an instruction this is a plain new proposal; what the user moved stays either way.
+            void propose(instruction.trim() || null, true);
           }}
         >
           <input

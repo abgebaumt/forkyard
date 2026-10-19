@@ -392,6 +392,12 @@ scenario("multi-select, N with a message, an instruction keeps what the user mov
   });
   await app.webdriver("DELETE", "/actions").catch(() => undefined);
   await until(async () => (await rowInfo(app, row(TEST)))?.group === "skip", "the dragged test is in “Nicht committen”");
+  // “Neu vorschlagen” without an instruction asks again as well (it used to do nothing).
+  assertEqual(await app.exec((css) => document.querySelector(`${css} [data-compose-instruction]`).value, VIEW), "", "the field is empty after the request");
+  await app.click(`${VIEW} [data-compose-repropose]`);
+  await until(() => ollama.chats.length === 3, "a third request without an instruction", 20_000);
+  assert(!ollama.chats[2].system.includes("«"), "no instruction in the third request");
+  await until(async () => (await rowInfo(app, row(TEST)))?.group === "skip", "the test still stays where the user put it");
   await t.noConsoleErrors(app);
 }));
 

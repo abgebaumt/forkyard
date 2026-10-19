@@ -223,6 +223,10 @@ All notable changes to Forkyard are listed here. The format follows
   dot for a branch without commits of its own), the branch menu says “creates origin/<name>”, the sidebar
   shows the outgoing arrow, and the push dialog lists the branch as new with its commits. The count is
   the commits that are on no remote branch.
+- AI with Claude Code, Codex or opencode (no model chosen in Forkyard) works again: “What is sent?”
+  never asked, so every request – compose, commit message, review and the rest – was refused.
+- “Neu vorschlagen” in Compose commits without an instruction asks for a new proposal instead of doing
+  nothing.
 - Faster start on Linux laptops with two GPUs: the window no longer waits about 3 seconds while the
   powered-down second GPU (e.g. NVIDIA) wakes up. WebKitGTK woke it to watch the display's refresh; with
   more than one GPU Forkyard now has it use its timer instead (`WEBKIT_FORCE_VBLANK_TIMER`, a value you

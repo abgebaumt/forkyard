@@ -177,7 +177,7 @@ async fn outgoing_for(core: &Core, repo_id: &str, branch: Option<&str>, remote: 
 }
 
 /// "What is sent?": builds the exact text without sending anything. Works in every state; the
-/// confirmation triggers are computed only while AI is on with a provider and a model.
+/// confirmation triggers are computed only while AI is on with a provider.
 pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input: AiInput, locale: String) -> CoreResult<AiPreview> {
     if !core.repo_row(&repo_id)?.trusted {
         return Err(CoreError::repo_untrusted());
@@ -227,8 +227,10 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         month_cost_usd: 0.0,
         limit_usd: settings.ai_monthly_limit_usd,
     };
-    if let (AiState::On, Some(kind), Some(model)) = (ai::state_of(&settings), kind, model.as_deref()) {
-        let estimate = run::estimate(core, &settings, kind, model, feature, &built.prompt)?;
+    // Without a model too: Claude Code, Codex and opencode choose their own, and the request
+    // (`run::complete_json`) is gated the same way with an empty model.
+    if let (AiState::On, Some(kind)) = (ai::state_of(&settings), kind) {
+        let estimate = run::estimate(core, &settings, kind, model.as_deref().unwrap_or_default(), feature, &built.prompt)?;
         preview.estimated_cost_usd = estimate.cost_usd;
         preview.month_cost_usd = estimate.spent_usd;
         // Same `local` as the request itself (`runs_on_this_computer`), so preview and gate agree.
@@ -758,6 +760,19 @@ mod tests {
         assert_eq!(without_token(&sent_text), without_token(&preview.text), "exactly the previewed text went out");
         assert_ne!(sent_text, preview.text, "with its own delimiter token");
         assert!(!sent_text.contains("sk-ant-api03-testkey"), "the key is never part of the text");
+    }
+
+    #[tokio::test]
+    async fn a_cli_provider_without_a_model_still_asks_in_the_preview() {
+        // Claude Code, Codex and opencode pick their own model: `aiModel` stays empty. The preview must
+        // still name the confirmations the request will demand, or the dialog never shows and every
+        // request is refused.
+        let tc = TestCore::new().await;
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code", "aiModel": null})).await.unwrap();
+        let repo = messnetz();
+        let id = tc.open(&repo).await.repo.id;
+        let preview = ai_preview(&tc, id.clone(), AiFeature::CommitMessage, AiInput::CommitMessage, "de-DE".into()).await.unwrap();
+        assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst]);
     }
 
     #[tokio::test]
