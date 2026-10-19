@@ -1,19 +1,22 @@
+import { lazy, Suspense } from "react";
 import type { Id } from "../../core";
-import { ActivityLog } from "../../screens/ActivityLog";
-import { CloneDialog } from "../../screens/CloneDialog";
 import { CommandPalette } from "../../screens/CommandPalette";
-import { InitDialog } from "../../screens/InitDialog";
-import { Preferences } from "../../screens/Preferences";
-import { RemoteDialog } from "../../screens/RemoteDialog";
-import { ShortcutOverlay } from "../../screens/Shortcuts";
-import { LfsDialog } from "../../screens/Lfs";
-import { RepoCleanupDialog } from "../../screens/RepoCleanup";
-import { SubmoduleDialog } from "../../screens/SubmoduleDialog";
 import { installDevHooks } from "../devHooks";
 import { MenuHost } from "../menus/host";
 import { useAppStore, type Overlay } from "../store";
 
 installDevHooks();
+
+// Loaded when first opened, not during the start (separate chunks).
+const ActivityLog = lazy(() => import("../../screens/ActivityLog").then((module) => ({ default: module.ActivityLog })));
+const CloneDialog = lazy(() => import("../../screens/CloneDialog").then((module) => ({ default: module.CloneDialog })));
+const InitDialog = lazy(() => import("../../screens/InitDialog").then((module) => ({ default: module.InitDialog })));
+const Preferences = lazy(() => import("../../screens/Preferences").then((module) => ({ default: module.Preferences })));
+const RemoteDialog = lazy(() => import("../../screens/RemoteDialog").then((module) => ({ default: module.RemoteDialog })));
+const ShortcutOverlay = lazy(() => import("../../screens/Shortcuts").then((module) => ({ default: module.ShortcutOverlay })));
+const LfsDialog = lazy(() => import("../../screens/Lfs").then((module) => ({ default: module.LfsDialog })));
+const RepoCleanupDialog = lazy(() => import("../../screens/RepoCleanup").then((module) => ({ default: module.RepoCleanupDialog })));
+const SubmoduleDialog = lazy(() => import("../../screens/SubmoduleDialog").then((module) => ({ default: module.SubmoduleDialog })));
 
 function OverlayContent({ overlay, repoId, close }: { overlay: NonNullable<Overlay>; repoId: Id | null; close: () => void }) {
   switch (overlay.kind) {
@@ -49,7 +52,11 @@ export function OverlayHost({ repoId }: { repoId: Id | null }) {
   const close = useAppStore((state) => state.closeOverlay);
   return (
     <>
-      {overlay ? <OverlayContent overlay={overlay} repoId={repoId} close={close} /> : null}
+      {overlay ? (
+        <Suspense fallback={null}>
+          <OverlayContent overlay={overlay} repoId={repoId} close={close} />
+        </Suspense>
+      ) : null}
       <MenuHost />
     </>
   );

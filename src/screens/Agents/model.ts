@@ -141,6 +141,9 @@ export const manyAgentsHint = (running: number): string | null => (running >= MA
 
 export type AgentAction = "terminal" | "stop" | "resume" | "copyPath" | "review" | "tests" | "pr" | "cleanup" | "forget";
 
+/** Whether `actionsFor` could offer “resume” for one of `agents` – only then are the templates needed. */
+export const mayResume = (agents: readonly Agent[]): boolean => agents.some((agent) => agent.status !== "orphaned" && !hasSession(agent));
+
 export function actionsFor(agent: Agent, options: { canResume: boolean; hasTestCommand: boolean; hasHost: boolean }): AgentAction[] {
   if (agent.status === "orphaned") return ["forget"];
   const out: AgentAction[] = [];

@@ -31,7 +31,7 @@ const LFS_POINTER_PREFIX: &[u8] = b"version https://git-lfs.github.com/spec/v1";
 
 /// `git status --porcelain=v2 -z --branch` plus the running operation from `.git`.
 pub async fn status_get(core: &Core, repo_id: String) -> CoreResult<Status> {
-    read_status(core, &repo_id).await
+    crate::startup::first_call("status_get", read_status(core, &repo_id)).await
 }
 
 /// Reads the whole status. Pure read command: takes no lock, does not write the index

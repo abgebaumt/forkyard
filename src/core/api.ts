@@ -44,6 +44,7 @@ import type {
   ActivityPage,
   ActivityScope,
   AppInfo,
+  StartupReport,
   BisectStatus,
   BisectScript,
   BisectScriptRequest,
@@ -176,6 +177,8 @@ type R = { repoId: Id };
 export interface CoreCommands {
   // --- App -----------------------------------------------------------------
   appInfo(): Promise<AppInfo>;
+  /** Whether the operating system's keychain is reachable (checked once per run; not part of `appInfo`, so the start never waits for it). */
+  appKeyringAvailable(): Promise<boolean>;
   /** Looks for Git again ("Check again") and returns the new state; a Git installed later counts without a restart. */
   appRecheckGit(): Promise<AppInfo>;
   /**
@@ -200,6 +203,11 @@ export interface CoreCommands {
    * counts as a sign of life in response to such a request.
    */
   appCloseGuard(input: { active: boolean }): Promise<void>;
+  /**
+   * The UI's startup milestones (once per run, later calls are ignored): logged as one
+   * `Startup (UI): …` line, with the slowest core calls of the start.
+   */
+  appStartupReport(input: { report: StartupReport }): Promise<void>;
   /** Quits the app: cancels running actions (cleans up a half-finished clone) and closes the window. */
   appQuit(): Promise<void>;
 

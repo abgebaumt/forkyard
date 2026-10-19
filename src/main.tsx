@@ -1,5 +1,5 @@
 import "./i18n";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import "./styles/app.css";
@@ -11,11 +11,13 @@ import { installCloseGuard } from "./app/closeGuard";
 import { installEscapeGuard } from "./app/escapeGuard";
 import { installWebviewGuards } from "./app/webviewGuards";
 import { installScrollPin } from "./app/scrollPin";
-import { core, type Core } from "./core";
-import { DesignPage } from "./design/DesignPage";
+import { core, startupMark, type Core } from "./core";
 import { Toaster } from "./ui/Feedback";
 import { TooltipProvider } from "./ui/Tooltip";
 import { AvatarSourceContext } from "./ui/Git";
+
+// Only for `?design`: not part of the app's start.
+const DesignPage = lazy(() => import("./design/DesignPage").then((module) => ({ default: module.DesignPage })));
 
 declare global {
   interface Window {
@@ -53,11 +55,14 @@ if (import.meta.env.DEV) {
   window.__gc = { core, store: useAppStore, queryClient };
 }
 
+startupMark("script");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <TooltipProvider>
       {showDesign ? (
-        <DesignPage />
+        <Suspense fallback={null}>
+          <DesignPage />
+        </Suspense>
       ) : (
         <QueryClientProvider client={queryClient}>
           <AvatarSourceContext.Provider value={useAvatarUrl}>

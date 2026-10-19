@@ -17,8 +17,14 @@ pub async fn app_info(core: &Core) -> CoreResult<AppInfo> {
         git_path: git.map(|g| util::display_path(&g.path)),
         git_min_version: MIN_VERSION_TEXT.to_string(),
         data_dir: util::display_path(core.data_dir()),
-        keyring_available: core.keyring_available().await,
     })
+}
+
+/// Whether the operating system's keychain is reachable (probed once per run). Not part of
+/// `app_info`: the app's start must never wait for the keychain (Secret Service may first have to
+/// be started, or hang); only the screens that store secrets ask.
+pub async fn app_keyring_available(core: &Core) -> CoreResult<bool> {
+    Ok(crate::startup::first_call("keychain probe", core.keyring_available()).await)
 }
 
 /// Looks for Git again ("Check again" on the "Git was not found" page) and returns the new
@@ -73,6 +79,14 @@ impl CloseGuard {
     pub fn quitting(&self) -> bool {
         self.state.lock().quitting
     }
+}
+
+/// The UI's startup milestones: logged once per run as `Startup (UI): …` (later calls are ignored).
+pub async fn app_startup_report(core: &Core, report: crate::model::StartupReport) -> CoreResult<()> {
+    // The startup clock is per process, not per core.
+    let _ = core;
+    crate::startup::report(&report);
+    Ok(())
 }
 
 /// The UI reports whether something would be lost when the window is closed. Every call also

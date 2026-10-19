@@ -8,7 +8,7 @@ import { CircleCheck, KeyRound, Link2Off, Plug, Plus, RefreshCw, Replace, Shield
 import { accountHost, accountPerson, accountState, checkAccount, disconnectAccount, hostBusyKeys, type AccountState } from "../../app/actions/hosts";
 import { describeHostError, hostKindLabels, type HostAccountInfo } from "../../app/actions/hostTypes";
 import { describeError } from "../../app/errors";
-import { qk, queryClient, useAppInfo, useHostAccounts } from "../../app/queries";
+import { qk, queryClient, useHostAccounts, useKeyringAvailable } from "../../app/queries";
 import { useBusy } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Banner } from "../../ui/Feedback";
@@ -120,7 +120,7 @@ function ListSkeleton() {
 /** "Integrations" section of the settings. */
 export function HostsSection() {
   const accounts = useHostAccounts();
-  const keyring = useAppInfo().data?.keyringAvailable;
+  const keyring = useKeyringAvailable();
   // Whether a token is still valid changes at the host, not here: reload when the section opens.
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: qk.hostAccounts });

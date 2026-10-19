@@ -4,7 +4,7 @@ import { KeyRound, ShieldCheck, Trash2 } from "lucide-react";
 import { core, type HostAccount } from "../../../core";
 import { confirm } from "../../../app/dialogs";
 import { formatDateTime, formatShortDate } from "../../../app/format";
-import { qk, queryClient, useAppInfo, useCredentials } from "../../../app/queries";
+import { qk, queryClient, useCredentials, useKeyringAvailable } from "../../../app/queries";
 import { runAction } from "../../../app/run";
 import { Button } from "../../../ui/Button";
 import { Banner, toast } from "../../../ui/Feedback";
@@ -36,14 +36,13 @@ async function forgetAll(count: number) {
 }
 
 export function CredentialsSection() {
-  const appInfo = useAppInfo();
   const credentials = useCredentials();
   // The core does not report when the remembered entries change: reload when the section opens.
   useEffect(() => {
     void queryClient.invalidateQueries({ queryKey: qk.credentials });
   }, []);
   const list = credentials.data ?? [];
-  const keyring = appInfo.data?.keyringAvailable;
+  const keyring = useKeyringAvailable();
 
   return (
     <section>

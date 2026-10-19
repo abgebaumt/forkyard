@@ -29,6 +29,11 @@ pub async fn app_info(core: State<'_, Core>) -> R<AppInfo> {
 }
 
 #[tauri::command]
+pub async fn app_keyring_available(core: State<'_, Core>) -> R<bool> {
+    c::app::app_keyring_available(&core).await
+}
+
+#[tauri::command]
 pub async fn app_recheck_git(core: State<'_, Core>) -> R<AppInfo> {
     c::app::app_recheck_git(&core).await
 }
@@ -41,6 +46,11 @@ pub async fn update_check(core: State<'_, Core>, manual: bool) -> R<UpdateInfo> 
 #[tauri::command]
 pub async fn update_dismiss(core: State<'_, Core>, version: String, skip: bool) -> R<UpdateInfo> {
     c::update::update_dismiss(&core, version, skip).await
+}
+
+#[tauri::command]
+pub async fn app_startup_report(core: State<'_, Core>, report: StartupReport) -> R<()> {
+    c::app::app_startup_report(&core, report).await
 }
 
 #[tauri::command]

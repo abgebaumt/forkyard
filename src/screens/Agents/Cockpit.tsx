@@ -90,7 +90,7 @@ function AgentRow({ agent, tabId, active, onFocus, now, options }: { agent: Agen
 
 export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const agents = useAgents(repoId);
-  const optionsFor = useActionOptions(repoId);
+  const optionsFor = useActionOptions(repoId, agents.data ?? []);
   const list = useMemo(() => sortAgents(agents.data ?? []), [agents.data]);
   const now = useSecondTick(list.some(hasSession));
   const [activeId, setActiveId] = useState<Id | null>(null);

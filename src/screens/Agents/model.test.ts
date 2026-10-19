@@ -8,6 +8,7 @@ import {
   displayName,
   formatRuntime,
   manyAgentsHint,
+  mayResume,
   needsYou,
   sortAgents,
   startBlocker,
@@ -49,6 +50,17 @@ const agent = (patch: Partial<Agent>): Agent => ({
   commitsAhead: 0,
   test: null,
   ...patch,
+});
+
+describe("mayResume", () => {
+  // Asking for the templates starts every agent tool (version, sign-in): only when resume could be offered.
+  it("is only true for an agent without a session that is not orphaned", () => {
+    expect(mayResume([])).toBe(false);
+    expect(mayResume([agent({}), agent({ id: "a2", terminalId: "t2", status: "waiting" })])).toBe(false);
+    expect(mayResume([agent({ terminalId: null, status: "orphaned" })])).toBe(false);
+    expect(mayResume([agent({}), agent({ id: "a2", terminalId: null, status: "stopped" })])).toBe(true);
+    expect(mayResume([agent({ terminalId: null, status: "done", exitCode: 0 })])).toBe(true);
+  });
 });
 
 const template = (patch: Partial<AgentTemplateInfo>): AgentTemplateInfo => ({

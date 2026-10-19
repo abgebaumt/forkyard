@@ -34,7 +34,7 @@ pub(crate) use search::{commit_summaries, is_search_date, SEARCH_REFS};
 
 /// One page of the graph with a finished lane layout; first page with `cursor: None` (with WIP and stash rows).
 pub async fn graph_page(core: &Core, repo_id: String, cursor: Option<String>, limit: u32) -> CoreResult<GraphPage> {
-    page::graph_page(core, &repo_id, cursor.as_deref(), limit).await
+    crate::startup::first_call("graph_page", page::graph_page(core, &repo_id, cursor.as_deref(), limit)).await
 }
 
 /// Metadata and changed files of a commit, range or stash.

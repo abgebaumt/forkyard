@@ -57,6 +57,7 @@ export interface DiffOptions {
 
 export const qk = {
   appInfo: ["app", "info"] as const,
+  keyring: ["app", "keyring"] as const,
   avatar: (email: string) => ["app", "avatar", email] as const,
   tabs: ["app", "tabs"] as const,
   repos: ["app", "repos"] as const,
@@ -152,6 +153,8 @@ export const GRAPH_PAGE_SIZE = 500;
 // ---------------------------------------------------------------------------
 
 export const useAppInfo = () => useQuery({ queryKey: qk.appInfo, queryFn: () => core.appInfo(), staleTime: Infinity });
+/** Whether the OS keychain is reachable; asked only by the screens that store secrets. */
+export const useKeyringAvailable = () => useQuery({ queryKey: qk.keyring, queryFn: () => core.appKeyringAvailable(), staleTime: Infinity }).data;
 export const useTabs = () => useQuery({ queryKey: qk.tabs, queryFn: () => core.tabsList() });
 export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core.repoList() });
 // Settings and profiles are read only once no change to them is in flight (see writeQueue.ts).
@@ -456,7 +459,11 @@ export const useAgentReview = (repoId: Id | null | undefined, agentId: Id | null
     enabled: enabledFor(repoId) && Boolean(agentId),
   });
 
-export const useAgentTemplates = () => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000 });
+/**
+ * The agent templates with their programs' version and sign-in state – asking that starts every
+ * tool (`claude --version`, `claude auth status` …), so only where it is needed (`enabled`).
+ */
+export const useAgentTemplates = (enabled = true) => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000, enabled });
 
 /** The last collision report of the repository's agents; kept current by `agents:collisions`. */
 export const useAgentCollisions = (repoId: Id | null | undefined) =>

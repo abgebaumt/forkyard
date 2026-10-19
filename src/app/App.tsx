@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PlugZap, RefreshCw, TriangleAlert } from "lucide-react";
-import type { AppInfo, Platform, Settings, Tab } from "../core";
+import { startupMark, type AppInfo, type Platform, type Settings, type Tab } from "../core";
 import { Button } from "../ui/Button";
 import { setShortcutPlatform } from "../ui/shortcut";
 import { AgentWatch } from "../screens/Agents/Watch";
@@ -60,6 +60,7 @@ const gitInstallHint: Record<Platform, string> = {
 
 export function App() {
   const appInfo = useAppInfo();
+  useEffect(() => startupMark("paint"), []);
 
   if (appInfo.isPending) return <StartupScreen />;
 
@@ -153,6 +154,11 @@ function Shell({ info }: { info: AppInfo }) {
   useCrashReportsOnStart(tabsQuery.isSuccess && !hasScenario);
   useUpdateChecks(tabsQuery.isSuccess ? settings?.checkForUpdates : undefined);
   useAiIntro(tabsQuery.isSuccess);
+  useEffect(() => {
+    if (!tabsQuery.isSuccess) return;
+    startupMark("shell");
+    if (!repoId) startupMark("management");
+  }, [tabsQuery.isSuccess, repoId]);
 
   if (tabsQuery.isPending) return <StartupScreen />;
   if (tabsQuery.isError) {

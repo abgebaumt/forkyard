@@ -127,7 +127,7 @@ impl Core {
         if let Err(e) = util::create_private_file(&db_path).and_then(|()| util::restrict_to_owner(&db_path)) {
             log::warn!("Permissions of the database not restricted: {e}");
         }
-        let db = Db::open(&db_path)?;
+        let db = crate::startup::timed("database open and migrations", || Db::open(&db_path))?;
         // Created more openly by an earlier version: tighten them.
         for extra in ["-wal", "-shm"] {
             let mut name = db_path.clone().into_os_string();
@@ -139,7 +139,7 @@ impl Core {
                 }
             }
         }
-        let (git_found, git_info) = Self::find_git(config.git_path.as_deref());
+        let (git_found, git_info) = crate::startup::timed("finding Git", || Self::find_git(config.git_path.as_deref()));
         let git = GitRunner::new(git_info, config.git_env, db.clone(), config.events.clone());
         // Empty folder for guarded calls (`GitCmd::guarded`): `core.hooksPath` points there as long
         // as a folder is not trusted yet.
@@ -168,12 +168,15 @@ impl Core {
         if let Some(service) = config.keyring_service.filter(|name| !name.trim().is_empty()) {
             crate::commands::auth::configure(&core, |auth| auth.keyring_service = Some(service));
         }
-        core.ensure_profile().await?;
-        core.ensure_tabs_on_start()?;
+        crate::startup::timed_async("profile", core.ensure_profile()).await?;
+        crate::startup::timed("tabs", || core.ensure_tabs_on_start())?;
         // Proxy passwords belong in the keychain: move old plain-text values, then load.
-        crate::commands::settings::migrate_proxy_passwords(&core).await;
-        crate::commands::settings::load_proxy_passwords(&core).await;
-        crate::commands::settings::forget_removed_ai_keys(&core).await;
+        crate::startup::timed_async("proxy passwords", async {
+            crate::commands::settings::migrate_proxy_passwords(&core).await;
+            crate::commands::settings::load_proxy_passwords(&core).await;
+        })
+        .await;
+        crate::startup::timed_async("removed AI keys", crate::commands::settings::forget_removed_ai_keys(&core)).await;
         Ok(core)
     }
 
@@ -454,6 +457,12 @@ impl Core {
         let available = tokio::task::spawn_blocking(probe_keyring).await.unwrap_or(false);
         let _ = self.keyring.set(available);
         available
+    }
+
+    /// Tests: whether the keychain has been probed in this run.
+    #[cfg(any(test, feature = "testkit"))]
+    pub fn keyring_probed(&self) -> bool {
+        self.keyring.get().is_some()
     }
 
     // --- State for other modules ------------------------------------------

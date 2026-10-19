@@ -36,6 +36,40 @@ const UPDATE_URL_ENV: &str = "FORKYARD_UPDATE_URL";
 /// shell (E2E with the fake tool target/debug/forkyard-fake-cli).
 const AI_CLI_DIR_ENV: &str = "FORKYARD_AI_CLI_DIR";
 const MAIN_WINDOW: &str = "main";
+/// WebKitGTK's switch for its timer-based vblank instead of watching the display through DRM.
+const VBLANK_TIMER_ENV: &str = "WEBKIT_FORCE_VBLANK_TIMER";
+
+/// Linux with more than one GPU (a laptop with an integrated GPU and an NVIDIA/AMD one): WebKitGTK
+/// watches the display's vblank through DRM and, when the WebView loads its page, opens every GPU's
+/// DRM card and asks it for its connectors. A GPU that is powered down (runtime power management)
+/// wakes up for that – about 3 s in which the window does not appear, on every start once the GPU
+/// went back to sleep, and it then stays awake. With several GPUs WebKit's timer-based vblank is used
+/// instead (`WEBKIT_FORCE_VBLANK_TIMER`); a value set by the user is kept. Must run before GTK and
+/// WebKit start (first thing in `run`, while the process has no other threads).
+#[cfg(target_os = "linux")]
+fn avoid_waking_idle_gpus() -> Option<usize> {
+    if std::env::var_os(VBLANK_TIMER_ENV).is_some() {
+        return None;
+    }
+    let gpus = drm_gpu_count(std::path::Path::new("/sys/class/drm"));
+    if gpus < 2 {
+        return None;
+    }
+    std::env::set_var(VBLANK_TIMER_ENV, "1");
+    Some(gpus)
+}
+
+/// GPUs with a DRM card in `dir` (`/sys/class/drm`): `card<N>` entries whose device has a PCI vendor.
+/// Connectors (`card1-eDP-1`) and firmware framebuffers (`simple-framebuffer`, no vendor) don't count.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn drm_gpu_count(dir: &std::path::Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
+    entries
+        .flatten()
+        .filter(|entry| entry.file_name().to_str().and_then(|name| name.strip_prefix("card")).is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())))
+        .filter(|entry| entry.path().join("device").join("vendor").is_file())
+        .count()
+}
 
 fn env_value(name: &str) -> Option<std::ffi::OsString> {
     std::env::var_os(name).filter(|v| !v.is_empty())
@@ -181,7 +215,7 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     );
     config.git_path = env_value(GIT_PATH_ENV).map(PathBuf::from);
     config.keyring_service = dev_env_value(KEYRING_SERVICE_ENV).and_then(|v| v.into_string().ok());
-    let core = tauri::async_runtime::block_on(Core::open(config))?;
+    let core = gitcore::startup::timed("core open", || tauri::async_runtime::block_on(Core::open(config)))?;
     if let Some(base) = dev_env_value(AVATAR_URL_ENV).and_then(|v| v.into_string().ok()) {
         gitcore::commands::avatars::configure(&core, Some(if base == "off" { String::new() } else { base }));
     }
@@ -217,17 +251,21 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
         }
     }
     tauri::async_runtime::spawn(async move {
+        gitcore::startup::reached("setup done");
         // File watching and auto-fetch for the tabs of the last session.
-        if let Ok(tabs) = gitcore::commands::repos::tabs_list(&core).await {
-            for repo_id in tabs.into_iter().filter_map(|t| t.repo_id) {
-                gitcore::commands::repos::start_background(&core, &repo_id);
+        gitcore::startup::timed_async("file watching and auto-fetch for the open tabs", async {
+            if let Ok(tabs) = gitcore::commands::repos::tabs_list(&core).await {
+                for repo_id in tabs.into_iter().filter_map(|t| t.repo_id) {
+                    gitcore::commands::repos::start_background(&core, &repo_id);
+                }
             }
-        }
-        if let Err(e) = core.startup_cleanup().await {
+        })
+        .await;
+        if let Err(e) = gitcore::startup::timed_async("cleanup", core.startup_cleanup()).await {
             log::warn!("Startup cleanup failed: {}", e.message);
         }
         // Spec 1.3: the login shell's PATH once per start, so the AI setup does not wait for it.
-        gitcore::ai::detect::warm_up(&core).await;
+        gitcore::startup::timed_async("login shell PATH", gitcore::ai::detect::warm_up(&core)).await;
     });
     Ok(())
 }
@@ -388,7 +426,14 @@ fn end_on_request(handle: &tauri::AppHandle, reason: &str) {
 pub fn run() {
     // First of all: the log and the panic hook. Until the data directory is known (`setup`), lines
     // wait in memory; with `windows_subsystem = "windows"` there is no console to see a panic in.
+    gitcore::startup::mark_process_start();
+    #[cfg(target_os = "linux")]
+    let vblank_timer = avoid_waking_idle_gpus();
     gitcore::crash::install();
+    #[cfg(target_os = "linux")]
+    if let Some(gpus) = vblank_timer {
+        log::info!("{gpus} GPUs: WebKit uses its vblank timer, so that starting does not wake a powered-down GPU ({VBLANK_TIMER_ENV}=1)");
+    }
     if is_unbundled_release(tauri::is_dev(), cfg!(debug_assertions)) {
         // Without the embedded UI a shipped program would load it from a local port – whoever
         // serves that port would have access to all of the app's commands.
@@ -414,15 +459,25 @@ pub fn run() {
         // rejects every request) and clipboard access without a WebView prompt.
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .setup(move |app| setup(app, launch))
+        .setup(move |app| {
+            gitcore::startup::reached("window created");
+            setup(app, launch)
+        })
+        .on_page_load(|_, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                gitcore::startup::reached("page loaded");
+            }
+        })
         .on_window_event(on_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            commands::app_keyring_available,
             commands::app_recheck_git,
             commands::update_check,
             commands::update_dismiss,
             commands::app_launch_request,
             commands::app_close_guard,
+            commands::app_startup_report,
             commands::app_quit,
             commands::repo_open,
             commands::repo_trust_get,
@@ -703,6 +758,35 @@ mod tests {
         assert!(!dev_switches_allowed(false, true), "tauri build --debug");
         assert!(is_unbundled_release(true, false));
         assert!(!is_unbundled_release(true, true) && !is_unbundled_release(false, false) && !is_unbundled_release(false, true));
+    }
+
+    /// The layout of /sys/class/drm on a laptop with an Intel and an NVIDIA GPU (as on the machine
+    /// where the 3 s wake-up was measured): a firmware framebuffer without vendor, two PCI cards,
+    /// their connectors and render nodes.
+    #[test]
+    fn counts_the_gpus_with_a_drm_card() {
+        let dir = std::env::temp_dir().join(format!("fy-drm-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let card = |name: &str, vendor: Option<&str>| {
+            let device = dir.join(name).join("device");
+            std::fs::create_dir_all(&device).unwrap();
+            if let Some(vendor) = vendor {
+                std::fs::write(device.join("vendor"), format!("{vendor}\n")).unwrap();
+            }
+        };
+        assert_eq!(drm_gpu_count(&dir), 0, "no folder: no GPU");
+        card("card0", None);
+        card("card2", Some("0x8086"));
+        for connector in ["card2-eDP-2", "card2-HDMI-A-2"] {
+            std::fs::create_dir_all(dir.join(connector)).unwrap();
+        }
+        std::fs::create_dir_all(dir.join("renderD129").join("device")).unwrap();
+        std::fs::write(dir.join("renderD129").join("device").join("vendor"), "0x8086\n").unwrap();
+        std::fs::write(dir.join("version"), "drm 1.1.0\n").unwrap();
+        assert_eq!(drm_gpu_count(&dir), 1, "one GPU: WebKit's DRM vblank stays");
+        card("card1", Some("0x10de"));
+        card("card1-DP-1", Some("0x10de"));
+        assert_eq!(drm_gpu_count(&dir), 2, "integrated + discrete GPU");
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// The window never leaves its own UI.

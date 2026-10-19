@@ -22,7 +22,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabId: Id; agentId: Id | null }) {
   const agents = useAgents(repoId);
-  const optionsFor = useActionOptions(repoId);
+  const optionsFor = useActionOptions(repoId, agents.data ?? []);
   const agent = agents.data?.find((item) => item.id === agentId);
   if (!agent) {
     return (
