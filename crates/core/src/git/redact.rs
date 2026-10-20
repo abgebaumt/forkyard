@@ -37,7 +37,7 @@ fn secret_key() -> Option<&'static Regex> {
     static RE: OnceLock<Option<Regex>> = OnceLock::new();
     compiled(
         &RE,
-        r#"(?i)\b([a-z0-9_.\-]*(?:password|passwd|smtppass|passphrase|secret|token|api[_-]?key)["']?\s*[=:]\s*["']?)[^\s&"'\x00]+"#,
+        r#"(?i)\b([a-z0-9_.\-]*(?:password|passwd|smtppass|passphrase|secret|token|api[_-]?key)(?:[_.\-][a-z0-9_.\-]*)?["']?\s*[=:]\s*["']?)[^\s&"'\x00]+"#,
     )
 }
 
@@ -328,6 +328,10 @@ mod tests {
             ("legacy sk-AbCdEfGhIjKlMnOpQrStUvWx12", "sk-AbCdEfGhIjKlMnOpQrStUvWx12"),
             ("maps: AIzaSyA-1234567890abcdefghijklmnopqrstu", "AIzaSyA-1234567890abcdefghijklmnopqrstu"),
             ("aws AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
+            // The name goes on after the keyword.
+            ("AWS_SECRET_ACCESS_KEY = \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"", "wJalrXUtnFEMI/K7MDENG"),
+            ("aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "wJalrXUtnFEMI/K7MDENG"),
+            ("client_secret_value: abc123def456", "abc123def456"),
         ] {
             let out = redact(line);
             assert!(!out.contains(secret), "{line} → {out}");
@@ -338,7 +342,7 @@ mod tests {
         assert!(!out.contains("b3BlbnNzaC1rZXktdjEAAAAABG5vbmU") && !out.contains("AAAAEbm9uZQ"), "{out}");
         assert!(out.contains("PRIVATE KEY"), "the reader still sees what was there: {out}");
         assert!(redact("-----BEGIN PUBLIC KEY-----\nMIIBIjAN\n-----END PUBLIC KEY-----").contains("MIIBIjAN"), "public keys stay");
-        for harmless in ["task-runner-configuration-for-ci", "risk-assessment-for-the-quarter-2026", "sk-short"] {
+        for harmless in ["task-runner-configuration-for-ci", "risk-assessment-for-the-quarter-2026", "sk-short", "tokenizer: bert"] {
             assert_eq!(redact(harmless), harmless);
         }
     }
