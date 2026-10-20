@@ -31,8 +31,8 @@ pub fn shell_command(command: &str) -> Proc {
 
 /// stdout then stderr, the last `OUTPUT_TAIL` bytes (cut at a character boundary), redacted.
 pub fn tail(stdout: &[u8], stderr: &[u8]) -> String {
-    let mut all = String::from_utf8_lossy(stdout).into_owned();
-    let err = String::from_utf8_lossy(stderr);
+    let mut all = console_text(stdout);
+    let err = console_text(stderr);
     if !err.is_empty() {
         if !all.is_empty() && !all.ends_with('\n') {
             all.push('\n');
@@ -48,6 +48,42 @@ pub fn tail(stdout: &[u8], stderr: &[u8]) -> String {
         start += 1;
     }
     format!("…{}", &redacted[start..])
+}
+
+/// Console output as text. On Windows cmd.exe's builtins (`echo`, `dir`, its error messages) write
+/// in the console code page – OEM (850, 437, …) in the hidden console the process runs in – while
+/// most tools write UTF-8. So per line: valid UTF-8 stays, anything else is decoded as OEM.
+#[cfg(windows)]
+fn console_text(bytes: &[u8]) -> String {
+    if let Ok(text) = std::str::from_utf8(bytes) {
+        return text.to_string();
+    }
+    bytes
+        .split_inclusive(|&b| b == b'\n')
+        .map(|line| std::str::from_utf8(line).map(str::to_string).unwrap_or_else(|_| oem_text(line)))
+        .collect()
+}
+
+#[cfg(windows)]
+fn oem_text(bytes: &[u8]) -> String {
+    use windows_sys::Win32::Globalization::{MultiByteToWideChar, CP_OEMCP};
+    let Ok(len) = i32::try_from(bytes.len()) else { return String::from_utf8_lossy(bytes).into_owned() };
+    // SAFETY: the input pointer/length describe `bytes`; the output buffer has the size the first
+    // call reported.
+    unsafe {
+        let needed = MultiByteToWideChar(CP_OEMCP, 0, bytes.as_ptr(), len, std::ptr::null_mut(), 0);
+        if needed <= 0 {
+            return String::from_utf8_lossy(bytes).into_owned();
+        }
+        let mut wide = vec![0u16; needed as usize];
+        let written = MultiByteToWideChar(CP_OEMCP, 0, bytes.as_ptr(), len, wide.as_mut_ptr(), needed);
+        String::from_utf16_lossy(&wide[..written.max(0) as usize])
+    }
+}
+
+#[cfg(not(windows))]
+fn console_text(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
 }
 
 /// Runs the test command in the agent's worktree as the job `job_id` and stores the result.
