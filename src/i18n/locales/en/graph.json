@@ -81,6 +81,7 @@
     "collapse": "Collapse merge (hide the commits it brought in)",
     "expand": "Expand merge",
     "collapseTooLarge": "Too many commits to collapse (over 20,000)",
+    "collapseNothing": "Nothing hidden: every commit of this merge is also on a visible branch or tag",
     "collapsedCount_one": "+1 commit",
     "collapsedCount_other": "+{{formatted}} commits",
     "notPushed": "Not pushed yet",
@@ -108,6 +109,10 @@
     "moreLabel": "More labels on this commit"
   },
   "collapse": {
-    "save": "Save collapsed merges"
+    "save": "Save collapsed merges",
+    "nothing": {
+      "title": "Nothing to collapse",
+      "description": "Every commit this merge brought in is also on a visible branch or tag, so it stays in the graph."
+    }
   }
 }

@@ -6,6 +6,7 @@ import type { InfiniteData } from "@tanstack/react-query";
 import { core, type GraphPage, type Id, type RepoViewState, type Sha } from "../../core";
 import { ALL_COLLAPSED, isMergeCollapsed, nextCollapse, NONE_COLLAPSED, type CollapseState } from "../../components/graph/collapse";
 import { t } from "../../i18n";
+import { toast } from "../../ui/Feedback";
 import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { cachedGraphRows, cachedViewState } from "./context";
@@ -31,14 +32,22 @@ async function writeCollapse(repoId: Id, patch: CollapseState): Promise<boolean>
   queryClient.setQueryData<InfiniteData<GraphPage, string | null>>(qk.graph(repoId), (data) =>
     data && data.pages.length > 1 ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data,
   );
-  void queryClient.invalidateQueries({ queryKey: qk.graph(repoId) });
+  await queryClient.invalidateQueries({ queryKey: qk.graph(repoId) });
   return true;
 }
 
-export function setMergeCollapsed(repoId: Id, sha: Sha, collapse: boolean): Promise<boolean> {
+export async function setMergeCollapsed(repoId: Id, sha: Sha, collapse: boolean): Promise<boolean> {
   const view = cachedViewState(repoId);
-  if (!view) return Promise.resolve(false);
-  return writeCollapse(repoId, nextCollapse(view, sha, collapse, loadedMerges(repoId)));
+  if (!view) return false;
+  const before: CollapseState = { collapsedMerges: view.collapsedMerges, collapseAllMerges: view.collapseAllMerges };
+  if (!(await writeCollapse(repoId, nextCollapse(view, sha, collapse, loadedMerges(repoId))))) return false;
+  // Everything the merge brought in is also on a visible branch or tag: nothing disappeared, so the
+  // arrow must not claim it did.
+  if (collapse && !before.collapseAllMerges && cachedGraphRows(repoId).find((row) => row.sha === sha)?.collapsedCount === 0) {
+    await writeCollapse(repoId, before);
+    toast({ tone: "info", title: t("graph.collapse.nothing.title"), description: t("graph.collapse.nothing.description") });
+  }
+  return true;
 }
 
 export const toggleMergeCollapsed = (repoId: Id, sha: Sha) => setMergeCollapsed(repoId, sha, !isMergeCollapsed(cachedViewState(repoId), sha));

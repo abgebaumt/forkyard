@@ -424,7 +424,7 @@ scenario("a pre-commit hook rejects a commit after “Trotzdem anlegen”: the d
   await t.noConsoleErrors(app);
 }));
 
-scenario("“Zusammenstellen …” sits small to the right of the commit button", "edge", withCleanup(async (t) => {
+scenario("“Zusammenstellen …” sits narrow to the right of the commit button, just as tall", "edge", withCleanup(async (t) => {
   const { app } = await setup(t);
   await app.waitFor("[data-compose-open]", 15_000, { message: "the compose button" });
   const box = await app.exec(() => {
@@ -434,9 +434,8 @@ scenario("“Zusammenstellen …” sits small to the right of the commit button
     return { commit: { left: commit.left, right: commit.right, top: commit.top, bottom: commit.bottom, width: commit.width }, compose: { left: compose.left, top: compose.top, bottom: compose.bottom, width: compose.width, height: compose.height }, commitHeight: commit.height };
   });
   assert(box.compose.left >= box.commit.right, `right of the commit button: ${JSON.stringify(box)}`);
-  assert(box.compose.top >= box.commit.top && box.compose.bottom <= box.commit.bottom, `on the same row: ${JSON.stringify(box)}`);
+  assertEqual([box.compose.top, box.compose.bottom], [box.commit.top, box.commit.bottom], `on the same row, just as tall: ${JSON.stringify(box)}`);
   assert(box.commit.width > 1.4 * box.compose.width, `the commit button keeps most of the width: ${JSON.stringify(box)}`);
-  assert(box.compose.height < box.commitHeight, "the compose button is the smaller one");
   assertEqual(await text(app, "[data-compose-open]"), "Zusammenstellen …");
   await t.shot("compose-button");
 

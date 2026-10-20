@@ -81,6 +81,7 @@
     "collapse": "Merge einklappen (die mitgebrachten Commits ausblenden)",
     "expand": "Merge ausklappen",
     "collapseTooLarge": "Zu viele Commits zum Einklappen (über 20.000)",
+    "collapseNothing": "Nichts ausgeblendet: jeder Commit dieses Merges liegt auch auf einem sichtbaren Branch oder Tag",
     "collapsedCount_one": "+1 Commit",
     "collapsedCount_other": "+{{formatted}} Commits",
     "notPushed": "Noch nicht gepusht",
@@ -108,6 +109,10 @@
     "moreLabel": "Weitere Labels dieses Commits"
   },
   "collapse": {
-    "save": "Eingeklappte Merges speichern"
+    "save": "Eingeklappte Merges speichern",
+    "nothing": {
+      "title": "Nichts einzuklappen",
+      "description": "Jeder Commit, den dieser Merge mitgebracht hat, liegt auch auf einem sichtbaren Branch oder Tag und bleibt deshalb im Graphen."
+    }
   }
 }

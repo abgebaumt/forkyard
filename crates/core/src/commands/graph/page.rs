@@ -12,7 +12,7 @@
 //!
 //! Collapsed merges (`RepoViewState.collapsedMerges`, `collapseAllMerges`): for each visible merge
 //! to be collapsed, `collapse_for` reads the commits it brought in (`rev-list M^2 --not M^1`, minus
-//! everything a ref, starting point or stash keeps). The merge row draws no line to those parents,
+//! everything a ref, starting point or stash reaches without passing through the merge). The merge row draws no line to those parents,
 //! and a commit is hidden as long as only hidden commits lead to it: it is in the frontier
 //! `PageBuilder.hidden` and no open lane waits for it. The frontier travels in the cursor, so hiding
 //! continues across pages; hidden commits do not count towards the page size.
@@ -345,22 +345,42 @@ pub(super) enum Collapse {
     TooLarge,
 }
 
-/// The commits a merge brought in: reachable from its further parents but not from the first
-/// (`rev-list M^2 --not M^1`). Commits a ref, starting point or stash keeps visible – and everything
-/// they reach – stay out. More than `max`: `TooLarge`.
-pub(super) async fn collapse_for(core: &Core, path: &Path, repo_id: &str, plan: &Plan, parents: &[String], max: usize) -> CoreResult<Collapse> {
+/// The commits the merge `merge` brought in: reachable from its further parents but not from the
+/// first (`rev-list M^2 --not M^1`). What a ref, starting point or stash reaches without passing
+/// through the merge stays out – a branch that went on past the merged commits keeps them all. More
+/// than `max`: `TooLarge`.
+pub(super) async fn collapse_for(core: &Core, path: &Path, repo_id: &str, plan: &Plan, merge: &str, parents: &[String], max: usize) -> CoreResult<Collapse> {
     let Some((first, side)) = parents.split_first() else {
         return Ok(Collapse::Hide { count: 0, hidden_parents: Vec::new() });
     };
-    let all = side_commits(core, path, repo_id, first, side, &[], max).await?;
-    if all.len() > max {
+    // Refs that contain the merge reach the side commits through it (in the common case only);
+    // every other starting point keeps what it reaches.
+    let through_merge = refs_containing(core, path, repo_id, merge).await?;
+    let mut kept: Vec<String> = plan.keep.iter().filter(|sha| !through_merge.contains(*sha)).cloned().collect();
+    kept.sort_unstable();
+    let hidden = side_commits(core, path, repo_id, first, side, &kept, max).await?;
+    if hidden.len() > max {
         return Ok(Collapse::TooLarge);
     }
-    let kept: Vec<String> = all.iter().filter(|sha| plan.keep.contains(*sha)).cloned().collect();
-    let hidden = if kept.is_empty() { all } else { side_commits(core, path, repo_id, first, side, &kept, max).await? };
     let set: HashSet<&str> = hidden.iter().map(String::as_str).collect();
     let hidden_parents = side.iter().filter(|p| set.contains(p.as_str())).cloned().collect();
     Ok(Collapse::Hide { count: u32::try_from(hidden.len()).unwrap_or(u32::MAX), hidden_parents })
+}
+
+/// Commits that branches, remote branches and tags containing `merge` point to.
+async fn refs_containing(core: &Core, path: &Path, repo_id: &str, merge: &str) -> CoreResult<HashSet<String>> {
+    let out = read_cmd(core, path, repo_id)
+        .args(["for-each-ref", "--format=%(objectname)%00%(*objectname)"])
+        .arg(format!("--contains={merge}"))
+        .args(["refs/heads", "refs/remotes", "refs/tags"])
+        .run()
+        .await?;
+    Ok(out
+        .stdout_lines()
+        .into_iter()
+        .flat_map(|line| line.split(|b| *b == 0).map(util::decode_lossy).collect::<Vec<_>>())
+        .filter(|sha| is_full_sha(sha))
+        .collect())
 }
 
 /// `git rev-list <side…> --not <first> <kept…>`, at most `max + 1` commits.
@@ -542,7 +562,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
                 }
                 consumed += 1;
                 let collapse = match builder.wants_collapse(&fields) {
-                    Some(parents) => Some(collapse_for(core, &path, repo_id, &plan, &parents, MAX_COLLAPSE).await?),
+                    Some(parents) => Some(collapse_for(core, &path, repo_id, &plan, &util::decode_lossy(&fields[0]), &parents, MAX_COLLAPSE).await?),
                     None => None,
                 };
                 builder.commit(&fields, collapse);

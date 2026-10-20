@@ -664,7 +664,7 @@ scenario("collapse: the arrow on a merge hides the commits it brought in and sho
   }
 });
 
-scenario("collapse: a branch on the side branch keeps its commit visible", "edge", async (t) => {
+scenario("collapse: a branch on the side branch keeps its commit visible, and the arrow says nothing was hidden", "edge", async (t) => {
   const repo = makeRichRepo({ dirty: false });
   try {
     const app = await t.launch({ lang: "en", theme: "light" });
@@ -673,16 +673,16 @@ scenario("collapse: a branch on the side branch keeps its commit visible", "edge
     const side = lines(repo.git("rev-list", `${merge}^1..${merge}^2`));
     const bugfix = repo.git("rev-parse", "bugfix/sensor-ausfall");
     assertEqual(side, [bugfix], "Git: the side branch is the commit bugfix/sensor-ausfall points to");
+    const before = (await loadedRows(app, repoId)).map((row) => row.id);
     await app.click(`[data-row-id="${merge}"] [data-collapse-toggle="expanded"]`);
-    await app.waitFor(`[data-row-id="${merge}"] [data-collapse-toggle="collapsed"]`, 10_000, { message: "merge marked collapsed" });
+    await app.waitFor(() => app.byText("Nothing to collapse"), 10_000, { message: "hint that nothing was hidden" });
+    assertIncludes(await app.exec(() => document.body.innerText), "is also on a visible branch or tag", "the hint names the reason");
     await app.settle();
-    const rows = await loadedRows(app, repoId);
-    assert(rows.some((row) => row.sha === bugfix), "the commit with the branch label stays visible");
-    assert(await app.$(`[data-row-id="${bugfix}"] [data-ref-full="refs/heads/bugfix/sensor-ausfall"]`), "with its label");
-    const mergeRow = rows.find((row) => row.sha === merge);
-    t.step(`collapsedCount on the partly collapsed merge: ${mergeRow.collapsedCount}`);
-    assertEqual(mergeRow.collapsedCount, 0, "partly collapsed: nothing hidden, but the merge counts as collapsed");
+    assertEqual((await loadedRows(app, repoId)).map((row) => row.id), before, "every row stays");
+    assert(await app.$(`[data-row-id="${bugfix}"] [data-ref-full="refs/heads/bugfix/sensor-ausfall"]`), "the commit keeps its label");
+    assert(await app.$(`[data-row-id="${merge}"] [data-collapse-toggle="expanded"]`), "the arrow stays open");
     assert(!(await app.$(`[data-row-id="${merge}"] [data-collapsed-count]`)), "no “+0 commits” text");
+    assertEqual((await viewState(app, repoId)).collapsedMerges, [], "view state not changed");
     await t.shot("collapse-ref-stays");
     await t.noConsoleErrors(app);
   } finally {

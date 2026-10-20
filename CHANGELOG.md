@@ -227,6 +227,10 @@ All notable changes to Forkyard are listed here. The format follows
   never asked, so every request – compose, commit message, review and the rest – was refused.
 - “Neu vorschlagen” in Compose commits without an instruction asks for a new proposal instead of doing
   nothing.
+- Collapsing a merge whose commits are also on a branch that went on past them (a merge of `develop`
+  into `staging` while `develop` is checked out) no longer shows “+151 commits” while every one of them
+  stays in the graph. Such a merge hides nothing; the arrow stays open and a note says why.
+- “Compose …” next to the commit button is as tall as it.
 - Faster start on Linux laptops with two GPUs: the window no longer waits about 3 seconds while the
   powered-down second GPU (e.g. NVIDIA) wakes up. WebKitGTK woke it to watch the display's refresh; with
   more than one GPU Forkyard now has it use its timer instead (`WEBKIT_FORCE_VBLANK_TIMER`, a value you

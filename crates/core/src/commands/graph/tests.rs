@@ -1633,6 +1633,42 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
     }
 }
 
+/// develop: A ── d1 ── d2 ── d3 (HEAD); staging: A ── s1 ── M (merge of develop at d2). d1 and d2
+/// stay on develop, which goes on past them: collapsing M has nothing to hide, and must not claim it does.
+#[tokio::test]
+async fn a_branch_that_went_on_past_the_merged_commits_keeps_them_and_the_count_says_so() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    repo.git(&["branch", "-m", "develop"]);
+    let a = repo.head();
+    repo.commit_file("d.txt", "1\n", "Develop 1");
+    repo.commit_file("d.txt", "2\n", "Develop 2");
+    repo.git(&["checkout", "-q", "-b", "staging", &a]);
+    repo.commit_file("s.txt", "1\n", "Staging 1");
+    assert!(repo.merge("develop"));
+    let merge = repo.head();
+    repo.checkout("develop");
+    repo.commit_file("d.txt", "3\n", "Develop 3");
+    let id = tc.open(&repo).await.repo.id;
+    let expanded = all_rows(&tc, &id, 100).await;
+
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
+    for page_size in [1, 100] {
+        let rows = all_rows(&tc, &id, page_size).await;
+        assert_eq!(ids(&rows), ids(&expanded), "page size {page_size}\n{}", sketch(&rows));
+        assert_eq!(find(&rows, &merge).collapsed_count, Some(0), "page size {page_size}: nothing disappears");
+        check_rows(&rows, true).unwrap();
+    }
+
+    // Once develop is gone, its commits only lead to the merge and disappear with it.
+    repo.checkout("staging");
+    repo.git(&["branch", "-D", "develop"]);
+    let rows = all_rows(&tc, &id, 100).await;
+    assert!(!rows.iter().any(|r| r.summary.starts_with("Develop")), "{}", sketch(&rows));
+    assert_eq!(find(&rows, &merge).collapsed_count, Some(2));
+    check_rows(&rows, true).unwrap();
+}
+
 #[tokio::test]
 async fn nested_merges_disappear_with_the_outer_one() {
     let tc = TestCore::new().await;
@@ -1698,14 +1734,14 @@ async fn collapse_all_merges_applies_to_pages_loaded_later() {
 async fn a_merge_bringing_in_too_many_commits_stays_expanded() {
     use super::page::{collapse_for, Collapse, Plan};
     let tc = TestCore::new().await;
-    let (repo, [_, _, f2, m1, _, _]) = merged_feature();
+    let (repo, [_, _, f2, m1, merge, _]) = merged_feature();
     let id = tc.open(&repo).await.repo.id;
     let path = tc.repo_path(&id).unwrap();
     let parents = vec![m1.clone(), f2.clone()];
     let plan = Plan::default();
 
-    assert_eq!(collapse_for(&tc, &path, &id, &plan, &parents, 1).await.unwrap(), Collapse::TooLarge);
-    assert_eq!(collapse_for(&tc, &path, &id, &plan, &parents, 2).await.unwrap(), Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] });
+    assert_eq!(collapse_for(&tc, &path, &id, &plan, &merge, &parents, 1).await.unwrap(), Collapse::TooLarge);
+    assert_eq!(collapse_for(&tc, &path, &id, &plan, &merge, &parents, 2).await.unwrap(), Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] });
 }
 
 #[tokio::test]
