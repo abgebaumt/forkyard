@@ -396,7 +396,8 @@ const TEMPLATE_FILES: [&str; 2] = ["pull_request_template.md", "merge_request_te
 const TEMPLATE_DIRS: [&str; 2] = ["pull_request_template", "merge_request_templates"];
 
 fn read_template(path: &Path) -> Option<String> {
-    let meta = std::fs::metadata(path).ok()?;
+    // Not through a symlink: a repository could point it at a file outside, e.g. ~/.aws/credentials.
+    let meta = std::fs::symlink_metadata(path).ok()?;
     if !meta.is_file() || meta.len() > MAX_TEMPLATE_BYTES {
         return None;
     }
@@ -414,7 +415,7 @@ fn template_in(dir: &Path) -> Option<(std::path::PathBuf, String)> {
     if let Some(found) = entries.iter().filter(|(name, _)| TEMPLATE_FILES.contains(&name.as_str())).find_map(|(_, path)| read_template(path).map(|text| (path.clone(), text))) {
         return Some(found);
     }
-    for (_, folder) in entries.iter().filter(|(name, path)| TEMPLATE_DIRS.contains(&name.as_str()) && path.is_dir()) {
+    for (_, folder) in entries.iter().filter(|(name, path)| TEMPLATE_DIRS.contains(&name.as_str()) && std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir())) {
         let mut files: Vec<(String, std::path::PathBuf)> =
             std::fs::read_dir(folder).ok()?.filter_map(|e| e.ok()).map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path())).filter(|(name, _)| name.ends_with(".md")).collect();
         // "Default.md" first (that is how GitLab picks), otherwise by name.
@@ -432,7 +433,11 @@ pub(crate) async fn find_pr_template(core: &Core, repo_id: &str) -> CoreResult<O
     let root = core.repo_path(repo_id)?;
     let folders = host::template_folders();
     let base = root.clone();
-    let found = tokio::task::spawn_blocking(move || folders.iter().find_map(|folder| template_in(&root.join(folder))))
+    // A folder inside the repository that is a symlink (`docs -> ~`) is not searched either.
+    let found = tokio::task::spawn_blocking(move || {
+        let inside = |folder: &str| folder.is_empty() || std::fs::symlink_metadata(root.join(folder)).is_ok_and(|meta| !meta.file_type().is_symlink());
+        folders.iter().filter(|folder| inside(folder)).find_map(|folder| template_in(&root.join(folder)))
+    })
         .await
         .map_err(|e| CoreError::unknown(format!("The search for the template was aborted: {e}")))?;
     Ok(found.map(|(path, text)| {

@@ -289,6 +289,22 @@ async fn the_template_is_found_with_its_path() {
     assert_eq!(cmd::find_pr_template(&tc, "unbekannt").await.unwrap_err().code, ErrorCode::NotFound);
 }
 
+/// A committed symlink never brings a file from outside the repository into the PR text or the AI.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_symlinked_template_is_not_read() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    let outside = tempfile::tempdir().unwrap();
+    std::fs::write(outside.path().join("credentials"), "aws_secret_access_key = geheim\n").unwrap();
+    std::fs::create_dir_all(repo.path().join(".github/PULL_REQUEST_TEMPLATE")).unwrap();
+    std::os::unix::fs::symlink(outside.path().join("credentials"), repo.path().join(".github/PULL_REQUEST_TEMPLATE/a.md")).unwrap();
+    std::os::unix::fs::symlink(outside.path().join("credentials"), repo.path().join("pull_request_template.md")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), repo.path().join("docs")).unwrap();
+    assert_eq!(cmd::find_pr_template(&tc, &id).await.unwrap(), None);
+}
+
 #[test]
 fn every_kind_has_exactly_its_host_with_its_capabilities() {
     use crate::host::host;
