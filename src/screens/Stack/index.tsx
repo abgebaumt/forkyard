@@ -186,8 +186,9 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
   const loaded = Boolean(data);
 
   useEffect(() => {
-    if (data && parts === null) setParts(singlePart(data.commits.length));
-  }, [data, parts]);
+    // Not from the previous base's placeholder: its commit count would be a cut the new base refuses.
+    if (data && parts === null && !plan.isPlaceholderData) setParts(singlePart(data.commits.length));
+  }, [data, parts, plan.isPlaceholderData]);
   // The list gets the focus once it is there – unless a dialog, menu or overlay is open.
   useEffect(() => {
     if (loaded && viewMayTakeFocus()) listRef.current?.focus({ preventScroll: true });
