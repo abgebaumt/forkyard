@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PlugZap, RefreshCw, TriangleAlert } from "lucide-react";
-import { startupMark, type AppInfo, type Platform, type Settings, type Tab } from "../core";
+import { core, startupMark, type AppInfo, type Platform, type Settings, type Tab } from "../core";
 import { Button } from "../ui/Button";
 import { setShortcutPlatform } from "../ui/shortcut";
 import { AgentWatch } from "../screens/Agents/Watch";
@@ -15,7 +15,7 @@ import { DialogHost } from "./dialogs";
 import { t } from "../i18n";
 import { describeError } from "./errors";
 import { useCustomCommandRegistration } from "../screens/CustomCommands/register";
-import { queryClient, useAppInfo, useCoreSync, useRepoLocked, useRepoMissing, useSettings, useTabs } from "./queries";
+import { qk, queryClient, useAppInfo, useCoreSync, useRepoLocked, useRepoMissing, useSettings, useTabs } from "./queries";
 import { useGlobalShortcuts } from "./registry";
 import { NARROW_WINDOW, useAppStore } from "./store";
 import { useEffectiveZoom } from "./zoom";
@@ -51,6 +51,12 @@ export function versionAtLeast(version: string, minimum: string): boolean {
 const hasScenario = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("scenario");
 
 const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+/** "Check again": the core looks for Git once more, so a Git installed meanwhile works without a restart. */
+async function recheckGit() {
+  const info = await core.appRecheckGit().catch(() => null);
+  if (info) queryClient.setQueryData(qk.appInfo, info);
+}
 
 const gitInstallHint: Record<Platform, string> = {
   windows: t("app.startup.installGit.windows"),
@@ -95,7 +101,7 @@ export function App() {
         icon={<TriangleAlert className="size-8" aria-hidden />}
         title={t("app.startup.gitMissing.title")}
         actions={
-          <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void appInfo.refetch()}>
+          <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void recheckGit()}>
             {t("app.startup.recheck")}
           </Button>
         }
@@ -114,7 +120,7 @@ export function App() {
         title={t("app.startup.gitTooOld.title")}
         details={info.gitPath ? t("app.startup.gitTooOld.foundAt", { version: info.gitVersion, path: info.gitPath }) : t("app.startup.gitTooOld.found", { version: info.gitVersion })}
         actions={
-          <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void appInfo.refetch()}>
+          <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void recheckGit()}>
             {t("app.startup.recheck")}
           </Button>
         }
