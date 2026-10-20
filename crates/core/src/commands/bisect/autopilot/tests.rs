@@ -175,7 +175,7 @@ async fn a_bisect_running_in_the_own_working_directory_is_not_touched() {
 async fn the_temporary_worktree_lies_next_to_a_repository_with_spaces_and_umlauts() {
     let tc = TestCore::new().await;
     let f = fixture();
-    let parent = std::fs::canonicalize(f.repo.temp_dir()).unwrap().join("Mein Projekt Ä");
+    let parent = f.repo.temp_dir().join("Mein Projekt Ä");
     std::fs::create_dir_all(&parent).unwrap();
     let main = parent.join("web app");
     f.repo.git(&["clone", "-q", f.repo.path().to_str().unwrap(), main.to_str().unwrap()]);
