@@ -111,6 +111,9 @@ pub static RULES: &[Rule] = &[
             "network is unreachable",
             "connection timed out",
             "connection refused",
+            // Windows (WinSock, e.g. git-lfs): "connectex: No connection could be made because …".
+            "actively refused it",
+            "did not properly respond after a period of time",
             "temporary failure in name resolution",
             "unable to access",
             "operation timed out",
@@ -592,6 +595,14 @@ mod tests {
         assert_eq!(code("Host key verification failed.\nfatal: Could not read from remote repository."), ErrorCode::HostKeyUnknown);
         assert_eq!(code("ssh: Could not resolve hostname x: Name or service not known"), ErrorCode::Offline);
         assert_eq!(code("ssh: connect to host x port 22: Connection refused"), ErrorCode::Offline);
+        assert_eq!(
+            code("dial tcp 127.0.0.1:1: connectex: No connection could be made because the target machine actively refused it."),
+            ErrorCode::Offline
+        );
+        assert_eq!(
+            code("dial tcp 10.0.0.1:443: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."),
+            ErrorCode::Offline
+        );
         assert_eq!(code("ssh: connect to host x port 22: Connection timed out"), ErrorCode::Offline);
         assert_eq!(code("error: RPC failed; curl 28 Operation too slow. Less than 1000 bytes/sec transferred the last 10 seconds"), ErrorCode::Timeout);
         assert_eq!(code("fatal: unable to connect to x: errno=Unknown error: read timed out"), ErrorCode::Timeout);
