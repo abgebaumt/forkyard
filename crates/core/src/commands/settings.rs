@@ -1158,11 +1158,32 @@ mod tests {
         let own_id = tc.open(&own).await.repo.id;
         crate::commands::repos::repo_open_with(&tc, shared.path().to_string_lossy().into_owned(), true).await.unwrap();
         profile_activate(&tc, default_id).await.unwrap();
+        // An agent's worktree is registered without any profile listing it.
+        let worktree = shared.path().with_extension("agent-wt");
+        let worktree_id = tc.db.with(|c| db::repos::upsert(c, &worktree)).unwrap().id;
+        let agent = db::agents::AgentRow {
+            id: "agent-1".into(),
+            repo_id: shared_id.clone(),
+            short_name: "a1".into(),
+            template_id: "claude".into(),
+            task: String::new(),
+            branch: "agent/a1".into(),
+            worktree_path: worktree.to_string_lossy().into_owned(),
+            base: "main".into(),
+            base_sha: "0".repeat(40),
+            unattended: false,
+            started_at: util::now_iso(),
+            ended_at: None,
+            exit_code: None,
+            end_reason: None,
+        };
+        tc.db.with(|c| db::agents::insert(c, &agent)).unwrap();
 
         profile_delete(&tc, work).await.unwrap();
 
         assert!(tc.db.with(|c| db::repos::get(c, &own_id)).unwrap().is_none(), "listed only in the deleted profile");
         assert!(tc.db.with(|c| db::repos::get(c, &shared_id)).unwrap().is_some(), "the other profile keeps listing it");
+        assert!(tc.db.with(|c| db::repos::get(c, &worktree_id)).unwrap().is_some(), "the agent's worktree stays registered");
     }
 
     #[tokio::test]

@@ -72,10 +72,21 @@ pub fn update(conn: &Connection, profile_id: &str, repo_id: &str, is_favorite: O
 }
 
 /// Deletes repositories that no profile lists any more (including trust and view state via cascade).
+/// An agent's worktree is registered without a profile entry; it stays while its repository does.
 pub fn delete_orphans(conn: &Connection) -> CoreResult<usize> {
-    Ok(conn.execute(
-        "delete from repositories where id not in (select repository_id from profile_repositories)",
-        [],
-    )?)
+    let worktrees: Vec<String> = conn
+        .prepare("select worktree_path from agents where repository_id in (select repository_id from profile_repositories)")?
+        .query_map([], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    let keep: std::collections::HashSet<String> = worktrees.iter().map(|path| util::path_key(std::path::Path::new(path))).collect();
+    let orphans: Vec<(String, String)> = conn
+        .prepare("select id, path_key from repositories where id not in (select repository_id from profile_repositories)")?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<Result<_, _>>()?;
+    let mut deleted = 0;
+    for (id, _) in orphans.iter().filter(|(_, key)| !keep.contains(key)) {
+        deleted += conn.execute("delete from repositories where id = ?1", params![id])?;
+    }
+    Ok(deleted)
 }
 
