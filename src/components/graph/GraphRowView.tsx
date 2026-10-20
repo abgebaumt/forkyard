@@ -151,8 +151,8 @@ export function dateTooltip(iso: string): string {
 
 /** Arrow on merge rows: collapse (hide the commits the merge brought in) or expand again. */
 /** Not focusable, also not by a mouse press: the row keeps the focus for the keyboard navigation. */
-export function CollapseToggle({ repoId, sha, collapsed, tooLarge, empty = false }: { repoId: Id; sha: string; collapsed: boolean; tooLarge: boolean; empty?: boolean }) {
-  const label = tooLarge ? t("graph.row.collapseTooLarge") : empty ? t("graph.row.collapseNothing") : collapsed ? t("graph.row.expand") : t("graph.row.collapse");
+export function CollapseToggle({ repoId, sha, collapsed, tooLarge }: { repoId: Id; sha: string; collapsed: boolean; tooLarge: boolean }) {
+  const label = tooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("graph.row.expand") : t("graph.row.collapse");
   return (
     <button
       type="button"
@@ -221,7 +221,7 @@ function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode 
   const before = (
     <>
       {marker}
-      {row.kind === "merge" && row.sha ? <CollapseToggle repoId={shared.repoId} sha={row.sha} collapsed={row.collapsedCount !== null} tooLarge={row.collapseTooLarge} empty={row.collapsedCount === 0} /> : null}
+      {row.kind === "merge" && row.sha && row.collapsible ? <CollapseToggle repoId={shared.repoId} sha={row.sha} collapsed={row.collapsedCount !== null} tooLarge={row.collapseTooLarge} /> : null}
       {mark ? <BisectChip mark={mark} /> : null}
       {row.sync !== "none" ? <SyncArrow sync={row.sync} /> : null}
     </>

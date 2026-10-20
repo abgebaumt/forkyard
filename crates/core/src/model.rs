@@ -398,6 +398,9 @@ pub struct GraphRow {
     pub collapsed_count: Option<u32>,
     /// The merge is meant to be collapsed but brings in more than 20 000 commits: it stays expanded.
     pub collapse_too_large: bool,
+    /// Only for merges: collapsing hides at least one commit – not so when every commit it brought in
+    /// is also on a visible branch or tag. The UI shows the arrow only then.
+    pub collapsible: bool,
     /// Commit of the checked-out branch not pushed yet, or of its upstream not pulled yet.
     pub sync: SyncMark,
 }
@@ -3712,6 +3715,7 @@ mod tests {
             wip_count: Some(3),
             collapsed_count: None,
             collapse_too_large: false,
+            collapsible: false,
             sync: SyncMark::None,
         };
         assert_eq!(
@@ -3720,7 +3724,7 @@ mod tests {
               "edges":[{"top":null,"bottom":0,"color":0,"dashed":true}],
               "parents":["p"],"summary":"","authorName":"","authorEmail":"","authoredAt":null,
               "refs":[{"kind":"local","name":"main","fullName":"refs/heads/main","isHead":true}],
-              "isHead":false,"stashIndex":null,"wipCount":3,"collapsedCount":null,"collapseTooLarge":false,"sync":"none"})
+              "isHead":false,"stashIndex":null,"wipCount":3,"collapsedCount":null,"collapseTooLarge":false,"collapsible":false,"sync":"none"})
         );
     }
 

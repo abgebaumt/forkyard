@@ -1585,6 +1585,9 @@ async fn a_collapsed_merge_hides_its_side_commits_on_every_page_size() {
     let (repo, [a, f1, f2, m1, merge, m2]) = merged_feature();
     let id = tc.open(&repo).await.repo.id;
     let before = graph_page(&tc, id.clone(), None, 1).await.unwrap();
+    for page_size in [1, 100] {
+        assert!(find(&all_rows(&tc, &id, page_size).await, &merge).collapsible, "page size {page_size}");
+    }
 
     view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
     // The view changed: a cursor from before no longer fits.
@@ -1615,6 +1618,7 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
     let (repo, [a, f1, f2, m1, merge, m2]) = merged_feature();
     repo.git(&["branch", "keep", &f1]);
     let id = tc.open(&repo).await.repo.id;
+    assert!(find(&all_rows(&tc, &id, 100).await, &merge).collapsible, "f2 can still disappear");
     view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
 
     let rows = all_rows(&tc, &id, 100).await;
@@ -1625,6 +1629,13 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
 
     // A tag on the tip of the side branch keeps everything: the merge counts as collapsed, but hides nothing.
     repo.git(&["tag", "v-side", &f2]);
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": []})).await.unwrap();
+    for page_size in [1, 100] {
+        let rows = all_rows(&tc, &id, page_size).await;
+        assert!(!find(&rows, &merge).collapsible, "page size {page_size}: the tag keeps everything, no arrow");
+        assert!(rows.iter().filter(|r| r.kind != GraphRowKind::Merge).all(|r| !r.collapsible));
+    }
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
     for page_size in [1, 100] {
         let rows = all_rows(&tc, &id, page_size).await;
         assert_eq!(rows.len(), 6, "page size {page_size}\n{}", sketch(&rows));
@@ -1651,6 +1662,7 @@ async fn a_branch_that_went_on_past_the_merged_commits_keeps_them_and_the_count_
     repo.commit_file("d.txt", "3\n", "Develop 3");
     let id = tc.open(&repo).await.repo.id;
     let expanded = all_rows(&tc, &id, 100).await;
+    assert!(!find(&expanded, &merge).collapsible, "nothing to collapse: no arrow");
 
     view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
     for page_size in [1, 100] {
@@ -1663,6 +1675,9 @@ async fn a_branch_that_went_on_past_the_merged_commits_keeps_them_and_the_count_
     // Once develop is gone, its commits only lead to the merge and disappear with it.
     repo.checkout("staging");
     repo.git(&["branch", "-D", "develop"]);
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": []})).await.unwrap();
+    assert!(find(&all_rows(&tc, &id, 100).await, &merge).collapsible, "develop gone: the merge can collapse");
+    view_state_set(&tc, id.clone(), json!({"collapsedMerges": [&merge]})).await.unwrap();
     let rows = all_rows(&tc, &id, 100).await;
     assert!(!rows.iter().any(|r| r.summary.starts_with("Develop")), "{}", sketch(&rows));
     assert_eq!(find(&rows, &merge).collapsed_count, Some(2));

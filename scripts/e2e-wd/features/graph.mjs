@@ -664,7 +664,7 @@ scenario("collapse: the arrow on a merge hides the commits it brought in and sho
   }
 });
 
-scenario("collapse: a branch on the side branch keeps its commit visible, and the arrow says nothing was hidden", "edge", async (t) => {
+scenario("collapse: a merge whose commits a branch keeps visible has no arrow", "edge", async (t) => {
   const repo = makeRichRepo({ dirty: false });
   try {
     const app = await t.launch({ lang: "en", theme: "light" });
@@ -673,17 +673,20 @@ scenario("collapse: a branch on the side branch keeps its commit visible, and th
     const side = lines(repo.git("rev-list", `${merge}^1..${merge}^2`));
     const bugfix = repo.git("rev-parse", "bugfix/sensor-ausfall");
     assertEqual(side, [bugfix], "Git: the side branch is the commit bugfix/sensor-ausfall points to");
-    const before = (await loadedRows(app, repoId)).map((row) => row.id);
-    await app.click(`[data-row-id="${merge}"] [data-collapse-toggle="expanded"]`);
-    await app.waitFor(() => app.byText("Nothing to collapse"), 10_000, { message: "hint that nothing was hidden" });
-    assertIncludes(await app.exec(() => document.body.innerText), "is also on a visible branch or tag", "the hint names the reason");
+    await app.waitFor(`[data-row-id="${repo.info.shas.firstMerge}"] [data-collapse-toggle="expanded"]`, 10_000, { message: "the other merge has its arrow" });
+    assert(await app.$(`[data-row-id="${merge}"]`), "the merge row is shown");
+    assert(!(await app.$(`[data-row-id="${merge}"] [data-collapse-toggle]`)), "no arrow: collapsing would hide nothing");
+    await t.shot("collapse-no-arrow");
+    // ← on it does nothing either.
+    await app.click(rowSelector(merge));
+    await app.press("ArrowLeft");
     await app.settle();
-    assertEqual((await loadedRows(app, repoId)).map((row) => row.id), before, "every row stays");
-    assert(await app.$(`[data-row-id="${bugfix}"] [data-ref-full="refs/heads/bugfix/sensor-ausfall"]`), "the commit keeps its label");
-    assert(await app.$(`[data-row-id="${merge}"] [data-collapse-toggle="expanded"]`), "the arrow stays open");
-    assert(!(await app.$(`[data-row-id="${merge}"] [data-collapsed-count]`)), "no “+0 commits” text");
-    assertEqual((await viewState(app, repoId)).collapsedMerges, [], "view state not changed");
-    await t.shot("collapse-ref-stays");
+    assertEqual((await viewState(app, repoId)).collapsedMerges, [], "← leaves the view state alone");
+    // The context menu has no “Collapse merge”, only the entries for all merges.
+    await rightClick(app, rowSelector(merge));
+    await app.waitFor(() => app.byText("Collapse all merges", { within: '[role="menu"]' }), 5000, { message: "menu with “Collapse all merges”" });
+    assert(!(await app.byText("Collapse merge", { within: '[role="menu"]' })), "no “Collapse merge” entry");
+    await app.press("Escape");
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -737,7 +740,10 @@ scenario("collapse: all merges via shortcut and palette, kept after a restart", 
       await app.waitFor(async () => (await viewState(app, repoId)).collapseAllMerges, 5000, { message: "palette collapses all" });
     }
     t.step(`collapse all via ${viaShortcut ? "shortcut" : "palette"}`);
-    await app.waitFor(async () => (await domRows(app)).filter((row) => row.toggle === "collapsed").length === merges.length, 10_000, { message: "every merge row collapsed" });
+    // bugfix/sensor-ausfall keeps everything the second merge brought in: it has nothing to hide and no arrow.
+    const collapsible = merges.filter((sha) => sha !== repo.info.shas.secondMerge);
+    await app.waitFor(async () => (await domRows(app)).filter((row) => row.toggle === "collapsed").length === collapsible.length, 10_000, { message: "every merge row that can hide something collapsed" });
+    assert(!(await app.$(`[data-row-id="${repo.info.shas.secondMerge}"] [data-collapse-toggle]`)), "the second merge has no arrow");
     const hidden = lines(repo.git("rev-list", `${repo.info.shas.firstMerge}^1..${repo.info.shas.firstMerge}^2`));
     for (const sha of hidden) assert(!(await loadedRows(app, repoId)).some((row) => row.sha === sha), `${short(sha)} hidden`);
     await t.shot("collapse-all");

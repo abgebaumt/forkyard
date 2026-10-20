@@ -189,9 +189,14 @@ function mergeEntries(ctx: MenuBase, sha: Sha, row: GraphRow | undefined): MenuE
   // The row carries the full SHA; the view state stores full SHAs.
   const merge = row.sha ?? sha;
   return [
-    item(collapsed ? t("menus.commit.expandMerge") : t("menus.commit.collapseMerge"), collapsed ? ChevronsUpDown : ChevronsDownUp, () => void setMergeCollapsed(ctx.repoId, merge, !collapsed), {
-      hint: row.collapseTooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("menus.commit.hiddenCommits", { count: row.collapsedCount ?? 0 }) : undefined,
-    }),
+    // A merge with nothing to hide (every commit it brought in is on a visible branch or tag) has no entry of its own.
+    ...(row.collapsible
+      ? [
+          item(collapsed ? t("menus.commit.expandMerge") : t("menus.commit.collapseMerge"), collapsed ? ChevronsUpDown : ChevronsDownUp, () => void setMergeCollapsed(ctx.repoId, merge, !collapsed), {
+            hint: row.collapseTooLarge ? t("graph.row.collapseTooLarge") : collapsed ? t("menus.commit.hiddenCommits", { count: row.collapsedCount ?? 0 }) : undefined,
+          }),
+        ]
+      : []),
     item(t("menus.commit.collapseAll"), ChevronsDownUp, () => void setAllMergesCollapsed(ctx.repoId, true), { shortcut: "Mod+Shift+[" }),
     item(t("menus.commit.expandAll"), ChevronsUpDown, () => void setAllMergesCollapsed(ctx.repoId, false), { shortcut: "Mod+Shift+]" }),
   ];

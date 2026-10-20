@@ -309,6 +309,7 @@ mod tests {
             wip_count: None,
             collapsed_count: None,
             collapse_too_large: false,
+            collapsible: false,
             sync: crate::model::SyncMark::None,
         }
     }

@@ -328,6 +328,8 @@ impl PageBuilder<'_> {
         row.refs = self.plan.labels.get(&sha).cloned().unwrap_or_default();
         row.is_head = self.plan.head_sha.as_deref() == Some(sha.as_str());
         row.sync = self.sync.mark(&sha);
+        // Expanded merges get `collapsible` from `mark_collapsible` once the page is complete.
+        row.collapsible = collapse_too_large || collapsed_count.is_some_and(|count| count > 0);
         row.collapsed_count = collapsed_count;
         row.collapse_too_large = collapse_too_large;
         self.push(placed, row);
@@ -367,11 +369,62 @@ pub(super) async fn collapse_for(core: &Core, path: &Path, repo_id: &str, plan: 
     Ok(Collapse::Hide { count: u32::try_from(hidden.len()).unwrap_or(u32::MAX), hidden_parents })
 }
 
+/// `git for-each-ref` calls at a time for `mark_collapsible`.
+const COLLAPSIBLE_PARALLEL: usize = 8;
+
+/// Sets `collapsible` on the expanded merges of a page: collapsing hides something unless a visible
+/// ref, starting point or stash reaches every side parent without passing through the merge (then
+/// it reaches everything the merge brought in). If Git fails, the arrow stays – collapsing then
+/// shows that nothing disappeared.
+async fn mark_collapsible(core: &Core, path: &Path, repo_id: &str, plan: &Plan, rows: &mut [GraphRow]) {
+    let keep = std::sync::Arc::new(plan.keep.clone());
+    let mut pending = rows
+        .iter()
+        .enumerate()
+        .filter(|(_, row)| row.kind == GraphRowKind::Merge && row.collapsed_count.is_none() && !row.collapse_too_large)
+        .filter_map(|(index, row)| Some((index, row.sha.clone()?, row.parents.iter().skip(1).cloned().collect::<Vec<_>>())))
+        .collect::<Vec<_>>()
+        .into_iter();
+    let mut running = tokio::task::JoinSet::new();
+    loop {
+        while running.len() < COLLAPSIBLE_PARALLEL {
+            let Some((index, merge, side)) = pending.next() else { break };
+            let (core, path, repo_id, keep) = (core.clone(), path.to_path_buf(), repo_id.to_string(), keep.clone());
+            running.spawn(async move {
+                for parent in &side {
+                    if keep.contains(parent) {
+                        continue;
+                    }
+                    match refs_reaching_without(&core, &path, &repo_id, parent, &merge).await {
+                        Ok(tips) if tips.iter().any(|sha| keep.contains(sha)) => {}
+                        _ => return (index, true),
+                    }
+                }
+                (index, false)
+            });
+        }
+        let Some(joined) = running.join_next().await else { break };
+        if let Ok((index, collapsible)) = joined {
+            rows[index].collapsible = collapsible;
+        }
+    }
+}
+
+/// Commits that branches, remote branches and tags containing `commit` but not `merge` point to.
+async fn refs_reaching_without(core: &Core, path: &Path, repo_id: &str, commit: &str, merge: &str) -> CoreResult<HashSet<String>> {
+    ref_tips(core, path, repo_id, &[format!("--contains={commit}"), format!("--no-contains={merge}")]).await
+}
+
 /// Commits that branches, remote branches and tags containing `merge` point to.
 async fn refs_containing(core: &Core, path: &Path, repo_id: &str, merge: &str) -> CoreResult<HashSet<String>> {
+    ref_tips(core, path, repo_id, &[format!("--contains={merge}")]).await
+}
+
+/// `git for-each-ref <filters> refs/heads refs/remotes refs/tags`: the commits (and tag objects) the refs point to.
+async fn ref_tips(core: &Core, path: &Path, repo_id: &str, filters: &[String]) -> CoreResult<HashSet<String>> {
     let out = read_cmd(core, path, repo_id)
         .args(["for-each-ref", "--format=%(objectname)%00%(*objectname)"])
-        .arg(format!("--contains={merge}"))
+        .args(filters)
         .args(["refs/heads", "refs/remotes", "refs/tags"])
         .run()
         .await?;
@@ -487,6 +540,7 @@ fn empty_row(id: &str, kind: GraphRowKind) -> GraphRow {
         wip_count: None,
         collapsed_count: None,
         collapse_too_large: false,
+        collapsible: false,
         sync: SyncMark::None,
     }
 }
@@ -573,7 +627,8 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
         }
     }
 
-    let PageBuilder { state, rows, max_lane, hidden, .. } = builder;
+    let PageBuilder { state, mut rows, max_lane, hidden, .. } = builder;
+    mark_collapsible(core, &path, repo_id, &plan, &mut rows).await;
     let next_cursor = if has_more {
         let mut f: Vec<String> = hidden.into_iter().collect();
         f.sort_unstable();

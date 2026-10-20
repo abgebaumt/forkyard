@@ -413,6 +413,8 @@ export interface GraphRow {
   collapsedCount: number | null;
   /** The merge is meant to be collapsed but brings in more than 20 000 commits: it stays expanded. */
   collapseTooLarge: boolean;
+  /** Only for merges: collapsing hides at least one commit (not so when every commit it brought in is also on a visible branch or tag). Only then the arrow shows. */
+  collapsible: boolean;
   /** Commit of the checked-out branch not pushed yet (`ahead`) or of its upstream not pulled yet (`behind`). */
   sync: SyncMark;
 }

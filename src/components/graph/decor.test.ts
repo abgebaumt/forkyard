@@ -30,6 +30,7 @@ function row(sha: string, lane: number, parents: string[], edges: GraphEdge[], r
     wipCount: null,
     collapsedCount: null,
     collapseTooLarge: false,
+    collapsible: false,
     sync: "none",
   };
 }

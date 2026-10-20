@@ -229,7 +229,8 @@ All notable changes to Forkyard are listed here. The format follows
   nothing.
 - Collapsing a merge whose commits are also on a branch that went on past them (a merge of `develop`
   into `staging` while `develop` is checked out) no longer shows “+151 commits” while every one of them
-  stays in the graph. Such a merge hides nothing; the arrow stays open and a note says why.
+  stays in the graph. Such a merge hides nothing, so it has no arrow, no “Collapse merge” entry, and ←
+  leaves it alone.
 - “Compose …” next to the commit button is as tall as it.
 - Faster start on Linux laptops with two GPUs: the window no longer waits about 3 seconds while the
   powered-down second GPU (e.g. NVIDIA) wakes up. WebKitGTK woke it to watch the display's refresh; with

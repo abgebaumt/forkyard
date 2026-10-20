@@ -81,7 +81,6 @@
     "collapse": "Merge einklappen (die mitgebrachten Commits ausblenden)",
     "expand": "Merge ausklappen",
     "collapseTooLarge": "Zu viele Commits zum Einklappen (über 20.000)",
-    "collapseNothing": "Nichts ausgeblendet: jeder Commit dieses Merges liegt auch auf einem sichtbaren Branch oder Tag",
     "collapsedCount_one": "+1 Commit",
     "collapsedCount_other": "+{{formatted}} Commits",
     "notPushed": "Noch nicht gepusht",

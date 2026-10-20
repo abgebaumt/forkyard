@@ -84,6 +84,7 @@ const QUIET_WIP: GraphRow = Object.freeze({
   wipCount: null,
   collapsedCount: null,
   collapseTooLarge: false,
+  collapsible: false,
   sync: "none",
 }) as GraphRow;
 
@@ -827,9 +828,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
       openDetails(cursor);
       return;
     } else if (plain && !event.shiftKey && (key === "ArrowLeft" || key === "ArrowRight")) {
-      // ← collapses the selected merge, → expands it again. On other rows the keys keep their default.
+      // ← collapses the selected merge, → expands it again. On other rows – and on a merge with nothing
+      // to hide – the keys keep their default.
       const row = rows[cursor];
-      if (row?.kind !== "merge" || !row.sha) return;
+      if (row?.kind !== "merge" || !row.sha || !row.collapsible) return;
       event.preventDefault();
       void setMergeCollapsed(repoId, row.sha, key === "ArrowLeft");
       return;
