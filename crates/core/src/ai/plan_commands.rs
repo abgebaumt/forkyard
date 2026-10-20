@@ -352,10 +352,10 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
         PlanAction::BranchRename { name, new_name } => branches::branch_rename(core, id, name, new_name).await.map(drop),
         PlanAction::BranchDelete { name, force } => branches::branch_delete(core, id, vec![name], force).await.map(drop),
         PlanAction::ResetBranch { sha, mode } => merge::reset_branch(core, id, sha, mode).await.map(drop),
-        PlanAction::RebaseStart { onto, branch } => settle(core, repo_id, rebase::rebase_start(core, id, onto, branch).await).await,
-        PlanAction::CherryPick { shas } => settle(core, repo_id, rebase::cherry_pick(core, id, shas).await).await,
-        PlanAction::RevertCommit { sha } => settle(core, repo_id, merge::revert_commit(core, id, sha).await).await,
-        PlanAction::MergeStart { source, mode } => settle(core, repo_id, merge::merge_start(core, id, source, mode).await).await,
+        PlanAction::RebaseStart { onto, branch } => settle(core, repo_id, rebase::rebase_start(core, id, onto, branch)).await,
+        PlanAction::CherryPick { shas } => settle(core, repo_id, rebase::cherry_pick(core, id, shas)).await,
+        PlanAction::RevertCommit { sha } => settle(core, repo_id, merge::revert_commit(core, id, sha)).await,
+        PlanAction::MergeStart { source, mode } => settle(core, repo_id, merge::merge_start(core, id, source, mode)).await,
         PlanAction::StashCreate { message, include_untracked, paths } => {
             let paths = (!paths.is_empty()).then_some(paths);
             stash::stash_create(core, id, crate::util::new_id(), message, paths, include_untracked, None).await.map(drop)
@@ -369,7 +369,7 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
                 None => Ok(()),
             }
         }
-        PlanAction::Pull { mode } => settle(core, repo_id, sync::pull(core, id, job, mode).await).await,
+        PlanAction::Pull { mode } => settle(core, repo_id, sync::pull(core, id, job, mode)).await,
         PlanAction::Push { branch, remote, force, expected } => {
             let label = format!("“{branch}”");
             pushed(&label, sync::push(core, id, job, Some(branch), remote, None, force, expected).await?)
@@ -387,10 +387,11 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
 
 /// A step that stopped on conflicts – or failed half-way, e.g. on a hook – is taken back at once: a
 /// plan never leaves a half-done merge, rebase, cherry-pick or revert behind (`operation_abort` also
-/// settles its open undo entry). The check refuses plans while an operation runs, so any operation
-/// found here belongs to this step.
-async fn settle(core: &Core, repo_id: &str, result: CoreResult<OpResult>) -> CoreResult<()> {
-    match result {
+/// settles its open undo entry). Only an operation the step itself started is aborted: the user may
+/// start a rebase or merge of their own while a plan runs.
+async fn settle(core: &Core, repo_id: &str, step: impl std::future::Future<Output = CoreResult<OpResult>>) -> CoreResult<()> {
+    let before = status::read_operation(core, repo_id).await?;
+    match step.await {
         Ok(OpResult::Conflict { files, .. }) => {
             merge::operation_abort(core, repo_id.to_string()).await?;
             Err(CoreError::new(
@@ -400,7 +401,7 @@ async fn settle(core: &Core, repo_id: &str, result: CoreResult<OpResult>) -> Cor
         }
         Ok(OpResult::Done { .. } | OpResult::UpToDate) => Ok(()),
         Err(error) => {
-            if status::read_operation(core, repo_id).await?.is_some() {
+            if before.is_none() && error.code != ErrorCode::OperationInProgress && status::read_operation(core, repo_id).await?.is_some() {
                 merge::operation_abort(core, repo_id.to_string()).await?;
             }
             Err(error)
