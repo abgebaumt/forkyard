@@ -4,6 +4,10 @@ use super::test_support::*;
 use super::{disk, measure};
 use crate::model::ObjectStats;
 
+/// The counting tests are about the count: the app's 2 s budget is too tight for a few Git starts
+/// on a loaded Windows machine (the budget itself is tested with `Duration::ZERO`).
+const COUNTING_BUDGET: std::time::Duration = std::time::Duration::from_secs(60);
+
 #[test]
 fn count_objects_fields_are_kib_and_become_bytes() {
     let text = "count: 10\nsize: 40\nin-pack: 1234\npacks: 2\nsize-pack: 3075\nprune-packable: 0\ngarbage: 1\nsize-garbage: 7\n";
@@ -88,7 +92,7 @@ async fn old_reflog_entries_are_counted_in_every_worktree() {
     let id = tc.open(&repo).await.repo.id;
     let common = measure::common_dir(&tc, &id).await.unwrap();
     // 3 old commits on main × (HEAD + main) + 1 old commit in the worktree × (its HEAD + wt).
-    assert_eq!(measure::count_old_reflog(&tc, &id, &common, measure::REFLOG_BUDGET).await.unwrap(), Some(8));
+    assert_eq!(measure::count_old_reflog(&tc, &id, &common, COUNTING_BUDGET).await.unwrap(), Some(8));
 }
 
 #[tokio::test]
@@ -123,5 +127,5 @@ async fn old_reflog_entries_are_counted_with_reftable() {
     crate::commands::trust::repo_trust_set(&tc, id.clone(), true).await.unwrap();
     let common = measure::common_dir(&tc, &id).await.unwrap();
     // 2 old commits × (HEAD + main).
-    assert_eq!(measure::count_old_reflog(&tc, &id, &common, measure::REFLOG_BUDGET).await.unwrap(), Some(4));
+    assert_eq!(measure::count_old_reflog(&tc, &id, &common, COUNTING_BUDGET).await.unwrap(), Some(4));
 }

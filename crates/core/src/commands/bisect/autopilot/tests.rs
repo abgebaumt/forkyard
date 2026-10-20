@@ -308,7 +308,8 @@ async fn a_step_over_its_time_limit_counts_as_skipped() {
     } else {
         format!("if [ \"$FORKYARD_BISECT_COMMIT\" = '{first}' ]; then sleep 120; fi\n{}", formula_script())
     };
-    let done = bisect_autopilot_run(&tc, id.clone(), "langsam".into(), bad, vec![good], script, 3).await.unwrap();
+    // 20 s: far below the 120 s step, far above a normal step even when PowerShell starts slowly under load.
+    let done = bisect_autopilot_run(&tc, id.clone(), "langsam".into(), bad, vec![good], script, 20).await.unwrap();
     let step = &done.steps[0];
     assert_eq!((step.sha.as_str(), step.verdict, step.timed_out, step.exit_code), (first.as_str(), BisectVerdict::Skip, true, None));
     assert_eq!(done.steps.iter().filter(|step| step.timed_out).count(), 1);
