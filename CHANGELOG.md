@@ -5,6 +5,8 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] – 2026-10-21
+
 ### Added
 
 - Clean up repository: a dialog – from the command palette (“Clean up repository …”) and the context
@@ -246,6 +248,26 @@ All notable changes to Forkyard are listed here. The format follows
   other views and most dialogs load when first opened (CodeMirror with them).
 - The log now says how long the phases of a start took (`Startup: …`), including the window's own
   milestones up to the first graph rows and the slowest calls of the start.
+- Custom commands without a shell start `npm`, `npx`, `yarn` and other `.cmd` programs on Windows
+  instead of reporting them as not found.
+- The test command of a coding agent keeps umlauts and other non-ASCII characters in its output on
+  Windows (cmd.exe writes them in the console's code page).
+- An unreachable Git LFS server on Windows is reported as “The server can’t be reached” instead of a
+  generic failure.
+- A force push after “Push where?”, or onto another branch than the upstream, now names the commits it
+  overwrites on that branch and only goes ahead if the branch has not moved since; “Pull first” then
+  pushes to the same place again.
+- A plain-language plan whose step fails no longer aborts a merge or rebase you started yourself while
+  the plan ran.
+- Deleting a profile no longer unregisters the worktrees of running coding agents, which made their
+  review lose uncommitted work and “Clean up” fail.
+- A pull request template is never read through a symbolic link, so a repository cannot bring a file
+  from outside it into the pull request form or an AI request.
+- Secret names that go on after the keyword, such as `AWS_SECRET_ACCESS_KEY = …`, are now masked before
+  text is sent to an AI provider.
+- “Check again” on the “Git was not found” page looks for Git anew, so a Git installed while Forkyard is
+  open is found without a restart.
+- The stack planner no longer gets stuck after changing the base branch.
 
 ## [1.1.0] – 2026-10-16
 
@@ -381,6 +403,7 @@ All notable changes to Forkyard are listed here. The format follows
 
 First public release.
 
-[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/abgebaumt/forkyard/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/abgebaumt/forkyard/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/abgebaumt/forkyard/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/abgebaumt/forkyard/releases/tag/v1.0.0
