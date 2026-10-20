@@ -1,7 +1,5 @@
 //! Locating programs with fake CLIs in temp folders (shell scripts on Unix, batch files on Windows).
 
-use std::time::Duration;
-
 use super::*;
 use crate::testkit::{temp_folder, TestCore};
 
@@ -96,7 +94,7 @@ async fn the_login_shell_is_asked_without_a_terminal_and_within_a_time_limit() {
     std::fs::set_permissions(&slow, std::fs::Permissions::from_mode(0o755)).unwrap();
     let started = std::time::Instant::now();
     assert_eq!(login_shell_path_from(&tc, &slow).await, None);
-    assert!(started.elapsed() < Duration::from_secs(5), "{:?}", started.elapsed());
+    assert!(started.elapsed() < std::time::Duration::from_secs(5), "{:?}", started.elapsed());
 }
 
 #[tokio::test]

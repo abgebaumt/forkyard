@@ -37,6 +37,7 @@ const UPDATE_URL_ENV: &str = "FORKYARD_UPDATE_URL";
 const AI_CLI_DIR_ENV: &str = "FORKYARD_AI_CLI_DIR";
 const MAIN_WINDOW: &str = "main";
 /// WebKitGTK's switch for its timer-based vblank instead of watching the display through DRM.
+#[cfg(target_os = "linux")]
 const VBLANK_TIMER_ENV: &str = "WEBKIT_FORCE_VBLANK_TIMER";
 
 /// Linux with more than one GPU (a laptop with an integrated GPU and an NVIDIA/AMD one): WebKitGTK
