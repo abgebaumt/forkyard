@@ -313,13 +313,15 @@ async fn changes_are_debounced_and_one_check_runs_at_a_time() {
     // The main repository's refs (the base may have moved) count.
     tc.emit_repo_changed(&id, &[RepoChange::Refs]);
     wait_checks(&tc, 3).await;
-    // Changes that never stop are checked at the latest after max_delay.
+    // Changes that never stop are checked at the latest after max_delay (debounce alone would
+    // never fire). Until two checks are done, not for a fixed time: a check takes ~2 s on Windows.
     let start = checks_run(&tc);
-    for _ in 0..60 {
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    while checks_run(&tc) < start + 2 {
+        assert!(std::time::Instant::now() < deadline, "{} checks during 60 s of changes", checks_run(&tc) - start);
         tc.emit_repo_changed(&worktree, &[RepoChange::Worktree]);
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
-    assert!(checks_run(&tc) >= start + 2, "{} checks during 3 s of changes", checks_run(&tc) - start);
     tokio::time::sleep(Duration::from_millis(400)).await;
     // Manual checks wait for each other; no two checks ever ran at the same time.
     let (one, two) = tokio::join!(run_check(&tc, &id), run_check(&tc, &id));
