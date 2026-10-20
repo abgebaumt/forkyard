@@ -228,7 +228,7 @@ function isRejected(result: ActionResult<PushResult>): boolean {
  * Asks whether the push should be forced. Fetches the remote's state first: `--force-with-lease`
  * only overwrites what this repository knows – and the prompt should name what will be lost.
  */
-async function confirmForcePush(repoId: Id, branch: string | null): Promise<{ expected: string | null } | null> {
+async function confirmForcePush(repoId: Id, branch: string | null, destination: { remote: string | null; remoteBranch: string | null }): Promise<{ expected: string | null } | null> {
   const fetchJob = newJobId();
   markManualSync(repoId);
   const fetched = await runAction(t("actions.sync.force.fetchLabel"), () => core.fetch({ repoId, jobId: fetchJob, remote: null, prune: false }), {
@@ -240,18 +240,20 @@ async function confirmForcePush(repoId: Id, branch: string | null): Promise<{ ex
   // Only after the fetch is what lies on the remote accurate.
   const [status, refs] = await Promise.all([loadStatus(repoId).catch(() => undefined), loadRefs(repoId).catch(() => undefined)]);
   const local = branch ? refs?.locals.find((ref) => ref.name === branch) : refs?.locals.find((ref) => ref.isHead);
-  const upstream = local?.upstream ?? status?.upstream?.name ?? null;
+  // The branch the push really overwrites: the destination the user chose, else the upstream.
+  const named = destination.remote ? `${destination.remote}/${destination.remoteBranch ?? local?.name ?? branch ?? ""}` : null;
+  const upstream = named ?? local?.upstream ?? (branch ? null : (status?.upstream?.name ?? null));
   const remoteRef = upstream ? refs?.remotes.find((ref) => ref.name === upstream) : undefined;
   const target = upstream ?? t("actions.sync.force.remoteBranch");
 
   let details: string[] = [];
-  let lost = local?.behind ?? status?.upstream?.behind ?? 0;
-  if (local && remoteRef && lost > 0) {
+  let lost = named ? 0 : (local?.behind ?? status?.upstream?.behind ?? 0);
+  if (local && remoteRef && (lost > 0 || named)) {
     const index = await loadGraphIndex(repoId, { fresh: true });
     const range = index ? commitsBetween(index, local.sha, remoteRef.sha) : null;
     if (range) {
       details = range.rows.map((row) => `${short(row.sha!)}  ${clip(row.summary, 80)} · ${row.authorName}`);
-      if (!range.partial) lost = range.rows.length;
+      lost = range.partial ? Math.max(lost, range.rows.length) : range.rows.length;
     }
   }
   const what =
@@ -314,7 +316,7 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   };
 
   if (options.force) {
-    const confirmed = await confirmForcePush(repoId, branch);
+    const confirmed = await confirmForcePush(repoId, branch, { remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null });
     if (!confirmed) return null;
     return finish(await run(options.remote ?? null, options.remoteBranch ?? null, true, confirmed.expected));
   }
@@ -356,11 +358,11 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     });
     if (next === "pull") {
       const pulled = await pull(repoId, null, options.tabId);
-      if (pulled.ok && pulled.value.status !== "conflict") return push(repoId, { tabId: options.tabId, branch, reviewed: true });
+      if (pulled.ok && pulled.value.status !== "conflict") return push(repoId, { tabId: options.tabId, branch, ...destination, reviewed: true });
       return result;
     }
     if (next !== "force") return result;
-    const confirmed = await confirmForcePush(repoId, branch);
+    const confirmed = await confirmForcePush(repoId, branch, destination);
     if (!confirmed) return result;
     result = await run(destination.remote, destination.remoteBranch, true, confirmed.expected);
 
