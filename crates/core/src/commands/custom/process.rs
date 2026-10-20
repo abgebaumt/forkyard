@@ -77,6 +77,19 @@ fn spawn_error(program: &str, e: std::io::Error) -> CoreError {
     CoreError::new(code, format!("“{program}” couldn’t be started. {reason}")).with_git_output(e.to_string())
 }
 
+/// Windows: std only tries `<name>.exe` on PATH, so `npm`, `npx` or `yarn` (`.cmd` shims) would be
+/// "not found". `which` follows PATHEXT; std then quotes `.cmd` arguments safely or refuses them.
+#[cfg(windows)]
+fn program_path(planned: &Planned, cwd: &Path) -> std::ffi::OsString {
+    let path = planned.env.iter().find(|(key, _)| key.eq_ignore_ascii_case("PATH")).map(|(_, value)| value.into()).or_else(|| std::env::var_os("PATH"));
+    which::which_in(&planned.program, path, cwd).map(Into::into).unwrap_or_else(|_| planned.program.clone().into())
+}
+
+#[cfg(not(windows))]
+fn program_path(planned: &Planned, _cwd: &Path) -> std::ffi::OsString {
+    planned.program.clone().into()
+}
+
 /// Reads one pipe line by line: as progress (redacted) and into `collected`.
 async fn pump<R: AsyncRead + Unpin>(pipe: Option<R>, job: &Job, collected: &Mutex<Vec<u8>>) {
     let Some(pipe) = pipe else { return };
@@ -95,7 +108,7 @@ async fn pump<R: AsyncRead + Unpin>(pipe: Option<R>, job: &Job, collected: &Mute
 async fn execute(core: &Core, repo_id: &str, job: &Job, title: &str, planned: &Planned, cwd: &Path) -> CoreResult<CustomCommandResult> {
     let started_at = util::now_iso();
     let start = Instant::now();
-    let mut command = tokio::process::Command::new(&planned.program);
+    let mut command = tokio::process::Command::new(program_path(planned, cwd));
     command.args(&planned.args).current_dir(cwd).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
     for (key, value) in &planned.env {
         command.env(key, value);

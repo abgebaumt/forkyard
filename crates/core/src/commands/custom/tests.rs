@@ -389,6 +389,19 @@ async fn with_shell_true_values_arrive_as_environment_variables() {
     assert!(!repo.path().join("PWNED").exists() && !repo.path().join("PWNED2").exists());
 }
 
+/// `npm`, `npx` or `yarn` are `.cmd` shims on Windows: named without the extension they still start.
+#[cfg(windows)]
+#[tokio::test]
+async fn batch_programs_start_without_their_extension() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let id = tc.open(&repo).await.repo.id;
+    repo.write_file("tool.cmd", "@echo off\r\necho %1> ausgabe.txt\r\n");
+    custom_commands_save(&tc, vec![def("tool", CustomCommandKind::Shell, r".\tool hallo")]).await.unwrap();
+    assert_eq!(finished(run(&tc, &id, "global:tool", Default::default(), &[]).await.unwrap()).0, Some(0));
+    assert_eq!(std::fs::read_to_string(repo.path().join("ausgabe.txt")).unwrap().trim_end(), "hallo");
+}
+
 #[tokio::test]
 async fn shell_output_is_redacted_in_result_progress_and_log() {
     let tc = TestCore::new().await;
