@@ -222,7 +222,9 @@ fn the_unexpected_exit_report_dates_the_run_that_ended() {
 
 /// A child process spawned by another thread (fork before exec) briefly shares the marker's
 /// open file description. The end of a run must release the lock even then, or the next run
-/// (here: the next test) is wrongly turned away as a second instance.
+/// (here: the next test) is wrongly turned away as a second instance. Unix only: Windows has no
+/// fork, and Rust opens handles there non-inheritable.
+#[cfg(unix)]
 #[test]
 fn the_end_of_a_run_releases_the_marker_even_while_a_copy_of_its_descriptor_lives() {
     let dir = tempfile::tempdir().unwrap();

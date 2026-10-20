@@ -1,6 +1,7 @@
 //! Terminals that run a program (coding agents) in a worktree of the repository, and what their
 //! output signals.
 
+#[cfg(unix)]
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
@@ -10,12 +11,14 @@ use crate::testkit::{TestCore, TestRepo};
 
 const WAIT: Duration = Duration::from_secs(60);
 
+#[cfg(unix)]
 #[derive(Default)]
 struct Seen {
     screen: AtomicUsize,
     signals: Mutex<Vec<TerminalSignal>>,
 }
 
+#[cfg(unix)]
 impl TerminalObserver for Seen {
     fn screen_changed(&self, _terminal_id: &str) {
         self.screen.fetch_add(1, Ordering::SeqCst);
