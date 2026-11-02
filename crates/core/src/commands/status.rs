@@ -7,6 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::app::Core;
 use crate::commands::refs::{self, short_ref_name};
@@ -27,11 +28,64 @@ const LFS_POINTER_MAX_BYTES: u64 = 1024;
 /// `git diff` writes the index back when it finds files with only a changed timestamp –
 /// despite `GIT_OPTIONAL_LOCKS=0`. That could block a write action.
 const NO_INDEX_REFRESH: [&str; 2] = ["-c", "diff.autoRefreshIndex=false"];
+/// Line counts leave out LFS files: for a changed file `git diff` runs the clean filter, and git-lfs
+/// hashes (and stores) the whole file – on every read, because a read never writes the refreshed index
+/// back. All that to count the lines of a pointer. `git status` still lists the files.
+const WITHOUT_LFS: [&str; 3] = ["--", ":/", ":(top,exclude,attr:filter=lfs)"];
 const LFS_POINTER_PREFIX: &[u8] = b"version https://git-lfs.github.com/spec/v1";
 
 /// `git status --porcelain=v2 -z --branch` plus the running operation from `.git`.
 pub async fn status_get(core: &Core, repo_id: String) -> CoreResult<Status> {
-    crate::startup::first_call("status_get", read_status(core, &repo_id)).await
+    crate::startup::first_call("status_get", shared_read(core, &repo_id)).await
+}
+
+/// Shared status reads per repository: at most one runs, at most one more waits, and every
+/// request joins the waiting one. The UI asks again on every `repo:changed` – while agents keep
+/// writing, every two seconds – and a request it gave up on keeps running here. On a repository
+/// with large LFS files one read takes long, and without sharing the reads pile up into hundreds
+/// of Git processes. The waiting read starts after the request, so its result is never older.
+#[derive(Default)]
+struct StatusReads(parking_lot::Mutex<HashMap<String, Arc<RepoReads>>>);
+
+#[derive(Default)]
+struct RepoReads {
+    /// Held by the running read.
+    turn: tokio::sync::Mutex<()>,
+    /// The waiting read, which new requests join.
+    waiting: parking_lot::Mutex<Option<tokio::sync::watch::Receiver<Option<CoreResult<Status>>>>>,
+}
+
+async fn shared_read(core: &Core, repo_id: &str) -> CoreResult<Status> {
+    let reads = core.state::<StatusReads>().0.lock().entry(repo_id.to_string()).or_default().clone();
+    let joined = {
+        let mut waiting = reads.waiting.lock();
+        match waiting.as_ref() {
+            Some(receiver) => Err(receiver.clone()),
+            None => {
+                let (sender, receiver) = tokio::sync::watch::channel(None);
+                *waiting = Some(receiver);
+                Ok(sender)
+            }
+        }
+    };
+    match joined {
+        Ok(sender) => {
+            let _turn = reads.turn.lock().await;
+            // Running from here on: whoever asks now waits for the next read.
+            reads.waiting.lock().take();
+            let out = read_status(core, repo_id).await;
+            sender.send_replace(Some(out.clone()));
+            out
+        }
+        Err(mut receiver) => {
+            let shared = receiver.wait_for(Option::is_some).await.ok().and_then(|out| out.clone());
+            match shared {
+                Some(out) => out,
+                // The read was dropped before it finished: read alone.
+                None => read_status(core, repo_id).await,
+            }
+        }
+    }
 }
 
 /// Reads the whole status. Pure read command: takes no lock, does not write the index
@@ -42,8 +96,8 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
         read_cmd(core, &path, repo_id)
             .args(["status", "--porcelain=v2", "-z", "--branch", "--untracked-files=all", "--find-renames"])
             .run(),
-        read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--numstat", "-z", "--no-ext-diff"]).run(),
-        read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--cached", "--numstat", "-z", "-M", "--no-ext-diff"]).run(),
+        read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--numstat", "-z", "--no-ext-diff"]).args(WITHOUT_LFS).run(),
+        read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--cached", "--numstat", "-z", "-M", "--no-ext-diff"]).args(WITHOUT_LFS).run(),
         read_cmd(core, &path, repo_id).args(["ls-files", "--stage", "-z"]).run(),
         identity_at(core, &path, repo_id),
     );
@@ -953,6 +1007,71 @@ mod tests {
         assert!(!find(&status.unstaged, "text.txt").is_lfs);
         assert!(find(&status.unstaged, "neu.psd").is_lfs, "untracked, but covered by the attribute");
         assert!(find(&status.unstaged, "zeiger.dat").is_lfs, "untracked LFS pointer");
+    }
+
+    /// The line counts skip LFS files: `git diff --numstat` would send every changed .blend or PNG
+    /// through the clean filter (git-lfs hashes the whole file) on every read – only to count the
+    /// lines of a pointer. The list from `git status` still names the file.
+    #[tokio::test]
+    async fn line_counts_do_not_run_the_lfs_clean_filter() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        // Stand-in for git-lfs: passes the content through and counts its runs.
+        repo.git(&["config", "filter.lfs.clean", "sh -c 'echo run >> .git/clean-runs; cat'"]);
+        repo.write_file(".gitattributes", "*.blend filter=lfs -text\n");
+        repo.write_file("scene.blend", "alt\n");
+        repo.write_file("text.txt", "alt\n");
+        repo.commit("Basis");
+        // Different size: `git status` sees the change without reading the content.
+        repo.write_file("scene.blend", "neuer Inhalt\n");
+        repo.write_file("text.txt", "neu\nneu\n");
+        let runs = repo.path().join(".git/clean-runs");
+        let _ = std::fs::remove_file(&runs);
+
+        let status = status_of(&tc, &repo).await;
+        let blend = find(&status.unstaged, "scene.blend");
+        assert!(blend.is_lfs);
+        assert_eq!((blend.added, blend.removed), (None, None));
+        let text = find(&status.unstaged, "text.txt");
+        assert_eq!((text.added, text.removed), (Some(2), Some(1)), "other files keep their counts");
+        assert_eq!(std::fs::read_to_string(&runs).unwrap_or_default(), "", "clean filter ran while reading the status");
+    }
+
+    /// While agents keep writing, `repo:changed` arrives every two seconds and the UI asks again each
+    /// time – the abandoned request keeps running in the core. Concurrent `status_get` calls for one
+    /// repository therefore share reads: at most one runs and at most one more waits.
+    #[tokio::test]
+    async fn concurrent_status_requests_share_reads() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::new();
+        // Slow stand-in for git-lfs, so that the requests overlap; counts its runs.
+        repo.git(&["config", "filter.lfs.clean", "sh -c 'echo run >> .git/clean-runs; sleep 0.3; cat'"]);
+        repo.write_file(".gitattributes", "*.blend filter=lfs -text\n");
+        repo.write_file("scene.blend", "inhalt\n");
+        repo.commit("Basis");
+        let id = tc.open(&repo).await.repo.id;
+        // Same size, new timestamp: `git status` has to read the content – through the filter, every time
+        // (a read never writes the refreshed index back).
+        let file = repo.path().join("scene.blend");
+        std::fs::File::options().write(true).open(&file).unwrap().set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(5)).unwrap();
+        let runs = repo.path().join(".git/clean-runs");
+        let count = || std::fs::read_to_string(&runs).unwrap_or_default().lines().count();
+
+        let _ = std::fs::remove_file(&runs);
+        status_get(&tc, id.clone()).await.unwrap();
+        let per_read = count();
+        assert!(per_read >= 1, "the test needs a read that runs the filter");
+
+        let _ = std::fs::remove_file(&runs);
+        let mut requests = tokio::task::JoinSet::new();
+        for _ in 0..10 {
+            let (core, id) = (tc.core.clone(), id.clone());
+            requests.spawn(async move { status_get(&core, id).await });
+        }
+        while let Some(result) = requests.join_next().await {
+            assert!(result.unwrap().unwrap().unstaged.is_empty());
+        }
+        assert!(count() <= 2 * per_read, "{} filter runs for 10 requests, {per_read} per read", count());
     }
 
     /// Creates all seven kinds of conflict in one merge.
