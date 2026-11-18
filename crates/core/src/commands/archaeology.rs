@@ -23,11 +23,12 @@ use parking_lot::Mutex;
 use crate::ai::{archaeology as ai_archaeology_context, run};
 use crate::app::Core;
 use crate::commands::ai::request_frame;
-use crate::commands::graph::{is_full_sha, resolve_commit, LOG_SAFE};
+use crate::commands::graph::LOG_SAFE;
 use crate::commands::history::{line_history_with_diffs, repo_encoding, LINE_HISTORY_STEPS};
 use crate::commands::links::link_rules_get;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
+use crate::git::rev::{is_sha, resolve_commit};
 use crate::model::{AiFeature, ArchaeologyAnswer, ArchaeologyHostLookup, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, LinkRule};
 use crate::util;
 use crate::util::{decode_line, normalize_rel_path};
@@ -181,7 +182,7 @@ async fn blame_origin(core: &Core, repo_id: &str, rel: &str, line: u32) -> CoreR
     if sha.is_empty() || sha.bytes().all(|byte| byte == b'0') {
         return Err(not_committed());
     }
-    if !is_full_sha(&sha) || origin_line == 0 {
+    if !is_sha(&sha) || origin_line == 0 {
         return Err(CoreError::unknown("Git blame gave an answer Forkyard does not understand."));
     }
     Ok((sha, origin_path.unwrap_or_else(|| rel.to_string()), origin_line))
@@ -309,7 +310,7 @@ async fn full_messages(core: &Core, repo_id: &str, shas: &[&str]) -> CoreResult<
     for record in out.stdout.split(|&byte| byte == 0).filter(|record| !record.is_empty()) {
         let Some(split) = record.iter().position(|&byte| byte == 0x1f) else { continue };
         let sha = util::decode_lossy(&record[..split]).trim().to_string();
-        if !is_full_sha(&sha) || !shas.contains(&sha.as_str()) {
+        if !is_sha(&sha) || !shas.contains(&sha.as_str()) {
             continue;
         }
         let body = util::decode_lossy(&record[split + 1..]);

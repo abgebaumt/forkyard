@@ -18,7 +18,9 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks, ABORTING_HOOKS};
 use crate::commands::rebase;
-use crate::commands::refs::short_ref_name;
+use crate::git::rev;
+use crate::git::rev::short_ref_name;
+
 use crate::commands::status::{self, read_status};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -60,10 +62,10 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
     let src = resolve_source(core, repo_id, source).await?;
     let target = head_label(&head);
 
-    if is_ancestor(core, repo_id, &src.sha, &old).await? {
+    if rev::is_ancestor(core, repo_id, &src.sha, &old).await? {
         return Ok(OpResult::UpToDate);
     }
-    let can_ff = is_ancestor(core, repo_id, &old, &src.sha).await?;
+    let can_ff = rev::is_ancestor(core, repo_id, &old, &src.sha).await?;
     if mode == MergeMode::FfOnly && !can_ff {
         return Err(CoreError::not_allowed(format!(
             "Fast-forward isn’t possible: {target} and {} have diverged. Merge normally or rebase instead.",
@@ -190,10 +192,10 @@ async fn resolve_source(core: &Core, repo_id: &str, source: &str) -> CoreResult<
     if source.is_empty() || source.starts_with('-') {
         return Err(commit_not_found(source));
     }
-    let plain = try_resolve(core, repo_id, source).await?;
+    let plain = rev::rev_parse(core, repo_id, &format!("{}^{{commit}}", source)).await?;
     for prefix in ["refs/heads/", "refs/remotes/"] {
         let full = format!("{prefix}{source}");
-        if let Some(sha) = try_resolve(core, repo_id, &full).await? {
+        if let Some(sha) = rev::rev_parse(core, repo_id, &format!("{}^{{commit}}", full)).await? {
             // The short name yields the usual message ("Merge branch 'x'"); only if it means
             // something else (a tag of the same name) does Git get the full name.
             let arg = if plain.as_deref() == Some(sha.as_str()) { source.to_string() } else { full };
@@ -202,7 +204,7 @@ async fn resolve_source(core: &Core, repo_id: &str, source: &str) -> CoreResult<
     }
     let Some(sha) = plain else { return Err(commit_not_found(source)) };
     let is_sha = source.len() >= 4 && source.chars().all(|c| c.is_ascii_hexdigit()) && sha.starts_with(&source.to_ascii_lowercase());
-    let label = if is_sha { short_sha(&sha) } else { short_ref_name(source).to_string() };
+    let label = if is_sha { rev::short(&sha).to_string() } else { short_ref_name(source).to_string() };
     Ok(MergeSource { sha, label, arg: source.to_string() })
 }
 
@@ -535,7 +537,7 @@ impl OperationStart {
             OperationKind::CherryPick | OperationKind::Revert => {
                 // For a sequence the state before the first step, otherwise the current one.
                 let before = match first_line(dir.join("sequencer").join("head")) {
-                    Some(start) => try_resolve(core, repo_id, &start).await.ok().flatten().unwrap_or(current),
+                    Some(start) => rev::rev_parse(core, repo_id, &format!("{}^{{commit}}", start)).await.ok().flatten().unwrap_or(current),
                     None => current,
                 };
                 OperationStart { ref_name: branch_ref(head), before }
@@ -666,7 +668,7 @@ struct ExtraWork {
 
 impl ExtraWork {
     async fn find(core: &Core, repo_id: &str, op: &Operation) -> CoreResult<Option<ExtraWork>> {
-        let Some(head) = undo::rev_parse(core, repo_id, "HEAD^{commit}").await? else { return Ok(None) };
+        let Some(head) = rev::rev_parse(core, repo_id, "HEAD^{commit}").await? else { return Ok(None) };
         let snapshot = undo::snapshot(core, repo_id, None).await?;
         let changed =
             changed_names(core, repo_id, &["diff-tree", "-r", "-z", "--name-only", "--no-renames", &head, &snapshot.tree]).await?;
@@ -719,7 +721,7 @@ impl ExtraWork {
     }
 
     async fn restore(self, core: &Core, repo_id: &str) -> CoreResult<()> {
-        let Some(now) = undo::rev_parse(core, repo_id, "HEAD^{commit}").await? else { return Ok(()) };
+        let Some(now) = rev::rev_parse(core, repo_id, "HEAD^{commit}").await? else { return Ok(()) };
         // Files that differ between the state in the middle of the operation and the state after the
         // abort were already changed by the operation itself: they stay as the abort leaves them.
         let moved: HashSet<Vec<u8>> = if now == self.head {
@@ -766,7 +768,7 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
     let Some(old) = head_sha(&head).map(str::to_string) else {
         return Err(CoreError::not_allowed("There’s nothing to revert in a repository without commits."));
     };
-    let target = resolve_commit(core, repo_id, sha).await?;
+    let target = rev::resolve_commit(core, repo_id, sha).await?;
     if !status::identity_set(core, repo_id).await? {
         return Err(identity_missing());
     }
@@ -838,13 +840,17 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
             head_after: Some(head_value(&head, &new)),
             payload: json!({
                 "branch": branch_of(&head),
-                "source": short_sha(&target),
+                "source": rev::short(&target),
                 "summary": meta.subject,
             }),
         },
     )
     .await;
-    Ok(OpResult::Done { sha: Some(new), fast_forward: false, summary: format!("Reverted commit {} with a new commit", short_sha(&target)) })
+    Ok(OpResult::Done {
+        sha: Some(new),
+        fast_forward: false,
+        summary: format!("Reverted commit {} with a new commit", rev::short(&target)),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -870,7 +876,7 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
     let Some(old) = head_sha(&head).map(str::to_string) else {
         return Err(CoreError::not_allowed("There’s nothing to reset in a repository without commits."));
     };
-    let target = resolve_commit(core, repo_id, sha).await?;
+    let target = rev::resolve_commit(core, repo_id, sha).await?;
     if mode == ResetMode::Soft && target == old {
         return read_status(core, repo_id).await;
     }
@@ -901,7 +907,7 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
                 repo_id: repo_id.to_string(),
                 worktree_path: String::new(),
                 action: UndoAction::Reset,
-                label: format!("Undo reset of {} to {}", head_label(&head), short_sha(&target)),
+                label: format!("Undo reset of {} to {}", head_label(&head), rev::short(&target)),
                 ref_name: branch_ref(&head),
                 ref_before: Some(old.clone()),
                 ref_after: Some(target.clone()),
@@ -1314,10 +1320,6 @@ fn path_cmd(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
     Ok(core.git_for(repo_id)?.literal_paths())
 }
 
-fn short_sha(sha: &str) -> String {
-    sha.chars().take(7).collect()
-}
-
 fn head_sha(head: &Head) -> Option<&str> {
     match head {
         Head::Branch { sha, .. } | Head::Detached { sha } => Some(sha),
@@ -1346,7 +1348,7 @@ fn head_value(head: &Head, sha: &str) -> String {
 fn head_label(head: &Head) -> String {
     match head {
         Head::Branch { branch, .. } | Head::Unborn { branch } => branch.clone(),
-        Head::Detached { sha } => short_sha(sha),
+        Head::Detached { sha } => rev::short(sha).to_string(),
     }
 }
 
@@ -1368,31 +1370,8 @@ async fn no_operation(core: &Core, repo_id: &str) -> CoreError {
     CoreError::new(ErrorCode::NoOperation, "No operation is in progress that could be continued or aborted.")
 }
 
-/// `rev^{commit}` as full SHA, or `None`.
-async fn try_resolve(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    if rev.is_empty() || rev.starts_with('-') {
-        return Ok(None);
-    }
-    let out = core.git_for(repo_id)?.read().args(["rev-parse", "-q", "--verify"]).arg(format!("{rev}^{{commit}}")).run_raw().await?;
-    Ok(Some(out.stdout_text()).filter(|sha| out.success() && !sha.is_empty()))
-}
-
-async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<String> {
-    let rev = rev.trim();
-    try_resolve(core, repo_id, rev).await?.ok_or_else(|| commit_not_found(rev))
-}
-
 async fn current_sha(core: &Core, repo_id: &str) -> CoreResult<String> {
-    resolve_commit(core, repo_id, "HEAD").await
-}
-
-async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.read().args(["merge-base", "--is-ancestor", ancestor, descendant]).run_raw().await?;
-    match out.code {
-        Some(0) => Ok(true),
-        Some(1) => Ok(false),
-        code => Err(classify("merge-base", code, &out.stdout, &out.stderr)),
-    }
+    rev::resolve_commit(core, repo_id, "HEAD").await
 }
 
 /// The index matches HEAD: nothing is staged.

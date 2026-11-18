@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::model::{AppChange, RepoChange, Worktree};
 use crate::util;
 
@@ -167,10 +168,6 @@ async fn checked_out_at(core: &Core, repo_id: &str, branch: &str) -> CoreResult<
         .map(|w| util::display_path(&util::bytes_to_path(&w.path))))
 }
 
-async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<String> {
-    crate::commands::graph::resolve_commit(core, repo_id, rev).await
-}
-
 /// Creates a worktree at `path` (absolute path; the folder must not exist or must be
 /// empty).
 ///
@@ -221,8 +218,8 @@ pub async fn worktree_add(
                 return Err(CoreError::name_exists(format!("A branch “{branch}” already exists.")));
             }
             let from = match &start {
-                Some(rev) => resolve_commit(core, repo_id, rev).await?,
-                None => resolve_commit(core, repo_id, "HEAD")
+                Some(rev) => rev::resolve_commit(core, repo_id, rev).await?,
+                None => rev::resolve_commit(core, repo_id, "HEAD")
                     .await
                     .map_err(|_| CoreError::not_allowed("The repository has no commits yet; a worktree needs a commit to start from."))?,
             };
@@ -238,7 +235,7 @@ pub async fn worktree_add(
             cmd = cmd.arg(&target).arg(&branch);
         } else {
             // Not a local branch: remote branch, tag or SHA – detached on that commit.
-            let commit = resolve_commit(core, repo_id, &branch)
+            let commit = rev::resolve_commit(core, repo_id, &branch)
                 .await
                 .map_err(|_| CoreError::not_found(format!("The branch or commit “{branch}” doesn’t exist.")))?;
             cmd = cmd.arg("--detach").arg(&target).arg(commit);

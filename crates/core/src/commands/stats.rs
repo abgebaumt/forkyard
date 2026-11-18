@@ -25,9 +25,10 @@ mod tests;
 use std::collections::{BTreeMap, HashSet};
 
 use crate::app::Core;
-use crate::commands::graph::{resolve_commit, LOG_SAFE};
+use crate::commands::graph::LOG_SAFE;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev::resolve_commit;
 use crate::jobs::{CancelToken, Job};
 use crate::model::{RepoStats, StatsCodeAge, StatsRange};
 use crate::util;

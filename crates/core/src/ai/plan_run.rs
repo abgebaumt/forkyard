@@ -18,6 +18,7 @@ use crate::ai::plan_commands::{self, PlanAction};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::jobs::{CancelToken, Job};
 use crate::model::{Head, PlanClass, PlanRunResult, PlanStep, PlanStepOutcome, PlanStepStatus, RepoChange};
 use crate::undo::{self, GroupRecord, GroupSnapshot, RefMove, UndoAction};
@@ -113,7 +114,7 @@ async fn begin(
         let snapshot = undo::snapshot_for_group(core, repo_id, &entry).await?;
         let mut before = BTreeMap::new();
         for name in touched {
-            before.insert(name.clone(), undo::rev_parse(core, repo_id, name).await?);
+            before.insert(name.clone(), rev::rev_parse(core, repo_id, name).await?);
         }
         let known = undo_states(core, repo_id)?;
         Ok(Start { entry, head, snapshot, before, known })
@@ -151,7 +152,7 @@ async fn finish(
         let after_head = crate::git::repo::read_head(core, repo_id).await?;
         let mut moves = Vec::new();
         for name in touched {
-            let after = undo::rev_parse(core, repo_id, name).await?;
+            let after = rev::rev_parse(core, repo_id, name).await?;
             let before = start.before.get(name).cloned().flatten();
             if before != after {
                 moves.push(RefMove { name: name.clone(), from: before, to: after });

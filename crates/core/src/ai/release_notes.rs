@@ -13,6 +13,7 @@ use crate::app::Core;
 use crate::commands::graph;
 use crate::commands::release_notes::changelog::HeadingLanguage;
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev;
 use crate::model::{AiFeature, ReleaseGroupKind, ReleaseLanguage, ReleaseNoteGroup, ReleaseNotes, ReleaseNotesRange, Settings};
 use crate::{secrets, util};
 
@@ -103,12 +104,12 @@ fn parse_log(stdout: &[u8]) -> CoreResult<Vec<RangeCommit>> {
 
 /// `from`: a ref to start after (else the nearest earlier tag); `to`: the last commit (else `HEAD`).
 pub async fn resolve(core: &Core, repo_id: &str, from: Option<&str>, to: Option<&str>) -> CoreResult<Resolved> {
-    let to_sha = graph::resolve_commit(core, repo_id, to.unwrap_or("HEAD")).await?;
+    let to_sha = rev::resolve_commit(core, repo_id, to.unwrap_or("HEAD")).await?;
     let (from, from_sha) = match from.map(str::trim).filter(|from| !from.is_empty()) {
-        Some(from) => (Some(from.to_string()), Some(graph::resolve_commit(core, repo_id, from).await?)),
+        Some(from) => (Some(from.to_string()), Some(rev::resolve_commit(core, repo_id, from).await?)),
         None => match previous_tag(core, repo_id, &to_sha).await? {
             Some(tag) => {
-                let sha = graph::resolve_commit(core, repo_id, &format!("refs/tags/{tag}")).await?;
+                let sha = rev::resolve_commit(core, repo_id, &format!("refs/tags/{tag}")).await?;
                 (Some(tag), Some(sha))
             }
             None => (None, None),

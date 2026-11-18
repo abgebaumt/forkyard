@@ -10,7 +10,8 @@ use std::path::Path;
 
 use crate::ai::{self, run::AiRequest};
 use crate::app::Core;
-use crate::commands::graph::{is_full_sha, resolve_commit};
+use crate::git::rev::{is_sha, resolve_commit};
+
 use crate::commands::refs::for_each_ref;
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -216,7 +217,7 @@ pub(crate) async fn read_bisect_at(core: &Core, path: &Path, repo_id: &str) -> C
     for line in listed.stdout_lines() {
         let text = util::decode_lossy(line);
         let Some((name, sha)) = text.split_once('\0') else { continue };
-        if !is_full_sha(sha) {
+        if !is_sha(sha) {
             continue;
         }
         if name == bad_ref {
@@ -263,7 +264,7 @@ async fn current_commit(core: &Core, path: &Path, repo_id: &str, dir: &Path) -> 
         .await
         .ok()?;
     let sha = out.stdout_text();
-    (out.success() && is_full_sha(&sha)).then_some(sha)
+    (out.success() && is_sha(&sha)).then_some(sha)
 }
 
 /// Remaining steps, result and "only skipped left" from `git rev-list --bisect-vars`, limited to

@@ -13,6 +13,7 @@
 use crate::app::Core;
 use crate::commands::patch::MAX_PATCH_BYTES;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::git::{GitCmd, GitOutput};
 use crate::jobs::CancelToken;
 use crate::model::{ConflictPreview, LineRange, PreviewOp};
@@ -100,10 +101,6 @@ fn git_failure(out: &GitOutput) -> CoreError {
         .map(|line| line.trim_start_matches("fatal: ").trim_start_matches("error: ").to_string())
         .unwrap_or_else(|| "Git could not simulate this.".to_string());
     CoreError::unknown(line).with_git_output(text)
-}
-
-fn short(sha: &str) -> &str {
-    &sha[..sha.len().min(7)]
 }
 
 /// The commit `rev` points to; never a leading `-` (no option injection).
@@ -301,9 +298,9 @@ async fn only_parent(core: &Core, repo_id: &str, cancel: &CancelToken, commit: &
     match (parents.next(), parents.next()) {
         (Some(parent), None) => Ok(parent.to_string()),
         (None, _) => {
-            Err(CoreError::unknown(format!("{} is the first commit of the repository; the preview can't replay it.", short(commit))))
+            Err(CoreError::unknown(format!("{} is the first commit of the repository; the preview can't replay it.", rev::short(commit))))
         }
-        (Some(_), Some(_)) => Err(CoreError::unknown(format!("{} is a merge commit; the preview can't replay it.", short(commit)))),
+        (Some(_), Some(_)) => Err(CoreError::unknown(format!("{} is a merge commit; the preview can't replay it.", rev::short(commit)))),
     }
 }
 

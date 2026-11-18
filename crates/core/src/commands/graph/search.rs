@@ -6,9 +6,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
-use super::{display_text, is_full_sha, parse_i64, resolve_commit_at, split_shas, Records, LOG_SAFE};
+use super::{display_text, parse_i64, split_shas, Records, LOG_SAFE};
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev::{is_sha, resolve_commit};
 use crate::jobs::CancelToken;
 use crate::model::{CommitSearchFilters, CommitSummary, Person};
 use crate::util;
@@ -298,7 +299,7 @@ async fn sha_search(core: &Core, path: &Path, repo_id: &str, query: &str, token:
         .stdout_lines()
         .into_iter()
         .map(util::decode_lossy)
-        .filter(|sha| is_full_sha(sha) && sha.starts_with(&prefix))
+        .filter(|sha| is_sha(sha) && sha.starts_with(&prefix))
         .take(MAX_SHA_CANDIDATES)
         .collect();
     if !listed.success() || candidates.is_empty() {
@@ -367,7 +368,7 @@ pub(crate) async fn commit_summaries(
         return Ok(Vec::new());
     }
     let mut stdin = String::new();
-    for sha in shas.iter().filter(|sha| is_full_sha(sha)) {
+    for sha in shas.iter().filter(|sha| is_sha(sha)) {
         stdin.push_str(sha);
         stdin.push('\n');
     }
@@ -403,7 +404,7 @@ pub(super) async fn tree_list(core: &Core, repo_id: &str, sha: Option<&str>, fil
     };
     match sha {
         Some(rev) => {
-            let sha = resolve_commit_at(core, &path, repo_id, rev).await?;
+            let sha = resolve_commit(core, repo_id, rev).await?;
             let mut out = Vec::new();
             let mut on_path = |raw: &[u8]| -> bool {
                 let file = util::decode_lossy(raw);

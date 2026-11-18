@@ -21,6 +21,7 @@ use crate::commands::diff::patch::{self, Direction};
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::TempIndex;
+use crate::git::rev;
 use crate::git::GitCmd;
 use crate::jobs::Job;
 use crate::model::{ComposePlan, ComposeResult, ComposeStep, HookOutput, HunkSelection, RepoChange};
@@ -167,7 +168,7 @@ async fn commit_steps(
     for (number, step) in steps.iter().enumerate() {
         job.token().check()?;
         job.progress(PHASE, Some(percent(number, steps.len())), &format!("{}/{}", number + 1, steps.len()));
-        if undo::rev_parse(core, repo_id, branch_ref).await?.as_deref() != Some(previous.as_str()) {
+        if rev::rev_parse(core, repo_id, branch_ref).await?.as_deref() != Some(previous.as_str()) {
             return Err(moved_meanwhile());
         }
         for unit in &step.units {
@@ -178,9 +179,9 @@ async fn commit_steps(
         // Every commit hook of the repository runs for every commit (the capture only keeps hooks with output).
         let names = if skip_hooks { Vec::new() } else { read.hooks.clone() };
         done.hooks.extend(ran);
-        let Some(sha) = undo::rev_parse(core, repo_id, branch_ref).await? else { return Err(moved_meanwhile()) };
-        let parent = undo::rev_parse(core, repo_id, &format!("{sha}^1")).await?;
-        let committed = undo::rev_parse(core, repo_id, &format!("{sha}^{{tree}}")).await?;
+        let Some(sha) = rev::rev_parse(core, repo_id, branch_ref).await? else { return Err(moved_meanwhile()) };
+        let parent = rev::rev_parse(core, repo_id, &format!("{sha}^1")).await?;
+        let committed = rev::rev_parse(core, repo_id, &format!("{sha}^{{tree}}")).await?;
         if parent.as_deref() != Some(previous.as_str()) {
             return Err(moved_meanwhile());
         }
@@ -366,7 +367,7 @@ async fn only_ours(core: &Core, repo_id: &str, read: &ComposeRead, created: &[St
         if !created.contains(&current) {
             return Ok(false);
         }
-        let Some(parent) = undo::rev_parse(core, repo_id, &format!("{current}^1")).await? else { return Ok(false) };
+        let Some(parent) = rev::rev_parse(core, repo_id, &format!("{current}^1")).await? else { return Ok(false) };
         current = parent;
     }
     Ok(false)
@@ -386,7 +387,7 @@ async fn roll_back(
     index_before: Option<&str>,
 ) -> Rollback {
     let mut restored = true;
-    match undo::rev_parse(core, repo_id, branch_ref).await {
+    match rev::rev_parse(core, repo_id, branch_ref).await {
         Ok(Some(now)) if now == read.head => {}
         Ok(Some(now)) => match only_ours(core, repo_id, read, created, &now).await {
             Ok(true) => {

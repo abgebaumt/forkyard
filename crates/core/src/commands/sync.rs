@@ -25,10 +25,11 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
 use crate::commands::remotes::{self, head_marker};
+use crate::commands::status;
 use crate::commands::submodule::auto;
-use crate::commands::{refs, status};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::git::{errors, GitCmd};
 use crate::jobs::{CancelToken, Job};
 use crate::model::{FetchFailure, FetchResult, Head, OpResult, PullMode, PushExtra, PushRefResult, PushRefStatus, PushResult, RepoChange};
@@ -91,13 +92,6 @@ where
 /// Value from the Git configuration; `None` if not set or empty.
 async fn config_get(core: &Core, repo_id: &str, key: &str) -> CoreResult<Option<String>> {
     let out = core.git_for(repo_id)?.read().args(["config", "--get", key]).run_raw().await?;
-    Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
-}
-
-/// SHA of the commit `rev` points to; `None` if it doesn't exist.
-async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    let spec = format!("{rev}^{{commit}}");
-    let out = core.git_for(repo_id)?.read().args(["rev-parse", "--verify", "--quiet", &spec]).run_raw().await?;
     Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
 }
 
@@ -536,7 +530,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
             None => format!("refs/remotes/{remote}/{}", merge_ref.strip_prefix("refs/heads/").unwrap_or(&merge_ref)),
         }
     };
-    let upstream_name = refs::short_ref_name(&tracking).to_string();
+    let upstream_name = rev::short_ref_name(&tracking).to_string();
     // The name `git merge` gets ends up verbatim in the merge commit's message ("Merge
     // remote-tracking branch '…'"). The short name reads as with a manual `git pull` – but only
     // if it unambiguously means the remote branch (no tag or local branch of the same name).
@@ -553,7 +547,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
             tracking.clone()
         }
     };
-    let Some(upstream_sha) = resolve_commit(core, repo_id, &tracking).await? else {
+    let Some(upstream_sha) = rev::try_resolve_commit(core, repo_id, &tracking).await? else {
         return Err(CoreError::new(ErrorCode::NoUpstream, format!("The upstream branch “{upstream_name}” does not exist (anymore).")));
     };
 
@@ -614,7 +608,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
         return Err(errors::classify(subcommand, out.code, &out.stdout, &out.stderr));
     }
 
-    let new_sha = resolve_commit(core, repo_id, "HEAD").await?;
+    let new_sha = rev::try_resolve_commit(core, repo_id, "HEAD").await?;
     let summary = if fast_forward {
         format!("Fast-forwarded to {upstream_name} ({}).", commits(behind))
     } else if rebase {
@@ -796,7 +790,7 @@ async fn push_target(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> C
         },
     };
     let local_ref = format!("refs/heads/{branch}");
-    if resolve_commit(core, repo_id, &local_ref).await?.is_none() {
+    if rev::try_resolve_commit(core, repo_id, &local_ref).await?.is_none() {
         return Err(CoreError::not_found(format!("The branch “{branch}” does not exist.")));
     }
     let configured = branch_upstream(core, repo_id, &branch).await?;
@@ -850,7 +844,7 @@ async fn lease(
 ) -> CoreResult<Result<String, PushResult>> {
     let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(remote_ref);
     let tracking = format!("refs/remotes/{remote}/{remote_branch}");
-    let known_tip = resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default();
+    let known_tip = rev::try_resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default();
     if expected.map(str::trim) == Some("") && !known_tip.is_empty() {
         return Ok(Err(PushResult::Rejected {
             reason: format!(
@@ -888,7 +882,7 @@ async fn extra_refspec(core: &Core, repo_id: &str, item: &PushExtra) -> CoreResu
         )));
     };
     util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("Invalid name “{name}”: {reason}")))?;
-    if resolve_commit(core, repo_id, local).await?.is_none() {
+    if rev::try_resolve_commit(core, repo_id, local).await?.is_none() {
         return Err(CoreError::not_found(format!("“{name}” does not exist.")));
     }
     if item.force && kind == "refs/tags/" {
@@ -1160,7 +1154,7 @@ async fn delete_remote_branch(core: &Core, repo_id: &str, job: &Job, remote: &st
         }
         _ if missing => {
             // Already gone on the remote: the stale remote branch here is cleaned up.
-            if resolve_commit(core, repo_id, &tracking).await?.is_some() {
+            if rev::try_resolve_commit(core, repo_id, &tracking).await?.is_some() {
                 with_lock_cancellable(core, repo_id, job.token(), async {
                     core.git_for(repo_id)?.args(["update-ref", "-d", &tracking]).run().await?;
                     Ok(())

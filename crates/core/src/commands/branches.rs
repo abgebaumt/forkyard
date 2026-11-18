@@ -7,13 +7,15 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::commit::head_label;
-use crate::commands::refs::{read_refs, short_ref_name};
+use crate::commands::refs::read_refs;
 use crate::commands::status::{parse_porcelain_v2, read_status};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
 use crate::git::repo::read_head;
 use crate::git::repo::read_operation;
+use crate::git::rev;
+use crate::git::rev::short_ref_name;
 use crate::model::{Head, OpResult, OperationKind, RefNameCheck, RefNameKind, RefsSnapshot, RepoChange, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
@@ -45,7 +47,7 @@ async fn create_branch(core: &Core, repo_id: String, name: String, start: Option
             return Err(CoreError::not_allowed("The repository has no commits yet. You can create a branch only after the first commit."));
         }
         let start_rev = start.as_deref().map(str::trim).filter(|s| !s.is_empty()).unwrap_or("HEAD");
-        let Some(sha) = resolve_commit(core, &repo_id, start_rev).await? else {
+        let Some(sha) = rev::try_resolve_commit(core, &repo_id, start_rev).await? else {
             return Err(CoreError::not_found(format!("The starting point ‘{start_rev}’ wasn’t found.")));
         };
         // Always at the resolved SHA and without tracking: an upstream only comes about via
@@ -249,36 +251,6 @@ fn operation_error(kind: OperationKind) -> CoreError {
     CoreError::new(ErrorCode::OperationInProgress, format!("There’s {name} in progress. Finish or abort it first, then switch branches."))
 }
 
-/// SHA of the commit `rev` points to (tags are resolved); `None` if it does not exist.
-///
-/// A short name first means the local branch of that name: Git itself would silently take a tag
-/// of the same name (`refs/tags` before `refs/heads`) – but the UI passes branch names from the
-/// left panel, the drop menu and the command palette.
-pub(crate) async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    if rev.is_empty() || rev.starts_with('-') {
-        return Ok(None);
-    }
-    let parse = |name: String| async move {
-        let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", &format!("{name}^{{commit}}")]).read().run_raw().await?;
-        Ok::<_, CoreError>(Some(out.stdout_text()).filter(|sha| out.success() && !sha.is_empty()))
-    };
-    if could_be_branch_name(rev) {
-        if let Some(sha) = parse(format!("refs/heads/{rev}")).await? {
-            return Ok(Some(sha));
-        }
-    }
-    parse(rev.to_string()).await
-}
-
-/// Whether `rev` can be a short name (no full ref name, no expression like `HEAD~2` or `a..b`).
-pub(crate) fn could_be_branch_name(rev: &str) -> bool {
-    !rev.starts_with("refs/")
-        && rev != "HEAD"
-        && !rev.contains(['~', '^', ':', '@', ' '])
-        && !rev.contains("..")
-        && util::check_ref_name(rev).is_ok()
-}
-
 /// The first path part (at the same depth, with the same path before it) in which `name` and
 /// `other` differ only in case: (part in `name`, part in `other`).
 /// The last parts of two names of equal length are checked by comparing the whole names.
@@ -451,7 +423,7 @@ async fn plan_checkout(core: &Core, repo_id: &str, target: &str, branches: &[Bra
     if !is_tag_ref && !target.starts_with("refs/heads/") {
         let short = target.strip_prefix("refs/remotes/").unwrap_or(target);
         let remote_full = format!("refs/remotes/{short}");
-        if let Some(sha) = resolve_commit(core, repo_id, &remote_full).await? {
+        if let Some(sha) = rev::try_resolve_commit(core, repo_id, &remote_full).await? {
             return Ok(match local_name_for_remote(core, repo_id, short).await? {
                 Some(local) if branches.iter().any(|b| b.name == local) => CheckoutPlan::Local { name: local },
                 Some(local) => CheckoutPlan::Track { local, remote_full, sha },
@@ -460,7 +432,7 @@ async fn plan_checkout(core: &Core, repo_id: &str, target: &str, branches: &[Bra
             });
         }
     }
-    match resolve_commit(core, repo_id, target).await? {
+    match rev::try_resolve_commit(core, repo_id, target).await? {
         Some(sha) => {
             let looks_like_sha =
                 target.len() >= 4 && target.chars().all(|c| c.is_ascii_hexdigit()) && sha.starts_with(&target.to_lowercase());
@@ -827,7 +799,7 @@ async fn unmerged_branches<'a>(core: &Core, repo_id: &str, targets: &[&'a Branch
             continue;
         }
         let in_upstream = match &info.upstream {
-            Some(upstream) => is_ancestor(core, repo_id, &info.sha, upstream).await?,
+            Some(upstream) => rev::is_ancestor(core, repo_id, &info.sha, upstream).await?,
             None => false,
         };
         if !in_upstream {
@@ -835,12 +807,6 @@ async fn unmerged_branches<'a>(core: &Core, repo_id: &str, targets: &[&'a Branch
         }
     }
     Ok(unmerged)
-}
-
-/// `false` also if `descendant` does not exist (any more).
-pub(crate) async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.args(["merge-base", "--is-ancestor", ancestor, descendant]).read().run_raw().await?;
-    Ok(out.success())
 }
 
 /// Full ref name of an upstream: remote branch (`origin/x`) or local branch.
@@ -852,7 +818,7 @@ async fn upstream_ref(core: &Core, repo_id: &str, wanted: &str) -> CoreResult<St
     };
     for full in candidates {
         let is_branch = full.starts_with("refs/remotes/") || full.starts_with("refs/heads/");
-        if is_branch && resolve_commit(core, repo_id, &full).await?.is_some() {
+        if is_branch && rev::try_resolve_commit(core, repo_id, &full).await?.is_some() {
             return Ok(full);
         }
     }
@@ -905,16 +871,16 @@ async fn fast_forward_locked(core: &Core, repo_id: &str, branch: &str) -> CoreRe
         ));
     };
     let upstream = short_ref_name(upstream_full).to_string();
-    let Some(target) = resolve_commit(core, repo_id, upstream_full).await? else {
+    let Some(target) = rev::try_resolve_commit(core, repo_id, upstream_full).await? else {
         return Err(CoreError::new(
             ErrorCode::NoUpstream,
             format!("The upstream “{upstream}” of “{name}” doesn’t exist (anymore). Maybe the branch was deleted on the remote."),
         ));
     };
-    if target == info.sha || is_ancestor(core, repo_id, &target, &info.sha).await? {
+    if target == info.sha || rev::is_ancestor(core, repo_id, &target, &info.sha).await? {
         return Ok(OpResult::UpToDate);
     }
-    if !is_ancestor(core, repo_id, &info.sha, &target).await? {
+    if !rev::is_ancestor(core, repo_id, &info.sha, &target).await? {
         let ahead = count_commits(core, repo_id, &format!("{target}..{}", info.sha)).await.unwrap_or(0);
         let own = match ahead {
             1 => format!("a commit of its own that’s missing from “{upstream}”"),

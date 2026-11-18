@@ -14,6 +14,7 @@ use crate::commands::repos::repo_open;
 use crate::commands::view::view_state_set;
 use crate::error::ErrorCode;
 use crate::events::names;
+use crate::git::rev::resolve_commit;
 use crate::model::{CommitInfo, FileArea, FileChange, FileStatus, GraphEdge, GraphRow, GraphRowKind, Person, SignatureStatus, SyncMark};
 use crate::testkit::{git_isolation_env, TestCore, TestRepo, AUTHOR_EMAIL, AUTHOR_NAME, BASE_TIME};
 

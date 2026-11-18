@@ -9,10 +9,10 @@ use serde_json::{json, Map};
 use crate::app::Core;
 use crate::commands::commit;
 use crate::commands::diff::patch::quote_path;
-use crate::commands::graph;
 use crate::commands::status::read_status;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::host::{self, Host, RepoApi};
 use crate::model::{
     FixupReason, FixupTarget, Head, PrSummary, RepoChange, ReviewFixApplied, ReviewFixInput, ReviewFixLine, ReviewFixLineKind,
@@ -27,10 +27,6 @@ pub const CONTEXT_LINES: usize = 3;
 pub const MAX_NEW_TEXT: usize = 64 * 1024;
 /// Largest file a fix is built for.
 pub const MAX_FILE_BYTES: usize = 8 * 1024 * 1024;
-
-fn short(sha: &str) -> String {
-    sha.chars().take(7).collect()
-}
 
 // ---------------------------------------------------------------------------
 // The patch
@@ -224,18 +220,18 @@ pub(crate) fn target_ref(remote: &str, branch: &str) -> CoreResult<String> {
 }
 
 pub(crate) async fn pr_range(core: &Core, repo_id: &str, head: &str, target_ref: &str) -> CoreResult<PrRange> {
-    let head = graph::resolve_commit(core, repo_id, head).await.map_err(|_| {
+    let head = rev::resolve_commit(core, repo_id, head).await.map_err(|_| {
         CoreError::not_found(format!(
             "The pull request's newest commit {} is not in this repository yet. Fetch or check out its branch first.",
-            short(head)
+            rev::short(head)
         ))
     })?;
-    let target = graph::resolve_commit(core, repo_id, target_ref).await.map_err(|_| {
+    let target = rev::resolve_commit(core, repo_id, target_ref).await.map_err(|_| {
         CoreError::not_found(format!("“{}” is not in this repository yet. Fetch first.", target_ref.trim_start_matches("refs/remotes/")))
     })?;
     let out = core.git_for(repo_id)?.read().args(["merge-base", head.as_str(), target.as_str()]).run_raw().await?;
     let base = out.stdout_text();
-    if !out.success() || !graph::is_full_sha(&base) {
+    if !out.success() || !rev::is_sha(&base) {
         return Err(CoreError::not_allowed("The pull request's branch and its target have no history in common."));
     }
     let log = core
@@ -249,7 +245,7 @@ pub(crate) async fn pr_range(core: &Core, repo_id: &str, head: &str, target_ref:
         .filter_map(|record| {
             let text = util::decode_lossy(record);
             let (sha, summary) = text.trim_start_matches('\n').split_once('\x1f')?;
-            graph::is_full_sha(sha).then(|| FixupTarget { sha: sha.to_string(), summary: summary.to_string(), reason: None })
+            rev::is_sha(sha).then(|| FixupTarget { sha: sha.to_string(), summary: summary.to_string(), reason: None })
         })
         .collect();
     Ok(PrRange { base, head, commits })
@@ -294,7 +290,7 @@ async fn blamed_commits(core: &Core, repo_id: &str, head: &str, path: &str, star
         let text = util::decode_lossy(line);
         let mut parts = text.split(' ');
         if let (Some(sha), Some(_), Some(_)) = (parts.next(), parts.next(), parts.next()) {
-            if graph::is_full_sha(sha) {
+            if rev::is_sha(sha) {
                 found.insert(sha.to_string());
             }
         }
