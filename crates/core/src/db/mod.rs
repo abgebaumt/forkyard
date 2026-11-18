@@ -5,13 +5,13 @@
 //! and, where profiles are concerned, filter by the given `profile_id` (usually that of
 //! the active profile).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use parking_lot::Mutex;
 use rusqlite::{Connection, Transaction};
 
-use crate::error::CoreResult;
+use crate::error::{CoreError, CoreResult, ErrorCode};
 
 pub mod activity;
 pub mod agents;
@@ -335,6 +335,13 @@ impl Db {
 
 fn migrate(conn: &mut Connection) -> CoreResult<()> {
     let version: i64 = conn.query_row("pragma user_version", [], |r| r.get(0))?;
+    if version > LATEST_VERSION {
+        let path = conn.path().unwrap_or("").to_string();
+        return Err(CoreError::new(
+            ErrorCode::Io,
+            format!("The app database was created by a newer Forkyard version. Install that version again, or move {path} away to start fresh."),
+        ));
+    }
     if version <= 0 {
         // The pragmas are in schema.sql for documentation; they are set in `init` and must
         // not run inside the transaction.
@@ -354,6 +361,54 @@ fn migrate(conn: &mut Connection) -> CoreResult<()> {
         tx.execute_batch(sql)?;
         tx.pragma_update(None, "user_version", index as i64 + 2)?;
         tx.commit()?;
+    }
+    Ok(())
+}
+
+/// Opens the database; a file SQLite reports as corrupt is renamed to `<name>.broken-<unix_ms>`
+/// (with `-wal`/`-shm`) and a fresh one is created. Every other error (busy, locked, newer
+/// schema, ...) is returned and the file stays untouched.
+pub fn open_or_set_aside(path: &Path) -> CoreResult<(Db, Option<PathBuf>)> {
+    let Err(e) = probe(path) else {
+        return Ok((Db::open(path)?, None));
+    };
+    let corrupt = matches!(
+        &e,
+        rusqlite::Error::SqliteFailure(err, _)
+            if matches!(err.code, rusqlite::ErrorCode::NotADatabase | rusqlite::ErrorCode::DatabaseCorrupt)
+    );
+    if !corrupt {
+        return Err(e.into());
+    }
+    let ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis());
+    let with = |suffix: &str| {
+        let mut name = path.as_os_str().to_os_string();
+        name.push(suffix);
+        PathBuf::from(name)
+    };
+    let broken = with(&format!(".broken-{ms}"));
+    std::fs::rename(path, &broken)?;
+    for extra in ["-wal", "-shm"] {
+        let from = with(extra);
+        if from.exists() {
+            std::fs::rename(&from, with(&format!(".broken-{ms}{extra}")))?;
+        }
+    }
+    Ok((Db::open(path)?, Some(broken)))
+}
+
+/// Raw SQLite view of the file, so corruption is decided from the SQLite error code.
+fn probe(path: &Path) -> rusqlite::Result<()> {
+    let conn = Connection::open(path)?;
+    let _mode: String = conn.query_row("pragma journal_mode = wal", [], |r| r.get(0))?;
+    let check: String = conn.query_row("pragma quick_check", [], |r| r.get(0))?;
+    if check != "ok" {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+            Some(check),
+        ));
     }
     Ok(())
 }
@@ -383,6 +438,31 @@ pub fn is_foreign_key_violation(e: &rusqlite::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_corrupt_database_is_set_aside_and_a_fresh_one_opens() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.db");
+        std::fs::write(&path, vec![0xAB; 4096]).unwrap();
+        let (db, broken) = super::open_or_set_aside(&path).unwrap();
+        let broken = broken.expect("set aside");
+        assert_eq!(std::fs::read(&broken).unwrap(), vec![0xAB; 4096]);
+        db.with(|c| Ok(c.query_row("select count(*) from profiles", [], |r| r.get::<_, i64>(0))?)).unwrap();
+    }
+
+    #[test]
+    fn a_newer_database_is_refused_and_kept() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("t.db");
+        drop(Db::open(&path).unwrap());
+        let c = Connection::open(&path).unwrap();
+        c.pragma_update(None, "user_version", super::LATEST_VERSION + 1).unwrap();
+        drop(c);
+        let err = super::open_or_set_aside(&path).err().expect("refused");
+        assert!(err.to_string().contains("newer Forkyard"), "{err}");
+        assert!(path.exists());
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains(".broken-")).count(), 0);
+    }
+
     use super::*;
 
     #[test]

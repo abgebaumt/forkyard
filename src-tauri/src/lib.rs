@@ -740,6 +740,7 @@ pub fn run() {
             }
         }),
         Err(e) => {
+            log::error!("The app couldn’t be started: {e}");
             eprintln!("The app couldn’t be started: {e}");
             std::process::exit(1);
         }

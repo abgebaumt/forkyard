@@ -127,7 +127,11 @@ impl Core {
         if let Err(e) = util::create_private_file(&db_path).and_then(|()| util::restrict_to_owner(&db_path)) {
             log::warn!("Permissions of the database not restricted: {e}");
         }
-        let db = crate::startup::timed("database open and migrations", || Db::open(&db_path))?;
+        let (db, set_aside) =
+            crate::startup::timed("database open and migrations", || crate::db::open_or_set_aside(&db_path))?;
+        if let Some(broken) = set_aside {
+            log::error!("The app database was corrupt: moved {} to {}, started with a fresh one", db_path.display(), broken.display());
+        }
         // Created more openly by an earlier version: tighten them.
         for extra in ["-wal", "-shm"] {
             let mut name = db_path.clone().into_os_string();
