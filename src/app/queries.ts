@@ -705,7 +705,7 @@ const semanticIndex = createIndexScheduler({
   },
 });
 
-const APP_KEYS: Record<string, QueryKey> = {
+export const APP_KEYS: Record<string, QueryKey> = {
   // Host accounts (connected, disconnected, verified).
   host_accounts: qk.hostAccounts,
   tabs: qk.tabs,
@@ -713,6 +713,9 @@ const APP_KEYS: Record<string, QueryKey> = {
   settings: qk.settings,
   profiles: qk.profiles,
   ai: qk.aiStatus,
+  // A profile switch changes both lists, even when it ends in an error.
+  credentials: qk.credentials,
+  ssh_keys: qk.sshKeys,
 };
 
 /**
