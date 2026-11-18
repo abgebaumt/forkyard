@@ -5,8 +5,9 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error,
-    review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts, RepoPath, MAX_ITEMS,
+    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, pr_not_found,
+    release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts,
+    RepoPath, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -18,7 +19,7 @@ use crate::model::{
     PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
-fn repo_path(repo: &RepoPath) -> String {
+pub(super) fn repo_path(repo: &RepoPath) -> String {
     format!("/repos/{}/{}", encode(&repo.owner), encode(&repo.name))
 }
 
@@ -99,7 +100,7 @@ fn pr_state(value: &Value) -> PrState {
     }
 }
 
-fn head_sha(value: &Value) -> String {
+pub(super) fn head_sha(value: &Value) -> String {
     value.get("head").map(|head| text(head, "sha")).unwrap_or_default()
 }
 
@@ -258,10 +259,6 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
         }
     }
     Ok(PrPage { items, next_page })
-}
-
-fn pr_not_found(repo: &RepoPath, number: u64) -> impl FnOnce() -> String + '_ {
-    move || format!("Pull request #{number} does not exist in {}.", repo.full())
 }
 
 async fn pr_raw(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreResult<Value> {

@@ -626,6 +626,15 @@ pub(crate) fn not_found_as(error: CoreError, what: impl FnOnce() -> String) -> C
     }
 }
 
+pub(crate) fn pr_not_found(repo: &RepoPath, number: u64) -> impl FnOnce() -> String + '_ {
+    move || format!("Pull request #{number} does not exist in {}.", repo.full())
+}
+
+/// "Repository not found" for hosts that say "token" (Bitbucket says "account" and keeps its own).
+pub(crate) fn missing_repo<'a>(label: &'static str, repo: &'a RepoPath) -> impl FnOnce() -> String + 'a {
+    move || format!("{label} could not find the repository {} – or the token is not allowed to see it.", repo.full())
+}
+
 /// Recognises "one already exists for this" in a rejection (all hosts word it like that).
 pub(crate) fn already_exists(error: &CoreError) -> bool {
     error.code == ErrorCode::HostRejected

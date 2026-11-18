@@ -6,9 +6,11 @@
 
 use serde_json::{json, Value};
 
+use super::github::{head_sha, repo_path};
 use super::{
-    already_exists, color, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, review_summary,
-    summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts, RepoPath,
+    already_exists, color, first_line, flag, host_user, list, missing_repo, not_found_as, number, opt_text, parallel, pr_not_found,
+    release_error, review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts,
+    RepoPath,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -28,10 +30,6 @@ const DRAFT_PREFIXES: [&str; 4] = ["WIP: ", "WIP:", "[WIP] ", "[WIP]"];
 /// Gitea's largest page (`limit`).
 const MAX_LIMIT: u32 = 50;
 
-fn repo_path(repo: &RepoPath) -> String {
-    format!("/repos/{}/{}", encode(&repo.owner), encode(&repo.name))
-}
-
 fn user(value: &Value) -> Option<HostUser> {
     if !value.is_object() {
         return None;
@@ -44,14 +42,6 @@ fn labels(value: &Value) -> Vec<HostLabel> {
         .iter()
         .filter_map(|label| opt_text(label, "name").map(|name| HostLabel { name, color: color(opt_text(label, "color")) }))
         .collect()
-}
-
-fn missing_repo(repo: &RepoPath) -> impl FnOnce() -> String + '_ {
-    move || format!("{LABEL} could not find the repository {} – or the token is not allowed to see it.", repo.full())
-}
-
-fn pr_not_found(repo: &RepoPath, number: u64) -> impl FnOnce() -> String + '_ {
-    move || format!("Pull request #{number} does not exist in {}.", repo.full())
 }
 
 /// The title without a draft prefix.
@@ -84,7 +74,7 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
 
 /// `GET /repos/{owner}/{repo}`
 pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<RepoFacts> {
-    let value = api.get_json(core, &repo_path(repo)).await.map_err(|e| not_found_as(e, missing_repo(repo)))?;
+    let value = api.get_json(core, &repo_path(repo)).await.map_err(|e| not_found_as(e, missing_repo(LABEL, repo)))?;
     let fork_parent = value.get("parent").filter(|p| p.is_object()).and_then(|parent| {
         let owner = parent.get("owner").map(|o| text(o, "login")).unwrap_or_default();
         let name = text(parent, "name");
@@ -110,10 +100,6 @@ fn pr_state(value: &Value) -> PrState {
     } else {
         PrState::Closed
     }
-}
-
-fn head_sha(value: &Value) -> String {
-    value.get("head").map(|head| text(head, "sha")).unwrap_or_default()
 }
 
 fn pr_summary(value: &Value) -> PrSummary {
@@ -223,7 +209,7 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
             ("limit", paging.per_page.min(MAX_LIMIT).to_string()),
         ],
     );
-    let (values, next_page) = api.get_page(core, &path).await.map_err(|e| not_found_as(e, missing_repo(repo)))?;
+    let (values, next_page) = api.get_page(core, &path).await.map_err(|e| not_found_as(e, missing_repo(LABEL, repo)))?;
     let wanted: Vec<&Value> = values
         .iter()
         .filter(|value| match state {
@@ -494,7 +480,7 @@ pub async fn issue_list(
     let (values, next_page) = api
         .get_page(core, &with_query(&format!("{}/issues", repo_path(repo)), &params))
         .await
-        .map_err(|e| not_found_as(e, missing_repo(repo)))?;
+        .map_err(|e| not_found_as(e, missing_repo(LABEL, repo)))?;
     Ok(IssuePage { items: values.iter().filter(|value| !is_pull_request(value)).map(issue_summary).collect(), next_page })
 }
 
