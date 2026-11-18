@@ -145,7 +145,7 @@ fn glob_to_regex(glob: &str) -> String {
 
 const LOCKFILES: [&str; 6] = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock", "poetry.lock", "go.sum"];
 const GENERATED_DIRS: [&str; 2] = ["dist", "build"];
-/// OpenSSH default private-key file names (also `_sk`); `.pub` public keys are not secret.
+/// OpenSSH default private-key file names (also `_sk`), `.pub` included as before.
 const SSH_KEYS: [&str; 4] = ["id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"];
 const SECRET_SUFFIXES: [&str; 6] = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
 
@@ -155,7 +155,7 @@ pub fn builtin_reason(path: &str) -> Option<AiOmitReason> {
     let normalized = path.replace('\\', "/");
     let mut parts: Vec<&str> = normalized.split('/').filter(|part| !part.is_empty()).collect();
     let name = parts.pop()?.to_lowercase();
-    if name.starts_with(".env") || (SSH_KEYS.iter().any(|key| name.starts_with(key)) && !name.ends_with(".pub")) || SECRET_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)) {
+    if name.starts_with(".env") || SSH_KEYS.iter().any(|key| name.starts_with(key)) || SECRET_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)) {
         return Some(AiOmitReason::Secret);
     }
     if LOCKFILES.contains(&name.as_str()) || name.contains(".min.") || parts.iter().any(|dir| GENERATED_DIRS.contains(&dir.to_lowercase().as_str())) {
@@ -245,10 +245,10 @@ mod tests {
             ("config/prod.PEM", Some(AiOmitReason::Secret)),
             ("config\\server.key", Some(AiOmitReason::Secret)),
             ("home/.ssh/id_rsa", Some(AiOmitReason::Secret)),
-            ("home/.ssh/id_rsa.pub", None),
+            ("home/.ssh/id_rsa.pub", Some(AiOmitReason::Secret)),
             ("id_ed25519", Some(AiOmitReason::Secret)),
             ("keys/id_ecdsa_sk", Some(AiOmitReason::Secret)),
-            ("id_ed25519.pub", None),
+            ("id_ed25519.pub", Some(AiOmitReason::Secret)),
             ("certs/client.p12", Some(AiOmitReason::Secret)),
             ("certs/client.pfx", Some(AiOmitReason::Secret)),
             ("android/release.keystore", Some(AiOmitReason::Secret)),
