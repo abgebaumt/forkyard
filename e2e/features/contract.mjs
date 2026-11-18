@@ -1951,19 +1951,21 @@ scenario("every command response and event matches src/core/types.ts", "main", a
           );
           shape("IssueDetails", await invoke("issue_get", { repoId: id, number: 2, remote }), `issue_get (${kind})`);
 
-          // Error kinds – the server is switched on purpose for each.
-          hostMock.fail("rate_limit", { times: 1 });
+          // Error kinds – the server is switched on purpose for each, bound to the request's path (the UI
+          // may query the host in between and must not take the prepared failure).
+          const pr6 = kind === "github" ? "/pulls/6" : "/merge_requests/6";
+          hostMock.fail("rate_limit", { times: 1, match: pr6 });
           const limited = await failure(() => invoke("pr_get", { repoId: id, number: 6, remote }));
           equal(limited?.code, "host_rate_limited", "403/429 with limit");
           truthy(
             /You can continue at \d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(limited?.message ?? ""),
             `the message names the time: ${limited?.message}`,
           );
-          hostMock.fail("not_found", { times: 1 });
+          hostMock.fail("not_found", { times: 1, match: pr6 });
           await rejects("host_not_found", "404", () => invoke("pr_get", { repoId: id, number: 6, remote }));
-          hostMock.fail("broken_json", { times: 1 });
+          hostMock.fail("broken_json", { times: 1, match: "/issues" });
           await rejects("unknown", "broken JSON", () => invoke("issue_list", { repoId: id, state: "open", remote }));
-          hostMock.fail("unauthorized", { times: 1 });
+          hostMock.fail("unauthorized", { times: 1, match: pr6 });
           await rejects("host_auth_failed", "401", () => invoke("pr_get", { repoId: id, number: 6, remote }));
           truthy((await invoke("host_accounts"))[0].lastError, "a rejected token marks the account");
           const checked = await invoke("host_check", { accountId: account.id });
