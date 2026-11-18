@@ -868,7 +868,7 @@ async fn stash_pop_undo_puts_the_stash_back_in_place() {
     // Before the pop there is already other work in the directory; it does not belong to the stash.
     fx.repo.write_file("lokal.txt", "l\n");
 
-    let result = stash_pop(&fx.tc, fx.id.clone(), 1).await.unwrap();
+    let result = stash_pop(&fx.tc, fx.id.clone(), 1, None).await.unwrap();
     assert!(matches!(result, OpResult::Done { .. }));
     fx.tc.events.clear();
 

@@ -534,6 +534,15 @@ fn row_at(rows: &[StashRow], index: u32) -> CoreResult<&StashRow> {
     })
 }
 
+/// `row_at`, but refuses when the stash at `index` is no longer the one (SHA) the user saw.
+fn row_checked<'a>(rows: &'a [StashRow], index: u32, expected_sha: Option<&str>) -> CoreResult<&'a StashRow> {
+    let row = row_at(rows, index)?;
+    match expected_sha {
+        Some(sha) if sha != row.sha => Err(CoreError::stale_state()),
+        _ => Ok(row),
+    }
+}
+
 fn display_message(row: &StashRow) -> String {
     undo::shorten(&split_subject(&row.subject).1, 60)
 }
@@ -661,10 +670,10 @@ async fn nothing_to_stash(core: &Core, repo_id: &str, include_untracked: bool) -
     CoreError::new(ErrorCode::NothingToCommit, message)
 }
 
-async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, pop: bool) -> CoreResult<OpResult> {
+async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, expected_sha: Option<&str>, pop: bool) -> CoreResult<OpResult> {
     let (rows, head) = tokio::join!(read_rows(core, repo_id), refs::read_head(core, repo_id));
     let (rows, head) = (rows?, head?);
-    let row = row_at(&rows, index)?;
+    let row = row_checked(&rows, index, expected_sha)?;
     // State before the pop, so that undo finds its way back exactly there.
     let before = if pop { Some(undo::snapshot_worktree(core, repo_id, None).await?) } else { None };
     match apply_stash(core, repo_id, index as usize, row).await? {
@@ -727,13 +736,13 @@ fn conflict_note(pop: bool) -> String {
 }
 
 /// Apply a stash without deleting it.
-pub async fn stash_apply(core: &Core, repo_id: String, index: u32) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index], apply_or_pop(core, &repo_id, index, false)).await
+pub async fn stash_apply(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<OpResult> {
+    core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index], apply_or_pop(core, &repo_id, index, expected_sha.as_deref(), false)).await
 }
 
 /// Apply and delete a stash. On a conflict the stash stays in the list.
-pub async fn stash_pop(core: &Core, repo_id: String, index: u32) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index, RepoChange::Stash], apply_or_pop(core, &repo_id, index, true)).await
+pub async fn stash_pop(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<OpResult> {
+    core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index, RepoChange::Stash], apply_or_pop(core, &repo_id, index, expected_sha.as_deref(), true)).await
 }
 
 /// Applies only the named files of a stash to the working directory (the index
@@ -744,7 +753,7 @@ pub async fn stash_pop(core: &Core, repo_id: String, index: u32) -> CoreResult<O
 /// changed since in a way that the change no longer fits – then apply the whole stash,
 /// which merges), `dirty_worktree` (an untracked file already exists). The files
 /// are backed up first: undo entry `discard`.
-pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, paths: Vec<String>) -> CoreResult<Status> {
+pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>, paths: Vec<String>) -> CoreResult<Status> {
     let mut wanted: Vec<String> = Vec::new();
     for path in &paths {
         let rel = crate::commands::history::normalize_rel_path(path)?;
@@ -758,7 +767,7 @@ pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, paths: 
     let repo_id = repo_id.as_str();
     core.with_write_lock(repo_id, &[RepoChange::Worktree], async {
         let rows = read_rows(core, repo_id).await?;
-        let row = row_at(&rows, index)?;
+        let row = row_checked(&rows, index, expected_sha.as_deref())?;
         let Some(base) = row.parents.first() else {
             return Err(CoreError::not_found("This stash is incomplete and can't be applied."));
         };
@@ -856,10 +865,10 @@ pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, paths: 
 }
 
 /// Delete a stash. Not reversible.
-pub async fn stash_drop(core: &Core, repo_id: String, index: u32) -> CoreResult<Vec<Stash>> {
+pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<Vec<Stash>> {
     core.with_write_lock(&repo_id, &[RepoChange::Stash], async {
         let rows = read_rows(core, &repo_id).await?;
-        let sha = row_at(&rows, index)?.sha.clone();
+        let sha = row_checked(&rows, index, expected_sha.as_deref())?.sha.clone();
         drop_stash(core, &repo_id, index as usize).await?;
         // "Undo stash" can no longer exist for this stash.
         if let Err(e) = crate::commands::undo::forget_stash(core, &repo_id, &sha).await {
@@ -930,7 +939,7 @@ mod tests {
         tc.events.clear();
 
         // Only one tracked file: the other one and the untracked one stay in the stash.
-        let status = stash_apply_paths(&tc, id.clone(), 0, vec!["a.txt".into()]).await.unwrap();
+        let status = stash_apply_paths(&tc, id.clone(), 0, None, vec!["a.txt".into()]).await.unwrap();
         assert_eq!(repo.read_file("a.txt"), b"eins\nZWEI\ndrei\n");
         assert_eq!(repo.read_file("ordner/b größe.txt"), lines("1", "8").as_bytes());
         assert!(!repo.path().join("neu").exists());
@@ -944,7 +953,7 @@ mod tests {
         repo.write_file("ordner/b größe.txt", lines("EINS", "8"));
         repo.git(&["add", "ordner/b größe.txt"]);
         repo.git(&["commit", "-q", "-m", "Zeile davor"]);
-        stash_apply_paths(&tc, id.clone(), 0, vec!["ordner\\b größe.txt".replace('\\', if cfg!(windows) { "\\" } else { "/" }), "neu/unverfolgt.txt".into()]).await.unwrap();
+        stash_apply_paths(&tc, id.clone(), 0, None, vec!["ordner\\b größe.txt".replace('\\', if cfg!(windows) { "\\" } else { "/" }), "neu/unverfolgt.txt".into()]).await.unwrap();
         assert_eq!(repo.read_file("ordner/b größe.txt"), lines("EINS", "ACHT").as_bytes());
         assert_eq!(repo.read_file("neu/unverfolgt.txt"), b"frisch\n");
         // … and undo takes back exactly this step, redo repeats it.
@@ -956,16 +965,16 @@ mod tests {
         assert_eq!(repo.read_file("neu/unverfolgt.txt"), b"frisch\n");
 
         // Errors change nothing: untracked file already there, change no longer fits, file or stash unknown.
-        let err = stash_apply_paths(&tc, id.clone(), 0, vec!["neu/unverfolgt.txt".into()]).await.unwrap_err();
+        let err = stash_apply_paths(&tc, id.clone(), 0, None, vec!["neu/unverfolgt.txt".into()]).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::DirtyWorktree);
-        let err = stash_apply_paths(&tc, id.clone(), 0, vec!["a.txt".into()]).await.unwrap_err();
+        let err = stash_apply_paths(&tc, id.clone(), 0, None, vec!["a.txt".into()]).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::Conflict, "already applied: does not fit a second time");
         assert!(err.message.contains("a.txt") && err.git_output.is_some(), "{err:?}");
         assert_eq!(repo.read_file("a.txt"), b"eins\nZWEI\ndrei\n");
-        assert_eq!(stash_apply_paths(&tc, id.clone(), 0, vec!["README.md".into()]).await.unwrap_err().code, ErrorCode::NotFound);
-        assert_eq!(stash_apply_paths(&tc, id.clone(), 5, vec!["a.txt".into()]).await.unwrap_err().code, ErrorCode::NotFound);
-        assert_eq!(stash_apply_paths(&tc, id.clone(), 0, vec![]).await.unwrap_err().code, ErrorCode::NotAllowed);
-        assert_eq!(stash_apply_paths(&tc, id, 0, vec!["../draußen.txt".into()]).await.unwrap_err().code, ErrorCode::NotAllowed);
+        assert_eq!(stash_apply_paths(&tc, id.clone(), 0, None, vec!["README.md".into()]).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(stash_apply_paths(&tc, id.clone(), 5, None, vec!["a.txt".into()]).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(stash_apply_paths(&tc, id.clone(), 0, None, vec![]).await.unwrap_err().code, ErrorCode::NotAllowed);
+        assert_eq!(stash_apply_paths(&tc, id, 0, None, vec!["../draußen.txt".into()]).await.unwrap_err().code, ErrorCode::NotAllowed);
     }
 
     fn op() -> String {
@@ -1186,7 +1195,7 @@ mod tests {
         assert_eq!(repo.read_file("crlf.txt"), b"eins\r\nzwei\r\n");
         tc.events.clear();
 
-        let result = stash_apply(&tc, id.clone(), 0).await.unwrap();
+        let result = stash_apply(&tc, id.clone(), 0, None).await.unwrap();
         match &result {
             OpResult::Done { sha, summary, .. } => {
                 assert!(sha.is_none());
@@ -1204,8 +1213,8 @@ mod tests {
         // No undo entry for apply: the stash itself is still on top.
         assert_eq!(undo_peek(&tc, id.clone()).await.unwrap().undo.unwrap().action, "stash");
 
-        assert_eq!(stash_apply(&tc, id.clone(), 7).await.unwrap_err().code, ErrorCode::NotFound);
-        assert_eq!(stash_pop(&tc, id, 7).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(stash_apply(&tc, id.clone(), 7, None).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(stash_pop(&tc, id, 7, None).await.unwrap_err().code, ErrorCode::NotFound);
     }
 
     #[tokio::test]
@@ -1220,7 +1229,7 @@ mod tests {
         // Meanwhile a commit changes the same line: the staged part no longer fits.
         repo.commit_file("README.md", "# committet\n", "README anders");
 
-        let result = stash_apply(&tc, id.clone(), 0).await.unwrap();
+        let result = stash_apply(&tc, id.clone(), 0, None).await.unwrap();
         assert!(matches!(result, OpResult::Done { .. }), "{result:?}");
         assert_eq!(repo.read_file("README.md"), b"# committet\n");
         assert_eq!(repo.read_file("daneben.txt"), b"d\n");
@@ -1240,7 +1249,7 @@ mod tests {
         tc.events.clear();
 
         // Get the older stash (index 1).
-        let result = stash_pop(&tc, id.clone(), 1).await.unwrap();
+        let result = stash_pop(&tc, id.clone(), 1, None).await.unwrap();
         assert!(matches!(&result, OpResult::Done { summary, .. } if summary.contains("removed")), "{result:?}");
         assert_eq!(changed(&tc), ["index", "stash", "worktree"]);
         assert_eq!(repo.read_file("README.md"), b"# eins\n");
@@ -1268,7 +1277,7 @@ mod tests {
         repo.commit_file("README.md", "# inzwischen committet\n", "README geändert");
         let undo_before = undo_peek(&tc, id.clone()).await.unwrap();
 
-        let result = stash_pop(&tc, id.clone(), 0).await.unwrap();
+        let result = stash_pop(&tc, id.clone(), 0, None).await.unwrap();
         match result {
             OpResult::Conflict { files, operation, note } => {
                 assert_eq!(files, ["README.md"]);
@@ -1283,7 +1292,7 @@ mod tests {
         assert_eq!(undo_peek(&tc, id.clone()).await.unwrap(), undo_before, "no undo entry for a pop with a conflict");
 
         // As long as the conflict is open, no further stash and no applying is possible.
-        assert_eq!(stash_apply(&tc, id.clone(), 0).await.unwrap_err().code, ErrorCode::Conflict);
+        assert_eq!(stash_apply(&tc, id.clone(), 0, None).await.unwrap_err().code, ErrorCode::Conflict);
         assert_eq!(stash_create(&tc, id, op(), None, None, true, None).await.unwrap_err().code, ErrorCode::Conflict);
     }
 
@@ -1293,7 +1302,7 @@ mod tests {
         repo.write_file("README.md", "# aus dem Stash\n");
         stash(&tc, &id, Some("tracked")).await;
         repo.write_file("README.md", "# lokal geändert\n");
-        let err = stash_pop(&tc, id.clone(), 0).await.unwrap_err();
+        let err = stash_pop(&tc, id.clone(), 0, None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::DirtyWorktree);
         assert!(err.git_output.is_some());
         assert_eq!(repo.read_file("README.md"), "# lokal geändert\n".as_bytes());
@@ -1305,12 +1314,25 @@ mod tests {
         repo.write_file("neu ü.txt", "aus dem Stash\n");
         stash(&tc, &id, Some("mit unverfolgter")).await;
         repo.write_file("neu ü.txt", "liegt schon da\n");
-        let err = stash_pop(&tc, id.clone(), 0).await.unwrap_err();
+        let err = stash_pop(&tc, id.clone(), 0, None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::DirtyWorktree);
         assert!(err.message.contains("neu ü.txt"), "{}", err.message);
         assert_eq!(repo.read_file("README.md"), b"# Test\n", "the tracked file was not applied");
         assert_eq!(repo.read_file("neu ü.txt"), b"liegt schon da\n");
         assert_eq!(stash_list(&tc, id).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_stash_that_moved_is_refused_by_sha() {
+        let (tc, repo, id) = setup().await;
+        for name in ["old", "new"] {
+            repo.write_file("README.md", format!("# {name}\n"));
+            stash(&tc, &id, Some(name)).await;
+        }
+        let old_sha = stash_list(&tc, id.clone()).await.unwrap()[1].sha.clone();
+        assert_eq!(stash_drop(&tc, id.clone(), 0, Some(old_sha.clone())).await.unwrap_err().code, ErrorCode::StaleState);
+        assert_eq!(stash_list(&tc, id.clone()).await.unwrap().len(), 2);
+        assert!(matches!(stash_pop(&tc, id, 1, Some(old_sha)).await.unwrap(), OpResult::Done { .. }));
     }
 
     #[tokio::test]
@@ -1320,18 +1342,18 @@ mod tests {
             repo.write_file("README.md", format!("# {name}\n"));
             stash(&tc, &id, Some(name)).await;
         }
-        assert_eq!(stash_drop(&tc, id.clone(), 3).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(stash_drop(&tc, id.clone(), 3, None).await.unwrap_err().code, ErrorCode::NotFound);
         tc.events.clear();
-        let list = stash_drop(&tc, id.clone(), 1).await.unwrap();
+        let list = stash_drop(&tc, id.clone(), 1, None).await.unwrap();
         assert_eq!(list.iter().map(|s| s.message.as_str()).collect::<Vec<_>>(), ["drei", "eins"]);
         assert_eq!(list.iter().map(|s| s.index).collect::<Vec<_>>(), [0, 1]);
         assert_eq!(changed(&tc), ["stash"]);
         // Deleting is not reversible: no new undo entry (the last stash is on top).
         assert_eq!(undo_peek(&tc, id.clone()).await.unwrap().undo.unwrap().label, "Undo stash “drei”");
-        stash_drop(&tc, id.clone(), 0).await.unwrap();
-        let list = stash_drop(&tc, id.clone(), 0).await.unwrap();
+        stash_drop(&tc, id.clone(), 0, None).await.unwrap();
+        let list = stash_drop(&tc, id.clone(), 0, None).await.unwrap();
         assert!(list.is_empty());
-        assert_eq!(stash_drop(&tc, id, 0).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(stash_drop(&tc, id, 0, None).await.unwrap_err().code, ErrorCode::NotFound);
     }
 
     #[tokio::test]
@@ -1367,7 +1389,7 @@ mod tests {
 
         // The renamed stash can still be applied.
         repo.git(&["checkout", "-q", "--", "."]);
-        assert!(matches!(stash_pop(&tc, id, 1).await.unwrap(), OpResult::Done { .. }));
+        assert!(matches!(stash_pop(&tc, id, 1, None).await.unwrap(), OpResult::Done { .. }));
         assert_eq!(repo.read_file("README.md"), b"# zwei\n");
         assert_eq!(repo.read_file("extra.txt"), b"x\n");
     }
@@ -1387,7 +1409,7 @@ mod tests {
         assert_eq!(stash_create(&tc, id.clone(), op_id, None, None, true, None).await.unwrap().len(), 1);
 
         std::fs::write(&lock, "").unwrap();
-        let err = stash_pop(&tc, id.clone(), 0).await.unwrap_err();
+        let err = stash_pop(&tc, id.clone(), 0, None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::Locked);
         std::fs::remove_file(&lock).unwrap();
         assert_eq!(stash_list(&tc, id).await.unwrap().len(), 1);

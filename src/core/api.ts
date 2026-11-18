@@ -543,16 +543,16 @@ export interface CoreCommands {
    * `nothing_to_commit`. Undo step `stash`.
    */
   stashCreate(input: R & { opId: string; message: string | null; paths: string[] | null; includeUntracked: boolean; undoable?: boolean | null; selection?: StashSelection | null }): Promise<Stash[]>;
-  stashApply(input: R & { index: number }): Promise<OpResult>;
-  stashPop(input: R & { index: number }): Promise<OpResult>;
+  stashApply(input: R & { index: number; expectedSha?: Sha | null }): Promise<OpResult>;
+  stashPop(input: R & { index: number; expectedSha?: Sha | null }): Promise<OpResult>;
   /**
    * Apply only these files of a stash to the working directory (index and stash stay).
    * All or nothing. Errors: `not_found` (stash, or file not in it), `conflict` (the
    * file has since changed so that the change no longer fits – the whole stash merges
    * it), `dirty_worktree` (an untracked file already exists). Undo step `discard`.
    */
-  stashApplyPaths(input: R & { index: number; paths: string[] }): Promise<Status>;
-  stashDrop(input: R & { index: number }): Promise<Stash[]>;
+  stashApplyPaths(input: R & { index: number; expectedSha?: Sha | null; paths: string[] }): Promise<Status>;
+  stashDrop(input: R & { index: number; expectedSha?: Sha | null }): Promise<Stash[]>;
   stashRename(input: R & { index: number; message: string }): Promise<Stash[]>;
 
   /** Annotated with `message`, otherwise lightweight. `sha: null` = HEAD. */
