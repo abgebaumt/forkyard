@@ -867,8 +867,7 @@ pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, expecte
 /// Delete a stash. Undo entry `stash_drop` puts it back at its old place.
 pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<Vec<Stash>> {
     core.with_write_lock(&repo_id, &[RepoChange::Stash], async {
-        let (rows, head) = tokio::join!(read_rows(core, &repo_id), refs::read_head(core, &repo_id));
-        let (rows, head) = (rows?, head?);
+        let rows = read_rows(core, &repo_id).await?;
         let row = row_checked(&rows, index, expected_sha.as_deref())?;
         let sha = row.sha.clone();
         let id = undo::new_id();
@@ -882,7 +881,6 @@ pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: 
         if let Err(e) = crate::commands::undo::forget_stash(core, &repo_id, &sha).await {
             log::warn!("Undo entry for the deleted stash not invalidated: {}", e.message);
         }
-        let token = undo::head_token(&head);
         undo::record(
             core,
             UndoRecord {
@@ -894,8 +892,9 @@ pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: 
                 ref_name: None,
                 ref_before: None,
                 ref_after: None,
-                head_before: token.clone(),
-                head_after: Some(token),
+                // HEAD is not involved: the stash list does not depend on the checked-out branch.
+                head_before: String::new(),
+                head_after: None,
                 payload: json!({ "stashSha": sha, "stashSubject": row.subject, "stashIndex": index }),
             },
         )

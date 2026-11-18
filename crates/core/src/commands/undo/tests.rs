@@ -870,6 +870,8 @@ async fn dropping_a_stash_is_undone_at_its_old_position() {
     assert_eq!(shas(&fx), [s2.clone(), s0.clone()]);
     // Made outside the app: no undo step of its own, the drop stays the newest one.
     let s3 = make("s3");
+    // The stash list does not depend on the branch: switching does not block the undo.
+    fx.repo.git(&["checkout", "-q", "-b", "other"]);
     assert_eq!(fx.peek().await.undo.unwrap().label, "Undo dropping stash “s1”");
     fx.tc.events.clear();
 
