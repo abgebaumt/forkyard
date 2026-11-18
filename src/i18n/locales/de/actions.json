@@ -357,11 +357,6 @@
         "fallback": "Die Verbindung ist fehlgeschlagen.",
         "hint": "Prüfe die Netzwerkverbindung, einen Proxy oder die Adresse der Instanz."
       },
-      "notBuilt": {
-        "title": "Die Hoster-Anbindung fehlt in diesem Build",
-        "fallback": "Diese Fassung der App kennt den Befehl noch nicht.",
-        "hint": "Aktualisiere die App."
-      },
       "other": {
         "title": "Das hat nicht geklappt",
         "fallback": "Ein unerwarteter Fehler ist aufgetreten."

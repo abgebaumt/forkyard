@@ -2538,14 +2538,6 @@ fn yes() -> bool {
     true
 }
 
-/// Level of a `Settings` field: the same for all profiles or per profile.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SettingScope {
-    Global,
-    Profile,
-}
-
 impl Default for Settings {
     fn default() -> Self {
         Settings {
@@ -3196,66 +3188,6 @@ pub struct SigningStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Workspaces
-// ---------------------------------------------------------------------------
-
-/// Named group of repositories from the repository list.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Workspace {
-    pub id: Id,
-    pub name: String,
-    /// In the order in which they were saved.
-    pub repo_ids: Vec<Id>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum WorkspaceRepoStatus {
-    Done,
-    UpToDate,
-    Conflict,
-    Failed,
-    /// Nothing to do: no remote or no upstream.
-    Skipped,
-}
-
-impl WorkspaceRepoStatus {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            WorkspaceRepoStatus::Done => "done",
-            WorkspaceRepoStatus::UpToDate => "up_to_date",
-            WorkspaceRepoStatus::Conflict => "conflict",
-            WorkspaceRepoStatus::Failed => "failed",
-            WorkspaceRepoStatus::Skipped => "skipped",
-        }
-    }
-}
-
-/// What `workspace_fetch` or `workspace_pull` did in a repository.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceRepoResult {
-    pub repo_id: Id,
-    /// Alias or folder name.
-    pub name: String,
-    pub status: WorkspaceRepoStatus,
-    /// Ready-made sentence.
-    pub message: String,
-    /// Error code for `failed`, `skipped` and `conflict`, otherwise `None`.
-    pub code: Option<crate::error::ErrorCode>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WorkspaceRunResult {
-    /// One entry per repository of the workspace, in its order.
-    pub results: Vec<WorkspaceRepoResult>,
-    /// Number of repositories with `failed` or `conflict`.
-    pub failed: u32,
-}
-
-// ---------------------------------------------------------------------------
 // Gitflow
 // ---------------------------------------------------------------------------
 
@@ -3358,8 +3290,6 @@ pub enum AppChange {
     Credentials,
     /// SSH keys (`ssh_key_list`).
     SshKeys,
-    /// Workspaces (`workspace_list`).
-    Workspaces,
     /// Accounts at hosts (`host_accounts`).
     HostAccounts,
     /// Custom commands: the user's own or the approval of a repository file (`custom_commands_list`).

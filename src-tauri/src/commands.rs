@@ -149,31 +149,6 @@ pub async fn repo_readme(core: State<'_, Core>, repo_id: String) -> R<Option<Str
 }
 
 #[tauri::command]
-pub async fn workspace_list(core: State<'_, Core>) -> R<Vec<Workspace>> {
-    c::workspace::workspace_list(&core).await
-}
-
-#[tauri::command]
-pub async fn workspace_save(core: State<'_, Core>, id: Option<String>, name: String, repo_ids: Vec<String>) -> R<Vec<Workspace>> {
-    c::workspace::workspace_save(&core, id, name, repo_ids).await
-}
-
-#[tauri::command]
-pub async fn workspace_delete(core: State<'_, Core>, id: String) -> R<Vec<Workspace>> {
-    c::workspace::workspace_delete(&core, id).await
-}
-
-#[tauri::command]
-pub async fn workspace_fetch(core: State<'_, Core>, job_id: String, workspace_id: String) -> R<WorkspaceRunResult> {
-    c::workspace::workspace_fetch(&core, job_id, workspace_id).await
-}
-
-#[tauri::command]
-pub async fn workspace_pull(core: State<'_, Core>, job_id: String, workspace_id: String, mode: Option<PullMode>) -> R<WorkspaceRunResult> {
-    c::workspace::workspace_pull(&core, job_id, workspace_id, mode).await
-}
-
-#[tauri::command]
 pub async fn tabs_list(core: State<'_, Core>) -> R<Vec<Tab>> {
     c::repos::tabs_list(&core).await
 }
@@ -888,11 +863,6 @@ pub async fn settings_set(core: State<'_, Core>, patch: Value) -> R<Settings> {
 }
 
 #[tauri::command]
-pub async fn settings_scopes(core: State<'_, Core>) -> R<std::collections::BTreeMap<String, SettingScope>> {
-    c::settings::settings_scopes(&core).await
-}
-
-#[tauri::command]
 pub async fn avatar_get(core: State<'_, Core>, email: String) -> R<Option<String>> {
     c::avatars::avatar_get(&core, email).await
 }
@@ -1412,23 +1382,6 @@ pub async fn pr_create(
     remote: Option<String>,
 ) -> R<PrSummary> {
     c::host::pr_create(&core, repo_id, title, body, source_branch, target_branch, draft, reviewers, labels, remote).await
-}
-
-#[tauri::command]
-#[allow(clippy::too_many_arguments)]
-pub async fn pr_update(
-    core: State<'_, Core>,
-    repo_id: String,
-    number: u64,
-    title: Option<String>,
-    body: Option<String>,
-    target_branch: Option<String>,
-    draft: Option<bool>,
-    reviewers: Option<Vec<String>>,
-    labels: Option<Vec<String>>,
-    remote: Option<String>,
-) -> R<PrSummary> {
-    c::host::pr_update(&core, repo_id, number, title, body, target_branch, draft, reviewers, labels, remote).await
 }
 
 #[tauri::command]

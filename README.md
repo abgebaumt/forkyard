@@ -76,7 +76,7 @@ actually happens, and makes the risky parts safe:
 - Cherry-pick, revert, reset (soft/mixed/hard), stashes with names and per-file apply
 
 **Everything around it**
-- Tabs for several repositories, workspaces, profiles (e.g. work and private)
+- Tabs for several repositories, groups, profiles (e.g. work and private)
 - Settings on three levels: global, per profile, per project (identity, SSH key, pull mode)
 - HTTPS and SSH credentials, SSH key generation, proxy and custom CA
 - GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud and Azure DevOps: pull requests and issues through the official APIs

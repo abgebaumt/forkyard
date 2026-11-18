@@ -1,8 +1,7 @@
 //! AI connection of the core (v1.2): providers, context, preview, costs, confirmation gate.
 //!
 //! - One provider for every function and profile (`Settings.ai_provider`, global); keys only in
-//!   the keychain under `llm:<provider>` – never `ai:`, because `forget_removed_ai_keys` deletes
-//!   `ai:anthropic:*` at startup.
+//!   the keychain under `llm:<provider>`.
 //! - What a model answers is data: parsed and checked against a fixed schema (`schema`), never run.
 //! - Repository content is filtered (`ignore`, `context`), redacted and put between delimiters with
 //!   a random token per request (`prompt`).

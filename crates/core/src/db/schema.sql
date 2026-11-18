@@ -305,27 +305,6 @@ create table hoster_accounts (
 create unique index hoster_accounts_key on hoster_accounts (profile_id, kind, base_url);
 -- Since version 3: end
 
--- Local workspaces: named groups of repositories.
-create table workspaces (
-  id          text primary key,
-  profile_id  text not null references profiles (id) on delete cascade,
-  name        text not null,
-  description text,
-  color       text,
-  sync_dir    text,
-  created_at  text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-  updated_at  text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-) strict;
-create unique index workspaces_name on workspaces (profile_id, name);
-
-create table workspace_repositories (
-  workspace_id  text not null references workspaces (id) on delete cascade,
-  repository_id text not null references repositories (id) on delete cascade,
-  position      integer not null default 0,
-  primary key (workspace_id, repository_id)
-) strict, without rowid;
-create index workspace_repositories_repo on workspace_repositories (repository_id);
-
 -- v1.2: AI usage per month, provider, model and function – numbers only, never contents.
 -- `cost_usd_micros`: estimated cost in millionths of a US dollar (0 for local models and
 -- unknown prices). Written with `if not exists` like stats_cache (see db/mod.rs).

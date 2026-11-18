@@ -5,7 +5,7 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::{expect_count, host_of, http_failure, json_body, numbers, send};
 use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
@@ -20,12 +20,11 @@ pub struct Gemini {
     base: String,
     key: String,
     model: String,
-    context_tokens: u64,
 }
 
 impl Gemini {
-    pub fn new(base: String, key: String, model: String, context_tokens: u64) -> Self {
-        Gemini { base: base.trim_end_matches('/').to_string(), key, model, context_tokens }
+    pub fn new(base: String, key: String, model: String) -> Self {
+        Gemini { base: base.trim_end_matches('/').to_string(), key, model }
     }
 
     fn model_id(&self) -> &str {
@@ -75,10 +74,6 @@ impl Provider for Gemini {
 
     fn label(&self) -> String {
         LABEL.to_string()
-    }
-
-    fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps { structured_output: true, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
     }
 
     fn complete<'a>(
@@ -183,7 +178,7 @@ mod tests {
     }
 
     fn provider(server: &MockServer, model: &str) -> Gemini {
-        Gemini::new(format!("{}/v1beta", server.url()), KEY.into(), model.into(), 1_000_000)
+        Gemini::new(format!("{}/v1beta", server.url()), KEY.into(), model.into())
     }
 
     fn answer(finish: &str, text: &str) -> MockResponse {

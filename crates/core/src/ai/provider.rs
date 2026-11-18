@@ -11,7 +11,7 @@ use serde_json::Value;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
-use crate::model::{AiModelInfo, AiPrice, AiProviderKind};
+use crate::model::{AiModelInfo, AiProviderKind};
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
@@ -57,20 +57,10 @@ pub struct Completion {
     pub usage: Usage,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct ProviderCaps {
-    pub structured_output: bool,
-    pub embeddings: bool,
-    pub max_context_tokens: Option<u64>,
-    /// Built-in price of the model, if known (own prices: `pricing::price_for`).
-    pub pricing: Option<AiPrice>,
-}
-
 pub trait Provider: Send + Sync {
     fn id(&self) -> AiProviderKind;
     /// Name in messages and in the activity log ("Anthropic", "LM Studio").
     fn label(&self) -> String;
-    fn capabilities(&self) -> ProviderCaps;
     fn complete<'a>(
         &'a self,
         core: &'a Core,

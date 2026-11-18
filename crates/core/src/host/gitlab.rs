@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use super::{
     already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, summarize_checks,
-    text, Api, Host, HostFuture, NewPr, NewRelease, Paging, PrChange, RepoFacts, RepoPath,
+    text, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts, RepoPath,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -372,48 +372,6 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
     Ok(mr_summary(&created))
 }
 
-/// `PUT /projects/:id/merge_requests/:iid`
-pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
-    let mut patch = serde_json::Map::new();
-    match (change.title, change.draft) {
-        (Some(title), Some(draft)) => {
-            patch.insert("title".into(), json!(draft_title(title, draft)));
-        }
-        (Some(title), None) => {
-            // The draft state lives in the title and stays as it is.
-            let current = mr_raw(core, api, repo, number).await?;
-            let draft = flag(&current, "draft") || flag(&current, "work_in_progress");
-            patch.insert("title".into(), json!(draft_title(title, draft)));
-        }
-        (None, Some(draft)) => {
-            let current = mr_raw(core, api, repo, number).await?;
-            patch.insert("title".into(), json!(draft_title(&text(&current, "title"), draft)));
-        }
-        (None, None) => {}
-    }
-    if let Some(body) = change.body {
-        patch.insert("description".into(), json!(body));
-    }
-    if let Some(target) = change.target_branch {
-        patch.insert("target_branch".into(), json!(target));
-    }
-    if let Some(labels) = change.labels {
-        patch.insert("labels".into(), json!(labels.join(",")));
-    }
-    if let Some(reviewers) = change.reviewers {
-        patch.insert("reviewer_ids".into(), json!(user_ids(core, api, reviewers).await?));
-    }
-    if patch.is_empty() {
-        return pr_head(core, api, repo, number).await;
-    }
-    let value: Value = api
-        .send_json(core, Method::Put, &mr_path(repo, number), &Value::Object(patch))
-        .await
-        .map_err(|e| not_found_as(e, mr_missing(repo, number)))?
-        .json()?;
-    Ok(mr_summary(&value))
-}
-
 /// `POST /projects/:id/merge_requests/:iid/notes`
 pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64, body: &str) -> CoreResult<HostComment> {
     let value: Value = api
@@ -704,16 +662,6 @@ impl Host for GitlabHost {
     }
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
-    }
-    fn pr_update<'a>(
-        &'a self,
-        core: &'a Core,
-        api: &'a Api,
-        repo: &'a RepoPath,
-        number: u64,
-        change: PrChange<'a>,
-    ) -> HostFuture<'a, PrSummary> {
-        Box::pin(pr_update(core, api, repo, number, change))
     }
     fn pr_comment<'a>(
         &'a self,

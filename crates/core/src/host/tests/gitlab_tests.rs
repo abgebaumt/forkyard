@@ -181,35 +181,6 @@ async fn merge_requests_are_created_changed_commented_merged_and_closed() {
     })
     .await;
 
-    // Update: the draft state lives in the title.
-    fx.server.clear();
-    let ready = cmd::pr_update(&fx.tc, fx.id(), 3, None, None, None, Some(false), None, None, None).await.unwrap();
-    assert_eq!((ready.title.as_str(), ready.is_draft), ("Thema 3 umsetzen", false));
-    assert_eq!(fx.sent("PUT", "/merge_requests/3")[0].json(), json!({ "title": "Thema 3 umsetzen" }));
-    fx.server.clear();
-    cmd::pr_update(
-        &fx.tc,
-        fx.id(),
-        3,
-        Some("Neuer Titel".into()),
-        Some("Neuer Text".into()),
-        Some("develop".into()),
-        None,
-        Some(vec!["mira".into()]),
-        Some(Vec::new()),
-        None,
-    )
-    .await
-    .unwrap();
-    assert_eq!(
-        fx.sent("PUT", "/merge_requests/3")[0].json(),
-        json!({ "title": "Draft: Neuer Titel", "description": "Neuer Text", "target_branch": "develop", "labels": "", "reviewer_ids": [44] }),
-        "ein Entwurf bleibt beim Umbenennen ein Entwurf"
-    );
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 4, None, None, None, None, None, None, None).await.unwrap();
-    assert!(fx.sent("PUT", "/merge_requests/4").is_empty(), "no write call without a change");
-
     let note = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
     assert_eq!((note.id.as_str(), note.body.as_str()), ("99", "Passt so."));
     assert_eq!(fx.sent("POST", "/merge_requests/1/notes")[0].json(), json!({ "body": "Passt so." }));

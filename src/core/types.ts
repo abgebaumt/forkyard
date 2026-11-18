@@ -1211,8 +1211,6 @@ export interface CommitDraft {
 
 export type Theme = "dark" | "light" | "system";
 
-/** Level of a setting: `global` applies in all profiles, `profile` only in the active one. */
-export type SettingScope = "global" | "profile";
 export type DateFormat = "relative" | "local" | "iso";
 export type DiffMode = "hunks" | "inline" | "split";
 
@@ -2103,45 +2101,6 @@ export interface SigningStatus {
 }
 
 // ---------------------------------------------------------------------------
-// Workspaces
-// ---------------------------------------------------------------------------
-
-/** Named group of repositories from the repository list (per profile). */
-export interface Workspace {
-  id: Id;
-  name: string;
-  /** In the stored order. A forgotten repository (`repoForget`) drops out by itself. */
-  repoIds: Id[];
-}
-
-/**
- * - `done`: something arrived (fetch) or the branch was advanced (pull)
- * - `up_to_date`: nothing to do
- * - `conflict`: the pull stopped in a conflict – resolve it in the repository
- * - `failed`: error (see `code` and `message`); the other repositories kept going
- * - `skipped`: no remote or no upstream
- */
-export type WorkspaceRepoStatus = "done" | "up_to_date" | "conflict" | "failed" | "skipped";
-
-export interface WorkspaceRepoResult {
-  repoId: Id;
-  /** Alias or folder name. */
-  name: string;
-  status: WorkspaceRepoStatus;
-  /** Ready-made sentence. */
-  message: string;
-  /** For `failed`, `skipped` and `conflict` the error code, otherwise null. */
-  code: ErrorCode | null;
-}
-
-export interface WorkspaceRunResult {
-  /** One entry per repository of the workspace, in its order. */
-  results: WorkspaceRepoResult[];
-  /** Number with `failed` or `conflict`. */
-  failed: number;
-}
-
-// ---------------------------------------------------------------------------
 // Gitflow
 // ---------------------------------------------------------------------------
 
@@ -2190,7 +2149,7 @@ export interface GitflowFinishOptions {
 
 /** `locks`: LFS file locks (`lfsLocks`) – after locking/unlocking and after a fetch. */
 export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks";
-/** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `workspaces`: `workspaceList`, `custom_commands`: `customCommandsList`. */
+/** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `custom_commands`: `customCommandsList`. */
 export type AppChange =
   | "tabs"
   | "repos"
@@ -2198,19 +2157,12 @@ export type AppChange =
   | "profiles"
   | "credentials"
   | "ssh_keys"
-  | "workspaces"
   | "host_accounts"
   | "custom_commands"
   | "ai";
 
 export interface CoreEvents {
   "repo:changed": { repoId: Id; what: RepoChange[] };
-  /**
-   * For `workspaceFetch`/`workspacePull`, `repoId` carries the repository whose turn it
-   * currently is: `phase: "start"` at the beginning (percent = share of the whole run), then Git's phases,
-   * finally the status of this repository (`done`, `up_to_date`, `conflict`, `failed`,
-   * `skipped`) with the ready-made sentence in `line`.
-   */
   "job:progress": { jobId: string; repoId: Id | null; phase: string; percent: number | null; line: string };
   "job:done": { jobId: string; repoId: Id | null; ok: boolean; cancelled: boolean; message: string | null };
   "credential:request": CredentialRequest;

@@ -5,7 +5,7 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send};
 use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
@@ -20,12 +20,11 @@ pub struct OpenAi {
     base: String,
     key: String,
     model: String,
-    context_tokens: u64,
 }
 
 impl OpenAi {
-    pub fn new(base: String, key: String, model: String, context_tokens: u64) -> Self {
-        OpenAi { base: base.trim_end_matches('/').to_string(), key, model, context_tokens }
+    pub fn new(base: String, key: String, model: String) -> Self {
+        OpenAi { base: base.trim_end_matches('/').to_string(), key, model }
     }
 
     fn authorized(&self, request: Request) -> Request {
@@ -82,10 +81,6 @@ impl Provider for OpenAi {
 
     fn label(&self) -> String {
         LABEL.to_string()
-    }
-
-    fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps { structured_output: true, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
     }
 
     fn complete<'a>(
@@ -167,7 +162,7 @@ mod tests {
     }
 
     fn provider(server: &MockServer) -> OpenAi {
-        OpenAi::new(format!("{}/v1", server.url()), KEY.into(), "gpt-5.1".into(), 128_000)
+        OpenAi::new(format!("{}/v1", server.url()), KEY.into(), "gpt-5.1".into())
     }
 
     #[tokio::test]

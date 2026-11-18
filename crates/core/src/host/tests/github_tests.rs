@@ -323,36 +323,6 @@ async fn pull_requests_are_created_changed_commented_merged_and_closed() {
     })
     .await;
 
-    // Update: only what is given; replace labels, add or remove reviewers.
-    fx.server.clear();
-    let updated = cmd::pr_update(
-        &fx.tc,
-        fx.id(),
-        1,
-        Some("Neuer Titel".into()),
-        None,
-        Some("develop".into()),
-        None,
-        Some(vec!["jonas".into()]),
-        Some(vec!["a".into(), "b".into()]),
-        None,
-    )
-    .await
-    .unwrap();
-    assert_eq!(updated.number, 1);
-    assert_eq!(fx.sent("PATCH", "/pulls/1")[0].json(), json!({ "title": "Neuer Titel", "base": "develop" }));
-    assert_eq!(fx.sent("PUT", "/issues/1/labels")[0].json(), json!({ "labels": ["a", "b"] }));
-    assert_eq!(fx.sent("POST", "/pulls/1/requested_reviewers")[0].json(), json!({ "reviewers": ["jonas"] }));
-    assert!(fx.sent("DELETE", "/pulls/1/requested_reviewers").is_empty());
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 2, None, None, None, None, Some(Vec::new()), None, None).await.unwrap();
-    assert_eq!(fx.sent("DELETE", "/pulls/2/requested_reviewers")[0].json(), json!({ "reviewers": ["mira"] }));
-    assert!(fx.sent("PATCH", "/pulls/2").is_empty(), "no PATCH without title, body or target");
-    // GitHub's REST API can't toggle draft; unchanged it is not an error.
-    let error = cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, Some(true), None, None, None).await.unwrap_err();
-    assert_eq!(error.code, ErrorCode::HostUnsupported);
-    cmd::pr_update(&fx.tc, fx.id(), 3, None, None, None, Some(true), None, None, None).await.unwrap();
-
     // Comment.
     let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so. 👍".into(), None).await.unwrap();
     assert_eq!(

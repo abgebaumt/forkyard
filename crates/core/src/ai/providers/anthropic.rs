@@ -6,8 +6,7 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::pricing;
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage};
 use crate::ai::providers::{host_of, http_failure, json_body, send};
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
@@ -96,15 +95,6 @@ impl Provider for Anthropic {
 
     fn label(&self) -> String {
         LABEL.to_string()
-    }
-
-    fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps {
-            structured_output: true,
-            embeddings: false,
-            max_context_tokens: Some(self.context_tokens),
-            pricing: pricing::builtin_price(AiProviderKind::Anthropic, &self.model),
-        }
     }
 
     fn complete<'a>(

@@ -549,12 +549,10 @@ export type HostErrorKind =
   | "rejected"
   | "permission"
   | "offline"
-  | "not_built"
   | "other";
 
 export function hostErrorKind(error: unknown): HostErrorKind {
   const code = isObject(error) || error instanceof Error ? String((error as { code?: unknown }).code ?? "") : "";
-  const message = error instanceof Error ? error.message : isObject(error) ? String(error.message ?? "") : String(error ?? "");
   switch (code) {
     case "host_not_connected":
       return "not_connected";
@@ -578,8 +576,6 @@ export function hostErrorKind(error: unknown): HostErrorKind {
     case "timeout":
       return "offline";
   }
-  // The app is still running with a core without host integration (command not registered).
-  if (/command .* not found/i.test(message)) return "not_built";
   return "other";
 }
 
@@ -606,7 +602,6 @@ const errorTitles: Record<HostErrorKind, { title: string; fallback: string; hint
   rejected: errorText("rejected", false),
   permission: errorText("permission"),
   offline: errorText("offline"),
-  not_built: errorText("notBuilt"),
   other: errorText("other", false),
 };
 
@@ -614,7 +609,7 @@ const errorTitles: Record<HostErrorKind, { title: string; fallback: string; hint
 export function describeHostError(error: unknown): HostErrorText {
   const kind = hostErrorKind(error);
   const info = errorTitles[kind];
-  const message = kind === "not_built" ? "" : error instanceof Error ? error.message.trim() : "";
+  const message = error instanceof Error ? error.message.trim() : "";
   return { kind, title: info.title, text: localTimes(message) || info.fallback, hint: info.hint };
 }
 

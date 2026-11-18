@@ -89,13 +89,6 @@ const system: CoreSystem = {
       throw toCoreError(error);
     }
   },
-  async clipboardWrite({ text }) {
-    try {
-      await invoke("plugin:clipboard-manager|write_text", { text });
-    } catch (error) {
-      throw toCoreError(error);
-    }
-  },
 };
 
 /**

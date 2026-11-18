@@ -306,7 +306,7 @@ function finishConnect(result: ActionResult<HostAccountInfo>, token: string): Co
         ? t("actions.hosts.connect.rejected")
         : kind === "permission"
           ? t("actions.hosts.connect.missingScopes")
-          : kind === "offline" || kind === "rate_limit" || kind === "not_built"
+          : kind === "offline" || kind === "rate_limit"
             ? info.title
             : t("actions.hosts.connect.failed");
     const hint = kind === "auth" ? t("actions.hosts.connect.rejectedHint") : kind === "offline" || kind === "rate_limit" ? info.hint : "";
