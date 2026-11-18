@@ -1,7 +1,7 @@
 /**
  * GitHub and GitLab in the real app: connect an account (Settings › Hosts), create, view, merge,
  * close and comment pull/merge requests, and the issues (list, details, filter, branch from an
- * issue). Hosts: only scripts/e2e/host-mock.mjs, reached through a local proxy that also serves
+ * issue). Hosts: only e2e/fixtures/host-mock.mjs, reached through a local proxy that also serves
  * real Git over HTTP (scripts/e2e-wd/fixtures/github-gitlab-host.mjs), so push and fetch run for real.
  *
  *   node scripts/e2e-wd/features/github-gitlab.mjs
@@ -10,7 +10,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { startForge } from "../fixtures/github-gitlab-host.mjs";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 
 const W = 1440;

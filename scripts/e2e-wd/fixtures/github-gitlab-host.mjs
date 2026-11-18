@@ -1,7 +1,7 @@
 /**
  * A local "forge" for the GitHub/GitLab WebDriver features: ONE address on 127.0.0.1 that answers
- * the host APIs (forwarded to scripts/e2e/host-mock.mjs) and serves real Git over HTTP (forwarded
- * to scripts/e2e/git-http-server.mjs). The app gets this address as a self-hosted instance and the
+ * the host APIs (forwarded to e2e/fixtures/host-mock.mjs) and serves real Git over HTTP (forwarded
+ * to e2e/fixtures/git-http-server.mjs). The app gets this address as a self-hosted instance and the
  * test repository's remote points to the same address – so the core detects the host AND fetch and
  * push really run (against bare repositories on the local Git server). Nothing goes to a real service.
  *
@@ -24,9 +24,9 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
-import { startGitHttpServer } from "../../e2e/git-http-server.mjs";
-import { startHostMock } from "../../e2e/host-mock.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
+import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
 
 export const REPO_PATHS = { github: "octo/demo", gitlab: "gruppe/unter/demo" };
 const GIT_USER = "lena";

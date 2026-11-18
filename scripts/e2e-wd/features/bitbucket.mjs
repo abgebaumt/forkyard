@@ -2,7 +2,7 @@
  * Bitbucket Cloud (v1.1): connect an account (e-mail + API token), pull requests (list, view,
  * comment, merge, decline, check out, create) and issues (list, read, filter, search, switched-off
  * tracker) – in the real app over WebDriver, against the core's host test server
- * (scripts/e2e/host-mock.mjs, 127.0.0.1). Nothing calls bitbucket.org.
+ * (e2e/fixtures/host-mock.mjs, 127.0.0.1). Nothing calls bitbucket.org.
  *
  *   node scripts/e2e-wd/features/bitbucket.mjs
  *   E2E_WD_ONLY=merge node scripts/e2e-wd/features/bitbucket.mjs
@@ -23,7 +23,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { startHostMock } from "../../e2e/host-mock.mjs";
+import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
 import { ROOT } from "../driver.mjs";
 import {
   clearKeychain,

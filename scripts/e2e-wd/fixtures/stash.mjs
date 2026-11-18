@@ -1,11 +1,11 @@
 /**
  * Fixtures for scripts/e2e-wd/features/stash.mjs: the clean "messnetz" repository from
- * scripts/e2e/fixtures.mjs plus committed files that make line and hunk selection interesting
+ * e2e/fixtures/fixtures.mjs plus committed files that make line and hunk selection interesting
  * (two hunks far apart, CRLF line endings, no final newline).
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 
 /** 30 lines; changes in line 3 and line 27 end up in two separate hunks. */
 export const MEASUREMENTS = Array.from(

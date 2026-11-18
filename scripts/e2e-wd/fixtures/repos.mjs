@@ -6,8 +6,8 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
-export { makeWorkspace, fileUrl } from "../../e2e/screens/repo-entry-lib.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+export { makeWorkspace, fileUrl } from "../../../e2e/fixtures/repo-entry-lib.mjs";
 
 /** Marker files: if they appear, a command from the repository's configuration or hooks has run. */
 export const FSMONITOR_MARKER = "FSMONITOR-RAN";
@@ -53,7 +53,7 @@ export function makeCloneSource(ws, name = "wetterdaten") {
 }
 
 /**
- * HTTP proxy in front of scripts/e2e/git-http-server.mjs that signs in by itself (Basic auth
+ * HTTP proxy in front of e2e/fixtures/git-http-server.mjs that signs in by itself (Basic auth
  * header) and holds the pack transfer (`POST …/git-upload-pack`) for `holdMs` – so a clone stays
  * running long enough to be cancelled, independent of machine speed.
  *   const proxy = await startHoldingProxy(server.url(""), { user: "lena", password: "…", holdMs: 30_000 });

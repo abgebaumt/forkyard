@@ -15,7 +15,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { gitIsolationEnv, makeRichRepo } from "../fixtures.mjs";
+import { gitIsolationEnv, makeRichRepo } from "./fixtures.mjs";
 
 process.env.GIT_OPTIONAL_LOCKS = "0";
 

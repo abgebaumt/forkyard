@@ -34,7 +34,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { TEST_IDENTITY, globalGitConfig, isAlive } from "../e2e/fixtures.mjs";
+import { TEST_IDENTITY, globalGitConfig, isAlive } from "../../e2e/fixtures/fixtures.mjs";
 import { startPrivateKeyring } from "./fixtures/gitea-keyring.mjs";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");

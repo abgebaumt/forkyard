@@ -5,7 +5,7 @@
  *
  *   app settings: proxyUrl = proxy.url, sslCaFile = proxy.caFile
  *   app --CONNECT dev.azure.com:443--> this proxy --TLS (own CA, certificate for dev.azure.com)-->
- *       decrypted HTTP --> scripts/e2e/host-mock.mjs (organization "firma" under /firma)
+ *       decrypted HTTP --> e2e/fixtures/host-mock.mjs (organization "firma" under /firma)
  *
  * Every other CONNECT target and every plain proxy request is refused (403) and recorded in
  * `proxy.refused`, so a test can assert that nothing tried to reach anything else.
@@ -23,7 +23,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import tls from "node:tls";
-import { opensslPath } from "../../e2e/git-http-server.mjs";
+import { opensslPath } from "../../../e2e/fixtures/git-http-server.mjs";
 
 const HOSTS = new Set(["dev.azure.com"]);
 

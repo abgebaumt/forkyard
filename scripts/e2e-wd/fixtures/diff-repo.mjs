@@ -13,7 +13,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import zlib from "node:zlib";
-import { globalGitConfig, gitIsolationEnv } from "../../e2e/fixtures.mjs";
+import { globalGitConfig, gitIsolationEnv } from "../../../e2e/fixtures/fixtures.mjs";
 
 export const PEOPLE = {
   lena: { name: "Lena Hartmann", email: "lena.hartmann@wetterstation.example" },

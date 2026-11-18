@@ -15,7 +15,7 @@
  *   E2E_WD_ONLY="expires" node scripts/e2e-wd/features/plan.mjs
  */
 import http from "node:http";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { waitToast } from "../fixtures/rebase.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";

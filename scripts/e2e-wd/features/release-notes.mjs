@@ -15,7 +15,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { startForge } from "../fixtures/github-gitlab-host.mjs";
 import { rightClick, waitToast } from "../fixtures/rebase.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

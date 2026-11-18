@@ -19,7 +19,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeLabRepo, makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, STATION, toText } from "../../e2e/screens/conflict-lib.mjs";
+import { makeLabRepo, makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, STATION, toText } from "../../../e2e/fixtures/conflict-lib.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

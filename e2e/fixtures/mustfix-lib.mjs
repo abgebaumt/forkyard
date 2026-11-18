@@ -11,7 +11,7 @@ import { execFile, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { gitIsolationEnv } from "../fixtures.mjs";
+import { gitIsolationEnv } from "./fixtures.mjs";
 
 // Read-only git calls of the checks must not take index.lock (otherwise "locked" in the app).
 process.env.GIT_OPTIONAL_LOCKS = "0";

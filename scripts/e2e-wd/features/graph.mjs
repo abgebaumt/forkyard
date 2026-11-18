@@ -7,7 +7,7 @@
  *   E2E_WD_ONLY="collapse" node scripts/e2e-wd/features/graph.mjs
  */
 import path from "node:path";
-import { makeCleanRepoWithRemote, makeDetachedRepo, makeEmptyRepo, makeLargeRepo, makeRichRepo } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote, makeDetachedRepo, makeEmptyRepo, makeLargeRepo, makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
 // ---------------------------------------------------------------------------

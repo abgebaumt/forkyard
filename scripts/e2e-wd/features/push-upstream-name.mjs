@@ -15,7 +15,7 @@
  *
  *   node scripts/e2e-wd/features/push-upstream-name.mjs
  */
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { NO_PROXY_ENV, git, revParse, sleep, syncUi } from "../fixtures/sync-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

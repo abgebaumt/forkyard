@@ -1,7 +1,7 @@
 /**
  * A local Gitea/Forgejo instance for the WebDriver E2E tests: ONE address on 127.0.0.1 that answers
- * the REST API (`/api/v1/…`, from scripts/e2e/host-mock.mjs) and serves the repository `octo/demo`
- * over Git smart HTTP (`/octo/demo.git/…`, forwarded to scripts/e2e/git-http-server.mjs with its
+ * the REST API (`/api/v1/…`, from e2e/fixtures/host-mock.mjs) and serves the repository `octo/demo`
+ * over Git smart HTTP (`/octo/demo.git/…`, forwarded to e2e/fixtures/git-http-server.mjs with its
  * login added). The app gets this address as a self-hosted instance, and the test repository's
  * `origin` points to the same address – so fetch, push and "Check out branch" really run.
  * Nothing calls a real service.
@@ -22,8 +22,8 @@
  * call against it would block forever.
  */
 import http from "node:http";
-import { startHostMock } from "../../e2e/host-mock.mjs";
-import { startGitHttpServer } from "../../e2e/git-http-server.mjs";
+import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
+import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
 
 const GIT_USER = "lena";
 const GIT_PASSWORD = "nur-fuer-den-testserver";

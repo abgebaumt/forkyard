@@ -8,7 +8,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, toText } from "../../e2e/screens/conflict-lib.mjs";
+import { makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, toText } from "../../../e2e/fixtures/conflict-lib.mjs";
 import {
   center,
   closeToasts,

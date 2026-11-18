@@ -8,7 +8,7 @@
  *
  * Every scenario checks the UI and the repository (git log / diff --cached / cat-file).
  */
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { commitUi, eventually, indexBlob, lines, readText, until, writeBytes } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

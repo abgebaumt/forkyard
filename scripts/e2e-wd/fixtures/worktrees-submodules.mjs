@@ -1,15 +1,15 @@
 /**
  * Fixtures for features/worktrees-submodules.mjs: repositories with submodules from local bare
- * repositories (reusing scripts/e2e/screens/submodules-lib.mjs) and small helpers that read the
+ * repositories (reusing e2e/fixtures/submodules-lib.mjs) and small helpers that read the
  * result straight from Git.
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
-import { git, gitFile, makeLibrary, readGitmodules, worktreeList } from "../../e2e/screens/submodules-lib.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { git, gitFile, makeLibrary, readGitmodules, worktreeList } from "../../../e2e/fixtures/submodules-lib.mjs";
 
 export { git, gitFile, makeLibrary, readGitmodules, worktreeList };
-export { LIBS, allowFileProtocol, makeSubmoduleRepo, startSilentServer } from "../../e2e/screens/submodules-lib.mjs";
+export { LIBS, allowFileProtocol, makeSubmoduleRepo, startSilentServer } from "../../../e2e/fixtures/submodules-lib.mjs";
 
 export const SUB = "libs/sensor-treiber";
 

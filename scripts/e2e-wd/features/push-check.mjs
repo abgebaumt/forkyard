@@ -15,7 +15,7 @@
  *   E2E_WD_ONLY="Review" node scripts/e2e-wd/features/push-check.mjs
  */
 import http from "node:http";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { NO_PROXY_ENV, git, syncUi } from "../fixtures/sync-ui.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
