@@ -693,12 +693,13 @@ pub async fn profile_save(
         Ok(saved)
     })?;
     let profile = core.db.with(|c| db::profiles::get(c, &saved_id))?;
-    if let Some(p) = profile {
-        if p.is_active && p.sync_gitconfig {
-            write_global_identity(core, &p.author_name, &p.author_email).await?;
-        }
-    }
+    // The DB change is final: announce it first, report an identity-write error afterwards.
+    let synced = match &profile {
+        Some(p) if p.is_active && p.sync_gitconfig => write_global_identity(core, &p.author_name, &p.author_email).await,
+        _ => Ok(()),
+    };
     core.emit_app_changed(&[AppChange::Profiles]);
+    synced.map_err(|e| CoreError::io(format!("Saved “{name}”, but the global Git identity couldn't be written: {}", e.message)))?;
     profile_list(core).await
 }
 
@@ -748,10 +749,9 @@ pub async fn profile_activate(core: &Core, id: String) -> CoreResult<Vec<Profile
     for repo_id in &new_repos {
         crate::commands::repos::start_background(core, repo_id);
     }
-    if profile.sync_gitconfig {
-        write_global_identity(core, &profile.author_name, &profile.author_email).await?;
-    }
+    let synced = if profile.sync_gitconfig { write_global_identity(core, &profile.author_name, &profile.author_email).await } else { Ok(()) };
     core.emit_app_changed(&[AppChange::Profiles, AppChange::Settings, AppChange::Tabs, AppChange::Credentials, AppChange::SshKeys]);
+    synced.map_err(|e| CoreError::io(format!("Switched to “{}”, but the global Git identity couldn't be written: {}", profile.name, e.message)))?;
     profile_list(core).await
 }
 
@@ -1233,6 +1233,41 @@ mod tests {
         profile_save(&tc, Some(work.id.clone()), "Arbeit".into(), "Max M.".into(), "mm@firma.de".into(), true, None).await.unwrap();
         let global = std::fs::read_to_string(tc.global_config_path()).unwrap();
         assert!(global.contains("Max M."));
+    }
+
+    fn break_global_gitconfig(tc: &TestCore) {
+        let path = tc.global_config_path();
+        let _ = std::fs::remove_file(&path);
+        std::fs::create_dir_all(&path).unwrap();
+    }
+
+    fn announced_profiles(tc: &TestCore) -> bool {
+        tc.events.named(names::APP_CHANGED).iter().any(|p| p["what"].as_array().is_some_and(|w| w.iter().any(|x| x == "profiles")))
+    }
+
+    #[tokio::test]
+    async fn switching_reports_the_new_profile_even_when_gitconfig_is_not_writable() {
+        let tc = TestCore::new().await;
+        let list = profile_save(&tc, None, "Arbeit".into(), "Max Muster".into(), "max@firma.de".into(), true, None).await.unwrap();
+        let work = list.iter().find(|p| p.name == "Arbeit").unwrap().id.clone();
+        break_global_gitconfig(&tc);
+        tc.events.clear();
+        let err = profile_activate(&tc, work.clone()).await.unwrap_err();
+        assert!(err.message.starts_with("Switched to “Arbeit”, but the global Git identity couldn't be written"), "{}", err.message);
+        assert_eq!(tc.db.with(db::profiles::active_id).unwrap(), work);
+        assert!(announced_profiles(&tc));
+    }
+
+    #[tokio::test]
+    async fn saving_reports_the_new_state_even_when_gitconfig_is_not_writable() {
+        let tc = TestCore::new().await;
+        let active = profile_list(&tc).await.unwrap()[0].id.clone();
+        break_global_gitconfig(&tc);
+        tc.events.clear();
+        let err = profile_save(&tc, Some(active.clone()), "Neu".into(), "Max".into(), "m@x.de".into(), true, None).await.unwrap_err();
+        assert!(err.message.starts_with("Saved “Neu”, but the global Git identity couldn't be written"), "{}", err.message);
+        assert_eq!(profile_list(&tc).await.unwrap()[0].name, "Neu");
+        assert!(announced_profiles(&tc));
     }
 
     /// The template usually lives outside the repository (`~/.gitmessage`): the core returns
