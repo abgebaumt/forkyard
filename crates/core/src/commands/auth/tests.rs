@@ -16,7 +16,7 @@ use super::*;
 use crate::auth::broker::{from_hex, keychain_ref, ssh_command_with_key, to_hex, PORT_ENV, TOKEN_ENV};
 use crate::auth::prompt::StoreKey;
 use crate::auth::{keychain, Broker, Session, SessionMode};
-use crate::commands::settings;
+use crate::commands::{profiles, settings};
 use crate::events::names;
 use crate::git::errors;
 use crate::model::HostAccountKind;
@@ -744,7 +744,7 @@ async fn forget_all_and_profile_delete_clear_the_keyring() {
     let Some(mut keyring) = TestKeyring::new(&fx).await else { return };
     let first = fx.tc.active_profile_id().unwrap();
     let profiles =
-        settings::profile_save(&fx.tc, None, "Zweites".into(), "Berta".into(), "berta@example.com".into(), false, None).await.unwrap();
+        profiles::profile_save(&fx.tc, None, "Zweites".into(), "Berta".into(), "berta@example.com".into(), false, None).await.unwrap();
     let second = profiles.iter().find(|p| p.name == "Zweites").unwrap().id.clone();
 
     async fn remember(fx: &Fixture, n: usize, prompt: &str, secret: &str) {
@@ -761,7 +761,7 @@ async fn forget_all_and_profile_delete_clear_the_keyring() {
     let c = keyring.track(&second, &password_key("git.example.com", "anna"));
     remember(&fx, 1, "Password for 'https://anna@git.example.com': ", "eins").await;
     remember(&fx, 2, "git@example.com's password: ", "zwei").await;
-    settings::profile_activate(&fx.tc, second.clone()).await.unwrap();
+    profiles::profile_activate(&fx.tc, second.clone()).await.unwrap();
     // Same host and user, different profile: separate entry, and the first profile is not visible.
     assert!(credentials_list(&fx.tc).await.unwrap().is_empty());
     remember(&fx, 3, "Password for 'https://anna@git.example.com': ", "drei").await;
@@ -771,8 +771,8 @@ async fn forget_all_and_profile_delete_clear_the_keyring() {
     assert_eq!(keychain::get(&keyring.service, &c).await.unwrap().as_deref(), Some("drei"));
 
     // Deleting a profile clears its keychain entries as well; the others stay.
-    settings::profile_activate(&fx.tc, first.clone()).await.unwrap();
-    settings::profile_delete(&fx.tc, second).await.unwrap();
+    profiles::profile_activate(&fx.tc, first.clone()).await.unwrap();
+    profiles::profile_delete(&fx.tc, second).await.unwrap();
     assert_eq!(keychain::get(&keyring.service, &c).await.unwrap(), None);
     assert_eq!(keychain::get(&keyring.service, &a).await.unwrap().as_deref(), Some("eins"));
 
@@ -956,9 +956,9 @@ async fn the_project_key_is_chosen_per_profile_for_a_shared_repository() {
     settings::repo_settings_set(&fx.tc, id.clone(), serde_json::json!({ "sshKeyId": keys[0].id })).await.unwrap();
 
     // A second profile lists the same repository: the first one's choice does not apply there.
-    let list = settings::profile_save(&fx.tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
+    let list = profiles::profile_save(&fx.tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
     let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
-    settings::profile_activate(&fx.tc, other).await.unwrap();
+    profiles::profile_activate(&fx.tc, other).await.unwrap();
     crate::commands::repos::repo_open_with(&fx.tc, repo.path().to_string_lossy().into_owned(), true).await.unwrap();
     assert_eq!(settings::repo_settings_get(&fx.tc, id.clone()).await.unwrap().ssh_key_id, None);
     let out = fx.tc.git_for(&id).unwrap().args(["-c", ENV_DUMP, "envdump"]).network().run_text().await.unwrap();
@@ -967,7 +967,7 @@ async fn the_project_key_is_chosen_per_profile_for_a_shared_repository() {
     // A choice in the second profile leaves the first one's in place.
     let own = ssh_key_generate(&fx.tc, "Privat".into(), "id_privat".into(), None).await.unwrap();
     settings::repo_settings_set(&fx.tc, id.clone(), serde_json::json!({ "sshKeyId": own[0].id })).await.unwrap();
-    settings::profile_activate(&fx.tc, first).await.unwrap();
+    profiles::profile_activate(&fx.tc, first).await.unwrap();
     assert_eq!(settings::repo_settings_get(&fx.tc, id).await.unwrap().ssh_key_id.as_deref(), Some(keys[0].id.as_str()));
 }
 
@@ -1001,11 +1001,11 @@ async fn a_key_of_another_profile_is_rejected() {
     let repo = TestRepo::with_commit();
     let id = fx.tc.open(&repo).await.repo.id;
     let first = fx.tc.active_profile_id().unwrap();
-    let list = settings::profile_save(&fx.tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
+    let list = profiles::profile_save(&fx.tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
     let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
-    settings::profile_activate(&fx.tc, other).await.unwrap();
+    profiles::profile_activate(&fx.tc, other).await.unwrap();
     let keys = ssh_key_generate(&fx.tc, "Privat".into(), "id_privat".into(), None).await.unwrap();
-    settings::profile_activate(&fx.tc, first).await.unwrap();
+    profiles::profile_activate(&fx.tc, first).await.unwrap();
     let err = settings::repo_settings_set(&fx.tc, id, serde_json::json!({ "sshKeyId": keys[0].id })).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NotFound);
 }
@@ -1250,10 +1250,10 @@ async fn remove_and_default_only_touch_the_entries() {
     assert!(fx.app_changes().is_empty());
 
     // Keys belong to the profile.
-    let profiles = settings::profile_save(&fx.tc, None, "Zweites".into(), String::new(), String::new(), false, None).await.unwrap();
+    let profiles = profiles::profile_save(&fx.tc, None, "Zweites".into(), String::new(), String::new(), false, None).await.unwrap();
     let second = profiles.iter().find(|p| p.name == "Zweites").unwrap().id.clone();
     fx.tc.events.clear();
-    settings::profile_activate(&fx.tc, second).await.unwrap();
+    profiles::profile_activate(&fx.tc, second).await.unwrap();
     let changed = fx.app_changes();
     assert!(changed.contains(&"ssh_keys".to_string()) && changed.contains(&"credentials".to_string()), "{changed:?}");
     assert!(ssh_key_list(&fx.tc).await.unwrap().is_empty());

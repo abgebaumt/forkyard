@@ -619,9 +619,9 @@ mod tests {
         let tc = TestCore::new().await;
         let repo = TestRepo::with_commit();
         tc.open(&repo).await;
-        let list = crate::commands::settings::profile_save(&tc, None, "Arbeit".into(), "".into(), "".into(), false, None).await.unwrap();
+        let list = crate::commands::profiles::profile_save(&tc, None, "Arbeit".into(), "".into(), "".into(), false, None).await.unwrap();
         let work = list.iter().find(|p| p.name == "Arbeit").unwrap().id.clone();
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, work).await.unwrap();
 
         let opened = open_created(&tc, repo.path()).await.unwrap();
         assert!(opened.repo.trusted);

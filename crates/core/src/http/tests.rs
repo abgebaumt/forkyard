@@ -407,10 +407,10 @@ async fn proxy_passwords_are_loaded_from_the_keyring_on_start() {
     let tc = tc.restart().await;
     assert_eq!(tc.git.network_settings().proxy_url.as_deref(), Some("http://anna:alt-geheim@proxy.firma.example:8080"));
     // Deleting the profile removes its entries.
-    let other = crate::commands::settings::profile_save(&tc, None, "Zweites".into(), "".into(), "".into(), false, None).await.unwrap();
+    let other = crate::commands::profiles::profile_save(&tc, None, "Zweites".into(), "".into(), "".into(), false, None).await.unwrap();
     let other_id = other.iter().find(|p| p.name == "Zweites").unwrap().id.clone();
-    crate::commands::settings::profile_activate(&tc, other_id).await.unwrap();
-    crate::commands::settings::profile_delete(&tc, profile_id.clone()).await.unwrap();
+    crate::commands::profiles::profile_activate(&tc, other_id).await.unwrap();
+    crate::commands::profiles::profile_delete(&tc, profile_id.clone()).await.unwrap();
     assert!(tc.secrets.snapshot().iter().all(|(account, _)| !account.contains(&profile_id)), "{:?}", tc.secrets.snapshot());
 }
 

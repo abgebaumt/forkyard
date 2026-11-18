@@ -368,7 +368,7 @@ mod tests {
     }
 
     async fn second_profile(tc: &TestCore) -> String {
-        let list = crate::commands::settings::profile_save(tc, None, "Arbeit".into(), "".into(), "".into(), false, None).await.unwrap();
+        let list = crate::commands::profiles::profile_save(tc, None, "Arbeit".into(), "".into(), "".into(), false, None).await.unwrap();
         list.iter().find(|p| p.name == "Arbeit").unwrap().id.clone()
     }
 
@@ -382,7 +382,7 @@ mod tests {
         let repo = TestRepo::with_commit();
         tc.open(&repo).await;
         let work = second_profile(&tc).await;
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, work).await.unwrap();
         assert!(repo_list(&tc).await.unwrap().is_empty());
     }
 
@@ -393,7 +393,7 @@ mod tests {
         tc.open(&repo).await;
         let first = tc.active_profile_id().unwrap();
         let work = second_profile(&tc).await;
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, work).await.unwrap();
 
         let err = repo_open(&tc, path_of(&repo)).await.unwrap_err();
         assert_eq!(err.code, crate::error::ErrorCode::RepoOtherProfile);
@@ -426,11 +426,11 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         let first = tc.active_profile_id().unwrap();
         let work = second_profile(&tc).await;
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, work).await.unwrap();
         repo_open_with(&tc, path_of(&repo), true).await.unwrap();
         repo_forget(&tc, id.clone()).await.unwrap();
         assert!(repo_list(&tc).await.unwrap().is_empty());
-        crate::commands::settings::profile_activate(&tc, first).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, first).await.unwrap();
         let list = repo_list(&tc).await.unwrap();
         assert_eq!(list.len(), 1);
         assert!(list[0].trusted, "trust stays");
@@ -446,7 +446,7 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         repo_update(&tc, id.clone(), None, Some(true), Some(Some("Kunden".into())), None).await.unwrap();
         let work = second_profile(&tc).await;
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, work).await.unwrap();
         repo_open_with(&tc, path_of(&repo), true).await.unwrap();
         let listed = repo_list(&tc).await.unwrap();
         assert!(!listed[0].is_favorite);
@@ -459,7 +459,7 @@ mod tests {
         let repo = TestRepo::with_commit();
         let id = tc.open(&repo).await.repo.id;
         let work = second_profile(&tc).await;
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
+        crate::commands::profiles::profile_activate(&tc, work).await.unwrap();
         assert!(repo_update(&tc, id.clone(), None, Some(true), None, None).await.is_err());
         assert!(repo_list(&tc).await.unwrap().is_empty(), "not registered as a side effect");
     }
