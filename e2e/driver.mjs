@@ -514,6 +514,8 @@ const MODIFIERS = new Set(["Shift", "Control", "Ctrl", "Alt", "Meta", "Cmd"]);
 
 function keyValue(name) {
   if (KEYS[name]) return KEYS[name];
+  // F1 … F12: W3C codes U+E031 … U+E03C.
+  if (/^F([1-9]|1[0-2])$/.test(name)) return String.fromCharCode(0xe030 + Number(name.slice(1)));
   if ([...name].length === 1) return name;
   throw new Error(`press: unknown key "${name}"`);
 }
