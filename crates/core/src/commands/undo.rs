@@ -715,8 +715,7 @@ impl Run<'_> {
             UndoAction::DeleteBranch => self.delete_branch().await,
             UndoAction::RemoveRemote => self.remove_remote().await,
             UndoAction::Stash => self.stash().await,
-            UndoAction::StashPop => self.stash_pop().await,
-            UndoAction::StashDrop => self.stash_drop().await,
+            UndoAction::StashPop | UndoAction::StashDrop => self.stash_pop().await,
         }
     }
 
@@ -1525,8 +1524,8 @@ impl Run<'_> {
         }
     }
 
-    /// Stash pop: undo restores the state before the pop and puts the stash back at its old
-    /// place in the list; redo applies it again and removes it.
+    /// Stash pop and drop: undo puts the stash back at its old place in the list (pop also
+    /// restores the state before it); redo removes it again (pop also applies it again).
     async fn stash_pop(&mut self) -> CoreResult<()> {
         let Some(sha) = self.text("stashSha") else { return Err(self.lost()) };
         match self.dir {
@@ -1538,7 +1537,9 @@ impl Run<'_> {
                 if rows.iter().any(|row| row.sha == sha) {
                     return Err(self.stale());
                 }
-                self.swap_state(None, None).await?;
+                if self.action == UndoAction::StashPop {
+                    self.swap_state(None, None).await?;
+                }
                 let position = self.payload.get("stashIndex").and_then(Value::as_u64).unwrap_or(0) as usize;
                 let position = position.min(rows.len());
                 let subject = self.text("stashSubject").unwrap_or_else(|| "Stash".to_string());
@@ -1549,34 +1550,9 @@ impl Run<'_> {
             Direction::Redo => {
                 let rows = stash::read_rows(self.core, self.repo_id).await?;
                 let Some(index) = rows.iter().position(|row| row.sha == sha) else { return Err(self.stale()) };
-                self.swap_state(None, None).await?;
-                stash::drop_stash(self.core, self.repo_id, index).await
-            }
-        }
-    }
-
-    /// Stash drop: undo puts the stash back at its old place in the list (or at the end, if the
-    /// list has become shorter); redo removes it again. The working directory is not touched.
-    async fn stash_drop(&mut self) -> CoreResult<()> {
-        let Some(sha) = self.text("stashSha") else { return Err(self.lost()) };
-        let rows = stash::read_rows(self.core, self.repo_id).await?;
-        match self.dir {
-            Direction::Undo => {
-                if !self.commit_exists(&sha).await? {
-                    return Err(self.lost());
+                if self.action == UndoAction::StashPop {
+                    self.swap_state(None, None).await?;
                 }
-                if rows.iter().any(|row| row.sha == sha) {
-                    return Err(self.stale());
-                }
-                let position = self.payload.get("stashIndex").and_then(Value::as_u64).unwrap_or(0) as usize;
-                let position = position.min(rows.len());
-                let subject = self.text("stashSubject").unwrap_or_else(|| "Stash".to_string());
-                let mut top: Vec<(String, String)> = rows[..position].iter().map(|row| (row.sha.clone(), row.subject.clone())).collect();
-                top.push((sha, subject));
-                stash::rewrite_top(self.core, self.repo_id, &rows, position, &top).await
-            }
-            Direction::Redo => {
-                let Some(index) = rows.iter().position(|row| row.sha == sha) else { return Err(self.stale()) };
                 stash::drop_stash(self.core, self.repo_id, index).await
             }
         }
