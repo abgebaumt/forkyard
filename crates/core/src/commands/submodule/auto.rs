@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 use crate::app::Core;
-use crate::commands::status;
 use crate::db;
 use crate::error::CoreResult;
 use crate::events::names;
@@ -94,7 +93,7 @@ where
 /// The commit a running rebase or cherry-pick/revert sequence started from (a full SHA from
 /// `.git`, never from memory); `None` = HEAD applies.
 async fn operation_start(core: &Core, repo_id: &str) -> Option<String> {
-    let dir = status::git_dir(core, repo_id).await.ok()?;
+    let dir = crate::git::repo::git_dir(core, repo_id).await.ok()?;
     ["rebase-merge/orig-head", "rebase-apply/orig-head", "sequencer/head"]
         .iter()
         .filter_map(|name| std::fs::read_to_string(dir.join(name)).ok())

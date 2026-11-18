@@ -10,7 +10,7 @@ use serde_json::{json, Map, Value};
 
 use super::registry::{emit_changed, AgentRegistry};
 use crate::app::Core;
-use crate::commands::{refs, worktree};
+use crate::commands::worktree;
 use crate::db::{self, agents::AgentRow};
 use crate::error::{CoreError, CoreResult};
 use crate::model::{AgentCleanupPreview, RepoChange, UndoState};
@@ -169,7 +169,7 @@ pub async fn run(core: &Core, agent_id: String) -> CoreResult<UndoState> {
         }
         let tip = u::rev_parse(core, &repo_id, &branch_ref).await?;
         let snapshot = if folder.is_dir() { back_up_changes(core, &repo_id, &folder, &entry_id).await? } else { None };
-        let head = refs::read_head(core, &repo_id).await?;
+        let head = crate::git::repo::read_head(core, &repo_id).await?;
         remove_worktree(core, &repo_id, &folder).await?;
         if let Some(tip) = &tip {
             // The tip is backed up before the branch goes (hard rule 6): should recording the entry

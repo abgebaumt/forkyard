@@ -15,7 +15,6 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
 use crate::commands::diff::{patch_basis, TempIndex};
-use crate::commands::refs;
 use crate::commands::stage::keep_line_endings;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
@@ -58,7 +57,7 @@ pub(crate) async fn stash_selection(
     selection: &StashSelection,
     undoable: bool,
 ) -> CoreResult<String> {
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let (head_sha, on) = match &head {
         Head::Branch { branch, sha } => (sha.clone(), branch.clone()),
         Head::Detached { sha } => (sha.clone(), "(no branch)".to_string()),

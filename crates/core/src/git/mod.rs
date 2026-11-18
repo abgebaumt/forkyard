@@ -4,6 +4,7 @@ pub mod errors;
 pub mod locate;
 pub mod netconfig;
 pub mod redact;
+pub mod repo;
 pub mod runner;
 
 #[cfg(test)]

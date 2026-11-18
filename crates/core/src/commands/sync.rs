@@ -476,10 +476,10 @@ fn pull_branch(head: &Head) -> CoreResult<(String, Option<String>)> {
 /// under the network lock, without the write lock.
 async fn pull_fetch(core: &Core, repo_id: &str, job: &Job, fetched: &mut bool) -> CoreResult<PullPlan> {
     let cancel = job.token();
-    if status::read_operation(core, repo_id).await?.is_some() {
+    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
         return Err(operation_running());
     }
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, _) = pull_branch(&head)?;
     let known = remotes::read_remotes(core, repo_id).await?;
     if known.is_empty() {
@@ -511,10 +511,10 @@ async fn pull_fetch(core: &Core, repo_id: &str, job: &Job, fetched: &mut bool) -
 /// rebase). Runs under the write lock; whatever may have changed since the fetch
 /// is read again.
 async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, plan: PullPlan) -> CoreResult<OpResult> {
-    if status::read_operation(core, repo_id).await?.is_some() {
+    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
         return Err(operation_running());
     }
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, old_sha) = pull_branch(&head)?;
     if branch != plan.branch {
         return Err(CoreError::new(
@@ -784,7 +784,7 @@ async fn push_target(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> C
     }
     let branch = match request.branch.map(str::trim).filter(|b| !b.is_empty()) {
         Some(name) => name.to_string(),
-        None => match refs::read_head(core, repo_id).await? {
+        None => match crate::git::repo::read_head(core, repo_id).await? {
             Head::Branch { branch, .. } => branch,
             Head::Unborn { .. } => {
                 return Err(CoreError::not_allowed("There is no commit to push yet."));

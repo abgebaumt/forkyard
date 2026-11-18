@@ -20,9 +20,9 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
 use crate::commands::diff::{patch_basis, TempIndex};
-use crate::commands::refs::read_head;
-use crate::commands::status::{self, parse_porcelain_v2, read_status, EntryKind, StatusEntry};
+use crate::commands::status::{parse_porcelain_v2, read_status, EntryKind, StatusEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::repo::read_head;
 use crate::git::GitCmd;
 use crate::model::{Head, PatchSelection, RepoChange, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
@@ -463,7 +463,7 @@ impl Backup {
         let temp = TempIndex::create(core)?;
         // The copy keeps the stat data of the real index; `git add` then only has to
         // re-read changed files instead of the whole working directory.
-        let real_index = status::git_dir(core, repo_id).await?.join("index");
+        let real_index = crate::git::repo::git_dir(core, repo_id).await?.join("index");
         if real_index.is_file() {
             util::copy_index_file(&real_index, temp.path())?;
         }
@@ -707,7 +707,7 @@ fn discard_label(names: &[String]) -> String {
 }
 
 async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
-    if status::read_operation(core, repo_id).await?.is_some() {
+    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
         return Err(CoreError::new(
             ErrorCode::OperationInProgress,
             "A merge, rebase, cherry-pick or revert is in progress. Discarding everything would break it – abort the operation or discard individual files instead.",

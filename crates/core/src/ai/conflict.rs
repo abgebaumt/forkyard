@@ -21,10 +21,10 @@ use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
 use crate::commands::merge::{conflict_get, is_marker_line};
-use crate::commands::refs::read_head;
-use crate::commands::status::read_operation;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
+use crate::git::repo::read_head;
+use crate::git::repo::read_operation;
 use crate::model::{
     AiOmitReason, AiOmitted, ConflictBlockRange, ConflictIntent, ConflictIntentBlock, Head, IntentSent, OperationKind, PrListState,
     Settings,

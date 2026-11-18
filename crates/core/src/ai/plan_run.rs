@@ -16,7 +16,6 @@ use serde_json::{json, Map};
 use crate::ai::plan_check::{self, Checked};
 use crate::ai::plan_commands::{self, PlanAction};
 use crate::app::Core;
-use crate::commands::refs;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::{CancelToken, Job};
@@ -110,7 +109,7 @@ async fn begin(
             return Err(expired());
         }
         let entry = undo::new_id();
-        let head = refs::read_head(core, repo_id).await?;
+        let head = crate::git::repo::read_head(core, repo_id).await?;
         let snapshot = undo::snapshot_for_group(core, repo_id, &entry).await?;
         let mut before = BTreeMap::new();
         for name in touched {
@@ -149,7 +148,7 @@ async fn finish(
             core.db.with(|c| db::undo::delete(c, id))?;
             undo::delete_backup_refs(core, repo_id, id).await?;
         }
-        let after_head = refs::read_head(core, repo_id).await?;
+        let after_head = crate::git::repo::read_head(core, repo_id).await?;
         let mut moves = Vec::new();
         for name in touched {
             let after = undo::rev_parse(core, repo_id, name).await?;

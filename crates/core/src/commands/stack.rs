@@ -16,7 +16,7 @@ use serde_json::{json, Map};
 
 use crate::app::Core;
 use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
-use crate::commands::{host, rebase, refs, remotes, sync};
+use crate::commands::{host, rebase, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{
     OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCheckResult, StackCommit, StackCut, StackPart, StackPlan,
@@ -210,7 +210,7 @@ pub async fn stack_create(
                 return Err(CoreError::new(code, part.problem.clone().unwrap_or_default()));
             }
             let moves: Vec<RefMove> = planned.parts.iter().map(|part| RefMove::new(&format!("refs/heads/{}", part.branch), None, Some(part.tip.as_str()))).collect();
-            let head = refs::read_head(core, id).await?;
+            let head = crate::git::repo::read_head(core, id).await?;
             let entry_id = u::new_id();
             u::apply_ref_moves(core, id, &moves, "forkyard: stacked branches").await?;
             if let Err(error) = set_parents(core, id, &planned).await {

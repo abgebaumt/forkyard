@@ -310,7 +310,7 @@ async fn merge_conflict_and_hard_reset_in_a_linked_worktree() {
     let other = repo.temp_dir().join("zweites");
     repo.git(&["worktree", "add", "-q", "-b", "anderswo", &other.to_string_lossy()]);
     let id = crate::commands::repos::repo_open(&tc, other.to_string_lossy().into_owned()).await.unwrap().repo.id;
-    let state_dir = status::git_dir(&tc, &id).await.unwrap();
+    let state_dir = crate::git::repo::git_dir(&tc, &id).await.unwrap();
     assert!(state_dir.ends_with("zweites"), "{state_dir:?}");
 
     let result = merge_start(&tc, id.clone(), "feature".into(), MergeMode::Default).await.unwrap();

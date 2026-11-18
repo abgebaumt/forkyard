@@ -175,7 +175,7 @@ fn protection(exclusions: &Exclusions, file: &ChangedFile) -> Option<AiOmitReaso
 /// Tree of the real index, written from a copy: `write-tree` on the real index would store its
 /// cache tree there and wake the file watcher.
 pub(crate) async fn index_tree_of_copy(core: &Core, repo_id: &str) -> CoreResult<String> {
-    let real = status::git_dir(core, repo_id).await?.join("index");
+    let real = crate::git::repo::git_dir(core, repo_id).await?.join("index");
     let temp = TempIndex::create(core)?;
     if real.is_file() {
         util::copy_index_file(&real, temp.path())?;

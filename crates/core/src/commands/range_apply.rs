@@ -17,9 +17,9 @@ use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
 use crate::commands::diff::{self, TempIndex};
 use crate::commands::graph;
-use crate::commands::refs::read_head;
-use crate::commands::status::{self, read_status};
+use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::repo::read_head;
 use crate::git::{errors, GitCmd};
 use crate::model::{PatchSelection, RangeApplyTarget, RepoChange, Status};
 use crate::undo::{self, GroupRecord, UndoAction};
@@ -168,7 +168,7 @@ fn apply_cmd(core: &Core, repo_id: &str, target: RangeApplyTarget, three_way: bo
 /// `--3way` needs index and file to agree, and the real index must stay untouched.
 async fn worktree_index(core: &Core, repo_id: &str, paths: &[String]) -> CoreResult<TempIndex> {
     let temp = TempIndex::create(core)?;
-    let real = status::git_dir(core, repo_id).await?.join("index");
+    let real = crate::git::repo::git_dir(core, repo_id).await?.join("index");
     if real.is_file() {
         util::copy_index_file(&real, temp.path())?;
     }

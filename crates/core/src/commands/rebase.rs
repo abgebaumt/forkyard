@@ -82,7 +82,7 @@ pub(crate) async fn prefer_hook_failure<T>(
         return Err(error);
     }
     let Some(mut hook_error) = hook_failure(ran, &REWRITE_ABORTING_HOOKS, out, what) else { return Err(error) };
-    if matches!(status::read_operation(core, repo_id).await, Ok(Some(_))) {
+    if matches!(crate::git::repo::read_operation(core, repo_id).await, Ok(Some(_))) {
         hook_error.message.push_str(" The operation is paused; you can continue or abort it.");
     }
     Err(hook_error)
@@ -133,7 +133,7 @@ pub async fn rebase_dependents(core: &Core, repo_id: String, onto: String, branc
     let repo_id = repo_id.as_str();
     let target = match branch.as_deref().map(|b| b.strip_prefix("refs/heads/").unwrap_or(b).trim()).filter(|b| !b.is_empty()) {
         Some(name) => name.to_string(),
-        None => match refs::read_head(core, repo_id).await? {
+        None => match crate::git::repo::read_head(core, repo_id).await? {
             Head::Branch { branch, .. } => branch,
             _ => return Ok(Vec::new()),
         },
@@ -150,7 +150,7 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
     let repo_id = repo_id.as_str();
     let refused = |reason, message: &str| Ok(RebasePlan::Refused { reason, detail: None, message: message.to_string() });
     // A running operation is not an error of the call but a reason the UI can explain.
-    if let Some(op) = status::read_operation(core, repo_id).await? {
+    if let Some(op) = crate::git::repo::read_operation(core, repo_id).await? {
         let name = match op.kind {
             OperationKind::Merge => "a merge",
             OperationKind::Rebase => "a rebase",
@@ -162,7 +162,7 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
             &format!("There is still {name} in progress. Finish or abort it first – then you can plan an interactive rebase."),
         );
     }
-    let (branch, head_sha) = match refs::read_head(core, repo_id).await? {
+    let (branch, head_sha) = match crate::git::repo::read_head(core, repo_id).await? {
         Head::Branch { branch, sha } => (branch, sha),
         Head::Detached { .. } => {
             return refused(
@@ -362,7 +362,7 @@ pub async fn settle_pending_undo(core: &Core, repo_id: &str) -> CoreResult<()> {
     let Some(entry) = pending_undo(core, repo_id)? else {
         return Ok(());
     };
-    if status::read_operation(core, repo_id).await?.is_some() {
+    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
         return Ok(());
     }
     settle_entry(core, repo_id, &entry).await
@@ -395,7 +395,7 @@ pub(crate) fn pending_belongs_to(entry: &UndoEntry, kind: OperationKind, ref_nam
 pub(crate) async fn settle_entry(core: &Core, repo_id: &str, entry: &UndoEntry) -> CoreResult<()> {
     let (current, before) = match &entry.ref_name {
         Some(name) => (rev_parse(core, repo_id, name).await?, entry.ref_before.clone()),
-        None => (head_sha(&refs::read_head(core, repo_id).await?), Some(entry.head_before.clone())),
+        None => (head_sha(&crate::git::repo::read_head(core, repo_id).await?), Some(entry.head_before.clone())),
     };
     let Some(current) = current.filter(|sha| Some(sha) != before.as_ref()) else {
         core.db.with(|c| db::undo::delete(c, &entry.id))?;
@@ -478,7 +478,7 @@ async fn start_rebase(
 ) -> CoreResult<OpResult> {
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let current = match &head {
         Head::Branch { branch, .. } => Some(branch.clone()),
         Head::Detached { .. } => None,
@@ -630,7 +630,7 @@ async fn conclude_rebase(core: &Core, repo_id: &str, out: &GitOutput, ctx: Rewri
         record_rewrite(core, repo_id, ctx, Some(new_tip.clone())).await;
         return Ok(Finished::Done(new_tip));
     }
-    let operation = status::read_operation(core, repo_id).await?.filter(|op| op.kind == OperationKind::Rebase);
+    let operation = crate::git::repo::read_operation(core, repo_id).await?.filter(|op| op.kind == OperationKind::Rebase);
     let Some(operation) = operation else {
         undo::delete_backup_refs(core, repo_id, &ctx.undo_id).await?;
         return Err(rebase_error(out));
@@ -723,7 +723,7 @@ async fn apply_plan(
 ) -> CoreResult<OpResult> {
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, head_sha) = require_branch(&head, "An interactive rebase")?;
     let base_sha = resolve_commit(core, repo_id, base).await?;
     if base_sha == head_sha || !is_ancestor(core, repo_id, &base_sha, &head_sha).await? {
@@ -1077,7 +1077,7 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
     require_shas(shas)?;
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, head_sha) = require_branch(&head, "Squashing")?;
 
     let mut resolve = read(core, repo_id)?.arg("rev-parse");
@@ -1190,7 +1190,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
     require_shas(shas)?;
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
-    let head = refs::read_head(core, repo_id).await?;
+    let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, old_head) = match &head {
         Head::Branch { branch, sha } => (Some(branch.clone()), sha.clone()),
         Head::Detached { sha } => (None, sha.clone()),
@@ -1243,7 +1243,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
         if out.success() {
             break None;
         }
-        let operation = status::read_operation(core, repo_id).await?.filter(|op| op.kind == OperationKind::CherryPick);
+        let operation = crate::git::repo::read_operation(core, repo_id).await?.filter(|op| op.kind == OperationKind::CherryPick);
         let Some(operation) = operation else {
             break Some(Stop::Failed);
         };
@@ -1252,7 +1252,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
             break Some(Stop::Conflict(state.unmerged, operation));
         }
         // Git only writes CHERRY_PICK_HEAD if it could apply the commit.
-        let git_dir = status::git_dir(core, repo_id).await?;
+        let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
         if !git_dir.join("CHERRY_PICK_HEAD").exists() {
             // The step at which Git failed is at the top of the list.
             let todo = std::fs::read_to_string(git_dir.join("sequencer").join("todo")).unwrap_or_default();
@@ -1370,7 +1370,7 @@ fn operation_in_progress() -> CoreError {
 }
 
 async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
-    match status::read_operation(core, repo_id).await? {
+    match crate::git::repo::read_operation(core, repo_id).await? {
         Some(_) => Err(operation_in_progress()),
         None => Ok(()),
     }
