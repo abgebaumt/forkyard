@@ -1121,8 +1121,33 @@ function pageOf(app) {
         await app.webdriver("DELETE", "/actions").catch(() => undefined);
       },
     },
-    /** The whole window as PNG (WebDriver has no clipped screenshot; comparisons use the whole picture). */
-    screenshot: async () => Buffer.from(await app.webdriver("GET", "/screenshot"), "base64"),
+    /**
+     * PNG of the window, or with `clip` of just that rectangle: WebDriver only screenshots elements, so a
+     * transparent fixed box is laid over the rectangle and shot (WebKit captures what is painted there).
+     */
+    async screenshot({ clip = null } = {}) {
+      if (!clip) return Buffer.from(await app.webdriver("GET", "/screenshot"), "base64");
+      const box = await app.exec((rect) => {
+        const el = document.createElement("div");
+        el.dataset.l3clip = "";
+        Object.assign(el.style, {
+          position: "fixed",
+          left: `${rect.x}px`,
+          top: `${rect.y}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+          pointerEvents: "none",
+          zIndex: "2147483647",
+        });
+        document.body.append(el);
+        return el;
+      }, clip);
+      try {
+        return Buffer.from(await app.webdriver("GET", `/element/${box.id}/screenshot`), "base64");
+      } finally {
+        await app.exec((el) => el.remove(), box).catch(() => undefined);
+      }
+    },
   };
 }
 
