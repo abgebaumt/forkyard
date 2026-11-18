@@ -20,7 +20,7 @@ use std::path::Path;
 use serde_json::{json, Map, Value};
 
 use crate::app::Core;
-use crate::commands::{rebase, refs, stash, status};
+use crate::commands::{rebase, stash};
 use crate::db;
 use crate::db::undo::{UndoEntry, UndoEntryState};
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -252,10 +252,10 @@ impl<'a> Probe<'a> {
     async fn new(core: &'a Core, repo_id: &'a str) -> CoreResult<(Probe<'a>, Option<Blocked>)> {
         // The running operation is recorded in the Git directory. Without any of its traces
         // none is running for sure; only otherwise is a closer look worthwhile.
-        let git_dir = status::git_dir(core, repo_id).await?;
-        let operation =
-            OPERATION_MARKERS.iter().any(|marker| git_dir.join(marker).exists()) && status::read_operation(core, repo_id).await?.is_some();
-        let (head, unmerged) = tokio::join!(refs::read_head(core, repo_id), stash::unmerged_paths(core, repo_id));
+        let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
+        let operation = OPERATION_MARKERS.iter().any(|marker| git_dir.join(marker).exists())
+            && crate::git::repo::read_operation(core, repo_id).await?.is_some();
+        let (head, unmerged) = tokio::join!(crate::git::repo::read_head(core, repo_id), stash::unmerged_paths(core, repo_id));
         let (head, unmerged) = (head?, unmerged?);
         let blocked = if operation {
             Some(Blocked::Operation)
@@ -877,7 +877,7 @@ impl Run<'_> {
         if !matches!(self.head, Head::Detached { .. }) && u::head_token(&self.head) == desired {
             return Ok(());
         }
-        let now = refs::read_head(self.core, self.repo_id).await?;
+        let now = crate::git::repo::read_head(self.core, self.repo_id).await?;
         if u::head_token(&now).eq_ignore_ascii_case(desired) {
             return Ok(());
         }
@@ -1007,7 +1007,7 @@ impl Run<'_> {
             }
         }
         self.restore_head(self.desired_head()).await?;
-        let head = refs::read_head(self.core, self.repo_id).await?;
+        let head = crate::git::repo::read_head(self.core, self.repo_id).await?;
         let current = match &head {
             Head::Branch { branch, .. } | Head::Unborn { branch } => Some(format!("refs/heads/{branch}")),
             Head::Detached { .. } => None,

@@ -61,15 +61,9 @@ pub async fn read_refs(core: &Core, repo_id: &str) -> CoreResult<RefsSnapshot> {
     let head = match parsed.locals.iter().find(|r| r.is_head) {
         Some(current) => Head::Branch { branch: current.name.clone(), sha: current.sha.clone() },
         // Detached or without a commit: for-each-ref does not tell us that.
-        None => head_at(core, &path, repo_id).await?,
+        None => crate::git::repo::head_at(core, &path, repo_id).await?,
     };
     Ok(RefsSnapshot { head, locals: parsed.locals, remotes: parsed.remotes, tags: parsed.tags })
-}
-
-/// HEAD alone: branch, detached or without a commit.
-pub async fn read_head(core: &Core, repo_id: &str) -> CoreResult<Head> {
-    let path = core.repo_path(repo_id)?;
-    head_at(core, &path, repo_id).await
 }
 
 /// `git for-each-ref <options> <patterns>` that does not fail completely because of a single
@@ -216,35 +210,6 @@ fn read_cmd(core: &Core, path: &Path, repo_id: &str) -> GitCmd {
     core.git.cmd(path).repo(repo_id).read_only().no_log()
 }
 
-async fn head_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<Head> {
-    let (symref, commit) = tokio::join!(
-        read_cmd(core, path, repo_id).args(["symbolic-ref", "-q", "HEAD"]).run_raw(),
-        read_cmd(core, path, repo_id).args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
-    );
-    let (symref, commit) = (symref?, commit?);
-    let branch = if symref.success() {
-        let full = symref.stdout_text();
-        Some(full.strip_prefix("refs/heads/").unwrap_or(&full).to_string()).filter(|b| !b.is_empty())
-    } else {
-        None
-    };
-    let sha = if commit.success() { Some(commit.stdout_text()).filter(|s| !s.is_empty()) } else { None };
-    match (branch, sha) {
-        (Some(branch), Some(sha)) => Ok(Head::Branch { branch, sha }),
-        (None, Some(sha)) => Ok(Head::Detached { sha }),
-        (Some(branch), None) => Ok(Head::Unborn { branch }),
-        (None, None) => {
-            // Neither branch nor commit: not a repository, or HEAD is broken.
-            let err = crate::git::errors::classify("rev-parse", commit.code, &symref.stderr, &commit.stderr);
-            if err.is(crate::error::ErrorCode::Unknown) {
-                Err(CoreError::unknown("Could not read the repository's HEAD.").with_git_output(commit.stderr_text()))
-            } else {
-                Err(err)
-            }
-        }
-    }
-}
-
 /// Result of `parse_for_each_ref`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ParsedRefs {
@@ -385,6 +350,7 @@ fn clean_annotation(contents: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::git::repo::read_head;
 
     /// A branch points to a commit whose object is missing: the other refs still arrive – and
     /// quickly. (Git for Windows silently stalls after "fatal: missing object" with the full

@@ -18,11 +18,13 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks, ABORTING_HOOKS};
 use crate::commands::rebase;
-use crate::commands::refs::{read_head, short_ref_name};
-use crate::commands::status::{self, read_operation, read_status};
+use crate::commands::refs::short_ref_name;
+use crate::commands::status::{self, read_status};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
+use crate::git::repo::read_head;
+use crate::git::repo::read_operation;
 use crate::git::{GitCmd, GitOutput};
 use crate::model::{
     ConflictFile, ConflictKind, ConflictSide, Head, MergeMode, OpResult, Operation, OperationKind, RepoChange, ResetMode, Status,
@@ -398,7 +400,7 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
     if !unmerged.is_empty() {
         return Ok(OpResult::Conflict { files: display_paths(&unmerged), operation: Some(op), note: None });
     }
-    let dir = status::git_dir(core, repo_id).await?;
+    let dir = crate::git::repo::git_dir(core, repo_id).await?;
     let head = read_head(core, repo_id).await?;
     let start = OperationStart::read(core, repo_id, &dir, &op, &head).await;
     // Rebase and cherry-pick started from the app left an open undo entry on the conflict.
@@ -608,7 +610,7 @@ async fn abort_past_leftovers(core: &Core, repo_id: &str, subcommand: &str, fail
         .map(|file| file.trim().to_string())
         .filter(|file| !file.is_empty())
         .collect();
-    let dir = status::git_dir(core, repo_id).await?;
+    let dir = crate::git::repo::git_dir(core, repo_id).await?;
     let target = ["rebase-merge/orig-head", "rebase-apply/orig-head"]
         .iter()
         .find_map(|name| std::fs::read_to_string(dir.join(name)).ok())
@@ -673,7 +675,7 @@ impl ExtraWork {
             return Ok(None);
         }
         let mut touched: HashSet<Vec<u8>> = read_unmerged(core, repo_id).await?.into_iter().map(|entry| entry.path).collect();
-        let dir = status::git_dir(core, repo_id).await?;
+        let dir = crate::git::repo::git_dir(core, repo_id).await?;
         let lines = |name: &str| -> Vec<String> {
             std::fs::read_to_string(dir.join(name))
                 .map(|text| text.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
@@ -987,7 +989,7 @@ impl SavedState {
 /// and ignored here are overwritten by Git without a prompt – they are therefore included in
 /// the backup even though `add -A` leaves them out.
 async fn save_state(core: &Core, repo_id: &str, head: &str, with_worktree: bool, overwrites: Option<&str>) -> CoreResult<SavedState> {
-    let dir = status::git_dir(core, repo_id).await?;
+    let dir = crate::git::repo::git_dir(core, repo_id).await?;
     let index_tree = match core.git_for(repo_id)?.no_log().arg("write-tree").run().await {
         Ok(out) => Some(out.stdout_text()).filter(|t| !t.is_empty()),
         Err(e) if e.is(ErrorCode::Locked) => return Err(e),
@@ -1362,7 +1364,7 @@ fn identity_missing() -> CoreError {
 
 async fn no_operation(core: &Core, repo_id: &str) -> CoreError {
     // The app does not control a `git am` from the terminal – it says so instead of "nothing is running".
-    if status::foreign_am(core, repo_id).await {
+    if crate::git::repo::foreign_am(core, repo_id).await {
         return CoreError::not_allowed(
             "A “git am” (applying patches) started outside Forkyard is in progress. The app can’t continue or abort it. In a terminal, use “git am --continue” to continue or “git am --abort” to go back.",
         );
@@ -1440,7 +1442,7 @@ async fn ensure_no_unmerged(core: &Core, repo_id: &str) -> CoreResult<()> {
 
 /// A foreign `index.lock` is reported, never deleted.
 async fn ensure_index_unlocked(core: &Core, repo_id: &str) -> CoreResult<()> {
-    let dir = status::git_dir(core, repo_id).await?;
+    let dir = crate::git::repo::git_dir(core, repo_id).await?;
     if dir.join("index.lock").exists() {
         return Err(CoreError::locked(
             "Another Git program is currently working in this repository (lock file present). Wait or close the other program.",

@@ -23,7 +23,6 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Map, Value};
 
 use crate::app::Core;
-use crate::commands::status;
 use crate::db::{self, undo::UndoEntry, undo::UndoEntryState};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd, GitOutput};
@@ -443,7 +442,7 @@ async fn add_and_write_tree(core: &Core, repo_id: &str, index: &TempIndex, paths
 /// is then unspecified (index or HEAD state) and is not touched when restoring. The real
 /// index stays untouched.
 pub async fn worktree_tree(core: &Core, repo_id: &str, paths: Option<&[String]>) -> CoreResult<String> {
-    let git_dir = status::git_dir(core, repo_id).await?;
+    let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
     let copy = copy_index(&git_dir);
     tree_from(core, repo_id, &git_dir, copy, paths).await
 }
@@ -508,7 +507,7 @@ pub struct Snapshot {
 
 /// Like `snapshot_worktree`, additionally returns the backup's tree.
 pub async fn snapshot(core: &Core, repo_id: &str, paths: Option<&[String]>) -> CoreResult<Snapshot> {
-    let git_dir = status::git_dir(core, repo_id).await?;
+    let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
     // Copy first, then continue in parallel: `write-tree` may rewrite the real index meanwhile.
     let copy = copy_index(&git_dir);
     let (tree, head, index_tree) = tokio::join!(
@@ -590,7 +589,7 @@ async fn raw_overlay_commit(core: &Core, repo_id: &str, head: &str, tree: &str, 
     if !checkout_converts {
         return Ok(None);
     }
-    let git_dir = status::git_dir(core, repo_id).await?;
+    let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
     let index = TempIndex::new(&git_dir);
     let mut info = Vec::new();
     for ((path, change), id) in candidates.iter().zip(&ids) {
@@ -917,7 +916,7 @@ pub async fn plan_restore(
         None => None,
     };
     let mut blocked: Vec<String> = Vec::new();
-    let git_dir = status::git_dir(core, repo_id).await?;
+    let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
     for (path, change) in diff_raw(core, repo_id, current, &target_tree, paths).await? {
         if let Some((since, wanted)) = &known {
             if !wanted.contains(&path) {
@@ -1037,7 +1036,7 @@ pub async fn apply_restore(core: &Core, repo_id: &str, plan: &RestorePlan) -> Co
     for path in &plan.retype {
         remove_worktree_file(&root, path)?;
     }
-    let git_dir = status::git_dir(core, repo_id).await?;
+    let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
     let index = TempIndex::new(&git_dir);
     core.git_for(repo_id)?.args(["read-tree", &plan.target_tree]).env("GIT_INDEX_FILE", &index.0).no_log().run().await?;
     if !plan.merged.is_empty() {

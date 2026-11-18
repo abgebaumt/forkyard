@@ -383,7 +383,7 @@ pub async fn remote_remove(core: &Core, repo_id: String, name: String) -> CoreRe
     core.with_write_lock(&repo_id, &[RepoChange::Config, RepoChange::Refs], async {
         let existing = read_remotes(core, &repo_id).await?;
         let current = existing.iter().find(|r| r.name == name).cloned().ok_or_else(|| missing_remote(&name))?;
-        let head = head_marker(&crate::commands::refs::read_head(core, &repo_id).await?);
+        let head = head_marker(&crate::git::repo::read_head(core, &repo_id).await?);
 
         // What disappears with the remote: its remote branches and the upstream entries of local branches.
         let prefix = format!("refs/remotes/{name}/");

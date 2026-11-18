@@ -195,7 +195,7 @@ async fn rebase_conflict_leaves_a_continuable_rebase_and_an_open_undo_entry() {
     assert_eq!(operation.source.as_deref(), Some("feature"));
     assert_eq!(operation.target.as_deref(), Some("main"));
     assert_eq!((operation.step, operation.total_steps), (Some(1), Some(2)));
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), Some(operation));
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), Some(operation));
     assert_eq!(changed_events(&tc), 1);
 
     // The entry knows the old tip but is still open.
@@ -230,7 +230,7 @@ async fn rebase_conflict_leaves_a_continuable_rebase_and_an_open_undo_entry() {
     repo.git(&["add", "-A"]);
     let out = git_continue(&tc, &id, "rebase").await;
     assert!(out.success(), "{}", out.stderr_text());
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(repo.current_branch(), "feature");
     assert_eq!(subjects(&repo, "main..feature"), ["Feature ändert", "Feature ergänzt"]);
 
@@ -327,7 +327,7 @@ async fn foreign_index_lock_is_reported_and_changes_nothing() {
     assert_eq!(repo.head(), tip);
     std::fs::remove_file(&lock).unwrap();
     assert_eq!(repo.current_branch(), "feature");
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert!(undo::next_undo(&tc, &id, "").unwrap().is_none());
     assert_eq!(repo.git(&["for-each-ref", "refs/forkyard"]), "", "no backup refs are left behind");
 }
@@ -361,7 +361,7 @@ async fn untracked_file_in_the_way_stops_without_being_overwritten() {
     let err = rebase_start(&tc, id.clone(), "main".into(), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::DirtyWorktree, "{err:?}");
     assert!(err.message.starts_with("Untracked files"), "{}", err.message);
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!((repo.head(), repo.current_branch()), (old_tip.clone(), "feature".to_string()));
     assert_eq!(
         repo.read_file("x.txt"),
@@ -382,7 +382,7 @@ async fn untracked_file_in_the_way_stops_without_being_overwritten() {
     assert_eq!(err.code, ErrorCode::DirtyWorktree, "{err:?}");
     assert!(err.message.contains("paused"), "{}", err.message);
     assert!(err.git_output.is_some());
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap().map(|o| o.kind), Some(OperationKind::Rebase));
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap().map(|o| o.kind), Some(OperationKind::Rebase));
     assert_eq!(
         repo.read_file("y.txt"),
         b"unverfolgt
@@ -425,7 +425,7 @@ async fn cherry_pick_does_not_skip_a_commit_that_could_not_be_applied() {
     let err = cherry_pick(&tc, id.clone(), vec![x2.clone()]).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::DirtyWorktree, "{err:?}");
     assert_eq!(repo.head(), old_head);
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert!(undo::next_undo(&tc, &id, "").unwrap().is_none());
 
     // In a sequence: what has been applied stays; the rest is neither skipped nor left behind as a
@@ -438,7 +438,7 @@ async fn cherry_pick_does_not_skip_a_commit_that_could_not_be_applied() {
         assert!(err.message.contains("(1 of 2 applied)"), "{}", err.message);
         assert!(err.git_output.is_some());
         assert_eq!(subjects(&repo, &format!("{old_head}..HEAD")), ["X1"]);
-        assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+        assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
         assert_eq!(
             repo.read_file("y.txt"),
             b"unverfolgt
@@ -605,7 +605,7 @@ async fn apply_runs_every_action_and_a_new_order() {
     assert_eq!(repo.read_file("a.txt"), b"a\n");
     assert_eq!(repo.read_file("Ordner mit Leerzeichen/Ümlaut.txt"), b"e\r\nohne Ende");
     assert_eq!(repo.git(&["status", "--porcelain"]), "");
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(changed_events(&tc), 1);
 
     let entry = top_undo(&tc, &id);
@@ -802,13 +802,13 @@ async fn apply_conflict_can_be_continued_and_keeps_the_planned_messages() {
     repo.git(&["add", "f.txt"]);
     let out = git_continue(&tc, &id, "rebase").await;
     assert!(!out.success(), "A collides afterwards as well");
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap().map(|o| o.kind), Some(OperationKind::Rebase));
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap().map(|o| o.kind), Some(OperationKind::Rebase));
     repo.write_file("f.txt", "2 und 3\n");
     repo.git(&["add", "f.txt"]);
     let out = git_continue(&tc, &id, "rebase").await;
     assert!(out.success(), "{}", out.stderr_text());
 
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(repo.current_branch(), "main");
     assert_eq!(subjects(&repo, &format!("{base}..HEAD")), ["B: f auf 3", "A neu", "C und D"]);
     assert_eq!(message(&repo, "HEAD~1"), "A neu\n\nnach dem Konflikt");
@@ -1022,7 +1022,7 @@ async fn cherry_pick_three_commits_with_a_conflict_at_the_second() {
     repo.git(&["add", "-A"]);
     let out = git_continue(&tc, &id, "cherry-pick").await;
     assert!(out.success(), "{}", out.stderr_text());
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(subjects(&repo, &format!("{old_head}..HEAD")), ["X1: neue Datei", "X2: ändert gemeinsam", "X3: noch eine Datei"]);
     assert_eq!(repo.read_file("Ordner mit Leerzeichen/x3 ü.txt"), b"3\r\nohne Ende");
 
@@ -1091,7 +1091,7 @@ async fn cherry_pick_skips_commits_whose_change_is_already_there() {
     // Only already included changes: nothing happens, nothing is left hanging.
     assert_eq!(cherry_pick(&tc, id.clone(), vec![dup.clone()]).await.unwrap(), OpResult::UpToDate);
     assert_eq!(repo.head(), old_head);
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert!(undo::next_undo(&tc, &id, "").unwrap().is_none());
 
     // Mixed: the new commit arrives, the other two are skipped.
@@ -1103,7 +1103,7 @@ async fn cherry_pick_skips_commits_whose_change_is_already_there() {
         other => panic!("{other:?}"),
     }
     assert_eq!(subjects(&repo, &format!("{old_head}..HEAD")), ["Q auf quelle"]);
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(repo.git(&["status", "--porcelain"]), "");
     assert_eq!(top_undo(&tc, &id).payload["count"], 1);
 
@@ -1114,10 +1114,10 @@ async fn cherry_pick_skips_commits_whose_change_is_already_there() {
     let result = pick_commits(&tc, &id, &picks, false, &touched).await.unwrap();
     assert!(matches!(&result, OpResult::Done { summary, .. } if summary.starts_with("Cherry-picked 1 commit. Skipped 2")), "{result:?}");
     assert_eq!(subjects(&repo, &format!("{old_head}..HEAD")), ["Q auf quelle"]);
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     repo.git(&["reset", "-q", "--hard", &old_head]);
     assert_eq!(pick_commits(&tc, &id, &picks[..1], false, &touched).await.unwrap(), OpResult::UpToDate);
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(repo.git(&["status", "--porcelain"]), "");
 
     // A commit that is empty from the start is intended and is kept.
@@ -1207,7 +1207,7 @@ async fn helper_with_spaces_in_its_path_works_through_git_and_a_missing_one_is_r
     assert!(err.git_output.is_some());
     assert_eq!(repo.head(), tip);
     assert_eq!(repo.current_branch(), "main");
-    assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
+    assert_eq!(crate::git::repo::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!(
         repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard"]).lines().count(),
         2,

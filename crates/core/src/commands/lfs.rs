@@ -126,8 +126,7 @@ fn check_pattern(pattern: &str) -> CoreResult<String> {
 /// filters the files would be committed normally, without `pre-push` they would never be uploaded.
 async fn ensure_installed_in_repo(core: &Core, repo_id: &str) -> CoreResult<()> {
     let filter = core.git_for(repo_id)?.args(["config", "--get", "filter.lfs.process"]).read_only().no_log().run_raw().await?;
-    let hook =
-        crate::commands::status::git_dir(core, repo_id).await.map(|dir| dir.join("hooks").join("pre-push").is_file()).unwrap_or(false);
+    let hook = crate::git::repo::git_dir(core, repo_id).await.map(|dir| dir.join("hooks").join("pre-push").is_file()).unwrap_or(false);
     if filter.success() && hook {
         return Ok(());
     }

@@ -7,11 +7,13 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::commit::head_label;
-use crate::commands::refs::{read_head, read_refs, short_ref_name};
-use crate::commands::status::{parse_porcelain_v2, read_operation, read_status};
+use crate::commands::refs::{read_refs, short_ref_name};
+use crate::commands::status::{parse_porcelain_v2, read_status};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
+use crate::git::repo::read_head;
+use crate::git::repo::read_operation;
 use crate::model::{Head, OpResult, OperationKind, RefNameCheck, RefNameKind, RefsSnapshot, RepoChange, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
@@ -330,7 +332,7 @@ pub(crate) async fn check_new_name(
             RefNameKind::Branch => "refs/heads/",
             RefNameKind::Tag => "refs/tags/",
         };
-        if let Ok(git_dir) = crate::commands::status::git_dir(core, repo_id).await {
+        if let Ok(git_dir) = crate::git::repo::git_dir(core, repo_id).await {
             let base = git_dir.as_os_str().to_string_lossy().encode_utf16().count() + 1 + prefix.len() + ".lock".len();
             let length = name.encode_utf16().count();
             if base + length > 259 {

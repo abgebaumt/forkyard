@@ -10,7 +10,7 @@ use serde_json::{json, Map, Value};
 
 use crate::ai::schema;
 use crate::app::Core;
-use crate::commands::{branches, commit, merge, rebase, stash, status, sync, tags};
+use crate::commands::{branches, commit, merge, rebase, stash, sync, tags};
 use crate::error::ErrorCode;
 use crate::error::{CoreError, CoreResult};
 use crate::model::PlanArgKind::{Boolean, Choice, List, OptionalChoice, OptionalText, Text};
@@ -449,7 +449,7 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
 /// settles its open undo entry). Only an operation the step itself started is aborted: the user may
 /// start a rebase or merge of their own while a plan runs.
 async fn settle(core: &Core, repo_id: &str, step: impl std::future::Future<Output = CoreResult<OpResult>>) -> CoreResult<()> {
-    let before = status::read_operation(core, repo_id).await?;
+    let before = crate::git::repo::read_operation(core, repo_id).await?;
     match step.await {
         Ok(OpResult::Conflict { files, .. }) => {
             merge::operation_abort(core, repo_id.to_string()).await?;
@@ -460,7 +460,10 @@ async fn settle(core: &Core, repo_id: &str, step: impl std::future::Future<Outpu
         }
         Ok(OpResult::Done { .. } | OpResult::UpToDate) => Ok(()),
         Err(error) => {
-            if before.is_none() && error.code != ErrorCode::OperationInProgress && status::read_operation(core, repo_id).await?.is_some() {
+            if before.is_none()
+                && error.code != ErrorCode::OperationInProgress
+                && crate::git::repo::read_operation(core, repo_id).await?.is_some()
+            {
                 merge::operation_abort(core, repo_id.to_string()).await?;
             }
             Err(error)

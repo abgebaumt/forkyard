@@ -714,7 +714,7 @@ mod tests {
         assert_eq!(git_in(&target, &["log", "--format=%s|%an|%ae"]), format!("{INITIAL_COMMIT_MESSAGE}|Erika Müller|erika@example.com"));
         assert_eq!(git_in(&target, &["ls-tree", "--name-only", "HEAD"]), ".gitignore\nLICENSE\nREADME.md");
         assert_eq!(git_in(&target, &["status", "--porcelain"]), "");
-        let head = crate::commands::refs::read_head(&tc, &opened.repo.id).await.unwrap();
+        let head = crate::git::repo::read_head(&tc, &opened.repo.id).await.unwrap();
         assert!(matches!(head, Head::Branch { ref branch, .. } if branch == "trunk"), "{head:?}");
     }
 

@@ -9,7 +9,6 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::refs;
 use crate::commands::review_fix::{self, PrRange};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::host::{self, RepoApi};
@@ -198,7 +197,7 @@ pub async fn finish(core: &Core, repo_id: &str, ctx: &ReviewFixContext, value: &
     let new_text = value["newText"].as_str().unwrap_or("").to_string();
     let patch = review_fix::line_patch(&ctx.path, &ctx.blob, start, end, &new_text)?;
     let target = review_fix::fixup_target(core, repo_id, &ctx.range, &ctx.path, ctx.lines.0, ctx.lines.1).await?;
-    let on_branch = matches!(refs::read_head(core, repo_id).await?, Head::Branch { branch, .. } if branch == ctx.branch);
+    let on_branch = matches!(crate::git::repo::read_head(core, repo_id).await?, Head::Branch { branch, .. } if branch == ctx.branch);
     Ok(AiReviewFix {
         thread_id: ctx.thread.id.clone(),
         path: ctx.path.clone(),

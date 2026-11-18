@@ -9,7 +9,6 @@ use std::collections::{HashMap, HashSet};
 use serde_json::json;
 
 use crate::app::Core;
-use crate::commands::refs;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitOutput};
 use crate::model::{Head, OpResult, RepoChange, Stash, StashSelection, Status};
@@ -594,7 +593,7 @@ pub async fn stash_create(
     let message = message.map(|m| one_line(&m)).filter(|m| !m.is_empty());
     core.idempotent(&op_id, async {
         core.with_write_lock(&repo_id, &[RepoChange::Stash, RepoChange::Worktree, RepoChange::Index], async {
-            let head = refs::read_head(core, &repo_id).await?;
+            let head = crate::git::repo::read_head(core, &repo_id).await?;
             if matches!(head, Head::Unborn { .. }) {
                 return Err(CoreError::not_allowed("A stash needs at least one commit. Commit first."));
             }
@@ -695,7 +694,7 @@ async fn nothing_to_stash(core: &Core, repo_id: &str, include_untracked: bool) -
 }
 
 async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, expected_sha: Option<&str>, pop: bool) -> CoreResult<OpResult> {
-    let (rows, head) = tokio::join!(read_rows(core, repo_id), refs::read_head(core, repo_id));
+    let (rows, head) = tokio::join!(read_rows(core, repo_id), crate::git::repo::read_head(core, repo_id));
     let (rows, head) = (rows?, head?);
     let row = row_checked(&rows, index, expected_sha)?;
     // State before the pop, so that undo finds its way back exactly there.
@@ -872,7 +871,7 @@ pub async fn stash_apply_paths(
             diff.stdout
         };
 
-        let head = refs::read_head(core, repo_id).await?;
+        let head = crate::git::repo::read_head(core, repo_id).await?;
         let raw: Vec<Vec<u8>> = wanted.iter().map(|rel| rel.as_bytes().to_vec()).collect();
         let backup = crate::commands::stage::Backup::create(core, repo_id, &head, Some(&raw)).await?;
         let written: CoreResult<()> = async {

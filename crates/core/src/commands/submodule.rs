@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::{remotes, status};
+use crate::commands::remotes;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
 use crate::jobs::Job;
@@ -306,7 +306,7 @@ async fn add_job(core: &Core, repo_id: &str, job: &Job, url: &str, path: &str) -
     let changes = [RepoChange::Worktree, RepoChange::Index, RepoChange::Config];
     core.with_write_lock(repo_id, &changes, async {
         job.token().check()?;
-        let git_dir = status::git_dir(core, repo_id).await?;
+        let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
         let gitmodules = root.join(".gitmodules");
         let before = std::fs::read(&gitmodules).ok();
         // If a Git directory of this name already existed under .git/modules (Git deliberately leaves it
@@ -537,7 +537,7 @@ pub async fn submodule_remove(core: &Core, repo_id: String, path: String, force:
             }
         }
         let name = sub.name.clone();
-        let git_dir = status::git_dir(core, repo_id).await?;
+        let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
         let git = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.env(LITERAL, "1")) };
         // deinit does not fail for an uninitialised submodule; `-f` also takes local changes.
         git()?.args(["submodule", "deinit", "-f", "--"]).arg(&rel).run().await?;

@@ -12,10 +12,10 @@ use crate::ai::{self, run::AiRequest};
 use crate::app::Core;
 use crate::commands::graph::{is_full_sha, read_cmd, resolve_commit};
 use crate::commands::refs::for_each_ref;
-use crate::commands::status::{self, read_operation};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
+use crate::git::repo::read_operation;
 use crate::model::{AiFeature, BisectAutopilot, BisectScript, BisectScriptRequest, BisectShell, BisectStatus, BisectVerdict, RepoChange};
 use crate::util;
 
@@ -148,7 +148,7 @@ async fn mark_locked(core: &Core, repo_id: &str, verdict: BisectVerdict, sha: Op
     if !read_bisect(core, repo_id).await?.active {
         return Err(no_bisect());
     }
-    let terms = read_terms(&status::git_dir(core, repo_id).await?);
+    let terms = read_terms(&crate::git::repo::git_dir(core, repo_id).await?);
     let word = match verdict {
         BisectVerdict::Good => terms.good,
         BisectVerdict::Bad => terms.bad,
@@ -204,7 +204,7 @@ pub(crate) async fn read_bisect(core: &Core, repo_id: &str) -> CoreResult<Bisect
 /// `BISECT_*` lie in its own Git directory (`.git/worktrees/<name>` for a linked one) and
 /// `refs/bisect/*` are per-worktree refs.
 pub(crate) async fn read_bisect_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<BisectStatus> {
-    let dir = status::git_dir_at(core, path, repo_id).await?;
+    let dir = crate::git::repo::git_dir_at(core, path, repo_id).await?;
     if !dir.join("BISECT_START").is_file() {
         return Ok(BisectStatus::default());
     }

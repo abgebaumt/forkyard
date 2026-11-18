@@ -7,7 +7,7 @@
 
 use crate::app::Core;
 use crate::commands::diff::TempIndex;
-use crate::commands::status::{self, read_status};
+use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
 use crate::model::{DiffSource, PatchText, RepoChange, Status};
@@ -161,7 +161,7 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             // `git diff` does not know untracked files. In a copy of the index they are marked as
             // "intent to add" – then the diff shows them as new files; the real index stays untouched.
             let temp = TempIndex::create(core)?;
-            let real = status::git_dir(core, repo_id).await?.join("index");
+            let real = crate::git::repo::git_dir(core, repo_id).await?.join("index");
             if real.is_file() {
                 util::copy_index_file(&real, temp.path())?;
             }
@@ -331,7 +331,7 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
             return read_status(core, repo_id).await;
         }
         let paths = touched_paths(core, repo_id, &text).await?;
-        let head = crate::commands::refs::read_head(core, repo_id).await?;
+        let head = crate::git::repo::read_head(core, repo_id).await?;
         let backup = crate::commands::stage::Backup::create(core, repo_id, &head, Some(&paths)).await?;
         let out = match apply()?.stdin(text).run_raw().await {
             Ok(out) => out,

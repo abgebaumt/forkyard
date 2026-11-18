@@ -26,11 +26,12 @@ use crate::app::Core;
 use crate::commands::branches::{self, BranchInfo};
 use crate::commands::commit::{head_label, hook_failure, Hooks, ABORTING_HOOKS};
 use crate::commands::merge::stopped_or_failed;
-use crate::commands::refs::read_head;
-use crate::commands::status::{self, read_operation};
+use crate::commands::status;
 use crate::commands::sync::{self, PushRequest};
 use crate::commands::tags;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::repo::read_head;
+use crate::git::repo::read_operation;
 use crate::jobs::Job;
 use crate::model::{
     GitflowBranch, GitflowFinishOptions, GitflowKind, GitflowPrefixes, GitflowStatus, Head, OpResult, PushResult, RefNameKind, RepoChange,
