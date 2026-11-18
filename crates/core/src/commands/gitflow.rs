@@ -33,8 +33,7 @@ use crate::commands::tags;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::Job;
 use crate::model::{
-    GitflowBranch, GitflowFinishOptions, GitflowKind, GitflowPrefixes, GitflowStatus, Head, OpResult, PushResult, RefNameKind,
-    RepoChange,
+    GitflowBranch, GitflowFinishOptions, GitflowKind, GitflowPrefixes, GitflowStatus, Head, OpResult, PushResult, RefNameKind, RepoChange,
 };
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
@@ -167,7 +166,8 @@ pub async fn gitflow_init(
     core.with_write_lock(repo_id, &[RepoChange::Config, RepoChange::Refs], async {
         let (main, develop) = (main.trim(), develop.trim());
         for (what, name) in [("main branch", main), ("development branch", develop)] {
-            util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("“{name}” isn’t a valid name for the {what}: {reason}")))?;
+            util::check_ref_name(name)
+                .map_err(|reason| CoreError::invalid_name(format!("“{name}” isn’t a valid name for the {what}: {reason}")))?;
         }
         if main == develop {
             return Err(CoreError::not_allowed("The main and development branches must be two different branches."));
@@ -175,9 +175,7 @@ pub async fn gitflow_init(
         let prefixes = prefixes.unwrap_or_default();
         check_prefixes(&prefixes)?;
         if matches!(read_head(core, repo_id).await?, Head::Unborn { .. }) {
-            return Err(CoreError::not_allowed(
-                "The repository has no commits yet. You can set up Gitflow only after the first commit.",
-            ));
+            return Err(CoreError::not_allowed("The repository has no commits yet. You can set up Gitflow only after the first commit."));
         }
         let existing = branches::local_branches(core, repo_id).await?;
         if !existing.iter().any(|b| b.name == main) {
@@ -233,8 +231,9 @@ fn check_prefixes(prefixes: &GitflowPrefixes) -> CoreResult<()> {
         }
     }
     if !prefixes.version_tag.is_empty() {
-        util::check_ref_name(&format!("{}1.0", prefixes.version_tag))
-            .map_err(|reason| CoreError::invalid_name(format!("“{}” can’t be used as a prefix for version tags: {reason}", prefixes.version_tag)))?;
+        util::check_ref_name(&format!("{}1.0", prefixes.version_tag)).map_err(|reason| {
+            CoreError::invalid_name(format!("“{}” can’t be used as a prefix for version tags: {reason}", prefixes.version_tag))
+        })?;
     }
     Ok(())
 }
@@ -246,7 +245,13 @@ fn check_prefixes(prefixes: &GitflowPrefixes) -> CoreResult<()> {
 /// Creates `<prefix><name>` and checks it out. Starting point without `base`: feature and
 /// release from the development branch, hotfix from the main branch. There is at most one
 /// release and one hotfix branch at a time.
-pub async fn gitflow_start(core: &Core, repo_id: String, kind: GitflowKind, name: String, base: Option<String>) -> CoreResult<GitflowStatus> {
+pub async fn gitflow_start(
+    core: &Core,
+    repo_id: String,
+    kind: GitflowKind,
+    name: String,
+    base: Option<String>,
+) -> CoreResult<GitflowStatus> {
     let repo_id = repo_id.as_str();
     core.with_write_lock(repo_id, &START_CHANGES, async {
         let (state, existing) = read_state(core, repo_id).await?;
@@ -336,10 +341,9 @@ pub async fn gitflow_finish(
         core.emit_repo_changed(repo_id, &[RepoChange::Refs, RepoChange::Config]);
         match pushed {
             Ok(()) => Ok(OpResult::Done { sha: sha.clone(), fast_forward: *fast_forward, summary: format!("{summary}; pushed") }),
-            Err(e) => Err(CoreError {
-                message: format!("{} is finished locally, but the push failed: {}", kind_label(kind), e.message),
-                ..e
-            }),
+            Err(e) => {
+                Err(CoreError { message: format!("{} is finished locally, but the push failed: {}", kind_label(kind), e.message), ..e })
+            }
         }
     }
     .await;
@@ -406,7 +410,8 @@ impl Progress<'_> {
                 }
             }
             let steps: Vec<_> = self.steps.iter().map(|s| json!({ "ref": s.name, "before": s.before, "after": s.after })).collect();
-            let upstreams: Vec<_> = self.upstreams.iter().map(|(branch, upstream)| json!({ "branch": branch, "upstream": upstream })).collect();
+            let upstreams: Vec<_> =
+                self.upstreams.iter().map(|(branch, upstream)| json!({ "branch": branch, "upstream": upstream })).collect();
             undo::record(
                 self.core,
                 UndoRecord {
@@ -478,23 +483,19 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
         ));
     }
     if !status::identity_set(core, repo_id).await? {
-        return Err(CoreError::new(
-            ErrorCode::IdentityMissing,
-            "Name and email for commits aren’t set.",
-        ));
+        return Err(CoreError::new(ErrorCode::IdentityMissing, "Name and email for commits aren’t set."));
     }
 
     // Tag: check the name and detect an existing one of the same name before anything is merged.
     let tag = match main {
         Some(main) if !options.no_tag => {
-            let tag = util::non_empty(options.tag.as_ref().map(|t| t.trim().to_string())).unwrap_or_else(|| format!("{}{name}", state.prefixes.version_tag));
+            let tag = util::non_empty(options.tag.as_ref().map(|t| t.trim().to_string()))
+                .unwrap_or_else(|| format!("{}{name}", state.prefixes.version_tag));
             util::check_ref_name(&tag).map_err(|reason| CoreError::invalid_name(format!("“{tag}” isn’t a valid tag name: {reason}")))?;
             if let Some(commit) = undo::rev_parse(core, repo_id, &format!("refs/tags/{tag}^{{commit}}")).await? {
                 let resumed = commit == main.sha && branches::is_ancestor(core, repo_id, &source.sha, &main.sha).await?;
                 if !resumed {
-                    return Err(CoreError::name_exists(format!(
-                        "A tag named “{tag}” already exists. Enter a different name for the tag."
-                    )));
+                    return Err(CoreError::name_exists(format!("A tag named “{tag}” already exists. Enter a different name for the tag.")));
                 }
             }
             Some(tag)
@@ -525,7 +526,11 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
         };
         match merged {
             MergeStep::Merged(new) => {
-                progress.steps.push(Step { name: format!("refs/heads/{}", target.name), before: Some(target.sha.clone()), after: Some(new) });
+                progress.steps.push(Step {
+                    name: format!("refs/heads/{}", target.name),
+                    before: Some(target.sha.clone()),
+                    after: Some(new),
+                });
                 done.push(format!("merged into {}", target.name));
             }
             MergeStep::AlreadyMerged => {}
@@ -566,7 +571,8 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
         if options.delete_branch {
             let full = format!("refs/heads/{}", source.name);
             core.git_for(repo_id)?.args(["update-ref", "-m", "forkyard: Gitflow finished", "-d", &full, &source.sha]).run().await?;
-            let _ = core.git_for(repo_id)?.args(["config", "--remove-section", &format!("branch.{}", source.name)]).no_log().run_raw().await;
+            let _ =
+                core.git_for(repo_id)?.args(["config", "--remove-section", &format!("branch.{}", source.name)]).no_log().run_raw().await;
             if let Some(upstream) = &source.upstream {
                 progress.upstreams.push((source.name.clone(), crate::commands::refs::short_ref_name(upstream).to_string()));
             }
@@ -591,7 +597,10 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
         pushes.push(PushTarget::Tag(tag));
     }
     let sha = undo::rev_parse(core, repo_id, &format!("refs/heads/{}", develop.name)).await?;
-    Ok(Finished { result: OpResult::Done { sha, fast_forward: false, summary: format!("{what} “{name}” finished: {}", done.join(", ")) }, pushes })
+    Ok(Finished {
+        result: OpResult::Done { sha, fast_forward: false, summary: format!("{what} “{name}” finished: {}", done.join(", ")) },
+        pushes,
+    })
 }
 
 /// Merges `source` into `target` with a merge commit (checks out `target` for that). If `source`
@@ -624,7 +633,15 @@ async fn merge_into(core: &Core, repo_id: &str, target: &BranchInfo, source: &Br
 
 /// Annotated tag on the tip of `main`. `None`: it was already there (second attempt).
 /// Otherwise the SHA of the tag object.
-async fn create_tag(core: &Core, repo_id: &str, kind: GitflowKind, name: &str, tag: &str, main: &str, message: Option<&str>) -> CoreResult<Option<String>> {
+async fn create_tag(
+    core: &Core,
+    repo_id: &str,
+    kind: GitflowKind,
+    name: &str,
+    tag: &str,
+    main: &str,
+    message: Option<&str>,
+) -> CoreResult<Option<String>> {
     let full = format!("refs/tags/{tag}");
     let tip = undo::rev_parse(core, repo_id, &format!("refs/heads/{main}^{{commit}}")).await?.ok_or_else(CoreError::stale_state)?;
     if let Some(commit) = undo::rev_parse(core, repo_id, &format!("{full}^{{commit}}")).await? {
@@ -659,7 +676,8 @@ async fn push_all(core: &Core, repo_id: &str, job: &Job, targets: &[PushTarget])
                     tag_remote = remote.clone();
                 }
                 let remote = if upstream.is_some() { None } else { Some(fallback.as_str()) };
-                let request = PushRequest { branch: Some(branch), remote, remote_branch: None, force: false, expected: None, accepted_secrets: None };
+                let request =
+                    PushRequest { branch: Some(branch), remote, remote_branch: None, force: false, expected: None, accepted_secrets: None };
                 (format!("Branch “{branch}”"), sync::push_transfer(core, repo_id, job.token(), Some(job), request).await?)
             }
             PushTarget::Tag(tag) => (format!("Tag “{tag}”"), tags::push_tag(core, repo_id, job, tag, &tag_remote, None).await?),

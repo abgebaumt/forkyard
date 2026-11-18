@@ -5,8 +5,8 @@ use serde_json::json;
 
 use super::*;
 use crate::commands::commit::commit_create;
-use crate::commands::settings::{repo_settings_get, repo_settings_set};
 use crate::commands::gitflow::{gitflow_finish, gitflow_init, gitflow_start};
+use crate::commands::settings::{repo_settings_get, repo_settings_set};
 use crate::commands::tags::{tag_create, tag_push, tag_push_checked};
 use crate::events::names;
 use crate::model::RepoSettings;
@@ -83,7 +83,11 @@ fn secrets_found_reaches_the_ui_as_a_push_result() {
 async fn a_push_with_a_key_stops_until_exactly_these_findings_are_accepted() {
     let f = fixture().await;
     let before = f.repo.head();
-    f.repo.commit_file("einstellungen/dienst.py", format!("REGION = \"eu-central-1\"\nAWS_ZUGANG = \"{}\"\n", fake_key()), "Dienst anbinden");
+    f.repo.commit_file(
+        "einstellungen/dienst.py",
+        format!("REGION = \"eu-central-1\"\nAWS_ZUGANG = \"{}\"\n", fake_key()),
+        "Dienst anbinden",
+    );
 
     let stopped = push(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None).await.unwrap();
     assert_eq!(places(&stopped), vec![("einstellungen/dienst.py".to_string(), 2, SecretRule::KnownToken)]);
@@ -121,10 +125,14 @@ async fn every_kind_of_push_is_checked() {
     f.repo.commit_file("zugang.env", format!("AWS={}\n", fake_key()), "Zugang");
     f.repo.checkout("main");
     let extra = vec![PushExtra { local: "refs/heads/feature/zugang".into(), remote_name: None, force: false, expected: None }];
-    let stopped = push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra.clone()), Some(true), None).await.unwrap();
+    let stopped =
+        push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra.clone()), Some(true), None).await.unwrap();
     assert_eq!(places(&stopped), vec![("zugang.env".to_string(), 1, SecretRule::KnownToken)]);
     assert_eq!(remote_sha(&f.remote, "refs/heads/feature/zugang"), None);
-    let pushed = push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(true), Some(ids(&stopped))).await.unwrap();
+    let pushed =
+        push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(true), Some(ids(&stopped)))
+            .await
+            .unwrap();
     let PushResult::Multi { refs, .. } = &pushed else { panic!("{pushed:?}") };
     assert!(refs.iter().all(|r| r.status != PushRefStatus::Rejected), "{refs:?}");
     assert!(remote_sha(&f.remote, "refs/heads/feature/zugang").is_some());
@@ -144,7 +152,8 @@ async fn every_kind_of_push_is_checked() {
     f.repo.git(&["push", "-q", "origin", "main"]);
     let pushed_main = f.repo.head();
     f.repo.write_file("dienst.py", format!("AWS_ZUGANG = \"{}\"\n", fake_key()));
-    let result = commit_create(&f.tc, f.id.clone(), util::new_id(), "Dienst".into(), String::new(), false, false, true, true, None).await.unwrap();
+    let result =
+        commit_create(&f.tc, f.id.clone(), util::new_id(), "Dienst".into(), String::new(), false, false, true, true, None).await.unwrap();
     assert_eq!(places(result.push.as_ref().expect("push result")), vec![("dienst.py".to_string(), 1, SecretRule::KnownToken)]);
     assert_ne!(f.repo.head(), pushed_main, "the commit exists");
     assert_eq!(remote_sha(&f.remote, "refs/heads/main"), Some(pushed_main));
@@ -161,9 +170,15 @@ async fn the_push_of_a_gitflow_finish_stops_and_names_the_place() {
     f.repo.commit_file("geheim.txt", format!("{}\n", fake_token()), "Zugang");
 
     let finish = GitflowFinishOptions { push: true, ..GitflowFinishOptions::default() };
-    let err = gitflow_finish(&f.tc, f.id.clone(), GitflowKind::Feature, "zugang".into(), Some(finish), Some("job-flow".into())).await.unwrap_err();
+    let err = gitflow_finish(&f.tc, f.id.clone(), GitflowKind::Feature, "zugang".into(), Some(finish), Some("job-flow".into()))
+        .await
+        .unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
-    assert!(err.message.contains("finished locally") && err.message.contains("was not pushed") && err.message.contains("geheim.txt:1"), "{}", err.message);
+    assert!(
+        err.message.contains("finished locally") && err.message.contains("was not pushed") && err.message.contains("geheim.txt:1"),
+        "{}",
+        err.message
+    );
     assert!(!err.message.contains(&fake_token()));
     assert_eq!(remote_sha(&f.remote, "refs/heads/develop"), Some(develop_before.clone()), "nothing was sent");
     assert_ne!(f.repo.git(&["rev-parse", "develop"]), develop_before, "the finish itself is done");

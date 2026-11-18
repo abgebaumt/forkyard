@@ -27,7 +27,9 @@ pub enum CliAction {
     Help,
     Version,
     /// The installer adds (`add`) or removes the program folder from the user's PATH.
-    Path { add: bool },
+    Path {
+        add: bool,
+    },
 }
 
 /// What the arguments (without the program name) ask for before the app starts – or `None`.
@@ -175,7 +177,10 @@ mod windows_path {
     use std::path::Path;
 
     use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
-    use windows_sys::Win32::System::Registry::{RegCloseKey, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_EXPAND_SZ, REG_SZ, REG_VALUE_TYPE};
+    use windows_sys::Win32::System::Registry::{
+        RegCloseKey, RegOpenKeyExW, RegQueryValueExW, RegSetValueExW, HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE,
+        REG_EXPAND_SZ, REG_SZ, REG_VALUE_TYPE,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageTimeoutW, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE};
 
     fn wide(text: &str) -> Vec<u16> {
@@ -315,7 +320,8 @@ pub fn install_link(plan: &LinkPlan) -> CoreResult<()> {
         if current == plan.target {
             return Ok(());
         }
-        let ours = current.file_name().is_some_and(|name| name.to_string_lossy().to_lowercase().contains(COMMAND_NAME)) || !plan.link.exists();
+        let ours =
+            current.file_name().is_some_and(|name| name.to_string_lossy().to_lowercase().contains(COMMAND_NAME)) || !plan.link.exists();
         if !ours {
             return Err(CoreError::path_exists(util::display_path(&plan.link)));
         }
@@ -334,7 +340,12 @@ pub fn install_link(_plan: &LinkPlan) -> CoreResult<()> {
 
 fn status_for(plan: Option<&LinkPlan>) -> CliStatus {
     match plan {
-        Some(plan) => CliStatus { installable: true, installed: link_installed(plan), link_path: Some(util::display_path(&plan.link)), on_path: on_path(&plan.link) },
+        Some(plan) => CliStatus {
+            installable: true,
+            installed: link_installed(plan),
+            link_path: Some(util::display_path(&plan.link)),
+            on_path: on_path(&plan.link),
+        },
         None => CliStatus { installable: false, installed: false, link_path: None, on_path: false },
     }
 }
@@ -390,8 +401,15 @@ mod tests {
         let dir = r"C:\Users\anna\AppData\Local\Forkyard";
         assert_eq!(path_with("", dir).as_deref(), Some(dir));
         assert_eq!(path_with(r"C:\Windows;C:\Tools;", dir).as_deref(), Some(r"C:\Windows;C:\Tools;C:\Users\anna\AppData\Local\Forkyard"));
-        assert_eq!(path_with(r"C:\Windows;c:\users\ANNA\appdata\local\forkyard\", dir), None, "already there (case and trailing backslash do not matter)");
-        assert_eq!(path_without(r"C:\Windows;C:\Users\anna\AppData\Local\Forkyard;%USERPROFILE%\bin", dir).as_deref(), Some(r"C:\Windows;%USERPROFILE%\bin"));
+        assert_eq!(
+            path_with(r"C:\Windows;c:\users\ANNA\appdata\local\forkyard\", dir),
+            None,
+            "already there (case and trailing backslash do not matter)"
+        );
+        assert_eq!(
+            path_without(r"C:\Windows;C:\Users\anna\AppData\Local\Forkyard;%USERPROFILE%\bin", dir).as_deref(),
+            Some(r"C:\Windows;%USERPROFILE%\bin")
+        );
         assert_eq!(path_without(r"C:\Windows;C:\Users\anna\AppData\Local\Forkyard\Sub", dir), None, "only exactly this folder");
         assert_eq!(path_without(r"C:\Windows", dir), None);
         let added = path_with(r"C:\Windows", dir).unwrap();
@@ -406,11 +424,22 @@ mod tests {
         let image = Path::new("/home/anna/Apps/Forkyard_1.1.0_amd64.AppImage");
         let plan = link_plan(Platform::Linux, Some(image), Path::new("/tmp/.mount_ForkyX/usr/bin/forkyard"), Some(home)).unwrap();
         assert_eq!(plan, LinkPlan { link: home.join(".local").join("bin").join("forkyard"), target: image.to_path_buf() });
-        assert_eq!(link_plan(Platform::Linux, None, Path::new("/usr/bin/forkyard"), Some(home)), None, "deb/rpm: /usr/bin/forkyard comes with the package");
+        assert_eq!(
+            link_plan(Platform::Linux, None, Path::new("/usr/bin/forkyard"), Some(home)),
+            None,
+            "deb/rpm: /usr/bin/forkyard comes with the package"
+        );
         assert_eq!(link_plan(Platform::Linux, Some(Path::new("relativ.AppImage")), Path::new("/x"), Some(home)), None);
         let exe = Path::new("/Applications/Forkyard.app/Contents/MacOS/forkyard");
-        assert_eq!(link_plan(Platform::Macos, None, exe, Some(home)), Some(LinkPlan { link: PathBuf::from("/usr/local/bin/forkyard"), target: exe.to_path_buf() }));
-        assert_eq!(link_plan(Platform::Macos, None, Path::new("/Users/anna/forkyard/target/debug/forkyard"), Some(home)), None, "not from a build folder");
+        assert_eq!(
+            link_plan(Platform::Macos, None, exe, Some(home)),
+            Some(LinkPlan { link: PathBuf::from("/usr/local/bin/forkyard"), target: exe.to_path_buf() })
+        );
+        assert_eq!(
+            link_plan(Platform::Macos, None, Path::new("/Users/anna/forkyard/target/debug/forkyard"), Some(home)),
+            None,
+            "not from a build folder"
+        );
         assert_eq!(link_plan(Platform::Windows, None, Path::new(r"C:\Program Files\Forkyard\forkyard.exe"), Some(home)), None);
     }
 

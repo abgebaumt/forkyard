@@ -140,7 +140,9 @@ async fn no_release_yet_is_up_to_date() {
 #[tokio::test]
 async fn the_rate_limit_is_its_own_error_code() {
     for response in [
-        MockResponse::json(403, json!({ "message": "API rate limit exceeded" })).header("x-ratelimit-remaining", "0").header("x-ratelimit-reset", "1900000000"),
+        MockResponse::json(403, json!({ "message": "API rate limit exceeded" }))
+            .header("x-ratelimit-remaining", "0")
+            .header("x-ratelimit-reset", "1900000000"),
         MockResponse::json(403, json!({ "message": "Forbidden" })),
         MockResponse::json(429, json!({ "message": "Too many requests" })).header("retry-after", "60"),
     ] {

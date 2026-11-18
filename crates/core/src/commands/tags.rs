@@ -34,7 +34,13 @@ async fn ensure_remote(core: &Core, repo_id: &str, remote: &str) -> CoreResult<(
 }
 
 /// Annotated with `message`, lightweight otherwise. `sha: None` = HEAD.
-pub async fn tag_create(core: &Core, repo_id: String, name: String, sha: Option<String>, message: Option<String>) -> CoreResult<RefsSnapshot> {
+pub async fn tag_create(
+    core: &Core,
+    repo_id: String,
+    name: String,
+    sha: Option<String>,
+    message: Option<String>,
+) -> CoreResult<RefsSnapshot> {
     core.repo_path(&repo_id)?;
     check_name(&name)?;
     let message = match message {
@@ -115,14 +121,23 @@ fn parse_push_porcelain(stdout: &[u8], target_ref: &str) -> Option<(u8, String)>
     None
 }
 
-pub(crate) async fn push_tag(core: &Core, repo_id: &str, job: &Job, name: &str, remote: &str, accepted: Option<&[String]>) -> CoreResult<PushResult> {
+pub(crate) async fn push_tag(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    name: &str,
+    remote: &str,
+    accepted: Option<&[String]>,
+) -> CoreResult<PushResult> {
     check_name(name)?;
     let full = tag_ref(name);
     if undo::rev_parse(core, repo_id, &full).await?.is_none() {
         return Err(CoreError::not_found(format!("The tag “{name}” doesn’t exist (anymore).")));
     }
     ensure_remote(core, repo_id, remote).await?;
-    if let Some(stop) = secret_scan::check_push(core, repo_id, std::slice::from_ref(&full), remote, accepted, Some(job), job.token()).await? {
+    if let Some(stop) =
+        secret_scan::check_push(core, repo_id, std::slice::from_ref(&full), remote, accepted, Some(job), job.token()).await?
+    {
         return Ok(stop);
     }
     let hooks = Hooks::start(core, repo_id).await;
@@ -166,7 +181,14 @@ pub async fn tag_push(core: &Core, repo_id: String, job_id: String, name: String
 }
 
 /// `tag_push` with the IDs of secret-scan findings the user saw and pushes anyway.
-pub async fn tag_push_checked(core: &Core, repo_id: String, job_id: String, name: String, remote: String, accepted_secrets: Option<Vec<String>>) -> CoreResult<PushResult> {
+pub async fn tag_push_checked(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    name: String,
+    remote: String,
+    accepted_secrets: Option<Vec<String>>,
+) -> CoreResult<PushResult> {
     core.repo_path(&repo_id)?;
     let job = core.start_job(&job_id, Some(&repo_id))?;
     let result = push_tag(core, &repo_id, &job, &name, &remote, accepted_secrets.as_deref()).await;
@@ -209,9 +231,15 @@ mod tests {
         assert_eq!(events[0]["what"], serde_json::json!(["refs"]));
 
         // On a specific commit (also with a short SHA), annotated and with a "#" line.
-        let refs = tag_create(&tc, id.clone(), "release/alt".into(), Some(first[..8].to_string()), Some("Erste Fassung\n\n# kein Kommentar\n".into()))
-            .await
-            .unwrap();
+        let refs = tag_create(
+            &tc,
+            id.clone(),
+            "release/alt".into(),
+            Some(first[..8].to_string()),
+            Some("Erste Fassung\n\n# kein Kommentar\n".into()),
+        )
+        .await
+        .unwrap();
         assert_eq!(tag(&refs, "release/alt").sha, first);
         assert_eq!(repo.git(&["cat-file", "-t", "refs/tags/release/alt"]), "tag");
         assert_eq!(repo.git(&["for-each-ref", "--format=%(contents)", "refs/tags/release/alt"]), "Erste Fassung\n\n# kein Kommentar");
@@ -243,7 +271,8 @@ mod tests {
         // A tag "v1/x" collides with the existing "v1".
         assert_eq!(tag_create(&tc, id.clone(), "v1/x".into(), None, None).await.unwrap_err().code, ErrorCode::NameExists);
 
-        let err = tag_create(&tc, id.clone(), "v2".into(), Some("0123456789abcdef0123456789abcdef01234567".into()), None).await.unwrap_err();
+        let err =
+            tag_create(&tc, id.clone(), "v2".into(), Some("0123456789abcdef0123456789abcdef01234567".into()), None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotFound);
         let err = tag_create(&tc, id.clone(), "v2".into(), Some("--help".into()), None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotFound);

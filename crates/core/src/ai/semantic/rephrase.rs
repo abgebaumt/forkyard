@@ -22,7 +22,10 @@ use crate::commands::graph::{self, is_search_date};
 use crate::commands::history::normalize_rel_path;
 use crate::error::CoreResult;
 use crate::jobs::{CancelToken, Job};
-use crate::model::{AiFeature, AiOmitReason, AiPreview, AiSearchRoute, AiSemanticHit, AiSemanticResult, AiState, CommitSearchFilters, CommitSummary, Settings};
+use crate::model::{
+    AiFeature, AiOmitReason, AiPreview, AiSearchRoute, AiSemanticHit, AiSemanticResult, AiState, CommitSearchFilters, CommitSummary,
+    Settings,
+};
 
 /// At most this many commits are sorted by the model ("Top 50").
 pub(super) const CANDIDATES: usize = 50;
@@ -89,7 +92,12 @@ pub(super) struct SearchPlan {
 
 impl SearchPlan {
     fn narrowing(&self) -> CommitSearchFilters {
-        CommitSearchFilters { pickaxe: None, since: self.since.clone(), until: self.until.clone(), paths: (!self.paths.is_empty()).then(|| self.paths.clone()) }
+        CommitSearchFilters {
+            pickaxe: None,
+            since: self.since.clone(),
+            until: self.until.clone(),
+            paths: (!self.paths.is_empty()).then(|| self.paths.clone()),
+        }
     }
 
     fn shown(&self) -> CommitSearchFilters {
@@ -194,13 +202,25 @@ pub(super) async fn rephrase_prompt(core: &Core, repo_id: &str, settings: &Setti
 }
 
 /// The second request: the question and the candidates, numbered.
-pub(super) fn rank_prompt(query: &str, candidates: &[CommitSummary], entries: &[CommitEntry], exclusions: &Exclusions, secrets: &[String], locale: &str) -> Prompt {
+pub(super) fn rank_prompt(
+    query: &str,
+    candidates: &[CommitSummary],
+    entries: &[CommitEntry],
+    exclusions: &Exclusions,
+    secrets: &[String],
+    locale: &str,
+) -> Prompt {
     let by_sha: HashMap<&str, &CommitEntry> = entries.iter().map(|entry| (entry.sha.as_str(), entry)).collect();
     let mut blocks = Vec::with_capacity(candidates.len());
     for (n, commit) in candidates.iter().enumerate() {
         let short = commit.sha.get(..7).unwrap_or(&commit.sha);
         let date = commit.authored_at.get(..10).unwrap_or(&commit.authored_at);
-        let mut block = format!("[{}] {short} · {date} · {}\n{}", n + 1, history::cut(&one_line(&commit.author.name, 80), 80), history::cut(commit.summary.trim(), history::MAX_SUBJECT));
+        let mut block = format!(
+            "[{}] {short} · {date} · {}\n{}",
+            n + 1,
+            history::cut(&one_line(&commit.author.name, 80), 80),
+            history::cut(commit.summary.trim(), history::MAX_SUBJECT)
+        );
         if let Some(entry) = by_sha.get(commit.sha.as_str()) {
             let body = one_line(&entry.body, usize::MAX);
             if !body.is_empty() {
@@ -222,7 +242,10 @@ pub(super) fn rank_prompt(query: &str, candidates: &[CommitSummary], entries: &[
     prompt::build(
         RANK_INSTRUCTION,
         locale,
-        &[Section { title: "Question".into(), body: context::redact_for_ai(query, secrets) }, Section { title: "Commits".into(), body: blocks.join("\n\n") }],
+        &[
+            Section { title: "Question".into(), body: context::redact_for_ai(query, secrets) },
+            Section { title: "Commits".into(), body: blocks.join("\n\n") },
+        ],
     )
 }
 
@@ -249,7 +272,14 @@ pub(super) async fn preview(core: &Core, repo_id: &str, settings: &Settings, que
         preview.asks = gate::pending(
             core,
             settings,
-            &Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars, estimated_cost_usd: estimate.cost_usd, local: crate::ai::runs_on_this_computer(core, kind, settings), limit_reached: estimate.limit_reached },
+            &Situation {
+                repo_id: Some(repo_id),
+                feature: AiFeature::SemanticSearch,
+                chars,
+                estimated_cost_usd: estimate.cost_usd,
+                local: crate::ai::runs_on_this_computer(core, kind, settings),
+                limit_reached: estimate.limit_reached,
+            },
         )?;
     }
     Ok(preview)
@@ -287,7 +317,9 @@ async fn candidates(core: &Core, repo_id: &str, job_id: &str, plan: &SearchPlan,
     let mut found = Vec::new();
     for (n, (text, filters)) in searches.into_iter().enumerate() {
         token.check()?;
-        let hits = graph::commit_search(core, repo_id.to_string(), text, CANDIDATES as u32, Some(format!("{job_id}:search-{n}")), Some(filters)).await?;
+        let hits =
+            graph::commit_search(core, repo_id.to_string(), text, CANDIDATES as u32, Some(format!("{job_id}:search-{n}")), Some(filters))
+                .await?;
         for hit in hits {
             if seen.insert(hit.sha.clone()) {
                 found.push(hit);
@@ -310,12 +342,26 @@ fn goes_out_without_asking(core: &Core, settings: &Settings, repo_id: &str, prom
     let asks = gate::pending(
         core,
         settings,
-        &Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars: estimate.chars, estimated_cost_usd: estimate.cost_usd, local: crate::ai::runs_on_this_computer(core, kind, settings), limit_reached: estimate.limit_reached },
+        &Situation {
+            repo_id: Some(repo_id),
+            feature: AiFeature::SemanticSearch,
+            chars: estimate.chars,
+            estimated_cost_usd: estimate.cost_usd,
+            local: crate::ai::runs_on_this_computer(core, kind, settings),
+            limit_reached: estimate.limit_reached,
+        },
     )?;
     Ok(asks.is_empty())
 }
 
-pub(super) async fn search(core: &Core, repo_id: &str, job: &Job, settings: &Settings, query: &str, locale: &str) -> CoreResult<AiSemanticResult> {
+pub(super) async fn search(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    settings: &Settings,
+    query: &str,
+    locale: &str,
+) -> CoreResult<AiSemanticResult> {
     let token = job.token();
     let first = rephrase_prompt(core, repo_id, settings, query, locale).await?;
     let first_schema = plan_schema();
@@ -324,7 +370,16 @@ pub(super) async fn search(core: &Core, repo_id: &str, job: &Job, settings: &Set
         core,
         token,
         &first_id,
-        run::complete_json(core, AiRequest { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, job_id: &first_id, prompt: &first, schema: &first_schema }),
+        run::complete_json(
+            core,
+            AiRequest {
+                repo_id: Some(repo_id),
+                feature: AiFeature::SemanticSearch,
+                job_id: &first_id,
+                prompt: &first,
+                schema: &first_schema,
+            },
+        ),
     )
     .await?;
     let plan = read_plan(&answer.value);
@@ -350,7 +405,8 @@ pub(super) async fn search(core: &Core, repo_id: &str, job: &Job, settings: &Set
     let secrets = provider_secrets(core, settings).await?;
     let second = rank_prompt(query, &found, &entries, &exclusions, &secrets, locale);
     if !goes_out_without_asking(core, settings, repo_id, &second)? {
-        result.hits = found.into_iter().map(|commit| AiSemanticHit { commit, score: None, reason: None, matched_terms: Vec::new() }).collect();
+        result.hits =
+            found.into_iter().map(|commit| AiSemanticHit { commit, score: None, reason: None, matched_terms: Vec::new() }).collect();
         return Ok(result);
     }
     let second_schema = rank_schema();
@@ -359,7 +415,16 @@ pub(super) async fn search(core: &Core, repo_id: &str, job: &Job, settings: &Set
         core,
         token,
         &second_id,
-        run::complete_json(core, AiRequest { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, job_id: &second_id, prompt: &second, schema: &second_schema }),
+        run::complete_json(
+            core,
+            AiRequest {
+                repo_id: Some(repo_id),
+                feature: AiFeature::SemanticSearch,
+                job_id: &second_id,
+                prompt: &second,
+                schema: &second_schema,
+            },
+        ),
     )
     .await?;
     result.hits = read_ranking(&ranking.value, found.len())
@@ -386,7 +451,10 @@ mod tests {
     const ANTHROPIC_KEY: &str = "sk-ant-api03-semantictest-0123456789";
 
     fn ollama_chat(content: &str) -> MockResponse {
-        MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 40, "eval_count": 9}))
+        MockResponse::json(
+            200,
+            json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 40, "eval_count": 9}),
+        )
     }
 
     /// `[n] <sha7> · <date> · <author>` and the subject below, as the ranking prompt lists them.
@@ -405,7 +473,10 @@ mod tests {
 
     /// A local Ollama answering the rephrase request with `plan` and the ranking with `rank(listed)`.
     /// The bodies of the chat requests are kept in order.
-    fn ollama(plan: serde_json::Value, rank: impl Fn(&[(u64, String, String)]) -> serde_json::Value + Send + Sync + 'static) -> (MockServer, Arc<Mutex<Vec<serde_json::Value>>>) {
+    fn ollama(
+        plan: serde_json::Value,
+        rank: impl Fn(&[(u64, String, String)]) -> serde_json::Value + Send + Sync + 'static,
+    ) -> (MockServer, Arc<Mutex<Vec<serde_json::Value>>>) {
         let chats: Arc<Mutex<Vec<serde_json::Value>>> = Arc::default();
         let seen = chats.clone();
         let server = MockServer::start(move |request| match request.route().as_str() {
@@ -476,19 +547,42 @@ mod tests {
         assert_eq!(result.route, AiSearchRoute::Rephrase);
         assert_eq!(result.terms, vec!["anmeld".to_string(), "login".to_string()]);
         let filters = result.filters.clone().unwrap();
-        assert_eq!((filters.paths, filters.since, filters.until, filters.pickaxe), (Some(vec!["src/zugang".to_string()]), Some("2025-06-01".to_string()), None, None), "a Windows path from the model becomes a Git path");
+        assert_eq!(
+            (filters.paths, filters.since, filters.until, filters.pickaxe),
+            (Some(vec!["src/zugang".to_string()]), Some("2025-06-01".to_string()), None, None),
+            "a Windows path from the model becomes a Git path"
+        );
         let chats = chats.lock().unwrap().clone();
         assert_eq!(chats.len(), 2, "rephrasing, then ranking");
         let rank_user = chats[1]["messages"][1]["content"].as_str().unwrap().to_string();
         let shown: HashSet<String> = listed(&rank_user).into_iter().map(|(_, sha7, _)| sha7).collect();
         let grep = |term: &str| {
-            sha7s(&repo, &["--literal-pathspecs", "log", "--branches", "--tags", "HEAD", "-i", "--fixed-strings", &format!("--grep={term}"), "--since=2025-06-01 00:00:00", "--format=%H", "--", "src/zugang"])
+            sha7s(
+                &repo,
+                &[
+                    "--literal-pathspecs",
+                    "log",
+                    "--branches",
+                    "--tags",
+                    "HEAD",
+                    "-i",
+                    "--fixed-strings",
+                    &format!("--grep={term}"),
+                    "--since=2025-06-01 00:00:00",
+                    "--format=%H",
+                    "--",
+                    "src/zugang",
+                ],
+            )
         };
         let expected: HashSet<String> = grep("anmeld").union(&grep("login")).cloned().collect();
         assert_eq!(shown, expected, "the candidates are what Git finds with these filters");
         assert_eq!(expected.len(), 5);
 
-        assert_eq!(result.hits.iter().map(|hit| hit.commit.summary.as_str()).collect::<Vec<_>>(), vec!["Weiterleitung nach der Anmeldung repariert", "Anmeldeformular übersetzt"]);
+        assert_eq!(
+            result.hits.iter().map(|hit| hit.commit.summary.as_str()).collect::<Vec<_>>(),
+            vec!["Weiterleitung nach der Anmeldung repariert", "Anmeldeformular übersetzt"]
+        );
         assert_eq!(result.hits[0].reason.as_deref(), Some("Behebt die Weiterleitung nach dem Anmelden."));
         assert!(result.ranked && result.hits.iter().all(|hit| hit.score.is_none()));
 
@@ -500,7 +594,10 @@ mod tests {
         let first_system = chats[0]["messages"][0]["content"].as_str().unwrap().to_string();
         assert!(first_system.contains("Today is "), "the model knows the date for “last month”");
         let first_user = chats[0]["messages"][1]["content"].as_str().unwrap().to_string();
-        assert!(first_user.contains("Wo wurde die Anmeldung repariert?") && first_user.contains("docs\nsrc"), "the question and the top-level entries of HEAD: {first_user}");
+        assert!(
+            first_user.contains("Wo wurde die Anmeldung repariert?") && first_user.contains("docs\nsrc"),
+            "the question and the top-level entries of HEAD: {first_user}"
+        );
     }
 
     #[tokio::test]
@@ -520,7 +617,23 @@ mod tests {
         let chats = chats.lock().unwrap().clone();
         let rank_user = chats[1]["messages"][1]["content"].as_str().unwrap().to_string();
         let shown: HashSet<String> = listed(&rank_user).into_iter().map(|(_, sha7, _)| sha7).collect();
-        let oracle = sha7s(&repo, &["--literal-pathspecs", "log", "--branches", "--tags", "HEAD", "-i", "--fixed-strings", "--grep=--all", "--format=%H", "--", "-rf", "[x].txt"]);
+        let oracle = sha7s(
+            &repo,
+            &[
+                "--literal-pathspecs",
+                "log",
+                "--branches",
+                "--tags",
+                "HEAD",
+                "-i",
+                "--fixed-strings",
+                "--grep=--all",
+                "--format=%H",
+                "--",
+                "-rf",
+                "[x].txt",
+            ],
+        );
         assert_eq!(shown, oracle, "“--all” is text and the paths are literal");
         assert_eq!(oracle.len(), 2, "not the commit of x.txt");
         assert!(result.hits.is_empty() && result.ranked, "the model chose none");
@@ -529,26 +642,49 @@ mod tests {
     #[tokio::test]
     async fn a_ranking_that_would_need_a_confirmation_is_skipped() {
         let server = MockServer::start(|_| {
-            MockResponse::json(200, json!({
-                "content": [{"type": "text", "text": "{\"terms\":[\"anmeld\"],\"code\":null,\"paths\":[],\"author\":null,\"since\":null,\"until\":null}"}],
-                "stop_reason": "end_turn", "usage": {"input_tokens": 120, "output_tokens": 30}
-            }))
+            MockResponse::json(
+                200,
+                json!({
+                    "content": [{"type": "text", "text": "{\"terms\":[\"anmeld\"],\"code\":null,\"paths\":[],\"author\":null,\"since\":null,\"until\":null}"}],
+                    "stop_reason": "end_turn", "usage": {"input_tokens": 120, "output_tokens": 30}
+                }),
+            )
         });
         let tc = TestCore::new().await;
         crate::ai::configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
         crate::secrets::set(&tc, "llm:anthropic", ANTHROPIC_KEY).await.unwrap();
-        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiMonthlyLimitUsd": 0.01})).await.unwrap();
+        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiMonthlyLimitUsd": 0.01}))
+            .await
+            .unwrap();
         let month = crate::ai::pricing::current_month();
         tc.db
-            .with(|c| crate::db::ai::add_usage(c, &crate::db::ai::NewUsage { month: &month, provider: "anthropic", model: "claude-sonnet-5-5", feature: "compose", input_tokens: 1, output_tokens: 1, cost_usd_micros: 20_000 }))
+            .with(|c| {
+                crate::db::ai::add_usage(
+                    c,
+                    &crate::db::ai::NewUsage {
+                        month: &month,
+                        provider: "anthropic",
+                        model: "claude-sonnet-5-5",
+                        feature: "compose",
+                        input_tokens: 1,
+                        output_tokens: 1,
+                        cost_usd_micros: 20_000,
+                    },
+                )
+            })
             .unwrap();
         let repo = sign_in_history();
         let id = tc.open(&repo).await.repo.id;
         let question = AiInput::SemanticSearch { query: "Wo wurde die Anmeldung repariert?".into() };
         let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, question, "de".into()).await.unwrap();
         assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst, AiAskTrigger::Limit]);
-        assert!(preview.text.contains("Wo wurde die Anmeldung repariert?") && !preview.text.contains("Weiterleitung"), "only the first request is previewed");
-        ai_preview_confirm(&tc, Some(id.clone()), AiFeature::SemanticSearch, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+        assert!(
+            preview.text.contains("Wo wurde die Anmeldung repariert?") && !preview.text.contains("Weiterleitung"),
+            "only the first request is previewed"
+        );
+        ai_preview_confirm(&tc, Some(id.clone()), AiFeature::SemanticSearch, preview.fingerprint.clone(), preview.asks.clone(), false)
+            .await
+            .unwrap();
         let result = crate::ai::semantic::search(&tc, &id, "r3", "Wo wurde die Anmeldung repariert?", "de").await.unwrap();
         assert_eq!(server.requests().len(), 1, "the ranking would have needed “Send this time” again: skipped");
         assert!(!result.ranked && !result.hits.is_empty() && result.hits.iter().all(|hit| hit.reason.is_none()));
@@ -572,7 +708,12 @@ mod tests {
             .collect();
         let entries: Vec<CommitEntry> = candidates
             .iter()
-            .map(|commit| CommitEntry { sha: commit.sha.clone(), subject: commit.summary.clone(), body: "Wort ".repeat(800), paths: (0..60).map(|n| format!("{}/{n}", "p".repeat(300))).collect() })
+            .map(|commit| CommitEntry {
+                sha: commit.sha.clone(),
+                subject: commit.summary.clone(),
+                body: "Wort ".repeat(800),
+                paths: (0..60).map(|n| format!("{}/{n}", "p".repeat(300))).collect(),
+            })
             .collect();
         let prompt = rank_prompt(&"Frage ".repeat(100), &candidates, &entries, &exclusions, &[], "de");
         assert!(prompt.chars() <= crate::ai::gate::LARGE_CHARS, "{} characters", prompt.chars());

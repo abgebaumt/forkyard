@@ -114,7 +114,18 @@ fn git_paths_are_classified() {
     assert_eq!(whole("logs/refs/stash"), Some(RepoChange::Stash));
     assert_eq!(whole("config"), Some(RepoChange::Config));
     assert_eq!(whole("info/exclude"), Some(RepoChange::Worktree));
-    for op in ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-merge/done", "rebase-apply/next", "sequencer/todo", "BISECT_START", "BISECT_LOG", "BISECT_TERMS"] {
+    for op in [
+        "MERGE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "REVERT_HEAD",
+        "rebase-merge",
+        "rebase-merge/done",
+        "rebase-apply/next",
+        "sequencer/todo",
+        "BISECT_START",
+        "BISECT_LOG",
+        "BISECT_TERMS",
+    ] {
         assert_eq!(whole(op), Some(RepoChange::Operation), "{op}");
     }
     assert_eq!(whole("modules/sub/HEAD"), Some(RepoChange::Worktree));
@@ -238,7 +249,8 @@ fn intake_sorts_raw_paths() {
     // Worktree: `.git` is a file, the Git directory lives elsewhere.
     let private = PathBuf::from("/r/haupt/.git/worktrees/wt");
     let shared = PathBuf::from("/r/haupt/.git");
-    let roots = vec![GitRoot { path: private.clone(), scope: GitScope::Private }, GitRoot { path: shared.clone(), scope: GitScope::Shared }];
+    let roots =
+        vec![GitRoot { path: private.clone(), scope: GitScope::Private }, GitRoot { path: shared.clone(), scope: GitScope::Shared }];
     let mut intake = Intake::new(root.clone(), false, roots);
     intake.absorb_path(&at(".git"), false);
     intake.absorb_path(&shared.join("index"), false);

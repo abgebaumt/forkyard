@@ -7,16 +7,17 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, summarize_checks, text, Api, Host, HostFuture, NewPr, NewRelease, Paging, PrChange, RepoFacts,
-    RepoPath,
+    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, summarize_checks,
+    text, Api, Host, HostFuture, NewPr, NewRelease, Paging, PrChange, RepoFacts, RepoPath,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState,
+    IssuePage, IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer,
+    PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 /// Prefix with which GitLab marks a merge request as a draft.
@@ -61,7 +62,13 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
             }
         }
     }
-    Ok(AccountFacts { login: Some(login), name: opt_text(&me, "name"), avatar_url: opt_text(&me, "avatar_url"), scopes_ok: missing.is_empty(), missing_scopes: missing })
+    Ok(AccountFacts {
+        login: Some(login),
+        name: opt_text(&me, "name"),
+        avatar_url: opt_text(&me, "avatar_url"),
+        scopes_ok: missing.is_empty(),
+        missing_scopes: missing,
+    })
 }
 
 fn project_missing(repo: &RepoPath) -> impl FnOnce() -> String + '_ {
@@ -73,13 +80,19 @@ fn project_missing(repo: &RepoPath) -> impl FnOnce() -> String + '_ {
 pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<RepoFacts> {
     let value = api.get_json(core, &project_path(repo)).await.map_err(|e| not_found_as(e, project_missing(repo)))?;
     let level = |key: &str| value.get("permissions").and_then(|p| p.get(key)).and_then(|a| a.get("access_level")).and_then(Value::as_u64);
-    let can_push = value.get("permissions").filter(|p| p.is_object()).map(|_| level("project_access").max(level("group_access")).unwrap_or(0) >= 30);
+    let can_push =
+        value.get("permissions").filter(|p| p.is_object()).map(|_| level("project_access").max(level("group_access")).unwrap_or(0) >= 30);
     let fork_parent = value.get("forked_from_project").filter(|p| p.is_object()).and_then(|parent| {
         let full = text(parent, "path_with_namespace");
         let (owner, name) = full.rsplit_once('/')?;
         Some(HostRepoRef { owner: owner.to_string(), name: name.to_string(), web_url: text(parent, "web_url") })
     });
-    Ok(RepoFacts { default_branch: opt_text(&value, "default_branch"), can_push, fork_parent, has_issues: value.get("issues_enabled").and_then(Value::as_bool) })
+    Ok(RepoFacts {
+        default_branch: opt_text(&value, "default_branch"),
+        can_push,
+        fork_parent,
+        has_issues: value.get("issues_enabled").and_then(Value::as_bool),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -126,14 +139,17 @@ fn job_state(status: &str) -> CheckRunState {
 /// Summarised state from the merge request's pipeline (`head_pipeline.status`).
 fn pipeline_checks(value: &Value) -> Vec<PrCheck> {
     match value.get("head_pipeline").filter(|p| p.is_object()) {
-        Some(pipeline) => vec![PrCheck { name: "Pipeline".to_string(), state: job_state(&text(pipeline, "status")), url: opt_text(pipeline, "web_url") }],
+        Some(pipeline) => {
+            vec![PrCheck { name: "Pipeline".to_string(), state: job_state(&text(pipeline, "status")), url: opt_text(pipeline, "web_url") }]
+        }
         None => Vec::new(),
     }
 }
 
 /// Reviewers of the merge request with their approval (`…/approvals`).
 fn reviewers(value: &Value, approvals: Option<&Value>) -> Vec<PrReviewer> {
-    let approved: Vec<HostUser> = approvals.map(|a| list(a, "approved_by").iter().filter_map(|entry| entry.get("user").and_then(user)).collect()).unwrap_or_default();
+    let approved: Vec<HostUser> =
+        approvals.map(|a| list(a, "approved_by").iter().filter_map(|entry| entry.get("user").and_then(user)).collect()).unwrap_or_default();
     let mut result: Vec<PrReviewer> = approved.into_iter().map(|user| PrReviewer { user, state: Some(PrReviewState::Approved) }).collect();
     for person in list(value, "reviewers").iter().filter_map(user) {
         if !result.iter().any(|r| r.user.login == person.login) {
@@ -180,7 +196,13 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
     };
     let path = with_query(
         &format!("{}/merge_requests", project_path(repo)),
-        &[("state", api_state.to_string()), ("order_by", "updated_at".into()), ("sort", "desc".into()), ("per_page", per_page.to_string()), ("page", page.to_string())],
+        &[
+            ("state", api_state.to_string()),
+            ("order_by", "updated_at".into()),
+            ("sort", "desc".into()),
+            ("per_page", per_page.to_string()),
+            ("page", page.to_string()),
+        ],
     );
     let (values, next_page) = api.get_page(core, &path).await.map_err(|e| not_found_as(e, project_missing(repo)))?;
     let mut items: Vec<PrSummary> = values.iter().map(mr_summary).collect();
@@ -218,7 +240,9 @@ fn note(value: &Value) -> HostComment {
         body: text(value, "body"),
         created_at: text(value, "created_at"),
         path: position.and_then(|p| opt_text(p, "new_path").or_else(|| opt_text(p, "old_path"))),
-        line: position.and_then(|p| p.get("new_line").and_then(Value::as_u64).or_else(|| p.get("old_line").and_then(Value::as_u64))).and_then(|n| u32::try_from(n).ok()),
+        line: position
+            .and_then(|p| p.get("new_line").and_then(Value::as_u64).or_else(|| p.get("old_line").and_then(Value::as_u64)))
+            .and_then(|n| u32::try_from(n).ok()),
     }
 }
 
@@ -252,21 +276,39 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
         .get_all(core, &format!("{path}/commits?per_page=100"))
         .await?
         .iter()
-        .map(|c| PrCommit { sha: text(c, "id"), summary: first_line(&text(c, "title")), author_name: text(c, "author_name"), authored_at: text(c, "authored_date") })
+        .map(|c| PrCommit {
+            sha: text(c, "id"),
+            summary: first_line(&text(c, "title")),
+            author_name: text(c, "author_name"),
+            authored_at: text(c, "authored_date"),
+        })
         .collect();
     // Individual jobs of the pipeline; if they can't be read, the pipeline stays as one entry.
     let mut check_runs = pipeline_checks(&value);
     if let Some(pipeline) = value.get("head_pipeline").filter(|p| p.is_object()) {
-        let project = pipeline.get("project_id").and_then(Value::as_u64).map(|id| format!("/projects/{id}")).unwrap_or_else(|| project_path(repo));
+        let project =
+            pipeline.get("project_id").and_then(Value::as_u64).map(|id| format!("/projects/{id}")).unwrap_or_else(|| project_path(repo));
         if let Ok(jobs) = api.get_all(core, &format!("{project}/pipelines/{}/jobs?per_page=100", number_of(pipeline, "id"))).await {
             if !jobs.is_empty() {
-                check_runs = jobs.iter().map(|job| PrCheck { name: text(job, "name"), state: job_state(&text(job, "status")), url: opt_text(job, "web_url") }).collect();
+                check_runs = jobs
+                    .iter()
+                    .map(|job| PrCheck { name: text(job, "name"), state: job_state(&text(job, "status")), url: opt_text(job, "web_url") })
+                    .collect();
             }
         }
     }
     summary.checks = summarize_checks(&check_runs).or_else(|| summarize_checks(&pipeline_checks(&value)));
     let head_sha = opt_text(&value, "sha").or_else(|| value.get("diff_refs").and_then(|d| opt_text(d, "head_sha"))).unwrap_or_default();
-    Ok(PrDetails { summary, body: text(&value, "description"), reviewers, comments, commits, mergeable: mergeable(&value), check_runs, head_sha })
+    Ok(PrDetails {
+        summary,
+        body: text(&value, "description"),
+        reviewers,
+        comments,
+        commits,
+        mergeable: mergeable(&value),
+        check_runs,
+        head_sha,
+    })
 }
 
 fn number_of(value: &Value, key: &str) -> u64 {
@@ -285,7 +327,11 @@ async fn user_ids(core: &Core, api: &Api, names: &[String]) -> CoreResult<Vec<u6
 }
 
 fn draft_title(title: &str, draft: bool) -> String {
-    let plain = ["Draft: ", "Draft:", "[Draft]", "(Draft)", "WIP: ", "WIP:"].iter().find_map(|prefix| title.strip_prefix(prefix)).unwrap_or(title).trim_start();
+    let plain = ["Draft: ", "Draft:", "[Draft]", "(Draft)", "WIP: ", "WIP:"]
+        .iter()
+        .find_map(|prefix| title.strip_prefix(prefix))
+        .unwrap_or(title)
+        .trim_start();
     if draft {
         format!("{DRAFT_PREFIX}{plain}")
     } else {
@@ -312,7 +358,12 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
         .await
         .map_err(|e| {
             if already_exists(&e) {
-                CoreError { code: ErrorCode::NameExists, message: format!("There is already an open merge request for the branch “{}”.", new.source_branch), git_output: e.git_output, retry_at: None }
+                CoreError {
+                    code: ErrorCode::NameExists,
+                    message: format!("There is already an open merge request for the branch “{}”.", new.source_branch),
+                    git_output: e.git_output,
+                    retry_at: None,
+                }
             } else {
                 not_found_as(e, project_missing(repo))
             }
@@ -355,7 +406,11 @@ pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, cha
     if patch.is_empty() {
         return pr_head(core, api, repo, number).await;
     }
-    let value: Value = api.send_json(core, Method::Put, &mr_path(repo, number), &Value::Object(patch)).await.map_err(|e| not_found_as(e, mr_missing(repo, number)))?.json()?;
+    let value: Value = api
+        .send_json(core, Method::Put, &mr_path(repo, number), &Value::Object(patch))
+        .await
+        .map_err(|e| not_found_as(e, mr_missing(repo, number)))?
+        .json()?;
     Ok(mr_summary(&value))
 }
 
@@ -371,27 +426,39 @@ pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64
 
 /// `PUT /projects/:id/merge_requests/:iid/merge`. On GitLab the project decides whether a merge
 /// commit is created; only squash can be chosen. There is no rebase merge method.
-pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> CoreResult<PrSummary> {
+pub async fn pr_merge(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    number: u64,
+    method: PrMergeMethod,
+    delete_branch: bool,
+) -> CoreResult<PrSummary> {
     let squash = match method {
         PrMergeMethod::Merge => false,
         PrMergeMethod::Squash => true,
-        PrMergeMethod::Rebase => {
-            return Err(CoreError::new(
-                ErrorCode::HostUnsupported,
-                "On GitLab, the project decides how merges are done (merge commit or fast-forward). You can choose “Merge” or “Squash” here.",
-            ))
-        }
+        PrMergeMethod::Rebase => return Err(CoreError::new(
+            ErrorCode::HostUnsupported,
+            "On GitLab, the project decides how merges are done (merge commit or fast-forward). You can choose “Merge” or “Squash” here.",
+        )),
     };
     let body = json!({ "squash": squash, "should_remove_source_branch": delete_branch });
-    let value: Value = api.send_json(core, Method::Put, &format!("{}/merge", mr_path(repo, number)), &body).await.map_err(|e| not_found_as(e, mr_missing(repo, number)))?.json()?;
+    let value: Value = api
+        .send_json(core, Method::Put, &format!("{}/merge", mr_path(repo, number)), &body)
+        .await
+        .map_err(|e| not_found_as(e, mr_missing(repo, number)))?
+        .json()?;
     Ok(mr_summary(&value))
 }
 
 /// Close or reopen via `state_event`.
 pub async fn pr_set_open(core: &Core, api: &Api, repo: &RepoPath, number: u64, open: bool) -> CoreResult<PrSummary> {
     let event = if open { "reopen" } else { "close" };
-    let value: Value =
-        api.send_json(core, Method::Put, &mr_path(repo, number), &json!({ "state_event": event })).await.map_err(|e| not_found_as(e, mr_missing(repo, number)))?.json()?;
+    let value: Value = api
+        .send_json(core, Method::Put, &mr_path(repo, number), &json!({ "state_event": event }))
+        .await
+        .map_err(|e| not_found_as(e, mr_missing(repo, number)))?
+        .json()?;
     Ok(mr_summary(&value))
 }
 
@@ -415,23 +482,41 @@ fn issue_summary(value: &Value) -> IssueSummary {
 }
 
 /// `GET /projects/:id/issues` (with `search` for the search text).
-pub async fn issue_list(core: &Core, api: &Api, repo: &RepoPath, state: IssueListState, query: Option<&str>, page: u32, per_page: u32) -> CoreResult<IssuePage> {
+pub async fn issue_list(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    state: IssueListState,
+    query: Option<&str>,
+    page: u32,
+    per_page: u32,
+) -> CoreResult<IssuePage> {
     let api_state = match state {
         IssueListState::Open => "opened",
         IssueListState::Closed => "closed",
         IssueListState::All => "all",
     };
-    let mut params = vec![("state", api_state.to_string()), ("order_by", "updated_at".into()), ("sort", "desc".into()), ("per_page", per_page.to_string()), ("page", page.to_string())];
+    let mut params = vec![
+        ("state", api_state.to_string()),
+        ("order_by", "updated_at".into()),
+        ("sort", "desc".into()),
+        ("per_page", per_page.to_string()),
+        ("page", page.to_string()),
+    ];
     if let Some(words) = query.map(str::trim).filter(|q| !q.is_empty()) {
         params.push(("search", words.to_string()));
     }
-    let (values, next_page) = api.get_page(core, &with_query(&format!("{}/issues", project_path(repo)), &params)).await.map_err(|e| not_found_as(e, project_missing(repo)))?;
+    let (values, next_page) = api
+        .get_page(core, &with_query(&format!("{}/issues", project_path(repo)), &params))
+        .await
+        .map_err(|e| not_found_as(e, project_missing(repo)))?;
     Ok(IssuePage { items: values.iter().map(issue_summary).collect(), next_page })
 }
 
 pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreResult<IssueDetails> {
     let path = format!("{}/issues/{number}", project_path(repo));
-    let value = api.get_json(core, &path).await.map_err(|e| not_found_as(e, || format!("Issue #{number} does not exist in {}.", repo.full())))?;
+    let value =
+        api.get_json(core, &path).await.map_err(|e| not_found_as(e, || format!("Issue #{number} does not exist in {}.", repo.full())))?;
     Ok(IssueDetails { summary: issue_summary(&value), body: text(&value, "description"), comments: notes(core, api, &path).await? })
 }
 
@@ -458,7 +543,11 @@ fn discussion_thread(value: &Value) -> Option<ReviewThread> {
         (None, Some(old)) => (ReviewSide::Old, Some(old), opt_text(position, "old_path")?, "old_line"),
         (None, None) => (ReviewSide::New, None, opt_text(position, "new_path")?, "new_line"),
     };
-    let start_line = position.get("line_range").and_then(|r| r.get("start")).and_then(|s| position_line(s, start_key)).filter(|start| line.is_some_and(|end| *start < end));
+    let start_line = position
+        .get("line_range")
+        .and_then(|r| r.get("start"))
+        .and_then(|s| position_line(s, start_key))
+        .filter(|start| line.is_some_and(|end| *start < end));
     let resolvable: Vec<&&Value> = notes.iter().filter(|n| flag(n, "resolvable")).collect();
     let comments = notes
         .iter()
@@ -484,7 +573,10 @@ fn discussion_thread(value: &Value) -> Option<ReviewThread> {
 
 /// `GET /projects/:id/merge_requests/:iid/discussions`
 pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, mr: u64) -> CoreResult<Vec<ReviewThread>> {
-    let discussions = api.get_all(core, &format!("{}/discussions?per_page=100", mr_path(repo, mr))).await.map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
+    let discussions = api
+        .get_all(core, &format!("{}/discussions?per_page=100", mr_path(repo, mr)))
+        .await
+        .map_err(|e| not_found_as(e, mr_missing(repo, mr)))?;
     Ok(discussions.iter().filter_map(discussion_thread).collect())
 }
 
@@ -580,7 +672,14 @@ impl Host for GitlabHost {
     fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts> {
         Box::pin(repo_facts(core, api, repo))
     }
-    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage> {
+    fn pr_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: PrListState,
+        paging: Paging,
+    ) -> HostFuture<'a, PrPage> {
         Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
@@ -589,7 +688,15 @@ impl Host for GitlabHost {
     fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_head(core, api, repo, number))
     }
-    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage> {
+    fn issue_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: IssueListState,
+        query: Option<&'a str>,
+        paging: Paging,
+    ) -> HostFuture<'a, IssuePage> {
         Box::pin(issue_list(core, api, repo, state, query, paging.page, paging.per_page))
     }
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
@@ -598,13 +705,35 @@ impl Host for GitlabHost {
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
     }
-    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+    fn pr_update<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        change: PrChange<'a>,
+    ) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_update(core, api, repo, number, change))
     }
-    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+    fn pr_comment<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        body: &'a str,
+    ) -> HostFuture<'a, HostComment> {
         Box::pin(comment_create(core, api, repo, number, body))
     }
-    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+    fn pr_merge<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        method: PrMergeMethod,
+        delete_branch: bool,
+    ) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
     }
     fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
@@ -617,7 +746,15 @@ impl Host for GitlabHost {
     fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
         Box::pin(review_threads(core, api, repo, number))
     }
-    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+    fn review_reply<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        thread_id: &'a str,
+        body: &'a str,
+    ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

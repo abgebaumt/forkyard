@@ -155,15 +155,20 @@ pub fn builtin_reason(path: &str) -> Option<AiOmitReason> {
     let normalized = path.replace('\\', "/");
     let mut parts: Vec<&str> = normalized.split('/').filter(|part| !part.is_empty()).collect();
     let name = parts.pop()?.to_lowercase();
-    if name.starts_with(".env") || SSH_KEYS.iter().any(|key| name.starts_with(key)) || SECRET_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)) {
+    if name.starts_with(".env")
+        || SSH_KEYS.iter().any(|key| name.starts_with(key))
+        || SECRET_SUFFIXES.iter().any(|suffix| name.ends_with(suffix))
+    {
         return Some(AiOmitReason::Secret);
     }
-    if LOCKFILES.contains(&name.as_str()) || name.contains(".min.") || parts.iter().any(|dir| GENERATED_DIRS.contains(&dir.to_lowercase().as_str())) {
+    if LOCKFILES.contains(&name.as_str())
+        || name.contains(".min.")
+        || parts.iter().any(|dir| GENERATED_DIRS.contains(&dir.to_lowercase().as_str()))
+    {
         return Some(AiOmitReason::Generated);
     }
     None
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -212,8 +217,12 @@ mod tests {
         let mut args = vec!["-c", "core.quotePath=false", "check-ignore", "--no-index", "--"];
         args.extend(paths);
         let output = repo.git_output(&args);
-        let git_says: std::collections::BTreeSet<String> =
-            output.stdout.split(|byte| *byte == b'\n').filter(|part| !part.is_empty()).map(|part| String::from_utf8(part.to_vec()).unwrap()).collect();
+        let git_says: std::collections::BTreeSet<String> = output
+            .stdout
+            .split(|byte| *byte == b'\n')
+            .filter(|part| !part.is_empty())
+            .map(|part| String::from_utf8(part.to_vec()).unwrap())
+            .collect();
         assert!(git_says.contains("app.log") && git_says.contains("build/out.js"), "the oracle works: {git_says:?}");
         let rules = IgnoreRules::parse(patterns);
         for path in paths {

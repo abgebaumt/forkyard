@@ -5,7 +5,9 @@ use serde_json::json;
 
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
-use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState};
+use crate::model::{
+    CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState,
+};
 
 use crate::model::ReviewSide;
 
@@ -29,7 +31,8 @@ async fn account_and_repository_are_recognised() {
     let weak = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), WEAK_TOKEN.into(), None).await.unwrap();
     assert_eq!((weak.id.as_str(), weak.scopes_ok, weak.missing_scopes.clone()), (account.id.as_str(), false, vec!["api".to_string()]));
     cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), TOKEN.into(), None).await.unwrap();
-    let error = cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), format!("glpat-{}", "ErfundenUndFalsch000"), None).await.unwrap_err();
+    let error =
+        cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), format!("glpat-{}", "ErfundenUndFalsch000"), None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostAuthFailed);
     assert!(error.message.contains("GitLab"), "{}", error.message);
 
@@ -37,7 +40,14 @@ async fn account_and_repository_are_recognised() {
     assert_eq!((info.kind, info.owner.as_str(), info.name.as_str()), (KIND, "gruppe/unter", "demo"));
     assert_eq!(info.web_url, format!("{}/gruppe/unter/demo", fx.server.url()));
     assert_eq!((info.default_branch.as_deref(), info.can_push), (Some("main"), Some(true)));
-    assert_eq!(info.fork_parent, Some(HostRepoRef { owner: "quelle/gruppe".into(), name: "demo".into(), web_url: format!("{}/quelle/gruppe/demo", fx.server.url()) }));
+    assert_eq!(
+        info.fork_parent,
+        Some(HostRepoRef {
+            owner: "quelle/gruppe".into(),
+            name: "demo".into(),
+            web_url: format!("{}/quelle/gruppe/demo", fx.server.url())
+        })
+    );
     assert_eq!(fx.sent("GET", PROJECT).len(), 1, "the project is addressed by its encoded path");
 
     fx.mode("rate");
@@ -53,7 +63,10 @@ async fn merge_requests_are_listed_and_read() {
     let first = cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, None, None, None).await.unwrap();
     assert_eq!((first.items.len(), first.next_page, first.items[0].number), (20, Some(2), 44));
     let call = &fx.sent("GET", "/merge_requests")[0];
-    assert_eq!((call.query("state"), call.query("order_by"), call.query("sort"), call.query("per_page")), (Some("opened".into()), Some("updated_at".into()), Some("desc".into()), Some("20".into())));
+    assert_eq!(
+        (call.query("state"), call.query("order_by"), call.query("sort"), call.query("per_page")),
+        (Some("opened".into()), Some("updated_at".into()), Some("desc".into()), Some("20".into()))
+    );
     let second = cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, Some(2), None, None).await.unwrap();
     assert_eq!((second.items.len(), second.next_page), (16, None));
     let by_number = |n: u64| second.items.iter().find(|mr| mr.number == n).unwrap_or_else(|| panic!("!{n}")).clone();
@@ -66,7 +79,10 @@ async fn merge_requests_are_listed_and_read() {
     assert_eq!(by_number(1).author.as_ref().map(|a| a.login.as_str()), Some("jonas"));
     // GitLab itself filters by "merged" and "closed".
     let merged = cmd::pr_list(&fx.tc, fx.id(), PrListState::Merged, None, None, None).await.unwrap();
-    assert_eq!(merged.items.iter().map(|mr| (mr.number, mr.state)).collect::<Vec<_>>(), vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]);
+    assert_eq!(
+        merged.items.iter().map(|mr| (mr.number, mr.state)).collect::<Vec<_>>(),
+        vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]
+    );
     let closed = cmd::pr_list(&fx.tc, fx.id(), PrListState::Closed, None, None, None).await.unwrap();
     assert_eq!(closed.items.iter().map(|mr| mr.number).collect::<Vec<_>>(), vec![45, 35, 25, 15, 5]);
     let all = cmd::pr_list(&fx.tc, fx.id(), PrListState::All, None, Some(100), None).await.unwrap();
@@ -74,21 +90,36 @@ async fn merge_requests_are_listed_and_read() {
 
     let mr = cmd::pr_get(&fx.tc, fx.id(), 1, None).await.unwrap();
     assert!(mr.body.contains("**Thema 1**"));
-    assert_eq!(mr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(), vec![("mira", Some(PrReviewState::Approved))]);
+    assert_eq!(
+        mr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(),
+        vec![("mira", Some(PrReviewState::Approved))]
+    );
     // System notes ("changed the title") are not comments.
-    assert_eq!(mr.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(), vec![("2", "Sieht gut aus."), ("3", "Hier bitte prüfen.")]);
+    assert_eq!(
+        mr.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(),
+        vec![("2", "Sieht gut aus."), ("3", "Hier bitte prüfen.")]
+    );
     assert_eq!((mr.comments[1].path.as_deref(), mr.comments[1].line), (Some("src/anmeldung.rs"), Some(42)));
     assert_eq!(mr.commits.len(), 2);
     assert_eq!((mr.commits[0].summary.as_str(), mr.commits[0].author_name.as_str()), ("Meldung übersetzt", "Jonas Weber"));
     assert_eq!(mr.mergeable, Some(true));
     // The individual jobs of the pipeline.
-    assert_eq!(mr.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(), vec![("build", CheckRunState::Passing), ("lint", CheckRunState::Skipped)]);
+    assert_eq!(
+        mr.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(),
+        vec![("build", CheckRunState::Passing), ("lint", CheckRunState::Skipped)]
+    );
     assert_eq!((mr.summary.checks, mr.head_sha.as_str()), (Some(ChecksState::Passing), format!("{:040x}", 1).as_str()));
     // Jobs not readable: the pipeline stays as one entry.
     let running = cmd::pr_get(&fx.tc, fx.id(), 2, None).await.unwrap();
-    assert_eq!(running.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(), vec![("Pipeline", CheckRunState::Pending)]);
+    assert_eq!(
+        running.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(),
+        vec![("Pipeline", CheckRunState::Pending)]
+    );
     assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 13, None).await.unwrap().mergeable, Some(false));
-    assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 999, None).await.unwrap_err().message, "Merge request !999 does not exist in gruppe/unter/demo.");
+    assert_eq!(
+        cmd::pr_get(&fx.tc, fx.id(), 999, None).await.unwrap_err().message,
+        "Merge request !999 does not exist in gruppe/unter/demo."
+    );
 
     check_error_modes(&fx, "GitLab", "pr_list", || cmd::pr_list(&fx.tc, fx.id(), PrListState::Open, None, None, None)).await;
     check_error_modes(&fx, "GitLab", "pr_get", || cmd::pr_get(&fx.tc, fx.id(), 1, None)).await;
@@ -100,7 +131,20 @@ async fn merge_requests_are_listed_and_read() {
 #[tokio::test]
 async fn merge_requests_are_created_changed_commented_merged_and_closed() {
     let fx = Fixture::new(KIND).await;
-    let created = cmd::pr_create(&fx.tc, fx.id(), "Neue Anmeldung".into(), "Text".into(), "feature/neu".into(), "main".into(), true, Some(vec!["mira".into()]), Some(vec!["bug".into(), "ui".into()]), None).await.unwrap();
+    let created = cmd::pr_create(
+        &fx.tc,
+        fx.id(),
+        "Neue Anmeldung".into(),
+        "Text".into(),
+        "feature/neu".into(),
+        "main".into(),
+        true,
+        Some(vec!["mira".into()]),
+        Some(vec!["bug".into(), "ui".into()]),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!((created.number, created.title.as_str(), created.is_draft), (101, "Draft: Neue Anmeldung", true));
     assert_eq!(
         fx.sent("POST", "/merge_requests")[0].json(),
@@ -109,15 +153,33 @@ async fn merge_requests_are_created_changed_commented_merged_and_closed() {
     assert_eq!(fx.sent("GET", "/api/v4/users")[0].query("username").as_deref(), Some("mira"));
     // A reviewer who doesn't exist: nothing is created.
     fx.server.clear();
-    let error = cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "feature/neu".into(), "main".into(), false, Some(vec!["niemand".into()]), None, None).await.unwrap_err();
+    let error = cmd::pr_create(
+        &fx.tc,
+        fx.id(),
+        "x".into(),
+        String::new(),
+        "feature/neu".into(),
+        "main".into(),
+        false,
+        Some(vec!["niemand".into()]),
+        None,
+        None,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(error.code, ErrorCode::HostRejected);
     assert!(error.message.contains("“niemand”"), "{}", error.message);
     assert!(fx.sent("POST", "/merge_requests").is_empty());
     // 409: one already exists for the branch.
-    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None).await.unwrap_err();
+    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None)
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::NameExists);
     assert!(error.message.contains("already an open merge request"), "{}", error.message);
-    check_error_modes(&fx, "GitLab", "pr_create", || cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)).await;
+    check_error_modes(&fx, "GitLab", "pr_create", || {
+        cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)
+    })
+    .await;
 
     // Update: the draft state lives in the title.
     fx.server.clear();
@@ -125,7 +187,20 @@ async fn merge_requests_are_created_changed_commented_merged_and_closed() {
     assert_eq!((ready.title.as_str(), ready.is_draft), ("Thema 3 umsetzen", false));
     assert_eq!(fx.sent("PUT", "/merge_requests/3")[0].json(), json!({ "title": "Thema 3 umsetzen" }));
     fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 3, Some("Neuer Titel".into()), Some("Neuer Text".into()), Some("develop".into()), None, Some(vec!["mira".into()]), Some(Vec::new()), None).await.unwrap();
+    cmd::pr_update(
+        &fx.tc,
+        fx.id(),
+        3,
+        Some("Neuer Titel".into()),
+        Some("Neuer Text".into()),
+        Some("develop".into()),
+        None,
+        Some(vec!["mira".into()]),
+        Some(Vec::new()),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(
         fx.sent("PUT", "/merge_requests/3")[0].json(),
         json!({ "title": "Draft: Neuer Titel", "description": "Neuer Text", "target_branch": "develop", "labels": "", "reviewer_ids": [44] }),
@@ -207,13 +282,27 @@ async fn releases_are_created_with_the_tag_commit_as_ref() {
     let commit = fx.repo.git(&["rev-parse", "v2.0.0^{commit}"]);
     let notes = "### Added\n\n- Merge requests for „Süd“";
     let release = cmd::release_create(&fx.tc, fx.id(), "v2.0.0".into(), "Version 2".into(), notes.into(), true, None).await.unwrap();
-    assert_eq!(release, HostRelease { tag: "v2.0.0".into(), name: "Version 2".into(), web_url: Some(format!("{}/gruppe/unter/demo/-/releases/v2.0.0", fx.server.url())) });
+    assert_eq!(
+        release,
+        HostRelease {
+            tag: "v2.0.0".into(),
+            name: "Version 2".into(),
+            web_url: Some(format!("{}/gruppe/unter/demo/-/releases/v2.0.0", fx.server.url()))
+        }
+    );
     let sent = fx.sent("POST", "/releases");
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].path(), "/api/v4/projects/gruppe%2Funter%2Fdemo/releases");
-    assert_eq!(sent[0].json(), json!({"tag_name": "v2.0.0", "ref": commit, "name": "Version 2", "description": notes}), "GitLab has no prerelease flag");
+    assert_eq!(
+        sent[0].json(),
+        json!({"tag_name": "v2.0.0", "ref": commit, "name": "Version 2", "description": notes}),
+        "GitLab has no prerelease flag"
+    );
     fx.repo.tag("schon-da");
-    assert_eq!(cmd::release_create(&fx.tc, fx.id(), "schon-da".into(), String::new(), "x".into(), false, None).await.unwrap_err().code, ErrorCode::NameExists);
+    assert_eq!(
+        cmd::release_create(&fx.tc, fx.id(), "schon-da".into(), String::new(), "x".into(), false, None).await.unwrap_err().code,
+        ErrorCode::NameExists
+    );
     fx.assert_token_stays_secret();
 }
 
@@ -234,8 +323,12 @@ async fn review_threads_are_the_diff_discussions_with_their_notes() {
         "general discussions and system notes are no review threads"
     );
     assert_eq!(threads[0].commit.as_deref(), Some(format!("{:040x}", 9).as_str()));
-    let notes: Vec<_> = threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str(), c.line)).collect();
-    assert_eq!(notes, vec![("901", Some("mira"), "Hier fehlt die Prüfung auf leer.", Some(42)), ("902", Some("jonas"), "Stimmt, mache ich.", Some(42))]);
+    let notes: Vec<_> =
+        threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str(), c.line)).collect();
+    assert_eq!(
+        notes,
+        vec![("901", Some("mira"), "Hier fehlt die Prüfung auf leer.", Some(42)), ("902", Some("jonas"), "Stimmt, mache ich.", Some(42))]
+    );
     let call = &fx.sent("GET", "/merge_requests/9/discussions")[0];
     assert_eq!(call.path(), "/api/v4/projects/gruppe%2Funter%2Fdemo/merge_requests/9/discussions");
     assert_eq!(call.query("per_page").as_deref(), Some("100"));
@@ -253,7 +346,9 @@ async fn a_reply_is_a_new_note_of_the_discussion() {
     let sent = fx.sent("POST", &format!("/merge_requests/9/discussions/{DISCUSSION_A}/notes"));
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].json(), json!({ "body": "Erledigt." }));
-    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "0000000000000000000000000000000000000000".into(), "Danke".into(), None).await.unwrap_err();
+    let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "0000000000000000000000000000000000000000".into(), "Danke".into(), None)
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::HostNotFound);
     let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
     assert!(caps.review_threads && caps.review_reply && !caps.review_reply_quotes);

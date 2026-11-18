@@ -31,8 +31,9 @@ use crate::db::hoster_accounts::{AccountFacts, HosterAccountRow};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{self, Method, Request, Response};
 use crate::model::{
-    AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRelease, HostRepoRef, HostUser, HosterAccount, IssueDetails, IssueListState, IssuePage,
-    IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrSummary, ReviewReply, ReviewThread,
+    AppChange, CheckRunState, ChecksState, HostCapabilities, HostComment, HostKind, HostRelease, HostRepoRef, HostUser, HosterAccount,
+    IssueDetails, IssueListState, IssuePage, IssueSummary, PrCheck, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState,
+    PrReviewer, PrSummary, ReviewReply, ReviewThread,
 };
 use crate::secrets;
 use crate::util;
@@ -237,41 +238,112 @@ pub trait Host: Sync {
     /// Checks the token and says whom it belongs to.
     fn account_facts<'a>(&'a self, core: &'a Core, api: &'a Api) -> HostFuture<'a, AccountFacts>;
     fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts>;
-    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage>;
+    fn pr_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: PrListState,
+        paging: Paging,
+    ) -> HostFuture<'a, PrPage>;
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails>;
     /// Only the header data of a pull request (without checks and reviews).
     fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary>;
-    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage>;
+    fn issue_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: IssueListState,
+        query: Option<&'a str>,
+        paging: Paging,
+    ) -> HostFuture<'a, IssuePage>;
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails>;
 
     fn pr_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         unsupported(self.label(), "creating pull requests")
     }
-    fn pr_update<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+    fn pr_update<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _change: PrChange<'a>,
+    ) -> HostFuture<'a, PrSummary> {
         unsupported(self.label(), "changing pull requests")
     }
-    fn pr_comment<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _body: &'a str) -> HostFuture<'a, HostComment> {
+    fn pr_comment<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _body: &'a str,
+    ) -> HostFuture<'a, HostComment> {
         unsupported(self.label(), "comments")
     }
-    fn pr_merge<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _method: PrMergeMethod, _delete_branch: bool) -> HostFuture<'a, PrSummary> {
+    fn pr_merge<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _method: PrMergeMethod,
+        _delete_branch: bool,
+    ) -> HostFuture<'a, PrSummary> {
         unsupported(self.label(), "merging")
     }
-    fn pr_set_open<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _open: bool) -> HostFuture<'a, PrSummary> {
+    fn pr_set_open<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _open: bool,
+    ) -> HostFuture<'a, PrSummary> {
         unsupported(self.label(), "closing and reopening pull requests")
     }
-    fn issue_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _title: &'a str, _body: &'a str) -> HostFuture<'a, IssueSummary> {
+    fn issue_create<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _title: &'a str,
+        _body: &'a str,
+    ) -> HostFuture<'a, IssueSummary> {
         unsupported(self.label(), "creating issues")
     }
-    fn release_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _new: NewRelease<'a>) -> HostFuture<'a, HostRelease> {
+    fn release_create<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _new: NewRelease<'a>,
+    ) -> HostFuture<'a, HostRelease> {
         unsupported(self.label(), "releases")
     }
     /// Review threads of a pull request: comments on lines with their answers and resolved state.
-    fn review_threads<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
+    fn review_threads<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+    ) -> HostFuture<'a, Vec<ReviewThread>> {
         unsupported(self.label(), "review threads")
     }
     /// Answer in a review thread (`thread_id` as `ReviewThread.id`). Hosts without answers inside
     /// threads post a new comment on the same line with a quote (`ReviewReply.quoted`).
-    fn review_reply<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _number: u64, _thread_id: &'a str, _body: &'a str) -> HostFuture<'a, ReviewReply> {
+    fn review_reply<'a>(
+        &'a self,
+        _core: &'a Core,
+        _api: &'a Api,
+        _repo: &'a RepoPath,
+        _number: u64,
+        _thread_id: &'a str,
+        _body: &'a str,
+    ) -> HostFuture<'a, ReviewReply> {
         unsupported(self.label(), "answers to review comments")
     }
 }
@@ -402,7 +474,9 @@ impl Api {
         let mut parts: Vec<String> = Vec::new();
         if let Some(value) = &parsed {
             // Bitbucket nests it: `{ "type": "error", "error": { "message": … } }`.
-            if let Some(message) = value.get("error").and_then(|e| e.get("message")).and_then(Value::as_str).filter(|m| !m.trim().is_empty()) {
+            if let Some(message) =
+                value.get("error").and_then(|e| e.get("message")).and_then(Value::as_str).filter(|m| !m.trim().is_empty())
+            {
                 parts.push(message.trim().to_string());
             }
             if parts.is_empty() {
@@ -460,7 +534,9 @@ impl Api {
             ),
             // The token is valid but not allowed to do this: a different situation from a rejected token (401).
             403 => CoreError::new(ErrorCode::HostForbidden, format!("{label} denies access: the token lacks the permission for this.")),
-            404 | 410 => CoreError::new(ErrorCode::HostNotFound, format!("{label} could not find this – or the token is not allowed to see it.")),
+            404 | 410 => {
+                CoreError::new(ErrorCode::HostNotFound, format!("{label} could not find this – or the token is not allowed to see it."))
+            }
             405 | 406 | 409 | 422 | 400 => {
                 let reason = if detail.is_empty() { format!("Status {}", response.status) } else { detail.clone() };
                 CoreError::new(ErrorCode::HostRejected, format!("{label} rejected the request: {reason}"))
@@ -530,8 +606,12 @@ impl Api {
             let label = self.label();
             let detail = util::truncate_str(&secrets::scrub(&text(first, "message"), std::slice::from_ref(&self.token)), 600);
             let error = match text(first, "type").as_str() {
-                "NOT_FOUND" => CoreError::new(ErrorCode::HostNotFound, format!("{label} could not find this – or the token is not allowed to see it.")),
-                "FORBIDDEN" | "INSUFFICIENT_SCOPES" => CoreError::new(ErrorCode::HostForbidden, format!("{label} denies access: the token lacks the permission for this.")),
+                "NOT_FOUND" => {
+                    CoreError::new(ErrorCode::HostNotFound, format!("{label} could not find this – or the token is not allowed to see it."))
+                }
+                "FORBIDDEN" | "INSUFFICIENT_SCOPES" => {
+                    CoreError::new(ErrorCode::HostForbidden, format!("{label} denies access: the token lacks the permission for this."))
+                }
                 _ => CoreError::new(ErrorCode::HostRejected, format!("{label} rejected the request: {detail}")),
             };
             return Err(if detail.is_empty() { error } else { error.with_git_output(&detail) });
@@ -568,7 +648,8 @@ pub(crate) fn not_found_as(error: CoreError, what: impl FnOnce() -> String) -> C
 
 /// Recognises "one already exists for this" in a rejection (all hosts word it like that).
 pub(crate) fn already_exists(error: &CoreError) -> bool {
-    error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
+    error.code == ErrorCode::HostRejected
+        && error.git_output.as_deref().is_some_and(|detail| detail.to_ascii_lowercase().contains("already exists"))
 }
 
 /// A rejected release: "already exists" (GitHub: `already_exists`) becomes `name_exists`; a
@@ -576,7 +657,12 @@ pub(crate) fn already_exists(error: &CoreError) -> bool {
 pub(crate) fn release_error(error: CoreError, tag: &str, what: impl FnOnce() -> String) -> CoreError {
     let detail = error.git_output.as_deref().unwrap_or_default().to_ascii_lowercase();
     if error.code == ErrorCode::HostRejected && (detail.contains("already exists") || detail.contains("already_exists")) {
-        return CoreError { code: ErrorCode::NameExists, message: format!("There is already a release for the tag “{tag}”."), git_output: error.git_output, retry_at: None };
+        return CoreError {
+            code: ErrorCode::NameExists,
+            message: format!("There is already a release for the tag “{tag}”."),
+            git_output: error.git_output,
+            retry_at: None,
+        };
     }
     not_found_as(error, what)
 }
@@ -649,7 +735,13 @@ pub async fn connect(core: &Core, kind: HostKind, base_url: Option<String>, toke
 
 /// Like `connect`, with the user name some hosts need besides the token (Bitbucket). Hosts that
 /// only need the token ignore it.
-pub async fn connect_as(core: &Core, kind: HostKind, base_url: Option<String>, username: Option<String>, token: String) -> CoreResult<HosterAccount> {
+pub async fn connect_as(
+    core: &Core,
+    kind: HostKind,
+    base_url: Option<String>,
+    username: Option<String>,
+    token: String,
+) -> CoreResult<HosterAccount> {
     let token = check_token(&token)?;
     let username = check_username(host(kind), username)?;
     let web_base = detect::normalize_base_url(kind, base_url.as_deref())?;
@@ -661,11 +753,13 @@ pub async fn connect_as(core: &Core, kind: HostKind, base_url: Option<String>, u
     // Check first, then store: a rejected token leaves nothing behind.
     let mut probe = Api::new(kind, "", &web_base, token.clone());
     probe.username = username.clone();
-    let facts = facts(core, &probe).await.map_err(|e| {
-        not_found_as(e, || format!("No {} API responds at {web_base}. Check the address.", label(kind)))
-    })?;
+    let facts = facts(core, &probe)
+        .await
+        .map_err(|e| not_found_as(e, || format!("No {} API responds at {web_base}. Check the address.", label(kind))))?;
     let profile_id = core.active_profile_id()?;
-    let row = core.db.with(|c| db::hoster_accounts::upsert(c, &profile_id, kind, &web_base, username.as_deref(), &secrets::hint(&token), &facts))?;
+    let row = core
+        .db
+        .with(|c| db::hoster_accounts::upsert(c, &profile_id, kind, &web_base, username.as_deref(), &secrets::hint(&token), &facts))?;
     if let Err(e) = secrets::set(core, &secret_account(&row.id), &token).await {
         // Without a token the account would be useless.
         let _ = core.db.with(|c| db::hoster_accounts::delete(c, &profile_id, &row.id));
@@ -763,7 +857,8 @@ pub async fn resolve(core: &Core, repo_id: &str, remote: Option<&str>) -> CoreRe
     let all = remotes::read_remotes(core, repo_id).await?;
     let of = |r: &remotes::RawRemote| detect::detect(&r.fetch_url, &accounts).map(|detected| RepoHost { remote: r.name.clone(), detected });
     if let Some(name) = remote.map(str::trim).filter(|n| !n.is_empty()) {
-        let wanted = all.iter().find(|r| r.name == name).ok_or_else(|| CoreError::not_found(format!("The remote “{name}” does not exist.")))?;
+        let wanted =
+            all.iter().find(|r| r.name == name).ok_or_else(|| CoreError::not_found(format!("The remote “{name}” does not exist.")))?;
         return Ok(of(wanted));
     }
     if let Some(found) = all.iter().find(|r| r.name == "origin").and_then(of) {

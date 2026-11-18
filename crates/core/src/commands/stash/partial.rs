@@ -51,7 +51,13 @@ struct Part {
 
 /// Stashes the selection and takes exactly it out of index and working directory. Call within the
 /// write lock. Returns the SHA of the new stash.
-pub(crate) async fn stash_selection(core: &Core, repo_id: &str, message: Option<&str>, selection: &StashSelection, undoable: bool) -> CoreResult<String> {
+pub(crate) async fn stash_selection(
+    core: &Core,
+    repo_id: &str,
+    message: Option<&str>,
+    selection: &StashSelection,
+    undoable: bool,
+) -> CoreResult<String> {
     let head = refs::read_head(core, repo_id).await?;
     let (head_sha, on) = match &head {
         Head::Branch { branch, sha } => (sha.clone(), branch.clone()),
@@ -88,7 +94,8 @@ pub(crate) async fn stash_selection(core: &Core, repo_id: &str, message: Option<
         Some(text) => format!("On {on}: {text}"),
         None => format!("WIP on {on}: {short} {head_subject}"),
     };
-    let index_commit = commit_tree(core, repo_id, &index_tree, &[&head_sha], &format!("index on {on}: {short} {head_subject}"), false).await?;
+    let index_commit =
+        commit_tree(core, repo_id, &index_tree, &[&head_sha], &format!("index on {on}: {short} {head_subject}"), false).await?;
     let stash_commit = commit_tree(core, repo_id, &worktree_tree, &[&head_sha, &index_commit], &subject, false).await?;
 
     // Backup of the selected files and the whole index before anything is taken out.
@@ -251,7 +258,10 @@ async fn remove_selection(core: &Core, repo_id: &str, staged: &[Part], unstaged:
 /// line endings (as when discarding lines).
 async fn reverse_in_worktree(core: &Core, repo_id: &str, part: &Part) -> CoreResult<()> {
     let file = util::join_from_git(&core.repo_path(repo_id)?, &part.path);
-    let before = std::fs::metadata(&file).ok().filter(|meta| meta.is_file() && meta.len() <= KEEP_EOL_MAX_BYTES).and_then(|_| std::fs::read(&file).ok());
+    let before = std::fs::metadata(&file)
+        .ok()
+        .filter(|meta| meta.is_file() && meta.len() <= KEEP_EOL_MAX_BYTES)
+        .and_then(|_| std::fs::read(&file).ok());
     let hunks = patch::parse_diff(&part.reverse).into_iter().next().map(|parsed| parsed.hunks).unwrap_or_default();
     apply(core.git_for(repo_id)?, &part.reverse, false, true).await?;
     if let (Some(before), Ok(after)) = (before, std::fs::read(&file)) {

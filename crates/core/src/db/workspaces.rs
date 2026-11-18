@@ -8,7 +8,8 @@ use crate::model::Workspace;
 use crate::util;
 
 fn repo_ids(conn: &Connection, workspace_id: &str) -> CoreResult<Vec<String>> {
-    let mut stmt = conn.prepare("select repository_id from workspace_repositories where workspace_id = ?1 order by position, repository_id")?;
+    let mut stmt =
+        conn.prepare("select repository_id from workspace_repositories where workspace_id = ?1 order by position, repository_id")?;
     let ids = stmt.query_map([workspace_id], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(ids)
 }
@@ -16,9 +17,8 @@ fn repo_ids(conn: &Connection, workspace_id: &str) -> CoreResult<Vec<String>> {
 /// All workspaces of the profile, by name.
 pub fn list(conn: &Connection, profile_id: &str) -> CoreResult<Vec<Workspace>> {
     let mut stmt = conn.prepare("select id, name from workspaces where profile_id = ?1 order by name collate nocase, id")?;
-    let rows = stmt
-        .query_map([profile_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let rows =
+        stmt.query_map([profile_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
     rows.into_iter().map(|(id, name)| Ok(Workspace { repo_ids: repo_ids(conn, &id)?, id, name })).collect()
 }
 
@@ -58,7 +58,8 @@ pub fn save(conn: &Connection, profile_id: &str, id: Option<&str>, name: &str, r
         }
         None => {
             let id = util::new_id();
-            conn.execute("insert into workspaces (id, profile_id, name) values (?1, ?2, ?3)", params![id, profile_id, name]).map_err(taken)?;
+            conn.execute("insert into workspaces (id, profile_id, name) values (?1, ?2, ?3)", params![id, profile_id, name])
+                .map_err(taken)?;
             id
         }
     };

@@ -91,7 +91,11 @@ pub fn create(core: &Core, repo_id: &str, provider: &str, model: &str) -> CoreRe
             "insert or ignore into indexes (repository_id, provider, model, used_at) values (?1, ?2, ?3, ?4)",
             params![repo_id, provider, model, util::now_iso()],
         )?;
-        Ok(c.query_row("select id from indexes where repository_id = ?1 and provider = ?2 and model = ?3", params![repo_id, provider, model], |r| r.get::<_, i64>(0))?)
+        Ok(c.query_row(
+            "select id from indexes where repository_id = ?1 and provider = ?2 and model = ?3",
+            params![repo_id, provider, model],
+            |r| r.get::<_, i64>(0),
+        )?)
     })?;
     id.ok_or_else(|| CoreError::io("The search index could not be opened."))
 }

@@ -37,7 +37,8 @@ async fn undo_backups_are_listed_with_their_age() {
     let (tc, repo, id) = setup().await;
     let f = undo_fixture(&tc, &repo, &id).await;
     let preview = repo_cleanup_preview(&tc, id.clone()).await.unwrap();
-    let mut listed: Vec<(String, Option<String>, bool)> = preview.undo_backups.iter().map(|b| (b.entry_id.clone(), b.created_at.clone(), b.orphaned)).collect();
+    let mut listed: Vec<(String, Option<String>, bool)> =
+        preview.undo_backups.iter().map(|b| (b.entry_id.clone(), b.created_at.clone(), b.orphaned)).collect();
     listed.sort();
     let mut expected = vec![
         (f.old_entry.clone(), Some(f.old_entry_at.clone()), false),
@@ -66,7 +67,10 @@ async fn backups_of_a_worktree_opened_on_its_own_belong_to_the_repository() {
 #[test]
 fn lfs_dry_run_summary_is_read() {
     let parse = measure::parse_lfs_dry_run;
-    assert_eq!(parse("3 local objects, 1 retained, done.\n2 files would be pruned (12 KB), done.\n"), CleanupLfsEstimate { files: 2, bytes: 12_000 });
+    assert_eq!(
+        parse("3 local objects, 1 retained, done.\n2 files would be pruned (12 KB), done.\n"),
+        CleanupLfsEstimate { files: 2, bytes: 12_000 }
+    );
     assert_eq!(parse("prune: 1 file would be pruned (7.0 KB)\r"), CleanupLfsEstimate { files: 1, bytes: 7_000 });
     assert_eq!(parse("12 files would be pruned (980 B), done."), CleanupLfsEstimate { files: 12, bytes: 980 });
     assert_eq!(parse("3 files would be pruned (1.5 MB), done."), CleanupLfsEstimate { files: 3, bytes: 1_500_000 });

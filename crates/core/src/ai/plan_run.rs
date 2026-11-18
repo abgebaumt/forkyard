@@ -36,7 +36,15 @@ struct Start {
     known: HashMap<String, String>,
 }
 
-pub async fn run(core: &Core, repo_id: &str, job: &Job, text: &str, steps: &[PlanStep], expect: &str, confirmed: &[u32]) -> CoreResult<PlanRunResult> {
+pub async fn run(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    text: &str,
+    steps: &[PlanStep],
+    expect: &str,
+    confirmed: &[u32],
+) -> CoreResult<PlanRunResult> {
     let Checked { preview, actions, touched, seen } = plan_check::check(core, repo_id, steps, job.token()).await?;
     if preview.expect != expect {
         return Err(expired());
@@ -55,7 +63,7 @@ pub async fn run(core: &Core, repo_id: &str, job: &Job, text: &str, steps: &[Pla
     let total = actions.len();
     let mut outcomes: Vec<PlanStepOutcome> = Vec::with_capacity(total);
     let mut stopped: Option<bool> = None; // Some(cancelled?)
-    // Undo entries the steps themselves recorded.
+                                          // Undo entries the steps themselves recorded.
     let mut recorded: HashSet<String> = HashSet::new();
     for (index, action) in actions.iter().enumerate() {
         let index32 = index as u32;
@@ -89,7 +97,14 @@ pub async fn run(core: &Core, repo_id: &str, job: &Job, text: &str, steps: &[Pla
 }
 
 /// Snapshot and "before" refs, after checking the expected state once more inside the write lock.
-async fn begin(core: &Core, repo_id: &str, steps: &[PlanStep], expect: &str, seen: &BTreeMap<String, String>, touched: &BTreeSet<String>) -> CoreResult<Start> {
+async fn begin(
+    core: &Core,
+    repo_id: &str,
+    steps: &[PlanStep],
+    expect: &str,
+    seen: &BTreeMap<String, String>,
+    touched: &BTreeSet<String>,
+) -> CoreResult<Start> {
     core.with_write_lock(repo_id, &[], async {
         if plan_check::expect_token(core, repo_id, steps, seen).await? != expect {
             return Err(expired());
@@ -109,7 +124,17 @@ async fn begin(core: &Core, repo_id: &str, steps: &[PlanStep], expect: &str, see
 
 /// Replaces the steps' own undo entries by one group entry `plan`; `false` when nothing local changed.
 #[allow(clippy::too_many_arguments)]
-async fn finish(core: &Core, repo_id: &str, start: Start, touched: &BTreeSet<String>, text: &str, done: usize, pushed: bool, stashed: bool, recorded: &HashSet<String>) -> CoreResult<bool> {
+async fn finish(
+    core: &Core,
+    repo_id: &str,
+    start: Start,
+    touched: &BTreeSet<String>,
+    text: &str,
+    done: usize,
+    pushed: bool,
+    stashed: bool,
+    recorded: &HashSet<String>,
+) -> CoreResult<bool> {
     core.with_write_lock(repo_id, &[RepoChange::Refs], async {
         let now = undo_states(core, repo_id)?;
         // Another action recorded, undid or redid something while the plan ran (the palette closes,

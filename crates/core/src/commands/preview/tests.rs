@@ -131,7 +131,12 @@ async fn rebase_preview_replays_the_branch_onto_the_target() {
     repo.checkout("main");
     repo.commit_file("h.txt", "h\n", "Main ohne Konflikt");
     repo.checkout("feature");
-    let rebase = |branch: Option<&str>, commits: Option<Vec<String>>| PreviewOp::Rebase { onto: "main".into(), upstream: None, branch: branch.map(str::to_string), commits };
+    let rebase = |branch: Option<&str>, commits: Option<Vec<String>>| PreviewOp::Rebase {
+        onto: "main".into(),
+        upstream: None,
+        branch: branch.map(str::to_string),
+        commits,
+    };
 
     assert_eq!(run(&tc, &id, rebase(None, None)).await, ConflictPreview::Clean);
     repo.checkout("main");
@@ -219,7 +224,11 @@ async fn a_simulation_can_start_at_any_commit() {
             conflicts(&["f.txt"], Some(main.as_str()))
         );
         let rebase = PreviewOp::Rebase { onto: main.clone(), upstream: None, branch: None, commits: None };
-        assert_eq!(simulate(&tc, &id, &cancel, &sauber, rebase).await.unwrap(), ConflictPreview::Clean, "sauber's own commit replays onto main");
+        assert_eq!(
+            simulate(&tc, &id, &cancel, &sauber, rebase).await.unwrap(),
+            ConflictPreview::Clean,
+            "sauber's own commit replays onto main"
+        );
     }
     assert_eq!(repo.current_branch(), "sauber");
     assert_eq!(repo.head(), sauber);
@@ -249,7 +258,8 @@ async fn merge_tree_with_ranges_reads_the_marker_lines_of_each_conflicted_file()
     repo.write_file("bild.bin", b"\x00\x03b");
     let b = repo.commit("Seite B");
     let cancel = CancelToken::new();
-    let conflict = |path: &str, ranges: Vec<LineRange>| MergedConflict { path: path.to_string(), raw_path: path.as_bytes().to_vec(), ranges };
+    let conflict =
+        |path: &str, ranges: Vec<LineRange>| MergedConflict { path: path.to_string(), raw_path: path.as_bytes().to_vec(), ranges };
     // Lines 40–62 of src/auth.ts and line 3 of the CRLF file were changed on both sides (fixture);
     // the binary file conflicts as a whole and has no lines.
     let expected = vec![

@@ -24,7 +24,10 @@ async fn account_is_checked_stored_in_the_keyring_and_never_leaks() {
     for key in ["id", "kind", "baseUrl", "user", "tokenHint", "scopesOk", "missingScopes", "lastError"] {
         assert!(shape.get(key).is_some(), "{key} missing: {shape}");
     }
-    assert_eq!((shape["kind"].clone(), shape["user"]["avatarUrl"].clone()), (json!("github"), json!("https://avatars.example/lena-hartmann.png")));
+    assert_eq!(
+        (shape["kind"].clone(), shape["user"]["avatarUrl"].clone()),
+        (json!("github"), json!("https://avatars.example/lena-hartmann.png"))
+    );
     assert!(!shape.to_string().contains(TOKEN));
     // The token is stored in exactly one place.
     assert_eq!(fx.tc.secrets.snapshot(), vec![(format!("hoster:{}", account.id), TOKEN.to_string())]);
@@ -54,7 +57,12 @@ async fn account_is_checked_stored_in_the_keyring_and_never_leaks() {
     assert_eq!(cmd::host_accounts(&fx.tc).await.unwrap().len(), 1);
     // Invalid input never goes out in the first place.
     fx.server.clear();
-    for (base, token) in [(Some("http://github.firma.example".to_string()), TOKEN), (Some(fx.server.url()), "   "), (Some(fx.server.url()), "mit leer zeichen"), (Some("ftp://x".to_string()), TOKEN)] {
+    for (base, token) in [
+        (Some("http://github.firma.example".to_string()), TOKEN),
+        (Some(fx.server.url()), "   "),
+        (Some(fx.server.url()), "mit leer zeichen"),
+        (Some("ftp://x".to_string()), TOKEN),
+    ] {
         let error = cmd::host_connect(&fx.tc, KIND, base.clone(), token.to_string(), None).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::NotAllowed, "{base:?}");
         assert_clean(&error);
@@ -71,7 +79,11 @@ async fn account_is_checked_stored_in_the_keyring_and_never_leaks() {
     cmd::host_connect(&fx.tc, KIND, Some(fx.server.url()), TOKEN.into(), None).await.unwrap();
     fx.mode("401");
     let rejected = cmd::host_check(&fx.tc, account.id.clone()).await.unwrap();
-    assert!(rejected.last_error.as_deref().is_some_and(|e| e.contains("rejects the token") && !e.contains(TOKEN)), "{:?}", rejected.last_error);
+    assert!(
+        rejected.last_error.as_deref().is_some_and(|e| e.contains("rejects the token") && !e.contains(TOKEN)),
+        "{:?}",
+        rejected.last_error
+    );
     fx.mode("ok");
     assert_eq!(cmd::host_check(&fx.tc, account.id.clone()).await.unwrap().last_error, None);
     fx.assert_token_stays_secret();
@@ -81,7 +93,11 @@ async fn account_is_checked_stored_in_the_keyring_and_never_leaks() {
     assert!(fx.tc.secrets.snapshot().is_empty());
     assert!(cmd::host_disconnect(&fx.tc, account.id.clone()).await.unwrap().is_empty(), "disconnecting twice is not an error");
     assert_eq!(cmd::host_check(&fx.tc, account.id.clone()).await.unwrap_err().code, ErrorCode::NotFound);
-    assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 1, None).await.unwrap_err().code, ErrorCode::HostUnsupported, "without an account the self-hosted instance is no longer recognised");
+    assert_eq!(
+        cmd::pr_get(&fx.tc, fx.id(), 1, None).await.unwrap_err().code,
+        ErrorCode::HostUnsupported,
+        "without an account the self-hosted instance is no longer recognised"
+    );
 }
 
 #[tokio::test]
@@ -91,11 +107,17 @@ async fn repo_info_combines_the_remote_with_what_the_hoster_says() {
     assert_eq!((info.remote.as_str(), info.kind, info.owner.as_str(), info.name.as_str()), ("origin", KIND, "octo", "demo"));
     assert_eq!(info.web_url, format!("{}/octo/demo", fx.server.url()));
     assert_eq!((info.default_branch.as_deref(), info.can_push), (Some("main"), Some(true)));
-    assert_eq!(info.fork_parent, Some(HostRepoRef { owner: "ursprung".into(), name: "demo".into(), web_url: format!("{}/ursprung/demo", fx.server.url()) }));
+    assert_eq!(
+        info.fork_parent,
+        Some(HostRepoRef { owner: "ursprung".into(), name: "demo".into(), web_url: format!("{}/ursprung/demo", fx.server.url()) })
+    );
     assert_eq!(info.account.as_ref().map(|a| a.id.as_str()), Some(fx.account.id.as_str()));
     assert_eq!(info.error, None);
     let shape = serde_json::to_value(&info).unwrap();
-    assert_eq!((shape["defaultBranch"].clone(), shape["canPush"].clone(), shape["forkParent"]["owner"].clone()), (json!("main"), json!(true), json!("ursprung")));
+    assert_eq!(
+        (shape["defaultBranch"].clone(), shape["canPush"].clone(), shape["forkParent"]["owner"].clone()),
+        (json!("main"), json!(true), json!("ursprung"))
+    );
 
     // A second remote in SSH form on the same instance.
     fx.repo.git(&["remote", "add", "per-ssh", "git@127.0.0.1:octo/demo.git"]);
@@ -134,7 +156,13 @@ async fn pull_requests_are_listed_page_by_page_with_checks_and_reviews() {
     assert_eq!(first.items[0].number, 44);
     let list_call = &fx.sent("GET", "/pulls")[0];
     assert_eq!(
-        (list_call.query("state"), list_call.query("sort"), list_call.query("direction"), list_call.query("per_page"), list_call.query("page")),
+        (
+            list_call.query("state"),
+            list_call.query("sort"),
+            list_call.query("direction"),
+            list_call.query("per_page"),
+            list_call.query("page")
+        ),
         (Some("open".into()), Some("updated".into()), Some("desc".into()), Some("20".into()), Some("1".into()))
     );
 
@@ -144,7 +172,10 @@ async fn pull_requests_are_listed_page_by_page_with_checks_and_reviews() {
     let one = by_number(1);
     assert_eq!(one.title, "Anmeldung: Fehlermeldung bei leerem Passwort");
     assert_eq!((one.checks, one.review_state), (Some(ChecksState::Passing), Some(PrReviewState::Approved)));
-    assert_eq!((one.source_branch.as_str(), one.target_branch.as_str(), one.is_fork, one.is_draft), ("feature/thema-1", "main", false, false));
+    assert_eq!(
+        (one.source_branch.as_str(), one.target_branch.as_str(), one.is_fork, one.is_draft),
+        ("feature/thema-1", "main", false, false)
+    );
     assert_eq!(one.author.as_ref().map(|a| a.login.as_str()), Some("jonas"));
     assert_eq!(one.labels.iter().map(|l| (l.name.as_str(), l.color.as_deref())).collect::<Vec<_>>(), vec![("bug", Some("#d73a4a"))]);
     assert_eq!(one.web_url, format!("{}/octo/demo/pull/1", fx.server.url()));
@@ -156,7 +187,10 @@ async fn pull_requests_are_listed_page_by_page_with_checks_and_reviews() {
 
     // The core separates "merged" and "closed" – GitHub returns both as closed.
     let merged = cmd::pr_list(&fx.tc, fx.id(), PrListState::Merged, None, None, None).await.unwrap();
-    assert_eq!(merged.items.iter().map(|pr| (pr.number, pr.state)).collect::<Vec<_>>(), vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]);
+    assert_eq!(
+        merged.items.iter().map(|pr| (pr.number, pr.state)).collect::<Vec<_>>(),
+        vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]
+    );
     let closed = cmd::pr_list(&fx.tc, fx.id(), PrListState::Closed, None, None, None).await.unwrap();
     assert_eq!(closed.items.iter().map(|pr| pr.number).collect::<Vec<_>>(), vec![45, 35, 25, 15, 5]);
     assert!(closed.items.iter().all(|pr| pr.state == PrState::Closed));
@@ -179,13 +213,19 @@ async fn pull_request_details_bring_body_reviews_comments_commits_and_checks() {
     let pr = cmd::pr_get(&fx.tc, fx.id(), 1, None).await.unwrap();
     assert_eq!((pr.summary.number, pr.summary.state), (1, PrState::Open));
     assert!(pr.body.contains("**Thema 1**"));
-    assert_eq!(pr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(), vec![("mira", Some(PrReviewState::Approved))]);
+    assert_eq!(
+        pr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(),
+        vec![("mira", Some(PrReviewState::Approved))]
+    );
     assert_eq!(pr.summary.review_state, Some(PrReviewState::Approved));
     // Review text, comment on a line, general comment – by time. The empty approval is not a comment.
     assert_eq!(pr.comments.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(), vec!["r11", "d31", "c21"]);
     assert_eq!((pr.comments[1].path.as_deref(), pr.comments[1].line), (Some("src/anmeldung.rs"), Some(42)));
     assert_eq!((pr.comments[2].path.clone(), pr.comments[2].author.as_ref().map(|a| a.login.as_str())), (None, Some("jonas")));
-    assert_eq!(pr.commits.iter().map(|c| (c.summary.as_str(), c.author_name.as_str())).collect::<Vec<_>>(), vec![("Prüfung ergänzt", "Jonas Weber"), ("Meldung übersetzt", "Jonas Weber")]);
+    assert_eq!(
+        pr.commits.iter().map(|c| (c.summary.as_str(), c.author_name.as_str())).collect::<Vec<_>>(),
+        vec![("Prüfung ergänzt", "Jonas Weber"), ("Meldung übersetzt", "Jonas Weber")]
+    );
     assert_eq!(pr.mergeable, Some(true));
     assert_eq!(
         pr.check_runs.iter().map(|c| (c.name.as_str(), c.state, c.url.is_some())).collect::<Vec<_>>(),
@@ -195,8 +235,14 @@ async fn pull_request_details_bring_body_reviews_comments_commits_and_checks() {
     assert_eq!(pr.head_sha, format!("{:040x}", 1));
     // In the UI, the list fields and the details sit side by side.
     let shape = serde_json::to_value(&pr).unwrap();
-    assert_eq!((shape["number"].clone(), shape["reviewState"].clone(), shape["checkRuns"][1]["state"].clone()), (json!(1), json!("approved"), json!("skipped")));
-    assert_eq!((shape["comments"][1]["line"].clone(), shape["commits"][0]["authorName"].clone(), shape["headSha"].clone()), (json!(42), json!("Jonas Weber"), json!(pr.head_sha)));
+    assert_eq!(
+        (shape["number"].clone(), shape["reviewState"].clone(), shape["checkRuns"][1]["state"].clone()),
+        (json!(1), json!("approved"), json!("skipped"))
+    );
+    assert_eq!(
+        (shape["comments"][1]["line"].clone(), shape["commits"][0]["authorName"].clone(), shape["headSha"].clone()),
+        (json!(42), json!("Jonas Weber"), json!(pr.head_sha))
+    );
 
     let waiting = cmd::pr_get(&fx.tc, fx.id(), 2, None).await.unwrap();
     assert_eq!(waiting.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(), vec![("mira", None)]);
@@ -215,31 +261,84 @@ async fn pull_request_details_bring_body_reviews_comments_commits_and_checks() {
 async fn pull_requests_are_created_changed_commented_merged_and_closed() {
     let fx = Fixture::new(KIND).await;
     // Create, with reviewers and labels.
-    let created = cmd::pr_create(&fx.tc, fx.id(), "  Neue Anmeldung ".into(), "Text\n\nmit Absatz".into(), "feature/neu".into(), "main".into(), true, Some(vec!["@mira".into(), "mira".into(), " ".into()]), Some(vec!["bug".into()]), None)
-        .await
-        .unwrap();
+    let created = cmd::pr_create(
+        &fx.tc,
+        fx.id(),
+        "  Neue Anmeldung ".into(),
+        "Text\n\nmit Absatz".into(),
+        "feature/neu".into(),
+        "main".into(),
+        true,
+        Some(vec!["@mira".into(), "mira".into(), " ".into()]),
+        Some(vec!["bug".into()]),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(created.number, 101);
-    assert_eq!(fx.sent("POST", "/pulls")[0].json(), json!({ "title": "Neue Anmeldung", "body": "Text\n\nmit Absatz", "head": "feature/neu", "base": "main", "draft": true }));
+    assert_eq!(
+        fx.sent("POST", "/pulls")[0].json(),
+        json!({ "title": "Neue Anmeldung", "body": "Text\n\nmit Absatz", "head": "feature/neu", "base": "main", "draft": true })
+    );
     assert_eq!(fx.sent("POST", "/pulls/101/requested_reviewers")[0].json(), json!({ "reviewers": ["mira"] }));
     assert_eq!(fx.sent("POST", "/issues/101/labels")[0].json(), json!({ "labels": ["bug"] }));
-    let plain = cmd::pr_create(&fx.tc, fx.id(), "Ohne Zusätze".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None).await.unwrap();
+    let plain =
+        cmd::pr_create(&fx.tc, fx.id(), "Ohne Zusätze".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)
+            .await
+            .unwrap();
     assert_eq!((plain.title.as_str(), plain.source_branch.as_str(), plain.is_draft), ("Ohne Zusätze", "feature/neu", false));
     // 422: one already exists for the branch.
-    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None).await.unwrap_err();
+    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None)
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::NameExists);
     assert!(error.message.contains("“schon-da”") && error.message.contains("already an open pull request"), "{}", error.message);
     assert!(error.git_output.as_deref().is_some_and(|o| o.contains("already exists")));
     // Invalid input doesn't go out.
     fx.server.clear();
-    assert_eq!(cmd::pr_create(&fx.tc, fx.id(), "  ".into(), String::new(), "a".into(), "main".into(), false, None, None, None).await.unwrap_err().code, ErrorCode::EmptyMessage);
-    assert_eq!(cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "main".into(), " main ".into(), false, None, None, None).await.unwrap_err().code, ErrorCode::NotAllowed);
-    assert_eq!(cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "".into(), "main".into(), false, None, None, None).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(
+        cmd::pr_create(&fx.tc, fx.id(), "  ".into(), String::new(), "a".into(), "main".into(), false, None, None, None)
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::EmptyMessage
+    );
+    assert_eq!(
+        cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "main".into(), " main ".into(), false, None, None, None)
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::NotAllowed
+    );
+    assert_eq!(
+        cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "".into(), "main".into(), false, None, None, None)
+            .await
+            .unwrap_err()
+            .code,
+        ErrorCode::NotAllowed
+    );
     assert!(fx.server.requests().is_empty());
-    check_error_modes(&fx, "GitHub", "pr_create", || cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)).await;
+    check_error_modes(&fx, "GitHub", "pr_create", || {
+        cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)
+    })
+    .await;
 
     // Update: only what is given; replace labels, add or remove reviewers.
     fx.server.clear();
-    let updated = cmd::pr_update(&fx.tc, fx.id(), 1, Some("Neuer Titel".into()), None, Some("develop".into()), None, Some(vec!["jonas".into()]), Some(vec!["a".into(), "b".into()]), None).await.unwrap();
+    let updated = cmd::pr_update(
+        &fx.tc,
+        fx.id(),
+        1,
+        Some("Neuer Titel".into()),
+        None,
+        Some("develop".into()),
+        None,
+        Some(vec!["jonas".into()]),
+        Some(vec!["a".into(), "b".into()]),
+        None,
+    )
+    .await
+    .unwrap();
     assert_eq!(updated.number, 1);
     assert_eq!(fx.sent("PATCH", "/pulls/1")[0].json(), json!({ "title": "Neuer Titel", "base": "develop" }));
     assert_eq!(fx.sent("PUT", "/issues/1/labels")[0].json(), json!({ "labels": ["a", "b"] }));
@@ -256,7 +355,10 @@ async fn pull_requests_are_created_changed_commented_merged_and_closed() {
 
     // Comment.
     let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so. 👍".into(), None).await.unwrap();
-    assert_eq!((comment.id.as_str(), comment.body.as_str(), comment.author.as_ref().map(|a| a.login.as_str())), ("c99", "Passt so. 👍", Some("lena-hartmann")));
+    assert_eq!(
+        (comment.id.as_str(), comment.body.as_str(), comment.author.as_ref().map(|a| a.login.as_str())),
+        ("c99", "Passt so. 👍", Some("lena-hartmann"))
+    );
     assert_eq!(fx.sent("POST", "/issues/1/comments")[0].json(), json!({ "body": "Passt so. 👍" }));
     assert_eq!(cmd::pr_comment(&fx.tc, fx.id(), 1, " \n".into(), None).await.unwrap_err().code, ErrorCode::EmptyMessage);
 
@@ -302,7 +404,10 @@ async fn issues_are_listed_searched_and_read() {
     assert_eq!(two.labels[0].color.as_deref(), Some("#0e8a16"));
     assert_eq!(two.web_url, format!("{}/octo/demo/issues/2", fx.server.url()));
     let closed = cmd::issue_list(&fx.tc, fx.id(), IssueListState::Closed, Some("  ".into()), None, None, None).await.unwrap();
-    assert_eq!(closed.items.iter().map(|i| (i.number, i.state)).collect::<Vec<_>>(), vec![(8, IssueState::Closed), (4, IssueState::Closed)]);
+    assert_eq!(
+        closed.items.iter().map(|i| (i.number, i.state)).collect::<Vec<_>>(),
+        vec![(8, IssueState::Closed), (4, IssueState::Closed)]
+    );
     let paged = cmd::issue_list(&fx.tc, fx.id(), IssueListState::All, None, Some(1), Some(5), None).await.unwrap();
     assert_eq!((paged.items.iter().map(|i| i.number).collect::<Vec<_>>(), paged.next_page), (vec![11, 10, 8], Some(2)));
 
@@ -317,14 +422,20 @@ async fn issues_are_listed_searched_and_read() {
     assert_eq!((issue.summary.number, issue.body.as_str()), (2, "Text zu Problem 2"));
     assert_eq!(issue.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(), vec![("c21", "Danke fürs Ansehen!")]);
     let shape = serde_json::to_value(&issue).unwrap();
-    assert_eq!((shape["key"].clone(), shape["body"].clone(), shape["comments"][0]["createdAt"].clone()), (json!("#2"), json!("Text zu Problem 2"), json!("2026-09-02T09:45:00Z")));
+    assert_eq!(
+        (shape["key"].clone(), shape["body"].clone(), shape["comments"][0]["createdAt"].clone()),
+        (json!("#2"), json!("Text zu Problem 2"), json!("2026-09-02T09:45:00Z"))
+    );
     let error = cmd::issue_get(&fx.tc, fx.id(), 3, None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostNotFound);
     assert!(error.message.contains("a pull request, not an issue"), "{}", error.message);
     assert_eq!(cmd::issue_get(&fx.tc, fx.id(), 999, None).await.unwrap_err().message, "Issue #999 does not exist in octo/demo.");
 
     check_error_modes(&fx, "GitHub", "issue_list", || cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, None, None, None, None)).await;
-    check_error_modes(&fx, "GitHub", "issue_list mit Suche", || cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, Some("x".into()), None, None, None)).await;
+    check_error_modes(&fx, "GitHub", "issue_list mit Suche", || {
+        cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, Some("x".into()), None, None, None)
+    })
+    .await;
     check_error_modes(&fx, "GitHub", "issue_get", || cmd::issue_get(&fx.tc, fx.id(), 2, None)).await;
     check_broken_json(&fx, "GitHub", "issue_list", || cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, None, None, None, None)).await;
     fx.assert_token_stays_secret();
@@ -410,12 +521,22 @@ async fn releases_are_created_for_the_commit_of_the_local_tag() {
     let release = cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), "  ".into(), notes.into(), true, None).await.unwrap();
     assert_eq!(
         release,
-        HostRelease { tag: "v2.0.0-beta.1".into(), name: "v2.0.0-beta.1".into(), web_url: Some(format!("{}/octo/demo/releases/tag/v2.0.0-beta.1", fx.server.url())) }
+        HostRelease {
+            tag: "v2.0.0-beta.1".into(),
+            name: "v2.0.0-beta.1".into(),
+            web_url: Some(format!("{}/octo/demo/releases/tag/v2.0.0-beta.1", fx.server.url()))
+        }
     );
     let sent = fx.sent("POST", "/api/v3/repos/octo/demo/releases");
     assert_eq!(sent.len(), 1);
-    assert_eq!(sent[0].json(), json!({"tag_name": "v2.0.0-beta.1", "target_commitish": commit, "name": "v2.0.0-beta.1", "body": notes, "draft": false, "prerelease": true}));
-    assert_eq!(serde_json::to_value(&release).unwrap()["webUrl"], json!(format!("{}/octo/demo/releases/tag/v2.0.0-beta.1", fx.server.url())));
+    assert_eq!(
+        sent[0].json(),
+        json!({"tag_name": "v2.0.0-beta.1", "target_commitish": commit, "name": "v2.0.0-beta.1", "body": notes, "draft": false, "prerelease": true})
+    );
+    assert_eq!(
+        serde_json::to_value(&release).unwrap()["webUrl"],
+        json!(format!("{}/octo/demo/releases/tag/v2.0.0-beta.1", fx.server.url()))
+    );
 
     // GitHub answers 422 "already_exists" for a second release of the same tag.
     fx.repo.tag("schon-da");
@@ -432,10 +553,16 @@ async fn releases_are_created_for_the_commit_of_the_local_tag() {
         assert_eq!(error.code, expected, "{tag:?} {name:?}");
     }
     let too_long = "ä".repeat(125_001);
-    assert_eq!(cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), too_long, false, None).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(
+        cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), too_long, false, None).await.unwrap_err().code,
+        ErrorCode::NotAllowed
+    );
     assert!(fx.server.requests().is_empty());
 
-    check_error_modes(&fx, "GitHub", "release_create", || cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), "x".into(), false, None)).await;
+    check_error_modes(&fx, "GitHub", "release_create", || {
+        cmd::release_create(&fx.tc, fx.id(), "v2.0.0-beta.1".into(), String::new(), "x".into(), false, None)
+    })
+    .await;
     fx.assert_token_stays_secret();
 }
 
@@ -460,7 +587,8 @@ async fn graphql_never_sends_the_token_to_another_server() {
 async fn review_threads_come_from_graphql_with_resolved_and_outdated_state() {
     let fx = Fixture::new(KIND).await;
     let threads = cmd::pr_review_threads(&fx.tc, fx.id(), 9, None).await.unwrap();
-    let rows: Vec<_> = threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved, t.outdated)).collect();
+    let rows: Vec<_> =
+        threads.iter().map(|t| (t.id.as_str(), t.path.as_str(), t.line, t.start_line, t.side, t.resolved, t.outdated)).collect();
     assert_eq!(
         rows,
         vec![
@@ -471,7 +599,11 @@ async fn review_threads_come_from_graphql_with_resolved_and_outdated_state() {
     );
     let first = &threads[0];
     assert_eq!(first.commit.as_deref(), Some(format!("{:040x}", 9).as_str()));
-    let comments: Vec<_> = first.comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str(), c.path.as_deref(), c.line)).collect();
+    let comments: Vec<_> = first
+        .comments
+        .iter()
+        .map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str(), c.path.as_deref(), c.line))
+        .collect();
     assert_eq!(
         comments,
         vec![
@@ -499,10 +631,14 @@ async fn review_threads_come_from_graphql_with_resolved_and_outdated_state() {
 #[tokio::test]
 async fn a_reply_goes_into_the_thread_of_its_first_comment() {
     let fx = Fixture::new(KIND).await;
-    let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), "Erledigt in abc1234 – „leer“ wird geprüft.".into(), None).await.unwrap();
+    let reply =
+        cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), "Erledigt in abc1234 – „leer“ wird geprüft.".into(), None).await.unwrap();
     assert!(!reply.quoted);
     let comment = &reply.comment;
-    assert_eq!((comment.id.as_str(), comment.body.as_str(), comment.path.as_deref(), comment.line), ("9003", "Erledigt in abc1234 – „leer“ wird geprüft.", Some("src/anmeldung.rs"), Some(42)));
+    assert_eq!(
+        (comment.id.as_str(), comment.body.as_str(), comment.path.as_deref(), comment.line),
+        ("9003", "Erledigt in abc1234 – „leer“ wird geprüft.", Some("src/anmeldung.rs"), Some(42))
+    );
     let sent = fx.sent("POST", "/pulls/9/comments/9001/replies");
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].json(), json!({ "body": "Erledigt in abc1234 – „leer“ wird geprüft." }));
@@ -511,6 +647,7 @@ async fn a_reply_goes_into_the_thread_of_its_first_comment() {
     assert!(error.message.contains("review thread"), "{}", error.message);
     let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;
     assert!(caps.review_threads && caps.review_reply && !caps.review_reply_quotes);
-    check_error_modes(&fx, "GitHub", "review reply", || cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), "Danke".into(), None)).await;
+    check_error_modes(&fx, "GitHub", "review reply", || cmd::pr_review_reply(&fx.tc, fx.id(), 9, "9001".into(), "Danke".into(), None))
+        .await;
     fx.assert_token_stays_secret();
 }

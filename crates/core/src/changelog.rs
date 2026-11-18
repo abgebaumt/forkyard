@@ -217,7 +217,11 @@ mod tests {
             insert("# Changelog\n\n## [Unreleased]", "1.0.0", "2026-10-20", "- Erste Version").unwrap(),
             "# Changelog\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-20\n\n- Erste Version\n"
         );
-        assert_eq!(insert("", "1.0.0", "2026-10-20", "- x").unwrap(), "## 1.0.0 - 2026-10-20\n\n- x\n", "an empty file has no style to follow");
+        assert_eq!(
+            insert("", "1.0.0", "2026-10-20", "- x").unwrap(),
+            "## 1.0.0 - 2026-10-20\n\n- x\n",
+            "an empty file has no style to follow"
+        );
     }
 
     #[test]
@@ -247,7 +251,10 @@ mod tests {
 
     #[test]
     fn a_new_file_has_a_title_and_the_section() {
-        assert_eq!(new_file("v1.0.0", "2026-10-20", "### Neu\n\n- Erste Version\n"), "# Changelog\n\n## [1.0.0] - 2026-10-20\n\n### Neu\n\n- Erste Version\n");
+        assert_eq!(
+            new_file("v1.0.0", "2026-10-20", "### Neu\n\n- Erste Version\n"),
+            "# Changelog\n\n## [1.0.0] - 2026-10-20\n\n### Neu\n\n- Erste Version\n"
+        );
     }
 
     #[test]

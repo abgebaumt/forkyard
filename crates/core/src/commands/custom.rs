@@ -30,8 +30,8 @@ use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
 use crate::model::{
-    AppChange, CustomCommandContext, CustomCommandCwd, CustomCommandDef, CustomCommandEntry, CustomCommandKind, CustomCommandList, CustomCommandResult, CustomCommandSource,
-    CustomInputType, RepoCommands, RepoCommandsState,
+    AppChange, CustomCommandContext, CustomCommandCwd, CustomCommandDef, CustomCommandEntry, CustomCommandKind, CustomCommandList,
+    CustomCommandResult, CustomCommandSource, CustomInputType, RepoCommands, RepoCommandsState,
 };
 use crate::undo;
 use crate::util;
@@ -63,7 +63,8 @@ enum RepoFile {
 /// Reads `.forkyard/commands.json` from the working directory. Links are not followed – neither
 /// for the folder nor for the file – so the file cannot point outside the repository.
 fn read_repo_file(root: &Path) -> RepoFile {
-    let unreadable = |e: &std::io::Error| RepoFile::Unusable(format!("{} couldn’t be read. {}", definition::REPO_FILE, crate::error::describe_io(e).1));
+    let unreadable =
+        |e: &std::io::Error| RepoFile::Unusable(format!("{} couldn’t be read. {}", definition::REPO_FILE, crate::error::describe_io(e).1));
     let folder = root.join(".forkyard");
     match std::fs::symlink_metadata(&folder) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return RepoFile::Missing,
@@ -90,13 +91,21 @@ fn read_repo_file(root: &Path) -> RepoFile {
 }
 
 fn load_trust(core: &Core, repo_id: &str) -> CoreResult<Option<TrustRecord>> {
-    let stored = core.db.with(|c| Ok(db::repo_settings::get_all(c, repo_id)?.into_iter().find(|(key, _)| key == TRUST_KEY).map(|(_, value)| value)))?;
+    let stored = core
+        .db
+        .with(|c| Ok(db::repo_settings::get_all(c, repo_id)?.into_iter().find(|(key, _)| key == TRUST_KEY).map(|(_, value)| value)))?;
     Ok(stored.and_then(|value| serde_json::from_value(value).ok()))
 }
 
 /// The repository file: its state and the commands that pass the checks.
 fn repo_part(core: &Core, repo_id: &str, root: &Path) -> CoreResult<(RepoCommands, Vec<CustomCommandDef>)> {
-    let mut info = RepoCommands { state: RepoCommandsState::Missing, hash: None, path: definition::REPO_FILE.to_string(), problems: Vec::new(), changes: Vec::new() };
+    let mut info = RepoCommands {
+        state: RepoCommandsState::Missing,
+        hash: None,
+        path: definition::REPO_FILE.to_string(),
+        problems: Vec::new(),
+        changes: Vec::new(),
+    };
     let bytes = match read_repo_file(root) {
         RepoFile::Missing => return Ok((info, Vec::new())),
         RepoFile::Unusable(reason) => {
@@ -138,7 +147,8 @@ fn file_value(commands: &[CustomCommandDef]) -> serde_json::Value {
 
 /// The user's own commands. What no longer passes the checks (stored by an older version) is left out.
 fn load_global(core: &Core) -> CoreResult<Vec<CustomCommandDef>> {
-    let stored = core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == GLOBAL_KEY).map(|(_, value)| value)))?;
+    let stored =
+        core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == GLOBAL_KEY).map(|(_, value)| value)))?;
     let Some(value) = stored else { return Ok(Vec::new()) };
     Ok(definition::parse_file(&serde_json::to_vec(&value)?, CustomCommandSource::Global).commands)
 }
@@ -149,7 +159,8 @@ fn check_global(commands: &[CustomCommandDef]) -> CoreResult<()> {
     }
     let mut ids = HashSet::new();
     for command in commands {
-        definition::validate(command, CustomCommandSource::Global).map_err(|reason| CoreError::not_allowed(format!("Command “{}”: {reason}", command.id)))?;
+        definition::validate(command, CustomCommandSource::Global)
+            .map_err(|reason| CoreError::not_allowed(format!("Command “{}”: {reason}", command.id)))?;
         if !ids.insert(command.id.as_str()) {
             return Err(CoreError::not_allowed(format!("The ID “{}” is used by two commands.", command.id)));
         }
@@ -169,7 +180,8 @@ fn full_path(path: &str) -> CoreResult<PathBuf> {
 /// of their approval. Repository commands are listed (for review) but only `runnable` when this
 /// exact version of the file is approved.
 pub async fn custom_commands_list(core: &Core, repo_id: Option<String>) -> CoreResult<CustomCommandList> {
-    let mut commands: Vec<CustomCommandEntry> = load_global(core)?.into_iter().map(|command| entry(CustomCommandSource::Global, command, true)).collect();
+    let mut commands: Vec<CustomCommandEntry> =
+        load_global(core)?.into_iter().map(|command| entry(CustomCommandSource::Global, command, true)).collect();
     let repo = match repo_id {
         Some(repo_id) => {
             let root = core.repo_path(&repo_id)?;
@@ -283,7 +295,8 @@ async fn current_branch(core: &Core, repo_id: &str) -> CoreResult<Option<String>
 /// The remote of the branch's upstream, otherwise the only remote.
 async fn upstream_remote(core: &Core, repo_id: &str, branch: Option<&str>, remotes: &[String]) -> CoreResult<Option<String>> {
     if let Some(branch) = branch {
-        let out = core.git_for(repo_id)?.args(["config", "--get", &format!("branch.{branch}.remote")]).read_only().no_log().run_raw().await?;
+        let out =
+            core.git_for(repo_id)?.args(["config", "--get", &format!("branch.{branch}.remote")]).read_only().no_log().run_raw().await?;
         let name = out.stdout_text();
         if out.success() && remotes.contains(&name) {
             return Ok(Some(name));
@@ -313,7 +326,12 @@ fn input_values(def: &CustomCommandDef, given: &BTreeMap<String, String>) -> Cor
                 let ticked = match raw.as_str() {
                     "true" => true,
                     "false" | "" => false,
-                    other => return Err(CoreError::not_allowed(format!("The checkbox “{}” only takes “true” or “false”, not “{other}”.", input.label))),
+                    other => {
+                        return Err(CoreError::not_allowed(format!(
+                            "The checkbox “{}” only takes “true” or “false”, not “{other}”.",
+                            input.label
+                        )))
+                    }
                 };
                 let on = input.options.first().cloned().unwrap_or_else(|| "true".to_string());
                 InputValue { value: if ticked { on } else { String::new() }, from_definition: true }
@@ -326,7 +344,14 @@ fn input_values(def: &CustomCommandDef, given: &BTreeMap<String, String>) -> Cor
 
 /// Every value a placeholder can stand for. A value the UI passes is checked; a missing one falls
 /// back to HEAD, the current branch and the upstream remote.
-async fn resolve(core: &Core, repo_id: &str, root: &Path, def: &CustomCommandDef, context: &CustomCommandContext, given: &BTreeMap<String, String>) -> CoreResult<Values> {
+async fn resolve(
+    core: &Core,
+    repo_id: &str,
+    root: &Path,
+    def: &CustomCommandDef,
+    context: &CustomCommandContext,
+    given: &BTreeMap<String, String>,
+) -> CoreResult<Values> {
     let sha = match context.sha.as_deref().map(str::trim).filter(|sha| !sha.is_empty()) {
         Some(sha) if (4..=64).contains(&sha.len()) && sha.bytes().all(|b| b.is_ascii_hexdigit()) => Some(sha.to_ascii_lowercase()),
         Some(other) => return Err(CoreError::not_allowed(format!("“{other}” is not a commit ID."))),
@@ -358,7 +383,9 @@ async fn working_dir(core: &Core, root: &Path, cwd: CustomCommandCwd) -> PathBuf
         return root.to_path_buf();
     }
     match crate::commands::trust::common_dir(core, root).await {
-        Some(common) if common.file_name().is_some_and(|name| name == ".git") => common.parent().map(Path::to_path_buf).unwrap_or_else(|| root.to_path_buf()),
+        Some(common) if common.file_name().is_some_and(|name| name == ".git") => {
+            common.parent().map(Path::to_path_buf).unwrap_or_else(|| root.to_path_buf())
+        }
         _ => root.to_path_buf(),
     }
 }
@@ -423,7 +450,8 @@ pub async fn custom_command_run(
             Ok(CustomCommandResult::OpenUrl { url })
         }
         CustomCommandKind::Shell => {
-            let (program, args) = if def.shell { expand::shell_line(&def, &values, cfg!(windows))? } else { expand::shell_args(&def, &values)? };
+            let (program, args) =
+                if def.shell { expand::shell_line(&def, &values, cfg!(windows))? } else { expand::shell_args(&def, &values)? };
             let planned = process::Planned { program, args, env: expand::environment(&values) };
             if def.confirm && !confirmed {
                 return Ok(ask(planned.display()));

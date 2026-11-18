@@ -21,9 +21,9 @@ fn from_row(r: &Row) -> rusqlite::Result<Tab> {
     let path: Option<String> = r.get("path")?;
     let alias: Option<String> = r.get("alias")?;
     let title = match (&kind, &path) {
-        (TabKind::Repo, Some(p)) => alias.filter(|a| !a.trim().is_empty()).unwrap_or_else(|| {
-            std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone())
-        }),
+        (TabKind::Repo, Some(p)) => alias
+            .filter(|a| !a.trim().is_empty())
+            .unwrap_or_else(|| std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| p.clone())),
         _ => String::new(),
     };
     let position: i64 = r.get("position")?;
@@ -49,9 +49,7 @@ pub fn list(conn: &Connection, profile_id: &str) -> CoreResult<Vec<Tab>> {
 }
 
 pub fn get(conn: &Connection, profile_id: &str, tab_id: &str) -> CoreResult<Option<Tab>> {
-    Ok(conn
-        .query_row(&format!("{SELECT} where t.profile_id = ?1 and t.id = ?2"), params![profile_id, tab_id], from_row)
-        .optional()?)
+    Ok(conn.query_row(&format!("{SELECT} where t.profile_id = ?1 and t.id = ?2"), params![profile_id, tab_id], from_row).optional()?)
 }
 
 pub fn require(conn: &Connection, profile_id: &str, tab_id: &str) -> CoreResult<Tab> {
@@ -71,11 +69,7 @@ pub fn find_by_repo(conn: &Connection, profile_id: &str, repo_id: &str) -> CoreR
 
 /// New tab at the end (not active). Returns the ID.
 pub fn append(conn: &Connection, profile_id: &str, kind: TabKind, repo_id: Option<&str>) -> CoreResult<String> {
-    let next: i64 = conn.query_row(
-        "select coalesce(max(position) + 1, 0) from tabs where profile_id = ?1",
-        [profile_id],
-        |r| r.get(0),
-    )?;
+    let next: i64 = conn.query_row("select coalesce(max(position) + 1, 0) from tabs where profile_id = ?1", [profile_id], |r| r.get(0))?;
     let id = util::new_id();
     let now = util::now_iso();
     conn.execute(
@@ -159,9 +153,7 @@ pub fn ensure_consistent(conn: &Connection, profile_id: &str) -> CoreResult<()> 
 
 /// IDs of the repositories for which the profile has tabs open.
 pub fn open_repo_ids(conn: &Connection, profile_id: &str) -> CoreResult<Vec<String>> {
-    let mut stmt = conn.prepare(
-        "select distinct repository_id from tabs where profile_id = ?1 and repository_id is not null",
-    )?;
+    let mut stmt = conn.prepare("select distinct repository_id from tabs where profile_id = ?1 and repository_id is not null")?;
     let rows = stmt.query_map([profile_id], |r| r.get(0))?.collect::<rusqlite::Result<Vec<String>>>()?;
     Ok(rows)
 }

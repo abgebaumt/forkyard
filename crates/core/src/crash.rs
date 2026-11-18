@@ -374,7 +374,10 @@ impl CrashLog {
             boot: self.boot.clone(),
         };
         let written = serde_json::to_string(&own).ok().is_some_and(|text| {
-            file.set_len(0).is_ok() && file.seek(SeekFrom::Start(0)).is_ok() && file.write_all(text.as_bytes()).is_ok() && file.sync_all().is_ok()
+            file.set_len(0).is_ok()
+                && file.seek(SeekFrom::Start(0)).is_ok()
+                && file.write_all(text.as_bytes()).is_ok()
+                && file.sync_all().is_ok()
         });
         if !written {
             return AttachOutcome { owns_marker: false, unexpected_report };
@@ -656,7 +659,9 @@ struct Logger;
 
 /// The app's own crates log from `info`, everything else (Tauri, WebView, HTTP) from `warn`.
 fn own_target(target: &str) -> bool {
-    ["gitcore", "forkyard"].iter().any(|own| target == *own || target.starts_with(&format!("{own}_")) || target.starts_with(&format!("{own}::")))
+    ["gitcore", "forkyard"]
+        .iter()
+        .any(|own| target == *own || target.starts_with(&format!("{own}_")) || target.starts_with(&format!("{own}::")))
 }
 
 impl log::Log for Logger {

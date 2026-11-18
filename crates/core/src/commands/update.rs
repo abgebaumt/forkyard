@@ -71,7 +71,8 @@ pub fn configure(core: &Core, base: Option<String>) {
 }
 
 fn load(core: &Core) -> CoreResult<StoredState> {
-    let value = core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == STATE_KEY).map(|(_, value)| value)))?;
+    let value =
+        core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == STATE_KEY).map(|(_, value)| value)))?;
     // A broken entry is as good as none.
     Ok(value.and_then(|value| serde_json::from_value(value).ok()).unwrap_or_default())
 }
@@ -163,7 +164,11 @@ async fn fetch(core: &Core, base: &str) -> CoreResult<Option<UpdateRelease>> {
         return Ok(None);
     }
     if response.is_rate_limited() || response.status == 403 || response.status == 429 {
-        return Err(CoreError::new(ErrorCode::HostRateLimited, "GitHub is limiting requests right now; the update check will try again later.").with_retry_at(response.retry_at()));
+        return Err(CoreError::new(
+            ErrorCode::HostRateLimited,
+            "GitHub is limiting requests right now; the update check will try again later.",
+        )
+        .with_retry_at(response.retry_at()));
     }
     if !response.is_success() {
         return Err(CoreError::unknown(format!("The update check failed (GitHub answered with HTTP {}).", response.status)));

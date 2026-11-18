@@ -12,10 +12,10 @@ use crate::ai::schema;
 use crate::app::Core;
 use crate::commands::{branches, commit, merge, rebase, stash, status, sync, tags};
 use crate::error::ErrorCode;
-use crate::model::{OpResult, PushResult};
 use crate::error::{CoreError, CoreResult};
 use crate::model::PlanArgKind::{Boolean, Choice, List, OptionalChoice, OptionalText, Text};
 use crate::model::{MergeMode, PlanArgField, PlanArgKind, PlanClass, PlanCommand, PullMode, ResetMode};
+use crate::model::{OpResult, PushResult};
 use crate::undo;
 
 /// One argument of a command.
@@ -271,7 +271,9 @@ impl<'a> Args<'a> {
         self.map
             .get(name)
             .and_then(Value::as_array)
-            .map(|items| items.iter().filter_map(Value::as_str).map(str::trim).filter(|text| !text.is_empty()).map(str::to_string).collect())
+            .map(|items| {
+                items.iter().filter_map(Value::as_str).map(str::trim).filter(|text| !text.is_empty()).map(str::to_string).collect()
+            })
             .unwrap_or_default()
     }
 
@@ -286,26 +288,79 @@ impl<'a> Args<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlanAction {
     /// `start`: a SHA, or the name of a branch an earlier step moves.
-    BranchCreate { name: String, start: String, checkout: bool },
-    BranchCheckout { target: String },
-    BranchRename { name: String, new_name: String },
-    BranchDelete { name: String, force: bool },
-    ResetBranch { sha: String, mode: ResetMode },
-    RebaseStart { onto: String, branch: Option<String> },
-    CherryPick { shas: Vec<String> },
-    RevertCommit { sha: String },
-    MergeStart { source: String, mode: MergeMode },
+    BranchCreate {
+        name: String,
+        start: String,
+        checkout: bool,
+    },
+    BranchCheckout {
+        target: String,
+    },
+    BranchRename {
+        name: String,
+        new_name: String,
+    },
+    BranchDelete {
+        name: String,
+        force: bool,
+    },
+    ResetBranch {
+        sha: String,
+        mode: ResetMode,
+    },
+    RebaseStart {
+        onto: String,
+        branch: Option<String>,
+    },
+    CherryPick {
+        shas: Vec<String>,
+    },
+    RevertCommit {
+        sha: String,
+    },
+    MergeStart {
+        source: String,
+        mode: MergeMode,
+    },
     /// `paths` normalised by `normalize_rel_path`; empty = every change.
-    StashCreate { message: Option<String>, include_untracked: bool, paths: Vec<String> },
+    StashCreate {
+        message: Option<String>,
+        include_untracked: bool,
+        paths: Vec<String>,
+    },
     /// `sha: None` = HEAD at the moment the step runs.
-    TagCreate { name: String, sha: Option<String>, message: Option<String> },
-    CommitReword { sha: Option<String>, summary: String, description: String },
-    Fetch { remote: Option<String>, prune: bool },
-    Pull { mode: Option<PullMode> },
+    TagCreate {
+        name: String,
+        sha: Option<String>,
+        message: Option<String>,
+    },
+    CommitReword {
+        sha: Option<String>,
+        summary: String,
+        description: String,
+    },
+    Fetch {
+        remote: Option<String>,
+        prune: bool,
+    },
+    Pull {
+        mode: Option<PullMode>,
+    },
     /// `remote: None` = the branch's upstream; `expected` = the lease of a force push.
-    Push { branch: String, remote: Option<String>, force: bool, expected: Option<String> },
-    BranchDeleteRemote { remote: String, name: String },
-    TagPush { name: String, remote: String },
+    Push {
+        branch: String,
+        remote: Option<String>,
+        force: bool,
+        expected: Option<String>,
+    },
+    BranchDeleteRemote {
+        remote: String,
+        name: String,
+    },
+    TagPush {
+        name: String,
+        remote: String,
+    },
 }
 
 impl PlanAction {
@@ -347,7 +402,9 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
     let id = repo_id.to_string();
     let job = job_id.to_string();
     match action.clone() {
-        PlanAction::BranchCreate { name, start, checkout } => branches::branch_create(core, id, name, Some(start), checkout).await.map(drop),
+        PlanAction::BranchCreate { name, start, checkout } => {
+            branches::branch_create(core, id, name, Some(start), checkout).await.map(drop)
+        }
         PlanAction::BranchCheckout { target } => branches::branch_checkout(core, id, target).await.map(drop),
         PlanAction::BranchRename { name, new_name } => branches::branch_rename(core, id, name, new_name).await.map(drop),
         PlanAction::BranchDelete { name, force } => branches::branch_delete(core, id, vec![name], force).await.map(drop),
@@ -361,7 +418,9 @@ pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanActi
             stash::stash_create(core, id, crate::util::new_id(), message, paths, include_untracked, None).await.map(drop)
         }
         PlanAction::TagCreate { name, sha, message } => tags::tag_create(core, id, name, sha, message).await.map(drop),
-        PlanAction::CommitReword { sha, summary, description } => commit::commit_reword(core, id, summary, description, sha).await.map(drop),
+        PlanAction::CommitReword { sha, summary, description } => {
+            commit::commit_reword(core, id, summary, description, sha).await.map(drop)
+        }
         PlanAction::Fetch { remote, prune } => {
             let result = sync::fetch(core, id, job, remote, prune).await?;
             match result.failed.first() {
@@ -448,8 +507,23 @@ mod tests {
         assert_eq!(
             names,
             [
-                "branchCreate", "branchCheckout", "branchRename", "branchDelete", "resetBranch", "rebaseStart", "cherryPick", "revertCommit",
-                "mergeStart", "stashCreate", "tagCreate", "commitReword", "fetch", "pull", "push", "branchDeleteRemote", "tagPush",
+                "branchCreate",
+                "branchCheckout",
+                "branchRename",
+                "branchDelete",
+                "resetBranch",
+                "rebaseStart",
+                "cherryPick",
+                "revertCommit",
+                "mergeStart",
+                "stashCreate",
+                "tagCreate",
+                "commitReword",
+                "fetch",
+                "pull",
+                "push",
+                "branchDeleteRemote",
+                "tagPush",
             ]
         );
         let outward: Vec<&str> = PlanCommand::ALL.iter().filter(|c| c.class() == PlanClass::Outward).map(|c| c.as_str()).collect();
@@ -461,7 +535,9 @@ mod tests {
         let schema = answer_schema();
         let listed = schema["properties"]["steps"]["items"]["properties"]["command"]["enum"].as_array().unwrap().clone();
         assert_eq!(listed.len(), 17);
-        for forbidden in ["settingsSet", "repoTrustSet", "customCommandRun", "terminalOpen", "agentStart", "repoCleanupRun", "gc", "prune", "pushForce"] {
+        for forbidden in
+            ["settingsSet", "repoTrustSet", "customCommandRun", "terminalOpen", "agentStart", "repoCleanupRun", "gc", "prune", "pushForce"]
+        {
             assert!(serde_json::from_value::<PlanCommand>(json!(forbidden)).is_err(), "{forbidden} is no plan command");
             assert!(!listed.contains(&json!(forbidden)), "{forbidden} is not offered to the model");
         }
@@ -491,8 +567,27 @@ mod tests {
         assert_eq!(
             names,
             [
-                "name", "start", "checkout", "target", "newName", "force", "resetMode", "onto", "branch", "commits", "commit", "source",
-                "mergeMode", "message", "includeUntracked", "paths", "summary", "description", "remote", "prune", "pullMode",
+                "name",
+                "start",
+                "checkout",
+                "target",
+                "newName",
+                "force",
+                "resetMode",
+                "onto",
+                "branch",
+                "commits",
+                "commit",
+                "source",
+                "mergeMode",
+                "message",
+                "includeUntracked",
+                "paths",
+                "summary",
+                "description",
+                "remote",
+                "prune",
+                "pullMode",
             ]
         );
         let base = |kind: PlanArgKind| match kind {
@@ -508,8 +603,14 @@ mod tests {
             }
         }
         // In the answer schema the modes are open text: strict providers reject `null` outside an enum.
-        assert_eq!(answer_schema()["properties"]["steps"]["items"]["properties"]["args"]["properties"]["resetMode"], json!({"type": ["string", "null"]}));
-        assert_eq!(arg_schema(PlanCommand::ResetBranch)["properties"]["resetMode"], json!({"type": "string", "enum": ["soft", "mixed", "hard"]}));
+        assert_eq!(
+            answer_schema()["properties"]["steps"]["items"]["properties"]["args"]["properties"]["resetMode"],
+            json!({"type": ["string", "null"]})
+        );
+        assert_eq!(
+            arg_schema(PlanCommand::ResetBranch)["properties"]["resetMode"],
+            json!({"type": "string", "enum": ["soft", "mixed", "hard"]})
+        );
     }
 
     #[test]
@@ -523,7 +624,10 @@ mod tests {
         assert!(err.contains("“force” is not an argument of branchCreate"), "{err}");
 
         let missing = json!({"name": "neu", "start": null});
-        assert!(project(PlanCommand::BranchCreate, missing.as_object().unwrap()).unwrap_err().contains("checkout"), "a missing flag is not false");
+        assert!(
+            project(PlanCommand::BranchCreate, missing.as_object().unwrap()).unwrap_err().contains("checkout"),
+            "a missing flag is not false"
+        );
         let wrong = json!({"target": "HEAD", "resetMode": "weich"});
         assert!(project(PlanCommand::ResetBranch, wrong.as_object().unwrap()).unwrap_err().contains("resetMode"));
         let typed = json!({"commits": "abc123"});
@@ -540,16 +644,22 @@ mod tests {
         assert!(!destructive(PlanCommand::ResetBranch, &args(json!({"target": "HEAD~1", "resetMode": "soft"}))));
         assert!(!destructive(PlanCommand::Push, &args(json!({"branch": null, "remote": null, "force": true}))), "outward is its own class");
         let fields = fields_view(PlanCommand::MergeStart);
-        assert_eq!(serde_json::to_value(&fields).unwrap(), json!([
-            {"name": "source", "kind": "text", "choices": []},
-            {"name": "mergeMode", "kind": "choice", "choices": ["default", "ff_only", "no_ff", "squash"]}
-        ]));
+        assert_eq!(
+            serde_json::to_value(&fields).unwrap(),
+            json!([
+                {"name": "source", "kind": "text", "choices": []},
+                {"name": "mergeMode", "kind": "choice", "choices": ["default", "ff_only", "no_ff", "squash"]}
+            ])
+        );
         assert!(prompt_reference().contains("- pull(pullMode one of ff|ff_only|rebase or null): "), "{}", prompt_reference());
     }
 
     #[test]
     fn the_wire_format_of_the_plan_types() {
-        assert_eq!(serde_json::to_value(PlanCheck::Conflicts { files: vec!["f.txt".into()] }).unwrap(), json!({"status": "conflicts", "files": ["f.txt"]}));
+        assert_eq!(
+            serde_json::to_value(PlanCheck::Conflicts { files: vec!["f.txt".into()] }).unwrap(),
+            json!({"status": "conflicts", "files": ["f.txt"]})
+        );
         assert_eq!(serde_json::to_value(PlanCheck::NotNeeded).unwrap(), json!({"status": "not_needed"}));
         let view = PlanStepView {
             command: PlanCommand::TagPush,

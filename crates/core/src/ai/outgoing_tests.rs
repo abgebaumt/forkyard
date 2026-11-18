@@ -33,7 +33,10 @@ async fn outgoing_changes_hold_only_what_the_push_sends() {
     assert_eq!(outgoing.base, pushed, "the diff starts where the remote is");
     assert_eq!(outgoing.base, repo.git(&["rev-parse", "origin/main"]));
     assert_eq!(outgoing.tip, repo.head());
-    assert_eq!(outgoing.commits.iter().map(|(_, subject)| subject.as_str()).collect::<Vec<_>>(), vec!["Zugang", "Abhängigkeiten", "Hinweis verschoben", "Zwischenstand ausgeben"]);
+    assert_eq!(
+        outgoing.commits.iter().map(|(_, subject)| subject.as_str()).collect::<Vec<_>>(),
+        vec!["Zugang", "Abhängigkeiten", "Hinweis verschoben", "Zwischenstand ausgeben"]
+    );
     assert!(!outgoing.partial);
 
     let built = outgoing_changes(&tc, &id, &Settings::default(), 24_000, "de-DE", &[], &outgoing).await.unwrap();
@@ -100,6 +103,12 @@ async fn what_is_sent_shows_the_outgoing_changes_with_the_rules_of_push() {
     assert_eq!(err.code, ErrorCode::NoUpstream, "the same rules as push");
     let to_origin = ai_preview(&tc, id.clone(), AiFeature::PushReview, input(Some("origin")), "en".into()).await.unwrap();
     assert!(to_origin.text.contains("zwischenstand"));
-    assert_eq!(ai_preview(&tc, id, AiFeature::PushReview, input(Some("gibt-es-nicht")), "en".into()).await.unwrap_err().code, ErrorCode::NotFound);
-    assert_eq!(serde_json::to_value(input(Some("origin"))).unwrap(), serde_json::json!({"kind": "outgoing_changes", "branch": null, "remote": "origin", "remoteBranch": null}));
+    assert_eq!(
+        ai_preview(&tc, id, AiFeature::PushReview, input(Some("gibt-es-nicht")), "en".into()).await.unwrap_err().code,
+        ErrorCode::NotFound
+    );
+    assert_eq!(
+        serde_json::to_value(input(Some("origin"))).unwrap(),
+        serde_json::json!({"kind": "outgoing_changes", "branch": null, "remote": "origin", "remoteBranch": null})
+    );
 }

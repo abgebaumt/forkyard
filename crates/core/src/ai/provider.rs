@@ -71,7 +71,12 @@ pub trait Provider: Send + Sync {
     /// Name in messages and in the activity log ("Anthropic", "LM Studio").
     fn label(&self) -> String;
     fn capabilities(&self) -> ProviderCaps;
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>>;
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>>;
     fn models<'a>(&'a self, core: &'a Core, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>>;
     /// Embeddings for the semantic search; built per provider by 9.2.
     fn embed<'a>(&'a self, core: &'a Core, texts: &'a [String], cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<Vec<f32>>>> {

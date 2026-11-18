@@ -55,7 +55,10 @@ pub(super) fn chats(server: &MockServer) -> Vec<(String, String)> {
         .filter(|request| request.route() == "POST /api/chat")
         .map(|request| {
             let body = request.json();
-            (body["messages"][0]["content"].as_str().unwrap_or("").to_string(), body["messages"][1]["content"].as_str().unwrap_or("").to_string())
+            (
+                body["messages"][0]["content"].as_str().unwrap_or("").to_string(),
+                body["messages"][1]["content"].as_str().unwrap_or("").to_string(),
+            )
         })
         .collect()
 }
@@ -86,7 +89,8 @@ async fn the_prompt_names_units_by_alias_and_never_sends_secret_files() {
     let tc = TestCore::new().await;
     let id = tc.open(&repo).await.repo.id;
 
-    let preview = ai_preview(&tc, id, AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "de-DE".into()).await.unwrap();
+    let preview =
+        ai_preview(&tc, id, AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "de-DE".into()).await.unwrap();
     let text = preview.text;
 
     assert!(text.contains("File: a.txt +2 -2\n@@ -1,5 +1,5 @@ [unit u1]\n zeile 1\n-zeile 2\n+Zeile zwei\n"), "{text}");
@@ -100,7 +104,12 @@ async fn the_prompt_names_units_by_alias_and_never_sends_secret_files() {
     }
     assert!(text.contains("Ein Buchstabe") && text.contains("Zwanzig Zeilen"), "recent subjects for style and language");
     let omitted: Vec<(String, AiOmitReason)> = preview.omitted.iter().map(|o| (o.path.clone(), o.reason)).collect();
-    for (path, reason) in [(".env", AiOmitReason::Secret), ("intern/plan.txt", AiOmitReason::Ignored), ("package-lock.json", AiOmitReason::Generated), ("bild.bin", AiOmitReason::Binary)] {
+    for (path, reason) in [
+        (".env", AiOmitReason::Secret),
+        ("intern/plan.txt", AiOmitReason::Ignored),
+        ("package-lock.json", AiOmitReason::Generated),
+        ("bild.bin", AiOmitReason::Binary),
+    ] {
         assert!(omitted.contains(&(path.to_string(), reason)), "{path}: {omitted:?}");
     }
 }
@@ -111,7 +120,9 @@ async fn the_preview_and_the_request_send_the_same_text() {
     let repo = three_units();
     let (tc, id) = with_ollama(&server, &repo).await;
 
-    let preview = ai_preview(&tc, id.clone(), AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "en".into()).await.unwrap();
+    let preview = ai_preview(&tc, id.clone(), AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "en".into())
+        .await
+        .unwrap();
     assert!(preview.asks.is_empty(), "a local provider asks nothing");
     let proposal = compose_proposal(&tc, id, util::new_id(), "en".into(), None, Vec::new()).await.unwrap();
 
@@ -138,8 +149,18 @@ async fn the_answer_is_mapped_back_and_unplaced_units_stay_uncommitted() {
     assert_eq!(
         proposal.groups,
         vec![
-            ComposeGroup { title: "Zeile zwei korrigieren".into(), body: String::new(), units: vec![ids[0].clone()], reason: String::new() },
-            ComposeGroup { title: "Ende und b anpassen".into(), body: "Zweiter Teil.".into(), units: vec![ids[1].clone()], reason: String::new() },
+            ComposeGroup {
+                title: "Zeile zwei korrigieren".into(),
+                body: String::new(),
+                units: vec![ids[0].clone()],
+                reason: String::new()
+            },
+            ComposeGroup {
+                title: "Ende und b anpassen".into(),
+                body: "Zweiter Teil.".into(),
+                units: vec![ids[1].clone()],
+                reason: String::new()
+            },
         ],
         "b.txt (u3) is in no group: it stays in “Don't commit”"
     );
@@ -193,10 +214,16 @@ async fn compose_needs_the_function_on_and_respects_the_repository_switch() {
     let (tc, id) = with_ollama(&server, &repo).await;
 
     settings_set(&tc, json!({"aiFeaturesOff": ["compose"]})).await.unwrap();
-    assert_eq!(compose_proposal(&tc, id.clone(), util::new_id(), "en".into(), None, Vec::new()).await.unwrap_err().code, ErrorCode::AiDisabled);
+    assert_eq!(
+        compose_proposal(&tc, id.clone(), util::new_id(), "en".into(), None, Vec::new()).await.unwrap_err().code,
+        ErrorCode::AiDisabled
+    );
     settings_set(&tc, json!({"aiFeaturesOff": []})).await.unwrap();
     repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
-    assert_eq!(compose_proposal(&tc, id.clone(), util::new_id(), "en".into(), None, Vec::new()).await.unwrap_err().code, ErrorCode::AiDisabled);
+    assert_eq!(
+        compose_proposal(&tc, id.clone(), util::new_id(), "en".into(), None, Vec::new()).await.unwrap_err().code,
+        ErrorCode::AiDisabled
+    );
     assert!(chats(&server).is_empty(), "nothing was sent");
     assert_eq!(compose_units(&tc, id).await.unwrap().units.len(), 3, "composing by hand needs no AI");
 }
@@ -214,13 +241,15 @@ async fn the_repository_language_from_its_subjects_goes_into_the_instruction() {
     german.write_file("stationen.csv", "N;Nord\nS;Süd\n");
     let tc = TestCore::new().await;
     let id = tc.open(&german).await.repo.id;
-    let text = ai_preview(&tc, id, AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "en".into()).await.unwrap().text;
+    let text =
+        ai_preview(&tc, id, AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "en".into()).await.unwrap().text;
     let system = &text[..text.find("<<<REPO ").expect("a delimited section")];
     assert!(system.contains("in German"), "the instruction names the language: {system}");
 
     let undecided = three_units();
     let id = tc.open(&undecided).await.repo.id;
-    let text = ai_preview(&tc, id, AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "en".into()).await.unwrap().text;
+    let text =
+        ai_preview(&tc, id, AiFeature::Compose, AiInput::Compose { instruction: None, keep: Vec::new() }, "en".into()).await.unwrap().text;
     let system = &text[..text.find("<<<REPO ").expect("a delimited section")];
     for language in ["English", "German", "French", "Spanish", "Dutch"] {
         assert!(!system.contains(&format!("in {language}")), "no language is claimed for an unclear history: {system}");

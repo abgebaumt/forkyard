@@ -17,14 +17,17 @@ use parking_lot::Mutex;
 use tokio::time::Instant;
 
 use crate::app::Core;
-use crate::commands::preview::{self, Merged, MergedConflict};
 use crate::commands::preview::markers;
+use crate::commands::preview::{self, Merged, MergedConflict};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
 use crate::git::{redact, GitCmd};
 use crate::jobs::CancelToken;
-use crate::model::{Agent, AgentCollision, AgentStatus, CollisionBlock, CollisionCheckState, CollisionFile, CollisionKind, CollisionPreview, CollisionReport, CollisionSkip, RepoChange};
+use crate::model::{
+    Agent, AgentCollision, AgentStatus, CollisionBlock, CollisionCheckState, CollisionFile, CollisionKind, CollisionPreview,
+    CollisionReport, CollisionSkip, RepoChange,
+};
 use crate::undo;
 use crate::util;
 
@@ -136,15 +139,31 @@ impl Computed {
             Merged::Conflicts { tree, files } => {
                 // Git names no file (only messages): the shared files stand for the conflict.
                 let files: Vec<MergedConflict> = if files.is_empty() {
-                    shared.iter().map(|path| MergedConflict { path: util::decode_lossy(path), raw_path: path.clone(), ranges: Vec::new() }).collect()
+                    shared
+                        .iter()
+                        .map(|path| MergedConflict { path: util::decode_lossy(path), raw_path: path.clone(), ranges: Vec::new() })
+                        .collect()
                 } else {
                     files
                 };
-                self.stored.insert(id.clone(), StoredConflict { tree, files: files.iter().map(|file| (file.path.clone(), file.raw_path.clone())).collect() });
-                (CollisionKind::Conflict, files.into_iter().map(|file| CollisionFile { path: file.path, conflict: true, ranges: file.ranges }).collect())
+                self.stored.insert(
+                    id.clone(),
+                    StoredConflict { tree, files: files.iter().map(|file| (file.path.clone(), file.raw_path.clone())).collect() },
+                );
+                (
+                    CollisionKind::Conflict,
+                    files.into_iter().map(|file| CollisionFile { path: file.path, conflict: true, ranges: file.ranges }).collect(),
+                )
             }
         };
-        self.collisions.push(AgentCollision { id, kind, agent_id: agent_id.to_string(), other_agent_id: other.map(str::to_string), base: base.map(str::to_string), files });
+        self.collisions.push(AgentCollision {
+            id,
+            kind,
+            agent_id: agent_id.to_string(),
+            other_agent_id: other.map(str::to_string),
+            base: base.map(str::to_string),
+            files,
+        });
     }
 }
 
@@ -320,7 +339,8 @@ pub fn report(core: &Core, repo_id: &str) -> CollisionReport {
 /// present agents (started, cleaned up, brought back) is checked right away.
 pub(crate) fn track(core: &Core, repo_id: &str, agents: &[Agent]) {
     let watch = core.state::<CollisionWatch>();
-    let present: Vec<&Agent> = agents.iter().filter(|agent| agent.status != AgentStatus::Orphaned && agent.worktree_repo_id.is_some()).collect();
+    let present: Vec<&Agent> =
+        agents.iter().filter(|agent| agent.status != AgentStatus::Orphaned && agent.worktree_repo_id.is_some()).collect();
     {
         let mut owners = watch.owners.lock();
         owners.retain(|_, owner| owner != repo_id);
@@ -350,7 +370,8 @@ pub fn note_change(core: &Core, repo_id: &str, what: &[RepoChange]) {
     if !watch.enabled.load(Ordering::SeqCst) {
         return;
     }
-    let tree_moved = what.iter().any(|change| matches!(change, RepoChange::Worktree | RepoChange::Index | RepoChange::Head | RepoChange::Refs));
+    let tree_moved =
+        what.iter().any(|change| matches!(change, RepoChange::Worktree | RepoChange::Index | RepoChange::Head | RepoChange::Refs));
     let refs_moved = what.iter().any(|change| matches!(change, RepoChange::Head | RepoChange::Refs));
     let owner = watch.owners.lock().get(repo_id).cloned();
     let target = match owner {

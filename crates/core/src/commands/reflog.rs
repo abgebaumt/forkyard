@@ -30,7 +30,13 @@ pub(crate) struct RawEntry {
 }
 
 /// `ref_name`: `HEAD` (also when missing), `refs/heads/<name>` or `refs/remotes/<name>`.
-pub async fn reflog_list(core: &Core, repo_id: String, ref_name: Option<String>, cursor: Option<String>, limit: u32) -> CoreResult<ReflogPage> {
+pub async fn reflog_list(
+    core: &Core,
+    repo_id: String,
+    ref_name: Option<String>,
+    cursor: Option<String>,
+    limit: u32,
+) -> CoreResult<ReflogPage> {
     let path = core.repo_path(&repo_id)?;
     let name = checked_ref(ref_name.as_deref())?;
     let limit = limit.clamp(1, MAX_REFLOG_PAGE) as usize;
@@ -147,7 +153,12 @@ async fn walk_reflog(core: &Core, path: &Path, repo_id: &str, name: &str) -> Cor
         .filter(|c| c.len() == 3)
         .map(|c| {
             let text = display_text(c[2]);
-            RawEntry { sha: util::decode_lossy(c[0]), time: selector_time(&util::decode_lossy(c[1])), action: reflog_action(&text), message: redact::redact(&text) }
+            RawEntry {
+                sha: util::decode_lossy(c[0]),
+                time: selector_time(&util::decode_lossy(c[1])),
+                action: reflog_action(&text),
+                message: redact::redact(&text),
+            }
         })
         .collect())
 }
@@ -249,9 +260,15 @@ mod tests {
         );
         let entries = parse_reflog(text.as_bytes());
         assert_eq!(entries.len(), 3);
-        assert_eq!((entries[0].sha.as_str(), entries[0].time, entries[0].action, entries[0].message.as_str()), (a.as_str(), 1_767_225_720, ReflogAction::Other, ""));
+        assert_eq!(
+            (entries[0].sha.as_str(), entries[0].time, entries[0].action, entries[0].message.as_str()),
+            (a.as_str(), 1_767_225_720, ReflogAction::Other, "")
+        );
         assert_eq!((entries[1].sha.as_str(), entries[1].action), (b.as_str(), ReflogAction::Checkout));
-        assert_eq!((entries[2].time, entries[2].action, entries[2].message.as_str()), (1_767_225_600, ReflogAction::Commit, "commit (initial): Erster"));
+        assert_eq!(
+            (entries[2].time, entries[2].action, entries[2].message.as_str()),
+            (1_767_225_600, ReflogAction::Commit, "commit (initial): Erster")
+        );
     }
 
     #[test]
@@ -374,7 +391,10 @@ mod tests {
 
         let page = reflog_list(&tc, id.clone(), Some("refs/heads/feature/x".into()), None, 100).await.unwrap();
         assert_eq!(page.entries.len(), 2);
-        assert_eq!((page.entries[0].sha.as_str(), page.entries[0].action, page.entries[0].selector.as_str()), (tip.as_str(), ReflogAction::Commit, "feature/x@{0}"));
+        assert_eq!(
+            (page.entries[0].sha.as_str(), page.entries[0].action, page.entries[0].selector.as_str()),
+            (tip.as_str(), ReflogAction::Commit, "feature/x@{0}")
+        );
         assert_eq!(page.entries[1].action, ReflogAction::Other, "branch: Created from HEAD");
 
         for bad in ["refs/heads/../config", "refs/tags/v1", "--output=x", "main", "refs/heads/"] {

@@ -44,7 +44,16 @@ pub struct TemplateDef {
 }
 
 fn builtin(id: &str, kind: AgentTemplateKind, name: &str, status_hook: bool) -> TemplateDef {
-    TemplateDef { id: id.into(), kind, name: name.into(), program: id.into(), args: Vec::new(), unattended_args: None, resume_args: None, status_hook }
+    TemplateDef {
+        id: id.into(),
+        kind,
+        name: name.into(),
+        program: id.into(),
+        args: Vec::new(),
+        unattended_args: None,
+        resume_args: None,
+        status_hook,
+    }
 }
 
 pub fn builtins() -> Vec<TemplateDef> {
@@ -74,10 +83,9 @@ pub fn all(custom: &[AgentTemplate]) -> Vec<TemplateDef> {
 }
 
 pub fn find(custom: &[AgentTemplate], id: &str) -> CoreResult<TemplateDef> {
-    all(custom)
-        .into_iter()
-        .find(|t| t.id == id)
-        .ok_or_else(|| CoreError::not_allowed("This agent template was not found. Choose another one or add it under Settings › Coding agents."))
+    all(custom).into_iter().find(|t| t.id == id).ok_or_else(|| {
+        CoreError::not_allowed("This agent template was not found. Choose another one or add it under Settings › Coding agents.")
+    })
 }
 
 /// The first bypass switch an argument list contains.
@@ -90,11 +98,15 @@ pub fn has_bypass(args: &[String]) -> Option<&'static str> {
 
 fn check_args(name: &str, args: &[String]) -> CoreResult<()> {
     if let Some(flag) = has_bypass(args) {
-        return Err(CoreError::not_allowed(format!("The template “{name}” contains “{flag}”. Forkyard never starts agents with switches that lift their safety limits.")));
+        return Err(CoreError::not_allowed(format!(
+            "The template “{name}” contains “{flag}”. Forkyard never starts agents with switches that lift their safety limits."
+        )));
     }
     for arg in args {
         if arg.contains('\0') || arg.chars().count() > MAX_ARG_CHARS {
-            return Err(CoreError::not_allowed(format!("An argument of the template “{name}” is invalid (NUL character or longer than {MAX_ARG_CHARS} characters).")));
+            return Err(CoreError::not_allowed(format!(
+                "An argument of the template “{name}” is invalid (NUL character or longer than {MAX_ARG_CHARS} characters)."
+            )));
         }
         let mut rest = arg.as_str();
         while let Some(start) = rest.find("${") {
@@ -145,13 +157,11 @@ pub fn validate_custom(templates: &[AgentTemplate]) -> CoreResult<Vec<AgentTempl
 
 /// First `x.y.z` in a version text (`codex-cli 0.162.0`, `2.1.301 (Claude Code)`).
 pub fn parse_version(text: &str) -> Option<semver::Version> {
-    text.split(|c: char| !(c.is_ascii_digit() || c == '.'))
-        .filter(|part| part.matches('.').count() >= 2)
-        .find_map(|part| {
-            let mut numbers = part.split('.').filter(|n| !n.is_empty()).map(|n| n.parse::<u64>().ok());
-            let (major, minor, patch) = (numbers.next()??, numbers.next()??, numbers.next()??);
-            Some(semver::Version::new(major, minor, patch))
-        })
+    text.split(|c: char| !(c.is_ascii_digit() || c == '.')).filter(|part| part.matches('.').count() >= 2).find_map(|part| {
+        let mut numbers = part.split('.').filter(|n| !n.is_empty()).map(|n| n.parse::<u64>().ok());
+        let (major, minor, patch) = (numbers.next()??, numbers.next()??, numbers.next()??);
+        Some(semver::Version::new(major, minor, patch))
+    })
 }
 
 /// Why “without prompts” is not available for this template; `None` = available.
@@ -218,7 +228,8 @@ mod tests {
 
     #[test]
     fn own_templates_are_checked_and_never_carry_bypass_flags() {
-        let ok = validate_custom(&[custom("custom:a", "  Mein Agent ", " mein-agent ", &["--task", "${taskFile}", "--cwd=${worktree}"])]).unwrap();
+        let ok = validate_custom(&[custom("custom:a", "  Mein Agent ", " mein-agent ", &["--task", "${taskFile}", "--cwd=${worktree}"])])
+            .unwrap();
         assert_eq!((ok[0].name.as_str(), ok[0].program.as_str()), ("Mein Agent", "mein-agent"), "trimmed");
 
         let refused = |list: Vec<AgentTemplate>| validate_custom(&list).unwrap_err();
@@ -236,7 +247,11 @@ mod tests {
             assert_eq!(refused(vec![resume]).code, crate::ErrorCode::NotAllowed);
         }
         assert!(refused(vec![custom("custom:a", "A", "a", &["${home}"])]).message.contains("${home}"));
-        assert_eq!(refused(vec![custom("claude", "A", "a", &[])]).code, crate::ErrorCode::NotAllowed, "ids of own templates start with custom:");
+        assert_eq!(
+            refused(vec![custom("claude", "A", "a", &[])]).code,
+            crate::ErrorCode::NotAllowed,
+            "ids of own templates start with custom:"
+        );
         assert_eq!(refused(vec![custom("custom:a", "A", "a", &[]), custom("custom:a", "B", "b", &[])]).code, crate::ErrorCode::NotAllowed);
         assert_eq!(refused(vec![custom("custom:a", "   ", "a", &[])]).code, crate::ErrorCode::NotAllowed);
         assert_eq!(refused(vec![custom("custom:a", "A", "", &[])]).code, crate::ErrorCode::NotAllowed);

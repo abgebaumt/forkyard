@@ -29,7 +29,12 @@ impl TerminalObserver for Seen {
 }
 
 fn output_of(tc: &TestCore, terminal: &str) -> String {
-    tc.events.named(names::TERMINAL_DATA).iter().filter(|e| e["terminalId"] == terminal).map(|e| e["data"].as_str().unwrap_or_default().to_string()).collect()
+    tc.events
+        .named(names::TERMINAL_DATA)
+        .iter()
+        .filter(|e| e["terminalId"] == terminal)
+        .map(|e| e["data"].as_str().unwrap_or_default().to_string())
+        .collect()
 }
 
 async fn wait_until(what: &str, mut done: impl FnMut() -> bool) {
@@ -43,7 +48,10 @@ async fn wait_until(what: &str, mut done: impl FnMut() -> bool) {
 /// A program that prints its folder, runs `extra_unix` (Unix only) and then waits.
 fn printing_program(extra_unix: &str) -> (PathBuf, Vec<OsString>) {
     if cfg!(windows) {
-        (which::which("powershell.exe").unwrap(), vec!["-NoProfile".into(), "-Command".into(), "(Get-Location).Path; Start-Sleep -Seconds 30".into()])
+        (
+            which::which("powershell.exe").unwrap(),
+            vec!["-NoProfile".into(), "-Command".into(), "(Get-Location).Path; Start-Sleep -Seconds 30".into()],
+        )
     } else {
         (PathBuf::from("/bin/sh"), vec!["-c".into(), format!("pwd -P; {extra_unix} sleep 30").into()])
     }
@@ -68,7 +76,10 @@ fn signals_split_across_chunks_and_bel_inside_osc() {
     assert_eq!(results[0], Scanned { screen_changed: true, signals: vec![] }, "a half title is no signal yet");
     assert_eq!(
         results[1],
-        Scanned { screen_changed: true, signals: vec![TerminalSignal::Title("Agent B".into()), TerminalSignal::Bell, notify(Some("Fertig"), "Tests grün")] },
+        Scanned {
+            screen_changed: true,
+            signals: vec![TerminalSignal::Title("Agent B".into()), TerminalSignal::Bell, notify(Some("Fertig"), "Tests grün")]
+        },
         "the BEL that ends the title is no bell; the second one is"
     );
     assert_eq!(results[2], Scanned { screen_changed: false, signals: vec![] }, "OSC 9;4 is a progress report");
@@ -81,7 +92,10 @@ fn signals_split_across_chunks_and_bel_inside_osc() {
     for byte in chunks.concat() {
         signals.extend(scanner.feed(&[byte]).signals);
     }
-    assert_eq!(signals, vec![TerminalSignal::Title("Agent B".into()), TerminalSignal::Bell, notify(Some("Fertig"), "Tests grün"), notify(None, "fertig")]);
+    assert_eq!(
+        signals,
+        vec![TerminalSignal::Title("Agent B".into()), TerminalSignal::Bell, notify(Some("Fertig"), "Tests grün"), notify(None, "fertig")]
+    );
 }
 
 #[tokio::test]
@@ -93,7 +107,8 @@ async fn a_program_runs_in_a_linked_worktree_of_the_repository() {
     repo.git(&["worktree", "add", "-q", "-b", "agent/fix-login", worktree.to_str().unwrap()]);
     let (program, args) = printing_program("");
     let terminal = terminal_open_program(&tc, &id, launch(program, args, &worktree), 120, 30, None).await.unwrap();
-    let shown = if cfg!(windows) { worktree.display().to_string() } else { std::fs::canonicalize(&worktree).unwrap().display().to_string() };
+    let shown =
+        if cfg!(windows) { worktree.display().to_string() } else { std::fs::canonicalize(&worktree).unwrap().display().to_string() };
     wait_until("the folder in the output", || output_of(&tc, &terminal).contains(&shown)).await;
     let info = terminal_info(&tc, &terminal).expect("info of a running terminal");
     assert!(info.program);

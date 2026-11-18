@@ -35,8 +35,13 @@ const MAX_VALUE_CHARS: usize = 200;
 const MAX_FINDINGS: usize = 60;
 
 /// Commands that `git lfs install --local` configures: they only call `git-lfs` from the search path.
-const LFS_FILTER_VALUES: [&str; 5] =
-    ["git-lfs clean -- %f", "git-lfs smudge -- %f", "git-lfs smudge --skip -- %f", "git-lfs filter-process", "git-lfs filter-process --skip"];
+const LFS_FILTER_VALUES: [&str; 5] = [
+    "git-lfs clean -- %f",
+    "git-lfs smudge -- %f",
+    "git-lfs smudge --skip -- %f",
+    "git-lfs filter-process",
+    "git-lfs filter-process --skip",
+];
 
 fn is_false(value: &str) -> bool {
     matches!(value.trim().to_ascii_lowercase().as_str(), "false" | "no" | "off" | "0")
@@ -63,12 +68,16 @@ fn config_reason(key: &str, value: &str, git_is_directory: bool) -> Option<&'sta
         ("core", "askpass") => Some("Git runs this program when it needs credentials."),
         ("core", "alternaterefscommand") => Some("Git runs this program on fetch and push."),
         ("core", "virtualfilesystem") => Some("Git runs this program when reading the index."),
-        ("core", "worktree") if git_is_directory => Some("The working directory is in a different location – actions would affect files outside this folder."),
+        ("core", "worktree") if git_is_directory => {
+            Some("The working directory is in a different location – actions would affect files outside this folder.")
+        }
         ("credential", "helper") if !value.trim().is_empty() => Some("This program receives the credentials for the remotes."),
         ("remote", "uploadpack") | ("remote", "receivepack") => Some("Git runs this program on fetch or push."),
         ("remote", "vcs") => Some("Git runs a helper program of this name for the remote."),
         ("remote", "proxy") | ("http", "proxy") => Some("Connections go through this proxy; it sees what is transferred."),
-        ("http", "sslverify") if is_false(value) => Some("Certificate verification is turned off – anyone who redirects the connection gets the credentials."),
+        ("http", "sslverify") if is_false(value) => {
+            Some("Certificate verification is turned off – anyone who redirects the connection gets the credentials.")
+        }
         ("http", "sslcainfo" | "sslcapath" | "sslcert" | "sslkey" | "proxysslcainfo" | "proxysslcert" | "proxysslkey") => {
             Some("Changes which certificates Git trusts for HTTPS.")
         }
@@ -170,7 +179,8 @@ pub(crate) async fn common_dir(core: &Core, root: &Path) -> Option<PathBuf> {
 /// Runs none of it itself.
 pub(crate) async fn scan(core: &Core, root: &Path) -> Vec<TrustFinding> {
     let mut findings = Vec::new();
-    let listed = core.git.cmd(root).args(["config", "--list", "--show-scope", "--includes", "-z"]).read_only().no_log().guarded().run_raw().await;
+    let listed =
+        core.git.cmd(root).args(["config", "--list", "--show-scope", "--includes", "-z"]).read_only().no_log().guarded().run_raw().await;
     match listed {
         Ok(out) if out.success() => {
             let git_is_directory = root.join(".git").is_dir();
@@ -222,7 +232,9 @@ async fn shares_a_trusted_repository(core: &Core, root: &Path) -> bool {
     }
     // A forged `.git/commondir` points at any repository; only Git registers real worktrees:
     // the git dir sits in `<common>/worktrees` and its `gitdir` file points back at `root/.git`.
-    let Ok(out) = core.git.cmd(root).args(["rev-parse", "--absolute-git-dir"]).read_only().no_log().guarded().run_raw().await else { return false };
+    let Ok(out) = core.git.cmd(root).args(["rev-parse", "--absolute-git-dir"]).read_only().no_log().guarded().run_raw().await else {
+        return false;
+    };
     if !out.success() {
         return false;
     }
@@ -423,7 +435,11 @@ mod tests {
         let entries = local_entries(output);
         assert_eq!(
             entries,
-            vec![("core.fsmonitor".to_string(), "evil".to_string()), ("core.bare".to_string(), String::new()), ("core.sshcommand".to_string(), "x".to_string())]
+            vec![
+                ("core.fsmonitor".to_string(), "evil".to_string()),
+                ("core.bare".to_string(), String::new()),
+                ("core.sshcommand".to_string(), "x".to_string())
+            ]
         );
         let findings = config_findings(&entries, true);
         assert_eq!(findings.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["core.fsmonitor", "core.sshcommand"]);
@@ -519,7 +535,9 @@ mod tests {
             use std::os::unix::fs::PermissionsExt;
             std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
-        let tc = TestCore::with_global_config(&format!("[init]\n\ttemplateDir = {}\n", template.path().to_string_lossy().replace('\\', "/"))).await;
+        let tc =
+            TestCore::with_global_config(&format!("[init]\n\ttemplateDir = {}\n", template.path().to_string_lossy().replace('\\', "/")))
+                .await;
         let source = TestRepo::with_commit();
         let remote = source.add_remote();
         source.git(&["push", "-q", "origin", "main"]);

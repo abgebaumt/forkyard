@@ -16,7 +16,8 @@ use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact::redact;
 use crate::model::{
-    CustomLinkRule, HostKind, LinkFileOrigin, LinkPreset, LinkPresetKind, LinkRule, LinkRuleProblem, LinkRuleSource, LinkRules, LinkRulesConfig,
+    CustomLinkRule, HostKind, LinkFileOrigin, LinkPreset, LinkPresetKind, LinkRule, LinkRuleProblem, LinkRuleSource, LinkRules,
+    LinkRulesConfig,
 };
 
 pub use pattern::{check_pattern, MAX_PATTERN_LEN};
@@ -185,7 +186,12 @@ fn preset_rule(kind: LinkPresetKind, base_url: &str, keys: &[String]) -> (String
 
 /// `#123` (and `!123` on GitLab) for the repository on its host. New hosts need an arm here.
 pub fn host_rules(kind: HostKind, web_url: &str) -> Vec<LinkRule> {
-    let rule = |id: &str, pattern: &str, url: String| LinkRule { id: id.to_string(), source: LinkRuleSource::Host, pattern: pattern.to_string(), url };
+    let rule = |id: &str, pattern: &str, url: String| LinkRule {
+        id: id.to_string(),
+        source: LinkRuleSource::Host,
+        pattern: pattern.to_string(),
+        url,
+    };
     match kind {
         // Gitea/Forgejo send `/issues/<n>` of a pull request on to its page, like GitHub.
         HostKind::Github | HostKind::Gitea => vec![rule("host:issue", r"#(\d+)\b", format!("{web_url}/issues/$1"))],
@@ -268,7 +274,9 @@ fn parse_file(bytes: &[u8]) -> (Vec<LinkRule>, Vec<LinkRuleProblem>) {
     }
     let mut rules: Vec<LinkRule> = Vec::new();
     for (index, raw) in file.rules.into_iter().enumerate() {
-        let mut problem = |message: String| problems.push(LinkRuleProblem { index: Some(u32::try_from(index).unwrap_or(u32::MAX)), message: redact(&message) });
+        let mut problem = |message: String| {
+            problems.push(LinkRuleProblem { index: Some(u32::try_from(index).unwrap_or(u32::MAX)), message: redact(&message) })
+        };
         if rules.len() >= MAX_RULES {
             problem(format!("More than {MAX_RULES} rules; the rest is ignored."));
             break;

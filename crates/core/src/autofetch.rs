@@ -94,7 +94,9 @@ pub enum SkipReason {
 pub enum FetchOutcome {
     Skipped(SkipReason),
     /// Fetch succeeded; `refs_changed`: something new arrived (then `repo:changed` was reported).
-    Fetched { refs_changed: bool },
+    Fetched {
+        refs_changed: bool,
+    },
     /// Fetch failed (recorded in the log, nowhere else).
     Failed(CoreError),
 }
@@ -122,8 +124,8 @@ pub fn start(core: &Core, repo_id: &str) -> CoreResult<()> {
         return Ok(());
     }
     core.repo_row(repo_id)?;
-    let runtime = tokio::runtime::Handle::try_current()
-        .map_err(|_| CoreError::unknown("Auto-fetch can only be started from the running app."))?;
+    let runtime =
+        tokio::runtime::Handle::try_current().map_err(|_| CoreError::unknown("Auto-fetch can only be started from the running app."))?;
     let (generation, stop) = {
         let mut running = state.running.lock();
         if running.contains_key(repo_id) {

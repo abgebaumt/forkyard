@@ -137,8 +137,12 @@ struct UnlockEntry {
 /// `git lfs locks --verify --json`: `{"ours":[…],"theirs":[…]}` → sorted by path.
 pub(super) fn parse_verified(stdout: &[u8]) -> Option<Vec<LfsLock>> {
     let parsed: Verified = serde_json::from_slice(stdout).ok()?;
-    let mut locks: Vec<LfsLock> =
-        parsed.ours.into_iter().map(|lock| lock.into_lock(true)).chain(parsed.theirs.into_iter().map(|lock| lock.into_lock(false))).collect();
+    let mut locks: Vec<LfsLock> = parsed
+        .ours
+        .into_iter()
+        .map(|lock| lock.into_lock(true))
+        .chain(parsed.theirs.into_iter().map(|lock| lock.into_lock(false)))
+        .collect();
     locks.sort_by(|a, b| a.path.cmp(&b.path));
     Some(locks)
 }
@@ -184,7 +188,11 @@ pub(super) fn unlock_failures(paths: &[String], out: &GitOutput) -> Vec<LfsLockF
             Some(entry) if entry.unlocked => None,
             Some(entry) => Some(LfsLockFailure {
                 path: path.clone(),
-                reason: entry.reason.as_deref().map(|reason| clean_reason(reason, "Git LFS did not unlock the file.")).unwrap_or_else(fallback),
+                reason: entry
+                    .reason
+                    .as_deref()
+                    .map(|reason| clean_reason(reason, "Git LFS did not unlock the file."))
+                    .unwrap_or_else(fallback),
             }),
             None if out.success() => None,
             None => Some(LfsLockFailure { path: path.clone(), reason: fallback() }),
@@ -366,7 +374,8 @@ mod tests {
         // Success without an entry counts as unlocked.
         assert!(unlock_failures(&["a.psd".to_string()], &output(0, "[]", "")).is_empty());
         // Older Git LFS 3.x: a single object instead of a list.
-        let failed = unlock_failures(&["b.psd".to_string()], &output(2, r#"{"path":"b.psd","unlocked":false,"reason":"Lock not found"}"#, ""));
+        let failed =
+            unlock_failures(&["b.psd".to_string()], &output(2, r#"{"path":"b.psd","unlocked":false,"reason":"Lock not found"}"#, ""));
         assert_eq!(failed, vec![LfsLockFailure { path: "b.psd".into(), reason: "Lock not found".into() }]);
     }
 
@@ -415,17 +424,28 @@ mod tests {
 
     #[test]
     fn paths_are_checked_and_deduplicated() {
-        let paths: Vec<String> = vec!["./bilder//karte.psd".into(), "bilder/karte.psd".into(), "-strich.psd".into(), "mit leer/Größe.psd".into()];
+        let paths: Vec<String> =
+            vec!["./bilder//karte.psd".into(), "bilder/karte.psd".into(), "-strich.psd".into(), "mit leer/Größe.psd".into()];
         assert_eq!(check_paths(&paths).unwrap(), ["bilder/karte.psd", "-strich.psd", "mit leer/Größe.psd"]);
         let too_many: Vec<String> = (0..=MAX_PATHS).map(|i| format!("f{i}.psd")).collect();
-        for bad in [vec![], vec!["../aussen.psd".to_string()], vec!["/etc/passwd".to_string()], vec![String::new()], vec!["a\nb.psd".to_string()], too_many] {
+        for bad in [
+            vec![],
+            vec!["../aussen.psd".to_string()],
+            vec!["/etc/passwd".to_string()],
+            vec![String::new()],
+            vec!["a\nb.psd".to_string()],
+            too_many,
+        ] {
             assert_eq!(check_paths(&bad).unwrap_err().code, ErrorCode::NotAllowed, "{bad:?}");
         }
     }
 
     #[test]
     fn filter_matches_path_or_owner_without_case() {
-        let list = LfsLockList { locks: vec![lock("bilder/Karte.psd", "Lena Berg", false), lock("ton/intro.wav", "Test Person", true)], fetched_at: "t".into() };
+        let list = LfsLockList {
+            locks: vec![lock("bilder/Karte.psd", "Lena Berg", false), lock("ton/intro.wav", "Test Person", true)],
+            fetched_at: "t".into(),
+        };
         let paths = |filter: Option<&str>| filtered(list.clone(), filter).locks.into_iter().map(|l| l.path).collect::<Vec<_>>();
         assert_eq!(paths(None), ["bilder/Karte.psd", "ton/intro.wav"]);
         assert_eq!(paths(Some("  ")), ["bilder/Karte.psd", "ton/intro.wav"]);

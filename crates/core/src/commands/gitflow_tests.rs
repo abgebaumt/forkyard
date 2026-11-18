@@ -182,7 +182,8 @@ async fn feature_finish_merges_into_develop_and_undo_restores_everything() {
     assert!(!exists(&repo, "refs/heads/feature/suche"));
     assert!(repo.path().join("suche.txt").exists());
     assert_eq!(tc.events.named(names::REPO_CHANGED).len(), 1);
-    let entries: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from undo_entries where state = 'done'", [], |r| r.get(0))?)).unwrap();
+    let entries: i64 =
+        tc.db.with(|c| Ok(c.query_row("select count(*) from undo_entries where state = 'done'", [], |r| r.get(0))?)).unwrap();
     assert_eq!(entries, 2, "start and finish: one step each");
 
     let state = undo_peek(&tc, id.clone()).await.unwrap();
@@ -214,7 +215,10 @@ async fn release_finish_merges_tags_and_merges_back() {
     let release = repo.commit_file("version.txt", "1.2.0\n", "Version 1.2.0");
     let (main_before, develop_before) = (repo.git(&["rev-parse", "main"]), repo.git(&["rev-parse", "develop"]));
 
-    let finish = GitflowFinishOptions { message: Some("Erste öffentliche Fassung".into()), delete_branch: false, ..GitflowFinishOptions::default() };
+    let finish =
+        GitflowFinishOptions {
+            message: Some("Erste öffentliche Fassung".into()), delete_branch: false, ..GitflowFinishOptions::default()
+        };
     let result = gitflow_finish(&tc, id.clone(), GitflowKind::Release, "1.2.0".into(), Some(finish), None).await.unwrap();
     let OpResult::Done { summary, .. } = &result else { panic!("{result:?}") };
     assert_eq!(summary, "Release “1.2.0” finished: merged into main, created tag “v1.2.0”, merged into develop");

@@ -12,7 +12,13 @@ pub async fn ai_semantic_status(core: &Core, repo_id: String) -> CoreResult<AiSe
 }
 
 /// Search by meaning as job `job_id`; confirm `ai_preview` (`AiInput::SemanticSearch`) first when it asks.
-pub async fn ai_semantic_search(core: &Core, repo_id: String, job_id: String, query: String, locale: String) -> CoreResult<AiSemanticResult> {
+pub async fn ai_semantic_search(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    query: String,
+    locale: String,
+) -> CoreResult<AiSemanticResult> {
     semantic::search(core, &repo_id, &job_id, &query, &locale).await
 }
 
@@ -44,7 +50,9 @@ mod tests {
         tc.events
             .all()
             .into_iter()
-            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .filter(|(name, payload)| {
+                name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai"))
+            })
             .count()
     }
 
@@ -59,7 +67,14 @@ mod tests {
             repo.empty_commit(message);
         }
         let id = tc.open(&repo).await.repo.id;
-        let local = AiSemanticStatus { route: AiSearchRoute::LocalEmbeddings, provider: Some(AiProviderKind::Ollama), model: Some("embeddinggemma".into()), indexed: 0, used: false, local: true };
+        let local = AiSemanticStatus {
+            route: AiSearchRoute::LocalEmbeddings,
+            provider: Some(AiProviderKind::Ollama),
+            model: Some("embeddinggemma".into()),
+            indexed: 0,
+            used: false,
+            local: true,
+        };
         assert_eq!(ai_semantic_status(&tc, id.clone()).await.unwrap(), local);
         assert!(server.requests().is_empty(), "the status sends nothing");
         ai_semantic_search(&tc, id.clone(), "st1".into(), "Login".into(), "de".into()).await.unwrap();
@@ -67,7 +82,10 @@ mod tests {
 
         settings_set(&tc, json!({"aiSearchEmbedProvider": null})).await.unwrap();
         let rephrase = ai_semantic_status(&tc, id.clone()).await.unwrap();
-        assert_eq!((rephrase.route, rephrase.provider, rephrase.indexed, rephrase.used, rephrase.local), (AiSearchRoute::Rephrase, Some(AiProviderKind::Anthropic), 0, false, false));
+        assert_eq!(
+            (rephrase.route, rephrase.provider, rephrase.indexed, rephrase.used, rephrase.local),
+            (AiSearchRoute::Rephrase, Some(AiProviderKind::Anthropic), 0, false, false)
+        );
 
         let before = ai_events(&tc);
         assert_eq!(ai_semantic_index_delete(&tc).await.unwrap(), 1);
@@ -95,7 +113,11 @@ mod tests {
 
         repo.git(&["reset", "-q", "--hard", "HEAD~1"]);
         server.clear();
-        assert_eq!(ai_semantic_index_update(&tc, id.clone(), "b4".into()).await.unwrap(), AiSemanticIndexUpdate { added: 0, removed: 1, waiting: false }, "a commit that left the history leaves the index");
+        assert_eq!(
+            ai_semantic_index_update(&tc, id.clone(), "b4".into()).await.unwrap(),
+            AiSemanticIndexUpdate { added: 0, removed: 1, waiting: false },
+            "a commit that left the history leaves the index"
+        );
         assert!(server.requests().is_empty());
 
         settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
@@ -121,7 +143,10 @@ mod tests {
         settings_set(&tc, json!({"aiConfirmCostUsd": 0, "aiPrices": [{"model": "text-embedding-3-small", "inputUsdPerMtok": 1000, "outputUsdPerMtok": 0}]})).await.unwrap();
         repo.empty_commit("Absturz behoben");
         server.clear();
-        assert_eq!(ai_semantic_index_update(&tc, id.clone(), "w2".into()).await.unwrap(), AiSemanticIndexUpdate { added: 0, removed: 0, waiting: true });
+        assert_eq!(
+            ai_semantic_index_update(&tc, id.clone(), "w2".into()).await.unwrap(),
+            AiSemanticIndexUpdate { added: 0, removed: 0, waiting: true }
+        );
         assert!(server.requests().is_empty(), "the background never sends what needs a confirmation");
         let next = ai_preview(&tc, id, AiFeature::SemanticSearch, question(), "de".into()).await.unwrap();
         assert_eq!(next.asks, vec![AiAskTrigger::Cost], "the next search asks for it");

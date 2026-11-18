@@ -129,7 +129,10 @@ impl Fx {
     }
 
     async fn commit(&self, summary: &str) -> String {
-        commit_create(&self.tc, self.id(), util::new_id(), summary.into(), String::new(), false, false, false, false, None).await.unwrap().sha
+        commit_create(&self.tc, self.id(), util::new_id(), summary.into(), String::new(), false, false, false, false, None)
+            .await
+            .unwrap()
+            .sha
     }
 
     /// `main` and `feature` both change the README: merging, rebasing and picking yields a conflict.
@@ -220,7 +223,8 @@ async fn amend_and_reword_undo_and_redo() {
     let old = fx.repo.commit_file("a.txt", "eins\n", "Alt");
     fx.repo.write_file("a.txt", "zwei\n");
     fx.repo.git(&["add", "-A"]);
-    let amended = commit_create(&fx.tc, fx.id(), util::new_id(), "Neu".into(), String::new(), true, false, false, false, None).await.unwrap().sha;
+    let amended =
+        commit_create(&fx.tc, fx.id(), util::new_id(), "Neu".into(), String::new(), true, false, false, false, None).await.unwrap().sha;
     fx.round_trip(
         "amend",
         |fx| {
@@ -797,7 +801,11 @@ async fn discard_patch_undo_and_redo() {
         .iter()
         .find_map(|h| h.lines.iter().position(|l| l.text == "vier").map(|p| (h.index, p as u32)))
         .expect("line \"vier\" missing");
-    let selection = PatchSelection { path: "f.txt".into(), hunks: vec![HunkSelection { index: hunk, lines: Some(vec![line]) }], expect: diff.token.clone().unwrap() };
+    let selection = PatchSelection {
+        path: "f.txt".into(),
+        hunks: vec![HunkSelection { index: hunk, lines: Some(vec![line]) }],
+        expect: diff.token.clone().unwrap(),
+    };
     discard_patch(&fx.tc, fx.id(), selection).await.unwrap();
     fx.round_trip(
         "discard",
@@ -1018,7 +1026,11 @@ async fn dropping_a_stash_voids_its_undo_entry() {
 
     stash_drop(&fx.tc, fx.id(), 0, None).await.unwrap();
     let entries = fx.entries();
-    assert_eq!(entries.iter().map(|e| e.action.as_str()).collect::<Vec<_>>(), ["stash_drop", "commit"], "the \"stash\" entry is invalidated");
+    assert_eq!(
+        entries.iter().map(|e| e.action.as_str()).collect::<Vec<_>>(),
+        ["stash_drop", "commit"],
+        "the \"stash\" entry is invalidated"
+    );
     let listed = |fx: &Fx| fx.lines(&["stash", "list", "--format=%gs"]);
     fx.round_trip("stash_drop", |fx| assert_eq!(listed(fx).len(), 1), |fx| assert!(listed(fx).is_empty())).await;
     // The older step is not blocked.
@@ -1108,8 +1120,23 @@ async fn pull_finished_after_a_conflict_is_undoable() {
 fn every_action_is_covered_here() {
     // Reminder when adding an action: it needs a test with the real command here.
     let covered = [
-        "checkout", "commit", "amend", "discard", "delete_branch", "remove_remote", "reset", "rebase", "cherry_pick", "squash", "reword", "drop", "merge",
-        "revert", "stash", "stash_pop", "stash_drop",
+        "checkout",
+        "commit",
+        "amend",
+        "discard",
+        "delete_branch",
+        "remove_remote",
+        "reset",
+        "rebase",
+        "cherry_pick",
+        "squash",
+        "reword",
+        "drop",
+        "merge",
+        "revert",
+        "stash",
+        "stash_pop",
+        "stash_drop",
     ];
     // Group actions (`record_group`) have no command of their own yet: `group_tests.rs` covers their
     // executor; the package that adds the command adds its round trip here.

@@ -84,7 +84,8 @@ pub fn toml_string(text: &str) -> String {
 fn claude_settings(helper: Option<&Path>, sandbox: bool) -> Option<Value> {
     let mut settings = Map::new();
     if let Some(helper) = helper {
-        let hook = |state: &str| hook_command(helper, state).map(|command| json!([{ "hooks": [{ "type": "command", "command": command }] }]));
+        let hook =
+            |state: &str| hook_command(helper, state).map(|command| json!([{ "hooks": [{ "type": "command", "command": command }] }]));
         if let (Some(waiting), Some(done), Some(running)) = (hook("waiting"), hook("done"), hook("running")) {
             settings.insert("hooks".into(), json!({ "Notification": waiting, "Stop": done, "UserPromptSubmit": running }));
         }
@@ -113,9 +114,10 @@ fn substitute(arg: &str, input: &LaunchInput) -> String {
     while let Some(start) = rest.find("${") {
         out.push_str(&rest[..start]);
         let tail = &rest[start..];
-        let replaced = [("${taskFile}", task_file.as_ref()), ("${task}", input.task), ("${worktree}", worktree.as_ref()), ("${branch}", input.branch)]
-            .into_iter()
-            .find(|(name, _)| tail.starts_with(name));
+        let replaced =
+            [("${taskFile}", task_file.as_ref()), ("${task}", input.task), ("${worktree}", worktree.as_ref()), ("${branch}", input.branch)]
+                .into_iter()
+                .find(|(name, _)| tail.starts_with(name));
         match replaced {
             Some((name, value)) => {
                 out.push_str(value);
@@ -185,15 +187,16 @@ pub fn build(def: &TemplateDef, input: &LaunchInput) -> CoreResult<Launch> {
         }
         AgentTemplateKind::Custom => {
             let mut list = if input.resume {
-                def.resume_args.clone().ok_or_else(|| CoreError::not_allowed(format!("The template “{}” has no arguments for “Resume”.", def.name)))?
+                def.resume_args
+                    .clone()
+                    .ok_or_else(|| CoreError::not_allowed(format!("The template “{}” has no arguments for “Resume”.", def.name)))?
             } else {
                 def.args.clone()
             };
             if input.unattended {
-                let extra = def
-                    .unattended_args
-                    .clone()
-                    .ok_or_else(|| CoreError::not_allowed(format!("The template “{}” has no arguments for “without prompts”.", def.name)))?;
+                let extra = def.unattended_args.clone().ok_or_else(|| {
+                    CoreError::not_allowed(format!("The template “{}” has no arguments for “without prompts”.", def.name))
+                })?;
                 list.extend(extra);
             }
             let inline_task = list.iter().any(|a| a.contains("${task}"));
@@ -257,13 +260,27 @@ mod tests {
         let ask = build(&claude, &input(false, false, false, true, "/usr/bin/claude")).unwrap();
         assert_eq!(strings(&ask), vec!["--settings", SETTINGS]);
         let s = settings(&ask);
-        assert_eq!(s["hooks"]["Notification"][0]["hooks"][0], json!({ "type": "command", "command": "\"/opt/Forkyard/forkyard-askpass\" --agent-status waiting" }));
+        assert_eq!(
+            s["hooks"]["Notification"][0]["hooks"][0],
+            json!({ "type": "command", "command": "\"/opt/Forkyard/forkyard-askpass\" --agent-status waiting" })
+        );
         assert_eq!(s["hooks"]["Stop"][0]["hooks"][0]["command"], json!("\"/opt/Forkyard/forkyard-askpass\" --agent-status done"));
-        assert_eq!(s["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"], json!("\"/opt/Forkyard/forkyard-askpass\" --agent-status running"));
+        assert_eq!(
+            s["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"],
+            json!("\"/opt/Forkyard/forkyard-askpass\" --agent-status running")
+        );
         assert!(s.get("sandbox").is_none(), "the prompting mode sets no sandbox");
         assert!(ask.types_task && !ask.writes_task_file);
-        let env: Vec<(String, String)> = ask.env.iter().map(|(k, v)| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned())).collect();
-        assert_eq!(env, vec![("FORKYARD_AGENT_PORT".into(), "40123".into()), ("FORKYARD_AGENT_TOKEN".into(), "tok3n".into()), ("FORKYARD_AGENT_HELPER".into(), HELPER.into())]);
+        let env: Vec<(String, String)> =
+            ask.env.iter().map(|(k, v)| (k.to_string_lossy().into_owned(), v.to_string_lossy().into_owned())).collect();
+        assert_eq!(
+            env,
+            vec![
+                ("FORKYARD_AGENT_PORT".into(), "40123".into()),
+                ("FORKYARD_AGENT_TOKEN".into(), "tok3n".into()),
+                ("FORKYARD_AGENT_HELPER".into(), HELPER.into())
+            ]
+        );
 
         let free = build(&claude, &input(true, false, false, true, "/usr/bin/claude")).unwrap();
         assert_eq!(strings(&free), vec!["--settings", SETTINGS, "--permission-mode", "acceptEdits"]);
@@ -293,7 +310,10 @@ mod tests {
         assert_eq!(strings(&resume)[..2], ["resume".to_string(), "--last".to_string()]);
         assert!(resume.settings_json.is_none());
         // A Windows helper path is a valid TOML string (backslashes escaped).
-        assert_eq!(toml_string(r"C:\Program Files\Forkyard\forkyard-askpass.exe"), r#""C:\\Program Files\\Forkyard\\forkyard-askpass.exe""#);
+        assert_eq!(
+            toml_string(r"C:\Program Files\Forkyard\forkyard-askpass.exe"),
+            r#""C:\\Program Files\\Forkyard\\forkyard-askpass.exe""#
+        );
         assert_eq!(toml_string("a\"b\u{7}"), r#""a\"b\u0007""#);
     }
 
@@ -356,7 +376,11 @@ mod tests {
                         let mut all = strings(&launch);
                         all.extend(launch.settings_json.clone());
                         all.extend(launch.env.iter().map(|(_, v)| v.to_string_lossy().into_owned()));
-                        assert_eq!(crate::commands::agents::templates::has_bypass(&all), None, "{id} {unattended} {resume} {windows}: {all:?}");
+                        assert_eq!(
+                            crate::commands::agents::templates::has_bypass(&all),
+                            None,
+                            "{id} {unattended} {resume} {windows}: {all:?}"
+                        );
                         assert!(!all.iter().any(|a| a.to_lowercase().contains("bypass") || a.contains("dangerously")), "{all:?}");
                     }
                 }
@@ -365,6 +389,9 @@ mod tests {
         // A helper path a shell would interpret gets no hook (status is guessed instead).
         assert_eq!(hook_command(Path::new("/opt/$(rm)/helper"), "done"), None);
         assert_eq!(hook_command(Path::new("/opt/a\"b/helper"), "done"), None);
-        assert_eq!(hook_command(Path::new("/opt/Forkyard Ä/helper"), "done").as_deref(), Some("\"/opt/Forkyard Ä/helper\" --agent-status done"));
+        assert_eq!(
+            hook_command(Path::new("/opt/Forkyard Ä/helper"), "done").as_deref(),
+            Some("\"/opt/Forkyard Ä/helper\" --agent-status done")
+        );
     }
 }

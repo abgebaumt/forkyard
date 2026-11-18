@@ -43,7 +43,8 @@ fn line_patch_keeps_bytes_crlf_latin1_bom_and_missing_newline() {
     let patch = line_patch("b.txt", b"a\nb\nc", 3, 3, "C").unwrap();
     assert_eq!(text(&patch), "diff --git a/b.txt b/b.txt\n--- a/b.txt\n+++ b/b.txt\n@@ -1,3 +1,3 @@\n a\n b\n-c\n\\ No newline at end of file\n+C\n\\ No newline at end of file\n");
     assert_eq!(patch.old_text, "c");
-    let shown: Vec<(ReviewFixLineKind, &str, Option<u32>, Option<u32>)> = patch.lines.iter().map(|l| (l.kind, l.text.as_str(), l.old, l.new)).collect();
+    let shown: Vec<(ReviewFixLineKind, &str, Option<u32>, Option<u32>)> =
+        patch.lines.iter().map(|l| (l.kind, l.text.as_str(), l.old, l.new)).collect();
     assert_eq!(
         shown,
         vec![
@@ -70,7 +71,10 @@ fn line_patch_applies_with_git_for_odd_paths_and_huge_files() {
     let patch = line_patch("gross.txt", huge.as_bytes(), 100_000, 100_000, "geändert").unwrap();
     assert_eq!(patch.lines.len(), 8, "3 + 1 + 1 + 3 lines, not the whole file");
     assert!(patch.patch.len() < 400);
-    assert_eq!(applied("gross.txt", huge.as_bytes(), 100_000, 100_000, "geändert"), huge.replace("Zeile 100000\n", "geändert\n").into_bytes());
+    assert_eq!(
+        applied("gross.txt", huge.as_bytes(), 100_000, 100_000, "geändert"),
+        huge.replace("Zeile 100000\n", "geändert\n").into_bytes()
+    );
 }
 
 #[test]
@@ -91,7 +95,9 @@ fn line_patch_refuses_what_it_cannot_build_exactly() {
 
 /// Ten lines `Zeile 1` … `Zeile 10`, the given ones replaced.
 fn ten(changes: &[(usize, &str)]) -> String {
-    (1..=10).map(|n| changes.iter().find(|(i, _)| *i == n).map(|(_, t)| format!("{t}\n")).unwrap_or_else(|| format!("Zeile {n}\n"))).collect()
+    (1..=10)
+        .map(|n| changes.iter().find(|(i, _)| *i == n).map(|(_, t)| format!("{t}\n")).unwrap_or_else(|| format!("Zeile {n}\n")))
+        .collect()
 }
 
 /// main: `a.txt` (ten lines) and `b.txt`; `feature`: P1 changes lines 3–4, P2 renames `a.txt` to
@@ -120,8 +126,12 @@ async fn the_range_is_the_pull_requests_own_commits_newest_first() {
     let id = tc.open(&repo).await.repo.id;
     let range = pr_range(&tc, &id, &p3, "refs/remotes/origin/main").await.unwrap();
     assert_eq!((range.base.as_str(), range.head.as_str()), (main.as_str(), p3.as_str()));
-    let commits: Vec<(&str, &str, Option<FixupReason>)> = range.commits.iter().map(|c| (c.sha.as_str(), c.summary.as_str(), c.reason)).collect();
-    assert_eq!(commits, vec![(p3.as_str(), "Dritte Datei", None), (p2.as_str(), "Umbenannt, Zeile 8", None), (p1.as_str(), "Zeilen 3 und 4", None)]);
+    let commits: Vec<(&str, &str, Option<FixupReason>)> =
+        range.commits.iter().map(|c| (c.sha.as_str(), c.summary.as_str(), c.reason)).collect();
+    assert_eq!(
+        commits,
+        vec![(p3.as_str(), "Dritte Datei", None), (p2.as_str(), "Umbenannt, Zeile 8", None), (p1.as_str(), "Zeilen 3 und 4", None)]
+    );
     assert_eq!(changed_paths(&tc, &id, &range).await.unwrap(), ["c.txt", "neu/ä b.txt"], "renamed files under their new name");
     assert_eq!(head_blob(&tc, &id, &p3, "neu/ä b.txt").await.unwrap(), ten(&[(3, "drei"), (4, "vier"), (8, "acht")]).into_bytes());
     assert_eq!(head_blob(&tc, &id, &p3, "fehlt.txt").await.unwrap_err().code, ErrorCode::NotFound);
@@ -137,7 +147,11 @@ async fn the_range_is_the_pull_requests_own_commits_newest_first() {
     repo.git(&["checkout", "-q", "--orphan", "fremd"]);
     repo.git(&["rm", "-rfq", "."]);
     let lonely = repo.commit_file("x.txt", "x\n", "Fremd");
-    assert_eq!(pr_range(&tc, &id, &lonely, "refs/remotes/origin/main").await.unwrap_err().code, ErrorCode::NotAllowed, "unrelated histories");
+    assert_eq!(
+        pr_range(&tc, &id, &lonely, "refs/remotes/origin/main").await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "unrelated histories"
+    );
 }
 
 #[tokio::test]
@@ -148,12 +162,24 @@ async fn the_fixup_target_follows_blame_inside_the_pull_request() {
     let range = pr_range(&tc, &id, &p3, "refs/remotes/origin/main").await.unwrap();
     let target = |start: u32, end: u32| fixup_target(&tc, &id, &range, "neu/ä b.txt", start, end);
     let found = target(3, 4).await.unwrap().unwrap();
-    assert_eq!((found.sha.as_str(), found.summary.as_str(), found.reason), (p1.as_str(), "Zeilen 3 und 4", Some(FixupReason::Blame)), "lines 3–4 came from P1, before the rename");
+    assert_eq!(
+        (found.sha.as_str(), found.summary.as_str(), found.reason),
+        (p1.as_str(), "Zeilen 3 und 4", Some(FixupReason::Blame)),
+        "lines 3–4 came from P1, before the rename"
+    );
     assert_eq!(target(8, 8).await.unwrap().unwrap().sha, p2);
     assert_eq!(target(3, 8).await.unwrap().unwrap().sha, p2, "lines of two commits: the newer one");
     let fallback = target(1, 2).await.unwrap().unwrap();
-    assert_eq!((fallback.sha.as_str(), fallback.reason), (p2.as_str(), Some(FixupReason::File)), "lines from main: the newest pull request commit that changes the file");
-    assert_eq!(fixup_target(&tc, &id, &range, "b.txt", 1, 1).await.unwrap(), None, "a file the pull request does not change: the user chooses");
+    assert_eq!(
+        (fallback.sha.as_str(), fallback.reason),
+        (p2.as_str(), Some(FixupReason::File)),
+        "lines from main: the newest pull request commit that changes the file"
+    );
+    assert_eq!(
+        fixup_target(&tc, &id, &range, "b.txt", 1, 1).await.unwrap(),
+        None,
+        "a file the pull request does not change: the user chooses"
+    );
 }
 
 #[tokio::test]
@@ -179,5 +205,9 @@ async fn after_a_rebase_and_a_merge_from_main_the_target_is_still_a_pull_request
     let rebased_p1 = range.commits[2].sha.clone();
     assert_eq!(fixup_target(&tc, &id, &range, "neu/ä b.txt", 3, 4).await.unwrap().unwrap().sha, rebased_p1);
     let line1 = fixup_target(&tc, &id, &range, "neu/ä b.txt", 1, 1).await.unwrap().unwrap();
-    assert_eq!((line1.sha.as_str(), line1.reason), (range.commits[1].sha.as_str(), Some(FixupReason::File)), "line 1 came from main through the merge");
+    assert_eq!(
+        (line1.sha.as_str(), line1.reason),
+        (range.commits[1].sha.as_str(), Some(FixupReason::File)),
+        "line 1 came from main through the merge"
+    );
 }

@@ -21,7 +21,8 @@ const MAX_PATH_ARGUMENT_CHARS: usize = 20_000;
 
 /// Fixed options so that the user's configuration (prefixes, external diff, textconv, colours)
 /// does not change the patch.
-const DIFF_OPTIONS: [&str; 7] = ["--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", "--full-index", "-M"];
+const DIFF_OPTIONS: [&str; 7] =
+    ["--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", "--full-index", "-M"];
 
 fn git(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
     Ok(core.git_for(repo_id)?.env("GIT_LITERAL_PATHSPECS", "1"))
@@ -88,15 +89,17 @@ fn section_path(section: &[u8]) -> String {
 }
 
 fn is_binary_section(section: &[u8]) -> bool {
-    util::decode_lossy(section).lines().take_while(|line| !line.starts_with("@@")).any(|line| {
-        (line.starts_with("Binary files ") && line.ends_with(" differ")) || line == "GIT binary patch"
-    })
+    util::decode_lossy(section)
+        .lines()
+        .take_while(|line| !line.starts_with("@@"))
+        .any(|line| (line.starts_with("Binary files ") && line.ends_with(" differ")) || line == "GIT binary patch")
 }
 
 /// A section without content: only the header line, because Git considered the file changed due
 /// to a new timestamp. `git apply` cannot do anything with it.
 fn is_empty_section(section: &[u8]) -> bool {
-    const MEANINGFUL: [&str; 9] = ["@@", "new file mode", "deleted file mode", "old mode", "new mode", "rename ", "copy ", "Binary files ", "GIT binary patch"];
+    const MEANINGFUL: [&str; 9] =
+        ["@@", "new file mode", "deleted file mode", "old mode", "new mode", "rename ", "copy ", "Binary files ", "GIT binary patch"];
     !util::decode_lossy(section).lines().skip(1).any(|line| MEANINGFUL.iter().any(|start| line.starts_with(start)))
 }
 
@@ -150,7 +153,9 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
     if paths.is_some() && wanted.is_empty() {
         return Ok(PatchText { text: String::new(), skipped: Vec::new() });
     }
-    let diff = |extra: &[&str]| -> CoreResult<GitCmd> { Ok(git(core, repo_id)?.read_only().no_log().args(["-c", "diff.autoRefreshIndex=false", "diff"]).args(DIFF_OPTIONS).args(extra)) };
+    let diff = |extra: &[&str]| -> CoreResult<GitCmd> {
+        Ok(git(core, repo_id)?.read_only().no_log().args(["-c", "diff.autoRefreshIndex=false", "diff"]).args(DIFF_OPTIONS).args(extra))
+    };
     let out = match &source {
         DiffSource::Unstaged => {
             // `git diff` does not know untracked files. In a copy of the index they are marked as
@@ -174,7 +179,18 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             git(core, repo_id)?
                 .read_only()
                 .no_log()
-                .args(["format-patch", "-1", "--stdout", "--no-signature", "--no-stat", "--no-color", "--no-ext-diff", "--no-textconv", "--full-index", "-M"])
+                .args([
+                    "format-patch",
+                    "-1",
+                    "--stdout",
+                    "--no-signature",
+                    "--no-stat",
+                    "--no-color",
+                    "--no-ext-diff",
+                    "--no-textconv",
+                    "--full-index",
+                    "-M",
+                ])
                 .args(["--src-prefix=a/", "--dst-prefix=b/", sha])
                 .arg("--")
                 .args(&wanted)
@@ -190,8 +206,18 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             cmd.arg("--").args(&wanted).run().await.map_err(|e| unknown_commit(from, e))?
         }
         DiffSource::Stash { index } => {
-            let missing = |e: CoreError| CoreError::not_found(format!("There is no stash number {index}.")).with_git_output(e.git_output.unwrap_or_default());
-            let parents = git(core, repo_id)?.read_only().no_log().args(["rev-list", "--parents", "-n", "1"]).arg(format!("stash@{{{index}}}")).arg("--").run().await.map_err(missing)?;
+            let missing = |e: CoreError| {
+                CoreError::not_found(format!("There is no stash number {index}.")).with_git_output(e.git_output.unwrap_or_default())
+            };
+            let parents = git(core, repo_id)?
+                .read_only()
+                .no_log()
+                .args(["rev-list", "--parents", "-n", "1"])
+                .arg(format!("stash@{{{index}}}"))
+                .arg("--")
+                .run()
+                .await
+                .map_err(missing)?;
             let shas: Vec<String> = parents.stdout_text().split_whitespace().map(str::to_string).collect();
             let (Some(stash), Some(base)) = (shas.first(), shas.get(1)) else {
                 return Err(CoreError::not_found(format!("There is no stash number {index}.")));
@@ -199,7 +225,8 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             let mut out = diff(&[])?.arg(base).arg(stash).arg("--").args(&wanted).run().await?;
             // Untracked files (`--include-untracked`) live in a separate third parent: new files.
             if let Some(untracked) = shas.get(3) {
-                let new_files = diff(&[])?.arg(crate::commands::diff::empty_tree(stash)).arg(untracked).arg("--").args(&wanted).run().await?;
+                let new_files =
+                    diff(&[])?.arg(crate::commands::diff::empty_tree(stash)).arg(untracked).arg("--").args(&wanted).run().await?;
                 out.stdout.extend_from_slice(&new_files.stdout);
             }
             out
@@ -277,7 +304,14 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
     let changes: &[RepoChange] = if check_only { &[] } else { &[RepoChange::Worktree] };
     core.with_write_lock(repo_id, changes, async {
         let apply = || -> CoreResult<GitCmd> {
-            Ok(git(core, repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]))
+            Ok(git(core, repo_id)?.args([
+                "-c",
+                "apply.whitespace=nowarn",
+                "-c",
+                "apply.ignoreWhitespace=no",
+                "apply",
+                "--whitespace=nowarn",
+            ]))
         };
         let failure = |out: &crate::git::GitOutput| {
             let classified = crate::git::errors::classify("apply", out.code, &out.stdout, &out.stderr);
@@ -389,14 +423,19 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         assert_eq!(sections.iter().map(|s| section_path(s)).collect::<Vec<_>>(), ["a.txt", "bild.bin", "neu name.txt", "l.txt"]);
         let filtered = text_only(patch);
         assert_eq!(filtered.skipped, ["bild.bin", "l.txt"]);
-        assert!(filtered.text.contains("+neu") && filtered.text.contains("rename to neu name.txt") && filtered.text.starts_with("From abc"));
+        assert!(
+            filtered.text.contains("+neu") && filtered.text.contains("rename to neu name.txt") && filtered.text.starts_with("From abc")
+        );
         assert!(!filtered.text.contains("Binary files") && !filtered.text.contains("Gruesse"));
         // A line "diff --git" in the middle of the content (with a prefix sign) is not a new section.
         let tricky = b"diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1,2 @@\n a\n+diff --git a/y b/y\n";
         assert_eq!(split_sections(tricky).1.len(), 1);
         // Only a new timestamp: the empty section is silently dropped; a new empty file stays.
         let stat_only = text_only(b"diff --git a/x b/x\ndiff --git a/leer b/leer\nnew file mode 100644\nindex 0000000..e69de29\n");
-        assert_eq!((stat_only.text.as_str(), stat_only.skipped.len()), ("diff --git a/leer b/leer\nnew file mode 100644\nindex 0000000..e69de29\n", 0));
+        assert_eq!(
+            (stat_only.text.as_str(), stat_only.skipped.len()),
+            ("diff --git a/leer b/leer\nnew file mode 100644\nindex 0000000..e69de29\n", 0)
+        );
         assert_eq!(text_only(b"").text, "");
     }
 
@@ -420,7 +459,11 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         skipped.sort();
         assert_eq!(skipped, ["bild.bin", "latin1.txt"]);
         assert!(patch.text.contains("+ZWEI") && patch.text.contains("new file mode") && patch.text.contains("+frisch"), "{}", patch.text);
-        assert!(patch.text.contains("diff --git a/ordner/b größe.txt b/ordner/b größe.txt") || patch.text.contains("b gr"), "{}", patch.text);
+        assert!(
+            patch.text.contains("diff --git a/ordner/b größe.txt b/ordner/b größe.txt") || patch.text.contains("b gr"),
+            "{}",
+            patch.text
+        );
 
         // In the other repository: check first (changes nothing), then apply.
         let target_id = tc.open(&target).await.repo.id;
@@ -442,7 +485,11 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         // A second time it no longer fits – with an explanation, and nothing changes.
         let err = patch_apply(&tc, target_id.clone(), patch.text.clone(), false).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
-        assert!(err.message.contains("The patch can't be applied") && (err.message.contains("a.txt") || err.message.contains("exist")), "{}", err.message);
+        assert!(
+            err.message.contains("The patch can't be applied") && (err.message.contains("a.txt") || err.message.contains("exist")),
+            "{}",
+            err.message
+        );
         assert!(err.git_output.is_some());
         assert_eq!(patch_apply(&tc, target_id.clone(), patch.text.clone(), true).await.unwrap_err().code, ErrorCode::NotAllowed);
 
@@ -465,7 +512,14 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         assert_eq!(target.read_file("neu/ganz neu.txt"), b"frisch\n");
 
         // Only selected paths.
-        let only = patch_create(&tc, id.clone(), DiffSource::Unstaged, Some(vec!["neu/ganz neu.txt".into(), "ordner\\b größe.txt".replace('\\', if cfg!(windows) { "\\" } else { "/" })])).await.unwrap();
+        let only = patch_create(
+            &tc,
+            id.clone(),
+            DiffSource::Unstaged,
+            Some(vec!["neu/ganz neu.txt".into(), "ordner\\b größe.txt".replace('\\', if cfg!(windows) { "\\" } else { "/" })]),
+        )
+        .await
+        .unwrap();
         assert!(only.text.contains("+frisch") && only.text.contains("+geändert") && !only.text.contains("ZWEI"), "{}", only.text);
         assert!(only.skipped.is_empty());
         let none = patch_create(&tc, id.clone(), DiffSource::Unstaged, Some(vec![])).await.unwrap();
@@ -484,7 +538,11 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         let target_id = tc.open(&target).await.repo.id;
 
         let stash = patch_create(&tc, id.clone(), DiffSource::Stash { index: 0 }, None).await.unwrap();
-        assert!(stash.text.contains("+vier") && stash.text.contains("new file mode") && stash.text.contains("+frisch notiert"), "{}", stash.text);
+        assert!(
+            stash.text.contains("+vier") && stash.text.contains("new file mode") && stash.text.contains("+frisch notiert"),
+            "{}",
+            stash.text
+        );
         patch_apply(&tc, target_id.clone(), stash.text.clone(), false).await.unwrap();
         assert_eq!(target.read_file("a.txt"), b"eins\nzwei\ndrei\nvier\n");
         assert_eq!(target.read_file("notizen/neu.txt"), b"frisch notiert\n");
@@ -511,7 +569,11 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         source.git(&["commit", "-q", "-m", "Zeile ergänzt\n\nMit Beschreibung und Umlauten: äöü"]);
         let commit = source.head();
         let mail = patch_create(&tc, id.clone(), DiffSource::Commit { sha: commit.clone() }, None).await.unwrap();
-        assert!(mail.text.starts_with("From ") && mail.text.contains("Subject: [PATCH] ") && mail.text.contains("+gestaged"), "{}", mail.text);
+        assert!(
+            mail.text.starts_with("From ") && mail.text.contains("Subject: [PATCH] ") && mail.text.contains("+gestaged"),
+            "{}",
+            mail.text
+        );
         assert!(mail.text.contains("From: Test Person <test@example.com>"));
         patch_apply(&tc, target_id.clone(), mail.text.clone(), false).await.unwrap();
         assert_eq!(target.read_file("a.txt"), b"eins\nzwei\ndrei\ngestaged\n");
@@ -526,7 +588,8 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         let second = source.commit_file("ordner/b größe.txt", "b\nzweite\n", "Zweite Datei geändert");
         let range = patch_create(&tc, id.clone(), DiffSource::Range { from: base.clone(), to: Some(second.clone()) }, None).await.unwrap();
         assert!(range.text.contains("+gestaged") && range.text.contains("+zweite") && !range.text.starts_with("From "));
-        let live = patch_create(&tc, id.clone(), DiffSource::Range { from: commit.clone(), to: None }, Some(vec!["a.txt".into()])).await.unwrap();
+        let live =
+            patch_create(&tc, id.clone(), DiffSource::Range { from: commit.clone(), to: None }, Some(vec!["a.txt".into()])).await.unwrap();
         assert!(live.text.contains("+nur lokal") && !live.text.contains("zweite"), "{}", live.text);
 
         // Stash.
@@ -538,10 +601,17 @@ diff --git a/l.txt b/l.txt\n--- a/l.txt\n+++ b/l.txt\n@@ -1 +1 @@\n-Gr\xfc\xdfe\
         assert_eq!(patch_create(&tc, id.clone(), DiffSource::Unstaged, None).await.unwrap().text, "");
 
         // Error cases.
-        for source in [DiffSource::Commit { sha: "--output=x".into() }, DiffSource::Commit { sha: "0123456789abcdef0123456789abcdef01234567".into() }, DiffSource::Stash { index: 7 }] {
+        for source in [
+            DiffSource::Commit { sha: "--output=x".into() },
+            DiffSource::Commit { sha: "0123456789abcdef0123456789abcdef01234567".into() },
+            DiffSource::Stash { index: 7 },
+        ] {
             assert_eq!(patch_create(&tc, id.clone(), source, None).await.unwrap_err().code, ErrorCode::NotFound);
         }
-        assert_eq!(patch_create(&tc, id.clone(), DiffSource::Staged, Some(vec!["../draußen".into()])).await.unwrap_err().code, ErrorCode::NotAllowed);
+        assert_eq!(
+            patch_create(&tc, id.clone(), DiffSource::Staged, Some(vec!["../draußen".into()])).await.unwrap_err().code,
+            ErrorCode::NotAllowed
+        );
         assert_eq!(patch_create(&tc, "unbekannt".into(), DiffSource::Staged, None).await.unwrap_err().code, ErrorCode::NotFound);
     }
 

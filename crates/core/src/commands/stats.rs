@@ -91,7 +91,15 @@ fn parse_range(range: &StatsRange) -> CoreResult<(Option<i64>, Option<i64>)> {
     Ok((from, to))
 }
 
-async fn compute(core: &Core, repo_id: &str, reference: &str, from: Option<i64>, to: Option<i64>, now: i64, job: &Job) -> CoreResult<RepoStats> {
+async fn compute(
+    core: &Core,
+    repo_id: &str,
+    reference: &str,
+    from: Option<i64>,
+    to: Option<i64>,
+    now: i64,
+    job: &Job,
+) -> CoreResult<RepoStats> {
     let Some(tip) = resolve_tip(core, repo_id, reference, to).await? else {
         return Ok(aggregate::empty());
     };
@@ -216,13 +224,26 @@ fn parse_tree_entry(record: &[u8]) -> Option<TreeFile> {
     if kind != "blob" || raw.is_empty() {
         return None;
     }
-    Some(TreeFile { path: util::decode_lossy(raw), raw: raw.to_vec(), oid: oid.to_string(), size: size.parse().ok()?, symlink: mode == "120000" })
+    Some(TreeFile {
+        path: util::decode_lossy(raw),
+        raw: raw.to_vec(),
+        oid: oid.to_string(),
+        size: size.parse().ok()?,
+        symlink: mode == "120000",
+    })
 }
 
 /// Code age from `git blame` over the sample, `BLAME_PARALLEL` files at a time. A file Git
 /// cannot blame (e.g. a missing `blame.ignoreRevsFile`) only counts as skipped.
 /// Also returns the line times of the sample (author time → number of lines).
-async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], reference_time: i64, job: &Job) -> CoreResult<(StatsCodeAge, Vec<(i64, u64)>)> {
+async fn code_age(
+    core: &Core,
+    repo_id: &str,
+    tip: &str,
+    tree: &[TreeFile],
+    reference_time: i64,
+    job: &Job,
+) -> CoreResult<(StatsCodeAge, Vec<(i64, u64)>)> {
     let sample = blame_sample(core, repo_id, tree, BLAME_SAMPLE, job.token()).await?;
     let total = sample.len() as u32;
     let mut age = StatsCodeAge::default();
@@ -260,7 +281,8 @@ async fn code_age(core: &Core, repo_id: &str, tip: &str, tree: &[TreeFile], refe
 /// The files for the code age: largest first, without symlinks, empty files, files over
 /// `BLAME_MAX_BYTES` and binary files; at most `limit`, after at most `BLAME_PROBES` checks.
 async fn blame_sample(core: &Core, repo_id: &str, tree: &[TreeFile], limit: usize, token: &CancelToken) -> CoreResult<Vec<Vec<u8>>> {
-    let mut candidates: Vec<&TreeFile> = tree.iter().filter(|file| !file.symlink && file.size > 0 && file.size <= BLAME_MAX_BYTES).collect();
+    let mut candidates: Vec<&TreeFile> =
+        tree.iter().filter(|file| !file.symlink && file.size > 0 && file.size <= BLAME_MAX_BYTES).collect();
     candidates.sort_by(|a, b| b.size.cmp(&a.size).then_with(|| a.path.cmp(&b.path)));
     let mut sample = Vec::new();
     for file in candidates.into_iter().take(BLAME_PROBES) {

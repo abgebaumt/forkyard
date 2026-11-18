@@ -62,11 +62,8 @@ async fn run(core: &Core, repo_id: &str, index_file: Option<&Path>, paths: Optio
         }
     }
     // New and modified files (without ignored ones), one entry per file.
-    let listed = base(core, repo_id, index_file)?
-        .read_only()
-        .args(["ls-files", "-z", "--others", "--modified", "--exclude-standard"])
-        .run()
-        .await?;
+    let listed =
+        base(core, repo_id, index_file)?.read_only().args(["ls-files", "-z", "--others", "--modified", "--exclude-standard"]).run().await?;
     let wanted: Option<Wanted> = paths.map(Wanted::new);
     let mut candidates: Vec<Vec<u8>> = Vec::new();
     let mut seen: HashSet<&[u8]> = HashSet::new();
@@ -83,9 +80,7 @@ async fn run(core: &Core, repo_id: &str, index_file: Option<&Path>, paths: Optio
     }
 
     let root = core.repo_path(repo_id)?;
-    let candidates = tokio::task::spawn_blocking(move || without_carriage_returns(&root, candidates))
-        .await
-        .unwrap_or_default();
+    let candidates = tokio::task::spawn_blocking(move || without_carriage_returns(&root, candidates)).await.unwrap_or_default();
     if candidates.len() < BULK_MIN_FILES {
         return Ok(());
     }
@@ -112,7 +107,16 @@ async fn attr_source(core: &Core, repo_id: &str) -> Option<String> {
     if info.version < ATTR_SOURCE_VERSION {
         return None;
     }
-    let out = core.git_for(repo_id).ok()?.no_log().read_only().args(["hash-object", "-t", "tree", "--stdin"]).stdin(Vec::new()).run().await.ok()?;
+    let out = core
+        .git_for(repo_id)
+        .ok()?
+        .no_log()
+        .read_only()
+        .args(["hash-object", "-t", "tree", "--stdin"])
+        .stdin(Vec::new())
+        .run()
+        .await
+        .ok()?;
     Some(out.stdout_text()).filter(|sha| !sha.is_empty())
 }
 
@@ -135,7 +139,12 @@ fn without_carriage_returns(root: &Path, candidates: Vec<Vec<u8>>) -> Vec<Vec<u8
 }
 
 /// Removes paths to which a filter (e.g. LFS), `ident` or `working-tree-encoding` applies.
-async fn without_conversion_attributes(core: &Core, repo_id: &str, index_file: Option<&Path>, candidates: Vec<Vec<u8>>) -> CoreResult<Vec<Vec<u8>>> {
+async fn without_conversion_attributes(
+    core: &Core,
+    repo_id: &str,
+    index_file: Option<&Path>,
+    candidates: Vec<Vec<u8>>,
+) -> CoreResult<Vec<Vec<u8>>> {
     let out = base(core, repo_id, index_file)?
         .read_only()
         .args(["check-attr", "-z", "--stdin", "filter", "ident", "working-tree-encoding"])

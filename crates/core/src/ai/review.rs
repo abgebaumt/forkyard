@@ -79,7 +79,16 @@ fn excerpt(lines: &[&str], window: (u32, u32)) -> String {
 /// thread that is gone (`not_found`), outdated or on the old side, a file the pull request does not
 /// change or that is excluded (`not_allowed`), the pull request's commits not here (`not_found`).
 #[allow(clippy::too_many_arguments)]
-pub async fn build(core: &Core, repo_id: &str, settings: &Settings, number: u64, thread_id: &str, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<ReviewBuilt> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    number: u64,
+    thread_id: &str,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<ReviewBuilt> {
     let RepoApi { api, repo, remote } = host::api_for_repo(core, repo_id, None).await?;
     let hoster = host::host(api.kind);
     if !hoster.capabilities().review_threads {
@@ -93,13 +102,16 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, number: u64,
         .find(|t| t.id == thread_id)
         .ok_or_else(|| CoreError::not_found(format!("The review thread no longer exists in #{number}.")))?;
     let (Some(end), ReviewSide::New, false) = (thread.line, thread.side, thread.outdated) else {
-        return Err(CoreError::not_allowed("This review comment refers to lines that are no longer in the pull request – a fix can only be suggested for current lines."));
+        return Err(CoreError::not_allowed(
+            "This review comment refers to lines that are no longer in the pull request – a fix can only be suggested for current lines.",
+        ));
     };
     let path = normalize_rel_path(&thread.path)?;
     if history::is_inside_git_dir(&path) {
         return Err(CoreError::not_allowed("Files inside the Git directory are never changed by a fix."));
     }
-    let range = review_fix::pr_range(core, repo_id, &details.head_sha, &review_fix::target_ref(&remote, &details.summary.target_branch)?).await?;
+    let range =
+        review_fix::pr_range(core, repo_id, &details.head_sha, &review_fix::target_ref(&remote, &details.summary.target_branch)?).await?;
     if !review_fix::changed_paths(core, repo_id, &range).await?.contains(&path) {
         return Err(CoreError::not_allowed(format!("“{path}” is not changed by this pull request.")));
     }
@@ -120,7 +132,10 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, number: u64,
     if end > count {
         return Err(CoreError::not_allowed(format!("The commented lines {start}–{end} are past the end of “{path}”.")));
     }
-    let header = format!("#{number} {}\nSource branch: {}\nTarget branch: {}", details.summary.title, details.summary.source_branch, details.summary.target_branch);
+    let header = format!(
+        "#{number} {}\nSource branch: {}\nTarget branch: {}",
+        details.summary.title, details.summary.source_branch, details.summary.target_branch
+    );
     let commented = if start < end { format!("{start}–{end}") } else { end.to_string() };
     let conversation = thread
         .comments
@@ -150,7 +165,10 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, number: u64,
     let prompt = prompt::build(INSTRUCTION, locale, &sections);
     let shortened = if around == WINDOW { Vec::new() } else { vec![path.clone()] };
     let branch = review_fix::local_branch(hoster, &details.summary, number);
-    Ok(ReviewBuilt { built: Built { prompt, omitted: Vec::new(), shortened }, ctx: ReviewFixContext { number, thread, path, range, blob, lines: (start, end), window, branch } })
+    Ok(ReviewBuilt {
+        built: Built { prompt, omitted: Vec::new(), shortened },
+        ctx: ReviewFixContext { number, thread, path, range, blob, lines: (start, end), window, branch },
+    })
 }
 
 /// The meaning of an answer: the thread's file, lines inside the excerpt, and a patch the core can
@@ -162,10 +180,15 @@ pub fn check_answer(value: &Value, ctx: &ReviewFixContext) -> Result<(), String>
     }
     let (start, end) = (value["startLine"].as_u64().unwrap_or(0), value["endLine"].as_u64().unwrap_or(0));
     if start < u64::from(ctx.window.0) || end > u64::from(ctx.window.1) || start > end {
-        return Err(format!("$.startLine/$.endLine: must lie within the excerpt, lines {}–{}, with startLine ≤ endLine", ctx.window.0, ctx.window.1));
+        return Err(format!(
+            "$.startLine/$.endLine: must lie within the excerpt, lines {}–{}, with startLine ≤ endLine",
+            ctx.window.0, ctx.window.1
+        ));
     }
     let new_text = value["newText"].as_str().unwrap_or("");
-    review_fix::line_patch(&ctx.path, &ctx.blob, start as u32, end as u32, new_text).map(|_| ()).map_err(|e| format!("$.newText: {}", e.message))
+    review_fix::line_patch(&ctx.path, &ctx.blob, start as u32, end as u32, new_text)
+        .map(|_| ())
+        .map_err(|e| format!("$.newText: {}", e.message))
 }
 
 /// The checked answer as the UI gets it: the hunk built by the core, the fixup target (blame of the

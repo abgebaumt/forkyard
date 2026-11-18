@@ -197,7 +197,14 @@ async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Str
 /// – the message names it), `path_not_found` (parent folder missing), `path_exists`
 /// (target is a file or not empty), `invalid_name`, `name_exists`, `not_found`
 /// (branch or start point unknown).
-pub async fn worktree_add(core: &Core, repo_id: String, path: String, branch: String, new_branch: bool, start: Option<String>) -> CoreResult<Vec<Worktree>> {
+pub async fn worktree_add(
+    core: &Core,
+    repo_id: String,
+    path: String,
+    branch: String,
+    new_branch: bool,
+    start: Option<String>,
+) -> CoreResult<Vec<Worktree>> {
     let repo_id = repo_id.as_str();
     core.repo_path(repo_id)?;
     let target = PathBuf::from(path.trim());
@@ -405,7 +412,9 @@ mod tests {
     }
 
     fn at<'a>(list: &'a [Worktree], path: &str) -> &'a Worktree {
-        list.iter().find(|w| same_path(Path::new(&w.path), Path::new(path))).unwrap_or_else(|| panic!("worktree {path} missing in {list:?}"))
+        list.iter()
+            .find(|w| same_path(Path::new(&w.path), Path::new(path)))
+            .unwrap_or_else(|| panic!("worktree {path} missing in {list:?}"))
     }
 
     fn code<T: std::fmt::Debug>(result: CoreResult<T>) -> ErrorCode {
@@ -419,7 +428,10 @@ worktree C:/r/mit leer/zwei\0HEAD 2222222222222222222222222222222222222222\0deta
 worktree C:/r/weg\0HEAD 3333333333333333333333333333333333333333\0branch refs/heads/feature/x\0locked\0prunable gitdir file points to non-existent location\0\0";
         let parsed = parse_list(text.as_bytes());
         assert_eq!(parsed.len(), 3);
-        assert_eq!((parsed[0].path.as_slice(), parsed[0].branch.as_deref(), parsed[0].locked.as_deref()), (&b"C:/r/haupt"[..], Some("refs/heads/main"), None));
+        assert_eq!(
+            (parsed[0].path.as_slice(), parsed[0].branch.as_deref(), parsed[0].locked.as_deref()),
+            (&b"C:/r/haupt"[..], Some("refs/heads/main"), None)
+        );
         assert_eq!((parsed[1].path.as_slice(), parsed[1].branch.as_deref()), (&b"C:/r/mit leer/zwei"[..], None));
         assert_eq!(parsed[1].locked.as_deref(), Some("wird noch gebraucht\nzweite Zeile"));
         assert_eq!((parsed[2].locked.as_deref(), parsed[2].prunable.is_some()), (Some(""), true));
@@ -464,7 +476,8 @@ worktree C:/r/weg\0HEAD 3333333333333333333333333333333333333333\0branch refs/he
         repo.branch("vorhanden");
         let existing_path = sibling(&repo, "vorhanden");
         std::fs::create_dir_all(&existing_path).unwrap();
-        let list = worktree_add(&tc, id.clone(), existing_path.clone(), "vorhanden".into(), false, Some("wird-ignoriert".into())).await.unwrap();
+        let list =
+            worktree_add(&tc, id.clone(), existing_path.clone(), "vorhanden".into(), false, Some("wird-ignoriert".into())).await.unwrap();
         assert_eq!(at(&list, &existing_path).branch.as_deref(), Some("vorhanden"));
         let detached_path = sibling(&repo, "losgelöst");
         let list = worktree_add(&tc, id.clone(), detached_path.clone(), first[..10].to_string(), false, None).await.unwrap();
@@ -504,7 +517,10 @@ worktree C:/r/weg\0HEAD 3333333333333333333333333333333333333333\0branch refs/he
         assert_eq!(code(add("  ".into(), "x", true, None).await), ErrorCode::NotAllowed);
         assert_eq!(code(add(sibling(&repo, "gibt/es/nicht/tief"), "x", true, None).await), ErrorCode::PathNotFound);
         assert_eq!(code(add(taken.clone(), "x", true, None).await), ErrorCode::PathExists);
-        assert_eq!(code(add(Path::new(&taken).join("datei.txt").to_string_lossy().into_owned(), "x", true, None).await), ErrorCode::PathExists);
+        assert_eq!(
+            code(add(Path::new(&taken).join("datei.txt").to_string_lossy().into_owned(), "x", true, None).await),
+            ErrorCode::PathExists
+        );
         for bad in ["", "mit leer", "a..b", "-x"] {
             assert_eq!(code(add(free.clone(), bad, true, None).await), ErrorCode::InvalidName, "{bad:?}");
         }

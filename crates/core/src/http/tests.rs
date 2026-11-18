@@ -38,7 +38,9 @@ async fn sends_headers_reads_json_and_logs_without_secrets() {
         _ => MockResponse::empty(404),
     });
     let url = with_query(&format!("{}/api/ding", server.url()), &[("suche", "a b&c".into())]);
-    let request = Request::get(&url, "Testdienst").secret_header("authorization", format!("Bearer {SECRET}"), SECRET).header("accept", "application/json");
+    let request = Request::get(&url, "Testdienst")
+        .secret_header("authorization", format!("Bearer {SECRET}"), SECRET)
+        .header("accept", "application/json");
     let response = send(&tc, request).await.unwrap();
     assert_eq!(response.status, 200);
     assert!(response.is_success() && !response.from_cache);
@@ -59,7 +61,10 @@ async fn sends_headers_reads_json_and_logs_without_secrets() {
     assert_eq!(entry.exit_code, Some(0));
     assert!(entry.output.contains("HTTP 200") && entry.output.contains("Remaining requests: 4999"), "{}", entry.output);
     assert!(entries.iter().all(|e| !e.command.contains(SECRET) && !e.output.contains(SECRET)));
-    assert!(tc.events.named(names::LOG_APPENDED).iter().any(|event| event["command"] == format!("GET {url}")), "the entry also arrives as an event");
+    assert!(
+        tc.events.named(names::LOG_APPENDED).iter().any(|event| event["command"] == format!("GET {url}")),
+        "the entry also arrives as an event"
+    );
 }
 
 #[tokio::test]
@@ -87,7 +92,8 @@ async fn only_reads_are_retried() {
     // Writing calls run exactly once – a duplicate POST could create things twice.
     for method in [Method::Post, Method::Put, Method::Patch, Method::Delete] {
         server.clear();
-        let response = send(&tc, Request::new(method, format!("{}/schreiben", server.url()), "Testdienst").json(&json!({ "a": 1 }))).await.unwrap();
+        let response =
+            send(&tc, Request::new(method, format!("{}/schreiben", server.url()), "Testdienst").json(&json!({ "a": 1 }))).await.unwrap();
         assert_eq!(response.status, 503);
         let seen = server.requests();
         assert_eq!(seen.len(), 1, "{method:?}");
@@ -110,7 +116,9 @@ async fn timeouts_and_unreachable_hosts_become_clear_errors() {
         options.backoff = Duration::from_millis(5);
     });
     let server = MockServer::start(|_| MockResponse::json(200, json!({})).delay(Duration::from_millis(1500)));
-    let error = send(&tc, Request::get(format!("{}/langsam", server.url()), "Testdienst").secret_header("authorization", SECRET, SECRET)).await.unwrap_err();
+    let error = send(&tc, Request::get(format!("{}/langsam", server.url()), "Testdienst").secret_header("authorization", SECRET, SECRET))
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::Timeout);
     assert!(error.message.contains("Timeout") && error.message.contains("Testdienst"), "{}", error.message);
     assert_eq!(server.requests().len(), 2, "a reading call is retried once");
@@ -171,7 +179,10 @@ async fn etags_turn_repeated_reads_into_conditional_requests() {
     fast(&tc);
     let server = MockServer::start(|request| match request.header("if-none-match") {
         Some("\"v1\"") => MockResponse::empty(304).header("x-ratelimit-remaining", "58"),
-        _ => MockResponse::json(200, json!({ "stand": 1 })).header("etag", "\"v1\"").header("x-ratelimit-remaining", "59").header("link", "<http://x/y?page=2>; rel=\"next\""),
+        _ => MockResponse::json(200, json!({ "stand": 1 }))
+            .header("etag", "\"v1\"")
+            .header("x-ratelimit-remaining", "59")
+            .header("link", "<http://x/y?page=2>; rel=\"next\""),
     });
     let url = format!("{}/daten", server.url());
     let first = send(&tc, Request::get(&url, "Testdienst").cached("konto-a")).await.unwrap();
@@ -198,7 +209,13 @@ async fn etags_turn_repeated_reads_into_conditional_requests() {
 }
 
 fn response_with(status: u16, headers: &[(&str, &str)]) -> Response {
-    Response { status, headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(), body: Vec::new(), from_cache: false, label: "Testdienst".into() }
+    Response {
+        status,
+        headers: headers.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        body: Vec::new(),
+        from_cache: false,
+        label: "Testdienst".into(),
+    }
 }
 
 #[test]
@@ -253,7 +270,9 @@ fn link_headers_give_the_next_page() {
 #[tokio::test]
 async fn plain_http_is_only_allowed_to_this_machine() {
     let tc = TestCore::new().await;
-    let error = send(&tc, Request::get("http://git.firma.example/api/v4/user", "GitLab").secret_header("authorization", SECRET, SECRET)).await.unwrap_err();
+    let error = send(&tc, Request::get("http://git.firma.example/api/v4/user", "GitLab").secret_header("authorization", SECRET, SECRET))
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::NotAllowed);
     assert!(error.message.contains("Unencrypted"), "{}", error.message);
     for bad in ["ftp://x/y", "kein-schema", "https://lena:pw@host/x", "https:///x"] {
@@ -333,19 +352,29 @@ async fn proxy_from_the_settings_is_used_and_its_password_comes_from_the_keyring
     assert!(entries.iter().all(|e| !e.output.contains("streng-geheim") && !e.command.contains("streng-geheim")));
 
     // Sent back unchanged (without password, as the core delivers the address): the stored one is kept.
-    settings_set(&tc, json!({ "proxyByHost": [{ "host": target.url(), "proxy": format!("http://anna@127.0.0.1:{}", proxy.port()) }] })).await.unwrap();
+    settings_set(&tc, json!({ "proxyByHost": [{ "host": target.url(), "proxy": format!("http://anna@127.0.0.1:{}", proxy.port()) }] }))
+        .await
+        .unwrap();
     proxy.clear();
     send(&tc, Request::get(format!("{}/api/x", target.url()), "Testdienst")).await.unwrap();
     assert_eq!(proxy.requests()[0].header("proxy-authorization"), Some("Basic YW5uYTpzdHJlbmctZ2VoZWlt"));
 
     // Entry with an empty proxy: no proxy for this host – even if there is a global one.
-    settings_set(&tc, json!({ "proxyUrl": format!("http://127.0.0.1:{}", proxy.port()), "proxyByHost": [{ "host": target.url(), "proxy": "" }] })).await.unwrap();
+    settings_set(
+        &tc,
+        json!({ "proxyUrl": format!("http://127.0.0.1:{}", proxy.port()), "proxyByHost": [{ "host": target.url(), "proxy": "" }] }),
+    )
+    .await
+    .unwrap();
     proxy.clear();
     target.clear();
     send(&tc, Request::get(format!("{}/api/x", target.url()), "Testdienst")).await.unwrap();
     assert!(proxy.requests().is_empty());
     assert_eq!(target.count("GET /api/x"), 1);
-    assert!(tc.secrets.snapshot().iter().all(|(account, _)| !account.starts_with("proxy:")), "the password of the removed entry is deleted");
+    assert!(
+        tc.secrets.snapshot().iter().all(|(account, _)| !account.starts_with("proxy:")),
+        "the password of the removed entry is deleted"
+    );
 }
 
 /// A proxy password that an older version stored in plain text is moved on start.
@@ -417,7 +446,12 @@ async fn a_body_can_carry_its_own_json_media_type() {
     fast(&tc);
     let server = MockServer::start(|_| MockResponse::json(200, json!({ "id": 1 })));
     let patch = json!([{ "op": "add", "path": "/fields/System.Title", "value": "Neu" }]);
-    send(&tc, Request::new(Method::Post, format!("{}/patch", server.url()), "Testdienst").json_with_type(&patch, "application/json-patch+json")).await.unwrap();
+    send(
+        &tc,
+        Request::new(Method::Post, format!("{}/patch", server.url()), "Testdienst").json_with_type(&patch, "application/json-patch+json"),
+    )
+    .await
+    .unwrap();
     let seen = server.requests();
     assert_eq!(seen[0].header("content-type"), Some("application/json-patch+json"));
     assert_eq!(seen[0].headers.iter().filter(|(name, _)| name == "content-type").count(), 1, "exactly one content type");
@@ -449,11 +483,17 @@ async fn request_timeout_overrides_the_default_in_both_directions() {
     });
     let server = MockServer::start(|_| MockResponse::json(200, json!({ "ok": true })).delay(Duration::from_millis(1000)));
     // Longer than the default: a slow generation gets its answer.
-    let response = send(&tc, Request::new(Method::Post, format!("{}/generieren", server.url()), "Testdienst").json(&json!({})).timeout(Duration::from_secs(5))).await.unwrap();
+    let response = send(
+        &tc,
+        Request::new(Method::Post, format!("{}/generieren", server.url()), "Testdienst").json(&json!({})).timeout(Duration::from_secs(5)),
+    )
+    .await
+    .unwrap();
     assert_eq!(response.status, 200);
     // Shorter than the default.
     configure(&tc, |options| options.timeout = Duration::from_secs(30));
-    let error = send(&tc, Request::get(format!("{}/langsam", server.url()), "Testdienst").timeout(Duration::from_millis(200))).await.unwrap_err();
+    let error =
+        send(&tc, Request::get(format!("{}/langsam", server.url()), "Testdienst").timeout(Duration::from_millis(200))).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::Timeout, "{error:?}");
 }
 
@@ -472,7 +512,11 @@ async fn send_cancellable_returns_at_once_and_discards_the_late_answer() {
     }
     let url = format!("{}/generieren", server.url());
     let started = std::time::Instant::now();
-    let request = Request::new(Method::Post, &url, "Testdienst").json(&json!({ "a": 1 })).secret_header("authorization", format!("Bearer {SECRET}"), SECRET);
+    let request = Request::new(Method::Post, &url, "Testdienst").json(&json!({ "a": 1 })).secret_header(
+        "authorization",
+        format!("Bearer {SECRET}"),
+        SECRET,
+    );
     let error = send_cancellable(&tc, request, &cancel).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::Cancelled, "{error:?}");
     assert!(started.elapsed() < Duration::from_millis(1500), "returns before the answer: {:?}", started.elapsed());
@@ -523,7 +567,11 @@ async fn busy_answers_become_errors_with_the_wait_time_and_are_not_retried() {
     assert!(error.retry_at.is_some());
     send(&tc, Request::get(format!("{}/voll", server.url()), "Testdienst")).await.unwrap();
     assert_eq!(server.count("GET /voll"), 1, "a reading call is not retried on 429 either");
-    let error = send(&tc, Request::new(Method::Post, format!("{}/ueberlastet", server.url()), "Testdienst").json(&json!({}))).await.unwrap().busy_error().unwrap();
+    let error = send(&tc, Request::new(Method::Post, format!("{}/ueberlastet", server.url()), "Testdienst").json(&json!({})))
+        .await
+        .unwrap()
+        .busy_error()
+        .unwrap();
     assert!(error.message.contains("529") && error.message.contains("in a moment"), "{}", error.message);
     assert!(error.retry_at.is_none());
     assert!(send(&tc, Request::get(format!("{}/gut", server.url()), "Testdienst")).await.unwrap().busy_error().is_none());

@@ -35,11 +35,14 @@ use crate::ai::gate::{self, Situation};
 use crate::ai::provider::{Provider, Usage};
 use crate::ai::{pricing, providers, run};
 use crate::app::Core;
+use crate::commands::graph::commit_summaries;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::{CancelToken, Job};
-use crate::commands::graph::commit_summaries;
-use crate::model::{AiFeature, AiOmitReason, AiOmitted, AiPreview, AiProviderKind, AiSearchRoute, AiSemanticHit, AiSemanticIndexUpdate, AiSemanticResult, AiSemanticStatus, AiState, AiStructuredMode, CommitSummary, Settings};
+use crate::model::{
+    AiFeature, AiOmitReason, AiOmitted, AiPreview, AiProviderKind, AiSearchRoute, AiSemanticHit, AiSemanticIndexUpdate, AiSemanticResult,
+    AiSemanticStatus, AiState, AiStructuredMode, CommitSummary, Settings,
+};
 use crate::util;
 
 /// At most this many commits are indexed (newest first); spec: "Obergrenze 200 000 Commits".
@@ -81,7 +84,9 @@ pub struct EmbedChoice {
 /// else `None` (rephrasing).
 pub fn choose(settings: &Settings) -> Option<EmbedChoice> {
     let model = settings.ai_search_embed_model.clone().filter(|model| !model.trim().is_empty());
-    if let (Some(kind @ (AiProviderKind::Ollama | AiProviderKind::Lmstudio)), Some(model)) = (settings.ai_search_embed_provider, model.clone()) {
+    if let (Some(kind @ (AiProviderKind::Ollama | AiProviderKind::Lmstudio)), Some(model)) =
+        (settings.ai_search_embed_provider, model.clone())
+    {
         return Some(EmbedChoice { kind, model, route: AiSearchRoute::LocalEmbeddings });
     }
     let kind = settings.ai_provider?;
@@ -117,7 +122,11 @@ impl Embedder {
 pub async fn embedder(core: &Core, settings: &Settings) -> CoreResult<Option<Embedder>> {
     let Some(choice) = choose(settings) else { return Ok(None) };
     // The local embedder has its own address – never the one of the main provider.
-    let lookup = if choice.route == AiSearchRoute::LocalEmbeddings { Settings { ai_base_url: settings.ai_search_embed_base_url.clone(), ..settings.clone() } } else { settings.clone() };
+    let lookup = if choice.route == AiSearchRoute::LocalEmbeddings {
+        Settings { ai_base_url: settings.ai_search_embed_base_url.clone(), ..settings.clone() }
+    } else {
+        settings.clone()
+    };
     let Some(base) = crate::ai::base_url_for(core, choice.kind, &lookup) else { return Ok(None) };
     let key = if choice.route == AiSearchRoute::ProviderEmbeddings && choice.kind.accepts_key() {
         crate::secrets::get(core, &crate::ai::key_account(choice.kind)).await?
@@ -127,13 +136,21 @@ pub async fn embedder(core: &Core, settings: &Settings) -> CoreResult<Option<Emb
     if choice.kind.needs_key() && key.is_none() {
         return Err(CoreError::ai_not_configured(format!("No API key for {} is stored. Enter it in Settings › AI.", choice.kind.label())));
     }
-    let provider = providers::build(choice.kind, base.clone(), key.clone(), choice.model.clone(), AiStructuredMode::JsonSchema, providers::default_context(choice.kind))?;
+    let provider = providers::build(
+        choice.kind,
+        base.clone(),
+        key.clone(),
+        choice.model.clone(),
+        AiStructuredMode::JsonSchema,
+        providers::default_context(choice.kind),
+    )?;
     Ok(Some(Embedder { label: provider.label(), choice, base, provider, secrets: key.into_iter().collect() }))
 }
 
 /// One line without control characters, at most `MAX_QUESTION_CHARS`; empty → `not_allowed`.
 pub fn clean_question(query: &str) -> CoreResult<String> {
-    let line: String = query.split_whitespace().collect::<Vec<_>>().join(" ").chars().filter(|c| !c.is_control()).take(MAX_QUESTION_CHARS).collect();
+    let line: String =
+        query.split_whitespace().collect::<Vec<_>>().join(" ").chars().filter(|c| !c.is_control()).take(MAX_QUESTION_CHARS).collect();
     if line.is_empty() {
         return Err(CoreError::not_allowed("Type what you are looking for first."));
     }
@@ -154,7 +171,14 @@ pub struct Plan {
     pub omitted: Vec<AiOmitted>,
 }
 
-pub async fn plan(core: &Core, repo_id: &str, embedder: &Embedder, settings: &Settings, cap: usize, token: &CancelToken) -> CoreResult<Plan> {
+pub async fn plan(
+    core: &Core,
+    repo_id: &str,
+    embedder: &Embedder,
+    settings: &Settings,
+    cap: usize,
+    token: &CancelToken,
+) -> CoreResult<Plan> {
     let path = core.repo_path(repo_id)?;
     let (reachable, capped) = history::reachable(core, &path, repo_id, cap, token).await?;
     let index_id = index::find(core, repo_id, embedder.choice.kind.as_str(), &embedder.choice.model)?;
@@ -235,7 +259,8 @@ pub(crate) struct Costs {
 /// Estimate of an embedding request: input tokens only, no limit protection without a price.
 pub(crate) fn costs(core: &Core, settings: &Settings, embedder: &Embedder, chars: u64) -> CoreResult<Costs> {
     let price = pricing::price_for(settings, embedder.choice.kind, &embedder.choice.model);
-    let cost_usd = price.as_ref().map(|price| pricing::cost_usd(price, &Usage { input_tokens: context::estimate_tokens(chars), output_tokens: 0 }));
+    let cost_usd =
+        price.as_ref().map(|price| pricing::cost_usd(price, &Usage { input_tokens: context::estimate_tokens(chars), output_tokens: 0 }));
     let spent_usd = core.db.with(|c| db::ai::month_cost_micros(c, &pricing::current_month(), &run::API_PROVIDERS))? as f64 / 1_000_000.0;
     let limit_usd = settings.ai_monthly_limit_usd;
     let limit_reached = !embedder.local() && price.is_some() && limit_usd.is_some_and(|limit| spent_usd >= limit);
@@ -243,7 +268,14 @@ pub(crate) fn costs(core: &Core, settings: &Settings, embedder: &Embedder, chars
 }
 
 fn situation<'a>(repo_id: &'a str, chars: u64, costs: &Costs, local: bool) -> Situation<'a> {
-    Situation { repo_id: Some(repo_id), feature: AiFeature::SemanticSearch, chars, estimated_cost_usd: costs.cost_usd, local, limit_reached: costs.limit_reached }
+    Situation {
+        repo_id: Some(repo_id),
+        feature: AiFeature::SemanticSearch,
+        chars,
+        estimated_cost_usd: costs.cost_usd,
+        local,
+        limit_reached: costs.limit_reached,
+    }
 }
 
 /// "What is sent?" for a search by meaning – sends nothing.
@@ -259,7 +291,11 @@ pub async fn preview(core: &Core, repo_id: &str, query: &str, locale: &str) -> C
     let text = request_text(Some(&sent), &plan.pending);
     let chars = text.chars().count() as u64;
     let costs = costs(core, &settings, &embedder, chars)?;
-    let asks = if crate::ai::state_of(&settings) == AiState::On { gate::pending(core, &settings, &situation(repo_id, chars, &costs, embedder.local()))? } else { Vec::new() };
+    let asks = if crate::ai::state_of(&settings) == AiState::On {
+        gate::pending(core, &settings, &situation(repo_id, chars, &costs, embedder.local()))?
+    } else {
+        Vec::new()
+    };
     Ok(AiPreview {
         text: preview_text(&sent, &plan.pending),
         omitted: plan.omitted.clone(),
@@ -301,7 +337,15 @@ impl Sending {
 }
 
 /// Embeds the new entries batch by batch; finished batches stay in the index when cancelled.
-async fn embed_pending(core: &Core, id: i64, job: Option<&Job>, token: &CancelToken, embedder: &Embedder, pending: &[(String, String)], sending: &mut Sending) -> CoreResult<u64> {
+async fn embed_pending(
+    core: &Core,
+    id: i64,
+    job: Option<&Job>,
+    token: &CancelToken,
+    embedder: &Embedder,
+    pending: &[(String, String)],
+    sending: &mut Sending,
+) -> CoreResult<u64> {
     let total = pending.len();
     let mut done = 0usize;
     for batch in pending.chunks(BATCH) {
@@ -310,11 +354,17 @@ async fn embed_pending(core: &Core, id: i64, job: Option<&Job>, token: &CancelTo
         let vectors = embedder.provider.embed(core, &texts, token).await?;
         sending.chars += texts.iter().map(|text| text.chars().count() as u64).sum::<u64>();
         if vectors.len() != batch.len() {
-            return Err(CoreError::ai_invalid_answer(format!("{} returned {} embeddings for {} texts", embedder.label, vectors.len(), batch.len())));
+            return Err(CoreError::ai_invalid_answer(format!(
+                "{} returned {} embeddings for {} texts",
+                embedder.label,
+                vectors.len(),
+                batch.len()
+            )));
         }
         let mut rows = Vec::with_capacity(batch.len());
         for ((sha, _), values) in batch.iter().zip(vectors) {
-            let prepared = vector::prepare(values).ok_or_else(|| CoreError::ai_invalid_answer(format!("{} returned an empty embedding", embedder.label)))?;
+            let prepared = vector::prepare(values)
+                .ok_or_else(|| CoreError::ai_invalid_answer(format!("{} returned an empty embedding", embedder.label)))?;
             rows.push((sha.clone(), prepared));
         }
         index::insert(core, id, &rows)?;
@@ -332,7 +382,8 @@ fn record_embedding(core: &Core, repo_id: &str, settings: &Settings, embedder: &
         return;
     }
     let usage = Usage { input_tokens: context::estimate_tokens(sending.chars), output_tokens: 0 };
-    let cost_usd = pricing::price_for(settings, embedder.choice.kind, &embedder.choice.model).map(|price| pricing::cost_usd(&price, &usage));
+    let cost_usd =
+        pricing::price_for(settings, embedder.choice.kind, &embedder.choice.model).map(|price| pricing::cost_usd(&price, &usage));
     run::record(
         core,
         &run::Record {
@@ -355,7 +406,14 @@ pub async fn search(core: &Core, repo_id: &str, job_id: &str, query: &str, local
     search_with_cap(core, repo_id, job_id, query, locale, MAX_COMMITS).await
 }
 
-pub(crate) async fn search_with_cap(core: &Core, repo_id: &str, job_id: &str, query: &str, locale: &str, cap: usize) -> CoreResult<AiSemanticResult> {
+pub(crate) async fn search_with_cap(
+    core: &Core,
+    repo_id: &str,
+    job_id: &str,
+    query: &str,
+    locale: &str,
+    cap: usize,
+) -> CoreResult<AiSemanticResult> {
     let settings = run::ensure_allowed(core, Some(repo_id), AiFeature::SemanticSearch)?;
     let query = clean_question(query)?;
     let job = core.start_job(job_id, Some(repo_id))?;
@@ -370,7 +428,15 @@ pub(crate) async fn search_with_cap(core: &Core, repo_id: &str, job_id: &str, qu
     result
 }
 
-async fn search_embedded(core: &Core, repo_id: &str, job: &Job, settings: &Settings, embedder: &Embedder, query: &str, cap: usize) -> CoreResult<AiSemanticResult> {
+async fn search_embedded(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    settings: &Settings,
+    embedder: &Embedder,
+    query: &str,
+    cap: usize,
+) -> CoreResult<AiSemanticResult> {
     let token = job.token();
     let lock = index_lock(core, repo_id);
     let _guard = tokio::select! {
@@ -399,15 +465,24 @@ async fn search_embedded(core: &Core, repo_id: &str, job: &Job, settings: &Setti
 
     // Best first; equal scores newest first. Only commits that are reachable now.
     let position: HashMap<&str, usize> = plan.reachable.iter().enumerate().map(|(n, sha)| (sha.as_str(), n)).collect();
-    let mut ranked: Vec<(String, f32, usize)> = scored.into_iter().filter_map(|(sha, score)| position.get(sha.as_str()).copied().map(|n| (sha, score, n))).collect();
+    let mut ranked: Vec<(String, f32, usize)> =
+        scored.into_iter().filter_map(|(sha, score)| position.get(sha.as_str()).copied().map(|n| (sha, score, n))).collect();
     ranked.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.2.cmp(&b.2)));
     ranked.truncate(MAX_HITS);
     let shas: Vec<String> = ranked.iter().map(|(sha, _, _)| sha.clone()).collect();
     let path = core.repo_path(repo_id)?;
-    let mut by_sha: HashMap<String, CommitSummary> = commit_summaries(core, &path, repo_id, &shas, token).await?.into_iter().map(|commit| (commit.sha.clone(), commit)).collect();
+    let mut by_sha: HashMap<String, CommitSummary> =
+        commit_summaries(core, &path, repo_id, &shas, token).await?.into_iter().map(|commit| (commit.sha.clone(), commit)).collect();
     let hits = ranked
         .into_iter()
-        .filter_map(|(sha, score, _)| by_sha.remove(&sha).map(|commit| AiSemanticHit { matched_terms: matched_terms(query, &commit.summary), commit, score: Some(f64::from(score)), reason: None }))
+        .filter_map(|(sha, score, _)| {
+            by_sha.remove(&sha).map(|commit| AiSemanticHit {
+                matched_terms: matched_terms(query, &commit.summary),
+                commit,
+                score: Some(f64::from(score)),
+                reason: None,
+            })
+        })
         .collect();
     Ok(AiSemanticResult {
         route: embedder.choice.route,
@@ -422,7 +497,15 @@ async fn search_embedded(core: &Core, repo_id: &str, job: &Job, settings: &Setti
     })
 }
 
-async fn embed_and_score(core: &Core, id: i64, job: &Job, embedder: &Embedder, query: &str, pending: &[(String, String)], sending: &mut Sending) -> CoreResult<Vec<(String, f32)>> {
+async fn embed_and_score(
+    core: &Core,
+    id: i64,
+    job: &Job,
+    embedder: &Embedder,
+    query: &str,
+    pending: &[(String, String)],
+    sending: &mut Sending,
+) -> CoreResult<Vec<(String, f32)>> {
     embed_pending(core, id, Some(job), job.token(), embedder, pending, sending).await?;
     let question = vec![query.to_string()];
     let mut answered = embedder.provider.embed(core, &question, job.token()).await?;
@@ -433,7 +516,9 @@ async fn embed_and_score(core: &Core, id: i64, job: &Job, embedder: &Embedder, q
         .ok_or_else(|| CoreError::ai_invalid_answer(format!("{} returned no embedding for the question", embedder.label)))?;
     // The linear scan reads the whole index: off the async threads.
     let core = core.clone();
-    tokio::task::spawn_blocking(move || index::scores(&core, id, &asked)).await.map_err(|error| CoreError::unknown(format!("The search stopped: {error}")))?
+    tokio::task::spawn_blocking(move || index::scores(&core, id, &asked))
+        .await
+        .map_err(|error| CoreError::unknown(format!("The search stopped: {error}")))?
 }
 
 /// The way, the model and the size of the index of this repository – sends nothing.
@@ -453,7 +538,14 @@ pub fn status(core: &Core, repo_id: &str) -> CoreResult<AiSemanticStatus> {
         Some(id) => (index::count(core, id)?, true),
         None => (0, false),
     };
-    Ok(AiSemanticStatus { route: choice.route, provider: Some(choice.kind), local: choice.kind.is_local(), model: Some(choice.model), indexed, used })
+    Ok(AiSemanticStatus {
+        route: choice.route,
+        provider: Some(choice.kind),
+        local: choice.kind.is_local(),
+        model: Some(choice.model),
+        indexed,
+        used,
+    })
 }
 
 /// Background growth after a fetch or commit: nothing before the first search of this repository

@@ -97,7 +97,11 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
             .args(["status", "--porcelain=v2", "-z", "--branch", "--untracked-files=all", "--find-renames"])
             .run(),
         read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--numstat", "-z", "--no-ext-diff"]).args(WITHOUT_LFS).run(),
-        read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--cached", "--numstat", "-z", "-M", "--no-ext-diff"]).args(WITHOUT_LFS).run(),
+        read_cmd(core, &path, repo_id)
+            .args(NO_INDEX_REFRESH)
+            .args(["diff", "--cached", "--numstat", "-z", "-M", "--no-ext-diff"])
+            .args(WITHOUT_LFS)
+            .run(),
         read_cmd(core, &path, repo_id).args(["ls-files", "--stage", "-z"]).run(),
         identity_at(core, &path, repo_id),
     );
@@ -118,13 +122,8 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
     let token = fingerprint(&head, &index?.stdout);
 
     let all_paths: Vec<&[u8]> = parsed.entries.iter().map(|e| e.path.as_slice()).collect();
-    let untracked: Vec<Vec<u8>> = parsed
-        .entries
-        .iter()
-        .filter(|e| e.kind == EntryKind::Untracked)
-        .take(MAX_UNTRACKED_INSPECTED)
-        .map(|e| e.path.clone())
-        .collect();
+    let untracked: Vec<Vec<u8>> =
+        parsed.entries.iter().filter(|e| e.kind == EntryKind::Untracked).take(MAX_UNTRACKED_INSPECTED).map(|e| e.path.clone()).collect();
     let branch_tip = match &head {
         Head::Branch { branch, sha } => Some((branch.as_str(), sha.as_str())),
         _ => None,
@@ -729,9 +728,7 @@ async fn count_commits_since(core: &Core, path: &Path, repo_id: &str, start: &st
 fn rebase_commit_steps(state: &Path) -> Option<(Option<u32>, Option<u32>)> {
     let done = read_text(&state.join("done"))?;
     let todo = read_text(&state.join("git-rebase-todo"))?;
-    let commits = |list: &str| -> u32 {
-        todo_lines(list).iter().filter(|(command, _)| is_commit_command(command)).count() as u32
-    };
+    let commits = |list: &str| -> u32 { todo_lines(list).iter().filter(|(command, _)| is_commit_command(command)).count() as u32 };
     let step = commits(&done);
     let total = step + commits(&todo);
     Some((Some(step), Some(total)))
@@ -739,10 +736,7 @@ fn rebase_commit_steps(state: &Path) -> Option<(Option<u32>, Option<u32>)> {
 
 /// Todo commands that replay or create a commit (long and short forms).
 fn is_commit_command(command: &str) -> bool {
-    matches!(
-        command,
-        "pick" | "p" | "reword" | "r" | "edit" | "e" | "squash" | "s" | "fixup" | "f" | "merge" | "m"
-    )
+    matches!(command, "pick" | "p" | "reword" | "r" | "edit" | "e" | "squash" | "s" | "fixup" | "f" | "merge" | "m")
 }
 
 fn todo_lines(todo: &str) -> Vec<(String, String)> {
@@ -1053,7 +1047,12 @@ mod tests {
         // Same size, new timestamp: `git status` has to read the content – through the filter, every time
         // (a read never writes the refreshed index back).
         let file = repo.path().join("scene.blend");
-        std::fs::File::options().write(true).open(&file).unwrap().set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(5)).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&file)
+            .unwrap()
+            .set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(5))
+            .unwrap();
         let runs = repo.path().join(".git/clean-runs");
         let count = || std::fs::read_to_string(&runs).unwrap_or_default().lines().count();
 
@@ -1405,7 +1404,10 @@ mod tests {
         let remote = repo.add_remote();
         let id = tc.open(&repo).await.repo.id;
         let status = read_status(&tc, &id).await.unwrap();
-        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: false, pushes_to_upstream: true }));
+        assert_eq!(
+            status.upstream,
+            Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: false, pushes_to_upstream: true })
+        );
 
         let other = TestRepo::clone_of(&remote);
         other.commit_file("fremd.txt", "x\n", "Fremder Commit");
@@ -1414,11 +1416,17 @@ mod tests {
         repo.commit_file("zwei.txt", "2\n", "Zwei");
         repo.git(&["fetch", "-q", "origin"]);
         let status = read_status(&tc, &id).await.unwrap();
-        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 2, behind: 1, gone: false, pushes_to_upstream: true }));
+        assert_eq!(
+            status.upstream,
+            Some(UpstreamState { name: "origin/main".into(), ahead: 2, behind: 1, gone: false, pushes_to_upstream: true })
+        );
 
         repo.git(&["update-ref", "-d", "refs/remotes/origin/main"]);
         let status = read_status(&tc, &id).await.unwrap();
-        assert_eq!(status.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: true, pushes_to_upstream: true }));
+        assert_eq!(
+            status.upstream,
+            Some(UpstreamState { name: "origin/main".into(), ahead: 0, behind: 0, gone: true, pushes_to_upstream: true })
+        );
 
         repo.checkout_new("ohne-upstream");
         assert_eq!(read_status(&tc, &id).await.unwrap().upstream, None);
@@ -1562,7 +1570,10 @@ mod tests {
         let parsed = parse_porcelain_v2(raw.as_bytes());
         assert_eq!(parsed.oid.as_deref(), Some("abc123"));
         assert_eq!(parsed.branch.as_deref(), Some("main"));
-        assert_eq!(parsed.upstream, Some(UpstreamState { name: "origin/main".into(), ahead: 3, behind: 12, gone: false, pushes_to_upstream: false }));
+        assert_eq!(
+            parsed.upstream,
+            Some(UpstreamState { name: "origin/main".into(), ahead: 3, behind: 12, gone: false, pushes_to_upstream: false })
+        );
         let got: Vec<(EntryKind, char, char, String, Option<String>)> = parsed
             .entries
             .iter()
@@ -1581,7 +1592,10 @@ mod tests {
 
         let gone = parse_porcelain_v2(b"# branch.oid (initial)\0# branch.head main\0# branch.upstream origin/weg\0");
         assert_eq!(gone.oid, None);
-        assert_eq!(gone.upstream, Some(UpstreamState { name: "origin/weg".into(), ahead: 0, behind: 0, gone: true, pushes_to_upstream: false }));
+        assert_eq!(
+            gone.upstream,
+            Some(UpstreamState { name: "origin/weg".into(), ahead: 0, behind: 0, gone: true, pushes_to_upstream: false })
+        );
         assert_eq!(gone.head().unwrap(), Head::Unborn { branch: "main".into() });
         let detached = parse_porcelain_v2(b"# branch.oid abc\0# branch.head (detached)\0");
         assert_eq!(detached.head().unwrap(), Head::Detached { sha: "abc".into() });
@@ -1611,10 +1625,10 @@ mod tests {
         assert_eq!(conflict_kind(b'U', b'D'), ConflictKind::DeletedByThem);
         assert_eq!(clean_message("Merge branch 'x'\n\n# Conflicts:\n#\ta.txt\n").as_deref(), Some("Merge branch 'x'"));
         assert_eq!(clean_message("# nur Kommentar\n"), None);
-        assert_eq!(todo_lines("pick abc123 Eins\n\n# Kommentar\nrevert def456 Zwei\n"), vec![
-            ("pick".to_string(), "abc123".to_string()),
-            ("revert".to_string(), "def456".to_string())
-        ]);
+        assert_eq!(
+            todo_lines("pick abc123 Eins\n\n# Kommentar\nrevert def456 Zwei\n"),
+            vec![("pick".to_string(), "abc123".to_string()), ("revert".to_string(), "def456".to_string())]
+        );
         assert_eq!(trim_bytes(b"  a b \n"), b"a b");
         assert_eq!(trim_bytes(b" \n"), b"");
         let head = Head::Detached { sha: "abc".into() };

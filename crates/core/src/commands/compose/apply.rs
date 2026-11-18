@@ -220,7 +220,12 @@ fn left_alone(error: CoreError) -> CoreError {
 
 /// `hook_failed` for a hook that changed the index or files; the hooks' output goes along.
 fn hook_changed(hooks: &[HookOutput], what: &str) -> CoreError {
-    let output = hooks.iter().filter(|hook| !hook.output.is_empty()).map(|hook| format!("{}:\n{}", hook.hook, hook.output)).collect::<Vec<_>>().join("\n\n");
+    let output = hooks
+        .iter()
+        .filter(|hook| !hook.output.is_empty())
+        .map(|hook| format!("{}:\n{}", hook.hook, hook.output))
+        .collect::<Vec<_>>()
+        .join("\n\n");
     let error = CoreError::new(
         ErrorCode::HookFailed,
         format!(
@@ -313,7 +318,15 @@ async fn reset_committed_paths(core: &Core, repo_id: &str, read: &ComposeRead, p
 
 /// ONE group undo entry for all commits (Paket 0): the branch back to the old HEAD, index and
 /// working directory from the snapshot.
-async fn record(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str, entry_id: String, snapshot: GroupSnapshot, commits: &[String]) -> CoreResult<()> {
+async fn record(
+    core: &Core,
+    repo_id: &str,
+    read: &ComposeRead,
+    branch_ref: &str,
+    entry_id: String,
+    snapshot: GroupSnapshot,
+    commits: &[String],
+) -> CoreResult<()> {
     let label = if commits.len() == 1 { "Undo creating 1 commit".to_string() } else { format!("Undo creating {} commits", commits.len()) };
     let mut extra = Map::new();
     extra.insert("commits".into(), json!(commits));
@@ -363,13 +376,23 @@ async fn only_ours(core: &Core, repo_id: &str, read: &ComposeRead, created: &[St
 /// (one transaction, compare-and-swap on the tip just checked), the real index back if it changed,
 /// the backup refs removed. If the branch was moved by someone else, nothing is touched and the
 /// backup refs stay; likewise if something cannot be restored, so nothing is lost.
-async fn roll_back(core: &Core, repo_id: &str, read: &ComposeRead, branch_ref: &str, entry_id: &str, created: &[String], index_before: Option<&str>) -> Rollback {
+async fn roll_back(
+    core: &Core,
+    repo_id: &str,
+    read: &ComposeRead,
+    branch_ref: &str,
+    entry_id: &str,
+    created: &[String],
+    index_before: Option<&str>,
+) -> Rollback {
     let mut restored = true;
     match undo::rev_parse(core, repo_id, branch_ref).await {
         Ok(Some(now)) if now == read.head => {}
         Ok(Some(now)) => match only_ours(core, repo_id, read, created, &now).await {
             Ok(true) => {
-                if let Err(e) = undo::apply_ref_moves(core, repo_id, &[RefMove::new(branch_ref, Some(&now), Some(&read.head))], ROLLBACK_MESSAGE).await {
+                if let Err(e) =
+                    undo::apply_ref_moves(core, repo_id, &[RefMove::new(branch_ref, Some(&now), Some(&read.head))], ROLLBACK_MESSAGE).await
+                {
                     log::error!("Compose: {branch_ref} not moved back to {}: {}", read.head, e.message);
                     restored = false;
                 }

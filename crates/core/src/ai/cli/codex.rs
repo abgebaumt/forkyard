@@ -42,16 +42,33 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
         // "Logged in using an API key - sk-proj-***ABCD": the method, never a part of the key.
         Some(line) => LoginInfo {
             state: AiLoginState::LoggedIn,
-            method: line.strip_prefix("Logged in using ").and_then(|rest| rest.split(" - ").next()).map(|method| method.trim().to_string()).filter(|method| !method.is_empty()),
+            method: line
+                .strip_prefix("Logged in using ")
+                .and_then(|rest| rest.split(" - ").next())
+                .map(|method| method.trim().to_string())
+                .filter(|method| !method.is_empty()),
         },
         None => LoginInfo::unknown(),
     }
 }
 
 /// The command line: working root and answer file in `dir`, prompt from stdin (`-`).
-pub fn args(dir: &std::path::Path, schema_file: Option<&std::path::Path>, out_file: &std::path::Path, model: Option<&str>) -> Vec<std::ffi::OsString> {
-    let mut args: Vec<std::ffi::OsString> =
-        vec!["exec".into(), "-C".into(), dir.into(), "--skip-git-repo-check".into(), "--sandbox".into(), "read-only".into(), "--ephemeral".into(), "--ignore-rules".into()];
+pub fn args(
+    dir: &std::path::Path,
+    schema_file: Option<&std::path::Path>,
+    out_file: &std::path::Path,
+    model: Option<&str>,
+) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = vec![
+        "exec".into(),
+        "-C".into(),
+        dir.into(),
+        "--skip-git-repo-check".into(),
+        "--sandbox".into(),
+        "read-only".into(),
+        "--ephemeral".into(),
+        "--ignore-rules".into(),
+    ];
     // Codex's own tools: no shell (it would read any file despite the read-only sandbox), no images.
     args.extend(["--ignore-user-config".into(), "--disable".into(), "shell_tool".into(), "--disable".into(), "view_image".into()]);
     if let Some(schema) = schema_file {
@@ -96,7 +113,11 @@ pub fn parse_answer(out: &ProcOutput, out_file: &std::path::Path) -> crate::erro
         return Err(super::not_logged_in(kind));
     }
     if !out.success() {
-        return Err(if errors.is_empty() { super::exit_failure(kind, out) } else { CoreError::ai_provider_unavailable(format!("Codex reported an error: {}", super::reported(&joined))) });
+        return Err(if errors.is_empty() {
+            super::exit_failure(kind, out)
+        } else {
+            CoreError::ai_provider_unavailable(format!("Codex reported an error: {}", super::reported(&joined)))
+        });
     }
     let from_file = std::fs::read_to_string(out_file).ok().map(|text| text.trim().to_string()).filter(|text| !text.is_empty());
     let text = from_file.or(last_message).ok_or_else(|| {

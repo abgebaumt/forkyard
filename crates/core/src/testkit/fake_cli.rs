@@ -70,7 +70,10 @@ impl FakeCli {
 
     /// The calls whose arguments start with `prefix`.
     pub fn calls_with(&self, prefix: &[&str]) -> Vec<FakeCall> {
-        self.calls().into_iter().filter(|call| call.args.len() >= prefix.len() && call.args.iter().zip(prefix).all(|(arg, want)| arg == want)).collect()
+        self.calls()
+            .into_iter()
+            .filter(|call| call.args.len() >= prefix.len() && call.args.iter().zip(prefix).all(|(arg, want)| arg == want))
+            .collect()
     }
 }
 
@@ -254,7 +257,10 @@ pub fn opencode_events(text: &str) -> String {
 
 /// A fake `opencode` of `version` with `credentials` signed-in providers.
 pub fn opencode_config(help: &str, version: &str, credentials: u32, text: &str) -> Value {
-    let listed = format!("┌  Credentials ~/.local/share/opencode/auth.json\n│\n{}└  {credentials} credentials\n", if credentials > 0 { "●  Anthropic \u{1b}[90moauth\u{1b}[39m\n│\n" } else { "" });
+    let listed = format!(
+        "┌  Credentials ~/.local/share/opencode/auth.json\n│\n{}└  {credentials} credentials\n",
+        if credentials > 0 { "●  Anthropic \u{1b}[90moauth\u{1b}[39m\n│\n" } else { "" }
+    );
     serde_json::json!({
         "rules": [
             { "args": ["--version"], "stdout": format!("{version}\n") },

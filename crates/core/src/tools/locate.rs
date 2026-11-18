@@ -168,7 +168,13 @@ fn fresh_dir(core: &Core) -> Option<PathBuf> {
 /// Asks `shell` (as a login shell, without a terminal) for its PATH.
 pub async fn login_shell_path_from(core: &Core, shell: &Path) -> Option<OsString> {
     let dir = fresh_dir(core)?;
-    let out = Proc::new(shell).args(login_shell_args(shell)).cwd(&dir).timeout(LOGIN_SHELL_TIMEOUT).max_output(SMALL_OUTPUT, SMALL_OUTPUT).run(&CancelToken::new()).await;
+    let out = Proc::new(shell)
+        .args(login_shell_args(shell))
+        .cwd(&dir)
+        .timeout(LOGIN_SHELL_TIMEOUT)
+        .max_output(SMALL_OUTPUT, SMALL_OUTPUT)
+        .run(&CancelToken::new())
+        .await;
     let _ = std::fs::remove_dir_all(&dir);
     parse_marked_path(&out.ok()?.stdout)
 }
@@ -200,9 +206,17 @@ pub async fn version_of(core: &Core, path: &Path) -> Option<String> {
         }
     }
     let dir = fresh_dir(core)?;
-    let out = Proc::new(path).arg("--version").cwd(&dir).timeout(VERSION_TIMEOUT).max_output(SMALL_OUTPUT, SMALL_OUTPUT).run(&CancelToken::new()).await;
+    let out = Proc::new(path)
+        .arg("--version")
+        .cwd(&dir)
+        .timeout(VERSION_TIMEOUT)
+        .max_output(SMALL_OUTPUT, SMALL_OUTPUT)
+        .run(&CancelToken::new())
+        .await;
     let _ = std::fs::remove_dir_all(&dir);
-    let version = out.ok().and_then(|out| parse_version(&String::from_utf8_lossy(&out.stdout)).or_else(|| parse_version(&String::from_utf8_lossy(&out.stderr))));
+    let version = out.ok().and_then(|out| {
+        parse_version(&String::from_utf8_lossy(&out.stdout)).or_else(|| parse_version(&String::from_utf8_lossy(&out.stderr)))
+    });
     state.versions.lock().insert(path.to_path_buf(), (stamp.0, stamp.1, version.clone()));
     version
 }
@@ -232,7 +246,12 @@ pub async fn locate_in(core: &Core, name: &str, spec: &SearchSpec) -> Option<Too
 /// nothing else found the program.
 pub async fn locate(core: &Core, name: &str, configured: Option<&Path>) -> Option<ToolInfo> {
     let env = LocateEnv::current();
-    let spec = SearchSpec { configured: configured.map(Path::to_path_buf), path_var: std::env::var_os("PATH"), known: known_locations(name, &env), login_path: None };
+    let spec = SearchSpec {
+        configured: configured.map(Path::to_path_buf),
+        path_var: std::env::var_os("PATH"),
+        known: known_locations(name, &env),
+        login_path: None,
+    };
     if find(name, &spec).is_some() {
         return locate_in(core, name, &spec).await;
     }

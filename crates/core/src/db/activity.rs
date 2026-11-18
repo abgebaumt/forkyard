@@ -49,7 +49,17 @@ pub fn insert(conn: &Connection, e: &NewActivity) -> CoreResult<ActivityEntry> {
         conn.execute(
             "insert into activity_log (scope, repository_id, description, command, exit_code, duration_ms, output, started_at, code)
              values (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![scope, repo_id, e.description, e.command, e.exit_code, e.duration_ms as i64, e.output, e.started_at, e.code.map(|c| c.as_str())],
+            params![
+                scope,
+                repo_id,
+                e.description,
+                e.command,
+                e.exit_code,
+                e.duration_ms as i64,
+                e.output,
+                e.started_at,
+                e.code.map(|c| c.as_str())
+            ],
         )
     };
     match write(e.repo_id.as_deref()) {
@@ -65,13 +75,7 @@ pub fn insert(conn: &Connection, e: &NewActivity) -> CoreResult<ActivityEntry> {
 
 /// One page, newest first. `cursor` is the ID of the last entry of the previous page.
 /// With `scope = Repo` and no `repo_id`, the entries of all repositories are returned.
-pub fn page(
-    conn: &Connection,
-    scope: ActivityScope,
-    repo_id: Option<&str>,
-    cursor: Option<&str>,
-    limit: u32,
-) -> CoreResult<ActivityPage> {
+pub fn page(conn: &Connection, scope: ActivityScope, repo_id: Option<&str>, cursor: Option<&str>, limit: u32) -> CoreResult<ActivityPage> {
     let limit = limit.clamp(1, 500) as i64;
     let before: i64 = match cursor {
         Some(c) => c.parse().map_err(|_| CoreError::not_allowed("Invalid cursor for the activity log."))?,
@@ -86,9 +90,7 @@ pub fn page(
          where scope = ?1 and (?2 is null or repository_id = ?2) and id < ?3
          order by id desc limit ?4"
     ))?;
-    let mut entries = stmt
-        .query_map(params![scope_db, repo_id, before, limit + 1], from_row)?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut entries = stmt.query_map(params![scope_db, repo_id, before, limit + 1], from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
     let next_cursor = if entries.len() as i64 > limit {
         entries.truncate(limit as usize);
         entries.last().map(|e| e.id.clone())

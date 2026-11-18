@@ -7,10 +7,7 @@ use crate::error::CoreResult;
 use crate::util;
 
 pub fn add(conn: &Connection, profile_id: &str, repo_id: &str) -> CoreResult<()> {
-    conn.execute(
-        "insert or ignore into profile_repositories (profile_id, repository_id) values (?1, ?2)",
-        params![profile_id, repo_id],
-    )?;
+    conn.execute("insert or ignore into profile_repositories (profile_id, repository_id) values (?1, ?2)", params![profile_id, repo_id])?;
     Ok(())
 }
 
@@ -21,11 +18,9 @@ pub fn remove(conn: &Connection, profile_id: &str, repo_id: &str) -> CoreResult<
 
 pub fn contains(conn: &Connection, profile_id: &str, repo_id: &str) -> CoreResult<bool> {
     Ok(conn
-        .query_row(
-            "select 1 from profile_repositories where profile_id = ?1 and repository_id = ?2",
-            params![profile_id, repo_id],
-            |_| Ok(()),
-        )
+        .query_row("select 1 from profile_repositories where profile_id = ?1 and repository_id = ?2", params![profile_id, repo_id], |_| {
+            Ok(())
+        })
         .optional()?
         .is_some())
 }
@@ -51,7 +46,13 @@ pub fn touch_opened(conn: &Connection, profile_id: &str, repo_id: &str) -> CoreR
 }
 
 /// Favourite and group in the profile; `None` leaves a field unchanged, `Some(None)` clears the group.
-pub fn update(conn: &Connection, profile_id: &str, repo_id: &str, is_favorite: Option<bool>, group_name: Option<Option<String>>) -> CoreResult<()> {
+pub fn update(
+    conn: &Connection,
+    profile_id: &str,
+    repo_id: &str,
+    is_favorite: Option<bool>,
+    group_name: Option<Option<String>>,
+) -> CoreResult<()> {
     // Only repos of the own list; adding it on the side would make it show up in another profile.
     if !contains(conn, profile_id, repo_id)? {
         return Err(crate::error::CoreError::not_found("The repository is not in this profile’s list."));
@@ -89,4 +90,3 @@ pub fn delete_orphans(conn: &Connection) -> CoreResult<usize> {
     }
     Ok(deleted)
 }
-

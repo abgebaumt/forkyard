@@ -83,13 +83,31 @@ pub async fn line_archaeology(core: &Core, repo_id: String, path: String, line: 
 /// “What is sent?” shows for `AiInput::Archaeology` (same timeline from the cache, same budget and
 /// secrets from `request_frame`), sends it through `run::complete_json` as job `job_id` and checks the answer against the
 /// timeline – nothing is executed, the answer is only text.
-pub async fn ai_archaeology(core: &Core, repo_id: String, job_id: String, path: String, line: u32, sha: Option<String>, locale: String) -> CoreResult<ArchaeologyAnswer> {
+pub async fn ai_archaeology(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    path: String,
+    line: u32,
+    sha: Option<String>,
+    locale: String,
+) -> CoreResult<ArchaeologyAnswer> {
     let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Archaeology)?;
     let found = timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
     let (budget, secrets) = request_frame(core, &settings, AiFeature::Archaeology).await;
     let built = ai_archaeology_context::build(core, &repo_id, &settings, budget, &locale, &secrets, &found).await?;
     let schema = ai_archaeology_context::schema();
-    let answer = run::complete_json(core, run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::Archaeology, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
+    let answer = run::complete_json(
+        core,
+        run::AiRequest {
+            repo_id: Some(&repo_id),
+            feature: AiFeature::Archaeology,
+            job_id: &job_id,
+            prompt: &built.prompt,
+            schema: &schema,
+        },
+    )
+    .await?;
     let mut parsed = ai_archaeology_context::parse_answer(&answer.value, &found)?;
     parsed.cost_usd = answer.cost_usd;
     Ok(parsed)
@@ -107,7 +125,8 @@ pub(crate) async fn timeline(core: &Core, repo_id: &str, path: &str, line: u32, 
     };
     // Read before the cache: a changed rule or `.forkyard/links.json` is a different timeline.
     let rules = link_rules_get(core, repo_id.to_string()).await?.rules;
-    let rules_key = rules.iter().map(|rule| format!("{}\u{1f}{}\u{1f}{}", rule.id, rule.pattern, rule.url)).collect::<Vec<_>>().join("\u{1e}");
+    let rules_key =
+        rules.iter().map(|rule| format!("{}\u{1f}{}\u{1f}{}", rule.id, rule.pattern, rule.url)).collect::<Vec<_>>().join("\u{1e}");
     let key = format!("{repo_id}\0{start_sha}\0{start_path}\0{start_line}\0{rules_key}");
     let cache = core.state::<ArchaeologyCache>();
     if let Some(hit) = cache.get(&key) {
@@ -135,7 +154,9 @@ async fn blame_origin(core: &Core, repo_id: &str, rel: &str, line: u32) -> CoreR
         let text = out.stderr_text();
         let lower = text.to_lowercase();
         if lower.contains("has only") || lower.contains("no such file") || lower.contains("cannot lstat") {
-            return Err(CoreError::not_found(format!("Line {line} of “{rel}” doesn’t exist in the working directory.")).with_git_output(text));
+            return Err(
+                CoreError::not_found(format!("Line {line} of “{rel}” doesn’t exist in the working directory.")).with_git_output(text)
+            );
         }
         if lower.contains("no such path") {
             return Err(not_committed());
@@ -180,7 +201,15 @@ async fn build(core: &Core, repo_id: &str, sha: &str, path: &str, line: u32, rul
         .map(|(step, diff)| {
             let message = messages.get(&step.commit.sha).cloned().unwrap_or_else(|| step.commit.summary.clone());
             let refs = rules.find(&message);
-            ArchaeologyStep { commit: step.commit, path: step.path, start_line: step.start_line, end_line: step.end_line, message, diff: clip_diff(diff), refs }
+            ArchaeologyStep {
+                commit: step.commit,
+                path: step.path,
+                start_line: step.start_line,
+                end_line: step.end_line,
+                message,
+                diff: clip_diff(diff),
+                refs,
+            }
         })
         .collect();
     let host_lookup = lookup_titles(core, repo_id, &mut steps).await;
@@ -209,7 +238,9 @@ async fn lookup_titles(core: &Core, repo_id: &str, steps: &mut [ArchaeologyStep]
     }
     let repo_api = match crate::host::api_for_repo(core, repo_id, None).await {
         Ok(found) => found,
-        Err(error) if matches!(error.code, ErrorCode::HostNotConnected | ErrorCode::HostUnsupported) => return ArchaeologyHostLookup::NotConnected,
+        Err(error) if matches!(error.code, ErrorCode::HostNotConnected | ErrorCode::HostUnsupported) => {
+            return ArchaeologyHostLookup::NotConnected
+        }
         Err(_) => return ArchaeologyHostLookup::Failed,
     };
     let hoster = crate::host::host(repo_api.api.kind);
@@ -244,7 +275,12 @@ async fn lookup_titles(core: &Core, repo_id: &str, steps: &mut [ArchaeologyStep]
 }
 
 /// Title of pull request `number` (header only, `pr_head`); `None` if the host does not know it.
-async fn pull_title(core: &Core, hoster: &dyn crate::host::Host, repo_api: &crate::host::RepoApi, number: u64) -> CoreResult<Option<(ArchaeologyRefKind, String)>> {
+async fn pull_title(
+    core: &Core,
+    hoster: &dyn crate::host::Host,
+    repo_api: &crate::host::RepoApi,
+    number: u64,
+) -> CoreResult<Option<(ArchaeologyRefKind, String)>> {
     match hoster.pr_head(core, &repo_api.api, &repo_api.repo, number).await {
         Ok(pull) => Ok(Some((ArchaeologyRefKind::PullRequest, pull.title))),
         Err(error) if error.code == ErrorCode::HostNotFound => Ok(None),

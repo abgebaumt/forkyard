@@ -52,7 +52,8 @@ async fn all_rows(tc: &TestCore, id: &str, page_size: u32) -> Vec<GraphRow> {
         let page = graph_page(tc, id.to_string(), cursor, page_size).await.unwrap();
         let commits = page.rows.iter().filter(|r| matches!(r.kind, GraphRowKind::Commit | GraphRowKind::Merge)).count();
         assert!(commits <= page_size as usize);
-        let widest = page.rows.iter().flat_map(|r| r.edges.iter().flat_map(|e| [e.top, e.bottom]).flatten().chain([r.lane])).max().unwrap_or(0);
+        let widest =
+            page.rows.iter().flat_map(|r| r.edges.iter().flat_map(|e| [e.top, e.bottom]).flatten().chain([r.lane])).max().unwrap_or(0);
         assert_eq!(page.max_lane, widest);
         rows.extend(page.rows);
         match page.next_cursor {
@@ -84,7 +85,13 @@ fn sketch(rows: &[GraphRow]) -> String {
             GraphRowKind::Commit => '*',
         };
         let labels: Vec<&str> = row.refs.iter().map(|l| l.name.as_str()).collect();
-        out.push_str(&format!("{:<8} c{} {} {}\n", cells.iter().collect::<String>(), row.color, row.summary, if labels.is_empty() { String::new() } else { format!("[{}]", labels.join(", ")) }));
+        out.push_str(&format!(
+            "{:<8} c{} {} {}\n",
+            cells.iter().collect::<String>(),
+            row.color,
+            row.summary,
+            if labels.is_empty() { String::new() } else { format!("[{}]", labels.join(", ")) }
+        ));
     }
     out
 }
@@ -192,7 +199,12 @@ async fn rows_are_sorted_by_date_across_branches() {
 
     for page_size in [100, 2] {
         let rows = all_rows(&tc, &id, page_size).await;
-        assert_eq!(ids(&rows), vec![m2.as_str(), f2.as_str(), m1.as_str(), f1.as_str(), a.as_str()], "page size {page_size}\n{}", sketch(&rows));
+        assert_eq!(
+            ids(&rows),
+            vec![m2.as_str(), f2.as_str(), m1.as_str(), f1.as_str(), a.as_str()],
+            "page size {page_size}\n{}",
+            sketch(&rows)
+        );
         check_rows(&rows, true).unwrap();
     }
 }
@@ -646,7 +658,12 @@ async fn unknown_repo_and_missing_folder() {
     assert_eq!(commit_search(&tc, id.clone(), "Erster".into(), 10, None, None).await.unwrap_err().code, ErrorCode::NotARepo);
     assert_eq!(tree_list(&tc, id.clone(), None, None).await.unwrap_err().code, ErrorCode::NotARepo);
     assert_eq!(tree_list(&tc, id.clone(), Some("HEAD".into()), None).await.unwrap_err().code, ErrorCode::NotARepo);
-    for source in [DiffSource::Commit { sha: head.clone() }, DiffSource::Commit { sha: "HEAD".into() }, DiffSource::Staged, DiffSource::Range { from: head.clone(), to: None }] {
+    for source in [
+        DiffSource::Commit { sha: head.clone() },
+        DiffSource::Commit { sha: "HEAD".into() },
+        DiffSource::Staged,
+        DiffSource::Range { from: head.clone(), to: None },
+    ] {
         let err = commit_details(&tc, id.clone(), source.clone()).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotARepo, "{source:?}");
     }
@@ -687,7 +704,10 @@ async fn old_commits_in_other_encodings_are_readable() {
     let c = details_of(&tc, &id, &undeclared).await.commit.unwrap();
     assert_eq!((c.author.name.as_str(), c.author_offset_minutes), ("Jörg Weiß", 120));
     let found = commit_search(&tc, id.clone(), "joerg@example.com".into(), 10, None, None).await.unwrap();
-    assert_eq!(found.iter().map(|c| (c.summary.as_str(), c.author.name.as_str())).collect::<Vec<_>>(), vec![("Grüße aus München", "Jörg Weiß")]);
+    assert_eq!(
+        found.iter().map(|c| (c.summary.as_str(), c.author.name.as_str())).collect::<Vec<_>>(),
+        vec![("Grüße aus München", "Jörg Weiß")]
+    );
     // The search only reliably finds what Git can re-encode to UTF-8.
     let found = commit_search(&tc, id.clone(), "München".into(), 10, None, None).await.unwrap();
     assert!(found.iter().any(|c| c.sha == declared));
@@ -805,11 +825,17 @@ async fn commit_files_with_every_kind_of_change() {
     assert_eq!(d.files.len(), 8, "{:?}", d.files);
     assert!(d.files.iter().all(|f| f.area == FileArea::Commit && f.conflict.is_none()));
     let renamed = file(&d.files, "neuer name.txt");
-    assert_eq!((renamed.status, renamed.old_path.as_deref(), renamed.added, renamed.removed), (FileStatus::Renamed, Some("alter name.txt"), Some(0), Some(0)));
+    assert_eq!(
+        (renamed.status, renamed.old_path.as_deref(), renamed.added, renamed.removed),
+        (FileStatus::Renamed, Some("alter name.txt"), Some(0), Some(0))
+    );
     let deleted = file(&d.files, "weg.txt");
     assert_eq!((deleted.status, deleted.added, deleted.removed), (FileStatus::Deleted, Some(0), Some(2)));
     let modified = file(&d.files, "ändern.txt");
-    assert_eq!((modified.status, modified.added, modified.removed, modified.old_path.clone()), (FileStatus::Modified, Some(2), Some(1), None));
+    assert_eq!(
+        (modified.status, modified.added, modified.removed, modified.old_path.clone()),
+        (FileStatus::Modified, Some(2), Some(1), None)
+    );
     let binary = file(&d.files, "bild.bin");
     assert_eq!((binary.status, binary.is_binary, binary.added, binary.removed), (FileStatus::Modified, true, None, None));
     let crlf = file(&d.files, "crlf.txt");
@@ -908,7 +934,10 @@ async fn unstaged_and_staged_come_from_the_status() {
 
     let staged = commit_details(&tc, id.clone(), DiffSource::Staged).await.unwrap();
     assert_eq!(staged.files.len(), 1);
-    assert_eq!((staged.files[0].path.as_str(), staged.files[0].status, staged.files[0].area), ("gestagt.txt", FileStatus::Added, FileArea::Staged));
+    assert_eq!(
+        (staged.files[0].path.as_str(), staged.files[0].status, staged.files[0].area),
+        ("gestagt.txt", FileStatus::Added, FileArea::Staged)
+    );
     assert_eq!((staged.added, staged.removed, staged.not_combinable_reason), (1, 0, None));
 }
 
@@ -1120,7 +1149,16 @@ async fn search_covers_message_author_and_sha_over_all_refs() {
     let fix = repo.commit_file("a.txt", "a\n", "Fix: Absturz beim Öffnen (a.c)");
     repo.write_file("b.txt", "b\n");
     repo.git(&["add", "-A"]);
-    repo.git(&["commit", "-q", "--author", "Erika Müller <erika@firma.example>", "-m", "Neue Funktion", "-m", "Im Text steht ABSTURZ noch einmal."]);
+    repo.git(&[
+        "commit",
+        "-q",
+        "--author",
+        "Erika Müller <erika@firma.example>",
+        "-m",
+        "Neue Funktion",
+        "-m",
+        "Im Text steht ABSTURZ noch einmal.",
+    ]);
     let by_erika = repo.head();
     repo.checkout_new("seitenzweig");
     let side = repo.commit_file("s.txt", "s\n", "Nur auf dem Seitenzweig: axc [x]");
@@ -1756,7 +1794,10 @@ async fn a_merge_bringing_in_too_many_commits_stays_expanded() {
     let plan = Plan::default();
 
     assert_eq!(collapse_for(&tc, &path, &id, &plan, &merge, &parents, 1).await.unwrap(), Collapse::TooLarge);
-    assert_eq!(collapse_for(&tc, &path, &id, &plan, &merge, &parents, 2).await.unwrap(), Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] });
+    assert_eq!(
+        collapse_for(&tc, &path, &id, &plan, &merge, &parents, 2).await.unwrap(),
+        Collapse::Hide { count: 2, hidden_parents: vec![f2.clone()] }
+    );
 }
 
 #[tokio::test]

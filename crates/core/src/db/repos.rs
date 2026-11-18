@@ -28,10 +28,7 @@ pub struct RepoRow {
 impl RepoRow {
     /// Folder name as display name.
     pub fn folder_name(&self) -> String {
-        Path::new(&self.path)
-            .file_name()
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| self.path.clone())
+        Path::new(&self.path).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| self.path.clone())
     }
 
     /// Alias or folder name.
@@ -110,9 +107,7 @@ pub fn require(conn: &Connection, id: &str) -> CoreResult<RepoRow> {
 
 pub fn find_by_path(conn: &Connection, path: &Path) -> CoreResult<Option<RepoRow>> {
     let key = util::path_key(path);
-    Ok(conn
-        .query_row(&format!("select {COLUMNS} from {FROM} where r.path_key = ?1"), [key], from_row)
-        .optional()?)
+    Ok(conn.query_row(&format!("select {COLUMNS} from {FROM} where r.path_key = ?1"), [key], from_row).optional()?)
 }
 
 /// Adds a repository or returns the existing one (same `path_key`).

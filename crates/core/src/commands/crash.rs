@@ -51,7 +51,13 @@ fn load(core: &Core, id: &str) -> CoreResult<ReportFile> {
 pub async fn crash_reports_list(core: &Core) -> CoreResult<Vec<CrashReportSummary>> {
     Ok(crash::list_reports(core.data_dir())
         .into_iter()
-        .map(|r| CrashReportSummary { time: iso(r.time_ms), message: short(&r.message), kind: r.kind, app_version: r.app_version, id: r.id })
+        .map(|r| CrashReportSummary {
+            time: iso(r.time_ms),
+            message: short(&r.message),
+            kind: r.kind,
+            app_version: r.app_version,
+            id: r.id,
+        })
         .collect())
 }
 
@@ -118,7 +124,8 @@ pub async fn crash_report_save(core: &Core, id: String, path: String) -> CoreRes
 
 /// Deletes a report; no error if it is already gone.
 pub async fn crash_report_discard(core: &Core, id: String) -> CoreResult<()> {
-    crash::discard_report(core.data_dir(), checked_id(&id)?).map_err(|e| CoreError::io(format!("The crash report couldn’t be deleted: {e}")))
+    crash::discard_report(core.data_dir(), checked_id(&id)?)
+        .map_err(|e| CoreError::io(format!("The crash report couldn’t be deleted: {e}")))
 }
 
 #[cfg(test)]
@@ -191,7 +198,8 @@ mod tests {
     async fn the_git_calls_are_those_of_the_run_that_ended() {
         let tc = TestCore::new().await;
         let (started, ended) = (1_700_000_000_000_i64, 1_700_000_060_000_i64);
-        for (command, at) in [("git earlier-run", started - 10_000), ("git crashed-run", started + 1_000), ("git current-run", ended + 600)] {
+        for (command, at) in [("git earlier-run", started - 10_000), ("git crashed-run", started + 1_000), ("git current-run", ended + 600)]
+        {
             tc.db
                 .with(|c| {
                     crate::db::activity::insert(
@@ -266,7 +274,11 @@ mod tests {
         assert!(saved.contains("Forkyard crash report") && saved.contains("boom"), "{saved}");
 
         // Relative paths, folders and missing parents are refused.
-        for bad in [String::from("relative.txt"), folder.path().to_string_lossy().into_owned(), folder.path().join("missing").join("x.txt").to_string_lossy().into_owned()] {
+        for bad in [
+            String::from("relative.txt"),
+            folder.path().to_string_lossy().into_owned(),
+            folder.path().join("missing").join("x.txt").to_string_lossy().into_owned(),
+        ] {
             let err = crash_report_save(&tc, id.clone(), bad.clone()).await.unwrap_err();
             assert!(matches!(err.code, ErrorCode::NotAllowed | ErrorCode::NotFound), "{bad}: {err:?}");
         }

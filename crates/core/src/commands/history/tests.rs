@@ -211,7 +211,9 @@ fn history_parser_survives_odd_input() {
         p.feed(rec);
     }
     // Rename: raw line with two paths, numstat with an empty path and two following entries.
-    for rec in [b"\n".as_slice(), COMMIT_MARK, b"dddd", b"", b"N", b"n@x", b"0", b"", b"", b"\n:100644 100644 1 2 R090", b"alt.txt", b"neu.txt"] {
+    for rec in
+        [b"\n".as_slice(), COMMIT_MARK, b"dddd", b"", b"N", b"n@x", b"0", b"", b"", b"\n:100644 100644 1 2 R090", b"alt.txt", b"neu.txt"]
+    {
         p.feed(rec);
     }
     for rec in [b"3\t1\t".as_slice(), b"alt.txt", b"neu.txt", b""] {
@@ -598,7 +600,8 @@ async fn write_round_trips_encodings() {
 
     // Characters that cannot be represented: nothing is replaced, the file stays as it was.
     tc.events.clear();
-    let err = file_write(&tc, id.clone(), "t.txt".into(), "Preis: 5 €, 日本".into(), "windows-1252".into(), LineEnding::Lf).await.unwrap_err();
+    let err =
+        file_write(&tc, id.clone(), "t.txt".into(), "Preis: 5 €, 日本".into(), "windows-1252".into(), LineEnding::Lf).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::Unsupported);
     assert!(err.message.contains("windows-1252"), "{}", err.message);
     let err = file_write(&tc, id.clone(), "t.txt".into(), "x".into(), "klingonisch".into(), LineEnding::Lf).await.unwrap_err();
@@ -637,7 +640,10 @@ async fn write_refuses_paths_outside_the_repo_and_inside_git() {
     assert!(!repo.path().join(".git/hooks/pre-commit").exists());
     assert_eq!(repo.read_file(".git/config"), config_before);
     assert_eq!(tc.events.count(names::REPO_CHANGED), 0);
-    assert_eq!(code(file_write(&tc, "unbekannt".into(), "a".into(), "x".into(), "utf-8".into(), LineEnding::Lf).await), ErrorCode::NotFound);
+    assert_eq!(
+        code(file_write(&tc, "unbekannt".into(), "a".into(), "x".into(), "utf-8".into(), LineEnding::Lf).await),
+        ErrorCode::NotFound
+    );
 }
 
 #[cfg(unix)]

@@ -29,18 +29,38 @@ fn the_route_prefers_the_local_embedder_then_the_main_provider_then_rephrasing()
     use AiSearchRoute::{LocalEmbeddings, ProviderEmbeddings};
     assert_eq!(pick(json!({})), None, "no provider: the rephrase route (which then asks for one)");
     assert_eq!(pick(json!({"aiProvider": "anthropic", "aiModel": "claude-haiku-5-5"})), None, "Anthropic has no embeddings");
-    assert_eq!(pick(json!({"aiProvider": "openai", "aiModel": "gpt-5.5-mini"})), Some((Openai, "text-embedding-3-small".into(), ProviderEmbeddings)));
-    assert_eq!(pick(json!({"aiProvider": "gemini", "aiModel": "gemini-3-flash"})), Some((Gemini, "gemini-embedding-001".into(), ProviderEmbeddings)));
-    assert_eq!(pick(json!({"aiProvider": "openai", "aiSearchEmbedModel": "text-embedding-3-large"})), Some((Openai, "text-embedding-3-large".into(), ProviderEmbeddings)));
-    assert_eq!(pick(json!({"aiProvider": "openai_compatible", "aiModel": "mistral-large-latest"})), None, "a compatible service needs an embedding model");
-    assert_eq!(pick(json!({"aiProvider": "openai_compatible", "aiSearchEmbedModel": "bge-m3"})), Some((OpenaiCompatible, "bge-m3".into(), ProviderEmbeddings)));
+    assert_eq!(
+        pick(json!({"aiProvider": "openai", "aiModel": "gpt-5.5-mini"})),
+        Some((Openai, "text-embedding-3-small".into(), ProviderEmbeddings))
+    );
+    assert_eq!(
+        pick(json!({"aiProvider": "gemini", "aiModel": "gemini-3-flash"})),
+        Some((Gemini, "gemini-embedding-001".into(), ProviderEmbeddings))
+    );
+    assert_eq!(
+        pick(json!({"aiProvider": "openai", "aiSearchEmbedModel": "text-embedding-3-large"})),
+        Some((Openai, "text-embedding-3-large".into(), ProviderEmbeddings))
+    );
+    assert_eq!(
+        pick(json!({"aiProvider": "openai_compatible", "aiModel": "mistral-large-latest"})),
+        None,
+        "a compatible service needs an embedding model"
+    );
+    assert_eq!(
+        pick(json!({"aiProvider": "openai_compatible", "aiSearchEmbedModel": "bge-m3"})),
+        Some((OpenaiCompatible, "bge-m3".into(), ProviderEmbeddings))
+    );
     assert_eq!(pick(json!({"aiProvider": "ollama", "aiModel": "qwen3:8b"})), None, "a chat model is no embedding model");
     assert_eq!(
         pick(json!({"aiProvider": "openai", "aiSearchEmbedProvider": "lmstudio", "aiSearchEmbedModel": "nomic"})),
         Some((Lmstudio, "nomic".into(), LocalEmbeddings)),
         "the local embedder comes first (Entscheidung 7)"
     );
-    assert_eq!(pick(json!({"aiProvider": "anthropic", "aiSearchEmbedProvider": "ollama"})), None, "a local embedder without a model is not set up");
+    assert_eq!(
+        pick(json!({"aiProvider": "anthropic", "aiSearchEmbedProvider": "ollama"})),
+        None,
+        "a local embedder without a model is not set up"
+    );
 }
 
 #[tokio::test]
@@ -54,7 +74,10 @@ async fn the_local_embedder_never_gets_the_main_providers_address() {
     .unwrap();
     crate::secrets::set(&tc, "llm:openai_compatible", "firmen-schluessel-0815").await.unwrap();
     let local = embedder(&tc, &tc.settings().unwrap()).await.unwrap().unwrap();
-    assert_eq!((local.choice.kind, local.base.as_str(), local.choice.route), (AiProviderKind::Ollama, "http://127.0.0.1:11434", AiSearchRoute::LocalEmbeddings));
+    assert_eq!(
+        (local.choice.kind, local.base.as_str(), local.choice.route),
+        (AiProviderKind::Ollama, "http://127.0.0.1:11434", AiSearchRoute::LocalEmbeddings)
+    );
     assert!(local.secrets.is_empty(), "no key goes to the local embedder");
     settings_set(&tc, json!({"aiSearchEmbedBaseUrl": "http://127.0.0.1:11500"})).await.unwrap();
     assert_eq!(embedder(&tc, &tc.settings().unwrap()).await.unwrap().unwrap().base, "http://127.0.0.1:11500");
@@ -74,18 +97,25 @@ async fn the_preview_shows_exactly_what_the_search_sends() {
     let first = repo.commit_file("src/zugang/weiterleitung.rs", "fn weiter() {}\n", "Weiterleitung nach der Anmeldung repariert");
     let second = repo.commit_file(".env", "TOKEN=geheim\n", "Umgebung angelegt");
     let id = tc.open(&repo).await.repo.id;
-    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("  Wo wurde die\nAnmeldung repariert? "), "de".into()).await.unwrap();
+    let preview = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("  Wo wurde die\nAnmeldung repariert? "), "de".into())
+        .await
+        .unwrap();
     let expected = format!(
         "Search question:\nWo wurde die Anmeldung repariert?\n\nNew index entries: 2\n--- {second}\nUmgebung angelegt\n--- {first}\nWeiterleitung nach der Anmeldung repariert\nFiles: src/zugang/weiterleitung.rs\n"
     );
     assert_eq!(preview.text, expected, "the question, then every new commit newest first; .env not even by name");
-    assert_eq!(preview.omitted, vec![AiOmitted { path: ".env".into(), reason: AiOmitReason::Secret, size: 0 }], "named only in the left-out list of the dialog");
+    assert_eq!(
+        preview.omitted,
+        vec![AiOmitted { path: ".env".into(), reason: AiOmitReason::Secret, size: 0 }],
+        "named only in the left-out list of the dialog"
+    );
     assert_eq!(preview.chars, expected.chars().count() as u64);
     assert!(preview.asks.is_empty() && preview.estimated_cost_usd.is_none(), "local: no confirmation, no costs");
     assert!(preview.fingerprint.len() == 64 && preview.fingerprint.bytes().all(|b| b.is_ascii_hexdigit()));
     assert!(server.requests().is_empty(), "the preview sends nothing");
     repo.commit_file("b.txt", "b\n", "Noch ein Commit");
-    let later = ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("Wo wurde die Anmeldung repariert?"), "de".into()).await.unwrap();
+    let later =
+        ai_preview(&tc, id.clone(), AiFeature::SemanticSearch, semantic("Wo wurde die Anmeldung repariert?"), "de".into()).await.unwrap();
     assert_ne!(later.fingerprint, preview.fingerprint, "another text, another approval");
     let empty = ai_preview(&tc, id, AiFeature::SemanticSearch, semantic(" \n "), "de".into()).await.unwrap_err();
     assert_eq!(empty.code, ErrorCode::NotAllowed);
@@ -101,7 +131,11 @@ async fn a_large_first_index_shows_200_entries_and_counts_all() {
     }
     let id = tc.open(&repo).await.repo.id;
     let preview = ai_preview(&tc, id, AiFeature::SemanticSearch, semantic("Messwerte"), "de".into()).await.unwrap();
-    assert!(preview.text.starts_with("Search question:\nMesswerte\n\nNew index entries: 205\n--- "), "{}", preview.text.chars().take(120).collect::<String>());
+    assert!(
+        preview.text.starts_with("Search question:\nMesswerte\n\nNew index entries: 205\n--- "),
+        "{}",
+        preview.text.chars().take(120).collect::<String>()
+    );
     assert_eq!(preview.text.matches("\n--- ").count(), 200);
     assert!(preview.text.ends_with("… and 5 more new index entries in the same form (not shown here).\n"));
     assert!(preview.text.contains("\nMesswert 005 ergänzt\n") && !preview.text.contains("Messwert 004"), "newest first");
@@ -119,8 +153,11 @@ use crate::model::AiAskTrigger;
 fn log_commands(tc: &TestCore) -> Vec<(String, String)> {
     tc.db
         .with(|c| {
-            let mut stmt = c.prepare("select coalesce(command, ''), coalesce(output, '') from activity_log where command like 'ai: semantic-search%'")?;
-            let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+            let mut stmt = c.prepare(
+                "select coalesce(command, ''), coalesce(output, '') from activity_log where command like 'ai: semantic-search%'",
+            )?;
+            let rows =
+                stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
             Ok(rows)
         })
         .unwrap()
@@ -136,10 +173,17 @@ fn git_set(repo: &TestRepo, args: &[&str]) -> HashSet<String> {
 
 #[test]
 fn matched_terms_name_the_words_of_the_question() {
-    assert_eq!(matched_terms("Wo wurde die Anmeldung repariert?", "Weiterleitung nach der Anmeldung repariert"), vec!["anmeldung", "repariert"]);
+    assert_eq!(
+        matched_terms("Wo wurde die Anmeldung repariert?", "Weiterleitung nach der Anmeldung repariert"),
+        vec!["anmeldung", "repariert"]
+    );
     assert_eq!(matched_terms("Probleme mit dem Login", "Login-Formular: Fehlertext"), vec!["login"]);
     assert_eq!(matched_terms("ÄRGER mit der GRÖSSE", "Größe angepasst"), Vec::<String>::new(), "ß and SS are different words");
-    assert_eq!(matched_terms("Wer hat der Datei", "Datei geändert"), vec!["der", "datei"], "a word inside another word counts too: “der” in “geändert”");
+    assert_eq!(
+        matched_terms("Wer hat der Datei", "Datei geändert"),
+        vec!["der", "datei"],
+        "a word inside another word counts too: “der” in “geändert”"
+    );
     assert_eq!(matched_terms("Größe", "GRÖßE geändert"), vec!["größe"]);
     assert_eq!(matched_terms("a b", "a b"), Vec::<String>::new(), "words from three characters");
 }
@@ -159,10 +203,21 @@ async fn semantic_hits_follow_the_meaning_of_the_fake_embeddings() {
     assert!(result.ranked && !result.capped && result.filters.is_none());
     let order = shas_of(&result);
     assert_eq!(order.len(), 4, "every reachable commit, sorted");
-    assert_eq!(order[..2].iter().cloned().collect::<HashSet<_>>(), [redirect.clone(), form.clone()].into_iter().collect(), "both sign-in commits come first");
-    assert!(result.hits[0].score.unwrap() > 0.9 && result.hits[3].score.unwrap() < 0.2, "{:?}", result.hits.iter().map(|hit| hit.score).collect::<Vec<_>>());
+    assert_eq!(
+        order[..2].iter().cloned().collect::<HashSet<_>>(),
+        [redirect.clone(), form.clone()].into_iter().collect(),
+        "both sign-in commits come first"
+    );
+    assert!(
+        result.hits[0].score.unwrap() > 0.9 && result.hits[3].score.unwrap() < 0.2,
+        "{:?}",
+        result.hits.iter().map(|hit| hit.score).collect::<Vec<_>>()
+    );
     let form_hit = result.hits.iter().find(|hit| hit.commit.sha == form).unwrap();
-    assert_eq!((form_hit.commit.summary.as_str(), form_hit.matched_terms.clone(), form_hit.reason.clone()), ("Login-Formular: Fehlertext", vec!["login".to_string()], None));
+    assert_eq!(
+        (form_hit.commit.summary.as_str(), form_hit.matched_terms.clone(), form_hit.reason.clone()),
+        ("Login-Formular: Fehlertext", vec!["login".to_string()], None)
+    );
     let log = log_commands(&tc);
     assert_eq!(log.len(), 1, "one activity entry per search");
     assert!(log[0].0.starts_with("ai: semantic-search (Ollama · embeddinggemma) · ") && log[0].0.ends_with(" → 0 tokens"), "{}", log[0].0);
@@ -241,7 +296,10 @@ async fn the_index_keeps_the_newest_commits_up_to_the_cap() {
     let id = tc.open(&repo).await.repo.id;
     let result = search_with_cap(&tc, &id, "c1", "Login", "de", 2).await.unwrap();
     assert_eq!((result.indexed, result.capped), (2, true));
-    assert_eq!(shas_of(&result).into_iter().collect::<HashSet<_>>(), git_set(&repo, &["rev-list", "--max-count=2", "--branches", "--tags", "HEAD"]));
+    assert_eq!(
+        shas_of(&result).into_iter().collect::<HashSet<_>>(),
+        git_set(&repo, &["rev-list", "--max-count=2", "--branches", "--tags", "HEAD"])
+    );
 }
 
 #[tokio::test]
@@ -280,13 +338,18 @@ async fn an_external_embedder_asks_before_the_first_index_of_a_repository() {
     assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst]);
     assert!(preview.text.contains("Weiterleitung nach der Anmeldung repariert"));
     assert!(!preview.text.contains("sk-proj-AbCdEfGhIjKlMnOpQrStUvWx0123"), "keys in messages are redacted");
-    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::SemanticSearch, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::SemanticSearch, preview.fingerprint.clone(), preview.asks.clone(), false)
+        .await
+        .unwrap();
     let result = search(&tc, &id, "e2", "Anmeldung", "de").await.unwrap();
     assert_eq!(result.route, AiSearchRoute::ProviderEmbeddings);
     let sent = server.requests();
     assert_eq!(sent.len(), 2, "the new entries, then the question");
     for request in &sent {
-        assert_eq!((request.route().as_str(), request.json()["model"].clone(), request.json()["dimensions"].clone()), ("POST /v1/embeddings", json!("text-embedding-3-small"), json!(512)));
+        assert_eq!(
+            (request.route().as_str(), request.json()["model"].clone(), request.json()["dimensions"].clone()),
+            ("POST /v1/embeddings", json!("text-embedding-3-small"), json!(512))
+        );
         assert!(!request.body_text().contains("sk-proj-AbCdEfGhIjKlMnOpQrStUvWx0123"));
         let auth = format!("Bearer {OPENAI_KEY}");
         assert_eq!(request.header("authorization"), Some(auth.as_str()));

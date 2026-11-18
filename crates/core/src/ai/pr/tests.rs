@@ -17,11 +17,21 @@ use crate::testkit::{MockRequest, MockResponse, MockServer, TestCore, TestRepo};
 
 fn jira() -> LinkRule {
     // As the Jira preset with key ABC produces it (commands/links.rs, `preset_rule`).
-    LinkRule { id: "preset:jira:0".into(), source: LinkRuleSource::Preset, pattern: r"\b(?:ABC)-\d+\b".into(), url: "https://firma.atlassian.net/browse/$0".into() }
+    LinkRule {
+        id: "preset:jira:0".into(),
+        source: LinkRuleSource::Preset,
+        pattern: r"\b(?:ABC)-\d+\b".into(),
+        url: "https://firma.atlassian.net/browse/$0".into(),
+    }
 }
 
 fn redmine() -> LinkRule {
-    LinkRule { id: "preset:redmine:0".into(), source: LinkRuleSource::Preset, pattern: r"#(\d+)\b".into(), url: "https://redmine.example/issues/$1".into() }
+    LinkRule {
+        id: "preset:redmine:0".into(),
+        source: LinkRuleSource::Preset,
+        pattern: r"#(\d+)\b".into(),
+        url: "https://redmine.example/issues/$1".into(),
+    }
 }
 
 #[test]
@@ -57,9 +67,19 @@ fn answers_must_keep_every_template_heading_and_a_one_line_title() {
     assert!(missing.contains("missing: ## Wie getestet?"), "{missing}");
     let renamed = check_answer(&json!({"title": "A", "body": "## Was ändert sich\n\n## Wie getestet?\n"}), &headings).unwrap_err();
     assert!(renamed.contains("## Was ändert sich?"), "{renamed}");
-    assert!(check_answer(&json!({"title": "A", "body": "### Was ändert sich?\n## Wie getestet?\n"}), &headings).is_err(), "the level belongs to the heading");
-    assert!(check_answer(&json!({"title": "A", "body": "```\n## Was ändert sich?\n## Wie getestet?\n```\n"}), &headings).is_err(), "headings inside code do not count");
-    assert_eq!(check_answer(&json!({"title": "A", "body": "## Wie getestet?\n\n## Was ändert sich?\n"}), &headings), Ok(()), "the order is not checked");
+    assert!(
+        check_answer(&json!({"title": "A", "body": "### Was ändert sich?\n## Wie getestet?\n"}), &headings).is_err(),
+        "the level belongs to the heading"
+    );
+    assert!(
+        check_answer(&json!({"title": "A", "body": "```\n## Was ändert sich?\n## Wie getestet?\n```\n"}), &headings).is_err(),
+        "headings inside code do not count"
+    );
+    assert_eq!(
+        check_answer(&json!({"title": "A", "body": "## Wie getestet?\n\n## Was ändert sich?\n"}), &headings),
+        Ok(()),
+        "the order is not checked"
+    );
     assert!(check_answer(&json!({"title": "  ", "body": ""}), &[]).unwrap_err().contains("title is empty"));
     assert!(check_answer(&json!({"title": "Zeile 1\nZeile 2", "body": ""}), &[]).unwrap_err().contains("single line"));
     assert!(check_answer(&json!({"title": "ä".repeat(301), "body": ""}), &[]).unwrap_err().contains("300"));
@@ -140,7 +160,10 @@ fn no_closing_form_of_the_hosts_survives_for_a_foreign_issue() {
     assert_eq!(strip_foreign_closes("Closes #12 and #3, fixes #3", &[12, 3]), "Closes #12 and #3, fixes #3");
     assert_eq!(finish(&json!({"title": "T", "body": "Closes #12, #3"}), &[12, 3]).body, "Closes #12, #3");
     // Words that only look like keywords stay prose.
-    assert_eq!(strip_foreign_closes("The prefixes #5 and suffixes #6 stay; enclosing #7 too.", &[]), "The prefixes #5 and suffixes #6 stay; enclosing #7 too.");
+    assert_eq!(
+        strip_foreign_closes("The prefixes #5 and suffixes #6 stay; enclosing #7 too.", &[]),
+        "The prefixes #5 and suffixes #6 stay; enclosing #7 too."
+    );
 }
 
 // --- The context (Task 4) --------------------------------------------------------------------
@@ -160,10 +183,22 @@ fn branch_repo() -> TestRepo {
     repo.git(&["mv", "src/alt.rs", "src/neu name.rs"]);
     repo.write_file("-notizen ä.md", "Erste Zeile\nZweite Zeile\n");
     repo.write_file(".env", "DB_PASSWORD=hunter2-sehr-geheim\n");
-    repo.commit_as_dates("Auswertung je Station\n\nMonatsmittel für Süd und Nord, siehe ABC-42.", "Lena Ölmann", "lena@example.org", "@1104537600 +1400", "@1760000000 -0930");
+    repo.commit_as_dates(
+        "Auswertung je Station\n\nMonatsmittel für Süd und Nord, siehe ABC-42.",
+        "Lena Ölmann",
+        "lena@example.org",
+        "@1104537600 +1400",
+        "@1760000000 -0930",
+    );
     repo.write_file("Cargo.lock", "# lock\n[[package]]\nname = \"a\"\n");
     repo.write_file("logo.png", [0x89u8, b'P', b'N', b'G', 0, 1, 2, 3]);
-    repo.commit_as_dates(&format!("Fehler bei Umlauten behoben (#12)\n\n{INJECTION}"), "Jo Ånström", "jo@example.org", "@1000000000 +0530", "@1760000100 +0000");
+    repo.commit_as_dates(
+        &format!("Fehler bei Umlauten behoben (#12)\n\n{INJECTION}"),
+        "Jo Ånström",
+        "jo@example.org",
+        "@1000000000 +0530",
+        "@1760000100 +0000",
+    );
     repo.checkout("main");
     repo.commit_file("README.md", "# Test\n\nNeu auf main\n", "Main weiter");
     repo.checkout("feature/auswertung");
@@ -205,10 +240,15 @@ async fn the_context_has_the_branch_commits_oldest_first_and_its_own_changes_onl
     let prompt = &pr.built.prompt;
 
     // Oracle: Git's own order of the branch's commits without merges.
-    let order: Vec<String> = repo.git(&["log", "--reverse", "--no-merges", "--topo-order", "--format=%s", "main..feature/auswertung"]).lines().map(str::to_string).collect();
+    let order: Vec<String> = repo
+        .git(&["log", "--reverse", "--no-merges", "--topo-order", "--format=%s", "main..feature/auswertung"])
+        .lines()
+        .map(str::to_string)
+        .collect();
     assert_eq!(order, ["Auswertung je Station", "Fehler bei Umlauten behoben (#12)"], "fixture");
     let commits = section(prompt, COMMITS).expect("commits");
-    let at: Vec<usize> = order.iter().map(|subject| commits.find(&format!("- {subject}\n")).unwrap_or_else(|| panic!("{subject} in {commits}"))).collect();
+    let at: Vec<usize> =
+        order.iter().map(|subject| commits.find(&format!("- {subject}\n")).unwrap_or_else(|| panic!("{subject} in {commits}"))).collect();
     assert!(at[0] < at[1], "Git's order, although the second commit was written five years earlier");
     assert!(commits.starts_with("2 commit(s), oldest first (merge commits left out):\n"), "{commits}");
     assert!(commits.contains("\n  Monatsmittel für Süd und Nord, siehe ABC-42.\n"), "{commits}");
@@ -217,12 +257,23 @@ async fn the_context_has_the_branch_commits_oldest_first_and_its_own_changes_onl
     let files = section(prompt, FILES).expect("files");
     let mut lines: Vec<&str> = files.lines().collect();
     lines.sort_unstable();
-    assert_eq!(lines, ["-notizen ä.md +2 -0", "Cargo.lock +3 -0 – generated or lock file", "logo.png – binary file", "src/neu name.rs (renamed from src/alt.rs) +0 -0"]);
+    assert_eq!(
+        lines,
+        [
+            "-notizen ä.md +2 -0",
+            "Cargo.lock +3 -0 – generated or lock file",
+            "logo.png – binary file",
+            "src/neu name.rs (renamed from src/alt.rs) +0 -0"
+        ]
+    );
     assert!(!prompt.user.contains("README.md"), "the change that came in from main is not the branch's");
     assert!(!prompt.text().contains(".env") && !prompt.text().contains("hunter2"));
     assert_eq!(pr.built.omitted, vec![AiOmitted { path: ".env".into(), reason: AiOmitReason::Secret, size: 0 }]);
 
-    assert_eq!(section(prompt, TICKETS).as_deref(), Some("ABC-42 → https://firma.atlassian.net/browse/ABC-42\n#12 → https://github.com/octo/demo/issues/12"));
+    assert_eq!(
+        section(prompt, TICKETS).as_deref(),
+        Some("ABC-42 → https://firma.atlassian.net/browse/ABC-42\n#12 → https://github.com/octo/demo/issues/12")
+    );
     assert_eq!(pr.closes, vec![12]);
 
     assert_eq!(section(prompt, "Pull request template").as_deref(), Some(TEMPLATE.trim_end_matches('\n')));
@@ -294,7 +345,11 @@ async fn a_small_budget_lists_fewer_files_but_keeps_every_subject() {
     let settings = tc.settings().unwrap();
     let pr = build(&tc, &id, &settings, "refs/heads/viele-dateien", "refs/heads/main", 400, "en", &[]).await.unwrap();
     let prompt = &pr.built.prompt;
-    assert!(prompt.user.chars().count() <= (400.0 * crate::ai::context::CHARS_PER_TOKEN) as usize, "{} characters", prompt.user.chars().count());
+    assert!(
+        prompt.user.chars().count() <= (400.0 * crate::ai::context::CHARS_PER_TOKEN) as usize,
+        "{} characters",
+        prompt.user.chars().count()
+    );
 
     let numstat = repo.git(&["diff", "--numstat", "main", "viele-dateien"]);
     assert_eq!(numstat.lines().count(), 41, "fixture");
@@ -316,7 +371,10 @@ async fn a_small_budget_lists_fewer_files_but_keeps_every_subject() {
 
     let commits = section(prompt, COMMITS).unwrap();
     assert!(commits.contains("- Vierzig Dateien\n") && commits.contains("- Notiz ergänzt\n"), "every subject stays");
-    assert!(commits.contains("Zeile 12 der Beschreibung") && !commits.contains("Zeile 13 der Beschreibung"), "long messages are shortened to 12 lines first");
+    assert!(
+        commits.contains("Zeile 12 der Beschreibung") && !commits.contains("Zeile 13 der Beschreibung"),
+        "long messages are shortened to 12 lines first"
+    );
     assert!(commits.contains("  … (message shortened)"));
 }
 
@@ -385,7 +443,10 @@ const SOURCE: &str = "refs/heads/feature/auswertung";
 const TARGET: &str = "refs/heads/main";
 
 fn chat(content: &str) -> MockResponse {
-    MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}))
+    MockResponse::json(
+        200,
+        json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}),
+    )
 }
 
 /// Local stand-in for Ollama: answers the chat requests in turn (the last answer repeats).
@@ -415,7 +476,8 @@ fn untokened(text: &str) -> String {
 
 #[test]
 fn the_preview_input_of_a_pull_request_reads_and_writes_as_the_ui_sends_it() {
-    let input: AiInput = serde_json::from_value(json!({"kind": "pr_description", "source": SOURCE, "target": "refs/remotes/origin/main"})).unwrap();
+    let input: AiInput =
+        serde_json::from_value(json!({"kind": "pr_description", "source": SOURCE, "target": "refs/remotes/origin/main"})).unwrap();
     assert_eq!(input, AiInput::PrDescription { source: SOURCE.into(), target: "refs/remotes/origin/main".into() });
     assert_eq!(serde_json::to_value(AiInput::StagedChanges).unwrap(), json!({"kind": "staged_changes"}));
 }
@@ -425,7 +487,8 @@ async fn a_missing_template_heading_gets_one_repair_and_the_body_closes_the_host
     let repo = branch_repo();
     repo.write_file(".github/pull_request_template.md", TEMPLATE);
     let (tc, id) = opened(&repo).await;
-    let first = json!({"title": "Auswertung je Station", "body": "## Was ändert sich?\nDie Auswertung steht in einem eigenen Dokument.\n"}).to_string();
+    let first = json!({"title": "Auswertung je Station", "body": "## Was ändert sich?\nDie Auswertung steht in einem eigenen Dokument.\n"})
+        .to_string();
     let second = json!({
         "title": "Auswertung je Station",
         "body": "## Was ändert sich?\nDie Auswertung steht in einem eigenen Dokument.\n\n## Wie getestet?\n\n- [ ] Tests grün\n<!-- Bitte ausfüllen -->\n"
@@ -495,13 +558,18 @@ async fn the_preview_of_a_pull_request_description_works_while_ai_is_not_set_up(
 async fn the_request_sends_exactly_the_previewed_text() {
     let answer = json!({"title": "Auswertung je Station", "body": "Neu."}).to_string();
     let server = MockServer::start(move |_| {
-        MockResponse::json(200, json!({"content": [{"type": "text", "text": answer}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 40}}))
+        MockResponse::json(
+            200,
+            json!({"content": [{"type": "text", "text": answer}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 40}}),
+        )
     });
     let tc = TestCore::new().await;
     crate::ai::configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
     crate::secrets::set(&tc, "llm:anthropic", KEY).await.unwrap();
     // Ask before every request (any cost is above 0.00 USD): only the confirmed text may go out.
-    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiConfirmCostUsd": 0.0})).await.unwrap();
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiConfirmCostUsd": 0.0}))
+        .await
+        .unwrap();
     let repo = branch_repo();
     let id = tc.open(&repo).await.repo.id;
     let messages = |server: &MockServer| server.requests().into_iter().filter(|r| r.path().ends_with("/messages")).collect::<Vec<_>>();
@@ -513,7 +581,9 @@ async fn the_request_sends_exactly_the_previewed_text() {
     assert_eq!(write("f1").await.unwrap_err().code, ErrorCode::NotAllowed, "unconfirmed: nothing goes out");
     assert!(messages(&server).is_empty());
 
-    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::PrDescription, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::PrDescription, preview.fingerprint.clone(), preview.asks.clone(), false)
+        .await
+        .unwrap();
     let done = write("f2").await.unwrap();
     assert_eq!(done.body, "Neu.\n\nCloses #12");
     let sent = messages(&server);
@@ -528,11 +598,21 @@ async fn the_request_sends_exactly_the_previewed_text() {
     let input = AiInput::PrDescription { source: SOURCE.into(), target: TARGET.into() };
     let older = ai_preview(&tc, id.clone(), AiFeature::PrDescription, input, "de".into()).await.unwrap();
     assert_eq!(older.asks, vec![AiAskTrigger::Cost], "first use and this repository are remembered, the cost asks each time");
-    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::PrDescription, older.fingerprint.clone(), older.asks.clone(), false).await.unwrap();
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::PrDescription, older.fingerprint.clone(), older.asks.clone(), false)
+        .await
+        .unwrap();
     repo.commit_file("nachtrag.md", "Nachtrag\n", "Nachtrag zur Auswertung");
     assert_eq!(write("f3").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(messages(&server).len(), 1, "nothing was sent for the changed text");
-    let newer = ai_preview(&tc, id.clone(), AiFeature::PrDescription, AiInput::PrDescription { source: SOURCE.into(), target: TARGET.into() }, "de".into()).await.unwrap();
+    let newer = ai_preview(
+        &tc,
+        id.clone(),
+        AiFeature::PrDescription,
+        AiInput::PrDescription { source: SOURCE.into(), target: TARGET.into() },
+        "de".into(),
+    )
+    .await
+    .unwrap();
     assert_ne!(newer.fingerprint, older.fingerprint, "the new commit changed the text");
     assert!(newer.text.contains("- Nachtrag zur Auswertung\n"), "{}", newer.text);
 }

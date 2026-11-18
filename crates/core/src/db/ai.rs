@@ -114,7 +114,15 @@ mod tests {
     use crate::db::{repos, Db};
 
     fn usage<'a>(month: &'a str, provider: &'a str, feature: &'a str, input: u64, output: u64, micros: i64) -> NewUsage<'a> {
-        NewUsage { month, provider, model: "claude-sonnet-5-5", feature, input_tokens: input, output_tokens: output, cost_usd_micros: micros }
+        NewUsage {
+            month,
+            provider,
+            model: "claude-sonnet-5-5",
+            feature,
+            input_tokens: input,
+            output_tokens: output,
+            cost_usd_micros: micros,
+        }
     }
 
     #[test]

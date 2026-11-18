@@ -20,7 +20,12 @@ pub struct CompiledRules(Vec<(LinkRule, Regex)>);
 
 impl CompiledRules {
     pub fn new(rules: &[LinkRule]) -> Self {
-        CompiledRules(rules.iter().filter_map(|rule| RegexBuilder::new(&rule.pattern).unicode(false).build().ok().map(|regex| (rule.clone(), regex))).collect())
+        CompiledRules(
+            rules
+                .iter()
+                .filter_map(|rule| RegexBuilder::new(&rule.pattern).unicode(false).build().ok().map(|regex| (rule.clone(), regex)))
+                .collect(),
+        )
     }
 
     /// The references of `message` in text order, each address once, at most `MAX_REFS_PER_MESSAGE`.
@@ -102,7 +107,6 @@ pub fn number_of(reference: &ArchaeologyRef) -> Option<u64> {
     reference.text.trim_start_matches(['#', '!']).parse().ok()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -143,7 +147,11 @@ mod tests {
             rule("custom:lang", LinkRuleSource::Custom, r"#12-a", "https://never.example/$0"),
         ];
         let found = CompiledRules::new(&rules).find("Fix #12-a");
-        assert_eq!(shown(&found), vec![("#12", "https://intern.example/t/12", ArchaeologyRefKind::Ticket)], "own rule before host rule; the overlapping later match is skipped");
+        assert_eq!(
+            shown(&found),
+            vec![("#12", "https://intern.example/t/12", ArchaeologyRefKind::Ticket)],
+            "own rule before host rule; the overlapping later match is skipped"
+        );
     }
 
     #[test]
@@ -153,7 +161,10 @@ mod tests {
             rule("custom:bad", LinkRuleSource::Custom, r"bad:(\w+)", "javascript:alert('$1')"),
         ];
         let found = CompiledRules::new(&rules).find("siehe wiki:Größe/Übersicht und bad:xss");
-        assert_eq!(shown(&found), vec![("wiki:Größe/Übersicht", "https://wiki.example/seite/Gr%C3%B6%C3%9Fe%2F%C3%9Cbersicht", ArchaeologyRefKind::Ticket)]);
+        assert_eq!(
+            shown(&found),
+            vec![("wiki:Größe/Übersicht", "https://wiki.example/seite/Gr%C3%B6%C3%9Fe%2F%C3%9Cbersicht", ArchaeologyRefKind::Ticket)]
+        );
     }
 
     #[test]
@@ -161,12 +172,19 @@ mod tests {
         let rules = vec![rule("host:issue", LinkRuleSource::Host, r"#(\d+)\b", "https://h.example/issues/$1")];
         // JavaScript's `\b` sees no word character in “ä”, so `#12ä` links `#12` in the UI – here too.
         let found = CompiledRules::new(&rules).find("Größe #12ä und #٣");
-        assert_eq!(shown(&found), vec![("#12", "https://h.example/issues/12", ArchaeologyRefKind::Issue)], "Arabic-Indic digits are no `\\d`");
+        assert_eq!(
+            shown(&found),
+            vec![("#12", "https://h.example/issues/12", ArchaeologyRefKind::Issue)],
+            "Arabic-Indic digits are no `\\d`"
+        );
     }
 
     #[test]
     fn at_most_ten_references_and_broken_patterns_are_skipped() {
-        let rules = vec![rule("custom:broken", LinkRuleSource::Custom, r"(unclosed", "https://x.example/$0"), rule("host:issue", LinkRuleSource::Host, r"#(\d+)\b", "https://h.example/issues/$1")];
+        let rules = vec![
+            rule("custom:broken", LinkRuleSource::Custom, r"(unclosed", "https://x.example/$0"),
+            rule("host:issue", LinkRuleSource::Host, r"#(\d+)\b", "https://h.example/issues/$1"),
+        ];
         let message: String = (1..=15).map(|n| format!("#{n} ")).collect();
         let found = CompiledRules::new(&rules).find(&message);
         assert_eq!(found.len(), MAX_REFS_PER_MESSAGE);

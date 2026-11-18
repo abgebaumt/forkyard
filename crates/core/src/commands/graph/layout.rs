@@ -359,13 +359,7 @@ mod tests {
     #[test]
     fn freed_lanes_are_reused() {
         // Two branches one after the other: the second gets lane 1 again, with a new colour.
-        let rows = layout(&[
-            ("m2", &["m1", "y"]),
-            ("y", &["m1"]),
-            ("m1", &["a", "x"]),
-            ("x", &["a"]),
-            ("a", &[]),
-        ]);
+        let rows = layout(&[("m2", &["m1", "y"]), ("y", &["m1"]), ("m1", &["a", "x"]), ("x", &["a"]), ("a", &[])]);
         check_rows(&rows, true).unwrap();
         assert_eq!(rows.iter().map(|r| r.lane).collect::<Vec<_>>(), vec![0, 1, 0, 1, 0]);
         assert_ne!(rows[1].color, rows[3].color);
@@ -461,7 +455,8 @@ mod tests {
         // The next colour would be 8 ≡ 0; next to it is 7 – no conflict. Then 9 ≡ 1 and so on.
         let b = state.place("b", &["y".to_string()], false);
         assert_ne!(a.color % 8, b.color % 8);
-        let mut state = LayoutState { lanes: vec![Some(Lane { target: "x".into(), color: 3, dashed: false, side: false })], next_color: 11 };
+        let mut state =
+            LayoutState { lanes: vec![Some(Lane { target: "x".into(), color: 3, dashed: false, side: false })], next_color: 11 };
         let c = state.place("c", &["y".to_string()], false);
         assert_eq!(c.lane, 1);
         assert_eq!(c.color, 12, "11 ≡ 3 would look like the neighbouring lane");

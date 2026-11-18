@@ -39,7 +39,8 @@ fn pick(diff: &TextDiff, wanted: &[(&str, &str)]) -> PatchSelection {
     let mut hunks: Vec<HunkSelection> = Vec::new();
     for (sign, text) in wanted {
         let kind = if *sign == "+" { DiffLineKind::Add } else { DiffLineKind::Remove };
-        let found = diff.hunks.iter().find_map(|h| h.lines.iter().position(|l| l.kind == kind && l.text == *text).map(|p| (h.index, p as u32)));
+        let found =
+            diff.hunks.iter().find_map(|h| h.lines.iter().position(|l| l.kind == kind && l.text == *text).map(|p| (h.index, p as u32)));
         let (hunk, pos) = found.unwrap_or_else(|| panic!("line {sign}{text} missing in {:#?}", diff.hunks));
         match hunks.iter_mut().find(|h| h.index == hunk) {
             Some(sel) => sel.lines.get_or_insert_with(Vec::new).push(pos),
@@ -462,7 +463,8 @@ async fn stage_lines_with_autocrlf_input() {
     repo.write_file("f.txt", "a\r\nB\r\nc\r\nd\r\n");
     let (tc, id) = open(&repo).await;
     let diff = unstaged(&tc, &id, "f.txt").await;
-    let changed: Vec<&str> = diff.hunks.iter().flat_map(|h| &h.lines).filter(|l| l.kind != DiffLineKind::Context).map(|l| l.text.as_str()).collect();
+    let changed: Vec<&str> =
+        diff.hunks.iter().flat_map(|h| &h.lines).filter(|l| l.kind != DiffLineKind::Context).map(|l| l.text.as_str()).collect();
     assert_eq!(changed, vec!["b", "B", "d"]);
 
     stage_patch(&tc, id.clone(), pick(&diff, &[("+", "d")])).await.unwrap();
@@ -775,7 +777,8 @@ async fn stale_selection_is_rejected() {
 async fn a_patch_that_does_not_apply_is_stale_state() {
     let repo = TestRepo::with_commit();
     let (tc, id) = open(&repo).await;
-    let wrong_content = b"diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1,1 +1,1 @@\n-steht dort nicht\n+x\n".to_vec();
+    let wrong_content =
+        b"diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1,1 +1,1 @@\n-steht dort nicht\n+x\n".to_vec();
     let missing_file = b"diff --git a/fehlt.txt b/fehlt.txt\n--- a/fehlt.txt\n+++ b/fehlt.txt\n@@ -1,1 +1,1 @@\n-a\n+b\n".to_vec();
     for (cached, reverse) in [(true, false), (true, true), (false, true)] {
         let err = apply(&tc, &id, wrong_content.clone(), cached, reverse).await.unwrap_err();
@@ -797,7 +800,8 @@ async fn odd_selections() {
     let token = diff.token.clone().unwrap();
 
     // Only context lines or nothing selected: nothing happens.
-    let only_context = PatchSelection { path: "f.txt".into(), hunks: vec![HunkSelection { index: 0, lines: Some(vec![0]) }], expect: token.clone() };
+    let only_context =
+        PatchSelection { path: "f.txt".into(), hunks: vec![HunkSelection { index: 0, lines: Some(vec![0]) }], expect: token.clone() };
     let status = stage_patch(&tc, id.clone(), only_context).await.unwrap();
     assert!(status.staged.is_empty());
     let nothing = PatchSelection { path: "f.txt".into(), hunks: vec![], expect: token.clone() };
@@ -1297,7 +1301,8 @@ async fn all_subsets_agree(base: &str, work: &str) {
     let diff = unstaged(&tc, &id, "f.txt").await;
     assert_eq!(diff.hunks.len(), 1, "the case must fit into one hunk");
     let lines = diff.hunks[0].lines.clone();
-    let change_positions: Vec<u32> = lines.iter().enumerate().filter(|(_, l)| l.kind != DiffLineKind::Context).map(|(i, _)| i as u32).collect();
+    let change_positions: Vec<u32> =
+        lines.iter().enumerate().filter(|(_, l)| l.kind != DiffLineKind::Context).map(|(i, _)| i as u32).collect();
 
     for chosen in subsets(&change_positions) {
         let rest: Vec<u32> = change_positions.iter().copied().filter(|p| !chosen.contains(p)).collect();
@@ -1326,11 +1331,25 @@ async fn all_subsets_agree(base: &str, work: &str) {
 /// Builds and applies the patch of a selection – without status and backup, so that the
 /// many runs stay fast. The remaining tests check the commands themselves.
 #[allow(clippy::too_many_arguments)]
-async fn apply_directly(tc: &TestCore, id: &str, chosen: &[u32], staged_diff: bool, direction: Direction, cached: bool, expected: &[crate::model::DiffLine], label: &str) {
+async fn apply_directly(
+    tc: &TestCore,
+    id: &str,
+    chosen: &[u32],
+    staged_diff: bool,
+    direction: Direction,
+    cached: bool,
+    expected: &[crate::model::DiffLine],
+    label: &str,
+) {
     let diff = text_diff(tc, id, "f.txt", if staged_diff { DiffSource::Staged } else { DiffSource::Unstaged }).await;
     assert_eq!(diff.hunks[0].lines, expected, "{label}");
-    let selection = PatchSelection { path: "f.txt".into(), hunks: vec![HunkSelection { index: 0, lines: Some(chosen.to_vec()) }], expect: diff.token.expect("token") };
-    let patch = selected_patch(tc, id, &selection, staged_diff, direction).await.unwrap_or_else(|e| panic!("{label}: {e:?}")).expect("patch");
+    let selection = PatchSelection {
+        path: "f.txt".into(),
+        hunks: vec![HunkSelection { index: 0, lines: Some(chosen.to_vec()) }],
+        expect: diff.token.expect("token"),
+    };
+    let patch =
+        selected_patch(tc, id, &selection, staged_diff, direction).await.unwrap_or_else(|e| panic!("{label}: {e:?}")).expect("patch");
     apply(tc, id, patch.bytes, cached, direction == Direction::Reverse).await.unwrap_or_else(|e| panic!("{label}: {e:?}"));
 }
 
@@ -1528,7 +1547,10 @@ async fn discard_all_in_an_empty_repo() {
     let snapshot = entry.payload["worktreeSnapshot"].as_str().unwrap().to_string();
     assert_eq!(blob(&repo, &format!("{snapshot}:gestaged.txt")), b"1\n");
     assert_eq!(blob(&repo, &format!("{snapshot}:unverfolgt.txt")), b"2\n");
-    assert!(repo.git_output(&["rev-parse", "--verify", "-q", &format!("{snapshot}^1")]).stdout.is_empty(), "without a commit the backup has no HEAD parent");
+    assert!(
+        repo.git_output(&["rev-parse", "--verify", "-q", &format!("{snapshot}^1")]).stdout.is_empty(),
+        "without a commit the backup has no HEAD parent"
+    );
 }
 
 #[tokio::test]
@@ -1589,7 +1611,8 @@ async fn lines_during_a_merge_and_in_an_empty_repo() {
     let diff = unstaged(&tc, &id, "frei.txt").await;
     discard_patch(&tc, id.clone(), all_hunks(&diff)).await.unwrap();
     assert_eq!(repo.read_file("frei.txt"), b"x\neins\n");
-    let on_conflict = PatchSelection { path: "README.md".into(), hunks: vec![HunkSelection { index: 0, lines: None }], expect: "egal".into() };
+    let on_conflict =
+        PatchSelection { path: "README.md".into(), hunks: vec![HunkSelection { index: 0, lines: None }], expect: "egal".into() };
     assert_eq!(code_of(stage_patch(&tc, id.clone(), on_conflict.clone()).await), ErrorCode::Conflict);
     assert_eq!(code_of(discard_patch(&tc, id, on_conflict).await), ErrorCode::Conflict);
 
@@ -1729,7 +1752,10 @@ async fn file_restore_unknown_file_or_commit() {
     assert_eq!(repo.read_file("README.md"), b"# Lokal\n");
     assert!(repo.path().join("später.txt").exists());
 
-    assert_eq!(code_of(file_restore(&tc, id.clone(), "0123456789abcdef0123456789abcdef01234567".into(), strings(&["README.md"])).await), ErrorCode::NotFound);
+    assert_eq!(
+        code_of(file_restore(&tc, id.clone(), "0123456789abcdef0123456789abcdef01234567".into(), strings(&["README.md"])).await),
+        ErrorCode::NotFound
+    );
     assert_eq!(code_of(file_restore(&tc, id.clone(), "--all".into(), strings(&["README.md"])).await), ErrorCode::NotFound);
     // Without paths nothing happens.
     assert!(file_restore(&tc, id, first, vec![]).await.is_ok());

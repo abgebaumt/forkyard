@@ -167,14 +167,35 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
 
         let global = signing_status(&tc, None).await.unwrap();
-        assert_eq!(global, SigningStatus { enabled: false, format: None, key: Some("GLOBAL1234".into()), program: Some("C:/gpg/gpg.exe".into()), allowed_signers_file: None });
+        assert_eq!(
+            global,
+            SigningStatus {
+                enabled: false,
+                format: None,
+                key: Some("GLOBAL1234".into()),
+                program: Some("C:/gpg/gpg.exe".into()),
+                allowed_signers_file: None
+            }
+        );
         let local = signing_status(&tc, Some(id.clone())).await.unwrap();
         assert_eq!(local, global, "the repository uses the global values as long as it has none of its own");
 
         // Set in the repository: only its configuration changes.
         tc.events.clear();
-        let set = signing_set(&tc, Some(id.clone()), Some(true), Some(SigningFormat::Ssh), Some("  ~/.ssh/id_ed25519.pub ".into()), None, None).await.unwrap();
-        assert_eq!(set, SigningStatus { enabled: true, format: Some(SigningFormat::Ssh), key: Some("~/.ssh/id_ed25519.pub".into()), program: None, allowed_signers_file: None });
+        let set =
+            signing_set(&tc, Some(id.clone()), Some(true), Some(SigningFormat::Ssh), Some("  ~/.ssh/id_ed25519.pub ".into()), None, None)
+                .await
+                .unwrap();
+        assert_eq!(
+            set,
+            SigningStatus {
+                enabled: true,
+                format: Some(SigningFormat::Ssh),
+                key: Some("~/.ssh/id_ed25519.pub".into()),
+                program: None,
+                allowed_signers_file: None
+            }
+        );
         assert_eq!(repo.git(&["config", "--local", "--get", "commit.gpgsign"]), "true");
         assert_eq!(repo.git(&["config", "--local", "--get", "gpg.format"]), "ssh");
         assert_eq!(tc.events.named(names::REPO_CHANGED)[0]["what"], serde_json::json!(["config"]));
@@ -184,7 +205,16 @@ mod tests {
 
         // Remove format and key in the repository: the global ones apply again.
         let cleared = signing_set(&tc, Some(id.clone()), Some(false), None, None, None, None).await.unwrap();
-        assert_eq!(cleared, SigningStatus { enabled: false, format: None, key: Some("GLOBAL1234".into()), program: Some("C:/gpg/gpg.exe".into()), allowed_signers_file: None });
+        assert_eq!(
+            cleared,
+            SigningStatus {
+                enabled: false,
+                format: None,
+                key: Some("GLOBAL1234".into()),
+                program: Some("C:/gpg/gpg.exe".into()),
+                allowed_signers_file: None
+            }
+        );
         assert!(!repo.git_output(&["config", "--local", "--get", "gpg.format"]).status.success());
         // Nothing set, remove again: no error.
         signing_set(&tc, Some(id.clone()), Some(false), None, None, None, None).await.unwrap();
@@ -200,9 +230,15 @@ mod tests {
         let effective = signing_status(&tc, Some(id.clone())).await.unwrap();
         assert_eq!((effective.enabled, effective.format, effective.key.as_deref()), (false, Some(SigningFormat::X509), Some("ZERT-1")));
 
-        assert_eq!(signing_set(&tc, Some(id.clone()), Some(true), None, Some("a\nb".into()), None, None).await.unwrap_err().code, ErrorCode::NotAllowed);
+        assert_eq!(
+            signing_set(&tc, Some(id.clone()), Some(true), None, Some("a\nb".into()), None, None).await.unwrap_err().code,
+            ErrorCode::NotAllowed
+        );
         assert_eq!(signing_status(&tc, Some("unbekannt".into())).await.unwrap_err().code, ErrorCode::NotFound);
-        assert_eq!(signing_set(&tc, Some("unbekannt".into()), Some(true), None, None, None, None).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(
+            signing_set(&tc, Some("unbekannt".into()), Some(true), None, None, None, None).await.unwrap_err().code,
+            ErrorCode::NotFound
+        );
     }
 
     /// A signing key that is gone is a signing problem, not "changed outside the app".
@@ -215,9 +251,20 @@ mod tests {
         signing_set(&tc, Some(id.clone()), Some(true), Some(SigningFormat::Ssh), Some(missing.clone()), None, None).await.unwrap();
         let before = repo.head();
         repo.write_file("a.txt", "kann nicht signiert werden\n");
-        let error = crate::commands::commit::commit_create(&tc, id.clone(), "op-ohne-schluessel".into(), "Ohne Schlüssel".into(), String::new(), false, false, false, true, None)
-            .await
-            .unwrap_err();
+        let error = crate::commands::commit::commit_create(
+            &tc,
+            id.clone(),
+            "op-ohne-schluessel".into(),
+            "Ohne Schlüssel".into(),
+            String::new(),
+            false,
+            false,
+            false,
+            true,
+            None,
+        )
+        .await
+        .unwrap_err();
         assert_eq!(error.code, ErrorCode::SigningFailed, "{error:?}");
         assert!(error.message.contains("sign") && error.message.contains("id_weg.pub"), "{}", error.message);
         assert_eq!(repo.head(), before, "no commit was created");
@@ -236,25 +283,48 @@ mod tests {
         };
         let keys = tempfile::tempdir().unwrap();
         let key = keys.path().join("signier-schlüssel");
-        let made = std::process::Command::new(&keygen).args(["-q", "-t", "ed25519", "-N", "", "-C", "test", "-f"]).arg(&key).output().unwrap();
+        let made =
+            std::process::Command::new(&keygen).args(["-q", "-t", "ed25519", "-N", "", "-C", "test", "-f"]).arg(&key).output().unwrap();
         assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
         let public = format!("{}.pub", key.to_string_lossy().replace('\\', "/"));
         repo.git(&["config", "gpg.ssh.program", &keygen.to_string_lossy().replace('\\', "/")]);
 
         signing_set(&tc, Some(id.clone()), Some(true), Some(SigningFormat::Ssh), Some(public), None, None).await.unwrap();
         repo.write_file("a.txt", "signiert\n");
-        let result = crate::commands::commit::commit_create(&tc, id.clone(), "op-signiert".into(), "Signierter Commit".into(), String::new(), false, false, false, true, None)
-            .await
-            .unwrap();
+        let result = crate::commands::commit::commit_create(
+            &tc,
+            id.clone(),
+            "op-signiert".into(),
+            "Signierter Commit".into(),
+            String::new(),
+            false,
+            false,
+            false,
+            true,
+            None,
+        )
+        .await
+        .unwrap();
         let raw = repo.git(&["cat-file", "commit", &result.sha]);
         assert!(raw.contains("gpgsig -----BEGIN SSH SIGNATURE-----"), "{raw}");
 
         // Turned off: the next commit has no signature. The app's backup commits never do.
         signing_set(&tc, Some(id.clone()), Some(false), Some(SigningFormat::Ssh), None, None, None).await.unwrap();
         repo.write_file("a.txt", "unsigniert\n");
-        let result = crate::commands::commit::commit_create(&tc, id.clone(), "op-unsigniert".into(), "Ohne Signatur".into(), String::new(), false, false, false, true, None)
-            .await
-            .unwrap();
+        let result = crate::commands::commit::commit_create(
+            &tc,
+            id.clone(),
+            "op-unsigniert".into(),
+            "Ohne Signatur".into(),
+            String::new(),
+            false,
+            false,
+            false,
+            true,
+            None,
+        )
+        .await
+        .unwrap();
         assert!(!repo.git(&["cat-file", "commit", &result.sha]).contains("gpgsig"));
     }
 }

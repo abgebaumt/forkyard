@@ -18,7 +18,10 @@ use super::machine::{Cue, Event, Machine};
 use super::templates::TemplateDef;
 use crate::app::Core;
 use crate::commands::terminal::{self, ProgramLaunch, TerminalObserver, TerminalSignal};
-use crate::db::{self, agents::{AgentRow, EndReason}};
+use crate::db::{
+    self,
+    agents::{AgentRow, EndReason},
+};
 use crate::error::{CoreError, CoreResult};
 use crate::events::names;
 use crate::git::redact;
@@ -165,7 +168,13 @@ impl AgentRegistry {
         }
         tests.insert(
             agent_id.to_string(),
-            AgentTestResult { state: AgentTestState::Running, exit_code: None, output: String::new(), started_at: started_at.to_string(), finished_at: None },
+            AgentTestResult {
+                state: AgentTestState::Running,
+                exit_code: None,
+                output: String::new(),
+                started_at: started_at.to_string(),
+                finished_at: None,
+            },
         );
         true
     }
@@ -253,7 +262,15 @@ fn io_error(what: &str, e: std::io::Error) -> CoreError {
 }
 
 /// Starts (or resumes) the agent's program in its worktree and registers the session.
-pub(crate) async fn spawn_session(core: &Core, row: &AgentRow, def: &TemplateDef, program: &Path, resume: bool, cols: u16, rows: u16) -> CoreResult<Arc<Session>> {
+pub(crate) async fn spawn_session(
+    core: &Core,
+    row: &AgentRow,
+    def: &TemplateDef,
+    program: &Path,
+    resume: bool,
+    cols: u16,
+    rows: u16,
+) -> CoreResult<Arc<Session>> {
     let worktree = PathBuf::from(&row.worktree_path);
     let files = core.data_dir().join("agents").join(&row.id);
     util::create_private_dir(&files).map_err(|e| io_error("The agent's folder in the data directory could not be created", e))?;
@@ -281,7 +298,8 @@ pub(crate) async fn spawn_session(core: &Core, row: &AgentRow, def: &TemplateDef
             util::write_file_atomic(&task_file, row.task.as_bytes()).map_err(|e| io_error("The task file could not be written", e))?;
         }
         if let Some(json) = &launch.settings_json {
-            util::write_file_atomic(&settings_file, json.as_bytes()).map_err(|e| io_error("The agent's settings could not be written", e))?;
+            util::write_file_atomic(&settings_file, json.as_bytes())
+                .map_err(|e| io_error("The agent's settings could not be written", e))?;
         }
         Ok(launch)
     });
@@ -300,7 +318,13 @@ pub(crate) async fn spawn_session(core: &Core, row: &AgentRow, def: &TemplateDef
     if let Some(path) = crate::tools::locate::login_shell_path(core).await {
         env.push(("PATH".into(), path));
     }
-    let spec = ProgramLaunch { program: launch.program.clone(), args: launch.args.clone(), cwd: worktree.clone(), env, title: row.short_name.clone() };
+    let spec = ProgramLaunch {
+        program: launch.program.clone(),
+        args: launch.args.clone(),
+        cwd: worktree.clone(),
+        env,
+        title: row.short_name.clone(),
+    };
     let terminal_id = match terminal::terminal_open_program(core, &row.repo_id, spec, cols, rows, Some(observer)).await {
         Ok(id) => id,
         Err(e) => {
@@ -442,7 +466,16 @@ mod tests {
         assert!(registry.try_begin_test("a1", "2026-10-16T08:00:00.000Z"));
         assert!(!registry.try_begin_test("a1", "2026-10-16T08:00:00.001Z"), "the second done report starts nothing");
         assert!(registry.try_begin_test("a2", "2026-10-16T08:00:00.002Z"), "another agent is independent");
-        registry.set_test("a1", AgentTestResult { state: AgentTestState::Passed, exit_code: Some(0), output: String::new(), started_at: "x".into(), finished_at: Some("y".into()) });
+        registry.set_test(
+            "a1",
+            AgentTestResult {
+                state: AgentTestState::Passed,
+                exit_code: Some(0),
+                output: String::new(),
+                started_at: "x".into(),
+                finished_at: Some("y".into()),
+            },
+        );
         assert!(registry.try_begin_test("a1", "2026-10-16T08:05:00.000Z"), "after the run ended a new one may start");
     }
 }

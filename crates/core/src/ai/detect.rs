@@ -21,7 +21,8 @@ pub const DETECT_BUDGET: Duration = Duration::from_secs(2);
 const MIN_PROBE: Duration = Duration::from_millis(300);
 /// Spec 1.3: local services with `quick(300 ms, 0)`.
 const LOCAL_LIMIT: Duration = Duration::from_millis(300);
-const KEY_PROVIDERS: [AiProviderKind; 4] = [AiProviderKind::Anthropic, AiProviderKind::Openai, AiProviderKind::OpenaiCompatible, AiProviderKind::Gemini];
+const KEY_PROVIDERS: [AiProviderKind; 4] =
+    [AiProviderKind::Anthropic, AiProviderKind::Openai, AiProviderKind::OpenaiCompatible, AiProviderKind::Gemini];
 
 pub async fn detect(core: &Core) -> CoreResult<AiDetection> {
     let started = Instant::now();
@@ -33,7 +34,12 @@ pub async fn detect(core: &Core) -> CoreResult<AiDetection> {
         detect_local(core),
         stored_keys(core),
     );
-    Ok(AiDetection { clis: [claude, codex, opencode].into_iter().flatten().collect(), local, keys, elapsed_ms: started.elapsed().as_millis() as u64 })
+    Ok(AiDetection {
+        clis: [claude, codex, opencode].into_iter().flatten().collect(),
+        local,
+        keys,
+        elapsed_ms: started.elapsed().as_millis() as u64,
+    })
 }
 
 async fn detect_cli(core: &Core, kind: AiProviderKind, settings: &Settings, started: Instant) -> Option<AiCliFound> {
@@ -57,7 +63,8 @@ async fn detect_cli(core: &Core, kind: AiProviderKind, settings: &Settings, star
         log::warn!("Found {} not remembered: {}", kind.label(), e.message);
     }
     let left = DETECT_BUDGET.saturating_sub(started.elapsed()).max(MIN_PROBE);
-    let (caps, login) = tokio::join!(cli::caps(core, kind, &info.path, info.version.as_deref(), left), cli::login_status(core, kind, &info.path, left));
+    let (caps, login) =
+        tokio::join!(cli::caps(core, kind, &info.path, info.version.as_deref(), left), cli::login_status(core, kind, &info.path, left));
     Some(AiCliFound {
         provider: kind,
         path: info.path.to_string_lossy().into_owned(),
@@ -88,7 +95,14 @@ async fn probe_local(core: &Core, kind: AiProviderKind) -> Option<AiLocalFound> 
     }
     let value: Value = serde_json::from_slice(&response.body).ok()?;
     let (list, field) = if kind == AiProviderKind::Ollama { ("models", "name") } else { ("data", "id") };
-    let models = value.get(list).and_then(Value::as_array).into_iter().flatten().filter_map(|entry| entry.get(field).and_then(Value::as_str)).map(str::to_string).collect();
+    let models = value
+        .get(list)
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|entry| entry.get(field).and_then(Value::as_str))
+        .map(str::to_string)
+        .collect();
     Some(AiLocalFound { provider: kind, base_url: base, models })
 }
 

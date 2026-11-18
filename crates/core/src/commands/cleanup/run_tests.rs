@@ -140,7 +140,8 @@ async fn assert_waits_for(tc: &TestCore, repo: &TestRepo, id: &str, guard: Write
     assert!(!running.is_finished(), "the run did not wait for the {what}");
     assert_eq!(git_count_objects(repo)["count"], loose, "nothing was packed while the {what} is held");
     drop(guard);
-    let result = tokio::time::timeout(Duration::from_secs(60), running).await.expect("the run ends once the lock is free").unwrap().unwrap();
+    let result =
+        tokio::time::timeout(Duration::from_secs(60), running).await.expect("the run ends once the lock is free").unwrap().unwrap();
     assert_eq!(status_of(&result, CleanupStep::Gc), CleanupStepStatus::Done);
 }
 
@@ -188,7 +189,10 @@ async fn an_untrusted_repository_and_bad_options_are_refused_before_any_job() {
     let too_long = CleanupOptions { undo_older_than_days: Some(3651), ..only_gc(CleanupMode::Normal) };
     assert_eq!(repo_cleanup_run(&tc, id.clone(), "job-b".into(), too_long).await.unwrap_err().code, ErrorCode::NotAllowed);
     tc.db.with(|c| crate::db::repos::set_trusted(c, &id, false)).unwrap();
-    assert_eq!(repo_cleanup_run(&tc, id.clone(), "job-c".into(), only_gc(CleanupMode::Normal)).await.unwrap_err().code, ErrorCode::RepoUntrusted);
+    assert_eq!(
+        repo_cleanup_run(&tc, id.clone(), "job-c".into(), only_gc(CleanupMode::Normal)).await.unwrap_err().code,
+        ErrorCode::RepoUntrusted
+    );
     assert_eq!(repo_cleanup_preview(&tc, id.clone()).await.unwrap_err().code, ErrorCode::RepoUntrusted);
     assert!(tc.events.named(names::JOB_DONE).is_empty(), "no job was started");
 }
@@ -199,9 +203,14 @@ async fn the_job_reports_waiting_each_step_and_done() {
     repo.commit_file("lose.txt", "lose\n", "Lose Objekte");
     tc.events.clear();
     run_cleanup(&tc, &id, CleanupOptions { reflog: true, ..only_gc(CleanupMode::Normal) }).await.unwrap();
-    let lines: Vec<String> = tc.events.named(names::JOB_PROGRESS).iter().map(|event| event["line"].as_str().unwrap_or_default().to_string()).collect();
+    let lines: Vec<String> =
+        tc.events.named(names::JOB_PROGRESS).iter().map(|event| event["line"].as_str().unwrap_or_default().to_string()).collect();
     assert_eq!(lines, ["waiting", "reflog", "gc"]);
     let done = tc.events.named(names::JOB_DONE);
     assert_eq!((done.len(), done[0]["ok"].as_bool()), (1, Some(true)));
-    assert!(tc.events.named(names::REPO_CHANGED).iter().any(|event| event["repoId"] == id.as_str() && event["what"] == serde_json::json!(["refs"])));
+    assert!(tc
+        .events
+        .named(names::REPO_CHANGED)
+        .iter()
+        .any(|event| event["repoId"] == id.as_str() && event["what"] == serde_json::json!(["refs"])));
 }

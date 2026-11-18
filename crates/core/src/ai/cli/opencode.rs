@@ -58,7 +58,8 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
 
 /// The command line; the configuration goes through `CONFIG_ENV`, the prompt through stdin.
 pub fn args(dir: &std::path::Path, model: Option<&str>) -> Vec<std::ffi::OsString> {
-    let mut args: Vec<std::ffi::OsString> = vec!["run".into(), "--dir".into(), dir.into(), "--pure".into(), "--format".into(), "json".into()];
+    let mut args: Vec<std::ffi::OsString> =
+        vec!["run".into(), "--dir".into(), dir.into(), "--pure".into(), "--format".into(), "json".into()];
     if let Some(model) = model {
         args.push("-m".into());
         args.push(model.into());
@@ -87,7 +88,11 @@ pub fn parse_answer(out: &ProcOutput) -> crate::error::CoreResult<super::CliAnsw
             }
             Some("error") => {
                 let name = event.pointer("/error/name").and_then(Value::as_str).unwrap_or_default();
-                let message = event.pointer("/error/data/message").or_else(|| event.pointer("/error/message")).and_then(Value::as_str).unwrap_or_default();
+                let message = event
+                    .pointer("/error/data/message")
+                    .or_else(|| event.pointer("/error/message"))
+                    .and_then(Value::as_str)
+                    .unwrap_or_default();
                 errors.push(format!("{name}: {message}"));
             }
             _ => {}

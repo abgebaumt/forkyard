@@ -25,7 +25,9 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use super::layout::{LayoutState, Placed};
-use super::{display_text, is_full_sha, parse_i64, read_cmd, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE};
+use super::{
+    display_text, is_full_sha, parse_i64, read_cmd, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE,
+};
 use crate::app::Core;
 use crate::commands::status;
 use crate::db;
@@ -119,8 +121,8 @@ pub(crate) fn build_plan(refs: Vec<RefTip>, head_sha: Option<String>, stashes: V
 
     // Solo only applies if at least one of the refs still exists – otherwise the graph would stay
     // empty without the UI being able to offer the deleted ref for switching off.
-    let solo = refs.iter().any(|r| solo_names.contains(r.label.full_name.as_str()))
-        || (solo_names.contains(STASH_REF) && !stashes.is_empty());
+    let solo =
+        refs.iter().any(|r| solo_names.contains(r.label.full_name.as_str())) || (solo_names.contains(STASH_REF) && !stashes.is_empty());
 
     let mut tips: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
@@ -351,7 +353,15 @@ pub(super) enum Collapse {
 /// first (`rev-list M^2 --not M^1`). What a ref, starting point or stash reaches without passing
 /// through the merge stays out – a branch that went on past the merged commits keeps them all. More
 /// than `max`: `TooLarge`.
-pub(super) async fn collapse_for(core: &Core, path: &Path, repo_id: &str, plan: &Plan, merge: &str, parents: &[String], max: usize) -> CoreResult<Collapse> {
+pub(super) async fn collapse_for(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    plan: &Plan,
+    merge: &str,
+    parents: &[String],
+    max: usize,
+) -> CoreResult<Collapse> {
     let Some((first, side)) = parents.split_first() else {
         return Ok(Collapse::Hide { count: 0, hidden_parents: Vec::new() });
     };
@@ -437,7 +447,15 @@ async fn ref_tips(core: &Core, path: &Path, repo_id: &str, filters: &[String]) -
 }
 
 /// `git rev-list <side…> --not <first> <kept…>`, at most `max + 1` commits.
-async fn side_commits(core: &Core, path: &Path, repo_id: &str, first: &str, side: &[String], kept: &[String], max: usize) -> CoreResult<Vec<String>> {
+async fn side_commits(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    first: &str,
+    side: &[String],
+    kept: &[String],
+    max: usize,
+) -> CoreResult<Vec<String>> {
     let mut stdin = String::with_capacity((side.len() + kept.len() + 1) * 42);
     for sha in side {
         stdin.push_str(sha);
@@ -616,7 +634,9 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
                 }
                 consumed += 1;
                 let collapse = match builder.wants_collapse(&fields) {
-                    Some(parents) => Some(collapse_for(core, &path, repo_id, &plan, &util::decode_lossy(&fields[0]), &parents, MAX_COLLAPSE).await?),
+                    Some(parents) => {
+                        Some(collapse_for(core, &path, repo_id, &plan, &util::decode_lossy(&fields[0]), &parents, MAX_COLLAPSE).await?)
+                    }
                     None => None,
                 };
                 builder.commit(&fields, collapse);
@@ -642,7 +662,8 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
 /// Number of changed files (staged, unstaged, untracked, conflicts; once per path).
 /// If `git status` fails, the graph still shows the history – `status_get` reports the error.
 async fn changed_file_count(core: &Core, path: &Path, repo_id: &str) -> u32 {
-    let out = read_cmd(core, path, repo_id).args(["status", "--porcelain=v2", "-z", "--untracked-files=all", "--find-renames"]).run_raw().await;
+    let out =
+        read_cmd(core, path, repo_id).args(["status", "--porcelain=v2", "-z", "--untracked-files=all", "--find-renames"]).run_raw().await;
     match out {
         Ok(out) if out.success() => status::parse_porcelain_v2(&out.stdout).entries.len() as u32,
         _ => 0,
@@ -720,7 +741,8 @@ mod tests {
 
     #[test]
     fn hidden_refs_are_neither_start_points_nor_labels() {
-        let view = RepoViewState { hidden_refs: vec!["refs/heads/feature".into(), "refs/tags/v1".into(), STASH_REF.into()], ..Default::default() };
+        let view =
+            RepoViewState { hidden_refs: vec!["refs/heads/feature".into(), "refs/tags/v1".into(), STASH_REF.into()], ..Default::default() };
         let plan = build_plan(refs(), head(), vec![stash(0, "s0", "old")], &view);
         assert_eq!(plan.tips, vec!["m1", "m0"]);
         assert!(!plan.labels.contains_key("f1"));
@@ -803,11 +825,26 @@ mod tests {
     }
 
     fn record(sha: &str, parents: &str) -> Vec<Vec<u8>> {
-        vec![sha.as_bytes().to_vec(), parents.as_bytes().to_vec(), b"Test".to_vec(), b"t@example.com".to_vec(), b"0".to_vec(), sha.as_bytes().to_vec()]
+        vec![
+            sha.as_bytes().to_vec(),
+            parents.as_bytes().to_vec(),
+            b"Test".to_vec(),
+            b"t@example.com".to_vec(),
+            b"0".to_vec(),
+            sha.as_bytes().to_vec(),
+        ]
     }
 
     fn builder(plan: &Plan) -> PageBuilder<'_> {
-        PageBuilder { plan, state: LayoutState::new(), rows: Vec::new(), max_lane: 0, commits: 0, hidden: HashSet::new(), sync: SyncSets::default() }
+        PageBuilder {
+            plan,
+            state: LayoutState::new(),
+            rows: Vec::new(),
+            max_lane: 0,
+            commits: 0,
+            hidden: HashSet::new(),
+            sync: SyncSets::default(),
+        }
     }
 
     fn row_ids<'a>(b: &'a PageBuilder<'_>) -> Vec<&'a str> {

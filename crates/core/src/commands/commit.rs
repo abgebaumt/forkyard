@@ -73,9 +73,15 @@ pub async fn commit_create(
 ) -> CoreResult<CommitResult> {
     core.idempotent(&op_id, async {
         let message = build_message(&summary, &description)?;
-        let request = CommitRequest { summary: summary.trim(), message: &message, amend, skip_hooks, stage_all, expected_head: expected_head.as_deref() };
-        let (mut result, branch) =
-            core.with_write_lock(&repo_id, &COMMIT_CHANGES, commit_locked(core, &repo_id, &request)).await?;
+        let request = CommitRequest {
+            summary: summary.trim(),
+            message: &message,
+            amend,
+            skip_hooks,
+            stage_all,
+            expected_head: expected_head.as_deref(),
+        };
+        let (mut result, branch) = core.with_write_lock(&repo_id, &COMMIT_CHANGES, commit_locked(core, &repo_id, &request)).await?;
         if push_after {
             // Outside the write lock: push takes it itself. The commit stays valid even if the
             // push fails.
@@ -93,7 +99,13 @@ pub async fn commit_create(
 /// Changes the message of the last commit without touching the index. `sha`: the commit whose
 /// message the UI showed for editing; if HEAD is a different one by now, nothing is changed
 /// (`stale_state`).
-pub async fn commit_reword(core: &Core, repo_id: String, summary: String, description: String, sha: Option<String>) -> CoreResult<CommitResult> {
+pub async fn commit_reword(
+    core: &Core,
+    repo_id: String,
+    summary: String,
+    description: String,
+    sha: Option<String>,
+) -> CoreResult<CommitResult> {
     let message = build_message(&summary, &description)?;
     core.with_write_lock(&repo_id, &[RepoChange::Refs, RepoChange::Head], async {
         let status = read_status(core, &repo_id).await?;
@@ -191,11 +203,7 @@ async fn commit_locked(core: &Core, repo_id: &str, req: &CommitRequest<'_>) -> C
         !status.staged.is_empty()
     };
     if !has_staged && !req.amend && !merging {
-        let message = if req.stage_all {
-            "There are no changes to commit."
-        } else {
-            "Nothing is staged. Stage some changes first."
-        };
+        let message = if req.stage_all { "There are no changes to commit." } else { "Nothing is staged. Stage some changes first." };
         return Err(CoreError::new(ErrorCode::NothingToCommit, message));
     }
 
@@ -232,11 +240,7 @@ async fn commit_locked(core: &Core, repo_id: &str, req: &CommitRequest<'_>) -> C
 
     let head = head_label(&status.head);
     let on_branch = branch.is_some();
-    let label = if req.amend {
-        format!("Undo amend of {}", quoted(req.summary))
-    } else {
-        format!("Undo commit {}", quoted(req.summary))
-    };
+    let label = if req.amend { format!("Undo amend of {}", quoted(req.summary)) } else { format!("Undo commit {}", quoted(req.summary)) };
     undo::record(
         core,
         UndoRecord {
@@ -262,10 +266,7 @@ pub(crate) fn build_message(summary: &str, description: &str) -> CoreResult<Stri
     let summary = summary.replace("\r\n", "\n");
     let summary = summary.trim();
     if summary.is_empty() {
-        return Err(CoreError::new(
-            ErrorCode::EmptyMessage,
-            "The commit message is empty. Enter a summary.",
-        ));
+        return Err(CoreError::new(ErrorCode::EmptyMessage, "The commit message is empty. Enter a summary."));
     }
     let description = description.replace("\r\n", "\n");
     let description = description.trim_end().trim_start_matches('\n');
@@ -381,7 +382,13 @@ pub(crate) async fn run_commit(core: &Core, repo_id: &str, args: &[&str], messag
 
 /// `run_commit` on another index file (`GIT_INDEX_FILE`): "Compose commits" builds every commit
 /// on a temporary index; hooks see that index, as with `git commit <paths>` in the terminal.
-pub(crate) async fn run_commit_on(core: &Core, repo_id: &str, args: &[&str], message: &str, index_file: Option<&Path>) -> CoreResult<Vec<HookOutput>> {
+pub(crate) async fn run_commit_on(
+    core: &Core,
+    repo_id: &str,
+    args: &[&str],
+    message: &str,
+    index_file: Option<&Path>,
+) -> CoreResult<Vec<HookOutput>> {
     let capture = Hooks::start(core, repo_id).await;
     let mut cmd = capture.wrap(core.git_for(repo_id)?);
     if let Some(index) = index_file {
@@ -437,10 +444,7 @@ impl Hooks {
         let Some(capture) = &self.0 else { return cmd };
         let mut hooks_path = OsString::from("core.hooksPath=");
         hooks_path.push(shell_path(&capture.wrap));
-        cmd.arg("-c")
-            .arg(hooks_path)
-            .env(ENV_HOOK_REAL, shell_path(&capture.real))
-            .env(ENV_HOOK_LOG, shell_path(&capture.log))
+        cmd.arg("-c").arg(hooks_path).env(ENV_HOOK_REAL, shell_path(&capture.real)).env(ENV_HOOK_LOG, shell_path(&capture.log))
     }
 
     /// Reads the output, removes the folder and reports `hook:output` per hook.
@@ -449,7 +453,12 @@ impl Hooks {
         for hook in &hooks {
             core.emit(
                 names::HOOK_OUTPUT,
-                &HookOutputEvent { repo_id: repo_id.to_string(), hook: hook.hook.clone(), output: hook.output.clone(), exit_code: hook.exit_code },
+                &HookOutputEvent {
+                    repo_id: repo_id.to_string(),
+                    hook: hook.hook.clone(),
+                    output: hook.output.clone(),
+                    exit_code: hook.exit_code,
+                },
             );
         }
         hooks
@@ -463,7 +472,8 @@ pub(crate) fn cleanup_hook_dirs(data_dir: &Path, older_than: std::time::Duration
     let Ok(entries) = std::fs::read_dir(data_dir.join(HOOKS_TMP_DIR)) else { return 0 };
     let mut removed = 0;
     for entry in entries.flatten() {
-        let old_enough = entry.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age >= older_than);
+        let old_enough =
+            entry.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age >= older_than);
         if old_enough && std::fs::remove_dir_all(entry.path()).is_ok() {
             removed += 1;
         }
@@ -549,7 +559,9 @@ async fn write_wrappers(wrap: &Path, names: &[String]) -> CoreResult<()> {
         .run(&crate::jobs::CancelToken::new())
         .await?;
     if !out.success() {
-        return Err(CoreError::unknown("The hook wrappers could not be written.").with_git_output(util::decode_lossy(&out.stderr).trim_end()));
+        return Err(
+            CoreError::unknown("The hook wrappers could not be written.").with_git_output(util::decode_lossy(&out.stderr).trim_end())
+        );
     }
     for path in &paths {
         make_executable(path)?;
@@ -639,7 +651,14 @@ mod tests {
         commit_create(tc, id.to_string(), util::new_id(), summary.into(), description.into(), false, false, false, false, None).await
     }
 
-    async fn commit_with(tc: &TestCore, id: &str, summary: &str, amend: bool, skip_hooks: bool, stage_all: bool) -> CoreResult<CommitResult> {
+    async fn commit_with(
+        tc: &TestCore,
+        id: &str,
+        summary: &str,
+        amend: bool,
+        skip_hooks: bool,
+        stage_all: bool,
+    ) -> CoreResult<CommitResult> {
         commit_create(tc, id.to_string(), util::new_id(), summary.into(), String::new(), amend, skip_hooks, false, stage_all, None).await
     }
 
@@ -758,10 +777,7 @@ mod tests {
         let mut names: Vec<String> =
             repo.git(&["show", "--name-status", "--format=", "-z", "HEAD"]).split('\0').map(str::to_string).collect();
         names.retain(|n| !n.is_empty());
-        assert_eq!(
-            names,
-            vec!["M", "README.md", "D", "alt.txt", "A", "mit leerzeichen/Größe übersicht.txt", "A", "ohne-umbruch.txt"]
-        );
+        assert_eq!(names, vec!["M", "README.md", "D", "alt.txt", "A", "mit leerzeichen/Größe übersicht.txt", "A", "ohne-umbruch.txt"]);
         // Byte-exact: CRLF stays CRLF, a missing line ending stays missing.
         let crlf = repo.git_output(&["cat-file", "blob", "HEAD:mit leerzeichen/Größe übersicht.txt"]).stdout;
         assert_eq!(crlf, b"Zeile 1\r\nZeile 2\r\n");
@@ -1034,7 +1050,8 @@ mod tests {
         repo.git(&["add", "-A"]);
         let id = tc.open(&repo).await.repo.id;
         let op = "op-1".to_string();
-        let first = commit_create(&tc, id.clone(), op.clone(), "Einmal".into(), String::new(), false, false, false, false, None).await.unwrap();
+        let first =
+            commit_create(&tc, id.clone(), op.clone(), "Einmal".into(), String::new(), false, false, false, false, None).await.unwrap();
         repo.write_file("a.txt", "y\n");
         repo.git(&["add", "-A"]);
         let err = commit_create(&tc, id.clone(), op, "Einmal".into(), String::new(), false, false, false, false, None).await.unwrap_err();
@@ -1072,7 +1089,8 @@ mod tests {
         repo.git(&["add", "-A"]);
         let id = tc.open(&repo).await.repo.id;
         // No remote: the push cannot succeed, the commit stands anyway.
-        let result = commit_create(&tc, id, util::new_id(), "Mit Push".into(), String::new(), false, false, true, false, None).await.unwrap();
+        let result =
+            commit_create(&tc, id, util::new_id(), "Mit Push".into(), String::new(), false, false, true, false, None).await.unwrap();
         assert_eq!(result.sha, repo.head());
         assert!(matches!(result.push, Some(PushResult::Rejected { ref reason }) if !reason.is_empty()), "{:?}", result.push);
     }
@@ -1087,7 +1105,8 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         tc.events.clear();
         let op_id = util::new_id();
-        let result = commit_create(&tc, id.clone(), op_id.clone(), "Mit Push".into(), String::new(), false, false, true, false, None).await.unwrap();
+        let result =
+            commit_create(&tc, id.clone(), op_id.clone(), "Mit Push".into(), String::new(), false, false, true, false, None).await.unwrap();
         assert_eq!(
             result.push,
             Some(PushResult::Done { remote: "origin".into(), branch: "main".into(), created_upstream: false, forced: false }),
@@ -1115,7 +1134,10 @@ mod tests {
         other.git(&["push", "-q", "origin", "main"]);
         repo.write_file("b.txt", "y\n");
         repo.git(&["add", "-A"]);
-        let second = commit_create(&tc, id.clone(), util::new_id(), "Zweiter mit Push".into(), String::new(), false, false, true, false, None).await.unwrap();
+        let second =
+            commit_create(&tc, id.clone(), util::new_id(), "Zweiter mit Push".into(), String::new(), false, false, true, false, None)
+                .await
+                .unwrap();
         assert_eq!(second.sha, repo.head());
         assert!(matches!(&second.push, Some(PushResult::Rejected { reason }) if reason.contains("origin/main")), "{:?}", second.push);
         assert_ne!(remote.git(&["rev-parse", "refs/heads/main"]), second.sha);

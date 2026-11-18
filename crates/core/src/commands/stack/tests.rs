@@ -21,7 +21,13 @@ pub(crate) fn stack_repo() -> TestRepo {
     repo.write_file("src/modell.rs", "pub struct Station;\r\n");
     repo.commit_as_dates("Datenmodell für Stationen", "Lena Ölmann", "lena@example.org", "@1760000000 +1400", "@1760000000 +1400");
     repo.write_file("import/-messwerte ä.csv", "datum;wert\r\n2026-01-01;3,5\r\n");
-    repo.commit_as_dates("Import der Messwerte\n\nCSV mit Semikolon.", "Jo Ånström", "jo@example.org", "@1600000000 -0930", "@1760000100 +0000");
+    repo.commit_as_dates(
+        "Import der Messwerte\n\nCSV mit Semikolon.",
+        "Jo Ånström",
+        "jo@example.org",
+        "@1600000000 -0930",
+        "@1760000100 +0000",
+    );
     repo.git(&["mv", "src/modell.rs", "src/station.rs"]);
     repo.commit_as_dates("Auswertung je Monat", "Lena Ölmann", "lena@example.org", "@1760000200 +0530", "@1760000200 +0530");
     repo.write_file("diagramme/übersicht.png", [0x89u8, b'P', b'N', b'G', 0, 1, 2, 3]);
@@ -57,7 +63,8 @@ async fn the_plan_lists_the_branch_commits_oldest_first_as_git_does() {
     let (tc, id) = opened(&repo).await;
     let plan = stack_plan(&tc, id, BRANCH.into(), MAIN.into(), vec![]).await.unwrap();
     // Oracle: Git's own order and statistics.
-    let shas: Vec<String> = repo.git(&["log", "--reverse", "--format=%H", "main..feature/auswertung"]).lines().map(str::to_string).collect();
+    let shas: Vec<String> =
+        repo.git(&["log", "--reverse", "--format=%H", "main..feature/auswertung"]).lines().map(str::to_string).collect();
     assert_eq!(plan.commits.iter().map(|c| c.sha.clone()).collect::<Vec<_>>(), shas);
     assert_eq!(
         plan.commits.iter().map(|c| c.subject.as_str()).collect::<Vec<_>>(),
@@ -75,7 +82,10 @@ async fn the_plan_lists_the_branch_commits_oldest_first_as_git_does() {
     assert_eq!((plan.branch.as_str(), plan.base.as_str(), plan.base_name.as_str()), (BRANCH, MAIN, "main"));
     assert_eq!(plan.parts.len(), 1, "without cuts: one part");
     let part = &plan.parts[0];
-    assert_eq!((part.number, part.first, part.end, part.branch.as_str(), part.problem.clone()), (1, 1, 4, "feature/auswertung-1-datenmodell-fuer", None));
+    assert_eq!(
+        (part.number, part.first, part.end, part.branch.as_str(), part.problem.clone()),
+        (1, 1, 4, "feature/auswertung-1-datenmodell-fuer", None)
+    );
     assert_eq!(part.tip, plan.tip);
 }
 
@@ -117,7 +127,11 @@ async fn merges_empty_ranges_and_bad_input_are_refused_before_anything_happens()
     let repo = stack_repo();
     let (tc, id) = opened(&repo).await;
     let plan = |branch: &str, base: &str, cuts: Vec<StackCut>| stack_plan(&tc, id.clone(), branch.to_string(), base.to_string(), cuts);
-    assert_eq!(plan(BRANCH, MAIN, vec![cut(2, "a"), cut(3, "b")]).await.unwrap_err().code, ErrorCode::NotAllowed, "the last part must end at the tip");
+    assert_eq!(
+        plan(BRANCH, MAIN, vec![cut(2, "a"), cut(3, "b")]).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "the last part must end at the tip"
+    );
     assert_eq!(plan(BRANCH, "main", vec![]).await.unwrap_err().code, ErrorCode::NotAllowed, "the base as a full ref name");
     assert_eq!(plan(BRANCH, "refs/heads/feature/auswertung", vec![]).await.unwrap_err().code, ErrorCode::NotAllowed, "not onto itself");
     assert_eq!(plan("-x", MAIN, vec![]).await.unwrap_err().code, ErrorCode::InvalidName);
@@ -176,7 +190,8 @@ async fn creating_moves_only_refs_and_lands_on_gits_commits() {
     let before = worktree_state(&repo);
     let readme = repo.read_file("README.md");
     let index_tree = repo.git(&["write-tree"]);
-    let created = stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts(), plan.base_sha.clone(), plan.tip.clone()).await.unwrap();
+    let created =
+        stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), three_parts(), plan.base_sha.clone(), plan.tip.clone()).await.unwrap();
 
     // Oracle: the commits Git names relative to the branch tip.
     assert_eq!(sha_of(&repo, P1), sha_of(&repo, "feature/auswertung~2"));
@@ -250,7 +265,10 @@ async fn the_status_follows_the_parent_links_in_the_config() {
         assert_eq!(status.parts.iter().map(|p| p.branch.as_str()).collect::<Vec<_>>(), [P1, P2, P3], "from {start}");
     }
     let status = stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap();
-    assert_eq!(status.parts.iter().map(|p| p.parent.clone()).collect::<Vec<_>>(), vec![MAIN.to_string(), format!("refs/heads/{P1}"), format!("refs/heads/{P2}")]);
+    assert_eq!(
+        status.parts.iter().map(|p| p.parent.clone()).collect::<Vec<_>>(),
+        vec![MAIN.to_string(), format!("refs/heads/{P1}"), format!("refs/heads/{P2}")]
+    );
     assert!(status.parts.iter().all(|p| p.contains_parent));
     assert_eq!(status.parts[0].subjects, ["Datenmodell für Stationen", "Import der Messwerte"]);
     assert_eq!(status.parts[2].subjects, ["Diagramme"]);
@@ -448,7 +466,8 @@ async fn a_part_that_appeared_on_the_remote_after_the_prompt_is_not_overwritten(
     let theirs = sha_of(&other, "HEAD");
     repo.git(&["fetch", "-q", "origin"]);
 
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(vec![None, None, None]), None).await.unwrap();
+    let result =
+        stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(vec![None, None, None]), None).await.unwrap();
     assert!(matches!(result, PushResult::Rejected { .. }), "{result:?}");
     assert_eq!(remote_sha(&remote, P3), theirs, "the teammate's branch stays");
     assert_eq!((remote_sha(&remote, P1), remote_sha(&remote, P2)), (None, None), "nothing was pushed");
@@ -459,11 +478,21 @@ async fn a_forced_stack_push_without_expected_states_is_refused() {
     let (repo, remote) = with_remote();
     let (tc, id) = restacked(&repo).await;
     let before = remote_sha(&remote, P1);
-    let push = |expected: Option<Vec<Option<String>>>| stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, expected, None);
+    let push = |expected: Option<Vec<Option<String>>>| {
+        stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, expected, None)
+    };
     assert_eq!(push(None).await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(Some(vec![before.clone(), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "one entry per part");
-    assert_eq!(push(Some(vec![before.clone(), Some("zzzzzzz".into()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "not a commit ID");
-    assert_eq!(push(Some(vec![before.clone(), Some(String::new()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "empty is not a commit ID");
+    assert_eq!(
+        push(Some(vec![before.clone(), Some("zzzzzzz".into()), None])).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "not a commit ID"
+    );
+    assert_eq!(
+        push(Some(vec![before.clone(), Some(String::new()), None])).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "empty is not a commit ID"
+    );
     // A SHA-256 object ID (64 hex) passes the format check; the push is then rejected as stale, not refused as a bad ID.
     let outcome = push(Some(vec![before.clone(), Some("a".repeat(64)), None])).await;
     assert!(outcome.is_ok_and(|r| matches!(r, PushResult::Rejected { .. })), "64 hex is a valid ID");
@@ -474,7 +503,8 @@ async fn a_forced_stack_push_without_expected_states_is_refused() {
 async fn a_part_new_on_the_remote_is_pushed_with_expected_null() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(vec![None, None, None]), None).await.unwrap();
+    let result =
+        stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(vec![None, None, None]), None).await.unwrap();
     assert_eq!(statuses(&result), [PushRefStatus::Ok; 3]);
     for branch in [P1, P2, P3] {
         assert_eq!(remote_sha(&remote, branch), sha_of(&repo, branch), "{branch}");
@@ -485,7 +515,8 @@ async fn a_part_new_on_the_remote_is_pushed_with_expected_null() {
 async fn bad_push_input_sends_nothing() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    let push = |branches: Vec<String>, remote: &str| stack_push(&tc, id.clone(), util::new_id(), branches, remote.to_string(), false, None, None);
+    let push =
+        |branches: Vec<String>, remote: &str| stack_push(&tc, id.clone(), util::new_id(), branches, remote.to_string(), false, None, None);
     assert_eq!(push(vec![], "origin").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(vec![P1.into(), P1.into()], "origin").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(all_parts(), "--mirror").await.unwrap_err().code, ErrorCode::NotAllowed);
@@ -527,8 +558,12 @@ mod checks {
         let repo = checked_repo();
         let (tc, id) = opened(&repo).await;
         repo_settings_set(&tc, id.clone(), json!({ "testCommand": "test -f ok.txt && pwd && echo grün" })).await.unwrap();
-        let results = stack_check(&tc, id.clone(), "chk-1".into(), "pruefen".into(), MAIN.into(), vec![cut(1, "Ohne"), cut(2, "Mit")]).await.unwrap();
-        assert_eq!(results.iter().map(|r| (r.part, r.state)).collect::<Vec<_>>(), [(1, StackCheckState::Failed), (2, StackCheckState::Passed)]);
+        let results =
+            stack_check(&tc, id.clone(), "chk-1".into(), "pruefen".into(), MAIN.into(), vec![cut(1, "Ohne"), cut(2, "Mit")]).await.unwrap();
+        assert_eq!(
+            results.iter().map(|r| (r.part, r.state)).collect::<Vec<_>>(),
+            [(1, StackCheckState::Failed), (2, StackCheckState::Passed)]
+        );
         assert_eq!(results[0].exit_code, Some(1), "POSIX `test` exits with 1 when the file is missing");
         assert_eq!(results[0].tip, repo.git(&["rev-parse", "pruefen~1"]));
         assert!(results[1].output.contains("grün"), "{}", results[1].output);
@@ -572,7 +607,8 @@ mod checks {
         repo.git(&["worktree", "add", "-q", "-b", "agent/stack-check-1", agent.to_str().unwrap(), "main"]);
         repo.git(&["worktree", "lock", "--reason", "Coding agent", agent.to_str().unwrap()]);
         std::fs::write(agent.join("halbfertig.txt"), b"Arbeit des Agenten\r\nohne Schluss").unwrap();
-        let results = stack_check(&tc, id.clone(), "chk-4".into(), "pruefen".into(), MAIN.into(), vec![cut(1, ""), cut(2, "")]).await.unwrap();
+        let results =
+            stack_check(&tc, id.clone(), "chk-4".into(), "pruefen".into(), MAIN.into(), vec![cut(1, ""), cut(2, "")]).await.unwrap();
         assert_eq!(results.iter().map(|r| r.state).collect::<Vec<_>>(), [StackCheckState::Failed, StackCheckState::Passed]);
         assert!(!results[1].output.trim().ends_with("/stack-check-1"), "not run in the agent's folder: {}", results[1].output);
         assert_eq!(std::fs::read(agent.join("halbfertig.txt")).unwrap(), b"Arbeit des Agenten\r\nohne Schluss", "the agent's work stays");

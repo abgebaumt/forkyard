@@ -26,7 +26,8 @@ fn fixture() -> Fixture {
     let repo = TestRepo::new();
     repo.write_file("umrechnung.py", GOOD);
     repo.write_file("README.md", "# Messnetz\n");
-    let good = repo.commit_as_dates("Umrechnung in Fahrenheit", "Jörg Ähnlich", "joerg@example.com", "@1234567890 +0930", "@1234567890 +0930");
+    let good =
+        repo.commit_as_dates("Umrechnung in Fahrenheit", "Jörg Ähnlich", "joerg@example.com", "@1234567890 +0930", "@1234567890 +0930");
     repo.checkout_new("messung");
     repo.commit_file("Mess daten/köln süd.csv", "datum;celsius\n2026-04-01;10.5\n", "Messwert für Köln-Süd");
     repo.commit_file("Mess daten/köln süd.csv", "datum;celsius\n2026-04-01;10.5\n2026-04-02;11.0\n", "Zweiter Messwert");
@@ -73,7 +74,18 @@ fn bisect_files(repo: &TestRepo) -> (String, String, String) {
 
 #[test]
 fn exit_codes_mean_what_git_bisect_run_says() {
-    let table = [(Some(0), Some(BisectVerdict::Good)), (Some(1), Some(BisectVerdict::Bad)), (Some(124), Some(BisectVerdict::Bad)), (Some(125), Some(BisectVerdict::Skip)), (Some(126), Some(BisectVerdict::Bad)), (Some(127), Some(BisectVerdict::Bad)), (Some(128), None), (Some(255), None), (Some(-1), None), (None, None)];
+    let table = [
+        (Some(0), Some(BisectVerdict::Good)),
+        (Some(1), Some(BisectVerdict::Bad)),
+        (Some(124), Some(BisectVerdict::Bad)),
+        (Some(125), Some(BisectVerdict::Skip)),
+        (Some(126), Some(BisectVerdict::Bad)),
+        (Some(127), Some(BisectVerdict::Bad)),
+        (Some(128), None),
+        (Some(255), None),
+        (Some(-1), None),
+        (None, None),
+    ];
     for (code, verdict) in table {
         assert_eq!(verdict_for(code), verdict, "{code:?}");
     }
@@ -101,7 +113,11 @@ async fn the_autopilot_finds_the_first_bad_commit_and_leaves_the_own_working_dir
     // Every verdict agrees with the file Git has at that commit.
     for step in &done.steps {
         let has_bug = f.repo.git(&["show", &format!("{}:umrechnung.py", step.sha)]).contains("5 / 9");
-        assert_eq!((step.verdict, step.exit_code, step.timed_out), (if has_bug { BisectVerdict::Bad } else { BisectVerdict::Good }, Some(i32::from(has_bug)), false), "{step:?}");
+        assert_eq!(
+            (step.verdict, step.exit_code, step.timed_out),
+            (if has_bug { BisectVerdict::Bad } else { BisectVerdict::Good }, Some(i32::from(has_bug)), false),
+            "{step:?}"
+        );
     }
     // The own working directory, index and HEAD are as before, and it has no bisect.
     assert_eq!(f.repo.git(&["status", "--porcelain=v2", "-z", "--untracked-files=all"]), status_before);
@@ -197,7 +213,10 @@ async fn the_temporary_worktree_lies_next_to_a_repository_with_spaces_and_umlaut
     assert!(same(Path::new(&done.worktree_path), &expected), "{}", done.worktree_path);
     let recorded = std::fs::read_to_string(&marker).unwrap();
     let recorded = recorded.trim_start_matches('\u{feff}').trim();
-    assert!(Path::new(recorded).ends_with(Path::new("web app.agents").join("bisect-1")), "the script ran in the temporary worktree: {recorded}");
+    assert!(
+        Path::new(recorded).ends_with(Path::new("web app.agents").join("bisect-1")),
+        "the script ran in the temporary worktree: {recorded}"
+    );
     bisect_autopilot_close(&tc, id, false).await.unwrap();
     assert!(!expected.exists());
 }
@@ -245,13 +264,15 @@ async fn stopping_ends_the_script_and_removes_the_worktree() {
         let running = bisect_autopilot_status(&tc, id.clone()).await.unwrap().unwrap();
         assert_eq!(running.phase, BisectAutopilotPhase::Testing);
         assert!(worktrees(&f.repo).contains("bisect-1"));
-        let again = bisect_autopilot_run(&tc, id.clone(), "zweiter".into(), f.bad.clone(), vec![f.good.clone()], formula_script(), 60).await;
+        let again =
+            bisect_autopilot_run(&tc, id.clone(), "zweiter".into(), f.bad.clone(), vec![f.good.clone()], formula_script(), 60).await;
         assert_eq!(again.unwrap_err().code, ErrorCode::BisectActive);
         assert_eq!(bisect_autopilot_close(&tc, id.clone(), false).await.unwrap_err().code, ErrorCode::NotAllowed);
         assert!(tc.jobs.cancel("stop"));
         Instant::now()
     };
-    let (result, stopped_at) = tokio::join!(bisect_autopilot_run(&tc, id.clone(), "stop".into(), f.bad.clone(), vec![f.good.clone()], script, 600), stop);
+    let (result, stopped_at) =
+        tokio::join!(bisect_autopilot_run(&tc, id.clone(), "stop".into(), f.bad.clone(), vec![f.good.clone()], script, 600), stop);
     assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
     assert!(stopped_at.elapsed() < Duration::from_secs(20), "the sleeping grandchild ended with the script");
     assert!(!expected_worktree(&f.repo, 1).exists());
@@ -266,10 +287,16 @@ async fn the_run_checks_trust_script_time_limit_and_range_first() {
     let tc = TestCore::new().await;
     let f = fixture();
     let id = tc.open(&f.repo).await.repo.id;
-    let attempt = |bad: &str, good: Vec<String>, script: &str, secs: u64| bisect_autopilot_run(&tc, id.clone(), "v".into(), bad.to_string(), good, script.to_string(), secs);
+    let attempt = |bad: &str, good: Vec<String>, script: &str, secs: u64| {
+        bisect_autopilot_run(&tc, id.clone(), "v".into(), bad.to_string(), good, script.to_string(), secs)
+    };
     let goods = vec![f.good.clone()];
     assert_eq!(attempt(&f.bad, goods.clone(), "  \n", 60).await.unwrap_err().code, ErrorCode::NotAllowed, "empty script");
-    assert_eq!(attempt(&f.bad, goods.clone(), &"#".repeat(64 * 1024 + 1), 60).await.unwrap_err().code, ErrorCode::NotAllowed, "script too long");
+    assert_eq!(
+        attempt(&f.bad, goods.clone(), &"#".repeat(64 * 1024 + 1), 60).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "script too long"
+    );
     assert_eq!(attempt(&f.bad, goods.clone(), "exit 0", 0).await.unwrap_err().code, ErrorCode::NotAllowed, "no time limit");
     assert_eq!(attempt(&f.bad, goods.clone(), "exit 0", MAX_STEP_TIMEOUT_SECS + 1).await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(attempt(&f.bad, Vec::new(), "exit 0", 60).await.unwrap_err().code, ErrorCode::NotAllowed, "no good commit");
@@ -324,7 +351,8 @@ async fn an_exit_code_above_127_stops_the_run_and_keeps_the_worktree_for_a_look(
     let id = tc.open(&repo).await.repo.id;
     let first = repo.git(&["rev-list", "--bisect", &shas[5], &format!("^{}", shas[0])]);
     let script = if cfg!(windows) { "exit 130\r\n" } else { "exit 130\n" };
-    let done = bisect_autopilot_run(&tc, id.clone(), "kaputt".into(), shas[5].clone(), vec![shas[0].clone()], script.into(), 60).await.unwrap();
+    let done =
+        bisect_autopilot_run(&tc, id.clone(), "kaputt".into(), shas[5].clone(), vec![shas[0].clone()], script.into(), 60).await.unwrap();
     assert_eq!(done.phase, BisectAutopilotPhase::Failed, "{done:?}");
     assert!(done.message.as_deref().is_some_and(|message| message.contains("130")), "{:?}", done.message);
     assert!(done.steps.is_empty() && done.result.is_none());
@@ -340,7 +368,9 @@ async fn a_script_ended_by_a_signal_stops_the_run() {
     let tc = TestCore::new().await;
     let (repo, shas) = linear(4, 2);
     let id = tc.open(&repo).await.repo.id;
-    let done = bisect_autopilot_run(&tc, id.clone(), "signal".into(), shas[3].clone(), vec![shas[0].clone()], "kill -9 $$\n".into(), 60).await.unwrap();
+    let done = bisect_autopilot_run(&tc, id.clone(), "signal".into(), shas[3].clone(), vec![shas[0].clone()], "kill -9 $$\n".into(), 60)
+        .await
+        .unwrap();
     assert_eq!(done.phase, BisectAutopilotPhase::Failed);
     assert!(done.message.as_deref().is_some_and(|message| message.contains("signal")), "{:?}", done.message);
     bisect_autopilot_close(&tc, id, false).await.unwrap();
@@ -352,7 +382,8 @@ async fn only_skipped_commits_left_name_the_candidates() {
     let (repo, shas) = linear(4, 2);
     let id = tc.open(&repo).await.repo.id;
     let script = if cfg!(windows) { "exit 125\r\n" } else { "exit 125\n" };
-    let done = bisect_autopilot_run(&tc, id.clone(), "alle".into(), shas[3].clone(), vec![shas[0].clone()], script.into(), 60).await.unwrap();
+    let done =
+        bisect_autopilot_run(&tc, id.clone(), "alle".into(), shas[3].clone(), vec![shas[0].clone()], script.into(), 60).await.unwrap();
     assert_eq!(done.phase, BisectAutopilotPhase::OnlySkipped, "{done:?}");
     let mut candidates = done.candidates.clone();
     candidates.sort();
@@ -377,7 +408,11 @@ async fn leftovers_of_an_ended_app_are_removed_and_the_users_worktrees_stay() {
     std::fs::write(users.join("meine notiz.txt"), "bleibt\n").unwrap();
 
     let done = run(&tc, &id, &f, &formula_script()).await.unwrap();
-    assert!(same(Path::new(&done.worktree_path), &expected_worktree(&f.repo, 1)), "the leftover's name is free again: {}", done.worktree_path);
+    assert!(
+        same(Path::new(&done.worktree_path), &expected_worktree(&f.repo, 1)),
+        "the leftover's name is free again: {}",
+        done.worktree_path
+    );
     assert!(users.join("meine notiz.txt").exists(), "a worktree without the autopilot's lock is the user's");
     bisect_autopilot_close(&tc, id, false).await.unwrap();
     let listed = worktrees(&f.repo);

@@ -111,7 +111,10 @@ pub(crate) async fn back_up_changes(core: &Core, repo_id: &str, folder: &Path, e
     if changed(core, repo_id, folder).await == 0 {
         return Ok(None);
     }
-    let worktree_row = core.db.with(|c| db::repos::find_by_path(c, folder))?.ok_or_else(|| CoreError::not_found("The agent's worktree is not registered."))?;
+    let worktree_row = core
+        .db
+        .with(|c| db::repos::find_by_path(c, folder))?
+        .ok_or_else(|| CoreError::not_found("The agent's worktree is not registered."))?;
     let snap = u::snapshot(core, &worktree_row.id, None).await?;
     u::create_backup_ref(core, repo_id, entry_id, WORKTREE_BACKUP, &snap.commit).await?;
     Ok(Some(snap.commit))
@@ -150,7 +153,9 @@ pub async fn run(core: &Core, agent_id: String) -> CoreResult<UndoState> {
         return Err(CoreError::not_allowed(format!("The worktree “{}” is locked. Unlock it first.", row.worktree_path)));
     }
     let branch_ref = format!("refs/heads/{}", row.branch);
-    let busy = |other: String| CoreError::not_allowed(format!("The branch “{}” is checked out in “{other}”. Switch to another branch there first.", row.branch));
+    let busy = |other: String| {
+        CoreError::not_allowed(format!("The branch “{}” is checked out in “{other}”. Switch to another branch there first.", row.branch))
+    };
     // Checked before the program is stopped, and again inside the write lock.
     if let Some(other) = checked_out_elsewhere(core, &row.repo_id, &branch_ref, &folder).await? {
         return Err(busy(other));

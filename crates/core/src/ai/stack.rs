@@ -112,7 +112,12 @@ pub fn finish(value: &Value) -> AiStackSplit {
         .map(Vec::as_slice)
         .unwrap_or(&[])
         .iter()
-        .map(|part| AiStackPart { end: part.get("end").and_then(Value::as_u64).unwrap_or(0) as u32, name: text(part, "name"), title: text(part, "title"), why: text(part, "why") })
+        .map(|part| AiStackPart {
+            end: part.get("end").and_then(Value::as_u64).unwrap_or(0) as u32,
+            name: text(part, "name"),
+            title: text(part, "title"),
+            why: text(part, "why"),
+        })
         .collect();
     AiStackSplit { parts }
 }
@@ -179,7 +184,16 @@ fn size(sections: &[Section]) -> usize {
 /// The prompt for splitting `branch` above `base` (full ref of a branch). `secrets`: values known
 /// to be secret (the provider key), scrubbed literally. Budget order: full → no bodies → no files.
 #[allow(clippy::too_many_arguments)]
-pub async fn build(core: &Core, repo_id: &str, settings: &Settings, branch: &str, base: &str, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<StackBuilt> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    branch: &str,
+    base: &str,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<StackBuilt> {
     let source = read_source(core, repo_id, branch, base).await?;
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let mut hidden: BTreeMap<String, AiOmitReason> = BTreeMap::new();
@@ -199,7 +213,15 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, branch: &str
     let budget_chars = (budget_tokens as f64 * context::CHARS_PER_TOKEN) as usize;
     let sections_for = |body_lines: usize, with_files: bool| -> Vec<Section> {
         vec![
-            Section { title: "Branch".into(), body: format!("Branch: {}\nBase: {}\nCommits: {}", source.branch, stack_plan::short_ref(&source.base), source.commits.len()) },
+            Section {
+                title: "Branch".into(),
+                body: format!(
+                    "Branch: {}\nBase: {}\nCommits: {}",
+                    source.branch,
+                    stack_plan::short_ref(&source.base),
+                    source.commits.len()
+                ),
+            },
             Section { title: COMMITS_TITLE.into(), body: render(&source.commits, &exclusions, body_lines, with_files) },
         ]
         .into_iter()

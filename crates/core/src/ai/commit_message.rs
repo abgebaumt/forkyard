@@ -149,7 +149,14 @@ fn instruction(language: Option<&str>, examples: bool, template: bool, own: Opti
 /// examples, template and instruction are small and go in full; the staged diff gets the rest
 /// (1a's `fit`: lock files and binaries by name, the largest files shortened, then by name).
 /// `secrets`: values known to be secret (the provider key), scrubbed literally.
-pub async fn build(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<Built> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<Built> {
     let repo = repo_settings_get(core, repo_id.to_string()).await?;
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let files = context::staged_files(core, repo_id, &exclusions, secrets).await?;
@@ -158,7 +165,12 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, budget_token
     }
     let subjects = recent_subjects(core, repo_id, LANGUAGE_SAMPLE).await?;
     let examples: Vec<String> = subjects.iter().take(STYLE_EXAMPLES).map(|subject| clip(subject, MAX_SUBJECT_CHARS)).collect();
-    let template = repo.commit_template_text.as_deref().map(str::trim_end).filter(|text| !text.trim().is_empty()).map(|text| clip(text, MAX_TEMPLATE_CHARS));
+    let template = repo
+        .commit_template_text
+        .as_deref()
+        .map(str::trim_end)
+        .filter(|text| !text.trim().is_empty())
+        .map(|text| clip(text, MAX_TEMPLATE_CHARS));
     let own = repo
         .ai_commit_instruction
         .as_deref()
@@ -169,13 +181,18 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, budget_token
 
     let mut sections = vec![Section { title: "Branch".into(), body: context::redact_for_ai(&branch_name(core, repo_id).await?, secrets) }];
     if !examples.is_empty() {
-        sections.push(Section { title: "Recent commit subjects (newest first)".into(), body: context::redact_for_ai(&examples.join("\n"), secrets) });
+        sections.push(Section {
+            title: "Recent commit subjects (newest first)".into(),
+            body: context::redact_for_ai(&examples.join("\n"), secrets),
+        });
     }
     if let Some(template) = &template {
         sections.push(Section { title: "Commit template".into(), body: context::redact_for_ai(template, secrets) });
     }
     let total = (budget_tokens as f64 * CHARS_PER_TOKEN) as usize;
-    let used = instruction.chars().count() + sections.iter().map(|section| section.title.chars().count() + section.body.chars().count()).sum::<usize>() + FRAME_RESERVE_CHARS;
+    let used = instruction.chars().count()
+        + sections.iter().map(|section| section.title.chars().count() + section.body.chars().count()).sum::<usize>()
+        + FRAME_RESERVE_CHARS;
     let fitted = context::fit(files, &exclusions, total.saturating_sub(used).max(MIN_DIFF_CHARS));
     let diff = context::render(&fitted, secrets);
     let diff = if diff.trim().is_empty() { "(only files that are never sent are staged)".to_string() } else { diff };
@@ -187,10 +204,10 @@ pub async fn build(core: &Core, repo_id: &str, settings: &Settings, budget_token
 mod tests {
     use super::*;
     use crate::ai::schema::{check_dialect, validate};
-    use crate::error::ErrorCode;
-    use serde_json::json;
     use crate::commands::settings::repo_settings_set;
+    use crate::error::ErrorCode;
     use crate::testkit::{TestCore, TestRepo};
+    use serde_json::json;
 
     #[test]
     fn the_answer_schema_is_in_the_dialect() {
@@ -215,7 +232,10 @@ mod tests {
         assert_eq!(fit_summary(&"A".repeat(80)), "A".repeat(72), "one long word is cut hard");
         assert_eq!(fit_summary("Add  the \t export"), "Add the export", "inner whitespace collapses");
         assert_eq!(fit_summary("Kurz"), "Kurz");
-        for long in ["Vergleich der Tagesmittel für alle drei Schulstationen als CSV-Datei exportieren und danach prüfen", "x y ".repeat(40).as_str()] {
+        for long in [
+            "Vergleich der Tagesmittel für alle drei Schulstationen als CSV-Datei exportieren und danach prüfen",
+            "x y ".repeat(40).as_str(),
+        ] {
             assert!(fit_summary(long).chars().count() <= SUMMARY_LIMIT, "{long}");
         }
     }
@@ -228,7 +248,9 @@ mod tests {
             AiCommitMessage { summary: "Export der Tagesmittel als CSV".into(), body: None }
         );
         assert_eq!(
-            parsed(json!({"summary": "Export ergänzt", "body": "Schreibt je Station eine Zeile.  \r\nMit Kopfzeile.\r\n\r\n"})).body.as_deref(),
+            parsed(json!({"summary": "Export ergänzt", "body": "Schreibt je Station eine Zeile.  \r\nMit Kopfzeile.\r\n\r\n"}))
+                .body
+                .as_deref(),
             Some("Schreibt je Station eine Zeile.\nMit Kopfzeile."),
             "CRLF, trailing spaces and blank lines at the end go"
         );
@@ -237,7 +259,11 @@ mod tests {
             AiCommitMessage { summary: "Export ergänzt".into(), body: Some("Weil die Auswertung ihn braucht.\n\nDetails.".into()) },
             "a second line of the summary moves into the body"
         );
-        assert_eq!(parsed(json!({"summary": "Fix", "body": "  - Punkt eins\n  - Punkt zwei"})).body.as_deref(), Some("  - Punkt eins\n  - Punkt zwei"), "indentation stays");
+        assert_eq!(
+            parsed(json!({"summary": "Fix", "body": "  - Punkt eins\n  - Punkt zwei"})).body.as_deref(),
+            Some("  - Punkt eins\n  - Punkt zwei"),
+            "indentation stays"
+        );
         assert_eq!(parsed(json!({"summary": "Fix", "body": "   \n "})).body, None, "a blank body is no body");
         assert_eq!(parsed(json!({"summary": "\n  \nFix", "body": null})).summary, "Fix");
         let error = parse(&json!({"summary": "  \n ", "body": "Nur Text"})).unwrap_err();
@@ -268,7 +294,9 @@ mod tests {
         repo.write_file("-bericht für März.txt", "Erste Zeile\r\nZweite Zeile\r\n");
         repo.git(&["add", "--", "-bericht für März.txt"]);
         let id = tc.open(&repo).await.repo.id;
-        repo_settings_set(&tc, id.clone(), serde_json::json!({"aiCommitInstruction": "Ticketnummer AB-123 an den Betreff anhängen."})).await.unwrap();
+        repo_settings_set(&tc, id.clone(), serde_json::json!({"aiCommitInstruction": "Ticketnummer AB-123 an den Betreff anhängen."}))
+            .await
+            .unwrap();
 
         // The oracle: Git's own newest-first list without merges.
         let git_order: Vec<String> = repo.git(&["log", "--no-merges", "-n", "31", "--format=%s"]).lines().map(str::to_string).collect();
@@ -286,11 +314,17 @@ mod tests {
         assert!(user.contains(&examples), "exactly the 30 newest subjects without merges and fixups, in Git's order: {user}");
         assert!(!user.contains("Schritt 06") && !user.contains("fixup!") && !user.contains("Merge branch"), "{user}");
         assert!(
-            user.contains(&format!("## Commit template\n<<<REPO {token}>>>\nBereich: Kurzbeschreibung\n\n# Warum ist die Änderung nötig?\n<<<END {token}>>>")),
+            user.contains(&format!(
+                "## Commit template\n<<<REPO {token}>>>\nBereich: Kurzbeschreibung\n\n# Warum ist die Änderung nötig?\n<<<END {token}>>>"
+            )),
             "{user}"
         );
-        assert!(user.contains("File: -bericht für März.txt +2 -0") && user.contains("+Erste Zeile\r\n"), "umlauts, spaces, a leading dash and CRLF stay: {user}");
-        let order = ["## Branch", "## Recent commit subjects", "## Commit template", "## Staged changes"].map(|title| user.find(title).expect(title));
+        assert!(
+            user.contains("File: -bericht für März.txt +2 -0") && user.contains("+Erste Zeile\r\n"),
+            "umlauts, spaces, a leading dash and CRLF stay: {user}"
+        );
+        let order = ["## Branch", "## Recent commit subjects", "## Commit template", "## Staged changes"]
+            .map(|title| user.find(title).expect(title));
         assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{order:?}");
 
         let system = &built.prompt.system;
@@ -346,12 +380,20 @@ mod tests {
         repo.git(&["commit", "-q", "--allow-empty", "-F", ".git/LATIN1_OLD"]);
         // The user's own output encoding must not change what the core reads.
         repo.git(&["config", "i18n.logOutputEncoding", "ISO-8859-1"]);
-        assert_eq!(repo.git(&["log", "-1", "--skip=1", "--encoding=UTF-8", "--format=%s"]), "Überarbeitung der Größen", "the oracle: Git re-encodes the declared commit");
+        assert_eq!(
+            repo.git(&["log", "-1", "--skip=1", "--encoding=UTF-8", "--format=%s"]),
+            "Überarbeitung der Größen",
+            "the oracle: Git re-encodes the declared commit"
+        );
         repo.write_file("g.txt", "neu\n");
         repo.git(&["add", "g.txt"]);
         let id = tc.open(&repo).await.repo.id;
         let built = build(&tc, &id, &Settings::default(), 24_000, "en", &[]).await.unwrap();
-        assert!(built.prompt.user.contains("Grüße aus München\nÜberarbeitung der Größen\nErster Commit\n"), "both Latin-1 subjects readable, newest first: {}", built.prompt.user);
+        assert!(
+            built.prompt.user.contains("Grüße aus München\nÜberarbeitung der Größen\nErster Commit\n"),
+            "both Latin-1 subjects readable, newest first: {}",
+            built.prompt.user
+        );
         assert!(!built.prompt.user.contains('\u{fffd}'), "no replacement characters");
 
         let unborn = TestRepo::new();
@@ -361,7 +403,11 @@ mod tests {
         let built = build(&tc, &unborn_id, &Settings::default(), 24_000, "en", &[]).await.unwrap();
         let token = &built.prompt.token;
         assert!(!built.prompt.user.contains("## Recent commit subjects"), "no commits, no examples");
-        assert!(built.prompt.user.contains(&format!("## Branch\n<<<REPO {token}>>>\nmain\n")), "the unborn branch has its name: {}", built.prompt.user);
+        assert!(
+            built.prompt.user.contains(&format!("## Branch\n<<<REPO {token}>>>\nmain\n")),
+            "the unborn branch has its name: {}",
+            built.prompt.user
+        );
         assert!(built.prompt.user.contains("File: start.txt +1 -0"));
         assert!(built.prompt.system.contains("in English"), "{}", built.prompt.system);
     }
@@ -390,7 +436,10 @@ mod tests {
         let built = build(&tc, &id, &Settings::default(), budget, "en", &[]).await.unwrap();
         assert_eq!(built.shortened, vec!["daten.csv".to_string()]);
         let user = &built.prompt.user;
-        assert!(user.contains("Liste der Stationen") && user.contains("Vergleich der Tagesmittel zweier Stationen"), "the style examples are kept");
+        assert!(
+            user.contains("Liste der Stationen") && user.contains("Vergleich der Tagesmittel zweier Stationen"),
+            "the style examples are kept"
+        );
         assert!(user.contains("+00001;Station Süd;12,5\n") && user.contains("+03000;Station Süd;12,5\n"), "start and end of the hunk");
         assert!(!user.contains("+01500;"), "the middle is left out");
         let limit = (budget as f64 * CHARS_PER_TOKEN) as u64;

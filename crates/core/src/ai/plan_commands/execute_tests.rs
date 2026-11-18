@@ -31,7 +31,9 @@ async fn local_actions_run_the_existing_commands() {
     assert_eq!(repo.current_branch(), "feature/größe");
     let second = repo.commit_file("liste.txt", "eins\n", "Liste");
 
-    exec(&tc, &id, PlanAction::TagCreate { name: "v1.0".into(), sha: Some(base.clone()), message: Some("Erste Version".into()) }).await.unwrap();
+    exec(&tc, &id, PlanAction::TagCreate { name: "v1.0".into(), sha: Some(base.clone()), message: Some("Erste Version".into()) })
+        .await
+        .unwrap();
     assert_eq!(repo.git(&["rev-parse", "v1.0^{commit}"]), base);
     assert_eq!(repo.git(&["cat-file", "-t", "v1.0"]), "tag", "a message makes it annotated");
 
@@ -41,7 +43,13 @@ async fn local_actions_run_the_existing_commands() {
 
     repo.write_file("notizen/über uns.md", "Entwurf\n");
     repo.write_file("anderes.txt", "bleibt\n");
-    exec(&tc, &id, PlanAction::StashCreate { message: Some("Notizen".into()), include_untracked: true, paths: vec!["notizen/über uns.md".into()] }).await.unwrap();
+    exec(
+        &tc,
+        &id,
+        PlanAction::StashCreate { message: Some("Notizen".into()), include_untracked: true, paths: vec!["notizen/über uns.md".into()] },
+    )
+    .await
+    .unwrap();
     assert_eq!(repo.git(&["stash", "list", "--format=%s"]), "On feature/größe: Notizen");
     assert!(!repo.path().join("notizen/über uns.md").exists(), "only the named file is stashed");
     assert_eq!(repo.read_file("anderes.txt"), b"bleibt\n");
@@ -162,7 +170,10 @@ async fn a_push_step_with_a_key_stops_before_anything_is_sent() {
 async fn a_failed_fetch_ends_the_step() {
     let (tc, repo, id) = setup().await;
     repo.git(&["remote", "add", "kaputt", "/gibt/es/nicht/repo.git"]);
-    assert!(exec(&tc, &id, PlanAction::Fetch { remote: Some("kaputt".into()), prune: false }).await.is_err(), "a named remote fails itself");
+    assert!(
+        exec(&tc, &id, PlanAction::Fetch { remote: Some("kaputt".into()), prune: false }).await.is_err(),
+        "a named remote fails itself"
+    );
     let err = exec(&tc, &id, PlanAction::Fetch { remote: None, prune: false }).await.unwrap_err();
     assert!(err.message.contains("kaputt"), "{}", err.message);
 }

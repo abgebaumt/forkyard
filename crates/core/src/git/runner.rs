@@ -37,8 +37,8 @@ use crate::events::{names, EventSink};
 use crate::git::locate::GitInfo;
 use crate::git::netconfig::{self, NetConfig};
 use crate::git::{errors, redact};
-use crate::model::Settings;
 use crate::jobs::CancelToken;
+use crate::model::Settings;
 use crate::util;
 
 /// Windows: no console window for child processes.
@@ -375,7 +375,8 @@ impl GitCmd {
 
     /// The switches that come before our own arguments (without those for silent network calls).
     fn switches(&self) -> Vec<OsString> {
-        let mut switches: Vec<OsString> = ["--no-pager", "-c", "core.quotepath=false", "-c", "color.ui=never"].iter().map(OsString::from).collect();
+        let mut switches: Vec<OsString> =
+            ["--no-pager", "-c", "core.quotepath=false", "-c", "color.ui=never"].iter().map(OsString::from).collect();
         if self.guarded {
             switches.extend(["-c", "core.fsmonitor=false"].iter().map(OsString::from));
             if let Some(dir) = self.runner.inner.guard_hooks.read().as_ref() {
@@ -466,12 +467,7 @@ impl GitCmd {
     /// stdout as a stream of records separated by `sep` (e.g. `0` with `-z`).
     /// `on_record` returns `false` to stop early; Git is then killed and the result counts
     /// as success (`code: None`). `stdout` stays empty in this mode.
-    pub async fn run_records(
-        self,
-        sep: u8,
-        cancel: Option<&CancelToken>,
-        on_record: &mut RecordFn<'_>,
-    ) -> CoreResult<GitOutput> {
+    pub async fn run_records(self, sep: u8, cancel: Option<&CancelToken>, on_record: &mut RecordFn<'_>) -> CoreResult<GitOutput> {
         self.execute(cancel, None, Some((sep, on_record))).await
     }
 
@@ -594,7 +590,9 @@ impl GitCmd {
             Err(e) => {
                 // Usually caused by the working directory (path too long, no access), not by Git.
                 let (code, reason) = crate::error::describe_io(&e);
-                return Err(CoreError::new(code, format!("Git couldn’t be started in this folder. {reason}")).with_git_output(e.to_string()));
+                return Err(
+                    CoreError::new(code, format!("Git couldn’t be started in this folder. {reason}")).with_git_output(e.to_string())
+                );
             }
         };
 
@@ -873,7 +871,6 @@ impl GitCmd {
         }
     }
 
-
     /// `GIT_SSH_COMMAND` that forces the project's key or the default key – or `None` when the
     /// SSH agent or the user's configuration should decide. Builds on what the user has set
     /// themselves (`GIT_SSH_COMMAND`, `core.sshCommand`).
@@ -917,7 +914,8 @@ fn ssh_is_legacy(runner: &GitRunner, command: &str) -> std::pin::Pin<Box<dyn std
     }
     // Outside any repository (in the data directory) and guarded: the alias exists only on
     // the command line of this one call.
-    let cwd = runner.inner.guard_hooks.read().as_ref().and_then(|dir| dir.parent().map(Path::to_path_buf)).unwrap_or_else(std::env::temp_dir);
+    let cwd =
+        runner.inner.guard_hooks.read().as_ref().and_then(|dir| dir.parent().map(Path::to_path_buf)).unwrap_or_else(std::env::temp_dir);
     let probe = runner
         .cmd(&cwd)
         .arg("-c")
@@ -1007,11 +1005,7 @@ fn index_lock_path(text: &str, cwd: &Path) -> Option<PathBuf> {
 
 /// Value from the folder's Git configuration, `None` if not set. As a boxed future because
 /// the call uses `execute` again from within `execute`.
-fn config_value(
-    runner: &GitRunner,
-    cwd: &Path,
-    key: &str,
-) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<String>> + Send>> {
+fn config_value(runner: &GitRunner, cwd: &Path, key: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<String>> + Send>> {
     // Guarded: the call only reads, but must not trigger anything in a foreign folder either.
     let cmd = runner.cmd(cwd).args(["config", "--get", key]).read_only().no_log().guarded();
     Box::pin(async move {
@@ -1192,10 +1186,7 @@ mod tests {
 
     #[test]
     fn progress_lines() {
-        assert_eq!(
-            parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 1.0 MiB/s"),
-            Some(("Receiving objects".into(), Some(45)))
-        );
+        assert_eq!(parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 1.0 MiB/s"), Some(("Receiving objects".into(), Some(45))));
         assert_eq!(parse_progress("remote: Counting objects: 100% (5/5), done."), Some(("Counting objects".into(), Some(100))));
         assert_eq!(parse_progress("Cloning into 'x'..."), None);
     }

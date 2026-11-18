@@ -94,7 +94,8 @@ fn digits_between(text: &str, open: &str, close: &str) -> Option<String> {
 
 fn process_alive(pid: &str) -> bool {
     if cfg!(windows) {
-        let out = std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"]).output().expect("tasklist");
+        let out =
+            std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"]).output().expect("tasklist");
         String::from_utf8_lossy(&out.stdout).contains(&format!("\"{pid}\""))
     } else {
         std::process::Command::new("kill").args(["-0", pid]).status().map(|s| s.success()).unwrap_or(false)
@@ -214,7 +215,9 @@ async fn close_ends_the_shell_and_everything_it_started() {
     wait_for_output(&tc, &terminal, "MARK42END").await;
 
     let start_child = match shell {
-        Shell::Pwsh => Some("$p = Start-Process -FilePath ping -ArgumentList '-n','900','127.0.0.1' -PassThru -NoNewWindow; echo \"PID$($p.Id)PID\""),
+        Shell::Pwsh => {
+            Some("$p = Start-Process -FilePath ping -ArgumentList '-n','900','127.0.0.1' -PassThru -NoNewWindow; echo \"PID$($p.Id)PID\"")
+        }
         Shell::Posix => Some("sleep 900 & echo \"PID$!PID\""),
         Shell::Cmd => None,
     };

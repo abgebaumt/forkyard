@@ -81,11 +81,7 @@ fn git_command(cwd: &Path, global_config: &Path, args: &[&str], time: Option<i64
 
 fn check(output: Output, what: &str) -> String {
     if !output.status.success() {
-        panic!(
-            "git {what} failed:\n{}\n{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
+        panic!("git {what} failed:\n{}\n{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     }
     String::from_utf8_lossy(&output.stdout).trim_end().to_string()
 }
@@ -267,9 +263,7 @@ impl TestRepo {
         let root = dir.path().join("repo");
         let global_config = dir.path().join("gitconfig");
         std::fs::write(&global_config, "").expect("global config");
-        let out = git_command(dir.path(), &global_config, &["clone", "-q", &remote.url(), "repo"], None)
-            .output()
-            .expect("git clone");
+        let out = git_command(dir.path(), &global_config, &["clone", "-q", &remote.url(), "repo"], None).output().expect("git clone");
         check(out, "clone");
         let repo = TestRepo { dir, root, global_config, tick: AtomicI64::new(1000) };
         repo.git(&["config", "user.name", AUTHOR_NAME]);
@@ -356,7 +350,12 @@ impl TestCore {
         Self::build(temp_folder(), None, Some(content), None).await
     }
 
-    async fn build(dir: TempDir, git_path: Option<PathBuf>, global: Option<&str>, secrets: Option<Arc<crate::secrets::MemorySecrets>>) -> Self {
+    async fn build(
+        dir: TempDir,
+        git_path: Option<PathBuf>,
+        global: Option<&str>,
+        secrets: Option<Arc<crate::secrets::MemorySecrets>>,
+    ) -> Self {
         let global_config = dir.path().join("gitconfig");
         if !global_config.exists() || global.is_some() {
             std::fs::write(&global_config, global.unwrap_or("")).expect("global config");
@@ -401,9 +400,8 @@ impl TestCore {
     /// agrees, as the user would in the dialog. Tests about trust itself call
     /// `repo_open` directly.
     pub async fn open(&self, repo: &TestRepo) -> OpenedRepo {
-        let mut opened = crate::commands::repos::repo_open(&self.core, repo.path().to_string_lossy().into_owned())
-            .await
-            .expect("repo_open");
+        let mut opened =
+            crate::commands::repos::repo_open(&self.core, repo.path().to_string_lossy().into_owned()).await.expect("repo_open");
         if !opened.repo.trusted {
             crate::commands::trust::repo_trust_set(&self.core, opened.repo.id.clone(), true).await.expect("repo_trust_set");
             opened.repo.trusted = true;

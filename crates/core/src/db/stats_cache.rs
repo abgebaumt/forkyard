@@ -11,11 +11,7 @@ pub const KEEP_PER_REPO: u32 = 12;
 
 pub fn get(conn: &Connection, repo_id: &str, key: &str) -> CoreResult<Option<String>> {
     let value = conn
-        .query_row(
-            "select value from stats_cache where repository_id = ?1 and cache_key = ?2",
-            params![repo_id, key],
-            |r| r.get(0),
-        )
+        .query_row("select value from stats_cache where repository_id = ?1 and cache_key = ?2", params![repo_id, key], |r| r.get(0))
         .optional()?;
     Ok(value)
 }
@@ -63,7 +59,8 @@ mod tests {
         for n in 0..KEEP_PER_REPO + 2 {
             db.with(|c| put(c, &id, &format!("key-{n}"), "{}")).unwrap();
         }
-        let count: i64 = db.with(|c| Ok(c.query_row("select count(*) from stats_cache where repository_id = ?1", [&id], |r| r.get(0))?)).unwrap();
+        let count: i64 =
+            db.with(|c| Ok(c.query_row("select count(*) from stats_cache where repository_id = ?1", [&id], |r| r.get(0))?)).unwrap();
         assert_eq!(count, i64::from(KEEP_PER_REPO));
         assert_eq!(db.with(|c| get(c, &id, "key-0")).unwrap(), None, "the oldest entry is gone");
         assert_eq!(db.with(|c| get(c, &id, "key-1")).unwrap(), None);

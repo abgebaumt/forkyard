@@ -270,9 +270,8 @@ impl Response {
     /// Reads the body as JSON; unreadable responses yield an understandable error
     /// (without quoting the body).
     pub fn json<T: DeserializeOwned>(&self) -> CoreResult<T> {
-        serde_json::from_slice(&self.body).map_err(|e| {
-            CoreError::unknown(format!("The response from {} could not be read ({}).", self.label, json_error_kind(&e)))
-        })
+        serde_json::from_slice(&self.body)
+            .map_err(|e| CoreError::unknown(format!("The response from {} could not be read ({}).", self.label, json_error_kind(&e))))
     }
 
     pub fn rate_limit(&self) -> RateLimit {
@@ -543,7 +542,9 @@ impl Failure {
         };
         // Depending on where it happens, a rejected certificate also arrives as an IO error; it can be recognised by the wording.
         let lower = detail.to_ascii_lowercase();
-        if matches!(kind, FailureKind::Unreachable | FailureKind::Other) && ["certificate", "unknownissuer", "notvalidforname", "handshake", "tls"].iter().any(|word| lower.contains(word)) {
+        if matches!(kind, FailureKind::Unreachable | FailureKind::Other)
+            && ["certificate", "unknownissuer", "notvalidforname", "handshake", "tls"].iter().any(|word| lower.contains(word))
+        {
             return Failure { kind: FailureKind::Tls, retryable: false, detail };
         }
         Failure { kind, retryable, detail }
@@ -688,7 +689,8 @@ pub async fn send(core: &Core, request: Request) -> CoreResult<Response> {
 
     let agent = {
         let fingerprint = route.fingerprint(&options);
-        let known = state.agents.lock().get(&target.base).filter(|(built_for, _)| *built_for == fingerprint).map(|(_, agent)| agent.clone());
+        let known =
+            state.agents.lock().get(&target.base).filter(|(built_for, _)| *built_for == fingerprint).map(|(_, agent)| agent.clone());
         match known {
             Some(agent) => agent,
             None => {
@@ -708,7 +710,13 @@ pub async fn send(core: &Core, request: Request) -> CoreResult<Response> {
     if let Some(cached) = &cached {
         headers.push(("if-none-match".to_string(), cached.etag.clone()));
     }
-    let parts = std::sync::Arc::new(Parts { method: request.method, url: request.url.clone(), headers, body: request.body.clone(), max_body: options.max_body });
+    let parts = std::sync::Arc::new(Parts {
+        method: request.method,
+        url: request.url.clone(),
+        headers,
+        body: request.body.clone(),
+        max_body: options.max_body,
+    });
 
     let started_at = util::now_iso();
     let started = Instant::now();
@@ -736,7 +744,13 @@ pub async fn send(core: &Core, request: Request) -> CoreResult<Response> {
     let result = match outcome {
         Ok(raw) => {
             let response = match (raw.status, &cached) {
-                (304, Some(cached)) => Response { status: cached.status, headers: merge_headers(&cached.headers, &raw.headers), body: cached.body.clone(), from_cache: true, label: request.label.clone() },
+                (304, Some(cached)) => Response {
+                    status: cached.status,
+                    headers: merge_headers(&cached.headers, &raw.headers),
+                    body: cached.body.clone(),
+                    from_cache: true,
+                    label: request.label.clone(),
+                },
                 _ => Response { status: raw.status, headers: raw.headers, body: raw.body, from_cache: false, label: request.label.clone() },
             };
             if let (Some(key), false) = (&cache_key, response.from_cache) {
@@ -808,7 +822,12 @@ fn remember(state: &HttpState, key: &str, response: &Response) {
             }
             etags.insert(
                 key.to_string(),
-                std::sync::Arc::new(CachedResponse { etag, status: response.status, headers: response.headers.clone(), body: response.body.clone() }),
+                std::sync::Arc::new(CachedResponse {
+                    etag,
+                    status: response.status,
+                    headers: response.headers.clone(),
+                    body: response.body.clone(),
+                }),
             );
         }
         _ => {

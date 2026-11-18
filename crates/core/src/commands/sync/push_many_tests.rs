@@ -126,7 +126,10 @@ async fn invalid_extra_refs_are_refused_before_anything_is_sent() {
     assert_eq!(code(push_refs(&f, vec![extra("feature")], true).await), ErrorCode::InvalidName);
     assert_eq!(code(push_refs(&f, vec![extra("refs/heads/-x")], true).await), ErrorCode::InvalidName);
     assert_eq!(code(push_refs(&f, vec![extra("refs/heads/gibt-es-nicht")], true).await), ErrorCode::NotFound);
-    assert_eq!(code(push_refs(&f, vec![PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: true, expected: None }], true).await), ErrorCode::NotAllowed);
+    assert_eq!(
+        code(push_refs(&f, vec![PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: true, expected: None }], true).await),
+        ErrorCode::NotAllowed
+    );
     assert_eq!(code(push_refs(&f, vec![extra("refs/heads/main")], true).await), ErrorCode::NotAllowed, "the same remote ref twice");
     assert_eq!(remote_sha(&f.remote, "refs/tags/v1"), None);
 }

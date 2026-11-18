@@ -89,7 +89,8 @@ pub(super) fn git_in(repo: &TestRepo, dir: &Path, args: &[&str]) -> String {
 pub(super) fn agent_commit(fx: &Fx, file: &str, content: &[u8], message: &str, date: Option<&str>) -> String {
     std::fs::write(fx.folder.join(file), content).unwrap();
     git_in(&fx.repo, &fx.folder, &["add", "-A"]);
-    let mut cmd = git_cmd(&fx.repo, &fx.folder, &["-c", "user.name=Agent", "-c", "user.email=agent@example.com", "commit", "-q", "-m", message]);
+    let mut cmd =
+        git_cmd(&fx.repo, &fx.folder, &["-c", "user.name=Agent", "-c", "user.email=agent@example.com", "commit", "-q", "-m", message]);
     if let Some(date) = date {
         cmd.env("GIT_AUTHOR_DATE", date).env("GIT_COMMITTER_DATE", date);
     }
@@ -105,7 +106,8 @@ pub(super) fn blob(repo: &TestRepo, rev_path: &str) -> Vec<u8> {
 }
 
 async fn changed_paths(fx: &Fx, review: &AgentReview) -> Vec<String> {
-    let details = commit_details(&fx.tc, fx.id.clone(), DiffSource::Range { from: review.from.clone(), to: Some(review.to.clone()) }).await.unwrap();
+    let details =
+        commit_details(&fx.tc, fx.id.clone(), DiffSource::Range { from: review.from.clone(), to: Some(review.to.clone()) }).await.unwrap();
     let mut paths: Vec<String> = details.files.into_iter().map(|file| file.path).collect();
     paths.sort();
     paths
@@ -127,7 +129,11 @@ async fn the_snapshot_holds_the_working_state_without_touching_index_or_refs() {
     assert_eq!(review.source, AgentReviewSource::Snapshot);
     assert_eq!(review.tip, fx.repo.git(&["rev-parse", "agent/liste"]));
     assert_eq!(review.from, fx.repo.git(&["merge-base", "main", &head]), "fork point from git");
-    assert_eq!(fx.repo.git(&["rev-list", "--parents", "-n", "1", &review.to]), format!("{} {head}", review.to), "exactly one parent: the agent's HEAD");
+    assert_eq!(
+        fx.repo.git(&["rev-list", "--parents", "-n", "1", &review.to]),
+        format!("{} {head}", review.to),
+        "exactly one parent: the agent's HEAD"
+    );
     assert_eq!(blob(&fx.repo, &format!("{}:liste.txt", review.to)), CRLF_AGENT, "CRLF and the missing final newline stay");
     assert_eq!(blob(&fx.repo, &format!("{}:{ODD}", review.to)), LATIN1, "new file byte for byte");
     assert!(!fx.repo.git_output(&["cat-file", "-e", &format!("{}:debug.log", review.to)]).status.success(), "ignored files stay out");
@@ -137,7 +143,11 @@ async fn the_snapshot_holds_the_working_state_without_touching_index_or_refs() {
     assert_eq!(changed_paths(&fx, &review).await, vec![ODD.to_string(), "liste.txt".to_string()]);
 
     assert_eq!(fx.repo.git(&["for-each-ref", "--format=%(refname) %(objectname)"]), refs_before, "no ref was created");
-    assert_eq!(git_in(&fx.repo, &fx.folder, &["status", "--porcelain=v1", "-z", "--untracked-files=all"]), agent_status_before, "the agent's files are untouched");
+    assert_eq!(
+        git_in(&fx.repo, &fx.folder, &["status", "--porcelain=v1", "-z", "--untracked-files=all"]),
+        agent_status_before,
+        "the agent's files are untouched"
+    );
     assert_eq!(git_in(&fx.repo, &fx.folder, &["ls-files", "--stage", "-z"]), agent_index_before, "the agent's index is untouched");
     assert_eq!(fx.repo.git(&["status", "--porcelain"]), "", "my own working directory is untouched");
 }
@@ -167,7 +177,11 @@ async fn a_clean_worktree_or_commits_only_compare_the_branch_tip() {
     let fx = fixture().await;
     let tip = agent_commit(&fx, "agent.txt", b"vom Agenten\n", "Agent", None);
     let clean = agent_review(&fx.tc, fx.row.id.clone(), AgentReviewSource::Snapshot).await.unwrap();
-    assert_eq!((clean.source, clean.to.as_str(), clean.uncommitted_files), (AgentReviewSource::Branch, tip.as_str(), 0), "nothing uncommitted: the branch");
+    assert_eq!(
+        (clean.source, clean.to.as_str(), clean.uncommitted_files),
+        (AgentReviewSource::Branch, tip.as_str(), 0),
+        "nothing uncommitted: the branch"
+    );
 
     std::fs::write(fx.folder.join("liste.txt"), CRLF_AGENT).unwrap();
     let commits_before = commit_objects(&fx.repo);
@@ -255,10 +269,19 @@ fn whole(diff: &TextDiff) -> PatchSelection {
 /// Only the changed lines with these texts, from the first hunk.
 fn lines(diff: &TextDiff, texts: &[&str]) -> PatchSelection {
     let hunk = &diff.hunks[0];
-    let picked: Vec<u32> =
-        hunk.lines.iter().enumerate().filter(|(_, line)| line.kind != DiffLineKind::Context && texts.contains(&line.text.as_str())).map(|(index, _)| index as u32).collect();
+    let picked: Vec<u32> = hunk
+        .lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.kind != DiffLineKind::Context && texts.contains(&line.text.as_str()))
+        .map(|(index, _)| index as u32)
+        .collect();
     assert_eq!(picked.len(), texts.len(), "{:?}", hunk.lines);
-    PatchSelection { path: diff.path.clone(), hunks: vec![HunkSelection { index: hunk.index, lines: Some(picked) }], expect: diff.range_token.clone().expect("range token") }
+    PatchSelection {
+        path: diff.path.clone(),
+        hunks: vec![HunkSelection { index: hunk.index, lines: Some(picked) }],
+        expect: diff.range_token.clone().expect("range token"),
+    }
 }
 
 /// The list's first pair of lines and the whole new file.
@@ -289,7 +312,16 @@ async fn taking_over_staged_puts_the_lines_into_index_and_folder() {
     let fx = fixture().await;
     let review = agent_work(&fx).await;
     let liste = range_diff(&fx, &review, "liste.txt").await;
-    range_apply(&fx.tc, fx.id.clone(), review.from.clone(), review.to.clone(), vec![lines(&liste, &["drei", "DREI"])], RangeApplyTarget::Both).await.unwrap();
+    range_apply(
+        &fx.tc,
+        fx.id.clone(),
+        review.from.clone(),
+        review.to.clone(),
+        vec![lines(&liste, &["drei", "DREI"])],
+        RangeApplyTarget::Both,
+    )
+    .await
+    .unwrap();
     assert_eq!(fx.repo.git_output(&["show", ":liste.txt"]).stdout, b"eins\r\nzwei\r\nDREI");
     assert_eq!(fx.repo.read_file("liste.txt"), b"eins\r\nzwei\r\nDREI");
     assert_eq!(staged(&fx.repo), "liste.txt");
@@ -302,7 +334,9 @@ async fn my_own_change_on_the_same_line_ends_in_a_conflict_and_changes_nothing()
     let liste = range_diff(&fx, &review, "liste.txt").await;
     let mine: &[u8] = b"mein\r\nzwei\r\ndrei";
     fx.repo.write_file("liste.txt", mine);
-    let err = range_apply(&fx.tc, fx.id.clone(), review.from.clone(), review.to.clone(), vec![whole(&liste)], RangeApplyTarget::Worktree).await.unwrap_err();
+    let err = range_apply(&fx.tc, fx.id.clone(), review.from.clone(), review.to.clone(), vec![whole(&liste)], RangeApplyTarget::Worktree)
+        .await
+        .unwrap_err();
     assert_eq!(err.code, ErrorCode::Conflict, "{err:?}");
     assert!(err.message.contains("liste.txt"), "names the file: {}", err.message);
     assert_eq!(fx.repo.read_file("liste.txt"), mine, "own change kept, no conflict markers");
@@ -331,8 +365,13 @@ async fn commit_selection_commits_only_the_selection_on_my_branch() {
     assert_eq!(fx.repo.git(&["rev-parse", "HEAD^"]), before, "one new commit on top");
     assert_eq!(fx.repo.current_branch(), "main");
     assert_eq!(fx.repo.git(&["log", "-1", "--format=%B"]), "Liste groß schreiben\n\nund die Größe ergänzen");
-    let mut files: Vec<String> =
-        fx.repo.git(&["-c", "core.quotepath=false", "show", "--format=", "--name-only", "HEAD"]).lines().filter(|line| !line.is_empty()).map(str::to_string).collect();
+    let mut files: Vec<String> = fx
+        .repo
+        .git(&["-c", "core.quotepath=false", "show", "--format=", "--name-only", "HEAD"])
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect();
     files.sort();
     assert_eq!(files, vec![ODD.to_string(), "liste.txt".to_string()]);
     assert_eq!(fx.repo.git_output(&["show", "HEAD:liste.txt"]).stdout, b"EINS\r\nzwei\r\ndrei");
@@ -350,9 +389,19 @@ async fn commit_selection_refuses_a_staging_area_with_my_own_changes() {
     fx.repo.write_file("eigen.txt", "meins\n");
     fx.repo.git(&["add", "eigen.txt"]);
     let selection = usual_selection(&fx, &review).await;
-    let err = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-2".into(), review.from.clone(), review.to.clone(), selection, "Liste".into(), String::new(), false)
-        .await
-        .unwrap_err();
+    let err = agent_review_commit(
+        &fx.tc,
+        fx.row.id.clone(),
+        "op-review-2".into(),
+        review.from.clone(),
+        review.to.clone(),
+        selection,
+        "Liste".into(),
+        String::new(),
+        false,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
     assert_eq!(err.message, STAGED);
     assert_eq!(fx.repo.head(), before, "nothing committed");
@@ -366,13 +415,33 @@ async fn commit_selection_without_a_summary_or_a_selection_changes_nothing() {
     let fx = fixture().await;
     let review = agent_work(&fx).await;
     let selection = usual_selection(&fx, &review).await;
-    let empty = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-3".into(), review.from.clone(), review.to.clone(), selection, "   ".into(), String::new(), false)
-        .await
-        .unwrap_err();
+    let empty = agent_review_commit(
+        &fx.tc,
+        fx.row.id.clone(),
+        "op-review-3".into(),
+        review.from.clone(),
+        review.to.clone(),
+        selection,
+        "   ".into(),
+        String::new(),
+        false,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(empty.code, ErrorCode::EmptyMessage);
-    let nothing = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-4".into(), review.from.clone(), review.to.clone(), Vec::new(), "Liste".into(), String::new(), false)
-        .await
-        .unwrap_err();
+    let nothing = agent_review_commit(
+        &fx.tc,
+        fx.row.id.clone(),
+        "op-review-4".into(),
+        review.from.clone(),
+        review.to.clone(),
+        Vec::new(),
+        "Liste".into(),
+        String::new(),
+        false,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(nothing.code, ErrorCode::NothingToCommit);
     assert_eq!(fx.repo.read_file("liste.txt"), CRLF_BASE);
     assert_eq!(staged(&fx.repo), "");
@@ -390,9 +459,19 @@ async fn commit_selection_refuses_while_a_merge_is_in_progress() {
     fx.repo.commit_file("README.md", "# Haupt\n", "Haupt");
     assert!(!fx.repo.git_output(&["merge", "seite"]).status.success(), "the merge stops at the conflict");
     let before = fx.repo.head();
-    let err = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-6".into(), review.from.clone(), review.to.clone(), selection, "Liste".into(), String::new(), false)
-        .await
-        .unwrap_err();
+    let err = agent_review_commit(
+        &fx.tc,
+        fx.row.id.clone(),
+        "op-review-6".into(),
+        review.from.clone(),
+        review.to.clone(),
+        selection,
+        "Liste".into(),
+        String::new(),
+        false,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(err.code, ErrorCode::OperationInProgress, "{err:?}");
     assert_eq!(err.message, OPERATION);
     assert_eq!(fx.repo.head(), before, "nothing committed");
@@ -413,9 +492,19 @@ async fn a_failing_hook_keeps_the_selection_staged() {
     std::fs::write(hooks.join("pre-commit"), "#!/bin/sh\necho 'Linter: Fehler' >&2\nexit 3\n").unwrap();
     std::fs::set_permissions(hooks.join("pre-commit"), std::fs::Permissions::from_mode(0o755)).unwrap();
     let selection = usual_selection(&fx, &review).await;
-    let err = agent_review_commit(&fx.tc, fx.row.id.clone(), "op-review-5".into(), review.from.clone(), review.to.clone(), selection, "Liste".into(), String::new(), false)
-        .await
-        .unwrap_err();
+    let err = agent_review_commit(
+        &fx.tc,
+        fx.row.id.clone(),
+        "op-review-5".into(),
+        review.from.clone(),
+        review.to.clone(),
+        selection,
+        "Liste".into(),
+        String::new(),
+        false,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(err.code, ErrorCode::HookFailed, "{err:?}");
     assert!(err.message.ends_with(STAYS_STAGED), "{}", err.message);
     assert_eq!(fx.repo.head(), before);

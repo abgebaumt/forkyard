@@ -5,7 +5,10 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
 
-use super::{commit_not_found, display_text, is_full_sha, other_failure, parse_i64, read_cmd, read_ref_tips, read_stashes, resolve_commit_at, split_shas, LOG_SAFE};
+use super::{
+    commit_not_found, display_text, is_full_sha, other_failure, parse_i64, read_cmd, read_ref_tips, read_stashes, resolve_commit_at,
+    split_shas, LOG_SAFE,
+};
 use crate::app::Core;
 use crate::commands::diff::is_empty_tree;
 use crate::commands::status::{self, LineCounts};
@@ -95,7 +98,13 @@ async fn read_meta(core: &Core, path: &Path, repo_id: &str, sha: &str) -> CoreRe
 /// `verify: false` leaves the signature unchecked (`unknown`); Git then does not start GnuPG.
 pub(super) async fn read_meta_with(core: &Core, path: &Path, repo_id: &str, sha: &str, verify: bool) -> CoreResult<CommitInfo> {
     let format = META_FORMAT.replace("%G?", if verify { "%G?" } else { "?" });
-    let mut cmd = read_cmd(core, path, repo_id).args(["log", "-1", "--no-walk"]).args(LOG_SAFE).args(["--date=raw", "-z", format.as_str(), sha, "--"]);
+    let mut cmd = read_cmd(core, path, repo_id).args(["log", "-1", "--no-walk"]).args(LOG_SAFE).args([
+        "--date=raw",
+        "-z",
+        format.as_str(),
+        sha,
+        "--",
+    ]);
     if verify {
         cmd = cmd.timeout(SIGNATURE_TIMEOUT);
     }
@@ -409,23 +418,18 @@ async fn range(core: &Core, path: &Path, repo_id: &str, from: &str, to: Option<&
     if from == to {
         return Ok(details(None, Vec::new()));
     }
-    let (files, base) = tokio::join!(
-        diff_files(core, path, repo_id, &["diff-tree", "-r"], vec![from.clone(), to.clone()]),
-        async {
-            if from_empty {
-                // A tree has no history; the question of the common ancestor does not arise.
-                Ok(GitOutput { code: Some(0), ..GitOutput::default() })
-            } else {
-                read_cmd(core, path, repo_id).args(["merge-base", &from, &to]).run_raw().await
-            }
-        },
-    );
+    let (files, base) = tokio::join!(diff_files(core, path, repo_id, &["diff-tree", "-r"], vec![from.clone(), to.clone()]), async {
+        if from_empty {
+            // A tree has no history; the question of the common ancestor does not arise.
+            Ok(GitOutput { code: Some(0), ..GitOutput::default() })
+        } else {
+            read_cmd(core, path, repo_id).args(["merge-base", &from, &to]).run_raw().await
+        }
+    },);
     // Exit code 1 without output: there is no common ancestor.
     if base.is_ok_and(|out: GitOutput| out.code == Some(1) && out.stdout_text().is_empty()) {
         let mut out = details(None, Vec::new());
-        out.not_combinable_reason = Some(
-            "The two commits share no history. A combined diff would not be meaningful here.".to_string(),
-        );
+        out.not_combinable_reason = Some("The two commits share no history. A combined diff would not be meaningful here.".to_string());
         return Ok(out);
     }
     let mut files = files?;

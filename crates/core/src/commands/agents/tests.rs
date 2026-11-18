@@ -28,7 +28,10 @@ async fn the_suggestion_avoids_taken_folders_branches_and_names() {
     let (tc, repo, id) = setup().await;
     let task = "Fix the login".to_string();
     let first = agent_suggest(&tc, id.clone(), task.clone(), None, None).await.unwrap();
-    assert_eq!((first.short_name.as_str(), first.branch.as_str(), first.branch_problem.as_deref()), ("fix-the-login", "agent/fix-the-login", None));
+    assert_eq!(
+        (first.short_name.as_str(), first.branch.as_str(), first.branch_problem.as_deref()),
+        ("fix-the-login", "agent/fix-the-login", None)
+    );
     assert!(same(&first.path, &expected_folder(&repo, "fix-the-login")), "{}", first.path);
     assert_eq!(first.base_sha, repo.head());
     assert_eq!((first.configs.len(), first.running), (0, 0));
@@ -52,7 +55,10 @@ async fn the_suggestion_avoids_taken_folders_branches_and_names() {
     let free = agent_suggest(&tc, id.clone(), task.clone(), Some("feature/Größe".into()), None).await.unwrap();
     assert_eq!((free.short_name.as_str(), free.branch_problem.as_deref()), ("feature-groesse", None));
     // An unknown base and one starting with "-" are refused.
-    assert_eq!(agent_suggest(&tc, id.clone(), task.clone(), None, Some("gibt-es-nicht".into())).await.unwrap_err().code, ErrorCode::NotFound);
+    assert_eq!(
+        agent_suggest(&tc, id.clone(), task.clone(), None, Some("gibt-es-nicht".into())).await.unwrap_err().code,
+        ErrorCode::NotFound
+    );
     assert_eq!(agent_suggest(&tc, id.clone(), task, None, Some("--all".into())).await.unwrap_err().code, ErrorCode::NotFound);
 }
 
@@ -216,7 +222,11 @@ async fn cleanup_backs_up_branch_and_changes_and_undo_brings_everything_back() {
     for n in 1..=2 {
         std::fs::write(folder.join(format!("agent-{n}.txt")), format!("Schritt {n}\n")).unwrap();
         git_in(&repo, &folder, &["add", "-A"]);
-        git_in(&repo, &folder, &["-c", "user.name=Agent", "-c", "user.email=agent@example.com", "commit", "-q", "-m", &format!("Schritt {n}")]);
+        git_in(
+            &repo,
+            &folder,
+            &["-c", "user.name=Agent", "-c", "user.email=agent@example.com", "commit", "-q", "-m", &format!("Schritt {n}")],
+        );
     }
     let tip = repo.git(&["rev-parse", "agent/fix-login"]);
     let crlf: &[u8] = b"Zeile eins\r\nZeile zwei ohne Ende";
@@ -247,7 +257,10 @@ async fn cleanup_backs_up_branch_and_changes_and_undo_brings_everything_back() {
     assert!(status.contains(" M README.md") && status.contains("?? \"-Gr"), "{status}");
     assert_eq!(git_in(&repo, &folder, &["rev-parse", "HEAD"]), tip);
     let back = agent_list(&tc, id.clone()).await.unwrap();
-    assert_eq!((back.len(), back[0].status, back[0].short_name.as_str(), back[0].task.as_str()), (1, AgentStatus::Stopped, "fix-login", "Aufräumen testen"));
+    assert_eq!(
+        (back.len(), back[0].status, back[0].short_name.as_str(), back[0].task.as_str()),
+        (1, AgentStatus::Stopped, "fix-login", "Aufräumen testen")
+    );
     assert!(back[0].worktree_repo_id.is_some());
 
     // Redo removes it again; a second undo still finds the (re-taken) backup.

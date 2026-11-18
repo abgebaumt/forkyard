@@ -14,7 +14,9 @@ use std::sync::{Mutex, Once};
 
 use dbus_secret_service::{EncryptionType, Item, SecretService};
 use keyring::credential::{Credential, CredentialApi, CredentialBuilderApi};
-use keyring::secret_service::{create_collection, decode_error, delete_item, get_collection, get_item_secret, set_item_secret, SsCredential};
+use keyring::secret_service::{
+    create_collection, decode_error, delete_item, get_collection, get_item_secret, set_item_secret, SsCredential,
+};
 use keyring::{Error, Result};
 
 /// The connection of this process; `None` until first use or after a failed call.
@@ -82,7 +84,8 @@ impl SharedCredential {
     /// unlocked first.
     fn with_unique_item<T>(&self, service: &SecretService, f: &impl Fn(&Item) -> Result<T>) -> Result<T> {
         let attrs = &self.0.attributes;
-        let mut search = std::collections::HashMap::from([("service", attrs["service"].as_str()), ("username", attrs["username"].as_str())]);
+        let mut search =
+            std::collections::HashMap::from([("service", attrs["service"].as_str()), ("username", attrs["username"].as_str())]);
         search.insert("target", self.target());
         let found = service.search_items(search.clone()).map_err(decode_error)?;
         let (unlocked, locked) = (found.unlocked, found.locked);

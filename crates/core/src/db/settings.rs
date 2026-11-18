@@ -9,13 +9,9 @@ use crate::util;
 
 pub fn get_all(conn: &Connection, profile_id: &str) -> CoreResult<Vec<(String, Value)>> {
     let mut stmt = conn.prepare("select key, value from settings where profile_id = ?1")?;
-    let rows = stmt
-        .query_map([profile_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
-    Ok(rows
-        .into_iter()
-        .filter_map(|(k, v)| serde_json::from_str(&v).ok().map(|v| (k, v)))
-        .collect())
+    let rows =
+        stmt.query_map([profile_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(rows.into_iter().filter_map(|(k, v)| serde_json::from_str(&v).ok().map(|v| (k, v))).collect())
 }
 
 pub fn set(conn: &Connection, profile_id: &str, key: &str, value: &Value) -> CoreResult<()> {

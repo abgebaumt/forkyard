@@ -210,7 +210,10 @@ async fn rebase_conflict_leaves_a_continuable_rebase_and_an_open_undo_entry() {
     // While the rebase is running nothing else works, and the entry stays open.
     assert_eq!(code_of(rebase_start(&tc, id.clone(), "main".into(), None).await), ErrorCode::OperationInProgress);
     assert_eq!(code_of(cherry_pick(&tc, id.clone(), vec![main_tip.clone()]).await), ErrorCode::OperationInProgress);
-    assert_eq!(code_of(squash_commits(&tc, id.clone(), vec![main_tip.clone(), old_tip.clone()], "x".into()).await), ErrorCode::OperationInProgress);
+    assert_eq!(
+        code_of(squash_commits(&tc, id.clone(), vec![main_tip.clone(), old_tip.clone()], "x".into()).await),
+        ErrorCode::OperationInProgress
+    );
     assert_eq!(code_of(rebase_apply(&tc, id.clone(), main_tip.clone(), vec![]).await), ErrorCode::OperationInProgress);
     match rebase_plan(&tc, id.clone(), main_tip.clone()).await.unwrap() {
         RebasePlan::Refused { reason, detail, message } => {
@@ -333,40 +336,58 @@ async fn foreign_index_lock_is_reported_and_changes_nothing() {
 async fn untracked_file_in_the_way_stops_without_being_overwritten() {
     let (tc, repo, id) = setup().await;
     repo.checkout_new("feature");
-    repo.commit_file("y.txt", "aus dem Commit
-", "F1: y anlegen");
+    repo.commit_file(
+        "y.txt",
+        "aus dem Commit
+",
+        "F1: y anlegen",
+    );
     repo.git(&["rm", "-q", "y.txt"]);
     repo.commit("F2: y löschen");
     let old_tip = repo.head();
     repo.checkout("main");
-    repo.commit_file("x.txt", "main
-", "Main");
+    repo.commit_file(
+        "x.txt", "main
+", "Main",
+    );
     repo.checkout("feature");
 
     // Even checking out the target fails: nothing starts.
-    repo.write_file("x.txt", "unverfolgt
-");
+    repo.write_file(
+        "x.txt",
+        "unverfolgt
+",
+    );
     let err = rebase_start(&tc, id.clone(), "main".into(), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::DirtyWorktree, "{err:?}");
     assert!(err.message.starts_with("Untracked files"), "{}", err.message);
     assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
     assert_eq!((repo.head(), repo.current_branch()), (old_tip.clone(), "feature".to_string()));
-    assert_eq!(repo.read_file("x.txt"), b"unverfolgt
-");
+    assert_eq!(
+        repo.read_file("x.txt"),
+        b"unverfolgt
+"
+    );
     assert!(undo::next_undo(&tc, &id, "").unwrap().is_none());
     assert_eq!(repo.git(&["for-each-ref", "refs/forkyard"]), "");
     repo.remove_file("x.txt");
 
     // In the middle of the rebase: Git stops without conflicted files. That is an error with a running operation.
-    repo.write_file("y.txt", "unverfolgt
-");
+    repo.write_file(
+        "y.txt",
+        "unverfolgt
+",
+    );
     let err = rebase_start(&tc, id.clone(), "main".into(), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::DirtyWorktree, "{err:?}");
     assert!(err.message.contains("paused"), "{}", err.message);
     assert!(err.git_output.is_some());
     assert_eq!(status::read_operation(&tc, &id).await.unwrap().map(|o| o.kind), Some(OperationKind::Rebase));
-    assert_eq!(repo.read_file("y.txt"), b"unverfolgt
-");
+    assert_eq!(
+        repo.read_file("y.txt"),
+        b"unverfolgt
+"
+    );
     let entry = top_undo(&tc, &id);
     assert_eq!((entry.ref_before.as_deref(), entry.ref_after.as_deref()), (Some(old_tip.as_str()), None));
     assert_eq!(entry.payload["pending"], true);
@@ -382,14 +403,23 @@ async fn untracked_file_in_the_way_stops_without_being_overwritten() {
 async fn cherry_pick_does_not_skip_a_commit_that_could_not_be_applied() {
     let (tc, repo, id) = setup().await;
     repo.checkout_new("quelle");
-    let x1 = repo.commit_file("a.txt", "a
-", "X1");
-    let x2 = repo.commit_file("y.txt", "aus dem Commit
-", "X2: y anlegen");
+    let x1 = repo.commit_file(
+        "a.txt", "a
+", "X1",
+    );
+    let x2 = repo.commit_file(
+        "y.txt",
+        "aus dem Commit
+",
+        "X2: y anlegen",
+    );
     repo.checkout("main");
     let old_head = repo.head();
-    repo.write_file("y.txt", "unverfolgt
-");
+    repo.write_file(
+        "y.txt",
+        "unverfolgt
+",
+    );
 
     // On its own: nothing happens.
     let err = cherry_pick(&tc, id.clone(), vec![x2.clone()]).await.unwrap_err();
@@ -409,8 +439,11 @@ async fn cherry_pick_does_not_skip_a_commit_that_could_not_be_applied() {
         assert!(err.git_output.is_some());
         assert_eq!(subjects(&repo, &format!("{old_head}..HEAD")), ["X1"]);
         assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
-        assert_eq!(repo.read_file("y.txt"), b"unverfolgt
-");
+        assert_eq!(
+            repo.read_file("y.txt"),
+            b"unverfolgt
+"
+        );
         assert_eq!(repo.git(&["status", "--porcelain"]), "?? y.txt");
         let entry = top_undo(&tc, &id);
         assert_eq!(entry.payload["pending"], false);
@@ -502,7 +535,10 @@ async fn plan_refusals() {
     assert_eq!(reason(rebase_plan(&tc, id.clone(), unrelated.clone()).await.unwrap()), RebaseRefusal::NoCommonAncestor);
     // The two cases are told apart by the `detail` field, not by the wording.
     assert_eq!(detail(rebase_plan(&tc, id.clone(), sibling.clone()).await.unwrap()), Some(crate::model::RebaseRefusalDetail::NotAncestor));
-    assert_eq!(detail(rebase_plan(&tc, id.clone(), unrelated.clone()).await.unwrap()), Some(crate::model::RebaseRefusalDetail::UnrelatedHistory));
+    assert_eq!(
+        detail(rebase_plan(&tc, id.clone(), unrelated.clone()).await.unwrap()),
+        Some(crate::model::RebaseRefusalDetail::UnrelatedHistory)
+    );
     assert_eq!(code_of(rebase_apply(&tc, id.clone(), sibling, vec![]).await), ErrorCode::StaleState);
 
     // Uncommitted changes.
@@ -689,8 +725,14 @@ async fn apply_checks_the_plan_against_the_repository() {
 
     // Rows don't match base..HEAD: too few, foreign commit, duplicate.
     assert_eq!(code_of(rebase_apply(&tc, id.clone(), base.clone(), picks(&[&s[0], &s[1]])).await), ErrorCode::StaleState);
-    assert_eq!(code_of(rebase_apply(&tc, id.clone(), base.clone(), picks(&[&s[0], &s[1], &s[2], &s[3], &base])).await), ErrorCode::StaleState);
-    assert_eq!(code_of(rebase_apply(&tc, id.clone(), base.clone(), picks(&[&s[0], &s[1], &s[2], &s[3], &s[3]])).await), ErrorCode::StaleState);
+    assert_eq!(
+        code_of(rebase_apply(&tc, id.clone(), base.clone(), picks(&[&s[0], &s[1], &s[2], &s[3], &base])).await),
+        ErrorCode::StaleState
+    );
+    assert_eq!(
+        code_of(rebase_apply(&tc, id.clone(), base.clone(), picks(&[&s[0], &s[1], &s[2], &s[3], &s[3]])).await),
+        ErrorCode::StaleState
+    );
     // Base is meanwhile no longer below HEAD, or equal to HEAD.
     assert_eq!(code_of(rebase_apply(&tc, id.clone(), tip.clone(), vec![]).await), ErrorCode::StaleState);
     assert_eq!(code_of(rebase_apply(&tc, id.clone(), "gibt-es-nicht".into(), vec![]).await), ErrorCode::NotFound);
@@ -834,7 +876,8 @@ async fn squash_three_commits_in_the_middle_of_the_branch() {
     let author_date = repo.git(&["log", "-1", "--format=%at", &k1]);
 
     // The order of the selection doesn't matter.
-    let result = squash_commits(&tc, id.clone(), vec![k3.clone(), k1.clone(), k2.clone()], "Eins bis drei\n\nZusammen.".into()).await.unwrap();
+    let result =
+        squash_commits(&tc, id.clone(), vec![k3.clone(), k1.clone(), k2.clone()], "Eins bis drei\n\nZusammen.".into()).await.unwrap();
     let squashed = repo.git(&["rev-parse", "HEAD~2"]);
     match &result {
         OpResult::Done { sha, summary, .. } => {
@@ -907,14 +950,20 @@ async fn squash_refuses_what_cannot_be_squashed() {
     not_allowed(squash_commits(&tc, id.clone(), vec![k2.clone(), k2.clone()], "x".into()).await, "at least two");
     not_allowed(squash_commits(&tc, id.clone(), vec![], "x".into()).await, "No commit");
     assert_eq!(code_of(squash_commits(&tc, id.clone(), vec![k1.clone(), k2.clone()], " \n".into()).await), ErrorCode::EmptyMessage);
-    assert_eq!(code_of(squash_commits(&tc, id.clone(), vec![k1.clone(), "0123456789abcdef".into()], "x".into()).await), ErrorCode::NotFound);
+    assert_eq!(
+        code_of(squash_commits(&tc, id.clone(), vec![k1.clone(), "0123456789abcdef".into()], "x".into()).await),
+        ErrorCode::NotFound
+    );
     assert_eq!(code_of(squash_commits(&tc, id.clone(), vec![k1.clone(), "HEAD~1".into()], "x".into()).await), ErrorCode::NotFound);
 
     // A commit from another branch.
     repo.checkout_new("seite");
     let side = repo.commit_file("s.txt", "s\n", "Seite");
     repo.checkout("main");
-    not_allowed(squash_commits(&tc, id.clone(), vec![k3.clone(), side.clone()], "x".into()).await, "Not all of the selected commits are on the checked-out branch");
+    not_allowed(
+        squash_commits(&tc, id.clone(), vec![k3.clone(), side.clone()], "x".into()).await,
+        "Not all of the selected commits are on the checked-out branch",
+    );
 
     // Merge commit in the selection or above it.
     repo.commit_file("m.txt", "m\n", "Main");
@@ -1144,7 +1193,10 @@ async fn helper_with_spaces_in_its_path_works_through_git_and_a_missing_one_is_r
     let tip = repo.head();
     let mut rows: Vec<RebasePlanRow> = s[..4].iter().map(|sha| row(sha, RebaseAction::Pick, None)).collect();
     rows[3].action = RebaseAction::Drop;
-    set_editor_helper(&tc, Some(repo.temp_dir().join("gibt-es-nicht").join(format!("{EDITOR_HELPER_NAME}{}", std::env::consts::EXE_SUFFIX))));
+    set_editor_helper(
+        &tc,
+        Some(repo.temp_dir().join("gibt-es-nicht").join(format!("{EDITOR_HELPER_NAME}{}", std::env::consts::EXE_SUFFIX))),
+    );
     let err = rebase_apply(&tc, id.clone(), base.clone(), rows.clone()).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::Unsupported, "{err:?}");
     let broken = repo.temp_dir().join(format!("kaputter-editor{}", std::env::consts::EXE_SUFFIX));
@@ -1156,7 +1208,11 @@ async fn helper_with_spaces_in_its_path_works_through_git_and_a_missing_one_is_r
     assert_eq!(repo.head(), tip);
     assert_eq!(repo.current_branch(), "main");
     assert_eq!(status::read_operation(&tc, &id).await.unwrap(), None);
-    assert_eq!(repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard"]).lines().count(), 2, "only the backups of the successful rebases");
+    assert_eq!(
+        repo.git(&["for-each-ref", "--format=%(refname)", "refs/forkyard"]).lines().count(),
+        2,
+        "only the backups of the successful rebases"
+    );
     assert_eq!(std::fs::read_dir(tc.data_dir().join("tmp")).unwrap().count(), 0);
 
     set_editor_helper(&tc, None);
@@ -1165,7 +1221,11 @@ async fn helper_with_spaces_in_its_path_works_through_git_and_a_missing_one_is_r
 
 #[test]
 fn editor_call_prefers_the_bare_name_on_the_path() {
-    let program = Path::new(if cfg!(windows) { r"C:\Program Files (x86)\Mein Client\forkyard-editor.exe" } else { "/opt/mein client/forkyard-editor" });
+    let program = Path::new(if cfg!(windows) {
+        r"C:\Program Files (x86)\Mein Client\forkyard-editor.exe"
+    } else {
+        "/opt/mein client/forkyard-editor"
+    });
     let call = editor_call(program);
     assert_eq!(call.command, "forkyard-editor");
     let path = call.path.expect("PATH is extended");
@@ -1241,10 +1301,7 @@ fn plan_entries_builds_groups_messages_and_stats() {
     assert_eq!(entries, [group("b", &["a"], Some("B\n\nKörper\n\nA\n")), TodoEntry::Drop("d".into()), group("c", &[], Some("C neu\n"))]);
     assert_eq!(stats, PlanStats { squashed: 1, squash_targets: 1, reworded: vec!["C".into()], dropped: vec!["D".into()], reordered: true });
     assert_eq!(stats.undo_label("main"), (UndoAction::Rebase, "Undo interactive rebase of main".to_string()));
-    assert_eq!(
-        stats.summary(),
-        "Interactive rebase complete: 2 commits squashed, 1 commit reworded, 1 commit dropped, order changed."
-    );
+    assert_eq!(stats.summary(), "Interactive rebase complete: 2 commits squashed, 1 commit reworded, 1 commit dropped, order changed.");
 
     // Precedence of the message: target before squash row.
     let steps = [

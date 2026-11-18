@@ -51,7 +51,15 @@ fn known_locations_follow_the_install_conventions() {
     let unix = LocateEnv { home: Some("/home/lena".into()), npm_prefix: Some("/opt/npm".into()), macos: true, ..Default::default() };
     assert_eq!(
         shown(known_locations("claude", &unix)),
-        ["/home/lena/.local/bin", "/home/lena/.opencode/bin", "/home/lena/.bun/bin", "/home/lena/.npm-global/bin", "/opt/npm/bin", "/opt/homebrew/bin", "/usr/local/bin"]
+        [
+            "/home/lena/.local/bin",
+            "/home/lena/.opencode/bin",
+            "/home/lena/.bun/bin",
+            "/home/lena/.npm-global/bin",
+            "/opt/npm/bin",
+            "/opt/homebrew/bin",
+            "/usr/local/bin"
+        ]
     );
     let windows = LocateEnv {
         user_profile: Some(r"C:\Users\Lena".into()),
@@ -62,13 +70,21 @@ fn known_locations_follow_the_install_conventions() {
     };
     assert_eq!(
         shown(known_locations("codex", &windows)),
-        ["C:/Users/Lena/.local/bin", "C:/Users/Lena/AppData/Roaming/npm", "C:/Users/Lena/AppData/Local/Programs/codex", "C:/Users/Lena/AppData/Local/Programs/codex/bin"]
+        [
+            "C:/Users/Lena/.local/bin",
+            "C:/Users/Lena/AppData/Roaming/npm",
+            "C:/Users/Lena/AppData/Local/Programs/codex",
+            "C:/Users/Lena/AppData/Local/Programs/codex/bin"
+        ]
     );
 }
 
 #[test]
 fn the_login_shell_path_sits_between_the_markers() {
-    assert_eq!(parse_marked_path(b"Willkommen!\n__FY__/opt/fy/bin:/usr/bin__FY__ Tsch\xc3\xbcss"), Some(OsString::from("/opt/fy/bin:/usr/bin")));
+    assert_eq!(
+        parse_marked_path(b"Willkommen!\n__FY__/opt/fy/bin:/usr/bin__FY__ Tsch\xc3\xbcss"),
+        Some(OsString::from("/opt/fy/bin:/usr/bin"))
+    );
     assert_eq!(parse_marked_path(b"__FY____FY__"), None);
     assert_eq!(parse_marked_path(b"kein Marker"), None);
     assert_eq!(parse_marked_path(b"__FY__/nur/anfang"), None);
@@ -84,7 +100,14 @@ async fn the_login_shell_is_asked_without_a_terminal_and_within_a_time_limit() {
     let dir = temp_folder();
     let args_file = dir.path().join("args.txt");
     let shell = dir.path().join("fake-shell");
-    std::fs::write(&shell, format!("#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\necho 'Willkommen!'\nprintf '__FY__%s__FY__' '/opt/fy bin:/usr/bin'\n", args_file.display())).unwrap();
+    std::fs::write(
+        &shell,
+        format!(
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\necho 'Willkommen!'\nprintf '__FY__%s__FY__' '/opt/fy bin:/usr/bin'\n",
+            args_file.display()
+        ),
+    )
+    .unwrap();
     std::fs::set_permissions(&shell, std::fs::Permissions::from_mode(0o755)).unwrap();
     assert_eq!(login_shell_path_from(&tc, &shell).await, Some(OsString::from("/opt/fy bin:/usr/bin")));
     assert_eq!(std::fs::read_to_string(&args_file).unwrap(), "-l\n-c\nprintf \"__FY__%s__FY__\" \"$PATH\"\n", "a login shell, never -i");
@@ -105,7 +128,12 @@ async fn configured_then_path_then_known_locations_then_the_login_shell() {
     let on_path = fake_tool(&dir.path().join("pfad mit leerzeichen"), "fy-loc-tool", "fy-loc-tool 1.0.0", &counter);
     let known = fake_tool(&dir.path().join("bekannt"), "fy-loc-tool", "fy-loc-tool 2.0.0", &counter);
     let login = fake_tool(&dir.path().join("login"), "fy-loc-tool", "fy-loc-tool 3.0.0", &counter);
-    let all = SearchSpec { configured: None, path_var: Some(folder_of(&on_path)), known: vec![known.parent().unwrap().to_path_buf()], login_path: Some(folder_of(&login)) };
+    let all = SearchSpec {
+        configured: None,
+        path_var: Some(folder_of(&on_path)),
+        known: vec![known.parent().unwrap().to_path_buf()],
+        login_path: Some(folder_of(&login)),
+    };
 
     let found = locate_in(&tc, "fy-loc-tool", &all).await.unwrap();
     assert!(same(&found.path, &on_path), "{found:?}");

@@ -156,7 +156,12 @@ pub fn parse_log(bytes: &[u8]) -> Vec<SourceCommit> {
                 after = next;
             }
         }
-        out.push(SourceCommit { sha: util::decode_lossy(sha), subject: display_text(subject), body: display_text(body).trim_end().to_string(), files });
+        out.push(SourceCommit {
+            sha: util::decode_lossy(sha),
+            subject: display_text(subject),
+            body: display_text(body).trim_end().to_string(),
+            files,
+        });
         rest = after;
     }
     out
@@ -207,7 +212,11 @@ pub fn chain(parents: &BTreeMap<String, String>, existing: &HashSet<String>, sta
     let mut current = start.to_string();
     loop {
         let wanted = format!("refs/heads/{current}");
-        let children: Vec<&String> = parents.iter().filter(|(child, parent)| **parent == wanted && existing.contains(child.as_str())).map(|(child, _)| child).collect();
+        let children: Vec<&String> = parents
+            .iter()
+            .filter(|(child, parent)| **parent == wanted && existing.contains(child.as_str()))
+            .map(|(child, _)| child)
+            .collect();
         let [child] = children.as_slice() else { break };
         if !seen.insert((*child).clone()) {
             return None;
@@ -292,7 +301,10 @@ mod tests {
         let existing = set(&["main", "feature/auswertung", "feature/auswertung-1-a/alt", "team"]);
         assert_eq!(ref_conflict(&existing, "feature/auswertung-2-b"), None);
         assert_eq!(ref_conflict(&existing, "main").as_deref(), Some("A branch “main” already exists."));
-        assert_eq!(ref_conflict(&existing, "feature/auswertung-1-a").as_deref(), Some("The branch “feature/auswertung-1-a/alt” blocks the name “feature/auswertung-1-a”."));
+        assert_eq!(
+            ref_conflict(&existing, "feature/auswertung-1-a").as_deref(),
+            Some("The branch “feature/auswertung-1-a/alt” blocks the name “feature/auswertung-1-a”.")
+        );
         assert_eq!(ref_conflict(&existing, "team/x-1-a").as_deref(), Some("The branch “team” blocks the name “team/x-1-a”."));
     }
 
@@ -306,14 +318,39 @@ mod tests {
 \x1eccc3\x00leer\x00Trenner \x1e mitten\nZeile zwei\n\x00\
 \x1eddd4\x00dash\x00\x00\n1\t0\t-lead.txt\x00-\t-\tlogo.png\x00";
         let commits = parse_log(bytes);
-        let file = |path: &str, old: Option<&str>, added: Option<u64>, deleted: Option<u64>| FileStat { path: path.into(), old_path: old.map(str::to_string), added, deleted };
+        let file = |path: &str, old: Option<&str>, added: Option<u64>, deleted: Option<u64>| FileStat {
+            path: path.into(),
+            old_path: old.map(str::to_string),
+            added,
+            deleted,
+        };
         assert_eq!(
             commits,
             vec![
-                SourceCommit { sha: "aaa1".into(), subject: "zwei dateien".into(), body: String::new(), files: vec![file("a", None, Some(1), Some(1)), file("b ä.txt", None, Some(1), Some(0))] },
-                SourceCommit { sha: "bbb2".into(), subject: "rename".into(), body: String::new(), files: vec![file("src/station.rs", Some("src/modell.rs"), Some(0), Some(0))] },
-                SourceCommit { sha: "ccc3".into(), subject: "leer".into(), body: "Trenner \u{1e} mitten\nZeile zwei".into(), files: vec![] },
-                SourceCommit { sha: "ddd4".into(), subject: "dash".into(), body: String::new(), files: vec![file("-lead.txt", None, Some(1), Some(0)), file("logo.png", None, None, None)] },
+                SourceCommit {
+                    sha: "aaa1".into(),
+                    subject: "zwei dateien".into(),
+                    body: String::new(),
+                    files: vec![file("a", None, Some(1), Some(1)), file("b ä.txt", None, Some(1), Some(0))]
+                },
+                SourceCommit {
+                    sha: "bbb2".into(),
+                    subject: "rename".into(),
+                    body: String::new(),
+                    files: vec![file("src/station.rs", Some("src/modell.rs"), Some(0), Some(0))]
+                },
+                SourceCommit {
+                    sha: "ccc3".into(),
+                    subject: "leer".into(),
+                    body: "Trenner \u{1e} mitten\nZeile zwei".into(),
+                    files: vec![]
+                },
+                SourceCommit {
+                    sha: "ddd4".into(),
+                    subject: "dash".into(),
+                    body: String::new(),
+                    files: vec![file("-lead.txt", None, Some(1), Some(0)), file("logo.png", None, None, None)]
+                },
             ]
         );
         assert!(parse_log(b"").is_empty());

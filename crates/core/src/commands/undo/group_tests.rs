@@ -53,7 +53,9 @@ async fn stacked(tc: &TestCore, repo: &TestRepo, id: &str) -> (String, String, S
         RefMove::new("refs/heads/stack/2", None, Some(&two)),
         RefMove::new("refs/heads/feature", Some(&two), Some(&one)),
     ];
-    u::record_group(tc, group(id, &entry, UndoAction::StackCreate, "Undo splitting “feature” into 2 pull requests", refs, None)).await.unwrap();
+    u::record_group(tc, group(id, &entry, UndoAction::StackCreate, "Undo splitting “feature” into 2 pull requests", refs, None))
+        .await
+        .unwrap();
     (base, one, two, entry)
 }
 
@@ -137,7 +139,19 @@ async fn group_undo_refuses_a_ref_checked_out_in_another_worktree() {
     let moved = repo.commit_file("s.txt", "s\n", "Auf side");
     repo.checkout("main");
     let entry = u::new_id();
-    u::record_group(&tc, group(&id, &entry, UndoAction::ReviewFixups, "Undo 1 fixup commit", vec![RefMove::new("refs/heads/side", Some(&base), Some(&moved))], None)).await.unwrap();
+    u::record_group(
+        &tc,
+        group(
+            &id,
+            &entry,
+            UndoAction::ReviewFixups,
+            "Undo 1 fixup commit",
+            vec![RefMove::new("refs/heads/side", Some(&base), Some(&moved))],
+            None,
+        ),
+    )
+    .await
+    .unwrap();
     let other = repo.temp_dir().join("anderer ort");
     repo.git(&["worktree", "add", "-q", other.to_str().unwrap(), "side"]);
 
@@ -154,7 +168,9 @@ async fn a_group_without_refs_swaps_the_files_and_checks_head() {
     let entry = u::new_id();
     let snapshot = u::snapshot_for_group(&tc, &id, &entry).await.unwrap();
     repo.write_file("README.md", "übernommen\n");
-    u::record_group(&tc, group(&id, &entry, UndoAction::RangeApply, "Undo taking over ‘README.md’", Vec::new(), Some(snapshot))).await.unwrap();
+    u::record_group(&tc, group(&id, &entry, UndoAction::RangeApply, "Undo taking over ‘README.md’", Vec::new(), Some(snapshot)))
+        .await
+        .unwrap();
 
     undo(&tc, id.clone()).await.unwrap();
     assert_eq!(repo.read_file("README.md"), "lokal\n".as_bytes());
@@ -173,7 +189,19 @@ async fn a_group_without_snapshot_moves_the_checked_out_branch_with_its_files() 
     let base = repo.head();
     let fixup = repo.commit_file("README.md", "fixup!\n", "fixup! Erster Commit");
     let entry = u::new_id();
-    u::record_group(&tc, group(&id, &entry, UndoAction::ReviewFixups, "Undo 1 fixup commit", vec![RefMove::new("refs/heads/main", Some(&base), Some(&fixup))], None)).await.unwrap();
+    u::record_group(
+        &tc,
+        group(
+            &id,
+            &entry,
+            UndoAction::ReviewFixups,
+            "Undo 1 fixup commit",
+            vec![RefMove::new("refs/heads/main", Some(&base), Some(&fixup))],
+            None,
+        ),
+    )
+    .await
+    .unwrap();
 
     repo.write_file("README.md", "lokal\n");
     assert_eq!(undo(&tc, id.clone()).await.unwrap_err().code, ErrorCode::DirtyWorktree);

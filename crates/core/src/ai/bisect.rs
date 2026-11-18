@@ -38,7 +38,9 @@ impl BisectShell {
     pub fn prompt_name(self) -> &'static str {
         match self {
             BisectShell::Sh => "POSIX sh (run as `/bin/sh test.sh`)",
-            BisectShell::Powershell => "Windows PowerShell 5.1 (run as `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test.ps1`)",
+            BisectShell::Powershell => {
+                "Windows PowerShell 5.1 (run as `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File test.ps1`)"
+            }
         }
     }
 
@@ -114,8 +116,22 @@ pub const MAX_DESCRIPTION: usize = 4_000;
 pub const MAX_TEST_COMMAND: usize = 1_000;
 /// Build files whose content tells how the project is built and tested, in this order.
 pub const BUILD_FILES: [&str; 16] = [
-    "package.json", "Cargo.toml", "pyproject.toml", "setup.py", "go.mod", "Makefile", "CMakeLists.txt", "pom.xml",
-    "build.gradle", "build.gradle.kts", "composer.json", "Gemfile", "mix.exs", "deno.json", "justfile", "Taskfile.yml",
+    "package.json",
+    "Cargo.toml",
+    "pyproject.toml",
+    "setup.py",
+    "go.mod",
+    "Makefile",
+    "CMakeLists.txt",
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "composer.json",
+    "Gemfile",
+    "mix.exs",
+    "deno.json",
+    "justfile",
+    "Taskfile.yml",
 ];
 const MAX_COMMITS: usize = 50;
 const MAX_TOP_LEVEL: usize = 200;
@@ -219,7 +235,14 @@ async fn gather(core: &Core, repo_id: &str, checked: &Checked, exclusions: &Excl
 
     let count = read(core, repo_id)?.args(["rev-list", "--count"]).arg(&checked.bad).args(&not_good).arg("--").run().await?;
     gathered.total_commits = count.stdout_text().trim().parse().unwrap_or(0);
-    let log = read(core, repo_id)?.args(["log", "-z", "--format=%h %s"]).arg(format!("--max-count={MAX_COMMITS}")).arg(&checked.bad).args(&not_good).arg("--").run().await?;
+    let log = read(core, repo_id)?
+        .args(["log", "-z", "--format=%h %s"])
+        .arg(format!("--max-count={MAX_COMMITS}"))
+        .arg(&checked.bad)
+        .args(&not_good)
+        .arg("--")
+        .run()
+        .await?;
     gathered.commits = util::split_z(&log.stdout).map(util::decode_lossy).collect();
 
     let tree = read(core, repo_id)?.args(["ls-tree", "-z", "-l"]).arg(&checked.bad).arg("--").run().await?;
@@ -290,7 +313,9 @@ async fn gather(core: &Core, repo_id: &str, checked: &Checked, exclusions: &Excl
 fn instruction(checked: &Checked, shell: BisectShell, secrets: &[String]) -> String {
     let description = context::redact_for_ai(&checked.description, secrets);
     let command = match &checked.test_command {
-        Some(command) => format!("The user's test command: {}\nBuild the script around this command.", context::redact_for_ai(command, secrets)),
+        Some(command) => {
+            format!("The user's test command: {}\nBuild the script around this command.", context::redact_for_ai(command, secrets))
+        }
         None => "The user gave no test command; derive one from the build files below, or check the problem directly.".to_string(),
     };
     format!(
@@ -346,8 +371,20 @@ fn compose(instruction: &str, locale: &str, gathered: Gathered, budget_chars: us
     let mut omitted = gathered.omitted;
     // Spec 1.4: every cut is named in the preview.
     let mut shortened: Vec<String> = Vec::new();
-    push_list(&mut sections, &fits, "Commits from good to bad, newest first", &redacted(&gathered.commits), gathered.total_commits.max(gathered.commits.len()));
-    push_list(&mut sections, &fits, "Top-level files and folders of the bad commit", &redacted(&gathered.top_level), gathered.total_top_level);
+    push_list(
+        &mut sections,
+        &fits,
+        "Commits from good to bad, newest first",
+        &redacted(&gathered.commits),
+        gathered.total_commits.max(gathered.commits.len()),
+    );
+    push_list(
+        &mut sections,
+        &fits,
+        "Top-level files and folders of the bad commit",
+        &redacted(&gathered.top_level),
+        gathered.total_top_level,
+    );
     for (name, text, cut) in &gathered.build_files {
         sections.push(Section { title: format!("Build file {name} of the bad commit"), body: context::redact_for_ai(text, secrets) });
         if !fits(&sections) {
@@ -362,7 +399,15 @@ fn compose(instruction: &str, locale: &str, gathered: Gathered, budget_chars: us
 }
 
 /// The prompt for `AiInput::BisectScript` – the same text for "What is sent?" and the request.
-pub async fn build(core: &Core, repo_id: &str, checked: &Checked, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<Built> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    checked: &Checked,
+    settings: &Settings,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<Built> {
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let gathered = gather(core, repo_id, checked, &exclusions).await?;
     let instruction = instruction(checked, BisectShell::current(), secrets);

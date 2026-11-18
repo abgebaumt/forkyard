@@ -33,12 +33,20 @@ async fn the_worktree_line_is_followed_from_the_commit_that_last_changed_it() {
     assert_eq!(shas(&found), vec![two.clone(), one.clone()]);
     assert_eq!(found.steps[0].message, "Intervall halbiert (#12)");
     assert_eq!(found.steps[0].diff, vec!["-INTERVALL = 10".to_string(), "+INTERVALL = 5".to_string()]);
-    assert_eq!((found.code_start, found.code.clone()), (1, vec!["kopf".to_string(), "INTERVALL = 5".to_string(), "fuss".to_string()]), "the committed text around the line");
+    assert_eq!(
+        (found.code_start, found.code.clone()),
+        (1, vec!["kopf".to_string(), "INTERVALL = 5".to_string(), "fuss".to_string()]),
+        "the committed text around the line"
+    );
     assert!(!found.may_have_more);
     assert!(found.steps[0].refs.is_empty(), "no remote, no rules: no links");
 
     let code = |result: CoreResult<LineArchaeology>| result.unwrap_err().code;
-    assert_eq!(code(line_archaeology(&tc, id.clone(), path.into(), 1, None).await), ErrorCode::NotAllowed, "an uncommitted line has no history");
+    assert_eq!(
+        code(line_archaeology(&tc, id.clone(), path.into(), 1, None).await),
+        ErrorCode::NotAllowed,
+        "an uncommitted line has no history"
+    );
     assert_eq!(code(line_archaeology(&tc, id.clone(), path.into(), 99, None).await), ErrorCode::NotFound);
     assert_eq!(code(line_archaeology(&tc, id.clone(), path.into(), 0, None).await), ErrorCode::NotAllowed);
     assert_eq!(code(line_archaeology(&tc, id.clone(), "../draußen.txt".into(), 1, None).await), ErrorCode::NotAllowed);
@@ -61,10 +69,14 @@ async fn an_old_renamed_file_in_other_time_zones_with_crlf_and_latin1() {
     let (tc, id) = setup(&repo).await;
 
     let found = line_archaeology(&tc, id, "ordner mit leer/neu ä.txt".into(), 2, Some("HEAD".into())).await.unwrap();
-    let steps: Vec<(&str, &str, &str)> = found.steps.iter().map(|step| (step.commit.sha.as_str(), step.path.as_str(), step.commit.authored_at.as_str())).collect();
+    let steps: Vec<(&str, &str, &str)> =
+        found.steps.iter().map(|step| (step.commit.sha.as_str(), step.path.as_str(), step.commit.authored_at.as_str())).collect();
     assert_eq!(
         steps,
-        vec![(edited.as_str(), "ordner mit leer/neu ä.txt", "2026-03-01T04:30:00.000Z"), (old.as_str(), "alt.txt", "2009-02-14T07:31:30.000Z")],
+        vec![
+            (edited.as_str(), "ordner mit leer/neu ä.txt", "2026-03-01T04:30:00.000Z"),
+            (old.as_str(), "alt.txt", "2009-02-14T07:31:30.000Z")
+        ],
         "the pure rename did not change the line; times in UTC"
     );
     assert_eq!(found.code, vec!["kopf".to_string(), "Grüße aus 2026".to_string(), "fuss".to_string()], "Latin-1 decoded, CR removed");
@@ -82,7 +94,8 @@ async fn references_link_to_the_remotes_host_and_to_ticket_rules() {
 
     let found = line_archaeology(&tc, id, "werte.txt".into(), 1, Some("HEAD".into())).await.unwrap();
     assert_eq!(found.steps[0].message, "Werte angelegt\n\nSiehe #12 und !7, Ticket OPS-3, nochmal #12.");
-    let refs: Vec<(&str, &str, ArchaeologyRefKind)> = found.steps[0].refs.iter().map(|r| (r.text.as_str(), r.url.as_str(), r.kind)).collect();
+    let refs: Vec<(&str, &str, ArchaeologyRefKind)> =
+        found.steps[0].refs.iter().map(|r| (r.text.as_str(), r.url.as_str(), r.kind)).collect();
     assert_eq!(
         refs,
         vec![

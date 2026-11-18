@@ -52,9 +52,7 @@ pub fn is_global(key: &str) -> bool {
 
 pub fn get_all(conn: &Connection) -> CoreResult<Vec<(String, Value)>> {
     let mut stmt = conn.prepare("select key, value from app_settings")?;
-    let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows.into_iter().filter_map(|(k, v)| serde_json::from_str(&v).ok().map(|v| (k, v))).collect())
 }
 

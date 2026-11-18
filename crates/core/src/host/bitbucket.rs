@@ -10,16 +10,17 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text, two_levels, Api, Host,
-    HostFuture, NewPr, Paging, PrChange, RepoFacts, RepoPath, MAX_ITEMS,
+    already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text,
+    two_levels, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts, RepoPath, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage,
+    IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState,
+    PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 pub const BITBUCKET_WEB: &str = "https://bitbucket.org";
@@ -43,7 +44,8 @@ fn user(value: &Value) -> Option<HostUser> {
     if !value.is_object() {
         return None;
     }
-    let login = opt_text(value, "nickname").or_else(|| opt_text(value, "username")).or_else(|| opt_text(value, "display_name")).unwrap_or_default();
+    let login =
+        opt_text(value, "nickname").or_else(|| opt_text(value, "username")).or_else(|| opt_text(value, "display_name")).unwrap_or_default();
     let avatar = value.get("links").and_then(|l| l.get("avatar")).and_then(|a| opt_text(a, "href"));
     host_user(login, opt_text(value, "display_name"), avatar)
 }
@@ -117,7 +119,13 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
             missing.push("pullrequest:write".to_string());
         }
     }
-    Ok(AccountFacts { login: Some(who.login), name: who.name, avatar_url: who.avatar_url, scopes_ok: missing.is_empty(), missing_scopes: missing })
+    Ok(AccountFacts {
+        login: Some(who.login),
+        name: who.name,
+        avatar_url: who.avatar_url,
+        scopes_ok: missing.is_empty(),
+        missing_scopes: missing,
+    })
 }
 
 /// `GET /repositories/{workspace}/{repo_slug}`, plus the account's permission on it
@@ -129,9 +137,18 @@ pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<R
         let (owner, name) = full.split_once('/')?;
         Some(HostRepoRef { owner: owner.to_string(), name: name.to_string(), web_url: html_link(parent) })
     });
-    let permission = api.get_json(core, &with_query("/user/permissions/repositories", &[("q", format!("repository.full_name=\"{}\"", repo.full()))])).await.ok();
-    let can_push = permission.as_ref().map(|p| list(p, "values").iter().any(|entry| matches!(text(entry, "permission").as_str(), "write" | "admin")));
-    Ok(RepoFacts { default_branch: value.get("mainbranch").and_then(|b| opt_text(b, "name")), can_push, fork_parent, has_issues: value.get("has_issues").and_then(Value::as_bool) })
+    let permission = api
+        .get_json(core, &with_query("/user/permissions/repositories", &[("q", format!("repository.full_name=\"{}\"", repo.full()))]))
+        .await
+        .ok();
+    let can_push =
+        permission.as_ref().map(|p| list(p, "values").iter().any(|entry| matches!(text(entry, "permission").as_str(), "write" | "admin")));
+    Ok(RepoFacts {
+        default_branch: value.get("mainbranch").and_then(|b| opt_text(b, "name")),
+        can_push,
+        fork_parent,
+        has_issues: value.get("has_issues").and_then(Value::as_bool),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +228,11 @@ async fn checks(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreRes
     Ok(all_of(core, api, &format!("{}/statuses?pagelen={MAX_PAGELEN}", pr_path(repo, number)))
         .await?
         .iter()
-        .map(|status| PrCheck { name: opt_text(status, "name").unwrap_or_else(|| text(status, "key")), state: status_state(&text(status, "state")), url: opt_text(status, "url") })
+        .map(|status| PrCheck {
+            name: opt_text(status, "name").unwrap_or_else(|| text(status, "key")),
+            state: status_state(&text(status, "state")),
+            url: opt_text(status, "url"),
+        })
         .collect())
 }
 
@@ -231,8 +252,14 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
         PrListState::All => &["OPEN", "MERGED", "DECLINED", "SUPERSEDED"],
     };
     let mut params: Vec<(&str, String)> = states.iter().map(|s| ("state", s.to_string())).collect();
-    params.extend([("sort", "-updated_on".to_string()), ("pagelen", paging.per_page.min(MAX_PAGELEN).to_string()), ("page", paging.page.to_string())]);
-    let (values, next_page) = page_of(core, api, &with_query(&format!("{}/pullrequests", repo_path(repo)), &params)).await.map_err(|e| not_found_as(e, missing_repo(repo)))?;
+    params.extend([
+        ("sort", "-updated_on".to_string()),
+        ("pagelen", paging.per_page.min(MAX_PAGELEN).to_string()),
+        ("page", paging.page.to_string()),
+    ]);
+    let (values, next_page) = page_of(core, api, &with_query(&format!("{}/pullrequests", repo_path(repo)), &params))
+        .await
+        .map_err(|e| not_found_as(e, missing_repo(repo)))?;
     let mut items: Vec<PrSummary> = values.iter().map(pr_summary).collect();
     let numbers: Vec<u64> = items.iter().map(|item| item.number).collect();
     let extras = parallel(numbers, |number| {
@@ -270,7 +297,9 @@ fn comment(value: &Value) -> HostComment {
         body: value.get("content").map(|c| text(c, "raw")).unwrap_or_default(),
         created_at: text(value, "created_on"),
         path: inline.and_then(|i| opt_text(i, "path")),
-        line: inline.and_then(|i| i.get("to").and_then(Value::as_u64).or_else(|| i.get("from").and_then(Value::as_u64))).and_then(|n| u32::try_from(n).ok()),
+        line: inline
+            .and_then(|i| i.get("to").and_then(Value::as_u64).or_else(|| i.get("from").and_then(Value::as_u64)))
+            .and_then(|n| u32::try_from(n).ok()),
     }
 }
 
@@ -290,12 +319,18 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
     let mut summary = pr_summary(&value);
     let reviewers = reviewers(&value);
     summary.review_state = review_summary(&reviewers);
-    let mut comments: Vec<HostComment> = all_of(core, api, &format!("{path}/comments?pagelen=100")).await?.iter().filter(|c| !flag(c, "deleted")).map(comment).collect();
+    let mut comments: Vec<HostComment> =
+        all_of(core, api, &format!("{path}/comments?pagelen=100")).await?.iter().filter(|c| !flag(c, "deleted")).map(comment).collect();
     comments.sort_by(|a, b| a.created_at.cmp(&b.created_at));
     let commits = all_of(core, api, &format!("{path}/commits?pagelen=100"))
         .await?
         .iter()
-        .map(|c| PrCommit { sha: text(c, "hash"), summary: first_line(&text(c, "message")), author_name: author_name(c), authored_at: text(c, "date") })
+        .map(|c| PrCommit {
+            sha: text(c, "hash"),
+            summary: first_line(&text(c, "message")),
+            author_name: author_name(c),
+            authored_at: text(c, "date"),
+        })
         .collect();
     let check_runs = checks(core, api, repo, number).await.unwrap_or_default();
     summary.checks = summarize_checks(&check_runs);
@@ -330,7 +365,9 @@ fn refuse_extras(reviewers: &[String], labels: &[String]) -> CoreResult<()> {
 
 /// "There is already one" – Bitbucket words it as "only one … may be open".
 fn duplicate(error: &CoreError) -> bool {
-    already_exists(error) || (error.code == ErrorCode::HostRejected && error.git_output.as_deref().is_some_and(|d| d.to_ascii_lowercase().contains("only one pull request")))
+    already_exists(error)
+        || (error.code == ErrorCode::HostRejected
+            && error.git_output.as_deref().is_some_and(|d| d.to_ascii_lowercase().contains("only one pull request")))
 }
 
 /// `POST …/pullrequests`
@@ -348,7 +385,12 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
         .await
         .map_err(|e| {
             if duplicate(&e) {
-                CoreError { code: ErrorCode::NameExists, message: format!("There is already an open pull request for the branch “{}”.", new.source_branch), git_output: e.git_output, retry_at: None }
+                CoreError {
+                    code: ErrorCode::NameExists,
+                    message: format!("There is already an open pull request for the branch “{}”.", new.source_branch),
+                    git_output: e.git_output,
+                    retry_at: None,
+                }
             } else {
                 not_found_as(e, missing_repo(repo))
             }
@@ -376,7 +418,11 @@ pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, cha
     if patch.is_empty() {
         return pr_head(core, api, repo, number).await;
     }
-    let value: Value = api.send_json(core, Method::Put, &pr_path(repo, number), &Value::Object(patch)).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?.json()?;
+    let value: Value = api
+        .send_json(core, Method::Put, &pr_path(repo, number), &Value::Object(patch))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
+        .json()?;
     Ok(pr_summary(&value))
 }
 
@@ -391,14 +437,31 @@ pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64
 }
 
 /// `POST …/pullrequests/{id}/merge` with a merge commit or squashed; Bitbucket closes the branch itself.
-pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> CoreResult<PrSummary> {
+pub async fn pr_merge(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    number: u64,
+    method: PrMergeMethod,
+    delete_branch: bool,
+) -> CoreResult<PrSummary> {
     let strategy = match method {
         PrMergeMethod::Merge => "merge_commit",
         PrMergeMethod::Squash => "squash",
-        PrMergeMethod::Rebase => return Err(CoreError::new(ErrorCode::HostUnsupported, "Bitbucket merges with a merge commit or squashed here – choose “Merge” or “Squash”.")),
+        PrMergeMethod::Rebase => {
+            return Err(CoreError::new(
+                ErrorCode::HostUnsupported,
+                "Bitbucket merges with a merge commit or squashed here – choose “Merge” or “Squash”.",
+            ))
+        }
     };
     let value: Value = api
-        .send_json(core, Method::Post, &format!("{}/merge", pr_path(repo, number)), &json!({ "merge_strategy": strategy, "close_source_branch": delete_branch }))
+        .send_json(
+            core,
+            Method::Post,
+            &format!("{}/merge", pr_path(repo, number)),
+            &json!({ "merge_strategy": strategy, "close_source_branch": delete_branch }),
+        )
         .await
         .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
         .json()?;
@@ -408,9 +471,16 @@ pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, meth
 /// Closing = declining (`POST …/decline`). A declined pull request cannot be reopened on Bitbucket.
 pub async fn pr_set_open(core: &Core, api: &Api, repo: &RepoPath, number: u64, open: bool) -> CoreResult<PrSummary> {
     if open {
-        return Err(CoreError::new(ErrorCode::HostUnsupported, "Bitbucket cannot reopen a declined pull request. Create a new one from the same branch."));
+        return Err(CoreError::new(
+            ErrorCode::HostUnsupported,
+            "Bitbucket cannot reopen a declined pull request. Create a new one from the same branch.",
+        ));
     }
-    let value: Value = api.send_json(core, Method::Post, &format!("{}/decline", pr_path(repo, number)), &json!({})).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?.json()?;
+    let value: Value = api
+        .send_json(core, Method::Post, &format!("{}/decline", pr_path(repo, number)), &json!({}))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
+        .json()?;
     Ok(pr_summary(&value))
 }
 
@@ -453,15 +523,28 @@ fn issue_query(state: IssueListState, words: Option<&str>) -> Option<String> {
 /// A "not found" from the issue tracker: switched off in this repository – or the repository is missing.
 async fn issues_switched_off(core: &Core, api: &Api, repo: &RepoPath, error: CoreError) -> CoreError {
     match repo_facts(core, api, repo).await {
-        Ok(facts) if facts.has_issues == Some(false) => CoreError::new(ErrorCode::HostUnsupported, format!("The issue tracker is switched off for {} on {LABEL}.", repo.full())),
+        Ok(facts) if facts.has_issues == Some(false) => {
+            CoreError::new(ErrorCode::HostUnsupported, format!("The issue tracker is switched off for {} on {LABEL}.", repo.full()))
+        }
         Ok(_) => error,
         Err(e) => e,
     }
 }
 
 /// `GET …/issues` with `q` (state and search text), most recently changed first.
-pub async fn issue_list(core: &Core, api: &Api, repo: &RepoPath, state: IssueListState, query: Option<&str>, paging: Paging) -> CoreResult<IssuePage> {
-    let mut params = vec![("sort", "-updated_on".to_string()), ("pagelen", paging.per_page.min(MAX_PAGELEN).to_string()), ("page", paging.page.to_string())];
+pub async fn issue_list(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    state: IssueListState,
+    query: Option<&str>,
+    paging: Paging,
+) -> CoreResult<IssuePage> {
+    let mut params = vec![
+        ("sort", "-updated_on".to_string()),
+        ("pagelen", paging.per_page.min(MAX_PAGELEN).to_string()),
+        ("page", paging.page.to_string()),
+    ];
     if let Some(q) = issue_query(state, query) {
         params.push(("q", q));
     }
@@ -474,9 +557,15 @@ pub async fn issue_list(core: &Core, api: &Api, repo: &RepoPath, state: IssueLis
 
 pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> CoreResult<IssueDetails> {
     let path = format!("{}/issues/{number}", repo_path(repo));
-    let value = api.get_json(core, &path).await.map_err(|e| not_found_as(e, || format!("Issue #{number} does not exist in {}.", repo.full())))?;
+    let value =
+        api.get_json(core, &path).await.map_err(|e| not_found_as(e, || format!("Issue #{number} does not exist in {}.", repo.full())))?;
     // Status changes come as comments without text.
-    let comments = all_of(core, api, &format!("{path}/comments?pagelen=100")).await?.iter().map(comment).filter(|c| !c.body.trim().is_empty()).collect();
+    let comments = all_of(core, api, &format!("{path}/comments?pagelen=100"))
+        .await?
+        .iter()
+        .map(comment)
+        .filter(|c| !c.body.trim().is_empty())
+        .collect();
     Ok(IssueDetails { summary: issue_summary(&value), body: value.get("content").map(|c| text(c, "raw")).unwrap_or_default(), comments })
 }
 
@@ -496,7 +585,9 @@ fn parent_of(value: &Value) -> Option<u64> {
 /// (answers to answers too) belongs to it. `inline.to` is the new side, `inline.from` the old one;
 /// resolved = the top comment carries a `resolution`. Deleted comments are left out.
 pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) -> CoreResult<Vec<ReviewThread>> {
-    let values = all_of(core, api, &format!("{}/comments?pagelen=100", pr_path(repo, pr))).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
+    let values = all_of(core, api, &format!("{}/comments?pagelen=100", pr_path(repo, pr)))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
     let live: Vec<&Value> = values.iter().filter(|c| !flag(c, "deleted")).collect();
     let root_of = |start: u64| -> u64 {
         let mut id = start;
@@ -549,7 +640,12 @@ pub async fn review_reply(core: &Core, api: &Api, repo: &RepoPath, pr: u64, thre
     let missing = || CoreError::new(ErrorCode::HostNotFound, format!("The review thread does not exist (anymore) in pull request #{pr}."));
     let parent: u64 = thread_id.parse().map_err(|_| missing())?;
     let value: Value = api
-        .send_json(core, Method::Post, &format!("{}/comments", pr_path(repo, pr)), &json!({ "content": { "raw": body }, "parent": { "id": parent } }))
+        .send_json(
+            core,
+            Method::Post,
+            &format!("{}/comments", pr_path(repo, pr)),
+            &json!({ "content": { "raw": body }, "parent": { "id": parent } }),
+        )
         .await
         .map_err(|e| if e.code == ErrorCode::HostNotFound { missing() } else { e })?
         .json()?;
@@ -590,7 +686,9 @@ impl Host for BitbucketHost {
         if loopback {
             Ok(base)
         } else {
-            Err(CoreError::not_allowed("Forkyard connects to Bitbucket Cloud (bitbucket.org) only – Bitbucket Data Center has a different API."))
+            Err(CoreError::not_allowed(
+                "Forkyard connects to Bitbucket Cloud (bitbucket.org) only – Bitbucket Data Center has a different API.",
+            ))
         }
     }
     fn request_headers(&self) -> &'static [(&'static str, &'static str)] {
@@ -633,7 +731,14 @@ impl Host for BitbucketHost {
     fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts> {
         Box::pin(repo_facts(core, api, repo))
     }
-    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage> {
+    fn pr_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: PrListState,
+        paging: Paging,
+    ) -> HostFuture<'a, PrPage> {
         Box::pin(pr_list(core, api, repo, state, paging))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
@@ -642,7 +747,15 @@ impl Host for BitbucketHost {
     fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_head(core, api, repo, number))
     }
-    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage> {
+    fn issue_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: IssueListState,
+        query: Option<&'a str>,
+        paging: Paging,
+    ) -> HostFuture<'a, IssuePage> {
         Box::pin(issue_list(core, api, repo, state, query, paging))
     }
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
@@ -651,13 +764,35 @@ impl Host for BitbucketHost {
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
     }
-    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+    fn pr_update<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        change: PrChange<'a>,
+    ) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_update(core, api, repo, number, change))
     }
-    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+    fn pr_comment<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        body: &'a str,
+    ) -> HostFuture<'a, HostComment> {
         Box::pin(comment_create(core, api, repo, number, body))
     }
-    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+    fn pr_merge<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        method: PrMergeMethod,
+        delete_branch: bool,
+    ) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
     }
     fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
@@ -666,7 +801,15 @@ impl Host for BitbucketHost {
     fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
         Box::pin(review_threads(core, api, repo, number))
     }
-    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+    fn review_reply<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        thread_id: &'a str,
+        body: &'a str,
+    ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

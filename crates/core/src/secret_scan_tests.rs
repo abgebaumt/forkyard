@@ -60,9 +60,16 @@ async fn only_added_lines_of_commits_missing_on_the_remote_are_scanned() {
     let result = scan(&tc, &id).await;
     assert_eq!(
         places(&result),
-        vec![("-geheim/zugäng daten.txt".to_string(), 3, SecretRule::Credential, old.clone()), ("tmp.txt".to_string(), 1, SecretRule::KnownToken, added.clone())]
+        vec![
+            ("-geheim/zugäng daten.txt".to_string(), 3, SecretRule::Credential, old.clone()),
+            ("tmp.txt".to_string(), 1, SecretRule::KnownToken, added.clone())
+        ]
     );
-    assert_eq!(result.commits.to_string(), repo.git(&["rev-list", "--count", "main", "--not", "--remotes=origin"]), "every outgoing commit, counted by Git");
+    assert_eq!(
+        result.commits.to_string(),
+        repo.git(&["rev-list", "--count", "main", "--not", "--remotes=origin"]),
+        "every outgoing commit, counted by Git"
+    );
     assert!(!result.partial);
     assert_eq!(result.findings[0].excerpt, "password = \"…026x\"", "CR stripped, value masked");
     assert_eq!(result.findings[1].hint, format!("…{}", &token()[token().len() - 4..]));
@@ -84,7 +91,8 @@ async fn ignored_findings_survive_a_rebase_and_store_only_hashes() {
 
     let first = scan(&tc, &id).await;
     assert_eq!(first.findings.len(), 1);
-    let expected: String = Sha256::digest([b"dienst.py".as_slice(), b"\0", line.as_bytes()].concat()).iter().map(|byte| format!("{byte:02x}")).collect();
+    let expected: String =
+        Sha256::digest([b"dienst.py".as_slice(), b"\0", line.as_bytes()].concat()).iter().map(|byte| format!("{byte:02x}")).collect();
     assert_eq!(first.findings[0].id, expected, "the ID is the hash of path and line content");
     assert_eq!(tc.db.with(|c| ignore_ids(c, &id, std::slice::from_ref(&expected))).unwrap(), 1);
     let stored = serde_json::to_string(&tc.db.with(|c| crate::db::repo_settings::get_all(c, &id)).unwrap()).unwrap();
@@ -117,7 +125,8 @@ async fn a_huge_first_push_stops_at_the_limit_and_says_so() {
     // 1 001 commits in one fast-import; the key sits in the oldest one.
     let mut stream = Vec::new();
     for n in 1..=(MAX_COMMITS + 1) {
-        let (file, content) = if n == 1 { ("alt.txt".to_string(), format!("{}\n", token())) } else { (format!("teil/{n:04}.txt"), format!("zeile {n}\n")) };
+        let (file, content) =
+            if n == 1 { ("alt.txt".to_string(), format!("{}\n", token())) } else { (format!("teil/{n:04}.txt"), format!("zeile {n}\n")) };
         let message = format!("Teil {n}\n");
         stream.extend_from_slice(
             format!("commit refs/heads/main\ncommitter Test <test@example.com> {} +0100\ndata {}\n{message}M 100644 inline {file}\ndata {}\n{content}\n", 1_500_000_000 + n, message.len(), content.len())

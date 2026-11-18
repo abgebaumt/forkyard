@@ -130,7 +130,9 @@ async fn step_locked(core: &Core, repo_id: &str, dir: Direction, touched: &mut O
         return Err(match blocked {
             Blocked::Operation => CoreError::new(
                 ErrorCode::OperationInProgress,
-                format!("Nothing can {verb} while a merge, rebase, cherry-pick or revert is in progress. Finish or abort the operation first."),
+                format!(
+                    "Nothing can {verb} while a merge, rebase, cherry-pick or revert is in progress. Finish or abort the operation first."
+                ),
             ),
             Blocked::Conflict => CoreError::new(
                 ErrorCode::Conflict,
@@ -156,10 +158,14 @@ async fn step_locked(core: &Core, repo_id: &str, dir: Direction, touched: &mut O
             payload: entry.payload.as_object().cloned().unwrap_or_default(),
         };
         return match run.execute().await {
-            Ok(()) => u::set_state(core, &entry.id, match dir {
-                Direction::Undo => UndoEntryState::Undone,
-                Direction::Redo => UndoEntryState::Done,
-            }),
+            Ok(()) => u::set_state(
+                core,
+                &entry.id,
+                match dir {
+                    Direction::Undo => UndoEntryState::Undone,
+                    Direction::Redo => UndoEntryState::Done,
+                },
+            ),
             // The detailed check found that the entry is not (or no longer) executable –
             // for example because its backup is missing. It is invalidated so it blocks nothing.
             Err(e) if matches!(e.code, ErrorCode::StaleState | ErrorCode::NotFound) => {
@@ -377,14 +383,8 @@ impl<'a> Probe<'a> {
 
     /// Whether the branch `name` (`refs/heads/…`) is checked out in this or another worktree.
     async fn checked_out_in_worktree(&self, name: &str) -> CoreResult<bool> {
-        let out = self
-            .core
-            .git_for(self.repo_id)?
-            .args(["for-each-ref", "--format=%(worktreepath)", name])
-            .read_only()
-            .no_log()
-            .run()
-            .await?;
+        let out =
+            self.core.git_for(self.repo_id)?.args(["for-each-ref", "--format=%(worktreepath)", name]).read_only().no_log().run().await?;
         Ok(out.stdout_lines().into_iter().any(|line| !line.is_empty()))
     }
 
@@ -513,7 +513,11 @@ async fn pushed_to(core: &Core, repo_id: &str, tip: &str) -> CoreResult<Option<S
     }
     // Skip symbolic refs such as `origin/HEAD` (short name "origin"): name the real branch.
     let text = out.stdout_text();
-    let name = text.lines().filter_map(|line| line.split_once('\0')).find(|(symref, name)| symref.is_empty() && !name.is_empty()).map(|(_, name)| name.to_string());
+    let name = text
+        .lines()
+        .filter_map(|line| line.split_once('\0'))
+        .find(|(symref, name)| symref.is_empty() && !name.is_empty())
+        .map(|(_, name)| name.to_string());
     Ok(name)
 }
 
@@ -531,7 +535,8 @@ fn precondition(entry: &UndoEntry, action: UndoAction, dir: Direction, head: &He
         && entry.ref_after.is_none()
         && (action == UndoAction::Rebase || entry.payload.get("pending").and_then(Value::as_bool) == Some(true));
     if entry.ref_name.is_some() {
-        let fits = if open_end { ref_sha.is_some() && !same_sha(ref_sha, entry.ref_before.as_deref()) } else { same_sha(ref_sha, expected_ref) };
+        let fits =
+            if open_end { ref_sha.is_some() && !same_sha(ref_sha, entry.ref_before.as_deref()) } else { same_sha(ref_sha, expected_ref) };
         if !fits {
             return false;
         }
@@ -707,9 +712,12 @@ impl Run<'_> {
             UndoAction::Merge if flag("squash") => self.swap_checked(None).await,
             // Several branches deleted at once are a composite step as well.
             UndoAction::Merge | UndoAction::DeleteBranch if flag("composite") => self.composite().await,
-            UndoAction::Merge | UndoAction::Revert | UndoAction::CherryPick | UndoAction::Rebase | UndoAction::Squash | UndoAction::Drop => {
-                self.hard().await
-            }
+            UndoAction::Merge
+            | UndoAction::Revert
+            | UndoAction::CherryPick
+            | UndoAction::Rebase
+            | UndoAction::Squash
+            | UndoAction::Drop => self.hard().await,
             UndoAction::Reset => self.reset_branch().await,
             UndoAction::Discard => self.discard().await,
             UndoAction::DeleteBranch => self.delete_branch().await,
@@ -840,8 +848,12 @@ impl Run<'_> {
         CoreError::new(
             ErrorCode::DirtyWorktree,
             match self.dir {
-                Direction::Undo => "This action can only be undone with a clean working directory. Commit, stash or discard your changes first.",
-                Direction::Redo => "This action can only be redone with a clean working directory. Commit, stash or discard your changes first.",
+                Direction::Undo => {
+                    "This action can only be undone with a clean working directory. Commit, stash or discard your changes first."
+                }
+                Direction::Redo => {
+                    "This action can only be redone with a clean working directory. Commit, stash or discard your changes first."
+                }
             },
         )
     }
@@ -891,7 +903,8 @@ impl Run<'_> {
     /// Checkout: back to the previous HEAD. If the checkout created a branch (ref in the
     /// entry, not present before), it disappears again on undo.
     async fn checkout(&self) -> CoreResult<()> {
-        let moved_ref = self.entry.ref_name.as_deref().filter(|_| !same_sha(self.entry.ref_before.as_deref(), self.entry.ref_after.as_deref()));
+        let moved_ref =
+            self.entry.ref_name.as_deref().filter(|_| !same_sha(self.entry.ref_before.as_deref(), self.entry.ref_after.as_deref()));
         match self.dir {
             Direction::Undo => {
                 if moved_ref.is_some() {
@@ -1018,10 +1031,12 @@ impl Run<'_> {
         // Recreated branches get their upstream back.
         let upstreams = self.payload.get("upstreams").and_then(Value::as_array).cloned().unwrap_or_default();
         for item in upstreams {
-            let (Some(branch), Some(upstream)) = (item.get("branch").and_then(Value::as_str), item.get("upstream").and_then(Value::as_str)) else {
+            let (Some(branch), Some(upstream)) = (item.get("branch").and_then(Value::as_str), item.get("upstream").and_then(Value::as_str))
+            else {
                 continue;
             };
-            let recreated = moves.iter().any(|(step, from, to)| from.is_none() && to.is_some() && step.name == format!("refs/heads/{branch}"));
+            let recreated =
+                moves.iter().any(|(step, from, to)| from.is_none() && to.is_some() && step.name == format!("refs/heads/{branch}"));
             if recreated {
                 self.set_upstream(branch, upstream).await;
             }
@@ -1093,7 +1108,8 @@ impl Run<'_> {
             }
         }
         let switching = self.head_must_move();
-        let (first, rest): (Vec<u::RefMove>, Vec<u::RefMove>) = if switching { moves.into_iter().partition(|m| m.from.is_none()) } else { (moves, Vec::new()) };
+        let (first, rest): (Vec<u::RefMove>, Vec<u::RefMove>) =
+            if switching { moves.into_iter().partition(|m| m.from.is_none()) } else { (moves, Vec::new()) };
         u::apply_ref_moves(self.core, self.repo_id, &first, UNDO_MESSAGE).await?;
         if switching {
             if let Err(e) = self.restore_head(self.desired_head()).await {
@@ -1179,13 +1195,7 @@ impl Run<'_> {
         }
         self.git()?.args(["worktree", "add"]).arg(folder).arg(&row.branch).run().await?;
         if let Some(snapshot) = snapshot {
-            self.core
-                .git
-                .cmd(folder)
-                .repo(self.repo_id)
-                .args(["restore", "--source", snapshot, "--worktree", "--", ":/"])
-                .run()
-                .await?;
+            self.core.git.cmd(folder).repo(self.repo_id).args(["restore", "--source", snapshot, "--worktree", "--", ":/"]).run().await?;
         }
         let entry = self.core.db.with(|c| db::repos::upsert(c, folder))?;
         crate::commands::trust::settle_on_open(self.core, &entry.id, folder).await?;
@@ -1209,7 +1219,13 @@ impl Run<'_> {
 
     /// Whether a remote-tracking ref contains `sha` (it was pushed, or fetched from elsewhere).
     async fn on_a_remote(&self, sha: &str) -> CoreResult<bool> {
-        let out = self.git()?.args(["for-each-ref", "--count=1", "--format=%(refname)", "--contains", sha, "refs/remotes"]).read_only().no_log().run().await?;
+        let out = self
+            .git()?
+            .args(["for-each-ref", "--count=1", "--format=%(refname)", "--contains", sha, "refs/remotes"])
+            .read_only()
+            .no_log()
+            .run()
+            .await?;
         Ok(!out.stdout_text().is_empty())
     }
 
@@ -1222,13 +1238,19 @@ impl Run<'_> {
         let own = self.core.repo_path(self.repo_id)?;
         let key = |path: &Path| util::path_key(&std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()));
         let own_key = key(&own);
-        Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|path| !path.is_empty()).any(|path| key(Path::new(&path)) != own_key))
+        Ok(out
+            .stdout_lines()
+            .into_iter()
+            .map(util::decode_lossy)
+            .filter(|path| !path.is_empty())
+            .any(|path| key(Path::new(&path)) != own_key))
     }
 
     /// Reset: back to the previous commit in the matching mode.
     async fn reset_branch(&mut self) -> CoreResult<()> {
         let Some(target) = self.target().await? else { return Err(self.lost()) };
-        let mode = self.text("mode").unwrap_or_else(|| if self.text("worktreeSnapshot").is_some() { "hard".into() } else { "mixed".into() });
+        let mode =
+            self.text("mode").unwrap_or_else(|| if self.text("worktreeSnapshot").is_some() { "hard".into() } else { "mixed".into() });
         match mode.as_str() {
             "soft" => {
                 self.keep_after().await?;
@@ -1444,7 +1466,9 @@ impl Run<'_> {
         let result: CoreResult<()> = async {
             let mut script = String::new();
             for item in list("refs") {
-                let (Some(name), Some(sha)) = (item.get("name").and_then(Value::as_str), item.get("sha").and_then(Value::as_str)) else { continue };
+                let (Some(name), Some(sha)) = (item.get("name").and_then(Value::as_str), item.get("sha").and_then(Value::as_str)) else {
+                    continue;
+                };
                 let plain = name.starts_with(&prefix) && !name.contains(char::is_whitespace) && sha_like(sha);
                 if plain && self.commit_exists(sha).await? {
                     script.push_str(&format!("update {name} {sha}\n"));
@@ -1454,7 +1478,10 @@ impl Run<'_> {
                 self.git()?.args(["update-ref", "--stdin"]).stdin(script).run().await?;
             }
             for item in list("upstreams") {
-                let (Some(branch), Some(merge)) = (item.get("branch").and_then(Value::as_str), item.get("merge").and_then(Value::as_str)) else { continue };
+                let (Some(branch), Some(merge)) = (item.get("branch").and_then(Value::as_str), item.get("merge").and_then(Value::as_str))
+                else {
+                    continue;
+                };
                 if u::rev_parse(self.core, self.repo_id, &format!("refs/heads/{branch}")).await?.is_none() {
                     continue;
                 }
@@ -1491,7 +1518,9 @@ impl Run<'_> {
                 let message = self.text("message");
                 let paths = self.paths();
                 let include_untracked = self.payload.get("includeUntracked").and_then(Value::as_bool).unwrap_or(true);
-                let Some(new_sha) = stash::push_stash(self.core, self.repo_id, message.as_deref(), paths.as_deref(), include_untracked).await? else {
+                let Some(new_sha) =
+                    stash::push_stash(self.core, self.repo_id, message.as_deref(), paths.as_deref(), include_untracked).await?
+                else {
                     return Err(self.stale());
                 };
                 // The new stash has a different SHA; the next undo must find it.

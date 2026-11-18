@@ -14,9 +14,9 @@
 
 pub mod broker;
 pub mod keychain;
+pub mod prompt;
 #[cfg(target_os = "linux")]
 mod secret_service;
-pub mod prompt;
 pub mod ssh;
 
 use std::path::{Path, PathBuf};
@@ -74,10 +74,7 @@ fn key_rows(core: &Core) -> CoreResult<(String, Vec<SshKeyRow>)> {
 fn ensure_not_registered(rows: &[SshKeyRow], private: &Path) -> CoreResult<()> {
     let key = util::path_key(private);
     if rows.iter().any(|r| util::path_key(Path::new(&r.private_key_path)) == key) {
-        return Err(CoreError::name_exists(format!(
-            "The key “{}” is already registered.",
-            util::display_path(private)
-        )));
+        return Err(CoreError::name_exists(format!("The key “{}” is already registered.", util::display_path(private))));
     }
     Ok(())
 }
@@ -170,17 +167,19 @@ pub async fn ssh_key_generate(core: &Core, label: String, file_name: String, pas
 }
 
 /// Registers an existing key.
-pub async fn ssh_key_import(core: &Core, label: String, private_key_path: String, public_key_path: Option<String>) -> CoreResult<Vec<SshKey>> {
+pub async fn ssh_key_import(
+    core: &Core,
+    label: String,
+    private_key_path: String,
+    public_key_path: Option<String>,
+) -> CoreResult<Vec<SshKey>> {
     let label = check_label(&label)?;
     let private = PathBuf::from(private_key_path.trim());
     if !private.is_absolute() || !private.is_file() {
         return Err(file_not_found(&private));
     }
     if !ssh::looks_like_private_key(&private) {
-        return Err(CoreError::not_allowed(format!(
-            "“{}” is not a private SSH key.",
-            util::display_path(&private)
-        )));
+        return Err(CoreError::not_allowed(format!("“{}” is not a private SSH key.", util::display_path(&private))));
     }
     let public = match util::non_empty(public_key_path.map(|p| p.trim().to_string())) {
         Some(path) => {
@@ -195,10 +194,7 @@ pub async fn ssh_key_import(core: &Core, label: String, private_key_path: String
             if !beside.is_file() {
                 return Err(CoreError::new(
                     ErrorCode::PathNotFound,
-                    format!(
-                        "There is no file “{}” next to the key. Select the file with the public key.",
-                        util::display_path(&beside)
-                    ),
+                    format!("There is no file “{}” next to the key. Select the file with the public key.", util::display_path(&beside)),
                 ));
             }
             beside
@@ -206,10 +202,7 @@ pub async fn ssh_key_import(core: &Core, label: String, private_key_path: String
     };
     let public_key = ssh::read_public_key(&public);
     if public_key.is_empty() || public_key.contains("PRIVATE KEY") || public_key.lines().count() > 1 {
-        return Err(CoreError::not_allowed(format!(
-            "“{}” is not a public SSH key.",
-            util::display_path(&public)
-        )));
+        return Err(CoreError::not_allowed(format!("“{}” is not a public SSH key.", util::display_path(&public))));
     }
     let (profile_id, rows) = key_rows(core)?;
     ensure_not_registered(&rows, &private)?;

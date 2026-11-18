@@ -28,15 +28,14 @@ use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd, GitOutput};
 use crate::model::{
-    Head, HookOutput, OpResult, Operation, OperationKind, Person, RebaseAction, RebasePlan, RebasePlanRow, RebaseRefusal, RebaseRefusalDetail,
-    RepoChange,
+    Head, HookOutput, OpResult, Operation, OperationKind, Person, RebaseAction, RebasePlan, RebasePlanRow, RebaseRefusal,
+    RebaseRefusalDetail, RepoChange,
 };
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
 /// What these actions can change.
-const CHANGES: &[RepoChange] =
-    &[RepoChange::Refs, RepoChange::Head, RepoChange::Worktree, RepoChange::Index, RepoChange::Operation];
+const CHANGES: &[RepoChange] = &[RepoChange::Refs, RepoChange::Head, RepoChange::Worktree, RepoChange::Index, RepoChange::Operation];
 
 /// Fixed settings for every rebase: stash nothing, reorder nothing, don't drag along
 /// other branches – otherwise the undo entry is wrong.
@@ -107,9 +106,25 @@ pub async fn rebase_start(core: &Core, repo_id: String, onto: String, branch: Op
 
 /// Like `rebase_start`; `update_refs: Some(true)` moves dependent branches along (`--update-refs`),
 /// backed up for undo.
-pub async fn rebase_start_with(core: &Core, repo_id: String, onto: String, branch: Option<String>, update_refs: Option<bool>) -> CoreResult<OpResult> {
+pub async fn rebase_start_with(
+    core: &Core,
+    repo_id: String,
+    onto: String,
+    branch: Option<String>,
+    update_refs: Option<bool>,
+) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    auto::follow(core, &repo_id, write_action(core, &repo_id, &touched, start_rebase(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), &touched))).await
+    auto::follow(
+        core,
+        &repo_id,
+        write_action(
+            core,
+            &repo_id,
+            &touched,
+            start_rebase(core, &repo_id, &onto, branch.as_deref(), update_refs.unwrap_or(false), &touched),
+        ),
+    )
+    .await
 }
 
 /// The local branches a rebase of `branch` (default: the checked-out one) onto `onto` would move
@@ -188,10 +203,7 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
         });
     }
     if worktree_state(core, repo_id).await?.dirty {
-        return refused(
-            RebaseRefusal::DirtyWorktree,
-            "There are uncommitted changes. Commit or stash them first.",
-        );
+        return refused(RebaseRefusal::DirtyWorktree, "There are uncommitted changes. Commit or stash them first.");
     }
     // The range is linear: if any commit is on a remote, so is the oldest one.
     let pushed = read(core, repo_id)?
@@ -210,10 +222,10 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
             message: None,
         })
         .collect();
-    let dependent_branches = dependent_refs(core, repo_id, &base_sha, &head_sha, &branch).await?.into_iter().map(|(name, _)| name).collect();
+    let dependent_branches =
+        dependent_refs(core, repo_id, &base_sha, &head_sha, &branch).await?.into_iter().map(|(name, _)| name).collect();
     Ok(RebasePlan::Ok { branch, base: base_sha, rows, rewrites_pushed: !pushed.stdout_text().is_empty(), dependent_branches })
 }
-
 
 /// `rebase_plan`; with `autosquash: Some(true)` the rows come in Git's autosquash order (8.2): every
 /// `fixup! <subject>` / `squash! <subject>` commit directly after the commit it names, with the action
@@ -308,9 +320,20 @@ pub async fn rebase_apply(core: &Core, repo_id: String, base: String, rows: Vec<
 }
 
 /// Like `rebase_apply`; `update_refs: Some(true)` moves dependent branches along.
-pub async fn rebase_apply_with(core: &Core, repo_id: String, base: String, rows: Vec<RebasePlanRow>, update_refs: Option<bool>) -> CoreResult<OpResult> {
+pub async fn rebase_apply_with(
+    core: &Core,
+    repo_id: String,
+    base: String,
+    rows: Vec<RebasePlanRow>,
+    update_refs: Option<bool>,
+) -> CoreResult<OpResult> {
     let touched = AtomicBool::new(false);
-    auto::follow(core, &repo_id, write_action(core, &repo_id, &touched, apply_plan(core, &repo_id, &base, &rows, update_refs.unwrap_or(false), &touched))).await
+    auto::follow(
+        core,
+        &repo_id,
+        write_action(core, &repo_id, &touched, apply_plan(core, &repo_id, &base, &rows, update_refs.unwrap_or(false), &touched)),
+    )
+    .await
 }
 
 /// Apply one or more commits.
@@ -445,24 +468,29 @@ pub(crate) async fn fill_updated_refs(core: &Core, repo_id: &str, payload: &mut 
 // Rebase
 // ---------------------------------------------------------------------------
 
-async fn start_rebase(core: &Core, repo_id: &str, onto: &str, branch: Option<&str>, update_refs: bool, touched: &AtomicBool) -> CoreResult<OpResult> {
+async fn start_rebase(
+    core: &Core,
+    repo_id: &str,
+    onto: &str,
+    branch: Option<&str>,
+    update_refs: bool,
+    touched: &AtomicBool,
+) -> CoreResult<OpResult> {
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
     let head = refs::read_head(core, repo_id).await?;
     let current = match &head {
         Head::Branch { branch, .. } => Some(branch.clone()),
         Head::Detached { .. } => None,
-        Head::Unborn { .. } => return Err(CoreError::not_allowed("The repository doesn't have any commits yet, so there's nothing to rebase.")),
+        Head::Unborn { .. } => {
+            return Err(CoreError::not_allowed("The repository doesn't have any commits yet, so there's nothing to rebase."))
+        }
     };
     let wanted = branch.map(|b| b.strip_prefix("refs/heads/").unwrap_or(b).trim()).filter(|b| !b.is_empty());
     let target = match (wanted, &current) {
         (Some(b), _) => b.to_string(),
         (None, Some(b)) => b.clone(),
-        (None, None) => {
-            return Err(CoreError::not_allowed(
-                "HEAD doesn't point to a branch (detached HEAD). Check out a branch first.",
-            ))
-        }
+        (None, None) => return Err(CoreError::not_allowed("HEAD doesn't point to a branch (detached HEAD). Check out a branch first.")),
     };
     let branch_ref = format!("refs/heads/{target}");
     let Some(old_tip) = rev_parse(core, repo_id, &format!("{branch_ref}^{{commit}}")).await? else {
@@ -473,10 +501,8 @@ async fn start_rebase(core: &Core, repo_id: &str, onto: &str, branch: Option<&st
 
     // Already up to date: `onto` is an ancestor and there is no merge in between that Git would flatten.
     if is_ancestor(core, repo_id, &onto_sha, &old_tip).await? {
-        let merges = read(core, repo_id)?
-            .args(["rev-list", "--count", "--min-parents=2", &format!("{onto_sha}..{old_tip}")])
-            .run_text()
-            .await?;
+        let merges =
+            read(core, repo_id)?.args(["rev-list", "--count", "--min-parents=2", &format!("{onto_sha}..{old_tip}")]).run_text().await?;
         if merges.trim() == "0" {
             return Ok(OpResult::UpToDate);
         }
@@ -666,8 +692,7 @@ fn classify(subcommand: &str, out: &GitOutput) -> CoreError {
     let mut error = errors::classify(subcommand, out.code, &out.stdout, &out.stderr);
     if error.git_output.as_deref().is_some_and(|text| text.contains("untracked working tree files would be overwritten")) {
         error.code = ErrorCode::DirtyWorktree;
-        error.message =
-            "Untracked files in the working directory would be overwritten. Move, delete or commit them first.".to_string();
+        error.message = "Untracked files in the working directory would be overwritten. Move, delete or commit them first.".to_string();
     }
     error
 }
@@ -688,7 +713,14 @@ fn stopped_error(what: &str, subcommand: &str, out: &GitOutput) -> CoreError {
 // Interactive Rebase
 // ---------------------------------------------------------------------------
 
-async fn apply_plan(core: &Core, repo_id: &str, base: &str, rows: &[RebasePlanRow], update_refs: bool, touched: &AtomicBool) -> CoreResult<OpResult> {
+async fn apply_plan(
+    core: &Core,
+    repo_id: &str,
+    base: &str,
+    rows: &[RebasePlanRow],
+    update_refs: bool,
+    touched: &AtomicBool,
+) -> CoreResult<OpResult> {
     ensure_no_operation(core, repo_id).await?;
     settle_pending_undo(core, repo_id).await?;
     let head = refs::read_head(core, repo_id).await?;
@@ -700,10 +732,8 @@ async fn apply_plan(core: &Core, repo_id: &str, base: &str, rows: &[RebasePlanRo
     let commits = read_range(core, repo_id, &base_sha).await?;
     // The plan must contain exactly the commits base..HEAD, each one once.
     let known: HashSet<&str> = commits.iter().map(|c| c.sha.as_str()).collect();
-    let steps: Vec<Step> = rows
-        .iter()
-        .map(|r| Step { sha: r.sha.trim().to_ascii_lowercase(), action: r.action, message: r.message.clone() })
-        .collect();
+    let steps: Vec<Step> =
+        rows.iter().map(|r| Step { sha: r.sha.trim().to_ascii_lowercase(), action: r.action, message: r.message.clone() }).collect();
     let planned: HashSet<&str> = steps.iter().map(|s| s.sha.as_str()).collect();
     if steps.len() != commits.len() || planned != known {
         return Err(CoreError::stale_state());
@@ -774,7 +804,11 @@ enum TodoEntry {
     Drop(String),
     /// `pick target`, then the commits that are folded into it and – if set –
     /// the new message of the result.
-    Group { target: String, fixups: Vec<String>, message: Option<String> },
+    Group {
+        target: String,
+        fixups: Vec<String>,
+        message: Option<String>,
+    },
 }
 
 /// What a plan does; the undo entry and the summary are derived from it.
@@ -996,7 +1030,13 @@ async fn message_commit(core: &Core, repo_id: &str, target: &str, message: &str)
 
 /// `git rebase -i` with our todo file. `base = None` means `--root`. Also returns which
 /// hooks ran along the way (already reported as `hook:output`).
-async fn run_interactive(core: &Core, repo_id: &str, base: Option<&str>, todo: &str, update_refs: bool) -> CoreResult<(GitOutput, Vec<HookOutput>)> {
+async fn run_interactive(
+    core: &Core,
+    repo_id: &str,
+    base: Option<&str>,
+    todo: &str,
+    update_refs: bool,
+) -> CoreResult<(GitOutput, Vec<HookOutput>)> {
     let helper = find_editor_helper(core)?;
     let call = editor_call(&helper);
     let dir = core.data_dir().join("tmp");
@@ -1046,7 +1086,9 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
     }
     let resolved = resolve.run_raw().await?;
     if !resolved.success() {
-        return Err(CoreError::not_found("At least one of the selected commits doesn't exist (anymore).").with_git_output(resolved.stderr_text()));
+        return Err(
+            CoreError::not_found("At least one of the selected commits doesn't exist (anymore).").with_git_output(resolved.stderr_text())
+        );
     }
     let wanted: HashSet<String> = resolved.stdout_lines().into_iter().map(util::decode_lossy).filter(|l| !l.is_empty()).collect();
     if wanted.len() < 2 {
@@ -1087,9 +1129,7 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
     // Without a merge, `chain` is the straight line from HEAD to the oldest selected commit.
     let newest = chain.iter().position(|(sha, _)| wanted.contains(sha)).unwrap_or(0);
     if chain.len() - newest != wanted.len() {
-        return Err(CoreError::not_allowed(
-            "The selected commits aren't consecutive. You can only squash consecutive commits.",
-        ));
+        return Err(CoreError::not_allowed("The selected commits aren't consecutive. You can only squash consecutive commits."));
     }
     ensure_clean(core, repo_id).await?;
 
@@ -1158,13 +1198,16 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
             return Err(CoreError::not_allowed("The repository doesn't have any commits yet; a cherry-pick needs a commit to build on."))
         }
     };
-    let mut listing = read(core, repo_id)?.args(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT]);
+    let mut listing =
+        read(core, repo_id)?.args(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT]);
     for sha in shas {
         listing = listing.arg(sha.trim());
     }
     let listed = listing.run_raw().await?;
     if !listed.success() {
-        return Err(CoreError::not_found("At least one of the selected commits doesn't exist (anymore).").with_git_output(listed.stderr_text()));
+        return Err(
+            CoreError::not_found("At least one of the selected commits doesn't exist (anymore).").with_git_output(listed.stderr_text())
+        );
     }
     let commits = parse_commits(&listed.stdout);
     let Some(first) = commits.first() else {
@@ -1279,10 +1322,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
             let which = failed.map_or_else(|| "A commit".to_string(), |c| quoted(&c.summary));
             let mut error = CoreError::new(
                 code,
-                format!(
-                    "{reason} {which} wasn't applied; the cherry-pick stopped there ({applied} of {} applied).",
-                    commits.len()
-                ),
+                format!("{reason} {which} wasn't applied; the cherry-pick stopped there ({applied} of {} applied).", commits.len()),
             );
             error.git_output = base.git_output;
             Err(error)
@@ -1606,9 +1646,7 @@ fn find_editor_helper(core: &Core) -> CoreResult<PathBuf> {
 }
 
 fn helper_missing(program: &str) -> CoreError {
-    CoreError::unsupported(format!(
-        "The helper program “{program}” for interactive rebase wasn't found. It has to be next to the app."
-    ))
+    CoreError::unsupported(format!("The helper program “{program}” for interactive rebase wasn't found. It has to be next to the app."))
 }
 
 /// How Git invokes the helper program.

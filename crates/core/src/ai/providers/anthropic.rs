@@ -53,7 +53,12 @@ impl Anthropic {
             .get("content")
             .and_then(Value::as_array)
             .map(|blocks| {
-                blocks.iter().filter(|block| block.get("type").and_then(Value::as_str) == Some("text")).filter_map(|block| block.get("text").and_then(Value::as_str)).collect::<Vec<_>>().join("")
+                blocks
+                    .iter()
+                    .filter(|block| block.get("type").and_then(Value::as_str) == Some("text"))
+                    .filter_map(|block| block.get("text").and_then(Value::as_str))
+                    .collect::<Vec<_>>()
+                    .join("")
             })
             .unwrap_or_default();
         let usage = Usage {
@@ -72,7 +77,10 @@ impl Anthropic {
 
     async fn count_tokens(&self, core: &Core, request: &CompletionRequest, cancel: &CancelToken) -> CoreResult<u64> {
         let body = json!({ "model": self.model, "system": request.system, "messages": [{ "role": "user", "content": request.user }] });
-        let http_request = self.authorized(Request::new(Method::Post, format!("{}/messages/count_tokens", self.base), LABEL)).json(&body).repo(request.repo_id.as_deref());
+        let http_request = self
+            .authorized(Request::new(Method::Post, format!("{}/messages/count_tokens", self.base), LABEL))
+            .json(&body)
+            .repo(request.repo_id.as_deref());
         let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
         if !response.is_success() {
             return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
@@ -91,10 +99,20 @@ impl Provider for Anthropic {
     }
 
     fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps { structured_output: true, embeddings: false, max_context_tokens: Some(self.context_tokens), pricing: pricing::builtin_price(AiProviderKind::Anthropic, &self.model) }
+        ProviderCaps {
+            structured_output: true,
+            embeddings: false,
+            max_context_tokens: Some(self.context_tokens),
+            pricing: pricing::builtin_price(AiProviderKind::Anthropic, &self.model),
+        }
     }
 
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             if request.estimated_input_tokens > self.context_tokens / 2 {
                 let counted = self.count_tokens(core, request, cancel).await?;
@@ -213,11 +231,15 @@ mod tests {
                 json!({"content": [], "stop_reason": "refusal", "stop_details": {"type": "refusal", "category": "cyber", "explanation": "This request touches on harmful security topics."}, "usage": {"input_tokens": 30, "output_tokens": 0}}),
             )
         });
-        let error = provider(format!("{}/v1", refusing.url()), 200_000).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
+        let error = provider(format!("{}/v1", refusing.url()), 200_000)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::AiRefused);
         assert!(error.message.contains("harmful security topics"), "{}", error.message);
         let cut = MockServer::start(|_| answer("max_tokens", "{\"summary\":\"Fi"));
-        let completion = provider(format!("{}/v1", cut.url()), 200_000).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap();
+        let completion =
+            provider(format!("{}/v1", cut.url()), 200_000).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap();
         assert_eq!(completion.finish, Finish::MaxTokens);
     }
 
@@ -225,9 +247,15 @@ mod tests {
     async fn a_rejected_key_points_to_the_settings_and_is_never_shown() {
         let tc = TestCore::new().await;
         let server = MockServer::start(|_| {
-            MockResponse::json(401, json!({"type": "error", "error": {"type": "authentication_error", "message": format!("invalid x-api-key {KEY}")}}))
+            MockResponse::json(
+                401,
+                json!({"type": "error", "error": {"type": "authentication_error", "message": format!("invalid x-api-key {KEY}")}}),
+            )
         });
-        let error = provider(format!("{}/v1", server.url()), 200_000).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
+        let error = provider(format!("{}/v1", server.url()), 200_000)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::AiNotConfigured);
         assert!(error.message.contains("Settings › AI"), "{}", error.message);
         let output = error.git_output.clone().unwrap_or_default();
@@ -241,8 +269,14 @@ mod tests {
     #[tokio::test]
     async fn an_overloaded_provider_names_the_retry_time() {
         let tc = TestCore::new().await;
-        let server = MockServer::start(|_| MockResponse::json(529, json!({"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}})).header("retry-after", "30"));
-        let error = provider(format!("{}/v1", server.url()), 200_000).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
+        let server = MockServer::start(|_| {
+            MockResponse::json(529, json!({"type": "error", "error": {"type": "overloaded_error", "message": "Overloaded"}}))
+                .header("retry-after", "30")
+        });
+        let error = provider(format!("{}/v1", server.url()), 200_000)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::AiProviderUnavailable);
         assert!(error.message.contains("529"), "{}", error.message);
         assert!(error.retry_at.is_some());
@@ -254,7 +288,10 @@ mod tests {
         let tc = TestCore::new().await;
         let server = MockServer::start(|request| {
             if request.query("after_id").as_deref() == Some("claude-sonnet-5-5") {
-                MockResponse::json(200, json!({"data": [{"id": "claude-haiku-5-5", "display_name": "Claude Haiku 5.5", "max_input_tokens": 1_000_000}], "has_more": false}))
+                MockResponse::json(
+                    200,
+                    json!({"data": [{"id": "claude-haiku-5-5", "display_name": "Claude Haiku 5.5", "max_input_tokens": 1_000_000}], "has_more": false}),
+                )
             } else {
                 MockResponse::json(
                     200,
@@ -301,7 +338,10 @@ mod tests {
     async fn an_unreachable_service_is_provider_unavailable() {
         let tc = TestCore::new().await;
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-        let error = provider(format!("http://127.0.0.1:{port}/v1"), 200_000).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
+        let error = provider(format!("http://127.0.0.1:{port}/v1"), 200_000)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::AiProviderUnavailable, "{error:?}");
         assert!(error.message.contains(&format!("127.0.0.1:{port}")), "{}", error.message);
     }

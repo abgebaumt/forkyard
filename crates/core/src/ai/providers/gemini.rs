@@ -60,7 +60,9 @@ impl Gemini {
         };
         match candidate.and_then(|candidate| candidate.get("finishReason")).and_then(Value::as_str) {
             Some("MAX_TOKENS") => Ok(Completion { text, finish: Finish::MaxTokens, usage }),
-            Some(reason @ ("SAFETY" | "PROHIBITED_CONTENT" | "BLOCKLIST" | "SPII" | "RECITATION")) => Err(CoreError::ai_refused(&format!("Gemini stopped the answer ({reason})."))),
+            Some(reason @ ("SAFETY" | "PROHIBITED_CONTENT" | "BLOCKLIST" | "SPII" | "RECITATION")) => {
+                Err(CoreError::ai_refused(&format!("Gemini stopped the answer ({reason}).")))
+            }
             _ => Ok(Completion { text, finish: Finish::Complete, usage }),
         }
     }
@@ -79,10 +81,19 @@ impl Provider for Gemini {
         ProviderCaps { structured_output: true, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
     }
 
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             let url = format!("{}/models/{}:generateContent", self.base, http::encode(self.model_id()));
-            let http_request = self.authorized(Request::new(Method::Post, url, LABEL)).json(&self.body(request)).timeout(request.timeout).repo(request.repo_id.as_deref());
+            let http_request = self
+                .authorized(Request::new(Method::Post, url, LABEL))
+                .json(&self.body(request))
+                .timeout(request.timeout)
+                .repo(request.repo_id.as_deref());
             let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
             if !response.is_success() {
                 return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
@@ -107,7 +118,10 @@ impl Provider for Gemini {
                 }
                 let page = json_body(LABEL, &response)?;
                 for entry in page.get("models").and_then(Value::as_array).into_iter().flatten() {
-                    let generates = entry.get("supportedGenerationMethods").and_then(Value::as_array).is_some_and(|methods| methods.iter().any(|method| method == "generateContent"));
+                    let generates = entry
+                        .get("supportedGenerationMethods")
+                        .and_then(Value::as_array)
+                        .is_some_and(|methods| methods.iter().any(|method| method == "generateContent"));
                     let Some(name) = entry.get("name").and_then(Value::as_str).filter(|_| generates) else { continue };
                     let id = name.trim_start_matches("models/").to_string();
                     models.push(AiModelInfo {
@@ -133,7 +147,8 @@ impl Provider for Gemini {
                 .map(|text| json!({ "model": model, "content": { "parts": [{ "text": text }] }, "outputDimensionality": MAX_DIMS }))
                 .collect();
             let url = format!("{}/models/{}:batchEmbedContents", self.base, http::encode(self.model_id()));
-            let request = self.authorized(Request::new(Method::Post, url, LABEL)).json(&json!({ "requests": requests })).timeout(EMBED_TIMEOUT);
+            let request =
+                self.authorized(Request::new(Method::Post, url, LABEL)).json(&json!({ "requests": requests })).timeout(EMBED_TIMEOUT);
             let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
             if !response.is_success() {
                 return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
@@ -172,7 +187,10 @@ mod tests {
     }
 
     fn answer(finish: &str, text: &str) -> MockResponse {
-        MockResponse::json(200, json!({"candidates": [{"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": finish}], "usageMetadata": {"promptTokenCount": 33, "candidatesTokenCount": 8}}))
+        MockResponse::json(
+            200,
+            json!({"candidates": [{"content": {"role": "model", "parts": [{"text": text}]}, "finishReason": finish}], "usageMetadata": {"promptTokenCount": 33, "candidatesTokenCount": 8}}),
+        )
     }
 
     #[tokio::test]
@@ -206,26 +224,43 @@ mod tests {
     async fn blocked_and_cut_off_answers() {
         let tc = TestCore::new().await;
         let safety = MockServer::start(|_| answer("SAFETY", ""));
-        assert_eq!(provider(&safety, "gemini-2.5-flash").complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err().code, ErrorCode::AiRefused);
-        let blocked = MockServer::start(|_| MockResponse::json(200, json!({"promptFeedback": {"blockReason": "PROHIBITED_CONTENT"}, "usageMetadata": {"promptTokenCount": 10}})));
+        assert_eq!(
+            provider(&safety, "gemini-2.5-flash").complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err().code,
+            ErrorCode::AiRefused
+        );
+        let blocked = MockServer::start(|_| {
+            MockResponse::json(
+                200,
+                json!({"promptFeedback": {"blockReason": "PROHIBITED_CONTENT"}, "usageMetadata": {"promptTokenCount": 10}}),
+            )
+        });
         let error = provider(&blocked, "gemini-2.5-flash").complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::AiRefused);
         assert!(error.message.contains("PROHIBITED_CONTENT"), "{}", error.message);
         let cut = MockServer::start(|_| answer("MAX_TOKENS", "{\"summ"));
-        assert_eq!(provider(&cut, "gemini-2.5-flash").complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap().finish, Finish::MaxTokens);
+        assert_eq!(
+            provider(&cut, "gemini-2.5-flash").complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap().finish,
+            Finish::MaxTokens
+        );
     }
 
     #[tokio::test]
     async fn only_models_that_generate_content_are_listed() {
         let tc = TestCore::new().await;
         let server = MockServer::start(|_| {
-            MockResponse::json(200, json!({"models": [
-                {"name": "models/gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "inputTokenLimit": 1_048_576, "supportedGenerationMethods": ["generateContent", "countTokens"]},
-                {"name": "models/text-embedding-004", "displayName": "Text Embedding 004", "supportedGenerationMethods": ["embedContent"]}
-            ]}))
+            MockResponse::json(
+                200,
+                json!({"models": [
+                    {"name": "models/gemini-2.5-flash", "displayName": "Gemini 2.5 Flash", "inputTokenLimit": 1_048_576, "supportedGenerationMethods": ["generateContent", "countTokens"]},
+                    {"name": "models/text-embedding-004", "displayName": "Text Embedding 004", "supportedGenerationMethods": ["embedContent"]}
+                ]}),
+            )
         });
         let models = provider(&server, "gemini-2.5-flash").models(&tc, &CancelToken::new()).await.unwrap();
         assert_eq!(models.len(), 1);
-        assert_eq!((models[0].id.as_str(), models[0].label.as_str(), models[0].context_tokens), ("gemini-2.5-flash", "Gemini 2.5 Flash", Some(1_048_576)));
+        assert_eq!(
+            (models[0].id.as_str(), models[0].label.as_str(), models[0].context_tokens),
+            ("gemini-2.5-flash", "Gemini 2.5 Flash", Some(1_048_576))
+        );
     }
 }

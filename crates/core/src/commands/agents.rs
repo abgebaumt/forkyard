@@ -4,13 +4,13 @@
 
 pub mod channel;
 pub mod checks;
-pub mod review;
 pub mod cleanup;
 pub mod cmdline;
-pub mod machine;
 pub mod collision;
+pub mod machine;
 pub mod names;
 pub mod registry;
+pub mod review;
 pub mod templates;
 #[cfg(test)]
 mod tests;
@@ -51,7 +51,13 @@ async fn agent_configs(core: &Core, repo_id: &str, sha: &str) -> CoreResult<Vec<
 /// `agent/<short name from the task>` with the first suffix for which folder, branch and agent
 /// name are all free; with a branch, only the folder gets a suffix and `branch_problem` says what
 /// is wrong with it. `base`: default HEAD.
-pub async fn agent_suggest(core: &Core, repo_id: String, task: String, branch: Option<String>, base: Option<String>) -> CoreResult<AgentSuggestion> {
+pub async fn agent_suggest(
+    core: &Core,
+    repo_id: String,
+    task: String,
+    branch: Option<String>,
+    base: Option<String>,
+) -> CoreResult<AgentSuggestion> {
     let main = worktree::main_worktree_path(core, &repo_id).await?;
     let dir = names::agents_dir(&main)?;
     let base = base.as_deref().map(str::trim).filter(|b| !b.is_empty()).unwrap_or("HEAD").to_string();
@@ -236,7 +242,15 @@ fn same_path(a: &Path, b: &Path) -> bool {
 }
 
 async fn changed_files(core: &Core, repo_id: &str, folder: &Path) -> u32 {
-    let out = core.git.cmd(folder).repo(repo_id).read_only().no_log().args(["status", "--porcelain=v2", "-z", "--untracked-files=all"]).run_raw().await;
+    let out = core
+        .git
+        .cmd(folder)
+        .repo(repo_id)
+        .read_only()
+        .no_log()
+        .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
+        .run_raw()
+        .await;
     match out {
         Ok(out) if out.success() => count_status_entries(&out.stdout),
         _ => 0,
@@ -246,7 +260,15 @@ async fn changed_files(core: &Core, repo_id: &str, folder: &Path) -> u32 {
 async fn commits_ahead(core: &Core, repo_id: &str, row: &AgentRow) -> u32 {
     let range = format!("{}..refs/heads/{}", row.base_sha, row.branch);
     match core.git_for(repo_id) {
-        Ok(cmd) => cmd.read_only().no_log().args(["rev-list", "--count", &range]).run_text().await.ok().and_then(|n| n.trim().parse().ok()).unwrap_or(0),
+        Ok(cmd) => cmd
+            .read_only()
+            .no_log()
+            .args(["rev-list", "--count", &range])
+            .run_text()
+            .await
+            .ok()
+            .and_then(|n| n.trim().parse().ok())
+            .unwrap_or(0),
         Err(_) => 0,
     }
 }
@@ -277,7 +299,8 @@ pub(crate) async fn describe(core: &Core, row: &AgentRow) -> Agent {
         },
     };
     let status = if !present && !running { AgentStatus::Orphaned } else { status };
-    let worktree_repo_id = if folder.is_dir() { core.db.with(|c| db::repos::find_by_path(c, &folder)).ok().flatten().map(|r| r.id) } else { None };
+    let worktree_repo_id =
+        if folder.is_dir() { core.db.with(|c| db::repos::find_by_path(c, &folder)).ok().flatten().map(|r| r.id) } else { None };
     Agent {
         id: row.id.clone(),
         repo_id: row.repo_id.clone(),
@@ -336,7 +359,17 @@ pub async fn agent_list(core: &Core, repo_id: String) -> CoreResult<Vec<Agent>> 
 /// prompts” not available, empty task, 16 terminals open); `invalid_name`; `name_exists` (branch);
 /// `not_found` (base).
 #[allow(clippy::too_many_arguments)]
-pub async fn agent_start(core: &Core, repo_id: String, template_id: String, task: String, branch: String, base: String, unattended: bool, cols: u16, rows: u16) -> CoreResult<Agent> {
+pub async fn agent_start(
+    core: &Core,
+    repo_id: String,
+    template_id: String,
+    task: String,
+    branch: String,
+    base: String,
+    unattended: bool,
+    cols: u16,
+    rows: u16,
+) -> CoreResult<Agent> {
     core.repo_path(&repo_id)?;
     let task = task.trim_end().to_string();
     if task.trim().is_empty() {
@@ -347,9 +380,9 @@ pub async fn agent_start(core: &Core, repo_id: String, template_id: String, task
     }
     let settings = core.settings()?;
     let def = templates::find(&settings.agent_templates, &template_id)?;
-    let program = resolve_program(core, &def)
-        .await
-        .ok_or_else(|| CoreError::not_allowed(format!("“{}” was not found. Install it or set its path under Settings › Coding agents.", def.name)))?;
+    let program = resolve_program(core, &def).await.ok_or_else(|| {
+        CoreError::not_allowed(format!("“{}” was not found. Install it or set its path under Settings › Coding agents.", def.name))
+    })?;
     if unattended {
         if let Some(reason) = templates::unattended_blocked(&def, program.version.as_deref()) {
             return Err(CoreError::not_allowed(reason));
@@ -365,9 +398,11 @@ pub async fn agent_start(core: &Core, repo_id: String, template_id: String, task
     let dir = names::agents_dir(&main)?;
     let rows_now = core.db.with(|c| db::agents::list_for_repo(c, &repo_id))?;
     let short_name = names::free_name(&dir, &names::short_name_for_branch(&branch), &|name| rows_now.iter().any(|r| r.short_name == name))?;
-    std::fs::create_dir_all(&dir).map_err(|e| CoreError::io(format!("The folder {} could not be created: {e}", util::display_path(&dir))))?;
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| CoreError::io(format!("The folder {} could not be created: {e}", util::display_path(&dir))))?;
     let folder = dir.join(&short_name);
-    worktree::worktree_add(core, repo_id.clone(), folder.to_string_lossy().into_owned(), branch.clone(), true, Some(base_sha.clone())).await?;
+    worktree::worktree_add(core, repo_id.clone(), folder.to_string_lossy().into_owned(), branch.clone(), true, Some(base_sha.clone()))
+        .await?;
     let row = AgentRow {
         id: util::new_id(),
         repo_id: repo_id.clone(),
@@ -434,9 +469,9 @@ pub async fn agent_resume(core: &Core, agent_id: String, cols: u16, rows: u16) -
     if def.kind == AgentTemplateKind::Custom && def.resume_args.is_none() {
         return Err(CoreError::not_allowed(format!("The template “{}” has no arguments for “Resume”.", def.name)));
     }
-    let program = resolve_program(core, &def)
-        .await
-        .ok_or_else(|| CoreError::not_allowed(format!("“{}” was not found. Install it or set its path under Settings › Coding agents.", def.name)))?;
+    let program = resolve_program(core, &def).await.ok_or_else(|| {
+        CoreError::not_allowed(format!("“{}” was not found. Install it or set its path under Settings › Coding agents.", def.name))
+    })?;
     if row.unattended {
         if let Some(reason) = templates::unattended_blocked(&def, program.version.as_deref()) {
             return Err(CoreError::not_allowed(reason));
@@ -456,7 +491,9 @@ pub async fn agent_resume(core: &Core, agent_id: String, cols: u16, rows: u16) -
 pub async fn agent_forget(core: &Core, agent_id: String) -> CoreResult<()> {
     let row = core.db.with(|c| db::agents::require(c, &agent_id))?;
     if running_session(core, &agent_id).is_some() || describe(core, &row).await.status != AgentStatus::Orphaned {
-        return Err(CoreError::not_allowed("Only orphaned agents can be removed from the list. Use “Stop agent and clean up” for the others."));
+        return Err(CoreError::not_allowed(
+            "Only orphaned agents can be removed from the list. Use “Stop agent and clean up” for the others.",
+        ));
     }
     let folder = PathBuf::from(&row.worktree_path);
     if !folder.is_dir() {
@@ -556,11 +593,17 @@ pub async fn agent_collision_check(core: &Core, repo_id: String) -> CoreResult<c
 
 /// Both sides of every conflict of `path` in the collision `collision_id` of the last report.
 /// Errors: `not_found` (no such collision or file in the last report, or the result is gone), `repo_untrusted`.
-pub async fn agent_collision_preview(core: &Core, repo_id: String, collision_id: String, path: String) -> CoreResult<crate::model::CollisionPreview> {
+pub async fn agent_collision_preview(
+    core: &Core,
+    repo_id: String,
+    collision_id: String,
+    path: String,
+) -> CoreResult<crate::model::CollisionPreview> {
     core.repo_path(&repo_id)?;
     let gone = || CoreError::not_found("This collision is no longer current or too large to show. Check again.");
     let (tree, raw) = collision::stored_conflict(core, &repo_id, &collision_id, &path).ok_or_else(gone)?;
-    let blob = crate::commands::preview::conflicted_blob(core, &repo_id, &crate::jobs::CancelToken::new(), &tree, &raw).await?.ok_or_else(gone)?;
+    let blob =
+        crate::commands::preview::conflicted_blob(core, &repo_id, &crate::jobs::CancelToken::new(), &tree, &raw).await?.ok_or_else(gone)?;
     Ok(collision::preview_of(&collision_id, &path, &blob))
 }
 

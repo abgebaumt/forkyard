@@ -107,20 +107,34 @@ async fn the_demo_history_gives_the_expected_numbers() {
     let months: Vec<(&str, u32)> = stats.months.iter().map(|b| (b.period.as_str(), b.commits)).collect();
     assert_eq!(months, [("2023-03", 1), ("2025-06", 8)]);
 
-    let authors: Vec<(&str, &str, u32, u64, u64)> = stats.authors.iter().map(|a| (a.name.as_str(), a.email.as_str(), a.commits, a.added, a.removed)).collect();
-    assert_eq!(authors, [("Ben", "ben@example.com", 4, 10, 1), ("Ada", "ada@example.com", 3, 18, 2), ("Cleo", "cleo@example.com", 2, 8, 4)]);
+    let authors: Vec<(&str, &str, u32, u64, u64)> =
+        stats.authors.iter().map(|a| (a.name.as_str(), a.email.as_str(), a.commits, a.added, a.removed)).collect();
+    assert_eq!(
+        authors,
+        [("Ben", "ben@example.com", 4, 10, 1), ("Ada", "ada@example.com", 3, 18, 2), ("Cleo", "cleo@example.com", 2, 8, 4)]
+    );
     assert_eq!(stats.author_count, 3, "Cleo with two spellings of her address is one author");
 
-    let files: Vec<(&str, u32, u32, u64, u64)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
+    let files: Vec<(&str, u32, u32, u64, u64)> =
+        stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
     assert_eq!(
         files,
-        [("src/app/main.rs", 4, 3, 14, 2), ("docs/guide.md", 4, 1, 9, 1), ("src/lib/util.rs", 2, 1, 7, 1), ("README.md", 2, 1, 4, 1), ("logo.bin", 1, 1, 0, 0)]
+        [
+            ("src/app/main.rs", 4, 3, 14, 2),
+            ("docs/guide.md", 4, 1, 9, 1),
+            ("src/lib/util.rs", 2, 1, 7, 1),
+            ("README.md", 2, 1, 4, 1),
+            ("logo.bin", 1, 1, 0, 0)
+        ]
     );
     assert_eq!(stats.file_count, 5, "the deleted old.txt is not listed");
     let hotspots: Vec<(&str, u32)> = stats.hotspots.iter().map(|h| (h.path.as_str(), h.score)).collect();
     assert_eq!(hotspots, [("src/app/main.rs", 12), ("docs/guide.md", 4), ("README.md", 2), ("src/lib/util.rs", 2), ("logo.bin", 1)]);
-    let folders: Vec<(&str, u64, u32, &str, u32, u32)> =
-        stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.authors, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
+    let folders: Vec<(&str, u64, u32, &str, u32, u32)> = stats
+        .folders
+        .iter()
+        .map(|f| (f.path.as_str(), f.weight, f.authors, f.main_author.name.as_str(), f.main_share, f.bus_factor))
+        .collect();
     assert_eq!(
         folders,
         [
@@ -132,7 +146,10 @@ async fn the_demo_history_gives_the_expected_numbers() {
         ]
     );
 
-    assert_eq!(stats.records.longest_streak, Some(crate::model::StatsStreak { days: 4, start: "2025-06-02".into(), end: "2025-06-05".into() }));
+    assert_eq!(
+        stats.records.longest_streak,
+        Some(crate::model::StatsStreak { days: 4, start: "2025-06-02".into(), end: "2025-06-05".into() })
+    );
     assert_eq!(stats.records.busiest_day, Some(crate::model::StatsBusyDay { date: "2025-06-04".into(), commits: 2 }));
     let biggest = stats.records.biggest_commit.clone().unwrap();
     assert_eq!((biggest.sha.as_str(), biggest.added, biggest.removed), (shas[0].as_str(), 15, 0));
@@ -170,11 +187,13 @@ async fn renamed_files_and_moved_folders_keep_their_history() {
     let repo = renamed_demo();
     let (tc, id) = setup(&repo).await;
     let stats = run_at(&tc, &id, range(None, None, "HEAD"), 1_750_300_000).await;
-    let files: Vec<(&str, u32, u32, u64, u64)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
+    let files: Vec<(&str, u32, u32, u64, u64)> =
+        stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
     assert_eq!(files, [("src/core.rs", 4, 2, 11, 0), ("notes/c.md", 3, 2, 5, 0), ("src/util.rs", 2, 1, 4, 0)]);
     let hotspots: Vec<(&str, u32)> = stats.hotspots.iter().map(|h| (h.path.as_str(), h.score)).collect();
     assert_eq!(hotspots[0], ("src/core.rs", 8), "commits × authors since the file was created");
-    let folders: Vec<(&str, u64, &str, u32, u32)> = stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
+    let folders: Vec<(&str, u64, &str, u32, u32)> =
+        stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
     // src: Ada 6 + 1 (move) + 3 + 1 = 11, Ben 4 + 1 = 5; notes: Ada 5, Ben 1 + 1.
     assert_eq!(folders, [("", 23, "Ada", 70, 1), ("src", 16, "Ada", 69, 1), ("notes", 7, "Ada", 71, 1)]);
 }
@@ -318,7 +337,11 @@ async fn code_age_counts_lines_by_the_age_of_their_last_change() {
     let stats = run_at(&tc, &id, range(None, None, "HEAD"), TIP_TIME).await;
     assert_eq!(stats.code_age, StatsCodeAge { files: 4, skipped: 0, month: 18, half_year: 0, year: 0, two_years: 0, older: 11 });
     let early = run(&tc, &id, range(None, Some("2025-06-04T23:59:59Z"), "HEAD")).await;
-    assert_eq!(early.code_age, StatsCodeAge { files: 4, skipped: 0, month: 9, half_year: 0, year: 0, two_years: 0, older: 14 }, "measured at that tip, against `to`");
+    assert_eq!(
+        early.code_age,
+        StatsCodeAge { files: 4, skipped: 0, month: 9, half_year: 0, year: 0, two_years: 0, older: 14 },
+        "measured at that tip, against `to`"
+    );
 }
 
 #[tokio::test]
@@ -384,7 +407,8 @@ async fn a_cancelled_run_caches_nothing_and_job_ids_are_unique() {
     let error = compute(&tc, &id, "HEAD", None, None, TIP_TIME, &job).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::Cancelled);
     drop(job);
-    let rows: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from stats_cache where repository_id = ?1", [&id], |r| r.get(0))?)).unwrap();
+    let rows: i64 =
+        tc.db.with(|c| Ok(c.query_row("select count(*) from stats_cache where repository_id = ?1", [&id], |r| r.get(0))?)).unwrap();
     assert_eq!(rows, 0);
 
     let busy = tc.start_job("job-twice", Some(&id)).unwrap();

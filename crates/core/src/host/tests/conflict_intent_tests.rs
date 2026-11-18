@@ -12,9 +12,17 @@ async fn the_pull_request_of_a_branch_is_found_by_its_source_branch() {
     let fx = Fixture::new(KIND).await;
     assert_eq!(pull_request_text(&fx.tc, &fx.id(), Some("feature/login")).await.as_deref(), Some(SEVEN));
     assert!(!fx.sent("GET", "/pulls/7").is_empty(), "the text comes from the details of #7");
-    assert_eq!(pull_request_text(&fx.tc, &fx.id(), Some("origin/feature/login")).await.as_deref(), Some(SEVEN), "the remote branch of the same remote");
+    assert_eq!(
+        pull_request_text(&fx.tc, &fx.id(), Some("origin/feature/login")).await.as_deref(),
+        Some(SEVEN),
+        "the remote branch of the same remote"
+    );
     assert_eq!(pull_request_text(&fx.tc, &fx.id(), Some("main")).await, None, "no pull request comes from main");
-    assert_eq!(pull_request_text(&fx.tc, &fx.id(), Some("korrektur")).await, None, "a pull request from a fork never matches a local branch");
+    assert_eq!(
+        pull_request_text(&fx.tc, &fx.id(), Some("korrektur")).await,
+        None,
+        "a pull request from a fork never matches a local branch"
+    );
     assert_eq!(pull_request_text(&fx.tc, &fx.id(), Some("  ")).await, None);
     assert_eq!(pull_request_text(&fx.tc, &fx.id(), None).await, None);
     fx.assert_token_stays_secret();
@@ -40,7 +48,11 @@ async fn the_pull_request_of_the_incoming_branch_goes_into_the_context() {
     let fx = Fixture::new(KIND).await;
     fx.repo.commit_file("docs/ablauf.md", "# Ablauf\n\nAnmeldung mit Passwort\n\nEnde\n", "Ablauf beschrieben");
     fx.repo.checkout_new("feature/login");
-    fx.repo.commit_file("docs/ablauf.md", "# Ablauf\n\nAnmeldung mit Passwort und zweitem Faktor\n\nEnde\n", "Zweiter Faktor bei der Anmeldung");
+    fx.repo.commit_file(
+        "docs/ablauf.md",
+        "# Ablauf\n\nAnmeldung mit Passwort und zweitem Faktor\n\nEnde\n",
+        "Zweiter Faktor bei der Anmeldung",
+    );
     fx.repo.checkout("main");
     fx.repo.commit_file("docs/ablauf.md", "# Ablauf\n\nAnmeldung mit Passkey\n\nEnde\n", "Passkeys statt Passwort");
     assert!(!fx.repo.merge("feature/login"));

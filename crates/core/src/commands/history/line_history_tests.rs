@@ -23,7 +23,8 @@ async fn follows_one_line_through_edits_a_rename_and_another_time_zone() {
     let (tc, id) = setup(&repo).await;
 
     let steps = line_history(&tc, id, "neu ä.txt".into(), 3, "HEAD".into()).await.unwrap();
-    let shown: Vec<(&str, &str, u32, u32)> = steps.iter().map(|step| (step.commit.sha.as_str(), step.path.as_str(), step.start_line, step.end_line)).collect();
+    let shown: Vec<(&str, &str, u32, u32)> =
+        steps.iter().map(|step| (step.commit.sha.as_str(), step.path.as_str(), step.start_line, step.end_line)).collect();
     // Line 3 "B2" of today was line 2 "B" before the rename and line 2 "b" in the first commit.
     assert_eq!(shown, vec![(four.as_str(), "neu ä.txt", 3, 3), (two.as_str(), "alt name.txt", 2, 2), (one.as_str(), "alt name.txt", 2, 2)]);
     assert_eq!(steps[0].commit.summary, "Vier: Zeile oben, B2");

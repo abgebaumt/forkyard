@@ -85,7 +85,8 @@ fn expand_tokens(template: &str, values: &Values) -> CoreResult<Vec<(String, boo
 /// `shell` without a shell: program and arguments.
 pub fn shell_args(def: &CustomCommandDef, values: &Values) -> CoreResult<(String, Vec<String>)> {
     let mut tokens = expand_tokens(&def.run, values)?.into_iter().map(|(token, _)| token);
-    let program = tokens.next().filter(|program| !program.trim().is_empty()).ok_or_else(|| CoreError::not_allowed("The command is empty."))?;
+    let program =
+        tokens.next().filter(|program| !program.trim().is_empty()).ok_or_else(|| CoreError::not_allowed("The command is empty."))?;
     Ok((program, tokens.collect()))
 }
 
@@ -304,7 +305,12 @@ pub fn url(def: &CustomCommandDef, values: &Values) -> CoreResult<String> {
 /// The known values as `FORKYARD_*` environment variables (every `shell` run gets them).
 pub fn environment(values: &Values) -> Vec<(String, String)> {
     let mut env = vec![(env_name(&Placeholder::Repo), values.repo.clone())];
-    for (placeholder, value) in [(Placeholder::Sha, &values.sha), (Placeholder::Branch, &values.branch), (Placeholder::File, &values.file), (Placeholder::Remote, &values.remote)] {
+    for (placeholder, value) in [
+        (Placeholder::Sha, &values.sha),
+        (Placeholder::Branch, &values.branch),
+        (Placeholder::File, &values.file),
+        (Placeholder::Remote, &values.remote),
+    ] {
         if let Some(value) = value {
             env.push((env_name(&placeholder), value.clone()));
         }
@@ -354,7 +360,8 @@ mod tests {
 
     #[test]
     fn every_value_becomes_exactly_one_argument() {
-        let (program, args) = shell_args(&def(Shell, "git rev-parse --sq-quote ${input:text} --msg=${branch} ${input:leer} ${file}"), &values()).unwrap();
+        let (program, args) =
+            shell_args(&def(Shell, "git rev-parse --sq-quote ${input:text} --msg=${branch} ${input:leer} ${file}"), &values()).unwrap();
         assert_eq!(program, "git");
         assert_eq!(args, ["rev-parse", "--sq-quote", "a b; $(touch x)", "--msg=feature/äpfel+birnen", "docs/read me.md"]);
     }
@@ -438,7 +445,10 @@ mod tests {
             "copy \"${env:FORKYARD_FILE}\" \"${env:FORKYARD_FILE}.bak\"; echo \"${env:FORKYARD_INPUT_TEXT}_old\" \"${env:FORKYARD_REPO}:x\" \"${env:FORKYARD_SHA}[0]\""
         );
         // Text before the reference joins the string; operators and separators stay outside.
-        assert_eq!(windows_line("echo pre_${sha}.x,(${branch})|out"), "echo \"pre_${env:FORKYARD_SHA}.x\",(\"${env:FORKYARD_BRANCH}\")|out");
+        assert_eq!(
+            windows_line("echo pre_${sha}.x,(${branch})|out"),
+            "echo \"pre_${env:FORKYARD_SHA}.x\",(\"${env:FORKYARD_BRANCH}\")|out"
+        );
         // A named parameter keeps its `-Name:` outside the string.
         assert_eq!(windows_line("Copy-Item -Destination:${file}.bak"), "Copy-Item -Destination:\"${env:FORKYARD_FILE}.bak\"");
         // Already inside a string the reference needs no quotes of its own.
@@ -467,7 +477,8 @@ mod tests {
     }
 
     /// Prints its arguments joined with `|`.
-    const ECHO_ARGS: &str = "& { [Console]::Out.Write(($args -join '|')) } ${file}.bak ${sha}[0] ${input:text}_old ${repo}:x \"q ${branch}.y\"";
+    const ECHO_ARGS: &str =
+        "& { [Console]::Out.Write(($args -join '|')) } ${file}.bak ${sha}[0] ${input:text}_old ${repo}:x \"q ${branch}.y\"";
 
     #[test]
     fn the_powershell_probe_line_is_what_windows_runs() {

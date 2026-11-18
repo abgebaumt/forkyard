@@ -284,7 +284,8 @@ pub fn build_patch(file: &FilePatch, path: &[u8], selection: &[HunkSelection], d
     }
     // All changed lines of the file selected: for new and deleted files the whole
     // file is then created or removed.
-    let complete = file.hunks.iter().zip(&picked).all(|(hunk, marks)| hunk.lines.iter().zip(marks).all(|(l, &m)| m || l.kind == LineKind::Context));
+    let complete =
+        file.hunks.iter().zip(&picked).all(|(hunk, marks)| hunk.lines.iter().zip(marks).all(|(l, &m)| m || l.kind == LineKind::Context));
 
     let mut body = Vec::new();
     // Shift of the line numbers caused by the hunks already written.
@@ -598,7 +599,10 @@ mod tests {
         assert_eq!(files.len(), 5);
         assert!(files[0].is_new);
         assert_eq!(files[0].new_mode.as_deref(), Some("100755"));
-        assert_eq!((files[0].hunks[0].old_start, files[0].hunks[0].old_lines, files[0].hunks[0].new_start, files[0].hunks[0].new_lines), (0, 0, 1, 1));
+        assert_eq!(
+            (files[0].hunks[0].old_start, files[0].hunks[0].old_lines, files[0].hunks[0].new_start, files[0].hunks[0].new_lines),
+            (0, 0, 1, 1)
+        );
         assert!(files[1].is_deleted);
         assert_eq!(files[1].old_mode.as_deref(), Some("100644"));
         assert_eq!(lines_of(&files[1].hunks[0]), vec!["-x", "-y"]);
@@ -701,7 +705,10 @@ mod tests {
             "diff --git a/n b/n\nnew file mode 100755\n--- /dev/null\n+++ b/n\n@@ -0,0 +1,1 @@\n+zwei\n"
         );
         // Take back part: the file stays, so an ordinary patch.
-        assert_eq!(built(&file, "n", &[pick(0, &[1])], Direction::Reverse), "diff --git a/n b/n\n--- a/n\n+++ b/n\n@@ -1,2 +1,3 @@\n eins\n+zwei\n drei\n");
+        assert_eq!(
+            built(&file, "n", &[pick(0, &[1])], Direction::Reverse),
+            "diff --git a/n b/n\n--- a/n\n+++ b/n\n@@ -1,2 +1,3 @@\n eins\n+zwei\n drei\n"
+        );
         // Take back everything: the file disappears.
         assert_eq!(
             built(&file, "n", &[whole(0)], Direction::Reverse),
@@ -713,7 +720,10 @@ mod tests {
     fn deleted_file_forward_and_reverse() {
         let file = one("diff --git a/w b/w\ndeleted file mode 100644\nindex 1234567..0000000\n--- a/w\n+++ /dev/null\n@@ -1,3 +0,0 @@\n-eins\n-zwei\n-drei\n");
         // Stage part of the deletion: the file stays in the index with the rest.
-        assert_eq!(built(&file, "w", &[pick(0, &[1])], Direction::Forward), "diff --git a/w b/w\n--- a/w\n+++ b/w\n@@ -1,3 +1,2 @@\n eins\n-zwei\n drei\n");
+        assert_eq!(
+            built(&file, "w", &[pick(0, &[1])], Direction::Forward),
+            "diff --git a/w b/w\n--- a/w\n+++ b/w\n@@ -1,3 +1,2 @@\n eins\n-zwei\n drei\n"
+        );
         assert_eq!(
             built(&file, "w", &[whole(0)], Direction::Forward),
             "diff --git a/w b/w\ndeleted file mode 100644\n--- a/w\n+++ /dev/null\n@@ -1,3 +0,0 @@\n-eins\n-zwei\n-drei\n"
@@ -735,18 +745,33 @@ mod tests {
             "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n-b\n\\ No newline at end of file\n+b\n+c\n"
         );
         // Only −b: the line is dropped.
-        assert_eq!(built(&file, "f", &[pick(0, &[1])], Direction::Forward), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,1 @@\n a\n-b\n\\ No newline at end of file\n");
+        assert_eq!(
+            built(&file, "f", &[pick(0, &[1])], Direction::Forward),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,1 @@\n a\n-b\n\\ No newline at end of file\n"
+        );
         // Take back −b, +b and +c stay: the restored line is not at the end.
-        assert_eq!(built(&file, "f", &[pick(0, &[1])], Direction::Reverse), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,4 +1,3 @@\n a\n-b\n b\n c\n");
+        assert_eq!(
+            built(&file, "f", &[pick(0, &[1])], Direction::Reverse),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,4 +1,3 @@\n a\n-b\n b\n c\n"
+        );
         // Take back +c: b stays with a newline.
-        assert_eq!(built(&file, "f", &[pick(0, &[3])], Direction::Reverse), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n b\n+c\n");
+        assert_eq!(
+            built(&file, "f", &[pick(0, &[3])], Direction::Reverse),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n b\n+c\n"
+        );
     }
 
     #[test]
     fn missing_newline_on_the_new_side_and_both() {
         let file = one("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n a\n-b\n+B\n\\ No newline at end of file\n");
-        assert_eq!(built(&file, "f", &[pick(0, &[2])], Direction::Forward), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n b\n+B\n\\ No newline at end of file\n");
-        assert_eq!(built(&file, "f", &[pick(0, &[1])], Direction::Reverse), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,2 @@\n a\n-b\n B\n\\ No newline at end of file\n");
+        assert_eq!(
+            built(&file, "f", &[pick(0, &[2])], Direction::Forward),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n b\n+B\n\\ No newline at end of file\n"
+        );
+        assert_eq!(
+            built(&file, "f", &[pick(0, &[1])], Direction::Reverse),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,3 +1,2 @@\n a\n-b\n B\n\\ No newline at end of file\n"
+        );
 
         let both = one("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,3 @@\n a\n-b\n\\ No newline at end of file\n+b\n+c\n\\ No newline at end of file\n");
         // Only +c: b gets a newline in the result, c stays without one.
@@ -756,7 +781,10 @@ mod tests {
         );
         // A context line without a newline at the end stays as it is.
         let ctx = one("diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n-a\n+A\n z\n\\ No newline at end of file\n");
-        assert_eq!(built(&ctx, "f", &[whole(0)], Direction::Forward), "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n-a\n+A\n z\n\\ No newline at end of file\n");
+        assert_eq!(
+            built(&ctx, "f", &[whole(0)], Direction::Forward),
+            "diff --git a/f b/f\n--- a/f\n+++ b/f\n@@ -1,2 +1,2 @@\n-a\n+A\n z\n\\ No newline at end of file\n"
+        );
     }
 
     /// Taking back changes at the old last line (no newline): the restored line stays behind the

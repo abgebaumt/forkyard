@@ -16,7 +16,9 @@ use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
 use crate::host::{self, Host, RepoApi};
-use crate::model::{FixupReason, FixupTarget, Head, PrSummary, RepoChange, ReviewFixApplied, ReviewFixInput, ReviewFixLine, ReviewFixLineKind};
+use crate::model::{
+    FixupReason, FixupTarget, Head, PrSummary, RepoChange, ReviewFixApplied, ReviewFixInput, ReviewFixLine, ReviewFixLineKind,
+};
 use crate::undo::{self, GroupRecord, RefMove, UndoAction};
 use crate::util;
 
@@ -100,7 +102,9 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
     }
     let (_, encoding) = history::decode_content(blob, "utf-8");
     if encoding.starts_with("utf-16") {
-        return Err(CoreError::not_allowed(format!("“{path}” is stored as UTF-16; fixes are only taken over for UTF-8 and single-byte files.")));
+        return Err(CoreError::not_allowed(format!(
+            "“{path}” is stored as UTF-16; fixes are only taken over for UTF-8 and single-byte files."
+        )));
     }
     if new_text.len() > MAX_NEW_TEXT || new_text.contains('\0') {
         return Err(CoreError::not_allowed("The suggested text is longer than 64 KiB or contains a NUL character."));
@@ -122,7 +126,8 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
     if !text.is_empty() {
         let parts: Vec<&str> = text.strip_suffix('\n').unwrap_or(&text).split('\n').collect();
         for (index, part) in parts.iter().enumerate() {
-            let mut bytes = history::encode_content(part, plain).map_err(|e| CoreError::not_allowed(format!("The suggested text does not fit the encoding of “{path}”: {}", e.message)))?;
+            let mut bytes = history::encode_content(part, plain)
+                .map_err(|e| CoreError::not_allowed(format!("The suggested text does not fit the encoding of “{path}”: {}", e.message)))?;
             if index == 0 && !bom.is_empty() {
                 let mut prefixed = bom.to_vec();
                 prefixed.extend_from_slice(&bytes);
@@ -161,21 +166,41 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
     for (offset, line) in lines[before..first].iter().enumerate() {
         emit(&mut patch, b' ', line);
         let number = (before + offset + 1) as u32;
-        shown.push(ReviewFixLine { kind: ReviewFixLineKind::Context, text: decode_line(line, &encoding), old: Some(number), new: Some(number) });
+        shown.push(ReviewFixLine {
+            kind: ReviewFixLineKind::Context,
+            text: decode_line(line, &encoding),
+            old: Some(number),
+            new: Some(number),
+        });
     }
     for (offset, line) in lines[first..last].iter().enumerate() {
         emit(&mut patch, b'-', line);
-        shown.push(ReviewFixLine { kind: ReviewFixLineKind::Removed, text: decode_line(line, &encoding), old: Some((first + offset + 1) as u32), new: None });
+        shown.push(ReviewFixLine {
+            kind: ReviewFixLineKind::Removed,
+            text: decode_line(line, &encoding),
+            old: Some((first + offset + 1) as u32),
+            new: None,
+        });
     }
     for (offset, line) in new_lines.iter().enumerate() {
         emit(&mut patch, b'+', line);
-        shown.push(ReviewFixLine { kind: ReviewFixLineKind::Added, text: decode_line(line, &encoding), old: None, new: Some((first + offset + 1) as u32) });
+        shown.push(ReviewFixLine {
+            kind: ReviewFixLineKind::Added,
+            text: decode_line(line, &encoding),
+            old: None,
+            new: Some((first + offset + 1) as u32),
+        });
     }
     let shift = new_lines.len() as i64 - (last - first) as i64;
     for (offset, line) in lines[last..after].iter().enumerate() {
         emit(&mut patch, b' ', line);
         let number = (last + offset + 1) as i64;
-        shown.push(ReviewFixLine { kind: ReviewFixLineKind::Context, text: decode_line(line, &encoding), old: Some(number as u32), new: Some((number + shift) as u32) });
+        shown.push(ReviewFixLine {
+            kind: ReviewFixLineKind::Context,
+            text: decode_line(line, &encoding),
+            old: Some(number as u32),
+            new: Some((number + shift) as u32),
+        });
     }
     let old_text = lines[first..last].iter().map(|line| decode_line(line, &encoding)).collect::<Vec<_>>().join("\n");
     Ok(LinePatch { patch, old_text, lines: shown })
@@ -197,24 +222,32 @@ pub struct PrRange {
 /// `refs/remotes/<remote>/<branch>` for the pull request's target (both names checked like refs).
 pub(crate) fn target_ref(remote: &str, branch: &str) -> CoreResult<String> {
     for name in [remote, branch] {
-        util::check_ref_name(name).map_err(|reason| CoreError::not_allowed(format!("“{name}” is not a valid name for a branch or remote: {reason}")))?;
+        util::check_ref_name(name)
+            .map_err(|reason| CoreError::not_allowed(format!("“{name}” is not a valid name for a branch or remote: {reason}")))?;
     }
     Ok(format!("refs/remotes/{remote}/{branch}"))
 }
 
 pub(crate) async fn pr_range(core: &Core, repo_id: &str, head: &str, target_ref: &str) -> CoreResult<PrRange> {
-    let head = graph::resolve_commit(core, repo_id, head)
-        .await
-        .map_err(|_| CoreError::not_found(format!("The pull request's newest commit {} is not in this repository yet. Fetch or check out its branch first.", short(head))))?;
-    let target = graph::resolve_commit(core, repo_id, target_ref)
-        .await
-        .map_err(|_| CoreError::not_found(format!("“{}” is not in this repository yet. Fetch first.", target_ref.trim_start_matches("refs/remotes/"))))?;
+    let head = graph::resolve_commit(core, repo_id, head).await.map_err(|_| {
+        CoreError::not_found(format!(
+            "The pull request's newest commit {} is not in this repository yet. Fetch or check out its branch first.",
+            short(head)
+        ))
+    })?;
+    let target = graph::resolve_commit(core, repo_id, target_ref).await.map_err(|_| {
+        CoreError::not_found(format!("“{}” is not in this repository yet. Fetch first.", target_ref.trim_start_matches("refs/remotes/")))
+    })?;
     let out = read(core, repo_id)?.args(["merge-base", head.as_str(), target.as_str()]).run_raw().await?;
     let base = out.stdout_text();
     if !out.success() || !graph::is_full_sha(&base) {
         return Err(CoreError::not_allowed("The pull request's branch and its target have no history in common."));
     }
-    let log = read(core, repo_id)?.args(["log", "--no-merges", "--topo-order", "--no-show-signature", "-z", "--format=%H%x1f%s"]).arg(format!("{base}..{head}")).run().await?;
+    let log = read(core, repo_id)?
+        .args(["log", "--no-merges", "--topo-order", "--no-show-signature", "-z", "--format=%H%x1f%s"])
+        .arg(format!("{base}..{head}"))
+        .run()
+        .await?;
     let commits = util::split_z(&log.stdout)
         .filter_map(|record| {
             let text = util::decode_lossy(record);
@@ -248,7 +281,8 @@ pub(crate) async fn head_blob(core: &Core, repo_id: &str, head: &str, path: &str
 
 /// Commits `git blame` names for lines `start..=end` at `head`.
 async fn blamed_commits(core: &Core, repo_id: &str, head: &str, path: &str, start: u32, end: u32) -> CoreResult<HashSet<String>> {
-    let out = read(core, repo_id)?.args(["blame", "--porcelain", "-L"]).arg(format!("{start},{end}")).arg(head).args(["--", path]).run().await?;
+    let out =
+        read(core, repo_id)?.args(["blame", "--porcelain", "-L"]).arg(format!("{start},{end}")).arg(head).args(["--", path]).run().await?;
     let mut found = HashSet::new();
     for line in out.stdout_lines() {
         let text = util::decode_lossy(line);
@@ -265,7 +299,14 @@ async fn blamed_commits(core: &Core, repo_id: &str, head: &str, path: &str, star
 /// The commit a fix for lines `start..=end` of `path` belongs to: the newest pull request commit blame
 /// names for these lines (`Blame`), else the newest pull request commit that changes the file (`File`),
 /// else none – the user chooses.
-pub(crate) async fn fixup_target(core: &Core, repo_id: &str, range: &PrRange, path: &str, start: u32, end: u32) -> CoreResult<Option<FixupTarget>> {
+pub(crate) async fn fixup_target(
+    core: &Core,
+    repo_id: &str,
+    range: &PrRange,
+    path: &str,
+    start: u32,
+    end: u32,
+) -> CoreResult<Option<FixupTarget>> {
     let blamed = blamed_commits(core, repo_id, &range.head, path, start, end).await?;
     if let Some(found) = range.commits.iter().find(|commit| blamed.contains(&commit.sha)) {
         return Ok(Some(FixupTarget { reason: Some(FixupReason::Blame), ..found.clone() }));
@@ -278,7 +319,11 @@ pub(crate) async fn fixup_target(core: &Core, repo_id: &str, range: &PrRange, pa
         .run()
         .await?;
     let sha = out.stdout_text();
-    Ok(range.commits.iter().find(|commit| commit.sha == sha).map(|commit| FixupTarget { reason: Some(FixupReason::File), ..commit.clone() }))
+    Ok(range
+        .commits
+        .iter()
+        .find(|commit| commit.sha == sha)
+        .map(|commit| FixupTarget { reason: Some(FixupReason::File), ..commit.clone() }))
 }
 
 // ---------------------------------------------------------------------------
@@ -295,7 +340,13 @@ const APPLY: [&str; 6] = ["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWh
 /// target among the pull request's commits, the file among its changed files; inside the write lock the
 /// branch, that it contains the pull request's newest commit, that nothing is staged, that the file is
 /// unchanged and that the patch fits. Consecutive takeovers for the same pull request form one undo step.
-pub async fn review_fix_apply(core: &Core, repo_id: String, number: u64, fix: ReviewFixInput, target: String) -> CoreResult<ReviewFixApplied> {
+pub async fn review_fix_apply(
+    core: &Core,
+    repo_id: String,
+    number: u64,
+    fix: ReviewFixInput,
+    target: String,
+) -> CoreResult<ReviewFixApplied> {
     let path = history::normalize_rel_path(&fix.path)?;
     let RepoApi { api, repo, remote } = host::api_for_repo(core, &repo_id, None).await?;
     let hoster = host::host(api.kind);
@@ -331,26 +382,49 @@ impl TakeOver<'_> {
         let TakeOver { repo_id, number, branch, path, range, patch, message } = self;
         let status = read_status(core, repo_id).await?;
         if status.operation.is_some() {
-            return Err(CoreError::new(ErrorCode::OperationInProgress, "A merge, rebase, cherry-pick or revert is in progress. Finish or abort it first."));
+            return Err(CoreError::new(
+                ErrorCode::OperationInProgress,
+                "A merge, rebase, cherry-pick or revert is in progress. Finish or abort it first.",
+            ));
         }
         let head_before = match &status.head {
             Head::Branch { branch: current, sha } if current == branch => sha.clone(),
-            _ => return Err(CoreError::not_allowed(format!("Check out “{branch}” first – the fixup commit belongs on the pull request's branch."))),
+            _ => {
+                return Err(CoreError::not_allowed(format!(
+                    "Check out “{branch}” first – the fixup commit belongs on the pull request's branch."
+                )))
+            }
         };
-        let contains = read(core, repo_id)?.args(["merge-base", "--is-ancestor", range.head.as_str(), head_before.as_str()]).run_raw().await?.success();
+        let contains = read(core, repo_id)?
+            .args(["merge-base", "--is-ancestor", range.head.as_str(), head_before.as_str()])
+            .run_raw()
+            .await?
+            .success();
         if !contains {
-            return Err(CoreError::new(ErrorCode::StaleState, format!("“{branch}” does not contain the pull request's newest commit yet. Pull first, then take the fix over again.")));
+            return Err(CoreError::new(
+                ErrorCode::StaleState,
+                format!("“{branch}” does not contain the pull request's newest commit yet. Pull first, then take the fix over again."),
+            ));
         }
         if !status.staged.is_empty() {
-            return Err(CoreError::new(ErrorCode::DirtyWorktree, "Something is staged. Commit or unstage it first – the fixup commit contains only the fix."));
+            return Err(CoreError::new(
+                ErrorCode::DirtyWorktree,
+                "Something is staged. Commit or unstage it first – the fixup commit contains only the fix.",
+            ));
         }
         if status.unstaged.iter().chain(status.conflicted.iter()).any(|file| file.path == path) {
-            return Err(CoreError::new(ErrorCode::DirtyWorktree, format!("“{path}” has uncommitted changes. Commit or discard them first.")));
+            return Err(CoreError::new(
+                ErrorCode::DirtyWorktree,
+                format!("“{path}” has uncommitted changes. Commit or discard them first."),
+            ));
         }
         let check = core.git_for(repo_id)?.args(APPLY).args(["--check", "--index"]).stdin(patch.to_vec()).run_raw().await?;
         if !check.success() {
-            return Err(CoreError::new(ErrorCode::Conflict, format!("The fix no longer fits “{path}” – its lines changed since the suggestion. Suggest the fix again."))
-                .with_git_output(check.stderr_text()));
+            return Err(CoreError::new(
+                ErrorCode::Conflict,
+                format!("The fix no longer fits “{path}” – its lines changed since the suggestion. Suggest the fix again."),
+            )
+            .with_git_output(check.stderr_text()));
         }
         core.git_for(repo_id)?.args(APPLY).arg("--index").stdin(patch.to_vec()).run().await?;
         if let Err(error) = commit::run_commit(core, repo_id, &["commit", "--cleanup=verbatim", "-F", "-"], message).await {

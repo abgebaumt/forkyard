@@ -160,10 +160,7 @@ pub fn remove_test_entries(core: &crate::app::Core, service: &str) -> usize {
         })
         .unwrap_or_default();
     let _guard = LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    accounts
-        .iter()
-        .filter(|account| entry(service, account).is_ok_and(|entry| entry.delete_credential().is_ok()))
-        .count()
+    accounts.iter().filter(|account| entry(service, account).is_ok_and(|entry| entry.delete_credential().is_ok())).count()
 }
 
 #[cfg(test)]

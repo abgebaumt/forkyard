@@ -75,7 +75,9 @@ impl AutopilotRuns {
     fn claim(&self, repo_id: &str, run: BisectAutopilot) -> CoreResult<()> {
         let mut runs = self.runs.lock();
         match runs.get(repo_id) {
-            Some(existing) if is_running(existing) => Err(CoreError::new(ErrorCode::BisectActive, "The bisect autopilot is already running for this repository.")),
+            Some(existing) if is_running(existing) => {
+                Err(CoreError::new(ErrorCode::BisectActive, "The bisect autopilot is already running for this repository."))
+            }
             Some(_) => Err(CoreError::not_allowed("Close the result of the last autopilot run first (keep or remove its worktree).")),
             None => {
                 runs.insert(repo_id.to_string(), run);
@@ -129,10 +131,12 @@ fn inside(path: &Path, root: &Path) -> bool {
 }
 
 fn free_folder(dir: &Path) -> CoreResult<PathBuf> {
-    (1..=MAX_FOLDERS)
-        .map(|n| dir.join(format!("bisect-{n}")))
-        .find(|path| !path.exists())
-        .ok_or_else(|| CoreError::name_exists(format!("There are already {MAX_FOLDERS} bisect worktrees in “{}”. Remove some first.", util::display_path(dir))))
+    (1..=MAX_FOLDERS).map(|n| dir.join(format!("bisect-{n}"))).find(|path| !path.exists()).ok_or_else(|| {
+        CoreError::name_exists(format!(
+            "There are already {MAX_FOLDERS} bisect worktrees in “{}”. Remove some first.",
+            util::display_path(dir)
+        ))
+    })
 }
 
 fn write_script(dir: &Path, script: &str, shell: BisectShell) -> CoreResult<PathBuf> {
@@ -190,7 +194,15 @@ async fn remove_leftovers(core: &Core, repo_id: &str) {
     }
 }
 
-pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, bad: &str, good: &[String], script: &str, step_timeout_secs: u64) -> CoreResult<BisectAutopilot> {
+pub(crate) async fn run(
+    core: &Core,
+    repo_id: &str,
+    job_id: &str,
+    bad: &str,
+    good: &[String],
+    script: &str,
+    step_timeout_secs: u64,
+) -> CoreResult<BisectAutopilot> {
     core.repo_path(repo_id)?;
     if let Some(problem) = script_problem(script) {
         return Err(CoreError::not_allowed(format!("The test script can’t run: {problem}.")));
@@ -236,7 +248,15 @@ pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, bad: &str, goo
     result
 }
 
-async fn drive(core: &Core, repo_id: &str, job: &Job, bad: &str, good: &[String], script: &str, limit: Duration) -> CoreResult<BisectAutopilot> {
+async fn drive(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    bad: &str,
+    good: &[String],
+    script: &str,
+    limit: Duration,
+) -> CoreResult<BisectAutopilot> {
     remove_leftovers(core, repo_id).await;
     let main = main_worktree_path(core, repo_id).await?;
     let dir = names::agents_dir(&main)?;
@@ -244,7 +264,9 @@ async fn drive(core: &Core, repo_id: &str, job: &Job, bad: &str, good: &[String]
     let wt = free_folder(&dir)?;
     let script_dir = core.data_dir().join("bisect").join(util::new_id());
     if inside(&script_dir, &main) || inside(&script_dir, &wt) {
-        return Err(CoreError::not_allowed("The data folder lies inside the repository; the test script must live outside both worktrees."));
+        return Err(CoreError::not_allowed(
+            "The data folder lies inside the repository; the test script must live outside both worktrees.",
+        ));
     }
     let shell = BisectShell::current();
     let script_path = write_script(&script_dir, script, shell)?;
@@ -318,7 +340,14 @@ impl Session<'_> {
             let started = Instant::now();
             let record = match self.run_script(&current).await {
                 Ok(output) => match verdict_for(output.code) {
-                    Some(verdict) => BisectAutopilotStep { sha: current.clone(), verdict, exit_code: output.code, timed_out: false, duration_ms: elapsed_ms(started), output_tail: tail(&output.stdout, &output.stderr) },
+                    Some(verdict) => BisectAutopilotStep {
+                        sha: current.clone(),
+                        verdict,
+                        exit_code: output.code,
+                        timed_out: false,
+                        duration_ms: elapsed_ms(started),
+                        output_tail: tail(&output.stdout, &output.stderr),
+                    },
                     None => {
                         // As with `git bisect run`: such an exit means the script itself is broken.
                         self.reset(Some(&current)).await?;
@@ -333,9 +362,14 @@ impl Session<'_> {
                     }
                 },
                 // Over the time limit: `proc.rs` ended the process tree; the commit counts as skipped.
-                Err(error) if error.code == ErrorCode::Timeout => {
-                    BisectAutopilotStep { sha: current.clone(), verdict: BisectVerdict::Skip, exit_code: None, timed_out: true, duration_ms: elapsed_ms(started), output_tail: String::new() }
-                }
+                Err(error) if error.code == ErrorCode::Timeout => BisectAutopilotStep {
+                    sha: current.clone(),
+                    verdict: BisectVerdict::Skip,
+                    exit_code: None,
+                    timed_out: true,
+                    duration_ms: elapsed_ms(started),
+                    output_tail: String::new(),
+                },
                 Err(error) => return Err(error),
             };
             status = self.mark(record.verdict, &current).await?;
@@ -366,7 +400,9 @@ impl Session<'_> {
     async fn run_script(&self, sha: &str) -> CoreResult<ProcOutput> {
         let proc = match self.shell {
             BisectShell::Sh => Proc::new("/bin/sh").arg(self.script),
-            BisectShell::Powershell => Proc::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"]).arg(self.script),
+            BisectShell::Powershell => {
+                Proc::new("powershell.exe").args(["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File"]).arg(self.script)
+            }
         };
         proc.cwd(self.wt)
             .env("FORKYARD_BISECT_COMMIT", sha)

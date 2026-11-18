@@ -171,7 +171,8 @@ async fn list(core: &Core, repo_id: &str) -> CoreResult<Vec<Submodule>> {
     }
     let declared = declared(core, repo_id).await?;
     let flags = {
-        let out = read(core, repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none"]).run().await?;
+        let out =
+            read(core, repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none"]).run().await?;
         parse_sub_flags(&out.stdout)
     };
     let mut out = Vec::with_capacity(links.len());
@@ -194,7 +195,15 @@ async fn list(core: &Core, repo_id: &str) -> CoreResult<Vec<Submodule>> {
         if git_dir.is_some() && head_sha.is_none() {
             head_sha = if state == SubmoduleState::OutOfSync || branch.is_some() {
                 // On a branch (or when in doubt): ask Git.
-                let asked = core.git.cmd(&sub_root).repo(repo_id).read_only().no_log().args(["rev-parse", "--verify", "--quiet", "HEAD"]).run_raw().await;
+                let asked = core
+                    .git
+                    .cmd(&sub_root)
+                    .repo(repo_id)
+                    .read_only()
+                    .no_log()
+                    .args(["rev-parse", "--verify", "--quiet", "HEAD"])
+                    .run_raw()
+                    .await;
                 asked.ok().filter(|o| o.success()).map(|o| o.stdout_text()).filter(|s| !s.is_empty())
             } else {
                 Some(sha.clone())
@@ -314,7 +323,14 @@ async fn add_job(core: &Core, repo_id: &str, job: &Job, url: &str, path: &str) -
             .await;
         if let Err(error) = added {
             // Clean up: half-cloned directory, Git directory of the submodule, .gitmodules.
-            let staged = !read(core, repo_id)?.env(LITERAL, "1").args(["ls-files", "-z", "--"]).arg(&rel).run().await.map(|o| o.stdout.is_empty()).unwrap_or(true);
+            let staged = !read(core, repo_id)?
+                .env(LITERAL, "1")
+                .args(["ls-files", "-z", "--"])
+                .arg(&rel)
+                .run()
+                .await
+                .map(|o| o.stdout.is_empty())
+                .unwrap_or(true);
             if !staged {
                 if existed {
                     // The (empty) directory already existed: only remove its content.
@@ -393,7 +409,13 @@ fn remove_dir_writable(dir: &Path) {
 ///
 /// Errors: `not_found` (no submodule at one of the paths), `dirty_worktree` (local
 /// changes in the submodule are in the way), plus the network errors.
-pub async fn submodule_update(core: &Core, repo_id: String, job_id: String, paths: Option<Vec<String>>, init: bool) -> CoreResult<Vec<Submodule>> {
+pub async fn submodule_update(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    paths: Option<Vec<String>>,
+    init: bool,
+) -> CoreResult<Vec<Submodule>> {
     core.repo_path(&repo_id)?;
     let job = core.start_job(&job_id, Some(&repo_id))?;
     let result = update_job(core, &repo_id, &job, paths, init).await;
@@ -503,7 +525,11 @@ pub async fn submodule_remove(core: &Core, repo_id: String, path: String, force:
             let sub_root = util::join_from_git(&core.repo_path(repo_id)?, rel.as_bytes());
             let unpushed = unpushed_commits(core, repo_id, &sub_root).await;
             if unpushed > 0 {
-                let what = if unpushed == 1 { "has 1 commit that is not pushed".to_string() } else { format!("has {unpushed} commits that are not pushed") };
+                let what = if unpushed == 1 {
+                    "has 1 commit that is not pushed".to_string()
+                } else {
+                    format!("has {unpushed} commits that are not pushed")
+                };
                 return Err(CoreError::new(
                     ErrorCode::DirtyWorktree,
                     format!("The submodule “{rel}” {what} (on no remote branch). Removing it would lose them."),

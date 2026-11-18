@@ -85,10 +85,16 @@ describe("inviteExpiry", () => {
 fn admin_portal() -> TestRepo {
     let repo = TestRepo::with_commit();
     repo.write_file("src/admin/accounts/StaffTable.tsx", STAFF_TABLE);
-    repo.write_file("src/admin/accounts/types.ts", "export interface StaffUser { name: string; email: string; role: string; lastLogin: string; mfa?: { confirmedAt?: string } }\n");
+    repo.write_file(
+        "src/admin/accounts/types.ts",
+        "export interface StaffUser { name: string; email: string; role: string; lastLogin: string; mfa?: { confirmedAt?: string } }\n",
+    );
     repo.write_file("src/portal/invite/expiry.ts", EXPIRY);
     repo.write_file("src/portal/invite/expiry.test.ts", EXPIRY_TEST);
-    repo.write_file("src/portal/invite/format.ts", "export function formatDate(date: Date): string {\n  return date.toLocaleDateString(\"de-DE\");\n}\n");
+    repo.write_file(
+        "src/portal/invite/format.ts",
+        "export function formatDate(date: Date): string {\n  return date.toLocaleDateString(\"de-DE\");\n}\n",
+    );
     repo.write_file("src/i18n/de.json", "{\n  \"staff\": {\n    \"lastLogin\": \"Letzte Anmeldung\",\n    \"role\": \"Rolle\"\n  }\n}\n");
     repo.write_file("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n## 1.0.0\n\n- First release.\n");
     repo.write_file("package-lock.json", "{\n  \"lockfileVersion\": 3\n}\n");
@@ -114,7 +120,10 @@ fn admin_portal() -> TestRepo {
     // The fix and its test; the label keeps using the existing formatDate.
     repo.write_file(
         "src/portal/invite/expiry.ts",
-        EXPIRY.replace("  const days = addDays(sentAt, 7);\n  return endOfDay(days);\n", "  // Seven full days from sending, not seven calendar days.\n  return new Date(sentAt.getTime() + 7 * 24 * 60 * 60 * 1000);\n"),
+        EXPIRY.replace(
+            "  const days = addDays(sentAt, 7);\n  return endOfDay(days);\n",
+            "  // Seven full days from sending, not seven calendar days.\n  return new Date(sentAt.getTime() + 7 * 24 * 60 * 60 * 1000);\n",
+        ),
     );
     repo.write_file(
         "src/portal/invite/expiry.test.ts",
@@ -123,9 +132,15 @@ fn admin_portal() -> TestRepo {
             "  });\n\n  it(\"expires exactly 168 hours after sending\", () => {\n    const sent = new Date(\"2026-03-28T23:30:00+01:00\");\n    expect(inviteExpiry(sent).toISOString()).toBe(\"2026-04-04T21:30:00.000Z\");\n  });\n});\n",
         ),
     );
-    repo.write_file("src/i18n/de.json", "{\n  \"staff\": {\n    \"lastLogin\": \"Letzte Anmeldung\",\n    \"mfa\": \"Zwei-Faktor\",\n    \"role\": \"Rolle\"\n  }\n}\n");
+    repo.write_file(
+        "src/i18n/de.json",
+        "{\n  \"staff\": {\n    \"lastLogin\": \"Letzte Anmeldung\",\n    \"mfa\": \"Zwei-Faktor\",\n    \"role\": \"Rolle\"\n  }\n}\n",
+    );
     // Prose that names the new function is no code that needs it.
-    repo.write_file("CHANGELOG.md", "# Changelog\n\n## [Unreleased]\n\n- Admin: MFA column (mfaStatus in mfa.ts).\n\n## 1.0.0\n\n- First release.\n");
+    repo.write_file(
+        "CHANGELOG.md",
+        "# Changelog\n\n## [Unreleased]\n\n- Admin: MFA column (mfaStatus in mfa.ts).\n\n## 1.0.0\n\n- First release.\n",
+    );
     repo.write_file("package-lock.json", "{\n  \"lockfileVersion\": 3,\n  \"packages\": {}\n}\n");
     repo
 }
@@ -155,14 +170,20 @@ async fn a_python_package_relative_and_absolute_imports_of_a_new_module() {
     repo.write_file("app/models.py", "class Article:\n    @staticmethod\n    def get(id):\n        return Article()\n");
     repo.commit("Blog");
 
-    repo.write_file("app/slugify.py", "import re\n\n\ndef make_slug(title):\n    return re.sub(r\"[^a-z0-9]+\", \"-\", title.lower()).strip(\"-\")\n");
+    repo.write_file(
+        "app/slugify.py",
+        "import re\n\n\ndef make_slug(title):\n    return re.sub(r\"[^a-z0-9]+\", \"-\", title.lower()).strip(\"-\")\n",
+    );
     repo.write_file(
         "app/views.py",
         "from flask import render_template\n\nfrom .models import Article\nfrom .slugify import make_slug\n\n\ndef article(id):\n    return render_template(\"article.html\", article=Article.get(id))\n\n\ndef article_link(article):\n    return \"/a/\" + make_slug(article.title)\n",
     );
     repo.write_file("tests/test_slugify.py", "from app.slugify import make_slug\n\n\ndef test_umlauts_are_dropped():\n    assert make_slug(\"Größe & Gewicht\") == \"gr-e-gewicht\"\n");
     // Imports an existing module only.
-    repo.write_file("app/models.py", "import datetime\n\n\nclass Article:\n    @staticmethod\n    def get(id):\n        return Article()\n");
+    repo.write_file(
+        "app/models.py",
+        "import datetime\n\n\nclass Article:\n    @staticmethod\n    def get(id):\n        return Article()\n",
+    );
 
     assert_eq!(
         requirements_of(&repo).await,
@@ -206,21 +227,32 @@ async fn hunks_of_one_file_a_helper_added_at_the_end_and_used_at_the_top() {
     let body: String = (1..=12).map(|n| format!("  step{n}();\n")).collect();
     let original = format!("export function run() {{\n{body}}}\n");
     repo.commit_file("src/run.js", &original, "Run");
-    let changed = format!("export function run() {{\n  announceStart();\n{body}}}\n\nfunction announceStart() {{\n  console.log(\"start\");\n}}\n");
+    let changed =
+        format!("export function run() {{\n  announceStart();\n{body}}}\n\nfunction announceStart() {{\n  console.log(\"start\");\n}}\n");
     repo.write_file("src/run.js", changed);
 
-    assert_eq!(requirements_of(&repo).await, expected(&[("src/run.js#0", &["src/run.js#1"])]), "the call in hunk 0 needs the definition in hunk 1");
+    assert_eq!(
+        requirements_of(&repo).await,
+        expected(&[("src/run.js#0", &["src/run.js#1"])]),
+        "the call in hunk 0 needs the definition in hunk 1"
+    );
 }
 
 #[tokio::test]
 async fn nothing_is_required_when_every_name_and_path_already_exists() {
     let repo = TestRepo::with_commit();
-    repo.write_file("src/util.ts", "export function clamp(value: number, min: number, max: number): number {\n  return Math.min(max, Math.max(min, value));\n}\n");
+    repo.write_file(
+        "src/util.ts",
+        "export function clamp(value: number, min: number, max: number): number {\n  return Math.min(max, Math.max(min, value));\n}\n",
+    );
     repo.write_file("src/slider.ts", "export const MIN = 0;\n");
     repo.commit("Util");
     // A new file whose only definition reuses an existing name, used elsewhere without an import of it.
     repo.write_file("src/legacy/clamp.ts", "export function clamp(value: number): number {\n  return value;\n}\n");
-    repo.write_file("src/slider.ts", "import { clamp } from \"./util\";\n\nexport const MIN = 0;\nexport const position = (x: number) => clamp(x, MIN, 100);\n");
+    repo.write_file(
+        "src/slider.ts",
+        "import { clamp } from \"./util\";\n\nexport const MIN = 0;\nexport const position = (x: number) => clamp(x, MIN, 100);\n",
+    );
 
     assert_eq!(requirements_of(&repo).await, BTreeMap::new(), "clamp exists in HEAD; ./util is no new file");
 }

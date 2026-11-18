@@ -27,7 +27,8 @@ fn repo_with(hook: Option<(&str, &str)>) -> TestRepo {
 
 #[tokio::test]
 async fn a_failing_hook_in_the_second_commit_restores_head_and_index() {
-    let repo = repo_with(Some(("pre-commit", "if git diff --cached --name-only | grep -q '^b.txt$'; then echo 'b.txt ist gesperrt'; exit 1; fi")));
+    let repo =
+        repo_with(Some(("pre-commit", "if git diff --cached --name-only | grep -q '^b.txt$'; then echo 'b.txt ist gesperrt'; exit 1; fi")));
     repo.git(&["add", "a.txt"]);
     let (base, index) = (repo.head(), repo.git(&["ls-files", "-s"]));
     let (tc, id) = open(&repo).await;
@@ -133,10 +134,7 @@ fn assert_branch_left_alone(repo: &TestRepo, err: &crate::error::CoreError) {
     let foreign = std::fs::read_to_string(repo.path().join(".git/foreign")).expect("the hook made its commit");
     let foreign = foreign.trim();
     assert_eq!(err.code, ErrorCode::StaleState, "{err:?}");
-    assert!(
-        repo.git(&["merge-base", "--is-ancestor", foreign, "HEAD"]).is_empty(),
-        "the foreign commit stays on the branch"
-    );
+    assert!(repo.git(&["merge-base", "--is-ancestor", foreign, "HEAD"]).is_empty(), "the foreign commit stays on the branch");
     assert!(repo.git(&["log", "--format=%s", "HEAD"]).contains("Fremder Commit aus dem Terminal"));
     assert!(!err.message.contains("taken back"), "{}", err.message);
     assert!(err.message.contains("left"), "{}", err.message);

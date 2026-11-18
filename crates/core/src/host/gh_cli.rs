@@ -59,7 +59,9 @@ async fn token_from(program: &Path, host: &str) -> CoreResult<String> {
         .kill_on_drop(true);
     #[cfg(windows)]
     command.creation_flags(crate::git::runner::CREATE_NO_WINDOW);
-    let not_signed_in = || CoreError::new(ErrorCode::HostAuthFailed, format!("The GitHub CLI is not signed in to {host}. Run “gh auth login” and try again."));
+    let not_signed_in = || {
+        CoreError::new(ErrorCode::HostAuthFailed, format!("The GitHub CLI is not signed in to {host}. Run “gh auth login” and try again."))
+    };
     let output = match tokio::time::timeout(TIMEOUT, command.output()).await {
         Err(_) => return Err(CoreError::new(ErrorCode::Timeout, "The GitHub CLI did not answer in time.")),
         Ok(Err(e)) => return Err(CoreError::io(format!("The GitHub CLI could not be started: {e}"))),
@@ -104,7 +106,10 @@ mod tests {
     #[tokio::test]
     async fn reads_the_token_for_the_host() {
         let dir = tempfile::tempdir().unwrap();
-        let gh = fake_gh(dir.path(), r#"[ "$1 $2 $3 $4" = "auth token --hostname github.com" ] && [ "$GH_PROMPT_DISABLED" = 1 ] && echo "gho_madeUp123" || exit 9"#);
+        let gh = fake_gh(
+            dir.path(),
+            r#"[ "$1 $2 $3 $4" = "auth token --hostname github.com" ] && [ "$GH_PROMPT_DISABLED" = 1 ] && echo "gho_madeUp123" || exit 9"#,
+        );
         assert_eq!(run(&gh, "github.com").await.unwrap(), "gho_madeUp123");
     }
 

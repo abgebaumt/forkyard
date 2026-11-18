@@ -67,7 +67,13 @@ fn drm_gpu_count(dir: &std::path::Path) -> usize {
     let Ok(entries) = std::fs::read_dir(dir) else { return 0 };
     entries
         .flatten()
-        .filter(|entry| entry.file_name().to_str().and_then(|name| name.strip_prefix("card")).is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit())))
+        .filter(|entry| {
+            entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.strip_prefix("card"))
+                .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+        })
         .filter(|entry| entry.path().join("device").join("vendor").is_file())
         .count()
 }
@@ -116,7 +122,9 @@ fn navigation_allowed(url: &tauri::Url, dev_url: Option<&tauri::Url>) -> bool {
         "http" | "https" if url.host_str() == Some("tauri.localhost") => true,
         "about" => url.as_str() == "about:blank",
         // Development mode: exactly the origin of the Vite server.
-        _ => dev_url.is_some_and(|dev| dev.scheme() == url.scheme() && dev.host_str() == url.host_str() && dev.port_or_known_default() == url.port_or_known_default()),
+        _ => dev_url.is_some_and(|dev| {
+            dev.scheme() == url.scheme() && dev.host_str() == url.host_str() && dev.port_or_known_default() == url.port_or_known_default()
+        }),
     }
 }
 
@@ -141,7 +149,9 @@ struct WindowSink {
 impl EventSink for WindowSink {
     fn emit(&self, event: &str, payload: serde_json::Value) {
         // An external request brings the window to the front – not under the E2E driver.
-        if matches!(event, gitcore::events::names::APP_OPEN_REQUEST | gitcore::events::names::APP_FOCUS_REQUEST) && dev_env_value(E2E_WINDOW_ENV).is_none() {
+        if matches!(event, gitcore::events::names::APP_OPEN_REQUEST | gitcore::events::names::APP_FOCUS_REQUEST)
+            && dev_env_value(E2E_WINDOW_ENV).is_none()
+        {
             if let Some(window) = self.app.get_webview_window(MAIN_WINDOW) {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
@@ -209,11 +219,7 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
         log::info!("Another instance uses this data directory; it keeps the crash marker");
     }
     log::info!("Forkyard {version} on {} {}", std::env::consts::OS, std::env::consts::ARCH);
-    let mut config = CoreConfig::new(
-        data_dir,
-        version,
-        Arc::new(WindowSink { app: handle }),
-    );
+    let mut config = CoreConfig::new(data_dir, version, Arc::new(WindowSink { app: handle }));
     config.git_path = env_value(GIT_PATH_ENV).map(PathBuf::from);
     config.keyring_service = dev_env_value(KEYRING_SERVICE_ENV).and_then(|v| v.into_string().ok());
     let core = gitcore::startup::timed("core open", || tauri::async_runtime::block_on(Core::open(config)))?;
@@ -327,13 +333,7 @@ fn prepare_test_window(app: &tauri::App, window: &tauri::WebviewWindow) {
         eprintln!("{WINDOW_SIZE_ENV} expects WIDTHxHEIGHT, e.g. 1440x900 (was: {text}).");
         return;
     };
-    let minimum = app
-        .config()
-        .app
-        .windows
-        .iter()
-        .find(|w| w.label == MAIN_WINDOW)
-        .and_then(|w| Some((w.min_width?, w.min_height?)));
+    let minimum = app.config().app.windows.iter().find(|w| w.label == MAIN_WINDOW).and_then(|w| Some((w.min_width?, w.min_height?)));
     let outcome = match minimum {
         Some((min_width, min_height)) => window.set_min_size(Some(tauri::PhysicalSize::new(min_width as u32, min_height as u32))),
         None => Ok(()),
@@ -445,7 +445,8 @@ pub fn run() {
     // External launch: `<folder>`, `--commit <sha>` or `forkyard://open?path=…&commit=…`.
     // If the app is already running with this data directory, it receives the request and this process ends.
     let launch = gitcore::commands::launch::from_args(std::env::args_os().skip(1), std::env::current_dir().ok().as_deref());
-    let data_dir = env_value(DATA_DIR_ENV).map(PathBuf::from).or_else(|| gitcore::commands::launch::default_data_dir(&context.config().identifier));
+    let data_dir =
+        env_value(DATA_DIR_ENV).map(PathBuf::from).or_else(|| gitcore::commands::launch::default_data_dir(&context.config().identifier));
     let forwarded = data_dir.is_some_and(|dir| match &launch {
         Some(request) => gitcore::commands::launch::forward(&dir, request),
         None => gitcore::commands::launch::forward_focus(&dir),
@@ -769,7 +770,11 @@ mod tests {
     /// their connectors and render nodes.
     #[test]
     fn counts_the_gpus_with_a_drm_card() {
-        let dir = std::env::temp_dir().join(format!("fy-drm-{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let dir = std::env::temp_dir().join(format!(
+            "fy-drm-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
         let card = |name: &str, vendor: Option<&str>| {
             let device = dir.join(name).join("device");
             std::fs::create_dir_all(&device).unwrap();
@@ -798,7 +803,13 @@ mod tests {
     fn the_window_only_navigates_to_its_own_pages() {
         let url = |text: &str| text.parse::<tauri::Url>().unwrap();
         let dev = url("http://127.0.0.1:1420/");
-        for own in ["tauri://localhost/", "tauri://localhost/index.html", "http://tauri.localhost/", "https://tauri.localhost/index.html", "about:blank"] {
+        for own in [
+            "tauri://localhost/",
+            "tauri://localhost/index.html",
+            "http://tauri.localhost/",
+            "https://tauri.localhost/index.html",
+            "about:blank",
+        ] {
             assert!(navigation_allowed(&url(own), None), "{own}");
         }
         assert!(navigation_allowed(&url("http://127.0.0.1:1420/?scenario=x"), Some(&dev)));
@@ -827,7 +838,11 @@ mod tests {
         let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         let csp = config["app"]["security"]["csp"].as_str().expect("a policy is set");
         let directive = |name: &str| -> Vec<&str> {
-            csp.split(';').map(str::trim).find(|d| d.split_whitespace().next() == Some(name)).map(|d| d.split_whitespace().skip(1).collect()).unwrap_or_default()
+            csp.split(';')
+                .map(str::trim)
+                .find(|d| d.split_whitespace().next() == Some(name))
+                .map(|d| d.split_whitespace().skip(1).collect())
+                .unwrap_or_default()
         };
         assert_eq!(directive("default-src"), ["'self'"]);
         assert_eq!(directive("script-src"), ["'self'"], "no 'unsafe-inline', no 'unsafe-eval', no foreign source");
@@ -893,11 +908,16 @@ mod tests {
         assert_eq!(windows["nsis"]["installerHooks"], "windows/installer-hooks.nsh");
         let hooks = include_str!("../windows/installer-hooks.nsh");
         assert!(hooks.contains("!macro NSIS_HOOK_POSTINSTALL") && hooks.contains(r#""$INSTDIR\forkyard.exe" --register-path"#), "{hooks}");
-        assert!(hooks.contains("!macro NSIS_HOOK_PREUNINSTALL") && hooks.contains(r#""$INSTDIR\forkyard.exe" --unregister-path"#), "{hooks}");
+        assert!(
+            hooks.contains("!macro NSIS_HOOK_PREUNINSTALL") && hooks.contains(r#""$INSTDIR\forkyard.exe" --unregister-path"#),
+            "{hooks}"
+        );
         assert_eq!(windows["wix"]["fragmentPaths"], serde_json::json!(["windows/cli-path.wxs"]));
         assert_eq!(windows["wix"]["componentRefs"], serde_json::json!(["ForkyardCliPath"]));
         let fragment = include_str!("../windows/cli-path.wxs");
-        for part in [r#"<Component Id="ForkyardCliPath""#, r#"Name="PATH""#, r#"Value="[INSTALLDIR]""#, r#"Permanent="no""#, r#"Part="last""#] {
+        for part in
+            [r#"<Component Id="ForkyardCliPath""#, r#"Name="PATH""#, r#"Value="[INSTALLDIR]""#, r#"Permanent="no""#, r#"Part="last""#]
+        {
             assert!(fragment.contains(part), "{part}\n{fragment}");
         }
     }

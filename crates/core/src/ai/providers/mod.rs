@@ -83,7 +83,12 @@ fn provider_message(response: &Response) -> String {
     let text = json
         .as_ref()
         .and_then(|value| {
-            value.pointer("/error/message").or_else(|| value.get("error").filter(|error| error.is_string())).or_else(|| value.get("message")).and_then(Value::as_str).map(str::to_string)
+            value
+                .pointer("/error/message")
+                .or_else(|| value.get("error").filter(|error| error.is_string()))
+                .or_else(|| value.get("message"))
+                .and_then(Value::as_str)
+                .map(str::to_string)
         })
         .unwrap_or_else(|| response.text());
     crate::util::truncate_str(text.trim(), 2000)
@@ -95,8 +100,13 @@ pub fn http_failure(label: &str, response: &Response, secrets: &[String]) -> Cor
     let status = response.status;
     let error = match status {
         401 | 403 => CoreError::ai_not_configured(format!("{label} rejected the API key (HTTP {status}). Check the key in Settings › AI.")),
-        404 => CoreError::ai_provider_unavailable(format!("{label} does not know this model or address (HTTP 404). Check the model in Settings › AI.")),
-        408 | 429 | 500..=599 => CoreError::ai_provider_unavailable(format!("{label} is overloaded or unavailable right now (HTTP {status}). Try again later.")).with_retry_at(response.retry_at()),
+        404 => CoreError::ai_provider_unavailable(format!(
+            "{label} does not know this model or address (HTTP 404). Check the model in Settings › AI."
+        )),
+        408 | 429 | 500..=599 => {
+            CoreError::ai_provider_unavailable(format!("{label} is overloaded or unavailable right now (HTTP {status}). Try again later."))
+                .with_retry_at(response.retry_at())
+        }
         _ => CoreError::unknown(format!("{label} rejected the request (HTTP {status}).")),
     };
     error.with_git_output(detail)
@@ -133,12 +143,21 @@ pub(crate) fn openai_vectors(label: &str, value: &Value, wanted: usize) -> CoreR
 }
 
 /// A provider for exactly these values (used by `active` and by "Check" with unsaved values).
-pub fn build(kind: AiProviderKind, base: String, key: Option<String>, model: String, mode: AiStructuredMode, context_tokens: u64) -> CoreResult<Box<dyn Provider>> {
+pub fn build(
+    kind: AiProviderKind,
+    base: String,
+    key: Option<String>,
+    model: String,
+    mode: AiStructuredMode,
+    context_tokens: u64,
+) -> CoreResult<Box<dyn Provider>> {
     match kind {
         AiProviderKind::Anthropic => Ok(Box::new(anthropic::Anthropic::new(base, key.unwrap_or_default(), model, context_tokens))),
         AiProviderKind::Openai => Ok(Box::new(openai::OpenAi::new(base, key.unwrap_or_default(), model, context_tokens))),
         AiProviderKind::OpenaiCompatible => Ok(Box::new(compatible::Compatible::new(kind, base, key, model, mode, context_tokens))),
-        AiProviderKind::Lmstudio => Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema, context_tokens))),
+        AiProviderKind::Lmstudio => {
+            Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema, context_tokens)))
+        }
         AiProviderKind::Gemini => Ok(Box::new(gemini::Gemini::new(base, key.unwrap_or_default(), model, context_tokens))),
         AiProviderKind::Ollama => Ok(Box::new(ollama::Ollama::new(base, model, context_tokens))),
         AiProviderKind::ClaudeCode | AiProviderKind::Codex | AiProviderKind::Opencode => {

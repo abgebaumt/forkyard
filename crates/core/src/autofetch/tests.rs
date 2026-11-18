@@ -8,10 +8,10 @@ use std::sync::Arc;
 use serde_json::json;
 
 use super::*;
-use crate::git::compose_ssh_command;
 use crate::app::CoreConfig;
 use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::events::EventCollector;
+use crate::git::compose_ssh_command;
 use crate::testkit::{git_isolation_env, TestCore, TestRemote, TestRepo};
 
 const PATIENCE: Duration = Duration::from_secs(30);
@@ -372,13 +372,19 @@ async fn never_asks_for_credentials() {
 #[test]
 fn ssh_command_gets_the_no_questions_switch() {
     assert_eq!(compose_ssh_command(None, None, None), "ssh -o BatchMode=yes");
-    assert_eq!(compose_ssh_command(Some("ssh -i ~/.ssh/arbeit"), Some("anderes"), Some("drittes")), "ssh -i ~/.ssh/arbeit -o BatchMode=yes");
+    assert_eq!(
+        compose_ssh_command(Some("ssh -i ~/.ssh/arbeit"), Some("anderes"), Some("drittes")),
+        "ssh -i ~/.ssh/arbeit -o BatchMode=yes"
+    );
     assert_eq!(compose_ssh_command(None, Some(" ssh -p 2222 "), Some("drittes")), "ssh -p 2222 -o BatchMode=yes");
     assert_eq!(compose_ssh_command(None, None, Some("/usr/local/bin/mein ssh")), "'/usr/local/bin/mein ssh' -o BatchMode=yes");
     assert_eq!(compose_ssh_command(None, None, Some("/opt/it's/ssh")), r"'/opt/it'\''s/ssh' -o BatchMode=yes");
     // PuTTY does not know "-o".
     assert_eq!(compose_ssh_command(None, None, Some(r"C:\Program Files\PuTTY\plink.exe")), r"'C:\Program Files\PuTTY\plink.exe' -batch");
-    assert_eq!(compose_ssh_command(Some(r#""C:\Tools\TortoiseGitPlink.exe" -v"#), None, None), r#""C:\Tools\TortoiseGitPlink.exe" -v -batch"#);
+    assert_eq!(
+        compose_ssh_command(Some(r#""C:\Tools\TortoiseGitPlink.exe" -v"#), None, None),
+        r#""C:\Tools\TortoiseGitPlink.exe" -v -batch"#
+    );
 }
 
 #[test]
@@ -388,7 +394,6 @@ fn progress_noise_is_removed_from_the_log_text() {
     assert_eq!(text, "Fetching origin\nFrom https://***@example.com/r\n   abc..def  main       -> origin/main");
     assert_eq!(clean_progress(b""), "");
 }
-
 
 #[test]
 fn start_offsets_differ_per_repo_and_stay_inside_the_interval() {
