@@ -85,6 +85,7 @@ actually happens, and makes the risky parts safe:
 - Statistics per repository: activity, authors, hotspots, bus factor, code age
 - Command palette, keyboard shortcuts, embedded terminal, light and dark theme
 - A `forkyard` command line, and local crash reports that never leave your machine
+- AI (optional, off by default): commit messages, pull request descriptions, push review, conflict intent, release notes, history explanation, search by meaning, plans, bisect autopilot and coding agents – with Anthropic, OpenAI, Gemini, OpenAI-compatible servers, Ollama or a local AI command-line tool; "What is sent?" shows the exact request
 - Optional daily update check against the GitHub releases: a quiet hint when a new version is out
 
 </td>
