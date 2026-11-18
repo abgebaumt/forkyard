@@ -607,7 +607,8 @@ async fn merge_into(core: &Core, repo_id: &str, target: &BranchInfo, source: &Br
     // The short name gives the usual message ("Merge branch 'x'"); only if it means something
     // else (a tag of the same name) does Git get the full name.
     let full = format!("refs/heads/{}", source.name);
-    let plain = rev::try_resolve_commit(core, repo_id, &source.name).await?;
+    // Git's own order (a tag before a branch), not the local-first one of `try_resolve_commit`.
+    let plain = rev::rev_parse(core, repo_id, &format!("{}^{{commit}}", source.name)).await?;
     let arg = if plain.as_deref() == Some(source.sha.as_str()) { source.name.clone() } else { full };
     let hooks = Hooks::start(core, repo_id).await;
     let out = hooks.wrap(core.git_for(repo_id)?).args(["merge", "--no-ff", "--no-edit"]).arg(&arg).run_raw().await;

@@ -365,3 +365,21 @@ async fn finish_with_push_sends_branches_and_tag() {
     assert_eq!(done[0]["jobId"], "job-flow");
     assert_eq!(done[0]["ok"], true);
 }
+
+#[tokio::test]
+async fn finish_merges_the_branch_even_when_a_tag_has_the_same_name() {
+    let (tc, repo, id) = setup().await;
+    init(&tc, &id).await;
+    // A tag `feature/suche` on a commit of its own: Git would take the tag for the short name.
+    repo.checkout_new("seite");
+    let side = repo.commit_file("seite.txt", "s\n", "Seite");
+    repo.git(&["tag", "feature/suche", &side]);
+    repo.checkout("develop");
+    gitflow_start(&tc, id.clone(), GitflowKind::Feature, "suche".into(), None).await.unwrap();
+    let feature = repo.commit_file("suche.txt", "s\n", "Suche gebaut");
+    let develop_before = repo.git(&["rev-parse", "develop"]);
+
+    gitflow_finish(&tc, id, GitflowKind::Feature, "suche".into(), options(), None).await.unwrap();
+    assert_eq!(parents(&repo, "HEAD"), vec![develop_before, feature], "the branch, not the tag");
+    assert!(!repo.path().join("seite.txt").exists());
+}

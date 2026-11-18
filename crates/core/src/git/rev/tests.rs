@@ -27,7 +27,20 @@ fn string_rules() {
     assert_eq!(short_ref_name("refs/notes/x"), "refs/notes/x");
 
     assert!(could_be_branch_name("main") && could_be_branch_name("feature/x"));
-    for expr in ["refs/heads/main", "HEAD", "HEAD~1", "a^", "a..b", "@{u}", "a:b", "a b"] {
+    for expr in [
+        "refs/heads/main",
+        "HEAD",
+        "FETCH_HEAD",
+        "ORIG_HEAD",
+        "MERGE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "HEAD~1",
+        "a^",
+        "a..b",
+        "@{u}",
+        "a:b",
+        "a b",
+    ] {
         assert!(!could_be_branch_name(expr), "{expr}");
     }
 }

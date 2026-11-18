@@ -383,8 +383,8 @@ impl TakeOver<'_> {
     async fn run(self, core: &Core) -> CoreResult<ReviewFixApplied> {
         let TakeOver { repo_id, number, branch, path, range, patch, message } = self;
         let status = read_status(core, repo_id).await?;
-        if status.operation.is_some() {
-            return Err(CoreError::operation_in_progress(None, "Finish or abort it first."));
+        if let Some(op) = &status.operation {
+            return Err(CoreError::operation_in_progress(Some(op.kind), "Finish or abort it first."));
         }
         let head_before = match &status.head {
             Head::Branch { branch: current, sha } if current == branch => sha.clone(),

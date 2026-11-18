@@ -36,9 +36,11 @@ pub fn short_ref_name(full: &str) -> &str {
     full
 }
 
-/// Whether `rev` can be a short name (no full ref name, no expression like `HEAD~2` or `a..b`).
+/// Whether `rev` can be a short name (no full ref name, no expression like `HEAD~2` or `a..b`,
+/// no `HEAD`/`FETCH_HEAD`/`ORIG_HEAD`/… – Git reads those from `$GIT_DIR` first).
 pub(crate) fn could_be_branch_name(rev: &str) -> bool {
-    !rev.starts_with("refs/") && rev != "HEAD" && !rev.contains(['~', '^', ':', '@', ' ']) && !rev.contains("..")
+    let pseudo_ref = rev.ends_with("HEAD") && rev.bytes().all(|b| b.is_ascii_uppercase() || b == b'_');
+    !rev.starts_with("refs/") && !pseudo_ref && !rev.contains(['~', '^', ':', '@', ' ']) && !rev.contains("..")
 }
 
 /// A failed call that does not mean "does not exist" but something else
