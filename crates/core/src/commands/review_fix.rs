@@ -286,17 +286,8 @@ async fn blamed_commits(core: &Core, repo_id: &str, head: &str, path: &str, star
         .args(["--", path])
         .run()
         .await?;
-    let mut found = HashSet::new();
-    for line in out.stdout_lines() {
-        let text = util::decode_lossy(line);
-        let mut parts = text.split(' ');
-        if let (Some(sha), Some(_), Some(_)) = (parts.next(), parts.next(), parts.next()) {
-            if rev::is_sha(sha) {
-                found.insert(sha.to_string());
-            }
-        }
-    }
-    Ok(found)
+    let mut parser = crate::git::blame::BlameParser::default();
+    Ok(out.stdout.split(|&b| b == b'\n').filter_map(|line| parser.feed(line).map(|blamed| blamed.sha.to_string())).collect())
 }
 
 /// The commit a fix for lines `start..=end` of `path` belongs to: the newest pull request commit blame

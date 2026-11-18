@@ -150,29 +150,24 @@ async fn blame_origin(core: &Core, repo_id: &str, rel: &str, line: u32) -> CoreR
         }
         return Err(classify("blame", out.code, &out.stdout, &out.stderr));
     }
-    let mut sha = String::new();
-    let mut origin_line = 0u32;
-    let mut origin_path = None;
+    let mut parser = crate::git::blame::BlameParser::default();
+    let mut first = None;
     for raw in out.stdout.split(|&byte| byte == b'\n') {
-        if raw.starts_with(b"\t") {
+        if let Some(blamed) = parser.feed(raw) {
+            first = Some((blamed.sha.to_string(), blamed.orig_line, blamed.info.filename.clone()));
             break;
         }
-        let text = util::decode_lossy(raw);
-        if sha.is_empty() {
-            let mut parts = text.split(' ');
-            sha = parts.next().unwrap_or_default().to_string();
-            origin_line = parts.next().and_then(|number| number.parse().ok()).unwrap_or(0);
-        } else if let Some(name) = text.strip_prefix("filename ") {
-            // A name Git had to quote (control characters, `"`) falls back to today's name.
-            origin_path = Some(name.to_string()).filter(|name| !name.starts_with('"'));
-        }
     }
-    if sha.is_empty() || sha.bytes().all(|byte| byte == b'0') {
+    let unknown = || CoreError::unknown("Git blame gave an answer Forkyard does not understand.");
+    let (sha, origin_line, filename) = first.ok_or_else(unknown)?;
+    if sha.bytes().all(|byte| byte == b'0') {
         return Err(not_committed());
     }
-    if !is_sha(&sha) || origin_line == 0 {
-        return Err(CoreError::unknown("Git blame gave an answer Forkyard does not understand."));
+    if origin_line == 0 {
+        return Err(unknown());
     }
+    // A name Git had to quote (control characters, `"`) falls back to today's name.
+    let origin_path = filename.filter(|name| !name.starts_with('"'));
     Ok((sha, origin_path.unwrap_or_else(|| rel.to_string()), origin_line))
 }
 

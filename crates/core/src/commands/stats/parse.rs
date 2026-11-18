@@ -1,10 +1,9 @@
 //! Parsers for the two Git outputs of the statistics: `git log --numstat -z` (see `log_format`)
-//! and `git blame --porcelain`. Bytes in, plain numbers out; paths are decoded lossily (they
+//! and `git blame --porcelain` (via `git::blame`). Bytes in, plain numbers out; paths are decoded lossily (they
 //! are only shown and compared, never handed back to Git).
 
-use std::collections::HashMap;
-
-use crate::git::{log, rev};
+use crate::git::blame::BlameParser;
+use crate::git::log;
 use crate::util;
 
 /// SHA, author name, author e-mail and author date as "<unix> <+hhmm>" (needs `--date=raw`).
@@ -96,30 +95,18 @@ pub(super) fn parse_raw_date(text: &str) -> Option<(i64, i32)> {
 }
 
 /// Author time of every line of a file from `git blame --porcelain` (fed line by line, without
-/// `\n`). The details of a commit only come with its first line; later lines only name the SHA.
-#[derive(Debug, Default)]
+/// `\n`).
+#[derive(Default)]
 pub(super) struct BlameAges {
-    times: HashMap<String, i64>,
-    current: String,
+    porcelain: BlameParser,
     /// One entry per line of the file, in order.
     pub lines: Vec<i64>,
 }
 
 impl BlameAges {
     pub fn feed(&mut self, line: &[u8]) {
-        if line.first() == Some(&b'\t') {
-            self.lines.push(self.times.get(&self.current).copied().unwrap_or(0));
-            return;
-        }
-        let text = util::decode_lossy(line);
-        let (key, value) = text.split_once(' ').unwrap_or((text.as_str(), ""));
-        let is_sha = rev::is_sha(key);
-        if is_sha && value.split(' ').count() >= 2 {
-            self.current = key.to_string();
-        } else if key == "author-time" {
-            if let Ok(time) = value.trim().parse::<i64>() {
-                self.times.insert(self.current.clone(), time);
-            }
+        if let Some(blamed) = self.porcelain.feed(line) {
+            self.lines.push(blamed.info.time);
         }
     }
 }
