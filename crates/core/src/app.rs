@@ -240,12 +240,16 @@ impl Core {
         }
     }
 
-    /// Cleanup at startup: log (older than 30 days, more than 10,000 per repo) and undo
+    /// Cleanup at startup: expired avatar cache files, log (older than 30 days, more than 10,000 per repo) and undo
     /// entries older than 14 days together with their backup refs.
     pub async fn startup_cleanup(&self) -> CoreResult<()> {
         let removed = crate::commands::commit::cleanup_hook_dirs(self.data_dir(), STALE_TEMP_AGE);
         if removed > 0 {
             log::info!("cleaned up {removed} left-over hook folders");
+        }
+        let pruned = crate::commands::avatars::prune_cache(self.data_dir());
+        if pruned > 0 {
+            log::info!("removed {pruned} expired avatar cache files");
         }
         let before = util::iso_days_ago(ACTIVITY_MAX_DAYS);
         self.db.with(|c| db::activity::cleanup(c, &before, ACTIVITY_MAX_PER_REPO))?;

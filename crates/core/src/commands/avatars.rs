@@ -110,6 +110,15 @@ fn write_cache(file: &PathBuf, value: Option<&str>) {
     }
 }
 
+/// Deletes cache files older than `MAX_AGE` (they would be refetched anyway); returns how many.
+pub(crate) fn prune_cache(data_dir: &std::path::Path) -> usize {
+    let Ok(entries) = std::fs::read_dir(data_dir.join(CACHE_DIR)) else { return 0 };
+    let expired = |e: &std::fs::DirEntry| {
+        e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age > MAX_AGE)
+    };
+    entries.flatten().filter(|e| expired(e) && std::fs::remove_file(e.path()).is_ok()).count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,5 +165,18 @@ mod tests {
         let tc = TestCore::new().await;
         configure(&tc, Some(String::new()));
         assert_eq!(avatar_get(&tc, "lena@example.com".into()).await.unwrap(), None);
+    }
+
+    #[test]
+    fn pruning_removes_only_expired_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = dir.path().join(CACHE_DIR);
+        std::fs::create_dir_all(&cache).unwrap();
+        std::fs::write(cache.join("fresh"), "x").unwrap();
+        let old = std::fs::File::create(cache.join("old")).unwrap();
+        old.set_modified(SystemTime::now() - MAX_AGE - Duration::from_secs(60)).unwrap();
+        assert_eq!(prune_cache(dir.path()), 1);
+        assert!(cache.join("fresh").exists() && !cache.join("old").exists());
+        assert_eq!(prune_cache(&dir.path().join("missing")), 0);
     }
 }
