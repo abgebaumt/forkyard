@@ -128,7 +128,8 @@ fn program_in(dir: &Path, name: &str) -> Option<PathBuf> {
 
 /// The first version number in a `--version` output ("codex-cli 0.162.0" → "0.162.0").
 pub fn parse_version(output: &str) -> Option<String> {
-    let pattern = regex::Regex::new(r"\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.]+)?").ok()?;
+    static RE: std::sync::OnceLock<Option<regex::Regex>> = std::sync::OnceLock::new();
+    let pattern = crate::util::compiled(&RE, r"\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.]+)?")?;
     pattern.find(output).map(|found| found.as_str().to_string())
 }
 

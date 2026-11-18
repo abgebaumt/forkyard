@@ -14,11 +14,9 @@ use std::sync::OnceLock;
 
 use regex::Regex;
 
-const MASK: &str = "***";
+use crate::util::compiled;
 
-fn compiled(cell: &'static OnceLock<Option<Regex>>, pattern: &str) -> Option<&'static Regex> {
-    cell.get_or_init(|| Regex::new(pattern).ok()).as_ref()
-}
+const MASK: &str = "***";
 
 /// `Authorization: Bearer …` and relatives: everything after the name up to the end of the line.
 fn header() -> Option<&'static Regex> {
