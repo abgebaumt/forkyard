@@ -47,7 +47,7 @@ export function detectHost(url: string): DetectedHost | null {
     const scpLike = /^(?:[^@/\s]+@)?([^/:\s]+):(?!\/\/)/.exec(text);
     if (scpLike) host = scpLike[1] ?? null;
   }
-  if (!host || !host.includes(".")) return null;
+  if (!host?.includes(".")) return null;
   const name = host.toLowerCase();
   if (name === "github.com" || name.endsWith(".github.com")) return { kind: "github", label: hostNames.github };
   if (name === "gitlab.com" || name.startsWith("gitlab.")) return { kind: "gitlab", label: hostNames.gitlab };

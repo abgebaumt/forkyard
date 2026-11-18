@@ -497,11 +497,9 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
         // The same fragment shape as "found": React keeps this button's DOM node when the result
         // arrives, so the focus stays on it (a later answer never moves the focus).
         return (
-          <>
-            <Button data-autofocus data-ai-setup-cancel onClick={() => onDone(null)}>
-              {t("ai.setup.cancel")}
-            </Button>
-          </>
+          <Button data-autofocus data-ai-setup-cancel onClick={() => onDone(null)}>
+            {t("ai.setup.cancel")}
+          </Button>
         );
       case "found":
         return (

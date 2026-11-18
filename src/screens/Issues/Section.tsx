@@ -130,7 +130,7 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
   const host = repo.kind ? hostKindLabels[repo.kind] : t("issues.section.fallbackHost");
   const openNumber = view.center.kind === "issues" ? view.center.number : null;
 
-  let placeholder: ReactNode = undefined;
+  let placeholder: ReactNode;
   if (!connected) {
     placeholder = (
       <SideEmpty

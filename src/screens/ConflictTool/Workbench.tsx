@@ -185,7 +185,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
 
   const recompute = useCallback(() => {
     const handle = editor.current;
-    if (!handle || !handle.view()) return;
+    if (!handle?.view()) return;
     const doc = handle.text();
     snapshot.current = { doc, bounds: handle.bounds() };
     setDerived(derive(handle.chunkTexts(), doc));

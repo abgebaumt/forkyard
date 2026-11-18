@@ -63,7 +63,7 @@ function MergeDialog({
       open
       size="sm"
       title={t("pullRequest.view.merge.title", { number: pr.number })}
-      description={<>{t("pullRequest.view.merge.description", { source: pr.sourceBranch, target: pr.targetBranch })}</>}
+      description={t("pullRequest.view.merge.description", { source: pr.sourceBranch, target: pr.targetBranch })}
       onOpenChange={(open) => {
         if (!open && !busy) onDone(null);
       }}

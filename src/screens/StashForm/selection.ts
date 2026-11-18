@@ -56,12 +56,10 @@ export function queueStashSelection(repoId: Id, tabId: Id, area: "staged" | "uns
   const status = queryClient.getQueryData<Status>(qk.status(repoId));
   if (!status || status.head.kind === "unborn") return false;
   const head = status.head.sha;
-  useWipStore
-    .getState()
-    .patch(tabId, (tab) => ({
-      stashSelection: addToPending(tab.stashSelection, head, { area, selection, lines }),
-      stashOnlySelected: false,
-    }));
+  useWipStore.getState().patch(tabId, (tab) => ({
+    stashSelection: addToPending(tab.stashSelection, head, { area, selection, lines }),
+    stashOnlySelected: false,
+  }));
   useAppStore.getState().setRightPanel(tabId, "stash_form");
   return true;
 }

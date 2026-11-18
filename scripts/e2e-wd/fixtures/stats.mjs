@@ -57,7 +57,7 @@ export const weekdayOf = (days) => (new Date(midnightDaysAgo(days)).getUTCDay() 
 /** YYYY-MM-DD of the local day `days` ago. */
 export const dateOf = (days) => new Date(midnightDaysAgo(days)).toISOString().slice(0, 10);
 
-const lines = (prefix, count, from = 1) => Array.from({ length: count }, (_, index) => `${prefix} ${from + index}`).join("\n") + "\n";
+const lines = (prefix, count, from = 1) => `${Array.from({ length: count }, (_, index) => `${prefix} ${from + index}`).join("\n")}\n`;
 
 /** An empty repository with helpers (nothing committed). */
 export function makeBareStatsRepo(name = "messnetz-statistik") {
@@ -173,14 +173,14 @@ export function makeStatsRepo(name = "messnetz-statistik") {
     return commit(person, days, hour, message, minute, zone);
   };
 
-  write("README.md", "# Messnetz\n\n" + lines("Hinweis", 8));
+  write("README.md", `# Messnetz\n\n${lines("Hinweis", 8)}`);
   write("src/station/sensor.rs", lines("// Sensorwert", 30));
-  write("docs/handbuch.md", "# Handbuch\n\n" + lines("Abschnitt", 18));
+  write("docs/handbuch.md", `# Handbuch\n\n${lines("Abschnitt", 18)}`);
   write("bild.png", Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0, 1, 2, 3, 0, 0, 0xff, 0xfe]));
   add(PEOPLE.lena, 800, 10, "Messnetz anlegen");
   write("src/station/export.rs", lines("// Export", 40));
   add(PEOPLE.jonas, 400, 15, "Export der Messwerte");
-  write("docs/handbuch.md", "# Handbuch\n\n" + lines("Abschnitt", 16) + lines("Neu", 5));
+  write("docs/handbuch.md", `# Handbuch\n\n${lines("Abschnitt", 16)}${lines("Neu", 5)}`);
   add(PEOPLE.aylin, 200, 11, "Handbuch ergänzen");
   write("src/station/sensor.rs", lines("// Sensorwert", 25) + lines("// Kalibriert", 10));
   add(PEOPLE.jonas, 100, 13, "Sensor kalibrieren");
@@ -194,7 +194,7 @@ export function makeStatsRepo(name = "messnetz-statistik") {
   add(PEOPLE.aylin, 20, 10, "Grenzwerte für den Sensor");
   append("docs/benutzerhandbuch.md", lines("Wartung", 2));
   add(PEOPLE.aylin, 15, 14, "Wartung im Handbuch");
-  write("daten/messwerte.csv", "zeit;wert\n" + lines("2026-01-01;", 499));
+  write("daten/messwerte.csv", `zeit;wert\n${lines("2026-01-01;", 499)}`);
   const biggest = add(PEOPLE.jonasUpper, 10, 21, "Messwerte Januar importieren");
   // Rebased: the author time is outside the last 30 days, the commit time inside.
   append("README.md", "Hinweis zur Kalibrierung.\n");

@@ -20,7 +20,7 @@ describe("ticket links", () => {
     const rules = compileRules([
       rule("preset:redmine:0", String.raw`#(\d+)\b`, "https://redmine.example/issues/$1", "preset"),
       rule("host:issue", String.raw`#(\d+)\b`, "https://github.com/o/r/issues/$1", "host"),
-      rule("custom:long", String.raw`5 fix`, "https://x.example/$0"),
+      rule("custom:long", "5 fix", "https://x.example/$0"),
     ]);
     expect(linkify("#5 fix", rules)).toEqual([
       { kind: "link", text: "#5", url: "https://redmine.example/issues/5", ruleId: "preset:redmine:0" },
@@ -41,7 +41,7 @@ describe("ticket links", () => {
     expect(linkify("", rules)).toEqual([]);
     expect(linkify("no tickets", rules)).toEqual([{ kind: "text", text: "no tickets" }]);
     expect(linkify("A-1", [])).toEqual([{ kind: "text", text: "A-1" }]);
-    const long = "x".repeat(MAX_LINKED_CHARS) + " A-1";
+    const long = `${"x".repeat(MAX_LINKED_CHARS)} A-1`;
     expect(linkify(long, rules)).toEqual([{ kind: "text", text: long }]);
   });
 
@@ -67,9 +67,9 @@ describe("ticket links", () => {
       String.raw`\w+\w?-`,
       String.raw`\w{1,2}\w{1,2}\w{1,2}!`,
       // Escapes the core refuses, which JavaScript reads as one character (`\x41` = "A").
-      String.raw`\x41?`.repeat(30) + "!",
-      String.raw`\101?`.repeat(30) + "!",
-      String.raw`\u0041?`.repeat(20) + "!",
+      `${String.raw`\x41?`.repeat(30)}!`,
+      `${String.raw`\101?`.repeat(30)}!`,
+      `${String.raw`\u0041?`.repeat(20)}!`,
     ];
     for (const pattern of slow) expect(hasNestedRepetition(pattern), pattern).toBe(true);
     const fine = [
@@ -89,15 +89,15 @@ describe("ticket links", () => {
   });
 
   it("finds chains of alternations like the core", () => {
-    for (const count of [8, 28]) expect(hasNestedRepetition(String.raw`(\w|\w)`.repeat(count) + "!"), String(count)).toBe(true);
-    expect(hasNestedRepetition("(?:a|a|a)".repeat(5) + "!")).toBe(true);
-    expect(hasNestedRepetition("(a|a)".repeat(7) + "|x")).toBe(true);
-    expect(hasNestedRepetition(String.raw`(\w|\w)`.repeat(7) + "!")).toBe(false);
+    for (const count of [8, 28]) expect(hasNestedRepetition(`${String.raw`(\w|\w)`.repeat(count)}!`), String(count)).toBe(true);
+    expect(hasNestedRepetition(`${"(?:a|a|a)".repeat(5)}!`)).toBe(true);
+    expect(hasNestedRepetition(`${"(a|a)".repeat(7)}|x`)).toBe(true);
+    expect(hasNestedRepetition(`${String.raw`(\w|\w)`.repeat(7)}!`)).toBe(false);
     const keys = Array.from({ length: 40 }, (_, n) => `K${n}`).join("|");
     expect(hasNestedRepetition(String.raw`\b(?:${keys})-\d+\b`)).toBe(false);
     expect(hasNestedRepetition("(?:a|b|c|d)-(?:x|y|z)")).toBe(false);
     // A rule that reaches the UI unchecked is skipped, never run.
-    const rules = compileRules([rule("chain", String.raw`(\w|\w)`.repeat(28) + "!", "https://x.example/$0", "repo_file")]);
+    const rules = compileRules([rule("chain", `${String.raw`(\w|\w)`.repeat(28)}!`, "https://x.example/$0", "repo_file")]);
     expect(rules).toEqual([]);
   });
 
@@ -106,8 +106,8 @@ describe("ticket links", () => {
     expect(tryRule("(a+)+", "https://x.example/$0", "aaa")).toEqual({ kind: "nested" });
     // Escapes the core refuses never run, also inside a class and when they would backtrack.
     for (const pattern of [
-      String.raw`\x41?`.repeat(30) + "!",
-      String.raw`\101?`.repeat(30) + "!",
+      `${String.raw`\x41?`.repeat(30)}!`,
+      `${String.raw`\101?`.repeat(30)}!`,
       String.raw`OPS-\1`,
       String.raw`[\x41]+`,
       String.raw`[\b]`,

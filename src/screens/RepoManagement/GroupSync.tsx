@@ -279,24 +279,22 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
       title={info.dialogTitle(group)}
       description={info.description(t("repos.count", { count: repos.length }))}
       footer={
-        <>
-          {running ? (
-            <Button data-autofocus loading={cancelling} onClick={cancel}>
-              {cancelling ? t("repos.sync.cancelling") : t("repos.sync.cancel")}
-            </Button>
-          ) : (
-            <>
-              {retry.length ? (
-                <Button icon={<RotateCw className="size-icon" aria-hidden />} onClick={() => void run(retry)}>
-                  {t("repos.sync.retry", { count: retry.length })}
-                </Button>
-              ) : null}
-              <Button variant="primary" data-autofocus data-group-sync-close="" onClick={onClose}>
-                {t("repos.sync.close")}
+        running ? (
+          <Button data-autofocus loading={cancelling} onClick={cancel}>
+            {cancelling ? t("repos.sync.cancelling") : t("repos.sync.cancel")}
+          </Button>
+        ) : (
+          <>
+            {retry.length ? (
+              <Button icon={<RotateCw className="size-icon" aria-hidden />} onClick={() => void run(retry)}>
+                {t("repos.sync.retry", { count: retry.length })}
               </Button>
-            </>
-          )}
-        </>
+            ) : null}
+            <Button variant="primary" data-autofocus data-group-sync-close="" onClick={onClose}>
+              {t("repos.sync.close")}
+            </Button>
+          </>
+        )
       }
     >
       <div ref={body} data-group-sync={kind} data-running={running || undefined} className="flex flex-col gap-2">

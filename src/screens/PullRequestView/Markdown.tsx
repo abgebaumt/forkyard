@@ -109,7 +109,7 @@ export function SafeMarkdown({ source, origin, empty, className }: SafeMarkdownP
         className={prose}
         onClick={onClick}
         onKeyDown={onKeyDown}
-        // Sanitised in RepoManagement/markdown.ts (DOMPurify + post-processing).
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised in RepoManagement/markdown.ts (DOMPurify + post-processing).
         dangerouslySetInnerHTML={{ __html: rendered.html }}
       />
       {rendered.blockedImages > 0 || rendered.truncated ? (

@@ -350,7 +350,7 @@ scenario("graph: keyboard navigation (arrows, H parent, End, Enter)", "edge", as
     await app.waitFor(
       () =>
         app.exec(
-          (sha) =>
+          (_sha) =>
             document.querySelector('[data-screen="commit-details"] [data-testid="commit-summary"]')?.closest("[data-screen]") &&
             document.querySelector('[data-screen="commit-details"]').dataset.selection === "1",
           root,
@@ -505,7 +505,7 @@ scenario("search: by SHA prefix and by author name", "edge", async (t) => {
     const sha = repo.info.shas.coAuthored;
     await app.type(input, sha.slice(0, 8));
     await app.waitFor(async () => (await searchHits(app)).join() === sha, 10_000, { message: "exactly the commit with this SHA prefix" });
-    assertEqual(lines(repo.git("rev-parse", "--disambiguate=" + sha.slice(0, 8))), [sha], "Git: the prefix is unique");
+    assertEqual(lines(repo.git("rev-parse", `--disambiguate=${sha.slice(0, 8)}`)), [sha], "Git: the prefix is unique");
 
     await app.press("Control+a", "Backspace");
     await app.type(input, "Aylin");

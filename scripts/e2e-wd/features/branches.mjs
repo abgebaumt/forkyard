@@ -209,7 +209,7 @@ async function noDangerToasts(app) {
   assertEqual(danger, [], "no error message");
 }
 
-async function dismissToasts(app) {
+async function _dismissToasts(app) {
   await app.exec(() => {
     for (const el of document.querySelectorAll("[data-toast] button[aria-label]"))
       if (/close|dismiss/i.test(el.getAttribute("aria-label"))) el.click();

@@ -3,7 +3,7 @@
  * plus the calm hints for text diffs without hunks, the loading skeleton and the error state.
  */
 import { ArrowRight, Binary, FileQuestion, HardDrive, RefreshCw, Scale, TriangleAlert } from "lucide-react";
-import { type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { CoreError, FileDiff, FileStatus } from "../../core";
 import { describeError } from "../../app/errors";
 import { formatBytes } from "../../app/format";

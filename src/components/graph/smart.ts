@@ -29,7 +29,7 @@ const withoutRemote = (ref: Ref) =>
  * then there is nothing it could align with.
  */
 export function smartSelection(refs: RefsSnapshot | undefined, defaultBranchName: string | undefined): SmartSelection | null {
-  if (!refs || refs.head.kind !== "branch") return null;
+  if (refs?.head.kind !== "branch") return null;
   const headName = refs.head.branch;
   const current = refs.locals.find((ref) => ref.isHead) ?? refs.locals.find((ref) => ref.name === headName);
   if (!current) return null;

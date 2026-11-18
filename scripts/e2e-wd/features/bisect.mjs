@@ -491,7 +491,7 @@ scenario("marks: good and bad from the bar until the first bad commit is found",
     }
     assertEqual(git.bad, bug, "Git: refs/bisect/bad = bug commit");
     assertIncludes(git.log, `# first bad commit: [${bug}]`, "Git log: first bad commit");
-    for (const { sha, verdict } of marked.filter((m) => m.verdict === "good"))
+    for (const { sha } of marked.filter((m) => m.verdict === "good"))
       if (await app.$(`[data-row-id="${sha}"]`)) assertEqual(await chip(app, sha), "good", `chip good ${short(sha)}`);
     await waitChip(app, bug, "bad");
     await waitBar(app, "found");

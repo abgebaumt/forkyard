@@ -263,7 +263,7 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
     void setSection(repoId, "worktrees", { collapsed: !state.collapsed });
   };
 
-  let placeholder: ReactNode = undefined;
+  let placeholder: ReactNode;
   if (worktrees.isPending) placeholder = <SideSkeleton rows={1} />;
   else if (worktrees.isError && !worktrees.data)
     placeholder = (

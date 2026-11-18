@@ -250,8 +250,8 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
   };
   const create = () => openPrCreate(repoId, tabId);
 
-  let placeholder: ReactNode = undefined;
-  let notice: ReactNode = undefined;
+  let placeholder: ReactNode;
+  let notice: ReactNode;
   if (!repo.account) {
     placeholder = (
       <SideEmpty

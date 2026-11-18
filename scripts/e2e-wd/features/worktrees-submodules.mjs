@@ -1152,7 +1152,7 @@ scenario("Moving a submodule: invalid targets, occupied folder and cancel change
 // =================================================================================================
 
 /** Double-click on a local branch in the left panel checks it out; waits until Git has switched. */
-async function checkoutByDoubleClick(app, u, fx, branch) {
+async function checkoutByDoubleClick(_app, u, fx, branch) {
   await u.dblclick(await u.branchRow(branch));
   await u.eventually(() => git(fx, fx.path, "rev-parse", "--abbrev-ref", "HEAD"), branch, `git: ${branch} checked out`, 30_000);
 }

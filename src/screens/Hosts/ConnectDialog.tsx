@@ -128,7 +128,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
     return null;
   };
 
-  const useGh = async () => {
+  const runGh = async () => {
     if (busy) return;
     setFailure(null);
     const base = chosen();
@@ -305,7 +305,7 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
               <h3 className="text-base font-medium text-text">{t("hosts.connect.gh.title")}</h3>
               <p className="text-sm text-text-muted">{t("hosts.connect.gh.text")}</p>
             </div>
-            <Button icon={<Terminal className="size-icon" aria-hidden />} disabled={busy} onClick={() => void useGh()}>
+            <Button icon={<Terminal className="size-icon" aria-hidden />} disabled={busy} onClick={() => void runGh()}>
               {t("hosts.connect.gh.action")}
             </Button>
           </section>

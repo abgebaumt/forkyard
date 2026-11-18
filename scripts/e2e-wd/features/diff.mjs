@@ -98,7 +98,7 @@ async function eventually(app, read, expected, message, timeout = 15_000) {
 }
 
 /** The status of the app reflects the working directory (after writing files from outside). */
-async function refresh(app) {
+async function _refresh(app) {
   await app.exec(() => {
     window.dispatchEvent(new Event("focus"));
     return window.__gc.queryClient.invalidateQueries();

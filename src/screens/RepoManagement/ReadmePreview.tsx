@@ -136,6 +136,7 @@ function ReadmeBody({ source }: { source: string }) {
           className={cn(prose, "mx-auto max-w-180 px-6 py-5")}
           onClick={onClick}
           onKeyDown={onKeyDown}
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised in RepoManagement/markdown.ts (DOMPurify + post-processing).
           dangerouslySetInnerHTML={{ __html: rendered.html }}
         />
       </div>

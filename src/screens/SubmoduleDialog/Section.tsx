@@ -251,7 +251,7 @@ export function SubmodulesSection({ repoId, query }: SubmodulesSectionProps) {
   };
   const updateAll = () => void updateSubmodules(repoId, null, { init: true });
 
-  let placeholder: ReactNode = undefined;
+  let placeholder: ReactNode;
   if (submodules.isPending) placeholder = <SideSkeleton rows={1} />;
   else if (submodules.isError && !submodules.data)
     placeholder = (

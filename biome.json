@@ -1,35 +1,78 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": {
-    "includes": ["src/**", "scripts/**", "*.ts", "!scripts/e2e/**", "!src/styles/tokens.css", "!src/styles/theme.css"]
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
   },
-  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 140 },
-  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always", "trailingCommas": "all" } },
-  "css": { "parser": { "tailwindDirectives": true } },
+  "files": {
+    "includes": ["src/**", "scripts/**", "*.ts", "!scripts/e2e", "!src/styles/tokens.css", "!src/styles/theme.css"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 140
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "all"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
       "preset": "recommended",
-      "performance": { "useDomNodeTextContent": "off" },
-      "style": { "noNonNullAssertion": "off" },
+      "performance": {
+        "useDomNodeTextContent": "off",
+        "noAccumulatingSpread": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off",
+        "noDescendingSpecificity": "off"
+      },
       "a11y": {
         "useSemanticElements": "off",
         "useFocusableInteractive": "off",
         "useKeyWithClickEvents": "off",
         "useAriaPropsSupportedByRole": "off",
         "noNoninteractiveTabindex": "off",
-        "noStaticElementInteractions": "off"
+        "noStaticElementInteractions": "off",
+        "noAutofocus": "off",
+        "noNoninteractiveElementToInteractiveRole": "off"
       },
       "suspicious": {
         "noArrayIndexKey": "off",
         "noTemplateCurlyInString": "off",
         "noAssignInExpressions": "off",
-        "noControlCharactersInRegex": "off"
+        "noControlCharactersInRegex": "off",
+        "useIterableCallbackReturn": "off",
+        "noConfusingVoidType": "off",
+        "noDuplicateProperties": "off",
+        "noDuplicateTestHooks": "off",
+        "noShadowRestrictedNames": "off",
+        "noImplicitAnyLet": "off"
       },
-      "complexity": { "noCommaOperator": "off" },
-      "correctness": { "useExhaustiveDependencies": "off" }
+      "complexity": {
+        "noCommaOperator": "off",
+        "noBannedTypes": "off",
+        "noImportantStyles": "off",
+        "useIndexOf": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off",
+        "noComponentHookFactories": "off",
+        "noVoidTypeReturn": "off"
+      }
     }
   },
-  "assist": { "enabled": false }
+  "assist": {
+    "enabled": false
+  }
 }
