@@ -1,7 +1,7 @@
 /**
  * Repositories in the real app over WebDriver: open, clone, create, tabs, groups (local
  * workspaces), profiles and repository trust. Real Git repositories in temp folders; remotes are
- * local bare repositories or scripts/e2e/git-http-server.mjs. Results are checked in the UI AND
+ * local bare repositories or e2e/fixtures/git-http-server.mjs. Results are checked in the UI AND
  * with git in the temp repositories.
  *
  *   node scripts/e2e-wd/features/repos.mjs
@@ -9,8 +9,8 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { TEST_IDENTITY, makeCleanRepoWithRemote, makeNotARepo } from "../../e2e/fixtures.mjs";
-import { startGitHttpServer } from "../../e2e/git-http-server.mjs";
+import { TEST_IDENTITY, makeCleanRepoWithRemote, makeNotARepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
 import {
   FSMONITOR_MARKER,
   HOOK_MARKER,

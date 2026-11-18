@@ -8,7 +8,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { AssertionError, assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import {
   LIBS,

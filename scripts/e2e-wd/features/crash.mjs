@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRichRepo } from "../../e2e/fixtures.mjs";
+import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
 import { openApps } from "../driver.mjs";
 import { SHOTS_DIR, assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import {

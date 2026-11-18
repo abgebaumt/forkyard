@@ -5,7 +5,7 @@
  *
  * Nothing calls a real service. The app talks to `https://dev.azure.com/firma` as a user would –
  * through a local proxy (app setting `proxyUrl` + `sslCaFile`) that terminates TLS with its own
- * test CA and hands every request to scripts/e2e/host-mock.mjs (fixtures/azure-proxy.mjs). Git
+ * test CA and hands every request to e2e/fixtures/host-mock.mjs (fixtures/azure-proxy.mjs). Git
  * itself never leaves the machine: the remote URL `https://dev.azure.com/firma/projekt/_git/demo`
  * is rewritten with `url.<bare>.insteadOf` to a local bare repository, so fetch, push and checkout
  * run for real and can be asserted with git. Every app gets its own D-Bus session with a private,
@@ -17,8 +17,8 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { startHostMock } from "../../e2e/host-mock.mjs";
-import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
+import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { startPrivateKeyring } from "../fixtures/azure-keyring.mjs";
 import { startAzureProxy } from "../fixtures/azure-proxy.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

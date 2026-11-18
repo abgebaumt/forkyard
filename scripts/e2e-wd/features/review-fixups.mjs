@@ -1,6 +1,6 @@
 /**
  * "Open review comments" in the pull request view (v1.2, 8.2) in the real app. Host: the local forge
- * (GitHub flavour of scripts/e2e/host-mock.mjs + Git over HTTP, see fixtures/github-gitlab-host.mjs) with
+ * (GitHub flavour of e2e/fixtures/host-mock.mjs + Git over HTTP, see fixtures/github-gitlab-host.mjs) with
  * pull request #7 on the real branch feature/export; AI: a Node stand-in for Ollama behind
  * FORKYARD_AI_BASE_URL_OLLAMA (debug builds only). Nothing reaches a real service.
  *

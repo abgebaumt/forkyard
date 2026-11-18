@@ -58,7 +58,7 @@ Every `launchApp()` gets:
 - its own **tauri-driver port and native port** (free ports, retried if taken);
 - its own temp folder `$TMPDIR/fy-e2e-wd-*` with the **data directory** (`FORKYARD_DATA_DIR`), a
   **global gitconfig** (`GIT_CONFIG_GLOBAL`, `GIT_CONFIG_NOSYSTEM=1`, test identity from
-  `scripts/e2e/fixtures.mjs`) and **XDG folders** (WebKit storage and caches);
+  `e2e/fixtures/fixtures.mjs`) and **XDG folders** (WebKit storage and caches);
 - its own unlocked **Secret Service** (a private D-Bus session bus plus `gnome-keyring-daemon` in a
   temp folder, `fixtures/gitea-keyring.mjs`) unless the feature passes its own
   `DBUS_SESSION_BUS_ADDRESS` or `privateKeyring: false`, so a locked user keychain does not matter;
@@ -165,8 +165,8 @@ scenario("graph renders", "main", async (t) => {
 
 Files in `features/` starting with `_` are skipped by `run.mjs` (scratch scripts).
 
-Fixtures: reuse `scripts/e2e/fixtures.mjs` (`makeRichRepo`, `makeConflictRepo`, …), the host mock
-`scripts/e2e/host-mock.mjs` and the local Git servers `scripts/e2e/git-http-server.mjs` /
+Fixtures: reuse `e2e/fixtures/fixtures.mjs` (`makeRichRepo`, `makeConflictRepo`, …), the host mock
+`e2e/fixtures/host-mock.mjs` and the local Git servers `e2e/fixtures/git-http-server.mjs` /
 `git-ssh-server.mjs`. Tests never call real services.
 
 ## Notes

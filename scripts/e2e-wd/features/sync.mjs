@@ -6,8 +6,8 @@
  * several branches and tags in one (atomic) push, and deleting a remote branch on its server from the
  * sidebar menu.
  *
- * Remotes are local bare repositories, scripts/e2e/git-http-server.mjs (HTTPS with a self-signed
- * certificate) and scripts/e2e/git-ssh-server.mjs. Nothing touches a real service.
+ * Remotes are local bare repositories, e2e/fixtures/git-http-server.mjs (HTTPS with a self-signed
+ * certificate) and e2e/fixtures/git-ssh-server.mjs. Nothing touches a real service.
  *
  *   node scripts/e2e-wd/features/sync.mjs
  *   node scripts/e2e-wd/run.mjs sync --only "atomic"
@@ -17,9 +17,9 @@ import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote, makeEmptyRepo } from "../../e2e/fixtures.mjs";
-import { startGitHttpServer } from "../../e2e/git-http-server.mjs";
-import { findSshd, startGitSshServer } from "../../e2e/git-ssh-server.mjs";
+import { makeCleanRepoWithRemote, makeEmptyRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
+import { findSshd, startGitSshServer } from "../../../e2e/fixtures/git-ssh-server.mjs";
 import { startPrivateKeyring } from "../fixtures/sync-keyring.mjs";
 import { NO_PROXY_ENV, appendAppGitConfig, closedPort, git, revParse, slash, sleep, syncUi } from "../fixtures/sync-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

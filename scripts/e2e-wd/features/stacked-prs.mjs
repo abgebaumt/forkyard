@@ -1,5 +1,5 @@
 /**
- * Stacked pull requests (v1.2, Paket 8.1) in the real app. Host: the local forge (scripts/e2e/host-mock.mjs
+ * Stacked pull requests (v1.2, Paket 8.1) in the real app. Host: the local forge (e2e/fixtures/host-mock.mjs
  * + Git over HTTP, see fixtures/github-gitlab-host.mjs); AI: a Node stand-in for Ollama behind
  * FORKYARD_AI_BASE_URL_OLLAMA (debug builds only). Nothing reaches a real service.
  *

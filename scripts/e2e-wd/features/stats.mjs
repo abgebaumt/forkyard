@@ -12,7 +12,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeLargeRepo } from "../../e2e/fixtures.mjs";
+import { makeLargeRepo } from "../../../e2e/fixtures/fixtures.mjs";
 import {
   PEOPLE,
   authorTotals,

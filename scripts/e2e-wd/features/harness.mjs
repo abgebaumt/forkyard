@@ -4,7 +4,7 @@
  *
  *   node scripts/e2e-wd/features/harness.mjs
  */
-import { makeRichRepo } from "../../e2e/fixtures.mjs";
+import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
 scenario("page errors are recorded from the error hook", "edge", async (t) => {

@@ -1,6 +1,6 @@
 /**
  * "Write from commits" in the pull request form (v1.2, Paket 4) in the real app. Host: the local forge
- * (scripts/e2e/host-mock.mjs + Git over HTTP, see fixtures/github-gitlab-host.mjs); AI: a Node stand-in
+ * (e2e/fixtures/host-mock.mjs + Git over HTTP, see fixtures/github-gitlab-host.mjs); AI: a Node stand-in
  * for Ollama behind FORKYARD_AI_BASE_URL_OLLAMA (debug builds only). Nothing reaches a real service.
  *
  * - main: the template is filled from the commits, the automatic title is replaced, "Closes #12" comes

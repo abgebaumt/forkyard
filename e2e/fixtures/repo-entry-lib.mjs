@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { gitIsolationEnv, globalGitConfig, TEST_IDENTITY } from "../fixtures.mjs";
+import { gitIsolationEnv, globalGitConfig, TEST_IDENTITY } from "./fixtures.mjs";
 
 export function createChecks() {
   const failures = [];

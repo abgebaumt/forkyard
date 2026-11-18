@@ -13,7 +13,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRichRepo } from "../../e2e/fixtures.mjs";
+import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
 import { ROOT } from "../driver.mjs";
 import { logText, makeDataDir } from "../fixtures/crash.mjs";
 import { assert, assertEqual, scenario } from "../lib.mjs";

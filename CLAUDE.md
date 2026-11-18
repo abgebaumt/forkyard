@@ -104,7 +104,7 @@ UI talks to the core only through `src/core/index.ts`.
 - **Repository trust:** a repo whose config or hooks start programs stays locked (`repo_untrusted`) until the user agrees (`commands/trust.rs`, block list in `trust::config_reason`).
 - Inputs are validated in the core: paths via `normalize_rel_path` / `util::join_from_git`, refs without a leading `-`, `--` before paths.
 - Strict CSP in `src-tauri/tauri.conf.json`. Markdown from repositories goes through DOMPurify. Dev and test switches (`FORKYARD_*`, `window.__gcTest*`) only work in debug builds; the variables are listed in `.env.example`.
-- Tests never call real services. They use local mocks: `testkit/mock_http.rs`, `host/tests/mocks.rs`, `scripts/e2e/host-mock.mjs`.
+- Tests never call real services. They use local mocks: `testkit/mock_http.rs`, `host/tests/mocks.rs`, `e2e/fixtures/host-mock.mjs`.
 
 ### Database
 

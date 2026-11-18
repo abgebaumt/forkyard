@@ -20,7 +20,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { gitIsolationEnv, makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { gitIsolationEnv, makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { startLockServer } from "../fixtures/lfs-lock-server.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

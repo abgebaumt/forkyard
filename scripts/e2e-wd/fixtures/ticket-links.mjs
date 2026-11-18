@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../e2e/fixtures.mjs";
+import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../../e2e/fixtures/fixtures.mjs";
 
 const EPOCH = 1772434800;
 

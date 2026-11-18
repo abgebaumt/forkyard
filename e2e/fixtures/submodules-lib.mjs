@@ -5,7 +5,7 @@
 import net from "node:net";
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../fixtures.mjs";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
 import { appendAppGitConfig, gitIn } from "./mustfix-lib.mjs";
 
 process.env.GIT_OPTIONAL_LOCKS = "0";

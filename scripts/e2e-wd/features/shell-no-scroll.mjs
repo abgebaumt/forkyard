@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRichRepo } from "../../e2e/fixtures.mjs";
+import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
 import { AssertionError, scenario } from "../lib.mjs";
 
 // Small window: the left panel has more rows than fit, so moving through it has to scroll its list.

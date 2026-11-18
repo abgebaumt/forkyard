@@ -12,7 +12,7 @@
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import path from "node:path";
-import { gitIsolationEnv, makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
+import { gitIsolationEnv, makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
 import { assert, assertEqual, assertMatch, scenario } from "../lib.mjs";
 
 const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };
