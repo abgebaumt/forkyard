@@ -96,7 +96,11 @@ export const scenarios: Record<string, Scenario> = {
     const { repoId, tabId } = await open(ctx);
     const store = ctx.store.getState();
     await pause(Math.max(0, Number(ctx.params.get("delay") ?? 0) - performance.now()) + 1500);
-    for (const subject of ["Merge branch 'feature/hourly-chart'", "Chart: show precipitation as second row", "Add storm alert thresholds"]) {
+    for (const subject of [
+      "Merge branch 'feature/hourly-chart'",
+      "Chart: show precipitation as second row",
+      "Add storm alert thresholds",
+    ]) {
       store.revealCommit(tabId, await shaOf(ctx, repoId, subject));
       await pause(1300);
     }

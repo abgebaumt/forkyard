@@ -126,7 +126,8 @@ export function parseStashSummary(summary: string): { text: string; branch: stri
 
 function WipMessage({ repoId }: { repoId: Id }) {
   const { data: status, isError } = useStatus(repoId);
-  if (!status) return <span className="truncate text-text-muted italic">{isError ? t("graph.row.wipUnreadable") : t("graph.row.kind.wip")}</span>;
+  if (!status)
+    return <span className="truncate text-text-muted italic">{isError ? t("graph.row.wipUnreadable") : t("graph.row.kind.wip")}</span>;
   const total = changeCount(status);
   if (total === 0) return <span className="truncate text-text-muted">{t("graph.row.noChanges")}</span>;
   const details: string[] = [];
@@ -134,7 +135,9 @@ function WipMessage({ repoId }: { repoId: Id }) {
   if (status.staged.length > 0) details.push(t("graph.row.staged", { count: status.staged.length }));
   return (
     <>
-      <span className="shrink-0 font-medium text-text italic">{t("graph.row.changedFiles", { count: total, formatted: total.toLocaleString(locale()) })}</span>
+      <span className="shrink-0 font-medium text-text italic">
+        {t("graph.row.changedFiles", { count: total, formatted: total.toLocaleString(locale()) })}
+      </span>
       {details.length > 0 ? <span className="truncate text-sm text-text-muted">{details.join(" · ")}</span> : null}
     </>
   );
@@ -210,10 +213,17 @@ function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode 
       <>
         <Archive className="size-3.5 shrink-0 text-text-muted" aria-hidden />
         {/* The name keeps its space; the "on <branch>" suffix gives way first – with "…". */}
-        <span className={cn("min-w-16 shrink truncate", stash.unnamed && "text-text-muted italic")} title={stash.branch ? t("graph.row.stashOnBranch", { text: stash.text, branch: stash.branch }) : stash.text}>
+        <span
+          className={cn("min-w-16 shrink truncate", stash.unnamed && "text-text-muted italic")}
+          title={stash.branch ? t("graph.row.stashOnBranch", { text: stash.text, branch: stash.branch }) : stash.text}
+        >
           {stash.text}
         </span>
-        {stash.branch ? <span className="min-w-0 shrink-[1000] truncate text-sm text-text-muted">{t("graph.row.onBranch", { branch: stash.branch })}</span> : null}
+        {stash.branch ? (
+          <span className="min-w-0 shrink-[1000] truncate text-sm text-text-muted">
+            {t("graph.row.onBranch", { branch: stash.branch })}
+          </span>
+        ) : null}
       </>
     );
   }
@@ -221,7 +231,9 @@ function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode 
   const before = (
     <>
       {marker}
-      {row.kind === "merge" && row.sha && row.collapsible ? <CollapseToggle repoId={shared.repoId} sha={row.sha} collapsed={row.collapsedCount !== null} tooLarge={row.collapseTooLarge} /> : null}
+      {row.kind === "merge" && row.sha && row.collapsible ? (
+        <CollapseToggle repoId={shared.repoId} sha={row.sha} collapsed={row.collapsedCount !== null} tooLarge={row.collapseTooLarge} />
+      ) : null}
       {mark ? <BisectChip mark={mark} /> : null}
       {row.sync !== "none" ? <SyncArrow sync={row.sync} /> : null}
     </>
@@ -250,7 +262,6 @@ function messageCell(row: GraphRow, shared: RowShared, hit: boolean): ReactNode 
     </>
   );
 }
-
 
 // ---------------------------------------------------------------------------
 // Row
@@ -333,7 +344,13 @@ const RowCells = memo(function RowCells({ row, index, layout, shared, ghost, hit
         switch (column) {
           case "refs":
             return (
-              <div key={column} role="gridcell" data-cell={column} className="flex h-full shrink-0 items-center justify-end gap-1 overflow-hidden pr-1 pl-2" style={{ width }}>
+              <div
+                key={column}
+                role="gridcell"
+                data-cell={column}
+                className="flex h-full shrink-0 items-center justify-end gap-1 overflow-hidden pr-1 pl-2"
+                style={{ width }}
+              >
                 {headChip ? <DetachedHeadChip /> : null}
                 {/* Ghost label: only on rows without their own branch label; next to tags it shares the space with them. */}
                 {ghost && !headChip ? <GhostLabel info={ghost} /> : null}
@@ -352,12 +369,19 @@ const RowCells = memo(function RowCells({ row, index, layout, shared, ghost, hit
           case "graph":
             return (
               <div key={column} role="gridcell" data-cell={column} className="h-full shrink-0" style={{ width }}>
-                <span className="sr-only">{row.isHead && isCommit ? t("graph.row.checkedOut", { kind: kindLabel[row.kind] }) : kindLabel[row.kind]}</span>
+                <span className="sr-only">
+                  {row.isHead && isCommit ? t("graph.row.checkedOut", { kind: kindLabel[row.kind] }) : kindLabel[row.kind]}
+                </span>
               </div>
             );
           case "message":
             return (
-              <div key={column} role="gridcell" data-cell={column} className="flex h-full min-w-40 flex-1 items-center gap-1.5 overflow-hidden px-2">
+              <div
+                key={column}
+                role="gridcell"
+                data-cell={column}
+                className="flex h-full min-w-40 flex-1 items-center gap-1.5 overflow-hidden px-2"
+              >
                 {messageCell(row, shared, hit)}
               </div>
             );
@@ -392,12 +416,20 @@ const RowCells = memo(function RowCells({ row, index, layout, shared, ghost, hit
                 className="flex h-full shrink-0 items-center overflow-hidden px-2 text-text-muted tabular-nums"
                 style={{ width }}
               >
-                {row.authoredAt && row.kind !== "wip" ? <span className="truncate">{formatDate(row.authoredAt, shared.dateFormat)}</span> : null}
+                {row.authoredAt && row.kind !== "wip" ? (
+                  <span className="truncate">{formatDate(row.authoredAt, shared.dateFormat)}</span>
+                ) : null}
               </div>
             );
           case "sha":
             return (
-              <div key={column} role="gridcell" data-cell={column} className="flex h-full shrink-0 items-center overflow-hidden px-2 font-mono text-code text-text-muted" style={{ width }}>
+              <div
+                key={column}
+                role="gridcell"
+                data-cell={column}
+                className="flex h-full shrink-0 items-center overflow-hidden px-2 font-mono text-code text-text-muted"
+                style={{ width }}
+              >
                 {row.sha && row.kind !== "wip" ? <span className="truncate">{shortSha(row.sha)}</span> : null}
               </div>
             );

@@ -20,12 +20,33 @@ const ai = (patch: Partial<AiStatus> = {}): AiStatus => ({
   ...patch,
 });
 
-function ctx({ status = ai(), aiOff = false, changes = 1, repoId = "r1" }: { status?: AiStatus; aiOff?: boolean; changes?: number; repoId?: string | null } = {}): CommandContext {
+function ctx({
+  status = ai(),
+  aiOff = false,
+  changes = 1,
+  repoId = "r1",
+}: {
+  status?: AiStatus;
+  aiOff?: boolean;
+  changes?: number;
+  repoId?: string | null;
+} = {}): CommandContext {
   const queryClient = new QueryClient();
   queryClient.setQueryData(qk.aiStatus, status);
   if (repoId) queryClient.setQueryData(qk.repoSettings(repoId), { aiOff } as RepoSettings);
   const repoStatus = { staged: [], unstaged: Array.from({ length: changes }, (_, i) => ({ path: `f${i}.txt` })) } as unknown as Status;
-  return { platform: "linux", tabs: [], tab: null, tabId: "t1", repoId, view: null, status: repoStatus, store: {} as CommandContext["store"], queryClient, source: "palette" };
+  return {
+    platform: "linux",
+    tabs: [],
+    tab: null,
+    tabId: "t1",
+    repoId,
+    view: null,
+    status: repoStatus,
+    store: {} as CommandContext["store"],
+    queryClient,
+    source: "palette",
+  };
 }
 
 describe("palette command “Compose commits …”", () => {

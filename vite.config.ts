@@ -16,7 +16,9 @@ const e2ePort = Number(process.env.FORKYARD_E2E_PORT) || null;
  */
 function testCsp(port: number | null): string | null {
   if (!process.env.FORKYARD_E2E_CSP || !port) return null;
-  const config = JSON.parse(readFileSync(new URL("./src-tauri/tauri.conf.json", import.meta.url), "utf8")) as { app: { security: { csp: string } } };
+  const config = JSON.parse(readFileSync(new URL("./src-tauri/tauri.conf.json", import.meta.url), "utf8")) as {
+    app: { security: { csp: string } };
+  };
   return config.app.security.csp.replace("connect-src ", `connect-src 'self' ws://127.0.0.1:${port} `);
 }
 const cspHeader = testCsp(e2ePort);

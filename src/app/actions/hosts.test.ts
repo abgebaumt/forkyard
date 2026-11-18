@@ -1,16 +1,51 @@
 import { describe, expect, it } from "vitest";
 import { CoreError } from "../../core";
-import { defaultCapabilities, describeHostError, HOST_KINDS, hostErrorKind, hostKindLabels, localTimes, summarizeChecks, toAccount, toCapabilities, toHostRepo, toPrDetails, toPrSummary, toUser, type HostKind } from "./hostTypes";
+import {
+  defaultCapabilities,
+  describeHostError,
+  HOST_KINDS,
+  hostErrorKind,
+  hostKindLabels,
+  localTimes,
+  summarizeChecks,
+  toAccount,
+  toCapabilities,
+  toHostRepo,
+  toPrDetails,
+  toPrSummary,
+  toUser,
+  type HostKind,
+} from "./hostTypes";
 import { accountHost, accountState, connectInputs, connectTarget, organizationOf, parseBaseUrl, scrubSecret, tokenPageUrl } from "./hosts";
 import { issuesWebUrl } from "../../screens/Issues/actions";
 import { mergeBlock, pushState, suggestTitle, titleFromBranch } from "./pullrequests";
 
-const account = { id: "a1", kind: "github", baseUrl: "https://github.com", user: { login: "lena", name: "Lena Hartmann", avatarUrl: null }, tokenHint: "…1234", scopesOk: true, missingScopes: [], lastError: null };
+const account = {
+  id: "a1",
+  kind: "github",
+  baseUrl: "https://github.com",
+  user: { login: "lena", name: "Lena Hartmann", avatarUrl: null },
+  tokenHint: "…1234",
+  scopesOk: true,
+  missingScopes: [],
+  lastError: null,
+};
 
 describe("what the core returns, in a fixed shape", () => {
   it("capabilities: from the core, otherwise what the host kind offers", () => {
     const caps = toCapabilities(
-      { issues: false, issueCreate: false, draftPrs: true, draftToggle: true, mergeMethods: ["squash", "bogus"], deleteSourceBranch: true, prReopen: false, prReviewers: false, prLabels: true, forkCheckout: false },
+      {
+        issues: false,
+        issueCreate: false,
+        draftPrs: true,
+        draftToggle: true,
+        mergeMethods: ["squash", "bogus"],
+        deleteSourceBranch: true,
+        prReopen: false,
+        prReviewers: false,
+        prLabels: true,
+        forkCheckout: false,
+      },
       "github",
     );
     expect(caps).toMatchObject({ issues: false, prReopen: false, prReviewers: false, forkCheckout: false, mergeMethods: ["squash"] });
@@ -25,7 +60,11 @@ describe("what the core returns, in a fixed shape", () => {
   });
 
   it("user as an object or as a bare name", () => {
-    expect(toUser({ login: "lena", name: "Lena Hartmann", avatarUrl: "https://x/y.png" })).toEqual({ login: "lena", name: "Lena Hartmann", avatarUrl: "https://x/y.png" });
+    expect(toUser({ login: "lena", name: "Lena Hartmann", avatarUrl: "https://x/y.png" })).toEqual({
+      login: "lena",
+      name: "Lena Hartmann",
+      avatarUrl: "https://x/y.png",
+    });
     expect(toUser("lena")).toEqual({ login: "lena", name: null, avatarUrl: null });
     expect(toUser({ login: "lena", name: "lena" })?.name).toBeNull();
     expect(toUser(null)).toBeNull();
@@ -42,26 +81,81 @@ describe("what the core returns, in a fixed shape", () => {
   });
 
   it("repository host: with account, without account, with an error from the host", () => {
-    const repo = toHostRepo({ remote: "origin", kind: "github", account, owner: "schule", name: "messnetz", webUrl: "https://github.com/schule/messnetz", defaultBranch: "main", canPush: true, forkParent: null, error: null });
+    const repo = toHostRepo({
+      remote: "origin",
+      kind: "github",
+      account,
+      owner: "schule",
+      name: "messnetz",
+      webUrl: "https://github.com/schule/messnetz",
+      defaultBranch: "main",
+      canPush: true,
+      forkParent: null,
+      error: null,
+    });
     expect(repo).toMatchObject({ kind: "github", owner: "schule", defaultBranch: "main", canPush: true, error: null });
     expect(repo?.account?.user?.login).toBe("lena");
 
-    const alone = toHostRepo({ remote: "origin", kind: "gitlab", account: null, owner: "gruppe/unter", name: "projekt", webUrl: "https://gitlab.com/gruppe/unter/projekt", defaultBranch: null, canPush: null, forkParent: null });
+    const alone = toHostRepo({
+      remote: "origin",
+      kind: "gitlab",
+      account: null,
+      owner: "gruppe/unter",
+      name: "projekt",
+      webUrl: "https://gitlab.com/gruppe/unter/projekt",
+      defaultBranch: null,
+      canPush: null,
+      forkParent: null,
+    });
     expect(alone?.account).toBeNull();
     expect(alone?.kind).toBe("gitlab");
 
-    const failed = toHostRepo({ kind: "github", account, owner: "a", name: "b", webUrl: "", error: { code: "host_rate_limited", message: "Ab 14:32 Uhr geht es weiter." } });
+    const failed = toHostRepo({
+      kind: "github",
+      account,
+      owner: "a",
+      name: "b",
+      webUrl: "",
+      error: { code: "host_rate_limited", message: "Ab 14:32 Uhr geht es weiter." },
+    });
     expect(failed?.error).toBeInstanceOf(CoreError);
     expect(hostErrorKind(failed?.error)).toBe("rate_limit");
 
-    const fork = toHostRepo({ kind: "github", account, owner: "lena", name: "messnetz", forkParent: { owner: "schule", name: "messnetz", webUrl: "x" } });
+    const fork = toHostRepo({
+      kind: "github",
+      account,
+      owner: "lena",
+      name: "messnetz",
+      forkParent: { owner: "schule", name: "messnetz", webUrl: "x" },
+    });
     expect(fork?.forkParent).toEqual({ owner: "schule", name: "messnetz", defaultBranch: null });
     expect(toHostRepo(null)).toBeNull();
   });
 
   it("pull request from the list", () => {
-    const pr = toPrSummary({ number: 12, title: "Export", state: "open", isDraft: false, author: { login: "jonas", name: null, avatarUrl: null }, sourceBranch: "feature/export", targetBranch: "main", updatedAt: "2026-03-01T10:00:00Z", webUrl: "https://github.com/a/b/pull/12", checks: "passing", reviewState: "review_required", labels: [{ name: "export", color: "#ff0000" }], isFork: false });
-    expect(pr).toMatchObject({ number: 12, state: "open", checks: "passing", reviewState: "review_required", labels: ["export"], isFork: false });
+    const pr = toPrSummary({
+      number: 12,
+      title: "Export",
+      state: "open",
+      isDraft: false,
+      author: { login: "jonas", name: null, avatarUrl: null },
+      sourceBranch: "feature/export",
+      targetBranch: "main",
+      updatedAt: "2026-03-01T10:00:00Z",
+      webUrl: "https://github.com/a/b/pull/12",
+      checks: "passing",
+      reviewState: "review_required",
+      labels: [{ name: "export", color: "#ff0000" }],
+      isFork: false,
+    });
+    expect(pr).toMatchObject({
+      number: 12,
+      state: "open",
+      checks: "passing",
+      reviewState: "review_required",
+      labels: ["export"],
+      isFork: false,
+    });
     expect(toPrSummary({ title: "ohne Nummer" })).toBeNull();
     expect(toPrSummary({ number: 3, state: "seltsam" })?.state).toBe("open");
   });
@@ -73,11 +167,21 @@ describe("what the core returns, in a fixed shape", () => {
       state: "open",
       checks: null,
       body: "Text",
-      reviewers: [{ user: { login: "aylin" }, state: "approved" }, { user: { login: "mats" }, state: null }],
+      reviewers: [
+        { user: { login: "aylin" }, state: "approved" },
+        { user: { login: "mats" }, state: null },
+      ],
       comments: [{ id: "c1", author: { login: "jonas" }, body: "Hallo", createdAt: "2026-03-01T10:00:00Z", path: "src/a.py", line: 4 }],
-      commits: [{ sha: "aaa", summary: "Erster\nRest", authorName: "Jonas", authoredAt: "2026-03-01T09:00:00Z" }, { sha: "bbb", summary: "Zweiter", authorName: "Jonas", authoredAt: "2026-03-01T09:30:00Z" }],
+      commits: [
+        { sha: "aaa", summary: "Erster\nRest", authorName: "Jonas", authoredAt: "2026-03-01T09:00:00Z" },
+        { sha: "bbb", summary: "Zweiter", authorName: "Jonas", authoredAt: "2026-03-01T09:30:00Z" },
+      ],
       mergeable: null,
-      checkRuns: [{ name: "build", state: "passing", url: null }, { name: "lint", state: "skipped", url: null }, { name: "test", state: "pending", url: "https://ci/1" }],
+      checkRuns: [
+        { name: "build", state: "passing", url: null },
+        { name: "lint", state: "skipped", url: null },
+        { name: "test", state: "pending", url: "https://ci/1" },
+      ],
       headSha: "bbb",
     });
     expect(pr?.checkRuns.map((check) => check.state)).toEqual(["passing", "skipped", "pending"]);
@@ -104,8 +208,12 @@ describe("host integration errors", () => {
   it("core codes", () => {
     expect(hostErrorKind(error("host_not_connected"))).toBe("not_connected");
     expect(hostErrorKind(error("host_auth_failed"))).toBe("auth");
-    expect(hostErrorKind(error("host_auth_failed", "GitHub lehnt den Token ab: Er ist ungültig, abgelaufen oder widerrufen."))).toBe("auth");
-    expect(hostErrorKind(error("host_forbidden", "GitHub verweigert den Zugriff: Dem Token fehlt die Berechtigung dafür."))).toBe("permission");
+    expect(hostErrorKind(error("host_auth_failed", "GitHub lehnt den Token ab: Er ist ungültig, abgelaufen oder widerrufen."))).toBe(
+      "auth",
+    );
+    expect(hostErrorKind(error("host_forbidden", "GitHub verweigert den Zugriff: Dem Token fehlt die Berechtigung dafür."))).toBe(
+      "permission",
+    );
     // The wording no longer decides anything: only the code.
     expect(hostErrorKind(error("host_auth_failed", "… verweigert … fehlt die Berechtigung …"))).toBe("auth");
     expect(hostErrorKind(error("host_forbidden"))).toBe("permission");
@@ -182,7 +290,9 @@ describe("preparing a pull request", () => {
   });
 
   it("is the branch on the remote?", () => {
-    const ref = { name: "x", upstream: "origin/x", upstreamGone: false, pushesToUpstream: true, ahead: 0 } as Parameters<typeof pushState>[0];
+    const ref = { name: "x", upstream: "origin/x", upstreamGone: false, pushesToUpstream: true, ahead: 0 } as Parameters<
+      typeof pushState
+    >[0];
     expect(pushState(ref)).toEqual({ state: "pushed", upstream: "origin/x" });
     expect(pushState({ ...ref!, ahead: 2 })).toEqual({ state: "ahead", upstream: "origin/x", count: 2 });
     expect(pushState({ ...ref!, upstream: null })).toEqual({ state: "no_upstream" });
@@ -208,12 +318,36 @@ describe("preparing a pull request", () => {
 
 describe("the hosts the app knows", () => {
   it("which inputs the connect dialog shows", () => {
-    expect(connectInputs("github", false, false)).toEqual({ instance: true, address: false, organization: false, username: false, gh: true });
+    expect(connectInputs("github", false, false)).toEqual({
+      instance: true,
+      address: false,
+      organization: false,
+      username: false,
+      gh: true,
+    });
     expect(connectInputs("gitea", true, false)).toEqual({ instance: true, address: true, organization: false, username: false, gh: false });
-    expect(connectInputs("bitbucket", true, false)).toEqual({ instance: false, address: false, organization: false, username: true, gh: false });
-    expect(connectInputs("azure_devops", false, false)).toEqual({ instance: false, address: false, organization: true, username: false, gh: false });
+    expect(connectInputs("bitbucket", true, false)).toEqual({
+      instance: false,
+      address: false,
+      organization: false,
+      username: true,
+      gh: false,
+    });
+    expect(connectInputs("azure_devops", false, false)).toEqual({
+      instance: false,
+      address: false,
+      organization: true,
+      username: false,
+      gh: false,
+    });
     // Replacing the token of an existing account: host, address and user name stay.
-    expect(connectInputs("azure_devops", false, true)).toEqual({ instance: false, address: false, organization: false, username: false, gh: false });
+    expect(connectInputs("azure_devops", false, true)).toEqual({
+      instance: false,
+      address: false,
+      organization: false,
+      username: false,
+      gh: false,
+    });
     expect(connectInputs("github", true, true)).toMatchObject({ instance: false, address: false, gh: true });
   });
 
@@ -225,7 +359,13 @@ describe("the hosts the app knows", () => {
   });
 
   it("defaults per host: what Bitbucket and Azure DevOps cannot do", () => {
-    expect(defaultCapabilities.bitbucket).toMatchObject({ prLabels: false, prReviewers: false, prReopen: false, forkCheckout: false, mergeMethods: ["merge", "squash"] });
+    expect(defaultCapabilities.bitbucket).toMatchObject({
+      prLabels: false,
+      prReviewers: false,
+      prReopen: false,
+      forkCheckout: false,
+      mergeMethods: ["merge", "squash"],
+    });
     expect(defaultCapabilities.azure_devops).toMatchObject({ issueCreate: true, prReviewers: false, prLabels: true, forkCheckout: false });
     expect(defaultCapabilities.gitea.mergeMethods).toEqual(["merge", "squash", "rebase"]);
     expect(toCapabilities(undefined, "azure_devops").issueCreate).toBe(true);
@@ -244,14 +384,34 @@ describe("the hosts the app knows", () => {
   it("what “Connect” sends per host", () => {
     const base = { kind: "github" as HostKind, own: false, address: "", organization: "", username: "" };
     expect(connectTarget(base)).toEqual({ ok: true, baseUrl: null, username: null });
-    expect(connectTarget({ ...base, kind: "gitea", own: true, address: "git.firma.example/" })).toEqual({ ok: true, baseUrl: "https://git.firma.example", username: null });
+    expect(connectTarget({ ...base, kind: "gitea", own: true, address: "git.firma.example/" })).toEqual({
+      ok: true,
+      baseUrl: "https://git.firma.example",
+      username: null,
+    });
     expect(connectTarget({ ...base, kind: "gitea", own: true, address: "" })).toMatchObject({ ok: false, field: "baseUrl" });
-    expect(connectTarget({ ...base, kind: "azure_devops", organization: " Firma " })).toEqual({ ok: true, baseUrl: "https://dev.azure.com/firma", username: null });
-    expect(connectTarget({ ...base, kind: "azure_devops", organization: "https://dev.azure.com/firma/projekt" })).toEqual({ ok: true, baseUrl: "https://dev.azure.com/firma", username: null });
+    expect(connectTarget({ ...base, kind: "azure_devops", organization: " Firma " })).toEqual({
+      ok: true,
+      baseUrl: "https://dev.azure.com/firma",
+      username: null,
+    });
+    expect(connectTarget({ ...base, kind: "azure_devops", organization: "https://dev.azure.com/firma/projekt" })).toEqual({
+      ok: true,
+      baseUrl: "https://dev.azure.com/firma",
+      username: null,
+    });
     expect(connectTarget({ ...base, kind: "azure_devops" })).toMatchObject({ ok: false, field: "organization" });
     expect(connectTarget({ ...base, kind: "azure_devops", organization: "fir ma" })).toMatchObject({ ok: false, field: "organization" });
-    expect(connectTarget({ ...base, kind: "bitbucket", username: " lena@example.org " })).toEqual({ ok: true, baseUrl: null, username: "lena@example.org" });
-    expect(connectTarget({ ...base, kind: "bitbucket", own: true, address: "bitbucket.firma.example", username: "lena" })).toEqual({ ok: true, baseUrl: null, username: "lena" });
+    expect(connectTarget({ ...base, kind: "bitbucket", username: " lena@example.org " })).toEqual({
+      ok: true,
+      baseUrl: null,
+      username: "lena@example.org",
+    });
+    expect(connectTarget({ ...base, kind: "bitbucket", own: true, address: "bitbucket.firma.example", username: "lena" })).toEqual({
+      ok: true,
+      baseUrl: null,
+      username: "lena",
+    });
     expect(connectTarget({ ...base, kind: "bitbucket" })).toMatchObject({ ok: false, field: "username" });
     expect(connectTarget({ ...base, kind: "bitbucket", username: "lena:geheim" })).toMatchObject({ ok: false, field: "username" });
     expect(organizationOf("https://dev.azure.com/firma")).toBe("firma");
@@ -263,7 +423,9 @@ describe("the hosts the app knows", () => {
     expect(issuesWebUrl(repo("gitlab", "https://gitlab.com/g/p"))).toBe("https://gitlab.com/g/p/-/issues");
     expect(issuesWebUrl(repo("gitea", "https://codeberg.org/a/b"))).toBe("https://codeberg.org/a/b/issues");
     expect(issuesWebUrl(repo("bitbucket", "https://bitbucket.org/team/demo"))).toBe("https://bitbucket.org/team/demo/issues");
-    expect(issuesWebUrl(repo("azure_devops", "https://dev.azure.com/firma/projekt/_git/demo"))).toBe("https://dev.azure.com/firma/projekt/_workitems");
+    expect(issuesWebUrl(repo("azure_devops", "https://dev.azure.com/firma/projekt/_git/demo"))).toBe(
+      "https://dev.azure.com/firma/projekt/_workitems",
+    );
   });
 });
 
@@ -281,7 +443,11 @@ describe("releases", () => {
 
 describe("review capabilities", () => {
   it("come from the core; the fallback lets every host read threads and only Gitea quote", () => {
-    expect(toCapabilities({ reviewThreads: false, reviewReply: true, reviewReplyQuotes: true }, "github")).toMatchObject({ reviewThreads: false, reviewReply: true, reviewReplyQuotes: true });
+    expect(toCapabilities({ reviewThreads: false, reviewReply: true, reviewReplyQuotes: true }, "github")).toMatchObject({
+      reviewThreads: false,
+      reviewReply: true,
+      reviewReplyQuotes: true,
+    });
     expect(toCapabilities({}, "gitea")).toMatchObject({ reviewThreads: true, reviewReply: true, reviewReplyQuotes: true });
     expect(toCapabilities(null, "azure_devops")).toMatchObject({ reviewThreads: true, reviewReply: true, reviewReplyQuotes: false });
     expect(defaultCapabilities.bitbucket.reviewReplyQuotes).toBe(false);

@@ -14,7 +14,10 @@ import { applySettings, fieldError } from "../settings";
 import { EMBED_CHOICES, embedChoice, embedChoicePatch, embedModelPlaceholder, indexText, type EmbedChoice } from "../ai/searchModel";
 import { t } from "../../../i18n";
 
-const LOCAL_ADDRESSES: Record<Exclude<EmbedChoice, "main">, string> = { ollama: "http://127.0.0.1:11434", lmstudio: "http://127.0.0.1:1234/v1" };
+const LOCAL_ADDRESSES: Record<Exclude<EmbedChoice, "main">, string> = {
+  ollama: "http://127.0.0.1:11434",
+  lmstudio: "http://127.0.0.1:1234/v1",
+};
 
 export function AiSearchCard({ settings, repoId }: { settings: Settings; repoId: Id | null }) {
   const { data: status } = useAiSemanticStatus(repoId);
@@ -22,7 +25,12 @@ export function AiSearchCard({ settings, repoId }: { settings: Settings; repoId:
   const options = EMBED_CHOICES.map((value) => ({ value: value as string, label: t(`ai.search.embedder.${value}`) }));
 
   const deleteIndex = async () => {
-    const sure = await confirm({ title: t("ai.search.delete.confirmTitle"), body: t("ai.search.delete.confirmBody"), confirmLabel: t("ai.search.delete.button"), danger: true });
+    const sure = await confirm({
+      title: t("ai.search.delete.confirmTitle"),
+      body: t("ai.search.delete.confirmBody"),
+      confirmLabel: t("ai.search.delete.button"),
+      danger: true,
+    });
     if (!sure) return;
     const result = await runAction(t("ai.search.delete.button"), () => core.aiSemanticIndexDelete());
     if (!result.ok) return;
@@ -35,7 +43,12 @@ export function AiSearchCard({ settings, repoId }: { settings: Settings; repoId:
       <SettingRow title={t("ai.search.embedder.title")} description={t("ai.search.embedder.description")}>
         {(ids) => (
           <div className="w-72" data-ai-search-embedder>
-            <Select<string> id={ids.id} value={choice} options={options} onValueChange={(value) => void applySettings(embedChoicePatch(value as EmbedChoice))} />
+            <Select<string>
+              id={ids.id}
+              value={choice}
+              options={options}
+              onValueChange={(value) => void applySettings(embedChoicePatch(value as EmbedChoice))}
+            />
           </div>
         )}
       </SettingRow>

@@ -16,14 +16,22 @@ vi.mock("../../core", async (original) => {
 });
 vi.mock("../../app/run", () => ({
   newJobId: () => `job-${calls.stackPush.length + 1}`,
-  runAction: async <T,>(_label: string, run: () => Promise<T>) => ({ ok: true, value: await run() }),
+  runAction: async <T>(_label: string, run: () => Promise<T>) => ({ ok: true, value: await run() }),
 }));
 
 import type { PushResult, SecretFinding } from "../../core";
 import { pushStack } from "./push";
 
 const ID = "f".repeat(64);
-const finding: SecretFinding = { id: ID, path: "dienst/zugang.py", line: 1, commit: "c".repeat(40), rule: "known_token", excerpt: 'AWS_ZUGANG = "…W3NB"', hint: "…W3NB" };
+const finding: SecretFinding = {
+  id: ID,
+  path: "dienst/zugang.py",
+  line: 1,
+  commit: "c".repeat(40),
+  rule: "known_token",
+  excerpt: 'AWS_ZUGANG = "…W3NB"',
+  hint: "…W3NB",
+};
 const found: PushResult = { status: "secrets_found", findings: [finding], commits: 2, partial: false };
 const multi: PushResult = { status: "multi", remote: "origin", atomic: true, refs: [] };
 const parts = ["feature/auswertung-1-eins", "feature/auswertung-2-zwei"];

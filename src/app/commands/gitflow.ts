@@ -44,7 +44,8 @@ export const commands: AppCommand[] = [
     group: "Branch",
     keywords: kw("commands.gitflow.finish.keywords"),
     when: (ctx) => hasRepo(ctx) && currentFlow(ctx) !== undefined,
-    disabledReason: (ctx) => (!hasRepo(ctx) ? null : notSetUp(ctx) ? t("commands.gitflow.notSetUp") : t("commands.gitflow.finish.notFlowBranch")),
+    disabledReason: (ctx) =>
+      !hasRepo(ctx) ? null : notSetUp(ctx) ? t("commands.gitflow.notSetUp") : t("commands.gitflow.finish.notFlowBranch"),
     run: (ctx) => {
       const target = currentFlow(ctx);
       if (target) return openGitflowFinish(ctx.repoId!, ctx.tabId, target);
@@ -63,14 +64,26 @@ if (typeof window !== "undefined") {
     if (tab?.repoId && cachedGitflow(tab.repoId) === undefined) void loadGitflow(tab.repoId).catch(() => undefined);
   };
   queryClient.getQueryCache().subscribe((event) => {
-    if (event.type === "updated" && event.action.type === "success" && event.query.queryKey[0] === "app" && event.query.queryKey[1] === "tabs") prefetchActive();
+    if (
+      event.type === "updated" &&
+      event.action.type === "success" &&
+      event.query.queryKey[0] === "app" &&
+      event.query.queryKey[1] === "tabs"
+    )
+      prefetchActive();
   });
   prefetchActive();
   // Branches and configuration change: the Gitflow state depends on both.
   core.on("repo:changed", ({ repoId, what }) => {
     if (what.some((part) => part === "refs" || part === "config" || part === "head") && queryClient.getQueryState(gitflowKey(repoId))) {
       void queryClient.invalidateQueries({ queryKey: gitflowKey(repoId) });
-      if (!queryClient.getQueryCache().find({ queryKey: gitflowKey(repoId) })?.getObserversCount()) void loadGitflow(repoId).catch(() => undefined);
+      if (
+        !queryClient
+          .getQueryCache()
+          .find({ queryKey: gitflowKey(repoId) })
+          ?.getObserversCount()
+      )
+        void loadGitflow(repoId).catch(() => undefined);
     }
   });
 }

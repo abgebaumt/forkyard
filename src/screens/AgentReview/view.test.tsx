@@ -33,16 +33,66 @@ const agent = (patch: Partial<Agent> = {}): Agent => ({
   test: null,
   ...patch,
 });
-const pinned: AgentReview = { agentId: "a1", repoId: "r1", worktreeRepoId: "w1", source: "snapshot", from: "1".repeat(40), to: "2".repeat(40), tip: "3".repeat(40), base: "main", uncommittedFiles: 2, running: false };
-const file = (path: string, patch: Partial<FileChange> = {}): FileChange => ({ path, oldPath: null, status: "modified", area: "commit", isBinary: false, isLfs: false, added: 2, removed: 2, conflict: null, ...patch });
-const details: CommitDetails = { commit: null, files: [file("liste.txt"), file("bild.png", { status: "added", isBinary: true, added: null, removed: null })], added: 2, removed: 2, notCombinableReason: null };
-const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo: number | null): DiffLine => ({ kind, text, oldNo, newNo, noNewline: false });
+const pinned: AgentReview = {
+  agentId: "a1",
+  repoId: "r1",
+  worktreeRepoId: "w1",
+  source: "snapshot",
+  from: "1".repeat(40),
+  to: "2".repeat(40),
+  tip: "3".repeat(40),
+  base: "main",
+  uncommittedFiles: 2,
+  running: false,
+};
+const file = (path: string, patch: Partial<FileChange> = {}): FileChange => ({
+  path,
+  oldPath: null,
+  status: "modified",
+  area: "commit",
+  isBinary: false,
+  isLfs: false,
+  added: 2,
+  removed: 2,
+  conflict: null,
+  ...patch,
+});
+const details: CommitDetails = {
+  commit: null,
+  files: [file("liste.txt"), file("bild.png", { status: "added", isBinary: true, added: null, removed: null })],
+  added: 2,
+  removed: 2,
+  notCombinableReason: null,
+};
+const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo: number | null): DiffLine => ({
+  kind,
+  text,
+  oldNo,
+  newNo,
+  noNewline: false,
+});
 const listDiff: TextDiff = {
   kind: "text",
   path: "liste.txt",
   oldPath: null,
   status: "modified",
-  hunks: [{ index: 0, oldStart: 1, oldLines: 3, newStart: 1, newLines: 3, section: "", lines: [line("remove", "eins", 1, null), line("add", "EINS", null, 1), line("context", "zwei", 2, 2), line("remove", "drei", 3, null), line("add", "DREI", null, 3)] }],
+  hunks: [
+    {
+      index: 0,
+      oldStart: 1,
+      oldLines: 3,
+      newStart: 1,
+      newLines: 3,
+      section: "",
+      lines: [
+        line("remove", "eins", 1, null),
+        line("add", "EINS", null, 1),
+        line("context", "zwei", 2, 2),
+        line("remove", "drei", 3, null),
+        line("add", "DREI", null, 3),
+      ],
+    },
+  ],
   oldText: null,
   newText: null,
   encoding: "utf-8",
@@ -74,7 +124,13 @@ function list(html: string, name: "chosen" | "rest"): string {
   return html.slice(start, html.indexOf("</section>", start));
 }
 
-const pane = (patch: Partial<PaneState> = {}): PaneState => ({ ...DEFAULT_PANE, pinned, picks: { "liste.txt": { kind: "all" } }, active: "liste.txt", ...patch });
+const pane = (patch: Partial<PaneState> = {}): PaneState => ({
+  ...DEFAULT_PANE,
+  pinned,
+  picks: { "liste.txt": { kind: "all" } },
+  active: "liste.txt",
+  ...patch,
+});
 
 /**
  * renderToStaticMarkup reads a zustand store through its server snapshot, which is the store's initial
@@ -114,20 +170,29 @@ describe("AgentReviewView", () => {
 
   it("commits only: names the uncommitted files that are left out", () => {
     setPanes({ "t1:a1": pane({ source: "branch", pinned: { ...pinned, source: "branch" } }) });
-    const html = render([agent()], ["a1"], "first", (client) => seed(client, "a1", { ...pinned, source: "branch", uncommittedFiles: 3 }, "branch"));
+    const html = render([agent()], ["a1"], "first", (client) =>
+      seed(client, "a1", { ...pinned, source: "branch", uncommittedFiles: 3 }, "branch"),
+    );
     expect(html).toContain("3 uncommitted files of the agent are not included.");
   });
 
   it("two agents side by side: two panes and the column switch with both names", () => {
     setPanes({ "t1:a1": pane(), "t1:a2": pane() });
-    const html = render([agent(), agent({ id: "a2", shortName: "tabelle", branch: "agent/tabelle", unattended: true })], ["a1", "a2"], "both", (client) => {
-      seed(client, "a1", pinned);
-      seed(client, "a2", { ...pinned, agentId: "a2" });
-    });
+    const html = render(
+      [agent(), agent({ id: "a2", shortName: "tabelle", branch: "agent/tabelle", unattended: true })],
+      ["a1", "a2"],
+      "both",
+      (client) => {
+        seed(client, "a1", pinned);
+        seed(client, "a2", { ...pinned, agentId: "a2" });
+      },
+    );
     expect(html.match(/data-review-pane=/g)?.length).toBe(2);
     expect(html).toContain("Review: liste and tabelle · without prompts");
     expect(html).toContain("Side by side");
-    const one = render([agent(), agent({ id: "a2", shortName: "tabelle" })], ["a1", "a2"], "second", (client) => seed(client, "a2", { ...pinned, agentId: "a2" }));
+    const one = render([agent(), agent({ id: "a2", shortName: "tabelle" })], ["a1", "a2"], "second", (client) =>
+      seed(client, "a2", { ...pinned, agentId: "a2" }),
+    );
     expect(one).toContain('data-review-pane="a2"');
     expect(one).not.toContain('data-review-pane="a1"');
   });

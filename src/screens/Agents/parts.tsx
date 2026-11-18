@@ -3,7 +3,13 @@ import type { AgentStatus } from "../../core";
 import { cn } from "../../ui/cn";
 import { statusLabel, statusTone, type StatusTone } from "./model";
 
-const DOT: Record<StatusTone, string> = { accent: "bg-accent", warning: "bg-warning", success: "bg-success", danger: "bg-danger", muted: "bg-text-muted" };
+const DOT: Record<StatusTone, string> = {
+  accent: "bg-accent",
+  warning: "bg-warning",
+  success: "bg-success",
+  danger: "bg-danger",
+  muted: "bg-text-muted",
+};
 
 export function StatusDot({ status, className }: { status: AgentStatus; className?: string }) {
   return <span className={cn("inline-flex size-1.5 shrink-0 rounded-full", DOT[statusTone(status)], className)} aria-hidden />;

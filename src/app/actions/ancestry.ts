@@ -118,7 +118,7 @@ export function commitsBetween(index: GraphIndex, base: Sha, tip: Sha, outside?:
 }
 
 export type Consecutive =
-  | { ok: true; /** Oldest first. */ shas: Sha[]; /** Parent of the oldest commit; null for the very first. */ base: Sha | null }
+  | { ok: true /** Oldest first. */; shas: Sha[] /** Parent of the oldest commit; null for the very first. */; base: Sha | null }
   | { ok: false; reason: string }
   /** Cannot be told from the loaded rows – the core checks. */
   | { ok: null };
@@ -145,7 +145,9 @@ export function consecutiveOnHead(index: GraphIndex, head: Sha | null, selected:
     const row = index.rows.get(cursor);
     if (!row) return { ok: null };
     if (row.parents.length > 1) {
-      return isAncestor(index, newest.sha!, head) ? { ok: false, reason: t("actions.ancestry.mergeAbove") } : { ok: false, reason: t("actions.ancestry.headBranchOnly") };
+      return isAncestor(index, newest.sha!, head)
+        ? { ok: false, reason: t("actions.ancestry.mergeAbove") }
+        : { ok: false, reason: t("actions.ancestry.headBranchOnly") };
     }
     cursor = row.parents[0];
     if (steps > index.rows.size) return { ok: null };

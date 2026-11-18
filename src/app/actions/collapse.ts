@@ -18,7 +18,8 @@ function loadedMerges(repoId: Id): Sha[] {
 async function writeCollapse(repoId: Id, patch: CollapseState): Promise<boolean> {
   const before = cachedViewState(repoId) ?? (await core.viewStateGet({ repoId }).catch(() => undefined));
   if (!before) return false;
-  if (before.collapseAllMerges === patch.collapseAllMerges && before.collapsedMerges.join("\n") === patch.collapsedMerges.join("\n")) return true;
+  if (before.collapseAllMerges === patch.collapseAllMerges && before.collapsedMerges.join("\n") === patch.collapsedMerges.join("\n"))
+    return true;
   // Show immediately; the core confirms.
   queryClient.setQueryData<RepoViewState>(qk.viewState(repoId), { ...before, ...patch });
   const result = await runAction(t("graph.collapse.save"), () => core.viewStateSet({ repoId, patch }));
@@ -47,6 +48,7 @@ export async function setMergeCollapsed(repoId: Id, sha: Sha, collapse: boolean)
   return true;
 }
 
-export const toggleMergeCollapsed = (repoId: Id, sha: Sha) => setMergeCollapsed(repoId, sha, !isMergeCollapsed(cachedViewState(repoId), sha));
+export const toggleMergeCollapsed = (repoId: Id, sha: Sha) =>
+  setMergeCollapsed(repoId, sha, !isMergeCollapsed(cachedViewState(repoId), sha));
 
 export const setAllMergesCollapsed = (repoId: Id, collapse: boolean) => writeCollapse(repoId, collapse ? ALL_COLLAPSED : NONE_COLLAPSED);

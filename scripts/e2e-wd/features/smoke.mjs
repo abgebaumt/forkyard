@@ -18,10 +18,14 @@ scenario("app starts and shows the commit graph of a repository", "main", async 
 
     await app.openRepo(repo.path);
     t.step("repository opened");
-    const rows = await app.waitFor(async () => {
-      const found = await app.$$('[data-row-kind="commit"]');
-      return found.length >= 5 ? found : null;
-    }, 20_000, { message: "at least 5 commit rows" });
+    const rows = await app.waitFor(
+      async () => {
+        const found = await app.$$('[data-row-kind="commit"]');
+        return found.length >= 5 ? found : null;
+      },
+      20_000,
+      { message: "at least 5 commit rows" },
+    );
     t.step(`${rows.length} commit rows`);
 
     // The canvas draws the lanes: it must exist, have a size and contain non-transparent pixels.

@@ -89,7 +89,12 @@ async function runCommand(app, text, id) {
   await app.press("Control+p");
   const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
   await app.type(input, `>${text}`);
-  const find = () => app.waitFor(() => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id), 10_000, { message: `palette entry ${id}` });
+  const find = () =>
+    app.waitFor(
+      () => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id),
+      10_000,
+      { message: `palette entry ${id}` },
+    );
   for (let attempt = 0; ; attempt++) {
     try {
       await app.click(await find());
@@ -102,7 +107,8 @@ async function runCommand(app, text, id) {
   await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="command-palette"]')), 5000, { message: "palette closed" });
 }
 
-const setCenter = (app, tabId, branch) => app.exec((id, name) => window.__gc.store.getState().setCenter(id, { kind: "stack", branch: name }), tabId, branch);
+const setCenter = (app, tabId, branch) =>
+  app.exec((id, name) => window.__gc.store.getState().setCenter(id, { kind: "stack", branch: name }), tabId, branch);
 
 scenario("switching from a longer branch to a shorter one starts the plan fresh", "edge", async (t) => {
   const repo = makeRepo();
@@ -163,7 +169,11 @@ scenario("palette: cuts and names of the previous branch do not carry over even 
     await checkOut("thema/lang");
     await runCommand(app, "stacked pull requests", "pr.stack");
     const state = await waitPlanner(app, "thema/lang", 4);
-    assertEqual(state.commits, ["Messwerte einlesen", "Messwerte prüfen", "Monatsmittel berechnen", "Diagramm zeichnen"], "thema/lang's commits, oldest first");
+    assertEqual(
+      state.commits,
+      ["Messwerte einlesen", "Messwerte prüfen", "Monatsmittel berechnen", "Diagramm zeichnen"],
+      "thema/lang's commits, oldest first",
+    );
     assertEqual(state.parts, 1, "one part: no cut from thema/kurz");
     assertEqual(state.name, "", "no name from thema/kurz");
     await t.noConsoleErrors();

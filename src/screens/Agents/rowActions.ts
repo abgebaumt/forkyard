@@ -27,7 +27,17 @@ export const ACTION_LABELS: Record<AgentAction, string> = {
   forget: t("agents.actions.forget"),
 };
 
-const ICONS = { terminal: SquareTerminal, stop: Square, resume: Play, copyPath: Copy, review: FileDiff, tests: FlaskConical, pr: GitPullRequestArrow, cleanup: Trash2, forget: X } as const;
+const ICONS = {
+  terminal: SquareTerminal,
+  stop: Square,
+  resume: Play,
+  copyPath: Copy,
+  review: FileDiff,
+  tests: FlaskConical,
+  pr: GitPullRequestArrow,
+  cleanup: Trash2,
+  forget: X,
+} as const;
 
 export interface ActionOptions {
   canResume: boolean;
@@ -70,7 +80,11 @@ async function cleanUp(agent: Agent): Promise<void> {
   if (!ok) return;
   const result = await runAction(t("agents.cleanup.action"), () => core.agentCleanup({ agentId: agent.id }));
   if (result.ok) {
-    toast({ tone: "info", title: t("agents.cleanup.done", { name: agent.shortName }), action: { label: t("agents.cleanup.undo"), onClick: () => void undo(agent.repoId) } });
+    toast({
+      tone: "info",
+      title: t("agents.cleanup.done", { name: agent.shortName }),
+      action: { label: t("agents.cleanup.undo"), onClick: () => void undo(agent.repoId) },
+    });
   }
 }
 
@@ -113,6 +127,9 @@ export async function runAgentAction(action: AgentAction, agent: Agent, tabId: I
 
 export function agentMenu(agent: Agent, tabId: Id, options: ActionOptions): MenuEntry[] {
   return actionsFor(agent, options).map((action) =>
-    menuItem(ACTION_LABELS[action], ICONS[action], () => void runAgentAction(action, agent, tabId), { danger: action === "cleanup", shortcut: action === "cleanup" ? "Delete" : undefined }),
+    menuItem(ACTION_LABELS[action], ICONS[action], () => void runAgentAction(action, agent, tabId), {
+      danger: action === "cleanup",
+      shortcut: action === "cleanup" ? "Delete" : undefined,
+    }),
   );
 }

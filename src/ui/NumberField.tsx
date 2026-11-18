@@ -100,7 +100,14 @@ export function NumberField({
           disabled && "border-border hover:border-border",
         )}
       >
-        <button type="button" tabIndex={-1} aria-label={t("ui.number.decrease")} className={stepButton} disabled={disabled || value <= min} onClick={() => commit(value - step)}>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={t("ui.number.decrease")}
+          className={stepButton}
+          disabled={disabled || value <= min}
+          onClick={() => commit(value - step)}
+        >
           <Minus className="size-3.5" aria-hidden />
         </button>
         <input
@@ -125,7 +132,14 @@ export function NumberField({
           onBlur={commitText}
           onKeyDown={(event) => {
             const big = largeStep ?? step * 10;
-            const jump: Record<string, number> = { ArrowUp: value + step, ArrowDown: value - step, PageUp: value + big, PageDown: value - big, Home: min, End: max };
+            const jump: Record<string, number> = {
+              ArrowUp: value + step,
+              ArrowDown: value - step,
+              PageUp: value + big,
+              PageDown: value - big,
+              Home: min,
+              End: max,
+            };
             if (event.key === "Enter") {
               event.preventDefault();
               commitText();
@@ -149,7 +163,14 @@ export function NumberField({
             {unit}
           </span>
         ) : null}
-        <button type="button" tabIndex={-1} aria-label={t("ui.number.increase")} className={stepButton} disabled={disabled || value >= max} onClick={() => commit(value + step)}>
+        <button
+          type="button"
+          tabIndex={-1}
+          aria-label={t("ui.number.increase")}
+          className={stepButton}
+          disabled={disabled || value >= max}
+          onClick={() => commit(value + step)}
+        >
           <Plus className="size-3.5" aria-hidden />
         </button>
       </div>

@@ -35,7 +35,16 @@ function loadedRows(app, repoId) {
     const data = window.__gc.queryClient.getQueryData(["repo", id, "graph"]);
     if (!data) return null;
     return data.pages.flatMap((page) =>
-      page.rows.map((row) => ({ id: row.id, sha: row.sha, kind: row.kind, parents: row.parents, summary: row.summary, sync: row.sync, collapsedCount: row.collapsedCount, isHead: row.isHead })),
+      page.rows.map((row) => ({
+        id: row.id,
+        sha: row.sha,
+        kind: row.kind,
+        parents: row.parents,
+        summary: row.summary,
+        sync: row.sync,
+        collapsedCount: row.collapsedCount,
+        isHead: row.isHead,
+      })),
     );
   }, repoId);
 }
@@ -75,12 +84,28 @@ async function modClick(app, target, modifier = CONTROL) {
   const element = typeof target === "string" ? await app.waitFor(target) : target;
   await app.webdriver("POST", "/actions", {
     actions: [
-      { type: "key", id: "keyboard", actions: [{ type: "keyDown", value: modifier }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "keyUp", value: modifier }] },
+      {
+        type: "key",
+        id: "keyboard",
+        actions: [
+          { type: "keyDown", value: modifier },
+          { type: "pause", duration: 0 },
+          { type: "pause", duration: 0 },
+          { type: "pause", duration: 0 },
+          { type: "keyUp", value: modifier },
+        ],
+      },
       {
         type: "pointer",
         id: "mouse",
         parameters: { pointerType: "mouse" },
-        actions: [{ type: "pause", duration: 0 }, { type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0 }, { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }, { type: "pause", duration: 0 }],
+        actions: [
+          { type: "pause", duration: 0 },
+          { type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0 },
+          { type: "pointerDown", button: 0 },
+          { type: "pointerUp", button: 0 },
+          { type: "pause", duration: 0 },
+        ],
       },
     ],
   });
@@ -91,20 +116,45 @@ async function modClick(app, target, modifier = CONTROL) {
 async function rightClick(app, target) {
   const element = typeof target === "string" ? await app.waitFor(target) : target;
   await app.webdriver("POST", "/actions", {
-    actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0 }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }] }],
+    actions: [
+      {
+        type: "pointer",
+        id: "mouse",
+        parameters: { pointerType: "mouse" },
+        actions: [
+          { type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0 },
+          { type: "pointerDown", button: 2 },
+          { type: "pointerUp", button: 2 },
+        ],
+      },
+    ],
   });
   await app.webdriver("DELETE", "/actions").catch(() => undefined);
 }
 
 /** Paths listed in the file list of the commit panel. */
 function panelFiles(app) {
-  return app.exec(() => [...document.querySelectorAll('[data-screen="commit-details"] [data-testid="files-changed"] [role="option"]')].map((row) => row.getAttribute("title")));
+  return app.exec(() =>
+    [...document.querySelectorAll('[data-screen="commit-details"] [data-testid="files-changed"] [role="option"]')].map((row) =>
+      row.getAttribute("title"),
+    ),
+  );
 }
 
 /** Makes the file list of the commit panel a flat list (the view is a setting). */
 async function listView(app) {
   if (await app.$('[data-screen="commit-details"] [data-file-list="flat"]')) return;
-  const button = await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[data-screen="commit-details"] button, [data-screen="commit-details"] [role="radio"]')].find((el) => el.getAttribute("title") === "List" || el.textContent.trim() === "List") ?? null), 5000, { message: "List switch" });
+  const button = await app.waitFor(
+    () =>
+      app.exec(
+        () =>
+          [...document.querySelectorAll('[data-screen="commit-details"] button, [data-screen="commit-details"] [role="radio"]')].find(
+            (el) => el.getAttribute("title") === "List" || el.textContent.trim() === "List",
+          ) ?? null,
+      ),
+    5000,
+    { message: "List switch" },
+  );
   await app.click(button);
   await app.waitFor(() => app.$('[data-screen="commit-details"] [data-file-list="flat"]'), 5000, { message: "file list in list view" });
 }
@@ -114,13 +164,20 @@ async function runFromPalette(app, title) {
   await app.press("Control+p");
   const input = await app.waitFor('[data-screen="command-palette"] [role="combobox"]');
   await app.type(input, title);
-  const option = await app.waitFor(() => app.byText(title, { within: '[data-screen="command-palette"]' }), 5000, { message: `palette entry "${title}"` });
+  const option = await app.waitFor(() => app.byText(title, { within: '[data-screen="command-palette"]' }), 5000, {
+    message: `palette entry "${title}"`,
+  });
   await app.click(option);
   await app.waitFor(async () => !(await app.$('[data-screen="command-palette"]')), 5000, { message: "palette closed" });
 }
 
 /** Snapshot of refs and objects, to prove a view action left the repository alone. */
-const gitSnapshot = (repo) => [repo.git("for-each-ref", "--format=%(refname) %(objectname)"), repo.git("rev-list", "--all", "--count"), repo.git("status", "--porcelain")].join("\n---\n");
+const gitSnapshot = (repo) =>
+  [
+    repo.git("for-each-ref", "--format=%(refname) %(objectname)"),
+    repo.git("rev-list", "--all", "--count"),
+    repo.git("status", "--porcelain"),
+  ].join("\n---\n");
 
 /** What the search finds according to Git: message or author, fixed string, case-insensitive, all branches/remotes/tags/HEAD. */
 function gitSearch(repo, query) {
@@ -140,20 +197,45 @@ scenario("graph: shows the whole history with labels, lanes and the end marker",
     const rows = await loadedRows(app, repoId);
     const commits = rows.filter((row) => row.kind === "commit" || row.kind === "merge");
     const expected = lines(repo.git("rev-list", "--branches", "--remotes", "--tags", "HEAD"));
-    assertEqual(sorted(commits.map((row) => row.sha)), sorted(expected), "graph commits = git rev-list of branches, remotes, tags and HEAD");
+    assertEqual(
+      sorted(commits.map((row) => row.sha)),
+      sorted(expected),
+      "graph commits = git rev-list of branches, remotes, tags and HEAD",
+    );
     assertEqual(commits.map((row) => row.sha).slice(0, 1), [repo.git("rev-parse", "HEAD")], "newest row is HEAD (topological order)");
-    assertEqual(commits.filter((row) => row.kind === "merge").map((row) => row.sha).sort(), sorted(lines(repo.git("rev-list", "--merges", "--all"))), "merge rows = git rev-list --merges");
-    assertEqual(commits.filter((row) => row.isHead).map((row) => row.sha), [repo.git("rev-parse", "HEAD")], "exactly the HEAD commit is marked");
+    assertEqual(
+      commits
+        .filter((row) => row.kind === "merge")
+        .map((row) => row.sha)
+        .sort(),
+      sorted(lines(repo.git("rev-list", "--merges", "--all"))),
+      "merge rows = git rev-list --merges",
+    );
+    assertEqual(
+      commits.filter((row) => row.isHead).map((row) => row.sha),
+      [repo.git("rev-parse", "HEAD")],
+      "exactly the HEAD commit is marked",
+    );
     // Topological order: no row comes after one of its parents.
     const position = new Map(commits.map((row, index) => [row.sha, index]));
     for (const sha of expected) {
-      for (const parent of repo.git("rev-list", "--parents", "-n", "1", sha).split(" ").slice(1)) assert(position.get(parent) > position.get(sha), `parent ${short(parent)} is listed before its child ${short(sha)}`);
+      for (const parent of repo.git("rev-list", "--parents", "-n", "1", sha).split(" ").slice(1))
+        assert(position.get(parent) > position.get(sha), `parent ${short(parent)} is listed before its child ${short(sha)}`);
     }
     t.step(`${commits.length} commits, order checked against Git`);
 
     // Every branch and tag has its label on the right row.
-    const refs = lines(repo.git("for-each-ref", "--format=%(refname) %(objectname) %(*objectname)", "refs/heads", "refs/remotes", "refs/tags")).filter((line) => !line.startsWith("refs/remotes/origin/HEAD"));
-    const labels = await app.exec(() => Object.fromEntries([...document.querySelectorAll("[data-ref-full]")].map((label) => [label.dataset.refFull, label.closest("[data-row-id]")?.dataset.rowId ?? null])));
+    const refs = lines(
+      repo.git("for-each-ref", "--format=%(refname) %(objectname) %(*objectname)", "refs/heads", "refs/remotes", "refs/tags"),
+    ).filter((line) => !line.startsWith("refs/remotes/origin/HEAD"));
+    const labels = await app.exec(() =>
+      Object.fromEntries(
+        [...document.querySelectorAll("[data-ref-full]")].map((label) => [
+          label.dataset.refFull,
+          label.closest("[data-row-id]")?.dataset.rowId ?? null,
+        ]),
+      ),
+    );
     for (const line of refs) {
       const [name, object, peeled] = line.split(" ");
       // A label may sit in an overflow chip ("+n") – then it is in the data, not as its own element.
@@ -217,7 +299,9 @@ scenario("graph: keyboard navigation (arrows, H parent, End, Enter)", "edge", as
     const head = repo.git("rev-parse", "HEAD");
     await app.click(rowSelector(head));
     await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === head, 5000, { message: "HEAD selected" });
-    await app.waitFor(() => app.exec((sha) => document.activeElement?.closest("[data-row-id]")?.dataset.rowId === sha, head), 5000, { message: "focus on the HEAD row" });
+    await app.waitFor(() => app.exec((sha) => document.activeElement?.closest("[data-row-id]")?.dataset.rowId === sha, head), 5000, {
+      message: "focus on the HEAD row",
+    });
 
     const rows = (await loadedRows(app, repoId)).filter((row) => row.kind !== "wip");
     await app.press("ArrowDown");
@@ -234,10 +318,20 @@ scenario("graph: keyboard navigation (arrows, H parent, End, Enter)", "edge", as
     await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === grandParent, 5000, { message: "H again: the grandparent" });
     // L: the nearest child above that has this commit as its first parent (here possibly a side branch's commit).
     const at = rows.findIndex((row) => row.sha === grandParent);
-    const child = rows.slice(0, at).reverse().find((row) => row.parents[0] === grandParent);
-    assert(lines(repo.git("rev-list", "--all", "--children", "-n", "100000")).some((line) => line.startsWith(grandParent) && line.includes(child.sha)), "Git: the expected row is a child");
+    const child = rows
+      .slice(0, at)
+      .reverse()
+      .find((row) => row.parents[0] === grandParent);
+    assert(
+      lines(repo.git("rev-list", "--all", "--children", "-n", "100000")).some(
+        (line) => line.startsWith(grandParent) && line.includes(child.sha),
+      ),
+      "Git: the expected row is a child",
+    );
     await app.press("l");
-    await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === child.sha, 5000, { message: "L goes to the nearest child above" });
+    await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === child.sha, 5000, {
+      message: "L goes to the nearest child above",
+    });
     t.step(`L went to ${short(child.sha)} (${child.summary})`);
     await app.click(rowSelector(parent));
 
@@ -250,9 +344,25 @@ scenario("graph: keyboard navigation (arrows, H parent, End, Enter)", "edge", as
     const root = repo.git("rev-list", "--max-parents=0", "HEAD");
     await app.waitFor(async () => (await selection(app, tabId)).shas?.at(-1) === root, 5000, { message: "End selects the root commit" });
     await app.press("Enter");
-    await app.waitFor(() => app.exec(() => Boolean(document.activeElement?.closest('[data-area="right"]'))), 5000, { message: "Enter moves the focus into the commit panel" });
-    await app.waitFor(() => app.exec((sha) => document.querySelector('[data-screen="commit-details"] [data-testid="commit-summary"]')?.closest("[data-screen]") && document.querySelector('[data-screen="commit-details"]').dataset.selection === "1", root), 5000, { message: "details of one commit" });
-    assertIncludes(await app.exec(() => document.querySelector('[data-testid="commit-summary"]').textContent), repo.git("log", "-1", "--format=%s", root), "details show the root commit");
+    await app.waitFor(() => app.exec(() => Boolean(document.activeElement?.closest('[data-area="right"]'))), 5000, {
+      message: "Enter moves the focus into the commit panel",
+    });
+    await app.waitFor(
+      () =>
+        app.exec(
+          (sha) =>
+            document.querySelector('[data-screen="commit-details"] [data-testid="commit-summary"]')?.closest("[data-screen]") &&
+            document.querySelector('[data-screen="commit-details"]').dataset.selection === "1",
+          root,
+        ),
+      5000,
+      { message: "details of one commit" },
+    );
+    assertIncludes(
+      await app.exec(() => document.querySelector('[data-testid="commit-summary"]').textContent),
+      repo.git("log", "-1", "--format=%s", root),
+      "details show the root commit",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -305,7 +415,9 @@ scenario("graph: a long history loads further pages while scrolling", "edge", as
     const rows = (await loadedRows(app, repoId)).filter((row) => row.kind !== "wip");
     assertEqual(rows.length, total, "loaded rows = git rev-list --all --count");
     assertEqual(new Set(rows.map((row) => row.sha)).size, total, "no row twice across page borders");
-    await app.waitFor(() => app.byText(`End of history · ${total.toLocaleString("en")} commits`), 10_000, { message: "end-of-history footer" });
+    await app.waitFor(() => app.byText(`End of history · ${total.toLocaleString("en")} commits`), 10_000, {
+      message: "end-of-history footer",
+    });
     const root = repo.git("rev-list", "--max-parents=0", "HEAD");
     assertEqual(rows.at(-1).sha, root, "the last row is the root commit");
     await t.shot("graph-large-end");
@@ -323,7 +435,8 @@ async function openSearch(app) {
   await app.press("Control+f");
   return app.waitFor('[data-screen="commit-search"] input', 5000, { message: "search field" });
 }
-const searchHits = (app) => app.exec(() => [...document.querySelectorAll('[data-screen="commit-search"] [role="listbox"] [data-sha]')].map((hit) => hit.dataset.sha));
+const searchHits = (app) =>
+  app.exec(() => [...document.querySelectorAll('[data-screen="commit-search"] [role="listbox"] [data-sha]')].map((hit) => hit.dataset.sha));
 const counter = (app) => app.exec(() => document.querySelector('[data-testid="search-counter"]')?.textContent.trim() ?? "");
 
 scenario("search: finds commits by message, highlights them and jumps with Enter / F3", "main", async (t) => {
@@ -333,14 +446,20 @@ scenario("search: finds commits by message, highlights them and jumps with Enter
     const { tabId } = await openGraph(app, repo);
     await app.click(rowSelector(repo.git("rev-parse", "HEAD")));
     const input = await openSearch(app);
-    await app.waitFor(() => app.exec(() => document.activeElement?.closest('[data-screen="commit-search"]') !== null), 5000, { message: "focus in the search field" });
+    await app.waitFor(() => app.exec(() => document.activeElement?.closest('[data-screen="commit-search"]') !== null), 5000, {
+      message: "focus in the search field",
+    });
     await app.type(input, "regen");
     const expected = gitSearch(repo, "regen");
     assert(expected.length >= 3, `fixture has several matches (${expected.length})`);
-    const hits = await app.waitFor(async () => {
-      const found = await searchHits(app);
-      return found.length === expected.length ? found : null;
-    }, 10_000, { message: `${expected.length} hits` });
+    const hits = await app.waitFor(
+      async () => {
+        const found = await searchHits(app);
+        return found.length === expected.length ? found : null;
+      },
+      10_000,
+      { message: `${expected.length} hits` },
+    );
     assertEqual(sorted(hits), sorted(expected), "hits = git log --grep/--author (fixed, ignore case)");
     assertEqual(await counter(app), `${expected.length} matches`, "counter");
     const highlighted = (await domRows(app)).filter((row) => row.hit).map((row) => row.id);
@@ -358,7 +477,17 @@ scenario("search: finds commits by message, highlights them and jumps with Enter
     await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === hits[1], 5000, { message: "F3: next hit" });
     const active = (await domRows(app)).find((row) => row.hit === "active");
     assertEqual(active?.id, hits[1], "active hit marked in the graph");
-    await app.waitFor(() => app.exec((sha) => document.querySelector('[data-testid="commit-summary"]') && document.querySelector('[data-screen="commit-details"]')?.innerText.includes(sha.slice(0, 7)), hits[1]), 5000, { message: "details of the active hit" });
+    await app.waitFor(
+      () =>
+        app.exec(
+          (sha) =>
+            document.querySelector('[data-testid="commit-summary"]') &&
+            document.querySelector('[data-screen="commit-details"]')?.innerText.includes(sha.slice(0, 7)),
+          hits[1],
+        ),
+      5000,
+      { message: "details of the active hit" },
+    );
     await t.shot("search-hits");
     await t.noConsoleErrors(app);
   } finally {
@@ -381,13 +510,23 @@ scenario("search: by SHA prefix and by author name", "edge", async (t) => {
     await app.press("Control+a", "Backspace");
     await app.type(input, "Aylin");
     const expected = gitSearch(repo, "Aylin");
-    assertEqual(sorted(expected), sorted(lines(repo.git("log", "--all", "--format=%H", "--author=Aylin"))), "Git: all Aylin hits are authored by her");
-    await app.waitFor(async () => sorted(await searchHits(app)).join() === sorted(expected).join(), 10_000, { message: `${expected.length} commits by Aylin` });
+    assertEqual(
+      sorted(expected),
+      sorted(lines(repo.git("log", "--all", "--format=%H", "--author=Aylin"))),
+      "Git: all Aylin hits are authored by her",
+    );
+    await app.waitFor(async () => sorted(await searchHits(app)).join() === sorted(expected).join(), 10_000, {
+      message: `${expected.length} commits by Aylin`,
+    });
 
     // Three characters are not searched as a SHA (from 4 on), umlauts must match exactly.
     await app.press("Control+a", "Backspace");
     await app.type(input, "Böen");
-    await app.waitFor(async () => (await searchHits(app)).length === gitSearch(repo, "Böen").length && (await searchHits(app)).length === 1, 10_000, { message: "umlaut query" });
+    await app.waitFor(
+      async () => (await searchHits(app)).length === gitSearch(repo, "Böen").length && (await searchHits(app)).length === 1,
+      10_000,
+      { message: "umlaut query" },
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -441,7 +580,10 @@ scenario("search: a hit beyond the loaded rows is loaded and selected", "edge", 
     await app.type(input, query);
     await app.waitFor(async () => (await searchHits(app)).join() === expected[0], 15_000, { message: "hit in the list" });
     await app.press("Enter");
-    await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === expected[0], 60_000, { interval: 300, message: "the hit is loaded and selected" });
+    await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === expected[0], 60_000, {
+      interval: 300,
+      message: "the hit is loaded and selected",
+    });
     await app.waitFor(rowSelector(expected[0]), 10_000, { message: "the row is scrolled into view" });
     await t.noConsoleErrors(app);
   } finally {
@@ -464,21 +606,43 @@ scenario("details: message, author, co-authors, parent and changed files of a co
     assertEqual((await selection(app, tabId)).shas, [sha], "selection");
     await listView(app);
     const panel = await app.exec(() => document.querySelector('[data-screen="commit-details"]').innerText);
-    assertEqual(await app.exec(() => document.querySelector('[data-testid="commit-summary"]').textContent.trim()), repo.git("log", "-1", "--format=%s", sha), "summary = git %s");
-    assertIncludes(await app.exec(() => document.querySelector('[data-testid="commit-description"]').textContent), "Drei Fälle: Wert im Bereich", "description");
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-testid="commit-summary"]').textContent.trim()),
+      repo.git("log", "-1", "--format=%s", sha),
+      "summary = git %s",
+    );
+    assertIncludes(
+      await app.exec(() => document.querySelector('[data-testid="commit-description"]').textContent),
+      "Drei Fälle: Wert im Bereich",
+      "description",
+    );
     assertIncludes(panel, repo.git("log", "-1", "--format=%an", sha), "author name");
     assertIncludes(panel, repo.git("log", "-1", "--format=%ae", sha), "author email");
     for (const name of ["Jonas Albrecht", "Greta Vogel"]) assertIncludes(panel, name, `co-author ${name}`);
-    assertIncludes(await app.exec(() => document.querySelector('[data-testid="commit-parents"]').innerText), short(repo.git("rev-parse", `${sha}^`)), "parent = git rev-parse sha^");
+    assertIncludes(
+      await app.exec(() => document.querySelector('[data-testid="commit-parents"]').innerText),
+      short(repo.git("rev-parse", `${sha}^`)),
+      "parent = git rev-parse sha^",
+    );
     assertIncludes(panel, short(sha), "short SHA");
-    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, { message: "file list" });
-    assertEqual(sorted(files), sorted(lines(repo.git("-c", "core.quotePath=false", "diff-tree", "--no-commit-id", "--name-only", "-r", sha))), "files = git diff-tree");
+    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, {
+      message: "file list",
+    });
+    assertEqual(
+      sorted(files),
+      sorted(lines(repo.git("-c", "core.quotePath=false", "diff-tree", "--no-commit-id", "--name-only", "-r", sha))),
+      "files = git diff-tree",
+    );
     await t.shot("details-commit");
 
     // A click on a file opens its diff in the centre.
     await app.click('[data-screen="commit-details"] [data-testid="files-changed"] [role="option"]');
     await app.waitFor('[data-area="center"] [data-screen="diff"]', 10_000, { message: "diff view in the centre" });
-    assertIncludes(await app.exec(() => document.querySelector('[data-screen="diff"]').getAttribute("aria-label")), files[0], "diff of the clicked file");
+    assertIncludes(
+      await app.exec(() => document.querySelector('[data-screen="diff"]').getAttribute("aria-label")),
+      files[0],
+      "diff of the clicked file",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -495,16 +659,29 @@ scenario("details: merge commit and root commit", "edge", async (t) => {
     await app.waitFor('[data-screen="commit-details"][data-selection="1"] [data-testid="commit-summary"]', 10_000);
     await app.waitFor('[data-testid="merge-note"]', 5000, { message: "merge note" });
     const parents = await app.exec(() => document.querySelector('[data-testid="commit-parents"]').innerText);
-    for (const parent of repo.git("rev-list", "--parents", "-n", "1", merge).split(" ").slice(1)) assertIncludes(parents, short(parent), `merge parent ${short(parent)}`);
+    for (const parent of repo.git("rev-list", "--parents", "-n", "1", merge).split(" ").slice(1))
+      assertIncludes(parents, short(parent), `merge parent ${short(parent)}`);
     t.step("merge: both parents and the note shown");
     await t.shot("details-merge");
 
     const root = repo.git("rev-list", "--max-parents=0", "HEAD");
     await app.click(rowSelector(root));
-    await app.waitFor(async () => (await app.exec(() => document.querySelector('[data-testid="commit-summary"]')?.textContent.trim())) === repo.git("log", "-1", "--format=%s", root), 10_000, { message: "root commit details" });
+    await app.waitFor(
+      async () =>
+        (await app.exec(() => document.querySelector('[data-testid="commit-summary"]')?.textContent.trim())) ===
+        repo.git("log", "-1", "--format=%s", root),
+      10_000,
+      { message: "root commit details" },
+    );
     await listView(app);
-    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, { message: "file list" });
-    assertEqual(sorted(files), sorted(lines(repo.git("-c", "core.quotePath=false", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", root))), "root: all files added");
+    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, {
+      message: "file list",
+    });
+    assertEqual(
+      sorted(files),
+      sorted(lines(repo.git("-c", "core.quotePath=false", "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", root))),
+      "root: all files added",
+    );
     const parentText = await app.exec(() => document.querySelector('[data-testid="commit-parents"]')?.innerText ?? "");
     assert(!/[0-9a-f]{7}/.test(parentText), `root commit lists no parent SHA ("${parentText}")`);
     await t.noConsoleErrors(app);
@@ -533,16 +710,28 @@ scenario("compare: Ctrl+click two commits shows the difference, sides can be swa
     assertEqual([await from(), await to()], [older, newer], "older side first");
     await listView(app);
     const expected = lines(repo.git("-c", "core.quotePath=false", "diff", "--name-only", older, newer));
-    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, { message: "file list" });
+    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, {
+      message: "file list",
+    });
     assertEqual(sorted(files), sorted(expected), "files = git diff --name-only older newer");
-    const status = () => app.exec(() => [...document.querySelectorAll('[data-testid="files-changed"] [role="option"]')].map((row) => `${row.querySelector("span")?.textContent.trim().charAt(0)} ${row.title}`).sort());
-    const gitStatus = (a, b) => lines(repo.git("-c", "core.quotePath=false", "diff", "--name-status", "--no-renames", a, b)).map((line) => `${line.charAt(0)} ${line.split("\t")[1]}`).sort();
+    const status = () =>
+      app.exec(() =>
+        [...document.querySelectorAll('[data-testid="files-changed"] [role="option"]')]
+          .map((row) => `${row.querySelector("span")?.textContent.trim().charAt(0)} ${row.title}`)
+          .sort(),
+      );
+    const gitStatus = (a, b) =>
+      lines(repo.git("-c", "core.quotePath=false", "diff", "--name-status", "--no-renames", a, b))
+        .map((line) => `${line.charAt(0)} ${line.split("\t")[1]}`)
+        .sort();
     assertEqual(await status(), gitStatus(older, newer), "file status letters = git diff --name-status");
     await t.shot("compare-two-commits");
 
     await app.click({ text: "Swap sides" });
     await app.waitFor(async () => (await from()) === newer && (await to()) === older, 5000, { message: "sides swapped" });
-    await app.waitFor(async () => JSON.stringify(await status()) === JSON.stringify(gitStatus(newer, older)), 10_000, { message: "file status after swap = git diff newer older" });
+    await app.waitFor(async () => JSON.stringify(await status()) === JSON.stringify(gitStatus(newer, older)), 10_000, {
+      message: "file status after swap = git diff newer older",
+    });
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -563,18 +752,31 @@ scenario("compare: from the context menu and the command palette", "edge", async
     await app.exec((id) => window.__gc.store.getState().setRightCollapsed(id, true), tabId);
     await app.waitFor(async () => !(await app.$('[data-area="right"]')), 5000, { message: "commit panel collapsed" });
     await rightClick(app, rowSelector(b));
-    const item = await app.waitFor(() => app.byText(`Compare ${short(a)} ↔ ${short(b)}`, { exact: false, within: '[role="menu"]' }).then((found) => found ?? app.byText("Compare", { within: '[role="menu"]' })), 5000, { message: "menu entry Compare" });
+    const item = await app.waitFor(
+      () =>
+        app
+          .byText(`Compare ${short(a)} ↔ ${short(b)}`, { exact: false, within: '[role="menu"]' })
+          .then((found) => found ?? app.byText("Compare", { within: '[role="menu"]' })),
+      5000,
+      { message: "menu entry Compare" },
+    );
     await app.click(item);
-    await app.waitFor('[data-area="right"] [data-screen="commit-details"][data-selection="2"] [data-testid="compare-head"]', 10_000, { message: "menu: comparison shown in an opened panel" });
+    await app.waitFor('[data-area="right"] [data-screen="commit-details"][data-selection="2"] [data-testid="compare-head"]', 10_000, {
+      message: "menu: comparison shown in an opened panel",
+    });
 
     await app.exec((id) => window.__gc.store.getState().setRightCollapsed(id, true), tabId);
     await app.waitFor(async () => !(await app.$('[data-area="right"]')), 5000, { message: "commit panel collapsed again" });
     await app.click(rowSelector(a));
     await modClick(app, rowSelector(b));
     await runFromPalette(app, "Compare the two selected commits");
-    await app.waitFor('[data-area="right"] [data-screen="commit-details"][data-selection="2"] [data-testid="compare-head"]', 10_000, { message: "palette: comparison" });
+    await app.waitFor('[data-area="right"] [data-screen="commit-details"][data-selection="2"] [data-testid="compare-head"]', 10_000, {
+      message: "palette: comparison",
+    });
     await listView(app);
-    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, { message: "file list" });
+    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, {
+      message: "file list",
+    });
     assertEqual(sorted(files), sorted(lines(repo.git("-c", "core.quotePath=false", "diff", "--name-only", a, b))), "files = git diff");
     await t.noConsoleErrors(app);
   } finally {
@@ -599,28 +801,46 @@ scenario("compare: two states without a difference, a gap and a contiguous range
     await app.click(rowSelector(before));
     await modClick(app, rowSelector(reverted));
     await app.waitFor('[data-screen="commit-details"][data-selection="2"]', 10_000);
-    await app.waitFor(() => app.byText("There is no difference between these two states.", { exact: false }), 10_000, { message: "no-difference note" });
+    await app.waitFor(() => app.byText("There is no difference between these two states.", { exact: false }), 10_000, {
+      message: "no-difference note",
+    });
     await t.shot("compare-no-difference");
 
     // Three commits with a gap: explanation instead of a combined diff.
     const root = repo.git("rev-list", "--max-parents=0", "HEAD");
     await modClick(app, rowSelector(root));
-    await app.waitFor('[data-screen="commit-details"][data-selection="3"] [data-testid="not-combinable"][data-reason="gap"]', 10_000, { message: "gap explanation" });
+    await app.waitFor('[data-screen="commit-details"][data-selection="3"] [data-testid="not-combinable"][data-reason="gap"]', 10_000, {
+      message: "gap explanation",
+    });
 
     // Shift+click selects the rows in between – here including a commit of another branch: no chain.
     await app.click(rowSelector(reverted));
     await modClick(app, rowSelector(before), SHIFT);
-    await app.waitFor('[data-screen="commit-details"][data-selection="4"] [data-testid="not-combinable"][data-reason="gap"]', 10_000, { message: "Shift+click: four rows, gap" });
+    await app.waitFor('[data-screen="commit-details"][data-selection="4"] [data-testid="not-combinable"][data-reason="gap"]', 10_000, {
+      message: "Shift+click: four rows, gap",
+    });
     // Three commits that follow one another (Ctrl+click): combined diff from the parent of the oldest to the newest.
     await app.click(rowSelector(reverted));
     await modClick(app, rowSelector(changed));
     await modClick(app, rowSelector(before));
-    const note = await app.waitFor('[data-screen="commit-details"][data-selection="3"] [data-testid="range-note"]', 10_000, { message: "range view" });
+    const note = await app.waitFor('[data-screen="commit-details"][data-selection="3"] [data-testid="range-note"]', 10_000, {
+      message: "range view",
+    });
     const base = repo.git("rev-parse", `${before}^`);
-    assertEqual([await note.attr("data-from"), await note.attr("data-to")], [base, reverted], "range from the parent of the oldest to the newest");
+    assertEqual(
+      [await note.attr("data-from"), await note.attr("data-to")],
+      [base, reverted],
+      "range from the parent of the oldest to the newest",
+    );
     await listView(app);
-    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, { message: "files of the range" });
-    assertEqual(sorted(files), sorted(lines(repo.git("-c", "core.quotePath=false", "diff", "--name-only", base, reverted))), "range files = git diff base newest (the revert cancels out)");
+    const files = await app.waitFor(async () => ((await panelFiles(app)).length ? panelFiles(app) : null), 10_000, {
+      message: "files of the range",
+    });
+    assertEqual(
+      sorted(files),
+      sorted(lines(repo.git("-c", "core.quotePath=false", "diff", "--name-only", base, reverted))),
+      "range files = git diff base newest (the revert cancels out)",
+    );
     await t.shot("compare-range");
     await t.noConsoleErrors(app);
   } finally {
@@ -673,7 +893,9 @@ scenario("collapse: a merge whose commits a branch keeps visible has no arrow", 
     const side = lines(repo.git("rev-list", `${merge}^1..${merge}^2`));
     const bugfix = repo.git("rev-parse", "bugfix/sensor-ausfall");
     assertEqual(side, [bugfix], "Git: the side branch is the commit bugfix/sensor-ausfall points to");
-    await app.waitFor(`[data-row-id="${repo.info.shas.firstMerge}"] [data-collapse-toggle="expanded"]`, 10_000, { message: "the other merge has its arrow" });
+    await app.waitFor(`[data-row-id="${repo.info.shas.firstMerge}"] [data-collapse-toggle="expanded"]`, 10_000, {
+      message: "the other merge has its arrow",
+    });
     assert(await app.$(`[data-row-id="${merge}"]`), "the merge row is shown");
     assert(!(await app.$(`[data-row-id="${merge}"] [data-collapse-toggle]`)), "no arrow: collapsing would hide nothing");
     await t.shot("collapse-no-arrow");
@@ -684,7 +906,9 @@ scenario("collapse: a merge whose commits a branch keeps visible has no arrow", 
     assertEqual((await viewState(app, repoId)).collapsedMerges, [], "← leaves the view state alone");
     // The context menu has no “Collapse merge”, only the entries for all merges.
     await rightClick(app, rowSelector(merge));
-    await app.waitFor(() => app.byText("Collapse all merges", { within: '[role="menu"]' }), 5000, { message: "menu with “Collapse all merges”" });
+    await app.waitFor(() => app.byText("Collapse all merges", { within: '[role="menu"]' }), 5000, {
+      message: "menu with “Collapse all merges”",
+    });
     assert(!(await app.byText("Collapse merge", { within: '[role="menu"]' })), "no “Collapse merge” entry");
     await app.press("Escape");
     await t.noConsoleErrors(app);
@@ -700,11 +924,15 @@ scenario("collapse: ← and → on the selected merge", "edge", async (t) => {
     const { repoId, tabId } = await openGraph(app, repo);
     const merge = repo.info.shas.firstMerge;
     await app.click(rowSelector(merge));
-    await app.waitFor(() => app.exec((sha) => document.activeElement?.closest("[data-row-id]")?.dataset.rowId === sha, merge), 5000, { message: "focus on the merge row" });
+    await app.waitFor(() => app.exec((sha) => document.activeElement?.closest("[data-row-id]")?.dataset.rowId === sha, merge), 5000, {
+      message: "focus on the merge row",
+    });
     await app.press("ArrowLeft");
     await app.waitFor(`[data-row-id="${merge}"] [data-collapsed-count="2"]`, 10_000, { message: "← collapses" });
     assertEqual((await selection(app, tabId)).shas, [merge], "the merge stays selected");
-    await app.waitFor(() => app.exec((sha) => document.activeElement?.closest("[data-row-id]")?.dataset.rowId === sha, merge), 5000, { message: "focus stays on the merge row after reloading" });
+    await app.waitFor(() => app.exec((sha) => document.activeElement?.closest("[data-row-id]")?.dataset.rowId === sha, merge), 5000, {
+      message: "focus stays on the merge row after reloading",
+    });
     await app.press("ArrowRight");
     await app.waitFor(async () => !(await app.$(`[data-row-id="${merge}"] [data-collapsed-count]`)), 10_000, { message: "→ expands" });
     assertEqual((await viewState(app, repoId)).collapsedMerges, [], "view state empty");
@@ -742,7 +970,9 @@ scenario("collapse: all merges via shortcut and palette, kept after a restart", 
     t.step(`collapse all via ${viaShortcut ? "shortcut" : "palette"}`);
     // bugfix/sensor-ausfall keeps everything the second merge brought in: it has nothing to hide and no arrow.
     const collapsible = merges.filter((sha) => sha !== repo.info.shas.secondMerge);
-    await app.waitFor(async () => (await domRows(app)).filter((row) => row.toggle === "collapsed").length === collapsible.length, 10_000, { message: "every merge row that can hide something collapsed" });
+    await app.waitFor(async () => (await domRows(app)).filter((row) => row.toggle === "collapsed").length === collapsible.length, 10_000, {
+      message: "every merge row that can hide something collapsed",
+    });
     assert(!(await app.$(`[data-row-id="${repo.info.shas.secondMerge}"] [data-collapse-toggle]`)), "the second merge has no arrow");
     const hidden = lines(repo.git("rev-list", `${repo.info.shas.firstMerge}^1..${repo.info.shas.firstMerge}^2`));
     for (const sha of hidden) assert(!(await loadedRows(app, repoId)).some((row) => row.sha === sha), `${short(sha)} hidden`);
@@ -755,10 +985,14 @@ scenario("collapse: all merges via shortcut and palette, kept after a restart", 
     const crash = await again.waitFor(() => again.byText("Forkyard closed unexpectedly last time"), 5000).catch(() => null);
     if (crash) {
       await again.click({ text: "Cancel" });
-      await again.waitFor(async () => !(await again.byText("Forkyard closed unexpectedly last time")), 5000, { message: "crash note closed" });
+      await again.waitFor(async () => !(await again.byText("Forkyard closed unexpectedly last time")), 5000, {
+        message: "crash note closed",
+      });
     }
     const second = await openGraph(again, repo);
-    await again.waitFor(`[data-row-id="${repo.info.shas.firstMerge}"] [data-collapsed-count="2"]`, 15_000, { message: "collapsed after the restart" });
+    await again.waitFor(`[data-row-id="${repo.info.shas.firstMerge}"] [data-collapsed-count="2"]`, 15_000, {
+      message: "collapsed after the restart",
+    });
     assert((await viewState(again, second.repoId)).collapseAllMerges, "flag kept in the database");
 
     await again.click(rowSelector(repo.info.shas.csv));
@@ -821,7 +1055,11 @@ scenario("sync arrows: ↑ on commits not pushed yet, ↓ on commits not pulled 
     assertEqual([ahead.length, behind.length], [2, 1], "Git: 2 ahead, 1 behind");
     const rows = await domRows(app);
     assertEqual(sorted(rows.filter((row) => row.sync === "ahead").map((row) => row.id)), sorted(ahead), "↑ rows = git rev-list @{u}..HEAD");
-    assertEqual(sorted(rows.filter((row) => row.sync === "behind").map((row) => row.id)), sorted(behind), "↓ rows = git rev-list HEAD..@{u}");
+    assertEqual(
+      sorted(rows.filter((row) => row.sync === "behind").map((row) => row.id)),
+      sorted(behind),
+      "↓ rows = git rev-list HEAD..@{u}",
+    );
     for (const row of rows.filter((entry) => entry.sync)) {
       assertEqual(row.syncTitle, row.sync === "ahead" ? "Not pushed yet" : "Not pulled yet", `tooltip of ${short(row.id)}`);
       assert(row.message.startsWith(row.sync === "ahead" ? "↑" : "↓"), `arrow at the start of the message: ${row.message}`);

@@ -25,7 +25,17 @@ export interface FinishTarget {
   branch: string;
 }
 
-export function FinishDialog({ repoId, tabId, target, onClose }: { repoId: Id; tabId: Id | null; target: FinishTarget; onClose: () => void }) {
+export function FinishDialog({
+  repoId,
+  tabId,
+  target,
+  onClose,
+}: {
+  repoId: Id;
+  tabId: Id | null;
+  target: FinishTarget;
+  onClose: () => void;
+}) {
   const { data: gitflow } = useGitflow(repoId);
   const { data: status } = useStatus(repoId);
   const { data: remotes } = useRemotes(repoId);
@@ -61,7 +71,9 @@ export function FinishDialog({ repoId, tabId, target, onClose }: { repoId: Id; t
     const result = await finishGitflow(repoId, tabId, target.kind, target.name, {
       deleteBranch,
       push: push && !noRemote,
-      ...(tagged ? { noTag: !withTag, tag: withTag && tagName !== defaultTag ? tagName : null, message: withTag ? tagMessage.trim() || null : null } : {}),
+      ...(tagged
+        ? { noTag: !withTag, tag: withTag && tagName !== defaultTag ? tagName : null, message: withTag ? tagMessage.trim() || null : null }
+        : {}),
     });
     // On an error the dialog stays open (the message names the reason); otherwise it is done.
     if (result.ok) onClose();
@@ -76,7 +88,11 @@ export function FinishDialog({ repoId, tabId, target, onClose }: { repoId: Id; t
         <Trans
           i18nKey={tagged ? "gitflow.finish.taggedDescription" : "gitflow.finish.featureDescription"}
           values={{ branch: target.branch, main, develop }}
-          components={{ branch: <span className="font-mono text-code text-text" />, main: <span className="font-mono text-code text-text" />, develop: <span className="font-mono text-code text-text" /> }}
+          components={{
+            branch: <span className="font-mono text-code text-text" />,
+            main: <span className="font-mono text-code text-text" />,
+            develop: <span className="font-mono text-code text-text" />,
+          }}
         />
       }
       onOpenChange={(open) => {
@@ -117,21 +133,51 @@ export function FinishDialog({ repoId, tabId, target, onClose }: { repoId: Id; t
             </Banner>
           </div>
         ) : null}
-        <Checkbox label={t("gitflow.finish.deleteBranch")} hint={t("gitflow.finish.deleteBranchHint", { branch: target.branch })} checked={deleteBranch} onCheckedChange={setDeleteBranch} />
+        <Checkbox
+          label={t("gitflow.finish.deleteBranch")}
+          hint={t("gitflow.finish.deleteBranchHint", { branch: target.branch })}
+          checked={deleteBranch}
+          onCheckedChange={setDeleteBranch}
+        />
         {tagged ? (
           <>
-            <Checkbox label={t("gitflow.finish.tag")} hint={t("gitflow.finish.tagHint", { main })} checked={withTag} onCheckedChange={setWithTag} />
+            <Checkbox
+              label={t("gitflow.finish.tag")}
+              hint={t("gitflow.finish.tagHint", { main })}
+              checked={withTag}
+              onCheckedChange={setWithTag}
+            />
             {withTag ? (
               <div className="flex flex-col gap-3 pl-6">
-                <TextField label={t("gitflow.finish.tagName")} mono value={tag ?? defaultTag} error={tagError ?? undefined} autoComplete="off" onChange={(event) => setTag(event.target.value.replace(/\s/g, "-"))} />
-                <TextArea label={t("gitflow.finish.tagMessage")} rows={2} value={tagMessage} spellCheck={false} className="resize-none!" onChange={(event) => setMessage(event.target.value)} />
+                <TextField
+                  label={t("gitflow.finish.tagName")}
+                  mono
+                  value={tag ?? defaultTag}
+                  error={tagError ?? undefined}
+                  autoComplete="off"
+                  onChange={(event) => setTag(event.target.value.replace(/\s/g, "-"))}
+                />
+                <TextArea
+                  label={t("gitflow.finish.tagMessage")}
+                  rows={2}
+                  value={tagMessage}
+                  spellCheck={false}
+                  className="resize-none!"
+                  onChange={(event) => setMessage(event.target.value)}
+                />
               </div>
             ) : null}
           </>
         ) : null}
         <Checkbox
           label={t("gitflow.finish.push")}
-          hint={noRemote ? t("gitflow.finish.noRemote") : tagged ? t("gitflow.finish.pushTagged", { main, develop }) : t("gitflow.finish.pushFeature", { develop })}
+          hint={
+            noRemote
+              ? t("gitflow.finish.noRemote")
+              : tagged
+                ? t("gitflow.finish.pushTagged", { main, develop })
+                : t("gitflow.finish.pushFeature", { develop })
+          }
           checked={push && !noRemote}
           disabled={noRemote}
           onCheckedChange={setPush}

@@ -1,11 +1,45 @@
 import { describe, expect, it } from "vitest";
 import type { AiStatus, ReleaseNotes } from "../../core";
 import { toHostRepo } from "../../app/actions/hostTypes";
-import { answerPlacement, availabilityOf, availableTargets, doneLine, localDate, rangeLine, targetHint, targetLabel, toggleTarget } from "./model";
+import {
+  answerPlacement,
+  availabilityOf,
+  availableTargets,
+  doneLine,
+  localDate,
+  rangeLine,
+  targetHint,
+  targetLabel,
+  toggleTarget,
+} from "./model";
 
-const range = (partial: Partial<ReleaseNotes["range"]> = {}): ReleaseNotes["range"] => ({ from: "v1.1.0", fromSha: "a".repeat(40), toSha: "b".repeat(40), commits: 3, included: 3, ...partial });
-const notes = (markdown: string, partial: Partial<ReleaseNotes> = {}): ReleaseNotes => ({ range: range(), language: "de", groups: [], markdown, unmentioned: 0, ...partial });
-const on: AiStatus = { state: "on", provider: "ollama", model: "qwen3:8b", connected: true, keyHint: null, local: true, price: null, introPending: false, featuresOff: [] };
+const range = (partial: Partial<ReleaseNotes["range"]> = {}): ReleaseNotes["range"] => ({
+  from: "v1.1.0",
+  fromSha: "a".repeat(40),
+  toSha: "b".repeat(40),
+  commits: 3,
+  included: 3,
+  ...partial,
+});
+const notes = (markdown: string, partial: Partial<ReleaseNotes> = {}): ReleaseNotes => ({
+  range: range(),
+  language: "de",
+  groups: [],
+  markdown,
+  unmentioned: 0,
+  ...partial,
+});
+const on: AiStatus = {
+  state: "on",
+  provider: "ollama",
+  model: "qwen3:8b",
+  connected: true,
+  keyHint: null,
+  local: true,
+  price: null,
+  introPending: false,
+  featuresOff: [],
+};
 
 describe("release notes targets", () => {
   it("a tag offers the changelog, the host release only where the host has releases, and the clipboard", () => {
@@ -26,7 +60,9 @@ describe("release notes targets", () => {
 
   it("names the host and marks the release as external and irreversible", () => {
     expect(targetLabel("host_release", "GitHub")).toBe("Create release on GitHub");
-    expect(targetHint("host_release", "origin")).toBe("External: Pushes the tag to origin first. Leaves this computer and cannot be undone.");
+    expect(targetHint("host_release", "origin")).toBe(
+      "External: Pushes the tag to origin first. Leaves this computer and cannot be undone.",
+    );
     expect(targetHint("clipboard", "origin")).toBeNull();
   });
 });
@@ -39,8 +75,12 @@ describe("range and status lines", () => {
   });
 
   it("says what the draft is based on and what was left out", () => {
-    expect(doneLine(notes("### Neu\n\n- x", { range: range({ commits: 2, included: 2 }), unmentioned: 1 }))).toBe("Draft from 2 commits since v1.1.0. 1 commit without a visible change is not mentioned.");
-    expect(doneLine(notes("### Neu\n\n- x", { range: range({ from: null, fromSha: null, commits: 1, included: 1 }) }))).toBe("Draft from 1 commit since the first commit.");
+    expect(doneLine(notes("### Neu\n\n- x", { range: range({ commits: 2, included: 2 }), unmentioned: 1 }))).toBe(
+      "Draft from 2 commits since v1.1.0. 1 commit without a visible change is not mentioned.",
+    );
+    expect(doneLine(notes("### Neu\n\n- x", { range: range({ from: null, fromSha: null, commits: 1, included: 1 }) }))).toBe(
+      "Draft from 1 commit since the first commit.",
+    );
   });
 });
 
@@ -52,14 +92,39 @@ describe("where the answer goes", () => {
   });
 
   it("no commits: a short sentence instead of text", () => {
-    expect(answerPlacement("", "", notes("", { range: range({ commits: 0, included: 0 }) }))).toEqual({ kind: "empty", text: "No commits since v1.1.0 – nothing to write." });
+    expect(answerPlacement("", "", notes("", { range: range({ commits: 0, included: 0 }) }))).toEqual({
+      kind: "empty",
+      text: "No commits since v1.1.0 – nothing to write.",
+    });
   });
 });
 
 describe("availability", () => {
-  const github = toHostRepo({ remote: "origin", kind: "github", account: { id: "a1", kind: "github" }, owner: "octo", name: "demo", webUrl: "https://github.com/octo/demo", capabilities: { releases: true } });
-  const bitbucket = toHostRepo({ remote: "origin", kind: "bitbucket", account: { id: "a2", kind: "bitbucket" }, owner: "team", name: "demo", webUrl: "https://bitbucket.org/team/demo" });
-  const unconnected = toHostRepo({ remote: "origin", kind: "github", account: null, owner: "octo", name: "demo", webUrl: "https://github.com/octo/demo" });
+  const github = toHostRepo({
+    remote: "origin",
+    kind: "github",
+    account: { id: "a1", kind: "github" },
+    owner: "octo",
+    name: "demo",
+    webUrl: "https://github.com/octo/demo",
+    capabilities: { releases: true },
+  });
+  const bitbucket = toHostRepo({
+    remote: "origin",
+    kind: "bitbucket",
+    account: { id: "a2", kind: "bitbucket" },
+    owner: "team",
+    name: "demo",
+    webUrl: "https://bitbucket.org/team/demo",
+  });
+  const unconnected = toHostRepo({
+    remote: "origin",
+    kind: "github",
+    account: null,
+    owner: "octo",
+    name: "demo",
+    webUrl: "https://github.com/octo/demo",
+  });
 
   it("follows the AI state, the function switch and the repository switch", () => {
     expect(availabilityOf(on, false, null).visible).toBe(true);

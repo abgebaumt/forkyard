@@ -73,7 +73,8 @@ export function secretsNotes(found: SecretsFound): string[] {
 export const acceptedIds = (findings: SecretFinding[]): string[] => [...new Set(findings.map((finding) => finding.id))];
 
 /** Findings the user has not marked "Don't report again" in this dialog. */
-export const stillReported = (findings: SecretFinding[], ignored: ReadonlySet<string>): SecretFinding[] => findings.filter((finding) => !ignored.has(finding.id));
+export const stillReported = (findings: SecretFinding[], ignored: ReadonlySet<string>): SecretFinding[] =>
+  findings.filter((finding) => !ignored.has(finding.id));
 
 export function reviewRows(review: AiPushReview): ReviewRow[] {
   return [...review.findings].sort(byPlace).map((finding, index) => ({
@@ -97,7 +98,8 @@ export const reviewPushLabel = (phase: "loading" | "done" | "error", findings: n
 type ReviewRepo = Pick<RepoSettings, "aiOff" | "aiReviewBeforePush">;
 
 /** "Review and push …" appears (menu, palette) exactly where the function is visible (1a, 1.3). */
-export const reviewOffered = (status: AiStatus | null | undefined, repo: ReviewRepo | null | undefined): boolean => featureVisible(status, "push_review", repo?.aiOff ?? false);
+export const reviewOffered = (status: AiStatus | null | undefined, repo: ReviewRepo | null | undefined): boolean =>
+  featureVisible(status, "push_review", repo?.aiOff ?? false);
 
 /**
  * A normal push reviews first: the project opted in, the function is visible here and the provider

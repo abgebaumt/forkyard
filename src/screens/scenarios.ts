@@ -78,7 +78,8 @@ export function createScenarioContext(queryClient: QueryClient): ScenarioContext
     async repo() {
       if (context.fixture) return context.openRepo(context.fixture);
       const tab = await context.activeTab();
-      if (!tab || tab.kind !== "repo" || !tab.repoId) throw new Error("The scenario needs an open repository (?fixture=<path> or an active repo tab).");
+      if (!tab || tab.kind !== "repo" || !tab.repoId)
+        throw new Error("The scenario needs an open repository (?fixture=<path> or an active repo tab).");
       return { repoId: tab.repoId, tabId: tab.id };
     },
     waitFor,

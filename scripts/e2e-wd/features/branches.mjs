@@ -57,7 +57,14 @@ async function shot(t, name) {
 /** Right-click on the element and wait for the context menu. */
 async function contextMenu(app, css) {
   const { x, y } = await pointOf(app, css);
-  await perform(app, pointerActions([{ type: "pointerMove", origin: "viewport", x, y }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }]));
+  await perform(
+    app,
+    pointerActions([
+      { type: "pointerMove", origin: "viewport", x, y },
+      { type: "pointerDown", button: 2 },
+      { type: "pointerUp", button: 2 },
+    ]),
+  );
   await app.waitFor('[role="menu"]', 5000, { message: "context menu open" });
 }
 
@@ -66,12 +73,22 @@ async function ctrlClick(app, css) {
   const { x, y } = await pointOf(app, css);
   await app.webdriver("POST", "/actions", {
     actions: [
-      { type: "key", id: "keyboard", actions: [{ type: "keyDown", value: "" }, { type: "pause" }, { type: "pause" }, { type: "pause" }, { type: "keyUp", value: "" }] },
+      {
+        type: "key",
+        id: "keyboard",
+        actions: [{ type: "keyDown", value: "" }, { type: "pause" }, { type: "pause" }, { type: "pause" }, { type: "keyUp", value: "" }],
+      },
       {
         type: "pointer",
         id: "mouse",
         parameters: { pointerType: "mouse" },
-        actions: [{ type: "pause" }, { type: "pointerMove", origin: "viewport", x, y }, { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }, { type: "pause" }],
+        actions: [
+          { type: "pause" },
+          { type: "pointerMove", origin: "viewport", x, y },
+          { type: "pointerDown", button: 0 },
+          { type: "pointerUp", button: 0 },
+          { type: "pause" },
+        ],
       },
     ],
   });
@@ -85,13 +102,17 @@ async function ctrlClick(app, css) {
 async function drag(app, from, to, { escape = false, beforeRelease = null } = {}) {
   const a = await pointOf(app, from);
   const b = await pointOf(app, to);
-  await app.webdriver("POST", "/actions", pointerActions([
-    { type: "pointerMove", origin: "viewport", x: a.x, y: a.y },
-    { type: "pointerDown", button: 0 },
-    { type: "pointerMove", origin: "viewport", x: a.x + 6, y: a.y + 10, duration: 80 },
-    { type: "pointerMove", origin: "viewport", x: b.x, y: b.y, duration: 250 },
-    { type: "pause", duration: 150 },
-  ]));
+  await app.webdriver(
+    "POST",
+    "/actions",
+    pointerActions([
+      { type: "pointerMove", origin: "viewport", x: a.x, y: a.y },
+      { type: "pointerDown", button: 0 },
+      { type: "pointerMove", origin: "viewport", x: a.x + 6, y: a.y + 10, duration: 80 },
+      { type: "pointerMove", origin: "viewport", x: b.x, y: b.y, duration: 250 },
+      { type: "pause", duration: 150 },
+    ]),
+  );
   if (beforeRelease) await beforeRelease();
   if (escape) await app.press("Escape");
   await perform(app, pointerActions([{ type: "pointerUp", button: 0 }]));
@@ -130,7 +151,10 @@ function dialogInfo(app) {
     return {
       title: dialog.querySelector("h2")?.innerText.trim() ?? "",
       text: dialog.innerText.replace(/\s+/g, " ").trim(),
-      buttons: [...dialog.querySelectorAll("footer button, button[data-action]")].map((button) => ({ text: button.innerText.trim(), disabled: button.disabled })),
+      buttons: [...dialog.querySelectorAll("footer button, button[data-action]")].map((button) => ({
+        text: button.innerText.trim(),
+        disabled: button.disabled,
+      })),
     };
   });
 }
@@ -166,15 +190,18 @@ async function dialogButton(app, text) {
 
 /** Toasts currently shown: [{ tone, text }]. */
 function toasts(app) {
-  return app.exec(() => [...document.querySelectorAll("[data-toast]")].map((el) => ({ tone: el.getAttribute("data-toast"), text: el.innerText.replace(/\s+/g, " ").trim() })));
+  return app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((el) => ({
+      tone: el.getAttribute("data-toast"),
+      text: el.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 }
 
 async function waitToast(app, tone, pattern, timeout = 15_000) {
-  return app.waitFor(
-    async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)) ?? null,
-    timeout,
-    { message: `${tone} toast ${pattern}` },
-  );
+  return app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)) ?? null, timeout, {
+    message: `${tone} toast ${pattern}`,
+  });
 }
 
 async function noDangerToasts(app) {
@@ -184,7 +211,8 @@ async function noDangerToasts(app) {
 
 async function dismissToasts(app) {
   await app.exec(() => {
-    for (const el of document.querySelectorAll("[data-toast] button[aria-label]")) if (/close|dismiss/i.test(el.getAttribute("aria-label"))) el.click();
+    for (const el of document.querySelectorAll("[data-toast] button[aria-label]"))
+      if (/close|dismiss/i.test(el.getAttribute("aria-label"))) el.click();
   });
 }
 
@@ -253,7 +281,9 @@ scenario("create branch from the toolbar and check it out", "main", async (t) =>
     const input = await app.waitFor('[role="dialog"] input');
     await app.type(input, "feature/regen menge");
     assertEqual(await input.prop("value"), "feature/regen-menge", "spaces become -");
-    await app.waitFor(async () => !(await dialogInfo(app)).buttons.find((b) => b.text === "Create branch")?.disabled, 5000, { message: "Create branch enabled" });
+    await app.waitFor(async () => !(await dialogInfo(app)).buttons.find((b) => b.text === "Create branch")?.disabled, 5000, {
+      message: "Create branch enabled",
+    });
     await shot(t, "create-branch-dialog");
     await app.press("Enter");
     await noDialog(app);
@@ -261,7 +291,9 @@ scenario("create branch from the toolbar and check it out", "main", async (t) =>
     await eventually(() => repo.branch(), "feature/regen-menge", "new branch is checked out (git)");
     assertEqual(repo.sha("feature/regen-menge"), repo.shas.c3, "starts at the former HEAD");
     await waitToast(app, "success", /feature\/regen-menge/);
-    await app.waitFor(async () => (await app.$(branchRow("feature/regen-menge")))?.attr("aria-current").then((v) => v === "true"), 10_000, { message: "sidebar marks the new branch as checked out" });
+    await app.waitFor(async () => (await app.$(branchRow("feature/regen-menge")))?.attr("aria-current").then((v) => v === "true"), 10_000, {
+      message: "sidebar marks the new branch as checked out",
+    });
     await shot(t, "create-branch-done");
     await noDangerToasts(app);
     await t.noConsoleErrors(app);
@@ -278,10 +310,17 @@ scenario("create branch: existing and invalid names are refused, Esc cancels", "
     await waitDialog(app, /^New branch$/);
     const input = await app.waitFor('[role="dialog"] input');
     await app.type(input, "main");
-    const exists = await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [role="alert"]')?.innerText ?? null), 5000, { message: "reason for an existing name" });
+    const exists = await app.waitFor(
+      () => app.exec(() => document.querySelector('[role="dialog"] [role="alert"]')?.innerText ?? null),
+      5000,
+      { message: "reason for an existing name" },
+    );
     assertMatch(exists, /already exists/, "existing name reason");
     assertEqual(await input.attr("aria-invalid"), "true", "input marked invalid");
-    assert((await dialogInfo(app)).buttons.find((b) => b.text === "Create branch").disabled, "Create branch is disabled for an existing name");
+    assert(
+      (await dialogInfo(app)).buttons.find((b) => b.text === "Create branch").disabled,
+      "Create branch is disabled for an existing name",
+    );
     await app.press("Enter");
     await sleep(300);
     assert(await dialogInfo(app), "Enter with an existing name keeps the dialog open");
@@ -289,11 +328,18 @@ scenario("create branch: existing and invalid names are refused, Esc cancels", "
     await app.press("Control+a", "Backspace");
     await app.type(input, "kaputt..name");
     await app.waitFor(
-      () => app.exec(() => { const text = document.querySelector('[role="dialog"] [role="alert"]')?.innerText ?? ""; return text && !/already exists/.test(text) ? text : null; }),
+      () =>
+        app.exec(() => {
+          const text = document.querySelector('[role="dialog"] [role="alert"]')?.innerText ?? "";
+          return text && !/already exists/.test(text) ? text : null;
+        }),
       5000,
       { message: "Git rule reason for an invalid name" },
     );
-    assert((await dialogInfo(app)).buttons.find((b) => b.text === "Create branch").disabled, "Create branch is disabled for an invalid name");
+    assert(
+      (await dialogInfo(app)).buttons.find((b) => b.text === "Create branch").disabled,
+      "Create branch is disabled for an invalid name",
+    );
 
     await app.press("Escape");
     await noDialog(app);
@@ -363,7 +409,11 @@ scenario("rename: existing name shows the reason, Esc discards; rename via the m
     const input = await app.waitFor("[data-rename-input]");
     await app.press("Control+a", "Backspace");
     await app.type(input, "main");
-    const reason = await app.waitFor(() => app.exec(() => document.querySelector('[data-left-scroll] [role="alert"]')?.innerText ?? null), 5000, { message: "reason at the row" });
+    const reason = await app.waitFor(
+      () => app.exec(() => document.querySelector('[data-left-scroll] [role="alert"]')?.innerText ?? null),
+      5000,
+      { message: "reason at the row" },
+    );
     assertMatch(reason, /main/, "reason names the existing branch");
     await app.press("Enter");
     await sleep(400);
@@ -376,7 +426,9 @@ scenario("rename: existing name shows the reason, Esc discards; rename via the m
     await contextMenu(app, branchRow("konflikt"));
     await chooseMenu(app, /^Rename/);
     const again = await app.waitFor("[data-rename-input]", 5000, { message: "rename input from the menu" });
-    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-rename-input") ?? false), 5000, { message: "input focused after the menu closed" });
+    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-rename-input") ?? false), 5000, {
+      message: "input focused after the menu closed",
+    });
     await app.press("Control+a", "Backspace");
     await app.type(again, "sensor-b");
     await app.press("Enter");
@@ -400,7 +452,10 @@ scenario("delete a merged branch from the context menu", "main", async (t) => {
     await chooseMenu(app, /^Delete .erledigt./);
     const info = await waitDialog(app, /erledigt/);
     assertMatch(info.text, /main/, "the prompt says where the commits are contained");
-    assert(info.buttons.some((b) => b.text === "Delete branch"), `plain “Delete branch” for a merged branch (${info.buttons.map((b) => b.text).join(", ")})`);
+    assert(
+      info.buttons.some((b) => b.text === "Delete branch"),
+      `plain “Delete branch” for a merged branch (${info.buttons.map((b) => b.text).join(", ")})`,
+    );
     await shot(t, "delete-branch-confirm");
     await dialogButton(app, "Delete branch");
     await noDialog(app);
@@ -421,7 +476,10 @@ scenario("delete an unmerged branch: Delete anyway, cancel keeps it, undo brings
     await contextMenu(app, branchRow("konflikt"));
     await chooseMenu(app, /^Delete .konflikt./);
     let info = await waitDialog(app, /konflikt/);
-    assert(info.buttons.some((b) => b.text === "Delete anyway"), `“Delete anyway” for an unmerged branch (${info.buttons.map((b) => b.text).join(", ")})`);
+    assert(
+      info.buttons.some((b) => b.text === "Delete anyway"),
+      `“Delete anyway” for an unmerged branch (${info.buttons.map((b) => b.text).join(", ")})`,
+    );
     assertMatch(info.text, /1 commit|not merged|not contained/i, "the prompt warns about the unmerged commit");
     await dialogButton(app, "Cancel");
     await noDialog(app);
@@ -476,7 +534,9 @@ scenario("drag a branch onto main and merge it", "main", async (t) => {
     const { app } = await start(t, repo);
     await drag(app, branchRow("feature/luftdruck"), branchRow("main"), {
       beforeRelease: async () => {
-        await app.waitFor(async () => (await app.$(`${branchRow("main")}[data-drop-target]`)) !== null, 5000, { message: "main marked as drop target" });
+        await app.waitFor(async () => (await app.$(`${branchRow("main")}[data-drop-target]`)) !== null, 5000, {
+          message: "main marked as drop target",
+        });
         assert(await app.$("[data-drag-ghost]"), "a label follows the pointer");
       },
     });
@@ -508,7 +568,11 @@ scenario("drag a branch onto main and rebase it", "main", async (t) => {
     await app.waitFor('[role="menu"]', 5000, { message: "drop menu" });
     await chooseMenu(app, /^Rebase .feature\/luftdruck. onto .main./);
     await eventually(() => repo.git("merge-base", "feature/luftdruck", "main"), repo.shas.c3, "the branch now sits on main (git)");
-    assertEqual(repo.git("log", "--format=%s", "main..feature/luftdruck").split("\n"), ["Luftdruck kalibrieren", "Luftdruck erfassen"], "both commits replayed in order");
+    assertEqual(
+      repo.git("log", "--format=%s", "main..feature/luftdruck").split("\n"),
+      ["Luftdruck kalibrieren", "Luftdruck erfassen"],
+      "both commits replayed in order",
+    );
     assertEqual(repo.sha("main"), repo.shas.c3, "main itself unchanged");
     await eventually(() => repo.operation(), null, "no rebase left running", 5000);
     await waitToast(app, "success", /Rebase/);
@@ -539,7 +603,8 @@ scenario("drag and drop: Esc cancels, a tag is no target, closing the menu chang
       await app.waitFor('[data-row-id="refs/tags/v0.1"]', 5000, { message: "tag row after expanding Tags" });
     }
     await drag(app, branchRow("feature/luftdruck"), '[data-row-id="refs/tags/v0.1"]', {
-      beforeRelease: async () => assertEqual(await app.$('[data-row-id="refs/tags/v0.1"][data-drop-target]'), null, "a tag is not marked as target"),
+      beforeRelease: async () =>
+        assertEqual(await app.$('[data-row-id="refs/tags/v0.1"][data-drop-target]'), null, "a tag is not marked as target"),
     });
     await sleep(300);
     assertEqual((await app.$$('[role="menu"]')).length, 0, "no menu after dropping on a tag");
@@ -613,10 +678,18 @@ scenario("cherry-pick several commits goes through the rebase tool with a clean 
     await chooseMenu(app, /^Cherry-pick 2 commits/);
     await app.waitFor('[data-screen="rebase"][data-mode="cherry_pick"]', 10_000, { message: "rebase tool in cherry-pick mode" });
     await app.waitFor('[data-conflict-preview="clean"]', 15_000, { message: "preview: no conflicts expected" });
-    assertIncludes(await app.exec(() => document.querySelector("[data-conflict-preview]").innerText), "No conflicts expected", "preview text");
+    assertIncludes(
+      await app.exec(() => document.querySelector("[data-conflict-preview]").innerText),
+      "No conflicts expected",
+      "preview text",
+    );
     await shot(t, "cherry-pick-many-tool");
     await app.click({ text: "Cherry-pick 2 commits" });
-    await eventually(() => repo.git("log", "--format=%s", `${repo.shas.c3}..main`).split("\n"), ["Luftdruck kalibrieren", "Luftdruck erfassen"], "both picked in history order (git)");
+    await eventually(
+      () => repo.git("log", "--format=%s", `${repo.shas.c3}..main`).split("\n"),
+      ["Luftdruck kalibrieren", "Luftdruck erfassen"],
+      "both picked in history order (git)",
+    );
     await eventually(() => repo.operation(), null, "no operation left running", 5000);
     await noDangerToasts(app);
     await t.noConsoleErrors(app);
@@ -739,7 +812,8 @@ async function waitPreflight(app) {
   return dialogInfo(app);
 }
 
-const preflightFiles = (app) => app.exec(() => [...document.querySelectorAll('[data-screen="preflight"] ul li')].map((li) => li.innerText.trim()));
+const preflightFiles = (app) =>
+  app.exec(() => [...document.querySelectorAll('[data-screen="preflight"] ul li')].map((li) => li.innerText.trim()));
 
 scenario("preflight: a merge with conflicts names the files; going ahead stops in the conflict", "main", async (t) => {
   const repo = makeBranchRepo();
@@ -820,7 +894,10 @@ scenario("preflight: cherry-pick of a conflicting commit asks first", "edge", as
     const info = await waitPreflight(app);
     assertEqual(info.title, "Cherry-pick 1 commit?", "dialog title");
     assertEqual(await preflightFiles(app), ["werte.txt"], "conflicting file listed");
-    assert(info.buttons.some((b) => b.text === "Cherry-pick"), `confirm label is the action (${info.buttons.map((b) => b.text).join(", ")})`);
+    assert(
+      info.buttons.some((b) => b.text === "Cherry-pick"),
+      `confirm label is the action (${info.buttons.map((b) => b.text).join(", ")})`,
+    );
     await shot(t, "preflight-cherry-pick-conflict");
     await app.click('[data-action="preflight-run"]');
     await noDialog(app);
@@ -901,9 +978,11 @@ scenario("preflight: rebase offers to move dependent branches along", "main", as
     assertIncludes(info.text, "luftdruck-basis", "the dependent branch is named");
     assert(!info.text.includes("Expected conflicts"), "no conflict expected");
     const box = await app.waitFor('[data-screen="preflight"] [role="checkbox"], [data-screen="preflight"] input[type="checkbox"]');
-    assertEqual(await box.attr("aria-checked") ?? String(await box.prop("checked")), "false", "off by default");
+    assertEqual((await box.attr("aria-checked")) ?? String(await box.prop("checked")), "false", "off by default");
     await box.click();
-    await app.waitFor(async () => ((await box.attr("aria-checked")) ?? String(await box.prop("checked"))) === "true", 3000, { message: "checkbox on" });
+    await app.waitFor(async () => ((await box.attr("aria-checked")) ?? String(await box.prop("checked"))) === "true", 3000, {
+      message: "checkbox on",
+    });
     await shot(t, "preflight-rebase-update-refs");
     await app.click('[data-action="preflight-run"]');
     await noDialog(app);
@@ -933,7 +1012,11 @@ scenario("preflight: rebase tool shows expected conflicts inline for several che
     assertIncludes(text, short(repo.shas.k1), "names the commit");
     await app.click('[data-conflict-preview="conflicts"] button');
     await app.waitFor('[data-conflict-preview="conflicts"] ul li', 3000, { message: "file list expands" });
-    assertEqual(await app.exec(() => [...document.querySelectorAll('[data-conflict-preview] li')].map((li) => li.innerText.trim())), ["werte.txt"], "file list");
+    assertEqual(
+      await app.exec(() => [...document.querySelectorAll("[data-conflict-preview] li")].map((li) => li.innerText.trim())),
+      ["werte.txt"],
+      "file list",
+    );
     await shot(t, "preflight-rebase-tool-inline");
     assertEqual(repo.operation(), null, "nothing started yet");
     await t.noConsoleErrors(app);

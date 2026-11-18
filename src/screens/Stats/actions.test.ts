@@ -73,7 +73,12 @@ describe("opening the statistics", () => {
     expect(showsSidePanels(getTabView("tab-w"))).toBe(false);
     const ctx = { repoId: "r", tabId: "tab-w", view: getTabView("tab-w") } as CommandContext;
     for (const id of ["view.toggleLeftPanel", "view.toggleCommitPanel"]) {
-      expect(getCommands().find((item) => item.id === id)?.when?.(ctx), id).toBe(false);
+      expect(
+        getCommands()
+          .find((item) => item.id === id)
+          ?.when?.(ctx),
+        id,
+      ).toBe(false);
     }
     toggleStats("tab-w");
     const view = getTabView("tab-w");

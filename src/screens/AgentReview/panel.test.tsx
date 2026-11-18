@@ -32,8 +32,29 @@ const agent = (patch: Partial<Agent> = {}): Agent => ({
   test: null,
   ...patch,
 });
-const latest: AgentReview = { agentId: "a1", repoId: "r1", worktreeRepoId: "w1", source: "snapshot", from: "1".repeat(40), to: "2".repeat(40), tip: "3".repeat(40), base: "main", uncommittedFiles: 2, running: false };
-const staged = (path: string): FileChange => ({ path, oldPath: null, status: "added", area: "staged", isBinary: false, isLfs: false, added: 1, removed: 0, conflict: null });
+const latest: AgentReview = {
+  agentId: "a1",
+  repoId: "r1",
+  worktreeRepoId: "w1",
+  source: "snapshot",
+  from: "1".repeat(40),
+  to: "2".repeat(40),
+  tip: "3".repeat(40),
+  base: "main",
+  uncommittedFiles: 2,
+  running: false,
+};
+const staged = (path: string): FileChange => ({
+  path,
+  oldPath: null,
+  status: "added",
+  area: "staged",
+  isBinary: false,
+  isLfs: false,
+  added: 1,
+  removed: 0,
+  conflict: null,
+});
 const status = (patch: Partial<Status> = {}): Status => ({
   head: { kind: "branch", branch: "main", sha: "4".repeat(40) },
   upstream: null,
@@ -88,7 +109,10 @@ function sync() {
 
 beforeEach(() => {
   useReviewStore.setState({
-    panes: { "t1:a1": { ...DEFAULT_PANE, pinned: latest, picks: { "liste.txt": { kind: "all" } } }, "t1:a2": { ...DEFAULT_PANE, pinned: latest, picks: {} } },
+    panes: {
+      "t1:a1": { ...DEFAULT_PANE, pinned: latest, picks: { "liste.txt": { kind: "all" } } },
+      "t1:a2": { ...DEFAULT_PANE, pinned: latest, picks: {} },
+    },
     focus: {},
   });
   sync();
@@ -131,7 +155,9 @@ describe("ReviewActions", () => {
     expect(tag(html, "review-take-over")).not.toContain(' disabled=""');
     expect(tag(html, "review-merge")).not.toContain(' disabled=""');
     expect(tag(html, "review-rebase")).toContain(' disabled=""');
-    expect(tag(html, "review-rebase")).toContain("The agent&#x27;s worktree has 2 uncommitted files. Commit them there or discard the rest first.");
+    expect(tag(html, "review-rebase")).toContain(
+      "The agent&#x27;s worktree has 2 uncommitted files. Commit them there or discard the rest first.",
+    );
     expect(html).toContain("Rebase onto main");
     expect(tag(html, "review-discard")).not.toContain(' disabled=""');
     expect(html).toContain("(destructive)");

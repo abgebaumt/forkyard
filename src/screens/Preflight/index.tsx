@@ -21,7 +21,17 @@ export interface PreflightChoice {
 /** The facts, or the promise of them while the check still runs. */
 type FactsSource = PreflightFacts | Promise<PreflightFacts>;
 
-function PreflightDialog({ title, confirmLabel, source, onDone }: { title: string; confirmLabel: string; source: FactsSource; onDone: (value: PreflightChoice | null) => void }) {
+function PreflightDialog({
+  title,
+  confirmLabel,
+  source,
+  onDone,
+}: {
+  title: string;
+  confirmLabel: string;
+  source: FactsSource;
+  onDone: (value: PreflightChoice | null) => void;
+}) {
   const [updateRefs, setUpdateRefs] = useState(false);
   const [facts, setFacts] = useState<PreflightFacts | null>(source instanceof Promise ? null : source);
   useEffect(() => {
@@ -71,7 +81,10 @@ function PreflightDialog({ title, confirmLabel, source, onDone }: { title: strin
                 {atCommit ? t("preflight.conflictsFromBody", { sha: shortSha(atCommit) }) : t("preflight.conflictsBody")}
               </Banner>
             </div>
-            <ul aria-label={t("preflight.filesLabel")} className="m-0 flex max-h-36 list-none flex-col overflow-auto rounded-md border border-border bg-surface-sunken p-2 font-mono text-code text-text">
+            <ul
+              aria-label={t("preflight.filesLabel")}
+              className="m-0 flex max-h-36 list-none flex-col overflow-auto rounded-md border border-border bg-surface-sunken p-2 font-mono text-code text-text"
+            >
               {files.map((file) => (
                 <li key={file} className="truncate" title={file}>
                   {file}
@@ -95,5 +108,7 @@ function PreflightDialog({ title, confirmLabel, source, onDone }: { title: strin
 
 /** `facts` may still be a promise: then the dialog shows the checking state until it settles. */
 export function openPreflightDialog(options: { title: string; confirmLabel: string; facts: FactsSource }): Promise<PreflightChoice | null> {
-  return showDialog<PreflightChoice>((done) => <PreflightDialog title={options.title} confirmLabel={options.confirmLabel} source={options.facts} onDone={done} />);
+  return showDialog<PreflightChoice>((done) => (
+    <PreflightDialog title={options.title} confirmLabel={options.confirmLabel} source={options.facts} onDone={done} />
+  ));
 }

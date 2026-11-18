@@ -85,7 +85,11 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const [text, setText] = useState({ summary: draft.summary, description: draft.description });
   useEffect(() => {
     const fresh = getDraft(repoId);
-    setText((current) => (current.summary === fresh.summary && current.description === fresh.description ? current : { summary: fresh.summary, description: fresh.description }));
+    setText((current) =>
+      current.summary === fresh.summary && current.description === fresh.description
+        ? current
+        : { summary: fresh.summary, description: fresh.description },
+    );
   }, [repoId, storedDraft]);
 
   // Template as the initial value when there is no draft.
@@ -108,7 +112,9 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   // the field rules: whoever clears it to write anew does not get the default back.
   const mergeKey = operation?.kind === "merge" ? `merge:${headSha ?? ""}` : null;
   const prepared =
-    mergeKey !== null && wip.mergeMessageTouched !== mergeKey && !text.summary && !text.description ? splitMessage(operation?.message ?? "") : null;
+    mergeKey !== null && wip.mergeMessageTouched !== mergeKey && !text.summary && !text.description
+      ? splitMessage(operation?.message ?? "")
+      : null;
   const summary = prepared?.summary ?? text.summary;
   const description = prepared?.description ?? text.description;
 
@@ -118,11 +124,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const locks = useLockIndex(repoId);
   const lockWarning = foreignWarning(foreignStaged(status?.staged ?? [], locks));
 
-  const amendBlocked = operation
-    ? t("wip.form.amendOperation")
-    : head?.kind === "unborn"
-      ? t("wip.form.amendUnborn")
-      : null;
+  const amendBlocked = operation ? t("wip.form.amendOperation") : head?.kind === "unborn" ? t("wip.form.amendUnborn") : null;
   const amendHint = amendBlocked ?? (draft.amend && headCommit?.commit?.isPushed ? t("wip.form.amendPushed") : undefined);
 
   // The description grows with the text, up to the limit from the class max-h-40.
@@ -152,7 +154,8 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   // Mod+Z right after an AI draft was inserted takes it back (the field's own history does not know
   // text that was set from outside); otherwise the field handles Mod+Z itself.
   const undoKey = (event: ReactKeyboardEvent) => {
-    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "z" && undoInsertion(repoId)) event.preventDefault();
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === "z" && undoInsertion(repoId))
+      event.preventDefault();
   };
 
   const length = [...summary].length;
@@ -191,20 +194,32 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           {aiShown ? <AiWriteButton repoId={repoId} staged={status?.staged.length ?? 0} /> : null}
           {length >= SUMMARY_COUNTER_FROM ? (
             <span
-              className={cn("pointer-events-none flex items-center pr-1 text-xs tabular-nums", overLimit ? "font-semibold text-warning" : "text-text-muted")}
+              className={cn(
+                "pointer-events-none flex items-center pr-1 text-xs tabular-nums",
+                overLimit ? "font-semibold text-warning" : "text-text-muted",
+              )}
               title={overLimit ? t("wip.form.overLimitTitle", { limit: SUMMARY_LIMIT }) : undefined}
             >
               <span aria-hidden>
                 {length}/{SUMMARY_LIMIT}
               </span>
               <span className="sr-only" role="status">
-                {overLimit ? t("wip.form.overLimitStatus", { length, limit: SUMMARY_LIMIT }) : t("wip.form.lengthStatus", { length, limit: SUMMARY_LIMIT })}
+                {overLimit
+                  ? t("wip.form.overLimitStatus", { length, limit: SUMMARY_LIMIT })
+                  : t("wip.form.lengthStatus", { length, limit: SUMMARY_LIMIT })}
               </span>
             </span>
           ) : null}
         </div>
       </div>
-      {aiShown ? <AiDraftStatus repoId={repoId} local={aiStatus?.local ?? false} staged={status?.staged.length ?? 0} provider={aiStatus?.provider ?? null} /> : null}
+      {aiShown ? (
+        <AiDraftStatus
+          repoId={repoId}
+          local={aiStatus?.local ?? false}
+          staged={status?.staged.length ?? 0}
+          provider={aiStatus?.provider ?? null}
+        />
+      ) : null}
       <TextArea
         id={descriptionId}
         aria-label={t("wip.form.description")}
@@ -231,7 +246,11 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           hint={push.blocked ?? undefined}
           onCheckedChange={(checked) => patch(tabId, { pushAfter: checked })}
         />
-        <Checkbox label={t("wip.form.skipHooks")} checked={wip.skipHooks} onCheckedChange={(checked) => patch(tabId, { skipHooks: checked })} />
+        <Checkbox
+          label={t("wip.form.skipHooks")}
+          checked={wip.skipHooks}
+          onCheckedChange={(checked) => patch(tabId, { skipHooks: checked })}
+        />
       </div>
       {lockWarning ? (
         <p role="status" data-commit-lock-warning="" className="flex items-start gap-1.5 text-sm text-text-muted">
@@ -242,7 +261,9 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       <div className="flex items-center gap-2" data-commit-row="">
         <Tip
           side="top"
-          label={plan.blocked ?? (plan.stageAll ? t("wip.form.tipStageAll") : plan.mode === "commit" ? t("wip.form.tipCommit") : plan.label)}
+          label={
+            plan.blocked ?? (plan.stageAll ? t("wip.form.tipStageAll") : plan.mode === "commit" ? t("wip.form.tipCommit") : plan.label)
+          }
           shortcut={plan.blocked ? undefined : plan.stageAll ? "Mod+Shift+Enter" : "Mod+Enter"}
         >
           <Button

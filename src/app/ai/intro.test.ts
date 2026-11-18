@@ -10,7 +10,17 @@ vi.mock("../../core", () => ({
   core: {
     aiIntroDismiss: () => {
       dismissed.push("dismiss");
-      return Promise.resolve({ state: "unset", provider: null, model: null, connected: false, keyHint: null, local: false, price: null, introPending: false, featuresOff: [] });
+      return Promise.resolve({
+        state: "unset",
+        provider: null,
+        model: null,
+        connected: false,
+        keyHint: null,
+        local: false,
+        price: null,
+        introPending: false,
+        featuresOff: [],
+      });
     },
   },
 }));
@@ -31,7 +41,13 @@ const status = (patch: Partial<AiStatus> = {}): AiStatus => ({
   ...patch,
 });
 
-type ToastArg = { tone: string; sticky?: boolean; title: string; action: { onClick: () => void }; secondaryAction: { onClick: () => void } };
+type ToastArg = {
+  tone: string;
+  sticky?: boolean;
+  title: string;
+  action: { onClick: () => void };
+  secondaryAction: { onClick: () => void };
+};
 const lastToast = () => toast.mock.calls.at(-1)?.[0] as ToastArg;
 
 beforeEach(() => {

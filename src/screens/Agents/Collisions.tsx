@@ -19,18 +19,41 @@ import { TextArea } from "../../ui/Field";
 import { Select } from "../../ui/Select";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
-import { agentNames, collisionTitle, collisionsOf, conflictFiles, fileLabel, formatRanges, informTargets, informText, newCollisionIds, sideLabels } from "./collision";
+import {
+  agentNames,
+  collisionTitle,
+  collisionsOf,
+  conflictFiles,
+  fileLabel,
+  formatRanges,
+  informTargets,
+  informText,
+  newCollisionIds,
+  sideLabels,
+} from "./collision";
 
 function Side({ label, text }: { label: string; text: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <span className="text-sm text-text-muted">{label}</span>
-      <pre className="selectable max-h-64 overflow-auto rounded-sm bg-surface-sunken p-2 font-mono text-code whitespace-pre">{text || t("agents.collision.previewEmpty")}</pre>
+      <pre className="selectable max-h-64 overflow-auto rounded-sm bg-surface-sunken p-2 font-mono text-code whitespace-pre">
+        {text || t("agents.collision.previewEmpty")}
+      </pre>
     </div>
   );
 }
 
-function PreviewDialog({ repoId, collision, names, onDone }: { repoId: Id; collision: AgentCollision; names: Map<Id, string>; onDone: (value: null) => void }) {
+function PreviewDialog({
+  repoId,
+  collision,
+  names,
+  onDone,
+}: {
+  repoId: Id;
+  collision: AgentCollision;
+  names: Map<Id, string>;
+  onDone: (value: null) => void;
+}) {
   const files = conflictFiles(collision);
   const [path, setPath] = useState(files[0]?.path ?? "");
   const [preview, setPreview] = useState<CollisionPreview | null>(null);
@@ -72,7 +95,14 @@ function PreviewDialog({ repoId, collision, names, onDone }: { repoId: Id; colli
       <div className="flex min-h-0 flex-col gap-3" data-preview-path={current ? current.path : undefined}>
         <div role="group" aria-label={t("agents.collision.previewFile")} className="flex flex-wrap gap-1">
           {files.map((file) => (
-            <Button key={file.path} size="sm" variant={file.path === path ? "primary" : "secondary"} aria-pressed={file.path === path} data-preview-file={file.path} onClick={() => setPath(file.path)}>
+            <Button
+              key={file.path}
+              size="sm"
+              variant={file.path === path ? "primary" : "secondary"}
+              aria-pressed={file.path === path}
+              data-preview-file={file.path}
+              onClick={() => setPath(file.path)}
+            >
               {fileLabel(file)}
             </Button>
           ))}
@@ -111,7 +141,17 @@ export function openCollisionPreview(repoId: Id, collision: AgentCollision, name
   return showDialog<null>((done) => <PreviewDialog repoId={repoId} collision={collision} names={names} onDone={done} />);
 }
 
-function InformDialog({ collision, targets, names, onDone }: { collision: AgentCollision; targets: Agent[]; names: Map<Id, string>; onDone: (value: true | null) => void }) {
+function InformDialog({
+  collision,
+  targets,
+  names,
+  onDone,
+}: {
+  collision: AgentCollision;
+  targets: Agent[];
+  names: Map<Id, string>;
+  onDone: (value: true | null) => void;
+}) {
   const firstTarget = targets[0]!;
   const [recipient, setRecipient] = useState<Id>(firstTarget.id);
   const [text, setText] = useState(() => informText(collision, firstTarget.id, names));
@@ -185,7 +225,17 @@ export function openInform(collision: AgentCollision, targets: Agent[], names: M
   return showDialog<true>((done) => <InformDialog collision={collision} targets={targets} names={names} onDone={done} />);
 }
 
-export function CollisionBanners({ repoId, agentId = null, showSkipped = false, inset = false }: { repoId: Id; agentId?: Id | null; showSkipped?: boolean; inset?: boolean }) {
+export function CollisionBanners({
+  repoId,
+  agentId = null,
+  showSkipped = false,
+  inset = false,
+}: {
+  repoId: Id;
+  agentId?: Id | null;
+  showSkipped?: boolean;
+  inset?: boolean;
+}) {
   const report = useAgentCollisions(repoId);
   const agents = useAgents(repoId);
   const list = useMemo(() => agents.data ?? [], [agents.data]);
@@ -209,7 +259,11 @@ export function CollisionBanners({ repoId, agentId = null, showSkipped = false, 
 
   const anything = failed || collisions.length > 0 || skipped.length > 0;
   return (
-    <div data-collisions aria-label={t("agents.collision.regionLabel")} className={cn("flex flex-col gap-2", inset && anything && "px-4 pt-3")}>
+    <div
+      data-collisions
+      aria-label={t("agents.collision.regionLabel")}
+      className={cn("flex flex-col gap-2", inset && anything && "px-4 pt-3")}
+    >
       <p className="sr-only" aria-live="polite" data-collision-live>
         {announcement}
       </p>
@@ -218,7 +272,11 @@ export function CollisionBanners({ repoId, agentId = null, showSkipped = false, 
           tone="danger"
           title={t("agents.collision.failed")}
           actions={
-            <Button size="sm" data-action="collision-check" onClick={() => void runAction(t("agents.collision.checkAgain"), () => core.agentCollisionCheck({ repoId }))}>
+            <Button
+              size="sm"
+              data-action="collision-check"
+              onClick={() => void runAction(t("agents.collision.checkAgain"), () => core.agentCollisionCheck({ repoId }))}
+            >
               {t("agents.collision.checkAgain")}
             </Button>
           }

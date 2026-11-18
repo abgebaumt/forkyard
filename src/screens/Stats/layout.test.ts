@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { RepoStats, StatsAuthor, StatsBucket, StatsFolder } from "../../core";
 import { authorPalette, folderSegments, hotspotSeverity, initials, knowledgeRows, statusOf, timeTicks } from "./layout";
 
-const author = (name: string, email: string, commits: number): StatsAuthor => ({ name, email, commits, added: 0, removed: 0, firstAt: "", lastAt: "" });
+const author = (name: string, email: string, commits: number): StatsAuthor => ({
+  name,
+  email,
+  commits,
+  added: 0,
+  removed: 0,
+  firstAt: "",
+  lastAt: "",
+});
 const folder = (path: string, weight: number, top: [string, string, number][]): StatsFolder => ({
   path,
   weight,
@@ -35,7 +43,13 @@ describe("knowledge per folder", () => {
   const palette = authorPalette([author("Ada", "ada@example.com", 5), author("Ben", "ben@example.com", 3)]);
 
   it("segments per top author in percent of the folder, the rest as others", () => {
-    const segments = folderSegments(folder("src", 100, [["Ada", "ada@example.com", 60], ["Ben", "ben@example.com", 30]]), palette);
+    const segments = folderSegments(
+      folder("src", 100, [
+        ["Ada", "ada@example.com", 60],
+        ["Ben", "ben@example.com", 30],
+      ]),
+      palette,
+    );
     expect(segments.map((s) => [s.name, s.percent, s.lane])).toEqual([
       ["Ada", 60, 1],
       ["Ben", 30, 2],
@@ -56,7 +70,12 @@ describe("knowledge per folder", () => {
 
 describe("hotspots and time axis", () => {
   it("severity by the share of the top score", () => {
-    expect([hotspotSeverity(30, 30), hotspotSeverity(20, 30), hotspotSeverity(10, 30), hotspotSeverity(1, 30)]).toEqual(["high", "medium", "low", "low"]);
+    expect([hotspotSeverity(30, 30), hotspotSeverity(20, 30), hotspotSeverity(10, 30), hotspotSeverity(1, 30)]).toEqual([
+      "high",
+      "medium",
+      "low",
+      "low",
+    ]);
     expect(hotspotSeverity(0, 0)).toBe("low");
   });
 

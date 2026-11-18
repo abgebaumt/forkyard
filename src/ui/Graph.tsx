@@ -99,15 +99,36 @@ export function Graph({ commits, selectedId, onSelect, columns = ["author", "dat
           const color = laneColor(commit.lane);
           if (commit.kind === "wip") {
             return (
-              <circle key={commit.id} cx={x(commit.lane)} cy={y(row)} r={NODE} fill="var(--gc-bg)" stroke={color} strokeWidth={2} strokeDasharray="2 2" />
+              <circle
+                key={commit.id}
+                cx={x(commit.lane)}
+                cy={y(row)}
+                r={NODE}
+                fill="var(--gc-bg)"
+                stroke={color}
+                strokeWidth={2}
+                strokeDasharray="2 2"
+              />
             );
           }
           if (commit.kind === "merge") {
-            return <circle key={commit.id} cx={x(commit.lane)} cy={y(row)} r={NODE - 1.5} fill={color} stroke="var(--gc-bg)" strokeWidth={1.5} />;
+            return (
+              <circle key={commit.id} cx={x(commit.lane)} cy={y(row)} r={NODE - 1.5} fill={color} stroke="var(--gc-bg)" strokeWidth={1.5} />
+            );
           }
           if (commit.kind === "stash") {
             return (
-              <rect key={commit.id} x={x(commit.lane) - NODE + 0.5} y={y(row) - NODE + 0.5} width={NODE * 2 - 1} height={NODE * 2 - 1} rx={2} fill="var(--gc-bg)" stroke={color} strokeWidth={2} />
+              <rect
+                key={commit.id}
+                x={x(commit.lane) - NODE + 0.5}
+                y={y(row) - NODE + 0.5}
+                width={NODE * 2 - 1}
+                height={NODE * 2 - 1}
+                rx={2}
+                fill="var(--gc-bg)"
+                stroke={color}
+                strokeWidth={2}
+              />
             );
           }
           return <circle key={commit.id} cx={x(commit.lane)} cy={y(row)} r={NODE} fill={color} stroke="var(--gc-bg)" strokeWidth={1.5} />;
@@ -126,7 +147,9 @@ export function Graph({ commits, selectedId, onSelect, columns = ["author", "dat
             className={cn("flex h-graph-row items-center", selected ? "bg-accent-surface" : "hover:bg-surface")}
           >
             <div role="gridcell" className="flex shrink-0 items-center justify-end gap-1 overflow-hidden px-2" style={{ width: REFS }}>
-              {commit.refs?.map((ref) => <RefLabel key={`${ref.kind}:${ref.name}`} {...ref} />)}
+              {commit.refs?.map((ref) => (
+                <RefLabel key={`${ref.kind}:${ref.name}`} {...ref} />
+              ))}
             </div>
             <div role="gridcell" className="shrink-0" style={{ width: graphWidth }} />
             <div

@@ -55,7 +55,13 @@ export function makeLinksRepo({ name = "wetterstation", remote = null } = {}) {
     };
   };
   const git = (...args) =>
-    execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 })
+    execFileSync("git", args, {
+      cwd: repoPath,
+      env: env(),
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
+    })
       .toString()
       .replace(/\n$/, "");
   /** Writes a file; objects are written as JSON. */

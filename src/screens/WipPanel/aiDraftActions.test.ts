@@ -35,13 +35,26 @@ vi.mock("../../app/ai/open", () => ({ openAiSetup: () => openAiSetup() }));
 
 const { CoreError } = await import("../../core");
 const { qk, queryClient } = await import("../../app/queries");
-const { acceptOffer, aiDraftState, noteEdited, toggleWriteMessage, undoInsertion, useAiDraftStore, writeMessage } = await import("./aiDraftActions");
+const { acceptOffer, aiDraftState, noteEdited, toggleWriteMessage, undoInsertion, useAiDraftStore, writeMessage } = await import(
+  "./aiDraftActions"
+);
 const { getDraft, updateDraft } = await import("./draft");
 
 const REPO = "repo-1";
 const ANSWER: AiCommitMessage = { summary: "Tagesmittel als CSV exportieren", body: "Schreibt je Station eine Zeile." };
 const SUGGESTION = { summary: ANSWER.summary, description: ANSWER.body! };
-const PREVIEW: AiPreview = { text: "t", omitted: [], shortened: [], chars: 1, estimatedTokens: 1, estimatedCostUsd: null, asks: [], fingerprint: "f", monthCostUsd: 0, limitUsd: null };
+const PREVIEW: AiPreview = {
+  text: "t",
+  omitted: [],
+  shortened: [],
+  chars: 1,
+  estimatedTokens: 1,
+  estimatedCostUsd: null,
+  asks: [],
+  fingerprint: "f",
+  monthCostUsd: 0,
+  limitUsd: null,
+};
 
 const fields = () => {
   const draft = getDraft(REPO);
@@ -150,9 +163,19 @@ describe("Write (commit message, spec 3.1)", () => {
   });
 
   it("errors stay inline; a cancelled request leaves nothing behind", async () => {
-    aiCommitMessage.mockRejectedValueOnce(new CoreError({ code: "ai_provider_unavailable", message: "Ollama is not responding (127.0.0.1:11434).", gitOutput: null, retryAt: null }));
+    aiCommitMessage.mockRejectedValueOnce(
+      new CoreError({
+        code: "ai_provider_unavailable",
+        message: "Ollama is not responding (127.0.0.1:11434).",
+        gitOutput: null,
+        retryAt: null,
+      }),
+    );
     await writeMessage(REPO);
-    expect(aiDraftState(REPO).phase).toEqual({ kind: "error", view: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } });
+    expect(aiDraftState(REPO).phase).toEqual({
+      kind: "error",
+      view: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null },
+    });
     aiCommitMessage.mockRejectedValueOnce(new CoreError({ code: "cancelled", message: "Cancelled.", gitOutput: null, retryAt: null }));
     await writeMessage(REPO);
     expect(aiDraftState(REPO).phase.kind).toBe("idle");
@@ -166,7 +189,9 @@ describe("Write (commit message, spec 3.1)", () => {
   });
 
   it("the untouched commit template counts as an empty field", async () => {
-    queryClient.setQueryData(qk.repoSettings(REPO), { commitTemplateText: "Bereich: Kurzbeschreibung\n\n# Warum?\nGrund\n" } as RepoSettings);
+    queryClient.setQueryData(qk.repoSettings(REPO), {
+      commitTemplateText: "Bereich: Kurzbeschreibung\n\n# Warum?\nGrund\n",
+    } as RepoSettings);
     updateDraft(REPO, { summary: "Bereich: Kurzbeschreibung", description: "Grund" });
     await writeMessage(REPO);
     expect(fields()).toEqual(SUGGESTION);

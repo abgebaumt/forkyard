@@ -21,7 +21,15 @@ export interface PaneState {
   skipHooks: boolean;
 }
 
-export const DEFAULT_PANE: PaneState = { source: "snapshot", pinned: null, picks: null, active: null, target: "worktree", message: null, skipHooks: false };
+export const DEFAULT_PANE: PaneState = {
+  source: "snapshot",
+  pinned: null,
+  picks: null,
+  active: null,
+  target: "worktree",
+  message: null,
+  skipHooks: false,
+};
 
 export const paneKey = (tabId: Id, agentId: Id) => `${tabId}:${agentId}`;
 
@@ -56,7 +64,8 @@ export const useReviewStore = create<ReviewState>()((set) => ({
     }),
 }));
 
-export const usePane = (tabId: Id, agentId: Id): PaneState => useReviewStore((state) => state.panes[paneKey(tabId, agentId)] ?? DEFAULT_PANE);
+export const usePane = (tabId: Id, agentId: Id): PaneState =>
+  useReviewStore((state) => state.panes[paneKey(tabId, agentId)] ?? DEFAULT_PANE);
 
 export const getPane = (tabId: Id, agentId: Id): PaneState => useReviewStore.getState().panes[paneKey(tabId, agentId)] ?? DEFAULT_PANE;
 
@@ -67,7 +76,9 @@ export function pin(tabId: Id, agentId: Id, review: AgentReview): void {
 
 /** The file list of the pinned range is known: every line-pickable file starts selected (once). */
 export function initPicks(tabId: Id, agentId: Id, files: readonly FileChange[]): void {
-  useReviewStore.getState().patch(tabId, agentId, (pane) => (pane.picks ? {} : { picks: initialPicks(files), active: pane.active ?? files[0]?.path ?? null }));
+  useReviewStore
+    .getState()
+    .patch(tabId, agentId, (pane) => (pane.picks ? {} : { picks: initialPicks(files), active: pane.active ?? files[0]?.path ?? null }));
 }
 
 /** Whose selection the commit panel commits: the pane focused last, otherwise the first agent. */

@@ -62,7 +62,13 @@ export function bufferFrom(key: string, content: FileContent): Buffer {
 }
 
 export const isDirty = (buffer: Buffer | null) =>
-  Boolean(buffer && (buffer.text !== buffer.base || buffer.encoding !== buffer.baseEncoding || buffer.eol !== buffer.baseEol || (buffer.mixed && buffer.eolTouched)));
+  Boolean(
+    buffer &&
+      (buffer.text !== buffer.base ||
+        buffer.encoding !== buffer.baseEncoding ||
+        buffer.eol !== buffer.baseEol ||
+        (buffer.mixed && buffer.eolTouched)),
+  );
 
 // --- Unsaved states: whoever needs to know about them learns of every change ------------------
 

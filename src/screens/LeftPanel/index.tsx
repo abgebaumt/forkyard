@@ -1,5 +1,33 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { Archive, Cloud, Eye, EyeOff, Focus, GitBranch, Laptop, ListFilter, Minimize2, Plus, RefreshCw, Search, SearchX, Tag, TriangleAlert, X, type LucideIcon } from "lucide-react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
+import {
+  Archive,
+  Cloud,
+  Eye,
+  EyeOff,
+  Focus,
+  GitBranch,
+  Laptop,
+  ListFilter,
+  Minimize2,
+  Plus,
+  RefreshCw,
+  Search,
+  SearchX,
+  Tag,
+  TriangleAlert,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { core, type Id } from "../../core";
 import { checkout, createBranch, deleteBranches, refNameValidator } from "../../app/actions/branches";
 import { dropStash, renameStash } from "../../app/actions/stash";
@@ -18,10 +46,32 @@ import { ariaShortcut, formatShortcut } from "../../ui/shortcut";
 import { ContextMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { dropEntries, rowMenu, sectionMenu, sectionTitles } from "./menus";
-import { buildTrees, countLeaves, filterTree, flatten, SECTION_ORDER, STASH_REF, triState, type FlatRow, type SectionKey, type TreeNode, type Tri } from "./model";
+import {
+  buildTrees,
+  countLeaves,
+  filterTree,
+  flatten,
+  SECTION_ORDER,
+  STASH_REF,
+  triState,
+  type FlatRow,
+  type SectionKey,
+  type TreeNode,
+  type Tri,
+} from "./model";
 import { RefRow, type RowApi } from "./RefRow";
 import { SectionRows } from "./SectionRows";
-import { currentView, EMPTY_VIEW, patchView, resetVisibility, sectionState, setFolderCollapsed, setSection, toggleHidden, toggleSolo } from "./viewState";
+import {
+  currentView,
+  EMPTY_VIEW,
+  patchView,
+  resetVisibility,
+  sectionState,
+  setFolderCollapsed,
+  setSection,
+  toggleHidden,
+  toggleSolo,
+} from "./viewState";
 import { ExtraSections, extraSectionEntries } from "./ExtraSections";
 import { t } from "../../i18n";
 
@@ -152,7 +202,10 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
   };
 
   // --- Data → trees → visible rows ------------------------------------------------------------
-  const trees = useMemo(() => buildTrees(refsQuery.data, remotesQuery.data, stashesQuery.data), [refsQuery.data, remotesQuery.data, stashesQuery.data]);
+  const trees = useMemo(
+    () => buildTrees(refsQuery.data, remotesQuery.data, stashesQuery.data),
+    [refsQuery.data, remotesQuery.data, stashesQuery.data],
+  );
   const filtering = query.trim().length > 0;
   const filtered = useMemo(
     () => ({
@@ -174,11 +227,21 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
     [filtered, collapsedFolders, filtering],
   );
   const totals = useMemo(
-    () => ({ local: countLeaves(trees.local), remote: countLeaves(trees.remote), tags: countLeaves(trees.tags), stashes: trees.stashes.length }),
+    () => ({
+      local: countLeaves(trees.local),
+      remote: countLeaves(trees.remote),
+      tags: countLeaves(trees.tags),
+      stashes: trees.stashes.length,
+    }),
     [trees],
   );
   const matched = useMemo(
-    () => ({ local: countLeaves(filtered.local), remote: countLeaves(filtered.remote), tags: countLeaves(filtered.tags), stashes: filtered.stashes.length }),
+    () => ({
+      local: countLeaves(filtered.local),
+      remote: countLeaves(filtered.remote),
+      tags: countLeaves(filtered.tags),
+      stashes: filtered.stashes.length,
+    }),
     [filtered],
   );
   /** Sections with folders or remotes: there, leaves are indented by the width of the arrow. */
@@ -396,7 +459,13 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
   const openContextMenuFor = (element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     element.dispatchEvent(
-      new window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: rect.left + Math.min(rect.width / 2, 48), clientY: rect.bottom - 2 }),
+      new window.MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        clientX: rect.left + Math.min(rect.width / 2, 48),
+        clientY: rect.bottom - 2,
+      }),
     );
   };
 
@@ -417,7 +486,9 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       setMenu({ kind: "row", id });
       return;
     }
-    const section = target.closest("[data-section-header]")?.closest<HTMLElement>("[data-section]")?.dataset.section as SectionKey | undefined;
+    const section = target.closest("[data-section-header]")?.closest<HTMLElement>("[data-section]")?.dataset.section as
+      | SectionKey
+      | undefined;
     if (section) {
       setMenu({ kind: "section", section });
       return;
@@ -462,7 +533,12 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       solo: key === "stashes" ? "none" : triState(sectionNames[key], soloSet),
       canToggle: viewReady,
       hasRefs: sectionNames[key].length > 0,
-      visible: { local: !sections.local.hidden, remote: !sections.remote.hidden, tags: !sections.tags.hidden, stashes: !sections.stashes.hidden },
+      visible: {
+        local: !sections.local.hidden,
+        remote: !sections.remote.hidden,
+        tags: !sections.tags.hidden,
+        stashes: !sections.stashes.hidden,
+      },
       toggleCollapsed: () => toggleSection(key),
       toggleMaximized: () => toggleMaximized(key),
       toggleHide: () => void toggleHidden(repoId, sectionNames[key]),
@@ -573,7 +649,8 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       const source = liveRowsRef.current.rowOf(drop.sourceId)?.node;
       const target = liveRowsRef.current.rowOf(drop.targetId)?.node;
       // Menu at the drop location; without a choice (Esc, click elsewhere) nothing happens.
-      if (source && target) openMenuAt({ x: up.clientX, y: up.clientY }, dropEntries({ repoId, tabId, source, target }), t("sidebar.dropBranch"));
+      if (source && target)
+        openMenuAt({ x: up.clientX, y: up.clientY }, dropEntries({ repoId, tabId, source, target }), t("sidebar.dropBranch"));
     };
     const onCancel = () => finish();
     const onKey = (key: globalThis.KeyboardEvent) => {
@@ -748,7 +825,9 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
           </EmptyLine>
         );
       }
-      return <EmptyLine>{key === "local" ? t("sidebar.noLocal") : key === "tags" ? t("sidebar.noTags") : t("sidebar.noStashes")}</EmptyLine>;
+      return (
+        <EmptyLine>{key === "local" ? t("sidebar.noLocal") : key === "tags" ? t("sidebar.noTags") : t("sidebar.noStashes")}</EmptyLine>
+      );
     }
     return (
       <SectionRows
@@ -800,11 +879,26 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       stashes: { label: t("sidebar.add.stash"), run: () => store().openStashForm(tabId) },
     };
     const addButton = (
-      <IconButton key="add" size="sm" data-action="add" label={add[key].label} icon={<Plus className="size-3.5" aria-hidden />} onClick={add[key].run} />
+      <IconButton
+        key="add"
+        size="sm"
+        data-action="add"
+        label={add[key].label}
+        icon={<Plus className="size-3.5" aria-hidden />}
+        onClick={add[key].run}
+      />
     );
     const restoreButton =
       maximizedSection === key ? (
-        <IconButton key="restore" size="sm" data-action="restore" label={t("sidebar.section.showAll")} active icon={<Minimize2 className="size-3.5" aria-hidden />} onClick={() => setMaximized(null)} />
+        <IconButton
+          key="restore"
+          size="sm"
+          data-action="restore"
+          label={t("sidebar.section.showAll")}
+          active
+          icon={<Minimize2 className="size-3.5" aria-hidden />}
+          onClick={() => setMaximized(null)}
+        />
       ) : null;
     return {
       actions: [solo === "none" ? soloButton : null, hidden === "none" ? hideButton : null, addButton],
@@ -813,7 +907,10 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
   };
 
   const filterHint = formatShortcut(FILTER_SHORTCUT);
-  const filterSummary = [view.hiddenRefs.length ? t("sidebar.summary.hidden", { count: view.hiddenRefs.length }) : null, view.soloRefs.length ? t("sidebar.summary.solo", { count: view.soloRefs.length }) : null]
+  const filterSummary = [
+    view.hiddenRefs.length ? t("sidebar.summary.hidden", { count: view.hiddenRefs.length }) : null,
+    view.soloRefs.length ? t("sidebar.summary.solo", { count: view.soloRefs.length }) : null,
+  ]
     .filter(Boolean)
     .join(", ");
   const dragSource = drag ? rowOf(drag.sourceId)?.node : undefined;
@@ -857,7 +954,11 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
       </div>
 
       {viewFiltered ? (
-        <div role="status" data-view-filtered className="flex h-control-md shrink-0 items-center gap-1.5 border-b border-border bg-accent-surface pr-1 pl-2 text-sm">
+        <div
+          role="status"
+          data-view-filtered
+          className="flex h-control-md shrink-0 items-center gap-1.5 border-b border-border bg-accent-surface pr-1 pl-2 text-sm"
+        >
           <ListFilter className="size-3.5 shrink-0 text-accent" aria-hidden />
           <Tip label={t("sidebar.viewFiltered.tip", { summary: filterSummary })} side="right">
             <span className="min-w-0 flex-1 truncate">
@@ -926,7 +1027,11 @@ function Panel({ repoId, tabId }: LeftPanelProps) {
             {visibleSections.length === 0 ? (
               <EmptyLine
                 action={
-                  <Button size="sm" variant="ghost" onClick={() => void patchView(repoId, { sections: view.sections.map((section) => ({ ...section, hidden: false })) })}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => void patchView(repoId, { sections: view.sections.map((section) => ({ ...section, hidden: false })) })}
+                  >
                     {t("sidebar.allHidden.show")}
                   </Button>
                 }

@@ -41,7 +41,8 @@ export async function runCleanup(repoId: Id, options: CleanupOptions): Promise<C
 
 function announce(label: string, result: CleanupResult): void {
   if (result.failure) showError(label, new CoreError(result.failure.error));
-  else if (!result.cancelled) toast({ tone: "success", title: t("cleanup.toast.done", { change: sizeChange(result.before.totalBytes, result.after.totalBytes) }) });
+  else if (!result.cancelled)
+    toast({ tone: "success", title: t("cleanup.toast.done", { change: sizeChange(result.before.totalBytes, result.after.totalBytes) }) });
 }
 
 /** Asks the core to stop the running clean-up; finished steps stay. */

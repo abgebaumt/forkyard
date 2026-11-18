@@ -77,7 +77,9 @@ describe("bisect autopilot: “What is sent?” nested in the dialog", () => {
     await settle();
     expect(shown.at(-1)).toBeNull();
     expect(done).toBe(true);
-    expect(confirmed).toEqual([{ repoId: "repo", feature: "bisect_script", fingerprint: "fp-bisect", triggers: asks, dontAskAgain: false }]);
+    expect(confirmed).toEqual([
+      { repoId: "repo", feature: "bisect_script", fingerprint: "fp-bisect", triggers: asks, dontAskAgain: false },
+    ]);
   });
 
   it("closing the nested dialog sends nothing", async () => {

@@ -117,7 +117,10 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
         tone: "success",
         title: t("patches.apply.applied"),
         description: t("patches.apply.appliedText", { count }),
-        action: undoState?.undo && /Patch/i.test(undoState.undo.label) ? { label: t("patches.apply.undo"), onClick: () => void undo(repoId) } : undefined,
+        action:
+          undoState?.undo && /Patch/i.test(undoState.undo.label)
+            ? { label: t("patches.apply.undo"), onClick: () => void undo(repoId) }
+            : undefined,
       });
       onClose();
     } catch (error) {
@@ -129,7 +132,10 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
   };
 
   const reasons = useMemo(() => (check.state === "failed" ? parseApplyErrors(check.error.gitOutput) : undefined), [check]);
-  const failedCount = reasons && info ? info.files.filter((file) => reasons.has(file.path) || (file.oldPath !== null && reasons.has(file.oldPath))).length : 0;
+  const failedCount =
+    reasons && info
+      ? info.files.filter((file) => reasons.has(file.path) || (file.oldPath !== null && reasons.has(file.oldPath))).length
+      : 0;
   const current = (check.state === "ok" || check.state === "failed") && check.text === text;
   const applyBlocked = !hasText
     ? t("patches.apply.blocked.empty")
@@ -209,7 +215,10 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
             }}
           />
           {fileName ? (
-            <span className="flex min-w-0 items-center gap-1 rounded-sm border border-border bg-surface-raised pl-2 text-sm text-text" data-patch-file-name>
+            <span
+              className="flex min-w-0 items-center gap-1 rounded-sm border border-border bg-surface-raised pl-2 text-sm text-text"
+              data-patch-file-name
+            >
               <span className="truncate font-mono text-code" title={fileName}>
                 {fileName}
               </span>
@@ -302,7 +311,15 @@ export function ApplyPatchDialog({ repoId, tabId, onClose }: { repoId: Id; tabId
                   {t("patches.apply.nothingChanged")}
                 </Banner>
               </div>
-              {info && info.files.length > 0 ? <PatchFileList files={info.files} reasons={reasons} checked label={t("patches.apply.resultLabel")} className="max-h-36 shrink-0" /> : null}
+              {info && info.files.length > 0 ? (
+                <PatchFileList
+                  files={info.files}
+                  reasons={reasons}
+                  checked
+                  label={t("patches.apply.resultLabel")}
+                  className="max-h-36 shrink-0"
+                />
+              ) : null}
             </>
           ) : null}
         </div>

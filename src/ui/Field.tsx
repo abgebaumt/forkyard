@@ -167,13 +167,7 @@ export interface SegmentedControlProps<T extends string> {
   iconOnly?: boolean;
 }
 
-export function SegmentedControl<T extends string>({
-  label,
-  value,
-  options,
-  onValueChange,
-  iconOnly = false,
-}: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({ label, value, options, onValueChange, iconOnly = false }: SegmentedControlProps<T>) {
   const rootRef = useRef<HTMLDivElement>(null);
   /** The entry last chosen by key – focus should land there even when keys are pressed in quick succession. */
   const wanted = useRef<string | null>(null);
@@ -199,7 +193,8 @@ export function SegmentedControl<T extends string>({
     wanted.current = target.value;
     const focusSelected = () => {
       // Some callers re-render on change; then the group no longer exists (they set focus themselves).
-      if (root?.isConnected && wanted.current !== null) root.querySelector<HTMLElement>(`[data-value="${CSS.escape(wanted.current)}"]`)?.focus();
+      if (root?.isConnected && wanted.current !== null)
+        root.querySelector<HTMLElement>(`[data-value="${CSS.escape(wanted.current)}"]`)?.focus();
     };
     focusSelected();
     // Once more a frame later – for callers that re-render on change and lose focus in the

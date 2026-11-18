@@ -7,7 +7,10 @@ describe("commit search filters in the search text", () => {
       query: "fix",
       filters: { pickaxe: "geheimeFunktion", paths: ["src/ä b"], since: "2026-01-01" },
     });
-    expect(parseSearchQuery("path:a path:-b until:2026-02-01T10:00:00Z")).toEqual({ query: "", filters: { paths: ["a", "-b"], until: "2026-02-01T10:00:00Z" } });
+    expect(parseSearchQuery("path:a path:-b until:2026-02-01T10:00:00Z")).toEqual({
+      query: "",
+      filters: { paths: ["a", "-b"], until: "2026-02-01T10:00:00Z" },
+    });
   });
 
   it("leaves ordinary text alone", () => {

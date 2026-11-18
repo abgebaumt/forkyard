@@ -382,7 +382,14 @@ export function tryRule(pattern: string, url: string, sample: string): RuleTest 
 
 /** "abc, OPS;ops x1" → ["ABC", "OPS", "X1"]. */
 export function splitKeys(text: string): string[] {
-  return [...new Set(text.split(/[\s,;]+/).map((key) => key.trim().toUpperCase()).filter(Boolean))];
+  return [
+    ...new Set(
+      text
+        .split(/[\s,;]+/)
+        .map((key) => key.trim().toUpperCase())
+        .filter(Boolean),
+    ),
+  ];
 }
 
 /** The smallest free `rule-<n>`. */

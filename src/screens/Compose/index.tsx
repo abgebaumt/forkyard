@@ -178,7 +178,10 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       show(next);
       setOutdated(false);
       setLoadError(null);
-      const fresh = arrangementRef.current === EMPTY ? { skip: next.units.map((unit) => unit.id), commits: [] } : refreshed(arrangementRef.current, next.units);
+      const fresh =
+        arrangementRef.current === EMPTY
+          ? { skip: next.units.map((unit) => unit.id), commits: [] }
+          : refreshed(arrangementRef.current, next.units);
       arrange(fresh, false);
       keepSelection(new Set(next.units.map((unit) => unit.id)));
       return next;
@@ -211,7 +214,13 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     setRequest({ kind: "loading", jobId, startedAt: Date.now(), instruction: text });
     try {
       // The units placed meanwhile go along as well: they stay where the user put them.
-      const proposal = await core.composeProposal({ repoId, jobId, locale: locale(), instruction: text, keep: keepOf(arrangementRef.current, reviewRef.current.pinned) });
+      const proposal = await core.composeProposal({
+        repoId,
+        jobId,
+        locale: locale(),
+        instruction: text,
+        keep: keepOf(arrangementRef.current, reviewRef.current.pinned),
+      });
       const current = requestRef.current as Request;
       // Cancelled or replaced meanwhile: the answer is dropped – there are no half results.
       if (current.kind !== "loading" || current.jobId !== jobId) return;
@@ -252,7 +261,9 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   const whatIsSent = async () => {
     const keep = keepOf(arrangementRef.current, reviewRef.current.pinned);
     const text = instruction.trim() || null;
-    const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "compose", input: { kind: "compose", instruction: text, keep }, locale: locale() }));
+    const result = await runAction(t("ai.preview.loading"), () =>
+      core.aiPreview({ repoId, feature: "compose", input: { kind: "compose", instruction: text, keep }, locale: locale() }),
+    );
     if (result.ok) await showAiPreview(result.value, "look");
   };
 
@@ -260,7 +271,12 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
 
   const select = (unit: string, mode: "one" | "toggle" | "range") => {
     const current = selectionRef.current;
-    const next = mode === "toggle" ? toggleSelection(current, unit) : mode === "range" ? rangeSelection(current, unit, displayOrder(arrangementRef.current)) : selectOne(current, unit);
+    const next =
+      mode === "toggle"
+        ? toggleSelection(current, unit)
+        : mode === "range"
+          ? rangeSelection(current, unit, displayOrder(arrangementRef.current))
+          : selectOne(current, unit);
     setSelection(next);
   };
 
@@ -278,9 +294,17 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     setReview({ ...reviewRef.current, pinned: new Set([...reviewRef.current.pinned, ...result.moved]) });
     setMoved(new Set(result.moved));
     const cursor = selectionRef.current.cursor;
-    setSelection({ cursor: cursor && result.moved.includes(cursor) ? cursor : result.moved[0]!, ids: result.moved, anchor: result.moved[0]! });
+    setSelection({
+      cursor: cursor && result.moved.includes(cursor) ? cursor : result.moved[0]!,
+      ids: result.moved,
+      anchor: result.moved[0]!,
+    });
     const name = groupName(result.target);
-    say(result.moved.length === 1 ? t("wip.compose.movedTo", { group: name }) : t("wip.compose.movedManyTo", { count: result.moved.length, group: name }));
+    say(
+      result.moved.length === 1
+        ? t("wip.compose.movedTo", { group: name })
+        : t("wip.compose.movedManyTo", { count: result.moved.length, group: name }),
+    );
     return result;
   };
 
@@ -358,11 +382,19 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     applyingRef.current = true;
     setApplying(true);
     useAppStore.getState().startJob({ id: jobId, title: t("wip.compose.title"), repoId });
-    const settled: Promise<Settled<{ steps: { hooks: string[] }[] }>> = core.composeApply({ repoId, jobId, plan: { commits, skipHooks }, expectToken: current.token }).then(
-      (value) => ({ ok: true as const, value }),
-      (error: unknown) => ({ ok: false as const, error: toCoreError(error) }),
-    );
-    const choice = await showApply({ jobId, steps: commits.map((commit) => ({ title: commit.title })), hooks: current.hooks, skipHooks, settled });
+    const settled: Promise<Settled<{ steps: { hooks: string[] }[] }>> = core
+      .composeApply({ repoId, jobId, plan: { commits, skipHooks }, expectToken: current.token })
+      .then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error: toCoreError(error) }),
+      );
+    const choice = await showApply({
+      jobId,
+      steps: commits.map((commit) => ({ title: commit.title })),
+      hooks: current.hooks,
+      skipHooks,
+      settled,
+    });
     const outcome = await settled;
     useAppStore.getState().finishJob(jobId);
     applyingRef.current = false;
@@ -444,7 +476,13 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   useEffect(() => {
     const guard: CenterGuard = {
       dirty: () => dirty.current && !applyingRef.current,
-      confirmLeave: () => confirm({ title: t("wip.compose.leave.title"), body: t("wip.compose.leave.body"), confirmLabel: t("wip.compose.leave.confirm"), danger: true }),
+      confirmLeave: () =>
+        confirm({
+          title: t("wip.compose.leave.title"),
+          body: t("wip.compose.leave.body"),
+          confirmLabel: t("wip.compose.leave.confirm"),
+          danger: true,
+        }),
     };
     setCenterGuard(tabId, guard);
     return () => setCenterGuard(tabId, null, guard);
@@ -567,11 +605,26 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   if (!state) return shell(<SkeletonRows />);
   if (state.units.length === 0) return shell(<EmptyState title={t("wip.compose.empty")} />);
 
-  const loading = request.kind === "loading" ? loadingView(now - request.startedAt, aiStatus?.local ?? false, request.instruction ? t("wip.compose.proposingFor", { text: request.instruction }) : t("wip.compose.proposing")) : null;
-  const statusText = loading ? [loading.text, loading.slow].filter(Boolean).join(" – ") : request.kind === "done" && request.enough ? t("wip.compose.enough") : "";
+  const loading =
+    request.kind === "loading"
+      ? loadingView(
+          now - request.startedAt,
+          aiStatus?.local ?? false,
+          request.instruction ? t("wip.compose.proposingFor", { text: request.instruction }) : t("wip.compose.proposing"),
+        )
+      : null;
+  const statusText = loading
+    ? [loading.text, loading.slow].filter(Boolean).join(" – ")
+    : request.kind === "done" && request.enough
+      ? t("wip.compose.enough")
+      : "";
   const summary = summaryOf(arrangement);
   const blocked = blockedReason(arrangement);
-  const blockedText = !blocked ? null : blocked.reason === "nothing" ? t("wip.compose.nothingPlanned") : t("wip.compose.titleMissing", { number: blocked.commit + 1 });
+  const blockedText = !blocked
+    ? null
+    : blocked.reason === "nothing"
+      ? t("wip.compose.nothingPlanned")
+      : t("wip.compose.titleMissing", { number: blocked.commit + 1 });
   const broken = firstProblem(arrangement, units) !== null;
   const files = new Set(state.units.map((unit) => unit.path)).size;
   const unsureCount = unsure.size;
@@ -596,7 +649,9 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
             data-compose-review=""
             disabled={unsureCount === 0}
             onClick={goNextUnsure}
-            className={unsureCount > 0 ? "border-transparent bg-warning-surface text-warning" : "disabled:bg-success-surface! disabled:text-success!"}
+            className={
+              unsureCount > 0 ? "border-transparent bg-warning-surface text-warning" : "disabled:bg-success-surface! disabled:text-success!"
+            }
           >
             {unsureCount > 0 ? t("wip.compose.review", { count: unsureCount }) : t("wip.compose.reviewed")}
           </Button>
@@ -629,7 +684,14 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           ) : null}
         </div>
       ) : null}
-      {request.kind === "failed" ? <RequestError error={request.error} provider={aiStatus?.provider ?? null} onAgain={() => void propose(null)} onShowSent={() => void whatIsSent()} /> : null}
+      {request.kind === "failed" ? (
+        <RequestError
+          error={request.error}
+          provider={aiStatus?.provider ?? null}
+          onAgain={() => void propose(null)}
+          onShowSent={() => void whatIsSent()}
+        />
+      ) : null}
       {state.signing ? <Banner tone="info" title={t("wip.compose.signing", { count: Math.max(planned, 1) })} /> : null}
       {outdated ? (
         <Banner
@@ -676,10 +738,24 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           )}
         </div>
         <aside className="min-w-0 flex-1 overflow-auto" aria-live="polite" onKeyDown={onRootKeyFromDetail(onKey)}>
-          <Detail arrangement={arrangement} units={units} notes={notes} review={review} unsure={unsure} selection={selection} onMove={(target) => (target === "new" ? newCommit() : moveTo(target))} onConfirm={confirmUnit} />
+          <Detail
+            arrangement={arrangement}
+            units={units}
+            notes={notes}
+            review={review}
+            unsure={unsure}
+            selection={selection}
+            onMove={(target) => (target === "new" ? newCommit() : moveTo(target))}
+            onConfirm={confirmUnit}
+          />
         </aside>
         {notice ? (
-          <div key={notice.id} role="status" data-compose-notice="" className="pointer-events-none absolute bottom-3 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md bg-text px-3.5 py-2 text-sm text-bg shadow-pop">
+          <div
+            key={notice.id}
+            role="status"
+            data-compose-notice=""
+            className="pointer-events-none absolute bottom-3 left-1/2 max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-md bg-text px-3.5 py-2 text-sm text-bg shadow-pop"
+          >
             {notice.text}
           </div>
         ) : null}
@@ -709,8 +785,13 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         </form>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
           <span className="text-sm text-text-muted" data-compose-summary="">
-            {t("wip.compose.summary", { count: summary.commits, units: summary.units })} · {t("wip.compose.staying", { count: summary.skipped })}
-            {summary.untitled > 0 ? <span className="text-danger"> · {t("wip.compose.untitledCount", { count: summary.untitled })}</span> : broken ? <span className="text-warning"> · {t("wip.compose.checkOrder")}</span> : null}
+            {t("wip.compose.summary", { count: summary.commits, units: summary.units })} ·{" "}
+            {t("wip.compose.staying", { count: summary.skipped })}
+            {summary.untitled > 0 ? (
+              <span className="text-danger"> · {t("wip.compose.untitledCount", { count: summary.untitled })}</span>
+            ) : broken ? (
+              <span className="text-warning"> · {t("wip.compose.checkOrder")}</span>
+            ) : null}
           </span>
           <Checkbox label={t("wip.form.skipHooks")} checked={skipHooks} onCheckedChange={setSkipHooks} />
           <Button

@@ -18,7 +18,13 @@ import {
   type ReviewFacts,
 } from "./model";
 
-const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo: number | null): DiffLine => ({ kind, text, oldNo, newNo, noNewline: false });
+const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo: number | null): DiffLine => ({
+  kind,
+  text,
+  oldNo,
+  newNo,
+  noNewline: false,
+});
 
 /** Two hunks of a long list. Git numbered them 3 and 7 (their `index`), the view shows them at positions 0 and 1. */
 const diff: TextDiff = {
@@ -27,8 +33,30 @@ const diff: TextDiff = {
   oldPath: null,
   status: "modified",
   hunks: [
-    { index: 3, oldStart: 1, oldLines: 3, newStart: 1, newLines: 3, section: "", lines: [line("remove", "eins", 1, null), line("add", "EINS", null, 1), line("context", "zwei", 2, 2), line("remove", "drei", 3, null), line("add", "DREI", null, 3)] },
-    { index: 7, oldStart: 40, oldLines: 2, newStart: 40, newLines: 2, section: "", lines: [line("context", "neununddreißig", 40, 40), line("remove", "vierzig", 41, null), line("add", "VIERZIG", null, 41)] },
+    {
+      index: 3,
+      oldStart: 1,
+      oldLines: 3,
+      newStart: 1,
+      newLines: 3,
+      section: "",
+      lines: [
+        line("remove", "eins", 1, null),
+        line("add", "EINS", null, 1),
+        line("context", "zwei", 2, 2),
+        line("remove", "drei", 3, null),
+        line("add", "DREI", null, 3),
+      ],
+    },
+    {
+      index: 7,
+      oldStart: 40,
+      oldLines: 2,
+      newStart: 40,
+      newLines: 2,
+      section: "",
+      lines: [line("context", "neununddreißig", 40, 40), line("remove", "vierzig", 41, null), line("add", "VIERZIG", null, 41)],
+    },
   ],
   oldText: null,
   newText: null,
@@ -39,7 +67,18 @@ const diff: TextDiff = {
 
 const binary: FileDiff = { kind: "binary", path: "bild.png", oldPath: null, status: "added", oldSize: null, newSize: 2048 };
 
-const file = (path: string, patch: Partial<FileChange> = {}): FileChange => ({ path, oldPath: null, status: "modified", area: "commit", isBinary: false, isLfs: false, added: 1, removed: 1, conflict: null, ...patch });
+const file = (path: string, patch: Partial<FileChange> = {}): FileChange => ({
+  path,
+  oldPath: null,
+  status: "modified",
+  area: "commit",
+  isBinary: false,
+  isLfs: false,
+  added: 1,
+  removed: 1,
+  conflict: null,
+  ...patch,
+});
 
 const agent = (patch: Partial<Agent> = {}): Agent => ({
   id: "a1",
@@ -83,7 +122,13 @@ const review = (patch: Partial<AgentReview> = {}): AgentReview => ({
 
 describe("agent review: files", () => {
   it("only line-pickable files start selected; the others name why", () => {
-    const files = [file("liste.txt"), file("bild.png", { isBinary: true }), file("video.mp4", { isLfs: true }), file("neu.txt", { status: "renamed", oldPath: "alt.txt" }), file("weg.txt", { status: "deleted" })];
+    const files = [
+      file("liste.txt"),
+      file("bild.png", { isBinary: true }),
+      file("video.mp4", { isLfs: true }),
+      file("neu.txt", { status: "renamed", oldPath: "alt.txt" }),
+      file("weg.txt", { status: "deleted" }),
+    ];
     expect(initialPicks(files)).toEqual({ "liste.txt": { kind: "all" }, "weg.txt": { kind: "all" } });
     expect(notPickable(files[1]!)).toBe("binary – only by merging the branch");
     expect(notPickable(files[2]!)).toBe("Git LFS – only by merging the branch");
@@ -121,7 +166,14 @@ describe("agent review: lines", () => {
 
 describe("agent review: selections for rangeApply", () => {
   it("selections_follow_the_picks_and_refuse_files_without_a_range_token", () => {
-    expect(selectionFor(diff, { kind: "all" })).toEqual({ path: "liste.txt", hunks: [{ index: 3, lines: null }, { index: 7, lines: null }], expect: "range-token-of-liste" });
+    expect(selectionFor(diff, { kind: "all" })).toEqual({
+      path: "liste.txt",
+      hunks: [
+        { index: 3, lines: null },
+        { index: 7, lines: null },
+      ],
+      expect: "range-token-of-liste",
+    });
     expect(selectionFor(diff, { kind: "lines", keys: ["1:2", "0:1", "0:0", "0:2"] })).toEqual({
       path: "liste.txt",
       hunks: [
@@ -150,14 +202,22 @@ describe("agent review: selections for rangeApply", () => {
 
 describe("agent review: commit message from the task", () => {
   it("first line as summary, the rest as description", () => {
-    expect(commitMessageFromTask("Liste groß schreiben\nund die Größe ergänzen")).toEqual({ summary: "Liste groß schreiben", description: "und die Größe ergänzen" });
-    expect(commitMessageFromTask("\r\n  Fix   the\tlogin  \r\n\r\nSee issue 12\r\n")).toEqual({ summary: "Fix the login", description: "See issue 12" });
+    expect(commitMessageFromTask("Liste groß schreiben\nund die Größe ergänzen")).toEqual({
+      summary: "Liste groß schreiben",
+      description: "und die Größe ergänzen",
+    });
+    expect(commitMessageFromTask("\r\n  Fix   the\tlogin  \r\n\r\nSee issue 12\r\n")).toEqual({
+      summary: "Fix the login",
+      description: "See issue 12",
+    });
     expect(commitMessageFromTask("   \n")).toEqual({ summary: "", description: "" });
   });
 
   it("cuts a long first line at the last space within 72 characters", () => {
     // 84 characters; the space at position 72 is the last one within the limit.
-    expect(commitMessageFromTask("Repariere die Anmeldung für Konten mit Umlauten im Namen und sehr langen Passwörtern\nDetails folgen")).toEqual({
+    expect(
+      commitMessageFromTask("Repariere die Anmeldung für Konten mit Umlauten im Namen und sehr langen Passwörtern\nDetails folgen"),
+    ).toEqual({
       summary: "Repariere die Anmeldung für Konten mit Umlauten im Namen und sehr langen",
       description: "Passwörtern\n\nDetails folgen",
     });
@@ -181,25 +241,47 @@ describe("agent review: columns and comparison", () => {
 });
 
 describe("agent review: why an action is not available", () => {
-  const facts = (patch: Partial<ReviewFacts> = {}): ReviewFacts => ({ agent: agent(), latest: review(), chosen: 2, status: { staged: [], operation: null }, summary: "Fix login", ...patch });
+  const facts = (patch: Partial<ReviewFacts> = {}): ReviewFacts => ({
+    agent: agent(),
+    latest: review(),
+    chosen: 2,
+    status: { staged: [], operation: null },
+    summary: "Fix login",
+    ...patch,
+  });
 
   it("everything is possible for a finished agent with work", () => {
-    for (const action of ["takeOver", "commit", "merge", "rebase", "discard"] as const) if (action !== "rebase") expect(blocker(action, facts())).toBeNull();
+    for (const action of ["takeOver", "commit", "merge", "rebase", "discard"] as const)
+      if (action !== "rebase") expect(blocker(action, facts())).toBeNull();
     expect(blocker("rebase", facts({ latest: review({ uncommittedFiles: 0 }) }))).toBeNull();
   });
 
   it("names the reason", () => {
     expect(blocker("takeOver", facts({ latest: null }))).toBe("The review is still loading.");
     expect(blocker("takeOver", facts({ chosen: 0 }))).toBe("Nothing is selected.");
-    expect(blocker("commit", facts({ status: { staged: [file("eigen.txt", { area: "staged" })], operation: null } }))).toBe("Your staging area isn't empty. Commit or unstage your own changes first.");
-    expect(blocker("commit", facts({ summary: "  " }))).toBe("Enter a summary.");
-    expect(blocker("commit", facts({ status: { staged: [], operation: { kind: "merge", source: "feature", target: "main", step: null, totalSteps: null, message: null } } }))).toBe(
-      "A merge, rebase or cherry-pick is in progress in your repository.",
+    expect(blocker("commit", facts({ status: { staged: [file("eigen.txt", { area: "staged" })], operation: null } }))).toBe(
+      "Your staging area isn't empty. Commit or unstage your own changes first.",
     );
+    expect(blocker("commit", facts({ summary: "  " }))).toBe("Enter a summary.");
+    expect(
+      blocker(
+        "commit",
+        facts({
+          status: {
+            staged: [],
+            operation: { kind: "merge", source: "feature", target: "main", step: null, totalSteps: null, message: null },
+          },
+        }),
+      ),
+    ).toBe("A merge, rebase or cherry-pick is in progress in your repository.");
     expect(blocker("merge", facts({ agent: agent({ commitsAhead: 0 }) }))).toBe("The agent has not committed anything yet.");
-    expect(blocker("rebase", facts({ agent: agent({ terminalId: "t1", status: "waiting" }) }))).toBe("Stop the agent first – it is still working in its worktree.");
+    expect(blocker("rebase", facts({ agent: agent({ terminalId: "t1", status: "waiting" }) }))).toBe(
+      "Stop the agent first – it is still working in its worktree.",
+    );
     expect(blocker("rebase", facts())).toBe("The agent's worktree has 2 uncommitted files. Commit them there or discard the rest first.");
     expect(blocker("discard", facts({ agent: agent({ worktreeRepoId: null }) }))).toBe("The agent's worktree is missing.");
-    expect(blocker("discard", facts({ latest: review({ uncommittedFiles: 0 }) }))).toBe("There is nothing uncommitted in the agent's worktree.");
+    expect(blocker("discard", facts({ latest: review({ uncommittedFiles: 0 }) }))).toBe(
+      "There is nothing uncommitted in the agent's worktree.",
+    );
   });
 });

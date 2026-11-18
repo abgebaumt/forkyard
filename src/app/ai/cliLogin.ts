@@ -16,7 +16,9 @@ export function signInInTerminal(provider: AiProviderKind): boolean {
   if (!tab || !repoId) return false;
   // The settings overlay would cover the terminal.
   useAppStore.getState().closeOverlay();
-  openProgramSession(tab.id, repoId, t(`ai.names.${provider}`), (size) => core.aiCliLogin({ repoId, provider, cols: size.cols, rows: size.rows }));
+  openProgramSession(tab.id, repoId, t(`ai.names.${provider}`), (size) =>
+    core.aiCliLogin({ repoId, provider, cols: size.cols, rows: size.rows }),
+  );
   showTerminal(tab.id);
   return true;
 }

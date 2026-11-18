@@ -84,7 +84,9 @@ export function useStats(repoId: Id, range: StatsRange, tip: string | null | und
     const run = acquire(deps, repoId, wanted);
     dispatch({ type: "start", jobId: run.jobId, keep: again, fallback: remembered });
     void run.result.then((outcome) =>
-      dispatch(outcome.ok ? { type: "done", jobId: run.jobId, stats: outcome.stats } : { type: "failed", jobId: run.jobId, error: outcome.error }),
+      dispatch(
+        outcome.ok ? { type: "done", jobId: run.jobId, stats: outcome.stats } : { type: "failed", jobId: run.jobId, error: outcome.error },
+      ),
     );
     return () => release(deps, repoId, wanted, run);
   }, [repoId, key, nonce, today]);

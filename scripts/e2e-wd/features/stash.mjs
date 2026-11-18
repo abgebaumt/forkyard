@@ -24,7 +24,10 @@ const launch = (t, options = {}) => t.launch({ width: 1440, height: 900, lang: "
 async function waitToast(app, tone, pattern, timeout = 15_000) {
   return app.waitFor(
     async () => {
-      const texts = await app.exec((wanted) => [...document.querySelectorAll(`[data-toast="${wanted}"]`)].map((node) => node.innerText.replace(/\s+/g, " ").trim()), tone);
+      const texts = await app.exec(
+        (wanted) => [...document.querySelectorAll(`[data-toast="${wanted}"]`)].map((node) => node.innerText.replace(/\s+/g, " ").trim()),
+        tone,
+      );
       return texts.find((text) => pattern.test(text)) ?? null;
     },
     timeout,
@@ -37,7 +40,9 @@ async function closeToasts(app) {
   await app.exec(() => {
     for (const button of document.querySelectorAll('[data-toast] button[aria-label="Close message"]')) button.click();
   });
-  await app.waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" }).catch(() => undefined);
+  await app
+    .waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" })
+    .catch(() => undefined);
 }
 
 /** The checkbox (role=checkbox) whose label starts with `label`, or null. */
@@ -50,21 +55,43 @@ const checked = async (app, label) => (await (await checkbox(app, label))?.attr(
 
 /** Switches the right panel to the stash form ("Commit | Stash" toggle). */
 async function openStashForm(app) {
-  const toggle = await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[role="radio"]')].find((node) => node.textContent.trim() === "Stash") ?? null), 10_000, { message: "Stash toggle" });
+  const toggle = await app.waitFor(
+    () => app.exec(() => [...document.querySelectorAll('[role="radio"]')].find((node) => node.textContent.trim() === "Stash") ?? null),
+    10_000,
+    { message: "Stash toggle" },
+  );
   await app.click(toggle);
   await app.waitFor('[data-screen="stash-form"]', 10_000);
 }
 
-const nameField = (app) => app.waitFor(() => app.exec(() => {
-  const label = [...document.querySelectorAll("label[for]")].find((node) => node.textContent.trim() === "Stash name");
-  return label ? document.getElementById(label.htmlFor) : null;
-}), 10_000, { message: "stash name field" });
+const nameField = (app) =>
+  app.waitFor(
+    () =>
+      app.exec(() => {
+        const label = [...document.querySelectorAll("label[for]")].find((node) => node.textContent.trim() === "Stash name");
+        return label ? document.getElementById(label.htmlFor) : null;
+      }),
+    10_000,
+    { message: "stash name field" },
+  );
 const stashButton = (app) => app.waitFor('button[data-action="stash"]', 10_000);
 const buttonText = async (app) => textOf(app, await stashButton(app));
 
 /** Rows of a file list section ("unstaged", "staged") in the WIP panel. */
-const listRows = (app, section) => app.exec((name) => [...document.querySelectorAll(`[data-section="${name}"] [data-row-key]`)].map((row) => row.dataset.rowKey), section);
-const fileRow = (app, section, file) => app.waitFor(() => app.exec((name, key) => [...document.querySelectorAll(`[data-section="${name}"] [data-row-key]`)].find((row) => row.dataset.rowKey === key) ?? null, section, file), 10_000, { message: `${file} in ${section}` });
+const listRows = (app, section) =>
+  app.exec((name) => [...document.querySelectorAll(`[data-section="${name}"] [data-row-key]`)].map((row) => row.dataset.rowKey), section);
+const fileRow = (app, section, file) =>
+  app.waitFor(
+    () =>
+      app.exec(
+        (name, key) =>
+          [...document.querySelectorAll(`[data-section="${name}"] [data-row-key]`)].find((row) => row.dataset.rowKey === key) ?? null,
+        section,
+        file,
+      ),
+    10_000,
+    { message: `${file} in ${section}` },
+  );
 
 /** Status counts from the query cache (what the UI shows). */
 const counts = (app, repoId) =>
@@ -74,12 +101,18 @@ const counts = (app, repoId) =>
   }, repoId);
 async function waitCounts(app, repoId, expected, timeout = 20_000) {
   await app.exec(() => window.dispatchEvent(new Event("focus")));
-  await app.waitFor(async () => {
-    const now = await counts(app, repoId);
-    return now !== null && now.unstaged === expected.unstaged && now.staged === expected.staged;
-  }, timeout, { message: `status ${JSON.stringify(expected)}` }).catch(async (error) => {
-    throw new Error(`${error.message}; is ${JSON.stringify(await counts(app, repoId))}`);
-  });
+  await app
+    .waitFor(
+      async () => {
+        const now = await counts(app, repoId);
+        return now !== null && now.unstaged === expected.unstaged && now.staged === expected.staged;
+      },
+      timeout,
+      { message: `status ${JSON.stringify(expected)}` },
+    )
+    .catch(async (error) => {
+      throw new Error(`${error.message}; is ${JSON.stringify(await counts(app, repoId))}`);
+    });
 }
 
 /** Right panel mode of the tab ("details", "stash_form"). */
@@ -87,18 +120,38 @@ const rightPanel = (app, tabId) => app.exec((id) => window.__gc.store.getState()
 
 /** Graph row of a stash by its message. */
 const stashRow = (app, message) =>
-  app.waitFor(() => app.exec((text) => [...document.querySelectorAll('[data-row-kind="stash"]')].find((row) => row.innerText.includes(text)) ?? null, message), 15_000, { message: `stash row "${message}"` });
+  app.waitFor(
+    () =>
+      app.exec(
+        (text) => [...document.querySelectorAll('[data-row-kind="stash"]')].find((row) => row.innerText.includes(text)) ?? null,
+        message,
+      ),
+    15_000,
+    { message: `stash row "${message}"` },
+  );
 
 /** Selects a stash in the graph; waits until the details show it. */
 async function selectStash(app, message) {
   await app.click(await stashRow(app, message));
-  await app.waitFor(() => app.exec((text) => document.querySelector('[data-testid="stash-message"]')?.textContent.trim() === text, message), 10_000, { message: `details of "${message}"` });
+  await app.waitFor(
+    () => app.exec((text) => document.querySelector('[data-testid="stash-message"]')?.textContent.trim() === text, message),
+    10_000,
+    { message: `details of "${message}"` },
+  );
   await app.settle();
 }
 
 /** The menu item (role=menuitem) whose text starts with `label`. */
 const menuItem = (app, label) =>
-  app.waitFor(() => app.exec((wanted) => [...document.querySelectorAll('[role="menuitem"]')].find((node) => node.textContent.trim().startsWith(wanted)) ?? null, label), 8000, { message: `menu item "${label}"` });
+  app.waitFor(
+    () =>
+      app.exec(
+        (wanted) => [...document.querySelectorAll('[role="menuitem"]')].find((node) => node.textContent.trim().startsWith(wanted)) ?? null,
+        label,
+      ),
+    8000,
+    { message: `menu item "${label}"` },
+  );
 
 /** Runs a command through the palette (Ctrl+P, ">text", Enter on the entry with that id). */
 async function runCommand(app, text, id) {
@@ -106,7 +159,12 @@ async function runCommand(app, text, id) {
   await app.press("Control+p");
   const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
   await app.type(input, `>${text}`);
-  const find = () => app.waitFor(() => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id), 10_000, { message: `palette entry ${id}` });
+  const find = () =>
+    app.waitFor(
+      () => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id),
+      10_000,
+      { message: `palette entry ${id}` },
+    );
   // The result list re-renders while the deferred filter settles: an entry found a moment ago can be
   // replaced by an identical node. Look it up again instead of failing on the stale reference.
   for (let attempt = 0; ; attempt++) {
@@ -125,17 +183,32 @@ async function runCommand(app, text, id) {
 const dialog = (app, title) =>
   app.waitFor(
     () =>
-      app.exec((wanted) => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].find((node) => {
-        const label = node.getAttribute("aria-labelledby");
-        const name = (label ? document.getElementById(label)?.textContent : node.getAttribute("aria-label")) ?? "";
-        return name.trim().startsWith(wanted);
-      }) ?? null, title),
+      app.exec(
+        (wanted) =>
+          [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].find((node) => {
+            const label = node.getAttribute("aria-labelledby");
+            const name = (label ? document.getElementById(label)?.textContent : node.getAttribute("aria-label")) ?? "";
+            return name.trim().startsWith(wanted);
+          }) ?? null,
+        title,
+      ),
     10_000,
     { message: `dialog "${title}"` },
   );
-const noDialog = (app) => app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"], [role="alertdialog"]')), 8000, { message: "dialog closed" });
+const noDialog = (app) =>
+  app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"], [role="alertdialog"]')), 8000, { message: "dialog closed" });
 /** Button inside an element by its visible text. */
-const buttonIn = (app, root, text) => app.waitFor(() => app.exec((scope, wanted) => [...scope.querySelectorAll("button")].find((node) => node.textContent.trim() === wanted) ?? null, root, text), 8000, { message: `button "${text}"` });
+const buttonIn = (app, root, text) =>
+  app.waitFor(
+    () =>
+      app.exec(
+        (scope, wanted) => [...scope.querySelectorAll("button")].find((node) => node.textContent.trim() === wanted) ?? null,
+        root,
+        text,
+      ),
+    8000,
+    { message: `button "${text}"` },
+  );
 
 /** Stash subjects ("On main: name") from Git. */
 const stashSubjects = (repo) => repo.lines("stash", "list", "--format=%gs");
@@ -149,12 +222,17 @@ const stashSubjects = (repo) => repo.lines("stash", "list", "--format=%gs");
 async function openDiff(app, section, file, { contains = null } = {}) {
   await app.click(await fileRow(app, section, file));
   await app.waitFor(
-    () => app.exec((label, text) => {
-      const root = document.querySelector('[data-screen="diff"]');
-      if (root?.getAttribute("aria-label") !== label || root.querySelector("[data-diff-loading]")) return false;
-      const rows = [...root.querySelectorAll('[data-row][role="row"]')];
-      return rows.length > 0 && (text === null || rows.some((row) => row.textContent.replace(/\u200b/g, "").includes(text)));
-    }, `Diff of ${file}`, contains),
+    () =>
+      app.exec(
+        (label, text) => {
+          const root = document.querySelector('[data-screen="diff"]');
+          if (root?.getAttribute("aria-label") !== label || root.querySelector("[data-diff-loading]")) return false;
+          const rows = [...root.querySelectorAll('[data-row][role="row"]')];
+          return rows.length > 0 && (text === null || rows.some((row) => row.textContent.replace(/\u200b/g, "").includes(text)));
+        },
+        `Diff of ${file}`,
+        contains,
+      ),
     20_000,
     { message: `diff of ${file}${contains ? ` containing "${contains}"` : ""}` },
   );
@@ -173,7 +251,12 @@ const diffRows = (app) =>
       }
       const kind = row.dataset.kind;
       if (kind !== "add" && kind !== "remove") continue;
-      out.push({ hunk, kind, text: (row.querySelector(".selectable")?.textContent ?? "").replace(/​/g, ""), selected: row.getAttribute("aria-selected") === "true" });
+      out.push({
+        hunk,
+        kind,
+        text: (row.querySelector(".selectable")?.textContent ?? "").replace(/​/g, ""),
+        selected: row.getAttribute("aria-selected") === "true",
+      });
     }
     return out;
   });
@@ -191,7 +274,10 @@ async function toggleLines(app, pick) {
       const kind = row.dataset.kind;
       if (kind !== "add" && kind !== "remove") continue;
       // Elements are only passed back at the top level of an array: [meta, gutter] pairs.
-      out.push([{ hunk, kind, text: (row.querySelector(".selectable")?.textContent ?? "").replace(/\u200b/g, "") }, row.querySelector("[data-gutter]")]);
+      out.push([
+        { hunk, kind, text: (row.querySelector(".selectable")?.textContent ?? "").replace(/\u200b/g, "") },
+        row.querySelector("[data-gutter]"),
+      ]);
     }
     return out;
   });
@@ -200,7 +286,8 @@ async function toggleLines(app, pick) {
   for (const gutter of gutters) await app.click(gutter);
   return gutters.length;
 }
-const selectedLines = async (app) => (await diffRows(app)).filter((row) => row.selected).map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`);
+const selectedLines = async (app) =>
+  (await diffRows(app)).filter((row) => row.selected).map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`);
 
 // ---------------------------------------------------------------------------------------------
 // 1.0 – Named stashes
@@ -221,7 +308,11 @@ scenario("named stash from the stash form", "main", async (t) => {
     assertEqual(await rightPanel(app, tabId), "stash_form", "right panel mode");
     assertEqual(await listRows(app, "unstaged"), ["README.md", "notizen/entwurf.md"], "the file lists stay in the stash form");
     assert(await checked(app, "Include untracked files"), "“Include untracked files” is preselected");
-    assertEqual(await (await checkbox(app, "Only the marked files")).attr("data-disabled"), "", "“Only the marked files” is disabled without marked files");
+    assertEqual(
+      await (await checkbox(app, "Only the marked files")).attr("data-disabled"),
+      "",
+      "“Only the marked files” is disabled without marked files",
+    );
     assertEqual(await buttonText(app), "Create stash", "button caption");
 
     const name = "Auswertung März – halbfertig";
@@ -236,16 +327,30 @@ scenario("named stash from the stash form", "main", async (t) => {
     await app.press("Enter");
     await waitToast(app, "success", /^Changes stashed/);
     assertEqual(stashSubjects(repo), [`On main: ${name}`], "git: stash with the name");
-    assertEqual(repo.lines("show", "--name-only", "--format=", "stash@{0}^3"), ["notizen/entwurf.md"], "git: the untracked file is in the stash");
-    assertEqual(repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}^2"), ["stationen.csv"], "git: the staged change is in the stash's index commit");
+    assertEqual(
+      repo.lines("show", "--name-only", "--format=", "stash@{0}^3"),
+      ["notizen/entwurf.md"],
+      "git: the untracked file is in the stash",
+    );
+    assertEqual(
+      repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}^2"),
+      ["stationen.csv"],
+      "git: the staged change is in the stash's index commit",
+    );
     assertEqual(repo.git("status", "--porcelain", "--untracked-files=all"), "", "git: working tree clean");
     await waitCounts(app, repoId, { unstaged: 0, staged: 0 });
     await app.waitFor(async () => (await rightPanel(app, tabId)) === "details", 8000, { message: "back to the commit form" });
 
     // The stash shows up in the graph and in the details with its name.
     await selectStash(app, name);
-    assertEqual(await app.exec(() => document.querySelector('[data-testid="stash-branch"]')?.textContent.trim()), "main", "details: branch");
-    const files = await app.exec(() => [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].map((row) => row.dataset.rowKey).sort());
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-testid="stash-branch"]')?.textContent.trim()),
+      "main",
+      "details: branch",
+    );
+    const files = await app.exec(() =>
+      [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].map((row) => row.dataset.rowKey).sort(),
+    );
     assertEqual(files, ["README.md", "notizen/entwurf.md", "stationen.csv"], "details: files of the stash incl. the untracked one");
     await closeToasts(app);
     await app.settle();
@@ -293,18 +398,43 @@ scenario("stash form: blocked states and stashing only marked files", "edge", as
     const box = await second.rect();
     await app.webdriver("POST", "/actions", {
       actions: [
-        { type: "key", id: "kb", actions: [{ type: "keyDown", value: "" }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "keyUp", value: "" }] },
-        { type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) }, { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }, { type: "pause", duration: 0 }] },
+        {
+          type: "key",
+          id: "kb",
+          actions: [
+            { type: "keyDown", value: "" },
+            { type: "pause", duration: 0 },
+            { type: "pause", duration: 0 },
+            { type: "keyUp", value: "" },
+          ],
+        },
+        {
+          type: "pointer",
+          id: "mouse",
+          parameters: { pointerType: "mouse" },
+          actions: [
+            { type: "pointerMove", x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) },
+            { type: "pointerDown", button: 0 },
+            { type: "pointerUp", button: 0 },
+            { type: "pause", duration: 0 },
+          ],
+        },
       ],
     });
     await app.webdriver("DELETE", "/actions").catch(() => undefined);
     await app.exec((id) => window.__gc.store.getState().closeCenter(id), tabId);
-    await app.waitFor(async () => (await checkbox(app, "Only the marked files (2)")) !== null, 5000, { message: "label counts two marked files" });
+    await app.waitFor(async () => (await checkbox(app, "Only the marked files (2)")) !== null, 5000, {
+      message: "label counts two marked files",
+    });
     await app.click(await checkbox(app, "Only the marked files"));
     await app.waitFor(async () => (await buttonText(app)) === "Stash 2 files", 5000, { message: "caption “Stash 2 files”" });
     await app.click(await stashButton(app));
     await waitToast(app, "success", /2 files stashed/);
-    assertEqual(repo.lines("stash", "show", "--name-only", "--include-untracked", "stash@{0}").sort(), ["notizen/neu.txt", "stationen.csv"], "git: exactly the marked files in the stash");
+    assertEqual(
+      repo.lines("stash", "show", "--name-only", "--include-untracked", "stash@{0}").sort(),
+      ["notizen/neu.txt", "stationen.csv"],
+      "git: exactly the marked files in the stash",
+    );
     assertEqual(repo.lines("status", "--porcelain", "--untracked-files=all"), [" M README.md"], "git: the unmarked file stays");
     assertMatch(stashSubjects(repo)[0], /^WIP on main: [0-9a-f]{7,} /, "git: without a name the stash gets Git's usual name");
     await waitCounts(app, repoId, { unstaged: 1, staged: 0 });
@@ -374,7 +504,17 @@ scenario("rename, delete (cancel and confirm) and undo a stash", "edge", async (
 
 /** Clicks a file row in the stash details and opens its context menu with Shift+F10. */
 async function stashFileMenu(app, file) {
-  const row = await app.waitFor(() => app.exec((key) => [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].find((node) => node.dataset.rowKey === key) ?? null, file), 10_000, { message: `${file} in the stash details` });
+  const row = await app.waitFor(
+    () =>
+      app.exec(
+        (key) =>
+          [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].find((node) => node.dataset.rowKey === key) ??
+          null,
+        file,
+      ),
+    10_000,
+    { message: `${file} in the stash details` },
+  );
   await app.click(row);
   await app.press("Shift+F10");
   await app.waitFor('[role="menu"]', 8000);
@@ -385,8 +525,27 @@ async function ctrlClick(app, element) {
   const box = await element.rect();
   await app.webdriver("POST", "/actions", {
     actions: [
-      { type: "key", id: "kb", actions: [{ type: "keyDown", value: "" }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "keyUp", value: "" }] },
-      { type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) }, { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }, { type: "pause", duration: 0 }] },
+      {
+        type: "key",
+        id: "kb",
+        actions: [
+          { type: "keyDown", value: "" },
+          { type: "pause", duration: 0 },
+          { type: "pause", duration: 0 },
+          { type: "keyUp", value: "" },
+        ],
+      },
+      {
+        type: "pointer",
+        id: "mouse",
+        parameters: { pointerType: "mouse" },
+        actions: [
+          { type: "pointerMove", x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) },
+          { type: "pointerDown", button: 0 },
+          { type: "pointerUp", button: 0 },
+          { type: "pause", duration: 0 },
+        ],
+      },
     ],
   });
   await app.webdriver("DELETE", "/actions").catch(() => undefined);
@@ -461,7 +620,15 @@ scenario("apply files from a stash: overwrite prompt, several files, deleted fil
     await app.press("Escape");
 
     // Two files at once (Ctrl+click): both come back, the stash stays.
-    const rowOf = (file) => app.waitFor(() => app.exec((key) => [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].find((node) => node.dataset.rowKey === key) ?? null, file));
+    const rowOf = (file) =>
+      app.waitFor(() =>
+        app.exec(
+          (key) =>
+            [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].find((node) => node.dataset.rowKey === key) ??
+            null,
+          file,
+        ),
+      );
     await app.click(await rowOf("stationen.csv"));
     await ctrlClick(app, await rowOf("README.md"));
     await app.press("Shift+F10");
@@ -497,7 +664,13 @@ scenario("apply an untracked file from a stash on its own", "edge", async (t) =>
     assertEqual(await item.attr("aria-disabled"), null, "the entry is offered for the untracked file");
     await app.click(item);
     const outcome = await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((node) => `${node.dataset.toast}: ${node.innerText.replace(/\s+/g, " ").trim()}`).find((text) => /restored|failed/.test(text)) ?? null),
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll("[data-toast]")]
+              .map((node) => `${node.dataset.toast}: ${node.innerText.replace(/\s+/g, " ").trim()}`)
+              .find((text) => /restored|failed/.test(text)) ?? null,
+        ),
       15_000,
       { message: "result toast" },
     );
@@ -527,10 +700,13 @@ scenario("apply an untracked file from a stash on its own", "edge", async (t) =>
 const patchCreateState = (app) => app.exec(() => document.querySelector('[data-screen="patch-create"]')?.dataset.patchState ?? null);
 const patchApplyState = (app) => app.exec(() => document.querySelector('[data-screen="patch-apply"]')?.dataset.checkState ?? null);
 const waitState = (app, read, state, what, timeout = 20_000) =>
-  app.waitFor(async () => (await read(app)) === state, timeout, { message: `${what}: ${state}` }).catch(async (error) => {
-    throw new Error(`${error.message} (is ${await read(app)})`);
-  });
-const patchFiles = (app, scope) => app.exec((root) => [...document.querySelectorAll(`${root} [data-patch-file]`)].map((row) => row.getAttribute("data-patch-file")), scope);
+  app
+    .waitFor(async () => (await read(app)) === state, timeout, { message: `${what}: ${state}` })
+    .catch(async (error) => {
+      throw new Error(`${error.message} (is ${await read(app)})`);
+    });
+const patchFiles = (app, scope) =>
+  app.exec((root) => [...document.querySelectorAll(`${root} [data-patch-file]`)].map((row) => row.getAttribute("data-patch-file")), scope);
 
 scenario("patch from a stash: save as file and apply it from the file", "main", async (t) => {
   const repo = makeStashRepo({ name: "stash-patch" });
@@ -577,8 +753,16 @@ scenario("patch from a stash: save as file and apply it from the file", "main", 
     await app.type(input, outside);
     await waitState(app, patchApplyState, "ok", "apply check");
     assertEqual(repo.git("status", "--porcelain"), "", "git: the check changed nothing");
-    assertEqual(await app.exec(() => document.querySelector("[data-patch-file-name]")?.innerText.trim()), "fuer-kollegen.patch", "the chosen file name is shown");
-    assertMatch(await app.exec(() => document.querySelector("[data-patch-result]")?.innerText ?? ""), /Fits: 2 files will be changed/, "result: fits");
+    assertEqual(
+      await app.exec(() => document.querySelector("[data-patch-file-name]")?.innerText.trim()),
+      "fuer-kollegen.patch",
+      "the chosen file name is shown",
+    );
+    assertMatch(
+      await app.exec(() => document.querySelector("[data-patch-result]")?.innerText ?? ""),
+      /Fits: 2 files will be changed/,
+      "result: fits",
+    );
     await t.shot("patch-apply-from-file");
     await app.click('[data-action="patch-apply"]');
     await waitToast(app, "success", /Patch applied/);
@@ -588,7 +772,11 @@ scenario("patch from a stash: save as file and apply it from the file", "main", 
     assertEqual(repo.git("diff", "--cached", "--name-only"), "", "git: nothing staged");
     assertEqual(stashSubjects(repo), ["On main: Für Kollegen"], "git: the stash is untouched");
     await waitCounts(app, repoId, { unstaged: 2, staged: 0 });
-    assertEqual(await app.exec((id) => window.__gc.store.getState().views[id]?.selection?.kind ?? "wip", tabId), "wip", "the selection moves to the local changes");
+    assertEqual(
+      await app.exec((id) => window.__gc.store.getState().views[id]?.selection?.kind ?? "wip", tabId),
+      "wip",
+      "the selection moves to the local changes",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -628,19 +816,31 @@ scenario("patches: cancelled save, patch that does not fit, no patch text", "edg
     await runCommand(app, "apply patch", "patch.apply");
     const apply = await dialog(app, "Apply patch");
     assertEqual(await patchApplyState(app), "idle", "empty: no check yet");
-    assertEqual(await (await app.$('[data-action="patch-apply"]')).attr("title"), "Paste a patch or choose a file first.", "empty: Apply disabled with a reason");
+    assertEqual(
+      await (await app.$('[data-action="patch-apply"]')).attr("title"),
+      "Paste a patch or choose a file first.",
+      "empty: Apply disabled with a reason",
+    );
     const area = await apply.$("textarea");
-    await app.exec((field, value) => {
-      // Like a paste: React's onChange via the native setter.
-      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-      setter.call(field, value);
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-    }, area, text);
+    await app.exec(
+      (field, value) => {
+        // Like a paste: React's onChange via the native setter.
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+        setter.call(field, value);
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      },
+      area,
+      text,
+    );
     await waitState(app, patchApplyState, "failed", "apply check");
     const alert = await app.exec(() => document.querySelector('[data-screen="patch-apply"] [role="alert"]')?.innerText ?? "");
     assertMatch(alert, /Does not fit: 1 of 1 file/, "the dialog says which part does not fit");
     assertIncludes(alert, "Nothing was changed.", "and that nothing changed");
-    assertEqual(await (await app.$('[data-action="patch-apply"]')).attr("title"), "The patch does not fit the working directory.", "Apply disabled with a reason");
+    assertEqual(
+      await (await app.$('[data-action="patch-apply"]')).attr("title"),
+      "The patch does not fit the working directory.",
+      "Apply disabled with a reason",
+    );
     await app.click('[data-action="patch-apply"]');
     await app.settle();
     await dialog(app, "Apply patch");
@@ -673,7 +873,9 @@ scenario("patch from a stash that contains an untracked file", "edge", async (t)
     const app = await launch(t);
     await app.openRepo(repo.path);
     await selectStash(app, "Mit neuer Datei");
-    const listed = await app.exec(() => [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].map((row) => row.dataset.rowKey).sort());
+    const listed = await app.exec(() =>
+      [...document.querySelectorAll('[data-screen="commit-details"] [data-row-key]')].map((row) => row.dataset.rowKey).sort(),
+    );
     assertEqual(listed, ["README.md", "notizen/neu.txt"], "the stash details list both files");
     await runCommand(app, "patch from selected stash", "patch.create.stash");
     const create = await dialog(app, "Create patch");
@@ -684,7 +886,10 @@ scenario("patch from a stash that contains an untracked file", "edge", async (t)
     await closeToasts(app);
     await t.shot("patch-from-stash-with-untracked-file");
     // In the patch, or at least named as missing (like the "Without n new, untracked files" note for local changes).
-    assert(inPatch.includes("notizen/neu.txt") || text.includes("notizen/neu.txt") || /untracked/i.test(text), `the patch drops the stash's untracked file notizen/neu.txt without a word (files: ${inPatch.join(", ")})`);
+    assert(
+      inPatch.includes("notizen/neu.txt") || text.includes("notizen/neu.txt") || /untracked/i.test(text),
+      `the patch drops the stash's untracked file notizen/neu.txt without a word (files: ${inPatch.join(", ")})`,
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -704,7 +909,18 @@ async function queueSelection(app, tabId, expectedButton) {
   await app.click(button);
   await app.waitFor('[data-screen="stash-form"]', 8000);
   assertEqual(await rightPanel(app, tabId), "stash_form", "the stash form opens");
-  return app.waitFor(() => app.exec(() => [...document.querySelectorAll("label[for]")].map((node) => node.textContent.trim()).map((text) => text.match(/^Only the selection \([^)]*\)/)?.[0]).find(Boolean) ?? null), 8000, { message: "“Only the selection” checkbox" });
+  return app.waitFor(
+    () =>
+      app.exec(
+        () =>
+          [...document.querySelectorAll("label[for]")]
+            .map((node) => node.textContent.trim())
+            .map((text) => text.match(/^Only the selection \([^)]*\)/)?.[0])
+            .find(Boolean) ?? null,
+      ),
+    8000,
+    { message: "“Only the selection” checkbox" },
+  );
 }
 
 /** The stash's worktree diff against its base (what `stash show -p` prints), as +/- lines. */
@@ -723,7 +939,11 @@ scenario("partial stash of selected lines", "main", async (t) => {
     const { repoId, tabId } = await app.openRepo(repo.path);
     await waitCounts(app, repoId, { unstaged: 1, staged: 0 });
     await openDiff(app, "unstaged", "messwerte.csv");
-    assertEqual((await diffRows(app)).map((row) => row.hunk), [0, 0, 1, 1], "two hunks with one changed line each");
+    assertEqual(
+      (await diffRows(app)).map((row) => row.hunk),
+      [0, 0, 1, 1],
+      "two hunks with one changed line each",
+    );
 
     // Select only the two lines of the first change in the line-number column.
     await toggleLines(app, (row) => row.hunk === 0);
@@ -732,7 +952,11 @@ scenario("partial stash of selected lines", "main", async (t) => {
     const label = await queueSelection(app, tabId, "Stash selection (2 lines) …");
     assertEqual(label, "Only the selection (1 file, 2 lines)", "the stash form shows the selection");
     assert(await checked(app, "Only the selection"), "“Only the selection” is checked");
-    assertEqual(await (await checkbox(app, "Only the marked files")).attr("data-disabled"), "", "“Only the marked files” is off while a selection is pending");
+    assertEqual(
+      await (await checkbox(app, "Only the marked files")).attr("data-disabled"),
+      "",
+      "“Only the marked files” is off while a selection is pending",
+    );
     assertEqual(await buttonText(app), "Stash selection", "button caption");
     await app.type(await nameField(app), "Nur der Ausreißer am 3.");
     await app.exec(() => document.activeElement?.blur());
@@ -790,9 +1014,21 @@ scenario("partial stash of whole hunks from staged and unstaged changes", "main"
     await waitToast(app, "success", /Selected lines stashed/);
 
     assertEqual(repo.git("rev-parse", "HEAD"), headBefore, "git: HEAD unchanged");
-    assertEqual(repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}").sort(), ["README.md", "messwerte.csv"], "git: both files in the stash");
-    assertEqual(repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}^2"), ["messwerte.csv"], "git: the staged hunk is in the stash's index commit");
-    assertEqual(stashChanges(repo).filter((line) => line.includes("2026-03")), ["-2026-03-27;6.6", "+2026-03-27;0.1"], "git: only the second hunk of messwerte.csv");
+    assertEqual(
+      repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}").sort(),
+      ["README.md", "messwerte.csv"],
+      "git: both files in the stash",
+    );
+    assertEqual(
+      repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}^2"),
+      ["messwerte.csv"],
+      "git: the staged hunk is in the stash's index commit",
+    );
+    assertEqual(
+      stashChanges(repo).filter((line) => line.includes("2026-03")),
+      ["-2026-03-27;6.6", "+2026-03-27;0.1"],
+      "git: only the second hunk of messwerte.csv",
+    );
     // What stays: the first hunk is still staged, README.md is clean.
     const staged = [...MEASUREMENTS];
     staged[2] = "2026-03-03;9.9";
@@ -814,7 +1050,10 @@ scenario("partial stash of whole files selected in the diff (Ctrl+A)", "main", a
     const app = await launch(t);
     const { repoId, tabId } = await app.openRepo(repo.path);
     await waitCounts(app, repoId, { unstaged: 3, staged: 0 });
-    for (const [file, lines] of [["README.md", 2], ["stationen.csv", 1]]) {
+    for (const [file, lines] of [
+      ["README.md", 2],
+      ["stationen.csv", 1],
+    ]) {
       await openDiff(app, "unstaged", file);
       // Ctrl+A in the diff selects all changed lines of the file.
       // Focus into the grid with one line, then Ctrl+A extends to every changed line.
@@ -823,7 +1062,15 @@ scenario("partial stash of whole files selected in the diff (Ctrl+A)", "main", a
       await app.waitFor(async () => (await selectedLines(app)).length === lines, 5000, { message: `${file}: all lines selected` });
       await queueSelection(app, tabId, `Stash selection (${lines} line${lines === 1 ? "" : "s"}) …`);
     }
-    assertEqual(await app.exec(() => [...document.querySelectorAll("label[for]")].map((node) => node.textContent.trim().match(/^Only the selection \([^)]*\)/)?.[0]).find(Boolean)), "Only the selection (2 files, 3 lines)", "two whole files");
+    assertEqual(
+      await app.exec(() =>
+        [...document.querySelectorAll("label[for]")]
+          .map((node) => node.textContent.trim().match(/^Only the selection \([^)]*\)/)?.[0])
+          .find(Boolean),
+      ),
+      "Only the selection (2 files, 3 lines)",
+      "two whole files",
+    );
     await app.exec((id) => window.__gc.store.getState().closeCenter(id), tabId);
     await app.type(await nameField(app), "Zwei ganze Dateien");
     await app.exec(() => document.activeElement?.blur());
@@ -831,7 +1078,11 @@ scenario("partial stash of whole files selected in the diff (Ctrl+A)", "main", a
     await t.shot("partial-files-stash-form");
     await app.click(await stashButton(app));
     await waitToast(app, "success", /Selected lines stashed/);
-    assertEqual(repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}").sort(), ["README.md", "stationen.csv"], "git: exactly the two files in the stash");
+    assertEqual(
+      repo.lines("diff", "--name-only", "stash@{0}^1", "stash@{0}").sort(),
+      ["README.md", "stationen.csv"],
+      "git: exactly the two files in the stash",
+    );
     assertEqual(repo.lines("status", "--porcelain"), [" M messwerte.csv"], "git: the third file stays");
     assertEqual(repo.read("messwerte.csv"), measurementsWithTwoChanges(), "file: messwerte.csv untouched");
     await waitCounts(app, repoId, { unstaged: 1, staged: 0 });
@@ -856,7 +1107,10 @@ scenario("partial stash: undo and redo", "edge", async (t) => {
     await waitToast(app, "success", /Selected lines stashed/);
     assertEqual(stashChanges(repo), ["+2026-03-27;0.1"], "git: only the added line in the stash");
     const afterStash = repo.read("messwerte.csv");
-    assert(!afterStash.includes("2026-03-27;0.1") && afterStash.includes("2026-03-27;6.6") === false, "file: the added line is gone, the removed line stays removed");
+    assert(
+      !afterStash.includes("2026-03-27;0.1") && afterStash.includes("2026-03-27;6.6") === false,
+      "file: the added line is gone, the removed line stays removed",
+    );
     await closeToasts(app);
 
     await runCommand(app, "undo", "repo.undo");
@@ -894,15 +1148,25 @@ scenario("partial stash keeps CRLF line endings byte for byte", "edge", async (t
 
     const kept = [...CRLF_LINES];
     kept[8] = "NEUN";
-    assertEqual(repo.bytes("crlf.txt").toString("hex"), Buffer.from(`${kept.join("\r\n")}\r\n`).toString("hex"), "file: crlf.txt keeps the second change and every CRLF");
+    assertEqual(
+      repo.bytes("crlf.txt").toString("hex"),
+      Buffer.from(`${kept.join("\r\n")}\r\n`).toString("hex"),
+      "file: crlf.txt keeps the second change and every CRLF",
+    );
     const stashed = [...CRLF_LINES];
     stashed[1] = "ZWEI";
-    assertEqual(Buffer.from(repo.git("cat-file", "blob", "stash@{0}:crlf.txt")).toString("hex"), Buffer.from(stashed.join("\r\n")).toString("hex"), "git: the stash has ZWEI with CRLF (the fixture git drops the final line ending)");
+    assertEqual(
+      Buffer.from(repo.git("cat-file", "blob", "stash@{0}:crlf.txt")).toString("hex"),
+      Buffer.from(stashed.join("\r\n")).toString("hex"),
+      "git: the stash has ZWEI with CRLF (the fixture git drops the final line ending)",
+    );
     // Commit the rest, pop: the exact bytes come back.
     repo.git("commit", "-qam", "NEUN");
     await waitCounts(app, repoId, { unstaged: 0, staged: 0 });
     await runCommand(app, "pop", "stash.pop");
-    await app.waitFor(() => repo.bytes("crlf.txt").equals(Buffer.from(`${crlf.join("\r\n")}\r\n`)), 15_000, { message: "pop restores crlf.txt byte for byte" });
+    await app.waitFor(() => repo.bytes("crlf.txt").equals(Buffer.from(`${crlf.join("\r\n")}\r\n`)), 15_000, {
+      message: "pop restores crlf.txt byte for byte",
+    });
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -918,16 +1182,28 @@ scenario("partial stash at a missing final newline keeps the rest of the file", 
     const { repoId, tabId } = await app.openRepo(repo.path);
     await waitCounts(app, repoId, { unstaged: 1, staged: 0 });
     await openDiff(app, "unstaged", "ohne-ende.txt");
-    assertEqual((await diffRows(app)).map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`), ["-beta", "-gamma", "+BETA", "+gamma", "+delta"], "diff rows");
+    assertEqual(
+      (await diffRows(app)).map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`),
+      ["-beta", "-gamma", "+BETA", "+gamma", "+delta"],
+      "diff rows",
+    );
     // Stash only the appended line (with the newline gamma gets): -gamma, +gamma, +delta. BETA stays.
     await toggleLines(app, (row) => row.text === "gamma" || row.text === "delta");
     await queueSelection(app, tabId, "Stash selection (3 lines) …");
     await app.click(await stashButton(app));
     await waitToast(app, "success", /Selected lines stashed/);
-    assertEqual(repo.git("cat-file", "blob", "stash@{0}:ohne-ende.txt"), "alpha\nbeta\ngamma\ndelta", "git: the stash holds HEAD plus the selected lines");
+    assertEqual(
+      repo.git("cat-file", "blob", "stash@{0}:ohne-ende.txt"),
+      "alpha\nbeta\ngamma\ndelta",
+      "git: the stash holds HEAD plus the selected lines",
+    );
     await openDiff(app, "unstaged", "ohne-ende.txt");
     await t.shot("partial-missing-final-newline");
-    assertEqual(JSON.stringify(repo.bytes("ohne-ende.txt").toString("utf8")), JSON.stringify("alpha\nBETA\ngamma"), "file: only BETA stays, line order and the missing final newline are kept");
+    assertEqual(
+      JSON.stringify(repo.bytes("ohne-ende.txt").toString("utf8")),
+      JSON.stringify("alpha\nBETA\ngamma"),
+      "file: only BETA stays, line order and the missing final newline are kept",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -958,7 +1234,9 @@ scenario("partial stash: unchecking the selection, a moved HEAD and lines that b
     repo.git("add", "neu.txt");
     repo.git("commit", "-q", "-m", "Commit von außen");
     await app.exec(() => window.dispatchEvent(new Event("focus")));
-    await app.waitFor(async () => (await checkbox(app, "Only the selection")) === null, 15_000, { message: "the selection disappears after HEAD moved" });
+    await app.waitFor(async () => (await checkbox(app, "Only the selection")) === null, 15_000, {
+      message: "the selection disappears after HEAD moved",
+    });
     assertEqual(await buttonText(app), "Create stash", "after HEAD moved: a normal stash");
     assertEqual(stashSubjects(repo), [], "git: nothing stashed so far");
 

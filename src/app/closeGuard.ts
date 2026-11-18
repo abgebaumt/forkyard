@@ -64,7 +64,12 @@ async function onCloseRequested() {
       return;
     }
     const lines: string[] = [];
-    if (now.jobs.length > 0) lines.push(now.jobs.length === 1 ? t("app.closeGuard.jobRunning", { job: now.jobs[0] }) : t("app.closeGuard.jobsRunning", { count: now.jobs.length }));
+    if (now.jobs.length > 0)
+      lines.push(
+        now.jobs.length === 1
+          ? t("app.closeGuard.jobRunning", { job: now.jobs[0] })
+          : t("app.closeGuard.jobsRunning", { count: now.jobs.length }),
+      );
     if (now.agents > 0) lines.push(t("app.closeGuard.agentsRunning", { count: now.agents }));
     if (now.views) lines.push(t("app.closeGuard.dirtyView"));
     if (now.files.length > 0) {
@@ -83,14 +88,23 @@ async function onCloseRequested() {
       if (answer === "save") {
         const failed = await saveUnsaved();
         if (failed.length > 0) {
-          toast({ tone: "danger", title: t("app.closeGuard.saveFailed"), description: t("app.closeGuard.saveFailedText", { files: failed.join(", ") }) });
+          toast({
+            tone: "danger",
+            title: t("app.closeGuard.saveFailed"),
+            description: t("app.closeGuard.saveFailedText", { files: failed.join(", ") }),
+          });
           return;
         }
       } else {
         discardUnsaved();
       }
     } else {
-      const ok = await confirm({ title: t("app.closeGuard.title"), body: lines.join(" "), confirmLabel: t("app.closeGuard.quit"), danger: true });
+      const ok = await confirm({
+        title: t("app.closeGuard.title"),
+        body: lines.join(" "),
+        confirmLabel: t("app.closeGuard.quit"),
+        danger: true,
+      });
       if (!ok) return;
     }
     await core.appQuit();

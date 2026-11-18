@@ -2,7 +2,17 @@
  * Line archaeology in the UI (v1.2, 7.1): which line a blame or diff row means, the rows of the
  * timeline panel and the AI notes next to their steps. Pure – no core calls.
  */
-import { EMPTY_TREE_SHA, type ArchaeologyAnswer, type ArchaeologyConfidence, type ArchaeologyRef, type DiffLine, type AiProviderKind, type DiffSource, type LineArchaeology, type Sha } from "../../core";
+import {
+  EMPTY_TREE_SHA,
+  type ArchaeologyAnswer,
+  type ArchaeologyConfidence,
+  type ArchaeologyRef,
+  type DiffLine,
+  type AiProviderKind,
+  type DiffSource,
+  type LineArchaeology,
+  type Sha,
+} from "../../core";
 import { shortSha } from "../../app/format";
 import { loadingView, type AiErrorView } from "../../app/ai/requestState";
 import type { ArchaeologyTarget } from "../../app/store";
@@ -30,7 +40,8 @@ export function blameTarget(path: string, sha: Sha | null, line: number, uncommi
  */
 export function diffLineTarget(source: DiffSource, file: { path: string; oldPath: string | null }, row: DiffRowLine): TargetOrReason {
   const notCommitted: TargetOrReason = { reason: t("diff.whyLine.notCommitted") };
-  const at = (path: string, line: number | null, sha: Sha | null): TargetOrReason => (line ? { target: { path, line, sha } } : { reason: t("diff.whyLine.noLine") });
+  const at = (path: string, line: number | null, sha: Sha | null): TargetOrReason =>
+    line ? { target: { path, line, sha } } : { reason: t("diff.whyLine.noLine") };
   const oldPath = file.oldPath ?? file.path;
   switch (source.kind) {
     case "commit":
@@ -81,7 +92,8 @@ export interface TimelineRow {
   introduced: boolean;
 }
 
-const lineKind = (line: string): TimelineLineKind => (line.startsWith("+") ? "add" : line.startsWith("-") ? "remove" : line.startsWith(" ") ? "context" : "note");
+const lineKind = (line: string): TimelineLineKind =>
+  line.startsWith("+") ? "add" : line.startsWith("-") ? "remove" : line.startsWith(" ") ? "context" : "note";
 
 export function timelineRows(data: LineArchaeology, answer: ArchaeologyAnswer | null = null): TimelineRow[] {
   const notes = new Map((answer?.notes ?? []).map((note) => [note.sha, note.note]));
@@ -96,7 +108,10 @@ export function timelineRows(data: LineArchaeology, answer: ArchaeologyAnswer | 
       authoredAt: step.commit.authoredAt,
       path: step.path,
       renamedFrom: older && older.path !== step.path ? older.path : null,
-      lines: step.startLine === step.endLine ? t("blame.line", { line: number(step.startLine) }) : t("blame.lineRange", { from: number(step.startLine), to: number(step.endLine) }),
+      lines:
+        step.startLine === step.endLine
+          ? t("blame.line", { line: number(step.startLine) })
+          : t("blame.lineRange", { from: number(step.startLine), to: number(step.endLine) }),
       diff: step.diff.map((line) => {
         const kind = lineKind(line);
         return { kind, text: kind === "note" ? line : line.slice(1) };

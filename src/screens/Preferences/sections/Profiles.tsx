@@ -35,7 +35,15 @@ export function saveProfile(id: string, patch: Partial<Pick<Profile, "name" | "a
     const next = { ...current, ...patch };
     const result = await runAction(
       t("preferences.profiles.save"),
-      () => core.profileSave({ id, name: next.name, authorName: next.authorName, authorEmail: next.authorEmail, syncGitconfig: next.syncGitconfig, color: next.color ?? null }),
+      () =>
+        core.profileSave({
+          id,
+          name: next.name,
+          authorName: next.authorName,
+          authorEmail: next.authorEmail,
+          syncGitconfig: next.syncGitconfig,
+          color: next.color ?? null,
+        }),
       { quiet: ["invalid_name", "name_exists", "not_allowed"] },
     );
     if (result.ok) {
@@ -56,11 +64,19 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
   const [creating, setCreating] = useState(create);
 
   if (profiles.isPending) return <SettingsSkeleton rows={4} />;
-  if (profiles.isError) return <LoadError title={t("preferences.loadError.profiles")} error={profiles.error} onRetry={() => void profiles.refetch()} />;
+  if (profiles.isError)
+    return <LoadError title={t("preferences.loadError.profiles")} error={profiles.error} onRetry={() => void profiles.refetch()} />;
 
   const list = profiles.data;
   const active = list.find((profile) => profile.isActive) ?? list[0];
-  if (!active) return <LoadError title={t("preferences.loadError.profiles")} error={new Error(t("preferences.loadError.noProfile"))} onRetry={() => void profiles.refetch()} />;
+  if (!active)
+    return (
+      <LoadError
+        title={t("preferences.loadError.profiles")}
+        error={new Error(t("preferences.loadError.noProfile"))}
+        onRetry={() => void profiles.refetch()}
+      />
+    );
 
   const missingAuthor = !active.authorName.trim() || !active.authorEmail.trim();
 
@@ -81,16 +97,26 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-3 rounded-md border border-border bg-surface-raised p-3" aria-label={t("preferences.profiles.preview")} role="group">
+      <div
+        className="flex items-center gap-3 rounded-md border border-border bg-surface-raised p-3"
+        aria-label={t("preferences.profiles.preview")}
+        role="group"
+      >
         {active.authorName.trim() ? (
           <Avatar name={active.authorName} email={active.authorEmail || undefined} size={40} />
         ) : (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-pill border border-dashed border-border-input text-text-muted" aria-hidden>
+          <span
+            className="flex size-10 shrink-0 items-center justify-center rounded-pill border border-dashed border-border-input text-text-muted"
+            aria-hidden
+          >
             <UserRound className="size-5" />
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <p className={cn("truncate text-md font-medium", active.authorName.trim() ? "text-text" : "text-text-muted")} title={active.authorName}>
+          <p
+            className={cn("truncate text-md font-medium", active.authorName.trim() ? "text-text" : "text-text-muted")}
+            title={active.authorName}
+          >
             {active.authorName.trim() || t("preferences.profiles.noName")}
           </p>
           <p className="truncate text-sm text-text-muted" title={active.authorEmail}>
@@ -117,7 +143,9 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
       </SettingRow>
       <SettingRow
         title={t("preferences.profiles.authorName.title")}
-        description={active.syncGitconfig ? t("preferences.profiles.authorName.description") : t("preferences.profiles.authorName.descriptionNoSync")}
+        description={
+          active.syncGitconfig ? t("preferences.profiles.authorName.description") : t("preferences.profiles.authorName.descriptionNoSync")
+        }
       >
         {(ids) => (
           <CommitText
@@ -146,10 +174,7 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
           />
         )}
       </SettingRow>
-      <SettingRow
-        title={t("preferences.profiles.syncGitconfig.title")}
-        description={t("preferences.profiles.syncGitconfig.description")}
-      >
+      <SettingRow title={t("preferences.profiles.syncGitconfig.title")} description={t("preferences.profiles.syncGitconfig.description")}>
         {(ids) => (
           <Switch
             id={ids.id}
@@ -183,11 +208,7 @@ export function ProfilesSection({ create = false }: { create?: boolean }) {
 }
 
 function ProfileRow({ profile, onlyOne }: { profile: Profile; onlyOne: boolean }) {
-  const blocked = profile.isActive
-    ? onlyOne
-      ? t("preferences.profiles.lastBlocked")
-      : t("preferences.profiles.activeBlocked")
-    : null;
+  const blocked = profile.isActive ? (onlyOne ? t("preferences.profiles.lastBlocked") : t("preferences.profiles.activeBlocked")) : null;
 
   const activate = () => void switchProfile(profile);
 
@@ -206,14 +227,20 @@ function ProfileRow({ profile, onlyOne }: { profile: Profile; onlyOne: boolean }
     if (result.ok) queryClient.setQueryData(qk.profiles, result.value);
   };
 
-  const author = profile.authorName.trim() || profile.authorEmail.trim() ? [profile.authorName.trim(), profile.authorEmail.trim() && `<${profile.authorEmail.trim()}>`].filter(Boolean).join(" ") : t("preferences.profiles.noAuthorSet");
+  const author =
+    profile.authorName.trim() || profile.authorEmail.trim()
+      ? [profile.authorName.trim(), profile.authorEmail.trim() && `<${profile.authorEmail.trim()}>`].filter(Boolean).join(" ")
+      : t("preferences.profiles.noAuthorSet");
 
   return (
     <li data-profile={profile.name} className="flex h-12 items-center gap-3 border-b border-border px-3 last:border-b-0">
       {profile.authorName.trim() ? (
         <Avatar name={profile.authorName} email={profile.authorEmail || undefined} size={28} />
       ) : (
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-pill border border-dashed border-border-input text-text-muted" aria-hidden>
+        <span
+          className="flex size-7 shrink-0 items-center justify-center rounded-pill border border-dashed border-border-input text-text-muted"
+          aria-hidden
+        >
           <UserRound className="size-icon" />
         </span>
       )}
@@ -273,13 +300,25 @@ function NewProfileDialog({ onClose }: { onClose: () => void }) {
     setBusy(true);
     const result = await runAction(
       t("preferences.profiles.create.action"),
-      () => core.profileSave({ id: null, name: name.trim(), authorName: authorName.trim(), authorEmail: authorEmail.trim(), syncGitconfig, color: null }),
+      () =>
+        core.profileSave({
+          id: null,
+          name: name.trim(),
+          authorName: authorName.trim(),
+          authorEmail: authorEmail.trim(),
+          syncGitconfig,
+          color: null,
+        }),
       { quiet: ["invalid_name", "name_exists", "not_allowed"] },
     );
     setBusy(false);
     if (result.ok) {
       queryClient.setQueryData(qk.profiles, result.value);
-      toast({ tone: "success", title: t("preferences.profiles.create.done", { name: name.trim() }), description: t("preferences.profiles.create.doneHint") });
+      toast({
+        tone: "success",
+        title: t("preferences.profiles.create.done", { name: name.trim() }),
+        description: t("preferences.profiles.create.doneHint"),
+      });
       onClose();
     } else if (result.error.code === "not_allowed") {
       setErrors({ email: result.error.message });
@@ -314,8 +353,22 @@ function NewProfileDialog({ onClose }: { onClose: () => void }) {
           void submit();
         }}
       >
-        <TextField autoFocus data-autofocus label={t("preferences.profiles.name.title")} value={name} error={errors.name} autoComplete="off" onChange={(event) => setName(event.target.value)} />
-        <TextField label={t("preferences.profiles.authorName.title")} value={authorName} placeholder={t("preferences.profiles.authorName.placeholder")} autoComplete="off" onChange={(event) => setAuthorName(event.target.value)} />
+        <TextField
+          autoFocus
+          data-autofocus
+          label={t("preferences.profiles.name.title")}
+          value={name}
+          error={errors.name}
+          autoComplete="off"
+          onChange={(event) => setName(event.target.value)}
+        />
+        <TextField
+          label={t("preferences.profiles.authorName.title")}
+          value={authorName}
+          placeholder={t("preferences.profiles.authorName.placeholder")}
+          autoComplete="off"
+          onChange={(event) => setAuthorName(event.target.value)}
+        />
         <TextField
           label={t("preferences.profiles.email.title")}
           type="email"

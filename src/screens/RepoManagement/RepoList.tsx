@@ -1,6 +1,24 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, type KeyboardEvent, type Ref } from "react";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
-import { ArrowDownToLine, CloudDownload, Ellipsis, ExternalLink, FolderGit2, FolderOpen, FolderSearch, FolderX, PanelTop, PencilLine, Star, StarOff, Tags, Trash2, TriangleAlert, Ungroup, X } from "lucide-react";
+import {
+  ArrowDownToLine,
+  CloudDownload,
+  Ellipsis,
+  ExternalLink,
+  FolderGit2,
+  FolderOpen,
+  FolderSearch,
+  FolderX,
+  PanelTop,
+  PencilLine,
+  Star,
+  StarOff,
+  Tags,
+  Trash2,
+  TriangleAlert,
+  Ungroup,
+  X,
+} from "lucide-react";
 import type { Id, Repo } from "../../core";
 import { openExternal } from "../../app/actions/files";
 import { formatDateTime, formatRelative } from "../../app/format";
@@ -10,13 +28,24 @@ import { ContextMenu, DropdownMenu, type MenuEntry } from "../../ui/Menu";
 import { splitForDisplay } from "../CloneDialog/paths";
 import { openRepoCleanup } from "../RepoCleanup";
 import { openGroupSync } from "./GroupSync";
-import { REPO_COLORS, assignGroup, clearAlias, clearGroup, displayName, dissolveGroup, editAlias, relocateRepo, renameGroup, setColor, setFavorite } from "./repoActions";
+import {
+  REPO_COLORS,
+  assignGroup,
+  clearAlias,
+  clearGroup,
+  displayName,
+  dissolveGroup,
+  editAlias,
+  relocateRepo,
+  renameGroup,
+  setColor,
+  setFavorite,
+} from "./repoActions";
 import { t } from "../../i18n";
 
 export type ListItem =
   /** `group`: heading of a named group – it gets the batch actions. */
-  | { kind: "header"; key: string; label: string; count: number; group?: string }
-  | { kind: "repo"; key: string; repo: Repo };
+  { kind: "header"; key: string; label: string; count: number; group?: string } | { kind: "repo"; key: string; repo: Repo };
 
 export interface RepoListHandle {
   /** Focus on the entry (or the first one if it no longer exists). */
@@ -87,54 +116,122 @@ function groupMenu(group: string, members: Repo[], existing: string[], run: (wor
       onSelect: () => run(() => openGroupSync(group, members, "pull")),
     },
     { type: "separator" },
-    { label: t("repos.groupMenu.rename"), icon: <PencilLine className="size-icon" />, onSelect: () => run(() => renameGroup(group, members, existing)) },
-    { label: t("repos.groupMenu.dissolve"), icon: <Ungroup className="size-icon" />, danger: true, onSelect: () => run(() => dissolveGroup(group, members)) },
+    {
+      label: t("repos.groupMenu.rename"),
+      icon: <PencilLine className="size-icon" />,
+      onSelect: () => run(() => renameGroup(group, members, existing)),
+    },
+    {
+      label: t("repos.groupMenu.dissolve"),
+      icon: <Ungroup className="size-icon" />,
+      danger: true,
+      onSelect: () => run(() => dissolveGroup(group, members)),
+    },
   ];
 }
 
-function repoMenu(repo: Repo, props: Pick<RepoListProps, "onOpen" | "onOpenInTab" | "onRemove" | "groups" | "groupMembers">, run: (work: () => unknown) => void): MenuEntry[] {
+function repoMenu(
+  repo: Repo,
+  props: Pick<RepoListProps, "onOpen" | "onOpenInTab" | "onRemove" | "groups" | "groupMembers">,
+  run: (work: () => unknown) => void,
+): MenuEntry[] {
   const entries: MenuEntry[] = [];
   if (repo.missing) {
-    entries.push({ label: t("repos.menu.relocate"), icon: <FolderSearch className="size-icon" />, onSelect: () => run(() => relocateRepo(repo)) });
+    entries.push({
+      label: t("repos.menu.relocate"),
+      icon: <FolderSearch className="size-icon" />,
+      onSelect: () => run(() => relocateRepo(repo)),
+    });
   } else {
     entries.push(
-      { label: t("repos.menu.open"), icon: <FolderOpen className="size-icon" />, shortcut: "Enter", onSelect: () => run(() => props.onOpen(repo)) },
-      { label: t("repos.menu.openInTab"), icon: <PanelTop className="size-icon" />, shortcut: "Mod+Enter", onSelect: () => run(() => props.onOpenInTab(repo)) },
+      {
+        label: t("repos.menu.open"),
+        icon: <FolderOpen className="size-icon" />,
+        shortcut: "Enter",
+        onSelect: () => run(() => props.onOpen(repo)),
+      },
+      {
+        label: t("repos.menu.openInTab"),
+        icon: <PanelTop className="size-icon" />,
+        shortcut: "Mod+Enter",
+        onSelect: () => run(() => props.onOpenInTab(repo)),
+      },
     );
   }
   entries.push(
     { type: "separator" },
     repo.isFavorite
-      ? { label: t("repos.menu.favoriteRemove"), icon: <StarOff className="size-icon" />, shortcut: "F", onSelect: () => run(() => setFavorite(repo, false)) }
-      : { label: t("repos.menu.favoriteAdd"), icon: <Star className="size-icon" />, shortcut: "F", onSelect: () => run(() => setFavorite(repo, true)) },
-    { label: repo.alias ? t("repos.menu.aliasChange") : t("repos.menu.aliasSet"), icon: <PencilLine className="size-icon" />, shortcut: "F2", onSelect: () => run(() => editAlias(repo)) },
+      ? {
+          label: t("repos.menu.favoriteRemove"),
+          icon: <StarOff className="size-icon" />,
+          shortcut: "F",
+          onSelect: () => run(() => setFavorite(repo, false)),
+        }
+      : {
+          label: t("repos.menu.favoriteAdd"),
+          icon: <Star className="size-icon" />,
+          shortcut: "F",
+          onSelect: () => run(() => setFavorite(repo, true)),
+        },
+    {
+      label: repo.alias ? t("repos.menu.aliasChange") : t("repos.menu.aliasSet"),
+      icon: <PencilLine className="size-icon" />,
+      shortcut: "F2",
+      onSelect: () => run(() => editAlias(repo)),
+    },
   );
   if (repo.alias) entries.push({ label: t("repos.menu.aliasRemove"), onSelect: () => run(() => clearAlias(repo)) });
-  entries.push({ label: repo.groupName ? t("repos.menu.groupChange") : t("repos.menu.groupAssign"), icon: <Tags className="size-icon" />, onSelect: () => run(() => assignGroup(repo, props.groups)) });
+  entries.push({
+    label: repo.groupName ? t("repos.menu.groupChange") : t("repos.menu.groupAssign"),
+    icon: <Tags className="size-icon" />,
+    onSelect: () => run(() => assignGroup(repo, props.groups)),
+  });
   if (repo.groupName) {
     const group = repo.groupName;
     entries.push(
       { label: t("repos.menu.groupLeave", { group }), onSelect: () => run(() => clearGroup(repo)) },
-      { label: t("repos.menu.groupSubmenu", { group }), icon: <Tags className="size-icon" />, children: groupMenu(group, props.groupMembers(group), props.groups, run) },
+      {
+        label: t("repos.menu.groupSubmenu", { group }),
+        icon: <Tags className="size-icon" />,
+        children: groupMenu(group, props.groupMembers(group), props.groups, run),
+      },
     );
   }
   entries.push({ type: "separator" }, { type: "label", label: t("repos.menu.color") });
   for (const color of REPO_COLORS) {
-    entries.push({ label: color.label, icon: <ColorDot color={color.value} />, checked: repo.color === color.value, onSelect: () => run(() => setColor(repo, color.value)) });
+    entries.push({
+      label: color.label,
+      icon: <ColorDot color={color.value} />,
+      checked: repo.color === color.value,
+      onSelect: () => run(() => setColor(repo, color.value)),
+    });
   }
-  if (repo.color !== null) entries.push({ label: t("repos.menu.noColor"), icon: <X className="size-icon" />, onSelect: () => run(() => setColor(repo, null)) });
+  if (repo.color !== null)
+    entries.push({ label: t("repos.menu.noColor"), icon: <X className="size-icon" />, onSelect: () => run(() => setColor(repo, null)) });
   entries.push(
     { type: "separator" },
     // Resolves when the dialog closes, so the focus goes back to the row only then.
     { label: t("repos.menu.cleanup"), disabled: repo.missing, onSelect: () => run(() => openRepoCleanup(repo.id)) },
-    { label: t("repos.menu.showInFileManager"), icon: <ExternalLink className="size-icon" />, disabled: repo.missing, onSelect: () => run(() => openExternal(repo.id, "file_manager")) },
+    {
+      label: t("repos.menu.showInFileManager"),
+      icon: <ExternalLink className="size-icon" />,
+      disabled: repo.missing,
+      onSelect: () => run(() => openExternal(repo.id, "file_manager")),
+    },
     { type: "separator" },
-    { label: t("repos.menu.remove"), icon: <Trash2 className="size-icon" />, shortcut: "Delete", danger: true, onSelect: () => run(() => props.onRemove(repo)) },
+    {
+      label: t("repos.menu.remove"),
+      icon: <Trash2 className="size-icon" />,
+      shortcut: "Delete",
+      danger: true,
+      onSelect: () => run(() => props.onRemove(repo)),
+    },
   );
   return entries;
 }
 
-interface RowProps extends Pick<RepoListProps, "onOpen" | "onOpenInTab" | "onRemove" | "groups" | "groupMembers" | "showGroup" | "onSelect"> {
+interface RowProps
+  extends Pick<RepoListProps, "onOpen" | "onOpenInTab" | "onRemove" | "groups" | "groupMembers" | "showGroup" | "onSelect"> {
   /** After an action with a dialog: focus back on the row if it got lost. */
   onSettled: (id: Id) => void;
   repo: Repo;
@@ -215,12 +312,18 @@ function RepoRow({ repo, selected, tabbable, position, total, onMove, onSettled,
               {name}
             </span>
             {repo.alias ? (
-              <span className="min-w-0 shrink-100 truncate text-sm text-text-muted" title={t("repos.list.folderTitle", { name: repo.name })}>
+              <span
+                className="min-w-0 shrink-100 truncate text-sm text-text-muted"
+                title={t("repos.list.folderTitle", { name: repo.name })}
+              >
                 {repo.name}
               </span>
             ) : null}
             {props.showGroup && repo.groupName ? (
-              <span className="max-w-1/4 min-w-0 shrink-100 truncate rounded-sm border border-border px-1 text-xs text-text-muted" title={t("repos.list.groupTitle", { group: repo.groupName })}>
+              <span
+                className="max-w-1/4 min-w-0 shrink-100 truncate rounded-sm border border-border px-1 text-xs text-text-muted"
+                title={t("repos.list.groupTitle", { group: repo.groupName })}
+              >
                 {repo.groupName}
               </span>
             ) : null}
@@ -236,11 +339,26 @@ function RepoRow({ repo, selected, tabbable, position, total, onMove, onSettled,
         {repo.missing ? (
           // Clicks on the buttons do not open the row.
           <span className="flex shrink-0 items-center" onClick={(event) => event.stopPropagation()}>
-            <IconButton size="sm" tabIndex={-1} label={t("repos.menu.relocate")} icon={<FolderSearch className="size-icon" aria-hidden />} onClick={() => void relocateRepo(repo)} />
-            <IconButton size="sm" tabIndex={-1} label={t("repos.menu.remove")} icon={<Trash2 className="size-icon" aria-hidden />} onClick={() => props.onRemove(repo)} />
+            <IconButton
+              size="sm"
+              tabIndex={-1}
+              label={t("repos.menu.relocate")}
+              icon={<FolderSearch className="size-icon" aria-hidden />}
+              onClick={() => void relocateRepo(repo)}
+            />
+            <IconButton
+              size="sm"
+              tabIndex={-1}
+              label={t("repos.menu.remove")}
+              icon={<Trash2 className="size-icon" aria-hidden />}
+              onClick={() => props.onRemove(repo)}
+            />
           </span>
         ) : (
-          <span className="shrink-0 text-sm text-text-muted" title={repo.lastOpenedAt ? t("repos.list.lastOpened", { date: formatDateTime(repo.lastOpenedAt) }) : undefined}>
+          <span
+            className="shrink-0 text-sm text-text-muted"
+            title={repo.lastOpenedAt ? t("repos.list.lastOpened", { date: formatDateTime(repo.lastOpenedAt) }) : undefined}
+          >
             {opened}
           </span>
         )}
@@ -251,7 +369,11 @@ function RepoRow({ repo, selected, tabbable, position, total, onMove, onSettled,
             label={repo.isFavorite ? t("repos.menu.favoriteRemove") : t("repos.menu.favoriteAdd")}
             shortcut="F"
             aria-pressed={repo.isFavorite}
-            className={cn(repo.isFavorite ? "text-warning hover:text-warning" : "opacity-0 group-hover:opacity-100 group-aria-selected:opacity-100 focus-visible:opacity-100")}
+            className={cn(
+              repo.isFavorite
+                ? "text-warning hover:text-warning"
+                : "opacity-0 group-hover:opacity-100 group-aria-selected:opacity-100 focus-visible:opacity-100",
+            )}
             icon={<Star className={cn("size-icon", repo.isFavorite && "fill-current")} aria-hidden />}
             onClick={() => void setFavorite(repo, !repo.isFavorite)}
           />
@@ -288,7 +410,12 @@ function GroupActions({ group, members, existing }: { group: string; members: Re
         onClick={() => void openGroupSync(group, members, "pull")}
       />
       <DropdownMenu align="end" entries={groupMenu(group, members, existing, later)}>
-        <IconButton size="sm" tabIndex={-1} label={t("repos.groupMenu.more", { group })} icon={<Ellipsis className="size-icon" aria-hidden />} />
+        <IconButton
+          size="sm"
+          tabIndex={-1}
+          label={t("repos.groupMenu.more", { group })}
+          icon={<Ellipsis className="size-icon" aria-hidden />}
+        />
       </DropdownMenu>
     </span>
   );
@@ -386,10 +513,19 @@ export function RepoList({ items, selectedId, onSelect, handle, ...props }: Repo
           const item = items[virtual.index];
           if (!item) return null;
           return (
-            <div key={virtual.key} role="presentation" className="absolute top-0 left-0 w-full" style={{ transform: `translateY(${virtual.start}px)` }}>
+            <div
+              key={virtual.key}
+              role="presentation"
+              className="absolute top-0 left-0 w-full"
+              style={{ transform: `translateY(${virtual.start}px)` }}
+            >
               {item.kind === "header" ? (
                 <div role="presentation" className="flex h-7 items-end pr-2">
-                  <div role="presentation" data-repo-section={item.label} className="flex min-w-0 flex-1 items-end gap-2 px-4 pb-1 text-xs font-semibold tracking-wide text-text-muted uppercase">
+                  <div
+                    role="presentation"
+                    data-repo-section={item.label}
+                    className="flex min-w-0 flex-1 items-end gap-2 px-4 pb-1 text-xs font-semibold tracking-wide text-text-muted uppercase"
+                  >
                     <span className="min-w-0 truncate">{item.label}</span>
                     <span className="font-medium">{item.count}</span>
                   </div>
@@ -405,7 +541,8 @@ export function RepoList({ items, selectedId, onSelect, handle, ...props }: Repo
                   onMove={onMove}
                   onSelect={onSelect}
                   onSettled={(id) => {
-                    if (document.activeElement === document.body || document.activeElement === null) focusIndex(items.findIndex((entry) => entry.kind === "repo" && entry.repo.id === id));
+                    if (document.activeElement === document.body || document.activeElement === null)
+                      focusIndex(items.findIndex((entry) => entry.kind === "repo" && entry.repo.id === id));
                   }}
                   {...props}
                 />

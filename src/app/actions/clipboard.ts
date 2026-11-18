@@ -39,7 +39,11 @@ export async function copyText(text: string, what: string): Promise<boolean> {
   }
   if (ok) {
     lastCopied = text;
-    toast({ tone: "success", title: t("actions.clipboard.copied", { what }), description: text.length > 120 ? `${text.slice(0, 119)}…` : text });
+    toast({
+      tone: "success",
+      title: t("actions.clipboard.copied", { what }),
+      description: text.length > 120 ? `${text.slice(0, 119)}…` : text,
+    });
   } else {
     toast({ tone: "danger", title: t("actions.clipboard.failed"), description: t("actions.clipboard.failedDescription") });
   }

@@ -1,5 +1,19 @@
 import { memo, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { Archive, Cloud, CloudOff, Eye, EyeOff, Focus, Folder, FolderGit2, FolderOpen, GitBranch, GitCommitHorizontal, Loader2, Tag } from "lucide-react";
+import {
+  Archive,
+  Cloud,
+  CloudOff,
+  Eye,
+  EyeOff,
+  Focus,
+  Folder,
+  FolderGit2,
+  FolderOpen,
+  GitBranch,
+  GitCommitHorizontal,
+  Loader2,
+  Tag,
+} from "lucide-react";
 import { normalizeRefName } from "../../app/actions/branches";
 import { outgoing, refPublishState } from "../../app/publishState";
 
@@ -92,7 +106,12 @@ export function rowSync(ref: Ref): { ahead: number; behind: number; outgoing: bo
   }
   if (state?.kind === "elsewhere") {
     const behind = state.behind ? `, ${t("sidebar.sync.behind", { count: state.behind })}` : "";
-    return { ahead: 0, behind: state.behind, outgoing: false, tip: `${t("sidebar.sync.followsOther", { upstream: state.upstream })}${behind}` };
+    return {
+      ahead: 0,
+      behind: state.behind,
+      outgoing: false,
+      tip: `${t("sidebar.sync.followsOther", { upstream: state.upstream })}${behind}`,
+    };
   }
   return { ahead: ref.ahead, behind: ref.behind, outgoing: false, tip: syncText(ref.ahead, ref.behind, ref.upstream) };
 }
@@ -124,7 +143,8 @@ function tipLines(node: TreeNode): string[] {
     ];
   }
   if (node.kind === "remote_branch" && ref) return [ref.name];
-  if (node.kind === "tag" && ref) return [ref.name, ref.isAnnotated ? (ref.annotation?.trim() || t("sidebar.tip.annotatedEmpty")) : t("sidebar.tip.lightweight")];
+  if (node.kind === "tag" && ref)
+    return [ref.name, ref.isAnnotated ? ref.annotation?.trim() || t("sidebar.tip.annotatedEmpty") : t("sidebar.tip.lightweight")];
   if (stash) {
     return [
       node.label,
@@ -268,7 +288,22 @@ function InlineRename({ node, api, onError }: { node: TreeNode; api: RowApi; onE
   );
 }
 
-function RefRowInner({ row, query, selected, focusable, hidden, solo, dimmed, canToggle, dragging, dropTarget, busy, editing, gutter, api }: RefRowProps) {
+function RefRowInner({
+  row,
+  query,
+  selected,
+  focusable,
+  hidden,
+  solo,
+  dimmed,
+  canToggle,
+  dragging,
+  dropTarget,
+  busy,
+  editing,
+  gutter,
+  api,
+}: RefRowProps) {
   const { node, depth, expanded, posInSet, setSize } = row;
   const { ref, stash, head } = node;
   const sync = ref ? rowSync(ref) : undefined;
@@ -280,7 +315,8 @@ function RefRowInner({ row, query, selected, focusable, hidden, solo, dimmed, ca
 
   let icon: ReactNode;
   if (busy) icon = <Loader2 className="size-3.5 animate-spin" aria-hidden />;
-  else if (node.kind === "folder") icon = expanded ? <FolderOpen className="size-3.5" aria-hidden /> : <Folder className="size-3.5" aria-hidden />;
+  else if (node.kind === "folder")
+    icon = expanded ? <FolderOpen className="size-3.5" aria-hidden /> : <Folder className="size-3.5" aria-hidden />;
   else if (node.kind === "remote") icon = <Cloud className="size-3.5" aria-hidden />;
   else if (node.kind === "tag") icon = <Tag className="size-3.5" aria-hidden />;
   else if (node.kind === "stash") icon = <Archive className="size-3.5" aria-hidden />;
@@ -333,7 +369,10 @@ function RefRowInner({ row, query, selected, focusable, hidden, solo, dimmed, ca
     meta = <span className="shrink-0 text-xs text-text-muted">{t("sidebar.noCommitYet")}</span>;
   }
 
-  const stop = { onPointerDown: (event: { stopPropagation(): void }) => event.stopPropagation(), onDoubleClick: (event: { stopPropagation(): void }) => event.stopPropagation() };
+  const stop = {
+    onPointerDown: (event: { stopPropagation(): void }) => event.stopPropagation(),
+    onDoubleClick: (event: { stopPropagation(): void }) => event.stopPropagation(),
+  };
   const showToggles = canToggle && !editing && node.kind !== "stash" && node.kind !== "head" && node.refNames.length > 0;
   const lazy = "hidden group-hover:inline-flex group-focus-within:inline-flex";
   const many = node.kind === "folder" || node.kind === "remote";
@@ -396,7 +435,6 @@ function RefRowInner({ row, query, selected, focusable, hidden, solo, dimmed, ca
       behind={sync?.behind}
       outgoing={sync?.outgoing}
       syncTip={sync?.tip}
-
       hidden={dimmed}
       solo={solo === "all"}
       dragging={dragging}

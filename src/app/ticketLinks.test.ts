@@ -47,7 +47,8 @@ describe("ticket links", () => {
 
   it("finds nested repetition like the core", () => {
     for (const pattern of ["(a+)+", String.raw`(?:\d*)*x`, "((a)+)+", "(a{2})+"]) expect(hasNestedRepetition(pattern), pattern).toBe(true);
-    for (const pattern of ["(a+)?", "a+b+", "(?:ab)+", "[(+]+", String.raw`\(a+\)+`, String.raw`#(\d+)\b`]) expect(hasNestedRepetition(pattern), pattern).toBe(false);
+    for (const pattern of ["(a+)?", "a+b+", "(?:ab)+", "[(+]+", String.raw`\(a+\)+`, String.raw`#(\d+)\b`])
+      expect(hasNestedRepetition(pattern), pattern).toBe(false);
     // The rest of the core's scan (pattern.rs): alternatives in repeated groups, groups of varying
     // width and repetitions in a row that can share characters.
     const slow = [
@@ -104,7 +105,14 @@ describe("ticket links", () => {
     expect(tryRule("(", "https://x.example/$0", "x")).toEqual({ kind: "invalid" });
     expect(tryRule("(a+)+", "https://x.example/$0", "aaa")).toEqual({ kind: "nested" });
     // Escapes the core refuses never run, also inside a class and when they would backtrack.
-    for (const pattern of [String.raw`\x41?`.repeat(30) + "!", String.raw`\101?`.repeat(30) + "!", String.raw`OPS-\1`, String.raw`[\x41]+`, String.raw`[\b]`, String.raw`\cA`])
+    for (const pattern of [
+      String.raw`\x41?`.repeat(30) + "!",
+      String.raw`\101?`.repeat(30) + "!",
+      String.raw`OPS-\1`,
+      String.raw`[\x41]+`,
+      String.raw`[\b]`,
+      String.raw`\cA`,
+    ])
       expect(tryRule(pattern, "https://x.example/$0", "A".repeat(30)), pattern).toEqual({ kind: "invalid" });
     expect(tryRule(String.raw`OPS-(\d+)`, " https://ops.example/$1 ", "see OPS-4, OPS-5")).toEqual({
       kind: "ok",
@@ -119,6 +127,11 @@ describe("ticket links", () => {
   it("splits project keys and finds a free rule ID", () => {
     expect(splitKeys(" abc, OPS;ops  x1 ")).toEqual(["ABC", "OPS", "X1"]);
     expect(newRuleId([])).toBe("rule-1");
-    expect(newRuleId([{ id: "rule-1", pattern: "", url: "" }, { id: "rule-3", pattern: "", url: "" }])).toBe("rule-2");
+    expect(
+      newRuleId([
+        { id: "rule-1", pattern: "", url: "" },
+        { id: "rule-3", pattern: "", url: "" },
+      ]),
+    ).toBe("rule-2");
   });
 });

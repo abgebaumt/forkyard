@@ -44,7 +44,8 @@ const OTHER = "Jonas Berg";
 // ---------------------------------------------------------------------------------------------
 
 const envFor = (fx) => ({ ...process.env, ...gitIsolationEnv(path.join(fx.root, "gitconfig")) });
-const git = (fx, cwd, ...args) => execFileSync("git", args, { cwd, env: envFor(fx), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+const git = (fx, cwd, ...args) =>
+  execFileSync("git", args, { cwd, env: envFor(fx), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 /** For commands that reach the lock server in this process. */
 const gitAsync = async (fx, cwd, ...args) => (await execFileAsync("git", args, { cwd, env: envFor(fx), encoding: "utf8" })).stdout.trim();
 
@@ -52,7 +53,10 @@ const attributes = (repo) => {
   const file = path.join(repo, ".gitattributes");
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").split(/\r?\n/).filter(Boolean) : [];
 };
-const tracked = (repo) => attributes(repo).filter((line) => /filter=lfs/.test(line)).map((line) => line.split(/\s+/)[0]);
+const tracked = (repo) =>
+  attributes(repo)
+    .filter((line) => /filter=lfs/.test(line))
+    .map((line) => line.split(/\s+/)[0]);
 
 /** Fixed "random" binary bytes (starts with NUL). */
 const blob = (seed, size) => {
@@ -103,15 +107,24 @@ function makeLfsRepo({ lockUrl = null } = {}) {
 // UI helpers
 // ---------------------------------------------------------------------------------------------
 
-const toasts = (app) => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+const toasts = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((item) => ({
+      tone: item.getAttribute("data-toast"),
+      text: item.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 async function waitToast(app, pattern, tone = null, timeout = 30_000) {
-  return app.waitFor(async () => (await toasts(app)).find((toast) => pattern.test(toast.text) && (!tone || toast.tone === tone)) ?? null, timeout, {
-    message: `toast ${pattern}${tone ? ` (${tone})` : ""}`,
-  }).catch(async (error) => {
-    throw new Error(`${error.message}; present: ${JSON.stringify(await toasts(app))}`);
-  });
+  return app
+    .waitFor(async () => (await toasts(app)).find((toast) => pattern.test(toast.text) && (!tone || toast.tone === tone)) ?? null, timeout, {
+      message: `toast ${pattern}${tone ? ` (${tone})` : ""}`,
+    })
+    .catch(async (error) => {
+      throw new Error(`${error.message}; present: ${JSON.stringify(await toasts(app))}`);
+    });
 }
-const closeToasts = (app) => app.exec(() => [...document.querySelectorAll("[data-toast] button[aria-label='Close message']")].forEach((button) => button.click()));
+const closeToasts = (app) =>
+  app.exec(() => [...document.querySelectorAll("[data-toast] button[aria-label='Close message']")].forEach((button) => button.click()));
 
 /** Runs a command via the palette, keyboard only (F1, type, Enter). */
 async function palette(app, text) {
@@ -120,7 +133,14 @@ async function palette(app, text) {
   await app.type(input, text);
   // File rows are options too: look only inside the palette.
   await app.waitFor(
-    () => app.exec((wanted) => (document.querySelector('[data-screen="command-palette"] [role="option"][aria-selected="true"]')?.textContent ?? "").toLowerCase().includes(wanted.toLowerCase()), text),
+    () =>
+      app.exec(
+        (wanted) =>
+          (document.querySelector('[data-screen="command-palette"] [role="option"][aria-selected="true"]')?.textContent ?? "")
+            .toLowerCase()
+            .includes(wanted.toLowerCase()),
+        text,
+      ),
     5000,
     { message: `palette entry "${text}" selected` },
   );
@@ -129,8 +149,10 @@ async function palette(app, text) {
 
 const lfsDialog = (app) => app.waitFor('[role="dialog"] [data-screen="lfs"]', 10_000);
 const panelState = (app) => app.exec(() => [...document.querySelectorAll("[data-lfs]")].at(-1)?.getAttribute("data-lfs") ?? null);
-const shownPatterns = (app) => app.exec(() => [...document.querySelectorAll('[role="dialog"] [data-lfs-patterns] [data-pattern]')].map((item) => item.dataset.pattern));
-const fieldError = (app) => app.exec(() => [...document.querySelectorAll('[role="dialog"] [role="alert"]')].map((item) => item.innerText.trim()).join(" | "));
+const shownPatterns = (app) =>
+  app.exec(() => [...document.querySelectorAll('[role="dialog"] [data-lfs-patterns] [data-pattern]')].map((item) => item.dataset.pattern));
+const fieldError = (app) =>
+  app.exec(() => [...document.querySelectorAll('[role="dialog"] [role="alert"]')].map((item) => item.innerText.trim()).join(" | "));
 const dialogTitle = () => [...document.querySelectorAll('[role="dialog"]')].at(-1)?.querySelector("h2")?.textContent?.trim() ?? null;
 const dialogCount = (app) => app.exec(() => document.querySelectorAll('[role="dialog"]').length);
 
@@ -152,7 +174,14 @@ async function closeDialogs(app) {
 /** Clicks a button by its visible text inside the last dialog. */
 async function clickInDialog(app, text) {
   const button = await app.waitFor(
-    () => app.exec((label) => [...([...document.querySelectorAll('[role="dialog"]')].at(-1)?.querySelectorAll("button") ?? [])].find((item) => item.textContent.replace(/\s+/g, " ").trim() === label && !item.disabled) ?? null, text),
+    () =>
+      app.exec(
+        (label) =>
+          [...([...document.querySelectorAll('[role="dialog"]')].at(-1)?.querySelectorAll("button") ?? [])].find(
+            (item) => item.textContent.replace(/\s+/g, " ").trim() === label && !item.disabled,
+          ) ?? null,
+        text,
+      ),
     10_000,
     { message: `button "${text}" in the dialog` },
   );
@@ -168,31 +197,63 @@ const lockRows = (app) =>
       owner: row.querySelector("span.shrink-0")?.textContent.split("·")[0].trim() ?? null,
     })),
   );
-const locksState = (app) => app.exec(() => document.querySelector('[role="dialog"] [data-lfs-locks] [data-lfs-locks-state]')?.getAttribute("data-lfs-locks-state") ?? "list");
+const locksState = (app) =>
+  app.exec(
+    () => document.querySelector('[role="dialog"] [data-lfs-locks] [data-lfs-locks-state]')?.getAttribute("data-lfs-locks-state") ?? "list",
+  );
 
 /** A file row in the commit panel (section "unstaged" or "staged"). */
 const fileRow = (app, section, file) =>
   app.waitFor(
-    () => app.exec((name, rel) => [...document.querySelectorAll(`[data-screen="commit-panel"] [data-section="${name}"] [role="option"], [data-screen="commit-panel"] [data-section="${name}"] [role="treeitem"]`)].find((row) => (row.getAttribute("title") ?? "").split(" – ")[0] === rel) ?? null, section, file),
+    () =>
+      app.exec(
+        (name, rel) =>
+          [
+            ...document.querySelectorAll(
+              `[data-screen="commit-panel"] [data-section="${name}"] [role="option"], [data-screen="commit-panel"] [data-section="${name}"] [role="treeitem"]`,
+            ),
+          ].find((row) => (row.getAttribute("title") ?? "").split(" – ")[0] === rel) ?? null,
+        section,
+        file,
+      ),
     15_000,
     { message: `row ${file} in "${section}"` },
   );
 const rowLock = (app, section, file) =>
-  app.exec((name, rel) => {
-    const row = [...document.querySelectorAll(`[data-screen="commit-panel"] [data-section="${name}"] [role="option"], [data-screen="commit-panel"] [data-section="${name}"] [role="treeitem"]`)].find((item) => (item.getAttribute("title") ?? "").split(" – ")[0] === rel);
-    const lock = row?.querySelector("[data-lfs-lock]");
-    return lock ? { kind: lock.getAttribute("data-lfs-lock"), title: lock.getAttribute("title") } : null;
-  }, section, file);
+  app.exec(
+    (name, rel) => {
+      const row = [
+        ...document.querySelectorAll(
+          `[data-screen="commit-panel"] [data-section="${name}"] [role="option"], [data-screen="commit-panel"] [data-section="${name}"] [role="treeitem"]`,
+        ),
+      ].find((item) => (item.getAttribute("title") ?? "").split(" – ")[0] === rel);
+      const lock = row?.querySelector("[data-lfs-lock]");
+      return lock ? { kind: lock.getAttribute("data-lfs-lock"), title: lock.getAttribute("title") } : null;
+    },
+    section,
+    file,
+  );
 
 /** Right-click on an element; returns the labels of the menu entries. */
 async function contextMenu(app, element) {
   await app.exec((el) => {
     const box = el.getBoundingClientRect();
-    el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, buttons: 2, clientX: box.left + 40, clientY: box.top + box.height / 2 }));
+    el.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        buttons: 2,
+        clientX: box.left + 40,
+        clientY: box.top + box.height / 2,
+      }),
+    );
   }, element);
   return app.waitFor(
     async () => {
-      const items = await app.exec(() => [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) => item.textContent.replace(/\s+/g, " ").trim()));
+      const items = await app.exec(() =>
+        [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) => item.textContent.replace(/\s+/g, " ").trim()),
+      );
       return items.length ? items : null;
     },
     5000,
@@ -201,7 +262,14 @@ async function contextMenu(app, element) {
 }
 async function chooseMenu(app, label) {
   const item = await app.waitFor(
-    () => app.exec((text) => [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find((entry) => entry.textContent.replace(/\s+/g, " ").trim().startsWith(text)) ?? null, label),
+    () =>
+      app.exec(
+        (text) =>
+          [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find((entry) =>
+            entry.textContent.replace(/\s+/g, " ").trim().startsWith(text),
+          ) ?? null,
+        label,
+      ),
     5000,
     { message: `menu entry "${label}"` },
   );
@@ -230,20 +298,30 @@ scenario("track and untrack a pattern with the keyboard", "main", async (t) => {
     const version = await app.exec(() => document.querySelector("[data-lfs-version]")?.innerText.trim());
     assertMatch(version, /^Git LFS \d+\.\d+/, "installed version shown");
     assert(await app.$('[role="dialog"] [data-lfs-empty]'), "empty state for patterns");
-    assertEqual(await app.exec(() => document.activeElement?.labels?.[0]?.textContent ?? null), "New pattern", "focus starts in the pattern field");
+    assertEqual(
+      await app.exec(() => document.activeElement?.labels?.[0]?.textContent ?? null),
+      "New pattern",
+      "focus starts in the pattern field",
+    );
 
     await app.type(await app.exec(() => document.activeElement), "*.bin");
     await app.press("Enter");
     await waitToast(app, /“\*\.bin” now goes through LFS/, "success");
     assertEqual(tracked(fx.path), ["*.bin"], ".gitattributes: *.bin");
     assertIncludes(attributes(fx.path), "*.bin filter=lfs diff=lfs merge=lfs -text", "the line Git LFS writes");
-    assertEqual(git(fx, fx.path, "config", "--local", "--get", "filter.lfs.clean"), "git-lfs clean -- %f", "LFS filter set up in the repository");
+    assertEqual(
+      git(fx, fx.path, "config", "--local", "--get", "filter.lfs.clean"),
+      "git-lfs clean -- %f",
+      "LFS filter set up in the repository",
+    );
     await app.waitFor(async () => JSON.stringify(await shownPatterns(app)) === '["*.bin"]', 5000, { message: "pattern listed" });
     assertEqual(await app.exec(() => document.activeElement?.value ?? null), "", "field empty again and still focused");
 
     await app.type(await app.exec(() => document.activeElement), "karten/**");
     await app.press("Enter");
-    await app.waitFor(async () => JSON.stringify(tracked(fx.path)) === '["*.bin","karten/**"]', 10_000, { message: "second pattern in .gitattributes" });
+    await app.waitFor(async () => JSON.stringify(tracked(fx.path)) === '["*.bin","karten/**"]', 10_000, {
+      message: "second pattern in .gitattributes",
+    });
     await app.waitFor(async () => (await shownPatterns(app)).length === 2, 5000, { message: "two patterns listed" });
     await closeToasts(app);
     t.step("two patterns tracked");
@@ -256,7 +334,10 @@ scenario("track and untrack a pattern with the keyboard", "main", async (t) => {
     await app.waitFor(async () => JSON.stringify(await shownPatterns(app)) === '["*.bin"]', 5000, { message: "only *.bin listed" });
     // The .gitattributes change shows up among the local changes.
     const status = await app.invoke("status_get", { repoId: (await app.invoke("repo_open", { path: fx.path })).repo.id });
-    assert([...status.unstaged, ...status.untracked ?? []].some((file) => file.path === ".gitattributes"), ".gitattributes among the local changes");
+    assert(
+      [...status.unstaged, ...(status.untracked ?? [])].some((file) => file.path === ".gitattributes"),
+      ".gitattributes among the local changes",
+    );
     await closeDialogs(app);
     await t.noConsoleErrors(app);
   } finally {
@@ -290,7 +371,9 @@ scenario("invalid patterns are refused at the field", "edge", async (t) => {
     // Duplicate (the suggestion button tracks *.psd, typing it again is refused).
     await app.click('[role="dialog"] [data-lfs-suggestions] button[aria-label="Add pattern *.psd"]');
     await waitToast(app, /“\*\.psd” now goes through LFS/, "success");
-    await app.waitFor(async () => !(await app.$('[role="dialog"] button[aria-label="Add pattern *.psd"]')), 5000, { message: "suggestion disappears once tracked" });
+    await app.waitFor(async () => !(await app.$('[role="dialog"] button[aria-label="Add pattern *.psd"]')), 5000, {
+      message: "suggestion disappears once tracked",
+    });
     await app.click(field);
     await app.press("Control+a", "Backspace");
     await app.type(field, "*.psd");
@@ -330,7 +413,20 @@ function makePullSetup() {
   git(fx, fx.path, "commit", "-q", "-m", "Modell neu berechnet");
   git(fx, fx.path, "push", "-q", "origin", "main");
   const clone = path.join(fx.root, "messnetz-klon");
-  git(fx, fx.root, "-c", "filter.lfs.smudge=", "-c", "filter.lfs.process=", "-c", "filter.lfs.required=false", "clone", "-q", fx.remotePath, clone);
+  git(
+    fx,
+    fx.root,
+    "-c",
+    "filter.lfs.smudge=",
+    "-c",
+    "filter.lfs.process=",
+    "-c",
+    "filter.lfs.required=false",
+    "clone",
+    "-q",
+    fx.remotePath,
+    clone,
+  );
   git(fx, clone, "lfs", "install", "--local", "--skip-smudge");
   return { fx, clone, first, second };
 }
@@ -340,7 +436,10 @@ scenario("fetch LFS files replaces the pointer with the real file", "main", asyn
   const { fx, clone, second } = makePullSetup();
   try {
     const file = path.join(clone, "daten", "modell.bin");
-    assert(fs.statSync(file).size < 200 && fs.readFileSync(file, "utf8").startsWith("version https://git-lfs"), "starting point: only the pointer in the clone");
+    assert(
+      fs.statSync(file).size < 200 && fs.readFileSync(file, "utf8").startsWith("version https://git-lfs"),
+      "starting point: only the pointer in the clone",
+    );
     assertEqual(lfsObjects(clone), [], "clone's LFS storage empty");
 
     const app = await t.launch(LAUNCH);
@@ -400,7 +499,9 @@ scenario("clean up asks first, cancel keeps everything, confirm prunes", "main",
     await app.openRepo(fx.path);
     await openLfs(app);
     await clickInDialog(app, "Clean up …");
-    await app.waitFor(async () => /Clean up the local LFS storage\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, { message: "confirmation" });
+    await app.waitFor(async () => /Clean up the local LFS storage\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, {
+      message: "confirmation",
+    });
     const text = await app.exec(() => [...document.querySelectorAll('[role="dialog"]')].at(-1).innerText);
     assertMatch(text, /working directory stay/, "confirmation says the working directory stays");
     await t.shot("clean-up-confirmation");
@@ -409,7 +510,9 @@ scenario("clean up asks first, cancel keeps everything, confirm prunes", "main",
     assertEqual(lfsObjects(fx.path).length, 2, "cancel deletes nothing");
 
     await clickInDialog(app, "Clean up …");
-    await app.waitFor(async () => /Clean up the local LFS storage\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, { message: "confirmation again" });
+    await app.waitFor(async () => /Clean up the local LFS storage\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, {
+      message: "confirmation again",
+    });
     await clickInDialog(app, "Clean up");
     await waitToast(app, /LFS cleaned up/, "success", 60_000);
     assertEqual(lfsObjects(fx.path), [sha256(second)], "old pushed version pruned, current one stays");
@@ -429,7 +532,10 @@ scenario("without Git LFS the section explains what is missing", "edge", async (
     // A PATH with git but without git-lfs: copy the git binary's folder content is not needed –
     // only the folders that contain git-lfs are dropped.
     const lfsDirs = new Set((process.env.PATH ?? "").split(":").filter((dir) => dir && fs.existsSync(path.join(dir, "git-lfs"))));
-    const pathWithout = (process.env.PATH ?? "").split(":").filter((dir) => dir && !lfsDirs.has(dir)).join(":");
+    const pathWithout = (process.env.PATH ?? "")
+      .split(":")
+      .filter((dir) => dir && !lfsDirs.has(dir))
+      .join(":");
     t.step(`PATH without ${[...lfsDirs].join(", ") || "(git-lfs not on PATH)"}`);
     const app = await t.launch({ ...LAUNCH, env: { PATH: pathWithout } });
     await app.openRepo(fx.path);
@@ -441,8 +547,21 @@ scenario("without Git LFS the section explains what is missing", "edge", async (
     assertMatch(text, /uses LFS for 1 pattern/, "says the repository uses LFS");
     assertEqual(await shownPatterns(app), ["*.bin"], "patterns readable");
     assert(!(await app.byText("New pattern", { within: '[role="dialog"]' })), "no field for adding");
-    const commands = await app.exec(() => window.__gcUi.commands().filter((command) => command.id.startsWith("lfs.")).map((command) => [command.id, command.available]));
-    assertEqual(commands, [["lfs.manage", true], ["lfs.pull", false], ["lfs.prune", false]], "fetch and clean up disabled");
+    const commands = await app.exec(() =>
+      window.__gcUi
+        .commands()
+        .filter((command) => command.id.startsWith("lfs."))
+        .map((command) => [command.id, command.available]),
+    );
+    assertEqual(
+      commands,
+      [
+        ["lfs.manage", true],
+        ["lfs.pull", false],
+        ["lfs.prune", false],
+      ],
+      "fetch and clean up disabled",
+    );
     await t.shot("without-git-lfs");
     let code = null;
     try {
@@ -473,27 +592,57 @@ scenario("lock list shows own and other people's locks and filters them", "main"
     await app.openRepo(fx.path);
     await openLfs(app);
     await app.waitFor(async () => (await lockRows(app)).length === 2, 20_000, { message: "two locks listed" });
-    assertEqual(await lockRows(app), [
-      { path: "daten/karte.psd", ours: false, owner: OTHER },
-      { path: "daten/logo.psd", ours: true, owner: "you" },
-    ], "lock rows");
+    assertEqual(
+      await lockRows(app),
+      [
+        { path: "daten/karte.psd", ours: false, owner: OTHER },
+        { path: "daten/logo.psd", ours: true, owner: "you" },
+      ],
+      "lock rows",
+    );
     // Also in Git LFS itself.
     const verified = JSON.parse(await gitAsync(fx, fx.path, "lfs", "locks", "--verify", "--json"));
-    assertEqual([verified.ours.map((lock) => lock.path), verified.theirs.map((lock) => lock.path)], [["daten/logo.psd"], ["daten/karte.psd"]], "git lfs locks --verify");
+    assertEqual(
+      [verified.ours.map((lock) => lock.path), verified.theirs.map((lock) => lock.path)],
+      [["daten/logo.psd"], ["daten/karte.psd"]],
+      "git lfs locks --verify",
+    );
     await app.exec(() => [...document.querySelectorAll('[role="dialog"] [data-lfs-locks]')].at(-1).scrollIntoView({ block: "center" }));
     await t.shot("lock-list");
 
-    const filter = await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[role="dialog"] [data-lfs-locks] input')].find((input) => input.labels?.[0]?.textContent === "Filter by path or owner") ?? null), 5000, { message: "filter field" });
+    const filter = await app.waitFor(
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll('[role="dialog"] [data-lfs-locks] input')].find(
+              (input) => input.labels?.[0]?.textContent === "Filter by path or owner",
+            ) ?? null,
+        ),
+      5000,
+      { message: "filter field" },
+    );
     await app.type(filter, "berg");
-    await app.waitFor(async () => JSON.stringify((await lockRows(app)).map((row) => row.path)) === '["daten/karte.psd"]', 5000, { message: "filter by owner" });
+    await app.waitFor(async () => JSON.stringify((await lockRows(app)).map((row) => row.path)) === '["daten/karte.psd"]', 5000, {
+      message: "filter by owner",
+    });
     await app.press("Control+a", "Backspace");
     await app.type(filter, "LOGO");
-    await app.waitFor(async () => JSON.stringify((await lockRows(app)).map((row) => row.path)) === '["daten/logo.psd"]', 5000, { message: "filter by path, case-insensitive" });
+    await app.waitFor(async () => JSON.stringify((await lockRows(app)).map((row) => row.path)) === '["daten/logo.psd"]', 5000, {
+      message: "filter by path, case-insensitive",
+    });
     await app.press("Control+a", "Backspace");
     await app.type(filter, "gibtsnicht");
     await app.waitFor(async () => (await locksState(app)) === "empty", 5000, { message: "empty filtered list" });
-    assertIncludes(await app.exec(() => document.querySelector('[role="dialog"] [data-lfs-locks-state="empty"]').innerText), "No lock matches “gibtsnicht”", "empty filter message");
-    assertEqual(await app.exec(() => document.activeElement?.labels?.[0]?.textContent ?? null), "Filter by path or owner", "the filter keeps focus while the list reloads");
+    assertIncludes(
+      await app.exec(() => document.querySelector('[role="dialog"] [data-lfs-locks-state="empty"]').innerText),
+      "No lock matches “gibtsnicht”",
+      "empty filter message",
+    );
+    assertEqual(
+      await app.exec(() => document.activeElement?.labels?.[0]?.textContent ?? null),
+      "Filter by path or owner",
+      "the filter keeps focus while the list reloads",
+    );
 
     // Refresh picks up a lock someone else added on the server.
     await app.press("Control+a", "Backspace");
@@ -521,18 +670,31 @@ scenario("lock and unlock a file from its context menu", "main", async (t) => {
     await app.openRepo(fx.path);
     const row = await fileRow(app, "unstaged", "daten/plan.psd");
     // The menu offers lock entries once the lock list is known (read in the background).
-    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/karte.psd")) !== undefined && server.count("POST /locks/verify") > 0, 15_000, { message: "locks read" });
+    await app.waitFor(
+      async () => (await rowLock(app, "unstaged", "daten/karte.psd")) !== undefined && server.count("POST /locks/verify") > 0,
+      15_000,
+      { message: "locks read" },
+    );
     await app.settle();
     const items = await contextMenu(app, row);
     t.step(`menu: ${items.join(" | ")}`);
-    assert(items.some((item) => item.startsWith("Lock")), `"Lock" in the menu: ${items.join(" | ")}`);
-    assert(!items.some((item) => item.startsWith("Unlock")), "no \"Unlock\" for an unlocked file");
+    assert(
+      items.some((item) => item.startsWith("Lock")),
+      `"Lock" in the menu: ${items.join(" | ")}`,
+    );
+    assert(!items.some((item) => item.startsWith("Unlock")), 'no "Unlock" for an unlocked file');
     await chooseMenu(app, "Lock");
     await waitToast(app, /File locked/, "success", 30_000);
     assertEqual(server.owners()["daten/plan.psd"], ME, "server: the file is locked by us");
     const verified = JSON.parse(await gitAsync(fx, fx.path, "lfs", "locks", "--verify", "--json"));
-    assertEqual(verified.ours.map((lock) => lock.path), ["daten/plan.psd"], "git lfs locks --verify: ours");
-    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/plan.psd"))?.kind === "ours", 10_000, { message: "lock symbol on the row" });
+    assertEqual(
+      verified.ours.map((lock) => lock.path),
+      ["daten/plan.psd"],
+      "git lfs locks --verify: ours",
+    );
+    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/plan.psd"))?.kind === "ours", 10_000, {
+      message: "lock symbol on the row",
+    });
     assertEqual((await rowLock(app, "unstaged", "daten/plan.psd")).title, "Locked by you", "tooltip of the own lock");
     await closeToasts(app);
     await t.shot("lock-from-context-menu");
@@ -540,8 +702,11 @@ scenario("lock and unlock a file from its context menu", "main", async (t) => {
     // Unlock while the file still has uncommitted changes: Git LFS refuses that without force;
     // the app reports the reason as a warning and the lock stays.
     const again = await contextMenu(app, await fileRow(app, "unstaged", "daten/plan.psd"));
-    assert(again.some((item) => item.startsWith("Unlock")), `"Unlock" offered: ${again.join(" | ")}`);
-    assert(!again.some((item) => item === "Lock"), "no \"Lock\" for an own lock");
+    assert(
+      again.some((item) => item.startsWith("Unlock")),
+      `"Unlock" offered: ${again.join(" | ")}`,
+    );
+    assert(!again.some((item) => item === "Lock"), 'no "Lock" for an own lock');
     await chooseMenu(app, "Unlock");
     const refused = await waitToast(app, /Unlock files: 1 file failed/, "warning", 30_000);
     assertIncludes(refused.text, "Cannot unlock file with uncommitted changes", "warning names the reason");
@@ -555,36 +720,63 @@ scenario("lock and unlock a file from its context menu", "main", async (t) => {
     git(fx, fx.path, "commit", "-q", "-m", "Plan überarbeitet");
     await focusEvent(app);
     const head = await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll('[data-row-kind="commit"]')].find((row) => row.innerText.includes("Plan überarbeitet")) ?? null),
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll('[data-row-kind="commit"]')].find((row) => row.innerText.includes("Plan überarbeitet")) ?? null,
+        ),
       15_000,
       { message: "new commit in the graph" },
     );
     await app.click(head);
     const committed = await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll('[data-screen="commit-details"] [role="option"], [data-screen="commit-details"] [role="treeitem"]')].find((row) => (row.getAttribute("title") ?? "").split(" – ")[0] === "daten/plan.psd") ?? null),
+      () =>
+        app.exec(
+          () =>
+            [
+              ...document.querySelectorAll(
+                '[data-screen="commit-details"] [role="option"], [data-screen="commit-details"] [role="treeitem"]',
+              ),
+            ].find((row) => (row.getAttribute("title") ?? "").split(" – ")[0] === "daten/plan.psd") ?? null,
+        ),
       15_000,
       { message: "file row in the commit details" },
     );
     // "All files" (the tree of the commit) shows the lock symbol.
     await app.click({ text: "All files", within: '[data-screen="commit-details"]' });
     const treeLock = await app.waitFor(
-      () => app.exec(() => {
-        const span = document.querySelector('[data-screen="commit-details"] [data-testid="files-all"] span[title="daten/plan.psd"]');
-        const lock = span?.parentElement?.querySelector("[data-lfs-lock]");
-        return lock ? { kind: lock.getAttribute("data-lfs-lock"), title: lock.getAttribute("title") } : null;
-      }),
+      () =>
+        app.exec(() => {
+          const span = document.querySelector('[data-screen="commit-details"] [data-testid="files-all"] span[title="daten/plan.psd"]');
+          const lock = span?.parentElement?.querySelector("[data-lfs-lock]");
+          return lock ? { kind: lock.getAttribute("data-lfs-lock"), title: lock.getAttribute("title") } : null;
+        }),
       10_000,
       { message: "lock symbol in the commit's file tree" },
     );
     assertEqual([treeLock.kind, treeLock.title], ["ours", "Locked by you"], "tree row lock");
     await t.shot("lock-in-commit-tree");
     await app.click({ text: "Changed", within: '[data-screen="commit-details"]' });
-    const fromCommit = await contextMenu(app, await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll('[data-screen="commit-details"] [role="option"], [data-screen="commit-details"] [role="treeitem"]')].find((row) => (row.getAttribute("title") ?? "").split(" – ")[0] === "daten/plan.psd") ?? null),
-      10_000,
-      { message: "file row in the commit details again" },
-    ));
-    assert(fromCommit.some((item) => item.startsWith("Unlock")), `"Unlock" in the commit file menu: ${fromCommit.join(" | ")}`);
+    const fromCommit = await contextMenu(
+      app,
+      await app.waitFor(
+        () =>
+          app.exec(
+            () =>
+              [
+                ...document.querySelectorAll(
+                  '[data-screen="commit-details"] [role="option"], [data-screen="commit-details"] [role="treeitem"]',
+                ),
+              ].find((row) => (row.getAttribute("title") ?? "").split(" – ")[0] === "daten/plan.psd") ?? null,
+          ),
+        10_000,
+        { message: "file row in the commit details again" },
+      ),
+    );
+    assert(
+      fromCommit.some((item) => item.startsWith("Unlock")),
+      `"Unlock" in the commit file menu: ${fromCommit.join(" | ")}`,
+    );
     await chooseMenu(app, "Unlock");
     await waitToast(app, /File unlocked/, "success", 30_000);
     assertEqual(server.paths(), ["daten/karte.psd"], "server: our lock is gone, the other one stays");
@@ -592,11 +784,25 @@ scenario("lock and unlock a file from its context menu", "main", async (t) => {
     assertEqual(verifiedAfter.ours, [], "git lfs locks --verify: no own lock left");
     await app.click({ text: "All files", within: '[data-screen="commit-details"]' });
     const treeLocks = () =>
-      app.exec(() => Object.fromEntries(["daten/plan.psd", "daten/karte.psd"].map((file) => [file, document.querySelector(`[data-testid="files-all"] span[title="${file}"]`)?.parentElement?.querySelector("[data-lfs-lock]")?.getAttribute("data-lfs-lock") ?? "none"])));
-    await app.waitFor(async () => {
-      const shown = await treeLocks();
-      return shown["daten/plan.psd"] === "none" && shown["daten/karte.psd"] === "theirs";
-    }, 10_000, { message: "tree: plan.psd without lock, karte.psd still locked by someone else" });
+      app.exec(() =>
+        Object.fromEntries(
+          ["daten/plan.psd", "daten/karte.psd"].map((file) => [
+            file,
+            document
+              .querySelector(`[data-testid="files-all"] span[title="${file}"]`)
+              ?.parentElement?.querySelector("[data-lfs-lock]")
+              ?.getAttribute("data-lfs-lock") ?? "none",
+          ]),
+        ),
+      );
+    await app.waitFor(
+      async () => {
+        const shown = await treeLocks();
+        return shown["daten/plan.psd"] === "none" && shown["daten/karte.psd"] === "theirs";
+      },
+      10_000,
+      { message: "tree: plan.psd without lock, karte.psd still locked by someone else" },
+    );
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();
@@ -614,15 +820,22 @@ scenario("other people's locks show a symbol with the owner, force unlock asks f
     const app = await t.launch(LAUNCH);
     await app.openRepo(fx.path);
     await fileRow(app, "unstaged", "daten/karte.psd");
-    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/karte.psd"))?.kind === "theirs", 15_000, { message: "foreign lock symbol" });
+    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/karte.psd"))?.kind === "theirs", 15_000, {
+      message: "foreign lock symbol",
+    });
     assertEqual((await rowLock(app, "unstaged", "daten/karte.psd")).title, `Locked by ${OTHER}`, "tooltip names the owner");
     await t.shot("foreign-lock-symbol");
 
     const items = await contextMenu(app, await fileRow(app, "unstaged", "daten/karte.psd"));
-    assert(items.some((item) => item.startsWith("Force unlock")), `"Force unlock …" offered: ${items.join(" | ")}`);
+    assert(
+      items.some((item) => item.startsWith("Force unlock")),
+      `"Force unlock …" offered: ${items.join(" | ")}`,
+    );
     assert(!items.some((item) => item === "Lock" || item === "Unlock"), `neither Lock nor Unlock: ${items.join(" | ")}`);
     await chooseMenu(app, "Force unlock");
-    await app.waitFor(async () => /Remove the lock held by Jonas Berg\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, { message: "force prompt names the owner" });
+    await app.waitFor(async () => /Remove the lock held by Jonas Berg\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, {
+      message: "force prompt names the owner",
+    });
     const body = await app.exec(() => [...document.querySelectorAll('[role="dialog"]')].at(-1).innerText);
     assertIncludes(body, `daten/karte.psd – ${OTHER}`, "prompt lists file and owner");
     await t.shot("force-unlock-prompt");
@@ -641,7 +854,9 @@ scenario("other people's locks show a symbol with the owner, force unlock asks f
     });
     assertEqual(disabled, { unlock: true, force: false }, "only force is possible for a foreign lock");
     await clickInDialog(app, "Force unlock …");
-    await app.waitFor(async () => /Remove the lock held by Jonas Berg\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, { message: "force prompt from the panel" });
+    await app.waitFor(async () => /Remove the lock held by Jonas Berg\?/.test((await app.exec(dialogTitle)) ?? ""), 10_000, {
+      message: "force prompt from the panel",
+    });
     await clickInDialog(app, "Force unlock");
     await waitToast(app, /File unlocked/, "success", 30_000);
     assertEqual(server.paths(), [], "server: the foreign lock is removed");
@@ -668,7 +883,12 @@ scenario("the changed-files list of a commit shows the lock symbol", "edge", asy
     // The lock list is read on its own because the repository uses LFS.
     await app.waitFor(async () => server.count("POST /locks/verify") > 0, 15_000, { message: "locks read" });
     const head = await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll('[data-row-kind="commit"]')].find((row) => row.innerText.includes("Karten über LFS abgelegt")) ?? null),
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll('[data-row-kind="commit"]')].find((row) => row.innerText.includes("Karten über LFS abgelegt")) ??
+            null,
+        ),
       15_000,
       { message: "commit row" },
     );
@@ -676,21 +896,42 @@ scenario("the changed-files list of a commit shows the lock symbol", "edge", asy
     const rows = () =>
       app.exec(() =>
         Object.fromEntries(
-          [...document.querySelectorAll('[data-screen="commit-details"] [data-testid="files-changed"] [role="option"], [data-screen="commit-details"] [data-testid="files-changed"] [role="treeitem"]')]
-            .map((row) => [(row.getAttribute("title") ?? "").split(" – ")[0], row.querySelector("[data-lfs-lock]")?.getAttribute("title") ?? null])
+          [
+            ...document.querySelectorAll(
+              '[data-screen="commit-details"] [data-testid="files-changed"] [role="option"], [data-screen="commit-details"] [data-testid="files-changed"] [role="treeitem"]',
+            ),
+          ]
+            .map((row) => [
+              (row.getAttribute("title") ?? "").split(" – ")[0],
+              row.querySelector("[data-lfs-lock]")?.getAttribute("title") ?? null,
+            ])
             .filter(([file]) => file.endsWith(".psd")),
         ),
       );
     await app.waitFor(async () => Object.keys(await rows()).length === 3, 10_000, { message: "three PSD rows in the commit" });
     // The menu knows the locks (it offers "Force unlock …" for karte.psd) …
-    const items = await contextMenu(app, await app.exec(() => [...document.querySelectorAll('[data-testid="files-changed"] [role="option"], [data-testid="files-changed"] [role="treeitem"]')].find((row) => (row.getAttribute("title") ?? "").startsWith("daten/karte.psd"))));
-    assert(items.some((item) => item.startsWith("Force unlock")), `menu knows the lock: ${items.join(" | ")}`);
+    const items = await contextMenu(
+      app,
+      await app.exec(() =>
+        [
+          ...document.querySelectorAll('[data-testid="files-changed"] [role="option"], [data-testid="files-changed"] [role="treeitem"]'),
+        ].find((row) => (row.getAttribute("title") ?? "").startsWith("daten/karte.psd")),
+      ),
+    );
+    assert(
+      items.some((item) => item.startsWith("Force unlock")),
+      `menu knows the lock: ${items.join(" | ")}`,
+    );
     await app.press("Escape");
     await sleep(500);
     await t.shot("commit-changed-list-locks");
     // … and the row should show it, as the CHANGELOG promises ("the file list of a commit show a lock symbol").
     const shown = await rows();
-    assertEqual(["daten/karte.psd", "daten/logo.psd", "daten/plan.psd"].map((file) => shown[file]), [`Locked by ${OTHER}`, "Locked by you", null], "lock symbols in the commit's changed-files list (karte, logo, plan)");
+    assertEqual(
+      ["daten/karte.psd", "daten/logo.psd", "daten/plan.psd"].map((file) => shown[file]),
+      [`Locked by ${OTHER}`, "Locked by you", null],
+      "lock symbols in the commit's changed-files list (karte, logo, plan)",
+    );
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();
@@ -709,7 +950,9 @@ scenario("commit panel warns about staged files locked by others, commit still w
     const app = await t.launch(LAUNCH);
     await app.openRepo(fx.path);
     await fileRow(app, "unstaged", "daten/karte.psd");
-    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/karte.psd"))?.kind === "theirs", 15_000, { message: "lock known" });
+    await app.waitFor(async () => (await rowLock(app, "unstaged", "daten/karte.psd"))?.kind === "theirs", 15_000, {
+      message: "lock known",
+    });
     assert(!(await app.$("[data-commit-lock-warning]")), "no warning while nothing locked is staged");
 
     // Stage only plan.psd: still no warning.
@@ -723,7 +966,11 @@ scenario("commit panel warns about staged files locked by others, commit still w
     await focusEvent(app);
     await fileRow(app, "staged", "daten/karte.psd");
     const warning = await app.waitFor("[data-commit-lock-warning]", 10_000);
-    assertEqual(await warning.text(), `“daten/karte.psd” is locked by ${OTHER}. You can commit, but the push may be refused.`, "warning text");
+    assertEqual(
+      await warning.text(),
+      `“daten/karte.psd” is locked by ${OTHER}. You can commit, but the push may be refused.`,
+      "warning text",
+    );
     await app.type("[data-commit-summary]", "Karte trotz Sperre angepasst");
     await t.shot("commit-lock-warning");
     const before = git(fx, fx.path, "rev-parse", "HEAD");
@@ -732,7 +979,11 @@ scenario("commit panel warns about staged files locked by others, commit still w
     await app.click(button);
     await app.waitFor(async () => git(fx, fx.path, "rev-parse", "HEAD") !== before, 20_000, { message: "commit created" });
     assertEqual(git(fx, fx.path, "log", "-1", "--format=%s"), "Karte trotz Sperre angepasst", "commit message");
-    assertEqual(git(fx, fx.path, "show", "--name-only", "--format=", "HEAD").split("\n").sort(), ["daten/karte.psd", "daten/plan.psd"], "both files committed");
+    assertEqual(
+      git(fx, fx.path, "show", "--name-only", "--format=", "HEAD").split("\n").sort(),
+      ["daten/karte.psd", "daten/plan.psd"],
+      "both files committed",
+    );
     assertMatch(git(fx, fx.path, "cat-file", "-p", "HEAD:daten/karte.psd"), /^version https:\/\/git-lfs/, "committed as LFS pointer");
     await app.waitFor(async () => !(await app.$("[data-commit-lock-warning]")), 10_000, { message: "warning gone after the commit" });
     assertEqual(server.paths(), ["daten/karte.psd"], "the lock is untouched");
@@ -753,7 +1004,11 @@ scenario("a server without locking says so instead of an error", "edge", async (
     await app.openRepo(fx.path);
     await openLfs(app);
     await app.waitFor(async () => (await locksState(app)) === "unsupported", 20_000, { message: "state 'unsupported'" });
-    assertIncludes(await app.exec(() => document.querySelector('[role="dialog"] [data-lfs-locks-state="unsupported"]').innerText), "doesn’t offer file locking", "explanation");
+    assertIncludes(
+      await app.exec(() => document.querySelector('[role="dialog"] [data-lfs-locks-state="unsupported"]').innerText),
+      "doesn’t offer file locking",
+      "explanation",
+    );
     assert(server.count("POST /locks/verify") >= 1, "the server was asked");
     await t.shot("locks-unsupported");
     await closeDialogs(app);

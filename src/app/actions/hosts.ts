@@ -16,10 +16,25 @@ import { errorInfo } from "../errors";
 import { qk, queryClient } from "../queries";
 import { runAction, showError, type ActionResult, type RunOptions } from "../run";
 import { useAppStore } from "../store";
-import { describeHostError, hostApi, hostErrorKind, hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "./hostTypes";
+import {
+  describeHostError,
+  hostApi,
+  hostErrorKind,
+  hostKindLabels,
+  type HostAccountInfo,
+  type HostErrorText,
+  type HostKind,
+} from "./hostTypes";
 
 /** Error codes of the host integration (the core adds them to `ErrorCode`). */
-const HOST_CODES = ["host_not_connected", "host_auth_failed", "host_forbidden", "host_rate_limited", "host_not_found", "host_unsupported"] as unknown as ErrorCode[];
+const HOST_CODES = [
+  "host_not_connected",
+  "host_auth_failed",
+  "host_forbidden",
+  "host_rate_limited",
+  "host_not_found",
+  "host_unsupported",
+] as unknown as ErrorCode[];
 const ALL_CODES = [...(Object.keys(errorInfo) as ErrorCode[]), ...HOST_CODES];
 
 export const hostBusyKeys = {
@@ -104,7 +119,9 @@ export interface ConnectFields {
   username: string;
 }
 
-export type ConnectTarget = { ok: true; baseUrl: string | null; username: string | null } | { ok: false; field: ConnectField; error: string };
+export type ConnectTarget =
+  | { ok: true; baseUrl: string | null; username: string | null }
+  | { ok: false; field: ConnectField; error: string };
 
 /** The organization from an Azure DevOps address (`https://dev.azure.com/<org>`), otherwise "". */
 export function organizationOf(baseUrl: string | null | undefined): string {
@@ -114,9 +131,14 @@ export function organizationOf(baseUrl: string | null | undefined): string {
 /** What "Connect" sends for the chosen host – address and user name – or the field that is wrong. */
 export function connectTarget(fields: ConnectFields): ConnectTarget {
   if (fields.kind === "azure_devops") {
-    const org = fields.organization.trim().replace(/^(?:https?:\/\/)?dev\.azure\.com\//i, "").split("/")[0] ?? "";
+    const org =
+      fields.organization
+        .trim()
+        .replace(/^(?:https?:\/\/)?dev\.azure\.com\//i, "")
+        .split("/")[0] ?? "";
     if (!org) return { ok: false, field: "organization", error: t("actions.hosts.url.organization") };
-    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(org)) return { ok: false, field: "organization", error: t("actions.hosts.url.organizationInvalid") };
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(org))
+      return { ok: false, field: "organization", error: t("actions.hosts.url.organizationInvalid") };
     return { ok: true, baseUrl: `https://dev.azure.com/${org.toLowerCase()}`, username: null };
   }
   let baseUrl: string | null = null;
@@ -133,7 +155,11 @@ export function connectTarget(fields: ConnectFields): ConnectTarget {
 }
 
 /** Which inputs the connect dialog shows besides the token. Replacing a token keeps host, address and user name. */
-export function connectInputs(kind: HostKind, own: boolean, replacing: boolean): { instance: boolean; address: boolean; organization: boolean; username: boolean; gh: boolean } {
+export function connectInputs(
+  kind: HostKind,
+  own: boolean,
+  replacing: boolean,
+): { instance: boolean; address: boolean; organization: boolean; username: boolean; gh: boolean } {
   return {
     instance: !replacing && hostHasInstances(kind),
     address: !replacing && own && hostHasInstances(kind),
@@ -180,7 +206,10 @@ export function showHostError(label: string, error: unknown): HostErrorText {
     tone: info.kind === "rate_limit" ? "warning" : "danger",
     title: t("actions.hosts.failed", { label }),
     description: info.hint ? `${info.text}\n${info.hint}` : info.text,
-    action: info.kind === "auth" || info.kind === "not_connected" ? { label: t("actions.hosts.openIntegrations"), onClick: openIntegrations } : undefined,
+    action:
+      info.kind === "auth" || info.kind === "not_connected"
+        ? { label: t("actions.hosts.openIntegrations"), onClick: openIntegrations }
+        : undefined,
     sticky: true,
   });
   if (info.kind === "auth") void queryClient.invalidateQueries({ queryKey: qk.hostAccounts });
@@ -192,7 +221,11 @@ export function showHostError(label: string, error: unknown): HostErrorText {
  * no permission …) get their own, understandable message.
  * With `inline` the caller shows the error itself (in the form) – then there is no message.
  */
-export async function runHostAction<T>(label: string, fn: () => Promise<T>, options: RunOptions<T> & { inline?: boolean } = {}): Promise<ActionResult<T>> {
+export async function runHostAction<T>(
+  label: string,
+  fn: () => Promise<T>,
+  options: RunOptions<T> & { inline?: boolean } = {},
+): Promise<ActionResult<T>> {
   const { inline, ...rest } = options;
   const result = await runAction(label, fn, { ...rest, quiet: ALL_CODES });
   if (!result.ok && !inline && result.error.code !== "cancelled" && result.error.code !== "duplicate") showHostError(label, result.error);
@@ -215,7 +248,8 @@ export function accountState(account: HostAccountInfo): AccountState {
   return account.scopesOk ? "ok" : "scopes";
 }
 
-export const accountHost = (account: Pick<HostAccountInfo, "kind" | "baseUrl">) => (account.baseUrl ?? PUBLIC_HOSTS[account.kind] ?? "").replace(/^https?:\/\//, "").replace(/\/+$/, "");
+export const accountHost = (account: Pick<HostAccountInfo, "kind" | "baseUrl">) =>
+  (account.baseUrl ?? PUBLIC_HOSTS[account.kind] ?? "").replace(/^https?:\/\//, "").replace(/\/+$/, "");
 export const accountPerson = (account: HostAccountInfo) => account.user?.name ?? account.user?.login ?? null;
 export const accountTitle = (account: HostAccountInfo) => `${hostKindLabels[account.kind]} – ${accountHost(account)}`;
 
@@ -233,13 +267,24 @@ export type ConnectResult = { ok: true; account: HostAccountInfo } | { ok: false
  * Connects an account: the core checks the token against the host's API and stores it in the
  * system keychain. Errors go back to the dialog (without a message) – redacted.
  */
-export async function connectAccount(input: { kind: HostKind; baseUrl: string | null; token: string; username?: string | null }): Promise<ConnectResult> {
-  return finishConnect(await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connect(input), { busyKey: hostBusyKeys.connect, inline: true }), input.token);
+export async function connectAccount(input: {
+  kind: HostKind;
+  baseUrl: string | null;
+  token: string;
+  username?: string | null;
+}): Promise<ConnectResult> {
+  return finishConnect(
+    await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connect(input), { busyKey: hostBusyKeys.connect, inline: true }),
+    input.token,
+  );
 }
 
 /** Connects GitHub with the login of the GitHub CLI; the token never passes through the UI. */
 export async function connectWithGh(baseUrl: string | null): Promise<ConnectResult> {
-  const result = await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connectGh(baseUrl), { busyKey: hostBusyKeys.connect, inline: true });
+  const result = await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connectGh(baseUrl), {
+    busyKey: hostBusyKeys.connect,
+    inline: true,
+  });
   if (!result.ok) {
     // gh's own message says what to do (install it, `gh auth login`): no generic heading about a wrong token.
     const info = describeHostError(result.error);
@@ -281,13 +326,21 @@ function finishConnect(result: ActionResult<HostAccountInfo>, token: string): Co
 
 /** Asks the host whether the token is still valid and shows the result. */
 export async function checkAccount(account: HostAccountInfo, options: { silent?: boolean } = {}): Promise<HostAccountInfo | null> {
-  const result = await runHostAction(t("actions.hosts.check.label"), () => hostApi.check(account.id), { busyKey: hostBusyKeys.account(account.id), inline: true });
+  const result = await runHostAction(t("actions.hosts.check.label"), () => hostApi.check(account.id), {
+    busyKey: hostBusyKeys.account(account.id),
+    inline: true,
+  });
   // The core records the result on the account (`lastError`); the list shows it.
   await queryClient.invalidateQueries({ queryKey: qk.hostAccounts });
   if (!result.ok) {
     if (!options.silent) {
       const info = describeHostError(result.error);
-      toast({ tone: info.kind === "rate_limit" ? "warning" : "danger", title: `${accountTitle(account)}: ${info.title}`, description: info.hint ? `${info.text}\n${info.hint}` : info.text, sticky: true });
+      toast({
+        tone: info.kind === "rate_limit" ? "warning" : "danger",
+        title: `${accountTitle(account)}: ${info.title}`,
+        description: info.hint ? `${info.text}\n${info.hint}` : info.text,
+        sticky: true,
+      });
     }
     return null;
   }
@@ -297,13 +350,21 @@ export async function checkAccount(account: HostAccountInfo, options: { silent?:
     const title = accountTitle(next);
     if (state === "ok") {
       const person = accountPerson(next);
-      toast({ tone: "success", title: person ? t("actions.hosts.check.okAs", { account: title, person }) : t("actions.hosts.check.ok", { account: title }) });
+      toast({
+        tone: "success",
+        title: person ? t("actions.hosts.check.okAs", { account: title, person }) : t("actions.hosts.check.ok", { account: title }),
+      });
     } else if (state === "scopes") {
-      toast({ tone: "warning", title: t("actions.hosts.check.scopes", { account: title }), description: t("actions.hosts.check.scopesDescription") });
+      toast({
+        tone: "warning",
+        title: t("actions.hosts.check.scopes", { account: title }),
+        description: t("actions.hosts.check.scopesDescription"),
+      });
     } else {
       toast({
         tone: "danger",
-        title: state === "expired" ? t("actions.hosts.check.expired", { account: title }) : t("actions.hosts.check.failed", { account: title }),
+        title:
+          state === "expired" ? t("actions.hosts.check.expired", { account: title }) : t("actions.hosts.check.failed", { account: title }),
         description: next.lastError ?? undefined,
         sticky: true,
       });
@@ -323,9 +384,16 @@ export async function disconnectAccount(account: HostAccountInfo): Promise<boole
     danger: true,
   });
   if (!ok) return false;
-  const result = await runHostAction(t("actions.hosts.disconnect.action"), () => hostApi.disconnect(account.id), { busyKey: hostBusyKeys.account(account.id) });
+  const result = await runHostAction(t("actions.hosts.disconnect.action"), () => hostApi.disconnect(account.id), {
+    busyKey: hostBusyKeys.account(account.id),
+  });
   refreshHostData();
-  if (result.ok) toast({ tone: "success", title: t("actions.hosts.disconnect.done", { host: hostKindLabels[account.kind] }), description: t("actions.hosts.disconnect.doneDescription") });
+  if (result.ok)
+    toast({
+      tone: "success",
+      title: t("actions.hosts.disconnect.done", { host: hostKindLabels[account.kind] }),
+      description: t("actions.hosts.disconnect.doneDescription"),
+    });
   return result.ok;
 }
 

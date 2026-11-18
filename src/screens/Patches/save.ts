@@ -22,7 +22,11 @@ declare global {
 }
 
 /** The operating system's save dialog; `filters` defaults to patch files. Also used for crash reports. */
-export async function pickSavePath(input: { title: string; defaultPath: string; filters?: { name: string; extensions: string[] }[] }): Promise<string | null> {
+export async function pickSavePath(input: {
+  title: string;
+  defaultPath: string;
+  filters?: { name: string; extensions: string[] }[];
+}): Promise<string | null> {
   if (import.meta.env.DEV && window.__gcTestSaves?.length) return window.__gcTestSaves.shift() ?? null;
   const filters = input.filters ?? [{ name: t("patches.save.filterName"), extensions: ["patch", "diff"] }];
   const picked = await save({ title: input.title, defaultPath: input.defaultPath, filters });
@@ -40,7 +44,13 @@ const joinPath = (folder: string, name: string) => `${folder.replace(/[\\/]+$/, 
 /**
  * Asks for the target and writes the patch. Throws `CoreError` if the write itself fails.
  */
-export async function savePatchFile(input: { repoId: Id; repoPath: string; text: string; fileName: string; windows: boolean }): Promise<SaveOutcome> {
+export async function savePatchFile(input: {
+  repoId: Id;
+  repoPath: string;
+  text: string;
+  fileName: string;
+  windows: boolean;
+}): Promise<SaveOutcome> {
   if (input.text.includes("\r")) {
     return {
       status: "refused",

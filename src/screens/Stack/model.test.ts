@@ -26,7 +26,12 @@ import {
 } from "./model";
 
 const commit = (sha: string, subject: string): StackCommit => ({ sha, subject, files: 1, added: 1, deleted: 0 });
-const COMMITS = [commit("a1", "Datenmodell für Stationen"), commit("b2", "Import der Messwerte"), commit("c3", "Auswertung je Monat"), commit("d4", "Diagramme")];
+const COMMITS = [
+  commit("a1", "Datenmodell für Stationen"),
+  commit("b2", "Import der Messwerte"),
+  commit("c3", "Auswertung je Monat"),
+  commit("d4", "Diagramme"),
+];
 
 const ref = (name: string, extra: Partial<Ref> = {}): Ref => ({
   name,
@@ -47,14 +52,33 @@ const ref = (name: string, extra: Partial<Ref> = {}): Ref => ({
   ...extra,
 });
 
-const snapshot = (locals: Ref[], remotes: Ref[] = []): RefsSnapshot => ({ head: { kind: "branch", branch: "feature/auswertung", sha: "0".repeat(40) }, locals, remotes, tags: [] });
+const snapshot = (locals: Ref[], remotes: Ref[] = []): RefsSnapshot => ({
+  head: { kind: "branch", branch: "feature/auswertung", sha: "0".repeat(40) },
+  locals,
+  remotes,
+  tags: [],
+});
 
 const STATUS: StackStatus = {
   base: "refs/remotes/origin/main",
   baseName: "main",
   parts: [
-    { branch: "f-1-modell", parent: "refs/remotes/origin/main", tip: "a", containsParent: true, worktreePath: null, subjects: ["Datenmodell für Stationen", "Import der Messwerte"] },
-    { branch: "f-2-auswertung", parent: "refs/heads/f-1-modell", tip: "b", containsParent: true, worktreePath: null, subjects: ["Auswertung je Monat"] },
+    {
+      branch: "f-1-modell",
+      parent: "refs/remotes/origin/main",
+      tip: "a",
+      containsParent: true,
+      worktreePath: null,
+      subjects: ["Datenmodell für Stationen", "Import der Messwerte"],
+    },
+    {
+      branch: "f-2-auswertung",
+      parent: "refs/heads/f-1-modell",
+      tip: "b",
+      containsParent: true,
+      worktreePath: null,
+      subjects: ["Auswertung je Monat"],
+    },
     { branch: "f-3-diagramme", parent: "refs/heads/f-2-auswertung", tip: "c", containsParent: true, worktreePath: null, subjects: [] },
   ],
   restack: null,
@@ -84,7 +108,14 @@ describe("cuts", () => {
       { end: 1, name: "", title: null, why: null },
       { end: 4, name: "Auswertung", title: "Auswertung je Station", why: null },
     ]);
-    const joined = toggleCut([{ end: 1, name: "Modell", title: null, why: null }, { end: 4, name: "Rest", title: "Rest", why: null }], 1, 4);
+    const joined = toggleCut(
+      [
+        { end: 1, name: "Modell", title: null, why: null },
+        { end: 4, name: "Rest", title: "Rest", why: null },
+      ],
+      1,
+      4,
+    );
     expect(joined).toEqual([{ end: 4, name: "Modell", title: "Rest", why: null }]);
   });
 
@@ -95,7 +126,12 @@ describe("cuts", () => {
   });
 
   it("cuts carry the trimmed names to the core", () => {
-    expect(cutsOf([{ end: 2, name: "  Datenmodell ", title: null, why: null }, { end: 4, name: "", title: "x", why: null }])).toEqual([
+    expect(
+      cutsOf([
+        { end: 2, name: "  Datenmodell ", title: null, why: null },
+        { end: 4, name: "", title: "x", why: null },
+      ]),
+    ).toEqual([
       { end: 2, name: "Datenmodell" },
       { end: 4, name: "" },
     ]);
@@ -104,7 +140,14 @@ describe("cuts", () => {
 
 describe("suggestions", () => {
   it("become parts with names, titles and reasons", () => {
-    expect(fromSuggestion({ parts: [{ end: 2, name: "Modell", title: "Datenmodell", why: "Eigenes Thema." }, { end: 4, name: "Rest", title: "", why: "" }] })).toEqual([
+    expect(
+      fromSuggestion({
+        parts: [
+          { end: 2, name: "Modell", title: "Datenmodell", why: "Eigenes Thema." },
+          { end: 4, name: "Rest", title: "", why: "" },
+        ],
+      }),
+    ).toEqual([
       { end: 2, name: "Modell", title: "Datenmodell", why: "Eigenes Thema." },
       { end: 4, name: "Rest", title: null, why: null },
     ]);
@@ -128,7 +171,12 @@ describe("pull requests", () => {
 
   it("use remembered titles, then the first subject, then the branch name, and target the part below", () => {
     expect(prParts(STATUS, { "f-2-auswertung": "  Auswertung je Monat und Jahr " })).toEqual([
-      { branch: "f-1-modell", title: "Datenmodell für Stationen", body: "- Datenmodell für Stationen\n- Import der Messwerte", draft: false },
+      {
+        branch: "f-1-modell",
+        title: "Datenmodell für Stationen",
+        body: "- Datenmodell für Stationen\n- Import der Messwerte",
+        draft: false,
+      },
       { branch: "f-2-auswertung", title: "Auswertung je Monat und Jahr", body: "- Auswertung je Monat", draft: false },
       { branch: "f-3-diagramme", title: "f-3-diagramme", body: "", draft: false },
     ]);
@@ -144,7 +192,11 @@ describe("pull requests", () => {
 
 describe("base and push", () => {
   const locals = [ref("main"), ref("feature/auswertung", { isHead: true }), ref("dev")];
-  const remotes = [ref("origin/main", { remote: "origin" }), ref("origin/HEAD", { remote: "origin" }), ref("team/release", { remote: "team" })];
+  const remotes = [
+    ref("origin/main", { remote: "origin" }),
+    ref("origin/HEAD", { remote: "origin" }),
+    ref("team/release", { remote: "team" }),
+  ];
 
   it("the default base is the host's default branch on its remote, then locally, then main", () => {
     expect(defaultBase(snapshot(locals, remotes), "origin", "main", "feature/auswertung")).toBe("refs/remotes/origin/main");
@@ -183,8 +235,20 @@ describe("base and push", () => {
       remote: "origin",
       atomic: true,
       refs: [
-        { local: "refs/heads/f-1-modell", remoteRef: "refs/heads/f-1-modell", status: "rejected", forced: false, reason: "atomic push failed" },
-        { local: "refs/heads/f-2-auswertung", remoteRef: "refs/heads/f-2-auswertung", status: "rejected", forced: false, reason: "non-fast-forward" },
+        {
+          local: "refs/heads/f-1-modell",
+          remoteRef: "refs/heads/f-1-modell",
+          status: "rejected",
+          forced: false,
+          reason: "atomic push failed",
+        },
+        {
+          local: "refs/heads/f-2-auswertung",
+          remoteRef: "refs/heads/f-2-auswertung",
+          status: "rejected",
+          forced: false,
+          reason: "non-fast-forward",
+        },
         { local: "refs/heads/f-3-diagramme", remoteRef: "refs/heads/f-3-diagramme", status: "ok", forced: false, reason: null },
       ],
     };
@@ -201,7 +265,12 @@ describe("base and push", () => {
 
 describe("states and keys", () => {
   it("every check state has its own tone, never colour alone (the view adds the word)", () => {
-    expect(["running", "passed", "failed", "timed_out"].map((state) => checkTone(state as "running"))).toEqual(["accent", "success", "danger", "warning"]);
+    expect(["running", "passed", "failed", "timed_out"].map((state) => checkTone(state as "running"))).toEqual([
+      "accent",
+      "success",
+      "danger",
+      "warning",
+    ]);
   });
 
   it("arrows move, Home/End jump, space toggles; modified keys are left alone", () => {

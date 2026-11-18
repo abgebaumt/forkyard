@@ -17,7 +17,10 @@ describe("branch name from an issue", () => {
   });
 
   it("shortens long titles at a word boundary", () => {
-    const name = issueBranchName({ number: 7, title: "Auswertung der Messreihen aller Stationen für das erste Quartal mit Korrekturfaktoren" });
+    const name = issueBranchName({
+      number: 7,
+      title: "Auswertung der Messreihen aller Stationen für das erste Quartal mit Korrekturfaktoren",
+    });
     expect(name).toBe("7-auswertung-der-messreihen-aller-stationen-fuer");
     expect(name.length).toBeLessThanOrEqual(2 + 48);
     expect(name.endsWith("-")).toBe(false);
@@ -60,14 +63,18 @@ describe("reading and filtering issues", () => {
   });
 
   it("details: text and comments, missing fields become empty", () => {
-    const details = toIssueDetails({ ...raw, body: "Text", comments: [{ id: 1, author: "mira", body: "Bei mir auch", createdAt: "2026-10-02T08:00:00Z" }, { body: "ohne alles" }] });
+    const details = toIssueDetails({
+      ...raw,
+      body: "Text",
+      comments: [{ id: 1, author: "mira", body: "Bei mir auch", createdAt: "2026-10-02T08:00:00Z" }, { body: "ohne alles" }],
+    });
     expect(details?.body).toBe("Text");
     expect(details?.commentCount).toBe(2);
     expect(details?.comments.map((comment) => comment.id)).toEqual(["1", "kommentar-1"]);
     expect(toIssueDetails({ number: 1 })).toMatchObject({ body: "", comments: [], title: "" });
   });
 
-  it("\"Assigned to me\" compares the login case-insensitively", () => {
+  it('"Assigned to me" compares the login case-insensitively', () => {
     const issue = toIssueSummary(raw)!;
     expect(isAssignedTo(issue, "jonas")).toBe(true);
     expect(isAssignedTo(issue, "MIRA")).toBe(true);

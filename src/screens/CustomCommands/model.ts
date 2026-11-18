@@ -3,7 +3,14 @@
  * and the editor's draft. The core checks every definition again (when saving and before every
  * run) and builds every command line – the UI never does.
  */
-import type { CustomCommandCwd, CustomCommandDef, CustomCommandEntry, CustomCommandKind, CustomCommandScope, CustomInputType } from "../../core";
+import type {
+  CustomCommandCwd,
+  CustomCommandDef,
+  CustomCommandEntry,
+  CustomCommandKind,
+  CustomCommandScope,
+  CustomInputType,
+} from "../../core";
 import { t } from "../../i18n";
 
 export const SCOPES: CustomCommandScope[] = ["repo", "commit", "branch", "file", "submodule"];
@@ -27,7 +34,8 @@ export function initialValues(command: CustomCommandDef): InputValues {
   const values: InputValues = {};
   for (const input of command.inputs) {
     if (input.type === "checkbox") values[input.id] = input.default === "true" ? "true" : "false";
-    else if (input.type === "choice") values[input.id] = input.default && input.options.includes(input.default) ? input.default : (input.options[0] ?? "");
+    else if (input.type === "choice")
+      values[input.id] = input.default && input.options.includes(input.default) ? input.default : (input.options[0] ?? "");
     else values[input.id] = input.default ?? "";
   }
   return values;
@@ -94,7 +102,17 @@ const lines = (text: string) =>
 export function newDraft(existing: CustomCommandDef[]): Draft {
   let n = existing.length + 1;
   while (existing.some((command) => command.id === `command-${n}`)) n += 1;
-  return { id: `command-${n}`, title: "", kind: "shell", run: "", cwd: "worktree", confirm: false, shell: false, scope: ["repo"], inputs: [] };
+  return {
+    id: `command-${n}`,
+    title: "",
+    kind: "shell",
+    run: "",
+    cwd: "worktree",
+    confirm: false,
+    shell: false,
+    scope: ["repo"],
+    inputs: [],
+  };
 }
 
 export function toDraft(command: CustomCommandDef): Draft {
@@ -107,7 +125,13 @@ export function toDraft(command: CustomCommandDef): Draft {
     confirm: command.confirm,
     shell: command.shell,
     scope: [...command.scope],
-    inputs: command.inputs.map((input) => ({ id: input.id, label: input.label, type: input.type, default: input.default ?? "", options: input.options.join("\n") })),
+    inputs: command.inputs.map((input) => ({
+      id: input.id,
+      label: input.label,
+      type: input.type,
+      default: input.default ?? "",
+      options: input.options.join("\n"),
+    })),
   };
 }
 
@@ -156,16 +180,21 @@ export function draftErrors(draft: Draft, others: CustomCommandDef[]): DraftErro
     else if (inputIds.indexOf(inputId) !== index) errors.inputs[index] = t("customCommands.editor.errors.inputIdTaken");
     else if (!input.label.trim()) errors.inputs[index] = t("customCommands.editor.errors.inputLabel");
     else if (input.type === "choice" && options.length === 0) errors.inputs[index] = t("customCommands.editor.errors.options");
-    else if (input.type === "choice" && fallback && !options.includes(fallback)) errors.inputs[index] = t("customCommands.editor.errors.defaultOption");
+    else if (input.type === "choice" && fallback && !options.includes(fallback))
+      errors.inputs[index] = t("customCommands.editor.errors.defaultOption");
     else if (input.type === "checkbox" && options.length > 1) errors.inputs[index] = t("customCommands.editor.errors.checkboxOptions");
   });
   return errors;
 }
 
-export const hasErrors = (errors: DraftErrors): boolean => Boolean(errors.id || errors.title || errors.run || errors.scope || Object.keys(errors.inputs).length > 0);
+export const hasErrors = (errors: DraftErrors): boolean =>
+  Boolean(errors.id || errors.title || errors.run || errors.scope || Object.keys(errors.inputs).length > 0);
 
 /** Import: an imported command replaces the one with the same ID, the others are appended. */
-export function mergeImported(current: CustomCommandDef[], imported: CustomCommandDef[]): { commands: CustomCommandDef[]; replaced: string[]; added: string[] } {
+export function mergeImported(
+  current: CustomCommandDef[],
+  imported: CustomCommandDef[],
+): { commands: CustomCommandDef[]; replaced: string[]; added: string[] } {
   const replaced = imported.filter((command) => current.some((existing) => existing.id === command.id)).map((command) => command.id);
   const added = imported.filter((command) => !current.some((existing) => existing.id === command.id));
   const commands = [...current.map((existing) => imported.find((command) => command.id === existing.id) ?? existing), ...added];

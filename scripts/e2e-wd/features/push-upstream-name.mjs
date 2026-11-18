@@ -57,16 +57,35 @@ function qaBranch(repo) {
 const statusPending = (app) =>
   app.exec(() => {
     const item = document.querySelector("footer [data-publish]");
-    return item ? { kind: item.getAttribute("data-publish"), text: item.innerText.replace(/\s+/g, " ").trim(), title: item.getAttribute("title") ?? "" } : null;
+    return item
+      ? {
+          kind: item.getAttribute("data-publish"),
+          text: item.innerText.replace(/\s+/g, " ").trim(),
+          title: item.getAttribute("title") ?? "",
+        }
+      : null;
   });
 
-const pushDot = (app) => app.exec(() => Boolean([...document.querySelectorAll('[role="toolbar"] button')].find((button) => button.getAttribute("aria-label")?.startsWith("Push,"))?.querySelector("[data-badge-dot]")));
+const pushDot = (app) =>
+  app.exec(() =>
+    Boolean(
+      [...document.querySelectorAll('[role="toolbar"] button')]
+        .find((button) => button.getAttribute("aria-label")?.startsWith("Push,"))
+        ?.querySelector("[data-badge-dot]"),
+    ),
+  );
 
 const remoteHeads = (repo) => git(repo.remotePath, "for-each-ref", "--format=%(refname)", "refs/heads").split("\n").filter(Boolean);
 
 /** aria-label of the sidebar row of a local branch. */
 const rowLabel = (app, name) =>
-  app.exec((wanted) => [...document.querySelectorAll('[data-kind="branch"]')].map((item) => item.getAttribute("aria-label") ?? "").find((label) => label.includes(wanted)) ?? null, name);
+  app.exec(
+    (wanted) =>
+      [...document.querySelectorAll('[data-kind="branch"]')]
+        .map((item) => item.getAttribute("aria-label") ?? "")
+        .find((label) => label.includes(wanted)) ?? null,
+    name,
+  );
 
 scenario("Branch, der origin/develop folgt: ↑1 noch nicht auf origin, Push fragt wohin, develop bleibt", "main", async (t) => {
   const repo = makeCleanRepoWithRemote({ name: "qa-blackbox" });
@@ -97,8 +116,14 @@ scenario("Branch, der origin/develop folgt: ↑1 noch nicht auf origin, Push fra
     // Oracle: Git in the bare remote.
     assertEqual(git(repo.remotePath, "rev-parse", "develop"), develop, "origin/develop is unchanged");
     assertEqual(git(repo.remotePath, "rev-parse", "qa/blackbox"), qa, "qa/blackbox is on the remote");
-    assertEqual(repo.git("rev-parse", "--abbrev-ref", "qa/blackbox@{upstream}"), "origin/qa/blackbox", "the new upstream is recorded (git)");
-    await app.waitFor(async () => (await statusPending(app)) === null, 15_000, { message: "the status bar shows the normal counters again" });
+    assertEqual(
+      repo.git("rev-parse", "--abbrev-ref", "qa/blackbox@{upstream}"),
+      "origin/qa/blackbox",
+      "the new upstream is recorded (git)",
+    );
+    await app.waitFor(async () => (await statusPending(app)) === null, 15_000, {
+      message: "the status bar shows the normal counters again",
+    });
     await app.waitFor(async () => (await ui.toolState("Push"))?.disabled === true, 15_000, { message: "now there is nothing to push" });
     await t.noConsoleErrors(app);
   } finally {

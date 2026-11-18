@@ -118,7 +118,15 @@ export function buildModel(lines: BlameLine[]): BlameModel {
     const key = line.uncommitted ? "\u0000uncommitted" : (line.author.email || line.author.name).toLowerCase();
     const stat = stats.get(key);
     if (stat) stat.lines++;
-    else stats.set(key, { key, name: line.author.name, email: line.author.email, lines: 1, color: block.color, uncommitted: line.uncommitted });
+    else
+      stats.set(key, {
+        key,
+        name: line.author.name,
+        email: line.author.email,
+        lines: 1,
+        color: block.color,
+        uncommitted: line.uncommitted,
+      });
   }
   const authors = Array.from(stats.values()).sort((a, b) => b.lines - a.lines || a.name.localeCompare(b.name, locale()));
 
@@ -149,7 +157,17 @@ export function buildModel(lines: BlameLine[]): BlameModel {
     if (!stat.oldest || block.authoredAt < stat.oldest) stat.oldest = block.authoredAt;
   }
   const iso = (time: number) => (Number.isFinite(time) ? new Date(time).toISOString() : null);
-  return { text: texts.join("\n"), blocks, blockOfLine, authors, commitCount: commits.size, ages, newest: iso(max), oldest: iso(min), uncommittedLines };
+  return {
+    text: texts.join("\n"),
+    blocks,
+    blockOfLine,
+    authors,
+    commitCount: commits.size,
+    ages,
+    newest: iso(max),
+    oldest: iso(min),
+    uncommittedLines,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -241,7 +259,18 @@ export function blameGutter(model: BlameModel, handlers: BlameGutterHandlers): E
     const phase = offset % REPEAT_EVERY;
     // Only repeat if at least two more lines of the block follow.
     const repeats = offset >= REPEAT_EVERY && block.endLine - (index + 1) >= 2 - phase;
-    markers[index] = new BlameMarker(block, offset === 0 ? "start" : offset === 1 ? "second" : repeats && phase === 0 ? "repeat" : repeats && phase === 1 ? "repeat-second" : "rest");
+    markers[index] = new BlameMarker(
+      block,
+      offset === 0
+        ? "start"
+        : offset === 1
+          ? "second"
+          : repeats && phase === 0
+            ? "repeat"
+            : repeats && phase === 1
+              ? "repeat-second"
+              : "rest",
+    );
   }
   const blockAt = (view: EditorView, line: BlockInfo) => {
     const number = view.state.doc.lineAt(line.from).number;
@@ -249,32 +278,34 @@ export function blameGutter(model: BlameModel, handlers: BlameGutterHandlers): E
     return index === undefined ? null : (model.blocks[index] ?? null);
   };
   // Highest rank: the blame column is on the far left, the line numbers right next to the code.
-  return Prec.highest(gutter({
-    class: "gc-blame-gutter",
-    lineMarker: (view, line) => {
-      const number = view.state.doc.lineAt(line.from).number;
-      return markers[number - 1] ?? null;
-    },
-    initialSpacer: () => new SpacerMarker(),
-    domEventHandlers: {
-      click: (view, line) => {
-        const block = blockAt(view, line);
-        if (block) handlers.onActivate(block);
-        return true;
+  return Prec.highest(
+    gutter({
+      class: "gc-blame-gutter",
+      lineMarker: (view, line) => {
+        const number = view.state.doc.lineAt(line.from).number;
+        return markers[number - 1] ?? null;
       },
-      contextmenu: (view, line, event) => {
-        event.preventDefault();
-        handlers.onMenu(view.state.doc.lineAt(line.from).number, event as MouseEvent);
-        return true;
+      initialSpacer: () => new SpacerMarker(),
+      domEventHandlers: {
+        click: (view, line) => {
+          const block = blockAt(view, line);
+          if (block) handlers.onActivate(block);
+          return true;
+        },
+        contextmenu: (view, line, event) => {
+          event.preventDefault();
+          handlers.onMenu(view.state.doc.lineAt(line.from).number, event as MouseEvent);
+          return true;
+        },
+        mousemove: (view, line) => {
+          handlers.onHover(blockAt(view, line), view, line);
+          return false;
+        },
+        mouseleave: (view) => {
+          handlers.onHover(null, view, null);
+          return false;
+        },
       },
-      mousemove: (view, line) => {
-        handlers.onHover(blockAt(view, line), view, line);
-        return false;
-      },
-      mouseleave: (view) => {
-        handlers.onHover(null, view, null);
-        return false;
-      },
-    },
-  }));
+    }),
+  );
 }

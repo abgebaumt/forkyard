@@ -4,7 +4,15 @@ import { laneColor } from "../../ui/cn";
 import { t } from "../../i18n";
 import { SKIP, matrixOf, type Arrangement } from "./model";
 
-export function FileMatrix({ arrangement, units, onGoto }: { arrangement: Arrangement; units: ComposeUnit[]; onGoto: (unit: string) => void }) {
+export function FileMatrix({
+  arrangement,
+  units,
+  onGoto,
+}: {
+  arrangement: Arrangement;
+  units: ComposeUnit[];
+  onGoto: (unit: string) => void;
+}) {
   const rows = matrixOf(arrangement, units);
   return (
     <div className="min-h-0 flex-1 overflow-auto px-4 py-3" data-compose-matrix="">
@@ -13,11 +21,17 @@ export function FileMatrix({ arrangement, units, onGoto }: { arrangement: Arrang
           <tr>
             <th className="border-b border-border px-2.5 py-1.5 text-left text-xs font-medium text-text-muted">{t("wip.compose.file")}</th>
             {arrangement.commits.map((commit, index) => (
-              <th key={commit.key} title={commit.title} className="border-b border-border px-2.5 py-1.5 text-center text-xs font-medium whitespace-nowrap text-text-muted">
+              <th
+                key={commit.key}
+                title={commit.title}
+                className="border-b border-border px-2.5 py-1.5 text-center text-xs font-medium whitespace-nowrap text-text-muted"
+              >
                 {t("wip.compose.commit", { number: index + 1 })}
               </th>
             ))}
-            <th className="border-b border-border px-2.5 py-1.5 text-center text-xs font-medium whitespace-nowrap text-text-muted">{t("wip.compose.skip")}</th>
+            <th className="border-b border-border px-2.5 py-1.5 text-center text-xs font-medium whitespace-nowrap text-text-muted">
+              {t("wip.compose.skip")}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -35,7 +49,11 @@ export function FileMatrix({ arrangement, units, onGoto }: { arrangement: Arrang
                       data-compose-cell={cell.group === SKIP ? "skip" : String(cell.group)}
                       title={t("wip.compose.cellTip", { count: cell.count })}
                       onClick={() => onGoto(cell.first!)}
-                      className={cell.group === SKIP ? "rounded-pill bg-surface-sunken px-2 text-xs font-semibold text-text-muted" : "rounded-pill px-2 text-xs font-semibold text-on-lane"}
+                      className={
+                        cell.group === SKIP
+                          ? "rounded-pill bg-surface-sunken px-2 text-xs font-semibold text-text-muted"
+                          : "rounded-pill px-2 text-xs font-semibold text-on-lane"
+                      }
                       style={cell.group === SKIP ? undefined : { backgroundColor: laneColor(cell.group) }}
                     >
                       {cell.count}

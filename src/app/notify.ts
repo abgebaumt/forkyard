@@ -85,9 +85,7 @@ export async function sendTestNotification(): Promise<string | null> {
     return null;
   }
   if (await sendSystemNotification(title, body)) return null;
-  return systemNotifications() === "blocked"
-    ? t("app.notify.blocked")
-    : t("app.notify.rejected");
+  return systemNotifications() === "blocked" ? t("app.notify.blocked") : t("app.notify.rejected");
 }
 
 const manualSync = new Map<string, number>();

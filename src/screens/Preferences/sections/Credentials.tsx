@@ -30,7 +30,8 @@ async function forgetAll(count: number) {
   if (result.ok) {
     toast({
       tone: "success",
-      title: result.value === 0 ? t("preferences.credentials.forget.none") : t("preferences.credentials.forget.done", { count: result.value }),
+      title:
+        result.value === 0 ? t("preferences.credentials.forget.none") : t("preferences.credentials.forget.done", { count: result.value }),
     });
   }
 }
@@ -71,10 +72,16 @@ export function CredentialsSection() {
         </div>
       ) : null}
 
-      <GroupTitle id="prefs-credentials-list">{list.length ? t("preferences.credentials.listCount", { count: list.length }) : t("preferences.credentials.list")}</GroupTitle>
+      <GroupTitle id="prefs-credentials-list">
+        {list.length ? t("preferences.credentials.listCount", { count: list.length }) : t("preferences.credentials.list")}
+      </GroupTitle>
 
       {credentials.isPending ? (
-        <div role="status" aria-label={t("preferences.credentials.loading")} className="animate-pulse overflow-hidden rounded-md border border-border">
+        <div
+          role="status"
+          aria-label={t("preferences.credentials.loading")}
+          className="animate-pulse overflow-hidden rounded-md border border-border"
+        >
           {[0, 1, 2].map((row) => (
             <div key={row} className="flex h-9 items-center gap-4 border-b border-border px-3 last:border-b-0">
               <div className="h-3 w-48 rounded-sm bg-surface-raised" />

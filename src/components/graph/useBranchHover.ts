@@ -7,7 +7,8 @@ import { useMemo, type FocusEvent, type PointerEvent } from "react";
 import type { Id } from "../../core";
 import { endHoverHighlight, hoverHighlight } from "./highlightStore";
 
-const fullNameOf = (target: EventTarget | null): string | null => (target instanceof Element ? (target.closest("[data-ref-hover]")?.getAttribute("data-ref-hover") ?? null) : null);
+const fullNameOf = (target: EventTarget | null): string | null =>
+  target instanceof Element ? (target.closest("[data-ref-hover]")?.getAttribute("data-ref-hover") ?? null) : null;
 
 export function useBranchHover(repoId: Id) {
   return useMemo(

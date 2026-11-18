@@ -97,7 +97,10 @@ function Progress({ jobId, source, target, stopping }: { jobId: string; source: 
           className="mt-2 h-1.5 overflow-hidden rounded-pill bg-border"
         >
           {percent !== null && !stopping ? (
-            <div className="h-full rounded-pill bg-accent transition-[width]" style={{ width: `${Math.max(2, Math.min(100, percent))}%` }} />
+            <div
+              className="h-full rounded-pill bg-accent transition-[width]"
+              style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
+            />
           ) : (
             <div className="h-full w-1/3 animate-pulse rounded-pill bg-accent" />
           )}
@@ -186,7 +189,14 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
     // "not_allowed" can refer to the address or the folder: the core says which in the text (shown at the top of the box).
     const message = result.error.message;
     const field: FieldName | undefined =
-      known?.field ?? (result.error.code === "not_allowed" ? (/protocol|protokoll|url|adresse|lokal/i.test(message) ? "url" : /path|directory|folder|outside|pfad|ordner|außerhalb/i.test(message) ? "path" : undefined) : undefined);
+      known?.field ??
+      (result.error.code === "not_allowed"
+        ? /protocol|protokoll|url|adresse|lokal/i.test(message)
+          ? "url"
+          : /path|directory|folder|outside|pfad|ordner|außerhalb/i.test(message)
+            ? "path"
+            : undefined
+        : undefined);
     if (field) {
       setFieldFailure({
         field,
@@ -216,7 +226,11 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
 
   const known = failure ? FAILURES[failure.code] : undefined;
   const failureTitle = known?.title ?? t("submodules.failures.generic");
-  const failureText: ReactNode = failure ? (known?.hint ? known.hint : failure.message || errorInfo[failure.code]?.text || errorInfo.unknown.text) : null;
+  const failureText: ReactNode = failure
+    ? known?.hint
+      ? known.hint
+      : failure.message || errorInfo[failure.code]?.text || errorInfo.unknown.text
+    : null;
   const output = failure?.gitOutput?.trim();
   const target = repo && cleanPath ? joinPath(repo.path, cleanPath.replace(/\//g, repo.path.includes("\\") ? "\\" : "/")) : "";
 
@@ -336,11 +350,7 @@ export function SubmoduleDialog({ repoId, onClose }: SubmoduleDialogProps) {
                 value={url}
                 placeholder={t("submodules.dialog.url.placeholder")}
                 error={errors.url ?? undefined}
-                hint={
-                  local
-                    ? t("submodules.dialog.url.hintLocal")
-                    : t("submodules.dialog.url.hint")
-                }
+                hint={local ? t("submodules.dialog.url.hintLocal") : t("submodules.dialog.url.hint")}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"

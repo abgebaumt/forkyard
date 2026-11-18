@@ -39,10 +39,19 @@ export function focusCommitPanel() {
  */
 export async function resolveConflict(repoId: Id, tabId: Id, path: string, input: ResolveInput): Promise<Status | null> {
   const before = cachedStatus(repoId)?.conflicted.map((file) => file.path) ?? [];
-  const label = input.side === "ours" ? t("conflict.resolve.takeOurs") : input.side === "theirs" ? t("conflict.resolve.takeTheirs") : t("conflict.resolve.resolve");
-  const result = await runAction(label, withStatus(repoId, () => core.conflictResolve({ repoId, path, content: input.content ?? null, side: input.side ?? null })), {
-    busyKey: resolveBusyKey(repoId, path),
-  });
+  const label =
+    input.side === "ours"
+      ? t("conflict.resolve.takeOurs")
+      : input.side === "theirs"
+        ? t("conflict.resolve.takeTheirs")
+        : t("conflict.resolve.resolve");
+  const result = await runAction(
+    label,
+    withStatus(repoId, () => core.conflictResolve({ repoId, path, content: input.content ?? null, side: input.side ?? null })),
+    {
+      busyKey: resolveBusyKey(repoId, path),
+    },
+  );
   if (!result.ok) return null;
   const status = result.value;
   void queryClient.invalidateQueries({ queryKey: qk.conflictAll(repoId) });

@@ -16,7 +16,11 @@ import type { IssueState } from "./api";
 import { localizeTimes, retryTime, stateLabels } from "./model";
 
 export function StateIcon({ state, className }: { state: IssueState; className?: string }) {
-  return state === "open" ? <CircleDot className={cn("size-icon shrink-0 text-success", className)} aria-hidden /> : <CircleCheck className={cn("size-icon shrink-0 text-text-muted", className)} aria-hidden />;
+  return state === "open" ? (
+    <CircleDot className={cn("size-icon shrink-0 text-success", className)} aria-hidden />
+  ) : (
+    <CircleCheck className={cn("size-icon shrink-0 text-text-muted", className)} aria-hidden />
+  );
 }
 
 export function StateBadge({ state }: { state: IssueState }) {
@@ -35,7 +39,11 @@ export function Labels({ labels, max }: { labels: string[]; max?: number }) {
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-1" data-issue-labels>
       {shown.map((label) => (
-        <span key={label} title={label} className="inline-flex h-5 max-w-40 items-center rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted">
+        <span
+          key={label}
+          title={label}
+          className="inline-flex h-5 max-w-40 items-center rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted"
+        >
           <span className="truncate">{label}</span>
         </span>
       ))}
@@ -107,9 +115,21 @@ export function HostProblem({ error, onRetry, retrying }: ProblemProps) {
   const time = info.kind === "rate_limit" ? retryTime(info.text) : null;
   const hint = problemHints[kind] ?? info.hint;
   return (
-    <div data-issues-state={kind} role={info.kind === "rate_limit" ? "status" : "alert"} className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
+    <div
+      data-issues-state={kind}
+      role={info.kind === "rate_limit" ? "status" : "alert"}
+      className="flex min-h-0 flex-1 items-center justify-center overflow-auto"
+    >
       <EmptyState
-        icon={<Icon className={cn("size-8", kind === "rate_limit" ? "text-warning" : kind === "other" || kind === "auth" ? "text-danger" : undefined)} aria-hidden />}
+        icon={
+          <Icon
+            className={cn(
+              "size-8",
+              kind === "rate_limit" ? "text-warning" : kind === "other" || kind === "auth" ? "text-danger" : undefined,
+            )}
+            aria-hidden
+          />
+        }
         title={problemTitles[kind] ?? info.title}
         action={
           <span className="flex flex-wrap justify-center gap-2">
@@ -167,7 +187,19 @@ export function NoHost() {
   );
 }
 
-export function Blank({ state, icon, title, children, action }: { state: string; icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
+export function Blank({
+  state,
+  icon,
+  title,
+  children,
+  action,
+}: {
+  state: string;
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div data-issues-state={state} className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
       <EmptyState icon={icon} title={title} action={action}>

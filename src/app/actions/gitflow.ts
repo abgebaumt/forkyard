@@ -37,7 +37,8 @@ export async function loadGitflow(repoId: Id): Promise<GitflowStatus> {
 
 /** After a Gitflow action: refs, graph and status follow (the core reports it itself too). */
 function refreshRepo(repoId: Id) {
-  for (const key of [qk.refs(repoId), qk.status(repoId), qk.graph(repoId), qk.undo(repoId)]) void queryClient.invalidateQueries({ queryKey: key });
+  for (const key of [qk.refs(repoId), qk.status(repoId), qk.graph(repoId), qk.undo(repoId)])
+    void queryClient.invalidateQueries({ queryKey: key });
 }
 
 /** Writes the setup. Name errors (`invalid_name`, `not_found`, `not_allowed`) are shown by the caller at the field. */
@@ -49,22 +50,34 @@ export async function initGitflow(repoId: Id, input: { main: string; develop: st
   if (result.ok) {
     queryClient.setQueryData(gitflowKey(repoId), result.value);
     refreshRepo(repoId);
-    toast({ tone: "success", title: t("actions.gitflow.initDone"), description: t("actions.gitflow.initDescription", { main: result.value.main, develop: result.value.develop }) });
+    toast({
+      tone: "success",
+      title: t("actions.gitflow.initDone"),
+      description: t("actions.gitflow.initDescription", { main: result.value.main, develop: result.value.develop }),
+    });
   }
   return result;
 }
 
 /** Creates the branch and checks it out. Name errors are shown by the caller at the field. */
 export async function startGitflow(repoId: Id, kind: GitflowKind, name: string) {
-  const result = await runAction(t("actions.gitflow.start", { kind: kindLabels[kind] }), withFreshStatus(repoId, () => core.gitflowStart({ repoId, kind, name, base: null })), {
-    busyKey: gitflowBusyKey(repoId),
-    quiet: ["invalid_name", "name_exists", "not_allowed"],
-  });
+  const result = await runAction(
+    t("actions.gitflow.start", { kind: kindLabels[kind] }),
+    withFreshStatus(repoId, () => core.gitflowStart({ repoId, kind, name, base: null })),
+    {
+      busyKey: gitflowBusyKey(repoId),
+      quiet: ["invalid_name", "name_exists", "not_allowed"],
+    },
+  );
   if (result.ok) {
     queryClient.setQueryData(gitflowKey(repoId), result.value);
     refreshRepo(repoId);
     const branch = result.value.active.find((item) => item.kind === kind && item.name === name)?.branch ?? name;
-    toast({ tone: "success", title: t("actions.gitflow.started", { kind: kindLabels[kind] }), description: t("actions.gitflow.startedDescription", { branch }) });
+    toast({
+      tone: "success",
+      title: t("actions.gitflow.started", { kind: kindLabels[kind] }),
+      description: t("actions.gitflow.startedDescription", { branch }),
+    });
   }
   return result;
 }
@@ -77,18 +90,30 @@ export async function startGitflow(repoId: Id, kind: GitflowKind, name: string) 
 export async function finishGitflow(repoId: Id, tabId: Id | null, kind: GitflowKind, name: string, options: GitflowFinishOptions) {
   const jobId = options.push ? newJobId() : null;
   const label = t("actions.gitflow.finish", { kind: kindLabels[kind] });
-  const result = await runAction(label, withFreshStatus(repoId, () => core.gitflowFinish({ repoId, kind, name, options, jobId })), {
-    busyKey: gitflowBusyKey(repoId),
-    job: jobId ? { id: jobId, title: t("actions.gitflow.finishPushJob", { kind: kindLabels[kind], name }), repoId } : undefined,
-  });
+  const result = await runAction(
+    label,
+    withFreshStatus(repoId, () => core.gitflowFinish({ repoId, kind, name, options, jobId })),
+    {
+      busyKey: gitflowBusyKey(repoId),
+      job: jobId ? { id: jobId, title: t("actions.gitflow.finishPushJob", { kind: kindLabels[kind], name }), repoId } : undefined,
+    },
+  );
   refreshRepo(repoId);
   void loadGitflow(repoId).catch(() => undefined);
   if (!result.ok) return result;
   const outcome = result.value;
   if (outcome.status === "done") {
-    toast({ tone: "success", title: t("actions.gitflow.finished", { kind: kindLabels[kind], name }), description: outcome.summary || undefined });
+    toast({
+      tone: "success",
+      title: t("actions.gitflow.finished", { kind: kindLabels[kind], name }),
+      description: outcome.summary || undefined,
+    });
   } else if (outcome.status === "up_to_date") {
-    toast({ tone: "info", title: t("actions.gitflow.nothingLeft"), description: t("actions.gitflow.alreadyFinished", { kind: kindLabels[kind], name }) });
+    toast({
+      tone: "info",
+      title: t("actions.gitflow.nothingLeft"),
+      description: t("actions.gitflow.alreadyFinished", { kind: kindLabels[kind], name }),
+    });
   } else {
     const count = outcome.files.length;
     toast({

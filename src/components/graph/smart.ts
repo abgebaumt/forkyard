@@ -21,7 +21,8 @@ export interface SmartSelection {
 const TARGET_NAMES = ["main", "master", "develop", "trunk"];
 
 /** Name of a remote branch without the remote in front: `origin/main` → `main`. */
-const withoutRemote = (ref: Ref) => (ref.remote && ref.name.startsWith(`${ref.remote}/`) ? ref.name.slice(ref.remote.length + 1) : ref.name);
+const withoutRemote = (ref: Ref) =>
+  ref.remote && ref.name.startsWith(`${ref.remote}/`) ? ref.name.slice(ref.remote.length + 1) : ref.name;
 
 /**
  * What the selection contains. null: no branch checked out (detached HEAD, repository without a commit) –
@@ -49,7 +50,8 @@ export function smartSelection(refs: RefsSnapshot | undefined, defaultBranchName
   return { refs: [...new Set(list)], current, upstream, target };
 }
 
-export const sameRefs = (a: readonly string[], b: readonly string[]) => a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
+export const sameRefs = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && [...a].sort().join("\n") === [...b].sort().join("\n");
 
 // ---------------------------------------------------------------------------
 // Remembered per repository (in the app's window storage; the solo refs themselves live in the core)

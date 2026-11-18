@@ -34,7 +34,11 @@ export interface PatchRequest {
 
 type Scope = "unstaged" | "staged" | "all";
 
-const scopeLabels: Record<Scope, string> = { unstaged: t("patches.create.scope.unstaged"), staged: t("patches.create.scope.staged"), all: t("patches.create.scope.all") };
+const scopeLabels: Record<Scope, string> = {
+  unstaged: t("patches.create.scope.unstaged"),
+  staged: t("patches.create.scope.staged"),
+  all: t("patches.create.scope.all"),
+};
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
@@ -79,13 +83,24 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
   const text = patch.data?.text ?? "";
   const skipped = patch.data?.skipped ?? [];
   const ready = patch.isSuccess && text.length > 0 && !patch.isFetching;
-  const blocked = patch.isPending || patch.isFetching ? t("patches.create.blocked.loading") : patch.isError ? t("patches.create.blocked.error") : text.length === 0 ? t("patches.create.blocked.empty") : null;
+  const blocked =
+    patch.isPending || patch.isFetching
+      ? t("patches.create.blocked.loading")
+      : patch.isError
+        ? t("patches.create.blocked.error")
+        : text.length === 0
+          ? t("patches.create.blocked.empty")
+          : null;
   const state = patch.isPending || patch.isFetching ? "loading" : patch.isError ? "error" : text.length === 0 ? "empty" : "ready";
 
   const copy = async () => {
     if (!ready) return;
     if (await copyToClipboard(text)) {
-      toast({ tone: "success", title: t("patches.create.copied"), description: `${t("patches.create.files", { count: info?.files.length ?? 0 })} · ${formatSize(new Blob([text]).size)}` });
+      toast({
+        tone: "success",
+        title: t("patches.create.copied"),
+        description: `${t("patches.create.files", { count: info?.files.length ?? 0 })} · ${formatSize(new Blob([text]).size)}`,
+      });
       onClose();
     } else {
       setNote({ title: t("patches.create.notCopied"), text: t("patches.create.notCopiedText") });
@@ -110,7 +125,10 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
           tone: "success",
           title: t("patches.create.saved"),
           description: outcome.path,
-          action: { label: t("patches.create.showInFileManager"), onClick: () => void openExternal(repoId, "file_manager", outcome.relative) },
+          action: {
+            label: t("patches.create.showInFileManager"),
+            onClick: () => void openExternal(repoId, "file_manager", outcome.relative),
+          },
         });
         onClose();
       }
@@ -131,8 +149,16 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
       title={t("patches.create.title")}
       description={
         <>
-          <Trans i18nKey="patches.create.from" values={{ what: request.what }} components={{ strong: <strong className="font-medium text-text" /> }} />
-          {request.paths ? (request.paths.length === 1 ? t("patches.create.onlyThisFile") : t("patches.create.onlyFiles", { count: request.paths.length })) : ""}
+          <Trans
+            i18nKey="patches.create.from"
+            values={{ what: request.what }}
+            components={{ strong: <strong className="font-medium text-text" /> }}
+          />
+          {request.paths
+            ? request.paths.length === 1
+              ? t("patches.create.onlyThisFile")
+              : t("patches.create.onlyFiles", { count: request.paths.length })
+            : ""}
         </>
       }
       onOpenChange={(open) => {
@@ -175,7 +201,10 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
               value={scope}
               options={(["all", "unstaged", "staged"] as Scope[]).map((key) => ({
                 value: key,
-                label: key === "all" ? scopeLabels.all : t("patches.create.scope.withCount", { label: scopeLabels[key], count: key === "unstaged" ? unstaged : staged }),
+                label:
+                  key === "all"
+                    ? scopeLabels.all
+                    : t("patches.create.scope.withCount", { label: scopeLabels[key], count: key === "unstaged" ? unstaged : staged }),
               }))}
               onValueChange={(value) => {
                 setChosen(value);
@@ -207,10 +236,11 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
         ) : null}
 
         {state === "empty" ? (
-          <EmptyState icon={<FileDiff className="size-6" aria-hidden />} title={skipped.length ? t("patches.create.noText") : t("patches.create.nothing")}>
-            {skipped.length
-              ? t("patches.create.noTextHint")
-              : t("patches.create.nothingHint")}
+          <EmptyState
+            icon={<FileDiff className="size-6" aria-hidden />}
+            title={skipped.length ? t("patches.create.noText") : t("patches.create.nothing")}
+          >
+            {skipped.length ? t("patches.create.noTextHint") : t("patches.create.nothingHint")}
           </EmptyState>
         ) : null}
 
@@ -220,7 +250,8 @@ export function CreatePatchDialog({ repoId, request, onClose }: { repoId: Id; re
               <FileDiff className="size-icon text-text-muted" aria-hidden />
               <span className="font-medium">{t("patches.create.files", { count: info.files.length })}</span>
               <span className="font-mono text-sm">
-                <span className="text-success">+{info.added.toLocaleString(locale())}</span> <span className="text-danger">−{info.removed.toLocaleString(locale())}</span>
+                <span className="text-success">+{info.added.toLocaleString(locale())}</span>{" "}
+                <span className="text-danger">−{info.removed.toLocaleString(locale())}</span>
               </span>
               <span className="text-text-muted">
                 · {t("patches.create.lines", { count: info.lines.length })} · {size}

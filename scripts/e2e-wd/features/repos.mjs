@@ -11,7 +11,17 @@ import fs from "node:fs";
 import path from "node:path";
 import { TEST_IDENTITY, makeCleanRepoWithRemote, makeNotARepo } from "../../e2e/fixtures.mjs";
 import { startGitHttpServer } from "../../e2e/git-http-server.mjs";
-import { FSMONITOR_MARKER, HOOK_MARKER, PROXY_PASSWORD, makeCloneSource, makeDataDir, makeForeignRepo, makeWorkspace, ran, startHoldingProxy } from "../fixtures/repos.mjs";
+import {
+  FSMONITOR_MARKER,
+  HOOK_MARKER,
+  PROXY_PASSWORD,
+  makeCloneSource,
+  makeDataDir,
+  makeForeignRepo,
+  makeWorkspace,
+  ran,
+  startHoldingProxy,
+} from "../fixtures/repos.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -35,7 +45,11 @@ function field(app, scope, label) {
             const control = element.control ?? (element.htmlFor ? document.getElementById(element.htmlFor) : null);
             if (control) return control;
           }
-          return [...root.querySelectorAll("input, textarea, button, [role=combobox]")].find((element) => norm(element.getAttribute("aria-label")) === wanted) ?? null;
+          return (
+            [...root.querySelectorAll("input, textarea, button, [role=combobox]")].find(
+              (element) => norm(element.getAttribute("aria-label")) === wanted,
+            ) ?? null
+          );
         },
         scope,
         label,
@@ -62,34 +76,48 @@ function fill(app, element, value) {
 
 const valueOf = (app, element) => app.exec((input) => input.value, element);
 const invalidOf = (app, element) => app.exec((input) => input.getAttribute("aria-invalid"), element);
-const errorOf = (app, element) => app.exec((input) => document.getElementById(input.getAttribute("aria-describedby")?.split(" ")[0] ?? "")?.textContent ?? null, element);
-const dialogTitle = (app) => app.exec(() => [...document.querySelectorAll('[role="dialog"]')].at(-1)?.querySelector("h2")?.textContent ?? null);
-const toasts = (app) => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((toast) => toast.innerText.replace(/\s+/g, " ").trim()));
+const errorOf = (app, element) =>
+  app.exec((input) => document.getElementById(input.getAttribute("aria-describedby")?.split(" ")[0] ?? "")?.textContent ?? null, element);
+const dialogTitle = (app) =>
+  app.exec(() => [...document.querySelectorAll('[role="dialog"]')].at(-1)?.querySelector("h2")?.textContent ?? null);
+const toasts = (app) =>
+  app.exec(() => [...document.querySelectorAll("[data-toast]")].map((toast) => toast.innerText.replace(/\s+/g, " ").trim()));
 const focusedText = (app) => app.exec(() => document.activeElement?.textContent?.replace(/\s+/g, " ").trim() ?? null);
 /** Tabs as the strip shows them, in order. */
 const uiTabs = (app) =>
   app.exec(() =>
     [...document.querySelectorAll("[data-tab-id]")].map((item) => {
       const tab = item.querySelector('[role="tab"]');
-      return { id: item.getAttribute("data-tab-id"), title: tab?.querySelector(".truncate")?.textContent ?? "", active: tab?.getAttribute("aria-selected") === "true" };
+      return {
+        id: item.getAttribute("data-tab-id"),
+        title: tab?.querySelector(".truncate")?.textContent ?? "",
+        active: tab?.getAttribute("aria-selected") === "true",
+      };
     }),
   );
 /** Tabs as the core keeps them, in order (management tab titled "Repositories"). */
 const coreTabs = async (app) =>
-  (await app.invoke("tabs_list")).sort((a, b) => a.position - b.position).map((tab) => ({ title: tab.kind === "management" ? "Repositories" : tab.title, active: tab.isActive }));
+  (await app.invoke("tabs_list"))
+    .sort((a, b) => a.position - b.position)
+    .map((tab) => ({ title: tab.kind === "management" ? "Repositories" : tab.title, active: tab.isActive }));
 const strip = async (app) => (await uiTabs(app)).map((tab) => `${tab.active ? "*" : ""}${tab.title}`);
 const core = async (app) => (await coreTabs(app)).map((tab) => `${tab.active ? "*" : ""}${tab.title}`);
 /** Waits until strip and core both show this order (`*` marks the active tab). */
 async function expectTabs(app, wanted, message) {
-  await app.waitFor(async () => JSON.stringify(await strip(app)) === JSON.stringify(wanted), 15_000, { message: `${message}: strip ${JSON.stringify(wanted)}` }).catch(async (error) => {
-    throw new Error(`${error.message}; got ${JSON.stringify(await strip(app))}`);
-  });
+  await app
+    .waitFor(async () => JSON.stringify(await strip(app)) === JSON.stringify(wanted), 15_000, {
+      message: `${message}: strip ${JSON.stringify(wanted)}`,
+    })
+    .catch(async (error) => {
+      throw new Error(`${error.message}; got ${JSON.stringify(await strip(app))}`);
+    });
   assertEqual(await core(app), wanted, `${message} (tabs_list)`);
 }
 
 const management = (app) => app.waitFor('[data-screen="repo-management"]', 15_000);
 /** Button inside repository management by its visible text. */
-const mgmtButton = (app, text) => app.waitFor(() => app.byText(text, { within: '[data-screen="repo-management"]' }), 10_000, { message: `button “${text}”` });
+const mgmtButton = (app, text) =>
+  app.waitFor(() => app.byText(text, { within: '[data-screen="repo-management"]' }), 10_000, { message: `button “${text}”` });
 const repoList = (app) => app.invoke("repo_list");
 const findRepo = async (app, repoPath) => (await repoList(app)).find((repo) => path.resolve(repo.path) === path.resolve(repoPath)) ?? null;
 const exists = (...parts) => fs.existsSync(path.join(...parts));
@@ -97,7 +125,15 @@ const exists = (...parts) => fs.existsSync(path.join(...parts));
 const contextMenu = (app, element) =>
   app.exec((target) => {
     const box = target.getBoundingClientRect();
-    target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: box.left + 20, clientY: box.top + box.height / 2, button: 2 }));
+    target.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: box.left + 20,
+        clientY: box.top + box.height / 2,
+        button: 2,
+      }),
+    );
     return true;
   }, element);
 /** A menu item in any open menu (submenus included) whose text starts with `text` (or equals it). */
@@ -107,7 +143,9 @@ const menuItem = (app, text, exact = false) =>
       app.exec(
         (wanted, isExact) => {
           const norm = (value) => (value ?? "").replace(/\s+/g, " ").trim();
-          const items = [...document.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]')].filter((item) => item.getBoundingClientRect().width > 0);
+          const items = [...document.querySelectorAll('[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]')].filter(
+            (item) => item.getBoundingClientRect().width > 0,
+          );
           return items.find((item) => (isExact ? norm(item.innerText) === wanted : norm(item.innerText).startsWith(wanted))) ?? null;
         },
         text,
@@ -201,7 +239,9 @@ scenario("open: a folder without repository offers “Create a repository here�
     assertEqual(await valueOf(app, name), "kein-repository", "name is prefilled");
     assertEqual(await valueOf(app, await field(app, '[data-screen="init"]', "Location")), plain.root, "location is prefilled");
     await app.click(await app.waitFor(() => app.byText("Create repository", { within: '[role="dialog"]' })));
-    await app.waitFor(async () => (await invalidOf(app, name)) === "true", 15_000, { message: "a non-empty folder is rejected at the name" });
+    await app.waitFor(async () => (await invalidOf(app, name)) === "true", 15_000, {
+      message: "a non-empty folder is rejected at the name",
+    });
     assertMatch(await errorOf(app, name), /non-empty folder/, "the message explains it");
     assert(!exists(plain.path, ".git"), "no .git was created");
     assert(exists(plain.path, "einkaufsliste.txt"), "the existing files are untouched");
@@ -282,12 +322,29 @@ scenario("clone: a local bare repository through the dialog", "main", async (t) 
     await openClone(app);
     assertEqual(await dialogTitle(app), "Clone repository", "dialog title");
     const address = await field(app, CLONE, "Address");
-    assertEqual(await app.exec(() => document.activeElement?.closest('[data-screen="clone"]') !== null && document.activeElement?.tagName === "INPUT"), true, "focus is in the address");
+    assertEqual(
+      await app.exec(
+        () => document.activeElement?.closest('[data-screen="clone"]') !== null && document.activeElement?.tagName === "INPUT",
+      ),
+      true,
+      "focus is in the address",
+    );
     await app.type(address, src.source);
-    await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-url-kind]")?.getAttribute("data-url-kind"))) === "local", 5000, { message: "address detected as local folder" });
+    await app.waitFor(
+      async () => (await app.exec(() => document.querySelector("[data-url-kind]")?.getAttribute("data-url-kind"))) === "local",
+      5000,
+      { message: "address detected as local folder" },
+    );
     assertEqual(await valueOf(app, await field(app, CLONE, "Folder name")), "wetterdaten", "folder name suggested from the address");
     await fill(app, await field(app, CLONE, "Target folder"), target);
-    await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-clone-target]")?.innerText.replace(/\s+/g, " ") ?? "")).includes(path.join(target, "wetterdaten")), 5000, { message: "target preview" });
+    await app.waitFor(
+      async () =>
+        (await app.exec(() => document.querySelector("[data-clone-target]")?.innerText.replace(/\s+/g, " ") ?? "")).includes(
+          path.join(target, "wetterdaten"),
+        ),
+      5000,
+      { message: "target preview" },
+    );
     await t.shot("clone-dialog");
     // Enter in the folder name submits.
     await app.click(await field(app, CLONE, "Folder name"));
@@ -304,7 +361,9 @@ scenario("clone: a local bare repository through the dialog", "main", async (t) 
     const entry = await findRepo(app, cloned);
     assert(entry, "the core lists the clone");
     assertEqual(entry.trusted, true, "a clone made by the app is trusted");
-    await app.waitFor(async () => (await toasts(app)).some((text) => text.includes("“wetterdaten” has been cloned")), 10_000, { message: "success message" });
+    await app.waitFor(async () => (await toasts(app)).some((text) => text.includes("“wetterdaten” has been cloned")), 10_000, {
+      message: "success message",
+    });
     await app.waitFor(async () => (await app.$$('[data-row-kind="commit"]')).length >= 4, 20_000, { message: "graph of the clone" });
     await t.shot("clone-done");
     await t.noConsoleErrors(app);
@@ -323,12 +382,24 @@ scenario("clone: validation and errors stay in the dialog, nothing is left on di
     // Empty submit: three required fields marked, nothing started.
     await app.click(await cloneButton(app));
     // The form re-renders its fields; look them up each time.
-    const F = { address: () => field(app, CLONE, "Address"), folder: () => field(app, CLONE, "Target folder"), name: () => field(app, CLONE, "Folder name") };
+    const F = {
+      address: () => field(app, CLONE, "Address"),
+      folder: () => field(app, CLONE, "Target folder"),
+      name: () => field(app, CLONE, "Folder name"),
+    };
     const inv = async (key) => invalidOf(app, await F[key]());
     const err = async (key) => errorOf(app, await F[key]());
     const set = async (key, value) => fill(app, await F[key](), value);
-    await app.waitFor(async () => (await inv("address")) === "true" && (await inv("folder")) === "true" && (await inv("name")) === "true", 5000, { message: "all three required fields marked" });
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="clone"]').getAttribute("data-state")), "form", "nothing was started");
+    await app.waitFor(
+      async () => (await inv("address")) === "true" && (await inv("folder")) === "true" && (await inv("name")) === "true",
+      5000,
+      { message: "all three required fields marked" },
+    );
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-screen="clone"]').getAttribute("data-state")),
+      "form",
+      "nothing was started",
+    );
     // Odd inputs while typing.
     for (const [url, reason] of [
       ["ext::sh -c boese", /“::” aren't supported/],
@@ -358,13 +429,25 @@ scenario("clone: validation and errors stay in the dialog, nothing is left on di
     await set("address", ws.at("gibt-es-nicht.git"));
     await set("name", "aus-dem-nichts");
     await app.click(await cloneButton(app));
-    await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-clone-error]")?.getAttribute("data-clone-error"))) === "not_found", 30_000, { message: "code not_found" });
-    assertIncludes(await app.exec(() => document.querySelector("[data-clone-error]").innerText), "There is no repository at this address", "understandable sentence");
+    await app.waitFor(
+      async () => (await app.exec(() => document.querySelector("[data-clone-error]")?.getAttribute("data-clone-error"))) === "not_found",
+      30_000,
+      { message: "code not_found" },
+    );
+    assertIncludes(
+      await app.exec(() => document.querySelector("[data-clone-error]").innerText),
+      "There is no repository at this address",
+      "understandable sentence",
+    );
     assert(!exists(target, "aus-dem-nichts"), "no folder was created");
     // Server not reachable (closed local port).
     await set("address", "http://127.0.0.1:9/kein-server.git");
     await app.click(await cloneButton(app));
-    await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-clone-error]")?.getAttribute("data-clone-error"))) === "offline", 60_000, { message: "code offline" });
+    await app.waitFor(
+      async () => (await app.exec(() => document.querySelector("[data-clone-error]")?.getAttribute("data-clone-error"))) === "offline",
+      60_000,
+      { message: "code offline" },
+    );
     assert(!exists(target, "aus-dem-nichts"), "no folder after the failed connection");
     // Esc closes, nothing was added.
     await app.press("Escape");
@@ -402,7 +485,12 @@ scenario("clone: over HTTP with sign-in (cancel, then username and password)", "
             const dialogs = [...document.querySelectorAll('[role="dialog"]')];
             const prompt = dialogs.at(-1);
             const below = dialogs.slice(0, -1);
-            return Boolean(prompt?.contains(document.activeElement) && document.activeElement?.tagName === "INPUT" && prompt.style.pointerEvents !== "none" && below.every((dialog) => dialog.style.pointerEvents === "none"));
+            return Boolean(
+              prompt?.contains(document.activeElement) &&
+                document.activeElement?.tagName === "INPUT" &&
+                prompt.style.pointerEvents !== "none" &&
+                below.every((dialog) => dialog.style.pointerEvents === "none"),
+            );
           }),
         10_000,
         { message: "focus in the prompt's input, prompt on top" },
@@ -428,7 +516,10 @@ scenario("clone: over HTTP with sign-in (cancel, then username and password)", "
     assertEqual(git(ws, cloned, "rev-parse", "HEAD"), src.head, "git: HEAD = main on the server");
     assertEqual(git(ws, cloned, "remote", "get-url", "origin"), url, "git: origin is the address without credentials");
     assert(!fs.readFileSync(path.join(cloned, ".git", "config"), "utf8").includes("geheim-123"), "the password is not in .git/config");
-    assert(server.requests.some((entry) => entry.user === "lena"), "the server saw the sign-in");
+    assert(
+      server.requests.some((entry) => entry.user === "lena"),
+      "the server saw the sign-in",
+    );
     await t.noConsoleErrors(app);
   } finally {
     await server.close();
@@ -453,22 +544,38 @@ scenario("clone: cancelling a running clone removes the half-finished folder", "
     await app.click(await cloneButton(app));
     await app.waitFor("[data-clone-progress]", 30_000);
     await app.waitFor(async () => proxy.held > 0, 30_000, { message: "the transfer reached the proxy" });
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="clone"]').getAttribute("data-state")), "running", "the dialog shows the running clone");
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-screen="clone"]').getAttribute("data-state")),
+      "running",
+      "the dialog shows the running clone",
+    );
     const dir = path.join(target, "langsam-kopie");
     assert(fs.existsSync(dir), "git has created the target folder already");
     await t.shot("clone-progress");
     // Esc asks first; "Keep cloning" has focus and keeps it running.
     await app.press("Escape");
-    await app.waitFor(() => app.byText("The clone is still running", { exact: false, within: '[role="dialog"]' }), 10_000, { message: "confirmation" });
+    await app.waitFor(() => app.byText("The clone is still running", { exact: false, within: '[role="dialog"]' }), 10_000, {
+      message: "confirmation",
+    });
     await app.waitFor(async () => (await focusedText(app)) === "Keep cloning", 5000, { message: "focus on “Keep cloning”" });
     await t.shot("clone-cancel-question");
     await app.press("Enter");
-    await app.waitFor(async () => !(await app.byText("The clone is still running", { exact: false, within: '[role="dialog"]' })), 5000, { message: "confirmation closed" });
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="clone"]').getAttribute("data-state")), "running", "“Keep cloning” keeps it running");
+    await app.waitFor(async () => !(await app.byText("The clone is still running", { exact: false, within: '[role="dialog"]' })), 5000, {
+      message: "confirmation closed",
+    });
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-screen="clone"]').getAttribute("data-state")),
+      "running",
+      "“Keep cloning” keeps it running",
+    );
     // Cancel: back to the form, inputs kept, folder gone.
     await app.click(await app.waitFor(() => app.byText("Cancel clone", { within: '[role="dialog"]' })));
     await app.waitFor("[data-clone-cancelled]", 30_000);
-    assertIncludes(await app.exec(() => document.querySelector("[data-clone-cancelled]").innerText), "The incomplete folder was removed again", "the message says so");
+    assertIncludes(
+      await app.exec(() => document.querySelector("[data-clone-cancelled]").innerText),
+      "The incomplete folder was removed again",
+      "the message says so",
+    );
     await app.waitFor(async () => !fs.existsSync(dir), 15_000, { message: "half-finished folder removed" });
     assertEqual(await valueOf(app, await field(app, CLONE, "Folder name")), "langsam-kopie", "the inputs stay");
     assertEqual(await findRepo(app, dir), null, "the core added nothing");
@@ -497,7 +604,9 @@ async function chooseOption(app, combobox, option) {
   await app.click(combobox);
   await app.waitFor('[role="listbox"]', 5000);
   await app.click(await app.waitFor(() => app.byText(option, { within: '[role="listbox"]' }), 5000, { message: `option ${option}` }));
-  await app.waitFor(async () => (await app.exec((box) => box.innerText.trim(), combobox)) === option, 5000, { message: `${option} selected` });
+  await app.waitFor(async () => (await app.exec((box) => box.innerText.trim(), combobox)) === option, 5000, {
+    message: `${option} selected`,
+  });
 }
 
 scenario("init: create a repository with .gitignore template, license and README", "main", async (t) => {
@@ -509,25 +618,37 @@ scenario("init: create a repository with .gitignore template, license and README
     await app.exec(() => window.__gc.queryClient.invalidateQueries({ queryKey: ["app", "settings"] }).then(() => true));
     await openInit(app);
     assertEqual(await dialogTitle(app), "Create new repository", "title");
-    await app.waitFor(async () => (await valueOf(app, await field(app, INIT, "Default branch"))) === "trunk", 5000, { message: "default branch from the settings" });
+    await app.waitFor(async () => (await valueOf(app, await field(app, INIT, "Default branch"))) === "trunk", 5000, {
+      message: "default branch from the settings",
+    });
     await app.type(await field(app, INIT, "Name"), "wetter-auswertung");
     await fill(app, await field(app, INIT, "Location"), place);
     await chooseOption(app, await field(app, INIT, ".gitignore template"), "Python");
     await chooseOption(app, await field(app, INIT, "License"), "MIT License");
-    assertEqual((await app.exec(() => document.querySelector("[data-init-target]")?.innerText ?? "")).replace(/\s+/g, " "), `Will be created in: ${path.join(place, "wetter-auswertung")}`, "path preview");
+    assertEqual(
+      (await app.exec(() => document.querySelector("[data-init-target]")?.innerText ?? "")).replace(/\s+/g, " "),
+      `Will be created in: ${path.join(place, "wetter-auswertung")}`,
+      "path preview",
+    );
     await t.shot("init-dialog");
     await app.click(await app.waitFor(() => app.byText("Create repository", { within: '[role="dialog"]' })));
     await expectTabs(app, ["*wetter-auswertung"], "the new repository opens");
     const repo = path.join(place, "wetter-auswertung");
     assertEqual(fs.readdirSync(repo).sort(), [".git", ".gitignore", "LICENSE", "README.md"], "exactly these files");
     assertEqual(git(ws, repo, "rev-parse", "--abbrev-ref", "HEAD"), "trunk", "git: branch from the settings");
-    assertEqual(git(ws, repo, "log", "--format=%s|%an", "HEAD"), "Initial commit|Lena Hartmann", "git: one first commit by the profile's author");
+    assertEqual(
+      git(ws, repo, "log", "--format=%s|%an", "HEAD"),
+      "Initial commit|Lena Hartmann",
+      "git: one first commit by the profile's author",
+    );
     assertEqual(git(ws, repo, "ls-files").split("\n").sort(), [".gitignore", "LICENSE", "README.md"], "git: all three files committed");
     assertEqual(git(ws, repo, "status", "--porcelain"), "", "git: nothing uncommitted");
     assertMatch(fs.readFileSync(path.join(repo, ".gitignore"), "utf8"), /__pycache__/, ".gitignore is the Python template");
     assertMatch(fs.readFileSync(path.join(repo, "LICENSE"), "utf8"), /MIT License[\s\S]*Lena Hartmann/, "MIT license with the author");
     assertEqual((await findRepo(app, repo))?.trusted, true, "a repository created by the app is trusted");
-    await app.waitFor(async () => (await app.$$('[data-row-kind="commit"]')).length >= 1, 20_000, { message: "graph shows the first commit" });
+    await app.waitFor(async () => (await app.$$('[data-row-kind="commit"]')).length >= 1, 20_000, {
+      message: "graph shows the first commit",
+    });
     await t.shot("init-done");
     await t.noConsoleErrors(app);
   } finally {
@@ -545,7 +666,11 @@ scenario("init: without README no commit; taken target, invalid names and branch
     await fill(app, name, "ganz-leer");
     await fill(app, await field(app, INIT, "Location"), place);
     await app.click(await field(app, INIT, "Create README.md"));
-    assertIncludes(await app.exec(() => document.querySelector("[data-init-note]")?.innerText ?? ""), "with no first commit", "the dialog says beforehand that there is no commit");
+    assertIncludes(
+      await app.exec(() => document.querySelector("[data-init-note]")?.innerText ?? ""),
+      "with no first commit",
+      "the dialog says beforehand that there is no commit",
+    );
     await app.click(await app.waitFor(() => app.byText("Create repository", { within: '[role="dialog"]' })));
     await expectTabs(app, ["*ganz-leer"], "the empty repository opens");
     const empty = path.join(place, "ganz-leer");
@@ -588,7 +713,11 @@ scenario("init: without README no commit; taken target, invalid names and branch
     assert(!exists(place, "irgendwas"), "no half-finished folder");
     await app.press("Escape");
     await app.waitFor(async () => !(await app.$(INIT)), 5000, { message: "dialog closed" });
-    assertEqual((await repoList(app)).map((repo) => repo.name), ["ganz-leer"], "only the one created repository is listed");
+    assertEqual(
+      (await repoList(app)).map((repo) => repo.name),
+      ["ganz-leer"],
+      "only the one created repository is listed",
+    );
     await t.noConsoleErrors(app);
   } finally {
     ws.cleanup();
@@ -620,7 +749,11 @@ scenario("tabs: Ctrl+T, switch with Ctrl+1…9 / Ctrl+Tab / click, close with Ct
     await expectTabs(app, ["station-nord", "station-sued", "*station-hafen"], "three repositories in three tabs");
     const title = await app.exec(() => document.querySelector('[role="tab"][title]')?.getAttribute("title"));
     assertEqual(title, nord, "the tooltip of a tab is the full path");
-    await app.waitFor(() => app.exec(() => document.querySelector('[role="tab"]')?.textContent?.includes("uncommitted changes") ?? false), 15_000, { message: "the tab of the dirty repository carries the marker" });
+    await app.waitFor(
+      () => app.exec(() => document.querySelector('[role="tab"]')?.textContent?.includes("uncommitted changes") ?? false),
+      15_000,
+      { message: "the tab of the dirty repository carries the marker" },
+    );
     await t.shot("tabs-three-repositories");
 
     await app.exec(() => document.activeElement?.blur?.());
@@ -636,7 +769,11 @@ scenario("tabs: Ctrl+T, switch with Ctrl+1…9 / Ctrl+Tab / click, close with Ct
     await expectTabs(app, ["station-nord", "*station-sued", "station-hafen"], "Ctrl+Tab again: next tab");
     await app.press("Control+3");
     await expectTabs(app, ["station-nord", "station-sued", "*station-hafen"], "Ctrl+3");
-    await app.click(await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.includes("station-sued")))));
+    await app.click(
+      await app.waitFor(() =>
+        app.exec(() => [...document.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.includes("station-sued"))),
+      ),
+    );
     await expectTabs(app, ["station-nord", "*station-sued", "station-hafen"], "click activates");
     await app.exec(() => document.activeElement?.blur?.());
     await app.press("Control+w");
@@ -680,13 +817,19 @@ scenario("tabs: the same repository again activates its tab; tabs come back afte
 
     app = await relaunch(t, { ...LAUNCH, dataDir });
     await expectTabs(app, ["station-nord", "*station-sued"], "after the restart tabs, order and active tab are back");
-    await app.waitFor(async () => (await app.$$('[data-row-kind="commit"]')).length >= 1, 20_000, { message: "the active tab shows its graph" });
+    await app.waitFor(async () => (await app.$$('[data-row-kind="commit"]')).length >= 1, 20_000, {
+      message: "the active tab shows its graph",
+    });
     // Without "Remember tabs" the app starts with repository management.
     await app.invoke("settings_set", { patch: { rememberTabs: false } });
     await app.close();
     app = await relaunch(t, { ...LAUNCH, dataDir });
     await expectTabs(app, ["*Repositories"], "without “Remember tabs” only repository management");
-    assertEqual((await repoList(app)).map((repo) => repo.name).sort(), ["station-nord", "station-sued"], "the repositories stay in the list");
+    assertEqual(
+      (await repoList(app)).map((repo) => repo.name).sort(),
+      ["station-nord", "station-sued"],
+      "the repositories stay in the list",
+    );
     await t.noConsoleErrors(app);
   } finally {
     ws.cleanup();
@@ -727,14 +870,19 @@ scenario("groups: assign a group, arrange by groups, “Fetch group” updates e
   try {
     const app = await t.launch(LAUNCH);
     await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
-    const ids = await addRepos(app, repos.map((repo) => repo.path));
+    const ids = await addRepos(
+      app,
+      repos.map((repo) => repo.path),
+    );
     // Assign via the context menu of the row.
     const row = await app.waitFor(`[data-repo-scroll] [data-repo-id="${ids[0]}"]`);
     await contextMenu(app, row);
     await app.click(await menuItem(app, "Assign group …"));
     await app.waitFor(async () => (await dialogTitle(app)) === "Group for “station-nord”", 5000, { message: "group dialog" });
     await app.press(..."Messnetz".split(""), "Enter");
-    await app.waitFor(async () => (await repoList(app)).find((repo) => repo.id === ids[0])?.groupName === "Messnetz", 5000, { message: "group in the core" });
+    await app.waitFor(async () => (await repoList(app)).find((repo) => repo.id === ids[0])?.groupName === "Messnetz", 5000, {
+      message: "group in the core",
+    });
     // The second one picks the existing group in the same dialog.
     await contextMenu(app, await app.waitFor(`[data-repo-scroll] [data-repo-id="${ids[1]}"]`));
     await app.click(await menuItem(app, "Assign group …"));
@@ -743,7 +891,14 @@ scenario("groups: assign a group, arrange by groups, “Fetch group” updates e
     await app.invoke("repo_update", { repoId: ids[2], groupName: "Messnetz" });
     await refreshRepos(app);
     await app.click(await app.waitFor(() => app.byText("Groups", { within: '[aria-label="List arrangement"]' })));
-    await app.waitFor(async () => JSON.stringify(await app.exec(() => [...document.querySelectorAll("[data-repo-section]")].map((item) => item.textContent.trim()))) === JSON.stringify(["Messnetz3"]), 5000, { message: "one group with three repositories" });
+    await app.waitFor(
+      async () =>
+        JSON.stringify(
+          await app.exec(() => [...document.querySelectorAll("[data-repo-section]")].map((item) => item.textContent.trim())),
+        ) === JSON.stringify(["Messnetz3"]),
+      5000,
+      { message: "one group with three repositories" },
+    );
     await t.shot("groups-arranged");
 
     // New commits on two remotes.
@@ -752,15 +907,27 @@ scenario("groups: assign a group, arrange by groups, “Fetch group” updates e
     const heads = repos.map((repo) => repo.git("rev-parse", "HEAD"));
     await app.click(await app.waitFor(() => app.byText("Fetch group “Messnetz”")));
     await app.waitFor("[data-group-sync]", 10_000);
-    await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-group-sync]")?.getAttribute("data-running"))) === null, 60_000, { message: "the run is over" });
+    await app.waitFor(
+      async () => (await app.exec(() => document.querySelector("[data-group-sync]")?.getAttribute("data-running"))) === null,
+      60_000,
+      { message: "the run is over" },
+    );
     const rows = await syncRows(app);
     assertEqual(rows["station-nord"]?.status, "done", "nord: fetched");
     assertEqual(rows["station-hafen"]?.status, "done", "hafen: fetched");
     assertEqual(rows["station-sued"]?.status, "unchanged", "sued: nothing new");
-    assertEqual(await app.exec(() => document.querySelector("[data-group-sync-summary]")?.innerText.trim()), "2 with new changes · 1 unchanged", "summary");
+    assertEqual(
+      await app.exec(() => document.querySelector("[data-group-sync-summary]")?.innerText.trim()),
+      "2 with new changes · 1 unchanged",
+      "summary",
+    );
     assertEqual(repos[0].git("rev-parse", "origin/main"), nordSha, "git: origin/main of nord is up to date");
     assertEqual(repos[2].git("rev-parse", "origin/main"), hafenSha, "git: origin/main of hafen is up to date");
-    assertEqual(repos.map((repo) => repo.git("rev-parse", "HEAD")), heads, "git: fetch changed no HEAD");
+    assertEqual(
+      repos.map((repo) => repo.git("rev-parse", "HEAD")),
+      heads,
+      "git: fetch changed no HEAD",
+    );
     await t.shot("groups-fetch-result");
     await app.click(await app.waitFor("[data-group-sync-close]"));
     await app.waitFor(async () => !(await app.$("[data-group-sync]")), 5000, { message: "dialog closed" });
@@ -786,7 +953,11 @@ scenario("groups: an unreachable remote and a missing folder fail per row, the r
     await app.click(await app.waitFor(() => app.byText("Groups", { within: '[aria-label="List arrangement"]' })));
     await app.click(await app.waitFor(() => app.byText("Fetch group “Feld”")));
     await app.waitFor("[data-group-sync]", 10_000);
-    await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-group-sync]")?.getAttribute("data-running"))) === null, 60_000, { message: "the run is over" });
+    await app.waitFor(
+      async () => (await app.exec(() => document.querySelector("[data-group-sync]")?.getAttribute("data-running"))) === null,
+      60_000,
+      { message: "the run is over" },
+    );
     const rows = await syncRows(app);
     assertEqual(rows["station-ost"]?.status, "done", "ost: fetched despite the failures");
     assertEqual(rows["station-west"]?.status, "failed", "west: failed");
@@ -794,7 +965,10 @@ scenario("groups: an unreachable remote and a missing folder fail per row, the r
     assertEqual(rows["verzogen"]?.status, "failed", "missing folder: failed");
     assertMatch(rows["verzogen"]?.text, /Folder not found/, "missing folder: reason");
     assertEqual(repos[0].git("rev-parse", "origin/main"), ostSha, "git: ost is up to date");
-    assert(await app.byText(/^Retry 2 repositories$/.source, { regex: true, within: '[role="dialog"]' }), "“Retry” for the two failed ones");
+    assert(
+      await app.byText(/^Retry 2 repositories$/.source, { regex: true, within: '[role="dialog"]' }),
+      "“Retry” for the two failed ones",
+    );
     await t.shot("groups-fetch-failures");
     await app.click(await app.waitFor("[data-group-sync-close]"));
     // Dissolve the group via the context menu: the repositories stay, without group.
@@ -802,9 +976,13 @@ scenario("groups: an unreachable remote and a missing folder fail per row, the r
     await app.click(await menuItem(app, "Group “Feld”"));
     await app.click(await menuItem(app, "Dissolve group"));
     if (await app.waitFor(async () => (await dialogTitle(app)) !== null, 3000).catch(() => false)) {
-      await app.click(await app.waitFor(() => app.byText(/^Dissolve/.source, { regex: true, within: '[role="dialog"] footer, [role="dialog"]' })));
+      await app.click(
+        await app.waitFor(() => app.byText(/^Dissolve/.source, { regex: true, within: '[role="dialog"] footer, [role="dialog"]' })),
+      );
     }
-    await app.waitFor(async () => (await repoList(app)).every((repo) => repo.groupName === null), 10_000, { message: "group dissolved in the core" });
+    await app.waitFor(async () => (await repoList(app)).every((repo) => repo.groupName === null), 10_000, {
+      message: "group dissolved in the core",
+    });
     assertEqual((await repoList(app)).length, 3, "all repositories stay in the list");
     await t.noConsoleErrors(app);
   } finally {
@@ -835,8 +1013,12 @@ async function createProfile(app, { name, author, email }) {
 async function switchViaChip(app, name) {
   await app.click(await app.waitFor("[data-profile-chip]"));
   await app.click(await menuItem(app, name));
-  await app.waitFor(async () => (await app.invoke("profile_list")).find((profile) => profile.isActive)?.name === name, 10_000, { message: `profile ${name} active` });
-  await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-profile-chip]")?.innerText.trim())) === name, 10_000, { message: "chip shows the profile" });
+  await app.waitFor(async () => (await app.invoke("profile_list")).find((profile) => profile.isActive)?.name === name, 10_000, {
+    message: `profile ${name} active`,
+  });
+  await app.waitFor(async () => (await app.exec(() => document.querySelector("[data-profile-chip]")?.innerText.trim())) === name, 10_000, {
+    message: "chip shows the profile",
+  });
 }
 
 scenario("profiles: create a profile in the settings, switch with the chip, each profile keeps its tabs", "main", async (t) => {
@@ -849,16 +1031,24 @@ scenario("profiles: create a profile in the settings, switch with the chip, each
     await app.openRepo(privat);
     await openProfiles(app);
     await createProfile(app, { name: "Arbeit", author: "Lena Hartmann (Firma)", email: "lena@firma.example" });
-    await app.waitFor(async () => (await app.invoke("profile_list")).some((profile) => profile.name === "Arbeit"), 10_000, { message: "profile created" });
+    await app.waitFor(async () => (await app.invoke("profile_list")).some((profile) => profile.name === "Arbeit"), 10_000, {
+      message: "profile created",
+    });
     await app.waitFor('[data-profile="Arbeit"]', 5000);
     const created = (await app.invoke("profile_list")).find((profile) => profile.name === "Arbeit");
-    assertEqual([created.authorName, created.authorEmail, created.isActive], ["Lena Hartmann (Firma)", "lena@firma.example", false], "profile_list: identity stored, not active yet");
+    assertEqual(
+      [created.authorName, created.authorEmail, created.isActive],
+      ["Lena Hartmann (Firma)", "lena@firma.example", false],
+      "profile_list: identity stored, not active yet",
+    );
     await t.shot("profiles-list");
     await app.press("Escape");
     await app.waitFor(async () => !(await app.$('[role="dialog"]')), 5000, { message: "settings closed" });
 
     await switchViaChip(app, "Arbeit");
-    await app.waitFor(async () => (await toasts(app)).some((text) => text.includes("Profile “Arbeit” is active")), 5000, { message: "switch confirmed by a toast" });
+    await app.waitFor(async () => (await toasts(app)).some((text) => text.includes("Profile “Arbeit” is active")), 5000, {
+      message: "switch confirmed by a toast",
+    });
     await expectTabs(app, ["*Repositories"], "the new profile starts with its own (empty) tabs");
     assertEqual(await repoList(app), [], "the new profile lists no repositories");
     await app.pick(arbeit);
@@ -869,14 +1059,22 @@ scenario("profiles: create a profile in the settings, switch with the chip, each
     // Back: the old profile's tab is back, each profile lists only its own repository.
     await switchViaChip(app, "Default");
     await expectTabs(app, ["*privat-notizen"], "switching back restores the tabs of Default");
-    assertEqual((await repoList(app)).map((repo) => repo.name), ["privat-notizen"], "Default lists only its repository");
+    assertEqual(
+      (await repoList(app)).map((repo) => repo.name),
+      ["privat-notizen"],
+      "Default lists only its repository",
+    );
     await switchViaChip(app, "Arbeit");
     await expectTabs(app, ["*firmen-projekt"], "and Arbeit gets its tab back");
     // Command palette: “New profile …” leads to the same dialog.
     await app.press("Control+p");
     await app.waitFor('[role="dialog"] input', 5000);
     await app.press(..."new profile".split(""));
-    await app.waitFor(() => app.byText(/^New profile/.source, { regex: true, within: '[role="dialog"] [role="listbox"], [role="dialog"]' }), 5000, { message: "palette entry" });
+    await app.waitFor(
+      () => app.byText(/^New profile/.source, { regex: true, within: '[role="dialog"] [role="listbox"], [role="dialog"]' }),
+      5000,
+      { message: "palette entry" },
+    );
     await app.press("Enter");
     await app.waitFor(async () => (await dialogTitle(app)) === "New profile", 10_000, { message: "palette opens the new-profile dialog" });
     await app.press("Escape");
@@ -894,7 +1092,17 @@ function repoWithoutIdentity(ws, name) {
   return dir;
 }
 const commitAll = (app, repoId, summary) =>
-  app.invoke("commit_create", { repoId, opId: `wd-${Date.now()}`, summary, description: "", amend: false, skipHooks: true, pushAfter: false, stageAll: true, expectedHead: null });
+  app.invoke("commit_create", {
+    repoId,
+    opId: `wd-${Date.now()}`,
+    summary,
+    description: "",
+    amend: false,
+    skipHooks: true,
+    pushAfter: false,
+    stageAll: true,
+    expectedHead: null,
+  });
 
 scenario("profiles: with “Write name and email to the global gitconfig” commits get the profile identity", "edge", async (t) => {
   const ws = makeWorkspace("wd-profiles-sync");
@@ -902,16 +1110,29 @@ scenario("profiles: with “Write name and email to the global gitconfig” comm
     const repo = repoWithoutIdentity(ws, "firmen-projekt");
     const app = await t.launch(LAUNCH);
     await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
-    await app.invoke("profile_save", { id: null, name: "Arbeit", authorName: "Lena Firma", authorEmail: "lena@firma.example", syncGitconfig: false, color: null });
+    await app.invoke("profile_save", {
+      id: null,
+      name: "Arbeit",
+      authorName: "Lena Firma",
+      authorEmail: "lena@firma.example",
+      syncGitconfig: false,
+      color: null,
+    });
     await app.exec(() => window.__gc.queryClient.invalidateQueries({ queryKey: ["app", "profiles"] }).then(() => true));
     await switchViaChip(app, "Arbeit");
     await openProfiles(app);
     const toggle = await field(app, '[role="dialog"]', "Write name and email to the global gitconfig");
     assertEqual(await toggle.attr("aria-checked"), "false", "off for a new profile");
     await app.click(toggle);
-    await app.waitFor(async () => (await app.invoke("profile_list")).find((profile) => profile.name === "Arbeit")?.syncGitconfig === true, 10_000, { message: "sync stored" });
+    await app.waitFor(
+      async () => (await app.invoke("profile_list")).find((profile) => profile.name === "Arbeit")?.syncGitconfig === true,
+      10_000,
+      { message: "sync stored" },
+    );
     const globalValue = (key) => gitOr(ws, ws.root, "", "config", "--file", app.gitConfigPath, "--get", key);
-    await app.waitFor(async () => globalValue("user.email") === "lena@firma.example", 10_000, { message: "the global gitconfig gets the profile identity" });
+    await app.waitFor(async () => globalValue("user.email") === "lena@firma.example", 10_000, {
+      message: "the global gitconfig gets the profile identity",
+    });
     assertEqual(globalValue("user.name"), "Lena Firma", "git config --global user.name");
     await t.shot("profiles-sync-gitconfig");
     await app.press("Escape");
@@ -919,7 +1140,11 @@ scenario("profiles: with “Write name and email to the global gitconfig” comm
     const { repoId } = await app.openRepo(repo);
     fs.writeFileSync(path.join(repo, "plan.md"), "# Plan\n");
     await commitAll(app, repoId, "Plan angelegt");
-    assertEqual(git(ws, repo, "log", "-1", "--format=%an <%ae>|%s"), "Lena Firma <lena@firma.example>|Plan angelegt", "git: the commit carries the identity of profile Arbeit");
+    assertEqual(
+      git(ws, repo, "log", "-1", "--format=%an <%ae>|%s"),
+      "Lena Firma <lena@firma.example>|Plan angelegt",
+      "git: the commit carries the identity of profile Arbeit",
+    );
     await t.noConsoleErrors(app);
   } finally {
     ws.cleanup();
@@ -936,10 +1161,19 @@ scenario("profiles: after a switch commits are authored by the profile the toast
     const repo = repoWithoutIdentity(ws, "firmen-projekt");
     const app = await t.launch(LAUNCH);
     await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
-    await app.invoke("profile_save", { id: null, name: "Arbeit", authorName: "Lena Firma", authorEmail: "lena@firma.example", syncGitconfig: false, color: null });
+    await app.invoke("profile_save", {
+      id: null,
+      name: "Arbeit",
+      authorName: "Lena Firma",
+      authorEmail: "lena@firma.example",
+      syncGitconfig: false,
+      color: null,
+    });
     await app.exec(() => window.__gc.queryClient.invalidateQueries({ queryKey: ["app", "profiles"] }).then(() => true));
     await switchViaChip(app, "Arbeit");
-    const toast = await app.waitFor(async () => (await toasts(app)).find((text) => text.includes("Profile “Arbeit” is active")), 5000, { message: "switch toast" });
+    const toast = await app.waitFor(async () => (await toasts(app)).find((text) => text.includes("Profile “Arbeit” is active")), 5000, {
+      message: "switch toast",
+    });
     t.step(`toast: ${toast}`);
     assert(!toast.includes("Commits are now authored by"), `without sync the toast promises no author: ${toast}`);
     await t.shot("profiles-switch-toast");
@@ -948,28 +1182,47 @@ scenario("profiles: after a switch commits are authored by the profile the toast
     await commitAll(app, repoId, "Plan angelegt");
     const author = git(ws, repo, "log", "-1", "--format=%an <%ae>");
     t.step(`git log author: ${author}`);
-    assertEqual(author, `${TEST_IDENTITY.name} <${TEST_IDENTITY.email}>`, "git: without sync the commit carries the global gitconfig identity");
+    assertEqual(
+      author,
+      `${TEST_IDENTITY.name} <${TEST_IDENTITY.email}>`,
+      "git: without sync the commit carries the global gitconfig identity",
+    );
 
     // Sync on: a new profile from the dialog inherits it, and its switch toast names the author.
     const arbeit = (await app.invoke("profile_list")).find((profile) => profile.name === "Arbeit");
-    await app.invoke("profile_save", { id: arbeit.id, name: "Arbeit", authorName: "Lena Firma", authorEmail: "lena@firma.example", syncGitconfig: true, color: null });
+    await app.invoke("profile_save", {
+      id: arbeit.id,
+      name: "Arbeit",
+      authorName: "Lena Firma",
+      authorEmail: "lena@firma.example",
+      syncGitconfig: true,
+      color: null,
+    });
     await app.exec(() => window.__gc.queryClient.invalidateQueries({ queryKey: ["app", "profiles"] }).then(() => true));
     await openProfiles(app);
     await createProfile(app, { name: "Kunde", author: "Lena Kunde", email: "lena@kunde.example" });
-    await app.waitFor(async () => (await app.invoke("profile_list")).some((profile) => profile.name === "Kunde"), 10_000, { message: "profile Kunde created" });
+    await app.waitFor(async () => (await app.invoke("profile_list")).some((profile) => profile.name === "Kunde"), 10_000, {
+      message: "profile Kunde created",
+    });
     const kunde = (await app.invoke("profile_list")).find((profile) => profile.name === "Kunde");
     assertEqual(kunde.syncGitconfig, true, "the new profile takes over the active profile's gitconfig sync");
     await app.press("Escape");
     await app.waitFor(async () => !(await app.$('[role="dialog"]')), 5000, { message: "settings closed" });
     await switchViaChip(app, "Kunde");
-    const synced = await app.waitFor(async () => (await toasts(app)).find((text) => text.includes("Profile “Kunde” is active")), 5000, { message: "switch toast Kunde" });
+    const synced = await app.waitFor(async () => (await toasts(app)).find((text) => text.includes("Profile “Kunde” is active")), 5000, {
+      message: "switch toast Kunde",
+    });
     assertIncludes(synced, "Commits are now authored by Lena Kunde", "with sync the toast names the profile's author");
     // Each profile has its own repo list: Kunde gets its own repository.
     const kundenRepo = repoWithoutIdentity(ws, "kunden-projekt");
     const { repoId: again } = await app.openRepo(kundenRepo);
     fs.writeFileSync(path.join(kundenRepo, "plan.md"), "# Plan\n\nmehr\n");
     await commitAll(app, again, "Plan erweitert");
-    assertEqual(git(ws, kundenRepo, "log", "-1", "--format=%an <%ae>"), "Lena Kunde <lena@kunde.example>", "git: with sync the commit carries the profile named in the toast");
+    assertEqual(
+      git(ws, kundenRepo, "log", "-1", "--format=%an <%ae>"),
+      "Lena Kunde <lena@kunde.example>",
+      "git: with sync the commit carries the profile named in the toast",
+    );
     await t.noConsoleErrors(app);
   } finally {
     ws.cleanup();
@@ -987,7 +1240,14 @@ scenario("profiles: a repository of another profile asks “Also open in …” 
     await app.press("Control+t");
     await management(app);
     await app.openRepo(zwei);
-    await app.invoke("profile_save", { id: null, name: "Arbeit", authorName: "Lena Firma", authorEmail: "lena@firma.example", syncGitconfig: false, color: null });
+    await app.invoke("profile_save", {
+      id: null,
+      name: "Arbeit",
+      authorName: "Lena Firma",
+      authorEmail: "lena@firma.example",
+      syncGitconfig: false,
+      color: null,
+    });
     await app.exec(() => window.__gc.queryClient.invalidateQueries({ queryKey: ["app", "profiles"] }).then(() => true));
     await switchViaChip(app, "Arbeit");
     await expectTabs(app, ["*Repositories"], "profile Arbeit starts empty");
@@ -995,13 +1255,23 @@ scenario("profiles: a repository of another profile asks “Also open in …” 
     // 1. “Also open in “Arbeit””: listed in both profiles.
     await app.pick(eins);
     await app.click(await mgmtButton(app, "Open …"));
-    await app.waitFor(async () => (await dialogTitle(app)) === "“gemeinsam-eins” belongs to the profile “Default”", 10_000, { message: "question about the other profile" });
+    await app.waitFor(async () => (await dialogTitle(app)) === "“gemeinsam-eins” belongs to the profile “Default”", 10_000, {
+      message: "question about the other profile",
+    });
     assertEqual(await focusedText(app).then((text) => text?.startsWith("Switch to “Default”")), true, "focus on the first option");
     await t.shot("profiles-other-profile-question");
     await app.click(await app.waitFor(() => app.byText("Also open in “Arbeit”", { within: '[role="dialog"]' })));
     await expectTabs(app, ["*gemeinsam-eins"], "opened in profile Arbeit");
-    assertEqual((await repoList(app)).map((repo) => repo.name), ["gemeinsam-eins"], "now listed in Arbeit");
-    assertEqual((await app.invoke("repo_profiles", { path: eins })).map((profile) => profile.name), ["Default"], "and still in Default");
+    assertEqual(
+      (await repoList(app)).map((repo) => repo.name),
+      ["gemeinsam-eins"],
+      "now listed in Arbeit",
+    );
+    assertEqual(
+      (await app.invoke("repo_profiles", { path: eins })).map((profile) => profile.name),
+      ["Default"],
+      "and still in Default",
+    );
 
     // 2. Cancel: nothing happens.
     await app.press("Control+t");
@@ -1011,7 +1281,11 @@ scenario("profiles: a repository of another profile asks “Also open in …” 
     await app.waitFor(async () => (await dialogTitle(app))?.includes("gemeinsam-zwei"), 10_000, { message: "question for zwei" });
     await app.press("Escape");
     await app.waitFor(async () => (await dialogTitle(app)) === null, 5000, { message: "question closed" });
-    assertEqual((await repoList(app)).map((repo) => repo.name), ["gemeinsam-eins"], "cancel adds nothing");
+    assertEqual(
+      (await repoList(app)).map((repo) => repo.name),
+      ["gemeinsam-eins"],
+      "cancel adds nothing",
+    );
     assertEqual((await app.invoke("profile_list")).find((profile) => profile.isActive).name, "Arbeit", "cancel stays in the profile");
     assertEqual(await toasts(app), [], "cancel shows no error");
 
@@ -1020,7 +1294,9 @@ scenario("profiles: a repository of another profile asks “Also open in …” 
     await app.click(await mgmtButton(app, "Open …"));
     await app.waitFor(async () => (await dialogTitle(app))?.includes("gemeinsam-zwei"), 10_000, { message: "question for zwei again" });
     await app.click(await app.waitFor(() => app.byText(/^Switch to “Default”/.source, { regex: true, within: '[role="dialog"]' })));
-    await app.waitFor(async () => (await app.invoke("profile_list")).find((profile) => profile.isActive)?.name === "Default", 10_000, { message: "switched to Default" });
+    await app.waitFor(async () => (await app.invoke("profile_list")).find((profile) => profile.isActive)?.name === "Default", 10_000, {
+      message: "switched to Default",
+    });
     await app.waitFor(async () => (await core(app)).includes("*gemeinsam-zwei"), 10_000, { message: "zwei active in Default" });
     assertEqual((await repoList(app)).map((repo) => repo.name).sort(), ["gemeinsam-eins", "gemeinsam-zwei"], "Default lists both");
     await t.noConsoleErrors(app);
@@ -1087,17 +1363,44 @@ scenario("trust: a foreign repository stays locked until “Trust and open”", 
     await app.click(await mgmtButton(app, "Open …"));
     const gate = await app.waitFor(GATE, 15_000);
     await app.settle();
-    assertEqual(await app.exec(() => document.querySelector('[data-shell="untrusted"] h1')?.textContent), "“fremdes-archiv” brings its own commands", "the prompt names the repository");
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-shell="untrusted"] h1')?.textContent),
+      "“fremdes-archiv” brings its own commands",
+      "the prompt names the repository",
+    );
     await app.waitFor(async () => (await gate.$$("li")).length === 4, 10_000, { message: "four findings" });
     const text = await gate.text();
-    for (const expected of ["core.fsmonitor", `touch ${FSMONITOR_MARKER};:`, "http.proxy", "http.sslverify", "Hook post-checkout", "None of it has run so far"]) assertIncludes(text, expected, "the prompt lists");
-    assert(!(await app.exec(() => document.documentElement.outerHTML)).includes(PROXY_PASSWORD), "the proxy password appears nowhere in the page");
-    assertEqual(await app.exec(() => document.querySelectorAll('[data-area="left"], [data-area="center"], [data-area="right"]').length), 0, "no repository view behind the prompt");
+    for (const expected of [
+      "core.fsmonitor",
+      `touch ${FSMONITOR_MARKER};:`,
+      "http.proxy",
+      "http.sslverify",
+      "Hook post-checkout",
+      "None of it has run so far",
+    ])
+      assertIncludes(text, expected, "the prompt lists");
+    assert(
+      !(await app.exec(() => document.documentElement.outerHTML)).includes(PROXY_PASSWORD),
+      "the proxy password appears nowhere in the page",
+    );
+    assertEqual(
+      await app.exec(() => document.querySelectorAll('[data-area="left"], [data-area="center"], [data-area="right"]').length),
+      0,
+      "no repository view behind the prompt",
+    );
     await app.waitFor(async () => (await focusedText(app)) === "Close tab", 5000, { message: "focus on the safe choice “Close tab”" });
     const repoId = (await findRepo(app, foreign.path)).id;
-    const codeOf = (command, args) => app.invoke(command, args).then(() => null, (error) => error.code);
+    const codeOf = (command, args) =>
+      app.invoke(command, args).then(
+        () => null,
+        (error) => error.code,
+      );
     assertEqual(await codeOf("status_get", { repoId }), "repo_untrusted", "the core refuses status_get");
-    assertEqual(await codeOf("fetch", { repoId, jobId: "wd-trust-1", remote: null, prune: false }), "repo_untrusted", "the core refuses fetch");
+    assertEqual(
+      await codeOf("fetch", { repoId, jobId: "wd-trust-1", remote: null, prune: false }),
+      "repo_untrusted",
+      "the core refuses fetch",
+    );
     await sleep(2500);
     assert(!ran(foreign, FSMONITOR_MARKER), "core.fsmonitor did NOT run");
     assert(!ran(foreign, HOOK_MARKER), "the hook did not run");
@@ -1108,7 +1411,9 @@ scenario("trust: a foreign repository stays locked until “Trust and open”", 
     await app.settle();
     assert(!(await app.$(GATE)), "the prompt is gone");
     assertEqual((await findRepo(app, foreign.path)).trusted, true, "repo_list: trusted");
-    await app.waitFor(async () => ran(foreign, FSMONITOR_MARKER), 15_000, { message: "after agreeing Git runs the configured command (proof the lock held it back)" });
+    await app.waitFor(async () => ran(foreign, FSMONITOR_MARKER), 15_000, {
+      message: "after agreeing Git runs the configured command (proof the lock held it back)",
+    });
     const trust = await app.invoke("repo_trust_get", { repoId });
     assert(!JSON.stringify(trust).includes(PROXY_PASSWORD), "repo_trust_get does not reveal the password");
     await t.shot("trust-agreed");

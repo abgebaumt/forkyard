@@ -99,7 +99,12 @@ describe("shortcut platform", () => {
     const spoofed = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
     expect(detectPlatform(spoofed, "Linux x86_64")).toBe("linux");
     expect(detectPlatform(spoofed, "MacIntel")).toBe("mac");
-    expect(detectPlatform("Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15", "Linux x86_64")).toBe("linux");
+    expect(
+      detectPlatform(
+        "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+        "Linux x86_64",
+      ),
+    ).toBe("linux");
     expect(detectPlatform("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Edg/120.0", "Win32")).toBe("windows");
   });
 });

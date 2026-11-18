@@ -4,13 +4,46 @@
  * be pruned. Enter opens the worktree in a tab.
  */
 import { useEffect, type ReactNode } from "react";
-import { Copy, Eraser, FolderGit2, FolderLock, FolderX, Loader2, Lock, LockOpen, PencilLine, Plus, SquareArrowOutUpRight, Trash2, TriangleAlert } from "lucide-react";
+import {
+  Copy,
+  Eraser,
+  FolderGit2,
+  FolderLock,
+  FolderX,
+  Loader2,
+  Lock,
+  LockOpen,
+  PencilLine,
+  Plus,
+  SquareArrowOutUpRight,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import type { Agent, Id, Worktree } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
-import { folderName, lockWorktree, openWorktree, pruneWorktrees, removeBlock, removeWorktree, samePath, unlockWorktree, worktreeBusyKey } from "../../app/actions/worktrees";
+import {
+  folderName,
+  lockWorktree,
+  openWorktree,
+  pruneWorktrees,
+  removeBlock,
+  removeWorktree,
+  samePath,
+  unlockWorktree,
+  worktreeBusyKey,
+} from "../../app/actions/worktrees";
 import { qk, queryClient, useAgents, useViewState, useWorktrees } from "../../app/queries";
 import { useAppStore, useBusy } from "../../app/store";
-import { Marked, MENU_SEPARATOR, menuItem, SideEmpty, SideLoadError, SideSection, SideSkeleton, type SideRowState } from "../../components/SideSection";
+import {
+  Marked,
+  MENU_SEPARATOR,
+  menuItem,
+  SideEmpty,
+  SideLoadError,
+  SideSection,
+  SideSkeleton,
+  type SideRowState,
+} from "../../components/SideSection";
 import { Button, IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { TreeRow } from "../../ui/Git";
@@ -38,7 +71,10 @@ function worktreeMenu(repoId: Id, worktree: Worktree, anyOrphans: boolean, agent
   const lockBlock = worktree.isMain ? t("worktrees.menu.mainNoLock") : null;
   return [
     agent
-      ? menuItem(t("agents.actions.details"), SquareArrowOutUpRight, () => useAppStore.getState().showAgent(tabId, agent.id), { shortcut: "Enter", tooltip: t("agents.worktreeOpenBlocked") })
+      ? menuItem(t("agents.actions.details"), SquareArrowOutUpRight, () => useAppStore.getState().showAgent(tabId, agent.id), {
+          shortcut: "Enter",
+          tooltip: t("agents.worktreeOpenBlocked"),
+        })
       : menuItem(t("worktrees.dialog.openInTab"), SquareArrowOutUpRight, () => void openWorktree(worktree), {
           shortcut: "Enter",
           blocked: worktree.isPrunable ? t("worktrees.menu.folderMissing") : worktree.isCurrent ? t("worktrees.menu.alreadyOpen") : null,
@@ -47,23 +83,51 @@ function worktreeMenu(repoId: Id, worktree: Worktree, anyOrphans: boolean, agent
     MENU_SEPARATOR,
     worktree.isLocked
       ? menuItem(t("worktrees.menu.unlock"), LockOpen, () => void unlockWorktree(repoId, worktree))
-      : menuItem(t("worktrees.menu.lock"), Lock, () => void changeLock(repoId, worktree), { blocked: lockBlock, hint: lockBlock ? undefined : t("worktrees.menu.lockHint") }),
+      : menuItem(t("worktrees.menu.lock"), Lock, () => void changeLock(repoId, worktree), {
+          blocked: lockBlock,
+          hint: lockBlock ? undefined : t("worktrees.menu.lockHint"),
+        }),
     worktree.isLocked ? menuItem(t("worktrees.menu.changeReason"), PencilLine, () => void changeLock(repoId, worktree)) : null,
     MENU_SEPARATOR,
     menuItem(t("worktrees.menu.create"), Plus, () => void openWorktreeDialog(repoId)),
     anyOrphans ? menuItem(t("worktrees.menu.pruneAll"), Eraser, () => void pruneWorktrees(repoId)) : null,
     MENU_SEPARATOR,
     worktree.isPrunable && !worktree.isLocked
-      ? menuItem(t("worktrees.menu.pruneOne"), Eraser, () => void pruneWorktrees(repoId), { shortcut: "Delete", tooltip: t("worktrees.menu.pruneOneTip", { name }) })
-      : menuItem(t("worktrees.menu.remove"), Trash2, () => void removeWorktree(repoId, worktree), { shortcut: "Delete", danger: true, tooltip: t("worktrees.menu.removeTip", { name }), blocked: removeBlock(worktree) }),
+      ? menuItem(t("worktrees.menu.pruneOne"), Eraser, () => void pruneWorktrees(repoId), {
+          shortcut: "Delete",
+          tooltip: t("worktrees.menu.pruneOneTip", { name }),
+        })
+      : menuItem(t("worktrees.menu.remove"), Trash2, () => void removeWorktree(repoId, worktree), {
+          shortcut: "Delete",
+          danger: true,
+          tooltip: t("worktrees.menu.removeTip", { name }),
+          blocked: removeBlock(worktree),
+        }),
   ].filter((entry): entry is MenuEntry => entry !== null);
 }
 
-function WorktreeRow({ worktree, state, query, busy, repoName, agent }: { worktree: Worktree; state: SideRowState; query: string; busy: boolean; repoName: string; agent: boolean }) {
+function WorktreeRow({
+  worktree,
+  state,
+  query,
+  busy,
+  repoName,
+  agent,
+}: {
+  worktree: Worktree;
+  state: SideRowState;
+  query: string;
+  busy: boolean;
+  repoName: string;
+  agent: boolean;
+}) {
   const name = folderName(worktree.path);
   // The prefix shared by all folders is only there for screen readers (full path in the tooltip); while filtering the name stays whole so the match is right.
   const [prefix, rest] = query.trim() ? ["", name] : splitFolderName(name, repoName);
-  const detail = worktree.isLocked && worktree.lockReason && !worktree.isPrunable ? `${worktreeSecondary(worktree)}: ${worktree.lockReason}` : worktreeSecondary(worktree);
+  const detail =
+    worktree.isLocked && worktree.lockReason && !worktree.isPrunable
+      ? `${worktreeSecondary(worktree)}: ${worktree.lockReason}`
+      : worktreeSecondary(worktree);
   const lines = worktreeTipLines(worktree);
   const Icon = worktree.isPrunable ? FolderX : worktree.isLocked ? FolderLock : FolderGit2;
   const flags = (
@@ -90,7 +154,10 @@ function WorktreeRow({ worktree, state, query, busy, repoName, agent }: { worktr
         </Tip>
       ) : null}
       {worktree.isLocked ? (
-        <Tip label={worktree.lockReason ? t("worktrees.tip.lockedReason", { reason: worktree.lockReason }) : t("worktrees.tip.lockedNoReason")} side="right">
+        <Tip
+          label={worktree.lockReason ? t("worktrees.tip.lockedReason", { reason: worktree.lockReason }) : t("worktrees.tip.lockedNoReason")}
+          side="right"
+        >
           <span className="inline-flex items-center text-text-muted" data-flag="locked">
             <Lock className="size-3.5" aria-hidden />
           </span>
@@ -121,7 +188,13 @@ function WorktreeRow({ worktree, state, query, busy, repoName, agent }: { worktr
           ))}
         </span>
       }
-      icon={busy ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Icon className={cn("size-3.5", worktree.isPrunable && "text-warning")} aria-hidden />}
+      icon={
+        busy ? (
+          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+        ) : (
+          <Icon className={cn("size-3.5", worktree.isPrunable && "text-warning")} aria-hidden />
+        )
+      }
       active={worktree.isCurrent}
       selected={state.selected}
       focusable={state.focusable}
@@ -192,7 +265,10 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
 
   let placeholder: ReactNode = undefined;
   if (worktrees.isPending) placeholder = <SideSkeleton rows={1} />;
-  else if (worktrees.isError && !worktrees.data) placeholder = <SideLoadError title={t("worktrees.section.loadError")} error={worktrees.error} onRetry={() => void worktrees.refetch()} />;
+  else if (worktrees.isError && !worktrees.data)
+    placeholder = (
+      <SideLoadError title={t("worktrees.section.loadError")} error={worktrees.error} onRetry={() => void worktrees.refetch()} />
+    );
   else if (all.length === 0) {
     placeholder = (
       <SideEmpty
@@ -208,11 +284,17 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
   }
 
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("worktrees.section.collapse") : t("worktrees.section.expand"), null, toggle, { blocked: filtering ? t("worktrees.section.alwaysOpen") : null }),
-    menuItem(t("worktrees.section.hide"), null, () => void setSection(repoId, "worktrees", { hidden: true }), { hint: t("worktrees.section.hideHint") }),
+    menuItem(open ? t("worktrees.section.collapse") : t("worktrees.section.expand"), null, toggle, {
+      blocked: filtering ? t("worktrees.section.alwaysOpen") : null,
+    }),
+    menuItem(t("worktrees.section.hide"), null, () => void setSection(repoId, "worktrees", { hidden: true }), {
+      hint: t("worktrees.section.hideHint"),
+    }),
     MENU_SEPARATOR,
     menuItem(t("worktrees.menu.create"), Plus, () => void openWorktreeDialog(repoId)),
-    menuItem(t("worktrees.menu.pruneAll"), Eraser, () => void pruneWorktrees(repoId), { blocked: orphans.length ? null : t("worktrees.section.noOrphans") }),
+    menuItem(t("worktrees.menu.pruneAll"), Eraser, () => void pruneWorktrees(repoId), {
+      blocked: orphans.length ? null : t("worktrees.section.noOrphans"),
+    }),
   ];
 
   return (
@@ -227,7 +309,17 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
       items={items}
       itemId={(item) => item.path}
       itemText={(item) => folderName(item.path)}
-      renderRow={(item, rowState) => <WorktreeRow key={item.path} worktree={item} state={rowState} query={query} busy={false} repoName={repoName} agent={Boolean(agentAt(item))} />}
+      renderRow={(item, rowState) => (
+        <WorktreeRow
+          key={item.path}
+          worktree={item}
+          state={rowState}
+          query={query}
+          busy={false}
+          repoName={repoName}
+          agent={Boolean(agentAt(item))}
+        />
+      )}
       onActivate={(item) => {
         const agent = agentAt(item);
         if (agent) useAppStore.getState().showAgent(tabId, agent.id);
@@ -237,7 +329,15 @@ export function WorktreesSection({ repoId, tabId, query }: WorktreesSectionProps
       rowMenu={(item) => worktreeMenu(repoId, item, orphans.length > 0, agentAt(item), tabId)}
       sectionMenu={sectionMenu}
       placeholder={placeholder}
-      actions={<IconButton size="sm" data-action="add" label={t("worktrees.dialog.title")} icon={<Plus className="size-3.5" aria-hidden />} onClick={() => void openWorktreeDialog(repoId)} />}
+      actions={
+        <IconButton
+          size="sm"
+          data-action="add"
+          label={t("worktrees.dialog.title")}
+          icon={<Plus className="size-3.5" aria-hidden />}
+          onClick={() => void openWorktreeDialog(repoId)}
+        />
+      }
       pinnedActions={
         busy || orphans.length ? (
           <>

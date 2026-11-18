@@ -101,7 +101,9 @@ export async function reportHookRejection(label: string, error: CoreError, notif
     tone: "danger",
     title,
     description: line ? `${message}\n${line}` : message,
-    action: output ? { label: t("notifications.hooks.showOutput"), onClick: () => showHookOutput(hook ?? t("notifications.hooks.gitHook"), output) } : undefined,
+    action: output
+      ? { label: t("notifications.hooks.showOutput"), onClick: () => showHookOutput(hook ?? t("notifications.hooks.gitHook"), output) }
+      : undefined,
   });
   // The hook itself has already notified the system if its event arrived.
   if (!failure) desktopNotify(notifyOnError, title, message);

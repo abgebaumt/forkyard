@@ -9,7 +9,18 @@
  * arises, the row says so – it is resolved in the repository's tab.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ArrowDownToLine, Check, CircleSlash, CloudDownload, FolderX, Hourglass, Minus, OctagonAlert, RotateCw, TriangleAlert } from "lucide-react";
+import {
+  ArrowDownToLine,
+  Check,
+  CircleSlash,
+  CloudDownload,
+  FolderX,
+  Hourglass,
+  Minus,
+  OctagonAlert,
+  RotateCw,
+  TriangleAlert,
+} from "lucide-react";
 import { core, type Id, type Repo, type Settings } from "../../core";
 import { openRepoTab } from "../../app/actions/repos";
 import { showDialog } from "../../app/dialogs";
@@ -42,9 +53,25 @@ interface RowState {
   offerOpen: boolean;
 }
 
-const waiting = (): RowState => ({ status: "waiting", text: t("repos.sync.waiting"), phase: "", percent: null, jobId: null, offerOpen: false });
+const waiting = (): RowState => ({
+  status: "waiting",
+  text: t("repos.sync.waiting"),
+  phase: "",
+  percent: null,
+  jobId: null,
+  offerOpen: false,
+});
 
-const kindInfo: Record<GroupSyncKind, { dialogTitle: (group: string) => string; title: string; running: string; description: (repos: string) => string; icon: typeof CloudDownload }> = {
+const kindInfo: Record<
+  GroupSyncKind,
+  {
+    dialogTitle: (group: string) => string;
+    title: string;
+    running: string;
+    description: (repos: string) => string;
+    icon: typeof CloudDownload;
+  }
+> = {
   fetch: {
     dialogTitle: (group) => t("repos.sync.fetch.dialogTitle", { group }),
     title: t("repos.sync.fetch.title"),
@@ -78,7 +105,9 @@ async function runOne(repo: Repo, kind: GroupSyncKind, jobId: string): Promise<O
         const first = result.failed[0]!;
         const reason = `${first.remote}: ${first.message}${result.failed.length > 1 ? t("repos.sync.moreFailed", { count: result.failed.length - 1 }) : ""}`;
         // If something came from other remotes it is a partial success; otherwise a failure.
-        return changed ? { status: "attention", text: t("repos.sync.partial", { parts: parts.join(", "), reason }) } : { status: "failed", text: reason };
+        return changed
+          ? { status: "attention", text: t("repos.sync.partial", { parts: parts.join(", "), reason }) }
+          : { status: "failed", text: reason };
       }
       return changed ? { status: "done", text: parts.join(", ") } : { status: "unchanged", text: t("repos.sync.nothingNew") };
     }
@@ -146,7 +175,8 @@ function summarize(rows: RowState[], kind: GroupSyncKind): string {
   if (open) return t("repos.sync.summary.progress", { done: rows.length - open, total: rows.length });
   const parts: string[] = [];
   const done = count("done");
-  if (done) parts.push(kind === "fetch" ? t("repos.sync.summary.withNew", { count: done }) : t("repos.sync.summary.updated", { count: done }));
+  if (done)
+    parts.push(kind === "fetch" ? t("repos.sync.summary.withNew", { count: done }) : t("repos.sync.summary.updated", { count: done }));
   if (count("unchanged")) parts.push(t("repos.sync.summary.unchanged", { count: count("unchanged") }));
   if (count("attention")) parts.push(t("repos.sync.summary.attention", { count: count("attention") }));
   if (count("failed")) parts.push(t("repos.sync.summary.failed", { count: count("failed") }));
@@ -164,7 +194,10 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
   const [running, setRunning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  const patch = useCallback((id: Id, change: Partial<RowState>) => setRows((current) => ({ ...current, [id]: { ...(current[id] ?? waiting()), ...change } })), []);
+  const patch = useCallback(
+    (id: Id, change: Partial<RowState>) => setRows((current) => ({ ...current, [id]: { ...(current[id] ?? waiting()), ...change } })),
+    [],
+  );
 
   /** Runs the given repositories, at most `PARALLEL` at a time. */
   const run = useCallback(
@@ -217,7 +250,8 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
   const body = useRef<HTMLDivElement>(null);
   const wasRunning = useRef(false);
   useEffect(() => {
-    if (wasRunning.current && !running) body.current?.closest('[role="dialog"]')?.querySelector<HTMLElement>("[data-group-sync-close]")?.focus();
+    if (wasRunning.current && !running)
+      body.current?.closest('[role="dialog"]')?.querySelector<HTMLElement>("[data-group-sync-close]")?.focus();
     wasRunning.current = running;
   }, [running]);
 
@@ -270,17 +304,34 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
           <Icon className="size-icon shrink-0" aria-hidden />
           <span>{summarize(states, kind)}</span>
         </p>
-        <ul aria-label={t("repos.sync.listLabel", { group })} className="flex max-h-80 flex-col overflow-y-auto rounded-md border border-border bg-surface-sunken">
+        <ul
+          aria-label={t("repos.sync.listLabel", { group })}
+          className="flex max-h-80 flex-col overflow-y-auto rounded-md border border-border bg-surface-sunken"
+        >
           {list.map(({ repo, row }) => (
-            <li key={repo.id} data-repo-id={repo.id} data-status={row.status} className="flex min-h-11 shrink-0 items-start gap-2.5 border-b border-border px-3 py-1.5 last:border-b-0">
-              <span className="mt-0.5 flex size-icon shrink-0 items-center justify-center">{repo.missing ? <FolderX className="size-icon text-warning" aria-hidden /> : statusIcon[row.status]}</span>
+            <li
+              key={repo.id}
+              data-repo-id={repo.id}
+              data-status={row.status}
+              className="flex min-h-11 shrink-0 items-start gap-2.5 border-b border-border px-3 py-1.5 last:border-b-0"
+            >
+              <span className="mt-0.5 flex size-icon shrink-0 items-center justify-center">
+                {repo.missing ? <FolderX className="size-icon text-warning" aria-hidden /> : statusIcon[row.status]}
+              </span>
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate font-medium" title={repo.path}>
                   {displayName(repo)}
                 </span>
-                <span className={cn("selectable text-sm break-words", row.status === "failed" ? "text-danger" : row.status === "attention" ? "text-warning" : "text-text-muted")}>
+                <span
+                  className={cn(
+                    "selectable text-sm break-words",
+                    row.status === "failed" ? "text-danger" : row.status === "attention" ? "text-warning" : "text-text-muted",
+                  )}
+                >
                   <span className="sr-only">{statusWord[row.status]}: </span>
-                  {row.status === "running" && row.phase ? `${row.phase}${row.percent !== null ? ` · ${Math.round(row.percent)} %` : ""}` : row.text}
+                  {row.status === "running" && row.phase
+                    ? `${row.phase}${row.percent !== null ? ` · ${Math.round(row.percent)} %` : ""}`
+                    : row.text}
                 </span>
                 {row.status === "running" ? (
                   <span
@@ -291,7 +342,10 @@ function GroupSyncDialog({ group, repos, kind, onClose }: { group: string; repos
                     aria-valuenow={row.percent ?? undefined}
                     className="mt-1 h-0.5 w-full overflow-hidden rounded-pill bg-border"
                   >
-                    <span className={cn("block h-full bg-accent", row.percent === null && "w-1/3 animate-pulse")} style={row.percent !== null ? { width: `${Math.max(2, Math.min(100, row.percent))}%` } : undefined} />
+                    <span
+                      className={cn("block h-full bg-accent", row.percent === null && "w-1/3 animate-pulse")}
+                      style={row.percent !== null ? { width: `${Math.max(2, Math.min(100, row.percent))}%` } : undefined}
+                    />
                   </span>
                 ) : null}
               </span>

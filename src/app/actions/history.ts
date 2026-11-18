@@ -45,12 +45,24 @@ async function parentsOutsideGraph(repoId: Id, index: GraphIndex, sha: Sha, limi
 
 /** Reverts a commit with a new commit. Conflict → WIP view. */
 export async function revertCommit(repoId: Id, sha: Sha, tabId?: Id | null) {
-  const choice = await preflight(repoId, { title: t("preflight.revertTitle", { sha: short(sha) }), confirmLabel: t("actions.history.revert.label"), op: { kind: "revert", commits: [sha] } });
+  const choice = await preflight(repoId, {
+    title: t("preflight.revertTitle", { sha: short(sha) }),
+    confirmLabel: t("actions.history.revert.label"),
+    op: { kind: "revert", commits: [sha] },
+  });
   if (!choice) return null;
-  const result = await runAction(t("actions.history.revert.label"), withFreshStatus(repoId, () => core.revertCommit({ repoId, sha })), { busyKey: busyKeys.history(repoId) });
+  const result = await runAction(
+    t("actions.history.revert.label"),
+    withFreshStatus(repoId, () => core.revertCommit({ repoId, sha })),
+    { busyKey: busyKeys.history(repoId) },
+  );
   if (result.ok) {
     if (result.value.status === "up_to_date") {
-      toast({ tone: "info", title: t("actions.history.revert.nothing"), description: t("actions.history.revert.nothingDescription", { sha: short(sha) }) });
+      toast({
+        tone: "info",
+        title: t("actions.history.revert.nothing"),
+        description: t("actions.history.revert.nothingDescription", { sha: short(sha) }),
+      });
     } else {
       reportOpResult(t("actions.history.revert.label"), result.value, tabId, { reveal: true });
     }
@@ -86,7 +98,9 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
 
   if (mode === "hard") {
     const status = await loadStatus(repoId).catch(() => undefined);
-    const tracked = status ? [...status.conflicted, ...status.staged, ...status.unstaged.filter((file) => file.status !== "untracked")] : [];
+    const tracked = status
+      ? [...status.conflicted, ...status.staged, ...status.unstaged.filter((file) => file.status !== "untracked")]
+      : [];
     const files = [...new Set(tracked.map((file) => file.path))];
     const untracked = status?.unstaged.some((file) => file.status === "untracked") ?? false;
     const commits =
@@ -110,7 +124,12 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
         : t("actions.history.reset.changesNone");
     const ok = await confirm({
       title: t("actions.history.reset.hardTitle", { subject, sha: short(sha) }),
-      body: [commits, changes, untracked ? t("actions.history.reset.untracked") : null, t("actions.history.reset.undo", { shortcut: formatShortcut("Mod+Z") })]
+      body: [
+        commits,
+        changes,
+        untracked ? t("actions.history.reset.untracked") : null,
+        t("actions.history.reset.undo", { shortcut: formatShortcut("Mod+Z") }),
+      ]
         .filter(Boolean)
         .join(" "),
       details: files,
@@ -121,9 +140,13 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
     if (!ok) return null;
   }
 
-  const result = await runAction(t("actions.history.reset.label", { mode: resetModeLabels[mode].label }), withStatus(repoId, () => core.resetBranch({ repoId, sha, mode })), {
-    busyKey: busyKeys.history(repoId),
-  });
+  const result = await runAction(
+    t("actions.history.reset.label", { mode: resetModeLabels[mode].label }),
+    withStatus(repoId, () => core.resetBranch({ repoId, sha, mode })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (!result.ok) return result;
   const kept = dropped ? t("actions.history.reset.keptCount", { count: dropped }) : t("actions.history.reset.kept");
   toast({
@@ -148,15 +171,28 @@ export async function resetBranch(repoId: Id, sha: Sha, mode: ResetMode, tabId?:
 export async function cherryPick(repoId: Id, shas: Sha[], tabId?: Id | null) {
   if (!shas.length) return null;
   const ordered = oldestFirst(await loadGraphIndex(repoId), shas);
-  const label = ordered.length === 1 ? t("actions.history.cherryPick.label") : t("actions.history.cherryPick.labelMany", { count: ordered.length });
-  const choice = await preflight(repoId, { title: t("preflight.pickTitle", { count: ordered.length }), confirmLabel: label, op: { kind: "cherry_pick", commits: ordered } });
-  if (!choice) return null;
-  const result = await runAction(label, withFreshStatus(repoId, () => core.cherryPick({ repoId, shas: ordered })), {
-    busyKey: busyKeys.history(repoId),
+  const label =
+    ordered.length === 1 ? t("actions.history.cherryPick.label") : t("actions.history.cherryPick.labelMany", { count: ordered.length });
+  const choice = await preflight(repoId, {
+    title: t("preflight.pickTitle", { count: ordered.length }),
+    confirmLabel: label,
+    op: { kind: "cherry_pick", commits: ordered },
   });
+  if (!choice) return null;
+  const result = await runAction(
+    label,
+    withFreshStatus(repoId, () => core.cherryPick({ repoId, shas: ordered })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (result.ok) {
     if (result.value.status === "up_to_date") {
-      toast({ tone: "info", title: t("actions.history.cherryPick.nothing"), description: t("actions.history.cherryPick.nothingDescription") });
+      toast({
+        tone: "info",
+        title: t("actions.history.cherryPick.nothing"),
+        description: t("actions.history.cherryPick.nothingDescription"),
+      });
     } else {
       reportOpResult(label, result.value, tabId, { reveal: true });
     }
@@ -176,7 +212,11 @@ export async function squashCommits(repoId: Id, shas: Sha[], tabId?: Id | null) 
   const index = await loadGraphIndex(repoId);
   const check = index ? consecutiveOnHead(index, headSha(repoId), shas) : ({ ok: null } as const);
   if (check.ok === false) {
-    toast({ tone: "warning", title: t("actions.history.squash.impossible"), description: t("actions.history.squash.impossibleDescription", { reason: check.reason }) });
+    toast({
+      tone: "warning",
+      title: t("actions.history.squash.impossible"),
+      description: t("actions.history.squash.impossibleDescription", { reason: check.reason }),
+    });
     return null;
   }
   const ordered = check.ok ? check.shas : oldestFirst(index, shas);
@@ -188,13 +228,18 @@ export async function squashCommits(repoId: Id, shas: Sha[], tabId?: Id | null) 
     const commits = details.map((item) => item?.commit ?? null).filter((commit) => commit !== null);
     summary = commits[0]?.summary ?? "";
     body = commits
-      .map((commit, position) => (position === 0 ? commit.description : [commit.summary, commit.description].filter(Boolean).join("\n\n")).trim())
+      .map((commit, position) =>
+        (position === 0 ? commit.description : [commit.summary, commit.description].filter(Boolean).join("\n\n")).trim(),
+      )
       .filter(Boolean)
       .join("\n\n");
   } else if (index) {
     const rows = ordered.map((sha) => findRow(index, sha)).filter((row) => row !== undefined);
     summary = rows[0]?.summary ?? "";
-    body = rows.slice(1).map((row) => `- ${row.summary}`).join("\n");
+    body = rows
+      .slice(1)
+      .map((row) => `- ${row.summary}`)
+      .join("\n");
   }
 
   const message = await askMessage({
@@ -206,9 +251,13 @@ export async function squashCommits(repoId: Id, shas: Sha[], tabId?: Id | null) 
   });
   if (!message) return null;
   const text = message.description ? `${message.summary}\n\n${message.description}` : message.summary;
-  const result = await runAction(t("actions.history.squash.label"), withFreshStatus(repoId, () => core.squashCommits({ repoId, shas: ordered, message: text })), {
-    busyKey: busyKeys.history(repoId),
-  });
+  const result = await runAction(
+    t("actions.history.squash.label"),
+    withFreshStatus(repoId, () => core.squashCommits({ repoId, shas: ordered, message: text })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (result.ok) reportOpResult(t("actions.history.squash.label"), result.value, tabId, { reveal: true });
   return result;
 }
@@ -218,7 +267,11 @@ export async function rewordHead(repoId: Id, sha: Sha, tabId?: Id | null) {
   const details = await loadCommit(repoId, sha).catch(() => null);
   const commit = details?.commit;
   if (!commit) {
-    toast({ tone: "danger", title: t("actions.history.reword.failed"), description: t("actions.history.commitNotLoaded", { sha: short(sha) }) });
+    toast({
+      tone: "danger",
+      title: t("actions.history.reword.failed"),
+      description: t("actions.history.commitNotLoaded", { sha: short(sha) }),
+    });
     return null;
   }
   // The co-author lines are in the description and stay as long as they are not touched.
@@ -236,10 +289,16 @@ export async function rewordHead(repoId: Id, sha: Sha, tabId?: Id | null) {
   });
   if (!message) return null;
   if (message.summary === commit.summary && message.description === commit.description.replace(/\s+$/, "")) return null;
-  const result = await runAction(t("actions.history.reword.action"), withFreshStatus(repoId, () => core.commitReword({ repoId, summary: message.summary, description: message.description, sha: commit.sha })), {
-    busyKey: busyKeys.history(repoId),
-    success: t("actions.history.reword.done"),
-  });
+  const result = await runAction(
+    t("actions.history.reword.action"),
+    withFreshStatus(repoId, () =>
+      core.commitReword({ repoId, summary: message.summary, description: message.description, sha: commit.sha }),
+    ),
+    {
+      busyKey: busyKeys.history(repoId),
+      success: t("actions.history.reword.done"),
+    },
+  );
   if (result.ok && tabId) useAppStore.getState().revealCommit(tabId, result.value.sha);
   return result;
 }
@@ -260,7 +319,9 @@ export async function restoreFile(repoId: Id, sha: Sha, paths: string[]) {
         ? t("actions.history.restore.titleOne", { path: clip(paths[0]!, 44), sha: short(sha) })
         : t("actions.history.restore.titleMany", { count: paths.length, sha: short(sha) }),
       body:
-        overwritten.length === 1 && single ? t("actions.history.restore.bodyOne") : t("actions.history.restore.bodyMany", { count: overwritten.length }),
+        overwritten.length === 1 && single
+          ? t("actions.history.restore.bodyOne")
+          : t("actions.history.restore.bodyMany", { count: overwritten.length }),
       details: single ? undefined : overwritten,
       detailsLabel: t("actions.history.restore.detailsLabel"),
       confirmLabel: t("actions.history.restore.action"),
@@ -268,11 +329,15 @@ export async function restoreFile(repoId: Id, sha: Sha, paths: string[]) {
     });
     if (!ok) return null;
   }
-  const result = await runAction(t("actions.history.restore.label"), withStatus(repoId, () => core.fileRestore({ repoId, sha, paths })), {
-    success: single
-      ? t("actions.history.restore.doneOne", { path: clip(paths[0]!, 44), sha: short(sha) })
-      : t("actions.history.restore.doneMany", { count: paths.length, sha: short(sha) }),
-  });
+  const result = await runAction(
+    t("actions.history.restore.label"),
+    withStatus(repoId, () => core.fileRestore({ repoId, sha, paths })),
+    {
+      success: single
+        ? t("actions.history.restore.doneOne", { path: clip(paths[0]!, 44), sha: short(sha) })
+        : t("actions.history.restore.doneMany", { count: paths.length, sha: short(sha) }),
+    },
+  );
   return result;
 }
 
@@ -292,7 +357,12 @@ export async function copyCommitMessage(repoId: Id, sha: Sha) {
     toast({ tone: "danger", title: t("actions.clipboard.failed"), description: t("actions.history.commitNotLoaded", { sha: short(sha) }) });
     return false;
   }
-  return copyText(commit.description ? `${commit.summary}
+  return copyText(
+    commit.description
+      ? `${commit.summary}
 
-${commit.description}` : commit.summary, t("actions.history.messageWhat"));
+${commit.description}`
+      : commit.summary,
+    t("actions.history.messageWhat"),
+  );
 }

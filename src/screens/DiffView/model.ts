@@ -297,7 +297,11 @@ export interface Segment {
 }
 
 /** Splits `text` at all boundaries of syntax segments and highlights. */
-export function segmentsOf(text: string, tokens: readonly { from: number; to: number; className: string }[] | undefined, marks: readonly Range[] | undefined): Segment[] {
+export function segmentsOf(
+  text: string,
+  tokens: readonly { from: number; to: number; className: string }[] | undefined,
+  marks: readonly Range[] | undefined,
+): Segment[] {
   if (!tokens?.length && !marks?.length) return [{ text, marked: false }];
   const cuts = new Set<number>([0, text.length]);
   for (const token of tokens ?? []) {
@@ -406,7 +410,8 @@ export function lineCaps(mode: PatchMode, canPatch: boolean): LineCaps {
   };
 }
 
-export const patchModeOf = (source: DiffSource): PatchMode => (source.kind === "unstaged" ? "unstaged" : source.kind === "staged" ? "staged" : "none");
+export const patchModeOf = (source: DiffSource): PatchMode =>
+  source.kind === "unstaged" ? "unstaged" : source.kind === "staged" ? "staged" : "none";
 
 /** Readable line range of a hunk: “Line 4”, “Lines 12–18”; for pure deletions the old range. */
 export function hunkRange(hunk: Hunk): string {
@@ -424,4 +429,10 @@ export function splitPath(path: string): { dir: string; name: string } {
 }
 
 export const sourceKey = (source: DiffSource): string =>
-  source.kind === "commit" ? `commit:${source.sha}` : source.kind === "range" ? `range:${source.from}..${source.to ?? ""}` : source.kind === "stash" ? `stash:${source.index}` : source.kind;
+  source.kind === "commit"
+    ? `commit:${source.sha}`
+    : source.kind === "range"
+      ? `range:${source.from}..${source.to ?? ""}`
+      : source.kind === "stash"
+        ? `stash:${source.index}`
+        : source.kind;

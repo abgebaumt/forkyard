@@ -67,7 +67,14 @@ async function pointOf(app, css) {
 /** Right-click on the element and wait for the context menu. */
 async function contextMenu(app, css) {
   const { x, y } = await pointOf(app, css);
-  await perform(app, pointerActions([{ type: "pointerMove", origin: "viewport", x, y }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }]));
+  await perform(
+    app,
+    pointerActions([
+      { type: "pointerMove", origin: "viewport", x, y },
+      { type: "pointerDown", button: 2 },
+      { type: "pointerUp", button: 2 },
+    ]),
+  );
   await app.waitFor('[role="menu"]', 5000, { message: "context menu open" });
 }
 
@@ -82,18 +89,20 @@ const menuItems = (app) =>
   );
 
 async function menuElement(app, pattern) {
-  return app.waitFor(
-    async () => {
-      const items = await menuItems(app);
-      const index = items.findIndex((item) => pattern.test(item.text));
-      if (index < 0) return null;
-      return (await app.$$('[role="menu"] [role^="menuitem"]'))[index] ?? null;
-    },
-    8000,
-    { message: `menu item ${pattern}` },
-  ).catch(async (error) => {
-    throw new Error(`${error.message}; menu: ${(await menuItems(app)).map((item) => item.text).join(" | ")}`);
-  });
+  return app
+    .waitFor(
+      async () => {
+        const items = await menuItems(app);
+        const index = items.findIndex((item) => pattern.test(item.text));
+        if (index < 0) return null;
+        return (await app.$$('[role="menu"] [role^="menuitem"]'))[index] ?? null;
+      },
+      8000,
+      { message: `menu item ${pattern}` },
+    )
+    .catch(async (error) => {
+      throw new Error(`${error.message}; menu: ${(await menuItems(app)).map((item) => item.text).join(" | ")}`);
+    });
 }
 
 /** Opens the submenu "Custom commands" of the open context menu (hover + ArrowRight). */
@@ -101,7 +110,10 @@ async function openCustomSubmenu(app) {
   const trigger = await menuElement(app, /^Custom commands/);
   const menusBefore = (await app.$$('[role="menu"]')).length;
   const box = await trigger.rect();
-  await perform(app, pointerActions([{ type: "pointerMove", origin: "viewport", x: Math.round(box.x + 20), y: Math.round(box.y + box.height / 2) }]));
+  await perform(
+    app,
+    pointerActions([{ type: "pointerMove", origin: "viewport", x: Math.round(box.x + 20), y: Math.round(box.y + box.height / 2) }]),
+  );
   const opened = () => app.waitFor(async () => (await app.$$('[role="menu"]')).length > menusBefore, 3000, { message: "submenu open" });
   await opened().catch(async () => {
     await app.press("ArrowRight");
@@ -151,12 +163,18 @@ const dialogInfo = (app) =>
   });
 
 const waitDialog = (app, pattern, timeout = 10_000) =>
-  app.waitFor(async () => {
-    const info = await dialogInfo(app);
-    return info && pattern.test(info.title) ? info : null;
-  }, timeout, { message: `dialog ${pattern}` }).catch(async (error) => {
-    throw new Error(`${error.message}; open: ${JSON.stringify(await dialogInfo(app))}`);
-  });
+  app
+    .waitFor(
+      async () => {
+        const info = await dialogInfo(app);
+        return info && pattern.test(info.title) ? info : null;
+      },
+      timeout,
+      { message: `dialog ${pattern}` },
+    )
+    .catch(async (error) => {
+      throw new Error(`${error.message}; open: ${JSON.stringify(await dialogInfo(app))}`);
+    });
 
 const dialogCount = (app) => app.exec(() => document.querySelectorAll('[role="dialog"], [role="alertdialog"]').length);
 
@@ -178,12 +196,16 @@ async function dialogButton(app, text) {
 const fieldByLabel = (app, label, index = 0) =>
   app.waitFor(
     () =>
-      app.exec((wanted, position) => {
-        const dialog = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop() ?? document;
-        const labels = [...dialog.querySelectorAll("label[for]")].filter((node) => node.textContent.trim() === wanted);
-        const found = labels[position];
-        return found ? document.getElementById(found.htmlFor) : null;
-      }, label, index),
+      app.exec(
+        (wanted, position) => {
+          const dialog = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop() ?? document;
+          const labels = [...dialog.querySelectorAll("label[for]")].filter((node) => node.textContent.trim() === wanted);
+          const found = labels[position];
+          return found ? document.getElementById(found.htmlFor) : null;
+        },
+        label,
+        index,
+      ),
     8000,
     { message: `field “${label}”` },
   );
@@ -192,11 +214,17 @@ const fieldByLabel = (app, label, index = 0) =>
  * WebKitWebDriver drops the Shift of "send keys" once a pointer action with the right button ran in
  * the session (">" arrives as ".", "A" as "a"). Key actions with an explicit Shift still work.
  */
-const SHIFTED = new Set([..."ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+{}|:\"<>?"]);
+const SHIFTED = new Set([...'ABCDEFGHIJKLMNOPQRSTUVWXYZ~!@#$%^&*()_+{}|:"<>?']);
 async function typeKeys(app, text) {
   const actions = [];
   for (const char of text) {
-    if (SHIFTED.has(char)) actions.push({ type: "keyDown", value: "\uE008" }, { type: "keyDown", value: char }, { type: "keyUp", value: char }, { type: "keyUp", value: "\uE008" });
+    if (SHIFTED.has(char))
+      actions.push(
+        { type: "keyDown", value: "\uE008" },
+        { type: "keyDown", value: char },
+        { type: "keyUp", value: char },
+        { type: "keyUp", value: "\uE008" },
+      );
     else actions.push({ type: "keyDown", value: char }, { type: "keyUp", value: char });
   }
   await app.webdriver("POST", "/actions", { actions: [{ type: "key", id: "keyboard", actions }] });
@@ -231,10 +259,11 @@ async function setCheckbox(app, label, on) {
 /** Chooses a segment (role=radio) of the last dialog by its text. */
 async function chooseSegment(app, text) {
   const radio = await app.waitFor(
-    () => app.exec((wanted) => {
-      const dialog = [...document.querySelectorAll('[role="dialog"]')].pop();
-      return [...(dialog?.querySelectorAll('[role="radio"]') ?? [])].find((node) => node.textContent.trim() === wanted) ?? null;
-    }, text),
+    () =>
+      app.exec((wanted) => {
+        const dialog = [...document.querySelectorAll('[role="dialog"]')].pop();
+        return [...(dialog?.querySelectorAll('[role="radio"]') ?? [])].find((node) => node.textContent.trim() === wanted) ?? null;
+      }, text),
     5000,
     { message: `segment “${text}”` },
   );
@@ -245,33 +274,65 @@ async function chooseSegment(app, text) {
 async function chooseSelect(app, label, option, index = 0) {
   const trigger = await fieldByLabel(app, label, index);
   await app.click(trigger);
-  const item = await app.waitFor(() => app.exec((wanted) => [...document.querySelectorAll('[role="option"]')].find((node) => node.textContent.trim() === wanted) ?? null, option), 5000, { message: `option “${option}”` });
+  const item = await app.waitFor(
+    () =>
+      app.exec(
+        (wanted) => [...document.querySelectorAll('[role="option"]')].find((node) => node.textContent.trim() === wanted) ?? null,
+        option,
+      ),
+    5000,
+    { message: `option “${option}”` },
+  );
   await app.click(item);
   await app.waitFor(() => app.exec(() => !document.querySelector('[role="listbox"]')), 5000, { message: "select closed" });
 }
 
 /** Toasts shown now: [{ tone, text }]. */
-const toasts = (app) => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((el) => ({ tone: el.getAttribute("data-toast"), text: el.innerText.replace(/\s+/g, " ").trim() })));
+const toasts = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((el) => ({
+      tone: el.getAttribute("data-toast"),
+      text: el.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 
 const waitToast = (app, tone, pattern, timeout = 15_000) =>
-  app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)) ?? null, timeout, { message: `${tone} toast ${pattern}` }).catch(async (error) => {
-    throw new Error(`${error.message}; toasts: ${JSON.stringify(await toasts(app))}`);
-  });
+  app
+    .waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)) ?? null, timeout, {
+      message: `${tone} toast ${pattern}`,
+    })
+    .catch(async (error) => {
+      throw new Error(`${error.message}; toasts: ${JSON.stringify(await toasts(app))}`);
+    });
 
 async function noDangerToasts(app) {
-  assertEqual((await toasts(app)).filter((toast) => toast.tone === "danger"), [], "no error message");
+  assertEqual(
+    (await toasts(app)).filter((toast) => toast.tone === "danger"),
+    [],
+    "no error message",
+  );
 }
 
 async function closeToasts(app) {
   await app.exec(() => {
     for (const button of document.querySelectorAll('[data-toast] button[aria-label="Close message"]')) button.click();
   });
-  await app.waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" }).catch(() => undefined);
+  await app
+    .waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" })
+    .catch(() => undefined);
 }
 
 /** Clicks the action button of a toast (e.g. "Show output"). */
 async function toastAction(app, text) {
-  const button = await app.waitFor(() => app.exec((wanted) => [...document.querySelectorAll("[data-toast] button")].find((node) => node.innerText.trim() === wanted) ?? null, text), 8000, { message: `toast button “${text}”` });
+  const button = await app.waitFor(
+    () =>
+      app.exec(
+        (wanted) => [...document.querySelectorAll("[data-toast] button")].find((node) => node.innerText.trim() === wanted) ?? null,
+        text,
+      ),
+    8000,
+    { message: `toast button “${text}”` },
+  );
   await app.click(button);
 }
 
@@ -294,10 +355,18 @@ async function closePalette(app) {
 /** Runs a command through the palette (Ctrl+P, ">text", click on the entry with that id). */
 async function runFromPalette(app, text, id) {
   await paletteKeys(app, text);
-  const option = await app.waitFor(() => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id), 10_000, { message: `palette entry ${id}` }).catch(async (error) => {
-    const keys = await app.exec(() => [...document.querySelectorAll('[data-screen="command-palette"] [role="option"]')].map((node) => node.dataset.key));
-    throw new Error(`${error.message}; entries: ${keys.join(", ")}`);
-  });
+  const option = await app
+    .waitFor(
+      () => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id),
+      10_000,
+      { message: `palette entry ${id}` },
+    )
+    .catch(async (error) => {
+      const keys = await app.exec(() =>
+        [...document.querySelectorAll('[data-screen="command-palette"] [role="option"]')].map((node) => node.dataset.key),
+      );
+      throw new Error(`${error.message}; entries: ${keys.join(", ")}`);
+    });
   await app.click(option);
   await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="command-palette"]')), 5000, { message: "palette closed" });
 }
@@ -305,7 +374,12 @@ async function runFromPalette(app, text, id) {
 /** Settings → "Custom commands" (via the palette's "Settings" entry and the section tab). */
 async function openCommandSettings(app) {
   await runFromPalette(app, "Settings", "app.preferences");
-  const tab = await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[role="tab"]')].find((node) => node.textContent.trim() === "Custom commands") ?? null), 10_000, { message: "settings tab Custom commands" });
+  const tab = await app.waitFor(
+    () =>
+      app.exec(() => [...document.querySelectorAll('[role="tab"]')].find((node) => node.textContent.trim() === "Custom commands") ?? null),
+    10_000,
+    { message: "settings tab Custom commands" },
+  );
   await app.click(tab);
   await app.waitFor('[data-section="custom-commands"]', 10_000);
   await app.settle();
@@ -318,7 +392,19 @@ async function closeSettings(app) {
 
 /** Button of the custom commands section by text (`within`: a CSS selector inside the section). */
 async function sectionButton(app, text, within = '[data-section="custom-commands"]') {
-  const button = await app.waitFor(() => app.exec((scope, wanted) => [...(document.querySelector(scope)?.querySelectorAll("button") ?? [])].find((node) => node.innerText.trim() === wanted && !node.disabled) ?? null, within, text), 8000, { message: `button “${text}” in ${within}` });
+  const button = await app.waitFor(
+    () =>
+      app.exec(
+        (scope, wanted) =>
+          [...(document.querySelector(scope)?.querySelectorAll("button") ?? [])].find(
+            (node) => node.innerText.trim() === wanted && !node.disabled,
+          ) ?? null,
+        within,
+        text,
+      ),
+    8000,
+    { message: `button “${text}” in ${within}` },
+  );
   await app.click(button);
 }
 
@@ -352,7 +438,14 @@ const listCommands = (app, repoId) => app.invoke("custom_commands_list", { repoI
 async function waitCommandKeys(app, repoId, keys) {
   await app.exec(() => window.dispatchEvent(new Event("focus")));
   await eventually(
-    () => app.exec((id) => (window.__gc.queryClient.getQueryData(["repo", id, "customCommands"])?.commands ?? []).map((entry) => `${entry.key}:${entry.runnable}`), repoId),
+    () =>
+      app.exec(
+        (id) =>
+          (window.__gc.queryClient.getQueryData(["repo", id, "customCommands"])?.commands ?? []).map(
+            (entry) => `${entry.key}:${entry.runnable}`,
+          ),
+        repoId,
+      ),
     keys,
     "custom command list in the UI",
   );
@@ -367,7 +460,11 @@ scenario("create a global program command in the editor and run it from the pale
   try {
     const { app, repoId } = await start(t, repo);
     await openCommandSettings(app);
-    assertIncludes(await app.exec(() => document.querySelector('[data-section="custom-commands"]').innerText), "No custom commands yet.", "empty state");
+    assertIncludes(
+      await app.exec(() => document.querySelector('[data-section="custom-commands"]').innerText),
+      "No custom commands yet.",
+      "empty state",
+    );
 
     t.step("New command: title, id, kind Program, command line, palette");
     await sectionButton(app, "New command");
@@ -388,7 +485,11 @@ scenario("create a global program command in the editor and run it from the pale
 
     t.step("stored in the core (global)");
     const stored = await listCommands(app, null);
-    assertEqual(stored.commands.map((entry) => [entry.key, entry.source, entry.runnable]), [["global:protokoll", "global", true]], "core list");
+    assertEqual(
+      stored.commands.map((entry) => [entry.key, entry.source, entry.runnable]),
+      [["global:protokoll", "global", true]],
+      "core list",
+    );
     assertEqual(stored.commands[0].command.run, "touch protokoll-${branch}.txt", "stored command line");
 
     t.step("run from the palette");
@@ -453,7 +554,10 @@ scenario("editor rejects invalid definitions and Cancel saves nothing", "edge", 
     assertEqual((await listCommands(app, null)).commands, [], "nothing saved (core)");
 
     t.step("the core rejects what the UI would let through, too");
-    const error = await saveGlobal(app, [def({ id: "boese", title: "Böse", kind: "url", run: "javascript:alert(1)" })]).then(() => null, (e) => e);
+    const error = await saveGlobal(app, [def({ id: "boese", title: "Böse", kind: "url", run: "javascript:alert(1)" })]).then(
+      () => null,
+      (e) => e,
+    );
     assert(error, "saving a javascript: address must fail");
     assertEqual((await listCommands(app, null)).commands, [], "still nothing saved");
     await t.noConsoleErrors(app);
@@ -478,7 +582,11 @@ scenario("edit and delete a global command", "edge", async (t) => {
     await dialogButton(app, "Save");
     await waitToast(app, "success", /“Notiz ablegen” saved\./);
     const stored = (await listCommands(app, null)).commands;
-    assertEqual(stored.map((entry) => [entry.command.id, entry.command.title, entry.command.run]), [["notiz", "Notiz ablegen", "touch abgelegt.txt"]], "changed in the core");
+    assertEqual(
+      stored.map((entry) => [entry.command.id, entry.command.title, entry.command.run]),
+      [["notiz", "Notiz ablegen", "touch abgelegt.txt"]],
+      "changed in the core",
+    );
     await closeSettings(app);
     await waitCommandKeys(app, repoId, ["global:notiz:true"]);
     await runFromPalette(app, "Notiz ablegen", "custom.global:notiz");
@@ -530,7 +638,11 @@ scenario("export and import custom commands as JSON", "main", async (t) => {
     await waitToast(app, "success", /^Saved to /);
     const exported = JSON.parse(fs.readFileSync(exportPath, "utf8"));
     assertEqual(exported.version, 1, "format version");
-    assertEqual(exported.commands.map((command) => command.id), ["ci", "notiz"], "exported ids");
+    assertEqual(
+      exported.commands.map((command) => command.id),
+      ["ci", "notiz"],
+      "exported ids",
+    );
     assertEqual(exported.commands[0].run, "https://ci.example.com/builds?branch=${branch}", "exported command line");
 
     t.step("import: one replaced, one new");
@@ -543,14 +655,26 @@ scenario("export and import custom commands as JSON", "main", async (t) => {
     await waitToast(app, "success", /Imported: 1 new, 1 replaced\./);
     await eventually(() => globalRows(app), ["ci", "notiz", "tag-heute"], "rows after import");
     const stored = (await listCommands(app, null)).commands.map((entry) => [entry.command.id, entry.command.title]);
-    assertEqual(stored, [["ci", "CI öffnen"], ["notiz", "Notiz (neu)"], ["tag-heute", "Tag setzen"]], "core list after import");
-    assertIncludes(await app.exec(() => document.querySelector('[data-custom-command="tag-heute"]').innerText), "Asks first", "confirm badge");
+    assertEqual(
+      stored,
+      [
+        ["ci", "CI öffnen"],
+        ["notiz", "Notiz (neu)"],
+        ["tag-heute", "Tag setzen"],
+      ],
+      "core list after import",
+    );
+    assertIncludes(
+      await app.exec(() => document.querySelector('[data-custom-command="tag-heute"]').innerText),
+      "Asks first",
+      "confirm badge",
+    );
     await shot(t, "export-import");
 
     t.step("import an invalid file: error, nothing changes");
     await closeToasts(app);
     const broken = path.join(dir, "kaputt.json");
-    fs.writeFileSync(broken, "{ \"version\": 1, \"commands\": [ { \"id\": ");
+    fs.writeFileSync(broken, '{ "version": 1, "commands": [ { "id": ');
     await app.pick(broken);
     await sectionButton(app, "Import…");
     await waitToast(app, "danger", /Import custom commands|couldn|invalid|JSON/i);
@@ -592,7 +716,14 @@ scenario("repository commands need approval of exactly this file version", "main
     assertEqual(await option.attr("aria-disabled"), "true", "palette entry is disabled before approval");
     assertIncludes(await app.exec((node) => node.innerText, option), "Not approved for this repository", "palette names the reason");
     await app.click(option);
-    await app.waitFor(() => app.exec(() => document.querySelector('[data-screen="command-palette"]')?.innerText.includes("Not approved for this repository") ?? false), 5000, { message: "palette notice" });
+    await app.waitFor(
+      () =>
+        app.exec(
+          () => document.querySelector('[data-screen="command-palette"]')?.innerText.includes("Not approved for this repository") ?? false,
+        ),
+      5000,
+      { message: "palette notice" },
+    );
     await closePalette(app);
     await contextMenu(app, commitCell(repo.head()));
     await openCustomSubmenu(app);
@@ -602,7 +733,12 @@ scenario("repository commands need approval of exactly this file version", "main
     assert(entry.disabled || /not approved/.test(entry.text + entry.title), `menu entry is blocked: ${JSON.stringify(entry)}`);
     await app.press("Escape", "Escape");
     await noMenu(app).catch(() => app.press("Escape"));
-    const refused = await app.invoke("custom_command_run", { repoId, id: "repo:bericht", context: {}, inputs: {}, jobId: "probe-1", confirmed: true }).then(() => null, (e) => e);
+    const refused = await app
+      .invoke("custom_command_run", { repoId, id: "repo:bericht", context: {}, inputs: {}, jobId: "probe-1", confirmed: true })
+      .then(
+        () => null,
+        (e) => e,
+      );
     assertEqual(refused?.code, "command_untrusted", "the core refuses the unapproved command");
     assert(!repo.exists("bericht-main.txt"), "nothing ran");
 
@@ -633,7 +769,12 @@ scenario("repository commands need approval of exactly this file version", "main
       def({ id: "aufraeumen", title: "Aufräumen", kind: "git", run: "gc --auto" }),
     ]);
     await waitCommandKeys(app, repoId, ["repo:bericht:false", "repo:aufraeumen:false"]);
-    const again = await app.invoke("custom_command_run", { repoId, id: "repo:bericht", context: {}, inputs: {}, jobId: "probe-2", confirmed: true }).then(() => null, (e) => e);
+    const again = await app
+      .invoke("custom_command_run", { repoId, id: "repo:bericht", context: {}, inputs: {}, jobId: "probe-2", confirmed: true })
+      .then(
+        () => null,
+        (e) => e,
+      );
     assertEqual(again?.code, "command_untrusted", "changed file is not approved");
     assert(!repo.exists("bericht-geaendert.txt"), "nothing ran after the change");
     await openCommandSettings(app);
@@ -673,7 +814,11 @@ scenario("repository file problems: shell true, invalid JSON, link", "edge", asy
 
     t.step("shell: true is rejected in a repository file");
     const list = await listCommands(app, repoId);
-    assertEqual(list.commands.map((entry) => entry.key), ["repo:gut"], "only the valid command is listed");
+    assertEqual(
+      list.commands.map((entry) => entry.key),
+      ["repo:gut"],
+      "only the valid command is listed",
+    );
     assert(list.repo.problems.length >= 1, `a problem is reported: ${JSON.stringify(list.repo)}`);
     await openCommandSettings(app);
     const text = await repoCardText(app);
@@ -682,17 +827,23 @@ scenario("repository file problems: shell true, invalid JSON, link", "edge", asy
     await closeSettings(app);
 
     t.step("invalid JSON");
-    repo.writeCommands("{ \"version\": 1, \"commands\": [ ");
+    repo.writeCommands('{ "version": 1, "commands": [ ');
     await eventually(async () => (await listCommands(app, repoId)).commands.length, 0, "no commands from a broken file");
     const broken = (await listCommands(app, repoId)).repo;
     assert(broken.problems.length >= 1, `broken file reported: ${JSON.stringify(broken)}`);
-    const error = await app.invoke("custom_commands_trust", { repoId, hash: "0".repeat(64) }).then(() => null, (e) => e);
+    const error = await app.invoke("custom_commands_trust", { repoId, hash: "0".repeat(64) }).then(
+      () => null,
+      (e) => e,
+    );
     assert(error, "approving a hash that is not the file's must fail");
 
     t.step("a symlinked file is not followed");
     fs.rmSync(repo.commandsFile);
     const outside = path.join(repo.root, "fremd.json");
-    fs.writeFileSync(outside, JSON.stringify({ version: 1, commands: [def({ id: "fremd", title: "Fremd", kind: "shell", run: "touch fremd.txt" })] }));
+    fs.writeFileSync(
+      outside,
+      JSON.stringify({ version: 1, commands: [def({ id: "fremd", title: "Fremd", kind: "shell", run: "touch fremd.txt" })] }),
+    );
     fs.symlinkSync(outside, repo.commandsFile);
     await eventually(async () => (await listCommands(app, repoId)).commands.map((entry) => entry.key), [], "link not followed");
     const linked = (await listCommands(app, repoId)).repo;
@@ -775,16 +926,24 @@ scenario("confirmation shows the complete finished command line", "edge", async 
     await fill(app, "Tag name", "v2.0");
     await dialogButton(app, "Run");
     await waitDialog(app, /^Run “Release markieren”\?$/);
-    const line = await app.waitFor(() => app.exec(() => {
-      const dialog = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop();
-      const item = [...(dialog?.querySelectorAll('[role="listitem"]') ?? [])].find((node) => node.textContent.startsWith("git tag"));
-      return item ? { text: item.textContent, scroll: item.scrollWidth, client: item.clientWidth } : null;
-    }), 5000, { message: "command line in the confirmation" });
+    const line = await app.waitFor(
+      () =>
+        app.exec(() => {
+          const dialog = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop();
+          const item = [...(dialog?.querySelectorAll('[role="listitem"]') ?? [])].find((node) => node.textContent.startsWith("git tag"));
+          return item ? { text: item.textContent, scroll: item.scrollWidth, client: item.clientWidth } : null;
+        }),
+      5000,
+      { message: "command line in the confirmation" },
+    );
     assertEqual(line.text, `git tag -a v2.0 -m v2.0 ${repo.head()}`, "the finished command");
     await t.shot("confirm-command-truncated");
     // What the user is asked to approve must be readable without hovering: the commit at the end
     // of the line (or any argument after it) is cut off with an ellipsis today.
-    assert(line.scroll <= line.client + 1, `the command line is cut off in the confirmation (scrollWidth ${line.scroll} > clientWidth ${line.client}); only a tooltip shows the rest`);
+    assert(
+      line.scroll <= line.client + 1,
+      `the command line is cut off in the confirmation (scrollWidth ${line.scroll} > clientWidth ${line.client}); only a tooltip shows the rest`,
+    );
     await dialogButton(app, "Cancel");
     assertEqual(repo.tags(), ["v0.1"], "nothing ran");
     await t.noConsoleErrors(app);
@@ -835,7 +994,15 @@ scenario("web address command from the branch menu opens the encoded address", "
   const repo = makeCommandsRepo();
   try {
     const { app, repoId } = await start(t, repo);
-    await saveGlobal(app, [def({ id: "ci", title: "CI-Lauf öffnen", kind: "url", run: "https://ci.example.com/builds?branch=${branch}&sha=${sha}", scope: ["branch"] })]);
+    await saveGlobal(app, [
+      def({
+        id: "ci",
+        title: "CI-Lauf öffnen",
+        kind: "url",
+        run: "https://ci.example.com/builds?branch=${branch}&sha=${sha}",
+        scope: ["branch"],
+      }),
+    ]);
     await waitCommandKeys(app, repoId, ["global:ci:true"]);
     await app.exec(() => {
       window.__gcTestOpened = [];
@@ -845,10 +1012,16 @@ scenario("web address command from the branch menu opens the encoded address", "
     await openCustomSubmenu(app);
     await t.shot("url-command-menu");
     await chooseSubmenu(app, /^CI-Lauf öffnen/);
-    const opened = await app.waitFor(() => app.exec(() => (window.__gcTestOpened?.length ? window.__gcTestOpened : null)), 10_000, { message: "address opened" });
+    const opened = await app.waitFor(() => app.exec(() => (window.__gcTestOpened?.length ? window.__gcTestOpened : null)), 10_000, {
+      message: "address opened",
+    });
     // Documented: ${sha} is the selected commit, otherwise HEAD – the branch menu selects no commit.
     const head = repo.head();
-    assertEqual(opened, [`https://ci.example.com/builds?branch=feature%2Fluftdruck&sha=${head}`], "branch percent-encoded, sha falls back to HEAD");
+    assertEqual(
+      opened,
+      [`https://ci.example.com/builds?branch=feature%2Fluftdruck&sha=${head}`],
+      "branch percent-encoded, sha falls back to HEAD",
+    );
     assertEqual(repo.branch(), "main", "nothing checked out");
     await noDangerToasts(app);
     await t.noConsoleErrors(app);
@@ -935,7 +1108,9 @@ scenario("failing program reports the exit code and its output", "edge", async (
     await runFromPalette(app, "Fehlt", "custom.global:fehlt");
     await waitToast(app, "danger", /Fehlt|not found|could/i);
     await app.errors();
-    const unexpected = app.consoleErrors.filter((entry) => !/Fehlt|gibt-es-nicht|custom_command_run|not found/i.test(JSON.stringify(entry)));
+    const unexpected = app.consoleErrors.filter(
+      (entry) => !/Fehlt|gibt-es-nicht|custom_command_run|not found/i.test(JSON.stringify(entry)),
+    );
     assertEqual(unexpected, [], "no unexpected console errors");
   } finally {
     repo.cleanup();
@@ -950,13 +1125,28 @@ scenario("a long-running program can be cancelled from the status bar", "edge", 
     await waitCommandKeys(app, repoId, ["global:warten:true"]);
     const started = Date.now();
     await runFromPalette(app, "Lange Auswertung", "custom.global:warten");
-    const cancel = await app.waitFor('button[aria-label^="Cancel"][aria-label*="Lange Auswertung"]', 10_000).catch(async () =>
-      app.waitFor(() => app.exec(() => [...document.querySelectorAll("button[aria-label]")].find((node) => /Lange Auswertung/.test(node.getAttribute("aria-label")) && /cancel|stop/i.test(node.getAttribute("aria-label"))) ?? null), 10_000, { message: "cancel button of the job" }),
-    );
+    const cancel = await app
+      .waitFor('button[aria-label^="Cancel"][aria-label*="Lange Auswertung"]', 10_000)
+      .catch(async () =>
+        app.waitFor(
+          () =>
+            app.exec(
+              () =>
+                [...document.querySelectorAll("button[aria-label]")].find(
+                  (node) =>
+                    /Lange Auswertung/.test(node.getAttribute("aria-label")) && /cancel|stop/i.test(node.getAttribute("aria-label")),
+                ) ?? null,
+            ),
+          10_000,
+          { message: "cancel button of the job" },
+        ),
+      );
     await shot(t, "long-command-running");
     await app.click(cancel);
     await waitToast(app, "info", /Lange Auswertung/);
-    await app.waitFor(() => app.exec(() => !document.querySelector('[role="progressbar"][aria-label="Lange Auswertung"]')), 15_000, { message: "job gone from the status bar" });
+    await app.waitFor(() => app.exec(() => !document.querySelector('[role="progressbar"][aria-label="Lange Auswertung"]')), 15_000, {
+      message: "job gone from the status bar",
+    });
     assert(Date.now() - started < 25_000, "ended well before the program would have");
     await sleep(500);
     assert(!repo.exists("fertig.txt"), "the program did not finish");
@@ -974,7 +1164,10 @@ scenario("a placeholder inside sh -c is rejected", "edge", async (t) => {
   const repo = makeCommandsRepo();
   try {
     const { app } = await start(t, repo);
-    const error = await saveGlobal(app, [def({ id: "inj", title: "Injektion", kind: "shell", run: "sh -c 'touch ${branch}'" })]).then(() => null, (e) => e);
+    const error = await saveGlobal(app, [def({ id: "inj", title: "Injektion", kind: "shell", run: "sh -c 'touch ${branch}'" })]).then(
+      () => null,
+      (e) => e,
+    );
     assert(error, "saving a placeholder in a code argument must fail");
     assertMatch(error.message, /sh|code|placeholder|argument/i, "the reason names it");
     assertEqual((await listCommands(app, null)).commands, [], "nothing saved");
@@ -995,7 +1188,14 @@ function runCli(binary, args, env = {}, timeout = 20_000) {
   delete clean.WAYLAND_DISPLAY;
   const started = Date.now();
   const result = spawnSync(binary, args, { env: clean, encoding: "utf8", timeout });
-  return { status: result.status, signal: result.signal, stdout: result.stdout ?? "", stderr: result.stderr ?? "", ms: Date.now() - started, error: result.error };
+  return {
+    status: result.status,
+    signal: result.signal,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    ms: Date.now() - started,
+    error: result.error,
+  };
 }
 
 scenario("forkyard --help and --version answer without a window", "main", async (t) => {
@@ -1039,9 +1239,21 @@ scenario("forkyard <folder> hands the folder to the running instance", "main", a
     assertEqual(cli.status, 0, `second process exit code (stderr: ${cli.stderr.slice(-400)})`);
     assert(Date.now() - started < 10_000, `the second process ends quickly (${cli.ms} ms)`);
     await app.waitFor(commitRow(repo.head()), 20_000, { message: "graph of the handed-over repository" });
-    await app.waitFor(() => app.exec((name) => [...document.querySelectorAll("[data-tab-id] [role=tab]")].some((node) => node.textContent.includes(name)), "zweite-station"), 10_000, { message: "tab of the repository" });
+    await app.waitFor(
+      () =>
+        app.exec(
+          (name) => [...document.querySelectorAll("[data-tab-id] [role=tab]")].some((node) => node.textContent.includes(name)),
+          "zweite-station",
+        ),
+      10_000,
+      { message: "tab of the repository" },
+    );
     t.step("--commit selects the commit");
-    await app.waitFor(() => app.exec((sha) => document.querySelector(`[data-row-id="${sha}"]`)?.getAttribute("aria-selected") === "true", repo.shas.c2), 15_000, { message: "commit c2 selected" });
+    await app.waitFor(
+      () => app.exec((sha) => document.querySelector(`[data-row-id="${sha}"]`)?.getAttribute("aria-selected") === "true", repo.shas.c2),
+      15_000,
+      { message: "commit c2 selected" },
+    );
     const listed = await app.invoke("repo_list");
     assert(JSON.stringify(listed).includes("zweite-station"), "the repository is now known");
     assert(JSON.stringify(before).length <= JSON.stringify(listed).length, "list grew");
@@ -1127,4 +1339,3 @@ scenario("install command-line command where the package manages it: only a hint
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
-

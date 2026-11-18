@@ -19,9 +19,27 @@ type TooLargeDiff = Extract<FileDiff, { kind: "too_large" }>;
 const size = (bytes: number | null) => (bytes === null ? "–" : formatBytes(bytes));
 
 /** Calm hint in the middle: icon, one sentence, one explanatory sentence, at most one action. */
-export function Notice({ icon, title, children, action, tone = "muted", id }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode; tone?: "muted" | "danger"; id?: string }) {
+export function Notice({
+  icon,
+  title,
+  children,
+  action,
+  tone = "muted",
+  id,
+}: {
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+  tone?: "muted" | "danger";
+  id?: string;
+}) {
   return (
-    <div data-notice={id} role={tone === "danger" ? "alert" : "status"} className="flex h-full min-h-0 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center">
+    <div
+      data-notice={id}
+      role={tone === "danger" ? "alert" : "status"}
+      className="flex h-full min-h-0 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center"
+    >
       <span className={tone === "danger" ? "text-danger" : "text-text-muted"}>{icon}</span>
       <p className="max-w-full text-md font-medium text-text">{title}</p>
       {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
@@ -80,7 +98,9 @@ const statusSentence: Record<FileStatus, string> = {
 export function BinaryDiffView({ diff }: { diff: BinaryDiff }) {
   return (
     <Notice id="binary" icon={<Binary className="size-8" aria-hidden />} title={t("diff.binary.title")}>
-      <p>{statusSentence[diff.status]} {t("diff.binary.body")}</p>
+      <p>
+        {statusSentence[diff.status]} {t("diff.binary.body")}
+      </p>
       <BeforeAfter rows={[{ label: t("diff.size"), before: size(diff.oldSize), after: size(diff.newSize) }]} />
     </Notice>
   );
@@ -91,10 +111,16 @@ const shortOid = (oid: string | null) => (oid ? oid.slice(0, 12) : "–");
 export function LfsDiffView({ diff }: { diff: LfsDiff }) {
   return (
     <Notice id="lfs" icon={<HardDrive className="size-8" aria-hidden />} title={t("diff.lfs.title")}>
-      <p>{statusSentence[diff.status]} {t("diff.lfs.body")}</p>
+      <p>
+        {statusSentence[diff.status]} {t("diff.lfs.body")}
+      </p>
       <BeforeAfter
         rows={[
-          { label: "OID", before: <span title={diff.oldOid ?? undefined}>{shortOid(diff.oldOid)}</span>, after: <span title={diff.newOid ?? undefined}>{shortOid(diff.newOid)}</span> },
+          {
+            label: "OID",
+            before: <span title={diff.oldOid ?? undefined}>{shortOid(diff.oldOid)}</span>,
+            after: <span title={diff.newOid ?? undefined}>{shortOid(diff.newOid)}</span>,
+          },
           { label: t("diff.size"), before: size(diff.oldSize), after: size(diff.newSize) },
         ]}
       />
@@ -102,9 +128,11 @@ export function LfsDiffView({ diff }: { diff: LfsDiff }) {
   );
 }
 
-
 export function TooLargeView({ diff, loading, onForce }: { diff: TooLargeDiff; loading: boolean; onForce: () => void }) {
-  const detail = diff.lines !== null ? t("diff.tooLarge.detail", { size: formatBytes(diff.bytes), lines: new Intl.NumberFormat(locale()).format(diff.lines) }) : formatBytes(diff.bytes);
+  const detail =
+    diff.lines !== null
+      ? t("diff.tooLarge.detail", { size: formatBytes(diff.bytes), lines: new Intl.NumberFormat(locale()).format(diff.lines) })
+      : formatBytes(diff.bytes);
   return (
     <Notice
       id="too_large"
@@ -125,7 +153,22 @@ export function TooLargeView({ diff, loading, onForce }: { diff: TooLargeDiff; l
 // Loading and errors
 // ---------------------------------------------------------------------------
 
-const skeletonWidths = ["w-2/5", "w-3/5", "w-1/3", "w-1/2", "w-2/3", "w-1/4", "w-3/5", "w-2/5", "w-1/2", "w-1/3", "w-3/4", "w-2/5", "w-1/4", "w-1/2"];
+const skeletonWidths = [
+  "w-2/5",
+  "w-3/5",
+  "w-1/3",
+  "w-1/2",
+  "w-2/3",
+  "w-1/4",
+  "w-3/5",
+  "w-2/5",
+  "w-1/2",
+  "w-1/3",
+  "w-3/4",
+  "w-2/5",
+  "w-1/4",
+  "w-1/2",
+];
 
 /** Skeleton rows in the shape of a diff. */
 export function DiffSkeleton() {
@@ -145,7 +188,19 @@ export function DiffSkeleton() {
   );
 }
 
-export function DiffError({ error, path, retrying, onRetry, onClose }: { error: CoreError; path: string; retrying: boolean; onRetry: () => void; onClose: () => void }) {
+export function DiffError({
+  error,
+  path,
+  retrying,
+  onRetry,
+  onClose,
+}: {
+  error: CoreError;
+  path: string;
+  retrying: boolean;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
   if (error.code === "not_found" || error.code === "path_not_found") {
     return (
       <Notice
@@ -164,7 +219,11 @@ export function DiffError({ error, path, retrying, onRetry, onClose }: { error: 
         }
       >
         <p>
-          <Trans i18nKey="diff.error.goneBody" values={{ path }} components={{ path: <span className="font-mono text-code break-all" /> }} />
+          <Trans
+            i18nKey="diff.error.goneBody"
+            values={{ path }}
+            components={{ path: <span className="font-mono text-code break-all" /> }}
+          />
         </p>
       </Notice>
     );

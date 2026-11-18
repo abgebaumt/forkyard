@@ -31,7 +31,9 @@ const notLoggedIn = writerWith({ phase: "error", error: { kind: "notLoggedIn", t
 
 describe("release notes writer: not signed in (spec “Zustände jedes KI-Elements”)", () => {
   it("offers “Sign in in the terminal” when the surrounding dialog can hand over to the terminal", () => {
-    const markup = html(<ReleaseNotesWriter repoId="r" to={null} writer={notLoggedIn} openSetup={false} local={false} onSetup={none} onSignIn={none} />);
+    const markup = html(
+      <ReleaseNotesWriter repoId="r" to={null} writer={notLoggedIn} openSetup={false} local={false} onSetup={none} onSignIn={none} />,
+    );
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("Claude Code is not signed in.");
     expect(markup).toContain('data-release-notes-sign-in=""');

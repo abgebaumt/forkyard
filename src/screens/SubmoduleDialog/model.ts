@@ -66,22 +66,31 @@ export function submoduleSecondary(submodule: Submodule): string {
   const state = submoduleStateText[submodule.state];
   if (submodule.state === "uninitialized") return state;
   const at = submodule.headSha ? shortSha(submodule.headSha) : shortSha(submodule.sha);
-  const parts = [state, submodule.state === "out_of_sync" && submodule.headSha ? t("submodules.row.outOfSync", { head: at, sha: shortSha(submodule.sha) }) : at];
+  const parts = [
+    state,
+    submodule.state === "out_of_sync" && submodule.headSha ? t("submodules.row.outOfSync", { head: at, sha: shortSha(submodule.sha) }) : at,
+  ];
   if (submodule.branch) parts.push(submodule.branch);
   return parts.join(" · ");
 }
 
 export function describeSubmodule(submodule: Submodule): string {
   const parts = [t("submodules.row.describe", { path: submodule.path }), submoduleStateText[submodule.state]];
-  if (submodule.state === "out_of_sync" && submodule.headSha) parts.push(t("submodules.row.describeOutOfSync", { head: shortSha(submodule.headSha), sha: shortSha(submodule.sha) }));
+  if (submodule.state === "out_of_sync" && submodule.headSha)
+    parts.push(t("submodules.row.describeOutOfSync", { head: shortSha(submodule.headSha), sha: shortSha(submodule.sha) }));
   if (submodule.branch) parts.push(t("submodules.row.describeBranch", { branch: submodule.branch }));
   return parts.join(", ");
 }
 
 export function submoduleTipLines(submodule: Submodule): string[] {
-  const lines = [submodule.path, `${submoduleStateText[submodule.state].replace(/^./, (char) => char.toUpperCase())}: ${submoduleStateHint[submodule.state]}`];
+  const lines = [
+    submodule.path,
+    `${submoduleStateText[submodule.state].replace(/^./, (char) => char.toUpperCase())}: ${submoduleStateHint[submodule.state]}`,
+  ];
   if (submodule.url) lines.push(submodule.url);
-  lines.push(`${t("submodules.row.tipRecorded", { sha: shortSha(submodule.sha) })}${submodule.headSha && submodule.headSha !== submodule.sha ? t("submodules.row.tipCheckedOut", { head: shortSha(submodule.headSha) }) : ""}`);
+  lines.push(
+    `${t("submodules.row.tipRecorded", { sha: shortSha(submodule.sha) })}${submodule.headSha && submodule.headSha !== submodule.sha ? t("submodules.row.tipCheckedOut", { head: shortSha(submodule.headSha) }) : ""}`,
+  );
   if (submodule.trackingBranch) lines.push(t("submodules.row.tipTracking", { branch: submodule.trackingBranch }));
   if (submodule.name !== submodule.path) lines.push(t("submodules.row.tipName", { name: submodule.name }));
   return lines;
@@ -90,5 +99,9 @@ export function submoduleTipLines(submodule: Submodule): string[] {
 export function matchesSubmodule(submodule: Submodule, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
-  return submodule.path.toLowerCase().includes(needle) || (submodule.url?.toLowerCase().includes(needle) ?? false) || submodule.name.toLowerCase().includes(needle);
+  return (
+    submodule.path.toLowerCase().includes(needle) ||
+    (submodule.url?.toLowerCase().includes(needle) ?? false) ||
+    submodule.name.toLowerCase().includes(needle)
+  );
 }

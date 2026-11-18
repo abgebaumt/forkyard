@@ -5,7 +5,17 @@ import type { FileChange, LfsLockList, LfsStatus } from "../../core";
 import { qk } from "../../app/queries";
 import { ChangedFiles } from "./FilesSection";
 
-const file = (path: string): FileChange => ({ path, oldPath: null, status: "modified", area: "commit", isBinary: true, isLfs: true, added: null, removed: null, conflict: null });
+const file = (path: string): FileChange => ({
+  path,
+  oldPath: null,
+  status: "modified",
+  area: "commit",
+  isBinary: true,
+  isLfs: true,
+  added: null,
+  removed: null,
+  conflict: null,
+});
 
 describe("ChangedFiles", () => {
   it("shows the LFS lock symbol in a commit's changed files", () => {
@@ -22,7 +32,15 @@ describe("ChangedFiles", () => {
     client.setQueryData(qk.lfsLocks("r1"), locks);
     const html = renderToStaticMarkup(
       <QueryClientProvider client={client}>
-        <ChangedFiles repoId="r1" tabId="t1" source={{ kind: "commit", sha: "a".repeat(40) }} files={[file("daten/karte.psd"), file("daten/logo.psd"), file("daten/plan.psd")]} view="flat" emptyText="" listLabel="Files" />
+        <ChangedFiles
+          repoId="r1"
+          tabId="t1"
+          source={{ kind: "commit", sha: "a".repeat(40) }}
+          files={[file("daten/karte.psd"), file("daten/logo.psd"), file("daten/plan.psd")]}
+          view="flat"
+          emptyText=""
+          listLabel="Files"
+        />
       </QueryClientProvider>,
     );
     expect(html.match(/data-lfs-lock="theirs"/g)?.length).toBe(1);

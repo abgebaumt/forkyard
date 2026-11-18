@@ -2,8 +2,22 @@ import { describe, expect, it } from "vitest";
 import type { DiffLine, Hunk } from "../../core";
 import { changesFromHunks } from "./hunkChanges";
 
-const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo: number | null): DiffLine => ({ kind, text, oldNo, newNo, noNewline: false });
-const hunk = (oldStart: number, oldLines: number, newStart: number, newLines: number, lines: DiffLine[]): Hunk => ({ index: 0, oldStart, oldLines, newStart, newLines, section: "", lines });
+const line = (kind: DiffLine["kind"], text: string, oldNo: number | null, newNo: number | null): DiffLine => ({
+  kind,
+  text,
+  oldNo,
+  newNo,
+  noNewline: false,
+});
+const hunk = (oldStart: number, oldLines: number, newStart: number, newLines: number, lines: DiffLine[]): Hunk => ({
+  index: 0,
+  oldStart,
+  oldLines,
+  newStart,
+  newLines,
+  section: "",
+  lines,
+});
 
 /** Applies the changes: the old text must turn into the new one. */
 function apply(oldText: string, newText: string, changes: { fromA: number; toA: number; fromB: number; toB: number }[]): string {
@@ -46,7 +60,12 @@ describe("changesFromHunks (“Side by side” without its own comparison of the
     const newLines = oldLines.map((text, index) => (index % 8 === 3 ? `${text} GEÄNDERT` : text));
     const hunks: Hunk[] = [];
     for (let index = 3; index < oldLines.length; index += 8) {
-      hunks.push(hunk(index + 1, 1, index + 1, 1, [line("remove", oldLines[index] as string, index + 1, null), line("add", newLines[index] as string, null, index + 1)]));
+      hunks.push(
+        hunk(index + 1, 1, index + 1, 1, [
+          line("remove", oldLines[index] as string, index + 1, null),
+          line("add", newLines[index] as string, null, index + 1),
+        ]),
+      );
     }
     const [oldText, newText] = [`${oldLines.join("\n")}\n`, `${newLines.join("\n")}\n`];
     const started = performance.now();

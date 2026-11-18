@@ -22,7 +22,8 @@ export function unavailableReason(command: AppCommand, ctx: CommandContext): str
   }
   const id = command.id;
   if (!ctx.repoId) {
-    if (REPO_GROUPS.has(command.group) || id.startsWith("view.") || id.startsWith("wip.") || id.startsWith("focus.")) return t("palette.reason.repoOnly");
+    if (REPO_GROUPS.has(command.group) || id.startsWith("view.") || id.startsWith("wip.") || id.startsWith("focus."))
+      return t("palette.reason.repoOnly");
     if (id.startsWith("tab.")) return ctx.tabs.length <= 1 ? t("palette.reason.oneTab") : t("palette.reason.noSuchTab");
     return t("palette.reason.unavailable");
   }
@@ -35,8 +36,10 @@ export function unavailableReason(command: AppCommand, ctx: CommandContext): str
   const selected = selection?.kind === "commits" ? selection.shas.length : 0;
   const changes = status.unstaged.length + status.staged.length;
 
-  if (id.startsWith("stash.") && id !== "stash.create" && id !== "stash.createNamed" && stashes.length === 0) return t("palette.reason.noStash");
-  if ((id === "stash.create" || id === "stash.createNamed" || id.includes("discard")) && changes === 0) return t("palette.reason.noChanges");
+  if (id.startsWith("stash.") && id !== "stash.create" && id !== "stash.createNamed" && stashes.length === 0)
+    return t("palette.reason.noStash");
+  if ((id === "stash.create" || id === "stash.createNamed" || id.includes("discard")) && changes === 0)
+    return t("palette.reason.noChanges");
   if (id === "wip.stageAll") return status.unstaged.length === 0 ? t("palette.reason.nothingToStage") : t("palette.reason.unavailable");
   if (id === "wip.unstageAll") return status.staged.length === 0 ? t("palette.reason.nothingStaged") : t("palette.reason.unavailable");
   if (id === "wip.commit" || id === "wip.commitAll") return t("palette.reason.openWip");
@@ -48,9 +51,11 @@ export function unavailableReason(command: AppCommand, ctx: CommandContext): str
   if (id === "operation.continue" || id === "operation.abort") {
     return status.operation ? t("palette.reason.resolveConflicts") : t("palette.reason.noOperation");
   }
-  if ((id.startsWith("sync.") || id.startsWith("remote.") || id === "tag.push") && remotes && remotes.length === 0) return t("palette.reason.noRemote");
+  if ((id.startsWith("sync.") || id.startsWith("remote.") || id === "tag.push") && remotes && remotes.length === 0)
+    return t("palette.reason.noRemote");
   if (id === "remote.fetchOne") return t("palette.reason.oneRemote");
-  if (status.head.kind === "unborn" && (id.startsWith("branch.") || id.startsWith("tag.") || id.startsWith("commit."))) return t("palette.reason.unborn");
+  if (status.head.kind === "unborn" && (id.startsWith("branch.") || id.startsWith("tag.") || id.startsWith("commit.")))
+    return t("palette.reason.unborn");
   if (status.head.kind === "detached" && (id.startsWith("sync.") || id.startsWith("branch."))) return t("palette.reason.detached");
 
   if (id === "commit.compare") return t("palette.reason.selectTwo");
@@ -62,7 +67,7 @@ export function unavailableReason(command: AppCommand, ctx: CommandContext): str
   if (id === "branch.fastForward") return status.upstream ? t("palette.reason.notOnlyBehind") : t("palette.reason.noUpstream");
   if (id === "branch.unsetUpstream") return t("palette.reason.noUpstream");
   if (id === "branch.delete") return t("palette.reason.noOtherBranch");
-  if ((id === "tag.push" || id === "tag.delete") ) return t("palette.reason.noTag");
+  if (id === "tag.push" || id === "tag.delete") return t("palette.reason.noTag");
   if (id === "sync.cancel") return t("palette.reason.nothingRunning");
   if (id === "view.graph") return t("palette.reason.graphShown");
   if (id.startsWith("tab.")) return ctx.tabs.length <= 1 ? t("palette.reason.oneTab") : t("palette.reason.noSuchTab");

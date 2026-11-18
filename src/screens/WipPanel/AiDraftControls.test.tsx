@@ -43,7 +43,10 @@ describe("status line (spec “Zustände jedes KI-Elements”)", () => {
     expect(idle).toContain("data-ai-commit-preview");
     expect(idle).toContain("What is sent?");
     expect(idle).not.toContain('role="status"');
-    expect(html(<AiDraftStatusView repoId="r" phase={{ kind: "idle" }} local elapsedMs={0} staged={0} />), "nothing staged: nothing to show").toBe("");
+    expect(
+      html(<AiDraftStatusView repoId="r" phase={{ kind: "idle" }} local elapsedMs={0} staged={0} />),
+      "nothing staged: nothing to show",
+    ).toBe("");
   });
 
   it("counts seconds politely and names slow local models", () => {
@@ -51,8 +54,12 @@ describe("status line (spec “Zustände jedes KI-Elements”)", () => {
     expect(markup).toContain('role="status"');
     expect(markup).toContain("Writing … (12 s)");
     expect(markup).not.toContain("Local models take longer");
-    expect(html(<AiDraftStatusView repoId="r" phase={running} local elapsedMs={31_000} staged={1} />)).toContain("Local models take longer");
-    expect(html(<AiDraftStatusView repoId="r" phase={running} local={false} elapsedMs={1_000} staged={1} />)).toContain(">Writing …</span>");
+    expect(html(<AiDraftStatusView repoId="r" phase={running} local elapsedMs={31_000} staged={1} />)).toContain(
+      "Local models take longer",
+    );
+    expect(html(<AiDraftStatusView repoId="r" phase={running} local={false} elapsedMs={1_000} staged={1} />)).toContain(
+      ">Writing …</span>",
+    );
   });
 
   it("names the draft and links “What is sent?” afterwards", () => {
@@ -65,22 +72,50 @@ describe("status line (spec “Zustände jedes KI-Elements”)", () => {
 
   it("offers a suggestion with Replace, Append and Discard", () => {
     const suggestion = { summary: "Tagesmittel als CSV exportieren", description: "" };
-    const ready = html(<AiDraftStatusView repoId="r" phase={{ kind: "offer", reason: "ready", suggestion }} local elapsedMs={0} staged={1} />);
+    const ready = html(
+      <AiDraftStatusView repoId="r" phase={{ kind: "offer", reason: "ready", suggestion }} local elapsedMs={0} staged={1} />,
+    );
     expect(ready).toContain("Suggestion ready");
     expect(ready).toContain("Tagesmittel als CSV exportieren");
     for (const action of ["replace", "append", "discard"]) expect(ready).toContain(`data-ai-offer-action="${action}"`);
-    expect(html(<AiDraftStatusView repoId="r" phase={{ kind: "offer", reason: "choose", suggestion }} local elapsedMs={0} staged={1} />)).toContain("Suggestion – your text stays until you choose");
+    expect(
+      html(<AiDraftStatusView repoId="r" phase={{ kind: "offer", reason: "choose", suggestion }} local elapsedMs={0} staged={1} />),
+    ).toContain("Suggestion – your text stays until you choose");
   });
 
   it("shows errors inline as an alert with the way out", () => {
-    const unavailable = html(<AiDraftStatusView repoId="r" phase={{ kind: "error", view: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } }} local elapsedMs={0} staged={1} />);
+    const unavailable = html(
+      <AiDraftStatusView
+        repoId="r"
+        phase={{ kind: "error", view: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } }}
+        local
+        elapsedMs={0}
+        staged={1}
+      />,
+    );
     expect(unavailable).toContain('role="alert"');
     expect(unavailable).toContain("Ollama is not responding (127.0.0.1:11434).");
     expect(unavailable).toContain("Try again");
-    const invalid = html(<AiDraftStatusView repoId="r" phase={{ kind: "error", view: { kind: "invalid", text: "Answer unusable" } }} local elapsedMs={0} staged={1} />);
+    const invalid = html(
+      <AiDraftStatusView
+        repoId="r"
+        phase={{ kind: "error", view: { kind: "invalid", text: "Answer unusable" } }}
+        local
+        elapsedMs={0}
+        staged={1}
+      />,
+    );
     expect(invalid).toContain("Again");
     expect(invalid).toContain("Show what was sent");
-    const limit = html(<AiDraftStatusView repoId="r" phase={{ kind: "error", view: { kind: "limit", text: "Limit reached." } }} local elapsedMs={0} staged={1} />);
+    const limit = html(
+      <AiDraftStatusView
+        repoId="r"
+        phase={{ kind: "error", view: { kind: "limit", text: "Limit reached." } }}
+        local
+        elapsedMs={0}
+        staged={1}
+      />,
+    );
     expect(limit).toContain("Send this time");
     expect(limit).toContain("Change limit");
   });
@@ -94,6 +129,8 @@ describe("status line (spec “Zustände jedes KI-Elements”)", () => {
     expect(cli).toContain("data-ai-sign-in");
     expect(cli).toContain("Sign in in the terminal</button>");
     // An API provider has no terminal sign-in: only the text stays.
-    expect(html(<AiDraftStatusView repoId="r" phase={phase} local={false} elapsedMs={0} staged={1} provider="anthropic" />)).not.toContain("data-ai-sign-in");
+    expect(html(<AiDraftStatusView repoId="r" phase={phase} local={false} elapsedMs={0} staged={1} provider="anthropic" />)).not.toContain(
+      "data-ai-sign-in",
+    );
   });
 });

@@ -51,16 +51,38 @@ export function PatchPreview({ info, className }: { info: PatchInfo; className?:
  * Files of a patch. With `reasons` (check result) each file says whether it applies – as a word
  * and an icon, not only as a colour.
  */
-export function PatchFileList({ files, reasons, checked, label, className }: { files: PatchFile[]; reasons?: Map<string, string>; checked?: boolean; label: string; className?: string }) {
+export function PatchFileList({
+  files,
+  reasons,
+  checked,
+  label,
+  className,
+}: {
+  files: PatchFile[];
+  reasons?: Map<string, string>;
+  checked?: boolean;
+  label: string;
+  className?: string;
+}) {
   const shown = files.slice(0, FILE_LIMIT);
   const rest = files.length - shown.length;
   return (
-    <ul aria-label={label} tabIndex={0} data-patch-files className={cn("overflow-auto rounded-md border border-border bg-surface-sunken py-1", className)}>
+    <ul
+      aria-label={label}
+      tabIndex={0}
+      data-patch-files
+      className={cn("overflow-auto rounded-md border border-border bg-surface-sunken py-1", className)}
+    >
       {shown.map((file) => {
         const reason = reasons?.get(file.path) ?? (file.oldPath ? reasons?.get(file.oldPath) : undefined);
         const slash = file.path.lastIndexOf("/");
         return (
-          <li key={`${file.oldPath ?? ""}→${file.path}`} data-patch-file={file.path} data-fits={reason ? "no" : checked ? "yes" : undefined} className="flex h-row items-center gap-2 px-2 text-base">
+          <li
+            key={`${file.oldPath ?? ""}→${file.path}`}
+            data-patch-file={file.path}
+            data-fits={reason ? "no" : checked ? "yes" : undefined}
+            className="flex h-row items-center gap-2 px-2 text-base"
+          >
             <StatusBadge status={file.status} />
             <span className="min-w-0 flex-1 truncate" title={file.oldPath ? `${file.oldPath} → ${file.path}` : file.path}>
               <span className={cn(file.status === "deleted" && "line-through")}>{file.path.slice(slash + 1)}</span>
@@ -86,7 +108,9 @@ export function PatchFileList({ files, reasons, checked, label, className }: { f
           </li>
         );
       })}
-      {rest > 0 ? <li className="px-2 text-sm text-text-muted">{t("patches.parts.moreFiles", { count: rest.toLocaleString(locale()) })}</li> : null}
+      {rest > 0 ? (
+        <li className="px-2 text-sm text-text-muted">{t("patches.parts.moreFiles", { count: rest.toLocaleString(locale()) })}</li>
+      ) : null}
     </ul>
   );
 }

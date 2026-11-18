@@ -58,6 +58,13 @@ describe("terminal tabs", () => {
     expect(sessionState("program", { kind: "running" }, true)).toBe("waiting");
     expect(sessionState("shell", { kind: "failed" })).toBe("failed");
     // Spec, "Gemeinsame UI-Regeln": running = accent, waiting = warning, done = success, error = danger, ended = muted.
-    expect(STATE_TONE).toEqual({ starting: "accent", running: "accent", waiting: "warning", done: "success", failed: "danger", exited: "muted" });
+    expect(STATE_TONE).toEqual({
+      starting: "accent",
+      running: "accent",
+      waiting: "warning",
+      done: "success",
+      failed: "danger",
+      exited: "muted",
+    });
   });
 });

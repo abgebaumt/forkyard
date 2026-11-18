@@ -51,8 +51,12 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
 
   // The worktree list knows most precisely where a branch is checked out; the refs can be a moment older.
   const locals = useMemo(() => {
-    const elsewhere = new Map((worktrees.data ?? []).filter((item) => item.branch && !item.isCurrent).map((item) => [item.branch!, item.path]));
-    return (refs.data?.locals ?? []).map((ref) => (ref.worktreePath || ref.isHead || !elsewhere.has(ref.name) ? ref : { ...ref, worktreePath: elsewhere.get(ref.name)! }));
+    const elsewhere = new Map(
+      (worktrees.data ?? []).filter((item) => item.branch && !item.isCurrent).map((item) => [item.branch!, item.path]),
+    );
+    return (refs.data?.locals ?? []).map((ref) =>
+      ref.worktreePath || ref.isHead || !elsewhere.has(ref.name) ? ref : { ...ref, worktreePath: elsewhere.get(ref.name)! },
+    );
   }, [refs.data, worktrees.data]);
   const presetRef = preset?.branch ? locals.find((ref) => ref.name === preset.branch) : undefined;
   const presetFree = presetRef ? branchBlock(presetRef) === null : false;
@@ -101,14 +105,23 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
   const unborn = head?.kind === "unborn";
 
   const pointOptions = useMemo<SelectOption[]>(() => {
-    const label = (ref: Ref) => (ref.kind === "tag" ? t("worktrees.dialog.tagOption", { name: ref.name }) : ref.kind === "remote" ? t("worktrees.dialog.remoteOption", { name: ref.name }) : ref.name);
+    const label = (ref: Ref) =>
+      ref.kind === "tag"
+        ? t("worktrees.dialog.tagOption", { name: ref.name })
+        : ref.kind === "remote"
+          ? t("worktrees.dialog.remoteOption", { name: ref.name })
+          : ref.name;
     return [{ value: HEAD, label: headLabel }, ...allRefs.slice(0, MAX_OPTIONS).map((ref) => ({ value: ref.fullName, label: label(ref) }))];
   }, [allRefs, headLabel]);
   const existingOptions = useMemo<SelectOption[]>(
     () =>
       locals.slice(0, MAX_OPTIONS).map((ref) => {
         const blocked = branchBlock(ref);
-        return { value: ref.name, label: blocked ? t("worktrees.dialog.blockedOption", { name: ref.name, reason: blocked }) : ref.name, disabled: Boolean(blocked) };
+        return {
+          value: ref.name,
+          label: blocked ? t("worktrees.dialog.blockedOption", { name: ref.name, reason: blocked }) : ref.name,
+          disabled: Boolean(blocked),
+        };
       }),
     [locals],
   );
@@ -118,7 +131,15 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
 
   // The folder name follows what is checked out until it has been changed by hand.
   const targetLabel =
-    mode === "new" ? name.trim() : mode === "existing" ? existing : detachedAt === HEAD ? (head && head.kind !== "unborn" ? shortSha(head.sha) : "") : (byFullName.get(detachedAt)?.name ?? "");
+    mode === "new"
+      ? name.trim()
+      : mode === "existing"
+        ? existing
+        : detachedAt === HEAD
+          ? head && head.kind !== "unborn"
+            ? shortSha(head.sha)
+            : ""
+          : (byFullName.get(detachedAt)?.name ?? "");
   useEffect(() => {
     if (!folderTouched.current) setFolder(suggestFolder(repoName, targetLabel));
   }, [repoName, targetLabel]);
@@ -144,12 +165,21 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
   const taken = target ? worktrees.data?.find((item) => samePath(item.path, target)) : undefined;
   const failureAt = (field: FieldName) => (coreFailure?.field === field ? coreFailure.text : null);
   const errors: Record<FieldName, string | null> = {
-    name: mode !== "new" ? null : name.trim() ? (nameProblem ?? failureAt("name")) : submitted ? t("worktrees.dialog.errors.nameRequired") : null,
+    name:
+      mode !== "new"
+        ? null
+        : name.trim()
+          ? (nameProblem ?? failureAt("name"))
+          : submitted
+            ? t("worktrees.dialog.errors.nameRequired")
+            : null,
     existing:
       mode !== "existing"
         ? null
         : existingBlocked
-          ? t(existingRef?.isHead ? "worktrees.dialog.errors.checkedOutHere" : "worktrees.dialog.errors.checkedOutElsewhere", { name: existing })
+          ? t(existingRef?.isHead ? "worktrees.dialog.errors.checkedOutHere" : "worktrees.dialog.errors.checkedOutElsewhere", {
+              name: existing,
+            })
           : !existing && submitted
             ? t("worktrees.dialog.errors.branchRequired")
             : failureAt("existing"),
@@ -160,7 +190,11 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
       : submitted
         ? t("worktrees.dialog.errors.parentRequired")
         : null,
-    folder: folder ? (folderNameError(folder) ?? (taken ? t("worktrees.dialog.errors.taken") : null) ?? failureAt("folder")) : submitted ? t("worktrees.dialog.errors.folderRequired") : null,
+    folder: folder
+      ? (folderNameError(folder) ?? (taken ? t("worktrees.dialog.errors.taken") : null) ?? failureAt("folder"))
+      : submitted
+        ? t("worktrees.dialog.errors.folderRequired")
+        : null,
   };
 
   const clearFailure = (field: FieldName) => {
@@ -223,10 +257,23 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
       const { code, message } = result.error;
       const text = message || describeError(result.error).text;
       const field: FieldName | null =
-        code === "path_exists" ? "folder" : code === "path_not_found" ? "parent" : code === "invalid_name" || code === "name_exists" ? "name" : code === "not_allowed" && mode === "existing" ? "existing" : null;
+        code === "path_exists"
+          ? "folder"
+          : code === "path_not_found"
+            ? "parent"
+            : code === "invalid_name" || code === "name_exists"
+              ? "name"
+              : code === "not_allowed" && mode === "existing"
+                ? "existing"
+                : null;
       setCoreFailure({
         field,
-        text: code === "path_exists" ? t("worktrees.dialog.errors.pathExists") : code === "path_not_found" ? t("worktrees.dialog.errors.pathNotFound") : text,
+        text:
+          code === "path_exists"
+            ? t("worktrees.dialog.errors.pathExists")
+            : code === "path_not_found"
+              ? t("worktrees.dialog.errors.pathNotFound")
+              : text,
       });
       if (field) window.requestAnimationFrame(() => document.getElementById(`${formId}-${field}`)?.focus());
       return;
@@ -363,7 +410,12 @@ function WorktreeDialog({ repoId, preset, onDone }: { repoId: Id; preset?: Workt
                     clearFailure("name");
                   }}
                 />
-                <Select label={t("worktrees.dialog.start")} value={byFullName.has(start) || start === HEAD ? start : HEAD} options={pointOptions} onValueChange={setStart} />
+                <Select
+                  label={t("worktrees.dialog.start")}
+                  value={byFullName.has(start) || start === HEAD ? start : HEAD}
+                  options={pointOptions}
+                  onValueChange={setStart}
+                />
               </div>
             ) : mode === "existing" ? (
               freeBranches.length === 0 ? (

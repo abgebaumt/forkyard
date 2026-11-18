@@ -44,7 +44,9 @@ vi.mock("../../app/dialogs", async (original) => ({
   ...(await original<typeof import("../../app/dialogs")>()),
   confirm: (options: { title: string; body: unknown; confirmLabel: string; danger?: boolean }) => confirmSpy(options),
 }));
-vi.mock("../../app/actions/tags", () => ({ pushTag: (repoId: string, name: string, remote?: string | null) => pushTagSpy(repoId, name, remote) }));
+vi.mock("../../app/actions/tags", () => ({
+  pushTag: (repoId: string, name: string, remote?: string | null) => pushTagSpy(repoId, name, remote),
+}));
 vi.mock("../../app/actions/clipboard", () => ({ copyText: (text: string, what: string) => copySpy(text, what) }));
 vi.mock("../../ui/Feedback", async (original) => ({ ...(await original<typeof import("../../ui/Feedback")>()), toast: vi.fn() }));
 
@@ -53,7 +55,15 @@ const { queryClient } = await import("../../app/queries");
 const { applyReleaseTargets } = await import("./apply");
 
 const NOTES = "### Neu\n\n- Export als CSV\n\n### Behoben\n\n- Absturz bei leerem Namen";
-const github = { remote: "origin", kind: "github", account: { id: "a1", kind: "github" }, owner: "octo", name: "demo", webUrl: "https://github.com/octo/demo", capabilities: { releases: true } };
+const github = {
+  remote: "origin",
+  kind: "github",
+  account: { id: "a1", kind: "github" },
+  owner: "octo",
+  name: "demo",
+  webUrl: "https://github.com/octo/demo",
+  capabilities: { releases: true },
+};
 
 beforeEach(() => {
   calls.length = 0;
@@ -67,12 +77,24 @@ beforeEach(() => {
 
 describe("applying release notes", () => {
   it("runs changelog, host release and clipboard in this order, whatever order they were picked in", async () => {
-    const done = await applyReleaseTargets({ repoId: "r1", tag: "v1.2.0", notes: NOTES, targets: ["clipboard", "host_release", "changelog"] });
+    const done = await applyReleaseTargets({
+      repoId: "r1",
+      tag: "v1.2.0",
+      notes: NOTES,
+      targets: ["clipboard", "host_release", "changelog"],
+    });
     expect(done).toEqual(["changelog", "host_release", "clipboard"]);
     expect(calls).toEqual(["changelog_insert", "tag_push v1.2.0 origin", "release_create", "copy"]);
     expect(changelogInsert.mock.calls[0]![0]).toMatchObject({ repoId: "r1", version: "v1.2.0", notes: NOTES });
     expect((changelogInsert.mock.calls[0]![0] as { date: string }).date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(releaseCreate.mock.calls[0]![0]).toEqual({ repoId: "r1", tag: "v1.2.0", name: "v1.2.0", body: NOTES, prerelease: false, remote: "origin" });
+    expect(releaseCreate.mock.calls[0]![0]).toEqual({
+      repoId: "r1",
+      tag: "v1.2.0",
+      name: "v1.2.0",
+      body: NOTES,
+      prerelease: false,
+      remote: "origin",
+    });
     expect(copySpy).toHaveBeenCalledWith(NOTES, "Release notes");
   });
 
@@ -87,7 +109,9 @@ describe("applying release notes", () => {
 
     calls.length = 0;
     confirmSpy.mockImplementation(async () => false);
-    expect(await applyReleaseTargets({ repoId: "r1", tag: "v1.2.0", notes: NOTES, targets: ["changelog", "host_release", "clipboard"] })).toEqual(["changelog"]);
+    expect(
+      await applyReleaseTargets({ repoId: "r1", tag: "v1.2.0", notes: NOTES, targets: ["changelog", "host_release", "clipboard"] }),
+    ).toEqual(["changelog"]);
     expect(calls, "declined: no push, no release, and the clipboard is not reached").toEqual(["changelog_insert"]);
 
     calls.length = 0;

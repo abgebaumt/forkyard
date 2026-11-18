@@ -64,7 +64,12 @@ function cliFolder(t) {
   return dir;
 }
 
-const launchEnv = (dir, extra = {}) => ({ FORKYARD_AI_CLI_DIR: dir, FORKYARD_AI_BASE_URL_OLLAMA: CLOSED, FORKYARD_AI_BASE_URL_LMSTUDIO: `${CLOSED}/v1`, ...extra });
+const launchEnv = (dir, extra = {}) => ({
+  FORKYARD_AI_CLI_DIR: dir,
+  FORKYARD_AI_BASE_URL_OLLAMA: CLOSED,
+  FORKYARD_AI_BASE_URL_LMSTUDIO: `${CLOSED}/v1`,
+  ...extra,
+});
 
 /** Copies the fake tool as `claude` into `dir`, signed in or not; returns its recorded calls. */
 function installClaude(dir, { loggedIn }) {
@@ -73,7 +78,15 @@ function installClaude(dir, { loggedIn }) {
   fs.copyFileSync(FAKE, program);
   fs.chmodSync(program, 0o755);
   const status = { loggedIn, authMethod: loggedIn ? "claude.ai" : "none", apiProvider: "firstParty" };
-  const answer = { type: "result", subtype: "success", is_error: false, result: "", total_cost_usd: 0.0123, usage: { input_tokens: 120, output_tokens: 9 }, structured_output: { summary: "Fix login", body: null } };
+  const answer = {
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    result: "",
+    total_cost_usd: 0.0123,
+    usage: { input_tokens: 120, output_tokens: 9 },
+    structured_output: { summary: "Fix login", body: null },
+  };
   const config = {
     rules: [
       { args: ["--version"], stdout: "2.1.301 (Claude Code)\n" },
@@ -87,7 +100,14 @@ function installClaude(dir, { loggedIn }) {
   const log = path.join(dir, "claude.calls.jsonl");
   return {
     program,
-    calls: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []),
+    calls: () =>
+      fs.existsSync(log)
+        ? fs
+            .readFileSync(log, "utf8")
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line))
+        : [],
   };
 }
 
@@ -116,8 +136,12 @@ async function startOllama() {
 const textOf = (app, css) => app.exec((selector) => document.querySelector(selector)?.innerText.trim() ?? null, css);
 const stepIs = (app, step) => app.waitFor(`${SETUP}[data-step="${step}"]`, 10_000, { message: `setup step ${step}` });
 const setupGone = (app) => app.waitFor(() => app.exec((css) => !document.querySelector(css), SETUP), 5000, { message: "setup closed" });
-const entryGone = (app) => app.waitFor(() => app.exec((css) => !document.querySelector(css), ENTRY), 10_000, { message: "start-page entry hidden" });
-const masterSwitch = (app) => app.waitFor(() => app.exec(() => document.querySelector('[data-ai-settings] [data-setting="AI features"] [role="switch"]')), 10_000, { message: "master switch" });
+const entryGone = (app) =>
+  app.waitFor(() => app.exec((css) => !document.querySelector(css), ENTRY), 10_000, { message: "start-page entry hidden" });
+const masterSwitch = (app) =>
+  app.waitFor(() => app.exec(() => document.querySelector('[data-ai-settings] [data-setting="AI features"] [role="switch"]')), 10_000, {
+    message: "master switch",
+  });
 
 async function openAiSettings(app) {
   await app.click(await app.waitFor(ENTRY, 15_000, { message: "start-page entry" }));
@@ -138,149 +162,202 @@ async function closeSettings(app) {
 
 async function chooseOption(app, trigger, label) {
   await app.click(await app.waitFor(trigger, 10_000, { message: `select ${trigger}` }));
-  const option = await app.waitFor(() => app.exec((wanted) => [...document.querySelectorAll('[role="option"]')].find((el) => el.innerText.trim() === wanted) ?? null, label), 5000, { message: `option ${label}` });
+  const option = await app.waitFor(
+    () =>
+      app.exec((wanted) => [...document.querySelectorAll('[role="option"]')].find((el) => el.innerText.trim() === wanted) ?? null, label),
+    5000,
+    { message: `option ${label}` },
+  );
   await app.click(option);
 }
 
 // ---------------------------------------------------------------------------------------------
 
-scenario("one signed-in Claude Code: the setup turns AI on with one click", "main", withCleanup(async (t) => {
-  const dir = cliFolder(t);
-  const claude = installClaude(dir, { loggedIn: true });
-  const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
-  await openSetup(app);
-  const find = await textOf(app, '[data-ai-find="cli:claude_code"]');
-  assertIncludes(find, "Claude Code");
-  assertIncludes(find, "Version 2.1.301");
-  assertIncludes(find, "Signed in (claude.ai)");
-  assertIncludes(find, claude.program);
-  assertEqual(await app.exec(() => document.querySelector('[data-ai-find="cli:claude_code"] input[type="radio"]')?.checked ?? null), true, "preselected");
-  assertEqual(await textOf(app, "[data-ai-setup-primary]"), "Turn on with Claude Code");
-  await t.shot("setup-one-tool");
+scenario(
+  "one signed-in Claude Code: the setup turns AI on with one click",
+  "main",
+  withCleanup(async (t) => {
+    const dir = cliFolder(t);
+    const claude = installClaude(dir, { loggedIn: true });
+    const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
+    await openSetup(app);
+    const find = await textOf(app, '[data-ai-find="cli:claude_code"]');
+    assertIncludes(find, "Claude Code");
+    assertIncludes(find, "Version 2.1.301");
+    assertIncludes(find, "Signed in (claude.ai)");
+    assertIncludes(find, claude.program);
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-ai-find="cli:claude_code"] input[type="radio"]')?.checked ?? null),
+      true,
+      "preselected",
+    );
+    assertEqual(await textOf(app, "[data-ai-setup-primary]"), "Turn on with Claude Code");
+    await t.shot("setup-one-tool");
 
-  await app.click("[data-ai-setup-primary]");
-  await app.waitFor("[data-ai-setup-done]", 10_000, { message: "done step" });
-  assertIncludes(await textOf(app, "[data-ai-setup-done]"), "Requests go to Claude Code on this computer");
-  const status = await app.invoke("ai_status");
-  assertEqual(
-    { state: status.state, provider: status.provider, model: status.model, connected: status.connected, featuresOff: status.featuresOff },
-    { state: "on", provider: "claude_code", model: null, connected: true, featuresOff: [] },
-  );
-  assert(!claude.calls().some((call) => call.args[0] === "-p"), "setting up sends no content");
-  await t.shot("setup-done");
-  await app.click("[data-ai-setup-close]");
-  await setupGone(app);
-  await closeSettings(app);
-  await entryGone(app);
-  await t.noConsoleErrors(app);
-}));
+    await app.click("[data-ai-setup-primary]");
+    await app.waitFor("[data-ai-setup-done]", 10_000, { message: "done step" });
+    assertIncludes(await textOf(app, "[data-ai-setup-done]"), "Requests go to Claude Code on this computer");
+    const status = await app.invoke("ai_status");
+    assertEqual(
+      { state: status.state, provider: status.provider, model: status.model, connected: status.connected, featuresOff: status.featuresOff },
+      { state: "on", provider: "claude_code", model: null, connected: true, featuresOff: [] },
+    );
+    assert(!claude.calls().some((call) => call.args[0] === "-p"), "setting up sends no content");
+    await t.shot("setup-done");
+    await app.click("[data-ai-setup-close]");
+    await setupGone(app);
+    await closeSettings(app);
+    await entryGone(app);
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("other choice: a local Ollama step by step", "main", withCleanup(async (t) => {
-  const dir = cliFolder(t);
-  installClaude(dir, { loggedIn: true });
-  const ollama = await startOllama();
-  t.cleanups.push(() => ollama.close());
-  const app = await t.launch({ ...LAUNCH, env: launchEnv(dir, { FORKYARD_AI_BASE_URL_OLLAMA: ollama.url }) });
-  await openSetup(app);
-  assertIncludes(await textOf(app, '[data-ai-find="local:ollama"]'), "2 models");
-  await app.click("[data-ai-setup-other]");
-  await stepIs(app, "provider");
-  await chooseOption(app, '[data-ai-setup-provider] button[role="combobox"]', "Ollama (on this computer)");
-  assertEqual(await app.exec(() => document.querySelector("[data-ai-setup-primary]")?.disabled ?? null), true, "Continue only after a successful check");
-  await app.click(await app.waitFor("[data-ai-setup-check]", 5000, { message: "Check" }));
-  const result = await app.waitFor(() => app.exec((css) => document.querySelector(`${css} [data-ai-setup-check] ~ [role="status"]`)?.innerText.trim() ?? null, SETUP), 10_000, { message: "check result" });
-  assertEqual(result, "Connected – 2 models found");
-  await app.click("[data-ai-setup-primary]");
-  await stepIs(app, "model");
-  await chooseOption(app, '[data-ai-setup-model] button[role="combobox"]', "llama3.2:3b");
-  await app.click("[data-ai-setup-primary]");
-  await stepIs(app, "features");
-  await app.click('[data-ai-setup-feature="compose"] [role="switch"]');
-  await t.shot("setup-features");
-  await app.click("[data-ai-setup-primary]");
-  await app.waitFor("[data-ai-setup-done]", 10_000, { message: "done step" });
-  assertIncludes(await textOf(app, "[data-ai-setup-done]"), "Requests stay on this computer (Ollama).");
-  const settings = await app.invoke("settings_get");
-  assertEqual(
-    { aiEnabled: settings.aiEnabled, aiProvider: settings.aiProvider, aiModel: settings.aiModel, aiFeaturesOff: settings.aiFeaturesOff },
-    { aiEnabled: true, aiProvider: "ollama", aiModel: "llama3.2:3b", aiFeaturesOff: ["compose"] },
-  );
-  assertEqual((await app.invoke("ai_status")).connected, true);
-  assert(!ollama.requests.some((request) => request.url === "/api/chat"), "setting up sends no content");
-  await app.click("[data-ai-setup-close]");
-  await setupGone(app);
-  await t.noConsoleErrors(app);
-}));
+scenario(
+  "other choice: a local Ollama step by step",
+  "main",
+  withCleanup(async (t) => {
+    const dir = cliFolder(t);
+    installClaude(dir, { loggedIn: true });
+    const ollama = await startOllama();
+    t.cleanups.push(() => ollama.close());
+    const app = await t.launch({ ...LAUNCH, env: launchEnv(dir, { FORKYARD_AI_BASE_URL_OLLAMA: ollama.url }) });
+    await openSetup(app);
+    assertIncludes(await textOf(app, '[data-ai-find="local:ollama"]'), "2 models");
+    await app.click("[data-ai-setup-other]");
+    await stepIs(app, "provider");
+    await chooseOption(app, '[data-ai-setup-provider] button[role="combobox"]', "Ollama (on this computer)");
+    assertEqual(
+      await app.exec(() => document.querySelector("[data-ai-setup-primary]")?.disabled ?? null),
+      true,
+      "Continue only after a successful check",
+    );
+    await app.click(await app.waitFor("[data-ai-setup-check]", 5000, { message: "Check" }));
+    const result = await app.waitFor(
+      () => app.exec((css) => document.querySelector(`${css} [data-ai-setup-check] ~ [role="status"]`)?.innerText.trim() ?? null, SETUP),
+      10_000,
+      { message: "check result" },
+    );
+    assertEqual(result, "Connected – 2 models found");
+    await app.click("[data-ai-setup-primary]");
+    await stepIs(app, "model");
+    await chooseOption(app, '[data-ai-setup-model] button[role="combobox"]', "llama3.2:3b");
+    await app.click("[data-ai-setup-primary]");
+    await stepIs(app, "features");
+    await app.click('[data-ai-setup-feature="compose"] [role="switch"]');
+    await t.shot("setup-features");
+    await app.click("[data-ai-setup-primary]");
+    await app.waitFor("[data-ai-setup-done]", 10_000, { message: "done step" });
+    assertIncludes(await textOf(app, "[data-ai-setup-done]"), "Requests stay on this computer (Ollama).");
+    const settings = await app.invoke("settings_get");
+    assertEqual(
+      { aiEnabled: settings.aiEnabled, aiProvider: settings.aiProvider, aiModel: settings.aiModel, aiFeaturesOff: settings.aiFeaturesOff },
+      { aiEnabled: true, aiProvider: "ollama", aiModel: "llama3.2:3b", aiFeaturesOff: ["compose"] },
+    );
+    assertEqual((await app.invoke("ai_status")).connected, true);
+    assert(!ollama.requests.some((request) => request.url === "/api/chat"), "setting up sends no content");
+    await app.click("[data-ai-setup-close]");
+    await setupGone(app);
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("nothing found: an API key, a local model or only the cockpit", "edge", withCleanup(async (t) => {
-  const dir = cliFolder(t);
-  const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
-  await openSetup(app);
-  assertIncludes(await textOf(app, SETUP), "No AI tool, local model or stored key was found.");
-  for (const option of ["key", "local", "cockpit"]) {
-    assert(await app.exec((name) => Boolean(document.querySelector(`[data-ai-setup-nothing-option="${name}"]`)), option), `option ${option}`);
-  }
-  assertEqual(await app.exec(() => document.querySelector("[data-ai-setup-primary]")?.disabled ?? null), true, "nothing to turn on");
-  await app.click('[data-ai-setup-nothing-option="key"]');
-  await stepIs(app, "provider");
-  await app.click("[data-ai-setup-back]");
-  await stepIs(app, "found");
-  await t.shot("setup-nothing");
-  await app.click('[data-ai-setup-nothing-option="cockpit"]');
-  await setupGone(app);
-  await eventually(async () => (await app.invoke("ai_status")).state, "off", "only the cockpit: AI off on purpose");
-  await closeSettings(app);
-  await entryGone(app);
-  await t.noConsoleErrors(app);
-}));
+scenario(
+  "nothing found: an API key, a local model or only the cockpit",
+  "edge",
+  withCleanup(async (t) => {
+    const dir = cliFolder(t);
+    const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
+    await openSetup(app);
+    assertIncludes(await textOf(app, SETUP), "No AI tool, local model or stored key was found.");
+    for (const option of ["key", "local", "cockpit"]) {
+      assert(
+        await app.exec((name) => Boolean(document.querySelector(`[data-ai-setup-nothing-option="${name}"]`)), option),
+        `option ${option}`,
+      );
+    }
+    assertEqual(await app.exec(() => document.querySelector("[data-ai-setup-primary]")?.disabled ?? null), true, "nothing to turn on");
+    await app.click('[data-ai-setup-nothing-option="key"]');
+    await stepIs(app, "provider");
+    await app.click("[data-ai-setup-back]");
+    await stepIs(app, "found");
+    await t.shot("setup-nothing");
+    await app.click('[data-ai-setup-nothing-option="cockpit"]');
+    await setupGone(app);
+    await eventually(async () => (await app.invoke("ai_status")).state, "off", "only the cockpit: AI off on purpose");
+    await closeSettings(app);
+    await entryGone(app);
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("the master switch without a provider opens the setup; Escape leaves AI unset", "edge", withCleanup(async (t) => {
-  const dir = cliFolder(t);
-  const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
-  await openAiSettings(app);
-  await app.click(await masterSwitch(app));
-  await stepIs(app, "found");
-  await app.press("Escape");
-  await setupGone(app);
-  assertEqual((await app.invoke("ai_status")).state, "unset", "Cancel changes nothing");
-  assertEqual(await (await masterSwitch(app)).attr("aria-checked"), "false");
-  assert(await app.exec(() => Boolean(document.querySelector("[data-ai-settings]"))), "Settings › AI stays open");
-  await t.noConsoleErrors(app);
-}));
+scenario(
+  "the master switch without a provider opens the setup; Escape leaves AI unset",
+  "edge",
+  withCleanup(async (t) => {
+    const dir = cliFolder(t);
+    const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
+    await openAiSettings(app);
+    await app.click(await masterSwitch(app));
+    await stepIs(app, "found");
+    await app.press("Escape");
+    await setupGone(app);
+    assertEqual((await app.invoke("ai_status")).state, "unset", "Cancel changes nothing");
+    assertEqual(await (await masterSwitch(app)).attr("aria-checked"), "false");
+    assert(await app.exec(() => Boolean(document.querySelector("[data-ai-settings]"))), "Settings › AI stays open");
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("a signed-out tool shows how to sign in and offers no one-click", "edge", withCleanup(async (t) => {
-  const dir = cliFolder(t);
-  installClaude(dir, { loggedIn: false });
-  const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
-  await openSetup(app);
-  const find = await textOf(app, '[data-ai-find="cli:claude_code"]');
-  assertIncludes(find, "Not signed in");
-  assertIncludes(find, "claude auth login");
-  assertEqual(await app.exec(() => document.querySelector('[data-ai-find="cli:claude_code"]')?.getAttribute("data-login") ?? null), "logged_out");
-  assertEqual(await app.exec(() => document.querySelector('[data-ai-find="cli:claude_code"] input[type="radio"]')?.disabled ?? null), true);
-  assertEqual(await app.exec(() => document.querySelector("[data-ai-setup-primary]")?.disabled ?? null), true);
-  assert(await app.exec(() => Boolean(document.querySelector("[data-ai-setup-nothing]"))), "the other ways are offered");
-  assert(await app.exec(() => !document.querySelector("[data-ai-setup-sign-in]")), "no repository open: the command is shown as text, no terminal");
-  await t.shot("setup-signed-out");
-  await app.press("Escape");
-  await setupGone(app);
-  await t.noConsoleErrors(app);
-}));
+scenario(
+  "a signed-out tool shows how to sign in and offers no one-click",
+  "edge",
+  withCleanup(async (t) => {
+    const dir = cliFolder(t);
+    installClaude(dir, { loggedIn: false });
+    const app = await t.launch({ ...LAUNCH, env: launchEnv(dir) });
+    await openSetup(app);
+    const find = await textOf(app, '[data-ai-find="cli:claude_code"]');
+    assertIncludes(find, "Not signed in");
+    assertIncludes(find, "claude auth login");
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-ai-find="cli:claude_code"]')?.getAttribute("data-login") ?? null),
+      "logged_out",
+    );
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-ai-find="cli:claude_code"] input[type="radio"]')?.disabled ?? null),
+      true,
+    );
+    assertEqual(await app.exec(() => document.querySelector("[data-ai-setup-primary]")?.disabled ?? null), true);
+    assert(await app.exec(() => Boolean(document.querySelector("[data-ai-setup-nothing]"))), "the other ways are offered");
+    assert(
+      await app.exec(() => !document.querySelector("[data-ai-setup-sign-in]")),
+      "no repository open: the command is shown as text, no terminal",
+    );
+    await t.shot("setup-signed-out");
+    await app.press("Escape");
+    await setupGone(app);
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("German texts", "edge", withCleanup(async (t) => {
-  const dir = cliFolder(t);
-  installClaude(dir, { loggedIn: true });
-  const app = await t.launch({ ...LAUNCH, lang: "de", env: launchEnv(dir) });
-  await openAiSettings(app);
-  assertEqual(await textOf(app, "[data-ai-setup-open]"), "Einrichten …");
-  await app.click("[data-ai-setup-open]");
-  await stepIs(app, "found");
-  const titles = await app.exec(() => [...document.querySelectorAll('[role="dialog"] h2')].map((heading) => heading.innerText.trim()));
-  assert(titles.includes("KI einrichten"), JSON.stringify(titles));
-  assertEqual(await textOf(app, "[data-ai-setup-primary]"), "Mit Claude Code einschalten");
-  assertIncludes(await textOf(app, '[data-ai-find="cli:claude_code"]'), "Angemeldet (claude.ai)");
-  await t.shot("setup-de");
-  await app.press("Escape");
-  await setupGone(app);
-  await t.noConsoleErrors(app);
-}));
+scenario(
+  "German texts",
+  "edge",
+  withCleanup(async (t) => {
+    const dir = cliFolder(t);
+    installClaude(dir, { loggedIn: true });
+    const app = await t.launch({ ...LAUNCH, lang: "de", env: launchEnv(dir) });
+    await openAiSettings(app);
+    assertEqual(await textOf(app, "[data-ai-setup-open]"), "Einrichten …");
+    await app.click("[data-ai-setup-open]");
+    await stepIs(app, "found");
+    const titles = await app.exec(() => [...document.querySelectorAll('[role="dialog"] h2')].map((heading) => heading.innerText.trim()));
+    assert(titles.includes("KI einrichten"), JSON.stringify(titles));
+    assertEqual(await textOf(app, "[data-ai-setup-primary]"), "Mit Claude Code einschalten");
+    assertIncludes(await textOf(app, '[data-ai-find="cli:claude_code"]'), "Angemeldet (claude.ai)");
+    await t.shot("setup-de");
+    await app.press("Escape");
+    await setupGone(app);
+    await t.noConsoleErrors(app);
+  }),
+);

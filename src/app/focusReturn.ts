@@ -49,7 +49,12 @@ export function useFocusReturn() {
       event.preventDefault();
       // If something else has taken focus in the meantime (a dialog of the executed action), it stays there.
       const active = document.activeElement;
-      if (active instanceof HTMLElement && active !== document.body && active.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      if (
+        active instanceof HTMLElement &&
+        active !== document.body &&
+        active.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')
+      )
+        return;
       if (opener.current) returnFocus(opener.current);
     },
   };

@@ -13,7 +13,8 @@ function isPinned(target: EventTarget | null, doc: Document): Element | null {
   if (target === doc) return doc.scrollingElement ?? doc.documentElement;
   if (!target || !("hasAttribute" in target)) return null;
   const element = target as Element;
-  if (element === doc.scrollingElement || element === doc.documentElement || element === doc.body || element === doc.getElementById("root")) return element;
+  if (element === doc.scrollingElement || element === doc.documentElement || element === doc.body || element === doc.getElementById("root"))
+    return element;
   return element.hasAttribute("data-no-scroll") ? element : null;
 }
 

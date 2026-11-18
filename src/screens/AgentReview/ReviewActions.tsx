@@ -12,13 +12,29 @@ import { discardRest, mergeAgent, rebaseAgent, reviewBusyKey, takeOver } from ".
 import { blocker, type ReviewAction, type TakeOverTarget } from "./model";
 import { usePane, useReviewStore } from "./state";
 
-export function ReviewActions({ repoId, tabId, agent, latest, chosen }: { repoId: Id; tabId: Id; agent: Agent; latest: AgentReview | null; chosen: number }) {
+export function ReviewActions({
+  repoId,
+  tabId,
+  agent,
+  latest,
+  chosen,
+}: {
+  repoId: Id;
+  tabId: Id;
+  agent: Agent;
+  latest: AgentReview | null;
+  chosen: number;
+}) {
   const pane = usePane(tabId, agent.id);
   const busy = useBusy(reviewBusyKey(repoId));
   const why = (action: ReviewAction) => blocker(action, { agent, latest, chosen, status: undefined, summary: "" });
   const takeOverWhy = why("takeOver");
   return (
-    <div role="toolbar" aria-label={t("agents.review.actions")} className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-2">
+    <div
+      role="toolbar"
+      aria-label={t("agents.review.actions")}
+      className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-2"
+    >
       <span data-review-target="">
         <SegmentedControl<TakeOverTarget>
           label={t("agents.review.target")}
@@ -30,14 +46,33 @@ export function ReviewActions({ repoId, tabId, agent, latest, chosen }: { repoId
           ]}
         />
       </span>
-      <Button size="sm" variant="primary" data-action="review-take-over" disabled={busy || Boolean(takeOverWhy)} title={takeOverWhy ?? undefined} onClick={() => void takeOver(tabId, agent)}>
+      <Button
+        size="sm"
+        variant="primary"
+        data-action="review-take-over"
+        disabled={busy || Boolean(takeOverWhy)}
+        title={takeOverWhy ?? undefined}
+        onClick={() => void takeOver(tabId, agent)}
+      >
         {t("agents.review.takeOver")}
       </Button>
       <span className="flex-1" />
-      <Button size="sm" data-action="review-merge" disabled={busy || Boolean(why("merge"))} title={why("merge") ?? undefined} onClick={() => void mergeAgent(tabId, agent)}>
+      <Button
+        size="sm"
+        data-action="review-merge"
+        disabled={busy || Boolean(why("merge"))}
+        title={why("merge") ?? undefined}
+        onClick={() => void mergeAgent(tabId, agent)}
+      >
         {t("agents.review.merge")}
       </Button>
-      <Button size="sm" data-action="review-rebase" disabled={busy || Boolean(why("rebase"))} title={why("rebase") ?? undefined} onClick={() => void rebaseAgent(agent)}>
+      <Button
+        size="sm"
+        data-action="review-rebase"
+        disabled={busy || Boolean(why("rebase"))}
+        title={why("rebase") ?? undefined}
+        onClick={() => void rebaseAgent(agent)}
+      >
         {t("agents.review.rebase", { base: agent.base })}
       </Button>
       <Button

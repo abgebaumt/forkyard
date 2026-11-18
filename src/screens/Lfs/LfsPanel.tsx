@@ -56,9 +56,21 @@ function PullProgress({ jobId, stopping }: { jobId: string; stopping: boolean })
   );
 }
 
-function PatternList({ patterns, onRemove, removing }: { patterns: string[]; onRemove?: (pattern: string) => void; removing: string | null }) {
+function PatternList({
+  patterns,
+  onRemove,
+  removing,
+}: {
+  patterns: string[];
+  onRemove?: (pattern: string) => void;
+  removing: string | null;
+}) {
   return (
-    <ul aria-label={t("lfs.patterns.label")} data-lfs-patterns className="max-h-48 overflow-y-auto rounded-md border border-border bg-surface-sunken py-1">
+    <ul
+      aria-label={t("lfs.patterns.label")}
+      data-lfs-patterns
+      className="max-h-48 overflow-y-auto rounded-md border border-border bg-surface-sunken py-1"
+    >
       {patterns.map((pattern) => (
         <li key={pattern} data-pattern={pattern} className="group flex h-row items-center gap-2 pr-1 pl-2 hover:bg-surface-raised">
           <HardDrive className="size-3.5 shrink-0 text-text-muted" aria-hidden />
@@ -135,7 +147,12 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
             tone="warning"
             title={t("lfs.missing.title")}
             actions={
-              <Button size="sm" loading={lfs.isFetching} icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void lfs.refetch()}>
+              <Button
+                size="sm"
+                loading={lfs.isFetching}
+                icon={<RefreshCw className="size-3.5" aria-hidden />}
+                onClick={() => void lfs.refetch()}
+              >
                 {t("lfs.missing.recheck")}
               </Button>
             }
@@ -145,9 +162,7 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
         </div>
         {patterns.length > 0 ? (
           <>
-            <p className="text-sm text-text-muted">
-              {t("lfs.missing.used", { count: patterns.length })}
-            </p>
+            <p className="text-sm text-text-muted">{t("lfs.missing.used", { count: patterns.length })}</p>
             <PatternList patterns={patterns} removing={null} />
           </>
         ) : (
@@ -202,15 +217,16 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
 
   return (
     <div data-lfs="ready" className="flex flex-col gap-3">
-      <p className="text-sm text-text-muted">
-        {t("lfs.intro")}
-      </p>
+      <p className="text-sm text-text-muted">{t("lfs.intro")}</p>
 
       <div className="-mb-1 flex items-center justify-between gap-3">
         <span className="text-sm font-medium text-text-muted">
           {t("lfs.patterns.heading")} <span className="font-normal tabular-nums">{patterns.length}</span>
         </span>
-        <span data-lfs-version className="inline-flex h-5 items-center gap-1 rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium whitespace-nowrap text-text-muted">
+        <span
+          data-lfs-version
+          className="inline-flex h-5 items-center gap-1 rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium whitespace-nowrap text-text-muted"
+        >
           <HardDrive className="size-3" aria-hidden />
           Git LFS {status.version ?? t("lfs.installed")}
         </span>
@@ -259,7 +275,15 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
         <div className="-mt-1 flex flex-wrap items-center gap-1 text-sm text-text-muted" data-lfs-suggestions>
           <span className="mr-1">{t("lfs.suggestions")}</span>
           {offers.map((item) => (
-            <Button key={item} size="sm" variant="ghost" className="font-mono" disabled={adding} aria-label={t("lfs.addPattern", { pattern: item })} onClick={() => void submit(item)}>
+            <Button
+              key={item}
+              size="sm"
+              variant="ghost"
+              className="font-mono"
+              disabled={adding}
+              aria-label={t("lfs.addPattern", { pattern: item })}
+              onClick={() => void submit(item)}
+            >
               {item}
             </Button>
           ))}
@@ -281,13 +305,16 @@ export function LfsPanel({ repoId, autoFocus }: LfsPanelProps) {
               {t("lfs.pull")}
             </Button>
           )}
-          <Button icon={<Eraser className="size-icon" aria-hidden />} loading={pruning} disabled={Boolean(jobId)} onClick={() => void pruneLfs(repoId)}>
+          <Button
+            icon={<Eraser className="size-icon" aria-hidden />}
+            loading={pruning}
+            disabled={Boolean(jobId)}
+            onClick={() => void pruneLfs(repoId)}
+          >
             {t("lfs.prune")}
           </Button>
         </div>
-        <p className="text-sm text-text-muted">
-          {t("lfs.footer")}
-        </p>
+        <p className="text-sm text-text-muted">{t("lfs.footer")}</p>
       </div>
     </div>
   );

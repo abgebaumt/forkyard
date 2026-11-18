@@ -94,23 +94,26 @@ export async function startIssuesOffProxy(mock) {
       }
       const headers = { ...request.headers, host: target.host };
       delete headers["if-none-match"];
-      const forward = http.request({ host: target.hostname, port: target.port, method: request.method, path: request.url, headers }, (answer) => {
-        const parts = [];
-        answer.on("data", (chunk) => parts.push(chunk));
-        answer.on("end", () => {
-          let body = Buffer.concat(parts);
-          const out = { ...answer.headers };
-          delete out.etag;
-          if (url.pathname === repoPath && answer.statusCode === 200) {
-            const value = JSON.parse(body.toString("utf8"));
-            value.has_issues = false;
-            body = Buffer.from(JSON.stringify(value));
-          }
-          out["content-length"] = String(body.length);
-          response.writeHead(answer.statusCode ?? 500, out);
-          response.end(body);
-        });
-      });
+      const forward = http.request(
+        { host: target.hostname, port: target.port, method: request.method, path: request.url, headers },
+        (answer) => {
+          const parts = [];
+          answer.on("data", (chunk) => parts.push(chunk));
+          answer.on("end", () => {
+            let body = Buffer.concat(parts);
+            const out = { ...answer.headers };
+            delete out.etag;
+            if (url.pathname === repoPath && answer.statusCode === 200) {
+              const value = JSON.parse(body.toString("utf8"));
+              value.has_issues = false;
+              body = Buffer.from(JSON.stringify(value));
+            }
+            out["content-length"] = String(body.length);
+            response.writeHead(answer.statusCode ?? 500, out);
+            response.end(body);
+          });
+        },
+      );
       forward.on("error", () => {
         response.writeHead(502);
         response.end();
@@ -147,10 +150,58 @@ export async function startBitbucketCloudFront(mock) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fy-e2e-wd-bbcloud-"));
   const file = (name) => path.join(dir, name);
   const run = (args) => execFileSync(opensslPath(), args, { stdio: "ignore", windowsHide: true });
-  run(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", file("ca-key.pem"), "-out", file("ca.pem"), "-days", "2", "-subj", "/CN=forkyard E2E Test-CA", "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign"]);
-  run(["req", "-newkey", "rsa:2048", "-nodes", "-keyout", file("server-key.pem"), "-out", file("server.csr"), "-subj", "/CN=api.bitbucket.org"]);
-  fs.writeFileSync(file("server.ext"), "subjectAltName=DNS:api.bitbucket.org,DNS:bitbucket.org\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n");
-  run(["x509", "-req", "-in", file("server.csr"), "-CA", file("ca.pem"), "-CAkey", file("ca-key.pem"), "-CAcreateserial", "-out", file("server-cert.pem"), "-days", "2", "-extfile", file("server.ext")]);
+  run([
+    "req",
+    "-x509",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    file("ca-key.pem"),
+    "-out",
+    file("ca.pem"),
+    "-days",
+    "2",
+    "-subj",
+    "/CN=forkyard E2E Test-CA",
+    "-addext",
+    "basicConstraints=critical,CA:TRUE",
+    "-addext",
+    "keyUsage=critical,keyCertSign,cRLSign",
+  ]);
+  run([
+    "req",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    file("server-key.pem"),
+    "-out",
+    file("server.csr"),
+    "-subj",
+    "/CN=api.bitbucket.org",
+  ]);
+  fs.writeFileSync(
+    file("server.ext"),
+    "subjectAltName=DNS:api.bitbucket.org,DNS:bitbucket.org\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n",
+  );
+  run([
+    "x509",
+    "-req",
+    "-in",
+    file("server.csr"),
+    "-CA",
+    file("ca.pem"),
+    "-CAkey",
+    file("ca-key.pem"),
+    "-CAcreateserial",
+    "-out",
+    file("server-cert.pem"),
+    "-days",
+    "2",
+    "-extfile",
+    file("server.ext"),
+  ]);
   const key = fs.readFileSync(file("server-key.pem"));
   const cert = fs.readFileSync(file("server-cert.pem"));
   const target = new URL(mock.url);
@@ -163,10 +214,19 @@ export async function startBitbucketCloudFront(mock) {
     const chunks = [];
     request.on("data", (chunk) => chunks.push(chunk));
     request.on("end", () => {
-      const forward = http.request({ host: target.hostname, port: target.port, method: request.method, path: request.url, headers: { ...request.headers, host: target.host } }, (answer) => {
-        response.writeHead(answer.statusCode ?? 502, answer.headers);
-        answer.pipe(response);
-      });
+      const forward = http.request(
+        {
+          host: target.hostname,
+          port: target.port,
+          method: request.method,
+          path: request.url,
+          headers: { ...request.headers, host: target.host },
+        },
+        (answer) => {
+          response.writeHead(answer.statusCode ?? 502, answer.headers);
+          answer.pipe(response);
+        },
+      );
       forward.on("error", () => {
         response.writeHead(502);
         response.end();
@@ -227,7 +287,18 @@ function secretServiceUnlocked(address) {
   try {
     const out = execFileSync(
       "gdbus",
-      ["call", "--session", "--dest", "org.freedesktop.secrets", "--object-path", "/org/freedesktop/secrets/aliases/default", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.Secret.Collection", "Locked"],
+      [
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.secrets",
+        "--object-path",
+        "/org/freedesktop/secrets/aliases/default",
+        "--method",
+        "org.freedesktop.DBus.Properties.Get",
+        "org.freedesktop.Secret.Collection",
+        "Locked",
+      ],
       { timeout: 5000, env: busEnv(address), stdio: ["ignore", "pipe", "ignore"] },
     ).toString("utf8");
     return out.includes("false");
@@ -262,7 +333,10 @@ export async function startPrivateSecretService() {
 </busconfig>
 `,
   );
-  const bus = spawn("dbus-daemon", ["--config-file", config, "--nofork", "--print-address=1"], { env, stdio: ["ignore", "pipe", "ignore"] });
+  const bus = spawn("dbus-daemon", ["--config-file", config, "--nofork", "--print-address=1"], {
+    env,
+    stdio: ["ignore", "pipe", "ignore"],
+  });
   const address = await new Promise((resolve, reject) => {
     let out = "";
     const timer = setTimeout(() => reject(new Error("dbus-daemon did not start")), 10_000);
@@ -288,8 +362,17 @@ export async function startPrivateSecretService() {
   bus.stdout.destroy();
   bus.unref();
   try {
-    execFileSync("gnome-keyring-daemon", ["--unlock", "--components=secrets", `--control-directory=${control}`], { env, input: "test", stdio: ["pipe", "ignore", "ignore"], timeout: 15_000 });
-    execFileSync("gnome-keyring-daemon", ["--start", "--components=secrets", `--control-directory=${control}`], { env, stdio: ["ignore", "ignore", "ignore"], timeout: 15_000 });
+    execFileSync("gnome-keyring-daemon", ["--unlock", "--components=secrets", `--control-directory=${control}`], {
+      env,
+      input: "test",
+      stdio: ["pipe", "ignore", "ignore"],
+      timeout: 15_000,
+    });
+    execFileSync("gnome-keyring-daemon", ["--start", "--components=secrets", `--control-directory=${control}`], {
+      env,
+      stdio: ["ignore", "ignore", "ignore"],
+      timeout: 15_000,
+    });
   } catch {
     bus.kill();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -342,7 +425,17 @@ export function keychainItems(service, address = privateService?.address) {
   try {
     const out = execFileSync(
       "gdbus",
-      ["call", "--session", "--dest", "org.freedesktop.secrets", "--object-path", "/org/freedesktop/secrets", "--method", "org.freedesktop.Secret.Service.SearchItems", `{'service': '${service}'}`],
+      [
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.secrets",
+        "--object-path",
+        "/org/freedesktop/secrets",
+        "--method",
+        "org.freedesktop.Secret.Service.SearchItems",
+        `{'service': '${service}'}`,
+      ],
       { timeout: 10_000, env: busEnv(address) },
     ).toString("utf8");
     return [...out.matchAll(/'(\/org\/freedesktop\/secrets\/[^']+)'/g)].map((match) => match[1]);
@@ -356,7 +449,11 @@ export function clearKeychain(service, address = privateService?.address) {
   if (!/^forkyard-test-/.test(service ?? "")) return;
   for (const item of keychainItems(service, address)) {
     try {
-      execFileSync("gdbus", ["call", "--session", "--dest", "org.freedesktop.secrets", "--object-path", item, "--method", "org.freedesktop.Secret.Item.Delete"], { timeout: 10_000, stdio: "ignore", env: busEnv(address) });
+      execFileSync(
+        "gdbus",
+        ["call", "--session", "--dest", "org.freedesktop.secrets", "--object-path", item, "--method", "org.freedesktop.Secret.Item.Delete"],
+        { timeout: 10_000, stdio: "ignore", env: busEnv(address) },
+      );
     } catch {
       // gone already
     }

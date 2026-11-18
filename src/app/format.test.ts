@@ -5,18 +5,23 @@ import { formatDate, formatDateTime, formatRelative, formatShortDate, UNKNOWN_DA
 const at = (day: number, hour: number, minute = 0) => new Date(2026, 9, day, hour, minute, 0);
 
 describe("formatRelative: yesterday and the day before are calendar days", () => {
-  it("23:55 the day before yesterday is \"2 days ago\" in the morning, not \"yesterday\"", () => {
+  it('23:55 the day before yesterday is "2 days ago" in the morning, not "yesterday"', () => {
     expect(formatRelative(at(10, 23, 55), at(12, 5, 3).getTime())).toBe("2 days ago");
   });
 
-  it("00:05 yesterday is \"yesterday\" at any time of day", () => {
-    for (const [hour, minute] of [[0, 10], [5, 24], [12, 30], [23, 30]] as const) {
+  it('00:05 yesterday is "yesterday" at any time of day', () => {
+    for (const [hour, minute] of [
+      [0, 10],
+      [5, 24],
+      [12, 30],
+      [23, 30],
+    ] as const) {
       expect(formatRelative(at(11, 0, 5), at(12, hour, minute).getTime())).toBe("yesterday");
     }
     expect(formatRelative(at(10, 0, 5), at(12, 13, 0).getTime())).toBe("2 days ago");
   });
 
-  it("the same calendar day stays in hours – 00:20 today is not \"yesterday\" at 23:30", () => {
+  it('the same calendar day stays in hours – 00:20 today is not "yesterday" at 23:30', () => {
     expect(formatRelative(at(12, 0, 20), at(12, 23, 30).getTime())).toBe("23 hours ago");
     expect(formatRelative(at(11, 1, 0), at(12, 23, 30).getTime())).toBe("yesterday");
   });

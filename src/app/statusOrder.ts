@@ -69,7 +69,8 @@ export async function readStatusOrdered(repoId: Id, signal?: AbortSignal): Promi
 }
 
 /** For `useStatus`: the status, in the right order relative to command results. */
-export const readStatus = (repoId: Id, signal?: AbortSignal): Promise<Status> => readStatusOrdered(repoId, signal).then((read) => read.status);
+export const readStatus = (repoId: Id, signal?: AbortSignal): Promise<Status> =>
+  readStatusOrdered(repoId, signal).then((read) => read.status);
 
 /** Tests only. */
 export function resetStatusOrder(): void {

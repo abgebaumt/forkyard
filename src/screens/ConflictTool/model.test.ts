@@ -1,9 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { buildModel, buildRows, chunkText, diffLines, emptyChoice, finalizeText, markerLines, resolveMarkers, splitText, toggleLine, toggleSide, worktreeMatches, type Choice, type MergeModel } from "./model";
+import {
+  buildModel,
+  buildRows,
+  chunkText,
+  diffLines,
+  emptyChoice,
+  finalizeText,
+  markerLines,
+  resolveMarkers,
+  splitText,
+  toggleLine,
+  toggleSide,
+  worktreeMatches,
+  type Choice,
+  type MergeModel,
+} from "./model";
 
 const labels = { ours: "main", theirs: "feature" };
 const text = (model: MergeModel, choices: Map<number, Choice> = new Map()) =>
-  model.chunks.map((chunk) => chunkText(chunk, choices.get(chunk.id) ?? (chunk.kind === "conflict" ? emptyChoice(chunk) : null), labels)).join("");
+  model.chunks
+    .map((chunk) => chunkText(chunk, choices.get(chunk.id) ?? (chunk.kind === "conflict" ? emptyChoice(chunk) : null), labels))
+    .join("");
 
 describe("buildModel", () => {
   const base = "a\nb\nc\nd\ne\nf\ng\n";
@@ -67,7 +84,13 @@ describe("buildModel", () => {
   it("rows of the side-by-side view have equal height per block", () => {
     const model = buildModel("x\n1\ny\n", "x\no1\no2\ny\n", "x\nt1\ny\n");
     const { rows, chunkStart } = buildRows(model);
-    expect(rows.map((row) => (row.type === "head" ? "head" : `${row.ours?.text ?? "-"}|${row.theirs?.text ?? "-"}`))).toEqual(["x|x", "head", "o1|t1", "o2|-", "y|y"]);
+    expect(rows.map((row) => (row.type === "head" ? "head" : `${row.ours?.text ?? "-"}|${row.theirs?.text ?? "-"}`))).toEqual([
+      "x|x",
+      "head",
+      "o1|t1",
+      "o2|-",
+      "y|y",
+    ]);
     expect(chunkStart).toEqual([0, 1, 4]);
   });
 });
@@ -98,11 +121,26 @@ describe("diffLines", () => {
       [[], []],
       [[], ["x"]],
       [["x"], []],
-      [["a", "b", "c"], ["a", "c"]],
-      [["a", "b", "c"], ["a", "x", "y", "c", "d"]],
-      [["", "", "a", "", ""], ["", "a", "", "", "b", ""]],
-      [["x", "x", "x", "x"], ["x", "x", "y", "x", "x", "x"]],
-      [["1", "2", "3", "4", "5"], ["5", "4", "3", "2", "1"]],
+      [
+        ["a", "b", "c"],
+        ["a", "c"],
+      ],
+      [
+        ["a", "b", "c"],
+        ["a", "x", "y", "c", "d"],
+      ],
+      [
+        ["", "", "a", "", ""],
+        ["", "a", "", "", "b", ""],
+      ],
+      [
+        ["x", "x", "x", "x"],
+        ["x", "x", "y", "x", "x", "x"],
+      ],
+      [
+        ["1", "2", "3", "4", "5"],
+        ["5", "4", "3", "2", "1"],
+      ],
     ];
     for (const [a, b] of cases) expect(apply(a, b)).toEqual(b);
   });

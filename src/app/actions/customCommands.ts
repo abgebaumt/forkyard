@@ -17,7 +17,10 @@ function reportUntrusted(): void {
     tone: "warning",
     title: t("customCommands.run.untrusted"),
     description: t("customCommands.run.untrustedHint"),
-    action: { label: t("customCommands.run.review"), onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "commands" }) },
+    action: {
+      label: t("customCommands.run.review"),
+      onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "commands" }),
+    },
   });
 }
 

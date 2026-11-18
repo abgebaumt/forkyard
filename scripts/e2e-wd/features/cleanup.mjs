@@ -23,7 +23,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ---------------------------------------------------------------------------------------------
 
 const envFor = (fx) => ({ ...process.env, ...gitIsolationEnv(path.join(fx.root, "gitconfig")) });
-const git = (fx, ...args) => execFileSync("git", args, { cwd: fx.path, env: envFor(fx), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 1 << 26 }).trim();
+const git = (fx, ...args) =>
+  execFileSync("git", args, {
+    cwd: fx.path,
+    env: envFor(fx),
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    maxBuffer: 1 << 26,
+  }).trim();
 /** `git count-objects -v` as numbers (KiB values, as Git prints them). */
 const countObjects = (fx) =>
   Object.fromEntries(
@@ -44,7 +51,11 @@ function addRandomArchive(fx, { files = 200, size = 512 * 1024 } = {}) {
     parts.push(Buffer.from(`blob\nmark :${n}\ndata ${data.length}\n`), data, Buffer.from("\n"));
   }
   const message = "Rohdaten-Archiv der Stationen";
-  parts.push(Buffer.from(`commit refs/heads/archiv\nmark :${files + 1}\ncommitter Lena Hartmann <lena.hartmann@wetterstation.example> 1772434800 +0100\ndata ${Buffer.byteLength(message)}\n${message}\n`));
+  parts.push(
+    Buffer.from(
+      `commit refs/heads/archiv\nmark :${files + 1}\ncommitter Lena Hartmann <lena.hartmann@wetterstation.example> 1772434800 +0100\ndata ${Buffer.byteLength(message)}\n${message}\n`,
+    ),
+  );
   for (let n = 1; n <= files; n++) parts.push(Buffer.from(`M 100644 :${n} archiv/rohdaten-${String(n).padStart(4, "0")}.bin\n`));
   parts.push(Buffer.from("\n"));
   execFileSync("git", ["fast-import", "--quiet"], { cwd: fx.path, env: envFor(fx), input: Buffer.concat(parts), maxBuffer: 1 << 26 });
@@ -61,7 +72,14 @@ async function palette(app, text) {
   const input = await app.waitFor('input[role="combobox"]', 5000);
   await app.type(input, text);
   await app.waitFor(
-    () => app.exec((wanted) => (document.querySelector('[data-screen="command-palette"] [role="option"][aria-selected="true"]')?.textContent ?? "").toLowerCase().includes(wanted.toLowerCase()), text),
+    () =>
+      app.exec(
+        (wanted) =>
+          (document.querySelector('[data-screen="command-palette"] [role="option"][aria-selected="true"]')?.textContent ?? "")
+            .toLowerCase()
+            .includes(wanted.toLowerCase()),
+        text,
+      ),
     5000,
     { message: `palette entry "${text}" selected` },
   );
@@ -70,17 +88,35 @@ async function palette(app, text) {
 
 const cleanupState = (app) => app.exec(() => document.querySelector('[data-screen="repo-cleanup"]')?.getAttribute("data-cleanup") ?? null);
 async function waitState(app, wanted, timeout = 30_000) {
-  await app.waitFor(async () => (await cleanupState(app)) === wanted, timeout, { message: `clean-up dialog in state "${wanted}"` }).catch(async (error) => {
-    throw new Error(`${error.message}; now "${await cleanupState(app)}": ${await dialogText(app)}`);
-  });
+  await app
+    .waitFor(async () => (await cleanupState(app)) === wanted, timeout, { message: `clean-up dialog in state "${wanted}"` })
+    .catch(async (error) => {
+      throw new Error(`${error.message}; now "${await cleanupState(app)}": ${await dialogText(app)}`);
+    });
 }
-const figure = (app, name) => app.exec((wanted) => document.querySelector(`[data-screen="repo-cleanup"] [data-figure="${wanted}"]`)?.getAttribute("data-value") ?? null, name);
+const figure = (app, name) =>
+  app.exec(
+    (wanted) => document.querySelector(`[data-screen="repo-cleanup"] [data-figure="${wanted}"]`)?.getAttribute("data-value") ?? null,
+    name,
+  );
 const dialogText = (app) => app.exec(() => [...document.querySelectorAll('[role="dialog"]')].at(-1)?.innerText.replace(/\s+/g, " ") ?? "");
 const dialogCount = (app) => app.exec(() => document.querySelectorAll('[role="dialog"]').length);
-const inDialog = (app, text) => app.waitFor(() => app.byText(text, { within: '[role="dialog"]' }), 10_000, { message: `"${text}" in the dialog` });
-const stepStatus = (app, step) => app.exec((wanted) => document.querySelector(`[data-screen="repo-cleanup"] [data-step="${wanted}"]`)?.getAttribute("data-status") ?? null, step);
-const checked = (app, option) => app.exec((wanted) => document.querySelector(`[data-option="${wanted}"] [role="checkbox"]`)?.getAttribute("aria-checked") ?? null, option);
-const toasts = (app) => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+const inDialog = (app, text) =>
+  app.waitFor(() => app.byText(text, { within: '[role="dialog"]' }), 10_000, { message: `"${text}" in the dialog` });
+const stepStatus = (app, step) =>
+  app.exec(
+    (wanted) => document.querySelector(`[data-screen="repo-cleanup"] [data-step="${wanted}"]`)?.getAttribute("data-status") ?? null,
+    step,
+  );
+const checked = (app, option) =>
+  app.exec((wanted) => document.querySelector(`[data-option="${wanted}"] [role="checkbox"]`)?.getAttribute("aria-checked") ?? null, option);
+const toasts = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((item) => ({
+      tone: item.getAttribute("data-toast"),
+      text: item.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 const runningJobs = (app) => app.exec(() => Object.values(window.__gc.store.getState().jobs).map((job) => job.title));
 
 /** Opens the dialog from the palette; it may show a form, a running clean-up or a result. */
@@ -99,11 +135,22 @@ async function openFromPalette(app, title = "Clean up repository") {
 async function contextMenu(app, element) {
   await app.exec((el) => {
     const box = el.getBoundingClientRect();
-    el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, buttons: 2, clientX: box.left + 40, clientY: box.top + box.height / 2 }));
+    el.dispatchEvent(
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        buttons: 2,
+        clientX: box.left + 40,
+        clientY: box.top + box.height / 2,
+      }),
+    );
   }, element);
   return app.waitFor(
     async () => {
-      const items = await app.exec(() => [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) => item.textContent.replace(/\s+/g, " ").trim()));
+      const items = await app.exec(() =>
+        [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) => item.textContent.replace(/\s+/g, " ").trim()),
+      );
       return items.length ? items : null;
     },
     5000,
@@ -112,7 +159,14 @@ async function contextMenu(app, element) {
 }
 async function chooseMenu(app, label) {
   const item = await app.waitFor(
-    () => app.exec((text) => [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find((entry) => entry.textContent.replace(/\s+/g, " ").trim().startsWith(text)) ?? null, label),
+    () =>
+      app.exec(
+        (text) =>
+          [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find((entry) =>
+            entry.textContent.replace(/\s+/g, " ").trim().startsWith(text),
+          ) ?? null,
+        label,
+      ),
     5000,
     { message: `menu entry "${label}"` },
   );
@@ -133,7 +187,11 @@ scenario("palette: the preview matches git count-objects and Normal shows the re
     await openFromPalette(app);
     assertEqual(Number(await figure(app, "loose")), before.count, "loose objects as Git counts them");
     assertEqual(Number(await figure(app, "packs")), before.packs, "packs as Git counts them");
-    assertEqual(Number(await figure(app, "objects")), (before.size + before["size-pack"] + before["size-garbage"]) * 1024, "Git objects in total, in bytes");
+    assertEqual(
+      Number(await figure(app, "objects")),
+      (before.size + before["size-pack"] + before["size-garbage"]) * 1024,
+      "Git objects in total, in bytes",
+    );
     const text = await dialogText(app);
     assertMatch(text, /Clean-up can’t be undone\./, "irreversible note above the buttons");
     assertMatch(text, /Frees: packs loose objects/, "Normal says what it frees");
@@ -166,7 +224,14 @@ scenario("repository list: entry above “Show in file manager”, warnings for 
     await app.waitFor('[data-screen="repo-management"]', 15_000);
     await app.settle();
     const row = await app.waitFor(
-      () => app.exec((name) => [...document.querySelectorAll('[data-screen="repo-management"] [role="option"]')].find((item) => item.innerText.includes(name)) ?? null, "messnetz"),
+      () =>
+        app.exec(
+          (name) =>
+            [...document.querySelectorAll('[data-screen="repo-management"] [role="option"]')].find((item) =>
+              item.innerText.includes(name),
+            ) ?? null,
+          "messnetz",
+        ),
       10_000,
       { message: "repository row" },
     );
@@ -184,7 +249,9 @@ scenario("repository list: entry above “Show in file manager”, warnings for 
     assertMatch(text, /Destructive: Commits that are only in the reflog are lost for good afterwards/, "reflog warning with its word");
     const reflogWarning = await app.exec(() => {
       const warning = document.querySelector('[data-option="reflog"] [data-warning="reflog"]');
-      return warning ? { word: warning.querySelector("strong")?.textContent ?? "", danger: warning.classList.contains("text-danger") } : null;
+      return warning
+        ? { word: warning.querySelector("strong")?.textContent ?? "", danger: warning.classList.contains("text-danger") }
+        : null;
     });
     assertEqual(reflogWarning, { word: "Destructive:", danger: true }, "red reflog warning that also says it in a word");
     await t.shot("warnings");
@@ -211,7 +278,11 @@ scenario("closing the dialog during a run: the job stays in the status bar, reop
     await app.waitFor(async () => (await dialogCount(app)) === 0, 5000, { message: "dialog closed while running" });
     assert((await runningJobs(app)).includes("Clean up repository"), "the job shows in the status bar");
     await app.waitFor(async () => !(await runningJobs(app)).includes("Clean up repository"), 180_000, { message: "clean-up finished" });
-    await app.waitFor(async () => (await toasts(app)).some((toast) => toast.tone === "success" && /Repository cleaned up – .+ → .+/.test(toast.text)), 10_000, { message: "success message" });
+    await app.waitFor(
+      async () => (await toasts(app)).some((toast) => toast.tone === "success" && /Repository cleaned up – .+ → .+/.test(toast.text)),
+      10_000,
+      { message: "success message" },
+    );
     await openDialog(app);
     await waitState(app, "result");
     assertEqual(await stepStatus(app, "gc"), "done");
@@ -233,11 +304,9 @@ scenario("cancel during Thorough on a large generated repository leaves it valid
     await openFromPalette(app);
     await app.click(await inDialog(app, "Thorough"));
     await app.click(await inDialog(app, "Clean up"));
-    await app.waitFor(
-      async () => /Step 1 of 1 – Git packs objects …/.test(await dialogText(app)),
-      30_000,
-      { message: "progress “Step 1 of 1 – Git packs objects …”" },
-    );
+    await app.waitFor(async () => /Step 1 of 1 – Git packs objects …/.test(await dialogText(app)), 30_000, {
+      message: "progress “Step 1 of 1 – Git packs objects …”",
+    });
     await sleep(500);
     await t.shot("running");
     await app.click(await inDialog(app, "Cancel"));
@@ -261,7 +330,14 @@ scenario("German texts", "edge", async (t) => {
     await app.openRepo(fx.path);
     await openFromPalette(app, "Repository aufräumen");
     const text = await dialogText(app);
-    for (const wanted of [/Git-Objekte gesamt/, /Davon lose Objekte/, /Gründlich/, /Aufräumen lässt sich nicht rückgängig machen\./, /Rückgängig ist für diese Aktionen danach nicht mehr möglich\./, /Zerstörerisch: Commits, die nur noch im Reflog stehen/]) {
+    for (const wanted of [
+      /Git-Objekte gesamt/,
+      /Davon lose Objekte/,
+      /Gründlich/,
+      /Aufräumen lässt sich nicht rückgängig machen\./,
+      /Rückgängig ist für diese Aktionen danach nicht mehr möglich\./,
+      /Zerstörerisch: Commits, die nur noch im Reflog stehen/,
+    ]) {
       assertMatch(text, wanted, `German: ${wanted}`);
     }
     await app.click(await inDialog(app, "Aufräumen"));

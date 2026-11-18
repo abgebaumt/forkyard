@@ -27,7 +27,11 @@ export const dialogSurface =
 export function shiftTabFromFrame(event: KeyboardEvent<HTMLElement>): void {
   if (event.key !== "Tab" || !event.shiftKey || event.target !== event.currentTarget) return;
   const stops = [...event.currentTarget.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]")].filter(
-    (element) => element.tabIndex >= 0 && !element.hasAttribute("disabled") && element.getClientRects().length > 0 && getComputedStyle(element).visibility !== "hidden",
+    (element) =>
+      element.tabIndex >= 0 &&
+      !element.hasAttribute("disabled") &&
+      element.getClientRects().length > 0 &&
+      getComputedStyle(element).visibility !== "hidden",
   );
   const last = stops[stops.length - 1];
   if (!last) return;
@@ -74,7 +78,11 @@ export function Dialog({ open, onOpenChange, title, description, size = "md", ch
             // (the next prompt: first username, then password), focus stays there –
             // otherwise the old dialog would pull it out of the new field, and the input would go nowhere.
             const active = document.activeElement;
-            if (active instanceof HTMLElement && active !== document.body && active.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) {
+            if (
+              active instanceof HTMLElement &&
+              active !== document.body &&
+              active.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')
+            ) {
               event.preventDefault();
               return;
             }
@@ -84,20 +92,14 @@ export function Dialog({ open, onOpenChange, title, description, size = "md", ch
               element.focus();
             }
           }}
-          className={cn(
-            dialogSurface,
-            widths[size],
-            "animate-pop fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
-          )}
+          className={cn(dialogSurface, widths[size], "animate-pop fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2")}
         >
           <header className="flex items-start gap-3 px-4 pt-4">
             {/* min-w-0: long names and lists in the description get truncated instead of blowing up the dialog. */}
             <div className="min-w-0 flex-1">
               <RadixDialog.Title className="text-lg font-semibold">{title}</RadixDialog.Title>
               {description ? (
-                <RadixDialog.Description className="mt-1 text-base text-text-muted">
-                  {description}
-                </RadixDialog.Description>
+                <RadixDialog.Description className="mt-1 text-base text-text-muted">{description}</RadixDialog.Description>
               ) : null}
             </div>
             <RadixDialog.Close

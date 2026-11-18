@@ -2,7 +2,8 @@
 import type { AiAskTrigger, AiOmitReason, AiPreview } from "../../core";
 import { locale, t } from "../../i18n";
 
-const money = (value: number, lang: string) => new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+const money = (value: number, lang: string) =>
+  new Intl.NumberFormat(lang, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 
 /** An estimate: "about 0.03 USD"; below one cent "under 0.01 USD". */
 export function formatUsd(value: number, lang = locale()): string {
@@ -31,7 +32,10 @@ export function askLines(preview: AiPreview, lang = locale()): string[] {
       case "repo_first":
         return t("ai.preview.ask.repoFirst");
       case "limit":
-        return t("ai.preview.ask.limit", { spent: formatUsd(preview.monthCostUsd, lang), limit: formatUsdExact(preview.limitUsd ?? 0, lang) });
+        return t("ai.preview.ask.limit", {
+          spent: formatUsd(preview.monthCostUsd, lang),
+          limit: formatUsdExact(preview.limitUsd ?? 0, lang),
+        });
     }
   });
 }

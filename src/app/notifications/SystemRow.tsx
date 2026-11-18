@@ -84,16 +84,31 @@ export function SystemNotificationsRow({ state }: { state: SystemNotifications }
   return (
     <SettingRow title={t("notifications.system.title")} group stacked description={<span data-system-text>{badge.text}</span>}>
       {(ids) => (
-        <div role="group" aria-labelledby={ids.labelId} aria-describedby={ids.descriptionId} data-system-state={state} className="flex flex-wrap items-center gap-2">
+        <div
+          role="group"
+          aria-labelledby={ids.labelId}
+          aria-describedby={ids.descriptionId}
+          data-system-state={state}
+          className="flex flex-wrap items-center gap-2"
+        >
           <Badge tone={badge.tone} icon={<Icon className="size-3" aria-hidden />}>
             {badge.label}
           </Badge>
-          <Button size="sm" loading={probe.kind === "sending"} disabled={state === "blocked"} icon={<Send className="size-3.5" aria-hidden />} data-action="notification-probe" onClick={() => void send()}>
+          <Button
+            size="sm"
+            loading={probe.kind === "sending"}
+            disabled={state === "blocked"}
+            icon={<Send className="size-3.5" aria-hidden />}
+            data-action="notification-probe"
+            onClick={() => void send()}
+          >
             {t("notifications.system.probe")}
           </Button>
           <span role="status" data-probe={probe.kind} className="min-w-0 text-sm text-text-muted">
             {probe.kind === "sent" ? t("notifications.system.sent") : null}
-            {probe.kind === "failed" ? <span className="selectable break-words text-danger">{t("notifications.system.notSent", { reason: probe.reason })}</span> : null}
+            {probe.kind === "failed" ? (
+              <span className="selectable break-words text-danger">{t("notifications.system.notSent", { reason: probe.reason })}</span>
+            ) : null}
           </span>
         </div>
       )}

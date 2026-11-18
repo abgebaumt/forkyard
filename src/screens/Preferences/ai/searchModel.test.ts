@@ -19,7 +19,14 @@ describe("settings of the search by meaning", () => {
   });
 
   it("describes the index of the open repository", () => {
-    const local = { route: "local_embeddings" as const, provider: "ollama" as const, model: "embeddinggemma", indexed: 4, used: true, local: true };
+    const local = {
+      route: "local_embeddings" as const,
+      provider: "ollama" as const,
+      model: "embeddinggemma",
+      indexed: 4,
+      used: true,
+      local: true,
+    };
     expect(indexText(local, false)).toBe("Open a repository to see its index.");
     expect(indexText(local, true)).toBe("4 commits with embeddinggemma");
     expect(indexText({ ...local, indexed: 1 }, true)).toBe("1 commit with embeddinggemma");

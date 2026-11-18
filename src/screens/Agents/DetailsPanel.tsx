@@ -33,7 +33,11 @@ export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabI
   }
   const tests = testLabel(agent.test);
   return (
-    <section data-panel="agent" aria-label={t("agents.panel.title")} className="flex h-full min-h-0 flex-col gap-3 overflow-auto bg-surface p-3">
+    <section
+      data-panel="agent"
+      aria-label={t("agents.panel.title")}
+      className="flex h-full min-h-0 flex-col gap-3 overflow-auto bg-surface p-3"
+    >
       <h2 className="text-base font-semibold text-text">{displayName(agent)}</h2>
       <dl className="flex flex-col gap-2">
         <Field label={t("agents.panel.status")}>
@@ -56,13 +60,17 @@ export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabI
         {agent.endedAt ? <Field label={t("agents.panel.ended")}>{formatDateTime(Date.parse(agent.endedAt))}</Field> : null}
         <Field label={t("agents.panel.runtime")}>{formatRuntime(agent.startedAt, agent.endedAt, Date.now())}</Field>
         <Field label={t("agents.panel.changes")}>
-          {t("agents.cockpit.changed", { count: agent.changedFiles })} · {t("agents.cockpit.ahead", { count: agent.commitsAhead, base: agent.base })}
+          {t("agents.cockpit.changed", { count: agent.changedFiles })} ·{" "}
+          {t("agents.cockpit.ahead", { count: agent.commitsAhead, base: agent.base })}
         </Field>
         {tests ? (
           <Field label={t("agents.panel.tests")}>
             {tests}
             {agent.test?.output ? (
-              <pre aria-label={t("agents.panel.testOutput")} className="mt-1 max-h-60 overflow-auto rounded-sm bg-surface-sunken p-2 font-mono text-code whitespace-pre-wrap">
+              <pre
+                aria-label={t("agents.panel.testOutput")}
+                className="mt-1 max-h-60 overflow-auto rounded-sm bg-surface-sunken p-2 font-mono text-code whitespace-pre-wrap"
+              >
                 {agent.test.output}
               </pre>
             ) : null}
@@ -72,7 +80,13 @@ export function AgentDetailsPanel({ repoId, tabId, agentId }: { repoId: Id; tabI
       <CollisionBanners repoId={repoId} agentId={agent.id} />
       <div className="flex flex-wrap gap-2">
         {actionsFor(agent, optionsFor(agent)).map((action) => (
-          <Button key={action} size="sm" variant={action === "cleanup" ? "danger" : "secondary"} data-action={action} onClick={() => void runAgentAction(action, agent, tabId)}>
+          <Button
+            key={action}
+            size="sm"
+            variant={action === "cleanup" ? "danger" : "secondary"}
+            data-action={action}
+            onClick={() => void runAgentAction(action, agent, tabId)}
+          >
             {ACTION_LABELS[action]}
           </Button>
         ))}

@@ -56,7 +56,8 @@ function RepoCommandsCard({ repoId, list }: { repoId: Id; list: CustomCommandLis
   const info = list.repo;
   if (!info) return null;
   const commands = list.commands.filter((entry) => entry.source === "repo").map((entry) => entry.command);
-  const approve = (hash: string | null, success: string) => runAction(t("customCommands.repo.trustLabel"), () => core.customCommandsTrust({ repoId, hash }), { success });
+  const approve = (hash: string | null, success: string) =>
+    runAction(t("customCommands.repo.trustLabel"), () => core.customCommandsTrust({ repoId, hash }), { success });
   return (
     <SettingsCard title={t("customCommands.repo.card", { path: info.path })}>
       {info.state === "missing" ? (
@@ -111,7 +112,8 @@ function RepoCommandsCard({ repoId, list }: { repoId: Id; list: CustomCommandLis
 export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
   const list = useCustomCommandList(repoId);
   if (list.isPending) return <SettingsSkeleton rows={3} />;
-  if (list.isError) return <LoadError title={t("customCommands.settings.loadError")} error={list.error} onRetry={() => void list.refetch()} />;
+  if (list.isError)
+    return <LoadError title={t("customCommands.settings.loadError")} error={list.error} onRetry={() => void list.refetch()} />;
   const own = list.data.commands.filter((entry) => entry.source === "global").map((entry) => entry.command);
 
   const create = async () => {
@@ -119,8 +121,15 @@ export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
     if (created) await save([...own, created], t("customCommands.settings.saved", { title: created.title }));
   };
   const edit = async (command: CustomCommandDef) => {
-    const changed = await editCommand(command, own.filter((other) => other.id !== command.id));
-    if (changed) await save(own.map((other) => (other.id === command.id ? changed : other)), t("customCommands.settings.saved", { title: changed.title }));
+    const changed = await editCommand(
+      command,
+      own.filter((other) => other.id !== command.id),
+    );
+    if (changed)
+      await save(
+        own.map((other) => (other.id === command.id ? changed : other)),
+        t("customCommands.settings.saved", { title: changed.title }),
+      );
   };
   const remove = async (command: CustomCommandDef) => {
     const ok = await confirm({
@@ -129,7 +138,11 @@ export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
       confirmLabel: t("customCommands.settings.deleteLabel"),
       danger: true,
     });
-    if (ok) await save(own.filter((other) => other.id !== command.id), t("customCommands.settings.deleted", { title: command.title }));
+    if (ok)
+      await save(
+        own.filter((other) => other.id !== command.id),
+        t("customCommands.settings.deleted", { title: command.title }),
+      );
   };
   const importFile = async () => {
     const path = await core.pickFile({ title: t("customCommands.settings.importTitle") });
@@ -146,7 +159,9 @@ export function CustomCommandsSection({ repoId }: { repoId: Id | null }) {
       filters: [{ name: t("customCommands.settings.jsonFilter"), extensions: ["json"] }],
     });
     if (!path) return;
-    await runAction(t("customCommands.settings.exportLabel"), () => core.customCommandsExport({ path }), { success: t("customCommands.settings.exported", { path }) });
+    await runAction(t("customCommands.settings.exportLabel"), () => core.customCommandsExport({ path }), {
+      success: t("customCommands.settings.exported", { path }),
+    });
   };
 
   return (

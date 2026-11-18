@@ -68,7 +68,12 @@ function Guide({ kind, baseUrl }: { kind: HostKind; baseUrl: string | null }) {
         </p>
       ))}
       <div className="mt-2">
-        <Button size="sm" variant="ghost" icon={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => void openInBrowser(page, t("hosts.guide.tokenPage"))}>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<ExternalLink className="size-3.5" aria-hidden />}
+          onClick={() => void openInBrowser(page, t("hosts.guide.tokenPage"))}
+        >
           {t("hosts.guide.openTokenPage")}
         </Button>
       </div>
@@ -106,7 +111,10 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
   }, []);
 
   /** Address and user name for the chosen host; an existing account keeps both. */
-  const target = (): ConnectTarget => (replace ? { ok: true, baseUrl: replace.baseUrl, username: replace.username } : connectTarget({ kind, own, address, organization, username }));
+  const target = (): ConnectTarget =>
+    replace
+      ? { ok: true, baseUrl: replace.baseUrl, username: replace.username }
+      : connectTarget({ kind, own, address, organization, username });
   const preview = target();
   const guideBase = preview.ok ? preview.baseUrl : null;
   const errorFor = (field: ConnectField) => (fieldError?.field === field ? fieldError.text : undefined);
@@ -159,7 +167,11 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
       open
       size="md"
       title={replace ? t("hosts.connect.replaceTitle") : t("hosts.connect.title")}
-      description={replace ? t("hosts.connect.replaceDescription", { host: `${hostKindLabels[replace.kind]} – ${accountHost(replace)}` }) : t("hosts.connect.description")}
+      description={
+        replace
+          ? t("hosts.connect.replaceDescription", { host: `${hostKindLabels[replace.kind]} – ${accountHost(replace)}` })
+          : t("hosts.connect.description")
+      }
       onOpenChange={(open) => {
         if (!open && !busy) onDone(null);
       }}
@@ -285,7 +297,10 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
         ) : null}
 
         {inputs.gh ? (
-          <section data-connect-gh className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-surface-sunken p-3">
+          <section
+            data-connect-gh
+            className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-md border border-border bg-surface-sunken p-3"
+          >
             <div className="min-w-0 flex-1">
               <h3 className="text-base font-medium text-text">{t("hosts.connect.gh.title")}</h3>
               <p className="text-sm text-text-muted">{t("hosts.connect.gh.text")}</p>
@@ -327,10 +342,16 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
             data-connect-error={failure.kind}
             className="flex items-start gap-2 rounded-md border border-border bg-danger-surface p-3"
           >
-            {failure.kind === "auth" ? <KeyRound className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden /> : <ShieldAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />}
+            {failure.kind === "auth" ? (
+              <KeyRound className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
+            ) : (
+              <ShieldAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
+            )}
             <div className="min-w-0">
               <p className="font-medium text-text">{failure.title}</p>
-              <p className="selectable text-sm break-words text-text-muted">{failure.hint ? `${failure.text} ${failure.hint}` : failure.text}</p>
+              <p className="selectable text-sm break-words text-text-muted">
+                {failure.hint ? `${failure.text} ${failure.hint}` : failure.text}
+              </p>
             </div>
           </div>
         ) : null}

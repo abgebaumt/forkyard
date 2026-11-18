@@ -132,12 +132,28 @@ export function TimeChart({ buckets }: { buckets: StatsBucket[] }) {
   const tickLabel = (period: string) => (years > 1 ? monthFormat.format(toDate(period)) : shortMonth.format(toDate(period)));
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-1">
-      <svg data-stats-time="" role="img" aria-label={t("stats.time.label")} viewBox={`0 0 ${TIME_WIDTH} ${TIME_HEIGHT}`} preserveAspectRatio="none" className="h-40 w-full">
+      <svg
+        data-stats-time=""
+        role="img"
+        aria-label={t("stats.time.label")}
+        viewBox={`0 0 ${TIME_WIDTH} ${TIME_HEIGHT}`}
+        preserveAspectRatio="none"
+        className="h-40 w-full"
+      >
         {buckets.map((bucket, index) => {
           const height = (bucket.commits / max) * (TIME_HEIGHT - 4);
           const width = Math.min(Math.max(step * 0.7, 0.5), MAX_BAR);
           return (
-            <rect key={bucket.period} data-period={bucket.period} x={index * step + (step - width) / 2} y={TIME_HEIGHT - height} width={width} height={height} rx={1} className="fill-lane-3">
+            <rect
+              key={bucket.period}
+              data-period={bucket.period}
+              x={index * step + (step - width) / 2}
+              y={TIME_HEIGHT - height}
+              width={width}
+              height={height}
+              rx={1}
+              className="fill-lane-3"
+            >
               <title>{t("stats.time.bar", { period: formatPeriod(bucket.period), count: bucket.commits })}</title>
             </rect>
           );
@@ -145,7 +161,11 @@ export function TimeChart({ buckets }: { buckets: StatsBucket[] }) {
       </svg>
       <div className="relative h-4 text-sm text-text-muted" aria-hidden>
         {ticks.map((tick) => (
-          <span key={tick.period} className="absolute top-0 -translate-x-1/2 whitespace-nowrap first:translate-x-0" style={{ left: `${((tick.index + 0.5) / Math.max(1, buckets.length)) * 100}%` }}>
+          <span
+            key={tick.period}
+            className="absolute top-0 -translate-x-1/2 whitespace-nowrap first:translate-x-0"
+            style={{ left: `${((tick.index + 0.5) / Math.max(1, buckets.length)) * 100}%` }}
+          >
             {tickLabel(tick.period)}
           </span>
         ))}
@@ -169,7 +189,15 @@ function Record({ label, value, detail }: { label: string; value: ReactNode; det
 }
 
 /** `biggest`: message and author of the biggest commit, once loaded (the core's numbers name only its SHA). */
-export function Records({ records, biggest, onCommit }: { records: StatsRecords; biggest?: { summary: string; author: string } | null; onCommit(sha: string): void }) {
+export function Records({
+  records,
+  biggest,
+  onCommit,
+}: {
+  records: StatsRecords;
+  biggest?: { summary: string; author: string } | null;
+  onCommit(sha: string): void;
+}) {
   const { longestStreak, biggestCommit, busiestDay } = records;
   const none = t("stats.records.none");
   return (
@@ -184,7 +212,8 @@ export function Records({ records, biggest, onCommit }: { records: StatsRecords;
         value={
           biggestCommit ? (
             <span>
-              <span className="text-success">+{formatCount(biggestCommit.added)}</span> <span className="text-danger">−{formatCount(biggestCommit.removed)}</span>
+              <span className="text-success">+{formatCount(biggestCommit.added)}</span>{" "}
+              <span className="text-danger">−{formatCount(biggestCommit.removed)}</span>
             </span>
           ) : (
             none
@@ -229,10 +258,17 @@ export function Treemap({ node, onFile, onFolder }: { node: TreeNode; onFile(pat
   );
   const open = (child: TreeNode) => (child.file ? onFile(child.path) : onFolder(child.path));
   return (
-    <div data-stats-treemap="" role="group" aria-label={t("stats.treemap.label", { path: node.path || t("stats.treemap.root") })} className="relative aspect-[2/1] w-full">
+    <div
+      data-stats-treemap=""
+      role="group"
+      aria-label={t("stats.treemap.label", { path: node.path || t("stats.treemap.root") })}
+      className="relative aspect-[2/1] w-full"
+    >
       {tiles.map((tile, index) => {
         const child = tile.item;
-        const label = child.file ? t("stats.treemap.file", { path: child.path, count: child.value }) : t("stats.treemap.folder", { path: child.path, count: child.value });
+        const label = child.file
+          ? t("stats.treemap.file", { path: child.path, count: child.value })
+          : t("stats.treemap.folder", { path: child.path, count: child.value });
         const big = tile.w > 9 && tile.h > 7;
         return (
           <button
@@ -322,13 +358,26 @@ export function HotspotList({ hotspots, onFile, limit = 8 }: { hotspots: StatsHo
 
 export function Avatar({ name, lane }: { name: string; lane: number | null }) {
   return (
-    <span aria-hidden className={cn("flex size-5 shrink-0 items-center justify-center rounded-pill text-xs font-semibold text-on-lane", laneBg(lane))}>
+    <span
+      aria-hidden
+      className={cn("flex size-5 shrink-0 items-center justify-center rounded-pill text-xs font-semibold text-on-lane", laneBg(lane))}
+    >
       {initials(name)}
     </span>
   );
 }
 
-export function AuthorsList({ authors, total, palette, limit = 8 }: { authors: StatsAuthor[]; total: number; palette: AuthorPalette; limit?: number }) {
+export function AuthorsList({
+  authors,
+  total,
+  palette,
+  limit = 8,
+}: {
+  authors: StatsAuthor[];
+  total: number;
+  palette: AuthorPalette;
+  limit?: number;
+}) {
   const shown = authors.slice(0, limit);
   return (
     <div className="flex flex-col gap-2">
@@ -360,7 +409,15 @@ export function AuthorsList({ authors, total, palette, limit = 8 }: { authors: S
 // Knowledge per folder
 // ---------------------------------------------------------------------------
 
-export function KnowledgeTable({ folders, palette, onFolder }: { folders: StatsFolder[]; palette: AuthorPalette; onFolder(path: string): void }) {
+export function KnowledgeTable({
+  folders,
+  palette,
+  onFolder,
+}: {
+  folders: StatsFolder[];
+  palette: AuthorPalette;
+  onFolder(path: string): void;
+}) {
   return (
     <table data-stats-knowledge="" className="w-full table-fixed text-base">
       <thead className="text-left text-sm text-text-muted">
@@ -400,7 +457,12 @@ export function KnowledgeTable({ folders, palette, onFolder }: { folders: StatsF
                   ))}
                 </span>
               </td>
-              <td className={cn("py-1 text-right font-semibold tabular-nums", folder.busFactor === 1 ? "text-danger" : folder.busFactor === 2 ? "text-warning" : "text-success")}>
+              <td
+                className={cn(
+                  "py-1 text-right font-semibold tabular-nums",
+                  folder.busFactor === 1 ? "text-danger" : folder.busFactor === 2 ? "text-warning" : "text-success",
+                )}
+              >
                 {folder.busFactor}
               </td>
             </tr>
@@ -423,7 +485,12 @@ export function CodeAgeChart({ age }: { age: StatsCodeAge }) {
     <div data-stats-age="" className="flex min-h-0 flex-1 flex-col gap-2">
       <div role="img" aria-label={t("stats.age.label")} className="flex h-40 items-end gap-3">
         {shares.map((share) => (
-          <div key={share.key} data-age={share.key} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${AGE_LABELS[share.key]}: ${t("stats.age.lines", { count: share.lines })}`}>
+          <div
+            key={share.key}
+            data-age={share.key}
+            className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1"
+            title={`${AGE_LABELS[share.key]}: ${t("stats.age.lines", { count: share.lines })}`}
+          >
             <span className="text-sm font-semibold text-text tabular-nums">{formatCompact(share.lines)}</span>
             <span className="w-full rounded-t-sm bg-lane-5" style={{ height: `${(share.lines / max) * 80}%` }} />
           </div>

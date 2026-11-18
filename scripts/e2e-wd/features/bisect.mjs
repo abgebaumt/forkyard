@@ -37,12 +37,28 @@ async function modClick(app, target) {
   const element = typeof target === "string" ? await app.waitFor(target) : target;
   await app.webdriver("POST", "/actions", {
     actions: [
-      { type: "key", id: "keyboard", actions: [{ type: "keyDown", value: CONTROL }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "keyUp", value: CONTROL }] },
+      {
+        type: "key",
+        id: "keyboard",
+        actions: [
+          { type: "keyDown", value: CONTROL },
+          { type: "pause", duration: 0 },
+          { type: "pause", duration: 0 },
+          { type: "pause", duration: 0 },
+          { type: "keyUp", value: CONTROL },
+        ],
+      },
       {
         type: "pointer",
         id: "mouse",
         parameters: { pointerType: "mouse" },
-        actions: [{ type: "pause", duration: 0 }, { type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0 }, { type: "pointerDown", button: 0 }, { type: "pointerUp", button: 0 }, { type: "pause", duration: 0 }],
+        actions: [
+          { type: "pause", duration: 0 },
+          { type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0 },
+          { type: "pointerDown", button: 0 },
+          { type: "pointerUp", button: 0 },
+          { type: "pause", duration: 0 },
+        ],
       },
     ],
   });
@@ -51,8 +67,17 @@ async function modClick(app, target) {
 
 /** The menu item (role=menuitem) whose text starts with `label`. */
 const menuItem = (app, label) =>
-  app.waitFor(() => app.exec((wanted) => [...document.querySelectorAll('[role="menuitem"]')].find((node) => node.textContent.trim().startsWith(wanted)) ?? null, label), 8000, { message: `menu item "${label}"` });
-const menuLabels = (app) => app.exec(() => [...document.querySelectorAll('[role="menuitem"]')].map((node) => node.textContent.replace(/\s+/g, " ").trim()));
+  app.waitFor(
+    () =>
+      app.exec(
+        (wanted) => [...document.querySelectorAll('[role="menuitem"]')].find((node) => node.textContent.trim().startsWith(wanted)) ?? null,
+        label,
+      ),
+    8000,
+    { message: `menu item "${label}"` },
+  );
+const menuLabels = (app) =>
+  app.exec(() => [...document.querySelectorAll('[role="menuitem"]')].map((node) => node.textContent.replace(/\s+/g, " ").trim()));
 async function closeMenu(app) {
   await app.press("Escape");
   await app.waitFor(() => app.exec(() => !document.querySelector('[role="menu"]')), 5000, { message: "menu closed" });
@@ -68,17 +93,31 @@ async function fromMenu(app, sha, label) {
 const dialog = (app, title) =>
   app.waitFor(
     () =>
-      app.exec((wanted) => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].find((node) => {
-        const label = node.getAttribute("aria-labelledby");
-        const name = (label ? document.getElementById(label)?.textContent : node.getAttribute("aria-label")) ?? "";
-        return name.trim().startsWith(wanted);
-      }) ?? null, title),
+      app.exec(
+        (wanted) =>
+          [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].find((node) => {
+            const label = node.getAttribute("aria-labelledby");
+            const name = (label ? document.getElementById(label)?.textContent : node.getAttribute("aria-label")) ?? "";
+            return name.trim().startsWith(wanted);
+          }) ?? null,
+        title,
+      ),
     10_000,
     { message: `dialog "${title}"` },
   );
-const noDialog = (app) => app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"], [role="alertdialog"]')), 8000, { message: "dialog closed" });
+const noDialog = (app) =>
+  app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"], [role="alertdialog"]')), 8000, { message: "dialog closed" });
 const buttonIn = (app, root, text) =>
-  app.waitFor(() => app.exec((scope, wanted) => [...scope.querySelectorAll("button")].find((node) => node.textContent.trim() === wanted) ?? null, root, text), 8000, { message: `button "${text}"` });
+  app.waitFor(
+    () =>
+      app.exec(
+        (scope, wanted) => [...scope.querySelectorAll("button")].find((node) => node.textContent.trim() === wanted) ?? null,
+        root,
+        text,
+      ),
+    8000,
+    { message: `button "${text}"` },
+  );
 const textOf = (app, element) => app.exec((node) => node.innerText.replace(/\s+/g, " ").trim(), element);
 
 /** Bisect state as the UI holds it (query cache). */
@@ -91,25 +130,48 @@ const bar = (app) =>
     return node ? { kind: node.dataset.graphBisect, text: node.innerText.replace(/\s+/g, " ").trim() } : null;
   });
 async function waitBar(app, kind, timeout = 20_000) {
-  return app.waitFor(async () => {
-    const now = await bar(app);
-    return kind === null ? (now === null ? { kind: null } : null) : now?.kind === kind ? now : null;
-  }, timeout, { message: `bisect bar ${kind ?? "hidden"}` }).catch(async (error) => {
-    throw new Error(`${error.message}; is ${JSON.stringify(await bar(app))}`);
-  });
+  return app
+    .waitFor(
+      async () => {
+        const now = await bar(app);
+        return kind === null ? (now === null ? { kind: null } : null) : now?.kind === kind ? now : null;
+      },
+      timeout,
+      { message: `bisect bar ${kind ?? "hidden"}` },
+    )
+    .catch(async (error) => {
+      throw new Error(`${error.message}; is ${JSON.stringify(await bar(app))}`);
+    });
 }
-const barButton = (app, text) => app.waitFor(() => app.exec((wanted) => [...(document.querySelector("[data-graph-bisect]")?.querySelectorAll("button") ?? [])].find((node) => node.textContent.trim() === wanted) ?? null, text), 8000, { message: `bar button "${text}"` });
+const barButton = (app, text) =>
+  app.waitFor(
+    () =>
+      app.exec(
+        (wanted) =>
+          [...(document.querySelector("[data-graph-bisect]")?.querySelectorAll("button") ?? [])].find(
+            (node) => node.textContent.trim() === wanted,
+          ) ?? null,
+        text,
+      ),
+    8000,
+    { message: `bar button "${text}"` },
+  );
 
 /** Graph chip of a commit ("good", "bad", "skip") or null. */
 const chip = (app, sha) => app.exec((id) => document.querySelector(`[data-row-id="${id}"] [data-bisect]`)?.dataset.bisect ?? null, sha);
-const waitChip = (app, sha, mark) => app.waitFor(async () => (await chip(app, sha)) === mark, 10_000, { message: `chip ${mark} on ${sha.slice(0, 7)}` });
+const waitChip = (app, sha, mark) =>
+  app.waitFor(async () => (await chip(app, sha)) === mark, 10_000, { message: `chip ${mark} on ${sha.slice(0, 7)}` });
 
 /** Waits until the UI has taken over `stepsDone` marks (or a result). */
 async function waitSteps(app, repoId, steps) {
-  return app.waitFor(async () => {
-    const status = await uiBisect(app, repoId);
-    return status && status.stepsDone >= steps ? status : null;
-  }, 20_000, { message: `bisect steps ${steps}` });
+  return app.waitFor(
+    async () => {
+      const status = await uiBisect(app, repoId);
+      return status && status.stepsDone >= steps ? status : null;
+    },
+    20_000,
+    { message: `bisect steps ${steps}` },
+  );
 }
 
 /** Runs a palette command by id (Ctrl+P, ">text", click the entry). */
@@ -118,7 +180,12 @@ async function runCommand(app, text, id) {
   await app.press("Control+p");
   const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
   await app.type(input, `>${text}`);
-  const find = () => app.waitFor(() => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id), 10_000, { message: `palette entry ${id}` });
+  const find = () =>
+    app.waitFor(
+      () => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id),
+      10_000,
+      { message: `palette entry ${id}` },
+    );
   // The result list re-renders while the filter settles: an entry found a moment ago can be
   // replaced by an identical node. Look it up again instead of failing on the stale reference.
   for (let attempt = 0; ; attempt++) {
@@ -137,7 +204,17 @@ async function runCommand(app, text, id) {
 async function startWithRef(app, sha, refName) {
   await fromMenu(app, sha, "Start bisect");
   const box = await dialog(app, "Start bisect");
-  const option = await app.waitFor(() => app.exec((scope, name) => [...scope.querySelectorAll('[role="option"]')].find((node) => node.querySelector("span")?.textContent.trim() === name) ?? null, box, refName), 8000, { message: `option ${refName}` });
+  const option = await app.waitFor(
+    () =>
+      app.exec(
+        (scope, name) =>
+          [...scope.querySelectorAll('[role="option"]')].find((node) => node.querySelector("span")?.textContent.trim() === name) ?? null,
+        box,
+        refName,
+      ),
+    8000,
+    { message: `option ${refName}` },
+  );
   await app.click(option);
   await app.click(await buttonIn(app, box, "Start bisect"));
   await noDialog(app);
@@ -176,7 +253,10 @@ scenario("start: from the context menu of the bad commit with a tag as good comm
     await app.click(await menuItem(app, "Start bisect"));
     const box = await dialog(app, "Start bisect");
     assertIncludes(await textOf(app, box), `${short(head)} is the bad commit`, "dialog names the bad commit");
-    const options = await app.exec((scope) => [...scope.querySelectorAll('[role="option"]')].map((node) => node.innerText.replace(/\s+/g, " ").trim()), box);
+    const options = await app.exec(
+      (scope) => [...scope.querySelectorAll('[role="option"]')].map((node) => node.innerText.replace(/\s+/g, " ").trim()),
+      box,
+    );
     assertEqual(options, [`v1.0 ${short(good)}`], "only refs on other commits are offered (main = HEAD is left out)");
     await app.click(await buttonIn(app, box, "Start bisect"));
     await noDialog(app);
@@ -193,7 +273,13 @@ scenario("start: from the context menu of the bad commit with a tag as good comm
     assertMatch(shown.text, new RegExp(`^Bisect · Step 1 of ~\\d+ · testing ${short(git.head)}`), "bar text");
     await waitChip(app, head, "bad");
     await waitChip(app, good, "good");
-    assertEqual(await app.exec(() => [...document.querySelectorAll("[data-graph-bisect] [data-bisect-verdict]")].map((node) => node.dataset.bisectVerdict)), ["good", "bad", "skip"], "bar buttons");
+    assertEqual(
+      await app.exec(() =>
+        [...document.querySelectorAll("[data-graph-bisect] [data-bisect-verdict]")].map((node) => node.dataset.bisectVerdict),
+      ),
+      ["good", "bad", "skip"],
+      "bar buttons",
+    );
     const selected = await selection(app, tabId);
     assertEqual([selected.kind, selected.shas], ["commits", [git.head]], "graph jumps to the commit under test");
     await parkMouse(app);
@@ -218,9 +304,26 @@ scenario("start: two selected commits, order confirmed in the dialog", "edge", a
     await rightClick(app, await row(app, older));
     await app.click(await menuItem(app, "Start bisect"));
     const box = await dialog(app, "Start bisect");
-    const labels = await app.exec((scope) => [...scope.querySelectorAll('[role="group"] button')].map((node) => node.innerText.replace(/\s+/g, " ").trim()), box);
-    assertEqual(labels, [`Bad: ${short(newer)} · Good: ${short(older)}`, `Bad: ${short(older)} · Good: ${short(newer)}`], "both orders offered, selection order first");
-    await app.click(await app.waitFor(() => app.exec((scope, wanted) => [...scope.querySelectorAll('[role="group"] button')].find((node) => node.innerText.includes(wanted)) ?? null, box, `Bad: ${short(newer)}`), 5000));
+    const labels = await app.exec(
+      (scope) => [...scope.querySelectorAll('[role="group"] button')].map((node) => node.innerText.replace(/\s+/g, " ").trim()),
+      box,
+    );
+    assertEqual(
+      labels,
+      [`Bad: ${short(newer)} · Good: ${short(older)}`, `Bad: ${short(older)} · Good: ${short(newer)}`],
+      "both orders offered, selection order first",
+    );
+    await app.click(
+      await app.waitFor(
+        () =>
+          app.exec(
+            (scope, wanted) => [...scope.querySelectorAll('[role="group"] button')].find((node) => node.innerText.includes(wanted)) ?? null,
+            box,
+            `Bad: ${short(newer)}`,
+          ),
+        5000,
+      ),
+    );
     await noDialog(app);
     await waitBar(app, "running");
     const git = gitBisect(repo);
@@ -244,7 +347,17 @@ scenario("start: wrong order (good is newer than bad) is refused and leaves no h
     await rightClick(app, await row(app, older));
     await app.click(await menuItem(app, "Start bisect"));
     const box = await dialog(app, "Start bisect");
-    await app.click(await app.waitFor(() => app.exec((scope, wanted) => [...scope.querySelectorAll('[role="group"] button')].find((node) => node.innerText.includes(wanted)) ?? null, box, `Bad: ${short(older)}`), 5000));
+    await app.click(
+      await app.waitFor(
+        () =>
+          app.exec(
+            (scope, wanted) => [...scope.querySelectorAll('[role="group"] button')].find((node) => node.innerText.includes(wanted)) ?? null,
+            box,
+            `Bad: ${short(older)}`,
+          ),
+        5000,
+      ),
+    );
     await noDialog(app);
     const toast = await waitToast(app, /bisect|ancestor|merge base/i);
     t.step(`toast: ${toast.text}`);
@@ -287,7 +400,14 @@ scenario("start: cancel the dialog; no other branch or tag shows an empty list",
     await fromMenu(app, head, "Start bisect");
     const box = await dialog(app, "Start bisect");
     assertIncludes(await textOf(app, box), "No other branch or tag – select two commits in the graph instead.", "empty state");
-    assertEqual(await app.exec((scope) => [...scope.querySelectorAll("button")].find((node) => node.textContent.trim() === "Start bisect")?.disabled ?? null, box), true, "confirm disabled");
+    assertEqual(
+      await app.exec(
+        (scope) => [...scope.querySelectorAll("button")].find((node) => node.textContent.trim() === "Start bisect")?.disabled ?? null,
+        box,
+      ),
+      true,
+      "confirm disabled",
+    );
     await app.press("Escape");
     await noDialog(app);
     await app.settle();
@@ -310,7 +430,8 @@ scenario("start: while a bisect runs the menu offers marks instead of a second s
     await menuItem(app, "Bisect: mark as good");
     const labels = await menuLabels(app);
     assert(!labels.some((label) => label.startsWith("Start bisect")), `no start entry: ${JSON.stringify(labels)}`);
-    for (const label of ["Bisect: mark as good", "Bisect: mark as bad", "Bisect: skip this commit"]) assert(labels.includes(label), `entry ${label}`);
+    for (const label of ["Bisect: mark as good", "Bisect: mark as bad", "Bisect: skip this commit"])
+      assert(labels.includes(label), `entry ${label}`);
     await closeMenu(app);
     // Two selected commits: the start entry is there but blocked with the reason.
     await app.click(rowSelector(shas[2]));
@@ -347,7 +468,11 @@ scenario("marks: good and bad from the bar until the first bad commit is found",
         const steps = gitBisectSteps(repo);
         assert(Number.isInteger(steps.remaining), `Git estimates the remaining steps: ${JSON.stringify(steps)}`);
         t.step(`Git: ${steps.done} marks, roughly ${steps.remaining} steps left; bar: ${shown.text}`);
-        assertMatch(shown.text, new RegExp(`Step ${steps.done + 1} of ~${steps.done + 1 + steps.remaining} · testing ${short(status.current)}`), "bar step text");
+        assertMatch(
+          shown.text,
+          new RegExp(`Step ${steps.done + 1} of ~${steps.done + 1 + steps.remaining} · testing ${short(status.current)}`),
+          "bar step text",
+        );
         if (status.stepsDone === 1 && !shotTaken) {
           shotTaken = true;
           await parkMouse(app);
@@ -366,7 +491,8 @@ scenario("marks: good and bad from the bar until the first bad commit is found",
     }
     assertEqual(git.bad, bug, "Git: refs/bisect/bad = bug commit");
     assertIncludes(git.log, `# first bad commit: [${bug}]`, "Git log: first bad commit");
-    for (const { sha, verdict } of marked.filter((m) => m.verdict === "good")) if (await app.$(`[data-row-id="${sha}"]`)) assertEqual(await chip(app, sha), "good", `chip good ${short(sha)}`);
+    for (const { sha, verdict } of marked.filter((m) => m.verdict === "good"))
+      if (await app.$(`[data-row-id="${sha}"]`)) assertEqual(await chip(app, sha), "good", `chip good ${short(sha)}`);
     await waitChip(app, bug, "bad");
     await waitBar(app, "found");
     await t.noConsoleErrors(app);
@@ -391,7 +517,11 @@ scenario("marks: skip from the bar, mark a chosen commit from the context menu, 
     assert(afterSkip.current && afterSkip.current !== first.current, "a different commit to test");
     assertEqual(git.head, afterSkip.current, "Git HEAD moved on");
     await waitChip(app, first.current, "skip");
-    assertEqual(await app.exec((sha) => document.querySelector(`[data-row-id="${sha}"] [data-bisect]`)?.textContent.trim(), first.current), "skipped", "chip text");
+    assertEqual(
+      await app.exec((sha) => document.querySelector(`[data-row-id="${sha}"] [data-bisect]`)?.textContent.trim(), first.current),
+      "skipped",
+      "chip text",
+    );
 
     // Context menu on a commit that is not under test: shas[2] is before the bug, so "good".
     const chosen = shas[2];
@@ -455,18 +585,28 @@ scenario("result: bar shows the first bad commit, details open, end returns to t
     await bisectToEnd(app, repoId, repo);
     const found = await waitBar(app, "found");
     assertEqual(found.text, `Bisect · First bad commit: ${short(bug)} Show details End bisect`, "bar text with buttons");
-    assertEqual(await app.exec(() => document.querySelectorAll("[data-graph-bisect] [data-bisect-verdict]").length), 0, "no mark buttons after the result");
+    assertEqual(
+      await app.exec(() => document.querySelectorAll("[data-graph-bisect] [data-bisect-verdict]").length),
+      0,
+      "no mark buttons after the result",
+    );
 
     // Select something else first so "Show details" visibly jumps back.
     await app.click(rowSelector(head));
     await app.waitFor(async () => (await selection(app, tabId)).shas?.[0] === head, 5000, { message: "head selected" });
     await app.click(await barButton(app, "Show details"));
-    await app.waitFor(async () => {
-      const selected = await selection(app, tabId);
-      return selected.kind === "commits" && JSON.stringify(selected.shas) === JSON.stringify([bug]);
-    }, 8000, { message: "bug commit selected" });
+    await app.waitFor(
+      async () => {
+        const selected = await selection(app, tabId);
+        return selected.kind === "commits" && JSON.stringify(selected.shas) === JSON.stringify([bug]);
+      },
+      8000,
+      { message: "bug commit selected" },
+    );
     const details = await app.waitFor('[data-screen="commit-details"][data-selection="1"]', 8000);
-    await app.waitFor(async () => (await textOf(app, details)).includes("Umrechnung vereinfacht"), 8000, { message: "details of the bug commit" });
+    await app.waitFor(async () => (await textOf(app, details)).includes("Umrechnung vereinfacht"), 8000, {
+      message: "details of the bug commit",
+    });
     await parkMouse(app);
     await closeToasts(app);
     await t.shot("result-found");
@@ -474,7 +614,11 @@ scenario("result: bar shows the first bad commit, details open, end returns to t
     await app.click(await barButton(app, "End bisect"));
     await waitBar(app, null);
     const git = gitBisect(repo);
-    assertEqual([git.active, Object.keys(git.refs).length, git.branch, git.head], [false, 0, "main", head], "Git: bisect reset, back on main at the old tip");
+    assertEqual(
+      [git.active, Object.keys(git.refs).length, git.branch, git.head],
+      [false, 0, "main", head],
+      "Git: bisect reset, back on main at the old tip",
+    );
     assertEqual(await chip(app, bug), null, "no chips after the end");
     assertEqual((await selection(app, tabId)).kind, "wip", "selection back on the working copy");
     await t.noConsoleErrors(app);
@@ -501,7 +645,13 @@ scenario("result: end a running bisect midway through the palette", "edge", asyn
     const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
     await app.type(input, ">Bisect");
     await app.settle(500);
-    const entries = await app.exec(() => [...document.querySelectorAll('[data-screen="command-palette"] [role="option"][data-key^="command:bisect."]')].map((node) => ({ key: node.dataset.key, disabled: node.getAttribute("aria-disabled"), text: node.innerText.replace(/\s+/g, " ").trim() })));
+    const entries = await app.exec(() =>
+      [...document.querySelectorAll('[data-screen="command-palette"] [role="option"][data-key^="command:bisect."]')].map((node) => ({
+        key: node.dataset.key,
+        disabled: node.getAttribute("aria-disabled"),
+        text: node.innerText.replace(/\s+/g, " ").trim(),
+      })),
+    );
     assertEqual(entries.length, 4, "the four bisect commands are listed");
     for (const entry of entries) {
       assertEqual(entry.disabled, "true", `${entry.key} disabled`);
@@ -537,12 +687,23 @@ scenario("extern: bisect started on the command line is picked up on open and co
     assertMatch(shown.text, new RegExp(`Step 2 of ~${2 + roughly} · testing ${short(before.head)}`), "bar text: Git's estimate");
     await waitChip(app, head, "bad");
     // The graph does not also show its detached-HEAD bar (the bisect bar explains the state).
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="commit-graph"]').innerText.toLowerCase().includes("detached")), false, "no detached-HEAD bar above the graph");
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-screen="commit-graph"]').innerText.toLowerCase().includes("detached")),
+      false,
+      "no detached-HEAD bar above the graph",
+    );
     await parkMouse(app);
     await t.shot("extern-picked-up");
     await bisectToEnd(app, repoId, repo);
     assertEqual((await uiBisect(app, repoId)).result, bug, "result");
-    assertEqual(repo.git("bisect", "log").split("\n").filter((line) => /^git bisect (good|bad|skip)/.test(line)).length >= 2, true, "Git log has terminal and app marks");
+    assertEqual(
+      repo
+        .git("bisect", "log")
+        .split("\n")
+        .filter((line) => /^git bisect (good|bad|skip)/.test(line)).length >= 2,
+      true,
+      "Git log has terminal and app marks",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -624,11 +785,22 @@ scenario("extern: waiting state while open – start and bad in the terminal cre
       await t.shot("FAIL-waiting-live-stale-bar");
       // Cross-check: rewriting the ref inside the now-watched refs/bisect folder must reach the UI.
       other.repo.git("update-ref", "refs/bisect/bad", other.head);
-      const late = await waitBar(app, "waiting", 8000).then(() => "appeared", () => "still missing");
+      const late = await waitBar(app, "waiting", 8000).then(
+        () => "appeared",
+        () => "still missing",
+      );
       // Second cross-check: a new tag (refs/tags exists since the fixture) is a plain refs change.
       other.repo.git("tag", "kontrolle");
-      const tagged = await app.waitFor(() => app.exec(() => !!document.querySelector('[data-screen="commit-graph"]')?.innerText.includes("kontrolle")), 8000).then(() => "shown", () => "not shown");
-      const afterTag = await waitBar(app, "waiting", 5000).then(() => "appeared", () => "still missing");
+      const tagged = await app
+        .waitFor(() => app.exec(() => !!document.querySelector('[data-screen="commit-graph"]')?.innerText.includes("kontrolle")), 8000)
+        .then(
+          () => "shown",
+          () => "not shown",
+        );
+      const afterTag = await waitBar(app, "waiting", 5000).then(
+        () => "appeared",
+        () => "still missing",
+      );
       const active = await app.exec(() => window.__gc.store.getState().activeTabId ?? null).catch(() => null);
       throw new Error(
         `${error.message}; UI cache active=${cached?.active}, core says active=${core.active} bad=${core.bad?.slice(0, 7)}; ` +
@@ -655,7 +827,12 @@ scenario("extern: bisect with own terms (old/new) is marked with those terms", "
     assertEqual([status.bad, status.good], [head, [good]], "UI reads refs/bisect/neu and alt-*");
     const marked = await bisectToEnd(app, repoId, repo);
     const git = gitBisect(repo);
-    for (const { sha, verdict } of marked) assertMatch(git.log, new RegExp(`git bisect ${verdict === "good" ? "alt" : "neu"} ${sha}`), `Git log uses the own term for ${short(sha)}`);
+    for (const { sha, verdict } of marked)
+      assertMatch(
+        git.log,
+        new RegExp(`git bisect ${verdict === "good" ? "alt" : "neu"} ${sha}`),
+        `Git log uses the own term for ${short(sha)}`,
+      );
     status = await uiBisect(app, repoId);
     assertEqual(status.result, bug, "result with own terms");
     assertEqual(git.refs["refs/bisect/neu"], bug, "Git: refs/bisect/neu = bug commit");

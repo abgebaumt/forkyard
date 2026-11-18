@@ -83,9 +83,11 @@ export function commitUi(app) {
       const data = await ui.status(repoId);
       return data ? { unstaged: data.unstaged.length, staged: data.staged.length, conflicted: data.conflicted.length } : null;
     },
-    waitCounts: (repoId, expected, message = "list state", timeoutMs = 20_000) => eventually(() => ui.counts(repoId), expected, message, timeoutMs),
+    waitCounts: (repoId, expected, message = "list state", timeoutMs = 20_000) =>
+      eventually(() => ui.counts(repoId), expected, message, timeoutMs),
     /** File keys shown in a section ("unstaged" | "staged" | "conflicts"). */
-    rows: (area) => app.exec((name) => [...document.querySelectorAll(`[data-section="${name}"] [data-row-key]`)].map((row) => row.dataset.rowKey), area),
+    rows: (area) =>
+      app.exec((name) => [...document.querySelectorAll(`[data-section="${name}"] [data-row-key]`)].map((row) => row.dataset.rowKey), area),
     row: (area, file) => app.waitFor(`[data-section="${area}"] [data-row-key=${JSON.stringify(file)}]`, 15_000),
     /** Window focus makes the app re-read the working directory (the watcher may not have reported yet). */
     async refresh() {
@@ -115,7 +117,8 @@ export function commitUi(app) {
     },
     commitButton: () => app.waitFor('form button[data-action="commit"]'),
     commitLabel: () => app.exec(() => document.querySelector('form button[data-action="commit"]')?.textContent?.trim() ?? null),
-    commitBlocked: () => app.exec(() => document.querySelector('form button[data-action="commit"]')?.getAttribute("aria-disabled") === "true"),
+    commitBlocked: () =>
+      app.exec(() => document.querySelector('form button[data-action="commit"]')?.getAttribute("aria-disabled") === "true"),
     /** Radix checkbox of the commit form by the start of its label ("Amend last commit", "Push after commit" …). */
     checkbox: (label) =>
       app.waitFor(
@@ -132,7 +135,14 @@ export function commitUi(app) {
       ),
     checked: async (label) => (await (await ui.checkbox(label)).attr("aria-checked")) === "true",
     /** Texts of the toasts of a tone, or of all. */
-    toasts: (tone = null) => app.exec((which) => [...document.querySelectorAll(which ? `[data-toast="${which}"]` : "[data-toast]")].map((node) => node.innerText.replace(/\s+/g, " ").trim()), tone),
+    toasts: (tone = null) =>
+      app.exec(
+        (which) =>
+          [...document.querySelectorAll(which ? `[data-toast="${which}"]` : "[data-toast]")].map((node) =>
+            node.innerText.replace(/\s+/g, " ").trim(),
+          ),
+        tone,
+      ),
     async waitToast(tone, pattern, timeoutMs = 20_000) {
       return app.waitFor(async () => (await ui.toasts(tone)).find((text) => pattern.test(text)) ?? null, timeoutMs, {
         message: `toast (${tone}) matching ${pattern}; present: ${JSON.stringify(await ui.toasts().catch(() => []))}`,
@@ -162,12 +172,20 @@ export function commitUi(app) {
     async tabUntil(predicate, arg, max = 120) {
       const source = predicate.toString();
       for (let step = 0; step <= max; step++) {
-        if (await app.exec((code, value) => Boolean(new Function("el", "arg", `return (${code})(el, arg)`)(document.activeElement, value)), source, arg)) return step;
+        if (
+          await app.exec(
+            (code, value) => Boolean(new Function("el", "arg", `return (${code})(el, arg)`)(document.activeElement, value)),
+            source,
+            arg,
+          )
+        )
+          return step;
         await app.press("Tab");
       }
       throw new AssertionError(`Tab does not reach the target: ${source.slice(0, 120)}`);
     },
-    tabToList: (label) => ui.tabUntil((el, name) => Boolean(el?.closest(`[aria-label="${name}"]`) && el.hasAttribute("data-row-key")), label),
+    tabToList: (label) =>
+      ui.tabUntil((el, name) => Boolean(el?.closest(`[aria-label="${name}"]`) && el.hasAttribute("data-row-key")), label),
     tabToField: (label) => ui.tabUntil((el, name) => el?.getAttribute("aria-label") === name, label),
 
     // ---- diff view -------------------------------------------------------------------------
@@ -196,10 +214,14 @@ export function commitUi(app) {
     async diffChanged(before, file) {
       await app.waitFor(
         () =>
-          app.exec((old, label) => {
-            const root = document.querySelector('[data-screen="diff"]');
-            return !root || root.getAttribute("aria-label") !== label || root.getAttribute("data-diff-token") !== old;
-          }, before, `Diff of ${file}`),
+          app.exec(
+            (old, label) => {
+              const root = document.querySelector('[data-screen="diff"]');
+              return !root || root.getAttribute("aria-label") !== label || root.getAttribute("data-diff-token") !== old;
+            },
+            before,
+            `Diff of ${file}`,
+          ),
         20_000,
         { message: `diff of ${file} reloaded` },
       );
@@ -216,32 +238,52 @@ export function commitUi(app) {
         })),
       ),
     async changedRows() {
-      return (await ui.diffRows()).filter((row) => row.kind === "add" || row.kind === "remove").map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`);
+      return (await ui.diffRows())
+        .filter((row) => row.kind === "add" || row.kind === "remove")
+        .map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`);
     },
     async selectedRows() {
       return (await ui.diffRows()).filter((row) => row.selected).map((row) => `${row.kind === "add" ? "+" : "-"}${row.text}`);
     },
-    hunkHeads: () => app.exec(() => [...document.querySelectorAll('[data-screen="diff"] [data-diff-grid] [data-hunk]')].map((head) => head.innerText.replace(/\s+/g, " ").trim())),
+    hunkHeads: () =>
+      app.exec(() =>
+        [...document.querySelectorAll('[data-screen="diff"] [data-diff-grid] [data-hunk]')].map((head) =>
+          head.innerText.replace(/\s+/g, " ").trim(),
+        ),
+      ),
     /** The line-number cell (gutter) of the changed row `kind` ("add" | "remove") with text `text`. */
     gutter: (kind, text) =>
       app.waitFor(
         () =>
-          app.exec((wantedKind, wantedText) => {
-            for (const row of document.querySelectorAll(`[data-screen="diff"] [data-diff-grid] [data-row][data-kind="${wantedKind}"]`)) {
-              const value = (row.querySelector(".selectable")?.textContent ?? "").replace(/​/g, "");
-              if (value === wantedText) return row.querySelector("[data-gutter]");
-            }
-            return null;
-          }, kind, text),
+          app.exec(
+            (wantedKind, wantedText) => {
+              for (const row of document.querySelectorAll(`[data-screen="diff"] [data-diff-grid] [data-row][data-kind="${wantedKind}"]`)) {
+                const value = (row.querySelector(".selectable")?.textContent ?? "").replace(/​/g, "");
+                if (value === wantedText) return row.querySelector("[data-gutter]");
+              }
+              return null;
+            },
+            kind,
+            text,
+          ),
         10_000,
         { message: `gutter of ${kind} line "${text}"` },
       ),
     /** Button inside the selection bar of the diff by its exact text ("Stage 2 lines" …). */
-    selectionButton: (label) => app.waitFor(() => app.byText(label, { within: "[data-selection-bar]" }), 10_000, { message: `selection bar button "${label}"` }),
+    selectionButton: (label) =>
+      app.waitFor(() => app.byText(label, { within: "[data-selection-bar]" }), 10_000, { message: `selection bar button "${label}"` }),
     /** Button "Stage hunk"/"Unstage hunk" of hunk `index` (0-based). */
     hunkButton: (index, label) =>
       app.waitFor(
-        () => app.exec((at, text) => [...(document.querySelector(`[data-screen="diff"] [data-hunk="${at}"]`)?.querySelectorAll("button") ?? [])].find((button) => (button.getAttribute("aria-label") ?? button.textContent ?? "").trim() === text) ?? null, index, label),
+        () =>
+          app.exec(
+            (at, text) =>
+              [...(document.querySelector(`[data-screen="diff"] [data-hunk="${at}"]`)?.querySelectorAll("button") ?? [])].find(
+                (button) => (button.getAttribute("aria-label") ?? button.textContent ?? "").trim() === text,
+              ) ?? null,
+            index,
+            label,
+          ),
         10_000,
         { message: `"${label}" of hunk ${index}` },
       ),
@@ -250,7 +292,17 @@ export function commitUi(app) {
     async shiftClick(element) {
       await app.webdriver("POST", "/actions", {
         actions: [
-          { type: "key", id: "kb", actions: [{ type: "keyDown", value: "" }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "pause", duration: 0 }, { type: "keyUp", value: "" }] },
+          {
+            type: "key",
+            id: "kb",
+            actions: [
+              { type: "keyDown", value: "" },
+              { type: "pause", duration: 0 },
+              { type: "pause", duration: 0 },
+              { type: "pause", duration: 0 },
+              { type: "keyUp", value: "" },
+            ],
+          },
           {
             type: "pointer",
             id: "mouse",

@@ -3,7 +3,18 @@
  * suggestion, the texts and targets of the pull requests, the default base, the tone of a check
  * state, what pushing needs, and the keys of the commit list.
  */
-import type { AiStackSplit, PushResult, Ref, RefsSnapshot, Sha, StackCheckState, StackCommit, StackCut, StackPrPart, StackStatus } from "../../core";
+import type {
+  AiStackSplit,
+  PushResult,
+  Ref,
+  RefsSnapshot,
+  Sha,
+  StackCheckState,
+  StackCommit,
+  StackCut,
+  StackPrPart,
+  StackStatus,
+} from "../../core";
 
 export interface DraftPart {
   /** The part ends after commit `end` (1 = the oldest commit). */
@@ -71,7 +82,8 @@ export function fromSuggestion(split: AiStackSplit): DraftPart[] {
 export type SplitPlacement = "insert" | "choose" | "ready";
 
 const sameParts = (a: DraftPart[] | null, b: DraftPart[] | null) =>
-  JSON.stringify((a ?? []).map((part) => [part.end, part.name, part.title])) === JSON.stringify((b ?? []).map((part) => [part.end, part.name, part.title]));
+  JSON.stringify((a ?? []).map((part) => [part.end, part.name, part.title])) ===
+  JSON.stringify((b ?? []).map((part) => [part.end, part.name, part.title]));
 
 /** "Umgang mit Vorschlägen": an untouched plan takes it; own cuts get an offer ("ready" if they changed meanwhile). */
 export function placeSplit(current: DraftPart[] | null, atStart: DraftPart[] | null, commitCount: number): SplitPlacement {
@@ -108,7 +120,12 @@ export function firstWithoutPr(status: StackStatus, hasPr: (branch: string) => b
 }
 
 /** The host's default branch on its remote, else locally, else origin/main, main, master – never the split branch. */
-export function defaultBase(refs: RefsSnapshot | undefined, remote: string | null, defaultBranch: string | null, source: string): string | null {
+export function defaultBase(
+  refs: RefsSnapshot | undefined,
+  remote: string | null,
+  defaultBranch: string | null,
+  source: string,
+): string | null {
   if (!refs) return null;
   const known = new Set([...refs.locals, ...refs.remotes].map((item) => item.fullName));
   const candidates = [
@@ -119,12 +136,18 @@ export function defaultBase(refs: RefsSnapshot | undefined, remote: string | nul
     "refs/remotes/origin/master",
     "refs/heads/master",
   ];
-  return candidates.find((candidate): candidate is string => candidate !== null && known.has(candidate) && candidate !== `refs/heads/${source}`) ?? null;
+  return (
+    candidates.find(
+      (candidate): candidate is string => candidate !== null && known.has(candidate) && candidate !== `refs/heads/${source}`,
+    ) ?? null
+  );
 }
 
 export function baseOptions(refs: RefsSnapshot | undefined, source: string): { value: string; label: string }[] {
   if (!refs) return [];
-  return [...refs.locals.filter((item) => item.name !== source), ...refs.remotes.filter((item) => !item.name.endsWith("/HEAD"))].map((item) => ({ value: item.fullName, label: item.name }));
+  return [...refs.locals.filter((item) => item.name !== source), ...refs.remotes.filter((item) => !item.name.endsWith("/HEAD"))].map(
+    (item) => ({ value: item.fullName, label: item.name }),
+  );
 }
 
 export type CheckTone = "accent" | "success" | "danger" | "warning";
@@ -146,7 +169,9 @@ export function checkTone(state: StackCheckState | "running"): CheckTone {
 export function allPushed(status: StackStatus, locals: Ref[], remote: string): boolean {
   return status.parts.every((part) => {
     const local = locals.find((item) => item.name === part.branch);
-    return Boolean(local && local.upstream === `${remote}/${part.branch}` && !local.upstreamGone && local.ahead === 0 && local.behind === 0);
+    return Boolean(
+      local && local.upstream === `${remote}/${part.branch}` && !local.upstreamGone && local.ahead === 0 && local.behind === 0,
+    );
   });
 }
 
@@ -166,7 +191,9 @@ export function expectedRemoteTips(branches: string[], remotes: Ref[], remote: s
 export function rejectedRefs(result: PushResult): string[] {
   if (result.status === "rejected") return [result.reason];
   if (result.status !== "multi") return [];
-  return result.refs.filter((item) => item.status === "rejected").map((item) => `${item.remoteRef.replace(/^refs\/heads\//, "")}: ${item.reason ?? ""}`.trim());
+  return result.refs
+    .filter((item) => item.status === "rejected")
+    .map((item) => `${item.remoteRef.replace(/^refs\/heads\//, "")}: ${item.reason ?? ""}`.trim());
 }
 
 export type ListKey = { kind: "move"; index: number } | { kind: "toggle" } | null;

@@ -50,7 +50,9 @@ function UpdatesCard() {
       </SettingRow>
       <div className="flex min-h-9 items-center gap-3 border-t border-border py-2" data-update-status>
         <span className="min-w-0 flex-1 text-sm text-text-muted">
-          {info?.checkedAt ? t("updates.settings.lastChecked", { time: formatDateTime(info.checkedAt) }) : t("updates.settings.neverChecked")}
+          {info?.checkedAt
+            ? t("updates.settings.lastChecked", { time: formatDateTime(info.checkedAt) })
+            : t("updates.settings.neverChecked")}
         </span>
         <Button
           size="sm"
@@ -70,7 +72,8 @@ function UpdatesCard() {
 export function AboutSection() {
   const appInfo = useAppInfo();
   if (appInfo.isPending) return <SettingsSkeleton rows={4} />;
-  if (appInfo.isError) return <LoadError title={t("preferences.loadError.about")} error={appInfo.error} onRetry={() => void appInfo.refetch()} />;
+  if (appInfo.isError)
+    return <LoadError title={t("preferences.loadError.about")} error={appInfo.error} onRetry={() => void appInfo.refetch()} />;
   const info = appInfo.data;
 
   const summary = [
@@ -90,7 +93,12 @@ export function AboutSection() {
             onClick={() => {
               navigator.clipboard.writeText(summary).then(
                 () => toast({ tone: "success", title: t("preferences.about.copied") }),
-                () => toast({ tone: "danger", title: t("preferences.about.copyFailed"), description: t("preferences.about.clipboardUnavailable") }),
+                () =>
+                  toast({
+                    tone: "danger",
+                    title: t("preferences.about.copyFailed"),
+                    description: t("preferences.about.clipboardUnavailable"),
+                  }),
               );
             }}
           >
@@ -119,7 +127,9 @@ export function AboutSection() {
           {info.gitVersion ? <Mono>{info.gitVersion}</Mono> : <span className="text-danger">{t("preferences.about.notFound")}</span>}
           <span className="shrink-0 text-sm text-text-muted">{t("preferences.about.minimum", { version: info.gitMinVersion })}</span>
         </Fact>
-        <Fact name={t("preferences.about.gitPath")}>{info.gitPath ? <Mono>{info.gitPath}</Mono> : <span className="text-text-muted">–</span>}</Fact>
+        <Fact name={t("preferences.about.gitPath")}>
+          {info.gitPath ? <Mono>{info.gitPath}</Mono> : <span className="text-text-muted">–</span>}
+        </Fact>
         <Fact name={t("preferences.about.platform")}>
           <span className="selectable text-base text-text">{platformName[info.platform]}</span>
         </Fact>
@@ -136,9 +146,7 @@ export function AboutSection() {
           </Button>
         </Fact>
       </dl>
-      <p className="mt-3 text-sm text-text-muted">
-        {t("preferences.about.dataDirHint")}
-      </p>
+      <p className="mt-3 text-sm text-text-muted">{t("preferences.about.dataDirHint")}</p>
 
       <UpdatesCard />
 
@@ -150,9 +158,7 @@ export function AboutSection() {
         <li>{t("preferences.about.privacyUpdates")}</li>
         <li>{t("preferences.about.privacyLinks")}</li>
       </ul>
-      <p className="mt-2 text-sm text-text-muted">
-        {t("preferences.about.privacyRest")}
-      </p>
+      <p className="mt-2 text-sm text-text-muted">{t("preferences.about.privacyRest")}</p>
     </section>
   );
 }

@@ -20,7 +20,9 @@ describe("zoom", () => {
   it("zoom presses resolve in order", async () => {
     queryClient.setQueryData(qk.settings, { zoom: 1 } as Settings);
     const resolvers: Array<() => void> = [];
-    settingsSet.mockImplementation(({ patch }) => new Promise<Settings>((resolve) => resolvers.push(() => resolve({ zoom: patch.zoom } as Settings))));
+    settingsSet.mockImplementation(
+      ({ patch }) => new Promise<Settings>((resolve) => resolvers.push(() => resolve({ zoom: patch.zoom } as Settings))),
+    );
     const all = Promise.all([setZoom(1.1), setZoom(1.2), setZoom(1.3)]);
     // Without the queue all three calls are already in flight; resolve the first one last.
     await vi.waitFor(() => expect(settingsSet).toHaveBeenCalledTimes(1));

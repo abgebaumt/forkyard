@@ -12,7 +12,18 @@ import { Button } from "../../ui/Button";
 import { cn, laneColor } from "../../ui/cn";
 import { t } from "../../i18n";
 import { SUMMARY_LIMIT } from "../../core/limits";
-import { SKIP, brokenNeeds, commitProblems, peekOf, splitPath, unitDetail, type Arrangement, type Review, type Selection, type Units } from "./model";
+import {
+  SKIP,
+  brokenNeeds,
+  commitProblems,
+  peekOf,
+  splitPath,
+  unitDetail,
+  type Arrangement,
+  type Review,
+  type Selection,
+  type Units,
+} from "./model";
 
 /** Movement from which a press becomes a drag (CSS pixels). */
 const DRAG_THRESHOLD = 4;
@@ -136,7 +147,19 @@ export function CommitList(props: CommitListProps) {
 
 type StartDrag = (event: ReactPointerEvent, unit: string) => void;
 
-function Group({ group, props, over, dragging, startDrag }: { group: number; props: CommitListProps; over: boolean; dragging: ReadonlySet<string> | null; startDrag: StartDrag }) {
+function Group({
+  group,
+  props,
+  over,
+  dragging,
+  startDrag,
+}: {
+  group: number;
+  props: CommitListProps;
+  over: boolean;
+  dragging: ReadonlySet<string> | null;
+  startDrag: StartDrag;
+}) {
   const { arrangement, units } = props;
   const commit = group === SKIP ? null : arrangement.commits[group]!;
   const ids = commit ? commit.units : arrangement.skip;
@@ -145,7 +168,13 @@ function Group({ group, props, over, dragging, startDrag }: { group: number; pro
   const removed = ids.reduce((sum, id) => sum + (units.get(id)?.removed ?? 0), 0);
   const length = commit?.title.length ?? 0;
   const tooLong = length > SUMMARY_LIMIT;
-  const why = !commit ? t("wip.compose.skipHint") : commit.origin === "user" ? t("wip.compose.byYouCommit") : commit.origin === "merged" ? t("wip.compose.merged") : commit.reason;
+  const why = !commit
+    ? t("wip.compose.skipHint")
+    : commit.origin === "user"
+      ? t("wip.compose.byYouCommit")
+      : commit.origin === "merged"
+        ? t("wip.compose.merged")
+        : commit.reason;
   const last = arrangement.commits.length - 1;
   return (
     <section
@@ -156,11 +185,18 @@ function Group({ group, props, over, dragging, startDrag }: { group: number; pro
     >
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-4 pt-3 pb-1">
         {commit ? (
-          <span className="grid size-5.5 place-items-center rounded-full text-xs font-semibold text-on-lane" style={{ backgroundColor: laneColor(group) }} aria-hidden>
+          <span
+            className="grid size-5.5 place-items-center rounded-full text-xs font-semibold text-on-lane"
+            style={{ backgroundColor: laneColor(group) }}
+            aria-hidden
+          >
             {group + 1}
           </span>
         ) : (
-          <span className="grid size-5.5 place-items-center rounded-full border border-dashed border-border-input text-xs font-semibold text-text-muted" aria-hidden>
+          <span
+            className="grid size-5.5 place-items-center rounded-full border border-dashed border-border-input text-xs font-semibold text-text-muted"
+            aria-hidden
+          >
             0
           </span>
         )}
@@ -190,13 +226,34 @@ function Group({ group, props, over, dragging, startDrag }: { group: number; pro
         )}
         {commit ? (
           <span className="ml-auto flex shrink-0 gap-0.5 opacity-60 group-focus-within/commit:opacity-100 group-hover/commit:opacity-100">
-            <Button size="sm" variant="ghost" title={t("wip.compose.earlierTip")} disabled={group === 0} onClick={() => props.onMoveCommit(group, -1)} className="text-text-muted">
+            <Button
+              size="sm"
+              variant="ghost"
+              title={t("wip.compose.earlierTip")}
+              disabled={group === 0}
+              onClick={() => props.onMoveCommit(group, -1)}
+              className="text-text-muted"
+            >
               {t("wip.compose.earlier")}
             </Button>
-            <Button size="sm" variant="ghost" title={t("wip.compose.laterTip")} disabled={group === last} onClick={() => props.onMoveCommit(group, 1)} className="text-text-muted">
+            <Button
+              size="sm"
+              variant="ghost"
+              title={t("wip.compose.laterTip")}
+              disabled={group === last}
+              onClick={() => props.onMoveCommit(group, 1)}
+              className="text-text-muted"
+            >
               {t("wip.compose.later")}
             </Button>
-            <Button size="sm" variant="ghost" data-compose-merge={String(group)} disabled={group === last} onClick={() => props.onMerge(group)} className="text-text-muted">
+            <Button
+              size="sm"
+              variant="ghost"
+              data-compose-merge={String(group)}
+              disabled={group === last}
+              onClick={() => props.onMerge(group)}
+              className="text-text-muted"
+            >
               {t("wip.compose.merge")}
             </Button>
           </span>
@@ -206,7 +263,8 @@ function Group({ group, props, over, dragging, startDrag }: { group: number; pro
       {commit ? (
         <div className="mx-4 mt-0.5 mb-2 ml-12 flex flex-wrap gap-x-3 gap-y-1 text-xs text-text-muted">
           <span>
-            {t("wip.compose.units", { count: ids.length })} · <span className="font-mono">{t("wip.compose.lines", { added, removed })}</span>
+            {t("wip.compose.units", { count: ids.length })} ·{" "}
+            <span className="font-mono">{t("wip.compose.lines", { added, removed })}</span>
           </span>
           <span data-compose-length="" className={tooLong ? "text-danger" : undefined}>
             {t("wip.compose.length", { length })}
@@ -226,17 +284,38 @@ function Group({ group, props, over, dragging, startDrag }: { group: number; pro
           ))}
         </div>
       ) : null}
-      <div role="listbox" aria-multiselectable aria-label={commit ? t("wip.compose.commit", { number: group + 1 }) : t("wip.compose.skip")} className="grid gap-0.5 pr-2 pb-2 pl-10">
+      <div
+        role="listbox"
+        aria-multiselectable
+        aria-label={commit ? t("wip.compose.commit", { number: group + 1 }) : t("wip.compose.skip")}
+        className="grid gap-0.5 pr-2 pb-2 pl-10"
+      >
         {ids.map((id) => (
           <UnitRow key={id} id={id} group={group} props={props} dragging={dragging?.has(id) ?? false} startDrag={startDrag} />
         ))}
       </div>
-      {!commit && ids.length === 0 ? <div className="mx-2 mb-2 ml-12 rounded-md border border-dashed border-border p-2.5 text-sm text-text-muted">{t("wip.compose.skipEmpty")}</div> : null}
+      {!commit && ids.length === 0 ? (
+        <div className="mx-2 mb-2 ml-12 rounded-md border border-dashed border-border p-2.5 text-sm text-text-muted">
+          {t("wip.compose.skipEmpty")}
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function UnitRow({ id, group, props, dragging, startDrag }: { id: string; group: number; props: CommitListProps; dragging: boolean; startDrag: StartDrag }) {
+function UnitRow({
+  id,
+  group,
+  props,
+  dragging,
+  startDrag,
+}: {
+  id: string;
+  group: number;
+  props: CommitListProps;
+  dragging: boolean;
+  startDrag: StartDrag;
+}) {
   const { units, arrangement, selection, review, unsure, moved, listId } = props;
   const unit = units.get(id);
   if (!unit) return null;
@@ -297,7 +376,21 @@ function UnitRow({ id, group, props, dragging, startDrag }: { id: string; group:
   );
 }
 
-function Tags({ locked, kind, unsure, byYou, needs, units }: { locked: boolean; kind: string | null; unsure: boolean; byYou: boolean; needs: { need: string; group: number }[]; units: Units }) {
+function Tags({
+  locked,
+  kind,
+  unsure,
+  byYou,
+  needs,
+  units,
+}: {
+  locked: boolean;
+  kind: string | null;
+  unsure: boolean;
+  byYou: boolean;
+  needs: { need: string; group: number }[];
+  units: Units;
+}) {
   if (!locked && !kind && !unsure && !byYou && needs.length === 0) return null;
   const tag = "rounded-pill px-1.5 text-xs";
   return (

@@ -21,13 +21,26 @@ export function Divider() {
 }
 
 /** Small badge in the header (revision, encoding, “editable”). */
-export function Tag({ children, title, tone = "muted", className, ...rest }: { children: ReactNode; title?: string; tone?: "muted" | "accent" | "warning"; className?: string } & Record<`data-${string}`, string | undefined>) {
+export function Tag({
+  children,
+  title,
+  tone = "muted",
+  className,
+  ...rest
+}: { children: ReactNode; title?: string; tone?: "muted" | "accent" | "warning"; className?: string } & Record<
+  `data-${string}`,
+  string | undefined
+>) {
   return (
     <span
       title={title}
       className={cn(
         "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs font-medium whitespace-nowrap",
-        tone === "accent" ? "border-accent bg-accent-surface text-accent" : tone === "warning" ? "border-warning bg-warning-surface text-text" : "border-border text-text-muted",
+        tone === "accent"
+          ? "border-accent bg-accent-surface text-accent"
+          : tone === "warning"
+            ? "border-warning bg-warning-surface text-text"
+            : "border-border text-text-muted",
         className,
       )}
       {...rest}
@@ -73,7 +86,12 @@ const SKELETON_WIDTHS = ["w-2/5", "w-3/4", "w-11/12", "w-1/2", "w-4/5", "w-2/3",
 /** Code lines hinted in grey while the content loads. */
 export function CodeSkeleton({ label, gutter = false }: { label: string; gutter?: boolean }) {
   return (
-    <div role="status" aria-label={label} data-loading="" className="flex h-full min-h-0 flex-col gap-2.5 overflow-hidden bg-surface-sunken px-4 py-3">
+    <div
+      role="status"
+      aria-label={label}
+      data-loading=""
+      className="flex h-full min-h-0 flex-col gap-2.5 overflow-hidden bg-surface-sunken px-4 py-3"
+    >
       {SKELETON_WIDTHS.map((width, index) => (
         <div key={index} className="flex items-center gap-4">
           {gutter ? <div className="h-3 w-48 shrink-0 animate-pulse rounded-sm bg-surface-raised" /> : null}
@@ -93,10 +111,13 @@ export function CodeSkeleton({ label, gutter = false }: { label: string; gutter?
 export function isPlainEscape(event: KeyboardEvent): boolean {
   if (event.key !== "Escape" || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return false;
   if (!event.defaultPrevented) return true;
-  return Boolean(document.querySelector('[role="tooltip"]')) && !document.querySelector('[role="menu"], [role="dialog"], [role="alertdialog"]');
+  return (
+    Boolean(document.querySelector('[role="tooltip"]')) && !document.querySelector('[role="menu"], [role="dialog"], [role="alertdialog"]')
+  );
 }
 
-const isTextField =(element: Element | null) => Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
+const isTextField = (element: Element | null) =>
+  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 /**
  * Whether a key press belongs to the view: not in text fields, menus, dialogs; not while a

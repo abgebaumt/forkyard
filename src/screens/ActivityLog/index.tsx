@@ -24,7 +24,13 @@ const ROW_HEIGHT = 28;
 const PAGE_SIZE = 200;
 
 const clock = new Intl.DateTimeFormat(locale(), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const dayAndClock = new Intl.DateTimeFormat(locale(), { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const dayAndClock = new Intl.DateTimeFormat(locale(), {
+  day: "2-digit",
+  month: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
 const fullTime = new Intl.DateTimeFormat(locale(), { dateStyle: "full", timeStyle: "medium" });
 
 /** Local time to the second; on other days with the date in front. */
@@ -69,14 +75,21 @@ function ExitBadge({ code }: { code: number | null }) {
   }
   if (code === 0) {
     return (
-      <span className="inline-flex h-5 items-center gap-1 rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted" title={t("activity.exit.okTip")}>
+      <span
+        className="inline-flex h-5 items-center gap-1 rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted"
+        title={t("activity.exit.okTip")}
+      >
         <Check className="size-3 text-success" aria-hidden />
         OK
       </span>
     );
   }
   return (
-    <span data-exit="error" className="inline-flex h-5 items-center gap-1 rounded-sm bg-danger-surface px-1.5 text-xs font-semibold text-text" title={t("activity.exit.errorTip", { code })}>
+    <span
+      data-exit="error"
+      className="inline-flex h-5 items-center gap-1 rounded-sm bg-danger-surface px-1.5 text-xs font-semibold text-text"
+      title={t("activity.exit.errorTip", { code })}
+    >
       <TriangleAlert className="size-3 text-danger" aria-hidden />
       {t("activity.exit.error", { code })}
     </span>
@@ -100,10 +113,14 @@ export function ActivityLog({ repoId, onClose }: { repoId: Id | null; onClose: (
         <RadixDialog.Overlay className="animate-fade fixed inset-0 z-40 bg-surface-sunken/70" />
         <RadixDialog.Content
           data-screen="activity-log"
-          className={cn(dialogSurface, "animate-pop fixed top-1/2 left-1/2 z-50 h-170 w-232 -translate-x-1/2 -translate-y-1/2 overflow-hidden")}
+          className={cn(
+            dialogSurface,
+            "animate-pop fixed top-1/2 left-1/2 z-50 h-170 w-232 -translate-x-1/2 -translate-y-1/2 overflow-hidden",
+          )}
           onOpenAutoFocus={(event) => {
             // Focus the search instead of the close button: its tooltip would otherwise swallow the first Esc.
-            const search = event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector<HTMLElement>('input[type="search"]') : null;
+            const search =
+              event.currentTarget instanceof HTMLElement ? event.currentTarget.querySelector<HTMLElement>('input[type="search"]') : null;
             if (search) {
               event.preventDefault();
               search.focus();
@@ -115,13 +132,15 @@ export function ActivityLog({ repoId, onClose }: { repoId: Id | null; onClose: (
             if (focused instanceof HTMLInputElement && focused.type === "search" && focused.value) event.preventDefault();
           }}
         >
-          <Tabs.Root value={shownScope} onValueChange={(value) => setScope(value as ActivityScope)} className="flex min-h-0 flex-1 flex-col">
+          <Tabs.Root
+            value={shownScope}
+            onValueChange={(value) => setScope(value as ActivityScope)}
+            className="flex min-h-0 flex-1 flex-col"
+          >
             <header className="flex items-start gap-3 px-4 pt-4">
               <div className="min-w-0 flex-1">
                 <RadixDialog.Title className="text-lg font-semibold">{t("activity.title")}</RadixDialog.Title>
-                <RadixDialog.Description className="text-base text-text-muted">
-                  {t("activity.description")}
-                </RadixDialog.Description>
+                <RadixDialog.Description className="text-base text-text-muted">{t("activity.description")}</RadixDialog.Description>
               </div>
               <Tip label={t("activity.close")} shortcut="Esc">
                 <RadixDialog.Close
@@ -279,10 +298,7 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
   const tabStop = rows.some((row) => row.id === activeId) ? activeId : (rows[0]?.id ?? null);
   const pageRows = Math.max(1, Math.floor((scrollRef.current?.clientHeight ?? 400) / ROW_HEIGHT) - 1);
 
-  const emptyText =
-    scope === "repo"
-      ? t("activity.empty.repo")
-      : t("activity.empty.app");
+  const emptyText = scope === "repo" ? t("activity.empty.repo") : t("activity.empty.app");
 
   return (
     <>
@@ -327,13 +343,20 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
             </button>
           ) : null}
         </div>
-        <Checkbox label={errorCount ? t("activity.onlyErrorsCount", { count: errorCount }) : t("activity.onlyErrors")} checked={onlyErrors} onCheckedChange={setOnlyErrors} />
+        <Checkbox
+          label={errorCount ? t("activity.onlyErrorsCount", { count: errorCount }) : t("activity.onlyErrors")}
+          checked={onlyErrors}
+          onCheckedChange={setOnlyErrors}
+        />
         <span className="flex-1" />
         <p role="status" data-log-count className="text-sm text-text-muted tabular-nums">
           {activity.isPending
             ? t("activity.count.loading")
             : filtering
-              ? t("activity.count.filtered", { shown: rows.length.toLocaleString(locale()), total: entries.length.toLocaleString(locale()) })
+              ? t("activity.count.filtered", {
+                  shown: rows.length.toLocaleString(locale()),
+                  total: entries.length.toLocaleString(locale()),
+                })
               : hasNextPage
                 ? t("activity.count.loaded", { count: entries.length })
                 : t("activity.count.all", { count: entries.length })}
@@ -341,7 +364,13 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
         {activity.isFetching && !activity.isPending ? <Spinner label={t("activity.refreshing")} /> : null}
       </div>
 
-      <div aria-hidden className={cn(columns, "h-row border-y border-border bg-surface-raised text-xs font-semibold tracking-wide text-text-muted uppercase")}>
+      <div
+        aria-hidden
+        className={cn(
+          columns,
+          "h-row border-y border-border bg-surface-raised text-xs font-semibold tracking-wide text-text-muted uppercase",
+        )}
+      >
         <span className="w-4 shrink-0" />
         <span className="w-28 shrink-0">{t("activity.column.time")}</span>
         <span className="min-w-0 flex-1">{t("activity.column.command")}</span>
@@ -388,8 +417,15 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
             </Button>
           </div>
         ) : rows.length === 0 ? (
-          <div data-state={filtering ? "no-match" : "empty"} className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center">
-            {filtering ? <SearchX className="size-6 text-text-muted" aria-hidden /> : <ScrollText className="size-6 text-text-muted" aria-hidden />}
+          <div
+            data-state={filtering ? "no-match" : "empty"}
+            className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center"
+          >
+            {filtering ? (
+              <SearchX className="size-6 text-text-muted" aria-hidden />
+            ) : (
+              <ScrollText className="size-6 text-text-muted" aria-hidden />
+            )}
             <p className="text-md font-medium text-text">{filtering ? t("activity.noMatch.title") : t("activity.empty.title")}</p>
             <p className="max-w-96 text-base text-text-muted">
               {filtering
@@ -420,7 +456,11 @@ function LogList({ scope, repoId }: { scope: ActivityScope; repoId: Id | null })
           </div>
         ) : (
           <div ref={scrollRef} data-log-scroll onScroll={rememberAnchor} className="min-h-0 flex-1 overflow-y-auto">
-            <ul aria-label={scope === "repo" ? t("activity.listRepo") : t("activity.listApp")} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+            <ul
+              aria-label={scope === "repo" ? t("activity.listRepo") : t("activity.listApp")}
+              className="relative w-full"
+              style={{ height: virtualizer.getTotalSize() }}
+            >
               {items.map((item) => {
                 const entry = rows[item.index];
                 if (!entry) return null;
@@ -491,8 +531,17 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
         entries={[
           { label: open ? t("activity.row.collapse") : t("activity.row.expand"), onSelect: onToggle },
           { type: "separator" },
-          { label: t("activity.row.copyCommand"), icon: <Copy className="size-icon" />, onSelect: () => void copy(entry.command, t("activity.copy.command")) },
-          { label: t("activity.row.copyOutput"), icon: <Copy className="size-icon" />, disabled: !output, onSelect: () => void copy(output, t("activity.copy.output")) },
+          {
+            label: t("activity.row.copyCommand"),
+            icon: <Copy className="size-icon" />,
+            onSelect: () => void copy(entry.command, t("activity.copy.command")),
+          },
+          {
+            label: t("activity.row.copyOutput"),
+            icon: <Copy className="size-icon" />,
+            disabled: !output,
+            onSelect: () => void copy(output, t("activity.copy.output")),
+          },
         ]}
       >
         <div
@@ -502,7 +551,11 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
           aria-expanded={open}
           aria-controls={open ? panelId : undefined}
           aria-label={`${formatLogTime(entry.startedAt)}, ${entry.command}, ${formatDuration(entry.durationMs)}, ${
-            entry.exitCode === null ? t("activity.row.noExit") : isError ? t("activity.row.failed", { code: entry.exitCode }) : t("activity.row.success")
+            entry.exitCode === null
+              ? t("activity.row.noExit")
+              : isError
+                ? t("activity.row.failed", { code: entry.exitCode })
+                : t("activity.row.success")
           }`}
           onFocus={onFocus}
           onClick={() => {
@@ -534,10 +587,18 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
               action();
             }
           }}
-          className={cn(columns, "h-7 cursor-default border-b border-border -outline-offset-2 hover:bg-surface-raised", isError && "bg-danger-surface/40")}
+          className={cn(
+            columns,
+            "h-7 cursor-default border-b border-border -outline-offset-2 hover:bg-surface-raised",
+            isError && "bg-danger-surface/40",
+          )}
         >
           <ChevronRight className={cn("size-4 shrink-0 text-text-muted transition-transform", open && "rotate-90")} aria-hidden />
-          <time dateTime={entry.startedAt} title={Number.isNaN(started.getTime()) ? entry.startedAt : fullTime.format(started)} className="w-28 shrink-0 text-sm text-text-muted tabular-nums">
+          <time
+            dateTime={entry.startedAt}
+            title={Number.isNaN(started.getTime()) ? entry.startedAt : fullTime.format(started)}
+            className="w-28 shrink-0 text-sm text-text-muted tabular-nums"
+          >
             {formatLogTime(entry.startedAt)}
           </time>
           <span className="selectable min-w-0 flex-1 truncate font-mono text-code text-text" title={entry.command}>
@@ -550,7 +611,12 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
         </div>
       </ContextMenu>
       {open ? (
-        <div id={panelId} role="region" aria-label={t("activity.row.output", { command: entry.command })} className="border-b border-border pt-2 pr-3 pb-3 pl-9">
+        <div
+          id={panelId}
+          role="region"
+          aria-label={t("activity.row.output", { command: entry.command })}
+          className="border-b border-border pt-2 pr-3 pb-3 pl-9"
+        >
           <p className="selectable font-mono text-code break-all text-text">{entry.command}</p>
           <pre
             tabIndex={0}
@@ -562,10 +628,19 @@ function LogRow({ entry, open, tabStop, onToggle, onFocus, onMove, onJump, pageR
             {output || t("activity.row.noOutput")}
           </pre>
           <div className="mt-2 flex items-center gap-2">
-            <Button size="sm" icon={<Copy className="size-3.5" aria-hidden />} onClick={() => void copy(entry.command, t("activity.copy.command"))}>
+            <Button
+              size="sm"
+              icon={<Copy className="size-3.5" aria-hidden />}
+              onClick={() => void copy(entry.command, t("activity.copy.command"))}
+            >
               {t("activity.row.copyCommand")}
             </Button>
-            <Button size="sm" icon={<Copy className="size-3.5" aria-hidden />} disabled={!output} onClick={() => void copy(output, t("activity.copy.output"))}>
+            <Button
+              size="sm"
+              icon={<Copy className="size-3.5" aria-hidden />}
+              disabled={!output}
+              onClick={() => void copy(output, t("activity.copy.output"))}
+            >
               {t("activity.row.copyOutput")}
             </Button>
             <span className="flex-1" />

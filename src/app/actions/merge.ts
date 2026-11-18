@@ -67,7 +67,11 @@ export function reportOpResult(label: string, result: OpResult, tabId?: Id | nul
       const title = t("actions.merge.result.conflict", { label, count });
       if (count === 0) {
         // Rebase stops without a conflict (edit/break): the operation keeps running.
-        toast({ tone: "warning", title: t("actions.merge.result.stopped", { label }), description: t("actions.merge.result.stoppedDescription") });
+        toast({
+          tone: "warning",
+          title: t("actions.merge.result.stopped", { label }),
+          description: t("actions.merge.result.stoppedDescription"),
+        });
       } else if (options.stash) {
         toast({
           tone: "warning",
@@ -107,12 +111,20 @@ export async function mergeBranch(repoId: Id, source: string, mode?: MergeMode, 
   const target = currentBranch(repoId);
   const label = effective === "squash" ? t("actions.merge.squashLabel") : t("actions.merge.label");
   if (effective !== "ff_only") {
-    const choice = await preflight(repoId, { title: t("preflight.mergeTitle", { source, target: target ?? "HEAD" }), confirmLabel: label, op: { kind: "merge", theirs: source } });
+    const choice = await preflight(repoId, {
+      title: t("preflight.mergeTitle", { source, target: target ?? "HEAD" }),
+      confirmLabel: label,
+      op: { kind: "merge", theirs: source },
+    });
     if (!choice) return null;
   }
-  const result = await runAction(label, withFreshStatus(repoId, () => core.mergeStart({ repoId, source, mode: effective })), {
-    busyKey: busyKeys.history(repoId),
-  });
+  const result = await runAction(
+    label,
+    withFreshStatus(repoId, () => core.mergeStart({ repoId, source, mode: effective })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (!result.ok) return result;
   if (effective === "squash" && result.value.status === "done") {
     // Squash creates no commit: the changes are staged and wait for the message.
@@ -130,9 +142,13 @@ export async function mergeBranch(repoId: Id, source: string, mode?: MergeMode, 
 
 /** Fast-forwards the checked-out branch to `upstream`; fails if local commits are in the way. */
 export async function fastForward(repoId: Id, upstream: string, tabId?: Id | null) {
-  const result = await runAction(t("actions.fastForward.label"), withFreshStatus(repoId, () => core.mergeStart({ repoId, source: upstream, mode: "ff_only" })), {
-    busyKey: busyKeys.history(repoId),
-  });
+  const result = await runAction(
+    t("actions.fastForward.label"),
+    withFreshStatus(repoId, () => core.mergeStart({ repoId, source: upstream, mode: "ff_only" })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (result.ok) reportOpResult(t("actions.fastForward.label"), result.value, tabId, { reveal: true });
   return result;
 }
@@ -142,9 +158,13 @@ export async function fastForward(repoId: Id, upstream: string, tabId?: Id | nul
  * merge; likewise `skipHooks` ("Skip Git hooks" in the commit form also applies to the merge commit).
  */
 export async function continueOperation(repoId: Id, message: string | null = null, tabId?: Id | null, skipHooks: boolean | null = null) {
-  const result = await runAction(t("actions.merge.continue"), withFreshStatus(repoId, () => core.operationContinue({ repoId, message, skipHooks })), {
-    busyKey: busyKeys.write(repoId, "operation"),
-  });
+  const result = await runAction(
+    t("actions.merge.continue"),
+    withFreshStatus(repoId, () => core.operationContinue({ repoId, message, skipHooks })),
+    {
+      busyKey: busyKeys.write(repoId, "operation"),
+    },
+  );
   if (result.ok) reportOpResult(t("actions.merge.continue"), result.value, tabId, { reveal: true });
   return result;
 }
@@ -158,10 +178,14 @@ export async function abortOperation(repoId: Id, kind: OperationKind) {
     danger: true,
   });
   if (!ok) return null;
-  const result = await runAction(t("actions.merge.abort.action", { operation: name }), withStatus(repoId, () => core.operationAbort({ repoId })), {
-    busyKey: busyKeys.write(repoId, "operation"),
-    success: t("actions.merge.abort.done", { operation: name }),
-  });
+  const result = await runAction(
+    t("actions.merge.abort.action", { operation: name }),
+    withStatus(repoId, () => core.operationAbort({ repoId })),
+    {
+      busyKey: busyKeys.write(repoId, "operation"),
+      success: t("actions.merge.abort.done", { operation: name }),
+    },
+  );
   return result;
 }
 
@@ -174,9 +198,13 @@ export async function rebaseOnto(repoId: Id, onto: string, branch: string | null
     rebase: { onto, branch },
   });
   if (!choice) return null;
-  const result = await runAction(t("actions.merge.rebaseLabel"), withFreshStatus(repoId, () => core.rebaseStart({ repoId, onto, branch, updateRefs: choice.updateRefs })), {
-    busyKey: busyKeys.history(repoId),
-  });
+  const result = await runAction(
+    t("actions.merge.rebaseLabel"),
+    withFreshStatus(repoId, () => core.rebaseStart({ repoId, onto, branch, updateRefs: choice.updateRefs })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (result.ok) reportOpResult(t("actions.merge.rebaseLabel"), result.value, tabId, { reveal: true });
   return result;
 }

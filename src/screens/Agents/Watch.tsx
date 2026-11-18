@@ -30,7 +30,12 @@ function RepoAgentWatch({ repoId, announce }: { repoId: Id; announce: Announce }
     for (const change of changes) {
       const name = displayName(change.agent);
       announce(t("agents.cockpit.announce", { name, status: statusLabel(change.agent.status) }), change.kind === "failed");
-      const title = change.kind === "waiting" ? t("agents.notify.waiting", { name }) : change.kind === "done" ? t("agents.notify.done", { name }) : t("agents.notify.failed", { name });
+      const title =
+        change.kind === "waiting"
+          ? t("agents.notify.waiting", { name })
+          : change.kind === "done"
+            ? t("agents.notify.done", { name })
+            : t("agents.notify.failed", { name });
       desktopNotify(true, title, t("agents.notify.body", { repo: repo?.alias ?? repo?.name ?? "", branch: change.agent.branch }));
     }
     // A second run with the same list (e.g. once `repo` has loaded) reports nothing again.

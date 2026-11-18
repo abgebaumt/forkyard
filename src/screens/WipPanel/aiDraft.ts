@@ -34,7 +34,12 @@ export function suggestionParts(answer: AiCommitMessage): MessageParts {
   return { summary: answer.summary, description: answer.body ?? "" };
 }
 
-export function placeCommitSuggestion(current: MessageParts, atStart: MessageParts, template: MessageParts | null, suggestion: MessageParts): { kind: "insert" } | { kind: "choose" } | { kind: "ready" } {
+export function placeCommitSuggestion(
+  current: MessageParts,
+  atStart: MessageParts,
+  template: MessageParts | null,
+  suggestion: MessageParts,
+): { kind: "insert" } | { kind: "choose" } | { kind: "ready" } {
   // The untouched template is not the user's text.
   const asField = (fields: MessageParts) => (template && sameParts(fields, template) ? "" : joinMessage(fields));
   const placement = placeSuggestion(asField(current), asField(atStart), joinMessage(suggestion));

@@ -39,7 +39,21 @@ import {
 const line = (kind: DiffLine["kind"], text: string): DiffLine => ({ kind, oldNo: null, newNo: null, text, noNewline: false });
 
 function unit(id: string, path: string, patch: Partial<ComposeUnit> = {}): ComposeUnit {
-  return { id, path, oldPath: null, kind: "hunk", hunkIndex: 0, header: "", added: 1, removed: 0, lines: [], linesCut: false, requires: [], protected: null, ...patch };
+  return {
+    id,
+    path,
+    oldPath: null,
+    kind: "hunk",
+    hunkIndex: 0,
+    header: "",
+    added: 1,
+    removed: 0,
+    lines: [],
+    linesCut: false,
+    requires: [],
+    protected: null,
+    ...patch,
+  };
 }
 
 // The prototype's working directory: a new MFA helper used by the staff table, a fix with its
@@ -88,7 +102,17 @@ describe("Compose arrangement", () => {
     });
     expect(a.commits[0]!.reason).toBe("Neue Spalte samt Hilfsfunktion.");
     expect(a.commits.map((c) => c.origin)).toEqual(["ai", "ai", "ai"]);
-    expect(displayOrder(a), "commits first, “Don't commit” last – as drawn").toEqual([CL, MFA, STAFF1, DE0, DE1, EXPTEST, EXP, STAFF0, ENV]);
+    expect(displayOrder(a), "commits first, “Don't commit” last – as drawn").toEqual([
+      CL,
+      MFA,
+      STAFF1,
+      DE0,
+      DE1,
+      EXPTEST,
+      EXP,
+      STAFF0,
+      ENV,
+    ]);
   });
 
   it("moves several units at once, drops commits that become empty and never moves a protected unit", () => {
@@ -132,7 +156,11 @@ describe("Compose arrangement", () => {
   it("reorders, merges and renames commits", () => {
     const a = proposal();
     expect(moveCommit(a, 0, -1)).toBe(a);
-    expect(moveCommit(a, 2, -1).commits.map((c) => c.title)).toEqual(["feat(admin): Zwei-Faktor-Status", "style(admin): Imports formatiert", "fix(einladungen): Ablauf genau 7 × 24 h"]);
+    expect(moveCommit(a, 2, -1).commits.map((c) => c.title)).toEqual([
+      "feat(admin): Zwei-Faktor-Status",
+      "style(admin): Imports formatiert",
+      "fix(einladungen): Ablauf genau 7 × 24 h",
+    ]);
     const merged = mergeWithNext(a, 1, order);
     expect(shape(merged).commits).toEqual([
       ["feat(admin): Zwei-Faktor-Status", CL, MFA, STAFF1, DE0],
@@ -248,12 +276,29 @@ describe("Compose views", () => {
     const de = matrixOf(a, UNITS).find((row) => row.path === "src/i18n/de.json")!;
     expect(de.split, "both hunks in commit 1").toBe(false);
     expect(de.cells[0]).toEqual({ group: 0, count: 2, first: DE0 });
-    expect(rows.map((row) => row.path), "files in the core's order").toEqual([".env.local", "CHANGELOG.md", "src/admin/accounts/mfa.ts", "src/admin/accounts/StaffTable.tsx", "src/i18n/de.json", "src/portal/invite/expiry.test.ts", "src/portal/invite/expiry.ts"]);
+    expect(
+      rows.map((row) => row.path),
+      "files in the core's order",
+    ).toEqual([
+      ".env.local",
+      "CHANGELOG.md",
+      "src/admin/accounts/mfa.ts",
+      "src/admin/accounts/StaffTable.tsx",
+      "src/i18n/de.json",
+      "src/portal/invite/expiry.test.ts",
+      "src/portal/invite/expiry.ts",
+    ]);
   });
 
   it("a row shows the first two changed lines and the path with its folder apart", () => {
     const u = unit("x#0@1", "src/x.ts", {
-      lines: [line("context", "const a = 1;"), line("remove", "  return endOfDay(days);  "), line("add", ""), line("add", "  return new Date();"), line("add", "never shown")],
+      lines: [
+        line("context", "const a = 1;"),
+        line("remove", "  return endOfDay(days);  "),
+        line("add", ""),
+        line("add", "  return new Date();"),
+        line("add", "never shown"),
+      ],
     });
     expect(peekOf(u)).toEqual([
       { kind: "remove", text: "return endOfDay(days);" },
@@ -306,7 +351,12 @@ describe("Compose plan and new proposals", () => {
     });
     expect(merged.commits[3]!.origin).toBe("user");
     // A kept unit whose commit title the new proposal reuses joins that commit.
-    const same = reproposed(fromProposal(UNITS, [{ title: "feat(admin): Zwei-Faktor-Status", body: "", reason: "", units: [MFA] }]), a, pinned, order);
+    const same = reproposed(
+      fromProposal(UNITS, [{ title: "feat(admin): Zwei-Faktor-Status", body: "", reason: "", units: [MFA] }]),
+      a,
+      pinned,
+      order,
+    );
     expect(shape(same).commits).toEqual([["feat(admin): Zwei-Faktor-Status", MFA, STAFF0]]);
   });
 
@@ -318,7 +368,14 @@ describe("Compose plan and new proposals", () => {
 });
 
 describe("Compose keyboard", () => {
-  const key = (k: string, mods: Partial<KeyInput> = {}): KeyInput => ({ key: k, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...mods });
+  const key = (k: string, mods: Partial<KeyInput> = {}): KeyInput => ({
+    key: k,
+    altKey: false,
+    ctrlKey: false,
+    metaKey: false,
+    shiftKey: false,
+    ...mods,
+  });
 
   it("maps the prototype's keys", () => {
     expect(keyAction(key("ArrowDown"), false)).toEqual({ kind: "step", delta: 1 });

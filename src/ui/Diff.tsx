@@ -59,11 +59,7 @@ export function DiffHunk({ header, lines, actions }: DiffHunkProps) {
             key={index}
             role="row"
             aria-selected={line.selected || undefined}
-            className={cn(
-              "flex",
-              rowTone[line.kind],
-              line.selected && "shadow-[inset_2px_0_0_var(--gc-accent)]",
-            )}
+            className={cn("flex", rowTone[line.kind], line.selected && "shadow-[inset_2px_0_0_var(--gc-accent)]")}
           >
             <span role="cell" className="w-10 shrink-0 px-1 text-right text-text-muted select-none">
               {line.oldNo ?? ""}

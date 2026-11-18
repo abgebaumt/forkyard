@@ -43,4 +43,12 @@ export const templateFromForm = (form: TemplateForm): AgentTemplate => ({
   statusHook: form.statusHook,
 });
 
-export const newTemplateForm = (id: string): TemplateForm => ({ id, name: t("agents.settings.newName"), program: "", args: "", unattendedArgs: "", resumeArgs: "", statusHook: false });
+export const newTemplateForm = (id: string): TemplateForm => ({
+  id,
+  name: t("agents.settings.newName"),
+  program: "",
+  args: "",
+  unattendedArgs: "",
+  resumeArgs: "",
+  statusHook: false,
+});

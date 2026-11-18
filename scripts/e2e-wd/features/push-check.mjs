@@ -39,7 +39,18 @@ async function startOllama() {
       if (route !== "POST /api/chat") return reply(404, { error: "not found" });
       state.chats.push(body);
       const content = JSON.stringify(state.answer);
-      setTimeout(() => reply(200, { model: "qwen3:8b", message: { role: "assistant", content }, done: true, done_reason: "stop", prompt_eval_count: 900, eval_count: 40 }), state.delayMs);
+      setTimeout(
+        () =>
+          reply(200, {
+            model: "qwen3:8b",
+            message: { role: "assistant", content },
+            done: true,
+            done_reason: "stop",
+            prompt_eval_count: 900,
+            eval_count: 40,
+          }),
+        state.delayMs,
+      );
     });
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -48,7 +59,14 @@ async function startOllama() {
 
 /** Starts the app, switches auto-fetch off, installs the toast recorder. */
 async function start(t, options = {}) {
-  const app = await t.launch({ lang: "en", theme: "light", width: 1440, height: 900, ...options, env: { SSH_AUTH_SOCK: "", ...NO_PROXY_ENV, ...(options.env ?? {}) } });
+  const app = await t.launch({
+    lang: "en",
+    theme: "light",
+    width: 1440,
+    height: 900,
+    ...options,
+    env: { SSH_AUTH_SOCK: "", ...NO_PROXY_ENV, ...(options.env ?? {}) },
+  });
   await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
   const ui = syncUi(app);
   await ui.install();
@@ -113,7 +131,9 @@ scenario("Nicht mehr melden lässt den nächsten Push ohne Rückfrage durch (Deu
     await ui.clickTool("Push");
     await ui.waitDialog(/^1 hinzugefügte Zeile sieht aus wie ein Schlüssel$/);
     await ui.clickDialogButton("Nicht mehr melden");
-    await app.waitFor(async () => ((await ui.dialog())?.text ?? "").includes("Wird nicht mehr gemeldet"), 10_000, { message: "row marked as not reported" });
+    await app.waitFor(async () => ((await ui.dialog())?.text ?? "").includes("Wird nicht mehr gemeldet"), 10_000, {
+      message: "row marked as not reported",
+    });
     await t.shot("secret-scan-ignored-de");
     await ui.clickDialogButton("Zurück");
     await ui.waitNoDialog();
@@ -135,17 +155,23 @@ scenario("Review and push fragt den lokalen Mock-Anbieter und zeigt seinen Fund"
   const repo = makeCleanRepoWithRemote({ name: "pruefen" });
   const ollama = await startOllama();
   try {
-    ollama.state.answer = { findings: [{ path: "src/zaehler.py", line: 2, kind: "debug_output", note: "Leftover print of the intermediate state." }] };
+    ollama.state.answer = {
+      findings: [{ path: "src/zaehler.py", line: 2, kind: "debug_output", note: "Leftover print of the intermediate state." }],
+    };
     const head = commitFile(repo, "src/zaehler.py", 'def zaehle(n):\n    print("zwischenstand", n)\n    return n + 1\n', "Zähler ausgeben");
     const { app, ui } = await start(t, { env: { FORKYARD_AI_BASE_URL_OLLAMA: ollama.url } });
     await app.invoke("settings_set", { patch: { aiEnabled: true, aiProvider: "ollama", aiModel: "qwen3:8b" } });
     await open(app, ui, repo.path);
 
     await app.click({ text: "Push: options" });
-    const entry = await app.waitFor(() => app.byText("Review and push …", { within: '[role="menu"]' }), 10_000, { message: "menu entry Review and push" });
+    const entry = await app.waitFor(() => app.byText("Review and push …", { within: '[role="menu"]' }), 10_000, {
+      message: "menu entry Review and push",
+    });
     await entry.click();
     await ui.waitDialog(/^Review before push$/);
-    await app.waitFor(() => app.exec(() => document.querySelector('[data-review-finding="src/zaehler.py:2"]')), 30_000, { message: "the finding of the review" });
+    await app.waitFor(() => app.exec(() => document.querySelector('[data-review-finding="src/zaehler.py:2"]')), 30_000, {
+      message: "the finding of the review",
+    });
     const shown = await ui.dialog();
     assertIncludes(shown.text, "1 finding · in 1 commit");
     assertIncludes(shown.text, "Debug output");
@@ -183,7 +209,9 @@ scenario("Mit Vor jedem Push KI-Prüfung prüft Ctrl+Shift+P zuerst; Zurück wä
     await app.exec(() => document.activeElement?.blur?.());
     await app.press("Control+Shift+p");
     await ui.waitDialog(/^Review before push$/);
-    await app.waitFor(() => ui.dialog().then((top) => (top?.text ?? "").includes("Reviewing")), 10_000, { message: "the review is running" });
+    await app.waitFor(() => ui.dialog().then((top) => (top?.text ?? "").includes("Reviewing")), 10_000, {
+      message: "the review is running",
+    });
     await ui.clickDialogButton("Back");
     await ui.waitNoDialog();
     await app.settle();

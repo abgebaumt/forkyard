@@ -53,7 +53,10 @@ export function selectEntry(tabs: TerminalTabs, key: string): TerminalTabs {
 export function neighbour(tabs: TerminalTabs, key: string, delta: number): string | null {
   const count = tabs.entries.length;
   if (count === 0) return null;
-  const from = Math.max(0, tabs.entries.findIndex((entry) => entry.key === key));
+  const from = Math.max(
+    0,
+    tabs.entries.findIndex((entry) => entry.key === key),
+  );
   return tabs.entries[(((from + delta) % count) + count) % count]!.key;
 }
 

@@ -12,7 +12,19 @@ import { guardSecrets, reviewContext } from "./pushCheck";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
 import { chooseUpstream } from "./branches";
-import { cachedRefs, cachedRemotes, cachedSettings, cachedStatus, clip, currentBranch, findLocalBranch, loadRefs, loadRemotes, loadStatus, short } from "./context";
+import {
+  cachedRefs,
+  cachedRemotes,
+  cachedSettings,
+  cachedStatus,
+  clip,
+  currentBranch,
+  findLocalBranch,
+  loadRefs,
+  loadRemotes,
+  loadStatus,
+  short,
+} from "./context";
 import { busyKeys } from "./keys";
 import { blockingFiles, reportOpResult } from "./merge";
 import { popStash, stashChanges } from "./stash";
@@ -77,11 +89,15 @@ export async function fetchAll(repoId: Id, remote: string | null = null) {
   const jobId = newJobId();
   const label = remote ? t("actions.sync.fetch.labelFrom", { remote }) : t("actions.sync.fetch.label");
   markManualSync(repoId);
-  const result = await runAction(label, withFreshStatus(repoId, () => core.fetch({ repoId, jobId, remote, prune: settings?.autoPrune ?? false })), {
-    busyKey: busyKeys.fetch(repoId),
-    quiet: ["no_remote"],
-    job: { id: jobId, title: label, repoId },
-  });
+  const result = await runAction(
+    label,
+    withFreshStatus(repoId, () => core.fetch({ repoId, jobId, remote, prune: settings?.autoPrune ?? false })),
+    {
+      busyKey: busyKeys.fetch(repoId),
+      quiet: ["no_remote"],
+      job: { id: jobId, title: label, repoId },
+    },
+  );
   afterNetwork(repoId);
   if (!result.ok) {
     if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.fetch.label"));
@@ -91,11 +107,18 @@ export async function fetchAll(repoId: Id, remote: string | null = null) {
   if (failed.length === 0) useAppStore.getState().markFetched(repoId);
   if (failed.length) {
     // The reason is shown per remote (unreachable, authentication rejected …); and whatever did arrive, too.
-    const title = failed.length === 1 ? t("actions.sync.fetch.failedOne", { remote: failed[0]!.remote }) : t("actions.sync.fetch.failedMany", { count: failed.length });
+    const title =
+      failed.length === 1
+        ? t("actions.sync.fetch.failedOne", { remote: failed[0]!.remote })
+        : t("actions.sync.fetch.failedMany", { count: failed.length });
     const lines = failed.map((item) => `${item.remote}: ${item.message}`);
     const others = Math.max(0, (cachedRemotes(repoId)?.length ?? failed.length) - failed.length);
     if (others > 0) {
-      lines.push(updatedRefs ? t("actions.sync.fetch.othersRefs", { count: others, refs: refsLabel(updatedRefs) }) : t("actions.sync.fetch.others", { count: others }));
+      lines.push(
+        updatedRefs
+          ? t("actions.sync.fetch.othersRefs", { count: others, refs: refsLabel(updatedRefs) })
+          : t("actions.sync.fetch.others", { count: others }),
+      );
     }
     const description = lines.join("\n");
     // If nothing arrived, it is an error and stays; if part arrived, a notice is enough.
@@ -120,11 +143,15 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
   const run = () => {
     const jobId = newJobId();
     markManualSync(repoId);
-    return runAction(t("actions.sync.pull.label"), withFreshStatus(repoId, () => core.pull({ repoId, jobId, mode })), {
-      busyKey: busyKeys.pull(repoId),
-      quiet: ["dirty_worktree", "no_remote", "no_upstream"],
-      job: { id: jobId, title: t("actions.sync.pull.label"), repoId },
-    });
+    return runAction(
+      t("actions.sync.pull.label"),
+      withFreshStatus(repoId, () => core.pull({ repoId, jobId, mode })),
+      {
+        busyKey: busyKeys.pull(repoId),
+        quiet: ["dirty_worktree", "no_remote", "no_upstream"],
+        job: { id: jobId, title: t("actions.sync.pull.label"), repoId },
+      },
+    );
   };
 
   let result = await run();
@@ -165,7 +192,9 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
         tone: "warning",
         sticky: true,
         title: t("actions.sync.pull.noUpstream.title"),
-        description: branch ? t("actions.sync.pull.noUpstream.descriptionBranch", { branch }) : t("actions.sync.pull.noUpstream.description"),
+        description: branch
+          ? t("actions.sync.pull.noUpstream.descriptionBranch", { branch })
+          : t("actions.sync.pull.noUpstream.description"),
         action: branch
           ? {
               label: t("actions.sync.pull.noUpstream.action"),
@@ -185,11 +214,15 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
 export async function setDefaultPullMode(repoId: Id, mode: PullMode) {
   const repoSettings = queryClient.getQueryData<{ defaultPullMode: PullMode | null }>(qk.repoSettings(repoId));
   if (repoSettings?.defaultPullMode) {
-    const result = await runAction(t("actions.sync.pullMode.save"), () => enqueueWrite(() => core.repoSettingsSet({ repoId, patch: { defaultPullMode: mode } })));
+    const result = await runAction(t("actions.sync.pullMode.save"), () =>
+      enqueueWrite(() => core.repoSettingsSet({ repoId, patch: { defaultPullMode: mode } })),
+    );
     if (result.ok) queryClient.setQueryData(qk.repoSettings(repoId), result.value);
     return result;
   }
-  const result = await runAction(t("actions.sync.pullMode.save"), () => enqueueWrite(() => core.settingsSet({ patch: { defaultPullMode: mode } })));
+  const result = await runAction(t("actions.sync.pullMode.save"), () =>
+    enqueueWrite(() => core.settingsSet({ patch: { defaultPullMode: mode } })),
+  );
   if (result.ok) queryClient.setQueryData(qk.settings, result.value);
   return result;
 }
@@ -229,13 +262,21 @@ function isRejected(result: ActionResult<PushResult>): boolean {
  * Asks whether the push should be forced. Fetches the remote's state first: `--force-with-lease`
  * only overwrites what this repository knows – and the prompt should name what will be lost.
  */
-async function confirmForcePush(repoId: Id, branch: string | null, destination: { remote: string | null; remoteBranch: string | null }): Promise<{ expected: string | null } | null> {
+async function confirmForcePush(
+  repoId: Id,
+  branch: string | null,
+  destination: { remote: string | null; remoteBranch: string | null },
+): Promise<{ expected: string | null } | null> {
   const fetchJob = newJobId();
   markManualSync(repoId);
-  const fetched = await runAction(t("actions.sync.force.fetchLabel"), () => core.fetch({ repoId, jobId: fetchJob, remote: null, prune: false }), {
-    busyKey: busyKeys.fetch(repoId),
-    job: { id: fetchJob, title: t("actions.sync.force.fetchJob"), repoId },
-  });
+  const fetched = await runAction(
+    t("actions.sync.force.fetchLabel"),
+    () => core.fetch({ repoId, jobId: fetchJob, remote: null, prune: false }),
+    {
+      busyKey: busyKeys.fetch(repoId),
+      job: { id: fetchJob, title: t("actions.sync.force.fetchJob"), repoId },
+    },
+  );
   if (!fetched.ok) return null;
 
   // Only after the fetch is what lies on the remote accurate.
@@ -288,7 +329,11 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   const run = (remote: string | null, remoteBranch: string | null, force: boolean, expected: string | null = null) =>
     guardSecrets(repoId, (acceptedSecrets) => {
       const jobId = newJobId();
-      const title = force ? t("actions.sync.push.jobForced") : branch ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }) : t("actions.sync.push.label");
+      const title = force
+        ? t("actions.sync.push.jobForced")
+        : branch
+          ? t("actions.pullrequests.pushJob", { branch: clip(branch, 32) })
+          : t("actions.sync.push.label");
       markManualSync(repoId);
       return runAction(
         force ? t("actions.sync.push.labelForced") : t("actions.sync.push.label"),
@@ -304,7 +349,8 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     afterNetwork(repoId);
     if (!result.ok) {
       if (result.error.code === "no_remote") offerAddRemote(t("actions.sync.push.label"));
-      else if (result.error.code === "no_upstream" || result.error.code === "push_rejected") showError(t("actions.sync.push.label"), result.error);
+      else if (result.error.code === "no_upstream" || result.error.code === "push_rejected")
+        showError(t("actions.sync.push.label"), result.error);
       return result;
     }
     if (result.value.status === "rejected") {
@@ -317,7 +363,10 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
   };
 
   if (options.force) {
-    const confirmed = await confirmForcePush(repoId, branch, { remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null });
+    const confirmed = await confirmForcePush(repoId, branch, {
+      remote: options.remote ?? null,
+      remoteBranch: options.remoteBranch ?? null,
+    });
     if (!confirmed) return null;
     return finish(await run(options.remote ?? null, options.remoteBranch ?? null, true, confirmed.expected));
   }
@@ -334,7 +383,8 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
       return result;
     }
     const status = cachedStatus(repoId);
-    const name = branch ?? (status?.head.kind === "branch" || status?.head.kind === "unborn" ? status.head.branch : (currentBranch(repoId) ?? ""));
+    const name =
+      branch ?? (status?.head.kind === "branch" || status?.head.kind === "unborn" ? status.head.branch : (currentBranch(repoId) ?? ""));
     const target = await askPushTarget(name, remotes);
     if (!target) return result;
     destination = { remote: target.remote, remoteBranch: target.remoteBranch };
@@ -348,7 +398,9 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
       title: t("actions.pullrequests.pushRejected"),
       description: reason || t("actions.sync.rejected.description"),
       options: [
-        ...(isHead ? [{ key: "pull" as const, label: t("actions.sync.rejected.pull"), description: t("actions.sync.rejected.pullDescription") }] : []),
+        ...(isHead
+          ? [{ key: "pull" as const, label: t("actions.sync.rejected.pull"), description: t("actions.sync.rejected.pullDescription") }]
+          : []),
         {
           key: "force" as const,
           label: t("actions.sync.rejected.force"),
@@ -359,14 +411,14 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
     });
     if (next === "pull") {
       const pulled = await pull(repoId, null, options.tabId);
-      if (pulled.ok && pulled.value.status !== "conflict") return push(repoId, { tabId: options.tabId, branch, ...destination, reviewed: true });
+      if (pulled.ok && pulled.value.status !== "conflict")
+        return push(repoId, { tabId: options.tabId, branch, ...destination, reviewed: true });
       return result;
     }
     if (next !== "force") return result;
     const confirmed = await confirmForcePush(repoId, branch, destination);
     if (!confirmed) return result;
     result = await run(destination.remote, destination.remoteBranch, true, confirmed.expected);
-
   }
 
   return finish(result);
@@ -387,14 +439,19 @@ export async function reviewAndPush(repoId: Id, options: PushOptions = {}): Prom
   const branch = options.branch ?? null;
   let target: ReviewTarget = { branch, remote: options.remote ?? null, remoteBranch: options.remoteBranch ?? null };
   const preview = () =>
-    runAction(t("pushCheck.review.label"), () => core.aiPreview({ repoId, feature: "push_review", input: { kind: "outgoing_changes", ...target }, locale: locale() }), {
-      quiet: ["no_upstream", "no_remote"],
-    });
+    runAction(
+      t("pushCheck.review.label"),
+      () => core.aiPreview({ repoId, feature: "push_review", input: { kind: "outgoing_changes", ...target }, locale: locale() }),
+      {
+        quiet: ["no_upstream", "no_remote"],
+      },
+    );
   let previewed = await preview();
   if (!previewed.ok && previewed.error.code === "no_upstream") {
     const remotes = await loadRemotes(repoId).catch(() => [] as Remote[]);
     const current = cachedStatus(repoId);
-    const name = branch ?? (current?.head.kind === "branch" || current?.head.kind === "unborn" ? current.head.branch : (currentBranch(repoId) ?? ""));
+    const name =
+      branch ?? (current?.head.kind === "branch" || current?.head.kind === "unborn" ? current.head.branch : (currentBranch(repoId) ?? ""));
     const chosen = remotes.length ? await askPushTarget(name, remotes) : null;
     if (!chosen) return null;
     target = { ...target, remote: chosen.remote, remoteBranch: chosen.remoteBranch };
@@ -423,21 +480,31 @@ export async function deleteRemoteBranch(repoId: Id, ref: Ref): Promise<ActionRe
   const tracking = refs?.locals.find((local) => local.upstream === ref.name);
   const ok = await confirm({
     title: t("actions.sync.deleteRemote.title", { name: clip(name, 40), remote }),
-    body: tracking ? t("actions.sync.deleteRemote.bodyTracked", { remote, local: clip(tracking.name, 40) }) : t("actions.sync.deleteRemote.body", { remote }),
+    body: tracking
+      ? t("actions.sync.deleteRemote.bodyTracked", { remote, local: clip(tracking.name, 40) })
+      : t("actions.sync.deleteRemote.body", { remote }),
     confirmLabel: t("actions.sync.deleteRemote.action", { remote: clip(remote, 24) }),
     danger: true,
   });
   if (!ok) return null;
   const jobId = newJobId();
   const target = clip(ref.name);
-  const result = await runAction(t("actions.sync.deleteRemote.label"), withFreshStatus(repoId, () => core.branchDeleteRemote({ repoId, jobId, remote, name })), {
-    busyKey: busyKeys.push(repoId),
-    job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: clip(ref.name, 32) }), repoId },
-  });
+  const result = await runAction(
+    t("actions.sync.deleteRemote.label"),
+    withFreshStatus(repoId, () => core.branchDeleteRemote({ repoId, jobId, remote, name })),
+    {
+      busyKey: busyKeys.push(repoId),
+      job: { id: jobId, title: t("actions.sync.deleteRemote.job", { target: clip(ref.name, 32) }), repoId },
+    },
+  );
   afterNetwork(repoId);
   if (!result.ok) return result;
   if (result.value.status === "up_to_date") {
-    toast({ tone: "info", title: t("actions.sync.deleteRemote.gone", { target }), description: t("actions.sync.deleteRemote.goneDescription") });
+    toast({
+      tone: "info",
+      title: t("actions.sync.deleteRemote.gone", { target }),
+      description: t("actions.sync.deleteRemote.goneDescription"),
+    });
   } else {
     toast({ tone: "success", title: t("actions.sync.deleteRemote.done", { target }) });
   }
@@ -449,7 +516,10 @@ export async function deleteRemoteBranch(repoId: Id, ref: Ref): Promise<ActionRe
  * “Push …” with further branches and tags: the dialog collects them, one push sends everything
  * (“all or nothing” by default). Afterwards a toast, and with rejections a list per ref.
  */
-export async function pushWithMore(repoId: Id, options: { branch?: string | null; preselected?: string[] } = {}): Promise<ActionResult<PushResult> | null> {
+export async function pushWithMore(
+  repoId: Id,
+  options: { branch?: string | null; preselected?: string[] } = {},
+): Promise<ActionResult<PushResult> | null> {
   const status = cachedStatus(repoId);
   const branch = options.branch ?? (status?.head.kind === "branch" ? status.head.branch : null) ?? currentBranch(repoId);
   if (!branch) {
@@ -467,8 +537,25 @@ export async function pushWithMore(repoId: Id, options: { branch?: string | null
     markManualSync(repoId);
     return runAction(
       t("actions.sync.push.label"),
-      withFreshStatus(repoId, () => core.push({ repoId, jobId, branch, remote, remoteBranch: null, force: false, expected: null, extra: plan.extras, atomic: plan.atomic, acceptedSecrets })),
-      { busyKey: busyKeys.push(repoId), quiet: ["no_remote"], job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId } },
+      withFreshStatus(repoId, () =>
+        core.push({
+          repoId,
+          jobId,
+          branch,
+          remote,
+          remoteBranch: null,
+          force: false,
+          expected: null,
+          extra: plan.extras,
+          atomic: plan.atomic,
+          acceptedSecrets,
+        }),
+      ),
+      {
+        busyKey: busyKeys.push(repoId),
+        quiet: ["no_remote"],
+        job: { id: jobId, title: t("pushMany.job", { count: plan.extras.length + 1 }), repoId },
+      },
     );
   });
   afterNetwork(repoId);

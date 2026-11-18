@@ -21,7 +21,15 @@ import { guardSecrets, reviewContext } from "./pushCheck";
 
 const A = "a".repeat(64);
 const B = "b".repeat(64);
-const finding: SecretFinding = { id: A, path: "dienst.py", line: 1, commit: "c".repeat(40), rule: "known_token", excerpt: 'AWS = "…W3NB"', hint: "…W3NB" };
+const finding: SecretFinding = {
+  id: A,
+  path: "dienst.py",
+  line: 1,
+  commit: "c".repeat(40),
+  rule: "known_token",
+  excerpt: 'AWS = "…W3NB"',
+  hint: "…W3NB",
+};
 const found: PushResult = { status: "secrets_found", findings: [finding], commits: 1, partial: false };
 const done: PushResult = { status: "done", remote: "origin", branch: "main", createdUpstream: false, forced: false };
 const ok = (value: PushResult): ActionResult<PushResult> => ({ ok: true, value });
@@ -47,8 +55,15 @@ describe("guardSecrets", () => {
 
   it("Push anyway repeats with exactly the accepted IDs; new findings ask again", async () => {
     const second: PushResult = { status: "secrets_found", findings: [finding, { ...finding, id: B, line: 7 }], commits: 2, partial: false };
-    const attempt = vi.fn<(accepted: string[] | null) => Promise<ActionResult<PushResult>>>().mockResolvedValueOnce(ok(found)).mockResolvedValueOnce(ok(second)).mockResolvedValueOnce(ok(done));
-    const show = vi.fn<(repoId: string, value: unknown) => Promise<string[] | null>>().mockResolvedValueOnce([A]).mockResolvedValueOnce([A, B]);
+    const attempt = vi
+      .fn<(accepted: string[] | null) => Promise<ActionResult<PushResult>>>()
+      .mockResolvedValueOnce(ok(found))
+      .mockResolvedValueOnce(ok(second))
+      .mockResolvedValueOnce(ok(done));
+    const show = vi
+      .fn<(repoId: string, value: unknown) => Promise<string[] | null>>()
+      .mockResolvedValueOnce([A])
+      .mockResolvedValueOnce([A, B]);
     expect(await guardSecrets("repo-1", attempt, show)).toEqual(ok(done));
     expect(attempt.mock.calls).toEqual([[null], [[A]], [[A, B]]]);
     expect(show).toHaveBeenCalledTimes(2);

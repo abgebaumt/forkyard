@@ -42,7 +42,14 @@ async function startOllama() {
           : route === "POST /api/show"
             ? { model_info: { "qwen3.context_length": 40960 } }
             : route === "POST /api/chat"
-              ? { model: "qwen3:8b", message: { role: "assistant", content: JSON.stringify(ANSWER) }, done: true, done_reason: "stop", prompt_eval_count: 420, eval_count: 31 }
+              ? {
+                  model: "qwen3:8b",
+                  message: { role: "assistant", content: JSON.stringify(ANSWER) },
+                  done: true,
+                  done_reason: "stop",
+                  prompt_eval_count: 420,
+                  eval_count: 31,
+                }
               : null;
       const send = () => {
         const text = JSON.stringify(answer ?? { error: "not found" });
@@ -105,14 +112,22 @@ const chatPrompt = (ollama, index = 0) => {
   const body = JSON.parse(ollama.chats()[index].body);
   return { system: body.messages[0].content, user: body.messages[1].content };
 };
-const activeTabLabel = (app) => app.exec((css) => document.querySelector(`${css} [role="tab"][data-state="active"] span`)?.textContent.trim() ?? null, SETTINGS);
+const activeTabLabel = (app) =>
+  app.exec((css) => document.querySelector(`${css} [role="tab"][data-state="active"] span`)?.textContent.trim() ?? null, SETTINGS);
 
 async function openSettingsAt(app, label) {
   await app.exec(() => document.activeElement?.blur());
   await app.press("Control+,");
   await app.waitFor(SETTINGS, 10_000, { message: "settings dialog" });
   const tab = await app.waitFor(
-    () => app.exec((css, wanted) => [...document.querySelectorAll(`${css} [role="tab"]`)].find((el) => el.querySelector("span")?.textContent.trim() === wanted) ?? null, SETTINGS, label),
+    () =>
+      app.exec(
+        (css, wanted) =>
+          [...document.querySelectorAll(`${css} [role="tab"]`)].find((el) => el.querySelector("span")?.textContent.trim() === wanted) ??
+          null,
+        SETTINGS,
+        label,
+      ),
     10_000,
     { message: `settings section ${label}` },
   );
@@ -136,7 +151,12 @@ async function openPalette(app, text) {
 /** Opens the palette with ">text" and waits for the row of command `id`; returns its text (the palette stays open). */
 async function paletteRow(app, text, id) {
   await openPalette(app, text);
-  return app.waitFor(() => app.exec((css, key) => document.querySelector(`${css} [role="option"][data-key="command:${key}"]`)?.innerText ?? null, PALETTE, id), 10_000, { message: `palette entry ${id}` });
+  return app.waitFor(
+    () =>
+      app.exec((css, key) => document.querySelector(`${css} [role="option"][data-key="command:${key}"]`)?.innerText ?? null, PALETTE, id),
+    10_000,
+    { message: `palette entry ${id}` },
+  );
 }
 
 /** Whether the palette lists command `id` – read only once the row of `known` (always listed) is there. */
@@ -148,149 +168,207 @@ async function paletteLists(app, text, id, known) {
 
 // ---------------------------------------------------------------------------------------------
 
-scenario("Write fills the empty message from a local model, Ctrl+Z takes it back, the commit uses it", "main", withCleanup(async (t) => {
-  const { ollama, repo, app, ui } = await setup(t);
-  assertEqual(await writeLabel(app), "Write");
-  await app.waitFor("[data-ai-write-idle] [data-ai-commit-preview]", 5000, { message: "“What is sent?” before the first use" });
-  await app.click(WRITE);
-  await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "the draft is in both fields");
-  await eventually(async () => ((await statusText(app)) ?? "").includes("Draft from the staged diff, styled like the last 30 commits"), true, "the status line names the draft");
-  assertEqual(await writeLabel(app), "New", "the button offers a new draft");
-  assert(await app.exec(() => !document.activeElement?.matches("input[data-commit-summary], form textarea")), "the answer did not move the focus into a field");
+scenario(
+  "Write fills the empty message from a local model, Ctrl+Z takes it back, the commit uses it",
+  "main",
+  withCleanup(async (t) => {
+    const { ollama, repo, app, ui } = await setup(t);
+    assertEqual(await writeLabel(app), "Write");
+    await app.waitFor("[data-ai-write-idle] [data-ai-commit-preview]", 5000, { message: "“What is sent?” before the first use" });
+    await app.click(WRITE);
+    await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "the draft is in both fields");
+    await eventually(
+      async () => ((await statusText(app)) ?? "").includes("Draft from the staged diff, styled like the last 30 commits"),
+      true,
+      "the status line names the draft",
+    );
+    assertEqual(await writeLabel(app), "New", "the button offers a new draft");
+    assert(
+      await app.exec(() => !document.activeElement?.matches("input[data-commit-summary], form textarea")),
+      "the answer did not move the focus into a field",
+    );
 
-  // What went out: the staged diff and the repository's own subjects (oracle: git log), in German.
-  assertEqual(ollama.chats().length, 1);
-  const prompt = chatPrompt(ollama);
-  assertIncludes(prompt.user, "File: src/bericht.py");
-  assertIncludes(prompt.user, "+def zeile(station, mittel):");
-  for (const subject of lines(repo.git("log", "--no-merges", "-n", "30", "--format=%s"))) assertIncludes(prompt.user, subject, "style example");
-  assertIncludes(prompt.system, "in German");
-  await t.shot("draft-inserted");
-  t.step("draft inserted");
+    // What went out: the staged diff and the repository's own subjects (oracle: git log), in German.
+    assertEqual(ollama.chats().length, 1);
+    const prompt = chatPrompt(ollama);
+    assertIncludes(prompt.user, "File: src/bericht.py");
+    assertIncludes(prompt.user, "+def zeile(station, mittel):");
+    for (const subject of lines(repo.git("log", "--no-merges", "-n", "30", "--format=%s")))
+      assertIncludes(prompt.user, subject, "style example");
+    assertIncludes(prompt.system, "in German");
+    await t.shot("draft-inserted");
+    t.step("draft inserted");
 
-  await app.click(await app.waitFor("[data-ai-commit-preview]", 5000, { message: "What is sent? link" }));
-  const previewText = await app.waitFor(() => app.exec(() => document.querySelector("[data-ai-preview-text]")?.textContent ?? null), 15_000, { message: "What is sent?" });
-  assertIncludes(previewText, "File: src/bericht.py");
-  assertIncludes(previewText, "## Recent commit subjects");
-  assertEqual(ollama.chats().length, 1, "the preview sends nothing");
-  await app.press("Escape");
-  await gone(app, "[data-ai-preview-text]", "preview closed");
+    await app.click(await app.waitFor("[data-ai-commit-preview]", 5000, { message: "What is sent? link" }));
+    const previewText = await app.waitFor(
+      () => app.exec(() => document.querySelector("[data-ai-preview-text]")?.textContent ?? null),
+      15_000,
+      { message: "What is sent?" },
+    );
+    assertIncludes(previewText, "File: src/bericht.py");
+    assertIncludes(previewText, "## Recent commit subjects");
+    assertEqual(ollama.chats().length, 1, "the preview sends nothing");
+    await app.press("Escape");
+    await gone(app, "[data-ai-preview-text]", "preview closed");
 
-  await app.click(await ui.summary());
-  await app.press("Control+z");
-  await eventually(ui.fields, { summary: "", description: "" }, "Ctrl+Z takes the draft back");
-  await eventually(() => writeLabel(app), "Write", "back to the start");
-  t.step("undone");
+    await app.click(await ui.summary());
+    await app.press("Control+z");
+    await eventually(ui.fields, { summary: "", description: "" }, "Ctrl+Z takes the draft back");
+    await eventually(() => writeLabel(app), "Write", "back to the start");
+    t.step("undone");
 
-  await app.click(WRITE);
-  await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "written again");
-  await app.click(await ui.summary());
-  await app.press("Control+Enter");
-  await ui.waitToast("success", /Commit created/);
-  assertEqual(repo.git("log", "-1", "--format=%s"), ANSWER.summary, "git: summary");
-  assertEqual(repo.git("log", "-1", "--format=%b").trim(), ANSWER.body, "git: body");
-  await gone(app, STATUS, "the hint is gone after the commit");
-  await t.noConsoleErrors(app);
-}));
+    await app.click(WRITE);
+    await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "written again");
+    await app.click(await ui.summary());
+    await app.press("Control+Enter");
+    await ui.waitToast("success", /Commit created/);
+    assertEqual(repo.git("log", "-1", "--format=%s"), ANSWER.summary, "git: summary");
+    assertEqual(repo.git("log", "-1", "--format=%b").trim(), ANSWER.body, "git: body");
+    await gone(app, STATUS, "the hint is gone after the commit");
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("the user's own text stays: Append, Replace and Discard", "edge", withCleanup(async (t) => {
-  const { app, ui } = await setup(t);
-  await ui.fill(await ui.summary(), "WIP: Bericht");
-  await app.click(WRITE);
-  const offer = await app.waitFor(() => app.exec((css) => document.querySelector(css)?.innerText ?? null, OFFER), 15_000, { message: "suggestion offered" });
-  assertIncludes(offer, ANSWER.summary);
-  assertIncludes(offer, "Suggestion – your text stays until you choose");
-  assertEqual(await ui.fields(), { summary: "WIP: Bericht", description: "" }, "nothing replaced unasked");
-  await t.shot("offer");
-  await app.click(`${OFFER} [data-ai-offer-action="append"]`);
-  await eventually(ui.fields, { summary: "WIP: Bericht", description: `${ANSWER.summary}\n\n${ANSWER.body}` }, "appended after a blank line");
-  t.step("append");
+scenario(
+  "the user's own text stays: Append, Replace and Discard",
+  "edge",
+  withCleanup(async (t) => {
+    const { app, ui } = await setup(t);
+    await ui.fill(await ui.summary(), "WIP: Bericht");
+    await app.click(WRITE);
+    const offer = await app.waitFor(() => app.exec((css) => document.querySelector(css)?.innerText ?? null, OFFER), 15_000, {
+      message: "suggestion offered",
+    });
+    assertIncludes(offer, ANSWER.summary);
+    assertIncludes(offer, "Suggestion – your text stays until you choose");
+    assertEqual(await ui.fields(), { summary: "WIP: Bericht", description: "" }, "nothing replaced unasked");
+    await t.shot("offer");
+    await app.click(`${OFFER} [data-ai-offer-action="append"]`);
+    await eventually(
+      ui.fields,
+      { summary: "WIP: Bericht", description: `${ANSWER.summary}\n\n${ANSWER.body}` },
+      "appended after a blank line",
+    );
+    t.step("append");
 
-  await app.click(WRITE);
-  await app.waitFor(OFFER, 15_000, { message: "offered again" });
-  await app.click(`${OFFER} [data-ai-offer-action="replace"]`);
-  await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "replaced on request");
-  t.step("replace");
+    await app.click(WRITE);
+    await app.waitFor(OFFER, 15_000, { message: "offered again" });
+    await app.click(`${OFFER} [data-ai-offer-action="replace"]`);
+    await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "replaced on request");
+    t.step("replace");
 
-  await ui.fill(await ui.summary(), "Eigener Betreff");
-  await app.click(WRITE);
-  await app.waitFor(OFFER, 15_000, { message: "offered a third time" });
-  await app.click(`${OFFER} [data-ai-offer-action="discard"]`);
-  await gone(app, OFFER, "offer gone");
-  assertEqual((await ui.fields()).summary, "Eigener Betreff", "Discard keeps the user's text");
-  await t.noConsoleErrors(app);
-}));
+    await ui.fill(await ui.summary(), "Eigener Betreff");
+    await app.click(WRITE);
+    await app.waitFor(OFFER, 15_000, { message: "offered a third time" });
+    await app.click(`${OFFER} [data-ai-offer-action="discard"]`);
+    await gone(app, OFFER, "offer gone");
+    assertEqual((await ui.fields()).summary, "Eigener Betreff", "Discard keeps the user's text");
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("typing while it writes only offers the suggestion; Cancel drops a late answer", "edge", withCleanup(async (t) => {
-  const { ollama, app, ui } = await setup(t);
-  ollama.state.delayMs = 5000;
-  await app.click(WRITE);
-  await eventually(() => writeLabel(app), "Cancel", "the button becomes Cancel");
-  await app.waitFor(async () => /^Writing … \(\d+ s\)/.test((await statusText(app)) ?? ""), 10_000, { message: "seconds are counted from 3 s" });
-  await t.shot("writing");
-  await app.type(await ui.summary(), "Notiz");
-  const offer = await app.waitFor(() => app.exec((css) => document.querySelector(css)?.innerText ?? null, OFFER), 15_000, { message: "the answer arrived" });
-  assertIncludes(offer, "Suggestion ready");
-  assertEqual((await ui.fields()).summary, "Notiz", "typed text is kept");
-  await app.click(`${OFFER} [data-ai-offer-action="discard"]`);
-  await gone(app, OFFER, "offer discarded");
-  t.step("typed during the request");
+scenario(
+  "typing while it writes only offers the suggestion; Cancel drops a late answer",
+  "edge",
+  withCleanup(async (t) => {
+    const { ollama, app, ui } = await setup(t);
+    ollama.state.delayMs = 5000;
+    await app.click(WRITE);
+    await eventually(() => writeLabel(app), "Cancel", "the button becomes Cancel");
+    await app.waitFor(async () => /^Writing … \(\d+ s\)/.test((await statusText(app)) ?? ""), 10_000, {
+      message: "seconds are counted from 3 s",
+    });
+    await t.shot("writing");
+    await app.type(await ui.summary(), "Notiz");
+    const offer = await app.waitFor(() => app.exec((css) => document.querySelector(css)?.innerText ?? null, OFFER), 15_000, {
+      message: "the answer arrived",
+    });
+    assertIncludes(offer, "Suggestion ready");
+    assertEqual((await ui.fields()).summary, "Notiz", "typed text is kept");
+    await app.click(`${OFFER} [data-ai-offer-action="discard"]`);
+    await gone(app, OFFER, "offer discarded");
+    t.step("typed during the request");
 
-  const answeredBefore = ollama.state.answered;
-  const chatsBefore = ollama.chats().length;
-  await app.click(WRITE);
-  await eventually(() => writeLabel(app), "Cancel", "running again");
-  // The request state starts at the click (preview first); cancel only once the chat is at the provider.
-  await app.waitFor(() => ollama.chats().length > chatsBefore, 15_000, { message: "the second chat reached the provider" });
-  await app.click(WRITE);
-  await eventually(() => writeLabel(app), "Write", "cancelled at once");
-  await app.waitFor(() => ollama.state.answered > answeredBefore, 15_000, { message: "the late answer reached the app" });
-  await app.settle(500);
-  assertEqual(await ui.fields(), { summary: "Notiz", description: "" }, "a cancelled answer is dropped");
-  assert(await app.exec((css) => !document.querySelector(css), OFFER), "and not offered");
-  await t.noConsoleErrors(app);
-}));
+    const answeredBefore = ollama.state.answered;
+    const chatsBefore = ollama.chats().length;
+    await app.click(WRITE);
+    await eventually(() => writeLabel(app), "Cancel", "running again");
+    // The request state starts at the click (preview first); cancel only once the chat is at the provider.
+    await app.waitFor(() => ollama.chats().length > chatsBefore, 15_000, { message: "the second chat reached the provider" });
+    await app.click(WRITE);
+    await eventually(() => writeLabel(app), "Write", "cancelled at once");
+    await app.waitFor(() => ollama.state.answered > answeredBefore, 15_000, { message: "the late answer reached the app" });
+    await app.settle(500);
+    assertEqual(await ui.fields(), { summary: "Notiz", description: "" }, "a cancelled answer is dropped");
+    assert(await app.exec((css) => !document.querySelector(css), OFFER), "and not offered");
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("Ctrl+Shift+M, “Nothing staged” and “AI off for this repository”", "edge", withCleanup(async (t) => {
-  const { ollama, repo, app, ui, repoId } = await setup(t);
-  await app.click(await ui.summary());
-  await app.press("Control+Shift+m");
-  await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "the shortcut writes");
-  await app.press("Control+z");
-  await eventually(ui.fields, { summary: "", description: "" }, "Ctrl+Z in the field");
-  t.step("shortcut");
+scenario(
+  "Ctrl+Shift+M, “Nothing staged” and “AI off for this repository”",
+  "edge",
+  withCleanup(async (t) => {
+    const { ollama, repo, app, ui, repoId } = await setup(t);
+    await app.click(await ui.summary());
+    await app.press("Control+Shift+m");
+    await eventually(ui.fields, { summary: ANSWER.summary, description: ANSWER.body }, "the shortcut writes");
+    await app.press("Control+z");
+    await eventually(ui.fields, { summary: "", description: "" }, "Ctrl+Z in the field");
+    t.step("shortcut");
 
-  repo.git("reset", "-q");
-  await ui.refresh();
-  await ui.waitCounts(repoId, { unstaged: 1, staged: 0, conflicted: 0 }, "nothing staged");
-  await eventually(() => app.exec((css) => document.querySelector(css)?.getAttribute("aria-disabled") ?? null, WRITE), "true", "Write is blocked");
-  const row = await paletteRow(app, "Write commit message", "wip.writeMessage");
-  assertIncludes(row ?? "", "Nothing staged", "the palette names the reason");
-  await app.press("Escape");
-  t.step("nothing staged");
+    repo.git("reset", "-q");
+    await ui.refresh();
+    await ui.waitCounts(repoId, { unstaged: 1, staged: 0, conflicted: 0 }, "nothing staged");
+    await eventually(
+      () => app.exec((css) => document.querySelector(css)?.getAttribute("aria-disabled") ?? null, WRITE),
+      "true",
+      "Write is blocked",
+    );
+    const row = await paletteRow(app, "Write commit message", "wip.writeMessage");
+    assertIncludes(row ?? "", "Nothing staged", "the palette names the reason");
+    await app.press("Escape");
+    t.step("nothing staged");
 
-  repo.git("add", "src/bericht.py");
-  await ui.refresh();
-  await ui.waitCounts(repoId, { unstaged: 0, staged: 1, conflicted: 0 }, "staged again");
-  await openSettingsAt(app, "AI and agents");
-  const toggle = await app.waitFor(() => app.exec(() => document.querySelector('[data-ai-project] [data-setting="AI off for this repository"] [role="switch"]')), 10_000, { message: "AI off switch" });
-  await app.click(toggle);
-  await eventually(async () => (await app.invoke("repo_settings_get", { repoId })).aiOff, true, "core: AI off for this repository");
-  await closeSettings(app);
-  await gone(app, WRITE, "Write is hidden");
-  assertEqual(await paletteLists(app, "commit", "wip.writeMessage", "wip.commit"), false, "and not in the palette (“Commit” is listed, “Write commit message” is not)");
-  await app.press("Escape");
-  assertEqual(ollama.chats().length, 1, "only the request of the shortcut went out");
-  await t.noConsoleErrors(app);
-}));
+    repo.git("add", "src/bericht.py");
+    await ui.refresh();
+    await ui.waitCounts(repoId, { unstaged: 0, staged: 1, conflicted: 0 }, "staged again");
+    await openSettingsAt(app, "AI and agents");
+    const toggle = await app.waitFor(
+      () => app.exec(() => document.querySelector('[data-ai-project] [data-setting="AI off for this repository"] [role="switch"]')),
+      10_000,
+      { message: "AI off switch" },
+    );
+    await app.click(toggle);
+    await eventually(async () => (await app.invoke("repo_settings_get", { repoId })).aiOff, true, "core: AI off for this repository");
+    await closeSettings(app);
+    await gone(app, WRITE, "Write is hidden");
+    assertEqual(
+      await paletteLists(app, "commit", "wip.writeMessage", "wip.commit"),
+      false,
+      "and not in the palette (“Commit” is listed, “Write commit message” is not)",
+    );
+    await app.press("Escape");
+    assertEqual(ollama.chats().length, 1, "only the request of the shortcut went out");
+    await t.noConsoleErrors(app);
+  }),
+);
 
-scenario("German texts", "edge", withCleanup(async (t) => {
-  const { app } = await setup(t, { lang: "de" });
-  assertEqual(await writeLabel(app), "Schreiben");
-  await app.click(WRITE);
-  await eventually(() => summaryValue(app), ANSWER.summary, "draft inserted");
-  await eventually(async () => ((await statusText(app)) ?? "").includes("Entwurf aus dem gestagten Diff, Stil wie die letzten 30 Commits"), true, "German hint");
-  assertEqual(await writeLabel(app), "Neu");
-  await t.shot("de");
-  await t.noConsoleErrors(app);
-}));
+scenario(
+  "German texts",
+  "edge",
+  withCleanup(async (t) => {
+    const { app } = await setup(t, { lang: "de" });
+    assertEqual(await writeLabel(app), "Schreiben");
+    await app.click(WRITE);
+    await eventually(() => summaryValue(app), ANSWER.summary, "draft inserted");
+    await eventually(
+      async () => ((await statusText(app)) ?? "").includes("Entwurf aus dem gestagten Diff, Stil wie die letzten 30 Commits"),
+      true,
+      "German hint",
+    );
+    assertEqual(await writeLabel(app), "Neu");
+    await t.shot("de");
+    await t.noConsoleErrors(app);
+  }),
+);

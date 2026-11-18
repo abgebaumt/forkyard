@@ -31,20 +31,27 @@ export function followVanishedDiff(repoId: Id, after?: Status): void {
     if (here.some((file) => file.path === center.path)) continue;
     const there = center.source.kind === "unstaged" ? status.staged : status.unstaged;
     const store = useAppStore.getState();
-    if (there.some((file) => file.path === center.path)) store.openDiff(tab.id, center.path, { kind: center.source.kind === "unstaged" ? "staged" : "unstaged" });
+    if (there.some((file) => file.path === center.path))
+      store.openDiff(tab.id, center.path, { kind: center.source.kind === "unstaged" ? "staged" : "unstaged" });
     else store.closeCenter(tab.id);
   }
 }
 
 /** `paths: null` = everything. */
 export async function stagePaths(repoId: Id, paths: string[] | null) {
-  const result = await runAction(t("actions.files.stage"), withStatus(repoId, () => core.stagePaths({ repoId, paths })));
+  const result = await runAction(
+    t("actions.files.stage"),
+    withStatus(repoId, () => core.stagePaths({ repoId, paths })),
+  );
   return result;
 }
 
 /** `paths: null` = everything. */
 export async function unstagePaths(repoId: Id, paths: string[] | null) {
-  const result = await runAction(t("actions.files.unstage"), withStatus(repoId, () => core.unstagePaths({ repoId, paths })));
+  const result = await runAction(
+    t("actions.files.unstage"),
+    withStatus(repoId, () => core.unstagePaths({ repoId, paths })),
+  );
   return result;
 }
 
@@ -79,15 +86,19 @@ export async function discardPaths(repoId: Id, paths: string[] | null, options: 
     danger: true,
   });
   if (!ok) return null;
-  const result = await runAction(t("actions.files.discard.action"), withStatus(repoId, () => core.discardPaths({ repoId, paths })), {
-    busyKey: `${repoId}:discard`,
-    quiet: ["operation_in_progress"],
-    success: all
-      ? t("actions.files.discard.doneAll")
-      : affected.length === 1
-        ? t("actions.files.discard.doneOne", { path: clipMiddle(affected[0]!, 56) })
-        : t("actions.files.discard.doneMany", { count: affected.length }),
-  });
+  const result = await runAction(
+    t("actions.files.discard.action"),
+    withStatus(repoId, () => core.discardPaths({ repoId, paths })),
+    {
+      busyKey: `${repoId}:discard`,
+      quiet: ["operation_in_progress"],
+      success: all
+        ? t("actions.files.discard.doneAll")
+        : affected.length === 1
+          ? t("actions.files.discard.doneOne", { path: clipMiddle(affected[0]!, 56) })
+          : t("actions.files.discard.doneMany", { count: affected.length }),
+    },
+  );
   // Discarded via the context menu too: an open diff of the file does not remain. (`follow: false`:
   // the caller updates the centre itself – the Commit Panel moves on to the next file in the list.)
   if (result.ok && options.follow !== false) followVanishedDiff(repoId, result.value);
@@ -98,8 +109,15 @@ export async function discardPaths(repoId: Id, paths: string[] | null, options: 
       tone: "warning",
       sticky: true,
       title: t("actions.files.discard.blocked"),
-      description: operation ? t("actions.files.discard.blockedOperation", { operation: operationNames[operation.kind] }) : result.error.message,
-      action: operation ? { label: t("actions.merge.abortLabel", { operation: operationNames[operation.kind] }), onClick: () => void abortOperation(repoId, operation.kind) } : undefined,
+      description: operation
+        ? t("actions.files.discard.blockedOperation", { operation: operationNames[operation.kind] })
+        : result.error.message,
+      action: operation
+        ? {
+            label: t("actions.merge.abortLabel", { operation: operationNames[operation.kind] }),
+            onClick: () => void abortOperation(repoId, operation.kind),
+          }
+        : undefined,
     });
   }
   return result;
@@ -132,9 +150,15 @@ export function openExternal(repoId: Id, target: ExternalTarget, path: string | 
 
 /** Pattern into the .gitignore in the root directory; optionally stop tracking. */
 export async function ignorePattern(repoId: Id, pattern: string, stopTracking = false) {
-  const result = await runAction(t("actions.files.ignore.action"), withStatus(repoId, () => core.ignoreAdd({ repoId, pattern, stopTracking })), {
-    success: stopTracking ? t("actions.files.ignore.doneUntracked", { pattern: clip(pattern, 44) }) : t("actions.files.ignore.done", { pattern: clip(pattern, 44) }),
-  });
+  const result = await runAction(
+    t("actions.files.ignore.action"),
+    withStatus(repoId, () => core.ignoreAdd({ repoId, pattern, stopTracking })),
+    {
+      success: stopTracking
+        ? t("actions.files.ignore.doneUntracked", { pattern: clip(pattern, 44) })
+        : t("actions.files.ignore.done", { pattern: clip(pattern, 44) }),
+    },
+  );
   return result;
 }
 
@@ -162,11 +186,19 @@ export function ignoreSuggestions(files: Pick<FileChange, "path">[]): IgnoreSugg
   if (paths.length === 1) suggestions.push({ key: "file", label: t("actions.files.ignore.file"), pattern: `/${escapeIgnore(paths[0]!)}` });
   const extension = extensionOf(paths[0]!);
   if (extension && paths.every((path) => extensionOf(path) === extension)) {
-    suggestions.push({ key: "extension", label: t("actions.files.ignore.extension", { extension }), pattern: `*${escapeIgnore(extension)}` });
+    suggestions.push({
+      key: "extension",
+      label: t("actions.files.ignore.extension", { extension }),
+      pattern: `*${escapeIgnore(extension)}`,
+    });
   }
   const folder = folderOf(paths[0]!);
   if (folder && paths.every((path) => folderOf(path) === folder)) {
-    suggestions.push({ key: "folder", label: t("actions.files.ignore.folder", { folder: clip(folder, 32) }), pattern: `/${escapeIgnore(folder)}/` });
+    suggestions.push({
+      key: "folder",
+      label: t("actions.files.ignore.folder", { folder: clip(folder, 32) }),
+      pattern: `/${escapeIgnore(folder)}/`,
+    });
   }
   return suggestions;
 }
@@ -192,7 +224,10 @@ export function stashFiles(repoId: Id, paths: string[]) {
   if (!paths.length) return Promise.resolve(null);
   return stashChanges(repoId, {
     paths,
-    message: paths.length === 1 ? t("actions.files.stashOne", { path: paths[0] }) : t("actions.files.stashMany", { count: paths.length, paths: clip(paths.join(", "), 60) }),
+    message:
+      paths.length === 1
+        ? t("actions.files.stashOne", { path: paths[0] })
+        : t("actions.files.stashMany", { count: paths.length, paths: clip(paths.join(", "), 60) }),
     includeUntracked: true,
   });
 }
@@ -201,14 +236,20 @@ export function stashFiles(repoId: Id, paths: string[]) {
 export async function resolveConflictSide(repoId: Id, paths: string[], side: "ours" | "theirs") {
   let last = null;
   for (const path of paths) {
-    last = await runAction(side === "ours" ? t("actions.files.resolve.ours") : t("actions.files.resolve.theirs"), withStatus(repoId, () => core.conflictResolve({ repoId, path, content: null, side })));
+    last = await runAction(
+      side === "ours" ? t("actions.files.resolve.ours") : t("actions.files.resolve.theirs"),
+      withStatus(repoId, () => core.conflictResolve({ repoId, path, content: null, side })),
+    );
     if (!last.ok) return last;
   }
   if (last?.ok) {
     const open = last.value.conflicted.length;
     toast({
       tone: "success",
-      title: paths.length === 1 ? t("actions.files.resolve.doneOne", { path: clip(paths[0]!, 44) }) : t("actions.files.resolve.doneMany", { count: paths.length }),
+      title:
+        paths.length === 1
+          ? t("actions.files.resolve.doneOne", { path: clip(paths[0]!, 44) })
+          : t("actions.files.resolve.doneMany", { count: paths.length }),
       description: open ? t("actions.files.resolve.open", { count: open }) : t("actions.files.resolve.allDone"),
     });
   }

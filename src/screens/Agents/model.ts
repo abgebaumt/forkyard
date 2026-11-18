@@ -2,7 +2,17 @@
  * Pure helpers of the agent cockpit: status as dot + word (never colour alone), runtime, counts,
  * the start dialog's rules and the actions per agent. No React, no core calls.
  */
-import type { Agent, AgentCleanupPreview, AgentStatus, AgentTemplateInfo, AgentTemplateKind, AgentTestResult, AiProviderKind, Id, Tab } from "../../core";
+import type {
+  Agent,
+  AgentCleanupPreview,
+  AgentStatus,
+  AgentTemplateInfo,
+  AgentTemplateKind,
+  AgentTestResult,
+  AiProviderKind,
+  Id,
+  Tab,
+} from "../../core";
 import { t } from "../../i18n";
 
 export type StatusTone = "accent" | "warning" | "success" | "danger" | "muted";
@@ -39,7 +49,8 @@ export function statusOrigin(agent: Pick<Agent, "terminalId" | "statusSource" | 
 export const hasSession = (agent: Pick<Agent, "terminalId">): boolean => agent.terminalId !== null;
 
 /** Waits for the user or has finished its turn, while its program still runs. */
-export const needsYou = (agent: Pick<Agent, "terminalId" | "status">): boolean => hasSession(agent) && (agent.status === "waiting" || agent.status === "done");
+export const needsYou = (agent: Pick<Agent, "terminalId" | "status">): boolean =>
+  hasSession(agent) && (agent.status === "waiting" || agent.status === "done");
 
 export function agentCounts(agents: Agent[]): { running: number; waiting: number } {
   return { running: agents.filter(hasSession).length, waiting: agents.filter(needsYou).length };
@@ -102,7 +113,12 @@ export function templateOptionLabel(template: AgentTemplateInfo): string {
   return template.login === "logged_out" ? t("agents.start.optionSignedOut", { label: named }) : named;
 }
 
-const PROVIDERS: Record<AgentTemplateKind, AiProviderKind | null> = { claude: "claude_code", codex: "codex", opencode: "opencode", custom: null };
+const PROVIDERS: Record<AgentTemplateKind, AiProviderKind | null> = {
+  claude: "claude_code",
+  codex: "codex",
+  opencode: "opencode",
+  custom: null,
+};
 
 /** The tool to sign in in the terminal: a found built-in tool that says it is signed out. */
 export function templateSignIn(template: AgentTemplateInfo | undefined): AiProviderKind | null {
@@ -110,7 +126,8 @@ export function templateSignIn(template: AgentTemplateInfo | undefined): AiProvi
   return PROVIDERS[template.kind];
 }
 
-export const defaultTemplateId = (templates: AgentTemplateInfo[]): string | null => templates.find((item) => item.path !== null)?.id ?? null;
+export const defaultTemplateId = (templates: AgentTemplateInfo[]): string | null =>
+  templates.find((item) => item.path !== null)?.id ?? null;
 
 export interface StartDraft {
   templateId: string | null;
@@ -121,7 +138,12 @@ export interface StartDraft {
 }
 
 /** The first reason the start button is disabled, or null. */
-export function startBlocker(draft: StartDraft, templates: AgentTemplateInfo[], suggestion: { branchProblem: string | null } | null, checking: boolean): string | null {
+export function startBlocker(
+  draft: StartDraft,
+  templates: AgentTemplateInfo[],
+  suggestion: { branchProblem: string | null } | null,
+  checking: boolean,
+): string | null {
   const template = templates.find((item) => item.id === draft.templateId);
   if (!template) return t("agents.start.chooseTemplate");
   if (template.path === null) return t("agents.start.notFound", { name: template.name });
@@ -135,7 +157,8 @@ export function startBlocker(draft: StartDraft, templates: AgentTemplateInfo[], 
 
 export const MANY_AGENTS = 5;
 
-export const manyAgentsHint = (running: number): string | null => (running >= MANY_AGENTS ? t("agents.start.manyRunning", { count: running }) : null);
+export const manyAgentsHint = (running: number): string | null =>
+  running >= MANY_AGENTS ? t("agents.start.manyRunning", { count: running }) : null;
 
 // --- Actions ----------------------------------------------------------------------------
 
@@ -246,4 +269,5 @@ export function cockpitKeyAction(key: string, shiftKey: boolean, rowId: Id | nul
 }
 
 /** “Agents n” with the agents whose program runs (spec: toolbar switch “Agenten n”); without any just “Agents”. */
-export const toolbarLabel = (running: number): string => (running > 0 ? t("agents.toolbar.labelCount", { count: running }) : t("agents.toolbar.label"));
+export const toolbarLabel = (running: number): string =>
+  running > 0 ? t("agents.toolbar.labelCount", { count: running }) : t("agents.toolbar.label");

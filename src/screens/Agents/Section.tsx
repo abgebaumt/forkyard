@@ -68,7 +68,11 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
           focusable={rowState.focusable}
           meta={
             <span className="truncate text-xs text-text-muted" data-agent-status={agent.status}>
-              {[statusLabel(agent.status), t("agents.cockpit.changed", { count: agent.changedFiles }), formatRuntime(agent.startedAt, agent.endedAt, Date.now())].join(" · ")}
+              {[
+                statusLabel(agent.status),
+                t("agents.cockpit.changed", { count: agent.changedFiles }),
+                formatRuntime(agent.startedAt, agent.endedAt, Date.now()),
+              ].join(" · ")}
             </span>
           }
           metaFills
@@ -81,8 +85,12 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
       onRemove={(agent) => void runAgentAction(agent.status === "orphaned" ? "forget" : "cleanup", agent, tabId)}
       rowMenu={(agent) => agentMenu(agent, tabId, optionsFor(agent))}
       sectionMenu={[
-        menuItem(open ? t("agents.section.collapse") : t("agents.section.expand"), null, toggle, { blocked: filtering ? t("agents.section.alwaysOpen") : null }),
-        menuItem(t("agents.section.hide"), null, () => void setSection(repoId, "agents", { hidden: true }), { hint: t("agents.section.hideHint") }),
+        menuItem(open ? t("agents.section.collapse") : t("agents.section.expand"), null, toggle, {
+          blocked: filtering ? t("agents.section.alwaysOpen") : null,
+        }),
+        menuItem(t("agents.section.hide"), null, () => void setSection(repoId, "agents", { hidden: true }), {
+          hint: t("agents.section.hideHint"),
+        }),
         MENU_SEPARATOR,
         menuItem(t("agents.commands.cockpit"), LayoutList, () => openCockpit(tabId)),
         menuItem(t("agents.section.new"), Plus, () => void startNewAgent(repoId, tabId)),
@@ -90,7 +98,13 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
       // Spec 2a: the section ends with the row “New agent …” (the empty state has its own button).
       footer={
         all.length > 0 && !filtering ? (
-          <Button size="sm" variant="ghost" className="w-full justify-start" data-action="new-agent-row" onClick={() => void startNewAgent(repoId, tabId)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="w-full justify-start"
+            data-action="new-agent-row"
+            onClick={() => void startNewAgent(repoId, tabId)}
+          >
             {t("agents.section.new")}
           </Button>
         ) : undefined
@@ -98,8 +112,20 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
       placeholder={placeholder}
       actions={
         <>
-          <IconButton size="sm" data-action="cockpit" label={t("agents.commands.cockpit")} icon={<LayoutList className="size-3.5" aria-hidden />} onClick={() => openCockpit(tabId)} />
-          <IconButton size="sm" data-action="add" label={t("agents.section.new")} icon={<Plus className="size-3.5" aria-hidden />} onClick={() => void startNewAgent(repoId, tabId)} />
+          <IconButton
+            size="sm"
+            data-action="cockpit"
+            label={t("agents.commands.cockpit")}
+            icon={<LayoutList className="size-3.5" aria-hidden />}
+            onClick={() => openCockpit(tabId)}
+          />
+          <IconButton
+            size="sm"
+            data-action="add"
+            label={t("agents.section.new")}
+            icon={<Plus className="size-3.5" aria-hidden />}
+            onClick={() => void startNewAgent(repoId, tabId)}
+          />
         </>
       }
     />

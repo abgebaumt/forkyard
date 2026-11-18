@@ -69,7 +69,9 @@ function PresetsCard({ config, onSave }: { config: LinkRulesConfig; onSave: Save
           <div className="min-w-0 flex-1">
             <p className="text-base font-medium text-text">{PRESET_LABELS[preset.kind]}</p>
             <Mono className="text-text-muted">{preset.baseUrl}</Mono>
-            {preset.keys.length > 0 ? <p className="text-sm text-text-muted">{t("preferences.project.links.keysList", { keys: preset.keys.join(", ") })}</p> : null}
+            {preset.keys.length > 0 ? (
+              <p className="text-sm text-text-muted">{t("preferences.project.links.keysList", { keys: preset.keys.join(", ") })}</p>
+            ) : null}
           </div>
           <IconButton
             size="sm"
@@ -82,21 +84,40 @@ function PresetsCard({ config, onSave }: { config: LinkRulesConfig; onSave: Save
       <div className="flex flex-col gap-2 py-3">
         <div className="flex flex-wrap items-end gap-2">
           <div className="w-36">
-            <Select label={t("preferences.project.links.tracker")} value={kind} options={PRESET_KINDS.map((value) => ({ value, label: PRESET_LABELS[value] }))} onValueChange={setKind} />
+            <Select
+              label={t("preferences.project.links.tracker")}
+              value={kind}
+              options={PRESET_KINDS.map((value) => ({ value, label: PRESET_LABELS[value] }))}
+              onValueChange={setKind}
+            />
           </div>
           <div className="min-w-48 flex-1">
-            <TextField label={t("preferences.project.links.baseUrl")} mono value={baseUrl} placeholder={PRESET_PLACEHOLDERS[kind]} onChange={(event) => setBaseUrl(event.target.value)} />
+            <TextField
+              label={t("preferences.project.links.baseUrl")}
+              mono
+              value={baseUrl}
+              placeholder={PRESET_PLACEHOLDERS[kind]}
+              onChange={(event) => setBaseUrl(event.target.value)}
+            />
           </div>
           {kind !== "redmine" ? (
             <div className="w-40">
-              <TextField label={t("preferences.project.links.keys")} mono value={keys} placeholder="ABC, OPS" onChange={(event) => setKeys(event.target.value)} />
+              <TextField
+                label={t("preferences.project.links.keys")}
+                mono
+                value={keys}
+                placeholder="ABC, OPS"
+                onChange={(event) => setKeys(event.target.value)}
+              />
             </div>
           ) : null}
           <Button icon={<Plus className="size-icon" aria-hidden />} loading={busy} disabled={!baseUrl.trim()} onClick={() => void add()}>
             {t("preferences.project.links.add")}
           </Button>
         </div>
-        <p className="text-sm text-text-muted">{kind === "redmine" ? t("preferences.project.links.redmineHint") : t("preferences.project.links.keysHint")}</p>
+        <p className="text-sm text-text-muted">
+          {kind === "redmine" ? t("preferences.project.links.redmineHint") : t("preferences.project.links.keysHint")}
+        </p>
         <FormError text={error} />
       </div>
     </SettingsCard>
@@ -115,7 +136,9 @@ function TestResult({ result }: { result: RuleTest }) {
           <span aria-hidden className="text-text-muted">
             →
           </span>
-          <span className="min-w-0 truncate font-mono text-code text-text-muted">{link.url ?? t("preferences.project.links.testNoUrl")}</span>
+          <span className="min-w-0 truncate font-mono text-code text-text-muted">
+            {link.url ?? t("preferences.project.links.testNoUrl")}
+          </span>
         </li>
       ))}
     </ul>
@@ -187,7 +210,12 @@ function CustomRulesCard({ config, onSave }: { config: LinkRulesConfig; onSave: 
         {result ? <TestResult result={result} /> : null}
         <FormError text={error} />
         <div>
-          <Button icon={<Plus className="size-icon" aria-hidden />} loading={busy} disabled={!pattern || !url.trim()} onClick={() => void add()}>
+          <Button
+            icon={<Plus className="size-icon" aria-hidden />}
+            loading={busy}
+            disabled={!pattern || !url.trim()}
+            onClick={() => void add()}
+          >
             {t("preferences.project.links.addRule")}
           </Button>
         </div>
@@ -199,7 +227,11 @@ function CustomRulesCard({ config, onSave }: { config: LinkRulesConfig; onSave: 
 function RepoFileCard({ data, failed }: { data: LinkRules | undefined; failed: boolean }) {
   const fileRules = data?.rules.filter((rule) => rule.source === "repo_file") ?? [];
   const origin =
-    data?.file === "worktree" ? t("preferences.project.links.fileFromWorktree") : data?.file === "head" ? t("preferences.project.links.fileFromHead") : t("preferences.project.links.fileNone");
+    data?.file === "worktree"
+      ? t("preferences.project.links.fileFromWorktree")
+      : data?.file === "head"
+        ? t("preferences.project.links.fileFromHead")
+        : t("preferences.project.links.fileNone");
   return (
     <SettingsCard title={t("preferences.project.links.fileCard")}>
       <div data-link-file={data?.file ?? "none"} className="flex flex-col gap-2 py-3">
@@ -213,7 +245,11 @@ function RepoFileCard({ data, failed }: { data: LinkRules | undefined; failed: b
         {data && data.problems.length > 0 ? (
           <ul aria-label={t("preferences.project.links.problems")} className="flex flex-col gap-1 text-sm text-warning">
             {data.problems.map((problem, index) => (
-              <li key={index}>{problem.index === null ? problem.message : t("preferences.project.links.problemAt", { n: problem.index + 1, message: problem.message })}</li>
+              <li key={index}>
+                {problem.index === null
+                  ? problem.message
+                  : t("preferences.project.links.problemAt", { n: problem.index + 1, message: problem.message })}
+              </li>
             ))}
           </ul>
         ) : null}
@@ -226,7 +262,10 @@ export function TicketLinksSection({ repoId }: { repoId: Id }) {
   const repoSettings = useRepoSettings(repoId);
   const effective = useLinkRules(repoId);
   if (!repoSettings.data) {
-    if (repoSettings.isError) return <LoadError title={t("preferences.loadError.repoSettings")} error={repoSettings.error} onRetry={() => void repoSettings.refetch()} />;
+    if (repoSettings.isError)
+      return (
+        <LoadError title={t("preferences.loadError.repoSettings")} error={repoSettings.error} onRetry={() => void repoSettings.refetch()} />
+      );
     return <SettingsSkeleton rows={4} />;
   }
   const config = repoSettings.data.linkRules;
@@ -237,8 +276,18 @@ export function TicketLinksSection({ repoId }: { repoId: Id }) {
     <section>
       <Intro repoId={repoId}>{t("preferences.project.links.title")}</Intro>
       <SettingsCard title={t("preferences.project.links.hostCard")}>
-        <SettingRow title={t("preferences.project.links.host")} description={noHost ? t("preferences.project.links.noHost") : t("preferences.project.links.hostDescription")}>
-          {(ids) => <Switch id={ids.id} ariaDescribedBy={ids.descriptionId} checked={config.hostRules} onCheckedChange={(checked) => void save({ ...config, hostRules: checked })} />}
+        <SettingRow
+          title={t("preferences.project.links.host")}
+          description={noHost ? t("preferences.project.links.noHost") : t("preferences.project.links.hostDescription")}
+        >
+          {(ids) => (
+            <Switch
+              id={ids.id}
+              ariaDescribedBy={ids.descriptionId}
+              checked={config.hostRules}
+              onCheckedChange={(checked) => void save({ ...config, hostRules: checked })}
+            />
+          )}
         </SettingRow>
       </SettingsCard>
       <PresetsCard config={config} onSave={save} />

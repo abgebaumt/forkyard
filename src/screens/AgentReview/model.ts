@@ -86,7 +86,8 @@ export function withLines(picks: FilePicks, path: string, keys: ReadonlySet<stri
 /** One file's pick as a `PatchSelection` of its range diff; null without a range token (not text, “ignore whitespace”). */
 export function selectionFor(diff: FileDiff, pick: FilePick): PatchSelection | null {
   if (diff.kind !== "text" || !diff.rangeToken) return null;
-  if (pick.kind === "all") return { path: diff.path, hunks: diff.hunks.map((hunk) => ({ index: hunk.index, lines: null })), expect: diff.rangeToken };
+  if (pick.kind === "all")
+    return { path: diff.path, hunks: diff.hunks.map((hunk) => ({ index: hunk.index, lines: null })), expect: diff.rangeToken };
   const byHunk = new Map<number, number[]>();
   for (const key of pick.keys) {
     const [hunkOrd, pos] = key.split(":").map(Number) as [number, number];
@@ -106,7 +107,10 @@ export function selectionFor(diff: FileDiff, pick: FilePick): PatchSelection | n
 }
 
 /** The selections of all picks (sorted by path) and the files that cannot be taken over line by line. */
-export function buildSelections(picks: FilePicks, diffs: ReadonlyMap<string, FileDiff>): { selections: PatchSelection[]; refused: string[] } {
+export function buildSelections(
+  picks: FilePicks,
+  diffs: ReadonlyMap<string, FileDiff>,
+): { selections: PatchSelection[]; refused: string[] } {
   const selections: PatchSelection[] = [];
   const refused: string[] = [];
   for (const path of Object.keys(picks).sort()) {
@@ -140,7 +144,10 @@ export function commitMessageFromTask(task: string): { summary: string; descript
     summary = chars.slice(0, at).join("").trimEnd();
     overflow = chars.slice(at).join("").trim();
   }
-  const rest = lines.slice(first + 1).join("\n").trim();
+  const rest = lines
+    .slice(first + 1)
+    .join("\n")
+    .trim();
   return { summary, description: [overflow, rest].filter(Boolean).join("\n\n") };
 }
 

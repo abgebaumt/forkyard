@@ -31,7 +31,14 @@ describe("opening a repo of another profile", () => {
     expect(q.options[1]?.label).toBe("Also open in “Privat”");
   });
   it("offers a switch for each of several profiles", () => {
-    const q = otherProfileQuestion("C:\\\\repos\\\\backend", [{ id: "w", name: "Arbeit", color: 1 }, { id: "k", name: "Kunde", color: null }], "Privat");
+    const q = otherProfileQuestion(
+      "C:\\\\repos\\\\backend",
+      [
+        { id: "w", name: "Arbeit", color: 1 },
+        { id: "k", name: "Kunde", color: null },
+      ],
+      "Privat",
+    );
     expect(q.title).toBe("“backend” belongs to other profiles");
     expect(q.options.map((o) => o.key)).toEqual(["switch:w", "switch:k", "add"]);
   });

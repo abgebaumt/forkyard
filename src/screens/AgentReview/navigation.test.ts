@@ -35,7 +35,18 @@ describe("agent review navigation", () => {
   it("opening another agent while a review is open keeps the way back; closing forgets the panes", () => {
     useAppStore.getState().setCenter("t1", { kind: "graph" });
     openAgentReview("t1", "a1");
-    pin("t1", "a1", { agentId: "a1", repoId: "r", worktreeRepoId: "w", source: "branch", from: "1".repeat(40), to: "2".repeat(40), tip: "2".repeat(40), base: "main", uncommittedFiles: 0, running: false });
+    pin("t1", "a1", {
+      agentId: "a1",
+      repoId: "r",
+      worktreeRepoId: "w",
+      source: "branch",
+      from: "1".repeat(40),
+      to: "2".repeat(40),
+      tip: "2".repeat(40),
+      base: "main",
+      uncommittedFiles: 0,
+      running: false,
+    });
     openAgentReview("t1", "a2");
     expect(getTabView("t1").center).toEqual({ kind: "agent_review", agentIds: ["a2"], show: "first" });
     closeAgentReview("t1");

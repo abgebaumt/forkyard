@@ -41,7 +41,21 @@ export async function startNewAgent(repoId: Id, tabId: Id): Promise<void> {
   await openAgentStart(repoId, tabId);
 }
 
-function AgentRow({ agent, tabId, active, onFocus, now, options }: { agent: Agent; tabId: Id; active: boolean; onFocus: () => void; now: number; options: ReturnType<ReturnType<typeof useActionOptions>> }) {
+function AgentRow({
+  agent,
+  tabId,
+  active,
+  onFocus,
+  now,
+  options,
+}: {
+  agent: Agent;
+  tabId: Id;
+  active: boolean;
+  onFocus: () => void;
+  now: number;
+  options: ReturnType<ReturnType<typeof useActionOptions>>;
+}) {
   const actions = actionsFor(agent, options);
   const primary = actions.find((action) => action === "terminal" || action === "resume" || action === "forget") ?? null;
   const tests = testLabel(agent.test);
@@ -53,7 +67,10 @@ function AgentRow({ agent, tabId, active, onFocus, now, options }: { agent: Agen
         data-agent-row={agent.id}
         data-status={agent.status}
         aria-label={`${displayName(agent)}, ${agent.templateName}`}
-        className={cn("flex min-w-0 flex-1 flex-col gap-0.5 rounded-sm focus-visible:outline-2 focus-visible:outline-accent", active && "bg-surface-sunken")}
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-0.5 rounded-sm focus-visible:outline-2 focus-visible:outline-accent",
+          active && "bg-surface-sunken",
+        )}
         onFocus={onFocus}
         onClick={() => useAppStore.getState().showAgent(tabId, agent.id)}
         onContextMenu={(event) => {
@@ -72,16 +89,28 @@ function AgentRow({ agent, tabId, active, onFocus, now, options }: { agent: Agen
           <span>{t("agents.cockpit.ahead", { count: agent.commitsAhead, base: agent.base })}</span>
           <span className="tabular-nums">{formatRuntime(agent.startedAt, agent.endedAt, now)}</span>
           {tests ? <span data-agent-test={agent.test?.state}>{tests}</span> : null}
-          {agent.status === "failed" && agent.exitCode !== null ? <span>{t("agents.cockpit.exitCode", { code: agent.exitCode })}</span> : null}
+          {agent.status === "failed" && agent.exitCode !== null ? (
+            <span>{t("agents.cockpit.exitCode", { code: agent.exitCode })}</span>
+          ) : null}
         </span>
-        {agent.status === "failed" && agent.lastLine ? <span className="selectable truncate font-mono text-code text-text-muted">{t("agents.cockpit.lastLine", { line: agent.lastLine })}</span> : null}
+        {agent.status === "failed" && agent.lastLine ? (
+          <span className="selectable truncate font-mono text-code text-text-muted">
+            {t("agents.cockpit.lastLine", { line: agent.lastLine })}
+          </span>
+        ) : null}
       </div>
       {primary ? (
         <Button size="sm" data-action={primary} onClick={() => void runAgentAction(primary, agent, tabId)}>
           {ACTION_LABELS[primary]}
         </Button>
       ) : null}
-      <Button size="sm" variant="ghost" data-action="menu" aria-haspopup="menu" onClick={(event) => openMenuAtElement(event.currentTarget, agentMenu(agent, tabId, options), displayName(agent))}>
+      <Button
+        size="sm"
+        variant="ghost"
+        data-action="menu"
+        aria-haspopup="menu"
+        onClick={(event) => openMenuAtElement(event.currentTarget, agentMenu(agent, tabId, options), displayName(agent))}
+      >
         …<span className="sr-only">{t("agents.actions.details")}</span>
       </Button>
     </li>
@@ -156,7 +185,12 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           {t("agents.cockpit.title")}
         </h1>
         <span className="flex-1" />
-        <Button size="sm" icon={<Plus className="size-icon" aria-hidden />} onClick={() => void startNewAgent(repoId, tabId)} data-action="new-agent">
+        <Button
+          size="sm"
+          icon={<Plus className="size-icon" aria-hidden />}
+          onClick={() => void startNewAgent(repoId, tabId)}
+          data-action="new-agent"
+        >
           {t("agents.cockpit.new")}
         </Button>
         <Button size="sm" variant="ghost" onClick={() => closeCockpit(tabId)}>
@@ -184,7 +218,15 @@ export function Cockpit({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       ) : (
         <ul ref={listRef} aria-label={t("agents.cockpit.listLabel")} className="min-h-0 flex-1 overflow-auto">
           {list.map((agent) => (
-            <AgentRow key={agent.id} agent={agent} tabId={tabId} active={active?.id === agent.id} onFocus={() => setActiveId(agent.id)} now={now} options={optionsFor(agent)} />
+            <AgentRow
+              key={agent.id}
+              agent={agent}
+              tabId={tabId}
+              active={active?.id === agent.id}
+              onFocus={() => setActiveId(agent.id)}
+              now={now}
+              options={optionsFor(agent)}
+            />
           ))}
         </ul>
       )}

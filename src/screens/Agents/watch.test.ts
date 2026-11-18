@@ -27,11 +27,24 @@ const agent = (id: string, status: Agent["status"]): Agent => ({
   test: null,
 });
 
-const tab = (id: string, kind: Tab["kind"], repoId: string | null, isActive: boolean, position: number): Tab => ({ id, kind, repoId, position, isActive, title: repoId ?? "", path: repoId ? `/home/anna/${repoId}` : null });
+const tab = (id: string, kind: Tab["kind"], repoId: string | null, isActive: boolean, position: number): Tab => ({
+  id,
+  kind,
+  repoId,
+  position,
+  isActive,
+  title: repoId ?? "",
+  path: repoId ? `/home/anna/${repoId}` : null,
+});
 
 describe("agent watch across repository tabs", () => {
   it("follows every open repository tab, not only the active one, plus repositories that reported agents", () => {
-    const tabs = [tab("t-web", "repo", "repo-web", false, 0), tab("t-api", "repo", "repo-api", true, 1), tab("t-manage", "management", null, false, 2), tab("t-web2", "repo", "repo-web", false, 3)];
+    const tabs = [
+      tab("t-web", "repo", "repo-web", false, 0),
+      tab("t-api", "repo", "repo-api", true, 1),
+      tab("t-manage", "management", null, false, 2),
+      tab("t-web2", "repo", "repo-web", false, 3),
+    ];
     expect(watchedRepos(tabs, ["repo-closed", "repo-api"]).sort()).toEqual(["repo-api", "repo-closed", "repo-web"]);
     // Only the repository manager is open: the agent's repository is still watched.
     expect(watchedRepos([tab("t-manage", "management", null, true, 0)], ["repo-web"])).toEqual(["repo-web"]);
@@ -63,7 +76,14 @@ describe("cockpit keys", () => {
   });
 
   it("maps the list keys on a row", () => {
-    expect(["ArrowDown", "ArrowUp", "Home", "End", "Delete", "ContextMenu"].map((key) => cockpitKeyAction(key, false, "a1"))).toEqual(["next", "previous", "first", "last", "cleanup", "menu"]);
+    expect(["ArrowDown", "ArrowUp", "Home", "End", "Delete", "ContextMenu"].map((key) => cockpitKeyAction(key, false, "a1"))).toEqual([
+      "next",
+      "previous",
+      "first",
+      "last",
+      "cleanup",
+      "menu",
+    ]);
     expect(cockpitKeyAction("F10", true, "a1")).toBe("menu");
     expect(cockpitKeyAction("F10", false, "a1")).toBeNull();
     expect(cockpitKeyAction("a", false, "a1")).toBeNull();

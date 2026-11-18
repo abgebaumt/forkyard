@@ -20,7 +20,17 @@ import { TreeRow } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
 import type { IssueSummary } from "./api";
-import { copyIssueLink, createIssueBranch, issuesWebUrl, openIssueInBrowser, openIssues, refreshIssues, SECTION_FILTER, setIssueSection, useIssueSection } from "./actions";
+import {
+  copyIssueLink,
+  createIssueBranch,
+  issuesWebUrl,
+  openIssueInBrowser,
+  openIssues,
+  refreshIssues,
+  SECTION_FILTER,
+  setIssueSection,
+  useIssueSection,
+} from "./actions";
 import { describeIssue, issueBranchName, issueSecondary, localizeTimes, matchesIssue } from "./model";
 
 export interface IssuesSectionProps {
@@ -35,8 +45,12 @@ function issueMenu(repoId: Id, tabId: Id, issue: IssueSummary): MenuEntry[] {
     menuItem(t("issues.section.open"), SquareArrowOutUpRight, () => openIssues(tabId, issue.number), { shortcut: "Enter" }),
     menuItem(t("issues.branch.label"), GitBranchPlus, () => void createIssueBranch(repoId, tabId, issue), { hint: issueBranchName(issue) }),
     MENU_SEPARATOR,
-    menuItem(t("issues.details.openInBrowser"), ExternalLink, () => void openIssueInBrowser(issue), { blocked: issue.webUrl ? null : t("issues.section.noAddress") }),
-    menuItem(t("issues.details.copyLink"), Link2, () => void copyIssueLink(issue), { blocked: issue.webUrl ? null : t("issues.section.noAddress") }),
+    menuItem(t("issues.details.openInBrowser"), ExternalLink, () => void openIssueInBrowser(issue), {
+      blocked: issue.webUrl ? null : t("issues.section.noAddress"),
+    }),
+    menuItem(t("issues.details.copyLink"), Link2, () => void copyIssueLink(issue), {
+      blocked: issue.webUrl ? null : t("issues.section.noAddress"),
+    }),
     menuItem(t("issues.section.copyNumber"), Copy, () => void copyText(issue.key, t("issues.section.numberWhat"))),
   ];
 }
@@ -54,8 +68,14 @@ function IssueRow({ issue, state, query, open }: { issue: IssueSummary; state: S
             {issue.key} {issue.title}
           </span>
           {secondary ? <span className="text-text-muted">{secondary}</span> : null}
-          {issue.assignees.length ? <span className="text-text-muted">{t("issues.section.assigned", { users: issue.assignees.map((user) => user.login).join(", ") })}</span> : null}
-          {issue.labels.length ? <span className="text-text-muted">{t("issues.describe.labels", { labels: issue.labels.join(", ") })}</span> : null}
+          {issue.assignees.length ? (
+            <span className="text-text-muted">
+              {t("issues.section.assigned", { users: issue.assignees.map((user) => user.login).join(", ") })}
+            </span>
+          ) : null}
+          {issue.labels.length ? (
+            <span className="text-text-muted">{t("issues.describe.labels", { labels: issue.labels.join(", ") })}</span>
+          ) : null}
         </span>
       }
       icon={<CircleDot className="size-3.5 text-success" aria-hidden />}
@@ -127,7 +147,12 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
   else if (issues.isError && all.length === 0) {
     const info = describeHostError(issues.error);
     placeholder = (
-      <div role={info.kind === "rate_limit" ? "status" : "alert"} data-load-error data-issues-state={info.kind} className="flex flex-col items-start gap-1.5 px-2 py-2 text-sm">
+      <div
+        role={info.kind === "rate_limit" ? "status" : "alert"}
+        data-load-error
+        data-issues-state={info.kind}
+        className="flex flex-col items-start gap-1.5 px-2 py-2 text-sm"
+      >
         <p className="font-medium text-text">{info.kind === "other" ? t("issues.section.loadError") : info.title}</p>
         <p className="selectable break-words text-text-muted">{localizeTimes(info.text)}</p>
         <span className="flex flex-wrap gap-1.5">
@@ -145,12 +170,18 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
   } else if (all.length === 0) placeholder = <SideEmpty>{t("issues.section.noOpen")}</SideEmpty>;
 
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("issues.section.collapse") : t("issues.section.expand"), null, toggle, { blocked: filtering ? t("issues.section.alwaysOpen") : null }),
+    menuItem(open ? t("issues.section.collapse") : t("issues.section.expand"), null, toggle, {
+      blocked: filtering ? t("issues.section.alwaysOpen") : null,
+    }),
     menuItem(t("issues.section.hide"), null, () => setIssueSection(repoId, { hidden: true }), { hint: t("issues.section.hideHint") }),
     MENU_SEPARATOR,
     menuItem(t("issues.section.showAll"), ListFilter, showAll, { hint: t("issues.section.showAllHint") }),
-    menuItem(t("issues.section.reload"), RefreshCw, () => void refreshIssues(repoId), { blocked: connected ? null : t("issues.section.notConnected") }),
-    menuItem(t("issues.view.openInBrowser"), ExternalLink, () => void openInBrowser(webUrl), { blocked: webUrl ? null : t("issues.section.noAddress") }),
+    menuItem(t("issues.section.reload"), RefreshCw, () => void refreshIssues(repoId), {
+      blocked: connected ? null : t("issues.section.notConnected"),
+    }),
+    menuItem(t("issues.view.openInBrowser"), ExternalLink, () => void openInBrowser(webUrl), {
+      blocked: webUrl ? null : t("issues.section.noAddress"),
+    }),
   ];
 
   const more = issues.hasNextPage;
@@ -159,30 +190,55 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
       id="issues"
       title={t("issues.view.title")}
       icon={<CircleDot aria-hidden />}
-      count={!connected || issues.isPending || (issues.isError && all.length === 0) ? undefined : filtering ? `${items.length}/${all.length}${more ? "+" : ""}` : `${all.length}${more ? "+" : ""}`}
+      count={
+        !connected || issues.isPending || (issues.isError && all.length === 0)
+          ? undefined
+          : filtering
+            ? `${items.length}/${all.length}${more ? "+" : ""}`
+            : `${all.length}${more ? "+" : ""}`
+      }
       open={open}
       onToggle={toggle}
       listLabel={t("issues.section.listLabel")}
       items={items}
       itemId={(issue) => `issue-${issue.number}`}
       itemText={(issue) => issue.title}
-      renderRow={(issue, rowState) => <IssueRow key={issue.number} issue={issue} state={rowState} query={query} open={issue.number === openNumber} />}
+      renderRow={(issue, rowState) => (
+        <IssueRow key={issue.number} issue={issue} state={rowState} query={query} open={issue.number === openNumber} />
+      )}
       onActivate={(issue) => openIssues(tabId, issue.number)}
       rowMenu={(issue) => issueMenu(repoId, tabId, issue)}
       sectionMenu={sectionMenu}
       placeholder={placeholder}
       notice={
         issues.isError && all.length > 0 && !placeholder ? (
-          <p role="status" className="px-2 pt-1 text-xs text-warning" data-issues-stale title={localizeTimes(describeHostError(issues.error).text)}>
+          <p
+            role="status"
+            className="px-2 pt-1 text-xs text-warning"
+            data-issues-stale
+            title={localizeTimes(describeHostError(issues.error).text)}
+          >
             {t("issues.section.stale", { reason: describeHostError(issues.error).title })}
           </p>
         ) : more && !placeholder && !filtering ? (
           <p className="px-2 pt-1 text-xs text-text-muted" data-issues-more>
-            <Trans i18nKey="issues.section.firstN" values={{ count: all.length }} components={{ view: <button type="button" className="rounded-sm text-accent hover:underline" onClick={showAll} /> }} />
+            <Trans
+              i18nKey="issues.section.firstN"
+              values={{ count: all.length }}
+              components={{ view: <button type="button" className="rounded-sm text-accent hover:underline" onClick={showAll} /> }}
+            />
           </p>
         ) : undefined
       }
-      actions={<IconButton size="sm" data-action="issues-all" label={t("issues.section.showAll")} icon={<ListFilter className="size-3.5" aria-hidden />} onClick={showAll} />}
+      actions={
+        <IconButton
+          size="sm"
+          data-action="issues-all"
+          label={t("issues.section.showAll")}
+          icon={<ListFilter className="size-3.5" aria-hidden />}
+          onClick={showAll}
+        />
+      }
     />
   );
 }

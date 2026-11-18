@@ -19,7 +19,17 @@ import { TextArea, TextField } from "../../ui/Field";
 import { Select, type SelectOption } from "../../ui/Select";
 import { Switch } from "../../ui/Switch";
 import { t } from "../../i18n";
-import { agentCounts, defaultTemplateId, manyAgentsHint, startBlocker, startLabel, templateOptionLabel, templateSignIn, unattendedChoice, type StartDraft } from "./model";
+import {
+  agentCounts,
+  defaultTemplateId,
+  manyAgentsHint,
+  startBlocker,
+  startLabel,
+  templateOptionLabel,
+  templateSignIn,
+  unattendedChoice,
+  type StartDraft,
+} from "./model";
 import { startAgent } from "./session";
 
 const CHECK_DELAY_MS = 250;
@@ -76,7 +86,11 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
   const effective: StartDraft = { ...draft, base, unattended: draft.unattended && unattended.available };
   const blocker = startBlocker(effective, list, suggestion, checking);
   const running = agentCounts(agents.data ?? []).running;
-  const templateOptions: SelectOption[] = list.map((item) => ({ value: item.id, label: templateOptionLabel(item), disabled: item.path === null }));
+  const templateOptions: SelectOption[] = list.map((item) => ({
+    value: item.id,
+    label: templateOptionLabel(item),
+    disabled: item.path === null,
+  }));
   const baseOptions: SelectOption[] = useMemo(() => {
     const names = (refs.data?.locals ?? []).map((ref) => ref.name);
     const all = names.includes(base) || base === "HEAD" ? names : [base, ...names];
@@ -88,7 +102,16 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
     setBusy(true);
     setFailure(null);
     try {
-      await startAgent({ repoId, tabId, templateId: effective.templateId, task: effective.task, branch: effective.branch.trim(), base, unattended: effective.unattended, shortName: suggestion.shortName });
+      await startAgent({
+        repoId,
+        tabId,
+        templateId: effective.templateId,
+        task: effective.task,
+        branch: effective.branch.trim(),
+        base,
+        unattended: effective.unattended,
+        shortName: suggestion.shortName,
+      });
       onDone(true);
     } catch (error) {
       setFailure(describeError(error).text);
@@ -118,7 +141,15 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
           <Button variant="ghost" disabled={busy} onClick={() => onDone(null)}>
             {t("agents.start.cancel")}
           </Button>
-          <Button type="submit" form={formId} variant="primary" loading={busy} disabled={Boolean(blocker)} title={blocker ?? undefined} data-action="start-agent">
+          <Button
+            type="submit"
+            form={formId}
+            variant="primary"
+            loading={busy}
+            disabled={Boolean(blocker)}
+            title={blocker ?? undefined}
+            data-action="start-agent"
+          >
             {startLabel(effective.unattended)}
           </Button>
         </>
@@ -133,7 +164,9 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
           void submit();
         }}
       >
-        {list.length > 0 && list.every((item) => item.path === null) ? <Banner tone="warning" title={t("agents.start.noTemplates")} /> : null}
+        {list.length > 0 && list.every((item) => item.path === null) ? (
+          <Banner tone="warning" title={t("agents.start.noTemplates")} />
+        ) : null}
         {draft.templateId ? (
           <Select
             label={t("agents.start.template")}
@@ -181,10 +214,18 @@ function StartDialog({ repoId, tabId, onDone }: { repoId: Id; tabId: Id; onDone:
               setDraft((d) => ({ ...d, branch: event.target.value }));
             }}
           />
-          <Select label={t("agents.start.base")} value={base} options={baseOptions} onValueChange={(next) => setDraft((d) => ({ ...d, base: next }))} />
+          <Select
+            label={t("agents.start.base")}
+            value={base}
+            options={baseOptions}
+            onValueChange={(next) => setDraft((d) => ({ ...d, base: next }))}
+          />
         </div>
         <p className="text-sm text-text-muted">
-          {t("agents.start.folder")}: <span className="selectable font-mono text-code break-all text-text" data-field="folder">{suggestion?.path ?? "…"}</span>
+          {t("agents.start.folder")}:{" "}
+          <span className="selectable font-mono text-code break-all text-text" data-field="folder">
+            {suggestion?.path ?? "…"}
+          </span>
         </p>
         {suggestion && suggestion.configs.length > 0 ? (
           <p className="text-sm text-text-muted" data-field="configs">

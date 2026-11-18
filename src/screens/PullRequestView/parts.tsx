@@ -3,7 +3,19 @@
  * reviews always as a word; icon and colour only come on top.
  */
 import type { ComponentType, ReactNode } from "react";
-import { CircleCheck, CircleDashed, CircleX, Clock, GitMerge, GitPullRequestArrow, GitPullRequestClosed, GitPullRequestDraft, MessageSquare, MessageSquareWarning, ThumbsUp } from "lucide-react";
+import {
+  CircleCheck,
+  CircleDashed,
+  CircleX,
+  Clock,
+  GitMerge,
+  GitPullRequestArrow,
+  GitPullRequestClosed,
+  GitPullRequestDraft,
+  MessageSquare,
+  MessageSquareWarning,
+  ThumbsUp,
+} from "lucide-react";
 import type { CheckState, HostCapabilities, HostUser, PrCheck, PrState, PrSummary } from "../../app/actions/hostTypes";
 import { formatDateTime, formatRelative } from "../../app/format";
 import { cn } from "../../ui/cn";
@@ -13,16 +25,41 @@ type Icon = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 
 export type PrPhase = "open" | "draft" | "merged" | "closed";
 
-export const prPhase = (pr: Pick<PrSummary, "state" | "isDraft">): PrPhase => (pr.state === "open" ? (pr.isDraft ? "draft" : "open") : pr.state);
+export const prPhase = (pr: Pick<PrSummary, "state" | "isDraft">): PrPhase =>
+  pr.state === "open" ? (pr.isDraft ? "draft" : "open") : pr.state;
 
 export const phaseInfo: Record<PrPhase, { label: string; icon: Icon; tone: string; badge: string }> = {
-  open: { label: t("pullRequest.view.phase.open"), icon: GitPullRequestArrow, tone: "text-success", badge: "border-transparent bg-success-surface text-text" },
-  draft: { label: t("pullRequest.view.phase.draft"), icon: GitPullRequestDraft, tone: "text-text-muted", badge: "border-border bg-surface-raised text-text-muted" },
-  merged: { label: t("pullRequest.view.phase.merged"), icon: GitMerge, tone: "text-accent", badge: "border-transparent bg-accent-surface text-text" },
-  closed: { label: t("pullRequest.view.phase.closed"), icon: GitPullRequestClosed, tone: "text-danger", badge: "border-transparent bg-danger-surface text-text" },
+  open: {
+    label: t("pullRequest.view.phase.open"),
+    icon: GitPullRequestArrow,
+    tone: "text-success",
+    badge: "border-transparent bg-success-surface text-text",
+  },
+  draft: {
+    label: t("pullRequest.view.phase.draft"),
+    icon: GitPullRequestDraft,
+    tone: "text-text-muted",
+    badge: "border-border bg-surface-raised text-text-muted",
+  },
+  merged: {
+    label: t("pullRequest.view.phase.merged"),
+    icon: GitMerge,
+    tone: "text-accent",
+    badge: "border-transparent bg-accent-surface text-text",
+  },
+  closed: {
+    label: t("pullRequest.view.phase.closed"),
+    icon: GitPullRequestClosed,
+    tone: "text-danger",
+    badge: "border-transparent bg-danger-surface text-text",
+  },
 };
 
-export const stateLabels: Record<PrState, string> = { open: t("pullRequest.view.phase.open"), closed: t("pullRequest.view.phase.closed"), merged: t("pullRequest.view.phase.merged") };
+export const stateLabels: Record<PrState, string> = {
+  open: t("pullRequest.view.phase.open"),
+  closed: t("pullRequest.view.phase.closed"),
+  merged: t("pullRequest.view.phase.merged"),
+};
 
 /** Badge with the pull request's state. */
 export function PhaseBadge({ pr, className }: { pr: Pick<PrSummary, "state" | "isDraft">; className?: string }) {
@@ -30,7 +67,14 @@ export function PhaseBadge({ pr, className }: { pr: Pick<PrSummary, "state" | "i
   const info = phaseInfo[phase];
   const IconComponent = info.icon;
   return (
-    <span data-pr-phase={phase} className={cn("inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-sm font-medium whitespace-nowrap", info.badge, className)}>
+    <span
+      data-pr-phase={phase}
+      className={cn(
+        "inline-flex h-6 shrink-0 items-center gap-1 rounded-sm border px-2 text-sm font-medium whitespace-nowrap",
+        info.badge,
+        className,
+      )}
+    >
       <IconComponent className={cn("size-3.5", info.tone)} aria-hidden />
       {info.label}
     </span>
@@ -48,15 +92,32 @@ export function checksText(summary: CheckState | null, runs: Pick<PrCheck, "stat
   if (!summary) return t("pullRequest.view.check.none");
   const total = runs.length;
   const count = (state: CheckState) => runs.filter((run) => run.state === state).length;
-  if (summary === "failing") return total ? t("pullRequest.view.check.failingOf", { count: count("failing"), total }) : t("pullRequest.view.check.failingAll");
-  if (summary === "pending") return total ? t("pullRequest.view.check.pendingOf", { count: count("pending"), total }) : t("pullRequest.view.check.pendingAll");
-  return total ? (total === 1 ? t("pullRequest.view.check.passingOne") : t("pullRequest.view.check.passingOf", { total })) : t("pullRequest.view.check.passingAll");
+  if (summary === "failing")
+    return total ? t("pullRequest.view.check.failingOf", { count: count("failing"), total }) : t("pullRequest.view.check.failingAll");
+  if (summary === "pending")
+    return total ? t("pullRequest.view.check.pendingOf", { count: count("pending"), total }) : t("pullRequest.view.check.pendingAll");
+  return total
+    ? total === 1
+      ? t("pullRequest.view.check.passingOne")
+      : t("pullRequest.view.check.passingOf", { total })
+    : t("pullRequest.view.check.passingAll");
 }
 
-export function ChecksSummary({ summary, runs, className }: { summary: CheckState | null; runs?: Pick<PrCheck, "state">[]; className?: string }) {
+export function ChecksSummary({
+  summary,
+  runs,
+  className,
+}: {
+  summary: CheckState | null;
+  runs?: Pick<PrCheck, "state">[];
+  className?: string;
+}) {
   const IconComponent = summary ? checkInfo[summary].icon : CircleDashed;
   return (
-    <span data-checks={summary ?? "none"} className={cn("inline-flex min-w-0 items-center gap-1 text-sm", summary ? "text-text" : "text-text-muted", className)}>
+    <span
+      data-checks={summary ?? "none"}
+      className={cn("inline-flex min-w-0 items-center gap-1 text-sm", summary ? "text-text" : "text-text-muted", className)}
+    >
       <IconComponent className={cn("size-3.5 shrink-0", summary ? checkInfo[summary].tone : "text-text-muted")} aria-hidden />
       <span className="truncate">{checksText(summary, runs)}</span>
     </span>
@@ -109,7 +170,10 @@ export function When({ value, prefix }: { value: string | null; prefix?: string 
 /** Branch name as a badge in monospace; not truncated in the middle – the full name is in the tooltip. */
 export function BranchChip({ name, label }: { name: string; label: string }) {
   return (
-    <span title={`${label}: ${name}`} className="selectable inline-block max-w-64 truncate rounded-sm border border-border bg-surface-raised px-1.5 align-middle font-mono text-code text-text">
+    <span
+      title={`${label}: ${name}`}
+      className="selectable inline-block max-w-64 truncate rounded-sm border border-border bg-surface-raised px-1.5 align-middle font-mono text-code text-text"
+    >
       {name}
     </span>
   );
@@ -136,7 +200,11 @@ export function LabelsBlock({ labels, capabilities }: { labels: string[]; capabi
       ) : (
         <ul className="flex flex-wrap gap-1">
           {labels.map((label) => (
-            <li key={label} title={label} className="selectable max-w-full truncate rounded-pill border border-border bg-surface-raised px-2 text-sm text-text">
+            <li
+              key={label}
+              title={label}
+              className="selectable max-w-full truncate rounded-pill border border-border bg-surface-raised px-2 text-sm text-text"
+            >
               {label}
             </li>
           ))}

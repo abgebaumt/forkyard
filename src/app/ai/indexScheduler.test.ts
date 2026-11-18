@@ -31,7 +31,10 @@ describe("growing the search index after fetch and commit", () => {
 
   it("never runs twice at once, catches up afterwards and stays quiet on errors", async () => {
     const finish: Array<(failed: boolean) => void> = [];
-    const update = vi.fn((_repoId: string) => new Promise<void>((resolve, reject) => finish.push((failed) => (failed ? reject(new Error("offline")) : resolve()))));
+    const update = vi.fn(
+      (_repoId: string) =>
+        new Promise<void>((resolve, reject) => finish.push((failed) => (failed ? reject(new Error("offline")) : resolve()))),
+    );
     const scheduler = createIndexScheduler({ delayMs: 10, enabled: () => true, update });
     scheduler.changed("r", ["refs"]);
     await vi.advanceTimersByTimeAsync(10);

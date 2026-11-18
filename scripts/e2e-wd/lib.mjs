@@ -30,7 +30,12 @@ const results = [];
 let chain = Promise.resolve();
 let declared = 0;
 
-const slug = (text) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60) || "scenario";
+const slug = (text) =>
+  text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 60) || "scenario";
 
 export class AssertionError extends Error {}
 

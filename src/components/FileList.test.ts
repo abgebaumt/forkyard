@@ -8,11 +8,25 @@ const keys = (rows: ReturnType<typeof treeRows>) => rows.map((row) => row.key);
 
 describe("treeRows", () => {
   it("shows every folder open by default", () => {
-    expect(keys(treeRows(files, new Set(), false))).toEqual(["dir:src", "dir:src/app", "src/app/a.ts", "src/app/b.ts", "dir:src/ui", "src/ui/c.ts", "README.md"]);
+    expect(keys(treeRows(files, new Set(), false))).toEqual([
+      "dir:src",
+      "dir:src/app",
+      "src/app/a.ts",
+      "src/app/b.ts",
+      "dir:src/ui",
+      "src/ui/c.ts",
+      "README.md",
+    ]);
   });
 
   it("closes the toggled folders", () => {
-    expect(keys(treeRows(files, new Set(["src/app"]), false))).toEqual(["dir:src", "dir:src/app", "dir:src/ui", "src/ui/c.ts", "README.md"]);
+    expect(keys(treeRows(files, new Set(["src/app"]), false))).toEqual([
+      "dir:src",
+      "dir:src/app",
+      "dir:src/ui",
+      "src/ui/c.ts",
+      "README.md",
+    ]);
   });
 
   it("starts with every folder closed when collapsed by default", () => {

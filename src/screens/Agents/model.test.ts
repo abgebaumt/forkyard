@@ -80,7 +80,13 @@ const template = (patch: Partial<AgentTemplateInfo>): AgentTemplateInfo => ({
 
 describe("agents: status", () => {
   it("uses the spec's tones and always a word", () => {
-    expect(["running", "waiting", "done", "failed", "stopped"].map((s) => statusTone(s as Agent["status"]))).toEqual(["accent", "warning", "success", "danger", "muted"]);
+    expect(["running", "waiting", "done", "failed", "stopped"].map((s) => statusTone(s as Agent["status"]))).toEqual([
+      "accent",
+      "warning",
+      "success",
+      "danger",
+      "muted",
+    ]);
     expect(statusTone("starting")).toBe("accent");
     expect(statusTone("orphaned")).toBe("warning");
     expect(statusLabel("waiting")).toBe("waiting for you");
@@ -93,7 +99,12 @@ describe("agents: status", () => {
     expect(statusOrigin(agent({ terminalId: null, status: "stopped" }))).toBeNull();
   });
   it("counts running agents and those that wait for the user", () => {
-    const list = [agent({ id: "1", status: "waiting" }), agent({ id: "2", status: "done" }), agent({ id: "3" }), agent({ id: "4", status: "done", terminalId: null })];
+    const list = [
+      agent({ id: "1", status: "waiting" }),
+      agent({ id: "2", status: "done" }),
+      agent({ id: "3" }),
+      agent({ id: "4", status: "done", terminalId: null }),
+    ];
     expect(agentCounts(list)).toEqual({ running: 3, waiting: 2 });
     expect(needsYou(list[3]!)).toBe(false);
     expect(sortAgents(list).map((a) => a.id)).toEqual(["1", "2", "3", "4"]);
@@ -116,8 +127,26 @@ describe("agents: status", () => {
 });
 
 describe("agents: start dialog", () => {
-  const draft = (patch: Partial<StartDraft>): StartDraft => ({ templateId: "claude", task: "Fix login", branch: "agent/fix-login", base: "main", unattended: false, ...patch });
-  const templates = [template({}), template({ id: "opencode", kind: "opencode", name: "opencode", path: null, version: null, unattendedBlocked: "too old", statusHook: false })];
+  const draft = (patch: Partial<StartDraft>): StartDraft => ({
+    templateId: "claude",
+    task: "Fix login",
+    branch: "agent/fix-login",
+    base: "main",
+    unattended: false,
+    ...patch,
+  });
+  const templates = [
+    template({}),
+    template({
+      id: "opencode",
+      kind: "opencode",
+      name: "opencode",
+      path: null,
+      version: null,
+      unattendedBlocked: "too old",
+      statusHook: false,
+    }),
+  ];
 
   it("switches warning and button text with “without prompts”", () => {
     expect(startLabel(false)).toBe("Start");
@@ -162,7 +191,9 @@ describe("agents: start dialog", () => {
     expect(startBlocker(draft({ task: "  " }), templates, ok, false)).toBe("Describe the task.");
     expect(startBlocker(draft({ branch: "" }), templates, ok, false)).toBe("Enter a branch name.");
     expect(startBlocker(draft({}), templates, null, true)).toBe("Checking the branch name …");
-    expect(startBlocker(draft({}), templates, { branchProblem: "A branch “agent/fix-login” already exists." }, false)).toBe("A branch “agent/fix-login” already exists.");
+    expect(startBlocker(draft({}), templates, { branchProblem: "A branch “agent/fix-login” already exists." }, false)).toBe(
+      "A branch “agent/fix-login” already exists.",
+    );
     expect(startBlocker(draft({ unattended: true }), [template({ unattendedBlocked: "no switch" })], ok, false)).toBe("no switch");
   });
   it("hints from five running agents on", () => {
@@ -177,8 +208,21 @@ describe("agents: actions and cleanup", () => {
     expect(actionsFor(agent({}), opts)).toEqual(["terminal", "stop", "copyPath", "cleanup"]);
     expect(actionsFor(agent({ terminalId: null, status: "stopped" }), opts)).toEqual(["resume", "copyPath", "cleanup"]);
     expect(actionsFor(agent({ terminalId: null, status: "stopped" }), { ...opts, canResume: false })).toEqual(["copyPath", "cleanup"]);
-    expect(actionsFor(agent({ commitsAhead: 2 }), { canResume: true, hasTestCommand: true, hasHost: true })).toEqual(["terminal", "stop", "copyPath", "review", "tests", "pr", "cleanup"]);
-    expect(actionsFor(agent({ terminalId: null, status: "done", changedFiles: 3 }), opts)).toEqual(["resume", "copyPath", "review", "cleanup"]);
+    expect(actionsFor(agent({ commitsAhead: 2 }), { canResume: true, hasTestCommand: true, hasHost: true })).toEqual([
+      "terminal",
+      "stop",
+      "copyPath",
+      "review",
+      "tests",
+      "pr",
+      "cleanup",
+    ]);
+    expect(actionsFor(agent({ terminalId: null, status: "done", changedFiles: 3 }), opts)).toEqual([
+      "resume",
+      "copyPath",
+      "review",
+      "cleanup",
+    ]);
     expect(actionsFor(agent({ status: "orphaned", terminalId: null }), opts)).toEqual(["forget"]);
   });
   it("warns about unpushed commits and names what is kept", () => {

@@ -28,7 +28,9 @@ export function autopilotBar(run: BisectAutopilot | null | undefined): Autopilot
       return { kind: "testing", step, total: step + (run.remainingSteps ?? 0), current: run.current, timedOut };
     }
     case "found":
-      return run.result ? { kind: "found", sha: run.result, steps: run.steps.length, timedOut } : { kind: "failed", message: run.message ?? "" };
+      return run.result
+        ? { kind: "found", sha: run.result, steps: run.steps.length, timedOut }
+        : { kind: "failed", message: run.message ?? "" };
     case "only_skipped":
       return { kind: "only_skipped", candidates: run.candidates, timedOut };
     case "failed":

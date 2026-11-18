@@ -56,12 +56,16 @@ describe("fixAvailability", () => {
 describe("replyDraft and targetHint", () => {
   it("drafts the reply from the reason, with the commit once taken over", () => {
     expect(replyDraft("  Leere Passwörter werden abgelehnt. ", null)).toBe("Leere Passwörter werden abgelehnt.");
-    expect(replyDraft("Leere Passwörter werden abgelehnt.", "0123456789abcdef0123456789abcdef01234567")).toBe("Fixed in 0123456: Leere Passwörter werden abgelehnt.");
+    expect(replyDraft("Leere Passwörter werden abgelehnt.", "0123456789abcdef0123456789abcdef01234567")).toBe(
+      "Fixed in 0123456: Leere Passwörter werden abgelehnt.",
+    );
   });
   it("explains the chosen target only while it is the core's choice", () => {
     const fix = { target: { sha: "aaa", summary: "Teil 1", reason: "blame" as const } };
     expect(targetHint(fix, "aaa")).toBe("chosen from the blame of the commented lines");
-    expect(targetHint({ target: { sha: "aaa", summary: "Teil 1", reason: "file" as const } }, "aaa")).toBe("the newest commit of the pull request that changes this file");
+    expect(targetHint({ target: { sha: "aaa", summary: "Teil 1", reason: "file" as const } }, "aaa")).toBe(
+      "the newest commit of the pull request that changes this file",
+    );
     expect(targetHint(fix, "bbb")).toBe("");
     expect(targetHint({ target: null }, "aaa")).toBe("");
   });

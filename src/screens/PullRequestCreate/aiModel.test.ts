@@ -23,7 +23,9 @@ describe("description (spec “Umgang mit Vorschlägen”)", () => {
     expect(placeDescription(TEMPLATE, TEMPLATE, true, FILLED)).toEqual({ kind: "insert", text: FILLED });
     expect(placeDescription("", "", false, FILLED)).toEqual({ kind: "insert", text: FILLED });
     expect(placeDescription("Mein Text", "Mein Text", false, FILLED)).toEqual({ kind: "choose" });
-    expect(placeDescription(TEMPLATE, TEMPLATE, false, FILLED), "the template after the user edited and restored it").toEqual({ kind: "choose" });
+    expect(placeDescription(TEMPLATE, TEMPLATE, false, FILLED), "the template after the user edited and restored it").toEqual({
+      kind: "choose",
+    });
     expect(placeDescription(`${TEMPLATE}x`, TEMPLATE, true, FILLED), "typed into the template meanwhile").toEqual({ kind: "ready" });
     expect(placeDescription("M", "", false, FILLED)).toEqual({ kind: "ready" });
   });
@@ -33,7 +35,14 @@ describe("description (spec “Umgang mit Vorschlägen”)", () => {
     expect(undoInsertion(FILLED, undo)).toBe(TEMPLATE);
     expect(undoInsertion(`${FILLED}!`, undo), "edited after the insertion: the field's own undo").toBeNull();
     expect(undoInsertion(FILLED, null)).toBeNull();
-    const key = (key: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }>) => ({ key, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...mods });
+    const key = (key: string, mods: Partial<{ ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }>) => ({
+      key,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+      altKey: false,
+      ...mods,
+    });
     expect(isUndoKey(key("z", { ctrlKey: true }))).toBe(true);
     expect(isUndoKey(key("z", { metaKey: true }))).toBe(true);
     expect(isUndoKey(key("Z", { ctrlKey: true })), "caps lock").toBe(true);

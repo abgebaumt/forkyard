@@ -3,7 +3,18 @@
  * comes from `rebase_plan` and is executed with `rebase_apply`.
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { AlertTriangle, ChevronDown, CornerDownRight, GripVertical, ListOrdered, MessageSquareText, Milestone, Pencil, Play, RotateCcw } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  CornerDownRight,
+  GripVertical,
+  ListOrdered,
+  MessageSquareText,
+  Milestone,
+  Pencil,
+  Play,
+  RotateCcw,
+} from "lucide-react";
 import { core, type Id, type PreviewOp, type RebaseAction, type RebasePlan, type RebasePlanRow } from "../../core";
 import { askMessage } from "../../app/actionDialogs";
 import { useConflictPreview } from "../../app/conflictPreview";
@@ -42,7 +53,18 @@ import {
   shownSummary,
   splitMessage,
 } from "./model";
-import { ColumnBar, CommitCells, LoadError, Name, SkeletonRows, StartButton, StatePanel, ToolFooter, ToolHeader, type StartRef } from "./parts";
+import {
+  ColumnBar,
+  CommitCells,
+  LoadError,
+  Name,
+  SkeletonRows,
+  StartButton,
+  StatePanel,
+  ToolFooter,
+  ToolHeader,
+  type StartRef,
+} from "./parts";
 import { ReorderList } from "./ReorderList";
 import { t } from "../../i18n";
 
@@ -90,7 +112,9 @@ async function confirmRewrite(plan: Extract<RebasePlan, { status: "ok" }>, rows:
   }
   sentences.push(t("rebase.confirm.undo"));
   return confirm({
-    title: dropped.length ? t("rebase.confirm.dropTitle", { count: dropped.length }) : t("rebase.confirm.pushedTitle", { branch: plan.branch }),
+    title: dropped.length
+      ? t("rebase.confirm.dropTitle", { count: dropped.length })
+      : t("rebase.confirm.pushedTitle", { branch: plan.branch }),
     body: sentences.join(" "),
     details: dropped.map((row) => `${shortSha(row.sha)}  ${row.summary}`),
     detailsLabel: dropped.length ? t("rebase.confirm.droppedLabel") : undefined,
@@ -99,7 +123,21 @@ async function confirmRewrite(plan: Extract<RebasePlan, { status: "ok" }>, rows:
   });
 }
 
-export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onClose, startRef }: { repoId: Id; tabId: Id; base: string; autosquash?: boolean; onClose: () => void; startRef: StartRef }) {
+export function InteractiveRebase({
+  repoId,
+  tabId,
+  base,
+  autosquash = false,
+  onClose,
+  startRef,
+}: {
+  repoId: Id;
+  tabId: Id;
+  base: string;
+  autosquash?: boolean;
+  onClose: () => void;
+  startRef: StartRef;
+}) {
   startRef.current = null;
   const planQuery = useRebasePlan(repoId, base, autosquash);
   const { data: settings } = useSettings();
@@ -142,7 +180,16 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
   const changed = planChanged(original, current);
   // Preview of exactly this plan: dropped rows are left out, the order counts.
   const previewOp = useMemo<PreviewOp | null>(
-    () => (okPlan ? { kind: "rebase", onto: okPlan.base, upstream: null, branch: null, commits: current.filter((row) => row.action !== "drop").map((row) => row.sha) } : null),
+    () =>
+      okPlan
+        ? {
+            kind: "rebase",
+            onto: okPlan.base,
+            upstream: null,
+            branch: null,
+            commits: current.filter((row) => row.action !== "drop").map((row) => row.sha),
+          }
+        : null,
     [okPlan, current],
   );
   const preview = useConflictPreview(repoId, previewOp);
@@ -159,7 +206,8 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
     if (listShown) listRef.current?.focus({ preventScroll: true });
   }, [listShown]);
 
-  const updateRow = (sha: string, patch: Partial<RebasePlanRow>) => setRows((list) => (list ?? original).map((row) => (row.sha === sha ? { ...row, ...patch } : row)));
+  const updateRow = (sha: string, patch: Partial<RebasePlanRow>) =>
+    setRows((list) => (list ?? original).map((row) => (row.sha === sha ? { ...row, ...patch } : row)));
 
   /** New message for "Reword" – in the dialog with summary and description. */
   const reword = async (sha: string) => {
@@ -187,10 +235,15 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
     const root = list?.[index];
     if (!list || !root) return;
     // Only "Squash" rows add their message; "Fixup" rows only add their changes.
-    const members = rowRoles(list)[index]!.squashed.map((position) => list[position]!).filter((row) => row.action === "squash");
+    const members = rowRoles(list)
+      [index]!.squashed.map((position) => list[position]!)
+      .filter((row) => row.action === "squash");
     const start = root.message
       ? splitMessage(root.message)
-      : combinedMessage([{ summary: root.summary, description: root.description }, ...members.map((row) => ({ summary: row.summary, description: row.description }))]);
+      : combinedMessage([
+          { summary: root.summary, description: root.description },
+          ...members.map((row) => ({ summary: row.summary, description: row.description })),
+        ]);
     const input = await askMessage({
       title: t("rebase.interactive.resultTitle"),
       description: t("rebase.interactive.resultBody", { count: members.length + 1 }),
@@ -231,7 +284,10 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
   };
 
   const openActionMenu = (index: number) => {
-    const element = listRef.current?.querySelector(`[data-index="${index}"] [data-action-pill]`) ?? listRef.current?.querySelector(`[data-index="${index}"]`) ?? null;
+    const element =
+      listRef.current?.querySelector(`[data-index="${index}"] [data-action-pill]`) ??
+      listRef.current?.querySelector(`[data-index="${index}"]`) ??
+      null;
     openMenuAtElement(element, actionMenu(index), t("rebase.interactive.chooseAction"));
   };
 
@@ -268,10 +324,21 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
     if (!okPlan || check.blocked) return;
     // After "Cancel" focus returns to where it was (list or start button); the plan stays.
     if (!(await confirmRewrite(okPlan, current))) return;
-    const result = await runAction(t("rebase.tool.interactive"), withFreshStatus(repoId, () => core.rebaseApply({ repoId, base: okPlan.base, rows: payloadRows(current), updateRefs: okPlan.dependentBranches.length > 0 && updateRefs })), {
-      busyKey: busyKeys.history(repoId),
-      quiet: ["stale_state"],
-    });
+    const result = await runAction(
+      t("rebase.tool.interactive"),
+      withFreshStatus(repoId, () =>
+        core.rebaseApply({
+          repoId,
+          base: okPlan.base,
+          rows: payloadRows(current),
+          updateRefs: okPlan.dependentBranches.length > 0 && updateRefs,
+        }),
+      ),
+      {
+        busyKey: busyKeys.history(repoId),
+        quiet: ["stale_state"],
+      },
+    );
     if (!result.ok) {
       if (result.error.code === "stale_state") {
         setNotice({
@@ -291,7 +358,8 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
     onClose();
     reportOpResult(t("rebase.tool.interactive"), result.value, tabId, { reveal: true });
     // Squashed review fixups of a pushed pull request branch have to replace it on the remote.
-    if (autosquash && okPlan.rewritesPushed) toast({ tone: "info", title: t("rebase.interactive.forcePushTitle"), description: t("rebase.interactive.forcePushBody") });
+    if (autosquash && okPlan.rewritesPushed)
+      toast({ tone: "info", title: t("rebase.interactive.forcePushTitle"), description: t("rebase.interactive.forcePushBody") });
   };
 
   // --- Header -----------------------------------------------------------------------------------
@@ -322,7 +390,10 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
     return (
       <>
         {header}
-        <ColumnBar direction={t("rebase.direction.oldestTop")} lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>} />
+        <ColumnBar
+          direction={t("rebase.direction.oldestTop")}
+          lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>}
+        />
         <SkeletonRows />
       </>
     );
@@ -331,7 +402,12 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
     return (
       <>
         {header}
-        <LoadError error={toCoreError(planQuery.error)} icon={<ListOrdered className="size-8" aria-hidden />} onRetry={() => void planQuery.refetch()} onClose={onClose} />
+        <LoadError
+          error={toCoreError(planQuery.error)}
+          icon={<ListOrdered className="size-8" aria-hidden />}
+          onRetry={() => void planQuery.refetch()}
+          onClose={onClose}
+        />
       </>
     );
   }
@@ -378,11 +454,7 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
           }
         >
           <p className="m-0">{plan.message}</p>
-          {canRebaseFirst ? (
-            <p className="m-0 mt-2">
-              {t("rebase.interactive.rebaseFirstBody", { base })}
-            </p>
-          ) : null}
+          {canRebaseFirst ? <p className="m-0 mt-2">{t("rebase.interactive.rebaseFirstBody", { base })}</p> : null}
         </StatePanel>
       </>
     );
@@ -439,7 +511,10 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
           />
         ) : null}
       </div>
-      <ColumnBar direction={t("rebase.direction.oldestTopNewestBottom")} lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>} />
+      <ColumnBar
+        direction={t("rebase.direction.oldestTopNewestBottom")}
+        lead={<span className="w-48 shrink-0 pl-8">{t("rebase.column.action")}</span>}
+      />
       <div className="min-h-0 flex-1">
         <ReorderList
           listRef={listRef}
@@ -469,7 +544,11 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
             const summary = shownSummary(row);
             return (
               <div className="flex min-w-0 flex-1 items-center gap-2 pr-3" data-action={row.action}>
-                <span aria-hidden className="flex w-6 shrink-0 cursor-grab justify-center text-text-muted" title={t("rebase.dragToReorder")}>
+                <span
+                  aria-hidden
+                  className="flex w-6 shrink-0 cursor-grab justify-center text-text-muted"
+                  title={t("rebase.dragToReorder")}
+                >
                   <GripVertical className="size-icon" />
                 </span>
                 <button
@@ -485,20 +564,36 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
                     // Below the selection, not below the pointer: that keeps the row readable.
                     openMenuAtElement(event.currentTarget, actionMenu(index), t("rebase.interactive.chooseAction"));
                   }}
-                  className={cn("flex h-5 w-40 shrink-0 items-center gap-1.5 rounded-sm border px-1.5 text-sm font-medium", pillTone[row.action])}
+                  className={cn(
+                    "flex h-5 w-40 shrink-0 items-center gap-1.5 rounded-sm border px-1.5 text-sm font-medium",
+                    pillTone[row.action],
+                  )}
                 >
                   <span className="w-3 shrink-0 text-center font-mono text-xs">{actionInfo[row.action].key}</span>
                   <span className="min-w-0 flex-1 truncate text-left">{actionInfo[row.action].label}</span>
                   <ChevronDown className="size-3 shrink-0 opacity-70" aria-hidden />
                 </button>
-                <span className={cn("flex min-w-0 flex-1 items-center gap-1.5", (row.action === "squash" || row.action === "fixup") && "pl-5")}>
+                <span
+                  className={cn("flex min-w-0 flex-1 items-center gap-1.5", (row.action === "squash" || row.action === "fixup") && "pl-5")}
+                >
                   {row.action === "squash" || row.action === "fixup" ? (
-                    <Tip label={target ? t("rebase.interactive.squashInto", { summary: shownSummary(target) }) : t("rebase.interactive.noTarget")}>
+                    <Tip
+                      label={
+                        target ? t("rebase.interactive.squashInto", { summary: shownSummary(target) }) : t("rebase.interactive.noTarget")
+                      }
+                    >
                       <CornerDownRight className={cn("size-icon shrink-0", target ? "text-warning" : "text-danger")} aria-hidden />
                     </Tip>
                   ) : null}
                   <span
-                    className={cn("min-w-0 truncate", row.action === "drop" ? "text-text-muted line-through opacity-60" : row.action === "squash" || row.action === "fixup" ? "text-text-muted" : "text-text")}
+                    className={cn(
+                      "min-w-0 truncate",
+                      row.action === "drop"
+                        ? "text-text-muted line-through opacity-60"
+                        : row.action === "squash" || row.action === "fixup"
+                          ? "text-text-muted"
+                          : "text-text",
+                    )}
                     title={summary !== row.summary ? t("rebase.interactive.previously", { summary: row.summary }) : summary}
                     data-summary=""
                   >
@@ -517,7 +612,10 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
                   </Tip>
                 ) : null}
                 {row.action === "reword" || isGroupRoot ? (
-                  <Tip label={row.action === "reword" ? t("rebase.interactive.editMessage") : t("rebase.interactive.editResultMessage")} shortcut="Enter">
+                  <Tip
+                    label={row.action === "reword" ? t("rebase.interactive.editMessage") : t("rebase.interactive.editResultMessage")}
+                    shortcut="Enter"
+                  >
                     <button
                       type="button"
                       tabIndex={-1}
@@ -530,7 +628,11 @@ export function InteractiveRebase({ repoId, tabId, base, autosquash = false, onC
                       }}
                       className="flex size-control-sm shrink-0 items-center justify-center rounded-sm text-text-muted hover:bg-surface-raised hover:text-text"
                     >
-                      {row.action === "reword" ? <Pencil className="size-icon" aria-hidden /> : <MessageSquareText className="size-icon" aria-hidden />}
+                      {row.action === "reword" ? (
+                        <Pencil className="size-icon" aria-hidden />
+                      ) : (
+                        <MessageSquareText className="size-icon" aria-hidden />
+                      )}
                     </button>
                   </Tip>
                 ) : null}

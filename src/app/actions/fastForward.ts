@@ -31,11 +31,17 @@ export async function fastForwardBranch(repoId: Id, branch: string, upstream: st
     toast({
       tone: "success",
       title: t("actions.fastForward.done"),
-      description: t("actions.fastForward.doneDescription", { summary: result.value.summary || t("actions.fastForward.summary", { branch, upstream }) }),
+      description: t("actions.fastForward.doneDescription", {
+        summary: result.value.summary || t("actions.fastForward.summary", { branch, upstream }),
+      }),
       action: { label: t("actions.undoLabel"), onClick: () => void undo(repoId) },
     });
   } else if (result.value.status === "up_to_date") {
-    toast({ tone: "info", title: t("actions.fastForward.upToDate"), description: t("actions.fastForward.upToDateDescription", { branch, upstream }) });
+    toast({
+      tone: "info",
+      title: t("actions.fastForward.upToDate"),
+      description: t("actions.fastForward.upToDateDescription", { branch, upstream }),
+    });
   }
   return result;
 }
@@ -51,7 +57,10 @@ export function remoteOfUpstream(upstream: string, remotes: string[]): string | 
  * Like `fastForwardBranch`, only the ref moves; with own commits on the branch the core refuses.
  */
 export async function pullBranch(repoId: Id, branch: string, upstream: string) {
-  const remote = remoteOfUpstream(upstream, (cachedRemotes(repoId) ?? []).map((item) => item.name));
+  const remote = remoteOfUpstream(
+    upstream,
+    (cachedRemotes(repoId) ?? []).map((item) => item.name),
+  );
   const label = t("actions.fastForward.pullLabel", { branch });
   const jobId = newJobId();
   markManualSync(repoId);

@@ -1,4 +1,14 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { Trans } from "react-i18next";
 import { ChevronDown, CircleCheck, FilePlus2, Minus, Plus, RefreshCw, Trash2, TriangleAlert } from "lucide-react";
 import { CoreError, type ConflictKind, type DiffSource, type FileChange, type Id, type Status } from "../../core";
@@ -200,7 +210,10 @@ function SplitHandle({ value, onChange, bounds }: SplitHandleProps) {
       onKeyDown={onKeyDown}
       className="group relative z-10 -my-1 h-2 shrink-0 cursor-row-resize touch-none outline-none"
     >
-      <span aria-hidden className="absolute inset-x-0 bottom-1/2 h-0.5 bg-transparent transition-colors group-hover:bg-accent group-focus-visible:bg-accent group-active:bg-accent" />
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-1/2 h-0.5 bg-transparent transition-colors group-hover:bg-accent group-focus-visible:bg-accent group-active:bg-accent"
+      />
     </div>
   );
 }
@@ -214,7 +227,11 @@ const SECTION_MIN = 56;
  * and even then no list gets more than it needs.
  */
 function useSectionLayout(container: HTMLElement | null, split: number, deps: unknown[]) {
-  const [layout, setLayout] = useState<{ first: number | null; overflow: boolean; height: number }>({ first: null, overflow: false, height: 0 });
+  const [layout, setLayout] = useState<{ first: number | null; overflow: boolean; height: number }>({
+    first: null,
+    overflow: false,
+    height: 0,
+  });
   useLayoutEffect(() => {
     if (!container) return;
     const natural = (name: string) => {
@@ -239,7 +256,9 @@ function useSectionLayout(container: HTMLElement | null, split: number, deps: un
         else if (first < share) share = first;
         next = { first: Math.round(Math.min(height - SECTION_MIN, Math.max(SECTION_MIN, share))), overflow: true, height };
       }
-      setLayout((current) => (current.first === next.first && current.overflow === next.overflow && current.height === next.height ? current : next));
+      setLayout((current) =>
+        current.first === next.first && current.overflow === next.overflow && current.height === next.height ? current : next,
+      );
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -277,7 +296,11 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   const total = unstaged.length + staged.length + conflicted.length;
 
   const paths = useMemo(
-    () => ({ unstaged: unstaged.map((file) => file.path), staged: staged.map((file) => file.path), conflicts: conflicted.map((file) => file.path) }),
+    () => ({
+      unstaged: unstaged.map((file) => file.path),
+      staged: staged.map((file) => file.path),
+      conflicts: conflicted.map((file) => file.path),
+    }),
     [unstaged, staged, conflicted],
   );
   const selectedIn = (area: WipArea) => {
@@ -287,12 +310,17 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
   const selected = { unstaged: selectedIn("unstaged"), staged: selectedIn("staged"), conflicts: selectedIn("conflicts") };
 
   // For "N of M conflicts resolved": remember all paths that were in conflict in this operation.
-  const operationKey = operation ? `${operation.kind}:${operation.source}:${operation.target}:${operation.step}` : conflicted.length ? "none" : "";
+  const operationKey = operation
+    ? `${operation.kind}:${operation.source}:${operation.target}:${operation.step}`
+    : conflicted.length
+      ? "none"
+      : "";
   useEffect(() => {
     const seen = store().tabs[tabId]?.conflictSeen ?? { key: "", paths: [] };
     const base = seen.key === operationKey ? seen.paths : [];
     const merged = [...new Set([...base, ...paths.conflicts])];
-    if (seen.key !== operationKey || merged.length !== seen.paths.length) store().patch(tabId, { conflictSeen: { key: operationKey, paths: operationKey ? merged : [] } });
+    if (seen.key !== operationKey || merged.length !== seen.paths.length)
+      store().patch(tabId, { conflictSeen: { key: operationKey, paths: operationKey ? merged : [] } });
   }, [operationKey, paths.conflicts, tabId, store]);
 
   const layout = useSectionLayout(lists, split, [view, openSections.unstaged, openSections.staged, Boolean(status)]);
@@ -309,7 +337,8 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
     if (modifiers.additive || modifiers.range) return;
     // A click opens the diff; arrow keys make an already open diff follow the selection.
     const center = getTabView(tabId).center;
-    const following = center.kind === "conflict" || (center.kind === "diff" && (center.source.kind === "unstaged" || center.source.kind === "staged"));
+    const following =
+      center.kind === "conflict" || (center.kind === "diff" && (center.source.kind === "unstaged" || center.source.kind === "staged"));
     if (modifiers.source === "pointer" || following) open(area, path);
   };
 
@@ -324,12 +353,25 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
     return [
       { label: t("wip.menu.showDiff"), disabled: many, onSelect: () => open(area, first.path) },
       area === "unstaged"
-        ? { label: many ? t("wip.menu.stageFiles", { count: files.length }) : t("wip.menu.stage"), shortcut: "S", onSelect: () => void stageFiles(repoId, tabId, filePaths) }
-        : { label: many ? t("wip.menu.unstageFiles", { count: files.length }) : t("wip.menu.unstage"), shortcut: "U", onSelect: () => void unstageFiles(repoId, tabId, filePaths) },
+        ? {
+            label: many ? t("wip.menu.stageFiles", { count: files.length }) : t("wip.menu.stage"),
+            shortcut: "S",
+            onSelect: () => void stageFiles(repoId, tabId, filePaths),
+          }
+        : {
+            label: many ? t("wip.menu.unstageFiles", { count: files.length }) : t("wip.menu.unstage"),
+            shortcut: "U",
+            onSelect: () => void unstageFiles(repoId, tabId, filePaths),
+          },
       ...(area === "unstaged"
         ? ([
             { type: "separator" },
-            { label: many ? t("wip.menu.discardFiles", { count: files.length }) : t("wip.menu.discard"), shortcut: "Delete", danger: true, onSelect: () => void discardFiles(repoId, tabId, filePaths) },
+            {
+              label: many ? t("wip.menu.discardFiles", { count: files.length }) : t("wip.menu.discard"),
+              shortcut: "Delete",
+              danger: true,
+              onSelect: () => void discardFiles(repoId, tabId, filePaths),
+            },
           ] satisfies MenuEntry[])
         : []),
     ];
@@ -350,8 +392,14 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
       { label: t("wip.menu.openConflictTool"), disabled: files.length > 1, onSelect: () => open("conflicts", first.path) },
       { label: t("wip.menu.openMergeTool"), disabled: files.length > 1, onSelect: () => void openMergeTool(repoId, first.path) },
       { type: "separator" },
-      { label: t("wip.menu.takeCurrent", { side: sides.ours }) + suffix, onSelect: () => void resolveConflicts(repoId, tabId, filePaths, "ours", sides) },
-      { label: t("wip.menu.takeIncoming", { side: sides.theirs }) + suffix, onSelect: () => void resolveConflicts(repoId, tabId, filePaths, "theirs", sides) },
+      {
+        label: t("wip.menu.takeCurrent", { side: sides.ours }) + suffix,
+        onSelect: () => void resolveConflicts(repoId, tabId, filePaths, "ours", sides),
+      },
+      {
+        label: t("wip.menu.takeIncoming", { side: sides.theirs }) + suffix,
+        onSelect: () => void resolveConflicts(repoId, tabId, filePaths, "theirs", sides),
+      },
     ];
   };
 
@@ -368,7 +416,8 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
     }
   };
 
-  const plainKey = (event: KeyboardEvent, key: string) => !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === key;
+  const plainKey = (event: KeyboardEvent, key: string) =>
+    !event.ctrlKey && !event.metaKey && !event.altKey && event.key.toLowerCase() === key;
 
   const header = (
     <header className="flex h-control-lg shrink-0 items-center gap-1 border-b border-border pr-1 pl-3">
@@ -381,7 +430,10 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
         danger
         label={operation ? t("wip.panel.discardBlocked") : t("wip.panel.discardAll")}
         aria-disabled={!status || unstaged.length + staged.length === 0 || Boolean(operation) || undefined}
-        className={cn((!status || unstaged.length + staged.length === 0 || operation) && "text-text-disabled hover:bg-transparent hover:text-text-disabled")}
+        className={cn(
+          (!status || unstaged.length + staged.length === 0 || operation) &&
+            "text-text-disabled hover:bg-transparent hover:text-text-disabled",
+        )}
         icon={<Trash2 className="size-icon" aria-hidden />}
         onClick={() => {
           if (status && unstaged.length + staged.length > 0 && !operation) void discardEverything(repoId, tabId);
@@ -441,9 +493,7 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
           icon={unborn ? <FilePlus2 className="size-6" aria-hidden /> : <CircleCheck className="size-6" aria-hidden />}
           title={unborn ? t("wip.panel.noFiles") : t("wip.panel.nothingToCommit")}
         >
-          {unborn
-            ? t("wip.panel.noFilesHint")
-            : t("wip.panel.cleanHint")}
+          {unborn ? t("wip.panel.noFilesHint") : t("wip.panel.cleanHint")}
         </EmptyState>
       </div>
     );
@@ -455,7 +505,12 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
       // not run under the form.
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {conflicted.length > 0 ? (
-          <PanelSection title={t("wip.panel.conflicts")} count={conflicted.length} className={cn(SECTION, "max-h-2/5 shrink-0")} data-section="conflicts">
+          <PanelSection
+            title={t("wip.panel.conflicts")}
+            count={conflicted.length}
+            className={cn(SECTION, "max-h-2/5 shrink-0")}
+            data-section="conflicts"
+          >
             <FileList
               ariaLabel={t("wip.panel.conflictFiles")}
               files={conflicted}
@@ -468,7 +523,10 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
               actionAlways
               menuFor={conflictEntries}
               rowAction={(file) => (
-                <DropdownMenu align="end" entries={conflictEntries(conflicted.filter((item) => targets("conflicts", file).includes(item.path)))}>
+                <DropdownMenu
+                  align="end"
+                  entries={conflictEntries(conflicted.filter((item) => targets("conflicts", file).includes(item.path)))}
+                >
                   <button
                     type="button"
                     tabIndex={-1}
@@ -494,62 +552,78 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
             onOpenChange={(next) => setOpenSections((current) => ({ ...current, unstaged: next }))}
             pinnedActions={
               <Tip label={t("wip.panel.stageAllTip")} shortcut="Mod+Shift+S">
-                <Button size="sm" variant="ghost" loading={stagingAll} disabled={unstaged.length === 0} onClick={() => void stageEverything(repoId, tabId)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  loading={stagingAll}
+                  disabled={unstaged.length === 0}
+                  onClick={() => void stageEverything(repoId, tabId)}
+                >
                   {t("wip.panel.stageAll")}
                 </Button>
               </Tip>
             }
           >
             <div data-section-content>
-            <FileList
-              ariaLabel={t("wip.panel.unstagedFiles")}
-              files={unstaged}
-              view={view}
-              loading={loading}
-              selected={selected.unstaged}
-              onSelect={onSelect("unstaged")}
-              onActivate={(file) => open("unstaged", file.path)}
-              onSelectAll={() => store().setSelected(tabId, "unstaged", paths.unstaged)}
-              menuFor={menuFor("unstaged")}
-              lockFor={lockFor}
-              empty={staged.length > 0 ? t("wip.panel.allStaged") : t("wip.panel.noChanges")}
-              onKey={(event, file) => {
-                if (plainKey(event, "s")) {
-                  void stageFiles(repoId, tabId, targets("unstaged", file));
+              <FileList
+                ariaLabel={t("wip.panel.unstagedFiles")}
+                files={unstaged}
+                view={view}
+                loading={loading}
+                selected={selected.unstaged}
+                onSelect={onSelect("unstaged")}
+                onActivate={(file) => open("unstaged", file.path)}
+                onSelectAll={() => store().setSelected(tabId, "unstaged", paths.unstaged)}
+                menuFor={menuFor("unstaged")}
+                lockFor={lockFor}
+                empty={staged.length > 0 ? t("wip.panel.allStaged") : t("wip.panel.noChanges")}
+                onKey={(event, file) => {
+                  if (plainKey(event, "s")) {
+                    void stageFiles(repoId, tabId, targets("unstaged", file));
+                    return true;
+                  }
+                  if (!event.ctrlKey && !event.metaKey && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) {
+                    void discardFiles(repoId, tabId, targets("unstaged", file));
+                    return true;
+                  }
+                  return false;
+                }}
+                rowAction={(file) => (
+                  <IconButton
+                    size="sm"
+                    tabIndex={-1}
+                    label={t("wip.menu.stage")}
+                    shortcut="S"
+                    icon={<Plus className="size-icon" aria-hidden />}
+                    onClick={() => void stageFiles(repoId, tabId, targets("unstaged", file))}
+                  />
+                )}
+                onFolderKey={(event, files) => {
+                  if (!plainKey(event, "s")) return false;
+                  void stageFiles(
+                    repoId,
+                    tabId,
+                    files.map((file) => file.path),
+                  );
                   return true;
-                }
-                if (!event.ctrlKey && !event.metaKey && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) {
-                  void discardFiles(repoId, tabId, targets("unstaged", file));
-                  return true;
-                }
-                return false;
-              }}
-              rowAction={(file) => (
-                <IconButton
-                  size="sm"
-                  tabIndex={-1}
-                  label={t("wip.menu.stage")}
-                  shortcut="S"
-                  icon={<Plus className="size-icon" aria-hidden />}
-                  onClick={() => void stageFiles(repoId, tabId, targets("unstaged", file))}
-                />
-              )}
-              onFolderKey={(event, files) => {
-                if (!plainKey(event, "s")) return false;
-                void stageFiles(repoId, tabId, files.map((file) => file.path));
-                return true;
-              }}
-              folderAction={(files) => (
-                <IconButton
-                  size="sm"
-                  tabIndex={-1}
-                  label={t("wip.panel.stageFolder", { count: files.length })}
-                  shortcut="S"
-                  icon={<Plus className="size-icon" aria-hidden />}
-                  onClick={() => void stageFiles(repoId, tabId, files.map((file) => file.path))}
-                />
-              )}
-            />
+                }}
+                folderAction={(files) => (
+                  <IconButton
+                    size="sm"
+                    tabIndex={-1}
+                    label={t("wip.panel.stageFolder", { count: files.length })}
+                    shortcut="S"
+                    icon={<Plus className="size-icon" aria-hidden />}
+                    onClick={() =>
+                      void stageFiles(
+                        repoId,
+                        tabId,
+                        files.map((file) => file.path),
+                      )
+                    }
+                  />
+                )}
+              />
             </div>
           </PanelSection>
           {layout.overflow && openSections.unstaged && openSections.staged ? (
@@ -565,56 +639,72 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
             onOpenChange={(next) => setOpenSections((current) => ({ ...current, staged: next }))}
             pinnedActions={
               <Tip label={t("wip.panel.unstageAllTip")} shortcut="Mod+Shift+U">
-                <Button size="sm" variant="ghost" loading={unstagingAll} disabled={staged.length === 0} onClick={() => void unstageEverything(repoId, tabId)}>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  loading={unstagingAll}
+                  disabled={staged.length === 0}
+                  onClick={() => void unstageEverything(repoId, tabId)}
+                >
                   {t("wip.panel.unstageAll")}
                 </Button>
               </Tip>
             }
           >
             <div data-section-content>
-            <FileList
-              ariaLabel={t("wip.panel.stagedFiles")}
-              files={staged}
-              view={view}
-              loading={loading}
-              selected={selected.staged}
-              onSelect={onSelect("staged")}
-              onActivate={(file) => open("staged", file.path)}
-              onSelectAll={() => store().setSelected(tabId, "staged", paths.staged)}
-              menuFor={menuFor("staged")}
-              lockFor={lockFor}
-              empty={unstaged.length > 0 ? t("wip.panel.nothingStagedHint") : t("wip.panel.nothingStaged")}
-              onKey={(event, file) => {
-                if (!plainKey(event, "u")) return false;
-                void unstageFiles(repoId, tabId, targets("staged", file));
-                return true;
-              }}
-              rowAction={(file) => (
-                <IconButton
-                  size="sm"
-                  tabIndex={-1}
-                  label={t("wip.menu.unstage")}
-                  shortcut="U"
-                  icon={<Minus className="size-icon" aria-hidden />}
-                  onClick={() => void unstageFiles(repoId, tabId, targets("staged", file))}
-                />
-              )}
-              onFolderKey={(event, files) => {
-                if (!plainKey(event, "u")) return false;
-                void unstageFiles(repoId, tabId, files.map((file) => file.path));
-                return true;
-              }}
-              folderAction={(files) => (
-                <IconButton
-                  size="sm"
-                  tabIndex={-1}
-                  label={t("wip.panel.unstageFolder", { count: files.length })}
-                  shortcut="U"
-                  icon={<Minus className="size-icon" aria-hidden />}
-                  onClick={() => void unstageFiles(repoId, tabId, files.map((file) => file.path))}
-                />
-              )}
-            />
+              <FileList
+                ariaLabel={t("wip.panel.stagedFiles")}
+                files={staged}
+                view={view}
+                loading={loading}
+                selected={selected.staged}
+                onSelect={onSelect("staged")}
+                onActivate={(file) => open("staged", file.path)}
+                onSelectAll={() => store().setSelected(tabId, "staged", paths.staged)}
+                menuFor={menuFor("staged")}
+                lockFor={lockFor}
+                empty={unstaged.length > 0 ? t("wip.panel.nothingStagedHint") : t("wip.panel.nothingStaged")}
+                onKey={(event, file) => {
+                  if (!plainKey(event, "u")) return false;
+                  void unstageFiles(repoId, tabId, targets("staged", file));
+                  return true;
+                }}
+                rowAction={(file) => (
+                  <IconButton
+                    size="sm"
+                    tabIndex={-1}
+                    label={t("wip.menu.unstage")}
+                    shortcut="U"
+                    icon={<Minus className="size-icon" aria-hidden />}
+                    onClick={() => void unstageFiles(repoId, tabId, targets("staged", file))}
+                  />
+                )}
+                onFolderKey={(event, files) => {
+                  if (!plainKey(event, "u")) return false;
+                  void unstageFiles(
+                    repoId,
+                    tabId,
+                    files.map((file) => file.path),
+                  );
+                  return true;
+                }}
+                folderAction={(files) => (
+                  <IconButton
+                    size="sm"
+                    tabIndex={-1}
+                    label={t("wip.panel.unstageFolder", { count: files.length })}
+                    shortcut="U"
+                    icon={<Minus className="size-icon" aria-hidden />}
+                    onClick={() =>
+                      void unstageFiles(
+                        repoId,
+                        tabId,
+                        files.map((file) => file.path),
+                      )
+                    }
+                  />
+                )}
+              />
             </div>
           </PanelSection>
         </div>
@@ -624,7 +714,11 @@ export function ChangesPanel({ repoId, tabId, mode, footer }: ChangesPanelProps)
 
   const showOperation = Boolean(status && (status.operation || status.conflicted.length > 0 || status.foreignOperation));
   return (
-    <section data-screen={mode === "commit" ? "commit-panel" : "stash-form"} aria-label={t("wip.panel.title")} className="flex h-full min-h-0 flex-col bg-surface">
+    <section
+      data-screen={mode === "commit" ? "commit-panel" : "stash-form"}
+      aria-label={t("wip.panel.title")}
+      className="flex h-full min-h-0 flex-col bg-surface"
+    >
       {header}
       {status ? (
         <div className="shrink-0 empty:hidden">

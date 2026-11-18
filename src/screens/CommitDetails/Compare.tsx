@@ -123,7 +123,11 @@ function CommitRows({ tabId, shas, briefs, rows }: { tabId: Id; shas: Sha[]; bri
   const [active, setActive] = useState(-1);
   const visible = Math.min(shas.length, rows ?? shas.length);
   return (
-    <div data-testid="selected-commits" className={rows ? "shrink-0" : "min-h-0 flex-1"} style={rows ? { height: `calc(var(--gc-size-row) * ${visible})` } : undefined}>
+    <div
+      data-testid="selected-commits"
+      className={rows ? "shrink-0" : "min-h-0 flex-1"}
+      style={rows ? { height: `calc(var(--gc-size-row) * ${visible})` } : undefined}
+    >
       <VirtualList
         count={shas.length}
         active={active}
@@ -192,7 +196,14 @@ export function CompareView({ repoId, tabId, from, to, older, onSwap, onBack }: 
           <span className="min-w-0 flex-1 truncate text-sm text-text-muted">
             {to ? t("commitDetails.compare.direction") : t("commitDetails.compare.sinceCommit")}
           </span>
-          {onSwap ? <IconButton size="sm" label={t("commitDetails.compare.swap")} icon={<ArrowUpDown className="size-icon" aria-hidden />} onClick={onSwap} /> : null}
+          {onSwap ? (
+            <IconButton
+              size="sm"
+              label={t("commitDetails.compare.swap")}
+              icon={<ArrowUpDown className="size-icon" aria-hidden />}
+              onClick={onSwap}
+            />
+          ) : null}
         </div>
         <Side tabId={tabId} side="to" sha={to} brief={to ? briefs.briefs.get(to) : undefined} age={to ? age(to) : undefined} />
       </div>
@@ -211,7 +222,11 @@ export function CompareView({ repoId, tabId, from, to, older, onSwap, onBack }: 
           loading={query.isPending}
           error={query.isError ? query.error : null}
           onRetry={() => void query.refetch()}
-          listLabel={to ? t("commitDetails.compare.listLabel", { from: shortSha(from), to: shortSha(to) }) : t("commitDetails.compare.listLabelWorking", { from: shortSha(from) })}
+          listLabel={
+            to
+              ? t("commitDetails.compare.listLabel", { from: shortSha(from), to: shortSha(to) })
+              : t("commitDetails.compare.listLabelWorking", { from: shortSha(from) })
+          }
           emptyText={to ? t("commitDetails.compare.noDifference") : t("commitDetails.compare.workingMatches")}
         />
       )}
@@ -247,7 +262,15 @@ export function MultiCommits({ repoId, tabId, shas }: { repoId: Id; tabId: Id; s
   const analysis = analyzeSelection(shas, briefs.briefs);
   // If the sequence reaches back to the first commit, there is no revision before it: the comparison is against the empty tree.
   if (analysis.kind !== "gap") {
-    return <RangeView repoId={repoId} tabId={tabId} chain={analysis.chain} base={analysis.kind === "chain" ? analysis.base : null} briefs={briefs.briefs} />;
+    return (
+      <RangeView
+        repoId={repoId}
+        tabId={tabId}
+        chain={analysis.chain}
+        base={analysis.kind === "chain" ? analysis.base : null}
+        briefs={briefs.briefs}
+      />
+    );
   }
   const ordered = analysis.ordered;
   return (
@@ -275,7 +298,19 @@ export function MultiCommits({ repoId, tabId, shas }: { repoId: Id; tabId: Id; s
  * Contiguous sequence: combined diff from the revision before the oldest up to the newest commit.
  * `base: null`: the sequence starts at the repository's first commit – the comparison is against the empty tree.
  */
-function RangeView({ repoId, tabId, chain, base, briefs }: { repoId: Id; tabId: Id; chain: Sha[]; base: Sha | null; briefs: Map<Sha, CommitBrief> }) {
+function RangeView({
+  repoId,
+  tabId,
+  chain,
+  base,
+  briefs,
+}: {
+  repoId: Id;
+  tabId: Id;
+  chain: Sha[];
+  base: Sha | null;
+  briefs: Map<Sha, CommitBrief>;
+}) {
   const newest = chain[0] ?? "";
   const oldest = chain[chain.length - 1] ?? newest;
   const source = { kind: "range", from: base ?? EMPTY_TREE_SHA, to: newest } as const;
@@ -298,7 +333,11 @@ function RangeView({ repoId, tabId, chain, base, briefs }: { repoId: Id; tabId: 
         </p>
         <p className="text-sm text-text-muted">
           {base ? (
-            <Trans i18nKey="commitDetails.compare.rangeBase" values={{ base: shortSha(base) }} components={{ code: <code className="font-mono text-code" /> }} />
+            <Trans
+              i18nKey="commitDetails.compare.rangeBase"
+              values={{ base: shortSha(base) }}
+              components={{ code: <code className="font-mono text-code" /> }}
+            />
           ) : (
             t("commitDetails.compare.rangeRoot")
           )}

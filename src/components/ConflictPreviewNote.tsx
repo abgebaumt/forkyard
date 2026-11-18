@@ -20,7 +20,13 @@ export function ConflictPreviewNote({ preview }: { preview: PreviewState }) {
   return (
     <div data-conflict-preview={state} aria-live="polite" className="flex min-w-0 flex-col gap-1 text-sm">
       {files ? (
-        <button type="button" aria-expanded={open} aria-controls={listId} onClick={() => setOpen(!open)} className="flex min-w-0 items-center gap-1.5 text-left text-warning">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={listId}
+          onClick={() => setOpen(!open)}
+          className="flex min-w-0 items-center gap-1.5 text-left text-warning"
+        >
           <ChevronRight className={cn("size-icon shrink-0 transition-transform", open && "rotate-90")} aria-hidden />
           <span className="min-w-0 truncate">{text}</span>
         </button>
@@ -33,7 +39,11 @@ export function ConflictPreviewNote({ preview }: { preview: PreviewState }) {
         </span>
       )}
       {files && open ? (
-        <ul id={listId} aria-label={t("conflictPreview.filesLabel")} className="m-0 flex max-h-32 list-none flex-col overflow-auto pl-6 font-mono text-code text-text">
+        <ul
+          id={listId}
+          aria-label={t("conflictPreview.filesLabel")}
+          className="m-0 flex max-h-32 list-none flex-col overflow-auto pl-6 font-mono text-code text-text"
+        >
           {files.map((file) => (
             <li key={file} className="truncate" title={file}>
               {file}

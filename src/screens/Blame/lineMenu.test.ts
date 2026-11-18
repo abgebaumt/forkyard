@@ -38,7 +38,13 @@ const actions = (entries: MenuEntry[]) => entries.filter((entry): entry is MenuA
 describe("blameLineMenu", () => {
   it("offers copy, commit, previous version and “Why is this so?” in this order", () => {
     const entries = blameLineMenu(input());
-    expect(entries.map((entry) => ("label" in entry ? entry.label : entry.type))).toEqual(["Copy line", "Show commit", "Blame of the previous version", "separator", "Why is this so?"]);
+    expect(entries.map((entry) => ("label" in entry ? entry.label : entry.type))).toEqual([
+      "Copy line",
+      "Show commit",
+      "Blame of the previous version",
+      "separator",
+      "Why is this so?",
+    ]);
     expect(actions(entries).map((entry) => entry.shortcut ?? null)).toEqual([null, "Enter", "P", "W"]);
     expect(actions(entries).every((entry) => !entry.disabled)).toBe(true);
   });
@@ -58,7 +64,14 @@ describe("blameLineMenu", () => {
 
   it("an uncommitted line shows its local changes and has no history, with the reason", () => {
     const entries = actions(
-      blameLineMenu(input({ block: block({ uncommitted: true }), parent: { reason: t("blame.parent.noEarlier") }, why: { reason: t("blame.archaeology.notCommitted") }, aiVisible: false })),
+      blameLineMenu(
+        input({
+          block: block({ uncommitted: true }),
+          parent: { reason: t("blame.parent.noEarlier") },
+          why: { reason: t("blame.archaeology.notCommitted") },
+          aiVisible: false,
+        }),
+      ),
     );
     expect(entries.map((entry) => [entry.label, Boolean(entry.disabled), entry.hint ?? null])).toEqual([
       ["Copy line", false, null],
@@ -69,7 +82,9 @@ describe("blameLineMenu", () => {
   });
 
   it("without a line nothing but copying is possible", () => {
-    const entries = actions(blameLineMenu(input({ block: null, parent: { reason: t("blame.parent.noLine") }, why: { reason: t("blame.parent.noLine") } })));
+    const entries = actions(
+      blameLineMenu(input({ block: null, parent: { reason: t("blame.parent.noLine") }, why: { reason: t("blame.parent.noLine") } })),
+    );
     expect(entries.map((entry) => Boolean(entry.disabled))).toEqual([false, true, true, true]);
   });
 });

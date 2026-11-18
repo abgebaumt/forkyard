@@ -18,17 +18,29 @@ function explain(title: string, error: unknown) {
     tone: "danger",
     title,
     description: describeError(error).text,
-    action: { label: t("actions.tools.setup"), onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "external" }) },
+    action: {
+      label: t("actions.tools.setup"),
+      onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "external" }),
+    },
   });
 }
 
 /** Shows a file's diff in the external diff tool. `source` picks the comparison as in the diff view. */
 export async function openDiffTool(repoId: Id, path: string, source: DiffSource) {
-  const result = await runAction(t("actions.files.external.diffTool"), () => core.openExternal({ repoId, target: "diff_tool", path, source }), {
-    busyKey: `${repoId}:open:diff_tool:${path}`,
-    quiet: ["not_found"],
-  });
-  if (result.ok) toast({ tone: "info", title: t("actions.tools.diffStarted"), description: t("actions.tools.diffStartedDescription", { name: clip(fileName(path), 48) }) });
+  const result = await runAction(
+    t("actions.files.external.diffTool"),
+    () => core.openExternal({ repoId, target: "diff_tool", path, source }),
+    {
+      busyKey: `${repoId}:open:diff_tool:${path}`,
+      quiet: ["not_found"],
+    },
+  );
+  if (result.ok)
+    toast({
+      tone: "info",
+      title: t("actions.tools.diffStarted"),
+      description: t("actions.tools.diffStartedDescription", { name: clip(fileName(path), 48) }),
+    });
   else if (result.error.code === "not_found") explain(t("actions.tools.diffFailed"), result.error);
   return result;
 }
@@ -39,7 +51,12 @@ export async function openMergeTool(repoId: Id, path: string) {
     busyKey: `${repoId}:open:merge_tool:${path}`,
     quiet: ["not_found"],
   });
-  if (result.ok) toast({ tone: "info", title: t("actions.tools.mergeStarted"), description: t("actions.tools.mergeStartedDescription", { name: clip(fileName(path), 48) }) });
+  if (result.ok)
+    toast({
+      tone: "info",
+      title: t("actions.tools.mergeStarted"),
+      description: t("actions.tools.mergeStartedDescription", { name: clip(fileName(path), 48) }),
+    });
   else if (result.error.code === "not_found") explain(t("actions.tools.mergeFailed"), result.error);
   return result;
 }

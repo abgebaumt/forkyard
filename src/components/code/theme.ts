@@ -20,9 +20,15 @@ import "./code.css";
 export const codeHighlightStyle = HighlightStyle.define([
   { tag: [t.keyword, t.modifier, t.operatorKeyword, t.self], class: "gc-tok-keyword" },
   { tag: [t.string, t.special(t.string), t.character, t.regexp, t.escape, t.attributeValue], class: "gc-tok-string" },
-  { tag: [t.number, t.bool, t.null, t.atom, t.unit, t.color, t.constant(t.variableName), t.standard(t.variableName)], class: "gc-tok-number" },
+  {
+    tag: [t.number, t.bool, t.null, t.atom, t.unit, t.color, t.constant(t.variableName), t.standard(t.variableName)],
+    class: "gc-tok-number",
+  },
   { tag: [t.comment, t.lineComment, t.blockComment, t.docComment], class: "gc-tok-comment" },
-  { tag: [t.function(t.variableName), t.function(t.propertyName), t.definition(t.function(t.variableName)), t.macroName], class: "gc-tok-function" },
+  {
+    tag: [t.function(t.variableName), t.function(t.propertyName), t.definition(t.function(t.variableName)), t.macroName],
+    class: "gc-tok-function",
+  },
   { tag: [t.typeName, t.className, t.namespace, t.definition(t.typeName)], class: "gc-tok-type" },
   { tag: [t.propertyName, t.attributeName, t.labelName, t.definition(t.propertyName)], class: "gc-tok-property" },
   { tag: [t.tagName], class: "gc-tok-tag" },
@@ -126,7 +132,10 @@ export const codeTheme: Extension = EditorView.theme({
   // Merge view (@codemirror/merge): old version on the left, new version on the right
   "&.cm-editor.cm-merge-a .cm-changedLine, &.cm-editor .cm-deletedChunk": { backgroundColor: v("diff-removed") },
   "&.cm-editor.cm-merge-b .cm-changedLine, &.cm-editor .cm-inlineChangedLine": { backgroundColor: v("diff-added") },
-  "&.cm-editor.cm-merge-a .cm-changedText, &.cm-editor .cm-deletedChunk .cm-deletedText": { background: v("diff-removed-strong"), borderRadius: v("radius-sm") },
+  "&.cm-editor.cm-merge-a .cm-changedText, &.cm-editor .cm-deletedChunk .cm-deletedText": {
+    background: v("diff-removed-strong"),
+    borderRadius: v("radius-sm"),
+  },
   "&.cm-editor.cm-merge-b .cm-changedText": { background: v("diff-added-strong"), borderRadius: v("radius-sm") },
   "&.cm-editor.cm-merge-b .cm-deletedText": { background: v("diff-removed-strong") },
   "&.cm-editor .cm-changeGutter": { width: "0.25rem", paddingLeft: "0" },

@@ -46,7 +46,10 @@ async function save(patch: Partial<Settings>): Promise<string | null> {
 
 /** Like `applySettings`, but the error goes to the caller instead of a toast – it belongs at the field. */
 async function applyQuiet(patch: Partial<Settings>): Promise<void> {
-  const result = await applySettings(patch, { atField: true, quiet: ["not_allowed", "invalid_name", "name_exists", "path_not_found", "io"] });
+  const result = await applySettings(patch, {
+    atField: true,
+    quiet: ["not_allowed", "invalid_name", "name_exists", "path_not_found", "io"],
+  });
   if (!result.ok) throw result.error;
 }
 
@@ -149,9 +152,7 @@ export function NetworkSection({ settings }: { settings: Settings }) {
 
   return (
     <section data-screen="network">
-      <SectionHeader title={t("network.title")}>
-        {t("network.intro")}
-      </SectionHeader>
+      <SectionHeader title={t("network.title")}>{t("network.intro")}</SectionHeader>
 
       {noVerify.length > 0 ? (
         <div className="mb-2 overflow-hidden rounded-md" data-network-warning>
@@ -161,11 +162,7 @@ export function NetworkSection({ settings }: { settings: Settings }) {
         </div>
       ) : null}
 
-      <SettingRow
-        stacked
-        title={t("network.proxy.title")}
-        description={t("network.proxy.description")}
-      >
+      <SettingRow stacked title={t("network.proxy.title")} description={t("network.proxy.description")}>
         {(ids) => (
           <CommitText
             id={ids.id}
@@ -206,15 +203,18 @@ export function NetworkSection({ settings }: { settings: Settings }) {
           { key: "host", label: t("network.perHost.host"), placeholder: t("network.perHost.hostPlaceholder"), check: checkHost },
           { key: "proxy", label: t("network.perHost.proxy"), placeholder: t("network.perHost.noProxy"), check: checkProxy },
         ]}
-        onSubmit={(values) => save({ proxyByHost: [...proxyByHost.filter((item) => item.host !== values.host), { host: values.host ?? "", proxy: values.proxy ?? "" }] })}
+        onSubmit={(values) =>
+          save({
+            proxyByHost: [
+              ...proxyByHost.filter((item) => item.host !== values.host),
+              { host: values.host ?? "", proxy: values.proxy ?? "" },
+            ],
+          })
+        }
       />
 
       <GroupTitle id="network-certificates">{t("network.certificates")}</GroupTitle>
-      <SettingRow
-        stacked
-        title={t("network.caBundle.title")}
-        description={t("network.caBundle.description")}
-      >
+      <SettingRow stacked title={t("network.caBundle.title")} description={t("network.caBundle.description")}>
         {(ids) => (
           <div className="flex items-start gap-2">
             <CommitText

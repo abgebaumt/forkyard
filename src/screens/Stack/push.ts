@@ -8,15 +8,26 @@ import { newJobId, runAction } from "../../app/run";
 import { t } from "../../i18n";
 import { showSecretFindings } from "../PushCheck/SecretDialog";
 
-export function pushStack(repoId: Id, branches: string[], remote: string, force: boolean, expected: (Sha | null)[] | null, show: ShowFindings = showSecretFindings) {
+export function pushStack(
+  repoId: Id,
+  branches: string[],
+  remote: string,
+  force: boolean,
+  expected: (Sha | null)[] | null,
+  show: ShowFindings = showSecretFindings,
+) {
   return guardSecrets(
     repoId,
     (acceptedSecrets) => {
       const jobId = newJobId();
-      return runAction(t("pullRequest.stack.pushAction"), () => core.stackPush({ repoId, jobId, branches, remote, force, expected, acceptedSecrets }), {
-        busyKey: `${repoId}:push`,
-        job: { id: jobId, title: t("pullRequest.stack.pushAction"), repoId },
-      });
+      return runAction(
+        t("pullRequest.stack.pushAction"),
+        () => core.stackPush({ repoId, jobId, branches, remote, force, expected, acceptedSecrets }),
+        {
+          busyKey: `${repoId}:push`,
+          job: { id: jobId, title: t("pullRequest.stack.pushAction"), repoId },
+        },
+      );
     },
     show,
   );

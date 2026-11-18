@@ -22,7 +22,15 @@ import { TextArea, TextField } from "../../ui/Field";
 import { NumberField } from "../../ui/NumberField";
 import { locale, platform, t } from "../../i18n";
 import { signInFor } from "../ReleaseNotes/Dialog";
-import { DEFAULT_STEP_MINUTES, MAX_DESCRIPTION, MAX_STEP_MINUTES, MAX_TEST_COMMAND, scriptProblem, shellFor, stepTimeoutSecs } from "./autopilotModel";
+import {
+  DEFAULT_STEP_MINUTES,
+  MAX_DESCRIPTION,
+  MAX_STEP_MINUTES,
+  MAX_TEST_COMMAND,
+  scriptProblem,
+  shellFor,
+  stepTimeoutSecs,
+} from "./autopilotModel";
 import { nestedPreview, type NestedPreviewState } from "./nestedPreview";
 
 export interface AutopilotRange {
@@ -129,7 +137,9 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
 
   const request = () => ({ description: description.trim(), testCommand: testCommand.trim() || null, bad: range.bad, good: range.good });
   const preview = () =>
-    runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "bisect_script", input: { kind: "bisect_script", ...request() }, locale: locale() }));
+    runAction(t("ai.preview.loading"), () =>
+      core.aiPreview({ repoId, feature: "bisect_script", input: { kind: "bisect_script", ...request() }, locale: locale() }),
+    );
 
   const showSent = async () => {
     const result = await preview();
@@ -191,7 +201,12 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
       footer={
         <>
           <Button onClick={() => onDone(null)}>{t("bisect.autopilot.cancel")}</Button>
-          <Button variant="primary" data-autopilot-run disabled={!canRun} onClick={() => onDone({ script, stepTimeoutSecs: stepTimeoutSecs(minutes) })}>
+          <Button
+            variant="primary"
+            data-autopilot-run
+            disabled={!canRun}
+            onClick={() => onDone({ script, stepTimeoutSecs: stepTimeoutSecs(minutes) })}
+          >
             {t("bisect.autopilot.run")}
           </Button>
         </>
@@ -254,7 +269,10 @@ function AutopilotDialog({ repoId, range, onDone }: { repoId: Id; range: Autopil
           />
         ) : null}
         {pending ? (
-          <div data-autopilot-pending className="flex items-center gap-2 rounded-md border border-border bg-surface-sunken px-2 py-1 text-sm">
+          <div
+            data-autopilot-pending
+            className="flex items-center gap-2 rounded-md border border-border bg-surface-sunken px-2 py-1 text-sm"
+          >
             <span className="min-w-0 flex-1">{pending.typed ? t("ai.suggestion.ready") : pending.summary}</span>
             <Button
               size="sm"

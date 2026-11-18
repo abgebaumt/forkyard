@@ -3,9 +3,27 @@ import { CoreError, type CleanupResult, type ObjectStats } from "../../core";
 import { useCleanupRuns } from "./runs";
 
 function stats(loose: number): ObjectStats {
-  return { looseCount: loose, looseBytes: loose * 4096, inPack: 0, packs: 0, packBytes: 0, garbageCount: 0, garbageBytes: 0, totalBytes: loose * 4096 };
+  return {
+    looseCount: loose,
+    looseBytes: loose * 4096,
+    inPack: 0,
+    packs: 0,
+    packBytes: 0,
+    garbageCount: 0,
+    garbageBytes: 0,
+    totalBytes: loose * 4096,
+  };
 }
-const RESULT: CleanupResult = { before: stats(5), after: stats(0), lfsBefore: null, lfsAfter: null, steps: [{ step: "gc", status: "done", removed: null }], durationMs: 1200, cancelled: false, failure: null };
+const RESULT: CleanupResult = {
+  before: stats(5),
+  after: stats(0),
+  lfsBefore: null,
+  lfsAfter: null,
+  steps: [{ step: "gc", status: "done", removed: null }],
+  durationMs: 1200,
+  cancelled: false,
+  failure: null,
+};
 
 beforeEach(() => useCleanupRuns.setState({ runs: {}, watchers: {} }));
 
@@ -17,7 +35,14 @@ describe("clean-up runs", () => {
     unwatch();
     expect(useCleanupRuns.getState().isWatched("r1")).toBe(false);
     useCleanupRuns.getState().finish("r1", { result: RESULT });
-    expect(useCleanupRuns.getState().runs.r1).toEqual({ jobId: "job-1", startedAt: 1000, steps: ["gc"], stopping: false, result: RESULT, error: null });
+    expect(useCleanupRuns.getState().runs.r1).toEqual({
+      jobId: "job-1",
+      startedAt: 1000,
+      steps: ["gc"],
+      stopping: false,
+      result: RESULT,
+      error: null,
+    });
     useCleanupRuns.getState().watch("r1");
     expect(useCleanupRuns.getState().isWatched("r1")).toBe(true);
     useCleanupRuns.getState().clear("r1");

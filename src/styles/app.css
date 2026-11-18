@@ -104,7 +104,9 @@ pre,
 kbd,
 samp {
   font-variant-ligatures: none;
-  font-feature-settings: "liga" 0, "calt" 0;
+  font-feature-settings:
+    "liga" 0,
+    "calt" 0;
 }
 
 /* Focus set by a keyboard shortcut (Alt+1 to Alt+3, F6): the browser only shows the ring if it considers

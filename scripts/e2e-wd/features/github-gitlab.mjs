@@ -16,7 +16,8 @@ import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../l
 const W = 1440;
 const H = 900;
 /** Every launch uses the forge's private keychain (see fixtures/github-gitlab-host.mjs). */
-const launch = (t, forge, extra = {}) => t.launch({ width: W, height: H, theme: "light", lang: "en", ...extra, env: { ...forge.appEnv, ...(extra.env ?? {}) } });
+const launch = (t, forge, extra = {}) =>
+  t.launch({ width: W, height: H, theme: "light", lang: "en", ...extra, env: { ...forge.appEnv, ...(extra.env ?? {}) } });
 
 // ---------------------------------------------------------------------------------------------
 // Helpers
@@ -47,10 +48,17 @@ async function palette(app, text, commandId) {
 }
 
 const toasts = (app) =>
-  app.exec(() => [...document.querySelectorAll("[data-toast]")].map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((item) => ({
+      tone: item.getAttribute("data-toast"),
+      text: item.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 
 async function waitToast(app, tone, pattern, timeout = 20_000) {
-  return app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)), timeout, { message: `${tone} toast ${pattern}` });
+  return app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)), timeout, {
+    message: `${tone} toast ${pattern}`,
+  });
 }
 
 const text = (app, css) => app.exec((selector) => document.querySelector(selector)?.innerText.replace(/\s+/g, " ").trim() ?? null, css);
@@ -84,9 +92,15 @@ async function assertNoTokenLeak(app, token, where) {
     const hits = [];
     if (document.documentElement.outerHTML.includes(secret)) hits.push("dom");
     for (const field of document.querySelectorAll("input, textarea")) if (field.value.includes(secret)) hits.push(`field ${field.name}`);
-    for (const store of [localStorage, sessionStorage]) for (let i = 0; i < store.length; i++) if ((store.getItem(store.key(i)) ?? "").includes(secret)) hits.push("storage");
+    for (const store of [localStorage, sessionStorage])
+      for (let i = 0; i < store.length; i++) if ((store.getItem(store.key(i)) ?? "").includes(secret)) hits.push("storage");
     try {
-      const cache = JSON.stringify(window.__gc.queryClient.getQueryCache().getAll().map((query) => query.state.data ?? null));
+      const cache = JSON.stringify(
+        window.__gc.queryClient
+          .getQueryCache()
+          .getAll()
+          .map((query) => query.state.data ?? null),
+      );
       if (cache.includes(secret)) hits.push("query cache");
     } catch {
       // cyclic data – not a leak
@@ -163,19 +177,25 @@ const TOP_DIALOG = "top-dialog";
 async function control(app, label, scope = "body", timeout = 10_000) {
   return app.waitFor(
     () =>
-      app.exec((wanted, css, top) => {
-        const norm = (v) => (v ?? "").replace(/\s+/g, " ").trim().replace(/\s*…$/, "");
-        wanted = norm(wanted);
-        const roots = css === top ? [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')] : [...document.querySelectorAll(css)];
-        const root = roots[roots.length - 1];
-        if (!root) return null;
-        const found = [...root.querySelectorAll('button, [role="radio"], [role="tab"], [role="option"], [role="checkbox"]')].find(
-          (el) => norm(el.innerText) === wanted || norm(el.getAttribute("aria-label")) === wanted,
-        );
-        if (!found) return null;
-        found.scrollIntoView({ block: "center" });
-        return found;
-      }, label, scope, TOP_DIALOG),
+      app.exec(
+        (wanted, css, top) => {
+          const norm = (v) => (v ?? "").replace(/\s+/g, " ").trim().replace(/\s*…$/, "");
+          wanted = norm(wanted);
+          const roots =
+            css === top ? [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')] : [...document.querySelectorAll(css)];
+          const root = roots[roots.length - 1];
+          if (!root) return null;
+          const found = [...root.querySelectorAll('button, [role="radio"], [role="tab"], [role="option"], [role="checkbox"]')].find(
+            (el) => norm(el.innerText) === wanted || norm(el.getAttribute("aria-label")) === wanted,
+          );
+          if (!found) return null;
+          found.scrollIntoView({ block: "center" });
+          return found;
+        },
+        label,
+        scope,
+        TOP_DIALOG,
+      ),
     timeout,
     { message: `control "${label}" in ${scope}` },
   );
@@ -230,8 +250,15 @@ scenario("connect github account in settings and disconnect it again", "main", a
     assertIncludes(rowText, `Token ends in ${forge.token.slice(-4)}`, "only the last four characters");
     await waitToast(app, "success", /Connected to GitHub as Lena Hartmann/);
     const accounts = await app.invoke("host_accounts");
-    assertEqual(accounts.map((a) => [a.kind, a.baseUrl, a.user?.login]), [["github", forge.url, "lena-hartmann"]], "core keeps the account");
-    assert(forge.mock.requests.some((r) => r.path === "/api/v3/user" && r.status === 200), "token was checked against GET /user");
+    assertEqual(
+      accounts.map((a) => [a.kind, a.baseUrl, a.user?.login]),
+      [["github", forge.url, "lena-hartmann"]],
+      "core keeps the account",
+    );
+    assert(
+      forge.mock.requests.some((r) => r.path === "/api/v3/user" && r.status === 200),
+      "token was checked against GET /user",
+    );
     await assertNoTokenLeak(app, forge.token, "after connecting");
     await t.shot("connect-github-account", app);
 
@@ -258,9 +285,16 @@ scenario("connect dialog: wrong token is rejected and nothing is stored", "edge"
     const error = await app.waitFor('[data-screen="hosts-connect"] [data-connect-error]', 20_000, { message: "error in the dialog" });
     assertEqual(await error.attr("data-connect-error"), "auth", "kind of error");
     assertMatch(await error.text(), /rejected the token/i, "error text");
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="hosts-connect"] input[name="token"]').value), "", "token field cleared");
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-screen="hosts-connect"] input[name="token"]').value),
+      "",
+      "token field cleared",
+    );
     assertEqual(await app.invoke("host_accounts"), [], "no account stored");
-    assert(forge.mock.requests.some((r) => r.path === "/api/v3/user" && r.status === 401), "the core asked GET /user and got 401");
+    assert(
+      forge.mock.requests.some((r) => r.path === "/api/v3/user" && r.status === 401),
+      "the core asked GET /user and got 401",
+    );
     await assertNoTokenLeak(app, forge.badToken, "after the rejected attempt");
     await t.shot("connect-wrong-token", app);
     // Escape closes the dialog without an account.
@@ -287,7 +321,10 @@ scenario("gitlab token without api scope is marked as missing permissions", "edg
     await eventually(() => attr(app, row, "data-state"), "scopes", "state: missing permissions");
     const [account] = await app.invoke("host_accounts");
     assertEqual([account.kind, account.scopesOk], ["gitlab", false], "core: scopes not ok");
-    assert(forge.mock.requests.some((r) => r.path === "/api/v4/personal_access_tokens/self"), "the core checked the token scopes");
+    assert(
+      forge.mock.requests.some((r) => r.path === "/api/v4/personal_access_tokens/self"),
+      "the core checked the token scopes",
+    );
     await t.shot("gitlab-weak-token", app);
     await t.noConsoleErrors(app);
   } finally {
@@ -342,7 +379,11 @@ scenario("create github pull request from an unpushed branch (push first, then c
     await waitToast(app, "success", /Pull request #101 created/);
     // Host side
     const created = forge.mock.state.created;
-    assertEqual(created.map((c) => [c.number, c.title, c.source, c.target, c.draft]), [[101, "Auswertung als eigenes Dokument", branch, "main", false]], "the host got the pull request");
+    assertEqual(
+      created.map((c) => [c.number, c.title, c.source, c.target, c.draft]),
+      [[101, "Auswertung als eigenes Dokument", branch, "main", false]],
+      "the host got the pull request",
+    );
     assertEqual(created[0].body, "Neue Auswertung je Station.\n\n- [x] Tests", "description sent with its line breaks");
     // Git side: really pushed, upstream set
     assertEqual(forge.bareBranch("github", branch), sha, "branch pushed to the server with the local commit");
@@ -374,7 +415,12 @@ scenario("create pull request: empty title, existing pull request at the host, l
     const before = forge.mock.requests.filter((r) => r.method === "POST").length;
     await clearField(app, `${PRC} input[name="title"]`);
     await app.click(`${PRC} button[type="submit"]`);
-    await app.waitFor(async () => /title/i.test((await text(app, PRC)) ?? "") && (await app.exec(() => document.activeElement?.getAttribute("name"))) === "title", 5000, { message: "title error, focus in the title" });
+    await app.waitFor(
+      async () =>
+        /title/i.test((await text(app, PRC)) ?? "") && (await app.exec(() => document.activeElement?.getAttribute("name"))) === "title",
+      5000,
+      { message: "title error, focus in the title" },
+    );
     assertMatch(await text(app, PRC), /title (is required|must not be empty)|enter a title/i, "error names the title");
     assertEqual(forge.mock.requests.filter((r) => r.method === "POST").length, before, "no request to the host");
     assertEqual(forge.bareBranch("github", "schon-da"), null, "nothing pushed either");
@@ -386,7 +432,10 @@ scenario("create pull request: empty title, existing pull request at the host, l
     const errorText = await error.text();
     assertMatch(errorText, /already (exists|an open pull request)/i, "the host's reason is shown");
     assertEqual(forge.mock.state.created, [], "nothing created at the host");
-    assert(forge.mock.requests.some((r) => r.method === "POST" && r.path === "/api/v3/repos/octo/demo/pulls" && r.status === 422), "POST /pulls answered 422");
+    assert(
+      forge.mock.requests.some((r) => r.method === "POST" && r.path === "/api/v3/repos/octo/demo/pulls" && r.status === 422),
+      "POST /pulls answered 422",
+    );
     assert(forge.bareBranch("github", "schon-da"), "the branch was pushed before");
     assertEqual((await center(app, tabId))?.kind, "pr_create", "form stays open");
     await t.shot("create-pull-request-duplicate", app);
@@ -394,10 +443,15 @@ scenario("create pull request: empty title, existing pull request at the host, l
     // 3. Leaving with typed text asks first; "Cancel" keeps the form.
     await app.type(`${PRC} textarea[name="body"]`, "Noch nicht fertig");
     await app.click(`${PRC} [data-back]`);
-    const ask = await app.waitFor('[role="alertdialog"]:not(:has([data-screen])), [role="dialog"]:not(:has([data-screen]))', 5000, { message: "leave confirmation" });
+    const ask = await app.waitFor('[role="alertdialog"]:not(:has([data-screen])), [role="dialog"]:not(:has([data-screen]))', 5000, {
+      message: "leave confirmation",
+    });
     assertMatch(await ask.text(), /Discard/i, "asks to discard");
     await press(app, "Cancel", TOP_DIALOG);
-    await app.waitFor(async () => !(await app.$('[role="alertdialog"]:not(:has([data-screen])), [role="dialog"]:not(:has([data-screen]))')), 5000);
+    await app.waitFor(
+      async () => !(await app.$('[role="alertdialog"]:not(:has([data-screen])), [role="dialog"]:not(:has([data-screen]))')),
+      5000,
+    );
     assertEqual((await center(app, tabId))?.kind, "pr_create", "still in the form after cancel");
     assertEqual(await fieldValue(app, `${PRC} textarea[name="body"]`), "Noch nicht fertig", "text kept");
     await t.noConsoleErrors(app);
@@ -429,8 +483,16 @@ scenario("create gitlab merge request from a pushed branch", "main", async (t) =
     await app.waitFor('[data-screen="pr-view"][data-pr-number="101"] [data-pr-head]', 40_000, { message: "view of the new merge request" });
     const post = forge.mock.requests.find((r) => r.method === "POST" && r.path === "/api/v4/projects/gruppe%2Funter%2Fdemo/merge_requests");
     assert(post, "POST merge_requests sent");
-    assertEqual([post.body.title, post.body.source_branch, post.body.target_branch], ["CSV-Export: Vergleich als Datei", "feature/export", "main"], "merge request body");
-    assertEqual(forge.gitRequests.filter((r) => r.path.includes("git-receive-pack")).length, pushesBefore, "no push for an already pushed branch");
+    assertEqual(
+      [post.body.title, post.body.source_branch, post.body.target_branch],
+      ["CSV-Export: Vergleich als Datei", "feature/export", "main"],
+      "merge request body",
+    );
+    assertEqual(
+      forge.gitRequests.filter((r) => r.path.includes("git-receive-pack")).length,
+      pushesBefore,
+      "no push for an already pushed branch",
+    );
     assertEqual(forge.bareBranch("gitlab", "feature/export"), repo.git("rev-parse", "feature/export"), "server branch = local branch");
     await t.noConsoleErrors(app);
   } finally {
@@ -460,7 +522,8 @@ async function expandPrSection(app) {
   await eventually(() => attr(app, header, "aria-expanded"), "true", "section expanded", 5000);
 }
 
-const sectionRows = (app) => app.exec((css) => [...document.querySelectorAll(`${css} [data-kind="pull-request"]`)].map((row) => Number(row.dataset.pr)), SECTION);
+const sectionRows = (app) =>
+  app.exec((css) => [...document.querySelectorAll(`${css} [data-kind="pull-request"]`)].map((row) => Number(row.dataset.pr)), SECTION);
 
 scenario("view github pull request from the sidebar: header, checks, review, comments, commits", "main", async (t) => {
   const forge = await startForge();
@@ -471,12 +534,19 @@ scenario("view github pull request from the sidebar: header, checks, review, com
     const { tabId } = await app.openRepo(repo.path);
     await connect(app, forge, "github");
     await expandPrSection(app);
-    const rows = await app.waitFor(async () => {
-      const list = await sectionRows(app);
-      return list.length > 0 ? list : null;
-    }, 20_000, { message: "rows in the section" });
+    const rows = await app.waitFor(
+      async () => {
+        const list = await sectionRows(app);
+        return list.length > 0 ? list : null;
+      },
+      20_000,
+      { message: "rows in the section" },
+    );
     // Mock: open = number not ending in 0 or 5; the section shows a page of them.
-    assert(rows.every((n) => n % 5 !== 0), `only open pull requests (${rows})`);
+    assert(
+      rows.every((n) => n % 5 !== 0),
+      `only open pull requests (${rows})`,
+    );
     assertEqual(rows.length, 20, "first page: 20 rows (more via “Load more”)");
     // The panel filter narrows the loaded rows (title, author, branch).
     await app.type('input[placeholder^="Filter"]', "Thema 44");
@@ -505,9 +575,15 @@ scenario("view github pull request from the sidebar: header, checks, review, com
     // Commits tab
     await app.click(await app.waitFor(() => app.byText("^Commits", { regex: true, within: `${PRV} [role="tablist"]` })));
     await app.waitFor(`${PRV} [data-pr-commits] [data-commit]`, 10_000, { message: "commit list" });
-    const commits = await app.exec((css) => [...document.querySelectorAll(`${css} [data-pr-commits] [data-commit]`)].map((el) => el.innerText.replace(/\s+/g, " ")), PRV);
+    const commits = await app.exec(
+      (css) => [...document.querySelectorAll(`${css} [data-pr-commits] [data-commit]`)].map((el) => el.innerText.replace(/\s+/g, " ")),
+      PRV,
+    );
     assertEqual(commits.length, 2, "two commits");
-    assert(commits.some((c) => c.includes("Prüfung ergänzt")), `commit summary shown (${commits})`);
+    assert(
+      commits.some((c) => c.includes("Prüfung ergänzt")),
+      `commit summary shown (${commits})`,
+    );
     await t.noConsoleErrors(app);
   } finally {
     await disconnectAll(app);
@@ -528,20 +604,34 @@ scenario("sidebar: load more pull requests, the button sits below the list", "ed
     assertMatch(await text(app, `${SECTION} [data-section-header]`), /20\+/, "header count says there are more");
     const more = await control(app, "Load more", SECTION);
     // Where is the button compared with the rows it extends? (measured before it disappears)
-    const layout = await app.exec((css, button) => {
-      const rowsEls = document.querySelectorAll(`${css} [data-kind="pull-request"]`);
-      return { button: Math.round(button.getBoundingClientRect().top), firstRow: Math.round(rowsEls[0].getBoundingClientRect().top), lastRow: Math.round(rowsEls[rowsEls.length - 1].getBoundingClientRect().top) };
-    }, SECTION, more);
+    const layout = await app.exec(
+      (css, button) => {
+        const rowsEls = document.querySelectorAll(`${css} [data-kind="pull-request"]`);
+        return {
+          button: Math.round(button.getBoundingClientRect().top),
+          firstRow: Math.round(rowsEls[0].getBoundingClientRect().top),
+          lastRow: Math.round(rowsEls[rowsEls.length - 1].getBoundingClientRect().top),
+        };
+      },
+      SECTION,
+      more,
+    );
     await t.shot("pull-requests-load-more", app);
     await app.click(more);
     // Mock: 36 open pull requests -> page 2 brings the last 16.
     await app.waitFor(async () => (await sectionRows(app)).length === 36, 20_000, { message: "second page loaded (36 rows)" });
-    assert(forge.mock.requests.some((r) => r.path === "/api/v3/repos/octo/demo/pulls" && r.query.page === "2"), "page 2 asked at the host");
+    assert(
+      forge.mock.requests.some((r) => r.path === "/api/v3/repos/octo/demo/pulls" && r.query.page === "2"),
+      "page 2 asked at the host",
+    );
     assertIncludes(await sectionRows(app), 1, "#1 is listed now");
     assertEqual(await control(app, "Load more", SECTION, 1000).catch(() => null), null, "no further “Load more” at the end");
     assertMatch(await text(app, `${SECTION} [data-section-header]`), /36(?!\+)/, "header count without “+”");
     // The button belongs below the rows it extends; it is rendered above them.
-    assert(layout.button > layout.lastRow, `“Load more” is above the list (button y=${layout.button}, first row y=${layout.firstRow}, last row y=${layout.lastRow})`);
+    assert(
+      layout.button > layout.lastRow,
+      `“Load more” is above the list (button y=${layout.button}, first row y=${layout.firstRow}, last row y=${layout.lastRow})`,
+    );
     await t.noConsoleErrors(app);
   } finally {
     await disconnectAll(app);
@@ -565,7 +655,9 @@ scenario("pull request view: unknown number and host throttling", "edge", async 
     await expandPrSection(app);
     forge.mock.fail("rate_limit", { match: "/pulls" });
     await palette(app, "Refresh pull requests", "pr.refresh");
-    await app.waitFor(`${SECTION} [data-pr-section^="error-"], ${SECTION} [data-pr-section="stale"]`, 20_000, { message: "section reports the limit" });
+    await app.waitFor(`${SECTION} [data-pr-section^="error-"], ${SECTION} [data-pr-section="stale"]`, 20_000, {
+      message: "section reports the limit",
+    });
     assertMatch(await text(app, SECTION), /limit|throttl|rate/i, `section text names the limit`);
     forge.mock.recover();
     await t.shot("pull-requests-rate-limited", app);
@@ -597,8 +689,14 @@ scenario("comment on a github pull request with ctrl+enter", "main", async (t) =
     await app.press("Control+Enter");
     await waitToast(app, "success", /Comment sent/);
     await eventually(() => fieldValue(app, field), "", "field emptied after sending");
-    assertEqual(forge.mock.state.comments.map((c) => [c.number, c.body]), [[1, "Getestet mit **leerem** Passwort – passt."]], "the host got the comment");
-    await app.waitFor(async () => /Getestet mit leerem Passwort/.test((await text(app, `${PRV} [data-pr-comments]`)) ?? ""), 15_000, { message: "comment in the list" });
+    assertEqual(
+      forge.mock.state.comments.map((c) => [c.number, c.body]),
+      [[1, "Getestet mit **leerem** Passwort – passt."]],
+      "the host got the comment",
+    );
+    await app.waitFor(async () => /Getestet mit leerem Passwort/.test((await text(app, `${PRV} [data-pr-comments]`)) ?? ""), 15_000, {
+      message: "comment in the list",
+    });
     await t.shot("comment-github-pull-request-done", app);
     await t.noConsoleErrors(app);
   } finally {
@@ -628,7 +726,11 @@ scenario("comment fails at the host: text stays, error is shown", "edge", async 
     // Second try works.
     await app.click(`${PRV} [data-comment-form] button[type="submit"]`);
     await waitToast(app, "success", /Comment sent/);
-    assertEqual(forge.mock.state.comments.map((c) => c.number), [2], "second try reaches the host");
+    assertEqual(
+      forge.mock.state.comments.map((c) => c.number),
+      [2],
+      "second try reaches the host",
+    );
     await t.noConsoleErrors(app);
   } finally {
     await disconnectAll(app);
@@ -660,7 +762,9 @@ scenario("merge github pull request with squash and delete the branch, then fetc
     await app.waitFor('[data-screen="pr-merge"]', 10_000, { message: "merge dialog" });
     await app.click('[data-screen="pr-merge"] [role="combobox"]');
     await app.click(await app.waitFor(() => app.byText("Squash", { within: '[role="listbox"]' }), 5000, { message: "squash option" }));
-    await app.waitFor(async () => /squashed into a single one/.test((await text(app, '[data-screen="pr-merge"]')) ?? ""), 5000, { message: "hint for squash" });
+    await app.waitFor(async () => /squashed into a single one/.test((await text(app, '[data-screen="pr-merge"]')) ?? ""), 5000, {
+      message: "hint for squash",
+    });
     await app.click('[data-screen="pr-merge"] [role="checkbox"]');
     await t.shot("merge-github-pull-request", app);
     await press(app, "Merge", TOP_DIALOG);
@@ -668,7 +772,10 @@ scenario("merge github pull request with squash and delete the branch, then fetc
     const merge = forge.mock.requests.find((r) => r.method === "PUT" && r.path === "/api/v3/repos/octo/demo/pulls/1/merge");
     assert(merge, "PUT /pulls/1/merge sent");
     assertEqual(merge.body?.merge_method, "squash", "merge method squash");
-    assert(forge.mock.requests.some((r) => r.method === "DELETE" && r.path.startsWith("/api/v3/repos/octo/demo/git/refs/heads/")), "source branch deleted at the host");
+    assert(
+      forge.mock.requests.some((r) => r.method === "DELETE" && r.path.startsWith("/api/v3/repos/octo/demo/git/refs/heads/")),
+      "source branch deleted at the host",
+    );
     assert(forge.mock.state.merged.has(1), "host: merged");
     await eventually(() => attr(app, `${PRV} [data-pr-phase]`, "data-pr-phase"), "merged", "view shows merged");
     assertEqual(await control(app, "Merge", `${PRV} [data-pr-actions]`, 1000).catch(() => null), null, "no merge button any more");
@@ -678,9 +785,14 @@ scenario("merge github pull request with squash and delete the branch, then fetc
     const merged = hostMergeCommit(forge, repo, "github", "Merge pull request #1");
     assert(repo.git("rev-parse", "origin/main") !== merged, "origin/main not yet updated");
     const fetchesBefore = forge.gitRequests.filter((r) => r.path.includes("git-upload-pack")).length;
-    await press(app, "Fetch now", '[data-toast]');
-    await app.waitFor(async () => repo.git("rev-parse", "origin/main") === merged, 30_000, { message: "origin/main = host's merge commit after fetch" });
-    assert(forge.gitRequests.filter((r) => r.path.includes("git-upload-pack")).length > fetchesBefore, "a real fetch ran against the server");
+    await press(app, "Fetch now", "[data-toast]");
+    await app.waitFor(async () => repo.git("rev-parse", "origin/main") === merged, 30_000, {
+      message: "origin/main = host's merge commit after fetch",
+    });
+    assert(
+      forge.gitRequests.filter((r) => r.path.includes("git-upload-pack")).length > fetchesBefore,
+      "a real fetch ran against the server",
+    );
     await t.shot("merge-github-pull-request-done", app);
     await t.noConsoleErrors(app);
   } finally {
@@ -748,7 +860,9 @@ scenario("close and reopen a github pull request", "edge", async (t) => {
     await connect(app, forge, "github");
     await openPrView(app, tabId, 6);
     await press(app, "Close", `${PRV} [data-pr-actions]`);
-    const ask = await app.waitFor('[role="alertdialog"]:not(:has([data-screen])), [role="dialog"]:not(:has([data-screen]))', 5000, { message: "close confirmation" });
+    const ask = await app.waitFor('[role="alertdialog"]:not(:has([data-screen])), [role="dialog"]:not(:has([data-screen]))', 5000, {
+      message: "close confirmation",
+    });
     assertMatch(await ask.text(), /Close pull request #6\?/, "asks first");
     await press(app, "Close pull request", TOP_DIALOG);
     await waitToast(app, "success", /Pull request #6 closed/);
@@ -786,18 +900,28 @@ scenario("gitlab merge request: view pipeline and approval, comment, merge", "ma
     await app.type(field, "Pipeline grün, danke!");
     await app.press("Control+Enter");
     await waitToast(app, "success", /Comment sent/);
-    assertEqual(forge.mock.state.comments.map((c) => [c.number, c.body]), [[1, "Pipeline grün, danke!"]], "note stored at the host");
+    assertEqual(
+      forge.mock.state.comments.map((c) => [c.number, c.body]),
+      [[1, "Pipeline grün, danke!"]],
+      "note stored at the host",
+    );
     await t.shot("gitlab-merge-request", app);
     // merge (merge commit, keep the branch)
     await press(app, "Merge", `${PRV} [data-pr-actions]`);
     await app.waitFor('[data-screen="pr-merge"]', 10_000);
     await press(app, "Merge", TOP_DIALOG);
     await waitToast(app, "success", /#1 merged/);
-    const merge = forge.mock.requests.find((r) => r.method === "PUT" && r.path === "/api/v4/projects/gruppe%2Funter%2Fdemo/merge_requests/1/merge");
+    const merge = forge.mock.requests.find(
+      (r) => r.method === "PUT" && r.path === "/api/v4/projects/gruppe%2Funter%2Fdemo/merge_requests/1/merge",
+    );
     assert(merge, "PUT merge_requests/1/merge sent");
     assert(!merge.body?.should_remove_source_branch, "branch kept");
     await eventually(() => attr(app, `${PRV} [data-pr-phase]`, "data-pr-phase"), "merged", "view shows merged");
-    assertEqual(forge.bareBranch("gitlab", "main"), repo.git("rev-parse", "origin/main"), "server main unchanged by the mock merge (Git untouched)");
+    assertEqual(
+      forge.bareBranch("gitlab", "main"),
+      repo.git("rev-parse", "origin/main"),
+      "server main unchanged by the mock merge (Git untouched)",
+    );
     await t.noConsoleErrors(app);
   } finally {
     await disconnectAll(app);
@@ -810,7 +934,8 @@ scenario("gitlab merge request: view pipeline and approval, comment, merge", "ma
 // ---------------------------------------------------------------------------------------------
 
 const ISSUES = '[data-screen="issues"]';
-const issueRows = (app) => app.exec((css) => [...document.querySelectorAll(`${css} [data-issue-row]`)].map((row) => Number(row.dataset.issueRow)), ISSUES);
+const issueRows = (app) =>
+  app.exec((css) => [...document.querySelectorAll(`${css} [data-issue-row]`)].map((row) => Number(row.dataset.issueRow)), ISSUES);
 
 scenario("github issues: list, details with comments, branch for the issue", "main", async (t) => {
   const forge = await startForge();
@@ -824,8 +949,16 @@ scenario("github issues: list, details with comments, branch for the issue", "ma
     await app.waitFor(`${ISSUES} [data-issue-row]`, 20_000, { message: "issue rows" });
     const rows = await issueRows(app);
     // Mock: 12 issues, divisible by 4 closed, divisible by 3 are pull requests (GitHub lists them as issues).
-    assertEqual([...rows].sort((a, b) => a - b), [1, 2, 5, 7, 10, 11], "open issues without pull requests");
-    assertEqual(forge.mock.requests.filter((r) => r.path === "/api/v3/repos/octo/demo/issues").length > 0, true, "issues loaded from the host");
+    assertEqual(
+      [...rows].sort((a, b) => a - b),
+      [1, 2, 5, 7, 10, 11],
+      "open issues without pull requests",
+    );
+    assertEqual(
+      forge.mock.requests.filter((r) => r.path === "/api/v3/repos/octo/demo/issues").length > 0,
+      true,
+      "issues loaded from the host",
+    );
     assert(!(await app.$(`${ISSUES} [data-action="issues-create"]`)), "GitHub: no create button (only Azure DevOps can create)");
     await app.click(`${ISSUES} [data-issue-row="2"]`);
     await app.waitFor(`${ISSUES} article[data-issue="2"][data-state="filled"]`, 20_000, { message: "details of #2" });
@@ -864,21 +997,33 @@ scenario("issues: search, closed state, gitlab list and keyboard", "edge", async
     await connect(app, forge, "gitlab");
     await palette(app, "Show issues", "issues.show");
     await app.waitFor(`${ISSUES} [data-issue-row]`, 20_000, { message: "gitlab issue rows" });
-    assertEqual([...(await issueRows(app))].sort((a, b) => a - b), [1, 2, 3, 5, 6, 7, 9, 10, 11], "gitlab: open issues");
+    assertEqual(
+      [...(await issueRows(app))].sort((a, b) => a - b),
+      [1, 2, 3, 5, 6, 7, 9, 10, 11],
+      "gitlab: open issues",
+    );
     // Closed
     await press(app, "Closed", `${ISSUES} [role="search"]`);
     await eventually(async () => [...(await issueRows(app))].sort((a, b) => a - b), [4, 8, 12], "closed issues");
-    assert(forge.mock.requests.some((r) => r.path.endsWith("/issues") && r.query.state === "closed"), "state=closed asked at the host");
+    assert(
+      forge.mock.requests.some((r) => r.path.endsWith("/issues") && r.query.state === "closed"),
+      "state=closed asked at the host",
+    );
     // Search runs at the host (mock: only 1 and 2 match).
     await press(app, "All", `${ISSUES} [role="search"]`);
     await app.type(`${ISSUES} input[type="search"]`, "Problem");
     await app.press("Enter");
     await eventually(async () => [...(await issueRows(app))].sort((a, b) => a - b), [1, 2], "search result");
-    assert(forge.mock.requests.some((r) => r.path.endsWith("/issues") && r.query.search === "Problem"), "search sent to the host");
+    assert(
+      forge.mock.requests.some((r) => r.path.endsWith("/issues") && r.query.search === "Problem"),
+      "search sent to the host",
+    );
     // Keyboard: arrow down from the search field into the list, Enter opens.
     await app.click(`${ISSUES} input[type="search"]`);
     await app.press("ArrowDown");
-    await app.waitFor(async () => (await app.exec(() => document.activeElement?.getAttribute("data-issue-row"))) !== null, 5000, { message: "focus in the list" });
+    await app.waitFor(async () => (await app.exec(() => document.activeElement?.getAttribute("data-issue-row"))) !== null, 5000, {
+      message: "focus in the list",
+    });
     await app.press("Enter");
     await app.waitFor(`${ISSUES} article[data-issue][data-state="filled"]`, 15_000, { message: "details by keyboard" });
     await t.shot("issues-search-gitlab", app);

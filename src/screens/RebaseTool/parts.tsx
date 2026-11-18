@@ -17,13 +17,33 @@ import { t } from "../../i18n";
 /** Passed down by the tool: the mode registers here what Ctrl+Enter starts (null = nothing right now). */
 export type StartRef = MutableRefObject<(() => void) | null>;
 
-export function ToolHeader({ icon, title, subtitle, onClose }: { icon: ReactNode; title: string; subtitle?: ReactNode; onClose: () => void }) {
+export function ToolHeader({
+  icon,
+  title,
+  subtitle,
+  onClose,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle?: ReactNode;
+  onClose: () => void;
+}) {
   return (
     <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
       <span className="flex shrink-0 text-text-muted">{icon}</span>
       <h2 className="m-0 shrink-0 text-base font-semibold text-text">{title}</h2>
-      {subtitle ? <div className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm text-text-muted">{subtitle}</div> : <span className="flex-1" />}
-      <IconButton size="sm" label={t("rebase.closeWithoutChanges")} shortcut="Escape" icon={<X className="size-icon" aria-hidden />} onClick={onClose} />
+      {subtitle ? (
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm text-text-muted">{subtitle}</div>
+      ) : (
+        <span className="flex-1" />
+      )}
+      <IconButton
+        size="sm"
+        label={t("rebase.closeWithoutChanges")}
+        shortcut="Escape"
+        icon={<X className="size-icon" aria-hidden />}
+        onClick={onClose}
+      />
     </header>
   );
 }
@@ -37,7 +57,10 @@ export function Name({ children, mono = false }: { children: ReactNode; mono?: b
 export function ColumnBar({ direction, lead }: { direction: string; lead: ReactNode }) {
   return (
     // Same reserved margin as the list below (scrollbar), so the columns line up.
-    <div aria-hidden className="flex h-row shrink-0 items-center gap-2 overflow-hidden border-b border-border bg-surface pr-3 text-xs font-semibold tracking-wide text-text-muted uppercase [scrollbar-gutter:stable]">
+    <div
+      aria-hidden
+      className="flex h-row shrink-0 items-center gap-2 overflow-hidden border-b border-border bg-surface pr-3 text-xs font-semibold tracking-wide text-text-muted uppercase [scrollbar-gutter:stable]"
+    >
       {lead}
       <span className="flex min-w-0 flex-1 items-center gap-1 normal-case">
         <ArrowDownNarrowWide className="size-icon shrink-0" aria-hidden />
@@ -63,11 +86,18 @@ export interface CommitCellsProps {
 export function CommitCells({ authorName, authorEmail, authoredAt, sha, dateFormat, dimmed }: CommitCellsProps) {
   return (
     <>
-      <span className={dimmed ? "hidden w-36 shrink-0 items-center gap-1.5 opacity-60 @2xl:flex" : "hidden w-36 shrink-0 items-center gap-1.5 @2xl:flex"}>
+      <span
+        className={
+          dimmed ? "hidden w-36 shrink-0 items-center gap-1.5 opacity-60 @2xl:flex" : "hidden w-36 shrink-0 items-center gap-1.5 @2xl:flex"
+        }
+      >
         <Avatar name={authorName} email={authorEmail} size={18} />
         <span className="min-w-0 truncate text-sm text-text-muted">{authorName}</span>
       </span>
-      <span className="hidden w-24 shrink-0 truncate text-right text-sm text-text-muted @xl:block" title={authoredAt ? formatDateTime(authoredAt) : undefined}>
+      <span
+        className="hidden w-24 shrink-0 truncate text-right text-sm text-text-muted @xl:block"
+        title={authoredAt ? formatDateTime(authoredAt) : undefined}
+      >
         {authoredAt ? formatDate(authoredAt, dateFormat) : ""}
       </span>
       <span className="selectable w-16 shrink-0 text-right font-mono text-code text-text-muted">{shortSha(sha)}</span>
@@ -85,7 +115,10 @@ export function ToolFooter({ info, keys, children }: { info: ReactNode; keys?: [
       <div className="flex items-center gap-3 px-3 py-2">
         {keys?.length ? (
           // One line high, with wrapping: what no longer fits slips into the hidden second line instead of ending mid-word.
-          <div className="hidden h-4 min-w-0 flex-1 flex-wrap items-center gap-x-3 overflow-hidden text-xs whitespace-nowrap text-text-muted @2xl:flex" aria-hidden>
+          <div
+            className="hidden h-4 min-w-0 flex-1 flex-wrap items-center gap-x-3 overflow-hidden text-xs whitespace-nowrap text-text-muted @2xl:flex"
+            aria-hidden
+          >
             {keys.map(([key, label]) => (
               <span key={label} className="inline-flex shrink-0 items-center gap-1">
                 {key.split(" ").map((part) => (
@@ -103,7 +136,21 @@ export function ToolFooter({ info, keys, children }: { info: ReactNode; keys?: [
 }
 
 /** Primary button that stays focusable when disabled and names the reason in the tooltip. */
-export function StartButton({ label, blocked, loading, icon, onClick, action }: { label: string; blocked: string | null; loading: boolean; icon: ReactNode; onClick: () => void; action: string }) {
+export function StartButton({
+  label,
+  blocked,
+  loading,
+  icon,
+  onClick,
+  action,
+}: {
+  label: string;
+  blocked: string | null;
+  loading: boolean;
+  icon: ReactNode;
+  onClick: () => void;
+  action: string;
+}) {
   return (
     <Tip label={blocked ?? label} shortcut={blocked ? undefined : "Mod+Enter"}>
       <Button
@@ -145,7 +192,19 @@ export function SkeletonRows({ rows = 8 }: { rows?: number }) {
 }
 
 /** Full-area state: rejected, error, empty. At most two actions. */
-export function StatePanel({ icon, title, children, actions, state }: { icon: ReactNode; title: string; children?: ReactNode; actions?: ReactNode; state: string }) {
+export function StatePanel({
+  icon,
+  title,
+  children,
+  actions,
+  state,
+}: {
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  actions?: ReactNode;
+  state: string;
+}) {
   const panel = useRef<HTMLDivElement>(null);
   // Focus goes to the main action (the last one) so the keyboard can continue right away –
   // but only if focus is free or was in the tool; whoever is typing elsewhere stays there.
@@ -160,8 +219,15 @@ export function StatePanel({ icon, title, children, actions, state }: { icon: Re
       const button = target();
       const active = document.activeElement;
       if (!button || active === button) return;
-      const gone = active instanceof HTMLElement && (!active.isConnected || (typeof active.checkVisibility === "function" && !active.checkVisibility({ visibilityProperty: true })));
-      const free = !active || active === document.body || gone || Boolean(active.closest('[data-screen="rebase"], [role="menu"]')) || active.matches('[data-area="center"]');
+      const gone =
+        active instanceof HTMLElement &&
+        (!active.isConnected || (typeof active.checkVisibility === "function" && !active.checkVisibility({ visibilityProperty: true })));
+      const free =
+        !active ||
+        active === document.body ||
+        gone ||
+        Boolean(active.closest('[data-screen="rebase"], [role="menu"]')) ||
+        active.matches('[data-area="center"]');
       if (free && !document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]')) {
         button.focus({ preventScroll: true });
         if (document.activeElement === button) return;
@@ -188,7 +254,17 @@ export function StatePanel({ icon, title, children, actions, state }: { icon: Re
 }
 
 /** Error while loading – with reason and "Try again". */
-export function LoadError({ error, onRetry, onClose, icon }: { error: CoreError; onRetry: () => void; onClose: () => void; icon: ReactNode }) {
+export function LoadError({
+  error,
+  onRetry,
+  onClose,
+  icon,
+}: {
+  error: CoreError;
+  onRetry: () => void;
+  onClose: () => void;
+  icon: ReactNode;
+}) {
   const { text, hint } = describeError(error);
   return (
     <StatePanel

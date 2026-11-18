@@ -27,8 +27,7 @@ for (const theme of themes) {
   }
 }
 
-const colorVars = (theme) =>
-  roles.map((role) => `  --gc-${role}: ${tokens.color[theme][role]};`).join("\n");
+const colorVars = (theme) => roles.map((role) => `  --gc-${role}: ${tokens.color[theme][role]};`).join("\n");
 
 const shared = [
   `  --gc-font-sans: ${tokens.font.sans};`,
@@ -71,13 +70,19 @@ ${Object.entries(tokens.type)
   .join("\n")}
 
   --radius-*: initial;
-${Object.keys(tokens.radius).map((k) => `  --radius-${k}: var(--gc-radius-${k});`).join("\n")}
+${Object.keys(tokens.radius)
+  .map((k) => `  --radius-${k}: var(--gc-radius-${k});`)
+  .join("\n")}
 
   --shadow-*: initial;
-${Object.keys(tokens.shadow).map((k) => `  --shadow-${k}: var(--gc-shadow-${k});`).join("\n")}
+${Object.keys(tokens.shadow)
+  .map((k) => `  --shadow-${k}: var(--gc-shadow-${k});`)
+  .join("\n")}
 
   --spacing: 4px;
-${Object.keys(tokens.size).map((k) => `  --spacing-${k}: var(--gc-size-${k});`).join("\n")}
+${Object.keys(tokens.size)
+  .map((k) => `  --spacing-${k}: var(--gc-size-${k});`)
+  .join("\n")}
 
   --ease-out: var(--gc-motion-ease);
   --default-transition-duration: var(--gc-motion-fast);

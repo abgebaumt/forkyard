@@ -22,7 +22,13 @@ const H = 900;
 const GITHUB = "https://github.com/acme/wetterstation";
 const GITLAB = "https://gitlab.com/acme/wetterstation";
 // The remotes only name a public host; nothing may ever reach it. A dead proxy makes sure of that.
-const NO_NETWORK = { HTTPS_PROXY: "http://127.0.0.1:9", HTTP_PROXY: "http://127.0.0.1:9", ALL_PROXY: "http://127.0.0.1:9", https_proxy: "http://127.0.0.1:9", http_proxy: "http://127.0.0.1:9" };
+const NO_NETWORK = {
+  HTTPS_PROXY: "http://127.0.0.1:9",
+  HTTP_PROXY: "http://127.0.0.1:9",
+  ALL_PROXY: "http://127.0.0.1:9",
+  https_proxy: "http://127.0.0.1:9",
+  http_proxy: "http://127.0.0.1:9",
+};
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -77,7 +83,11 @@ const selection = (app, tabId) => app.exec((id) => window.__gc.store.getState().
 async function selectCommit(app, sha) {
   const cell = await app.waitFor(`${rowCss(sha)} [data-cell="date"]`, 15_000);
   await app.click(cell);
-  await app.waitFor(() => app.exec((full) => document.querySelector('[data-screen="commit-details"]')?.innerText.includes(full.slice(0, 7)) ?? false, sha), 10_000, { message: `details of ${sha.slice(0, 7)}` });
+  await app.waitFor(
+    () => app.exec((full) => document.querySelector('[data-screen="commit-details"]')?.innerText.includes(full.slice(0, 7)) ?? false, sha),
+    10_000,
+    { message: `details of ${sha.slice(0, 7)}` },
+  );
   await app.waitFor(SUMMARY, 10_000);
 }
 
@@ -119,7 +129,12 @@ async function fill(app, label, value) {
 /** Picks an option of a Radix select by its label. */
 async function choose(app, label, option) {
   await app.click(await field(app, label));
-  const item = await app.waitFor(() => app.exec((text) => [...document.querySelectorAll('[role="option"]')].find((el) => el.textContent.trim() === text) ?? null, option), 5000, { message: `option ${option}` });
+  const item = await app.waitFor(
+    () =>
+      app.exec((text) => [...document.querySelectorAll('[role="option"]')].find((el) => el.textContent.trim() === text) ?? null, option),
+    5000,
+    { message: `option ${option}` },
+  );
   await app.click(item);
   await eventually(async () => (await field(app, label)).text(), option, `select ${label}`, 5000);
 }
@@ -127,14 +142,23 @@ async function choose(app, label, option) {
 /** A button inside the settings by its visible text or label. */
 const settingsButton = (app, text) =>
   app.waitFor(
-    () => app.exec((name) => [...document.querySelectorAll('[data-screen="settings"] button')].find((el) => el.textContent.trim() === name || el.getAttribute("aria-label") === name) ?? null, text),
+    () =>
+      app.exec(
+        (name) =>
+          [...document.querySelectorAll('[data-screen="settings"] button')].find(
+            (el) => el.textContent.trim() === name || el.getAttribute("aria-label") === name,
+          ) ?? null,
+        text,
+      ),
     10_000,
     { message: `button “${text}”` },
   );
 
-const alerts = (app) => app.exec(() => [...document.querySelectorAll('[data-screen="settings"] [role="alert"]')].map((el) => el.textContent.trim()));
+const alerts = (app) =>
+  app.exec(() => [...document.querySelectorAll('[data-screen="settings"] [role="alert"]')].map((el) => el.textContent.trim()));
 const linkConfig = async (app, repoId) => (await app.invoke("repo_settings_get", { repoId })).linkRules;
-const effective = async (app, repoId) => (await app.invoke("link_rules_get", { repoId })).rules.map((rule) => [rule.id, rule.source, rule.url]);
+const effective = async (app, repoId) =>
+  (await app.invoke("link_rules_get", { repoId })).rules.map((rule) => [rule.id, rule.source, rule.url]);
 
 /** The host-rules switch in the section. */
 const hostSwitch = (app) => app.waitFor('[data-screen="settings"] [role="switch"]', 10_000, { message: "host switch" });
@@ -146,7 +170,12 @@ const fileCard = (app) =>
     if (!card) return null;
     return {
       origin: card.dataset.linkFile,
-      rules: [...card.querySelectorAll("[data-link-file-rule]")].map((rule) => rule.innerText.split("\n").map((line) => line.trim()).filter(Boolean)),
+      rules: [...card.querySelectorAll("[data-link-file-rule]")].map((rule) =>
+        rule.innerText
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean),
+      ),
       problems: [...card.querySelectorAll("ul li")].map((item) => item.textContent.trim()),
       text: card.innerText.replace(/\s+/g, " ").trim(),
     };
@@ -159,16 +188,27 @@ const fileCard = (app) =>
 scenario("GitHub remote: #42 in graph and details opens the issue on GitHub", "main", async (t) => {
   const repo = makeLinksRepo({ remote: `${GITHUB}.git` });
   try {
-    const c1 = repo.commit("Luftdruck auf hPa umgestellt (#42)", "Behebt #7 und den Rundungsfehler aus #1234.\nKein Link: #42abc, Version 1.2");
+    const c1 = repo.commit(
+      "Luftdruck auf hPa umgestellt (#42)",
+      "Behebt #7 und den Rundungsfehler aus #1234.\nKein Link: #42abc, Version 1.2",
+    );
     const app = await launch(t);
     const { repoId, tabId } = await app.openRepo(repo.path);
     assertEqual(repo.git("remote", "get-url", "origin"), `${GITHUB}.git`, "git: origin points to GitHub");
 
-    const graphLinks = await app.waitFor(async () => {
-      const found = await linksIn(app, rowCss(c1));
-      return found.length ? found : null;
-    }, 15_000, { message: "link in the graph row" });
-    assertEqual(graphLinks.map((link) => [link.text, link.rule, link.tabIndex]), [["#42", "host:issue", -1]], "graph: #42 is a host link and no tab stop");
+    const graphLinks = await app.waitFor(
+      async () => {
+        const found = await linksIn(app, rowCss(c1));
+        return found.length ? found : null;
+      },
+      15_000,
+      { message: "link in the graph row" },
+    );
+    assertEqual(
+      graphLinks.map((link) => [link.text, link.rule, link.tabIndex]),
+      [["#42", "host:issue", -1]],
+      "graph: #42 is a host link and no tab stop",
+    );
     assertEqual(graphLinks[0].title, `Open ${GITHUB}/issues/42 in the browser`, "graph: tooltip names the address");
 
     // Clicking the link in the graph opens it and does not select the row.
@@ -178,8 +218,16 @@ scenario("GitHub remote: #42 in graph and details opens the issue on GitHub", "m
     assertEqual(await selection(app, tabId), before, "the row click handler ignored the link");
 
     await selectCommit(app, c1);
-    assertEqual((await linksIn(app, SUMMARY)).map((link) => [link.text, link.rule, link.tabIndex]), [["#42", "host:issue", 0]], "details: summary link (focusable)");
-    assertEqual((await linksIn(app, DESCRIPTION)).map((link) => link.text), ["#7", "#1234"], "details: description links, not #42abc");
+    assertEqual(
+      (await linksIn(app, SUMMARY)).map((link) => [link.text, link.rule, link.tabIndex]),
+      [["#42", "host:issue", 0]],
+      "details: summary link (focusable)",
+    );
+    assertEqual(
+      (await linksIn(app, DESCRIPTION)).map((link) => link.text),
+      ["#7", "#1234"],
+      "details: description links, not #42abc",
+    );
     const description = await (await app.$(DESCRIPTION)).text();
     assertIncludes(description, "#42abc", "#42abc stays plain text");
     await clearOpened(app);
@@ -199,16 +247,35 @@ scenario("GitLab remote: #3 opens the issue, !7 the merge request", "edge", asyn
     const c1 = repo.commit("Merge-Request !7 übernommen, schließt #3");
     const app = await launch(t);
     const { repoId } = await app.openRepo(repo.path);
-    const links = await app.waitFor(async () => {
-      const found = await linksIn(app, rowCss(c1));
-      return found.length === 2 ? found : null;
-    }, 15_000, { message: "two links in the graph row" });
-    assertEqual(links.map((link) => [link.text, link.rule]), [["!7", "host:merge_request"], ["#3", "host:issue"]], "graph: !7 and #3");
+    const links = await app.waitFor(
+      async () => {
+        const found = await linksIn(app, rowCss(c1));
+        return found.length === 2 ? found : null;
+      },
+      15_000,
+      { message: "two links in the graph row" },
+    );
+    assertEqual(
+      links.map((link) => [link.text, link.rule]),
+      [
+        ["!7", "host:merge_request"],
+        ["#3", "host:issue"],
+      ],
+      "graph: !7 and #3",
+    );
     await selectCommit(app, c1);
     await app.click(await app.waitFor(() => app.byText("!7", { within: SUMMARY })));
     await app.click(await app.waitFor(() => app.byText("#3", { within: SUMMARY })));
-    await eventually(() => opened(app), [`${GITLAB}/-/merge_requests/7`, `${GITLAB}/-/issues/3`], "GitLab addresses (SSH remote → https web address)");
-    assertEqual((await effective(app, repoId)).map(([id]) => id), ["host:issue", "host:merge_request"], "core: two GitLab host rules");
+    await eventually(
+      () => opened(app),
+      [`${GITLAB}/-/merge_requests/7`, `${GITLAB}/-/issues/3`],
+      "GitLab addresses (SSH remote → https web address)",
+    );
+    assertEqual(
+      (await effective(app, repoId)).map(([id]) => id),
+      ["host:issue", "host:merge_request"],
+      "core: two GitLab host rules",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -227,7 +294,10 @@ scenario("No remote on a known host: no links, the section explains why", "edge"
     const none = await app.invoke("link_rules_get", { repoId });
     assertEqual([none.rules, none.file, none.problems], [[], null, []], "core: no rules");
     await openLinkSettings(app);
-    assert(await app.byText(/No remote of this repository is on GitHub, GitLab or a connected instance/, { regex: true }), "hint: nothing to link to");
+    assert(
+      await app.byText(/No remote of this repository is on GitHub, GitLab or a connected instance/, { regex: true }),
+      "hint: nothing to link to",
+    );
     assertEqual(await (await hostSwitch(app)).attr("aria-checked"), "true", "host links stay switched on");
     assertEqual((await fileCard(app)).origin, "none", "no repository file");
     assertIncludes((await fileCard(app)).text, "The repository has no .forkyard/links.json.", "file card text");
@@ -276,7 +346,10 @@ scenario("Keyboard: Tab reaches the links in the details, Enter opens; graph lin
     const app = await launch(t);
     await app.openRepo(repo.path);
     await selectCommit(app, c1);
-    assert((await linksIn(app, rowCss(c1))).every((link) => link.tabIndex === -1), "graph links have tabindex -1");
+    assert(
+      (await linksIn(app, rowCss(c1))).every((link) => link.tabIndex === -1),
+      "graph links have tabindex -1",
+    );
     // Focus the summary link, then Tab to the description link, Enter opens it.
     await app.exec((css) => document.querySelector(`${css} [data-ticket-link]`).focus(), SUMMARY);
     assertEqual(await app.exec(() => document.activeElement?.textContent), "#5", "focus on #5");
@@ -309,21 +382,45 @@ scenario("Jira preset with project keys: OPS-17 and WEB-3 open Jira, UTF-8 stays
     await fill(app, "Project keys", "ops, web");
     await app.click(await settingsButton(app, "Add"));
     const card = await app.waitFor('[data-link-preset="jira"]', 10_000, { message: "Jira card" });
-    assertMatch(await innerText(app, card), /Jira[\s\S]*https:\/\/acme\.atlassian\.net[\s\S]*Keys: OPS, WEB/, "card: name, address without slash, keys in capitals");
+    assertMatch(
+      await innerText(app, card),
+      /Jira[\s\S]*https:\/\/acme\.atlassian\.net[\s\S]*Keys: OPS, WEB/,
+      "card: name, address without slash, keys in capitals",
+    );
     assertEqual(await alerts(app), [], "no error");
-    assertEqual((await field(app, "Address").then((input) => input.prop("value"))), "", "address field cleared after adding");
-    assertEqual((await linkConfig(app, repoId)).presets.map(({ kind, baseUrl, keys }) => ({ kind, baseUrl, keys })), [{ kind: "jira", baseUrl: "https://acme.atlassian.net", keys: ["OPS", "WEB"] }], "core: preset stored normalized");
-    assertEqual(await effective(app, repoId), [["preset:jira:0", "preset", "https://acme.atlassian.net/browse/$0"]], "core: effective rule");
+    assertEqual(await field(app, "Address").then((input) => input.prop("value")), "", "address field cleared after adding");
+    assertEqual(
+      (await linkConfig(app, repoId)).presets.map(({ kind, baseUrl, keys }) => ({ kind, baseUrl, keys })),
+      [{ kind: "jira", baseUrl: "https://acme.atlassian.net", keys: ["OPS", "WEB"] }],
+      "core: preset stored normalized",
+    );
+    assertEqual(
+      await effective(app, repoId),
+      [["preset:jira:0", "preset", "https://acme.atlassian.net/browse/$0"]],
+      "core: effective rule",
+    );
     await t.shot("jira-preset-settings");
     await closeSettings(app);
 
     await selectCommit(app, c1);
     await eventually(async () => (await linksIn(app, SUMMARY)).map((link) => link.text), ["OPS-17"], "summary: OPS-17");
-    assertEqual((await linksIn(app, DESCRIPTION)).map((link) => link.text), ["WEB-3"], "description: WEB-3 only, not UTF-8 / SHA-256");
-    assertEqual((await linksIn(app, rowCss(c1))).map((link) => link.text), ["OPS-17"], "graph: OPS-17");
+    assertEqual(
+      (await linksIn(app, DESCRIPTION)).map((link) => link.text),
+      ["WEB-3"],
+      "description: WEB-3 only, not UTF-8 / SHA-256",
+    );
+    assertEqual(
+      (await linksIn(app, rowCss(c1))).map((link) => link.text),
+      ["OPS-17"],
+      "graph: OPS-17",
+    );
     await app.click(await app.waitFor(() => app.byText("OPS-17", { within: SUMMARY })));
     await app.click(await app.waitFor(() => app.byText("WEB-3", { within: DESCRIPTION })));
-    await eventually(() => opened(app), ["https://acme.atlassian.net/browse/OPS-17", "https://acme.atlassian.net/browse/WEB-3"], "Jira addresses");
+    await eventually(
+      () => opened(app),
+      ["https://acme.atlassian.net/browse/OPS-17", "https://acme.atlassian.net/browse/WEB-3"],
+      "Jira addresses",
+    );
     await t.shot("jira-preset-links");
     assertEqual(repo.git("status", "--porcelain"), "", "git: repository untouched");
     await t.noConsoleErrors(app);
@@ -358,7 +455,11 @@ scenario("Preset input errors: no http(s) address, bad key – shown at the form
     await app.click(await settingsButton(app, "Add"));
     await app.waitFor('[data-link-preset="youtrack"]', 10_000, { message: "YouTrack card" });
     await eventually(() => alerts(app), [], "error gone");
-    assertEqual(await effective(app, repoId), [["preset:youtrack:0", "preset", "https://acme.youtrack.cloud/issue/$0"]], "core: YouTrack rule");
+    assertEqual(
+      await effective(app, repoId),
+      [["preset:youtrack:0", "preset", "https://acme.youtrack.cloud/issue/$0"]],
+      "core: YouTrack rule",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -374,12 +475,22 @@ scenario("Redmine beats the host at #12; removing it gives #12 back to GitHub", 
     await app.waitFor(`${rowCss(c1)} [data-ticket-link="host:issue"]`, 15_000, { message: "host link first" });
     await openLinkSettings(app);
     await choose(app, "Tracker", "Redmine");
-    assertEqual(await app.exec(() => [...document.querySelectorAll('[data-screen="settings"] label')].some((el) => el.textContent.trim() === "Project keys")), false, "Redmine has no key field");
+    assertEqual(
+      await app.exec(() =>
+        [...document.querySelectorAll('[data-screen="settings"] label')].some((el) => el.textContent.trim() === "Project keys"),
+      ),
+      false,
+      "Redmine has no key field",
+    );
     assert(await app.byText(/if the host links are on as well, your tracker wins/, { regex: true }), "Redmine hint");
     await fill(app, "Address", "https://redmine.example.com");
     await app.click(await settingsButton(app, "Add"));
     await app.waitFor('[data-link-preset="redmine"]', 10_000);
-    assertEqual((await effective(app, repoId)).map(([id]) => id), ["preset:redmine:0", "host:issue"], "core: preset before host");
+    assertEqual(
+      (await effective(app, repoId)).map(([id]) => id),
+      ["preset:redmine:0", "host:issue"],
+      "core: preset before host",
+    );
     await closeSettings(app);
     await eventually(async () => (await linksIn(app, rowCss(c1))).map((link) => link.rule), ["preset:redmine:0"], "graph: Redmine wins");
     await selectCommit(app, c1);
@@ -437,19 +548,38 @@ scenario("Own rule with test field: CVE-2024-1234 opens the vulnerability page",
     await fill(app, "Address template", "https://nvd.example/vuln/$1");
     await fill(app, "Try it", "Fixes CVE-2024-1234, not CVE-12");
     const tested = await app.waitFor('[data-screen="settings"] ul[aria-label="Links in the sample"]', 5000, { message: "test result" });
-    assertEqual(await innerText(app, tested), "CVE-2024-1234 → https://nvd.example/vuln/2024-1234", "test field shows the match and the address");
+    assertEqual(
+      await innerText(app, tested),
+      "CVE-2024-1234 → https://nvd.example/vuln/2024-1234",
+      "test field shows the match and the address",
+    );
     await app.exec((el) => el.scrollIntoView({ block: "center" }), tested);
     await app.settle();
     await t.shot("custom-rule-test-field");
     await app.click(await settingsButton(app, "Add rule"));
     const rule = await app.waitFor('[data-link-rule="rule-1"]', 10_000, { message: "rule row" });
-    assertMatch(await innerText(app, rule), /CVE-\(\\d\{4\}-\\d\+\)[\s\S]*https:\/\/nvd\.example\/vuln\/\$1/, "rule row shows pattern and template");
-    assertEqual((await field(app, "Pattern").then((input) => input.prop("value"))), "", "form cleared");
-    assertEqual((await linkConfig(app, repoId)).custom.map(({ id, pattern, url }) => ({ id, pattern, url })), [{ id: "rule-1", pattern: "CVE-(\\d{4}-\\d+)", url: "https://nvd.example/vuln/$1" }], "core: rule stored");
+    assertMatch(
+      await innerText(app, rule),
+      /CVE-\(\\d\{4\}-\\d\+\)[\s\S]*https:\/\/nvd\.example\/vuln\/\$1/,
+      "rule row shows pattern and template",
+    );
+    assertEqual(await field(app, "Pattern").then((input) => input.prop("value")), "", "form cleared");
+    assertEqual(
+      (await linkConfig(app, repoId)).custom.map(({ id, pattern, url }) => ({ id, pattern, url })),
+      [{ id: "rule-1", pattern: "CVE-(\\d{4}-\\d+)", url: "https://nvd.example/vuln/$1" }],
+      "core: rule stored",
+    );
     await closeSettings(app);
 
     await selectCommit(app, c1);
-    await eventually(async () => (await linksIn(app, DESCRIPTION)).map((link) => [link.text, link.rule]), [["CVE-2024-1234", "custom:rule-1"], ["CVE-2023-99", "custom:rule-1"]], "description links");
+    await eventually(
+      async () => (await linksIn(app, DESCRIPTION)).map((link) => [link.text, link.rule]),
+      [
+        ["CVE-2024-1234", "custom:rule-1"],
+        ["CVE-2023-99", "custom:rule-1"],
+      ],
+      "description links",
+    );
     await app.click(await app.waitFor(() => app.byText("CVE-2024-1234", { within: DESCRIPTION })));
     await eventually(() => opened(app), ["https://nvd.example/vuln/2024-1234"], "address from group 1");
     await t.shot("custom-rule-link");
@@ -466,7 +596,8 @@ scenario("Own rule refused: lookahead, nested repetition, unknown group, placeho
     const app = await launch(t);
     const { repoId } = await app.openRepo(repo.path);
     await openLinkSettings(app);
-    const result = () => app.exec(() => [...document.querySelectorAll('[data-screen="settings"] p.text-sm')].map((el) => el.textContent.trim()));
+    const result = () =>
+      app.exec(() => [...document.querySelectorAll('[data-screen="settings"] p.text-sm')].map((el) => el.textContent.trim()));
     const tryAdd = async (pattern, url, expected, label) => {
       await fill(app, "Pattern", pattern);
       await fill(app, "Address template", url);
@@ -476,7 +607,11 @@ scenario("Own rule refused: lookahead, nested repetition, unknown group, placeho
 
     await fill(app, "Try it", "aaaa OPS-1");
     await fill(app, "Pattern", "(a+)+");
-    await eventually(async () => (await result()).includes("A repeated group must not contain a repetition itself, e.g. (a+)+."), true, "test field warns about nesting");
+    await eventually(
+      async () => (await result()).includes("A repeated group must not contain a repetition itself, e.g. (a+)+."),
+      true,
+      "test field warns about nesting",
+    );
     await tryAdd("(a+)+", "https://tracker.example/$1", /^Rule 1: /, "nested repetition");
     await tryAdd("(?=OPS)OPS-\\d+", "https://tracker.example/$0", /^Rule 1: .*look/i, "lookahead");
     await tryAdd("OPS-(\\d+)", "https://tracker.example/t/$2", /uses \$2, but the pattern has only 1 group/, "unknown group");
@@ -503,7 +638,12 @@ scenario("Inserted text is URL-encoded: a match cannot change the path or query"
     const c1 = repo.commit("Siehe REF-a/../b?x=1&y=#2 im Wiki");
     const app = await launch(t);
     const { repoId } = await app.openRepo(repo.path);
-    await app.invoke("repo_settings_set", { repoId, patch: { linkRules: { hostRules: true, presets: [], custom: [{ id: "wiki", pattern: "REF-(\\S+)", url: "https://wiki.example/ref/$1" }] } } });
+    await app.invoke("repo_settings_set", {
+      repoId,
+      patch: {
+        linkRules: { hostRules: true, presets: [], custom: [{ id: "wiki", pattern: "REF-(\\S+)", url: "https://wiki.example/ref/$1" }] },
+      },
+    });
     await app.exec(() => window.__gc.queryClient.invalidateQueries());
     await selectCommit(app, c1);
     const link = await app.waitFor(() => app.byText("REF-a/../b?x=1&y=#2", { within: SUMMARY }), 10_000, { message: "REF link" });
@@ -526,7 +666,11 @@ scenario("Own rule beats the host at the same place; deleting it restores the ho
     await fill(app, "Address template", "https://support.example/ticket/$1");
     await app.click(await settingsButton(app, "Add rule"));
     await app.waitFor('[data-link-rule="rule-1"]', 10_000);
-    assertEqual((await effective(app, repoId)).map(([id]) => id), ["custom:rule-1", "host:issue"], "core: own rule first");
+    assertEqual(
+      (await effective(app, repoId)).map(([id]) => id),
+      ["custom:rule-1", "host:issue"],
+      "core: own rule first",
+    );
     await closeSettings(app);
     await eventually(async () => (await linksIn(app, rowCss(c1))).map((link) => link.rule), ["custom:rule-1"], "graph: own rule wins");
     await app.click(await app.waitFor(`${rowCss(c1)} [data-ticket-link]`));
@@ -563,14 +707,22 @@ scenario("Committed .forkyard/links.json: rules shown read-only, links work, no 
     await app.click(await app.waitFor(() => app.byText("OPS-88", { within: SUMMARY })));
     await eventually(() => opened(app), ["https://ops.example/ticket/88"], "file rule address");
     const rules = await app.invoke("link_rules_get", { repoId });
-    assertEqual([rules.file, rules.problems, rules.rules.map((rule) => [rule.id, rule.source])], ["worktree", [], [["file:ops", "repo_file"]]], "core: from the worktree");
+    assertEqual(
+      [rules.file, rules.problems, rules.rules.map((rule) => [rule.id, rule.source])],
+      ["worktree", [], [["file:ops", "repo_file"]]],
+      "core: from the worktree",
+    );
 
     await openLinkSettings(app);
     const card = await fileCard(app);
     assertEqual(card.origin, "worktree", "card: from the working directory");
     assertIncludes(card.text, "Read from the working directory.", "card text");
     assertEqual(card.rules, [["OPS-(\\d+)", "https://ops.example/ticket/$1"]], "card: the rule, read-only");
-    assertEqual(await app.exec(() => document.querySelectorAll("[data-link-file] input, [data-link-file] button").length), 0, "card has no inputs or buttons");
+    assertEqual(
+      await app.exec(() => document.querySelectorAll("[data-link-file] input, [data-link-file] button").length),
+      0,
+      "card has no inputs or buttons",
+    );
     assertEqual((await linkConfig(app, repoId)).custom, [], "core: not copied into the own rules");
     await t.shot("links-json-settings");
     await t.noConsoleErrors(app);
@@ -630,28 +782,54 @@ scenario("Faulty links.json entries are listed and skipped; edits apply live", "
     await t.shot("links-json-problems");
 
     // Broken JSON while the app is open: the whole file is reported, own rules keep working.
-    await app.invoke("repo_settings_set", { repoId, patch: { linkRules: { hostRules: true, presets: [], custom: [{ id: "own", pattern: "OK-(\\d+)", url: "https://own.example/$1" }] } } });
+    await app.invoke("repo_settings_set", {
+      repoId,
+      patch: { linkRules: { hostRules: true, presets: [], custom: [{ id: "own", pattern: "OK-(\\d+)", url: "https://own.example/$1" }] } },
+    });
     repo.write(".forkyard/links.json", '{ "version": 1, "rules": [ ');
-    await eventually(async () => {
-      const rules = await app.invoke("link_rules_get", { repoId });
-      return [rules.rules.map((rule) => rule.id), rules.problems.length];
-    }, [["custom:own"], 1], "core: own rule, one problem");
-    await eventually(async () => (await fileCard(app))?.problems.some((text) => /links\.json cannot be read/.test(text)), true, "card shows the parse error (live)");
+    await eventually(
+      async () => {
+        const rules = await app.invoke("link_rules_get", { repoId });
+        return [rules.rules.map((rule) => rule.id), rules.problems.length];
+      },
+      [["custom:own"], 1],
+      "core: own rule, one problem",
+    );
+    await eventually(
+      async () => (await fileCard(app))?.problems.some((text) => /links\.json cannot be read/.test(text)),
+      true,
+      "card shows the parse error (live)",
+    );
 
     // Unknown version.
     repo.write(".forkyard/links.json", linksFile([{ pattern: "V-(\\d+)", url: "https://v.example/$1" }], 2));
-    await eventually(async () => (await fileCard(app))?.problems.some((text) => /has version 2; this version of Forkyard reads version 1/.test(text)), true, "version 2 reported");
+    await eventually(
+      async () => (await fileCard(app))?.problems.some((text) => /has version 2; this version of Forkyard reads version 1/.test(text)),
+      true,
+      "version 2 reported",
+    );
 
     // Too large.
     repo.write(".forkyard/links.json", JSON.stringify({ version: 1, rules: [], pad: "x".repeat(70 * 1024) }));
-    await eventually(async () => (await fileCard(app))?.problems.some((text) => /larger than 64 KiB/.test(text)), true, "large file reported");
+    await eventually(
+      async () => (await fileCard(app))?.problems.some((text) => /larger than 64 KiB/.test(text)),
+      true,
+      "large file reported",
+    );
 
     // Fixed again: a new rule appears without reopening anything.
     repo.write(".forkyard/links.json", linksFile([{ id: "neu", pattern: "BAD-(\\d+)", url: "https://neu.example/$1" }]));
     await eventually(async () => (await fileCard(app))?.rules, [["BAD-(\\d+)", "https://neu.example/$1"]], "new rule shown (live)");
     await eventually(async () => (await fileCard(app))?.problems, [], "no problems left");
     await closeSettings(app);
-    await eventually(async () => (await linksIn(app, SUMMARY)).map((link) => [link.text, link.rule]), [["OK-1", "custom:own"], ["BAD-2", "file:neu"]], "details follow the file");
+    await eventually(
+      async () => (await linksIn(app, SUMMARY)).map((link) => [link.text, link.rule]),
+      [
+        ["OK-1", "custom:own"],
+        ["BAD-2", "file:neu"],
+      ],
+      "details follow the file",
+    );
     assertEqual(repo.git("status", "--porcelain"), " M .forkyard/links.json", "git: only the file the test changed");
     await t.noConsoleErrors(app);
   } finally {

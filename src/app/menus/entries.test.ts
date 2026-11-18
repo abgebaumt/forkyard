@@ -10,9 +10,18 @@ import type { MenuAction, MenuEntry } from "../../ui/Menu";
 import { qk, queryClient } from "../queries";
 import { branchMenu, commitMenu, fileMenu } from "./entries";
 
-const stash: Stash = { index: 0, sha: "a".repeat(40), message: "Halbfertig", branch: "main", baseSha: "c".repeat(40), createdAt: "2026-10-15T08:00:00Z", fileCount: 2 };
+const stash: Stash = {
+  index: 0,
+  sha: "a".repeat(40),
+  message: "Halbfertig",
+  branch: "main",
+  baseSha: "c".repeat(40),
+  createdAt: "2026-10-15T08:00:00Z",
+  fileCount: 2,
+};
 const file = (path: string, status: FileChange["status"]) => ({ path, status }) as unknown as FileChange;
-const find = (entries: MenuEntry[], label: string) => entries.find((entry): entry is MenuAction => "label" in entry && entry.label === label);
+const find = (entries: MenuEntry[], label: string) =>
+  entries.find((entry): entry is MenuAction => "label" in entry && entry.label === label);
 
 describe("file menu of a stash", () => {
   beforeEach(() => {
@@ -26,7 +35,12 @@ describe("file menu of a stash", () => {
   });
 
   it("applies an untracked file through the stash itself, not as a file of the stash commit", async () => {
-    const entries = fileMenu({ repoId: "r1", tabId: "t1", files: [file("notizen/neu.txt", "untracked")], source: { kind: "stash", index: 0 } });
+    const entries = fileMenu({
+      repoId: "r1",
+      tabId: "t1",
+      files: [file("notizen/neu.txt", "untracked")],
+      source: { kind: "stash", index: 0 },
+    });
     const apply = find(entries, "Apply only this file from the stash …");
     expect(apply?.disabled).toBeFalsy();
     apply!.onSelect!();
@@ -38,10 +52,19 @@ describe("file menu of a stash", () => {
 
   it("restores tracked files from the stash commit and untracked ones through the stash, found again by SHA", async () => {
     invoke.mockImplementation(async (name: string) => {
-      if (name === "stash_list") return [{ ...stash, index: 0, sha: "b".repeat(40) }, { ...stash, index: 1 }];
+      if (name === "stash_list")
+        return [
+          { ...stash, index: 0, sha: "b".repeat(40) },
+          { ...stash, index: 1 },
+        ];
       return { unstaged: [], staged: [], conflicted: [] };
     });
-    const entries = fileMenu({ repoId: "r1", tabId: "t1", files: [file("a.txt", "modified"), file("notizen/neu.txt", "untracked")], source: { kind: "stash", index: 0 } });
+    const entries = fileMenu({
+      repoId: "r1",
+      tabId: "t1",
+      files: [file("a.txt", "modified"), file("notizen/neu.txt", "untracked")],
+      source: { kind: "stash", index: 0 },
+    });
     find(entries, "Apply only these 2 files from the stash …")!.onSelect!();
     await vi.waitFor(() => expect(invoke.mock.calls.map(([name]) => name)).toContain("stash_apply_paths"));
     expect(invoke.mock.calls.find(([name]) => name === "file_restore")![1]).toMatchObject({ sha: stash.sha, paths: ["a.txt"] });
@@ -49,7 +72,12 @@ describe("file menu of a stash", () => {
   });
 
   it("says that an untracked file comes back untracked", () => {
-    const entries = fileMenu({ repoId: "r1", tabId: "t1", files: [file("notizen/neu.txt", "untracked")], source: { kind: "stash", index: 0 } });
+    const entries = fileMenu({
+      repoId: "r1",
+      tabId: "t1",
+      files: [file("notizen/neu.txt", "untracked")],
+      source: { kind: "stash", index: 0 },
+    });
     expect(find(entries, "Apply only this file from the stash …")?.hint).toBe("new file from the stash, stays untracked");
   });
 });
@@ -110,7 +138,10 @@ describe("deleting a branch on the remote", () => {
   });
 
   it("not for a local branch without upstream or with a gone upstream", () => {
-    for (const plain of [ref({ name: "solo", fullName: "refs/heads/solo" }), ref({ name: "alt", fullName: "refs/heads/alt", upstream: "origin/alt", upstreamGone: true })]) {
+    for (const plain of [
+      ref({ name: "solo", fullName: "refs/heads/solo" }),
+      ref({ name: "alt", fullName: "refs/heads/alt", upstream: "origin/alt", upstreamGone: true }),
+    ]) {
       const labels = branchMenu({ repoId: "r1", tabId: "t1", ref: plain }).flatMap((entry) => ("label" in entry ? [entry.label] : []));
       expect(labels.some((label) => /on remote/.test(label))).toBe(false);
     }
@@ -119,7 +150,17 @@ describe("deleting a branch on the remote", () => {
 
 describe("release notes in the tag menu", () => {
   const tag = ref({ name: "v1.1.0", fullName: "refs/tags/v1.1.0", kind: "tag" });
-  const on = { state: "on", provider: "ollama", model: "qwen3:8b", connected: true, keyHint: null, local: true, price: null, introPending: false, featuresOff: [] as string[] };
+  const on = {
+    state: "on",
+    provider: "ollama",
+    model: "qwen3:8b",
+    connected: true,
+    keyHint: null,
+    local: true,
+    price: null,
+    introPending: false,
+    featuresOff: [] as string[],
+  };
   const entries = () => branchMenu({ repoId: "r1", tabId: "t1", ref: tag });
 
   beforeEach(() => {
@@ -153,11 +194,35 @@ describe("release notes in the tag menu", () => {
 });
 
 describe("bisect autopilot in the commit menu", () => {
-  const on = { state: "on", provider: "ollama", model: "qwen3:8b", connected: true, keyHint: null, local: true, price: null, introPending: false, featuresOff: [] as string[] };
+  const on = {
+    state: "on",
+    provider: "ollama",
+    model: "qwen3:8b",
+    connected: true,
+    keyHint: null,
+    local: true,
+    price: null,
+    introPending: false,
+    featuresOff: [] as string[],
+  };
   const one = ["1".repeat(40)];
   const two = ["1".repeat(40), "2".repeat(40)];
   const label = "Bisect autopilot …";
-  const run = (phase: string) => ({ jobId: "j1", phase, worktreePath: "/tmp/repo.agents/bisect-1", bad: two[0], good: [two[1]], current: null, remainingSteps: null, steps: [], result: null, candidates: [], stepTimeoutSecs: 600, message: null, startedAt: "2026-10-18T09:00:00Z" });
+  const run = (phase: string) => ({
+    jobId: "j1",
+    phase,
+    worktreePath: "/tmp/repo.agents/bisect-1",
+    bad: two[0],
+    good: [two[1]],
+    current: null,
+    remainingSteps: null,
+    steps: [],
+    result: null,
+    candidates: [],
+    stepTimeoutSecs: 600,
+    message: null,
+    startedAt: "2026-10-18T09:00:00Z",
+  });
 
   beforeEach(() => {
     queryClient.clear();
@@ -174,7 +239,17 @@ describe("bisect autopilot in the commit menu", () => {
   });
 
   it("is not blocked by a manual bisect in the own working directory, but by a running autopilot", () => {
-    queryClient.setQueryData(qk.bisect("r1"), { active: true, bad: two[0], good: [two[1]], skipped: [], current: "3".repeat(40), remainingSteps: 1, stepsDone: 0, result: null, onlySkippedLeft: false });
+    queryClient.setQueryData(qk.bisect("r1"), {
+      active: true,
+      bad: two[0],
+      good: [two[1]],
+      skipped: [],
+      current: "3".repeat(40),
+      remainingSteps: 1,
+      stepsDone: 0,
+      result: null,
+      onlySkippedLeft: false,
+    });
     expect(find(commitMenu({ repoId: "r1", tabId: "t1", shas: two }), label)?.disabled).toBeFalsy();
     queryClient.setQueryData(qk.bisect("r1"), undefined);
     queryClient.setQueryData(qk.bisectAutopilot("r1"), run("testing"));

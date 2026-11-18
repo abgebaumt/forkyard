@@ -21,7 +21,9 @@ export function hitReason(hit: AiSemanticHit, lang = locale()): string {
   if (hit.reason) return hit.reason;
   if (hit.score === null) return t("commitSearch.meaning.fromSearch");
   const percent = new Intl.NumberFormat(lang, { style: "percent", maximumFractionDigits: 0 }).format(Math.max(0, Math.min(1, hit.score)));
-  return hit.matchedTerms.length > 0 ? t("commitSearch.meaning.similarWith", { percent, terms: hit.matchedTerms.join(", ") }) : t("commitSearch.meaning.similar", { percent });
+  return hit.matchedTerms.length > 0
+    ? t("commitSearch.meaning.similarWith", { percent, terms: hit.matchedTerms.join(", ") })
+    : t("commitSearch.meaning.similar", { percent });
 }
 
 /** Which way the search goes and how many commits the index has. */

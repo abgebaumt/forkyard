@@ -57,11 +57,18 @@ export async function showReleaseNotesPreview(
   to: string | null,
   show: (preview: AiPreview, mode: "look") => Promise<PreviewChoice | null> = showAiPreview,
 ): Promise<void> {
-  const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }));
+  const result = await runAction(t("ai.preview.loading"), () =>
+    core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }),
+  );
   if (result.ok) await show(result.value, "look");
 }
 
-export function useReleaseNotesWriter(options: { repoId: Id; to: string | null; current: () => string; apply: (text: string) => void }): Writer {
+export function useReleaseNotesWriter(options: {
+  repoId: Id;
+  to: string | null;
+  current: () => string;
+  apply: (text: string) => void;
+}): Writer {
   const [state, setState] = useState<WriterState>(IDLE);
   const [preview, setPreview] = useState<WriterPreview | null>(null);
   const answer = useRef<((choice: PreviewChoice | null) => void) | null>(null);
@@ -111,7 +118,9 @@ export function useReleaseNotesWriter(options: { repoId: Id; to: string | null; 
 
   const write = useCallback(async () => {
     const { repoId, to } = opts.current;
-    const preview = await runAction(t("actions.tags.releaseNotes.label"), () => core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }));
+    const preview = await runAction(t("actions.tags.releaseNotes.label"), () =>
+      core.aiPreview({ repoId, feature: "release_notes", input: inputFor(to), locale: locale() }),
+    );
     if (!preview.ok) return;
     if (!(await confirmSend(repoId, "release_notes", preview.value, ask))) return;
     const atStart = opts.current.current();

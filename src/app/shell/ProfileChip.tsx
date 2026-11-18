@@ -42,7 +42,11 @@ export function ProfileChip() {
   const active = profiles?.[index];
   if (!profiles || !active) return null;
   return (
-    <DropdownMenu entries={profileMenuEntries(profiles)} open={open} onOpenChange={(next) => useAppStore.getState().setProfileMenuOpen(next)}>
+    <DropdownMenu
+      entries={profileMenuEntries(profiles)}
+      open={open}
+      onOpenChange={(next) => useAppStore.getState().setProfileMenuOpen(next)}
+    >
       <button
         type="button"
         data-profile-chip

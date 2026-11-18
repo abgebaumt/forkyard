@@ -57,8 +57,19 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
   const running = outcome === null;
   const current = running ? (progress?.current ?? 1) : reached;
   const hooksRun = !skipHooks && hooks.length > 0;
-  const title = running ? t("wip.compose.run.progress", { current, total }) : outcome.ok ? t("wip.compose.run.created", { count: total }) : t("wip.compose.run.failed");
-  const note = [skipHooks ? t("wip.compose.run.hooksSkipped") : hooks.length > 0 ? t("wip.compose.run.hooks", { hooks: list(hooks) }) : t("wip.compose.run.noHooks"), t("wip.compose.run.untouched")].join(" ");
+  const title = running
+    ? t("wip.compose.run.progress", { current, total })
+    : outcome.ok
+      ? t("wip.compose.run.created", { count: total })
+      : t("wip.compose.run.failed");
+  const note = [
+    skipHooks
+      ? t("wip.compose.run.hooksSkipped")
+      : hooks.length > 0
+        ? t("wip.compose.run.hooks", { hooks: list(hooks) })
+        : t("wip.compose.run.noHooks"),
+    t("wip.compose.run.untouched"),
+  ].join(" ");
 
   const stateOf = (index: number): { text: string; tone: "done" | "run" | "wait" | "failed" } => {
     const number = index + 1;
@@ -67,7 +78,11 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
       return { text: ran.length > 0 ? t("wip.compose.run.doneHooks", { hooks: list(ran) }) : t("wip.compose.run.done"), tone: "done" };
     }
     if (outcome && !outcome.ok) {
-      if (number === current) return { text: outcome.error.code === "hook_failed" ? t("wip.compose.run.rejected") : describeError(outcome.error).text, tone: "failed" };
+      if (number === current)
+        return {
+          text: outcome.error.code === "hook_failed" ? t("wip.compose.run.rejected") : describeError(outcome.error).text,
+          tone: "failed",
+        };
       return { text: t("wip.compose.run.waiting"), tone: "wait" };
     }
     if (number < current) return { text: t("wip.compose.run.done"), tone: "done" };
@@ -113,10 +128,28 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
           {steps.map((step, index) => {
             const state = stateOf(index);
             return (
-              <li key={index} data-compose-run-step={String(index)} data-state={state.tone} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 text-sm">
+              <li
+                key={index}
+                data-compose-run-step={String(index)}
+                data-state={state.tone}
+                className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 text-sm"
+              >
                 <span className="size-2.5 rounded-full" style={{ backgroundColor: laneColor(index) }} aria-hidden />
                 <span className="truncate text-text">{step.title}</span>
-                <span className={cn("text-xs", state.tone === "done" ? "text-success" : state.tone === "run" ? "text-accent" : state.tone === "failed" ? "text-danger" : "text-text-muted")}>{state.text}</span>
+                <span
+                  className={cn(
+                    "text-xs",
+                    state.tone === "done"
+                      ? "text-success"
+                      : state.tone === "run"
+                        ? "text-accent"
+                        : state.tone === "failed"
+                          ? "text-danger"
+                          : "text-text-muted",
+                  )}
+                >
+                  {state.text}
+                </span>
               </li>
             );
           })}
@@ -125,7 +158,9 @@ export function ApplyDialog({ jobId, steps, hooks, skipHooks, settled, onDone }:
           <div className="grid gap-2" role="alert">
             <p className="m-0 text-sm text-text">{describeError(outcome.error).text}</p>
             {outcome.error.gitOutput?.trim() ? (
-              <pre className="selectable m-0 max-h-40 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-code whitespace-pre-wrap text-text-muted">{outcome.error.gitOutput.trim()}</pre>
+              <pre className="selectable m-0 max-h-40 overflow-auto rounded-md bg-surface-sunken p-2 font-mono text-code whitespace-pre-wrap text-text-muted">
+                {outcome.error.gitOutput.trim()}
+              </pre>
             ) : null}
             <p className="m-0 text-xs text-text-muted">{t("wip.compose.run.rolledBack")}</p>
           </div>

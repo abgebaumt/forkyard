@@ -31,7 +31,8 @@ export function openMenuAt(point: { x: number; y: number }, entries: MenuEntry[]
 /** Opens the menu below an element (bottom-left corner) – for the keyboard, where there is no mouse position. */
 export function openMenuAtElement(element: Element | null, entries: MenuEntry[], label?: string): void {
   const rect = element?.getBoundingClientRect();
-  const point = rect && rect.width + rect.height > 0 ? { x: rect.left, y: rect.bottom } : { x: window.innerWidth / 2, y: window.innerHeight / 3 };
+  const point =
+    rect && rect.width + rect.height > 0 ? { x: rect.left, y: rect.bottom } : { x: window.innerWidth / 2, y: window.innerHeight / 3 };
   openMenuAt(point, entries, label);
 }
 

@@ -19,16 +19,49 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
   return (
     <div data-agent-template={form.id} className="flex flex-col gap-2 border-b border-border py-3 last:border-b-0">
       <div className="grid grid-cols-2 gap-2">
-        <TextField label={t("agents.settings.name")} value={form.name} onChange={(event) => onChange({ ...form, name: event.target.value })} />
-        <TextField label={t("agents.settings.program")} hint={t("agents.settings.programHint")} mono value={form.program} onChange={(event) => onChange({ ...form, program: event.target.value })} />
+        <TextField
+          label={t("agents.settings.name")}
+          value={form.name}
+          onChange={(event) => onChange({ ...form, name: event.target.value })}
+        />
+        <TextField
+          label={t("agents.settings.program")}
+          hint={t("agents.settings.programHint")}
+          mono
+          value={form.program}
+          onChange={(event) => onChange({ ...form, program: event.target.value })}
+        />
       </div>
-      <TextArea label={t("agents.settings.args")} hint={t("agents.settings.argsHint")} rows={3} value={form.args} onChange={(event) => onChange({ ...form, args: event.target.value })} />
+      <TextArea
+        label={t("agents.settings.args")}
+        hint={t("agents.settings.argsHint")}
+        rows={3}
+        value={form.args}
+        onChange={(event) => onChange({ ...form, args: event.target.value })}
+      />
       <div className="grid grid-cols-2 gap-2">
-        <TextArea label={t("agents.settings.unattendedArgs")} hint={t("agents.settings.unattendedArgsHint")} rows={2} value={form.unattendedArgs} onChange={(event) => onChange({ ...form, unattendedArgs: event.target.value })} />
-        <TextArea label={t("agents.settings.resumeArgs")} hint={t("agents.settings.resumeArgsHint")} rows={2} value={form.resumeArgs} onChange={(event) => onChange({ ...form, resumeArgs: event.target.value })} />
+        <TextArea
+          label={t("agents.settings.unattendedArgs")}
+          hint={t("agents.settings.unattendedArgsHint")}
+          rows={2}
+          value={form.unattendedArgs}
+          onChange={(event) => onChange({ ...form, unattendedArgs: event.target.value })}
+        />
+        <TextArea
+          label={t("agents.settings.resumeArgs")}
+          hint={t("agents.settings.resumeArgsHint")}
+          rows={2}
+          value={form.resumeArgs}
+          onChange={(event) => onChange({ ...form, resumeArgs: event.target.value })}
+        />
       </div>
       <div className="flex items-center justify-between gap-2">
-        <Checkbox label={t("agents.settings.statusHook")} hint={t("agents.settings.statusHookHint")} checked={form.statusHook} onCheckedChange={(statusHook) => onChange({ ...form, statusHook })} />
+        <Checkbox
+          label={t("agents.settings.statusHook")}
+          hint={t("agents.settings.statusHookHint")}
+          checked={form.statusHook}
+          onCheckedChange={(statusHook) => onChange({ ...form, statusHook })}
+        />
         <Button variant="ghost" size="sm" onClick={onRemove}>
           {t("agents.settings.remove")}
         </Button>
@@ -40,7 +73,9 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
 /** Version, path and sign-in of a built-in template (spec 2a). */
 function builtInDescription(item: AgentTemplateInfo): string {
   if (!item.path) return t("agents.settings.missing");
-  const found = item.version ? t("agents.settings.found", { version: item.version, path: item.path }) : t("agents.settings.foundNoVersion", { path: item.path });
+  const found = item.version
+    ? t("agents.settings.found", { version: item.version, path: item.path })
+    : t("agents.settings.foundNoVersion", { path: item.path });
   const login = templateLoginWord(item);
   return login ? t("agents.settings.foundLogin", { found, login }) : found;
 }
@@ -109,7 +144,9 @@ export function TestCommandRow({ repoId }: { repoId: Id }) {
           mono
           value={repoSettings.data.testCommand ?? ""}
           placeholder="npm test"
-          onCommit={async (value) => fieldError(await applyRepoSettings(repoId, { testCommand: value.trim() ? value.trim() : null }, { atField: true }))}
+          onCommit={async (value) =>
+            fieldError(await applyRepoSettings(repoId, { testCommand: value.trim() ? value.trim() : null }, { atField: true }))
+          }
         />
       )}
     </SettingRow>

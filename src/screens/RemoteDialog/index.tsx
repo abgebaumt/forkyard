@@ -38,7 +38,8 @@ export interface DetectedHost {
 export function detectHost(url: string): DetectedHost | null {
   const text = url.trim();
   if (!text) return null;
-  if (/^file:\/\//i.test(text) || /^[A-Za-z]:[\\/]/.test(text) || /^[\\/.~]/.test(text)) return { kind: "local", label: t("remotes.host.localPath") };
+  if (/^file:\/\//i.test(text) || /^[A-Za-z]:[\\/]/.test(text) || /^[\\/.~]/.test(text))
+    return { kind: "local", label: t("remotes.host.localPath") };
   let host: string | null = null;
   const withScheme = /^[a-z][a-z0-9+.-]*:\/\/(?:[^@/\s]*@)?(\[[^\]]+\]|[^/:\s]+)/i.exec(text);
   if (withScheme) host = withScheme[1] ?? null;
@@ -51,7 +52,8 @@ export function detectHost(url: string): DetectedHost | null {
   if (name === "github.com" || name.endsWith(".github.com")) return { kind: "github", label: hostNames.github };
   if (name === "gitlab.com" || name.startsWith("gitlab.")) return { kind: "gitlab", label: hostNames.gitlab };
   if (name === "bitbucket.org" || name.startsWith("bitbucket.")) return { kind: "bitbucket", label: hostNames.bitbucket };
-  if (name === "dev.azure.com" || name.endsWith(".dev.azure.com") || name.endsWith(".visualstudio.com")) return { kind: "azure", label: hostNames.azure };
+  if (name === "dev.azure.com" || name.endsWith(".dev.azure.com") || name.endsWith(".visualstudio.com"))
+    return { kind: "azure", label: hostNames.azure };
   return { kind: "other", label: host };
 }
 
@@ -61,7 +63,13 @@ function HostBadge({ host }: { host: DetectedHost | null }) {
   return (
     <span
       data-host={host.kind}
-      title={host.kind === "other" ? t("remotes.host.server", { host: host.label }) : host.kind === "local" ? t("remotes.host.local") : t("remotes.host.detected", { host: host.label })}
+      title={
+        host.kind === "other"
+          ? t("remotes.host.server", { host: host.label })
+          : host.kind === "local"
+            ? t("remotes.host.local")
+            : t("remotes.host.detected", { host: host.label })
+      }
       className="inline-flex h-4 max-w-40 shrink-0 items-center gap-1 rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted"
     >
       <Icon className="size-3 shrink-0" aria-hidden />
@@ -153,7 +161,10 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
     const push = cleanPush && cleanPush !== cleanFetch ? cleanPush : null;
     const result = await runAction(
       edit ? t("remotes.save") : t("remotes.add"),
-      () => (edit ? core.remoteEdit({ repoId, name: edit, newName: cleanName, fetchUrl: cleanFetch, pushUrl: push }) : core.remoteAdd({ repoId, name: cleanName, fetchUrl: cleanFetch, pushUrl: push })),
+      () =>
+        edit
+          ? core.remoteEdit({ repoId, name: edit, newName: cleanName, fetchUrl: cleanFetch, pushUrl: push })
+          : core.remoteAdd({ repoId, name: cleanName, fetchUrl: cleanFetch, pushUrl: push }),
       { quiet: ["invalid_name", "name_exists", "not_allowed", "not_found"] },
     );
     setBusy(null);
@@ -186,7 +197,11 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
     setRemotes(result.value);
     void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });
     void queryClient.invalidateQueries({ queryKey: qk.refs(repoId) });
-    toast({ tone: "success", title: t("remotes.remove.done", { name: edit }), action: { label: t("remotes.remove.undo"), onClick: () => void undo(repoId) } });
+    toast({
+      tone: "success",
+      title: t("remotes.remove.done", { name: edit }),
+      action: { label: t("remotes.remove.undo"), onClick: () => void undo(repoId) },
+    });
     onClose();
   };
 
@@ -234,7 +249,15 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
         </div>
       ) : remotes.isError ? (
         <div className="overflow-hidden rounded-md">
-          <Banner tone="danger" title={t("remotes.loadFailed")} actions={<Button size="sm" onClick={() => void remotes.refetch()}>{t("remotes.retry")}</Button>}>
+          <Banner
+            tone="danger"
+            title={t("remotes.loadFailed")}
+            actions={
+              <Button size="sm" onClick={() => void remotes.refetch()}>
+                {t("remotes.retry")}
+              </Button>
+            }
+          >
             <span className="selectable">{describeError(remotes.error).text}</span>
           </Banner>
         </div>
@@ -327,11 +350,7 @@ export function RemoteDialog({ repoId, edit, onClose }: { repoId: Id; edit?: str
               </div>
             </div>
           ) : null}
-          {masked ? (
-            <p className="text-sm text-text-muted">
-              {t("remotes.masked")}
-            </p>
-          ) : null}
+          {masked ? <p className="text-sm text-text-muted">{t("remotes.masked")}</p> : null}
           <div className="border-t border-border pt-3">
             <Checkbox
               label={edit ? t("remotes.fetchAfterSave") : t("remotes.fetchAfterAdd")}

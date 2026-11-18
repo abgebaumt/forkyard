@@ -57,7 +57,9 @@ describe("submodule: row", () => {
   it("states the state as a word, followed by the commit", () => {
     expect(submoduleSecondary(sub({}))).toBe(`${submoduleStateText.initialized} · 1111111`);
     expect(submoduleSecondary(sub({ state: "uninitialized", headSha: null }))).toBe(submoduleStateText.uninitialized);
-    expect(submoduleSecondary(sub({ state: "out_of_sync", headSha: "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }))).toBe(`${submoduleStateText.out_of_sync} · 2222222 instead of 1111111`);
+    expect(submoduleSecondary(sub({ state: "out_of_sync", headSha: "2222222bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" }))).toBe(
+      `${submoduleStateText.out_of_sync} · 2222222 instead of 1111111`,
+    );
     expect(submoduleSecondary(sub({ state: "modified", branch: "main" }))).toBe(`${submoduleStateText.modified} · 1111111 · main`);
   });
   it("splits the path into name and folder", () => {

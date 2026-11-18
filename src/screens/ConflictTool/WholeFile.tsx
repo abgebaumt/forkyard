@@ -44,8 +44,17 @@ export function wholeReason(file: ConflictFile): Exclude<WholeReason, "large"> |
 function describe(file: ConflictFile, titles: SideTitles, reason: WholeReason, lines: number): WholeCase {
   const ours = titles.ours.heading;
   const theirs = titles.theirs.heading;
-  const keep = (side: Side): WholeChoice => ({ side, label: t("conflict.whole.keep"), detail: t("conflict.whole.keepDetail", { side: titles[side].heading }) });
-  const remove = (side: Side): WholeChoice => ({ side, label: t("conflict.whole.delete"), detail: t("conflict.whole.deleteDetail", { side: titles[side].heading }), remove: true });
+  const keep = (side: Side): WholeChoice => ({
+    side,
+    label: t("conflict.whole.keep"),
+    detail: t("conflict.whole.keepDetail", { side: titles[side].heading }),
+  });
+  const remove = (side: Side): WholeChoice => ({
+    side,
+    label: t("conflict.whole.delete"),
+    detail: t("conflict.whole.deleteDetail", { side: titles[side].heading }),
+    remove: true,
+  });
   const trash = <Trash2 className="size-8" aria-hidden />;
 
   if (reason === "large") {
@@ -87,7 +96,9 @@ function describe(file: ConflictFile, titles: SideTitles, reason: WholeReason, l
         icon: <FileX className="size-8" aria-hidden />,
         title: t("conflict.whole.bothDeleted.title"),
         text: t("conflict.whole.bothDeleted.text"),
-        choices: [{ side: "ours", label: t("conflict.whole.bothDeleted.confirm"), detail: t("conflict.whole.bothDeleted.detail"), remove: true }],
+        choices: [
+          { side: "ours", label: t("conflict.whole.bothDeleted.confirm"), detail: t("conflict.whole.bothDeleted.detail"), remove: true },
+        ],
         preview: null,
       };
     case "added_by_us":
@@ -172,14 +183,25 @@ export function WholeFile({ repoId, tabId, path, file, titles, reason, lines = 0
         ) : null}
       </div>
       {info.preview && preview !== null ? (
-        <section aria-label={t("conflict.whole.previewLabel", { side: titles[info.preview].heading })} className="flex min-h-0 flex-1 flex-col border-t border-border" data-whole-preview={info.preview}>
+        <section
+          aria-label={t("conflict.whole.previewLabel", { side: titles[info.preview].heading })}
+          className="flex min-h-0 flex-1 flex-col border-t border-border"
+          data-whole-preview={info.preview}
+        >
           <h3 className="m-0 flex h-control-lg shrink-0 items-center gap-1.5 border-b border-border bg-surface px-3 text-sm font-normal">
             <span className="shrink-0 font-medium text-text">{titles[info.preview].role}</span>
-            {titles[info.preview].name ? <span className="min-w-0 truncate font-mono text-code text-text-muted">({titles[info.preview].name})</span> : null}
+            {titles[info.preview].name ? (
+              <span className="min-w-0 truncate font-mono text-code text-text-muted">({titles[info.preview].name})</span>
+            ) : null}
             <span className="min-w-0 truncate text-text-muted">· {t("conflict.whole.previewKept")}</span>
           </h3>
           <div className="min-h-0 flex-1">
-            <CodeEditor value={preview} path={path} readOnly ariaLabel={t("conflict.whole.previewEditor", { side: titles[info.preview].heading })} />
+            <CodeEditor
+              value={preview}
+              path={path}
+              readOnly
+              ariaLabel={t("conflict.whole.previewEditor", { side: titles[info.preview].heading })}
+            />
           </div>
         </section>
       ) : null}

@@ -6,16 +6,27 @@
  * so a repo can be invalidated as a whole.
  */
 import { useEffect, useMemo } from "react";
+import { QueryClient, useInfiniteQuery, useQueries, useQuery, type InfiniteData, type Query, type QueryKey } from "@tanstack/react-query";
 import {
-  QueryClient,
-  useInfiniteQuery,
-  useQueries,
-  useQuery,
-  type InfiniteData,
-  type Query,
-  type QueryKey,
-} from "@tanstack/react-query";
-import { core, CoreError, type ActivityScope, type AgentReviewSource, type BisectAutopilot, type BisectStatus, type DiffSource, type FileHistoryEntry, type GraphPage, type Id, type ReflogPage, type Repo, type LineArchaeology, type RepoChange, type Settings, type Sha, type StackStatus, type Tab } from "../core";
+  core,
+  CoreError,
+  type ActivityScope,
+  type AgentReviewSource,
+  type BisectAutopilot,
+  type BisectStatus,
+  type DiffSource,
+  type FileHistoryEntry,
+  type GraphPage,
+  type Id,
+  type ReflogPage,
+  type Repo,
+  type LineArchaeology,
+  type RepoChange,
+  type Settings,
+  type Sha,
+  type StackStatus,
+  type Tab,
+} from "../core";
 import { toast } from "../ui/Feedback";
 import { t } from "../i18n";
 import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./actions/hostTypes";
@@ -104,7 +115,8 @@ export const qk = {
   fileHistoryAll: (repoId: Id) => ["repo", repoId, "fileHistory"] as const,
   blame: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "blame", sha, path] as const,
   blameAll: (repoId: Id) => ["repo", repoId, "blame"] as const,
-  lineArchaeology: (repoId: Id, path: string, line: number, sha: Sha | null) => ["repo", repoId, "lineArchaeology", sha, path, line] as const,
+  lineArchaeology: (repoId: Id, path: string, line: number, sha: Sha | null) =>
+    ["repo", repoId, "lineArchaeology", sha, path, line] as const,
   file: (repoId: Id, path: string, sha: Sha | null) => ["repo", repoId, "file", sha, path] as const,
   fileAll: (repoId: Id) => ["repo", repoId, "file"] as const,
   conflict: (repoId: Id, path: string) => ["repo", repoId, "conflict", path] as const,
@@ -155,7 +167,8 @@ export const GRAPH_PAGE_SIZE = 500;
 
 export const useAppInfo = () => useQuery({ queryKey: qk.appInfo, queryFn: () => core.appInfo(), staleTime: Infinity });
 /** Whether the OS keychain is reachable; asked only by the screens that store secrets. */
-export const useKeyringAvailable = () => useQuery({ queryKey: qk.keyring, queryFn: () => core.appKeyringAvailable(), staleTime: Infinity }).data;
+export const useKeyringAvailable = () =>
+  useQuery({ queryKey: qk.keyring, queryFn: () => core.appKeyringAvailable(), staleTime: Infinity }).data;
 export const useTabs = () => useQuery({ queryKey: qk.tabs, queryFn: () => core.tabsList() });
 export const useRepos = () => useQuery({ queryKey: qk.repos, queryFn: () => core.repoList() });
 // Settings and profiles are read only once no change to them is in flight (see writeQueue.ts).
@@ -165,7 +178,11 @@ export const useAiStatus = () => useQuery({ queryKey: qk.aiStatus, queryFn: () =
 
 /** Way and index of the search by meaning for this repository (`aiSemanticStatus`, sends nothing). */
 export const useAiSemanticStatus = (repoId: Id | null | undefined) =>
-  useQuery({ queryKey: qk.aiSemanticStatus(repoId ?? ""), queryFn: () => core.aiSemanticStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
+  useQuery({
+    queryKey: qk.aiSemanticStatus(repoId ?? ""),
+    queryFn: () => core.aiSemanticStatus({ repoId: repoId! }),
+    enabled: enabledFor(repoId),
+  });
 /** This month's AI usage (numbers only). */
 export const useAiUsage = () => useQuery({ queryKey: qk.aiUsage, queryFn: () => core.aiUsage() });
 /**
@@ -176,12 +193,18 @@ export function useAvatarUrl(email: string | undefined): string | null {
   const { data: settings } = useSettings();
   const key = email?.trim().toLowerCase() ?? "";
   const enabled = Boolean(key) && settings !== undefined && !settings.showInitials;
-  const { data } = useQuery({ queryKey: qk.avatar(key), queryFn: () => core.avatarGet({ email: key }), enabled, staleTime: Infinity, gcTime: Infinity, retry: false });
+  const { data } = useQuery({
+    queryKey: qk.avatar(key),
+    queryFn: () => core.avatarGet({ email: key }),
+    enabled,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: false,
+  });
   return enabled ? (data ?? null) : null;
 }
 export const useProfiles = () => useQuery({ queryKey: qk.profiles, queryFn: () => writesSettled().then(() => core.profileList()) });
-export const useInitTemplates = () =>
-  useQuery({ queryKey: qk.initTemplates, queryFn: () => core.initTemplates(), staleTime: Infinity });
+export const useInitTemplates = () => useQuery({ queryKey: qk.initTemplates, queryFn: () => core.initTemplates(), staleTime: Infinity });
 export const useSshKeys = () => useQuery({ queryKey: qk.sshKeys, queryFn: () => core.sshKeyList() });
 export const useCredentials = () => useQuery({ queryKey: qk.credentials, queryFn: () => core.credentialsList() });
 
@@ -242,7 +265,8 @@ export function useRepoLocked(repoId: Id | null | undefined): boolean {
 export const trustKey = (repoId: Id) => ["trust", repoId] as const;
 
 /** What the check finds in the repository (for the prompt). */
-export const useRepoTrust = (repoId: Id) => useQuery({ queryKey: trustKey(repoId), queryFn: () => core.repoTrustGet({ repoId }), staleTime: 0 });
+export const useRepoTrust = (repoId: Id) =>
+  useQuery({ queryKey: trustKey(repoId), queryFn: () => core.repoTrustGet({ repoId }), staleTime: 0 });
 
 /** Graph as an infinite query. Concatenate `data.pages`; `fetchNextPage()` loads more. */
 export function useGraph(repoId: Id | null | undefined) {
@@ -265,7 +289,8 @@ export const REFLOG_PAGE_SIZE = 500;
 export const useReflog = (repoId: Id | null | undefined, refName: string | null) =>
   useInfiniteQuery({
     queryKey: qk.reflog(repoId ?? "", refName),
-    queryFn: ({ pageParam }): Promise<ReflogPage> => core.reflogList({ repoId: repoId!, refName, cursor: pageParam, limit: REFLOG_PAGE_SIZE }),
+    queryFn: ({ pageParam }): Promise<ReflogPage> =>
+      core.reflogList({ repoId: repoId!, refName, cursor: pageParam, limit: REFLOG_PAGE_SIZE }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     enabled: enabledFor(repoId),
@@ -273,11 +298,19 @@ export const useReflog = (repoId: Id | null | undefined, refName: string | null)
 
 /** Bisect state from the Git directory (also one started on the command line). */
 export const useBisectStatus = (repoId: Id | null | undefined) =>
-  useQuery({ queryKey: qk.bisect(repoId ?? ""), queryFn: (): Promise<BisectStatus> => core.bisectStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
+  useQuery({
+    queryKey: qk.bisect(repoId ?? ""),
+    queryFn: (): Promise<BisectStatus> => core.bisectStatus({ repoId: repoId! }),
+    enabled: enabledFor(repoId),
+  });
 
 /** The bisect autopilot's run of the repository (null = none); reloaded on its `job:progress`. */
 export const useBisectAutopilot = (repoId: Id | null | undefined) =>
-  useQuery({ queryKey: qk.bisectAutopilot(repoId ?? ""), queryFn: (): Promise<BisectAutopilot | null> => core.bisectAutopilotStatus({ repoId: repoId! }), enabled: enabledFor(repoId) });
+  useQuery({
+    queryKey: qk.bisectAutopilot(repoId ?? ""),
+    queryFn: (): Promise<BisectAutopilot | null> => core.bisectAutopilotStatus({ repoId: repoId! }),
+    enabled: enabledFor(repoId),
+  });
 
 /** Commits, ranges and stashes never change – only sources involving the working directory go stale. */
 const isLive = (source: DiffSource) =>
@@ -352,7 +385,11 @@ export const useRepoSettings = (repoId: Id | null | undefined) =>
 
 /** The stack `branch` is a part of; null if it is no part. */
 export const useStackStatus = (repoId: Id, branch: string) =>
-  useQuery<StackStatus | null>({ queryKey: qk.stackStatus(repoId, branch), queryFn: () => core.stackStatus({ repoId, branch }), enabled: enabledFor(repoId) });
+  useQuery<StackStatus | null>({
+    queryKey: qk.stackStatus(repoId, branch),
+    queryFn: () => core.stackStatus({ repoId, branch }),
+    enabled: enabledFor(repoId),
+  });
 
 /** Effective ticket link rules (settings, `.forkyard/links.json`, host). */
 export const useLinkRules = (repoId: Id | null | undefined) =>
@@ -464,11 +501,16 @@ export const useAgentReview = (repoId: Id | null | undefined, agentId: Id | null
  * The agent templates with their programs' version and sign-in state – asking that starts every
  * tool (`claude --version`, `claude auth status` …), so only where it is needed (`enabled`).
  */
-export const useAgentTemplates = (enabled = true) => useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000, enabled });
+export const useAgentTemplates = (enabled = true) =>
+  useQuery({ queryKey: qk.agentTemplates, queryFn: () => core.agentTemplates(), staleTime: 60_000, enabled });
 
 /** The last collision report of the repository's agents; kept current by `agents:collisions`. */
 export const useAgentCollisions = (repoId: Id | null | undefined) =>
-  useQuery({ queryKey: qk.agentCollisions(repoId ?? ""), queryFn: () => core.agentCollisions({ repoId: repoId! }), enabled: enabledFor(repoId) });
+  useQuery({
+    queryKey: qk.agentCollisions(repoId ?? ""),
+    queryFn: () => core.agentCollisions({ repoId: repoId! }),
+    enabled: enabledFor(repoId),
+  });
 
 export const useSubmodules = (repoId: Id | null | undefined) =>
   useQuery({ queryKey: qk.submodules(repoId ?? ""), queryFn: () => core.submoduleList({ repoId: repoId! }), enabled: enabledFor(repoId) });
@@ -557,7 +599,11 @@ export const usePullRequest = (repoId: Id | null | undefined, number: number | n
  * Where a pull request's commits are in the local repository (for the "Files" tab):
  * the range for the diff – or "missing locally".
  */
-export const usePrRange = (repoId: Id | null | undefined, pr: Pick<PrDetails, "number" | "commits" | "headSha"> | null | undefined, enabled = true) =>
+export const usePrRange = (
+  repoId: Id | null | undefined,
+  pr: Pick<PrDetails, "number" | "commits" | "headSha"> | null | undefined,
+  enabled = true,
+) =>
   useQuery({
     queryKey: [...qk.pr(repoId ?? "", pr?.number ?? 0), "range", pr?.headSha ?? null, pr?.commits.length ?? 0] as const,
     queryFn: () => hostApi.prRange(repoId!, pr!),
@@ -576,7 +622,12 @@ export const usePrReviewThreads = (repoId: Id | null | undefined, number: number
 
 /** Text of the pull request template from the repository; null if there is none. */
 export const usePrTemplate = (repoId: Id | null | undefined, enabled = true) =>
-  useQuery({ queryKey: qk.prTemplate(repoId ?? ""), queryFn: () => hostApi.prTemplate(repoId!), enabled: enabledFor(repoId) && enabled, staleTime: Infinity });
+  useQuery({
+    queryKey: qk.prTemplate(repoId ?? ""),
+    queryFn: () => hostApi.prTemplate(repoId!),
+    enabled: enabledFor(repoId) && enabled,
+    staleTime: Infinity,
+  });
 
 // ---------------------------------------------------------------------------
 // Issues of the host
@@ -639,7 +690,21 @@ function dependsOnWorktree(query: Query): boolean {
   }
 }
 
-const REFS_PARTS = new Set(["refs", "graph", "status", "undo", "search", "fileHistory", "rebasePlan", "readme", "worktrees", "reflog", "bisect", "agents", "stack"]);
+const REFS_PARTS = new Set([
+  "refs",
+  "graph",
+  "status",
+  "undo",
+  "search",
+  "fileHistory",
+  "rebasePlan",
+  "readme",
+  "worktrees",
+  "reflog",
+  "bisect",
+  "agents",
+  "stack",
+]);
 const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 // "hostRepo": a repository's host follows from its remote URL, and so do its host link rules ("linkRules").
 const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology", "stack"]);
@@ -706,7 +771,11 @@ function reportBackgroundFetch(repoId: Id, exitCode: number | null, output: stri
 const semanticIndex = createIndexScheduler({
   delayMs: 3000,
   enabled: (repoId) =>
-    featureVisible(queryClient.getQueryData<SemanticAiStatus>(qk.aiStatus), "semantic_search", queryClient.getQueryData<SemanticRepoSettings>(qk.repoSettings(repoId))?.aiOff ?? false),
+    featureVisible(
+      queryClient.getQueryData<SemanticAiStatus>(qk.aiStatus),
+      "semantic_search",
+      queryClient.getQueryData<SemanticRepoSettings>(qk.repoSettings(repoId))?.aiOff ?? false,
+    ),
   update: async (repoId) => {
     const done = await core.aiSemanticIndexUpdate({ repoId, jobId: `semantic-index-${repoId}-${Date.now().toString(36)}` });
     if (done.added > 0 || done.removed > 0) await queryClient.invalidateQueries({ queryKey: qk.aiSemanticStatus(repoId) });
@@ -757,12 +826,15 @@ export function useCoreSync(activeRepoId: Id | null) {
         // including a list that failed because of the expired token – counts as stale and reloads; link rules follow from the recognised host.
         if (what.includes("host_accounts")) {
           void queryClient.invalidateQueries({
-            predicate: (query) => query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue" || part(query) === "linkRules"),
+            predicate: (query) =>
+              query.queryKey[0] === "repo" && (part(query) === "issues" || part(query) === "issue" || part(query) === "linkRules"),
           });
         }
         if (what.includes("custom_commands")) {
           void queryClient.invalidateQueries({
-            predicate: (query) => (query.queryKey[0] === "app" && query.queryKey[1] === "customCommands") || (query.queryKey[0] === "repo" && part(query) === "customCommands"),
+            predicate: (query) =>
+              (query.queryKey[0] === "app" && query.queryKey[1] === "customCommands") ||
+              (query.queryKey[0] === "repo" && part(query) === "customCommands"),
           });
         }
         // AI settings (embedder, model) or "Delete index": way and index of the search by meaning.
@@ -784,7 +856,8 @@ export function useCoreSync(activeRepoId: Id | null) {
       core.on("job:progress", (payload) => {
         store().updateJob(payload);
         // The bisect autopilot reports each step under its own phase (`PROGRESS_PHASE` in the core): its bar reloads the run.
-        if (payload.phase === "bisect-autopilot" && payload.repoId) void queryClient.invalidateQueries({ queryKey: qk.bisectAutopilot(payload.repoId) });
+        if (payload.phase === "bisect-autopilot" && payload.repoId)
+          void queryClient.invalidateQueries({ queryKey: qk.bisectAutopilot(payload.repoId) });
       }),
       core.on("job:done", ({ jobId }) => store().finishJob(jobId)),
       core.on("credential:request", (request) => store().enqueueCredential(request)),

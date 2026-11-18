@@ -46,7 +46,10 @@ export function updateDraft(repoId: Id, patch: Partial<CommitDraft>): CommitDraf
   pending.set(repoId, next);
   const timer = timers.get(repoId);
   if (timer !== undefined) window.clearTimeout(timer);
-  timers.set(repoId, window.setTimeout(() => save(repoId), SAVE_DELAY_MS));
+  timers.set(
+    repoId,
+    window.setTimeout(() => save(repoId), SAVE_DELAY_MS),
+  );
   return next;
 }
 
@@ -96,7 +99,8 @@ export function splitMessage(text: string, stripComments = false): MessageParts 
   return { summary, description: kept.join("\n").replace(/\s+$/, "") };
 }
 
-export const joinMessage = (parts: MessageParts) => (parts.description.trim() ? `${parts.summary.trim()}\n\n${parts.description.replace(/\s+$/, "")}` : parts.summary.trim());
+export const joinMessage = (parts: MessageParts) =>
+  parts.description.trim() ? `${parts.summary.trim()}\n\n${parts.description.replace(/\s+$/, "")}` : parts.summary.trim();
 
 const looksAbsolute = (value: string) => /^(~|\/|\\|[A-Za-z]:[\\/])/.test(value);
 
@@ -179,5 +183,7 @@ export function cachedTemplate(repoId: Id): MessageParts | null {
 /** Is the draft still exactly the template? Then there is nothing to commit – as with Git in the terminal. */
 export function isUntouchedTemplate(repoId: Id, message: MessageParts): boolean {
   const template = cachedTemplate(repoId);
-  return template !== null && message.summary.trim() === template.summary && message.description.replace(/\s+$/, "") === template.description;
+  return (
+    template !== null && message.summary.trim() === template.summary && message.description.replace(/\s+$/, "") === template.description
+  );
 }

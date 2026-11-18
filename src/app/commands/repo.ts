@@ -14,8 +14,7 @@ const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 const hasRemote = (ctx: CommandContext) =>
   hasRepo(ctx) && (ctx.queryClient.getQueryData<Remote[]>(qk.remotes(ctx.repoId!))?.length ?? 1) > 0;
 const onBranch = (ctx: CommandContext) => ctx.status?.head.kind !== "detached";
-const hasChanges = (ctx: CommandContext) =>
-  Boolean(ctx.status && ctx.status.unstaged.length + ctx.status.staged.length > 0);
+const hasChanges = (ctx: CommandContext) => Boolean(ctx.status && ctx.status.unstaged.length + ctx.status.staged.length > 0);
 
 export const commands: AppCommand[] = [
   {
@@ -190,7 +189,6 @@ export const commands: AppCommand[] = [
     title: t("commands.repo.forget.title"),
     group: "Repository",
     when: (ctx) => hasRepo(ctx) && Boolean(ctx.tab),
-    run: (ctx) =>
-      forgetRepo({ id: ctx.repoId!, name: ctx.tab!.title, alias: null, path: ctx.tab!.path ?? "" }),
+    run: (ctx) => forgetRepo({ id: ctx.repoId!, name: ctx.tab!.title, alias: null, path: ctx.tab!.path ?? "" }),
   },
 ];

@@ -39,7 +39,8 @@ export const useCleanupRuns = create<CleanupRunsState>()((set, get) => ({
     set((state) => {
       const run = state.runs[repoId];
       if (!run) return state;
-      const next: CleanupRun = "result" in outcome ? { ...run, stopping: false, result: outcome.result } : { ...run, stopping: false, error: outcome.error };
+      const next: CleanupRun =
+        "result" in outcome ? { ...run, stopping: false, result: outcome.result } : { ...run, stopping: false, error: outcome.error };
       return { runs: { ...state.runs, [repoId]: next } };
     }),
   markStopping: (repoId) =>

@@ -4,7 +4,11 @@ import { SECTIONS, searchSections, visibleSections } from "./nav";
 describe("settings navigation", () => {
   it("shows project sections only with an open repo", () => {
     expect(visibleSections(false).some((s) => s.level === "project")).toBe(false);
-    expect(visibleSections(true).filter((s) => s.level === "project").map((s) => s.id)).toEqual(["p-identity", "p-git", "p-files", "p-links", "p-ai"]);
+    expect(
+      visibleSections(true)
+        .filter((s) => s.level === "project")
+        .map((s) => s.id),
+    ).toEqual(["p-identity", "p-git", "p-files", "p-links", "p-ai"]);
   });
   it("finds the ticket links by tracker name", () => {
     expect(searchSections("jira", visibleSections(true)).get("p-links")).toBe(1);
@@ -36,7 +40,8 @@ describe("settings navigation", () => {
   it("offers AI as a global section right after the notifications, found by provider names", () => {
     const global = SECTIONS.filter((s) => s.level === "global").map((s) => s.id);
     expect(global.indexOf("ai")).toBe(global.indexOf("notifications") + 1);
-    for (const term of ["ollama", "claude", "llm", "model", "codex"]) expect(searchSections(term, SECTIONS).get("ai") ?? 0, term).toBeGreaterThan(0);
+    for (const term of ["ollama", "claude", "llm", "model", "codex"])
+      expect(searchSections(term, SECTIONS).get("ai") ?? 0, term).toBeGreaterThan(0);
     expect(SECTIONS.find((s) => s.id === "p-ai")?.level).toBe("project");
   });
 

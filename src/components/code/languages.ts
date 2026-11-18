@@ -6,8 +6,10 @@ import type { LanguageSupport } from "@codemirror/language";
 
 type Loader = () => Promise<LanguageSupport>;
 
-const javascript = (options: { jsx?: boolean; typescript?: boolean }): Loader => () =>
-  import("@codemirror/lang-javascript").then((module) => module.javascript(options));
+const javascript =
+  (options: { jsx?: boolean; typescript?: boolean }): Loader =>
+  () =>
+    import("@codemirror/lang-javascript").then((module) => module.javascript(options));
 
 const loaders: Record<string, Loader> = {
   javascript: javascript({ jsx: true }),

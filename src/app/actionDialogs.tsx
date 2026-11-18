@@ -54,7 +54,17 @@ interface RadioOption<K extends string> {
   mono?: boolean;
 }
 
-function RadioList<K extends string>({ label, options, value, onChange }: { label: string; options: RadioOption<K>[]; value: K; onChange: (key: K) => void }) {
+function RadioList<K extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: RadioOption<K>[];
+  value: K;
+  onChange: (key: K) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const onKeyDown = (event: KeyboardEvent) => {
     const index = options.findIndex((option) => option.key === value);
@@ -89,7 +99,13 @@ function RadioList<K extends string>({ label, options, value, onChange }: { labe
                 checked ? "border-accent bg-accent-surface" : "border-border hover:bg-surface-raised",
               )}
             >
-              <span aria-hidden className={cn("flex size-3.5 shrink-0 items-center justify-center rounded-pill border", checked ? "border-accent" : "border-border-input")}>
+              <span
+                aria-hidden
+                className={cn(
+                  "flex size-3.5 shrink-0 items-center justify-center rounded-pill border",
+                  checked ? "border-accent" : "border-border-input",
+                )}
+              >
                 {checked ? <span className="size-1.5 rounded-pill bg-accent" /> : null}
               </span>
               <span className={cn("min-w-0 flex-1 truncate text-text", option.mono && "font-mono text-code")}>{option.label}</span>
@@ -125,7 +141,11 @@ function PushTargetDialog({ branch, remotes, onDone }: { branch: string; remotes
       size="sm"
       title={t("app.actionDialogs.push.title")}
       description={
-        <Trans i18nKey="app.actionDialogs.push.description" values={{ branch }} components={{ strong: <strong className="font-medium text-text" /> }} />
+        <Trans
+          i18nKey="app.actionDialogs.push.description"
+          values={{ branch }}
+          components={{ strong: <strong className="font-medium text-text" /> }}
+        />
       }
       onOpenChange={(open) => {
         if (!open) onDone(null);
@@ -147,7 +167,12 @@ function PushTargetDialog({ branch, remotes, onDone }: { branch: string; remotes
         }}
       >
         {remotes.length > 1 ? (
-          <RadioList label={t("app.actionDialogs.push.remote")} value={remote} onChange={setRemote} options={remotes.map((item) => ({ key: item.name, label: item.name, description: item.pushUrl ?? item.fetchUrl }))} />
+          <RadioList
+            label={t("app.actionDialogs.push.remote")}
+            value={remote}
+            onChange={setRemote}
+            options={remotes.map((item) => ({ key: item.name, label: item.name, description: item.pushUrl ?? item.fetchUrl }))}
+          />
         ) : null}
         <TextField
           autoFocus
@@ -203,7 +228,11 @@ function IgnoreDialog({
   const [pattern, setPattern] = useState(start?.pattern ?? "");
   const [stopTracking, setStopTracking] = useState(tracked);
   const trimmed = pattern.trim();
-  const error = /[\r\n]/.test(pattern) ? t("app.actionDialogs.ignore.oneLine") : trimmed.startsWith("#") ? t("app.actionDialogs.ignore.comment") : null;
+  const error = /[\r\n]/.test(pattern)
+    ? t("app.actionDialogs.ignore.oneLine")
+    : trimmed.startsWith("#")
+      ? t("app.actionDialogs.ignore.comment")
+      : null;
   const valid = Boolean(trimmed) && !error;
   const submit = () => {
     if (valid) onDone({ pattern: trimmed, stopTracking });
@@ -244,10 +273,22 @@ function IgnoreDialog({
             options={suggestions.map((item) => ({ key: item.key, label: item.label, description: item.pattern }))}
           />
         ) : null}
-        <TextField autoFocus label={t("app.actionDialogs.ignore.pattern")} value={pattern} mono autoComplete="off" error={error ?? undefined} onChange={(event) => setPattern(event.target.value)} />
+        <TextField
+          autoFocus
+          label={t("app.actionDialogs.ignore.pattern")}
+          value={pattern}
+          mono
+          autoComplete="off"
+          error={error ?? undefined}
+          onChange={(event) => setPattern(event.target.value)}
+        />
         <div className="flex flex-col gap-1">
           <span className="text-sm font-medium text-text-muted">{t("app.actionDialogs.ignore.preview")}</span>
-          <code data-ignore-preview className="selectable block min-h-control-md truncate rounded-md border border-border bg-surface-sunken px-2 py-1 font-mono text-code text-text" title={trimmed}>
+          <code
+            data-ignore-preview
+            className="selectable block min-h-control-md truncate rounded-md border border-border bg-surface-sunken px-2 py-1 font-mono text-code text-text"
+            title={trimmed}
+          >
             {trimmed || " "}
           </code>
         </div>
@@ -255,11 +296,7 @@ function IgnoreDialog({
           label={t("app.actionDialogs.ignore.stopTracking")}
           checked={stopTracking}
           onCheckedChange={setStopTracking}
-          hint={
-            tracked
-              ? t("app.actionDialogs.ignore.stopTrackingTracked")
-              : t("app.actionDialogs.ignore.stopTrackingHint")
-          }
+          hint={tracked ? t("app.actionDialogs.ignore.stopTrackingTracked") : t("app.actionDialogs.ignore.stopTrackingHint")}
         />
         <button type="submit" hidden />
       </form>
@@ -358,7 +395,12 @@ function TagDialog({
       footer={
         <>
           <Button onClick={() => onDone(null)}>{t("app.common.cancel")}</Button>
-          <Button variant="primary" disabled={!name.trim() || Boolean(error) || missingMessage} loading={busy} onClick={() => void submit()}>
+          <Button
+            variant="primary"
+            disabled={!name.trim() || Boolean(error) || missingMessage}
+            loading={busy}
+            onClick={() => void submit()}
+          >
             {t("app.actionDialogs.tag.confirm")}
           </Button>
         </>
@@ -371,7 +413,17 @@ function TagDialog({
           void submit();
         }}
       >
-        <TextField data-tag-name="" autoFocus label={t("app.actionDialogs.tag.name")} value={name} placeholder="v1.0.0" mono autoComplete="off" error={error ?? undefined} onChange={(event) => setName(dashed(event.target.value))} />
+        <TextField
+          data-tag-name=""
+          autoFocus
+          label={t("app.actionDialogs.tag.name")}
+          value={name}
+          placeholder="v1.0.0"
+          mono
+          autoComplete="off"
+          error={error ?? undefined}
+          onChange={(event) => setName(dashed(event.target.value))}
+        />
         <TextArea
           data-tag-annotation=""
           label={annotated ? t("app.actionDialogs.tag.annotation") : t("app.actionDialogs.tag.annotationOptional")}
@@ -418,7 +470,13 @@ function TagDialog({
           />
         ) : null}
         {notes.visible && message.trim() ? (
-          <ReleaseTargets available={availableTargets("tag", notes.hostReleases)} selected={targets} onChange={setTargets} hostName={notes.hostName} remote={notes.remote} />
+          <ReleaseTargets
+            available={availableTargets("tag", notes.hostReleases)}
+            selected={targets}
+            onChange={setTargets}
+            hostName={notes.hostName}
+            remote={notes.remote}
+          />
         ) : null}
         <button type="submit" hidden />
       </form>
@@ -426,7 +484,13 @@ function TagDialog({
   );
 }
 
-export function askTag(options: { repoId: Id; sha: Sha | null; target: string; annotated: boolean; validate: (name: string) => Promise<string | null> }): Promise<TagInput | null> {
+export function askTag(options: {
+  repoId: Id;
+  sha: Sha | null;
+  target: string;
+  annotated: boolean;
+  validate: (name: string) => Promise<string | null>;
+}): Promise<TagInput | null> {
   return showDialog<TagInput>((done) => <TagDialog {...options} onDone={done} />);
 }
 
@@ -503,11 +567,25 @@ function MessageDialog({ options, onDone }: { options: MessageDialogOptions; onD
           value={summary}
           autoComplete="off"
           spellCheck
-          hint={length >= SUMMARY_SOFT ? t(length > SUMMARY_HARD ? "app.actionDialogs.message.lengthLong" : "app.actionDialogs.message.length", { count: length, max: SUMMARY_HARD }) : undefined}
+          hint={
+            length >= SUMMARY_SOFT
+              ? t(length > SUMMARY_HARD ? "app.actionDialogs.message.lengthLong" : "app.actionDialogs.message.length", {
+                  count: length,
+                  max: SUMMARY_HARD,
+                })
+              : undefined
+          }
           onChange={(event) => setSummary(event.target.value.replace(/[\r\n]+/g, " "))}
           onKeyDown={onKeyDown}
         />
-        <TextArea label={t("app.actionDialogs.message.description")} value={body} rows={6} spellCheck onChange={(event) => setBody(event.target.value)} onKeyDown={onKeyDown} />
+        <TextArea
+          label={t("app.actionDialogs.message.description")}
+          value={body}
+          rows={6}
+          spellCheck
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={onKeyDown}
+        />
         <button type="submit" hidden />
       </form>
     </Dialog>

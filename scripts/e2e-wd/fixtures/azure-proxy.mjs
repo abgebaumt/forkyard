@@ -30,10 +30,58 @@ const HOSTS = new Set(["dev.azure.com"]);
 function makeChain(dir) {
   const file = (name) => path.join(dir, name);
   const run = (args) => execFileSync(opensslPath(), args, { stdio: "ignore", windowsHide: true });
-  run(["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", file("ca-key.pem"), "-out", file("ca.pem"), "-days", "2", "-subj", "/CN=forkyard E2E Azure CA", "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign"]);
-  run(["req", "-newkey", "rsa:2048", "-nodes", "-keyout", file("server-key.pem"), "-out", file("server.csr"), "-subj", "/CN=dev.azure.com"]);
-  fs.writeFileSync(file("server.ext"), "subjectAltName=DNS:dev.azure.com\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n");
-  run(["x509", "-req", "-in", file("server.csr"), "-CA", file("ca.pem"), "-CAkey", file("ca-key.pem"), "-CAcreateserial", "-out", file("server-cert.pem"), "-days", "2", "-extfile", file("server.ext")]);
+  run([
+    "req",
+    "-x509",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    file("ca-key.pem"),
+    "-out",
+    file("ca.pem"),
+    "-days",
+    "2",
+    "-subj",
+    "/CN=forkyard E2E Azure CA",
+    "-addext",
+    "basicConstraints=critical,CA:TRUE",
+    "-addext",
+    "keyUsage=critical,keyCertSign,cRLSign",
+  ]);
+  run([
+    "req",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-keyout",
+    file("server-key.pem"),
+    "-out",
+    file("server.csr"),
+    "-subj",
+    "/CN=dev.azure.com",
+  ]);
+  fs.writeFileSync(
+    file("server.ext"),
+    "subjectAltName=DNS:dev.azure.com\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\n",
+  );
+  run([
+    "x509",
+    "-req",
+    "-in",
+    file("server.csr"),
+    "-CA",
+    file("ca.pem"),
+    "-CAkey",
+    file("ca-key.pem"),
+    "-CAcreateserial",
+    "-out",
+    file("server-cert.pem"),
+    "-days",
+    "2",
+    "-extfile",
+    file("server.ext"),
+  ]);
   return { key: fs.readFileSync(file("server-key.pem")), cert: fs.readFileSync(file("server-cert.pem")), ca: file("ca.pem") };
 }
 
@@ -66,15 +114,21 @@ export async function startAzureProxy(mock) {
         const answer = route({ method: request.method, path: target.pathname, query: target.searchParams, body, headers: request.headers });
         if (answer) {
           const text = JSON.stringify(answer.json ?? {});
-          response.writeHead(answer.status ?? 200, { "content-type": "application/json; charset=utf-8", "content-length": Buffer.byteLength(text) });
+          response.writeHead(answer.status ?? 200, {
+            "content-type": "application/json; charset=utf-8",
+            "content-length": Buffer.byteLength(text),
+          });
           response.end(text);
           return;
         }
       }
-      const forward = http.request({ host: "127.0.0.1", port: mock.port, method: request.method, path: request.url, headers: request.headers }, (answer) => {
-        response.writeHead(answer.statusCode ?? 502, answer.headers);
-        answer.pipe(response);
-      });
+      const forward = http.request(
+        { host: "127.0.0.1", port: mock.port, method: request.method, path: request.url, headers: request.headers },
+        (answer) => {
+          response.writeHead(answer.statusCode ?? 502, answer.headers);
+          answer.pipe(response);
+        },
+      );
       forward.on("error", (error) => {
         response.writeHead(502, { "content-type": "text/plain" });
         response.end(`azure-proxy: ${error.message}`);

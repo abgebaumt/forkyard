@@ -59,7 +59,10 @@ export function makeEmptyBranchRepo(name = "zweige") {
       GIT_COMMITTER_DATE: date,
     };
   };
-  const git = (...args) => execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }).toString().replace(/\n$/, "");
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"] })
+      .toString()
+      .replace(/\n$/, "");
   /** Like git(), but returns { ok, out } instead of throwing. */
   const tryGit = (...args) => {
     try {

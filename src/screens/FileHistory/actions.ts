@@ -34,7 +34,9 @@ export async function restoreVersion(repoId: Id, entry: FileHistoryEntry): Promi
   const sha = version.sha;
   const name = version.path.slice(version.path.lastIndexOf("/") + 1);
   const status = await loadStatus(repoId).catch(() => undefined);
-  const local = [...(status?.unstaged ?? []), ...(status?.staged ?? []), ...(status?.conflicted ?? [])].some((file) => file.path === version.path);
+  const local = [...(status?.unstaged ?? []), ...(status?.staged ?? []), ...(status?.conflicted ?? [])].some(
+    (file) => file.path === version.path,
+  );
   if (local) {
     const ok = await confirm({
       title: t("fileHistory.restore.confirmTitle", { name }),
@@ -44,7 +46,11 @@ export async function restoreVersion(repoId: Id, entry: FileHistoryEntry): Promi
     });
     if (!ok) return false;
   }
-  const result = await runAction(t("fileHistory.restore.confirm"), withStatus(repoId, () => core.fileRestore({ repoId, sha, paths: [version.path] })), { busyKey: restoreBusyKey(repoId) });
+  const result = await runAction(
+    t("fileHistory.restore.confirm"),
+    withStatus(repoId, () => core.fileRestore({ repoId, sha, paths: [version.path] })),
+    { busyKey: restoreBusyKey(repoId) },
+  );
   if (!result.ok) return false;
   void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });
   toast({

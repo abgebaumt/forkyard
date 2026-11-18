@@ -28,7 +28,14 @@ describe("errors of “Suggest fix” (spec “Zustände jedes KI-Elements”)",
   });
 
   it("offers “Send this time” next to “Change limit” over the limit", () => {
-    const markup = renderToStaticMarkup(<FailedNote view={{ kind: "limit", text: "The daily limit of 20 requests is reached." }} provider="ollama" onAgain={none} onLook={none} />);
+    const markup = renderToStaticMarkup(
+      <FailedNote
+        view={{ kind: "limit", text: "The daily limit of 20 requests is reached." }}
+        provider="ollama"
+        onAgain={none}
+        onLook={none}
+      />,
+    );
     expect(markup).toContain('data-review-error="limit"');
     expect(markup).toContain("Send this time</button>");
     expect(markup).toContain("Change limit</button>");

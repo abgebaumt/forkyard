@@ -61,7 +61,8 @@ export async function appPid(dataDir, timeoutMs = 10_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const marker = readMarker(dataDir);
-    if (marker?.pid && processRuns(marker.pid) && (processName(marker.pid) ?? "").startsWith("forkyard")) return { pid: marker.pid, marker };
+    if (marker?.pid && processRuns(marker.pid) && (processName(marker.pid) ?? "").startsWith("forkyard"))
+      return { pid: marker.pid, marker };
     await sleep(100);
   }
   throw new Error(`No running app holds the crash marker in ${dataDir}`);
@@ -118,17 +119,20 @@ const iso = (ms) => new Date(ms).toISOString();
  * Writes a report as the core's panic hook does (already scrubbed texts). Returns the report.
  * `kind`: "panic" | "unexpected_exit".
  */
-export function writeReport(dataDir, {
-  kind = "panic",
-  timeMs = Date.now() - 60_000,
-  appVersion = "1.0.0",
-  message = "index out of bounds: the len is 3 but the index is 7",
-  thread = "tokio-runtime-worker",
-  location = "crates/core/src/commands/graph/layout.rs:212:17",
-  backtrace = "   0: std::backtrace::Backtrace::force_capture\n   1: gitcore::crash::CrashLog::on_panic\n   2: gitcore::commands::graph::layout::assign_lanes\n   3: tokio::runtime::task::harness::poll",
-  log = null,
-  id = null,
-} = {}) {
+export function writeReport(
+  dataDir,
+  {
+    kind = "panic",
+    timeMs = Date.now() - 60_000,
+    appVersion = "1.0.0",
+    message = "index out of bounds: the len is 3 but the index is 7",
+    thread = "tokio-runtime-worker",
+    location = "crates/core/src/commands/graph/layout.rs:212:17",
+    backtrace = "   0: std::backtrace::Backtrace::force_capture\n   1: gitcore::crash::CrashLog::on_panic\n   2: gitcore::commands::graph::layout::assign_lanes\n   3: tokio::runtime::task::harness::poll",
+    log = null,
+    id = null,
+  } = {},
+) {
   const runId = crypto.randomUUID();
   const runStartedMs = timeMs - 5 * 60_000;
   const report = {

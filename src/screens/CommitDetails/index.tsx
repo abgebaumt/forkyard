@@ -19,14 +19,20 @@ export interface CommitDetailsPanelProps {
  */
 export function CommitDetailsPanel({ repoId, tabId, selection }: CommitDetailsPanelProps) {
   return (
-    <section data-screen="commit-details" data-selection={selection.kind === "stash" ? "stash" : String(selection.shas.length)} aria-label={t("commitDetails.panel")} className="flex h-full min-h-0 flex-col bg-surface text-base text-text">
+    <section
+      data-screen="commit-details"
+      data-selection={selection.kind === "stash" ? "stash" : String(selection.shas.length)}
+      aria-label={t("commitDetails.panel")}
+      className="flex h-full min-h-0 flex-col bg-surface text-base text-text"
+    >
       <Content repoId={repoId} tabId={tabId} selection={selection} />
     </section>
   );
 }
 
 function Content({ repoId, tabId, selection }: CommitDetailsPanelProps) {
-  if (selection.kind === "stash") return <StashDetails key={`stash-${selection.index}`} repoId={repoId} tabId={tabId} index={selection.index} />;
+  if (selection.kind === "stash")
+    return <StashDetails key={`stash-${selection.index}`} repoId={repoId} tabId={tabId} index={selection.index} />;
   // Duplicate SHAs count once; the order of the selection is kept.
   const shas = [...new Set(selection.shas)];
   const [first, second] = shas;

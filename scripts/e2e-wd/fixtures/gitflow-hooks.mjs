@@ -90,13 +90,15 @@ export function flowUi(app) {
     attr: (css, name) => app.exec((selector, key) => document.querySelector(selector)?.getAttribute(key) ?? null, css, name),
     flowState: () => ui.attr(DIALOG, "data-gitflow-state"),
     note: () => ui.text("[data-gitflow-note]"),
-    active: () => app.exec((root) => [...document.querySelectorAll(`${root} [data-gitflow-branch]`)].map((row) => row.dataset.gitflowBranch), DIALOG),
+    active: () =>
+      app.exec((root) => [...document.querySelectorAll(`${root} [data-gitflow-branch]`)].map((row) => row.dataset.gitflowBranch), DIALOG),
     /** Label (or aria-label/text) of the focused element. */
     focusedLabel: () =>
       app.exec(() => {
         const el = document.activeElement;
         if (!el) return null;
-        const label = el.labels?.[0]?.textContent?.trim() || (el.id && document.querySelector(`label[for="${el.id}"]`)?.textContent?.trim());
+        const label =
+          el.labels?.[0]?.textContent?.trim() || (el.id && document.querySelector(`label[for="${el.id}"]`)?.textContent?.trim());
         return label || el.getAttribute("aria-label") || el.textContent?.trim() || null;
       }),
     focusedValue: () => app.exec(() => document.activeElement?.value ?? null),
@@ -123,10 +125,16 @@ export function flowUi(app) {
       return input;
     },
     paletteEntry: (id) =>
-      app.waitFor(() => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id), 10_000, { message: `palette entry ${id}` }),
+      app.waitFor(
+        () => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id),
+        10_000,
+        { message: `palette entry ${id}` },
+      ),
     async closePalette() {
       await app.press("Escape");
-      await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="command-palette"]')), 5000, { message: "palette closed" });
+      await app.waitFor(() => app.exec(() => !document.querySelector('[data-screen="command-palette"]')), 5000, {
+        message: "palette closed",
+      });
     },
     /** Runs a command through the palette (Ctrl+P, ">text", click on the entry with that id). */
     async runCommand(text, id) {
@@ -156,10 +164,19 @@ export function flowUi(app) {
 
     // ---- dialogs ---------------------------------------------------------------------------
     /** Title (h2) of the topmost dialog, or null. */
-    dialogTitle: () => app.exec(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop()?.querySelector("h2")?.innerText.trim() ?? null),
-    dialogText: () => app.exec(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop()?.innerText.replace(/\s+/g, " ").trim() ?? null),
+    dialogTitle: () =>
+      app.exec(
+        () => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop()?.querySelector("h2")?.innerText.trim() ?? null,
+      ),
+    dialogText: () =>
+      app.exec(
+        () => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop()?.innerText.replace(/\s+/g, " ").trim() ?? null,
+      ),
     waitDialog: (title, timeout = 10_000) => eventually(ui.dialogTitle, title, `dialog “${title}”`, timeout),
-    noDialog: () => app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"], [role="alertdialog"]')), 10_000, { message: "dialog closed" }),
+    noDialog: () =>
+      app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"], [role="alertdialog"]')), 10_000, {
+        message: "dialog closed",
+      }),
     /** A text field of the topmost dialog by its label. */
     field: (label) =>
       app.waitFor(
@@ -208,7 +225,15 @@ export function flowUi(app) {
     /** Kind segment ("Feature" | "Release" | "Hotfix") in the start form. */
     async chooseKind(label) {
       const button = await app.waitFor(
-        () => app.exec((root, wanted) => [...document.querySelectorAll(`${root} [aria-label="Type"] [role="radio"], ${root} [aria-label="Type"] button`)].find((el) => el.innerText.trim() === wanted) ?? null, DIALOG, label),
+        () =>
+          app.exec(
+            (root, wanted) =>
+              [...document.querySelectorAll(`${root} [aria-label="Type"] [role="radio"], ${root} [aria-label="Type"] button`)].find(
+                (el) => el.innerText.trim() === wanted,
+              ) ?? null,
+            DIALOG,
+            label,
+          ),
         8000,
         { message: `kind “${label}”` },
       );
@@ -218,7 +243,16 @@ export function flowUi(app) {
     selectedKind: () =>
       app.exec((root) => {
         const all = [...document.querySelectorAll(`${root} [aria-label="Type"] [role="radio"], ${root} [aria-label="Type"] button`)];
-        return all.find((el) => el.getAttribute("aria-checked") === "true" || el.getAttribute("data-state") === "on" || el.getAttribute("data-state") === "checked")?.innerText.trim() ?? null;
+        return (
+          all
+            .find(
+              (el) =>
+                el.getAttribute("aria-checked") === "true" ||
+                el.getAttribute("data-state") === "on" ||
+                el.getAttribute("data-state") === "checked",
+            )
+            ?.innerText.trim() ?? null
+        );
       }, DIALOG),
     startInput: () => app.waitFor(`${DIALOG} form[data-gitflow-form="start"] input`, 8000),
     startBlocked: () => ui.attr('[data-action="gitflow-start"]', "aria-disabled"),
@@ -240,21 +274,36 @@ export function flowUi(app) {
     },
 
     // ---- toasts ----------------------------------------------------------------------------
-    toasts: () => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((el) => ({ tone: el.getAttribute("data-toast"), text: el.innerText.replace(/\s+/g, " ").trim() }))),
+    toasts: () =>
+      app.exec(() =>
+        [...document.querySelectorAll("[data-toast]")].map((el) => ({
+          tone: el.getAttribute("data-toast"),
+          text: el.innerText.replace(/\s+/g, " ").trim(),
+        })),
+      ),
     async waitToast(tone, pattern, timeout = 30_000) {
-      return app.waitFor(async () => (await ui.toasts()).find((toast) => toast.tone === tone && pattern.test(toast.text))?.text ?? null, timeout, {
-        message: `${tone} toast ${pattern}; present: ${JSON.stringify(await ui.toasts().catch(() => []))}`,
-      });
+      return app.waitFor(
+        async () => (await ui.toasts()).find((toast) => toast.tone === tone && pattern.test(toast.text))?.text ?? null,
+        timeout,
+        {
+          message: `${tone} toast ${pattern}; present: ${JSON.stringify(await ui.toasts().catch(() => []))}`,
+        },
+      );
     },
     /** Clicks a button inside the toast whose text matches. */
     async toastButton(pattern, label) {
       const button = await app.waitFor(
         () =>
-          app.exec((source, wanted, flags) => {
-            const re = new RegExp(source, flags);
-            const toast = [...document.querySelectorAll("[data-toast]")].find((el) => re.test(el.innerText.replace(/\s+/g, " ")));
-            return [...(toast?.querySelectorAll("button") ?? [])].find((el) => el.innerText.trim() === wanted) ?? null;
-          }, pattern.source, label, pattern.flags),
+          app.exec(
+            (source, wanted, flags) => {
+              const re = new RegExp(source, flags);
+              const toast = [...document.querySelectorAll("[data-toast]")].find((el) => re.test(el.innerText.replace(/\s+/g, " ")));
+              return [...(toast?.querySelectorAll("button") ?? [])].find((el) => el.innerText.trim() === wanted) ?? null;
+            },
+            pattern.source,
+            label,
+            pattern.flags,
+          ),
         8000,
         { message: `toast button “${label}”` },
       );
@@ -271,7 +320,9 @@ export function flowUi(app) {
         if (!closed) break;
         await sleep(120);
       }
-      await app.waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" }).catch(() => undefined);
+      await app
+        .waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" })
+        .catch(() => undefined);
     },
 
     // ---- context menu ----------------------------------------------------------------------
@@ -289,7 +340,18 @@ export function flowUi(app) {
         { message: `element ${css}` },
       );
       await app.webdriver("POST", "/actions", {
-        actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", origin: "viewport", x: point.x, y: point.y }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }] }],
+        actions: [
+          {
+            type: "pointer",
+            id: "mouse",
+            parameters: { pointerType: "mouse" },
+            actions: [
+              { type: "pointerMove", origin: "viewport", x: point.x, y: point.y },
+              { type: "pointerDown", button: 2 },
+              { type: "pointerUp", button: 2 },
+            ],
+          },
+        ],
       });
       await app.webdriver("DELETE", "/actions").catch(() => undefined);
       await app.waitFor('[role="menu"]', 5000, { message: "context menu open" });

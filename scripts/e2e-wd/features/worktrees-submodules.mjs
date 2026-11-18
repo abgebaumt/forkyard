@@ -48,12 +48,20 @@ function ui(app) {
         { message, interval: 120 },
       );
     } catch {
-      throw new AssertionError(`${message}: expected ${typeof expected === "function" ? expected.toString().slice(0, 80) : JSON.stringify(expected)}, last ${JSON.stringify(last)?.slice(0, 400)}`);
+      throw new AssertionError(
+        `${message}: expected ${typeof expected === "function" ? expected.toString().slice(0, 80) : JSON.stringify(expected)}, last ${JSON.stringify(last)?.slice(0, 400)}`,
+      );
     }
     return last;
   };
 
-  const toasts = () => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((el) => ({ tone: el.dataset.toast, text: el.innerText.replace(/\s+/g, " ").trim() })));
+  const toasts = () =>
+    app.exec(() =>
+      [...document.querySelectorAll("[data-toast]")].map((el) => ({
+        tone: el.dataset.toast,
+        text: el.innerText.replace(/\s+/g, " ").trim(),
+      })),
+    );
   const waitToast = async (pattern, tone = null, timeout = 30_000) => {
     let seen = [];
     try {
@@ -75,17 +83,28 @@ function ui(app) {
       return true;
     });
 
-  const dialogTitle = () => app.exec(() => [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1)?.querySelector("h2")?.textContent?.trim() ?? null);
+  const dialogTitle = () =>
+    app.exec(
+      () =>
+        [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1)?.querySelector("h2")?.textContent?.trim() ?? null,
+    );
   const dialogCount = () => app.exec(() => document.querySelectorAll('[role="dialog"], [role="alertdialog"]').length);
-  const waitDialog = (pattern, timeout = 20_000) => eventually(dialogTitle, (title) => title !== null && pattern.test(title), `dialog ${pattern}`, timeout);
-  const dialogText = () => app.exec(() => ([...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1)?.innerText ?? "").replace(/\s+/g, " ").trim());
+  const waitDialog = (pattern, timeout = 20_000) =>
+    eventually(dialogTitle, (title) => title !== null && pattern.test(title), `dialog ${pattern}`, timeout);
+  const dialogText = () =>
+    app.exec(() =>
+      ([...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1)?.innerText ?? "").replace(/\s+/g, " ").trim(),
+    );
   /** Button of the topmost dialog with exactly this text. */
   const dialogButton = (text) =>
     app.waitFor(
       () =>
         app.exec((wanted) => {
           const dialog = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1);
-          return [...(dialog?.querySelectorAll("button") ?? [])].find((button) => button.innerText.replace(/\s+/g, " ").trim() === wanted) ?? null;
+          return (
+            [...(dialog?.querySelectorAll("button") ?? [])].find((button) => button.innerText.replace(/\s+/g, " ").trim() === wanted) ??
+            null
+          );
         }, text),
       10_000,
       { message: `dialog button “${text}”` },
@@ -120,7 +139,12 @@ function ui(app) {
     );
     return el;
   };
-  const alerts = () => app.exec(() => [...([...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1)?.querySelectorAll('[role="alert"]') ?? [])].map((el) => el.innerText.replace(/\s+/g, " ").trim()).join(" | "));
+  const alerts = () =>
+    app.exec(() =>
+      [...([...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1)?.querySelectorAll('[role="alert"]') ?? [])]
+        .map((el) => el.innerText.replace(/\s+/g, " ").trim())
+        .join(" | "),
+    );
   const focusedLabel = () =>
     app.exec(() => {
       const el = document.activeElement;
@@ -147,7 +171,15 @@ function ui(app) {
   const findRow = async (id, ending) => (await rows(id)).find((row) => slashed(row.key).endsWith(slashed(ending))) ?? null;
   const rowEl = (id, ending) =>
     app.waitFor(
-      () => app.exec((section, end) => [...document.querySelectorAll(`[data-extra-section="${section}"] [data-side-row]`)].find((el) => el.dataset.sideRow.replaceAll("\\", "/").endsWith(end)) ?? null, id, slashed(ending)),
+      () =>
+        app.exec(
+          (section, end) =>
+            [...document.querySelectorAll(`[data-extra-section="${section}"] [data-side-row]`)].find((el) =>
+              el.dataset.sideRow.replaceAll("\\", "/").endsWith(end),
+            ) ?? null,
+          id,
+          slashed(ending),
+        ),
       15_000,
       { message: `row ${id} … ${ending}` },
     );
@@ -157,7 +189,13 @@ function ui(app) {
     if ((await header.attr("aria-expanded")) === "false") await app.click(header);
     await eventually(() => header.attr("aria-expanded"), "true", `section ${id} expanded`);
   };
-  const headerText = (id) => app.exec((section) => document.querySelector(`[data-extra-section="${section}"] [data-section-header] button`)?.innerText.replace(/\s+/g, " ").trim() ?? null, id);
+  const headerText = (id) =>
+    app.exec(
+      (section) =>
+        document.querySelector(`[data-extra-section="${section}"] [data-section-header] button`)?.innerText.replace(/\s+/g, " ").trim() ??
+        null,
+      id,
+    );
   /** Clicks a button that may only appear on hover (actions in the section header and rows). */
   const jsClick = (selector) =>
     app.exec((sel) => {
@@ -171,15 +209,36 @@ function ui(app) {
   const contextMenu = async (el) => {
     await app.exec((target) => {
       const box = target.getBoundingClientRect();
-      target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: box.left + Math.min(box.width / 2, 48), clientY: box.top + box.height / 2 }));
+      target.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          button: 2,
+          clientX: box.left + Math.min(box.width / 2, 48),
+          clientY: box.top + box.height / 2,
+        }),
+      );
       return true;
     }, el);
     await app.waitFor('[role="menu"]', 10_000, { message: "context menu" });
   };
-  const menuItems = () => app.exec(() => [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) => ({ text: item.innerText.replace(/\s+/g, " ").trim(), disabled: item.hasAttribute("data-disabled") || item.getAttribute("aria-disabled") === "true" })));
+  const menuItems = () =>
+    app.exec(() =>
+      [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].map((item) => ({
+        text: item.innerText.replace(/\s+/g, " ").trim(),
+        disabled: item.hasAttribute("data-disabled") || item.getAttribute("aria-disabled") === "true",
+      })),
+    );
   const chooseMenu = async (pattern) => {
     const item = await app.waitFor(
-      () => app.exec((source) => [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find((el) => new RegExp(source).test(el.innerText.replace(/\s+/g, " ").trim())) ?? null, pattern.source),
+      () =>
+        app.exec(
+          (source) =>
+            [...document.querySelectorAll('[role="menu"] [role="menuitem"]')].find((el) =>
+              new RegExp(source).test(el.innerText.replace(/\s+/g, " ").trim()),
+            ) ?? null,
+          pattern.source,
+        ),
       10_000,
       { message: `menu item ${pattern}` },
     );
@@ -215,12 +274,25 @@ function ui(app) {
     await app.press("Control+p");
     const input = await app.waitFor('input[role="combobox"]', 10_000, { message: "palette input" });
     await app.type(input, text);
-    await eventually(() => app.exec(() => document.querySelector('[role="option"][aria-selected="true"]')?.textContent ?? ""), (current) => current.toLowerCase().includes(text.toLowerCase()), `palette entry “${text}” selected`);
+    await eventually(
+      () => app.exec(() => document.querySelector('[role="option"][aria-selected="true"]')?.textContent ?? ""),
+      (current) => current.toLowerCase().includes(text.toLowerCase()),
+      `palette entry “${text}” selected`,
+    );
     await app.press("Enter");
   };
-  const tabs = () => app.exec(() => [...document.querySelectorAll('[role="tablist"] [role="tab"]')].filter((tab) => tab.closest("[data-tab-id]")).map((tab) => ({ title: (tab.getAttribute("aria-label") ?? tab.innerText).replace(/[•●]/g, "").replace(/\s+/g, " ").trim(), active: tab.getAttribute("aria-selected") === "true" })));
+  const tabs = () =>
+    app.exec(() =>
+      [...document.querySelectorAll('[role="tablist"] [role="tab"]')]
+        .filter((tab) => tab.closest("[data-tab-id]"))
+        .map((tab) => ({
+          title: (tab.getAttribute("aria-label") ?? tab.innerText).replace(/[•●]/g, "").replace(/\s+/g, " ").trim(),
+          active: tab.getAttribute("aria-selected") === "true",
+        })),
+    );
   const activeTab = async () => (await tabs()).find((tab) => tab.active)?.title ?? null;
-  const branchRow = (name) => app.waitFor(`[data-screen="sidebar"] [data-row-id="refs/heads/${name}"]`, 15_000, { message: `branch row ${name}` });
+  const branchRow = (name) =>
+    app.waitFor(`[data-screen="sidebar"] [data-row-id="refs/heads/${name}"]`, 15_000, { message: `branch row ${name}` });
   /** Tells the page the window got focus (sections refetch their lists then). */
   const windowFocus = () => app.exec(() => void window.dispatchEvent(new Event("focus")));
 
@@ -291,15 +363,28 @@ scenario("Worktree with a new branch is created and opened in a new tab", "main"
     await u.fill("Name of the new branch", "feature/karte neu");
     await u.eventually(() => u.value("Name of the new branch"), "feature/karte-neu", "spaces in the branch name become “-”");
     await u.eventually(() => u.value("Folder name"), "messnetz-feature-karte-neu", "folder name follows the branch");
-    await u.eventually(async () => (await u.dialogText()).replace(/\s+/g, "").includes(`Willbecreatedin:${at("messnetz-feature-karte-neu")}`.replace(/\s+/g, "")), true, "target folder preview");
+    await u.eventually(
+      async () =>
+        (await u.dialogText()).replace(/\s+/g, "").includes(`Willbecreatedin:${at("messnetz-feature-karte-neu")}`.replace(/\s+/g, "")),
+      true,
+      "target folder preview",
+    );
     t.step("dialog filled");
     await u.clickDialogButton("Create worktree");
     await u.eventually(u.dialogCount, 0, "dialog closes", 30_000);
     await u.waitToast(/Worktree “messnetz-feature-karte-neu” created and opened/, "success");
 
     const made = entry("messnetz-feature-karte-neu");
-    assertEqual([made?.branch, made?.detached, made?.locked], ["feature/karte-neu", false, false], "git worktree list: new worktree on the new branch");
-    assertEqual(git(fx, fx.path, "rev-parse", "feature/karte-neu"), git(fx, fx.path, "rev-parse", "main"), "git: the branch starts at the current commit");
+    assertEqual(
+      [made?.branch, made?.detached, made?.locked],
+      ["feature/karte-neu", false, false],
+      "git worktree list: new worktree on the new branch",
+    );
+    assertEqual(
+      git(fx, fx.path, "rev-parse", "feature/karte-neu"),
+      git(fx, fx.path, "rev-parse", "main"),
+      "git: the branch starts at the current commit",
+    );
     assert(exists(at("messnetz-feature-karte-neu"), "README.md"), "the new folder is checked out");
     assertEqual(listed().length, 2, "git: two worktrees");
 
@@ -343,8 +428,17 @@ scenario("Worktree dialog: required fields, taken branch name, occupied folder, 
     await u.eventually(u.alerts, (text) => text.length > 0, "folder name with a path: reason at the field");
     await u.fill("Folder name", "belegt");
     await u.clickDialogButton("Create worktree");
-    await u.eventually(u.alerts, (text) => /Something is already there/.test(text), "occupied folder: the core's refusal at the field", 30_000);
-    assertEqual((await u.toasts()).filter((item) => item.tone === "danger"), [], "no error toast for an error at a field");
+    await u.eventually(
+      u.alerts,
+      (text) => /Something is already there/.test(text),
+      "occupied folder: the core's refusal at the field",
+      30_000,
+    );
+    assertEqual(
+      (await u.toasts()).filter((item) => item.tone === "danger"),
+      [],
+      "no error toast for an error at a field",
+    );
     await t.shot("worktree-dialog-occupied-folder");
     assertEqual(listed().length, 1, "git: no worktree created");
     assertEqual(branches(), before, "git: no branch left behind");
@@ -368,25 +462,53 @@ scenario("Worktree from an existing branch without opening; checked-out branches
     await u.palette("Create worktree");
     await u.waitDialog(/^Create worktree$/);
     await app.click({ text: "Existing branch", within: '[role="dialog"]' });
-    const select = await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[role="dialog"] [role="combobox"]')].find((el) => /feature\/export/.test(el.innerText)) ?? null), 10_000, { message: "branch select with the first free branch" });
+    const select = await app.waitFor(
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll('[role="dialog"] [role="combobox"]')].find((el) => /feature\/export/.test(el.innerText)) ?? null,
+        ),
+      10_000,
+      { message: "branch select with the first free branch" },
+    );
     await app.click(select);
-    const options = await u.eventually(
-      () => app.exec(() => [...document.querySelectorAll('[role="option"]')].map((item) => ({ text: item.textContent.trim(), disabled: item.getAttribute("aria-disabled") === "true" || item.hasAttribute("data-disabled") }))),
-      (list) => list.length >= 2,
-      "options of the branch select",
-    ).then((list) => list.map((item) => ({ text: item.text, disabled: item.disabled })));
-    assertEqual(options, [{ text: "feature/export", disabled: false }, { text: "main – checked out here", disabled: true }], "the checked-out branch is disabled with a reason");
+    const options = await u
+      .eventually(
+        () =>
+          app.exec(() =>
+            [...document.querySelectorAll('[role="option"]')].map((item) => ({
+              text: item.textContent.trim(),
+              disabled: item.getAttribute("aria-disabled") === "true" || item.hasAttribute("data-disabled"),
+            })),
+          ),
+        (list) => list.length >= 2,
+        "options of the branch select",
+      )
+      .then((list) => list.map((item) => ({ text: item.text, disabled: item.disabled })));
+    assertEqual(
+      options,
+      [
+        { text: "feature/export", disabled: false },
+        { text: "main – checked out here", disabled: true },
+      ],
+      "the checked-out branch is disabled with a reason",
+    );
     await app.press("Escape");
     await u.eventually(() => app.exec(() => document.querySelectorAll('[role="option"]').length), 0, "select closed, dialog stays");
     assertEqual(await u.dialogTitle(), "Create worktree", "Escape only closed the list");
     assertEqual(await u.value("Folder name"), "messnetz-feature-export", "folder name from the branch");
-    const checkbox = await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [role="checkbox"]')), 5000, { message: "checkbox" });
+    const checkbox = await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [role="checkbox"]')), 5000, {
+      message: "checkbox",
+    });
     assertEqual(await checkbox.attr("aria-checked"), "true", "“Open in a new tab afterwards” is preselected");
     await app.click(checkbox);
     await u.eventually(() => checkbox.attr("aria-checked"), "false", "checkbox turned off");
     await u.clickDialogButton("Create worktree");
     await u.eventually(u.dialogCount, 0, "dialog closes", 30_000);
-    const toast = await u.waitToast(/Worktree “messnetz-feature-export” created$|Worktree “messnetz-feature-export” created Open in new tab/, "success");
+    const toast = await u.waitToast(
+      /Worktree “messnetz-feature-export” created$|Worktree “messnetz-feature-export” created Open in new tab/,
+      "success",
+    );
     assertIncludes(toast.text, "Open in new tab", "toast offers to open it");
     assertEqual(entry("messnetz-feature-export")?.branch, "feature/export", "git worktree list: worktree on the existing branch");
     assertEqual((await u.tabs()).length, 1, "no new tab was opened");
@@ -417,10 +539,21 @@ scenario("Worktree is locked with a reason, cannot be removed while locked, and 
     await app.press("Enter");
     await u.eventually(u.dialogCount, 0, "Enter locks and closes");
     await u.waitToast(/Worktree “messnetz-pruefung” locked/, "success");
-    assertEqual([entry("messnetz-pruefung")?.locked, entry("messnetz-pruefung")?.lockReason], [true, "liegt auf der externen Platte"], "git worktree list: locked with the reason");
-    const locked = await u.eventually(() => u.findRow(W, "messnetz-pruefung"), (row) => row?.locked === true, "row marked as locked");
+    assertEqual(
+      [entry("messnetz-pruefung")?.locked, entry("messnetz-pruefung")?.lockReason],
+      [true, "liegt auf der externen Platte"],
+      "git worktree list: locked with the reason",
+    );
+    const locked = await u.eventually(
+      () => u.findRow(W, "messnetz-pruefung"),
+      (row) => row?.locked === true,
+      "row marked as locked",
+    );
     assertMatch(locked.text, /locked: liegt auf der externen Platte/, "the reason is in the row");
-    assert(await app.exec(() => Boolean(document.querySelector('[data-extra-section="worktrees"] [data-locked] [data-flag="locked"]'))), "lock icon in the row");
+    assert(
+      await app.exec(() => Boolean(document.querySelector('[data-extra-section="worktrees"] [data-locked] [data-flag="locked"]'))),
+      "lock icon in the row",
+    );
     await u.closeToasts();
     await sleep(200);
     await t.shot("worktree-locked-with-reason");
@@ -432,7 +565,10 @@ scenario("Worktree is locked with a reason, cannot be removed while locked, and 
     assert(entry("messnetz-pruefung") !== null && exists(at("messnetz-pruefung")), "git: the locked worktree is still there");
     await u.contextMenu(await u.rowEl(W, "messnetz-pruefung"));
     const remove = (await u.menuItems()).find((item) => /Remove worktree/.test(item.text));
-    assert(remove?.disabled && /unlock it first/.test(remove.text), `menu: “Remove worktree” disabled – unlock it first (${JSON.stringify(remove)})`);
+    assert(
+      remove?.disabled && /unlock it first/.test(remove.text),
+      `menu: “Remove worktree” disabled – unlock it first (${JSON.stringify(remove)})`,
+    );
     await app.press("Escape");
     await u.closeToasts();
 
@@ -463,7 +599,12 @@ scenario("Worktree removal asks first, cancel keeps it, changes need a second wa
     await app.press("Delete");
     await u.waitDialog(/Remove worktree “messnetz-sauber”\?/);
     const text = await u.dialogText();
-    assert(text.includes(at("messnetz-sauber")) && /folder is deleted with its contents/.test(text) && /branch “sauber” and its commits stay/.test(text), `confirmation names the folder and what stays (${text})`);
+    assert(
+      text.includes(at("messnetz-sauber")) &&
+        /folder is deleted with its contents/.test(text) &&
+        /branch “sauber” and its commits stay/.test(text),
+      `confirmation names the folder and what stays (${text})`,
+    );
     await u.clickDialogButton("Cancel");
     await u.eventually(u.dialogCount, 0, "Cancel closes");
     assert(entry("messnetz-sauber") && exists(at("messnetz-sauber")), "Cancel removes nothing");
@@ -479,7 +620,11 @@ scenario("Worktree removal asks first, cancel keeps it, changes need a second wa
     await u.closeToasts();
 
     // Worktree with an untracked file: second warning, cancel, then delete with changes.
-    const changed = await u.eventually(() => u.findRow(W, "messnetz-geaendert"), (row) => row?.changed === true, "row with changes is marked");
+    const changed = await u.eventually(
+      () => u.findRow(W, "messnetz-geaendert"),
+      (row) => row?.changed === true,
+      "row with changes is marked",
+    );
     assertMatch(changed.text, /changed/, "“changed” as a word");
     await u.contextMenu(await u.rowEl(W, "messnetz-geaendert"));
     await u.chooseMenu(/^Remove worktree/);
@@ -516,7 +661,11 @@ scenario("Orphaned worktree entries are cleaned up after a prompt", "edge", asyn
     const app = await t.launch(LAUNCH);
     const u = ui(app);
     await app.openRepo(fx.path);
-    const orphan = await u.eventually(() => u.findRow(W, "messnetz-weg"), (row) => row?.prunable === true, "orphaned row is marked");
+    const orphan = await u.eventually(
+      () => u.findRow(W, "messnetz-weg"),
+      (row) => row?.prunable === true,
+      "orphaned row is marked",
+    );
     assertMatch(orphan.text, /folder missing · orphaned/, "the row says the folder is missing");
     assert(listed().find((item) => samePath(item.path, at("messnetz-weg")))?.prunable, "git: the entry is prunable");
 
@@ -575,12 +724,23 @@ scenario("Adding a submodule from a local folder is refused without protocol.fil
     await u.fill("Folder in the repository", "libs/wetter-symbole");
     await u.eventually(u.alerts, "", "valid folder: no error");
     await u.clickDialogButton("Add submodule");
-    await u.eventually(() => app.exec(() => document.querySelector("[data-submodule-error]")?.getAttribute("data-submodule-error") ?? null), "not_allowed", "refusal in the dialog", 30_000);
+    await u.eventually(
+      () => app.exec(() => document.querySelector("[data-submodule-error]")?.getAttribute("data-submodule-error") ?? null),
+      "not_allowed",
+      "refusal in the dialog",
+      30_000,
+    );
     const refusal = await app.exec(() => document.querySelector("[data-submodule-error]").innerText.replace(/\s+/g, " "));
-    assert(/protocol\.file\.allow/.test(refusal) && /Nothing was left behind in the repository/.test(refusal), `the refusal names the setting and that nothing is left behind (${refusal})`);
+    assert(
+      /protocol\.file\.allow/.test(refusal) && /Nothing was left behind in the repository/.test(refusal),
+      `the refusal names the setting and that nothing is left behind (${refusal})`,
+    );
     await t.shot("submodule-add-refused-local-source");
     assertEqual(repoSnapshot(fx, fx.path), before, "git: .gitmodules and status unchanged");
-    assert(!exists(fx.path, "libs", "wetter-symbole") && !exists(fx.path, ".git", "modules", "libs", "wetter-symbole"), "no folder left behind");
+    assert(
+      !exists(fx.path, "libs", "wetter-symbole") && !exists(fx.path, ".git", "modules", "libs", "wetter-symbole"),
+      "no folder left behind",
+    );
     await app.press("Escape");
     await u.eventually(u.dialogCount, 0, "Escape closes");
     await t.noConsoleErrors(app);
@@ -601,16 +761,28 @@ scenario("Submodule is added from a local source and the change is staged", "mai
     assert(await u.jsClick(`[data-extra-section="${S}"] [data-action="add"]`), "“+” in the section header");
     await u.waitDialog(/^Add submodule$/);
     await u.fill("Address", libs.extra.path);
-    await u.eventually(() => app.exec(() => document.querySelector("[data-url-kind]")?.getAttribute("data-url-kind")), "local", "the address counts as a local source");
+    await u.eventually(
+      () => app.exec(() => document.querySelector("[data-url-kind]")?.getAttribute("data-url-kind")),
+      "local",
+      "the address counts as a local source",
+    );
     await u.fill("Folder in the repository", "libs\\wetter-symbole");
-    await u.eventually(async () => (await u.dialogText()).replace(/\s+/g, "").includes(`Willbeembeddedat:${path.join(fx.path, "libs", "wetter-symbole")}`), true, "target preview with slashes");
+    await u.eventually(
+      async () => (await u.dialogText()).replace(/\s+/g, "").includes(`Willbeembeddedat:${path.join(fx.path, "libs", "wetter-symbole")}`),
+      true,
+      "target preview with slashes",
+    );
     await u.clickDialogButton("Add submodule");
     await u.eventually(u.dialogCount, 0, "dialog closes after adding", 60_000);
     await u.waitToast(/Submodule “libs\/wetter-symbole” added – the change is staged/, "success");
 
     const recorded = readGitmodules(fx.path).find((item) => item.path === "libs/wetter-symbole");
     assertEqual(recorded && path.resolve(recorded.url), path.resolve(libs.extra.path), ".gitmodules: path and URL recorded");
-    assertEqual(subStatus(fx, fx.path)["libs/wetter-symbole"], { flag: " ", sha: libs.extra.shas[1] }, "git submodule status: at the newest commit of the source");
+    assertEqual(
+      subStatus(fx, fx.path)["libs/wetter-symbole"],
+      { flag: " ", sha: libs.extra.shas[1] },
+      "git submodule status: at the newest commit of the source",
+    );
     assert(exists(fx.path, "libs", "wetter-symbole", "symbole", "sonne.svg"), "the submodule's files are there");
     assertEqual(staged(fx, fx.path), ["M .gitmodules", "A libs/wetter-symbole"], "git: the addition is staged");
     await u.eventually(() => u.headerText(S), "SUBMODULES 5", "five submodules");
@@ -641,7 +813,11 @@ scenario("Adding a submodule from a hanging server shows progress and can be can
     await u.fill("Address", url);
     await u.eventually(() => u.value("Folder in the repository"), "kartenmaterial", "folder suggested");
     await u.clickDialogButton("Add submodule");
-    await u.eventually(() => app.exec(() => document.querySelector('[data-screen="submodules"]')?.getAttribute("data-state")), "running", "progress is shown");
+    await u.eventually(
+      () => app.exec(() => document.querySelector('[data-screen="submodules"]')?.getAttribute("data-state")),
+      "running",
+      "progress is shown",
+    );
     await u.eventually(() => silent.connections() > 0, true, "Git connected to the server", 20_000);
     await t.shot("submodule-add-progress");
 
@@ -650,11 +826,23 @@ scenario("Adding a submodule from a hanging server shows progress and can be can
     await u.clickDialogButton("Keep fetching");
     await u.eventually(u.dialogText, (text) => !/still being fetched/.test(text), "“Keep fetching” keeps it running");
     await u.clickDialogButton("Cancel fetch");
-    await u.eventually(() => app.exec(() => Boolean(document.querySelector("[data-submodule-cancelled]"))), true, "cancelled notice in the dialog", 30_000);
+    await u.eventually(
+      () => app.exec(() => Boolean(document.querySelector("[data-submodule-cancelled]"))),
+      true,
+      "cancelled notice in the dialog",
+      30_000,
+    );
     assertEqual(await u.value("Address"), url, "the inputs are kept");
-    assertEqual((await u.toasts()).filter((item) => item.tone === "danger"), [], "a cancel is not an error");
+    assertEqual(
+      (await u.toasts()).filter((item) => item.tone === "danger"),
+      [],
+      "a cancel is not an error",
+    );
     assertEqual(repoSnapshot(fx, fx.path), before, "git: .gitmodules and status unchanged");
-    assert(!exists(fx.path, "kartenmaterial") && !exists(fx.path, ".git", "modules", "kartenmaterial"), "no half folder, nothing under .git/modules");
+    assert(
+      !exists(fx.path, "kartenmaterial") && !exists(fx.path, ".git", "modules", "kartenmaterial"),
+      "no half folder, nothing under .git/modules",
+    );
     await app.press("Escape");
     await u.eventually(u.dialogCount, 0, "Escape closes");
     await t.noConsoleErrors(app);
@@ -682,8 +870,16 @@ scenario("Submodules are initialized and updated to the recorded commit", "main"
       ],
       "four submodules in four states",
     );
-    assertMatch((await u.findRow(S, LIBS.drifted)).text, /differs · [0-9a-f]{7} instead of [0-9a-f]{7}/, "differs: checked-out instead of recorded commit");
-    await u.eventually(() => app.exec(() => document.querySelector("[data-submodule-hint]")?.innerText.replace(/\s+/g, " ").trim() ?? ""), "1 not fetched yet Initialize", "hint about the unfetched submodule");
+    assertMatch(
+      (await u.findRow(S, LIBS.drifted)).text,
+      /differs · [0-9a-f]{7} instead of [0-9a-f]{7}/,
+      "differs: checked-out instead of recorded commit",
+    );
+    await u.eventually(
+      () => app.exec(() => document.querySelector("[data-submodule-hint]")?.innerText.replace(/\s+/g, " ").trim() ?? ""),
+      "1 not fetched yet Initialize",
+      "hint about the unfetched submodule",
+    );
     await u.waitToast(/One submodule has not been fetched yet/, "info");
     await u.closeToasts();
     await sleep(200);
@@ -691,7 +887,10 @@ scenario("Submodules are initialized and updated to the recorded commit", "main"
 
     assertEqual(subStatus(fx, fx.path)[LIBS.fresh]?.flag, "-", "git: extern/protokoll not initialized");
     await u.contextMenu(await u.rowEl(S, LIBS.fresh));
-    assert((await u.menuItems()).find((item) => /Open as repository/.test(item.text))?.disabled, "menu: “Open as repository” blocked while not initialized");
+    assert(
+      (await u.menuItems()).find((item) => /Open as repository/.test(item.text))?.disabled,
+      "menu: “Open as repository” blocked while not initialized",
+    );
     await u.chooseMenu(/^Initialize/);
     await u.waitToast(/Submodule “extern\/protokoll” is at the recorded commit/, "success", 60_000);
     assertEqual(subStatus(fx, fx.path)[LIBS.fresh], { flag: " ", sha: libs.fresh.shas[0] }, "git: initialized at the recorded commit");
@@ -727,7 +926,11 @@ scenario("Updating a submodule with conflicting own changes fails understandably
     const u = ui(app);
     await app.openRepo(fx.path);
     await u.expand(S);
-    await u.eventually(async () => (await u.findRow(S, LIBS.ready))?.state, (state) => state === "modified" || state === "out_of_sync", "row shows the difference");
+    await u.eventually(
+      async () => (await u.findRow(S, LIBS.ready))?.state,
+      (state) => state === "modified" || state === "out_of_sync",
+      "row shows the difference",
+    );
     await app.exec((key) => document.querySelector(`[data-side-row="${key}"] [data-action="update"]`)?.click(), LIBS.ready);
     const toast = await u.waitToast(/Update submodule failed/, "danger", 60_000);
     assertMatch(toast.text, /Open the submodule as a repository/, "the message says what to do");
@@ -764,7 +967,10 @@ scenario("Submodule is removed after confirmation; with own changes only after a
     await u.clickDialogButton("Remove submodule");
     await u.waitToast(/Submodule “libs\/sensor-treiber” removed – the change is staged/, "success", 30_000);
     assert(!modulePaths(fx.path).includes(LIBS.ready), ".gitmodules: entry gone");
-    assert(!exists(fx.path, LIBS.ready) && !exists(fx.path, ".git", "modules", "libs", "sensor-treiber"), "folder and .git/modules entry deleted");
+    assert(
+      !exists(fx.path, LIBS.ready) && !exists(fx.path, ".git", "modules", "libs", "sensor-treiber"),
+      "folder and .git/modules entry deleted",
+    );
     assertIncludes(staged(fx, fx.path), `D ${LIBS.ready}`, "git: removal staged");
     await u.eventually(async () => Boolean(await u.findRow(S, LIBS.ready)), false, "row gone");
     await u.closeToasts();
@@ -778,7 +984,10 @@ scenario("Submodule is removed after confirmation; with own changes only after a
     assertMatch(await u.dialogText(), /cannot be recovered/, "second confirmation says what is lost");
     await u.clickDialogButton("Cancel");
     await u.eventually(u.dialogCount, 0, "Cancel closes");
-    assert(modulePaths(fx.path).includes(LIBS.edited) && exists(fx.path, LIBS.edited, "NOTIZ.md"), "after cancel the submodule and the own file are there");
+    assert(
+      modulePaths(fx.path).includes(LIBS.edited) && exists(fx.path, LIBS.edited, "NOTIZ.md"),
+      "after cancel the submodule and the own file are there",
+    );
     await u.contextMenu(await u.rowEl(S, LIBS.edited));
     await u.chooseMenu(/^Remove submodule/);
     await u.waitDialog(/Remove submodule “libs\/auswertung-kern”\?/);
@@ -802,8 +1011,26 @@ scenario("Repository without submodules shows the empty state with an add action
     await app.openRepo(fx.path);
     await u.expand(S);
     await u.eventually(() => u.headerText(S), "SUBMODULES 0", "header with 0");
-    assertEqual(await app.exec(() => document.querySelector('[data-extra-section="submodules"] [data-empty]')?.innerText.replace(/\s+/g, " ").trim() ?? null), "No submodules Add", "empty state with an action");
-    await app.click(await app.waitFor(() => app.exec(() => [...document.querySelectorAll('[data-extra-section="submodules"] [data-empty] button')].find((el) => el.innerText.trim() === "Add") ?? null), 5000, { message: "Add button" }));
+    assertEqual(
+      await app.exec(
+        () => document.querySelector('[data-extra-section="submodules"] [data-empty]')?.innerText.replace(/\s+/g, " ").trim() ?? null,
+      ),
+      "No submodules Add",
+      "empty state with an action",
+    );
+    await app.click(
+      await app.waitFor(
+        () =>
+          app.exec(
+            () =>
+              [...document.querySelectorAll('[data-extra-section="submodules"] [data-empty] button')].find(
+                (el) => el.innerText.trim() === "Add",
+              ) ?? null,
+          ),
+        5000,
+        { message: "Add button" },
+      ),
+    );
     await u.waitDialog(/^Add submodule$/);
     await app.press("Escape");
     await u.eventually(u.dialogCount, 0, "Escape closes");
@@ -837,13 +1064,33 @@ scenario("Submodule is moved to another folder; .gitmodules and index follow", "
     await u.clickDialogButton("Move");
     await u.waitToast(/Submodule moved to extern\/treiber\/sensor/, "success", 30_000);
 
-    assertEqual(readGitmodules(fx.path).map((item) => item.path), ["extern/treiber/sensor"], ".gitmodules: new path");
+    assertEqual(
+      readGitmodules(fx.path).map((item) => item.path),
+      ["extern/treiber/sensor"],
+      ".gitmodules: new path",
+    );
     assert(exists(fx.path, "extern", "treiber", "sensor", "LIESMICH.md") && !exists(fx.path, SUB), "the folder moved");
-    assertEqual(subStatus(fx, fx.path)["extern/treiber/sensor"], { flag: " ", sha: lib.shas[2] }, "git submodule status: same commit at the new place");
+    assertEqual(
+      subStatus(fx, fx.path)["extern/treiber/sensor"],
+      { flag: " ", sha: lib.shas[2] },
+      "git submodule status: same commit at the new place",
+    );
     const changes = staged(fx, fx.path);
-    assert(changes.includes("M .gitmodules") && changes.some((line) => /^R\d* libs\/sensor-treiber extern\/treiber\/sensor$/.test(line) || line === "A extern/treiber/sensor"), `git: the move is staged (${changes.join(", ")})`);
-    assertEqual(git(fx, path.join(fx.path, "extern", "treiber", "sensor"), "rev-parse", "HEAD"), lib.shas[2], "the moved submodule still works as a repository");
-    await u.eventually(async () => (await u.rows(S)).map((row) => [row.key, row.state]), [["extern/treiber/sensor", "initialized"]], "the row shows the new path");
+    assert(
+      changes.includes("M .gitmodules") &&
+        changes.some((line) => /^R\d* libs\/sensor-treiber extern\/treiber\/sensor$/.test(line) || line === "A extern/treiber/sensor"),
+      `git: the move is staged (${changes.join(", ")})`,
+    );
+    assertEqual(
+      git(fx, path.join(fx.path, "extern", "treiber", "sensor"), "rev-parse", "HEAD"),
+      lib.shas[2],
+      "the moved submodule still works as a repository",
+    );
+    await u.eventually(
+      async () => (await u.rows(S)).map((row) => [row.key, row.state]),
+      [["extern/treiber/sensor", "initialized"]],
+      "the row shows the new path",
+    );
     await u.closeToasts();
     await sleep(200);
     await t.shot("submodule-moved");
@@ -890,7 +1137,10 @@ scenario("Moving a submodule: invalid targets, occupied folder and cancel change
     t.step(`refusal: ${toast.text}`);
     await t.shot("submodule-move-target-exists");
     assertEqual(repoSnapshot(fx, fx.path), before, "git: .gitmodules and status unchanged");
-    assert(exists(fx.path, SUB, "LIESMICH.md") && exists(fx.path, "src", "vergleich.py") && !exists(fx.path, "src", "sensor-treiber"), "both folders untouched");
+    assert(
+      exists(fx.path, SUB, "LIESMICH.md") && exists(fx.path, "src", "vergleich.py") && !exists(fx.path, "src", "sensor-treiber"),
+      "both folders untouched",
+    );
     await t.noConsoleErrors(app);
   } finally {
     fx.cleanup();
@@ -922,9 +1172,18 @@ scenario("After a checkout the submodule follows the recorded commit; undo bring
     assertEqual(subStatus(fx, fx.path)[SUB].flag, " ", "git submodule status: in sync");
     assertIncludes(fs.readFileSync(path.join(sub, "LIESMICH.md"), "utf8"), "Stand 1", "the submodule's files are at commit 1");
     // The row refetches on repo:changed after the follow-up job; wait for the new commit, not just the state.
-    await u.eventually(async () => (await u.findRow(S, SUB))?.text ?? "", (text) => text.includes(lib.shas[0].slice(0, 7)), "the row shows the new commit", 15_000);
+    await u.eventually(
+      async () => (await u.findRow(S, SUB))?.text ?? "",
+      (text) => text.includes(lib.shas[0].slice(0, 7)),
+      "the row shows the new commit",
+      15_000,
+    );
     await u.eventually(async () => (await u.findRow(S, SUB))?.state, "initialized", "row stays “initialized”");
-    assertEqual((await u.toasts()).filter((item) => item.tone === "warning" || item.tone === "danger"), [], "no warning");
+    assertEqual(
+      (await u.toasts()).filter((item) => item.tone === "warning" || item.tone === "danger"),
+      [],
+      "no warning",
+    );
     await sleep(300);
     await t.shot("submodule-auto-update-after-checkout");
 
@@ -959,7 +1218,9 @@ scenario("Auto-update switched off in project settings: the submodule stays wher
     const toggle = await app.waitFor(
       () =>
         app.exec(() => {
-          const title = [...document.querySelectorAll('[data-screen="settings"] *')].find((el) => el.childElementCount === 0 && el.textContent.trim() === "Update submodules after checkout and pull");
+          const title = [...document.querySelectorAll('[data-screen="settings"] *')].find(
+            (el) => el.childElementCount === 0 && el.textContent.trim() === "Update submodules after checkout and pull",
+          );
           let node = title;
           while (node && !node.querySelector('[role="switch"]')) node = node.parentElement;
           return node?.querySelector('[role="switch"]') ?? null;
@@ -970,7 +1231,11 @@ scenario("Auto-update switched off in project settings: the submodule stays wher
     assertEqual(await toggle.attr("aria-checked"), "true", "the switch is on");
     await app.click(toggle);
     await u.eventually(() => toggle.attr("aria-checked"), "false", "switch off");
-    await u.eventually(async () => (await app.invoke("repo_settings_get", { repoId })).submodulesAutoUpdate, false, "core: setting saved per repository");
+    await u.eventually(
+      async () => (await app.invoke("repo_settings_get", { repoId })).submodulesAutoUpdate,
+      false,
+      "core: setting saved per repository",
+    );
     await t.shot("submodule-auto-update-setting-off");
     await app.press("Escape");
     await u.eventually(() => app.exec(() => Boolean(document.querySelector('[data-screen="settings"]'))), false, "settings closed");
@@ -999,7 +1264,11 @@ scenario("A failed auto-update is a warning; the checkout itself goes through", 
     await checkoutByDoubleClick(app, u, fx, "treiber-alt");
     const warning = await u.waitToast(/Submodules not updated/, "warning", 30_000);
     assertMatch(warning.text, /Affected: libs\/sensor-treiber/, "the warning names the submodule");
-    assertEqual((await u.toasts()).filter((item) => item.tone === "danger"), [], "no error: the checkout succeeded");
+    assertEqual(
+      (await u.toasts()).filter((item) => item.tone === "danger"),
+      [],
+      "no error: the checkout succeeded",
+    );
     await sleep(200);
     await t.shot("submodule-auto-update-failed-warning");
     assertEqual(git(fx, sub, "rev-parse", "HEAD"), lib.shas[2], "git: the submodule stayed at commit 3");
@@ -1017,7 +1286,11 @@ scenario("A submodule with a commit on no branch is left alone and named in the 
     git(fx, sub, "add", "eigen.txt");
     git(fx, sub, "commit", "-q", "-m", "Eigener Stand ohne Branch");
     const own = git(fx, sub, "rev-parse", "HEAD");
-    assertEqual(git(fx, sub, "for-each-ref", "--contains", own, "--format=%(refname)", "refs/heads", "refs/tags", "refs/remotes"), "", "precondition: the commit is on no branch");
+    assertEqual(
+      git(fx, sub, "for-each-ref", "--contains", own, "--format=%(refname)", "refs/heads", "refs/tags", "refs/remotes"),
+      "",
+      "precondition: the commit is on no branch",
+    );
     const app = await t.launch(LAUNCH);
     const u = ui(app);
     await app.openRepo(fx.path);

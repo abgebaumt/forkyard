@@ -33,7 +33,11 @@ const baseName = (path: string) => path.split(/[\\/]/).pop() ?? path;
 
 async function copyPublicKey(key: SshKey) {
   if (!key.publicKey) {
-    toast({ tone: "warning", title: t("preferences.ssh.noPublicKey"), description: t("preferences.ssh.noPublicKeyHint", { path: key.publicKeyPath }) });
+    toast({
+      tone: "warning",
+      title: t("preferences.ssh.noPublicKey"),
+      description: t("preferences.ssh.noPublicKeyHint", { path: key.publicKeyPath }),
+    });
     return;
   }
   try {
@@ -55,7 +59,11 @@ async function importKey() {
     confirmLabel: t("preferences.ssh.import.confirm"),
   });
   if (!label) return;
-  let result = await runAction(t("preferences.ssh.import.action"), () => core.sshKeyImport({ label, privateKeyPath, publicKeyPath: null }), { quiet: ["path_not_found"] });
+  let result = await runAction(
+    t("preferences.ssh.import.action"),
+    () => core.sshKeyImport({ label, privateKeyPath, publicKeyPath: null }),
+    { quiet: ["path_not_found"] },
+  );
   if (!result.ok && result.error.code === "path_not_found") {
     // Usually only the .pub file next to the private key is missing: ask for it.
     const again = await confirm({
@@ -89,7 +97,11 @@ export function SshSection({ settings }: { settings: Settings }) {
       <Button icon={<FolderOpen className="size-icon" aria-hidden />} onClick={() => void importKey()}>
         {t("preferences.ssh.pickExisting")}
       </Button>
-      <Button variant={list.length ? "secondary" : "primary"} icon={<Plus className="size-icon" aria-hidden />} onClick={() => setGenerating(true)}>
+      <Button
+        variant={list.length ? "secondary" : "primary"}
+        icon={<Plus className="size-icon" aria-hidden />}
+        onClick={() => setGenerating(true)}
+      >
         {t("preferences.ssh.generate")}
       </Button>
     </>
@@ -99,12 +111,14 @@ export function SshSection({ settings }: { settings: Settings }) {
     <section>
       <SectionHeader title={t("preferences.ssh.title")}>{t("preferences.ssh.intro")}</SectionHeader>
 
-      <SettingRow
-        title={t("preferences.ssh.useAgent.title")}
-        description={t("preferences.ssh.useAgent.description")}
-      >
+      <SettingRow title={t("preferences.ssh.useAgent.title")} description={t("preferences.ssh.useAgent.description")}>
         {(ids) => (
-          <Switch id={ids.id} ariaDescribedBy={ids.descriptionId} checked={settings.sshUseAgent} onCheckedChange={(checked) => void applySettings({ sshUseAgent: checked })} />
+          <Switch
+            id={ids.id}
+            ariaDescribedBy={ids.descriptionId}
+            checked={settings.sshUseAgent}
+            onCheckedChange={(checked) => void applySettings({ sshUseAgent: checked })}
+          />
         )}
       </SettingRow>
 
@@ -176,7 +190,10 @@ export function SshSection({ settings }: { settings: Settings }) {
 
 function StepNumber({ n }: { n: number }) {
   return (
-    <span aria-hidden className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-pill bg-surface-raised text-xs font-semibold text-text-muted">
+    <span
+      aria-hidden
+      className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-pill bg-surface-raised text-xs font-semibold text-text-muted"
+    >
       {n}
     </span>
   );
@@ -247,7 +264,13 @@ function KeyCard({ sshKey: key, agent }: { sshKey: SshKey; agent: boolean }) {
 
       <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-sm">
         <dt className="text-text-muted">{t("preferences.ssh.fingerprint")}</dt>
-        <dd className="min-w-0">{key.fingerprint ? <Mono>{key.fingerprint}</Mono> : <span className="text-text-muted">{t("preferences.ssh.fingerprintUnknown")}</span>}</dd>
+        <dd className="min-w-0">
+          {key.fingerprint ? (
+            <Mono>{key.fingerprint}</Mono>
+          ) : (
+            <span className="text-text-muted">{t("preferences.ssh.fingerprintUnknown")}</span>
+          )}
+        </dd>
         <dt className="text-text-muted">{t("preferences.ssh.private")}</dt>
         <dd className="min-w-0">
           <Mono>{key.privateKeyPath}</Mono>
@@ -269,16 +292,33 @@ function KeyCard({ sshKey: key, agent }: { sshKey: SshKey; agent: boolean }) {
       ) : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Button size="sm" icon={<Copy className="size-3.5" aria-hidden />} disabled={!key.publicKey} onClick={() => void copyPublicKey(key)}>
+        <Button
+          size="sm"
+          icon={<Copy className="size-3.5" aria-hidden />}
+          disabled={!key.publicKey}
+          onClick={() => void copyPublicKey(key)}
+        >
           {t("preferences.ssh.copyPublic")}
         </Button>
         {key.isDefault ? null : (
-          <Button size="sm" variant="ghost" icon={<Star className="size-3.5" aria-hidden />} disabled={key.missing} onClick={() => void makeDefault()}>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Star className="size-3.5" aria-hidden />}
+            disabled={key.missing}
+            onClick={() => void makeDefault()}
+          >
             {t("preferences.ssh.useAsDefault")}
           </Button>
         )}
         <span className="flex-1" />
-        <Button size="sm" variant="ghost" className="hover:text-danger" icon={<Trash2 className="size-3.5" aria-hidden />} onClick={() => void remove()}>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="hover:text-danger"
+          icon={<Trash2 className="size-3.5" aria-hidden />}
+          onClick={() => void remove()}
+        >
           {t("preferences.ssh.removeEntry")}
         </Button>
       </div>
@@ -323,7 +363,11 @@ function GenerateDialog({ existing, onClose }: { existing: SshKey[]; onClose: ()
     setBusy(false);
     if (result.ok) {
       setKeys(result.value);
-      toast({ tone: "success", title: t("preferences.ssh.dialog.done", { label: label.trim() }), description: t("preferences.ssh.dialog.doneHint") });
+      toast({
+        tone: "success",
+        title: t("preferences.ssh.dialog.done", { label: label.trim() }),
+        description: t("preferences.ssh.dialog.doneHint"),
+      });
       onClose();
       return;
     }

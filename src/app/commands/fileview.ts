@@ -59,9 +59,13 @@ export async function createFile(repoId: string, tabId: string, initial = ""): P
   });
   if (!value) return false;
   const path = value.replace(/\\/g, "/");
-  const result = await runAction(t("commands.file.new.action"), () => core.fileWrite({ repoId, path, content: "", encoding: "utf-8", eol: "lf" }), {
-    success: t("commands.file.new.done", { path }),
-  });
+  const result = await runAction(
+    t("commands.file.new.action"),
+    () => core.fileWrite({ repoId, path, content: "", encoding: "utf-8", eol: "lf" }),
+    {
+      success: t("commands.file.new.done", { path }),
+    },
+  );
   if (!result.ok) return false;
   useAppStore.getState().openFile(tabId, path, null, "edit");
   return true;
@@ -80,20 +84,34 @@ export async function deleteFile(repoId: string, tabId: string, path: string): P
     danger: true,
   });
   if (!ok) return false;
-  const result = await runAction(t("commands.file.delete.action"), withStatus(repoId, () => core.fileDelete({ repoId, path })), { busyKey: `${repoId}:file-delete` });
+  const result = await runAction(
+    t("commands.file.delete.action"),
+    withStatus(repoId, () => core.fileDelete({ repoId, path })),
+    { busyKey: `${repoId}:file-delete` },
+  );
   if (!result.ok) return false;
   void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });
   const store = useAppStore.getState();
   const center = store.views[tabId]?.center;
-  if (center && (center.kind === "file" || center.kind === "blame") && center.path === path && center.sha === null) store.closeCenter(tabId);
-  toast({ tone: "success", title: t("commands.file.delete.done", { name }), action: { label: t("commands.repo.undo.title"), onClick: () => void undo(repoId) } });
+  if (center && (center.kind === "file" || center.kind === "blame") && center.path === path && center.sha === null)
+    store.closeCenter(tabId);
+  toast({
+    tone: "success",
+    title: t("commands.file.delete.done", { name }),
+    action: { label: t("commands.repo.undo.title"), onClick: () => void undo(repoId) },
+  });
   return true;
 }
 
 /** Pick a file of the working directory and open it in the editor. */
 async function pickFileToEdit(ctx: CommandContext): Promise<void> {
   const repoId = ctx.repoId!;
-  const result = await runAction(t("commands.file.edit.readAction"), () => ctx.queryClient.fetchQuery({ queryKey: qk.tree(repoId, null, null), queryFn: () => core.treeList({ repoId, sha: null, filter: null }) }));
+  const result = await runAction(t("commands.file.edit.readAction"), () =>
+    ctx.queryClient.fetchQuery({
+      queryKey: qk.tree(repoId, null, null),
+      queryFn: () => core.treeList({ repoId, sha: null, filter: null }),
+    }),
+  );
   if (!result.ok) return;
   const path = await pickFromList({
     title: t("commands.file.edit.pick"),
@@ -124,7 +142,12 @@ export const commands: AppCommand[] = [
     when: (ctx) => hasRepo(ctx) && centerPath(ctx) !== null && ctx.view?.center.kind !== "blame",
     run: (ctx) => {
       const center = ctx.view!.center;
-      const sha = center.kind === "file" || center.kind === "blame" ? center.sha : center.kind === "diff" && center.source.kind === "commit" ? center.source.sha : null;
+      const sha =
+        center.kind === "file" || center.kind === "blame"
+          ? center.sha
+          : center.kind === "diff" && center.source.kind === "commit"
+            ? center.source.sha
+            : null;
       ctx.store.openBlame(ctx.tabId!, centerPath(ctx)!, sha);
     },
   },

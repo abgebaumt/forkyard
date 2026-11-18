@@ -106,9 +106,15 @@ function requireTools() {
   const tools = findTools();
   const missing = [];
   if (!tools.tauriDriver) missing.push("tauri-driver (cargo install tauri-driver --locked)");
-  if (!tools.native) missing.push(IS_WIN ? "msedgedriver matching the WebView2 version (PATH or E2E_NATIVE_DRIVER)" : "WebKitWebDriver (apt install webkit2gtk-driver, or E2E_TOOLS_ROOT)");
+  if (!tools.native)
+    missing.push(
+      IS_WIN
+        ? "msedgedriver matching the WebView2 version (PATH or E2E_NATIVE_DRIVER)"
+        : "WebKitWebDriver (apt install webkit2gtk-driver, or E2E_TOOLS_ROOT)",
+    );
   if (!IS_WIN && !tools.xvfb) missing.push("Xvfb (apt install xvfb, or E2E_TOOLS_ROOT)");
-  if (process.platform === "darwin") throw new Error("E2E WebDriver driver: macOS has no WebDriver for WKWebView; only Linux and Windows are supported.");
+  if (process.platform === "darwin")
+    throw new Error("E2E WebDriver driver: macOS has no WebDriver for WKWebView; only Linux and Windows are supported.");
   if (missing.length) throw new Error(`E2E WebDriver driver: missing tools:\n- ${missing.join("\n- ")}`);
   return tools;
 }
@@ -172,7 +178,10 @@ export async function ensureAppCopy() {
 /** Keeps the three newest copies. Removing a binary that still runs is harmless on Linux. */
 function pruneCopies(keep) {
   try {
-    const dirs = fs.readdirSync(BIN_DIR).filter((entry) => /^\d+$/.test(entry)).sort((a, b) => Number(b) - Number(a));
+    const dirs = fs
+      .readdirSync(BIN_DIR)
+      .filter((entry) => /^\d+$/.test(entry))
+      .sort((a, b) => Number(b) - Number(a));
     for (const entry of dirs.slice(3)) {
       const dir = path.join(BIN_DIR, entry);
       if (!samePath(dir, keep)) fs.rmSync(dir, { recursive: true, force: true });
@@ -190,7 +199,7 @@ async function probePort(port) {
   try {
     const info = await getJson(`http://127.0.0.1:${port}/__gc_root`);
     const ours = info?.root && samePath(info.root, ROOT) && info.errorHook === true && info.hmr === false;
-    return { state: ours ? "ours" : "foreign", pid: ours ? info.pid ?? null : null };
+    return { state: ours ? "ours" : "foreign", pid: ours ? (info.pid ?? null) : null };
   } catch (error) {
     const code = error?.cause?.code ?? error?.code;
     return { state: code === "ECONNREFUSED" ? "free" : "foreign", pid: null };
@@ -242,13 +251,17 @@ export async function ensureDevServer({ timeoutMs = 120_000 } = {}) {
       if (again.url) return again.url;
       const port = again.free ?? found.free;
       const log = fs.openSync(VITE_LOG, "w");
-      const child = spawn(process.execPath, [path.join(ROOT, "node_modules", "vite", "bin", "vite.js"), "--port", String(port), "--strictPort"], {
-        cwd: ROOT,
-        env: { ...process.env, FORKYARD_E2E_PORT: String(port), FORKYARD_E2E_ERROR_HOOK: "1" },
-        detached: true,
-        windowsHide: true,
-        stdio: ["ignore", log, log],
-      });
+      const child = spawn(
+        process.execPath,
+        [path.join(ROOT, "node_modules", "vite", "bin", "vite.js"), "--port", String(port), "--strictPort"],
+        {
+          cwd: ROOT,
+          env: { ...process.env, FORKYARD_E2E_PORT: String(port), FORKYARD_E2E_ERROR_HOOK: "1" },
+          detached: true,
+          windowsHide: true,
+          stdio: ["ignore", log, log],
+        },
+      );
       child.unref();
       fs.closeSync(log);
       fs.writeFileSync(VITE_STATE, JSON.stringify({ pid: child.pid, port, root: ROOT, startedAt: new Date().toISOString() }, null, 2));
@@ -258,7 +271,9 @@ export async function ensureDevServer({ timeoutMs = 120_000 } = {}) {
         await sleep(150);
       }
       // Warm up: the first request bundles the dependencies.
-      await fetch(`${url}/src/main.tsx`, { signal: AbortSignal.timeout(90_000) }).then((response) => response.text()).catch(() => undefined);
+      await fetch(`${url}/src/main.tsx`, { signal: AbortSignal.timeout(90_000) })
+        .then((response) => response.text())
+        .catch(() => undefined);
       return url;
     } finally {
       fs.closeSync(lock);
@@ -456,7 +471,11 @@ function client() {
       } catch {
         throw new Error(`${method} ${route}: HTTP ${response.status} ${text.slice(0, 200)}`);
       }
-      if (!response.ok || (json?.value && typeof json.value === "object" && typeof json.value.error === "string" && "message" in json.value)) throw new WebDriverError(`${method} ${route}`, json?.value);
+      if (
+        !response.ok ||
+        (json?.value && typeof json.value === "object" && typeof json.value.error === "string" && "message" in json.value)
+      )
+        throw new WebDriverError(`${method} ${route}`, json?.value);
       return json?.value;
     },
   };
@@ -465,10 +484,30 @@ function client() {
 
 /** W3C key codes for press(): "Enter", "Escape", "Control+k", "Shift+Tab", "F5" … */
 const KEYS = {
-  Backspace: "", Tab: "", Enter: "", Return: "", Shift: "", Control: "", Ctrl: "",
-  Alt: "", Pause: "", Escape: "", Esc: "", Space: " ", PageUp: "", PageDown: "", End: "",
-  Home: "", ArrowLeft: "", ArrowUp: "", ArrowRight: "", ArrowDown: "", Insert: "",
-  Delete: "", Meta: "", Cmd: "",
+  Backspace: "",
+  Tab: "",
+  Enter: "",
+  Return: "",
+  Shift: "",
+  Control: "",
+  Ctrl: "",
+  Alt: "",
+  Pause: "",
+  Escape: "",
+  Esc: "",
+  Space: " ",
+  PageUp: "",
+  PageDown: "",
+  End: "",
+  Home: "",
+  ArrowLeft: "",
+  ArrowUp: "",
+  ArrowRight: "",
+  ArrowDown: "",
+  Insert: "",
+  Delete: "",
+  Meta: "",
+  Cmd: "",
   ...Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`F${index + 1}`, String.fromCharCode(0xe031 + index)])),
 };
 const MODIFIERS = new Set(["Shift", "Control", "Ctrl", "Alt", "Meta", "Cmd"]);
@@ -507,14 +546,19 @@ export function openApps() {
 export async function launchApp(options = {}) {
   const tools = requireTools();
   const { width = 1440, height = 900, timeoutMs = 90_000, waitForShell = true } = options;
-  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) throw new Error(`launchApp: width/height must be positive integers (was ${width}×${height}).`);
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1)
+    throw new Error(`launchApp: width/height must be positive integers (was ${width}×${height}).`);
   const started = Date.now();
   const binary = await ensureAppCopy();
   const devBase = await ensureDevServer();
   installExitHooks();
   reapOrphans();
 
-  const params = { ...(options.params ?? {}), ...(options.theme ? { theme: options.theme } : {}), ...(options.lang ? { lang: options.lang } : {}) };
+  const params = {
+    ...(options.params ?? {}),
+    ...(options.theme ? { theme: options.theme } : {}),
+    ...(options.lang ? { lang: options.lang } : {}),
+  };
   const devUrl = new URL(devBase);
   for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== null) devUrl.searchParams.set(key, String(value));
 
@@ -524,7 +568,9 @@ export async function launchApp(options = {}) {
   const gitConfigPath = path.join(base, "gitconfig");
   fs.writeFileSync(gitConfigPath, globalGitConfig(options.gitIdentity === undefined ? TEST_IDENTITY : options.gitIdentity));
   const logPath = path.join(base, "app.log");
-  const xdg = Object.fromEntries(["XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME"].map((key) => [key, path.join(base, key.toLowerCase())]));
+  const xdg = Object.fromEntries(
+    ["XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME"].map((key) => [key, path.join(base, key.toLowerCase())]),
+  );
   for (const dir of Object.values(xdg)) fs.mkdirSync(dir, { recursive: true });
   const keyringService = `${KEYRING_PREFIX}${crypto.createHash("sha1").update(`${dataDir}|${process.pid}|${Date.now()}`).digest("hex").slice(0, 12)}`;
 
@@ -563,7 +609,8 @@ export async function launchApp(options = {}) {
   // Own unlocked Secret Service unless the feature brings its own bus: the user's keychain may be
   // locked (after its daemon restarted, or overnight), and the app then fails wherever it touches
   // a secret. Without dbus-daemon/gnome-keyring-daemon the session bus is used as before.
-  const keyring = !IS_WIN && !options.env?.DBUS_SESSION_BUS_ADDRESS && options.privateKeyring !== false ? await startPrivateKeyring() : null;
+  const keyring =
+    !IS_WIN && !options.env?.DBUS_SESSION_BUS_ADDRESS && options.privateKeyring !== false ? await startPrivateKeyring() : null;
   if (keyring) env.DBUS_SESSION_BUS_ADDRESS = keyring.address;
 
   let xvfb = null;
@@ -651,11 +698,12 @@ export async function launchApp(options = {}) {
       attr: (name) => handle.exec((el, key) => el.getAttribute(key), element(id), name),
       prop: (name) => handle.exec((el, key) => el[key], element(id), name),
       rect: () => wd.call("GET", `/element/${id}/rect`),
-      visible: () => handle.exec((el) => {
-        const box = el.getBoundingClientRect();
-        const style = getComputedStyle(el);
-        return box.width > 0 && box.height > 0 && style.visibility !== "hidden" && style.display !== "none";
-      }, element(id)),
+      visible: () =>
+        handle.exec((el) => {
+          const box = el.getBoundingClientRect();
+          const style = getComputedStyle(el);
+          return box.width > 0 && box.height > 0 && style.visibility !== "hidden" && style.display !== "none";
+        }, element(id)),
       $: async (css) => {
         try {
           return wrap(await wd.call("POST", `/element/${id}/element`, { using: "css selector", value: css }));
@@ -673,7 +721,8 @@ export async function launchApp(options = {}) {
       const found = await handle.waitFor(target);
       return found;
     }
-    if (target && typeof target === "object" && typeof target.text === "string") return handle.waitFor(() => handle.byText(target.text, target));
+    if (target && typeof target === "object" && typeof target.text === "string")
+      return handle.waitFor(() => handle.byText(target.text, target));
     throw new Error(`Not an element: ${String(target)}`);
   };
 
@@ -705,7 +754,11 @@ export async function launchApp(options = {}) {
           .then((value) => done({ ok: true, value: value === undefined ? null : value }),
                 (error) => done({ ok: false, failure: { message: String((error && error.message) || error), code: error && error.code, gitOutput: error && error.gitOutput } }));`;
       const result = await wd.call("POST", "/execute/async", { script, args: unwrap(args) });
-      if (!result?.ok) throw Object.assign(new Error(`exec: ${result?.failure?.message ?? "error"}`), { code: result?.failure?.code ?? "unknown", gitOutput: result?.failure?.gitOutput ?? null });
+      if (!result?.ok)
+        throw Object.assign(new Error(`exec: ${result?.failure?.message ?? "error"}`), {
+          code: result?.failure?.code ?? "unknown",
+          gitOutput: result?.failure?.gitOutput ?? null,
+        });
       return wrap(result.value);
     },
 
@@ -824,7 +877,9 @@ export async function launchApp(options = {}) {
 
     /** Collects the errors the page recorded since the last call and returns ALL errors so far. */
     async errors() {
-      const fresh = await handle.exec(() => (window.__gcE2E ? window.__gcE2E.errors.splice(0) : ["[driver] error hook missing"])).catch(() => []);
+      const fresh = await handle
+        .exec(() => (window.__gcE2E ? window.__gcE2E.errors.splice(0) : ["[driver] error hook missing"]))
+        .catch(() => []);
       for (const text of fresh ?? []) if (!ignore.some((pattern) => pattern.test(text))) consoleErrors.push(text);
       return consoleErrors;
     },
@@ -834,9 +889,14 @@ export async function launchApp(options = {}) {
      * arrives as Error with .code and .gitOutput. repo_open trusts the repo unless trustOpened: false.
      */
     async invoke(command, args = {}) {
-      const value = await handle.exec((name, input) => window.__TAURI_INTERNALS__.invoke(name, input), command, args).catch((error) => {
-        throw Object.assign(new Error(`${command}: ${error.message.replace(/^exec: /, "")}`), { code: error.code, gitOutput: error.gitOutput });
-      });
+      const value = await handle
+        .exec((name, input) => window.__TAURI_INTERNALS__.invoke(name, input), command, args)
+        .catch((error) => {
+          throw Object.assign(new Error(`${command}: ${error.message.replace(/^exec: /, "")}`), {
+            code: error.code,
+            gitOutput: error.gitOutput,
+          });
+        });
       if (command === "repo_open" && options.trustOpened !== false && value?.repo?.trusted === false) {
         await handle.invoke("repo_trust_set", { repoId: value.repo.id, trusted: true });
         value.repo.trusted = true;
@@ -848,7 +908,11 @@ export async function launchApp(options = {}) {
     async openRepo(repoPath) {
       const opened = await handle.invoke("repo_open", { path: repoPath });
       await handle.waitFor(
-        () => handle.exec((tabId) => document.querySelector(`[data-tab-id="${tabId}"] [role="tab"]`)?.getAttribute("aria-selected") === "true", opened.tab.id),
+        () =>
+          handle.exec(
+            (tabId) => document.querySelector(`[data-tab-id="${tabId}"] [role="tab"]`)?.getAttribute("aria-selected") === "true",
+            opened.tab.id,
+          ),
         30_000,
         { message: `tab of ${repoPath} active` },
       );
@@ -865,17 +929,22 @@ export async function launchApp(options = {}) {
 
     /** Waits until no query/mutation runs and two frames passed. */
     async settle(maxMs = 15_000) {
-      await handle.waitFor(() => handle.exec(() => !window.__gc || (window.__gc.queryClient.isFetching() === 0 && window.__gc.queryClient.isMutating() === 0)), maxMs, { message: "queries settled" });
+      await handle.waitFor(
+        () => handle.exec(() => !window.__gc || (window.__gc.queryClient.isFetching() === 0 && window.__gc.queryClient.isMutating() === 0)),
+        maxMs,
+        { message: "queries settled" },
+      );
       await handle.exec(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))));
     },
 
     /** Waits for the shell ("app") or a full-page message ("fullpage"); returns which. */
     async waitForShell(timeout = timeoutMs) {
       const state = await handle.waitFor(
-        () => handle.exec(() => {
-          const value = document.querySelector("[data-shell]")?.getAttribute("data-shell");
-          return value === "app" || value === "fullpage" ? value : null;
-        }),
+        () =>
+          handle.exec(() => {
+            const value = document.querySelector("[data-shell]")?.getAttribute("data-shell");
+            return value === "app" || value === "fullpage" ? value : null;
+          }),
         timeout,
         { message: "shell up" },
       );
@@ -887,7 +956,8 @@ export async function launchApp(options = {}) {
     async reload(nextParams = params) {
       await handle.errors();
       const target = new URL(devBase);
-      for (const [key, value] of Object.entries(nextParams)) if (value !== undefined && value !== null) target.searchParams.set(key, String(value));
+      for (const [key, value] of Object.entries(nextParams))
+        if (value !== undefined && value !== null) target.searchParams.set(key, String(value));
       await wd.call("POST", "/url", { url: target.toString() });
       return handle.waitForShell();
     },
@@ -936,12 +1006,16 @@ export async function launchApp(options = {}) {
       let nativePort = await freePort();
       while (nativePort === port) nativePort = await freePort();
       const log = fs.openSync(logPath, "a");
-      driverChild = spawn(tools.tauriDriver, ["--port", String(port), "--native-port", String(nativePort), "--native-driver", tools.native], {
-        env: xvfbEnv,
-        detached: !IS_WIN,
-        windowsHide: true,
-        stdio: ["ignore", log, log],
-      });
+      driverChild = spawn(
+        tools.tauriDriver,
+        ["--port", String(port), "--native-port", String(nativePort), "--native-driver", tools.native],
+        {
+          env: xvfbEnv,
+          detached: !IS_WIN,
+          windowsHide: true,
+          stdio: ["ignore", log, log],
+        },
+      );
       fs.closeSync(log);
       groups.push({ pid: driverChild.pid, match: "tauri-driver" });
       writeOwner();
@@ -969,27 +1043,39 @@ export async function launchApp(options = {}) {
 
     // 3. Session = the app
     wd.base = `http://127.0.0.1:${handle.port}`;
-    const session = await wd.call("POST", "/session", { capabilities: { alwaysMatch: { "tauri:options": { application: binary } } } }, timeoutMs).catch(async (error) => {
-      throw await fail(`Could not start the app over WebDriver: ${error.message}`);
-    });
+    const session = await wd
+      .call("POST", "/session", { capabilities: { alwaysMatch: { "tauri:options": { application: binary } } } }, timeoutMs)
+      .catch(async (error) => {
+        throw await fail(`Could not start the app over WebDriver: ${error.message}`);
+      });
     wd.sessionId = session.sessionId;
     await wd.call("POST", "/timeouts", { script: 60_000, implicit: 0 }).catch(() => undefined);
     liveApps.add(handle);
 
     // 4. Shell and window size
-    await handle.waitFor(() => handle.exec(() => location.href.startsWith("http") && document.readyState !== "loading"), timeoutMs, { message: "page loaded" }).catch(async (error) => {
-      throw await fail(error.message);
-    });
+    await handle
+      .waitFor(() => handle.exec(() => location.href.startsWith("http") && document.readyState !== "loading"), timeoutMs, {
+        message: "page loaded",
+      })
+      .catch(async (error) => {
+        throw await fail(error.message);
+      });
     const size = await handle.size();
     if (size.width !== width || size.height !== height) {
       await handle.invoke("plugin:window|set_size", { label: "main", value: { Physical: { width, height } } }).catch(() => undefined);
-      await handle.waitFor(async () => {
-        const now = await handle.size();
-        return now.width === width && now.height === height;
-      }, 5000, { message: `window ${width}×${height}` }).catch(async () => {
-        const now = await handle.size();
-        throw await fail(`The window did not take the size ${width}×${height} (is ${now.width}×${now.height}, scale ${now.scale}).`);
-      });
+      await handle
+        .waitFor(
+          async () => {
+            const now = await handle.size();
+            return now.width === width && now.height === height;
+          },
+          5000,
+          { message: `window ${width}×${height}` },
+        )
+        .catch(async () => {
+          const now = await handle.size();
+          throw await fail(`The window did not take the size ${width}×${height} (is ${now.width}×${now.height}, scale ${now.scale}).`);
+        });
     }
     if (waitForShell) {
       await handle.waitForShell().catch(async (error) => {

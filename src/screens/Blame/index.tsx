@@ -13,7 +13,19 @@
  */
 import { Prec } from "@codemirror/state";
 import { EditorView, keymap, type BlockInfo } from "@codemirror/view";
-import { ChevronDown, Crosshair, Eye, FileQuestion, FileWarning, History, Info, RefreshCw, ScrollText, Undo2, UserSearch } from "lucide-react";
+import {
+  ChevronDown,
+  Crosshair,
+  Eye,
+  FileQuestion,
+  FileWarning,
+  History,
+  Info,
+  RefreshCw,
+  ScrollText,
+  Undo2,
+  UserSearch,
+} from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { FileHistoryEntry, Id, Sha } from "../../core";
 import { hasOpenDialog } from "../../app/dialogs";
@@ -100,7 +112,10 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   }, []);
 
   // --- Elternstand -----------------------------------------------------------------------------
-  const historyOf = useCallback((commitSha: string): FileHistoryEntry | undefined => history.data?.find((entry) => entry.commit.sha === commitSha), [history.data]);
+  const historyOf = useCallback(
+    (commitSha: string): FileHistoryEntry | undefined => history.data?.find((entry) => entry.commit.sha === commitSha),
+    [history.data],
+  );
 
   const parentOf = useCallback(
     (block: BlameBlock | null): { sha: string; path: string } | { reason: string } => {
@@ -127,9 +142,12 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     [parentOf, store, tabId],
   );
 
-  const reveal = useCallback((block: BlameBlock | null) => {
-    if (block) showInGraph(tabId, block.uncommitted ? null : block.sha);
-  }, [tabId]);
+  const reveal = useCallback(
+    (block: BlameBlock | null) => {
+      if (block) showInGraph(tabId, block.uncommitted ? null : block.sha);
+    },
+    [tabId],
+  );
 
   // --- Hover: full commit as a card -------------------------------------------------------------
   const [hover, setHover] = useState<{ block: BlameBlock; top: number; left: number } | null>(null);
@@ -172,7 +190,9 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     const gutterRect = view.dom.querySelector(".gc-blame-gutter")?.getBoundingClientRect();
     // Below the current line so that the line itself stays readable; the card then moves itself into the window.
     const top = Math.min(Math.max(coords?.bottom ?? frame.top, frame.top), frame.bottom);
-    setKeyCard((before) => (before && before.block === block && before.top === top ? before : { block, top, left: gutterRect?.right ?? frame.left }));
+    setKeyCard((before) =>
+      before && before.block === block && before.top === top ? before : { block, top, left: gutterRect?.right ?? frame.left },
+    );
   }, []);
   const toggleCard = useCallback(() => {
     setHover(null);
@@ -183,7 +203,10 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   const { data: aiStatus } = useAiStatus();
   const { data: repoSettings } = useRepoSettings(repoId);
   const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
-  const blockAtLine = useCallback((lineNo: number): BlameBlock | null => (model ? (model.blocks[model.blockOfLine[lineNo - 1] ?? -1] ?? null) : null), [model]);
+  const blockAtLine = useCallback(
+    (lineNo: number): BlameBlock | null => (model ? (model.blocks[model.blockOfLine[lineNo - 1] ?? -1] ?? null) : null),
+    [model],
+  );
   const why = useCallback(
     (lineNo: number) => {
       const found = blameTarget(path, sha, lineNo, blockAtLine(lineNo)?.uncommitted ?? true);
@@ -296,7 +319,10 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
       pendingLine.delete(tabId);
       const number = Math.min(Math.max(1, wanted), view.state.doc.lines);
       const line = view.state.doc.line(number);
-      view.dispatch({ selection: { anchor: line.from }, effects: EditorView.scrollIntoView(line.from, { y: number > 1 ? "center" : "start" }) });
+      view.dispatch({
+        selection: { anchor: line.from },
+        effects: EditorView.scrollIntoView(line.from, { y: number > 1 ? "center" : "start" }),
+      });
       setCurrentLine(number);
       // The text gets the focus: arrows, Enter and P work right away.
       if (viewMayTakeFocus()) view.focus();
@@ -320,9 +346,21 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
 
   // --- Choose revision ---------------------------------------------------------------------------
   const standEntries: MenuEntry[] = [
-    { label: t("blame.stand.worktree"), checked: sha === null, hint: t("blame.stand.worktreeHint"), onSelect: () => store().openBlame(tabId, path, null) },
+    {
+      label: t("blame.stand.worktree"),
+      checked: sha === null,
+      hint: t("blame.stand.worktreeHint"),
+      onSelect: () => store().openBlame(tabId, path, null),
+    },
     { type: "separator" },
-    { type: "label", label: history.data?.length ? t("blame.stand.commitsLabel") : history.isPending ? t("blame.stand.historyLoading") : t("blame.stand.noCommits") },
+    {
+      type: "label",
+      label: history.data?.length
+        ? t("blame.stand.commitsLabel")
+        : history.isPending
+          ? t("blame.stand.historyLoading")
+          : t("blame.stand.noCommits"),
+    },
     ...(history.data ?? [])
       .filter((entry) => entry.status !== "deleted")
       .slice(0, 60)
@@ -350,11 +388,23 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
         id={kind}
         tone={kind === "error" ? "danger" : "muted"}
         icon={kind === "gone" ? <FileQuestion className="size-8" aria-hidden /> : <FileWarning className="size-8" aria-hidden />}
-        title={kind === "gone" ? (sha === null ? t("blame.error.goneWorktree") : t("blame.error.goneStand", { stand: standLabel(sha) })) : kind === "unsupported" ? t("blame.error.unsupported") : t("blame.error.failed")}
+        title={
+          kind === "gone"
+            ? sha === null
+              ? t("blame.error.goneWorktree")
+              : t("blame.error.goneStand", { stand: standLabel(sha) })
+            : kind === "unsupported"
+              ? t("blame.error.unsupported")
+              : t("blame.error.failed")
+        }
         action={
           <>
             {kind === "error" ? (
-              <Button icon={<RefreshCw className="size-icon" aria-hidden />} loading={query.isFetching} onClick={() => void query.refetch()}>
+              <Button
+                icon={<RefreshCw className="size-icon" aria-hidden />}
+                loading={query.isFetching}
+                onClick={() => void query.refetch()}
+              >
                 {t("blame.error.retry")}
               </Button>
             ) : (
@@ -380,7 +430,15 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   } else {
     body = (
       <div className="gc-blame-host @container/blame h-full min-h-0">
-        <CodeEditor key={editorKey} value={model.text} path={path} readOnly ariaLabel={t("blame.ariaLabel", { path })} extensions={extensions} onView={onView} />
+        <CodeEditor
+          key={editorKey}
+          value={model.text}
+          path={path}
+          readOnly
+          ariaLabel={t("blame.ariaLabel", { path })}
+          extensions={extensions}
+          onView={onView}
+        />
       </div>
     );
   }
@@ -388,7 +446,13 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   const parent = parentOf(current);
   const whyHere = current ? blameTarget(path, sha, currentLine, current.uncommitted) : { reason: t("blame.parent.noLine") };
   return (
-    <section aria-label={t("blame.ariaLabel", { path })} data-screen="blame" data-stand={sha ?? "worktree"} data-blame-color={colorMode} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      aria-label={t("blame.ariaLabel", { path })}
+      data-screen="blame"
+      data-stand={sha ?? "worktree"}
+      data-blame-color={colorMode}
+      className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       <header className="shrink-0 border-b border-border bg-surface">
         <div className="flex h-control-lg items-center gap-2 pr-1 pl-3">
           <FileTitle path={path} icon={<UserSearch className="size-icon" aria-hidden />} prefix={t("blame.prefix")} />
@@ -400,16 +464,28 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
               className="inline-flex h-control-sm shrink-0 items-center gap-1 rounded-md border border-border px-2 text-sm text-text hover:border-border-input hover:bg-surface-raised"
             >
               <span className="text-text-muted">{t("blame.stand.label")}</span>
-              <span className={cn("font-medium", sha && sha !== "HEAD" && !sha.endsWith("^") && "font-mono text-code")}>{standLabel(sha)}</span>
+              <span className={cn("font-medium", sha && sha !== "HEAD" && !sha.endsWith("^") && "font-mono text-code")}>
+                {standLabel(sha)}
+              </span>
               <ChevronDown className="size-3.5 text-text-muted" aria-hidden />
             </button>
           </DropdownMenu>
           <Divider />
-          <Button size="sm" variant="ghost" icon={<History className="size-icon" aria-hidden />} onClick={() => store().openHistory(tabId, path)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<History className="size-icon" aria-hidden />}
+            onClick={() => store().openHistory(tabId, path)}
+          >
             <span className="hidden @3xl:inline">{t("blame.history")}</span>
             <span className="sr-only @3xl:hidden">{t("blame.history")}</span>
           </Button>
-          <Button size="sm" variant="ghost" icon={<Eye className="size-icon" aria-hidden />} onClick={() => store().openFile(tabId, path, sha, "view")}>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Eye className="size-icon" aria-hidden />}
+            onClick={() => store().openFile(tabId, path, sha, "view")}
+          >
             <span className="hidden @3xl:inline">{t("blame.file")}</span>
             <span className="sr-only @3xl:hidden">{t("blame.viewFile")}</span>
           </Button>
@@ -420,11 +496,19 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
       </header>
       <div className="relative min-h-0 flex-1">{body}</div>
       {model && current ? (
-        <footer data-blame-info="" className="@container flex h-control-lg shrink-0 items-center gap-2 border-t border-border bg-surface pr-2 pl-3 text-sm">
+        <footer
+          data-blame-info=""
+          className="@container flex h-control-lg shrink-0 items-center gap-2 border-t border-border bg-surface pr-2 pl-3 text-sm"
+        >
           <span className="shrink-0 text-xs text-text-muted tabular-nums" data-blame-line={currentLine}>
             {t("blame.line", { line: currentLine.toLocaleString(locale()) })}
           </span>
-          <span aria-hidden data-blame-swatch="" className="h-4 w-1 shrink-0 rounded-pill" style={{ background: colorOf(current, colorMode) }} />
+          <span
+            aria-hidden
+            data-blame-swatch=""
+            className="h-4 w-1 shrink-0 rounded-pill"
+            style={{ background: colorOf(current, colorMode) }}
+          />
           {current.uncommitted ? (
             <span className="min-w-0 flex-1 truncate text-text-muted italic">{t("blame.uncommitted")}</span>
           ) : (
@@ -453,17 +537,45 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
             </Button>
           </Tip>
           <Tip label={current.uncommitted ? t("blame.reveal.local") : t("blame.reveal.commit")} shortcut="Enter">
-            <Button size="sm" variant="ghost" icon={<Crosshair className="size-icon" aria-hidden />} onClick={() => reveal(current)} aria-label={t("blame.reveal.ariaLabel")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Crosshair className="size-icon" aria-hidden />}
+              onClick={() => reveal(current)}
+              aria-label={t("blame.reveal.ariaLabel")}
+            >
               <span className="hidden @3xl:inline">{t("blame.reveal.short")}</span>
             </Button>
           </Tip>
           <Tip label={"sha" in parent ? t("blame.parent.tip") : t("blame.parent.tipDisabled", { reason: parent.reason })} shortcut="P">
-            <Button size="sm" variant="ghost" icon={<Undo2 className="size-icon" aria-hidden />} disabled={!("sha" in parent)} onClick={() => goToParent(current)} aria-label={t("blame.parent.label")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<Undo2 className="size-icon" aria-hidden />}
+              disabled={!("sha" in parent)}
+              onClick={() => goToParent(current)}
+              aria-label={t("blame.parent.label")}
+            >
               <span className="hidden @3xl:inline">{t("blame.parent.label")}</span>
             </Button>
           </Tip>
-          <Tip label={"target" in whyHere ? whyLabel(aiVisible) : t("blame.menu.whyDisabled", { label: whyLabel(aiVisible), reason: whyHere.reason })} shortcut="W">
-            <Button size="sm" variant="ghost" data-action="why-line" icon={<ScrollText className="size-icon" aria-hidden />} disabled={!("target" in whyHere)} onClick={() => why(currentLine)} aria-label={whyLabel(aiVisible)}>
+          <Tip
+            label={
+              "target" in whyHere
+                ? whyLabel(aiVisible)
+                : t("blame.menu.whyDisabled", { label: whyLabel(aiVisible), reason: whyHere.reason })
+            }
+            shortcut="W"
+          >
+            <Button
+              size="sm"
+              variant="ghost"
+              data-action="why-line"
+              icon={<ScrollText className="size-icon" aria-hidden />}
+              disabled={!("target" in whyHere)}
+              onClick={() => why(currentLine)}
+              aria-label={whyLabel(aiVisible)}
+            >
               <span className="hidden @3xl:inline">{whyLabel(aiVisible)}</span>
             </Button>
           </Tip>
@@ -485,14 +597,26 @@ const dateRange = (newest: string | null, oldest: string | null) => {
   return from === to ? to : t("blame.legend.range", { from, to });
 };
 
-function Legend({ model, mode, onMode }: { model: NonNullable<ReturnType<typeof buildModel>>; mode: BlameColorMode; onMode: (mode: BlameColorMode) => void }) {
+function Legend({
+  model,
+  mode,
+  onMode,
+}: {
+  model: NonNullable<ReturnType<typeof buildModel>>;
+  mode: BlameColorMode;
+  onMode: (mode: BlameColorMode) => void;
+}) {
   const lines = model.blockOfLine.length;
   const shown = model.authors.slice(0, 6);
   const rest = model.authors.slice(6);
   return (
-    <div data-blame-legend={mode} className="flex h-control-lg items-center gap-3 overflow-hidden border-t border-border pr-2 pl-3 text-xs text-text-muted">
+    <div
+      data-blame-legend={mode}
+      className="flex h-control-lg items-center gap-3 overflow-hidden border-t border-border pr-2 pl-3 text-xs text-text-muted"
+    >
       <span className="shrink-0 tabular-nums">
-        {t("blame.legend.lines", { count: lines, formatted: lines.toLocaleString(locale()) })} · {t("blame.legend.commits", { count: model.commitCount, formatted: model.commitCount.toLocaleString(locale()) })}
+        {t("blame.legend.lines", { count: lines, formatted: lines.toLocaleString(locale()) })} ·{" "}
+        {t("blame.legend.commits", { count: model.commitCount, formatted: model.commitCount.toLocaleString(locale()) })}
       </span>
       <span aria-hidden className="h-3 w-px shrink-0 bg-border" />
       <span className="shrink-0">{t("blame.legend.colorBy")}</span>
@@ -514,23 +638,45 @@ function Legend({ model, mode, onMode }: { model: NonNullable<ReturnType<typeof 
             <span className="flex flex-col gap-0.5">
               {model.authors.map((author) => (
                 <span key={author.key} className="flex items-center gap-1.5">
-                  <span aria-hidden className={cn("size-2.5 shrink-0 rounded-sm", author.uncommitted && "border border-dashed border-text-muted")} style={author.uncommitted ? undefined : { background: author.color }} />
+                  <span
+                    aria-hidden
+                    className={cn("size-2.5 shrink-0 rounded-sm", author.uncommitted && "border border-dashed border-text-muted")}
+                    style={author.uncommitted ? undefined : { background: author.color }}
+                  />
                   <span className="min-w-0 flex-1 truncate">{author.uncommitted ? t("blame.uncommitted") : author.name}</span>
-                  <span className="tabular-nums">{t("blame.legend.lines", { count: author.lines, formatted: author.lines.toLocaleString(locale()) })}</span>
+                  <span className="tabular-nums">
+                    {t("blame.legend.lines", { count: author.lines, formatted: author.lines.toLocaleString(locale()) })}
+                  </span>
                 </span>
               ))}
             </span>
           }
         >
-          <ul aria-label={t("blame.legend.authorsLabel")} tabIndex={0} className="flex min-w-0 items-center gap-3 overflow-hidden rounded-sm">
+          <ul
+            aria-label={t("blame.legend.authorsLabel")}
+            tabIndex={0}
+            className="flex min-w-0 items-center gap-3 overflow-hidden rounded-sm"
+          >
             {shown.map((author) => (
-              <li key={author.key} className="flex shrink-0 items-center gap-1.5" data-legend-author={author.uncommitted ? "uncommitted" : author.name}>
-                <span aria-hidden className={cn("size-2.5 shrink-0 rounded-sm", author.uncommitted && "border border-dashed border-text-muted")} style={author.uncommitted ? undefined : { background: author.color }} />
-                <span className={cn("text-text", author.uncommitted && "italic")}>{author.uncommitted ? t("blame.uncommitted") : author.name}</span>
+              <li
+                key={author.key}
+                className="flex shrink-0 items-center gap-1.5"
+                data-legend-author={author.uncommitted ? "uncommitted" : author.name}
+              >
+                <span
+                  aria-hidden
+                  className={cn("size-2.5 shrink-0 rounded-sm", author.uncommitted && "border border-dashed border-text-muted")}
+                  style={author.uncommitted ? undefined : { background: author.color }}
+                />
+                <span className={cn("text-text", author.uncommitted && "italic")}>
+                  {author.uncommitted ? t("blame.uncommitted") : author.name}
+                </span>
                 <span className="tabular-nums">{author.lines.toLocaleString(locale())}</span>
               </li>
             ))}
-            {rest.length ? <li className="shrink-0 underline decoration-dotted">{t("blame.legend.more", { count: rest.length })}</li> : null}
+            {rest.length ? (
+              <li className="shrink-0 underline decoration-dotted">{t("blame.legend.more", { count: rest.length })}</li>
+            ) : null}
           </ul>
         </Tip>
       ) : (
@@ -542,20 +688,33 @@ function Legend({ model, mode, onMode }: { model: NonNullable<ReturnType<typeof 
                 <span className="flex items-center gap-1.5">
                   <span aria-hidden className="size-2.5 shrink-0 rounded-sm border border-dashed border-text-muted" />
                   <span className="min-w-0 flex-1">{t("blame.uncommitted")}</span>
-                  <span className="tabular-nums">{t("blame.legend.lines", { count: model.uncommittedLines, formatted: model.uncommittedLines.toLocaleString(locale()) })}</span>
+                  <span className="tabular-nums">
+                    {t("blame.legend.lines", { count: model.uncommittedLines, formatted: model.uncommittedLines.toLocaleString(locale()) })}
+                  </span>
                 </span>
               ) : null}
               {model.ages.map((age) => (
                 <span key={age.step} className="flex items-center gap-1.5">
                   <span aria-hidden className="size-2.5 shrink-0 rounded-sm" style={{ background: ageColor(age.step) }} />
                   <span className="min-w-0 flex-1">{dateRange(age.newest, age.oldest)}</span>
-                  <span className="tabular-nums">{t("blame.legend.lines", { count: age.lines, formatted: age.lines.toLocaleString(locale()) })}</span>
+                  <span className="tabular-nums">
+                    {t("blame.legend.lines", { count: age.lines, formatted: age.lines.toLocaleString(locale()) })}
+                  </span>
                 </span>
               ))}
             </span>
           }
         >
-          <span tabIndex={0} role="img" data-age-scale="" aria-label={t("blame.legend.ageScaleLabel", { newest: model.newest ? formatRelative(model.newest) : "–", oldest: model.oldest ? formatRelative(model.oldest) : "–" })} className="flex min-w-0 items-center gap-1.5 rounded-sm">
+          <span
+            tabIndex={0}
+            role="img"
+            data-age-scale=""
+            aria-label={t("blame.legend.ageScaleLabel", {
+              newest: model.newest ? formatRelative(model.newest) : "–",
+              oldest: model.oldest ? formatRelative(model.oldest) : "–",
+            })}
+            className="flex min-w-0 items-center gap-1.5 rounded-sm"
+          >
             <span className="shrink-0 text-text">{t("blame.legend.new")}</span>
             <span className="shrink-0 tabular-nums">{model.newest ? formatRelative(model.newest) : "–"}</span>
             <span aria-hidden className="flex shrink-0 overflow-hidden rounded-sm">
@@ -572,14 +731,29 @@ function Legend({ model, mode, onMode }: { model: NonNullable<ReturnType<typeof 
   );
 }
 
-function HoverCard({ block, top, left, mode, keyboard = false }: { block: BlameBlock; top: number; left: number; mode: BlameColorMode; keyboard?: boolean }) {
+function HoverCard({
+  block,
+  top,
+  left,
+  mode,
+  keyboard = false,
+}: {
+  block: BlameBlock;
+  top: number;
+  left: number;
+  mode: BlameColorMode;
+  keyboard?: boolean;
+}) {
   const card = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top, left });
   // Keep it in the window: after the first paint, move it using the card's real size.
   useLayoutEffect(() => {
     const rect = card.current?.getBoundingClientRect();
     if (!rect) return;
-    setPosition({ top: Math.max(0, Math.min(top, window.innerHeight - rect.height)), left: Math.max(0, Math.min(left, window.innerWidth - rect.width)) });
+    setPosition({
+      top: Math.max(0, Math.min(top, window.innerHeight - rect.height)),
+      left: Math.max(0, Math.min(left, window.innerWidth - rect.width)),
+    });
   }, [block, left, top]);
   return (
     <div
@@ -592,7 +766,18 @@ function HoverCard({ block, top, left, mode, keyboard = false }: { block: BlameB
       style={position}
     >
       {/* For screen readers: the card is announced when it opens via key or changes with the cursor. */}
-      {keyboard ? <span className="sr-only" aria-live="polite">{block.uncommitted ? t("blame.uncommitted") : t("blame.card.announce", { sha: shortSha(block.sha), summary: block.summary, author: block.authorName, when: formatRelative(block.authoredAt) })}</span> : null}
+      {keyboard ? (
+        <span className="sr-only" aria-live="polite">
+          {block.uncommitted
+            ? t("blame.uncommitted")
+            : t("blame.card.announce", {
+                sha: shortSha(block.sha),
+                summary: block.summary,
+                author: block.authorName,
+                when: formatRelative(block.authoredAt),
+              })}
+        </span>
+      ) : null}
       {block.uncommitted ? (
         <>
           <span className="font-medium">{t("blame.uncommitted")}</span>
@@ -602,8 +787,14 @@ function HoverCard({ block, top, left, mode, keyboard = false }: { block: BlameB
         <>
           <span className="font-medium break-words">{block.summary || t("blame.noMessage")}</span>
           <span className="flex items-center gap-2 text-text-muted">
-            {mode === "age" ? <span aria-hidden className="h-4 w-1 shrink-0 rounded-pill" style={{ background: colorOf(block, mode) }} /> : null}
-            <span aria-hidden className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-xs font-semibold text-on-lane" style={{ background: block.color }}>
+            {mode === "age" ? (
+              <span aria-hidden className="h-4 w-1 shrink-0 rounded-pill" style={{ background: colorOf(block, mode) }} />
+            ) : null}
+            <span
+              aria-hidden
+              className="inline-flex size-5 shrink-0 items-center justify-center rounded-pill text-xs font-semibold text-on-lane"
+              style={{ background: block.color }}
+            >
               {initials(block.authorName)}
             </span>
             <span className="min-w-0 truncate">
@@ -615,7 +806,10 @@ function HoverCard({ block, top, left, mode, keyboard = false }: { block: BlameB
           </span>
           <span className="font-mono text-code break-all text-text-muted">{block.sha}</span>
           <span className="border-t border-border pt-1.5 text-xs text-text-muted">
-            {block.startLine === block.endLine ? t("blame.line", { line: block.startLine.toLocaleString(locale()) }) : t("blame.lineRange", { from: block.startLine.toLocaleString(locale()), to: block.endLine.toLocaleString(locale()) })} · {keyboard ? t("blame.card.hintKeyboard") : t("blame.card.hintMouse")}
+            {block.startLine === block.endLine
+              ? t("blame.line", { line: block.startLine.toLocaleString(locale()) })
+              : t("blame.lineRange", { from: block.startLine.toLocaleString(locale()), to: block.endLine.toLocaleString(locale()) })}{" "}
+            · {keyboard ? t("blame.card.hintKeyboard") : t("blame.card.hintMouse")}
           </span>
         </>
       )}

@@ -41,7 +41,9 @@ export async function togglePinned(repoId: Id, fullName: string, name: string) {
   if (next) {
     toast({
       tone: "success",
-      title: pinned ? t("actions.graphView.unpinned", { name: clipMiddle(name, 40) }) : t("actions.graphView.pinned", { name: clipMiddle(name, 40) }),
+      title: pinned
+        ? t("actions.graphView.unpinned", { name: clipMiddle(name, 40) })
+        : t("actions.graphView.pinned", { name: clipMiddle(name, 40) }),
       description: pinned ? undefined : t("actions.graphView.pinnedDescription"),
     });
   }
@@ -75,7 +77,10 @@ export async function setSmartVisibility(repoId: Id, on: boolean) {
     // Only revert what the toggle set itself; a filter changed by hand stays.
     const ours = sameRefs(view.soloRefs, record.applied);
     setSmartRecord(repoId, null);
-    if (ours) await writeView(repoId, t("actions.graphView.change"), { soloRefs: record.previous.filter((name) => known.has(name) || name === "refs/stash") });
+    if (ours)
+      await writeView(repoId, t("actions.graphView.change"), {
+        soloRefs: record.previous.filter((name) => known.has(name) || name === "refs/stash"),
+      });
     return true;
   }
   const selection = smartSelection(cachedRefs(repoId), cachedSettings()?.defaultBranchName);

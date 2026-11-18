@@ -45,7 +45,10 @@ export async function startLockServer({ me = "Lena Hartmann", unsupported = fals
         return send(res, 200, { locks: locks.filter((lock) => (!path || lock.path === path) && (!id || lock.id === id)) });
       }
       if (route === "POST /locks/verify") {
-        return send(res, 200, { ours: locks.filter((lock) => lock.owner.name === me), theirs: locks.filter((lock) => lock.owner.name !== me) });
+        return send(res, 200, {
+          ours: locks.filter((lock) => lock.owner.name === me),
+          theirs: locks.filter((lock) => lock.owner.name !== me),
+        });
       }
       if (route === "POST /locks") {
         const path = String(body.path ?? "");
@@ -59,7 +62,8 @@ export async function startLockServer({ me = "Lena Hartmann", unsupported = fals
       if (unlock) {
         const index = locks.findIndex((lock) => lock.id === decodeURIComponent(unlock[1]));
         if (index < 0) return send(res, 404, { message: "Not Found" });
-        if (locks[index].owner.name !== me && !body.force) return send(res, 403, { message: "You must have admin access to force delete a lock" });
+        if (locks[index].owner.name !== me && !body.force)
+          return send(res, 403, { message: "You must have admin access to force delete a lock" });
         const [lock] = locks.splice(index, 1);
         return send(res, 200, { lock });
       }

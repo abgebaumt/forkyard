@@ -29,7 +29,8 @@ export interface RebaseToolProps {
   autosquash?: boolean;
 }
 
-const isTextField = (element: Element | null) => Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
+const isTextField = (element: Element | null) =>
+  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 /** Reorder, combine, transfer commits. */
 export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false }: RebaseToolProps) {
@@ -46,8 +47,14 @@ export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.isComposing) return;
-      if ((event.defaultPrevented && !preventedByGuard(event)) || hasOpenDialog() || hasOpenMenu() || useAppStore.getState().overlay) return;
-      if (document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]')) return;
+      if ((event.defaultPrevented && !preventedByGuard(event)) || hasOpenDialog() || hasOpenMenu() || useAppStore.getState().overlay)
+        return;
+      if (
+        document.querySelector(
+          '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]',
+        )
+      )
+        return;
       // A running drag is cancelled by the list itself.
       if (root.current?.querySelector("[data-dragging]")) return;
       const target = event.target instanceof Element ? event.target : null;
@@ -78,9 +85,26 @@ export function RebaseTool({ repoId, tabId, base, mode, shas, autosquash = false
 
   const key = `${mode}:${base}:${shas.join(",")}:${autosquash ? "autosquash" : ""}`;
   return (
-    <section ref={root} aria-label={mode === "interactive" ? t("rebase.tool.interactive") : mode === "squash" ? t("rebase.tool.squash") : t("rebase.tool.cherryPick")} data-screen="rebase" data-mode={mode} onKeyDown={onKeyDown} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      ref={root}
+      aria-label={
+        mode === "interactive" ? t("rebase.tool.interactive") : mode === "squash" ? t("rebase.tool.squash") : t("rebase.tool.cherryPick")
+      }
+      data-screen="rebase"
+      data-mode={mode}
+      onKeyDown={onKeyDown}
+      className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       {mode === "interactive" ? (
-        <InteractiveRebase key={key} repoId={repoId} tabId={tabId} base={base} autosquash={autosquash} onClose={close} startRef={startRef} />
+        <InteractiveRebase
+          key={key}
+          repoId={repoId}
+          tabId={tabId}
+          base={base}
+          autosquash={autosquash}
+          onClose={close}
+          startRef={startRef}
+        />
       ) : mode === "squash" ? (
         <SquashMode key={key} repoId={repoId} tabId={tabId} shas={shas} onClose={close} startRef={startRef} />
       ) : (

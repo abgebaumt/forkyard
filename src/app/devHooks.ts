@@ -32,7 +32,13 @@ const hooks = {
   /** All commands with their shortcut and whether they are currently available. */
   commands: () => {
     const ctx = buildCommandContext("menu");
-    return getCommands().map((command) => ({ id: command.id, title: command.title, group: command.group, shortcut: command.shortcut ?? null, available: isAvailable(command, ctx) }));
+    return getCommands().map((command) => ({
+      id: command.id,
+      title: command.title,
+      group: command.group,
+      shortcut: command.shortcut ?? null,
+      available: isAvailable(command, ctx),
+    }));
   },
   actions: { branches, drop, files, history, merge, remotes, stash, sync, tags, undo, view },
   lastCopiedText,

@@ -28,8 +28,18 @@ describe("bisectBar", () => {
   });
 
   it("counts the step under test and Git's estimate after it", () => {
-    expect(bisectBar(status({ bad: "b", good: ["g"], current: "c", remainingSteps: 3 }))).toEqual({ kind: "running", step: 1, total: 4, current: "c" });
-    expect(bisectBar(status({ bad: "b", good: ["g"], current: "c", remainingSteps: 1, stepsDone: 2 }))).toEqual({ kind: "running", step: 3, total: 4, current: "c" });
+    expect(bisectBar(status({ bad: "b", good: ["g"], current: "c", remainingSteps: 3 }))).toEqual({
+      kind: "running",
+      step: 1,
+      total: 4,
+      current: "c",
+    });
+    expect(bisectBar(status({ bad: "b", good: ["g"], current: "c", remainingSteps: 1, stepsDone: 2 }))).toEqual({
+      kind: "running",
+      step: 3,
+      total: 4,
+      current: "c",
+    });
   });
 
   it("names the result or says that only skipped commits are left", () => {

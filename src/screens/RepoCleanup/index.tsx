@@ -6,7 +6,16 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { core, CoreError, type CleanupFailure, type CleanupPreview, type CleanupResult, type CleanupStep, type CleanupStepStatus, type Id } from "../../core";
+import {
+  core,
+  CoreError,
+  type CleanupFailure,
+  type CleanupPreview,
+  type CleanupResult,
+  type CleanupStep,
+  type CleanupStepStatus,
+  type Id,
+} from "../../core";
 import { cancelCleanup, runCleanup } from "../../app/actions/cleanup";
 import { describeError } from "../../app/errors";
 import { formatBytes } from "../../app/format";
@@ -93,16 +102,28 @@ function NowSection({ preview }: { preview: CleanupPreview }) {
         <Figure name="objects" label={t("cleanup.now.objects")} value={objects.totalBytes} text={formatBytes(objects.totalBytes)} />
         <Figure name="loose" label={t("cleanup.now.loose")} value={objects.looseCount} text={count(objects.looseCount)} />
         <Figure name="packs" label={t("cleanup.now.packs")} value={objects.packs} text={count(objects.packs)} />
-        {preview.lfsBytes !== null ? <Figure name="lfs" label={t("cleanup.now.lfs")} value={preview.lfsBytes} text={formatBytes(preview.lfsBytes)} /> : null}
+        {preview.lfsBytes !== null ? (
+          <Figure name="lfs" label={t("cleanup.now.lfs")} value={preview.lfsBytes} text={formatBytes(preview.lfsBytes)} />
+        ) : null}
         <Figure name="undo" label={t("cleanup.now.undo")} value={preview.undoBackups.length} text={count(preview.undoBackups.length)} />
-        <Figure name="worktrees" label={t("cleanup.now.worktrees")} value={preview.orphanedWorktrees} text={count(preview.orphanedWorktrees)} />
+        <Figure
+          name="worktrees"
+          label={t("cleanup.now.worktrees")}
+          value={preview.orphanedWorktrees}
+          text={count(preview.orphanedWorktrees)}
+        />
         <Figure
           name="reflog"
           label={t("cleanup.now.reflog")}
           value={preview.oldReflogEntries}
           text={preview.oldReflogEntries === null ? t("cleanup.now.notCounted") : count(preview.oldReflogEntries)}
         />
-        <Figure name="free" label={t("cleanup.now.free")} value={preview.freeBytes} text={preview.freeBytes === null ? t("cleanup.now.unknown") : formatBytes(preview.freeBytes)} />
+        <Figure
+          name="free"
+          label={t("cleanup.now.free")}
+          value={preview.freeBytes}
+          text={preview.freeBytes === null ? t("cleanup.now.unknown") : formatBytes(preview.freeBytes)}
+        />
       </dl>
       {preview.linkedWorktrees > 0 ? (
         <p data-cleanup-shared className="text-sm text-text-muted">
@@ -113,7 +134,17 @@ function NowSection({ preview }: { preview: CleanupPreview }) {
   );
 }
 
-function FormBody({ repoId, preview, form, onChange }: { repoId: Id; preview: CleanupPreview; form: CleanupForm; onChange: (form: CleanupForm) => void }) {
+function FormBody({
+  repoId,
+  preview,
+  form,
+  onChange,
+}: {
+  repoId: Id;
+  preview: CleanupPreview;
+  form: CleanupForm;
+  onChange: (form: CleanupForm) => void;
+}) {
   const visible = visibleOptions(preview);
   const patch = (change: Partial<CleanupForm>) => onChange({ ...form, ...change });
   const estimate = useQuery({
@@ -167,7 +198,12 @@ function FormBody({ repoId, preview, form, onChange }: { repoId: Id; preview: Cl
         <h3 className="text-sm font-medium text-text-muted">{t("cleanup.extra.heading")}</h3>
         {visible.lfs ? (
           <div data-option="lfs" className="flex flex-col gap-1">
-            <Checkbox label={t("cleanup.extra.lfs.label")} hint={t("cleanup.extra.lfs.frees")} checked={form.lfs} onCheckedChange={(lfs) => patch({ lfs })} />
+            <Checkbox
+              label={t("cleanup.extra.lfs.label")}
+              hint={t("cleanup.extra.lfs.frees")}
+              checked={form.lfs}
+              onCheckedChange={(lfs) => patch({ lfs })}
+            />
             {form.lfs ? (
               <p aria-live="polite" data-lfs-estimate className="ml-6 text-sm text-text-muted">
                 {estimateText}
@@ -177,11 +213,21 @@ function FormBody({ repoId, preview, form, onChange }: { repoId: Id; preview: Cl
         ) : null}
         {visible.worktrees ? (
           <div data-option="worktrees">
-            <Checkbox label={t("cleanup.extra.worktrees.label")} hint={t("cleanup.extra.worktrees.frees")} checked={form.worktrees} onCheckedChange={(worktrees) => patch({ worktrees })} />
+            <Checkbox
+              label={t("cleanup.extra.worktrees.label")}
+              hint={t("cleanup.extra.worktrees.frees")}
+              checked={form.worktrees}
+              onCheckedChange={(worktrees) => patch({ worktrees })}
+            />
           </div>
         ) : null}
         <div data-option="undo" className="flex flex-col gap-1">
-          <Checkbox label={t("cleanup.extra.undo.label")} hint={t("cleanup.extra.undo.frees")} checked={form.undo} onCheckedChange={(undo) => patch({ undo })} />
+          <Checkbox
+            label={t("cleanup.extra.undo.label")}
+            hint={t("cleanup.extra.undo.frees")}
+            checked={form.undo}
+            onCheckedChange={(undo) => patch({ undo })}
+          />
           <div className="ml-6 flex items-center gap-2">
             <NumberField
               value={form.undoDays}
@@ -200,7 +246,12 @@ function FormBody({ repoId, preview, form, onChange }: { repoId: Id; preview: Cl
           </p>
         </div>
         <div data-option="reflog" className="flex flex-col gap-1">
-          <Checkbox label={t("cleanup.extra.reflog.label")} hint={t("cleanup.extra.reflog.frees")} checked={form.reflog} onCheckedChange={(reflog) => patch({ reflog })} />
+          <Checkbox
+            label={t("cleanup.extra.reflog.label")}
+            hint={t("cleanup.extra.reflog.frees")}
+            checked={form.reflog}
+            onCheckedChange={(reflog) => patch({ reflog })}
+          />
           <p data-warning="reflog" className="ml-6 text-sm text-danger">
             <strong className="font-semibold">{t("cleanup.extra.reflog.warningWord")}</strong> {t("cleanup.extra.reflog.warning")}
           </p>
@@ -235,7 +286,12 @@ function Progress({ run }: { run: CleanupRun }) {
         </p>
         <span className="shrink-0 text-sm text-text-muted tabular-nums">{t("cleanup.progress.seconds", { seconds })}</span>
       </div>
-      <div role="progressbar" aria-label={t("cleanup.progress.label")} aria-valuetext={text} className="h-1.5 overflow-hidden rounded-pill bg-border">
+      <div
+        role="progressbar"
+        aria-label={t("cleanup.progress.label")}
+        aria-valuetext={text}
+        className="h-1.5 overflow-hidden rounded-pill bg-border"
+      >
         <div className="h-full w-1/3 animate-pulse rounded-pill bg-accent" />
       </div>
       <p className="text-sm text-text-muted">{t("cleanup.progress.hint")}</p>
@@ -259,7 +315,9 @@ function Result({ result }: { result: CleanupResult }) {
         {OUTCOME_TEXT[outcome]}
       </p>
       <div className="flex flex-col gap-0.5 text-base text-text">
-        <p data-result-line="objects">{t("cleanup.result.objects", { change: sizeChange(result.before.totalBytes, result.after.totalBytes) })}</p>
+        <p data-result-line="objects">
+          {t("cleanup.result.objects", { change: sizeChange(result.before.totalBytes, result.after.totalBytes) })}
+        </p>
         {result.lfsBefore !== null && result.lfsAfter !== null ? (
           <p data-result-line="lfs">{t("cleanup.result.lfs", { change: sizeChange(result.lfsBefore, result.lfsAfter) })}</p>
         ) : null}
@@ -281,7 +339,9 @@ function Result({ result }: { result: CleanupResult }) {
           </li>
         ))}
       </ul>
-      <p className="text-sm text-text-muted">{minutes > 0 ? t("cleanup.duration.minutes", { minutes, seconds }) : t("cleanup.duration.seconds", { seconds })}</p>
+      <p className="text-sm text-text-muted">
+        {minutes > 0 ? t("cleanup.duration.minutes", { minutes, seconds }) : t("cleanup.duration.seconds", { seconds })}
+      </p>
     </div>
   );
 }

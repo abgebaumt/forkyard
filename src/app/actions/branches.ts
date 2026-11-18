@@ -92,7 +92,9 @@ export async function createBranch(repoId: Id, options: CreateBranchOptions = {}
   const checkoutAfter = options.checkout ?? true;
   const name = await promptText({
     title: options.title ?? t("actions.branches.create.title"),
-    description: options.description ?? (start ? t("actions.branches.create.startsAt", { start: describeStart(repoId, start) }) : t("actions.branches.create.startsAtHead")),
+    description:
+      options.description ??
+      (start ? t("actions.branches.create.startsAt", { start: describeStart(repoId, start) }) : t("actions.branches.create.startsAtHead")),
     label: t("actions.branches.create.name"),
     initial: options.suggestedName,
     placeholder: t("actions.branches.create.placeholder"),
@@ -107,7 +109,9 @@ export async function createBranch(repoId: Id, options: CreateBranchOptions = {}
     runAction(t("actions.branches.create.action"), checkoutAfter ? withFreshStatus(repoId, create) : create, {
       busyKey: busyKeys.branch(repoId),
       quiet: ["dirty_worktree"],
-      success: checkoutAfter ? t("actions.branches.create.doneCheckedOut", { name: clip(name) }) : t("actions.branches.create.done", { name: clip(name) }),
+      success: checkoutAfter
+        ? t("actions.branches.create.doneCheckedOut", { name: clip(name) })
+        : t("actions.branches.create.done", { name: clip(name) }),
     });
   let result = await run();
   let stashed = false;
@@ -150,9 +154,7 @@ function reportBusyCheckout(repoId: Id, target: string): void {
   toast({
     tone: "info",
     title: t("actions.branches.busy.title", { target: clip(pointName(target), 40) }),
-    description: running
-      ? t("actions.branches.busy.running", { target: clip(pointName(running), 40) })
-      : t("actions.branches.busy.other"),
+    description: running ? t("actions.branches.busy.running", { target: clip(pointName(running), 40) }) : t("actions.branches.busy.other"),
   });
 }
 
@@ -163,10 +165,14 @@ function reportBusyCheckout(repoId: Id, target: string): void {
  */
 export async function checkout(repoId: Id, target: string, options: CheckoutOptions = {}) {
   const run = () =>
-    runAction(t("actions.branches.checkout.action"), withStatus(repoId, () => core.branchCheckout({ repoId, target })), {
-      busyKey: busyKeys.history(repoId),
-      quiet: ["dirty_worktree"],
-    });
+    runAction(
+      t("actions.branches.checkout.action"),
+      withStatus(repoId, () => core.branchCheckout({ repoId, target })),
+      {
+        busyKey: busyKeys.history(repoId),
+        quiet: ["dirty_worktree"],
+      },
+    );
   if (useAppStore.getState().busy[busyKeys.history(repoId)]) {
     reportBusyCheckout(repoId, target);
     return run();
@@ -207,7 +213,8 @@ function reportCheckout(repoId: Id, status: Status, tabId?: Id | null) {
     toast({
       tone: "success",
       title: t("actions.branches.checkout.done", { name: clip(head.branch) }),
-      description: status.upstream && !status.upstream.gone ? t("actions.branches.checkout.follows", { upstream: status.upstream.name }) : undefined,
+      description:
+        status.upstream && !status.upstream.gone ? t("actions.branches.checkout.follows", { upstream: status.upstream.name }) : undefined,
     });
   }
   if (tabId && head.kind !== "unborn") useAppStore.getState().revealCommit(tabId, head.sha);
@@ -219,7 +226,10 @@ function reportCheckout(repoId: Id, status: Status, tabId?: Id | null) {
       sticky: true,
       title: t("actions.branches.leftBehind.title", { count: left.count }),
       description: t("actions.branches.leftBehind.description", { count: left.count, sha: short(left.sha) }),
-      action: { label: t("actions.branches.leftBehind.action"), onClick: () => void createBranch(repoId, { start: left.sha, checkout: false, tabId }) },
+      action: {
+        label: t("actions.branches.leftBehind.action"),
+        onClick: () => void createBranch(repoId, { start: left.sha, checkout: false, tabId }),
+      },
     });
   }
 }
@@ -263,7 +273,8 @@ async function mergedNote(repoId: Id, ref: Ref): Promise<MergedNote> {
   const index = head ? await loadGraphIndex(repoId) : null;
   const contained = index && head ? isAncestor(index, ref.sha, head) : null;
   if (contained) return { merged: true, text: t("actions.branches.merged.contained", { into }) };
-  if (ref.upstream && !ref.upstreamGone && ref.ahead === 0) return { merged: true, text: t("actions.branches.merged.onUpstream", { upstream: ref.upstream }) };
+  if (ref.upstream && !ref.upstreamGone && ref.ahead === 0)
+    return { merged: true, text: t("actions.branches.merged.onUpstream", { upstream: ref.upstream }) };
   if (contained === false && index && head) {
     const range = commitsBetween(index, head, ref.sha);
     const count = range && !range.partial ? range.rows.length : null;
@@ -283,15 +294,23 @@ export async function deleteBranches(repoId: Id, names: string[]) {
   if (!names.length) return null;
   const refs = cachedRefs(repoId) ?? (await loadRefs(repoId).catch(() => undefined));
   const targets = names.map((name) => refs?.locals.find((ref) => ref.name === name) ?? null);
-  const notes = await Promise.all(targets.map((ref) => (ref ? mergedNote(repoId, ref) : Promise.resolve<MergedNote>({ merged: null, text: t("actions.branches.merged.unknown") }))));
+  const notes = await Promise.all(
+    targets.map((ref) =>
+      ref ? mergedNote(repoId, ref) : Promise.resolve<MergedNote>({ merged: null, text: t("actions.branches.merged.unknown") }),
+    ),
+  );
   const single = names.length === 1;
   const unmerged = notes.filter((note) => note.merged === false).length;
-  const done = single ? t("actions.branches.delete.doneOne", { name: clip(names[0]!) }) : t("actions.branches.delete.doneMany", { count: names.length });
+  const done = single
+    ? t("actions.branches.delete.doneOne", { name: clip(names[0]!) })
+    : t("actions.branches.delete.doneMany", { count: names.length });
 
   const ok = await confirm(
     single
       ? {
-          title: unmerged ? t("actions.branches.delete.titleUnmerged", { name: clip(names[0]!, 40) }) : t("actions.branches.delete.title", { name: clip(names[0]!, 40) }),
+          title: unmerged
+            ? t("actions.branches.delete.titleUnmerged", { name: clip(names[0]!, 40) })
+            : t("actions.branches.delete.title", { name: clip(names[0]!, 40) }),
           body: unmerged
             ? t("actions.branches.delete.bodyUnmerged", { note: notes[0]!.text })
             : notes[0]!.merged
@@ -334,12 +353,16 @@ export async function deleteBranches(repoId: Id, names: string[]) {
 
 /** Sets the upstream of a local branch; `upstream: null` removes the link. */
 export async function setUpstream(repoId: Id, name: string, upstream: string | null) {
-  const result = await runAction(upstream ? t("actions.branches.upstream.set") : t("actions.branches.upstream.unset"), () => core.branchSetUpstream({ repoId, name, upstream }), {
-    busyKey: busyKeys.branch(repoId),
-    success: upstream
-      ? t("actions.branches.upstream.setDone", { name: clip(name, 40), upstream: clip(upstream, 40) })
-      : t("actions.branches.upstream.unsetDone", { name: clip(name, 40) }),
-  });
+  const result = await runAction(
+    upstream ? t("actions.branches.upstream.set") : t("actions.branches.upstream.unset"),
+    () => core.branchSetUpstream({ repoId, name, upstream }),
+    {
+      busyKey: busyKeys.branch(repoId),
+      success: upstream
+        ? t("actions.branches.upstream.setDone", { name: clip(name, 40), upstream: clip(upstream, 40) })
+        : t("actions.branches.upstream.unsetDone", { name: clip(name, 40) }),
+    },
+  );
   if (result.ok) {
     queryClient.setQueryData(qk.refs(repoId), result.value);
     void queryClient.invalidateQueries({ queryKey: qk.status(repoId) });
@@ -353,12 +376,20 @@ export async function chooseUpstream(repoId: Id, name: string) {
   const local = refs?.locals.find((ref) => ref.name === name);
   const remotes = refs?.remotes ?? [];
   // The remote branch with the same name is at the top: it is almost always the one meant.
-  const sorted = [...remotes].sort((a, b) => Number(b.name.endsWith(`/${name}`)) - Number(a.name.endsWith(`/${name}`)) || a.name.localeCompare(b.name));
+  const sorted = [...remotes].sort(
+    (a, b) => Number(b.name.endsWith(`/${name}`)) - Number(a.name.endsWith(`/${name}`)) || a.name.localeCompare(b.name),
+  );
   const picked = await pickFromList({
-    title: local?.upstream ? t("actions.branches.upstream.changeTitle", { name: clip(name, 36) }) : t("actions.branches.upstream.setTitle", { name: clip(name, 36) }),
+    title: local?.upstream
+      ? t("actions.branches.upstream.changeTitle", { name: clip(name, 36) })
+      : t("actions.branches.upstream.setTitle", { name: clip(name, 36) }),
     description: t("actions.branches.upstream.description"),
     label: t("actions.branches.upstream.label"),
-    items: sorted.map((ref) => ({ key: ref.name, label: ref.name, description: ref.name === local?.upstream ? t("actions.branches.upstream.current") : undefined })),
+    items: sorted.map((ref) => ({
+      key: ref.name,
+      label: ref.name,
+      description: ref.name === local?.upstream ? t("actions.branches.upstream.current") : undefined,
+    })),
     initial: local?.upstream && !local.upstreamGone ? local.upstream : sorted[0]?.name,
     empty: t("actions.branches.upstream.empty"),
     confirmLabel: t("actions.branches.upstream.set"),
@@ -385,7 +416,9 @@ export interface PickBranchOptions {
 export async function pickBranch(repoId: Id, options: PickBranchOptions): Promise<Ref | null> {
   const refs = cachedRefs(repoId) ?? (await loadRefs(repoId).catch(() => undefined));
   if (!refs) return null;
-  const all = [...(options.remotesOnly ? [] : refs.locals), ...(options.remotes || options.remotesOnly ? refs.remotes : [])].filter((ref) => !(options.excludeCurrent && ref.isHead));
+  const all = [...(options.remotesOnly ? [] : refs.locals), ...(options.remotes || options.remotesOnly ? refs.remotes : [])].filter(
+    (ref) => !(options.excludeCurrent && ref.isHead),
+  );
   const picked = await pickFromList({
     title: options.title,
     description: options.description,

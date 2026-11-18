@@ -72,7 +72,14 @@ export function LocksSection({ repoId }: { repoId: Id }) {
         <span id={headingId} className="text-sm font-medium text-text-muted">
           {t("lfs.locks.heading")} {locks.data ? <span className="font-normal tabular-nums">{shown.length}</span> : null}
         </span>
-        <Button size="sm" variant="ghost" loading={busy} title={t("lfs.locks.refreshLabel")} icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void refreshLocks(repoId)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          loading={busy}
+          title={t("lfs.locks.refreshLabel")}
+          icon={<RefreshCw className="size-3.5" aria-hidden />}
+          onClick={() => void refreshLocks(repoId)}
+        >
           {t("lfs.locks.refresh")}
         </Button>
       </div>
@@ -97,7 +104,12 @@ export function LocksSection({ repoId }: { repoId: Id }) {
             onChange={(event) => setText(event.target.value)}
           />
           {locks.isPending ? (
-            <div role="status" aria-label={t("lfs.locks.loading")} data-lfs-locks-state="loading" className="flex animate-pulse flex-col gap-2 py-1">
+            <div
+              role="status"
+              aria-label={t("lfs.locks.loading")}
+              data-lfs-locks-state="loading"
+              className="flex animate-pulse flex-col gap-2 py-1"
+            >
               <div className="h-row rounded-md bg-surface-raised" />
               <div className="h-row rounded-md bg-surface-raised" />
             </div>
@@ -106,9 +118,17 @@ export function LocksSection({ repoId }: { repoId: Id }) {
               {needle ? t("lfs.locks.emptyFiltered", { filter: needle }) : t("lfs.locks.empty")}
             </p>
           ) : (
-            <ul aria-label={t("lfs.locks.listLabel")} className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-sunken py-1">
+            <ul
+              aria-label={t("lfs.locks.listLabel")}
+              className="max-h-56 overflow-y-auto rounded-md border border-border bg-surface-sunken py-1"
+            >
               {shown.map((lock) => (
-                <li key={lock.path} data-lock-path={lock.path} data-lock-ours={lock.ours ? "" : undefined} className="flex items-center gap-2 px-2 py-1 hover:bg-surface-raised">
+                <li
+                  key={lock.path}
+                  data-lock-path={lock.path}
+                  data-lock-ours={lock.ours ? "" : undefined}
+                  className="flex items-center gap-2 px-2 py-1 hover:bg-surface-raised"
+                >
                   <div className="min-w-0 flex-1">
                     <Checkbox
                       label={
@@ -129,10 +149,20 @@ export function LocksSection({ repoId }: { repoId: Id }) {
             </ul>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" icon={<LockOpen className="size-3.5" aria-hidden />} disabled={actions.unlock.length === 0 || busy} onClick={() => void unlockFiles(repoId, actions.unlock, false)}>
+            <Button
+              size="sm"
+              icon={<LockOpen className="size-3.5" aria-hidden />}
+              disabled={actions.unlock.length === 0 || busy}
+              onClick={() => void unlockFiles(repoId, actions.unlock, false)}
+            >
               {t("lfs.locks.unlock")}
             </Button>
-            <Button size="sm" variant="danger" disabled={actions.force.length === 0 || busy} onClick={() => void unlockFiles(repoId, actions.force, true, shown)}>
+            <Button
+              size="sm"
+              variant="danger"
+              disabled={actions.force.length === 0 || busy}
+              onClick={() => void unlockFiles(repoId, actions.force, true, shown)}
+            >
               {t("lfs.locks.force")}
             </Button>
             {selected.size > 0 ? (

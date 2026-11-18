@@ -67,7 +67,11 @@ function registrySections(commands: readonly AppCommand[]): Section[] {
     for (const command of list) {
       if (numbered.includes(command)) {
         if (command === numbered[0]) {
-          entries.push({ key: "tab.goto.range", label: t("shortcuts.gotoTabRange", { count: numbered.length }), keys: [[numbered[0]!.shortcut!, "…", numbered[numbered.length - 1]!.shortcut!]] });
+          entries.push({
+            key: "tab.goto.range",
+            label: t("shortcuts.gotoTabRange", { count: numbered.length }),
+            keys: [[numbered[0]!.shortcut!, "…", numbered[numbered.length - 1]!.shortcut!]],
+          });
         }
         continue;
       }
@@ -135,7 +139,11 @@ function SectionBlock({ section }: { section: Section }) {
       {section.where ? <p className="mt-0.5 text-sm text-text-muted">{section.where}</p> : null}
       <dl className="mt-1.5 flex flex-col">
         {section.entries.map((entry) => (
-          <div key={entry.key} className="flex min-h-control-md items-center gap-3 border-b border-border py-1 last:border-b-0" data-entry={entry.key}>
+          <div
+            key={entry.key}
+            className="flex min-h-control-md items-center gap-3 border-b border-border py-1 last:border-b-0"
+            data-entry={entry.key}
+          >
             <dt className="min-w-0 flex-1 text-base text-text">{entry.label}</dt>
             <dd>
               <Keys keys={entry.keys} />
@@ -214,14 +222,15 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
               setQuery("");
             }
           }}
-          className={cn(dialogSurface, "animate-pop fixed top-1/2 left-1/2 z-50 h-[calc(85vh/var(--zoom,1))] w-shortcuts -translate-x-1/2 -translate-y-1/2")}
+          className={cn(
+            dialogSurface,
+            "animate-pop fixed top-1/2 left-1/2 z-50 h-[calc(85vh/var(--zoom,1))] w-shortcuts -translate-x-1/2 -translate-y-1/2",
+          )}
         >
           <header className="flex shrink-0 items-start gap-3 border-b border-border px-5 pt-4 pb-3">
             <div className="min-w-0 flex-1">
               <RadixDialog.Title className="text-lg font-semibold">{t("shortcuts.title")}</RadixDialog.Title>
-              <RadixDialog.Description className="mt-0.5 text-base text-text-muted">
-                {t("shortcuts.description")}
-              </RadixDialog.Description>
+              <RadixDialog.Description className="mt-0.5 text-base text-text-muted">{t("shortcuts.description")}</RadixDialog.Description>
               <label className="mt-3 flex h-control-md max-w-96 items-center gap-2 rounded-md border border-border-input bg-surface-sunken px-2 focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-accent">
                 <Search className="size-icon shrink-0 text-text-muted" aria-hidden />
                 <span className="sr-only">{t("shortcuts.search.label")}</span>
@@ -297,9 +306,7 @@ export function ShortcutOverlay({ onClose }: ShortcutOverlayProps) {
           </div>
 
           <footer className="flex shrink-0 items-center gap-3 border-t border-border px-5 py-2.5 text-sm text-text-muted">
-            <span className="min-w-0 flex-1 truncate">
-              {t("shortcuts.footer")}
-            </span>
+            <span className="min-w-0 flex-1 truncate">{t("shortcuts.footer")}</span>
             <Button size="sm" icon={<CommandIcon className="size-icon" aria-hidden />} onClick={openPalette}>
               {t("shortcuts.openPalette")}
             </Button>

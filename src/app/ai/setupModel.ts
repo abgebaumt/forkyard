@@ -8,7 +8,10 @@ import { isCli, isLocal, usesBaseUrl } from "../../screens/Preferences/ai/model"
 
 export type SetupStep = "search" | "found" | "provider" | "model" | "features" | "done";
 
-export type SetupPick = { kind: "cli"; provider: AiProviderKind } | { kind: "local"; provider: AiProviderKind; models: string[] } | { kind: "key"; provider: AiProviderKind };
+export type SetupPick =
+  | { kind: "cli"; provider: AiProviderKind }
+  | { kind: "local"; provider: AiProviderKind; models: string[] }
+  | { kind: "key"; provider: AiProviderKind };
 
 export const pickId = (pick: SetupPick): string => `${pick.kind}:${pick.provider}`;
 
@@ -26,7 +29,9 @@ export interface SetupOverview {
 
 export function setupOverview(detection: AiDetection): SetupOverview {
   const tools: SetupPick[] = detection.clis.filter(isUsableCli).map((cli) => ({ kind: "cli", provider: cli.provider }));
-  const local: SetupPick[] = detection.local.filter((service) => service.models.length > 0).map((service) => ({ kind: "local", provider: service.provider, models: service.models }));
+  const local: SetupPick[] = detection.local
+    .filter((service) => service.models.length > 0)
+    .map((service) => ({ kind: "local", provider: service.provider, models: service.models }));
   const keys: SetupPick[] = detection.keys.map((provider) => ({ kind: "key", provider }));
   const picks = [...tools, ...local, ...keys];
   return { picks, preselected: tools.length === 1 ? (tools[0] ?? null) : null, nothingUsable: picks.length === 0 };
@@ -59,18 +64,26 @@ export function draftFromPick(pick: SetupPick): SetupDraft {
 }
 
 /** A signed-in tool turns AI on at once (model = the tool's default); everything else continues to the model. */
-export const primaryAction = (pick: SetupPick | null): "turnOn" | "continue" | null => (pick === null ? null : pick.kind === "cli" ? "turnOn" : "continue");
+export const primaryAction = (pick: SetupPick | null): "turnOn" | "continue" | null =>
+  pick === null ? null : pick.kind === "cli" ? "turnOn" : "continue";
 
 /** “Continue” only after the provider answered (spec 1.3: „erst nach Erfolg ‚Weiter‘“). */
 export const canLeaveProvider = (draft: SetupDraft): boolean => draft.provider !== null && draft.checked;
 
-export const canLeaveModel = (draft: SetupDraft): boolean => draft.provider !== null && (isCli(draft.provider) || Boolean(draft.model?.trim()));
+export const canLeaveModel = (draft: SetupDraft): boolean =>
+  draft.provider !== null && (isCli(draft.provider) || Boolean(draft.model?.trim()));
 
 export function settingsPatch(draft: SetupDraft): Partial<Settings> {
-  const patch: Partial<Settings> = { aiEnabled: true, aiProvider: draft.provider, aiModel: draft.model?.trim() || null, aiFeaturesOff: [...draft.featuresOff] };
+  const patch: Partial<Settings> = {
+    aiEnabled: true,
+    aiProvider: draft.provider,
+    aiModel: draft.model?.trim() || null,
+    aiFeaturesOff: [...draft.featuresOff],
+  };
   if (draft.provider && usesBaseUrl(draft.provider)) patch.aiBaseUrl = draft.baseUrl?.trim() || null;
   return patch;
 }
 
 /** The last sentence of the setup: to a tool on this computer, staying local, or over the internet. */
-export const whereKind = (provider: AiProviderKind): "cli" | "local" | "api" => (isCli(provider) ? "cli" : isLocal(provider) ? "local" : "api");
+export const whereKind = (provider: AiProviderKind): "cli" | "local" | "api" =>
+  isCli(provider) ? "cli" : isLocal(provider) ? "local" : "api";

@@ -59,7 +59,9 @@ function isRealDate(value: string): boolean {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return false;
   const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
-  return date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[3]);
+  return (
+    date.getUTCFullYear() === Number(match[1]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[3])
+  );
 }
 
 function UrlBadge({ parsed }: { parsed: ParsedUrl }) {
@@ -107,7 +109,10 @@ function CloneProgress({ jobId, source, target, stopping }: { jobId: string; sou
           className="mt-2 h-1.5 overflow-hidden rounded-pill bg-border"
         >
           {percent !== null && !stopping ? (
-            <div className="h-full rounded-pill bg-accent transition-[width]" style={{ width: `${Math.max(2, Math.min(100, percent))}%` }} />
+            <div
+              className="h-full rounded-pill bg-accent transition-[width]"
+              style={{ width: `${Math.max(2, Math.min(100, percent))}%` }}
+            />
           ) : (
             <div className="h-full w-1/3 animate-pulse rounded-pill bg-accent" />
           )}
@@ -316,7 +321,11 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
   };
 
   const advancedSummary = [
-    shallow ? (shallowBy === "depth" ? t("clone.summary.depth", { depth: depth.trim() || "?" }) : t("clone.summary.since", { date: since.trim() || "?" })) : null,
+    shallow
+      ? shallowBy === "depth"
+        ? t("clone.summary.depth", { depth: depth.trim() || "?" })
+        : t("clone.summary.since", { date: since.trim() || "?" })
+      : null,
     branch.trim() ? t("clone.summary.branch", { branch: branch.trim() }) : null,
     sparse ? t("clone.summary.sparse") : null,
     submodules ? t("clone.summary.submodules") : null,
@@ -513,17 +522,17 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
 
             <Collapsible.Root open={advancedOpen} onOpenChange={setAdvancedOpen} className="border-t border-border pt-2">
               <Collapsible.Trigger className="group flex h-control-sm w-full items-center gap-1 rounded-md text-left text-base text-text hover:bg-surface-raised">
-                <ChevronRight className="size-icon shrink-0 text-text-muted transition-transform group-data-[state=open]:rotate-90" aria-hidden />
+                <ChevronRight
+                  className="size-icon shrink-0 text-text-muted transition-transform group-data-[state=open]:rotate-90"
+                  aria-hidden
+                />
                 <span className="font-medium">{t("clone.advanced")}</span>
-                {!advancedOpen && advancedSummary.length ? <span className="min-w-0 truncate text-sm text-text-muted">– {advancedSummary.join(", ")}</span> : null}
+                {!advancedOpen && advancedSummary.length ? (
+                  <span className="min-w-0 truncate text-sm text-text-muted">– {advancedSummary.join(", ")}</span>
+                ) : null}
               </Collapsible.Trigger>
               <Collapsible.Content className="flex flex-col gap-3 pt-2 pl-5">
-                <Checkbox
-                  label={t("clone.shallow.label")}
-                  hint={t("clone.shallow.hint")}
-                  checked={shallow}
-                  onCheckedChange={setShallow}
-                />
+                <Checkbox label={t("clone.shallow.label")} hint={t("clone.shallow.hint")} checked={shallow} onCheckedChange={setShallow} />
                 {shallow ? (
                   <div className="flex items-start gap-3 pl-6">
                     <div className="flex flex-col gap-1">
@@ -581,12 +590,7 @@ export function CloneDialog({ onClose }: CloneDialogProps) {
                   }}
                 />
 
-                <Checkbox
-                  label={t("clone.sparse.label")}
-                  hint={t("clone.sparse.hint")}
-                  checked={sparse}
-                  onCheckedChange={setSparse}
-                />
+                <Checkbox label={t("clone.sparse.label")} hint={t("clone.sparse.hint")} checked={sparse} onCheckedChange={setSparse} />
                 {sparse ? (
                   <div className="pl-6">
                     <TextArea

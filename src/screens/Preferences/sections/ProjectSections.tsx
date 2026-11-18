@@ -50,12 +50,17 @@ function useProject(repoId: Id) {
   const { data: keys } = useSshKeys();
   const profile = profiles?.find((candidate) => candidate.isActive);
   const ctx: InheritContext | null =
-    settings && profile ? { profile, settings, defaultKeyId: settings.sshUseAgent ? null : (keys?.find((key) => key.isDefault)?.id ?? null) } : null;
+    settings && profile
+      ? { profile, settings, defaultKeyId: settings.sshUseAgent ? null : (keys?.find((key) => key.isDefault)?.id ?? null) }
+      : null;
   return { repoSettings, ctx, keys: keys ?? [] };
 }
 
 function Loading({ repoSettings }: { repoSettings: ReturnType<typeof useRepoSettings> }) {
-  if (repoSettings.isError) return <LoadError title={t("preferences.loadError.repoSettings")} error={repoSettings.error} onRetry={() => void repoSettings.refetch()} />;
+  if (repoSettings.isError)
+    return (
+      <LoadError title={t("preferences.loadError.repoSettings")} error={repoSettings.error} onRetry={() => void repoSettings.refetch()} />
+    );
   return <SettingsSkeleton rows={4} />;
 }
 
@@ -91,7 +96,8 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
   const { data: hostRepo } = useHostRepo(repoId);
   if (!repoSettings.data || !ctx) return <Loading repoSettings={repoSettings} />;
   const repo = repoSettings.data;
-  const text = (field: "authorName" | "authorEmail") => async (value: string) => fieldError(await applyRepoSettings(repoId, { [field]: value || null }, { atField: true }));
+  const text = (field: "authorName" | "authorEmail") => async (value: string) =>
+    fieldError(await applyRepoSettings(repoId, { [field]: value || null }, { atField: true }));
   const keyName = (id: unknown) => keys.find((key) => key.id === id)?.label ?? t("preferences.project.identity.agentFallback");
   const account = hostRepo?.account;
 
@@ -105,7 +111,15 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
           inherited={ctx.profile.authorName || t("preferences.project.notSet")}
           {...inherit(repoId, "authorName", repo, ctx)}
         >
-          {(ids) => <CommitText id={ids.id} describedBy={ids.descriptionId} className="w-64" value={repo.authorName ?? ""} onCommit={text("authorName")} />}
+          {(ids) => (
+            <CommitText
+              id={ids.id}
+              describedBy={ids.descriptionId}
+              className="w-64"
+              value={repo.authorName ?? ""}
+              onCommit={text("authorName")}
+            />
+          )}
         </InheritRow>
         <InheritRow
           title={t("preferences.profiles.email.title")}
@@ -114,7 +128,15 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
           {...inherit(repoId, "authorEmail", repo, ctx)}
         >
           {(ids) => (
-            <CommitText id={ids.id} describedBy={ids.descriptionId} className="w-64" type="email" value={repo.authorEmail ?? ""} validate={checkEmail} onCommit={text("authorEmail")} />
+            <CommitText
+              id={ids.id}
+              describedBy={ids.descriptionId}
+              className="w-64"
+              type="email"
+              value={repo.authorEmail ?? ""}
+              validate={checkEmail}
+              onCommit={text("authorEmail")}
+            />
           )}
         </InheritRow>
       </SettingsCard>
@@ -136,19 +158,23 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
               <Select
                 id={ids.id}
                 value={repo.sshKeyId ?? ""}
-                options={keys.map((key) => ({ value: key.id, label: key.missing ? t("preferences.project.identity.keyMissing", { label: key.label }) : key.label }))}
+                options={keys.map((key) => ({
+                  value: key.id,
+                  label: key.missing ? t("preferences.project.identity.keyMissing", { label: key.label }) : key.label,
+                }))}
                 onValueChange={(value) => void applyRepoSettings(repoId, { sshKeyId: value })}
               />
             </div>
           )}
         </InheritRow>
-        <SettingRow
-          title={t("preferences.project.identity.account")}
-          description={t("preferences.project.identity.accountDescription")}
-        >
-          {() => <span className="text-sm text-text-muted">{account
+        <SettingRow title={t("preferences.project.identity.account")} description={t("preferences.project.identity.accountDescription")}>
+          {() => (
+            <span className="text-sm text-text-muted">
+              {account
                 ? t("preferences.project.identity.accountFromProfile", { account: account.user?.login ?? account.baseUrl })
-                : t("preferences.project.identity.noAccount")}</span>}
+                : t("preferences.project.identity.noAccount")}
+            </span>
+          )}
         </SettingRow>
       </SettingsCard>
       <SigningSettings repoId={repoId} />
@@ -185,12 +211,19 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
         </InheritRow>
         <InheritRow
           title={t("preferences.git.autoFetch.title")}
-          description={minutes === 0 ? t("preferences.project.git.autoFetchOffInProfile") : t("preferences.project.git.autoFetchDescription")}
+          description={
+            minutes === 0 ? t("preferences.project.git.autoFetchOffInProfile") : t("preferences.project.git.autoFetchDescription")
+          }
           inherited={minutes === 0 ? t("preferences.project.git.off") : t("preferences.project.git.every", { minutes })}
           {...inherit(repoId, "autoFetch", repo, ctx)}
         >
           {(ids) => (
-            <Switch id={ids.id} ariaDescribedBy={ids.descriptionId} checked={repo.autoFetch} onCheckedChange={(checked) => void applyRepoSettings(repoId, { autoFetch: checked })} />
+            <Switch
+              id={ids.id}
+              ariaDescribedBy={ids.descriptionId}
+              checked={repo.autoFetch}
+              onCheckedChange={(checked) => void applyRepoSettings(repoId, { autoFetch: checked })}
+            />
           )}
         </InheritRow>
         <SettingRow title={t("submoduleSync.setting.title")} description={t("submoduleSync.setting.description")}>
@@ -205,10 +238,20 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
         </SettingRow>
         <SettingRow
           title={t("pushCheck.ignored.title")}
-          description={repo.secretScanIgnoredCount ? t("pushCheck.ignored.description", { count: repo.secretScanIgnoredCount }) : t("pushCheck.ignored.none")}
+          description={
+            repo.secretScanIgnoredCount
+              ? t("pushCheck.ignored.description", { count: repo.secretScanIgnoredCount })
+              : t("pushCheck.ignored.none")
+          }
         >
           {(ids) => (
-            <Button id={ids.id} aria-describedby={ids.descriptionId} data-action="secret-scan-forget" disabled={repo.secretScanIgnoredCount === 0} onClick={() => void forgetIgnoredFindings(repoId)}>
+            <Button
+              id={ids.id}
+              aria-describedby={ids.descriptionId}
+              data-action="secret-scan-forget"
+              disabled={repo.secretScanIgnoredCount === 0}
+              onClick={() => void forgetIgnoredFindings(repoId)}
+            >
               {t("pushCheck.ignored.action")}
             </Button>
           )}
@@ -224,8 +267,11 @@ export function ProjectFilesSection({ repoId }: { repoId: Id }) {
   if (!repoSettings.data) return <Loading repoSettings={repoSettings} />;
   const settings = repoSettings.data;
   const encoding = settings.encoding.toLowerCase();
-  const encodings = ENCODINGS.some((item) => item.value === encoding) ? ENCODINGS : [...ENCODINGS, { value: encoding, label: settings.encoding }];
-  const text = (field: "hooksPath" | "commitTemplate") => async (value: string) => fieldError(await applyRepoSettings(repoId, { [field]: value || null }, { atField: true }));
+  const encodings = ENCODINGS.some((item) => item.value === encoding)
+    ? ENCODINGS
+    : [...ENCODINGS, { value: encoding, label: settings.encoding }];
+  const text = (field: "hooksPath" | "commitTemplate") => async (value: string) =>
+    fieldError(await applyRepoSettings(repoId, { [field]: value || null }, { atField: true }));
 
   return (
     <section>
@@ -234,14 +280,27 @@ export function ProjectFilesSection({ repoId }: { repoId: Id }) {
         <SettingRow title={t("preferences.project.files.encoding")} description={t("preferences.project.files.encodingDescription")}>
           {(ids) => (
             <div className="w-64">
-              <Select id={ids.id} value={encoding} options={encodings} onValueChange={(value) => void applyRepoSettings(repoId, { encoding: value })} />
+              <Select
+                id={ids.id}
+                value={encoding}
+                options={encodings}
+                onValueChange={(value) => void applyRepoSettings(repoId, { encoding: value })}
+              />
             </div>
           )}
         </SettingRow>
         <SettingRow stacked title={t("preferences.project.files.hooks")} description={t("preferences.project.files.hooksDescription")}>
           {(ids) => (
             <div className="flex items-start gap-2">
-              <CommitText id={ids.id} describedBy={ids.descriptionId} className="min-w-0 flex-1" mono placeholder=".git/hooks" value={settings.hooksPath ?? ""} onCommit={text("hooksPath")} />
+              <CommitText
+                id={ids.id}
+                describedBy={ids.descriptionId}
+                className="min-w-0 flex-1"
+                mono
+                placeholder=".git/hooks"
+                value={settings.hooksPath ?? ""}
+                onCommit={text("hooksPath")}
+              />
               <Button
                 icon={<FolderOpen className="size-icon" aria-hidden />}
                 aria-label={t("preferences.project.files.hooksBrowse")}
@@ -255,7 +314,11 @@ export function ProjectFilesSection({ repoId }: { repoId: Id }) {
             </div>
           )}
         </SettingRow>
-        <SettingRow stacked title={t("preferences.project.files.template")} description={t("preferences.project.files.templateDescription")}>
+        <SettingRow
+          stacked
+          title={t("preferences.project.files.template")}
+          description={t("preferences.project.files.templateDescription")}
+        >
           {(ids) => (
             <div className="flex items-start gap-2">
               <CommitText

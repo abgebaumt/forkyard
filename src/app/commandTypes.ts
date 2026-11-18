@@ -145,7 +145,11 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: string, mac: boo
   const { key } = parsed;
   if (/^[a-z]$/.test(key)) {
     // Letters by layout; with Alt on macOS, key yields a special character, then the physical key counts.
-    const letter = /^[a-z]$/i.test(event.key) ? event.key.toLowerCase() : event.code.startsWith("Key") ? event.code.slice(3).toLowerCase() : "";
+    const letter = /^[a-z]$/i.test(event.key)
+      ? event.key.toLowerCase()
+      : event.code.startsWith("Key")
+        ? event.code.slice(3).toLowerCase()
+        : "";
     return letter === key && event.shiftKey === parsed.shift;
   }
   if (/^[0-9]$/.test(key)) {

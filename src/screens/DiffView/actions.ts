@@ -34,7 +34,11 @@ export function reloadDiffs(repoId: Id, path: string): Promise<void> {
   });
 }
 
-const labels: Record<PatchAction, string> = { stage: t("diff.patch.stage"), unstage: t("diff.patch.unstage"), discard: t("diff.patch.discard") };
+const labels: Record<PatchAction, string> = {
+  stage: t("diff.patch.stage"),
+  unstage: t("diff.patch.unstage"),
+  discard: t("diff.patch.discard"),
+};
 
 /**
  * Runs stage, unstage or discard for a selection.
@@ -43,7 +47,10 @@ const labels: Record<PatchAction, string> = { stage: t("diff.patch.stage"), unst
 export async function applyPatch(action: PatchAction, repoId: Id, selection: PatchSelection, lines: number | null): Promise<PatchOutcome> {
   if (action === "discard") {
     const ok = await confirm({
-      title: lines === null ? t("diff.discard.hunkTitle", { path: selection.path }) : t("diff.discard.linesTitle", { count: lines, path: selection.path }),
+      title:
+        lines === null
+          ? t("diff.discard.hunkTitle", { path: selection.path })
+          : t("diff.discard.linesTitle", { count: lines, path: selection.path }),
       body: lines === null ? t("diff.discard.hunkBody") : t("diff.discard.linesBody"),
       confirmLabel: lines === null ? t("diff.hunk.discard") : t("diff.selection.discard", { count: lines }),
       danger: true,
@@ -52,7 +59,11 @@ export async function applyPatch(action: PatchAction, repoId: Id, selection: Pat
   }
 
   const call = action === "stage" ? core.stagePatch : action === "unstage" ? core.unstagePatch : core.discardPatch;
-  const outcome = await runAction(labels[action], withStatus(repoId, () => call({ repoId, selection })), { busyKey: patchBusyKey(repoId), quiet: ["stale_state"] });
+  const outcome = await runAction(
+    labels[action],
+    withStatus(repoId, () => call({ repoId, selection })),
+    { busyKey: patchBusyKey(repoId), quiet: ["stale_state"] },
+  );
 
   if (!outcome.ok) {
     if (outcome.error.code === "stale_state") {
@@ -86,4 +97,8 @@ export async function saveViewSetting(patch: Partial<Pick<Settings, "diffMode" |
   else if (before) queryClient.setQueryData(qk.settings, before);
 }
 
-export const modeLabels: Record<DiffMode, string> = { hunks: t("diff.mode.hunks"), inline: t("diff.mode.inline"), split: t("diff.mode.split") };
+export const modeLabels: Record<DiffMode, string> = {
+  hunks: t("diff.mode.hunks"),
+  inline: t("diff.mode.inline"),
+  split: t("diff.mode.split"),
+};

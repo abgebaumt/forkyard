@@ -28,7 +28,9 @@ describe("errors of “Write from commits” (spec “Zustände jedes KI-Element
   });
 
   it("offers “Show what was sent” for an unusable or too large answer, never a per-file “Leave out”", () => {
-    const markup = renderToStaticMarkup(<PrAiErrorNotice view={{ kind: "tooLarge", text: "Too large." }} provider="ollama" onAgain={none} onShowSent={none} />);
+    const markup = renderToStaticMarkup(
+      <PrAiErrorNotice view={{ kind: "tooLarge", text: "Too large." }} provider="ollama" onAgain={none} onShowSent={none} />,
+    );
     expect(markup).toContain("Show what was sent</button>");
     expect(markup).not.toContain("Leave out");
   });

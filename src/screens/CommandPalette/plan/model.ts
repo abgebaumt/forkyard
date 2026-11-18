@@ -176,11 +176,15 @@ export function stepTitle(step: PlanStep): string {
     case "branchRename":
       return t("palette.plan.step.branchRename", { name: a("name"), newName: a("newName") });
     case "branchDelete":
-      return flag("force") ? t("palette.plan.step.branchDeleteForce", { name: a("name") }) : t("palette.plan.step.branchDelete", { name: a("name") });
+      return flag("force")
+        ? t("palette.plan.step.branchDeleteForce", { name: a("name") })
+        : t("palette.plan.step.branchDelete", { name: a("name") });
     case "resetBranch":
       return t("palette.plan.step.resetBranch", { target: a("target"), mode: modeWord(a("resetMode")) });
     case "rebaseStart":
-      return a("branch") ? t("palette.plan.step.rebaseStartBranch", { branch: a("branch"), onto: a("onto") }) : t("palette.plan.step.rebaseStart", { onto: a("onto") });
+      return a("branch")
+        ? t("palette.plan.step.rebaseStartBranch", { branch: a("branch"), onto: a("onto") })
+        : t("palette.plan.step.rebaseStart", { onto: a("onto") });
     case "cherryPick":
       return t("palette.plan.step.cherryPick", { commits: a("commits") });
     case "revertCommit":
@@ -275,7 +279,10 @@ export function applyDraft(step: PlanStepView, draft: Draft): PlanStep {
         args[field.name] = value === true;
         break;
       case "list":
-        args[field.name] = String(value ?? "").split(/[,\n]/).map((part) => part.trim()).filter(Boolean);
+        args[field.name] = String(value ?? "")
+          .split(/[,\n]/)
+          .map((part) => part.trim())
+          .filter(Boolean);
         break;
       case "text":
       case "choice":
@@ -322,7 +329,8 @@ export function footerKeys(phase: PlanPhase): [string, string][] {
         ["E", t("palette.plan.footer.edit")],
         [t("palette.plan.keys.delete"), t("palette.plan.footer.remove")],
       ];
-      if (phase.preview.steps[phase.selected]?.class === "outward") keys.push([t("palette.plan.keys.space"), t("palette.plan.footer.confirm")]);
+      if (phase.preview.steps[phase.selected]?.class === "outward")
+        keys.push([t("palette.plan.keys.space"), t("palette.plan.footer.confirm")]);
       keys.push(["Esc", t("palette.plan.footer.back")]);
       return keys;
     }

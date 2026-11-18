@@ -79,7 +79,16 @@ export function makeBareStatsRepo(name = "messnetz-statistik") {
     GIT_AUTHOR_DATE: `${when.time} ${when.zone}`,
     GIT_COMMITTER_DATE: `${when.committed ?? when.time} ${when.zone}`,
   });
-  const git = (...args) => execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 }).toString().replace(/\n$/, "");
+  const git = (...args) =>
+    execFileSync("git", args, {
+      cwd: repoPath,
+      env: env(),
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
+    })
+      .toString()
+      .replace(/\n$/, "");
   const write = (rel, content) => {
     const target = path.join(repoPath, rel);
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -329,7 +338,11 @@ export function codeAgeFromBlame(repo, rev = "HEAD", reference = Math.floor(Date
  */
 export function pathLineage(repo, file, rev = "HEAD") {
   const out = repo.git("-c", "core.quotePath=false", "log", "--no-merges", "-M", "--diff-filter=R", "--name-status", "--format=", rev);
-  const renames = out.split("\n").filter((line) => line.startsWith("R")).map((line) => line.split("\t")).map(([, from, to]) => ({ from, to }));
+  const renames = out
+    .split("\n")
+    .filter((line) => line.startsWith("R"))
+    .map((line) => line.split("\t"))
+    .map(([, from, to]) => ({ from, to }));
   const paths = [file];
   for (const { from, to } of renames) if (to === paths.at(-1)) paths.push(from);
   return paths;
@@ -383,7 +396,20 @@ export function knowledgeFromGit(repo, rev = "HEAD") {
   return result;
 }
 
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 const parts = (iso) => {
   const [year, month, day] = iso.split("-").map(Number);
   return { year, month: MONTH_NAMES[month - 1], day };

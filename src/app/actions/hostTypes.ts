@@ -15,7 +15,13 @@ export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devo
 /** In the order the app offers them. */
 export const HOST_KINDS: HostKind[] = ["github", "gitlab", "gitea", "bitbucket", "azure_devops"];
 
-export const hostKindLabels: Record<HostKind, string> = { github: "GitHub", gitlab: "GitLab", gitea: "Gitea/Forgejo", bitbucket: "Bitbucket", azure_devops: "Azure DevOps" };
+export const hostKindLabels: Record<HostKind, string> = {
+  github: "GitHub",
+  gitlab: "GitLab",
+  gitea: "Gitea/Forgejo",
+  bitbucket: "Bitbucket",
+  azure_devops: "Azure DevOps",
+};
 
 /** What the host calls the thing – GitLab speaks of merge requests. The app uniformly says pull request. */
 export const hostPrWord: Record<HostKind, string> = {
@@ -114,8 +120,23 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
   github: { ...ALL_FEATURES, draftToggle: false, mergeMethods: ["merge", "squash", "rebase"] },
   gitlab: { ...ALL_FEATURES, mergeMethods: ["merge", "squash"] },
   gitea: { ...ALL_FEATURES, reviewReplyQuotes: true, mergeMethods: ["merge", "squash", "rebase"] },
-  bitbucket: { ...ALL_FEATURES, prReopen: false, prReviewers: false, prLabels: false, forkCheckout: false, releases: false, mergeMethods: ["merge", "squash"] },
-  azure_devops: { ...ALL_FEATURES, issueCreate: true, prReviewers: false, forkCheckout: false, releases: false, mergeMethods: ["merge", "squash", "rebase"] },
+  bitbucket: {
+    ...ALL_FEATURES,
+    prReopen: false,
+    prReviewers: false,
+    prLabels: false,
+    forkCheckout: false,
+    releases: false,
+    mergeMethods: ["merge", "squash"],
+  },
+  azure_devops: {
+    ...ALL_FEATURES,
+    issueCreate: true,
+    prReviewers: false,
+    forkCheckout: false,
+    releases: false,
+    mergeMethods: ["merge", "squash", "rebase"],
+  },
 };
 
 export interface PrSummary {
@@ -208,7 +229,8 @@ export interface PrCreateInput {
 type Loose = Record<string, unknown>;
 
 const isObject = (value: unknown): value is Loose => typeof value === "object" && value !== null && !Array.isArray(value);
-const text = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value : typeof value === "number" ? String(value) : null);
+const text = (value: unknown): string | null =>
+  typeof value === "string" && value.length > 0 ? value : typeof value === "number" ? String(value) : null;
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
 const flag = (value: unknown, fallback = false): boolean => (typeof value === "boolean" ? value : fallback);
 const pick = (source: Loose, ...keys: string[]): unknown => {
@@ -226,7 +248,7 @@ export function toUser(value: unknown): HostUser | null {
 }
 
 const toLabel = (value: unknown): string | null => (isObject(value) ? text(value.name) : text(value));
-const notNull = <T,>(value: T | null): value is T => value !== null;
+const notNull = <T>(value: T | null): value is T => value !== null;
 
 const toKind = (value: unknown): HostKind | null => ((HOST_KINDS as unknown[]).includes(value) ? (value as HostKind) : null);
 
@@ -249,14 +271,31 @@ export function toAccount(value: unknown): HostAccountInfo | null {
 }
 
 type CapabilityFlag = Exclude<keyof HostCapabilities, "mergeMethods">;
-const CAPABILITY_FLAGS: CapabilityFlag[] = ["issues", "issueCreate", "draftPrs", "draftToggle", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout", "releases", "reviewThreads", "reviewReply", "reviewReplyQuotes"];
+const CAPABILITY_FLAGS: CapabilityFlag[] = [
+  "issues",
+  "issueCreate",
+  "draftPrs",
+  "draftToggle",
+  "deleteSourceBranch",
+  "prReopen",
+  "prReviewers",
+  "prLabels",
+  "forkCheckout",
+  "releases",
+  "reviewThreads",
+  "reviewReply",
+  "reviewReplyQuotes",
+];
 const isMergeMethod = (value: unknown): value is MergeMethod => value === "merge" || value === "squash" || value === "rebase";
 
 /** The core's capabilities; whatever is missing or malformed comes from the host kind's defaults. */
 export function toCapabilities(value: unknown, kind: HostKind | null): HostCapabilities {
   const fallback = defaultCapabilities[kind ?? "github"];
   if (!isObject(value)) return fallback;
-  const result: HostCapabilities = { ...fallback, mergeMethods: Array.isArray(value.mergeMethods) ? value.mergeMethods.filter(isMergeMethod) : fallback.mergeMethods };
+  const result: HostCapabilities = {
+    ...fallback,
+    mergeMethods: Array.isArray(value.mergeMethods) ? value.mergeMethods.filter(isMergeMethod) : fallback.mergeMethods,
+  };
   for (const key of CAPABILITY_FLAGS) result[key] = flag(value[key], fallback[key]);
   return result;
 }
@@ -282,14 +321,22 @@ export function toHostRepo(value: unknown, accounts: HostAccountInfo[] = []): Ho
     webUrl: text(value.webUrl),
     defaultBranch: text(value.defaultBranch),
     canPush: flag(value.canPush, true),
-    forkParent: parent && parentOwner && parentName ? { owner: parentOwner, name: parentName, defaultBranch: text(parent.defaultBranch) } : null,
+    forkParent:
+      parent && parentOwner && parentName ? { owner: parentOwner, name: parentName, defaultBranch: text(parent.defaultBranch) } : null,
     capabilities: toCapabilities(value.capabilities, kind),
-    error: failure ? new CoreError({ code: (text(failure.code) ?? "unknown") as CoreError["code"], message: text(failure.message) ?? "", gitOutput: null }) : null,
+    error: failure
+      ? new CoreError({
+          code: (text(failure.code) ?? "unknown") as CoreError["code"],
+          message: text(failure.message) ?? "",
+          gitOutput: null,
+        })
+      : null,
   };
 }
 
 const toPrState = (value: unknown): PrState => (value === "closed" || value === "merged" ? value : "open");
-const toCheckState = (value: unknown): CheckState | null => (value === "passing" || value === "failing" || value === "pending" ? value : null);
+const toCheckState = (value: unknown): CheckState | null =>
+  value === "passing" || value === "failing" || value === "pending" ? value : null;
 
 export function toPrSummary(value: unknown): PrSummary | null {
   if (!isObject(value)) return null;
@@ -362,11 +409,26 @@ export function toPrDetails(value: unknown): PrDetails | null {
     reviewers: list(value.reviewers).map(toReviewer).filter(notNull),
     comments: list(value.comments).map(toComment).filter(notNull),
     commits,
-    mergeable: typeof mergeable === "boolean" ? mergeable : mergeable === "mergeable" ? true : mergeable === "conflicting" || mergeable === "blocked" ? false : null,
+    mergeable:
+      typeof mergeable === "boolean"
+        ? mergeable
+        : mergeable === "mergeable"
+          ? true
+          : mergeable === "conflicting" || mergeable === "blocked"
+            ? false
+            : null,
     mergeBlocked: text(pick(value, "mergeBlocked", "mergeBlockedReason", "mergeableReason")),
     // `checks` is the summary in the list, and the list of individual checks in the details.
-    checkRuns: list(Array.isArray(value.checks) ? value.checks : value.checkRuns).map(toCheck).filter(notNull),
-    checks: summary.checks ?? summarizeChecks(list(Array.isArray(value.checks) ? value.checks : value.checkRuns).map(toCheck).filter(notNull)),
+    checkRuns: list(Array.isArray(value.checks) ? value.checks : value.checkRuns)
+      .map(toCheck)
+      .filter(notNull),
+    checks:
+      summary.checks ??
+      summarizeChecks(
+        list(Array.isArray(value.checks) ? value.checks : value.checkRuns)
+          .map(toCheck)
+          .filter(notNull),
+      ),
     baseSha: text(value.baseSha),
     headSha: text(value.headSha) ?? commits[commits.length - 1]?.sha ?? null,
   };
@@ -421,35 +483,45 @@ async function prRange(repoId: Id, pr: Pick<PrDetails, "commits" | "headSha">): 
 // Calls
 // ---------------------------------------------------------------------------
 
-const need = <T,>(value: T | null, what: string): T => {
+const need = <T>(value: T | null, what: string): T => {
   if (value === null) throw new CoreError({ code: "unknown", message: t("actions.hosts.unexpectedShape", { what }), gitOutput: null });
   return value;
 };
 
 /** The host integration commands from src/core/api.ts, with the results in the shape above. */
 export const hostApi = {
-  accounts: async (): Promise<HostAccountInfo[]> => list(await core.hostAccounts()).map(toAccount).filter(notNull),
+  accounts: async (): Promise<HostAccountInfo[]> =>
+    list(await core.hostAccounts())
+      .map(toAccount)
+      .filter(notNull),
   /** Checks the token against the API and stores it in the keychain. `username` only for Bitbucket. */
   connect: async (input: { kind: HostKind; baseUrl: string | null; token: string; username?: string | null }): Promise<HostAccountInfo> =>
     need(toAccount(await core.hostConnect(input)), t("actions.hosts.what.account")),
   /** GitHub with the GitHub CLI's login: the core reads the token from gh itself. */
-  connectGh: async (baseUrl: string | null): Promise<HostAccountInfo> => need(toAccount(await core.hostConnectGh({ baseUrl })), t("actions.hosts.what.account")),
+  connectGh: async (baseUrl: string | null): Promise<HostAccountInfo> =>
+    need(toAccount(await core.hostConnectGh({ baseUrl })), t("actions.hosts.what.account")),
   disconnect: (accountId: Id): Promise<unknown> => core.hostDisconnect({ accountId }),
   /** Returns even when the host refuses – the reason is in `lastError`. */
   check: async (accountId: Id): Promise<HostAccountInfo | null> => toAccount(await core.hostCheck({ accountId })),
-  repoInfo: async (repoId: Id, accounts: HostAccountInfo[] = []): Promise<HostRepo | null> => toHostRepo(await core.hostRepoInfo({ repoId }), accounts),
+  repoInfo: async (repoId: Id, accounts: HostAccountInfo[] = []): Promise<HostRepo | null> =>
+    toHostRepo(await core.hostRepoInfo({ repoId }), accounts),
 
   /** One page of the list (page 1 first), most recently changed first. */
   prList: async (repoId: Id, state: PrListState, page: number): Promise<PrPage> => {
     const raw: unknown = await core.prList({ repoId, state, page });
-    const items = list(isObject(raw) ? raw.items : raw).map(toPrSummary).filter(notNull);
+    const items = list(isObject(raw) ? raw.items : raw)
+      .map(toPrSummary)
+      .filter(notNull);
     const next = isObject(raw) ? raw.nextPage : null;
     return { items, nextPage: typeof next === "number" ? next : null };
   },
-  prGet: async (repoId: Id, number: number): Promise<PrDetails> => need(toPrDetails(await core.prGet({ repoId, number })), t("actions.hosts.what.pr")),
-  prCreate: async (input: PrCreateInput): Promise<PrSummary> => need(toPrSummary(await core.prCreate(input)), t("actions.hosts.what.newPr")),
+  prGet: async (repoId: Id, number: number): Promise<PrDetails> =>
+    need(toPrDetails(await core.prGet({ repoId, number })), t("actions.hosts.what.pr")),
+  prCreate: async (input: PrCreateInput): Promise<PrSummary> =>
+    need(toPrSummary(await core.prCreate(input)), t("actions.hosts.what.newPr")),
   prComment: (repoId: Id, number: number, body: string): Promise<unknown> => core.prComment({ repoId, number, body }),
-  prMerge: (repoId: Id, number: number, method: MergeMethod, deleteBranch: boolean): Promise<unknown> => core.prMerge({ repoId, number, method, deleteBranch }),
+  prMerge: (repoId: Id, number: number, method: MergeMethod, deleteBranch: boolean): Promise<unknown> =>
+    core.prMerge({ repoId, number, method, deleteBranch }),
   prClose: (repoId: Id, number: number): Promise<unknown> => core.prClose({ repoId, number }),
   prReopen: (repoId: Id, number: number): Promise<unknown> => core.prReopen({ repoId, number }),
   /** Fetches the pull request's branch and checks it out. */
@@ -459,7 +531,8 @@ export const hostApi = {
   /** Review threads (comments on lines) with their resolved state; `host_unsupported` where the host has none. */
   reviewThreads: (repoId: Id, number: number): Promise<ReviewThread[]> => core.prReviewThreads({ repoId, number }),
   /** Answer in a review thread; `quoted: true` = posted as a new comment on the same line with a quote. */
-  reviewReply: (repoId: Id, number: number, threadId: string, body: string): Promise<ReviewReply> => core.prReviewReply({ repoId, number, threadId, body }),
+  reviewReply: (repoId: Id, number: number, threadId: string, body: string): Promise<ReviewReply> =>
+    core.prReviewReply({ repoId, number, threadId, body }),
   prRange,
 };
 
@@ -467,7 +540,17 @@ export const hostApi = {
 // Host integration errors
 // ---------------------------------------------------------------------------
 
-export type HostErrorKind = "not_connected" | "auth" | "rate_limit" | "not_found" | "unsupported" | "rejected" | "permission" | "offline" | "not_built" | "other";
+export type HostErrorKind =
+  | "not_connected"
+  | "auth"
+  | "rate_limit"
+  | "not_found"
+  | "unsupported"
+  | "rejected"
+  | "permission"
+  | "offline"
+  | "not_built"
+  | "other";
 
 export function hostErrorKind(error: unknown): HostErrorKind {
   const code = isObject(error) || error instanceof Error ? String((error as { code?: unknown }).code ?? "") : "";

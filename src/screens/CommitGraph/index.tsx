@@ -18,10 +18,32 @@
  * Enter (details), B (highlight the row's branch, again or Esc clears it), ← / → (collapse / expand
  * the selected merge), menu key.
  */
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import { Filter, GitCommitHorizontal, Highlighter, Loader2, RefreshCw, TriangleAlert, Unplug } from "lucide-react";
-import { core, CoreError, startupMark, type GraphPage, type GraphRow, type Id, type Ref, type RefLabelInfo, type RepoViewState, type Sha } from "../../core";
+import {
+  core,
+  CoreError,
+  startupMark,
+  type GraphPage,
+  type GraphRow,
+  type Id,
+  type Ref,
+  type RefLabelInfo,
+  type RepoViewState,
+  type Sha,
+} from "../../core";
 import { checkout, createBranch } from "../../app/actions/branches";
 import { setMergeCollapsed } from "../../app/actions/collapse";
 import { setSmartVisibility, smartBlock, syncSmartVisibility } from "../../app/actions/graphView";
@@ -29,19 +51,57 @@ import { confirm, showOutput } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
 import { shortSha } from "../../app/format";
 import { branchMenu, commitMenu, dropMenu, stashMenu, tagMenu, wipMenu } from "../../app/menus";
-import { keepFirstPage, qk, queryClient, useBisectStatus, useGraph, useRefs, useSettings, useStashes, useStatus, useTicketLinks, useViewState } from "../../app/queries";
+import {
+  keepFirstPage,
+  qk,
+  queryClient,
+  useBisectStatus,
+  useGraph,
+  useRefs,
+  useSettings,
+  useStashes,
+  useStatus,
+  useTicketLinks,
+  useViewState,
+} from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { layoutColumns, normalizeColumns, type ColumnState } from "../../components/graph/columns";
-import { branchLabelOf, computeHighlight, computePinnedChain, decorateRow, EdgeHighlighter, laneMapsAt, nearestBranch, type PaintRow, type PinnedChain } from "../../components/graph/decor";
+import {
+  branchLabelOf,
+  computeHighlight,
+  computePinnedChain,
+  decorateRow,
+  EdgeHighlighter,
+  laneMapsAt,
+  nearestBranch,
+  type PaintRow,
+  type PinnedChain,
+} from "../../components/graph/decor";
 import { graphWidthFor, readMetrics, rootZoom } from "../../components/graph/geometry";
 import { GraphCanvas, type GraphDecor } from "../../components/graph/GraphCanvas";
 import { GraphHeader, type SmartToggle } from "../../components/graph/GraphHeader";
 import { BisectBar } from "../Bisect/BisectBar";
 import { AutopilotBar } from "../Bisect/AutopilotBar";
 import { bisectMarks } from "../Bisect/model";
-import { activeKey, changeCount, GraphRowView, ROW_SELECTED, rowFlags, rowKey, selectionOf, type RowShared } from "../../components/graph/GraphRowView";
-import { clearHighlight, currentHighlight, endHoverHighlight, hoverHighlight, toggleStickyHighlight, useHighlightTarget } from "../../components/graph/highlightStore";
+import {
+  activeKey,
+  changeCount,
+  GraphRowView,
+  ROW_SELECTED,
+  rowFlags,
+  rowKey,
+  selectionOf,
+  type RowShared,
+} from "../../components/graph/GraphRowView";
+import {
+  clearHighlight,
+  currentHighlight,
+  endHoverHighlight,
+  hoverHighlight,
+  toggleStickyHighlight,
+  useHighlightTarget,
+} from "../../components/graph/highlightStore";
 import { PointMenu, type PointMenuState } from "../../components/graph/PointMenu";
 import { RowMarks } from "../../components/graph/rowMarks";
 import { setSmartRecord, smartSelection, useSmartRecord, type SmartSelection } from "../../components/graph/smart";
@@ -120,19 +180,27 @@ function flatten(pages: GraphPage[] | undefined): FlatGraph {
   return { rows, indexByKey, hasWip: wip !== null, maxLane, commitCount };
 }
 
-const isCommitRow = (row: GraphRow | undefined): row is GraphRow & { sha: Sha } => Boolean(row && row.sha && (row.kind === "commit" || row.kind === "merge"));
+const isCommitRow = (row: GraphRow | undefined): row is GraphRow & { sha: Sha } =>
+  Boolean(row && row.sha && (row.kind === "commit" || row.kind === "merge"));
 
-const shortRefName = (fullName: string) => (fullName === STASH_REF ? t("commitGraph.filter.stashes") : fullName.replace(/^refs\/(heads|remotes|tags)\//, ""));
+const shortRefName = (fullName: string) =>
+  fullName === STASH_REF ? t("commitGraph.filter.stashes") : fullName.replace(/^refs\/(heads|remotes|tags)\//, "");
 
 /** “main, origin/main and develop” – what the selection “current branch, upstream, target” shows. */
 function smartText(selection: SmartSelection): string {
   const names = [selection.current.name, selection.upstream?.name, selection.target?.name].filter((name): name is string => Boolean(name));
-  return names.length <= 1 ? (names[0] ?? "") : t("commitGraph.filter.list", { first: names.slice(0, -1).join(", "), last: names[names.length - 1] });
+  return names.length <= 1
+    ? (names[0] ?? "")
+    : t("commitGraph.filter.list", { first: names.slice(0, -1).join(", "), last: names[names.length - 1] });
 }
 
 function filterText(view: RepoViewState, smart: SmartSelection | null): string {
   if (smart) {
-    const parts = [t("commitGraph.filter.currentBranch"), smart.upstream ? t("commitGraph.filter.upstream") : null, smart.target ? t("commitGraph.filter.target") : null].filter(Boolean);
+    const parts = [
+      t("commitGraph.filter.currentBranch"),
+      smart.upstream ? t("commitGraph.filter.upstream") : null,
+      smart.target ? t("commitGraph.filter.target") : null,
+    ].filter(Boolean);
     return t("commitGraph.filter.smart", { names: smartText(smart), parts: parts.join(", ") });
   }
   if (view.soloRefs.length === 1) return t("commitGraph.filter.soloOne", { name: shortRefName(view.soloRefs[0]!) });
@@ -150,7 +218,9 @@ function reloadGraph(repoId: Id) {
 async function showAllRefs(repoId: Id) {
   // “Show all” also turns off the selection “current branch, upstream, target”.
   setSmartRecord(repoId, null);
-  const result = await runAction(t("commitGraph.filter.clear"), () => core.viewStateSet({ repoId, patch: { hiddenRefs: [], soloRefs: [] } }));
+  const result = await runAction(t("commitGraph.filter.clear"), () =>
+    core.viewStateSet({ repoId, patch: { hiddenRefs: [], soloRefs: [] } }),
+  );
   if (!result.ok) return;
   queryClient.setQueryData(qk.viewState(repoId), result.value);
   void reloadGraph(repoId);
@@ -167,7 +237,10 @@ const SKELETON_MESSAGE = ["w-3/5", "w-2/5", "w-4/5", "w-1/2", "w-2/3", "w-1/3", 
 function GraphSkeleton() {
   return (
     <div role="status" aria-label={t("commitGraph.loading")} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex h-control-md shrink-0 items-center border-b border-border bg-surface text-xs font-semibold tracking-wide text-text-muted uppercase" aria-hidden>
+      <div
+        className="flex h-control-md shrink-0 items-center border-b border-border bg-surface text-xs font-semibold tracking-wide text-text-muted uppercase"
+        aria-hidden
+      >
         <span className="w-40 px-2">{HEADER_LABELS[0]}</span>
         <span className="w-16 px-2">{HEADER_LABELS[1]}</span>
         <span className="flex-1 px-2">{HEADER_LABELS[2]}</span>
@@ -175,7 +248,9 @@ function GraphSkeleton() {
       <div className="animate-pulse" aria-hidden>
         {Array.from({ length: 24 }, (_, index) => (
           <div key={index} className="flex h-graph-row items-center">
-            <div className="flex w-40 justify-end px-2">{index % 5 === 1 ? <span className="h-4 w-20 rounded-sm bg-surface-raised" /> : null}</div>
+            <div className="flex w-40 justify-end px-2">
+              {index % 5 === 1 ? <span className="h-4 w-20 rounded-sm bg-surface-raised" /> : null}
+            </div>
             <div className="flex w-16 items-center px-2">
               <span className="ml-1 size-node rounded-pill bg-surface-raised" />
             </div>
@@ -205,7 +280,9 @@ function GraphError({ error, busy, onRetry }: { error: unknown; busy: boolean; o
             <Button variant="primary" loading={busy} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
               {t("commitGraph.retry")}
             </Button>
-            {output ? <Button onClick={() => void showOutput(t("commitGraph.outputTitle"), output)}>{t("commitGraph.showOutput")}</Button> : null}
+            {output ? (
+              <Button onClick={() => void showOutput(t("commitGraph.outputTitle"), output)}>{t("commitGraph.showOutput")}</Button>
+            ) : null}
           </div>
         }
       >
@@ -217,7 +294,11 @@ function GraphError({ error, busy, onRetry }: { error: unknown; busy: boolean; o
 
 function FilterBar({ repoId, view, smart }: { repoId: Id; view: RepoViewState; smart: SmartSelection | null }) {
   return (
-    <div role="status" data-graph-filter={smart ? "smart" : "manual"} className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-accent-surface pr-1 pl-2 text-sm">
+    <div
+      role="status"
+      data-graph-filter={smart ? "smart" : "manual"}
+      className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-accent-surface pr-1 pl-2 text-sm"
+    >
       <Filter className="size-3.5 shrink-0 text-accent" aria-hidden />
       <p className="min-w-0 flex-1 truncate">
         <span className="font-medium">{t("commitGraph.filter.title")}</span>
@@ -233,13 +314,21 @@ function FilterBar({ repoId, view, smart }: { repoId: Id; view: RepoViewState; s
 /** No branch checked out: says so above the graph and offers the way out (the commit panel shows the same for the local changes). */
 function DetachedBar({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
   return (
-    <div role="status" data-graph-detached className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-warning-surface pr-1 pl-2 text-sm">
+    <div
+      role="status"
+      data-graph-detached
+      className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-warning-surface pr-1 pl-2 text-sm"
+    >
       <Unplug className="size-3.5 shrink-0 text-warning" aria-hidden />
       <p className="min-w-0 flex-1 truncate">
         <span className="font-medium">{t("commitGraph.detached.title")}</span>
         <span className="text-text-muted">
           {" "}
-          <Trans i18nKey="commitGraph.detached.text" values={{ sha: shortSha(sha) }} components={{ code: <code className="font-mono text-code" /> }} />
+          <Trans
+            i18nKey="commitGraph.detached.text"
+            values={{ sha: shortSha(sha) }}
+            components={{ code: <code className="font-mono text-code" /> }}
+          />
         </span>
       </p>
       <Button size="sm" variant="ghost" onClick={() => void createBranch(repoId, { checkout: true, tabId })}>
@@ -252,13 +341,22 @@ function DetachedBar({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }
 /** A branch is pinned as highlighted (key B): says which one and how to clear it. */
 function HighlightBar({ repoId, name, count, loaded }: { repoId: Id; name: string; count: number | null; loaded: boolean }) {
   return (
-    <div role="status" data-graph-highlight className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-2 text-sm">
+    <div
+      role="status"
+      data-graph-highlight
+      className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-2 text-sm"
+    >
       <Highlighter className="size-3.5 shrink-0 text-accent" aria-hidden />
       <p className="min-w-0 flex-1 truncate">
         <span className="font-medium">{t("commitGraph.highlight.title", { name })}</span>
         <span className="text-text-muted">
           {" "}
-          · {count === null ? t("commitGraph.highlight.notLoaded") : loaded ? t("commitGraph.highlight.count", { count }) : t("commitGraph.highlight.countLoaded", { count })}
+          ·{" "}
+          {count === null
+            ? t("commitGraph.highlight.notLoaded")
+            : loaded
+              ? t("commitGraph.highlight.count", { count })
+              : t("commitGraph.highlight.countLoaded", { count })}
         </span>
       </p>
       <Button size="sm" variant="ghost" onClick={() => clearHighlight(repoId)}>
@@ -275,9 +373,26 @@ function HighlightBar({ repoId, name, count, loaded }: { repoId: Id; name: strin
 type GraphQuery = ReturnType<typeof useGraph>;
 type FooterState = "loading" | "more" | "error" | "end";
 
-function GraphFooter({ top, state, count, columns, onMore }: { top: number; state: FooterState; count: number; columns: number; onMore: () => void }) {
+function GraphFooter({
+  top,
+  state,
+  count,
+  columns,
+  onMore,
+}: {
+  top: number;
+  state: FooterState;
+  count: number;
+  columns: number;
+  onMore: () => void;
+}) {
   return (
-    <div role="row" data-graph-footer={state} className="absolute top-0 left-0 flex h-graph-row w-full items-center justify-center text-sm text-text-muted" style={{ transform: `translateY(${top}px)` }}>
+    <div
+      role="row"
+      data-graph-footer={state}
+      className="absolute top-0 left-0 flex h-graph-row w-full items-center justify-center text-sm text-text-muted"
+      style={{ transform: `translateY(${top}px)` }}
+    >
       <div role="gridcell" aria-colspan={columns} className="flex items-center gap-2">
         {state === "loading" ? (
           <>
@@ -404,7 +519,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
   const targetRef = target ? refByFull.get(target.fullName) : undefined;
   const targetSha = targetRef?.sha ?? null;
   const targetIsHead = targetRef?.isHead ?? false;
-  const highlight = useMemo(() => (targetSha ? computeHighlight(rows, indexByKey, targetSha, targetIsHead) : null), [rows, indexByKey, targetSha, targetIsHead]);
+  const highlight = useMemo(
+    () => (targetSha ? computeHighlight(rows, indexByKey, targetSha, targetIsHead) : null),
+    [rows, indexByKey, targetSha, targetIsHead],
+  );
   useLayoutEffect(() => {
     marks.setMember(highlight?.member ?? null);
   }, [marks, highlight]);
@@ -424,7 +542,13 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
           if (!row) return undefined;
           let painted = made.get(index);
           if (!painted) {
-            painted = decorateRow(row, laneMapsAt(chains, index), highlight !== null && highlight.member[index] !== 1, hot ? (hot[index - first] ?? null) : null, highlight !== null);
+            painted = decorateRow(
+              row,
+              laneMapsAt(chains, index),
+              highlight !== null && highlight.member[index] !== 1,
+              hot ? (hot[index - first] ?? null) : null,
+              highlight !== null,
+            );
             made.set(index, painted);
           }
           return painted;
@@ -541,7 +665,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
         return;
       }
       if (mode === "range") {
-        const from = (anchor.current !== null ? indexByKeyRef.current.get(anchor.current) : undefined) ?? indexByKeyRef.current.get(activeKey(selection) ?? "") ?? index;
+        const from =
+          (anchor.current !== null ? indexByKeyRef.current.get(anchor.current) : undefined) ??
+          indexByKeyRef.current.get(activeKey(selection) ?? "") ??
+          index;
         const step = from <= index ? 1 : -1;
         const shas: Sha[] = [];
         for (let at = from; at !== index + step; at += step) {
@@ -587,7 +714,10 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     const focusPanel = () => {
       const panel = document.querySelector<HTMLElement>('[data-area="right"]');
       const elapsed = performance.now() - started;
-      const anything = panel?.querySelector<HTMLElement>('button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex="0"]') ?? null;
+      const anything =
+        panel?.querySelector<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), textarea:not([disabled]), [tabindex="0"]',
+        ) ?? null;
       // Local changes: straight into the file list (S, U, Del work there), otherwise into the message field –
       // not onto the first button in the panel header (that is “Discard all changes”).
       let target = anything;
@@ -623,14 +753,24 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     if (row.kind === "wip") return openMenu({ entries: wipMenu({ repoId, tabId }), label: t("commitGraph.menu.wip"), ...point, restore });
     if (row.kind === "stash") {
       const stash = stashes?.find((candidate) => candidate.index === row.stashIndex);
-      return stash ? openMenu({ entries: stashMenu({ repoId, tabId, stash }), label: t("commitGraph.menu.stash", { message: stash.message }), ...point, restore }) : false;
+      return stash
+        ? openMenu({
+            entries: stashMenu({ repoId, tabId, stash }),
+            label: t("commitGraph.menu.stash", { message: stash.message }),
+            ...point,
+            restore,
+          })
+        : false;
     }
     if (!row.sha) return false;
     const selection = selectionOf(useAppStore.getState(), tabId);
     const shas = selection?.kind === "commits" && selection.shas.includes(row.sha) ? selection.shas : [row.sha];
     return openMenu({
       entries: commitMenu({ repoId, tabId, shas }),
-      label: shas.length === 1 ? t("commitGraph.menu.commit", { sha: shortSha(row.sha) }) : t("commitGraph.menu.commits", { count: shas.length }),
+      label:
+        shas.length === 1
+          ? t("commitGraph.menu.commit", { sha: shortSha(row.sha) })
+          : t("commitGraph.menu.commits", { count: shas.length }),
       ...point,
       restore,
     });
@@ -640,7 +780,12 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     const ref = refByFull.get(fullName);
     if (!ref) return false;
     const entries = ref.kind === "tag" ? tagMenu({ repoId, tabId, ref }) : branchMenu({ repoId, tabId, ref });
-    return openMenu({ entries, label: ref.kind === "tag" ? t("commitGraph.menu.tag", { name: ref.name }) : t("commitGraph.menu.branch", { name: ref.name }), ...point, restore: () => focusRow(rowIndex) });
+    return openMenu({
+      entries,
+      label: ref.kind === "tag" ? t("commitGraph.menu.tag", { name: ref.name }) : t("commitGraph.menu.branch", { name: ref.name }),
+      ...point,
+      restore: () => focusRow(rowIndex),
+    });
   };
 
   // --- Checkout per Doppelklick -------------------------------------------------------------------
@@ -838,7 +983,9 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
       const rect = element?.getBoundingClientRect();
       const zoom = rootZoom();
       // Below the row, at the start of the message.
-      const opened = rect ? openRowMenu(cursor, { x: rect.left + (layout.widths.refs + layout.widths.graph + 8) * zoom, y: rect.bottom }) : false;
+      const opened = rect
+        ? openRowMenu(cursor, { x: rect.left + (layout.widths.refs + layout.widths.graph + 8) * zoom, y: rect.bottom })
+        : false;
       if (opened) keyboardMenuAt.current = Date.now();
       return;
     } else return;
@@ -861,7 +1008,15 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
     if (!lazyLoad || !hasNextPage || isFetching || isFetchNextPageError) return;
     if (lastVisible >= rows.length - LOAD_AHEAD) void fetchNextPage({ cancelRefetch: false });
   }, [lazyLoad, hasNextPage, isFetching, isFetchNextPageError, lastVisible, rows.length, fetchNextPage]);
-  const footer: FooterState = isFetchingNextPage ? "loading" : isFetchNextPageError ? "error" : hasNextPage ? (lazyLoad ? "loading" : "more") : "end";
+  const footer: FooterState = isFetchingNextPage
+    ? "loading"
+    : isFetchNextPageError
+      ? "error"
+      : hasNextPage
+        ? lazyLoad
+          ? "loading"
+          : "more"
+        : "end";
 
   // --- “Show this commit” ---------------------------------------------------------------------------
   const reveal = useAppStore((state) => state.views[tabId]?.reveal ?? null);
@@ -940,7 +1095,12 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
 
   const rendered = new Set(items.map((item) => item.index));
   const firstVisible = items.find((item) => item.start + item.size > (scrollerRef.current?.scrollTop ?? 0))?.index ?? 0;
-  const tabStop = activeIndex >= 0 && rendered.has(activeIndex) ? activeIndex : focusedIndex !== null && rendered.has(focusedIndex) ? focusedIndex : firstVisible;
+  const tabStop =
+    activeIndex >= 0 && rendered.has(activeIndex)
+      ? activeIndex
+      : focusedIndex !== null && rendered.has(focusedIndex)
+        ? focusedIndex
+        : firstVisible;
 
   return (
     <div
@@ -953,11 +1113,23 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
       className="flex min-h-0 flex-1 flex-col"
     >
       <GraphHeader columns={columns} layout={layout} gutter={box.gutter} onChange={changeColumns} onMenu={openMenu} smart={smart} />
-      {target?.sticky ? <HighlightBar repoId={repoId} name={targetRef?.name ?? target.fullName.replace(/^refs\/(heads|remotes)\//, "")} count={highlight ? highlight.count : null} loaded={!hasNextPage} /> : null}
+      {target?.sticky ? (
+        <HighlightBar
+          repoId={repoId}
+          name={targetRef?.name ?? target.fullName.replace(/^refs\/(heads|remotes)\//, "")}
+          count={highlight ? highlight.count : null}
+          loaded={!hasNextPage}
+        />
+      ) : null}
       {seeking ? (
-        <div role="status" className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-2 text-sm text-text-muted">
+        <div
+          role="status"
+          className="flex h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-2 text-sm text-text-muted"
+        >
           <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
-          <span className="min-w-0 flex-1 truncate">{t("commitGraph.reveal.seeking", { sha: shortSha(seeking.sha), count: flat.commitCount })}</span>
+          <span className="min-w-0 flex-1 truncate">
+            {t("commitGraph.reveal.seeking", { sha: shortSha(seeking.sha), count: flat.commitCount })}
+          </span>
           <Button size="sm" variant="ghost" onClick={() => setSeeking(null)}>
             {t("commitGraph.cancel")}
           </Button>
@@ -980,15 +1152,39 @@ function GraphGrid({ repoId, tabId, graph, flat, viewState, detached, smart }: G
         >
           {box.width > 0 ? (
             <>
-              <GraphCanvas scrollerRef={scrollerRef} rows={rows} left={layout.graphLeft} width={layout.widths.graph} totalHeight={rows.length * rowHeight} decor={decor} />
+              <GraphCanvas
+                scrollerRef={scrollerRef}
+                rows={rows}
+                left={layout.graphLeft}
+                width={layout.widths.graph}
+                totalHeight={rows.length * rowHeight}
+                decor={decor}
+              />
               {items.map((item) => {
                 const row = rows[item.index];
                 if (!row) {
                   return item.index === rows.length ? (
-                    <GraphFooter key="footer" top={item.start} state={footer} count={flat.commitCount} columns={layout.order.length} onMore={() => void fetchNextPage({ cancelRefetch: false })} />
+                    <GraphFooter
+                      key="footer"
+                      top={item.start}
+                      state={footer}
+                      count={flat.commitCount}
+                      columns={layout.order.length}
+                      onMore={() => void fetchNextPage({ cancelRefetch: false })}
+                    />
                   ) : null;
                 }
-                return <GraphRowView key={row.id} row={row} index={item.index} top={item.start} layout={layout} tabStop={item.index === tabStop} shared={shared} />;
+                return (
+                  <GraphRowView
+                    key={row.id}
+                    row={row}
+                    index={item.index}
+                    top={item.start}
+                    layout={layout}
+                    tabStop={item.index === tabStop}
+                    shared={shared}
+                  />
+                );
               })}
             </>
           ) : null}
@@ -1077,7 +1273,9 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
       <BisectBar repoId={repoId} tabId={tabId} />
       <AutopilotBar repoId={repoId} tabId={tabId} />
       {detachedSha ? <DetachedBar repoId={repoId} tabId={tabId} sha={detachedSha} /> : null}
-      {filtered && viewState && hasData ? <FilterBar repoId={repoId} view={viewState} smart={smartOn && viewState.soloRefs.length > 0 ? selection : null} /> : null}
+      {filtered && viewState && hasData ? (
+        <FilterBar repoId={repoId} view={viewState} smart={smartOn && viewState.soloRefs.length > 0 ? selection : null} />
+      ) : null}
       {state === "ready" && graph.isRefetchError && !stale && !isFetching ? (
         <Banner
           tone="danger"
@@ -1098,7 +1296,11 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
       ) : state === "empty" ? (
         <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
           {filtered && status?.head.kind !== "unborn" ? (
-            <EmptyState icon={<Filter className="size-6" aria-hidden />} title={t("commitGraph.empty.filteredTitle")} action={<Button onClick={() => void showAllRefs(repoId)}>{t("commitGraph.filter.showAll")}</Button>}>
+            <EmptyState
+              icon={<Filter className="size-6" aria-hidden />}
+              title={t("commitGraph.empty.filteredTitle")}
+              action={<Button onClick={() => void showAllRefs(repoId)}>{t("commitGraph.filter.showAll")}</Button>}
+            >
               {t("commitGraph.empty.filteredText")}
             </EmptyState>
           ) : (
@@ -1122,7 +1324,15 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
           )}
         </div>
       ) : (
-        <GraphGrid repoId={repoId} tabId={tabId} graph={graph} flat={flat} viewState={viewState} detached={detachedSha !== null} smart={smart} />
+        <GraphGrid
+          repoId={repoId}
+          tabId={tabId}
+          graph={graph}
+          flat={flat}
+          viewState={viewState}
+          detached={detachedSha !== null}
+          smart={smart}
+        />
       )}
     </section>
   );

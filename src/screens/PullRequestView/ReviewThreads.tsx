@@ -34,15 +34,26 @@ import { BlockTitle, When, userName } from "./parts";
 import { REVIEW_FEATURE, fixAvailability, replyDraft, splitThreads, targetHint, threadLines } from "./reviewModel";
 
 type FailedView = Exclude<AiErrorView, { kind: "cancelled" }>;
-type Run = { kind: "idle" } | { kind: "running"; startedAt: number } | { kind: "failed"; view: FailedView } | { kind: "error"; text: string };
+type Run =
+  | { kind: "idle" }
+  | { kind: "running"; startedAt: number }
+  | { kind: "failed"; view: FailedView }
+  | { kind: "error"; text: string };
 type Ai = { visible: boolean; opensSetup: boolean; local: boolean; provider: AiProviderKind | null };
 
 /** The hunk of a suggestion; the sign and a hidden word say what a line is, not only the colour. */
 function DiffLines({ fix }: { fix: AiReviewFix }) {
   return (
-    <pre data-review-fix-diff="" className="selectable m-0 overflow-x-auto rounded-sm border border-border bg-surface-sunken py-1 font-mono text-code">
+    <pre
+      data-review-fix-diff=""
+      className="selectable m-0 overflow-x-auto rounded-sm border border-border bg-surface-sunken py-1 font-mono text-code"
+    >
       {fix.lines.map((line, index) => (
-        <div key={index} data-review-fix-line={line.kind} className={cn("flex gap-2 px-2", line.kind === "added" && "bg-diff-added", line.kind === "removed" && "bg-diff-removed")}>
+        <div
+          key={index}
+          data-review-fix-line={line.kind}
+          className={cn("flex gap-2 px-2", line.kind === "added" && "bg-diff-added", line.kind === "removed" && "bg-diff-removed")}
+        >
           <span aria-hidden className="w-10 shrink-0 text-right text-text-muted">
             {line.kind === "added" ? line.new : line.old}
           </span>
@@ -64,7 +75,17 @@ function DiffLines({ fix }: { fix: AiReviewFix }) {
  * tool gets "Sign in in the terminal", and without an open repository tab the line says how to sign in
  * instead.
  */
-export function FailedNote({ view, provider, onAgain, onLook }: { view: FailedView; provider: AiProviderKind | null; onAgain: () => void; onLook: () => void }) {
+export function FailedNote({
+  view,
+  provider,
+  onAgain,
+  onLook,
+}: {
+  view: FailedView;
+  provider: AiProviderKind | null;
+  onAgain: () => void;
+  onLook: () => void;
+}) {
   const [noTerminal, setNoTerminal] = useState(false);
   return (
     <div role="alert" data-review-error={view.kind} className="flex flex-col gap-2 px-3 pb-2">
@@ -118,7 +139,23 @@ export function FailedNote({ view, provider, onAgain, onLook }: { view: FailedVi
   );
 }
 
-function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { repoId: Id; pr: PrDetails; thread: ReviewThread; ai: Ai; quotes: boolean; hostName: string; onApplied: (applied: ReviewFixApplied) => void }) {
+function ThreadCard({
+  repoId,
+  pr,
+  thread,
+  ai,
+  quotes,
+  hostName,
+  onApplied,
+}: {
+  repoId: Id;
+  pr: PrDetails;
+  thread: ReviewThread;
+  ai: Ai;
+  quotes: boolean;
+  hostName: string;
+  onApplied: (applied: ReviewFixApplied) => void;
+}) {
   const [run, setRun] = useState<Run>({ kind: "idle" });
   const [clock, setClock] = useState(() => Date.now());
   const [fix, setFix] = useState<AiReviewFix | null>(null);
@@ -214,8 +251,25 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
     setApplying(true);
     const result = await runAction(
       t("pullRequest.view.reviewThreads.apply"),
-      () => core.reviewFixApply({ repoId, number: pr.number, fix: { path: fix.path, startLine: fix.startLine, endLine: fix.endLine, newText: fix.newText, headSha: fix.headSha }, target }),
-      { quiet: ["not_allowed", "dirty_worktree", "stale_state", "conflict", "operation_in_progress", "hook_failed", "signing_failed", "not_found"] },
+      () =>
+        core.reviewFixApply({
+          repoId,
+          number: pr.number,
+          fix: { path: fix.path, startLine: fix.startLine, endLine: fix.endLine, newText: fix.newText, headSha: fix.headSha },
+          target,
+        }),
+      {
+        quiet: [
+          "not_allowed",
+          "dirty_worktree",
+          "stale_state",
+          "conflict",
+          "operation_in_progress",
+          "hook_failed",
+          "signing_failed",
+          "not_found",
+        ],
+      },
     );
     setApplying(false);
     if (!result.ok) {
@@ -226,13 +280,21 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
     setRun({ kind: "idle" });
     setReply(replyDraft(fix.why, result.value.commit));
     onApplied(result.value);
-    toast({ tone: "success", title: t("pullRequest.view.reviewThreads.applied", { sha: shortSha(result.value.commit), summary: result.value.summary }), description: t("pullRequest.view.reviewThreads.undoHint") });
+    toast({
+      tone: "success",
+      title: t("pullRequest.view.reviewThreads.applied", { sha: shortSha(result.value.commit), summary: result.value.summary }),
+      description: t("pullRequest.view.reviewThreads.undoHint"),
+    });
   };
 
   const postReply = async () => {
     const body = reply.trim();
     if (!body || posting) return;
-    const result = await runHostAction(t("pullRequest.view.reviewThreads.replyPost"), () => hostApi.reviewReply(repoId, pr.number, thread.id, body), { busyKey: prBusyKeys.write(repoId, pr.number) });
+    const result = await runHostAction(
+      t("pullRequest.view.reviewThreads.replyPost"),
+      () => hostApi.reviewReply(repoId, pr.number, thread.id, body),
+      { busyKey: prBusyKeys.write(repoId, pr.number) },
+    );
     if (!result.ok) return;
     setReplyOpen(false);
     setReply("");
@@ -252,7 +314,11 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
           {thread.path}
         </span>
         {lines ? <span>{lines}</span> : null}
-        {thread.outdated ? <span data-review-outdated="">{t("pullRequest.view.reviewThreads.outdated")}</span> : thread.side === "old" ? <span>{t("pullRequest.view.reviewThreads.oldSide")}</span> : null}
+        {thread.outdated ? (
+          <span data-review-outdated="">{t("pullRequest.view.reviewThreads.outdated")}</span>
+        ) : thread.side === "old" ? (
+          <span>{t("pullRequest.view.reviewThreads.oldSide")}</span>
+        ) : null}
       </header>
       <ol className="flex flex-col gap-2 px-3 py-2">
         {thread.comments.map((comment) => (
@@ -262,7 +328,12 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
               <span className="selectable font-medium text-text">{userName(comment.author)}</span>
               <When value={comment.createdAt} />
             </p>
-            <SafeMarkdown source={comment.body} origin={t("pullRequest.view.commentOrigin", { name: userName(comment.author) })} empty={t("pullRequest.view.markdown.empty")} className="mt-1" />
+            <SafeMarkdown
+              source={comment.body}
+              origin={t("pullRequest.view.commentOrigin", { name: userName(comment.author) })}
+              empty={t("pullRequest.view.markdown.empty")}
+              className="mt-1"
+            />
           </li>
         ))}
       </ol>
@@ -283,7 +354,9 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
             {t("pullRequest.view.reviewThreads.whatIsSent")}
           </Button>
         ) : null}
-        {availability === "unavailable" ? <span className="text-sm text-text-muted">{t("pullRequest.view.reviewThreads.unavailable")}</span> : null}
+        {availability === "unavailable" ? (
+          <span className="text-sm text-text-muted">{t("pullRequest.view.reviewThreads.unavailable")}</span>
+        ) : null}
         <span className="flex-1" />
         <Button size="sm" variant="ghost" aria-expanded={replyOpen} data-review-reply-open="" onClick={() => setReplyOpen((open) => !open)}>
           {t("pullRequest.view.reviewThreads.reply")}
@@ -292,7 +365,9 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
       <p aria-live="polite" data-review-status="" className="px-3 text-sm text-text-muted">
         {loading ? `${loading.text}${loading.slow ? ` ${loading.slow}` : ""}` : ""}
       </p>
-      {run.kind === "failed" ? <FailedNote view={run.view} provider={ai.provider} onAgain={() => void suggest()} onLook={() => void whatIsSent()} /> : null}
+      {run.kind === "failed" ? (
+        <FailedNote view={run.view} provider={ai.provider} onAgain={() => void suggest()} onLook={() => void whatIsSent()} />
+      ) : null}
       {run.kind === "error" ? (
         <p role="alert" data-review-error="apply" className="px-3 pb-2 text-sm text-text">
           {run.text}
@@ -316,7 +391,14 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
           ) : null}
           <div className="flex flex-wrap items-center gap-2">
             {fix.onBranch ? (
-              <Button size="sm" variant="primary" data-review-fix-apply="" disabled={!target} loading={applying} onClick={() => void apply()}>
+              <Button
+                size="sm"
+                variant="primary"
+                data-review-fix-apply=""
+                disabled={!target}
+                loading={applying}
+                onClick={() => void apply()}
+              >
                 {t("pullRequest.view.reviewThreads.apply")}
               </Button>
             ) : (
@@ -375,7 +457,19 @@ function ThreadCard({ repoId, pr, thread, ai, quotes, hostName, onApplied }: { r
 }
 
 /** The section; nothing where the host reports no review threads. */
-export function ReviewThreads({ repoId, tabId, pr, capabilities, hostName }: { repoId: Id; tabId: Id; pr: PrDetails; capabilities: HostCapabilities; hostName: string }) {
+export function ReviewThreads({
+  repoId,
+  tabId,
+  pr,
+  capabilities,
+  hostName,
+}: {
+  repoId: Id;
+  tabId: Id;
+  pr: PrDetails;
+  capabilities: HostCapabilities;
+  hostName: string;
+}) {
   const query = usePrReviewThreads(repoId, pr.number, capabilities.reviewThreads);
   const status = useAiStatus();
   const repoSettings = useRepoSettings(repoId);
@@ -398,7 +492,12 @@ export function ReviewThreads({ repoId, tabId, pr, capabilities, hostName }: { r
             title={t("pullRequest.view.reviewThreads.squashTitle", { count: squash.fixups })}
             actions={
               <>
-                <Button size="sm" variant="primary" data-review-squash-open="" onClick={() => useAppStore.getState().openRebase(tabId, squash.base, "interactive", [], { autosquash: true })}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  data-review-squash-open=""
+                  onClick={() => useAppStore.getState().openRebase(tabId, squash.base, "interactive", [], { autosquash: true })}
+                >
                   {t("pullRequest.view.reviewThreads.squashNow")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setSquash(null)}>
@@ -426,7 +525,16 @@ export function ReviewThreads({ repoId, tabId, pr, capabilities, hostName }: { r
       ) : (
         <ul className="flex flex-col gap-3">
           {open.map((thread) => (
-            <ThreadCard key={thread.id} repoId={repoId} pr={pr} thread={thread} ai={ai} quotes={capabilities.reviewReplyQuotes} hostName={hostName} onApplied={setSquash} />
+            <ThreadCard
+              key={thread.id}
+              repoId={repoId}
+              pr={pr}
+              thread={thread}
+              ai={ai}
+              quotes={capabilities.reviewReplyQuotes}
+              hostName={hostName}
+              onApplied={setSquash}
+            />
           ))}
         </ul>
       )}

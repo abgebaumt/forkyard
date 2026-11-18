@@ -11,7 +11,9 @@ export function embedChoice(settings: Pick<Settings, "aiSearchEmbedProvider">): 
 }
 
 /** Another embedder: model and address of the previous one no longer apply. */
-export function embedChoicePatch(choice: EmbedChoice): Pick<Settings, "aiSearchEmbedProvider" | "aiSearchEmbedModel" | "aiSearchEmbedBaseUrl"> {
+export function embedChoicePatch(
+  choice: EmbedChoice,
+): Pick<Settings, "aiSearchEmbedProvider" | "aiSearchEmbedModel" | "aiSearchEmbedBaseUrl"> {
   return { aiSearchEmbedProvider: choice === "main" ? null : choice, aiSearchEmbedModel: null, aiSearchEmbedBaseUrl: null };
 }
 

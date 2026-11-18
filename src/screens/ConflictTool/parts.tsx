@@ -23,7 +23,11 @@ export function Divider() {
 
 export function Tag({ children, title, data }: { children: ReactNode; title?: string; data?: string }) {
   return (
-    <span title={title} data-tag={data} className="shrink-0 rounded-sm border border-border px-1.5 text-xs font-medium whitespace-nowrap text-text-muted">
+    <span
+      title={title}
+      data-tag={data}
+      className="shrink-0 rounded-sm border border-border px-1.5 text-xs font-medium whitespace-nowrap text-text-muted"
+    >
       {children}
     </span>
   );
@@ -56,7 +60,13 @@ export function ToolHeader({ path, middle, end, toolbar, onClose }: ToolHeaderPr
         {middle}
         {end}
         <Divider />
-        <IconButton size="sm" label={t("conflict.header.close")} shortcut="Escape" icon={<X className="size-icon" aria-hidden />} onClick={onClose} />
+        <IconButton
+          size="sm"
+          label={t("conflict.header.close")}
+          shortcut="Escape"
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={onClose}
+        />
       </div>
       {toolbar}
     </header>
@@ -64,17 +74,33 @@ export function ToolHeader({ path, middle, end, toolbar, onClose }: ToolHeaderPr
 }
 
 /** Narrow hint above the content. */
-export function Strip({ children, action, tone = "muted", id }: { children: ReactNode; action?: ReactNode; tone?: "muted" | "warning" | "danger"; id?: string }) {
+export function Strip({
+  children,
+  action,
+  tone = "muted",
+  id,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+  tone?: "muted" | "warning" | "danger";
+  id?: string;
+}) {
   return (
     <div
       role={tone === "danger" ? "alert" : "status"}
       data-strip={id}
       className={cn(
         "flex min-h-control-md shrink-0 items-center gap-2 border-b border-border px-3 py-1 text-sm",
-        tone === "warning" ? "bg-warning-surface text-text" : tone === "danger" ? "bg-danger-surface text-text" : "bg-surface text-text-muted",
+        tone === "warning"
+          ? "bg-warning-surface text-text"
+          : tone === "danger"
+            ? "bg-danger-surface text-text"
+            : "bg-surface text-text-muted",
       )}
     >
-      {tone !== "muted" ? <TriangleAlert className={cn("size-icon shrink-0", tone === "danger" ? "text-danger" : "text-warning")} aria-hidden /> : null}
+      {tone !== "muted" ? (
+        <TriangleAlert className={cn("size-icon shrink-0", tone === "danger" ? "text-danger" : "text-warning")} aria-hidden />
+      ) : null}
       <span className="min-w-0 flex-1">{children}</span>
       {action}
     </div>
@@ -82,9 +108,27 @@ export function Strip({ children, action, tone = "muted", id }: { children: Reac
 }
 
 /** Centred hint for the whole area (error, no longer in conflict). */
-export function Notice({ icon, title, children, action, tone = "muted", id }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode; tone?: "muted" | "danger"; id?: string }) {
+export function Notice({
+  icon,
+  title,
+  children,
+  action,
+  tone = "muted",
+  id,
+}: {
+  icon: ReactNode;
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+  tone?: "muted" | "danger";
+  id?: string;
+}) {
   return (
-    <div data-notice={id} role={tone === "danger" ? "alert" : "status"} className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center">
+    <div
+      data-notice={id}
+      role={tone === "danger" ? "alert" : "status"}
+      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 overflow-auto bg-surface-sunken px-6 py-8 text-center"
+    >
       <span className={tone === "danger" ? "text-danger" : "text-text-muted"}>{icon}</span>
       <p className="max-w-full text-md font-medium text-text">{title}</p>
       {children ? <div className="selectable max-w-md text-base text-text-muted">{children}</div> : null}
@@ -111,7 +155,12 @@ function SkeletonLines({ count }: { count: number }) {
 /** Loading state: the shape of the tool without content. */
 export function ConflictSkeleton() {
   return (
-    <div role="status" aria-label={t("conflict.loading")} data-conflict-loading="" className="flex min-h-0 flex-1 flex-col bg-surface-sunken">
+    <div
+      role="status"
+      aria-label={t("conflict.loading")}
+      data-conflict-loading=""
+      className="flex min-h-0 flex-1 flex-col bg-surface-sunken"
+    >
       <div className="h-control-lg shrink-0 border-b border-border bg-surface" />
       <div className="grid min-h-0 flex-1 grid-cols-2">
         <SkeletonLines count={8} />
@@ -127,7 +176,19 @@ export function ConflictSkeleton() {
   );
 }
 
-export function ConflictError({ error, path, retrying, onRetry, onClose }: { error: CoreError; path: string; retrying: boolean; onRetry: () => void; onClose: () => void }) {
+export function ConflictError({
+  error,
+  path,
+  retrying,
+  onRetry,
+  onClose,
+}: {
+  error: CoreError;
+  path: string;
+  retrying: boolean;
+  onRetry: () => void;
+  onClose: () => void;
+}) {
   if (error.code === "not_found" || error.code === "path_not_found") {
     return (
       <Notice
@@ -146,7 +207,11 @@ export function ConflictError({ error, path, retrying, onRetry, onClose }: { err
         }
       >
         <p>
-          <Trans i18nKey="conflict.error.goneBody" values={{ path }} components={{ path: <span className="font-mono text-code break-all" /> }} />
+          <Trans
+            i18nKey="conflict.error.goneBody"
+            values={{ path }}
+            components={{ path: <span className="font-mono text-code break-all" /> }}
+          />
         </p>
       </Notice>
     );

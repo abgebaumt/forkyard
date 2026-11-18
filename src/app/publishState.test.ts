@@ -3,7 +3,15 @@ import type { Ref, UpstreamState } from "../core";
 import { t } from "../i18n";
 import { pushState } from "./actions/pullrequests";
 import { pushHint } from "./menus/entries";
-import { nothingToPush, outgoing, publishRemote, publishTarget, refPublishState, statusPublishState, upstreamPublishState } from "./publishState";
+import {
+  nothingToPush,
+  outgoing,
+  publishRemote,
+  publishTarget,
+  refPublishState,
+  statusPublishState,
+  upstreamPublishState,
+} from "./publishState";
 import { refDetail } from "../screens/CommandPalette/sources";
 import { rowSync } from "../screens/LeftPanel/RefRow";
 
@@ -26,11 +34,20 @@ const local = (patch: Partial<Ref>): Ref => ({
   ...patch,
 });
 /** A fresh local branch: no upstream, `count` commits on no remote branch. */
-const fresh = (count: number) => local({ name: "feature/neu", fullName: "refs/heads/feature/neu", upstream: null, pushesToUpstream: false, unpublished: count });
+const fresh = (count: number) =>
+  local({ name: "feature/neu", fullName: "refs/heads/feature/neu", upstream: null, pushesToUpstream: false, unpublished: count });
 /** Published under its own name. */
-const published = (patch: Partial<Ref> = {}) => local({ upstream: "origin/qa/blackbox", pushesToUpstream: true, unpublished: null, ...patch });
+const published = (patch: Partial<Ref> = {}) =>
+  local({ upstream: "origin/qa/blackbox", pushesToUpstream: true, unpublished: null, ...patch });
 
-const upstream = (patch: Partial<UpstreamState>): UpstreamState => ({ name: "origin/develop", ahead: 0, behind: 0, gone: false, pushesToUpstream: false, ...patch });
+const upstream = (patch: Partial<UpstreamState>): UpstreamState => ({
+  name: "origin/develop",
+  ahead: 0,
+  behind: 0,
+  gone: false,
+  pushesToUpstream: false,
+  ...patch,
+});
 
 describe("publish state", () => {
   it("a branch following an upstream of another name is to push, even at ↑0 against develop", () => {
@@ -39,7 +56,12 @@ describe("publish state", () => {
     expect(state).toEqual({ kind: "elsewhere", upstream: "origin/develop", behind: 3, unpublished: 1 });
     expect(nothingToPush(state)).toBe(false);
     expect(outgoing(state)).toEqual({ count: 1, isNew: true });
-    expect(refPublishState(local({ ahead: 4, behind: 1 }))).toEqual({ kind: "elsewhere", upstream: "origin/develop", behind: 1, unpublished: 1 });
+    expect(refPublishState(local({ ahead: 4, behind: 1 }))).toEqual({
+      kind: "elsewhere",
+      upstream: "origin/develop",
+      behind: 1,
+      unpublished: 1,
+    });
   });
 
   it("fresh branches with and without own commits, gone upstreams", () => {
@@ -61,7 +83,12 @@ describe("publish state", () => {
     expect(nothingToPush(upstreamPublishState(upstream({ name: "origin/main", pushesToUpstream: true })))).toBe(true);
     expect(outgoing(upstreamPublishState(upstream({ name: "origin/main", pushesToUpstream: true })))).toBeNull();
     // Pushed under another name by the user: Forkyard's marker makes it the push destination.
-    expect(refPublishState(published({ upstream: "origin/qa-remote", ahead: 1 }))).toEqual({ kind: "published", upstream: "origin/qa-remote", ahead: 1, behind: 0 });
+    expect(refPublishState(published({ upstream: "origin/qa-remote", ahead: 1 }))).toEqual({
+      kind: "published",
+      upstream: "origin/qa-remote",
+      ahead: 1,
+      behind: 0,
+    });
   });
 
   it("names the remote and what a push creates there", () => {
@@ -71,7 +98,9 @@ describe("publish state", () => {
     expect(publishRemote(null, [])).toBeNull();
     expect(publishTarget(refPublishState(fresh(2)), "feature/neu", ["origin"])).toBe("origin/feature/neu");
     expect(publishTarget(refPublishState(local({})), "qa/blackbox", ["origin"])).toBe("origin/qa/blackbox");
-    expect(publishTarget(refPublishState(local({ upstream: "origin/kurz", upstreamGone: true, pushesToUpstream: true })), "kurz", ["origin"])).toBe("origin/kurz");
+    expect(
+      publishTarget(refPublishState(local({ upstream: "origin/kurz", upstreamGone: true, pushesToUpstream: true })), "kurz", ["origin"]),
+    ).toBe("origin/kurz");
   });
 
   it("menu, pull request screen, palette and branch list show it as to push", () => {
@@ -81,7 +110,9 @@ describe("publish state", () => {
     expect(pushState(local({}))).toEqual({ state: "no_upstream" });
     expect(pushState(published())).toEqual({ state: "pushed", upstream: "origin/qa/blackbox" });
 
-    expect(refDetail(local({ behind: 2 }))).toBe(`↑1 · ${t("palette.ref.notOnRemote")} · ${t("palette.ref.followsOther", { upstream: "origin/develop" })} · ↓2`);
+    expect(refDetail(local({ behind: 2 }))).toBe(
+      `↑1 · ${t("palette.ref.notOnRemote")} · ${t("palette.ref.followsOther", { upstream: "origin/develop" })} · ↓2`,
+    );
     expect(refDetail(fresh(0))).toBe(`↑0 · ${t("palette.ref.notOnRemote")}`);
     expect(refDetail(published({ ahead: 1 }))).toBe(`${t("palette.ref.tracks", { upstream: "origin/qa/blackbox" })} · ↑1 ↓0`);
 
