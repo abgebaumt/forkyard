@@ -464,6 +464,9 @@ async fn a_forced_stack_push_without_expected_states_is_refused() {
     assert_eq!(push(Some(vec![before.clone(), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "one entry per part");
     assert_eq!(push(Some(vec![before.clone(), Some("zzzzzzz".into()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "not a commit ID");
     assert_eq!(push(Some(vec![before.clone(), Some(String::new()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "empty is not a commit ID");
+    // A SHA-256 object ID (64 hex) passes the format check; the push is then rejected as stale, not refused as a bad ID.
+    let outcome = push(Some(vec![before.clone(), Some("a".repeat(64)), None])).await;
+    assert!(outcome.is_ok_and(|r| matches!(r, PushResult::Rejected { .. })), "64 hex is a valid ID");
     assert_eq!(remote_sha(&remote, P1), before, "nothing was sent");
 }
 

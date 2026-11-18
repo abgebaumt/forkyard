@@ -340,7 +340,7 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
         Some(expected) if expected.len() == names.len() => expected,
         _ => return Err(CoreError::not_allowed("A forced stack push needs the remote state that was shown for every part.")),
     };
-    if expected.iter().flatten().any(|sha| !(7..=40).contains(&sha.len()) || !sha.bytes().all(|b| b.is_ascii_hexdigit())) {
+    if expected.iter().flatten().any(|sha| !(7..=64).contains(&sha.len()) || !sha.bytes().all(|b| b.is_ascii_hexdigit())) {
         return Err(CoreError::not_allowed("The remote state that was shown is not a commit ID."));
     }
     // `Some("")` = shown absent; `lease` checks that under the network lock (only this mapping produces "").
