@@ -7,7 +7,6 @@
 
 use regex::Regex;
 
-
 #[derive(Debug, Clone)]
 struct Rule {
     negated: bool,

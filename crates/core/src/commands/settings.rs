@@ -366,12 +366,7 @@ pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> Co
         }
     }
     if changed.iter().any(|k| k == "aiCommitInstruction") {
-        next.ai_commit_instruction =
-            next.ai_commit_instruction.as_deref().map(str::trim).filter(|text| !text.is_empty()).map(str::to_string);
-        let limit = crate::ai::commit_message::MAX_INSTRUCTION_CHARS;
-        if next.ai_commit_instruction.as_deref().is_some_and(|text| text.chars().count() > limit) {
-            return Err(CoreError::not_allowed(format!("The own commit instruction is too long: at most {limit} characters.")));
-        }
+        next.ai_commit_instruction = crate::ai::commit_message::own_instruction(next.ai_commit_instruction.as_deref())?;
     }
     let as_json = serde_json::to_value(&next)?;
     core.db.tx(|tx| {
