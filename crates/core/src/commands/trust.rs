@@ -233,8 +233,14 @@ async fn shares_a_trusted_repository(core: &Core, root: &Path) -> bool {
         return false;
     }
     let Ok(back) = std::fs::read(gitdir.join("gitdir")) else { return false };
-    let back = String::from_utf8_lossy(&back);
-    util::path_key(Path::new(back.trim())) == util::path_key(&root.join(".git"))
+    let back = back.strip_suffix(b"\n").unwrap_or(&back);
+    let back = back.strip_suffix(b"\r").unwrap_or(back);
+    // Git ≥ 2.48 may store the path relative to the admin dir (worktree.useRelativePaths).
+    let back = gitdir.join(util::native_path(&util::bytes_to_path(back)));
+    match (std::fs::canonicalize(back), std::fs::canonicalize(root.join(".git"))) {
+        (Ok(a), Ok(b)) => util::path_key(&a) == util::path_key(&b),
+        _ => false,
+    }
 }
 
 /// On open: checks a repository that is not trusted yet and records the trust if nothing
@@ -562,6 +568,17 @@ mod tests {
         assert!(!opened.repo.trusted);
         let trust = repo_trust_get(&other, opened.repo.id).await.unwrap();
         assert_eq!(trust.findings.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["core.hookspath"]);
+    }
+
+    #[tokio::test]
+    async fn a_worktree_with_relative_paths_of_a_trusted_repo_stays_trusted() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        assert!(repo_open(&tc, path_text(&repo)).await.unwrap().repo.trusted);
+        repo.git(&["config", "core.hooksPath", ".husky"]);
+        let linked = repo.temp_dir().join("wt2");
+        repo.git(&["-c", "worktree.useRelativePaths=true", "worktree", "add", "-q", &linked.to_string_lossy(), "-b", "side2"]);
+        assert!(repo_open(&tc, linked.to_string_lossy().into_owned()).await.unwrap().repo.trusted);
     }
 
     #[tokio::test]
