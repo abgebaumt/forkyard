@@ -253,6 +253,61 @@ pub fn from_settings(settings: &Settings) -> NetConfig {
     config
 }
 
+// ---------------------------------------------------------------------------
+// SSH command line
+// ---------------------------------------------------------------------------
+
+/// First OpenSSH version that marks server questions with `(user@host) `.
+pub(crate) const SSH_MARKS_SERVER_PROMPTS: (u32, u32) = (8, 5);
+/// Switches off login via server questions for an older OpenSSH.
+pub(crate) const SSH_NO_SERVER_PROMPTS: &str = "-o KbdInteractiveAuthentication=no";
+
+/// The program of an SSH command line (first word, with its quotes).
+pub(crate) fn ssh_program(command: &str) -> String {
+    let command = command.trim();
+    let end = match command.chars().next() {
+        Some(quote @ ('\'' | '"')) => command[1..].find(quote).map(|at| at + 2),
+        _ => command.find(char::is_whitespace),
+    };
+    command[..end.unwrap_or(command.len())].to_string()
+}
+
+/// Reads "OpenSSH_9.5p1" or "OpenSSH_for_Windows_9.5p1" from the output of `ssh -V`.
+pub(crate) fn openssh_version(text: &str) -> Option<(u32, u32)> {
+    let start = text.find("OpenSSH_")? + "OpenSSH_".len();
+    let rest = &text[start..];
+    let digits = rest.find(|c: char| c.is_ascii_digit())?;
+    // Between "OpenSSH_" and the number there are only letters and underscores.
+    if !rest[..digits].chars().all(|c| c.is_ascii_alphabetic() || c == '_') {
+        return None;
+    }
+    let mut numbers = rest[digits..].split(|c: char| !c.is_ascii_digit());
+    let major = numbers.next()?.parse().ok()?;
+    let minor = numbers.next()?.parse().ok()?;
+    Some((major, minor))
+}
+
+/// SSH invocation with the switch that forbids prompts. Precedence as in Git:
+/// `GIT_SSH_COMMAND`, then `core.sshCommand` (both complete command lines), then `GIT_SSH`
+/// (a program path; put in single quotes for the shell), otherwise `ssh`.
+pub fn compose_ssh_command(env_command: Option<&str>, config_command: Option<&str>, env_program: Option<&str>) -> String {
+    let (base, program) = match (env_command, config_command, env_program) {
+        (Some(command), _, _) | (None, Some(command), _) => {
+            let command = command.trim();
+            (command.to_string(), command.split_whitespace().next().unwrap_or(command).to_string())
+        }
+        (None, None, Some(program)) => {
+            let program = program.trim();
+            (format!("'{}'", program.replace('\'', r"'\''")), program.to_string())
+        }
+        (None, None, None) => ("ssh".to_string(), "ssh".to_string()),
+    };
+    let name = program.trim_matches(['"', '\'']).rsplit(['/', '\\']).next().unwrap_or("").to_lowercase();
+    // PuTTY (plink, TortoisePlink) doesn't know "-o", but "-batch".
+    let flag = if name.contains("plink") { "-batch" } else { "-o BatchMode=yes" };
+    format!("{base} {flag}")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -360,5 +415,24 @@ mod tests {
         normalize_lenient(&mut bad);
         assert_eq!(bad.ssl_no_verify_hosts, vec!["https://ok.example"]);
         assert_eq!(bad.proxy_url, None);
+    }
+
+    /// Only an OpenSSH from 8.5 on marks server questions.
+    #[test]
+    fn openssh_versions_and_programs_are_read() {
+        assert_eq!(openssh_version("OpenSSH_9.5p1, LibreSSL 3.8.2"), Some((9, 5)));
+        assert_eq!(openssh_version("OpenSSH_for_Windows_9.5p1, LibreSSL 3.8.2"), Some((9, 5)));
+        assert_eq!(openssh_version("OpenSSH_8.2p1 Ubuntu-4ubuntu0.11, OpenSSL 1.1.1f  31 Mar 2020"), Some((8, 2)));
+        assert_eq!(openssh_version("OpenSSH_10.0p2, OpenSSL 3.5.0"), Some((10, 0)));
+        assert!(openssh_version("OpenSSH_8.2p1").is_some_and(|v| v < SSH_MARKS_SERVER_PROMPTS));
+        assert!(openssh_version("OpenSSH_8.5p1").is_some_and(|v| v >= SSH_MARKS_SERVER_PROMPTS));
+        assert_eq!(openssh_version("plink: Release 0.78"), None);
+        assert_eq!(openssh_version(""), None);
+        assert_eq!(openssh_version("OpenSSH_ 9.5"), None);
+        assert_eq!(ssh_program("ssh"), "ssh");
+        assert_eq!(ssh_program("  ssh -i '/k/id' -o IdentitiesOnly=yes"), "ssh");
+        assert_eq!(ssh_program("'C:/Program Files/OpenSSH/ssh.exe' -v"), "'C:/Program Files/OpenSSH/ssh.exe'");
+        assert_eq!(ssh_program("\"C:/Program Files/x/ssh.exe\""), "\"C:/Program Files/x/ssh.exe\"");
+        assert_eq!(ssh_program(""), "");
     }
 }

@@ -33,7 +33,6 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
 use crate::git::redact;
-use crate::git::runner::{kill_tree, ProcessTree};
 use crate::jobs::CancelToken;
 use crate::util;
 
@@ -535,6 +534,106 @@ pub fn display_line(program: &str, args: &[String]) -> String {
         line.push_str(&quote(arg));
     }
     util::truncate_str(&redact::redact(&line), 2000)
+}
+
+/// Windows: a job object around Git and all its child processes so that a cancel ends the
+/// whole tree at once (taskkill needs seconds for that under load).
+#[cfg(windows)]
+pub(crate) struct ProcessTree(windows_sys::Win32::Foundation::HANDLE);
+
+// SAFETY: The handle is owned by this value alone; job objects may be used from any thread.
+#[cfg(windows)]
+unsafe impl Send for ProcessTree {}
+#[cfg(windows)]
+unsafe impl Sync for ProcessTree {}
+
+#[cfg(windows)]
+impl ProcessTree {
+    /// Puts the just-started process into a new job object; `None` if Windows refuses.
+    pub(crate) fn attach(child: &tokio::process::Child) -> Option<ProcessTree> {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::JobObjects::{AssignProcessToJobObject, CreateJobObjectW};
+        let process = child.raw_handle()?;
+        // SAFETY: valid arguments (no name, no security attributes); the process handle lives
+        // as long as `child`. No KILL_ON_JOB_CLOSE: Git's background services (credential
+        // cache, maintenance) should survive a normal exit.
+        unsafe {
+            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if job.is_null() {
+                return None;
+            }
+            if AssignProcessToJobObject(job, process as _) == 0 {
+                CloseHandle(job);
+                return None;
+            }
+            Some(ProcessTree(job))
+        }
+    }
+
+    fn terminate(&self) {
+        // SAFETY: `self.0` is an open job handle.
+        unsafe {
+            windows_sys::Win32::System::JobObjects::TerminateJobObject(self.0, 1);
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for ProcessTree {
+    fn drop(&mut self) {
+        // SAFETY: `self.0` is an open handle and is closed only here.
+        unsafe {
+            windows_sys::Win32::Foundation::CloseHandle(self.0);
+        }
+    }
+}
+
+/// Unix needs no object of its own: there `kill_tree` kills the process group.
+#[cfg(not(windows))]
+#[allow(dead_code)]
+pub(crate) struct ProcessTree;
+
+#[cfg(not(windows))]
+impl ProcessTree {
+    pub(crate) fn attach(_child: &tokio::process::Child) -> Option<ProcessTree> {
+        None
+    }
+}
+
+/// Kills Git including its child processes (git-remote-https, ssh, hooks).
+pub(crate) async fn kill_tree(child: &mut tokio::process::Child, tree: Option<&ProcessTree>) {
+    #[cfg(windows)]
+    if let Some(tree) = tree {
+        tree.terminate();
+        let _ = child.start_kill();
+        return;
+    }
+    #[cfg(not(windows))]
+    let _ = tree;
+    if let Some(pid) = child.id() {
+        #[cfg(windows)]
+        {
+            // Fallback in case the job object couldn't be created.
+            let mut kill = tokio::process::Command::new("taskkill");
+            kill.args(["/T", "/F", "/PID", &pid.to_string()])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .creation_flags(crate::git::runner::CREATE_NO_WINDOW);
+            let _ = kill.status().await;
+        }
+        #[cfg(unix)]
+        {
+            // Git runs in its own process group (process_group(0)); kill the whole group.
+            if let Ok(pgid) = i32::try_from(pid) {
+                // SAFETY: kill(2) with a negative PID addresses only this child's process group.
+                unsafe {
+                    libc::kill(-pgid, libc::SIGKILL);
+                }
+            }
+        }
+    }
+    let _ = child.start_kill();
 }
 
 #[cfg(test)]
