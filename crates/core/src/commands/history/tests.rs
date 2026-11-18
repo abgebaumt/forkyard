@@ -297,6 +297,18 @@ async fn blame_handles_crlf_missing_final_newline_and_special_names() {
 }
 
 #[tokio::test]
+async fn blame_of_a_committed_file_above_the_limit_is_unsupported() {
+    let repo = TestRepo::new();
+    let sha = repo.commit_file("big.txt", "a\n".repeat(MAX_TEXT_BYTES as usize / 2 + 1), "Big");
+    let (tc, id) = setup(&repo).await;
+
+    let err = file_blame(&tc, id.clone(), "big.txt".into(), Some(sha)).await.unwrap_err();
+    assert_eq!(err.code, ErrorCode::Unsupported);
+    assert!(err.message.contains("too large"), "{}", err.message);
+    assert_eq!(code(file_blame(&tc, id.clone(), "big.txt".into(), None).await), ErrorCode::Unsupported);
+}
+
+#[tokio::test]
 async fn blame_rejects_binary_files_and_reports_missing_ones() {
     let repo = TestRepo::new();
     repo.commit_file("bild.bin", [1u8, 0, 2, 0, 3], "Binär");

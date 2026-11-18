@@ -624,6 +624,7 @@ pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<
     let forced = forced_encoding(encoding.as_deref())?;
     let preferred = repo_encoding(core, &repo_id);
     let binary = || CoreError::unsupported(format!("“{rel}” is a binary file; blame is only available for text files."));
+    let too_large = || CoreError::unsupported(format!("“{rel}” is too large for blame."));
     let mut cmd = core.git_for(&repo_id)?.args(["blame", "--porcelain"]);
     match sha.as_deref() {
         Some(sha) => {
@@ -640,6 +641,10 @@ pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<
             if is_binary {
                 return Err(binary());
             }
+            let size = core.git_for(&repo_id)?.args(["cat-file", "-s", &spec]).read_only().no_log().run_raw().await?;
+            if String::from_utf8_lossy(&size.stdout).trim().parse::<u64>().is_ok_and(|n| n > MAX_TEXT_BYTES) {
+                return Err(too_large());
+            }
             cmd = cmd.arg(rev);
         }
         None => {
@@ -650,6 +655,9 @@ pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<
             }
             if is_binary_content(&read_head_bytes(&file)?) {
                 return Err(binary());
+            }
+            if file.metadata()?.len() > MAX_TEXT_BYTES {
+                return Err(too_large());
             }
             let in_head = core
                 .git_for(&repo_id)?
