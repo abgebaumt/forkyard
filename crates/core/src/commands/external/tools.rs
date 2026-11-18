@@ -20,7 +20,7 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime};
 
-use super::{arg_path, split_command_line, Launch, LaunchArg, Platform, PATH_PLACEHOLDER, REPO_PLACEHOLDER};
+use super::{arg_path, Launch, LaunchArg, Platform, PATH_PLACEHOLDER, REPO_PLACEHOLDER};
 use crate::app::Core;
 use crate::commands::diff::{self, EMPTY_TREE_SHA1, EMPTY_TREE_SHA256};
 use crate::error::{CoreError, CoreResult};
@@ -51,7 +51,7 @@ pub struct ToolFiles {
 /// Splits the template and substitutes the placeholders. If none of the file placeholders
 /// occurs, `append` (placeholder names) are appended as further arguments.
 pub fn expand_tool_template(template: &str, files: &ToolFiles, append: &[&str], platform: Platform) -> CoreResult<Vec<String>> {
-    let parts = split_command_line(template, platform != Platform::Windows)?;
+    let parts = util::split_command_line(template, platform != Platform::Windows)?;
     if !parts.first().is_some_and(|p| !p.trim().is_empty()) {
         return Err(CoreError::not_allowed("The command in Settings is empty."));
     }

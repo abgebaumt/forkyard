@@ -3,7 +3,7 @@
 //! The flow is split in two so it can be tested without really starting programs:
 //! `plan` is a pure function deciding what would be started (`Launch`), `launch`
 //! starts it detached. Command lines from the settings are split by us
-//! (`split_command_line`) and never handed to a shell; `{path}` and `{repo}` are only
+//! (`util::split_command_line`) and never handed to a shell; `{path}` and `{repo}` are only
 //! substituted after splitting, so a path with spaces stays one argument.
 
 use std::path::{Path, PathBuf};
@@ -106,76 +106,10 @@ impl ExternalState {
 // Command lines from the settings
 // ---------------------------------------------------------------------------
 
-/// Splits a command line into program and arguments, without a shell.
-///
-/// - Whitespace separates; `"…"` and `'…'` group (also in the middle of a word).
-/// - With `backslash_escapes` (Linux, macOS), `\` outside of quotes protects the
-///   next character, and inside `"…"` `\"` and `\\` stand for `"` and `\`.
-/// - Without `backslash_escapes` (Windows), `\` is the path separator and stays literal everywhere,
-///   also in `"C:\Folder\"`. A quote inside an argument is not possible there
-///   (it does not occur in Windows paths).
-///
-/// Unclosed quotes → `not_allowed`.
-pub fn split_command_line(line: &str, backslash_escapes: bool) -> CoreResult<Vec<String>> {
-    let mut args: Vec<String> = Vec::new();
-    let mut current = String::new();
-    let mut in_word = false;
-    let mut chars = line.chars().peekable();
-    while let Some(c) = chars.next() {
-        match c {
-            '"' => {
-                in_word = true;
-                loop {
-                    match chars.next() {
-                        Some('"') => break,
-                        Some('\\') if backslash_escapes && matches!(chars.peek(), Some('"' | '\\')) => {
-                            current.extend(chars.next());
-                        }
-                        Some(other) => current.push(other),
-                        None => return Err(unclosed_quote(line)),
-                    }
-                }
-            }
-            '\'' => {
-                in_word = true;
-                loop {
-                    match chars.next() {
-                        Some('\'') => break,
-                        Some(other) => current.push(other),
-                        None => return Err(unclosed_quote(line)),
-                    }
-                }
-            }
-            '\\' if backslash_escapes => {
-                in_word = true;
-                current.push(chars.next().unwrap_or('\\'));
-            }
-            c if c.is_whitespace() => {
-                if in_word {
-                    args.push(std::mem::take(&mut current));
-                    in_word = false;
-                }
-            }
-            other => {
-                in_word = true;
-                current.push(other);
-            }
-        }
-    }
-    if in_word {
-        args.push(current);
-    }
-    Ok(args)
-}
-
-fn unclosed_quote(line: &str) -> CoreError {
-    CoreError::not_allowed(format!("A quotation mark in the command “{line}” is not closed."))
-}
-
 /// Splits the template and substitutes `{path}` and `{repo}`. If `{path}` does not occur and
 /// `append_path` is set, the path is appended as the last argument.
 pub fn expand_template(template: &str, path: &str, repo: &str, append_path: bool, platform: Platform) -> CoreResult<Vec<String>> {
-    let parts = split_command_line(template, platform != Platform::Windows)?;
+    let parts = util::split_command_line(template, platform != Platform::Windows)?;
     if !parts.first().is_some_and(|p| !p.trim().is_empty()) {
         return Err(CoreError::not_allowed("The command in Settings is empty."));
     }
@@ -731,34 +665,6 @@ mod tests {
     use crate::error::ErrorCode;
     use crate::testkit::{TestCore, TestRepo};
     use serde_json::json;
-
-    fn split(line: &str, escapes: bool) -> Vec<String> {
-        split_command_line(line, escapes).unwrap()
-    }
-
-    #[test]
-    fn splits_command_lines_without_a_shell() {
-        assert_eq!(split("code --wait {path}", false), ["code", "--wait", "{path}"]);
-        assert_eq!(split("  a   b\tc\n", true), ["a", "b", "c"]);
-        assert_eq!(split(r#""C:\Program Files\Editor\ed.exe" -n "{path}""#, false), [r"C:\Program Files\Editor\ed.exe", "-n", "{path}"]);
-        // A folder at the end of a quoted argument: the backslash stays literal.
-        assert_eq!(split(r#"x "C:\Ordner\" y"#, false), ["x", r"C:\Ordner\", "y"]);
-        assert_eq!(split(r#""C:\a b\\c" "\\server\x y""#, false), [r"C:\a b\\c", r"\\server\x y"]);
-        assert_eq!(split(r#"x "a \"b\" c\\" 'd\' "e\f""#, true), ["x", r#"a "b" c\"#, r"d\", r"e\f"]);
-        assert_eq!(split(r"\\server\freigabe\ed.exe a", false), [r"\\server\freigabe\ed.exe", "a"]);
-        assert_eq!(split("'/opt/mein editor/ed' --flag='a b' ''", true), ["/opt/mein editor/ed", "--flag=a b", ""]);
-        assert_eq!(split(r"/opt/mein\ editor/ed a\\b", true), ["/opt/mein editor/ed", r"a\b"]);
-        assert_eq!(split(r#"pre"mit te"post"#, true), ["premit tepost"]);
-        // Shell characters have no meaning.
-        assert_eq!(
-            split("ed {path}; rm -rf ~ && echo $HOME | x > y `z`", true),
-            ["ed", "{path};", "rm", "-rf", "~", "&&", "echo", "$HOME", "|", "x", ">", "y", "`z`"]
-        );
-        assert!(split("", true).is_empty() && split("   ", false).is_empty());
-        for bad in [r#"ed "offen"#, "ed 'offen", r#"ed "a\""#] {
-            assert_eq!(split_command_line(bad, true).unwrap_err().code, ErrorCode::NotAllowed, "{bad}");
-        }
-    }
 
     #[test]
     fn placeholders_are_replaced_after_splitting() {
