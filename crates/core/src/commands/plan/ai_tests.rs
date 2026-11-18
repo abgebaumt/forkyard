@@ -1,5 +1,5 @@
 //! `ai_plan` against local provider mocks (Ollama: local, no confirmations; Anthropic: the
-//! confirmation path of Grundregel 4): what is sent, what comes back, and that the answer stays
+//! confirmation path): what is sent, what comes back, and that the answer stays
 //! data – commands outside the allow list, foreign arguments and injected force pushes never
 //! become something that runs unchecked.
 

@@ -1,4 +1,4 @@
-//! Collision warning between coding agents (cockpit, package 2b).
+//! Collision warning between coding agents (cockpit).
 //!
 //! After a change in an agent's worktree (debounced), the core takes a snapshot of every agent's
 //! worktree as a tree (temporary `GIT_INDEX_FILE`, `add -A`, `write-tree` – `undo::worktree_tree`)

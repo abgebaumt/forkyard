@@ -1,4 +1,4 @@
-//! The context of an AI request: building blocks (here the staged diff), filters (Grundregel 5),
+//! The context of an AI request: building blocks (here the staged diff), filters,
 //! redaction and the budget in tokens (chars / 3.5; min(function budget, 70 % of the model's
 //! context)). Shortening runs in a fixed order and every step shows in the preview:
 //! generated/lock files → binaries → the largest files to start and end of each hunk → files only
@@ -411,7 +411,7 @@ pub async fn staged_changes(
 /// The review before a push looks at most at this many outgoing first-parent commits.
 pub const MAX_REVIEW_COMMITS: usize = 200;
 
-/// Instruction of `AiInput::OutgoingChanges` (the review before a push, spec 6.2).
+/// Instruction of `AiInput::OutgoingChanges` (the review before a push).
 pub const PUSH_REVIEW_INSTRUCTION: &str = "Review the changes that are about to be pushed and report only leftovers: debug output \
 (print, console.log, dbg!, var_dump and similar), commented-out code, and likely mistakes (obvious bugs, unfinished code). \
 Do not report secrets, style or formatting. For each finding give the file path exactly as in a \"File:\" line, the line \

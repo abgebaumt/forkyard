@@ -1,6 +1,6 @@
-//! The rephrase route of the search by meaning (spec 9.2, way 3): no embeddings, so the main
+//! The rephrase route of the search by meaning: no embeddings, so the main
 //! provider turns the question into terms, code, paths, author and time window; the core searches
-//! with the filters of the commit search (Paket 0) and the model sorts the top 50 with a reason.
+//! with the filters of the commit search and the model sorts the top 50 with a reason.
 //!
 //! Both requests run through `run::complete_json`. What the model answers is checked before Git
 //! sees it: terms are search text, paths go through `normalize_rel_path` and stay literal, dates

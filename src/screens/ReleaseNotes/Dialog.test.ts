@@ -37,7 +37,7 @@ describe("release notes dialog: “Sign in in the terminal”", () => {
   });
 });
 
-describe("release notes: AI on without a provider (spec 1.3, visibility table)", () => {
+describe("release notes: AI on without a provider", () => {
   it("opens the first-time setup, not Settings › AI", async () => {
     aiStatus.current = { state: "on", connected: false };
     await openReleaseNotes("repo-1", { kind: "tag", name: "v1.2.0" });

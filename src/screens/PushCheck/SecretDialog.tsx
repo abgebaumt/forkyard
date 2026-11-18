@@ -1,5 +1,5 @@
 /**
- * "Looks like a key" (v1.2, spec 6.2): the local secret scan stopped a push. Lists file:line, the
+ * "Looks like a key": the local secret scan stopped a push. Lists file:line, the
  * kind and the line with every value masked (only its last four characters). "Back" (and Escape)
  * pushes nothing, "Push anyway" pushes exactly these findings; "Don't report again" stores only a
  * hash of file + line content, at once.

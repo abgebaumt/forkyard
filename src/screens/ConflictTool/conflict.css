@@ -60,7 +60,7 @@
   background: var(--gc-accent);
 }
 
-/* Handle between the conflict tool and the intent column (v1.2). */
+/* Handle between the conflict tool and the intent column. */
 .gc-cf-vgrip::after {
   content: "";
   position: absolute;

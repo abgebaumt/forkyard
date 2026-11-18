@@ -511,7 +511,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
 
   const tokens = { ours: useLineTokens(path, ours), theirs: useLineTokens(path, theirs) };
 
-  // --- Intent (v1.2, Teilpaket 6.1) -----------------------------------------------------
+  // --- Intent -----------------------------------------------------
   const { data: aiStatus } = useAiStatus();
   const { data: repoSettings } = useRepoSettings(repoId);
   const intentAvailable = featureVisible(aiStatus, "conflict_intent", repoSettings?.aiOff ?? false);

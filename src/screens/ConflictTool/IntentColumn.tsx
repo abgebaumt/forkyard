@@ -1,5 +1,5 @@
 /**
- * The column “Intent” of the conflict tool (v1.2, Teilpaket 6.1), to the right of the whole split.
+ * The column “Intent” of the conflict tool, to the right of the whole split.
  * Its content loads only on “Explain intent”: first the exact text (“What is sent?”, confirmed where
  * the core asks for it), then the request as a cancellable job. Per conflict a card with what each
  * side wanted and – where the block went out completely – the proposal as a small diff against the

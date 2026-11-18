@@ -1,4 +1,4 @@
-//! Paket 8.1: the AI proposes where to cut a branch into stacked pull requests.
+//! The AI proposes where to cut a branch into stacked pull requests.
 //!
 //! Context: per commit (numbered from 1, oldest first) the subject, up to six body lines and the
 //! changed files with their line counts – never file contents. Secret and ignored paths (built-in

@@ -1,4 +1,4 @@
-//! The AI command-line tools (Teilpaket 1b) against `forkyard-fake-cli`, a test program that plays
+//! The AI command-line tools against `forkyard-fake-cli`, a test program that plays
 //! `claude`, `codex` or `opencode` and records every call. Nothing here starts a real tool or
 //! talks to a real service.
 
@@ -448,7 +448,7 @@ async fn an_ai_request_through_claude_code_counts_its_cost_outside_the_limit() {
         &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))),
     );
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code", "aiMonthlyLimitUsd": 0.01})).await.unwrap();
-    // This month's API costs are above the limit already – the limit is not for the tools (spec 1.5).
+    // This month's API costs are above the limit already – the limit is not for the tools.
     let month = pricing::current_month();
     tc.db
         .with(|c| {
@@ -616,7 +616,7 @@ async fn detection_does_not_wait_for_a_hanging_tool() {
     let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &config);
     let started = Instant::now();
     let found = ai_detect(&tc).await.unwrap();
-    assert!(started.elapsed() < Duration::from_secs(3), "about two seconds at most (spec 1.3): {:?}", started.elapsed());
+    assert!(started.elapsed() < Duration::from_secs(3), "about two seconds at most: {:?}", started.elapsed());
     let state = |kind: AiProviderKind| found.clis.iter().find(|cli| cli.provider == kind).map(|cli| cli.login);
     assert_eq!(state(AiProviderKind::ClaudeCode), Some(AiLoginState::LoggedIn));
     assert_eq!(state(AiProviderKind::Codex), Some(AiLoginState::Unknown), "what has not answered counts as unknown");
@@ -638,7 +638,7 @@ async fn detection_on_an_empty_computer_finds_nothing_but_a_missing_own_path() {
     assert!(codex.problem.as_deref().is_some_and(|problem| problem.contains("does not exist")), "{codex:?}");
 }
 
-/// Spec 2a: the start dialog lists the templates "with version and sign-in state". The sign-in comes
+/// the start dialog lists the templates "with version and sign-in state". The sign-in comes
 /// from the tool itself (`claude auth status`, `codex login status`); own programs have none.
 #[tokio::test]
 async fn agent_templates_know_whether_the_built_in_tools_are_signed_in() {

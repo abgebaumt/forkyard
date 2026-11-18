@@ -389,7 +389,7 @@ async fn registered_worktree(core: &Core, repo_id: &str, cwd: &Path) -> CoreResu
 /// Opens a terminal for signing in to an AI command-line tool (`claude auth login` …). It runs in
 /// Forkyard's own empty folder `<data>/tmp/cli-login` – `launch.cwd` is replaced by it –, never in the
 /// repository, so the tool loads no configuration of the repository; the terminal belongs to the
-/// repository's tab like every other. A batch file can't run in the built-in terminal (Paket 0).
+/// repository's tab like every other. A batch file can't run in the built-in terminal.
 pub async fn terminal_open_login(core: &Core, repo_id: &str, mut launch: ProgramLaunch, cols: u16, rows: u16) -> CoreResult<String> {
     core.repo_path(repo_id)?;
     if core.state::<TerminalState>().sessions.lock().len() >= MAX_TERMINALS {

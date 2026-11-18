@@ -1,4 +1,4 @@
-//! "Git in plain language" (v1.2, Paket 5): a sentence in the command palette becomes a plan of
+//! "Git in plain language": a sentence in the command palette becomes a plan of
 //! allowed Forkyard steps (`ai_plan`), the user edits it (`ai_plan_check`) and runs it
 //! (`ai_plan_run`). The logic lives in `ai::plan`, `ai::plan_check`, `ai::plan_commands` and
 //! `ai::plan_run`.
@@ -12,7 +12,7 @@ use crate::model::{AiFeature, PlanPreview, PlanRunResult, PlanStep};
 /// job `{job_id}:check`; nothing in the repository changes.
 pub async fn ai_plan(core: &Core, repo_id: String, job_id: String, text: String, locale: String) -> CoreResult<PlanPreview> {
     let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Plan)?;
-    // The same budget and known secrets as `ai_preview` for `AiInput::Plan` (Paket 3.1's helper).
+    // The same budget and known secrets as `ai_preview` for `AiInput::Plan` (helper).
     let (budget, secrets) = crate::commands::ai::request_frame(core, &settings, AiFeature::Plan).await;
     let prompt = plan::build_prompt(core, &repo_id, &text, &locale, &secrets, budget).await?;
     let schema = plan_commands::answer_schema();

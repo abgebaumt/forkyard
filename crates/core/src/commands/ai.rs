@@ -1,4 +1,4 @@
-//! AI commands (v1.2): status, keys, checking a provider, the one-time notice, "What is sent?",
+//! AI commands: status, keys, checking a provider, the one-time notice, "What is sent?",
 //! confirmations and this month's usage. The AI settings themselves are `Settings` fields
 //! (`settings_set`); the AI functions of later packages call `ai::run::complete_json`.
 
@@ -313,7 +313,7 @@ fn push_review_schema() -> Value {
     })
 }
 
-/// The answer is data (Grundregel 3): only files the model saw, sensible lines, redacted notes,
+/// The answer is data: only files the model saw, sensible lines, redacted notes,
 /// no duplicates, at most `MAX_REVIEW_FINDINGS`; sorted by path and line.
 fn review_findings(value: &Value, shown: &[String], secrets: &[String]) -> Vec<AiPushFinding> {
     let known: HashSet<&str> = shown.iter().map(String::as_str).collect();
@@ -349,7 +349,7 @@ fn review_findings(value: &Value, shown: &[String], secrets: &[String]) -> Vec<A
     out
 }
 
-/// "Review and push …" (spec 6.2): asks the provider about leftovers in what a `push` with these
+/// "Review and push …": asks the provider about leftovers in what a `push` with these
 /// arguments would send. Same target rules and errors as `push`; nothing outgoing → no request.
 /// Budget, secrets (`request_frame`) and builder are those of `ai_preview` for `AiInput::OutgoingChanges`, so the
 /// confirmation of "What is sent?" matches.
@@ -367,7 +367,7 @@ pub async fn ai_push_review(
     if outgoing.commits.is_empty() {
         return Ok(AiPushReview { findings: Vec::new(), commits: 0, files: 0, partial: false });
     }
-    // Budget and known secrets exactly as `ai_preview` computes them (Paket 3.1's `request_frame`).
+    // Budget and known secrets exactly as `ai_preview` computes them (`request_frame`).
     let (budget, secrets) = request_frame(core, &settings, AiFeature::PushReview).await;
     let built = context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?;
     let schema = push_review_schema();
@@ -390,7 +390,7 @@ pub async fn ai_push_review(
     })
 }
 
-/// Paket 4: title and description of a pull request from the commits of `source` that `target`
+/// Title and description of a pull request from the commits of `source` that `target`
 /// does not have. A suggestion only – nothing is written; the form places it. The prompt is the
 /// one `ai_preview` shows for `AiInput::PrDescription` with the same refs; with a template the
 /// answer must keep every heading (one repair attempt), and "Closes #n" comes from the commits.
@@ -444,7 +444,7 @@ pub async fn ai_review_fix(
     ai::review::finish(core, &repo_id, &review.ctx, &answer.value).await
 }
 
-/// Paket 8.1: where to cut `branch` into stacked pull requests – a suggestion only, nothing is
+/// Where to cut `branch` into stacked pull requests – a suggestion only, nothing is
 /// created. The prompt is the one `ai_preview` shows for `AiInput::StackSplit` with the same refs;
 /// the cuts must rise and end with the last commit (one repair attempt).
 pub async fn ai_stack_split(
@@ -521,7 +521,7 @@ pub async fn ai_usage(core: &Core) -> CoreResult<AiUsageSummary> {
     })
 }
 
-/// "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, the
+/// "Write" in the commit form: a commit message for the staged changes – a draft, the
 /// core commits nothing. Built exactly as `ai_preview` with `AiInput::CommitMessage` shows it, so a
 /// confirmation given there holds here; `complete_json` refuses everything unconfirmed.
 pub async fn ai_commit_message(core: &Core, repo_id: String, job_id: String, locale: String) -> CoreResult<AiCommitMessage> {
@@ -549,7 +549,7 @@ pub async fn ai_detect(core: &Core) -> CoreResult<AiDetection> {
     ai::detect::detect(core).await
 }
 
-/// „Sign in in the terminal“ (spec „Zustände“, `ai_not_logged_in`): a terminal in this repository's
+/// „Sign in in the terminal“: a terminal in this repository's
 /// tab runs the tool's own sign-in (`claude auth login`, `codex login`, `opencode providers login`) in
 /// an empty folder of the app. Returns the terminal ID.
 pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind, cols: u16, rows: u16) -> CoreResult<String> {
@@ -572,7 +572,7 @@ pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind
     crate::commands::terminal::terminal_open_login(core, &repo_id, launch, cols, rows).await
 }
 
-/// Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
+/// “Explain intent” in the conflict tool: what both sides of every conflict block
 /// wanted and a proposed text per block (`ai::conflict`). Checks that AI is on for this function and
 /// repository before anything is read, builds exactly the text `ai_preview` shows for
 /// `AiInput::ConflictIntent` (same builder, same `request_frame`), asks the provider as job `job_id`

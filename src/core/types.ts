@@ -1214,7 +1214,7 @@ export type Theme = "dark" | "light" | "system";
 export type DateFormat = "relative" | "local" | "iso";
 export type DiffMode = "hunks" | "inline" | "split";
 
-// --- AI (v1.2) ------------------------------------------------------------------
+// --- AI ------------------------------------------------------------------
 
 /** One provider for every AI function and every profile (Settings › AI). */
 export type AiProviderKind =
@@ -1383,7 +1383,7 @@ export interface AiUsageSummary {
   rows: AiUsageRow[];
 }
 
-// --- Git in plain language (v1.2, Paket 5) ---------------------------------------------------
+// --- Git in plain language ---------------------------------------------------
 
 /** A command a plan may contain (the allow list of the core). */
 export type PlanCommand =
@@ -1507,7 +1507,7 @@ export interface ChangelogInsertResult {
   keepAChangelog: boolean;
 }
 
-/** Which way the search by meaning goes (Entscheidung 7). */
+/** Which way the search by meaning goes. */
 export type AiSearchRoute = "local_embeddings" | "provider_embeddings" | "rephrase";
 
 /** `aiSemanticStatus`: the way of the search and the index of this repository. */
@@ -1679,7 +1679,7 @@ export interface Settings {
    * for `proxyByHost.host`; wildcards (`*`) are rejected with `not_allowed`.
    */
   sslNoVerifyHosts?: string[];
-  // --- AI (v1.2, all global) ---
+  // --- AI (all global) ---
   /** Master switch: null = not set up yet ("unset"), false = turned off on purpose, true = on. */
   aiEnabled: boolean | null;
   aiProvider: AiProviderKind | null;
@@ -2851,7 +2851,7 @@ export interface AgentCleanupPreview {
   locked: boolean;
 }
 
-// --- Coding agents: collision warning (v1.2, package 2b) ---
+// --- Coding agents: collision warning ---
 
 /** Lines of a file, 1-based and inclusive, in the version of the first agent of a collision. */
 export interface LineRange {
@@ -2910,7 +2910,7 @@ export interface CollisionPreview {
 }
 
 // ---------------------------------------------------------------------------
-// Review of a coding agent's work (package 2c)
+// Review of a coding agent's work
 // ---------------------------------------------------------------------------
 
 /** Which state of an agent the review compares with its base: its working state (commits plus uncommitted and new files) or only its branch. */
@@ -2938,7 +2938,7 @@ export interface AgentReview {
   running: boolean;
 }
 
-// --- Stacked pull requests (v1.2, Paket 8.1) ---------------------------------------
+// --- Stacked pull requests ---------------------------------------
 
 /** A part ends after commit number `end` (1 = the oldest commit of the branch); `name` empty = the subject of its first commit. */
 export interface StackCut {

@@ -5,7 +5,7 @@ import { isUndoKey, placeDescription, titleDecision, undoInsertion, writeBlocked
 const TEMPLATE = "## Was ändert sich?\n\n## Wie getestet?\n\n- [ ] Tests grün\n";
 const FILLED = "## Was ändert sich?\nNeu.\n\n## Wie getestet?\n\n- [ ] Tests grün\n";
 
-describe("title (spec Paket 4)", () => {
+describe("title", () => {
   it("the title is replaced only while it is still the automatic suggestion", () => {
     // Oracle of the automatic title: the form's own rule, with two commits the branch name in words.
     const automatic = suggestTitle("thema/neue-auswertung", ["Auswertung je Station", "Umlaute sortieren"]);
@@ -18,7 +18,7 @@ describe("title (spec Paket 4)", () => {
   });
 });
 
-describe("description (spec “Umgang mit Vorschlägen”)", () => {
+describe("description", () => {
   it("the untouched template counts as empty, typed text never", () => {
     expect(placeDescription(TEMPLATE, TEMPLATE, true, FILLED)).toEqual({ kind: "insert", text: FILLED });
     expect(placeDescription("", "", false, FILLED)).toEqual({ kind: "insert", text: FILLED });

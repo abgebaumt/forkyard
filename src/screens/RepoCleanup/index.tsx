@@ -1,5 +1,5 @@
 /**
- * “Clean up repository” (overlay `{ kind: "repo_cleanup", repoId }`, spec Paket 10): what takes
+ * “Clean up repository” (overlay `{ kind: "repo_cleanup", repoId }`): what takes
  * space now, which kind of clean-up and which extra steps, then the run with its step and a
  * seconds counter, then the result. The run is a job in the core; the dialog may be closed
  * meanwhile and shows the same run again when it opens again.

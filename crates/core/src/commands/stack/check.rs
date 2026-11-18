@@ -1,5 +1,5 @@
-//! "Check each part" (Paket 8.1): the repository's test command on every planned part, each in a
-//! temporary detached worktree `<parent>/<repo>.agents/stack-check-<n>` (Entscheidung 3) that is
+//! "Check each part": the repository's test command on every planned part, each in a
+//! temporary detached worktree `<parent>/<repo>.agents/stack-check-<n>` that is
 //! removed right afterwards – also after a cancel or an error. The own working directory may be
 //! dirty; it is never touched. Coding agents share that folder (an agent on `agent/stack-check-1`
 //! gets `stack-check-1`), so an existing folder of that name – a worktree or not – is never touched:

@@ -234,7 +234,7 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
         if let Err(e) = gitcore::startup::timed_async("cleanup", core.startup_cleanup()).await {
             log::warn!("Startup cleanup failed: {}", e.message);
         }
-        // Spec 1.3: the login shell's PATH once per start, so the AI setup does not wait for it.
+        // the login shell's PATH once per start, so the AI setup does not wait for it.
         gitcore::startup::timed_async("login shell PATH", gitcore::ai::detect::warm_up(&core)).await;
     });
     Ok(())

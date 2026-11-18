@@ -1,4 +1,4 @@
-//! CHANGELOG.md in the working directory (release notes, v1.2 Teilpaket 7.2): finding it,
+//! CHANGELOG.md in the working directory (release notes): finding it,
 //! recognising Keep a Changelog and its heading language, and inserting the section of a new
 //! version. Pure text functions; the command `changelog_insert` (`commands/release_notes.rs`)
 //! reads and writes. Everything outside the inserted section stays byte for byte as it was:

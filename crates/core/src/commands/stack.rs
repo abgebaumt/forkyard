@@ -1,4 +1,4 @@
-//! Stacked pull requests (Paket 8.1): a branch is split at commit boundaries into branches that
+//! Stacked pull requests: a branch is split at commit boundaries into branches that
 //! build on each other – `<branch>-1-<name>`, `<branch>-2-<name>` … – without a checkout, with one
 //! undo step, optionally checked part by part in a temporary worktree, pushed in one atomic push
 //! and opened as pull requests in stack order (each one targets the part below it).
@@ -357,7 +357,7 @@ pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expecte
 /// the others as extra refs) and records the upstream of every part that arrived. `force`: each ref
 /// only with `--force-with-lease` against the remote tip the prompt showed (`expected`, one entry
 /// per part, `None` = not on the remote), so nothing that arrived since is overwritten. The secret scan runs
-/// as for every push (v1.2, 6.2): `accepted_secrets` as in `push_with`.
+/// as for every push: `accepted_secrets` as in `push_with`.
 #[allow(clippy::too_many_arguments)]
 pub async fn stack_push(
     core: &Core,

@@ -468,7 +468,7 @@ fn template_in(dir: &Path) -> Option<(std::path::PathBuf, String)> {
 }
 
 /// Like `pr_template`, with the template's path relative to the repository root (`/` as
-/// separator) – for the AI context, whose exclusion rules work on paths (Paket 4).
+/// separator) – for the AI context, whose exclusion rules work on paths.
 pub(crate) async fn find_pr_template(core: &Core, repo_id: &str) -> CoreResult<Option<(String, String)>> {
     let root = core.repo_path(repo_id)?;
     let folders = host::template_folders();

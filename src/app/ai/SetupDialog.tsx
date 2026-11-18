@@ -1,5 +1,5 @@
 /**
- * “Set up AI” (spec 1.3, Teilpaket 1b): finds Claude Code, Codex, opencode, Ollama, LM Studio and stored
+ * “Set up AI”: finds Claude Code, Codex, opencode, Ollama, LM Studio and stored
  * keys (`aiDetect` – nothing is sent) and turns AI on: with one click when exactly one signed-in tool is
  * there, otherwise step by step (provider → model → functions). Cancel changes neither the master switch
  * nor the AI state. Shown through `showDialog`, so focus handling knows it (src/app/viewFocus.ts); the

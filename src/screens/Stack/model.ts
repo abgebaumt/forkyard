@@ -1,5 +1,5 @@
 /**
- * Pure rules of the stacked pull requests view (Paket 8.1): cuts between commits, placing a
+ * Pure rules of the stacked pull requests view: cuts between commits, placing a
  * suggestion, the texts and targets of the pull requests, the default base, the tone of a check
  * state, what pushing needs, and the keys of the commit list.
  */

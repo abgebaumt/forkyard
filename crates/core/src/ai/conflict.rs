@@ -1,4 +1,4 @@
-//! Teilpaket 6.1 – “Explain intent” in the conflict tool.
+//! “Explain intent” in the conflict tool.
 //!
 //! The UI sends the conflict blocks of its own three-way model as line ranges of the two sides
 //! (`ConflictBlockRange`); the core reads the versions itself from the index (stages 2 and 3, as
@@ -360,7 +360,7 @@ pub async fn build(
         blocks.len()
     );
 
-    // Budget (spec 1.4): header and context first, then the blocks – the largest shortened, then left out.
+    // Budget: header and context first, then the blocks – the largest shortened, then left out.
     let budget_chars = (budget_tokens as f64 * CHARS_PER_TOKEN) as usize;
     let fixed = header.len() + context_sections.iter().map(|section| section.body.len()).sum::<usize>();
     let total = |lengths: &[usize]| fixed + lengths.iter().sum::<usize>();
@@ -1390,7 +1390,7 @@ mod tests {
 
         let input = AiInput::ConflictIntent { path: PLAN.into(), blocks: vec![plan_range()] };
         let preview = ai_preview(&tc, id.clone(), AiFeature::ConflictIntent, input, "de-DE".into()).await.unwrap();
-        assert!(preview.asks.is_empty(), "a local provider asks nothing (Grundregel 4)");
+        assert!(preview.asks.is_empty(), "a local provider asks nothing");
         assert!(preview.text.contains("- Temperatur: alle 10 Minuten, nachts alle 30"));
         assert!(chats(&server).is_empty(), "the preview sends nothing");
 

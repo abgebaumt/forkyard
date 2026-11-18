@@ -1,4 +1,4 @@
-//! AI connection of the core (v1.2): providers, context, preview, costs, confirmation gate.
+//! AI connection of the core: providers, context, preview, costs, confirmation gate.
 //!
 //! - One provider for every function and profile (`Settings.ai_provider`, global); keys only in
 //!   the keychain under `llm:<provider>`.
@@ -103,7 +103,7 @@ pub fn base_url_for(core: &Core, kind: AiProviderKind, settings: &Settings) -> O
 }
 
 /// Whether requests stay on this computer: a local provider (Ollama, LM Studio) whose resolved
-/// address is a loopback host. Grundregel 4 skips the first-use and per-repository confirmation
+/// address is a loopback host. It skips the first-use and per-repository confirmation
 /// only then; `is_local` alone says "no price", not "no data leaves the machine".
 pub fn runs_on_this_computer(core: &Core, kind: AiProviderKind, settings: &Settings) -> bool {
     kind.is_local()
@@ -183,7 +183,7 @@ impl AiProviderKind {
         }
     }
 
-    /// A command-line tool with its own sign-in (Teilpaket 1b, `ai::cli`).
+    /// A command-line tool with its own sign-in (`ai::cli`).
     pub fn is_cli(self) -> bool {
         matches!(self, AiProviderKind::ClaudeCode | AiProviderKind::Codex | AiProviderKind::Opencode)
     }
@@ -250,7 +250,7 @@ impl AiFeature {
         }
     }
 
-    /// Time limit of one request (spec 1.4); command-line providers add 30 s (Teilpaket 1b).
+    /// Time limit of one request; command-line providers add 30 s.
     pub fn timeout(self) -> Duration {
         match self {
             AiFeature::CommitMessage => Duration::from_secs(60),
@@ -405,7 +405,7 @@ mod tests {
         for kind in cli {
             assert!(!kind.is_local() && !kind.needs_key() && !kind.accepts_key() && !kind.uses_base_url(), "{kind:?}");
             assert_eq!(kind.default_base(), "");
-            assert!(crate::ai::pricing::price_for(&settings, kind, "sonnet").is_none(), "billed through the tool (spec 1.5): {kind:?}");
+            assert!(crate::ai::pricing::price_for(&settings, kind, "sonnet").is_none(), "billed through the tool: {kind:?}");
         }
         assert_eq!(cli.map(AiProviderKind::tool_name), [Some("claude"), Some("codex"), Some("opencode")]);
         assert_eq!(

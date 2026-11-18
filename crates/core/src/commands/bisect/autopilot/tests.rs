@@ -58,7 +58,7 @@ fn worktrees(repo: &TestRepo) -> String {
     repo.git(&["worktree", "list", "--porcelain"])
 }
 
-/// Entscheidung 2 written out: `<parent>/<repo>.agents/bisect-<n>` – not from `names::agents_dir`.
+/// Written out: `<parent>/<repo>.agents/bisect-<n>` – not from `names::agents_dir`.
 fn expected_worktree(repo: &TestRepo, n: u32) -> PathBuf {
     std::fs::canonicalize(repo.temp_dir()).unwrap().join("repo.agents").join(format!("bisect-{n}"))
 }

@@ -73,7 +73,7 @@ pub enum ErrorCode {
     AiNotConfigured,
     /// The provider does not answer, is overloaded or does not know the model.
     AiProviderUnavailable,
-    /// A command-line provider is installed but not signed in (Teilpaket 1b).
+    /// A command-line provider is installed but not signed in.
     AiNotLoggedIn,
     /// The answer is not JSON or does not match the schema, also after one repair attempt.
     AiInvalidAnswer,
@@ -83,7 +83,7 @@ pub enum ErrorCode {
     AiLimitReached,
     /// The request does not fit into the model's context.
     AiTooLarge,
-    /// A command-line provider lacks a required safety switch (Teilpaket 1b).
+    /// A command-line provider lacks a required safety switch.
     AiUnsupportedVersion,
 }
 
@@ -330,7 +330,7 @@ impl CoreError {
         Self::new(ErrorCode::Unknown, message)
     }
 
-    // --- AI (v1.2) ------------------------------------------------------------
+    // --- AI ------------------------------------------------------------
 
     pub fn ai_disabled() -> Self {
         Self::new(ErrorCode::AiDisabled, "AI features are turned off – in Settings › AI, for this function or for this repository.")
@@ -491,7 +491,7 @@ mod tests {
         assert!(error.message.contains(".forkyard/commands.json"), "{}", error.message);
     }
 
-    /// The AI codes of v1.2 arrive in the UI under exactly these names (spec 1.6).
+    /// The AI codes of v1.2 arrive in the UI under exactly these names.
     #[test]
     fn ai_codes_have_their_wire_names() {
         let expected = [

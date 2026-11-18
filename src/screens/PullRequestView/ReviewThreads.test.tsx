@@ -10,7 +10,7 @@ import { FailedNote } from "./ReviewThreads";
 
 const none = () => undefined;
 
-describe("errors of “Suggest fix” (spec “Zustände jedes KI-Elements”)", () => {
+describe("errors of “Suggest fix”", () => {
   it("offers the sign-in in the terminal when a command-line tool is signed out", () => {
     const text = "Codex is not signed in. Sign in in the terminal: codex login";
     const view = { kind: "notLoggedIn", text } as const;

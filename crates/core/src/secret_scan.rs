@@ -1,4 +1,4 @@
-//! Local secret scan before every push (v1.2, spec 6.2). No AI, nothing leaves the computer: the
+//! Local secret scan before every push. No AI, nothing leaves the computer: the
 //! patterns of `git/redact.rs` plus an entropy rule look at the added lines of the commits a push
 //! sends. A finding carries the place, the rule, the line with every value masked and at most the
 //! last four characters of the value; the value itself is never stored, logged or shown.
@@ -690,7 +690,7 @@ mod tests {
         let elapsed = started.elapsed();
         assert_eq!(scan.findings.len(), 10);
         assert_eq!(scan.findings.iter().map(|f| f.line).collect::<Vec<_>>(), (1..=10).map(|n| n * 100).collect::<Vec<u32>>());
-        assert!(elapsed.as_millis() < 200, "spec target: < 200 ms, took {elapsed:?}");
+        assert!(elapsed.as_millis() < 200, "target: < 200 ms, took {elapsed:?}");
     }
 }
 

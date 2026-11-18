@@ -1,5 +1,5 @@
 //! Test program: plays an AI command-line tool (`claude`, `codex`, `opencode`) for the tests of
-//! Teilpaket 1b (`crates/core/tests/ai_cli.rs`) and the E2E features. Built by every `cargo build`,
+//! the AI command-line tests (`crates/core/tests/ai_cli.rs`) and the E2E features. Built by every `cargo build`,
 //! never bundled; it is a fixture, not product code.
 //!
 //! It is copied into a folder under the name of the tool it plays (`claude`, `claude.exe` …) and

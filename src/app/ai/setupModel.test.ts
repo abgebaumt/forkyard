@@ -29,7 +29,7 @@ const cli = (provider: AiProviderKind, patch: Partial<AiCliFound> = {}): AiCliFo
 
 const detection = (patch: Partial<AiDetection> = {}): AiDetection => ({ clis: [], local: [], keys: [], elapsedMs: 420, ...patch });
 
-describe("AI setup (spec 1.3)", () => {
+describe("AI setup", () => {
   it("exactly one signed-in tool: preselected, one click with the tool's default model and every function on", () => {
     const view = setupOverview(
       detection({

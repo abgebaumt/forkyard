@@ -229,7 +229,7 @@ async fn undo_removes_every_stack_branch_and_redo_brings_them_back() {
     crate::commands::undo::redo(&tc, id.clone()).await.unwrap();
     assert_eq!([P1, P2, P3].iter().map(|b| sha_of(&repo, b)).collect::<Vec<_>>(), tips);
 
-    // A part moved meanwhile: the step is no longer offered (Paket 0 checks every ref of a group).
+    // A part moved meanwhile: the step is no longer offered (every ref of a group is checked).
     repo.git(&["update-ref", &format!("refs/heads/{P2}"), "main"]);
     assert!(crate::commands::undo::undo_peek(&tc, id).await.unwrap().undo.is_none());
 }
@@ -535,7 +535,7 @@ mod checks {
     use crate::model::StackCheckState;
 
     fn agents_folder(repo: &TestRepo) -> std::path::PathBuf {
-        // Entscheidung 3 written out: `<parent>/<repo>.agents` – not from `names::agents_dir`.
+        // Written out: `<parent>/<repo>.agents` – not from `names::agents_dir`.
         repo.temp_dir().join("repo.agents")
     }
 
@@ -645,7 +645,7 @@ mod checks {
 
 #[tokio::test]
 async fn a_key_in_a_part_stops_the_stack_push_until_it_is_accepted() {
-    // Spec 6.2: the secret scan runs before every push, also a push with further refs.
+    // the secret scan runs before every push, also a push with further refs.
     let repo = TestRepo::with_commit();
     let remote = TestRemote::new();
     repo.git(&["remote", "add", "origin", &remote.url()]);

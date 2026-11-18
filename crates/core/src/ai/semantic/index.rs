@@ -1,4 +1,4 @@
-//! `ai-index.db` in the data directory: one index per repository and embedding model (spec 9.2).
+//! `ai-index.db` in the data directory: one index per repository and embedding model.
 //! Its own file, not the main database: deletable as a whole, no migration (`create table if not
 //! exists`). The file is created on the first write; reading a missing file means "no index".
 

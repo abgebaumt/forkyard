@@ -1,5 +1,5 @@
 /**
- * Release notes (v1.2, Teilpaket 7.2) without React: which targets a place offers and in which
+ * Release notes without React: which targets a place offers and in which
  * order they run, the range and status lines, where an answer goes (rules for suggestions), and
  * whether the function is visible. The tag message is the tag dialog's annotation field itself.
  */

@@ -11,7 +11,7 @@ const SOURCES = import.meta.glob<string>(
 );
 
 /**
- * Spec 1.3, visibility table: master switch on, provider missing → the element is visible and a
+ * master switch on, provider missing → the element is visible and a
  * click opens the first-time setup (`openAiSetup`). Only "Change limit" opens Settings › AI
  * (`openAiSettings`), because the limit lives there and not in the setup dialog.
  */

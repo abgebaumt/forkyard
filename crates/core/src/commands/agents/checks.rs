@@ -1,5 +1,5 @@
 //! The repository's test command (project setting “Test command”) in an agent's worktree, as a
-//! cancellable job through Paket 0's process runner. It is the user's own command line from the
+//! cancellable job through process runner. It is the user's own command line from the
 //! app database (never from the repository), run by the system shell.
 
 use std::path::PathBuf;

@@ -219,7 +219,7 @@ fn note(omitted: &mut Vec<AiOmitted>, path: &str, reason: AiOmitReason, size: u6
     }
 }
 
-/// Secret and ignored paths are not mentioned at all (Grundregel 5); generated files and binaries
+/// Secret and ignored paths are not mentioned at all; generated files and binaries
 /// only appear as names here anyway.
 fn hidden(exclusions: &Exclusions, path: &str) -> Option<AiOmitReason> {
     exclusions.reason(path).filter(|reason| matches!(reason, AiOmitReason::Secret | AiOmitReason::Ignored))
@@ -369,7 +369,7 @@ fn compose(instruction: &str, locale: &str, gathered: Gathered, budget_chars: us
     }
     let redacted = |lines: &[String]| -> Vec<String> { lines.iter().map(|line| context::redact_for_ai(line, secrets)).collect() };
     let mut omitted = gathered.omitted;
-    // Spec 1.4: every cut is named in the preview.
+    // Every cut is named in the preview.
     let mut shortened: Vec<String> = Vec::new();
     push_list(
         &mut sections,

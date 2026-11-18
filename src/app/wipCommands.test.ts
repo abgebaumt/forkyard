@@ -85,7 +85,7 @@ beforeEach(() => {
   previews.length = 0;
 });
 
-describe("palette: write commit message (spec 3.1)", () => {
+describe("palette: write commit message", () => {
   it("is Mod+Shift+M and toggles Write in the commit form", async () => {
     expect(write.shortcut).toBe("Mod+Shift+M");
     const owners = getCommands()

@@ -1,8 +1,8 @@
-//! Review and takeover of a coding agent's work (package 2c).
+//! Review and takeover of a coding agent's work.
 //!
 //! `review` names the two commits the review compares: the agent's state – a snapshot commit of its
 //! worktree (commits plus uncommitted and new files) or only its branch tip – against the commit it
-//! forked from. Taking a selection over is Paket 0's `range_apply` between exactly these two commits;
+//! forked from. Taking a selection over is `range_apply` between exactly these two commits;
 //! `commit_selection` commits such a selection on the user's own branch, `discard_rest` throws away
 //! what is left uncommitted in the agent's worktree (with undo). Merging and rebasing the agent's
 //! branch are the existing commands.

@@ -10,7 +10,7 @@ import { PrAiErrorNotice } from "./AiWrite";
 
 const none = () => undefined;
 
-describe("errors of “Write from commits” (spec “Zustände jedes KI-Elements”)", () => {
+describe("errors of “Write from commits”", () => {
   it("offers the sign-in in the terminal when a command-line tool is signed out", () => {
     const text = "Claude Code is not signed in. Sign in in the terminal: claude auth login";
     const view = { kind: "notLoggedIn", text } as const;

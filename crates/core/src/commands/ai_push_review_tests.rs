@@ -1,4 +1,4 @@
-//! `ai_push_review` (v1.2, 6.2) against local mock providers: what goes out, what comes back.
+//! `ai_push_review` against local mock providers: what goes out, what comes back.
 
 use serde_json::json;
 

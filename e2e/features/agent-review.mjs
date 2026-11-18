@@ -1,5 +1,5 @@
 /**
- * Review and takeover of a coding agent's work (v1.2, package 2c) in the real app over WebDriver.
+ * Review and takeover of a coding agent's work in the real app over WebDriver.
  * The fake agent (target/debug/forkyard-fake-agent) writes AGENT_RESULT.md with its task into its
  * worktree; the test adds a CRLF change to a tracked list there. Results are checked byte for byte on
  * disk and in Git.

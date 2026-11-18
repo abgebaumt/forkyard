@@ -1,11 +1,11 @@
 /**
- * Right panel “Why is this so?” / “History of this line” (v1.2, 7.1): the commits that shaped one
+ * Right panel “Why is this so?” / “History of this line”: the commits that shaped one
  * line, newest first – each with its message, the change of the line and the pull requests, issues
  * and tickets it names. The main button of a step opens that commit's diff of the file in the
  * centre (the panel stays); “In graph” shows the commit in the graph.
  *
  * With the AI function visible for this repository, “Explain” lets the provider summarise the
- * timeline (after “What is sent?” where Paket 1a asks). The answer is text only: it never changes
+ * timeline (after “What is sent?”). The answer is text only: it never changes
  * anything, never takes the focus, and a cancelled request is discarded.
  */
 import { X } from "lucide-react";

@@ -1,5 +1,5 @@
 //! Prices from a table delivered with the app, with its date. Unknown model → no estimate and
-//! no limit protection (spec 1.5); an own price per model wins. Local providers cost nothing.
+//! no limit protection; an own price per model wins. Local providers cost nothing.
 //! Costs are estimates and counted in micro-USD.
 
 use crate::ai::provider::Usage;
@@ -37,7 +37,7 @@ pub fn builtin_price(kind: AiProviderKind, model: &str) -> Option<AiPrice> {
 }
 
 pub fn price_for(settings: &Settings, kind: AiProviderKind, model: &str) -> Option<AiPrice> {
-    // Local models cost nothing; command-line tools are billed through the tool (spec 1.5).
+    // Local models cost nothing; command-line tools are billed through the tool.
     if kind.is_local() || kind.is_cli() {
         return None;
     }

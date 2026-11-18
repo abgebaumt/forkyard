@@ -1,5 +1,5 @@
 /**
- * AI setup with detection (v1.2, Teilpaket 1b) in the real app. The command-line tools are the fake
+ * AI setup with detection in the real app. The command-line tools are the fake
  * target/debug/forkyard-fake-cli copied into a temp folder that FORKYARD_AI_CLI_DIR points to (debug
  * builds only: nothing else is searched, so the tools of this machine never show up). Ollama and
  * LM Studio point at a closed port unless a scenario starts a local mock.

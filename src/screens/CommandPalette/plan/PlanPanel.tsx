@@ -1,5 +1,5 @@
 /**
- * Body and footer of the command palette in plan mode ("Git in plain language", spec Paket 5): the
+ * Body and footer of the command palette in plan mode ("Git in plain language"): the
  * steps with class (word + dot), conflict check and – for steps that go out – their own
  * confirmation; the editor of one step; loading, failure and the result of a run. Status is never
  * shown by colour alone. Keyboard handling lives in `usePlanSession`.

@@ -1,4 +1,4 @@
-//! The `Provider` trait: one implementation per API/local provider (Teilpaket 1b adds the
+//! The `Provider` trait: one implementation per API/local provider (the command-line tools add the
 //! command-line providers). No streaming; every call takes the job's cancel token and returns
 //! as soon as it fires (`http::send_cancellable`).
 
@@ -15,7 +15,7 @@ use crate::model::{AiModelInfo, AiProviderKind};
 
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// Time limit of one embedding request (spec 1.4: "sonst 120 s").
+/// Time limit of one embedding request.
 pub const EMBED_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// One request: system text and user text (from `prompt::Prompt`) and the answer schema.
@@ -74,7 +74,7 @@ pub trait Provider: Send + Sync {
         Box::pin(async { Err(CoreError::unsupported("This provider offers no embeddings in this version.")) })
     }
     /// Cost the provider reported itself for the requests made through this instance (the
-    /// command-line tools, spec 1.5), in micro-USD; read once after the request. `None` = nothing
+    /// command-line tools), in micro-USD; read once after the request. `None` = nothing
     /// reported – API providers are priced by `ai::pricing`.
     fn take_reported_cost_micros(&self) -> Option<i64> {
         None

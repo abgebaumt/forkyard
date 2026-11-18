@@ -1,4 +1,4 @@
-//! Names of a coding agent (Entscheidung 3): short name from the task, branch `agent/<short>`,
+//! Names of a coding agent: short name from the task, branch `agent/<short>`,
 //! worktree folder `<parent>/<repo>.agents/<short>`. Short names only contain `a-z`, `0-9`
 //! and `-`, so they are valid in branch names and as folder names on every system.
 

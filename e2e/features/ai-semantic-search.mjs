@@ -1,5 +1,5 @@
 /**
- * Search by meaning in the real app (v1.2, Teilpaket 9.2), against a Node stand-in for Ollama behind
+ * Search by meaning in the real app, against a Node stand-in for Ollama behind
  * FORKYARD_AI_BASE_URL_OLLAMA (debug builds only). The fake "meaning" of a text is how often words of
  * three families occur in it – the expected order follows from the fixture's commit texts, not from
  * the app's code.

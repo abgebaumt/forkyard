@@ -1,4 +1,4 @@
-//! Tests of Paket 4 (pull request description): literal fixtures, Git itself as the oracle, real
+//! Tests of the pull request description: literal fixtures, Git itself as the oracle, real
 //! temp repositories and a local mock provider – never a real service.
 
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -414,7 +414,7 @@ async fn azure_work_items_are_referenced_but_never_closed() {
 
 #[tokio::test]
 async fn a_clearly_german_history_asks_for_german() {
-    // Literal fixture: four subjects that are German by meaning (the same ones Paket 3.1 uses for its
+    // Literal fixture: four subjects that are German by meaning (the same ones the commit message uses for its
     // detector); the branch's own English subject must not change the target's language.
     let repo = TestRepo::new();
     for (file, subject) in [

@@ -1,5 +1,5 @@
 /**
- * Texts and choices of the collision warning (package 2b): line ranges, banner titles, which
+ * Texts and choices of the collision warning: line ranges, banner titles, which
  * collisions a view shows, who can be informed and the prefilled note. Pure functions – the
  * check itself runs in the core (`agentCollisions`, event `agents:collisions`).
  */

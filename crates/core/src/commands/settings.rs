@@ -114,7 +114,7 @@ pub(crate) fn check_ai_base_url(url: &str) -> CoreResult<()> {
 }
 
 /// The address of the local embedding provider of the search: only this computer, whatever the
-/// scheme – a provider elsewhere would be a second external provider (Entscheidung 7).
+/// scheme – a provider elsewhere would be a second external provider.
 pub(crate) fn check_local_embed_url(url: &str) -> CoreResult<()> {
     let target = crate::http::Target::parse(url)?;
     if !target.loopback {
@@ -222,7 +222,7 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
         Ok(())
     })?;
     if changed.iter().any(|k| k == "aiEnabled") && next.ai_enabled != Some(true) {
-        // Grundregel 1: switching off cancels running requests at once.
+        // switching off cancels running requests at once.
         crate::ai::run::cancel_all(core);
     }
     if changed.iter().any(|k| AI_KEYS.contains(&k.as_str())) {
@@ -744,7 +744,7 @@ mod tests {
         let tc = TestCore::new().await;
         let s = settings_get(&tc).await.unwrap();
         assert_eq!(s.ai_enabled, None, "not set up: neither on nor off");
-        assert_eq!(s.ai_confirm_cost_usd, 0.10, "ask above 0.10 USD by default (spec Grundregel 4)");
+        assert_eq!(s.ai_confirm_cost_usd, 0.10, "ask above 0.10 USD by default");
         let s = settings_set(
             &tc,
             json!({
@@ -786,7 +786,7 @@ mod tests {
             .count();
         assert_eq!(ai_events, 1, "an AI change also reports app:changed with ai");
 
-        // Global (Entscheidung 1): another profile sees the same values.
+        // Global: another profile sees the same values.
         let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
         let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
         profile_activate(&tc, other).await.unwrap();
@@ -848,7 +848,7 @@ mod tests {
             .count();
         assert!(ai_events >= 1, "a change of the search embedder reports app:changed with ai");
 
-        // Entscheidung 7: the extra provider of the search is a local one.
+        // the extra provider of the search is a local one.
         for kind in ["openai", "anthropic", "gemini", "openai_compatible"] {
             let err = settings_set(&tc, json!({"aiSearchEmbedProvider": kind})).await.unwrap_err();
             assert_eq!(err.code, ErrorCode::NotAllowed, "{kind}");
@@ -864,7 +864,7 @@ mod tests {
             "a refused value changes nothing"
         );
 
-        // Global (Entscheidung 1): another profile sees the same embedder.
+        // Global: another profile sees the same embedder.
         let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
         let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
         profile_activate(&tc, other).await.unwrap();
@@ -939,7 +939,7 @@ mod tests {
             "a refused change keeps the old value"
         );
 
-        // Global like every AI setting (Entscheidung 1).
+        // Global like every AI setting.
         let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
         let other = list.iter().find(|p| p.name == "Privat").unwrap().id.clone();
         profile_activate(&tc, other).await.unwrap();

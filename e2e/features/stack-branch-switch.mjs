@@ -1,5 +1,5 @@
 /**
- * The stack view starts fresh for every branch (v1.2, Paket 8.1). The view stays mounted when the
+ * The stack view starts fresh for every branch. The view stays mounted when the
  * centre switches from one branch's stack view to another's, through the branch menu entry or the
  * palette command. Cuts and names from the first branch must not reach the second branch's plan.
  *

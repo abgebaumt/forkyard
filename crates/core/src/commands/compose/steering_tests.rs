@@ -1,4 +1,4 @@
-//! The newer half of the proposal (v1.2, 3.2 rework): reasons and "unsure" per unit, the user's
+//! The newer half of the proposal: reasons and "unsure" per unit, the user's
 //! instruction for a new proposal, units the user placed, protected units and the hooks per
 //! commit – against a local Ollama stand-in, never a real service.
 

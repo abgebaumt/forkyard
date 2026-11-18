@@ -373,7 +373,7 @@ pub async fn line_history(core: &Core, repo_id: String, path: String, line: u32,
 
 /// `line_history` plus the change of the line range in each step: the ` `, `+` and `-` lines of its
 /// hunks without headers, `\ No newline` notes and CR, decoded like blame lines. For the line
-/// archaeology (v1.2); the output holds file contents and is never logged.
+/// archaeology; the output holds file contents and is never logged.
 pub(crate) async fn line_history_with_diffs(
     core: &Core,
     repo_id: &str,

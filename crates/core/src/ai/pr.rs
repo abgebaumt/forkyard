@@ -1,9 +1,9 @@
-//! Paket 4: title and description of a pull request from the commits of a branch.
+//! Title and description of a pull request from the commits of a branch.
 //!
 //! Context: the branch's commits without merges (oldest first, the newest 100), the diff statistics
 //! against the merge base (never file contents), ticket references the v1.1 link rules find in the
 //! commit messages, the repository's pull request template and up to 50 commit subjects of the
-//! target as a sample of the repository's language (Grundregel 6). Secret and ignored paths are
+//! target as a sample of the repository's language. Secret and ignored paths are
 //! not named; everything is redacted and sent between the markers of `ai::prompt`.
 //!
 //! The answer `{ title, body }` is checked beyond the schema: a single-line title of at most 300
@@ -293,8 +293,8 @@ const BODY_LINES: usize = 12;
 /// Rough size of a section's title line and markers beyond title and body.
 const SECTION_OVERHEAD: usize = 96;
 
-/// The instruction of the system text. `language`: Paket 3.1's `ai::language::detect` of the
-/// target's recent subjects (Grundregel 6); `None` leaves it to the sample section.
+/// The instruction of the system text. `language`: `ai::language::detect` of the
+/// target's recent subjects; `None` leaves it to the sample section.
 pub fn instruction(language: Option<&str>) -> String {
     let language = match language {
         Some(language) => format!("Write title and description in {language}, the language of this repository's commit messages. "),
@@ -397,7 +397,7 @@ async fn diff_stats(
         .collect())
 }
 
-/// Up to 50 commit subjects of the target, newest first (Grundregel 6).
+/// Up to 50 commit subjects of the target, newest first.
 async fn language_sample(core: &Core, repo_id: &str, target_sha: &str) -> CoreResult<Vec<String>> {
     let path = core.repo_path(repo_id)?;
     let out = read_cmd(core, &path, repo_id)

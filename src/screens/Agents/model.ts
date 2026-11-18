@@ -268,6 +268,6 @@ export function cockpitKeyAction(key: string, shiftKey: boolean, rowId: Id | nul
   }
 }
 
-/** “Agents n” with the agents whose program runs (spec: toolbar switch “Agenten n”); without any just “Agents”. */
+/** “Agents n” with the agents whose program runs; without any just “Agents”. */
 export const toolbarLabel = (running: number): string =>
   running > 0 ? t("agents.toolbar.labelCount", { count: running }) : t("agents.toolbar.label");

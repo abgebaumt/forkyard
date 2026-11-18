@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applySuggestion, placeSuggestion } from "./suggestion";
 
-describe("placing a suggestion (spec “Umgang mit Vorschlägen”)", () => {
+describe("placing a suggestion", () => {
   it("fills an empty field as a draft", () => {
     expect(placeSuggestion("", "", "Fix login")).toEqual({ kind: "insert", text: "Fix login" });
     expect(placeSuggestion("  \n", "  \n", "Fix login")).toEqual({ kind: "insert", text: "Fix login" });

@@ -1,4 +1,4 @@
-//! The pull requests of a stack (Paket 8.1) at every host: each part targets the part below it.
+//! The pull requests of a stack at every host: each part targets the part below it.
 
 use super::{assert_clean, Fixture};
 use crate::commands::stack::stack_prs_create;

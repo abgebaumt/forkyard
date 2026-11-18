@@ -1,4 +1,4 @@
-//! Bisect autopilot (9.1, Entscheidung 2): runs a confirmed test script commit by commit in a
+//! Bisect autopilot (9.1): runs a confirmed test script commit by commit in a
 //! temporary, detached worktree `<parent>/<repo>.agents/bisect-<n>` based on the bad commit.
 //!
 //! Forkyard drives the bisect itself instead of `git bisect run`: each step runs the script through

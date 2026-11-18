@@ -1,5 +1,5 @@
 /**
- * Pure helpers of the push check (v1.2, spec 6.2): the dialog of the local secret scan
+ * Pure helpers of the push check: the dialog of the local secret scan
  * ("Looks like a key") and the result of the AI review before a push.
  */
 import type { AiPushFindingKind, AiPushReview, AiStatus, RepoSettings, SecretFinding, SecretRule } from "../../core";

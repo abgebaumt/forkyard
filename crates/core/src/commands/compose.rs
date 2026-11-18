@@ -1,4 +1,4 @@
-//! "Compose commits" (v1.2, Teilpaket 3.2): the local changes as units, the AI provider's grouping
+//! "Compose commits": the local changes as units, the AI provider's grouping
 //! and the commits created from a plan under one undo entry.
 
 mod apply;
@@ -62,7 +62,7 @@ pub async fn compose_proposal(
     keep: Vec<ComposeKeep>,
 ) -> CoreResult<ComposeProposal> {
     let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Compose)?;
-    // The same budget and secrets as `ai_preview` (Paket 3.1's helper), so both build the same text.
+    // The same budget and secrets as `ai_preview` (helper), so both build the same text.
     let (budget, secrets) = request_frame(core, &settings, AiFeature::Compose).await;
     let steering = prompt::Steering { instruction, keep };
     let built = prompt::build(core, &repo_id, &settings, budget, &locale, &secrets, &steering).await?;

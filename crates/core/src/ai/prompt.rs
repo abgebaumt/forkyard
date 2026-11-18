@@ -1,6 +1,6 @@
 //! The text that goes to the provider: a fixed system text, then the sections with repository
 //! content, each between `<<<REPO <token>>>>` and `<<<END <token>>>>`. The token is random per
-//! request, so repository content cannot close its section (Grundregel 3 – damage control, not
+//! request, so repository content cannot close its section (damage control, not
 //! protection: the answer is still only data). The fingerprint ignores the token, so an approval
 //! given for the preview holds for the request with its new token.
 

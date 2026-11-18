@@ -1,5 +1,5 @@
 /**
- * One-time notice after the update to 1.2 (spec 1.3): only in "unset", only when the upgrade step
+ * One-time notice after the update to 1.2: only in "unset", only when the upgrade step
  * set `ai.introPending`, once per start, without a time limit. "Set up …" and "Close" both clear
  * the marker; closing the toast with × only hides it for this run.
  */

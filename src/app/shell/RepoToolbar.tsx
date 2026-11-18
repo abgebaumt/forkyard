@@ -154,7 +154,7 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     ...(hasRemote === false ? [{ label: t("shell.toolbar.addRemote"), onSelect: addRemote } satisfies MenuEntry] : []),
   ];
 
-  // "Review and push …" (v1.2, 6.2): the Push button becomes a split button only where the review is visible.
+  // "Review and push …": the Push button becomes a split button only where the review is visible.
   const pushMenu: MenuEntry[] | undefined = reviewOffered(aiStatus, repoSettings)
     ? [
         {

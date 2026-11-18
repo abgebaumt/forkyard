@@ -228,8 +228,8 @@ async fn compose_needs_the_function_on_and_respects_the_repository_switch() {
     assert_eq!(compose_units(&tc, id).await.unwrap().units.len(), 3, "composing by hand needs no AI");
 }
 
-/// Grundregel 6: messages in the repository's language, recognised from its last 50 subjects
-/// (Paket 3.1's detector). The German history is a literal fixture with four clearly German
+/// messages in the repository's language, recognised from its last 50 subjects
+/// (detector). The German history is a literal fixture with four clearly German
 /// subjects; the history of `three_units` has only one German word ("Ein") and stays undecided.
 #[tokio::test]
 async fn the_repository_language_from_its_subjects_goes_into_the_instruction() {

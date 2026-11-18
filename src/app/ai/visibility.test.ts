@@ -15,7 +15,7 @@ const status = (patch: Partial<AiStatus>): AiStatus => ({
   ...patch,
 });
 
-describe("AI visibility (spec 1.3)", () => {
+describe("AI visibility", () => {
   it.each([
     ["unset", false, { startEntry: true, setupCommand: true, elements: false, elementsOpenSetup: false }],
     ["unset", true, { startEntry: true, setupCommand: true, elements: false, elementsOpenSetup: false }],

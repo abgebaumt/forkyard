@@ -438,7 +438,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
             ? t("pullRequest.create.blocked.nothing", { source: sourceName, target: targetName })
             : null;
 
-  // "Write from commits" (v1.2 Paket 4): visible only while AI is on for this function and repository.
+  // "Write from commits": visible only while AI is on for this function and repository.
   const ai = usePrAiWriter({
     repoId,
     source: sourceRef?.fullName ?? null,

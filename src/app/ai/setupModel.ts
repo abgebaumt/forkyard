@@ -1,5 +1,5 @@
 /**
- * Pure model of “Set up AI” (spec 1.3, Teilpaket 1b): what the detection offers, what is preselected
+ * Pure model of “Set up AI”: what the detection offers, what is preselected
  * (exactly one signed-in command-line tool → one click), when a step may be left and which settings
  * the end writes. Rendered by SetupDialog.tsx.
  */
@@ -67,7 +67,7 @@ export function draftFromPick(pick: SetupPick): SetupDraft {
 export const primaryAction = (pick: SetupPick | null): "turnOn" | "continue" | null =>
   pick === null ? null : pick.kind === "cli" ? "turnOn" : "continue";
 
-/** “Continue” only after the provider answered (spec 1.3: „erst nach Erfolg ‚Weiter‘“). */
+/** “Continue” only after the provider answered. */
 export const canLeaveProvider = (draft: SetupDraft): boolean => draft.provider !== null && draft.checked;
 
 export const canLeaveModel = (draft: SetupDraft): boolean =>

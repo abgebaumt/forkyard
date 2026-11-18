@@ -1,4 +1,4 @@
-//! Release notes (v1.2, Teilpaket 7.2): the range since the last tag (no AI, no network), writing
+//! Release notes: the range since the last tag (no AI, no network), writing
 //! the notes with the AI provider, and inserting them into CHANGELOG.md of the working directory
 //! as a normal, uncommitted change. The host release is `host::release_create` (`commands/host.rs`).
 

@@ -1,5 +1,5 @@
 /**
- * AI setup and visibility in the real app (v1.2, Teilpaket 1a):
+ * AI setup and visibility in the real app:
  *
  * - main: "unset" shows one muted start-page entry "Set up AI features": reachable with Tab, Enter and a
  *   click open Settings › AI; the palette offers "Set up AI …" and leads there as well;
@@ -176,7 +176,7 @@ scenario(
     await app.click(await app.waitFor(ENTRY, 15_000, { message: "start-page entry" }));
     await app.waitFor("[data-ai-settings]", 10_000, { message: "the AI section" });
 
-    // Teilpaket 1b: switching on without a provider opens the setup dialog – so provider and model first.
+    // switching on without a provider opens the setup dialog – so provider and model first.
     await chooseOption(app, '[data-ai-provider] button[role="combobox"]', "Ollama (on this computer)");
     await eventually(async () => (await app.invoke("settings_get")).aiProvider, "ollama", "core: provider ollama");
     await app.click(await app.waitFor("[data-ai-check]", 5000, { message: "Check" }));

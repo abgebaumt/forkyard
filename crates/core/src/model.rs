@@ -930,7 +930,7 @@ pub struct StashSelection {
 }
 
 // ---------------------------------------------------------------------------
-// Compose commits (v1.2, Teilpaket 3.2)
+// Compose commits
 // ---------------------------------------------------------------------------
 
 /// What one unit of "Compose commits" is: one hunk of a text file or a whole file.
@@ -1189,7 +1189,7 @@ pub enum PushResult {
     },
 }
 
-/// Why the local secret scan before a push (v1.2, 6.2) reported a line.
+/// Why the local secret scan before a push reported a line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SecretRule {
@@ -1254,7 +1254,7 @@ pub struct ConflictFile {
 }
 
 // ---------------------------------------------------------------------------
-// Conflicts with intent (v1.2, Teilpaket 6.1)
+// Conflicts with intent
 // ---------------------------------------------------------------------------
 
 /// One conflict block of the conflict tool as line ranges of the current side (index stage 2)
@@ -1745,7 +1745,7 @@ pub struct HostProxy {
 }
 
 // ---------------------------------------------------------------------------
-// AI (v1.2)
+// AI
 // ---------------------------------------------------------------------------
 
 /// Default of `Settings.ai_confirm_cost_usd`: ask before a request estimated above 0.10 USD.
@@ -1793,7 +1793,7 @@ pub enum AiFeature {
     BisectScript,
     SemanticSearch,
     ReviewFix,
-    /// Paket 8.1: where to cut a branch into stacked pull requests.
+    /// Where to cut a branch into stacked pull requests.
     StackSplit,
 }
 
@@ -1888,7 +1888,7 @@ pub struct AiModelList {
     pub structured: AiStructuredMode,
 }
 
-/// Why "What is sent?" asks before sending (Grundregel 4; `limit` from spec 1.5).
+/// Why "What is sent?" asks before sending.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AiAskTrigger {
@@ -1940,26 +1940,26 @@ pub enum AiInput {
     /// Bisect autopilot (9.1): the user's description and test command, the range's commit
     /// subjects, top-level names, build files and changed paths.
     BisectScript(BisectScriptRequest),
-    /// The commit message of the staged changes (spec 3.1): diff, branch, style examples,
+    /// The commit message of the staged changes: diff, branch, style examples,
     /// template and own instruction – exactly what `ai_commit_message` sends.
     CommitMessage,
-    /// Paket 4: the commits of `source` that `target` does not have (full ref names, e.g.
+    /// The commits of `source` that `target` does not have (full ref names, e.g.
     /// `refs/heads/feature/x` and `refs/remotes/origin/main`).
     PrDescription { source: String, target: String },
-    /// Teilpaket 6.1: the conflict blocks of one conflicted file, as line ranges of the conflict tool.
+    /// The conflict blocks of one conflicted file, as line ranges of the conflict tool.
     ConflictIntent { path: String, blocks: Vec<ConflictBlockRange> },
-    /// What a push with these arguments would send (v1.2, 6.2): the outgoing commits and their
+    /// What a push with these arguments would send: the outgoing commits and their
     /// combined diff. Same target rules as `push`.
     #[serde(rename_all = "camelCase")]
     OutgoingChanges { branch: Option<String>, remote: Option<String>, remote_branch: Option<String> },
     /// The commits of the release notes (7.2): after `from` (default: the nearest earlier tag,
     /// tags on `to` left out) up to `to` (default `HEAD`), merges left out.
     ReleaseNotes { from: Option<String>, to: Option<String> },
-    /// "Git in plain language": the user's sentence (Paket 5).
+    /// "Git in plain language": the user's sentence.
     Plan { text: String },
-    /// One line's history for “Why is this so?” (Paket 7.1); `sha: None` = working directory.
+    /// One line's history for “Why is this so?”; `sha: None` = working directory.
     Archaeology { path: String, line: u32, sha: Option<String> },
-    /// Paket 8.1: where to cut `branch` (short or `refs/heads/…`) above `base` (full ref of a branch).
+    /// Where to cut `branch` (short or `refs/heads/…`) above `base` (full ref of a branch).
     StackSplit { branch: String, base: String },
     /// 8.2: one review thread of pull request `number`; the core reads thread, pull request and file
     /// itself (`{"kind": "review_fix", "number": 7, "threadId": "…"}`).
@@ -1969,7 +1969,7 @@ pub enum AiInput {
     SemanticSearch { query: String },
 }
 
-/// Kind of a hint of the review before a push (spec 6.2). Keys are never a kind: they come from
+/// Kind of a hint of the review before a push. Keys are never a kind: they come from
 /// the local secret scan only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -2047,7 +2047,7 @@ pub struct AiUsageSummary {
 }
 
 // ---------------------------------------------------------------------------
-// Git in plain language (v1.2, Paket 5)
+// Git in plain language
 // ---------------------------------------------------------------------------
 
 /// A command a plan may contain (allow list in `ai::plan_commands`); wire names as in
@@ -2188,7 +2188,7 @@ pub struct PlanRunResult {
     pub cancelled: bool,
 }
 
-/// The four groups of the release notes (Entscheidung 5, Keep a Changelog).
+/// The four groups of the release notes (Keep a Changelog).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ReleaseGroupKind {
@@ -2253,7 +2253,7 @@ pub struct ChangelogInsertResult {
     pub keep_a_changelog: bool,
 }
 
-/// Which way the search by meaning goes (Entscheidung 7).
+/// Which way the search by meaning goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AiSearchRoute {
@@ -2325,7 +2325,7 @@ pub struct AiSemanticIndexUpdate {
     pub waiting: bool,
 }
 
-/// `ai_pr_description` (Paket 4): a suggestion for title and description – nothing is written
+/// `ai_pr_description`: a suggestion for title and description – nothing is written
 /// anywhere; the form places it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -2492,7 +2492,7 @@ pub struct Settings {
     /// never global), in the form `https://host[:port]`.
     #[serde(default)]
     pub ssl_no_verify_hosts: Vec<String>,
-    // --- AI (v1.2; all global, see db::app_settings::GLOBAL_KEYS) ---
+    // --- AI (all global, see db::app_settings::GLOBAL_KEYS) ---
     /// Master switch: `None` = not set up yet, `Some(false)` = turned off on purpose.
     #[serde(default)]
     pub ai_enabled: Option<bool>,
@@ -2521,7 +2521,7 @@ pub struct Settings {
     /// Own paths of the AI command-line tools; empty = found automatically.
     #[serde(default)]
     pub ai_cli_paths: AiCliPaths,
-    /// Optional embedding provider of the search by meaning (spec 9.2, Entscheidung 7): only on
+    /// Optional embedding provider of the search by meaning: only on
     /// this computer (Ollama, LM Studio). `None` = the main provider's embeddings, if it has any.
     #[serde(default)]
     pub ai_search_embed_provider: Option<AiProviderKind>,
@@ -2623,14 +2623,14 @@ pub struct RepoSettings {
     /// "AI off for this repository": no AI element appears for it, nothing of it is sent.
     #[serde(default)]
     pub ai_off: bool,
-    /// Project › AI and agents: run the AI review before every normal push (v1.2, 6.2; off by default).
+    /// Project › AI and agents: run the AI review before every normal push (off by default).
     #[serde(default)]
     pub ai_review_before_push: bool,
     /// How many secret-scan findings this repository no longer reports ("Don't report again").
     /// Read-only; only hashes are stored, never values.
     #[serde(default)]
     pub secret_scan_ignored_count: u32,
-    /// Own instruction for AI commit messages in this repository (spec 3.1), at most 2000
+    /// Own instruction for AI commit messages in this repository, at most 2000
     /// characters; stored in the app (`repo_settings`), never in .git/config.
     #[serde(default)]
     pub ai_commit_instruction: Option<String>,
@@ -4619,7 +4619,7 @@ pub struct RepoStats {
 }
 
 // ---------------------------------------------------------------------------
-// Stacked pull requests (v1.2, Paket 8.1)
+// Stacked pull requests
 // ---------------------------------------------------------------------------
 
 /// Where a part of a stack ends: after commit number `end` (1 = the oldest commit of the branch).
@@ -4764,7 +4764,7 @@ pub struct StackPrOutcome {
     pub failed: Option<StackPrFailed>,
 }
 
-/// A part the AI proposes (Paket 8.1): it ends after commit `end`.
+/// A part the AI proposes: it ends after commit `end`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiStackPart {
@@ -5075,7 +5075,7 @@ mod agent_json_tests {
 }
 
 // ---------------------------------------------------------------------------
-// Coding agents: collision warning (v1.2, package 2b)
+// Coding agents: collision warning
 // ---------------------------------------------------------------------------
 
 /// Lines of a file, 1-based and inclusive, counted in the version of the first side of a
@@ -5216,7 +5216,7 @@ mod collision_model_tests {
 }
 
 // ---------------------------------------------------------------------------
-// Review of a coding agent's work (package 2c)
+// Review of a coding agent's work
 // ---------------------------------------------------------------------------
 
 /// Which state of a coding agent its review compares with the base.
@@ -5292,7 +5292,7 @@ mod conflict_intent_json_tests {
     use super::*;
     use serde_json::json;
 
-    /// The UI sends line ranges and gets explanations and proposals back in exactly this shape (v1.2, 6.1).
+    /// The UI sends line ranges and gets explanations and proposals back in exactly this shape.
     #[test]
     fn conflict_intent_types_have_their_wire_shape() {
         let input: AiInput = serde_json::from_value(json!({

@@ -1,5 +1,5 @@
 /**
- * Pure helpers of the search by meaning (spec 9.2): when Enter runs a search, how the reason of a
+ * Pure helpers of the search by meaning: when Enter runs a search, how the reason of a
  * hit reads, what the note about the way and the "searched for" line say.
  */
 import type { AiPreview, AiSemanticHit, AiSemanticResult, AiSemanticStatus, CoreError } from "../../core";

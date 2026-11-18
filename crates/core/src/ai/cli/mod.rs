@@ -1,4 +1,4 @@
-//! Command-line AI providers (Teilpaket 1b): Claude Code, Codex and opencode with the sign-in the
+//! Command-line AI providers: Claude Code, Codex and opencode with the sign-in the
 //! user already has – Forkyard stores nothing of it.
 //!
 //! - Every call runs through `proc::Proc` in a fresh, empty folder under the data folder (never in
@@ -95,7 +95,7 @@ impl Drop for ScratchDir {
 
 // --- Command lines and stdin ------------------------------------------------------------------
 
-/// Extra time for a tool to start (spec 1.2: „Zeitlimit wie API-Anbieter + 30 s Start“).
+/// Extra time for a tool to start.
 pub const CLI_START_GRACE: Duration = Duration::from_secs(30);
 const MAX_MODEL_LEN: usize = 200;
 
@@ -207,7 +207,7 @@ struct CapsCache {
     map: Mutex<HashMap<(PathBuf, Option<String>), CliCaps>>,
 }
 
-/// `--help` of the program, read once per path and version (spec 1.2). A tool that does not answer
+/// `--help` of the program, read once per path and version. A tool that does not answer
 /// within `limit` counts as unsupported for now and is asked again next time.
 pub async fn caps(core: &Core, kind: AiProviderKind, program: &Path, version: Option<&str>, limit: Duration) -> CliCaps {
     let key = (program.to_path_buf(), version.map(str::to_string));
@@ -502,7 +502,7 @@ impl CliProvider {
     }
 
     /// The schema goes as a switch (Claude Code: the JSON text, Codex: a file) – not for a batch
-    /// shim of Claude Code, whose command line can't carry `"` (Paket 0, `batch_command_line`).
+    /// shim of Claude Code, whose command line can't carry `"` (`batch_command_line`).
     pub fn schema_as_switch(&self) -> bool {
         self.caps.schema && !(self.kind == AiProviderKind::ClaudeCode && crate::proc::is_batch(&self.program))
     }

@@ -1,6 +1,6 @@
-//! Confirmations before sending (Grundregel 4): the first use of every function (globally), more
+//! Confirmations before sending: the first use of every function (globally), more
 //! than 100 000 characters, an estimated cost above the threshold, the first content of a
-//! repository for an external provider, and the monthly limit (spec 1.5). Local providers skip
+//! repository for an external provider, and the monthly limit. Local providers skip
 //! the first two kinds of "first time". Given confirmations are remembered in `ai_preview_seen`
 //! ("first use" and "repository" always, "large"/"cost" only with "Don't ask again", the limit
 //! never). Every confirmation also approves exactly this text (prompt fingerprint) for one request
@@ -105,7 +105,7 @@ pub fn confirm(
 /// `Ok` if every pending trigger is approved for this text; the limit gives `ai_limit_reached`,
 /// everything else `not_allowed`. An approval lets exactly one request through: it is used up
 /// here, so "Send this time" (limit) and a "large"/"cost" confirmation without "Don't ask again"
-/// ask again before the next request, even for the same text (spec 1.5, Grundregel 4).
+/// ask again before the next request, even for the same text.
 pub fn require(core: &Core, fingerprint: &str, pending: &[AiAskTrigger], spent_usd: f64, limit_usd: Option<f64>) -> CoreResult<()> {
     if pending.is_empty() {
         return Ok(());
@@ -192,7 +192,7 @@ mod tests {
             limit_reached: false,
         };
         assert_eq!(pending(&tc, &settings, &api).unwrap(), vec![FirstUse, RepoFirst]);
-        assert!(pending(&tc, &settings, &Situation { local: true, ..api }).unwrap().is_empty(), "local providers skip both (Grundregel 4)");
+        assert!(pending(&tc, &settings, &Situation { local: true, ..api }).unwrap().is_empty(), "local providers skip both");
         confirm(&tc, Some(&id), AiFeature::CommitMessage, "fp", &[FirstUse, RepoFirst], false).unwrap();
         assert!(pending(&tc, &settings, &api).unwrap().is_empty(), "both are remembered once given");
         assert_eq!(pending(&tc, &settings, &Situation { feature: AiFeature::PrDescription, ..api }).unwrap(), vec![FirstUse]);

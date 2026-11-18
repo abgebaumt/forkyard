@@ -1,6 +1,6 @@
-//! Context and answer of “Why is this so?” (Paket 7.1): the timeline of one line
+//! Context and answer of “Why is this so?”: the timeline of one line
 //! (`commands::archaeology::timeline`) as two prompt sections – the selected line, then the steps
-//! newest first – filtered (Grundregel 5), redacted and within the budget. Over the budget the text
+//! newest first – filtered, redacted and within the budget. Over the budget the text
 //! is cut in a fixed order: the changes from the oldest step on, then message bodies (oldest first),
 //! then the oldest steps. The answer is checked against the timeline: notes only for its commits.
 

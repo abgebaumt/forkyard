@@ -1,5 +1,5 @@
 /**
- * The column “Intent” of the conflict tool (v1.2, Teilpaket 6.1), without React: which blocks go to
+ * The column “Intent” of the conflict tool, without React: which blocks go to
  * the core (line ranges only – the core reads the text from the index itself), the small diff of a
  * proposal against the block's current text, which blocks may be applied, the request state (an
  * answer that arrives after “Cancel” or for an older request is dropped) and the remembered width.

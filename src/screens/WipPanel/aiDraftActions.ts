@@ -1,5 +1,5 @@
 /**
- * "Write" for the commit message (spec 3.1): one request per repository at a time. The state starts
+ * "Write" for the commit message: one request per repository at a time. The state starts
  * at the click and covers "What is sent?" (`aiPreview`), the confirmation of 1a's gate and the request
  * (`aiCommitMessage`, a job). The fields stay editable throughout; what arrives is placed by the rules
  * of `aiDraft.ts`. Cancel cancels the job and drops a late answer – there are no half results.

@@ -1,4 +1,4 @@
-//! Checking a plan before it runs (spec Paket 5): every step against the allow list
+//! Checking a plan before it runs: every step against the allow list
 //! (`plan_commands::project`), its arguments against the repository – refs without a leading `-`,
 //! paths through `normalize_rel_path`, names through Git's own rules (`ref_name_check`) – and, where
 //! a step can stop on conflicts, a simulation with `git merge-tree` (`preview::simulate`).

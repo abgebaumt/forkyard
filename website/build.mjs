@@ -12,7 +12,7 @@ const assetDir = path.join(srcDir, "assets");
 const distDir = path.join(here, "dist");
 const site = (process.env.SITE_URL || "").replace(/\/+$/, "");
 const artifactOut = process.env.ARTIFACT_OUT ||
-  "/tmp/claude-1000/-home-user-Schreibtisch-Programming-Projekte-git-client/17bacf26-e245-4c4b-9949-68a99ab3c3f4/scratchpad/forkyard-site.html";
+  path.join(here, "dist-single", "forkyard-site.html");
 
 const read = (name) => fs.readFileSync(path.join(srcDir, name), "utf8");
 const mime = { webp: "image/webp", png: "image/png", woff2: "font/woff2", svg: "image/svg+xml" };

@@ -1,5 +1,5 @@
 /**
- * Visibility of AI elements by state (spec 1.3, Entscheidung 11):
+ * Visibility of AI elements by state:
  *
  * | state                     | start page entry | palette "Set up AI …" | other AI elements            |
  * | unset                     | yes              | yes                   | hidden                       |

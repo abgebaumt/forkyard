@@ -76,7 +76,7 @@ const push = view({
 });
 const pull = view({ command: "pull", args: { pullMode: null } });
 
-describe("the ask row (spec Paket 5: “?” and the last row without matches)", () => {
+describe("the ask row(“?” and the last row without matches)", () => {
   it("starts with “?” only while asking is possible", () => {
     expect(askQuery("?leg einen Branch an", true)).toBe("leg einen Branch an");
     expect(askQuery("?   ", true)).toBe("");
@@ -257,7 +257,7 @@ describe("errors of the plan request", () => {
   });
 });
 
-describe("when the palette offers asking (spec 1.3: unset / off / on)", () => {
+describe("when the palette offers asking (unset / off / on)", () => {
   const status = (patch: Partial<AiStatus>): AiStatus => ({
     state: "on",
     provider: "ollama",

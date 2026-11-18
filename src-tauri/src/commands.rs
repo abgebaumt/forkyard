@@ -1480,7 +1480,7 @@ pub async fn stats_compute(core: State<'_, Core>, repo_id: String, job_id: Strin
     c::stats::stats_compute(&core, repo_id, job_id, range).await
 }
 
-// --- AI (v1.2) ------------------------------------------------------------------
+// --- AI ------------------------------------------------------------------
 
 #[tauri::command]
 pub async fn ai_status(core: State<'_, Core>) -> R<AiStatus> {
@@ -1746,7 +1746,7 @@ pub async fn review_fix_apply(
     c::review_fix::review_fix_apply(&core, repo_id, number, fix, target).await
 }
 
-// --- Search by meaning (v1.2) ---------------------------------------------------
+// --- Search by meaning ---------------------------------------------------
 
 #[tauri::command]
 pub async fn ai_semantic_status(core: State<'_, Core>, repo_id: String) -> R<AiSemanticStatus> {

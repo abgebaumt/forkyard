@@ -95,7 +95,7 @@ export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id;
         menuItem(t("agents.commands.cockpit"), LayoutList, () => openCockpit(tabId)),
         menuItem(t("agents.section.new"), Plus, () => void startNewAgent(repoId, tabId)),
       ]}
-      // Spec 2a: the section ends with the row “New agent …” (the empty state has its own button).
+      // the section ends with the row “New agent …” (the empty state has its own button).
       footer={
         all.length > 0 && !filtering ? (
           <Button

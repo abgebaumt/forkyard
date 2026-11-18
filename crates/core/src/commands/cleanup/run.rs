@@ -16,7 +16,7 @@ use crate::util;
 
 use super::measure;
 
-/// The order of the steps (spec Paket 10, „Kern“).
+/// The order of the steps.
 pub(super) const ORDER: [CleanupStep; 5] =
     [CleanupStep::Worktrees, CleanupStep::Undo, CleanupStep::Reflog, CleanupStep::Lfs, CleanupStep::Gc];
 /// Largest age the undo option accepts, in days.

@@ -1,5 +1,5 @@
 /**
- * Coding-agent cockpit (v1.2, package 2a) in the real app over WebDriver: the fake agent
+ * Coding-agent cockpit in the real app over WebDriver: the fake agent
  * (target/debug/forkyard-fake-agent) is an own template; it prints, reports "waiting" over the
  * status channel, rings the bell and writes a file into its worktree. Every result is checked in the
  * UI and in Git (`git worktree list`, `git branch`), the typed task in the fake agent's log.

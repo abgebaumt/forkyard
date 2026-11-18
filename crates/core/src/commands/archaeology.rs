@@ -1,6 +1,6 @@
-//! Line archaeology (v1.2, Paket 7.1): why a line looks the way it does.
+//! Line archaeology: why a line looks the way it does.
 //!
-//! - `line_archaeology` (no AI): the commits that shaped the line (`git log -L`, Paket 0) with their
+//! - `line_archaeology` (no AI): the commits that shaped the line (`git log -L`) with their
 //!   full messages, the change of the line in each, and the pull requests, issues and tickets they
 //!   name – found with the repository's ticket link rules. A line of the working directory is first
 //!   traced to the commit that last changed it (`git blame -L`).

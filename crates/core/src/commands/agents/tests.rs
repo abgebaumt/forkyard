@@ -14,7 +14,7 @@ pub(super) async fn setup() -> (TestCore, TestRepo, String) {
     (tc, repo, id)
 }
 
-/// `<temp>/repo.agents/<name>` written out from Entscheidung 3 – not from `names::agents_dir`.
+/// `<temp>/repo.agents/<name>` written out from the naming rule – not from `names::agents_dir`.
 pub(super) fn expected_folder(repo: &TestRepo, name: &str) -> PathBuf {
     repo.temp_dir().join("repo.agents").join(name)
 }

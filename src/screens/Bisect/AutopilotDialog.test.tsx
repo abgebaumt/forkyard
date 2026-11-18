@@ -17,7 +17,7 @@ const html = (node: ReactNode) => renderToStaticMarkup(<TooltipProvider>{node}</
 const line = (view: AiErrorView, onSignIn?: () => void) =>
   html(<AutopilotErrorLine view={view} onRetry={none} onShowSent={none} onSetup={none} onSettings={none} onSignIn={onSignIn} />);
 
-describe("bisect autopilot dialog: the AI states (spec “Zustände jedes KI-Elements”)", () => {
+describe("bisect autopilot dialog: the AI states", () => {
   it("not signed in: “Sign in in the terminal” for a terminal tool, plus trying again", () => {
     const markup = line({ kind: "notLoggedIn", text: "Codex is not signed in." }, none);
     expect(markup).toContain('role="alert"');

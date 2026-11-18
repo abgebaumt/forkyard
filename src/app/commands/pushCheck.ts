@@ -1,5 +1,5 @@
 /**
- * "Review and push …" in the palette (v1.2, spec 6.2) – hidden wherever the AI review is not
+ * "Review and push …" in the palette – hidden wherever the AI review is not
  * visible (AI off or not set up, function off, "AI off for this repository").
  */
 import type { AiStatus, RepoSettings } from "../../core";

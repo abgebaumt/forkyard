@@ -1,6 +1,6 @@
-//! Semantic commit search (spec 9.2): "Text | Meaning" in the commit search.
+//! Semantic commit search: "Text | Meaning" in the commit search.
 //!
-//! The way (Entscheidung 7): (1) a local embedding provider from Settings › AI (Ollama or LM Studio
+//! The way: (1) a local embedding provider from Settings › AI (Ollama or LM Studio
 //! on this computer), else (2) the embeddings API of the main provider, else (3) rephrasing – the
 //! model turns the question into search terms, code, paths, author and time window, the core
 //! searches with the filters of the commit search and the model sorts the hits.
@@ -45,7 +45,7 @@ use crate::model::{
 };
 use crate::util;
 
-/// At most this many commits are indexed (newest first); spec: "Obergrenze 200 000 Commits".
+/// At most this many commits are indexed (newest first).
 pub const MAX_COMMITS: usize = 200_000;
 /// Longest question; beyond it is cut off.
 pub const MAX_QUESTION_CHARS: usize = 500;
@@ -80,7 +80,7 @@ pub struct EmbedChoice {
     pub route: AiSearchRoute,
 }
 
-/// Entscheidung 7: the local embedder of Settings › AI, else the main provider's embeddings,
+/// The local embedder of Settings › AI, else the main provider's embeddings,
 /// else `None` (rephrasing).
 pub fn choose(settings: &Settings) -> Option<EmbedChoice> {
     let model = settings.ai_search_embed_model.clone().filter(|model| !model.trim().is_empty());
@@ -113,7 +113,7 @@ pub struct Embedder {
 impl Embedder {
     /// Whether the embedding requests stay on this computer: a local provider type at a loopback
     /// address (like `ai::runs_on_this_computer`). An Ollama on another computer is not local –
-    /// Grundregel 4 asks before the first request there.
+    /// It asks before the first request there.
     pub fn local(&self) -> bool {
         self.choice.kind.is_local() && crate::http::Target::parse(&self.base).is_ok_and(|target| target.loopback)
     }
@@ -401,7 +401,7 @@ fn record_embedding(core: &Core, repo_id: &str, settings: &Settings, embedder: &
     );
 }
 
-/// `ai_semantic_search`: one cancellable job; the route follows the settings (Entscheidung 7).
+/// `ai_semantic_search`: one cancellable job; the route follows the settings.
 pub async fn search(core: &Core, repo_id: &str, job_id: &str, query: &str, locale: &str) -> CoreResult<AiSemanticResult> {
     search_with_cap(core, repo_id, job_id, query, locale, MAX_COMMITS).await
 }

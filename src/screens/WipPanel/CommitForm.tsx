@@ -103,7 +103,7 @@ export function CommitForm({ repoId, tabId }: { repoId: Id; tabId: Id }) {
   useEffect(() => {
     if (!text.summary.trim() && !text.description.trim()) settleAiDraft(repoId);
   }, [repoId, text.summary, text.description]);
-  // AI turned off (master switch, the function or this repository) while writing: the request ends at once (Grundregel 1).
+  // AI turned off (master switch, the function or this repository) while writing: the request ends at once.
   useEffect(() => {
     if (!aiShown) cancelWriteMessage(repoId);
   }, [aiShown, repoId]);

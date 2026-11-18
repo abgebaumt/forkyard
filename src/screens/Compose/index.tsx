@@ -1,5 +1,5 @@
 /**
- * "Compose commits" (v1.2, Teilpaket 3.2) in the centre of the repo tab: the local changes since
+ * "Compose commits" in the centre of the repo tab: the local changes since
  * HEAD as units (hunks, whole files), grouped into the commits the AI provider proposes.
  *
  * On top the history as it will look afterwards; on the left the commits with inline messages,
@@ -464,7 +464,7 @@ export function ComposeView({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     };
   }, [repoId]);
 
-  // Grundregel 1: AI switched off (globally, for compose or for this repository) – the view goes away.
+  // AI switched off (globally, for compose or for this repository) – the view goes away.
   const visible = composeVisible(aiStatus, repoSettings);
   useEffect(() => {
     if (aiStatus && repoSettings && !visible) {

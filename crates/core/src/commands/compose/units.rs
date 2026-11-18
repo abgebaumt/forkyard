@@ -1,4 +1,4 @@
-//! What "Compose commits" works on (v1.2, Teilpaket 3.2): every change between HEAD and the
+//! What "Compose commits" works on: every change between HEAD and the
 //! working directory – staged, unstaged and untracked (not ignored) – as units. A modified text
 //! file gives one unit per hunk; new, deleted, renamed, binary, LFS, submodule, symlink and mode
 //! changes are one unit for the whole file.
@@ -164,7 +164,7 @@ pub(crate) async fn read(core: &Core, repo_id: &str) -> CoreResult<ComposeRead> 
     Ok(ComposeRead { head, branch, worktree_tree, token, signing, files, head_subject, hooks, requires })
 }
 
-/// Secret or ignored under its path or, for a rename, its old path (Grundregel 5): such a file is
+/// Secret or ignored under its path or, for a rename, its old path: such a file is
 /// never sent and never committed by "Compose commits".
 fn protection(exclusions: &Exclusions, file: &ChangedFile) -> Option<AiOmitReason> {
     let secret_or_ignored =

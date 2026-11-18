@@ -1,4 +1,4 @@
-//! Coding agents (cockpit, package 2a): templates, start in an own worktree, status, lifecycle,
+//! Coding agents (cockpit): templates, start in an own worktree, status, lifecycle,
 //! cleanup. The cockpit needs no AI provider. Branch and worktree are Git's; the `agents` table
 //! only keeps metadata, and the running session (terminal, status) lives in memory.
 
@@ -158,7 +158,7 @@ pub(crate) async fn after_status_change(core: &Core, session: &registry::Session
 /// Largest task text.
 pub const MAX_TASK_BYTES: usize = 64 * 1024;
 
-/// Where the template's program is, through Paket 0's program search: a path (with a separator) is
+/// Where the template's program is, through program search: a path (with a separator) is
 /// the configured location, a name is searched on PATH, at the usual places and in the login shell's
 /// PATH. The terminal needs an absolute file; a configured path that is no file is not found (no
 /// search for a program of the same name).
@@ -175,7 +175,7 @@ pub(crate) async fn resolve_program(core: &Core, def: &TemplateDef) -> Option<To
 /// How long the start dialog waits for a tool's answer on its sign-in.
 const LOGIN_LIMIT: std::time::Duration = std::time::Duration::from_secs(2);
 
-/// Whether a built-in tool is signed in (spec 2a: "mit Version und Anmeldestatus"), asked from the
+/// Whether a built-in tool is signed in, asked from the
 /// tool itself like the AI setup does; `None` for own programs.
 pub async fn template_login(core: &Core, kind: AgentTemplateKind, program: &Path) -> Option<crate::model::AiLoginState> {
     use crate::model::AiProviderKind;
@@ -566,7 +566,7 @@ async fn roll_back(core: &Core, row: &AgentRow, folder: &Path) {
 }
 
 // ---------------------------------------------------------------------------
-// Collision warning (package 2b)
+// Collision warning
 // ---------------------------------------------------------------------------
 
 /// Longest note “Inform agent” types into an agent's terminal.
