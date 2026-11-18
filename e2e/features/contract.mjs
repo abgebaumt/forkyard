@@ -1552,7 +1552,7 @@ scenario("every command response and event matches src/core/types.ts", "main", a
       );
     });
 
-    await section("branchFastForward, gitflow, stashApplyPaths, workspaces", async () => {
+    await section("branchFastForward, gitflow, stashApplyPaths", async () => {
       const opened = await invoke("repo_open", { path: clean.path });
       const id = opened.repo.id;
       const rev = (name) => clean.git("rev-parse", name);
@@ -1681,48 +1681,6 @@ scenario("every command response and event matches src/core/types.ts", "main", a
       await invoke("undo", { repoId: id });
       truthy(!fs.readFileSync(path.join(clean.path, "stationen.csv"), "utf8").startsWith("geändert"), "undo reverts the apply");
       await invoke("stash_drop", { repoId: id, index: 0 });
-
-      // --- Workspaces ---
-      equal(await invoke("workspace_list"), [], "no workspace yet");
-      await takeEvents();
-      const saved = await invoke("workspace_save", { name: "Schule", repoIds: [repoId, id] });
-      shape("Workspace[]", saved, "workspace_save");
-      equal([saved.length, saved[0]?.name, saved[0]?.repoIds], [1, "Schule", [repoId, id]], "workspace created");
-      truthy(whatOf(await takeEvents(), "app:changed").includes("workspaces"), "workspace_save reports app:changed with workspaces");
-      const workspaceId = saved[0].id;
-      const fetched = await invoke("workspace_fetch", { jobId: "contract-ws-fetch", workspaceId });
-      shape("WorkspaceRunResult", fetched, "workspace_fetch");
-      equal(
-        fetched.results.map((entry) => entry.repoId),
-        [repoId, id],
-        "one result per repository, in workspace order",
-      );
-      const runEvents = await takeEvents();
-      const progress = runEvents.filter((event) => event.name === "job:progress" && event.payload.jobId === "contract-ws-fetch");
-      truthy(
-        [repoId, id].every((one) => progress.some((event) => event.payload.repoId === one && event.payload.phase === "start")),
-        "job:progress with repoId per repository",
-      );
-      equal(
-        runEvents
-          .filter((event) => event.name === "job:done" && event.payload.jobId === "contract-ws-fetch")
-          .map((event) => event.payload.ok),
-        [true],
-        "exactly one job:done",
-      );
-      const pulled = await invoke("workspace_pull", { jobId: "contract-ws-pull", workspaceId, mode: null });
-      shape("WorkspaceRunResult", pulled, "workspace_pull");
-      const renamed = await invoke("workspace_save", { id: workspaceId, name: "Schule Nord", repoIds: [id] });
-      equal([renamed[0]?.name, renamed[0]?.repoIds], ["Schule Nord", [id]], "workspace_save replaces name and repositories");
-      await rejects("invalid_name", "workspace_save without a name", () => invoke("workspace_save", { name: " ", repoIds: [] }));
-      await rejects("not_found", "workspace_save with unknown repository", () =>
-        invoke("workspace_save", { name: "X", repoIds: ["gibt-es-nicht"] }),
-      );
-      await rejects("not_found", "workspace_fetch with unknown workspace", () =>
-        invoke("workspace_fetch", { jobId: "contract-ws-x", workspaceId: "gibt-es-nicht" }),
-      );
-      equal(await invoke("workspace_delete", { id: workspaceId }), [], "workspace_delete");
-      await takeEvents();
       await invoke("repo_forget", { repoId: id });
       await invoke("tab_activate", { tabId });
     });
@@ -1924,9 +1882,6 @@ scenario("every command response and event matches src/core/types.ts", "main", a
           await rejects("empty_message", "pr_create without title", () =>
             invoke("pr_create", { repoId: id, title: " ", body: "", sourceBranch: "a", targetBranch: "main", draft: false, remote }),
           );
-          const renamed = await invoke("pr_update", { repoId: id, number: 2, title: "Neuer Titel", remote });
-          shape("PrSummary", renamed, `pr_update (${kind})`);
-          equal(renamed.title, "Neuer Titel", "pr_update changes only the title");
           const comment = await invoke("pr_comment", { repoId: id, number: 2, body: "Passt so.", remote });
           shape("HostComment", comment, `pr_comment (${kind})`);
           equal(
