@@ -96,7 +96,7 @@
     "privacyCard": "What is sent",
     "exclude": {
       "title": "Never send",
-      "description": "Patterns in .gitignore syntax, one per line, for every repository. A repository can add its own in .forkyard/ai-ignore. Files that look like secrets (.env, private keys, certificates) are never sent; known secret patterns in other content are redacted as far as possible."
+      "description": "Patterns in .gitignore syntax, one per line, for every repository. A repository can add its own in .forkyard/ai-ignore. Files that look like secrets (.env, private keys, key stores) are never sent; known secret patterns in other content are redacted as far as possible."
     },
     "whatIsSent": {
       "title": "What is sent?",

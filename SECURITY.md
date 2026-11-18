@@ -28,6 +28,6 @@ Only the latest release receives security fixes.
   tool: Claude Code, Codex or opencode, via that tool's own sign-in). "What is sent?" shows the exact
   text of a request without sending it. Forkyard asks before the first send of each function and of
   each repository's content to a remote provider, for large or costly requests, and when your
-  monthly limit is reached. Files that look like secrets (`.env*`, private keys, certificates) are
+  monthly limit is reached. Files that look like secrets (`.env*`, private keys, key stores) are
   never sent, and known secret patterns in the remaining content are redacted on a best-effort
   basis. Review with "What is sent?" and add your own exclusions in Settings › AI.
