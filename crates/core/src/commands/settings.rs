@@ -366,7 +366,7 @@ pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> Co
         }
     }
     if changed.iter().any(|k| k == "aiCommitInstruction") {
-        next.ai_commit_instruction = crate::ai::commit_message::own_instruction(next.ai_commit_instruction.as_deref())?;
+        next.ai_commit_instruction = crate::ai::features::commit_message::own_instruction(next.ai_commit_instruction.as_deref())?;
     }
     let as_json = serde_json::to_value(&next)?;
     core.db.tx(|tx| {

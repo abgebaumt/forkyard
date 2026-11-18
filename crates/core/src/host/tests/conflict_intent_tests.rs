@@ -2,7 +2,7 @@
 //! The test data set: no. 7 comes from `feature/login`, no. 8 (`korrektur`) from a fork.
 
 use super::*;
-use crate::ai::conflict::pull_request_text;
+use crate::ai::features::conflict::pull_request_text;
 
 const KIND: HostKind = HostKind::Github;
 const SEVEN: &str = "#7 Thema 7 umsetzen\n\nBeschreibung zu **Thema 7**.\n\n- [x] Tests";
@@ -42,7 +42,7 @@ async fn without_a_working_host_the_pull_request_texts_are_left_out() {
 
 #[tokio::test]
 async fn the_pull_request_of_the_incoming_branch_goes_into_the_context() {
-    use crate::ai::conflict::build;
+    use crate::ai::features::conflict::build;
     use crate::model::{ConflictBlockRange, Settings};
 
     let fx = Fixture::new(KIND).await;

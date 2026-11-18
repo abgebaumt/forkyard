@@ -2050,7 +2050,7 @@ pub struct AiUsageSummary {
 // Git in plain language
 // ---------------------------------------------------------------------------
 
-/// A command a plan may contain (allow list in `ai::plan_commands`); wire names as in
+/// A command a plan may contain (allow list in `ai::features::plan_commands`); wire names as in
 /// `CoreCommands` (`branchCreate` …).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -2342,7 +2342,7 @@ pub struct AiPrDescription {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AiCommitMessage {
-    /// One line, at most 72 characters (`ai::commit_message::SUMMARY_LIMIT`).
+    /// One line, at most 72 characters (`ai::features::commit_message::SUMMARY_LIMIT`).
     pub summary: String,
     /// `None` when the summary says everything.
     pub body: Option<String>,

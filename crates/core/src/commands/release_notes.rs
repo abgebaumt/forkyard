@@ -6,7 +6,7 @@ pub mod changelog;
 
 use std::path::Path;
 
-use crate::ai::release_notes;
+use crate::ai::features::release_notes;
 use crate::ai::run;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult, ErrorCode};

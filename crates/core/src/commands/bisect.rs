@@ -61,10 +61,10 @@ pub async fn bisect_autopilot_script(
     locale: String,
 ) -> CoreResult<BisectScript> {
     let frame = ai::run::ask(core, &repo_id, AiFeature::BisectScript).await?;
-    let checked = ai::bisect::check(core, &repo_id, &request).await?;
-    let built = ai::bisect::build(core, &repo_id, &checked, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
-    let answer = frame.send(core, &job_id, &built.prompt, &ai::bisect::schema()).await?;
-    ai::bisect::parse_answer(&answer.value, BisectShell::current())
+    let checked = ai::features::bisect::check(core, &repo_id, &request).await?;
+    let built = ai::features::bisect::build(core, &repo_id, &checked, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let answer = frame.send(core, &job_id, &built.prompt, &ai::features::bisect::schema()).await?;
+    ai::features::bisect::parse_answer(&answer.value, BisectShell::current())
 }
 
 /// Bisect autopilot (9.1): runs the confirmed `script` commit by commit in a temporary, detached

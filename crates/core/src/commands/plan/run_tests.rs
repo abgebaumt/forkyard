@@ -204,7 +204,8 @@ async fn a_cancelled_run_changes_nothing() {
     .await;
     let job = tc.start_job("plan-abbruch", Some(&id)).unwrap();
     job.token().cancel();
-    let err = crate::ai::plan_run::run(&tc, &id, &job, "zwei Branches", &steps_of(&preview), &preview.expect, &[]).await.unwrap_err();
+    let err =
+        crate::ai::features::plan_run::run(&tc, &id, &job, "zwei Branches", &steps_of(&preview), &preview.expect, &[]).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::Cancelled);
     job.finish(&Err::<(), _>(err));
     assert!(!has_ref(&repo, "refs/heads/eins") && !has_ref(&repo, "refs/heads/zwei"));

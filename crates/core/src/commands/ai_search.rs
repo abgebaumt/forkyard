@@ -1,6 +1,6 @@
 //! Search by meaning: status, search, background growth, "Delete index".
 
-use crate::ai::semantic;
+use crate::ai::features::semantic;
 use crate::app::Core;
 use crate::error::CoreResult;
 use crate::model::{AiSemanticIndexUpdate, AiSemanticResult, AiSemanticStatus, AppChange};
@@ -39,7 +39,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::ai::semantic::fakes::*;
+    use crate::ai::features::semantic::fakes::*;
     use crate::commands::ai::{ai_preview, ai_preview_confirm};
     use crate::commands::settings::settings_set;
     use crate::events::names;

@@ -4,7 +4,7 @@
 //!   full messages, the change of the line in each, and the pull requests, issues and tickets they
 //!   name – found with the repository's ticket link rules. A line of the working directory is first
 //!   traced to the commit that last changed it (`git blame -L`).
-//! - `ai_archaeology`: the AI provider summarises that timeline (`ai::archaeology`).
+//! - `ai_archaeology`: the AI provider summarises that timeline (`ai::features::archaeology`).
 //!
 //! The timeline is cached for ten minutes per start commit, path and line, so “What is sent?” and
 //! the request build the same text. Messages and file contents are read with `no_log`.
@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
-use crate::ai::{archaeology as ai_archaeology_context, run};
+use crate::ai::{features::archaeology as ai_archaeology_context, run};
 use crate::app::Core;
 use crate::commands::graph::LOG_SAFE;
 use crate::commands::history::{line_history_with_diffs, repo_encoding, LINE_HISTORY_STEPS};

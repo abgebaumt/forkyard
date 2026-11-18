@@ -7,31 +7,19 @@
 //!   a random token per request (`prompt`).
 //! - No streaming; every request is a cancellable job (`run`).
 
-pub mod archaeology;
-pub mod bisect;
 pub mod cli;
-pub mod commit_message;
-pub mod conflict;
 pub mod context;
 pub mod detect;
+pub mod features;
 pub mod gate;
 pub mod ignore;
 pub mod language;
-pub mod plan;
-pub mod plan_check;
-pub mod plan_commands;
-pub mod plan_run;
-pub mod pr;
 pub mod pricing;
 pub mod prompt;
 pub mod provider;
 pub mod providers;
-pub mod release_notes;
-pub mod review;
 pub mod run;
 pub mod schema;
-pub mod semantic;
-pub mod stack;
 
 use std::collections::HashMap;
 use std::time::Duration;

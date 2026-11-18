@@ -1,9 +1,12 @@
 //! "Git in plain language": a sentence in the command palette becomes a plan of
 //! allowed Forkyard steps (`ai_plan`), the user edits it (`ai_plan_check`) and runs it
-//! (`ai_plan_run`). The logic lives in `ai::plan`, `ai::plan_check`, `ai::plan_commands` and
-//! `ai::plan_run`.
+//! (`ai_plan_run`). The logic lives in `ai::features::plan`, `ai::features::plan_check`, `ai::features::plan_commands` and
+//! `ai::features::plan_run`.
 
-use crate::ai::{plan, plan_check, plan_commands, plan_run, run};
+use crate::ai::{
+    features::{plan, plan_check, plan_commands, plan_run},
+    run,
+};
 use crate::app::Core;
 use crate::error::CoreResult;
 use crate::model::{AiFeature, PlanPreview, PlanRunResult, PlanStep};
