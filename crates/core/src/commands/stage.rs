@@ -12,6 +12,7 @@
 //! Discarding destroys work: beforehand a backup is created as a commit
 //! (`refs/forkyard/undo/<id>/worktree`) together with an undo entry.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use serde_json::json;
@@ -86,11 +87,11 @@ pub async fn stage_paths(core: &Core, repo_id: String, paths: Option<Vec<String>
 pub async fn unstage_paths(core: &Core, repo_id: String, paths: Option<Vec<String>>) -> CoreResult<Status> {
     core.with_write_lock(&repo_id, &[RepoChange::Index], async {
         let unborn = matches!(read_head(core, &repo_id).await?, Head::Unborn { .. });
-        let unmerged = unmerged_paths(core, &repo_id).await?;
+        let unmerged: HashSet<Vec<u8>> = unmerged_paths(core, &repo_id).await?.into_iter().collect();
         let targets: Vec<Vec<u8>> = match &paths {
             None => {
                 let out = diff_cached(core, &repo_id, &["--name-only", "--no-renames"]).await?;
-                util::split_z(&out).filter(|p| !unmerged.iter().any(|u| u == p)).map(<[u8]>::to_vec).collect()
+                util::split_z(&out).filter(|p| !unmerged.contains(*p)).map(<[u8]>::to_vec).collect()
             }
             Some(list) => {
                 let mut targets = raw_paths(core, &repo_id, list).await?;
@@ -98,8 +99,9 @@ pub async fn unstage_paths(core: &Core, repo_id: String, paths: Option<Vec<Strin
                     return Err(conflicted(&list[i]));
                 }
                 if !targets.is_empty() {
+                    let mut seen: HashSet<Vec<u8>> = targets.iter().cloned().collect();
                     for (new, old) in staged_renames(core, &repo_id).await? {
-                        if targets.contains(&new) && !targets.contains(&old) {
+                        if seen.contains(&new) && seen.insert(old.clone()) {
                             targets.push(old);
                         }
                     }
@@ -742,10 +744,11 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
     let mut delete: Vec<Vec<u8>> = Vec::new();
     let mut forget: Vec<Vec<u8>> = Vec::new();
     let mut names: Vec<String> = Vec::new();
+    let mut seen: HashSet<&str> = HashSet::new();
     for wanted in requested {
         let raw = util::raw_path(wanted, &known)?;
         let Some(entry) = entries.iter().find(|e| e.path == raw) else { continue };
-        if names.contains(wanted) {
+        if seen.contains(wanted.as_str()) {
             continue;
         }
         match (entry.kind, entry.y) {
@@ -765,6 +768,7 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
             }
             (EntryKind::Tracked, _) => restore.push(entry.path.clone()),
         }
+        seen.insert(wanted.as_str());
         names.push(wanted.clone());
     }
     if names.is_empty() {
