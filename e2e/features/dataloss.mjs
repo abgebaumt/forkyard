@@ -50,7 +50,11 @@ const show1 = (value) => {
 };
 // Key order does not count: WebDriver hands objects back with its own key order.
 const canonical = (value) =>
-  JSON.stringify(value, (_key, item) => (item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : item));
+  JSON.stringify(value, (_key, item) =>
+    item && typeof item === "object" && !Array.isArray(item)
+      ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+      : item,
+  );
 const equal = (actual, expected, message) =>
   check(canonical(actual) === canonical(expected), `${message}: expected ${show1(expected)}, got ${show1(actual)}`);
 const note = (text) => current.t.step(text);

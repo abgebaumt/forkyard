@@ -1,18 +1,26 @@
 /**
- * Shared helpers for submodules.mjs (submodules), worktrees.mjs and lfs.mjs: fixtures with local bare
- * repositories as source, access to the sections in the left panel, menus by keyboard.
+ * Submodule and worktree fixtures with local bare repositories as source (used through
+ * worktrees-submodules.mjs).
  */
-import net from "node:net";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "./fixtures.mjs";
-import { appendAppGitConfig, gitIn } from "./mustfix-lib.mjs";
+import { gitIsolationEnv, makeCleanRepoWithRemote } from "./fixtures.mjs";
 
 process.env.GIT_OPTIONAL_LOCKS = "0";
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 export const slashed = (file) => file.replaceAll("\\", "/");
 export const samePath = (a, b) => slashed(a).replace(/\/+$/, "").toLowerCase() === slashed(b).replace(/\/+$/, "").toLowerCase();
+
+/** git in `cwd` with an isolated configuration (`config` = path of a gitconfig). */
+const gitIn = (cwd, config, ...args) =>
+  execFileSync("git", args, { cwd, env: { ...process.env, ...gitIsolationEnv(config) }, stdio: ["ignore", "pipe", "pipe"] })
+    .toString("utf8")
+    .trim();
+/** Appends lines to the app's global gitconfig (the app rereads it on every git call). */
+const appendAppGitConfig = (app, text) => fs.appendFileSync(app.gitConfigPath, text.endsWith("\n") ? text : `${text}\n`);
 
 /** git in `cwd` with the isolated configuration of fixture `fx`. */
 export const git = (fx, cwd, ...args) => gitIn(cwd, path.join(fx.root, "gitconfig"), ...args);
@@ -156,208 +164,4 @@ export function startSilentServer() {
       });
     });
   });
-}
-
-/** Access to the "Worktrees" and "Submodules" sections in the left panel and to menus. */
-export function sideHelpers(app) {
-  const { page } = app;
-  const panel = () => page.locator('[data-screen="sidebar"]');
-  const section = (id) => panel().locator(`[data-extra-section="${id}"]`);
-  const header = (id) => section(id).locator("[data-section-header] button").first();
-  const headerText = (id) =>
-    header(id)
-      .innerText()
-      .then((text) => text.replace(/\s+/g, " ").trim());
-  const rows = (id) => section(id).locator("[data-side-row]");
-  const row = (id, key) => section(id).locator(`[data-side-row="${key.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"]`);
-  /** Row whose key (path) ends with `suffix`, for worktrees whose full path is long. */
-  const rowEnding = async (id, suffix) => {
-    const key = await rows(id).evaluateAll(
-      (list, end) =>
-        list.map((el) => el.dataset.sideRow).find((item) => item.replaceAll("\\", "/").toLowerCase().endsWith(end.toLowerCase())) ?? null,
-      slashed(suffix),
-    );
-    return key ? row(id, key) : null;
-  };
-  const rowTexts = (id) => rows(id).evaluateAll((list) => list.map((el) => el.innerText.replace(/\s+/g, " ").trim()));
-  const rowLabels = (id) => rows(id).evaluateAll((list) => list.map((el) => el.getAttribute("aria-label")));
-  const focused = () =>
-    page.evaluate(() => {
-      const el = document.activeElement;
-      if (!el || el === document.body) return null;
-      return (
-        el.getAttribute("data-side-row") ??
-        el.getAttribute("data-row-id") ??
-        el.getAttribute("aria-label") ??
-        (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) ??
-        el.tagName
-      );
-    });
-  const menu = () => page.locator('[role="menu"]');
-  const menuItems = () =>
-    menu()
-      .last()
-      .locator('[role="menuitem"]')
-      .evaluateAll((list) =>
-        list.map((item) => ({ text: item.innerText.replace(/\s+/g, " ").trim(), disabled: item.hasAttribute("data-disabled") })),
-      );
-  const closeMenu = async () => {
-    await page.keyboard.press("Escape");
-    await menu().first().waitFor({ state: "detached" });
-  };
-  /** In the open menu, move to the entry with the arrow keys and choose it with Enter. */
-  const chooseByKeyboard = async (pattern) => {
-    await menu().first().waitFor();
-    const highlighted = () => page.evaluate(() => document.querySelector('[role="menuitem"][data-highlighted]')?.textContent ?? "");
-    // Opened by keyboard, the first entry is already focused (a moment after opening).
-    await page
-      .waitForFunction(() => Boolean(document.querySelector('[role="menuitem"][data-highlighted]')), null, { timeout: 600 })
-      .catch(() => undefined);
-    for (let step = 0; step < 30; step++) {
-      const before = await highlighted();
-      if (step > 0 || !before) {
-        await page.keyboard.press("ArrowDown");
-        // Radix moves focus a moment after the key: wait for it, otherwise the key counts twice.
-        await page
-          .waitForFunction((old) => (document.querySelector('[role="menuitem"][data-highlighted]')?.textContent ?? "") !== old, before, {
-            timeout: 400,
-          })
-          .catch(() => undefined);
-      }
-      const text = await highlighted();
-      if (pattern.test(text)) {
-        await page.keyboard.press("Enter");
-        await menu().first().waitFor({ state: "detached" });
-        return true;
-      }
-    }
-    await page.keyboard.press("Escape");
-    return false;
-  };
-  /** Presses Tab until `matches()` is true in the page. */
-  const tabUntil = async (matches, arg = null, { max = 80, back = false } = {}) => {
-    for (let step = 0; step < max; step++) {
-      if (await page.evaluate(matches, arg)) return true;
-      await page.keyboard.press(back ? "Shift+Tab" : "Tab");
-    }
-    return page.evaluate(matches, arg);
-  };
-  /** Runs a command via the command palette, keyboard only. */
-  const palette = async (text) => {
-    await page.keyboard.press("F1");
-    await page.locator('input[role="combobox"]').first().waitFor();
-    await page.keyboard.type(text, { delay: 5 });
-    await page
-      .waitForFunction(
-        (wanted) =>
-          (document.querySelector('[role="option"][aria-selected="true"]')?.textContent ?? "").toLowerCase().includes(wanted.toLowerCase()),
-        text,
-        { timeout: 5000 },
-      )
-      .catch(() => undefined);
-    await page.keyboard.press("Enter");
-  };
-  const tabs = () =>
-    page.locator('[role="tablist"] [role="tab"]').evaluateAll((list) =>
-      list.map((tab) => ({
-        title: tab.getAttribute("aria-label") ?? tab.innerText.replace(/\s+/g, " ").trim(),
-        active: tab.getAttribute("aria-selected") === "true",
-      })),
-    );
-  const escaping = (selector) =>
-    page.evaluate((sel) => {
-      const root = Array.from(document.querySelectorAll(sel)).at(-1);
-      if (!root) return ["Element missing"];
-      const box = root.getBoundingClientRect();
-      const out = [];
-      for (const el of root.querySelectorAll("*")) {
-        const rect = el.getBoundingClientRect();
-        if (!rect.width || !rect.height || el.closest(".sr-only")) continue;
-        if (rect.left < box.left - 1 || rect.right > box.right + 1)
-          out.push(`${el.tagName.toLowerCase()}: ${(el.textContent ?? "").trim().slice(0, 40)}`);
-      }
-      return out.slice(0, 5);
-    }, selector);
-  /**
-   * Moves, keyboard only, to a row of section `id` whose key ends with `ending`:
-   * Ctrl+Alt+F into the filter bar, ArrowDown into the ref rows, End to the last one, and from there
-   * ArrowDown on through worktrees and submodules.
-   */
-  const focusRowByKeyboard = async (id, ending) => {
-    await page.keyboard.press("Control+Alt+f");
-    await page
-      .waitForFunction(() => document.activeElement?.hasAttribute("data-left-filter"), null, { timeout: 5000 })
-      .catch(() => undefined);
-    await page.keyboard.press("ArrowDown");
-    await page.waitForFunction(() => document.activeElement?.hasAttribute("data-row-id"), null, { timeout: 3000 }).catch(() => undefined);
-    await page.keyboard.press("End");
-    await page.waitForTimeout(150);
-    for (let step = 0; step < 160; step++) {
-      await page.keyboard.press("ArrowDown");
-      await page.waitForTimeout(25);
-      const hit = await page.evaluate(
-        ([section, end]) => {
-          const element = document.activeElement;
-          const key = element?.getAttribute("data-side-row");
-          return Boolean(
-            key &&
-              element.closest(`[data-extra-section="${section}"]`) &&
-              key.replaceAll("\\", "/").toLowerCase().endsWith(end.toLowerCase()),
-          );
-        },
-        [id, slashed(ending)],
-      );
-      if (hit) return true;
-    }
-    return false;
-  };
-  /** Refetches a query (as after a core event). */
-  const refetch = (queryKey) => page.evaluate((key) => window.__gc.queryClient.invalidateQueries({ queryKey: key }), queryKey);
-  /** Tells the page the window got focus (the invisible test window never really gets it). */
-  const windowFocus = () => page.evaluate(() => void window.dispatchEvent(new Event("focus")));
-  /** Does anything stick out of the left panel, or does it scroll horizontally? */
-  const panelOverflow = () =>
-    page.evaluate(() => {
-      const scroller = document.querySelector("[data-left-scroll]");
-      return {
-        page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        panel: scroller ? scroller.scrollWidth - scroller.clientWidth : -1,
-      };
-    });
-  const activeTabId = () =>
-    page.evaluate(() => window.__gc.queryClient.getQueryData(["app", "tabs"])?.find((tab) => tab.isActive)?.id ?? null);
-  const activateTab = async (tabId) => {
-    await page.locator(`[data-tab-id="${tabId}"] [role="tab"]`).click();
-    await page.waitForFunction(
-      (id) => document.querySelector(`[data-tab-id="${id}"] [role="tab"]`)?.getAttribute("aria-selected") === "true",
-      tabId,
-    );
-    await app.settle();
-  };
-  return {
-    panel,
-    section,
-    header,
-    headerText,
-    rows,
-    row,
-    rowEnding,
-    rowTexts,
-    rowLabels,
-    focusRowByKeyboard,
-    focused,
-    menu,
-    menuItems,
-    closeMenu,
-    chooseByKeyboard,
-    tabUntil,
-    palette,
-    tabs,
-    escaping,
-    refetch,
-    windowFocus,
-    panelOverflow,
-    activeTabId,
-    activateTab,
-  };
 }
