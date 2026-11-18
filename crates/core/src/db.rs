@@ -33,7 +33,7 @@ pub mod view_state;
 
 /// The schema source is db/schema.sql: the complete schema in the latest version. A new
 /// database is created directly from it.
-const SCHEMA: &str = include_str!("schema.sql");
+const SCHEMA: &str = include_str!("db/schema.sql");
 
 /// Steps for existing databases, in order: `UPGRADES[n]` takes `user_version` from n + 1 to
 /// n + 2. Each step yields exactly what schema.sql creates for new databases.
