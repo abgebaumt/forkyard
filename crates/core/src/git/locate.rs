@@ -19,10 +19,7 @@ pub struct GitInfo {
 
 /// Searches for git on the PATH and in the usual install locations.
 pub fn find_git() -> Option<PathBuf> {
-    if let Ok(p) = which::which("git") {
-        return Some(p);
-    }
-    candidates().into_iter().find(|p| p.is_file())
+    crate::tools::locate::find("git", candidates())
 }
 
 fn candidates() -> Vec<PathBuf> {

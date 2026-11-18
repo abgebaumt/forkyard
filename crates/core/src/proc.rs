@@ -25,7 +25,7 @@ use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Notify;
 
 use crate::app::Core;
@@ -42,6 +42,9 @@ pub const MAX_STDOUT: usize = 8 * 1024 * 1024;
 pub const MAX_STDERR: usize = 1024 * 1024;
 /// The program has exited, but something it left running keeps the pipes open: wait this long.
 const PIPE_GRACE: Duration = Duration::from_millis(300);
+
+/// Receives the lines of `Proc::run_lines`.
+pub type LineFn<'a> = dyn Fn(&[u8]) + Sync + 'a;
 
 /// Result of a finished program.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -200,7 +203,18 @@ impl Proc {
     pub async fn run(self, cancel: &CancelToken) -> CoreResult<ProcOutput> {
         let started_at = util::now_iso();
         let start = Instant::now();
-        let result = self.execute(cancel).await;
+        let result = self.execute(cancel, None).await;
+        self.write_log(&started_at, start.elapsed(), &result);
+        result
+    }
+
+    /// `run` that hands every line of stdout and stderr (without `\n`) to `on_line` as it arrives,
+    /// for programs whose output is shown live. Such output is not collected (`stdout`/`stderr` stay
+    /// empty) and so never stops the program for its size.
+    pub async fn run_lines(self, cancel: &CancelToken, on_line: &LineFn<'_>) -> CoreResult<ProcOutput> {
+        let started_at = util::now_iso();
+        let start = Instant::now();
+        let result = self.execute(cancel, Some(on_line)).await;
         self.write_log(&started_at, start.elapsed(), &result);
         result
     }
@@ -209,7 +223,9 @@ impl Proc {
     fn resolve(&self) -> CoreResult<PathBuf> {
         let given = Path::new(&self.program);
         if given.is_absolute() || given.components().count() > 1 {
-            return if given.is_file() { Ok(given.to_path_buf()) } else { Err(not_found(&self.program)) };
+            // A relative path counts from the working directory the program will run in.
+            let given = self.cwd.as_ref().map_or_else(|| given.to_path_buf(), |cwd| cwd.join(given));
+            return if given.is_file() { Ok(given) } else { Err(not_found(&self.program)) };
         }
         let cwd = self.cwd.clone().unwrap_or_else(std::env::temp_dir);
         self.search_path
@@ -234,7 +250,7 @@ impl Proc {
         Ok(cmd)
     }
 
-    async fn execute(&self, cancel: &CancelToken) -> CoreResult<ProcOutput> {
+    async fn execute(&self, cancel: &CancelToken, on_line: Option<&LineFn<'_>>) -> CoreResult<ProcOutput> {
         cancel.check()?;
         if let Some(dir) = &self.cwd {
             if !dir.is_dir() {
@@ -282,6 +298,9 @@ impl Proc {
             }
         };
         let stdout_fut = async {
+            if let Some(on_line) = on_line {
+                return stream_lines(stdout_pipe, on_line).await;
+            }
             let collected = &mut stdout;
             let Some(mut pipe) = stdout_pipe else { return };
             let mut chunk = vec![0u8; 64 * 1024];
@@ -299,6 +318,9 @@ impl Proc {
             }
         };
         let stderr_fut = async {
+            if let Some(on_line) = on_line {
+                return stream_lines(stderr_pipe, on_line).await;
+            }
             let (collected, truncated) = (&mut stderr, &mut stderr_truncated);
             let Some(mut pipe) = stderr_pipe else { return };
             let mut chunk = vec![0u8; 16 * 1024];
@@ -452,6 +474,15 @@ fn batch_command(line: &str) -> CoreResult<tokio::process::Command> {
 #[cfg(not(windows))]
 fn batch_command(_line: &str) -> CoreResult<tokio::process::Command> {
     Err(CoreError::not_allowed("Batch files (.cmd, .bat) only run on Windows."))
+}
+
+/// Hands every line of `pipe` (without `\n`) to `on_line`.
+async fn stream_lines<R: AsyncRead + Unpin>(pipe: Option<R>, on_line: &LineFn<'_>) {
+    let Some(pipe) = pipe else { return };
+    let mut segments = tokio::io::BufReader::new(pipe).split(b'\n');
+    while let Ok(Some(segment)) = segments.next_segment().await {
+        on_line(&segment);
+    }
 }
 
 fn not_found(program: &OsStr) -> CoreError {
