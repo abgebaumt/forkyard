@@ -396,7 +396,7 @@ pub fn prompt_reference() -> String {
 }
 
 /// Runs one checked action through the existing core command (each takes the write lock itself and
-/// records its own undo entry; `ai::plan_run` folds them into one). Network actions run as job
+/// records its own undo entry; `ai::features::plan_run` folds them into one). Network actions run as job
 /// `job_id`.
 pub async fn execute(core: &Core, repo_id: &str, job_id: &str, action: &PlanAction) -> CoreResult<()> {
     let id = repo_id.to_string();

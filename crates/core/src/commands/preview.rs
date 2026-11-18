@@ -54,7 +54,7 @@ async fn preview(core: &Core, repo_id: &str, cancel: &CancelToken, op: PreviewOp
 }
 
 /// `preview` starting at `head` (a SHA or `HEAD`) instead of HEAD – for the steps of a plan
-/// (`ai::plan_check`), whose earlier steps move HEAD. A patch is always checked against the working
+/// (`ai::features::plan_check`), whose earlier steps move HEAD. A patch is always checked against the working
 /// directory. Takes no job; the caller passes its cancel token.
 pub(crate) async fn simulate(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, op: PreviewOp) -> CoreResult<ConflictPreview> {
     let outcome = match op {

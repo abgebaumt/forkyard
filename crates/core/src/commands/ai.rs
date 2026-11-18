@@ -9,7 +9,11 @@ use std::path::PathBuf;
 use serde_json::{json, Value};
 
 use crate::ai::run::{request_frame, stored_key};
-use crate::ai::{self, commit_message, context, gate, pricing, providers, release_notes, run};
+use crate::ai::{
+    self, context,
+    features::{commit_message, release_notes},
+    gate, pricing, providers, run,
+};
 use crate::app::Core;
 use crate::commands::sync::{push_destination, PushRequest};
 use crate::db;
@@ -204,22 +208,22 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         AiInput::Compose { instruction, keep } => {
             crate::commands::compose::preview_built(core, &repo_id, &settings, budget, &locale, &secrets, instruction, keep).await?
         }
-        AiInput::SemanticSearch { query } => return crate::ai::semantic::preview(core, &repo_id, &query, &locale).await,
+        AiInput::SemanticSearch { query } => return crate::ai::features::semantic::preview(core, &repo_id, &query, &locale).await,
         AiInput::CommitMessage => commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?,
         AiInput::PrDescription { source, target } => {
-            ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built
+            ai::features::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?.built
         }
         AiInput::Plan { text } => context::Built {
-            prompt: crate::ai::plan::build_prompt(core, &repo_id, &text, &locale, &secrets, budget).await?,
+            prompt: crate::ai::features::plan::build_prompt(core, &repo_id, &text, &locale, &secrets, budget).await?,
             omitted: Vec::new(),
             shortened: Vec::new(),
         },
         AiInput::Archaeology { path, line, sha } => {
             let timeline = crate::commands::archaeology::timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
-            crate::ai::archaeology::build(core, &repo_id, &settings, budget, &locale, &secrets, &timeline).await?
+            crate::ai::features::archaeology::build(core, &repo_id, &settings, budget, &locale, &secrets, &timeline).await?
         }
         AiInput::ConflictIntent { path, blocks } => {
-            ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?.built
+            ai::features::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?.built
         }
         AiInput::OutgoingChanges { branch, remote, remote_branch } => {
             let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
@@ -229,14 +233,14 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), budget, &locale, &secrets).await?.built
         }
         AiInput::BisectScript(request) => {
-            let checked = ai::bisect::check(core, &repo_id, &request).await?;
-            ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?
+            let checked = ai::features::bisect::check(core, &repo_id, &request).await?;
+            ai::features::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?
         }
         AiInput::StackSplit { branch, base } => {
-            ai::stack::build(core, &repo_id, &settings, &branch, &base, budget, &locale, &secrets).await?.built
+            ai::features::stack::build(core, &repo_id, &settings, &branch, &base, budget, &locale, &secrets).await?.built
         }
         AiInput::ReviewFix { number, thread_id } => {
-            ai::review::build(core, &repo_id, &settings, number, &thread_id, budget, &locale, &secrets).await?.built
+            ai::features::review::build(core, &repo_id, &settings, number, &thread_id, budget, &locale, &secrets).await?.built
         }
     };
     let chars = built.prompt.chars();
@@ -369,10 +373,10 @@ pub async fn ai_pr_description(
     locale: String,
 ) -> CoreResult<crate::model::AiPrDescription> {
     let frame = run::ask(core, &repo_id, AiFeature::PrDescription).await?;
-    let pr = ai::pr::build(core, &repo_id, &frame.settings, &source, &target, frame.budget, &locale, &frame.secrets).await?;
-    let check = |value: &Value| ai::pr::check_answer(value, &pr.headings);
-    let answer = frame.send_checked(core, &job_id, &pr.built.prompt, &ai::pr::schema(), &check).await?;
-    Ok(ai::pr::finish(&answer.value, &pr.closes))
+    let pr = ai::features::pr::build(core, &repo_id, &frame.settings, &source, &target, frame.budget, &locale, &frame.secrets).await?;
+    let check = |value: &Value| ai::features::pr::check_answer(value, &pr.headings);
+    let answer = frame.send_checked(core, &job_id, &pr.built.prompt, &ai::features::pr::schema(), &check).await?;
+    Ok(ai::features::pr::finish(&answer.value, &pr.closes))
 }
 
 /// 8.2: a fix for one review thread – nothing is written. The prompt is the one `ai_preview` shows for
@@ -387,10 +391,11 @@ pub async fn ai_review_fix(
     locale: String,
 ) -> CoreResult<crate::model::AiReviewFix> {
     let frame = run::ask(core, &repo_id, AiFeature::ReviewFix).await?;
-    let review = ai::review::build(core, &repo_id, &frame.settings, number, &thread_id, frame.budget, &locale, &frame.secrets).await?;
-    let check = |value: &Value| ai::review::check_answer(value, &review.ctx);
-    let answer = frame.send_checked(core, &job_id, &review.built.prompt, &ai::review::schema(), &check).await?;
-    ai::review::finish(core, &repo_id, &review.ctx, &answer.value).await
+    let review =
+        ai::features::review::build(core, &repo_id, &frame.settings, number, &thread_id, frame.budget, &locale, &frame.secrets).await?;
+    let check = |value: &Value| ai::features::review::check_answer(value, &review.ctx);
+    let answer = frame.send_checked(core, &job_id, &review.built.prompt, &ai::features::review::schema(), &check).await?;
+    ai::features::review::finish(core, &repo_id, &review.ctx, &answer.value).await
 }
 
 /// Where to cut `branch` into stacked pull requests – a suggestion only, nothing is
@@ -405,10 +410,10 @@ pub async fn ai_stack_split(
     locale: String,
 ) -> CoreResult<crate::model::AiStackSplit> {
     let frame = run::ask(core, &repo_id, AiFeature::StackSplit).await?;
-    let stack = ai::stack::build(core, &repo_id, &frame.settings, &branch, &base, frame.budget, &locale, &frame.secrets).await?;
-    let check = |value: &Value| ai::stack::check_answer(value, stack.commits);
-    let answer = frame.send_checked(core, &job_id, &stack.built.prompt, &ai::stack::schema(), &check).await?;
-    Ok(ai::stack::finish(&answer.value))
+    let stack = ai::features::stack::build(core, &repo_id, &frame.settings, &branch, &base, frame.budget, &locale, &frame.secrets).await?;
+    let check = |value: &Value| ai::features::stack::check_answer(value, stack.commits);
+    let answer = frame.send_checked(core, &job_id, &stack.built.prompt, &ai::features::stack::schema(), &check).await?;
+    Ok(ai::features::stack::finish(&answer.value))
 }
 
 /// "Send" in the preview dialog: approves exactly this text and remembers what is remembered.
@@ -501,7 +506,7 @@ pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind
 }
 
 /// “Explain intent” in the conflict tool: what both sides of every conflict block
-/// wanted and a proposed text per block (`ai::conflict`). Checks that AI is on for this function and
+/// wanted and a proposed text per block (`ai::features::conflict`). Checks that AI is on for this function and
 /// repository before anything is read, builds exactly the text `ai_preview` shows for
 /// `AiInput::ConflictIntent` (same builder, same `request_frame`), asks the provider as job `job_id`
 /// (confirmations, usage and the activity entry by `complete_json`) and checks the answer per block.
@@ -515,9 +520,10 @@ pub async fn ai_conflict_intent(
     locale: String,
 ) -> CoreResult<ConflictIntent> {
     let frame = run::ask(core, &repo_id, AiFeature::ConflictIntent).await?;
-    let plan = ai::conflict::build(core, &repo_id, &path, &blocks, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
-    let answer = frame.send(core, &job_id, &plan.built.prompt, &ai::conflict::schema()).await?;
-    ai::conflict::accept(&plan, &answer.value)
+    let plan =
+        ai::features::conflict::build(core, &repo_id, &path, &blocks, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let answer = frame.send(core, &job_id, &plan.built.prompt, &ai::features::conflict::schema()).await?;
+    ai::features::conflict::accept(&plan, &answer.value)
 }
 
 #[cfg(test)]

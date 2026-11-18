@@ -8,9 +8,9 @@
 
 use serde_json::Value;
 
-use crate::ai::plan_check::{MAX_STEPS, PLAN_TOO_LONG};
+use crate::ai::features::plan_check::{MAX_STEPS, PLAN_TOO_LONG};
 use crate::ai::prompt::{self, Prompt, Section};
-use crate::ai::{context, plan_commands};
+use crate::ai::{context, features::plan_commands};
 use crate::app::Core;
 use crate::commands::{remotes, status};
 use crate::error::{CoreError, CoreResult};

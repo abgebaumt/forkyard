@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
-use crate::ai::plan_commands::{self, Args, PlanAction};
+use crate::ai::features::plan_commands::{self, Args, PlanAction};
 use crate::app::Core;
 use crate::commands::{branches, preview, remotes, status, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};

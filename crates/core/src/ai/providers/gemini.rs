@@ -5,9 +5,9 @@
 
 use serde_json::{json, Value};
 
+use crate::ai::features::semantic::vector::MAX_DIMS;
 use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::{expect_count, numbers, send_json};
-use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::http::{self, Method, Request};

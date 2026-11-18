@@ -13,10 +13,10 @@ use std::future::Future;
 use serde_json::{json, Value};
 
 use crate::ai::context::{self, Exclusions};
+use crate::ai::features::semantic::history::{self, CommitEntry};
 use crate::ai::gate::{self, Situation};
 use crate::ai::prompt::{self, Prompt, Section};
 use crate::ai::run::{self, AiRequest};
-use crate::ai::semantic::history::{self, CommitEntry};
 use crate::app::Core;
 use crate::commands::graph::{self, is_search_date};
 use crate::error::CoreResult;
@@ -542,7 +542,7 @@ mod tests {
         let tc = with_ollama_chat(&server).await;
         let repo = sign_in_history();
         let id = tc.open(&repo).await.repo.id;
-        let result = crate::ai::semantic::search(&tc, &id, "r1", "Wo wurde die Anmeldung repariert?", "de").await.unwrap();
+        let result = crate::ai::features::semantic::search(&tc, &id, "r1", "Wo wurde die Anmeldung repariert?", "de").await.unwrap();
 
         assert_eq!(result.route, AiSearchRoute::Rephrase);
         assert_eq!(result.terms, vec!["anmeld".to_string(), "login".to_string()]);
@@ -610,7 +610,7 @@ mod tests {
         repo.commit_file("[x].txt", "x\n", "Klammer mit --all");
         repo.commit_file("x.txt", "x\n", "Ohne Klammer, auch --all");
         let id = tc.open(&repo).await.repo.id;
-        let result = crate::ai::semantic::search(&tc, &id, "r2", "Was steht in den seltsamen Dateien?", "de").await.unwrap();
+        let result = crate::ai::features::semantic::search(&tc, &id, "r2", "Was steht in den seltsamen Dateien?", "de").await.unwrap();
         assert_eq!(result.ignored, vec!["../draußen".to_string(), "yesterday".to_string(), "31.12.2026".to_string()]);
         let filters = result.filters.clone().unwrap();
         assert_eq!((filters.paths, filters.since, filters.until), (Some(vec!["-rf".to_string(), "[x].txt".to_string()]), None, None));
@@ -685,7 +685,7 @@ mod tests {
         ai_preview_confirm(&tc, Some(id.clone()), AiFeature::SemanticSearch, preview.fingerprint.clone(), preview.asks.clone(), false)
             .await
             .unwrap();
-        let result = crate::ai::semantic::search(&tc, &id, "r3", "Wo wurde die Anmeldung repariert?", "de").await.unwrap();
+        let result = crate::ai::features::semantic::search(&tc, &id, "r3", "Wo wurde die Anmeldung repariert?", "de").await.unwrap();
         assert_eq!(server.requests().len(), 1, "the ranking would have needed “Send this time” again: skipped");
         assert!(!result.ranked && !result.hits.is_empty() && result.hits.iter().all(|hit| hit.reason.is_none()));
         let dates: Vec<&str> = result.hits.iter().map(|hit| hit.commit.authored_at.as_str()).collect();

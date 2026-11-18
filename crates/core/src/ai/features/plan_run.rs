@@ -13,8 +13,8 @@ use std::future::Future;
 
 use serde_json::{json, Map};
 
-use crate::ai::plan_check::{self, Checked};
-use crate::ai::plan_commands::{self, PlanAction};
+use crate::ai::features::plan_check::{self, Checked};
+use crate::ai::features::plan_commands::{self, PlanAction};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};

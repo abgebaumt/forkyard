@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
-use crate::ai::bisect::{check_range, normalize_script, script_problem};
+use crate::ai::features::bisect::{check_range, normalize_script, script_problem};
 use crate::app::Core;
 use crate::commands::agents::names;
 use crate::commands::bisect::read_bisect_at;

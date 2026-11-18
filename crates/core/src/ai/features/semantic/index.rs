@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use parking_lot::Mutex;
 use rusqlite::{params, Connection, OptionalExtension};
 
-use crate::ai::semantic::vector;
+use crate::ai::features::semantic::vector;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::util;

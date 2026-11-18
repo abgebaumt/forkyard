@@ -19,7 +19,7 @@ describe("commit summary limit", () => {
   });
 
   it("is the number the core cuts AI summaries at", () => {
-    const files = import.meta.glob("../../crates/core/src/ai/commit_message.rs", {
+    const files = import.meta.glob("../../crates/core/src/ai/features/commit_message.rs", {
       query: "?raw",
       import: "default",
       eager: true,

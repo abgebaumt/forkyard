@@ -9,7 +9,7 @@ use std::sync::Arc;
 use serde_json::{json, Value};
 
 use super::*;
-use crate::ai::plan_commands::full_args;
+use crate::ai::features::plan_commands::full_args;
 use crate::commands::ai::{ai_preview, ai_preview_confirm};
 use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::error::ErrorCode;
