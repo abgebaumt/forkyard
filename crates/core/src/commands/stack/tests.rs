@@ -463,6 +463,7 @@ async fn a_forced_stack_push_without_expected_states_is_refused() {
     assert_eq!(push(None).await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(Some(vec![before.clone(), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "one entry per part");
     assert_eq!(push(Some(vec![before.clone(), Some("zzzzzzz".into()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "not a commit ID");
+    assert_eq!(push(Some(vec![before.clone(), Some(String::new()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "empty is not a commit ID");
     assert_eq!(remote_sha(&remote, P1), before, "nothing was sent");
 }
 

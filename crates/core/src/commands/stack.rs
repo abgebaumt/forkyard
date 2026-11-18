@@ -343,16 +343,8 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
     if expected.iter().flatten().any(|sha| !(7..=40).contains(&sha.len()) || !sha.bytes().all(|b| b.is_ascii_hexdigit())) {
         return Err(CoreError::not_allowed("The remote state that was shown is not a commit ID."));
     }
-    // A part shown as absent must still be absent; `lease(.., None)` would trust the tracking ref.
-    // If it is absent now, the lease `<ref>:` lets the server refuse a branch created meanwhile.
-    for (name, _) in names.iter().zip(&expected).filter(|(_, sha)| force && sha.is_none()) {
-        if crate::commands::branches::resolve_commit(core, &repo_id, &format!("refs/remotes/{remote}/{name}")).await?.is_some() {
-            return Ok(PushResult::Rejected {
-                reason: format!("The remote branch “{remote}/{name}” appeared while the confirmation was open. Nothing was overwritten. Choose “Push” again and check what is on the remote now."),
-            });
-        }
-    }
-    let mut expected = expected.into_iter();
+    // `Some("")` = shown absent; `lease` checks that under the network lock (only this mapping produces "").
+    let mut expected = expected.into_iter().map(|sha| Some(sha.unwrap_or_default()));
     let first_expected = expected.next().flatten();
     let extra: Vec<PushExtra> = rest.iter().zip(expected).map(|(name, expected)| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force, expected }).collect();
     let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, first_expected, Some(extra), Some(true), accepted_secrets).await?;
