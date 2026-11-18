@@ -166,7 +166,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
     return count;
   }, [shownText]);
 
-  // --- Ansicht ---------------------------------------------------------------------------------
+  // --- View ---------------------------------------------------------------------------------
   const [wrap, setWrap] = useState(readWrap);
   const toggleWrap = () =>
     setWrap((value) => {

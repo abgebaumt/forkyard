@@ -7,7 +7,7 @@ export const commands: AppCommand[] = [
   {
     id: "app.checkForUpdates",
     title: t("updates.command.title"),
-    group: "Allgemein",
+    group: "General",
     keywords: kw("updates.command.keywords"),
     run: () => checkNow(),
   },

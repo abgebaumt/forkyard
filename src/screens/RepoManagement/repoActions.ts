@@ -73,7 +73,7 @@ export async function assignGroup(repo: Repo, existing: string[]) {
   return update(t("repos.actions.groupAssign"), repo.id, { groupName: group });
 }
 
-// --- Groups as a whole (local workspaces) -------------------------------------------------------
+// --- Groups as a whole (groups) -------------------------------------------------------
 
 /** Gives all repositories of the group a new group name. An existing name merges the groups. */
 export async function renameGroup(group: string, members: Repo[], existing: string[]) {

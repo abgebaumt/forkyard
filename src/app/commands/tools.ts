@@ -12,7 +12,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.externalDiff",
     title: t("commands.file.externalDiff.title"),
-    group: "Datei",
+    group: "File",
     keywords: kw("commands.file.externalDiff.keywords"),
     when: (ctx) => hasRepo(ctx) && ctx.view?.center.kind === "diff",
     disabledReason: (ctx) => (hasRepo(ctx) && ctx.view?.center.kind !== "diff" ? t("commands.file.externalDiff.noDiff") : null),
@@ -24,7 +24,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.externalMerge",
     title: t("commands.file.externalMerge.title"),
-    group: "Datei",
+    group: "File",
     keywords: kw("commands.file.externalMerge.keywords"),
     when: (ctx) => hasRepo(ctx) && ctx.view?.center.kind === "conflict",
     disabledReason: (ctx) => (hasRepo(ctx) && ctx.view?.center.kind !== "conflict" ? t("commands.file.externalMerge.noConflict") : null),

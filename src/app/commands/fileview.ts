@@ -128,7 +128,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.history",
     title: t("commands.file.history.title"),
-    group: "Datei",
+    group: "File",
     shortcut: "Mod+Shift+H",
     keywords: kw("commands.file.history.keywords"),
     when: (ctx) => hasRepo(ctx) && centerPath(ctx) !== null && ctx.view?.center.kind !== "history",
@@ -137,7 +137,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.blame",
     title: t("commands.file.blame.title"),
-    group: "Datei",
+    group: "File",
     keywords: kw("commands.file.blame.keywords"),
     when: (ctx) => hasRepo(ctx) && centerPath(ctx) !== null && ctx.view?.center.kind !== "blame",
     run: (ctx) => {
@@ -154,7 +154,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.edit",
     title: t("commands.file.edit.title"),
-    group: "Datei",
+    group: "File",
     keywords: kw("commands.file.edit.keywords"),
     when: hasRepo,
     run: (ctx) => pickFileToEdit(ctx),
@@ -162,7 +162,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.new",
     title: t("commands.file.new.title"),
-    group: "Datei",
+    group: "File",
     keywords: kw("commands.file.new.keywords"),
     when: hasRepo,
     run: (ctx) => createFile(ctx.repoId!, ctx.tabId!),
@@ -170,7 +170,7 @@ export const commands: AppCommand[] = [
   {
     id: "file.delete",
     title: t("commands.file.delete.title"),
-    group: "Datei",
+    group: "File",
     keywords: kw("commands.file.delete.keywords"),
     when: (ctx) => hasRepo(ctx) && (ctx.view?.center.kind === "file" || ctx.view?.center.kind === "blame") && ctx.view.center.sha === null,
     run: (ctx) => deleteFile(ctx.repoId!, ctx.tabId!, centerPath(ctx)!),

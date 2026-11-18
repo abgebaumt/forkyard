@@ -20,7 +20,7 @@ const AREAS: { id: AreaId; label: string; selector: string }[] = [
   { id: "toolbar", label: "Toolbar", selector: '[data-shell] > [role="toolbar"]' },
   // `data-area` does not depend on the language (unlike the aria-labels).
   { id: "left", label: "Left Panel", selector: '[data-area="left"], [data-rail="left"]' },
-  { id: "center", label: "Ansicht", selector: '[data-area="center"], [data-area="manage"]' },
+  { id: "center", label: "View", selector: '[data-area="center"], [data-area="manage"]' },
   // The terminal sits below the view and is only there while it is shown. Alt+4 leads into it.
   { id: "terminal", label: "Terminal", selector: '[data-area="terminal"]' },
   { id: "right", label: "Commit Panel", selector: '[data-area="right"], [data-rail="right"]' },
@@ -272,7 +272,7 @@ export const commands: AppCommand[] = [
   {
     id: "focus.next",
     title: t("commands.focus.next.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "F6",
     keywords: kw("commands.focus.next.keywords"),
     run: () => cycle(1),
@@ -280,7 +280,7 @@ export const commands: AppCommand[] = [
   {
     id: "focus.previous",
     title: t("commands.focus.previous.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Shift+F6",
     keywords: kw("commands.focus.previous.keywords"),
     run: () => cycle(-1),
@@ -288,7 +288,7 @@ export const commands: AppCommand[] = [
   {
     id: "focus.leftPanel",
     title: t("commands.focus.leftPanel.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Alt+1",
     keywords: kw("commands.focus.leftPanel.keywords"),
     when: hasRepo,
@@ -300,7 +300,7 @@ export const commands: AppCommand[] = [
   {
     id: "focus.center",
     title: t("commands.focus.center.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Alt+2",
     keywords: kw("commands.focus.center.keywords"),
     run: () => focusAreaSoon("center"),
@@ -308,7 +308,7 @@ export const commands: AppCommand[] = [
   {
     id: "focus.commitPanel",
     title: t("commands.focus.commitPanel.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Alt+3",
     keywords: kw("commands.focus.commitPanel.keywords"),
     when: hasRepo,

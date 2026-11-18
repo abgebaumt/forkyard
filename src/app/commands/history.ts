@@ -24,7 +24,7 @@ export const commands: AppCommand[] = [
   {
     id: "graph.collapseAllMerges",
     title: t("commands.graph.collapseAllMerges.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+Shift+[",
     // Code editors fold with the same keys: there they keep their meaning.
     textEditing: true,
@@ -39,7 +39,7 @@ export const commands: AppCommand[] = [
   {
     id: "graph.expandAllMerges",
     title: t("commands.graph.expandAllMerges.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+Shift+]",
     textEditing: true,
     keywords: kw("commands.graph.expandAllMerges.keywords"),
