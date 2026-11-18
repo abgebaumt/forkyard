@@ -25,7 +25,7 @@ fn tag_ref(name: &str) -> String {
 }
 
 async fn ensure_remote(core: &Core, repo_id: &str, remote: &str) -> CoreResult<()> {
-    let out = core.git_for(repo_id)?.arg("remote").read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.arg("remote").read().run().await?;
     if out.stdout_lines().into_iter().any(|line| line == remote.as_bytes()) {
         Ok(())
     } else {

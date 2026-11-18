@@ -41,7 +41,7 @@ async fn installed_version(core: &Core, repo_id: &str) -> CoreResult<Option<Stri
     if core.state::<LfsState>().pretend_missing.load(Ordering::SeqCst) {
         return Ok(None);
     }
-    let out = core.git_for(repo_id)?.args(["lfs", "version"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["lfs", "version"]).read().run_raw().await?;
     if !out.success() {
         return Ok(None);
     }
@@ -125,7 +125,7 @@ fn check_pattern(pattern: &str) -> CoreResult<String> {
 /// Sets up Git LFS in the repository if it is not set up yet (filters and hooks): without the
 /// filters the files would be committed normally, without `pre-push` they would never be uploaded.
 async fn ensure_installed_in_repo(core: &Core, repo_id: &str) -> CoreResult<()> {
-    let filter = core.git_for(repo_id)?.args(["config", "--get", "filter.lfs.process"]).read_only().no_log().run_raw().await?;
+    let filter = core.git_for(repo_id)?.args(["config", "--get", "filter.lfs.process"]).read().run_raw().await?;
     let hook = crate::git::repo::git_dir(core, repo_id).await.map(|dir| dir.join("hooks").join("pre-push").is_file()).unwrap_or(false);
     if filter.success() && hook {
         return Ok(());

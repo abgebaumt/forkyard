@@ -292,11 +292,11 @@ pub async fn pr_reopen(core: &Core, repo_id: String, number: u64, remote: Option
 
 async fn rev_exists(core: &Core, repo_id: &str, rev: &str) -> CoreResult<bool> {
     let spec = format!("{rev}^{{commit}}");
-    Ok(core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet", &spec]).read_only().no_log().run_raw().await?.success())
+    Ok(core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet", &spec]).read().run_raw().await?.success())
 }
 
 async fn current_branch(core: &Core, repo_id: &str) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.args(["symbolic-ref", "--short", "-q", "HEAD"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["symbolic-ref", "--short", "-q", "HEAD"]).read().run_raw().await?;
     Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
 }
 
@@ -399,7 +399,7 @@ async fn checkout_fetched(
     }
     // Fast-forward to the fetched state. Own commits on top stay; if the branch has diverged, it is refused.
     core.with_write_lock(repo_id, &[RepoChange::Head, RepoChange::Refs, RepoChange::Index, RepoChange::Worktree], async {
-        let contained = core.git_for(repo_id)?.args(["merge-base", "--is-ancestor", newest, "HEAD"]).read_only().no_log().run_raw().await?;
+        let contained = core.git_for(repo_id)?.args(["merge-base", "--is-ancestor", newest, "HEAD"]).read().run_raw().await?;
         if contained.success() {
             return read_status(core, repo_id).await;
         }
@@ -563,14 +563,7 @@ pub async fn release_create(
         return Err(CoreError::not_allowed(format!("The release text is longer than {MAX_RELEASE_BODY} characters.")));
     }
     let spec = format!("refs/tags/{tag}^{{commit}}");
-    let out = core
-        .git_for(&repo_id)?
-        .args(["rev-parse", "--verify", "--quiet", "--end-of-options"])
-        .arg(&spec)
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await?;
+    let out = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "--end-of-options"]).arg(&spec).read().run_raw().await?;
     let target = out.stdout_text();
     if !out.success() || target.is_empty() {
         return Err(CoreError::not_found(format!("The tag “{tag}” does not exist in this repository.")));

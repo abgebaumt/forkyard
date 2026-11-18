@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::graph::{display_text, is_full_sha, read_cmd, LOG_SAFE};
+use crate::commands::graph::{display_text, is_full_sha, LOG_SAFE};
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
 use crate::model::{ReflogAction, ReflogEntry, ReflogPage};
@@ -118,25 +118,29 @@ async fn read_entries(core: &Core, path: &Path, repo_id: &str, name: &str) -> Co
 
 /// Path of the reflog file; Git knows where it lives (also in worktrees).
 async fn log_file(core: &Core, path: &Path, repo_id: &str, name: &str) -> CoreResult<PathBuf> {
-    let out = read_cmd(core, path, repo_id).args(["rev-parse", "--git-path"]).arg(format!("logs/{name}")).run().await?;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["rev-parse", "--git-path"]).arg(format!("logs/{name}")).run().await?;
     let raw = out.stdout.strip_suffix(b"\n").unwrap_or(&out.stdout);
     let file = util::bytes_to_path(raw);
     Ok(if file.is_absolute() { file } else { path.join(file) })
 }
 
 async fn uses_reftable(core: &Core, path: &Path, repo_id: &str) -> bool {
-    let out = read_cmd(core, path, repo_id).args(["config", "--get", "extensions.refStorage"]).run_raw().await;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["config", "--get", "extensions.refStorage"]).run_raw().await;
     matches!(out, Ok(out) if out.success() && out.stdout_text().trim().eq_ignore_ascii_case("reftable"))
 }
 
 async fn ref_exists(core: &Core, path: &Path, repo_id: &str, name: &str) -> bool {
-    let out = read_cmd(core, path, repo_id).args(["rev-parse", "-q", "--verify", "--end-of-options", name]).run_raw().await;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["rev-parse", "-q", "--verify", "--end-of-options", name]).run_raw().await;
     matches!(out, Ok(out) if out.success())
 }
 
 /// Reftable: `git log -g` (newest first; entries of missing commits are absent there).
 async fn walk_reflog(core: &Core, path: &Path, repo_id: &str, name: &str) -> CoreResult<Vec<RawEntry>> {
-    let out = read_cmd(core, path, repo_id)
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["log", "-g", "--date=unix"])
         .args(LOG_SAFE)
         .args(["-z", "--format=%H%x00%gd%x00%gs"])
@@ -228,7 +232,8 @@ async fn existing_commits(core: &Core, path: &Path, repo_id: &str, shas: &[&str]
         stdin.push_str(sha);
         stdin.push('\n');
     }
-    let out = read_cmd(core, path, repo_id).args(["cat-file", "--batch-check=%(objectname) %(objecttype)"]).stdin(stdin).run().await?;
+    let out =
+        core.git.cmd(path).repo(repo_id).read().args(["cat-file", "--batch-check=%(objectname) %(objecttype)"]).stdin(stdin).run().await?;
     Ok(out
         .stdout_lines()
         .into_iter()

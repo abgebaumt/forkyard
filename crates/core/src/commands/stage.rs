@@ -48,7 +48,7 @@ const BACKUP_IDENTITY: [(&str, &str); 4] = [
 
 /// Git invocation in the repository; paths are taken literally.
 fn git(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.env("GIT_LITERAL_PATHSPECS", "1"))
+    Ok(core.git_for(repo_id)?.literal_paths())
 }
 
 /// Helper invocation that should not appear in the activity log.
@@ -907,7 +907,7 @@ pub async fn file_delete(core: &Core, repo_id: String, path: String) -> CoreResu
         let tracked = !quiet(core, &repo_id)?.read_only().args(["ls-files", "-z", "--"]).arg(&rel).run().await?.stdout.is_empty();
         if !tracked {
             // Without GIT_LITERAL_PATHSPECS: `check-ignore` rejects that setting and takes paths literally anyway.
-            let ignored = core.git_for(&repo_id)?.no_log().read_only().args(["check-ignore", "-q", "--"]).arg(&rel).run_raw().await?;
+            let ignored = core.git_for(&repo_id)?.read().args(["check-ignore", "-q", "--"]).arg(&rel).run_raw().await?;
             if ignored.code == Some(0) {
                 return Err(CoreError::not_allowed(format!(
                     "“{rel}” is ignored by Git. Ignored files have no backup; please delete it in your file manager."

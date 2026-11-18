@@ -111,7 +111,7 @@ pub async fn file_history(
     offset: Option<u32>,
 ) -> CoreResult<Vec<FileHistoryEntry>> {
     let rel = util::normalize_rel_path(&path)?;
-    let head = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).read_only().no_log().run_raw().await?;
+    let head = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).read().run_raw().await?;
     if !head.success() {
         return Ok(Vec::new());
     }
@@ -121,7 +121,7 @@ pub async fn file_history(
     let mut parser = HistoryParser::new(&rel);
     core.git_for(&repo_id)?
         // The path is meant literally, even if it contains "*" or "[".
-        .env("GIT_LITERAL_PATHSPECS", "1")
+        .literal_paths()
         .args(["log", "--follow", "-M", "--diff-merges=first-parent", "--raw", "--numstat", "-z"])
         .args(["--no-show-signature", "--no-decorate", max_count.as_str(), HISTORY_FORMAT, "--", rel.as_str()])
         .read_only()
@@ -176,8 +176,7 @@ pub(crate) async fn line_history_with_diffs(
         .arg(format!("-L{line},{line}:{rel}"))
         .arg(&commit)
         .arg("--")
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await?;
     if !out.success() {
@@ -442,7 +441,7 @@ pub async fn file_blame(
             if is_binary {
                 return Err(binary());
             }
-            let size = core.git_for(&repo_id)?.args(["cat-file", "-s", &spec]).read_only().no_log().run_raw().await?;
+            let size = core.git_for(&repo_id)?.args(["cat-file", "-s", &spec]).read().run_raw().await?;
             if String::from_utf8_lossy(&size.stdout).trim().parse::<u64>().is_ok_and(|n| n > MAX_TEXT_BYTES) {
                 return Err(too_large());
             }
@@ -460,8 +459,7 @@ pub async fn file_blame(
             if file.metadata()?.len() > MAX_TEXT_BYTES {
                 return Err(too_large());
             }
-            let in_head =
-                core.git_for(&repo_id)?.args(["cat-file", "-e", &format!("HEAD:{rel}")]).read_only().no_log().run_raw().await?.success();
+            let in_head = core.git_for(&repo_id)?.args(["cat-file", "-e", &format!("HEAD:{rel}")]).read().run_raw().await?.success();
             if !in_head {
                 return uncommitted_file(&file, &rel, &preferred, forced);
             }
@@ -484,8 +482,7 @@ pub(crate) async fn blob_looks_binary(core: &Core, repo_id: &str, spec: &str) ->
     let out = core
         .git_for(repo_id)?
         .args(["cat-file", "blob", spec])
-        .read_only()
-        .no_log()
+        .read()
         .run_records(0, None, &mut |before_nul| {
             nul_in_head = before_nul.len() < 8000;
             false
@@ -670,8 +667,7 @@ pub async fn file_read(
                 .git_for(&repo_id)?
                 .args(["cat-file", "--batch-check", "-z"])
                 .stdin(format!("{rev}:{rel}\0").into_bytes())
-                .read_only()
-                .no_log()
+                .read()
                 .run()
                 .await?;
             // "<oid> <type> <size>" or "<spec> missing".
@@ -691,7 +687,7 @@ pub async fn file_read(
                 let is_binary = blob_looks_binary(core, &repo_id, oid).await?;
                 return Ok(no_text(size, is_binary));
             }
-            core.git_for(&repo_id)?.args(["cat-file", "blob", oid]).read_only().no_log().run().await?.stdout
+            core.git_for(&repo_id)?.args(["cat-file", "blob", oid]).read().run().await?.stdout
         }
     };
     let size = bytes.len() as u64;

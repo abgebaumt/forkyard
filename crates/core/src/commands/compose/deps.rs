@@ -89,7 +89,7 @@ async fn existing_in_head(core: &Core, repo_id: &str, head: &str, names: &[Strin
     if names.is_empty() {
         return Ok(HashSet::new());
     }
-    let mut cmd = core.git_for(repo_id)?.read_only().no_log().args(["grep", "-I", "-w", "-F", "-o", "-h", "--no-color"]);
+    let mut cmd = core.git_for(repo_id)?.read().args(["grep", "-I", "-w", "-F", "-o", "-h", "--no-color"]);
     for name in names {
         cmd = cmd.arg("-e").arg(name.as_str());
     }

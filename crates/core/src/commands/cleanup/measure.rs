@@ -39,7 +39,7 @@ pub(super) fn parse_count_objects(text: &str) -> ObjectStats {
 
 /// The repository's object numbers (for a worktree: those of the shared object folder).
 pub(super) async fn count_objects(core: &Core, repo_id: &str) -> CoreResult<ObjectStats> {
-    let out = core.git_for(repo_id)?.args(["count-objects", "-v"]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["count-objects", "-v"]).read().run().await?;
     Ok(parse_count_objects(&out.stdout_text()))
 }
 
@@ -111,13 +111,13 @@ fn count_old_reflog_files(common: &Path, cutoff: i64, deadline: Instant) -> Opti
 
 /// Whether the refs live in a reftable (Git 2.45+) instead of files.
 async fn uses_reftable(core: &Core, repo_id: &str) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.args(["config", "--get", "extensions.refStorage"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["config", "--get", "extensions.refStorage"]).read().run_raw().await?;
     Ok(out.success() && out.stdout_text().trim().eq_ignore_ascii_case("reftable"))
 }
 
 /// Reftable backend: `git reflog list`, then the entry times of each ref. `None` past `deadline`.
 async fn count_old_reflog_reftable(core: &Core, repo_id: &str, cutoff: i64, deadline: Instant) -> CoreResult<Option<u64>> {
-    let listed = core.git_for(repo_id)?.args(["reflog", "list"]).read_only().no_log().run_raw().await?;
+    let listed = core.git_for(repo_id)?.args(["reflog", "list"]).read().run_raw().await?;
     if !listed.success() {
         return Ok(None);
     }
@@ -136,8 +136,7 @@ async fn count_old_reflog_reftable(core: &Core, repo_id: &str, cutoff: i64, dead
             .args(["log", "-g", "--date=unix", "--format=%gd", "-z", "--end-of-options"])
             .arg(&name)
             .arg("--")
-            .read_only()
-            .no_log()
+            .read()
             .timeout(remaining)
             .run_raw()
             .await;
@@ -198,8 +197,7 @@ pub(super) async fn undo_backups(core: &Core, repo_id: &str, ids: &[String]) -> 
     let out = core
         .git_for(repo_id)?
         .args(["for-each-ref", "--format=%(refname)%00%(committerdate:unix)", BACKUP_REF_PREFIX])
-        .read_only()
-        .no_log()
+        .read()
         .run()
         .await?;
     // id → (refs, newest commit time)
@@ -234,7 +232,7 @@ pub(super) async fn undo_backups(core: &Core, repo_id: &str, ids: &[String]) -> 
 
 /// The LFS object folder: `lfs.storage` (relative paths below the common directory) or `<common>/lfs`, then `objects`.
 pub(super) async fn lfs_objects_dir(core: &Core, repo_id: &str, common: &Path) -> CoreResult<PathBuf> {
-    let out = core.git_for(repo_id)?.args(["config", "--get", "lfs.storage"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["config", "--get", "lfs.storage"]).read().run_raw().await?;
     let configured = if out.success() { out.stdout_text().trim().to_string() } else { String::new() };
     let storage = if configured.is_empty() {
         common.join("lfs")

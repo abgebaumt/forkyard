@@ -249,8 +249,7 @@ async fn remote_refs(core: &Core, repo_id: &str) -> CoreResult<Vec<u8>> {
     let out = core
         .git_for(repo_id)?
         .args(["for-each-ref", "--format=%(objectname) %(refname)", "refs/remotes", "refs/tags"])
-        .read_only()
-        .no_log()
+        .read()
         .run()
         .await?;
     Ok(out.stdout)
@@ -265,7 +264,7 @@ async fn try_fetch(core: &Core, repo_id: &str, stop: &CancelToken) -> CoreResult
     let Some(_network) = core.try_network_lock(repo_id) else {
         return Ok(FetchOutcome::Skipped(SkipReason::Busy));
     };
-    let remotes = core.git_for(repo_id)?.arg("remote").read_only().no_log().run().await?;
+    let remotes = core.git_for(repo_id)?.arg("remote").read().run().await?;
     if remotes.stdout_lines().iter().all(|line| line.is_empty()) {
         return Ok(FetchOutcome::Skipped(SkipReason::NoRemote));
     }
@@ -283,8 +282,7 @@ async fn try_fetch(core: &Core, repo_id: &str, stop: &CancelToken) -> CoreResult
     let result = cmd
         .network()
         .no_prompt()
-        .read_only()
-        .no_log()
+        .read()
         .check(false)
         .timeout(FETCH_TIMEOUT)
         .idle_timeout(FETCH_IDLE_TIMEOUT)

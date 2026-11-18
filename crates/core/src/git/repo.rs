@@ -6,13 +6,8 @@ use std::path::{Path, PathBuf};
 use crate::app::Core;
 use crate::commands::refs::short_ref_name;
 use crate::error::{CoreError, CoreResult};
-use crate::git::GitCmd;
 use crate::model::{Head, Operation, OperationKind};
 use crate::util;
-
-fn read_cmd(core: &Core, path: &Path, repo_id: &str) -> GitCmd {
-    core.git.cmd(path).repo(repo_id).read_only().no_log()
-}
 
 /// HEAD alone: branch, detached or without a commit.
 pub async fn read_head(core: &Core, repo_id: &str) -> CoreResult<Head> {
@@ -22,8 +17,8 @@ pub async fn read_head(core: &Core, repo_id: &str) -> CoreResult<Head> {
 
 pub(crate) async fn head_at(core: &Core, path: &Path, repo_id: &str) -> CoreResult<Head> {
     let (symref, commit) = tokio::join!(
-        read_cmd(core, path, repo_id).args(["symbolic-ref", "-q", "HEAD"]).run_raw(),
-        read_cmd(core, path, repo_id).args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
+        core.git.cmd(path).repo(repo_id).read().args(["symbolic-ref", "-q", "HEAD"]).run_raw(),
+        core.git.cmd(path).repo(repo_id).read().args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
     );
     let (symref, commit) = (symref?, commit?);
     let branch = if symref.success() {
@@ -70,7 +65,7 @@ pub(crate) async fn git_dir_at(core: &Core, path: &Path, repo_id: &str) -> CoreR
             }
         }
     }
-    let out = read_cmd(core, path, repo_id).args(["rev-parse", "--absolute-git-dir"]).run().await?;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["rev-parse", "--absolute-git-dir"]).run().await?;
     Ok(util::native_path(&util::bytes_to_path(trim_bytes(&out.stdout))))
 }
 
@@ -188,7 +183,11 @@ pub(crate) async fn operation_at(core: &Core, path: &Path, repo_id: &str, head: 
 /// Readable name for a commit: local branch, otherwise remote branch, otherwise short SHA.
 /// `exclude` is a branch that cannot be meant (e.g. the current one).
 async fn name_for_commit(core: &Core, path: &Path, repo_id: &str, sha: &str, exclude: Option<&str>) -> String {
-    let listed = read_cmd(core, path, repo_id)
+    let listed = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["for-each-ref", "--format=%(refname)", "--points-at", sha, "refs/heads", "refs/remotes"])
         .run_raw()
         .await;
@@ -208,7 +207,7 @@ async fn name_for_commit(core: &Core, path: &Path, repo_id: &str, sha: &str, exc
 
 async fn count_commits_since(core: &Core, path: &Path, repo_id: &str, start: &str) -> Option<u32> {
     let range = format!("{start}..HEAD");
-    let out = read_cmd(core, path, repo_id).args(["rev-list", "--count", &range]).run_raw().await.ok()?;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["rev-list", "--count", &range]).run_raw().await.ok()?;
     if !out.success() {
         return None;
     }

@@ -74,7 +74,7 @@ pub fn split_subject(subject: &str) -> (Option<String>, String) {
 }
 
 pub(crate) async fn read_rows(core: &Core, repo_id: &str) -> CoreResult<Vec<StashRow>> {
-    let out = core.git_for(repo_id)?.args(["stash", "list", "-z", "--no-show-signature", LIST_FORMAT]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["stash", "list", "-z", "--no-show-signature", LIST_FORMAT]).read().run().await?;
     Ok(parse_rows(&out.stdout))
 }
 
@@ -97,14 +97,8 @@ async fn file_counts(core: &Core, repo_id: &str, rows: &[StashRow]) -> CoreResul
             }
         }
     }
-    let out = core
-        .git_for(repo_id)?
-        .args(["diff-tree", "--stdin", "--root", "-r", "-z", "--name-only", "-M"])
-        .stdin(input)
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let out =
+        core.git_for(repo_id)?.args(["diff-tree", "--stdin", "--root", "-r", "-z", "--name-only", "-M"]).stdin(input).read().run().await?;
     // Output: per commit a header line with its SHA, then the paths.
     let mut per_commit: HashMap<&str, u32> = HashMap::new();
     let mut current: Option<&str> = None;
@@ -163,7 +157,7 @@ pub async fn read_stashes(core: &Core, repo_id: &str) -> CoreResult<Vec<Stash>> 
 
 /// Paths with open conflicts in the index (each path once).
 pub(crate) async fn unmerged_paths(core: &Core, repo_id: &str) -> CoreResult<Vec<String>> {
-    let out = core.git_for(repo_id)?.args(["ls-files", "--unmerged", "-z"]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["ls-files", "--unmerged", "-z"]).read().run().await?;
     let mut paths: Vec<String> = Vec::new();
     for record in out.stdout_z() {
         let Some(tab) = record.iter().position(|b| *b == b'\t') else { continue };
@@ -244,8 +238,7 @@ impl StagedAside {
         let staged = core
             .git_for(repo_id)?
             .args(["diff", "--cached", "--name-only", "-z", "--no-renames", "--no-ext-diff"])
-            .read_only()
-            .no_log()
+            .read()
             .run_raw()
             .await?;
         if !staged.success() {
@@ -266,7 +259,7 @@ impl StagedAside {
 
     /// Puts the entries of the set-aside paths back into the index exactly as they were before.
     async fn put_back(&self, core: &Core, repo_id: &str) -> CoreResult<()> {
-        let listed = core.git_for(repo_id)?.args(["ls-tree", "-r", "-z", &self.tree]).read_only().no_log().run().await?;
+        let listed = core.git_for(repo_id)?.args(["ls-tree", "-r", "-z", &self.tree]).read().run().await?;
         let wanted: std::collections::HashSet<&[u8]> = self.paths.iter().map(Vec::as_slice).collect();
         let mut present: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
         let mut info: Vec<u8> = Vec::new();
@@ -411,7 +404,7 @@ pub(crate) async fn apply_stash(core: &Core, repo_id: &str, index: usize, row: &
     // untracked ones – that would be a half-applied stash. So check beforehand.
     if let Some(untracked) = row.parents.get(2) {
         let root = core.repo_path(repo_id)?;
-        let out = core.git_for(repo_id)?.args(["ls-tree", "-r", "-z", "--name-only", untracked]).read_only().no_log().run().await?;
+        let out = core.git_for(repo_id)?.args(["ls-tree", "-r", "-z", "--name-only", untracked]).read().run().await?;
         let blocking: Vec<String> = out
             .stdout_z()
             .into_iter()
@@ -469,13 +462,7 @@ async fn staged_untouched_by(core: &Core, repo_id: &str, row: &StashRow) -> Core
     }
     let mut touched: std::collections::HashSet<Vec<u8>> = std::collections::HashSet::new();
     for other in [staged.as_str(), row.sha.as_str()] {
-        let out = core
-            .git_for(repo_id)?
-            .args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", base, other])
-            .read_only()
-            .no_log()
-            .run()
-            .await?;
+        let out = core.git_for(repo_id)?.args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", base, other]).read().run().await?;
         touched.extend(out.stdout_z().into_iter().filter(|path| !path.is_empty()).map(<[u8]>::to_vec));
     }
     StagedAside::take(core, repo_id, &|path: &[u8]| touched.contains(path)).await
@@ -683,7 +670,7 @@ async fn nothing_to_stash(core: &Core, repo_id: &str, include_untracked: bool) -
     let mut message = "There are no changes to stash.".to_string();
     if !include_untracked {
         let untracked = match core.git_for(repo_id) {
-            Ok(cmd) => cmd.args(["ls-files", "--others", "--exclude-standard", "-z"]).read_only().no_log().run_raw().await,
+            Ok(cmd) => cmd.args(["ls-files", "--others", "--exclude-standard", "-z"]).read().run_raw().await,
             Err(e) => Err(e),
         };
         if untracked.is_ok_and(|out| !out.stdout.is_empty()) {
@@ -818,7 +805,7 @@ pub async fn stash_apply_paths(
         let Some(base) = row.parents.first() else {
             return Err(CoreError::not_found("This stash is incomplete and can't be applied."));
         };
-        let quiet = || -> CoreResult<crate::git::GitCmd> { Ok(core.git_for(repo_id)?.env("GIT_LITERAL_PATHSPECS", "1").no_log()) };
+        let quiet = || -> CoreResult<crate::git::GitCmd> { Ok(core.git_for(repo_id)?.literal_paths().no_log()) };
         let listed = |out: GitOutput| -> HashSet<Vec<u8>> { out.stdout_z().into_iter().map(<[u8]>::to_vec).collect() };
         let changed = listed(quiet()?.args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", base, &row.sha]).read_only().run().await?);
         let untracked = match row.parents.get(2) {
@@ -877,7 +864,7 @@ pub async fn stash_apply_paths(
         let written: CoreResult<()> = async {
             if !patch.is_empty() {
                 core.git_for(repo_id)?
-                    .env("GIT_LITERAL_PATHSPECS", "1")
+                    .literal_paths()
                     .args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"])
                     .stdin(patch)
                     .run()

@@ -373,15 +373,7 @@ const MAX_TEMPLATE_BYTES: u64 = 256 * 1024;
 /// `None`: no template configured, file missing, too large or not text.
 async fn commit_template_text(core: &Core, repo_id: &str) -> Option<String> {
     let root = core.repo_path(repo_id).ok()?;
-    let out = core
-        .git_for(repo_id)
-        .ok()?
-        .args(["config", "--get", "--type=path", "commit.template"])
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await
-        .ok()?;
+    let out = core.git_for(repo_id).ok()?.args(["config", "--get", "--type=path", "commit.template"]).read().run_raw().await.ok()?;
     if !out.success() {
         return None;
     }
@@ -407,7 +399,7 @@ async fn commit_template_text(core: &Core, repo_id: &str) -> Option<String> {
 /// Reads the local .git/config as (key in lower case, value). Without logging: the
 /// configuration can contain secrets (tokens as `extraheader`, SMTP passwords).
 async fn local_git_config(core: &Core, repo_id: &str) -> CoreResult<Vec<(String, String)>> {
-    let out = core.git_for(repo_id)?.args(["config", "--local", "--null", "--list"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["config", "--local", "--null", "--list"]).read().run_raw().await?;
     if !out.success() {
         // Exit 1 without output: no readable local configuration → empty.
         if out.stderr.is_empty() {

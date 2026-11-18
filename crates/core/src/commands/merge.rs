@@ -34,8 +34,6 @@ use crate::util;
 
 /// Merge, rebase, cherry-pick, revert and their completion can change everything.
 const ALL_CHANGES: [RepoChange; 5] = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
-/// Paths are file names, not patterns: `*` or `[` in a name must not match anything else.
-const LITERAL_PATHSPECS: &str = "GIT_LITERAL_PATHSPECS";
 const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
 const BACKUP_MESSAGE: &str = "forkyard: backup";
 const BACKUP_IDENT_NAME: &str = "forkyard";
@@ -363,8 +361,8 @@ async fn remove_orig_file(core: &Core, repo_id: &str, root: &Path, rel: &[u8]) {
     if !std::fs::symlink_metadata(&full).is_ok_and(|m| m.is_file()) {
         return;
     }
-    let listed = match read(core, repo_id) {
-        Ok(cmd) => cmd.env(LITERAL_PATHSPECS, "1").args(["ls-files", "-z", "--"]).arg_bytes(&orig).run_raw().await,
+    let listed = match core.git_for(repo_id).map(GitCmd::read) {
+        Ok(cmd) => cmd.literal_paths().args(["ls-files", "-z", "--"]).arg_bytes(&orig).run_raw().await,
         Err(e) => Err(e),
     };
     if matches!(&listed, Ok(out) if out.success() && out.stdout.is_empty()) {
@@ -620,8 +618,9 @@ async fn abort_past_leftovers(core: &Core, repo_id: &str, subcommand: &str, fail
     let mut differing: Vec<String> = Vec::new();
     if let Some(target) = &target {
         for file in &files {
-            let wanted = read(core, repo_id)?.args(["rev-parse", "-q", "--verify"]).arg(format!("{target}:{file}")).run_raw().await?;
-            let found = read(core, repo_id)?.args(["hash-object", "--"]).arg(file).run_raw().await?;
+            let wanted =
+                core.git_for(repo_id)?.read().args(["rev-parse", "-q", "--verify"]).arg(format!("{target}:{file}")).run_raw().await?;
+            let found = core.git_for(repo_id)?.read().args(["hash-object", "--"]).arg(file).run_raw().await?;
             let same =
                 wanted.success() && found.success() && !wanted.stdout_text().is_empty() && wanted.stdout_text() == found.stdout_text();
             if !same {
@@ -745,7 +744,7 @@ impl ExtraWork {
 
 /// NUL-separated paths from the output of a Git command.
 async fn changed_names(core: &Core, repo_id: &str, args: &[&str]) -> CoreResult<Vec<Vec<u8>>> {
-    let out = core.git_for(repo_id)?.args(args).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(args).read().run().await?;
     Ok(out.stdout_z().into_iter().filter(|path| !path.is_empty()).map(<[u8]>::to_vec).collect())
 }
 
@@ -1045,7 +1044,7 @@ async fn snapshot_into(core: &Core, repo_id: &str, dir: &Path, temp: &Path, head
         }
         if !input.is_empty() {
             with_index(core.git_for(repo_id)?)
-                .env(LITERAL_PATHSPECS, "1")
+                .literal_paths()
                 .args(["-c", "core.safecrlf=false", "add", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"])
                 .stdin(input)
                 .run()
@@ -1126,7 +1125,7 @@ fn parse_unmerged(stdout: &[u8]) -> Vec<Unmerged> {
 }
 
 async fn read_unmerged(core: &Core, repo_id: &str) -> CoreResult<Vec<Unmerged>> {
-    let out = read(core, repo_id)?.args(["ls-files", "--unmerged", "-z"]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["ls-files", "--unmerged", "-z"]).run().await?;
     Ok(parse_unmerged(&out.stdout))
 }
 
@@ -1136,8 +1135,10 @@ async fn unmerged_entry(core: &Core, repo_id: &str, path: &str) -> CoreResult<Un
     if path.is_empty() {
         return Err(missing());
     }
-    let out = read(core, repo_id)?
-        .env(LITERAL_PATHSPECS, "1")
+    let out = core
+        .git_for(repo_id)?
+        .read()
+        .literal_paths()
         .args(["ls-files", "--unmerged", "-z", "--"])
         .arg_bytes(path.as_bytes())
         .run_raw()
@@ -1229,7 +1230,7 @@ impl Versions {
 
 async fn stage_blob(core: &Core, repo_id: &str, stage: Option<&StageEntry>) -> CoreResult<Option<Vec<u8>>> {
     let Some(stage) = stage.filter(|s| !special_mode(&s.mode)) else { return Ok(None) };
-    let out = read(core, repo_id)?.args(["cat-file", "blob", &stage.sha]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["cat-file", "blob", &stage.sha]).run().await?;
     Ok(Some(out.stdout))
 }
 
@@ -1308,14 +1309,9 @@ fn leftover_marker(content: &str, known: &HashSet<String>) -> Option<usize> {
 // Small building blocks
 // ---------------------------------------------------------------------------
 
-/// Read call: blocks no write action and does not appear in the log.
-fn read(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
-
 /// Write call with a file name as argument.
 fn path_cmd(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.env(LITERAL_PATHSPECS, "1"))
+    Ok(core.git_for(repo_id)?.literal_paths())
 }
 
 fn short_sha(sha: &str) -> String {
@@ -1377,7 +1373,7 @@ async fn try_resolve(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option
     if rev.is_empty() || rev.starts_with('-') {
         return Ok(None);
     }
-    let out = read(core, repo_id)?.args(["rev-parse", "-q", "--verify"]).arg(format!("{rev}^{{commit}}")).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["rev-parse", "-q", "--verify"]).arg(format!("{rev}^{{commit}}")).run_raw().await?;
     Ok(Some(out.stdout_text()).filter(|sha| out.success() && !sha.is_empty()))
 }
 
@@ -1391,7 +1387,7 @@ async fn current_sha(core: &Core, repo_id: &str) -> CoreResult<String> {
 }
 
 async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = read(core, repo_id)?.args(["merge-base", "--is-ancestor", ancestor, descendant]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["merge-base", "--is-ancestor", ancestor, descendant]).run_raw().await?;
     match out.code {
         Some(0) => Ok(true),
         Some(1) => Ok(false),
@@ -1401,7 +1397,7 @@ async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &st
 
 /// The index matches HEAD: nothing is staged.
 async fn index_matches_head(core: &Core, repo_id: &str) -> CoreResult<bool> {
-    let out = read(core, repo_id)?.args(["diff-index", "--cached", "--quiet", "HEAD", "--"]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["diff-index", "--cached", "--quiet", "HEAD", "--"]).run_raw().await?;
     Ok(out.success())
 }
 
@@ -1412,7 +1408,7 @@ struct CommitMeta {
 
 /// Number of parents and first line of the message, from the raw commit object.
 async fn commit_meta(core: &Core, repo_id: &str, sha: &str) -> CoreResult<CommitMeta> {
-    let out = read(core, repo_id)?.args(["cat-file", "commit", sha]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["cat-file", "commit", sha]).run().await?;
     let text = util::decode_lossy(&out.stdout);
     let (headers, message) = text.split_once("\n\n").unwrap_or((text.as_str(), ""));
     Ok(CommitMeta {

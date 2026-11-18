@@ -48,7 +48,7 @@ pub async fn prestage(core: &Core, repo_id: &str, index_file: Option<&Path>, pat
 }
 
 fn base(core: &Core, repo_id: &str, index_file: Option<&Path>) -> CoreResult<GitCmd> {
-    let mut cmd = core.git_for(repo_id)?.no_log().env("GIT_LITERAL_PATHSPECS", "1");
+    let mut cmd = core.git_for(repo_id)?.no_log().literal_paths();
     if let Some(index) = index_file {
         cmd = cmd.env("GIT_INDEX_FILE", index);
     }
@@ -107,16 +107,7 @@ async fn attr_source(core: &Core, repo_id: &str) -> Option<String> {
     if info.version < ATTR_SOURCE_VERSION {
         return None;
     }
-    let out = core
-        .git_for(repo_id)
-        .ok()?
-        .no_log()
-        .read_only()
-        .args(["hash-object", "-t", "tree", "--stdin"])
-        .stdin(Vec::new())
-        .run()
-        .await
-        .ok()?;
+    let out = core.git_for(repo_id).ok()?.read().args(["hash-object", "-t", "tree", "--stdin"]).stdin(Vec::new()).run().await.ok()?;
     Some(out.stdout_text()).filter(|sha| !sha.is_empty())
 }
 

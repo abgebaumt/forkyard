@@ -154,8 +154,7 @@ pub(crate) async fn read(core: &Core, repo_id: &str) -> CoreResult<ComposeRead> 
         file.protected = protection(&exclusions, file);
     }
     let requires = deps::read(core, repo_id, &head, &files).await?;
-    let head_subject =
-        core.git_for(repo_id)?.args(["log", "-1", "--format=%s", head.as_str(), "--"]).read_only().no_log().run_text().await?;
+    let head_subject = core.git_for(repo_id)?.args(["log", "-1", "--format=%s", head.as_str(), "--"]).read().run_text().await?;
     let mut hooks = Vec::new();
     for hook in COMMIT_HOOKS {
         if crate::commands::sync::hook_exists(core, repo_id, hook).await {
@@ -185,13 +184,13 @@ pub(crate) async fn index_tree_of_copy(core: &Core, repo_id: &str) -> CoreResult
 }
 
 async fn signing_on(core: &Core, repo_id: &str) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.args(["config", "--bool", "--get", "commit.gpgsign"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["config", "--bool", "--get", "commit.gpgsign"]).read().run_raw().await?;
     Ok(out.success() && out.stdout_text() == "true")
 }
 
 /// Reads carry file contents: no log entry, never blocking a writer, paths taken literally.
 fn read_git(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log().env("GIT_LITERAL_PATHSPECS", "1"))
+    Ok(core.git_for(repo_id)?.read().literal_paths())
 }
 
 async fn changed_files(core: &Core, repo_id: &str, head: &str, tree: &str) -> CoreResult<Vec<ChangedFile>> {

@@ -83,7 +83,7 @@ enum Step {
 /// A read call of the preview: background (no optional locks), not logged, cancellable; the
 /// caller evaluates the exit code.
 async fn git(core: &Core, repo_id: &str, cancel: &CancelToken, args: &[&str], stdin: Option<Vec<u8>>) -> CoreResult<GitOutput> {
-    let mut cmd = core.git_for(repo_id)?.read_only().no_log().check(false).args(args);
+    let mut cmd = core.git_for(repo_id)?.read().check(false).args(args);
     if let Some(data) = stdin {
         cmd = cmd.stdin(data);
     }
@@ -205,7 +205,7 @@ pub(crate) async fn conflicted_blob(
 ) -> CoreResult<Option<Vec<u8>>> {
     let mut spec = format!("{tree}:").into_bytes();
     spec.extend_from_slice(raw_path);
-    let read = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.read_only().no_log().check(false)) };
+    let read = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.read().check(false)) };
     let kind = read()?.args(["cat-file", "-t"]).arg_bytes(&spec).run_stream(cancel, &mut |_| {}).await?;
     if !kind.success() || kind.stdout_text().trim() != "blob" {
         return Ok(None);
@@ -309,8 +309,7 @@ async fn only_parent(core: &Core, repo_id: &str, cancel: &CancelToken, commit: &
 
 /// A loose commit around an intermediate tree, so that the next step has a commit to merge with.
 async fn wrap_tree(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str) -> CoreResult<String> {
-    let mut cmd =
-        core.git_for(repo_id)?.read_only().no_log().check(false).args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: preview"]);
+    let mut cmd = core.git_for(repo_id)?.read().check(false).args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: preview"]);
     for (key, value) in PREVIEW_IDENTITY {
         cmd = cmd.env(key, value);
     }

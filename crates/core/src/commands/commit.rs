@@ -349,7 +349,7 @@ fn branch_and_sha(head: &Head) -> (Option<String>, Option<String>) {
 }
 
 async fn head_sha(core: &Core, repo_id: &str) -> CoreResult<String> {
-    core.git_for(repo_id)?.args(["rev-parse", "--verify", "HEAD^{commit}"]).read_only().no_log().run_text().await
+    core.git_for(repo_id)?.args(["rev-parse", "--verify", "HEAD^{commit}"]).read().run_text().await
 }
 
 /// Are there staged changes compared to HEAD (or compared to the empty tree)?
@@ -357,8 +357,7 @@ async fn index_differs_from_head(core: &Core, repo_id: &str) -> CoreResult<bool>
     let out = core
         .git_for(repo_id)?
         .args(["-c", "diff.autoRefreshIndex=false", "diff", "--cached", "--quiet", "--no-ext-diff"])
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await?;
     match out.code {
@@ -494,7 +493,7 @@ impl HookCapture {
     /// `None` if the repository has no hooks.
     async fn prepare(core: &Core, repo_id: &str) -> CoreResult<Option<HookCapture>> {
         let repo = core.repo_path(repo_id)?;
-        let out = core.git_for(repo_id)?.args(["rev-parse", "--git-path", "hooks"]).read_only().no_log().run().await?;
+        let out = core.git_for(repo_id)?.args(["rev-parse", "--git-path", "hooks"]).read().run().await?;
         let listed = out.stdout.strip_suffix(b"\n").unwrap_or(&out.stdout);
         let listed = util::bytes_to_path(listed.strip_suffix(b"\r").unwrap_or(listed));
         // A relative path applies from the working directory in which the hooks run.

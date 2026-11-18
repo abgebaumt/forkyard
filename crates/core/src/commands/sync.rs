@@ -88,21 +88,16 @@ where
     result
 }
 
-/// Small read call without a log entry.
-fn probe(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
-
 /// Value from the Git configuration; `None` if not set or empty.
 async fn config_get(core: &Core, repo_id: &str, key: &str) -> CoreResult<Option<String>> {
-    let out = probe(core, repo_id)?.args(["config", "--get", key]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["config", "--get", key]).run_raw().await?;
     Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
 }
 
 /// SHA of the commit `rev` points to; `None` if it doesn't exist.
 async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
     let spec = format!("{rev}^{{commit}}");
-    let out = probe(core, repo_id)?.args(["rev-parse", "--verify", "--quiet", &spec]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["rev-parse", "--verify", "--quiet", &spec]).run_raw().await?;
     Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
 }
 
@@ -183,7 +178,7 @@ pub(crate) async fn read_push_rule(core: &Core, repo_id: &str, full: bool) -> Co
     } else {
         r"^(push\.default|branch\..+\.forkyardpushtoupstream)$"
     };
-    let out = probe(core, repo_id)?.args(["config", "-z", "--get-regexp", pattern]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["config", "-z", "--get-regexp", pattern]).run_raw().await?;
     // Exit code 1: nothing set.
     Ok(if out.success() { parse_push_rule(&out.stdout) } else { PushRule::default() })
 }
@@ -274,7 +269,9 @@ pub(crate) async fn forget_push_to_upstream(core: &Core, repo_id: &str, branch: 
 
 /// State of all remote branches and tags (without symbolic refs like `origin/HEAD`).
 async fn remote_ref_snapshot(core: &Core, repo_id: &str) -> CoreResult<HashMap<String, String>> {
-    let out = probe(core, repo_id)?
+    let out = core
+        .git_for(repo_id)?
+        .read()
         .args(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(symref)", "refs/remotes", "refs/tags"])
         .run()
         .await?;
@@ -533,7 +530,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
         merge_ref.clone()
     } else {
         let spec = format!("{branch}@{{upstream}}");
-        let out = probe(core, repo_id)?.args(["rev-parse", "--symbolic-full-name", "--verify", "--quiet", &spec]).run_raw().await?;
+        let out = core.git_for(repo_id)?.read().args(["rev-parse", "--symbolic-full-name", "--verify", "--quiet", &spec]).run_raw().await?;
         match util::non_empty(Some(out.stdout_text())).filter(|_| out.success()) {
             Some(name) => name,
             None => format!("refs/remotes/{remote}/{}", merge_ref.strip_prefix("refs/heads/").unwrap_or(&merge_ref)),
@@ -544,8 +541,12 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     // remote-tracking branch '…'"). The short name reads as with a manual `git pull` – but only
     // if it unambiguously means the remote branch (no tag or local branch of the same name).
     let merge_arg = {
-        let resolved =
-            probe(core, repo_id)?.args(["rev-parse", "--symbolic-full-name", "--verify", "--quiet", &upstream_name]).run_raw().await?;
+        let resolved = core
+            .git_for(repo_id)?
+            .read()
+            .args(["rev-parse", "--symbolic-full-name", "--verify", "--quiet", &upstream_name])
+            .run_raw()
+            .await?;
         if resolved.success() && resolved.stdout_text() == tracking {
             upstream_name.clone()
         } else {
@@ -559,12 +560,12 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     let (ahead, behind) = match &old_sha {
         Some(old) => {
             let range = format!("{old}...{upstream_sha}");
-            let text = probe(core, repo_id)?.args(["rev-list", "--left-right", "--count", &range]).run_text().await?;
+            let text = core.git_for(repo_id)?.read().args(["rev-list", "--left-right", "--count", &range]).run_text().await?;
             let mut numbers = text.split_whitespace().map(|n| n.parse::<u32>().unwrap_or(0));
             (numbers.next().unwrap_or(0), numbers.next().unwrap_or(0))
         }
         None => {
-            let text = probe(core, repo_id)?.args(["rev-list", "--count", &upstream_sha]).run_text().await?;
+            let text = core.git_for(repo_id)?.read().args(["rev-list", "--count", &upstream_sha]).run_text().await?;
             (0, text.trim().parse::<u32>().unwrap_or(1).max(1))
         }
     };
@@ -1205,7 +1206,7 @@ async fn push_error(core: &Core, repo_id: &str, out: &crate::git::GitOutput) -> 
 /// Whether the hook exists (respects `core.hooksPath`).
 pub(crate) async fn hook_exists(core: &Core, repo_id: &str, hook: &str) -> bool {
     let Ok(root) = core.repo_path(repo_id) else { return false };
-    let Ok(cmd) = probe(core, repo_id) else { return false };
+    let Ok(cmd) = core.git_for(repo_id).map(GitCmd::read) else { return false };
     match cmd.args(["rev-parse", "--git-path", &format!("hooks/{hook}")]).run_raw().await {
         Ok(out) if out.success() => {
             let path = PathBuf::from(out.stdout_text());

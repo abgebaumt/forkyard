@@ -18,7 +18,7 @@ fn config_cmd(core: &Core, repo_id: Option<&str>) -> CoreResult<GitCmd> {
 }
 
 async fn get(core: &Core, repo_id: Option<&str>, key: &str, kind: Option<&str>) -> CoreResult<Option<String>> {
-    let mut cmd = config_cmd(core, repo_id)?.read_only().no_log();
+    let mut cmd = config_cmd(core, repo_id)?.read();
     if let Some(kind) = kind {
         cmd = cmd.arg(format!("--type={kind}"));
     }

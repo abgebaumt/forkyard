@@ -145,15 +145,8 @@ async fn resolve_tip(core: &Core, repo_id: &str, reference: &str, to: Option<i64
         Err(e) => return Err(e),
     };
     let Some(to) = to else { return Ok(Some(start)) };
-    let sha = core
-        .git_for(repo_id)?
-        .args(["rev-list", "-n", "1"])
-        .arg(format!("--before=@{to} +0000"))
-        .arg(&start)
-        .read_only()
-        .no_log()
-        .run_text()
-        .await?;
+    let sha =
+        core.git_for(repo_id)?.args(["rev-list", "-n", "1"]).arg(format!("--before=@{to} +0000")).arg(&start).read().run_text().await?;
     Ok((!sha.is_empty()).then_some(sha))
 }
 
@@ -165,7 +158,7 @@ async fn read_log(core: &Core, repo_id: &str, tip: &str, from: Option<i64>, job:
     if let Some(since) = &since {
         count = count.arg(since);
     }
-    let total: u32 = count.arg(tip).read_only().no_log().run_text().await?.trim().parse().unwrap_or(0);
+    let total: u32 = count.arg(tip).read().run_text().await?.trim().parse().unwrap_or(0);
     job.progress(PHASE_HISTORY, Some(0), &format!("0/{total}"));
 
     let mut log = core
@@ -210,7 +203,7 @@ struct TreeFile {
 }
 
 async fn list_tree(core: &Core, repo_id: &str, tip: &str) -> CoreResult<Vec<TreeFile>> {
-    let out = core.git_for(repo_id)?.args(["ls-tree", "-r", "-l", "-z", "--full-tree", tip]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["ls-tree", "-r", "-l", "-z", "--full-tree", tip]).read().run().await?;
     Ok(out.stdout_z().into_iter().filter_map(parse_tree_entry).collect())
 }
 
@@ -303,8 +296,7 @@ async fn blame_times(core: &Core, repo_id: &str, tip: &str, path: &[u8], token: 
     core.git_for(repo_id)?
         .args(["blame", "--porcelain", "--no-textconv", tip, "--"])
         .arg_bytes(path)
-        .read_only()
-        .no_log()
+        .read()
         .run_records(b'\n', Some(token), &mut |line| {
             ages.feed(line.strip_suffix(b"\r").unwrap_or(line));
             true

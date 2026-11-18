@@ -365,6 +365,14 @@ impl GitCmd {
         self.log = false;
         self
     }
+    /// Plain read call: `read_only()` + `no_log()` – blocks no write action and stays out of the log.
+    pub fn read(self) -> Self {
+        self.read_only().no_log()
+    }
+    /// Paths after `--` are literal file names, never pathspec magic (`:(glob)`, `*`).
+    pub fn literal_paths(self) -> Self {
+        self.env("GIT_LITERAL_PATHSPECS", "1")
+    }
     /// Guarded: for calls in a folder that is not trusted yet (detecting and checking a
     /// repository when opening it). `core.fsmonitor` is off and `core.hooksPath` points to an
     /// empty folder – whatever the folder's configuration registers there does not run. Only
@@ -957,7 +965,7 @@ fn index_lock_path(text: &str, cwd: &Path) -> Option<PathBuf> {
 /// the call uses `execute` again from within `execute`.
 fn config_value(runner: &GitRunner, cwd: &Path, key: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Option<String>> + Send>> {
     // Guarded: the call only reads, but must not trigger anything in a foreign folder either.
-    let cmd = runner.cmd(cwd).args(["config", "--get", key]).read_only().no_log().guarded();
+    let cmd = runner.cmd(cwd).args(["config", "--get", key]).read().guarded();
     Box::pin(async move {
         match cmd.run_raw().await {
             Ok(out) if out.success() => Some(out.stdout_text()).filter(|v| !v.is_empty()),

@@ -10,7 +10,6 @@ use std::path::{Path, PathBuf};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::git::GitCmd;
 use crate::model::{AppChange, RepoChange, Worktree};
 use crate::util;
 
@@ -60,12 +59,8 @@ fn parse_list(stdout: &[u8]) -> Vec<RawWorktree> {
     out
 }
 
-fn read(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
-
 async fn read_raw(core: &Core, repo_id: &str) -> CoreResult<Vec<RawWorktree>> {
-    let out = read(core, repo_id)?.args(["worktree", "list", "--porcelain", "-z"]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["worktree", "list", "--porcelain", "-z"]).run().await?;
     Ok(parse_list(&out.stdout))
 }
 
@@ -98,15 +93,7 @@ async fn has_changes(core: &Core, repo_id: &str, path: &Path) -> bool {
     if !path.is_dir() {
         return false;
     }
-    let out = core
-        .git
-        .cmd(path)
-        .repo(repo_id)
-        .read_only()
-        .no_log()
-        .args(["status", "--porcelain=v2", "-z", "--untracked-files=normal"])
-        .run_raw()
-        .await;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["status", "--porcelain=v2", "-z", "--untracked-files=normal"]).run_raw().await;
     matches!(out, Ok(out) if out.success() && !out.stdout.is_empty())
 }
 
@@ -166,7 +153,7 @@ async fn find(core: &Core, repo_id: &str, path: &str) -> CoreResult<(usize, RawW
 }
 
 pub(crate) async fn local_branch_exists(core: &Core, repo_id: &str, name: &str) -> CoreResult<bool> {
-    let out = read(core, repo_id)?.args(["show-ref", "--verify", "--quiet", &format!("refs/heads/{name}")]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["show-ref", "--verify", "--quiet", &format!("refs/heads/{name}")]).run_raw().await?;
     Ok(out.success())
 }
 

@@ -15,7 +15,6 @@ use crate::commands::refs;
 use crate::commands::sync;
 
 use crate::error::{CoreError, CoreResult};
-use crate::git::GitCmd;
 use crate::model::{ConflictKind, FileArea, FileChange, FileStatus, Head, Status, UpstreamState};
 use crate::util;
 
@@ -93,16 +92,29 @@ async fn shared_read(core: &Core, repo_id: &str) -> CoreResult<Status> {
 pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
     let path = core.repo_path(repo_id)?;
     let (status, unstaged, staged, index, identity_set) = tokio::join!(
-        read_cmd(core, &path, repo_id)
+        core.git
+            .cmd(&path)
+            .repo(repo_id)
+            .read()
             .args(["status", "--porcelain=v2", "-z", "--branch", "--untracked-files=all", "--find-renames"])
             .run(),
-        read_cmd(core, &path, repo_id).args(NO_INDEX_REFRESH).args(["diff", "--numstat", "-z", "--no-ext-diff"]).args(WITHOUT_LFS).run(),
-        read_cmd(core, &path, repo_id)
+        core.git
+            .cmd(&path)
+            .repo(repo_id)
+            .read()
+            .args(NO_INDEX_REFRESH)
+            .args(["diff", "--numstat", "-z", "--no-ext-diff"])
+            .args(WITHOUT_LFS)
+            .run(),
+        core.git
+            .cmd(&path)
+            .repo(repo_id)
+            .read()
             .args(NO_INDEX_REFRESH)
             .args(["diff", "--cached", "--numstat", "-z", "-M", "--no-ext-diff"])
             .args(WITHOUT_LFS)
             .run(),
-        read_cmd(core, &path, repo_id).args(["ls-files", "--stage", "-z"]).run(),
+        core.git.cmd(&path).repo(repo_id).read().args(["ls-files", "--stage", "-z"]).run(),
         identity_at(core, &path, repo_id),
     );
     let parsed = parse_porcelain_v2(&status?.stdout);
@@ -164,7 +176,7 @@ pub async fn read_status(core: &Core, repo_id: &str) -> CoreResult<Status> {
     let foreign_operation =
         if operation.is_none() && crate::git::repo::am_in_progress(core, &path, repo_id).await { Some("am".to_string()) } else { None };
     let resolved_conflicts = if operation.is_some() || has_conflicts {
-        match read_cmd(core, &path, repo_id).args(["ls-files", "--resolve-undo", "-z"]).run().await {
+        match core.git.cmd(&path).repo(repo_id).read().args(["ls-files", "--resolve-undo", "-z"]).run().await {
             Ok(out) => parse_resolve_undo(&out.stdout),
             Err(e) => {
                 log::warn!("Resolved conflicts not readable: {}", e.git_output.as_deref().unwrap_or(&e.message).trim());
@@ -244,10 +256,6 @@ pub fn parse_resolve_undo(out: &[u8]) -> Vec<String> {
         }
     }
     paths
-}
-
-fn read_cmd(core: &Core, path: &Path, repo_id: &str) -> GitCmd {
-    core.git.cmd(path).repo(repo_id).read_only().no_log()
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +452,7 @@ pub(crate) async fn lfs_paths(core: &Core, path: &Path, repo_id: &str, paths: &[
         stdin.extend_from_slice(p);
         stdin.push(0);
     }
-    let result = read_cmd(core, path, repo_id).args(["check-attr", "-z", "--stdin", "filter"]).stdin(stdin).run().await?;
+    let result = core.git.cmd(path).repo(repo_id).read().args(["check-attr", "-z", "--stdin", "filter"]).stdin(stdin).run().await?;
     // Output: path NUL attribute NUL value NUL.
     let fields = result.stdout_z();
     for triple in fields.chunks(3) {
@@ -513,8 +521,8 @@ pub async fn identity_set(core: &Core, repo_id: &str) -> CoreResult<bool> {
 
 async fn identity_at(core: &Core, path: &Path, repo_id: &str) -> bool {
     let (name, email) = tokio::join!(
-        read_cmd(core, path, repo_id).args(["config", "--get", "user.name"]).run_raw(),
-        read_cmd(core, path, repo_id).args(["config", "--get", "user.email"]).run_raw(),
+        core.git.cmd(path).repo(repo_id).read().args(["config", "--get", "user.name"]).run_raw(),
+        core.git.cmd(path).repo(repo_id).read().args(["config", "--get", "user.email"]).run_raw(),
     );
     let is_set = |out: &CoreResult<crate::git::GitOutput>| matches!(out, Ok(o) if o.success() && !o.stdout_text().trim().is_empty());
     is_set(&name) && is_set(&email)
@@ -525,8 +533,10 @@ async fn identity_at(core: &Core, path: &Path, repo_id: &str) -> bool {
 /// differs.
 pub async fn read_token(core: &Core, repo_id: &str) -> CoreResult<String> {
     let path = core.repo_path(repo_id)?;
-    let (head, index) =
-        tokio::join!(crate::git::repo::read_head(core, repo_id), read_cmd(core, &path, repo_id).args(["ls-files", "--stage", "-z"]).run(),);
+    let (head, index) = tokio::join!(
+        crate::git::repo::read_head(core, repo_id),
+        core.git.cmd(&path).repo(repo_id).read().args(["ls-files", "--stage", "-z"]).run(),
+    );
     Ok(fingerprint(&head?, &index?.stdout))
 }
 

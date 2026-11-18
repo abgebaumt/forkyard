@@ -26,7 +26,7 @@ use crate::commands::status::{self, EntryKind};
 use crate::commands::submodule::auto;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::git::{errors, GitCmd, GitOutput};
+use crate::git::{errors, GitOutput};
 use crate::model::{
     Head, HookOutput, OpResult, Operation, OperationKind, Person, RebaseAction, RebasePlan, RebasePlanRow, RebaseRefusal,
     RebaseRefusalDetail, RepoChange,
@@ -177,7 +177,7 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
         return refused(RebaseRefusal::NothingToRebase, "There are no commits between the selected commit and HEAD.");
     }
     if !is_ancestor(core, repo_id, &base_sha, &head_sha).await? {
-        let related = read(core, repo_id)?.args(["merge-base", &base_sha, &head_sha]).run_raw().await?.success();
+        let related = core.git_for(repo_id)?.read().args(["merge-base", &base_sha, &head_sha]).run_raw().await?.success();
         let (detail, message) = if related {
             (
                 RebaseRefusalDetail::NotAncestor,
@@ -206,7 +206,9 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
         return refused(RebaseRefusal::DirtyWorktree, "There are uncommitted changes. Commit or stash them first.");
     }
     // The range is linear: if any commit is on a remote, so is the oldest one.
-    let pushed = read(core, repo_id)?
+    let pushed = core
+        .git_for(repo_id)?
+        .read()
         .args(["for-each-ref", "--count=1", "--format=%(refname)", "--contains", &oldest.sha, "refs/remotes"])
         .run()
         .await?;
@@ -420,12 +422,14 @@ pub(crate) async fn settle_entry(core: &Core, repo_id: &str, entry: &UndoEntry) 
 /// moves along – as (short name, SHA), sorted by name. Branches checked out in a worktree are
 /// left out: Git does not move them either.
 pub(crate) async fn dependent_refs(core: &Core, repo_id: &str, from: &str, tip: &str, target: &str) -> CoreResult<Vec<(String, String)>> {
-    let range = read(core, repo_id)?.args(["rev-list", &format!("{from}..{tip}")]).run().await?;
+    let range = core.git_for(repo_id)?.read().args(["rev-list", &format!("{from}..{tip}")]).run().await?;
     let commits: HashSet<String> = range.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| !sha.is_empty()).collect();
     if commits.is_empty() {
         return Ok(Vec::new());
     }
-    let listed = read(core, repo_id)?
+    let listed = core
+        .git_for(repo_id)?
+        .read()
         .args(["for-each-ref", "--format=%(refname:strip=2)%00%(objectname)%00%(worktreepath)", "refs/heads"])
         .run()
         .await?;
@@ -501,8 +505,12 @@ async fn start_rebase(
 
     // Already up to date: `onto` is an ancestor and there is no merge in between that Git would flatten.
     if is_ancestor(core, repo_id, &onto_sha, &old_tip).await? {
-        let merges =
-            read(core, repo_id)?.args(["rev-list", "--count", "--min-parents=2", &format!("{onto_sha}..{old_tip}")]).run_text().await?;
+        let merges = core
+            .git_for(repo_id)?
+            .read()
+            .args(["rev-list", "--count", "--min-parents=2", &format!("{onto_sha}..{old_tip}")])
+            .run_text()
+            .await?;
         if merges.trim() == "0" {
             return Ok(OpResult::UpToDate);
         }
@@ -515,13 +523,14 @@ async fn start_rebase(
     let count = |extra: &'static [&'static str]| {
         let range = range.clone();
         async move {
-            let text = read(core, repo_id)?.args(["rev-list", "--count"]).args(extra).arg(&range).run_text().await?;
+            let text = core.git_for(repo_id)?.read().args(["rev-list", "--count"]).args(extra).arg(&range).run_text().await?;
             Ok::<usize, CoreError>(text.trim().parse().unwrap_or(0))
         }
     };
     let merges = count(&["--min-parents=2"]).await?;
     let unpushed = {
-        let text = read(core, repo_id)?.args(["rev-list", "--count", &old_tip, "--not", &onto_sha, "--remotes"]).run_text().await?;
+        let text =
+            core.git_for(repo_id)?.read().args(["rev-list", "--count", &old_tip, "--not", &onto_sha, "--remotes"]).run_text().await?;
         text.trim().parse::<usize>().unwrap_or(0)
     };
     let pushed = count(&[]).await?.saturating_sub(unpushed);
@@ -1080,7 +1089,7 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
     let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, head_sha) = require_branch(&head, "Squashing")?;
 
-    let mut resolve = read(core, repo_id)?.arg("rev-parse");
+    let mut resolve = core.git_for(repo_id)?.read().arg("rev-parse");
     for sha in shas {
         resolve = resolve.arg(format!("{}^{{commit}}", sha.trim()));
     }
@@ -1098,7 +1107,8 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
     // Read downwards from HEAD until all selected commits have been seen.
     let mut chain: Vec<(String, Vec<String>)> = Vec::new();
     let mut missing = wanted.len();
-    read(core, repo_id)?
+    core.git_for(repo_id)?
+        .read()
         .args(["rev-list", "--topo-order", "--parents", "HEAD"])
         .run_records(b'\n', None, &mut |line: &[u8]| {
             let text = util::decode_lossy(line);
@@ -1199,7 +1209,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
         }
     };
     let mut listing =
-        read(core, repo_id)?.args(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT]);
+        core.git_for(repo_id)?.read().args(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT]);
     for sha in shas {
         listing = listing.arg(sha.trim());
     }
@@ -1358,10 +1368,6 @@ where
     result
 }
 
-fn read(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
-
 fn operation_in_progress() -> CoreError {
     CoreError::new(
         ErrorCode::OperationInProgress,
@@ -1384,7 +1390,7 @@ struct WorktreeState {
 }
 
 async fn worktree_state(core: &Core, repo_id: &str) -> CoreResult<WorktreeState> {
-    let out = read(core, repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).run().await?;
     let parsed = status::parse_porcelain_v2(&out.stdout);
     let unmerged = parsed.entries.iter().filter(|e| e.kind == EntryKind::Unmerged).map(|e| util::decode_lossy(&e.path)).collect();
     Ok(WorktreeState { dirty: !parsed.entries.is_empty(), unmerged })
@@ -1426,7 +1432,7 @@ fn require_shas(shas: &[String]) -> CoreResult<()> {
 }
 
 async fn rev_parse(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    let out = read(core, repo_id)?.args(["rev-parse", "--verify", "--quiet", rev]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["rev-parse", "--verify", "--quiet", rev]).run_raw().await?;
     Ok(out.success().then(|| out.stdout_text()).filter(|sha| !sha.is_empty()))
 }
 
@@ -1439,7 +1445,7 @@ async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Str
 }
 
 async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = read(core, repo_id)?.args(["merge-base", "--is-ancestor", ancestor, descendant]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["merge-base", "--is-ancestor", ancestor, descendant]).run_raw().await?;
     match out.code {
         Some(0) => Ok(true),
         Some(1) => Ok(false),
@@ -1448,7 +1454,7 @@ async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &st
 }
 
 async fn count_commits(core: &Core, repo_id: &str, from: &str, to: &str) -> CoreResult<usize> {
-    let text = read(core, repo_id)?.args(["rev-list", "--count", &format!("{from}..{to}")]).run_text().await?;
+    let text = core.git_for(repo_id)?.read().args(["rev-list", "--count", &format!("{from}..{to}")]).run_text().await?;
     Ok(text.trim().parse().unwrap_or(0))
 }
 
@@ -1467,7 +1473,9 @@ struct RangeCommit {
 
 /// Commits `base..HEAD`, oldest first (as in Git's todo file).
 async fn read_range(core: &Core, repo_id: &str, base: &str) -> CoreResult<Vec<RangeCommit>> {
-    let out = read(core, repo_id)?
+    let out = core
+        .git_for(repo_id)?
+        .read()
         .args(["log", "--reverse", "--topo-order", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT])
         .arg(format!("{base}..HEAD"))
         .run()

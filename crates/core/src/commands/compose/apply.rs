@@ -308,7 +308,7 @@ async fn reset_committed_paths(core: &Core, repo_id: &str, read: &ComposeRead, p
         }
     }
     core.git_for(repo_id)?
-        .env("GIT_LITERAL_PATHSPECS", "1")
+        .literal_paths()
         .args(["reset", "-q", tip, "--pathspec-from-file=-", "--pathspec-file-nul"])
         .stdin(list)
         .run()

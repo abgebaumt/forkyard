@@ -144,8 +144,7 @@ async fn blame_origin(core: &Core, repo_id: &str, rel: &str, line: u32) -> CoreR
         .args(["-c", "core.quotePath=false", "blame", "--porcelain"])
         .arg(format!("-L{line},{line}"))
         .args(["--", rel])
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await?;
     let not_committed = || CoreError::not_allowed(format!("Line {line} of “{rel}” is not committed yet, so it has no history."));
@@ -300,8 +299,7 @@ async fn full_messages(core: &Core, repo_id: &str, shas: &[&str]) -> CoreResult<
         .arg("--format=%H%x1f%B")
         .args(shas.iter().copied())
         .arg("--")
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await?;
     if !out.success() {
@@ -322,7 +320,7 @@ async fn full_messages(core: &Core, repo_id: &str, shas: &[&str]) -> CoreResult<
 
 /// The line with `CODE_CONTEXT` lines on each side, at `sha`, decoded like blame lines.
 async fn code_around(core: &Core, repo_id: &str, sha: &str, path: &str, line: u32) -> CoreResult<(u32, Vec<String>)> {
-    let out = core.git_for(repo_id)?.args(["cat-file", "blob"]).arg(format!("{sha}:{path}")).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["cat-file", "blob"]).arg(format!("{sha}:{path}")).read().run_raw().await?;
     if !out.success() {
         return Err(CoreError::not_found(format!("“{path}” does not exist in commit {}.", &sha[..sha.len().min(7)])));
     }

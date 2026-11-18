@@ -181,7 +181,7 @@ async fn worktree_index(core: &Core, repo_id: &str, paths: &[String]) -> CoreRes
     // Paths that exist neither on disk nor in the index are no error here: the check reports them.
     core.git_for(repo_id)?
         .env("GIT_INDEX_FILE", temp.path())
-        .env("GIT_LITERAL_PATHSPECS", "1")
+        .literal_paths()
         .args(["update-index", "--add", "--remove", "-z", "--stdin"])
         .stdin(list)
         .no_log()
