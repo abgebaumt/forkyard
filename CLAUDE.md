@@ -67,7 +67,7 @@ React UI --invoke--> src-tauri (thin binding) --> crates/core (gitcore) --proces
 ```
 
 Workspace crates:
-- `crates/core` (`gitcore`): all logic, no Tauri. `commands/*.rs` has one function per command. Plus `git/` (runner, errors, redaction in `redact.rs`), `db/` (SQLite, schema in `db/schema.sql`, migrations), `secrets.rs`, `http.rs` (ureq/rustls for GitHub/GitLab), `watcher.rs`, `autofetch.rs`, `undo.rs`. Feature `testkit` provides `TestCore`/`TestRepo`. `bin/forkyard-editor.rs` is the sequence editor for interactive rebase.
+- `crates/core` (`gitcore`): all logic, no Tauri. `commands/*.rs` has one function per command. Plus `git/` (runner, errors, redaction in `redact.rs`, repository state in `repo.rs`, temp index in `index.rs`), `auth/` (credential broker, keychain, SSH keys), `util/` (time, text, path, fs helpers), `proc.rs` (non-Git processes, process trees), `db/` (SQLite, schema in `db/schema.sql`, migrations), `secrets.rs`, `http.rs` (ureq/rustls for GitHub/GitLab), `watcher.rs`, `autofetch.rs`, `undo.rs`. Feature `testkit` provides `TestCore`/`TestRepo`. `bin/forkyard-editor.rs` is the sequence editor for interactive rebase.
 - `crates/askpass`: helper for `GIT_ASKPASS`/`SSH_ASKPASS`. Forwards prompts over a local channel (127.0.0.1, one-time token) as `credential:request` to the UI. std only; `src-tauri/build.rs` compiles it with rustc as a sidecar into `src-tauri/binaries/`.
 - `src-tauri`: exactly one `#[tauri::command]` per command in `commands.rs` that only delegates to `gitcore::commands`, registered in `generate_handler![…]` in `lib.rs`.
 
@@ -100,7 +100,7 @@ UI talks to the core only through `src/core/index.ts`.
 ### Database
 
 The complete current schema is `crates/core/src/db/schema.sql`; new databases are created from it.
-Existing ones are migrated step by step through `UPGRADES` in `crates/core/src/db/mod.rs`
+Existing ones are migrated step by step through `UPGRADES` in `crates/core/src/db.rs`
 (`pragma user_version`). A schema change touches **both** places; the test
 `existing_databases_are_upgraded_step_by_step` checks they agree.
 
