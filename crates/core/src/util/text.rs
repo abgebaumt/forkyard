@@ -7,28 +7,18 @@ pub fn decode_lossy(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
-/// Decode text for display and guess the encoding:
-/// UTF-8 (also with BOM), UTF-16 with BOM, otherwise windows-1252.
-/// Returns the text and the name of the encoding ("utf-8", "windows-1252", …).
+/// Decode text for display and guess the encoding: `decode_content` with UTF-8 preferred, except
+/// that UTF-8 with a BOM is named "utf-8" (callers track the BOM themselves).
+/// Returns the text and the name of the encoding ("utf-8", "utf-16le", "utf-16be", "windows-1252").
 pub fn decode_text(bytes: &[u8]) -> (String, &'static str) {
-    if let Some((enc, bom_len)) = encoding_rs::Encoding::for_bom(bytes) {
-        let (text, _) = enc.decode_without_bom_handling(&bytes[bom_len..]);
-        let name = if enc == encoding_rs::UTF_8 {
-            "utf-8"
-        } else if enc == encoding_rs::UTF_16LE {
-            "utf-16le"
-        } else {
-            "utf-16be"
-        };
-        return (text.into_owned(), name);
-    }
-    match std::str::from_utf8(bytes) {
-        Ok(s) => (s.to_string(), "utf-8"),
-        Err(_) => {
-            let (text, _, _) = encoding_rs::WINDOWS_1252.decode(bytes);
-            (text.into_owned(), "windows-1252")
-        }
-    }
+    let (text, name) = decode_content(bytes, "utf-8");
+    let name = match name.as_str() {
+        "utf-16le" => "utf-16le",
+        "utf-16be" => "utf-16be",
+        "windows-1252" => "windows-1252",
+        _ => "utf-8",
+    };
+    (text, name)
 }
 
 /// Heuristic for binary files as in Git: a NUL byte in the first 8000 bytes.
