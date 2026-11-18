@@ -5,9 +5,25 @@
   "description": "Fast, local Git client for the desktop: commit graph, line staging, merge tool, interactive rebase and Undo for Git. No account, no telemetry.",
   "license": "GPL-3.0-or-later",
   "homepage": "https://github.com/abgebaumt/forkyard",
-  "repository": { "type": "git", "url": "git+https://github.com/abgebaumt/forkyard.git" },
-  "bugs": { "url": "https://github.com/abgebaumt/forkyard/issues" },
-  "keywords": ["git", "git-client", "git-gui", "desktop", "tauri", "rust", "react", "commit-graph", "merge-tool", "version-control"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abgebaumt/forkyard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/abgebaumt/forkyard/issues"
+  },
+  "keywords": [
+    "git",
+    "git-client",
+    "git-gui",
+    "desktop",
+    "tauri",
+    "rust",
+    "react",
+    "commit-graph",
+    "merge-tool",
+    "version-control"
+  ],
   "type": "module",
   "scripts": {
     "tokens": "node scripts/build-tokens.mjs",
@@ -74,6 +90,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.3",
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.12.2",
     "@types/dompurify": "^3.0.5",
