@@ -25,6 +25,9 @@ Only the latest release receives security fixes.
   Settings › About).
 - AI is off until you set it up in Settings › AI. Requests then go only to the provider you chose
   (Anthropic, OpenAI, Google Gemini, an OpenAI-compatible server, Ollama, or a local AI command-line
-  tool: Claude Code, Codex or opencode). "What is sent?" shows the exact text of a request without
-  sending it, and Forkyard asks first on first use, for large or costly requests and above your
-  monthly limit. Secrets, `.env` files and keys are never sent.
+  tool: Claude Code, Codex or opencode, via that tool's own sign-in). "What is sent?" shows the exact
+  text of a request without sending it. Forkyard asks before the first send of each function and of
+  each repository's content to a remote provider, for large or costly requests, and when your
+  monthly limit is reached. Files that look like secrets (`.env*`, private keys, certificates) are
+  never sent, and known secret patterns in the remaining content are redacted on a best-effort
+  basis. Review with "What is sent?" and add your own exclusions in Settings › AI.
