@@ -16,6 +16,7 @@ use crate::app::Core;
 use crate::commands::status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::{empty_tree, TempIndex};
+use crate::git::rev;
 use crate::git::GitCmd;
 use crate::model::{DiffLine, DiffLineKind, DiffSource, FileDiff, FileStatus, Hunk, TextDiff};
 use crate::util;
@@ -305,7 +306,7 @@ async fn resolve(ctx: &Ctx<'_>, path: &str, source: &DiffSource) -> CoreResult<T
 
 /// Only SHAs (abbreviated too) – nothing Git could read as an option or expression.
 fn check_rev(rev: &str) -> CoreResult<()> {
-    if (4..=64).contains(&rev.len()) && rev.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if rev::is_sha_prefix(rev) {
         Ok(())
     } else {
         Err(CoreError::not_found(format!("The commit “{rev}” wasn't found.")))

@@ -23,6 +23,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use crate::app::Core;
 use crate::error::CoreResult;
 use crate::events::names;
+use crate::git::rev;
 use crate::model::{LaunchInvalid, LaunchRequest};
 use crate::util;
 
@@ -207,7 +208,7 @@ pub fn validated(path: &str, commit: Option<&str>, cwd: Option<&Path>) -> Option
             from_link: false,
         });
     }
-    let commit = commit.map(str::trim).filter(|sha| (4..=64).contains(&sha.len()) && sha.bytes().all(|b| b.is_ascii_hexdigit()));
+    let commit = commit.map(str::trim).filter(|sha| rev::is_sha_prefix(sha));
     Some(LaunchRequest { path: util::display_path(&full), commit: commit.map(str::to_ascii_lowercase), invalid: None, from_link: false })
 }
 

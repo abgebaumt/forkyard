@@ -106,7 +106,7 @@ fn git_failure(out: &GitOutput) -> CoreError {
 /// The commit `rev` points to; never a leading `-` (no option injection).
 async fn commit_of(core: &Core, repo_id: &str, cancel: &CancelToken, rev: &str) -> CoreResult<String> {
     let rev = rev.trim();
-    if rev.is_empty() || rev.starts_with('-') {
+    if !rev::is_rev_arg(rev) {
         return Err(CoreError::not_found(format!("“{rev}” is not a commit.")));
     }
     let spec = format!("{rev}^{{commit}}");

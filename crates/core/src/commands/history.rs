@@ -33,7 +33,7 @@ const HISTORY_FORMAT: &str = "--format=%x01gc%x01%x00%H%x00%P%x00%an%x00%ae%x00%
 /// `<rev>:<path>`.
 fn check_rev(sha: &str) -> CoreResult<&str> {
     let rev = sha.trim();
-    if rev.is_empty() || rev.starts_with('-') || rev.chars().any(|c| c == ':' || c.is_whitespace() || c.is_control()) {
+    if !rev::is_rev_arg(rev) || rev.chars().any(|c| c == ':' || c.is_whitespace()) {
         return Err(CoreError::not_allowed(format!("“{sha}” is not a valid commit reference.")));
     }
     Ok(rev)
@@ -589,7 +589,7 @@ impl BlameParser {
         }
         let text = util::decode_lossy(line);
         let (key, value) = text.split_once(' ').unwrap_or((text.as_str(), ""));
-        let is_sha = (key.len() == 40 || key.len() == 64) && key.bytes().all(|b| b.is_ascii_hexdigit());
+        let is_sha = rev::is_sha(key);
         if is_sha {
             // "<sha> <line in original> <line in result> [<count>]"
             let final_line = value.split(' ').nth(1).and_then(|n| n.parse::<u32>().ok());

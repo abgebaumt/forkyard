@@ -352,7 +352,7 @@ async fn resolve(
     given: &BTreeMap<String, String>,
 ) -> CoreResult<Values> {
     let sha = match context.sha.as_deref().map(str::trim).filter(|sha| !sha.is_empty()) {
-        Some(sha) if (4..=64).contains(&sha.len()) && sha.bytes().all(|b| b.is_ascii_hexdigit()) => Some(sha.to_ascii_lowercase()),
+        Some(sha) if rev::is_sha_prefix(sha) => Some(sha.to_ascii_lowercase()),
         Some(other) => return Err(CoreError::not_allowed(format!("“{other}” is not a commit ID."))),
         None => rev::rev_parse(core, repo_id, "HEAD^{commit}").await?,
     };
