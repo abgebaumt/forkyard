@@ -26,6 +26,11 @@ pub fn looks_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(8000).any(|&b| b == 0)
 }
 
+/// The regex of a `static` cell, compiled on first use; `None` if the pattern does not compile.
+pub fn compiled(cell: &'static std::sync::OnceLock<Option<regex::Regex>>, pattern: &str) -> Option<&'static regex::Regex> {
+    cell.get_or_init(|| regex::Regex::new(pattern).ok()).as_ref()
+}
+
 /// Shortens a text to at most `max` characters, the closing `…` included.
 pub fn shorten(text: &str, max: usize) -> String {
     if text.chars().count() <= max {

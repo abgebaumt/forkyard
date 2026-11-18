@@ -44,8 +44,9 @@ impl Narrowing {
 /// `YYYY-MM-DD`, optionally with `THH:MM[:SS]` and `Z` or an offset – nothing Git's free-form date
 /// parser could read differently from what was typed.
 pub(crate) fn is_search_date(value: &str) -> bool {
-    regex::Regex::new(r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$")
-        .is_ok_and(|pattern| pattern.is_match(value))
+    static RE: std::sync::OnceLock<Option<regex::Regex>> = std::sync::OnceLock::new();
+    util::compiled(&RE, r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$")
+        .is_some_and(|pattern| pattern.is_match(value))
 }
 
 /// `--since=`/`--until=` for a checked date; a bare date covers the whole day (local time, as Git reads it).

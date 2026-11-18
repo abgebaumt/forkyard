@@ -120,20 +120,16 @@ pub fn looks_random(value: &str) -> bool {
     lower && upper && digit && shannon_bits(core) >= ENTROPY_MIN
 }
 
-fn compiled(cell: &'static OnceLock<Option<Regex>>, pattern: &str) -> Option<&'static Regex> {
-    cell.get_or_init(|| Regex::new(pattern).ok()).as_ref()
-}
-
 /// A string in quotes.
 fn quoted() -> Option<&'static Regex> {
     static RE: OnceLock<Option<Regex>> = OnceLock::new();
-    compiled(&RE, r#"["'`]([A-Za-z0-9+/=_\-]{20,200})["'`]"#)
+    util::compiled(&RE, r#"["'`]([A-Za-z0-9+/=_\-]{20,200})["'`]"#)
 }
 
 /// A value after `=` or `:`, up to a space, `,`, `;` or the end of the line.
 fn assigned() -> Option<&'static Regex> {
     static RE: OnceLock<Option<Regex>> = OnceLock::new();
-    compiled(&RE, r"[=:]\s*([A-Za-z0-9+/=_\-]{20,200})(?:[\s,;]|$)")
+    util::compiled(&RE, r"[=:]\s*([A-Za-z0-9+/=_\-]{20,200})(?:[\s,;]|$)")
 }
 
 /// The values in one added line that look like keys, sorted by position. `path` decides whether
