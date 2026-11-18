@@ -91,8 +91,9 @@ pub async fn ai_archaeology(
     sha: Option<String>,
     locale: String,
 ) -> CoreResult<ArchaeologyAnswer> {
-    let frame = run::ask(core, &repo_id, AiFeature::Archaeology).await?;
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Archaeology)?;
     let found = timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
+    let frame = run::frame(core, &repo_id, AiFeature::Archaeology, settings).await;
     let built = ai_archaeology_context::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets, &found).await?;
     let answer = frame.send(core, &job_id, &built.prompt, &ai_archaeology_context::schema()).await?;
     let mut parsed = ai_archaeology_context::parse_answer(&answer.value, &found)?;

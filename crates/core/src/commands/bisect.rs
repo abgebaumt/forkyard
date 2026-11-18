@@ -60,8 +60,9 @@ pub async fn bisect_autopilot_script(
     request: BisectScriptRequest,
     locale: String,
 ) -> CoreResult<BisectScript> {
-    let frame = ai::run::ask(core, &repo_id, AiFeature::BisectScript).await?;
+    let settings = ai::run::ensure_allowed(core, Some(&repo_id), AiFeature::BisectScript)?;
     let checked = ai::features::bisect::check(core, &repo_id, &request).await?;
+    let frame = ai::run::frame(core, &repo_id, AiFeature::BisectScript, settings).await;
     let built = ai::features::bisect::build(core, &repo_id, &checked, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
     let answer = frame.send(core, &job_id, &built.prompt, &ai::features::bisect::schema()).await?;
     ai::features::bisect::parse_answer(&answer.value, BisectShell::current())

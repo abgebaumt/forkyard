@@ -22,11 +22,12 @@ pub async fn ai_push_review(
     remote_branch: Option<String>,
     locale: String,
 ) -> CoreResult<AiPushReview> {
-    let frame = run::ask(core, &repo_id, AiFeature::PushReview).await?;
+    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::PushReview)?;
     let outgoing = push_review::outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
     if outgoing.commits.is_empty() {
         return Ok(AiPushReview { findings: Vec::new(), commits: 0, files: 0, partial: false });
     }
+    let frame = run::frame(core, &repo_id, AiFeature::PushReview, settings).await;
     let built = context::outgoing_changes(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets, &outgoing).await?;
     let answer = frame.send(core, &job_id, &built.built.prompt, &push_review::push_review_schema()).await?;
     Ok(AiPushReview {

@@ -8,7 +8,6 @@ use serde_json::{json, Value};
 
 use crate::ai::context::{self, Built};
 use crate::ai::prompt::{self, Section};
-
 use crate::app::Core;
 use crate::commands::graph;
 use crate::commands::release_notes::changelog::HeadingLanguage;
