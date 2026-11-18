@@ -1141,6 +1141,13 @@ async fn unmerged_entry(core: &Core, repo_id: &str, path: &str) -> CoreResult<Un
     if path.is_empty() {
         return Err(missing());
     }
+    if path.contains(char::REPLACEMENT_CHARACTER) {
+        // Possibly a name that is not UTF-8: find its raw bytes among all conflicts.
+        let out = core.git_for(repo_id)?.read().args(["ls-files", "--unmerged", "-z"]).run().await?;
+        let all = parse_unmerged(&out.stdout);
+        let raw = util::raw_path(path, &all.iter().map(|u| &u.path[..]).collect::<Vec<_>>())?;
+        return all.into_iter().find(|u| u.path == raw).ok_or_else(missing);
+    }
     let out = core
         .git_for(repo_id)?
         .read()
