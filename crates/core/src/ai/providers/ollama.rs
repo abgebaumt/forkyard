@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
-use crate::ai::providers::{expect_count, host_of, http_failure, json_body, numbers, send, ContextCache};
+use crate::ai::providers::{expect_count, numbers, send_json, ContextCache};
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::http::{Method, Request};
@@ -38,11 +38,7 @@ impl Ollama {
             return Ok(known);
         }
         let request = Request::new(Method::Post, format!("{}/api/show", self.base), LABEL).json(&json!({ "model": self.model }));
-        let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
-        if !response.is_success() {
-            return Err(http_failure(LABEL, &response, &[]));
-        }
-        let value = json_body(LABEL, &response)?;
+        let value = send_json(core, request, cancel, LABEL, &self.base, &[]).await?;
         let tokens = value
             .get("model_info")
             .and_then(Value::as_object)
@@ -88,11 +84,7 @@ impl Provider for Ollama {
                 .json(&body)
                 .timeout(request.timeout)
                 .repo(request.repo_id.as_deref());
-            let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, &[]));
-            }
-            let value = json_body(LABEL, &response)?;
+            let value = send_json(core, http_request, cancel, LABEL, &self.base, &[]).await?;
             let text = value.pointer("/message/content").and_then(Value::as_str).unwrap_or("").to_string();
             let usage = Usage {
                 input_tokens: value.get("prompt_eval_count").and_then(Value::as_u64).unwrap_or(0),
@@ -106,11 +98,7 @@ impl Provider for Ollama {
 
     fn models<'a>(&'a self, core: &'a Core, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>> {
         Box::pin(async move {
-            let response = send(core, Request::get(format!("{}/api/tags", self.base), LABEL), cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, &[]));
-            }
-            let value = json_body(LABEL, &response)?;
+            let value = send_json(core, Request::get(format!("{}/api/tags", self.base), LABEL), cancel, LABEL, &self.base, &[]).await?;
             Ok(value
                 .get("models")
                 .and_then(Value::as_array)
@@ -127,11 +115,7 @@ impl Provider for Ollama {
             // `truncate`: a text longer than the model's context is cut by Ollama instead of failing.
             let body = json!({ "model": self.model, "input": texts, "truncate": true });
             let request = Request::new(Method::Post, format!("{}/api/embed", self.base), LABEL).json(&body).timeout(EMBED_TIMEOUT);
-            let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, &[]));
-            }
-            let value = json_body(LABEL, &response)?;
+            let value = send_json(core, request, cancel, LABEL, &self.base, &[]).await?;
             let vectors = value
                 .get("embeddings")
                 .and_then(Value::as_array)

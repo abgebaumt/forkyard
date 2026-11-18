@@ -7,7 +7,7 @@
 use serde_json::{json, Value};
 
 use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage};
-use crate::ai::providers::{host_of, http_failure, json_body, send};
+use crate::ai::providers::send_json;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::http::{self, Method, Request};
@@ -80,11 +80,8 @@ impl Anthropic {
             .authorized(Request::new(Method::Post, format!("{}/messages/count_tokens", self.base), LABEL))
             .json(&body)
             .repo(request.repo_id.as_deref());
-        let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
-        if !response.is_success() {
-            return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-        }
-        Ok(json_body(LABEL, &response)?.get("input_tokens").and_then(Value::as_u64).unwrap_or(0))
+        let value = send_json(core, http_request, cancel, LABEL, &self.base, std::slice::from_ref(&self.key)).await?;
+        Ok(value.get("input_tokens").and_then(Value::as_u64).unwrap_or(0))
     }
 }
 
@@ -118,11 +115,8 @@ impl Provider for Anthropic {
                 .json(&self.body(request))
                 .timeout(request.timeout)
                 .repo(request.repo_id.as_deref());
-            let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-            }
-            Self::parse(&json_body(LABEL, &response)?)
+            let value = send_json(core, http_request, cancel, LABEL, &self.base, std::slice::from_ref(&self.key)).await?;
+            Self::parse(&value)
         })
     }
 
@@ -136,11 +130,9 @@ impl Provider for Anthropic {
                     params.push(("after_id", id.clone()));
                 }
                 let url = http::with_query(&format!("{}/models", self.base), &params);
-                let response = send(core, self.authorized(Request::get(url, LABEL)), cancel, LABEL, &host_of(&self.base)).await?;
-                if !response.is_success() {
-                    return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-                }
-                let page = json_body(LABEL, &response)?;
+                let page =
+                    send_json(core, self.authorized(Request::get(url, LABEL)), cancel, LABEL, &self.base, std::slice::from_ref(&self.key))
+                        .await?;
                 for entry in page.get("data").and_then(Value::as_array).into_iter().flatten() {
                     let Some(id) = entry.get("id").and_then(Value::as_str) else { continue };
                     models.push(AiModelInfo {

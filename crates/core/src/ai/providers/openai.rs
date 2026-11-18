@@ -6,7 +6,7 @@
 use serde_json::{json, Value};
 
 use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
-use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send};
+use crate::ai::providers::{openai_vectors, send_json};
 use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
@@ -95,23 +95,23 @@ impl Provider for OpenAi {
                 .json(&self.body(request))
                 .timeout(request.timeout)
                 .repo(request.repo_id.as_deref());
-            let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-            }
-            Self::parse(&json_body(LABEL, &response)?)
+            let value = send_json(core, http_request, cancel, LABEL, &self.base, std::slice::from_ref(&self.key)).await?;
+            Self::parse(&value)
         })
     }
 
     fn models<'a>(&'a self, core: &'a Core, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>> {
         Box::pin(async move {
-            let response =
-                send(core, self.authorized(Request::get(format!("{}/models", self.base), LABEL)), cancel, LABEL, &host_of(&self.base))
-                    .await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-            }
-            Ok(model_ids(&json_body(LABEL, &response)?))
+            let value = send_json(
+                core,
+                self.authorized(Request::get(format!("{}/models", self.base), LABEL)),
+                cancel,
+                LABEL,
+                &self.base,
+                std::slice::from_ref(&self.key),
+            )
+            .await?;
+            Ok(model_ids(&value))
         })
     }
 
@@ -124,11 +124,8 @@ impl Provider for OpenAi {
             }
             let request =
                 self.authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), LABEL)).json(&body).timeout(EMBED_TIMEOUT);
-            let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-            }
-            openai_vectors(LABEL, &json_body(LABEL, &response)?, texts.len())
+            let value = send_json(core, request, cancel, LABEL, &self.base, std::slice::from_ref(&self.key)).await?;
+            openai_vectors(LABEL, &value, texts.len())
         })
     }
 }
