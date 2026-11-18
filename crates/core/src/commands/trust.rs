@@ -217,7 +217,24 @@ async fn shares_a_trusted_repository(core: &Core, root: &Path) -> bool {
     if util::path_key(main) == util::path_key(root) {
         return false;
     }
-    core.db.with(|c| db::repos::find_by_path(c, main)).ok().flatten().is_some_and(|row| row.trusted)
+    if !core.db.with(|c| db::repos::find_by_path(c, main)).ok().flatten().is_some_and(|row| row.trusted) {
+        return false;
+    }
+    // A forged `.git/commondir` points at any repository; only Git registers real worktrees:
+    // the git dir sits in `<common>/worktrees` and its `gitdir` file points back at `root/.git`.
+    let Ok(out) = core.git.cmd(root).args(["rev-parse", "--absolute-git-dir"]).read_only().no_log().guarded().run_raw().await else { return false };
+    if !out.success() {
+        return false;
+    }
+    let raw = out.stdout.strip_suffix(b"\n").unwrap_or(&out.stdout);
+    let raw = raw.strip_suffix(b"\r").unwrap_or(raw);
+    let gitdir = util::native_path(&util::bytes_to_path(raw));
+    if gitdir.parent().map(util::path_key) != Some(util::path_key(&common.join("worktrees"))) {
+        return false;
+    }
+    let Ok(back) = std::fs::read(gitdir.join("gitdir")) else { return false };
+    let back = String::from_utf8_lossy(&back);
+    util::path_key(Path::new(back.trim())) == util::path_key(&root.join(".git"))
 }
 
 /// On open: checks a repository that is not trusted yet and records the trust if nothing
@@ -545,6 +562,22 @@ mod tests {
         assert!(!opened.repo.trusted);
         let trust = repo_trust_get(&other, opened.repo.id).await.unwrap();
         assert_eq!(trust.findings.iter().map(|f| f.name.as_str()).collect::<Vec<_>>(), ["core.hookspath"]);
+    }
+
+    #[tokio::test]
+    async fn a_folder_pointing_its_commondir_at_a_trusted_repo_is_not_trusted() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        assert!(repo_open(&tc, path_text(&repo)).await.unwrap().repo.trusted);
+        repo.git(&["config", "extensions.worktreeConfig", "true"]);
+        let forged = repo.temp_dir().join("forged");
+        std::fs::create_dir_all(forged.join(".git")).unwrap();
+        let git = forged.join(".git");
+        std::fs::write(git.join("commondir"), repo.path().join(".git").to_string_lossy().as_bytes()).unwrap();
+        std::fs::write(git.join("HEAD"), "ref: refs/heads/main\n").unwrap();
+        std::fs::write(git.join("config.worktree"), "[core]\n\tfsmonitor = touch PWNED\n").unwrap();
+        let opened = repo_open(&tc, forged.to_string_lossy().into_owned()).await.unwrap();
+        assert!(!opened.repo.trusted);
     }
 
     #[tokio::test]
