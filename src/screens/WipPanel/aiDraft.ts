@@ -1,5 +1,5 @@
 /**
- * Rules of "Write" for the commit message , without React and
+ * Rules of "Write" for the commit message, without React and
  * without the core: where the suggestion goes (empty fields – or the untouched template – get it as
  * a draft; the user's text is never replaced unasked; if the user typed while the request ran, the
  * answer is only offered), what Mod+Z undoes, and what the button says.

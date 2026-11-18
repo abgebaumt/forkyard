@@ -3,7 +3,7 @@ import { placeCommitSuggestion, resolveOffer, suggestionParts, undoTarget, write
 
 const parts = (summary: string, description = "") => ({ summary, description });
 
-describe("commit message draft ", () => {
+describe("commit message draft", () => {
   it("turns the core's answer into the two fields", () => {
     expect(suggestionParts({ summary: "Tagesmittel als CSV exportieren", body: null })).toEqual(parts("Tagesmittel als CSV exportieren"));
     expect(suggestionParts({ summary: "Fix", body: "Zeile 1\nZeile 2" })).toEqual(parts("Fix", "Zeile 1\nZeile 2"));

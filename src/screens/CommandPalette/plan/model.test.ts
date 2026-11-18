@@ -76,7 +76,7 @@ const push = view({
 });
 const pull = view({ command: "pull", args: { pullMode: null } });
 
-describe("the ask row(“?” and the last row without matches)", () => {
+describe("the ask row (“?” and the last row without matches)", () => {
   it("starts with “?” only while asking is possible", () => {
     expect(askQuery("?leg einen Branch an", true)).toBe("leg einen Branch an");
     expect(askQuery("?   ", true)).toBe("");
