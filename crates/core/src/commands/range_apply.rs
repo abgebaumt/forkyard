@@ -17,7 +17,6 @@ use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
 use crate::commands::diff::{self, TempIndex};
 use crate::commands::graph;
-use crate::commands::history::normalize_rel_path;
 use crate::commands::refs::read_head;
 use crate::commands::status::{self, read_status};
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -25,6 +24,7 @@ use crate::git::{errors, GitCmd};
 use crate::model::{PatchSelection, RangeApplyTarget, RepoChange, Status};
 use crate::undo::{self, GroupRecord, UndoAction};
 use crate::util;
+use crate::util::normalize_rel_path;
 
 #[cfg(test)]
 mod tests;

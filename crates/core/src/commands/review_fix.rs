@@ -10,7 +10,6 @@ use crate::app::Core;
 use crate::commands::commit;
 use crate::commands::diff::patch::quote_path;
 use crate::commands::graph;
-use crate::commands::history::{self, UTF8_BOM};
 use crate::commands::status::read_status;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -21,6 +20,7 @@ use crate::model::{
 };
 use crate::undo::{self, GroupRecord, RefMove, UndoAction};
 use crate::util;
+use crate::util::UTF8_BOM;
 
 /// Lines of context around the replaced ones.
 pub const CONTEXT_LINES: usize = 3;
@@ -97,10 +97,10 @@ fn emit(patch: &mut Vec<u8>, sign: u8, line: &[u8]) {
 /// text is encoded like the file (UTF-8, UTF-8 with BOM, otherwise windows-1252). Refused (`not_allowed`): binary and UTF-16 files, lines outside the file, a
 /// text with NUL, over 64 KiB or with characters the encoding cannot hold, and a text that changes nothing.
 pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str) -> CoreResult<LinePatch> {
-    if history::is_binary_content(blob) {
+    if crate::util::is_binary_content(blob) {
         return Err(CoreError::not_allowed(format!("“{path}” is a binary file; fixes are only taken over for text files.")));
     }
-    let (_, encoding) = history::decode_content(blob, "utf-8");
+    let (_, encoding) = crate::util::decode_content(blob, "utf-8");
     if encoding.starts_with("utf-16") {
         return Err(CoreError::not_allowed(format!(
             "“{path}” is stored as UTF-16; fixes are only taken over for UTF-8 and single-byte files."
@@ -126,7 +126,7 @@ pub fn line_patch(path: &str, blob: &[u8], start: u32, end: u32, new_text: &str)
     if !text.is_empty() {
         let parts: Vec<&str> = text.strip_suffix('\n').unwrap_or(&text).split('\n').collect();
         for (index, part) in parts.iter().enumerate() {
-            let mut bytes = history::encode_content(part, plain)
+            let mut bytes = crate::util::encode_content(part, plain)
                 .map_err(|e| CoreError::not_allowed(format!("The suggested text does not fit the encoding of “{path}”: {}", e.message)))?;
             if index == 0 && !bom.is_empty() {
                 let mut prefixed = bom.to_vec();
@@ -347,7 +347,7 @@ pub async fn review_fix_apply(
     fix: ReviewFixInput,
     target: String,
 ) -> CoreResult<ReviewFixApplied> {
-    let path = history::normalize_rel_path(&fix.path)?;
+    let path = crate::util::normalize_rel_path(&fix.path)?;
     let RepoApi { api, repo, remote } = host::api_for_repo(core, &repo_id, None).await?;
     let hoster = host::host(api.kind);
     let summary = hoster.pr_head(core, &api, &repo, number).await?;

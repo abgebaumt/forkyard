@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 
 use crate::ai::plan_commands::{self, Args, PlanAction};
 use crate::app::Core;
-use crate::commands::{branches, graph, history, preview, remotes, status, sync};
+use crate::commands::{branches, graph, preview, remotes, status, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::CancelToken;
 use crate::model::{
@@ -471,7 +471,7 @@ impl<'a> Sim<'a> {
             PlanCommand::StashCreate => {
                 let mut paths = Vec::new();
                 for path in a.list("paths") {
-                    paths.push(history::normalize_rel_path(&path)?);
+                    paths.push(crate::util::normalize_rel_path(&path)?);
                 }
                 Ok((
                     PlanAction::StashCreate { message: a.opt("message"), include_untracked: a.flag("includeUntracked"), paths },

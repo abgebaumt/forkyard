@@ -12,13 +12,13 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::history::{is_inside_git_dir, normalize_rel_path};
 use crate::commands::{remotes, status};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
 use crate::jobs::Job;
 use crate::model::{RepoChange, Submodule, SubmoduleState};
 use crate::util;
+use crate::util::{is_inside_git_dir, normalize_rel_path};
 
 pub(crate) mod auto;
 

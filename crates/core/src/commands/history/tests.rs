@@ -673,33 +673,13 @@ async fn write_does_not_follow_symlinks_out_of_the_repo() {
 // --- pure functions -----------------------------------------------------------
 
 #[test]
-fn path_rules() {
-    assert_eq!(normalize_rel_path("a/b.txt").unwrap(), "a/b.txt");
-    assert_eq!(normalize_rel_path("./a//b/./c").unwrap(), "a/b/c");
-    assert_eq!(normalize_rel_path("Über uns/ä ö.txt").unwrap(), "Über uns/ä ö.txt");
-    assert_eq!(normalize_rel_path("..a/b..").unwrap(), "..a/b..");
-    for bad in ["", "/", "..", "a/..", "/a", "a\0b", "./.."] {
-        assert_eq!(normalize_rel_path(bad).unwrap_err().code, ErrorCode::NotAllowed, "{bad:?}");
-    }
-    assert!(is_inside_git_dir(".git/config") && is_inside_git_dir("a/.GIT/x") && is_inside_git_dir(".git"));
-    assert!(!is_inside_git_dir(".gitignore") && !is_inside_git_dir("a/.github/x") && !is_inside_git_dir("x.git/y"));
-}
-
-#[test]
-fn eol_and_encoding_helpers() {
+fn eol_helpers() {
     assert_eq!(detect_eol(""), Eol::Lf);
     assert_eq!(detect_eol("a\rb"), Eol::Lf);
     assert_eq!(detect_eol("a\r\n"), Eol::Crlf);
     assert_eq!(detect_eol("\na\r\n"), Eol::Mixed);
     assert_eq!(normalize_eol("a\r\nb\nc\r\n", LineEnding::Lf), "a\nb\nc\n");
     assert_eq!(normalize_eol("a\r\nb\nc", LineEnding::Crlf), "a\r\nb\r\nc");
-    assert!(is_binary_content(b"a\0b") && !is_binary_content(b"\xff\xfea\0") && !is_binary_content(b""));
-    assert_eq!(decode_content(b"", "utf-8"), (String::new(), "utf-8".to_string()));
-    assert_eq!(decode_content(b"\x83n", "shift_jis").1, "shift_jis");
-    // Unknown preferred encoding: as if none were given.
-    assert_eq!(decode_content(b"\xe4", "gibt-es-nicht"), ("ä".to_string(), "windows-1252".to_string()));
-    assert_eq!(encode_content("ä", "UTF8").unwrap(), "ä".as_bytes());
-    assert_eq!(encode_content("x", "replacement").unwrap_err().code, ErrorCode::Unsupported);
 }
 
 // --- encoding per call, offset -----------------------------------------------------

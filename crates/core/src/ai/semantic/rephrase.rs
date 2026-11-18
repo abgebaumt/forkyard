@@ -19,13 +19,13 @@ use crate::ai::run::{self, AiRequest};
 use crate::ai::semantic::history::{self, CommitEntry};
 use crate::app::Core;
 use crate::commands::graph::{self, is_search_date};
-use crate::commands::history::normalize_rel_path;
 use crate::error::CoreResult;
 use crate::jobs::{CancelToken, Job};
 use crate::model::{
     AiFeature, AiOmitReason, AiPreview, AiSearchRoute, AiSemanticHit, AiSemanticResult, AiState, CommitSearchFilters, CommitSummary,
     Settings,
 };
+use crate::util::normalize_rel_path;
 
 /// At most this many commits are sorted by the model ("Top 50").
 pub(super) const CANDIDATES: usize = 50;

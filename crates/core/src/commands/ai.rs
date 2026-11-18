@@ -323,7 +323,7 @@ fn review_findings(value: &Value, shown: &[String], secrets: &[String]) -> Vec<A
         let Some(raw) = item.get("path").and_then(Value::as_str) else { continue };
         let Some(path) = [raw.to_string(), raw.replace('\\', "/")]
             .into_iter()
-            .filter_map(|candidate| crate::commands::history::normalize_rel_path(&candidate).ok())
+            .filter_map(|candidate| crate::util::normalize_rel_path(&candidate).ok())
             .find(|candidate| known.contains(candidate.as_str()))
         else {
             continue;

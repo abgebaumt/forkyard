@@ -9,7 +9,7 @@
 //! repository (`..`, absolute) is rejected with `not_allowed`.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::app::Core;
 use crate::db;
@@ -27,110 +27,6 @@ const MAX_HISTORY_LIMIT: u32 = 50_000;
 /// Marks the start of a commit in the output of `git log`.
 const COMMIT_MARK: &[u8] = b"\x01gc\x01";
 const HISTORY_FORMAT: &str = "--format=%x01gc%x01%x00%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00";
-/// Encoding name for UTF-8 with a byte order mark (`FileContent.encoding`, `file_write`).
-pub const UTF8_BOM: &str = "utf-8-bom";
-
-// ---------------------------------------------------------------------------
-// Paths
-// ---------------------------------------------------------------------------
-
-/// Checks a path from the UI and brings it into Git's form: relative to the
-/// repository, with `/`, without `.` parts. Absolute, `..` or empty → `not_allowed`.
-pub fn normalize_rel_path(path: &str) -> CoreResult<String> {
-    let outside = || CoreError::not_allowed(format!("The path “{path}” is outside the repository."));
-    if path.contains('\0') {
-        return Err(CoreError::not_allowed("The path contains an invalid character."));
-    }
-    let unified = if cfg!(windows) { path.replace('\\', "/") } else { path.to_string() };
-    let bytes = unified.as_bytes();
-    let has_drive = cfg!(windows) && bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic();
-    if unified.starts_with('/') || has_drive || Path::new(&unified).is_absolute() {
-        return Err(outside());
-    }
-    let mut parts: Vec<&str> = Vec::new();
-    for part in unified.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => return Err(outside()),
-            other => parts.push(other),
-        }
-    }
-    if parts.is_empty() {
-        return Err(CoreError::not_allowed("No file path was given."));
-    }
-    Ok(parts.join("/"))
-}
-
-/// Whether a path component means the Git directory (also in the spellings Windows treats as equal).
-fn is_git_component(part: &str) -> bool {
-    let mut name = part.to_lowercase();
-    if cfg!(windows) {
-        name = name.trim_end_matches(['.', ' ']).to_string();
-        if name == "git~1" {
-            return true;
-        }
-    }
-    name == ".git"
-}
-
-/// Whether the (already normalised) path points into a `.git` directory.
-pub fn is_inside_git_dir(rel: &str) -> bool {
-    rel.split('/').any(is_git_component)
-}
-
-pub(crate) fn join_rel(root: &Path, rel: &str) -> PathBuf {
-    let mut path = root.to_path_buf();
-    for part in rel.split('/') {
-        path.push(part);
-    }
-    path
-}
-
-/// Absolute path for reading. If a symlink leads out of the repository: `not_allowed`.
-fn resolve_for_read(root: &Path, rel: &str) -> CoreResult<PathBuf> {
-    let target = join_rel(root, rel);
-    if let (Ok(real_root), Ok(real)) = (root.canonicalize(), target.canonicalize()) {
-        if !real.starts_with(&real_root) {
-            return Err(CoreError::not_allowed(format!("“{rel}” points to a file outside the repository.")));
-        }
-    }
-    Ok(target)
-}
-
-/// Absolute path for writing. Follows symlinks as far as the path already exists, and
-/// rejects everything that would then lie outside the repository or in `.git`.
-fn resolve_for_write(root: &Path, rel: &str) -> CoreResult<PathBuf> {
-    let git_error = || CoreError::not_allowed("Writing to the Git directory (.git) is not allowed.");
-    if is_inside_git_dir(rel) {
-        return Err(git_error());
-    }
-    let real_root = root.canonicalize()?;
-    let target = join_rel(root, rel);
-    // Deepest part of the path that already exists.
-    let mut existing = target.clone();
-    let mut rest: Vec<std::ffi::OsString> = Vec::new();
-    while existing.symlink_metadata().is_err() {
-        match (existing.file_name().map(|n| n.to_os_string()), existing.parent().map(Path::to_path_buf)) {
-            (Some(name), Some(parent)) => {
-                rest.push(name);
-                existing = parent;
-            }
-            _ => break,
-        }
-    }
-    let real = existing.canonicalize()?;
-    let inside = real
-        .strip_prefix(&real_root)
-        .map_err(|_| CoreError::not_allowed(format!("“{rel}” points to a location outside the repository.")))?;
-    if inside.components().any(|c| is_git_component(&c.as_os_str().to_string_lossy())) {
-        return Err(git_error());
-    }
-    let mut resolved = real;
-    for name in rest.iter().rev() {
-        resolved.push(name);
-    }
-    Ok(resolved)
-}
 
 /// A commit or ref as an argument for Git: nothing that could be misread as a switch or as
 /// `<rev>:<path>`.
@@ -166,111 +62,6 @@ pub(crate) fn repo_encoding(core: &Core, repo_id: &str) -> String {
         .unwrap_or_else(|| "utf-8".into())
 }
 
-fn encoding_name(enc: &'static encoding_rs::Encoding) -> String {
-    enc.name().to_ascii_lowercase()
-}
-
-/// The preferred encoding, if it is known and not UTF-8/UTF-16 anyway.
-fn legacy_encoding(preferred: &str) -> Option<&'static encoding_rs::Encoding> {
-    encoding_rs::Encoding::for_label(preferred.trim().as_bytes())
-        .filter(|e| *e != encoding_rs::UTF_8 && *e != encoding_rs::UTF_16LE && *e != encoding_rs::UTF_16BE)
-}
-
-/// Whether the bytes start with a UTF-16 BOM (such files contain NUL bytes but are text).
-fn has_utf16_bom(bytes: &[u8]) -> bool {
-    matches!(encoding_rs::Encoding::for_bom(bytes), Some((enc, _)) if enc != encoding_rs::UTF_8)
-}
-
-/// Binary as with Git (NUL in the first 8000 bytes), except for UTF-16 with a BOM.
-pub fn is_binary_content(bytes: &[u8]) -> bool {
-    !has_utf16_bom(bytes) && util::looks_binary(bytes)
-}
-
-/// Decodes file content for display and names the encoding with which
-/// `encode_content` produces the same bytes again:
-/// BOM → "utf-8-bom" / "utf-16le" / "utf-16be"; pure ASCII → the preferred encoding;
-/// valid UTF-8 → "utf-8"; otherwise the preferred encoding, falling back to windows-1252.
-pub fn decode_content(bytes: &[u8], preferred: &str) -> (String, String) {
-    if let Some((enc, bom_len)) = encoding_rs::Encoding::for_bom(bytes) {
-        let (text, _) = enc.decode_without_bom_handling(&bytes[bom_len..]);
-        let name = if enc == encoding_rs::UTF_8 { UTF8_BOM.to_string() } else { encoding_name(enc) };
-        return (text.into_owned(), name);
-    }
-    let legacy = legacy_encoding(preferred);
-    match std::str::from_utf8(bytes) {
-        Ok(text) if bytes.is_ascii() => (text.to_string(), legacy.map(encoding_name).unwrap_or_else(|| "utf-8".into())),
-        Ok(text) => (text.to_string(), "utf-8".into()),
-        Err(_) => {
-            let enc = legacy.unwrap_or(encoding_rs::WINDOWS_1252);
-            let (text, _) = enc.decode_without_bom_handling(bytes);
-            (text.into_owned(), encoding_name(enc))
-        }
-    }
-}
-
-/// Converts text into the named encoding. Unknown name → `not_allowed`;
-/// characters the encoding does not know → `unsupported` (nothing is silently replaced).
-pub fn encode_content(text: &str, encoding: &str) -> CoreResult<Vec<u8>> {
-    let label = encoding.trim().to_lowercase();
-    if label.is_empty() || label == "utf-8" || label == "utf8" {
-        return Ok(text.as_bytes().to_vec());
-    }
-    if label == UTF8_BOM || label == "utf8-bom" {
-        let mut out = vec![0xEF, 0xBB, 0xBF];
-        out.extend_from_slice(text.as_bytes());
-        return Ok(out);
-    }
-    let Some(enc) = encoding_rs::Encoding::for_label(label.as_bytes()) else {
-        return Err(CoreError::not_allowed(format!("Unknown encoding “{encoding}”.")));
-    };
-    if enc == encoding_rs::UTF_8 {
-        return Ok(text.as_bytes().to_vec());
-    }
-    if enc == encoding_rs::UTF_16LE || enc == encoding_rs::UTF_16BE {
-        let little = enc == encoding_rs::UTF_16LE;
-        let mut out: Vec<u8> = if little { vec![0xFF, 0xFE] } else { vec![0xFE, 0xFF] };
-        for unit in text.encode_utf16() {
-            out.extend_from_slice(&if little { unit.to_le_bytes() } else { unit.to_be_bytes() });
-        }
-        return Ok(out);
-    }
-    if enc.output_encoding() != enc {
-        return Err(CoreError::unsupported(format!("Files cannot be saved in the encoding “{encoding}”.")));
-    }
-    let (bytes, _, unmappable) = enc.encode(text);
-    if unmappable {
-        return Err(CoreError::unsupported(format!(
-            "The text contains characters that don’t exist in the encoding “{}”. Please save it as UTF-8.",
-            encoding_name(enc)
-        )));
-    }
-    Ok(bytes.into_owned())
-}
-
-/// Encoding given by a single call (`encoding` for `file_read`, `file_blame`,
-/// `diff_file`): `None` = detect as before; otherwise read exactly like that, even if the
-/// bytes look like something else ("Reopen with encoding"). Unknown name → `not_allowed`.
-pub(crate) fn forced_encoding(label: Option<&str>) -> CoreResult<Option<&'static encoding_rs::Encoding>> {
-    let Some(label) = label.map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty()) else { return Ok(None) };
-    if label == UTF8_BOM || label == "utf8-bom" {
-        return Ok(Some(encoding_rs::UTF_8));
-    }
-    encoding_rs::Encoding::for_label(label.as_bytes())
-        .map(Some)
-        .ok_or_else(|| CoreError::not_allowed(format!("Unknown encoding “{label}”.")))
-}
-
-/// Decodes with exactly this encoding (a matching BOM at the start is dropped; whatever does not
-/// fit is replaced) and names it so that `encode_content` produces the same bytes again.
-pub(crate) fn decode_forced(bytes: &[u8], enc: &'static encoding_rs::Encoding) -> (String, String) {
-    let (body, had_bom) = match encoding_rs::Encoding::for_bom(bytes) {
-        Some((found, len)) if found == enc => (&bytes[len..], true),
-        _ => (bytes, false),
-    };
-    let name = if enc == encoding_rs::UTF_8 && had_bom { UTF8_BOM.to_string() } else { encoding_name(enc) };
-    (enc.decode_without_bom_handling(body).0.into_owned(), name)
-}
-
 /// Line endings of a text: only `\n` → lf, only `\r\n` → crlf, both → mixed (without a newline: lf).
 pub fn detect_eol(text: &str) -> Eol {
     let bytes = text.as_bytes();
@@ -300,17 +91,6 @@ pub fn normalize_eol(text: &str, eol: LineEnding) -> String {
     }
 }
 
-/// Decodes a single line (blame): UTF-8, otherwise the preferred encoding or windows-1252.
-pub(crate) fn decode_line(bytes: &[u8], preferred: &str) -> String {
-    match std::str::from_utf8(bytes) {
-        Ok(text) => text.to_string(),
-        Err(_) => {
-            let enc = legacy_encoding(preferred).unwrap_or(encoding_rs::WINDOWS_1252);
-            enc.decode_without_bom_handling(bytes).0.into_owned()
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // file_history
 // ---------------------------------------------------------------------------
@@ -330,7 +110,7 @@ pub async fn file_history(
     limit: u32,
     offset: Option<u32>,
 ) -> CoreResult<Vec<FileHistoryEntry>> {
-    let rel = normalize_rel_path(&path)?;
+    let rel = util::normalize_rel_path(&path)?;
     let head = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).read_only().no_log().run_raw().await?;
     if !head.success() {
         return Ok(Vec::new());
@@ -381,7 +161,7 @@ pub(crate) async fn line_history_with_diffs(
     line: u32,
     sha: &str,
 ) -> CoreResult<Vec<(LineHistoryStep, Vec<String>)>> {
-    let rel = normalize_rel_path(path)?;
+    let rel = util::normalize_rel_path(path)?;
     if line == 0 {
         return Err(CoreError::not_allowed("Lines are counted from 1."));
     }
@@ -455,7 +235,7 @@ fn hunk_lines(diff: &[u8], preferred: &str) -> Vec<String> {
         }
         if inside && matches!(raw.first(), Some(b' ' | b'+' | b'-')) {
             let content = raw.strip_suffix(b"\r").unwrap_or(raw);
-            lines.push(decode_line(content, preferred));
+            lines.push(util::decode_line(content, preferred));
         }
     }
     lines
@@ -642,8 +422,8 @@ pub async fn file_blame(
     sha: Option<String>,
     encoding: Option<String>,
 ) -> CoreResult<Vec<BlameLine>> {
-    let rel = normalize_rel_path(&path)?;
-    let forced = forced_encoding(encoding.as_deref())?;
+    let rel = util::normalize_rel_path(&path)?;
+    let forced = util::forced_encoding(encoding.as_deref())?;
     let preferred = repo_encoding(core, &repo_id);
     let binary = || CoreError::unsupported(format!("“{rel}” is a binary file; blame is only available for text files."));
     let too_large = || CoreError::unsupported(format!("“{rel}” is too large for blame."));
@@ -670,11 +450,11 @@ pub async fn file_blame(
         }
         None => {
             let root = core.repo_path(&repo_id)?;
-            let file = resolve_for_read(&root, &rel)?;
+            let file = util::resolve_for_read(&root, &rel)?;
             if !file.is_file() {
                 return Err(CoreError::not_found(format!("The file “{rel}” does not exist in the working directory.")));
             }
-            if is_binary_content(&read_head_bytes(&file)?) {
+            if util::is_binary_content(&read_head_bytes(&file)?) {
                 return Err(binary());
             }
             if file.metadata()?.len() > MAX_TEXT_BYTES {
@@ -738,8 +518,8 @@ fn uncommitted_file(file: &Path, rel: &str, preferred: &str, forced: Option<&'st
     }
     let bytes = std::fs::read(file)?;
     let (text, _) = match forced {
-        Some(enc) => decode_forced(&bytes, enc),
-        None => decode_content(&bytes, preferred),
+        Some(enc) => util::decode_forced(&bytes, enc),
+        None => util::decode_content(&bytes, preferred),
     };
     let now = util::now_iso();
     let mut lines: Vec<&str> = text.split('\n').collect();
@@ -799,7 +579,7 @@ impl BlameParser {
                 line_no: self.line_no,
                 text: match self.forced {
                     Some(enc) => enc.decode_without_bom_handling(content).0.into_owned(),
-                    None => decode_line(content, &self.preferred),
+                    None => util::decode_line(content, &self.preferred),
                 },
                 sha: self.sha.clone(),
                 author,
@@ -859,15 +639,15 @@ pub async fn file_read(
     sha: Option<String>,
     encoding: Option<String>,
 ) -> CoreResult<FileContent> {
-    let rel = normalize_rel_path(&path)?;
-    let forced = forced_encoding(encoding.as_deref())?;
+    let rel = util::normalize_rel_path(&path)?;
+    let forced = util::forced_encoding(encoding.as_deref())?;
     let preferred = repo_encoding(core, &repo_id);
     let no_text =
         |size: u64, is_binary: bool| FileContent { path: rel.clone(), text: None, is_binary, encoding: String::new(), eol: Eol::Lf, size };
     let bytes = match sha.as_deref() {
         None => {
             let root = core.repo_path(&repo_id)?;
-            let file = resolve_for_read(&root, &rel)?;
+            let file = util::resolve_for_read(&root, &rel)?;
             let meta = match file.metadata() {
                 Ok(meta) => meta,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -879,7 +659,7 @@ pub async fn file_read(
                 return Err(CoreError::not_allowed(format!("“{rel}” is a folder.")));
             }
             if meta.len() > MAX_TEXT_BYTES {
-                return Ok(no_text(meta.len(), is_binary_content(&read_head_bytes(&file)?)));
+                return Ok(no_text(meta.len(), util::is_binary_content(&read_head_bytes(&file)?)));
             }
             tokio::fs::read(&file).await?
         }
@@ -916,12 +696,12 @@ pub async fn file_read(
     };
     let size = bytes.len() as u64;
     let utf16 = forced.is_some_and(|enc| enc == encoding_rs::UTF_16LE || enc == encoding_rs::UTF_16BE);
-    if !utf16 && is_binary_content(&bytes) {
+    if !utf16 && util::is_binary_content(&bytes) {
         return Ok(no_text(size, true));
     }
     let (text, encoding) = match forced {
-        Some(enc) => decode_forced(&bytes, enc),
-        None => decode_content(&bytes, &preferred),
+        Some(enc) => util::decode_forced(&bytes, enc),
+        None => util::decode_content(&bytes, &preferred),
     };
     let eol = detect_eol(&text);
     Ok(FileContent { path: rel, text: Some(text), is_binary: false, encoding, eol, size })
@@ -938,13 +718,13 @@ pub async fn file_read(
 /// Path outside the repository, in `.git` or a folder → `not_allowed`; unknown
 /// encoding → `not_allowed`; characters the encoding does not know → `unsupported`.
 pub async fn file_write(core: &Core, repo_id: String, path: String, content: String, encoding: String, eol: LineEnding) -> CoreResult<()> {
-    let rel = normalize_rel_path(&path)?;
+    let rel = util::normalize_rel_path(&path)?;
     let root = core.repo_path(&repo_id)?;
-    let target = resolve_for_write(&root, &rel)?;
+    let target = util::resolve_for_write(&root, &rel)?;
     if target.is_dir() {
         return Err(CoreError::not_allowed(format!("“{rel}” is a folder.")));
     }
-    let bytes = encode_content(&normalize_eol(&content, eol), &encoding)?;
+    let bytes = util::encode_content(&normalize_eol(&content, eol), &encoding)?;
     core.with_write_lock(&repo_id, &[RepoChange::Worktree], async {
         let shown = rel.clone();
         tokio::task::spawn_blocking(move || write_atomic(&target, &bytes))

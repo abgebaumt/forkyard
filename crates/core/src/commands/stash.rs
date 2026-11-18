@@ -804,7 +804,7 @@ pub async fn stash_apply_paths(
 ) -> CoreResult<Status> {
     let mut wanted: Vec<String> = Vec::new();
     for path in &paths {
-        let rel = crate::commands::history::normalize_rel_path(path)?;
+        let rel = crate::util::normalize_rel_path(path)?;
         if !wanted.contains(&rel) {
             wanted.push(rel);
         }

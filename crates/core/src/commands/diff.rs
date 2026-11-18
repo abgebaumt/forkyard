@@ -84,7 +84,7 @@ pub async fn diff_file(
     ignore_whitespace: Option<bool>,
     encoding: Option<String>,
 ) -> CoreResult<FileDiff> {
-    let forced = crate::commands::history::forced_encoding(encoding.as_deref())?;
+    let forced = crate::util::forced_encoding(encoding.as_deref())?;
     let ctx = Ctx::new(core, &repo_id)?;
     let target = resolve(&ctx, &path, &source).await?;
     build(&ctx, target, force.unwrap_or(false), ignore_whitespace.unwrap_or(false), forced).await
@@ -886,7 +886,7 @@ async fn build(ctx: &Ctx<'_>, target: Target, force: bool, ignore_whitespace: bo
     // file is text, even if its raw bytes look binary.
     let git_made_text = !files.is_empty() && files.iter().all(|f| !f.binary && !f.hunks.is_empty());
     let looks_binary = |bytes: &Option<Vec<u8>>| {
-        bytes.as_deref().is_some_and(|b| if git_made_text { crate::commands::history::is_binary_content(b) } else { util::looks_binary(b) })
+        bytes.as_deref().is_some_and(|b| if git_made_text { crate::util::is_binary_content(b) } else { util::looks_binary(b) })
     };
     if files.iter().any(|f| f.binary) || looks_binary(&old_bytes) || looks_binary(&new_bytes) {
         return Ok(binary(path, old_path));
@@ -973,7 +973,7 @@ fn text_diff(
     let new_encoding = new_bytes.map(|b| util::decode_text(b).1).unwrap_or_else(|| from_lines(LineKind::Add));
     let whole = |bytes: Option<&[u8]>| {
         bytes.filter(|b| b.len() as u64 <= MAX_TEXT_BYTES).map(|b| match forced {
-            Some(enc) => crate::commands::history::decode_forced(b, enc).0,
+            Some(enc) => crate::util::decode_forced(b, enc).0,
             None => util::decode_text(b).0,
         })
     };

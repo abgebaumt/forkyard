@@ -24,7 +24,6 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::app::Core;
-use crate::commands::history::normalize_rel_path;
 use crate::commands::remotes;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
@@ -35,6 +34,7 @@ use crate::model::{
 };
 use crate::undo;
 use crate::util;
+use crate::util::normalize_rel_path;
 use expand::{InputValue, Values};
 
 /// Longest value of one input.

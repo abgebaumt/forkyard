@@ -8,11 +8,11 @@ use parking_lot::Mutex;
 
 use super::{display_text, is_full_sha, parse_i64, read_cmd, resolve_commit_at, split_shas, Records, LOG_SAFE};
 use crate::app::Core;
-use crate::commands::history::normalize_rel_path;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
 use crate::model::{CommitSearchFilters, CommitSummary, Person};
 use crate::util;
+use crate::util::normalize_rel_path;
 
 /// A search never returns more hits than this.
 pub const MAX_SEARCH_RESULTS: u32 = 5000;

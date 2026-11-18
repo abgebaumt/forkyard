@@ -8,11 +8,11 @@ use parking_lot::Mutex;
 use serde::Deserialize;
 
 use crate::app::Core;
-use crate::commands::history::normalize_rel_path;
 use crate::error::{CoreError, CoreResult};
 use crate::git::{errors, redact, GitCmd, GitOutput};
 use crate::model::{LfsLock, LfsLockFailure, LfsLockList};
 use crate::util;
+use crate::util::normalize_rel_path;
 
 /// At most this many paths per call: the command line stays well below the Windows limit.
 pub(super) const MAX_PATHS: usize = 200;
