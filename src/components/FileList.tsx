@@ -137,12 +137,19 @@ export function useFileSelection(files: FileChange[]) {
   const known = useMemo(() => new Set(paths), [paths]);
   const selected = useMemo(() => state.selected.filter((path) => known.has(path)), [state.selected, known]);
   const onSelect = useCallback(
-    (path: string, modifiers: FileSelectModifiers) => setState((current) => nextFileSelection(paths, current.selected, current.anchor, path, modifiers)),
+    (path: string, modifiers: FileSelectModifiers) =>
+      setState((current) => nextFileSelection(paths, current.selected, current.anchor, path, modifiers)),
     [paths],
   );
   const selectAll = useCallback(() => setState({ selected: [...paths], anchor: paths[0] ?? null }), [paths]);
   const clear = useCallback(() => setState({ selected: [], anchor: null }), []);
-  return { selected, onSelect, selectAll, clear, setSelected: (next: string[]) => setState({ selected: next, anchor: next[next.length - 1] ?? null }) };
+  return {
+    selected,
+    onSelect,
+    selectAll,
+    clear,
+    setSelected: (next: string[]) => setState({ selected: next, anchor: next[next.length - 1] ?? null }),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -300,7 +307,8 @@ export function FileList({
     if (active !== undefined) setCursor(active);
   }, [active]);
 
-  const cursorIndex = (cursor !== null ? indexByKey.get(cursor) : undefined) ?? (active !== undefined ? indexByKey.get(active) : undefined) ?? 0;
+  const cursorIndex =
+    (cursor !== null ? indexByKey.get(cursor) : undefined) ?? (active !== undefined ? indexByKey.get(active) : undefined) ?? 0;
   const cursorRow = rows[cursorIndex];
 
   const rowHeight = useRef(24);
@@ -397,7 +405,12 @@ export function FileList({
   const openMenuAt = (element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     element.dispatchEvent(
-      new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: rect.left + Math.min(rect.width / 2, 160), clientY: rect.top + rect.height / 2 }),
+      new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: rect.left + Math.min(rect.width / 2, 160),
+        clientY: rect.top + rect.height / 2,
+      }),
     );
   };
 
@@ -493,7 +506,8 @@ export function FileList({
   if (loading) return <SkeletonRows label={ariaLabel} />;
   if (files.length === 0) return <div className="px-2 py-1 text-sm text-text-muted">{empty}</div>;
 
-  const menuTargets = (file: FileChange) => (selectedSet.has(file.path) ? files.filter((candidate) => selectedSet.has(candidate.path)) : [file]);
+  const menuTargets = (file: FileChange) =>
+    selectedSet.has(file.path) ? files.filter((candidate) => selectedSet.has(candidate.path)) : [file];
 
   const renderRow = (row: Row, index: number, style?: CSSProperties) => {
     const focusable = index === cursorIndex;
@@ -535,7 +549,9 @@ export function FileList({
           <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", row.open && "rotate-90")} aria-hidden />
           {row.open ? <FolderOpen className="size-icon shrink-0" aria-hidden /> : <Folder className="size-icon shrink-0" aria-hidden />}
           <span className="min-w-0 flex-1 truncate">{row.name}</span>
-          <span className={cn("shrink-0 text-xs tabular-nums", action && "group-focus-within:hidden group-hover:hidden")}>{row.files.length}</span>
+          <span className={cn("shrink-0 text-xs tabular-nums", action && "group-focus-within:hidden group-hover:hidden")}>
+            {row.files.length}
+          </span>
           {action ? (
             <span data-row-action className="hidden shrink-0 group-focus-within:inline-flex group-hover:inline-flex">
               {action}
@@ -593,9 +609,15 @@ export function FileList({
           {dir ? <span className="ml-2 text-sm text-text-muted">{dir}</span> : null}
         </span>
         {extra ? <span className="max-w-2/5 shrink-0 truncate text-sm text-text-muted">{extra}</span> : null}
-        {file.isLfs ? <span className="shrink-0 rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span> : null}
+        {file.isLfs ? (
+          <span className="shrink-0 rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span>
+        ) : null}
         {lock ? (
-          <span data-lfs-lock={lock.ours ? "ours" : "theirs"} title={lock.label} className={cn("inline-flex shrink-0", lock.ours ? "text-text-muted" : "text-warning")}>
+          <span
+            data-lfs-lock={lock.ours ? "ours" : "theirs"}
+            title={lock.label}
+            className={cn("inline-flex shrink-0", lock.ours ? "text-text-muted" : "text-warning")}
+          >
             <Lock className="size-3.5" aria-hidden />
             <span className="sr-only">{lock.label}</span>
           </span>
@@ -608,7 +630,10 @@ export function FileList({
           </span>
         ) : null}
         {action ? (
-          <span data-row-action className={cn("shrink-0", actionAlways ? "inline-flex" : "hidden group-focus-within:inline-flex group-hover:inline-flex")}>
+          <span
+            data-row-action
+            className={cn("shrink-0", actionAlways ? "inline-flex" : "hidden group-focus-within:inline-flex group-hover:inline-flex")}
+          >
             {action}
           </span>
         ) : null}
@@ -629,22 +654,30 @@ export function FileList({
       style={virtual ? { height: measured ? virtualizer.getTotalSize() : rows.length * rowHeight.current } : undefined}
     >
       {virtual && !measured
-        ? rows.slice(0, 40).map((row, index) =>
-            renderRow(row, index, { position: "absolute", top: 0, left: 0, right: 0, transform: `translateY(${index * rowHeight.current}px)` }),
-          )
+        ? rows
+            .slice(0, 40)
+            .map((row, index) =>
+              renderRow(row, index, {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                transform: `translateY(${index * rowHeight.current}px)`,
+              }),
+            )
         : virtual
-        ? virtualizer.getVirtualItems().map((item) => {
-            const row = rows[item.index];
-            if (!row) return null;
-            return renderRow(row, item.index, {
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
-            });
-          })
-        : rows.map((row, index) => renderRow(row, index))}
+          ? virtualizer.getVirtualItems().map((item) => {
+              const row = rows[item.index];
+              if (!row) return null;
+              return renderRow(row, item.index, {
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                transform: `translateY(${item.start - virtualizer.options.scrollMargin}px)`,
+              });
+            })
+          : rows.map((row, index) => renderRow(row, index))}
     </div>
   );
 

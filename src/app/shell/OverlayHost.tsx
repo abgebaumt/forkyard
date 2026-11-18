@@ -27,7 +27,9 @@ function OverlayContent({ overlay, repoId, close }: { overlay: NonNullable<Overl
     case "palette":
       return <CommandPalette mode={overlay.mode} onClose={close} />;
     case "preferences":
-      return <Preferences section={overlay.section} request={overlay} createProfile={overlay.createProfile} repoId={repoId} onClose={close} />;
+      return (
+        <Preferences section={overlay.section} request={overlay} createProfile={overlay.createProfile} repoId={repoId} onClose={close} />
+      );
     case "shortcuts":
       return <ShortcutOverlay onClose={close} />;
     case "activity":

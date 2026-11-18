@@ -38,7 +38,11 @@ export function issueBranchName(issue: Pick<IssueSummary, "number" | "title">): 
 
 export const stateLabels: Record<IssueState, string> = { open: t("issues.state.open"), closed: t("issues.state.closed") };
 
-export const listStateLabels: Record<IssueListState, string> = { open: t("issues.state.open"), closed: t("issues.state.closed"), all: t("issues.state.all") };
+export const listStateLabels: Record<IssueListState, string> = {
+  open: t("issues.state.open"),
+  closed: t("issues.state.closed"),
+  all: t("issues.state.all"),
+};
 
 /** Whether the issue is assigned to the user with this login (case-insensitive). */
 export function isAssignedTo(issue: Pick<IssueSummary, "assignees">, login: string | null | undefined): boolean {
@@ -51,7 +55,12 @@ export function isAssignedTo(issue: Pick<IssueSummary, "assignees">, login: stri
 export function matchesIssue(issue: IssueSummary, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
-  return issue.title.toLowerCase().includes(needle) || issue.key.toLowerCase().includes(needle) || String(issue.number) === needle.replace(/^#/, "") || issue.labels.some((label) => label.toLowerCase().includes(needle));
+  return (
+    issue.title.toLowerCase().includes(needle) ||
+    issue.key.toLowerCase().includes(needle) ||
+    String(issue.number) === needle.replace(/^#/, "") ||
+    issue.labels.some((label) => label.toLowerCase().includes(needle))
+  );
 }
 
 /** Second line of a list row: who, when, how many comments. */
@@ -65,7 +74,10 @@ export function issueSecondary(issue: IssueSummary): string {
 
 /** Full description of a row for screen readers. */
 export function describeIssue(issue: IssueSummary): string {
-  const parts = [t("issues.describe.title", { number: issue.number, title: issue.title || t("issues.describe.untitledLower") }), stateLabels[issue.state].toLowerCase()];
+  const parts = [
+    t("issues.describe.title", { number: issue.number, title: issue.title || t("issues.describe.untitledLower") }),
+    stateLabels[issue.state].toLowerCase(),
+  ];
   if (issue.assignees.length) parts.push(t("issues.describe.assigned", { users: issue.assignees.map((user) => user.login).join(", ") }));
   if (issue.labels.length) parts.push(t("issues.describe.labels", { labels: issue.labels.join(", ") }));
   if (issue.updatedAt) parts.push(t("issues.describe.changed", { when: formatRelative(issue.updatedAt) }));

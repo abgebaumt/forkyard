@@ -81,10 +81,22 @@ export function PrFiles({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDe
           title={t("pullRequest.view.files.missing")}
           action={
             <div className="flex flex-wrap justify-center gap-2">
-              <Button size="sm" variant="primary" loading={fetching} icon={<CloudDownload className="size-3.5" aria-hidden />} onClick={() => void fetchAll(repoId)}>
+              <Button
+                size="sm"
+                variant="primary"
+                loading={fetching}
+                icon={<CloudDownload className="size-3.5" aria-hidden />}
+                onClick={() => void fetchAll(repoId)}
+              >
                 {t("pullRequest.view.files.fetch")}
               </Button>
-              <Button size="sm" loading={checkingOut} disabled={fetching} icon={<GitBranch className="size-3.5" aria-hidden />} onClick={() => void checkoutPr(repoId, pr)}>
+              <Button
+                size="sm"
+                loading={checkingOut}
+                disabled={fetching}
+                icon={<GitBranch className="size-3.5" aria-hidden />}
+                onClick={() => void checkoutPr(repoId, pr)}
+              >
                 {t("pullRequest.view.files.checkout")}
               </Button>
             </div>
@@ -120,10 +132,16 @@ export function PrFiles({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDe
         <span className="min-w-0 flex-1 truncate">
           {details.isPending
             ? t("pullRequest.view.files.loadingFiles")
-            : t("pullRequest.view.files.summary", { count: files.length, added: details.data.added.toLocaleString(locale()), removed: details.data.removed.toLocaleString(locale()) })}
+            : t("pullRequest.view.files.summary", {
+                count: files.length,
+                added: details.data.added.toLocaleString(locale()),
+                removed: details.data.removed.toLocaleString(locale()),
+              })}
         </span>
       </p>
-      {details.data?.notCombinableReason ? <p className="shrink-0 border-b border-border bg-warning-surface px-3 py-1 text-sm text-text">{details.data.notCombinableReason}</p> : null}
+      {details.data?.notCombinableReason ? (
+        <p className="shrink-0 border-b border-border bg-warning-surface px-3 py-1 text-sm text-text">{details.data.notCombinableReason}</p>
+      ) : null}
       <div className="flex min-h-0 flex-1 flex-col @3xl:flex-row">
         <div className="max-h-48 min-h-20 shrink-0 overflow-auto border-b border-border bg-surface @3xl:max-h-none @3xl:w-72 @3xl:border-r @3xl:border-b-0">
           <FileList

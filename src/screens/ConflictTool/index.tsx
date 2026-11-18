@@ -39,7 +39,8 @@ export interface ConflictToolProps {
   path: string;
 }
 
-const isTextField = (element: Element | null) => Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
+const isTextField = (element: Element | null) =>
+  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 function countLines(...texts: (string | null)[]): number {
   let lines = 0;
@@ -64,7 +65,13 @@ export function ConflictTool({ repoId, tabId, path }: ConflictToolProps) {
 
   // The workbench is rebuilt as soon as the file or the versions change.
   const version = useRef({ key: 0, path: "", base: null as string | null, ours: null as string | null, theirs: null as string | null });
-  if (file && (version.current.path !== path || version.current.base !== file.base || version.current.ours !== file.ours || version.current.theirs !== file.theirs)) {
+  if (
+    file &&
+    (version.current.path !== path ||
+      version.current.base !== file.base ||
+      version.current.ours !== file.ours ||
+      version.current.theirs !== file.theirs)
+  ) {
     version.current = { key: version.current.key + 1, path, base: file.base, ours: file.ours, theirs: file.theirs };
   }
 
@@ -148,7 +155,13 @@ export function ConflictTool({ repoId, tabId, path }: ConflictToolProps) {
   );
   const external: ReactNode =
     externalTool && file ? (
-      <IconButton size="sm" label={t("conflict.header.external")} data-action="external" icon={<ExternalLink className="size-icon" aria-hidden />} onClick={() => void openExternal(repoId, "merge_tool", path)} />
+      <IconButton
+        size="sm"
+        label={t("conflict.header.external")}
+        data-action="external"
+        icon={<ExternalLink className="size-icon" aria-hidden />}
+        onClick={() => void openExternal(repoId, "merge_tool", path)}
+      />
     ) : null;
   const fileNav: ReactNode =
     files.length > 1 || fileIndex < 0 ? (
@@ -156,8 +169,19 @@ export function ConflictTool({ repoId, tabId, path }: ConflictToolProps) {
         {external}
         <Divider />
         <div role="group" aria-label={t("conflict.header.switchFile")} className="flex shrink-0 items-center">
-          <IconButton size="sm" label={t("conflict.header.prevFile")} shortcut="Alt+ArrowLeft" disabled={fileIndex <= 0} icon={<ChevronLeft className="size-icon" aria-hidden />} onClick={() => goToFile(-1)} />
-          <span className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums" data-file-position="" aria-label={fileIndex >= 0 ? t("conflict.header.filePosition", { index: fileIndex + 1, total: files.length }) : undefined}>
+          <IconButton
+            size="sm"
+            label={t("conflict.header.prevFile")}
+            shortcut="Alt+ArrowLeft"
+            disabled={fileIndex <= 0}
+            icon={<ChevronLeft className="size-icon" aria-hidden />}
+            onClick={() => goToFile(-1)}
+          />
+          <span
+            className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums"
+            data-file-position=""
+            aria-label={fileIndex >= 0 ? t("conflict.header.filePosition", { index: fileIndex + 1, total: files.length }) : undefined}
+          >
             {fileIndex >= 0 ? `${fileIndex + 1}/${files.length}` : "–"}
           </span>
           <IconButton
@@ -190,7 +214,13 @@ export function ConflictTool({ repoId, tabId, path }: ConflictToolProps) {
     body = (
       <>
         <ToolHeader path={path} middle={tags} end={fileNav} onClose={close} />
-        <ConflictError error={toCoreError(query.error)} path={path} retrying={query.isFetching} onRetry={() => void query.refetch()} onClose={close} />
+        <ConflictError
+          error={toCoreError(query.error)}
+          path={path}
+          retrying={query.isFetching}
+          onRetry={() => void query.refetch()}
+          onClose={close}
+        />
       </>
     );
   } else {
@@ -215,12 +245,35 @@ export function ConflictTool({ repoId, tabId, path }: ConflictToolProps) {
       );
     } else {
       state = "lines";
-      body = <Workbench key={version.current.key} ref={workbench} repoId={repoId} tabId={tabId} path={path} file={file} ours={file.ours} theirs={file.theirs} titles={titles} tags={tags} fileNav={fileNav} onClose={close} />;
+      body = (
+        <Workbench
+          key={version.current.key}
+          ref={workbench}
+          repoId={repoId}
+          tabId={tabId}
+          path={path}
+          file={file}
+          ours={file.ours}
+          theirs={file.theirs}
+          titles={titles}
+          tags={tags}
+          fileNav={fileNav}
+          onClose={close}
+        />
+      );
     }
   }
 
   return (
-    <section ref={root} aria-label={t("conflict.ariaLabel", { path })} data-screen="conflict" data-conflict-state={state} data-conflict-kind={file?.kind} onKeyDown={onKeyDown} className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      ref={root}
+      aria-label={t("conflict.ariaLabel", { path })}
+      data-screen="conflict"
+      data-conflict-state={state}
+      data-conflict-kind={file?.kind}
+      onKeyDown={onKeyDown}
+      className="flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       {body}
     </section>
   );

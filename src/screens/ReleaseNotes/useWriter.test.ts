@@ -12,7 +12,8 @@ let slots: Slot[] = [];
 let cursor = 0;
 let renderFn: (() => void) | null = null;
 let pendingEffects: (() => void)[] = [];
-const changed = (a: unknown[] | undefined, b: unknown[] | undefined) => !a || !b || a.length !== b.length || a.some((v, i) => !Object.is(v, b[i]));
+const changed = (a: unknown[] | undefined, b: unknown[] | undefined) =>
+  !a || !b || a.length !== b.length || a.some((v, i) => !Object.is(v, b[i]));
 const slot = (): Slot => {
   const s = (slots[cursor] ??= {});
   cursor++;
@@ -100,7 +101,9 @@ vi.mock("../../app/run", () => ({
     }
   },
 }));
-vi.mock("./model", () => ({ answerPlacement: (_now: string, _start: string, notes: { markdown: string }) => ({ kind: "insert", text: notes.markdown }) }));
+vi.mock("./model", () => ({
+  answerPlacement: (_now: string, _start: string, notes: { markdown: string }) => ({ kind: "insert", text: notes.markdown }),
+}));
 
 // The loading ticker only needs a timer that never fires within a test.
 vi.stubGlobal("window", { setInterval: () => 0, clearInterval: () => undefined });
@@ -155,7 +158,9 @@ describe("release notes writer hook: send confirmation in the nested dialog", ()
     writer.closePreview({ send: true, dontAskAgain: false });
     await done;
     expect(writer.preview).toBeNull();
-    expect(confirmed).toEqual([{ repoId: "repo", feature: "release_notes", fingerprint: "fp-1", triggers: ["first_use"], dontAskAgain: false }]);
+    expect(confirmed).toEqual([
+      { repoId: "repo", feature: "release_notes", fingerprint: "fp-1", triggers: ["first_use"], dontAskAgain: false },
+    ]);
     expect(sent).toHaveLength(1);
     expect(field).toBe("### Added\n- Tag dialog");
   });

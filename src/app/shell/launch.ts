@@ -19,7 +19,11 @@ import { toCoreError } from "../errors";
 import { useAppStore } from "../store";
 import { t } from "../../i18n";
 
-const folderName = (path: string) => path.replace(/[\\/]+$/, "").split(/[\\/]/).pop() || path;
+const folderName = (path: string) =>
+  path
+    .replace(/[\\/]+$/, "")
+    .split(/[\\/]/)
+    .pop() || path;
 
 /** Whether the folder is already in the repository list (then the user opened it themselves). */
 async function isKnownRepository(path: string): Promise<boolean> {
@@ -50,7 +54,11 @@ async function confirmedByUser(request: LaunchRequest): Promise<boolean> {
       "span",
       null,
       t("shell.launch.confirmText"),
-      createElement("span", { className: "selectable mt-2 block font-mono text-code break-all text-text", "data-launch-path": true }, request.path),
+      createElement(
+        "span",
+        { className: "selectable mt-2 block font-mono text-code break-all text-text", "data-launch-path": true },
+        request.path,
+      ),
       createElement("span", { className: "mt-2 block" }, t("shell.launch.confirmWarning")),
     ),
     confirmLabel: t("shell.launch.openFolder"),

@@ -20,12 +20,35 @@ import { cn } from "../../ui/cn";
 import { toast } from "../../ui/Feedback";
 import { Tip } from "../../ui/Tooltip";
 import { moveItem } from "./model";
-import { ColumnBar, CommitCells, LoadError, Name, SkeletonRows, StartButton, StatePanel, ToolFooter, ToolHeader, type StartRef } from "./parts";
+import {
+  ColumnBar,
+  CommitCells,
+  LoadError,
+  Name,
+  SkeletonRows,
+  StartButton,
+  StatePanel,
+  ToolFooter,
+  ToolHeader,
+  type StartRef,
+} from "./parts";
 import { ReorderList } from "./ReorderList";
 import { useCommitRows } from "./useCommitRows";
 import { t } from "../../i18n";
 
-export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { repoId: Id; tabId: Id; shas: Sha[]; onClose: () => void; startRef: StartRef }) {
+export function CherryPickMode({
+  repoId,
+  tabId,
+  shas,
+  onClose,
+  startRef,
+}: {
+  repoId: Id;
+  tabId: Id;
+  shas: Sha[];
+  onClose: () => void;
+  startRef: StartRef;
+}) {
   startRef.current = null;
   const unique = useMemo(() => [...new Set(shas)], [shas]);
   const { pending, error, commits, retry } = useCommitRows(repoId, unique);
@@ -55,8 +78,14 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
   const headSha = head && head.kind !== "unborn" ? head.sha : null;
   const index = graphIndex(repoId);
   const contained = (sha: Sha) => (index && headSha ? isAncestor(index, sha, headSha) === true : false);
-  const target = head?.kind === "branch" ? <Name>{head.branch}</Name> : head?.kind === "detached" ? <Name mono>HEAD {shortSha(head.sha)}</Name> : null;
-  const targetText = head?.kind === "branch" ? t("rebase.pick.branchQuoted", { branch: head.branch }) : head?.kind === "detached" ? `HEAD (${shortSha(head.sha)})` : "HEAD";
+  const target =
+    head?.kind === "branch" ? <Name>{head.branch}</Name> : head?.kind === "detached" ? <Name mono>HEAD {shortSha(head.sha)}</Name> : null;
+  const targetText =
+    head?.kind === "branch"
+      ? t("rebase.pick.branchQuoted", { branch: head.branch })
+      : head?.kind === "detached"
+        ? `HEAD (${shortSha(head.sha)})`
+        : "HEAD";
 
   const header = (
     <ToolHeader
@@ -81,7 +110,12 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
     return (
       <>
         {header}
-        <StatePanel state="empty" icon={<Cherry className="size-8" aria-hidden />} title={t("rebase.pick.noneTitle")} actions={<Button onClick={onClose}>{t("rebase.backToGraph")}</Button>}>
+        <StatePanel
+          state="empty"
+          icon={<Cherry className="size-8" aria-hidden />}
+          title={t("rebase.pick.noneTitle")}
+          actions={<Button onClick={onClose}>{t("rebase.backToGraph")}</Button>}
+        >
           {t("rebase.pick.noneBody")}
         </StatePanel>
       </>
@@ -128,7 +162,11 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
   const start = async () => {
     if (blocked || busy) return;
     const label = chosen.length === 1 ? t("rebase.tool.cherryPick") : t("rebase.pick.labelMany", { count: chosen.length });
-    const result = await runAction(label, withFreshStatus(repoId, () => core.cherryPick({ repoId, shas: chosen })), { busyKey: busyKeys.history(repoId) });
+    const result = await runAction(
+      label,
+      withFreshStatus(repoId, () => core.cherryPick({ repoId, shas: chosen })),
+      { busyKey: busyKeys.history(repoId) },
+    );
     if (!result.ok) return;
     if (result.value.status === "up_to_date") {
       toast({ tone: "info", title: t("rebase.pick.upToDateTitle"), description: t("rebase.pick.upToDateBody", { target: targetText }) });
@@ -181,7 +219,11 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
             const step = chosen.indexOf(commit.sha) + 1;
             return (
               <div className="flex min-w-0 flex-1 items-center gap-2 pr-3" data-included={off ? "false" : "true"}>
-                <span aria-hidden className="flex w-6 shrink-0 cursor-grab justify-center text-text-muted" title={t("rebase.dragToReorder")}>
+                <span
+                  aria-hidden
+                  className="flex w-6 shrink-0 cursor-grab justify-center text-text-muted"
+                  title={t("rebase.dragToReorder")}
+                >
                   <GripVertical className="size-icon" />
                 </span>
                 <button
@@ -205,15 +247,27 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
                 <span aria-hidden className="w-4 shrink-0 text-right font-mono text-xs text-text-muted">
                   {off ? "–" : step}
                 </span>
-                <span className={cn("min-w-0 flex-1 truncate", off ? "text-text-muted line-through opacity-60" : "text-text")} data-summary="">
+                <span
+                  className={cn("min-w-0 flex-1 truncate", off ? "text-text-muted line-through opacity-60" : "text-text")}
+                  data-summary=""
+                >
                   {commit.summary}
                 </span>
                 {contained(commit.sha) ? (
                   <Tip label={t("rebase.pick.containedTip", { target: targetText })}>
-                    <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("rebase.pick.contained")}</span>
+                    <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">
+                      {t("rebase.pick.contained")}
+                    </span>
                   </Tip>
                 ) : null}
-                <CommitCells authorName={commit.author.name} authorEmail={commit.author.email} authoredAt={commit.authoredAt} sha={commit.sha} dateFormat={settings?.dateFormat ?? "relative"} dimmed={off} />
+                <CommitCells
+                  authorName={commit.author.name}
+                  authorEmail={commit.author.email}
+                  authoredAt={commit.authoredAt}
+                  sha={commit.sha}
+                  dateFormat={settings?.dateFormat ?? "relative"}
+                  dimmed={off}
+                />
               </div>
             );
           }}
@@ -231,7 +285,9 @@ export function CherryPickMode({ repoId, tabId, shas, onClose, startRef }: { rep
         info={
           <span className="flex min-w-0 items-center gap-1.5" role="status">
             <span className="shrink-0 font-medium">
-              {chosen.length === rows.length ? t("rebase.commits", { count: rows.length }) : t("rebase.pick.chosenOf", { chosen: chosen.length, count: rows.length })}
+              {chosen.length === rows.length
+                ? t("rebase.commits", { count: rows.length })
+                : t("rebase.pick.chosenOf", { chosen: chosen.length, count: rows.length })}
             </span>
             <span className="truncate text-text-muted">· {t("rebase.pick.footer", { target: targetText })}</span>
           </span>

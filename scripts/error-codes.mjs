@@ -43,7 +43,8 @@ export function compareErrorCodes({ rust, types, errorsTs, en, de }) {
   if (variants.length === 0) problems.push("ErrorCode: no variants found in crates/core/src/error.rs");
   for (const variant of variants) if (!listed.includes(variant)) problems.push(`ErrorCode::${variant} is missing from ErrorCode::ALL`);
   for (const variant of listed) if (!variants.includes(variant)) problems.push(`ErrorCode::ALL lists the unknown ErrorCode::${variant}`);
-  for (const [index, variant] of listed.entries()) if (listed.indexOf(variant) !== index) problems.push(`ErrorCode::ALL lists ErrorCode::${variant} twice`);
+  for (const [index, variant] of listed.entries())
+    if (listed.indexOf(variant) !== index) problems.push(`ErrorCode::ALL lists ErrorCode::${variant} twice`);
   if (declared !== listed.length) problems.push(`ErrorCode::ALL declares ${declared} entries but lists ${listed.length}`);
   for (const variant of variants) if (!names.has(variant)) problems.push(`ErrorCode::${variant} has no text in as_str`);
   const codes = variants.map((variant) => names.get(variant)).filter(Boolean);
@@ -53,7 +54,10 @@ export function compareErrorCodes({ rust, types, errorsTs, en, de }) {
   };
   compare("src/core/types.ts ErrorCode", tsUnion(types));
   compare("src/app/errors.ts CODES", tsRecord(errorsTs));
-  for (const [label, texts] of [["en/errors.json", en], ["de/errors.json", de]]) {
+  for (const [label, texts] of [
+    ["en/errors.json", en],
+    ["de/errors.json", de],
+  ]) {
     compare(label, Object.keys(texts));
     for (const code of codes) {
       const entry = texts[code];

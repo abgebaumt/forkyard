@@ -27,7 +27,17 @@ const MAX_QUESTION = 500;
 /** The index takes the newest this many commits. */
 const MAX_INDEXED = 200_000;
 
-function ErrorActions({ kind, provider, onRetry, onShowSent }: { kind: AiErrorView["kind"]; provider: AiProviderKind | null; onRetry: () => void; onShowSent: () => void }) {
+function ErrorActions({
+  kind,
+  provider,
+  onRetry,
+  onShowSent,
+}: {
+  kind: AiErrorView["kind"];
+  provider: AiProviderKind | null;
+  onRetry: () => void;
+  onShowSent: () => void;
+}) {
   if (kind === "setup") {
     return (
       <Button size="sm" onClick={() => void openAiSetup()}>
@@ -189,7 +199,9 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
     }
   };
 
-  const loading = meaning.running ? loadingView(now - (meaning.startedAt ?? now), status?.local ?? aiStatus?.local ?? false, t("commitSearch.meaning.searching")) : null;
+  const loading = meaning.running
+    ? loadingView(now - (meaning.startedAt ?? now), status?.local ?? aiStatus?.local ?? false, t("commitSearch.meaning.searching"))
+    : null;
   const indexing = progress?.phase === "index" && progress.line ? t("commitSearch.meaning.indexing", { progress: progress.line }) : null;
   const failure = meaning.error ? errorView(meaning.error) : null;
   const total = hits.length.toLocaleString(locale());
@@ -207,7 +219,13 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
   const dateFormat = settings?.dateFormat ?? "relative";
 
   return (
-    <div role="search" aria-label={t("commitSearch.label")} data-screen="commit-search" data-mode="meaning" className="@container flex shrink-0 flex-col border-b border-border bg-surface text-base">
+    <div
+      role="search"
+      aria-label={t("commitSearch.label")}
+      data-screen="commit-search"
+      data-mode="meaning"
+      className="@container flex shrink-0 flex-col border-b border-border bg-surface text-base"
+    >
       <div className="flex h-control-lg items-center gap-1 px-2">
         <div className="relative flex min-w-0 flex-1 items-center">
           <Search className="pointer-events-none absolute left-2 size-3.5 text-text-muted" aria-hidden />
@@ -243,19 +261,55 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
         <span role="status" data-testid="search-counter" className="min-w-16 shrink-0 px-1 text-right text-sm text-text-muted tabular-nums">
           {counter}
         </span>
-        <IconButton size="sm" label={t("commitSearch.previous")} shortcut="Shift+F3" disabled={hits.length === 0} icon={<ChevronUp className="size-icon" aria-hidden />} onClick={() => step(-1)} />
-        <IconButton size="sm" label={t("commitSearch.next")} shortcut="F3" disabled={hits.length === 0} icon={<ChevronDown className="size-icon" aria-hidden />} onClick={() => step(1)} />
-        <IconButton size="sm" label={t("commitSearch.close")} shortcut="Esc" icon={<X className="size-icon" aria-hidden />} onClick={close} />
+        <IconButton
+          size="sm"
+          label={t("commitSearch.previous")}
+          shortcut="Shift+F3"
+          disabled={hits.length === 0}
+          icon={<ChevronUp className="size-icon" aria-hidden />}
+          onClick={() => step(-1)}
+        />
+        <IconButton
+          size="sm"
+          label={t("commitSearch.next")}
+          shortcut="F3"
+          disabled={hits.length === 0}
+          icon={<ChevronDown className="size-icon" aria-hidden />}
+          onClick={() => step(1)}
+        />
+        <IconButton
+          size="sm"
+          label={t("commitSearch.close")}
+          shortcut="Esc"
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={close}
+        />
       </div>
 
       {failure && failure.kind !== "cancelled" ? (
         <div data-testid="meaning-error">
-          <Banner tone="danger" title={t("commitSearch.meaning.failed")} actions={<ErrorActions kind={failure.kind} provider={aiStatus?.provider ?? null} onRetry={retry} onShowSent={() => void meaning.showSent(meaning.submitted ?? text.trim())} />}>
+          <Banner
+            tone="danger"
+            title={t("commitSearch.meaning.failed")}
+            actions={
+              <ErrorActions
+                kind={failure.kind}
+                provider={aiStatus?.provider ?? null}
+                onRetry={retry}
+                onShowSent={() => void meaning.showSent(meaning.submitted ?? text.trim())}
+              />
+            }
+          >
             <span className="selectable">{failure.text}</span>
           </Banner>
         </div>
       ) : meaning.running ? (
-        <div role="status" aria-live="polite" data-testid="meaning-loading" className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pb-1.5 text-sm text-text-muted">
+        <div
+          role="status"
+          aria-live="polite"
+          data-testid="meaning-loading"
+          className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-3 pb-1.5 text-sm text-text-muted"
+        >
           <span>{loading?.text}</span>
           {indexing ? <span>{indexing}</span> : null}
           {loading?.slow ? <span>{loading.slow}</span> : null}
@@ -287,7 +341,13 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
               <span className="min-w-0 wrap-anywhere">{t("commitSearch.meaning.empty", { query: meaning.submitted ?? "" })}</span>
             </p>
           ) : (
-            <div ref={listRef} id={listId} role="listbox" aria-label={t("commitSearch.hits")} className="max-h-48 overflow-x-hidden overflow-y-auto pb-1">
+            <div
+              ref={listRef}
+              id={listId}
+              role="listbox"
+              aria-label={t("commitSearch.hits")}
+              className="max-h-48 overflow-x-hidden overflow-y-auto pb-1"
+            >
               {hits.map((hit, index) => {
                 const isCursor = index === cursor;
                 const isActive = index === active;
@@ -316,7 +376,9 @@ export function MeaningSearch({ repoId, tabId, text, setText, modeSwitch }: Sear
                       </span>
                     </span>
                     <span className="hidden w-36 shrink-0 truncate text-sm text-text-muted @xl:block">{hit.commit.author.name}</span>
-                    <span className="hidden w-28 shrink-0 truncate text-right text-sm text-text-muted @md:block">{formatDate(hit.commit.authoredAt, dateFormat)}</span>
+                    <span className="hidden w-28 shrink-0 truncate text-right text-sm text-text-muted @md:block">
+                      {formatDate(hit.commit.authoredAt, dateFormat)}
+                    </span>
                     <code className="w-14 shrink-0 font-mono text-code text-text-muted">{shortSha(hit.commit.sha)}</code>
                   </div>
                 );

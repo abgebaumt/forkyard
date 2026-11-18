@@ -217,7 +217,12 @@ export function prepareQuery(query: string): string {
 }
 
 /** Best match over several texts (title, keywords); the positions only apply to the first text. */
-export function fuzzyBest(query: string, primary: string, extra: readonly string[] = [], options: { path?: boolean } = {}): FuzzyMatch | null {
+export function fuzzyBest(
+  query: string,
+  primary: string,
+  extra: readonly string[] = [],
+  options: { path?: boolean } = {},
+): FuzzyMatch | null {
   const main = fuzzyMatch(query, primary, options);
   let best = main;
   for (const text of extra) {

@@ -97,7 +97,10 @@ export function StackView({ repoId, tabId, branch }: StackViewProps) {
     body = (
       <Centered>
         <div data-stack-gone="">
-          <EmptyState title={t("pullRequest.stack.goneTitle")} action={<Button onClick={() => goBack(tabId)}>{t("pullRequest.stack.back")}</Button>}>
+          <EmptyState
+            title={t("pullRequest.stack.goneTitle")}
+            action={<Button onClick={() => goBack(tabId)}>{t("pullRequest.stack.back")}</Button>}
+          >
             {t("pullRequest.stack.goneBody")}
           </EmptyState>
         </div>
@@ -114,7 +117,10 @@ export function StackView({ repoId, tabId, branch }: StackViewProps) {
   } else if (status.isError) {
     body = (
       <Centered>
-        <EmptyState title={t("pullRequest.stack.errorTitle")} action={<Button onClick={() => void status.refetch()}>{t("pullRequest.stack.retry")}</Button>}>
+        <EmptyState
+          title={t("pullRequest.stack.errorTitle")}
+          action={<Button onClick={() => void status.refetch()}>{t("pullRequest.stack.retry")}</Button>}
+        >
           {describeError(status.error).text}
         </EmptyState>
       </Centered>
@@ -147,10 +153,16 @@ function CheckLine({ state, result }: { state: StackCheckState | "running"; resu
       <p className="flex items-center gap-1.5 text-sm text-text">
         <span className={cn("inline-flex size-2 shrink-0 rounded-full", DOT[checkTone(state)])} aria-hidden />
         {STATE_WORD[state]()}
-        {result && result.exitCode !== null && state !== "passed" ? ` · ${t("pullRequest.stack.checkExit", { code: result.exitCode })}` : ""}
+        {result && result.exitCode !== null && state !== "passed"
+          ? ` · ${t("pullRequest.stack.checkExit", { code: result.exitCode })}`
+          : ""}
       </p>
       {result?.output ? (
-        <pre tabIndex={0} aria-label={t("pullRequest.stack.checkOutput")} className="selectable max-h-32 overflow-auto rounded-sm bg-surface-sunken px-2 py-1 font-mono text-code whitespace-pre-wrap text-text">
+        <pre
+          tabIndex={0}
+          aria-label={t("pullRequest.stack.checkOutput")}
+          className="selectable max-h-32 overflow-auto rounded-sm bg-surface-sunken px-2 py-1 font-mono text-code whitespace-pre-wrap text-text"
+        >
           {result.output}
         </pre>
       ) : null}
@@ -254,7 +266,12 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
     }
     const created = result.value;
     const firsts = ranges(parts);
-    rememberedTitles.set(repoId, Object.fromEntries(created.parts.map((part, index) => [part.branch, parts[index] ? titleOf(parts[index]!, commits, firsts[index]!.first) : ""])));
+    rememberedTitles.set(
+      repoId,
+      Object.fromEntries(
+        created.parts.map((part, index) => [part.branch, parts[index] ? titleOf(parts[index]!, commits, firsts[index]!.first) : ""]),
+      ),
+    );
     const top = created.parts[created.parts.length - 1]!.branch;
     queryClient.setQueryData(qk.stackStatus(repoId, top), created);
     // The view checks that its branch exists in the refs list: load the new branches first.
@@ -272,7 +289,10 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
   if (!data && plan.isError) {
     return (
       <Centered>
-        <EmptyState title={t("pullRequest.stack.errorTitle")} action={<Button onClick={() => void plan.refetch()}>{t("pullRequest.stack.retry")}</Button>}>
+        <EmptyState
+          title={t("pullRequest.stack.errorTitle")}
+          action={<Button onClick={() => void plan.refetch()}>{t("pullRequest.stack.retry")}</Button>}
+        >
           {describeError(plan.error).text}
         </EmptyState>
       </Centered>
@@ -289,7 +309,8 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
   }
 
   const current = !plan.isPlaceholderData && data.parts.length === parts.length;
-  const createBlock = parts.length < 2 ? t("pullRequest.stack.needTwo") : data.parts.some((part) => part.problem) ? t("pullRequest.stack.fixNames") : null;
+  const createBlock =
+    parts.length < 2 ? t("pullRequest.stack.needTwo") : data.parts.some((part) => part.problem) ? t("pullRequest.stack.fixNames") : null;
   const testCommand = repoSettings?.testCommand?.trim() ?? "";
   const cutAtSelection = isCutAfter(parts, selected + 1);
 
@@ -308,7 +329,13 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
             }}
           />
         </div>
-        <Button size="sm" variant="ghost" data-stack-split="" disabled={!cutAtSelection && selected >= commits.length - 1} onClick={() => toggle(selected)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          data-stack-split=""
+          disabled={!cutAtSelection && selected >= commits.length - 1}
+          onClick={() => toggle(selected)}
+        >
           {cutAtSelection ? t("pullRequest.stack.removeCut") : t("pullRequest.stack.cutHere")}
         </Button>
         {suggest.control}
@@ -318,11 +345,23 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
             {t("ai.state.cancel")}
           </Button>
         ) : (
-          <Button size="sm" data-stack-check="" disabled={!testCommand || !current} title={testCommand ? t("pullRequest.stack.checkHint") : t("pullRequest.stack.checkNoCommand")} onClick={() => void check()}>
+          <Button
+            size="sm"
+            data-stack-check=""
+            disabled={!testCommand || !current}
+            title={testCommand ? t("pullRequest.stack.checkHint") : t("pullRequest.stack.checkNoCommand")}
+            onClick={() => void check()}
+          >
             {t("pullRequest.stack.check")}
           </Button>
         )}
-        <Button size="sm" variant="primary" data-stack-create="" disabled={!current || Boolean(createBlock) || Boolean(checkJob)} onClick={() => void create()}>
+        <Button
+          size="sm"
+          variant="primary"
+          data-stack-create=""
+          disabled={!current || Boolean(createBlock) || Boolean(checkJob)}
+          onClick={() => void create()}
+        >
           {t("pullRequest.stack.create")}
         </Button>
       </div>
@@ -348,16 +387,25 @@ function Planner({ repoId, tabId, branch }: StackViewProps) {
         ) : null}
       </div>
       <div className="flex min-h-0 flex-1">
-        <ol aria-label={t("pullRequest.stack.partsLabel")} className="w-80 shrink-0 overflow-y-auto border-r border-border bg-surface px-3 py-2">
+        <ol
+          aria-label={t("pullRequest.stack.partsLabel")}
+          className="w-80 shrink-0 overflow-y-auto border-r border-border bg-surface px-3 py-2"
+        >
           {data.parts.map((part, index) => {
             const draft = parts[index];
             if (!draft) return null;
             const result = checks?.find((item) => item.part === part.number);
             return (
-              <li key={part.number} data-stack-part={part.number} className="flex flex-col gap-2 border-b border-border py-2 last:border-b-0">
+              <li
+                key={part.number}
+                data-stack-part={part.number}
+                className="flex flex-col gap-2 border-b border-border py-2 last:border-b-0"
+              >
                 <p className="text-sm font-medium text-text">
                   {t("pullRequest.stack.part", { number: part.number })}{" "}
-                  <span className="font-normal text-text-muted">{t("pullRequest.stack.commits", { count: part.end - part.first + 1 })}</span>
+                  <span className="font-normal text-text-muted">
+                    {t("pullRequest.stack.commits", { count: part.end - part.first + 1 })}
+                  </span>
                 </p>
                 <code data-stack-branch="" className="selectable font-mono text-code break-all text-text-muted">
                   {part.branch}
@@ -481,9 +529,13 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
       detailsWrap: true,
     });
     if (!ok) return;
-    const result = await runAction(t("pullRequest.stack.prsAction"), () => core.stackPrsCreate({ repoId, target: status.baseName, parts, from, remote }), {
-      busyKey: `${repoId}:stack:prs`,
-    });
+    const result = await runAction(
+      t("pullRequest.stack.prsAction"),
+      () => core.stackPrsCreate({ repoId, target: status.baseName, parts, from, remote }),
+      {
+        busyKey: `${repoId}:stack:prs`,
+      },
+    );
     refreshPullRequests(repoId);
     if (!result.ok) return;
     const { created, failed } = result.value;
@@ -494,18 +546,29 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
   const restack = async () => {
     const step = status.restack;
     if (!step) return;
-    await runAction(t("pullRequest.stack.restackAction"), () => core.stackRestack({ repoId, branch: status.parts[0]!.branch, expectedTop: step.topTip }), {
-      busyKey: `${repoId}:stack:restack`,
-    });
+    await runAction(
+      t("pullRequest.stack.restackAction"),
+      () => core.stackRestack({ repoId, branch: status.parts[0]!.branch, expectedTop: step.topTip }),
+      {
+        busyKey: `${repoId}:stack:restack`,
+      },
+    );
   };
 
   return (
     <div data-stack-existing="" className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto bg-surface px-3 py-2">
       <p className="text-sm text-text-muted">{t("pullRequest.stack.stackOn", { base: status.baseName })}</p>
       {status.restack ? (
-        <div role="status" aria-live="polite" data-stack-restack-needed="" className="flex flex-col gap-1 rounded-md border border-border bg-warning-surface px-3 py-2">
+        <div
+          role="status"
+          aria-live="polite"
+          data-stack-restack-needed=""
+          className="flex flex-col gap-1 rounded-md border border-border bg-warning-surface px-3 py-2"
+        >
           <p className="text-sm text-text">{t("pullRequest.stack.restack", { number: restackIndex + 1 })}</p>
-          <p className="text-sm text-text-muted">{t("pullRequest.stack.restackHint", { top: status.restack.top, onto: shortRef(status.restack.onto) })}</p>
+          <p className="text-sm text-text-muted">
+            {t("pullRequest.stack.restackHint", { top: status.restack.top, onto: shortRef(status.restack.onto) })}
+          </p>
           {status.restack.leftBehind.length ? (
             <p data-stack-left-behind="" className="text-sm text-text">
               {t("pullRequest.stack.leftBehind", { branches: status.restack.leftBehind.join(", ") })}
@@ -541,7 +604,9 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
                 {pr ? ` · ${t("pullRequest.stack.prOpen", { number: pr.number })}` : ""}
               </p>
               {part.containsParent ? null : <p className="text-sm text-text">{t("pullRequest.stack.needsRestack")}</p>}
-              {part.worktreePath ? <p className="text-sm text-text-muted">{t("pullRequest.stack.checkedOut", { path: part.worktreePath })}</p> : null}
+              {part.worktreePath ? (
+                <p className="text-sm text-text-muted">{t("pullRequest.stack.checkedOut", { path: part.worktreePath })}</p>
+              ) : null}
             </li>
           );
         })}
@@ -556,7 +621,9 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
         <Button data-stack-prs="" disabled={Boolean(prBlock)} onClick={() => void createPrs()}>
           {t("pullRequest.stack.prs")}
         </Button>
-        <span className="text-sm text-text-muted">{prBlock ?? `${t("pullRequest.stack.external")} · ${t("pullRequest.stack.irreversible")}`}</span>
+        <span className="text-sm text-text-muted">
+          {prBlock ?? `${t("pullRequest.stack.external")} · ${t("pullRequest.stack.irreversible")}`}
+        </span>
       </div>
       {pushNote ? (
         <p role="alert" data-stack-push-error="" className="text-sm text-danger">

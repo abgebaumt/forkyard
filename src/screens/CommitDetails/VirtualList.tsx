@@ -33,7 +33,18 @@ export interface VirtualListProps {
   className?: string;
 }
 
-export function VirtualList({ count, active, onActiveChange, onActivate, activateOnClick, renderRow, getKey, ariaLabel, onKey, className }: VirtualListProps) {
+export function VirtualList({
+  count,
+  active,
+  onActiveChange,
+  onActivate,
+  activateOnClick,
+  renderRow,
+  getKey,
+  ariaLabel,
+  onKey,
+  className,
+}: VirtualListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const baseId = useId();
   const rowHeight = useMemo(readRowHeight, []);
@@ -123,7 +134,10 @@ export function VirtualList({ count, active, onActiveChange, onActivate, activat
               onDoubleClick={() => {
                 if (!activateOnClick) onActivate?.(item.index);
               }}
-              className={cn("absolute top-0 left-0 flex h-row w-full items-center", isActive ? "bg-accent-surface" : "hover:bg-surface-raised")}
+              className={cn(
+                "absolute top-0 left-0 flex h-row w-full items-center",
+                isActive ? "bg-accent-surface" : "hover:bg-surface-raised",
+              )}
               style={{ transform: `translateY(${item.start}px)` }}
             >
               {renderRow(item.index, isActive)}

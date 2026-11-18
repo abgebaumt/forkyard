@@ -46,7 +46,8 @@ export async function startPrivateKeyring() {
       return false;
     }
   };
-  if (process.platform !== "linux" || !has("dbus-daemon") || !has("gnome-keyring-daemon")) return { env: {}, private: false, close: async () => undefined };
+  if (process.platform !== "linux" || !has("dbus-daemon") || !has("gnome-keyring-daemon"))
+    return { env: {}, private: false, close: async () => undefined };
   // Short path: the keyring's control socket must fit into sun_path (108 bytes).
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fy-kr-"));
   fs.mkdirSync(path.join(dir, "run"), { mode: 0o700 });
@@ -59,12 +60,37 @@ export async function startPrivateKeyring() {
     });
     bus.once("error", reject);
   });
-  const env = { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: dir, XDG_DATA_HOME: path.join(dir, "data"), XDG_RUNTIME_DIR: path.join(dir, "run"), DBUS_SESSION_BUS_ADDRESS: address };
-  const keyring = spawn("gnome-keyring-daemon", ["--foreground", "--unlock", "--components=secrets"], { env, stdio: ["pipe", "ignore", "ignore"] });
+  const env = {
+    PATH: process.env.PATH ?? "/usr/bin:/bin",
+    HOME: dir,
+    XDG_DATA_HOME: path.join(dir, "data"),
+    XDG_RUNTIME_DIR: path.join(dir, "run"),
+    DBUS_SESSION_BUS_ADDRESS: address,
+  };
+  const keyring = spawn("gnome-keyring-daemon", ["--foreground", "--unlock", "--components=secrets"], {
+    env,
+    stdio: ["pipe", "ignore", "ignore"],
+  });
   keyring.stdin.end("e2e");
   const unlocked = () => {
     try {
-      return execFileSync("busctl", ["--user", "call", "org.freedesktop.secrets", "/org/freedesktop/secrets/aliases/default", "org.freedesktop.DBus.Properties", "Get", "ss", "org.freedesktop.Secret.Collection", "Locked"], { env: { ...process.env, DBUS_SESSION_BUS_ADDRESS: address }, stdio: ["ignore", "pipe", "ignore"] }).toString().includes("false");
+      return execFileSync(
+        "busctl",
+        [
+          "--user",
+          "call",
+          "org.freedesktop.secrets",
+          "/org/freedesktop/secrets/aliases/default",
+          "org.freedesktop.DBus.Properties",
+          "Get",
+          "ss",
+          "org.freedesktop.Secret.Collection",
+          "Locked",
+        ],
+        { env: { ...process.env, DBUS_SESSION_BUS_ADDRESS: address }, stdio: ["ignore", "pipe", "ignore"] },
+      )
+        .toString()
+        .includes("false");
     } catch {
       return false;
     }

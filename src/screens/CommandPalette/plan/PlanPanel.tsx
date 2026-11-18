@@ -12,7 +12,20 @@ import { Checkbox, SegmentedControl, TextField } from "../../../ui/Field";
 import { Kbd } from "../../../ui/Kbd";
 import { cn } from "../../../ui/cn";
 import { t } from "../../../i18n";
-import { ARG_LABELS, MODE_WORDS, checkView, classView, footerKeys, liveText, outcomeView, planErrorText, resultText, stepTitle, type PlanPhase, type Tone } from "./model";
+import {
+  ARG_LABELS,
+  MODE_WORDS,
+  checkView,
+  classView,
+  footerKeys,
+  liveText,
+  outcomeView,
+  planErrorText,
+  resultText,
+  stepTitle,
+  type PlanPhase,
+  type Tone,
+} from "./model";
 import type { PlanSession } from "./usePlanSession";
 
 const TONE_TEXT: Record<Tone, string> = {
@@ -229,7 +242,9 @@ function PlanStepRow({
       ) : null}
       {step.class === "outward" ? (
         <span className="flex items-center gap-2 pl-7 text-sm" data-plan-confirm>
-          <span className={cn("font-medium", confirmed ? "text-text" : "text-danger")}>{confirmed ? t("palette.plan.confirmed") : t("palette.plan.unconfirmed")}</span>
+          <span className={cn("font-medium", confirmed ? "text-text" : "text-danger")}>
+            {confirmed ? t("palette.plan.confirmed") : t("palette.plan.unconfirmed")}
+          </span>
           <span className="text-text-muted">{t("palette.plan.irreversible")}</span>
         </span>
       ) : null}
@@ -264,7 +279,12 @@ function StepEditor({ session, phase }: { session: PlanSession; phase: Extract<P
       }}
     >
       {step.fields.map((field) => (
-        <FieldInput key={field.name} field={field} value={phase.draft[field.name]} onChange={(value) => session.setDraft(field.name, value)} />
+        <FieldInput
+          key={field.name}
+          field={field}
+          value={phase.draft[field.name]}
+          onChange={(value) => session.setDraft(field.name, value)}
+        />
       ))}
       <span className="flex items-center gap-3 text-xs text-text-muted">
         <span className="inline-flex items-center gap-1">
@@ -281,7 +301,15 @@ function StepEditor({ session, phase }: { session: PlanSession; phase: Extract<P
   );
 }
 
-function FieldInput({ field, value, onChange }: { field: PlanArgField; value: string | boolean | undefined; onChange: (value: string | boolean) => void }) {
+function FieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: PlanArgField;
+  value: string | boolean | undefined;
+  onChange: (value: string | boolean) => void;
+}) {
   const label = ARG_LABELS[field.name] ?? field.name;
   if (field.kind === "boolean") return <Checkbox label={label} checked={value === true} onCheckedChange={onChange} />;
   if (field.kind === "choice" || field.kind === "optional_choice") {
@@ -297,7 +325,14 @@ function FieldInput({ field, value, onChange }: { field: PlanArgField; value: st
     );
   }
   const prose = field.name === "message" || field.name === "summary" || field.name === "description";
-  return <TextField label={label} mono={!prose} value={typeof value === "string" ? value : ""} onChange={(event) => onChange(event.target.value)} />;
+  return (
+    <TextField
+      label={label}
+      mono={!prose}
+      value={typeof value === "string" ? value : ""}
+      onChange={(event) => onChange(event.target.value)}
+    />
+  );
 }
 
 export function PlanFooter({ session }: { session: PlanSession }) {

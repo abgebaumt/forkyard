@@ -26,7 +26,14 @@ import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../l
 
 /** Starts the app (English, light, 1440x900), switches auto-fetch off, installs the recorders. */
 async function start(t, options = {}) {
-  const app = await t.launch({ lang: "en", theme: "light", width: 1440, height: 900, ...options, env: { SSH_AUTH_SOCK: "", ...NO_PROXY_ENV, ...(options.env ?? {}) } });
+  const app = await t.launch({
+    lang: "en",
+    theme: "light",
+    width: 1440,
+    height: 900,
+    ...options,
+    env: { SSH_AUTH_SOCK: "", ...NO_PROXY_ENV, ...(options.env ?? {}) },
+  });
   await app.invoke("settings_set", { patch: { autoFetchMinutes: 0 } });
   const ui = syncUi(app);
   await ui.install();
@@ -109,7 +116,9 @@ scenario("Ohne Remote sind Fetch, Pull und Push gesperrt und erklären warum", "
     assert((await ui.toolState("Push")).disabled, "Push is disabled");
     // The pull menu offers the way out: "Add remote".
     await app.click({ text: "Pull: options" });
-    const entry = await app.waitFor(() => app.byText("Add remote …", { within: '[role="menu"]' }), 10_000, { message: "menu entry Add remote" });
+    const entry = await app.waitFor(() => app.byText("Add remote …", { within: '[role="menu"]' }), 10_000, {
+      message: "menu entry Add remote",
+    });
     await entry.click();
     await ui.waitDialog(/^Add remote$/);
     await app.press("Escape");
@@ -153,7 +162,9 @@ scenario("Pull mit Rebase über das Menü legt eigene Commits obenauf", "main", 
     localCommit(repo, "notiz.md", "Lokale Notiz zur Station");
     await ui.refresh();
     await app.click({ text: "Pull: options" });
-    const entry = await app.waitFor(() => app.byText("Pull (rebase)", { within: '[role="menu"]' }), 10_000, { message: "menu entry Pull (rebase)" });
+    const entry = await app.waitFor(() => app.byText("Pull (rebase)", { within: '[role="menu"]' }), 10_000, {
+      message: "menu entry Pull (rebase)",
+    });
     await t.shot("pull-menu");
     await entry.click();
     await ui.waitToast(/Pull complete/, "success", 60_000);
@@ -176,9 +187,15 @@ scenario("Pull nur Fast-Forward bricht bei eigenen Commits ab und ändert nichts
     const local = localCommit(repo, "notiz.md", "Lokaler Commit");
     await ui.refresh();
     await app.click({ text: "Pull: options" });
-    const entry = await app.waitFor(() => app.byText("Pull (fast-forward only)", { within: '[role="menu"]' }), 10_000, { message: "menu entry ff-only" });
+    const entry = await app.waitFor(() => app.byText("Pull (fast-forward only)", { within: '[role="menu"]' }), 10_000, {
+      message: "menu entry ff-only",
+    });
     await entry.click();
-    const toast = await app.waitFor(async () => (await ui.seenToasts()).find((item) => item.tone === "danger" || item.tone === "warning") ?? null, 60_000, { message: "a refusal toast" });
+    const toast = await app.waitFor(
+      async () => (await ui.seenToasts()).find((item) => item.tone === "danger" || item.tone === "warning") ?? null,
+      60_000,
+      { message: "a refusal toast" },
+    );
     t.step(`toast: ${toast.text}`);
     assertEqual(repo.git("rev-parse", "HEAD"), local, "HEAD is unchanged (git)");
     assertEqual(repo.git("status", "--porcelain"), "", "the working directory is clean");
@@ -195,7 +212,11 @@ scenario("Pull mit Änderungen im Weg: erst stashen, dann pullen, Änderungen zu
     const { app, ui } = await start(t);
     await open(app, ui, repo.path);
     // Remote changes the last line, the local edit the first one: the pull is blocked, the stash comes back cleanly.
-    const remoteSha = repo.commitOnRemote({ message: "Hafen höher eingemessen", file: "stationen.csv", content: "kürzel;name;höhe_m\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;4\n" });
+    const remoteSha = repo.commitOnRemote({
+      message: "Hafen höher eingemessen",
+      file: "stationen.csv",
+      content: "kürzel;name;höhe_m\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;4\n",
+    });
     repo.write("stationen.csv", "kürzel;name;höhe_m;bemerkung\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;3\n");
     await ui.refresh();
     await ui.clickTool("Pull");
@@ -208,7 +229,11 @@ scenario("Pull mit Änderungen im Weg: erst stashen, dann pullen, Änderungen zu
     await app.settle();
     await app.waitFor(() => repo.git("stash", "list") === "", 30_000, { message: "the stash was popped again" });
     const csv = fs.readFileSync(path.join(repo.path, "stationen.csv"), "utf8");
-    assertEqual(csv, "kürzel;name;höhe_m;bemerkung\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;4\n", "local edit and pulled change are both in the file");
+    assertEqual(
+      csv,
+      "kürzel;name;höhe_m;bemerkung\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;4\n",
+      "local edit and pulled change are both in the file",
+    );
     assertEqual(repo.git("status", "--porcelain").trim(), "M stationen.csv", "only the local change is left uncommitted (unstaged)");
     await t.noConsoleErrors(app);
   } finally {
@@ -254,7 +279,9 @@ scenario("Push eines neuen Branches fragt nach dem Ziel und setzt den Upstream",
     assertEqual(await name.prop("value"), "analyse/hafen", "the remote name defaults to the branch name");
     // An invalid name blocks the push.
     await ui.retype(name, "analyse..hafen");
-    await app.waitFor(async () => (await ui.dialog()).text.includes("aren"), 5000, { message: "field error for '..'" }).catch(() => undefined);
+    await app
+      .waitFor(async () => (await ui.dialog()).text.includes("aren"), 5000, { message: "field error for '..'" })
+      .catch(() => undefined);
     const blocked = await ui.dialogButton("Push");
     assert(await blocked.prop("disabled"), "Push is disabled for an invalid name");
     await ui.retype(name, "analyse/hafen-remote");
@@ -262,7 +289,11 @@ scenario("Push eines neuen Branches fragt nach dem Ziel und setzt den Upstream",
     await app.press("Enter");
     await ui.waitToast(/Pushed to origin\/analyse\/hafen-remote/, "success", 60_000);
     assertEqual(git(repo.remotePath, "rev-parse", "analyse/hafen-remote"), local, "the branch exists on the remote (git)");
-    assertEqual(repo.git("rev-parse", "--abbrev-ref", "analyse/hafen@{upstream}"), "origin/analyse/hafen-remote", "the upstream is set (git)");
+    assertEqual(
+      repo.git("rev-parse", "--abbrev-ref", "analyse/hafen@{upstream}"),
+      "origin/analyse/hafen-remote",
+      "the upstream is set (git)",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -354,7 +385,15 @@ async function rowContextMenu(app, css) {
     { message: `row ${css}` },
   );
   const mouse = (actions) => ({ actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions }] });
-  await app.webdriver("POST", "/actions", mouse([{ type: "pointerMove", origin: "viewport", ...point }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }]));
+  await app.webdriver(
+    "POST",
+    "/actions",
+    mouse([
+      { type: "pointerMove", origin: "viewport", ...point },
+      { type: "pointerDown", button: 2 },
+      { type: "pointerUp", button: 2 },
+    ]),
+  );
   await app.webdriver("DELETE", "/actions").catch(() => undefined);
   await app.waitFor('[role="menu"]', 5000, { message: "context menu open" });
 }
@@ -397,7 +436,11 @@ scenario("Remote-Branch aus der Seitenleiste auf dem Server löschen, lokaler Br
     // Cancel first: nothing happens on the server.
     await app.press("Escape");
     await ui.waitNoDialog();
-    assertEqual(lsRemoteHeads(repo.remotePath), ["feature/export", "main"], "after cancelling the branch is still on the remote (git ls-remote)");
+    assertEqual(
+      lsRemoteHeads(repo.remotePath),
+      ["feature/export", "main"],
+      "after cancelling the branch is still on the remote (git ls-remote)",
+    );
 
     await rowContextMenu(app, remoteRow("origin/feature/export"));
     await chooseMenu(app, /^Delete “feature\/export” on origin/);
@@ -407,7 +450,9 @@ scenario("Remote-Branch aus der Seitenleiste auf dem Server löschen, lokaler Br
     assertEqual(lsRemoteHeads(repo.remotePath), ["main"], "the branch is gone on the remote (git ls-remote)");
     assertEqual(repo.git("for-each-ref", "refs/remotes/origin/feature/export"), "", "the remote branch is gone locally too (git)");
     assertEqual(repo.git("rev-parse", "feature/export"), repo.info.featureHead, "the local branch stays (git)");
-    await app.waitFor(async () => !(await app.$(remoteRow("origin/feature/export"))), 15_000, { message: "the row disappears from the sidebar" });
+    await app.waitFor(async () => !(await app.$(remoteRow("origin/feature/export"))), 15_000, {
+      message: "the row disappears from the sidebar",
+    });
     assert(await app.$('[data-row-id="refs/heads/feature/export"]'), "the local branch row stays");
     assertEqual(await ui.dangerToasts(), [], "no error message");
     await t.noConsoleErrors(app);
@@ -434,7 +479,11 @@ scenario("Remote-Branch löschen, den schon jemand anderes auf dem Server gelös
     assertMatch(toast.text, /stale remote branch was removed here/, "the toast explains the clean-up");
     assertEqual(repo.git("for-each-ref", "refs/remotes/origin/feature/export"), "", "the stale remote branch is removed (git)");
     await app.waitFor(async () => !(await app.$(remoteRow("origin/feature/export"))), 15_000, { message: "the stale row disappears" });
-    assertEqual((await ui.seenToasts()).filter((item) => /deleted on the server/.test(item.text)), [], "no claim that it was deleted now");
+    assertEqual(
+      (await ui.seenToasts()).filter((item) => /deleted on the server/.test(item.text)),
+      [],
+      "no claim that it was deleted now",
+    );
     assertEqual(await ui.dangerToasts(), [], "no error message");
     await t.noConsoleErrors(app);
   } finally {
@@ -447,7 +496,11 @@ scenario("Remote-Branch löschen, den schon jemand anderes auf dem Server gelös
 // ---------------------------------------------------------------------------------------------
 
 /** Lines of `git remote -v`, spaces normalised. */
-const remoteLines = (repoPath) => git(repoPath, "remote", "-v").split("\n").filter(Boolean).map((line) => line.replace(/\s+/g, " "));
+const remoteLines = (repoPath) =>
+  git(repoPath, "remote", "-v")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.replace(/\s+/g, " "));
 
 scenario("Remote hinzufügen (nur Tastatur) und sofort fetchen", "main", async (t) => {
   const fresh = makeEmptyRepo({ name: "station-sued", withFile: true });
@@ -465,18 +518,35 @@ scenario("Remote hinzufügen (nur Tastatur) und sofort fetchen", "main", async (
     assertEqual((await ui.focused()).label, "Name", "focus starts in the Name field");
     // Empty URL: field error, nothing is added.
     await app.press("Enter");
-    await app.waitFor(async () => (await ui.dialog()).text.includes("The URL is missing."), 10_000, { message: "field error for the missing URL" });
+    await app.waitFor(async () => (await ui.dialog()).text.includes("The URL is missing."), 10_000, {
+      message: "field error for the missing URL",
+    });
     await app.press("Tab");
     assertEqual((await ui.focused()).label, "Fetch URL", "Tab reaches the URL field");
     await (await ui.waitField("Fetch URL")).type(shared.remotePath);
-    await app.waitFor(async () => (await ui.dialog()).text.includes("Local path"), 10_000, { message: "a folder is recognised as a local path" });
+    await app.waitFor(async () => (await ui.dialog()).text.includes("Local path"), 10_000, {
+      message: "a folder is recognised as a local path",
+    });
     await t.shot("remote-add");
     await app.press("Enter");
     await ui.waitToast(/Remote “origin” added/, "success");
     await ui.waitToast(/Fetch( from origin)? complete/, "success", 60_000);
-    assertEqual(remoteLines(fresh.path), [`origin ${shared.remotePath} (fetch)`, `origin ${shared.remotePath} (push)`], "git remote -v shows the new remote");
-    assertEqual(git(fresh.path, "branch", "-r", "--format=%(refname)").split("\n").filter((ref) => ref && !ref.endsWith("/HEAD")).sort(), ["refs/remotes/origin/feature/export", "refs/remotes/origin/main"], "the fetch got the remote branches");
-    await app.waitFor(() => app.byText("Vergleich der Tagesmittel zweier Stationen"), 15_000, { message: "remote commits appear in the graph" });
+    assertEqual(
+      remoteLines(fresh.path),
+      [`origin ${shared.remotePath} (fetch)`, `origin ${shared.remotePath} (push)`],
+      "git remote -v shows the new remote",
+    );
+    assertEqual(
+      git(fresh.path, "branch", "-r", "--format=%(refname)")
+        .split("\n")
+        .filter((ref) => ref && !ref.endsWith("/HEAD"))
+        .sort(),
+      ["refs/remotes/origin/feature/export", "refs/remotes/origin/main"],
+      "the fetch got the remote branches",
+    );
+    await app.waitFor(() => app.byText("Vergleich der Tagesmittel zweier Stationen"), 15_000, {
+      message: "remote commits appear in the graph",
+    });
     await t.noConsoleErrors(app);
   } finally {
     fresh.cleanup();
@@ -496,13 +566,19 @@ scenario("Remote-Dialog: Name vergeben, ungültiger Name, Protokoll abgelehnt", 
     await (await ui.waitField("Fetch URL")).type("svn://server.example/projekt");
     await ui.retype(name, "origin");
     await app.press("Enter");
-    await app.waitFor(async () => (await ui.dialog()).text.includes("A remote named “origin” already exists."), 10_000, { message: "taken name: field error" });
+    await app.waitFor(async () => (await ui.dialog()).text.includes("A remote named “origin” already exists."), 10_000, {
+      message: "taken name: field error",
+    });
     await ui.retype(name, "zwei..punkte");
     await app.press("Enter");
     await app.waitFor(async () => /aren't allowed/.test((await ui.dialog()).text), 10_000, { message: "invalid name: field error" });
     await ui.retype(name, "spiegel");
     await app.press("Enter");
-    await app.waitFor(async () => /svn/.test((await ui.dialog()).text) && /not supported|doesn't accept/.test((await ui.dialog()).text), 10_000, { message: "svn URL rejected at the field" });
+    await app.waitFor(
+      async () => /svn/.test((await ui.dialog()).text) && /not supported|doesn't accept/.test((await ui.dialog()).text),
+      10_000,
+      { message: "svn URL rejected at the field" },
+    );
     await t.shot("remote-add-errors");
     assertEqual((await ui.seenToasts()).length, 0, "field errors come without a toast");
     await ui.clickDialogButton("Cancel");
@@ -529,12 +605,17 @@ scenario("Remote umbenennen, entfernen und mit Rückgängig zurückholen", "main
     await ui.clickDialogButton("Save");
     await ui.waitToast(/Remote “zentrale” saved/, "success");
     await ui.waitNoDialog();
-    assertEqual(remoteLines(repo.path), before.map((line) => line.replace(/^origin /, "zentrale ")), "renamed (git remote -v)");
+    assertEqual(
+      remoteLines(repo.path),
+      before.map((line) => line.replace(/^origin /, "zentrale ")),
+      "renamed (git remote -v)",
+    );
     assertEqual(repo.git("rev-parse", "--abbrev-ref", "main@{upstream}"), "zentrale/main", "the upstream follows the rename (git)");
     await ui.closeToasts();
 
     await ui.runCommand("Remove remote", "remote.remove");
-    if ((await ui.waitDialog(/^(Remove which remote\?|Remove remote “zentrale”\?)$/)).title === "Remove which remote?") await app.press("Enter");
+    if ((await ui.waitDialog(/^(Remove which remote\?|Remove remote “zentrale”\?)$/)).title === "Remove which remote?")
+      await app.press("Enter");
     const ask = await ui.waitDialog(/^Remove remote “zentrale”\?$/);
     assertIncludes(ask.text, "Nothing changes on the server.", "the confirmation says the server is untouched");
     await t.shot("remote-remove-confirm");
@@ -547,7 +628,11 @@ scenario("Remote umbenennen, entfernen und mit Rückgängig zurückholen", "main
     t.step(`undo hint: ${(await ui.toolState("Undo")).hint}`);
     await ui.clickTool("Undo");
     await app.waitFor(() => remoteLines(repo.path).length === 2, 20_000, { message: "Undo brings the remote back" });
-    assertEqual(remoteLines(repo.path), before.map((line) => line.replace(/^origin /, "zentrale ")), "name and URLs are restored (git remote -v)");
+    assertEqual(
+      remoteLines(repo.path),
+      before.map((line) => line.replace(/^origin /, "zentrale ")),
+      "name and URLs are restored (git remote -v)",
+    );
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();
@@ -627,7 +712,11 @@ scenario("Atomarer Push mit abgelehntem Ref ändert auf dem Remote nichts", "edg
     assertMatch(result.text, /main\s+rejected/, "main is rejected too (atomic)");
     await t.shot("push-many-atomic-rejected");
     assertEqual(git(repo.remotePath, "rev-parse", "main"), remoteBefore.main, "main on the remote is unchanged (git)");
-    assertEqual(git(repo.remotePath, "rev-parse", "feature/export"), remoteBefore.feature, "feature/export on the remote is unchanged (git)");
+    assertEqual(
+      git(repo.remotePath, "rev-parse", "feature/export"),
+      remoteBefore.feature,
+      "feature/export on the remote is unchanged (git)",
+    );
     assertEqual(revParse(repo.remotePath, "refs/tags/v1.0"), null, "the tag did not arrive (git)");
     assert(refs.main !== remoteBefore.main, "sanity: main was ahead");
     await ui.clickDialogButton("Close");
@@ -679,13 +768,19 @@ scenario("Push-Dialog: Filter ohne Treffer, Filter auf Tag, Abbrechen pusht nich
     await openPushMany(app, ui);
     const filter = await ui.waitField("Filter");
     await filter.type("gibt-es-nicht");
-    await app.waitFor(async () => (await ui.dialog()).text.includes("Nothing matches the filter."), 5000, { message: "empty filter result" });
+    await app.waitFor(async () => (await ui.dialog()).text.includes("Nothing matches the filter."), 5000, {
+      message: "empty filter result",
+    });
     await t.shot("push-many-filter-empty");
     await ui.retype(filter, "V1");
-    await app.waitFor(async () => {
-      const text = (await ui.dialog()).text;
-      return text.includes("Tag v1.0") && !text.includes("Branch feature/export");
-    }, 5000, { message: "filter is case-insensitive and keeps only the tag" });
+    await app.waitFor(
+      async () => {
+        const text = (await ui.dialog()).text;
+        return text.includes("Tag v1.0") && !text.includes("Branch feature/export");
+      },
+      5000,
+      { message: "filter is case-insensitive and keeps only the tag" },
+    );
     await (await ui.waitField("Tag v1.0")).click();
     await app.press("Escape");
     await ui.waitNoDialog();
@@ -769,7 +864,19 @@ async function signIn(app, ui, { password = HTTPS_PASSWORD, remember = false, sh
 /** A new commit directly in the server's bare repository (no network). Returns the SHA. */
 function commitOnServer(bare, message) {
   const tree = git(bare, "rev-parse", "main^{tree}");
-  const commit = git(bare, "-c", "user.name=Jonas Albrecht", "-c", "user.email=jonas.albrecht@wetterstation.example", "commit-tree", tree, "-p", "main", "-m", message);
+  const commit = git(
+    bare,
+    "-c",
+    "user.name=Jonas Albrecht",
+    "-c",
+    "user.email=jonas.albrecht@wetterstation.example",
+    "commit-tree",
+    tree,
+    "-p",
+    "main",
+    "-m",
+    message,
+  );
   git(bare, "update-ref", "refs/heads/main", commit);
   return commit;
 }
@@ -786,13 +893,24 @@ scenario("HTTPS: Anmeldung beim Fetch, im Schlüsselbund merken, nächster Fetch
     await signIn(app, ui, { remember: true, shot: "https-sign-in-remember", t });
     await ui.waitToast(/Fetch complete/, "success", 60_000);
     assertEqual(revParse(env.repo.path, "origin/main"), first, "the server's commit arrived over HTTPS (git)");
-    const remembered = await app.waitFor(async () => {
-      const list = await app.invoke("credentials_list");
-      return list.length ? list : null;
-    }, 10_000, { message: "the credential is remembered" });
-    assertEqual(remembered.map((entry) => [entry.username, entry.kind, entry.host.includes(`127.0.0.1:${env.server.port}`)]), [[HTTPS_USER, "password", true]], "credentials_list: user, kind and host");
+    const remembered = await app.waitFor(
+      async () => {
+        const list = await app.invoke("credentials_list");
+        return list.length ? list : null;
+      },
+      10_000,
+      { message: "the credential is remembered" },
+    );
+    assertEqual(
+      remembered.map((entry) => [entry.username, entry.kind, entry.host.includes(`127.0.0.1:${env.server.port}`)]),
+      [[HTTPS_USER, "password", true]],
+      "credentials_list: user, kind and host",
+    );
     assert(!JSON.stringify(remembered).includes(HTTPS_PASSWORD), "the list never contains the secret");
-    assert(!fs.readFileSync(path.join(env.repo.path, ".git", "config"), "utf8").includes(HTTPS_PASSWORD), "the password is not in .git/config");
+    assert(
+      !fs.readFileSync(path.join(env.repo.path, ".git", "config"), "utf8").includes(HTTPS_PASSWORD),
+      "the password is not in .git/config",
+    );
     await ui.closeToasts();
     await ui.forgetToasts();
 
@@ -804,8 +922,13 @@ scenario("HTTPS: Anmeldung beim Fetch, im Schlüsselbund merken, nächster Fetch
     await ui.waitToast(/Fetch complete/, "success", 60_000);
     assertEqual(revParse(env.repo.path, "origin/main"), second, "the second commit arrived (git)");
     assertEqual((await ui.credentialRequests()).length, asked, "the second fetch did not ask");
-    assert(env.server.requests.slice(before).some((entry) => entry.user === HTTPS_USER && entry.status === 200), "the server saw the remembered sign-in");
-    const log = JSON.stringify(await app.invoke("activity_list", { scope: "repo", repoId: (await app.invoke("repo_list"))[0].id, cursor: null, limit: 100 }));
+    assert(
+      env.server.requests.slice(before).some((entry) => entry.user === HTTPS_USER && entry.status === 200),
+      "the server saw the remembered sign-in",
+    );
+    const log = JSON.stringify(
+      await app.invoke("activity_list", { scope: "repo", repoId: (await app.invoke("repo_list"))[0].id, cursor: null, limit: 100 }),
+    );
     assert(!log.includes(HTTPS_PASSWORD), "the activity log contains no password");
     await t.noConsoleErrors(app);
   } finally {
@@ -829,12 +952,19 @@ scenario("HTTPS: Push nach gemerkter Anmeldung fragt nicht erneut", "edge", asyn
     await ui.refresh();
     await app.waitFor(async () => (await ui.toolState("Push"))?.label === "Push, 1 commit to push", 15_000, { message: "Push shows ↑1" });
     await ui.clickTool("Push");
-    const pushed = await app.waitFor(async () => (await ui.seenToasts()).find((toast) => /Pushed to origin\/main/.test(toast.text)) ?? ((await ui.dialog()) ? "prompt" : null), 60_000, { message: "push result or prompt" });
+    const pushed = await app.waitFor(
+      async () =>
+        (await ui.seenToasts()).find((toast) => /Pushed to origin\/main/.test(toast.text)) ?? ((await ui.dialog()) ? "prompt" : null),
+      60_000,
+      { message: "push result or prompt" },
+    );
     if (pushed === "prompt") {
       await t.shot("https-push-asks-again");
       const hooks = fs.readdirSync(path.join(env.repo.path, ".git", "hooks")).filter((name) => !name.endsWith(".sample"));
       t.step(`hooks in the repository: ${hooks.join(",") || "none"}`);
-      throw new Error(`APP BUG: the push asks again although the credential is remembered – prompt ${JSON.stringify((await ui.credentialRequests()).slice(asked))}, dialog ${JSON.stringify(await ui.dialog())}`);
+      throw new Error(
+        `APP BUG: the push asks again although the credential is remembered – prompt ${JSON.stringify((await ui.credentialRequests()).slice(asked))}, dialog ${JSON.stringify(await ui.dialog())}`,
+      );
     }
     assertEqual(git(env.bare, "rev-parse", "main"), local, "the commit is on the server (git in the bare repo)");
     assertEqual((await ui.credentialRequests()).length, asked, "the push did not ask (credential from the keychain)");
@@ -848,7 +978,11 @@ scenario("Öffnen eines Repositorys legt keine Hooks an (Push-Hooks bleiben unve
   const repo = makeCleanRepoWithRemote();
   try {
     const hooksDir = path.join(repo.path, ".git", "hooks");
-    const own = () => fs.readdirSync(hooksDir).filter((name) => !name.endsWith(".sample")).sort();
+    const own = () =>
+      fs
+        .readdirSync(hooksDir)
+        .filter((name) => !name.endsWith(".sample"))
+        .sort();
     assertEqual(own(), [], "the fixture has no hooks");
     const configBefore = git(repo.path, "config", "--local", "--list");
     const { app, ui } = await start(t);
@@ -884,7 +1018,10 @@ scenario("HTTPS: Abbrechen ist kein Fehler, falsches Passwort wird abgelehnt und
     const failed = await ui.waitToast(/Fetch from “origin” failed/, "danger", 60_000);
     assertMatch(failed.text, /sign|credential|password/i, "the message explains the rejected sign-in");
     assert(!failed.text.includes("falsch-geraten"), "the toast does not show the password");
-    assert(env.server.requests.some((entry) => entry.rejected === HTTPS_USER), "the server rejected the sign-in");
+    assert(
+      env.server.requests.some((entry) => entry.rejected === HTTPS_USER),
+      "the server rejected the sign-in",
+    );
     await t.shot("https-wrong-password");
     assertEqual(await app.invoke("credentials_list"), [], "a rejected password is not remembered even with the box ticked");
     await t.noConsoleErrors(app);
@@ -910,7 +1047,9 @@ scenario("HTTPS: geändertes Server-Passwort verwirft den Eintrag, „Alle verge
     await ui.clickTool("Fetch");
     await ui.waitToast(/Fetch from “origin” failed/, "danger", 60_000);
     assertEqual((await ui.credentialRequests()).length, asked, "no prompt (the keychain answered)");
-    await app.waitFor(async () => (await app.invoke("credentials_list")).length === 0, 10_000, { message: "the rejected entry is forgotten" });
+    await app.waitFor(async () => (await app.invoke("credentials_list")).length === 0, 10_000, {
+      message: "the rejected entry is forgotten",
+    });
     await ui.closeToasts();
 
     // Sign in again with the new password, remember, then "Forget all" in the preferences.
@@ -919,7 +1058,11 @@ scenario("HTTPS: geändertes Server-Passwort verwirft den Eintrag, „Alle verge
     await ui.waitToast(/Fetch complete/, "success", 60_000);
     await app.waitFor(async () => (await app.invoke("credentials_list")).length === 1, 10_000, { message: "remembered again" });
     await ui.openPrefs("Credentials");
-    const rows = await app.exec(() => [...document.querySelectorAll('[data-screen="settings"] table tbody tr')].map((row) => [...row.cells].map((cell) => cell.innerText.trim())));
+    const rows = await app.exec(() =>
+      [...document.querySelectorAll('[data-screen="settings"] table tbody tr')].map((row) =>
+        [...row.cells].map((cell) => cell.innerText.trim()),
+      ),
+    );
     assertEqual(rows.length, 1, "one entry in the table");
     assertIncludes(rows[0].join(" "), HTTPS_USER, "the row names the user");
     assert(!(await ui.pageText()).includes("Regen-Messer-17"), "the secret appears nowhere");
@@ -958,7 +1101,11 @@ function sshSandbox() {
     sshDir,
     knownHosts,
     knownHostsText: () => (fs.existsSync(knownHosts) ? fs.readFileSync(knownHosts, "utf8") : ""),
-    configure: (app) => appendAppGitConfig(app, `[core]\n\tsshCommand = ssh -F none -o UserKnownHostsFile='${slash(knownHosts)}' -o GlobalKnownHostsFile=/dev/null\n`),
+    configure: (app) =>
+      appendAppGitConfig(
+        app,
+        `[core]\n\tsshCommand = ssh -F none -o UserKnownHostsFile='${slash(knownHosts)}' -o GlobalKnownHostsFile=/dev/null\n`,
+      ),
     cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
   };
 }
@@ -984,9 +1131,12 @@ scenario("SSH-Schlüssel in den Einstellungen erzeugen, als Standard setzen, öf
     await ui.waitToast(/Key “Messrechner” generated/, "success", 60_000);
     const keys = await app.invoke("ssh_key_list");
     assertEqual(keys.length, 1, "one key in the list");
-    assert(fs.existsSync(path.join(box.sshDir, "id_ed25519")) && fs.existsSync(path.join(box.sshDir, "id_ed25519.pub")), "both key files are in the SSH folder");
+    assert(
+      fs.existsSync(path.join(box.sshDir, "id_ed25519")) && fs.existsSync(path.join(box.sshDir, "id_ed25519.pub")),
+      "both key files are in the SSH folder",
+    );
     assertMatch(keys[0].fingerprint, /^SHA256:/, "fingerprint");
-    assertEqual((fs.statSync(path.join(box.sshDir, "id_ed25519")).mode & 0o077), 0, "the private key is readable only by the owner");
+    assertEqual(fs.statSync(path.join(box.sshDir, "id_ed25519")).mode & 0o077, 0, "the private key is readable only by the owner");
     await app.waitFor('[data-key="Messrechner"]', 10_000);
     const cardText = await app.exec(() => {
       const card = document.querySelector('[data-key="Messrechner"]');
@@ -1070,8 +1220,17 @@ scenario("SSH: Fetch und Push mit Host-Prüfung und dem Standardschlüssel", "ma
     await app.waitFor(async () => (await ui.toolState("Push"))?.label === "Push, 1 commit to push", 15_000, { message: "Push shows ↑1" });
     await server.ready();
     await ui.clickTool("Push");
-    const pushed = await app.waitFor(async () => (await ui.seenToasts()).find((toast) => /Pushed to origin\/main|Push failed|rejected/i.test(toast.text)) ?? ((await ui.dialog()) ? { prompt: await ui.dialog() } : null), 90_000, { message: "push result" });
-    if (pushed.prompt) throw new Error(`the SSH push asks: ${JSON.stringify(pushed.prompt)} – requests ${JSON.stringify((await ui.credentialRequests()).slice(asked))}`);
+    const pushed = await app.waitFor(
+      async () =>
+        (await ui.seenToasts()).find((toast) => /Pushed to origin\/main|Push failed|rejected/i.test(toast.text)) ??
+        ((await ui.dialog()) ? { prompt: await ui.dialog() } : null),
+      90_000,
+      { message: "push result" },
+    );
+    if (pushed.prompt)
+      throw new Error(
+        `the SSH push asks: ${JSON.stringify(pushed.prompt)} – requests ${JSON.stringify((await ui.credentialRequests()).slice(asked))}`,
+      );
     assertMatch(pushed.text, /Pushed to origin\/main/, "push succeeded");
     assertEqual(git(bare, "rev-parse", "main"), local, "the commit is on the server (git in the bare repo)");
     assertEqual((await ui.credentialRequests()).length, asked, "no further prompt (host is known, key without passphrase)");
@@ -1155,14 +1314,18 @@ scenario("SSH: Schlüssel mit Passphrase – falsche Passphrase fragt erneut, ri
     assertEqual((await ui.focused()).label, "Passphrase", "focus is in the Passphrase field");
     await (await ui.waitField("Passphrase")).type("falsch-geraten");
     await app.press("Enter");
-    await app.waitFor(async () => (await ui.credentialRequests()).filter((request) => request.kind === "passphrase").length >= 2, 30_000, { message: "ssh asks again after a wrong passphrase" });
+    await app.waitFor(async () => (await ui.credentialRequests()).filter((request) => request.kind === "passphrase").length >= 2, 30_000, {
+      message: "ssh asks again after a wrong passphrase",
+    });
     await ui.waitDialog(/^Passphrase for the SSH key$/, 30_000);
     await (await ui.waitField("Passphrase")).type("Wolken-Zug-Nordwest");
     await t.shot("ssh-passphrase");
     await ui.clickDialogButton("Sign in");
     await ui.waitToast(/Fetch complete/, "success", 60_000);
     assertEqual(server.accepted().at(-1), key.fingerprint, "the server accepted the passphrase key");
-    const log = JSON.stringify(await app.invoke("activity_list", { scope: "repo", repoId: (await app.invoke("repo_list"))[0].id, cursor: null, limit: 100 }));
+    const log = JSON.stringify(
+      await app.invoke("activity_list", { scope: "repo", repoId: (await app.invoke("repo_list"))[0].id, cursor: null, limit: 100 }),
+    );
     assert(!log.includes("Wolken-Zug-Nordwest") && !log.includes("falsch-geraten"), "no passphrase in the activity log");
     await t.noConsoleErrors(app);
   } finally {
@@ -1250,10 +1413,14 @@ scenario("Proxy in den Einstellungen setzen: Fetch läuft über den Proxy, falsc
     const rowText = () => app.exec(() => document.querySelector('[data-screen="network"] [data-setting="Proxy"]').innerText);
     await ui.retype(field, "kein proxy");
     await app.press("Enter");
-    await app.waitFor(async () => (await rowText()).includes("A proxy address contains no spaces."), 5000, { message: "spaces rejected at the field" });
+    await app.waitFor(async () => (await rowText()).includes("A proxy address contains no spaces."), 5000, {
+      message: "spaces rejected at the field",
+    });
     await ui.retype(field, "proxy.firma.example");
     await app.press("Enter");
-    await app.waitFor(async () => (await rowText()).includes("http://proxy.company.example:8080"), 5000, { message: "without a scheme: the field shows the expected form" });
+    await app.waitFor(async () => (await rowText()).includes("http://proxy.company.example:8080"), 5000, {
+      message: "without a scheme: the field shows the expected form",
+    });
     assertEqual((await app.invoke("settings_get")).proxyUrl ?? null, null, "invalid input is not saved");
     await ui.retype(field, env.proxy.url);
     await app.press("Enter");
@@ -1263,7 +1430,10 @@ scenario("Proxy in den Einstellungen setzen: Fetch läuft über den Proxy, falsc
 
     const viaProxy = await env.fetchNow();
     assert(viaProxy.arrived, `the commit arrives through the proxy (${viaProxy.toast.text})`);
-    assert(env.proxy.connects.length > 0 && env.proxy.connects.every((target) => target === env.hostPort), `the proxy opened the connection to the Git server: ${JSON.stringify(env.proxy.connects)}`);
+    assert(
+      env.proxy.connects.length > 0 && env.proxy.connects.every((target) => target === env.hostPort),
+      `the proxy opened the connection to the Git server: ${JSON.stringify(env.proxy.connects)}`,
+    );
     await t.noConsoleErrors(app);
   } finally {
     await env.app.invoke("settings_set", { patch: { proxyUrl: null, proxyByHost: [], sslCaFile: null } }).catch(() => undefined);
@@ -1287,8 +1457,22 @@ scenario("Proxy unerreichbar: Fetch schlägt fehl, Ausnahme für den Host umgeht
     const scope = '[data-network-form="proxy-host"]';
     await (await ui.waitField("Host", scope)).type(env.hostPort);
     await app.click({ text: "Add", within: scope });
-    await app.waitFor(async () => JSON.stringify((await app.invoke("settings_get")).proxyByHost ?? []) === JSON.stringify([{ host: `https://${env.hostPort}`, proxy: "" }]), 10_000, { message: "the exception is saved: this host without proxy" });
-    const line = await app.waitFor(() => app.exec((selector) => document.querySelector(selector)?.textContent ?? null, `[data-network-proxy-host="https://${env.hostPort}"]`), 10_000, { message: "the exception is listed" });
+    await app.waitFor(
+      async () =>
+        JSON.stringify((await app.invoke("settings_get")).proxyByHost ?? []) ===
+        JSON.stringify([{ host: `https://${env.hostPort}`, proxy: "" }]),
+      10_000,
+      { message: "the exception is saved: this host without proxy" },
+    );
+    const line = await app.waitFor(
+      () =>
+        app.exec(
+          (selector) => document.querySelector(selector)?.textContent ?? null,
+          `[data-network-proxy-host="https://${env.hostPort}"]`,
+        ),
+      10_000,
+      { message: "the exception is listed" },
+    );
     assertIncludes(line, "no proxy", "the list says it as text");
     await ui.closePrefs();
     const direct = await env.fetchNow();

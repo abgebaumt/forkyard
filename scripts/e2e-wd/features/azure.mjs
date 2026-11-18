@@ -38,7 +38,15 @@ const ISSUES = '[data-screen="issues"]';
 
 /** Objects with their keys sorted, recursively – for comparing JSON bodies regardless of key order. */
 const sorted = (value) =>
-  Array.isArray(value) ? value.map(sorted) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, sorted(value[key])])) : value;
+  Array.isArray(value)
+    ? value.map(sorted)
+    : value && typeof value === "object"
+      ? Object.fromEntries(
+          Object.keys(value)
+            .sort()
+            .map((key) => [key, sorted(value[key])]),
+        )
+      : value;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -49,7 +57,10 @@ async function palette(app, text, commandId) {
   await app.type(input, `>${text}`);
   const optionCss = `[data-screen="command-palette"] [role="option"][data-key="command:${commandId}"]`;
   // The list filters while typing: wait until it no longer changes, then pick the entry.
-  const keys = () => app.exec(() => [...document.querySelectorAll('[data-screen="command-palette"] [role="option"]')].map((option) => option.dataset.key).join("|"));
+  const keys = () =>
+    app.exec(() =>
+      [...document.querySelectorAll('[data-screen="command-palette"] [role="option"]')].map((option) => option.dataset.key).join("|"),
+    );
   let previous = null;
   await app.waitFor(
     async () => {
@@ -66,9 +77,16 @@ async function palette(app, text, commandId) {
 }
 
 const toasts = (app) =>
-  app.exec(() => [...document.querySelectorAll("[data-toast]")].map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((item) => ({
+      tone: item.getAttribute("data-toast"),
+      text: item.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 const waitToast = (app, tone, pattern, timeout = 20_000) =>
-  app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)), timeout, { message: `${tone} toast ${pattern}` });
+  app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)), timeout, {
+    message: `${tone} toast ${pattern}`,
+  });
 
 const text = (app, css) => app.exec((selector) => document.querySelector(selector)?.innerText.replace(/\s+/g, " ").trim() ?? null, css);
 const attr = (app, css, name) => app.exec((selector, key) => document.querySelector(selector)?.getAttribute(key) ?? null, css, name);
@@ -102,7 +120,8 @@ const fill = (app, css, value) =>
     value,
   );
 
-const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", LC_ALL: "C" } }).trim();
+const git = (cwd, ...args) =>
+  execFileSync("git", args, { cwd, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", LC_ALL: "C" } }).trim();
 
 /**
  * A repository whose origin is `https://dev.azure.com/firma/projekt/_git/demo` – rewritten by
@@ -121,9 +140,18 @@ async function assertNoTokenLeak(app, token, where) {
     const hits = [];
     if (document.documentElement.outerHTML.includes(secret)) hits.push("dom");
     for (const field of document.querySelectorAll("input, textarea")) if (field.value.includes(secret)) hits.push(`field ${field.name}`);
-    for (const store of [localStorage, sessionStorage]) for (let i = 0; i < store.length; i++) if ((store.getItem(store.key(i)) ?? "").includes(secret)) hits.push("storage");
+    for (const store of [localStorage, sessionStorage])
+      for (let i = 0; i < store.length; i++) if ((store.getItem(store.key(i)) ?? "").includes(secret)) hits.push("storage");
     try {
-      if (JSON.stringify(window.__gc.queryClient.getQueryCache().getAll().map((query) => query.state.data ?? null)).includes(secret)) hits.push("query cache");
+      if (
+        JSON.stringify(
+          window.__gc.queryClient
+            .getQueryCache()
+            .getAll()
+            .map((query) => query.state.data ?? null),
+        ).includes(secret)
+      )
+        hits.push("query cache");
     } catch {
       // cyclic data – not a leak
     }
@@ -165,7 +193,10 @@ async function disconnectAll(app) {
 const setCenter = (app, tabId, center) => app.exec((id, next) => window.__gc.store.getState().setCenter(id, next), tabId, center);
 
 /** Requests the mock received for Azure (method + path, query left out). */
-const azureCalls = (mock, method, pattern) => mock.requests.filter((entry) => entry.path.startsWith("/firma/") && (!method || entry.method === method) && (!pattern || pattern.test(entry.path)));
+const azureCalls = (mock, method, pattern) =>
+  mock.requests.filter(
+    (entry) => entry.path.startsWith("/firma/") && (!method || entry.method === method) && (!pattern || pattern.test(entry.path)),
+  );
 
 /**
  * Host mock + proxy + repository + app (light, English, 1440×900). `connect`: account through the
@@ -213,16 +244,21 @@ async function openAzureConnect(app) {
 async function expandSection(app, css) {
   const trigger = await app.waitFor(`${css} [data-section-header] > button`, 20_000, { message: `section header ${css}` });
   if ((await trigger.attr("data-state")) !== "open") await app.click(trigger);
-  await app.waitFor(async () => (await attr(app, `${css} [data-section-header] > button`, "data-state")) === "open", 5000, { message: `section ${css} open` });
+  await app.waitFor(async () => (await attr(app, `${css} [data-section-header] > button`, "data-state")) === "open", 5000, {
+    message: `section ${css} open`,
+  });
 }
 
-const prRows = (app) => app.exec((css) => [...document.querySelectorAll(`${css} [data-kind="pull-request"]`)].map((row) => Number(row.dataset.pr)), PR_SECTION);
+const prRows = (app) =>
+  app.exec((css) => [...document.querySelectorAll(`${css} [data-kind="pull-request"]`)].map((row) => Number(row.dataset.pr)), PR_SECTION);
 
 /** Text of the open dialog whose text matches, or null. */
 const dialogText = (app, pattern) =>
   app.exec((source) => {
     const wanted = new RegExp(source);
-    const found = [...document.querySelectorAll('[role="alertdialog"], [role="dialog"]')].map((node) => node.innerText.replace(/\s+/g, " ").trim()).filter((value) => wanted.test(value));
+    const found = [...document.querySelectorAll('[role="alertdialog"], [role="dialog"]')]
+      .map((node) => node.innerText.replace(/\s+/g, " ").trim())
+      .filter((value) => wanted.test(value));
     return found.length ? found[found.length - 1] : null;
   }, pattern.source);
 
@@ -254,7 +290,9 @@ scenario("connect: Azure DevOps account through the dialog with organization and
   await withAzure(t, { connect: false }, async ({ app, mock, proxy, repo }) => {
     // Without an account the PR section names Azure DevOps and offers to connect.
     await expandSection(app, PR_SECTION);
-    await app.waitFor(async () => /Azure DevOps/.test((await text(app, PR_SECTION)) ?? ""), 20_000, { message: "PR section names Azure DevOps without an account" });
+    await app.waitFor(async () => /Azure DevOps/.test((await text(app, PR_SECTION)) ?? ""), 20_000, {
+      message: "PR section names Azure DevOps without an account",
+    });
     t.step(`sidebar without account: ${await text(app, PR_SECTION)}`);
 
     await openAzureConnect(app);
@@ -274,20 +312,35 @@ scenario("connect: Azure DevOps account through the dialog with organization and
     t.step("dialog closed");
 
     const accounts = await app.invoke("host_accounts");
-    assertEqual(accounts.map((account) => [account.kind, account.baseUrl, account.user?.login, account.tokenHint]), [["azure_devops", ORG_URL, "lena@example.org", "…abcd"]], "one Azure DevOps account for the organization");
+    assertEqual(
+      accounts.map((account) => [account.kind, account.baseUrl, account.user?.login, account.tokenHint]),
+      [["azure_devops", ORG_URL, "lena@example.org", "…abcd"]],
+      "one Azure DevOps account for the organization",
+    );
     // The core signed in the Azure way: Basic with an empty user name and the token.
     const first = azureCalls(mock, "GET", /_apis\/connectionData$/)[0];
     assert(first, "connectionData was requested");
-    assertEqual(Buffer.from(String(first.headers.authorization).replace(/^Basic /, ""), "base64").toString(), `:${mock.token}`, "Basic auth with empty user name");
-    assert(proxy.seen.every((entry) => entry.host === "dev.azure.com"), "every API call went to dev.azure.com (through the test proxy)");
+    assertEqual(
+      Buffer.from(String(first.headers.authorization).replace(/^Basic /, ""), "base64").toString(),
+      `:${mock.token}`,
+      "Basic auth with empty user name",
+    );
+    assert(
+      proxy.seen.every((entry) => entry.host === "dev.azure.com"),
+      "every API call went to dev.azure.com (through the test proxy)",
+    );
 
     // The sidebar now loads the pull requests of the repository.
-    await app.waitFor(async () => (await count(app, `${PR_SECTION} [data-kind="pull-request"]`)) > 0, 20_000, { message: "PR rows after connecting" });
+    await app.waitFor(async () => (await count(app, `${PR_SECTION} [data-kind="pull-request"]`)) > 0, 20_000, {
+      message: "PR rows after connecting",
+    });
     t.step(`${await count(app, `${PR_SECTION} [data-kind="pull-request"]`)} PR rows in the sidebar`);
 
     // Settings › Hosts lists the account with name and the last four characters only.
     await palette(app, "Open integrations", "hosts.open");
-    const row = await app.waitFor('[data-screen="hosts"] li[data-kind="azure_devops"]', 15_000, { message: "account row in Settings › Hosts" });
+    const row = await app.waitFor('[data-screen="hosts"] li[data-kind="azure_devops"]', 15_000, {
+      message: "account row in Settings › Hosts",
+    });
     const rowText = await row.text();
     assertMatch(rowText, /Lena Hartmann/, "account row shows the display name");
     assertMatch(rowText, /abcd/, "account row shows the last four characters");
@@ -304,10 +357,18 @@ scenario("connect: organization is checked before anything is sent", "edge", asy
     // Empty organization.
     await app.type(`${CONNECT_FORM} input[name="token"]`, mock.token);
     await app.click({ text: "Connect", within: CONNECT_DIALOG });
-    await app.waitFor(async () => /organization/i.test((await text(app, CONNECT_FORM)) ?? "") && (await app.exec(() => document.activeElement?.getAttribute("name"))) === "organization", 5000, {
-      message: "error at the organization field, focus there",
-    });
-    t.step(`empty: ${await app.exec(() => document.querySelector('[data-screen="hosts-connect"] input[name="organization"]')?.getAttribute("aria-invalid"))}`);
+    await app.waitFor(
+      async () =>
+        /organization/i.test((await text(app, CONNECT_FORM)) ?? "") &&
+        (await app.exec(() => document.activeElement?.getAttribute("name"))) === "organization",
+      5000,
+      {
+        message: "error at the organization field, focus there",
+      },
+    );
+    t.step(
+      `empty: ${await app.exec(() => document.querySelector('[data-screen="hosts-connect"] input[name="organization"]')?.getAttribute("aria-invalid"))}`,
+    );
     // Spaces are not an organization.
     await app.type(`${CONNECT_FORM} input[name="organization"]`, "meine firma");
     await app.click({ text: "Connect", within: CONNECT_DIALOG });
@@ -323,7 +384,11 @@ scenario("connect: organization is checked before anything is sent", "edge", asy
     if (!(await token.prop("value"))) await app.type(token, mock.token);
     await app.click({ text: "Connect", within: CONNECT_DIALOG });
     await app.waitFor(async () => !(await dialogOpen(app)), 20_000, { message: "dialog closes with a pasted address" });
-    assertEqual((await app.invoke("host_accounts")).map((account) => account.baseUrl), [ORG_URL], "stored as https://dev.azure.com/firma");
+    assertEqual(
+      (await app.invoke("host_accounts")).map((account) => account.baseUrl),
+      [ORG_URL],
+      "stored as https://dev.azure.com/firma",
+    );
     await t.noConsoleErrors(app);
   });
 });
@@ -375,19 +440,25 @@ scenario("connect: without a keychain the dialog warns and nothing is stored", "
 scenario("connect: disconnecting in Settings › Hosts removes the account and the PR list", "edge", async (t) => {
   await withAzure(t, {}, async ({ app }) => {
     await expandSection(app, PR_SECTION);
-    await app.waitFor(async () => (await count(app, `${PR_SECTION} [data-kind="pull-request"]`)) > 0, 20_000, { message: "PR rows with an account" });
+    await app.waitFor(async () => (await count(app, `${PR_SECTION} [data-kind="pull-request"]`)) > 0, 20_000, {
+      message: "PR rows with an account",
+    });
     await palette(app, "Open integrations", "hosts.open");
     await app.waitFor('[data-screen="hosts"] li[data-kind="azure_devops"]', 15_000);
     await app.click('[data-screen="hosts"] li[data-kind="azure_devops"] button[aria-label^="Disconnect"]');
     // The confirmation names host, organization and account.
-    const confirmText = await app.waitFor(async () => dialogText(app, /Disconnect Azure DevOps account\?/), 10_000, { message: "confirmation" });
+    const confirmText = await app.waitFor(async () => dialogText(app, /Disconnect Azure DevOps account\?/), 10_000, {
+      message: "confirmation",
+    });
     assertMatch(confirmText, /dev\.azure\.com\/firma/, "confirmation names the organization");
     await t.shot("connect-disconnect-confirm");
     await app.click({ text: "Disconnect account" });
     await eventually(async () => (await app.invoke("host_accounts")).length, 0, "account removed");
     await app.waitFor('[data-screen="hosts"][data-state="empty"]', 10_000, { message: "hosts list empty" });
     await app.press("Escape");
-    await app.waitFor(async () => (await count(app, `${PR_SECTION} [data-kind="pull-request"]`)) === 0, 15_000, { message: "no PR rows without an account" });
+    await app.waitFor(async () => (await count(app, `${PR_SECTION} [data-kind="pull-request"]`)) === 0, 15_000, {
+      message: "no PR rows without an account",
+    });
     t.step(`sidebar: ${await text(app, PR_SECTION)}`);
     await t.noConsoleErrors(app);
   });
@@ -410,55 +481,73 @@ async function openPr(app, tabId, number) {
 const prActionButton = (app, label) => app.byText(label, { within: `${PR_VIEW} [data-pr-actions]` });
 const lastBody = (mock, method, pattern) => azureCalls(mock, method, pattern).at(-1)?.body ?? null;
 
-scenario("pull requests: sidebar lists the active ones, a click opens the view with checks, review, labels and conversation", "main", async (t) => {
-  await withAzure(t, {}, async ({ app, mock }) => {
-    await expandSection(app, PR_SECTION);
-    await app.waitFor(async () => (await prRows(app)).length >= 20, 20_000, { message: "first page of PR rows" });
-    const rows = await prRows(app);
-    // Mock: 45 PRs, number ending in 0 = completed, in 5 = abandoned → active ones, newest first.
-    assertEqual(rows.slice(0, 6), [44, 43, 42, 41, 39, 38], "active pull requests, newest first, completed and abandoned left out");
-    assert(!rows.some((number) => number % 5 === 0), "no completed or abandoned PR in the list");
-    const list = azureCalls(mock, "GET", /\/pullrequests$/).at(-1);
-    assertEqual(list?.query["searchCriteria.status"], "active", "the list asks Azure for status=active");
-    assertMatch(await text(app, `${PR_SECTION} [data-section-header]`), /20\+/, "counter shows that there are more");
+scenario(
+  "pull requests: sidebar lists the active ones, a click opens the view with checks, review, labels and conversation",
+  "main",
+  async (t) => {
+    await withAzure(t, {}, async ({ app, mock }) => {
+      await expandSection(app, PR_SECTION);
+      await app.waitFor(async () => (await prRows(app)).length >= 20, 20_000, { message: "first page of PR rows" });
+      const rows = await prRows(app);
+      // Mock: 45 PRs, number ending in 0 = completed, in 5 = abandoned → active ones, newest first.
+      assertEqual(rows.slice(0, 6), [44, 43, 42, 41, 39, 38], "active pull requests, newest first, completed and abandoned left out");
+      assert(!rows.some((number) => number % 5 === 0), "no completed or abandoned PR in the list");
+      const list = azureCalls(mock, "GET", /\/pullrequests$/).at(-1);
+      assertEqual(list?.query["searchCriteria.status"], "active", "the list asks Azure for status=active");
+      assertMatch(await text(app, `${PR_SECTION} [data-section-header]`), /20\+/, "counter shows that there are more");
 
-    // Load the rest and open #1 with a click.
-    await app.click({ text: "Load more", within: PR_SECTION });
-    await app.waitFor(async () => (await prRows(app)).includes(1), 20_000, { message: "second page with #1" });
-    assertEqual((await prRows(app)).length, 36, "all 36 active pull requests after loading more");
-    await app.click(`${PR_SECTION} [data-kind="pull-request"][data-pr="1"]`);
-    await app.waitFor(prHead(1), 30_000, { message: "PR #1 view" });
-    await app.settle();
-    const head = await text(app, `${PR_VIEW} [data-pr-head]`);
-    t.step(`head: ${head}`);
-    assertMatch(head, /Thema 1 umsetzen #1/, "title and number");
-    assertMatch(head, /feature\/thema-1/, "source branch");
-    assertMatch(head, /\bmain\b/, "target branch");
-    assertEqual(await phase(app), "open", "phase open");
-    assertEqual(await attr(app, `${PR_VIEW} [data-pr-head] [data-checks]`, "data-checks"), "passing", "the succeeded build status counts as passed checks");
-    assertMatch(await text(app, `${PR_VIEW} [data-pr-reviewers]`), /mira/i, "reviewer from Azure");
-    assertMatch(await text(app, `${PR_VIEW} [data-pr-labels]`), /bug/, "label from Azure");
-    const body = await app.waitFor(`${PR_VIEW} [data-pr-body]`, 10_000);
-    assertMatch(await body.text(), /Beschreibung zu Thema 1/, "description rendered");
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="pr-view"] [data-pr-body] strong')?.textContent ?? null), "Thema 1", "Markdown bold rendered");
-    assertMatch(await text(app, `${PR_VIEW} [data-pr-comments]`), /Sieht gut aus\./, "thread comment in the conversation");
-    await t.shot("pr-view-azure");
+      // Load the rest and open #1 with a click.
+      await app.click({ text: "Load more", within: PR_SECTION });
+      await app.waitFor(async () => (await prRows(app)).includes(1), 20_000, { message: "second page with #1" });
+      assertEqual((await prRows(app)).length, 36, "all 36 active pull requests after loading more");
+      await app.click(`${PR_SECTION} [data-kind="pull-request"][data-pr="1"]`);
+      await app.waitFor(prHead(1), 30_000, { message: "PR #1 view" });
+      await app.settle();
+      const head = await text(app, `${PR_VIEW} [data-pr-head]`);
+      t.step(`head: ${head}`);
+      assertMatch(head, /Thema 1 umsetzen #1/, "title and number");
+      assertMatch(head, /feature\/thema-1/, "source branch");
+      assertMatch(head, /\bmain\b/, "target branch");
+      assertEqual(await phase(app), "open", "phase open");
+      assertEqual(
+        await attr(app, `${PR_VIEW} [data-pr-head] [data-checks]`, "data-checks"),
+        "passing",
+        "the succeeded build status counts as passed checks",
+      );
+      assertMatch(await text(app, `${PR_VIEW} [data-pr-reviewers]`), /mira/i, "reviewer from Azure");
+      assertMatch(await text(app, `${PR_VIEW} [data-pr-labels]`), /bug/, "label from Azure");
+      const body = await app.waitFor(`${PR_VIEW} [data-pr-body]`, 10_000);
+      assertMatch(await body.text(), /Beschreibung zu Thema 1/, "description rendered");
+      assertEqual(
+        await app.exec(() => document.querySelector('[data-screen="pr-view"] [data-pr-body] strong')?.textContent ?? null),
+        "Thema 1",
+        "Markdown bold rendered",
+      );
+      assertMatch(await text(app, `${PR_VIEW} [data-pr-comments]`), /Sieht gut aus\./, "thread comment in the conversation");
+      await t.shot("pr-view-azure");
 
-    // Commits tab: the commit of the pull request.
-    await app.click({ text: "Commits", within: PR_VIEW, exact: false });
-    await app.waitFor(async () => /Meldung übersetzt/.test((await text(app, `${PR_VIEW} [data-pr-commits]`)) ?? ""), 10_000, { message: "PR commit listed" });
-    await t.noConsoleErrors(app);
-  });
-});
+      // Commits tab: the commit of the pull request.
+      await app.click({ text: "Commits", within: PR_VIEW, exact: false });
+      await app.waitFor(async () => /Meldung übersetzt/.test((await text(app, `${PR_VIEW} [data-pr-commits]`)) ?? ""), 10_000, {
+        message: "PR commit listed",
+      });
+      await t.noConsoleErrors(app);
+    });
+  },
+);
 
 scenario("pull requests: create from a pushed branch as draft with a label", "main", async (t) => {
   await withAzure(t, { before: ({ repo }) => repo.git("checkout", "-q", "feature/export") }, async ({ app, mock, repo }) => {
     await palette(app, "Create pull request", "pr.create");
     await app.waitFor(`${PR_CREATE} [data-pr-state="form"]`, 30_000, { message: "create form" });
-    const title = await app.waitFor(async () => {
-      const value = await app.$(`${PR_CREATE} input[name="title"]`).then((field) => field?.prop("value"));
-      return value ? value : null;
-    }, 15_000, { message: "title prefilled" });
+    const title = await app.waitFor(
+      async () => {
+        const value = await app.$(`${PR_CREATE} input[name="title"]`).then((field) => field?.prop("value"));
+        return value ? value : null;
+      },
+      15_000,
+      { message: "title prefilled" },
+    );
     assertEqual(title, "CSV-Export für den Vergleich", "title prefilled from the only commit");
     assertEqual(await count(app, `${PR_CREATE} input[name="reviewers"]`), 0, "no reviewers field (Azure needs identity IDs)");
     assertMatch(await text(app, `${PR_CREATE} [data-pr-steps]`), /feature\/export/, "steps name the source branch");
@@ -468,19 +557,37 @@ scenario("pull requests: create from a pushed branch as draft with a label", "ma
     await app.click(draft);
     assertEqual(await draft.attr("aria-checked"), "true", "draft checked");
     await app.type(`${PR_CREATE} input[name="labels"]`, "doku");
-    await app.waitFor(async () => /Create draft/.test((await text(app, `${PR_CREATE} footer`)) ?? ""), 5000, { message: "button says Create draft" });
+    await app.waitFor(async () => /Create draft/.test((await text(app, `${PR_CREATE} footer`)) ?? ""), 5000, {
+      message: "button says Create draft",
+    });
     await t.shot("pr-create-azure");
     await app.click(`${PR_CREATE} footer button[type="submit"]`);
 
     await app.waitFor(prHead(101), 30_000, { message: "the new PR #101 opens" });
     const created = mock.state.created.map(({ number, title: name, source, target, draft }) => ({ number, name, source, target, draft }));
-    assertEqual(created, [{ number: 101, name: "CSV-Export für den Vergleich", source: "feature/export", target: "main", draft: true }], "created at the host");
+    assertEqual(
+      created,
+      [{ number: 101, name: "CSV-Export für den Vergleich", source: "feature/export", target: "main", draft: true }],
+      "created at the host",
+    );
     const sent = lastBody(mock, "POST", /\/pullrequests$/);
-    assertEqual([sent.sourceRefName, sent.targetRefName, sent.isDraft, sent.labels], ["refs/heads/feature/export", "refs/heads/main", true, [{ name: "doku" }]], "request: full ref names, draft, label by name");
-    assertEqual(sent.description, "Schreibt den Vergleich als CSV.\n\nBitte mit den Daten von Nord prüfen.", "description sent with its line breaks");
+    assertEqual(
+      [sent.sourceRefName, sent.targetRefName, sent.isDraft, sent.labels],
+      ["refs/heads/feature/export", "refs/heads/main", true, [{ name: "doku" }]],
+      "request: full ref names, draft, label by name",
+    );
+    assertEqual(
+      sent.description,
+      "Schreibt den Vergleich als CSV.\n\nBitte mit den Daten von Nord prüfen.",
+      "description sent with its line breaks",
+    );
     await app.waitFor(async () => (await phase(app)) === "draft", 10_000, { message: "view shows draft" });
     // Git: nothing had to be pushed, the branch is unchanged on the remote.
-    assertEqual(git(repo.remotePath, "rev-parse", "refs/heads/feature/export"), git(repo.path, "rev-parse", "feature/export"), "remote branch unchanged");
+    assertEqual(
+      git(repo.remotePath, "rev-parse", "refs/heads/feature/export"),
+      git(repo.path, "rev-parse", "feature/export"),
+      "remote branch unchanged",
+    );
     await t.shot("pr-created-draft");
     await t.noConsoleErrors(app);
   });
@@ -498,17 +605,37 @@ scenario("pull requests: branch not on the remote yet – push and create in one
       },
     },
     async ({ app, mock, repo }) => {
-      assertEqual(execFileSync("git", ["-C", repo.remotePath, "branch", "--list", "thema/neue-station"], { encoding: "utf8" }).trim(), "", "branch is not on the remote before");
+      assertEqual(
+        execFileSync("git", ["-C", repo.remotePath, "branch", "--list", "thema/neue-station"], { encoding: "utf8" }).trim(),
+        "",
+        "branch is not on the remote before",
+      );
       await palette(app, "Create pull request", "pr.create");
       await app.waitFor(`${PR_CREATE} [data-pr-state="form"]`, 30_000);
-      await app.waitFor(async () => /Push first/.test((await text(app, `${PR_CREATE} [data-pr-steps]`)) ?? ""), 15_000, { message: "step: push first" });
-      await app.waitFor(async () => /Push and create/.test((await text(app, `${PR_CREATE} footer`)) ?? ""), 5000, { message: "button: Push and create" });
+      await app.waitFor(async () => /Push first/.test((await text(app, `${PR_CREATE} [data-pr-steps]`)) ?? ""), 15_000, {
+        message: "step: push first",
+      });
+      await app.waitFor(async () => /Push and create/.test((await text(app, `${PR_CREATE} footer`)) ?? ""), 5000, {
+        message: "button: Push and create",
+      });
       await t.shot("pr-create-push-first");
       await app.click(`${PR_CREATE} footer button[type="submit"]`);
       await app.waitFor(prHead(101), 60_000, { message: "PR #101 after push" });
-      assertEqual(git(repo.remotePath, "rev-parse", "refs/heads/thema/neue-station"), git(repo.path, "rev-parse", "thema/neue-station"), "branch pushed to the remote");
-      assertEqual(git(repo.path, "rev-parse", "--abbrev-ref", "thema/neue-station@{upstream}"), "origin/thema/neue-station", "upstream set");
-      assertEqual(mock.state.created.map((entry) => [entry.source, entry.target, entry.title]), [["thema/neue-station", "main", "Station West ergänzt"]], "created for the pushed branch");
+      assertEqual(
+        git(repo.remotePath, "rev-parse", "refs/heads/thema/neue-station"),
+        git(repo.path, "rev-parse", "thema/neue-station"),
+        "branch pushed to the remote",
+      );
+      assertEqual(
+        git(repo.path, "rev-parse", "--abbrev-ref", "thema/neue-station@{upstream}"),
+        "origin/thema/neue-station",
+        "upstream set",
+      );
+      assertEqual(
+        mock.state.created.map((entry) => [entry.source, entry.target, entry.title]),
+        [["thema/neue-station", "main", "Station West ergänzt"]],
+        "created for the pushed branch",
+      );
       await t.noConsoleErrors(app);
     },
   );
@@ -529,7 +656,9 @@ scenario("pull requests: an existing PR for the branch is refused with the host'
     async ({ app, mock }) => {
       await palette(app, "Create pull request", "pr.create");
       await app.waitFor(`${PR_CREATE} [data-pr-state="form"]`, 30_000);
-      await app.waitFor(async () => (await app.$(`${PR_CREATE} footer button[type="submit"]:not([disabled])`)) !== null, 15_000, { message: "submit enabled" });
+      await app.waitFor(async () => (await app.$(`${PR_CREATE} footer button[type="submit"]:not([disabled])`)) !== null, 15_000, {
+        message: "submit enabled",
+      });
       await app.click(`${PR_CREATE} footer button[type="submit"]`);
       const failure = await app.waitFor(`${PR_CREATE} [data-pr-error]`, 20_000, { message: "error in the form" });
       const message = await failure.text();
@@ -548,21 +677,61 @@ scenario("pull requests: comment in the conversation", "main", async (t) => {
     // The mock's thread list is fixed; once a thread was posted, list it as Azure would.
     proxy.route(({ method, path: route }) =>
       method === "GET" && /pullrequests\/2\/threads$/.test(route) && mock.state.comments.length
-        ? { json: { count: 1 + mock.state.comments.length, value: [{ id: 2, comments: [{ id: 1, author: { displayName: "mira (Name)", uniqueName: "mira@example.org" }, content: "Sieht gut aus.", publishedDate: "2026-09-02T09:00:00Z", commentType: "text" }] }, ...mock.state.comments] } }
+        ? {
+            json: {
+              count: 1 + mock.state.comments.length,
+              value: [
+                {
+                  id: 2,
+                  comments: [
+                    {
+                      id: 1,
+                      author: { displayName: "mira (Name)", uniqueName: "mira@example.org" },
+                      content: "Sieht gut aus.",
+                      publishedDate: "2026-09-02T09:00:00Z",
+                      commentType: "text",
+                    },
+                  ],
+                },
+                ...mock.state.comments,
+              ],
+            },
+          }
         : null,
     );
     await openPr(app, tabId, 2);
     const box = await app.waitFor(`${PR_VIEW} [data-comment-form] textarea`, 10_000, { message: "comment field" });
     await app.type(box, "Bitte noch die **Einheiten** prüfen.");
     await app.click({ text: "Comment", within: `${PR_VIEW} [data-comment-form]` });
-    await eventually(() => mock.state.comments.map((thread) => thread.comments[0].content), ["Bitte noch die **Einheiten** prüfen."], "thread created at the host", 20_000);
-    assertMatch(azureCalls(mock, "POST", /pullrequests\/2\/threads$/)[0]?.path ?? "", /pullrequests\/2\/threads$/, "posted as a thread of #2");
+    await eventually(
+      () => mock.state.comments.map((thread) => thread.comments[0].content),
+      ["Bitte noch die **Einheiten** prüfen."],
+      "thread created at the host",
+      20_000,
+    );
+    assertMatch(
+      azureCalls(mock, "POST", /pullrequests\/2\/threads$/)[0]?.path ?? "",
+      /pullrequests\/2\/threads$/,
+      "posted as a thread of #2",
+    );
     await waitToast(app, "success", /Comment sent/);
     // The view reloads the conversation from the host afterwards (the mock's thread list is fixed).
     const post = mock.requests.findIndex((entry) => entry.method === "POST" && /pullrequests\/2\/threads$/.test(entry.path));
-    await app.waitFor(async () => mock.requests.slice(post + 1).some((entry) => entry.method === "GET" && /pullrequests\/2$/.test(entry.path)), 10_000, { message: "PR reloaded after commenting" });
-    await app.waitFor(async () => /Einheiten/.test((await text(app, `${PR_VIEW} [data-pr-comments]`)) ?? ""), 15_000, { message: "new comment shown after the reload" });
-    assertEqual(await app.exec(() => [...document.querySelectorAll('[data-screen="pr-view"] [data-pr-comments] strong')].map((node) => node.textContent)), ["Einheiten"], "comment Markdown rendered");
+    await app.waitFor(
+      async () => mock.requests.slice(post + 1).some((entry) => entry.method === "GET" && /pullrequests\/2$/.test(entry.path)),
+      10_000,
+      { message: "PR reloaded after commenting" },
+    );
+    await app.waitFor(async () => /Einheiten/.test((await text(app, `${PR_VIEW} [data-pr-comments]`)) ?? ""), 15_000, {
+      message: "new comment shown after the reload",
+    });
+    assertEqual(
+      await app.exec(() =>
+        [...document.querySelectorAll('[data-screen="pr-view"] [data-pr-comments] strong')].map((node) => node.textContent),
+      ),
+      ["Einheiten"],
+      "comment Markdown rendered",
+    );
     assertEqual(await app.$(`${PR_VIEW} [data-comment-form] textarea`).then((field) => field.prop("value")), "", "field cleared");
     await t.shot("pr-comment-azure");
     await t.noConsoleErrors(app);
@@ -576,19 +745,33 @@ scenario("pull requests: merge with squash and delete the source branch", "main"
     await app.waitFor('[data-screen="pr-merge"]', 10_000, { message: "merge dialog" });
     assertMatch(await dialogText(app, /Merge pull request #6/), /feature\/thema-6.*main/, "dialog names source and target");
     await app.click('[data-screen="pr-merge"] button[role="combobox"]');
-    const methods = await app.waitFor(async () => {
-      const names = await app.exec(() => [...document.querySelectorAll('[role="option"]')].map((option) => option.innerText.trim()));
-      return names.length ? names : null;
-    }, 5000, { message: "merge methods" });
+    const methods = await app.waitFor(
+      async () => {
+        const names = await app.exec(() => [...document.querySelectorAll('[role="option"]')].map((option) => option.innerText.trim()));
+        return names.length ? names : null;
+      },
+      5000,
+      { message: "merge methods" },
+    );
     assertEqual(methods, ["Merge commit", "Squash", "Rebase"], "Azure offers merge commit, squash and rebase");
     await app.click({ text: "Squash", within: '[role="listbox"]' });
     const deleteBranch = await checkbox(app, '[data-screen="pr-merge"]', "Delete branch “feature/thema-6” on the host");
     if ((await deleteBranch.attr("aria-checked")) !== "true") await app.click(deleteBranch);
     await t.shot("pr-merge-dialog-azure");
-    await app.click({ text: "Merge", within: '[role="dialog"]:has([data-screen="pr-merge"]) footer' }).catch(async () => app.click({ text: "Merge", within: '[role="dialog"]:has([data-screen="pr-merge"])' }));
+    await app
+      .click({ text: "Merge", within: '[role="dialog"]:has([data-screen="pr-merge"]) footer' })
+      .catch(async () => app.click({ text: "Merge", within: '[role="dialog"]:has([data-screen="pr-merge"])' }));
     await eventually(() => [...mock.state.merged], [6], "completed at the host", 20_000);
     const sent = lastBody(mock, "PATCH", /pullrequests\/6$/);
-    assertEqual(sorted(sent), sorted({ status: "completed", lastMergeSourceCommit: { commitId: (6).toString(16).padStart(40, "0") }, completionOptions: { mergeStrategy: "squash", deleteSourceBranch: true } }), "PATCH with strategy, branch deletion and the last source commit");
+    assertEqual(
+      sorted(sent),
+      sorted({
+        status: "completed",
+        lastMergeSourceCommit: { commitId: (6).toString(16).padStart(40, "0") },
+        completionOptions: { mergeStrategy: "squash", deleteSourceBranch: true },
+      }),
+      "PATCH with strategy, branch deletion and the last source commit",
+    );
     await app.waitFor(async () => (await phase(app)) === "merged", 15_000, { message: "view shows merged" });
     await waitToast(app, "success", /Pull request #6 merged/);
     await t.noConsoleErrors(app);
@@ -636,7 +819,12 @@ scenario("pull requests: check out the branch of a pull request", "main", async 
         // Someone else pushed feature/login (PR #7); locally there is neither the branch nor the commit.
         repo.git("push", "-q", "origin", "main:refs/heads/feature/login");
         repo.git("update-ref", "-d", "refs/remotes/origin/feature/login");
-        remoteSha = repo.commitOnRemote({ branch: "feature/login", file: "login.md", content: "# Anmeldung\n", message: "Anmeldung vorbereitet" });
+        remoteSha = repo.commitOnRemote({
+          branch: "feature/login",
+          file: "login.md",
+          content: "# Anmeldung\n",
+          message: "Anmeldung vorbereitet",
+        });
       },
     },
     async ({ app, repo, tabId }) => {
@@ -645,10 +833,19 @@ scenario("pull requests: check out the branch of a pull request", "main", async 
       await app.click(await app.waitFor(() => prActionButton(app, "Check out branch"), 10_000));
       await eventually(() => git(repo.path, "rev-parse", "--abbrev-ref", "HEAD"), "feature/login", "branch checked out", 30_000);
       assertEqual(git(repo.path, "rev-parse", "HEAD"), remoteSha, "at the commit from the remote");
-      assertEqual(git(repo.path, "rev-parse", "--abbrev-ref", "feature/login@{upstream}"), "origin/feature/login", "tracks origin/feature/login");
+      assertEqual(
+        git(repo.path, "rev-parse", "--abbrev-ref", "feature/login@{upstream}"),
+        "origin/feature/login",
+        "tracks origin/feature/login",
+      );
       // The UI follows: status line on the new branch, the fetch job finished.
       await app.waitFor(
-        () => app.exec(() => !document.querySelector('[role="progressbar"]') && [...document.querySelectorAll('[role="status"][aria-live="polite"]')].some((node) => /feature\/login/.test(node.innerText))),
+        () =>
+          app.exec(
+            () =>
+              !document.querySelector('[role="progressbar"]') &&
+              [...document.querySelectorAll('[role="status"][aria-live="polite"]')].some((node) => /feature\/login/.test(node.innerText)),
+          ),
         20_000,
         { message: "status line shows feature/login" },
       );
@@ -668,17 +865,23 @@ scenario("pull requests: rate limit and rejected token keep the last state with 
     };
     mock.fail("rate_limit");
     await refresh();
-    await app.waitFor(async () => (await attr(app, `${PR_VIEW} [data-pr-stale]`, "data-pr-stale")) === "rate_limit", 20_000, { message: "rate limit notice" });
+    await app.waitFor(async () => (await attr(app, `${PR_VIEW} [data-pr-stale]`, "data-pr-stale")) === "rate_limit", 20_000, {
+      message: "rate limit notice",
+    });
     assertMatch(await text(app, `${PR_VIEW} [data-pr-head]`), /Thema 1 umsetzen/, "last state stays visible");
     await t.shot("pr-stale-rate-limit");
     mock.recover();
     mock.fail("unauthorized");
     await refresh();
-    await app.waitFor(async () => (await attr(app, `${PR_VIEW} [data-pr-stale]`, "data-pr-stale")) === "auth", 20_000, { message: "token rejected notice" });
+    await app.waitFor(async () => (await attr(app, `${PR_VIEW} [data-pr-stale]`, "data-pr-stale")) === "auth", 20_000, {
+      message: "token rejected notice",
+    });
     assert(await app.byText("Open integrations", { within: `${PR_VIEW} [data-pr-stale]` }), "offers to open the integrations");
     mock.recover();
     await refresh();
-    await app.waitFor(async () => (await count(app, `${PR_VIEW} [data-pr-stale]`)) === 0, 20_000, { message: "notice gone after recovery" });
+    await app.waitFor(async () => (await count(app, `${PR_VIEW} [data-pr-stale]`)) === 0, 20_000, {
+      message: "notice gone after recovery",
+    });
     await t.noConsoleErrors(app);
   });
 });
@@ -701,7 +904,8 @@ scenario("pull requests: a pull request from a fork cannot be checked out", "edg
 // Work items as issues
 // =============================================================================================
 
-const issueRows = (app) => app.exec(() => [...document.querySelectorAll('[data-screen="issues"] [data-issue-row]')].map((row) => Number(row.dataset.issueRow)));
+const issueRows = (app) =>
+  app.exec(() => [...document.querySelectorAll('[data-screen="issues"] [data-issue-row]')].map((row) => Number(row.dataset.issueRow)));
 const wiqlQueries = (mock) => azureCalls(mock, "POST", /_apis\/wit\/wiql$/).map((entry) => String(entry.body?.query ?? ""));
 
 async function openIssues(app) {
@@ -721,7 +925,10 @@ function serveCreatedWorkItems(proxy, mock) {
     const created = method === "GET" ? mock.state.workItems.find((item) => item.id === id) : null;
     if (!created) return null;
     if (comments) return { json: { totalCount: 0, count: 0, comments: [] } };
-    const patch = azureCalls(mock, "POST", /_apis\/wit\/workitems\/\$/).find((entry) => entry.body?.find?.((op) => op.path === "/fields/System.Title")?.value === created.title)?.body ?? [];
+    const patch =
+      azureCalls(mock, "POST", /_apis\/wit\/workitems\/\$/).find(
+        (entry) => entry.body?.find?.((op) => op.path === "/fields/System.Title")?.value === created.title,
+      )?.body ?? [];
     const description = patch.find((op) => op.path === "/fields/System.Description")?.value ?? "";
     return {
       json: {
@@ -746,9 +953,17 @@ scenario("work items: open ones listed as issues, details with description, tags
     await rowsAre(app, [11, 10, 9, 7, 6, 5, 3, 2, 1], "open work items, most recently changed first");
     const query = wiqlQueries(mock).at(-1);
     assertMatch(query, /\[System\.TeamProject\] = @project/, "WIQL limited to the project");
-    assertMatch(query, /\[System\.State\] NOT IN \('Closed', 'Done', 'Removed', 'Resolved', 'Completed'\)/, "WIQL excludes the closed states of every process");
+    assertMatch(
+      query,
+      /\[System\.State\] NOT IN \('Closed', 'Done', 'Removed', 'Resolved', 'Completed'\)/,
+      "WIQL excludes the closed states of every process",
+    );
     assertMatch(query, /ORDER BY \[System\.ChangedDate\] DESC$/, "newest change first");
-    assertMatch(azureCalls(mock, "GET", /_apis\/wit\/workitems$/).at(-1)?.query.ids ?? "", /^\d+(,\d+)*$/, "items fetched in one batch by id");
+    assertMatch(
+      azureCalls(mock, "GET", /_apis\/wit\/workitems$/).at(-1)?.query.ids ?? "",
+      /^\d+(,\d+)*$/,
+      "items fetched in one batch by id",
+    );
     assertMatch(await text(app, `${ISSUES} [data-issues-footer]`), /9 issues loaded – that is all/, "footer counts the loaded items");
 
     await app.click(`${ISSUES} [data-issue-row="1"]`);
@@ -756,10 +971,20 @@ scenario("work items: open ones listed as issues, details with description, tags
     const detailText = (await details.text()).replace(/\s+/g, " ");
     t.step(`details: ${detailText.slice(0, 240)}`);
     assertMatch(detailText, /Problem 1 #1/, "title and key");
-    assertMatch(await text(app, `${ISSUES} article[data-issue="1"] [data-issue-body]`), /Text zu Problem 1/, "HTML description shown as text");
-    assertEqual(await app.exec(() => document.querySelector('[data-screen="issues"] [data-issue-body] p') !== null), true, "description HTML rendered as a paragraph");
+    assertMatch(
+      await text(app, `${ISSUES} article[data-issue="1"] [data-issue-body]`),
+      /Text zu Problem 1/,
+      "HTML description shown as text",
+    );
+    assertEqual(
+      await app.exec(() => document.querySelector('[data-screen="issues"] [data-issue-body] p') !== null),
+      true,
+      "description HTML rendered as a paragraph",
+    );
     const labels = await app.exec(() => {
-      const rows = [...document.querySelectorAll('[data-screen="issues"] article[data-issue="1"] dt')].find((dt) => dt.textContent.trim() === "Labels");
+      const rows = [...document.querySelectorAll('[data-screen="issues"] article[data-issue="1"] dt')].find(
+        (dt) => dt.textContent.trim() === "Labels",
+      );
       return rows ? rows.nextElementSibling.innerText.split(/\s+/).filter(Boolean) : null;
     });
     assertEqual(labels, ["Issue", "frage", "ui"], "work item type first, then the tags");
@@ -794,7 +1019,11 @@ scenario("work items: state filter and search run as WIQL at the host, quotes ar
 
     // Closed + search: nothing matches → empty state that names the search.
     await app.click({ text: "Closed", within: `${ISSUES} [role="search"]` });
-    await app.waitFor(async () => (await issueRows(app)).length === 0 && /No issue matches “Lena's Station”/.test((await text(app, ISSUES)) ?? ""), 20_000, { message: "empty state names the search" });
+    await app.waitFor(
+      async () => (await issueRows(app)).length === 0 && /No issue matches “Lena's Station”/.test((await text(app, ISSUES)) ?? ""),
+      20_000,
+      { message: "empty state names the search" },
+    );
     await t.shot("issues-search-empty");
     await app.click({ text: "Reset filters", within: ISSUES });
     await rowsAre(app, [11, 10, 9, 7, 6, 5, 3, 2, 1], "filters reset");
@@ -832,16 +1061,28 @@ scenario("work items: create a work item with a multi-line description", "main",
     const call = azureCalls(mock, "POST", /_apis\/wit\/workitems\/\$Issue$/)[0];
     assert(call, "POST …/workitems/$Issue");
     assertMatch(String(call.headers["content-type"]), /application\/json-patch\+json/, "sent as JSON Patch");
-    assertEqual(call.body, [
-      { op: "add", path: "/fields/System.Title", value: title },
-      { op: "add", path: "/fields/System.Description", value: "Seit Montag fehlen die Werte.<br>Zeile &lt;b&gt;2&lt;/b&gt; &amp; mehr" },
-    ], "title and the description as escaped HTML with <br>");
+    assertEqual(
+      call.body,
+      [
+        { op: "add", path: "/fields/System.Title", value: title },
+        { op: "add", path: "/fields/System.Description", value: "Seit Montag fehlen die Werte.<br>Zeile &lt;b&gt;2&lt;/b&gt; &amp; mehr" },
+      ],
+      "title and the description as escaped HTML with <br>",
+    );
     // The new work item opens.
     await app.waitFor(`${ISSUES} article[data-issue="501"][data-state="filled"]`, 20_000, { message: "details of #501" });
     const body = await text(app, `${ISSUES} article[data-issue="501"] [data-issue-body]`);
     assertMatch(body, /Seit Montag fehlen die Werte\.\s*Zeile <b>2<\/b> & mehr/, "description shown as plain text, markup not interpreted");
-    assertEqual(await app.exec(() => document.querySelectorAll('[data-screen="issues"] article[data-issue="501"] [data-issue-body] b').length), 0, "no <b> element from the text");
-    assertEqual(await app.exec((tab) => window.__gc.store.getState().views[tab]?.center ?? null, tabId).then((center) => center?.number), 501, "view shows #501");
+    assertEqual(
+      await app.exec(() => document.querySelectorAll('[data-screen="issues"] article[data-issue="501"] [data-issue-body] b').length),
+      0,
+      "no <b> element from the text",
+    );
+    assertEqual(
+      await app.exec((tab) => window.__gc.store.getState().views[tab]?.center ?? null, tabId).then((center) => center?.number),
+      501,
+      "view shows #501",
+    );
     await t.shot("issues-created-azure");
     await t.noConsoleErrors(app);
   });
@@ -854,10 +1095,14 @@ scenario("work items: create dialog checks the title and Escape cancels without 
     await app.click(`${ISSUES} [data-action="issues-create"]`);
     await app.waitFor('[data-screen="issue-create"]', 10_000);
     await app.click({ text: "Create", within: '[role="dialog"]:has([data-screen="issue-create"])' });
-    await app.waitFor(async () => /The title must not be empty\./.test((await text(app, '[data-screen="issue-create"]')) ?? ""), 5000, { message: "empty title error" });
+    await app.waitFor(async () => /The title must not be empty\./.test((await text(app, '[data-screen="issue-create"]')) ?? ""), 5000, {
+      message: "empty title error",
+    });
     await fill(app, '[data-screen="issue-create"] input[name="title"]', "x".repeat(256));
     await app.click({ text: "Create", within: '[role="dialog"]:has([data-screen="issue-create"])' });
-    await app.waitFor(async () => /at most 255 characters/.test((await text(app, '[data-screen="issue-create"]')) ?? ""), 5000, { message: "too long error" });
+    await app.waitFor(async () => /at most 255 characters/.test((await text(app, '[data-screen="issue-create"]')) ?? ""), 5000, {
+      message: "too long error",
+    });
     await t.shot("issues-create-validation");
     await app.press("Escape");
     await app.waitFor(async () => !(await app.$('[data-screen="issue-create"]')), 5000, { message: "Escape closes the dialog" });
@@ -877,7 +1122,11 @@ scenario("work items: branch for a work item, named from number and title, check
     await app.click(`${ISSUES} [data-action="issue-branch"]`);
     const input = await app.waitFor('[role="dialog"] input', 10_000, { message: "branch name dialog" });
     assertEqual(await input.prop("value"), "2-problem-2", "name suggested from number and title");
-    assertMatch(await dialogText(app, /Branch for issue #2/), /starts at the current commit \(main\)/, "dialog says where the branch starts");
+    assertMatch(
+      await dialogText(app, /Branch for issue #2/),
+      /starts at the current commit \(main\)/,
+      "dialog says where the branch starts",
+    );
     await t.shot("issues-branch-dialog");
     await app.click({ text: "Create branch", within: '[role="dialog"]' });
     await eventually(() => git(repo.path, "rev-parse", "--abbrev-ref", "HEAD"), "2-problem-2", "branch created and checked out", 20_000);

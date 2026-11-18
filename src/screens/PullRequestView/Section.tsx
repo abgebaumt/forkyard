@@ -54,12 +54,25 @@ function store(key: string, value: string) {
 function prMenu(repoId: Id, tabId: Id, pr: PrSummary): MenuEntry[] {
   return [
     menuItem(t("pullRequest.view.section.open"), GitPullRequestArrow, () => openPr(tabId, pr.number), { shortcut: "Enter" }),
-    menuItem(t("pullRequest.view.openInBrowser"), ExternalLink, () => void openInBrowser(pr.webUrl, t("pullRequest.view.page")), { blocked: pr.webUrl ? null : t("pullRequest.view.section.noAddress") }),
+    menuItem(t("pullRequest.view.openInBrowser"), ExternalLink, () => void openInBrowser(pr.webUrl, t("pullRequest.view.page")), {
+      blocked: pr.webUrl ? null : t("pullRequest.view.section.noAddress"),
+    }),
     MENU_SEPARATOR,
-    menuItem(t("pullRequest.view.files.checkout"), GitBranch, () => void checkoutPr(repoId, pr), { hint: pr.sourceBranch.length > 28 ? undefined : pr.sourceBranch }),
+    menuItem(t("pullRequest.view.files.checkout"), GitBranch, () => void checkoutPr(repoId, pr), {
+      hint: pr.sourceBranch.length > 28 ? undefined : pr.sourceBranch,
+    }),
     MENU_SEPARATOR,
-    menuItem(t("pullRequest.view.section.copyNumber"), Copy, () => void copyText(`#${pr.number}`, t("pullRequest.view.section.numberWhat"))),
-    menuItem(t("pullRequest.view.section.copyAddress"), Copy, () => void copyText(pr.webUrl ?? "", t("pullRequest.view.section.addressWhat")), { blocked: pr.webUrl ? null : t("pullRequest.view.section.noAddress") }),
+    menuItem(
+      t("pullRequest.view.section.copyNumber"),
+      Copy,
+      () => void copyText(`#${pr.number}`, t("pullRequest.view.section.numberWhat")),
+    ),
+    menuItem(
+      t("pullRequest.view.section.copyAddress"),
+      Copy,
+      () => void copyText(pr.webUrl ?? "", t("pullRequest.view.section.addressWhat")),
+      { blocked: pr.webUrl ? null : t("pullRequest.view.section.noAddress") },
+    ),
   ];
 }
 
@@ -72,14 +85,24 @@ function PrRow({ pr, state, query, current, tabId }: { pr: PrSummary; state: Sid
   const check = pr.checks ? checkInfo[pr.checks] : null;
   const CheckIcon = check?.icon;
   const review = reviewLabel(pr.reviewState);
-  const describe = [t("pullRequest.view.section.describe", { number: pr.number, title: pr.title }), info.label, t("pullRequest.view.section.by", { author }), t("pullRequest.view.section.branches", { source: pr.sourceBranch, target: pr.targetBranch }), checksText(pr.checks), review].filter(Boolean).join(", ");
+  const describe = [
+    t("pullRequest.view.section.describe", { number: pr.number, title: pr.title }),
+    info.label,
+    t("pullRequest.view.section.by", { author }),
+    t("pullRequest.view.section.branches", { source: pr.sourceBranch, target: pr.targetBranch }),
+    checksText(pr.checks),
+    review,
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <TreeRow
       {...state.attrs}
       label={label}
       labelContent={
         <>
-          <span className="text-text-muted tabular-nums">#{pr.number}</span> <Marked text={pr.title || t("pullRequest.view.untitled")} query={query} />
+          <span className="text-text-muted tabular-nums">#{pr.number}</span>{" "}
+          <Marked text={pr.title || t("pullRequest.view.untitled")} query={query} />
         </>
       }
       tip={
@@ -129,7 +152,12 @@ function PrRow({ pr, state, query, current, tabId }: { pr: PrSummary; state: Sid
 /** "Mine / To review / All" switch with counters. Arrow keys switch, like a radio group. */
 function GroupSwitch({ value, counts, onChange }: { value: PrGroup; counts: Record<PrGroup, number>; onChange: (next: PrGroup) => void }) {
   return (
-    <div role="radiogroup" aria-label={t("pullRequest.view.section.groupsLabel")} data-pr-groups="" className="flex flex-wrap gap-1 px-2 pb-1">
+    <div
+      role="radiogroup"
+      aria-label={t("pullRequest.view.section.groupsLabel")}
+      data-pr-groups=""
+      className="flex flex-wrap gap-1 px-2 pb-1"
+    >
       {PR_GROUPS.map((group, index) => {
         const active = group === value;
         return (
@@ -143,11 +171,14 @@ function GroupSwitch({ value, counts, onChange }: { value: PrGroup; counts: Reco
             title={groupLabels[group].hint}
             className={cn(
               "inline-flex h-5 items-center gap-1 rounded-pill border px-2 text-xs whitespace-nowrap",
-              active ? "border-accent bg-accent-surface font-medium text-text" : "border-border text-text-muted hover:border-border-input hover:text-text",
+              active
+                ? "border-accent bg-accent-surface font-medium text-text"
+                : "border-border text-text-muted hover:border-border-input hover:text-text",
             )}
             onClick={() => onChange(group)}
             onKeyDown={(event) => {
-              const step = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+              const step =
+                event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
               if (!step) return;
               event.preventDefault();
               event.stopPropagation();
@@ -225,7 +256,12 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
     placeholder = (
       <SideEmpty
         action={
-          <Button size="sm" variant="ghost" icon={<Plug className="size-3.5" aria-hidden />} onClick={() => void openConnectDialog({ kind: repo.kind ?? undefined })}>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<Plug className="size-3.5" aria-hidden />}
+            onClick={() => void openConnectDialog({ kind: repo.kind ?? undefined })}
+          >
             {t("pullRequest.view.section.connect")}
           </Button>
         }
@@ -258,7 +294,11 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
   } else {
     notice = (
       <>
-        <GroupSwitch value={group} counts={{ mine: groups.mine.length, review: groups.review.length, all: groups.all.length }} onChange={changeGroup} />
+        <GroupSwitch
+          value={group}
+          counts={{ mine: groups.mine.length, review: groups.review.length, all: groups.all.length }}
+          onChange={changeGroup}
+        />
         {prs.isError ? (
           <p role="alert" data-pr-section="stale" className="px-2 pb-1 text-xs text-warning">
             {t("pullRequest.view.section.stale", { title: describeHostError(prs.error).title })}
@@ -282,11 +322,17 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
   }
 
   const sectionMenu: MenuEntry[] = [
-    menuItem(open ? t("pullRequest.view.section.collapse") : t("pullRequest.view.section.expand"), null, toggle, { blocked: filtering ? t("pullRequest.view.section.alwaysOpen") : null }),
+    menuItem(open ? t("pullRequest.view.section.collapse") : t("pullRequest.view.section.expand"), null, toggle, {
+      blocked: filtering ? t("pullRequest.view.section.alwaysOpen") : null,
+    }),
     MENU_SEPARATOR,
-    menuItem(t("pullRequest.view.section.createMenu"), GitPullRequestCreate, create, { blocked: connected ? null : t("pullRequest.view.section.noAccountShort") }),
+    menuItem(t("pullRequest.view.section.createMenu"), GitPullRequestCreate, create, {
+      blocked: connected ? null : t("pullRequest.view.section.noAccountShort"),
+    }),
     menuItem(t("pullRequest.view.refresh"), RefreshCw, refresh),
-    menuItem(t("pullRequest.view.section.openAtHost"), ExternalLink, () => void openInBrowser(repo.webUrl, t("pullRequest.view.page")), { blocked: repo.webUrl ? null : t("pullRequest.view.section.noAddress") }),
+    menuItem(t("pullRequest.view.section.openAtHost"), ExternalLink, () => void openInBrowser(repo.webUrl, t("pullRequest.view.page")), {
+      blocked: repo.webUrl ? null : t("pullRequest.view.section.noAddress"),
+    }),
     MENU_SEPARATOR,
     menuItem(t("pullRequest.view.section.integrationsMenu"), Settings2, openIntegrations),
   ];
@@ -297,14 +343,29 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
       id="pull-requests"
       title={t("pullRequest.view.section.title")}
       icon={<GitPullRequestArrow aria-hidden />}
-      count={!connected || prs.isPending || (prs.isError && !prs.data) ? undefined : filtering ? `${items.length}/${inGroup.length}` : `${all.length}${more}`}
+      count={
+        !connected || prs.isPending || (prs.isError && !prs.data)
+          ? undefined
+          : filtering
+            ? `${items.length}/${inGroup.length}`
+            : `${all.length}${more}`
+      }
       open={open}
       onToggle={toggle}
       listLabel={t("pullRequest.view.section.title")}
       items={placeholder ? [] : items}
       itemId={(pr) => String(pr.number)}
       itemText={(pr) => pr.title}
-      renderRow={(pr, rowState) => <PrRow key={pr.number} pr={pr} state={rowState} query={query} tabId={tabId} current={center.kind === "pr" && center.number === pr.number} />}
+      renderRow={(pr, rowState) => (
+        <PrRow
+          key={pr.number}
+          pr={pr}
+          state={rowState}
+          query={query}
+          tabId={tabId}
+          current={center.kind === "pr" && center.number === pr.number}
+        />
+      )}
       onActivate={(pr) => openPr(tabId, pr.number)}
       rowMenu={(pr) => prMenu(repoId, tabId, pr)}
       sectionMenu={sectionMenu}
@@ -322,8 +383,20 @@ export function PullRequestsSection({ repoId, tabId, query }: PullRequestsSectio
       actions={
         connected ? (
           <>
-            <IconButton size="sm" data-action="refresh" label={t("pullRequest.view.section.refresh")} icon={<RefreshCw className={cn("size-3.5", prs.isFetching && "animate-spin")} aria-hidden />} onClick={refresh} />
-            <IconButton size="sm" data-action="add" label={t("pullRequest.view.section.createLabel")} icon={<Plus className="size-3.5" aria-hidden />} onClick={create} />
+            <IconButton
+              size="sm"
+              data-action="refresh"
+              label={t("pullRequest.view.section.refresh")}
+              icon={<RefreshCw className={cn("size-3.5", prs.isFetching && "animate-spin")} aria-hidden />}
+              onClick={refresh}
+            />
+            <IconButton
+              size="sm"
+              data-action="add"
+              label={t("pullRequest.view.section.createLabel")}
+              icon={<Plus className="size-3.5" aria-hidden />}
+              onClick={create}
+            />
           </>
         ) : undefined
       }

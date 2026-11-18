@@ -27,10 +27,10 @@ export function pushCandidates(refs: RefsSnapshot, primary: string): PushCandida
 
 function candidateHint(ref: Ref): string {
   const state = refPublishState(ref);
-  if (state.kind === "published") return state.ahead > 0 ? t("pushMany.candidate.ahead", { count: state.ahead, upstream: state.upstream }) : state.upstream;
+  if (state.kind === "published")
+    return state.ahead > 0 ? t("pushMany.candidate.ahead", { count: state.ahead, upstream: state.upstream }) : state.upstream;
   // Not on the remote yet (no upstream, gone, or an upstream of another name): a new branch there.
   return state.unpublished ? t("pushMany.candidate.newCount", { count: state.unpublished }) : t("pushMany.candidate.new");
-
 }
 
 export function filterCandidates(list: PushCandidate[], query: string): PushCandidate[] {

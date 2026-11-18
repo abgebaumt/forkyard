@@ -34,7 +34,10 @@ const layout = (app) =>
     note("body", document.body);
     note("root", document.getElementById("root"));
     for (const [index, element] of [...document.querySelectorAll("[data-shell], [data-no-scroll]")].entries()) {
-      note(`${element.getAttribute("data-shell") ? `shell:${element.getAttribute("data-shell")}` : (element.getAttribute("data-area") ?? element.tagName.toLowerCase())}#${index}`, element);
+      note(
+        `${element.getAttribute("data-shell") ? `shell:${element.getAttribute("data-shell")}` : (element.getAttribute("data-area") ?? element.tagName.toLowerCase())}#${index}`,
+        element,
+      );
     }
     if (window.scrollX !== 0 || window.scrollY !== 0) offsets.window = [window.scrollY, window.scrollX];
     const status = document.querySelector(statusSelector);
@@ -47,7 +50,12 @@ const layout = (app) =>
       // Nothing in the frame sticks out below it (the original cause: status bar buttons 1 px too tall).
       shellOverflow: shell ? shell.scrollHeight - shell.clientHeight : null,
       innerHeight: window.innerHeight,
-      focus: active ? (active.getAttribute("data-side-row") ?? active.getAttribute("data-row-id") ?? active.getAttribute("aria-label") ?? active.tagName) : null,
+      focus: active
+        ? (active.getAttribute("data-side-row") ??
+          active.getAttribute("data-row-id") ??
+          active.getAttribute("aria-label") ??
+          active.tagName)
+        : null,
     };
   }, STATUS_BAR);
 
@@ -67,7 +75,9 @@ const frames = (app) => app.exec(() => new Promise((resolve) => requestAnimation
 function addWorktrees(repoPath, count) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "fy-e2e-wd-wt-"));
   for (let index = 1; index <= count; index++) {
-    execFileSync("git", ["-C", repoPath, "worktree", "add", "-q", "-b", `arbeit-${index}`, path.join(dir, `arbeit-${index}`)], { stdio: "pipe" });
+    execFileSync("git", ["-C", repoPath, "worktree", "add", "-q", "-b", `arbeit-${index}`, path.join(dir, `arbeit-${index}`)], {
+      stdio: "pipe",
+    });
   }
   return dir;
 }
@@ -104,7 +114,13 @@ scenario("keyboard focus through every left panel section incl. Worktrees", "mai
   try {
     const app = await start(t, repo);
     const worktreeRow = await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll('[data-extra-section="worktrees"] [data-side-row]')].find((row) => row.textContent.includes("arbeit-6")) ?? null),
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll('[data-extra-section="worktrees"] [data-side-row]')].find((row) =>
+              row.textContent.includes("arbeit-6"),
+            ) ?? null,
+        ),
       20_000,
       { message: "worktree rows in the left panel" },
     );
@@ -114,7 +130,9 @@ scenario("keyboard focus through every left panel section incl. Worktrees", "mai
     // Submodules), and back up again.
     await app.click('[data-left-scroll] [data-row-id^="refs/heads/"]');
     await assertPinned(app, "branch row clicked");
-    const rowCount = await app.exec(() => document.querySelectorAll("[data-left-scroll] [data-side-row], [data-left-scroll] [data-row-id]").length);
+    const rowCount = await app.exec(
+      () => document.querySelectorAll("[data-left-scroll] [data-side-row], [data-left-scroll] [data-row-id]").length,
+    );
     for (let index = 0; index < rowCount + 4; index++) {
       await app.press("ArrowDown");
       await assertPinned(app, `ArrowDown #${index + 1}`);
@@ -132,7 +150,9 @@ scenario("keyboard focus through every left panel section incl. Worktrees", "mai
       await app.press(key);
       await assertPinned(app, `worktree ${key}`);
     }
-    const header = await app.waitFor('[data-extra-section="worktrees"] [data-section-header] button', 5_000, { message: "Worktrees header button" });
+    const header = await app.waitFor('[data-extra-section="worktrees"] [data-section-header] button', 5_000, {
+      message: "Worktrees header button",
+    });
     await app.exec((element) => element.focus(), header);
     await assertPinned(app, "Worktrees header focused");
     await app.press("ArrowDown");
@@ -206,7 +226,10 @@ scenario("mouse wheel over the status bar and the title bar", "edge", async (t) 
     const app = await start(t, repo);
     const status = await app.$(STATUS_BAR);
     const tabStrip = await app.$('[data-shell="app"] > :first-child');
-    for (const [name, element] of [["status bar", status], ["title bar", tabStrip]]) {
+    for (const [name, element] of [
+      ["status bar", status],
+      ["title bar", tabStrip],
+    ]) {
       for (const deltaY of [600, -600, 600]) {
         await wheel(app, element, deltaY);
         await assertPinned(app, `wheel ${deltaY} over the ${name}`);
@@ -224,13 +247,23 @@ scenario("a text selection dragged to the bottom edge of the window", "edge", as
   try {
     const app = await start(t, repo);
     // Selectable text: the details of a commit (message, SHA) in the right panel.
-    const commits = await app.waitFor(async () => {
-      const found = await app.$$('[data-row-kind="commit"]');
-      return found.length >= 3 ? found : null;
-    }, 20_000, { message: "commit rows" });
+    const commits = await app.waitFor(
+      async () => {
+        const found = await app.$$('[data-row-kind="commit"]');
+        return found.length >= 3 ? found : null;
+      },
+      20_000,
+      { message: "commit rows" },
+    );
     await app.click(commits[2]);
     const text = await app.waitFor(
-      () => app.exec(() => [...document.querySelectorAll(".selectable")].find((el) => el.getBoundingClientRect().height > 0 && el.textContent.trim().length > 3) ?? null),
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll(".selectable")].find(
+              (el) => el.getBoundingClientRect().height > 0 && el.textContent.trim().length > 3,
+            ) ?? null,
+        ),
       15_000,
       { message: "selectable text" },
     );
@@ -394,19 +427,20 @@ scenario("the version at the right end of the status bar fits and keyboard focus
   try {
     const app = await start(t, repo);
     const version = await app.waitFor(
-      () => app.exec((statusSelector) => {
-        const bar = document.querySelector(statusSelector);
-        const button = bar?.querySelector('[data-status="version"]');
-        if (!bar || !button) return null;
-        const barBox = bar.getBoundingClientRect();
-        const box = button.getBoundingClientRect();
-        const buttons = [...bar.querySelectorAll("button")];
-        return {
-          text: button.textContent,
-          inside: box.top >= barBox.top && box.bottom <= barBox.bottom && box.right <= barBox.right,
-          last: buttons[buttons.length - 1] === button,
-        };
-      }, STATUS_BAR),
+      () =>
+        app.exec((statusSelector) => {
+          const bar = document.querySelector(statusSelector);
+          const button = bar?.querySelector('[data-status="version"]');
+          if (!bar || !button) return null;
+          const barBox = bar.getBoundingClientRect();
+          const box = button.getBoundingClientRect();
+          const buttons = [...bar.querySelectorAll("button")];
+          return {
+            text: button.textContent,
+            inside: box.top >= barBox.top && box.bottom <= barBox.bottom && box.right <= barBox.right,
+            last: buttons[buttons.length - 1] === button,
+          };
+        }, STATUS_BAR),
       10_000,
       { message: "version in the status bar" },
     );

@@ -27,7 +27,10 @@ export function openIssues(tabId: Id, number: number | null = null): void {
 /** Reloads the list and open detail views (the host does not report changes by itself). */
 export function refreshIssues(repoId: Id): Promise<void> {
   return queryClient.invalidateQueries({
-    predicate: (query) => query.queryKey[0] === "repo" && query.queryKey[1] === repoId && (query.queryKey[2] === "issues" || query.queryKey[2] === "issue" || query.queryKey[2] === "hostRepo"),
+    predicate: (query) =>
+      query.queryKey[0] === "repo" &&
+      query.queryKey[1] === repoId &&
+      (query.queryKey[2] === "issues" || query.queryKey[2] === "issue" || query.queryKey[2] === "hostRepo"),
   });
 }
 
@@ -49,7 +52,8 @@ export function issuesWebUrl(repo: HostRepo | null | undefined): string | null {
 
 export const openIssueInBrowser = (issue: Pick<IssueSummary, "webUrl">) => openInBrowser(issue.webUrl);
 
-export const copyIssueLink = (issue: Pick<IssueSummary, "webUrl" | "key">) => (issue.webUrl ? copyText(issue.webUrl, t("issues.linkTo", { key: issue.key })) : Promise.resolve(false));
+export const copyIssueLink = (issue: Pick<IssueSummary, "webUrl" | "key">) =>
+  issue.webUrl ? copyText(issue.webUrl, t("issues.linkTo", { key: issue.key })) : Promise.resolve(false);
 
 /**
  * "Create branch for this issue": the name is suggested from number and title and can be
@@ -87,7 +91,8 @@ interface FilterStore {
 
 export const useIssueFilters = create<FilterStore>((set) => ({
   filters: {},
-  patch: (repoId, change) => set((state) => ({ filters: { ...state.filters, [repoId]: { ...(state.filters[repoId] ?? DEFAULT_FILTER), ...change } } })),
+  patch: (repoId, change) =>
+    set((state) => ({ filters: { ...state.filters, [repoId]: { ...(state.filters[repoId] ?? DEFAULT_FILTER), ...change } } })),
 }));
 
 export const useIssueFilter = (repoId: Id): IssueViewFilter => useIssueFilters((state) => state.filters[repoId] ?? DEFAULT_FILTER);
@@ -132,7 +137,10 @@ export const useIssueSections = create<SectionStore>((set) => ({
     }),
 }));
 
-export const issueSectionState = (repoId: Id): IssueSectionState => ({ ...SECTION_DEFAULT, ...useIssueSections.getState().sections[repoId] });
+export const issueSectionState = (repoId: Id): IssueSectionState => ({
+  ...SECTION_DEFAULT,
+  ...useIssueSections.getState().sections[repoId],
+});
 export const useIssueSection = (repoId: Id): IssueSectionState => {
   const stored = useIssueSections((state) => state.sections[repoId]);
   return { ...SECTION_DEFAULT, ...stored };

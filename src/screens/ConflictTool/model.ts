@@ -270,14 +270,22 @@ function refine(region: Region, a: string[], b: string[]): Region[] {
   const common = (length: number, edge: boolean) => {
     if (length <= 0) return;
     const keep = edge || hasWordCharacter(aLines.slice(aPos, aPos + length));
-    pieces.push({ common: keep, a: [region.a[0] + aPos, region.a[0] + aPos + length], b: [region.b[0] + bPos, region.b[0] + bPos + length] });
+    pieces.push({
+      common: keep,
+      a: [region.a[0] + aPos, region.a[0] + aPos + length],
+      b: [region.b[0] + bPos, region.b[0] + bPos + length],
+    });
     aPos += length;
     bPos += length;
   };
   for (const edit of diffLines(aLines, bLines)) {
     // A common start always drops out, common parts in the middle only with letters or digits.
     common(edit.aStart - aPos, aPos === 0);
-    pieces.push({ common: false, a: [region.a[0] + aPos, region.a[0] + aPos + edit.aLength], b: [region.b[0] + bPos, region.b[0] + bPos + edit.bLength] });
+    pieces.push({
+      common: false,
+      a: [region.a[0] + aPos, region.a[0] + aPos + edit.aLength],
+      b: [region.b[0] + bPos, region.b[0] + bPos + edit.bLength],
+    });
     aPos += edit.aLength;
     bPos += edit.bLength;
   }
@@ -418,7 +426,11 @@ export interface Choice {
   theirs: boolean[];
 }
 
-export const emptyChoice = (chunk: Chunk): Choice => ({ order: [], ours: chunk.ours.map(() => false), theirs: chunk.theirs.map(() => false) });
+export const emptyChoice = (chunk: Chunk): Choice => ({
+  order: [],
+  ours: chunk.ours.map(() => false),
+  theirs: chunk.theirs.map(() => false),
+});
 
 /** Select or deselect a whole side. */
 export function toggleSide(chunk: Chunk, choice: Choice, side: Side, on: boolean): Choice {
@@ -548,9 +560,7 @@ export interface SideCell {
   text: string;
 }
 
-export type Row =
-  | { type: "head"; chunk: number }
-  | { type: "line"; chunk: number; ours: SideCell | null; theirs: SideCell | null };
+export type Row = { type: "head"; chunk: number } | { type: "line"; chunk: number; ours: SideCell | null; theirs: SideCell | null };
 
 export interface RowModel {
   rows: Row[];

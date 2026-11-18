@@ -86,7 +86,9 @@ export function GraphHeader({ columns, layout, gutter, onChange, onMenu, smart =
     for (const optional of columns.filter((column) => isOptional(column.id))) {
       const optionalId = optional.id as OptionalColumnId;
       entries.push({
-        label: layout.squeezed.includes(optionalId) ? t("graph.header.noRoom", { column: COLUMN_LABELS[optionalId] }) : COLUMN_LABELS[optionalId],
+        label: layout.squeezed.includes(optionalId)
+          ? t("graph.header.noRoom", { column: COLUMN_LABELS[optionalId] })
+          : COLUMN_LABELS[optionalId],
         checked: optional.visible,
         onSelect: () => onChange(setColumnVisible(latest.current, optionalId, !optional.visible), { persist: true }),
       });
@@ -95,8 +97,18 @@ export function GraphHeader({ columns, layout, gutter, onChange, onMenu, smart =
     if (isOptional(id)) {
       const at = visibleOptional.indexOf(id);
       entries.push(
-        { label: t("graph.header.moveLeft"), shortcut: "Mod+←", disabled: at <= 0, onSelect: () => onChange(moveColumn(latest.current, visibleOptional, id, -1), { persist: true }) },
-        { label: t("graph.header.moveRight"), shortcut: "Mod+→", disabled: at < 0 || at >= visibleOptional.length - 1, onSelect: () => onChange(moveColumn(latest.current, visibleOptional, id, 1), { persist: true }) },
+        {
+          label: t("graph.header.moveLeft"),
+          shortcut: "Mod+←",
+          disabled: at <= 0,
+          onSelect: () => onChange(moveColumn(latest.current, visibleOptional, id, -1), { persist: true }),
+        },
+        {
+          label: t("graph.header.moveRight"),
+          shortcut: "Mod+→",
+          disabled: at < 0 || at >= visibleOptional.length - 1,
+          onSelect: () => onChange(moveColumn(latest.current, visibleOptional, id, 1), { persist: true }),
+        },
       );
     }
     if (isResizable(id)) {
@@ -110,13 +122,23 @@ export function GraphHeader({ columns, layout, gutter, onChange, onMenu, smart =
     }
     entries.push(
       { type: "separator" },
-      { label: t("graph.header.resetAll"), disabled: sameColumns(columns, DEFAULT_COLUMNS), onSelect: () => onChange(DEFAULT_COLUMNS, { persist: true }) },
+      {
+        label: t("graph.header.resetAll"),
+        disabled: sameColumns(columns, DEFAULT_COLUMNS),
+        onSelect: () => onChange(DEFAULT_COLUMNS, { persist: true }),
+      },
     );
     return entries;
   };
 
   const openMenu = (id: GraphColumnId, x: number, y: number) =>
-    onMenu({ entries: menuFor(id), x, y, label: t("graph.header.menuLabel", { column: COLUMN_LABELS[id] }), restore: () => cell(id)?.focus() });
+    onMenu({
+      entries: menuFor(id),
+      x,
+      y,
+      label: t("graph.header.menuLabel", { column: COLUMN_LABELS[id] }),
+      restore: () => cell(id)?.focus(),
+    });
 
   const openMenuBelow = (id: GraphColumnId) => {
     const box = cell(id)?.getBoundingClientRect();
@@ -276,13 +298,18 @@ export function GraphHeader({ columns, layout, gutter, onChange, onMenu, smart =
                 <IconButton
                   size="sm"
                   data-smart-toggle={smart.on ? "on" : "off"}
-                  label={smart.blocked ? `${SMART_LABEL} – ${smart.blocked}` : smart.detail ? `${SMART_LABEL}: ${smart.detail}` : SMART_LABEL}
+                  label={
+                    smart.blocked ? `${SMART_LABEL} – ${smart.blocked}` : smart.detail ? `${SMART_LABEL}: ${smart.detail}` : SMART_LABEL
+                  }
                   active={smart.on}
                   aria-pressed={smart.on}
                   aria-disabled={smart.blocked && !smart.on ? true : undefined}
                   // The switch's tooltip replaces the column's hint here.
                   title=""
-                  className={cn("mr-1 ml-auto", smart.blocked && !smart.on && "text-text-disabled hover:bg-transparent hover:text-text-disabled")}
+                  className={cn(
+                    "mr-1 ml-auto",
+                    smart.blocked && !smart.on && "text-text-disabled hover:bg-transparent hover:text-text-disabled",
+                  )}
                   icon={<Waypoints className="size-icon" aria-hidden />}
                   onPointerDown={(event) => event.stopPropagation()}
                   onClick={() => {
@@ -310,7 +337,10 @@ export function GraphHeader({ columns, layout, gutter, onChange, onMenu, smart =
                     onChange(setColumnWidth(latest.current, id, null), { persist: true });
                   }}
                   // 8 px handle area over the column boundary; only the line is visible.
-                  className={cn("group/handle absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none", handleRight ? "-right-1" : "-left-1")}
+                  className={cn(
+                    "group/handle absolute inset-y-0 z-20 w-2 cursor-col-resize touch-none",
+                    handleRight ? "-right-1" : "-left-1",
+                  )}
                 >
                   <span
                     aria-hidden

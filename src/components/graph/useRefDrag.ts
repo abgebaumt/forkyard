@@ -22,7 +22,10 @@ export interface RefDragOptions {
    * Target under the pointer: `label` is the ref label there (if any), `rowIndex` the row.
    * Returning null = cannot drop here.
    */
-  resolveTarget: (source: DragSource, under: { label: { fullName: string; element: Element } | null; row: { index: number; element: Element } | null }) => DropTarget | null;
+  resolveTarget: (
+    source: DragSource,
+    under: { label: { fullName: string; element: Element } | null; row: { index: number; element: Element } | null },
+  ) => DropTarget | null;
   onDrop: (source: DragSource, target: DropTarget, point: { x: number; y: number }) => void;
 }
 

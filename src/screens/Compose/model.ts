@@ -134,7 +134,15 @@ export function fromProposal(units: ComposeUnit[], groups: ComposeGroup[]): Arra
       placed.add(id);
       ids.push(id);
     }
-    if (ids.length > 0) commits.push({ key: newKey(), title: group.title, body: group.body, reason: group.reason ?? "", origin: "ai", units: sorted(ids, order) });
+    if (ids.length > 0)
+      commits.push({
+        key: newKey(),
+        title: group.title,
+        body: group.body,
+        reason: group.reason ?? "",
+        origin: "ai",
+        units: sorted(ids, order),
+      });
   }
   return { skip: units.map((unit) => unit.id).filter((id) => !placed.has(id)), commits };
 }
@@ -144,7 +152,13 @@ export function refreshed(arrangement: Arrangement, units: ComposeUnit[]): Arran
   const order = orderOf(units);
   const byId = new Map(units.map((unit) => [unit.id, unit]));
   const commits = arrangement.commits
-    .map((commit) => ({ ...commit, units: sorted(commit.units.filter((id) => order.has(id) && !isProtected(byId.get(id))), order) }))
+    .map((commit) => ({
+      ...commit,
+      units: sorted(
+        commit.units.filter((id) => order.has(id) && !isProtected(byId.get(id))),
+        order,
+      ),
+    }))
     .filter((commit) => commit.units.length > 0);
   const placed = new Set(commits.flatMap((commit) => commit.units));
   return { skip: units.map((unit) => unit.id).filter((id) => !placed.has(id)), commits };
@@ -178,14 +192,18 @@ export function moveUnits(
   order: ReadonlyMap<string, number>,
   units: Units,
 ): { arrangement: Arrangement; moved: string[]; target: number } {
-  const moving = ids.filter((id) => !isProtected(units.get(id)) && groupOf(arrangement, id) !== null && groupOf(arrangement, id) !== target);
+  const moving = ids.filter(
+    (id) => !isProtected(units.get(id)) && groupOf(arrangement, id) !== null && groupOf(arrangement, id) !== target,
+  );
   const unchanged = { arrangement, moved: [] as string[], target: typeof target === "number" ? target : SKIP };
   if (moving.length === 0) return unchanged;
   if (typeof target === "number" && (target < SKIP || target >= arrangement.commits.length)) return unchanged;
   const gone = new Set(moving);
   const without = (list: string[]) => list.filter((id) => !gone.has(id));
   let skip = without(arrangement.skip);
-  let commits = arrangement.commits.map((commit) => (commit.units.some((id) => gone.has(id)) ? { ...commit, units: without(commit.units) } : commit));
+  let commits = arrangement.commits.map((commit) =>
+    commit.units.some((id) => gone.has(id)) ? { ...commit, units: without(commit.units) } : commit,
+  );
   let key: string | null = null;
   if (target === "new") {
     key = newKey();
@@ -194,7 +212,9 @@ export function moveUnits(
     skip = sorted([...skip, ...moving], order);
   } else {
     key = arrangement.commits[target]!.key;
-    commits = commits.map((commit, index) => (index === target ? { ...commit, units: sorted([...commit.units, ...moving], order) } : commit));
+    commits = commits.map((commit, index) =>
+      index === target ? { ...commit, units: sorted([...commit.units, ...moving], order) } : commit,
+    );
   }
   commits = commits.filter((commit) => commit.units.length > 0);
   const next = { skip, commits };
@@ -242,7 +262,12 @@ export function unsureUnits(arrangement: Arrangement, notes: ReadonlyMap<string,
 }
 
 /** U: the next unsure unit after `cursor`, wrapping around; `null` when none is left. */
-export function nextUnsure(arrangement: Arrangement, notes: ReadonlyMap<string, ComposeNote>, review: Review, cursor: string | null): string | null {
+export function nextUnsure(
+  arrangement: Arrangement,
+  notes: ReadonlyMap<string, ComposeNote>,
+  review: Review,
+  cursor: string | null,
+): string | null {
   const list = unsureUnits(arrangement, notes, review);
   if (list.length === 0) return null;
   const order = displayOrder(arrangement);
@@ -376,7 +401,9 @@ export function blockedReason(arrangement: Arrangement): Blocked | null {
 
 /** What goes to the core: commits with units, messages trimmed. */
 export function planOf(arrangement: Arrangement): ComposeGroup[] {
-  return arrangement.commits.filter((commit) => commit.units.length > 0).map((commit) => ({ title: commit.title.trim(), body: commit.body.trim(), units: [...commit.units] }));
+  return arrangement.commits
+    .filter((commit) => commit.units.length > 0)
+    .map((commit) => ({ title: commit.title.trim(), body: commit.body.trim(), units: [...commit.units] }));
 }
 
 /** The units the user placed, with the summary of their commit (`null` = "Don't commit"), in display order. */
@@ -393,7 +420,12 @@ export function keepOf(arrangement: Arrangement, pinned: ReadonlySet<string>): C
  * A new proposal with every unit the user placed where it was: into the new commit with the same
  * summary, otherwise into a commit of their own with that summary at the end, or "Don't commit".
  */
-export function reproposed(fresh: Arrangement, current: Arrangement, pinned: ReadonlySet<string>, order: ReadonlyMap<string, number>): Arrangement {
+export function reproposed(
+  fresh: Arrangement,
+  current: Arrangement,
+  pinned: ReadonlySet<string>,
+  order: ReadonlyMap<string, number>,
+): Arrangement {
   const kept = displayOrder(current).filter((id) => pinned.has(id));
   if (kept.length === 0) return fresh;
   const gone = new Set(kept);

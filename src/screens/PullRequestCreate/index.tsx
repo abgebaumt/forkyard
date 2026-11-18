@@ -11,11 +11,31 @@
  */
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { Trans } from "react-i18next";
-import { ArrowRight, Check, CircleAlert, CloudUpload, GitPullRequestArrow, GitPullRequestCreate, Loader2, Plug, RefreshCw, Unplug, X } from "lucide-react";
+import {
+  ArrowRight,
+  Check,
+  CircleAlert,
+  CloudUpload,
+  GitPullRequestArrow,
+  GitPullRequestCreate,
+  Loader2,
+  Plug,
+  RefreshCw,
+  Unplug,
+  X,
+} from "lucide-react";
 import type { Id, Ref } from "../../core";
 import { openIntegrations } from "../../app/actions/hosts";
 import { describeHostError, hostKindLabels, hostPrWord, type HostErrorText, type HostRepo } from "../../app/actions/hostTypes";
-import { commitsAhead, createPullRequest, openPr, prBusyKeys, pushBranchForPr, pushState, suggestTitle } from "../../app/actions/pullrequests";
+import {
+  commitsAhead,
+  createPullRequest,
+  openPr,
+  prBusyKeys,
+  pushBranchForPr,
+  pushState,
+  suggestTitle,
+} from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { confirm, hasOpenDialog } from "../../app/dialogs";
 import { hasOpenMenu } from "../../app/menus/host";
@@ -52,7 +72,14 @@ function Frame({ tabId, detail, children, onClose }: { tabId: Id; detail?: strin
           </span>
         ) : null}
         <span className="flex-1" />
-        <IconButton size="sm" label={t("pullRequest.create.close")} shortcut="Escape" data-back="" icon={<X className="size-icon" aria-hidden />} onClick={onClose ?? (() => closeCenter(tabId))} />
+        <IconButton
+          size="sm"
+          label={t("pullRequest.create.close")}
+          shortcut="Escape"
+          data-back=""
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={onClose ?? (() => closeCenter(tabId))}
+        />
       </header>
       {children}
     </section>
@@ -61,7 +88,12 @@ function Frame({ tabId, detail, children, onClose }: { tabId: Id; detail?: strin
 
 function Skeleton() {
   return (
-    <div role="status" aria-label={t("pullRequest.create.loading")} data-loading="" className="mx-auto flex w-full max-w-180 animate-pulse flex-col gap-4 p-6">
+    <div
+      role="status"
+      aria-label={t("pullRequest.create.loading")}
+      data-loading=""
+      className="mx-auto flex w-full max-w-180 animate-pulse flex-col gap-4 p-6"
+    >
       <div className="h-8 w-2/3 rounded-sm bg-surface-raised" />
       <div className="h-8 w-full rounded-sm bg-surface-raised" />
       <div className="h-40 w-full rounded-sm bg-surface-raised" />
@@ -71,7 +103,19 @@ function Skeleton() {
 }
 
 /** Full-area state instead of the form: not connected, no host detected, error. */
-function Blocked({ state, icon, title, children, action }: { state: string; icon: ReactNode; title: string; children: ReactNode; action?: ReactNode }) {
+function Blocked({
+  state,
+  icon,
+  title,
+  children,
+  action,
+}: {
+  state: string;
+  icon: ReactNode;
+  title: string;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
   return (
     <div data-pr-state={state} className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
       <EmptyState icon={icon} title={title} action={action}>
@@ -81,7 +125,17 @@ function Blocked({ state, icon, title, children, action }: { state: string; icon
   );
 }
 
-function StepRow({ state, title, children, action }: { state: "done" | "todo" | "running" | "problem"; title: string; children?: ReactNode; action?: ReactNode }) {
+function StepRow({
+  state,
+  title,
+  children,
+  action,
+}: {
+  state: "done" | "todo" | "running" | "problem";
+  title: string;
+  children?: ReactNode;
+  action?: ReactNode;
+}) {
   const icon =
     state === "done" ? (
       <Check className="size-icon text-success" aria-hidden />
@@ -118,7 +172,10 @@ function PushProgress({ jobId }: { jobId: string }) {
         aria-valuenow={percent ?? undefined}
         className="h-1 w-full overflow-hidden rounded-pill bg-surface-raised"
       >
-        <div className={cn("h-full rounded-pill bg-accent", percent === null && "w-1/3 animate-pulse")} style={percent === null ? undefined : { width: `${Math.max(2, Math.min(100, percent))}%` }} />
+        <div
+          className={cn("h-full rounded-pill bg-accent", percent === null && "w-1/3 animate-pulse")}
+          style={percent === null ? undefined : { width: `${Math.max(2, Math.min(100, percent))}%` }}
+        />
       </div>
       <p className="truncate font-mono text-code text-text-muted">{job?.line || job?.phase || t("pullRequest.create.connecting")}</p>
     </div>
@@ -182,12 +239,21 @@ export function PullRequestCreate({ repoId, tabId }: PullRequestCreateProps) {
         icon={<Plug className="size-6" aria-hidden />}
         title={t("pullRequest.create.notConnected", { host: hostKindLabels[repo.kind] })}
         action={
-          <Button size="sm" variant="primary" icon={<Plug className="size-3.5" aria-hidden />} onClick={() => void openConnectDialog({ kind: repo.kind ?? undefined })}>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Plug className="size-3.5" aria-hidden />}
+            onClick={() => void openConnectDialog({ kind: repo.kind ?? undefined })}
+          >
             {t("pullRequest.create.connect")}
           </Button>
         }
       >
-        {t("pullRequest.create.notConnectedText", { repo: `${repo.owner}/${repo.name}`, host: hostKindLabels[repo.kind], word: hostPrWord[repo.kind] })}
+        {t("pullRequest.create.notConnectedText", {
+          repo: `${repo.owner}/${repo.name}`,
+          host: hostKindLabels[repo.kind],
+          word: hostPrWord[repo.kind],
+        })}
       </Blocked>
     );
   } else {
@@ -239,27 +305,43 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
   const sourceRef: Ref | undefined = locals.find((ref) => ref.name === sourceName);
   // Fork: the pull request can also go to the original – if it is set up as a remote (only then
   // does the app know its branches and the core the target). With GitLab this only works at the host itself.
-  const upstream = useMemo(() => (repo.kind === "github" ? parentRemote(remotes.data ?? [], repo.forkParent, repo.remote) : null), [remotes.data, repo]);
+  const upstream = useMemo(
+    () => (repo.kind === "github" ? parentRemote(remotes.data ?? [], repo.forkParent, repo.remote) : null),
+    [remotes.data, repo],
+  );
   const toParent = intoParent && upstream !== null;
   const targetOptions = useMemo(
-    () => (toParent ? targetBranches(refs.data?.remotes ?? [], remotes.data ?? [], null, upstream) : targetBranches(refs.data?.remotes ?? [], remotes.data ?? [], repo.defaultBranch, repo.remote)),
+    () =>
+      toParent
+        ? targetBranches(refs.data?.remotes ?? [], remotes.data ?? [], null, upstream)
+        : targetBranches(refs.data?.remotes ?? [], remotes.data ?? [], repo.defaultBranch, repo.remote),
     [refs.data, remotes.data, toParent, upstream, repo],
   );
   // The default branch comes from the host. If it does not answer right now (limit, token), the last
   // known one applies; otherwise the usual name – never simply the first branch in the list.
   const knownDefault = useRef(repo.defaultBranch);
   if (repo.defaultBranch) knownDefault.current = repo.defaultBranch;
-  const usual = (names: string[]) => names.find((name) => name === knownDefault.current) ?? names.find((name) => name === "main") ?? names.find((name) => name === "master") ?? names[0] ?? null;
+  const usual = (names: string[]) =>
+    names.find((name) => name === knownDefault.current) ??
+    names.find((name) => name === "main") ??
+    names.find((name) => name === "master") ??
+    names[0] ??
+    null;
   const hostDefault = toParent ? null : knownDefault.current;
   const defaultTarget = toParent ? usual(targetOptions) : (knownDefault.current ?? usual(targetOptions));
   const targetName = target ?? defaultTarget;
   const pushed = pushState(sourceRef);
-  const existing = sourceName ? (openPrs.data?.pages.flatMap((page) => page.items).find((pr) => pr.sourceBranch === sourceName) ?? null) : null;
+  const existing = sourceName
+    ? (openPrs.data?.pages.flatMap((page) => page.items).find((pr) => pr.sourceBranch === sourceName) ?? null)
+    : null;
   const sameBranch = Boolean(sourceName && targetName && sourceName === targetName && !toParent);
 
   // Title suggestion: the only commit, otherwise the branch name – as long as nobody has typed.
   const targetMatch = useMemo(
-    () => (targetName ? targetRef(refs.data?.remotes ?? [], refs.data?.locals ?? [], toParent ? upstream : (repo.remote ?? "origin"), targetName) : null),
+    () =>
+      targetName
+        ? targetRef(refs.data?.remotes ?? [], refs.data?.locals ?? [], toParent ? upstream : (repo.remote ?? "origin"), targetName)
+        : null,
     [refs.data, targetName, toParent, upstream, repo.remote],
   );
   const targetSha = targetMatch?.sha ?? null;
@@ -464,9 +546,19 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
               <legend className="sr-only">{t("pullRequest.create.sourceAndTarget")}</legend>
               <div className="min-w-40 flex-1">
                 {loadingRefs ? (
-                  <div role="status" aria-label={t("pullRequest.create.loadingBranches")} className="h-control-md animate-pulse rounded-md bg-surface-raised" />
+                  <div
+                    role="status"
+                    aria-label={t("pullRequest.create.loadingBranches")}
+                    className="h-control-md animate-pulse rounded-md bg-surface-raised"
+                  />
                 ) : sourceOptions.length ? (
-                  <Select label={t("pullRequest.create.sourceLabel")} value={sourceName ?? ""} placeholder={t("pullRequest.create.chooseBranch")} options={sourceOptions} onValueChange={(next) => setSource(next)} />
+                  <Select
+                    label={t("pullRequest.create.sourceLabel")}
+                    value={sourceName ?? ""}
+                    placeholder={t("pullRequest.create.chooseBranch")}
+                    options={sourceOptions}
+                    onValueChange={(next) => setSource(next)}
+                  />
                 ) : (
                   <p className="text-base text-text-muted">{t("pullRequest.create.noLocals")}</p>
                 )}
@@ -474,13 +566,24 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
               <ArrowRight className="mb-2 size-icon shrink-0 text-text-muted" aria-hidden />
               <div className="min-w-40 flex-1">
                 {loadingRefs ? (
-                  <div role="status" aria-label={t("pullRequest.create.loadingBranches")} className="h-control-md animate-pulse rounded-md bg-surface-raised" />
+                  <div
+                    role="status"
+                    aria-label={t("pullRequest.create.loadingBranches")}
+                    className="h-control-md animate-pulse rounded-md bg-surface-raised"
+                  />
                 ) : (
                   <Select
-                    label={toParent && repo.forkParent ? t("pullRequest.create.targetIn", { repo: `${repo.forkParent.owner}/${repo.forkParent.name}` }) : t("pullRequest.create.target")}
+                    label={
+                      toParent && repo.forkParent
+                        ? t("pullRequest.create.targetIn", { repo: `${repo.forkParent.owner}/${repo.forkParent.name}` })
+                        : t("pullRequest.create.target")
+                    }
                     value={targetName ?? ""}
                     placeholder={t("pullRequest.create.chooseBranch")}
-                    options={targetOptions.map((name) => ({ value: name, label: name === hostDefault ? t("pullRequest.create.default", { name }) : name }))}
+                    options={targetOptions.map((name) => ({
+                      value: name,
+                      label: name === hostDefault ? t("pullRequest.create.default", { name }) : name,
+                    }))}
                     onValueChange={(next) => setTarget(next)}
                   />
                 )}
@@ -495,7 +598,10 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   value={toParent ? "parent" : "own"}
                   options={[
                     { value: "own", label: `${repo.owner}/${repo.name}` },
-                    { value: "parent", label: t("pullRequest.create.original", { repo: `${repo.forkParent.owner}/${repo.forkParent.name}` }) },
+                    {
+                      value: "parent",
+                      label: t("pullRequest.create.original", { repo: `${repo.forkParent.owner}/${repo.forkParent.name}` }),
+                    },
                   ]}
                   onValueChange={(next) => {
                     setIntoParent(next === "parent");
@@ -515,7 +621,11 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
             ) : null}
 
             {/* Pre-checks */}
-            <ul aria-label={t("pullRequest.create.steps")} data-pr-steps="" className="divide-y divide-border rounded-md border border-border bg-surface">
+            <ul
+              aria-label={t("pullRequest.create.steps")}
+              data-pr-steps=""
+              className="divide-y divide-border rounded-md border border-border bg-surface"
+            >
               {sameBranch ? (
                 <StepRow state="problem" title={t("pullRequest.create.same.title")}>
                   {t("pullRequest.create.same.text")}
@@ -526,7 +636,12 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   state="problem"
                   title={t("pullRequest.create.existing.title", { branch: sourceName, number: existing.number })}
                   action={
-                    <Button size="sm" variant="primary" icon={<GitPullRequestArrow className="size-3.5" aria-hidden />} onClick={() => openPr(tabId, existing.number)}>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      icon={<GitPullRequestArrow className="size-3.5" aria-hidden />}
+                      onClick={() => openPr(tabId, existing.number)}
+                    >
                       {t("pullRequest.create.existing.open", { number: existing.number })}
                     </Button>
                   }
@@ -552,7 +667,11 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                 </StepRow>
               ) : pushed.state === "pushed" ? (
                 <StepRow state="done" title={t("pullRequest.create.pushed.title")}>
-                  <Trans i18nKey="pullRequest.create.pushed.text" values={{ upstream: pushed.upstream, branch: sourceName }} components={{ code: <span className="font-mono text-code" /> }} />
+                  <Trans
+                    i18nKey="pullRequest.create.pushed.text"
+                    values={{ upstream: pushed.upstream, branch: sourceName }}
+                    components={{ code: <span className="font-mono text-code" /> }}
+                  />
                 </StepRow>
               ) : pushed.state === "unknown" ? (
                 <StepRow state="todo" title={t("pullRequest.create.pushUnknown")} />
@@ -561,7 +680,12 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   state="todo"
                   title={t("pullRequest.create.pushFirst")}
                   action={
-                    <Button size="sm" loading={pushing} icon={<CloudUpload className="size-3.5" aria-hidden />} onClick={() => void runPush()}>
+                    <Button
+                      size="sm"
+                      loading={pushing}
+                      icon={<CloudUpload className="size-3.5" aria-hidden />}
+                      onClick={() => void runPush()}
+                    >
                       {t("pullRequest.create.pushNow")}
                     </Button>
                   }
@@ -585,7 +709,11 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
               value={title}
               autoComplete="off"
               maxLength={TITLE_LIMIT}
-              hint={[...title].length >= TITLE_LIMIT - 40 ? `${t("pullRequest.create.titleLength", { count: [...title].length, max: TITLE_LIMIT })}${title.length >= TITLE_LIMIT ? t("pullRequest.create.titleCut") : ""}` : undefined}
+              hint={
+                [...title].length >= TITLE_LIMIT - 40
+                  ? `${t("pullRequest.create.titleLength", { count: [...title].length, max: TITLE_LIMIT })}${title.length >= TITLE_LIMIT ? t("pullRequest.create.titleCut") : ""}`
+                  : undefined
+              }
               error={titleError ?? undefined}
               onKeyDown={ai.onTitleKeyDown}
               onChange={(event) => {
@@ -635,14 +763,32 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   }}
                 />
               ) : (
-                <div id="s23-body" role="region" aria-label={t("pullRequest.create.previewLabel")} tabIndex={0} data-pr-preview="" className="max-h-96 min-h-40 overflow-auto rounded-md border border-border bg-surface-sunken px-3 py-2">
-                  <SafeMarkdown source={text} origin={t("pullRequest.create.previewOrigin")} empty={t("pullRequest.create.noDescription")} />
+                <div
+                  id="s23-body"
+                  role="region"
+                  aria-label={t("pullRequest.create.previewLabel")}
+                  tabIndex={0}
+                  data-pr-preview=""
+                  className="max-h-96 min-h-40 overflow-auto rounded-md border border-border bg-surface-sunken px-3 py-2"
+                >
+                  <SafeMarkdown
+                    source={text}
+                    origin={t("pullRequest.create.previewOrigin")}
+                    empty={t("pullRequest.create.noDescription")}
+                  />
                 </div>
               )}
               {ai.notices}
             </div>
 
-            {repo.capabilities.draftPrs ? <Checkbox label={t("pullRequest.create.draft")} hint={t("pullRequest.create.draftHint")} checked={draft} onCheckedChange={setDraft} /> : null}
+            {repo.capabilities.draftPrs ? (
+              <Checkbox
+                label={t("pullRequest.create.draft")}
+                hint={t("pullRequest.create.draftHint")}
+                checked={draft}
+                onCheckedChange={setDraft}
+              />
+            ) : null}
 
             {repo.capabilities.prReviewers || repo.capabilities.prLabels ? (
               <div className="grid grid-cols-1 gap-3 @xl:grid-cols-2">
@@ -658,17 +804,31 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
                   />
                 ) : null}
                 {repo.capabilities.prLabels ? (
-                  <TextField name="labels" label={t("pullRequest.create.labels")} value={labels} autoComplete="off" placeholder={t("pullRequest.create.labelsPlaceholder")} hint={t("pullRequest.create.labelsHint")} onChange={(event) => setLabels(event.target.value)} />
+                  <TextField
+                    name="labels"
+                    label={t("pullRequest.create.labels")}
+                    value={labels}
+                    autoComplete="off"
+                    placeholder={t("pullRequest.create.labelsPlaceholder")}
+                    hint={t("pullRequest.create.labelsHint")}
+                    onChange={(event) => setLabels(event.target.value)}
+                  />
                 ) : null}
               </div>
             ) : null}
 
             {failure ? (
-              <div role="alert" data-pr-error={failure.kind} className="flex items-start gap-2 rounded-md border border-border bg-danger-surface p-3">
+              <div
+                role="alert"
+                data-pr-error={failure.kind}
+                className="flex items-start gap-2 rounded-md border border-border bg-danger-surface p-3"
+              >
                 <CircleAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-text">{failure.kind === "other" ? t("pullRequest.create.failed") : failure.title}</p>
-                  <p className="selectable text-sm break-words whitespace-pre-line text-text-muted">{failure.hint ? `${failure.text} ${failure.hint}` : failure.text}</p>
+                  <p className="selectable text-sm break-words whitespace-pre-line text-text-muted">
+                    {failure.hint ? `${failure.text} ${failure.hint}` : failure.text}
+                  </p>
                 </div>
                 {failure.kind === "auth" || failure.kind === "not_connected" ? (
                   <Button size="sm" onClick={openIntegrations}>
@@ -682,11 +842,26 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
 
         <footer className="flex shrink-0 items-center gap-3 border-t border-border bg-surface px-6 py-2">
           <p data-pr-blocked={blockedReason ? "" : undefined} className="min-w-0 flex-1 text-sm text-text-muted">
-            {blockedReason ?? t("pullRequest.create.footer", { word, host: hostKindLabels[kind], user: repo.account?.user?.login ?? t("pullRequest.create.yourAccount") })}
+            {blockedReason ??
+              t("pullRequest.create.footer", {
+                word,
+                host: hostKindLabels[kind],
+                user: repo.account?.user?.login ?? t("pullRequest.create.yourAccount"),
+              })}
           </p>
           <Button onClick={close}>{t("pullRequest.create.cancel")}</Button>
-          <Button type="submit" variant="primary" disabled={Boolean(blockedReason)} loading={creating || Boolean(pushJob)} icon={<GitPullRequestCreate className="size-icon" aria-hidden />}>
-            {needsPush ? t("pullRequest.create.pushAndCreate") : repo.capabilities.draftPrs && draft ? t("pullRequest.create.createDraft") : t("pullRequest.create.title")}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={Boolean(blockedReason)}
+            loading={creating || Boolean(pushJob)}
+            icon={<GitPullRequestCreate className="size-icon" aria-hidden />}
+          >
+            {needsPush
+              ? t("pullRequest.create.pushAndCreate")
+              : repo.capabilities.draftPrs && draft
+                ? t("pullRequest.create.createDraft")
+                : t("pullRequest.create.title")}
           </Button>
         </footer>
       </form>

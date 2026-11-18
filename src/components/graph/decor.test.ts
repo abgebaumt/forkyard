@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { GraphEdge, GraphRow, RefLabelInfo, RefsSnapshot, Ref } from "../../core";
-import { branchLabelOf, computeHighlight, computePinnedChain, decorateRow, EdgeHighlighter, laneMapsAt, mapLane, nearestBranch } from "./decor";
+import {
+  branchLabelOf,
+  computeHighlight,
+  computePinnedChain,
+  decorateRow,
+  EdgeHighlighter,
+  laneMapsAt,
+  mapLane,
+  nearestBranch,
+} from "./decor";
 import { smartSelection } from "./smart";
 
 const edge = (top: number | null, bottom: number | null, color = 0): GraphEdge => ({ top, bottom, color, dashed: false });
@@ -101,7 +110,15 @@ describe("EdgeHighlighter", () => {
   it("stays correct over many rows and checkpoints", () => {
     // 1000 commits in lane 0, next to it a foreign line runs through in lane 1.
     const many: GraphRow[] = [row("x", 1, ["z"], [edge(null, 1)])];
-    for (let at = 0; at < 1000; at++) many.push(row(`c${at}`, 0, at < 999 ? [`c${at + 1}`] : [], at === 0 ? [edge(1, 1), edge(null, 0)] : at < 999 ? [edge(0, null), edge(1, 1), edge(null, 0)] : [edge(0, null), edge(1, 1)]));
+    for (let at = 0; at < 1000; at++)
+      many.push(
+        row(
+          `c${at}`,
+          0,
+          at < 999 ? [`c${at + 1}`] : [],
+          at === 0 ? [edge(1, 1), edge(null, 0)] : at < 999 ? [edge(0, null), edge(1, 1), edge(null, 0)] : [edge(0, null), edge(1, 1)],
+        ),
+      );
     const at = new Map(many.map((entry, position) => [entry.id, position]));
     const highlight = computeHighlight(many, at, "c0", false)!;
     expect(highlight.count).toBe(1000);
@@ -134,8 +151,12 @@ describe("Pinning", () => {
     expect(painted.map((entry) => entry.lane)).toEqual([0, 0, 0, 1, 0, 0]);
     // At every row boundary the lanes match: what arrives at the bottom continues at the top of the next row.
     for (let at = 0; at + 1 < painted.length; at++) {
-      const bottoms = painted[at]!.edges.map((item) => item.bottom).filter((lane) => lane !== null).sort();
-      const tops = painted[at + 1]!.edges.map((item) => item.top).filter((lane) => lane !== null).sort();
+      const bottoms = painted[at]!.edges.map((item) => item.bottom)
+        .filter((lane) => lane !== null)
+        .sort();
+      const tops = painted[at + 1]!.edges.map((item) => item.top)
+        .filter((lane) => lane !== null)
+        .sort();
       expect([...new Set(tops)], `Grenze unter Zeile ${at}`).toEqual([...new Set(bottoms)]);
     }
     // The first row (above the tip) stays as it is.
@@ -194,27 +215,46 @@ describe("smartSelection", () => {
     worktreePath: null,
     ...extra,
   });
-  const snapshot = (head: string, locals: Ref[], remotes: Ref[]): RefsSnapshot => ({ head: { kind: "branch", branch: head, sha: head }, locals, remotes, tags: [] });
+  const snapshot = (head: string, locals: Ref[], remotes: Ref[]): RefsSnapshot => ({
+    head: { kind: "branch", branch: head, sha: head },
+    locals,
+    remotes,
+    tags: [],
+  });
 
   it("takes the checked-out branch, its upstream and the main branch", () => {
-    const refs = snapshot("feature/x", [ref("feature/x", "local", { isHead: true, upstream: "origin/feature/x" }), ref("main", "local"), ref("andere", "local")], [ref("origin/feature/x", "remote"), ref("origin/main", "remote")]);
+    const refs = snapshot(
+      "feature/x",
+      [ref("feature/x", "local", { isHead: true, upstream: "origin/feature/x" }), ref("main", "local"), ref("andere", "local")],
+      [ref("origin/feature/x", "remote"), ref("origin/main", "remote")],
+    );
     expect(smartSelection(refs, "main")?.refs).toEqual(["refs/heads/feature/x", "refs/remotes/origin/feature/x", "refs/heads/main"]);
   });
 
   it("has no target if the main branch itself is checked out", () => {
-    const refs = snapshot("main", [ref("main", "local", { isHead: true, upstream: "origin/main" }), ref("feature", "local")], [ref("origin/main", "remote")]);
+    const refs = snapshot(
+      "main",
+      [ref("main", "local", { isHead: true, upstream: "origin/main" }), ref("feature", "local")],
+      [ref("origin/main", "remote")],
+    );
     const selection = smartSelection(refs, "main")!;
     expect(selection.refs).toEqual(["refs/heads/main", "refs/remotes/origin/main"]);
     expect(selection.target).toBeNull();
   });
 
   it("takes the remote branch as target if the main branch does not exist locally, and skips a vanished upstream", () => {
-    const refs = snapshot("fix", [ref("fix", "local", { isHead: true, upstream: "origin/fix", upstreamGone: true })], [ref("origin/master", "remote")]);
+    const refs = snapshot(
+      "fix",
+      [ref("fix", "local", { isHead: true, upstream: "origin/fix", upstreamGone: true })],
+      [ref("origin/master", "remote")],
+    );
     expect(smartSelection(refs, "main")?.refs).toEqual(["refs/heads/fix", "refs/remotes/origin/master"]);
   });
 
   it("returns nothing for a detached HEAD", () => {
-    expect(smartSelection({ head: { kind: "detached", sha: "a" }, locals: [ref("main", "local")], remotes: [], tags: [] }, "main")).toBeNull();
+    expect(
+      smartSelection({ head: { kind: "detached", sha: "a" }, locals: [ref("main", "local")], remotes: [], tags: [] }, "main"),
+    ).toBeNull();
     expect(smartSelection(undefined, "main")).toBeNull();
   });
 });

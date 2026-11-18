@@ -36,7 +36,14 @@ export function visibleOptions(preview: CleanupPreview): VisibleOptions {
 
 /** Normal; orphaned worktrees ticked when shown; LFS, undo backups and the reflog unticked. */
 export function initialForm(preview: CleanupPreview): CleanupForm {
-  return { mode: "normal", lfs: false, worktrees: visibleOptions(preview).worktrees, undo: false, undoDays: DEFAULT_UNDO_DAYS, reflog: false };
+  return {
+    mode: "normal",
+    lfs: false,
+    worktrees: visibleOptions(preview).worktrees,
+    undo: false,
+    undoDays: DEFAULT_UNDO_DAYS,
+    reflog: false,
+  };
 }
 
 export function clampDays(days: number): number {

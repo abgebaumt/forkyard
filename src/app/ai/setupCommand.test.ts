@@ -23,7 +23,18 @@ const status = (patch: Partial<AiStatus>): AiStatus => ({
 function ctxWith(value: AiStatus | undefined): CommandContext {
   const queryClient = new QueryClient();
   if (value) queryClient.setQueryData(qk.aiStatus, value);
-  return { platform: "linux", tabs: [], tab: null, tabId: null, repoId: null, view: null, status: undefined, store: {} as CommandContext["store"], queryClient, source: "palette" };
+  return {
+    platform: "linux",
+    tabs: [],
+    tab: null,
+    tabId: null,
+    repoId: null,
+    view: null,
+    status: undefined,
+    store: {} as CommandContext["store"],
+    queryClient,
+    source: "palette",
+  };
 }
 
 const setup = commands.find((command) => command.id === "ai.setup");

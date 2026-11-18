@@ -7,7 +7,16 @@
  */
 import { t } from "../../i18n";
 import { core, type Ref, type RefsSnapshot, type Remote, type Sha, type Stash } from "../../core";
-import { chooseUpstream, checkout, checkoutCommit, createBranch, deleteBranches, pickBranch, renameBranch, setUpstream } from "../actions/branches";
+import {
+  chooseUpstream,
+  checkout,
+  checkoutCommit,
+  createBranch,
+  deleteBranches,
+  pickBranch,
+  renameBranch,
+  setUpstream,
+} from "../actions/branches";
 import { copyText } from "../actions/clipboard";
 import { discardPaths } from "../actions/files";
 import { cherryPick, compareCommits, copyCommitMessage, resetBranch, revertCommit, rewordHead } from "../actions/history";
@@ -48,7 +57,11 @@ async function pickTag(ctx: CommandContext, title: string, confirmLabel: string)
   const picked = await pickFromList({
     title,
     label: t("commands.pick.tag"),
-    items: tags.map((tag) => ({ key: tag.fullName, label: tag.name, description: tag.isAnnotated ? t("commands.pick.annotated") : undefined })),
+    items: tags.map((tag) => ({
+      key: tag.fullName,
+      label: tag.name,
+      description: tag.isAnnotated ? t("commands.pick.annotated") : undefined,
+    })),
     empty: t("commands.pick.noTags"),
     confirmLabel,
     mono: true,
@@ -91,7 +104,8 @@ export const commands: AppCommand[] = [
       const selection = ctx.view!.selection!;
       const base = { repoId: ctx.repoId!, tabId: ctx.tabId! };
       const anchor = document.activeElement !== document.body ? document.activeElement : null;
-      if (selection.kind === "commits") openMenuAtElement(anchor, commitMenu({ ...base, shas: selection.shas }), t("commands.selection.menu.commits"));
+      if (selection.kind === "commits")
+        openMenuAtElement(anchor, commitMenu({ ...base, shas: selection.shas }), t("commands.selection.menu.commits"));
       else if (selection.kind === "wip") openMenuAtElement(anchor, wipMenu(base), t("commands.selection.menu.wip"));
       else {
         const stash = stashes(ctx).find((item) => item.index === selection.index);
@@ -168,7 +182,12 @@ export const commands: AppCommand[] = [
     keywords: kw("commands.branch.checkout.keywords"),
     when: (ctx) => idle(ctx) && hasCommits(ctx),
     run: async (ctx) => {
-      const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.checkout.pick"), confirmLabel: t("commands.branch.checkout.confirm"), remotes: true, excludeCurrent: true });
+      const ref = await pickBranch(ctx.repoId!, {
+        title: t("commands.branch.checkout.pick"),
+        confirmLabel: t("commands.branch.checkout.confirm"),
+        remotes: true,
+        excludeCurrent: true,
+      });
       if (ref) return checkout(ctx.repoId!, ref.name, { tabId: ctx.tabId });
     },
   },
@@ -185,7 +204,12 @@ export const commands: AppCommand[] = [
     group: "Branch",
     when: (ctx) => hasRepo(ctx) && (refs(ctx)?.locals.length ?? 2) > 1,
     run: async (ctx) => {
-      const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.delete.pick"), description: t("commands.pick.confirmFollows"), confirmLabel: t("commands.pick.next"), excludeCurrent: true });
+      const ref = await pickBranch(ctx.repoId!, {
+        title: t("commands.branch.delete.pick"),
+        description: t("commands.pick.confirmFollows"),
+        confirmLabel: t("commands.pick.next"),
+        excludeCurrent: true,
+      });
       if (ref) return deleteBranches(ctx.repoId!, [ref.name]);
     },
   },
@@ -196,7 +220,12 @@ export const commands: AppCommand[] = [
     group: "Branch",
     when: (ctx) => hasRemote(ctx) && (refs(ctx)?.remotes.length ?? 1) > 0,
     run: async (ctx) => {
-      const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.deleteRemote.pick"), description: t("commands.pick.confirmFollows"), confirmLabel: t("commands.pick.next"), remotesOnly: true });
+      const ref = await pickBranch(ctx.repoId!, {
+        title: t("commands.branch.deleteRemote.pick"),
+        description: t("commands.pick.confirmFollows"),
+        confirmLabel: t("commands.pick.next"),
+        remotesOnly: true,
+      });
       if (ref) return deleteRemoteBranch(ctx.repoId!, ref);
     },
   },
@@ -208,7 +237,12 @@ export const commands: AppCommand[] = [
     when: (ctx) => idle(ctx) && hasCommits(ctx),
     run: async (ctx) => {
       const target = branchName(ctx);
-      const ref = await pickBranch(ctx.repoId!, { title: target ? t("commands.branch.merge.pickInto", { target }) : t("commands.branch.merge.pick"), confirmLabel: t("commands.branch.merge.confirm"), remotes: true, excludeCurrent: true });
+      const ref = await pickBranch(ctx.repoId!, {
+        title: target ? t("commands.branch.merge.pickInto", { target }) : t("commands.branch.merge.pick"),
+        confirmLabel: t("commands.branch.merge.confirm"),
+        remotes: true,
+        excludeCurrent: true,
+      });
       if (ref) return mergeBranch(ctx.repoId!, ref.name, undefined, ctx.tabId);
     },
   },
@@ -219,7 +253,12 @@ export const commands: AppCommand[] = [
     keywords: kw("commands.branch.rebase.keywords"),
     when: onBranch,
     run: async (ctx) => {
-      const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.rebase.pick", { branch: branchName(ctx) }), confirmLabel: t("commands.branch.rebase.confirm"), remotes: true, excludeCurrent: true });
+      const ref = await pickBranch(ctx.repoId!, {
+        title: t("commands.branch.rebase.pick", { branch: branchName(ctx) }),
+        confirmLabel: t("commands.branch.rebase.confirm"),
+        remotes: true,
+        excludeCurrent: true,
+      });
       if (ref) return rebaseOnto(ctx.repoId!, ref.name, null, ctx.tabId);
     },
   },
@@ -230,7 +269,12 @@ export const commands: AppCommand[] = [
     keywords: kw("commands.branch.rebaseInteractive.keywords"),
     when: onBranch,
     run: async (ctx) => {
-      const ref = await pickBranch(ctx.repoId!, { title: t("commands.branch.rebaseInteractive.pick", { branch: branchName(ctx) }), confirmLabel: t("commands.pick.next"), remotes: true, excludeCurrent: true });
+      const ref = await pickBranch(ctx.repoId!, {
+        title: t("commands.branch.rebaseInteractive.pick", { branch: branchName(ctx) }),
+        confirmLabel: t("commands.pick.next"),
+        remotes: true,
+        excludeCurrent: true,
+      });
       if (ref) interactiveRebase(ctx.tabId!, ref.name);
     },
   },
@@ -333,7 +377,10 @@ export const commands: AppCommand[] = [
     keywords: kw("commands.commit.cherryPick.keywords"),
     when: (ctx) => idle(ctx) && selected(ctx).length > 0,
     // Several commits go to the rebase tool first: check the order, deselect individual ones.
-    run: (ctx) => (selected(ctx).length > 1 ? useAppStore.getState().openRebase(ctx.tabId!, "HEAD", "cherry_pick", selected(ctx)) : cherryPick(ctx.repoId!, selected(ctx), ctx.tabId)),
+    run: (ctx) =>
+      selected(ctx).length > 1
+        ? useAppStore.getState().openRebase(ctx.tabId!, "HEAD", "cherry_pick", selected(ctx))
+        : cherryPick(ctx.repoId!, selected(ctx), ctx.tabId),
   },
   {
     id: "commit.revert",
@@ -387,7 +434,8 @@ export const commands: AppCommand[] = [
     title: t("commands.commit.copySha.title"),
     group: "Commit",
     when: (ctx) => hasRepo(ctx) && selected(ctx).length > 0,
-    run: (ctx) => copyText(selected(ctx).join("\n"), selected(ctx).length === 1 ? "SHA" : t("menus.commit.shas", { n: selected(ctx).length })),
+    run: (ctx) =>
+      copyText(selected(ctx).join("\n"), selected(ctx).length === 1 ? "SHA" : t("menus.commit.shas", { n: selected(ctx).length })),
   },
   {
     id: "commit.copyMessage",

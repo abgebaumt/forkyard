@@ -10,7 +10,16 @@
  * The section lives in the left panel but takes care of its keys and menus itself –
  * the panel only needs to know that everything under `[data-extra-section]` is not its own.
  */
-import { useEffect, useLayoutEffect, useRef, useState, type ComponentType, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 import { hasOpenDialog } from "../app/dialogs";
 import { describeError } from "../app/errors";
@@ -26,7 +35,12 @@ type Icon = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
  * A menu entry. `blocked` disables it and shows the reason. The action only runs once the menu is
  * closed – otherwise a prompt that opens immediately would not get focus.
  */
-export function menuItem(label: string, IconComponent: Icon | null, onSelect: () => void, extra: Partial<MenuAction> & { blocked?: string | null } = {}): MenuAction {
+export function menuItem(
+  label: string,
+  IconComponent: Icon | null,
+  onSelect: () => void,
+  extra: Partial<MenuAction> & { blocked?: string | null } = {},
+): MenuAction {
   const { blocked, ...rest } = extra;
   return {
     label,
@@ -219,7 +233,13 @@ export function SideSection<T>({
   const openContextMenuFor = (element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
     element.dispatchEvent(
-      new window.MouseEvent("contextmenu", { bubbles: true, cancelable: true, button: 2, clientX: rect.left + Math.min(rect.width / 2, 48), clientY: rect.bottom - 2 }),
+      new window.MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        button: 2,
+        clientX: rect.left + Math.min(rect.width / 2, 48),
+        clientY: rect.bottom - 2,
+      }),
     );
   };
 
@@ -364,13 +384,26 @@ export function SideSection<T>({
     >
       <ContextMenu entries={menuEntries}>
         <div onContextMenuCapture={onContextMenuCapture} onClick={onClick} onDoubleClick={onDoubleClick} onKeyDown={onKeyDown}>
-          <PanelSection title={title} icon={icon} count={count} open={open} onOpenChange={onToggle} stickyHeader actions={actions} pinnedActions={pinnedActions}>
+          <PanelSection
+            title={title}
+            icon={icon}
+            count={count}
+            open={open}
+            onOpenChange={onToggle}
+            stickyHeader
+            actions={actions}
+            pinnedActions={pinnedActions}
+          >
             {notice}
             {placeholder ?? (
               <div role="tree" aria-label={listLabel}>
                 {items.map((item) => {
                   const rowId = itemId(item);
-                  return renderRow(item, { selected: selectedId === rowId, focusable: tabStop && ids[0] === rowId, attrs: { "data-side-row": rowId } });
+                  return renderRow(item, {
+                    selected: selectedId === rowId,
+                    focusable: tabStop && ids[0] === rowId,
+                    attrs: { "data-side-row": rowId },
+                  });
                 })}
               </div>
             )}

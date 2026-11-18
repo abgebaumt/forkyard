@@ -13,7 +13,8 @@ const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 /** The checked-out branch – null for a detached HEAD or while the branches are not loaded. */
 const headBranch = (ctx: CommandContext) => (ctx.repoId ? (cachedRefs(ctx.repoId)?.locals.find((ref) => ref.isHead) ?? null) : null);
 
-const needsBranch = (ctx: CommandContext) => (!ctx.repoId ? t("commands.reason.repoTabOnly") : headBranch(ctx) ? null : t("commands.reason.noBranch"));
+const needsBranch = (ctx: CommandContext) =>
+  !ctx.repoId ? t("commands.reason.repoTabOnly") : headBranch(ctx) ? null : t("commands.reason.noBranch");
 
 /** The highlight takes effect in the graph: if a diff or a file is currently in the centre, the graph comes back. */
 function showGraph(ctx: CommandContext) {

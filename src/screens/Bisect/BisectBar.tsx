@@ -15,7 +15,11 @@ function barText(bar: BisectBarState): string {
     case "running":
       return t("bisect.bar.step", { step: bar.step, total: bar.total, sha: bar.current ? shortSha(bar.current) : "–" });
     case "waiting":
-      return bar.needs === "good" ? t("bisect.bar.waitingGood") : bar.needs === "bad" ? t("bisect.bar.waitingBad") : t("bisect.bar.waitingBoth");
+      return bar.needs === "good"
+        ? t("bisect.bar.waitingGood")
+        : bar.needs === "bad"
+          ? t("bisect.bar.waitingBad")
+          : t("bisect.bar.waitingBoth");
     case "found":
       return t("bisect.bar.found", { sha: shortSha(bar.sha) });
     case "only_skipped":
@@ -41,20 +45,36 @@ export function BisectBar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     store.setRightPanel(tabId, "details");
   };
   return (
-    <div role="status" data-graph-bisect={bar.kind} className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-2 text-sm">
+    <div
+      role="status"
+      data-graph-bisect={bar.kind}
+      className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-2 text-sm"
+    >
       <p className="min-w-0 flex-1 truncate">
         <span className="font-medium">{t("bisect.bar.title")}</span>
         <span className="text-text-muted"> · {barText(bar)}</span>
       </p>
       {marking ? (
         <>
-          <Button size="sm" variant="ghost" disabled={busy} data-bisect-verdict="good" onClick={() => void markBisect(repoId, "good", tabId)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            data-bisect-verdict="good"
+            onClick={() => void markBisect(repoId, "good", tabId)}
+          >
             {t("bisect.bar.good")}
           </Button>
           <Button size="sm" variant="ghost" disabled={busy} data-bisect-verdict="bad" onClick={() => void markBisect(repoId, "bad", tabId)}>
             {t("bisect.bar.bad")}
           </Button>
-          <Button size="sm" variant="ghost" disabled={busy} data-bisect-verdict="skip" onClick={() => void markBisect(repoId, "skip", tabId)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            data-bisect-verdict="skip"
+            onClick={() => void markBisect(repoId, "skip", tabId)}
+          >
             {t("bisect.bar.skip")}
           </Button>
         </>
@@ -65,7 +85,13 @@ export function BisectBar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         </Button>
       ) : null}
       {bar.kind === "running" && access !== "hidden" ? (
-        <Button size="sm" variant="ghost" disabled={busy || autopilotBusy} data-bisect-autopilot-open onClick={() => void startAutopilot(repoId, [], tabId)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={busy || autopilotBusy}
+          data-bisect-autopilot-open
+          onClick={() => void startAutopilot(repoId, [], tabId)}
+        >
           {t("bisect.autopilot.open")}
         </Button>
       ) : null}

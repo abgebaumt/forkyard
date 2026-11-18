@@ -45,7 +45,21 @@ function ctx(repoId: string | null): CommandContext {
   };
 }
 
-const run = (phase: string) => ({ jobId: "j1", phase, worktreePath: "/tmp/repo.agents/bisect-1", bad: "1".repeat(40), good: ["2".repeat(40)], current: null, remainingSteps: null, steps: [], result: null, candidates: [], stepTimeoutSecs: 600, message: null, startedAt: "2026-10-18T09:00:00Z" });
+const run = (phase: string) => ({
+  jobId: "j1",
+  phase,
+  worktreePath: "/tmp/repo.agents/bisect-1",
+  bad: "1".repeat(40),
+  good: ["2".repeat(40)],
+  current: null,
+  remainingSteps: null,
+  steps: [],
+  result: null,
+  candidates: [],
+  stepTimeoutSecs: 600,
+  message: null,
+  startedAt: "2026-10-18T09:00:00Z",
+});
 
 const autopilot = () => commands.find((command) => command.id === "bisect.autopilot");
 

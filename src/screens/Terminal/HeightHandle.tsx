@@ -79,7 +79,10 @@ export function HeightHandle({ value, min, max, defaultValue, onChange, onCollap
       // Grip area above the top edge; the line itself is the region's border.
       className="group absolute inset-x-0 -top-1 z-10 h-2 cursor-row-resize touch-none outline-none"
     >
-      <span aria-hidden className="absolute inset-x-0 bottom-1/2 h-0.5 bg-transparent transition-colors group-hover:bg-accent group-focus-visible:bg-accent group-active:bg-accent" />
+      <span
+        aria-hidden
+        className="absolute inset-x-0 bottom-1/2 h-0.5 bg-transparent transition-colors group-hover:bg-accent group-focus-visible:bg-accent group-active:bg-accent"
+      />
     </div>
   );
 }

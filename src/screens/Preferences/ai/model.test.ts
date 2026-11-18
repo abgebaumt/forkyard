@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { acceptsKey, cliPathField, FEATURES, featureToggle, isCli, isLocal, needsKey, parsePatterns, parsePricePair, parseUsd, patternsText, pricePairText, PROVIDERS, usesBaseUrl, withCliPath, withOwnPrice } from "./model";
+import {
+  acceptsKey,
+  cliPathField,
+  FEATURES,
+  featureToggle,
+  isCli,
+  isLocal,
+  needsKey,
+  parsePatterns,
+  parsePricePair,
+  parseUsd,
+  patternsText,
+  pricePairText,
+  PROVIDERS,
+  usesBaseUrl,
+  withCliPath,
+  withOwnPrice,
+} from "./model";
 
 describe("AI settings model", () => {
   it("knows which providers need a key, an address or run locally", () => {
@@ -53,15 +70,23 @@ describe("AI settings model", () => {
     const paths = withCliPath(none, "codex", "  /opt/Programme mit Leerzeichen/codex  ");
     expect(paths).toEqual({ claudeCode: null, codex: "/opt/Programme mit Leerzeichen/codex", opencode: null });
     expect(withCliPath(paths, "codex", "   ")).toEqual(none);
-    expect(withCliPath(none, "opencode", String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`).opencode).toBe(String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`);
+    expect(withCliPath(none, "opencode", String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`).opencode).toBe(
+      String.raw`C:\Users\Lena\AppData\Roaming\npm\opencode.cmd`,
+    );
   });
 });
 
 describe("stacked pull requests", () => {
   it("lists the function last, with its texts in both languages", async () => {
     expect(FEATURES[FEATURES.length - 1]).toBe("stack_split");
-    const en = (await import("../../../i18n/locales/en/ai.json")).default as { features: Record<string, string>; featureHints: Record<string, string> };
-    const de = (await import("../../../i18n/locales/de/ai.json")).default as { features: Record<string, string>; featureHints: Record<string, string> };
+    const en = (await import("../../../i18n/locales/en/ai.json")).default as {
+      features: Record<string, string>;
+      featureHints: Record<string, string>;
+    };
+    const de = (await import("../../../i18n/locales/de/ai.json")).default as {
+      features: Record<string, string>;
+      featureHints: Record<string, string>;
+    };
     expect(en.features.stack_split).toBe("Split into stacked pull requests");
     expect(de.features.stack_split).toBe("In gestapelte PRs zerlegen");
     expect(en.featureHints.stack_split).toBeTruthy();

@@ -4,7 +4,8 @@ import { getCommands } from "../../app/registry";
 import { useAppStore } from "../../app/store";
 
 const command = () => getCommands().find((entry) => entry.id === "repo.cleanup");
-const context = (repoId: string | null) => ({ repoId, tabId: repoId ? "tab-1" : null, store: useAppStore.getState(), source: "palette" }) as unknown as CommandContext;
+const context = (repoId: string | null) =>
+  ({ repoId, tabId: repoId ? "tab-1" : null, store: useAppStore.getState(), source: "palette" }) as unknown as CommandContext;
 
 afterEach(() => useAppStore.getState().closeOverlay());
 

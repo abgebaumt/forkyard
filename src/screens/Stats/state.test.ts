@@ -7,7 +7,8 @@ const NOW = Date.UTC(2026, 9, 15, 10, 0);
 const TODAY = Math.floor(NOW / 86_400_000);
 const TODAY_ISO = new Date(NOW).toISOString();
 const YESTERDAY_ISO = new Date(Date.UTC(2026, 9, 14, 23, 59)).toISOString();
-const stats = (commits: number, tip: string | null = "t1", referenceTime: string | null = TODAY_ISO) => ({ commits, tip, referenceTime }) as RepoStats;
+const stats = (commits: number, tip: string | null = "t1", referenceTime: string | null = TODAY_ISO) =>
+  ({ commits, tip, referenceTime }) as RepoStats;
 const error = (code: "cancelled" | "not_found") => new CoreError({ code, message: code, gitOutput: null });
 const idle: StatsState = { kind: "idle" };
 
@@ -32,12 +33,17 @@ describe("statistics view state", () => {
     expect(failed.kind === "failed" && failed.error.code).toBe("not_found");
     expect(shown(failed)?.commits).toBe(3);
     expect(statsReducer(running, { type: "failed", jobId: "a", error: error("cancelled") })).toEqual({ kind: "done", stats: stats(3) });
-    expect(statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") })).toEqual({ kind: "cancelled" });
+    expect(
+      statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") }),
+    ).toEqual({ kind: "cancelled" });
     expect(statsReducer(running, { type: "failed", jobId: "old", error: error("not_found") })).toBe(running);
   });
 
   it("a cancelled first run says so, shows nothing and can be started again", () => {
-    const cancelled = statsReducer({ kind: "running", jobId: "a", previous: null }, { type: "failed", jobId: "a", error: error("cancelled") });
+    const cancelled = statsReducer(
+      { kind: "running", jobId: "a", previous: null },
+      { type: "failed", jobId: "a", error: error("cancelled") },
+    );
     expect(cancelled).toEqual({ kind: "cancelled" });
     expect(shown(cancelled)).toBeNull();
     expect(needsRefresh(cancelled, "t2", null, TODAY), "no automatic restart").toBe(false);
@@ -48,7 +54,10 @@ describe("statistics view state", () => {
     const running = statsReducer(idle, { type: "start", jobId: "a", keep: false, fallback: stats(7) });
     expect(running).toEqual({ kind: "running", jobId: "a", previous: stats(7) });
     const done: StatsState = { kind: "done", stats: stats(3) };
-    expect(shown(statsReducer(done, { type: "start", jobId: "b", keep: true, fallback: stats(7) }))?.commits, "what is on screen wins").toBe(3);
+    expect(
+      shown(statsReducer(done, { type: "start", jobId: "b", keep: true, fallback: stats(7) }))?.commits,
+      "what is on screen wins",
+    ).toBe(3);
   });
 
   it("recomputes once when the branch tip moved past the shown result", () => {

@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { RebaseAction, RebasePlanRow } from "../../core";
 import { t } from "../../i18n";
-import { ACTIONS, actionForKey, actionInfo, chainOldestFirst, checkPlan, combinedMessage, moveItem, payloadRows, planChanged, planSummary, resultCount, rowRoles, splitMessage } from "./model";
+import {
+  ACTIONS,
+  actionForKey,
+  actionInfo,
+  chainOldestFirst,
+  checkPlan,
+  combinedMessage,
+  moveItem,
+  payloadRows,
+  planChanged,
+  planSummary,
+  resultCount,
+  rowRoles,
+  splitMessage,
+} from "./model";
 
 const row = (sha: string, action: RebaseAction = "pick", message: string | null = null): RebasePlanRow => ({
   sha,
@@ -64,12 +78,33 @@ describe("helpers", () => {
   });
   it("splitMessage and combinedMessage", () => {
     expect(splitMessage("Titel\n\nZeile 1\nZeile 2\n")).toEqual({ summary: "Titel", description: "Zeile 1\nZeile 2" });
-    expect(combinedMessage([{ summary: "Eins", description: "" }, { summary: "Zwei", description: "Mehr" }])).toEqual({ summary: "Eins", description: "Zwei\n\nMehr" });
+    expect(
+      combinedMessage([
+        { summary: "Eins", description: "" },
+        { summary: "Zwei", description: "Mehr" },
+      ]),
+    ).toEqual({ summary: "Eins", description: "Zwei\n\nMehr" });
   });
   it("chainOldestFirst orders a gapless chain, otherwise null", () => {
-    expect(chainOldestFirst([{ sha: "c", parents: ["b"] }, { sha: "a", parents: ["root"] }, { sha: "b", parents: ["a"] }])).toEqual(["a", "b", "c"]);
-    expect(chainOldestFirst([{ sha: "c", parents: ["x"] }, { sha: "a", parents: ["root"] }])).toBeNull();
-    expect(chainOldestFirst([{ sha: "m", parents: ["a", "b"] }, { sha: "a", parents: [] }])).toBeNull();
+    expect(
+      chainOldestFirst([
+        { sha: "c", parents: ["b"] },
+        { sha: "a", parents: ["root"] },
+        { sha: "b", parents: ["a"] },
+      ]),
+    ).toEqual(["a", "b", "c"]);
+    expect(
+      chainOldestFirst([
+        { sha: "c", parents: ["x"] },
+        { sha: "a", parents: ["root"] },
+      ]),
+    ).toBeNull();
+    expect(
+      chainOldestFirst([
+        { sha: "m", parents: ["a", "b"] },
+        { sha: "a", parents: [] },
+      ]),
+    ).toBeNull();
   });
 });
 

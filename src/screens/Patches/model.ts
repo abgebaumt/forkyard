@@ -34,7 +34,8 @@ export interface PatchInfo {
 /** Splits `a/<old> b/<new>` from the `diff --git` line; unambiguous for equal paths, otherwise the latter part. */
 function pathFromHeader(rest: string): string {
   const half = (rest.length - 5) / 2;
-  if (Number.isInteger(half) && half > 0 && rest.slice(2, 2 + half) === rest.slice(rest.length - half) && rest.startsWith("a/")) return rest.slice(2, 2 + half);
+  if (Number.isInteger(half) && half > 0 && rest.slice(2, 2 + half) === rest.slice(rest.length - half) && rest.startsWith("a/"))
+    return rest.slice(2, 2 + half);
   const at = rest.lastIndexOf(" b/");
   return at >= 0 ? rest.slice(at + 3) : rest;
 }
@@ -136,7 +137,14 @@ export function parsePatch(text: string): PatchInfo {
       newLeft = 0;
     }
     if (line.startsWith("diff --git ")) {
-      current = { path: pathFromHeader(line.slice("diff --git ".length)), oldPath: null, status: "modified", added: 0, removed: 0, binary: false };
+      current = {
+        path: pathFromHeader(line.slice("diff --git ".length)),
+        oldPath: null,
+        status: "modified",
+        added: 0,
+        removed: 0,
+        binary: false,
+      };
       files.push(current);
       kinds.push("meta");
       lastHeader = null;
@@ -178,7 +186,11 @@ export function parsePatch(text: string): PatchInfo {
     }
     kinds.push("mail");
   }
-  if (subject !== null) subject = decodeMailHeader(subject).replace(/^\[PATCH[^\]]*\]\s*/, "").trim() || null;
+  if (subject !== null)
+    subject =
+      decodeMailHeader(subject)
+        .replace(/^\[PATCH[^\]]*\]\s*/, "")
+        .trim() || null;
   return {
     files,
     added: files.reduce((sum, file) => sum + file.added, 0),

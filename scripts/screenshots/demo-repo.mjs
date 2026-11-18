@@ -102,45 +102,70 @@ commit(r, 0, history ? "Move the service to the new project layout" : "Initial p
   "README.md": "# nimbus\n\nA tiny weather API for local stations.\n",
   "package.json": JSON.stringify({ name: "nimbus", version: "0.1.0", type: "module", scripts: { test: "vitest run" } }, null, 2) + "\n",
   ".gitignore": "node_modules/\ndist/\n.env\n",
-  "src/station.ts": "export interface Station {\n  id: string;\n  name: string;\n  baseline: number;\n  swing: number;\n  rain: number;\n}\n",
+  "src/station.ts":
+    "export interface Station {\n  id: string;\n  name: string;\n  baseline: number;\n  swing: number;\n  rain: number;\n}\n",
 });
 commit(r, 0, "Add forecast model", { "src/forecast.ts": forecast() });
 commit(r, 1, "Add HTTP server with /forecast route", {
-  "src/server.ts": 'import { createServer } from "node:http";\nimport { forecastFor } from "./forecast";\nimport { stations } from "./stations";\n\ncreateServer((req, res) => {\n  const id = new URL(req.url ?? "/", "http://x").searchParams.get("station") ?? "north";\n  res.setHeader("content-type", "application/json");\n  res.end(JSON.stringify(forecastFor(stations[id] ?? stations.north)));\n}).listen(8080);\n',
-  "src/stations.ts": 'import type { Station } from "./station";\n\nexport const stations: Record<string, Station> = {\n  north: { id: "north", name: "North Ridge", baseline: 9, swing: 4, rain: 2 },\n  harbor: { id: "harbor", name: "Harbor", baseline: 13, swing: 3, rain: 4 },\n};\n',
+  "src/server.ts":
+    'import { createServer } from "node:http";\nimport { forecastFor } from "./forecast";\nimport { stations } from "./stations";\n\ncreateServer((req, res) => {\n  const id = new URL(req.url ?? "/", "http://x").searchParams.get("station") ?? "north";\n  res.setHeader("content-type", "application/json");\n  res.end(JSON.stringify(forecastFor(stations[id] ?? stations.north)));\n}).listen(8080);\n',
+  "src/stations.ts":
+    'import type { Station } from "./station";\n\nexport const stations: Record<string, Station> = {\n  north: { id: "north", name: "North Ridge", baseline: 9, swing: 4, rain: 2 },\n  harbor: { id: "harbor", name: "Harbor", baseline: 13, swing: 3, rain: 4 },\n};\n',
 });
 git(r, "tag", "-a", "v0.1.0", "-m", "First preview");
 git(r, "remote", "add", "origin", remote);
 git(r, "push", "-q", "-u", "origin", "main", "--tags");
 
 git(r, "switch", "-q", "-c", "feature/hourly-chart");
-commit(r, 2, "Render hourly temperature chart", { "src/chart.ts": "export function sparkline(values: number[]): string {\n  const bars = \"▁▂▃▄▅▆▇█\";\n  const min = Math.min(...values);\n  const max = Math.max(...values);\n  return values.map((v) => bars[Math.round(((v - min) / (max - min || 1)) * 7)]).join(\"\");\n}\n" });
-commit(r, 2, "Chart: show precipitation as second row", { "src/chart.ts": "export function sparkline(values: number[]): string {\n  const bars = \"▁▂▃▄▅▆▇█\";\n  const min = Math.min(...values);\n  const max = Math.max(...values);\n  return values.map((v) => bars[Math.round(((v - min) / (max - min || 1)) * 7)]).join(\"\");\n}\n\nexport function chart(temperature: number[], rain: number[]): string {\n  return `${sparkline(temperature)}\\n${sparkline(rain)}`;\n}\n" });
+commit(r, 2, "Render hourly temperature chart", {
+  "src/chart.ts":
+    'export function sparkline(values: number[]): string {\n  const bars = "▁▂▃▄▅▆▇█";\n  const min = Math.min(...values);\n  const max = Math.max(...values);\n  return values.map((v) => bars[Math.round(((v - min) / (max - min || 1)) * 7)]).join("");\n}\n',
+});
+commit(r, 2, "Chart: show precipitation as second row", {
+  "src/chart.ts":
+    'export function sparkline(values: number[]): string {\n  const bars = "▁▂▃▄▅▆▇█";\n  const min = Math.min(...values);\n  const max = Math.max(...values);\n  return values.map((v) => bars[Math.round(((v - min) / (max - min || 1)) * 7)]).join("");\n}\n\nexport function chart(temperature: number[], rain: number[]): string {\n  return `${sparkline(temperature)}\\n${sparkline(rain)}`;\n}\n',
+});
 
 git(r, "switch", "-q", "main");
 git(r, "switch", "-q", "-c", "fix/negative-rain");
-commit(r, 3, "Clamp precipitation to zero", { "src/forecast.ts": forecast("\nexport const clamp = (value: number) => Math.max(0, value);\n") });
+commit(r, 3, "Clamp precipitation to zero", {
+  "src/forecast.ts": forecast("\nexport const clamp = (value: number) => Math.max(0, value);\n"),
+});
 git(r, "switch", "-q", "main");
 person = PEOPLE[0];
 clock += 7200;
 git(r, "merge", "-q", "--no-ff", "fix/negative-rain", "-m", "Merge branch 'fix/negative-rain'");
 git(r, "branch", "-q", "-d", "fix/negative-rain");
-commit(r, 1, "Cache forecasts for ten minutes", { "src/cache.ts": "const store = new Map<string, { at: number; value: unknown }>();\n\nexport function cached<T>(key: string, make: () => T, ttl = 600_000): T {\n  const hit = store.get(key);\n  if (hit && Date.now() - hit.at < ttl) return hit.value as T;\n  const value = make();\n  store.set(key, { at: Date.now(), value });\n  return value;\n}\n" });
+commit(r, 1, "Cache forecasts for ten minutes", {
+  "src/cache.ts":
+    "const store = new Map<string, { at: number; value: unknown }>();\n\nexport function cached<T>(key: string, make: () => T, ttl = 600_000): T {\n  const hit = store.get(key);\n  if (hit && Date.now() - hit.at < ttl) return hit.value as T;\n  const value = make();\n  store.set(key, { at: Date.now(), value });\n  return value;\n}\n",
+});
 person = PEOPLE[2];
 clock += 5400;
 git(r, "merge", "-q", "--no-ff", "feature/hourly-chart", "-m", "Merge branch 'feature/hourly-chart'");
-commit(r, 0, "Document the API in the README", { "README.md": "# nimbus\n\nA tiny weather API for local stations.\n\n## API\n\n`GET /forecast?station=north` returns the next 24 hours.\n" });
+commit(r, 0, "Document the API in the README", {
+  "README.md": "# nimbus\n\nA tiny weather API for local stations.\n\n## API\n\n`GET /forecast?station=north` returns the next 24 hours.\n",
+});
 git(r, "tag", "-a", "v0.2.0", "-m", "Charts and caching");
 git(r, "push", "-q", "origin", "main", "--tags");
 
 git(r, "switch", "-q", "-c", "feature/alerts");
-commit(r, 3, "Add storm alert thresholds", { "src/alerts.ts": "export const STORM_WIND = 75;\nexport const HEAVY_RAIN = 8;\n\nexport function alertsFor(wind: number, rain: number): string[] {\n  const alerts: string[] = [];\n  if (wind >= STORM_WIND) alerts.push(\"storm\");\n  if (rain >= HEAVY_RAIN) alerts.push(\"heavy-rain\");\n  return alerts;\n}\n" });
-commit(r, 3, "Alerts: expose /alerts route", { "src/server.ts": fs.readFileSync(path.join(r, "src/server.ts"), "utf8") + "\n// TODO: route /alerts to alertsFor()\n" });
+commit(r, 3, "Add storm alert thresholds", {
+  "src/alerts.ts":
+    'export const STORM_WIND = 75;\nexport const HEAVY_RAIN = 8;\n\nexport function alertsFor(wind: number, rain: number): string[] {\n  const alerts: string[] = [];\n  if (wind >= STORM_WIND) alerts.push("storm");\n  if (rain >= HEAVY_RAIN) alerts.push("heavy-rain");\n  return alerts;\n}\n',
+});
+commit(r, 3, "Alerts: expose /alerts route", {
+  "src/server.ts": fs.readFileSync(path.join(r, "src/server.ts"), "utf8") + "\n// TODO: route /alerts to alertsFor()\n",
+});
 git(r, "push", "-q", "-u", "origin", "feature/alerts");
 
 git(r, "switch", "-q", "main");
 git(r, "switch", "-q", "-c", "feature/stations-api");
-commit(r, 1, "List all stations at /stations", { "src/stations.ts": fs.readFileSync(path.join(r, "src/stations.ts"), "utf8") + "\nexport const stationList = () => Object.values(stations).map(({ id, name }) => ({ id, name }));\n" });
+commit(r, 1, "List all stations at /stations", {
+  "src/stations.ts":
+    fs.readFileSync(path.join(r, "src/stations.ts"), "utf8") +
+    "\nexport const stationList = () => Object.values(stations).map(({ id, name }) => ({ id, name }));\n",
+});
 git(r, "switch", "-q", "main");
 
 // The remote gets a commit the local main does not have yet (shown as "behind").
@@ -148,7 +173,9 @@ const other = path.join(path.dirname(target), "nimbus-teammate");
 git(path.dirname(target), "clone", "-q", remote, other);
 git(other, "config", "user.name", PEOPLE[1].name);
 git(other, "config", "user.email", PEOPLE[1].email);
-commit(other, 1, "Add harbor wind sensor", { "src/stations.ts": fs.readFileSync(path.join(other, "src/stations.ts"), "utf8").replace("rain: 4 }", "rain: 4, wind: true }") });
+commit(other, 1, "Add harbor wind sensor", {
+  "src/stations.ts": fs.readFileSync(path.join(other, "src/stations.ts"), "utf8").replace("rain: 4 }", "rain: 4, wind: true }"),
+});
 git(other, "push", "-q", "origin", "main");
 git(r, "fetch", "-q", "origin");
 
@@ -163,9 +190,17 @@ if (image) {
 
 if (rebase) {
   git(r, "switch", "-q", "feature/alerts");
-  commit(r, 3, "Alerts: add wind gust threshold", { "src/alerts.ts": fs.readFileSync(path.join(r, "src/alerts.ts"), "utf8").replace("export const HEAVY_RAIN = 8;", "export const HEAVY_RAIN = 8;\nexport const GUST = 90;") });
-  commit(r, 3, "fixup: typo in alert name", { "src/alerts.ts": fs.readFileSync(path.join(r, "src/alerts.ts"), "utf8").replace('"heavy-rain"', '"heavy_rain"') });
-  commit(r, 0, "Alerts: document thresholds", { "docs/alerts.md": "# Alerts\n\n| Alert | Threshold |\n| --- | --- |\n| storm | wind ≥ 75 km/h |\n| heavy_rain | ≥ 8 mm/h |\n" });
+  commit(r, 3, "Alerts: add wind gust threshold", {
+    "src/alerts.ts": fs
+      .readFileSync(path.join(r, "src/alerts.ts"), "utf8")
+      .replace("export const HEAVY_RAIN = 8;", "export const HEAVY_RAIN = 8;\nexport const GUST = 90;"),
+  });
+  commit(r, 3, "fixup: typo in alert name", {
+    "src/alerts.ts": fs.readFileSync(path.join(r, "src/alerts.ts"), "utf8").replace('"heavy-rain"', '"heavy_rain"'),
+  });
+  commit(r, 0, "Alerts: document thresholds", {
+    "docs/alerts.md": "# Alerts\n\n| Alert | Threshold |\n| --- | --- |\n| storm | wind ≥ 75 km/h |\n| heavy_rain | ≥ 8 mm/h |\n",
+  });
 } else if (conflict) {
   commit(r, 0, "Forecast: default to 48 hours", { "src/forecast.ts": forecast().replace("hours = 24", "hours = 48") });
   git(r, "switch", "-q", "-c", "feature/units", "HEAD~1");
@@ -213,15 +248,57 @@ function radar(file, step) {
   }
   const coast = "polygon 0,330 90,300 160,315 240,290 330,305 420,270 520,290 640,250 640,400 0,400";
   const args = [
-    "-size", "640x400", "xc:#16303f",
-    "-fill", "#29483a", "-draw", coast,
-    "(", "-size", "640x400", "xc:none", ...draw, "-blur", "0x14", "-channel", "A", "-evaluate", "multiply", "0.85", "+channel", ")",
+    "-size",
+    "640x400",
+    "xc:#16303f",
+    "-fill",
+    "#29483a",
+    "-draw",
+    coast,
+    "(",
+    "-size",
+    "640x400",
+    "xc:none",
+    ...draw,
+    "-blur",
+    "0x14",
+    "-channel",
+    "A",
+    "-evaluate",
+    "multiply",
+    "0.85",
+    "+channel",
+    ")",
     "-composite",
-    "-stroke", "#5d7c8a", "-strokewidth", "1", "-fill", "none",
-    "-draw", "line 0,100 640,100", "-draw", "line 0,200 640,200", "-draw", "line 0,300 640,300",
-    "-draw", "line 160,0 160,400", "-draw", "line 320,0 320,400", "-draw", "line 480,0 480,400",
-    "-stroke", "none", "-fill", "#e6edf0", "-draw", "circle 470,262 476,262", "-draw", "circle 205,302 211,302",
-    "-strip", "-define", "png:exclude-chunks=date,time",
+    "-stroke",
+    "#5d7c8a",
+    "-strokewidth",
+    "1",
+    "-fill",
+    "none",
+    "-draw",
+    "line 0,100 640,100",
+    "-draw",
+    "line 0,200 640,200",
+    "-draw",
+    "line 0,300 640,300",
+    "-draw",
+    "line 160,0 160,400",
+    "-draw",
+    "line 320,0 320,400",
+    "-draw",
+    "line 480,0 480,400",
+    "-stroke",
+    "none",
+    "-fill",
+    "#e6edf0",
+    "-draw",
+    "circle 470,262 476,262",
+    "-draw",
+    "circle 205,302 211,302",
+    "-strip",
+    "-define",
+    "png:exclude-chunks=date,time",
     `png24:${file}`,
   ];
   execFileSync("magick", args, { stdio: "ignore" });
@@ -262,22 +339,82 @@ function addHistory(root) {
     docs: ["docs/api.md", "docs/deploy.md", "docs/sensors.md"],
   };
   const VERBS = {
-    models: ["Wind model: smooth gusts over five minutes", "Humidity: clamp readings above 100 %", "Pressure: convert to sea level", "Models: share the rounding helper", "Dew point: use the Magnus formula", "Wind model: handle calm readings", "Models: cache derived values", "Pressure: trend over three hours"],
-    api: ["API: validate station ids", "API: return 404 for unknown stations", "Auth: rotate signing keys", "Rate limit: per token instead of per IP", "API: add ETag headers", "Errors: one JSON shape for all routes", "API: paginate /readings", "Auth: reject expired tokens early"],
-    server: ["Server: graceful shutdown", "Middleware: log request ids", "Server: compress JSON responses", "Middleware: time out slow requests"],
-    charts: ["Charts: nicer axis ticks", "Legend: wrap long station names", "Palette: colour-blind safe rain scale", "Charts: draw the zero line", "Axis: label every third hour"],
-    sensors: ["Harbor sensor: retry on checksum errors", "Ridge sensor: new firmware protocol", "Calibrate: per-season offsets", "Sensors: drop duplicate readings", "Protocol: parse battery level", "Harbor sensor: wind direction in degrees", "Calibrate: store offsets per station"],
-    scripts: ["Import: read the 2023 archive", "Backfill: skip stations without data", "Import: progress output", "Backfill: run per month"],
-    test: ["Tests: cover pressure conversion", "Tests: API error shapes", "Tests: sensor fixtures from the harbor", "Tests: faster model tests", "Tests: flaky timeout in api.test"],
-    docs: ["Docs: deployment with systemd", "Docs: API examples", "Docs: sensor wiring", "Docs: fix broken links", "Docs: describe rate limits"],
+    models: [
+      "Wind model: smooth gusts over five minutes",
+      "Humidity: clamp readings above 100 %",
+      "Pressure: convert to sea level",
+      "Models: share the rounding helper",
+      "Dew point: use the Magnus formula",
+      "Wind model: handle calm readings",
+      "Models: cache derived values",
+      "Pressure: trend over three hours",
+    ],
+    api: [
+      "API: validate station ids",
+      "API: return 404 for unknown stations",
+      "Auth: rotate signing keys",
+      "Rate limit: per token instead of per IP",
+      "API: add ETag headers",
+      "Errors: one JSON shape for all routes",
+      "API: paginate /readings",
+      "Auth: reject expired tokens early",
+    ],
+    server: [
+      "Server: graceful shutdown",
+      "Middleware: log request ids",
+      "Server: compress JSON responses",
+      "Middleware: time out slow requests",
+    ],
+    charts: [
+      "Charts: nicer axis ticks",
+      "Legend: wrap long station names",
+      "Palette: colour-blind safe rain scale",
+      "Charts: draw the zero line",
+      "Axis: label every third hour",
+    ],
+    sensors: [
+      "Harbor sensor: retry on checksum errors",
+      "Ridge sensor: new firmware protocol",
+      "Calibrate: per-season offsets",
+      "Sensors: drop duplicate readings",
+      "Protocol: parse battery level",
+      "Harbor sensor: wind direction in degrees",
+      "Calibrate: store offsets per station",
+    ],
+    scripts: [
+      "Import: read the 2023 archive",
+      "Backfill: skip stations without data",
+      "Import: progress output",
+      "Backfill: run per month",
+    ],
+    test: [
+      "Tests: cover pressure conversion",
+      "Tests: API error shapes",
+      "Tests: sensor fixtures from the harbor",
+      "Tests: faster model tests",
+      "Tests: flaky timeout in api.test",
+    ],
+    docs: [
+      "Docs: deployment with systemd",
+      "Docs: API examples",
+      "Docs: sensor wiring",
+      "Docs: fix broken links",
+      "Docs: describe rate limits",
+    ],
   };
   const files = new Map();
   let serial = 0;
   const block = (rel) => {
     serial += 1;
-    if (rel.endsWith(".md")) return [`## Note ${serial}`, "", `Readings are averaged over ${2 + (serial % 9)} minutes before they are stored.`, ""];
+    if (rel.endsWith(".md"))
+      return [`## Note ${serial}`, "", `Readings are averaged over ${2 + (serial % 9)} minutes before they are stored.`, ""];
     const name = `${pick(["adjust", "normalize", "smooth", "derive", "check", "parse"])}${serial}`;
-    return [`export function ${name}(value: number): number {`, `  return value * ${(0.5 + random()).toFixed(3)} + ${(random() * 4 - 2).toFixed(2)};`, "}", ""];
+    return [
+      `export function ${name}(value: number): number {`,
+      `  return value * ${(0.5 + random()).toFixed(3)} + ${(random() * 4 - 2).toFixed(2)};`,
+      "}",
+      "",
+    ];
   };
   const edit = (rel) => {
     const lines = files.get(rel) ?? (rel.endsWith(".md") ? [`# ${path.basename(rel, ".md")}`, ""] : [`// ${rel}`, ""]);

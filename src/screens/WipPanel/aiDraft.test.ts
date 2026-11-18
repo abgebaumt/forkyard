@@ -22,7 +22,9 @@ describe("commit message draft (spec 3.1, “Umgang mit Vorschlägen”)", () =>
 
   it("never replaces the user's text unasked", () => {
     expect(placeCommitSuggestion(parts("WIP: Anmeldung"), parts("WIP: Anmeldung"), null, parts("Fix"))).toEqual({ kind: "choose" });
-    expect(placeCommitSuggestion(parts("", "Nur eine Beschreibung"), parts("", "Nur eine Beschreibung"), null, parts("Fix"))).toEqual({ kind: "choose" });
+    expect(placeCommitSuggestion(parts("", "Nur eine Beschreibung"), parts("", "Nur eine Beschreibung"), null, parts("Fix"))).toEqual({
+      kind: "choose",
+    });
   });
 
   it("only offers the suggestion when the user typed while the request ran", () => {
@@ -33,7 +35,9 @@ describe("commit message draft (spec 3.1, “Umgang mit Vorschlägen”)", () =>
 
   it("replaces, or appends after a blank line", () => {
     expect(resolveOffer(parts("WIP: Anmeldung"), parts("Fix login", "Body"), "replace")).toEqual(parts("Fix login", "Body"));
-    expect(resolveOffer(parts("WIP: Anmeldung", "Notiz"), parts("Fix login", "Body"), "append")).toEqual(parts("WIP: Anmeldung", "Notiz\n\nFix login\n\nBody"));
+    expect(resolveOffer(parts("WIP: Anmeldung", "Notiz"), parts("Fix login", "Body"), "append")).toEqual(
+      parts("WIP: Anmeldung", "Notiz\n\nFix login\n\nBody"),
+    );
     expect(resolveOffer(parts("WIP: Anmeldung"), parts("Fix login"), "append")).toEqual(parts("WIP: Anmeldung", "Fix login"));
   });
 

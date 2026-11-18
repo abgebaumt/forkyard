@@ -30,7 +30,11 @@ export function ExtraSections({ repoId, tabId, query }: { repoId: Id; tabId: Id;
 export function extraSectionEntries(repoId: Id, view: RepoViewState): MenuEntry[] {
   // The "Issues" section remembers its state on this device (the core does not know it as a section).
   const issuesHidden = issueSectionState(repoId).hidden;
-  const issues: MenuEntry = { label: t("sidebar.section.issues"), checked: !issuesHidden, onSelect: () => setIssueSection(repoId, { hidden: !issuesHidden }) };
+  const issues: MenuEntry = {
+    label: t("sidebar.section.issues"),
+    checked: !issuesHidden,
+    onSelect: () => setIssueSection(repoId, { hidden: !issuesHidden }),
+  };
   return [...builtIn(repoId, view), issues];
 }
 

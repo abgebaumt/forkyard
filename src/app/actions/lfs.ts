@@ -3,7 +3,16 @@
  * The UI for this is src/screens/Lfs.
  */
 import { t } from "../../i18n";
-import { core, type ErrorCode, type Id, type LfsLock, type LfsLockFailure, type LfsLockList, type LfsLockOutcome, type LfsStatus } from "../../core";
+import {
+  core,
+  type ErrorCode,
+  type Id,
+  type LfsLock,
+  type LfsLockFailure,
+  type LfsLockList,
+  type LfsLockOutcome,
+  type LfsStatus,
+} from "../../core";
 import { forceUnlockConfirm } from "../../screens/Lfs/locks";
 import { toast } from "../../ui/Feedback";
 import { confirm } from "../dialogs";
@@ -82,7 +91,8 @@ export async function pruneLfs(repoId: Id) {
   if (!ok) return null;
   return runAction(t("actions.lfs.prune.label"), () => core.lfsPrune({ repoId }), {
     busyKey: lfsBusyKey(repoId, "prune"),
-    success: (summary) => (summary.trim() ? t("actions.lfs.prune.doneSummary", { summary: clip(summary.trim(), 120) }) : t("actions.lfs.prune.done")),
+    success: (summary) =>
+      summary.trim() ? t("actions.lfs.prune.doneSummary", { summary: clip(summary.trim(), 120) }) : t("actions.lfs.prune.done"),
   });
 }
 
@@ -163,7 +173,12 @@ async function foreignLocks(repoId: Id, paths: string[], known: LfsLock[]): Prom
  * Unlocks the files. With `force` and other people's locks among them, it asks first (owner and
  * file named); `null` = declined. `known` are locks the caller already shows (the panel's list).
  */
-export async function unlockFiles(repoId: Id, paths: string[], force: boolean, known: LfsLock[] = []): Promise<ActionResult<LfsLockOutcome> | null> {
+export async function unlockFiles(
+  repoId: Id,
+  paths: string[],
+  force: boolean,
+  known: LfsLock[] = [],
+): Promise<ActionResult<LfsLockOutcome> | null> {
   if (force) {
     const foreign = await foreignLocks(repoId, paths, known);
     if (foreign.length > 0 && !(await confirm(forceUnlockConfirm(foreign)))) return null;

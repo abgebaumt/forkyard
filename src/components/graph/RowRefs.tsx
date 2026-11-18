@@ -51,7 +51,9 @@ function textWidth(name: string): number {
 }
 
 const groupWidth = (group: RefGroup, pinned?: ReadonlySet<string> | null) =>
-  Math.min(LABEL_MAX, textWidth(group.primary.name) + LABEL_CHROME) + (group.twin ? GAP / 2 + TWIN_WIDTH : 0) + (pinned?.has(group.primary.fullName) ? PIN_WIDTH : 0);
+  Math.min(LABEL_MAX, textWidth(group.primary.name) + LABEL_CHROME) +
+  (group.twin ? GAP / 2 + TWIN_WIDTH : 0) +
+  (pinned?.has(group.primary.fullName) ? PIN_WIDTH : 0);
 const groupCount = (group: RefGroup) => (group.twin ? 2 : 1);
 
 /**
@@ -65,7 +67,11 @@ export function groupRefs(refs: RefLabelInfo[], upstreams: ReadonlyMap<string, s
   for (const ref of refs) {
     if (ref.kind !== "local") continue;
     const upstream = upstreams?.get(ref.name);
-    const twin = remotes.find((remote) => !taken.has(remote.fullName) && (remote.name === upstream || remote.name.slice(remote.name.indexOf("/") + 1) === ref.name)) ?? null;
+    const twin =
+      remotes.find(
+        (remote) =>
+          !taken.has(remote.fullName) && (remote.name === upstream || remote.name.slice(remote.name.indexOf("/") + 1) === ref.name),
+      ) ?? null;
     if (twin) taken.add(twin.fullName);
     groups.push({ primary: ref, twin });
   }
@@ -95,7 +101,8 @@ export function fitRefs(groups: RefGroup[], width: number, pinned?: ReadonlySet<
 
 const kindText = { local: t("graph.refs.kind.local"), remote: t("graph.refs.kind.remote"), tag: t("graph.refs.kind.tag") } as const;
 
-const dropMarks = "data-[drop=true]:outline-2 data-[drop=true]:outline-offset-1 data-[drop=true]:outline-accent data-[dragging=true]:opacity-40";
+const dropMarks =
+  "data-[drop=true]:outline-2 data-[drop=true]:outline-offset-1 data-[drop=true]:outline-accent data-[dragging=true]:opacity-40";
 
 /** A label with the details needed by click, context menu and dragging (handled in the row list). */
 function LabelChip({ info, rowIndex, lane, shrink }: { info: RefLabelInfo; rowIndex: number; lane: number; shrink?: boolean }) {
@@ -138,14 +145,30 @@ function TwinChip({ info, rowIndex, lane }: { info: RefLabelInfo; rowIndex: numb
 /** The pin in front of a pinned branch – as a sign, not only recognisable by the position of the line. */
 function PinMark({ name }: { name: string }) {
   return (
-    <span data-pinned-mark title={t("graph.refs.pinnedTitle", { name })} className="inline-flex h-4.5 shrink-0 items-center text-text-muted">
+    <span
+      data-pinned-mark
+      title={t("graph.refs.pinnedTitle", { name })}
+      className="inline-flex h-4.5 shrink-0 items-center text-text-muted"
+    >
       <Pin className="size-3" aria-hidden />
       <span className="sr-only">{t("graph.refs.pinned")}</span>
     </span>
   );
 }
 
-function Group({ group, rowIndex, lane, shrink, pinned }: { group: RefGroup; rowIndex: number; lane: number; shrink?: boolean; pinned?: boolean }) {
+function Group({
+  group,
+  rowIndex,
+  lane,
+  shrink,
+  pinned,
+}: {
+  group: RefGroup;
+  rowIndex: number;
+  lane: number;
+  shrink?: boolean;
+  pinned?: boolean;
+}) {
   if (!group.twin && !pinned) return <LabelChip info={group.primary} rowIndex={rowIndex} lane={lane} shrink={shrink} />;
   return (
     <span className={cn("inline-flex items-center gap-0.5", shrink ? "max-w-full min-w-0 shrink" : "shrink-0")}>
@@ -212,7 +235,14 @@ export const RowRefs = memo(function RowRefs({ refs, rowIndex, lane, width, upst
   return (
     <>
       {visible.map((group, index) => (
-        <Group key={group.primary.fullName} group={group} rowIndex={rowIndex} lane={lane} shrink={fit.truncateFirst && index === 0} pinned={pinned?.has(group.primary.fullName)} />
+        <Group
+          key={group.primary.fullName}
+          group={group}
+          rowIndex={rowIndex}
+          lane={lane}
+          shrink={fit.truncateFirst && index === 0}
+          pinned={pinned?.has(group.primary.fullName)}
+        />
       ))}
       {hiddenCount > 0 ? (
         <Popover.Root>
@@ -238,7 +268,14 @@ export const RowRefs = memo(function RowRefs({ refs, rowIndex, lane, width, upst
               className="animate-pop z-50 flex max-w-80 flex-col items-start gap-1 rounded-lg border border-border bg-surface-raised p-2 shadow-pop"
             >
               {hidden.map((group) => (
-                <Group key={group.primary.fullName} group={group} rowIndex={rowIndex} lane={lane} shrink pinned={pinned?.has(group.primary.fullName)} />
+                <Group
+                  key={group.primary.fullName}
+                  group={group}
+                  rowIndex={rowIndex}
+                  lane={lane}
+                  shrink
+                  pinned={pinned?.has(group.primary.fullName)}
+                />
               ))}
             </Popover.Content>
           </Popover.Portal>

@@ -22,7 +22,10 @@ export interface PendingStash {
 
 /** Adds the selection of one file; the same file in the same area is replaced. Another HEAD starts over. */
 export function addToPending(pending: PendingStash | null, head: string, entry: PendingEntry): PendingStash {
-  const kept = pending && pending.head === head ? pending.entries.filter((item) => !(item.area === entry.area && item.selection.path === entry.selection.path)) : [];
+  const kept =
+    pending && pending.head === head
+      ? pending.entries.filter((item) => !(item.area === entry.area && item.selection.path === entry.selection.path))
+      : [];
   return { head, entries: [...kept, entry] };
 }
 
@@ -53,7 +56,12 @@ export function queueStashSelection(repoId: Id, tabId: Id, area: "staged" | "uns
   const status = queryClient.getQueryData<Status>(qk.status(repoId));
   if (!status || status.head.kind === "unborn") return false;
   const head = status.head.sha;
-  useWipStore.getState().patch(tabId, (tab) => ({ stashSelection: addToPending(tab.stashSelection, head, { area, selection, lines }), stashOnlySelected: false }));
+  useWipStore
+    .getState()
+    .patch(tabId, (tab) => ({
+      stashSelection: addToPending(tab.stashSelection, head, { area, selection, lines }),
+      stashOnlySelected: false,
+    }));
   useAppStore.getState().setRightPanel(tabId, "stash_form");
   return true;
 }

@@ -26,7 +26,9 @@ import { t } from "../../i18n";
 const BlameView = lazy(() => import("../../screens/Blame").then((module) => ({ default: module.BlameView })));
 const ArchaeologyPanel = lazy(() => import("../../screens/Archaeology").then((module) => ({ default: module.ArchaeologyPanel })));
 const AgentReviewView = lazy(() => import("../../screens/AgentReview").then((module) => ({ default: module.AgentReviewView })));
-const ReviewCommitPanel = lazy(() => import("../../screens/AgentReview/CommitPanel").then((module) => ({ default: module.ReviewCommitPanel })));
+const ReviewCommitPanel = lazy(() =>
+  import("../../screens/AgentReview/CommitPanel").then((module) => ({ default: module.ReviewCommitPanel })),
+);
 const ComposeView = lazy(() => import("../../screens/Compose").then((module) => ({ default: module.ComposeView })));
 const ConflictTool = lazy(() => import("../../screens/ConflictTool").then((module) => ({ default: module.ConflictTool })));
 const DiffView = lazy(() => import("../../screens/DiffView").then((module) => ({ default: module.DiffView })));
@@ -93,7 +95,8 @@ function RightPanel({ repoId, tabId, view }: { repoId: Id; tabId: Id; view: TabV
     return <ArchaeologyPanel key={`${target.path}|${target.line}|${target.sha ?? ""}`} repoId={repoId} tabId={tabId} target={target} />;
   }
   if (view.rightPanel === "agent") return <AgentDetailsPanel repoId={repoId} tabId={tabId} agentId={view.agentId} />;
-  if (view.rightPanel === "review_commit" && view.center.kind === "agent_review") return <ReviewCommitPanel repoId={repoId} tabId={tabId} agentIds={view.center.agentIds} />;
+  if (view.rightPanel === "review_commit" && view.center.kind === "agent_review")
+    return <ReviewCommitPanel repoId={repoId} tabId={tabId} agentIds={view.center.agentIds} />;
   if (view.rightPanel === "stash_form") return <StashForm repoId={repoId} tabId={tabId} />;
   const selection = view.selection;
   if (!selection) {
@@ -112,7 +115,11 @@ function Rail({ side, onOpen }: { side: "left" | "right"; onOpen: () => void }) 
   return (
     <div
       data-rail={side}
-      className={side === "left" ? "flex w-control-md shrink-0 flex-col items-center border-r border-border bg-surface pt-1" : "flex w-control-md shrink-0 flex-col items-center border-l border-border bg-surface pt-1"}
+      className={
+        side === "left"
+          ? "flex w-control-md shrink-0 flex-col items-center border-r border-border bg-surface pt-1"
+          : "flex w-control-md shrink-0 flex-col items-center border-l border-border bg-surface pt-1"
+      }
     >
       <IconButton
         size="sm"
@@ -148,7 +155,9 @@ function MissingRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
           <Button variant="primary" onClick={() => void openRepository()}>
             {t("shell.workspace.chooseLocation")}
           </Button>
-          <Button onClick={() => void forgetRepo({ id: repoId, name, alias: repo?.alias ?? null, path })}>{t("shell.workspace.removeFromList")}</Button>
+          <Button onClick={() => void forgetRepo({ id: repoId, name, alias: repo?.alias ?? null, path })}>
+            {t("shell.workspace.removeFromList")}
+          </Button>
           <Button variant="ghost" onClick={() => void closeTab(tab.id)}>
             {t("shell.tabMenu.close")}
           </Button>
@@ -185,7 +194,11 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
   };
 
   return (
-    <main data-shell="untrusted" aria-label={t("shell.trust.label")} className="flex h-full justify-center overflow-auto bg-bg p-8 text-text">
+    <main
+      data-shell="untrusted"
+      aria-label={t("shell.trust.label")}
+      className="flex h-full justify-center overflow-auto bg-bg p-8 text-text"
+    >
       <div role="alert" className="flex h-fit w-full max-w-2xl flex-col gap-4">
         <div className="flex items-start gap-3">
           <ShieldAlert className="mt-0.5 size-8 shrink-0 text-warning" aria-hidden />
@@ -201,14 +214,21 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
 
         <section aria-label={t("shell.trust.found")} className="rounded-md border border-border bg-surface">
           <h2 className="border-b border-border px-3 py-2 text-sm font-semibold text-text">
-            {trust.isPending ? t("shell.trust.checking") : trust.isError ? t("shell.trust.checkFailed") : t("shell.trust.foundCount", { count: findings.length })}
+            {trust.isPending
+              ? t("shell.trust.checking")
+              : trust.isError
+                ? t("shell.trust.checkFailed")
+                : t("shell.trust.foundCount", { count: findings.length })}
           </h2>
           {trust.isError ? (
             <p className="px-3 py-2 text-md text-text-muted">{t("shell.trust.unreadable")}</p>
           ) : (
             <ul className="max-h-72 overflow-auto">
               {findings.map((finding) => (
-                <li key={`${finding.kind}:${finding.name}:${finding.value ?? ""}`} className="flex gap-2 border-b border-border px-3 py-2 last:border-b-0">
+                <li
+                  key={`${finding.kind}:${finding.name}:${finding.value ?? ""}`}
+                  className="flex gap-2 border-b border-border px-3 py-2 last:border-b-0"
+                >
                   {finding.kind === "hook" ? (
                     <SquareTerminal className="mt-0.5 size-icon shrink-0 text-text-muted" aria-hidden />
                   ) : (
@@ -237,7 +257,11 @@ function UntrustedRepo({ tab, repoId }: { tab: Tab; repoId: Id }) {
           <Button disabled={busy || trust.isPending} onClick={() => void agree()}>
             {t("shell.trust.trustAndOpen")}
           </Button>
-          <Button variant="ghost" icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void queryClient.invalidateQueries({ queryKey: trustKey(repoId) })}>
+          <Button
+            variant="ghost"
+            icon={<RefreshCw className="size-icon" aria-hidden />}
+            onClick={() => void queryClient.invalidateQueries({ queryKey: trustKey(repoId) })}
+          >
             {t("shell.workspace.recheck")}
           </Button>
           <Button variant="ghost" onClick={() => void forgetRepo({ id: repoId, name, alias: repo?.alias ?? null, path })}>
@@ -321,7 +345,13 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
         <Rail side="left" onOpen={() => toggleLeft('[role="separator"][data-side="left"]')} />
       ) : (
         <>
-          <aside data-area="left" data-no-scroll aria-label={t("shell.workspace.left")} className="flex min-h-0 shrink-0 flex-col border-r border-border bg-surface" style={{ width: shownLeft }}>
+          <aside
+            data-area="left"
+            data-no-scroll
+            aria-label={t("shell.workspace.left")}
+            className="flex min-h-0 shrink-0 flex-col border-r border-border bg-surface"
+            style={{ width: shownLeft }}
+          >
             <LeftPanel repoId={repoId} tabId={tabId} />
           </aside>
           <Splitter
@@ -366,7 +396,13 @@ export function RepoWorkspace({ tab, repoId }: { tab: Tab; repoId: Id }) {
             onChange={(width) => store().setRightWidth(width)}
             onCollapse={() => toggleRight('[data-rail="right"] button')}
           />
-          <aside data-area="right" data-no-scroll aria-label={t("shell.workspace.right")} className="flex min-h-0 shrink-0 flex-col border-l border-border bg-surface" style={{ width: shownRight }}>
+          <aside
+            data-area="right"
+            data-no-scroll
+            aria-label={t("shell.workspace.right")}
+            className="flex min-h-0 shrink-0 flex-col border-l border-border bg-surface"
+            style={{ width: shownRight }}
+          >
             <Suspense fallback={null}>
               <RightPanel repoId={repoId} tabId={tabId} view={view} />
             </Suspense>

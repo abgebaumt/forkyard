@@ -18,7 +18,24 @@ import { Select } from "../../../ui/Select";
 import { Switch } from "../../../ui/Switch";
 import { CommitText, SectionHeader, SettingRow, SettingsCard } from "../parts";
 import { applySettings, fieldError } from "../settings";
-import { acceptsKey, CLI_PROVIDERS, cliPathField, FEATURES, featureToggle, isCli, isLocal, parsePatterns, parsePricePair, parseUsd, patternsText, pricePairText, PROVIDERS, usesBaseUrl, withCliPath, withOwnPrice } from "../ai/model";
+import {
+  acceptsKey,
+  CLI_PROVIDERS,
+  cliPathField,
+  FEATURES,
+  featureToggle,
+  isCli,
+  isLocal,
+  parsePatterns,
+  parsePricePair,
+  parseUsd,
+  patternsText,
+  pricePairText,
+  PROVIDERS,
+  usesBaseUrl,
+  withCliPath,
+  withOwnPrice,
+} from "../ai/model";
 import { AiSearchCard } from "./AiSearch";
 import { locale, t } from "../../../i18n";
 
@@ -35,7 +52,10 @@ export function AiSection({ settings, repoId }: { settings: Settings; repoId: Id
     <section data-ai-settings>
       <SectionHeader title={t("ai.settings.title")}>{t("ai.settings.intro")}</SectionHeader>
       <SettingsCard title={t("ai.settings.masterCard")}>
-        <SettingRow title={t("ai.settings.master.title")} description={settings.aiEnabled === null ? t("ai.settings.master.unset") : t("ai.settings.master.description")}>
+        <SettingRow
+          title={t("ai.settings.master.title")}
+          description={settings.aiEnabled === null ? t("ai.settings.master.unset") : t("ai.settings.master.description")}
+        >
           {(ids) => (
             <Switch
               id={ids.id}
@@ -117,7 +137,18 @@ function ProviderCard({ settings }: { settings: Settings }) {
     const result = await runAction(
       t("ai.settings.check.action"),
       () => core.aiModels({ jobId: newJobId(), provider, baseUrl: settings.aiBaseUrl, key: typedKey, model: settings.aiModel }),
-      { quiet: ["ai_not_configured", "ai_provider_unavailable", "ai_not_logged_in", "ai_unsupported_version", "offline", "timeout", "not_allowed", "unknown"] },
+      {
+        quiet: [
+          "ai_not_configured",
+          "ai_provider_unavailable",
+          "ai_not_logged_in",
+          "ai_unsupported_version",
+          "offline",
+          "timeout",
+          "not_allowed",
+          "unknown",
+        ],
+      },
     );
     setChecking(false);
     // A signed-out command-line tool: offer its own sign-in in the terminal of the open repository.
@@ -127,7 +158,11 @@ function ProviderCard({ settings }: { settings: Settings }) {
       return;
     }
     setModels(result.value.models);
-    setCheckResult(isCli(provider) ? t("ai.settings.cliCheckOk", { name: t(`ai.names.${provider}`) }) : t("ai.settings.check.ok", { count: result.value.models.length }));
+    setCheckResult(
+      isCli(provider)
+        ? t("ai.settings.cliCheckOk", { name: t(`ai.names.${provider}`) })
+        : t("ai.settings.check.ok", { count: result.value.models.length }),
+    );
     // The key is stored only after the provider accepted it.
     if (typedKey && acceptsKey(provider)) {
       const saved = await runAction(t("ai.settings.key.save"), () => core.aiKeySet({ provider, key: typedKey }));
@@ -147,8 +182,12 @@ function ProviderCard({ settings }: { settings: Settings }) {
     }
   };
 
-  const modelOptions = (models ?? []).map((model) => ({ value: model.id, label: model.label === model.id ? model.id : `${model.label} (${model.id})` }));
-  if (settings.aiModel && models && !models.some((model) => model.id === settings.aiModel)) modelOptions.unshift({ value: settings.aiModel, label: settings.aiModel });
+  const modelOptions = (models ?? []).map((model) => ({
+    value: model.id,
+    label: model.label === model.id ? model.id : `${model.label} (${model.id})`,
+  }));
+  if (settings.aiModel && models && !models.some((model) => model.id === settings.aiModel))
+    modelOptions.unshift({ value: settings.aiModel, label: settings.aiModel });
   const own = settings.aiPrices.find((price) => price.model === settings.aiModel);
 
   return (
@@ -167,7 +206,10 @@ function ProviderCard({ settings }: { settings: Settings }) {
         )}
       </SettingRow>
       {provider && usesBaseUrl(provider) ? (
-        <SettingRow title={t("ai.settings.baseUrl.title")} description={isLocal(provider) ? t("ai.settings.baseUrl.descriptionLocal") : t("ai.settings.baseUrl.description")}>
+        <SettingRow
+          title={t("ai.settings.baseUrl.title")}
+          description={isLocal(provider) ? t("ai.settings.baseUrl.descriptionLocal") : t("ai.settings.baseUrl.description")}
+        >
           {(ids) => (
             <CommitText
               id={ids.id}
@@ -246,7 +288,13 @@ function ProviderCard({ settings }: { settings: Settings }) {
           {(ids) =>
             models && modelOptions.length && !isCli(provider) ? (
               <div className="w-72" data-ai-model>
-                <Select<string> id={ids.id} value={settings.aiModel ?? ""} placeholder={t("ai.settings.model.placeholder")} options={modelOptions} onValueChange={(value) => void applySettings({ aiModel: value })} />
+                <Select<string>
+                  id={ids.id}
+                  value={settings.aiModel ?? ""}
+                  placeholder={t("ai.settings.model.placeholder")}
+                  options={modelOptions}
+                  onValueChange={(value) => void applySettings({ aiModel: value })}
+                />
               </div>
             ) : (
               <CommitText
@@ -281,7 +329,9 @@ function ProviderCard({ settings }: { settings: Settings }) {
               onCommit={async (value) => {
                 const pair = parsePricePair(value);
                 if (pair === "invalid" || !settings.aiModel) return t("ai.settings.invalidAmount");
-                return fieldError(await applySettings({ aiPrices: withOwnPrice(settings.aiPrices, settings.aiModel, pair) }, { atField: true }));
+                return fieldError(
+                  await applySettings({ aiPrices: withOwnPrice(settings.aiPrices, settings.aiModel, pair) }, { atField: true }),
+                );
               }}
             />
           )}
@@ -300,7 +350,11 @@ function CliPathsCard({ settings }: { settings: Settings }) {
           <SettingRow
             key={provider}
             title={t(`ai.names.${provider}`)}
-            description={provider === "opencode" ? `${t("ai.settings.cliPath.description")} ${t("ai.settings.opencodeNote")}` : t("ai.settings.cliPath.description")}
+            description={
+              provider === "opencode"
+                ? `${t("ai.settings.cliPath.description")} ${t("ai.settings.opencodeNote")}`
+                : t("ai.settings.cliPath.description")
+            }
           >
             {(ids) => (
               <CommitText
@@ -310,7 +364,9 @@ function CliPathsCard({ settings }: { settings: Settings }) {
                 mono
                 value={settings.aiCliPaths[cliPathField(provider)] ?? ""}
                 placeholder={t("ai.settings.cliPath.placeholder")}
-                onCommit={async (value) => fieldError(await applySettings({ aiCliPaths: withCliPath(settings.aiCliPaths, provider, value) }, { atField: true }))}
+                onCommit={async (value) =>
+                  fieldError(await applySettings({ aiCliPaths: withCliPath(settings.aiCliPaths, provider, value) }, { atField: true }))
+                }
               />
             )}
           </SettingRow>
@@ -334,9 +390,24 @@ function PrivacyCard({ settings, repoId }: { settings: Settings; repoId: Id | nu
   return (
     <SettingsCard title={t("ai.settings.privacyCard")}>
       <SettingRow stacked title={t("ai.settings.exclude.title")} description={t("ai.settings.exclude.description")}>
-        {(ids) => <TextArea id={ids.id} data-ai-exclude aria-label={t("ai.settings.exclude.title")} rows={4} spellCheck={false} className="font-mono text-code" value={draft} onChange={(event) => setDraft(event.target.value)} onBlur={saveDraft} />}
+        {(ids) => (
+          <TextArea
+            id={ids.id}
+            data-ai-exclude
+            aria-label={t("ai.settings.exclude.title")}
+            rows={4}
+            spellCheck={false}
+            className="font-mono text-code"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={saveDraft}
+          />
+        )}
       </SettingRow>
-      <SettingRow title={t("ai.settings.whatIsSent.title")} description={repoId ? t("ai.settings.whatIsSent.description") : t("ai.settings.whatIsSent.noRepo")}>
+      <SettingRow
+        title={t("ai.settings.whatIsSent.title")}
+        description={repoId ? t("ai.settings.whatIsSent.description") : t("ai.settings.whatIsSent.noRepo")}
+      >
         {() => (
           <Button
             data-ai-what-is-sent
@@ -360,7 +431,9 @@ function PrivacyCard({ settings, repoId }: { settings: Settings; repoId: Id | nu
             validate={(value) => (typeof parseUsd(value) === "number" ? null : t("ai.settings.invalidAmount"))}
             onCommit={async (value) => {
               const amount = parseUsd(value);
-              return typeof amount === "number" ? fieldError(await applySettings({ aiConfirmCostUsd: amount }, { atField: true })) : t("ai.settings.invalidAmount");
+              return typeof amount === "number"
+                ? fieldError(await applySettings({ aiConfirmCostUsd: amount }, { atField: true }))
+                : t("ai.settings.invalidAmount");
             }}
           />
         )}
@@ -378,7 +451,12 @@ function CostCard({ settings }: { settings: Settings }) {
   const usageText =
     !usage || usage.requests === 0
       ? t("ai.settings.usage.none")
-      : t("ai.settings.usage.summary", { count: usage.requests, input: numbers.format(usage.inputTokens), output: numbers.format(usage.outputTokens), cost: formatUsd(usage.costUsd) });
+      : t("ai.settings.usage.summary", {
+          count: usage.requests,
+          input: numbers.format(usage.inputTokens),
+          output: numbers.format(usage.outputTokens),
+          cost: formatUsd(usage.costUsd),
+        });
   return (
     <SettingsCard title={t("ai.settings.costCard")}>
       <SettingRow title={t("ai.settings.limit.title")} description={t("ai.settings.limit.description")}>
@@ -393,7 +471,9 @@ function CostCard({ settings }: { settings: Settings }) {
             validate={(value) => (parseUsd(value) === "invalid" ? t("ai.settings.invalidAmount") : null)}
             onCommit={async (value) => {
               const amount = parseUsd(value);
-              return amount === "invalid" ? t("ai.settings.invalidAmount") : fieldError(await applySettings({ aiMonthlyLimitUsd: amount }, { atField: true }));
+              return amount === "invalid"
+                ? t("ai.settings.invalidAmount")
+                : fieldError(await applySettings({ aiMonthlyLimitUsd: amount }, { atField: true }));
             }}
           />
         )}

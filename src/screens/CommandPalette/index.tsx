@@ -34,14 +34,36 @@ import { buildCommandContext, isAvailable, useCommands } from "../../app/registr
 import { describeError } from "../../app/errors";
 import { showError } from "../../app/run";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
-import { useActiveTab, useAiStatus, useCommitSearch, useRefs, useRepoSettings, useRepos, useStatus, useStashes, useRemotes, useTree } from "../../app/queries";
+import {
+  useActiveTab,
+  useAiStatus,
+  useCommitSearch,
+  useRefs,
+  useRepoSettings,
+  useRepos,
+  useStatus,
+  useStashes,
+  useRemotes,
+  useTree,
+} from "../../app/queries";
 import { Kbd } from "../../ui/Kbd";
 import { Spinner } from "../../ui/Button";
 import { cn } from "../../ui/cn";
 import { fuzzyBest, fuzzyMatch, highlightParts, isWeakMatch, prepareQuery } from "./fuzzy";
 import { readRecent } from "./recent";
 import { locale, t } from "../../i18n";
-import { askItem, changedFirst, commandItems, commitItems, fileItems, kindLabels, refItems, repoItems, type PaletteItem, type PaletteKind } from "./sources";
+import {
+  askItem,
+  changedFirst,
+  commandItems,
+  commitItems,
+  fileItems,
+  kindLabels,
+  refItems,
+  repoItems,
+  type PaletteItem,
+  type PaletteKind,
+} from "./sources";
 import { openAiSetup } from "../../app/ai/open";
 import { askMode, askQuery, offerAskRow } from "./plan/model";
 import { usePlanSession } from "./plan/usePlanSession";
@@ -194,19 +216,28 @@ function OptionRow({
         active ? "bg-accent-surface" : "hover:bg-surface-raised",
       )}
     >
-      <span className={cn("shrink-0", active ? "text-accent" : "text-text-muted", disabled && "text-text-disabled")}>{kindIcons[item.kind]}</span>
+      <span className={cn("shrink-0", active ? "text-accent" : "text-text-muted", disabled && "text-text-disabled")}>
+        {kindIcons[item.kind]}
+      </span>
       <span className={cn("flex min-w-0 flex-1 items-baseline gap-2", disabled ? "text-text-disabled" : "text-text")}>
         {item.kind === "file" ? (
           <PathTitle path={item.title} positions={positions} />
         ) : (
-          <span className={cn("min-w-0 shrink truncate", item.kind === "branch" || item.kind === "remote" || item.kind === "tag" ? "font-mono text-code" : null)}>
+          <span
+            className={cn(
+              "min-w-0 shrink truncate",
+              item.kind === "branch" || item.kind === "remote" || item.kind === "tag" ? "font-mono text-code" : null,
+            )}
+          >
             <Highlighted text={item.title} positions={positions} />
           </span>
         )}
         {item.marker ? (
           <span className="shrink-0 rounded-sm border border-border px-1 text-xs font-medium text-text-muted">{item.marker}</span>
         ) : null}
-        {item.detail && item.kind !== "command" ? <span className="min-w-0 flex-1 truncate text-sm text-text-muted">{item.detail}</span> : null}
+        {item.detail && item.kind !== "command" ? (
+          <span className="min-w-0 flex-1 truncate text-sm text-text-muted">{item.detail}</span>
+        ) : null}
       </span>
       {disabled ? (
         <span className="max-w-60 shrink-0 truncate text-sm text-text-muted" title={item.disabledReason ?? undefined}>
@@ -225,7 +256,10 @@ function OptionRow({
             event.stopPropagation();
             onActions();
           }}
-          className={cn("-mr-1 flex size-control-sm shrink-0 items-center justify-center rounded-sm text-text-muted hover:bg-surface hover:text-text", active ? "visible" : "invisible group-hover:visible")}
+          className={cn(
+            "-mr-1 flex size-control-sm shrink-0 items-center justify-center rounded-sm text-text-muted hover:bg-surface hover:text-text",
+            active ? "visible" : "invisible group-hover:visible",
+          )}
         >
           <ChevronRight className="size-icon" />
         </span>
@@ -294,7 +328,9 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
   // In the second level the source of the chosen entry stays active: its actions should follow the
   // current state (after a checkout a different branch is the checked-out one).
   const stageKind = stage?.item.kind ?? null;
-  const wantsRefs = stage ? stageKind === "branch" || stageKind === "remote" || stageKind === "tag" : scope === "all" || scope === "branches";
+  const wantsRefs = stage
+    ? stageKind === "branch" || stageKind === "remote" || stageKind === "tag"
+    : scope === "all" || scope === "branches";
   const wantsFiles = stage ? stageKind === "file" : scope === "all" || scope === "files";
   const wantsCommits = !stage && scope === "commits";
 
@@ -317,9 +353,15 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
   }, [commands, status.data, tab?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refList = useMemo(() => (target && refs.data ? refItems(target, refs.data) : []), [target?.repoId, target?.tabId, refs.data]); // eslint-disable-line react-hooks/exhaustive-deps
-  const fileList = useMemo(() => (target && tree.data ? fileItems(target, tree.data, status.data) : []), [target?.repoId, target?.tabId, tree.data, status.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fileList = useMemo(
+    () => (target && tree.data ? fileItems(target, tree.data, status.data) : []),
+    [target?.repoId, target?.tabId, tree.data, status.data],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
   const repoList = useMemo(() => repoItems(repos.data ?? [], repoId), [repos.data, repoId]);
-  const commitList = useMemo(() => (target && commits.data ? commitItems(target, commits.data) : []), [target?.repoId, target?.tabId, commits.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const commitList = useMemo(
+    () => (target && commits.data ? commitItems(target, commits.data) : []),
+    [target?.repoId, target?.tabId, commits.data],
+  ); // eslint-disable-line react-hooks/exhaustive-deps
   const stageList = useMemo(() => {
     if (!stage) return [];
     const key = stage.item.key;
@@ -360,7 +402,9 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             for (const item of recent) push(item);
           }
           header(scope === "all" ? t("palette.scope.commands") : t("palette.header.allCommands"));
-          const sorted = [...availableCommands].sort((a, b) => (a.detail ?? "").localeCompare(b.detail ?? "", locale()) || a.title.localeCompare(b.title, locale()));
+          const sorted = [...availableCommands].sort(
+            (a, b) => (a.detail ?? "").localeCompare(b.detail ?? "", locale()) || a.title.localeCompare(b.title, locale()),
+          );
           for (const item of sorted) if (!recent.includes(item)) push(item);
           break;
         }
@@ -579,7 +623,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
       (scope === "branches" && Boolean(repoId) && refs.isPending) ||
       (wantsCommits && Boolean(text) && (commitQuery !== text || (Boolean(commitQuery) && commits.isFetching))));
   const failure = !stage ? (wantsFiles && tree.error) || (wantsRefs && refs.error) || (wantsCommits && commits.error) || null : null;
-  const loadingLabel = wantsCommits ? t("palette.loading.commits") : scope === "branches" ? t("palette.loading.branches") : t("palette.loading.files");
+  const loadingLabel = wantsCommits
+    ? t("palette.loading.commits")
+    : scope === "branches"
+      ? t("palette.loading.branches")
+      : t("palette.loading.files");
   const retry = () => {
     if (wantsFiles && tree.error) void tree.refetch();
     if (wantsRefs && refs.error) void refs.refetch();
@@ -612,7 +660,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
     } else if (noRepo) {
       empty = (
         <PaletteEmpty icon={<FolderGit2 className="size-6" aria-hidden />} title={t("palette.empty.noRepo")}>
-          {scope === "files" ? t("palette.empty.noRepoFiles") : scope === "commits" ? t("palette.empty.noRepoCommits") : t("palette.empty.noRepoBranches")}
+          {scope === "files"
+            ? t("palette.empty.noRepoFiles")
+            : scope === "commits"
+              ? t("palette.empty.noRepoCommits")
+              : t("palette.empty.noRepoBranches")}
         </PaletteEmpty>
       );
     } else if (scope === "commits" && !text) {
@@ -673,9 +725,14 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           <RadixDialog.Title className="sr-only">{t("palette.title")}</RadixDialog.Title>
           <div className="flex h-toolbar shrink-0 items-center gap-2 border-b border-border px-3">
             {stage ? (
-              <span className="flex max-w-60 shrink-0 items-center gap-1 rounded-sm bg-accent-surface py-0.5 pr-1 pl-1.5 text-sm font-medium text-accent" data-stage>
+              <span
+                className="flex max-w-60 shrink-0 items-center gap-1 rounded-sm bg-accent-surface py-0.5 pr-1 pl-1.5 text-sm font-medium text-accent"
+                data-stage
+              >
                 <span className="shrink-0">{kindIcons[stage.item.kind]}</span>
-                <span className="min-w-0 truncate">{stage.item.kind === "file" ? stage.item.title.split("/").pop() : stage.item.title}</span>
+                <span className="min-w-0 truncate">
+                  {stage.item.kind === "file" ? stage.item.title.split("/").pop() : stage.item.title}
+                </span>
                 <ChevronRight className="size-icon shrink-0" aria-hidden />
               </span>
             ) : (
@@ -684,7 +741,13 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             <input
               ref={inputRef}
               role="combobox"
-              aria-label={plan.active ? t("palette.plan.inputLabel", { text: plan.text }) : stage ? t("palette.inputAction", { title: stage.item.title }) : t("palette.input")}
+              aria-label={
+                plan.active
+                  ? t("palette.plan.inputLabel", { text: plan.text })
+                  : stage
+                    ? t("palette.inputAction", { title: stage.item.title })
+                    : t("palette.input")
+              }
               aria-expanded={rows.length > 0}
               aria-controls={listId}
               aria-autocomplete="list"
@@ -707,7 +770,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
           </div>
 
           {notice ? (
-            <p role="status" className="flex shrink-0 items-center gap-2 border-b border-border bg-warning-surface px-3 py-1.5 text-sm text-text" data-notice>
+            <p
+              role="status"
+              className="flex shrink-0 items-center gap-2 border-b border-border bg-warning-surface px-3 py-1.5 text-sm text-text"
+              data-notice
+            >
               <TriangleAlert className="size-icon shrink-0 text-warning" aria-hidden />
               {notice}
             </p>
@@ -719,7 +786,13 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
               <div role="alert" className="flex items-start gap-2 rounded-md bg-danger-surface px-3 py-2 text-sm text-text" data-failure>
                 <TriangleAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="font-medium">{wantsCommits ? t("palette.failure.search") : wantsFiles && tree.error ? t("palette.failure.files") : t("palette.failure.branches")}</span>{" "}
+                  <span className="font-medium">
+                    {wantsCommits
+                      ? t("palette.failure.search")
+                      : wantsFiles && tree.error
+                        ? t("palette.failure.files")
+                        : t("palette.failure.branches")}
+                  </span>{" "}
                   <span className="text-text-muted">{describeError(failure).text}</span>
                 </span>
                 <button
@@ -744,7 +817,10 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                 return (
                   <div key={virtual.key} className="absolute top-0 left-0 w-full" style={{ transform: `translateY(${virtual.start}px)` }}>
                     {row.type === "header" ? (
-                      <div role="presentation" className="flex h-row items-end px-2 pb-1 text-xs font-semibold tracking-wide text-text-muted uppercase">
+                      <div
+                        role="presentation"
+                        className="flex h-row items-end px-2 pb-1 text-xs font-semibold tracking-wide text-text-muted uppercase"
+                      >
                         {row.label}
                       </div>
                     ) : (
@@ -776,7 +852,10 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             {empty}
           </div>
 
-          <footer className="flex h-control-md shrink-0 items-center gap-3 border-t border-border bg-bg px-3 text-xs text-text-muted" data-footer>
+          <footer
+            className="flex h-control-md shrink-0 items-center gap-3 border-t border-border bg-bg px-3 text-xs text-text-muted"
+            data-footer
+          >
             {plan.active ? (
               <PlanFooter session={plan} />
             ) : !stage && !raw ? (
@@ -793,7 +872,9 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                     }}
                     className="inline-flex shrink-0 items-center gap-1 hover:text-text"
                   >
-                    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-sm border border-border bg-surface px-1 font-mono text-xs text-text">{entry.prefix}</kbd>
+                    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-sm border border-border bg-surface px-1 font-mono text-xs text-text">
+                      {entry.prefix}
+                    </kbd>
                     {entry.label}
                   </button>
                 ))}
@@ -809,7 +890,9 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
                     }}
                     className="inline-flex shrink-0 items-center gap-1 hover:text-text"
                   >
-                    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-sm border border-border bg-surface px-1 font-mono text-xs text-text">?</kbd>
+                    <kbd className="inline-flex h-4 min-w-4 items-center justify-center rounded-sm border border-border bg-surface px-1 font-mono text-xs text-text">
+                      ?
+                    </kbd>
                     {t("palette.scope.ask")}
                   </button>
                 ) : null}

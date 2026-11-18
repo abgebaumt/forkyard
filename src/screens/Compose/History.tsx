@@ -8,7 +8,19 @@ import { laneColor } from "../../ui/cn";
 import { t } from "../../i18n";
 import { commitProblems, type Arrangement, type Units } from "./model";
 
-export function History({ arrangement, units, branch, headSubject, onJump }: { arrangement: Arrangement; units: Units; branch: string; headSubject: string; onJump: (commit: number) => void }) {
+export function History({
+  arrangement,
+  units,
+  branch,
+  headSubject,
+  onJump,
+}: {
+  arrangement: Arrangement;
+  units: Units;
+  branch: string;
+  headSubject: string;
+  onJump: (commit: number) => void;
+}) {
   return (
     <nav
       aria-label={t("wip.compose.history")}
@@ -37,7 +49,9 @@ export function History({ arrangement, units, branch, headSubject, onJump }: { a
               className="flex shrink-0 items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-surface-raised"
             >
               <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: laneColor(index) }} aria-hidden />
-              <span className={commit.title.trim() ? "max-w-56 truncate text-sm text-text" : "max-w-56 truncate text-sm text-text-muted"}>{subject}</span>
+              <span className={commit.title.trim() ? "max-w-56 truncate text-sm text-text" : "max-w-56 truncate text-sm text-text-muted"}>
+                {subject}
+              </span>
               {broken ? <span className="text-xs text-warning">{t("wip.compose.brokenShort")}</span> : null}
             </button>
           </Fragment>

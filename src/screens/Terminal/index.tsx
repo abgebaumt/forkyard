@@ -10,7 +10,20 @@
  * Registered in src/screens/Shortcuts/fixedKeys.ts.
  */
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
-import { ChevronDown, CircleStop, ClipboardPaste, Copy, Eraser, ExternalLink, Plus, RotateCw, SquareTerminal, TextSelect, Trash2, X } from "lucide-react";
+import {
+  ChevronDown,
+  CircleStop,
+  ClipboardPaste,
+  Copy,
+  Eraser,
+  ExternalLink,
+  Plus,
+  RotateCw,
+  SquareTerminal,
+  TextSelect,
+  Trash2,
+  X,
+} from "lucide-react";
 import type { Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { openExternal } from "../../app/actions/files";
@@ -113,10 +126,24 @@ function terminalMenu(session: Session): MenuEntry[] {
     },
     { label: t("terminal.menu.selectAll"), icon: <TextSelect className={icon} aria-hidden />, onSelect: () => session.selectAll() },
     { type: "separator" },
-    { label: t("terminal.menu.clear"), icon: <Eraser className={icon} aria-hidden />, hint: t("terminal.menu.clearHint"), onSelect: () => session.clear() },
-    { label: live ? t("terminal.menu.restartAsk") : t("terminal.menu.restart"), icon: <RotateCw className={icon} aria-hidden />, onSelect: () => void restartTerminal(session.tabId) },
+    {
+      label: t("terminal.menu.clear"),
+      icon: <Eraser className={icon} aria-hidden />,
+      hint: t("terminal.menu.clearHint"),
+      onSelect: () => session.clear(),
+    },
+    {
+      label: live ? t("terminal.menu.restartAsk") : t("terminal.menu.restart"),
+      icon: <RotateCw className={icon} aria-hidden />,
+      onSelect: () => void restartTerminal(session.tabId),
+    },
     { type: "separator" },
-    { label: live ? t("terminal.menu.endAsk") : t("terminal.menu.end"), icon: <Trash2 className={icon} aria-hidden />, danger: true, onSelect: () => void endTerminal(session.tabId) },
+    {
+      label: live ? t("terminal.menu.endAsk") : t("terminal.menu.end"),
+      icon: <Trash2 className={icon} aria-hidden />,
+      danger: true,
+      onSelect: () => void endTerminal(session.tabId),
+    },
   ];
 }
 
@@ -138,17 +165,38 @@ function failureTitle(status: Extract<TerminalStatus, { kind: "failed" }>): stri
   return t("terminal.failure.other");
 }
 
-const DOT: Record<StatusTone, string> = { accent: "bg-accent", warning: "bg-warning", success: "bg-success", danger: "bg-danger", muted: "bg-text-muted" };
+const DOT: Record<StatusTone, string> = {
+  accent: "bg-accent",
+  warning: "bg-warning",
+  success: "bg-success",
+  danger: "bg-danger",
+  muted: "bg-text-muted",
+};
 const STARTING: TerminalStatus = { kind: "starting" };
 const noSubscribe = () => () => undefined;
 
-function SessionTab({ tabId, entry, active, onArrow }: { tabId: Id; entry: TabEntry; active: boolean; onArrow: (key: Id, delta: number) => void }) {
+function SessionTab({
+  tabId,
+  entry,
+  active,
+  onArrow,
+}: {
+  tabId: Id;
+  entry: TabEntry;
+  active: boolean;
+  onArrow: (key: Id, delta: number) => void;
+}) {
   const session = sessionByKey(tabId, entry.key);
   const status = useSyncExternalStore(session?.subscribe ?? noSubscribe, session?.getStatus ?? (() => STARTING));
   const waiting = useAgentSessionWaiting(entry.key);
   const state = sessionState(entry.kind, status, waiting);
   return (
-    <div data-terminal-tab={entry.key} data-active={active ? "true" : undefined} data-state={state} className={`flex shrink-0 items-center rounded-sm ${active ? "bg-surface-sunken" : ""}`}>
+    <div
+      data-terminal-tab={entry.key}
+      data-active={active ? "true" : undefined}
+      data-state={state}
+      className={`flex shrink-0 items-center rounded-sm ${active ? "bg-surface-sunken" : ""}`}
+    >
       <button
         type="button"
         role="tab"
@@ -192,7 +240,13 @@ function SessionTabs({ tabId, tabs }: { tabId: Id; tabs: TerminalTabs }) {
       {tabs.entries.map((entry) => (
         <SessionTab key={entry.key} tabId={tabId} entry={entry} active={entry.key === tabs.active} onArrow={move} />
       ))}
-      <IconButton size="sm" label={t("terminal.tabs.new")} data-action="new-shell" icon={<Plus className="size-icon" aria-hidden />} onClick={() => newTerminalShell(tabId)} />
+      <IconButton
+        size="sm"
+        label={t("terminal.tabs.new")}
+        data-action="new-shell"
+        icon={<Plus className="size-icon" aria-hidden />}
+        onClick={() => newTerminalShell(tabId)}
+      />
     </div>
   );
 }
@@ -202,7 +256,9 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
   const status = useSyncExternalStore(session.subscribe, session.getStatus);
   const tabs = useSyncExternalStore(subscribeTerminalTabs, () => terminalTabs(tabId));
   const shownEntry = tabs.entries.find((entry) => entry.key === tabs.active) ?? null;
-  const liveText = shownEntry ? t("terminal.tabs.live", { name: shownEntry.title, status: t(`terminal.tabs.status.${sessionState(shownEntry.kind, status)}`) }) : "";
+  const liveText = shownEntry
+    ? t("terminal.tabs.live", { name: shownEntry.title, status: t(`terminal.tabs.status.${sessionState(shownEntry.kind, status)}`) })
+    : "";
   const { data: repo } = useRepo(repoId);
   const { data: info } = useAppInfo();
   const mac = info?.platform === "macos";
@@ -318,11 +374,27 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
             <span className="min-w-0 flex-1 basis-0 truncate font-mono text-code text-text-muted">{path}</span>
           </Tip>
         ) : null}
-        {status.kind === "exited" ? <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.exited")}</span> : null}
-        {status.kind === "failed" ? <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.failed")}</span> : null}
+        {status.kind === "exited" ? (
+          <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.exited")}</span>
+        ) : null}
+        {status.kind === "failed" ? (
+          <span className="shrink-0 rounded-sm border border-border px-1 text-xs text-text-muted">{t("terminal.badge.failed")}</span>
+        ) : null}
         <div className="ml-auto flex shrink-0 items-center">
-          <IconButton size="sm" label={t("terminal.clearLabel")} data-action="clear" icon={<Eraser className="size-icon" aria-hidden />} onClick={() => clearTerminal(tabId)} />
-          <IconButton size="sm" label={live ? t("terminal.menu.restartAsk") : t("terminal.menu.restart")} data-action="restart" icon={<RotateCw className="size-icon" aria-hidden />} onClick={restart} />
+          <IconButton
+            size="sm"
+            label={t("terminal.clearLabel")}
+            data-action="clear"
+            icon={<Eraser className="size-icon" aria-hidden />}
+            onClick={() => clearTerminal(tabId)}
+          />
+          <IconButton
+            size="sm"
+            label={live ? t("terminal.menu.restartAsk") : t("terminal.menu.restart")}
+            data-action="restart"
+            icon={<RotateCw className="size-icon" aria-hidden />}
+            onClick={restart}
+          />
           <IconButton
             size="sm"
             label={t("terminal.external")}
@@ -384,7 +456,10 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
           className="absolute inset-0 overflow-hidden py-1 pr-1 pl-2 -outline-offset-2 outline-accent has-[textarea:focus]:outline-2"
         />
         {status.kind === "starting" ? (
-          <div role="status" className="pointer-events-none absolute inset-0 flex items-start gap-2 bg-surface-sunken py-1 pl-2 font-mono text-code text-text-muted">
+          <div
+            role="status"
+            className="pointer-events-none absolute inset-0 flex items-start gap-2 bg-surface-sunken py-1 pl-2 font-mono text-code text-text-muted"
+          >
             <Spinner label={t("terminal.starting")} />
             <span>{t("terminal.starting")} …</span>
           </div>
@@ -395,7 +470,14 @@ export function TerminalPanel({ repoId, tabId }: TerminalPanelProps) {
         <footer role="status" className="flex min-h-control-lg shrink-0 items-center gap-2 border-t border-border bg-surface px-3 py-1">
           <CircleStop className="size-icon shrink-0 text-text-muted" aria-hidden />
           <p className="min-w-0 flex-1 truncate text-base text-text">{exitText(status.code)}</p>
-          <Button size="sm" variant="primary" data-focus-home data-action="restart-shell" icon={<RotateCw className="size-icon" aria-hidden />} onClick={restart}>
+          <Button
+            size="sm"
+            variant="primary"
+            data-focus-home
+            data-action="restart-shell"
+            icon={<RotateCw className="size-icon" aria-hidden />}
+            onClick={restart}
+          >
             {t("terminal.menu.restart")}
           </Button>
           <Button size="sm" variant="ghost" data-action="end-session" onClick={() => void endTerminal(tabId)}>

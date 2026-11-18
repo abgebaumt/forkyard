@@ -68,7 +68,17 @@ type FailedView = Exclude<AiErrorView, { kind: "cancelled" }>;
  * contents. A signed-out command-line tool gets "Sign in in the terminal" (1b's helper); without an
  * open repository tab the line says how to sign in instead.
  */
-export function PrAiErrorNotice({ view, provider, onAgain, onShowSent }: { view: FailedView; provider: AiProviderKind | null; onAgain: () => void; onShowSent: () => void }) {
+export function PrAiErrorNotice({
+  view,
+  provider,
+  onAgain,
+  onShowSent,
+}: {
+  view: FailedView;
+  provider: AiProviderKind | null;
+  onAgain: () => void;
+  onShowSent: () => void;
+}) {
   const [noTerminal, setNoTerminal] = useState(false);
   const again = (label: string) => (
     <Button size="sm" onClick={onAgain}>
@@ -320,7 +330,14 @@ export function usePrAiWriter({ repoId, source, target, ahead, sameBranch, field
           {blocked}
         </p>
       ) : null}
-      {run.kind === "failed" ? <PrAiErrorNotice view={run.view} provider={status.data?.provider ?? null} onAgain={() => void start()} onShowSent={() => void showSent()} /> : null}
+      {run.kind === "failed" ? (
+        <PrAiErrorNotice
+          view={run.view}
+          provider={status.data?.provider ?? null}
+          onAgain={() => void start()}
+          onShowSent={() => void showSent()}
+        />
+      ) : null}
       {titleOffer !== null ? (
         <div data-pr-ai-title-offer="" className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2">
           <p className="min-w-0 flex-1 text-sm text-text">
@@ -335,7 +352,10 @@ export function usePrAiWriter({ repoId, source, target, ahead, sameBranch, field
         </div>
       ) : null}
       {bodyOffer ? (
-        <div data-pr-ai-body-offer={bodyOffer.ready ? "ready" : "choose"} className="flex flex-col gap-2 rounded-md border border-border bg-surface px-3 py-2">
+        <div
+          data-pr-ai-body-offer={bodyOffer.ready ? "ready" : "choose"}
+          className="flex flex-col gap-2 rounded-md border border-border bg-surface px-3 py-2"
+        >
           <p className="text-sm text-text">{bodyOffer.ready ? t("ai.suggestion.ready") : t("pullRequest.create.ai.bodyOffer")}</p>
           <pre
             aria-label={t("pullRequest.create.ai.suggested")}

@@ -63,7 +63,16 @@ export interface AddWorktreeInput {
 }
 
 /** Errors the dialog shows itself at the field. */
-export const ADD_WORKTREE_QUIET: ErrorCode[] = ["not_allowed", "path_not_found", "path_exists", "invalid_name", "name_exists", "not_found", "io", "unknown"];
+export const ADD_WORKTREE_QUIET: ErrorCode[] = [
+  "not_allowed",
+  "path_not_found",
+  "path_exists",
+  "invalid_name",
+  "name_exists",
+  "not_found",
+  "io",
+  "unknown",
+];
 
 export async function addWorktree(repoId: Id, input: AddWorktreeInput): Promise<ActionResult<Worktree[]>> {
   await whenFree(repoId);
@@ -81,13 +90,18 @@ export async function addWorktree(repoId: Id, input: AddWorktreeInput): Promise<
 /** Shows a change to a worktree immediately; what the core returns afterwards stays authoritative. */
 function showAtOnce(repoId: Id, path: string, change: Partial<Worktree>) {
   const list = cachedList(repoId);
-  if (list) setList(repoId, list.map((item) => (samePath(item.path, path) ? { ...item, ...change } : item)));
+  if (list)
+    setList(
+      repoId,
+      list.map((item) => (samePath(item.path, path) ? { ...item, ...change } : item)),
+    );
 }
 
 /** If a worktree action is already running for this repository, the next one waits instead of silently fizzling out. */
 async function whenFree(repoId: Id): Promise<void> {
   const key = worktreeBusyKey(repoId);
-  for (let round = 0; round < 200 && useAppStore.getState().busy[key]; round++) await new Promise((resolve) => window.setTimeout(resolve, 50));
+  for (let round = 0; round < 200 && useAppStore.getState().busy[key]; round++)
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
 }
 
 export async function lockWorktree(repoId: Id, worktree: Worktree, reason: string | null) {
@@ -95,10 +109,16 @@ export async function lockWorktree(repoId: Id, worktree: Worktree, reason: strin
   const clean = reason?.trim() || null;
   await whenFree(repoId);
   showAtOnce(repoId, worktree.path, { isLocked: true, lockReason: clean });
-  const result = await runAction(t("actions.worktrees.lock.label"), () => core.worktreeLock({ repoId, path: worktree.path, reason: clean }), {
-    busyKey: worktreeBusyKey(repoId),
-    success: worktree.isLocked ? t("actions.worktrees.lock.reasonChanged", { name: clip(name, 40) }) : t("actions.worktrees.lock.done", { name: clip(name, 40) }),
-  });
+  const result = await runAction(
+    t("actions.worktrees.lock.label"),
+    () => core.worktreeLock({ repoId, path: worktree.path, reason: clean }),
+    {
+      busyKey: worktreeBusyKey(repoId),
+      success: worktree.isLocked
+        ? t("actions.worktrees.lock.reasonChanged", { name: clip(name, 40) })
+        : t("actions.worktrees.lock.done", { name: clip(name, 40) }),
+    },
+  );
   if (result.ok) setList(repoId, result.value);
   else void queryClient.invalidateQueries({ queryKey: qk.worktrees(repoId) });
   return result;
@@ -142,12 +162,18 @@ export async function removeWorktree(repoId: Id, worktree: Worktree) {
   const name = folderName(worktree.path);
   const blocked = removeBlock(worktree);
   if (blocked) {
-    toast({ tone: "info", title: t("actions.worktrees.remove.blocked", { name: clip(name, 40) }), description: t("actions.worktrees.remove.reason", { reason: blocked }) });
+    toast({
+      tone: "info",
+      title: t("actions.worktrees.remove.blocked", { name: clip(name, 40) }),
+      description: t("actions.worktrees.remove.reason", { reason: blocked }),
+    });
     return null;
   }
   if (worktree.isPrunable) return pruneWorktrees(repoId);
 
-  const keeps = worktree.branch ? t("actions.worktrees.remove.keepsBranch", { branch: worktree.branch }) : t("actions.worktrees.remove.keepsDetached");
+  const keeps = worktree.branch
+    ? t("actions.worktrees.remove.keepsBranch", { branch: worktree.branch })
+    : t("actions.worktrees.remove.keepsDetached");
   const ok = await confirm({
     title: t("actions.worktrees.remove.title", { name: clip(name, 40) }),
     body: t("actions.worktrees.remove.body", { keeps }),

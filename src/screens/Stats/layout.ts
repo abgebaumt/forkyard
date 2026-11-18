@@ -55,9 +55,15 @@ export function folderSegments(folder: StatsFolder, palette: AuthorPalette): Sha
   if (folder.weight <= 0) return [];
   const segments: ShareSegment[] = folder.top
     .filter((share) => share.weight > 0)
-    .map((share) => ({ name: share.author.name, email: share.author.email, percent: (share.weight / folder.weight) * 100, lane: palette.of(share.author) }));
+    .map((share) => ({
+      name: share.author.name,
+      email: share.author.email,
+      percent: (share.weight / folder.weight) * 100,
+      lane: palette.of(share.author),
+    }));
   const named = folder.top.reduce((sum, share) => sum + share.weight, 0);
-  if (named < folder.weight) segments.push({ name: null, email: null, percent: ((folder.weight - named) / folder.weight) * 100, lane: null });
+  if (named < folder.weight)
+    segments.push({ name: null, email: null, percent: ((folder.weight - named) / folder.weight) * 100, lane: null });
   return segments;
 }
 

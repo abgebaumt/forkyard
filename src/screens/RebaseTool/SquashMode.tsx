@@ -17,14 +17,37 @@ import { Button } from "../../ui/Button";
 import { Banner } from "../../ui/Feedback";
 import { TextArea, TextField } from "../../ui/Field";
 import { chainOldestFirst, combinedMessage, joinMessage } from "./model";
-import { ColumnBar, CommitCells, LoadError, Name, SkeletonRows, StartButton, StatePanel, ToolFooter, ToolHeader, type StartRef } from "./parts";
+import {
+  ColumnBar,
+  CommitCells,
+  LoadError,
+  Name,
+  SkeletonRows,
+  StartButton,
+  StatePanel,
+  ToolFooter,
+  ToolHeader,
+  type StartRef,
+} from "./parts";
 import { ReorderList } from "./ReorderList";
 import { useCommitRows } from "./useCommitRows";
 import { t } from "../../i18n";
 
 const SUMMARY_NOTICE = 50;
 
-export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId: Id; tabId: Id; shas: Sha[]; onClose: () => void; startRef: StartRef }) {
+export function SquashMode({
+  repoId,
+  tabId,
+  shas,
+  onClose,
+  startRef,
+}: {
+  repoId: Id;
+  tabId: Id;
+  shas: Sha[];
+  onClose: () => void;
+  startRef: StartRef;
+}) {
   startRef.current = null;
   const unique = useMemo(() => [...new Set(shas)], [shas]);
   const { pending, error, commits, retry } = useCommitRows(repoId, unique);
@@ -76,7 +99,12 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
     return (
       <>
         {header}
-        <StatePanel state="empty" icon={<Combine className="size-8" aria-hidden />} title={t("rebase.squash.tooFewTitle")} actions={<Button onClick={onClose}>{t("rebase.backToGraph")}</Button>}>
+        <StatePanel
+          state="empty"
+          icon={<Combine className="size-8" aria-hidden />}
+          title={t("rebase.squash.tooFewTitle")}
+          actions={<Button onClick={onClose}>{t("rebase.backToGraph")}</Button>}
+        >
           {t("rebase.squash.tooFewBody")}
         </StatePanel>
       </>
@@ -119,16 +147,18 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
                 {t("rebase.backToGraph")}
               </Button>
               {base && !merge ? (
-                <Button variant="primary" icon={<ListOrdered className="size-icon" aria-hidden />} onClick={() => useAppStore.getState().openRebase(tabId, base, "interactive")}>
+                <Button
+                  variant="primary"
+                  icon={<ListOrdered className="size-icon" aria-hidden />}
+                  onClick={() => useAppStore.getState().openRebase(tabId, base, "interactive")}
+                >
                   {t("rebase.squash.interactiveInstead")}
                 </Button>
               ) : null}
             </>
           }
         >
-          {merge
-            ? t("rebase.squash.mergeBody")
-            : t("rebase.squash.gapBody")}
+          {merge ? t("rebase.squash.mergeBody") : t("rebase.squash.gapBody")}
         </StatePanel>
       </>
     );
@@ -136,7 +166,13 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
 
   const cleanSummary = (summary ?? "").trim();
   const length = [...cleanSummary].length;
-  const blocked = busy ? null : !cleanSummary ? t("rebase.squash.summaryEmpty") : status?.operation ? t("rebase.squash.operationRunning") : null;
+  const blocked = busy
+    ? null
+    : !cleanSummary
+      ? t("rebase.squash.summaryEmpty")
+      : status?.operation
+        ? t("rebase.squash.operationRunning")
+        : null;
   const pushed = ordered.some((commit) => commit.isPushed);
 
   const submit = async () => {
@@ -152,7 +188,11 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
       if (!ok) return;
     }
     const message = joinMessage({ summary: cleanSummary, description });
-    const result = await runAction(t("rebase.squash.label"), withFreshStatus(repoId, () => core.squashCommits({ repoId, shas: chain, message })), { busyKey: busyKeys.history(repoId) });
+    const result = await runAction(
+      t("rebase.squash.label"),
+      withFreshStatus(repoId, () => core.squashCommits({ repoId, shas: chain, message })),
+      { busyKey: busyKeys.history(repoId) },
+    );
     if (!result.ok) return;
     onClose();
     reportOpResult(t("rebase.squash.label"), result.value, tabId, { reveal: true });
@@ -191,7 +231,13 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
                 <span className="min-w-0 flex-1 truncate text-text" data-summary="">
                   {commit.summary}
                 </span>
-                <CommitCells authorName={commit.author.name} authorEmail={commit.author.email} authoredAt={commit.authoredAt} sha={commit.sha} dateFormat={settings?.dateFormat ?? "relative"} />
+                <CommitCells
+                  authorName={commit.author.name}
+                  authorEmail={commit.author.email}
+                  authoredAt={commit.authoredAt}
+                  sha={commit.sha}
+                  dateFormat={settings?.dateFormat ?? "relative"}
+                />
               </div>
             );
           }}
@@ -212,17 +258,32 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
           spellCheck
           autoComplete="off"
           error={summary !== null && !cleanSummary ? t("rebase.squash.summaryEmpty") : undefined}
-          hint={length >= SUMMARY_NOTICE ? (length > SUMMARY_LIMIT ? t("rebase.squash.charsTooMany", { count: length, limit: SUMMARY_LIMIT }) : t("rebase.squash.chars", { count: length })) : undefined}
+          hint={
+            length >= SUMMARY_NOTICE
+              ? length > SUMMARY_LIMIT
+                ? t("rebase.squash.charsTooMany", { count: length, limit: SUMMARY_LIMIT })
+                : t("rebase.squash.chars", { count: length })
+              : undefined
+          }
           onChange={(event) => setSummary(event.target.value.replace(/[\r\n]+/g, " "))}
         />
-        <TextArea label={t("rebase.squash.description")} value={description} rows={4} spellCheck className="font-mono text-code" onChange={(event) => setDescription(event.target.value)} />
+        <TextArea
+          label={t("rebase.squash.description")}
+          value={description}
+          rows={4}
+          spellCheck
+          className="font-mono text-code"
+          onChange={(event) => setDescription(event.target.value)}
+        />
         <button type="submit" hidden />
       </form>
       <ToolFooter
         keys={[["Mod+Enter", t("rebase.squash.keySquash")]]}
         info={
           <span className="flex min-w-0 items-center gap-1.5" role="status">
-            <span className="shrink-0 font-medium">{t("rebase.commits", { count: ordered.length })} → {t("rebase.commits", { count: 1 })}</span>
+            <span className="shrink-0 font-medium">
+              {t("rebase.commits", { count: ordered.length })} → {t("rebase.commits", { count: 1 })}
+            </span>
             <span className="truncate text-text-muted">· {t("rebase.squash.laterRebased")}</span>
           </span>
         }
@@ -230,7 +291,14 @@ export function SquashMode({ repoId, tabId, shas, onClose, startRef }: { repoId:
         <Button variant="ghost" onClick={onClose}>
           {t("rebase.cancel")}
         </Button>
-        <StartButton action="start" label={t("rebase.squash.start")} blocked={blocked} loading={busy} icon={<Combine className="size-icon" aria-hidden />} onClick={() => void submit()} />
+        <StartButton
+          action="start"
+          label={t("rebase.squash.start")}
+          blocked={blocked}
+          loading={busy}
+          icon={<Combine className="size-icon" aria-hidden />}
+          onClick={() => void submit()}
+        />
       </ToolFooter>
     </>
   );

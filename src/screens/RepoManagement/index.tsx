@@ -55,12 +55,26 @@ function buildItems(repos: Repo[], grouping: Grouping): ListItem[] {
     for (const repo of list) items.push({ kind: "repo", key: repo.id, repo });
   };
   // The core already returns the list sorted by "last opened".
-  section("favorites", t("repos.sections.favorites"), repos.filter((repo) => repo.isFavorite));
+  section(
+    "favorites",
+    t("repos.sections.favorites"),
+    repos.filter((repo) => repo.isFavorite),
+  );
   const rest = repos.filter((repo) => !repo.isFavorite);
   if (grouping === "groups") {
     const names = [...new Set(rest.flatMap((repo) => (repo.groupName ? [repo.groupName] : [])))].sort(collator.compare);
-    for (const name of names) section(`group:${name}`, name, rest.filter((repo) => repo.groupName === name), name);
-    section("ungrouped", t("repos.sections.ungrouped"), rest.filter((repo) => !repo.groupName));
+    for (const name of names)
+      section(
+        `group:${name}`,
+        name,
+        rest.filter((repo) => repo.groupName === name),
+        name,
+      );
+    section(
+      "ungrouped",
+      t("repos.sections.ungrouped"),
+      rest.filter((repo) => !repo.groupName),
+    );
   } else {
     section("recent", t("repos.sections.recent"), rest);
   }
@@ -114,12 +128,22 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
   const filterRef = useRef<HTMLInputElement>(null);
 
   const hasGroups = Boolean(repos?.some((repo) => repo.groupName));
-  const groups = useMemo(() => [...new Set((repos ?? []).flatMap((repo) => (repo.groupName ? [repo.groupName] : [])))].sort(collator.compare), [repos]);
+  const groups = useMemo(
+    () => [...new Set((repos ?? []).flatMap((repo) => (repo.groupName ? [repo.groupName] : [])))].sort(collator.compare),
+    [repos],
+  );
   const effectiveGrouping: Grouping = hasGroups ? grouping : "recent";
   const showFilter = (repos?.length ?? 0) >= FILTER_FROM;
   const words = useMemo(() => (showFilter ? filter.toLocaleLowerCase("de").split(/\s+/).filter(Boolean) : []), [filter, showFilter]);
 
-  const items = useMemo(() => buildItems((repos ?? []).filter((repo) => matches(repo, words)), effectiveGrouping), [repos, words, effectiveGrouping]);
+  const items = useMemo(
+    () =>
+      buildItems(
+        (repos ?? []).filter((repo) => matches(repo, words)),
+        effectiveGrouping,
+      ),
+    [repos, words, effectiveGrouping],
+  );
   const visibleRepos = useMemo(() => items.flatMap((item) => (item.kind === "repo" ? [item.repo] : [])), [items]);
 
   // A visible entry is always selected.
@@ -155,7 +179,8 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
     if (!path) return;
     setNotice(null);
     const result = await openRepositoryAt(path, { quiet: QUIET });
-    if (!result.ok && (result.error.code === "not_a_repo" || result.error.code === "path_not_found")) setNotice({ kind: result.error.code, path });
+    if (!result.ok && (result.error.code === "not_a_repo" || result.error.code === "path_not_found"))
+      setNotice({ kind: result.error.code, path });
   };
 
   const openRepo = async (repo: Repo) => {
@@ -187,7 +212,9 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
     window.setTimeout(() => list.current?.focusRow(neighbour?.id ?? null), 0);
   };
 
-  const closeNotice = <IconButton size="sm" label={t("repos.notice.close")} icon={<X className="size-icon" aria-hidden />} onClick={() => setNotice(null)} />;
+  const closeNotice = (
+    <IconButton size="sm" label={t("repos.notice.close")} icon={<X className="size-icon" aria-hidden />} onClick={() => setNotice(null)} />
+  );
   const noticeBanner = notice ? (
     <div className="px-4 pb-3" data-notice={notice.kind}>
       <div className="overflow-hidden rounded-md">
@@ -227,7 +254,11 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
       <div data-screen="repo-management" data-state="empty" className="flex min-h-0 flex-1 flex-col bg-bg">
         {notice ? <div className="mx-auto w-full max-w-180 pt-4">{noticeBanner}</div> : null}
         <div className="flex flex-1 items-center justify-center">
-          <EmptyState icon={<FolderGit2 className="size-8" aria-hidden />} title={t("repos.empty.title")} action={<EntryButtons onOpen={() => void openFolder()} />}>
+          <EmptyState
+            icon={<FolderGit2 className="size-8" aria-hidden />}
+            title={t("repos.empty.title")}
+            action={<EntryButtons onOpen={() => void openFolder()} />}
+          >
             {t("repos.empty.body")}
           </EmptyState>
         </div>
@@ -296,8 +327,15 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
   }
 
   return (
-    <div data-screen="repo-management" data-state={reposQuery.isPending ? "loading" : reposQuery.isError ? "error" : "ready"} className="@container flex min-h-0 flex-1 bg-bg">
-      <section aria-label={t("repos.title")} className="flex min-w-0 flex-1 flex-col bg-surface @5xl:w-130 @5xl:flex-none @5xl:border-r @5xl:border-border">
+    <div
+      data-screen="repo-management"
+      data-state={reposQuery.isPending ? "loading" : reposQuery.isError ? "error" : "ready"}
+      className="@container flex min-h-0 flex-1 bg-bg"
+    >
+      <section
+        aria-label={t("repos.title")}
+        className="flex min-w-0 flex-1 flex-col bg-surface @5xl:w-130 @5xl:flex-none @5xl:border-r @5xl:border-border"
+      >
         <div className="mx-auto flex min-h-0 w-full max-w-180 flex-1 flex-col">
           <header className="flex flex-col gap-3 px-4 pt-5 pb-4">
             <h1 className="text-xl font-semibold">{t("repos.title")}</h1>
@@ -365,7 +403,9 @@ export function RepoManagement({ tabId: _tabId }: RepoManagementProps) {
                 />
               ) : null}
               <span data-repo-count className="shrink-0 text-sm text-text-muted" aria-live="polite">
-                {words.length ? t("repos.countFiltered", { shown: shown.toLocaleString(locale()), total: total.toLocaleString(locale()) }) : t("repos.count", { count: total })}
+                {words.length
+                  ? t("repos.countFiltered", { shown: shown.toLocaleString(locale()), total: total.toLocaleString(locale()) })
+                  : t("repos.count", { count: total })}
               </span>
             </div>
           ) : null}

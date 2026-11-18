@@ -65,12 +65,17 @@ function focusFileList() {
   });
 }
 
-const isTextField = (element: Element | null) => Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
+const isTextField = (element: Element | null) =>
+  Boolean(element && (element.tagName === "INPUT" || element.tagName === "TEXTAREA" || element.tagName === "SELECT"));
 
 /** Slim hint strip above the diff. */
 function Strip({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div role="status" data-diff-strip="" className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-0.5 text-sm text-text-muted">
+    <div
+      role="status"
+      data-diff-strip=""
+      className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-0.5 text-sm text-text-muted"
+    >
       <span className="min-w-0 flex-1">{children}</span>
       {action}
     </div>
@@ -134,7 +139,13 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   // Which display is really shown: if the full text is missing (over 1 MiB), it stays with the hunks.
   const oldMissing = text ? text.oldText === null && text.status !== "added" && text.status !== "untracked" : false;
   const newMissing = text ? text.newText === null && text.status !== "deleted" : false;
-  const shown: DiffMode = !text ? mode : mode === "inline" && newMissing ? "hunks" : mode === "split" && (oldMissing || newMissing) ? "hunks" : mode;
+  const shown: DiffMode = !text
+    ? mode
+    : mode === "inline" && newMissing
+      ? "hunks"
+      : mode === "split" && (oldMissing || newMissing)
+        ? "hunks"
+        : mode;
   const fellBack = Boolean(text) && shown !== mode;
 
   const model = useMemo(() => {
@@ -205,16 +216,36 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   );
   const foldCount = shown === "inline" ? (model?.foldCount ?? 0) : 0;
   const allCollapsed = foldCount > 0 && collapsed.size >= foldCount;
-  const toggleAllFolds = () => setFolds({ id: fileKey, collapsed: allCollapsed ? NO_FOLDS : new Set(Array.from({ length: foldCount }, (_, index) => index)) });
+  const toggleAllFolds = () =>
+    setFolds({ id: fileKey, collapsed: allCollapsed ? NO_FOLDS : new Set(Array.from({ length: foldCount }, (_, index) => index)) });
 
   // --- Tastatur ----------------------------------------------------------------
-  const keys = useRef({ goToChange, goToFile, close, hasSelection: selected.size > 0, clear: () => setSelection({ id: "", keys: EMPTY }), embedded });
-  keys.current = { goToChange, goToFile, close, hasSelection: selected.size > 0, clear: () => setSelection({ id: "", keys: EMPTY }), embedded };
+  const keys = useRef({
+    goToChange,
+    goToFile,
+    close,
+    hasSelection: selected.size > 0,
+    clear: () => setSelection({ id: "", keys: EMPTY }),
+    embedded,
+  });
+  keys.current = {
+    goToChange,
+    goToFile,
+    close,
+    hasSelection: selected.size > 0,
+    clear: () => setSelection({ id: "", keys: EMPTY }),
+    embedded,
+  };
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       // The guard against browser shortcuts (F7, Alt+arrow) calls preventDefault – that does not count as “already handled”.
       // Likewise an Esc that only closed the tooltip of the focused button: it closes the diff too.
-      if ((event.defaultPrevented && !preventedByGuard(event) && !closedOnlyTooltip(event)) || hasOpenDialog() || useAppStore.getState().overlay) return;
+      if (
+        (event.defaultPrevented && !preventedByGuard(event) && !closedOnlyTooltip(event)) ||
+        hasOpenDialog() ||
+        useAppStore.getState().overlay
+      )
+        return;
       const target = event.target instanceof Element ? event.target : null;
       if (isTextField(target)) return;
       // Menus, dialogs and foreign editors keep their keys.
@@ -244,7 +275,10 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
     if (!text) return null;
     let added = 0;
     let removed = 0;
-    for (const hunk of text.hunks) for (const line of hunk.lines) if (line.kind === "add") added++; else if (line.kind === "remove") removed++;
+    for (const hunk of text.hunks)
+      for (const line of hunk.lines)
+        if (line.kind === "add") added++;
+        else if (line.kind === "remove") removed++;
     return { added, removed };
   }, [text]);
 
@@ -285,7 +319,15 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   if (query.isPending) {
     body = <DiffSkeleton />;
   } else if (query.isError || !diff) {
-    body = <DiffError error={toCoreError(query.error)} path={path} retrying={query.isFetching} onRetry={() => void query.refetch()} onClose={close} />;
+    body = (
+      <DiffError
+        error={toCoreError(query.error)}
+        path={path}
+        retrying={query.isFetching}
+        onRetry={() => void query.refetch()}
+        onClose={close}
+      />
+    );
   } else if (diff.kind === "image") {
     body = <ImageDiffView diff={diff} />;
   } else if (diff.kind === "binary") {
@@ -295,11 +337,27 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
   } else if (diff.kind === "too_large") {
     body = <TooLargeView diff={diff} loading={query.isFetching} onForce={() => setForced(fileKey)} />;
   } else if (diff.hunks.length === 0) {
-    body = <NoHunks diff={diff} source={source} ignoreWhitespace={ignoreWhitespace} onShowWhitespace={() => void saveViewSetting({ diffIgnoreWhitespace: false })} />;
+    body = (
+      <NoHunks
+        diff={diff}
+        source={source}
+        ignoreWhitespace={ignoreWhitespace}
+        onShowWhitespace={() => void saveViewSetting({ diffIgnoreWhitespace: false })}
+      />
+    );
   } else if (shown === "split") {
     body = (
       <Suspense fallback={<DiffSkeleton />}>
-        <SplitView ref={splitView} oldText={diff.oldText} newText={diff.newText} path={diff.path} oldPath={diff.oldPath} hunks={diff.hunks} wrap={wrap} code={code} />
+        <SplitView
+          ref={splitView}
+          oldText={diff.oldText}
+          newText={diff.newText}
+          path={diff.path}
+          oldPath={diff.oldPath}
+          hunks={diff.hunks}
+          wrap={wrap}
+          code={code}
+        />
       </Suspense>
     );
   } else if (model && words) {
@@ -332,15 +390,38 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
 
   const showsLines = Boolean(text && text.hunks.length > 0);
   return (
-    <section ref={root} aria-label={t("diff.view.ariaLabel", { path })} data-screen="diff" data-diff-mode={shown} data-diff-kind={diff?.kind} data-diff-token={text?.token ?? undefined} style={codeVars(code)} className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      ref={root}
+      aria-label={t("diff.view.ariaLabel", { path })}
+      data-screen="diff"
+      data-diff-mode={shown}
+      data-diff-kind={diff?.kind}
+      data-diff-token={text?.token ?? undefined}
+      style={codeVars(code)}
+      className="flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       {header}
       {text?.status === "conflicted" ? (
-        <Banner tone="warning" title={t("diff.conflict.title")} actions={<Button size="sm" onClick={() => store().openConflict(tabId, path)}>{t("diff.conflict.resolve")}</Button>}>
+        <Banner
+          tone="warning"
+          title={t("diff.conflict.title")}
+          actions={
+            <Button size="sm" onClick={() => store().openConflict(tabId, path)}>
+              {t("diff.conflict.resolve")}
+            </Button>
+          }
+        >
           {t("diff.conflict.body")}
         </Banner>
       ) : null}
       {showsLines && fellBack ? <Strip>{t("diff.view.fellBack", { mode: modeLabels[mode] })}</Strip> : null}
-      {showsLines && patchMode !== "none" && ignoreWhitespace && shown !== "split" && text && !text.token && text.status !== "conflicted" ? (
+      {showsLines &&
+      patchMode !== "none" &&
+      ignoreWhitespace &&
+      shown !== "split" &&
+      text &&
+      !text.token &&
+      text.status !== "conflicted" ? (
         <Strip
           action={
             <Button size="sm" variant="ghost" onClick={() => void saveViewSetting({ diffIgnoreWhitespace: false })}>
@@ -357,7 +438,17 @@ export function DiffView({ repoId, tabId, path, source, embedded = false }: Diff
 }
 
 /** Text diff without hunks: depending on the situation, a sentence saying what is going on. */
-function NoHunks({ diff, source, ignoreWhitespace, onShowWhitespace }: { diff: TextDiff; source: DiffSource; ignoreWhitespace: boolean; onShowWhitespace: () => void }) {
+function NoHunks({
+  diff,
+  source,
+  ignoreWhitespace,
+  onShowWhitespace,
+}: {
+  diff: TextDiff;
+  source: DiffSource;
+  ignoreWhitespace: boolean;
+  onShowWhitespace: () => void;
+}) {
   if (diff.status === "renamed") {
     return (
       <Notice id="renamed" icon={<FileSymlink className="size-8" aria-hidden />} title={t("diff.noHunks.renamedTitle")}>
@@ -370,7 +461,12 @@ function NoHunks({ diff, source, ignoreWhitespace, onShowWhitespace }: { diff: T
   }
   if (ignoreWhitespace) {
     return (
-      <Notice id="whitespace" icon={<Space className="size-8" aria-hidden />} title={t("diff.noHunks.whitespaceTitle")} action={<Button onClick={onShowWhitespace}>{t("diff.whitespace.show")}</Button>}>
+      <Notice
+        id="whitespace"
+        icon={<Space className="size-8" aria-hidden />}
+        title={t("diff.noHunks.whitespaceTitle")}
+        action={<Button onClick={onShowWhitespace}>{t("diff.whitespace.show")}</Button>}
+      >
         {t("diff.noHunks.whitespaceBody")}
       </Notice>
     );

@@ -12,7 +12,8 @@ import { createIssueBranch, issuesWebUrl, openIssues, refreshIssues } from "../.
 import type { IssueDetails, IssuePage, IssueSummary } from "../../screens/Issues/api";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
-const hostRepo = (ctx: CommandContext) => (ctx.repoId ? (ctx.queryClient.getQueryData<HostRepo | null>(qk.hostRepo(ctx.repoId)) ?? null) : null);
+const hostRepo = (ctx: CommandContext) =>
+  ctx.repoId ? (ctx.queryClient.getQueryData<HostRepo | null>(qk.hostRepo(ctx.repoId)) ?? null) : null;
 /** As long as the host is not determined, "maybe" applies; the view then explains what is missing. */
 const mayHaveIssues = (ctx: CommandContext) => hasRepo(ctx) && ctx.queryClient.getQueryData(qk.hostRepo(ctx.repoId!)) !== null;
 const noHostReason = (ctx: CommandContext) => (hasRepo(ctx) ? t("commands.issues.noHost") : null);

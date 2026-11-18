@@ -33,7 +33,9 @@ function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; on
       setError(problem);
       return;
     }
-    const result = await runHostAction(t("issues.create.label"), () => issueApi.create(repoId, title.trim(), body), { busyKey: busyKey(repoId) });
+    const result = await runHostAction(t("issues.create.label"), () => issueApi.create(repoId, title.trim(), body), {
+      busyKey: busyKey(repoId),
+    });
     if (!result.ok) return;
     await refreshIssues(repoId);
     toast({ tone: "success", title: t("issues.create.done", { key: result.value.key }) });
@@ -80,7 +82,14 @@ function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; on
             setError(null);
           }}
         />
-        <TextArea name="body" label={t("issues.create.body")} hint={t("issues.create.bodyHint")} rows={6} value={body} onChange={(event) => setBody(event.target.value)} />
+        <TextArea
+          name="body"
+          label={t("issues.create.body")}
+          hint={t("issues.create.bodyHint")}
+          rows={6}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+        />
         <button type="submit" hidden />
       </form>
     </Dialog>

@@ -41,7 +41,9 @@ describe("input for ConPTY", () => {
       expect(part.match(/;1;0;1_/g)?.length).toBe(part.match(/;0;0;1_/g)?.length);
     }
     // Joined and read back, the original text results.
-    const units = [...parts.join("").matchAll(/\x1b\[0;0;(\d+);1;0;1_|(x)/g)].map((hit) => (hit[2] ? "x" : String.fromCharCode(Number(hit[1]))));
+    const units = [...parts.join("").matchAll(/\x1b\[0;0;(\d+);1;0;1_|(x)/g)].map((hit) =>
+      hit[2] ? "x" : String.fromCharCode(Number(hit[1])),
+    );
     expect(units.join("")).toBe(text);
 
     const plain = inputParts("a😀".repeat(PLAIN_PART_LIMIT), false);

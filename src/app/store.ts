@@ -345,7 +345,8 @@ export const useAppStore = create<AppState>()((set, get) => {
     openHistory: (tabId, path) => patchView(tabId, { center: { kind: "history", path } }),
     openBlame: (tabId, path, sha) => patchView(tabId, { center: { kind: "blame", path, sha } }),
     openConflict: (tabId, path) => patchView(tabId, { center: { kind: "conflict", path } }),
-    openRebase: (tabId, base, mode, shas = [], options = {}) => patchView(tabId, { center: { kind: "rebase", base, mode, shas, ...(options.autosquash ? { autosquash: true } : {}) } }),
+    openRebase: (tabId, base, mode, shas = [], options = {}) =>
+      patchView(tabId, { center: { kind: "rebase", base, mode, shas, ...(options.autosquash ? { autosquash: true } : {}) } }),
     openReflog: (tabId, ref) => patchView(tabId, { center: { kind: "reflog", ref } }),
     closeCenter: (tabId) => patchView(tabId, { center: { kind: "graph" } }),
 

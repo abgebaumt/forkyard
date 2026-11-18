@@ -53,7 +53,13 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
             {String(error.message || error)}
           </pre>
           <div className="flex flex-wrap gap-2">
-            <button type="button" autoFocus disabled={busy} onClick={this.reload} className="rounded-md bg-accent px-3 py-1.5 font-medium text-on-accent">
+            <button
+              type="button"
+              autoFocus
+              disabled={busy}
+              onClick={this.reload}
+              className="rounded-md bg-accent px-3 py-1.5 font-medium text-on-accent"
+            >
               {t("app.errorBoundary.reload")}
             </button>
             <button type="button" disabled={busy} onClick={this.reloadWithoutTabs} className="rounded-md border border-border px-3 py-1.5">

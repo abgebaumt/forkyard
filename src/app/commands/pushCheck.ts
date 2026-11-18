@@ -11,7 +11,10 @@ import { reviewOffered } from "../../screens/PushCheck/model";
 
 const offered = (ctx: CommandContext): boolean =>
   Boolean(ctx.repoId) &&
-  reviewOffered(ctx.queryClient.getQueryData<AiStatus>(qk.aiStatus), ctx.repoId ? ctx.queryClient.getQueryData<RepoSettings>(qk.repoSettings(ctx.repoId)) : undefined);
+  reviewOffered(
+    ctx.queryClient.getQueryData<AiStatus>(qk.aiStatus),
+    ctx.repoId ? ctx.queryClient.getQueryData<RepoSettings>(qk.repoSettings(ctx.repoId)) : undefined,
+  );
 
 export const commands: AppCommand[] = [
   {

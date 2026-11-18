@@ -44,7 +44,8 @@ export function targetLabel(target: ReleaseTarget, hostName: string | null): str
 
 export function targetHint(target: ReleaseTarget, remote: string | null): string | null {
   if (target === "changelog") return t("actions.tags.releaseNotes.targets.changelogHint");
-  if (target === "host_release") return `${t("actions.tags.releaseNotes.external")}: ${t("actions.tags.releaseNotes.targets.hostReleaseHint", { remote: remote ?? "" })}`;
+  if (target === "host_release")
+    return `${t("actions.tags.releaseNotes.external")}: ${t("actions.tags.releaseNotes.targets.hostReleaseHint", { remote: remote ?? "" })}`;
   return null;
 }
 
@@ -67,7 +68,12 @@ export type NotesOutcome = { kind: "empty"; text: string } | Placement;
 
 export function answerPlacement(current: string, atStart: string, notes: ReleaseNotes): NotesOutcome {
   if (!notes.markdown.trim()) {
-    return { kind: "empty", text: notes.range.from ? t("actions.tags.releaseNotes.empty", { from: notes.range.from }) : t("actions.tags.releaseNotes.emptyFromStart") };
+    return {
+      kind: "empty",
+      text: notes.range.from
+        ? t("actions.tags.releaseNotes.empty", { from: notes.range.from })
+        : t("actions.tags.releaseNotes.emptyFromStart"),
+    };
   }
   return placeSuggestion(current, atStart, notes.markdown);
 }

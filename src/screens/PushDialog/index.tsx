@@ -19,7 +19,17 @@ export interface PushPlan {
   atomic: boolean;
 }
 
-function PushDialog({ repoId, branch, preselected, onDone }: { repoId: Id; branch: string; preselected: string[]; onDone: (plan: PushPlan | null) => void }) {
+function PushDialog({
+  repoId,
+  branch,
+  preselected,
+  onDone,
+}: {
+  repoId: Id;
+  branch: string;
+  preselected: string[];
+  onDone: (plan: PushPlan | null) => void;
+}) {
   const { data: refs } = useRefs(repoId);
   const { data: remotes } = useRemotes(repoId);
   const primary = refs?.locals.find((ref) => ref.name === branch);
@@ -66,10 +76,19 @@ function PushDialog({ repoId, branch, preselected, onDone }: { repoId: Id; branc
         }}
       >
         {remotes && remotes.length > 1 ? (
-          <Select label={t("pushMany.remote")} value={chosenRemote} options={remotes.map((item) => ({ value: item.name, label: item.name }))} onValueChange={setRemote} />
+          <Select
+            label={t("pushMany.remote")}
+            value={chosenRemote}
+            options={remotes.map((item) => ({ value: item.name, label: item.name }))}
+            onValueChange={setRemote}
+          />
         ) : null}
         <TextField label={t("pushMany.filter")} value={query} autoComplete="off" onChange={(event) => setQuery(event.target.value)} />
-        <div role="group" aria-label={t("pushMany.listLabel")} className="flex max-h-64 flex-col gap-1 overflow-auto rounded-md border border-border bg-surface-sunken p-2">
+        <div
+          role="group"
+          aria-label={t("pushMany.listLabel")}
+          className="flex max-h-64 flex-col gap-1 overflow-auto rounded-md border border-border bg-surface-sunken p-2"
+        >
           {shown.length === 0 ? (
             <p className="m-0 text-sm text-text-muted">{t("pushMany.none")}</p>
           ) : (

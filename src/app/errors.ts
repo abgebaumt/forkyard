@@ -68,10 +68,7 @@ const CODES: Record<ErrorCode, true> = {
 
 /** Error code → understandable sentence with a suggested action. Covers every ErrorCode. */
 export const errorInfo = Object.fromEntries(
-  (Object.keys(CODES) as ErrorCode[]).map((code) => [
-    code,
-    { text: t(`errors.${code}.text`), hint: t(`errors.${code}.hint`) },
-  ]),
+  (Object.keys(CODES) as ErrorCode[]).map((code) => [code, { text: t(`errors.${code}.text`), hint: t(`errors.${code}.hint`) }]),
 ) as Record<ErrorCode, ErrorInfo>;
 
 export function toCoreError(error: unknown): CoreError {

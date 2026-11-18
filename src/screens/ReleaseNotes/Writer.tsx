@@ -7,10 +7,30 @@ import { loadingView, type AiErrorView } from "../../app/ai/requestState";
 import { doneLine } from "./model";
 import type { Writer } from "./useWriter";
 
-function ErrorLine({ error, writer, onSetup, onSignIn }: { error: AiErrorView; writer: Writer; onSetup: () => void; onSignIn?: () => void }) {
+function ErrorLine({
+  error,
+  writer,
+  onSetup,
+  onSignIn,
+}: {
+  error: AiErrorView;
+  writer: Writer;
+  onSetup: () => void;
+  onSignIn?: () => void;
+}) {
   if (error.kind === "cancelled") return null;
-  const retry = error.kind === "unavailable" || error.kind === "invalid" || error.kind === "limit" || error.kind === "notLoggedIn" || error.kind === "other";
-  const retryLabel = error.kind === "invalid" || error.kind === "notLoggedIn" ? t("ai.state.again") : error.kind === "limit" ? t("ai.state.limitSend") : t("ai.state.retry");
+  const retry =
+    error.kind === "unavailable" ||
+    error.kind === "invalid" ||
+    error.kind === "limit" ||
+    error.kind === "notLoggedIn" ||
+    error.kind === "other";
+  const retryLabel =
+    error.kind === "invalid" || error.kind === "notLoggedIn"
+      ? t("ai.state.again")
+      : error.kind === "limit"
+        ? t("ai.state.limitSend")
+        : t("ai.state.retry");
   return (
     <div role="alert" aria-live="assertive" data-release-notes-error="" className="flex flex-wrap items-center gap-2 text-sm text-danger">
       <span>{error.text}</span>
@@ -68,7 +88,11 @@ export function ReleaseNotesWriter({
   const { state } = writer;
   const loading = state.phase === "loading";
   const view = loading ? loadingView(state.now - state.startedAt, local, t("actions.tags.releaseNotes.writing")) : null;
-  const status = view ? (view.slow ? `${view.text} – ${view.slow}` : view.text) : (state.emptyText ?? (state.notes ? doneLine(state.notes) : ""));
+  const status = view
+    ? view.slow
+      ? `${view.text} – ${view.slow}`
+      : view.text
+    : (state.emptyText ?? (state.notes ? doneLine(state.notes) : ""));
   const onWrite = () => {
     if (openSetup) onSetup();
     else if (loading) writer.cancel();

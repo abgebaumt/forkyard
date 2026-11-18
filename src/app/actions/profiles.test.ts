@@ -25,11 +25,20 @@ describe("switchWarning", () => {
 
 describe("switchLosses", () => {
   it("counts every running action, not only those with a prompt on quit", () => {
-    const job = (title: string, askBeforeQuit: boolean) => ({ id: title, title, repoId: null, phase: "", percent: null, line: "", startedAt: 0, askBeforeQuit });
+    const job = (title: string, askBeforeQuit: boolean) => ({
+      id: title,
+      title,
+      repoId: null,
+      phase: "",
+      percent: null,
+      line: "",
+      startedAt: 0,
+      askBeforeQuit,
+    });
     const now = switchLosses({ jobs: { a: job("Push", false), b: job("Klonen", true) }, busy: {} }, [], false);
     expect(now.jobs).toEqual(["Push", "Klonen"]);
   });
-  it("also counts actions that only run as \"busy\" (e.g. a commit)", () => {
+  it('also counts actions that only run as "busy" (e.g. a commit)', () => {
     expect(switchLosses({ jobs: {}, busy: { "r1:commit": true } }, [], false).jobs).toEqual(["A Git action"]);
     expect(switchLosses({ jobs: {}, busy: {} }, ["a.txt"], true)).toEqual({ jobs: [], files: ["a.txt"], views: true, agents: 0 });
   });

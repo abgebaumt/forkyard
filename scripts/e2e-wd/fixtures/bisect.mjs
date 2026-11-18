@@ -55,7 +55,11 @@ export const hasBug = (repo, sha) => repo.git("show", `${sha}:umrechnung.py`).in
 /** Bisect state straight from the Git directory. */
 export function gitBisect(repo) {
   const dir = path.join(repo.path, ".git");
-  const refs = repo.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/bisect").split("\n").filter(Boolean).map((line) => line.split(" "));
+  const refs = repo
+    .git("for-each-ref", "--format=%(refname) %(objectname)", "refs/bisect")
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => line.split(" "));
   return {
     active: fs.existsSync(path.join(dir, "BISECT_START")),
     refs: Object.fromEntries(refs),

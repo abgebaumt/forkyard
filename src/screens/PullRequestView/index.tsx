@@ -10,11 +10,36 @@
  * Keys: Esc closes; in the tab bar the arrow keys switch; Ctrl+Enter sends the comment.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Ban, CircleAlert, ExternalLink, GitBranch, GitCommitHorizontal, GitMerge, GitPullRequestArrow, GitPullRequestClosed, KeyRound, MessageSquarePlus, Plug, RefreshCw, RotateCcw, Timer, X } from "lucide-react";
+import {
+  Ban,
+  CircleAlert,
+  ExternalLink,
+  GitBranch,
+  GitCommitHorizontal,
+  GitMerge,
+  GitPullRequestArrow,
+  GitPullRequestClosed,
+  KeyRound,
+  MessageSquarePlus,
+  Plug,
+  RefreshCw,
+  RotateCcw,
+  Timer,
+  X,
+} from "lucide-react";
 import { Tabs } from "radix-ui";
 import { core, CoreError, type Id } from "../../core";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import { defaultCapabilities, describeHostError, hostKindLabels, type HostCapabilities, type HostErrorText, type PrComment, type PrCommit, type PrDetails } from "../../app/actions/hostTypes";
+import {
+  defaultCapabilities,
+  describeHostError,
+  hostKindLabels,
+  type HostCapabilities,
+  type HostErrorText,
+  type PrComment,
+  type PrCommit,
+  type PrDetails,
+} from "../../app/actions/hostTypes";
 import { checkoutPr, closePr, commentOnPr, mergeBlock, prBusyKeys, refreshPullRequests, reopenPr } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";
@@ -36,7 +61,18 @@ import { PrFiles } from "./Files";
 import { SafeMarkdown } from "./Markdown";
 import { openMergeDialog } from "./MergeDialog";
 import { ReviewThreads } from "./ReviewThreads";
-import { BlockTitle, BranchChip, ChecksSummary, LabelsBlock, PhaseBadge, ReviewState, When, checkInfo, reviewLabel, userName } from "./parts";
+import {
+  BlockTitle,
+  BranchChip,
+  ChecksSummary,
+  LabelsBlock,
+  PhaseBadge,
+  ReviewState,
+  When,
+  checkInfo,
+  reviewLabel,
+  userName,
+} from "./parts";
 
 export interface PullRequestViewProps {
   repoId: Id;
@@ -56,7 +92,12 @@ const errorIcons: Partial<Record<HostErrorText["kind"], ReactNode>> = {
 /** Full-area error state: not connected, token expired, quota, no permission, not found. */
 function LoadFailure({ error, number, onRetry }: { error: unknown; number: number; onRetry: () => void }) {
   const info = describeHostError(error);
-  const title = info.kind === "not_found" ? t("pullRequest.view.notFound", { number }) : info.kind === "other" ? t("pullRequest.view.loadError") : info.title;
+  const title =
+    info.kind === "not_found"
+      ? t("pullRequest.view.notFound", { number })
+      : info.kind === "other"
+        ? t("pullRequest.view.loadError")
+        : info.title;
   return (
     <div data-pr-state={`error-${info.kind}`} className="flex min-h-0 flex-1 items-center justify-center overflow-auto">
       <EmptyState
@@ -111,13 +152,25 @@ function CommentCard({ comment }: { comment: PrComment }) {
         <span className="selectable font-medium text-text">{name}</span>
         <When value={comment.createdAt} />
         {comment.path ? (
-          <span className="selectable min-w-0 truncate font-mono text-code" title={comment.line ? t("pullRequest.view.commentOnLine", { path: comment.path, line: comment.line }) : t("pullRequest.view.commentOn", { path: comment.path })}>
+          <span
+            className="selectable min-w-0 truncate font-mono text-code"
+            title={
+              comment.line
+                ? t("pullRequest.view.commentOnLine", { path: comment.path, line: comment.line })
+                : t("pullRequest.view.commentOn", { path: comment.path })
+            }
+          >
             {comment.path}
             {comment.line ? `:${comment.line}` : ""}
           </span>
         ) : null}
       </header>
-      <SafeMarkdown source={comment.body} origin={t("pullRequest.view.commentOrigin", { name })} empty={t("pullRequest.view.markdown.empty")} className="px-3 py-2" />
+      <SafeMarkdown
+        source={comment.body}
+        origin={t("pullRequest.view.commentOrigin", { name })}
+        empty={t("pullRequest.view.markdown.empty")}
+        className="px-3 py-2"
+      />
     </li>
   );
 }
@@ -154,7 +207,14 @@ function CommentForm({ repoId, number }: { repoId: Id; number: number }) {
         }}
       />
       <div className="flex justify-end">
-        <Button type="submit" variant="primary" size="sm" disabled={!text.trim()} loading={busy} icon={<MessageSquarePlus className="size-3.5" aria-hidden />}>
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={!text.trim()}
+          loading={busy}
+          icon={<MessageSquarePlus className="size-3.5" aria-hidden />}
+        >
           {t("pullRequest.view.commentSubmit")}
         </Button>
       </div>
@@ -162,7 +222,19 @@ function CommentForm({ repoId, number }: { repoId: Id; number: number }) {
   );
 }
 
-function Conversation({ repoId, tabId, pr, capabilities, hostName }: { repoId: Id; tabId: Id; pr: PrDetails; capabilities: HostCapabilities; hostName: string }) {
+function Conversation({
+  repoId,
+  tabId,
+  pr,
+  capabilities,
+  hostName,
+}: {
+  repoId: Id;
+  tabId: Id;
+  pr: PrDetails;
+  capabilities: HostCapabilities;
+  hostName: string;
+}) {
   const author = userName(pr.author);
   return (
     <div className="@container mx-auto flex w-full max-w-200 flex-col gap-5 px-6 py-5">
@@ -172,7 +244,12 @@ function Conversation({ repoId, tabId, pr, capabilities, hostName }: { repoId: I
           <span className="selectable font-medium text-text">{author}</span>
           <span>{t("pullRequest.view.description")}</span>
         </header>
-        <SafeMarkdown source={pr.body} origin={t("pullRequest.view.descriptionOrigin")} empty={t("pullRequest.view.noDescription")} className="px-3 py-2" />
+        <SafeMarkdown
+          source={pr.body}
+          origin={t("pullRequest.view.descriptionOrigin")}
+          empty={t("pullRequest.view.noDescription")}
+          className="px-3 py-2"
+        />
       </section>
 
       <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-3">
@@ -188,7 +265,11 @@ function Conversation({ repoId, tabId, pr, capabilities, hostName }: { repoId: I
                   <span className="selectable min-w-0 truncate" title={reviewer.user.login}>
                     {userName(reviewer.user)}
                   </span>
-                  {reviewLabel(reviewer.state) ? <ReviewState state={reviewer.state} className="shrink-0 text-text-muted" /> : <span className="shrink-0 text-sm text-text-muted">{t("pullRequest.view.requested")}</span>}
+                  {reviewLabel(reviewer.state) ? (
+                    <ReviewState state={reviewer.state} className="shrink-0 text-text-muted" />
+                  ) : (
+                    <span className="shrink-0 text-sm text-text-muted">{t("pullRequest.view.requested")}</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -211,7 +292,14 @@ function Conversation({ repoId, tabId, pr, capabilities, hostName }: { repoId: I
                       {check.name}
                     </span>
                     <span className="shrink-0 text-sm text-text-muted">{info?.label ?? t("pullRequest.view.check.skipped")}</span>
-                    {check.url ? <IconButton size="xs" label={t("pullRequest.view.openCheck", { name: check.name })} icon={<ExternalLink className="size-3" aria-hidden />} onClick={() => void openInBrowser(check.url, t("pullRequest.view.page"))} /> : null}
+                    {check.url ? (
+                      <IconButton
+                        size="xs"
+                        label={t("pullRequest.view.openCheck", { name: check.name })}
+                        icon={<ExternalLink className="size-3" aria-hidden />}
+                        onClick={() => void openInBrowser(check.url, t("pullRequest.view.page"))}
+                      />
+                    ) : null}
                   </li>
                 );
               })}
@@ -246,7 +334,11 @@ function Conversation({ repoId, tabId, pr, capabilities, hostName }: { repoId: I
 
 /** Shows the commit in the graph – if it is available locally; otherwise the notice with "Fetch". */
 async function revealCommit(repoId: Id, tabId: Id, commit: PrCommit) {
-  const found = await runAction(t("pullRequest.view.findCommit"), () => core.commitDetails({ repoId, source: { kind: "commit", sha: commit.sha } }), { quiet: ["not_found"] });
+  const found = await runAction(
+    t("pullRequest.view.findCommit"),
+    () => core.commitDetails({ repoId, source: { kind: "commit", sha: commit.sha } }),
+    { quiet: ["not_found"] },
+  );
   if (found.ok) {
     const store = useAppStore.getState();
     store.revealCommit(tabId, commit.sha);
@@ -303,7 +395,21 @@ function Commits({ repoId, tabId, pr }: { repoId: Id; tabId: Id; pr: PrDetails }
 // View
 // ---------------------------------------------------------------------------
 
-function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id; tabId: Id; pr: PrDetails; capabilities: HostCapabilities; hostName: string; stale: HostErrorText | null }) {
+function Body({
+  repoId,
+  tabId,
+  pr,
+  capabilities,
+  hostName,
+  stale,
+}: {
+  repoId: Id;
+  tabId: Id;
+  pr: PrDetails;
+  capabilities: HostCapabilities;
+  hostName: string;
+  stale: HostErrorText | null;
+}) {
   const [tab, setTab] = useState<TabId>("conversation");
   const writing = useBusy(prBusyKeys.write(repoId, pr.number));
   const checkingOut = useBusy(busyKeys.history(repoId));
@@ -350,7 +456,12 @@ function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id
           {pr.isFork ? <span className="text-sm text-text-muted">{t("pullRequest.view.fromFork")}</span> : null}
         </p>
 
-        <div role="toolbar" aria-label={t("pullRequest.view.actions")} data-pr-actions="" className="mt-2 flex flex-wrap items-center gap-2">
+        <div
+          role="toolbar"
+          aria-label={t("pullRequest.view.actions")}
+          data-pr-actions=""
+          className="mt-2 flex flex-wrap items-center gap-2"
+        >
           <Button
             size="sm"
             loading={checkingOut}
@@ -362,16 +473,33 @@ function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id
             {t("pullRequest.view.files.checkout")}
           </Button>
           {open ? (
-            <Button size="sm" variant="primary" disabled={Boolean(blocked) || writing} icon={<GitMerge className="size-3.5" aria-hidden />} aria-describedby={blocked ? "s24-merge-blocked" : undefined} onClick={() => void openMergeDialog(repoId, pr, capabilities)}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={Boolean(blocked) || writing}
+              icon={<GitMerge className="size-3.5" aria-hidden />}
+              aria-describedby={blocked ? "s24-merge-blocked" : undefined}
+              onClick={() => void openMergeDialog(repoId, pr, capabilities)}
+            >
               {t("pullRequest.view.mergeButton")}
             </Button>
           ) : null}
           {open ? (
-            <Button size="sm" disabled={writing} icon={<GitPullRequestClosed className="size-3.5" aria-hidden />} onClick={() => void closePr(repoId, pr)}>
+            <Button
+              size="sm"
+              disabled={writing}
+              icon={<GitPullRequestClosed className="size-3.5" aria-hidden />}
+              onClick={() => void closePr(repoId, pr)}
+            >
               {t("pullRequest.view.closeButton")}
             </Button>
           ) : pr.state === "closed" && capabilities.prReopen ? (
-            <Button size="sm" loading={writing} icon={<RotateCcw className="size-3.5" aria-hidden />} onClick={() => void reopenPr(repoId, pr)}>
+            <Button
+              size="sm"
+              loading={writing}
+              icon={<RotateCcw className="size-3.5" aria-hidden />}
+              onClick={() => void reopenPr(repoId, pr)}
+            >
               {t("pullRequest.view.reopen")}
             </Button>
           ) : null}
@@ -387,7 +515,11 @@ function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id
       </div>
 
       {stale ? (
-        <div role="alert" data-pr-stale={stale.kind} className="flex shrink-0 items-start gap-2 border-b border-border bg-warning-surface px-6 py-2 text-base text-text">
+        <div
+          role="alert"
+          data-pr-stale={stale.kind}
+          className="flex shrink-0 items-start gap-2 border-b border-border bg-warning-surface px-6 py-2 text-base text-text"
+        >
           <CircleAlert className="mt-0.5 size-icon shrink-0 text-warning" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-medium">{t("pullRequest.view.stale", { title: stale.title })}</p>
@@ -404,7 +536,11 @@ function Body({ repoId, tabId, pr, capabilities, hostName, stale }: { repoId: Id
       ) : null}
 
       <Tabs.Root value={tab} onValueChange={(value) => setTab(value as TabId)} className="flex min-h-0 flex-1 flex-col">
-        <Tabs.List ref={tabList} aria-label={t("pullRequest.view.tabs")} className="flex h-control-lg shrink-0 items-end gap-1 border-b border-border bg-surface px-5">
+        <Tabs.List
+          ref={tabList}
+          aria-label={t("pullRequest.view.tabs")}
+          className="flex h-control-lg shrink-0 items-end gap-1 border-b border-border bg-surface px-5"
+        >
           {(
             [
               ["conversation", t("pullRequest.view.conversation"), pr.comments.length],
@@ -466,13 +602,30 @@ export function PullRequestView({ repoId, tabId, number }: PullRequestViewProps)
 
   let content: ReactNode;
   const hostKind = hostRepo.data?.kind ?? "github";
-  if (pr) content = <Body key={number} repoId={repoId} tabId={tabId} pr={pr} capabilities={hostRepo.data?.capabilities ?? defaultCapabilities[hostKind]} hostName={hostKindLabels[hostKind]} stale={query.isError ? describeHostError(query.error) : null} />;
+  if (pr)
+    content = (
+      <Body
+        key={number}
+        repoId={repoId}
+        tabId={tabId}
+        pr={pr}
+        capabilities={hostRepo.data?.capabilities ?? defaultCapabilities[hostKind]}
+        hostName={hostKindLabels[hostKind]}
+        stale={query.isError ? describeHostError(query.error) : null}
+      />
+    );
   else if (query.isError) content = <LoadFailure error={query.error} number={number} onRetry={() => void query.refetch()} />;
   else content = <Skeleton />;
 
   const repo = hostRepo.data ?? null;
   return (
-    <section ref={root} aria-label={t("pullRequest.view.heading", { number })} data-screen="pr-view" data-pr-number={number} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      ref={root}
+      aria-label={t("pullRequest.view.heading", { number })}
+      data-screen="pr-view"
+      data-pr-number={number}
+      className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <GitPullRequestArrow className="size-icon shrink-0 text-text-muted" aria-hidden />
         <h2 className="m-0 shrink-0 text-base font-medium text-text">{t("pullRequest.view.heading", { number })}</h2>
@@ -483,13 +636,34 @@ export function PullRequestView({ repoId, tabId, number }: PullRequestViewProps)
         ) : null}
         <span className="flex-1" />
         {/* In a narrow centre only the icons remain; the name is then there for screen readers and in the tooltip. */}
-        <Button size="sm" variant="ghost" title={t("pullRequest.view.refresh")} loading={query.isFetching && Boolean(pr)} icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={refresh}>
+        <Button
+          size="sm"
+          variant="ghost"
+          title={t("pullRequest.view.refresh")}
+          loading={query.isFetching && Boolean(pr)}
+          icon={<RefreshCw className="size-3.5" aria-hidden />}
+          onClick={refresh}
+        >
           <span className="sr-only @2xl:not-sr-only">{t("pullRequest.view.refresh")}</span>
         </Button>
-        <Button size="sm" variant="ghost" title={t("pullRequest.view.openInBrowser")} disabled={!pr?.webUrl} icon={<ExternalLink className="size-3.5" aria-hidden />} onClick={() => void openInBrowser(pr?.webUrl, t("pullRequest.view.page"))}>
+        <Button
+          size="sm"
+          variant="ghost"
+          title={t("pullRequest.view.openInBrowser")}
+          disabled={!pr?.webUrl}
+          icon={<ExternalLink className="size-3.5" aria-hidden />}
+          onClick={() => void openInBrowser(pr?.webUrl, t("pullRequest.view.page"))}
+        >
           <span className="sr-only @2xl:not-sr-only">{t("pullRequest.view.openInBrowser")}</span>
         </Button>
-        <IconButton size="sm" label={t("pullRequest.view.close")} shortcut="Escape" data-back="" icon={<X className="size-icon" aria-hidden />} onClick={() => closeCenter(tabId)} />
+        <IconButton
+          size="sm"
+          label={t("pullRequest.view.close")}
+          shortcut="Escape"
+          data-back=""
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={() => closeCenter(tabId)}
+        />
       </header>
       {content}
     </section>

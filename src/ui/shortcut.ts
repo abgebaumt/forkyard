@@ -97,7 +97,9 @@ export function shortcutKeys(shortcut: string, options: ShortcutOptions = {}): s
     if (modifier) modifiers.add(mac || modifier !== "Mod" ? modifier : "Ctrl");
     else keys.push(keyName(part, mac, tr));
   }
-  const caps = MODIFIERS.filter((modifier) => modifiers.has(modifier)).map((modifier) => (mac ? MAC_GLYPHS[modifier] : tr(TEXT_KEYS[modifier])));
+  const caps = MODIFIERS.filter((modifier) => modifiers.has(modifier)).map((modifier) =>
+    mac ? MAC_GLYPHS[modifier] : tr(TEXT_KEYS[modifier]),
+  );
   return [...caps, ...keys];
 }
 

@@ -43,12 +43,23 @@ export function ReviewDiff({ repoId, path, source, pick, onKeys, onLeave }: Revi
 
   let body;
   if (query.isPending) body = <DiffSkeleton />;
-  else if (query.isError || !diff) body = <DiffError error={toCoreError(query.error)} path={path} retrying={query.isFetching} onRetry={() => void query.refetch()} onClose={onLeave} />;
-  else if (diff.kind === "image") body = <Notice id="image" icon={<FileWarning className="size-8" aria-hidden />} title={t("agents.review.onlyMerge.binary")} />;
+  else if (query.isError || !diff)
+    body = (
+      <DiffError
+        error={toCoreError(query.error)}
+        path={path}
+        retrying={query.isFetching}
+        onRetry={() => void query.refetch()}
+        onClose={onLeave}
+      />
+    );
+  else if (diff.kind === "image")
+    body = <Notice id="image" icon={<FileWarning className="size-8" aria-hidden />} title={t("agents.review.onlyMerge.binary")} />;
   else if (diff.kind === "binary") body = <BinaryDiffView diff={diff} />;
   else if (diff.kind === "lfs") body = <LfsDiffView diff={diff} />;
   else if (diff.kind === "too_large") body = <TooLargeView diff={diff} loading={query.isFetching} onForce={() => setForced(path)} />;
-  else if (diff.hunks.length === 0 || !model || !words) body = <Notice id="empty" icon={<FileCheck className="size-8" aria-hidden />} title={t("agents.review.noLines")} />;
+  else if (diff.hunks.length === 0 || !model || !words)
+    body = <Notice id="empty" icon={<FileCheck className="size-8" aria-hidden />} title={t("agents.review.noLines")} />;
   else
     body = (
       <LineView

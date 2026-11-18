@@ -4,7 +4,24 @@
  * if something is missing from the cache, "unknown" applies and the core checks on execution.
  */
 import type { InfiniteData } from "@tanstack/react-query";
-import { core, type AiStatus, type BisectStatus, type GraphPage, type GraphRow, type Id, type Ref, type RefsSnapshot, type Remote, type RepoSettings, type RepoViewState, type Settings, type Sha, type Stash, type Status, type UndoState } from "../../core";
+import {
+  core,
+  type AiStatus,
+  type BisectStatus,
+  type GraphPage,
+  type GraphRow,
+  type Id,
+  type Ref,
+  type RefsSnapshot,
+  type Remote,
+  type RepoSettings,
+  type RepoViewState,
+  type Settings,
+  type Sha,
+  type Stash,
+  type Status,
+  type UndoState,
+} from "../../core";
 import { qk, queryClient } from "../queries";
 import { loadStatus } from "../statusCache";
 

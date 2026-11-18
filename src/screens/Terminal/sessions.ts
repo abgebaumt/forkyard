@@ -86,7 +86,9 @@ async function fontReady(): Promise<void> {
  */
 let windowsBuild: number | undefined;
 function detectWindowsBuild(): void {
-  const data = (navigator as Navigator & { userAgentData?: { getHighEntropyValues?(hints: string[]): Promise<{ platformVersion?: string }> } }).userAgentData;
+  const data = (
+    navigator as Navigator & { userAgentData?: { getHighEntropyValues?(hints: string[]): Promise<{ platformVersion?: string }> } }
+  ).userAgentData;
   void data
     ?.getHighEntropyValues?.(["platformVersion"])
     .then((values) => {
@@ -541,7 +543,8 @@ export class Session {
       while (this.queue.length > 0 && this.terminalId) {
         let data = this.queue.shift()!;
         // A single Esc stays alone: with the next key in the same chunk the shell would read "Alt+key".
-        while (this.queue.length > 0 && !data.endsWith("\x1b") && data.length + this.queue[0]!.length <= WIN32_PART_LIMIT) data += this.queue.shift()!;
+        while (this.queue.length > 0 && !data.endsWith("\x1b") && data.length + this.queue[0]!.length <= WIN32_PART_LIMIT)
+          data += this.queue.shift()!;
         await core.terminalWrite({ terminalId: this.terminalId, data });
       }
     } catch {
@@ -808,7 +811,8 @@ function reconcileWithTabs(): void {
 
 registerTerminalController({
   statusOf: (tabId) => getSession(tabId)?.getStatus().kind ?? null,
-  hadInput: (tabId) => [...(groups.get(tabId)?.sessions.values() ?? [])].some((session) => isLiveStatus(session.getStatus()) && session.hadInput),
+  hadInput: (tabId) =>
+    [...(groups.get(tabId)?.sessions.values() ?? [])].some((session) => isLiveStatus(session.getStatus()) && session.hadInput),
   isLive: (tabId, key) => {
     const session = sessionByKey(tabId, key);
     return session ? isLiveStatus(session.getStatus()) : false;
@@ -882,12 +886,28 @@ if (typeof window !== "undefined") {
       text: (tabId) => getSession(tabId)?.bufferText() ?? null,
       size: (tabId) => {
         const term = getSession(tabId)?.term;
-        return term ? { cols: term.cols, rows: term.rows, lines: term.buffer.active.length, viewportY: term.buffer.active.viewportY, baseY: term.buffer.active.baseY } : null;
+        return term
+          ? {
+              cols: term.cols,
+              rows: term.rows,
+              lines: term.buffer.active.length,
+              viewportY: term.buffer.active.viewportY,
+              baseY: term.buffer.active.baseY,
+            }
+          : null;
       },
       selection: (tabId) => getSession(tabId)?.selection() ?? null,
       options: (tabId) => {
         const term = getSession(tabId)?.term;
-        return term ? { theme: { ...term.options.theme }, fontFamily: term.options.fontFamily, fontSize: term.options.fontSize, lineHeight: term.options.lineHeight, scrollback: term.options.scrollback } : null;
+        return term
+          ? {
+              theme: { ...term.options.theme },
+              fontFamily: term.options.fontFamily,
+              fontSize: term.options.fontSize,
+              lineHeight: term.options.lineHeight,
+              scrollback: term.options.scrollback,
+            }
+          : null;
       },
     };
   }
@@ -904,7 +924,15 @@ declare global {
       text(tabId: Id): string | null;
       size(tabId: Id): { cols: number; rows: number; lines: number; viewportY: number; baseY: number } | null;
       selection(tabId: Id): string | null;
-      options(tabId: Id): { theme: Record<string, unknown>; fontFamily: string | undefined; fontSize: number | undefined; lineHeight: number | undefined; scrollback: number | undefined } | null;
+      options(
+        tabId: Id,
+      ): {
+        theme: Record<string, unknown>;
+        fontFamily: string | undefined;
+        fontSize: number | undefined;
+        lineHeight: number | undefined;
+        scrollback: number | undefined;
+      } | null;
     };
   }
 }

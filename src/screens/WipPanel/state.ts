@@ -126,7 +126,13 @@ export const useWipStore = create<WipState>()((set, get) => {
       get().patch(tabId, (tab) => {
         const current = tab.selection[area];
         const known = new Set(paths);
-        const next = nextFileSelection(paths, current.selected.filter((item) => known.has(item)), current.anchor, path, modifiers);
+        const next = nextFileSelection(
+          paths,
+          current.selected.filter((item) => known.has(item)),
+          current.anchor,
+          path,
+          modifiers,
+        );
         const keepOthers = modifiers.additive || modifiers.range;
         return {
           selection: {
@@ -138,7 +144,9 @@ export const useWipStore = create<WipState>()((set, get) => {
         };
       }),
     setSelected: (tabId, area, selected) =>
-      get().patch(tabId, (tab) => ({ selection: { ...tab.selection, [area]: { selected, anchor: selected[selected.length - 1] ?? null } } })),
+      get().patch(tabId, (tab) => ({
+        selection: { ...tab.selection, [area]: { selected, anchor: selected[selected.length - 1] ?? null } },
+      })),
     clearSelection: (tabId) =>
       get().patch(tabId, { selection: { conflicts: emptySelection(), unstaged: emptySelection(), staged: emptySelection() } }),
     setView: (view) => {

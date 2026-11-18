@@ -2,7 +2,15 @@ import { Annotation, EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "../../ui/cn";
-import { applyLanguage, codeExtensions, createCodeCompartments, setReadOnly, setTabSize, setWrap, type CodeCompartments } from "./extensions";
+import {
+  applyLanguage,
+  codeExtensions,
+  createCodeCompartments,
+  setReadOnly,
+  setTabSize,
+  setWrap,
+  type CodeCompartments,
+} from "./extensions";
 import { codeVars, useCodeSettings } from "./settings";
 
 /** Marks the syncing of `value`, so that it is not reported as user input. */
@@ -32,7 +40,18 @@ export interface CodeEditorProps {
  * tab width from the settings, language by file extension. Fills its container and
  * scrolls by itself.
  */
-export function CodeEditor({ value, path, readOnly = false, wrap = false, lineNumbers = true, ariaLabel, onChange, onView, extensions, className }: CodeEditorProps) {
+export function CodeEditor({
+  value,
+  path,
+  readOnly = false,
+  wrap = false,
+  lineNumbers = true,
+  ariaLabel,
+  onChange,
+  onView,
+  extensions,
+  className,
+}: CodeEditorProps) {
   const host = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const compartmentsRef = useRef<CodeCompartments | null>(null);
@@ -53,7 +72,13 @@ export function CodeEditor({ value, path, readOnly = false, wrap = false, lineNu
       state: EditorState.create({
         doc: start.value,
         extensions: [
-          codeExtensions(compartments, { readOnly: start.readOnly, wrap: start.wrap, tabSize: start.tabSize, lineNumbers: start.lineNumbers, ariaLabel: start.ariaLabel }),
+          codeExtensions(compartments, {
+            readOnly: start.readOnly,
+            wrap: start.wrap,
+            tabSize: start.tabSize,
+            lineNumbers: start.lineNumbers,
+            ariaLabel: start.ariaLabel,
+          }),
           EditorView.updateListener.of((update) => {
             if (update.docChanged && !update.transactions.some((transaction) => transaction.annotation(fromOutside))) {
               onChangeRef.current?.(update.state.doc.toString());
@@ -111,5 +136,12 @@ export function CodeEditor({ value, path, readOnly = false, wrap = false, lineNu
     viewRef.current?.requestMeasure();
   }, [settings.fontSize, settings.lineHeight]);
 
-  return <div ref={host} style={codeVars(settings)} className={cn("gc-code-host h-full min-h-0 overflow-hidden bg-surface-sunken", className)} data-code-editor="" />;
+  return (
+    <div
+      ref={host}
+      style={codeVars(settings)}
+      className={cn("gc-code-host h-full min-h-0 overflow-hidden bg-surface-sunken", className)}
+      data-code-editor=""
+    />
+  );
 }

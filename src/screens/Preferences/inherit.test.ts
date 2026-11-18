@@ -3,8 +3,20 @@ import type { RepoSettings } from "../../core";
 import { DEFAULT_SETTINGS } from "./defaults";
 import { inheritedValue, overridePatch, ownCount, resetPatch, type InheritContext } from "./inherit";
 
-const profile = { id: "p", name: "Privat", authorName: "Max Muster", authorEmail: "max@muster.example", syncGitconfig: true, isActive: true, color: 2 };
-const ctx: InheritContext = { profile, settings: { ...DEFAULT_SETTINGS, defaultPullMode: "rebase", autoFetchMinutes: 15 }, defaultKeyId: "k1" };
+const profile = {
+  id: "p",
+  name: "Privat",
+  authorName: "Max Muster",
+  authorEmail: "max@muster.example",
+  syncGitconfig: true,
+  isActive: true,
+  color: 2,
+};
+const ctx: InheritContext = {
+  profile,
+  settings: { ...DEFAULT_SETTINGS, defaultPullMode: "rebase", autoFetchMinutes: 15 },
+  defaultKeyId: "k1",
+};
 const base: RepoSettings = {
   encoding: "utf-8",
   hooksPath: null,

@@ -20,14 +20,19 @@ export const enqueue = enqueueWrite;
 /**
  * Changes global settings. `atField: true` means the caller shows input errors itself at the field.
  */
-export function applySettings(patch: Partial<Settings>, options: { atField?: boolean; quiet?: ErrorCode[] } = {}): Promise<ActionResult<Settings>> {
+export function applySettings(
+  patch: Partial<Settings>,
+  options: { atField?: boolean; quiet?: ErrorCode[] } = {},
+): Promise<ActionResult<Settings>> {
   return enqueue(async () => {
     // A reload in progress would otherwise immediately overwrite the optimistic state again.
     await queryClient.cancelQueries({ queryKey: qk.settings });
     const previous = queryClient.getQueryData<Settings>(qk.settings);
     if (previous) queryClient.setQueryData<Settings>(qk.settings, { ...previous, ...patch });
     // `quiet`: further errors the caller shows itself at the field (e.g. `path_not_found` for a file path).
-    const result = await runAction(t("preferences.save.setting"), () => core.settingsSet({ patch }), { quiet: options.quiet ?? (options.atField ? FIELD_ERRORS : undefined) });
+    const result = await runAction(t("preferences.save.setting"), () => core.settingsSet({ patch }), {
+      quiet: options.quiet ?? (options.atField ? FIELD_ERRORS : undefined),
+    });
     if (result.ok) {
       queryClient.setQueryData(qk.settings, result.value);
     } else {
@@ -39,7 +44,11 @@ export function applySettings(patch: Partial<Settings>, options: { atField?: boo
 }
 
 /** Changes a repository's settings, also optimistically. */
-export function applyRepoSettings(repoId: Id, patch: Partial<RepoSettings>, options: { atField?: boolean } = {}): Promise<ActionResult<RepoSettings>> {
+export function applyRepoSettings(
+  repoId: Id,
+  patch: Partial<RepoSettings>,
+  options: { atField?: boolean } = {},
+): Promise<ActionResult<RepoSettings>> {
   return enqueue(async () => {
     const key = qk.repoSettings(repoId);
     await queryClient.cancelQueries({ queryKey: key });
@@ -61,7 +70,9 @@ export function applyRepoSettings(repoId: Id, patch: Partial<RepoSettings>, opti
 /** For `CommitText.onCommit`: the core's error text for the field, or null on success. runAction has already reported other errors. */
 export function fieldError(result: ActionResult<unknown>): string | null {
   if (result.ok) return null;
-  return FIELD_ERRORS.includes(result.error.code) ? result.error.message || t("preferences.save.notAllowed") : t("preferences.save.notSaved");
+  return FIELD_ERRORS.includes(result.error.code)
+    ? result.error.message || t("preferences.save.notAllowed")
+    : t("preferences.save.notSaved");
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+$/;

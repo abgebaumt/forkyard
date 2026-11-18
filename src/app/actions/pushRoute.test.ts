@@ -7,7 +7,9 @@ const corePush = vi.fn<(input: { force: boolean }) => Promise<PushResult>>();
 const aiPreview = vi.fn<(input: unknown) => Promise<unknown>>();
 const openAiSetup = vi.fn(async () => false);
 const confirmSpy = vi.fn(async () => false);
-const context = vi.hoisted(() => ({ value: { status: undefined as AiStatus | undefined, repo: undefined as Partial<RepoSettings> | undefined } }));
+const context = vi.hoisted(() => ({
+  value: { status: undefined as AiStatus | undefined, repo: undefined as Partial<RepoSettings> | undefined },
+}));
 
 vi.mock("../../core", async (original) => ({
   ...(await original<typeof import("../../core")>()),

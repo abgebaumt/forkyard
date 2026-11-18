@@ -89,7 +89,15 @@ export function startAgent(input: StartInput): Promise<Agent> {
     const opener = agentOpener(
       async (size) => {
         try {
-          return await core.agentStart({ repoId: input.repoId, templateId: input.templateId, task: input.task, branch: input.branch, base: input.base, unattended: input.unattended, ...size });
+          return await core.agentStart({
+            repoId: input.repoId,
+            templateId: input.templateId,
+            task: input.task,
+            branch: input.branch,
+            base: input.base,
+            unattended: input.unattended,
+            ...size,
+          });
         } catch (error) {
           if (!settled) {
             settled = true;
@@ -108,7 +116,12 @@ export function startAgent(input: StartInput): Promise<Agent> {
         }
       },
     );
-    const session = openProgramSession(input.tabId, input.repoId, displayName({ shortName: input.shortName, unattended: input.unattended }), opener);
+    const session = openProgramSession(
+      input.tabId,
+      input.repoId,
+      displayName({ shortName: input.shortName, unattended: input.unattended }),
+      opener,
+    );
     key = session.key;
     revealTerminal(input.tabId);
   });
@@ -138,10 +151,11 @@ export function resumeAgent(tabId: Id, agent: Agent): Promise<Agent> {
     }
     let key: Id | null = null;
     const opener = agentOpener(
-      (size) => core.agentResume({ agentId: agent.id, ...size }).catch((error) => {
-        reject(error);
-        throw error;
-      }),
+      (size) =>
+        core.agentResume({ agentId: agent.id, ...size }).catch((error) => {
+          reject(error);
+          throw error;
+        }),
       (next) => {
         if (key) links.set(next.id, { tabId, key });
         resolve(next);

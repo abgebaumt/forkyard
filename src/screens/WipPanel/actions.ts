@@ -147,7 +147,10 @@ export function conflictSides(operation: Operation | null, status: Status | unde
     case "cherry_pick":
       return { ours, theirs: operation.source ? t("wip.sides.commit", { source: operation.source }) : t("wip.sides.pickedCommit") };
     case "revert":
-      return { ours, theirs: operation.source ? t("wip.sides.stateBefore", { source: operation.source }) : t("wip.sides.stateBeforeCommit") };
+      return {
+        ours,
+        theirs: operation.source ? t("wip.sides.stateBefore", { source: operation.source }) : t("wip.sides.stateBeforeCommit"),
+      };
   }
 }
 
@@ -166,7 +169,8 @@ export async function resolveConflicts(repoId: Id, tabId: Id, paths: string[], s
     },
     {
       busyKey: wipBusy.resolve(repoId),
-      success: paths.length === 1 ? t("wip.resolve.doneOne", { path: paths[0], name }) : t("wip.resolve.doneMany", { count: paths.length, name }),
+      success:
+        paths.length === 1 ? t("wip.resolve.doneOne", { path: paths[0], name }) : t("wip.resolve.doneMany", { count: paths.length, name }),
     },
   );
   if (result.ok && result.value) {
@@ -199,8 +203,7 @@ export function planCommit(status: Status | undefined, draft: CommitDraft, stage
   const conflicts = status.conflicted.length;
   const staged = status.staged.length;
   const unstaged = status.unstaged.length;
-  const conflictReason =
-    conflicts > 0 ? t("wip.plan.conflicts", { count: conflicts }) : null;
+  const conflictReason = conflicts > 0 ? t("wip.plan.conflicts", { count: conflicts }) : null;
 
   if (operation) {
     const name = operationNames[operation.kind];
@@ -210,14 +213,17 @@ export function planCommit(status: Status | undefined, draft: CommitDraft, stage
   const identity = status.identitySet ? null : t("wip.plan.noIdentity");
   if (draft.amend) {
     const all = stageAll && unstaged > 0;
-    return { mode: "amend", label: all ? t("wip.plan.stageAllAmend") : t("wip.plan.amend"), blocked: conflictReason ?? identity, stageAll: all };
+    return {
+      mode: "amend",
+      label: all ? t("wip.plan.stageAllAmend") : t("wip.plan.amend"),
+      blocked: conflictReason ?? identity,
+      stageAll: all,
+    };
   }
-  if (stageAll && unstaged > 0) return { mode: "commit", label: t("wip.plan.stageAllCommit"), blocked: conflictReason ?? identity, stageAll: true };
+  if (stageAll && unstaged > 0)
+    return { mode: "commit", label: t("wip.plan.stageAllCommit"), blocked: conflictReason ?? identity, stageAll: true };
   if (staged === 0) {
-    const reason =
-      unstaged > 0
-        ? t("wip.plan.nothingStaged")
-        : t("wip.plan.noChanges");
+    const reason = unstaged > 0 ? t("wip.plan.nothingStaged") : t("wip.plan.noChanges");
     return { mode: "commit", label: t("wip.plan.commit"), blocked: conflictReason ?? reason, stageAll: false };
   }
   return { mode: "commit", label: t("wip.plan.commitFiles", { count: staged }), blocked: conflictReason ?? identity, stageAll: false };
@@ -283,7 +289,12 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
 
   const amend = plan.mode === "amend";
   const opId = newOpId();
-  const pushAfter = pushAfterState(wip.pushAfter, queryClient.getQueryData<Settings>(qk.settings), status, queryClient.getQueryData<Remote[]>(qk.remotes(repoId))).checked;
+  const pushAfter = pushAfterState(
+    wip.pushAfter,
+    queryClient.getQueryData<Settings>(qk.settings),
+    status,
+    queryClient.getQueryData<Remote[]>(qk.remotes(repoId)),
+  ).checked;
   const label = amend ? t("wip.plan.amend") : t("wip.commit.action");
   // The shell reports every failed hook itself (event hook:output, with "Show output").
   // If the event arrives, our own toast is dropped – otherwise the same error would appear twice.
@@ -297,7 +308,17 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
     // With amend, the commit the form showed as the last one goes along: if HEAD is a different one
     // by now (commit in the terminal at the same moment), the core refuses.
     withFreshStatus(repoId, () =>
-      core.commitCreate({ repoId, opId, summary, description, amend, skipHooks: wip.skipHooks, pushAfter, stageAll: plan.stageAll, expectedHead: amend ? wip.amendSha : null }),
+      core.commitCreate({
+        repoId,
+        opId,
+        summary,
+        description,
+        amend,
+        skipHooks: wip.skipHooks,
+        pushAfter,
+        stageAll: plan.stageAll,
+        expectedHead: amend ? wip.amendSha : null,
+      }),
     ),
     {
       busyKey: wipBusy.commit(repoId),
@@ -318,7 +339,9 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
           tone: "danger",
           title: t("wip.commit.hookRejected"),
           description: `${describeError(error).text}\n${t("wip.commit.hookUnchanged")}`,
-          action: output ? { label: t("wip.commit.showOutput"), onClick: () => void showOutput(t("wip.commit.hookOutput"), output) } : undefined,
+          action: output
+            ? { label: t("wip.commit.showOutput"), onClick: () => void showOutput(t("wip.commit.hookOutput"), output) }
+            : undefined,
         });
       }
     } else if (error.code === "identity_missing") {
@@ -326,7 +349,10 @@ export async function commitChanges(repoId: Id, tabId: Id, options: { stageAll?:
         tone: "danger",
         title: t("wip.identity.title"),
         description: t("wip.identity.text"),
-        action: { label: t("wip.identity.openProfile"), onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "profiles" }) },
+        action: {
+          label: t("wip.identity.openProfile"),
+          onClick: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "profiles" }),
+        },
       });
     }
     stopListening();
@@ -408,7 +434,10 @@ export async function setAmend(repoId: Id, tabId: Id, amend: boolean, template: 
   if (!amend) {
     const filled = wip.amendFilled;
     const untouched = filled !== null && draft.summary === filled.summary && draft.description === filled.description;
-    updateDraft(repoId, untouched ? { amend: false, summary: template?.summary ?? "", description: template?.description ?? "" } : { amend: false });
+    updateDraft(
+      repoId,
+      untouched ? { amend: false, summary: template?.summary ?? "", description: template?.description ?? "" } : { amend: false },
+    );
     useWipStore.getState().patch(tabId, { amendFilled: null, amendSha: null });
     return;
   }

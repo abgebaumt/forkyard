@@ -29,7 +29,14 @@ const withName = (role: string, name: string) => (name ? `${role} (${name})` : r
 /** One side from the texts under `conflict.side.<key>`. */
 function side(key: string, name: string, hint?: string): SideTitle {
   const role = t(`conflict.side.${key}.role`);
-  return { heading: withName(role, name), role, name, hint: hint ?? t(`conflict.side.${key}.hint`), all: t(`conflict.side.${key}.all`), whole: t(`conflict.side.${key}.whole`) };
+  return {
+    heading: withName(role, name),
+    role,
+    name,
+    hint: hint ?? t(`conflict.side.${key}.hint`),
+    all: t(`conflict.side.${key}.all`),
+    whole: t(`conflict.side.${key}.whole`),
+  };
 }
 
 export function sideTitles(operation: Operation | null | undefined, file: Pick<ConflictFile, "oursLabel" | "theirsLabel">): SideTitles {
@@ -39,10 +46,16 @@ export function sideTitles(operation: Operation | null | undefined, file: Pick<C
     case "rebase":
       return { ours: side("rebaseOurs", ours), theirs: side("rebaseTheirs", theirs) };
     case "cherry_pick":
-      return { ours: side("current", ours, t("conflict.side.current.hintCheckedOut")), theirs: side("cherryPick", theirs.replace(/^Cherry-Pick\s+/i, "")) };
+      return {
+        ours: side("current", ours, t("conflict.side.current.hintCheckedOut")),
+        theirs: side("cherryPick", theirs.replace(/^Cherry-Pick\s+/i, "")),
+      };
     case "revert":
       return { ours: side("current", ours, t("conflict.side.current.hintCheckedOut")), theirs: side("revert", theirs) };
     default:
-      return { ours: side("current", ours), theirs: side("incoming", theirs, operation ? t("conflict.side.incoming.hint") : t("conflict.side.incoming.hintApplied")) };
+      return {
+        ours: side("current", ours),
+        theirs: side("incoming", theirs, operation ? t("conflict.side.incoming.hint") : t("conflict.side.incoming.hintApplied")),
+      };
   }
 }

@@ -214,111 +214,117 @@ export const ResultEditor = forwardRef<ResultEditorHandle, ResultEditorProps>(fu
     viewRef.current?.requestMeasure();
   }, [props.code.fontSize, props.code.lineHeight]);
 
-  useImperativeHandle(
-    ref,
-    (): ResultEditorHandle => {
-      const state = () => {
+  useImperativeHandle(ref, (): ResultEditorHandle => {
+    const state = () => {
+      const view = viewRef.current;
+      const field = fieldRef.current;
+      return view && field ? { view, bounds: view.state.field(field) } : null;
+    };
+    return {
+      view: () => viewRef.current,
+      text: () => viewRef.current?.state.doc.toString() ?? "",
+      bounds: () => state()?.bounds.pos ?? [],
+      chunkTexts: () => {
+        const current = state();
+        if (!current) return [];
+        const { pos } = current.bounds;
+        return pos.slice(0, -1).map((from, index) => current.view.state.doc.sliceString(from, pos[index + 1]));
+      },
+      replaceChunks: (changes, options) => {
+        const current = state();
+        if (!current || changes.length === 0) return;
+        const old = current.bounds.pos;
+        const sorted = [...changes].sort((a, b) => a.chunk - b.chunk);
+        current.view.dispatch({
+          changes: sorted.map((change) => ({ from: old[change.chunk]!, to: old[change.chunk + 1]!, insert: change.text })),
+          effects: setBounds.of(shiftBounds(old, sorted)),
+          annotations: [programmatic.of(true), Transaction.addToHistory.of(options?.history === true)],
+        });
+      },
+      setLooks: (looks) => {
+        viewRef.current?.dispatch({ effects: setLooks.of(looks) });
+      },
+      chunkBox: (chunk) => {
+        const current = state();
+        if (!current) return null;
+        const { pos } = current.bounds;
+        const from = pos[chunk];
+        const to = pos[chunk + 1];
+        if (from === undefined || to === undefined) return null;
+        const view = current.view;
+        const top = view.lineBlockAt(from).top;
+        const bottom = to > from ? view.lineBlockAt(Math.max(from, to - 1)).bottom : top;
+        return { top: top + view.documentPadding.top, height: bottom - top };
+      },
+      chunkAt: (scrollTop) => {
+        const current = state();
+        if (!current) return null;
+        const view = current.view;
+        const { pos } = current.bounds;
+        const y = Math.max(0, scrollTop - view.documentPadding.top);
+        const block = view.lineBlockAtHeight(y);
+        // Block containing the topmost visible line.
+        let low = 0;
+        let high = pos.length - 2;
+        while (low < high) {
+          const middle = (low + high + 1) >> 1;
+          if (pos[middle]! <= block.from) low = middle;
+          else high = middle - 1;
+        }
+        // Skip empty blocks at the same position: the last one applies.
+        const top = view.lineBlockAt(pos[low]!).top;
+        const end = pos[low + 1]!;
+        const bottom = end > pos[low]! ? view.lineBlockAt(end - 1).bottom : top;
+        const fraction = bottom > top ? Math.min(1, Math.max(0, (y - top) / (bottom - top))) : 0;
+        return { chunk: low, fraction };
+      },
+      scrollToChunk: (chunk) => {
+        const current = state();
+        if (!current) return;
+        const from = current.bounds.pos[chunk];
+        if (from === undefined) return;
+        current.view.dispatch({ effects: EditorView.scrollIntoView(from, { y: "start", yMargin: current.view.defaultLineHeight }) });
+      },
+      scrollToFraction: (chunk, fraction) => {
+        const current = state();
+        if (!current) return;
+        const { pos } = current.bounds;
+        const from = pos[chunk];
+        const to = pos[chunk + 1];
+        if (from === undefined || to === undefined) return;
+        const view = current.view;
+        const top = view.lineBlockAt(from).top;
+        const bottom = to > from ? view.lineBlockAt(Math.max(from, to - 1)).bottom : top;
+        view.scrollDOM.scrollTop = top + view.documentPadding.top + fraction * (bottom - top);
+      },
+      selectChunk: (chunk) => {
+        const current = state();
+        if (!current) return;
+        const from = current.bounds.pos[chunk];
+        if (from === undefined) return;
+        current.view.dispatch({
+          selection: { anchor: from },
+          effects: EditorView.scrollIntoView(from, { y: "start", yMargin: current.view.defaultLineHeight }),
+        });
+      },
+      scrollTop: () => viewRef.current?.scrollDOM.scrollTop ?? 0,
+      hasFocus: () => viewRef.current?.hasFocus ?? false,
+      openSearch: () => {
         const view = viewRef.current;
-        const field = fieldRef.current;
-        return view && field ? { view, bounds: view.state.field(field) } : null;
-      };
-      return {
-        view: () => viewRef.current,
-        text: () => viewRef.current?.state.doc.toString() ?? "",
-        bounds: () => state()?.bounds.pos ?? [],
-        chunkTexts: () => {
-          const current = state();
-          if (!current) return [];
-          const { pos } = current.bounds;
-          return pos.slice(0, -1).map((from, index) => current.view.state.doc.sliceString(from, pos[index + 1]));
-        },
-        replaceChunks: (changes, options) => {
-          const current = state();
-          if (!current || changes.length === 0) return;
-          const old = current.bounds.pos;
-          const sorted = [...changes].sort((a, b) => a.chunk - b.chunk);
-          current.view.dispatch({
-            changes: sorted.map((change) => ({ from: old[change.chunk]!, to: old[change.chunk + 1]!, insert: change.text })),
-            effects: setBounds.of(shiftBounds(old, sorted)),
-            annotations: [programmatic.of(true), Transaction.addToHistory.of(options?.history === true)],
-          });
-        },
-        setLooks: (looks) => {
-          viewRef.current?.dispatch({ effects: setLooks.of(looks) });
-        },
-        chunkBox: (chunk) => {
-          const current = state();
-          if (!current) return null;
-          const { pos } = current.bounds;
-          const from = pos[chunk];
-          const to = pos[chunk + 1];
-          if (from === undefined || to === undefined) return null;
-          const view = current.view;
-          const top = view.lineBlockAt(from).top;
-          const bottom = to > from ? view.lineBlockAt(Math.max(from, to - 1)).bottom : top;
-          return { top: top + view.documentPadding.top, height: bottom - top };
-        },
-        chunkAt: (scrollTop) => {
-          const current = state();
-          if (!current) return null;
-          const view = current.view;
-          const { pos } = current.bounds;
-          const y = Math.max(0, scrollTop - view.documentPadding.top);
-          const block = view.lineBlockAtHeight(y);
-          // Block containing the topmost visible line.
-          let low = 0;
-          let high = pos.length - 2;
-          while (low < high) {
-            const middle = (low + high + 1) >> 1;
-            if (pos[middle]! <= block.from) low = middle;
-            else high = middle - 1;
-          }
-          // Skip empty blocks at the same position: the last one applies.
-          const top = view.lineBlockAt(pos[low]!).top;
-          const end = pos[low + 1]!;
-          const bottom = end > pos[low]! ? view.lineBlockAt(end - 1).bottom : top;
-          const fraction = bottom > top ? Math.min(1, Math.max(0, (y - top) / (bottom - top))) : 0;
-          return { chunk: low, fraction };
-        },
-        scrollToChunk: (chunk) => {
-          const current = state();
-          if (!current) return;
-          const from = current.bounds.pos[chunk];
-          if (from === undefined) return;
-          current.view.dispatch({ effects: EditorView.scrollIntoView(from, { y: "start", yMargin: current.view.defaultLineHeight }) });
-        },
-        scrollToFraction: (chunk, fraction) => {
-          const current = state();
-          if (!current) return;
-          const { pos } = current.bounds;
-          const from = pos[chunk];
-          const to = pos[chunk + 1];
-          if (from === undefined || to === undefined) return;
-          const view = current.view;
-          const top = view.lineBlockAt(from).top;
-          const bottom = to > from ? view.lineBlockAt(Math.max(from, to - 1)).bottom : top;
-          view.scrollDOM.scrollTop = top + view.documentPadding.top + fraction * (bottom - top);
-        },
-        selectChunk: (chunk) => {
-          const current = state();
-          if (!current) return;
-          const from = current.bounds.pos[chunk];
-          if (from === undefined) return;
-          current.view.dispatch({ selection: { anchor: from }, effects: EditorView.scrollIntoView(from, { y: "start", yMargin: current.view.defaultLineHeight }) });
-        },
-        scrollTop: () => viewRef.current?.scrollDOM.scrollTop ?? 0,
-        hasFocus: () => viewRef.current?.hasFocus ?? false,
-        openSearch: () => {
-          const view = viewRef.current;
-          if (!view) return;
-          view.focus();
-          openSearchPanel(view);
-        },
-        focus: () => viewRef.current?.focus(),
-      };
-    },
-    [],
-  );
+        if (!view) return;
+        view.focus();
+        openSearchPanel(view);
+      },
+      focus: () => viewRef.current?.focus(),
+    };
+  }, []);
 
-  return <div ref={host} style={codeVars(props.code)} className="gc-code-host gc-cf-result h-full min-h-0 overflow-hidden bg-surface-sunken" data-result-editor="" />;
+  return (
+    <div
+      ref={host}
+      style={codeVars(props.code)}
+      className="gc-code-host gc-cf-result h-full min-h-0 overflow-hidden bg-surface-sunken"
+      data-result-editor=""
+    />
+  );
 });

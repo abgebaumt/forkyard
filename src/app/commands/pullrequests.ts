@@ -27,7 +27,10 @@ function hostBlock(ctx: CommandContext): string | null {
   return null;
 }
 const connected = (ctx: CommandContext) => Boolean(ctx.repoId && hostLink(ctx.repoId).state === "connected");
-const viewedPr = (ctx: CommandContext) => (ctx.repoId && ctx.view?.center.kind === "pr" ? ctx.queryClient.getQueryData<PrDetails>(qk.pr(ctx.repoId, ctx.view.center.number)) : undefined);
+const viewedPr = (ctx: CommandContext) =>
+  ctx.repoId && ctx.view?.center.kind === "pr"
+    ? ctx.queryClient.getQueryData<PrDetails>(qk.pr(ctx.repoId, ctx.view.center.number))
+    : undefined;
 
 /** Loads the open pull requests and lets the user pick one. */
 async function pickPullRequest(ctx: CommandContext) {
@@ -68,7 +71,8 @@ export const commands: AppCommand[] = [
     group: "Remote",
     keywords: [...KEYWORDS(), ...kw("commands.pr.openCurrent.keywords")],
     when: (ctx) => hasRepo(ctx) && Boolean(currentBranch(ctx) && cachedPrForBranch(ctx.repoId!, currentBranch(ctx)!)),
-    disabledReason: (ctx) => (!hasRepo(ctx) ? null : (hostBlock(ctx) ?? (connected(ctx) ? t("commands.pr.openCurrent.none") : t("commands.pr.noAccount")))),
+    disabledReason: (ctx) =>
+      !hasRepo(ctx) ? null : (hostBlock(ctx) ?? (connected(ctx) ? t("commands.pr.openCurrent.none") : t("commands.pr.noAccount"))),
     run: (ctx) => {
       const pr = cachedPrForBranch(ctx.repoId!, currentBranch(ctx)!);
       if (pr) openPr(ctx.tabId!, pr.number);
@@ -131,7 +135,8 @@ if (typeof window !== "undefined") {
     if (queryClient.getQueryState(qk.hostRepo(repoId))) return;
     void (async () => {
       // Accounts first: the repository's host may name its account only as an ID.
-      if (!queryClient.getQueryState(qk.hostAccounts)) await queryClient.prefetchQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
+      if (!queryClient.getQueryState(qk.hostAccounts))
+        await queryClient.prefetchQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
       await queryClient.prefetchQuery({
         queryKey: qk.hostRepo(repoId),
         queryFn: () => hostApi.repoInfo(repoId, queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts) ?? []),
@@ -140,7 +145,13 @@ if (typeof window !== "undefined") {
     })();
   };
   queryClient.getQueryCache().subscribe((event) => {
-    if (event.type === "updated" && event.action.type === "success" && event.query.queryKey[0] === "app" && event.query.queryKey[1] === "tabs") prefetchActive();
+    if (
+      event.type === "updated" &&
+      event.action.type === "success" &&
+      event.query.queryKey[0] === "app" &&
+      event.query.queryKey[1] === "tabs"
+    )
+      prefetchActive();
   });
   prefetchActive();
 }

@@ -15,6 +15,8 @@ export function openGitflowFinish(repoId: Id, tabId: Id | null, target: FinishTa
 }
 
 export async function openGitflow(repoId: Id, tabId: Id | null, initialKind: GitflowKind = "feature"): Promise<void> {
-  const next = await showDialog<{ finish: FinishTarget }>((done) => <GitflowDialog repoId={repoId} initialKind={initialKind} onDone={done} />);
+  const next = await showDialog<{ finish: FinishTarget }>((done) => (
+    <GitflowDialog repoId={repoId} initialKind={initialKind} onDone={done} />
+  ));
   if (next?.finish) await openGitflowFinish(repoId, tabId, next.finish);
 }

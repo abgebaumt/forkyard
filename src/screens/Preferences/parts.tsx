@@ -20,7 +20,10 @@ export const SettingsSearch = createContext("");
 /** A section's level above its heading: "Global · in all profiles" etc. */
 export function ScopePill({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
-    <p data-scope className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 text-sm font-medium text-text-muted">
+    <p
+      data-scope
+      className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2 py-0.5 text-sm font-medium text-text-muted"
+    >
       {icon}
       {children}
     </p>
@@ -103,7 +106,11 @@ export function SettingRow({ title, description, stacked, group, changed, childr
     <div
       data-setting={title}
       data-match={match || undefined}
-      className={cn("border-b border-border py-3 last:border-b-0", match && "-mx-4 bg-accent-surface px-4", stacked ? "flex flex-col gap-2" : "flex items-start gap-6")}
+      className={cn(
+        "border-b border-border py-3 last:border-b-0",
+        match && "-mx-4 bg-accent-surface px-4",
+        stacked ? "flex flex-col gap-2" : "flex items-start gap-6",
+      )}
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
@@ -150,7 +157,19 @@ export interface CommitTextProps {
  * Text applies as soon as the field is left or Enter is pressed – there is no save button.
  * A check mark on the right of the field confirms the save; an error appears right below and the typed text stays.
  */
-export function CommitText({ id, describedBy, value, onCommit, validate, mono, placeholder, type = "text", className, disabled, autoFocus }: CommitTextProps) {
+export function CommitText({
+  id,
+  describedBy,
+  value,
+  onCommit,
+  validate,
+  mono,
+  placeholder,
+  type = "text",
+  className,
+  disabled,
+  autoFocus,
+}: CommitTextProps) {
   const [text, setText] = useState(value);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -258,9 +277,25 @@ const badgeIcon: Record<BadgeTone, string> = {
 };
 
 /** Small badge with text – the state is always written as a word, icon and colour come on top. */
-export function Badge({ tone = "neutral", icon, children, title }: { tone?: BadgeTone; icon?: ReactNode; children: ReactNode; title?: string }) {
+export function Badge({
+  tone = "neutral",
+  icon,
+  children,
+  title,
+}: {
+  tone?: BadgeTone;
+  icon?: ReactNode;
+  children: ReactNode;
+  title?: string;
+}) {
   return (
-    <span title={title} className={cn("inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs font-medium whitespace-nowrap", badgeTone[tone])}>
+    <span
+      title={title}
+      className={cn(
+        "inline-flex h-5 shrink-0 items-center gap-1 rounded-sm border px-1.5 text-xs font-medium whitespace-nowrap",
+        badgeTone[tone],
+      )}
+    >
       {icon ? <span className={cn("flex", badgeIcon[tone])}>{icon}</span> : null}
       {children}
     </span>
@@ -305,7 +340,10 @@ export function LoadError({ title, error, onRetry }: { title: string; error: unk
 /** Value to read and select, e.g. a path or fingerprint. Truncates and shows the full text in the tooltip. */
 export function Mono({ children, className, wrap }: { children: string; className?: string; wrap?: boolean }) {
   return (
-    <span title={wrap ? undefined : children} className={cn("selectable font-mono text-code text-text", wrap ? "break-all" : "block truncate", className)}>
+    <span
+      title={wrap ? undefined : children}
+      className={cn("selectable font-mono text-code text-text", wrap ? "break-all" : "block truncate", className)}
+    >
       {children}
     </span>
   );
@@ -334,7 +372,18 @@ export interface InheritRowProps {
 }
 
 /** Without an own value: "From <source>: <value>" and "Override". With an own value: marked, with "Reset". */
-export function InheritRow({ title, description, own: stored, source, inherited, onOverride, overrideDisabled, onReset, stacked, children }: InheritRowProps) {
+export function InheritRow({
+  title,
+  description,
+  own: stored,
+  source,
+  inherited,
+  onOverride,
+  overrideDisabled,
+  onReset,
+  stacked,
+  children,
+}: InheritRowProps) {
   const base = useId();
   const ids: FieldIds = { id: `${base}-field`, labelId: `${base}-label`, descriptionId: `${base}-description` };
   const query = useContext(SettingsSearch).trim().toLowerCase();

@@ -146,7 +146,12 @@ export function ReflogView({ repoId, tabId, refName }: ReflogViewProps) {
         <History className="size-icon shrink-0 text-text-muted" aria-hidden />
         <h2 className="shrink-0 text-md font-medium text-text">{t("reflog.title")}</h2>
         <div className="w-56 min-w-0">
-          <Select ariaLabel={t("reflog.filter")} value={refValue(refName)} options={options} onValueChange={(value) => store().openReflog(tabId, refFromValue(value))} />
+          <Select
+            ariaLabel={t("reflog.filter")}
+            value={refValue(refName)}
+            options={options}
+            onValueChange={(value) => store().openReflog(tabId, refFromValue(value))}
+          />
         </div>
         <div className="flex-1" />
         <BackButton tabId={tabId} />
@@ -174,7 +179,12 @@ interface ReflogListProps {
 function ReflogList({ entries, selected, hasMore, loadingMore, onLoadMore, onSelect, onOpen, menuFor }: ReflogListProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const idBase = useId();
-  const virtualizer = useVirtualizer({ count: entries.length + (hasMore ? 1 : 0), getScrollElement: () => scroller.current, estimateSize: () => ROW_HEIGHT, overscan: 12 });
+  const virtualizer = useVirtualizer({
+    count: entries.length + (hasMore ? 1 : 0),
+    getScrollElement: () => scroller.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12,
+  });
   const items = virtualizer.getVirtualItems();
   const last = items[items.length - 1]?.index ?? 0;
 
@@ -229,11 +239,24 @@ function ReflogList({ entries, selected, hasMore, loadingMore, onLoadMore, onSel
     >
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {items.map((item) => {
-          const style: CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: item.size, transform: `translateY(${item.start}px)` };
+          const style: CSSProperties = {
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: item.size,
+            transform: `translateY(${item.start}px)`,
+          };
           const entry = entries[item.index];
           if (!entry) {
             return (
-              <div key="more" style={style} data-index={item.index} role="presentation" className="flex items-center justify-center text-sm text-text-muted">
+              <div
+                key="more"
+                style={style}
+                data-index={item.index}
+                role="presentation"
+                className="flex items-center justify-center text-sm text-text-muted"
+              >
                 {loadingMore ? t("reflog.loadingMore") : t("reflog.more")}
               </div>
             );
@@ -259,12 +282,17 @@ function ReflogList({ entries, selected, hasMore, loadingMore, onLoadMore, onSel
               }}
               className={cn(
                 "flex cursor-default flex-col justify-center gap-0.5 border-b border-border px-3",
-                isSelected ? "bg-accent-surface group-focus-visible/list:ring-2 group-focus-visible/list:ring-accent group-focus-visible/list:ring-inset" : "hover:bg-surface-raised",
+                isSelected
+                  ? "bg-accent-surface group-focus-visible/list:ring-2 group-focus-visible/list:ring-accent group-focus-visible/list:ring-inset"
+                  : "hover:bg-surface-raised",
               )}
             >
               <div className="flex min-w-0 items-center gap-2">
                 <span className="shrink-0 text-sm font-medium text-text-muted">{actionLabel(entry.action)}</span>
-                <span className={cn("min-w-0 flex-1 truncate text-base", entry.exists ? "text-text" : "text-text-muted line-through")} title={entry.message}>
+                <span
+                  className={cn("min-w-0 flex-1 truncate text-base", entry.exists ? "text-text" : "text-text-muted line-through")}
+                  title={entry.message}
+                >
                   {entry.message || t("reflog.noMessage")}
                 </span>
               </div>

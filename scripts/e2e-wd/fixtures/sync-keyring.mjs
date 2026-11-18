@@ -50,7 +50,10 @@ export async function startPrivateKeyring() {
 </busconfig>
 `,
   );
-  const bus = spawn(dbusDaemon, ["--config-file", config, "--nofork", "--print-address=1"], { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+  const bus = spawn(dbusDaemon, ["--config-file", config, "--nofork", "--print-address=1"], {
+    detached: true,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
   const address = await new Promise((resolve, reject) => {
     let text = "";
     const timer = setTimeout(() => reject(new Error(`dbus-daemon gave no address: ${text}`)), 10_000);
@@ -65,14 +68,29 @@ export async function startPrivateKeyring() {
     bus.on("exit", (code) => reject(new Error(`dbus-daemon exited (${code})`)));
   });
   const env = { ...process.env, DBUS_SESSION_BUS_ADDRESS: address, XDG_RUNTIME_DIR: runtime, XDG_DATA_HOME: data };
-  const daemon = spawn(keyringDaemon, ["--foreground", "--unlock", "--components=secrets"], { env, detached: true, stdio: ["pipe", "ignore", "pipe"] });
+  const daemon = spawn(keyringDaemon, ["--foreground", "--unlock", "--components=secrets"], {
+    env,
+    detached: true,
+    stdio: ["pipe", "ignore", "pipe"],
+  });
   daemon.stdin.end("e2e-keyring-password");
   // Ready once the service answers on the bus with an unlocked default collection.
   let ready = false;
   for (let attempt = 0; attempt < 100 && !ready; attempt++) {
     const probe = spawnSync(
       "gdbus",
-      ["call", "--session", "--dest", "org.freedesktop.secrets", "--object-path", "/org/freedesktop/secrets/aliases/default", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.Secret.Collection", "Locked"],
+      [
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.secrets",
+        "--object-path",
+        "/org/freedesktop/secrets/aliases/default",
+        "--method",
+        "org.freedesktop.DBus.Properties.Get",
+        "org.freedesktop.Secret.Collection",
+        "Locked",
+      ],
       { env, encoding: "utf8", timeout: 3000 },
     );
     ready = probe.status === 0 && probe.stdout.includes("false");

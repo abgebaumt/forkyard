@@ -50,7 +50,11 @@ export const groupTitles: Record<CommandGroup, string> = {
 };
 
 /** Search words from a translation: comma-separated. */
-const words = (key: string) => t(key).split(",").map((word) => word.trim()).filter(Boolean);
+const words = (key: string) =>
+  t(key)
+    .split(",")
+    .map((word) => word.trim())
+    .filter(Boolean);
 
 export interface PaletteItem {
   key: string;
@@ -104,7 +108,11 @@ const isHidden = (command: AppCommand, ctx: CommandContext) => {
   }
 };
 
-export function commandItems(commands: readonly AppCommand[], ctx: CommandContext, available: (command: AppCommand) => boolean): PaletteItem[] {
+export function commandItems(
+  commands: readonly AppCommand[],
+  ctx: CommandContext,
+  available: (command: AppCommand) => boolean,
+): PaletteItem[] {
   return commands
     .filter((command) => !HIDDEN_COMMANDS.has(command.id) && !isHidden(command, ctx))
     .map((command) => {
@@ -161,7 +169,11 @@ function fastForwardAction(target: RepoTarget, ref: Ref, key: string): PaletteIt
     key,
     kind: "action",
     title: t("palette.ff.title", { upstream }),
-    detail: blocked ? undefined : ref.isHead ? t("palette.commits", { count: ref.behind }) : t("palette.ff.withoutCheckout", { count: ref.behind }),
+    detail: blocked
+      ? undefined
+      : ref.isHead
+        ? t("palette.commits", { count: ref.behind })
+        : t("palette.ff.withoutCheckout", { count: ref.behind }),
     keywords: ["ff", ...words("palette.ff.keywords")],
     disabledReason: blocked,
     run: () => (ref.isHead ? fastForward(target.repoId, upstream, target.tabId) : fastForwardBranch(target.repoId, ref.name, upstream)),
@@ -183,22 +195,50 @@ function branchActions(target: RepoTarget, ref: Ref, current: string | null): Pa
     );
     if (current) {
       list.push(
-        item({ key: key("merge"), kind: "action", title: t("palette.action.mergeInto", { branch: current }), run: () => mergeBranch(repoId, ref.name, undefined, tabId) }),
-        item({ key: key("rebase"), kind: "action", title: t("palette.action.rebaseOnto", { branch: current }), run: () => rebaseOnto(repoId, ref.name, null, tabId) }),
+        item({
+          key: key("merge"),
+          kind: "action",
+          title: t("palette.action.mergeInto", { branch: current }),
+          run: () => mergeBranch(repoId, ref.name, undefined, tabId),
+        }),
+        item({
+          key: key("rebase"),
+          kind: "action",
+          title: t("palette.action.rebaseOnto", { branch: current }),
+          run: () => rebaseOnto(repoId, ref.name, null, tabId),
+        }),
       );
     }
   }
   const forward = fastForwardAction(target, ref, key("ff"));
   if (forward) list.push(forward);
   list.push(item({ key: key("reveal"), kind: "action", title: t("palette.action.reveal"), run: () => reveal(target, ref.sha) }));
-  list.push(item({ key: key("branch"), kind: "action", title: t("palette.action.newBranchHere"), run: () => createBranch(repoId, { start: ref.name, tabId }) }));
+  list.push(
+    item({
+      key: key("branch"),
+      kind: "action",
+      title: t("palette.action.newBranchHere"),
+      run: () => createBranch(repoId, { start: ref.name, tabId }),
+    }),
+  );
   if (ref.kind === "local") {
     list.push(item({ key: key("rename"), kind: "action", title: t("palette.action.rename"), run: () => renameBranch(repoId, ref.name) }));
-    list.push(item({ key: key("upstream"), kind: "action", title: t("palette.action.setUpstream"), run: () => chooseUpstream(repoId, ref.name) }));
+    list.push(
+      item({ key: key("upstream"), kind: "action", title: t("palette.action.setUpstream"), run: () => chooseUpstream(repoId, ref.name) }),
+    );
   }
-  list.push(item({ key: key("copy"), kind: "action", title: t("palette.action.copyName"), run: () => copyText(ref.name, t("palette.action.branchName")) }));
+  list.push(
+    item({
+      key: key("copy"),
+      kind: "action",
+      title: t("palette.action.copyName"),
+      run: () => copyText(ref.name, t("palette.action.branchName")),
+    }),
+  );
   if (ref.kind === "local" && !ref.isHead) {
-    list.push(item({ key: key("delete"), kind: "action", title: t("palette.action.delete"), run: () => deleteBranches(repoId, [ref.name]) }));
+    list.push(
+      item({ key: key("delete"), kind: "action", title: t("palette.action.delete"), run: () => deleteBranches(repoId, [ref.name]) }),
+    );
   }
   return list;
 }
@@ -208,10 +248,25 @@ function tagActions(target: RepoTarget, ref: Ref): PaletteItem[] {
   const key = (suffix: string) => `action:${ref.fullName}:${suffix}`;
   return [
     item({ key: key("reveal"), kind: "action", title: t("palette.action.reveal"), run: () => reveal(target, ref.sha) }),
-    item({ key: key("checkout"), kind: "action", title: t("palette.action.checkoutDetached"), run: () => checkout(repoId, ref.name, { tabId }) }),
-    item({ key: key("branch"), kind: "action", title: t("palette.action.branchHere"), run: () => createBranch(repoId, { start: ref.name, tabId }) }),
+    item({
+      key: key("checkout"),
+      kind: "action",
+      title: t("palette.action.checkoutDetached"),
+      run: () => checkout(repoId, ref.name, { tabId }),
+    }),
+    item({
+      key: key("branch"),
+      kind: "action",
+      title: t("palette.action.branchHere"),
+      run: () => createBranch(repoId, { start: ref.name, tabId }),
+    }),
     item({ key: key("push"), kind: "action", title: t("palette.action.pushTag"), run: () => pushTag(repoId, ref.name) }),
-    item({ key: key("copy"), kind: "action", title: t("palette.action.copyName"), run: () => copyText(ref.name, t("palette.action.tagName")) }),
+    item({
+      key: key("copy"),
+      kind: "action",
+      title: t("palette.action.copyName"),
+      run: () => copyText(ref.name, t("palette.action.tagName")),
+    }),
     item({ key: key("delete"), kind: "action", title: t("palette.action.delete"), run: () => deleteTag(repoId, ref.name, null) }),
   ];
 }
@@ -233,12 +288,12 @@ export function refDetail(ref: Ref): string {
       .join(" · ");
   }
   if (!ref.upstream) return shortSha(ref.sha);
-  if (state?.kind === "elsewhere") return `${t("palette.ref.followsOther", { upstream: ref.upstream })}${state.behind ? ` · ↓${state.behind}` : ""}`;
+  if (state?.kind === "elsewhere")
+    return `${t("palette.ref.followsOther", { upstream: ref.upstream })}${state.behind ? ` · ↓${state.behind}` : ""}`;
   return `${t("palette.ref.tracks", { upstream: ref.upstream })}${ref.ahead || ref.behind ? ` · ↑${ref.ahead} ↓${ref.behind}` : ""}`;
 }
 
 export function refItems(target: RepoTarget, refs: RefsSnapshot): PaletteItem[] {
-
   const current = refs.head.kind === "branch" ? refs.head.branch : null;
   const branch = (ref: Ref): PaletteItem =>
     item({
@@ -274,13 +329,21 @@ function fileActions(target: RepoTarget, path: string, change: { area: "unstaged
   const store = () => useAppStore.getState();
   const key = (suffix: string) => `action:file:${path}:${suffix}`;
   const list: PaletteItem[] = [];
-  if (change) list.push(item({ key: key("diff"), kind: "action", title: t("palette.action.showDiff"), run: () => openChange(target, path, change.area) }));
+  if (change)
+    list.push(
+      item({ key: key("diff"), kind: "action", title: t("palette.action.showDiff"), run: () => openChange(target, path, change.area) }),
+    );
   list.push(
     item({ key: key("view"), kind: "action", title: t("palette.action.viewFile"), run: () => store().openFile(tabId, path, null, "view") }),
     item({ key: key("edit"), kind: "action", title: t("palette.action.editFile"), run: () => store().openFile(tabId, path, null, "edit") }),
     item({ key: key("history"), kind: "action", title: t("palette.action.fileHistory"), run: () => store().openHistory(tabId, path) }),
     item({ key: key("blame"), kind: "action", title: t("palette.action.blame"), run: () => store().openBlame(tabId, path, null) }),
-    item({ key: key("external"), kind: "action", title: t("palette.action.openExternal"), run: () => openExternal(repoId, "editor", path) }),
+    item({
+      key: key("external"),
+      kind: "action",
+      title: t("palette.action.openExternal"),
+      run: () => openExternal(repoId, "editor", path),
+    }),
     item({ key: key("copy"), kind: "action", title: t("palette.action.copyPath"), run: () => copyText(path, t("palette.action.path")) }),
   );
   return list;
@@ -366,9 +429,24 @@ export function commitItems(target: RepoTarget, commits: readonly CommitSummary[
       detail: `${shortSha(commit.sha)} · ${commit.author.name} · ${formatRelative(commit.authoredAt)}`,
       run: () => reveal(target, commit.sha),
       actions: () => [
-        item({ key: `action:commit:${commit.sha}:reveal`, kind: "action", title: t("palette.action.reveal"), run: () => reveal(target, commit.sha) }),
-        item({ key: `action:commit:${commit.sha}:branch`, kind: "action", title: t("palette.action.branchHere"), run: () => createBranch(target.repoId, { start: commit.sha, tabId: target.tabId }) }),
-        item({ key: `action:commit:${commit.sha}:copy`, kind: "action", title: t("palette.action.copySha"), run: () => copyText(commit.sha, "SHA") }),
+        item({
+          key: `action:commit:${commit.sha}:reveal`,
+          kind: "action",
+          title: t("palette.action.reveal"),
+          run: () => reveal(target, commit.sha),
+        }),
+        item({
+          key: `action:commit:${commit.sha}:branch`,
+          kind: "action",
+          title: t("palette.action.branchHere"),
+          run: () => createBranch(target.repoId, { start: commit.sha, tabId: target.tabId }),
+        }),
+        item({
+          key: `action:commit:${commit.sha}:copy`,
+          kind: "action",
+          title: t("palette.action.copySha"),
+          run: () => copyText(commit.sha, "SHA"),
+        }),
       ],
     }),
   );

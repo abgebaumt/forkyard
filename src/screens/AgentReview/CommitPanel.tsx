@@ -36,7 +36,8 @@ export function ReviewCommitPanel({ repoId, tabId, agentIds }: { repoId: Id; tab
   const chosen = Object.keys(pane.picks ?? {}).length;
   const why = blocker("commit", { agent, latest: latest.data ?? null, chosen, status, summary: message.summary });
   const head = status?.head;
-  const setMessage = (next: { summary: string; description: string }) => useReviewStore.getState().patch(tabId, agent.id, { message: next });
+  const setMessage = (next: { summary: string; description: string }) =>
+    useReviewStore.getState().patch(tabId, agent.id, { message: next });
   return (
     <form
       data-panel="review-commit"
@@ -49,11 +50,28 @@ export function ReviewCommitPanel({ repoId, tabId, agentIds }: { repoId: Id; tab
     >
       <h2 className="text-md font-semibold text-text">{t("agents.review.commitTitle")}</h2>
       <p className="text-sm text-text-muted">
-        {head && head.kind !== "detached" ? t("agents.review.commitOnto", { name: displayName(agent), branch: head.branch }) : t("agents.review.commitDetached", { name: displayName(agent) })}
+        {head && head.kind !== "detached"
+          ? t("agents.review.commitOnto", { name: displayName(agent), branch: head.branch })
+          : t("agents.review.commitDetached", { name: displayName(agent) })}
       </p>
-      <TextField label={t("agents.review.summary")} data-field="review-summary" value={message.summary} onChange={(event) => setMessage({ ...message, summary: event.target.value })} />
-      <TextArea label={t("agents.review.description")} data-field="review-description" rows={6} value={message.description} onChange={(event) => setMessage({ ...message, description: event.target.value })} />
-      <Checkbox label={t("agents.review.skipHooks")} checked={pane.skipHooks} onCheckedChange={(skipHooks) => useReviewStore.getState().patch(tabId, agent.id, { skipHooks })} />
+      <TextField
+        label={t("agents.review.summary")}
+        data-field="review-summary"
+        value={message.summary}
+        onChange={(event) => setMessage({ ...message, summary: event.target.value })}
+      />
+      <TextArea
+        label={t("agents.review.description")}
+        data-field="review-description"
+        rows={6}
+        value={message.description}
+        onChange={(event) => setMessage({ ...message, description: event.target.value })}
+      />
+      <Checkbox
+        label={t("agents.review.skipHooks")}
+        checked={pane.skipHooks}
+        onCheckedChange={(skipHooks) => useReviewStore.getState().patch(tabId, agent.id, { skipHooks })}
+      />
       <Button type="submit" variant="primary" data-action="review-commit" loading={busy} disabled={Boolean(why)}>
         {t("agents.review.commit", { count: chosen })}
       </Button>

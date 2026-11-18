@@ -7,7 +7,19 @@
  * produce – if not, the block counts as “edited by hand”.
  */
 import { ChevronDown, ChevronUp, CircleAlert, CircleCheck, Link2, Link2Off, RotateCcw, Save, Search } from "lucide-react";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import type { ConflictFile, Id } from "../../core";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 import { choose, confirm } from "../../app/dialogs";
@@ -41,7 +53,17 @@ import {
 } from "./model";
 import { Divider, Strip, Tag, ToolHeader, splitPath } from "./parts";
 import { ResultEditor, type ChunkLook, type ResultEditorHandle } from "./ResultEditor";
-import { clampIntentWidth, conflictRanges, DEFAULT_INTENT_WIDTH, INTENT_WIDTH_MAX, INTENT_WIDTH_MIN, rememberIntentOpen, rememberIntentWidth, storedIntentOpen, storedIntentWidth } from "./intent";
+import {
+  clampIntentWidth,
+  conflictRanges,
+  DEFAULT_INTENT_WIDTH,
+  INTENT_WIDTH_MAX,
+  INTENT_WIDTH_MIN,
+  rememberIntentOpen,
+  rememberIntentWidth,
+  storedIntentOpen,
+  storedIntentWidth,
+} from "./intent";
 import { IntentColumn } from "./IntentColumn";
 import { dropSession, loadSession, saveSession } from "./session";
 import { SidesView, type SidesViewHandle } from "./SidesView";
@@ -88,7 +110,10 @@ function storedSplit(): number {
 
 const eolNames: Record<Eol, string> = { lf: "LF", crlf: "CRLF" };
 
-export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Workbench({ repoId, tabId, path, file, ours, theirs, titles, tags, fileNav, onClose }, ref) {
+export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Workbench(
+  { repoId, tabId, path, file, ours, theirs, titles, tags, fileNav, onClose },
+  ref,
+) {
   const code = useCodeSettings();
   const name = splitPath(path).name;
   const base = file.base;
@@ -96,7 +121,10 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   // --- Modell -------------------------------------------------------------------------
   const model = useMemo(() => buildModel(base, ours, theirs), [base, ours, theirs]);
   const rowModel = useMemo(() => buildRows(model), [model]);
-  const labels = useMemo(() => ({ ours: file.oursLabel.trim() || "ours", theirs: file.theirsLabel.trim() || "theirs" }), [file.oursLabel, file.theirsLabel]);
+  const labels = useMemo(
+    () => ({ ours: file.oursLabel.trim() || "ours", theirs: file.theirsLabel.trim() || "theirs" }),
+    [file.oursLabel, file.theirsLabel],
+  );
   const known = model.knownMarkerLines;
   const total = model.conflicts.length;
   const autoCount = useMemo(() => model.chunks.filter((chunk) => chunk.kind === "auto").length, [model]);
@@ -125,7 +153,8 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   const choicesRef = useRef(choices);
   /** What every block would produce without manual editing – only recomputed when the selection changes. */
   const expected = useRef<string[]>([]);
-  if (expected.current.length === 0 && model.chunks.length > 0) expected.current = model.chunks.map((chunk, index) => chunkText(chunk, initial.choices[index] ?? null, labels));
+  if (expected.current.length === 0 && model.chunks.length > 0)
+    expected.current = model.chunks.map((chunk, index) => chunkText(chunk, initial.choices[index] ?? null, labels));
 
   interface Derived {
     manual: (string | null)[];
@@ -138,7 +167,12 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     }),
     [known],
   );
-  const [derived, setDerived] = useState<Derived>(() => derive(initial.bounds.slice(0, -1).map((from, index) => initial.doc.slice(from, initial.bounds[index + 1])), initial.doc));
+  const [derived, setDerived] = useState<Derived>(() =>
+    derive(
+      initial.bounds.slice(0, -1).map((from, index) => initial.doc.slice(from, initial.bounds[index + 1])),
+      initial.doc,
+    ),
+  );
   const { manual, markers } = derived;
   const manualRef = useRef(manual);
   manualRef.current = manual;
@@ -168,7 +202,10 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   // --- Zustand je Block -----------------------------------------------------------------
-  const resolvedFlags = useMemo(() => model.conflicts.map((id) => isResolved(choices[id]!, manual[id] ?? null, known)), [model, choices, manual, known]);
+  const resolvedFlags = useMemo(
+    () => model.conflicts.map((id) => isResolved(choices[id]!, manual[id] ?? null, known)),
+    [model, choices, manual, known],
+  );
   const resolved = resolvedFlags.filter(Boolean).length;
   const manualBlocks = model.conflicts.filter((id) => manual[id] != null).length;
   const editedElsewhere = manual.some((text, index) => text !== null && model.chunks[index]?.kind !== "conflict");
@@ -177,7 +214,16 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
   dirtyRef.current = dirty;
 
   const looks = useMemo<ChunkLook[]>(
-    () => model.chunks.map((chunk, index) => (chunk.kind === "same" ? "plain" : chunk.kind === "auto" ? "auto" : isResolved(choices[index]!, manual[index] ?? null, known) ? "done" : "open")),
+    () =>
+      model.chunks.map((chunk, index) =>
+        chunk.kind === "same"
+          ? "plain"
+          : chunk.kind === "auto"
+            ? "auto"
+            : isResolved(choices[index]!, manual[index] ?? null, known)
+              ? "done"
+              : "open",
+      ),
     [model, choices, manual, known],
   );
   const [initialLooks] = useState(looks);
@@ -355,7 +401,10 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     if (!status) finished.current = false;
   }, [busy, model, known, reveal, eol, repoId, tabId, path]);
 
-  useImperativeHandle(ref, () => ({ goToConflict, save: () => void save(), openSearch: () => editor.current?.openSearch() }), [goToConflict, save]);
+  useImperativeHandle(ref, () => ({ goToConflict, save: () => void save(), openSearch: () => editor.current?.openSearch() }), [
+    goToConflict,
+    save,
+  ]);
 
   /** The file was resolved outside (editor, external merge tool): save and stage exactly this state. */
   const worktreeClean = handEdited && file.merged !== null && markerLines(file.merged, known).length === 0;
@@ -399,7 +448,14 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     return () => {
       setCenterGuard(tabId, null, guard);
       if (dirtyRef.current && !finished.current) {
-        saveSession(repoId, path, { base, ours, theirs, choices: choicesRef.current, doc: snapshot.current.doc, bounds: snapshot.current.bounds });
+        saveSession(repoId, path, {
+          base,
+          ours,
+          theirs,
+          choices: choicesRef.current,
+          doc: snapshot.current.doc,
+          bounds: snapshot.current.bounds,
+        });
       }
     };
   }, [repoId, tabId, path, name, base, ours, theirs]);
@@ -506,8 +562,7 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
 
   // --- Darstellung ----------------------------------------------------------------------
   const allDone = total > 0 && open === 0;
-  const counter =
-    total === 0 ? t("conflict.counter.none") : t("conflict.counter.resolved", { resolved, count: total });
+  const counter = total === 0 ? t("conflict.counter.none") : t("conflict.counter.resolved", { resolved, count: total });
 
   const sideHeading = (side: Side, withButton: boolean) => (
     <div className="flex h-control-lg min-w-0 items-center gap-2 pr-1 pl-3" data-side-heading={side}>
@@ -533,18 +588,52 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
         end={fileNav}
         onClose={onClose}
         toolbar={
-          <div role="toolbar" aria-label={t("conflict.toolbar")} className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3">
-            <p role="status" data-conflict-counter="" data-resolved={resolved} data-total={total} className="m-0 flex min-w-0 flex-1 items-center gap-1.5 text-sm">
-              {allDone || total === 0 ? <CircleCheck className="size-icon shrink-0 text-success" aria-hidden /> : <CircleAlert className="size-icon shrink-0 text-warning" aria-hidden />}
+          <div
+            role="toolbar"
+            aria-label={t("conflict.toolbar")}
+            className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3"
+          >
+            <p
+              role="status"
+              data-conflict-counter=""
+              data-resolved={resolved}
+              data-total={total}
+              className="m-0 flex min-w-0 flex-1 items-center gap-1.5 text-sm"
+            >
+              {allDone || total === 0 ? (
+                <CircleCheck className="size-icon shrink-0 text-success" aria-hidden />
+              ) : (
+                <CircleAlert className="size-icon shrink-0 text-warning" aria-hidden />
+              )}
               <span className="shrink-0 font-medium text-text">{counter}</span>
-              {autoCount > 0 ? <span className="min-w-0 truncate text-text-muted">· {t("conflict.counter.auto", { count: autoCount })}</span> : null}
+              {autoCount > 0 ? (
+                <span className="min-w-0 truncate text-text-muted">· {t("conflict.counter.auto", { count: autoCount })}</span>
+              ) : null}
             </p>
             <div role="group" aria-label={t("conflict.nav.switch")} className="flex shrink-0 items-center">
-              <IconButton size="sm" label={t("conflict.nav.prev")} shortcut="Shift+F7" disabled={total === 0 || current <= 0} icon={<ChevronUp className="size-icon" aria-hidden />} onClick={() => goToConflict(-1)} />
-              <span className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums" data-conflict-position="" aria-label={current >= 0 ? t("conflict.nav.position", { index: current + 1, total }) : undefined}>
+              <IconButton
+                size="sm"
+                label={t("conflict.nav.prev")}
+                shortcut="Shift+F7"
+                disabled={total === 0 || current <= 0}
+                icon={<ChevronUp className="size-icon" aria-hidden />}
+                onClick={() => goToConflict(-1)}
+              />
+              <span
+                className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums"
+                data-conflict-position=""
+                aria-label={current >= 0 ? t("conflict.nav.position", { index: current + 1, total }) : undefined}
+              >
                 {total === 0 ? "–" : current < 0 ? `${total}` : `${current + 1}/${total}`}
               </span>
-              <IconButton size="sm" label={t("conflict.nav.next")} shortcut="F7" disabled={total === 0 || current >= total - 1} icon={<ChevronDown className="size-icon" aria-hidden />} onClick={() => goToConflict(1)} />
+              <IconButton
+                size="sm"
+                label={t("conflict.nav.next")}
+                shortcut="F7"
+                disabled={total === 0 || current >= total - 1}
+                icon={<ChevronDown className="size-icon" aria-hidden />}
+                onClick={() => goToConflict(1)}
+              />
             </div>
             <Divider />
             <IconButton
@@ -555,12 +644,26 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
               icon={linked ? <Link2 className="size-icon" aria-hidden /> : <Link2Off className="size-icon" aria-hidden />}
               onClick={() => setLinked(!linked)}
             />
-            <IconButton size="sm" label={t("conflict.reset.tip")} disabled={!dirty} data-action="reset" icon={<RotateCcw className="size-icon" aria-hidden />} onClick={() => void reset()} />
+            <IconButton
+              size="sm"
+              label={t("conflict.reset.tip")}
+              disabled={!dirty}
+              data-action="reset"
+              icon={<RotateCcw className="size-icon" aria-hidden />}
+              onClick={() => void reset()}
+            />
             {intentAvailable ? (
               <>
                 <Divider />
                 <Tip label={t("conflict.intent.toggleTip")}>
-                  <Button size="sm" variant="ghost" aria-pressed={intentOpen} data-intent-toggle="" className={intentOpen ? "bg-surface-raised" : undefined} onClick={() => setIntentOpen(!intentOpen)}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-pressed={intentOpen}
+                    data-intent-toggle=""
+                    className={intentOpen ? "bg-surface-raised" : undefined}
+                    onClick={() => setIntentOpen(!intentOpen)}
+                  >
                     {t("conflict.intent.toggle")}
                   </Button>
                 </Tip>
@@ -583,165 +686,183 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
             ) : undefined
           }
         >
-          {worktreeClean
-            ? t("conflict.handEdited.clean")
-            : t("conflict.handEdited.dirty")}
+          {worktreeClean ? t("conflict.handEdited.clean") : t("conflict.handEdited.dirty")}
         </Strip>
       ) : null}
       {mixedEol ? (
         <Strip id="mixed-eol">
-          {t("conflict.mixedEol", { ours: titles.ours.role, oursEol: eolNames[oursEol!], theirs: titles.theirs.role, theirsEol: eolNames[theirsEol!], eol: eolNames[eol] })}
+          {t("conflict.mixedEol", {
+            ours: titles.ours.role,
+            oursEol: eolNames[oursEol!],
+            theirs: titles.theirs.role,
+            theirsEol: eolNames[theirsEol!],
+            eol: eolNames[eol],
+          })}
         </Strip>
       ) : null}
       {!model.hasBase ? <Strip id="no-base">{t("conflict.noBase")}</Strip> : null}
 
       <div ref={layout} className="flex min-h-0 min-w-0 flex-1" data-intent-layout="">
-      <div ref={container} style={codeVars(code)} className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div style={{ flex: `${split} 1 0%` }} className="flex min-h-24 min-w-0 flex-col" data-pane="sides">
-          {single ? (
-            <div className="flex min-h-control-lg shrink-0 flex-wrap items-center gap-x-2 border-b border-border bg-surface py-0.5 pr-1 pl-3">
-              <SegmentedControl
-                label={t("conflict.shownSide")}
-                value={single}
-                options={[
-                  { value: "ours", label: titles.ours.role },
-                  { value: "theirs", label: titles.theirs.role },
-                ]}
-                onValueChange={setShownSide}
+        <div ref={container} style={codeVars(code)} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div style={{ flex: `${split} 1 0%` }} className="flex min-h-24 min-w-0 flex-col" data-pane="sides">
+            {single ? (
+              <div className="flex min-h-control-lg shrink-0 flex-wrap items-center gap-x-2 border-b border-border bg-surface py-0.5 pr-1 pl-3">
+                <SegmentedControl
+                  label={t("conflict.shownSide")}
+                  value={single}
+                  options={[
+                    { value: "ours", label: titles.ours.role },
+                    { value: "theirs", label: titles.theirs.role },
+                  ]}
+                  onValueChange={setShownSide}
+                />
+                <h3 className="m-0 min-w-0 flex-1 truncate text-sm font-normal text-text-muted" data-side-heading={single}>
+                  <span className="sr-only">{titles[single].role} </span>
+                  {titles[single].name ? <span className="font-mono text-code">({titles[single].name})</span> : null}
+                </h3>
+                <Button size="sm" variant="ghost" disabled={total === 0} data-take-all="ours" onClick={() => void takeAll("ours")}>
+                  {titles.ours.all}
+                </Button>
+                <Button size="sm" variant="ghost" disabled={total === 0} data-take-all="theirs" onClick={() => void takeAll("theirs")}>
+                  {titles.theirs.all}
+                </Button>
+              </div>
+            ) : (
+              <div className="grid shrink-0 grid-cols-2 border-b border-border bg-surface">
+                {sideHeading("ours", true)}
+                <div className="min-w-0 border-l border-border">{sideHeading("theirs", true)}</div>
+              </div>
+            )}
+            <div className="min-h-0 flex-1">
+              <SidesView
+                ref={sides}
+                model={model}
+                rowModel={rowModel}
+                choices={choices}
+                manual={manual}
+                titles={titles}
+                single={single}
+                onSingleChange={setShownSide}
+                code={code}
+                tokens={tokens}
+                onToggleSide={onToggleSide}
+                onToggleLine={onToggleLine}
+                onSwap={onSwap}
+                onCurrentConflict={(conflict) => {
+                  if (conflict >= 0) setCurrent(conflict);
+                }}
+                onScroll={onSidesScroll}
               />
-              <h3 className="m-0 min-w-0 flex-1 truncate text-sm font-normal text-text-muted" data-side-heading={single}>
-                <span className="sr-only">{titles[single].role} </span>
-                {titles[single].name ? <span className="font-mono text-code">({titles[single].name})</span> : null}
+            </div>
+          </div>
+
+          <div
+            role="separator"
+            aria-orientation="horizontal"
+            aria-label={t("conflict.splitter")}
+            aria-valuenow={Math.round(split * 100)}
+            aria-valuemin={Math.round(SPLIT_MIN * 100)}
+            aria-valuemax={Math.round(SPLIT_MAX * 100)}
+            tabIndex={0}
+            data-grip=""
+            className="gc-cf-grip relative h-2 shrink-0 cursor-row-resize touch-none border-y border-border bg-surface"
+            onKeyDown={onGripKey}
+            onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+            onPointerMove={onGripPointer}
+            onDoubleClick={() => setSplit(0.5)}
+          />
+
+          <div style={{ flex: `${1 - split} 1 0%` }} className="flex min-h-24 min-w-0 flex-col" data-pane="result">
+            <div className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
+              <h3 className="m-0 flex min-w-0 flex-1 items-baseline gap-1.5 text-sm font-normal">
+                <span className="shrink-0 font-medium text-text">{t("conflict.result.title")}</span>
+                <span className="min-w-0 truncate text-text-muted">{t("conflict.result.subtitle")}</span>
               </h3>
-              <Button size="sm" variant="ghost" disabled={total === 0} data-take-all="ours" onClick={() => void takeAll("ours")}>
-                {titles.ours.all}
-              </Button>
-              <Button size="sm" variant="ghost" disabled={total === 0} data-take-all="theirs" onClick={() => void takeAll("theirs")}>
-                {titles.theirs.all}
-              </Button>
+              {manualBlocks > 0 || editedElsewhere ? (
+                <Tag data="manual" title={t("conflict.result.manualTip")}>
+                  {manualBlocks > 0 ? t("conflict.result.manualBlocks", { count: manualBlocks }) : t("conflict.result.manual")}
+                </Tag>
+              ) : null}
+              {eol === "crlf" ? (
+                <Tag data="eol" title={t("conflict.result.eolTip")}>
+                  CRLF
+                </Tag>
+              ) : null}
+              {!model.finalNewline ? (
+                <Tag data="no-final-newline" title={t("conflict.result.noFinalNewlineTip")}>
+                  {t("conflict.result.noFinalNewline")}
+                </Tag>
+              ) : null}
+              <IconButton
+                size="sm"
+                label={t("conflict.result.search")}
+                shortcut="Mod+F"
+                icon={<Search className="size-icon" aria-hidden />}
+                onClick={() => editor.current?.openSearch()}
+              />
             </div>
-          ) : (
-            <div className="grid shrink-0 grid-cols-2 border-b border-border bg-surface">
-              {sideHeading("ours", true)}
-              <div className="min-w-0 border-l border-border">{sideHeading("theirs", true)}</div>
+            <div className="min-h-0 flex-1">
+              <ResultEditor
+                ref={editor}
+                initialDoc={initial.doc}
+                initialBounds={initial.bounds}
+                kinds={model.chunks.map((chunk) => chunk.kind)}
+                looks={initialLooks}
+                path={path}
+                code={code}
+                ariaLabel={t("conflict.result.editorLabel", { path })}
+                onDocChange={onDocChange}
+                onScroll={onResultScroll}
+              />
             </div>
-          )}
-          <div className="min-h-0 flex-1">
-            <SidesView
-              ref={sides}
-              model={model}
-              rowModel={rowModel}
-              choices={choices}
-              manual={manual}
-              titles={titles}
-              single={single}
-              onSingleChange={setShownSide}
-              code={code}
-              tokens={tokens}
-              onToggleSide={onToggleSide}
-              onToggleLine={onToggleLine}
-              onSwap={onSwap}
-              onCurrentConflict={(conflict) => {
-                if (conflict >= 0) setCurrent(conflict);
-              }}
-              onScroll={onSidesScroll}
-            />
           </div>
         </div>
-
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          aria-label={t("conflict.splitter")}
-          aria-valuenow={Math.round(split * 100)}
-          aria-valuemin={Math.round(SPLIT_MIN * 100)}
-          aria-valuemax={Math.round(SPLIT_MAX * 100)}
-          tabIndex={0}
-          data-grip=""
-          className="gc-cf-grip relative h-2 shrink-0 cursor-row-resize touch-none border-y border-border bg-surface"
-          onKeyDown={onGripKey}
-          onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
-          onPointerMove={onGripPointer}
-          onDoubleClick={() => setSplit(0.5)}
-        />
-
-        <div style={{ flex: `${1 - split} 1 0%` }} className="flex min-h-24 min-w-0 flex-col" data-pane="result">
-          <div className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
-            <h3 className="m-0 flex min-w-0 flex-1 items-baseline gap-1.5 text-sm font-normal">
-              <span className="shrink-0 font-medium text-text">{t("conflict.result.title")}</span>
-              <span className="min-w-0 truncate text-text-muted">{t("conflict.result.subtitle")}</span>
-            </h3>
-            {manualBlocks > 0 || editedElsewhere ? (
-              <Tag data="manual" title={t("conflict.result.manualTip")}>
-                {manualBlocks > 0 ? t("conflict.result.manualBlocks", { count: manualBlocks }) : t("conflict.result.manual")}
-              </Tag>
-            ) : null}
-            {eol === "crlf" ? (
-              <Tag data="eol" title={t("conflict.result.eolTip")}>
-                CRLF
-              </Tag>
-            ) : null}
-            {!model.finalNewline ? (
-              <Tag data="no-final-newline" title={t("conflict.result.noFinalNewlineTip")}>
-                {t("conflict.result.noFinalNewline")}
-              </Tag>
-            ) : null}
-            <IconButton size="sm" label={t("conflict.result.search")} shortcut="Mod+F" icon={<Search className="size-icon" aria-hidden />} onClick={() => editor.current?.openSearch()} />
-          </div>
-          <div className="min-h-0 flex-1">
-            <ResultEditor
-              ref={editor}
-              initialDoc={initial.doc}
-              initialBounds={initial.bounds}
-              kinds={model.chunks.map((chunk) => chunk.kind)}
-              looks={initialLooks}
-              path={path}
-              code={code}
-              ariaLabel={t("conflict.result.editorLabel", { path })}
-              onDocChange={onDocChange}
-              onScroll={onResultScroll}
-            />
-          </div>
-        </div>
-      </div>
-      {intentAvailable && intentOpen ? (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={t("conflict.intent.resize")}
-          aria-valuenow={Math.round(intentWidth * 100)}
-          aria-valuemin={Math.round(INTENT_WIDTH_MIN * 100)}
-          aria-valuemax={Math.round(INTENT_WIDTH_MAX * 100)}
-          tabIndex={0}
-          data-intent-grip=""
-          className="gc-cf-vgrip relative w-2 shrink-0 cursor-col-resize touch-none border-x border-border bg-surface"
-          onKeyDown={onIntentGripKey}
-          onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
-          onPointerMove={onIntentGripPointer}
-          onDoubleClick={() => setIntentWidth(DEFAULT_INTENT_WIDTH)}
-        />
-      ) : null}
-      {intentAvailable ? (
-        <IntentColumn
-          repoId={repoId}
-          path={path}
-          ranges={ranges}
-          current={current}
-          blockText={blockText}
-          titles={titles}
-          local={aiStatus?.local ?? false}
-          provider={aiStatus?.provider ?? null}
-          openSetup={aiVisibility(aiStatus).elementsOpenSetup}
-          hidden={!intentOpen}
-          onApply={applyProposal}
-          onHide={() => setIntentOpen(false)}
-          style={{ flex: `0 0 ${intentWidth * 100}%` }}
-        />
-      ) : null}
+        {intentAvailable && intentOpen ? (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t("conflict.intent.resize")}
+            aria-valuenow={Math.round(intentWidth * 100)}
+            aria-valuemin={Math.round(INTENT_WIDTH_MIN * 100)}
+            aria-valuemax={Math.round(INTENT_WIDTH_MAX * 100)}
+            tabIndex={0}
+            data-intent-grip=""
+            className="gc-cf-vgrip relative w-2 shrink-0 cursor-col-resize touch-none border-x border-border bg-surface"
+            onKeyDown={onIntentGripKey}
+            onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
+            onPointerMove={onIntentGripPointer}
+            onDoubleClick={() => setIntentWidth(DEFAULT_INTENT_WIDTH)}
+          />
+        ) : null}
+        {intentAvailable ? (
+          <IntentColumn
+            repoId={repoId}
+            path={path}
+            ranges={ranges}
+            current={current}
+            blockText={blockText}
+            titles={titles}
+            local={aiStatus?.local ?? false}
+            provider={aiStatus?.provider ?? null}
+            openSetup={aiVisibility(aiStatus).elementsOpenSetup}
+            hidden={!intentOpen}
+            onApply={applyProposal}
+            onHide={() => setIntentOpen(false)}
+            style={{ flex: `0 0 ${intentWidth * 100}%` }}
+          />
+        ) : null}
       </div>
 
-      <footer className="flex min-h-control-lg shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 border-t border-border bg-surface px-3 py-1.5" data-conflict-footer="">
-        <p id={`conflict-save-reason-${tabId}`} role="status" data-save-reason={blocked ? "blocked" : "ready"} className={cn("m-0 min-w-0 flex-1 text-sm", blocked ? "text-text-muted" : "text-text")}>
+      <footer
+        className="flex min-h-control-lg shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-1 border-t border-border bg-surface px-3 py-1.5"
+        data-conflict-footer=""
+      >
+        <p
+          id={`conflict-save-reason-${tabId}`}
+          role="status"
+          data-save-reason={blocked ? "blocked" : "ready"}
+          className={cn("m-0 min-w-0 flex-1 text-sm", blocked ? "text-text-muted" : "text-text")}
+        >
           {blocked ?? (total === 0 ? t("conflict.save.readyNone") : t("conflict.save.ready"))}
         </p>
         <Tip label={blocked ?? t("conflict.save.tip")} shortcut="Mod+S" side="top">

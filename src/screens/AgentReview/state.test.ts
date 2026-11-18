@@ -14,14 +14,33 @@ const review = (to: string): AgentReview => ({
   uncommittedFiles: 1,
   running: false,
 });
-const file = (path: string, patch: Partial<FileChange> = {}): FileChange => ({ path, oldPath: null, status: "modified", area: "commit", isBinary: false, isLfs: false, added: 1, removed: 1, conflict: null, ...patch });
+const file = (path: string, patch: Partial<FileChange> = {}): FileChange => ({
+  path,
+  oldPath: null,
+  status: "modified",
+  area: "commit",
+  isBinary: false,
+  isLfs: false,
+  added: 1,
+  removed: 1,
+  conflict: null,
+  ...patch,
+});
 
 beforeEach(() => useReviewStore.setState({ panes: {}, focus: {} }));
 
 describe("agent review state", () => {
   it("starts with the defaults", () => {
     expect(getPane("t1", "a1")).toEqual(DEFAULT_PANE);
-    expect(DEFAULT_PANE).toEqual({ source: "snapshot", pinned: null, picks: null, active: null, target: "worktree", message: null, skipHooks: false });
+    expect(DEFAULT_PANE).toEqual({
+      source: "snapshot",
+      pinned: null,
+      picks: null,
+      active: null,
+      target: "worktree",
+      message: null,
+      skipHooks: false,
+    });
   });
 
   it("pins a review and starts with every line-pickable file selected, the first file active", () => {

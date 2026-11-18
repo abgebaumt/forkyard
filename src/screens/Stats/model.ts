@@ -64,7 +64,9 @@ export function fillWeeks(buckets: StatsBucket[]): StatsBucket[] {
 export function fillMonths(buckets: StatsBucket[]): StatsBucket[] {
   return fill(buckets, (period) => {
     const [year = 0, month = 1] = period.split("-").map(Number);
-    return month >= 12 ? `${String(year + 1).padStart(4, "0")}-01` : `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}`;
+    return month >= 12
+      ? `${String(year + 1).padStart(4, "0")}-01`
+      : `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}`;
   });
 }
 

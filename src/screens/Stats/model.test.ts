@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { Ref, RefsSnapshot, StatsBucket, StatsFile } from "../../core";
-import { ageShares, buildTree, currentTip, defaultGranularity, fillMonths, fillWeeks, findNode, heatLevels, msToNextUtcDay, parentFolder, rangeFor, squarify, utcDay } from "./model";
+import {
+  ageShares,
+  buildTree,
+  currentTip,
+  defaultGranularity,
+  fillMonths,
+  fillWeeks,
+  findNode,
+  heatLevels,
+  msToNextUtcDay,
+  parentFolder,
+  rangeFor,
+  squarify,
+  utcDay,
+} from "./model";
 
 const bucket = (period: string, commits: number): StatsBucket => ({ period, commits, added: commits, removed: 0 });
 
@@ -38,7 +52,12 @@ describe("time series", () => {
   });
 
   it("fills missing months across the turn of the year", () => {
-    expect(fillMonths([bucket("2024-11", 1), bucket("2025-02", 2)]).map((b) => b.period)).toEqual(["2024-11", "2024-12", "2025-01", "2025-02"]);
+    expect(fillMonths([bucket("2024-11", 1), bucket("2025-02", 2)]).map((b) => b.period)).toEqual([
+      "2024-11",
+      "2024-12",
+      "2025-01",
+      "2025-02",
+    ]);
   });
 
   it("nothing in, nothing out; weeks up to two years, months beyond", () => {
@@ -55,14 +74,18 @@ describe("heatmap and code age", () => {
   });
 
   it("code age shares in percent", () => {
-    expect(ageShares({ files: 3, skipped: 0, month: 1, halfYear: 1, year: 0, twoYears: 2, older: 0 }).map((s) => [s.key, s.percent])).toEqual([
+    expect(
+      ageShares({ files: 3, skipped: 0, month: 1, halfYear: 1, year: 0, twoYears: 2, older: 0 }).map((s) => [s.key, s.percent]),
+    ).toEqual([
       ["month", 25],
       ["halfYear", 25],
       ["year", 0],
       ["twoYears", 50],
       ["older", 0],
     ]);
-    expect(ageShares({ files: 0, skipped: 0, month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 }).every((s) => s.percent === 0)).toBe(true);
+    expect(ageShares({ files: 0, skipped: 0, month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 }).every((s) => s.percent === 0)).toBe(
+      true,
+    );
   });
 });
 

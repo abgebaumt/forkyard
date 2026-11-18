@@ -38,10 +38,17 @@ async function applyOne(target: ReleaseTarget, { repoId, tag, notes }: ApplyInpu
   if (target === "clipboard") return copyText(notes, t("actions.tags.releaseNotes.done.clipboard"));
   if (!tag) return false;
   if (target === "changelog") {
-    const result = await runAction(t("actions.tags.releaseNotes.changelogLabel"), () => core.changelogInsert({ repoId, version: tag, date: localDate(new Date()), notes }));
+    const result = await runAction(t("actions.tags.releaseNotes.changelogLabel"), () =>
+      core.changelogInsert({ repoId, version: tag, date: localDate(new Date()), notes }),
+    );
     if (result.ok) {
       const { path, created } = result.value;
-      toast({ tone: "success", title: created ? t("actions.tags.releaseNotes.done.changelogCreated", { path }) : t("actions.tags.releaseNotes.done.changelog", { path }) });
+      toast({
+        tone: "success",
+        title: created
+          ? t("actions.tags.releaseNotes.done.changelogCreated", { path })
+          : t("actions.tags.releaseNotes.done.changelog", { path }),
+      });
     }
     return result.ok;
   }
@@ -54,7 +61,11 @@ async function applyOne(target: ReleaseTarget, { repoId, tag, notes }: ApplyInpu
     staleTime: HOST_STALE_MS,
   });
   if (!host?.kind || !host.remote || !host.account || !host.capabilities.releases) {
-    toast({ tone: "danger", title: t("actions.tags.releaseNotes.noRelease.title"), description: t("actions.tags.releaseNotes.noRelease.body") });
+    toast({
+      tone: "danger",
+      title: t("actions.tags.releaseNotes.noRelease.title"),
+      description: t("actions.tags.releaseNotes.noRelease.body"),
+    });
     return false;
   }
   const hostName = hostKindLabels[host.kind];
@@ -68,7 +79,9 @@ async function applyOne(target: ReleaseTarget, { repoId, tag, notes }: ApplyInpu
   if (!ok) return false;
   const pushed = await pushTag(repoId, tag, remote);
   if (!pushed?.ok || pushed.value.status === "rejected") return false;
-  const created = await runHostAction(t("actions.tags.releaseNotes.releaseLabel"), () => core.releaseCreate({ repoId, tag, name: tag, body: notes, prerelease: false, remote }));
+  const created = await runHostAction(t("actions.tags.releaseNotes.releaseLabel"), () =>
+    core.releaseCreate({ repoId, tag, name: tag, body: notes, prerelease: false, remote }),
+  );
   if (created.ok) {
     const url = created.value.webUrl;
     toast({

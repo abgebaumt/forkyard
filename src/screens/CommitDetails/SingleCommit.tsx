@@ -23,8 +23,16 @@ import { CopyButton, DateText, errorParts, HeaderSkeleton, PanelBar, PanelError,
 /** After saving a message: the “Edit message” button of the new commit gets the focus back. */
 let refocusEditFor: Sha | null = null;
 
-const signatureMeta: Record<Exclude<SignatureStatus, "none">, { label: string; hint: string; icon: typeof ShieldCheck; className: string }> = {
-  good: { label: t("commitDetails.signature.good"), hint: t("commitDetails.signature.goodHint"), icon: ShieldCheck, className: "text-success" },
+const signatureMeta: Record<
+  Exclude<SignatureStatus, "none">,
+  { label: string; hint: string; icon: typeof ShieldCheck; className: string }
+> = {
+  good: {
+    label: t("commitDetails.signature.good"),
+    hint: t("commitDetails.signature.goodHint"),
+    icon: ShieldCheck,
+    className: "text-success",
+  },
   bad: { label: t("commitDetails.signature.bad"), hint: t("commitDetails.signature.badHint"), icon: ShieldAlert, className: "text-danger" },
   unknown: {
     label: t("commitDetails.signature.unknown"),
@@ -47,7 +55,13 @@ function SignatureMark({ status }: { status: SignatureStatus }) {
         </span>
       }
     >
-      <span tabIndex={0} role="img" aria-label={meta.label} data-signature={status} className={cn("inline-flex size-control-sm items-center justify-center rounded-md", meta.className)}>
+      <span
+        tabIndex={0}
+        role="img"
+        aria-label={meta.label}
+        data-signature={status}
+        className={cn("inline-flex size-control-sm items-center justify-center rounded-md", meta.className)}
+      >
         <Icon className="size-icon" aria-hidden />
       </span>
     </Tip>
@@ -242,12 +256,18 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
                 onClick={() => setAllRefs((shown) => !shown)}
                 className="inline-flex h-5 items-center rounded-sm border border-border px-1.5 text-xs font-medium text-text-muted hover:bg-surface-raised hover:text-text"
               >
-                {allRefs ? t("commitDetails.commit.showLess") : t("commitDetails.commit.moreRefs", { count: commit.refs.length - REF_LIMIT })}
+                {allRefs
+                  ? t("commitDetails.commit.showLess")
+                  : t("commitDetails.commit.moreRefs", { count: commit.refs.length - REF_LIMIT })}
               </button>
             ) : null}
             {showNotPushed ? (
               <Tip label={t("commitDetails.commit.notPushedTip")}>
-                <span tabIndex={0} data-testid="not-pushed" className="inline-flex h-5 items-center gap-1 rounded-sm border border-border px-1.5 text-xs font-medium text-text-muted">
+                <span
+                  tabIndex={0}
+                  data-testid="not-pushed"
+                  className="inline-flex h-5 items-center gap-1 rounded-sm border border-border px-1.5 text-xs font-medium text-text-muted"
+                >
                   <CloudOff className="size-3" aria-hidden />
                   {t("commitDetails.commit.notPushed")}
                 </span>
@@ -325,7 +345,11 @@ function CommitHeader({ repoId, tabId, commit, editing, onEdit, onCompareWorktre
                 <ShaLink
                   key={parent}
                   sha={parent}
-                  label={commit.parents.length === 1 ? t("commitDetails.commit.jumpParent") : t("commitDetails.commit.jumpNthParent", { n: index + 1 })}
+                  label={
+                    commit.parents.length === 1
+                      ? t("commitDetails.commit.jumpParent")
+                      : t("commitDetails.commit.jumpNthParent", { n: index + 1 })
+                  }
                   onOpen={(target) => store().revealCommit(tabId, target)}
                 />
               ))}

@@ -49,7 +49,9 @@ export function StashDetails({ repoId, tabId, index }: StashDetailsProps) {
 
   const failure = stashes.isError ? stashes.error : query.isError ? query.error : null;
   if (failure || !stash) {
-    const { code, text, hint } = failure ? errorParts(failure) : { code: "not_found", text: t("commitDetails.stash.missing", { index }), hint: "" };
+    const { code, text, hint } = failure
+      ? errorParts(failure)
+      : { code: "not_found", text: t("commitDetails.stash.missing", { index }), hint: "" };
     const gone = code === "not_found";
     return (
       <>

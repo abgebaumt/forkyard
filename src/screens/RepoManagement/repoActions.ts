@@ -35,7 +35,8 @@ async function update(label: string, repoId: Id, patch: Patch) {
   return result;
 }
 
-export const setFavorite = (repo: Repo, isFavorite: boolean) => update(isFavorite ? t("repos.actions.favoriteSet") : t("repos.actions.favoriteRemove"), repo.id, { isFavorite });
+export const setFavorite = (repo: Repo, isFavorite: boolean) =>
+  update(isFavorite ? t("repos.actions.favoriteSet") : t("repos.actions.favoriteRemove"), repo.id, { isFavorite });
 
 export const setColor = (repo: Repo, color: number | null) => update(t("repos.actions.colorChange"), repo.id, { color });
 
@@ -63,9 +64,7 @@ export async function assignGroup(repo: Repo, existing: string[]) {
   const group = await promptText({
     title: t("repos.actions.groupTitle", { name: displayName(repo) }),
     label: t("repos.actions.groupLabel"),
-    description: others.length
-      ? t("repos.actions.groupExisting", { groups: others.join(", ") })
-      : t("repos.actions.groupNone"),
+    description: others.length ? t("repos.actions.groupExisting", { groups: others.join(", ") }) : t("repos.actions.groupNone"),
     initial: repo.groupName ?? "",
     confirmLabel: t("repos.actions.groupAssign"),
     validate: (value) => (value.length > 60 ? t("repos.actions.maxChars", { count: 60 }) : null),
@@ -87,12 +86,17 @@ export async function renameGroup(group: string, members: Repo[], existing: stri
       : t("repos.actions.renameScope", { count: members.length }),
     initial: group,
     confirmLabel: t("repos.actions.rename"),
-    validate: (value) => (!value.trim() ? t("repos.actions.renameEmpty") : value.length > 60 ? t("repos.actions.maxChars", { count: 60 }) : null),
+    validate: (value) =>
+      !value.trim() ? t("repos.actions.renameEmpty") : value.length > 60 ? t("repos.actions.maxChars", { count: 60 }) : null,
   });
   if (next === null || next === group) return null;
-  const result = await runAction(t("repos.actions.rename"), () => Promise.all(members.map((repo) => core.repoUpdate({ repoId: repo.id, groupName: next }))), {
-    success: t("repos.actions.renamed", { group: next }),
-  });
+  const result = await runAction(
+    t("repos.actions.rename"),
+    () => Promise.all(members.map((repo) => core.repoUpdate({ repoId: repo.id, groupName: next }))),
+    {
+      success: t("repos.actions.renamed", { group: next }),
+    },
+  );
   if (result.ok) for (const repo of result.value) putRepo(repo);
   void queryClient.invalidateQueries({ queryKey: qk.repos });
   return result;
@@ -109,9 +113,13 @@ export async function dissolveGroup(group: string, members: Repo[]) {
     danger: true,
   });
   if (!ok) return null;
-  const result = await runAction(t("repos.actions.dissolve"), () => Promise.all(members.map((repo) => core.repoUpdate({ repoId: repo.id, groupName: null }))), {
-    success: t("repos.actions.dissolved", { group }),
-  });
+  const result = await runAction(
+    t("repos.actions.dissolve"),
+    () => Promise.all(members.map((repo) => core.repoUpdate({ repoId: repo.id, groupName: null }))),
+    {
+      success: t("repos.actions.dissolved", { group }),
+    },
+  );
   if (result.ok) for (const repo of result.value) putRepo(repo);
   void queryClient.invalidateQueries({ queryKey: qk.repos });
   return result;

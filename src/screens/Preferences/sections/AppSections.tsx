@@ -82,10 +82,19 @@ export function GitSection({ settings }: { settings: Settings }) {
           title={t("preferences.git.autoPrune.title")}
           description={t("preferences.git.autoPrune.description")}
         />
-        <SettingRow title={t("preferences.git.pullMode")} description={pullModeHints[settings.defaultPullMode]} changed={changedFor(settings, "defaultPullMode")}>
+        <SettingRow
+          title={t("preferences.git.pullMode")}
+          description={pullModeHints[settings.defaultPullMode]}
+          changed={changedFor(settings, "defaultPullMode")}
+        >
           {(ids) => (
             <div className="w-56">
-              <Select id={ids.id} value={settings.defaultPullMode} options={pullModes} onValueChange={(value) => void applySettings({ defaultPullMode: value })} />
+              <Select
+                id={ids.id}
+                value={settings.defaultPullMode}
+                options={pullModes}
+                onValueChange={(value) => void applySettings({ defaultPullMode: value })}
+              />
             </div>
           )}
         </SettingRow>
@@ -154,7 +163,12 @@ export function GitSection({ settings }: { settings: Settings }) {
           title={t("preferences.git.lazyLoad.title")}
           description={t("preferences.git.lazyLoad.description")}
         />
-        <ToggleRow settings={settings} field="rememberTabs" title={t("preferences.git.rememberTabs.title")} description={t("preferences.git.rememberTabs.description")} />
+        <ToggleRow
+          settings={settings}
+          field="rememberTabs"
+          title={t("preferences.git.rememberTabs.title")}
+          description={t("preferences.git.rememberTabs.description")}
+        />
       </SettingsCard>
     </section>
   );
@@ -190,8 +204,20 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
     <section>
       <SectionHeader title={t("preferences.appearance.title")}>{t("preferences.appearance.intro")}</SectionHeader>
       <SettingsCard title={t("preferences.appearance.themeCard")}>
-        <SettingRow group title={t("preferences.appearance.theme.title")} description={t("preferences.appearance.theme.description")} changed={changedFor(settings, "theme")}>
-          {() => <SegmentedControl label={t("preferences.appearance.theme.title")} value={settings.theme} options={themes} onValueChange={(value) => void applySettings({ theme: value })} />}
+        <SettingRow
+          group
+          title={t("preferences.appearance.theme.title")}
+          description={t("preferences.appearance.theme.description")}
+          changed={changedFor(settings, "theme")}
+        >
+          {() => (
+            <SegmentedControl
+              label={t("preferences.appearance.theme.title")}
+              value={settings.theme}
+              options={themes}
+              onValueChange={(value) => void applySettings({ theme: value })}
+            />
+          )}
         </SettingRow>
       </SettingsCard>
       <SettingsCard title={t("preferences.appearance.uiCard")}>
@@ -231,12 +257,23 @@ export function AppearanceSection({ settings }: { settings: Settings }) {
           group
           title={t("preferences.appearance.dateFormat.title")}
           description={t("preferences.appearance.dateFormat.description", { example })}
-          changed={changedFor(settings, "dateFormat")}>
+          changed={changedFor(settings, "dateFormat")}
+        >
           {() => (
-            <SegmentedControl label={t("preferences.appearance.dateFormat.title")} value={settings.dateFormat} options={dateFormats} onValueChange={(value) => void applySettings({ dateFormat: value })} />
+            <SegmentedControl
+              label={t("preferences.appearance.dateFormat.title")}
+              value={settings.dateFormat}
+              options={dateFormats}
+              onValueChange={(value) => void applySettings({ dateFormat: value })}
+            />
           )}
         </SettingRow>
-        <ToggleRow settings={settings} field="toolbarLabels" title={t("preferences.appearance.toolbarLabels.title")} description={t("preferences.appearance.toolbarLabels.description")} />
+        <ToggleRow
+          settings={settings}
+          field="toolbarLabels"
+          title={t("preferences.appearance.toolbarLabels.title")}
+          description={t("preferences.appearance.toolbarLabels.description")}
+        />
       </SettingsCard>
       <SettingsCard title={t("preferences.appearance.authorsCard")}>
         <ToggleRow
@@ -265,10 +302,27 @@ export function DiffSection({ settings }: { settings: Settings }) {
     <section>
       <SectionHeader title={t("preferences.diff.title")}>{t("preferences.diff.intro")}</SectionHeader>
       <SettingsCard title={t("preferences.diff.diffCard")}>
-        <SettingRow group title={t("preferences.diff.mode.title")} description={t("preferences.diff.mode.description")} changed={changedFor(settings, "diffMode")}>
-          {() => <SegmentedControl label={t("preferences.diff.mode.title")} value={settings.diffMode} options={diffModes} onValueChange={(value) => void applySettings({ diffMode: value })} />}
+        <SettingRow
+          group
+          title={t("preferences.diff.mode.title")}
+          description={t("preferences.diff.mode.description")}
+          changed={changedFor(settings, "diffMode")}
+        >
+          {() => (
+            <SegmentedControl
+              label={t("preferences.diff.mode.title")}
+              value={settings.diffMode}
+              options={diffModes}
+              onValueChange={(value) => void applySettings({ diffMode: value })}
+            />
+          )}
         </SettingRow>
-        <ToggleRow settings={settings} field="diffWordWrap" title={t("preferences.diff.wordWrap.title")} description={t("preferences.diff.wordWrap.description")} />
+        <ToggleRow
+          settings={settings}
+          field="diffWordWrap"
+          title={t("preferences.diff.wordWrap.title")}
+          description={t("preferences.diff.wordWrap.description")}
+        />
         <ToggleRow
           settings={settings}
           field="diffIgnoreWhitespace"
@@ -277,7 +331,11 @@ export function DiffSection({ settings }: { settings: Settings }) {
         />
       </SettingsCard>
       <SettingsCard title={t("preferences.diff.textCard")}>
-        <SettingRow title={t("preferences.diff.fontSize.title")} description={t("preferences.diff.fontSize.description")} changed={changedFor(settings, "editorFontSize")}>
+        <SettingRow
+          title={t("preferences.diff.fontSize.title")}
+          description={t("preferences.diff.fontSize.description")}
+          changed={changedFor(settings, "editorFontSize")}
+        >
           {(ids) => (
             <NumberField
               id={ids.id}
@@ -292,7 +350,11 @@ export function DiffSection({ settings }: { settings: Settings }) {
             />
           )}
         </SettingRow>
-        <SettingRow title={t("preferences.diff.tabSize.title")} description={t("preferences.diff.tabSize.description")} changed={changedFor(settings, "editorTabSize")}>
+        <SettingRow
+          title={t("preferences.diff.tabSize.title")}
+          description={t("preferences.diff.tabSize.description")}
+          changed={changedFor(settings, "editorTabSize")}
+        >
           {(ids) => (
             <NumberField
               id={ids.id}
@@ -381,7 +443,13 @@ export function ExternalSection({ settings }: { settings: Settings }) {
       </SectionHeader>
       <SettingsCard title={t("preferences.external.card")}>
         {tools.map((tool) => (
-          <SettingRow key={tool.key} stacked title={tool.title} description={t("preferences.external.example", { description: tool.description, example: tool.example })} changed={changedFor(settings, tool.key)}>
+          <SettingRow
+            key={tool.key}
+            stacked
+            title={tool.title}
+            description={t("preferences.external.example", { description: tool.description, example: tool.example })}
+            changed={changedFor(settings, tool.key)}
+          >
             {(ids) => (
               <div className="flex items-start gap-2">
                 <CommitText

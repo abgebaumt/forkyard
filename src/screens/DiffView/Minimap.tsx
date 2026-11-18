@@ -32,7 +32,10 @@ const REMOVE = 2;
 
 function readColors() {
   const style = getComputedStyle(document.documentElement);
-  return { add: style.getPropertyValue("--gc-success").trim() || "currentColor", remove: style.getPropertyValue("--gc-danger").trim() || "currentColor" };
+  return {
+    add: style.getPropertyValue("--gc-success").trim() || "currentColor",
+    remove: style.getPropertyValue("--gc-danger").trim() || "currentColor",
+  };
 }
 
 export interface DiffMinimapProps {
@@ -213,7 +216,11 @@ export function DiffMinimap({ source, version }: DiffMinimapProps) {
       }}
     >
       <canvas ref={canvas} className="absolute inset-0 size-full" />
-      <div ref={thumb} data-minimap-thumb="" className="pointer-events-none absolute inset-x-0 top-0 rounded-sm border border-border-input bg-text/10" />
+      <div
+        ref={thumb}
+        data-minimap-thumb=""
+        className="pointer-events-none absolute inset-x-0 top-0 rounded-sm border border-border-input bg-text/10"
+      />
     </div>
   );
 }

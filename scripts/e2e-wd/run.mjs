@@ -39,7 +39,9 @@ if (!features.length) {
   console.error(`No feature matches ${filters.join(", ")}.`);
   process.exit(1);
 }
-const queue = features.flatMap((name) => Array.from({ length: repeat }, (_, index) => ({ file: name, name: repeat > 1 ? `${name}-${index + 1}` : name })));
+const queue = features.flatMap((name) =>
+  Array.from({ length: repeat }, (_, index) => ({ file: name, name: repeat > 1 ? `${name}-${index + 1}` : name })),
+);
 
 const app = await ensureAppCopy();
 await ensureDevServer();
@@ -75,8 +77,12 @@ async function runFeature({ file, name }) {
   }
   const ok = code === 0 && summary && summary.failed === 0;
   outcomes.push({ name, ok, code, summary, ms: Date.now() - begin, logFile });
-  console.log(`${ok ? "✓" : "✗"} ${name} ${summary ? `${summary.passed}/${summary.ran}` : "(no results)"} ${Date.now() - begin} ms${ok ? "" : ` – log: ${path.relative(ROOT, logFile)}`}`);
-  if (!ok && summary) for (const failed of summary.scenarios.filter((entry) => entry.status === "failed")) console.log(`    ✗ ${failed.name}: ${String(failed.error).split("\n")[0]}`);
+  console.log(
+    `${ok ? "✓" : "✗"} ${name} ${summary ? `${summary.passed}/${summary.ran}` : "(no results)"} ${Date.now() - begin} ms${ok ? "" : ` – log: ${path.relative(ROOT, logFile)}`}`,
+  );
+  if (!ok && summary)
+    for (const failed of summary.scenarios.filter((entry) => entry.status === "failed"))
+      console.log(`    ✗ ${failed.name}: ${String(failed.error).split("\n")[0]}`);
 }
 
 const workers = Array.from({ length: Math.min(jobs, queue.length) }, async () => {
@@ -84,5 +90,7 @@ const workers = Array.from({ length: Math.min(jobs, queue.length) }, async () =>
 });
 await Promise.all(workers);
 const failed = outcomes.filter((outcome) => !outcome.ok);
-console.log(`${failed.length ? "FAILED" : "PASSED"}: ${outcomes.length - failed.length}/${outcomes.length} features in ${Date.now() - started} ms`);
+console.log(
+  `${failed.length ? "FAILED" : "PASSED"}: ${outcomes.length - failed.length}/${outcomes.length} features in ${Date.now() - started} ms`,
+);
 process.exit(failed.length ? 1 : 0);

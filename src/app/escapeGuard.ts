@@ -17,7 +17,8 @@ import { flushSync } from "react-dom";
 import { dismissTransientToasts, hasTransientToasts } from "../ui/Feedback";
 import { closeTooltips, hasOpenTooltips } from "../ui/Tooltip";
 
-const MODAL = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]';
+const MODAL =
+  '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]';
 
 /** Call once at startup. Hooks into the window's capture phase, i.e. before Radix (document). */
 export function installEscapeGuard(): () => void {

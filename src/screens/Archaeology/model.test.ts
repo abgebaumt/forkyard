@@ -1,7 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 import { EMPTY_TREE_SHA, type ArchaeologyStep, type LineArchaeology } from "../../core";
 import { t } from "../../i18n";
-import { blameTarget, confidenceLabel, diffLineTarget, errorActions, explainView, isFixedRev, timelineRows, whyEntry, whyLabel } from "./model";
+import {
+  blameTarget,
+  confidenceLabel,
+  diffLineTarget,
+  errorActions,
+  explainView,
+  isFixedRev,
+  timelineRows,
+  whyEntry,
+  whyLabel,
+} from "./model";
 
 const A = "a".repeat(40);
 const B = "b".repeat(40);
@@ -11,15 +21,33 @@ const row = (kind: "add" | "remove" | "context", oldNo: number | null, newNo: nu
 
 describe("diffLineTarget", () => {
   it("diff rows map to the commit that has the line", () => {
-    expect(diffLineTarget({ kind: "commit", sha: A }, file, row("add", null, 7))).toEqual({ target: { path: "neu ä.txt", line: 7, sha: A } });
-    expect(diffLineTarget({ kind: "commit", sha: A }, file, row("context", 5, 6))).toEqual({ target: { path: "neu ä.txt", line: 6, sha: A } });
-    expect(diffLineTarget({ kind: "commit", sha: A }, file, row("remove", 5, null))).toEqual({ target: { path: "alt name.txt", line: 5, sha: `${A}^` } });
-    expect(diffLineTarget({ kind: "range", from: B, to: A }, file, row("remove", 2, null))).toEqual({ target: { path: "alt name.txt", line: 2, sha: B } });
-    expect(diffLineTarget({ kind: "range", from: B, to: A }, file, row("add", null, 3))).toEqual({ target: { path: "neu ä.txt", line: 3, sha: A } });
-    expect(diffLineTarget({ kind: "range", from: B, to: null }, file, row("context", 4, 9))).toEqual({ target: { path: "neu ä.txt", line: 9, sha: null } });
-    expect(diffLineTarget({ kind: "staged" }, file, row("remove", 4, null))).toEqual({ target: { path: "alt name.txt", line: 4, sha: "HEAD" } });
-    expect(diffLineTarget({ kind: "staged" }, file, row("context", 4, 5)), "the old side of a staged diff is HEAD").toEqual({ target: { path: "alt name.txt", line: 4, sha: "HEAD" } });
-    expect(diffLineTarget({ kind: "unstaged" }, { path: "-a b.txt", oldPath: null }, row("context", 4, 6))).toEqual({ target: { path: "-a b.txt", line: 6, sha: null } });
+    expect(diffLineTarget({ kind: "commit", sha: A }, file, row("add", null, 7))).toEqual({
+      target: { path: "neu ä.txt", line: 7, sha: A },
+    });
+    expect(diffLineTarget({ kind: "commit", sha: A }, file, row("context", 5, 6))).toEqual({
+      target: { path: "neu ä.txt", line: 6, sha: A },
+    });
+    expect(diffLineTarget({ kind: "commit", sha: A }, file, row("remove", 5, null))).toEqual({
+      target: { path: "alt name.txt", line: 5, sha: `${A}^` },
+    });
+    expect(diffLineTarget({ kind: "range", from: B, to: A }, file, row("remove", 2, null))).toEqual({
+      target: { path: "alt name.txt", line: 2, sha: B },
+    });
+    expect(diffLineTarget({ kind: "range", from: B, to: A }, file, row("add", null, 3))).toEqual({
+      target: { path: "neu ä.txt", line: 3, sha: A },
+    });
+    expect(diffLineTarget({ kind: "range", from: B, to: null }, file, row("context", 4, 9))).toEqual({
+      target: { path: "neu ä.txt", line: 9, sha: null },
+    });
+    expect(diffLineTarget({ kind: "staged" }, file, row("remove", 4, null))).toEqual({
+      target: { path: "alt name.txt", line: 4, sha: "HEAD" },
+    });
+    expect(diffLineTarget({ kind: "staged" }, file, row("context", 4, 5)), "the old side of a staged diff is HEAD").toEqual({
+      target: { path: "alt name.txt", line: 4, sha: "HEAD" },
+    });
+    expect(diffLineTarget({ kind: "unstaged" }, { path: "-a b.txt", oldPath: null }, row("context", 4, 6))).toEqual({
+      target: { path: "-a b.txt", line: 6, sha: null },
+    });
   });
 
   it("uncommitted lines and stashes give a reason instead", () => {
@@ -27,8 +55,12 @@ describe("diffLineTarget", () => {
     expect(diffLineTarget({ kind: "unstaged" }, file, row("add", null, 3))).toEqual({ reason: t("diff.whyLine.notCommitted") });
     expect(diffLineTarget({ kind: "unstaged" }, file, row("remove", 3, null))).toEqual({ reason: t("diff.whyLine.indexOnly") });
     expect(diffLineTarget({ kind: "staged" }, file, row("add", null, 3))).toEqual({ reason: t("diff.whyLine.notCommitted") });
-    expect(diffLineTarget({ kind: "range", from: B, to: null }, file, row("add", null, 3))).toEqual({ reason: t("diff.whyLine.notCommitted") });
-    expect(diffLineTarget({ kind: "range", from: EMPTY_TREE_SHA, to: A }, file, row("remove", 1, null))).toEqual({ reason: t("diff.whyLine.notCommitted") });
+    expect(diffLineTarget({ kind: "range", from: B, to: null }, file, row("add", null, 3))).toEqual({
+      reason: t("diff.whyLine.notCommitted"),
+    });
+    expect(diffLineTarget({ kind: "range", from: EMPTY_TREE_SHA, to: A }, file, row("remove", 1, null))).toEqual({
+      reason: t("diff.whyLine.notCommitted"),
+    });
     expect(diffLineTarget({ kind: "stash", index: 0 }, file, row("add", null, 1))).toEqual({ reason: t("diff.whyLine.stash") });
     expect(diffLineTarget({ kind: "commit", sha: A }, file, row("add", null, null))).toEqual({ reason: t("diff.whyLine.noLine") });
   });
@@ -63,12 +95,22 @@ describe("blame lines and the menu entry", () => {
     expect(entry).toMatchObject({ label: "History of this line", shortcut: "W" });
     if ("onSelect" in entry) entry.onSelect?.();
     expect(open).toHaveBeenCalledWith(target);
-    expect(whyEntry({ reason: "the line is not committed yet" }, true, open)).toMatchObject({ label: "Why is this so?", disabled: true, hint: "the line is not committed yet" });
+    expect(whyEntry({ reason: "the line is not committed yet" }, true, open)).toMatchObject({
+      label: "Why is this so?",
+      disabled: true,
+      hint: "the line is not committed yet",
+    });
   });
 });
 
 const step = (sha: string, path: string, summary: string, patch: Partial<ArchaeologyStep> = {}): ArchaeologyStep => ({
-  commit: { sha, summary, author: { name: "Jörg Müller", email: "joerg@example.com" }, authoredAt: "2026-03-01T04:30:00.000Z", parents: [] },
+  commit: {
+    sha,
+    summary,
+    author: { name: "Jörg Müller", email: "joerg@example.com" },
+    authoredAt: "2026-03-01T04:30:00.000Z",
+    parents: [],
+  },
   path,
   startLine: 3,
   endLine: 3,
@@ -126,17 +168,40 @@ describe("explainView", () => {
   const answer = { summary: "s", notes: [], confidence: "high" as const, costUsd: null };
 
   it("idle explains, loading cancels with a seconds counter from 3 s, done offers again", () => {
-    expect(explainView({ kind: "idle" }, 0, false)).toEqual({ button: "explain", label: "Explain", status: null, slow: null, urgent: false });
+    expect(explainView({ kind: "idle" }, 0, false)).toEqual({
+      button: "explain",
+      label: "Explain",
+      status: null,
+      slow: null,
+      urgent: false,
+    });
     const started = 1_000_000;
-    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 1_000, false)).toMatchObject({ button: "cancel", label: "Cancel", status: "Explaining …", slow: null });
+    expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 1_000, false)).toMatchObject({
+      button: "cancel",
+      label: "Cancel",
+      status: "Explaining …",
+      slow: null,
+    });
     expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 12_400, false).status).toBe("Explaining … (12 s)");
     expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 31_000, true).slow).toBe(t("ai.state.slowLocal"));
     expect(explainView({ kind: "loading", jobId: "j", startedAt: started }, started + 31_000, false).slow).toBe(t("ai.state.slowRemote"));
-    expect(explainView({ kind: "done", answer }, 0, false)).toEqual({ button: "again", label: "Explain again", status: "Explanation ready", slow: null, urgent: false });
+    expect(explainView({ kind: "done", answer }, 0, false)).toEqual({
+      button: "again",
+      label: "Explain again",
+      status: "Explanation ready",
+      slow: null,
+      urgent: false,
+    });
   });
 
   it("errors are announced urgently with their text", () => {
-    expect(explainView({ kind: "error", error: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } }, 0, true)).toEqual({
+    expect(
+      explainView(
+        { kind: "error", error: { kind: "unavailable", text: "Ollama is not responding (127.0.0.1:11434).", retryAt: null } },
+        0,
+        true,
+      ),
+    ).toEqual({
       button: "again",
       label: "Explain again",
       status: "Ollama is not responding (127.0.0.1:11434).",

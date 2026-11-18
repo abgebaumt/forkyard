@@ -71,7 +71,12 @@ export async function takeOver(tabId: Id, agent: Agent): Promise<boolean> {
 }
 
 /** “Commit selection”: on the checked-out branch; nothing of your own may be staged (the core checks). */
-export async function commitSelection(tabId: Id, agent: Agent, message: { summary: string; description: string }, skipHooks: boolean): Promise<boolean> {
+export async function commitSelection(
+  tabId: Id,
+  agent: Agent,
+  message: { summary: string; description: string },
+  skipHooks: boolean,
+): Promise<boolean> {
   const { pinned, picks } = getPane(tabId, agent.id);
   if (!pinned || !picks || Object.keys(picks).length === 0) return false;
   const repoId = agent.repoId;
@@ -80,14 +85,27 @@ export async function commitSelection(tabId: Id, agent: Agent, message: { summar
     async () => {
       const selections = await selectionsOf(repoId, pinned, picks);
       if (!selections) return null;
-      return core.agentReviewCommit({ agentId: agent.id, opId: newOpId(), from: pinned.from, to: pinned.to, selections, summary: message.summary, description: message.description, skipHooks });
+      return core.agentReviewCommit({
+        agentId: agent.id,
+        opId: newOpId(),
+        from: pinned.from,
+        to: pinned.to,
+        selections,
+        summary: message.summary,
+        description: message.description,
+        skipHooks,
+      });
     },
     { busyKey: reviewBusyKey(repoId) },
   );
   if (!result.ok || !result.value) return false;
   // Committed: nothing stays selected, the message starts again from the task.
   useReviewStore.getState().patch(tabId, agent.id, { picks: {}, message: null });
-  toast({ tone: "success", title: t("agents.review.committed", { summary: message.summary.trim() }), action: { label: t("agents.review.undo"), onClick: () => void undo(repoId) } });
+  toast({
+    tone: "success",
+    title: t("agents.review.committed", { summary: message.summary.trim() }),
+    action: { label: t("agents.review.undo"), onClick: () => void undo(repoId) },
+  });
   return true;
 }
 
@@ -111,9 +129,13 @@ export async function rebaseAgent(agent: Agent): Promise<void> {
     rebase: { onto: agent.base, branch: agent.branch },
   });
   if (!choice) return;
-  const result = await runAction(label, withFreshStatus(repoId, () => core.rebaseStart({ repoId, onto: agent.base, branch: agent.branch, updateRefs: choice.updateRefs })), {
-    busyKey: busyKeys.history(repoId),
-  });
+  const result = await runAction(
+    label,
+    withFreshStatus(repoId, () => core.rebaseStart({ repoId, onto: agent.base, branch: agent.branch, updateRefs: choice.updateRefs })),
+    {
+      busyKey: busyKeys.history(repoId),
+    },
+  );
   if (!result.ok) return;
   if (result.value.status !== "conflict") {
     reportOpResult(label, result.value, null);
@@ -140,15 +162,24 @@ export async function discardRest(agent: Agent, uncommitted: number): Promise<bo
     danger: true,
   });
   if (!ok) return false;
-  const result = await runAction(t("agents.review.discardAction"), withStatus(worktree, () => core.agentDiscardRest({ agentId: agent.id })), { busyKey: reviewBusyKey(agent.repoId) });
+  const result = await runAction(
+    t("agents.review.discardAction"),
+    withStatus(worktree, () => core.agentDiscardRest({ agentId: agent.id })),
+    { busyKey: reviewBusyKey(agent.repoId) },
+  );
   if (!result.ok) return false;
-  toast({ tone: "info", title: t("agents.review.discarded", { name: displayName(agent) }), action: { label: t("agents.review.undo"), onClick: () => void undo(worktree) } });
+  toast({
+    tone: "info",
+    title: t("agents.review.discarded", { name: displayName(agent) }),
+    action: { label: t("agents.review.undo"), onClick: () => void undo(worktree) },
+  });
   return true;
 }
 
 const pickItems = (agents: Agent[]) => agents.map((agent) => ({ key: agent.id, label: displayName(agent), description: agent.branch }));
 
-const loadAgents = (repoId: Id, label: string) => runAction(label, () => queryClient.fetchQuery({ queryKey: qk.agents(repoId), queryFn: () => core.agentList({ repoId }) }));
+const loadAgents = (repoId: Id, label: string) =>
+  runAction(label, () => queryClient.fetchQuery({ queryKey: qk.agents(repoId), queryFn: () => core.agentList({ repoId }) }));
 
 /** Palette “Review coding agent …”: the only agent directly, otherwise a pick list. */
 export async function reviewAgentFromPalette(repoId: Id, tabId: Id): Promise<void> {
@@ -162,7 +193,12 @@ export async function reviewAgentFromPalette(repoId: Id, tabId: Id): Promise<voi
   const chosen =
     open.length === 1
       ? open[0]!.id
-      : await pickFromList({ title: t("agents.review.pickTitle"), label: t("agents.review.pickLabel"), items: pickItems(open), confirmLabel: t("agents.review.pickConfirm") });
+      : await pickFromList({
+          title: t("agents.review.pickTitle"),
+          label: t("agents.review.pickLabel"),
+          items: pickItems(open),
+          confirmLabel: t("agents.review.pickConfirm"),
+        });
   if (chosen) openAgentReview(tabId, chosen);
 }
 
@@ -175,6 +211,11 @@ export async function pickComparison(repoId: Id, tabId: Id, current: Id[]): Prom
     toast({ tone: "info", title: t("agents.review.noOtherAgents") });
     return;
   }
-  const chosen = await pickFromList({ title: t("agents.review.compareTitle"), label: t("agents.review.compareLabel"), items: pickItems(candidates), confirmLabel: t("agents.review.compareConfirm") });
+  const chosen = await pickFromList({
+    title: t("agents.review.compareTitle"),
+    label: t("agents.review.compareLabel"),
+    items: pickItems(candidates),
+    confirmLabel: t("agents.review.compareConfirm"),
+  });
   if (chosen) compareWith(tabId, chosen);
 }

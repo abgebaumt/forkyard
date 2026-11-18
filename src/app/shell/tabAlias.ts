@@ -41,7 +41,9 @@ export async function setTabAlias(repo: Repo, input: string) {
   const updated = result.value;
   // Show it in the list and tab strip right away; the core's event reconciles afterwards.
   queryClient.setQueryData<Repo[]>(qk.repos, (list) => list?.map((item) => (item.id === updated.id ? updated : item)));
-  queryClient.setQueryData<Tab[]>(qk.tabs, (tabs) => tabs?.map((tab) => (tab.repoId === updated.id ? { ...tab, title: updated.alias ?? updated.name } : tab)));
+  queryClient.setQueryData<Tab[]>(qk.tabs, (tabs) =>
+    tabs?.map((tab) => (tab.repoId === updated.id ? { ...tab, title: updated.alias ?? updated.name } : tab)),
+  );
   void queryClient.invalidateQueries({ queryKey: qk.tabs });
   void queryClient.invalidateQueries({ queryKey: qk.repos });
   toast(

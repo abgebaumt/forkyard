@@ -10,7 +10,11 @@ import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 scenario("page errors are recorded from the error hook", "edge", async (t) => {
   const app = await t.launch({ width: 1200, height: 800, lang: "en", theme: "light" });
   assertEqual(await app.size().then(({ width, height }) => [width, height]), [1200, 800], "window size");
-  assertEqual(await app.exec(() => [document.documentElement.dataset.theme, document.documentElement.lang]), ["light", "en"], "theme and language");
+  assertEqual(
+    await app.exec(() => [document.documentElement.dataset.theme, document.documentElement.lang]),
+    ["light", "en"],
+    "theme and language",
+  );
   await app.exec(() => {
     console.error("harness-console");
     setTimeout(() => {
@@ -18,11 +22,19 @@ scenario("page errors are recorded from the error hook", "edge", async (t) => {
     }, 0);
     Promise.reject(new Error("harness-rejection"));
   });
-  const errors = await app.waitFor(async () => {
-    const all = await app.errors();
-    return all.length >= 3 ? all : null;
-  }, 5000, { message: "three recorded errors" });
-  for (const needle of ["harness-console", "harness-throw", "harness-rejection"]) assert(errors.some((text) => text.includes(needle)), `${needle} not recorded: ${errors.join(" | ")}`);
+  const errors = await app.waitFor(
+    async () => {
+      const all = await app.errors();
+      return all.length >= 3 ? all : null;
+    },
+    5000,
+    { message: "three recorded errors" },
+  );
+  for (const needle of ["harness-console", "harness-throw", "harness-rejection"])
+    assert(
+      errors.some((text) => text.includes(needle)),
+      `${needle} not recorded: ${errors.join(" | ")}`,
+    );
   // These were provoked on purpose: forget them so the result file stays clean.
   app.consoleErrors.length = 0;
 });

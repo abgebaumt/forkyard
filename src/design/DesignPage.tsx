@@ -36,10 +36,29 @@ import { cn } from "../ui/cn";
 import { t } from "../i18n";
 
 const colorRoles = [
-  "bg", "surface", "surface-raised", "surface-sunken", "border", "border-input",
-  "text", "text-muted", "text-disabled", "accent", "on-accent", "accent-surface",
-  "danger", "on-danger", "danger-surface", "success", "success-surface",
-  "warning", "warning-surface", "diff-added", "diff-added-strong", "diff-removed", "diff-removed-strong",
+  "bg",
+  "surface",
+  "surface-raised",
+  "surface-sunken",
+  "border",
+  "border-input",
+  "text",
+  "text-muted",
+  "text-disabled",
+  "accent",
+  "on-accent",
+  "accent-surface",
+  "danger",
+  "on-danger",
+  "danger-surface",
+  "success",
+  "success-surface",
+  "warning",
+  "warning-surface",
+  "diff-added",
+  "diff-added-strong",
+  "diff-removed",
+  "diff-removed-strong",
 ];
 
 const typeScale = [
@@ -55,31 +74,100 @@ const typeScale = [
 const commits: GraphCommit[] = [
   { id: "wip", lane: 0, parents: ["a"], kind: "wip", message: t("design.sample.wipFiles") },
   {
-    id: "a", lane: 0, parents: ["c"], message: t("design.sample.commit.a"), author: "Mira Sommer", date: t("design.sample.date.hours2"), sha: "9f3c1ab",
-    refs: [{ kind: "local", name: "main", lane: 0, head: true }, { kind: "remote", name: "origin/main", lane: 0 }],
+    id: "a",
+    lane: 0,
+    parents: ["c"],
+    message: t("design.sample.commit.a"),
+    author: "Mira Sommer",
+    date: t("design.sample.date.hours2"),
+    sha: "9f3c1ab",
+    refs: [
+      { kind: "local", name: "main", lane: 0, head: true },
+      { kind: "remote", name: "origin/main", lane: 0 },
+    ],
   },
   {
-    id: "b", lane: 1, parents: ["d"], message: t("design.sample.commit.b"), author: "Jonas Keller", date: t("design.sample.date.hours5"), sha: "41d07e2",
+    id: "b",
+    lane: 1,
+    parents: ["d"],
+    message: t("design.sample.commit.b"),
+    author: "Jonas Keller",
+    date: t("design.sample.date.hours5"),
+    sha: "41d07e2",
     refs: [{ kind: "local", name: "feature/zeilen-staging", lane: 1 }],
   },
-  { id: "c", lane: 0, parents: ["e", "f"], kind: "merge", message: t("design.sample.commit.c"), author: "Mira Sommer", date: t("design.sample.date.yesterday"), sha: "c2a9914" },
-  { id: "d", lane: 1, parents: ["e"], message: t("design.sample.commit.d"), author: "Jonas Keller", date: t("design.sample.date.yesterday"), sha: "7be4d10" },
   {
-    id: "f", lane: 2, parents: ["g"], message: t("design.sample.commit.f"), author: "Aylin Demir", date: t("design.sample.date.days2"), sha: "e88b3f6",
+    id: "c",
+    lane: 0,
+    parents: ["e", "f"],
+    kind: "merge",
+    message: t("design.sample.commit.c"),
+    author: "Mira Sommer",
+    date: t("design.sample.date.yesterday"),
+    sha: "c2a9914",
+  },
+  {
+    id: "d",
+    lane: 1,
+    parents: ["e"],
+    message: t("design.sample.commit.d"),
+    author: "Jonas Keller",
+    date: t("design.sample.date.yesterday"),
+    sha: "7be4d10",
+  },
+  {
+    id: "f",
+    lane: 2,
+    parents: ["g"],
+    message: t("design.sample.commit.f"),
+    author: "Aylin Demir",
+    date: t("design.sample.date.days2"),
+    sha: "e88b3f6",
     refs: [{ kind: "remote", name: "origin/fix/index-lock", lane: 2 }],
   },
-  { id: "e", lane: 0, parents: ["g"], message: t("design.sample.commit.e"), author: "Mira Sommer", date: t("design.sample.date.days2"), sha: "5d1f0c8" },
   {
-    id: "g", lane: 0, parents: ["h"], message: t("design.sample.commit.g"), author: "Aylin Demir", date: t("design.sample.date.days4"), sha: "0a6e7b3",
+    id: "e",
+    lane: 0,
+    parents: ["g"],
+    message: t("design.sample.commit.e"),
+    author: "Mira Sommer",
+    date: t("design.sample.date.days2"),
+    sha: "5d1f0c8",
+  },
+  {
+    id: "g",
+    lane: 0,
+    parents: ["h"],
+    message: t("design.sample.commit.g"),
+    author: "Aylin Demir",
+    date: t("design.sample.date.days4"),
+    sha: "0a6e7b3",
     refs: [{ kind: "tag", name: "v0.1.0" }],
   },
-  { id: "h", lane: 0, parents: [], message: t("design.sample.commit.h"), author: "Mira Sommer", date: t("design.sample.date.days6"), sha: "3b90c5d" },
+  {
+    id: "h",
+    lane: 0,
+    parents: [],
+    message: t("design.sample.commit.h"),
+    author: "Mira Sommer",
+    date: t("design.sample.date.days6"),
+    sha: "3b90c5d",
+  },
 ];
 
 const diffLines: DiffLine[] = [
   { kind: "context", oldNo: 41, newNo: 41, segments: [{ text: "fn build_patch(hunk: &Hunk, picked: &[usize]) -> Vec<u8> {" }] },
-  { kind: "remove", oldNo: 42, segments: [{ text: "    let text = " }, { text: "String::from_utf8_lossy", changed: true }, { text: "(&hunk.bytes);" }] },
-  { kind: "add", newNo: 42, selected: true, segments: [{ text: "    let text = " }, { text: "hunk.bytes.as_slice", changed: true }, { text: "();" }] },
+  {
+    kind: "remove",
+    oldNo: 42,
+    segments: [{ text: "    let text = " }, { text: "String::from_utf8_lossy", changed: true }, { text: "(&hunk.bytes);" }],
+  },
+  {
+    kind: "add",
+    newNo: 42,
+    selected: true,
+    segments: [{ text: "    let text = " }, { text: "hunk.bytes.as_slice", changed: true }, { text: "();" }],
+  },
   { kind: "add", newNo: 43, selected: true, segments: [{ text: t("design.sample.codeComment") }] },
   { kind: "context", oldNo: 43, newNo: 44, segments: [{ text: "    let mut out = Vec::with_capacity(text.len());" }] },
   { kind: "context", oldNo: 44, newNo: 45, segments: [{ text: "    for (index, line) in split_keep_eol(text).enumerate() {" }] },
@@ -157,9 +245,7 @@ export function DesignPage() {
         <header className="flex items-center gap-4 py-6">
           <div className="flex-1">
             <h1 className="text-xl font-semibold">{t("design.title")}</h1>
-            <p className="text-base text-text-muted">
-              {t("design.intro")}
-            </p>
+            <p className="text-base text-text-muted">{t("design.intro")}</p>
           </div>
           <SegmentedControl
             label="Theme"
@@ -174,7 +260,9 @@ export function DesignPage() {
 
         <Section title={t("design.colors.title")} note={t("design.colors.note")}>
           <div className="grid grid-cols-4 gap-x-6 gap-y-3">
-            {colorRoles.map((role) => <Swatch key={role} role={role} />)}
+            {colorRoles.map((role) => (
+              <Swatch key={role} role={role} />
+            ))}
           </div>
           <p className="mt-6 mb-3 text-xs font-medium tracking-wide text-text-muted uppercase">{t("design.colors.lanes")}</p>
           <div className="flex flex-wrap gap-2">
@@ -221,8 +309,12 @@ export function DesignPage() {
             </Specimen>
             <Specimen label={t("design.buttons.states")}>
               <div className="flex flex-wrap items-center gap-2">
-                <Button variant="primary" loading>{t("design.buttons.pushing")}</Button>
-                <Button variant="primary" disabled>Commit</Button>
+                <Button variant="primary" loading>
+                  {t("design.buttons.pushing")}
+                </Button>
+                <Button variant="primary" disabled>
+                  Commit
+                </Button>
                 <Button disabled>{t("design.buttons.cancel")}</Button>
                 <Button loading>{t("design.buttons.cloning")}</Button>
                 <Spinner />
@@ -233,7 +325,12 @@ export function DesignPage() {
                 <IconButton label={t("design.buttons.stageFile")} shortcut="S" icon={<Plus className="size-icon" aria-hidden />} />
                 <IconButton label={t("design.buttons.hideInGraph")} icon={<Eye className="size-icon" aria-hidden />} active />
                 <IconButton label={t("design.buttons.discardChanges")} danger icon={<Trash2 className="size-icon" aria-hidden />} />
-                <IconButton label={t("design.buttons.search")} shortcut="Ctrl+F" icon={<Search className="size-icon" aria-hidden />} disabled />
+                <IconButton
+                  label={t("design.buttons.search")}
+                  shortcut="Ctrl+F"
+                  icon={<Search className="size-icon" aria-hidden />}
+                  disabled
+                />
                 <span className="ml-3 flex items-center gap-2 text-sm text-text-muted">
                   {t("design.buttons.shortcut")} <Kbd>Ctrl+Shift+S</Kbd>
                 </span>
@@ -246,8 +343,18 @@ export function DesignPage() {
           <div className="grid grid-cols-3 gap-8">
             <div className="flex flex-col gap-4">
               <TextField label={t("design.inputs.branchName")} defaultValue="feature/zeilen-staging" mono />
-              <TextField label={t("design.inputs.remoteUrl")} placeholder={t("design.inputs.remoteUrlPlaceholder")} hint={t("design.inputs.remoteUrlHint")} mono />
-              <TextField label={t("design.inputs.branchName")} defaultValue="feature/neu..x" error={t("design.inputs.branchNameError")} mono />
+              <TextField
+                label={t("design.inputs.remoteUrl")}
+                placeholder={t("design.inputs.remoteUrlPlaceholder")}
+                hint={t("design.inputs.remoteUrlHint")}
+                mono
+              />
+              <TextField
+                label={t("design.inputs.branchName")}
+                defaultValue="feature/neu..x"
+                error={t("design.inputs.branchNameError")}
+                mono
+              />
               <TextField label={t("design.inputs.locked")} defaultValue="origin" disabled />
             </div>
             <div className="flex flex-col gap-4">
@@ -283,7 +390,9 @@ export function DesignPage() {
                   <Button size="sm">{t("design.feedback.openDropdown")}</Button>
                 </DropdownMenu>
                 <ContextMenu entries={commitMenu}>
-                  <Button size="sm" variant="ghost">{t("design.feedback.rightClickHere")}</Button>
+                  <Button size="sm" variant="ghost">
+                    {t("design.feedback.rightClickHere")}
+                  </Button>
                 </ContextMenu>
               </div>
             </Specimen>
@@ -291,9 +400,7 @@ export function DesignPage() {
               <div className={cn(dialogSurface, "w-full")}>
                 <div className="px-4 pt-4">
                   <p className="text-lg font-semibold">{t("design.feedback.discardTitle")}</p>
-                  <p className="mt-1 text-base text-text-muted">
-                    {t("design.feedback.discardBody")}
-                  </p>
+                  <p className="mt-1 text-base text-text-muted">{t("design.feedback.discardBody")}</p>
                 </div>
                 <div className="flex justify-end gap-2 px-4 pt-4 pb-4">
                   <Button>{t("design.buttons.cancel")}</Button>
@@ -301,12 +408,19 @@ export function DesignPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => setConfirmOpen(true)}>{t("design.feedback.openConfirm")}</Button>
-                <Button size="sm" onClick={() => setDialogOpen(true)}>{t("design.feedback.openDialog")}</Button>
+                <Button size="sm" onClick={() => setConfirmOpen(true)}>
+                  {t("design.feedback.openConfirm")}
+                </Button>
+                <Button size="sm" onClick={() => setDialogOpen(true)}>
+                  {t("design.feedback.openDialog")}
+                </Button>
               </div>
             </Specimen>
             <Specimen label={t("design.feedback.toasts")}>
-              <ToastCard toast={{ tone: "success", title: t("design.feedback.pushedTitle"), description: t("design.feedback.pushedBody") }} onClose={() => {}} />
+              <ToastCard
+                toast={{ tone: "success", title: t("design.feedback.pushedTitle"), description: t("design.feedback.pushedBody") }}
+                onClose={() => {}}
+              />
               <ToastCard
                 toast={{
                   tone: "danger",
@@ -317,21 +431,42 @@ export function DesignPage() {
                 onClose={() => {}}
               />
               <div>
-                <Button size="sm" onClick={() => toast({ tone: "info", title: t("design.feedback.fetchDoneTitle"), description: t("design.feedback.fetchDoneBody") })}>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    toast({ tone: "info", title: t("design.feedback.fetchDoneTitle"), description: t("design.feedback.fetchDoneBody") })
+                  }
+                >
                   {t("design.feedback.fireToast")}
                 </Button>
               </div>
             </Specimen>
           </div>
           <div className="mt-6 grid grid-cols-2 gap-4">
-            <Banner tone="warning" title={t("design.feedback.detachedTitle")} actions={<Button size="sm">{t("design.feedback.createBranch")}</Button>}>
+            <Banner
+              tone="warning"
+              title={t("design.feedback.detachedTitle")}
+              actions={<Button size="sm">{t("design.feedback.createBranch")}</Button>}
+            >
               {t("design.feedback.detachedBody")}
             </Banner>
-            <Banner tone="danger" title={t("design.feedback.mergePausedTitle")} actions={<Button size="sm">{t("design.feedback.abortMerge")}</Button>}>
+            <Banner
+              tone="danger"
+              title={t("design.feedback.mergePausedTitle")}
+              actions={<Button size="sm">{t("design.feedback.abortMerge")}</Button>}
+            >
               {t("design.feedback.mergePausedBody")}
             </Banner>
             <Banner tone="info" title={t("design.feedback.rebaseRunning")} />
-            <Banner tone="success" title={t("design.feedback.allResolved")} actions={<Button size="sm" variant="primary">{t("design.feedback.finishMerge")}</Button>} />
+            <Banner
+              tone="success"
+              title={t("design.feedback.allResolved")}
+              actions={
+                <Button size="sm" variant="primary">
+                  {t("design.feedback.finishMerge")}
+                </Button>
+              }
+            />
           </div>
         </Section>
 
@@ -347,15 +482,30 @@ export function DesignPage() {
               onActivate={setActiveTab}
             />
             <Toolbar>
-              <ToolbarButton label={t("design.chrome.undo")} shortcut="Ctrl+Z" hint={t("design.chrome.undoHint")} icon={<Undo2 className="size-icon" aria-hidden />} />
-              <ToolbarButton label={t("design.chrome.redo")} disabled hint={t("design.chrome.nothingToRedo")} icon={<Redo2 className="size-icon" aria-hidden />} />
+              <ToolbarButton
+                label={t("design.chrome.undo")}
+                shortcut="Ctrl+Z"
+                hint={t("design.chrome.undoHint")}
+                icon={<Undo2 className="size-icon" aria-hidden />}
+              />
+              <ToolbarButton
+                label={t("design.chrome.redo")}
+                disabled
+                hint={t("design.chrome.nothingToRedo")}
+                icon={<Redo2 className="size-icon" aria-hidden />}
+              />
               <ToolbarSeparator />
               <ToolbarButton label="Pull" badge={3} menu={pullMenu} icon={<ArrowDownToLine className="size-icon" aria-hidden />} />
               <ToolbarButton label="Push" badge={2} icon={<ArrowUpFromLine className="size-icon" aria-hidden />} />
               <ToolbarSeparator />
               <ToolbarButton label="Branch" shortcut="Ctrl+B" icon={<GitBranchPlus className="size-icon" aria-hidden />} />
               <ToolbarButton label="Stash" icon={<Archive className="size-icon" aria-hidden />} />
-              <ToolbarButton label="Pop" disabled hint={t("design.chrome.noStash")} icon={<ArchiveRestore className="size-icon" aria-hidden />} />
+              <ToolbarButton
+                label="Pop"
+                disabled
+                hint={t("design.chrome.noStash")}
+                icon={<ArchiveRestore className="size-icon" aria-hidden />}
+              />
               <ToolbarButton label="Fetch" busy icon={<Cloud className="size-icon" aria-hidden />} />
               <div className="flex-1" />
               <div className="w-64">
@@ -366,20 +516,38 @@ export function DesignPage() {
             <StatusBar
               left={
                 <>
-                  <span className="inline-flex items-center gap-1"><GitBranch className="size-3" aria-hidden />main</span>
+                  <span className="inline-flex items-center gap-1">
+                    <GitBranch className="size-3" aria-hidden />
+                    main
+                  </span>
                   <span>{t("design.chrome.aheadBehind")}</span>
                   <span>{t("design.chrome.lastFetch")}</span>
                 </>
               }
-              right={<><span>UTF-8</span><span>100 %</span></>}
+              right={
+                <>
+                  <span>UTF-8</span>
+                  <span>100 %</span>
+                </>
+              }
             />
           </div>
         </Section>
 
         <Section title={t("design.repo.title")} note={t("design.repo.note")}>
           <div className="flex h-105 overflow-hidden rounded-lg border border-border">
-            <aside className="w-65 shrink-0 overflow-auto border-r border-border bg-surface" role="tree" aria-label={t("design.repo.branchesAndTags")}>
-              <PanelSection title={t("design.repo.local")} count={3} actions={<IconButton size="sm" label={t("design.feedback.createBranch")} icon={<Plus className="size-3.5" aria-hidden />} />}>
+            <aside
+              className="w-65 shrink-0 overflow-auto border-r border-border bg-surface"
+              role="tree"
+              aria-label={t("design.repo.branchesAndTags")}
+            >
+              <PanelSection
+                title={t("design.repo.local")}
+                count={3}
+                actions={
+                  <IconButton size="sm" label={t("design.feedback.createBranch")} icon={<Plus className="size-3.5" aria-hidden />} />
+                }
+              >
                 <TreeRow label="main" active ahead={2} behind={3} />
                 <TreeRow label="feature" icon={<FolderGit2 className="size-3.5" aria-hidden />} />
                 <TreeRow label="zeilen-staging" depth={1} selected icon={<GitBranch className="size-3.5" aria-hidden />} ahead={2} />
@@ -404,10 +572,37 @@ export function DesignPage() {
               <Graph commits={commits} selectedId={selected} onSelect={setSelected} />
             </main>
             <aside className="flex w-95 shrink-0 flex-col border-l border-border bg-surface">
-              <PanelSection title={t("design.repo.unstaged")} count={2} actions={<Button size="sm" variant="ghost">{t("design.repo.stageAll")}</Button>}>
+              <PanelSection
+                title={t("design.repo.unstaged")}
+                count={2}
+                actions={
+                  <Button size="sm" variant="ghost">
+                    {t("design.repo.stageAll")}
+                  </Button>
+                }
+              >
                 <div role="listbox" aria-label={t("design.repo.unstagedFiles")}>
-                  <FileRow path="src-tauri/src/patch.rs" status="modified" selected additions={12} deletions={4} action={<IconButton size="sm" label={t("design.buttons.stageFile")} shortcut="S" icon={<Plus className="size-3.5" aria-hidden />} />} />
-                  <FileRow path="docs/zeilen-staging.md" status="untracked" additions={38} action={<IconButton size="sm" label={t("design.buttons.stageFile")} icon={<Plus className="size-3.5" aria-hidden />} />} />
+                  <FileRow
+                    path="src-tauri/src/patch.rs"
+                    status="modified"
+                    selected
+                    additions={12}
+                    deletions={4}
+                    action={
+                      <IconButton
+                        size="sm"
+                        label={t("design.buttons.stageFile")}
+                        shortcut="S"
+                        icon={<Plus className="size-3.5" aria-hidden />}
+                      />
+                    }
+                  />
+                  <FileRow
+                    path="docs/zeilen-staging.md"
+                    status="untracked"
+                    additions={38}
+                    action={<IconButton size="sm" label={t("design.buttons.stageFile")} icon={<Plus className="size-3.5" aria-hidden />} />}
+                  />
                 </div>
               </PanelSection>
               <PanelSection title={t("design.repo.staged")} count={4}>
@@ -419,7 +614,11 @@ export function DesignPage() {
                 </div>
               </PanelSection>
               <div className="mt-auto flex flex-col gap-2 border-t border-border p-3">
-                <TextField aria-label={t("design.repo.summary")} placeholder={t("design.repo.summary")} defaultValue={t("design.repo.summaryValue")} />
+                <TextField
+                  aria-label={t("design.repo.summary")}
+                  placeholder={t("design.repo.summary")}
+                  defaultValue={t("design.repo.summaryValue")}
+                />
                 <TextArea aria-label={t("design.inputs.description")} rows={2} placeholder={t("design.repo.descriptionOptional")} />
                 <Button variant="primary" size="lg" icon={<GitCommitHorizontal className="size-icon" aria-hidden />}>
                   {t("design.repo.commitFiles")}
@@ -493,7 +692,9 @@ export function DesignPage() {
         footer={
           <>
             <Button onClick={() => setDialogOpen(false)}>{t("design.buttons.cancel")}</Button>
-            <Button variant="primary" onClick={() => setDialogOpen(false)}>{t("design.dialog.add")}</Button>
+            <Button variant="primary" onClick={() => setDialogOpen(false)}>
+              {t("design.dialog.add")}
+            </Button>
           </>
         }
       >

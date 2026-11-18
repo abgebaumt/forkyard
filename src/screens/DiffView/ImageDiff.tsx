@@ -62,7 +62,19 @@ function useNaturalSize(url: string | null): Natural {
 // Side by side
 // ---------------------------------------------------------------------------
 
-function ImagePane({ title, url, bytes, tone, alt }: { title: string; url: string | null; bytes: number | null; tone: "old" | "new"; alt: string }) {
+function ImagePane({
+  title,
+  url,
+  bytes,
+  tone,
+  alt,
+}: {
+  title: string;
+  url: string | null;
+  bytes: number | null;
+  tone: "old" | "new";
+  alt: string;
+}) {
   const [natural, setNatural] = useState<Size | null>(null);
   const [failed, setFailed] = useState(false);
   return (
@@ -83,7 +95,10 @@ function ImagePane({ title, url, bytes, tone, alt }: { title: string; url: strin
             alt={alt}
             draggable={false}
             // Small images (icons) are shown enlarged, with crisp pixel edges instead of blurred.
-            className={cn("gc-checker max-h-full max-w-full border border-border object-contain", natural && isSmall(natural) && "gc-pixelated min-w-48")}
+            className={cn(
+              "gc-checker max-h-full max-w-full border border-border object-contain",
+              natural && isSmall(natural) && "gc-pixelated min-w-48",
+            )}
             onLoad={(event) => setNatural({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
             onError={() => setFailed(true)}
           />
@@ -126,13 +141,35 @@ function StackView({ mode, oldUrl, newUrl, before, after, name, position }: Stac
   const geometry = stackGeometry(before, after);
   const placed = (share: Size) => ({ width: `${share.width}%`, height: `${share.height}%` });
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-surface-sunken p-4" style={{ containerType: "size" }}>
-      <div data-image-stack={mode} className={cn("gc-checker relative border border-border", isSmall(geometry) && "gc-pixelated")} style={stackFrameStyle(geometry)}>
+    <div
+      className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-surface-sunken p-4"
+      style={{ containerType: "size" }}
+    >
+      <div
+        data-image-stack={mode}
+        className={cn("gc-checker relative border border-border", isSmall(geometry) && "gc-pixelated")}
+        style={stackFrameStyle(geometry)}
+      >
         <div className="absolute inset-0">
-          <img src={oldUrl} alt={t("diff.image.oldAlt", { name })} draggable={false} className="absolute top-0 left-0 max-w-none" style={placed(geometry.before)} />
+          <img
+            src={oldUrl}
+            alt={t("diff.image.oldAlt", { name })}
+            draggable={false}
+            className="absolute top-0 left-0 max-w-none"
+            style={placed(geometry.before)}
+          />
         </div>
-        <div className="absolute inset-0" style={mode === "swipe" ? { clipPath: `inset(0 0 0 ${position}%)` } : { opacity: position / 100 }}>
-          <img src={newUrl} alt={t("diff.image.newAlt", { name })} draggable={false} className="absolute top-0 left-0 max-w-none" style={placed(geometry.after)} />
+        <div
+          className="absolute inset-0"
+          style={mode === "swipe" ? { clipPath: `inset(0 0 0 ${position}%)` } : { opacity: position / 100 }}
+        >
+          <img
+            src={newUrl}
+            alt={t("diff.image.newAlt", { name })}
+            draggable={false}
+            className="absolute top-0 left-0 max-w-none"
+            style={placed(geometry.after)}
+          />
         </div>
         {mode === "swipe" ? <div aria-hidden className="absolute inset-y-0 w-px bg-accent" style={{ left: `${position}%` }} /> : null}
       </div>
@@ -218,7 +255,8 @@ function DifferenceView({ oldUrl, newUrl, name }: { oldUrl: string; newUrl: stri
 
   let summary: string;
   if (state.kind === "computing") summary = t("diff.image.computing");
-  else if (state.kind === "tooLarge") summary = t("diff.image.tooLarge", { limit: new Intl.NumberFormat(locale()).format(MAX_DIFF_PIXELS) });
+  else if (state.kind === "tooLarge")
+    summary = t("diff.image.tooLarge", { limit: new Intl.NumberFormat(locale()).format(MAX_DIFF_PIXELS) });
   else if (state.kind === "unavailable") summary = t("diff.image.unavailable");
   else if (state.changed === 0) summary = t("diff.image.identical");
   else {
@@ -228,7 +266,11 @@ function DifferenceView({ oldUrl, newUrl, name }: { oldUrl: string; newUrl: stri
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <p role="status" data-image-difference={state.kind} className="shrink-0 border-b border-border bg-surface px-3 py-1 text-sm text-text-muted">
+      <p
+        role="status"
+        data-image-difference={state.kind}
+        className="shrink-0 border-b border-border bg-surface px-3 py-1 text-sm text-text-muted"
+      >
         {summary}
       </p>
       <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-surface-sunken p-4">
@@ -236,7 +278,11 @@ function DifferenceView({ oldUrl, newUrl, name }: { oldUrl: string; newUrl: stri
           ref={canvasRef}
           role="img"
           aria-label={t("diff.image.differenceAlt", { name })}
-          className={cn("gc-checker max-h-full max-w-full border border-border", state.kind !== "ready" && "hidden", state.kind === "ready" && state.small && "gc-pixelated min-w-48")}
+          className={cn(
+            "gc-checker max-h-full max-w-full border border-border",
+            state.kind !== "ready" && "hidden",
+            state.kind === "ready" && state.small && "gc-pixelated min-w-48",
+          )}
         />
       </div>
     </div>
@@ -280,7 +326,17 @@ export function ImageDiffView({ diff }: { diff: ImageDiff }) {
   } else if (!known) {
     body = <div className="min-h-0 flex-1 bg-surface-sunken" />;
   } else {
-    body = <StackView mode={mode} oldUrl={urls.old} newUrl={urls.new} before={known.before} after={known.after} name={name} position={position} />;
+    body = (
+      <StackView
+        mode={mode}
+        oldUrl={urls.old}
+        newUrl={urls.new}
+        before={known.before}
+        after={known.after}
+        name={name}
+        position={position}
+      />
+    );
   }
 
   return (
@@ -290,7 +346,12 @@ export function ImageDiffView({ diff }: { diff: ImageDiff }) {
         {mode === "swipe" || mode === "onion" ? (
           <span className="flex items-center gap-2 text-text-muted">
             {mode === "swipe" ? <span>{t("diff.before")}</span> : null}
-            <Slider label={mode === "swipe" ? t("diff.image.swipePosition") : t("diff.image.opacity")} value={position} onValueChange={setPosition} valueText={percent} />
+            <Slider
+              label={mode === "swipe" ? t("diff.image.swipePosition") : t("diff.image.opacity")}
+              value={position}
+              onValueChange={setPosition}
+              valueText={percent}
+            />
             {mode === "swipe" ? <span>{t("diff.after")}</span> : <span className="tabular-nums">{percent}</span>}
           </span>
         ) : null}

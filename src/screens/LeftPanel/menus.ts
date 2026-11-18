@@ -57,7 +57,14 @@ function viewEntries(ctx: RowMenuContext, existing: MenuEntry[]): MenuEntry[] {
   const many = node.kind === "folder" || node.kind === "remote";
   return [
     {
-      label: hidden === "all" ? (many ? t("sidebar.toggle.showMany") : t("sidebar.toggle.show")) : many ? t("sidebar.toggle.hideMany") : t("sidebar.toggle.hideOne"),
+      label:
+        hidden === "all"
+          ? many
+            ? t("sidebar.toggle.showMany")
+            : t("sidebar.toggle.show")
+          : many
+            ? t("sidebar.toggle.hideMany")
+            : t("sidebar.toggle.hideOne"),
       checked: hidden === "all",
       onSelect: ctx.toggleHide,
     },
@@ -78,7 +85,9 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
       const refs = ctx.selectedBranches.flatMap((item) => (item.ref ? [item.ref] : []));
       const entries = branchesMenu({ ...base, refs });
       // As long as the shared menu yields nothing, at least delete stays reachable.
-      return entries.length ? entries : [{ label: t("sidebar.menu.deleteBranches", { count: refs.length }), shortcut: "Delete", danger: true, onSelect: ctx.remove }];
+      return entries.length
+        ? entries
+        : [{ label: t("sidebar.menu.deleteBranches", { count: refs.length }), shortcut: "Delete", danger: true, onSelect: ctx.remove }];
     }
     let renameOffered = false;
     // "Rename" from the shared menu opens the inline input in the row here.
@@ -101,7 +110,9 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
 
   if (node.kind === "remote_branch" && node.ref) {
     const shared = branchMenu({ ...base, ref: node.ref });
-    const entries: MenuEntry[] = shared.length ? shared : [{ label: t("sidebar.menu.checkout"), shortcut: "Enter", onSelect: ctx.activate }];
+    const entries: MenuEntry[] = shared.length
+      ? shared
+      : [{ label: t("sidebar.menu.checkout"), shortcut: "Enter", onSelect: ctx.activate }];
     return withGroup(entries, viewEntries(ctx, entries));
   }
 
@@ -115,7 +126,10 @@ export function rowMenu(ctx: RowMenuContext): MenuEntry[] {
     return entries.length ? entries : [{ label: t("sidebar.menu.viewStash"), onSelect: ctx.reveal }];
   }
 
-  const fold: MenuEntry[] = ctx.expanded === undefined ? [] : [{ label: ctx.expanded ? t("sidebar.menu.collapse") : t("sidebar.menu.expand"), onSelect: ctx.toggleExpanded }];
+  const fold: MenuEntry[] =
+    ctx.expanded === undefined
+      ? []
+      : [{ label: ctx.expanded ? t("sidebar.menu.collapse") : t("sidebar.menu.expand"), onSelect: ctx.toggleExpanded }];
 
   if (node.kind === "remote") {
     const shared = ctx.remote ? remoteMenu({ ...base, remote: ctx.remote }) : [];
@@ -175,7 +189,13 @@ export function sectionMenu(ctx: SectionMenuContext): MenuEntry[] {
           },
           ...(ctx.section === "stashes"
             ? []
-            : [{ label: ctx.solo === "all" ? t("sidebar.toggle.soloEnd") : t("sidebar.section.solo", { title }), checked: ctx.solo === "all", onSelect: ctx.toggleSolo }]),
+            : [
+                {
+                  label: ctx.solo === "all" ? t("sidebar.toggle.soloEnd") : t("sidebar.section.solo", { title }),
+                  checked: ctx.solo === "all",
+                  onSelect: ctx.toggleSolo,
+                },
+              ]),
         ]
       : [];
   return [

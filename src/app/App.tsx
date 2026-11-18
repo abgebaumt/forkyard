@@ -36,7 +36,12 @@ const APP_NAME = "forkyard";
 
 /** "2.45.1.windows.1" ≥ "2.39"? */
 export function versionAtLeast(version: string, minimum: string): boolean {
-  const parse = (value: string) => value.split(/[^0-9]+/).filter(Boolean).slice(0, 3).map(Number);
+  const parse = (value: string) =>
+    value
+      .split(/[^0-9]+/)
+      .filter(Boolean)
+      .slice(0, 3)
+      .map(Number);
   const a = parse(version);
   const b = parse(minimum);
   for (let index = 0; index < 3; index++) {
@@ -83,11 +88,7 @@ export function App() {
           </Button>
         }
       >
-        {isTauri() ? (
-          <p>{t("app.startup.coreDown.desktop")}</p>
-        ) : (
-          <p>{t("app.startup.coreDown.browser", { app: APP_NAME })}</p>
-        )}
+        {isTauri() ? <p>{t("app.startup.coreDown.desktop")}</p> : <p>{t("app.startup.coreDown.browser", { app: APP_NAME })}</p>}
       </FullPage>
     );
   }
@@ -118,7 +119,11 @@ export function App() {
       <FullPage
         icon={<TriangleAlert className="size-8" aria-hidden />}
         title={t("app.startup.gitTooOld.title")}
-        details={info.gitPath ? t("app.startup.gitTooOld.foundAt", { version: info.gitVersion, path: info.gitPath }) : t("app.startup.gitTooOld.found", { version: info.gitVersion })}
+        details={
+          info.gitPath
+            ? t("app.startup.gitTooOld.foundAt", { version: info.gitVersion, path: info.gitPath })
+            : t("app.startup.gitTooOld.found", { version: info.gitVersion })
+        }
         actions={
           <Button icon={<RefreshCw className="size-icon" aria-hidden />} onClick={() => void recheckGit()}>
             {t("app.startup.recheck")}
@@ -190,7 +195,11 @@ function Shell({ info }: { info: AppInfo }) {
   return (
     <div data-shell="app" data-no-scroll className="flex h-full flex-col bg-bg text-text">
       <TabStrip tabs={tabs} />
-      {repoTab && repoId && !missing ? <RepoToolbar key={`toolbar-${repoTab.id}`} repoId={repoId} tabId={repoTab.id} /> : <ManagementToolbar />}
+      {repoTab && repoId && !missing ? (
+        <RepoToolbar key={`toolbar-${repoTab.id}`} repoId={repoId} tabId={repoTab.id} />
+      ) : (
+        <ManagementToolbar />
+      )}
       {repoTab && repoId ? (
         <RepoWorkspace key={`workspace-${repoTab.id}`} tab={repoTab} repoId={repoId} />
       ) : (

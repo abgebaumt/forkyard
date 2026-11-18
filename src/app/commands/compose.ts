@@ -12,7 +12,11 @@ export const commands: AppCommand[] = [
     group: "Commit",
     keywords: kw("commands.wip.compose.keywords"),
     hidden: (ctx) =>
-      !ctx.repoId || !composeVisible(ctx.queryClient.getQueryData<AiStatus>(qk.aiStatus), ctx.queryClient.getQueryData<RepoSettings>(qk.repoSettings(ctx.repoId))),
+      !ctx.repoId ||
+      !composeVisible(
+        ctx.queryClient.getQueryData<AiStatus>(qk.aiStatus),
+        ctx.queryClient.getQueryData<RepoSettings>(qk.repoSettings(ctx.repoId)),
+      ),
     when: (ctx) => Boolean(ctx.tabId) && hasChanges(ctx.status),
     disabledReason: (ctx) => (hasChanges(ctx.status) ? null : t("wip.compose.nothing")),
     run: (ctx) => startCompose(ctx.tabId!),

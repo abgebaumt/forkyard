@@ -11,7 +11,9 @@ describe("conflict preview texts", () => {
     expect(previewText({ state: "checking" }, short)).toBe(t("conflictPreview.checking"));
     expect(previewText({ state: "failed" }, short)).toBe(t("conflictPreview.failed"));
     expect(previewText({ state: "done", result: { status: "clean" } }, short)).toBe(t("conflictPreview.clean"));
-    expect(previewText({ state: "done", result: { status: "unknown", reason: "zu viele" } }, short)).toBe(t("conflictPreview.unknown", { reason: "zu viele" }));
+    expect(previewText({ state: "done", result: { status: "unknown", reason: "zu viele" } }, short)).toBe(
+      t("conflictPreview.unknown", { reason: "zu viele" }),
+    );
   });
 
   it("counts the files and names the first conflicting commit of a series", () => {

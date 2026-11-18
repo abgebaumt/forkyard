@@ -282,7 +282,9 @@ export interface CoreCommands {
    * Without `searchId` all callers share a common one.
    */
   /** `filters` narrow the search (code, time window, paths); with filters a SHA prefix is not searched as such. */
-  commitSearch(input: R & { query: string; limit: number; searchId?: string | null; filters?: CommitSearchFilters | null }): Promise<CommitSummary[]>;
+  commitSearch(
+    input: R & { query: string; limit: number; searchId?: string | null; filters?: CommitSearchFilters | null },
+  ): Promise<CommitSummary[]>;
   /** All files of a commit (`sha: null` = working directory), optionally filtered. */
   treeList(input: R & { sha: Sha | null; filter: string | null }): Promise<string[]>;
   viewStateGet(input: R): Promise<RepoViewState>;
@@ -301,7 +303,9 @@ export interface CoreCommands {
    * `encoding` sets the encoding of both sides for this one call (name as in
    * `FileContent.encoding`); if omitted or null it is guessed per side. Unknown: `not_allowed`.
    */
-  diffFile(input: R & { path: string; source: DiffSource; force?: boolean; ignoreWhitespace?: boolean; encoding?: string | null }): Promise<FileDiff>;
+  diffFile(
+    input: R & { path: string; source: DiffSource; force?: boolean; ignoreWhitespace?: boolean; encoding?: string | null },
+  ): Promise<FileDiff>;
   /** `paths: null` means all. */
   stagePaths(input: R & { paths: string[] | null }): Promise<Status>;
   unstagePaths(input: R & { paths: string[] | null }): Promise<Status>;
@@ -436,7 +440,9 @@ export interface CoreCommands {
    * as a job under `jobId` (progress, cancellable); if only the push fails, everything is
    * finished locally and the error says so.
    */
-  gitflowFinish(input: R & { kind: GitflowKind; name: string; options?: GitflowFinishOptions | null; jobId?: string | null }): Promise<OpResult>;
+  gitflowFinish(
+    input: R & { kind: GitflowKind; name: string; options?: GitflowFinishOptions | null; jobId?: string | null },
+  ): Promise<OpResult>;
 
   /** Proposal: valid? Reason if not. For inline input. */
   refNameCheck(input: R & { name: string; kind: "branch" | "tag" }): Promise<{ valid: boolean; reason: string | null }>;
@@ -498,7 +504,9 @@ export interface CoreCommands {
    * (`cancelled`). Errors: `bisect_active` (already running), `not_allowed` (empty script, time
    * limit outside 1 s–24 h, invalid range, last result not closed), `not_found`, `repo_untrusted`.
    */
-  bisectAutopilotRun(input: R & { jobId: string; bad: Sha; good: Sha[]; script: string; stepTimeoutSecs: number }): Promise<BisectAutopilot>;
+  bisectAutopilotRun(
+    input: R & { jobId: string; bad: Sha; good: Sha[]; script: string; stepTimeoutSecs: number },
+  ): Promise<BisectAutopilot>;
   /** The running or finished autopilot run of the repository, null = none. */
   bisectAutopilotStatus(input: R): Promise<BisectAutopilot | null>;
   /** Closes a finished run: keeps the worktree (unlocked, returns its path) or removes it (null). `not_allowed` while running. */
@@ -524,7 +532,19 @@ export interface CoreCommands {
    * `multi` with one entry per ref; errors before sending: `invalid_name`, `not_found`, `not_allowed`.
    */
   /** `acceptedSecrets`: IDs of the findings of a `secrets_found` result the user pushes anyway; other findings stop the push again. */
-  push(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; force: boolean; expected: string | null; extra?: PushExtra[] | null; atomic?: boolean | null; acceptedSecrets?: string[] | null }): Promise<PushResult>;
+  push(
+    input: R & {
+      jobId: string;
+      branch: string | null;
+      remote: string | null;
+      remoteBranch: string | null;
+      force: boolean;
+      expected: string | null;
+      extra?: PushExtra[] | null;
+      atomic?: boolean | null;
+      acceptedSecrets?: string[] | null;
+    },
+  ): Promise<PushResult>;
   jobCancel(input: { jobId: string }): Promise<void>;
   /** "Don't report again" for findings of the secret scan (IDs = hashes of path + line, never values). Returns how many this repository no longer reports. */
   pushScanIgnore(input: R & { ids: string[] }): Promise<number>;
@@ -542,7 +562,16 @@ export interface CoreCommands {
    * or a diff changed), `not_allowed` (selected unstaged lines build on unselected staged ones),
    * `nothing_to_commit`. Undo step `stash`.
    */
-  stashCreate(input: R & { opId: string; message: string | null; paths: string[] | null; includeUntracked: boolean; undoable?: boolean | null; selection?: StashSelection | null }): Promise<Stash[]>;
+  stashCreate(
+    input: R & {
+      opId: string;
+      message: string | null;
+      paths: string[] | null;
+      includeUntracked: boolean;
+      undoable?: boolean | null;
+      selection?: StashSelection | null;
+    },
+  ): Promise<Stash[]>;
   stashApply(input: R & { index: number; expectedSha?: Sha | null }): Promise<OpResult>;
   stashPop(input: R & { index: number; expectedSha?: Sha | null }): Promise<OpResult>;
   /**
@@ -605,7 +634,14 @@ export interface CoreCommands {
   profileList(): Promise<Profile[]>;
   /** Without `id` a new profile is created. */
   /** `color`: lane colour 1 to 8 or null (by position); otherwise `not_allowed`. */
-  profileSave(input: { id: Id | null; name: string; authorName: string; authorEmail: string; syncGitconfig: boolean; color: number | null }): Promise<Profile[]>;
+  profileSave(input: {
+    id: Id | null;
+    name: string;
+    authorName: string;
+    authorEmail: string;
+    syncGitconfig: boolean;
+    color: number | null;
+  }): Promise<Profile[]>;
   profileDelete(input: { id: Id }): Promise<Profile[]>;
   profileActivate(input: { id: Id }): Promise<Profile[]>;
 
@@ -690,7 +726,9 @@ export interface CoreCommands {
    * program missing), `not_allowed` (a value would become an option of Git, a choice that isn't
    * offered, missing commit/branch/file/remote), `invalid_name` (branch in the context).
    */
-  customCommandRun(input: R & { id: string; context: CustomCommandContext; inputs: Record<string, string>; jobId: string; confirmed: boolean }): Promise<CustomCommandResult>;
+  customCommandRun(
+    input: R & { id: string; context: CustomCommandContext; inputs: Record<string, string>; jobId: string; confirmed: boolean },
+  ): Promise<CustomCommandResult>;
   /** Reads commands from a JSON file (absolute path from the open dialog) without saving them. Any invalid command: `not_allowed`. */
   customCommandsImport(input: { path: string }): Promise<CustomCommandDef[]>;
   /** Writes the user's own commands to `path` (absolute, from the save dialog). */
@@ -766,7 +804,9 @@ export interface CoreCommands {
    * (as for `terminalOpen`). Errors: `repo_untrusted`; `not_allowed` (template or program missing,
    * “without prompts” not available, empty task, 16 terminals); `invalid_name`; `name_exists`; `not_found`.
    */
-  agentStart(input: R & { templateId: string; task: string; branch: string; base: string; unattended: boolean; cols: number; rows: number }): Promise<Agent>;
+  agentStart(
+    input: R & { templateId: string; task: string; branch: string; base: string; unattended: boolean; cols: number; rows: number },
+  ): Promise<Agent>;
   /** The repository's agents, newest first; branch and worktree checked against Git (`orphaned`). */
   agentList(input: R): Promise<Agent[]>;
   /** Ends the agent's program; the status follows with `agents:changed`. */
@@ -798,7 +838,16 @@ export interface CoreCommands {
    * Errors: `empty_message`, `nothing_to_commit`, `conflict`, `stale_state`, `hook_failed`,
    * `signing_failed` – after a failed commit the selection stays staged.
    */
-  agentReviewCommit(input: { agentId: Id; opId: string; from: Sha; to: Sha; selections: PatchSelection[]; summary: string; description: string; skipHooks: boolean }): Promise<CommitResult>;
+  agentReviewCommit(input: {
+    agentId: Id;
+    opId: string;
+    from: Sha;
+    to: Sha;
+    selections: PatchSelection[];
+    summary: string;
+    description: string;
+    skipHooks: boolean;
+  }): Promise<CommitResult>;
   /**
    * Discards every uncommitted change in the agent's worktree (ignored files and its commits stay)
    * and returns that worktree's status. Undo: `undo` with `repoId: worktreeRepoId`. Errors: `not_allowed`
@@ -1051,7 +1100,9 @@ export interface CoreCommands {
 
   // --- Issues ----------------------------------------------------------------------------------
   /** Like `prList`. `query` searches title and body (GitHub: via the search API, own limit of 30/min). */
-  issueList(input: R & { state: IssueState | "all"; query?: string | null; page?: number | null; perPage?: number | null; remote?: string | null }): Promise<IssuePage>;
+  issueList(
+    input: R & { state: IssueState | "all"; query?: string | null; page?: number | null; perPage?: number | null; remote?: string | null },
+  ): Promise<IssuePage>;
   issueGet(input: R & { number: number; remote?: string | null }): Promise<IssueDetails>;
   /**
    * Creates an issue – on Azure DevOps a work item (type "Issue", or "Bug" if the project's process
@@ -1092,7 +1143,13 @@ export interface CoreCommands {
    * Job under `jobId` (cancellable). Errors: `ai_not_configured` (no key/address, key rejected),
    * `ai_provider_unavailable`, `not_allowed` (`http://` outside this computer), `cancelled`, `timeout`.
    */
-  aiModels(input: { jobId: string; provider: AiProviderKind; baseUrl: string | null; key: string | null; model: string | null }): Promise<AiModelList>;
+  aiModels(input: {
+    jobId: string;
+    provider: AiProviderKind;
+    baseUrl: string | null;
+    key: string | null;
+    model: string | null;
+  }): Promise<AiModelList>;
   /** Clears the one-time notice after the update ("Set up …" or "Close"). */
   aiIntroDismiss(): Promise<AiStatus>;
   /**
@@ -1102,7 +1159,13 @@ export interface CoreCommands {
    */
   aiPreview(input: R & { feature: AiFeature; input: AiInput; locale: string }): Promise<AiPreview>;
   /** "Send" in the preview: approves exactly this text (`fingerprint`) for the next request within 10 minutes; first use and repository are remembered, `large`/`cost` only with `dontAskAgain`, `limit` never. */
-  aiPreviewConfirm(input: { repoId: Id | null; feature: AiFeature; fingerprint: string; triggers: AiAskTrigger[]; dontAskAgain: boolean }): Promise<void>;
+  aiPreviewConfirm(input: {
+    repoId: Id | null;
+    feature: AiFeature;
+    fingerprint: string;
+    triggers: AiAskTrigger[];
+    dontAskAgain: boolean;
+  }): Promise<void>;
   /** "Ask again everywhere": forgets every given confirmation. */
   aiPreviewReset(): Promise<void>;
   /**
@@ -1112,7 +1175,9 @@ export interface CoreCommands {
    * outgoing → `commits: 0`, no request. Errors like every AI request (`ai_disabled`, `not_allowed`
    * before "What is sent?" with `{ kind: "outgoing_changes" }` was confirmed, `cancelled` via `jobCancel`).
    */
-  aiPushReview(input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; locale: string }): Promise<AiPushReview>;
+  aiPushReview(
+    input: R & { jobId: string; branch: string | null; remote: string | null; remoteBranch: string | null; locale: string },
+  ): Promise<AiPushReview>;
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
 
@@ -1251,7 +1316,16 @@ export interface CoreCommands {
    * `not_allowed`, `invalid_name`, everything of `push`. The secret scan runs as for `push`
    * (`secrets_found`); `acceptedSecrets` as there.
    */
-  stackPush(input: R & { jobId: string; branches: string[]; remote: string; force: boolean; expected?: (Sha | null)[] | null; acceptedSecrets?: string[] | null }): Promise<PushResult>;
+  stackPush(
+    input: R & {
+      jobId: string;
+      branches: string[];
+      remote: string;
+      force: boolean;
+      expected?: (Sha | null)[] | null;
+      acceptedSecrets?: string[] | null;
+    },
+  ): Promise<PushResult>;
   /**
    * Opens the pull requests of `parts[from..]` one after the other, each targeting the part below it
    * (the first one `target`, the base's branch name on the host). Titles and branches are checked

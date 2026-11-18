@@ -136,11 +136,18 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
           {t("blame.archaeology.steps", { count: rows.length })}
           {data.mayHaveMore ? ` · ${t("blame.archaeology.mayHaveMore")}` : ""}
         </p>
-        {data.hostLookup === "not_connected" ? <p className="px-3 pt-1 text-xs text-text-muted">{t("blame.archaeology.hostNotConnected")}</p> : null}
+        {data.hostLookup === "not_connected" ? (
+          <p className="px-3 pt-1 text-xs text-text-muted">{t("blame.archaeology.hostNotConnected")}</p>
+        ) : null}
         {data.hostLookup === "failed" ? <p className="px-3 pt-1 text-xs text-text-muted">{t("blame.archaeology.hostFailed")}</p> : null}
         <ol aria-label={t("blame.archaeology.timelineLabel")} data-archaeology-timeline="" className="flex flex-col gap-3 px-3 py-3">
           {rows.map((row) => (
-            <Step key={row.sha} row={row} onOpen={() => store().openDiff(tabId, row.path, { kind: "commit", sha: row.sha })} onReveal={() => showInGraph(tabId, row.sha)} />
+            <Step
+              key={row.sha}
+              row={row}
+              onOpen={() => store().openDiff(tabId, row.path, { kind: "commit", sha: row.sha })}
+              onReveal={() => showInGraph(tabId, row.sha)}
+            />
           ))}
         </ol>
       </>
@@ -148,17 +155,31 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
   }
 
   return (
-    <section aria-label={t("blame.archaeology.ariaLabel", { line: target.line.toLocaleString(locale()), path: target.path })} data-screen="archaeology" className="flex h-full min-h-0 flex-col bg-surface">
+    <section
+      aria-label={t("blame.archaeology.ariaLabel", { line: target.line.toLocaleString(locale()), path: target.path })}
+      data-screen="archaeology"
+      className="flex h-full min-h-0 flex-col bg-surface"
+    >
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border pr-1 pl-3">
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-text" data-archaeology-title="">
           {whyLabel(aiVisible)}
         </h2>
-        <IconButton size="sm" label={t("blame.archaeology.close")} icon={<X className="size-icon" aria-hidden />} onClick={() => store().setRightPanel(tabId, "details")} />
+        <IconButton
+          size="sm"
+          label={t("blame.archaeology.close")}
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={() => store().setRightPanel(tabId, "details")}
+        />
       </header>
       <div className="min-h-0 flex-1 overflow-auto">
-        <p className="px-3 pt-2 text-xs text-text-muted">{t("blame.archaeology.where", { line: target.line.toLocaleString(locale()), path: target.path })}</p>
+        <p className="px-3 pt-2 text-xs text-text-muted">
+          {t("blame.archaeology.where", { line: target.line.toLocaleString(locale()), path: target.path })}
+        </p>
         {data ? (
-          <pre className="mx-3 mt-1 overflow-x-auto rounded-md bg-surface-sunken px-2 py-1 font-mono text-code text-text" data-archaeology-line="">
+          <pre
+            className="mx-3 mt-1 overflow-x-auto rounded-md bg-surface-sunken px-2 py-1 font-mono text-code text-text"
+            data-archaeology-line=""
+          >
             {data.code[data.line - data.codeStart] ?? ""}
           </pre>
         ) : null}
@@ -166,15 +187,29 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
           <div className="mx-3 mt-3 flex flex-col gap-2 rounded-md border border-border p-2" data-archaeology-ai="">
             <div className="flex flex-wrap items-center gap-2">
               <Tip label={t("blame.archaeology.explainHint")}>
-                <Button size="sm" variant={view.button === "cancel" ? "ghost" : "primary"} data-archaeology-explain={view.button} onClick={() => (view.button === "cancel" ? cancel() : void explain())}>
+                <Button
+                  size="sm"
+                  variant={view.button === "cancel" ? "ghost" : "primary"}
+                  data-archaeology-explain={view.button}
+                  onClick={() => (view.button === "cancel" ? cancel() : void explain())}
+                >
                   {view.label}
                 </Button>
               </Tip>
-              <Button size="sm" variant="ghost" data-archaeology-what-is-sent="" onClick={() => void showWhatIsSent(repoId, "archaeology", input)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                data-archaeology-what-is-sent=""
+                onClick={() => void showWhatIsSent(repoId, "archaeology", input)}
+              >
                 {t("blame.archaeology.whatIsSent")}
               </Button>
             </div>
-            <p role={view.urgent ? "alert" : "status"} data-archaeology-status="" className={cn("min-h-4 text-xs", view.urgent ? "text-danger" : "text-text-muted")}>
+            <p
+              role={view.urgent ? "alert" : "status"}
+              data-archaeology-status=""
+              className={cn("min-h-4 text-xs", view.urgent ? "text-danger" : "text-text-muted")}
+            >
               {view.status}
               {view.slow ? ` · ${view.slow}` : ""}
             </p>
@@ -184,7 +219,12 @@ export function ArchaeologyPanel({ repoId, tabId, target }: ArchaeologyPanelProp
                   switch (action) {
                     case "signIn":
                       return (
-                        <Button key={action} size="sm" data-archaeology-sign-in="" onClick={() => setNoTerminal(!(provider && signInInTerminal(provider)))}>
+                        <Button
+                          key={action}
+                          size="sm"
+                          data-archaeology-sign-in=""
+                          onClick={() => setNoTerminal(!(provider && signInInTerminal(provider)))}
+                        >
                           {t("ai.setup.cli.signIn")}
                         </Button>
                       );
@@ -263,9 +303,22 @@ function Step({ row, onOpen, onReveal }: { row: TimelineRow; onOpen: () => void;
       {row.diff.length ? (
         <pre className="overflow-x-auto rounded-md bg-surface-sunken px-2 py-1 font-mono text-code text-text">
           {row.diff.map((line, index) => (
-            <span key={index} data-kind={line.kind} className={cn("block whitespace-pre", line.kind === "add" && "bg-diff-added", line.kind === "remove" && "bg-diff-removed", line.kind === "note" && "text-text-muted")}>
+            <span
+              key={index}
+              data-kind={line.kind}
+              className={cn(
+                "block whitespace-pre",
+                line.kind === "add" && "bg-diff-added",
+                line.kind === "remove" && "bg-diff-removed",
+                line.kind === "note" && "text-text-muted",
+              )}
+            >
               <span aria-hidden>{SIGN[line.kind]}</span>
-              {line.kind === "add" ? <span className="sr-only">{t("diff.line.added")}</span> : line.kind === "remove" ? <span className="sr-only">{t("diff.line.removed")}</span> : null}
+              {line.kind === "add" ? (
+                <span className="sr-only">{t("diff.line.added")}</span>
+              ) : line.kind === "remove" ? (
+                <span className="sr-only">{t("diff.line.removed")}</span>
+              ) : null}
               {line.text}
             </span>
           ))}

@@ -50,7 +50,21 @@ export async function startPrivateKeyring({ secrets = true } = {}) {
   bus.unref();
   started.add(bus);
   const env = { ...process.env, DBUS_SESSION_BUS_ADDRESS: address, XDG_RUNTIME_DIR: runtime, XDG_DATA_HOME: data };
-  const busUp = async () => spawnSync("gdbus", ["call", "--session", "--dest", "org.freedesktop.DBus", "--object-path", "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.ListNames"], { env, encoding: "utf8", timeout: 3000 }).status === 0;
+  const busUp = async () =>
+    spawnSync(
+      "gdbus",
+      [
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.DBus",
+        "--object-path",
+        "/org/freedesktop/DBus",
+        "--method",
+        "org.freedesktop.DBus.ListNames",
+      ],
+      { env, encoding: "utf8", timeout: 3000 },
+    ).status === 0;
   for (let round = 0; round < 50 && !(await busUp()); round++) await sleep(100);
 
   if (!secrets) {
@@ -66,13 +80,31 @@ export async function startPrivateKeyring({ secrets = true } = {}) {
     };
   }
 
-  const daemon = spawn("gnome-keyring-daemon", ["--foreground", "--unlock", "--components=secrets"], { env, stdio: ["pipe", "ignore", "ignore"] });
+  const daemon = spawn("gnome-keyring-daemon", ["--foreground", "--unlock", "--components=secrets"], {
+    env,
+    stdio: ["pipe", "ignore", "ignore"],
+  });
   daemon.unref();
   started.add(daemon);
   daemon.stdin.end("forkyard-e2e\n");
 
   const locked = () =>
-    spawnSync("gdbus", ["call", "--session", "--dest", "org.freedesktop.secrets", "--object-path", "/org/freedesktop/secrets/aliases/default", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.Secret.Collection", "Locked"], { env, encoding: "utf8", timeout: 3000 }).stdout?.trim();
+    spawnSync(
+      "gdbus",
+      [
+        "call",
+        "--session",
+        "--dest",
+        "org.freedesktop.secrets",
+        "--object-path",
+        "/org/freedesktop/secrets/aliases/default",
+        "--method",
+        "org.freedesktop.DBus.Properties.Get",
+        "org.freedesktop.Secret.Collection",
+        "Locked",
+      ],
+      { env, encoding: "utf8", timeout: 3000 },
+    ).stdout?.trim();
   let state = null;
   for (let round = 0; round < 80; round++) {
     state = locked();

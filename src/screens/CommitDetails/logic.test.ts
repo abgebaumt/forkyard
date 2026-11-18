@@ -64,7 +64,13 @@ describe("analyzeSelection", () => {
     expect(analyzeSelection(side, briefs(side)).kind).toBe("gap");
     // The side branch on its own is one.
     const sideOnly = ["s2", "s1"];
-    expect(analyzeSelection(sideOnly, briefs(sideOnly))).toEqual({ kind: "chain", chain: ["s2", "s1"], newest: "s2", oldest: "s1", base: "c" });
+    expect(analyzeSelection(sideOnly, briefs(sideOnly))).toEqual({
+      kind: "chain",
+      chain: ["s2", "s1"],
+      newest: "s2",
+      oldest: "s1",
+      base: "c",
+    });
   });
 
   it("distinguishes the sequence up to the root commit: there is no revision before it", () => {

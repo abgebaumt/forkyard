@@ -49,7 +49,16 @@ export function makeEmptyReflogRepo(name = "protokoll", { logRefs = true } = {})
       GIT_COMMITTER_DATE: date,
     };
   };
-  const git = (...args) => execFileSync("git", args, { cwd: repoPath, env: env(), windowsHide: true, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 * 1024 }).toString().replace(/\n$/, "");
+  const git = (...args) =>
+    execFileSync("git", args, {
+      cwd: repoPath,
+      env: env(),
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+      maxBuffer: 64 * 1024 * 1024,
+    })
+      .toString()
+      .replace(/\n$/, "");
   const write = (rel, text) => {
     const target = path.join(repoPath, rel);
     fs.mkdirSync(path.dirname(target), { recursive: true });

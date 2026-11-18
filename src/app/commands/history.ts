@@ -12,7 +12,8 @@ import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 const repoOnly = (ctx: CommandContext) => (hasRepo(ctx) ? null : t("commands.reason.repoTabOnly"));
 const bisectRunning = (ctx: CommandContext) => Boolean(ctx.repoId && cachedBisect(ctx.repoId)?.active);
-const notRunning = (ctx: CommandContext) => (!hasRepo(ctx) ? t("commands.reason.repoTabOnly") : bisectRunning(ctx) ? null : t("commands.bisect.notRunning"));
+const notRunning = (ctx: CommandContext) =>
+  !hasRepo(ctx) ? t("commands.reason.repoTabOnly") : bisectRunning(ctx) ? null : t("commands.bisect.notRunning");
 
 /** The change takes effect in the graph: if a diff or a file is in the centre, the graph comes back. */
 function showGraph(ctx: CommandContext) {
@@ -98,7 +99,8 @@ export const commands: AppCommand[] = [
     // An AI element: hidden while AI is not set up, off, or off for this repository (spec 1.3).
     hidden: (ctx) => autopilotAccessFor(ctx.repoId) === "hidden",
     when: (ctx) => hasRepo(ctx) && !autopilotRunning(ctx.repoId),
-    disabledReason: (ctx) => (!hasRepo(ctx) ? t("commands.reason.repoTabOnly") : autopilotRunning(ctx.repoId) ? t("commands.bisect.autopilot.running") : null),
+    disabledReason: (ctx) =>
+      !hasRepo(ctx) ? t("commands.reason.repoTabOnly") : autopilotRunning(ctx.repoId) ? t("commands.bisect.autopilot.running") : null,
     run: (ctx) => startAutopilot(ctx.repoId!, [], ctx.tabId),
   },
 ];

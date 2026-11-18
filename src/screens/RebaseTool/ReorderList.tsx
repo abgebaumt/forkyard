@@ -9,7 +9,18 @@
  * only starts after a few pixels of movement so a click stays a click; Esc cancels. A line shows
  * where the row will land. At the top and bottom edge the list scrolls along.
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { GripVertical } from "lucide-react";
 import { cn } from "../../ui/cn";
@@ -64,7 +75,23 @@ interface Drag {
 }
 
 export function ReorderList(props: ReorderListProps) {
-  const { count, getKey, active, onActiveChange, ariaLabel, isSelected, reorderable, onMove, onKey, onActivate, renderRow, rowLabel, dragLabel, listRef, describedBy } = props;
+  const {
+    count,
+    getKey,
+    active,
+    onActiveChange,
+    ariaLabel,
+    isSelected,
+    reorderable,
+    onMove,
+    onKey,
+    onActivate,
+    renderRow,
+    rowLabel,
+    dragLabel,
+    listRef,
+    describedBy,
+  } = props;
   const ownRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = listRef ?? ownRef;
   const baseId = useId();
@@ -101,7 +128,10 @@ export function ReorderList(props: ReorderListProps) {
     [scrollRef],
   );
   /** Insertion point below the pointer. */
-  const insertionAt = useCallback((clientY: number) => Math.max(0, Math.min(handlers.current.count, Math.round(contentY(clientY) / rowHeight))), [contentY, rowHeight]);
+  const insertionAt = useCallback(
+    (clientY: number) => Math.max(0, Math.min(handlers.current.count, Math.round(contentY(clientY) / rowHeight))),
+    [contentY, rowHeight],
+  );
 
   const update = (next: Drag | null) => {
     dragRef.current = next;
@@ -166,7 +196,15 @@ export function ReorderList(props: ReorderListProps) {
   const onRowPointerDown = (event: ReactPointerEvent, index: number) => {
     if (!reorderable || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
     if (event.target instanceof Element && event.target.closest("[data-no-drag]")) return;
-    update({ from: index, pointerId: event.pointerId, startY: event.clientY, lastX: event.clientX, lastY: event.clientY, started: false, over: index });
+    update({
+      from: index,
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      lastX: event.clientX,
+      lastY: event.clientY,
+      started: false,
+      over: index,
+    });
   };
 
   // --- Keyboard ------------------------------------------------------------------------------
@@ -257,7 +295,11 @@ export function ReorderList(props: ReorderListProps) {
       data-dragging={dragging ? "" : undefined}
       // The focus ring sits on the active row (see below), not around the whole list.
       // Space for the scrollbar is always reserved – so the columns line up under those of the header, however long the list is.
-      className={cn("group relative h-full overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]", count > 0 ? "outline-none" : "-outline-offset-2", dragging && "cursor-grabbing")}
+      className={cn(
+        "group relative h-full overflow-x-hidden overflow-y-auto [scrollbar-gutter:stable]",
+        count > 0 ? "outline-none" : "-outline-offset-2",
+        dragging && "cursor-grabbing",
+      )}
     >
       <div className="relative w-full" style={{ height: total }}>
         {virtualizer.getVirtualItems().map((item) => {
@@ -299,7 +341,14 @@ export function ReorderList(props: ReorderListProps) {
             </div>
           );
         })}
-        {showLine ? <div aria-hidden data-drop-line="" className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-accent" style={{ top: lineTop }} /> : null}
+        {showLine ? (
+          <div
+            aria-hidden
+            data-drop-line=""
+            className="pointer-events-none absolute right-0 left-0 z-10 h-0.5 bg-accent"
+            style={{ top: lineTop }}
+          />
+        ) : null}
         {dragging && ghost ? (
           <div
             aria-hidden

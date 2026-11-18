@@ -30,7 +30,9 @@ export async function preflight(repoId: Id, request: PreflightRequest): Promise<
   const noDependents: Promise<string[]> = Promise.resolve([]);
   const facts: Promise<PreflightFacts> = Promise.all([
     previewOnce(repoId, request.op, PREFLIGHT_LIMIT_MS, abort.signal),
-    request.rebase ? core.rebaseDependents({ repoId, onto: request.rebase.onto, branch: request.rebase.branch }).catch(() => [] as string[]) : noDependents,
+    request.rebase
+      ? core.rebaseDependents({ repoId, onto: request.rebase.onto, branch: request.rebase.branch }).catch(() => [] as string[])
+      : noDependents,
   ]).then(([preview, dependents]) => ({ preview, dependents }));
 
   let timer: ReturnType<typeof setTimeout> | undefined;

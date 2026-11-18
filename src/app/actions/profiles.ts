@@ -33,11 +33,17 @@ export function switchLosses(state: Pick<AppState, "jobs" | "busy">, files: stri
 export function switchWarning(now: Losses): string | null {
   const lines: string[] = [];
   if (now.jobs.length > 0) {
-    lines.push(now.jobs.length === 1 ? t("actions.profiles.warning.jobOne", { job: now.jobs[0] }) : t("actions.profiles.warning.jobMany", { count: now.jobs.length }));
+    lines.push(
+      now.jobs.length === 1
+        ? t("actions.profiles.warning.jobOne", { job: now.jobs[0] })
+        : t("actions.profiles.warning.jobMany", { count: now.jobs.length }),
+    );
   }
   if (now.views) lines.push(t("actions.profiles.warning.views"));
   if (now.files.length > 0) {
-    lines.push(now.files.length === 1 ? t("actions.profiles.warning.fileOne") : t("actions.profiles.warning.fileMany", { count: now.files.length }));
+    lines.push(
+      now.files.length === 1 ? t("actions.profiles.warning.fileOne") : t("actions.profiles.warning.fileMany", { count: now.files.length }),
+    );
   }
   return lines.length > 0 ? lines.join(" ") : null;
 }
@@ -68,7 +74,11 @@ export async function switchProfile(profile: Profile): Promise<boolean> {
   const files = unsavedFiles().map((file) => file.path);
   const warning = switchWarning(switchLosses(useAppStore.getState(), files, hasDirtyCenter()));
   if (warning) {
-    const ok = await confirm({ title: t("actions.profiles.switch.title", { name: profile.name }), body: warning, confirmLabel: t("actions.profiles.switch.action") });
+    const ok = await confirm({
+      title: t("actions.profiles.switch.title", { name: profile.name }),
+      body: warning,
+      confirmLabel: t("actions.profiles.switch.action"),
+    });
     if (!ok) return false;
   }
   // A settings change still in flight belongs to the old profile.

@@ -9,7 +9,14 @@ import { Change, MergeView, getChunks, goToNextChunk, goToPreviousChunk } from "
 import { EditorView } from "@codemirror/view";
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { CodeEditor } from "../../components/code/CodeEditor";
-import { applyLanguage, codeExtensions, createCodeCompartments, setTabSize, setWrap, type CodeCompartments } from "../../components/code/extensions";
+import {
+  applyLanguage,
+  codeExtensions,
+  createCodeCompartments,
+  setTabSize,
+  setWrap,
+  type CodeCompartments,
+} from "../../components/code/extensions";
 import { codeVars, type CodeSettings } from "../../components/code/settings";
 import type { Hunk } from "../../core";
 import { changesFromHunks } from "./hunkChanges";
@@ -44,7 +51,10 @@ function Caption({ title, path }: { title: string; path: string }) {
   );
 }
 
-const SplitView = forwardRef<SplitViewHandle, SplitViewProps>(function SplitView({ oldText, newText, path, oldPath, hunks, wrap, code }, ref) {
+const SplitView = forwardRef<SplitViewHandle, SplitViewProps>(function SplitView(
+  { oldText, newText, path, oldPath, hunks, wrap, code },
+  ref,
+) {
   const host = useRef<HTMLDivElement>(null);
   const merge = useRef<{ view: MergeView; a: CodeCompartments; b: CodeCompartments } | null>(null);
   const both = oldText !== null && newText !== null;
@@ -65,14 +75,20 @@ const SplitView = forwardRef<SplitViewHandle, SplitViewProps>(function SplitView
     });
     const view = new MergeView({
       parent: host.current,
-      a: { doc: oldText, extensions: [codeExtensions(a, { ...options, ariaLabel: t("diff.split.beforeLabel", { path: oldPath ?? path }) }), watch] },
+      a: {
+        doc: oldText,
+        extensions: [codeExtensions(a, { ...options, ariaLabel: t("diff.split.beforeLabel", { path: oldPath ?? path }) }), watch],
+      },
       b: { doc: newText, extensions: [codeExtensions(b, { ...options, ariaLabel: t("diff.split.afterLabel", { path }) }), watch] },
       collapseUnchanged: { margin: 3, minSize: 6 },
       // The changes come from Git's hunks (line-precise, in linear time). The merge view's own comparison
       // over the whole file blocked for more than 30 seconds with many scattered changes – its time limit
       // does not apply to the coarse fallback. Without hunks it stays, with tight limits.
       diffConfig: hunks
-        ? { override: (a, b) => (a === oldText && b === newText ? changesFromHunks(oldText, newText, hunks) : [new Change(0, a.length, 0, b.length)]) }
+        ? {
+            override: (a, b) =>
+              a === oldText && b === newText ? changesFromHunks(oldText, newText, hunks) : [new Change(0, a.length, 0, b.length)],
+          }
         : { scanLimit: 500, timeout: 300 },
       highlightChanges: true,
       gutter: true,
@@ -136,8 +152,10 @@ const SplitView = forwardRef<SplitViewHandle, SplitViewProps>(function SplitView
         const chunks = view ? getChunks(view.b.state)?.chunks : null;
         if (!view || !chunks) return;
         for (const chunk of chunks) {
-          if (chunk.toA > chunk.fromA) emit(view.a.lineBlockAt(chunk.fromA).top, view.a.lineBlockAt(Math.max(chunk.fromA, chunk.toA - 1)).bottom, "remove");
-          if (chunk.toB > chunk.fromB) emit(view.b.lineBlockAt(chunk.fromB).top, view.b.lineBlockAt(Math.max(chunk.fromB, chunk.toB - 1)).bottom, "add");
+          if (chunk.toA > chunk.fromA)
+            emit(view.a.lineBlockAt(chunk.fromA).top, view.a.lineBlockAt(Math.max(chunk.fromA, chunk.toA - 1)).bottom, "remove");
+          if (chunk.toB > chunk.fromB)
+            emit(view.b.lineBlockAt(chunk.fromB).top, view.b.lineBlockAt(Math.max(chunk.fromB, chunk.toB - 1)).bottom, "add");
         }
       },
     }),
@@ -153,7 +171,13 @@ const SplitView = forwardRef<SplitViewHandle, SplitViewProps>(function SplitView
           <Caption title={added ? t("diff.split.newFile") : t("diff.split.deletedFile")} path={added ? path : (oldPath ?? path)} />
         </div>
         <div ref={host} className="min-h-0 flex-1">
-          <CodeEditor value={newText ?? oldText ?? ""} path={path} readOnly wrap={wrap} ariaLabel={added ? t("diff.split.newFileLabel", { path }) : t("diff.split.deletedFileLabel", { path })} />
+          <CodeEditor
+            value={newText ?? oldText ?? ""}
+            path={path}
+            readOnly
+            wrap={wrap}
+            ariaLabel={added ? t("diff.split.newFileLabel", { path }) : t("diff.split.deletedFileLabel", { path })}
+          />
         </div>
       </div>
     );

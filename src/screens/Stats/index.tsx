@@ -22,9 +22,33 @@ import { SegmentedControl } from "../../ui/Field";
 import { Select } from "../../ui/Select";
 import { showInGraph } from "../FileView/nav";
 import { leaveStats, rememberChoice, rememberedChoice } from "./actions";
-import { AuthorsList, CodeAgeChart, formatCount, formatPercent, Heatmap, HotspotList, KnowledgeTable, Records, TimeChart, Treemap } from "./charts";
+import {
+  AuthorsList,
+  CodeAgeChart,
+  formatCount,
+  formatPercent,
+  Heatmap,
+  HotspotList,
+  KnowledgeTable,
+  Records,
+  TimeChart,
+  Treemap,
+} from "./charts";
 import { authorPalette, knowledgeRows, statusOf } from "./layout";
-import { buildTree, currentTip, DAY_MS, defaultGranularity, fillMonths, fillWeeks, findNode, parentFolder, PRESETS, rangeFor, type Granularity, type StatsPreset } from "./model";
+import {
+  buildTree,
+  currentTip,
+  DAY_MS,
+  defaultGranularity,
+  fillMonths,
+  fillWeeks,
+  findNode,
+  parentFolder,
+  PRESETS,
+  rangeFor,
+  type Granularity,
+  type StatsPreset,
+} from "./model";
 import { useStats, useUtcDay } from "./useStats";
 
 export interface StatsViewProps {
@@ -42,9 +66,27 @@ const PRESET_LABELS: Record<StatsPreset, string> = {
 /** Rows of the knowledge card. */
 const KNOWLEDGE_ROWS = 6;
 
-function Card({ id, title, hint, aside, className, children }: { id: string; title: string; hint?: ReactNode; aside?: ReactNode; className?: string; children: ReactNode }) {
+function Card({
+  id,
+  title,
+  hint,
+  aside,
+  className,
+  children,
+}: {
+  id: string;
+  title: string;
+  hint?: ReactNode;
+  aside?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
-    <section aria-labelledby={`stats-${id}`} data-stats-section={id} className={cn("flex min-w-0 flex-col gap-3 rounded-md border border-border bg-surface p-3", className)}>
+    <section
+      aria-labelledby={`stats-${id}`}
+      data-stats-section={id}
+      className={cn("flex min-w-0 flex-col gap-3 rounded-md border border-border bg-surface p-3", className)}
+    >
       <div className="flex min-w-0 items-baseline gap-2">
         <h2 id={`stats-${id}`} className="shrink-0 text-base font-semibold text-text">
           {title}
@@ -73,7 +115,9 @@ export function StatsEmpty({ stats }: { stats: RepoStats }) {
   const unborn = stats.tip === null;
   return (
     <div data-stats-empty={unborn ? "unborn" : "period"}>
-      <EmptyState title={unborn ? t("stats.unborn.title") : t("stats.empty.title")}>{unborn ? t("stats.unborn.body") : t("stats.empty.body")}</EmptyState>
+      <EmptyState title={unborn ? t("stats.unborn.title") : t("stats.empty.title")}>
+        {unborn ? t("stats.unborn.body") : t("stats.empty.body")}
+      </EmptyState>
     </div>
   );
 }
@@ -143,10 +187,22 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
         <div className="flex-1" />
         <div role="group" aria-label={t("stats.choice")} className="flex flex-wrap items-center gap-2">
           <div className="w-48">
-            <Select ariaLabel={t("stats.ref.label")} prefix={t("stats.ref.label")} value={ref} options={refOptions} onValueChange={setRef} />
+            <Select
+              ariaLabel={t("stats.ref.label")}
+              prefix={t("stats.ref.label")}
+              value={ref}
+              options={refOptions}
+              onValueChange={setRef}
+            />
           </div>
           <div className="w-52">
-            <Select ariaLabel={t("stats.preset.label")} prefix={t("stats.preset.label")} value={preset} options={PRESETS.map((value) => ({ value, label: PRESET_LABELS[value] }))} onValueChange={setPreset} />
+            <Select
+              ariaLabel={t("stats.preset.label")}
+              prefix={t("stats.preset.label")}
+              value={preset}
+              options={PRESETS.map((value) => ({ value, label: PRESET_LABELS[value] }))}
+              onValueChange={setPreset}
+            />
           </div>
           <SegmentedControl
             label={t("stats.time.granularity")}
@@ -190,7 +246,10 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
             <Card
               id="time"
               title={t("stats.time.title")}
-              hint={t(shownGranularity === "weeks" ? "stats.time.hintWeeks" : "stats.time.hintMonths", { count: stats.commits, n: formatCount(stats.commits) })}
+              hint={t(shownGranularity === "weeks" ? "stats.time.hintWeeks" : "stats.time.hintMonths", {
+                count: stats.commits,
+                n: formatCount(stats.commits),
+              })}
             >
               <TimeChart buckets={buckets} />
             </Card>
@@ -222,7 +281,9 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
               }
             >
               <Treemap node={node} onFile={openFile} onFolder={setFolder} />
-              {stats.fileCount > stats.files.length ? <p className="text-sm text-text-muted">{t("stats.treemap.partial", { files: stats.files.length })}</p> : null}
+              {stats.fileCount > stats.files.length ? (
+                <p className="text-sm text-text-muted">{t("stats.treemap.partial", { files: stats.files.length })}</p>
+              ) : null}
             </Card>
             <Card id="hotspots" title={t("stats.hotspots.title")} hint={t("stats.hotspots.hint")}>
               <HotspotList hotspots={stats.hotspots} onFile={openFile} />
@@ -233,7 +294,12 @@ export function StatsView({ repoId, tabId }: StatsViewProps) {
             <Card id="knowledge" title={t("stats.knowledge.title")} hint={t("stats.knowledge.hint")} className="md:col-span-2">
               <KnowledgeTable folders={knowledgeRows(stats.folders, KNOWLEDGE_ROWS)} palette={palette} onFolder={openFolder} />
             </Card>
-            <Card id="age" title={t("stats.age.title")} hint={t("stats.age.hint", { ref: refName, files: stats.codeAge.files })} className="md:col-span-2 xl:col-span-1">
+            <Card
+              id="age"
+              title={t("stats.age.title")}
+              hint={t("stats.age.hint", { ref: refName, files: stats.codeAge.files })}
+              className="md:col-span-2 xl:col-span-1"
+            >
               <CodeAgeChart age={stats.codeAge} />
             </Card>
           </div>

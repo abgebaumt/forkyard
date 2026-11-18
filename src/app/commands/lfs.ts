@@ -6,7 +6,8 @@ import { qk } from "../queries";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 /** As long as the state is not loaded, "maybe installed" applies; otherwise the core reports it understandably. */
-const lfsUsable = (ctx: CommandContext) => hasRepo(ctx) && (ctx.queryClient.getQueryData<LfsStatus>(qk.lfs(ctx.repoId!))?.installed ?? true);
+const lfsUsable = (ctx: CommandContext) =>
+  hasRepo(ctx) && (ctx.queryClient.getQueryData<LfsStatus>(qk.lfs(ctx.repoId!))?.installed ?? true);
 const missingReason = (ctx: CommandContext) => (hasRepo(ctx) ? t("commands.lfs.missing") : null);
 
 export const commands: AppCommand[] = [

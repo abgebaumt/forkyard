@@ -47,7 +47,8 @@ const ref = (partial: Partial<Ref>): Ref => ({
   ...partial,
 });
 const remoteRef = ref({ name: "origin/feature/hafen", fullName: "refs/remotes/origin/feature/hafen", kind: "remote", remote: "origin" });
-const snapshot = (locals: Ref[]): RefsSnapshot => ({ locals, remotes: [remoteRef], tags: [], head: { kind: "branch", branch: "main", sha: "a".repeat(40) } }) as unknown as RefsSnapshot;
+const snapshot = (locals: Ref[]): RefsSnapshot =>
+  ({ locals, remotes: [remoteRef], tags: [], head: { kind: "branch", branch: "main", sha: "a".repeat(40) } }) as unknown as RefsSnapshot;
 
 beforeEach(() => {
   queryClient.clear();
@@ -70,7 +71,10 @@ describe("deleteRemoteBranch", () => {
   });
 
   it("names the local branch that tracks it – it stays", async () => {
-    queryClient.setQueryData(qk.refs(REPO), snapshot([ref({ name: "hafen", fullName: "refs/heads/hafen", upstream: "origin/feature/hafen" })]));
+    queryClient.setQueryData(
+      qk.refs(REPO),
+      snapshot([ref({ name: "hafen", fullName: "refs/heads/hafen", upstream: "origin/feature/hafen" })]),
+    );
     confirmSpy.mockResolvedValue(false);
     await deleteRemoteBranch(REPO, remoteRef);
     expect(confirmSpy.mock.calls[0]![0].body).toMatch(/Your local branch “hafen” stays/);
@@ -79,13 +83,21 @@ describe("deleteRemoteBranch", () => {
   it("deletes with a job id on the named remote and reports success", async () => {
     queryClient.setQueryData(qk.refs(REPO), snapshot([]));
     confirmSpy.mockResolvedValue(true);
-    branchDeleteRemote.mockResolvedValue({ status: "done", remote: "origin", branch: "feature/hafen", createdUpstream: false, forced: false });
+    branchDeleteRemote.mockResolvedValue({
+      status: "done",
+      remote: "origin",
+      branch: "feature/hafen",
+      createdUpstream: false,
+      forced: false,
+    });
     const result = await deleteRemoteBranch(REPO, remoteRef);
     expect(result?.ok).toBe(true);
     const input = branchDeleteRemote.mock.calls[0]![0];
     expect(input).toMatchObject({ repoId: REPO, remote: "origin", name: "feature/hafen" });
     expect(input.jobId).toBeTruthy();
-    expect(toastSpy).toHaveBeenCalledWith(expect.objectContaining({ tone: "success", title: "“origin/feature/hafen” deleted on the server" }));
+    expect(toastSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ tone: "success", title: "“origin/feature/hafen” deleted on the server" }),
+    );
   });
 
   it("up_to_date means it was already gone: says so instead of claiming it deleted it", async () => {

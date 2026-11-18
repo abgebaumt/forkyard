@@ -31,7 +31,10 @@ export function isBrowserAccelerator(event: KeyLike, mac: boolean, dev: boolean)
   const mod = mac ? event.metaKey : event.ctrlKey;
   const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
   const reload = key === "F5" || (mod && key === "r");
-  const devtools = key === "F12" || (mod && event.shiftKey && ["i", "j", "c"].includes(key)) || (mac && event.metaKey && event.altKey && ["i", "j", "c"].includes(key));
+  const devtools =
+    key === "F12" ||
+    (mod && event.shiftKey && ["i", "j", "c"].includes(key)) ||
+    (mac && event.metaKey && event.altKey && ["i", "j", "c"].includes(key));
   if (reload || devtools) return !dev;
   // Find in page, caret browsing
   if (key === "F3" || key === "F7") return true;

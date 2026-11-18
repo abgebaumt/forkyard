@@ -35,7 +35,14 @@ const refs: RefsSnapshot = {
 
 describe("push dialog with a branch that follows another name", () => {
   // Created from origin/develop on the command line: the upstream is develop, but a push doesn't go there.
-  const qa = ref({ name: "qa/blackbox", fullName: "refs/heads/qa/blackbox", upstream: "origin/develop", pushesToUpstream: false, unpublished: 2, ahead: 3 });
+  const qa = ref({
+    name: "qa/blackbox",
+    fullName: "refs/heads/qa/blackbox",
+    upstream: "origin/develop",
+    pushesToUpstream: false,
+    unpublished: 2,
+    ahead: 3,
+  });
   const withQa: RefsSnapshot = { ...refs, locals: [...refs.locals, qa] };
 
   it("lists it as new with its own commits instead of counting commits to develop", () => {
@@ -44,7 +51,9 @@ describe("push dialog with a branch that follows another name", () => {
   });
 
   it("sends it under its own name, never onto develop", () => {
-    expect(toExtras(["refs/heads/qa/blackbox"], withQa, "origin")).toEqual([{ local: "refs/heads/qa/blackbox", remoteName: null, force: false }]);
+    expect(toExtras(["refs/heads/qa/blackbox"], withQa, "origin")).toEqual([
+      { local: "refs/heads/qa/blackbox", remoteName: null, force: false },
+    ]);
   });
 });
 

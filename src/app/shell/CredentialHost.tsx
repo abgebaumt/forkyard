@@ -53,7 +53,11 @@ function CredentialDialog({ request, waiting }: { request: CredentialRequest; wa
     if (sending) return;
     setSending(true);
     try {
-      await core.credentialAnswer({ requestId: request.requestId, value: answerValue, remember: answerValue !== null && remember && request.canRemember });
+      await core.credentialAnswer({
+        requestId: request.requestId,
+        value: answerValue,
+        remember: answerValue !== null && remember && request.canRemember,
+      });
       // Remembered only after a successful sign-in; the list in the preferences then reloads.
       if (answerValue !== null && remember) void queryClient.invalidateQueries({ queryKey: qk.credentials });
     } catch (error) {
@@ -74,7 +78,11 @@ function CredentialDialog({ request, waiting }: { request: CredentialRequest; wa
 
   const description = hostKey ? (
     <>
-      <Trans i18nKey="shell.credential.desc.hostKey" values={{ host: host || t("shell.credential.thisHost") }} components={{ host: strong }} />
+      <Trans
+        i18nKey="shell.credential.desc.hostKey"
+        values={{ host: host || t("shell.credential.thisHost") }}
+        components={{ host: strong }}
+      />
       {queue}
     </>
   ) : request.kind === "passphrase" ? (
@@ -152,10 +160,18 @@ function CredentialDialog({ request, waiting }: { request: CredentialRequest; wa
               {hostKeyType ? <span className="font-normal">· {hostKeyType}</span> : null}
             </span>
             <div className="flex items-start gap-1">
-              <code data-fingerprint className="selectable block min-w-0 flex-1 rounded-md border border-border bg-surface-sunken px-2 py-1.5 font-mono text-code break-all text-text">
+              <code
+                data-fingerprint
+                className="selectable block min-w-0 flex-1 rounded-md border border-border bg-surface-sunken px-2 py-1.5 font-mono text-code break-all text-text"
+              >
                 {fingerprint}
               </code>
-              <IconButton size="md" label={t("shell.credential.copyFingerprint")} icon={<Copy className="size-icon" aria-hidden />} onClick={() => void copyText(fingerprint, t("shell.credential.fingerprint"))} />
+              <IconButton
+                size="md"
+                label={t("shell.credential.copyFingerprint")}
+                icon={<Copy className="size-icon" aria-hidden />}
+                onClick={() => void copyText(fingerprint, t("shell.credential.fingerprint"))}
+              />
             </div>
           </div>
         </div>

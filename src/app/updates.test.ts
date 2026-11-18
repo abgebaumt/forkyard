@@ -7,7 +7,12 @@ const toast = vi.fn();
 const opened: string[] = [];
 const errors: unknown[] = [];
 
-vi.mock("../core", () => ({ core: { updateCheck: (input: { manual: boolean }) => updateCheck(input), updateDismiss: (input: { version: string; skip: boolean }) => updateDismiss(input) } }));
+vi.mock("../core", () => ({
+  core: {
+    updateCheck: (input: { manual: boolean }) => updateCheck(input),
+    updateDismiss: (input: { version: string; skip: boolean }) => updateDismiss(input),
+  },
+}));
 vi.mock("../ui/Feedback", () => ({ toast: (data: unknown) => toast(data) }));
 vi.mock("./actions/hosts", () => ({
   openInBrowser: (url: string) => {
@@ -26,12 +31,31 @@ vi.mock("./run", () => ({
   },
 }));
 
-const { checkAutomatically, checkNow, getUpdateInfo, notesExcerpt, setUpdateInfo, skipVersion, toastDue, visibleUpdate } = await import("./updates");
+const { checkAutomatically, checkNow, getUpdateInfo, notesExcerpt, setUpdateInfo, skipVersion, toastDue, visibleUpdate } = await import(
+  "./updates"
+);
 
-const release = { version: "1.2.0", url: "https://github.com/abgebaumt/forkyard/releases/tag/v1.2.0", notes: "## Highlights\n\n- **Faster** graph\n- [Docs](https://example.com)", publishedAt: "2026-11-02T09:30:00Z" };
-const info = (patch: Partial<UpdateInfo> = {}): UpdateInfo => ({ current: "1.1.0", latest: release, checkedAt: "2026-10-15T10:00:00.000Z", notifiedVersion: null, skippedVersion: null, ...patch });
+const release = {
+  version: "1.2.0",
+  url: "https://github.com/abgebaumt/forkyard/releases/tag/v1.2.0",
+  notes: "## Highlights\n\n- **Faster** graph\n- [Docs](https://example.com)",
+  publishedAt: "2026-11-02T09:30:00Z",
+};
+const info = (patch: Partial<UpdateInfo> = {}): UpdateInfo => ({
+  current: "1.1.0",
+  latest: release,
+  checkedAt: "2026-10-15T10:00:00.000Z",
+  notifiedVersion: null,
+  skippedVersion: null,
+  ...patch,
+});
 
-type ToastArg = { title: string; description?: string; action?: { label: string; onClick: () => void }; secondaryAction?: { label: string; onClick: () => void } };
+type ToastArg = {
+  title: string;
+  description?: string;
+  action?: { label: string; onClick: () => void };
+  secondaryAction?: { label: string; onClick: () => void };
+};
 const lastToast = () => toast.mock.calls.at(-1)?.[0] as ToastArg;
 
 beforeEach(() => {

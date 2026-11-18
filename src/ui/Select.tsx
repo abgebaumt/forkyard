@@ -86,7 +86,10 @@ export function Select<T extends string = string>({
             position="popper"
             sideOffset={4}
             collisionPadding={collisionPadding()}
-            className={cn(menuSurface, "max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden")}
+            className={cn(
+              menuSurface,
+              "max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-hidden",
+            )}
           >
             <RadixSelect.ScrollUpButton className="flex h-5 items-center justify-center text-text-muted">
               <ChevronUp className="size-icon" aria-hidden />

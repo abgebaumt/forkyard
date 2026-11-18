@@ -63,7 +63,13 @@ export async function stashChanges(repoId: Id, options: StashOptions = {}) {
     ),
     {
       busyKey: busyKeys.stash(repoId),
-      success: options.quiet ? undefined : options.selection ? t("partialStash.done") : paths ? t("actions.stash.doneFiles", { count: paths.length }) : t("actions.stash.done"),
+      success: options.quiet
+        ? undefined
+        : options.selection
+          ? t("partialStash.done")
+          : paths
+            ? t("actions.stash.doneFiles", { count: paths.length })
+            : t("actions.stash.done"),
     },
   );
   if (result.ok) queryClient.setQueryData(qk.stashes(repoId), result.value);
@@ -74,10 +80,18 @@ async function applyOrPop(repoId: Id, kind: "apply" | "pop", stash: StashRef, ta
   const label = kind === "pop" ? t("actions.stash.pop") : t("actions.stash.apply");
   const index = await resolveIndex(repoId, stash);
   if (index === null) return null;
-  const result = await runAction(label, withFreshStatus(repoId, () => (kind === "pop" ? core.stashPop({ repoId, index, expectedSha: stash.sha ?? null }) : core.stashApply({ repoId, index, expectedSha: stash.sha ?? null }))), {
-    busyKey: busyKeys.pop(repoId),
-    quiet: ["dirty_worktree"],
-  });
+  const result = await runAction(
+    label,
+    withFreshStatus(repoId, () =>
+      kind === "pop"
+        ? core.stashPop({ repoId, index, expectedSha: stash.sha ?? null })
+        : core.stashApply({ repoId, index, expectedSha: stash.sha ?? null }),
+    ),
+    {
+      busyKey: busyKeys.pop(repoId),
+      quiet: ["dirty_worktree"],
+    },
+  );
   if (result.ok) {
     reportOpResult(label, result.value, tabId, { stash: true });
     return result;
@@ -117,11 +131,17 @@ export async function applyStashFiles(repoId: Id, stash: StashRef & { sha: Sha }
   if (!untracked.length) return null;
   const index = await resolveIndex(repoId, stash);
   if (index === null) return null;
-  return runAction(t("actions.stash.applyFiles.label"), withStatus(repoId, () => core.stashApplyPaths({ repoId, index, expectedSha: stash.sha ?? null, paths: untracked })), {
-    busyKey: busyKeys.pop(repoId),
-    success:
-      untracked.length === 1 ? t("actions.stash.applyFiles.doneOne", { path: clip(untracked[0]!, 44) }) : t("actions.stash.applyFiles.doneMany", { count: untracked.length }),
-  });
+  return runAction(
+    t("actions.stash.applyFiles.label"),
+    withStatus(repoId, () => core.stashApplyPaths({ repoId, index, expectedSha: stash.sha ?? null, paths: untracked })),
+    {
+      busyKey: busyKeys.pop(repoId),
+      success:
+        untracked.length === 1
+          ? t("actions.stash.applyFiles.doneOne", { path: clip(untracked[0]!, 44) })
+          : t("actions.stash.applyFiles.doneMany", { count: untracked.length }),
+    },
+  );
 }
 
 export async function dropStash(repoId: Id, stash: StashRef) {

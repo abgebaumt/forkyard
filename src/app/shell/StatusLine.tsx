@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, CircleDot, CloudDownload, GitBranch, GitCommitHorizontal, Minus, Plus, ScrollText, TriangleAlert, X } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  CircleDot,
+  CloudDownload,
+  GitBranch,
+  GitCommitHorizontal,
+  Minus,
+  Plus,
+  ScrollText,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { core, type Id, type Operation, type Tab } from "../../core";
 import { IconButton } from "../../ui/Button";
 import { StatusBar } from "../../ui/Chrome";
@@ -34,7 +46,8 @@ function useMinuteTick() {
 function operationText(operation: Operation): { short: string; full: string } {
   const name = operationNames[operation.kind];
   const step = operation.step && operation.totalSteps ? ` (${operation.step}/${operation.totalSteps})` : "";
-  const route = operation.source && operation.target ? `${operation.source} → ${operation.target}` : (operation.source ?? operation.target ?? "");
+  const route =
+    operation.source && operation.target ? `${operation.source} → ${operation.target}` : (operation.source ?? operation.target ?? "");
   return {
     short: t("shell.status.operation", { name, step }),
     full: t(route ? "shell.status.operationRoute" : "shell.status.operationFull", { name, route, step }),
@@ -56,7 +69,12 @@ function BranchInfo({ repoId }: { repoId: Id }) {
   }
   const head = status.head;
   const detached = head.kind === "detached";
-  const name = head.kind === "branch" ? head.branch : head.kind === "unborn" ? t("shell.status.unborn", { branch: head.branch }) : t("shell.status.detached", { sha: shortSha(head.sha) });
+  const name =
+    head.kind === "branch"
+      ? head.branch
+      : head.kind === "unborn"
+        ? t("shell.status.unborn", { branch: head.branch })
+        : t("shell.status.detached", { sha: shortSha(head.sha) });
   const title =
     head.kind === "branch"
       ? t("shell.status.checkedOut", { branch: head.branch })
@@ -100,7 +118,12 @@ function BranchInfo({ repoId }: { repoId: Id }) {
           <span>{t("shell.status.notOnRemote", { remote })}</span>
         </span>
       ) : upstream ? (
-        <span className="flex shrink-0 items-center gap-1.5 tabular-nums" title={upstream.gone ? t("shell.status.upstreamGone", { name: upstream.name }) : t("shell.status.upstream", { name: upstream.name })}>
+        <span
+          className="flex shrink-0 items-center gap-1.5 tabular-nums"
+          title={
+            upstream.gone ? t("shell.status.upstreamGone", { name: upstream.name }) : t("shell.status.upstream", { name: upstream.name })
+          }
+        >
           {upstream.gone ? (
             <span className="text-warning">{t("shell.status.upstreamMissing")}</span>
           ) : (
@@ -146,7 +169,10 @@ function JobItem({ job }: { job: Job }) {
     <span className="flex min-w-0 shrink items-center gap-1.5" title={job.line || job.phase || job.title}>
       <span className="truncate text-text">{cancelling ? t("shell.status.jobCancelling", { title: job.title }) : job.title}</span>
       {/* The phase only if it says something new ("Fetch" + "Fetch origin" would be redundant). */}
-      {!cancelling && job.phase && !job.phase.toLowerCase().startsWith(job.title.toLowerCase()) && !job.title.toLowerCase().startsWith(job.phase.toLowerCase()) ? (
+      {!cancelling &&
+      job.phase &&
+      !job.phase.toLowerCase().startsWith(job.title.toLowerCase()) &&
+      !job.title.toLowerCase().startsWith(job.phase.toLowerCase()) ? (
         <span className="hidden truncate xl:inline">{job.phase}</span>
       ) : null}
       <span
@@ -159,12 +185,22 @@ function JobItem({ job }: { job: Job }) {
         className="relative h-1 w-16 shrink-0 overflow-hidden rounded-pill bg-surface-raised"
       >
         <span
-          className={percent === null ? "absolute inset-y-0 left-0 w-1/3 animate-pulse rounded-pill bg-accent" : "absolute inset-y-0 left-0 rounded-pill bg-accent"}
+          className={
+            percent === null
+              ? "absolute inset-y-0 left-0 w-1/3 animate-pulse rounded-pill bg-accent"
+              : "absolute inset-y-0 left-0 rounded-pill bg-accent"
+          }
           style={percent === null ? undefined : { width: `${percent}%` }}
         />
       </span>
       {percent !== null ? <span className="shrink-0 tabular-nums">{t("shell.status.percent", { n: percent })}</span> : null}
-      <IconButton size="xs" label={t("shell.status.jobCancel", { title: job.title })} disabled={cancelling} icon={<X className="size-3" aria-hidden />} onClick={() => void cancel()} />
+      <IconButton
+        size="xs"
+        label={t("shell.status.jobCancel", { title: job.title })}
+        disabled={cancelling}
+        icon={<X className="size-3" aria-hidden />}
+        onClick={() => void cancel()}
+      />
     </span>
   );
 }
@@ -218,7 +254,12 @@ function AgentsRunning({ repoId }: { repoId: Id }) {
   };
   return (
     <Tip label={t("agents.statusLine.hint")}>
-      <button type="button" data-status="agents" onClick={open} className="flex shrink-0 items-center gap-1 rounded-sm px-1 hover:bg-surface-raised hover:text-text">
+      <button
+        type="button"
+        data-status="agents"
+        onClick={open}
+        className="flex shrink-0 items-center gap-1 rounded-sm px-1 hover:bg-surface-raised hover:text-text"
+      >
         {t("agents.statusLine.running", { count: running })}
       </button>
     </Tip>
@@ -272,11 +313,22 @@ export function StatusLine({ repoId }: { repoId: Id | null }) {
               icon={<Minus className="size-3" aria-hidden />}
               onClick={() => void changeZoom(-ZOOM_STEP)}
             />
-            <Tip label={limited ? t("shell.status.zoomResetLimited", { applied: Math.round(applied * 100), zoom: Math.round(zoom * 100) }) : t("shell.status.zoomReset")} shortcut="Mod+0">
+            <Tip
+              label={
+                limited
+                  ? t("shell.status.zoomResetLimited", { applied: Math.round(applied * 100), zoom: Math.round(zoom * 100) })
+                  : t("shell.status.zoomReset")
+              }
+              shortcut="Mod+0"
+            >
               <button
                 type="button"
                 data-zoom-applied={Math.round(applied * 100)}
-                aria-label={limited ? t("shell.status.zoomLabelLimited", { applied: Math.round(applied * 100), zoom: Math.round(zoom * 100) }) : t("shell.status.zoomLabel", { zoom: Math.round(zoom * 100) })}
+                aria-label={
+                  limited
+                    ? t("shell.status.zoomLabelLimited", { applied: Math.round(applied * 100), zoom: Math.round(zoom * 100) })
+                    : t("shell.status.zoomLabel", { zoom: Math.round(zoom * 100) })
+                }
                 onClick={() => void setZoom(1)}
                 className="min-w-10 rounded-sm px-1 text-center tabular-nums hover:bg-surface-raised hover:text-text"
               >

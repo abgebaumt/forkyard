@@ -1,5 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canCompare, effectiveMode, hexToRgb, loadImageMode, MAX_DIFF_PIXELS, modeOptions, pixelDifference, sameSize, saveImageMode, stackFrameStyle, stackGeometry, type Pixels } from "./imageDiffModel";
+import {
+  canCompare,
+  effectiveMode,
+  hexToRgb,
+  loadImageMode,
+  MAX_DIFF_PIXELS,
+  modeOptions,
+  pixelDifference,
+  sameSize,
+  saveImageMode,
+  stackFrameStyle,
+  stackGeometry,
+  type Pixels,
+} from "./imageDiffModel";
 
 describe("image diff modes", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -22,7 +35,10 @@ describe("image diff modes", () => {
 
   it("remembers the last mode and falls back without storage", () => {
     const store = new Map<string, string>();
-    vi.stubGlobal("localStorage", { getItem: (key: string) => store.get(key) ?? null, setItem: (key: string, value: string) => void store.set(key, value) });
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => void store.set(key, value),
+    });
     expect(loadImageMode()).toBe("side");
     saveImageMode("difference");
     expect(loadImageMode()).toBe("difference");

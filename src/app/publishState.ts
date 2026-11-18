@@ -31,7 +31,9 @@ export function statusPublishState(status: Pick<Status, "upstream" | "unpublishe
 }
 
 /** For a local branch from the refs list. */
-export function refPublishState(ref: Pick<Ref, "upstream" | "upstreamGone" | "pushesToUpstream" | "unpublished" | "ahead" | "behind">): PublishState {
+export function refPublishState(
+  ref: Pick<Ref, "upstream" | "upstreamGone" | "pushesToUpstream" | "unpublished" | "ahead" | "behind">,
+): PublishState {
   if (!ref.upstream) return { kind: "none", unpublished: ref.unpublished };
   if (ref.upstreamGone) return { kind: "gone", upstream: ref.upstream, unpublished: ref.unpublished };
   if (!ref.pushesToUpstream) return { kind: "elsewhere", upstream: ref.upstream, behind: ref.behind, unpublished: ref.unpublished };

@@ -26,7 +26,19 @@ export interface ReviewTarget {
 
 type Phase = { kind: "loading"; since: number } | { kind: "done"; review: AiPushReview } | { kind: "error"; view: AiErrorView };
 
-function ReviewDialog({ repoId, target, local, provider, onDone }: { repoId: Id; target: ReviewTarget; local: boolean; provider: AiProviderKind | null; onDone: (push: boolean) => void }) {
+function ReviewDialog({
+  repoId,
+  target,
+  local,
+  provider,
+  onDone,
+}: {
+  repoId: Id;
+  target: ReviewTarget;
+  local: boolean;
+  provider: AiProviderKind | null;
+  onDone: (push: boolean) => void;
+}) {
   const [phase, setPhase] = useState<Phase>(() => ({ kind: "loading", since: Date.now() }));
   const [round, setRound] = useState(0);
   const [now, setNow] = useState(() => Date.now());
@@ -39,14 +51,16 @@ function ReviewDialog({ repoId, target, local, provider, onDone }: { repoId: Id;
     const jobId = newJobId();
     job.current = jobId;
     setPhase({ kind: "loading", since: Date.now() });
-    core.aiPushReview({ repoId, jobId, branch: target.branch, remote: target.remote, remoteBranch: target.remoteBranch, locale: locale() }).then(
-      (review) => {
-        if (alive) setPhase({ kind: "done", review });
-      },
-      (error: unknown) => {
-        if (alive) setPhase({ kind: "error", view: errorView(error) });
-      },
-    );
+    core
+      .aiPushReview({ repoId, jobId, branch: target.branch, remote: target.remote, remoteBranch: target.remoteBranch, locale: locale() })
+      .then(
+        (review) => {
+          if (alive) setPhase({ kind: "done", review });
+        },
+        (error: unknown) => {
+          if (alive) setPhase({ kind: "error", view: errorView(error) });
+        },
+      );
     return () => {
       alive = false;
       // A finished job ignores this; a running one ends and its answer is discarded.
@@ -76,7 +90,13 @@ function ReviewDialog({ repoId, target, local, provider, onDone }: { repoId: Id;
   const sendThisTime = async () => {
     try {
       const preview = await core.aiPreview({ repoId, feature: "push_review", input, locale: locale() });
-      await core.aiPreviewConfirm({ repoId, feature: "push_review", fingerprint: preview.fingerprint, triggers: preview.asks, dontAskAgain: false });
+      await core.aiPreviewConfirm({
+        repoId,
+        feature: "push_review",
+        fingerprint: preview.fingerprint,
+        triggers: preview.asks,
+        dontAskAgain: false,
+      });
       again();
     } catch (error) {
       setPhase({ kind: "error", view: errorView(error) });
@@ -163,7 +183,10 @@ function ReviewDialog({ repoId, target, local, provider, onDone }: { repoId: Id;
                   {t("ai.state.retry")}
                 </Button>
               ) : null}
-              {failure.kind !== "setup" && failure.kind !== "limit" && failure.kind !== "unavailable" && !(failure.kind === "notLoggedIn" && provider) ? (
+              {failure.kind !== "setup" &&
+              failure.kind !== "limit" &&
+              failure.kind !== "unavailable" &&
+              !(failure.kind === "notLoggedIn" && provider) ? (
                 <Button size="sm" onClick={again}>
                   {t("ai.state.again")}
                 </Button>
@@ -196,7 +219,10 @@ function ReviewDialog({ repoId, target, local, provider, onDone }: { repoId: Id;
           </>
         ) : null}
         {sent !== null ? (
-          <pre data-ai-preview-text className="selectable m-0 max-h-64 overflow-auto rounded-md border border-border bg-surface-sunken p-3 font-mono text-code break-words whitespace-pre-wrap text-text">
+          <pre
+            data-ai-preview-text
+            className="selectable m-0 max-h-64 overflow-auto rounded-md border border-border bg-surface-sunken p-3 font-mono text-code break-words whitespace-pre-wrap text-text"
+          >
             {sent}
           </pre>
         ) : null}
@@ -206,5 +232,9 @@ function ReviewDialog({ repoId, target, local, provider, onDone }: { repoId: Id;
 }
 
 export async function showPushReview(repoId: Id, target: ReviewTarget, local: boolean, provider: AiProviderKind | null): Promise<boolean> {
-  return (await showDialog<boolean>((done) => <ReviewDialog repoId={repoId} target={target} local={local} provider={provider} onDone={done} />)) === true;
+  return (
+    (await showDialog<boolean>((done) => (
+      <ReviewDialog repoId={repoId} target={target} local={local} provider={provider} onDone={done} />
+    ))) === true
+  );
 }

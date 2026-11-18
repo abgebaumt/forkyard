@@ -31,12 +31,49 @@ const view = (patch: Partial<PlanStepView> & Pick<PlanStepView, "command" | "arg
   check: { status: "not_needed" },
   ...patch,
 });
-const plan = (steps: PlanStepView[], patch: Partial<PlanPreview> = {}): PlanPreview => ({ steps, note: null, blocked: false, expect: "e1", runnable: true, ...patch });
-const key = (name: string, mods: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean } = {}) => ({ key: name, ctrlKey: false, metaKey: false, altKey: false, ...mods });
-const previewPhase = (preview: PlanPreview, selected = 0, confirmed: number[] = [], busy = false): PlanPhase => ({ kind: "preview", text: "x", preview, selected, confirmed, busy });
+const plan = (steps: PlanStepView[], patch: Partial<PlanPreview> = {}): PlanPreview => ({
+  steps,
+  note: null,
+  blocked: false,
+  expect: "e1",
+  runnable: true,
+  ...patch,
+});
+const key = (name: string, mods: { ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean } = {}) => ({
+  key: name,
+  ctrlKey: false,
+  metaKey: false,
+  altKey: false,
+  ...mods,
+});
+const previewPhase = (preview: PlanPreview, selected = 0, confirmed: number[] = [], busy = false): PlanPhase => ({
+  kind: "preview",
+  text: "x",
+  preview,
+  selected,
+  confirmed,
+  busy,
+});
 
-const create = view({ command: "branchCreate", args: { name: "fix/größe", start: null, checkout: true }, fields: [{ name: "name", kind: "text", choices: [] }, { name: "start", kind: "optional_text", choices: [] }, { name: "checkout", kind: "boolean", choices: [] }] });
-const push = view({ command: "push", args: { branch: "fix/größe", remote: "origin", force: false }, class: "outward", fields: [{ name: "branch", kind: "optional_text", choices: [] }, { name: "remote", kind: "optional_text", choices: [] }, { name: "force", kind: "boolean", choices: [] }] });
+const create = view({
+  command: "branchCreate",
+  args: { name: "fix/größe", start: null, checkout: true },
+  fields: [
+    { name: "name", kind: "text", choices: [] },
+    { name: "start", kind: "optional_text", choices: [] },
+    { name: "checkout", kind: "boolean", choices: [] },
+  ],
+});
+const push = view({
+  command: "push",
+  args: { branch: "fix/größe", remote: "origin", force: false },
+  class: "outward",
+  fields: [
+    { name: "branch", kind: "optional_text", choices: [] },
+    { name: "remote", kind: "optional_text", choices: [] },
+    { name: "force", kind: "boolean", choices: [] },
+  ],
+});
 const pull = view({ command: "pull", args: { pullMode: null } });
 
 describe("the ask row (spec Paket 5: “?” and the last row without matches)", () => {
@@ -78,22 +115,42 @@ describe("keys in the plan preview", () => {
   });
 
   it("Enter runs only a plan without blockers", () => {
-    expect(planKey(previewPhase(plan([create, push]), 0, []), key("Enter"))).toEqual({ kind: "notice", text: "Step 2 goes out to the remote. Confirm it with Space first." });
+    expect(planKey(previewPhase(plan([create, push]), 0, []), key("Enter"))).toEqual({
+      kind: "notice",
+      text: "Step 2 goes out to the remote. Confirm it with Space first.",
+    });
     expect(planKey(previewPhase(plan([create, push]), 0, [1]), key("Enter"))).toEqual({ kind: "run" });
-    expect(planKey({ kind: "result", text: "x", preview: plan([create]), confirmed: [], result: { steps: [], undoRecorded: false, completed: false, cancelled: false } }, key("Enter"))).toEqual({ kind: "close" });
+    expect(
+      planKey(
+        {
+          kind: "result",
+          text: "x",
+          preview: plan([create]),
+          confirmed: [],
+          result: { steps: [], undoRecorded: false, completed: false, cancelled: false },
+        },
+        key("Enter"),
+      ),
+    ).toEqual({ kind: "close" });
   });
 
   it("names the first blocker", () => {
     expect(runBlocker(plan([create], { blocked: true }), [])).toBe("An operation is in progress. Finish or abort it first.");
     expect(runBlocker(plan([]), [])).toBe("The plan has no steps.");
-    const conflicting = view({ command: "mergeStart", args: { source: "main", mergeMode: "default" }, check: { status: "conflicts", files: ["f.txt"] } });
+    const conflicting = view({
+      command: "mergeStart",
+      args: { source: "main", mergeMode: "default" },
+      check: { status: "conflicts", files: ["f.txt"] },
+    });
     expect(runBlocker(plan([create, conflicting]), [])).toBe("Step 2 can’t run as it is. Edit it (E) or remove it (Del).");
     expect(runBlocker(plan([create, push]), [1])).toBeNull();
   });
 
   it("Esc depends on the phase; the text stays", () => {
     expect(escapeAction({ kind: "loading", text: "x", jobId: "j", startedAt: 0 })).toBe("cancelRequest");
-    expect(escapeAction({ kind: "running", text: "x", preview: plan([create]), confirmed: [], jobId: "j", startedAt: 0 })).toBe("cancelRun");
+    expect(escapeAction({ kind: "running", text: "x", preview: plan([create]), confirmed: [], jobId: "j", startedAt: 0 })).toBe(
+      "cancelRun",
+    );
     expect(escapeAction({ kind: "editing", text: "x", preview: plan([create]), selected: 0, confirmed: [], draft: {} })).toBe("endEdit");
     expect(escapeAction(previewPhase(plan([create])))).toBe("back");
     expect(escapeAction({ kind: "failed", text: "x", error: null })).toBe("back");
@@ -110,19 +167,40 @@ describe("keys in the plan preview", () => {
 describe("words of a step", () => {
   it("titles name what happens, with short SHAs", () => {
     expect(stepTitle(create)).toBe("Create branch “fix/größe” at HEAD and check it out");
-    expect(stepTitle(view({ command: "push", args: { branch: "main", remote: "origin", force: true } }))).toBe("Push main to origin with force (with lease)");
-    expect(stepTitle(view({ command: "push", args: { branch: null, remote: null, force: false } }))).toBe("Push the current branch to its upstream");
-    expect(stepTitle(view({ command: "cherryPick", args: { commits: ["1234567890abcdef1234567890abcdef12345678", "abcdef0"] } }))).toBe("Cherry-pick 1234567, abcdef0");
-    expect(stepTitle(view({ command: "resetBranch", args: { target: "v1.0", resetMode: "hard" } }))).toBe("Reset the current branch to v1.0 (hard – discards changes)");
-    expect(stepTitle(view({ command: "branchDeleteRemote", args: { remote: "origin", name: "alt" } }))).toBe("Delete branch “alt” on origin");
+    expect(stepTitle(view({ command: "push", args: { branch: "main", remote: "origin", force: true } }))).toBe(
+      "Push main to origin with force (with lease)",
+    );
+    expect(stepTitle(view({ command: "push", args: { branch: null, remote: null, force: false } }))).toBe(
+      "Push the current branch to its upstream",
+    );
+    expect(stepTitle(view({ command: "cherryPick", args: { commits: ["1234567890abcdef1234567890abcdef12345678", "abcdef0"] } }))).toBe(
+      "Cherry-pick 1234567, abcdef0",
+    );
+    expect(stepTitle(view({ command: "resetBranch", args: { target: "v1.0", resetMode: "hard" } }))).toBe(
+      "Reset the current branch to v1.0 (hard – discards changes)",
+    );
+    expect(stepTitle(view({ command: "branchDeleteRemote", args: { remote: "origin", name: "alt" } }))).toBe(
+      "Delete branch “alt” on origin",
+    );
   });
 
   it("class, check and outcome are a word and a tone, never a colour alone", () => {
     expect(classView(push)).toEqual({ word: "goes out", tone: "danger" });
-    expect(classView(view({ command: "branchDelete", args: { name: "x", force: false }, destructive: true }))).toEqual({ word: "destructive", tone: "danger" });
+    expect(classView(view({ command: "branchDelete", args: { name: "x", force: false }, destructive: true }))).toEqual({
+      word: "destructive",
+      tone: "danger",
+    });
     expect(classView(create)).toEqual({ word: "local", tone: "muted" });
-    expect(checkView({ status: "conflicts", files: ["f.txt", "g h.txt"] })).toEqual({ word: "conflicts", tone: "danger", detail: "f.txt, g h.txt" });
-    expect(checkView({ status: "unknown", reason: "The result depends on what step 2 does." })).toEqual({ word: "not checked", tone: "warning", detail: "The result depends on what step 2 does." });
+    expect(checkView({ status: "conflicts", files: ["f.txt", "g h.txt"] })).toEqual({
+      word: "conflicts",
+      tone: "danger",
+      detail: "f.txt, g h.txt",
+    });
+    expect(checkView({ status: "unknown", reason: "The result depends on what step 2 does." })).toEqual({
+      word: "not checked",
+      tone: "warning",
+      detail: "The result depends on what step 2 does.",
+    });
     expect(checkView({ status: "not_needed" }).word).toBe("");
     expect(checkView({ status: "clean" })).toEqual({ word: "no conflicts", tone: "success", detail: null });
   });
@@ -133,7 +211,11 @@ describe("editing and removing steps", () => {
     const stash = view({
       command: "stashCreate",
       args: { message: null, includeUntracked: true, paths: ["notizen/über uns.md"] },
-      fields: [{ name: "message", kind: "optional_text", choices: [] }, { name: "includeUntracked", kind: "boolean", choices: [] }, { name: "paths", kind: "list", choices: [] }],
+      fields: [
+        { name: "message", kind: "optional_text", choices: [] },
+        { name: "includeUntracked", kind: "boolean", choices: [] },
+        { name: "paths", kind: "list", choices: [] },
+      ],
     });
     const draft = draftOf(stash);
     expect(draft).toEqual({ message: "", includeUntracked: true, paths: "notizen/über uns.md" });
@@ -142,7 +224,11 @@ describe("editing and removing steps", () => {
       args: { message: null, includeUntracked: true, paths: ["notizen/über uns.md", "b.txt"] },
       why: "",
     });
-    expect(applyDraft(create, { name: " hotfix-2 ", start: "", checkout: false }).args).toEqual({ name: "hotfix-2", start: null, checkout: false });
+    expect(applyDraft(create, { name: " hotfix-2 ", start: "", checkout: false }).args).toEqual({
+      name: "hotfix-2",
+      start: null,
+      checkout: false,
+    });
   });
 
   it("removing a step keeps the other confirmations on their steps", () => {
@@ -155,9 +241,17 @@ describe("editing and removing steps", () => {
 
 describe("errors of the plan request", () => {
   it("a long plan and an expired plan have their own words", () => {
-    const long = new CoreError({ code: "ai_invalid_answer", message: "The AI's answer could not be used (plan too long: at most 10 steps).", gitOutput: null });
+    const long = new CoreError({
+      code: "ai_invalid_answer",
+      message: "The AI's answer could not be used (plan too long: at most 10 steps).",
+      gitOutput: null,
+    });
     expect(planErrorText(long)).toBe("Plan too long – at most 10 steps. Ask for less at once.");
-    const stale = new CoreError({ code: "stale_state", message: "The repository changed since the plan was shown. The plan has expired; ask again.", gitOutput: null });
+    const stale = new CoreError({
+      code: "stale_state",
+      message: "The repository changed since the plan was shown. The plan has expired; ask again.",
+      gitOutput: null,
+    });
     expect(planErrorText(stale)).toBe("The repository changed since the plan was shown. The plan has expired – ask again.");
     expect(planErrorText(new CoreError({ code: "cancelled", message: "Cancelled.", gitOutput: null }))).toBe("");
   });
@@ -195,7 +289,11 @@ describe("when the palette offers asking (spec 1.3: unset / off / on)", () => {
 
 describe("running and the result", () => {
   const result = (statuses: ("done" | "failed" | "not_run")[], patch: Partial<PlanRunResult> = {}): PlanRunResult => ({
-    steps: statuses.map((status, index) => ({ index, status, error: status === "failed" ? { code: "nothing_to_commit", message: "There are no changes to stash.", gitOutput: null } : null })),
+    steps: statuses.map((status, index) => ({
+      index,
+      status,
+      error: status === "failed" ? { code: "nothing_to_commit", message: "There are no changes to stash.", gitOutput: null } : null,
+    })),
     undoRecorded: statuses.includes("done"),
     completed: statuses.every((status) => status === "done"),
     cancelled: false,

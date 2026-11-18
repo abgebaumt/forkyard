@@ -106,7 +106,14 @@ function parseBindings() {
         const colon = param.indexOf(":");
         const type = param.slice(colon + 1).trim();
         if (INJECTED.test(type)) continue;
-        keys.push(toCamel(param.slice(0, colon).trim().replace(/^mut\s+/, "")));
+        keys.push(
+          toCamel(
+            param
+              .slice(0, colon)
+              .trim()
+              .replace(/^mut\s+/, ""),
+          ),
+        );
       }
     }
     commands.set(name, keys);
@@ -151,9 +158,7 @@ for (const [name, keys] of api) {
     const missing = keys.filter((key) => !got.includes(key));
     const extra = got.filter((key) => !keys.includes(key));
     if (missing.length || extra.length) {
-      problems.push(
-        `Parameters differ for ${name}: api.ts [${keys.join(", ")}] / Rust [${got.join(", ")}]`,
-      );
+      problems.push(`Parameters differ for ${name}: api.ts [${keys.join(", ")}] / Rust [${got.join(", ")}]`);
     }
   }
   if (!handlers.includes(name)) problems.push(`Not registered in generate_handler!: ${name}`);
@@ -180,6 +185,4 @@ if (problems.length) {
   for (const problem of problems) console.error(`  - ${problem}`);
   process.exit(1);
 }
-console.log(
-  `check-commands: ${api.size} commands in api.ts, ${bindings.size} bindings, ${handlers.length} registered – no mismatches.`,
-);
+console.log(`check-commands: ${api.size} commands in api.ts, ${bindings.size} bindings, ${handlers.length} registered – no mismatches.`);

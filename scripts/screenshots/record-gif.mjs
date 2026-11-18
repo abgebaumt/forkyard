@@ -46,7 +46,13 @@ try {
     }
   }
   execFileSync("node", [path.join(root, "scripts/screenshots/demo-repo.mjs"), demo, "--history"], { stdio: "ignore" });
-  const query = new URLSearchParams({ scenario: "Showcase.tour", fixture: demo, theme: "dark", lang: "en", delay: String(START_DELAY_MS - PAGE_LOAD_MS) });
+  const query = new URLSearchParams({
+    scenario: "Showcase.tour",
+    fixture: demo,
+    theme: "dark",
+    lang: "en",
+    delay: String(START_DELAY_MS - PAGE_LOAD_MS),
+  });
   start(path.join(root, "target/debug/forkyard"), [], {
     DISPLAY,
     GDK_BACKEND: "x11",
@@ -64,8 +70,28 @@ try {
     GIT_CONFIG_NOSYSTEM: "1",
   });
   await sleep(START_DELAY_MS + 800);
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "x11grab", "-draw_mouse", "0", "-video_size", `${WIDTH}x${HEIGHT}`, "-framerate", "15", "-i", `${DISPLAY}.0`, "-t", String(LENGTH_S), "-pix_fmt", "yuv420p", video]);
-  const filters = "fps=12,scale=1080:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle";
+  execFileSync("ffmpeg", [
+    "-y",
+    "-loglevel",
+    "error",
+    "-f",
+    "x11grab",
+    "-draw_mouse",
+    "0",
+    "-video_size",
+    `${WIDTH}x${HEIGHT}`,
+    "-framerate",
+    "15",
+    "-i",
+    `${DISPLAY}.0`,
+    "-t",
+    String(LENGTH_S),
+    "-pix_fmt",
+    "yuv420p",
+    video,
+  ]);
+  const filters =
+    "fps=12,scale=1080:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle";
   execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-vf", filters, "-loop", "0", out]);
   console.log("written:", path.relative(root, out), `${Math.round(fs.statSync(out).size / 1024)} KB`);
 } finally {

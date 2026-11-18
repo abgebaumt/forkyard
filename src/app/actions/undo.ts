@@ -41,16 +41,28 @@ function explain(code: ErrorCode, direction: Direction, label: string | undefine
   }
 }
 
-const QUIET: ErrorCode[] = ["nothing_to_undo", "stale_state", "dirty_worktree", "not_allowed", "operation_in_progress", "conflict", "not_found"];
+const QUIET: ErrorCode[] = [
+  "nothing_to_undo",
+  "stale_state",
+  "dirty_worktree",
+  "not_allowed",
+  "operation_in_progress",
+  "conflict",
+  "not_found",
+];
 
 async function runStep(repoId: Id, direction: Direction) {
   const before = queryClient.getQueryData<UndoState>(qk.undo(repoId));
   const label = direction === "undo" ? before?.undo?.label : before?.redo?.label;
   const name = direction === "undo" ? t("actions.undoLabel") : t("actions.undo.redoLabel");
-  const result = await runAction(name, withFreshStatus(repoId, () => core[direction]({ repoId })), {
-    busyKey: busyKeys.undo(repoId),
-    quiet: QUIET,
-  });
+  const result = await runAction(
+    name,
+    withFreshStatus(repoId, () => core[direction]({ repoId })),
+    {
+      busyKey: busyKeys.undo(repoId),
+      quiet: QUIET,
+    },
+  );
   if (result.ok) {
     queryClient.setQueryData(qk.undo(repoId), result.value);
     toast({ tone: "success", title: direction === "undo" ? t("actions.undo.doneUndo") : t("actions.undo.doneRedo"), description: label });
@@ -66,7 +78,10 @@ async function runStep(repoId: Id, direction: Direction) {
     // The core names the files that were edited further since the action: then its sentence applies.
     const changedSince = code === "dirty_worktree" && /seit dieser Aktion|since this action/i.test(result.error.message);
     const text = changedSince
-      ? { title: direction === "undo" ? t("actions.undo.overwriteUndo") : t("actions.undo.overwriteRedo"), description: result.error.message }
+      ? {
+          title: direction === "undo" ? t("actions.undo.overwriteUndo") : t("actions.undo.overwriteRedo"),
+          description: result.error.message,
+        }
       : explain(code, direction, label);
     if (text) {
       toast({
@@ -79,9 +94,11 @@ async function runStep(repoId: Id, direction: Direction) {
                 label: direction === "undo" ? t("actions.undo.stashUndo") : t("actions.undo.stashRedo"),
                 // Without its own undo entry: otherwise the following undo would only revert this stash.
                 onClick: () =>
-                  void stashChanges(repoId, { message: t("actions.undo.stashMessage", { name }), quiet: true, undoable: false }).then((stashed) => {
-                    if (stashed.ok) void runStep(repoId, direction);
-                  }),
+                  void stashChanges(repoId, { message: t("actions.undo.stashMessage", { name }), quiet: true, undoable: false }).then(
+                    (stashed) => {
+                      if (stashed.ok) void runStep(repoId, direction);
+                    },
+                  ),
               }
             : undefined,
       });

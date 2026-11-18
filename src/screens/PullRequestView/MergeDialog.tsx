@@ -29,7 +29,19 @@ function rememberedMethod(allowed: MergeMethod[]): MergeMethod {
   return allowed.includes("merge") ? "merge" : (allowed[0] ?? "merge");
 }
 
-function MergeDialog({ repoId, pr, methods, canDeleteBranch, onDone }: { repoId: Id; pr: PrDetails; methods: MergeMethod[]; canDeleteBranch: boolean; onDone: (merged: boolean | null) => void }) {
+function MergeDialog({
+  repoId,
+  pr,
+  methods,
+  canDeleteBranch,
+  onDone,
+}: {
+  repoId: Id;
+  pr: PrDetails;
+  methods: MergeMethod[];
+  canDeleteBranch: boolean;
+  onDone: (merged: boolean | null) => void;
+}) {
   const [method, setMethod] = useState<MergeMethod>(() => rememberedMethod(methods));
   const [deleteBranch, setDeleteBranch] = useState(false);
   const busy = useBusy(prBusyKeys.write(repoId, pr.number));
@@ -67,7 +79,13 @@ function MergeDialog({ repoId, pr, methods, canDeleteBranch, onDone }: { repoId:
       }
     >
       <div data-screen="pr-merge" className="flex flex-col gap-3">
-        <Select label={t("pullRequest.view.merge.method")} value={method} options={methods.map((value) => ({ value, label: mergeMethodLabels[value] }))} hint={mergeMethodHints[method]} onValueChange={setMethod} />
+        <Select
+          label={t("pullRequest.view.merge.method")}
+          value={method}
+          options={methods.map((value) => ({ value, label: mergeMethodLabels[value] }))}
+          hint={mergeMethodHints[method]}
+          onValueChange={setMethod}
+        />
         {canDeleteBranch ? (
           <Checkbox
             label={t("pullRequest.view.merge.deleteBranch", { branch: pr.sourceBranch })}
@@ -82,6 +100,20 @@ function MergeDialog({ repoId, pr, methods, canDeleteBranch, onDone }: { repoId:
 }
 
 /** Opens the dialog; true if merged. */
-export async function openMergeDialog(repoId: Id, pr: PrDetails, capabilities: Pick<HostCapabilities, "mergeMethods" | "deleteSourceBranch">): Promise<boolean> {
-  return (await showDialog<boolean>((done) => <MergeDialog repoId={repoId} pr={pr} methods={capabilities.mergeMethods} canDeleteBranch={capabilities.deleteSourceBranch} onDone={done} />)) === true;
+export async function openMergeDialog(
+  repoId: Id,
+  pr: PrDetails,
+  capabilities: Pick<HostCapabilities, "mergeMethods" | "deleteSourceBranch">,
+): Promise<boolean> {
+  return (
+    (await showDialog<boolean>((done) => (
+      <MergeDialog
+        repoId={repoId}
+        pr={pr}
+        methods={capabilities.mergeMethods}
+        canDeleteBranch={capabilities.deleteSourceBranch}
+        onDone={done}
+      />
+    ))) === true
+  );
 }

@@ -20,12 +20,14 @@ let pending = 0;
 export function enqueueWrite<T>(task: () => Promise<T>): Promise<T> {
   pending += 1;
   const result = queue.then(task, task);
-  queue = result.then(
-    () => undefined,
-    () => undefined,
-  ).then(() => {
-    pending -= 1;
-  });
+  queue = result
+    .then(
+      () => undefined,
+      () => undefined,
+    )
+    .then(() => {
+      pending -= 1;
+    });
   return result;
 }
 

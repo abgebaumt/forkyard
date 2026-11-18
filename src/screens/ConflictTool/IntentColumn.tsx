@@ -18,7 +18,16 @@ import { newJobId, runAction } from "../../app/run";
 import { locale, t } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { blockNote, canApply, hasChange, intentReducer, suggestionDiff, type DiffRow, type IntentDecision, type IntentState } from "./intent";
+import {
+  blockNote,
+  canApply,
+  hasChange,
+  intentReducer,
+  suggestionDiff,
+  type DiffRow,
+  type IntentDecision,
+  type IntentState,
+} from "./intent";
 import type { SideTitles } from "./titles";
 
 export interface IntentColumnProps {
@@ -47,7 +56,21 @@ export interface IntentColumnProps {
 const SIGN: Record<DiffRow["kind"], string> = { same: " ", add: "+", del: "−" };
 const IDLE: IntentState = { kind: "idle" };
 
-export function IntentColumn({ repoId, path, ranges, current, blockText, titles, local, provider, openSetup, hidden, onApply, onHide, style }: IntentColumnProps) {
+export function IntentColumn({
+  repoId,
+  path,
+  ranges,
+  current,
+  blockText,
+  titles,
+  local,
+  provider,
+  openSetup,
+  hidden,
+  onApply,
+  onHide,
+  style,
+}: IntentColumnProps) {
   const [state, dispatch] = useReducer(intentReducer, IDLE);
   const [now, setNow] = useState(() => Date.now());
   /** Increases with every start and cancel: a late step of an older run does nothing. */
@@ -121,7 +144,9 @@ export function IntentColumn({ repoId, path, ranges, current, blockText, titles,
   };
 
   const whatIsSent = async () => {
-    const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "conflict_intent", input, locale: locale() }));
+    const result = await runAction(t("ai.preview.loading"), () =>
+      core.aiPreview({ repoId, feature: "conflict_intent", input, locale: locale() }),
+    );
     if (result.ok) await showAiPreview(result.value, "look");
   };
 
@@ -304,7 +329,10 @@ function IntentCard({ block, decision, isCurrent, currentText, titles, register,
       data-intent-sent={block.sent}
       aria-current={isCurrent ? "true" : undefined}
       aria-labelledby={headingId}
-      className={cn("border-b border-border px-3 py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent", isCurrent && "bg-surface-raised")}
+      className={cn(
+        "border-b border-border px-3 py-2 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
+        isCurrent && "bg-surface-raised",
+      )}
     >
       <h4 id={headingId} className="m-0 text-sm font-medium text-text">
         {t("conflict.intent.card", { number })}

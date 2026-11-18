@@ -66,27 +66,37 @@ export async function addSubmodule(repoId: Id, input: AddSubmoduleInput): Promis
 export async function updateSubmodules(repoId: Id, targets: Submodule[] | null, options: { init: boolean }) {
   const one = targets?.length === 1 ? targets[0]! : null;
   const fresh = one?.state === "uninitialized";
-  const label = one ? (fresh ? t("actions.submodules.update.initOne") : t("actions.submodules.update.one")) : t("actions.submodules.update.all");
+  const label = one
+    ? fresh
+      ? t("actions.submodules.update.initOne")
+      : t("actions.submodules.update.one")
+    : t("actions.submodules.update.all");
   const jobId = newJobId();
-  const result = await runAction(label, () => core.submoduleUpdate({ repoId, jobId, paths: targets ? targets.map((item) => item.path) : null, init: options.init }), {
-    busyKey: submoduleBusyKey(repoId),
-    job: {
-      id: jobId,
-      title: one
-        ? fresh
-          ? t("actions.submodules.fetchJob", { path: clip(one.path, 40) })
-          : t("actions.submodules.updateJob", { path: clip(one.path, 40) })
-        : t("actions.submodules.update.all"),
-      repoId,
+  const result = await runAction(
+    label,
+    () => core.submoduleUpdate({ repoId, jobId, paths: targets ? targets.map((item) => item.path) : null, init: options.init }),
+    {
+      busyKey: submoduleBusyKey(repoId),
+      job: {
+        id: jobId,
+        title: one
+          ? fresh
+            ? t("actions.submodules.fetchJob", { path: clip(one.path, 40) })
+            : t("actions.submodules.updateJob", { path: clip(one.path, 40) })
+          : t("actions.submodules.update.all"),
+        repoId,
+      },
+      quiet: ["dirty_worktree"],
+      success: (list) => {
+        if (one) return t("actions.submodules.update.doneOne", { path: clip(one.path, 40) });
+        const open = list.filter((item) => item.state !== "initialized").length;
+        if (list.length === 0) return t("actions.submodules.update.none");
+        return open
+          ? t("actions.submodules.update.doneOpen", { count: open })
+          : t("actions.submodules.update.doneAll", { count: list.length });
+      },
     },
-    quiet: ["dirty_worktree"],
-    success: (list) => {
-      if (one) return t("actions.submodules.update.doneOne", { path: clip(one.path, 40) });
-      const open = list.filter((item) => item.state !== "initialized").length;
-      if (list.length === 0) return t("actions.submodules.update.none");
-      return open ? t("actions.submodules.update.doneOpen", { count: open }) : t("actions.submodules.update.doneAll", { count: list.length });
-    },
-  });
+  );
   if (result.ok) {
     afterChange(repoId, result.value);
     return result;

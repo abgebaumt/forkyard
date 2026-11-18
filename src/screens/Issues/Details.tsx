@@ -55,12 +55,26 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
   const details = query.data;
 
   return (
-    <article aria-label={issue ? `Issue ${issue.key}` : `Issue #${number}`} data-issue={number} data-state={query.isPending ? "loading" : query.isError ? "error" : "filled"} className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <article
+      aria-label={issue ? `Issue ${issue.key}` : `Issue #${number}`}
+      data-issue={number}
+      data-state={query.isPending ? "loading" : query.isError ? "error" : "filled"}
+      className="flex min-h-0 min-w-0 flex-1 flex-col"
+    >
       <header className="shrink-0 border-b border-border bg-surface px-4 py-3">
         <div className="flex items-start gap-2">
-          {onBack ? <IconButton size="sm" label={t("issues.details.back")} data-issue-back="" icon={<ArrowLeft className="size-icon" aria-hidden />} onClick={onBack} /> : null}
+          {onBack ? (
+            <IconButton
+              size="sm"
+              label={t("issues.details.back")}
+              data-issue-back=""
+              icon={<ArrowLeft className="size-icon" aria-hidden />}
+              onClick={onBack}
+            />
+          ) : null}
           <h3 className="selectable m-0 min-w-0 flex-1 text-lg font-semibold break-words text-text" data-issue-title>
-            {issue ? issue.title || t("issues.untitled") : `Issue #${number}`} <span className="font-normal text-text-muted tabular-nums">{issue?.key ?? `#${number}`}</span>
+            {issue ? issue.title || t("issues.untitled") : `Issue #${number}`}{" "}
+            <span className="font-normal text-text-muted tabular-nums">{issue?.key ?? `#${number}`}</span>
           </h3>
         </div>
         {issue ? (
@@ -105,14 +119,34 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
             ) : null}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <Tip label={t("issues.branch.tip")}>
-                <Button variant="primary" size="sm" loading={branchBusy} icon={<GitBranchPlus className="size-3.5" aria-hidden />} aria-label={t("issues.branch.label")} data-action="issue-branch" onClick={() => void createIssueBranch(repoId, tabId, issue)}>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  loading={branchBusy}
+                  icon={<GitBranchPlus className="size-3.5" aria-hidden />}
+                  aria-label={t("issues.branch.label")}
+                  data-action="issue-branch"
+                  onClick={() => void createIssueBranch(repoId, tabId, issue)}
+                >
                   {t("issues.branch.button")}
                 </Button>
               </Tip>
-              <Button size="sm" icon={<ExternalLink className="size-3.5" aria-hidden />} data-action="issue-web" disabled={!issue.webUrl} onClick={() => void openIssueInBrowser(issue)}>
+              <Button
+                size="sm"
+                icon={<ExternalLink className="size-3.5" aria-hidden />}
+                data-action="issue-web"
+                disabled={!issue.webUrl}
+                onClick={() => void openIssueInBrowser(issue)}
+              >
                 {t("issues.details.openInBrowser")}
               </Button>
-              <IconButton size="sm" label={t("issues.details.copyLink")} disabled={!issue.webUrl} icon={<Link2 className="size-icon" aria-hidden />} onClick={() => void copyIssueLink(issue)} />
+              <IconButton
+                size="sm"
+                label={t("issues.details.copyLink")}
+                disabled={!issue.webUrl}
+                icon={<Link2 className="size-icon" aria-hidden />}
+                onClick={() => void copyIssueLink(issue)}
+              />
               <IconButton
                 size="sm"
                 label={t("issues.details.reload")}
@@ -128,15 +162,27 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
         <HostProblem error={query.error} onRetry={() => void query.refetch()} retrying={query.isFetching} />
       ) : (
         // Reachable via Tab: then arrow and page keys scroll the text, even without a mouse.
-        <div role="region" aria-label={t("issues.details.region")} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 -outline-offset-2" data-issue-scroll tabIndex={0}>
+        <div
+          role="region"
+          aria-label={t("issues.details.region")}
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-3 -outline-offset-2"
+          data-issue-scroll
+          tabIndex={0}
+        >
           {details ? (
             <>
               <section aria-label={t("issues.details.description")} data-issue-body>
-                <SafeMarkdown source={details.body} origin={t("issues.details.descriptionOrigin")} empty={t("issues.details.noDescription")} />
+                <SafeMarkdown
+                  source={details.body}
+                  origin={t("issues.details.descriptionOrigin")}
+                  empty={t("issues.details.noDescription")}
+                />
               </section>
               <section aria-label={t("issues.details.comments")} className="mt-5" data-issue-comments>
                 <h4 className="m-0 mb-2 text-xs font-semibold tracking-wide text-text-muted uppercase">
-                  {details.comments.length ? t("issues.details.commentsCount", { count: details.comments.length }) : t("issues.details.comments")}
+                  {details.comments.length
+                    ? t("issues.details.commentsCount", { count: details.comments.length })
+                    : t("issues.details.comments")}
                 </h4>
                 {details.comments.length === 0 ? (
                   <p className="text-sm text-text-muted">{t("issues.details.noComments")}</p>
@@ -149,7 +195,11 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
                           <When value={comment.createdAt} prefix="" />
                         </p>
                         <div className="px-3 py-2">
-                          <SafeMarkdown source={comment.body} origin={t("issues.details.commentOrigin")} empty={t("issues.details.emptyComment")} />
+                          <SafeMarkdown
+                            source={comment.body}
+                            origin={t("issues.details.commentOrigin")}
+                            empty={t("issues.details.emptyComment")}
+                          />
                         </div>
                       </li>
                     ))}

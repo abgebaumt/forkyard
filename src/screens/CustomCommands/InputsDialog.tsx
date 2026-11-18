@@ -46,16 +46,39 @@ function InputsDialog({ command, onDone }: { command: CustomCommandDef; onDone: 
           const error = tried ? errors[input.id] : undefined;
           const value = values[input.id] ?? "";
           if (input.type === "checkbox") {
-            return <Checkbox key={input.id} label={input.label} checked={value === "true"} onCheckedChange={(checked) => set(input.id, checked ? "true" : "false")} />;
+            return (
+              <Checkbox
+                key={input.id}
+                label={input.label}
+                checked={value === "true"}
+                onCheckedChange={(checked) => set(input.id, checked ? "true" : "false")}
+              />
+            );
           }
           if (input.type === "choice") {
-            return <Select key={input.id} label={input.label} value={value} error={error} options={input.options.map((option) => ({ value: option, label: option }))} onValueChange={(next) => set(input.id, next)} />;
+            return (
+              <Select
+                key={input.id}
+                label={input.label}
+                value={value}
+                error={error}
+                options={input.options.map((option) => ({ value: option, label: option }))}
+                onValueChange={(next) => set(input.id, next)}
+              />
+            );
           }
           if (input.type === "file") {
             return (
               <div key={input.id} className="flex items-end gap-2">
                 <div className="min-w-0 flex-1">
-                  <TextField data-autofocus={index === 0 ? true : undefined} label={input.label} mono value={value} error={error} onChange={(event) => set(input.id, event.target.value)} />
+                  <TextField
+                    data-autofocus={index === 0 ? true : undefined}
+                    label={input.label}
+                    mono
+                    value={value}
+                    error={error}
+                    onChange={(event) => set(input.id, event.target.value)}
+                  />
                 </div>
                 <Button
                   icon={<FolderOpen className="size-icon" aria-hidden />}
@@ -69,7 +92,17 @@ function InputsDialog({ command, onDone }: { command: CustomCommandDef; onDone: 
               </div>
             );
           }
-          return <TextField key={input.id} data-autofocus={index === 0 ? true : undefined} label={input.label} value={value} error={error} autoComplete="off" onChange={(event) => set(input.id, event.target.value)} />;
+          return (
+            <TextField
+              key={input.id}
+              data-autofocus={index === 0 ? true : undefined}
+              label={input.label}
+              value={value}
+              error={error}
+              autoComplete="off"
+              onChange={(event) => set(input.id, event.target.value)}
+            />
+          );
         })}
       </form>
     </Dialog>

@@ -44,11 +44,24 @@ const review = (patch: Partial<AiPushReview>): AiPushReview => ({ findings: [], 
 
 describe("secret findings", () => {
   it("are listed by path and line with the masked line and a short commit", () => {
-    const rows = secretRows([finding({ id: "b".repeat(64), path: "z/ü datei.env", line: 10 }), finding({ id: "c".repeat(64), path: "-geheim/a.txt", line: 3, rule: "high_entropy" }), finding({})]);
+    const rows = secretRows([
+      finding({ id: "b".repeat(64), path: "z/ü datei.env", line: 10 }),
+      finding({ id: "c".repeat(64), path: "-geheim/a.txt", line: 3, rule: "high_entropy" }),
+      finding({}),
+    ]);
     expect(rows.map((row) => row.location)).toEqual(["-geheim/a.txt:3", "einstellungen/dienst.py:2", "z/ü datei.env:10"]);
-    expect(rows[1]).toEqual({ id: A, location: "einstellungen/dienst.py:2", rule: ruleLabel("known_token"), excerpt: 'AWS_ZUGANG = "…W3NB"', commit: "1234567" });
+    expect(rows[1]).toEqual({
+      id: A,
+      location: "einstellungen/dienst.py:2",
+      rule: ruleLabel("known_token"),
+      excerpt: 'AWS_ZUGANG = "…W3NB"',
+      commit: "1234567",
+    });
     expect(rows[0]!.rule).toBe(ruleLabel("high_entropy"));
-    expect(new Set((["known_token", "private_key", "credential", "url_password", "high_entropy"] as const).map(ruleLabel)).size, "every rule has its own words").toBe(5);
+    expect(
+      new Set((["known_token", "private_key", "credential", "url_password", "high_entropy"] as const).map(ruleLabel)).size,
+      "every rule has its own words",
+    ).toBe(5);
     expect(findingLocation({ path: "a.txt", line: null })).toBe("a.txt");
   });
 
@@ -56,7 +69,10 @@ describe("secret findings", () => {
     expect(secretsTitle(1)).toBe(t("pushCheck.secrets.title", { count: 1 }));
     expect(secretsTitle(1)).not.toBe(secretsTitle(2));
     expect(secretsNotes({ findings: [finding({})], commits: 3, partial: false })).toEqual([t("pushCheck.secrets.scanned", { count: 3 })]);
-    expect(secretsNotes({ findings: [], commits: 1000, partial: true })).toEqual([t("pushCheck.secrets.scanned", { count: 1000 }), t("pushCheck.secrets.partial")]);
+    expect(secretsNotes({ findings: [], commits: 1000, partial: true })).toEqual([
+      t("pushCheck.secrets.scanned", { count: 1000 }),
+      t("pushCheck.secrets.partial"),
+    ]);
     expect(acceptedIds([finding({}), finding({ line: 9 })])).toEqual([A]);
     expect(stillReported([finding({}), finding({ id: "d".repeat(64) })], new Set([A])).map((item) => item.id)).toEqual(["d".repeat(64)]);
   });
@@ -82,7 +98,9 @@ describe("push review", () => {
   it("says when nothing stood out and which button pushes", () => {
     expect(reviewSummary(review({}))).toBe(`${t("pushCheck.review.none")} · ${t("pushCheck.review.commits", { count: 2 })}`);
     expect(reviewSummary(review({ commits: 0, files: 0 }))).toBe(t("pushCheck.review.nothing"));
-    expect(reviewSummary(review({ findings: [{ path: "a", line: 1, kind: "likely_bug", note: "x" }] }))).toBe(`${t("pushCheck.review.found", { count: 1 })} · ${t("pushCheck.review.commits", { count: 2 })}`);
+    expect(reviewSummary(review({ findings: [{ path: "a", line: 1, kind: "likely_bug", note: "x" }] }))).toBe(
+      `${t("pushCheck.review.found", { count: 1 })} · ${t("pushCheck.review.commits", { count: 2 })}`,
+    );
     expect(reviewPushLabel("done", 0)).toBe(t("pushCheck.review.push"));
     expect(reviewPushLabel("done", 2)).toBe(t("pushCheck.review.pushAnyway"));
     expect(reviewPushLabel("loading", 0)).toBe(t("pushCheck.review.pushAnyway"));

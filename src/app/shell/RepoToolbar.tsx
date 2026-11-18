@@ -45,7 +45,8 @@ function headBlocker(status: Status | undefined, what: "pull" | "push"): string 
   return null;
 }
 
-const operationBlocker = (status: Status | undefined) => (status?.operation ? t("shell.toolbar.finishOperation", { operation: operationNames[status.operation.kind] }) : null);
+const operationBlocker = (status: Status | undefined) =>
+  status?.operation ? t("shell.toolbar.finishOperation", { operation: operationNames[status.operation.kind] }) : null;
 
 /**
  * Toolbar of a repo tab. Disabled buttons stay focusable and name the reason:
@@ -97,7 +98,11 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     noRemote ??
     headBlocker(status, "pull") ??
     operation ??
-    (status && !upstream ? t("shell.toolbar.noUpstream") : upstream?.gone ? t("shell.toolbar.upstreamGone", { name: upstream.name }) : null) ??
+    (status && !upstream
+      ? t("shell.toolbar.noUpstream")
+      : upstream?.gone
+        ? t("shell.toolbar.upstreamGone", { name: upstream.name })
+        : null) ??
     waitFor(pulling);
   const pushBlocked =
     noRemote ??
@@ -118,7 +123,8 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         : changes === 0
           ? t("shell.toolbar.nothingToStash")
           : null;
-  const popBlocked = stashes && stashes.length === 0 ? t("shell.toolbar.noStash") : status?.conflicted.length ? t("shell.toolbar.resolveConflicts") : null;
+  const popBlocked =
+    stashes && stashes.length === 0 ? t("shell.toolbar.noStash") : status?.conflicted.length ? t("shell.toolbar.resolveConflicts") : null;
   const undoBlocked = undoState && !undoState.undo ? (undoState.undoBlocked ?? t("shell.toolbar.nothingToUndo")) : operation;
   const redoBlocked = undoState && !undoState.redo ? t("shell.toolbar.nothingToRedo") : operation;
 
@@ -138,7 +144,13 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
       }),
     ),
     { type: "separator" },
-    { label: t("shell.toolbar.fetchAll"), shortcut: "Mod+Shift+L", disabled: Boolean(fetchBlocked), tooltip: fetchBlocked ?? undefined, onSelect: () => void fetchAll(repoId) },
+    {
+      label: t("shell.toolbar.fetchAll"),
+      shortcut: "Mod+Shift+L",
+      disabled: Boolean(fetchBlocked),
+      tooltip: fetchBlocked ?? undefined,
+      onSelect: () => void fetchAll(repoId),
+    },
     ...(hasRemote === false ? [{ label: t("shell.toolbar.addRemote"), onSelect: addRemote } satisfies MenuEntry] : []),
   ];
 
@@ -234,7 +246,9 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         compact={compact}
         busy={branching || rewriting}
         disabled={Boolean(branchBlocked)}
-        hint={branchBlocked ?? (branchStart ? t("shell.toolbar.branchAt", { sha: branchStart.slice(0, 7) }) : t("shell.toolbar.branchHint"))}
+        hint={
+          branchBlocked ?? (branchStart ? t("shell.toolbar.branchAt", { sha: branchStart.slice(0, 7) }) : t("shell.toolbar.branchHint"))
+        }
         onClick={() => void createBranch(repoId, { start: branchStart, tabId })}
       />
       <ToolbarButton
@@ -254,7 +268,12 @@ export function RepoToolbar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
         compact={compact}
         busy={popping}
         disabled={Boolean(popBlocked)}
-        hint={popBlocked ?? (stashTop ? t("shell.toolbar.popWhat", { message: stashTop.message.length > 60 ? `${stashTop.message.slice(0, 59)}…` : stashTop.message }) : t("shell.toolbar.popHint"))}
+        hint={
+          popBlocked ??
+          (stashTop
+            ? t("shell.toolbar.popWhat", { message: stashTop.message.length > 60 ? `${stashTop.message.slice(0, 59)}…` : stashTop.message })
+            : t("shell.toolbar.popHint"))
+        }
         onClick={() => void popStash(repoId, stashTop ?? 0, tabId)}
       />
       <ToolbarSeparator />

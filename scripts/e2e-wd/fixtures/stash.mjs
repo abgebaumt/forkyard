@@ -8,7 +8,10 @@ import path from "node:path";
 import { makeCleanRepoWithRemote } from "../../e2e/fixtures.mjs";
 
 /** 30 lines; changes in line 3 and line 27 end up in two separate hunks. */
-export const MEASUREMENTS = Array.from({ length: 30 }, (_, index) => `2026-03-${String(index + 1).padStart(2, "0")};${(4 + index / 10).toFixed(1)}`);
+export const MEASUREMENTS = Array.from(
+  { length: 30 },
+  (_, index) => `2026-03-${String(index + 1).padStart(2, "0")};${(4 + index / 10).toFixed(1)}`,
+);
 export const CRLF_LINES = ["eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn"];
 
 /**
@@ -29,7 +32,11 @@ export function makeStashRepo({ name = "stash-messnetz" } = {}) {
     bytes: (rel) => fs.readFileSync(path.join(repo.path, rel)),
     exists: (rel) => fs.existsSync(path.join(repo.path, rel)),
     remove: (rel) => fs.rmSync(path.join(repo.path, rel), { force: true }),
-    lines: (...args) => repo.git(...args).split(/\r?\n/).filter(Boolean),
+    lines: (...args) =>
+      repo
+        .git(...args)
+        .split(/\r?\n/)
+        .filter(Boolean),
   };
 }
 

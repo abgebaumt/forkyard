@@ -36,7 +36,16 @@ vi.mock("../../core", () => ({
 
 const { signInInTerminal } = await import("./cliLogin");
 
-const tab = (patch: Partial<Tab>): Tab => ({ id: "tab-1", kind: "repo", repoId: "repo-1", position: 1, isActive: true, title: "Mein Projekt", path: "/home/lena/Mein Projekt", ...patch });
+const tab = (patch: Partial<Tab>): Tab => ({
+  id: "tab-1",
+  kind: "repo",
+  repoId: "repo-1",
+  position: 1,
+  isActive: true,
+  title: "Mein Projekt",
+  path: "/home/lena/Mein Projekt",
+  ...patch,
+});
 
 beforeEach(() => {
   tabs = [];

@@ -32,7 +32,12 @@ function showState(repoId: Id, tabId: Id | null | undefined, status: BisectStatu
  * Bad and good commit: from two selected commits (the user confirms the order), otherwise good from
  * the branches and tags. `title` and `confirmLabel` let the autopilot reuse the chooser.
  */
-export async function chooseRange(repoId: Id, shas: Sha[], title = t("bisect.start.title"), confirmLabel = t("bisect.start.confirm")): Promise<{ bad: Sha; good: Sha } | null> {
+export async function chooseRange(
+  repoId: Id,
+  shas: Sha[],
+  title = t("bisect.start.title"),
+  confirmLabel = t("bisect.start.confirm"),
+): Promise<{ bad: Sha; good: Sha } | null> {
   const [first, second] = shas;
   if (!first) return null;
   if (second) {
@@ -65,7 +70,9 @@ export async function chooseRange(repoId: Id, shas: Sha[], title = t("bisect.sta
 export async function startBisect(repoId: Id, shas: Sha[], tabId?: Id | null) {
   const range = await chooseRange(repoId, shas);
   if (!range) return null;
-  const result = await runAction(t("bisect.start.label"), () => core.bisectStart({ repoId, bad: range.bad, good: [range.good] }), { busyKey: bisectBusyKey(repoId) });
+  const result = await runAction(t("bisect.start.label"), () => core.bisectStart({ repoId, bad: range.bad, good: [range.good] }), {
+    busyKey: bisectBusyKey(repoId),
+  });
   if (result.ok) showState(repoId, tabId, result.value);
   return result;
 }
@@ -73,7 +80,9 @@ export async function startBisect(repoId: Id, shas: Sha[], tabId?: Id | null) {
 /** `sha: null` = the commit under test, as the bar shows it (see `markTarget`). */
 export async function markBisect(repoId: Id, verdict: BisectVerdict, tabId?: Id | null, sha: Sha | null = null) {
   const target = markTarget(queryClient.getQueryData<BisectStatus>(qk.bisect(repoId)), sha);
-  const result = await runAction(MARK_LABELS[verdict], () => core.bisectMark({ repoId, verdict, sha: target }), { busyKey: bisectBusyKey(repoId) });
+  const result = await runAction(MARK_LABELS[verdict], () => core.bisectMark({ repoId, verdict, sha: target }), {
+    busyKey: bisectBusyKey(repoId),
+  });
   if (result.ok) showState(repoId, tabId, result.value);
   return result;
 }

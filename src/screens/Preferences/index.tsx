@@ -132,7 +132,8 @@ export function Preferences({
 
   const withSettings = (render: (value: NonNullable<typeof settings.data>) => ReactNode) => {
     if (settings.isPending) return <SettingsSkeleton />;
-    if (settings.isError) return <LoadError title={t("preferences.loadError.settings")} error={settings.error} onRetry={() => void settings.refetch()} />;
+    if (settings.isError)
+      return <LoadError title={t("preferences.loadError.settings")} error={settings.error} onRetry={() => void settings.refetch()} />;
     return render(settings.data);
   };
 
@@ -160,7 +161,10 @@ export function Preferences({
       return (
         <div aria-hidden className={title}>
           <ProfileDot color={profileColor(profile, profileIndex)} className="size-2" />
-          <span className="min-w-0 truncate normal-case tracking-normal text-text" title={t("preferences.levels.profileTitle", { name: profile.name })}>
+          <span
+            className="min-w-0 truncate normal-case tracking-normal text-text"
+            title={t("preferences.levels.profileTitle", { name: profile.name })}
+          >
             {t("preferences.levels.profile", { name: profile.name })}
           </span>
         </div>
@@ -184,7 +188,9 @@ export function Preferences({
     if (level === "profile" && profile)
       return (
         <div className="flex items-center gap-2">
-          <ScopePill icon={<ProfileDot color={profileColor(profile, profileIndex)} className="size-2" />}>{t("preferences.scope.profile", { name: profile.name })}</ScopePill>
+          <ScopePill icon={<ProfileDot color={profileColor(profile, profileIndex)} className="size-2" />}>
+            {t("preferences.scope.profile", { name: profile.name })}
+          </ScopePill>
           {/* Outside the section list: a tab list may only contain tabs. */}
           {profiles ? (
             <DropdownMenu entries={profileMenuEntries(profiles)} align="start">
@@ -273,7 +279,10 @@ export function Preferences({
         <RadixDialog.Content
           data-screen="settings"
           aria-describedby={undefined}
-          className={cn(dialogSurface, "animate-pop fixed top-1/2 left-1/2 z-50 h-170 w-232 -translate-x-1/2 -translate-y-1/2 overflow-hidden")}
+          className={cn(
+            dialogSurface,
+            "animate-pop fixed top-1/2 left-1/2 z-50 h-170 w-232 -translate-x-1/2 -translate-y-1/2 overflow-hidden",
+          )}
           onKeyDown={onKeyDown}
           onEscapeKeyDown={(event) => {
             // Esc first clears the search; a second Esc closes the dialog. Radix hears Esc before the
@@ -290,7 +299,12 @@ export function Preferences({
           }}
         >
           <SettingsSearch.Provider value={query}>
-            <Tabs.Root orientation="vertical" value={shown} onValueChange={(value) => setActive(value as SectionId)} className="flex min-h-0 flex-1">
+            <Tabs.Root
+              orientation="vertical"
+              value={shown}
+              onValueChange={(value) => setActive(value as SectionId)}
+              className="flex min-h-0 flex-1"
+            >
               <nav aria-label={t("preferences.nav.label")} className="flex w-60 shrink-0 flex-col border-r border-border bg-surface-sunken">
                 <RadixDialog.Title className="px-4 pt-4 pb-2 text-lg font-semibold">{t("preferences.title")}</RadixDialog.Title>
                 <label className="mx-3 mb-1 flex h-control-md items-center gap-2 rounded-md border border-border-input bg-surface-raised px-2 focus-within:outline-2 focus-within:outline-accent">
@@ -305,7 +319,11 @@ export function Preferences({
                     className="min-w-0 flex-1 bg-transparent text-base text-text outline-none placeholder:text-text-muted"
                   />
                 </label>
-                <Tabs.List ref={listRef} aria-label={t("preferences.nav.list")} className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3">
+                <Tabs.List
+                  ref={listRef}
+                  aria-label={t("preferences.nav.list")}
+                  className="flex min-h-0 flex-1 flex-col overflow-y-auto px-2 pb-3"
+                >
                   {levels
                     .filter((level) => sections.some((item) => item.level === level))
                     .map((level) => (

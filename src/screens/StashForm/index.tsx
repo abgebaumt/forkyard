@@ -27,7 +27,13 @@ interface StashPlan {
 }
 
 /** What "Create stash" would do right now: everything or only the checked files. */
-function planStash(status: Status | undefined, marked: string[], onlyMarked: boolean, includeUntracked: boolean, pending: PendingStash | null): StashPlan {
+function planStash(
+  status: Status | undefined,
+  marked: string[],
+  onlyMarked: boolean,
+  includeUntracked: boolean,
+  pending: PendingStash | null,
+): StashPlan {
   if (!status) return { label: t("stash.create"), blocked: t("stash.blocked.loading"), paths: null };
   if (status.head.kind === "unborn") return { label: t("stash.create"), blocked: t("stash.blocked.unborn"), paths: null };
   if (status.conflicted.length > 0) return { label: t("stash.create"), blocked: t("stash.blocked.conflicts"), paths: null };
@@ -112,7 +118,10 @@ function StashFields({ repoId, tabId }: StashFormProps) {
       <div className="flex flex-col gap-1">
         {pending && counts ? (
           <Checkbox
-            label={t("partialStash.only", { files: t("partialStash.files", { count: counts.files }), lines: t("partialStash.lines", { count: counts.lines }) })}
+            label={t("partialStash.only", {
+              files: t("partialStash.files", { count: counts.files }),
+              lines: t("partialStash.lines", { count: counts.lines }),
+            })}
             checked
             hint={t("partialStash.onlyHint")}
             onCheckedChange={(checked) => {
@@ -120,7 +129,11 @@ function StashFields({ repoId, tabId }: StashFormProps) {
             }}
           />
         ) : null}
-        <Checkbox label={t("stash.includeUntracked")} checked={wip.stashUntracked} onCheckedChange={(checked) => patch(tabId, { stashUntracked: checked })} />
+        <Checkbox
+          label={t("stash.includeUntracked")}
+          checked={wip.stashUntracked}
+          onCheckedChange={(checked) => patch(tabId, { stashUntracked: checked })}
+        />
         <Checkbox
           label={marked.length > 0 ? t("stash.onlyMarkedCount", { count: marked.length }) : t("stash.onlyMarked")}
           checked={onlyMarked}
@@ -133,7 +146,10 @@ function StashFields({ repoId, tabId }: StashFormProps) {
         <Button size="lg" variant="ghost" icon={<ArrowLeft className="size-icon" aria-hidden />} onClick={back}>
           {t("stash.backToCommit")}
         </Button>
-        <Tip side="top" label={plan.blocked ?? (pending ? t("partialStash.create") : plan.paths ? t("stash.tipMarked") : t("stash.tipAll"))}>
+        <Tip
+          side="top"
+          label={plan.blocked ?? (pending ? t("partialStash.create") : plan.paths ? t("stash.tipMarked") : t("stash.tipAll"))}
+        >
           <Button
             type="submit"
             variant="primary"

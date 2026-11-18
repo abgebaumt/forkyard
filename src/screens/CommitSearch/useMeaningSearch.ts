@@ -66,7 +66,9 @@ export function useMeaningSearch(repoId: Id) {
 
   const showSent = useCallback(
     async (question: string) => {
-      const result = await runAction(t("ai.preview.loading"), () => core.aiPreview({ repoId, feature: "semantic_search", input: { kind: "semantic_search", query: question }, locale: locale() }));
+      const result = await runAction(t("ai.preview.loading"), () =>
+        core.aiPreview({ repoId, feature: "semantic_search", input: { kind: "semantic_search", query: question }, locale: locale() }),
+      );
       if (result.ok) await showAiPreview(result.value, "look");
     },
     [repoId],

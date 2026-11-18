@@ -5,7 +5,12 @@ import type { CommandContext } from "./commandTypes";
 
 const toggled: string[] = [];
 const previews: unknown[][] = [];
-vi.mock("../screens/WipPanel/actions", () => ({ commitChanges: vi.fn(), discardEverything: vi.fn(), stageEverything: vi.fn(), unstageEverything: vi.fn() }));
+vi.mock("../screens/WipPanel/actions", () => ({
+  commitChanges: vi.fn(),
+  discardEverything: vi.fn(),
+  stageEverything: vi.fn(),
+  unstageEverything: vi.fn(),
+}));
 vi.mock("../screens/WipPanel/aiDraftActions", () => ({
   toggleWriteMessage: (repoId: string) => {
     toggled.push(repoId);
@@ -38,12 +43,38 @@ const aiOn = (patch: Partial<AiStatus> = {}): AiStatus => ({
   ...patch,
 });
 
-function ctxWith({ ai, aiOff = false, staged = 1, repo = true }: { ai?: AiStatus; aiOff?: boolean; staged?: number; repo?: boolean }): CommandContext {
+function ctxWith({
+  ai,
+  aiOff = false,
+  staged = 1,
+  repo = true,
+}: {
+  ai?: AiStatus;
+  aiOff?: boolean;
+  staged?: number;
+  repo?: boolean;
+}): CommandContext {
   const queryClient = new QueryClient();
   if (ai) queryClient.setQueryData(qk.aiStatus, ai);
   queryClient.setQueryData(qk.repoSettings(REPO), { aiOff } as RepoSettings);
-  const status = { staged: Array.from({ length: staged }, (_, index) => ({ path: `f${index}.txt` })), unstaged: [], conflicted: [], operation: null } as unknown as Status;
-  return { platform: "linux", tabs: [], tab: null, tabId: repo ? "tab-1" : null, repoId: repo ? REPO : null, view: null, status, store: {} as CommandContext["store"], queryClient, source: "palette" };
+  const status = {
+    staged: Array.from({ length: staged }, (_, index) => ({ path: `f${index}.txt` })),
+    unstaged: [],
+    conflicted: [],
+    operation: null,
+  } as unknown as Status;
+  return {
+    platform: "linux",
+    tabs: [],
+    tab: null,
+    tabId: repo ? "tab-1" : null,
+    repoId: repo ? REPO : null,
+    view: null,
+    status,
+    store: {} as CommandContext["store"],
+    queryClient,
+    source: "palette",
+  };
 }
 
 const write = commands.find((command) => command.id === "wip.writeMessage")!;
@@ -57,7 +88,9 @@ beforeEach(() => {
 describe("palette: write commit message (spec 3.1)", () => {
   it("is Mod+Shift+M and toggles Write in the commit form", async () => {
     expect(write.shortcut).toBe("Mod+Shift+M");
-    const owners = getCommands().filter((command) => command.shortcut === "Mod+Shift+M" || command.aliases?.includes("Mod+Shift+M")).map((command) => command.id);
+    const owners = getCommands()
+      .filter((command) => command.shortcut === "Mod+Shift+M" || command.aliases?.includes("Mod+Shift+M"))
+      .map((command) => command.id);
     expect(owners, "the shortcut is free (Alt+M stays focus.commitMessage)").toEqual(["wip.writeMessage"]);
     const ctx = ctxWith({ ai: aiOn() });
     expect(isAvailable(write, ctx)).toBe(true);

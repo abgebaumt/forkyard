@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { ConflictIntent, ConflictIntentBlock } from "../../core";
-import { blockNote, canApply, clampIntentWidth, conflictRanges, hasChange, intentReducer, suggestionDiff, type IntentState } from "./intent";
+import {
+  blockNote,
+  canApply,
+  clampIntentWidth,
+  conflictRanges,
+  hasChange,
+  intentReducer,
+  suggestionDiff,
+  type IntentState,
+} from "./intent";
 import { buildModel, chunkText, emptyChoice, isResolved, manualOf, shiftBounds } from "./model";
 
 const labels = { ours: "main", theirs: "feature" };
@@ -50,8 +59,18 @@ describe("the proposal as a small diff against the block's current text", () => 
 });
 
 describe("Apply replaces exactly one block (spec 6.1)", () => {
-  const model = buildModel("kopf\neins\nmitte\nzwei\nende\n", "kopf\nEINS main\nmitte\nZWEI main\nende\n", "kopf\neins feature\nmitte\nZWEI feature\nende\n");
-  const chunks = ["kopf\n", "<<<<<<< main\nEINS main\n=======\neins feature\n>>>>>>> feature\n", "mitte\n", "<<<<<<< main\nZWEI main\n=======\nZWEI feature\n>>>>>>> feature\n", "ende\n"];
+  const model = buildModel(
+    "kopf\neins\nmitte\nzwei\nende\n",
+    "kopf\nEINS main\nmitte\nZWEI main\nende\n",
+    "kopf\neins feature\nmitte\nZWEI feature\nende\n",
+  );
+  const chunks = [
+    "kopf\n",
+    "<<<<<<< main\nEINS main\n=======\neins feature\n>>>>>>> feature\n",
+    "mitte\n",
+    "<<<<<<< main\nZWEI main\n=======\nZWEI feature\n>>>>>>> feature\n",
+    "ende\n",
+  ];
   const boundsOf = (parts: string[]) => parts.reduce<number[]>((out, part) => [...out, out[out.length - 1]! + part.length], [0]);
 
   it("starts from what the tool shows: markers in both conflicts", () => {
@@ -62,7 +81,13 @@ describe("Apply replaces exactly one block (spec 6.1)", () => {
     const proposal = "EINS feature\nzusatz\n";
     const after = [chunks[0]!, proposal, chunks[2]!, chunks[3]!, chunks[4]!];
     expect(shiftBounds(boundsOf(chunks), [{ chunk: 1, text: proposal }])).toEqual(boundsOf(after));
-    expect(shiftBounds(boundsOf(chunks), [{ chunk: 3, text: "" }, { chunk: 1, text: proposal }]), "unsorted changes").toEqual(boundsOf([chunks[0]!, proposal, chunks[2]!, "", chunks[4]!]));
+    expect(
+      shiftBounds(boundsOf(chunks), [
+        { chunk: 3, text: "" },
+        { chunk: 1, text: proposal },
+      ]),
+      "unsorted changes",
+    ).toEqual(boundsOf([chunks[0]!, proposal, chunks[2]!, "", chunks[4]!]));
   });
 
   it("makes the block count as edited by hand and resolved; the other conflict stays open", () => {
@@ -74,13 +99,25 @@ describe("Apply replaces exactly one block (spec 6.1)", () => {
 });
 
 describe("blocks that may be applied", () => {
-  const block = (patch: Partial<ConflictIntentBlock>): ConflictIntentBlock => ({ block: 0, sent: "full", oursWhy: "a", theirsWhy: "b", text: "x\n", ...patch });
+  const block = (patch: Partial<ConflictIntentBlock>): ConflictIntentBlock => ({
+    block: 0,
+    sent: "full",
+    oursWhy: "a",
+    theirsWhy: "b",
+    text: "x\n",
+    ...patch,
+  });
 
   it("only complete blocks with a proposal", () => {
     expect(canApply(block({}))).toBe(true);
     expect(canApply(block({ text: null }))).toBe(false);
     expect(canApply(block({ sent: "shortened", text: null }))).toBe(false);
-    expect([block({}), block({ sent: "shortened" }), block({ sent: "redacted" }), block({ sent: "left_out" })].map(blockNote)).toEqual([null, "shortened", "redacted", "leftOut"]);
+    expect([block({}), block({ sent: "shortened" }), block({ sent: "redacted" }), block({ sent: "left_out" })].map(blockNote)).toEqual([
+      null,
+      "shortened",
+      "redacted",
+      "leftOut",
+    ]);
   });
 });
 
@@ -103,7 +140,10 @@ describe("the request state", () => {
 
   it("shows errors, but a cancelled request just goes back", () => {
     const loading = intentReducer(intentReducer(idle, { type: "start", at: 0 }), { type: "sending", jobId: "j1" });
-    expect(intentReducer(loading, { type: "failed", jobId: "j1", view: { kind: "invalid", text: "Answer unusable" } })).toEqual({ kind: "error", view: { kind: "invalid", text: "Answer unusable" } });
+    expect(intentReducer(loading, { type: "failed", jobId: "j1", view: { kind: "invalid", text: "Answer unusable" } })).toEqual({
+      kind: "error",
+      view: { kind: "invalid", text: "Answer unusable" },
+    });
     expect(intentReducer(loading, { type: "failed", jobId: "j1", view: { kind: "cancelled" } })).toEqual(idle);
     expect(intentReducer(loading, { type: "failed", jobId: "j9", view: { kind: "other", text: "x" } })).toBe(loading);
     const preparing = intentReducer(idle, { type: "start", at: 0 });

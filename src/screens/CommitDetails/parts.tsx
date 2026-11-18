@@ -129,12 +129,23 @@ export async function copyText(text: string): Promise<boolean> {
 }
 
 /** Copy button with feedback: checkmark and announcement for two seconds. */
-export function CopyButton({ text, label, copiedLabel = t("commitDetails.copied") }: { text: string; label: string; copiedLabel?: string }) {
+export function CopyButton({
+  text,
+  label,
+  copiedLabel = t("commitDetails.copied"),
+}: {
+  text: string;
+  label: string;
+  copiedLabel?: string;
+}) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   const timer = useRef<number | null>(null);
-  useEffect(() => () => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
   const message = state === "copied" ? copiedLabel : state === "failed" ? t("commitDetails.copyFailed") : "";
   return (
     <>

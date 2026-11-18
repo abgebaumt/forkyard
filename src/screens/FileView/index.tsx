@@ -207,9 +207,13 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
       if (!worktree || !current || current.key !== key) return false;
       const { text, encoding, eol } = current;
       const name = path.slice(path.lastIndexOf("/") + 1);
-      const result = await runAction(t("fileView.save"), () => core.fileWrite({ repoId, path, content: text, encoding, eol }), { busyKey: busyKey(repoId, path) });
+      const result = await runAction(t("fileView.save"), () => core.fileWrite({ repoId, path, content: text, encoding, eol }), {
+        busyKey: busyKey(repoId, path),
+      });
       if (!result.ok) return false;
-      setBuffer((now) => (now && now.key === key ? { ...now, base: text, baseEncoding: encoding, baseEol: eol, mixed: false, eolTouched: false } : now));
+      setBuffer((now) =>
+        now && now.key === key ? { ...now, base: text, baseEncoding: encoding, baseEol: eol, mixed: false, eolTouched: false } : now,
+      );
       setExternal(null);
       setRestored(false);
       drafts.delete(key);
@@ -268,7 +272,9 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   const keepMine = () => {
     if (!external) return;
     // The state on disk becomes the new base; your own changes stay unsaved.
-    setBuffer((current) => (current ? { ...current, base: normalizeEol(external.text ?? ""), baseEncoding: external.encoding || current.baseEncoding } : current));
+    setBuffer((current) =>
+      current ? { ...current, base: normalizeEol(external.text ?? ""), baseEncoding: external.encoding || current.baseEncoding } : current,
+    );
     setExternal(null);
   };
 
@@ -304,7 +310,10 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
     <header data-file-header="" className="@container shrink-0 border-b border-border bg-surface">
       <div className="flex h-control-lg items-center gap-2 pr-1 pl-3">
         <FileTitle path={path} icon={<FileText className="size-icon" aria-hidden />} />
-        <Tag title={worktree ? t("fileView.header.worktreeTip") : t("fileView.header.commitTip", { sha })} data-stand={worktree ? "worktree" : sha!}>
+        <Tag
+          title={worktree ? t("fileView.header.worktreeTip") : t("fileView.header.commitTip", { sha })}
+          data-stand={worktree ? "worktree" : sha!}
+        >
           {standLabel}
         </Tag>
         {editing ? (
@@ -323,8 +332,20 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
           </Tip>
         ) : null}
         <Divider />
-        <IconButton size="sm" label={t("fileView.header.history")} shortcut="Mod+Shift+H" icon={<History className="size-icon" aria-hidden />} onClick={() => store().openHistory(tabId, path)} />
-        <IconButton size="sm" label={t("fileView.header.blame")} icon={<UserSearch className="size-icon" aria-hidden />} disabled={!textual} onClick={() => store().openBlame(tabId, path, sha)} />
+        <IconButton
+          size="sm"
+          label={t("fileView.header.history")}
+          shortcut="Mod+Shift+H"
+          icon={<History className="size-icon" aria-hidden />}
+          onClick={() => store().openHistory(tabId, path)}
+        />
+        <IconButton
+          size="sm"
+          label={t("fileView.header.blame")}
+          icon={<UserSearch className="size-icon" aria-hidden />}
+          disabled={!textual}
+          onClick={() => store().openBlame(tabId, path, sha)}
+        />
         <IconButton
           size="sm"
           label={t("fileView.openExternal")}
@@ -338,7 +359,11 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
       </div>
 
       {textual ? (
-        <div role="toolbar" aria-label={t("fileView.toolbar")} className="flex h-control-lg items-center gap-1.5 border-t border-border pr-2 pl-3">
+        <div
+          role="toolbar"
+          aria-label={t("fileView.toolbar")}
+          className="flex h-control-lg items-center gap-1.5 border-t border-border pr-2 pl-3"
+        >
           {worktree ? (
             <SegmentedControl
               label={t("fileView.mode.label")}
@@ -350,7 +375,12 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
               onValueChange={(next) => setMode(next)}
             />
           ) : (
-            <Button size="sm" variant="ghost" icon={<PencilLine className="size-icon" aria-hidden />} onClick={() => store().openFile(tabId, path, null, "edit")}>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={<PencilLine className="size-icon" aria-hidden />}
+              onClick={() => store().openFile(tabId, path, null, "edit")}
+            >
               <span className="hidden @xl:inline">{t("fileView.mode.editWorktree")}</span>
               <span className="@xl:hidden">{t("fileView.mode.edit")}</span>
             </Button>
@@ -366,17 +396,38 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
               onValueChange={(next) => setPreview(next === "preview")}
             />
           ) : null}
-          <IconButton size="sm" label={t("fileView.wrap")} active={wrap} aria-pressed={wrap} disabled={preview} icon={<WrapText className="size-icon" aria-hidden />} onClick={toggleWrap} />
+          <IconButton
+            size="sm"
+            label={t("fileView.wrap")}
+            active={wrap}
+            aria-pressed={wrap}
+            disabled={preview}
+            icon={<WrapText className="size-icon" aria-hidden />}
+            onClick={toggleWrap}
+          />
           <span className="min-w-0 flex-1" />
           {editing ? (
             <>
               <Tip label={t("fileView.saveStageTip")}>
-                <Button size="sm" disabled={!dirty || saving} icon={<SquarePlus className="size-icon" aria-hidden />} onClick={() => void save(true)} aria-label={t("fileView.saveStage")}>
+                <Button
+                  size="sm"
+                  disabled={!dirty || saving}
+                  icon={<SquarePlus className="size-icon" aria-hidden />}
+                  onClick={() => void save(true)}
+                  aria-label={t("fileView.saveStage")}
+                >
                   <span className="hidden @2xl:inline">{t("fileView.saveStage")}</span>
                 </Button>
               </Tip>
               <Tip label={t("fileView.save")} shortcut="Mod+S">
-                <Button size="sm" variant="primary" loading={saving} disabled={!dirty} icon={<Save className="size-icon" aria-hidden />} onClick={() => void save(false)}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  loading={saving}
+                  disabled={!dirty}
+                  icon={<Save className="size-icon" aria-hidden />}
+                  onClick={() => void save(false)}
+                >
                   {t("fileView.save")}
                 </Button>
               </Tip>
@@ -399,7 +450,13 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
         id={gone ? "gone" : "error"}
         tone={gone ? "muted" : "danger"}
         icon={gone ? <FileQuestion className="size-8" aria-hidden /> : <FileWarning className="size-8" aria-hidden />}
-        title={gone ? (worktree ? t("fileView.error.goneWorktree") : t("fileView.error.goneCommit", { sha: shortSha(sha!) })) : t("fileView.error.readFailed")}
+        title={
+          gone
+            ? worktree
+              ? t("fileView.error.goneWorktree")
+              : t("fileView.error.goneCommit", { sha: shortSha(sha!) })
+            : t("fileView.error.readFailed")
+        }
         action={
           <>
             {gone ? (
@@ -407,7 +464,11 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
                 {t("fileView.error.showHistory")}
               </Button>
             ) : (
-              <Button icon={<RefreshCw className="size-icon" aria-hidden />} loading={query.isFetching} onClick={() => void query.refetch()}>
+              <Button
+                icon={<RefreshCw className="size-icon" aria-hidden />}
+                loading={query.isFetching}
+                onClick={() => void query.refetch()}
+              >
                 {t("fileView.retry")}
               </Button>
             )}
@@ -421,7 +482,11 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
       </Notice>
     );
   } else if (data.isBinary) {
-    body = isImagePath(path) ? <ImagePreview repoId={repoId} path={path} sha={sha} size={data.size} /> : <BinaryNotice size={data.size} worktree={worktree} onExternal={() => void openExternal(repoId, "editor", path)} />;
+    body = isImagePath(path) ? (
+      <ImagePreview repoId={repoId} path={path} sha={sha} size={data.size} />
+    ) : (
+      <BinaryNotice size={data.size} worktree={worktree} onExternal={() => void openExternal(repoId, "editor", path)} />
+    );
   } else if (data.text === null) {
     body = (
       <Notice
@@ -478,17 +543,30 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   // configured for the repository. “Re-read as” changes exactly this default.
   const baseText = worktree && buffer?.key === key ? buffer.base : "";
   const certain = loadedEncoding.startsWith("utf-") && (loadedEncoding !== "utf-8" || NON_ASCII.test(baseText));
-  const rereadBlocked = dirty ? t("fileView.encoding.saveFirst") : certain ? t("fileView.encoding.certain", { encoding: encodingShort(loadedEncoding) }) : null;
+  const rereadBlocked = dirty
+    ? t("fileView.encoding.saveFirst")
+    : certain
+      ? t("fileView.encoding.certain", { encoding: encodingShort(loadedEncoding) })
+      : null;
   const rereadAs = async (encoding: string) => {
-    const result = await runAction(t("fileView.encoding.reread"), () => enqueueWrite(() => core.repoSettingsSet({ repoId, patch: { encoding } })));
+    const result = await runAction(t("fileView.encoding.reread"), () =>
+      enqueueWrite(() => core.repoSettingsSet({ repoId, patch: { encoding } })),
+    );
     if (!result.ok) return;
     queryClient.setQueryData(qk.repoSettings(repoId), result.value);
     await queryClient.invalidateQueries({ queryKey: ["repo", repoId, "file"] });
-    toast({ tone: "info", title: t("fileView.encoding.rereadDone", { encoding: encodingShort(encoding) }), description: t("fileView.encoding.rereadHint") });
+    toast({
+      tone: "info",
+      title: t("fileView.encoding.rereadDone", { encoding: encodingShort(encoding) }),
+      description: t("fileView.encoding.rereadHint"),
+    });
   };
   const encodingEntries: MenuEntry[] = [
     { type: "label", label: t("fileView.encoding.writeAs") },
-    ...(ENCODINGS.some((item) => item.value === effectiveEncoding) ? ENCODINGS : [{ value: effectiveEncoding, label: effectiveEncoding }, ...ENCODINGS]).map((item) => ({
+    ...(ENCODINGS.some((item) => item.value === effectiveEncoding)
+      ? ENCODINGS
+      : [{ value: effectiveEncoding, label: effectiveEncoding }, ...ENCODINGS]
+    ).map((item) => ({
       label: item.label,
       checked: item.value === effectiveEncoding,
       hint: item.value === loadedEncoding ? t("fileView.encoding.detected") : undefined,
@@ -509,46 +587,72 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   ];
   const eolEntries: MenuEntry[] = [
     { type: "label", label: t("fileView.encoding.writeAs") },
-    { label: t("fileView.eol.lf"), checked: effectiveEol === "lf" && !mixed, onSelect: () => setBuffer((current) => (current ? { ...current, eol: "lf", eolTouched: true } : current)) },
-    { label: t("fileView.eol.crlf"), checked: effectiveEol === "crlf" && !mixed, onSelect: () => setBuffer((current) => (current ? { ...current, eol: "crlf", eolTouched: true } : current)) },
+    {
+      label: t("fileView.eol.lf"),
+      checked: effectiveEol === "lf" && !mixed,
+      onSelect: () => setBuffer((current) => (current ? { ...current, eol: "lf", eolTouched: true } : current)),
+    },
+    {
+      label: t("fileView.eol.crlf"),
+      checked: effectiveEol === "crlf" && !mixed,
+      onSelect: () => setBuffer((current) => (current ? { ...current, eol: "crlf", eolTouched: true } : current)),
+    },
   ];
 
   const showsEditor = !(markdown && preview);
-  const footer = data && textual ? (
-    <footer data-file-footer="" className="flex h-statusbar shrink-0 items-center gap-1 border-t border-border bg-surface px-2 text-xs text-text-muted">
-      {showsEditor ? (
-        <>
-          <span className="tabular-nums" data-cursor="">
-            {t("fileView.footer.cursor", { line: cursor.line.toLocaleString(locale()), column: cursor.column.toLocaleString(locale()) })}
-          </span>
-          <span aria-hidden>·</span>
-        </>
-      ) : null}
-      <span className="tabular-nums" data-line-count={lineCount}>
-        {t("fileView.footer.lines", { count: lineCount })}
-      </span>
-      <span aria-hidden className="hidden @lg:inline">·</span>
-      <span className="hidden tabular-nums @lg:inline">{formatBytes(data.size)}</span>
-      <span className="min-w-0 flex-1" />
-      {effectiveEncoding !== loadedEncoding ? (
-        <span data-encoding-pending="" className="truncate text-text">
-          {t("fileView.footer.pendingEncoding", { encoding: encodingShort(effectiveEncoding) })}
+  const footer =
+    data && textual ? (
+      <footer
+        data-file-footer=""
+        className="flex h-statusbar shrink-0 items-center gap-1 border-t border-border bg-surface px-2 text-xs text-text-muted"
+      >
+        {showsEditor ? (
+          <>
+            <span className="tabular-nums" data-cursor="">
+              {t("fileView.footer.cursor", { line: cursor.line.toLocaleString(locale()), column: cursor.column.toLocaleString(locale()) })}
+            </span>
+            <span aria-hidden>·</span>
+          </>
+        ) : null}
+        <span className="tabular-nums" data-line-count={lineCount}>
+          {t("fileView.footer.lines", { count: lineCount })}
         </span>
-      ) : null}
-      <FooterMenu label={t("fileView.footer.encoding", { encoding: encodingShort(effectiveEncoding) })} text={encodingShort(effectiveEncoding)} entries={encodingEntries} disabled={!canChange} data="encoding" />
-      <FooterMenu
-        label={t("fileView.footer.eol", { eol: mixed ? t("fileView.footer.mixed") : effectiveEol.toUpperCase() })}
-        text={mixed ? t("fileView.footer.mixedTo", { eol: effectiveEol.toUpperCase() }) : effectiveEol.toUpperCase()}
-        entries={eolEntries}
-        disabled={!canChange}
-        data="eol"
-        warn={mixed}
-      />
-    </footer>
-  ) : null;
+        <span aria-hidden className="hidden @lg:inline">
+          ·
+        </span>
+        <span className="hidden tabular-nums @lg:inline">{formatBytes(data.size)}</span>
+        <span className="min-w-0 flex-1" />
+        {effectiveEncoding !== loadedEncoding ? (
+          <span data-encoding-pending="" className="truncate text-text">
+            {t("fileView.footer.pendingEncoding", { encoding: encodingShort(effectiveEncoding) })}
+          </span>
+        ) : null}
+        <FooterMenu
+          label={t("fileView.footer.encoding", { encoding: encodingShort(effectiveEncoding) })}
+          text={encodingShort(effectiveEncoding)}
+          entries={encodingEntries}
+          disabled={!canChange}
+          data="encoding"
+        />
+        <FooterMenu
+          label={t("fileView.footer.eol", { eol: mixed ? t("fileView.footer.mixed") : effectiveEol.toUpperCase() })}
+          text={mixed ? t("fileView.footer.mixedTo", { eol: effectiveEol.toUpperCase() }) : effectiveEol.toUpperCase()}
+          entries={eolEntries}
+          disabled={!canChange}
+          data="eol"
+          warn={mixed}
+        />
+      </footer>
+    ) : null;
 
   return (
-    <section aria-label={t("fileView.section", { path })} data-screen="file-view" data-mode={editing ? "edit" : "view"} data-dirty-state={dirty ? "dirty" : "clean"} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      aria-label={t("fileView.section", { path })}
+      data-screen="file-view"
+      data-mode={editing ? "edit" : "view"}
+      data-dirty-state={dirty ? "dirty" : "clean"}
+      className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       {header}
       {restored && dirty ? (
         <Banner
@@ -587,7 +691,21 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   );
 }
 
-function FooterMenu({ label, text, entries, disabled, data, warn = false }: { label: string; text: string; entries: MenuEntry[]; disabled: boolean; data: string; warn?: boolean }) {
+function FooterMenu({
+  label,
+  text,
+  entries,
+  disabled,
+  data,
+  warn = false,
+}: {
+  label: string;
+  text: string;
+  entries: MenuEntry[];
+  disabled: boolean;
+  data: string;
+  warn?: boolean;
+}) {
   const trigger = (
     <button
       type="button"
@@ -653,7 +771,10 @@ function ImagePreview({ repoId, path, sha, size }: { repoId: Id; path: string; s
           src={url}
           alt={name}
           draggable={false}
-          className={cn("gc-checker max-h-full max-w-full border border-border object-contain", dimensions && dimensions.width < 192 && dimensions.height < 192 && "gc-pixelated min-w-48")}
+          className={cn(
+            "gc-checker max-h-full max-w-full border border-border object-contain",
+            dimensions && dimensions.width < 192 && dimensions.height < 192 && "gc-pixelated min-w-48",
+          )}
           onLoad={(event) => setDimensions({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
           onError={() => setFailed(true)}
         />

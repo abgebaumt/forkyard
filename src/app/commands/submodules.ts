@@ -6,7 +6,8 @@ import { qk } from "../queries";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 /** Unknown (not loaded yet) counts as "maybe" – the core then answers with an empty list. */
-const mayHaveSubmodules = (ctx: CommandContext) => hasRepo(ctx) && (ctx.queryClient.getQueryData<Submodule[]>(qk.submodules(ctx.repoId!))?.length ?? 1) > 0;
+const mayHaveSubmodules = (ctx: CommandContext) =>
+  hasRepo(ctx) && (ctx.queryClient.getQueryData<Submodule[]>(qk.submodules(ctx.repoId!))?.length ?? 1) > 0;
 
 export const commands: AppCommand[] = [
   {

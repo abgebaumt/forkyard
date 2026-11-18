@@ -13,7 +13,18 @@ import { newJobId, runAction, type ActionResult } from "../run";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
 import { cachedRefs, clip, loadRefs, loadRemotes } from "./context";
-import { hostApi, hostErrorKind, hostPrWord, type HostAccountInfo, type HostRepo, type MergeMethod, type PrCreateInput, type PrDetails, type PrPage, type PrSummary } from "./hostTypes";
+import {
+  hostApi,
+  hostErrorKind,
+  hostPrWord,
+  type HostAccountInfo,
+  type HostRepo,
+  type MergeMethod,
+  type PrCreateInput,
+  type PrDetails,
+  type PrPage,
+  type PrSummary,
+} from "./hostTypes";
 import { cachedHostAccounts, runHostAction } from "./hosts";
 import { busyKeys } from "./keys";
 import { fetchAll } from "./sync";
@@ -122,13 +133,14 @@ export function pushState(ref: Ref | undefined): PushState {
   // Following a branch of another name (e.g. created from origin/develop) is not being on the remote.
   if (!ref.upstream || ref.upstreamGone || !ref.pushesToUpstream) return { state: "no_upstream" };
   return ref.ahead > 0 ? { state: "ahead", upstream: ref.upstream, count: ref.ahead } : { state: "pushed", upstream: ref.upstream };
-
 }
 
 /** The remote the host belongs to; if it is not known, the one named `origin`, otherwise the first. */
 function preferredRemote(repoId: Id, remotes: Remote[]): string | null {
   const hosted = cachedHostRepo(repoId)?.remote;
-  return (remotes.find((remote) => remote.name === hosted) ?? remotes.find((remote) => remote.name === "origin") ?? remotes[0])?.name ?? null;
+  return (
+    (remotes.find((remote) => remote.name === hosted) ?? remotes.find((remote) => remote.name === "origin") ?? remotes[0])?.name ?? null
+  );
 }
 
 /**
@@ -142,13 +154,28 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
   const remote = needsTarget ? preferredRemote(repoId, await loadRemotes(repoId).catch(() => [] as Remote[])) : null;
   // The same jobId may be used again once the first attempt has ended.
   const result = await guardSecrets(repoId, (acceptedSecrets) =>
-    runAction(t("actions.sync.push.label"), () => core.push({ repoId, jobId, branch, remote, remoteBranch: needsTarget ? branch : null, force: false, expected: null, acceptedSecrets }), {
-      busyKey: busyKeys.push(repoId),
-      job: { id: jobId, title: t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }), repoId },
-    }),
+    runAction(
+      t("actions.sync.push.label"),
+      () =>
+        core.push({
+          repoId,
+          jobId,
+          branch,
+          remote,
+          remoteBranch: needsTarget ? branch : null,
+          force: false,
+          expected: null,
+          acceptedSecrets,
+        }),
+      {
+        busyKey: busyKeys.push(repoId),
+        job: { id: jobId, title: t("actions.pullrequests.pushJob", { branch: clip(branch, 32) }), repoId },
+      },
+    ),
   );
   await loadRefs(repoId).catch(() => undefined);
-  if (result.ok && result.value.status === "rejected") toast({ tone: "danger", title: t("actions.pullrequests.pushRejected"), description: result.value.reason });
+  if (result.ok && result.value.status === "rejected")
+    toast({ tone: "danger", title: t("actions.pullrequests.pushRejected"), description: result.value.reason });
   return result;
 }
 
@@ -158,10 +185,17 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
 
 /** Creates the pull request. Errors go back to the form (without a message); on success its view opens. */
 export async function createPullRequest(input: PrCreateInput, tabId: Id): Promise<ActionResult<PrSummary>> {
-  const result = await runHostAction(t("actions.pullrequests.create.label"), () => hostApi.prCreate(input), { busyKey: prBusyKeys.create(input.repoId), inline: true });
+  const result = await runHostAction(t("actions.pullrequests.create.label"), () => hostApi.prCreate(input), {
+    busyKey: prBusyKeys.create(input.repoId),
+    inline: true,
+  });
   if (result.ok) {
     refreshPullRequests(input.repoId);
-    toast({ tone: "success", title: t("actions.pullrequests.create.done", { number: result.value.number }), description: clip(result.value.title, 80) });
+    toast({
+      tone: "success",
+      title: t("actions.pullrequests.create.done", { number: result.value.number }),
+      description: clip(result.value.title, 80),
+    });
     openPr(tabId, result.value.number);
   } else if (hostErrorKind(result.error) === "auth") {
     void queryClient.invalidateQueries({ queryKey: qk.hostAccounts });
@@ -170,7 +204,9 @@ export async function createPullRequest(input: PrCreateInput, tabId: Id): Promis
 }
 
 export async function commentOnPr(repoId: Id, number: number, body: string): Promise<boolean> {
-  const result = await runHostAction(t("actions.pullrequests.comment.label"), () => hostApi.prComment(repoId, number, body), { busyKey: prBusyKeys.write(repoId, number) });
+  const result = await runHostAction(t("actions.pullrequests.comment.label"), () => hostApi.prComment(repoId, number, body), {
+    busyKey: prBusyKeys.write(repoId, number),
+  });
   if (result.ok) {
     await queryClient.invalidateQueries({ queryKey: qk.pr(repoId, number) });
     toast({ tone: "success", title: t("actions.pullrequests.comment.done") });
@@ -204,8 +240,17 @@ export function mergeBlock(pr: Pick<PrDetails, "state" | "isDraft" | "mergeable"
   return null;
 }
 
-export async function mergePr(repoId: Id, pr: Pick<PrSummary, "number" | "targetBranch" | "sourceBranch">, method: MergeMethod, deleteBranch: boolean): Promise<boolean> {
-  const result = await runHostAction(t("actions.pullrequests.merge.label"), () => hostApi.prMerge(repoId, pr.number, method, deleteBranch), { busyKey: prBusyKeys.write(repoId, pr.number) });
+export async function mergePr(
+  repoId: Id,
+  pr: Pick<PrSummary, "number" | "targetBranch" | "sourceBranch">,
+  method: MergeMethod,
+  deleteBranch: boolean,
+): Promise<boolean> {
+  const result = await runHostAction(
+    t("actions.pullrequests.merge.label"),
+    () => hostApi.prMerge(repoId, pr.number, method, deleteBranch),
+    { busyKey: prBusyKeys.write(repoId, pr.number) },
+  );
   refreshPullRequests(repoId, pr.number);
   if (!result.ok) return false;
   toast({
@@ -253,7 +298,8 @@ export async function checkoutPr(repoId: Id, pr: Pick<PrSummary, "number" | "sou
     job: { id: jobId, title: t("actions.pullrequests.checkout.job", { number: pr.number }), repoId },
   });
   // The core reports the changes itself too; here immediately so graph and Left Panel don't lag behind.
-  for (const key of [qk.refs(repoId), qk.status(repoId), qk.graph(repoId), qk.undo(repoId)]) void queryClient.invalidateQueries({ queryKey: key });
+  for (const key of [qk.refs(repoId), qk.status(repoId), qk.graph(repoId), qk.undo(repoId)])
+    void queryClient.invalidateQueries({ queryKey: key });
   if (!result.ok) return false;
   const status = result.value as Partial<Status> | null;
   const branch = status?.head && status.head.kind === "branch" ? status.head.branch : pr.sourceBranch;
@@ -264,4 +310,3 @@ export async function checkoutPr(repoId: Id, pr: Pick<PrSummary, "number" | "sou
   });
   return true;
 }
-

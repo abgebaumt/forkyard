@@ -15,7 +15,9 @@ function keepsFocus(element: ReactElement<Props>): boolean {
 describe("buttons inside graph rows", () => {
   it("keep the focus on the row when clicked", () => {
     expect(keepsFocus(CollapseToggle({ repoId: "r", sha: "abc", collapsed: false, tooLarge: false }) as ReactElement<Props>)).toBe(true);
-    expect(keepsFocus(TicketLink({ text: "#1", url: "https://x.example/1", ruleId: "host:issue", focusable: false }) as ReactElement<Props>)).toBe(true);
+    expect(
+      keepsFocus(TicketLink({ text: "#1", url: "https://x.example/1", ruleId: "host:issue", focusable: false }) as ReactElement<Props>),
+    ).toBe(true);
   });
 
   it("stay ordinary buttons where the keyboard reaches the links (commit details)", () => {

@@ -29,7 +29,10 @@ function isolatedEnv() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "fy-wd-agent-home-"));
   process.on("exit", () => fs.rmSync(home, { recursive: true, force: true }));
   const holdsAgent = (dir) => REAL_AGENTS.some((name) => fs.existsSync(path.join(dir, name)));
-  const PATH = (process.env.PATH ?? "").split(path.delimiter).filter((dir) => dir && !holdsAgent(dir)).join(path.delimiter);
+  const PATH = (process.env.PATH ?? "")
+    .split(path.delimiter)
+    .filter((dir) => dir && !holdsAgent(dir))
+    .join(path.delimiter);
   return { HOME: home, SHELL: "/bin/sh", PATH };
 }
 const slashed = (file) => file.replaceAll("\\", "/");
@@ -42,7 +45,20 @@ async function setUp(t, lang = "en") {
   const app = await t.launch({ ...LAUNCH, lang, env: isolatedEnv() });
   await app.waitForShell();
   await app.invoke("settings_set", {
-    patch: { autoFetchMinutes: 0, agentTemplates: [{ id: "custom:fake", name: "Fake", program: FAKE, args: ["--log", log], unattendedArgs: null, resumeArgs: ["--log", log], statusHook: true }] },
+    patch: {
+      autoFetchMinutes: 0,
+      agentTemplates: [
+        {
+          id: "custom:fake",
+          name: "Fake",
+          program: FAKE,
+          args: ["--log", log],
+          unattendedArgs: null,
+          resumeArgs: ["--log", log],
+          statusHook: true,
+        },
+      ],
+    },
   });
   // Guard: the fake agent is the only template the app can start (and so the dialog's default).
   const found = (await app.invoke("agent_templates")).filter((item) => item.path !== null).map((item) => item.id);
@@ -55,8 +71,7 @@ async function setUp(t, lang = "en") {
   return { fx, app, repoId, tabId, log };
 }
 
-const agentBranches = (repoPath) =>
-  git(repoPath, "branch", "--list", "--format=%(refname:short)", "agent/*").split("\n").filter(Boolean);
+const agentBranches = (repoPath) => git(repoPath, "branch", "--list", "--format=%(refname:short)", "agent/*").split("\n").filter(Boolean);
 
 /** Starts an agent through the dialog; returns the branch Git has for it afterwards. */
 async function startFromDialog(app, repoPath, task) {
@@ -65,7 +80,16 @@ async function startFromDialog(app, repoPath, task) {
   await app.waitFor('[role="dialog"] [data-field="task"]', 15_000, { message: "start dialog" });
   // The dialog first suggests a branch for the empty task. Type only once that answer is in, so the
   // task's own suggestion has to replace it (a branch read from the field too early would be stale).
-  await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [data-field="branch"] input, [role="dialog"] input[data-field="branch"]')?.value === "agent/agent"), 15_000, { message: "suggestion for the empty task" });
+  await app.waitFor(
+    () =>
+      app.exec(
+        () =>
+          document.querySelector('[role="dialog"] [data-field="branch"] input, [role="dialog"] input[data-field="branch"]')?.value ===
+          "agent/agent",
+      ),
+    15_000,
+    { message: "suggestion for the empty task" },
+  );
   await app.type('[role="dialog"] [data-field="task"]', task);
   // The live check can enable the button for a moment and disable it again (a suggestion that
   // changes the branch starts one more check), so a WebDriver click may hit a disabled button. Check
@@ -81,16 +105,29 @@ async function startFromDialog(app, repoPath, task) {
     15_000,
     { message: "start enabled and clicked" },
   );
-  await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-field="task"]')), 30_000, { message: "dialog closed after the start" });
+  await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-field="task"]')), 30_000, {
+    message: "dialog closed after the start",
+  });
   // Which branch the agent got is Git's answer, not whatever the field showed at some moment.
-  const created = await app.waitFor(() => {
-    const fresh = agentBranches(repoPath).filter((name) => !before.has(name));
-    return fresh.length === 1 ? fresh : null;
-  }, 15_000, { message: "agent branch in git" });
+  const created = await app.waitFor(
+    () => {
+      const fresh = agentBranches(repoPath).filter((name) => !before.has(name));
+      return fresh.length === 1 ? fresh : null;
+    },
+    15_000,
+    { message: "agent branch in git" },
+  );
   return created[0];
 }
 
-const rowStatus = (app) => app.exec(() => [...document.querySelectorAll("[data-agent-row]")].map((row) => ({ id: row.dataset.agentRow, status: row.dataset.status, text: row.innerText.replace(/\s+/g, " ") })));
+const rowStatus = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll("[data-agent-row]")].map((row) => ({
+      id: row.dataset.agentRow,
+      status: row.dataset.status,
+      text: row.innerText.replace(/\s+/g, " "),
+    })),
+  );
 
 scenario("start an agent: own worktree, typed task, waiting for you, cockpit and notification", "main", async (t) => {
   const { fx, app, log } = await setUp(t);
@@ -103,17 +140,30 @@ scenario("start an agent: own worktree, typed task, waiting for you, cockpit and
   assertIncludes(slashed(listed), slashed(`worktree ${folder}`), "worktree in git");
   assertIncludes(git(fx.path, "branch", "--list", branch), branch, "branch in git");
   // The terminal tab carries the agent's name; the fake agent got the task byte for byte.
-  await app.waitFor(() => app.exec(() => [...document.querySelectorAll("[data-terminal-tab]")].some((tab) => tab.innerText.includes("groesse-der-uebersicht-anpassen"))), 30_000, { message: "agent terminal tab" });
-  await app.waitFor(() => fs.existsSync(log) && fs.readFileSync(log, "utf8").includes("task: Größe der Übersicht anpassen"), 60_000, { message: "typed task in the log" });
+  await app.waitFor(
+    () =>
+      app.exec(() =>
+        [...document.querySelectorAll("[data-terminal-tab]")].some((tab) => tab.innerText.includes("groesse-der-uebersicht-anpassen")),
+      ),
+    30_000,
+    { message: "agent terminal tab" },
+  );
+  await app.waitFor(() => fs.existsSync(log) && fs.readFileSync(log, "utf8").includes("task: Größe der Übersicht anpassen"), 60_000, {
+    message: "typed task in the log",
+  });
   assertEqual(fs.readFileSync(path.join(folder, "AGENT_RESULT.md"), "utf8"), "Größe der Übersicht anpassen", "file written by the agent");
 
   // Cockpit through the toolbar: "waiting for you", according to the agent, one changed file.
   await app.click('[data-toolbar="agents"] button');
   await app.waitFor('[data-screen="cockpit"]', 15_000, { message: "cockpit" });
-  const rows = await app.waitFor(async () => {
-    const list = await rowStatus(app);
-    return list.length === 1 && list[0].status === "waiting" ? list : null;
-  }, 60_000, { message: "agent waiting" });
+  const rows = await app.waitFor(
+    async () => {
+      const list = await rowStatus(app);
+      return list.length === 1 && list[0].status === "waiting" ? list : null;
+    },
+    60_000,
+    { message: "agent waiting" },
+  );
   assertMatch(rows[0].text, /waiting for you/, "status as a word");
   assertMatch(rows[0].text, /according to Fake/, "where the status comes from");
   assertMatch(rows[0].text, /1 changed file/, "changed files");
@@ -121,9 +171,15 @@ scenario("start an agent: own worktree, typed task, waiting for you, cockpit and
   const badge = await app.exec(() => document.querySelector('[data-toolbar="agents"] button')?.getAttribute("aria-label") ?? "");
   assertEqual(badge, "Agents 1, 1 agent waits for you", "toolbar label and counter");
   const sent = await app.exec(() => window.__gcTestNotifications.sent);
-  assert(sent.some((item) => item.title === "groesse-der-uebersicht-anpassen is waiting for you"), `notification: ${JSON.stringify(sent)}`);
+  assert(
+    sent.some((item) => item.title === "groesse-der-uebersicht-anpassen is waiting for you"),
+    `notification: ${JSON.stringify(sent)}`,
+  );
   // The left section and the worktree mark.
-  assert(await app.exec(() => Boolean(document.querySelector('[data-extra-section="agents"] [data-kind="agent"]'))), "row in the Agents section");
+  assert(
+    await app.exec(() => Boolean(document.querySelector('[data-extra-section="agents"] [data-kind="agent"]'))),
+    "row in the Agents section",
+  );
   assert(await app.exec(() => Boolean(document.querySelector('[data-flag="agent"]'))), "worktree marked as Agent");
   // Keyboard: Enter shows the details in the right panel.
   await app.exec(() => document.querySelector("[data-agent-row]")?.focus());
@@ -137,21 +193,35 @@ scenario("an agent in a background repository tab still notifies", "main", async
   const { fx, app, repoId, tabId } = await setUp(t);
   const branch = await startFromDialog(app, fx.path, "Im Hintergrund fertig werden");
   const short = branch.replace("agent/", "");
-  const agent = await app.waitFor(async () => (await app.invoke("agent_list", { repoId })).find((item) => item.status === "waiting" && item.terminalId) ?? null, 60_000, { message: "agent waiting" });
+  const agent = await app.waitFor(
+    async () => (await app.invoke("agent_list", { repoId })).find((item) => item.status === "waiting" && item.terminalId) ?? null,
+    60_000,
+    { message: "agent waiting" },
+  );
   // Another repository becomes the active tab; the agent's tab is in the background now.
   const other = makeCleanRepoWithRemote({ name: "zweites-netz" });
   const second = await app.openRepo(other.path);
   assert(second.tabId !== tabId, "second repository in its own tab");
   // openRepo waits until the new tab is the selected one.
-  const firstSelected = await app.exec((id) => document.querySelector(`[data-tab-id="${id}"] [role="tab"]`)?.getAttribute("aria-selected") ?? null, tabId);
+  const firstSelected = await app.exec(
+    (id) => document.querySelector(`[data-tab-id="${id}"] [role="tab"]`)?.getAttribute("aria-selected") ?? null,
+    tabId,
+  );
   assertEqual(firstSelected, "false", "the agent's repository tab is in the background");
   // The fake agent reports "done" when it reads that line.
   await app.invoke("terminal_write", { terminalId: agent.terminalId, data: "done\r" });
-  const sent = await app.waitFor(async () => {
-    const list = await app.exec(() => window.__gcTestNotifications.sent);
-    return list.some((item) => item.title === `${short} is done`) ? list : null;
-  }, 30_000, { message: "notification from the background tab" });
-  assert(sent.every((item) => !item.title.includes("zweites-netz")), "nothing about the other repository");
+  const sent = await app.waitFor(
+    async () => {
+      const list = await app.exec(() => window.__gcTestNotifications.sent);
+      return list.some((item) => item.title === `${short} is done`) ? list : null;
+    },
+    30_000,
+    { message: "notification from the background tab" },
+  );
+  assert(
+    sent.every((item) => !item.title.includes("zweites-netz")),
+    "nothing about the other repository",
+  );
   await t.noConsoleErrors(app);
 });
 
@@ -169,7 +239,11 @@ scenario("clean up an agent with the warning about unpushed commits, then undo b
   await app.waitFor("[data-agent-row]", 15_000);
   await app.click('[data-agent-row] ~ [data-action="menu"]');
   await app.click({ text: "Stop agent and clean up …" });
-  const dialog = await app.waitFor(() => app.exec(() => document.querySelector('[role="alertdialog"], [role="dialog"]')?.innerText ?? null), 15_000, { message: "confirmation" });
+  const dialog = await app.waitFor(
+    () => app.exec(() => document.querySelector('[role="alertdialog"], [role="dialog"]')?.innerText ?? null),
+    15_000,
+    { message: "confirmation" },
+  );
   assertMatch(dialog, /1 commit of this branch is not pushed/, "unpushed warning (git: 1 commit ahead, no remote branch)");
   await app.click({ text: "Clean up" });
   await app.waitFor(() => !fs.existsSync(folder), 30_000, { message: "worktree folder removed" });
@@ -179,7 +253,9 @@ scenario("clean up an agent with the warning about unpushed commits, then undo b
   await app.press("Control+z");
   await app.waitFor(() => fs.existsSync(folder), 30_000, { message: "worktree folder back" });
   assertEqual(git(fx.path, "rev-parse", branch), tip, "branch back at its tip");
-  await app.waitFor(async () => (await rowStatus(app)).some((row) => row.status === "stopped"), 30_000, { message: "agent back as stopped" });
+  await app.waitFor(async () => (await rowStatus(app)).some((row) => row.status === "stopped"), 30_000, {
+    message: "agent back as stopped",
+  });
   await t.noConsoleErrors(app);
 });
 
@@ -190,14 +266,32 @@ scenario("without prompts: unavailable for a template without arguments, warning
   const disabled = await app.exec(() => document.querySelector('[role="dialog"] [role="switch"]')?.disabled ?? null);
   assertEqual(disabled, true, "switch off without unattendedArgs");
   await app.press("Escape");
-  await app.invoke("settings_set", { patch: { agentTemplates: [{ id: "custom:fake", name: "Fake", program: FAKE, args: ["--log", log], unattendedArgs: ["--unattended"], resumeArgs: null, statusHook: true }] } });
+  await app.invoke("settings_set", {
+    patch: {
+      agentTemplates: [
+        {
+          id: "custom:fake",
+          name: "Fake",
+          program: FAKE,
+          args: ["--log", log],
+          unattendedArgs: ["--unattended"],
+          resumeArgs: null,
+          statusHook: true,
+        },
+      ],
+    },
+  });
   await app.press("Control+Shift+a");
   await app.waitFor('[role="dialog"] [data-field="task"]', 15_000);
   assertEqual(await app.exec(() => document.querySelector('[data-action="start-agent"]')?.innerText.trim()), "Start", "plain start");
   await app.click('[role="dialog"] [role="switch"]');
   const warning = await app.waitFor(() => app.exec(() => document.querySelector('[data-warning="unattended"]')?.innerText ?? null), 5_000);
   assertMatch(warning, /^Warning: The agent makes changes and runs commands without asking\./, "warning with the word");
-  assertEqual(await app.exec(() => document.querySelector('[data-action="start-agent"]')?.innerText.trim()), "Start without prompts", "button text");
+  assertEqual(
+    await app.exec(() => document.querySelector('[data-action="start-agent"]')?.innerText.trim()),
+    "Start without prompts",
+    "button text",
+  );
   await app.press("Escape");
 });
 
@@ -207,7 +301,11 @@ scenario("quitting asks while an agent runs", "edge", async (t) => {
   await app.waitFor(() => app.exec(() => window.__gc?.store.getState().agentsRunning === 1), 30_000, { message: "agent counted" });
   await app.exec(() => window.__TAURI_INTERNALS__.invoke("plugin:event|emit", { event: "app:close_requested", payload: {} }));
   // The app's confirm() renders a plain dialog (role="dialog"), not an alertdialog.
-  const text = await app.waitFor(() => app.exec(() => document.querySelector('[role="alertdialog"], [role="dialog"]')?.innerText ?? null), 15_000, { message: "quit prompt" });
+  const text = await app.waitFor(
+    () => app.exec(() => document.querySelector('[role="alertdialog"], [role="dialog"]')?.innerText ?? null),
+    15_000,
+    { message: "quit prompt" },
+  );
   assertMatch(text, /1 coding agent is running and will be stopped\./, "prompt names the agent");
   await app.press("Escape");
 });

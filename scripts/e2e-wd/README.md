@@ -25,12 +25,12 @@ node scripts/e2e-wd/driver.mjs --status | --start-vite | --stop-vite
 
 Output:
 
-| What | Where |
-| --- | --- |
-| Result per feature (JSON) | `target/e2e-wd/results/<feature>.json` |
-| Screenshots (incl. `FAIL-<scenario>.png`) | `target/e2e-wd/shots/<feature>/` |
-| Log per feature (run.mjs) | `target/e2e-wd/logs/<feature>.log` |
-| Vite server state and log | `target/e2e-wd/vite.json`, `target/e2e-wd/vite.log` |
+| What                                      | Where                                               |
+| ----------------------------------------- | --------------------------------------------------- |
+| Result per feature (JSON)                 | `target/e2e-wd/results/<feature>.json`              |
+| Screenshots (incl. `FAIL-<scenario>.png`) | `target/e2e-wd/shots/<feature>/`                    |
+| Log per feature (run.mjs)                 | `target/e2e-wd/logs/<feature>.log`                  |
+| Vite server state and log                 | `target/e2e-wd/vite.json`, `target/e2e-wd/vite.log` |
 
 `run.mjs` exits with 1 if any feature fails or writes no results.
 
@@ -91,43 +91,43 @@ const app = await launchApp(options);
 
 `launchApp(options)` options (all optional):
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `width`, `height` | `1440`, `900` | inner window size in CSS pixels; checked after start |
-| `theme` | – | `"dark"` / `"light"` (URL `?theme=`) |
-| `lang` | app default (system locale) | `"en"` / `"de"` (URL `?lang=`); pass `"en"` when asserting on English texts |
-| `params` | `{}` | more URL parameters, e.g. `{ scenario: "Folder.name" }` |
-| `env` | `{}` | extra environment variables for the app |
-| `dataDir` | fresh temp folder | data directory (for restart tests) |
-| `gitIdentity` | test identity | `user.name`/`user.email` of the global gitconfig; `null` = none |
-| `trustOpened` | `true` | `openRepo`/`invoke("repo_open")` trust the repository at once |
-| `ignoreErrors` | `[]` | RegExps of page errors that are not counted |
-| `waitForShell` | `true` | wait until `[data-shell]` is `app` or `fullpage` |
-| `timeoutMs` | `90000` | start timeout |
+| Option            | Default                     | Meaning                                                                     |
+| ----------------- | --------------------------- | --------------------------------------------------------------------------- |
+| `width`, `height` | `1440`, `900`               | inner window size in CSS pixels; checked after start                        |
+| `theme`           | –                           | `"dark"` / `"light"` (URL `?theme=`)                                        |
+| `lang`            | app default (system locale) | `"en"` / `"de"` (URL `?lang=`); pass `"en"` when asserting on English texts |
+| `params`          | `{}`                        | more URL parameters, e.g. `{ scenario: "Folder.name" }`                     |
+| `env`             | `{}`                        | extra environment variables for the app                                     |
+| `dataDir`         | fresh temp folder           | data directory (for restart tests)                                          |
+| `gitIdentity`     | test identity               | `user.name`/`user.email` of the global gitconfig; `null` = none             |
+| `trustOpened`     | `true`                      | `openRepo`/`invoke("repo_open")` trust the repository at once               |
+| `ignoreErrors`    | `[]`                        | RegExps of page errors that are not counted                                 |
+| `waitForShell`    | `true`                      | wait until `[data-shell]` is `app` or `fullpage`                            |
+| `timeoutMs`       | `90000`                     | start timeout                                                               |
 
 The returned `app`:
 
-| Member | Description |
-| --- | --- |
-| `openRepo(path)` → `{ repoId, tabId }` | `repo_open` via the core, waits for the active tab and settled queries |
-| `$(css)` → element \| null, `$$(css)` → element[] | CSS lookup |
-| `byText(text, { exact = true, regex = false, within = css })` → element \| null | innermost visible element whose text, `aria-label` or `title` matches |
-| `click(target)`, `type(target, text)` | target = element, CSS selector (waited for) or `{ text, exact?, within? }` |
-| `press(...combos)` | W3C key actions: `press("Enter")`, `press("Control+k")`, `press("Shift+Tab", "Escape")` |
-| `waitFor(selector \| asyncFn, timeout = 15000, { interval, message })` | returns the element / the first truthy value; throws on timeout |
-| `exec(fn \| bodyString, ...args)` | runs in the page (async allowed), elements pass both ways; throws with `.code`/`.gitOutput` |
-| `invoke(command, args)` | core command through `__TAURI_INTERNALS__`; CoreError → Error with `.code`, `.gitOutput` |
-| `errors()` → string[] | collects page errors and returns all so far (also updates `consoleErrors`) |
-| `consoleErrors` | errors collected so far (filled by `errors()`, `screenshot()`, `waitFor` timeouts) |
-| `screenshot(file)` → absolute path | PNG of the page, folders are created |
-| `settle(maxMs)` | waits until no query/mutation runs, then two frames |
-| `waitForShell()` → `"app"` \| `"fullpage"` | |
-| `reload(params)` | navigates again with other URL parameters |
-| `pick(...paths)` | answers for the next system file/folder dialog (`window.__gcTestPicks`) |
-| `setTheme(theme)`, `size()` → `{ width, height, scale }` | |
-| `webdriver(method, route, body)` | raw W3C call relative to the session |
-| `close()` | ends the app cleanly (SIGTERM, the app's quit path: no crash report on the next start), then the session; kills tauri-driver and Xvfb, removes the temp folder. For an unexpected exit kill the app yourself (SIGKILL) first |
-| `dataDir`, `logPath`, `gitConfigPath`, `keyringService`, `display`, `port`, `nativePort`, `binary`, `devUrl`, `startupMs` | info |
+| Member                                                                                                                    | Description                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `openRepo(path)` → `{ repoId, tabId }`                                                                                    | `repo_open` via the core, waits for the active tab and settled queries                                                                                                                                                       |
+| `$(css)` → element \| null, `$$(css)` → element[]                                                                         | CSS lookup                                                                                                                                                                                                                   |
+| `byText(text, { exact = true, regex = false, within = css })` → element \| null                                           | innermost visible element whose text, `aria-label` or `title` matches                                                                                                                                                        |
+| `click(target)`, `type(target, text)`                                                                                     | target = element, CSS selector (waited for) or `{ text, exact?, within? }`                                                                                                                                                   |
+| `press(...combos)`                                                                                                        | W3C key actions: `press("Enter")`, `press("Control+k")`, `press("Shift+Tab", "Escape")`                                                                                                                                      |
+| `waitFor(selector \| asyncFn, timeout = 15000, { interval, message })`                                                    | returns the element / the first truthy value; throws on timeout                                                                                                                                                              |
+| `exec(fn \| bodyString, ...args)`                                                                                         | runs in the page (async allowed), elements pass both ways; throws with `.code`/`.gitOutput`                                                                                                                                  |
+| `invoke(command, args)`                                                                                                   | core command through `__TAURI_INTERNALS__`; CoreError → Error with `.code`, `.gitOutput`                                                                                                                                     |
+| `errors()` → string[]                                                                                                     | collects page errors and returns all so far (also updates `consoleErrors`)                                                                                                                                                   |
+| `consoleErrors`                                                                                                           | errors collected so far (filled by `errors()`, `screenshot()`, `waitFor` timeouts)                                                                                                                                           |
+| `screenshot(file)` → absolute path                                                                                        | PNG of the page, folders are created                                                                                                                                                                                         |
+| `settle(maxMs)`                                                                                                           | waits until no query/mutation runs, then two frames                                                                                                                                                                          |
+| `waitForShell()` → `"app"` \| `"fullpage"`                                                                                |                                                                                                                                                                                                                              |
+| `reload(params)`                                                                                                          | navigates again with other URL parameters                                                                                                                                                                                    |
+| `pick(...paths)`                                                                                                          | answers for the next system file/folder dialog (`window.__gcTestPicks`)                                                                                                                                                      |
+| `setTheme(theme)`, `size()` → `{ width, height, scale }`                                                                  |                                                                                                                                                                                                                              |
+| `webdriver(method, route, body)`                                                                                          | raw W3C call relative to the session                                                                                                                                                                                         |
+| `close()`                                                                                                                 | ends the app cleanly (SIGTERM, the app's quit path: no crash report on the next start), then the session; kills tauri-driver and Xvfb, removes the temp folder. For an unexpected exit kill the app yourself (SIGKILL) first |
+| `dataDir`, `logPath`, `gitConfigPath`, `keyringService`, `display`, `port`, `nativePort`, `binary`, `devUrl`, `startupMs` | info                                                                                                                                                                                                                         |
 
 Element objects: `{ id, click(), type(text), text(), attr(name), prop(name), rect(), visible(), $(css), $$(css) }`.
 
@@ -140,10 +140,10 @@ import { makeRichRepo } from "../../e2e/fixtures.mjs";
 scenario("graph renders", "main", async (t) => {
   const repo = makeRichRepo();
   try {
-    const app = await t.launch({ lang: "en" });   // closed automatically after the scenario
+    const app = await t.launch({ lang: "en" }); // closed automatically after the scenario
     await app.openRepo(repo.path);
-    t.step("repository opened");                 // timed step in the result JSON
-    await t.shot("graph");                       // shots/<feature>/graph.png
+    t.step("repository opened"); // timed step in the result JSON
+    await t.shot("graph"); // shots/<feature>/graph.png
     await t.noConsoleErrors(app);
   } finally {
     repo.cleanup();

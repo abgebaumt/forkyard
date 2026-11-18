@@ -69,9 +69,10 @@ export interface IssueFilter {
 type Loose = Record<string, unknown>;
 
 const isObject = (value: unknown): value is Loose => typeof value === "object" && value !== null && !Array.isArray(value);
-const text = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value : typeof value === "number" ? String(value) : null);
+const text = (value: unknown): string | null =>
+  typeof value === "string" && value.length > 0 ? value : typeof value === "number" ? String(value) : null;
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const notNull = <T,>(value: T | null): value is T => value !== null;
+const notNull = <T>(value: T | null): value is T => value !== null;
 
 const toLabel = (value: unknown): string | null => (isObject(value) ? text(value.name ?? value.title) : text(value));
 
@@ -97,7 +98,12 @@ export function toIssueSummary(value: unknown): IssueSummary | null {
 
 function toComment(value: unknown, index: number): IssueComment | null {
   if (!isObject(value)) return null;
-  return { id: text(value.id) ?? `kommentar-${index}`, author: toUser(value.author), body: text(value.body) ?? "", createdAt: text(value.createdAt) };
+  return {
+    id: text(value.id) ?? `kommentar-${index}`,
+    author: toUser(value.author),
+    body: text(value.body) ?? "",
+    createdAt: text(value.createdAt),
+  };
 }
 
 export function toIssueDetails(value: unknown): IssueDetails | null {
@@ -133,7 +139,11 @@ export function toIssuePage(value: unknown, page: number): IssuePage {
 
 export const issueApi = {
   /** Page 1 first, most recently changed on top. `nextPage: null` means end. */
-  list: async (repoId: Id, filter: IssueFilter, page: number): Promise<IssuePage> => toIssuePage(await core.issueList({ repoId, state: filter.state, query: filter.query.trim() || null, page, perPage: ISSUE_PAGE_SIZE }), page),
+  list: async (repoId: Id, filter: IssueFilter, page: number): Promise<IssuePage> =>
+    toIssuePage(
+      await core.issueList({ repoId, state: filter.state, query: filter.query.trim() || null, page, perPage: ISSUE_PAGE_SIZE }),
+      page,
+    ),
   get: async (repoId: Id, number: number): Promise<IssueDetails> => {
     const details = toIssueDetails(await core.issueGet({ repoId, number }));
     if (!details) throw new CoreError({ code: "unknown", message: t("issues.unexpected"), gitOutput: null });

@@ -140,7 +140,14 @@ export function usePlanSession(repoId: Id | null, close: () => void, focusInput:
     try {
       const next = await core.aiPlanCheck({ repoId, jobId: newJobId(), steps });
       if (generation.current !== mine) return;
-      setPhase({ kind: "preview", text: base.text, preview: next, selected: Math.min(selected, Math.max(0, next.steps.length - 1)), confirmed, busy: false });
+      setPhase({
+        kind: "preview",
+        text: base.text,
+        preview: next,
+        selected: Math.min(selected, Math.max(0, next.steps.length - 1)),
+        confirmed,
+        busy: false,
+      });
     } catch (error) {
       if (generation.current === mine) setPhase({ kind: "failed", text: base.text, error });
     }
@@ -153,7 +160,14 @@ export function usePlanSession(repoId: Id | null, close: () => void, focusInput:
     setProgress(null);
     setPhase({ kind: "running", text: base.text, preview: base.preview, confirmed: base.confirmed, jobId, startedAt: Date.now() });
     try {
-      const result = await core.aiPlanRun({ repoId, jobId, text: base.text, steps: base.preview.steps.map(toStep), expect: base.preview.expect, confirmed: base.confirmed });
+      const result = await core.aiPlanRun({
+        repoId,
+        jobId,
+        text: base.text,
+        steps: base.preview.steps.map(toStep),
+        expect: base.preview.expect,
+        confirmed: base.confirmed,
+      });
       void queryClient.invalidateQueries({ queryKey: qk.undo(repoId) });
       if (generation.current !== mine) return;
       const next = afterRun(result);
@@ -187,7 +201,8 @@ export function usePlanSession(repoId: Id | null, close: () => void, focusInput:
         if (p.kind === "running") void core.jobCancel({ jobId: p.jobId }).catch(() => undefined);
         return;
       case "endEdit":
-        if (p.kind === "editing") setPhase({ kind: "preview", text: p.text, preview: p.preview, selected: p.selected, confirmed: p.confirmed, busy: false });
+        if (p.kind === "editing")
+          setPhase({ kind: "preview", text: p.text, preview: p.preview, selected: p.selected, confirmed: p.confirmed, busy: false });
         focusInput();
         return;
       case "close":
@@ -221,18 +236,29 @@ export function usePlanSession(repoId: Id | null, close: () => void, focusInput:
         return;
       case "confirm":
         if (p.kind === "preview") {
-          const confirmed = p.confirmed.includes(action.index) ? p.confirmed.filter((index) => index !== action.index) : [...p.confirmed, action.index];
+          const confirmed = p.confirmed.includes(action.index)
+            ? p.confirmed.filter((index) => index !== action.index)
+            : [...p.confirmed, action.index];
           setPhase({ ...p, confirmed });
         }
         return;
       case "edit":
         if (p.kind === "preview") {
           const step = p.preview.steps[action.index];
-          if (step) setPhase({ kind: "editing", text: p.text, preview: p.preview, selected: action.index, confirmed: p.confirmed, draft: draftOf(step) });
+          if (step)
+            setPhase({
+              kind: "editing",
+              text: p.text,
+              preview: p.preview,
+              selected: action.index,
+              confirmed: p.confirmed,
+              draft: draftOf(step),
+            });
         }
         return;
       case "remove":
-        if (p.kind === "preview") void recheck(p, withoutStep(p.preview, action.index), action.index, shiftConfirmed(p.confirmed, action.index));
+        if (p.kind === "preview")
+          void recheck(p, withoutStep(p.preview, action.index), action.index, shiftConfirmed(p.confirmed, action.index));
         return;
       case "run":
         if (p.kind === "preview") void run(p);
@@ -262,7 +288,12 @@ export function usePlanSession(repoId: Id | null, close: () => void, focusInput:
     const steps = p.preview.steps.map((step, index) => (index === p.selected ? applyDraft(step, p.draft) : toStep(step)));
     focusInput();
     // An edited step goes out differently: its own confirmation is asked again.
-    void recheck(p, steps, p.selected, p.confirmed.filter((index) => index !== p.selected));
+    void recheck(
+      p,
+      steps,
+      p.selected,
+      p.confirmed.filter((index) => index !== p.selected),
+    );
   };
 
   const retry = () => {

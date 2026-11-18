@@ -21,7 +21,10 @@ async function pickAndOpen(ctx: CommandContext) {
     toast({ tone: "info", title: t("commands.worktree.open.noneTitle"), description: t("commands.worktree.open.noneText") });
     return;
   }
-  const describe = (item: Worktree) => [worktreeTarget(item), item.isMain ? t("commands.worktree.open.main") : null, item.isLocked ? t("commands.worktree.open.locked") : null].filter(Boolean).join(" · ");
+  const describe = (item: Worktree) =>
+    [worktreeTarget(item), item.isMain ? t("commands.worktree.open.main") : null, item.isLocked ? t("commands.worktree.open.locked") : null]
+      .filter(Boolean)
+      .join(" · ");
   const path = await pickFromList({
     title: t("commands.worktree.open.dialogTitle"),
     description: t("commands.worktree.open.description"),

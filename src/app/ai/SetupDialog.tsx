@@ -6,7 +6,16 @@
  * search result arriving later never moves the focus.
  */
 import { useEffect, useState } from "react";
-import { core, type AiCliFound, type AiDetection, type AiLocalFound, type AiProviderKind, type ErrorCode, type Id, type Tab } from "../../core";
+import {
+  core,
+  type AiCliFound,
+  type AiDetection,
+  type AiLocalFound,
+  type AiProviderKind,
+  type ErrorCode,
+  type Id,
+  type Tab,
+} from "../../core";
 import { applySettings } from "../../screens/Preferences/settings";
 import { acceptsKey, FEATURES, featureToggle, isCli, PROVIDERS, usesBaseUrl } from "../../screens/Preferences/ai/model";
 import { Button } from "../../ui/Button";
@@ -21,21 +30,48 @@ import { showDialog } from "../dialogs";
 import { toCoreError } from "../errors";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction } from "../run";
-import { canLeaveModel, canLeaveProvider, draftFromPick, EMPTY_DRAFT, isUsableCli, pickId, primaryAction, settingsPatch, setupOverview, whereKind, type SetupDraft, type SetupStep } from "./setupModel";
+import {
+  canLeaveModel,
+  canLeaveProvider,
+  draftFromPick,
+  EMPTY_DRAFT,
+  isUsableCli,
+  pickId,
+  primaryAction,
+  settingsPatch,
+  setupOverview,
+  whereKind,
+  type SetupDraft,
+  type SetupStep,
+} from "./setupModel";
 
-export type SetupResult = { kind: "on" } | { kind: "whatIsSent"; repoId: Id } | { kind: "signIn"; provider: AiProviderKind } | { kind: "off" };
+export type SetupResult =
+  | { kind: "on" }
+  | { kind: "whatIsSent"; repoId: Id }
+  | { kind: "signIn"; provider: AiProviderKind }
+  | { kind: "off" };
 
 /** “Install a local model”: the download page of Ollama in the browser. */
 const OLLAMA_DOWNLOAD = "https://ollama.com/download";
 /** Shown in the dialog itself, not as a toast. */
-const CHECK_QUIET: ErrorCode[] = ["ai_not_configured", "ai_provider_unavailable", "ai_not_logged_in", "ai_unsupported_version", "offline", "timeout", "not_allowed", "unknown"];
+const CHECK_QUIET: ErrorCode[] = [
+  "ai_not_configured",
+  "ai_provider_unavailable",
+  "ai_not_logged_in",
+  "ai_unsupported_version",
+  "offline",
+  "timeout",
+  "not_allowed",
+  "unknown",
+];
 const LOGIN_DOT: Record<AiCliFound["login"], string> = { logged_in: "bg-success", logged_out: "bg-warning", unknown: "bg-text-muted" };
 
 const nameOf = (provider: AiProviderKind) => t(`ai.names.${provider}`);
 const providerOptions = PROVIDERS.map((value) => ({ value: value as string, label: t(`ai.providers.${value}`) }));
 
 function loginText(cli: AiCliFound): string {
-  if (cli.login === "logged_in") return cli.loginMethod ? t("ai.setup.cli.loggedInWith", { method: cli.loginMethod }) : t("ai.setup.cli.loggedIn");
+  if (cli.login === "logged_in")
+    return cli.loginMethod ? t("ai.setup.cli.loggedInWith", { method: cli.loginMethod }) : t("ai.setup.cli.loggedIn");
   return cli.login === "logged_out" ? t("ai.setup.cli.loggedOut") : t("ai.setup.cli.unknown");
 }
 
@@ -44,10 +80,30 @@ function activeRepoId(): Id | null {
 }
 
 function PickRadio({ id, checked, disabled, onPick }: { id: string; checked: boolean; disabled: boolean; onPick: () => void }) {
-  return <input id={id} type="radio" name="ai-setup-pick" className="mt-1 accent-accent" checked={checked} disabled={disabled} onChange={onPick} />;
+  return (
+    <input
+      id={id}
+      type="radio"
+      name="ai-setup-pick"
+      className="mt-1 accent-accent"
+      checked={checked}
+      disabled={disabled}
+      onChange={onPick}
+    />
+  );
 }
 
-function CliRow({ cli, checked, onPick, onSignIn }: { cli: AiCliFound; checked: boolean; onPick: () => void; onSignIn: (() => void) | null }) {
+function CliRow({
+  cli,
+  checked,
+  onPick,
+  onSignIn,
+}: {
+  cli: AiCliFound;
+  checked: boolean;
+  onPick: () => void;
+  onSignIn: (() => void) | null;
+}) {
   const id = `ai-setup-cli-${cli.provider}`;
   return (
     <div data-ai-find={`cli:${cli.provider}`} data-login={cli.login} className="flex items-start gap-2 rounded-md border border-border p-3">
@@ -57,7 +113,8 @@ function CliRow({ cli, checked, onPick, onSignIn }: { cli: AiCliFound; checked: 
           {nameOf(cli.provider)}
         </label>
         <p className="text-sm text-text-muted">
-          {cli.version ? t("ai.setup.cli.version", { version: cli.version }) : t("ai.setup.cli.noVersion")} · {t(`ai.setup.cli.source.${cli.source}`)}
+          {cli.version ? t("ai.setup.cli.version", { version: cli.version }) : t("ai.setup.cli.noVersion")} ·{" "}
+          {t(`ai.setup.cli.source.${cli.source}`)}
         </p>
         <p className="font-mono text-code break-all text-text-muted">{cli.path}</p>
         <p className="flex items-center gap-1.5 text-sm text-text">
@@ -91,7 +148,11 @@ function LocalRow({ local, checked, onPick }: { local: AiLocalFound; checked: bo
         <label htmlFor={id} className="font-medium text-text">
           {nameOf(local.provider)}
         </label>
-        <p className="text-sm text-text-muted">{local.models.length ? t("ai.setup.local.running", { address, count: local.models.length }) : t("ai.setup.local.noModels", { address })}</p>
+        <p className="text-sm text-text-muted">
+          {local.models.length
+            ? t("ai.setup.local.running", { address, count: local.models.length })
+            : t("ai.setup.local.noModels", { address })}
+        </p>
       </div>
     </div>
   );
@@ -165,7 +226,11 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
     if (!chosen) return null;
     setChecking(true);
     setCheckResult(null);
-    const result = await runAction(t("ai.setup.provider.checkAction"), () => core.aiModels({ jobId: newJobId(), provider: chosen, baseUrl: current.baseUrl, key: typedKey, model: null }), { quiet: CHECK_QUIET });
+    const result = await runAction(
+      t("ai.setup.provider.checkAction"),
+      () => core.aiModels({ jobId: newJobId(), provider: chosen, baseUrl: current.baseUrl, key: typedKey, model: null }),
+      { quiet: CHECK_QUIET },
+    );
     if (!result.ok) {
       setChecking(false);
       setCheckResult({ ok: false, text: result.error.message || t(`errors.${result.error.code}.text`) });
@@ -184,7 +249,10 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
     const models = result.value.models.map((model) => model.id);
     const next: SetupDraft = { ...current, checked: true, models, model: current.model ?? (isCli(chosen) ? null : (models[0] ?? null)) };
     setDraft(next);
-    setCheckResult({ ok: true, text: isCli(chosen) ? t("ai.setup.provider.cliOk", { name: nameOf(chosen) }) : t("ai.setup.provider.ok", { count: models.length }) });
+    setCheckResult({
+      ok: true,
+      text: isCli(chosen) ? t("ai.setup.provider.cliOk", { name: nameOf(chosen) }) : t("ai.setup.provider.ok", { count: models.length }),
+    });
     return next;
   };
 
@@ -247,7 +315,12 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
                   />
                 ))}
                 {detection.local.map((local) => (
-                  <LocalRow key={local.provider} local={local} checked={selected === `local:${local.provider}`} onPick={() => setSelected(`local:${local.provider}`)} />
+                  <LocalRow
+                    key={local.provider}
+                    local={local}
+                    checked={selected === `local:${local.provider}`}
+                    onPick={() => setSelected(`local:${local.provider}`)}
+                  />
                 ))}
                 {detection.keys.map((key) => (
                   <KeyRow key={key} provider={key} checked={selected === `key:${key}`} onPick={() => setSelected(`key:${key}`)} />
@@ -265,7 +338,11 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
                   </Button>
                 </div>
                 <div className="flex flex-col items-start gap-0.5">
-                  <Button variant="ghost" data-ai-setup-nothing-option="local" onClick={() => void openInBrowser(OLLAMA_DOWNLOAD, t("ai.setup.nothing.local"))}>
+                  <Button
+                    variant="ghost"
+                    data-ai-setup-nothing-option="local"
+                    onClick={() => void openInBrowser(OLLAMA_DOWNLOAD, t("ai.setup.nothing.local"))}
+                  >
                     {t("ai.setup.nothing.local")}
                   </Button>
                   <p className="text-sm text-text-muted">{t("ai.setup.nothing.localHint")}</p>
@@ -330,7 +407,11 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
                   {t("ai.setup.provider.check")}
                 </Button>
                 {checkResult ? (
-                  <p role={checkResult.ok ? "status" : "alert"} aria-live={checkResult.ok ? "polite" : "assertive"} className={cn("text-sm", checkResult.ok ? "text-success" : "text-danger")}>
+                  <p
+                    role={checkResult.ok ? "status" : "alert"}
+                    aria-live={checkResult.ok ? "polite" : "assertive"}
+                    className={cn("text-sm", checkResult.ok ? "text-success" : "text-danger")}
+                  >
                     {checkResult.text}
                   </p>
                 ) : null}
@@ -362,7 +443,13 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
                 />
               </div>
             ) : (
-              <TextField label={t("ai.setup.model.title")} mono placeholder={t("ai.setup.model.placeholder")} value={draft.model ?? ""} onChange={(event) => setDraft({ ...draft, model: event.target.value || null })} />
+              <TextField
+                label={t("ai.setup.model.title")}
+                mono
+                placeholder={t("ai.setup.model.placeholder")}
+                value={draft.model ?? ""}
+                onChange={(event) => setDraft({ ...draft, model: event.target.value || null })}
+              />
             )}
           </div>
         );
@@ -425,7 +512,13 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
             <Button data-ai-setup-other onClick={otherChoice}>
               {t("ai.setup.other")}
             </Button>
-            <Button variant="primary" data-ai-setup-primary disabled={!pick} loading={busy || checking} onClick={() => void continueWithPick()}>
+            <Button
+              variant="primary"
+              data-ai-setup-primary
+              disabled={!pick}
+              loading={busy || checking}
+              onClick={() => void continueWithPick()}
+            >
               {pick && action === "turnOn" ? t("ai.setup.turnOnWith", { name: nameOf(pick.provider) }) : t("ai.setup.continue")}
             </Button>
           </>
@@ -485,7 +578,11 @@ function SetupDialog({ repoId, onDone }: { repoId: Id | null; onDone: (result: S
     >
       <div data-ai-setup data-step={step} className="flex min-h-0 flex-col gap-3 overflow-auto">
         <p role="status" aria-live="polite" className="sr-only">
-          {step === "search" ? t("ai.setup.searching") : step === "found" && overview ? t("ai.setup.foundCount", { count: overview.picks.length }) : ""}
+          {step === "search"
+            ? t("ai.setup.searching")
+            : step === "found" && overview
+              ? t("ai.setup.foundCount", { count: overview.picks.length })
+              : ""}
         </p>
         {body}
       </div>

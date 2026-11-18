@@ -21,7 +21,7 @@ const pr = (number: number, patch: Partial<PrSummary> = {}): PrSummary => ({
   ...patch,
 });
 
-describe("\"Pull Requests\" section", () => {
+describe('"Pull Requests" section', () => {
   const list = [
     pr(1, { author: { login: "Lena", name: null, avatarUrl: null } }),
     pr(2, { reviewState: "review_required" }),
@@ -38,14 +38,15 @@ describe("\"Pull Requests\" section", () => {
     expect(groups.all.map((item) => item.number)).toEqual([1, 2, 3, 4, 5]);
   });
 
-  it("without a known own name none is \"mine\"", () => {
+  it('without a known own name none is "mine"', () => {
     expect(groupPrs(list, null).mine).toEqual([]);
     expect(groupPrs(list, null).review.map((item) => item.number)).toEqual([2, 5]);
   });
 
   it("the filter matches number, title, author, branches and labels", () => {
     const item = pr(12, { title: "CSV-Export", sourceBranch: "feature/export", labels: ["Daten"] });
-    for (const query of ["#12", "12", "csv", "jonas", "albrecht", "feature/", "main", "daten", "  CSV "]) expect(matchesPr(item, query), query).toBe(true);
+    for (const query of ["#12", "12", "csv", "jonas", "albrecht", "feature/", "main", "daten", "  CSV "])
+      expect(matchesPr(item, query), query).toBe(true);
     expect(matchesPr(item, "regen")).toBe(false);
     expect(matchesPr(item, "")).toBe(true);
   });

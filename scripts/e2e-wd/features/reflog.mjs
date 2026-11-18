@@ -49,7 +49,14 @@ function pointOf(app, css) {
 /** Right-click on the element and wait for the context menu. */
 async function contextMenu(app, css) {
   const { x, y } = await pointOf(app, css);
-  await perform(app, pointerActions([{ type: "pointerMove", origin: "viewport", x, y }, { type: "pointerDown", button: 2 }, { type: "pointerUp", button: 2 }]));
+  await perform(
+    app,
+    pointerActions([
+      { type: "pointerMove", origin: "viewport", x, y },
+      { type: "pointerDown", button: 2 },
+      { type: "pointerUp", button: 2 },
+    ]),
+  );
   await app.waitFor('[role="menu"]', 5000, { message: "context menu open" });
 }
 
@@ -84,7 +91,10 @@ function dialogInfo(app) {
     return {
       title: dialog.querySelector("h2")?.innerText.trim() ?? "",
       text: dialog.innerText.replace(/\s+/g, " ").trim(),
-      buttons: [...dialog.querySelectorAll("footer button, button[data-action]")].map((button) => ({ text: button.innerText.trim(), disabled: button.disabled })),
+      buttons: [...dialog.querySelectorAll("footer button, button[data-action]")].map((button) => ({
+        text: button.innerText.trim(),
+        disabled: button.disabled,
+      })),
     };
   });
 }
@@ -97,7 +107,8 @@ const waitDialog = (app, titlePattern) =>
     10_000,
     { message: `dialog ${titlePattern}` },
   );
-const noDialog = (app) => app.waitFor(async () => (await app.$$('[role="dialog"], [role="alertdialog"]')).length === 0, 8000, { message: "dialog closed" });
+const noDialog = (app) =>
+  app.waitFor(async () => (await app.$$('[role="dialog"], [role="alertdialog"]')).length === 0, 8000, { message: "dialog closed" });
 
 async function dialogButton(app, pattern) {
   const button = await app.waitFor(
@@ -105,7 +116,9 @@ async function dialogButton(app, pattern) {
       app.exec((source) => {
         const wanted = new RegExp(source);
         const dialog = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].pop();
-        return [...(dialog?.querySelectorAll("footer button") ?? [])].find((el) => wanted.test(el.innerText.trim()) && !el.disabled) ?? null;
+        return (
+          [...(dialog?.querySelectorAll("footer button") ?? [])].find((el) => wanted.test(el.innerText.trim()) && !el.disabled) ?? null
+        );
       }, pattern.source),
     8000,
     { message: `dialog button ${pattern}` },
@@ -113,17 +126,32 @@ async function dialogButton(app, pattern) {
   await button.click();
 }
 
-const toasts = (app) => app.exec(() => [...document.querySelectorAll("[data-toast]")].map((el) => ({ tone: el.getAttribute("data-toast"), text: el.innerText.replace(/\s+/g, " ").trim() })));
+const toasts = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((el) => ({
+      tone: el.getAttribute("data-toast"),
+      text: el.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 const waitToast = (app, tone, pattern, timeout = 15_000) =>
-  app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)) ?? null, timeout, { message: `${tone} toast ${pattern}` });
+  app.waitFor(async () => (await toasts(app)).find((toast) => toast.tone === tone && pattern.test(toast.text)) ?? null, timeout, {
+    message: `${tone} toast ${pattern}`,
+  });
 async function noDangerToasts(app) {
-  assertEqual((await toasts(app)).filter((toast) => toast.tone === "danger"), [], "no error message");
+  assertEqual(
+    (await toasts(app)).filter((toast) => toast.tone === "danger"),
+    [],
+    "no error message",
+  );
 }
 async function closeToasts(app) {
   await app.exec(() => {
-    for (const el of document.querySelectorAll("[data-toast] button[aria-label]")) if (/close|dismiss/i.test(el.getAttribute("aria-label"))) el.click();
+    for (const el of document.querySelectorAll("[data-toast] button[aria-label]"))
+      if (/close|dismiss/i.test(el.getAttribute("aria-label"))) el.click();
   });
-  await app.waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" }).catch(() => undefined);
+  await app
+    .waitFor(() => app.exec(() => document.querySelectorAll("[data-toast]").length === 0), 5000, { message: "toasts closed" })
+    .catch(() => undefined);
 }
 
 /** Polls a git check until it returns the expected value. */
@@ -144,7 +172,12 @@ async function runCommand(app, text, id) {
   await app.press("Control+p");
   const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
   await app.type(input, `>${text}`);
-  const find = () => app.waitFor(() => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id), 10_000, { message: `palette entry ${id}` });
+  const find = () =>
+    app.waitFor(
+      () => app.exec((key) => document.querySelector(`[data-screen="command-palette"] [role="option"][data-key="command:${key}"]`), id),
+      10_000,
+      { message: `palette entry ${id}` },
+    );
   // The result list re-renders while the deferred filter settles: an entry found a moment ago can be
   // replaced by an identical node. Look it up again instead of failing on the stale reference.
   for (let attempt = 0; ; attempt++) {
@@ -183,10 +216,14 @@ const rows = (app) =>
 async function waitRows(app, check, message = "reflog rows") {
   let last = [];
   try {
-    return await app.waitFor(async () => {
-      last = await rows(app);
-      return (typeof check === "number" ? last.length === check : check(last)) ? last : null;
-    }, 20_000, { message });
+    return await app.waitFor(
+      async () => {
+        last = await rows(app);
+        return (typeof check === "number" ? last.length === check : check(last)) ? last : null;
+      },
+      20_000,
+      { message },
+    );
   } catch (error) {
     throw new Error(`${error.message}; rows: ${JSON.stringify(last.map((row) => `${row.index}:${row.action}:${row.message}`))}`);
   }
@@ -198,15 +235,29 @@ const center = (app, tabId) => app.exec((id) => window.__gc.store.getState().vie
 const selection = (app, tabId) =>
   app.exec((id) => {
     const value = window.__gc.store.getState().views[id]?.selection ?? null;
-    return value?.kind === "commits" ? value.shas : value?.kind ?? null;
+    return value?.kind === "commits" ? value.shas : (value?.kind ?? null);
   }, tabId);
 const filterTrigger = (app) => app.waitFor('[data-screen="reflog"] button[aria-label="Show the reflog of"]', 10_000);
-const filterText = async (app) => (await app.exec((el) => el.innerText.trim(), await filterTrigger(app)));
+const filterText = async (app) => await app.exec((el) => el.innerText.trim(), await filterTrigger(app));
 
 /** Options of the open filter list (not the reflog rows, which are options too). */
 const filterOption = (app, label) =>
-  app.waitFor(() => app.exec((wanted) => [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].find((el) => !el.closest("[data-reflog-list]") && el.innerText.trim() === wanted) ?? null, label), 5000, { message: `filter option ${label}` });
-const filterOpen = (app) => app.exec(() => [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].some((el) => !el.closest("[data-reflog-list]")));
+  app.waitFor(
+    () =>
+      app.exec(
+        (wanted) =>
+          [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].find(
+            (el) => !el.closest("[data-reflog-list]") && el.innerText.trim() === wanted,
+          ) ?? null,
+        label,
+      ),
+    5000,
+    { message: `filter option ${label}` },
+  );
+const filterOpen = (app) =>
+  app.exec(() =>
+    [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].some((el) => !el.closest("[data-reflog-list]")),
+  );
 
 /**
  * Picks a ref in the filter select. Mouse: click the trigger and the option. Keyboard: focus the
@@ -221,7 +272,11 @@ async function chooseFilter(app, label, { keyboard = false } = {}) {
     await app.press("Enter");
     await filterOption(app, label);
     const active = () => app.exec(() => document.activeElement?.innerText.trim() ?? "");
-    const labels = await app.exec(() => [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].filter((el) => !el.closest("[data-reflog-list]")).map((el) => el.innerText.trim()));
+    const labels = await app.exec(() =>
+      [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')]
+        .filter((el) => !el.closest("[data-reflog-list]"))
+        .map((el) => el.innerText.trim()),
+    );
     for (let step = 0; step < labels.length && (await active()) !== label; step += 1) {
       await app.press(labels.indexOf(label) < labels.indexOf(await active()) ? "ArrowUp" : "ArrowDown");
       await sleep(80);
@@ -241,7 +296,11 @@ async function chooseFilter(app, label, { keyboard = false } = {}) {
 
 /** Waits until the commit details panel shows the commit with this subject. */
 const detailsShow = (app, subject) =>
-  app.waitFor(() => app.exec((text) => document.querySelector('[data-screen="commit-details"]')?.innerText.includes(text) ?? false, subject), 15_000, { message: `details show “${subject}”` });
+  app.waitFor(
+    () => app.exec((text) => document.querySelector('[data-screen="commit-details"]')?.innerText.includes(text) ?? false, subject),
+    15_000,
+    { message: `details show “${subject}”` },
+  );
 
 async function start(t, repo, options = {}) {
   const app = await t.launch({ ...LAUNCH, ...options });
@@ -269,13 +328,28 @@ scenario("palette opens the HEAD reflog; a lost commit is recovered as a new bra
     assertEqual(await filterText(app), "HEAD", "filter shows HEAD");
     const list = await waitRows(app, STORY_ACTIONS.length);
     t.step("HEAD reflog with 9 entries, newest first");
-    assertEqual(list.map((row) => row.action), STORY_ACTIONS, "actions as Git recorded them");
-    assertEqual(list.map((row) => row.label), ["Reset", "Commit", "Checkout", "Commit", "Checkout", "Amend", "Commit", "Commit", "Commit"], "action labels");
-    assertEqual(list.map((row) => row.sha), repo.reflog().map((entry) => entry.sha), "SHAs match git reflog");
+    assertEqual(
+      list.map((row) => row.action),
+      STORY_ACTIONS,
+      "actions as Git recorded them",
+    );
+    assertEqual(
+      list.map((row) => row.label),
+      ["Reset", "Commit", "Checkout", "Commit", "Checkout", "Amend", "Commit", "Commit", "Commit"],
+      "action labels",
+    );
+    assertEqual(
+      list.map((row) => row.sha),
+      repo.reflog().map((entry) => entry.sha),
+      "SHAs match git reflog",
+    );
     assertEqual(list[1].message, "commit: Verworfener Versuch", "message of the lost commit");
     assertIncludes(list[1].meta, short(repo.shas.lost), "short SHA in the second line");
     assertIncludes(list[1].meta, "HEAD@{1}", "selector in the second line");
-    assert(list.every((row) => row.exists), "all commits still exist");
+    assert(
+      list.every((row) => row.exists),
+      "all commits still exist",
+    );
     assert(list[0].selected, "the newest entry is selected first");
 
     // Selecting the lost commit shows it in the details panel.
@@ -288,16 +362,30 @@ scenario("palette opens the HEAD reflog; a lost commit is recovered as a new bra
     await contextMenu(app, rowCss(1));
     const items = await menuItems(app);
     assertMatch(items[0]?.text ?? "", /^Create branch here/, "first menu entry");
-    assert(items.some((item) => /^Check out commit/.test(item.text)), "check out entry");
-    assert(items.some((item) => /^Reset .main. to here/.test(item.text)), "reset entry names the current branch");
-    assert(items.some((item) => /^Copy SHA/.test(item.text)), "copy entry");
-    assert(items.every((item) => !item.disabled), `nothing is disabled: ${JSON.stringify(items)}`);
+    assert(
+      items.some((item) => /^Check out commit/.test(item.text)),
+      "check out entry",
+    );
+    assert(
+      items.some((item) => /^Reset .main. to here/.test(item.text)),
+      "reset entry names the current branch",
+    );
+    assert(
+      items.some((item) => /^Copy SHA/.test(item.text)),
+      "copy entry",
+    );
+    assert(
+      items.every((item) => !item.disabled),
+      `nothing is disabled: ${JSON.stringify(items)}`,
+    );
     await chooseMenu(app, /^Create branch here/);
     const info = await waitDialog(app, /^New branch$/);
     assertIncludes(info.text, short(repo.shas.lost), "dialog names the start commit");
     const input = await app.waitFor('[role="dialog"] input');
     await app.type(input, "rettung/versuch");
-    await app.waitFor(async () => !(await dialogInfo(app)).buttons.find((b) => b.text === "Create branch")?.disabled, 5000, { message: "Create branch enabled" });
+    await app.waitFor(async () => !(await dialogInfo(app)).buttons.find((b) => b.text === "Create branch")?.disabled, 5000, {
+      message: "Create branch enabled",
+    });
     await t.shot("recover-lost-commit-dialog");
     await app.press("Enter");
     await noDialog(app);
@@ -328,9 +416,21 @@ scenario("branch menu opens that branch's reflog; the filter switches to HEAD an
     await app.waitFor('[data-screen="reflog"]', 10_000);
     assertEqual(await center(app, tabId), { kind: "reflog", ref: "refs/heads/feature/wind" }, "centre shows the branch reflog");
     const list = await waitRows(app, 2, "two branch entries");
-    assertEqual(list.map((row) => row.message), ["commit: Wind erfassen", "branch: Created from HEAD"], "branch reflog as in git");
-    assertEqual(list.map((row) => row.action), ["commit", "other"], "branch creation counts as other");
-    assertEqual(list.map((row) => row.label), ["Commit", "Other"], "labels");
+    assertEqual(
+      list.map((row) => row.message),
+      ["commit: Wind erfassen", "branch: Created from HEAD"],
+      "branch reflog as in git",
+    );
+    assertEqual(
+      list.map((row) => row.action),
+      ["commit", "other"],
+      "branch creation counts as other",
+    );
+    assertEqual(
+      list.map((row) => row.label),
+      ["Commit", "Other"],
+      "labels",
+    );
     assertIncludes(list[0].meta, "feature/wind@{0}", "selector names the branch");
     assertEqual(await filterText(app), "feature/wind", "filter shows the branch");
     await t.shot("branch-reflog");
@@ -339,10 +439,13 @@ scenario("branch menu opens that branch's reflog; the filter switches to HEAD an
     await app.exec((el) => el.focus(), await filterTrigger(app));
     await app.press("Enter");
     const options = await app.waitFor(
-      () => app.exec(() => {
-        const found = [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].filter((el) => !el.closest("[data-reflog-list]"));
-        return found.length ? found.map((el) => el.innerText.trim()) : null;
-      }),
+      () =>
+        app.exec(() => {
+          const found = [...document.querySelectorAll('[data-radix-select-viewport] [role="option"]')].filter(
+            (el) => !el.closest("[data-reflog-list]"),
+          );
+          return found.length ? found.map((el) => el.innerText.trim()) : null;
+        }),
       5000,
       { message: "filter options" },
     );
@@ -356,8 +459,16 @@ scenario("branch menu opens that branch's reflog; the filter switches to HEAD an
 
     // Filter: main.
     await chooseFilter(app, "main", { keyboard: true });
-    const main = await waitRows(app, (now) => now.length === repo.reflog("refs/heads/main").length && now[0]?.message.startsWith("reset"), "main reflog");
-    assertEqual(main.map((row) => row.sha), repo.reflog("refs/heads/main").map((entry) => entry.sha), "main reflog matches git");
+    const main = await waitRows(
+      app,
+      (now) => now.length === repo.reflog("refs/heads/main").length && now[0]?.message.startsWith("reset"),
+      "main reflog",
+    );
+    assertEqual(
+      main.map((row) => row.sha),
+      repo.reflog("refs/heads/main").map((entry) => entry.sha),
+      "main reflog matches git",
+    );
     assertIncludes(main[0].meta, "main@{0}", "selector names main");
     await noDangerToasts(app);
     await t.noConsoleErrors(app);
@@ -413,7 +524,10 @@ scenario("hard reset of the current branch to a reflog entry asks first; undo re
     await chooseMenu(app, /^Reset .main. to here/);
     await app.waitFor(async () => (await app.$$('[role="menu"]')).length >= 2, 5000, { message: "reset submenu" });
     const modes = (await menuItems(app)).map((item) => item.text);
-    assert(modes.some((text) => /^Soft/.test(text)) && modes.some((text) => /^Mixed/.test(text)) && modes.some((text) => /^Hard/.test(text)), `modes: ${modes.join(" | ")}`);
+    assert(
+      modes.some((text) => /^Soft/.test(text)) && modes.some((text) => /^Mixed/.test(text)) && modes.some((text) => /^Hard/.test(text)),
+      `modes: ${modes.join(" | ")}`,
+    );
     await chooseMenu(app, /^Hard/);
     const info = await waitDialog(app, /^Hard reset .main. to /);
     assertIncludes(info.title, short(repo.shas.c3), "title names the target");
@@ -485,7 +599,11 @@ scenario("entries whose commit is gone stay visible, but only offer copying the 
     const { app, tabId } = await start(t, repo);
     await openFromPalette(app, tabId);
     const list = await waitRows(app, STORY_ACTIONS.length);
-    assertEqual(list.map((row) => row.exists), [true, false, true, true, true, true, true, true, true], "only HEAD@{1} is gone");
+    assertEqual(
+      list.map((row) => row.exists),
+      [true, false, true, true, true, true, true, true, true],
+      "only HEAD@{1} is gone",
+    );
     assertIncludes(list[1].meta, "commit no longer exists", "row says the commit is gone");
     const disabled = await app.exec(() => document.querySelector('[data-reflog-list] [data-index="1"]')?.getAttribute("aria-disabled"));
     assertEqual(disabled, "true", "row is aria-disabled");
@@ -527,7 +645,7 @@ scenario("reflog switched off: empty state with a hint", "edge", async (t) => {
     const text = await app.exec((el) => el.innerText.replace(/\s+/g, " ").trim(), empty);
     assertIncludes(text, "No reflog entries", "empty title");
     assertIncludes(text, "core.logAllRefUpdates", "hint names the setting");
-    assertEqual(await app.$('[data-reflog-list]'), null, "no list");
+    assertEqual(await app.$("[data-reflog-list]"), null, "no list");
     await t.shot("reflog-empty");
     await t.noConsoleErrors(app);
   } finally {
@@ -541,7 +659,9 @@ scenario("keyboard: arrows select, Enter shows details, Shift+F10 opens the menu
     const { app, tabId } = await start(t, repo);
     await openFromPalette(app, tabId);
     await waitRows(app, STORY_ACTIONS.length);
-    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-reflog-list") ?? false), 5000, { message: "list has the focus" });
+    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-reflog-list") ?? false), 5000, {
+      message: "list has the focus",
+    });
     await app.press("ArrowDown", "ArrowDown", "ArrowDown");
     await app.waitFor(async () => (await rows(app))[3]?.selected, 5000, { message: "row 3 selected" });
     assertEqual(await selection(app, tabId), [repo.shas.f1], "arrow selection updates the details");
@@ -556,16 +676,26 @@ scenario("keyboard: arrows select, Enter shows details, Shift+F10 opens the menu
     assert((await rows(app))[0].selected, "ArrowUp at the top stays there");
     await app.press("ArrowDown", "Enter");
     await detailsShow(app, "Verworfener Versuch");
-    assertEqual(await app.exec((id) => window.__gc.store.getState().views[id]?.rightPanel, tabId), "details", "Enter opens the details panel");
+    assertEqual(
+      await app.exec((id) => window.__gc.store.getState().views[id]?.rightPanel, tabId),
+      "details",
+      "Enter opens the details panel",
+    );
 
     await app.press("Shift+F10");
     await app.waitFor('[role="menu"]', 5000, { message: "menu from Shift+F10" });
-    assertMatch(await app.exec(() => document.querySelector('[role="menu"]')?.getAttribute("aria-label") ?? ""), /HEAD@\{1\}/, "menu is for the selected entry");
+    assertMatch(
+      await app.exec(() => document.querySelector('[role="menu"]')?.getAttribute("aria-label") ?? ""),
+      /HEAD@\{1\}/,
+      "menu is for the selected entry",
+    );
     // Esc closes only the menu; the reflog stays.
     await app.press("Escape");
     await noMenu(app);
     assertEqual((await center(app, tabId))?.kind, "reflog", "Esc on the menu keeps the reflog");
-    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-reflog-list") ?? false), 5000, { message: "focus back on the list" });
+    await app.waitFor(() => app.exec(() => document.activeElement?.hasAttribute("data-reflog-list") ?? false), 5000, {
+      message: "focus back on the list",
+    });
     await app.press("Escape");
     await app.waitFor(async () => (await center(app, tabId))?.kind !== "reflog", 5000, { message: "Esc goes back" });
     assertEqual(await app.$('[data-screen="reflog"]'), null, "reflog closed");
@@ -585,7 +715,14 @@ scenario("a reflog of 1200 entries loads page by page", "edge", async (t) => {
     await openFromPalette(app, tabId);
     await waitRows(app, (now) => now.length > 0 && now[0].message === messages[0], "first page");
     t.step(`first page after ${Date.now() - started} ms`);
-    const loaded = () => app.exec(() => window.__gc.queryClient.getQueriesData({ queryKey: ["repo"] }).filter(([key]) => key[2] === "reflog").map(([, data]) => data?.pages?.reduce((sum, page) => sum + page.entries.length, 0) ?? 0)[0] ?? 0);
+    const loaded = () =>
+      app.exec(
+        () =>
+          window.__gc.queryClient
+            .getQueriesData({ queryKey: ["repo"] })
+            .filter(([key]) => key[2] === "reflog")
+            .map(([, data]) => data?.pages?.reduce((sum, page) => sum + page.entries.length, 0) ?? 0)[0] ?? 0,
+      );
     assertEqual(await loaded(), 500, "one page of 500 at first");
     // End selects the last loaded entry; near the end the next page is loaded.
     for (let round = 0; round < 6 && (await loaded()) < 1200; round += 1) {
@@ -654,11 +791,16 @@ scenario("the reflog follows the repository: new commits appear, a deleted branc
     await waitRows(app, 2, "branch reflog");
     repo.git("branch", "-D", "feature/wind");
     await app.exec(() => window.dispatchEvent(new Event("focus")));
-    const errorText = await app.waitFor(() => app.exec(() => {
-      const root = document.querySelector('[data-screen="reflog"]');
-      const text = root?.innerText.replace(/\s+/g, " ") ?? "";
-      return text.includes("could not be read") ? text : null;
-    }), 20_000, { message: "error state" });
+    const errorText = await app.waitFor(
+      () =>
+        app.exec(() => {
+          const root = document.querySelector('[data-screen="reflog"]');
+          const text = root?.innerText.replace(/\s+/g, " ") ?? "";
+          return text.includes("could not be read") ? text : null;
+        }),
+      20_000,
+      { message: "error state" },
+    );
     assertMatch(errorText, /feature\/wind/, `error names the branch: ${errorText}`);
     assert(await app.byText("Try again", { within: '[data-screen="reflog"]' }), "retry button");
     await t.shot("reflog-branch-deleted");
@@ -740,8 +882,15 @@ scenario("hard reset prompt from the reflog counts only the commits that really 
     await dialogButton(app, /^Cancel$/);
     await noDialog(app);
     assertEqual(repo.head(), repo.shas.c3a, "cancelled, nothing changed");
-    assert(!info.text.includes("Grundgerüst") && !info.text.includes("Messreihe ergänzt"), `the prompt must not list commits that stay on main: ${info.text}`);
-    assertMatch(info.text, /1 commit disappears|commits after this point disappear/, `the prompt names one commit (or says it cannot tell): ${info.text}`);
+    assert(
+      !info.text.includes("Grundgerüst") && !info.text.includes("Messreihe ergänzt"),
+      `the prompt must not list commits that stay on main: ${info.text}`,
+    );
+    assertMatch(
+      info.text,
+      /1 commit disappears|commits after this point disappear/,
+      `the prompt names one commit (or says it cannot tell): ${info.text}`,
+    );
   } finally {
     repo.cleanup();
   }

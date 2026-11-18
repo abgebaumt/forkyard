@@ -47,10 +47,19 @@ export function AgentReviewView({ repoId, tabId, agentIds, show }: { repoId: Id;
     }
   };
 
-  const title = first && second ? t("agents.review.titleTwo", { a: displayName(first), b: displayName(second) }) : t("agents.review.title", { name: first ? displayName(first) : "" });
+  const title =
+    first && second
+      ? t("agents.review.titleTwo", { a: displayName(first), b: displayName(second) })
+      : t("agents.review.title", { name: first ? displayName(first) : "" });
 
   return (
-    <section ref={root} data-screen="agent-review" aria-label={t("agents.review.label")} onKeyDown={onKeyDown} className="flex h-full min-h-0 flex-col bg-bg">
+    <section
+      ref={root}
+      data-screen="agent-review"
+      aria-label={t("agents.review.label")}
+      onKeyDown={onKeyDown}
+      className="flex h-full min-h-0 flex-col bg-bg"
+    >
       <header className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-1">
         <h1 className="min-w-0 flex-1 truncate text-md font-semibold text-text">{title}</h1>
         {first && second ? (

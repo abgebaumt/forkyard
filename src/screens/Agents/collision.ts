@@ -50,7 +50,8 @@ export function collisionTitle(collision: AgentCollision, names: Map<Id, string>
 
 /** Labels of the two sides of a preview: the first agent, then the other agent or the base. */
 export function sideLabels(collision: AgentCollision, names: Map<Id, string>): [string, string] {
-  const other = collision.otherAgentId === null ? t("agents.collision.theBase", { base: collision.base ?? "" }) : nameOf(names, collision.otherAgentId);
+  const other =
+    collision.otherAgentId === null ? t("agents.collision.theBase", { base: collision.base ?? "" }) : nameOf(names, collision.otherAgentId);
   return [nameOf(names, collision.agentId), other];
 }
 
@@ -69,7 +70,8 @@ export function collisionsOf(report: CollisionReport | undefined, agents: Agent[
 }
 
 /** Ids of collisions that were not shown before (for the live region). */
-export const newCollisionIds = (before: Set<string>, collisions: AgentCollision[]): string[] => collisions.map((collision) => collision.id).filter((id) => !before.has(id));
+export const newCollisionIds = (before: Set<string>, collisions: AgentCollision[]): string[] =>
+  collisions.map((collision) => collision.id).filter((id) => !before.has(id));
 
 /** Running agents of the collision, the one started later first (the default recipient). */
 export function informTargets(collision: AgentCollision, agents: Agent[]): Agent[] {

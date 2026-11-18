@@ -88,7 +88,9 @@ export function setColumnVisible(columns: ColumnState[], id: OptionalColumnId, v
 export function orderOptional(columns: ColumnState[], shown: OptionalColumnId[]): ColumnState[] {
   const fixed = columns.filter((column) => !isOptional(column.id));
   const optional = columns.filter((column) => isOptional(column.id));
-  const front = shown.map((id) => optional.find((column) => column.id === id)).filter((column): column is ColumnState => column !== undefined);
+  const front = shown
+    .map((id) => optional.find((column) => column.id === id))
+    .filter((column): column is ColumnState => column !== undefined);
   const rest = optional.filter((column) => !shown.includes(column.id as OptionalColumnId));
   return [...fixed, ...front, ...rest];
 }
@@ -105,7 +107,12 @@ export function moveColumn(columns: ColumnState[], shown: OptionalColumnId[], id
 }
 
 /** Puts a displayed optional column before another one, or at the end of the displayed ones (`before: null`). */
-export function placeColumn(columns: ColumnState[], shown: OptionalColumnId[], id: OptionalColumnId, before: OptionalColumnId | null): ColumnState[] {
+export function placeColumn(
+  columns: ColumnState[],
+  shown: OptionalColumnId[],
+  id: OptionalColumnId,
+  before: OptionalColumnId | null,
+): ColumnState[] {
   if (id === before) return columns;
   const rest = shown.filter((other) => other !== id);
   const at = before === null ? rest.length : rest.indexOf(before);
@@ -114,7 +121,8 @@ export function placeColumn(columns: ColumnState[], shown: OptionalColumnId[], i
 }
 
 export const sameColumns = (a: ColumnState[], b: ColumnState[]) =>
-  a.length === b.length && a.every((column, index) => column.id === b[index]?.id && column.visible === b[index]?.visible && column.width === b[index]?.width);
+  a.length === b.length &&
+  a.every((column, index) => column.id === b[index]?.id && column.visible === b[index]?.visible && column.width === b[index]?.width);
 
 export interface ColumnLayout {
   /** Displayed columns from left to right. */
@@ -173,7 +181,8 @@ export function layoutColumns(input: LayoutInput): ColumnLayout {
 
   if (optional.includes("author") && state.get("author")?.width === null && message() < MESSAGE_COMFORT) widths.author = AUTHOR_COMPACT;
   // A refs column without a fixed width gives way before a whole column drops out; the labels then get truncated.
-  if (message() < MESSAGE_MIN && state.get("refs")?.width === null) widths.refs = Math.max(REFS_SOFT_MIN, widths.refs - (MESSAGE_MIN - message()));
+  if (message() < MESSAGE_MIN && state.get("refs")?.width === null)
+    widths.refs = Math.max(REFS_SOFT_MIN, widths.refs - (MESSAGE_MIN - message()));
   while (message() < MESSAGE_MIN && optional.length > 0) {
     squeezed.unshift(optional[optional.length - 1]!);
     optional = optional.slice(0, -1);

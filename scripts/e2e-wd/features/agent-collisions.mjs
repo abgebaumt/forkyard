@@ -39,7 +39,10 @@ function isolatedEnv() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "fy-wd-collide-home-"));
   process.on("exit", () => fs.rmSync(home, { recursive: true, force: true }));
   const holdsAgent = (dir) => REAL_AGENTS.some((name) => fs.existsSync(path.join(dir, name)));
-  const PATH = (process.env.PATH ?? "").split(path.delimiter).filter((dir) => dir && !holdsAgent(dir)).join(path.delimiter);
+  const PATH = (process.env.PATH ?? "")
+    .split(path.delimiter)
+    .filter((dir) => dir && !holdsAgent(dir))
+    .join(path.delimiter);
   return { HOME: home, SHELL: "/bin/sh", PATH };
 }
 
@@ -54,7 +57,12 @@ async function setUp(t, lang) {
   const app = await t.launch({ ...LAUNCH, lang, env: isolatedEnv() });
   await app.waitForShell();
   await app.invoke("settings_set", {
-    patch: { autoFetchMinutes: 0, agentTemplates: [{ id: "custom:fake", name: "Fake", program: FAKE, args: ["--log", log], unattendedArgs: null, resumeArgs: null, statusHook: true }] },
+    patch: {
+      autoFetchMinutes: 0,
+      agentTemplates: [
+        { id: "custom:fake", name: "Fake", program: FAKE, args: ["--log", log], unattendedArgs: null, resumeArgs: null, statusHook: true },
+      ],
+    },
   });
   // Guard: the fake agent is the only template the app can start (and so the dialog's default).
   const found = (await app.invoke("agent_templates")).filter((item) => item.path !== null).map((item) => item.id);
@@ -63,8 +71,7 @@ async function setUp(t, lang) {
   return { fx, app, log };
 }
 
-const agentBranches = (repoPath) =>
-  git(repoPath, "branch", "--list", "--format=%(refname:short)", "agent/*").split("\n").filter(Boolean);
+const agentBranches = (repoPath) => git(repoPath, "branch", "--list", "--format=%(refname:short)", "agent/*").split("\n").filter(Boolean);
 
 /** Starts an agent through the dialog; returns the branch Git has for it afterwards. */
 async function startAgent(app, repoPath, task) {
@@ -72,7 +79,16 @@ async function startAgent(app, repoPath, task) {
   await app.press("Control+Shift+a");
   await app.waitFor('[role="dialog"] [data-field="task"]', 15_000, { message: "start dialog" });
   // Type only once the empty task's suggestion is in, so the task's own suggestion replaces it.
-  await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [data-field="branch"] input, [role="dialog"] input[data-field="branch"]')?.value === "agent/agent"), 15_000, { message: "suggestion for the empty task" });
+  await app.waitFor(
+    () =>
+      app.exec(
+        () =>
+          document.querySelector('[role="dialog"] [data-field="branch"] input, [role="dialog"] input[data-field="branch"]')?.value ===
+          "agent/agent",
+      ),
+    15_000,
+    { message: "suggestion for the empty task" },
+  );
   await app.type('[role="dialog"] [data-field="task"]', task);
   // The live branch check can enable the button for a moment and disable it again: check and click
   // in one turn of the page.
@@ -87,11 +103,17 @@ async function startAgent(app, repoPath, task) {
     15_000,
     { message: "start enabled and clicked" },
   );
-  await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-field="task"]')), 30_000, { message: "dialog closed after the start" });
-  const created = await app.waitFor(() => {
-    const fresh = agentBranches(repoPath).filter((name) => !before.has(name));
-    return fresh.length === 1 ? fresh : null;
-  }, 15_000, { message: "agent branch in git" });
+  await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-field="task"]')), 30_000, {
+    message: "dialog closed after the start",
+  });
+  const created = await app.waitFor(
+    () => {
+      const fresh = agentBranches(repoPath).filter((name) => !before.has(name));
+      return fresh.length === 1 ? fresh : null;
+    },
+    15_000,
+    { message: "agent branch in git" },
+  );
   return created[0];
 }
 
@@ -103,7 +125,9 @@ async function twoCollidingAgents(t, lang) {
   const folderOf = (branch) => path.join(path.dirname(ctx.fx.path), `${path.basename(ctx.fx.path)}.agents`, branch.replace("agent/", ""));
   const [a, b] = [folderOf(first), folderOf(second)];
   // Both agents took their task (their result file exists); then they change the same lines.
-  await ctx.app.waitFor(() => fs.existsSync(path.join(a, "AGENT_RESULT.md")) && fs.existsSync(path.join(b, "AGENT_RESULT.md")), 60_000, { message: "both agents started" });
+  await ctx.app.waitFor(() => fs.existsSync(path.join(a, "AGENT_RESULT.md")) && fs.existsSync(path.join(b, "AGENT_RESULT.md")), 60_000, {
+    message: "both agents started",
+  });
   fs.writeFileSync(path.join(a, "src", "auth.ts"), numbered("a"));
   fs.writeFileSync(path.join(b, "src", "auth.ts"), numbered("b"));
   await ctx.app.click('[data-toolbar="agents"] button');
@@ -134,7 +158,8 @@ scenario("two agents change the same lines: banner, preview with both sides, inf
   await app.click('[role="dialog"] [data-preview-file="src/auth.ts"]');
   // Only the answer for src/auth.ts counts (the dialog opens on AGENT_RESULT.md, the first file).
   const block = await app.waitFor(
-    () => app.exec(() => document.querySelector('[role="dialog"] [data-preview-path="src/auth.ts"] [data-collision-block]')?.innerText ?? null),
+    () =>
+      app.exec(() => document.querySelector('[role="dialog"] [data-preview-path="src/auth.ts"] [data-collision-block]')?.innerText ?? null),
     15_000,
     { message: "preview block of src/auth.ts" },
   );
@@ -143,15 +168,23 @@ scenario("two agents change the same lines: banner, preview with both sides, inf
   assertIncludes(block, "b 62", "second agent's side");
   await t.shot("collision-preview");
   await app.press("Escape");
-  await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-preview-file]')), 15_000, { message: "preview closed" });
+  await app.waitFor(() => app.exec(() => !document.querySelector('[role="dialog"] [data-preview-file]')), 15_000, {
+    message: "preview closed",
+  });
 
   // Inform: the later agent is preselected, the note names the first one; typed after confirming.
   await app.click('[data-collision][data-kind="conflict"] [data-action="collision-inform"]');
-  const text = await app.waitFor(() => app.exec(() => document.querySelector('[role="dialog"] [data-field="inform-text"]')?.value ?? null), 15_000, { message: "inform dialog" });
+  const text = await app.waitFor(
+    () => app.exec(() => document.querySelector('[role="dialog"] [data-field="inform-text"]')?.value ?? null),
+    15_000,
+    { message: "inform dialog" },
+  );
   assertMatch(text, /^Note from Forkyard: the coding agent “login-pruefen” is also changing /, "prefilled note");
   await app.click('[data-action="inform-send"]');
   await app.waitFor(
-    () => fs.existsSync(log) && fs.readFileSync(log, "utf8").includes("line: Note from Forkyard: the coding agent “login-pruefen” is also changing"),
+    () =>
+      fs.existsSync(log) &&
+      fs.readFileSync(log, "utf8").includes("line: Note from Forkyard: the coding agent “login-pruefen” is also changing"),
     30_000,
     { message: "note typed into the later agent's terminal" },
   );

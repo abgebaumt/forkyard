@@ -33,11 +33,22 @@ function installSlowClaude(dir) {
   const config = { rules: [], fallback: { exit: 0, stdout: "2.1.301 (Claude Code)\n", sleepMs: 30_000 } };
   fs.writeFileSync(path.join(dir, "claude.fake.json"), JSON.stringify(config));
   const log = path.join(dir, "claude.calls.jsonl");
-  return { calls: () => (fs.existsSync(log) ? fs.readFileSync(log, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)) : []) };
+  return {
+    calls: () =>
+      fs.existsSync(log)
+        ? fs
+            .readFileSync(log, "utf8")
+            .split("\n")
+            .filter(Boolean)
+            .map((line) => JSON.parse(line))
+        : [],
+  };
 }
 
 const firstRows = (app, timeout) =>
-  app.waitFor(async () => ((await app.$$('[data-row-kind="commit"]')).length >= 3 ? true : null), timeout, { message: "first commit rows" });
+  app.waitFor(async () => ((await app.$$('[data-row-kind="commit"]')).length >= 3 ? true : null), timeout, {
+    message: "first commit rows",
+  });
 
 scenario("restart with a repository tab: the graph comes without waiting for a slow AI tool", "main", async (t) => {
   const repo = makeRichRepo();
@@ -63,20 +74,30 @@ scenario("restart with a repository tab: the graph comes without waiting for a s
     assert(elapsed < FIRST_ROWS_WITHIN_MS, `the graph took ${elapsed} ms (bound ${FIRST_ROWS_WITHIN_MS} ms)`);
 
     // The UI's own measurement (development build: window.__gcStartup) and its line in the log.
-    const trace = await app.waitFor(() => app.exec(() => (window.__gcStartup?.reported ? window.__gcStartup : null)), 10_000, { message: "startup report sent" });
+    const trace = await app.waitFor(() => app.exec(() => (window.__gcStartup?.reported ? window.__gcStartup : null)), 10_000, {
+      message: "startup report sent",
+    });
     const marks = Object.fromEntries(trace.marks.map((mark) => [mark.name, Math.round(mark.at)]));
     t.step(`marks since page start: ${JSON.stringify(marks)}`);
     for (const name of ["script", "paint", "shell", "graph"]) assert(name in marks, `mark ${name} missing: ${JSON.stringify(marks)}`);
     const slow = trace.calls.filter((call) => call.ms >= 2000);
     assertEqual(slow, [], "no core call during the start took two seconds or more");
-    const log = await app.waitFor(() => {
-      const text = logText(data.path).slice(before);
-      return text.includes("Startup (UI):") ? text : null;
-    }, 10_000, { message: "startup line in the log" });
+    const log = await app.waitFor(
+      () => {
+        const text = logText(data.path).slice(before);
+        return text.includes("Startup (UI):") ? text : null;
+      },
+      10_000,
+      { message: "startup line in the log" },
+    );
     assert(/Startup \(UI\): page started at \d+ ms, .*graph at \d+ ms/.test(log), "the log names the graph's time");
     assert(!log.includes("Startup: first keychain probe"), "the start asked the keychain");
 
-    assertEqual(claude.calls().map((call) => call.args.join(" ")), [], "the start ran the AI tool");
+    assertEqual(
+      claude.calls().map((call) => call.args.join(" ")),
+      [],
+      "the start ran the AI tool",
+    );
     await t.shot("restarted");
     await t.noConsoleErrors(app);
   } finally {

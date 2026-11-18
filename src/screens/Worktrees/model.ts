@@ -7,7 +7,9 @@ import { t } from "../../i18n";
 /** Second line: what is checked out, followed by the properties as words. */
 export function worktreeSecondary(worktree: Worktree): string {
   if (worktree.isPrunable) return worktree.isLocked ? t("worktrees.row.missingLocked") : t("worktrees.row.missingOrphaned");
-  const parts = [worktree.branch ?? (worktree.head ? t("worktrees.row.detached", { sha: shortSha(worktree.head) }) : t("worktrees.row.noCommit"))];
+  const parts = [
+    worktree.branch ?? (worktree.head ? t("worktrees.row.detached", { sha: shortSha(worktree.head) }) : t("worktrees.row.noCommit")),
+  ];
   if (worktree.isMain) parts.push(t("worktrees.row.main"));
   if (worktree.isLocked) parts.push(t("worktrees.row.locked"));
   if (worktree.hasChanges) parts.push(t("worktrees.row.changed"));
@@ -21,7 +23,9 @@ export function worktreeSecondary(worktree: Worktree): string {
 export function sortWorktrees(worktrees: Worktree[]): Worktree[] {
   const rank = (item: Worktree) => (item.isPrunable ? 4 : item.isCurrent ? 0 : item.isMain ? 1 : item.branch ? 2 : 3);
   const key = (item: Worktree) => (item.branch && !item.isPrunable ? item.branch : folderName(item.path));
-  return [...worktrees].sort((a, b) => rank(a) - rank(b) || key(a).localeCompare(key(b), undefined, { numeric: true, sensitivity: "base" }));
+  return [...worktrees].sort(
+    (a, b) => rank(a) - rank(b) || key(a).localeCompare(key(b), undefined, { numeric: true, sensitivity: "base" }),
+  );
 }
 
 /**
@@ -43,7 +47,8 @@ export function describeWorktree(worktree: Worktree): string {
   else parts.push(worktree.branch ? t("worktrees.describe.branch", { branch: worktree.branch }) : worktreeTarget(worktree));
   if (worktree.isMain) parts.push(t("worktrees.row.main"));
   if (worktree.isCurrent) parts.push(t("worktrees.describe.current"));
-  if (worktree.isLocked) parts.push(worktree.lockReason ? t("worktrees.describe.lockedReason", { reason: worktree.lockReason }) : t("worktrees.row.locked"));
+  if (worktree.isLocked)
+    parts.push(worktree.lockReason ? t("worktrees.describe.lockedReason", { reason: worktree.lockReason }) : t("worktrees.row.locked"));
   if (worktree.hasChanges && !worktree.isPrunable) parts.push(t("worktrees.describe.changes"));
   return parts.join(", ");
 }
@@ -52,10 +57,16 @@ export function describeWorktree(worktree: Worktree): string {
 export function worktreeTipLines(worktree: Worktree): string[] {
   const lines = [worktree.path];
   if (worktree.isPrunable) lines.push(t("worktrees.tip.orphaned"));
-  else lines.push(worktree.branch ? t("worktrees.tip.branch", { branch: worktree.branch }) : t("worktrees.tip.noBranch", { target: worktreeTarget(worktree) }));
+  else
+    lines.push(
+      worktree.branch
+        ? t("worktrees.tip.branch", { branch: worktree.branch })
+        : t("worktrees.tip.noBranch", { target: worktreeTarget(worktree) }),
+    );
   if (worktree.isMain) lines.push(t("worktrees.tip.main"));
   if (worktree.isCurrent) lines.push(t("worktrees.tip.current"));
-  if (worktree.isLocked) lines.push(worktree.lockReason ? t("worktrees.tip.lockedReason", { reason: worktree.lockReason }) : t("worktrees.tip.lockedNoReason"));
+  if (worktree.isLocked)
+    lines.push(worktree.lockReason ? t("worktrees.tip.lockedReason", { reason: worktree.lockReason }) : t("worktrees.tip.lockedNoReason"));
   if (worktree.hasChanges && !worktree.isPrunable) lines.push(t("worktrees.tip.changes"));
   return lines;
 }

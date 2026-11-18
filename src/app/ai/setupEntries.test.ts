@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 const SOURCES = import.meta.glob<string>(
-  ["/src/screens/Archaeology/index.tsx", "/src/screens/PullRequestCreate/AiWrite.tsx", "/src/screens/PullRequestView/ReviewThreads.tsx", "/src/screens/ReleaseNotes/Dialog.tsx"],
+  [
+    "/src/screens/Archaeology/index.tsx",
+    "/src/screens/PullRequestCreate/AiWrite.tsx",
+    "/src/screens/PullRequestView/ReviewThreads.tsx",
+    "/src/screens/ReleaseNotes/Dialog.tsx",
+  ],
   { query: "?raw", import: "default", eager: true },
 );
 
@@ -16,11 +21,16 @@ describe("AI elements open the first-time setup while no provider is connected",
   for (const [file, source] of Object.entries(SOURCES)) {
     it(file, () => {
       const lines = source.split("\n");
-      expect(lines.some((line) => /\bopenAiSetup\(\)/.test(line)), "calls openAiSetup()").toBe(true);
+      expect(
+        lines.some((line) => /\bopenAiSetup\(\)/.test(line)),
+        "calls openAiSetup()",
+      ).toBe(true);
       lines.forEach((line, index) => {
         if (!/\bopenAiSettings\b/.test(line) || /^import /.test(line)) return;
         const around = lines.slice(index, index + 3).join("\n");
-        expect(around, `${file}:${index + 1} opens Settings › AI for something other than "Change limit"`).toContain("ai.state.limitChange");
+        expect(around, `${file}:${index + 1} opens Settings › AI for something other than "Change limit"`).toContain(
+          "ai.state.limitChange",
+        );
       });
     });
   }

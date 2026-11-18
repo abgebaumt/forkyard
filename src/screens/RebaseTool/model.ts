@@ -63,14 +63,23 @@ export function splitMessage(message: string): MessageParts {
   const normalized = message.replace(/\r\n/g, "\n");
   const cut = normalized.indexOf("\n");
   if (cut < 0) return { summary: normalized.trim(), description: "" };
-  return { summary: normalized.slice(0, cut).trim(), description: normalized.slice(cut + 1).replace(/^\n+/, "").replace(/\s+$/, "") };
+  return {
+    summary: normalized.slice(0, cut).trim(),
+    description: normalized
+      .slice(cut + 1)
+      .replace(/^\n+/, "")
+      .replace(/\s+$/, ""),
+  };
 }
 
 /** Suggested message for a squashed commit: the summary of the first, the others below. */
 export function combinedMessage(commits: { summary: string; description: string }[]): MessageParts {
   const [first, ...rest] = commits;
   if (!first) return { summary: "", description: "" };
-  const parts = [first.description.trim(), ...rest.map((commit) => [commit.summary.trim(), commit.description.trim()].filter(Boolean).join("\n\n"))];
+  const parts = [
+    first.description.trim(),
+    ...rest.map((commit) => [commit.summary.trim(), commit.description.trim()].filter(Boolean).join("\n\n")),
+  ];
   return { summary: first.summary.trim(), description: parts.filter(Boolean).join("\n\n") };
 }
 

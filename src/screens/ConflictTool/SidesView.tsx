@@ -9,12 +9,33 @@
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
 import { ArrowDownUp, Check, Minus, WandSparkles } from "lucide-react";
-import { forwardRef, memo, useCallback, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import type { LineToken, LineTokens } from "../../components/code/highlight";
 import type { CodeSettings } from "../../components/code/settings";
 import { IconButton } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { blockState, sideState, type BlockState, type Choice, type Chunk, type MergeModel, type Row, type RowModel, type Side } from "./model";
+import {
+  blockState,
+  sideState,
+  type BlockState,
+  type Choice,
+  type Chunk,
+  type MergeModel,
+  type Row,
+  type RowModel,
+  type Side,
+} from "./model";
 import type { SideTitles } from "./titles";
 import { t } from "../../i18n";
 
@@ -117,7 +138,20 @@ interface RowViewProps {
   onSwap: (chunk: number) => void;
 }
 
-const RowView = memo(function RowView({ row, rowIndex, chunk, choice, manual, sides, titles, focusKey, digits, tokens, onCell, onSwap }: RowViewProps) {
+const RowView = memo(function RowView({
+  row,
+  rowIndex,
+  chunk,
+  choice,
+  manual,
+  sides,
+  titles,
+  focusKey,
+  digits,
+  tokens,
+  onCell,
+  onSwap,
+}: RowViewProps) {
   const state = choice ? blockState(choice, manual) : null;
   const gutter = { width: `${digits + 1}ch` };
 
@@ -127,11 +161,19 @@ const RowView = memo(function RowView({ row, rowIndex, chunk, choice, manual, si
       if (chunk.kind === "auto") {
         const changed = chunk.from === "both" || chunk.from === side;
         return (
-          <div key={side} className={cn("flex h-row min-w-0 items-center gap-2 border-t border-border bg-surface px-2 font-sans text-xs text-text-muted", border)}>
+          <div
+            key={side}
+            className={cn(
+              "flex h-row min-w-0 items-center gap-2 border-t border-border bg-surface px-2 font-sans text-xs text-text-muted",
+              border,
+            )}
+          >
             {changed ? (
               <>
                 <WandSparkles className="size-3.5 shrink-0 text-accent" aria-hidden />
-                <span className="truncate font-medium text-text">{chunk.from === "both" ? t("conflict.block.bothSame") : t("conflict.block.auto")}</span>
+                <span className="truncate font-medium text-text">
+                  {chunk.from === "both" ? t("conflict.block.bothSame") : t("conflict.block.auto")}
+                </span>
               </>
             ) : (
               <span className="truncate">{t("conflict.block.otherChanged")}</span>
@@ -146,7 +188,10 @@ const RowView = memo(function RowView({ row, rowIndex, chunk, choice, manual, si
       const number = chunk.conflict + 1;
       const status = sideStatus(state, checked);
       return (
-        <div key={side} className={cn("flex h-control-md min-w-0 items-center gap-1 border-t border-border bg-surface pr-1 font-sans", border)}>
+        <div
+          key={side}
+          className={cn("flex h-control-md min-w-0 items-center gap-1 border-t border-border bg-surface pr-1 font-sans", border)}
+        >
           <div
             role="checkbox"
             aria-checked={checked}
@@ -240,7 +285,12 @@ const RowView = memo(function RowView({ row, rowIndex, chunk, choice, manual, si
     const taken = chunk.kind === "auto" && (chunk.from === "both" || chunk.from === side);
     const replaced = chunk.kind === "auto" && !taken;
     return (
-      <div key={side} className={cn("flex min-w-0 items-start gap-1.5 pl-2", border, taken && "bg-accent-surface", replaced && "gc-cf-dropped")} data-side={side} data-line={cell.line + 1}>
+      <div
+        key={side}
+        className={cn("flex min-w-0 items-start gap-1.5 pl-2", border, taken && "bg-accent-surface", replaced && "gc-cf-dropped")}
+        data-side={side}
+        data-line={cell.line + 1}
+      >
         <span className="w-4 shrink-0" aria-hidden />
         {number}
         {code}
@@ -270,7 +320,10 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
     });
     return list;
   }, [rows, model]);
-  const bySide = useMemo(() => ({ ours: items.filter((item) => item.side === "ours"), theirs: items.filter((item) => item.side === "theirs") }), [items]);
+  const bySide = useMemo(
+    () => ({ ours: items.filter((item) => item.side === "ours"), theirs: items.filter((item) => item.side === "theirs") }),
+    [items],
+  );
   const byKey = useMemo(() => new Map(items.map((item) => [itemKey(item.row, item.side), item])), [items]);
 
   const firstItem = (side: Side) => bySide[side][0] ?? items[0] ?? null;
@@ -279,7 +332,13 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
   const current = focus && (!single || focus.side === single) ? focus : focus && single ? nearest(bySide[single], focus.row) : focus;
   const focusKey = current ? itemKey(current.row, current.side) : "";
 
-  const digits = useMemo(() => String(Math.max(1, ...model.chunks.map((chunk) => Math.max(chunk.oursStart + chunk.ours.length, chunk.theirsStart + chunk.theirs.length)))).length, [model]);
+  const digits = useMemo(
+    () =>
+      String(
+        Math.max(1, ...model.chunks.map((chunk) => Math.max(chunk.oursStart + chunk.ours.length, chunk.theirsStart + chunk.theirs.length))),
+      ).length,
+    [model],
+  );
 
   // --- Virtualisierung -----------------------------------------------------------------
   const lineHeight = code.lineHeight;
@@ -449,7 +508,11 @@ export const SidesView = forwardRef<SidesViewHandle, SidesViewProps>(function Si
       <div
         ref={scroller}
         role="group"
-        aria-label={single ? t("conflict.sides.single", { side: titles[single].heading }) : t("conflict.sides.both", { ours: titles.ours.heading, theirs: titles.theirs.heading })}
+        aria-label={
+          single
+            ? t("conflict.sides.single", { side: titles[single].heading })
+            : t("conflict.sides.both", { ours: titles.ours.heading, theirs: titles.theirs.heading })
+        }
         tabIndex={items.length === 0 ? 0 : undefined}
         onKeyDown={onKeyDown}
         onFocus={(event) => {
@@ -511,4 +574,3 @@ function nearest(list: Item[], row: number): Item | null {
   }
   return best;
 }
-

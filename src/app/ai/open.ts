@@ -12,7 +12,11 @@ export function openAiSettings(): void {
  * take the focus under a dialog. Returns whether AI was turned on.
  */
 export async function openAiSetup(): Promise<boolean> {
-  const [{ showAiSetup }, { showWhatIsSent }, { signInInTerminal }] = await Promise.all([import("./SetupDialog"), import("./gate"), import("./cliLogin")]);
+  const [{ showAiSetup }, { showWhatIsSent }, { signInInTerminal }] = await Promise.all([
+    import("./SetupDialog"),
+    import("./gate"),
+    import("./cliLogin"),
+  ]);
   const result = await showAiSetup();
   if (result?.kind === "whatIsSent") await showWhatIsSent(result.repoId, "commit_message");
   if (result?.kind === "signIn") signInInTerminal(result.provider);

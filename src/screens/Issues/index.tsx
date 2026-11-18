@@ -41,7 +41,10 @@ const TWO_PANE_MIN = 640;
 /** How long the search waits after the last keystroke before asking the host. */
 const SEARCH_DELAY_MS = 300;
 
-const STATE_OPTIONS: { value: IssueListState; label: string }[] = (["open", "closed", "all"] as const).map((value) => ({ value, label: listStateLabels[value] }));
+const STATE_OPTIONS: { value: IssueListState; label: string }[] = (["open", "closed", "all"] as const).map((value) => ({
+  value,
+  label: listStateLabels[value],
+}));
 
 function ListSkeleton() {
   return (
@@ -59,7 +62,17 @@ function ListSkeleton() {
   );
 }
 
-function IssueOption({ issue, selected, focusable, onOpen }: { issue: IssueSummary; selected: boolean; focusable: boolean; onOpen: () => void }) {
+function IssueOption({
+  issue,
+  selected,
+  focusable,
+  onOpen,
+}: {
+  issue: IssueSummary;
+  selected: boolean;
+  focusable: boolean;
+  onOpen: () => void;
+}) {
   const secondary = issueSecondary(issue);
   return (
     <div
@@ -70,7 +83,10 @@ function IssueOption({ issue, selected, focusable, onOpen }: { issue: IssueSumma
       data-issue-row={issue.number}
       data-state={issue.state}
       onClick={onOpen}
-      className={cn("flex cursor-default items-start gap-2 border-b border-border px-3 py-2 -outline-offset-2", selected ? "bg-accent-surface" : "hover:bg-surface-raised")}
+      className={cn(
+        "flex cursor-default items-start gap-2 border-b border-border px-3 py-2 -outline-offset-2",
+        selected ? "bg-accent-surface" : "hover:bg-surface-raised",
+      )}
     >
       <StateIcon state={issue.state} className="mt-0.5" />
       <div className="min-w-0 flex-1">
@@ -206,7 +222,12 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing) return;
       if (hasOpenDialog() || hasOpenMenu() || useAppStore.getState().overlay) return;
-      if (document.querySelector('[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]')) return;
+      if (
+        document.querySelector(
+          '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]',
+        )
+      )
+        return;
       const target = event.target instanceof Element ? event.target : null;
       const inside = Boolean(target && rootRef.current?.contains(target));
       const inField = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
@@ -257,14 +278,14 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
         : !repo.capabilities.issues
           ? "disabled"
           : !connected
-          ? "not_connected"
-          : issues.isPending
-            ? "loading"
-            : issues.isError && loaded.length === 0
-              ? describeHostError(issues.error).kind
-              : shown.length === 0
-                ? "empty"
-                : "filled";
+            ? "not_connected"
+            : issues.isPending
+              ? "loading"
+              : issues.isError && loaded.length === 0
+                ? describeHostError(issues.error).kind
+                : shown.length === 0
+                  ? "empty"
+                  : "filled";
 
   const resetFilters = () => {
     setTyped("");
@@ -273,7 +294,8 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
 
   let listBody;
   if (hostRepo.isPending) listBody = <ListSkeleton />;
-  else if (hostRepo.isError) listBody = <HostProblem error={hostRepo.error} onRetry={() => void hostRepo.refetch()} retrying={hostRepo.isFetching} />;
+  else if (hostRepo.isError)
+    listBody = <HostProblem error={hostRepo.error} onRetry={() => void hostRepo.refetch()} retrying={hostRepo.isFetching} />;
   else if (!repo) listBody = <NoHost />;
   else if (!repo.capabilities.issues)
     listBody = (
@@ -283,7 +305,8 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
     );
   else if (!connected) listBody = <NotConnected repo={repo} />;
   else if (issues.isPending) listBody = <ListSkeleton />;
-  else if (issues.isError && loaded.length === 0) listBody = <HostProblem error={issues.error} onRetry={() => void issues.refetch()} retrying={issues.isFetching} />;
+  else if (issues.isError && loaded.length === 0)
+    listBody = <HostProblem error={issues.error} onRetry={() => void issues.refetch()} retrying={issues.isFetching} />;
   else if (shown.length === 0) {
     listBody = filtering ? (
       <Blank
@@ -310,25 +333,49 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
     );
   } else {
     listBody = (
-      <div ref={listRef} role="listbox" aria-label={t("issues.view.title")} aria-orientation="vertical" onKeyDown={onListKeyDown} data-issue-list>
+      <div
+        ref={listRef}
+        role="listbox"
+        aria-label={t("issues.view.title")}
+        aria-orientation="vertical"
+        onKeyDown={onListKeyDown}
+        data-issue-list
+      >
         {shown.map((issue) => (
-          <IssueOption key={issue.number} issue={issue} selected={issue.number === number} focusable={issue.number === tabStop} onOpen={() => open(issue)} />
+          <IssueOption
+            key={issue.number}
+            issue={issue}
+            selected={issue.number === number}
+            focusable={issue.number === tabStop}
+            onOpen={() => open(issue)}
+          />
         ))}
       </div>
     );
   }
 
   const showControls = Boolean(repo && connected && repo.capabilities.issues);
-  const staleProblem = connected && issues.isError && loaded.length > 0 && !issues.isFetchNextPageError ? describeHostError(issues.error) : null;
+  const staleProblem =
+    connected && issues.isError && loaded.length > 0 && !issues.isFetchNextPageError ? describeHostError(issues.error) : null;
   const knownIssue = number !== null ? loaded.find((issue) => issue.number === number) : undefined;
 
   return (
-    <section ref={rootRef} aria-label={t("issues.view.title")} data-screen="issues" data-state={listState} data-layout={wide ? "two" : "one"} className="flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      ref={rootRef}
+      aria-label={t("issues.view.title")}
+      data-screen="issues"
+      data-state={listState}
+      data-layout={wide ? "two" : "one"}
+      className="flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
         <CircleDot className="size-icon shrink-0 text-text-muted" aria-hidden />
         <h2 className="m-0 shrink-0 text-base font-medium text-text">{t("issues.view.title")}</h2>
         {where ? (
-          <span className="selectable min-w-0 truncate font-mono text-code text-text-muted" title={repo?.kind ? t("issues.view.atHost", { where, host: hostKindLabels[repo.kind] }) : where}>
+          <span
+            className="selectable min-w-0 truncate font-mono text-code text-text-muted"
+            title={repo?.kind ? t("issues.view.atHost", { where, host: hostKindLabels[repo.kind] }) : where}
+          >
             {where}
           </span>
         ) : null}
@@ -355,17 +402,41 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
               icon={<RefreshCw className={cn("size-icon", refreshing && "animate-spin")} aria-hidden />}
               onClick={() => void refreshIssues(repoId)}
             />
-            <IconButton size="sm" label={t("issues.view.openInBrowser")} data-action="issues-web" disabled={!webUrl} icon={<ExternalLink className="size-icon" aria-hidden />} onClick={() => void openInBrowser(webUrl)} />
+            <IconButton
+              size="sm"
+              label={t("issues.view.openInBrowser")}
+              data-action="issues-web"
+              disabled={!webUrl}
+              icon={<ExternalLink className="size-icon" aria-hidden />}
+              onClick={() => void openInBrowser(webUrl)}
+            />
           </>
         ) : null}
-        <IconButton size="sm" label={t("issues.view.close")} shortcut="Escape" data-back="" icon={<X className="size-icon" aria-hidden />} onClick={() => closeCenter(tabId)} />
+        <IconButton
+          size="sm"
+          label={t("issues.view.close")}
+          shortcut="Escape"
+          data-back=""
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={() => closeCenter(tabId)}
+        />
       </header>
 
       <div ref={bodyRef} className="flex min-h-0 min-w-0 flex-1">
         {showList ? (
-          <div className={cn("flex min-h-0 min-w-0 flex-col", wide && (showDetails || listState === "filled") ? "w-80 shrink-0 border-r border-border" : "flex-1")} data-issues-pane="list">
+          <div
+            className={cn(
+              "flex min-h-0 min-w-0 flex-col",
+              wide && (showDetails || listState === "filled") ? "w-80 shrink-0 border-r border-border" : "flex-1",
+            )}
+            data-issues-pane="list"
+          >
             {showControls ? (
-              <div className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface p-2" role="search" aria-label={t("issues.view.filterLabel")}>
+              <div
+                className="flex shrink-0 flex-col gap-2 border-b border-border bg-surface p-2"
+                role="search"
+                aria-label={t("issues.view.filterLabel")}
+              >
                 <div className="relative">
                   <Search className="pointer-events-none absolute top-2 left-2 size-icon text-text-muted" aria-hidden />
                   <TextField
@@ -390,8 +461,19 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
                   />
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <SegmentedControl label={t("issues.view.stateLabel")} value={filter.state} options={STATE_OPTIONS} onValueChange={(state) => patchFilter(repoId, { state })} />
-                  <Checkbox label={t("issues.view.mine")} checked={filter.mine} disabled={!me} hint={me ? undefined : t("issues.view.notSignedIn")} onCheckedChange={(mine) => patchFilter(repoId, { mine })} />
+                  <SegmentedControl
+                    label={t("issues.view.stateLabel")}
+                    value={filter.state}
+                    options={STATE_OPTIONS}
+                    onValueChange={(state) => patchFilter(repoId, { state })}
+                  />
+                  <Checkbox
+                    label={t("issues.view.mine")}
+                    checked={filter.mine}
+                    disabled={!me}
+                    hint={me ? undefined : t("issues.view.notSignedIn")}
+                    onCheckedChange={(mine) => patchFilter(repoId, { mine })}
+                  />
                 </div>
               </div>
             ) : null}
@@ -400,15 +482,26 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
               <div
                 role={staleProblem.kind === "rate_limit" ? "status" : "alert"}
                 data-issues-stale={staleProblem.kind}
-                className={cn("shrink-0 border-b border-border px-3 py-2 text-sm", staleProblem.kind === "rate_limit" ? "bg-warning-surface" : "bg-danger-surface")}
+                className={cn(
+                  "shrink-0 border-b border-border px-3 py-2 text-sm",
+                  staleProblem.kind === "rate_limit" ? "bg-warning-surface" : "bg-danger-surface",
+                )}
               >
                 <p className="m-0 flex items-start gap-1.5 text-base font-medium text-text">
-                  <TriangleAlert className={cn("mt-0.5 size-icon shrink-0", staleProblem.kind === "rate_limit" ? "text-warning" : "text-danger")} aria-hidden />
+                  <TriangleAlert
+                    className={cn("mt-0.5 size-icon shrink-0", staleProblem.kind === "rate_limit" ? "text-warning" : "text-danger")}
+                    aria-hidden
+                  />
                   {t("issues.view.stale")}
                 </p>
                 <p className="selectable m-0 mt-0.5 break-words text-text-muted">{localizeTimes(staleProblem.text)}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button size="sm" loading={issues.isFetching} icon={<RefreshCw className="size-3.5" aria-hidden />} onClick={() => void issues.refetch()}>
+                  <Button
+                    size="sm"
+                    loading={issues.isFetching}
+                    icon={<RefreshCw className="size-3.5" aria-hidden />}
+                    onClick={() => void issues.refetch()}
+                  >
                     {t("issues.problem.retry")}
                   </Button>
                   {staleProblem.kind === "auth" || staleProblem.kind === "not_connected" ? (
@@ -424,7 +517,9 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
               {listState === "filled" || (listState === "empty" && issues.hasNextPage) ? (
                 <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 py-2 text-sm text-text-muted" data-issues-footer>
                   <span role="status" className="min-w-0 flex-1">
-                    {filter.mine ? t("issues.view.shownOfLoaded", { shown: shown.length, count: loaded.length }) : t("issues.view.loaded", { count: loaded.length })}
+                    {filter.mine
+                      ? t("issues.view.shownOfLoaded", { shown: shown.length, count: loaded.length })
+                      : t("issues.view.loaded", { count: loaded.length })}
                     {issues.hasNextPage ? "" : t("issues.view.thatsAll")}
                     {issues.isFetchNextPageError ? (
                       <span className="selectable block break-words text-danger" data-issues-more-error>
@@ -433,7 +528,12 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
                     ) : null}
                   </span>
                   {issues.hasNextPage ? (
-                    <Button size="sm" loading={issues.isFetchingNextPage} data-action="issues-more" onClick={() => void issues.fetchNextPage()}>
+                    <Button
+                      size="sm"
+                      loading={issues.isFetchingNextPage}
+                      data-action="issues-more"
+                      onClick={() => void issues.fetchNextPage()}
+                    >
                       {t("issues.view.loadMore")}
                     </Button>
                   ) : null}
@@ -444,7 +544,14 @@ export function IssuesView({ repoId, tabId, number }: IssuesViewProps) {
         ) : null}
 
         {showDetails && number !== null ? (
-          <IssueDetailsPane key={number} repoId={repoId} tabId={tabId} number={number} known={knownIssue} onBack={wide ? undefined : backToList} />
+          <IssueDetailsPane
+            key={number}
+            repoId={repoId}
+            tabId={tabId}
+            number={number}
+            known={knownIssue}
+            onBack={wide ? undefined : backToList}
+          />
         ) : wide && listState === "filled" ? (
           <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" data-issues-pane="hint">
             <p className="flex max-w-72 flex-col items-center gap-2 px-6 text-center text-base text-text-muted">

@@ -19,7 +19,8 @@ import { ReviewDiff } from "./ReviewDiff";
 import { ReviewActions } from "./ReviewActions";
 import { initPicks, pin, usePane, useReviewStore } from "./state";
 
-const TOGGLE = "inline-flex h-5 items-center rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text hover:border-border-input";
+const TOGGLE =
+  "inline-flex h-5 items-center rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text hover:border-border-input";
 
 export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabId: Id; agent: Agent; compact: boolean }) {
   const pane = usePane(tabId, agent.id);
@@ -53,14 +54,17 @@ export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabI
     if (modifiers.source === "keyboard" && modifiers.additive && !modifiers.range) {
       toggle(file);
       // The row moves to the other list; the keyboard focus moves with it instead of falling to the page.
-      requestAnimationFrame(() => [...(lists.current?.querySelectorAll<HTMLElement>("[data-row-key]") ?? [])].find((row) => row.dataset.rowKey === path)?.focus());
+      requestAnimationFrame(() =>
+        [...(lists.current?.querySelectorAll<HTMLElement>("[data-row-key]") ?? [])].find((row) => row.dataset.rowKey === path)?.focus(),
+      );
     } else patch(tabId, agent.id, { active: path });
   };
   const focusDiff = (file: FileChange) => {
     patch(tabId, agent.id, { active: file.path });
     requestAnimationFrame(() => diffArea.current?.querySelector<HTMLElement>('[data-row][tabindex="0"], [role="grid"]')?.focus());
   };
-  const focusLists = () => requestAnimationFrame(() => lists.current?.querySelector<HTMLElement>('[role="option"][tabindex="0"], [role="listbox"]')?.focus());
+  const focusLists = () =>
+    requestAnimationFrame(() => lists.current?.querySelector<HTMLElement>('[role="option"][tabindex="0"], [role="listbox"]')?.focus());
   const detail = (file: FileChange) => notPickable(file) ?? (picks[file.path]?.kind === "lines" ? t("agents.review.someLines") : null);
   const toggleButton = (file: FileChange, selected: boolean) =>
     notPickable(file) !== null ? null : (
@@ -80,7 +84,11 @@ export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabI
     );
 
   return (
-    <div data-review-pane={agent.id} onFocusCapture={() => useReviewStore.getState().setFocus(tabId, agent.id)} className="flex min-h-0 min-w-0 flex-col">
+    <div
+      data-review-pane={agent.id}
+      onFocusCapture={() => useReviewStore.getState().setFocus(tabId, agent.id)}
+      className="flex min-h-0 min-w-0 flex-col"
+    >
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-surface px-3 py-1.5">
         <span className="min-w-0 truncate font-mono text-code text-text">{agent.branch}</span>
         <span className="text-sm text-text-muted">{t("agents.review.against", { base: agent.base })}</span>
@@ -115,7 +123,13 @@ export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabI
       ) : null}
       {leftOut > 0 ? <Banner tone="info" title={t("agents.review.uncommittedLeftOut", { count: leftOut })} /> : null}
       <div className={cn("flex min-h-0 flex-1", compact ? "flex-col" : "flex-row")}>
-        <div ref={lists} className={cn("flex min-h-0 shrink-0 flex-col overflow-auto border-border bg-surface", compact ? "basis-2/5 border-b" : "w-2/5 border-r")}>
+        <div
+          ref={lists}
+          className={cn(
+            "flex min-h-0 shrink-0 flex-col overflow-auto border-border bg-surface",
+            compact ? "basis-2/5 border-b" : "w-2/5 border-r",
+          )}
+        >
           <section data-review-list="chosen" aria-label={t("agents.review.chosenList")}>
             <h2 className="px-3 pt-2 pb-1 text-sm font-semibold text-text">{t("agents.review.chosen", { count: chosen.length })}</h2>
             <FileList
@@ -151,7 +165,9 @@ export function ReviewPane({ repoId, tabId, agent, compact }: { repoId: Id; tabI
               path={active.path}
               source={rangeSource(pinned)}
               pick={picks[active.path]}
-              onKeys={(keys, diff) => patch(tabId, agent.id, (current) => ({ picks: withLines(current.picks ?? {}, active.path, keys, diff) }))}
+              onKeys={(keys, diff) =>
+                patch(tabId, agent.id, (current) => ({ picks: withLines(current.picks ?? {}, active.path, keys, diff) }))
+              }
               onLeave={focusLists}
             />
           ) : (

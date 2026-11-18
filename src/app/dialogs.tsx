@@ -130,7 +130,12 @@ export function pickFromList<K extends string>(options: PickOptions<K>): Promise
  * returns a `<Dialog open …>`; like the other dialogs it appears on its own and in order.
  */
 export function showDialog<T>(render: CustomDialogRender<T>): Promise<T | null> {
-  return push<unknown>((id, resolve) => ({ id, type: "custom", render: render as CustomDialogRender<unknown>, resolve })) as Promise<T | null>;
+  return push<unknown>((id, resolve) => ({
+    id,
+    type: "custom",
+    render: render as CustomDialogRender<unknown>,
+    resolve,
+  })) as Promise<T | null>;
 }
 
 /** Shows longer text (e.g. Git output) selectable in a dialog. */
@@ -286,9 +291,17 @@ export function DetailList({ items, label, className, wrap }: { items: string[];
   return (
     <span className={cn("mt-3 block", className)}>
       {label ? <span className="mb-1 block text-sm font-medium text-text">{label}</span> : null}
-      <span role="list" className="selectable block rounded-md border border-border bg-surface-sunken px-2 py-1 font-mono text-code text-text">
+      <span
+        role="list"
+        className="selectable block rounded-md border border-border bg-surface-sunken px-2 py-1 font-mono text-code text-text"
+      >
         {shown.map((item, index) => (
-          <span role="listitem" key={index} className={wrap ? "block whitespace-pre-wrap break-all" : "block truncate"} title={wrap ? undefined : item}>
+          <span
+            role="listitem"
+            key={index}
+            className={wrap ? "block whitespace-pre-wrap break-all" : "block truncate"}
+            title={wrap ? undefined : item}
+          >
             {item}
           </span>
         ))}
@@ -481,7 +494,9 @@ function PickDialog({ options, onDone }: { options: PickOptions; onDone: (value:
 
   const matches = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    return needle ? options.items.filter((item) => `${item.label} ${item.description ?? ""}`.toLowerCase().includes(needle)) : options.items;
+    return needle
+      ? options.items.filter((item) => `${item.label} ${item.description ?? ""}`.toLowerCase().includes(needle))
+      : options.items;
   }, [filter, options.items]);
   const shown = matches.slice(0, PICK_RENDER_LIMIT);
   const current = shown.find((item) => item.key === active) ?? shown[0] ?? null;
@@ -555,10 +570,17 @@ function PickDialog({ options, onDone }: { options: PickOptions; onDone: (value:
           />
           <Search className="pointer-events-none absolute bottom-1.5 left-2 size-icon text-text-muted" aria-hidden />
         </div>
-        <div id={listId} role="listbox" aria-label={options.label} className="max-h-64 overflow-auto rounded-md border border-border bg-surface-sunken p-1">
+        <div
+          id={listId}
+          role="listbox"
+          aria-label={options.label}
+          className="max-h-64 overflow-auto rounded-md border border-border bg-surface-sunken p-1"
+        >
           {shown.length === 0 ? (
             <p className="px-2 py-1 text-sm text-text-muted">
-              {options.items.length === 0 ? (options.empty ?? t("app.dialogs.nothingToChoose")) : t("app.dialogs.noMatch", { filter: filter.trim() })}
+              {options.items.length === 0
+                ? (options.empty ?? t("app.dialogs.nothingToChoose"))
+                : t("app.dialogs.noMatch", { filter: filter.trim() })}
             </p>
           ) : (
             shown.map((item, index) => {
@@ -574,7 +596,10 @@ function PickDialog({ options, onDone }: { options: PickOptions; onDone: (value:
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => setActive(item.key)}
                   onDoubleClick={() => onDone(item.key)}
-                  className={cn("flex h-row items-center gap-2 rounded-sm px-2 text-text", selected ? "bg-accent-surface" : "hover:bg-surface-raised")}
+                  className={cn(
+                    "flex h-row items-center gap-2 rounded-sm px-2 text-text",
+                    selected ? "bg-accent-surface" : "hover:bg-surface-raised",
+                  )}
                 >
                   <span className={cn("min-w-0 flex-1 truncate", options.mono && "font-mono text-code")}>{item.label}</span>
                   {item.description ? <span className="max-w-40 shrink-0 truncate text-sm text-text-muted">{item.description}</span> : null}

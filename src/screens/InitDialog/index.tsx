@@ -11,7 +11,16 @@ import { Dialog } from "../../ui/Dialog";
 import { Banner, toast } from "../../ui/Feedback";
 import { Checkbox, TextField } from "../../ui/Field";
 import { Select, type SelectOption } from "../../ui/Select";
-import { branchNameError, folderNameError, isAbsolutePath, joinPath, parentOf, pathKey, rememberParent, rememberedParent } from "../CloneDialog/paths";
+import {
+  branchNameError,
+  folderNameError,
+  isAbsolutePath,
+  joinPath,
+  parentOf,
+  pathKey,
+  rememberParent,
+  rememberedParent,
+} from "../CloneDialog/paths";
 import { WrappingPath } from "../CloneDialog/PathText";
 import { clearInitPreset, peekInitPreset } from "./preset";
 import { t } from "../../i18n";
@@ -88,7 +97,11 @@ export function InitDialog({ onClose }: InitDialogProps) {
       : submitted
         ? t("init.validation.parentMissing")
         : null,
-    branch: branch.trim() ? (branchNameError(branch.trim()) ?? failureFor("branch")) : submitted ? t("init.validation.branchMissing") : null,
+    branch: branch.trim()
+      ? (branchNameError(branch.trim()) ?? failureFor("branch"))
+      : submitted
+        ? t("init.validation.branchMissing")
+        : null,
   };
 
   const browse = async () => {
@@ -137,7 +150,9 @@ export function InitDialog({ onClose }: InitDialogProps) {
           sticky: true,
           title: t("init.noFirstCommit", { name: repo.name }),
           description: notice.message,
-          action: output ? { label: t("init.showOutput"), onClick: () => void showOutput(t("init.firstCommitOutputTitle"), output) } : undefined,
+          action: output
+            ? { label: t("init.showOutput"), onClick: () => void showOutput(t("init.firstCommitOutputTitle"), output) }
+            : undefined,
         });
       }
       void queryClient.invalidateQueries({ queryKey: qk.tabs });
@@ -335,9 +350,7 @@ export function InitDialog({ onClose }: InitDialogProps) {
         <Checkbox label={t("init.readme.label")} hint={t("init.readme.hint")} checked={readme} onCheckedChange={setReadme} />
 
         <p data-init-note className="text-sm text-text-muted">
-          {nothingToCommit
-            ? t("init.noteEmpty")
-            : t("init.noteCommit")}
+          {nothingToCommit ? t("init.noteEmpty") : t("init.noteCommit")}
         </p>
       </form>
     </Dialog>

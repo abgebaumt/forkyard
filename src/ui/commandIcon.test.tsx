@@ -2,7 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CommandIcon } from "./commandIcon";
 
-const html = (platform: "mac" | "windows" | "linux") => renderToStaticMarkup(<CommandIcon platform={platform} className="size-icon" aria-hidden />);
+const html = (platform: "mac" | "windows" | "linux") =>
+  renderToStaticMarkup(<CommandIcon platform={platform} className="size-icon" aria-hidden />);
 
 describe("CommandIcon", () => {
   it("draws a neutral prompt icon on Windows and Linux", () => {
@@ -37,7 +38,8 @@ describe("the ⌘ icon", () => {
         const names = (match[1] ?? "").split(",").map((name) => name.trim().split(/\s+as\s+/)[0]);
         if (names.some((name) => name === "Command" || name === "CommandIcon" || name === "LucideCommand")) offenders.push(file);
       }
-      if (/from\s*["']lucide-react\/dist\/esm\/icons\/command/.test(source) || /\*\s*as\s+\w+\s+from\s*["']lucide-react["']/.test(source)) offenders.push(file);
+      if (/from\s*["']lucide-react\/dist\/esm\/icons\/command/.test(source) || /\*\s*as\s+\w+\s+from\s*["']lucide-react["']/.test(source))
+        offenders.push(file);
     }
     expect(offenders).toEqual([]);
   });

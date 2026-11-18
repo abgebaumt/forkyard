@@ -3,7 +3,18 @@
  * Usage: `?scenario=shell.credential&kind=password`, `?scenario=shell.menu&which=commit`.
  */
 import type { CredentialKind, CredentialRequest, FileChange } from "../../core";
-import { branchMenu, branchesMenu, commitMenu, dropMenu, fileMenu, openMenuAt, remoteMenu, stashMenu, tagMenu, wipMenu } from "../../app/menus";
+import {
+  branchMenu,
+  branchesMenu,
+  commitMenu,
+  dropMenu,
+  fileMenu,
+  openMenuAt,
+  remoteMenu,
+  stashMenu,
+  tagMenu,
+  wipMenu,
+} from "../../app/menus";
 import { GRAPH_PAGE_SIZE, qk } from "../../app/queries";
 import type { Scenario, ScenarioContext } from "../scenarios";
 
@@ -66,7 +77,9 @@ export const scenarios: Record<string, Scenario> = {
   async credential(ctx) {
     const kind = (ctx.params.get("kind") ?? "password") as CredentialKind;
     const store = ctx.store.getState();
-    const kinds: CredentialKind[] = ctx.params.get("queue") ? [kind, ...(Object.keys(credentialSamples) as CredentialKind[]).filter((item) => item !== kind)] : [kind];
+    const kinds: CredentialKind[] = ctx.params.get("queue")
+      ? [kind, ...(Object.keys(credentialSamples) as CredentialKind[]).filter((item) => item !== kind)]
+      : [kind];
     kinds.forEach((item, index) => store.enqueueCredential({ ...credentialSamples[item], requestId: `szenario-${item}-${index}` }));
     await ctx.waitFor(() => document.querySelector("[data-credential]") !== null);
   },
@@ -81,7 +94,9 @@ export const scenarios: Record<string, Scenario> = {
     const { status, refs, remotes, stashes } = await seed(ctx, repoId);
     const which = ctx.params.get("which") ?? "commit";
     const head = status.head.kind === "unborn" ? null : status.head.sha;
-    const rows = (await ctx.core.graphPage({ repoId, cursor: null, limit: 200 })).rows.filter((row) => row.kind === "commit" || row.kind === "merge");
+    const rows = (await ctx.core.graphPage({ repoId, cursor: null, limit: 200 })).rows.filter(
+      (row) => row.kind === "commit" || row.kind === "merge",
+    );
     const local = (name: string) => refs.locals.find((ref) => ref.name === name);
     const other = refs.locals.find((ref) => !ref.isHead && ref.sha !== head) ?? refs.locals.find((ref) => !ref.isHead);
     const current = refs.locals.find((ref) => ref.isHead);
@@ -105,7 +120,12 @@ export const scenarios: Record<string, Scenario> = {
         case "current":
           return current ? branchMenu({ ...base, ref: current }) : [];
         case "remoteBranch":
-          return refs.remotes[0] ? branchMenu({ ...base, ref: refs.remotes.find((ref) => !local(ref.name.slice((ref.remote?.length ?? 0) + 1))) ?? refs.remotes[0] }) : [];
+          return refs.remotes[0]
+            ? branchMenu({
+                ...base,
+                ref: refs.remotes.find((ref) => !local(ref.name.slice((ref.remote?.length ?? 0) + 1))) ?? refs.remotes[0],
+              })
+            : [];
         case "branches":
           return branchesMenu({ ...base, refs: refs.locals });
         case "tag":
@@ -124,7 +144,17 @@ export const scenarios: Record<string, Scenario> = {
         }
         case "commitFile": {
           if (!head) return [];
-          const target: FileChange = { path: "README.md", oldPath: null, status: "modified", area: "commit", isBinary: false, isLfs: false, added: 4, removed: 0, conflict: null };
+          const target: FileChange = {
+            path: "README.md",
+            oldPath: null,
+            status: "modified",
+            area: "commit",
+            isBinary: false,
+            isLfs: false,
+            added: 4,
+            removed: 0,
+            conflict: null,
+          };
           return fileMenu({ ...base, files: [target], source: { kind: "commit", sha: head } });
         }
         case "drop":

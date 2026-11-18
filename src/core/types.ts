@@ -649,7 +649,6 @@ export interface UpstreamState {
   pushesToUpstream: boolean;
 }
 
-
 export interface Status {
   head: Head;
   upstream: UpstreamState | null;
@@ -1220,7 +1219,16 @@ export type DiffMode = "hunks" | "inline" | "split";
 // --- AI (v1.2) ------------------------------------------------------------------
 
 /** One provider for every AI function and every profile (Settings › AI). */
-export type AiProviderKind = "anthropic" | "openai" | "openai_compatible" | "gemini" | "ollama" | "lmstudio" | "claude_code" | "codex" | "opencode";
+export type AiProviderKind =
+  | "anthropic"
+  | "openai"
+  | "openai_compatible"
+  | "gemini"
+  | "ollama"
+  | "lmstudio"
+  | "claude_code"
+  | "codex"
+  | "opencode";
 
 /** AI functions; each one can be switched off (`Settings.aiFeaturesOff`). */
 export type AiFeature =
@@ -2183,7 +2191,17 @@ export interface GitflowFinishOptions {
 /** `locks`: LFS file locks (`lfsLocks`) – after locking/unlocking and after a fetch. */
 export type RepoChange = "worktree" | "index" | "refs" | "head" | "stash" | "config" | "operation" | "locks";
 /** `credentials`: remembered credentials (`credentialsList`), `ssh_keys`: SSH keys (`sshKeyList`), `workspaces`: `workspaceList`, `custom_commands`: `customCommandsList`. */
-export type AppChange = "tabs" | "repos" | "settings" | "profiles" | "credentials" | "ssh_keys" | "workspaces" | "host_accounts" | "custom_commands" | "ai";
+export type AppChange =
+  | "tabs"
+  | "repos"
+  | "settings"
+  | "profiles"
+  | "credentials"
+  | "ssh_keys"
+  | "workspaces"
+  | "host_accounts"
+  | "custom_commands"
+  | "ai";
 
 export interface CoreEvents {
   "repo:changed": { repoId: Id; what: RepoChange[] };

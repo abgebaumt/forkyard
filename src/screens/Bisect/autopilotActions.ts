@@ -41,7 +41,15 @@ async function runAutopilot(repoId: Id, range: AutopilotRange, plan: AutopilotPl
   const jobId = newJobId();
   const result = await runAction(
     t("bisect.autopilot.runLabel"),
-    () => core.bisectAutopilotRun({ repoId, jobId, bad: range.bad, good: range.good, script: plan.script, stepTimeoutSecs: plan.stepTimeoutSecs }),
+    () =>
+      core.bisectAutopilotRun({
+        repoId,
+        jobId,
+        bad: range.bad,
+        good: range.good,
+        script: plan.script,
+        stepTimeoutSecs: plan.stepTimeoutSecs,
+      }),
     { busyKey: autopilotBusyKey(repoId), job: { id: jobId, title: t("bisect.autopilot.jobTitle"), repoId, askBeforeQuit: true } },
   );
   if (result.ok) {
@@ -72,10 +80,14 @@ export async function stopAutopilot(repoId: Id): Promise<void> {
 }
 
 export async function closeAutopilot(repoId: Id, keep: boolean): Promise<ActionResult<string | null>> {
-  const result = await runAction(keep ? t("bisect.autopilot.keep") : t("bisect.autopilot.remove"), () => core.bisectAutopilotClose({ repoId, keepWorktree: keep }), {
-    busyKey: autopilotBusyKey(repoId),
-    success: (path) => (path ? t("bisect.autopilot.kept", { path }) : null),
-  });
+  const result = await runAction(
+    keep ? t("bisect.autopilot.keep") : t("bisect.autopilot.remove"),
+    () => core.bisectAutopilotClose({ repoId, keepWorktree: keep }),
+    {
+      busyKey: autopilotBusyKey(repoId),
+      success: (path) => (path ? t("bisect.autopilot.kept", { path }) : null),
+    },
+  );
   if (result.ok) queryClient.setQueryData(qk.bisectAutopilot(repoId), null);
   return result;
 }

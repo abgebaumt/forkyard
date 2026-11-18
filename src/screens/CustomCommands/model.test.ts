@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { CustomCommandDef, CustomCommandEntry, CustomCommandScope } from "../../core";
-import { commandsFor, draftErrors, fromDraft, hasErrors, initialValues, inputErrors, mergeImported, newDraft, toDraft, unknownPlaceholders } from "./model";
+import {
+  commandsFor,
+  draftErrors,
+  fromDraft,
+  hasErrors,
+  initialValues,
+  inputErrors,
+  mergeImported,
+  newDraft,
+  toDraft,
+  unknownPlaceholders,
+} from "./model";
 
 const def = (patch: Partial<CustomCommandDef> = {}): CustomCommandDef => ({
   id: "build",
@@ -15,7 +26,12 @@ const def = (patch: Partial<CustomCommandDef> = {}): CustomCommandDef => ({
   ...patch,
 });
 
-const entry = (command: CustomCommandDef, source: "global" | "repo" = "global"): CustomCommandEntry => ({ key: `${source}:${command.id}`, source, command, runnable: true });
+const entry = (command: CustomCommandDef, source: "global" | "repo" = "global"): CustomCommandEntry => ({
+  key: `${source}:${command.id}`,
+  source,
+  command,
+  runnable: true,
+});
 
 describe("custom commands: where they appear", () => {
   it("lists only commands whose scope contains the menu, in the core's order", () => {
@@ -60,14 +76,26 @@ describe("custom commands: the editor", () => {
   });
 
   it("drops the shell switch for other kinds and keeps the scope in a fixed order", () => {
-    const saved = fromDraft({ ...toDraft(def()), kind: "git", run: "log -1", shell: true, scope: ["file", "repo"] as CustomCommandScope[] });
+    const saved = fromDraft({
+      ...toDraft(def()),
+      kind: "git",
+      run: "log -1",
+      shell: true,
+      scope: ["file", "repo"] as CustomCommandScope[],
+    });
     expect(saved.shell).toBe(false);
     expect(saved.scope).toEqual(["repo", "file"]);
   });
 
   it("names what the core would reject", () => {
     const others = [def({ id: "taken" })];
-    const draft = { ...newDraft(others), id: "Taken!", title: " ", run: "echo ${user} ${input:missing}", scope: [] as CustomCommandScope[] };
+    const draft = {
+      ...newDraft(others),
+      id: "Taken!",
+      title: " ",
+      run: "echo ${user} ${input:missing}",
+      scope: [] as CustomCommandScope[],
+    };
     const errors = draftErrors(draft, others);
     expect(errors.id).toBeTruthy();
     expect(errors.title).toBeTruthy();
@@ -82,7 +110,14 @@ describe("custom commands: the editor", () => {
 
   it("checks the inputs", () => {
     const base = toDraft(def());
-    const input = (patch: Partial<(typeof base.inputs)[number]>) => ({ id: "a", label: "A", type: "text" as const, default: "", options: "", ...patch });
+    const input = (patch: Partial<(typeof base.inputs)[number]>) => ({
+      id: "a",
+      label: "A",
+      type: "text" as const,
+      default: "",
+      options: "",
+      ...patch,
+    });
     const check = (inputs: (typeof base.inputs)[number][]) => draftErrors({ ...base, run: "make", inputs }, []).inputs;
     expect(check([input({ id: "A" })])[0]).toBeTruthy();
     expect(check([input({}), input({})])[1]).toBeTruthy();

@@ -29,7 +29,10 @@ export async function openRepository(defaultPath?: string) {
  */
 export async function openRepositoryAt(path: string, options: { quiet?: ErrorCode[] } = {}): Promise<ActionResult<OpenedRepo>> {
   const open = (addToProfile: boolean) =>
-    runAction(t("actions.repos.open"), () => core.repoOpen({ path, addToProfile }), { busyKey: busyKeys.openRepo, quiet: [...(options.quiet ?? []), "repo_other_profile"] });
+    runAction(t("actions.repos.open"), () => core.repoOpen({ path, addToProfile }), {
+      busyKey: busyKeys.openRepo,
+      quiet: [...(options.quiet ?? []), "repo_other_profile"],
+    });
   let result = await open(false);
   if (!result.ok && result.error.code === "repo_other_profile") {
     const answered = await openFromOtherProfile(path, {
@@ -100,7 +103,9 @@ export async function closeTab(tabId: Id) {
     const single = unsaved.length === 1;
     const answer = await choose({
       title: single
-        ? t("actions.repos.unsaved.titleOne", { name: clip((unsaved[0]?.path ?? "").slice((unsaved[0]?.path ?? "").lastIndexOf("/") + 1), 40) })
+        ? t("actions.repos.unsaved.titleOne", {
+            name: clip((unsaved[0]?.path ?? "").slice((unsaved[0]?.path ?? "").lastIndexOf("/") + 1), 40),
+          })
         : t("actions.repos.unsaved.titleMany", { count: unsaved.length }),
       description: t("actions.repos.unsaved.description"),
       details: unsaved.map((file) => file.path),
@@ -111,14 +116,23 @@ export async function closeTab(tabId: Id) {
           label: t("actions.repos.unsaved.save"),
           description: t("actions.repos.unsaved.saveDescription", { count: unsaved.length }),
         },
-        { key: "discard", label: t("actions.repos.unsaved.discard"), description: t("actions.repos.unsaved.discardDescription"), danger: true },
+        {
+          key: "discard",
+          label: t("actions.repos.unsaved.discard"),
+          description: t("actions.repos.unsaved.discardDescription"),
+          danger: true,
+        },
       ],
     });
     if (answer === null) return null;
     if (answer === "save") {
       const failed = await saveUnsaved(repoId);
       if (failed.length > 0) {
-        toast({ tone: "danger", title: t("actions.repos.unsaved.failed"), description: t("actions.repos.unsaved.failedDescription", { files: failed.join(", ") }) });
+        toast({
+          tone: "danger",
+          title: t("actions.repos.unsaved.failed"),
+          description: t("actions.repos.unsaved.failedDescription", { files: failed.join(", ") }),
+        });
         return null;
       }
     }

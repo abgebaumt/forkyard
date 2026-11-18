@@ -24,7 +24,13 @@ describe("statistics charts", () => {
 
   it("time chart: one bar per period, month names below", () => {
     const html = renderToStaticMarkup(
-      <TimeChart buckets={[{ period: "2025-06-02", commits: 1, added: 0, removed: 0 }, { period: "2025-06-09", commits: 0, added: 0, removed: 0 }, { period: "2025-06-16", commits: 3, added: 0, removed: 0 }]} />,
+      <TimeChart
+        buckets={[
+          { period: "2025-06-02", commits: 1, added: 0, removed: 0 },
+          { period: "2025-06-09", commits: 0, added: 0, removed: 0 },
+          { period: "2025-06-16", commits: 3, added: 0, removed: 0 },
+        ]}
+      />,
     );
     expect(html.match(/data-period=/g)).toHaveLength(3);
     expect(html).toContain(": 1 commit<");
@@ -105,19 +111,29 @@ describe("statistics charts", () => {
   });
 
   it("code age: a bar per bucket with its compact line count", () => {
-    const age = renderToStaticMarkup(<CodeAgeChart age={{ files: 4, skipped: 1, month: 3100, halfYear: 6900, year: 0, twoYears: 0, older: 11 }} />);
+    const age = renderToStaticMarkup(
+      <CodeAgeChart age={{ files: 4, skipped: 1, month: 3100, halfYear: 6900, year: 0, twoYears: 0, older: 11 }} />,
+    );
     expect(age.match(/data-age=/g)).toHaveLength(5);
     expect(age).toContain("3.1K");
     expect(age).toContain("6.9K");
     expect(age).toContain("&lt; 1 mo: 3100 lines");
     expect(age).toContain("1–6 mo");
     expect(age).toContain("1 file could not be read.");
-    expect(renderToStaticMarkup(<CodeAgeChart age={{ files: 0, skipped: 0, month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 }} />)).toContain("no text file");
+    expect(
+      renderToStaticMarkup(<CodeAgeChart age={{ files: 0, skipped: 0, month: 0, halfYear: 0, year: 0, twoYears: 0, older: 0 }} />),
+    ).toContain("no text file");
   });
 
   it("records: streak with its days, largest commit with its message, busiest day", () => {
-    const records = { longestStreak: { days: 23, start: "2025-03-03", end: "2025-03-25" }, biggestCommit: { sha: "abcdef1234567", added: 1284, removed: 312, at: "" }, busiestDay: null };
-    const html = renderToStaticMarkup(<Records records={records} biggest={{ summary: "Add forecast model", author: "Maya Chen" }} onCommit={none} />);
+    const records = {
+      longestStreak: { days: 23, start: "2025-03-03", end: "2025-03-25" },
+      biggestCommit: { sha: "abcdef1234567", added: 1284, removed: 312, at: "" },
+      busiestDay: null,
+    };
+    const html = renderToStaticMarkup(
+      <Records records={records} biggest={{ summary: "Add forecast model", author: "Maya Chen" }} onCommit={none} />,
+    );
     expect(html).toContain("23 days");
     expect(html).toMatch(/March 3\s*–\s*25, 2025/);
     expect(html).toContain("+1,284");

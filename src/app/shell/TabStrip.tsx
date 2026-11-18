@@ -79,8 +79,22 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
       // The alias is only a display name; the input opens directly on the tab.
       ...(repo
         ? ([
-            { label: repo.alias ? t("shell.tabMenu.changeAlias") : t("shell.tabMenu.rename"), shortcut: "F2", icon: <PencilLine className="size-icon" aria-hidden />, hint: repo.alias ? t("shell.tabMenu.folder", { name: repo.name }) : t("shell.tabMenu.displayNameOnly"), onSelect: actions.rename },
-            ...(repo.alias ? [{ label: t("shell.alias.remove"), hint: t("shell.tabMenu.backTo", { name: repo.name }), onSelect: () => void setTabAlias(repo, "") }] : []),
+            {
+              label: repo.alias ? t("shell.tabMenu.changeAlias") : t("shell.tabMenu.rename"),
+              shortcut: "F2",
+              icon: <PencilLine className="size-icon" aria-hidden />,
+              hint: repo.alias ? t("shell.tabMenu.folder", { name: repo.name }) : t("shell.tabMenu.displayNameOnly"),
+              onSelect: actions.rename,
+            },
+            ...(repo.alias
+              ? [
+                  {
+                    label: t("shell.alias.remove"),
+                    hint: t("shell.tabMenu.backTo", { name: repo.name }),
+                    onSelect: () => void setTabAlias(repo, ""),
+                  },
+                ]
+              : []),
             { type: "separator" },
           ] satisfies MenuEntry[])
         : []),

@@ -56,7 +56,10 @@ export function setupFor(close: () => void): () => void {
 function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: ReleaseNotesSubject; onDone: (value: null) => void }) {
   const to = subject.kind === "tag" ? `refs/tags/${subject.name}` : subject.sha;
   const tag = subject.kind === "tag" ? subject.name : null;
-  const title = subject.kind === "tag" ? t("actions.tags.releaseNotes.titleTag", { name: subject.name }) : t("actions.tags.releaseNotes.titleCommit", { sha: short(subject.sha) });
+  const title =
+    subject.kind === "tag"
+      ? t("actions.tags.releaseNotes.titleTag", { name: subject.name })
+      : t("actions.tags.releaseNotes.titleCommit", { sha: short(subject.sha) });
   const [notes, setNotes] = useState("");
   const notesRef = useRef("");
   const setText = (value: string) => {
@@ -122,7 +125,13 @@ function ReleaseNotesDialog({ repoId, subject, onDone }: { repoId: Id; subject: 
             writer.edited();
           }}
         />
-        <ReleaseTargets available={available} selected={targets} onChange={setTargets} hostName={availability.hostName} remote={availability.remote} />
+        <ReleaseTargets
+          available={available}
+          selected={targets}
+          onChange={setTargets}
+          hostName={availability.hostName}
+          remote={availability.remote}
+        />
       </div>
     </Dialog>
   );

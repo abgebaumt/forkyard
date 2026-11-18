@@ -4,7 +4,21 @@
  *   2  view toggle  ·  previous/next change  ·  line wrapping, whitespace, collapse regions
  * At a window width of 960 px a good 500 px remain for the middle – hence icons with tooltips instead of text.
  */
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, ExternalLink, FoldVertical, History, Pencil, Space, UnfoldVertical, UserSearch, WrapText, X } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronUp,
+  ExternalLink,
+  FoldVertical,
+  History,
+  Pencil,
+  Space,
+  UnfoldVertical,
+  UserSearch,
+  WrapText,
+  X,
+} from "lucide-react";
 import { EMPTY_TREE_SHA, type DiffMode, type DiffSource, type FileStatus } from "../../core";
 import { shortSha } from "../../app/format";
 import { IconButton } from "../../ui/Button";
@@ -67,7 +81,8 @@ const sourceLabel = (source: DiffSource): string => {
       return t("diff.source.commit", { sha: shortSha(source.sha) });
     case "range":
       // Sequence from the first commit: the comparison is against the empty tree – its SHA means nothing to anyone.
-      if (source.from === EMPTY_TREE_SHA) return source.to ? t("diff.source.startTo", { to: shortSha(source.to) }) : t("diff.source.startToWorktree");
+      if (source.from === EMPTY_TREE_SHA)
+        return source.to ? t("diff.source.startTo", { to: shortSha(source.to) }) : t("diff.source.startToWorktree");
       return source.to ? `${shortSha(source.from)} … ${shortSha(source.to)}` : t("diff.source.toWorktree", { from: shortSha(source.from) });
     case "stash":
       return t("diff.source.stash", { index: source.index });
@@ -100,49 +115,116 @@ export function DiffHeader(props: DiffHeaderProps) {
         {status ? <StatusBadge status={status} /> : null}
         <Tip label={<span className="font-mono text-code break-all">{fullPath}</span>}>
           <h2 data-diff-title="" className="m-0 flex min-w-0 flex-1 items-baseline gap-2 text-base font-normal">
-            <span className={status === "deleted" ? "min-w-8 shrink truncate font-medium text-text line-through" : "min-w-8 shrink truncate font-medium text-text"}>{name}</span>
+            <span
+              className={
+                status === "deleted"
+                  ? "min-w-8 shrink truncate font-medium text-text line-through"
+                  : "min-w-8 shrink truncate font-medium text-text"
+              }
+            >
+              {name}
+            </span>
             {dir ? <span className="min-w-0 shrink-4 truncate text-sm text-text-muted">{dir}</span> : null}
-            {oldPath && oldPath !== path ? <span className="min-w-0 shrink-8 truncate text-sm text-text-muted">{t("diff.header.formerly", { path: oldPath })}</span> : null}
+            {oldPath && oldPath !== path ? (
+              <span className="min-w-0 shrink-8 truncate text-sm text-text-muted">{t("diff.header.formerly", { path: oldPath })}</span>
+            ) : null}
           </h2>
         </Tip>
         {encoding ? <Tag title={t("diff.header.encoding")}>{encoding}</Tag> : null}
         {/* For text diffs the origin is in the second row – this leaves room for the name at the top. */}
         {!textual ? <Tag>{sourceLabel(source)}</Tag> : null}
         {added || removed ? (
-          <span className="flex shrink-0 gap-1.5 font-mono text-code tabular-nums" aria-label={t("diff.header.counts", { count: added ?? 0, added: (added ?? 0).toLocaleString(locale()), removed: (removed ?? 0).toLocaleString(locale()) })} data-diff-counts="">
+          <span
+            className="flex shrink-0 gap-1.5 font-mono text-code tabular-nums"
+            aria-label={t("diff.header.counts", {
+              count: added ?? 0,
+              added: (added ?? 0).toLocaleString(locale()),
+              removed: (removed ?? 0).toLocaleString(locale()),
+            })}
+            data-diff-counts=""
+          >
             {added ? <span className="text-success">+{added}</span> : null}
             {removed ? <span className="text-danger">−{removed}</span> : null}
           </span>
         ) : null}
         {props.embedded ? null : <Divider />}
-        {props.embedded ? null : <div role="group" aria-label={t("diff.header.switchFile")} className="flex shrink-0 items-center">
-          <IconButton size="sm" label={t("diff.header.prevFile")} shortcut="Alt+ArrowLeft" disabled={fileIndex <= 0} icon={<ChevronLeft className="size-icon" aria-hidden />} onClick={() => props.onFile(-1)} />
-          <span className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums" aria-label={fileIndex >= 0 ? t("diff.header.filePosition", { index: fileIndex + 1, total: fileCount }) : undefined}>
-            {fileIndex >= 0 ? `${fileIndex + 1}/${fileCount}` : "–"}
-          </span>
+        {props.embedded ? null : (
+          <div role="group" aria-label={t("diff.header.switchFile")} className="flex shrink-0 items-center">
+            <IconButton
+              size="sm"
+              label={t("diff.header.prevFile")}
+              shortcut="Alt+ArrowLeft"
+              disabled={fileIndex <= 0}
+              icon={<ChevronLeft className="size-icon" aria-hidden />}
+              onClick={() => props.onFile(-1)}
+            />
+            <span
+              className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums"
+              aria-label={fileIndex >= 0 ? t("diff.header.filePosition", { index: fileIndex + 1, total: fileCount }) : undefined}
+            >
+              {fileIndex >= 0 ? `${fileIndex + 1}/${fileCount}` : "–"}
+            </span>
+            <IconButton
+              size="sm"
+              label={t("diff.header.nextFile")}
+              shortcut="Alt+ArrowRight"
+              disabled={fileCount === 0 || fileIndex >= fileCount - 1}
+              icon={<ChevronRight className="size-icon" aria-hidden />}
+              onClick={() => props.onFile(1)}
+            />
+          </div>
+        )}
+        <Divider />
+        {props.embedded ? null : (
           <IconButton
             size="sm"
-            label={t("diff.header.nextFile")}
-            shortcut="Alt+ArrowRight"
-            disabled={fileCount === 0 || fileIndex >= fileCount - 1}
-            icon={<ChevronRight className="size-icon" aria-hidden />}
-            onClick={() => props.onFile(1)}
+            label={t("diff.header.history")}
+            icon={<History className="size-icon" aria-hidden />}
+            onClick={props.onHistory}
           />
-        </div>}
-        <Divider />
-        {props.embedded ? null : <IconButton size="sm" label={t("diff.header.history")} icon={<History className="size-icon" aria-hidden />} onClick={props.onHistory} />}
-        <IconButton size="sm" label={t("diff.header.blame")} icon={<UserSearch className="size-icon" aria-hidden />} onClick={props.onBlame} />
-        {props.onEdit ? <IconButton size="sm" label={t("diff.header.edit")} icon={<Pencil className="size-icon" aria-hidden />} onClick={props.onEdit} /> : null}
+        )}
+        <IconButton
+          size="sm"
+          label={t("diff.header.blame")}
+          icon={<UserSearch className="size-icon" aria-hidden />}
+          onClick={props.onBlame}
+        />
+        {props.onEdit ? (
+          <IconButton size="sm" label={t("diff.header.edit")} icon={<Pencil className="size-icon" aria-hidden />} onClick={props.onEdit} />
+        ) : null}
         {props.onExternalDiff ? (
-          <IconButton size="sm" label={t("diff.header.externalDiff")} data-action="external-diff" icon={<ExternalLink className="size-icon" aria-hidden />} onClick={props.onExternalDiff} />
+          <IconButton
+            size="sm"
+            label={t("diff.header.externalDiff")}
+            data-action="external-diff"
+            icon={<ExternalLink className="size-icon" aria-hidden />}
+            onClick={props.onExternalDiff}
+          />
         ) : null}
         {props.embedded ? null : <Divider />}
-        {props.embedded ? null : <IconButton size="sm" label={t("diff.header.close")} shortcut="Escape" icon={<X className="size-icon" aria-hidden />} onClick={props.onClose} />}
+        {props.embedded ? null : (
+          <IconButton
+            size="sm"
+            label={t("diff.header.close")}
+            shortcut="Escape"
+            icon={<X className="size-icon" aria-hidden />}
+            onClick={props.onClose}
+          />
+        )}
       </div>
 
       {textual ? (
-        <div role="toolbar" aria-label={t("diff.header.toolbar")} className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3">
-          <SegmentedControl label={t("diff.header.mode")} value={mode} options={modes.map((value) => ({ value, label: modeLabels[value] }))} onValueChange={props.onMode} />
+        <div
+          role="toolbar"
+          aria-label={t("diff.header.toolbar")}
+          className="flex h-control-lg items-center gap-1 border-t border-border pr-1 pl-3"
+        >
+          <SegmentedControl
+            label={t("diff.header.mode")}
+            value={mode}
+            options={modes.map((value) => ({ value, label: modeLabels[value] }))}
+            onValueChange={props.onMode}
+          />
           <span className="min-w-0 flex-1 pl-2">
             {/* When embedded (file history), the host already names the commit directly above. */}
             {props.embedded ? null : (
@@ -152,11 +234,31 @@ export function DiffHeader(props: DiffHeaderProps) {
             )}
           </span>
           <div role="group" aria-label={t("diff.header.switchChange")} className="flex shrink-0 items-center">
-            <IconButton size="sm" label={t("diff.header.prevChange")} shortcut="Shift+F7" disabled={!hasChanges} icon={<ChevronUp className="size-icon" aria-hidden />} onClick={() => props.onChange(-1)} />
-            <span className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums" data-change-position="" aria-label={hasChanges && changeIndex >= 0 ? t("diff.header.changePosition", { index: changeIndex + 1, total: changeCount }) : undefined}>
+            <IconButton
+              size="sm"
+              label={t("diff.header.prevChange")}
+              shortcut="Shift+F7"
+              disabled={!hasChanges}
+              icon={<ChevronUp className="size-icon" aria-hidden />}
+              onClick={() => props.onChange(-1)}
+            />
+            <span
+              className="min-w-8 px-0.5 text-center text-xs text-text-muted tabular-nums"
+              data-change-position=""
+              aria-label={
+                hasChanges && changeIndex >= 0 ? t("diff.header.changePosition", { index: changeIndex + 1, total: changeCount }) : undefined
+              }
+            >
               {!hasChanges ? "–" : mode === "split" || changeIndex < 0 ? `${changeCount}` : `${changeIndex + 1}/${changeCount}`}
             </span>
-            <IconButton size="sm" label={t("diff.header.nextChange")} shortcut="F7" disabled={!hasChanges} icon={<ChevronDown className="size-icon" aria-hidden />} onClick={() => props.onChange(1)} />
+            <IconButton
+              size="sm"
+              label={t("diff.header.nextChange")}
+              shortcut="F7"
+              disabled={!hasChanges}
+              icon={<ChevronDown className="size-icon" aria-hidden />}
+              onClick={() => props.onChange(1)}
+            />
           </div>
           <Divider />
           {props.fold ? (
@@ -164,11 +266,24 @@ export function DiffHeader(props: DiffHeaderProps) {
               size="sm"
               label={props.fold.collapsed ? t("diff.header.unfold") : t("diff.header.fold")}
               active={props.fold.collapsed}
-              icon={props.fold.collapsed ? <UnfoldVertical className="size-icon" aria-hidden /> : <FoldVertical className="size-icon" aria-hidden />}
+              icon={
+                props.fold.collapsed ? (
+                  <UnfoldVertical className="size-icon" aria-hidden />
+                ) : (
+                  <FoldVertical className="size-icon" aria-hidden />
+                )
+              }
               onClick={props.fold.onToggle}
             />
           ) : null}
-          <IconButton size="sm" label={t("diff.header.wrap")} active={props.wrap} aria-pressed={props.wrap} icon={<WrapText className="size-icon" aria-hidden />} onClick={() => props.onWrap(!props.wrap)} />
+          <IconButton
+            size="sm"
+            label={t("diff.header.wrap")}
+            active={props.wrap}
+            aria-pressed={props.wrap}
+            icon={<WrapText className="size-icon" aria-hidden />}
+            onClick={() => props.onWrap(!props.wrap)}
+          />
           <IconButton
             size="sm"
             label={mode === "split" ? t("diff.header.ignoreWhitespaceSplit") : t("diff.header.ignoreWhitespace")}

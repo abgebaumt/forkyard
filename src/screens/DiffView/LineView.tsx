@@ -13,7 +13,20 @@
  */
 import { defaultRangeExtractor, useVirtualizer, type Range as VirtualRange } from "@tanstack/react-virtual";
 import { Archive, ChevronDown, ChevronRight, Copy, Minus, Plus, Trash2, Undo2, X } from "lucide-react";
-import { forwardRef, memo, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { CodeSettings } from "../../components/code/settings";
 import type { LineTokens } from "../../components/code/highlight";
 import type { TextDiff } from "../../core";
@@ -24,7 +37,22 @@ import { ContextMenu, type MenuEntry } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import type { PatchAction } from "./actions";
 import { DiffMinimap, type MinimapSource } from "./Minimap";
-import { hunkRange, isSelectable, keysBetween, lineCaps, lineKey, segmentsOf, type FoldRow, type HunkRow, type LineRow, type NoteRow, type PatchMode, type Row, type RowModel, type WordDiffCache } from "./model";
+import {
+  hunkRange,
+  isSelectable,
+  keysBetween,
+  lineCaps,
+  lineKey,
+  segmentsOf,
+  type FoldRow,
+  type HunkRow,
+  type LineRow,
+  type NoteRow,
+  type PatchMode,
+  type Row,
+  type RowModel,
+  type WordDiffCache,
+} from "./model";
 import { t } from "../../i18n";
 
 export type PatchTarget = { kind: "selection" } | { kind: "hunk"; hunkOrd: number };
@@ -98,14 +126,28 @@ interface CodeLineProps {
   onCodeClick: (index: number) => void;
 }
 
-const CodeLine = memo(function CodeLine({ row, index, wrap, selected, selectable, isCursor, tokens, words, numberStyle, onGutterDown, onCodeClick }: CodeLineProps) {
+const CodeLine = memo(function CodeLine({
+  row,
+  index,
+  wrap,
+  selected,
+  selectable,
+  isCursor,
+  tokens,
+  words,
+  numberStyle,
+  onGutterDown,
+  onCodeClick,
+}: CodeLineProps) {
   const lineNo = row.kind === "remove" ? row.oldNo : row.newNo;
   // Very long lines (minified code, single-line JSON) stay uncoloured: tens of thousands of
   // coloured segments in ONE line froze the view for seconds.
   const lineTokens = lineNo !== null && row.text.length <= HIGHLIGHT_MAX_LINE ? tokens?.[lineNo - 1] : undefined;
   const marks = row.kind !== "context" && row.hunkOrd !== null && row.pos !== null ? words.get(row.hunkOrd, row.pos) : undefined;
   const segments = segmentsOf(row.text, lineTokens, marks);
-  const gutterClass = selected ? "bg-accent-surface text-text" : cn(gutterTone[row.kind], "text-text-muted", selectable && "hover:text-text");
+  const gutterClass = selected
+    ? "bg-accent-surface text-text"
+    : cn(gutterTone[row.kind], "text-text-muted", selectable && "hover:text-text");
   return (
     <div
       role="row"
@@ -205,7 +247,10 @@ function HunkHead({ row, index, total, first, patchMode, canPatch, busy, onPatch
         ) : (
           <span className="flex-1" />
         )}
-        <span className="flex shrink-0 gap-1.5 font-mono text-code tabular-nums" aria-label={t("diff.hunk.counts", { added: row.added, removed: row.removed })}>
+        <span
+          className="flex shrink-0 gap-1.5 font-mono text-code tabular-nums"
+          aria-label={t("diff.hunk.counts", { added: row.added, removed: row.removed })}
+        >
           {row.added ? <span className="text-success">+{row.added}</span> : null}
           {row.removed ? <span className="text-danger">−{row.removed}</span> : null}
         </span>
@@ -214,7 +259,14 @@ function HunkHead({ row, index, total, first, patchMode, canPatch, busy, onPatch
             <Button size="sm" disabled={busy} icon={<Plus className="size-icon" aria-hidden />} onClick={() => onPatch("stage", target)}>
               {t("diff.hunk.stage")}
             </Button>
-            <IconButton size="sm" danger disabled={busy} label={t("diff.hunk.discard")} icon={<Trash2 className="size-icon" aria-hidden />} onClick={() => onPatch("discard", target)} />
+            <IconButton
+              size="sm"
+              danger
+              disabled={busy}
+              label={t("diff.hunk.discard")}
+              icon={<Trash2 className="size-icon" aria-hidden />}
+              onClick={() => onPatch("discard", target)}
+            />
           </>
         ) : null}
         {patchMode === "staged" && canPatch ? (
@@ -241,7 +293,11 @@ function FoldHead({ row, index, isCursor, onToggle }: { row: FoldRow; index: num
           onClick={() => onToggle(row.id)}
           className="flex h-row w-full items-center gap-2 border-y border-border bg-surface px-3 text-left font-sans text-sm text-text-muted -outline-offset-2 hover:text-text"
         >
-          {row.collapsed ? <ChevronRight className="size-icon shrink-0" aria-hidden /> : <ChevronDown className="size-icon shrink-0" aria-hidden />}
+          {row.collapsed ? (
+            <ChevronRight className="size-icon shrink-0" aria-hidden />
+          ) : (
+            <ChevronDown className="size-icon shrink-0" aria-hidden />
+          )}
           <span>
             {t("diff.fold.unchanged", { count })}
             <span className="text-text-muted">
@@ -261,7 +317,27 @@ function FoldHead({ row, index, isCursor, onToggle }: { row: FoldRow; index: num
 // ---------------------------------------------------------------------------
 
 export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineView(
-  { diff, model, mode, wrap, patchMode, canPatch, busy, code, oldTokens, newTokens, words, selected, onSelectedChange, onPatch, onStash, lineMenu, onToggleFold, onChangeIndex, label },
+  {
+    diff,
+    model,
+    mode,
+    wrap,
+    patchMode,
+    canPatch,
+    busy,
+    code,
+    oldTokens,
+    newTokens,
+    words,
+    selected,
+    onSelectedChange,
+    onPatch,
+    onStash,
+    lineMenu,
+    onToggleFold,
+    onChangeIndex,
+    label,
+  },
   ref,
 ) {
   const { rows, changeStarts } = model;
@@ -339,7 +415,8 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   const focusRow = useCallback((index: number) => {
     const root = scroller.current;
     if (!root) return;
-    const target = root.querySelector<HTMLElement>(`[data-row-focus="${index}"]`) ?? root.querySelector<HTMLElement>(`[data-row="${index}"]`);
+    const target =
+      root.querySelector<HTMLElement>(`[data-row-focus="${index}"]`) ?? root.querySelector<HTMLElement>(`[data-row="${index}"]`);
     target?.focus({ preventScroll: true });
   }, []);
 
@@ -625,32 +702,85 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
     if (allowSelect) {
       if (count > 0) {
         if (patchMode === "unstaged") {
-          entries.push({ label: t("diff.selection.stage", { count }), icon: <Plus className="size-icon" />, shortcut: "Enter", disabled: busy, onSelect: () => onPatch("stage", { kind: "selection" }) });
-          entries.push({ label: t("diff.selection.discard", { count }), icon: <Trash2 className="size-icon" />, shortcut: "Delete", danger: true, disabled: busy, onSelect: () => onPatch("discard", { kind: "selection" }) });
+          entries.push({
+            label: t("diff.selection.stage", { count }),
+            icon: <Plus className="size-icon" />,
+            shortcut: "Enter",
+            disabled: busy,
+            onSelect: () => onPatch("stage", { kind: "selection" }),
+          });
+          entries.push({
+            label: t("diff.selection.discard", { count }),
+            icon: <Trash2 className="size-icon" />,
+            shortcut: "Delete",
+            danger: true,
+            disabled: busy,
+            onSelect: () => onPatch("discard", { kind: "selection" }),
+          });
         } else if (patchMode === "staged") {
-          entries.push({ label: t("diff.selection.unstage", { count }), icon: <Minus className="size-icon" />, shortcut: "Enter", disabled: busy, onSelect: () => onPatch("unstage", { kind: "selection" }) });
+          entries.push({
+            label: t("diff.selection.unstage", { count }),
+            icon: <Minus className="size-icon" />,
+            shortcut: "Enter",
+            disabled: busy,
+            onSelect: () => onPatch("unstage", { kind: "selection" }),
+          });
         }
-        entries.push({ label: t("diff.selection.clear"), icon: <X className="size-icon" />, shortcut: "Escape", onSelect: () => onSelectedChange(new Set()) });
+        entries.push({
+          label: t("diff.selection.clear"),
+          icon: <X className="size-icon" />,
+          shortcut: "Escape",
+          onSelect: () => onSelectedChange(new Set()),
+        });
         entries.push({ type: "separator" });
       }
       if (hunkOrd !== null && caps.patchActions) {
         const target: PatchTarget = { kind: "hunk", hunkOrd };
         if (patchMode === "unstaged") {
-          entries.push({ label: t("diff.hunk.stageN", { index: hunkOrd + 1 }), icon: <Plus className="size-icon" />, disabled: busy, onSelect: () => onPatch("stage", target) });
-          entries.push({ label: t("diff.hunk.discardN", { index: hunkOrd + 1 }), icon: <Trash2 className="size-icon" />, danger: true, disabled: busy, onSelect: () => onPatch("discard", target) });
+          entries.push({
+            label: t("diff.hunk.stageN", { index: hunkOrd + 1 }),
+            icon: <Plus className="size-icon" />,
+            disabled: busy,
+            onSelect: () => onPatch("stage", target),
+          });
+          entries.push({
+            label: t("diff.hunk.discardN", { index: hunkOrd + 1 }),
+            icon: <Trash2 className="size-icon" />,
+            danger: true,
+            disabled: busy,
+            onSelect: () => onPatch("discard", target),
+          });
         } else {
-          entries.push({ label: t("diff.hunk.unstageN", { index: hunkOrd + 1 }), icon: <Undo2 className="size-icon" />, disabled: busy, onSelect: () => onPatch("unstage", target) });
+          entries.push({
+            label: t("diff.hunk.unstageN", { index: hunkOrd + 1 }),
+            icon: <Undo2 className="size-icon" />,
+            disabled: busy,
+            onSelect: () => onPatch("unstage", target),
+          });
         }
         entries.push({ type: "separator" });
       }
       if (isSelectable(row)) {
         const isSelected = selected.has(lineKey(row.hunkOrd, row.pos));
-        entries.push({ label: isSelected ? t("diff.menu.deselectLine") : t("diff.menu.selectLine"), shortcut: "Space", onSelect: () => toggleKey(index) });
+        entries.push({
+          label: isSelected ? t("diff.menu.deselectLine") : t("diff.menu.selectLine"),
+          shortcut: "Space",
+          onSelect: () => toggleKey(index),
+        });
       }
-      entries.push({ label: t("diff.menu.selectAll"), shortcut: "Mod+A", onSelect: () => onSelectedChange(new Set(keysBetween(rows, 0, rows.length - 1))) });
+      entries.push({
+        label: t("diff.menu.selectAll"),
+        shortcut: "Mod+A",
+        onSelect: () => onSelectedChange(new Set(keysBetween(rows, 0, rows.length - 1))),
+      });
       entries.push({ type: "separator" });
     }
-    entries.push({ label: t("diff.menu.copyLine"), icon: <Copy className="size-icon" />, disabled: row?.type !== "line", onSelect: () => row?.type === "line" && copy(row.text) });
+    entries.push({
+      label: t("diff.menu.copyLine"),
+      icon: <Copy className="size-icon" />,
+      disabled: row?.type !== "line",
+      onSelect: () => row?.type === "line" && copy(row.text),
+    });
     if (hunkOrd !== null) {
       const hunk = diff.hunks[hunkOrd];
       entries.push({
@@ -658,7 +788,10 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
         onSelect: () =>
           hunk &&
           copy(
-            [`@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@${hunk.section ? ` ${hunk.section}` : ""}`, ...hunk.lines.map((line) => `${line.kind === "add" ? "+" : line.kind === "remove" ? "-" : " "}${line.text}`)].join("\n"),
+            [
+              `@@ -${hunk.oldStart},${hunk.oldLines} +${hunk.newStart},${hunk.newLines} @@${hunk.section ? ` ${hunk.section}` : ""}`,
+              ...hunk.lines.map((line) => `${line.kind === "add" ? "+" : line.kind === "remove" ? "-" : " "}${line.text}`),
+            ].join("\n"),
           ),
       });
     }
@@ -768,7 +901,18 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
                   />
                 );
               } else if (row.type === "hunk") {
-                content = <HunkHead row={row} index={item.index} total={hunkTotal} first={item.index === 0} patchMode={patchMode} canPatch={canPatch} busy={busy} onPatch={onPatch} />;
+                content = (
+                  <HunkHead
+                    row={row}
+                    index={item.index}
+                    total={hunkTotal}
+                    first={item.index === 0}
+                    patchMode={patchMode}
+                    canPatch={canPatch}
+                    busy={busy}
+                    onPatch={onPatch}
+                  />
+                );
               } else if (row.type === "fold") {
                 content = <FoldHead row={row} index={item.index} isCursor={isCursor} onToggle={onToggleFold} />;
               } else {
@@ -790,7 +934,12 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           </div>
         </div>
       </ContextMenu>
-      {changeStarts.length > 0 ? <DiffMinimap source={minimap} version={`${rows.length}:${Math.round(totalSize)}:${wrap}:${model.changedLines}:${model.foldCount}:${code.lineHeight}`} /> : null}
+      {changeStarts.length > 0 ? (
+        <DiffMinimap
+          source={minimap}
+          version={`${rows.length}:${Math.round(totalSize)}:${wrap}:${model.changedLines}:${model.foldCount}:${code.lineHeight}`}
+        />
+      ) : null}
 
       {selectionCount > 0 && caps.patchActions ? (
         <div
@@ -804,24 +953,53 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
           </span>
           {patchMode === "unstaged" ? (
             <>
-              <Button size="sm" variant="primary" disabled={busy} icon={<Plus className="size-icon" aria-hidden />} onClick={() => onPatch("stage", { kind: "selection" })}>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={busy}
+                icon={<Plus className="size-icon" aria-hidden />}
+                onClick={() => onPatch("stage", { kind: "selection" })}
+              >
                 {t("diff.selection.stage", { count: selectionCount })}
               </Button>
-              <Button size="sm" disabled={busy} icon={<Trash2 className="size-icon" aria-hidden />} onClick={() => onPatch("discard", { kind: "selection" })}>
+              <Button
+                size="sm"
+                disabled={busy}
+                icon={<Trash2 className="size-icon" aria-hidden />}
+                onClick={() => onPatch("discard", { kind: "selection" })}
+              >
                 {t("diff.selection.discard", { count: selectionCount })}
               </Button>
             </>
           ) : (
-            <Button size="sm" variant="primary" disabled={busy} icon={<Minus className="size-icon" aria-hidden />} onClick={() => onPatch("unstage", { kind: "selection" })}>
+            <Button
+              size="sm"
+              variant="primary"
+              disabled={busy}
+              icon={<Minus className="size-icon" aria-hidden />}
+              onClick={() => onPatch("unstage", { kind: "selection" })}
+            >
               {t("diff.selection.unstage", { count: selectionCount })}
             </Button>
           )}
           {onStash ? (
-            <Button size="sm" disabled={busy} icon={<Archive className="size-icon" aria-hidden />} data-action="stash-selection" onClick={onStash}>
+            <Button
+              size="sm"
+              disabled={busy}
+              icon={<Archive className="size-icon" aria-hidden />}
+              data-action="stash-selection"
+              onClick={onStash}
+            >
               {t("partialStash.selection", { count: selectionCount })}
             </Button>
           ) : null}
-          <IconButton size="sm" label={t("diff.selection.clear")} shortcut="Escape" icon={<X className="size-icon" aria-hidden />} onClick={() => onSelectedChange(new Set())} />
+          <IconButton
+            size="sm"
+            label={t("diff.selection.clear")}
+            shortcut="Escape"
+            icon={<X className="size-icon" aria-hidden />}
+            onClick={() => onSelectedChange(new Set())}
+          />
         </div>
       ) : null}
     </div>

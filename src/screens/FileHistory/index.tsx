@@ -7,8 +7,34 @@
  * B: blame at this revision · G: show in the graph · menu key/Shift+F10: all actions · Esc: back.
  */
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Copy, CornerDownRight, Crosshair, Eye, FileClock, FileQuestion, FileWarning, GitCompareArrows, History, RefreshCw, RotateCcw, UserSearch } from "lucide-react";
-import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import {
+  Copy,
+  CornerDownRight,
+  Crosshair,
+  Eye,
+  FileClock,
+  FileQuestion,
+  FileWarning,
+  GitCompareArrows,
+  History,
+  RefreshCw,
+  RotateCcw,
+  UserSearch,
+} from "lucide-react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import type { FileHistoryEntry, Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { hasOpenDialog } from "../../app/dialogs";
@@ -104,8 +130,22 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
       const version = versionOf(entry);
       const none = version.sha ? undefined : t("fileHistory.noEarlierVersion");
       return [
-        { label: version.beforeDelete ? t("fileHistory.action.viewBeforeDelete") : t("fileHistory.action.view"), icon: <Eye className="size-icon" />, shortcut: "Enter", disabled: !version.sha, hint: none, onSelect: () => openVersion(entry) },
-        { label: t("fileHistory.action.blame"), icon: <UserSearch className="size-icon" />, shortcut: "B", disabled: !version.sha, hint: none, onSelect: () => openBlame(entry) },
+        {
+          label: version.beforeDelete ? t("fileHistory.action.viewBeforeDelete") : t("fileHistory.action.view"),
+          icon: <Eye className="size-icon" />,
+          shortcut: "Enter",
+          disabled: !version.sha,
+          hint: none,
+          onSelect: () => openVersion(entry),
+        },
+        {
+          label: t("fileHistory.action.blame"),
+          icon: <UserSearch className="size-icon" />,
+          shortcut: "B",
+          disabled: !version.sha,
+          hint: none,
+          onSelect: () => openBlame(entry),
+        },
         {
           label: t("fileHistory.action.compareWorkdir"),
           icon: <GitCompareArrows className="size-icon" />,
@@ -113,8 +153,17 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
           onSelect: () => version.sha && store().openDiff(tabId, path, { kind: "range", from: version.sha, to: null }),
         },
         { type: "separator" },
-        { label: t("fileHistory.action.showInGraph"), icon: <Crosshair className="size-icon" />, shortcut: "G", onSelect: () => showInGraph(tabId, entry.commit.sha) },
-        { label: t("fileHistory.action.copySha"), icon: <Copy className="size-icon" />, onSelect: () => void copyText(entry.commit.sha, "SHA") },
+        {
+          label: t("fileHistory.action.showInGraph"),
+          icon: <Crosshair className="size-icon" />,
+          shortcut: "G",
+          onSelect: () => showInGraph(tabId, entry.commit.sha),
+        },
+        {
+          label: t("fileHistory.action.copySha"),
+          icon: <Copy className="size-icon" />,
+          onSelect: () => void copyText(entry.commit.sha, "SHA"),
+        },
         { type: "separator" },
         {
           label: version.beforeDelete ? t("fileHistory.action.restoreBeforeDeleteMenu") : t("fileHistory.action.restoreMenu"),
@@ -144,7 +193,10 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
   const listed = [...(status?.unstaged ?? []), ...(status?.staged ?? [])].find((file) => file.path === path);
   const isNew = listed?.status === "untracked" || listed?.status === "added";
   const deletedIn = entries[0]?.status === "deleted" ? entries[0] : null;
-  const olderNames = useMemo(() => Array.from(new Set(entries.map((entry) => entry.path).filter((name) => name !== path))), [entries, path]);
+  const olderNames = useMemo(
+    () => Array.from(new Set(entries.map((entry) => entry.path).filter((name) => name !== path))),
+    [entries, path],
+  );
 
   let content: ReactNode;
   if (query.isPending) {
@@ -180,9 +232,7 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
             ) : undefined
           }
         >
-          {isNew
-            ? t("fileHistory.empty.newBody", { name: splitPath(path).name })
-            : t("fileHistory.empty.noneBody")}
+          {isNew ? t("fileHistory.empty.newBody", { name: splitPath(path).name }) : t("fileHistory.empty.noneBody")}
         </EmptyState>
       </Centered>
     );
@@ -227,18 +277,44 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
   }
 
   return (
-    <section ref={root} aria-label={t("fileHistory.ariaLabel", { path })} data-screen="file-history" data-layout={wide ? "wide" : "stacked"} className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg">
+    <section
+      ref={root}
+      aria-label={t("fileHistory.ariaLabel", { path })}
+      data-screen="file-history"
+      data-layout={wide ? "wide" : "stacked"}
+      className="@container flex h-full min-h-0 min-w-0 flex-col bg-bg"
+    >
       <header className="flex h-control-lg shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-3">
-        <FileTitle path={path} icon={<History className="size-icon" aria-hidden />} prefix={t("fileHistory.prefix")} strike={Boolean(deletedIn)} />
+        <FileTitle
+          path={path}
+          icon={<History className="size-icon" aria-hidden />}
+          prefix={t("fileHistory.prefix")}
+          strike={Boolean(deletedIn)}
+        />
         {entries.length > 0 ? (
-          <Tag data-history-count={String(entries.length)}>{mayHaveMore ? t("fileHistory.countMore", { count: entries.length }) : t("fileHistory.count", { count: entries.length })}</Tag>
+          <Tag data-history-count={String(entries.length)}>
+            {mayHaveMore ? t("fileHistory.countMore", { count: entries.length }) : t("fileHistory.count", { count: entries.length })}
+          </Tag>
         ) : null}
         <Divider />
-        <Button size="sm" variant="ghost" icon={<Eye className="size-icon" aria-hidden />} disabled={Boolean(deletedIn)} title={deletedIn ? t("fileHistory.goneFromWorkdir") : undefined} onClick={() => store().openFile(tabId, path, null, "view")}>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<Eye className="size-icon" aria-hidden />}
+          disabled={Boolean(deletedIn)}
+          title={deletedIn ? t("fileHistory.goneFromWorkdir") : undefined}
+          onClick={() => store().openFile(tabId, path, null, "view")}
+        >
           <span className="hidden @3xl:inline">{t("fileHistory.current")}</span>
           <span className="sr-only @3xl:hidden">{t("fileHistory.viewCurrent")}</span>
         </Button>
-        <Button size="sm" variant="ghost" icon={<UserSearch className="size-icon" aria-hidden />} disabled={Boolean(deletedIn) || entries.length === 0} onClick={() => store().openBlame(tabId, path, null)}>
+        <Button
+          size="sm"
+          variant="ghost"
+          icon={<UserSearch className="size-icon" aria-hidden />}
+          disabled={Boolean(deletedIn) || entries.length === 0}
+          onClick={() => store().openBlame(tabId, path, null)}
+        >
           <span className="hidden @3xl:inline">{t("fileHistory.blame")}</span>
           <span className="sr-only @3xl:hidden">{t("fileHistory.blame")}</span>
         </Button>
@@ -251,7 +327,11 @@ export function FileHistory({ repoId, tabId, path }: FileHistoryProps) {
         </Banner>
       ) : null}
       {olderNames.length > 0 ? (
-        <div role="status" data-history-renamed="" className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-0.5 text-sm text-text-muted">
+        <div
+          role="status"
+          data-history-renamed=""
+          className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface px-3 py-0.5 text-sm text-text-muted"
+        >
           <span className="min-w-0 flex-1 truncate">
             {t("fileHistory.followsRename")} <span className="font-mono text-code text-text">{olderNames.join(", ")}</span>
           </span>
@@ -272,11 +352,21 @@ function Centered({ children, ...rest }: { children: ReactNode } & Record<`data-
 
 function ListSkeleton({ wide }: { wide: boolean }) {
   return (
-    <div role="status" aria-label={t("fileHistory.loading")} data-loading="" className={cn("flex min-h-0 flex-1", wide ? "flex-row" : "flex-col")}>
+    <div
+      role="status"
+      aria-label={t("fileHistory.loading")}
+      data-loading=""
+      className={cn("flex min-h-0 flex-1", wide ? "flex-row" : "flex-col")}
+    >
       <div className={cn("flex shrink-0 flex-col border-border", wide ? "w-80 border-r" : "h-2/5 border-b")}>
         {Array.from({ length: 8 }, (_, index) => (
           <div key={index} className="flex h-12 flex-col justify-center gap-1.5 px-3">
-            <div className={cn("h-3 animate-pulse rounded-sm bg-surface-raised", index % 3 === 0 ? "w-3/4" : index % 3 === 1 ? "w-1/2" : "w-2/3")} />
+            <div
+              className={cn(
+                "h-3 animate-pulse rounded-sm bg-surface-raised",
+                index % 3 === 0 ? "w-3/4" : index % 3 === 1 ? "w-1/2" : "w-2/3",
+              )}
+            />
             <div className="h-2.5 w-2/5 animate-pulse rounded-sm bg-surface-raised" />
           </div>
         ))}
@@ -305,7 +395,20 @@ interface HistoryListProps {
   menuFor: (entry: FileHistoryEntry) => MenuEntry[];
 }
 
-function HistoryList({ entries, currentPath, selectedIndex, wide, loadingMore, mayHaveMore, onLoadMore, onSelect, onOpen, onBlame, onReveal, menuFor }: HistoryListProps) {
+function HistoryList({
+  entries,
+  currentPath,
+  selectedIndex,
+  wide,
+  loadingMore,
+  mayHaveMore,
+  onLoadMore,
+  onSelect,
+  onOpen,
+  onBlame,
+  onReveal,
+  menuFor,
+}: HistoryListProps) {
   const scroller = useRef<HTMLDivElement>(null);
   const idBase = useId();
   const count = entries.length + (mayHaveMore ? 1 : 0);
@@ -376,15 +479,31 @@ function HistoryList({ entries, currentPath, selectedIndex, wide, loadingMore, m
       data-history-list=""
       onKeyDown={onKeyDown}
       // The focus is shown by the frame around the selected row.
-      className={cn("group/list relative shrink-0 overflow-y-auto bg-surface outline-none", wide ? "w-80 border-r border-border" : "h-2/5 border-b border-border")}
+      className={cn(
+        "group/list relative shrink-0 overflow-y-auto bg-surface outline-none",
+        wide ? "w-80 border-r border-border" : "h-2/5 border-b border-border",
+      )}
     >
       <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
         {items.map((item) => {
           const entry = entries[item.index];
           if (!entry) {
-            const style = { position: "absolute" as const, top: 0, left: 0, right: 0, height: item.size, transform: `translateY(${item.start}px)` };
+            const style = {
+              position: "absolute" as const,
+              top: 0,
+              left: 0,
+              right: 0,
+              height: item.size,
+              transform: `translateY(${item.start}px)`,
+            };
             return (
-              <div key="more" style={style} data-index={item.index} className="flex items-center justify-center text-sm text-text-muted" role="presentation">
+              <div
+                key="more"
+                style={style}
+                data-index={item.index}
+                className="flex items-center justify-center text-sm text-text-muted"
+                role="presentation"
+              >
                 {loadingMore ? t("fileHistory.loadingMore") : t("fileHistory.more")}
               </div>
             );
@@ -436,7 +555,14 @@ const Row = memo(function Row({
   const style: CSSProperties = { position: "absolute", top: 0, left: 0, right: 0, height: size, transform: `translateY(${start}px)` };
   const { commit } = entry;
   const former = formerName(entry, currentPath);
-  const statusText = entry.status === "added" ? t("fileHistory.status.added") : entry.status === "deleted" ? t("fileHistory.status.deleted") : entry.status === "renamed" ? t("fileHistory.status.renamed") : t("fileHistory.status.modified");
+  const statusText =
+    entry.status === "added"
+      ? t("fileHistory.status.added")
+      : entry.status === "deleted"
+        ? t("fileHistory.status.deleted")
+        : entry.status === "renamed"
+          ? t("fileHistory.status.renamed")
+          : t("fileHistory.status.modified");
   return (
     <div
       id={id}
@@ -458,7 +584,9 @@ const Row = memo(function Row({
       }}
       className={cn(
         "flex cursor-default flex-col justify-center gap-0.5 border-b border-border px-3",
-        selected ? "bg-accent-surface group-focus-visible/list:ring-2 group-focus-visible/list:ring-accent group-focus-visible/list:ring-inset" : "hover:bg-surface-raised",
+        selected
+          ? "bg-accent-surface group-focus-visible/list:ring-2 group-focus-visible/list:ring-accent group-focus-visible/list:ring-inset"
+          : "hover:bg-surface-raised",
       )}
     >
       <div className="flex min-w-0 items-center gap-2">
@@ -484,7 +612,11 @@ const Row = memo(function Row({
         <span className="shrink-0 font-mono">{shortSha(commit.sha)}</span>
       </div>
       {former ? (
-        <div className="flex min-w-0 items-center gap-1.5 pl-6 text-xs text-text-muted" data-former-name={former.path} title={former.kind === "renamed" ? `${former.path} → ${entry.path}` : former.path}>
+        <div
+          className="flex min-w-0 items-center gap-1.5 pl-6 text-xs text-text-muted"
+          data-former-name={former.path}
+          title={former.kind === "renamed" ? `${former.path} → ${entry.path}` : former.path}
+        >
           <CornerDownRight className="size-3 shrink-0" aria-hidden />
           <span className="shrink-0">{former.kind === "renamed" ? t("fileHistory.renamedFrom") : t("fileHistory.calledThen")}</span>
           <span className="min-w-0 truncate font-mono">{former.path}</span>
@@ -521,15 +653,36 @@ function Detail({
   const noVersion = !version.sha;
   return (
     <div className="@container/detail flex min-h-0 min-w-0 flex-1 flex-col">
-      <div role="toolbar" aria-label={t("fileHistory.commitActions")} data-history-actions="" className="flex h-control-lg shrink-0 items-center gap-1 border-b border-border bg-surface pr-2 pl-3">
+      <div
+        role="toolbar"
+        aria-label={t("fileHistory.commitActions")}
+        data-history-actions=""
+        className="flex h-control-lg shrink-0 items-center gap-1 border-b border-border bg-surface pr-2 pl-3"
+      >
         <Tip label={<span className="selectable font-mono text-code">{entry.commit.sha}</span>}>
           <span className="shrink-0 font-mono text-code text-text-muted">{shortSha(entry.commit.sha)}</span>
         </Tip>
         <span className="min-w-0 flex-1 truncate text-sm text-text" title={entry.commit.summary}>
           {entry.commit.summary}
         </span>
-        <ActionButton label={version.beforeDelete ? t("fileHistory.action.viewBeforeDelete") : t("fileHistory.action.view")} action="view" short={t("fileHistory.short.view")} shortcut="Enter" icon={<Eye className="size-icon" aria-hidden />} disabled={noVersion} onClick={onOpen} />
-        <ActionButton label={t("fileHistory.action.blame")} action="blame" short={t("fileHistory.blame")} shortcut="B" icon={<UserSearch className="size-icon" aria-hidden />} disabled={noVersion} onClick={onBlame} />
+        <ActionButton
+          label={version.beforeDelete ? t("fileHistory.action.viewBeforeDelete") : t("fileHistory.action.view")}
+          action="view"
+          short={t("fileHistory.short.view")}
+          shortcut="Enter"
+          icon={<Eye className="size-icon" aria-hidden />}
+          disabled={noVersion}
+          onClick={onOpen}
+        />
+        <ActionButton
+          label={t("fileHistory.action.blame")}
+          action="blame"
+          short={t("fileHistory.blame")}
+          shortcut="B"
+          icon={<UserSearch className="size-icon" aria-hidden />}
+          disabled={noVersion}
+          onClick={onBlame}
+        />
         <ActionButton
           label={version.beforeDelete ? t("fileHistory.action.restoreBeforeDelete") : t("fileHistory.action.restore")}
           action="restore"
@@ -538,7 +691,14 @@ function Detail({
           disabled={noVersion || restoring}
           onClick={onRestore}
         />
-        <ActionButton label={t("fileHistory.action.showInGraph")} action="reveal" short={t("fileHistory.short.showInGraph")} shortcut="G" icon={<Crosshair className="size-icon" aria-hidden />} onClick={onReveal} />
+        <ActionButton
+          label={t("fileHistory.action.showInGraph")}
+          action="reveal"
+          short={t("fileHistory.short.showInGraph")}
+          shortcut="G"
+          icon={<Crosshair className="size-icon" aria-hidden />}
+          onClick={onReveal}
+        />
       </div>
       <div className="min-h-0 flex-1">
         <DiffView repoId={repoId} tabId={tabId} path={entry.path} source={{ kind: "commit", sha: entry.commit.sha }} embedded />
@@ -547,7 +707,23 @@ function Detail({
   );
 }
 
-function ActionButton({ label, action, short, shortcut, icon, disabled, onClick }: { label: string; action: string; short: string; shortcut?: string; icon: ReactNode; disabled?: boolean; onClick: () => void }) {
+function ActionButton({
+  label,
+  action,
+  short,
+  shortcut,
+  icon,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  action: string;
+  short: string;
+  shortcut?: string;
+  icon: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
     <Tip label={label} shortcut={shortcut}>
       <Button size="sm" variant="ghost" icon={icon} disabled={disabled} onClick={onClick} aria-label={label} data-action={action}>

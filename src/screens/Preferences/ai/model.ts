@@ -2,11 +2,22 @@
 import type { AiCliPaths, AiFeature, AiPriceOverride, AiProviderKind } from "../../../core";
 
 /** In the order of the provider menu: the tools with the user's own sign-in first. */
-export const PROVIDERS: AiProviderKind[] = ["claude_code", "codex", "opencode", "anthropic", "openai", "gemini", "openai_compatible", "ollama", "lmstudio"];
+export const PROVIDERS: AiProviderKind[] = [
+  "claude_code",
+  "codex",
+  "opencode",
+  "anthropic",
+  "openai",
+  "gemini",
+  "openai_compatible",
+  "ollama",
+  "lmstudio",
+];
 
 export type CliProvider = "claude_code" | "codex" | "opencode";
 export const CLI_PROVIDERS: CliProvider[] = ["claude_code", "codex", "opencode"];
-export const isCli = (provider: AiProviderKind): provider is CliProvider => provider === "claude_code" || provider === "codex" || provider === "opencode";
+export const isCli = (provider: AiProviderKind): provider is CliProvider =>
+  provider === "claude_code" || provider === "codex" || provider === "opencode";
 
 const CLI_PATH_FIELD: Record<CliProvider, keyof AiCliPaths> = { claude_code: "claudeCode", codex: "codex", opencode: "opencode" };
 export const cliPathField = (provider: CliProvider): keyof AiCliPaths => CLI_PATH_FIELD[provider];
@@ -33,7 +44,8 @@ export const FEATURES: AiFeature[] = [
 
 export const needsKey = (provider: AiProviderKind) => provider === "anthropic" || provider === "openai" || provider === "gemini";
 export const acceptsKey = (provider: AiProviderKind) => needsKey(provider) || provider === "openai_compatible";
-export const usesBaseUrl = (provider: AiProviderKind) => provider === "openai_compatible" || provider === "ollama" || provider === "lmstudio";
+export const usesBaseUrl = (provider: AiProviderKind) =>
+  provider === "openai_compatible" || provider === "ollama" || provider === "lmstudio";
 export const isLocal = (provider: AiProviderKind) => provider === "ollama" || provider === "lmstudio";
 
 /** One pattern per line; blank lines and doubles drop out (the core tidies up the same way). */
@@ -54,7 +66,10 @@ export const patternsText = (patterns: string[]) => patterns.join("\n");
 
 /** "0,10", "0.10", "25 USD" → number; "" → null; anything else "invalid". */
 export function parseUsd(text: string): number | null | "invalid" {
-  const value = text.trim().replace(/\s*USD$/i, "").replace(",", ".");
+  const value = text
+    .trim()
+    .replace(/\s*USD$/i, "")
+    .replace(",", ".");
   if (!value) return null;
   if (!/^\d+(\.\d+)?$/.test(value)) return "invalid";
   return Number(value);

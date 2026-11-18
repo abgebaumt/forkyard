@@ -20,7 +20,15 @@ export interface PreviewChoice {
  * The dialog itself, for a caller that is a dialog already and shows it nested (Radix stacks
  * nested dialogs; Escape closes only the top one). Everyone else uses `showAiPreview`.
  */
-export function AiPreviewDialog({ preview, mode, onDone }: { preview: AiPreview; mode: "look" | "confirm"; onDone: (choice: PreviewChoice | null) => void }) {
+export function AiPreviewDialog({
+  preview,
+  mode,
+  onDone,
+}: {
+  preview: AiPreview;
+  mode: "look" | "confirm";
+  onDone: (choice: PreviewChoice | null) => void;
+}) {
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const asks = mode === "confirm" ? askLines(preview) : [];
   return (
@@ -78,8 +86,13 @@ export function AiPreviewDialog({ preview, mode, onDone }: { preview: AiPreview;
             </ul>
           </div>
         ) : null}
-        {preview.shortened.length ? <p className="text-sm text-text-muted">{t("ai.preview.shortened", { files: preview.shortened.join(", ") })}</p> : null}
-        <pre data-ai-preview-text className="selectable max-h-96 overflow-auto rounded-md border border-border bg-surface-sunken p-3 font-mono text-code break-words whitespace-pre-wrap text-text">
+        {preview.shortened.length ? (
+          <p className="text-sm text-text-muted">{t("ai.preview.shortened", { files: preview.shortened.join(", ") })}</p>
+        ) : null}
+        <pre
+          data-ai-preview-text
+          className="selectable max-h-96 overflow-auto rounded-md border border-border bg-surface-sunken p-3 font-mono text-code break-words whitespace-pre-wrap text-text"
+        >
           {preview.text}
         </pre>
       </div>

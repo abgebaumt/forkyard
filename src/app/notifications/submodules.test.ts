@@ -8,8 +8,15 @@ describe("submodule follow-up job", () => {
   });
 
   it("warns with the reason and the affected submodules", () => {
-    const warning = submoduleWarning({ repoId: "r", ok: false, paths: ["a", "b", "c", "d"], message: "Local changes in a submodule are in the way." });
+    const warning = submoduleWarning({
+      repoId: "r",
+      ok: false,
+      paths: ["a", "b", "c", "d"],
+      message: "Local changes in a submodule are in the way.",
+    });
     expect(warning?.title).toBe(t("submoduleSync.failedTitle"));
-    expect(warning?.description).toBe(`Local changes in a submodule are in the way.\n${t("submoduleSync.failedPaths", { paths: "a, b, c …" })}`);
+    expect(warning?.description).toBe(
+      `Local changes in a submodule are in the way.\n${t("submoduleSync.failedPaths", { paths: "a, b, c …" })}`,
+    );
   });
 });

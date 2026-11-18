@@ -60,8 +60,20 @@ describe("File menu: lock entries", () => {
 });
 
 describe("Commit panel: staged files locked by others", () => {
-  const staged = (path: string): FileChange => ({ path, oldPath: null, status: "modified", area: "staged", isBinary: true, isLfs: true, added: null, removed: null, conflict: null });
-  const index = lockIndex(list(lock("plan.psd", "Lena Berg", false), lock("karte.psd", "Jonas Weiß", false), lock("meins.psd", "Test Person", true)));
+  const staged = (path: string): FileChange => ({
+    path,
+    oldPath: null,
+    status: "modified",
+    area: "staged",
+    isBinary: true,
+    isLfs: true,
+    added: null,
+    removed: null,
+    conflict: null,
+  });
+  const index = lockIndex(
+    list(lock("plan.psd", "Lena Berg", false), lock("karte.psd", "Jonas Weiß", false), lock("meins.psd", "Test Person", true)),
+  );
 
   it("finds only other people's locks among the staged files", () => {
     expect(foreignStaged([staged("plan.psd"), staged("meins.psd"), staged("frei.psd")], index).map((l) => l.path)).toEqual(["plan.psd"]);
@@ -70,9 +82,13 @@ describe("Commit panel: staged files locked by others", () => {
 
   it("names the file and owner – or counts and lists the owners once", () => {
     expect(foreignWarning([])).toBeNull();
-    expect(foreignWarning(foreignStaged([staged("plan.psd")], index))).toBe("“plan.psd” is locked by Lena Berg. You can commit, but the push may be refused.");
+    expect(foreignWarning(foreignStaged([staged("plan.psd")], index))).toBe(
+      "“plan.psd” is locked by Lena Berg. You can commit, but the push may be refused.",
+    );
     const many = foreignStaged([staged("plan.psd"), staged("karte.psd")], index);
-    expect(foreignWarning(many)).toBe("2 staged files are locked by others (Lena Berg, Jonas Weiß). You can commit, but the push may be refused.");
+    expect(foreignWarning(many)).toBe(
+      "2 staged files are locked by others (Lena Berg, Jonas Weiß). You can commit, but the push may be refused.",
+    );
     const sameOwner = [lock("a.psd", "Lena Berg", false), lock("b.psd", "Lena Berg", false)];
     expect(foreignWarning(sameOwner)).toBe("2 staged files are locked by others (Lena Berg). You can commit, but the push may be refused.");
   });

@@ -33,7 +33,14 @@ const run = (patch: Partial<BisectAutopilot>): BisectAutopilot => ({
   startedAt: "2026-10-18T09:00:00Z",
   ...patch,
 });
-const step = (sha: string, timedOut = false): BisectAutopilot["steps"][number] => ({ sha, verdict: timedOut ? "skip" : "bad", exitCode: timedOut ? null : 1, timedOut, durationMs: 1200, outputTail: "" });
+const step = (sha: string, timedOut = false): BisectAutopilot["steps"][number] => ({
+  sha,
+  verdict: timedOut ? "skip" : "bad",
+  exitCode: timedOut ? null : 1,
+  timedOut,
+  durationMs: 1200,
+  outputTail: "",
+});
 
 const bar = (value: BisectAutopilot | null) => {
   current.run = value;

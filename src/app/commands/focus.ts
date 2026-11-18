@@ -62,7 +62,8 @@ if (typeof document !== "undefined") {
       const target = event.target;
       if (event.relatedTarget || !(target instanceof HTMLElement)) return;
       queueMicrotask(() => {
-        if (document.activeElement === document.body && target.isConnected && !target.matches(":disabled") && lastElement === target) lastElement = null;
+        if (document.activeElement === document.body && target.isConnected && !target.matches(":disabled") && lastElement === target)
+          lastElement = null;
       });
     },
     true,
@@ -103,7 +104,15 @@ const HOME = [
 function focusCandidates(area: HTMLElement, id: AreaId, strict = false): HTMLElement[] {
   const list: HTMLElement[] = [];
   const remembered = lastFocus.get(id);
-  if (remembered && remembered !== area && remembered.isConnected && area.contains(remembered) && visible(remembered) && remembered.tabIndex >= -1) list.push(remembered);
+  if (
+    remembered &&
+    remembered !== area &&
+    remembered.isConnected &&
+    area.contains(remembered) &&
+    visible(remembered) &&
+    remembered.tabIndex >= -1
+  )
+    list.push(remembered);
   for (const selector of HOME) {
     const found = [...area.querySelectorAll<HTMLElement>(selector)].find(visible);
     if (found) list.push(found);
@@ -119,7 +128,10 @@ function focusCandidates(area: HTMLElement, id: AreaId, strict = false): HTMLEle
  * "fallback": if nothing in the area is operable (yet), the area itself takes the focus.
  * "strict": only the last position or the selected row, no arbitrary control.
  */
-export function focusArea(id: AreaId, { scroll = true, fallback = false, strict = false }: { scroll?: boolean; fallback?: boolean; strict?: boolean } = {}): boolean {
+export function focusArea(
+  id: AreaId,
+  { scroll = true, fallback = false, strict = false }: { scroll?: boolean; fallback?: boolean; strict?: boolean } = {},
+): boolean {
   const area = areaElement(id);
   if (!area || !visible(area)) return false;
   for (const target of focusCandidates(area, id, strict)) {
@@ -137,7 +149,8 @@ export function focusArea(id: AreaId, { scroll = true, fallback = false, strict 
   return document.activeElement === area;
 }
 
-const MODAL = '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]';
+const MODAL =
+  '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]';
 
 /**
  * If the focus is only on the area itself (the content is still loading), it moves to the row or the
@@ -191,7 +204,12 @@ function installFocusKeeper(): void {
     // Wait two frames: whoever sets the focus themselves after their action goes first.
     requestAnimationFrame(() => requestAnimationFrame(restore));
   };
-  new MutationObserver(check).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled", "hidden"] });
+  new MutationObserver(check).observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["disabled", "hidden"],
+  });
 }
 
 if (typeof document !== "undefined" && typeof MutationObserver !== "undefined") {
@@ -223,7 +241,12 @@ function cycle(direction: 1 | -1): void {
   const current = areaOf(document.activeElement);
   let index = present.findIndex((area) => area.id === current);
   // Focus nowhere (body): F6 starts at the view, Shift+F6 at the area before it.
-  if (index < 0) index = Math.max(0, present.findIndex((area) => area.id === "center")) - (direction === 1 ? 1 : -1);
+  if (index < 0)
+    index =
+      Math.max(
+        0,
+        present.findIndex((area) => area.id === "center"),
+      ) - (direction === 1 ? 1 : -1);
   for (let step = 1; step <= present.length; step++) {
     const next = present[(index + direction * step + present.length * 2) % present.length]!;
     if (focusArea(next.id, { fallback: true })) return;
@@ -233,7 +256,7 @@ function cycle(direction: 1 | -1): void {
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 
 /** Summary field in the Commit Panel. */
-const SUMMARY_FIELD = '[data-commit-summary]';
+const SUMMARY_FIELD = "[data-commit-summary]";
 
 function focusSummarySoon(tries = 30): void {
   const field = document.querySelector<HTMLElement>(SUMMARY_FIELD);

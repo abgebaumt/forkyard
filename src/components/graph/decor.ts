@@ -16,7 +16,8 @@ import type { GraphRow, RefLabelInfo, Sha } from "../../core";
 /** Key of a row in `indexByKey`: the SHA for commits. */
 export type RowIndex = ReadonlyMap<string, number>;
 
-const isCommit = (row: GraphRow | undefined): row is GraphRow & { sha: Sha } => Boolean(row && row.sha && (row.kind === "commit" || row.kind === "merge"));
+const isCommit = (row: GraphRow | undefined): row is GraphRow & { sha: Sha } =>
+  Boolean(row && row.sha && (row.kind === "commit" || row.kind === "merge"));
 
 // ---------------------------------------------------------------------------
 // Highlighting
@@ -286,7 +287,14 @@ export function decorateRow(row: GraphRow, maps: LaneMaps | null, dimNode: boole
       dim: dimEdges && !(hot && hot[at] === 1),
     };
   }
-  return { kind: row.kind, lane: maps && row.lane >= 0 ? mapLane(row.lane, maps.node) : row.lane, color: row.color, isHead: row.isHead, edges, dim: dimNode };
+  return {
+    kind: row.kind,
+    lane: maps && row.lane >= 0 ? mapLane(row.lane, maps.node) : row.lane,
+    color: row.color,
+    isHead: row.isHead,
+    edges,
+    dim: dimNode,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -319,7 +327,11 @@ export const GHOST_SCAN_LIMIT = 20_000;
  * null: the row is not a commit, carries a branch label itself, or no branch among the loaded rows
  * contains it.
  */
-export function nearestBranch(rows: readonly GraphRow[], index: number, limit = GHOST_SCAN_LIMIT): { ref: RefLabelInfo; rowIndex: number } | null {
+export function nearestBranch(
+  rows: readonly GraphRow[],
+  index: number,
+  limit = GHOST_SCAN_LIMIT,
+): { ref: RefLabelInfo; rowIndex: number } | null {
   const row = rows[index];
   if (!isCommit(row) || branchLabelOf(row)) return null;
   const descendants = new Set<Sha>([row.sha]);

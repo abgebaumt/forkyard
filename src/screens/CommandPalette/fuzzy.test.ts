@@ -55,7 +55,10 @@ describe("fuzzyMatch", () => {
   });
 
   it("stays fast with many candidates", () => {
-    const paths = Array.from({ length: 20_000 }, (_, index) => `archiv/jahr-${2000 + (index % 25)}/station-${index % 40}/messreihe-${String(index).padStart(5, "0")}.csv`);
+    const paths = Array.from(
+      { length: 20_000 },
+      (_, index) => `archiv/jahr-${2000 + (index % 25)}/station-${index % 40}/messreihe-${String(index).padStart(5, "0")}.csv`,
+    );
     const query = prepareQuery("st12mess");
     const started = performance.now();
     let hits = 0;

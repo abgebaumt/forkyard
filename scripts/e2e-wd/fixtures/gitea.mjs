@@ -57,13 +57,18 @@ export async function startGitea(repo) {
     const pathname = decodeURIComponent(url.pathname);
     const gitPrefix = `/${FULL}.git`;
     const toGit = pathname.startsWith(gitPrefix);
-    const target = toGit ? { port: git.port, path: `/${BARE}${pathname.slice(gitPrefix.length)}${url.search}` } : { port: mock.port, path: request.url };
+    const target = toGit
+      ? { port: git.port, path: `/${BARE}${pathname.slice(gitPrefix.length)}${url.search}` }
+      : { port: mock.port, path: request.url };
     const headers = { ...request.headers };
     if (toGit) headers.authorization = `Basic ${Buffer.from(`${GIT_USER}:${GIT_PASSWORD}`).toString("base64")}`;
-    const upstream = http.request({ host: "127.0.0.1", port: target.port, method: request.method, path: target.path, headers }, (answer) => {
-      response.writeHead(answer.statusCode ?? 502, answer.headers);
-      answer.pipe(response);
-    });
+    const upstream = http.request(
+      { host: "127.0.0.1", port: target.port, method: request.method, path: target.path, headers },
+      (answer) => {
+        response.writeHead(answer.statusCode ?? 502, answer.headers);
+        answer.pipe(response);
+      },
+    );
     upstream.on("error", () => {
       if (!response.headersSent) response.writeHead(502);
       response.end();
@@ -103,4 +108,3 @@ export async function startGitea(repo) {
     },
   };
 }
-

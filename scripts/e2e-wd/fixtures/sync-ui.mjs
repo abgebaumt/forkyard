@@ -19,12 +19,21 @@ export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Environment for git calls of the test itself: no machine config, no locks, no prompts. */
 export function plainGitEnv() {
-  return { ...process.env, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0", LC_ALL: "C" };
+  return {
+    ...process.env,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: "/dev/null",
+    GIT_TERMINAL_PROMPT: "0",
+    GIT_OPTIONAL_LOCKS: "0",
+    LC_ALL: "C",
+  };
 }
 
 /** git in `cwd` (synchronous; never against a server that runs in this process). */
 export function git(cwd, ...args) {
-  return execFileSync("git", args, { cwd, env: plainGitEnv(), stdio: ["ignore", "pipe", "pipe"] }).toString("utf8").trim();
+  return execFileSync("git", args, { cwd, env: plainGitEnv(), stdio: ["ignore", "pipe", "pipe"] })
+    .toString("utf8")
+    .trim();
 }
 
 /** git in `cwd`, asynchronous – for calls against the HTTP/SSH servers of this process. */
@@ -62,7 +71,9 @@ export function appendAppGitConfig(app, text) {
 export const slash = (file) => path.resolve(file).replaceAll("\\", "/");
 
 /** Proxy variables of the machine must not reach the app. */
-export const NO_PROXY_ENV = Object.fromEntries(["NO_PROXY", "no_proxy", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"].map((name) => [name, ""]));
+export const NO_PROXY_ENV = Object.fromEntries(
+  ["NO_PROXY", "no_proxy", "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"].map((name) => [name, ""]),
+);
 
 export function syncUi(app) {
   const exec = (...args) => app.exec(...args);
@@ -73,7 +84,14 @@ export function syncUi(app) {
       window.__syncInstalled = true;
       window.__syncToasts = [];
       window.__syncCredentials = [];
-      window.__gc.core.on("credential:request", (request) => window.__syncCredentials.push({ kind: request.kind, host: request.host ?? null, prompt: request.prompt ?? null, canRemember: request.canRemember ?? null }));
+      window.__gc.core.on("credential:request", (request) =>
+        window.__syncCredentials.push({
+          kind: request.kind,
+          host: request.host ?? null,
+          prompt: request.prompt ?? null,
+          canRemember: request.canRemember ?? null,
+        }),
+      );
       const record = () => {
         for (const element of document.querySelectorAll("[data-toast]")) {
           const text = `${element.getAttribute("data-toast")}|${element.innerText.replace(/\s+/g, " ").trim()}`;
@@ -85,15 +103,28 @@ export function syncUi(app) {
       return true;
     });
 
-  const seenToasts = async () => (await exec(() => window.__syncToasts?.slice() ?? [])).map((line) => ({ tone: line.slice(0, line.indexOf("|")), text: line.slice(line.indexOf("|") + 1) }));
+  const seenToasts = async () =>
+    (await exec(() => window.__syncToasts?.slice() ?? [])).map((line) => ({
+      tone: line.slice(0, line.indexOf("|")),
+      text: line.slice(line.indexOf("|") + 1),
+    }));
   const forgetToasts = () => exec(() => void (window.__syncToasts.length = 0));
   const toasts = () =>
-    exec(() => [...document.querySelectorAll("[data-toast]")].map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+    exec(() =>
+      [...document.querySelectorAll("[data-toast]")].map((item) => ({
+        tone: item.getAttribute("data-toast"),
+        text: item.innerText.replace(/\s+/g, " ").trim(),
+      })),
+    );
 
   /** Waits for a toast (also one that already disappeared) and returns it. */
   const waitToast = async (pattern, tone = null, timeout = 30_000) => {
     try {
-      return await app.waitFor(async () => (await seenToasts()).find((toast) => pattern.test(toast.text) && (!tone || toast.tone === tone)) ?? null, timeout, { interval: 100 });
+      return await app.waitFor(
+        async () => (await seenToasts()).find((toast) => pattern.test(toast.text) && (!tone || toast.tone === tone)) ?? null,
+        timeout,
+        { interval: 100 },
+      );
     } catch {
       throw new Error(`toast ${pattern}${tone ? ` (${tone})` : ""} missing; seen: ${JSON.stringify(await seenToasts())}`);
     }
@@ -103,7 +134,9 @@ export function syncUi(app) {
   const closeToasts = async () => {
     for (let round = 0; round < 12; round++) {
       const closed = await exec(() => {
-        const button = [...document.querySelectorAll("[data-toast] button")].find((item) => item.getAttribute("aria-label") === "Close message");
+        const button = [...document.querySelectorAll("[data-toast] button")].find(
+          (item) => item.getAttribute("aria-label") === "Close message",
+        );
         if (!button) return false;
         button.click();
         return true;
@@ -116,7 +149,9 @@ export function syncUi(app) {
   /** Toolbar button of the repository toolbar (English or German UI) by its visible label ("Fetch", "Pull", "Push" …). */
   const toolButton = (label) =>
     exec((wanted) => {
-      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) => ["Repository actions", "Repository-Aktionen"].includes(item.getAttribute("aria-label")));
+      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) =>
+        ["Repository actions", "Repository-Aktionen"].includes(item.getAttribute("aria-label")),
+      );
       const named = (button) => {
         const aria = button.getAttribute("aria-label");
         if (aria) return aria === wanted || aria.startsWith(`${wanted},`);
@@ -128,7 +163,9 @@ export function syncUi(app) {
     }, label);
   const toolState = (label) =>
     exec((wanted) => {
-      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) => ["Repository actions", "Repository-Aktionen"].includes(item.getAttribute("aria-label")));
+      const bar = [...document.querySelectorAll('[role="toolbar"]')].find((item) =>
+        ["Repository actions", "Repository-Aktionen"].includes(item.getAttribute("aria-label")),
+      );
       const named = (item) => {
         const aria = item.getAttribute("aria-label");
         if (aria) return aria === wanted || aria.startsWith(`${wanted},`);
@@ -138,14 +175,20 @@ export function syncUi(app) {
       const button = [...(bar?.querySelectorAll("button") ?? [])].find(named);
       if (!button) return null;
       const hint = document.getElementById(button.getAttribute("aria-describedby") ?? "")?.textContent ?? "";
-      return { disabled: button.getAttribute("aria-disabled") === "true", busy: button.getAttribute("aria-busy") === "true", label: button.getAttribute("aria-label"), hint };
+      return {
+        disabled: button.getAttribute("aria-disabled") === "true",
+        busy: button.getAttribute("aria-busy") === "true",
+        label: button.getAttribute("aria-label"),
+        hint,
+      };
     }, label);
   const clickTool = async (label) => {
     const button = await app.waitFor(() => toolButton(label), 15_000, { message: `toolbar button ${label}` });
     await button.click();
   };
   /** Waits until a toolbar button is enabled (status after the last action is loaded). */
-  const waitToolEnabled = (label, timeout = 20_000) => app.waitFor(async () => (await toolState(label))?.disabled === false, timeout, { message: `${label} is enabled` });
+  const waitToolEnabled = (label, timeout = 20_000) =>
+    app.waitFor(async () => (await toolState(label))?.disabled === false, timeout, { message: `${label} is enabled` });
 
   /** Topmost open dialog: { title, text } or null. */
   const dialog = () =>
@@ -155,14 +198,22 @@ export function syncUi(app) {
       if (!top) return null;
       // Radix registers a new modal layer a frame after it took focus; until then it is not the top
       // layer (no pointer-events: auto) and Esc or Enter go to whatever lies beneath.
-      return { title: top.querySelector("h2")?.textContent?.trim() ?? "", text: top.innerText.replace(/\s+/g, " ").trim(), onTop: top.style.pointerEvents === "auto" };
+      return {
+        title: top.querySelector("h2")?.textContent?.trim() ?? "",
+        text: top.innerText.replace(/\s+/g, " ").trim(),
+        onTop: top.style.pointerEvents === "auto",
+      };
     });
   const waitDialog = async (pattern, timeout = 20_000) => {
     try {
-      return await app.waitFor(async () => {
-        const top = await dialog();
-        return top && top.onTop && pattern.test(top.title) ? top : null;
-      }, timeout, { interval: 100 });
+      return await app.waitFor(
+        async () => {
+          const top = await dialog();
+          return top && top.onTop && pattern.test(top.title) ? top : null;
+        },
+        timeout,
+        { interval: 100 },
+      );
     } catch {
       throw new Error(`dialog ${pattern} missing; open: ${JSON.stringify(await dialog())}; toasts: ${JSON.stringify(await seenToasts())}`);
     }
@@ -187,7 +238,9 @@ export function syncUi(app) {
   const field = (label, within = null) =>
     exec(
       (wanted, scope) => {
-        const root = scope ? document.querySelector(scope) : [...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1) ?? document;
+        const root = scope
+          ? document.querySelector(scope)
+          : ([...document.querySelectorAll('[role="dialog"], [role="alertdialog"]')].at(-1) ?? document);
         const labels = [...(root?.querySelectorAll("label") ?? [])];
         const match = labels.find((item) => (item.childNodes[0]?.textContent ?? item.textContent ?? "").trim() === wanted);
         if (!match) return null;
@@ -209,7 +262,12 @@ export function syncUi(app) {
   const focused = () =>
     exec(() => {
       const element = document.activeElement;
-      return { tag: element?.tagName ?? null, text: (element?.textContent ?? "").trim(), label: element?.getAttribute("aria-label") ?? element?.labels?.[0]?.childNodes[0]?.textContent?.trim() ?? null, role: element?.getAttribute("role") ?? null };
+      return {
+        tag: element?.tagName ?? null,
+        text: (element?.textContent ?? "").trim(),
+        label: element?.getAttribute("aria-label") ?? element?.labels?.[0]?.childNodes[0]?.textContent?.trim() ?? null,
+        role: element?.getAttribute("role") ?? null,
+      };
     });
 
   /** Runs a command through the command palette (Ctrl+P, ">" + text, arrow keys, Enter). */
@@ -218,8 +276,11 @@ export function syncUi(app) {
     await app.press("Control+p");
     const input = await app.waitFor('[data-screen="command-palette"] input[role="combobox"]', 10_000);
     await input.type(`>${text}`);
-    const keys = () => exec(() => [...document.querySelectorAll('[data-screen="command-palette"] [role="option"]')].map((row) => row.dataset.key));
-    await app.waitFor(async () => (await keys()).includes(`command:${commandId}`), 10_000, { message: `the palette finds "${text}" (${commandId})` });
+    const keys = () =>
+      exec(() => [...document.querySelectorAll('[data-screen="command-palette"] [role="option"]')].map((row) => row.dataset.key));
+    await app.waitFor(async () => (await keys()).includes(`command:${commandId}`), 10_000, {
+      message: `the palette finds "${text}" (${commandId})`,
+    });
     const index = (await keys()).indexOf(`command:${commandId}`);
     for (let step = 0; step < index; step++) await app.press("ArrowDown");
     await app.press("Enter");
@@ -232,12 +293,26 @@ export function syncUi(app) {
     await app.press("Control+,");
     await app.waitFor('[data-screen="settings"]', 10_000);
     const button = await app.waitFor(
-      () => exec((name) => [...document.querySelectorAll('[data-screen="settings"] [role="tab"]')].find((item) => item.textContent.trim() === name) ?? null, tab),
+      () =>
+        exec(
+          (name) =>
+            [...document.querySelectorAll('[data-screen="settings"] [role="tab"]')].find((item) => item.textContent.trim() === name) ??
+            null,
+          tab,
+        ),
       10_000,
       { message: `preferences tab ${tab}` },
     );
     await button.click();
-    await app.waitFor(() => exec((name) => document.querySelector('[data-screen="settings"] [role="tab"][aria-selected="true"]')?.textContent.trim() === name, tab), 10_000, { message: `tab ${tab} selected` });
+    await app.waitFor(
+      () =>
+        exec(
+          (name) => document.querySelector('[data-screen="settings"] [role="tab"][aria-selected="true"]')?.textContent.trim() === name,
+          tab,
+        ),
+      10_000,
+      { message: `tab ${tab} selected` },
+    );
     await app.settle();
   };
   const closePrefs = async () => {

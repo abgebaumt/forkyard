@@ -17,11 +17,21 @@ function sourceLabel(repoId: Id, source: DiffSource): { what: string; nameHint: 
     case "commit": {
       const index = graphIndex(repoId);
       const summary = index ? findRow(index, source.sha)?.summary : undefined;
-      return { what: summary ? t("actions.patches.commitWithSummary", { sha: short(source.sha), summary: clip(summary, 56) }) : t("actions.patches.commit", { sha: short(source.sha) }), nameHint: summary ?? null };
+      return {
+        what: summary
+          ? t("actions.patches.commitWithSummary", { sha: short(source.sha), summary: clip(summary, 56) })
+          : t("actions.patches.commit", { sha: short(source.sha) }),
+        nameHint: summary ?? null,
+      };
     }
     case "stash": {
       const stash = cachedStashes(repoId)?.find((item) => item.index === source.index);
-      return { what: stash ? t("actions.patches.stash", { message: clip(stash.message, 48) }) : t("actions.patches.stashIndex", { index: source.index }), nameHint: stash?.message ?? null };
+      return {
+        what: stash
+          ? t("actions.patches.stash", { message: clip(stash.message, 48) })
+          : t("actions.patches.stashIndex", { index: source.index }),
+        nameHint: stash?.message ?? null,
+      };
     }
     case "range":
       return {

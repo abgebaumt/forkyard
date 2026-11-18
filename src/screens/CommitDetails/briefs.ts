@@ -33,7 +33,15 @@ export function useCommitBriefs(repoId: Id, shas: Sha[]): CommitBriefs {
       for (const row of page.rows) {
         if (row.sha && (row.kind === "commit" || row.kind === "merge")) {
           index.set(row.sha, {
-            brief: { sha: row.sha, parents: row.parents, summary: row.summary, authorName: row.authorName, authorEmail: row.authorEmail, authoredAt: row.authoredAt, order },
+            brief: {
+              sha: row.sha,
+              parents: row.parents,
+              summary: row.summary,
+              authorName: row.authorName,
+              authorEmail: row.authorEmail,
+              authoredAt: row.authoredAt,
+              order,
+            },
             color: row.color,
           });
         }

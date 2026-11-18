@@ -19,7 +19,11 @@ if (!process.argv.includes("--no-build")) {
 const copy = await ensureAppCopy();
 console.log(`App copy: ${copy}`);
 const tools = findTools();
-for (const [name, value] of Object.entries({ "tauri-driver": tools.tauriDriver, "native driver": tools.native, ...(process.platform === "win32" ? {} : { Xvfb: tools.xvfb }) })) {
+for (const [name, value] of Object.entries({
+  "tauri-driver": tools.tauriDriver,
+  "native driver": tools.native,
+  ...(process.platform === "win32" ? {} : { Xvfb: tools.xvfb }),
+})) {
   console.log(`${name}: ${value ?? "MISSING"}`);
 }
 console.log(`Vite server: ${await ensureDevServer()}`);

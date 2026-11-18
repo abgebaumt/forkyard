@@ -33,10 +33,27 @@ export function Avatar({ name, email, size = 20 }: { name: string; email?: strin
   const style = { width: size, height: size, fontSize: Math.round(size * 0.45), background: laneColor(hash(email ?? name)) };
   const title = email ? `${name} <${email}>` : name;
   if (image && failed !== image) {
-    return <img src={image} alt="" aria-hidden title={title} width={size} height={size} className="shrink-0 rounded-pill object-cover" style={style} onError={() => setFailed(image)} />;
+    return (
+      <img
+        src={image}
+        alt=""
+        aria-hidden
+        title={title}
+        width={size}
+        height={size}
+        className="shrink-0 rounded-pill object-cover"
+        style={style}
+        onError={() => setFailed(image)}
+      />
+    );
   }
   return (
-    <span title={title} aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-pill font-semibold text-on-lane" style={style}>
+    <span
+      title={title}
+      aria-hidden
+      className="inline-flex shrink-0 items-center justify-center rounded-pill font-semibold text-on-lane"
+      style={style}
+    >
       {initials(name)}
     </span>
   );
@@ -88,13 +105,7 @@ export function RefLabel({ kind, name, lane = 0, head, dropTarget, dimmed }: Ref
         dropTarget && "outline-2 outline-offset-1 outline-accent",
         dimmed && "opacity-40",
       )}
-      style={
-        kind === "local"
-          ? { background: color, borderColor: color }
-          : kind === "remote"
-            ? { borderColor: color }
-            : undefined
-      }
+      style={kind === "local" ? { background: color, borderColor: color } : kind === "remote" ? { borderColor: color } : undefined}
     >
       {head ? <Check className="size-3" strokeWidth={3} aria-hidden /> : refIcon[kind]}
       <span className="truncate">{name}</span>
@@ -121,10 +132,7 @@ const statusMeta: Record<FileStatus, { letter: string; label: string; className:
 export function StatusBadge({ status }: { status: FileStatus }) {
   const meta = statusMeta[status];
   return (
-    <span
-      title={meta.label}
-      className={cn("inline-flex w-4 shrink-0 justify-center font-mono text-code font-bold", meta.className)}
-    >
+    <span title={meta.label} className={cn("inline-flex w-4 shrink-0 justify-center font-mono text-code font-bold", meta.className)}>
       <span aria-hidden>{meta.letter}</span>
       <span className="sr-only">{meta.label}</span>
     </span>
@@ -155,19 +163,14 @@ export function FileRow({ path, status, oldPath, selected, lfs, additions, delet
       aria-selected={selected ?? false}
       tabIndex={selected ? 0 : -1}
       onClick={onSelect}
-      className={cn(
-        "group flex h-row items-center gap-2 px-2 text-base",
-        selected ? "bg-accent-surface" : "hover:bg-surface-raised",
-      )}
+      className={cn("group flex h-row items-center gap-2 px-2 text-base", selected ? "bg-accent-surface" : "hover:bg-surface-raised")}
     >
       <StatusBadge status={status} />
       <span className="min-w-0 flex-1 truncate" title={oldPath ? `${oldPath} → ${path}` : path}>
         <span className={cn(status === "deleted" && "line-through")}>{file}</span>
         {dir ? <span className="ml-2 text-sm text-text-muted">{dir}</span> : null}
       </span>
-      {lfs ? (
-        <span className="rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span>
-      ) : null}
+      {lfs ? <span className="rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span> : null}
       {additions !== undefined || deletions !== undefined ? (
         <span className="shrink-0 font-mono text-xs group-hover:hidden">
           {additions ? <span className="text-success">+{additions}</span> : null}
@@ -175,9 +178,7 @@ export function FileRow({ path, status, oldPath, selected, lfs, additions, delet
           {deletions ? <span className="text-danger">−{deletions}</span> : null}
         </span>
       ) : null}
-      {action ? (
-        <span className="hidden shrink-0 group-focus-within:inline-flex group-hover:inline-flex">{action}</span>
-      ) : null}
+      {action ? <span className="hidden shrink-0 group-focus-within:inline-flex group-hover:inline-flex">{action}</span> : null}
     </div>
   );
 }
@@ -229,23 +230,27 @@ export function PanelSection({
       onOpenChange={onOpenChange}
       className={cn("border-b border-border", className)}
     >
-      <div data-section-header className={cn("group relative flex h-control-lg items-center pr-1", stickyHeader && "sticky top-0 z-10 bg-surface")}>
+      <div
+        data-section-header
+        className={cn("group relative flex h-control-lg items-center pr-1", stickyHeader && "sticky top-0 z-10 bg-surface")}
+      >
         <Collapsible.Trigger
           onDoubleClick={onHeaderDoubleClick}
           className="group/trigger flex h-full min-w-0 flex-1 items-center gap-1.5 px-2 text-xs font-semibold tracking-wide text-text-muted uppercase -outline-offset-2 hover:text-text"
         >
-          <ChevronRight
-            className="size-3.5 shrink-0 transition-transform group-data-[state=open]/trigger:rotate-90"
-            aria-hidden
-          />
+          <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-[state=open]/trigger:rotate-90" aria-hidden />
           {icon ? <span className="flex shrink-0 [&>svg]:size-3.5">{icon}</span> : null}
           <span className="truncate">{title}</span>
           <span className="flex-1" />
-          {count !== undefined ? <span className="shrink-0 rounded-pill bg-surface-raised px-1.5 text-xs font-medium tabular-nums">{count}</span> : null}
+          {count !== undefined ? (
+            <span className="shrink-0 rounded-pill bg-surface-raised px-1.5 text-xs font-medium tabular-nums">{count}</span>
+          ) : null}
         </Collapsible.Trigger>
         {actions ? (
           // Over the right edge (and the count) instead of beside it, so every count lines up.
-          <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center bg-surface opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">{actions}</div>
+          <div className="pointer-events-none absolute inset-y-0 right-1 flex items-center bg-surface opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
+            {actions}
+          </div>
         ) : null}
         {pinnedActions ? <div className="flex">{pinnedActions}</div> : null}
       </div>
@@ -349,7 +354,9 @@ export function TreeRow({
         ) : null}
       </span>
     ) : null;
-  const fallbackSyncTip = [ahead ? t("ui.sync.ahead", { n: ahead }) : null, behind ? t("ui.sync.behind", { n: behind }) : null].filter(Boolean).join(", ");
+  const fallbackSyncTip = [ahead ? t("ui.sync.ahead", { n: ahead }) : null, behind ? t("ui.sync.behind", { n: behind }) : null]
+    .filter(Boolean)
+    .join(", ");
   return (
     <div
       role="treeitem"

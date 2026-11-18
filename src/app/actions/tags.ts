@@ -24,9 +24,15 @@ export async function createTag(repoId: Id, sha: Sha | null, annotated = false) 
     validate: refNameValidator(repoId, "tag"),
   });
   if (!input) return null;
-  const result = await runAction(t("actions.tags.create.label"), () => core.tagCreate({ repoId, name: input.name, sha, message: input.message }), {
-    success: input.message ? t("actions.tags.create.doneAnnotated", { name: clip(input.name) }) : t("actions.tags.create.done", { name: clip(input.name) }),
-  });
+  const result = await runAction(
+    t("actions.tags.create.label"),
+    () => core.tagCreate({ repoId, name: input.name, sha, message: input.message }),
+    {
+      success: input.message
+        ? t("actions.tags.create.doneAnnotated", { name: clip(input.name) })
+        : t("actions.tags.create.done", { name: clip(input.name) }),
+    },
+  );
   if (result.ok) queryClient.setQueryData(qk.refs(repoId), result.value);
   if (result.ok && input.message && input.targets.length > 0) {
     // Loaded on demand: the release-notes screen imports this module (pushTag).
@@ -50,7 +56,11 @@ async function pickRemote(repoId: Id, title: string, description: string): Promi
     return null;
   }
   if (remotes.length === 1) return remotes[0]!.name;
-  return choose({ title, description, options: remotes.map((remote) => ({ key: remote.name, label: remote.name, description: remote.pushUrl ?? remote.fetchUrl })) });
+  return choose({
+    title,
+    description,
+    options: remotes.map((remote) => ({ key: remote.name, label: remote.name, description: remote.pushUrl ?? remote.fetchUrl })),
+  });
 }
 
 /**
@@ -65,10 +75,19 @@ async function pickRemote(repoId: Id, title: string, description: string): Promi
 const TAG_COMMITS_NOTE = t("actions.tags.delete.commitsNote");
 
 export async function deleteTag(repoId: Id, name: string, remote: string | true | null = null) {
-  const target = remote === true ? await pickRemote(repoId, t("actions.tags.delete.pickRemote"), t("actions.tags.delete.pickRemoteDescription", { name: clip(name, 40) })) : remote;
+  const target =
+    remote === true
+      ? await pickRemote(
+          repoId,
+          t("actions.tags.delete.pickRemote"),
+          t("actions.tags.delete.pickRemoteDescription", { name: clip(name, 40) }),
+        )
+      : remote;
   if (remote === true && !target) return null;
   const ok = await confirm({
-    title: target ? t("actions.tags.delete.titleRemote", { name: clip(name, 40), remote: target }) : t("actions.tags.delete.title", { name: clip(name, 40) }),
+    title: target
+      ? t("actions.tags.delete.titleRemote", { name: clip(name, 40), remote: target })
+      : t("actions.tags.delete.title", { name: clip(name, 40) }),
     body: `${target ? t("actions.tags.delete.bodyRemote") : t("actions.tags.delete.body")} ${TAG_COMMITS_NOTE}`,
     confirmLabel: target ? t("actions.tags.delete.actionRemote") : t("actions.tags.delete.action"),
     danger: true,
@@ -76,7 +95,9 @@ export async function deleteTag(repoId: Id, name: string, remote: string | true 
   if (!ok) return null;
   const result = await runAction(t("actions.tags.delete.action"), () => core.tagDelete({ repoId, name, remote: target }), {
     busyKey: `${repoId}:tag:${name}`,
-    success: target ? t("actions.tags.delete.doneRemote", { name: clip(name), remote: target }) : t("actions.tags.delete.done", { name: clip(name) }),
+    success: target
+      ? t("actions.tags.delete.doneRemote", { name: clip(name), remote: target })
+      : t("actions.tags.delete.done", { name: clip(name) }),
   });
   if (result.ok) queryClient.setQueryData(qk.refs(repoId), result.value);
   return result;
@@ -84,7 +105,9 @@ export async function deleteTag(repoId: Id, name: string, remote: string | true 
 
 /** Pushes a tag. Without `remote` it takes the only remote or lets the user pick. */
 export async function pushTag(repoId: Id, name: string, remote?: string | null) {
-  const target = remote ?? (await pickRemote(repoId, t("actions.tags.push.pickRemote"), t("actions.tags.push.pickRemoteDescription", { name: clip(name, 40) })));
+  const target =
+    remote ??
+    (await pickRemote(repoId, t("actions.tags.push.pickRemote"), t("actions.tags.push.pickRemoteDescription", { name: clip(name, 40) })));
   if (!target) return null;
   const result = await guardSecrets(repoId, (acceptedSecrets) => {
     const jobId = newJobId();

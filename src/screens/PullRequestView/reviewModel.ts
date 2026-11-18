@@ -20,14 +20,18 @@ export function splitThreads(threads: ReviewThread[]): { open: ReviewThread[]; r
 /** "lines 40–42", "line 42" – or nothing when the lines are no longer in the pull request. */
 export function threadLines(thread: Pick<ReviewThread, "line" | "startLine">): string {
   if (thread.line === null) return "";
-  if (thread.startLine !== null && thread.startLine < thread.line) return t("pullRequest.view.reviewThreads.lines", { from: thread.startLine, to: thread.line });
+  if (thread.startLine !== null && thread.startLine < thread.line)
+    return t("pullRequest.view.reviewThreads.lines", { from: thread.startLine, to: thread.line });
   return t("pullRequest.view.reviewThreads.line", { line: thread.line });
 }
 
 export type FixAvailability = "hidden" | "unavailable" | "setup" | "ready";
 
 /** "Suggest fix": hidden without AI for this function/repository; only for current lines on the new side. */
-export function fixAvailability(thread: Pick<ReviewThread, "line" | "side" | "outdated">, ai: { visible: boolean; opensSetup: boolean }): FixAvailability {
+export function fixAvailability(
+  thread: Pick<ReviewThread, "line" | "side" | "outdated">,
+  ai: { visible: boolean; opensSetup: boolean },
+): FixAvailability {
   if (!ai.visible) return "hidden";
   if (thread.outdated || thread.side === "old" || thread.line === null) return "unavailable";
   return ai.opensSetup ? "setup" : "ready";

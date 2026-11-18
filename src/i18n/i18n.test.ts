@@ -4,9 +4,7 @@ import { RESOURCES, detectPlatform, platformWords, resolveLanguage, t } from "."
 type Tree = { [key: string]: string | Tree };
 
 function keys(tree: Tree, prefix = ""): string[] {
-  return Object.entries(tree).flatMap(([key, value]) =>
-    typeof value === "string" ? [prefix + key] : keys(value, `${prefix}${key}.`),
-  );
+  return Object.entries(tree).flatMap(([key, value]) => (typeof value === "string" ? [prefix + key] : keys(value, `${prefix}${key}.`)));
 }
 
 /** Plural forms count as one key. */
@@ -22,8 +20,14 @@ describe("Translations", () => {
   it("English and German have the same keys", () => {
     const en = new Set(keys(RESOURCES.en).map(base));
     const de = new Set(keys(RESOURCES.de).map(base));
-    expect([...en].filter((key) => !de.has(key)), "fehlt auf Deutsch").toEqual([]);
-    expect([...de].filter((key) => !en.has(key)), "fehlt auf Englisch").toEqual([]);
+    expect(
+      [...en].filter((key) => !de.has(key)),
+      "fehlt auf Deutsch",
+    ).toEqual([]);
+    expect(
+      [...de].filter((key) => !en.has(key)),
+      "fehlt auf Englisch",
+    ).toEqual([]);
   });
 
   it("every literal key in the code exists", () => {
@@ -62,4 +66,3 @@ describe("Translations", () => {
     expect(t("menus.showInFileManager")).not.toContain("{{");
   });
 });
-

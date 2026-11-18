@@ -1,4 +1,15 @@
-import { forwardRef, useEffect, useId, useLayoutEffect, useRef, useState, type ButtonHTMLAttributes, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ButtonHTMLAttributes,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+} from "react";
 import { ChevronDown, FolderGit2, FolderX, LibraryBig, Plus, X } from "lucide-react";
 import { cn } from "./cn";
 import { ContextMenu, DropdownMenu, type MenuEntry } from "./Menu";
@@ -166,7 +177,9 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
     const check = () => {
       setOverflow(list.scrollWidth > list.clientWidth + 1);
       // Otherwise, when the window gets narrower, the active tab would slide out of the visible part.
-      list.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeRef.current)}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+      list
+        .querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeRef.current)}"]`)
+        ?.scrollIntoView({ block: "nearest", inline: "nearest" });
     };
     check();
     const observer = new ResizeObserver(check);
@@ -401,7 +414,9 @@ export function TabBar({ tabs, activeId, onActivate, onClose, onNew, onMove, onR
             </div>
           );
           // Only once the menu is closed and has returned focus – otherwise it would take it away from the input field again.
-          const entries = menuFor?.(tab, { rename: () => window.requestAnimationFrame(() => window.setTimeout(() => startRename(tab.id), 60)) });
+          const entries = menuFor?.(tab, {
+            rename: () => window.requestAnimationFrame(() => window.setTimeout(() => startRename(tab.id), 60)),
+          });
           return entries?.length ? (
             <ContextMenu key={tab.id} entries={entries}>
               {body}
@@ -477,7 +492,10 @@ export interface ToolbarButtonProps {
  * Button without visible text with a tooltip, suitable as the trigger of a menu: the menu's props and
  * ref land on the button, the tooltip names it on hover and on keyboard focus.
  */
-const TipButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { label: string }>(function TipButton({ label, children, ...props }, ref) {
+const TipButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement> & { label: string }>(function TipButton(
+  { label, children, ...props },
+  ref,
+) {
   return (
     <Tip label={label}>
       <button ref={ref} type="button" aria-label={label} {...props}>
@@ -539,9 +557,12 @@ export function ToolbarButton({
               {badge > 999 ? "999+" : badge}
             </span>
           ) : badgeDot ? (
-            <span aria-hidden={badgeLabel ? true : undefined} data-badge-dot="" className="absolute -top-0.5 left-4 size-2 rounded-pill bg-accent" />
+            <span
+              aria-hidden={badgeLabel ? true : undefined}
+              data-badge-dot=""
+              className="absolute -top-0.5 left-4 size-2 rounded-pill bg-accent"
+            />
           ) : null}
-
         </span>
         <span className={cn(compact && "sr-only")}>{label}</span>
         {described ? (
@@ -558,7 +579,10 @@ export function ToolbarButton({
     <div className="flex">
       {main}
       <DropdownMenu entries={menu}>
-        <TipButton label={t("ui.toolbarOptions", { label })} className="flex h-11 w-6 items-center justify-center rounded-r-md text-text-muted hover:bg-surface-raised hover:text-text">
+        <TipButton
+          label={t("ui.toolbarOptions", { label })}
+          className="flex h-11 w-6 items-center justify-center rounded-r-md text-text-muted hover:bg-surface-raised hover:text-text"
+        >
           <ChevronDown className="size-3" aria-hidden />
         </TipButton>
       </DropdownMenu>

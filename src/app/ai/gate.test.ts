@@ -11,7 +11,18 @@ vi.mock("../../core", () => ({
   core: {
     aiPreview: (input: unknown) => {
       previewed.push(input);
-      return Promise.resolve({ text: "t", omitted: [], shortened: [], chars: 1, estimatedTokens: 1, estimatedCostUsd: null, asks: [], fingerprint: "f", monthCostUsd: 0, limitUsd: null });
+      return Promise.resolve({
+        text: "t",
+        omitted: [],
+        shortened: [],
+        chars: 1,
+        estimatedTokens: 1,
+        estimatedCostUsd: null,
+        asks: [],
+        fingerprint: "f",
+        monthCostUsd: 0,
+        limitUsd: null,
+      });
     },
     aiPreviewConfirm: (input: unknown) => {
       confirmed.push(input);
@@ -73,7 +84,9 @@ describe("send gate", () => {
   it("'Send' confirms exactly this text with its triggers", async () => {
     choice = { send: true, dontAskAgain: true };
     expect(await confirmSend("r", "compose", preview(["large", "repo_first"]))).toBe(true);
-    expect(confirmed).toEqual([{ repoId: "r", feature: "compose", fingerprint: "abc", triggers: ["large", "repo_first"], dontAskAgain: true }]);
+    expect(confirmed).toEqual([
+      { repoId: "r", feature: "compose", fingerprint: "abc", triggers: ["large", "repo_first"], dontAskAgain: true },
+    ]);
   });
 
   it("asks through the given dialog when the caller sits inside a dialog itself", async () => {

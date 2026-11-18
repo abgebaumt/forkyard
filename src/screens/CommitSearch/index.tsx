@@ -93,7 +93,8 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
     const state = useAppStore.getState();
     const current = state.views[tabId]?.search;
     if (!query) {
-      if (current && (current.query || current.hits.length || current.active !== -1)) state.setSearch(tabId, { query: "", hits: [], active: -1 });
+      if (current && (current.query || current.hits.length || current.active !== -1))
+        state.setSearch(tabId, { query: "", hits: [], active: -1 });
       setCursor(-1);
       return;
     }
@@ -104,7 +105,11 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
     }
     if (!found) return;
     const shas = found.slice(0, SEARCH_LIMIT).map((hit) => hit.sha);
-    const same = current !== undefined && current.query === query && current.hits.length === shas.length && current.hits.every((sha, index) => sha === shas[index]);
+    const same =
+      current !== undefined &&
+      current.query === query &&
+      current.hits.length === shas.length &&
+      current.hits.every((sha, index) => sha === shas[index]);
     if (same) return;
     state.setSearch(tabId, { query, hits: shas, active: -1 });
     setCursor(shas.length > 0 ? 0 : -1);
@@ -198,7 +203,12 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
   const dateFormat = settings?.dateFormat ?? "relative";
 
   return (
-    <div role="search" aria-label={t("commitSearch.label")} data-screen="commit-search" className="@container flex shrink-0 flex-col border-b border-border bg-surface text-base">
+    <div
+      role="search"
+      aria-label={t("commitSearch.label")}
+      data-screen="commit-search"
+      className="@container flex shrink-0 flex-col border-b border-border bg-surface text-base"
+    >
       <div className="flex h-control-lg items-center gap-1 px-2">
         <div className="relative flex min-w-0 flex-1 items-center">
           <Search className="pointer-events-none absolute left-2 size-3.5 text-text-muted" aria-hidden />
@@ -234,9 +244,29 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
         <span role="status" data-testid="search-counter" className="min-w-16 shrink-0 px-1 text-right text-sm text-text-muted tabular-nums">
           {counter}
         </span>
-        <IconButton size="sm" label={t("commitSearch.previous")} shortcut="Shift+F3" disabled={hits.length === 0} icon={<ChevronUp className="size-icon" aria-hidden />} onClick={() => step(-1)} />
-        <IconButton size="sm" label={t("commitSearch.next")} shortcut="F3" disabled={hits.length === 0} icon={<ChevronDown className="size-icon" aria-hidden />} onClick={() => step(1)} />
-        <IconButton size="sm" label={t("commitSearch.close")} shortcut="Esc" icon={<X className="size-icon" aria-hidden />} onClick={close} />
+        <IconButton
+          size="sm"
+          label={t("commitSearch.previous")}
+          shortcut="Shift+F3"
+          disabled={hits.length === 0}
+          icon={<ChevronUp className="size-icon" aria-hidden />}
+          onClick={() => step(-1)}
+        />
+        <IconButton
+          size="sm"
+          label={t("commitSearch.next")}
+          shortcut="F3"
+          disabled={hits.length === 0}
+          icon={<ChevronDown className="size-icon" aria-hidden />}
+          onClick={() => step(1)}
+        />
+        <IconButton
+          size="sm"
+          label={t("commitSearch.close")}
+          shortcut="Esc"
+          icon={<X className="size-icon" aria-hidden />}
+          onClick={close}
+        />
       </div>
 
       {!text.trim() ? (
@@ -244,7 +274,10 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
           <span>{t("commitSearch.hint")}</span>
           <span>{t("commitSearch.filtersHint")}</span>
           <span className="hidden items-center gap-1 @2xl:inline-flex">
-            <Trans i18nKey="commitSearch.keys" components={{ enter: <Kbd>Enter</Kbd>, shift: <Kbd>Shift+Enter</Kbd>, esc: <Kbd>Esc</Kbd> }} />
+            <Trans
+              i18nKey="commitSearch.keys"
+              components={{ enter: <Kbd>Enter</Kbd>, shift: <Kbd>Shift+Enter</Kbd>, esc: <Kbd>Esc</Kbd> }}
+            />
           </span>
         </p>
       ) : error && !interrupted ? (
@@ -281,13 +314,17 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
       ) : hits.length === 0 ? (
         <p data-testid="search-empty" className="flex items-start gap-2 px-3 pb-2 text-sm text-text-muted">
           <SearchX className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-          <span className="min-w-0 wrap-anywhere">
-            {t("commitSearch.empty", { query })}
-          </span>
+          <span className="min-w-0 wrap-anywhere">{t("commitSearch.empty", { query })}</span>
         </p>
       ) : (
         <>
-          <div ref={listRef} id={listId} role="listbox" aria-label={t("commitSearch.hits")} className={cn("max-h-48 overflow-x-hidden overflow-y-auto pb-1", loading && "opacity-60")}>
+          <div
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-label={t("commitSearch.hits")}
+            className={cn("max-h-48 overflow-x-hidden overflow-y-auto pb-1", loading && "opacity-60")}
+          >
             {hits.map((hit, index) => {
               const isCursor = index === cursor;
               const isActive = index === active;
@@ -317,7 +354,9 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
                   <span className="hidden w-36 shrink-0 truncate text-sm text-text-muted @xl:block">
                     <Marked text={hit.author.name} needle={needle} />
                   </span>
-                  <span className="hidden w-28 shrink-0 truncate text-right text-sm text-text-muted @md:block">{formatDate(hit.authoredAt, dateFormat)}</span>
+                  <span className="hidden w-28 shrink-0 truncate text-right text-sm text-text-muted @md:block">
+                    {formatDate(hit.authoredAt, dateFormat)}
+                  </span>
                   <code className="w-14 shrink-0 font-mono text-code text-text-muted">
                     {shaLength > 0 ? <Marked text={short} needle={short.slice(0, shaLength)} /> : short}
                   </code>

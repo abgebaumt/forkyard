@@ -5,7 +5,15 @@
  */
 import { useEffect } from "react";
 import { CircleCheck, KeyRound, Link2Off, Plug, Plus, RefreshCw, Replace, ShieldAlert, TriangleAlert, Unplug } from "lucide-react";
-import { accountHost, accountPerson, accountState, checkAccount, disconnectAccount, hostBusyKeys, type AccountState } from "../../app/actions/hosts";
+import {
+  accountHost,
+  accountPerson,
+  accountState,
+  checkAccount,
+  disconnectAccount,
+  hostBusyKeys,
+  type AccountState,
+} from "../../app/actions/hosts";
 import { describeHostError, hostKindLabels, type HostAccountInfo } from "../../app/actions/hostTypes";
 import { describeError } from "../../app/errors";
 import { qk, queryClient, useHostAccounts, useKeyringAvailable } from "../../app/queries";
@@ -53,9 +61,23 @@ function AccountRow({ account }: { account: HostAccountInfo }) {
   const Icon = badge.icon;
   const name = `${hostKindLabels[account.kind]} – ${host}`;
   return (
-    <li data-account={account.id} data-kind={account.kind} data-state={state} aria-label={`${name}: ${text.label}`} className="flex flex-col gap-2 border-b border-border px-3 py-3 last:border-b-0">
+    <li
+      data-account={account.id}
+      data-kind={account.kind}
+      data-state={state}
+      aria-label={`${name}: ${text.label}`}
+      className="flex flex-col gap-2 border-b border-border px-3 py-3 last:border-b-0"
+    >
       <div className="flex items-start gap-3">
-        <span className="mt-0.5 shrink-0">{person ? <Avatar name={person} size={28} /> : <span className="flex size-7 items-center justify-center rounded-pill bg-surface-raised text-text-muted"><Link2Off className="size-icon" aria-hidden /></span>}</span>
+        <span className="mt-0.5 shrink-0">
+          {person ? (
+            <Avatar name={person} size={28} />
+          ) : (
+            <span className="flex size-7 items-center justify-center rounded-pill bg-surface-raised text-text-muted">
+              <Link2Off className="size-icon" aria-hidden />
+            </span>
+          )}
+        </span>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-md font-medium text-text">{hostKindLabels[account.kind]}</span>
@@ -77,7 +99,11 @@ function AccountRow({ account }: { account: HostAccountInfo }) {
                 {t("hosts.account.signIn", { name: account.username })}
               </span>
             ) : null}
-            <span className="whitespace-nowrap">{account.tokenHint ? t("hosts.account.tokenEnds", { hint: account.tokenHint.replace(/^[•.*…\s]+/, "") }) : t("hosts.account.tokenInKeyring")}</span>
+            <span className="whitespace-nowrap">
+              {account.tokenHint
+                ? t("hosts.account.tokenEnds", { hint: account.tokenHint.replace(/^[•.*…\s]+/, "") })
+                : t("hosts.account.tokenInKeyring")}
+            </span>
           </p>
           {text.detail ? (
             <p data-account-detail className="selectable mt-1 text-sm break-words text-text-muted">
@@ -87,13 +113,32 @@ function AccountRow({ account }: { account: HostAccountInfo }) {
         </div>
       </div>
       <div className="flex flex-wrap justify-end gap-2">
-        <Button size="sm" loading={busy} icon={<RefreshCw className="size-3.5" aria-hidden />} aria-label={t("hosts.account.checkLabel", { name })} onClick={() => void checkAccount(account)}>
+        <Button
+          size="sm"
+          loading={busy}
+          icon={<RefreshCw className="size-3.5" aria-hidden />}
+          aria-label={t("hosts.account.checkLabel", { name })}
+          onClick={() => void checkAccount(account)}
+        >
           {t("hosts.account.check")}
         </Button>
-        <Button size="sm" disabled={busy} icon={<Replace className="size-3.5" aria-hidden />} aria-label={t("hosts.account.replaceLabel", { name })} onClick={() => void openConnectDialog({ replace: account })}>
+        <Button
+          size="sm"
+          disabled={busy}
+          icon={<Replace className="size-3.5" aria-hidden />}
+          aria-label={t("hosts.account.replaceLabel", { name })}
+          onClick={() => void openConnectDialog({ replace: account })}
+        >
           {t("hosts.account.replace")}
         </Button>
-        <Button size="sm" disabled={busy} className="hover:text-danger" icon={<Unplug className="size-3.5" aria-hidden />} aria-label={t("hosts.account.disconnectLabel", { name })} onClick={() => void disconnectAccount(account)}>
+        <Button
+          size="sm"
+          disabled={busy}
+          className="hover:text-danger"
+          icon={<Unplug className="size-3.5" aria-hidden />}
+          aria-label={t("hosts.account.disconnectLabel", { name })}
+          onClick={() => void disconnectAccount(account)}
+        >
           {t("hosts.account.disconnect")}
         </Button>
       </div>
@@ -129,11 +174,19 @@ export function HostsSection() {
   const failure = accounts.isError ? describeHostError(accounts.error) : null;
 
   return (
-    <section data-screen="hosts" data-state={accounts.isPending ? "loading" : accounts.isError ? "error" : list.length ? "filled" : "empty"}>
+    <section
+      data-screen="hosts"
+      data-state={accounts.isPending ? "loading" : accounts.isError ? "error" : list.length ? "filled" : "empty"}
+    >
       <SectionHeader
         title={t("hosts.section.title")}
         actions={
-          <Button variant="primary" icon={<Plus className="size-icon" aria-hidden />} disabled={failure?.kind === "not_built"} onClick={() => void openConnectDialog()}>
+          <Button
+            variant="primary"
+            icon={<Plus className="size-icon" aria-hidden />}
+            disabled={failure?.kind === "not_built"}
+            onClick={() => void openConnectDialog()}
+          >
             {t("hosts.section.connect")}
           </Button>
         }
@@ -149,12 +202,18 @@ export function HostsSection() {
         </div>
       ) : null}
 
-      <GroupTitle id="prefs-hosts-list">{list.length ? t("hosts.section.listCount", { count: list.length }) : t("hosts.section.list")}</GroupTitle>
+      <GroupTitle id="prefs-hosts-list">
+        {list.length ? t("hosts.section.listCount", { count: list.length }) : t("hosts.section.list")}
+      </GroupTitle>
 
       {accounts.isPending ? (
         <ListSkeleton />
       ) : accounts.isError ? (
-        <div role="alert" data-hosts-error={failure!.kind} className="flex items-start gap-3 rounded-md border border-border bg-danger-surface p-3">
+        <div
+          role="alert"
+          data-hosts-error={failure!.kind}
+          className="flex items-start gap-3 rounded-md border border-border bg-danger-surface p-3"
+        >
           <TriangleAlert className="mt-0.5 size-icon shrink-0 text-danger" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="font-medium text-text">{t("hosts.section.loadError")}</p>
@@ -187,9 +246,7 @@ export function HostsSection() {
         </ul>
       )}
 
-      <p className="mt-3 text-sm text-text-muted">
-        {t("hosts.section.footer")}
-      </p>
+      <p className="mt-3 text-sm text-text-muted">{t("hosts.section.footer")}</p>
     </section>
   );
 }

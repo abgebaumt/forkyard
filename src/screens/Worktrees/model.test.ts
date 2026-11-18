@@ -27,8 +27,12 @@ describe("worktree: row", () => {
     expect(worktreeSecondary(tree({ isPrunable: true }))).toBe("folder missing · orphaned");
   });
   it("tells screen readers what the check mark and the lock mean", () => {
-    expect(describeWorktree(tree({ isCurrent: true, isMain: true, branch: "main", path: "C:\\arbeit\\messnetz" }))).toBe("Worktree messnetz, branch main, main folder, open in this tab");
-    expect(describeWorktree(tree({ isLocked: true, lockReason: "USB-Stick" }))).toBe("Worktree messnetz-karte, branch feature/karte, locked: USB-Stick");
+    expect(describeWorktree(tree({ isCurrent: true, isMain: true, branch: "main", path: "C:\\arbeit\\messnetz" }))).toBe(
+      "Worktree messnetz, branch main, main folder, open in this tab",
+    );
+    expect(describeWorktree(tree({ isLocked: true, lockReason: "USB-Stick" }))).toBe(
+      "Worktree messnetz-karte, branch feature/karte, locked: USB-Stick",
+    );
   });
   it("filters by path and branch", () => {
     expect(matchesWorktree(tree({}), "KARTE")).toBe(true);

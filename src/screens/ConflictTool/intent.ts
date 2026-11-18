@@ -40,7 +40,8 @@ export function suggestionDiff(current: string, proposal: string): DiffRow[] {
 export const hasChange = (rows: DiffRow[]): boolean => rows.some((row) => row.kind !== "same");
 
 /** Only a block that went out completely carries a proposal. */
-export const canApply = (block: ConflictIntentBlock): block is ConflictIntentBlock & { text: string } => block.sent === "full" && block.text !== null;
+export const canApply = (block: ConflictIntentBlock): block is ConflictIntentBlock & { text: string } =>
+  block.sent === "full" && block.text !== null;
 
 export function blockNote(block: ConflictIntentBlock): "shortened" | "redacted" | "leftOut" | null {
   switch (block.sent) {

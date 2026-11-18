@@ -88,7 +88,10 @@ export function GraphCanvas({ scrollerRef, rows, left, width, totalHeight, decor
 
     const buffer = Math.max(MIN_BUFFER_ROWS, Math.ceil(viewHeight / rowHeight)) * rowHeight;
     const top = Math.max(0, Math.floor((viewTop - buffer) / rowHeight) * rowHeight);
-    const height = Math.max(0, Math.min(current.totalHeight - top, Math.ceil((viewTop + viewHeight + buffer - top) / rowHeight) * rowHeight));
+    const height = Math.max(
+      0,
+      Math.min(current.totalHeight - top, Math.ceil((viewTop + viewHeight + buffer - top) / rowHeight) * rowHeight),
+    );
     const pixelWidth = Math.max(1, Math.round(current.width * scale));
     const pixelHeight = Math.max(1, Math.round(height * scale));
 

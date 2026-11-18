@@ -75,7 +75,11 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
   const developError = sameBranch ? t("gitflow.setup.sameBranch") : null;
   const emptyPrefix = kinds.find((kind) => !prefixes[kind].trim());
   const duplicate = new Set(kinds.map((kind) => prefixes[kind].trim())).size < kinds.length;
-  const prefixError = emptyPrefix ? t("gitflow.setup.prefixMissing", { kind: kindLabels[emptyPrefix] }) : duplicate ? t("gitflow.setup.prefixDuplicate") : null;
+  const prefixError = emptyPrefix
+    ? t("gitflow.setup.prefixMissing", { kind: kindLabels[emptyPrefix] })
+    : duplicate
+      ? t("gitflow.setup.prefixDuplicate")
+      : null;
   const blocked = !developName ? t("gitflow.setup.developMissing") : (developError ?? prefixError);
 
   const submit = async () => {
@@ -84,7 +88,12 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
     const result = await initGitflow(repoId, {
       main: mainValue,
       develop: developName,
-      prefixes: { feature: prefixes.feature.trim(), release: prefixes.release.trim(), hotfix: prefixes.hotfix.trim(), versionTag: prefixes.versionTag.trim() },
+      prefixes: {
+        feature: prefixes.feature.trim(),
+        release: prefixes.release.trim(),
+        hotfix: prefixes.hotfix.trim(),
+        versionTag: prefixes.versionTag.trim(),
+      },
     });
     if (result.ok) onCancel?.();
     else if (["invalid_name", "not_found", "not_allowed"].includes(result.error.code)) setFailure(describeError(result.error).text);
@@ -126,7 +135,13 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
           value={develop}
           autoComplete="off"
           error={developError ?? undefined}
-          hint={!developName ? undefined : developExists ? t("gitflow.setup.developExists") : t("gitflow.setup.developCreated", { base: mainValue })}
+          hint={
+            !developName
+              ? undefined
+              : developExists
+                ? t("gitflow.setup.developExists")
+                : t("gitflow.setup.developCreated", { base: mainValue })
+          }
           onChange={(event) => setDevelop(dashed(event.target.value))}
         />
       </div>
@@ -139,7 +154,11 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
           {prefixField("versionTag", t("gitflow.setup.versionTag"), t("gitflow.setup.versionTagPlaceholder"))}
         </div>
         <p className="text-sm text-text-muted">
-          <Trans i18nKey="gitflow.setup.example" values={{ feature: prefixes.feature || "…", tag: prefixes.versionTag }} components={{ code: <span className="font-mono text-code text-text" /> }} />
+          <Trans
+            i18nKey="gitflow.setup.example"
+            values={{ feature: prefixes.feature || "…", tag: prefixes.versionTag }}
+            components={{ code: <span className="font-mono text-code text-text" /> }}
+          />
         </p>
         {prefixError ? (
           <p role="alert" className="text-sm text-danger">
@@ -180,7 +199,17 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
 // Start
 // ---------------------------------------------------------------------------
 
-function StartForm({ repoId, status, initialKind, onStarted }: { repoId: Id; status: GitflowStatus; initialKind: GitflowKind; onStarted: () => void }) {
+function StartForm({
+  repoId,
+  status,
+  initialKind,
+  onStarted,
+}: {
+  repoId: Id;
+  status: GitflowStatus;
+  initialKind: GitflowKind;
+  onStarted: () => void;
+}) {
   const busy = useBusy(gitflowBusyKey(repoId));
   const { data: repoStatus } = useStatus(repoId);
   const [kind, setKind] = useState<GitflowKind>(initialKind);
@@ -251,9 +280,18 @@ function StartForm({ repoId, status, initialKind, onStarted }: { repoId: Id; sta
         </p>
       ) : null}
       <div className="flex flex-wrap items-center gap-3">
-        <SegmentedControl label={t("gitflow.start.kind")} value={kind} options={kinds.map((value) => ({ value, label: kindLabels[value] }))} onValueChange={setKind} />
+        <SegmentedControl
+          label={t("gitflow.start.kind")}
+          value={kind}
+          options={kinds.map((value) => ({ value, label: kindLabels[value] }))}
+          onValueChange={setKind}
+        />
         <p className="text-sm text-text-muted">
-          <Trans i18nKey="gitflow.start.branchesFrom" values={{ base }} components={{ code: <span className="font-mono text-code text-text" /> }} />
+          <Trans
+            i18nKey="gitflow.start.branchesFrom"
+            values={{ base }}
+            components={{ code: <span className="font-mono text-code text-text" /> }}
+          />
         </p>
       </div>
       <div className="flex items-start gap-2">
@@ -301,7 +339,12 @@ function StartForm({ repoId, status, initialKind, onStarted }: { repoId: Id; sta
           {t("gitflow.start.submit", { kind: kindLabels[kind] })}
         </Button>
       </div>
-      <p id={`${nameId}-note`} role={failure || (reason && name.trim()) || running ? "alert" : undefined} data-gitflow-note className={cn("min-h-4 text-sm", failure || (reason && name.trim()) || running ? "text-danger" : "text-text-muted")}>
+      <p
+        id={`${nameId}-note`}
+        role={failure || (reason && name.trim()) || running ? "alert" : undefined}
+        data-gitflow-note
+        className={cn("min-h-4 text-sm", failure || (reason && name.trim()) || running ? "text-danger" : "text-text-muted")}
+      >
         {!ready
           ? ""
           : (failure ??
@@ -339,7 +382,8 @@ export function GitflowDialog({ repoId, initialKind = "feature", onDone }: Gitfl
     previous.current = state;
     if (before === state) return;
     const root = document.querySelector('[data-screen="gitflow"]');
-    if (state === "ready" && (before === "setup" || before === "editing")) root?.querySelector<HTMLElement>('form[data-gitflow-form="start"] input')?.focus();
+    if (state === "ready" && (before === "setup" || before === "editing"))
+      root?.querySelector<HTMLElement>('form[data-gitflow-form="start"] input')?.focus();
     else if (state === "editing") root?.querySelector<HTMLElement>('form[data-gitflow-form="setup"] input')?.focus();
   }, [state]);
 
@@ -397,9 +441,15 @@ export function GitflowDialog({ repoId, initialKind = "feature", onDone }: Gitfl
             <div className="flex items-center gap-2 rounded-md border border-border bg-surface-sunken px-3 py-2" data-gitflow-summary>
               <Workflow className="size-icon shrink-0 text-text-muted" aria-hidden />
               <p className="min-w-0 flex-1 text-sm text-text-muted">
-                <Trans i18nKey="gitflow.summary.branches" values={{ main: status.main, develop: status.develop }} components={{ code: <span className="font-mono text-code text-text" /> }} />
+                <Trans
+                  i18nKey="gitflow.summary.branches"
+                  values={{ main: status.main, develop: status.develop }}
+                  components={{ code: <span className="font-mono text-code text-text" /> }}
+                />
                 <span className="block truncate">
-                  {t("gitflow.summary.prefixes", { list: [status.prefixes.feature, status.prefixes.release, status.prefixes.hotfix].join(" · ") })}
+                  {t("gitflow.summary.prefixes", {
+                    list: [status.prefixes.feature, status.prefixes.release, status.prefixes.hotfix].join(" · "),
+                  })}
                   {status.prefixes.versionTag ? t("gitflow.summary.tags", { prefix: status.prefixes.versionTag }) : ""}
                 </span>
               </p>
@@ -417,7 +467,10 @@ export function GitflowDialog({ repoId, initialKind = "feature", onDone }: Gitfl
                   {t("gitflow.active.empty")}
                 </p>
               ) : (
-                <ul aria-label={t("gitflow.active.label")} className="max-h-48 overflow-auto rounded-md border border-border bg-surface-sunken py-1">
+                <ul
+                  aria-label={t("gitflow.active.label")}
+                  className="max-h-48 overflow-auto rounded-md border border-border bg-surface-sunken py-1"
+                >
                   {status.active.map((item) => (
                     <li key={item.branch} data-gitflow-branch={item.branch} className="flex h-control-lg items-center gap-2 px-2">
                       <span className="w-16 shrink-0 text-sm font-medium text-text-muted">{kindLabels[item.kind]}</span>

@@ -232,7 +232,11 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
         {loading ? (loading.slow ? `${loading.text} – ${loading.slow}` : loading.text) : ""}
       </p>
       {run.kind === "failed" ? (
-        <div role="alert" data-stack-suggest-error={run.view.kind} className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2">
+        <div
+          role="alert"
+          data-stack-suggest-error={run.view.kind}
+          className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2"
+        >
           <p className="min-w-0 flex-1 text-sm break-words text-text">{run.view.text}</p>
           {errorActions(run.view)}
         </div>
@@ -243,8 +247,13 @@ export function useStackSuggest({ repoId, branch, base, commitCount, parts, onIn
         </p>
       ) : null}
       {offer ? (
-        <div data-stack-offer={offer.ready ? "ready" : "choose"} className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2">
-          <p className="min-w-0 flex-1 text-sm text-text">{offer.ready ? t("ai.suggestion.ready") : t("pullRequest.stack.offer", { count: offer.parts.length })}</p>
+        <div
+          data-stack-offer={offer.ready ? "ready" : "choose"}
+          className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-surface px-3 py-2"
+        >
+          <p className="min-w-0 flex-1 text-sm text-text">
+            {offer.ready ? t("ai.suggestion.ready") : t("pullRequest.stack.offer", { count: offer.parts.length })}
+          </p>
           <Button size="sm" onClick={take}>
             {t("pullRequest.stack.take")}
           </Button>

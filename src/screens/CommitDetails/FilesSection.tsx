@@ -62,7 +62,19 @@ export interface FilesSectionProps {
   listLabel: string;
 }
 
-export function FilesSection({ repoId, tabId, source, details, loading, error, onRetry, treeSha = null, note, emptyText, listLabel }: FilesSectionProps) {
+export function FilesSection({
+  repoId,
+  tabId,
+  source,
+  details,
+  loading,
+  error,
+  onRetry,
+  treeSha = null,
+  note,
+  emptyText,
+  listLabel,
+}: FilesSectionProps) {
   const [mode, setMode] = useState<FilesMode>("changed");
   const files = details?.files ?? [];
   const showAll = mode === "all" && treeSha !== null;
@@ -91,9 +103,7 @@ export function FilesSection({ repoId, tabId, source, details, loading, error, o
             <LineCounts added={details.added} removed={details.removed} />
           </span>
         ) : null}
-        {!showAll ? (
-          <FileLayoutSwitch value={view} onChange={setView} />
-        ) : null}
+        {!showAll ? <FileLayoutSwitch value={view} onChange={setView} /> : null}
       </div>
       {showAll && treeSha ? (
         <AllFiles repoId={repoId} tabId={tabId} sha={treeSha} />
@@ -193,7 +203,12 @@ export function ChangedFiles({ repoId, tabId, source, files, view, emptyText, li
     const sha = viewSha(source);
     const single = targets.length === 1;
     return [
-      { label: t("commitDetails.files.showDiff"), icon: <FileDiff className="size-icon" aria-hidden />, disabled: !single, onSelect: () => open(target.path) },
+      {
+        label: t("commitDetails.files.showDiff"),
+        icon: <FileDiff className="size-icon" aria-hidden />,
+        disabled: !single,
+        onSelect: () => open(target.path),
+      },
       {
         label: t("commitDetails.files.viewAtState"),
         icon: <Eye className="size-icon" aria-hidden />,
@@ -208,7 +223,11 @@ export function ChangedFiles({ repoId, tabId, source, files, view, emptyText, li
         icon: <ClipboardCopy className="size-icon" aria-hidden />,
         onSelect: () => {
           void copyText(targets.map((file) => file.path).join("\n")).then((ok) => {
-            toast(ok ? { tone: "success", title: single ? t("commitDetails.files.pathCopied") : t("commitDetails.files.pathsCopied") } : { tone: "danger", title: t("commitDetails.copyFailed") });
+            toast(
+              ok
+                ? { tone: "success", title: single ? t("commitDetails.files.pathCopied") : t("commitDetails.files.pathsCopied") }
+                : { tone: "danger", title: t("commitDetails.copyFailed") },
+            );
           });
         },
       },
@@ -321,7 +340,15 @@ function AllFiles({ repoId, tabId, sha }: { repoId: Id; tabId: Id; sha: Sha }) {
           />
           <span className="absolute right-1 flex items-center">
             {waiting && text ? <Spinner label={t("commitDetails.files.filtering")} /> : null}
-            {text ? <IconButton size="sm" label={t("commitDetails.files.clearFilter")} shortcut="Esc" icon={<X className="size-3.5" aria-hidden />} onClick={clear} /> : null}
+            {text ? (
+              <IconButton
+                size="sm"
+                label={t("commitDetails.files.clearFilter")}
+                shortcut="Esc"
+                icon={<X className="size-3.5" aria-hidden />}
+                onClick={clear}
+              />
+            ) : null}
           </span>
         </div>
         <p role="status" data-testid="tree-count" className="h-4 px-1 text-sm text-text-muted">
@@ -378,7 +405,11 @@ function TreeRow({ path, lock }: { path: string; lock?: FileLock }) {
         {dir ? <span className="ml-2 text-sm text-text-muted">{dir}</span> : null}
       </span>
       {lock ? (
-        <span data-lfs-lock={lock.ours ? "ours" : "theirs"} title={lock.label} className={cn("inline-flex shrink-0", lock.ours ? "text-text-muted" : "text-warning")}>
+        <span
+          data-lfs-lock={lock.ours ? "ours" : "theirs"}
+          title={lock.label}
+          className={cn("inline-flex shrink-0", lock.ours ? "text-text-muted" : "text-warning")}
+        >
           <Lock className="size-3.5" aria-hidden />
           <span className="sr-only">{lock.label}</span>
         </span>

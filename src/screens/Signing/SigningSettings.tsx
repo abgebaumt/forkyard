@@ -20,7 +20,8 @@ import { t } from "../../i18n";
 export const signingKey = (repoId: Id | null) => (repoId ? (["repo", repoId, "signing"] as const) : (["app", "signing"] as const));
 
 // Reads happen only once no change is in flight anymore (see src/app/writeQueue.ts).
-export const useSigning = (repoId: Id | null) => useQuery({ queryKey: signingKey(repoId), queryFn: () => writesSettled().then(() => core.signingStatus({ repoId })) });
+export const useSigning = (repoId: Id | null) =>
+  useQuery({ queryKey: signingKey(repoId), queryFn: () => writesSettled().then(() => core.signingStatus({ repoId })) });
 
 const formats: { value: SigningFormat; label: string }[] = [
   { value: "openpgp", label: "OpenPGP (GPG)" },
@@ -43,7 +44,8 @@ function keyType(publicKey: string): string {
   return first.replace(/^ssh-/, "").toUpperCase();
 }
 
-const keyLabel = (key: SshKey) => [key.label, key.publicKey ? keyType(key.publicKey) : null, key.missing ? t("signing.fileMissing") : null].filter(Boolean).join(" · ");
+const keyLabel = (key: SshKey) =>
+  [key.label, key.publicKey ? keyType(key.publicKey) : null, key.missing ? t("signing.fileMissing") : null].filter(Boolean).join(" · ");
 
 /** Writes the signing setting; the core's answer is then the state in the cache. */
 function applySigning(repoId: Id | null, wanted: { enabled: boolean; format: SigningFormat | null; key: string | null }) {
@@ -68,7 +70,8 @@ function applySigning(repoId: Id | null, wanted: { enabled: boolean; format: Sig
   });
 }
 
-const same = (a: SigningStatus, b: SigningStatus) => a.enabled === b.enabled && (a.format ?? "openpgp") === (b.format ?? "openpgp") && (a.key ?? "") === (b.key ?? "");
+const same = (a: SigningStatus, b: SigningStatus) =>
+  a.enabled === b.enabled && (a.format ?? "openpgp") === (b.format ?? "openpgp") && (a.key ?? "") === (b.key ?? "");
 
 export function SigningSettings({ repoId }: { repoId: Id | null }) {
   const status = useSigning(repoId);
@@ -83,7 +86,12 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
   );
   if (status.isPending) {
     return (
-      <section data-signing={scope} data-signing-state="loading" aria-labelledby={`signing-title-${scope}`} className={repoId ? undefined : "mt-6"}>
+      <section
+        data-signing={scope}
+        data-signing-state="loading"
+        aria-labelledby={`signing-title-${scope}`}
+        className={repoId ? undefined : "mt-6"}
+      >
         {title}
         <SettingsSkeleton rows={3} />
       </section>
@@ -91,7 +99,12 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
   }
   if (status.isError) {
     return (
-      <section data-signing={scope} data-signing-state="error" aria-labelledby={`signing-title-${scope}`} className={repoId ? undefined : "mt-6"}>
+      <section
+        data-signing={scope}
+        data-signing-state="error"
+        aria-labelledby={`signing-title-${scope}`}
+        className={repoId ? undefined : "mt-6"}
+      >
         {title}
         <LoadError title={t("signing.loadError")} error={status.error} onRetry={() => void status.refetch()} />
       </section>
@@ -107,12 +120,24 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
   const sshOptions = [
     ...(current.key ? [] : [{ value: NO_KEY, label: t("signing.noKey"), disabled: true }]),
     ...sshKeys.map((key) => ({ value: slashes(key.publicKeyPath), label: keyLabel(key), disabled: key.missing })),
-    ...(current.key && !chosen ? [{ value: current.key, label: t("signing.fromGitConfig", { key: current.key.length > 48 ? `…${current.key.slice(-47)}` : current.key }) }] : []),
+    ...(current.key && !chosen
+      ? [
+          {
+            value: current.key,
+            label: t("signing.fromGitConfig", { key: current.key.length > 48 ? `…${current.key.slice(-47)}` : current.key }),
+          },
+        ]
+      : []),
   ];
   const inherits = repoId !== null && global.data !== undefined && same(current, global.data);
 
   return (
-    <section data-signing={scope} data-signing-state="ready" aria-labelledby={`signing-title-${scope}`} className={repoId ? undefined : "mt-6"}>
+    <section
+      data-signing={scope}
+      data-signing-state="ready"
+      aria-labelledby={`signing-title-${scope}`}
+      className={repoId ? undefined : "mt-6"}
+    >
       <div className="flex items-end gap-3">
         <div className="min-w-0 flex-1">{title}</div>
         {current.enabled ? (
@@ -124,9 +149,7 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
         )}
       </div>
       <p className="text-sm text-text-muted">
-        {repoId
-          ? t("signing.repoIntro")
-          : t("signing.globalIntro")}
+        {repoId ? t("signing.repoIntro") : t("signing.globalIntro")}
         {inherits ? t("signing.sameAsGlobal") : ""}
       </p>
 
@@ -179,7 +202,9 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
               placeholder={format === "x509" ? t("signing.certificate.placeholder") : t("signing.keyId.placeholder")}
               value={current.key ?? ""}
               validate={(value) => (/\s/.test(value) ? t("signing.noSpaces") : null)}
-              onCommit={async (value) => ((await applySigning(repoId, { enabled: current.enabled, format, key: value || null })).ok ? null : t("signing.notSaved"))}
+              onCommit={async (value) =>
+                (await applySigning(repoId, { enabled: current.enabled, format, key: value || null })).ok ? null : t("signing.notSaved")
+              }
             />
           )}
         </SettingRow>
@@ -207,7 +232,11 @@ export function SigningSettings({ repoId }: { repoId: Id | null }) {
         description={t("signing.program.description", { config: programConfig[format] })}
       >
         {(ids) => (
-          <p aria-labelledby={ids.labelId} data-signing-program className="flex h-control-md items-center rounded-md border border-border bg-surface px-2">
+          <p
+            aria-labelledby={ids.labelId}
+            data-signing-program
+            className="flex h-control-md items-center rounded-md border border-border bg-surface px-2"
+          >
             <Mono>{current.program ?? t("signing.program.default", { program: defaultProgram[format] })}</Mono>
           </p>
         )}

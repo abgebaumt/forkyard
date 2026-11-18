@@ -69,7 +69,8 @@ export const commands: AppCommand[] = [
     title: t("commands.wip.discardAll.title"),
     group: "Commit",
     keywords: kw("commands.wip.discardAll.keywords"),
-    when: (ctx) => hasRepo(ctx) && Boolean(ctx.status && ctx.status.unstaged.length + ctx.status.staged.length > 0 && !ctx.status.operation),
+    when: (ctx) =>
+      hasRepo(ctx) && Boolean(ctx.status && ctx.status.unstaged.length + ctx.status.staged.length > 0 && !ctx.status.operation),
     run: (ctx) => discardEverything(ctx.repoId!, ctx.tabId!),
   },
   {

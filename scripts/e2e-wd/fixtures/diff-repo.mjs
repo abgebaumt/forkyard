@@ -89,9 +89,12 @@ export function makeDiffRepo(name = "messdaten") {
 /** git log --follow as a list: SHA, author, summary, +/- (like the history list). */
 export function followLog(repo, file) {
   const entries = [];
-  for (const line of repo.git("-c", "core.quotepath=false", "log", "--follow", "--numstat", "--format=%H%x09%an%x09%s", "--", file).split("\n")) {
+  for (const line of repo
+    .git("-c", "core.quotepath=false", "log", "--follow", "--numstat", "--format=%H%x09%an%x09%s", "--", file)
+    .split("\n")) {
     const parts = line.split("\t");
-    if (/^[0-9a-f]{40}$/.test(parts[0] ?? "")) entries.push({ sha: parts[0], author: parts[1], summary: parts[2], added: null, removed: null });
+    if (/^[0-9a-f]{40}$/.test(parts[0] ?? ""))
+      entries.push({ sha: parts[0], author: parts[1], summary: parts[2], added: null, removed: null });
     else if (parts.length >= 3 && entries.length) Object.assign(entries[entries.length - 1], { added: parts[0], removed: parts[1] });
   }
   return entries;
@@ -99,7 +102,10 @@ export function followLog(repo, file) {
 
 /** git blame --porcelain as one entry per line: SHA, author, summary, text. */
 export function blamePorcelain(repo, file, rev = null) {
-  const output = repo.gitRaw(["blame", "--porcelain", ...(rev ? [rev] : []), "--", file]).toString("utf8").split("\n");
+  const output = repo
+    .gitRaw(["blame", "--porcelain", ...(rev ? [rev] : []), "--", file])
+    .toString("utf8")
+    .split("\n");
   const commits = new Map();
   const lines = [];
   let current = null;
@@ -159,7 +165,12 @@ export function pngFrom(width, height, pixel, { level = 6 } = {}) {
     const row = y * (width * 3 + 1);
     for (let x = 0; x < width; x++) raw.set(pixel(x, y), row + 1 + x * 3);
   }
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk("IHDR", header), chunk("IDAT", zlib.deflateSync(raw, { level })), chunk("IEND", Buffer.alloc(0))]);
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", header),
+    chunk("IDAT", zlib.deflateSync(raw, { level })),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
 }
 
 /** A "landscape" picture: sky above, meadow below; optionally a sun rectangle (x, y, w, h). */

@@ -64,7 +64,9 @@ const hostFrom = (authority: string) => {
  */
 function portProblem(authority: string, scheme: string): string | null {
   const withoutUser = authority.slice(authority.lastIndexOf("@") + 1);
-  const afterHost = withoutUser.startsWith("[") ? withoutUser.slice(withoutUser.indexOf("]") + 1) : withoutUser.slice(withoutUser.includes(":") ? withoutUser.indexOf(":") : withoutUser.length);
+  const afterHost = withoutUser.startsWith("[")
+    ? withoutUser.slice(withoutUser.indexOf("]") + 1)
+    : withoutUser.slice(withoutUser.includes(":") ? withoutUser.indexOf(":") : withoutUser.length);
   if (!afterHost.startsWith(":") || afterHost === ":") return null;
   const port = afterHost.slice(1);
   if (!/^\d+$/.test(port)) {

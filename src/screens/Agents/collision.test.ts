@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { Agent, AgentCollision, CollisionReport } from "../../core";
-import { agentNames, collisionTitle, collisionsOf, conflictFiles, fileLabel, formatRanges, informTargets, informText, newCollisionIds, sideLabels } from "./collision";
+import {
+  agentNames,
+  collisionTitle,
+  collisionsOf,
+  conflictFiles,
+  fileLabel,
+  formatRanges,
+  informTargets,
+  informText,
+  newCollisionIds,
+  sideLabels,
+} from "./collision";
 
 const agent = (over: Partial<Agent>): Agent => ({
   id: "a",
@@ -30,16 +41,36 @@ const agent = (over: Partial<Agent>): Agent => ({
 const A = agent({ id: "a", shortName: "a-login" });
 const B = agent({ id: "b", shortName: "b-auth", startedAt: "2026-10-16T08:05:00.000Z", terminalId: "t2" });
 const names = agentNames([A, B]);
-const pair: AgentCollision = { id: "a+b", kind: "conflict", agentId: "a", otherAgentId: "b", base: null, files: [{ path: "src/auth.ts", conflict: true, ranges: [{ start: 40, end: 62 }] }] };
+const pair: AgentCollision = {
+  id: "a+b",
+  kind: "conflict",
+  agentId: "a",
+  otherAgentId: "b",
+  base: null,
+  files: [{ path: "src/auth.ts", conflict: true, ranges: [{ start: 40, end: 62 }] }],
+};
 const withBase: AgentCollision = { ...pair, id: "a+base", otherAgentId: null, base: "main" };
-const report = (over: Partial<CollisionReport>): CollisionReport => ({ repoId: "r", state: "done", checkedAt: "2026-10-16T08:10:00.000Z", error: null, collisions: [], skipped: [], ...over });
+const report = (over: Partial<CollisionReport>): CollisionReport => ({
+  repoId: "r",
+  state: "done",
+  checkedAt: "2026-10-16T08:10:00.000Z",
+  error: null,
+  collisions: [],
+  skipped: [],
+  ...over,
+});
 
 describe("agents: collision texts", () => {
   it("formats line ranges without grouping", () => {
     expect(formatRanges([])).toBe("");
     expect(formatRanges([{ start: 7, end: 7 }])).toBe("line 7");
     expect(formatRanges([{ start: 40, end: 62 }])).toBe("lines 40–62");
-    expect(formatRanges([{ start: 7, end: 7 }, { start: 40, end: 62 }])).toBe("lines 7, 40–62");
+    expect(
+      formatRanges([
+        { start: 7, end: 7 },
+        { start: 40, end: 62 },
+      ]),
+    ).toBe("lines 7, 40–62");
     expect(formatRanges([{ start: 15001, end: 15200 }])).toBe("lines 15001–15200");
   });
 
@@ -50,12 +81,24 @@ describe("agents: collision texts", () => {
 
   it("says in words who collides where", () => {
     expect(collisionTitle(pair, names)).toBe("“a-login” and “b-auth” would collide in src/auth.ts (lines 40–62)");
-    const more: AgentCollision = { ...pair, files: [...pair.files, { path: "README.md", conflict: true, ranges: [] }, { path: "x.txt", conflict: true, ranges: [] }] };
+    const more: AgentCollision = {
+      ...pair,
+      files: [...pair.files, { path: "README.md", conflict: true, ranges: [] }, { path: "x.txt", conflict: true, ranges: [] }],
+    };
     expect(collisionTitle(more, names)).toBe("“a-login” and “b-auth” would collide in src/auth.ts (lines 40–62) and 2 more files");
-    const overlap: AgentCollision = { ...pair, kind: "overlap", files: [{ path: "f.txt", conflict: false, ranges: [] }, { path: "g.txt", conflict: false, ranges: [] }] };
+    const overlap: AgentCollision = {
+      ...pair,
+      kind: "overlap",
+      files: [
+        { path: "f.txt", conflict: false, ranges: [] },
+        { path: "g.txt", conflict: false, ranges: [] },
+      ],
+    };
     expect(collisionTitle(overlap, names)).toBe("“a-login” and “b-auth” both change f.txt and 1 more file");
     expect(collisionTitle(withBase, names)).toBe("“a-login” would collide with the current main in src/auth.ts (lines 40–62)");
-    expect(collisionTitle({ ...withBase, kind: "overlap", files: [{ path: "g.txt", conflict: false, ranges: [] }] }, names)).toBe("“a-login” and the current main both change g.txt");
+    expect(collisionTitle({ ...withBase, kind: "overlap", files: [{ path: "g.txt", conflict: false, ranges: [] }] }, names)).toBe(
+      "“a-login” and the current main both change g.txt",
+    );
     // An agent the list does not know (any more) is shown by its id.
     expect(collisionTitle({ ...pair, otherAgentId: "zzz" }, names)).toBe("“a-login” and “zzz” would collide in src/auth.ts (lines 40–62)");
   });
@@ -63,7 +106,9 @@ describe("agents: collision texts", () => {
   it("labels both sides of a preview and picks the conflicting files", () => {
     expect(sideLabels(pair, names)).toEqual(["a-login", "b-auth"]);
     expect(sideLabels(withBase, names)).toEqual(["a-login", "current main"]);
-    expect(conflictFiles({ ...pair, files: [...pair.files, { path: "f.txt", conflict: false, ranges: [] }] }).map((file) => file.path)).toEqual(["src/auth.ts"]);
+    expect(
+      conflictFiles({ ...pair, files: [...pair.files, { path: "f.txt", conflict: false, ranges: [] }] }).map((file) => file.path),
+    ).toEqual(["src/auth.ts"]);
   });
 });
 
@@ -88,7 +133,12 @@ describe("agents: informing an agent", () => {
   it("offers the running agents of the collision, the later one first", () => {
     expect(informTargets(pair, [A, B]).map((a) => a.id)).toEqual(["b", "a"]);
     expect(informTargets(pair, [A, { ...B, terminalId: null, status: "stopped" }]).map((a) => a.id)).toEqual(["a"]);
-    expect(informTargets(pair, [{ ...A, terminalId: null }, { ...B, terminalId: null }])).toEqual([]);
+    expect(
+      informTargets(pair, [
+        { ...A, terminalId: null },
+        { ...B, terminalId: null },
+      ]),
+    ).toEqual([]);
     expect(informTargets(withBase, [A, B]).map((a) => a.id)).toEqual(["a"]);
   });
 

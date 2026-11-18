@@ -36,7 +36,11 @@ export const ran = (repo, marker) => fs.existsSync(path.join(repo.path, marker))
  * bare copy (`source`). `count` = commits on main.
  */
 export function makeCloneSource(ws, name = "wetterdaten") {
-  const work = ws.repo(`${name}-arbeit`, { "README.md": `# ${name}\n`, "src/lesen.py": "print('lesen')\n", "docs/aufbau.md": "# Aufbau\n" });
+  const work = ws.repo(`${name}-arbeit`, {
+    "README.md": `# ${name}\n`,
+    "src/lesen.py": "print('lesen')\n",
+    "docs/aufbau.md": "# Aufbau\n",
+  });
   ws.commit(work, "src/lesen.py", "print('lesen 2')\n", "Lesen überarbeitet", "2026-01-10T12:00:00+01:00");
   ws.commit(work, "docs/aufbau.md", "# Aufbau\n\nMast und Logger.\n", "Aufbau beschrieben", "2026-02-10T12:00:00+01:00");
   ws.commit(work, "src/pruefen.py", "print('prüfen')\n", "Prüfung ergänzt", "2026-03-10T12:00:00+01:00");
@@ -63,7 +67,13 @@ export async function startHoldingProxy(base, { user, password, holdMs = 30_000 
   const server = http.createServer((request, response) => {
     const forward = () => {
       const outgoing = http.request(
-        { host: upstream.hostname, port: upstream.port, method: request.method, path: request.url, headers: { ...request.headers, host: upstream.host, authorization: auth } },
+        {
+          host: upstream.hostname,
+          port: upstream.port,
+          method: request.method,
+          path: request.url,
+          headers: { ...request.headers, host: upstream.host, authorization: auth },
+        },
         (answer) => {
           response.writeHead(answer.statusCode ?? 502, answer.headers);
           answer.pipe(response);

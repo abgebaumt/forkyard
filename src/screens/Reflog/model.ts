@@ -43,13 +43,17 @@ export interface ReflogSelection {
   index: number;
 }
 
-export const entryKey = (entry: Pick<ReflogEntry, "sha" | "time" | "message">): string => `${entry.sha}\u0000${entry.time}\u0000${entry.message}`;
+export const entryKey = (entry: Pick<ReflogEntry, "sha" | "time" | "message">): string =>
+  `${entry.sha}\u0000${entry.time}\u0000${entry.message}`;
 
 /**
  * Index of the selected entry in `entries`. `found: false` means the selection has to be (re)made –
  * nothing chosen yet (the first entry) or the entry has gone (the nearest position).
  */
-export function resolveSelection(entries: readonly Pick<ReflogEntry, "sha" | "time" | "message">[], selection: ReflogSelection | null): { index: number; found: boolean } {
+export function resolveSelection(
+  entries: readonly Pick<ReflogEntry, "sha" | "time" | "message">[],
+  selection: ReflogSelection | null,
+): { index: number; found: boolean } {
   if (!selection) return { index: 0, found: false };
   let best = -1;
   entries.forEach((entry, index) => {

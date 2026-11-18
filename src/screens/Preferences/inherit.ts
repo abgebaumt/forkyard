@@ -72,4 +72,7 @@ export function overridePatch(key: InheritKey, ctx: InheritContext): Partial<Rep
 }
 
 /** Fields per project section. */
-export const SECTION_KEYS = { "p-identity": ["authorName", "authorEmail", "sshKeyId"], "p-git": ["defaultPullMode", "autoFetch"] } satisfies Record<string, InheritKey[]>;
+export const SECTION_KEYS = {
+  "p-identity": ["authorName", "authorEmail", "sshKeyId"],
+  "p-git": ["defaultPullMode", "autoFetch"],
+} satisfies Record<string, InheritKey[]>;

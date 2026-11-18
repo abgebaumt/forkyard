@@ -51,7 +51,10 @@ export function AutopilotBar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
     store.setRightPanel(tabId, "details");
   };
   return (
-    <div data-bisect-autopilot={bar.kind} className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-2 text-sm">
+    <div
+      data-bisect-autopilot={bar.kind}
+      className="flex min-h-control-md shrink-0 items-center gap-2 border-b border-border bg-surface pr-1 pl-2 text-sm"
+    >
       <span className={cn("inline-flex size-1.5 shrink-0 rounded-full", look.dot)} aria-hidden />
       <p className="min-w-0 flex-1 truncate" aria-live={bar.kind === "failed" ? "assertive" : "polite"}>
         <span className="font-medium">{t("bisect.autopilot.barTitle")}</span>
@@ -76,7 +79,13 @@ export function AutopilotBar({ repoId, tabId }: { repoId: Id; tabId: Id }) {
           <Button size="sm" variant="ghost" disabled={busy} data-autopilot-action="keep" onClick={() => void closeAutopilot(repoId, true)}>
             {t("bisect.autopilot.keep")}
           </Button>
-          <Button size="sm" variant="ghost" disabled={busy} data-autopilot-action="remove" onClick={() => void closeAutopilot(repoId, false)}>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={busy}
+            data-autopilot-action="remove"
+            onClick={() => void closeAutopilot(repoId, false)}
+          >
             {t("bisect.autopilot.remove")}
           </Button>
         </>

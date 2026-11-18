@@ -51,7 +51,10 @@ function dialogInfo(app) {
     return {
       title: dialog.querySelector("h2")?.innerText.trim() ?? "",
       text: dialog.innerText.replace(/\s+/g, " ").trim(),
-      buttons: [...dialog.querySelectorAll("footer button")].map((button) => ({ text: button.innerText.trim(), disabled: button.disabled })),
+      buttons: [...dialog.querySelectorAll("footer button")].map((button) => ({
+        text: button.innerText.trim(),
+        disabled: button.disabled,
+      })),
     };
   });
 }
@@ -66,7 +69,8 @@ const waitDialog = (app, titlePattern) =>
     { message: `dialog ${titlePattern}` },
   );
 
-const noDialog = (app) => app.waitFor(async () => (await app.$$('[role="dialog"], [role="alertdialog"]')).length === 0, 8000, { message: "dialog closed" });
+const noDialog = (app) =>
+  app.waitFor(async () => (await app.$$('[role="dialog"], [role="alertdialog"]')).length === 0, 8000, { message: "dialog closed" });
 
 async function dialogButton(app, label) {
   const button = await app.waitFor(
@@ -104,7 +108,11 @@ scenario("terminal tabs: a second shell, switching keeps each output, closing as
   const { repo, app, tabId } = await start(t);
   try {
     let list = await sessions(app, tabId);
-    assertEqual(list.map((session) => session.title), ["Shell"], "one tab named Shell");
+    assertEqual(
+      list.map((session) => session.title),
+      ["Shell"],
+      "one tab named Shell",
+    );
     assertIncludes(await tabStripText(app), "running", "the state as a word in the tab");
     await run(app, "echo EINS-$((1+1))");
     await waitText(app, tabId, /EINS-2/);
@@ -119,7 +127,10 @@ scenario("terminal tabs: a second shell, switching keeps each output, closing as
       { message: "second shell shown and running" },
     );
     list = await sessions(app, tabId);
-    assertEqual(list.map((session) => session.title), ["Shell", "Shell 2"]);
+    assertEqual(
+      list.map((session) => session.title),
+      ["Shell", "Shell 2"],
+    );
     await waitText(app, tabId, /fy\$/);
     await app.waitFor(() => focused(app), 10_000, { message: "focus in the new shell" });
     await run(app, "echo ZWEI-$((2+2))");
@@ -133,7 +144,10 @@ scenario("terminal tabs: a second shell, switching keeps each output, closing as
     assert(!(await text(app, tabId)).includes("ZWEI-4"), "switching shows the first shell's output");
 
     // Keyboard: the arrow keys move between the tabs.
-    await app.exec((selector) => document.querySelector(selector)?.focus(), `${TERMINAL} [data-terminal-tab="${list[0].key}"] [role="tab"]`);
+    await app.exec(
+      (selector) => document.querySelector(selector)?.focus(),
+      `${TERMINAL} [data-terminal-tab="${list[0].key}"] [role="tab"]`,
+    );
     await app.press("ArrowRight");
     await app.waitFor(async () => (await sessions(app, tabId))[1].active, 5000, { message: "ArrowRight shows the second tab" });
 
@@ -175,13 +189,19 @@ scenario("terminal tabs: a second shell, switching keeps each output, closing as
 scenario("terminal tabs: German texts", "edge", async (t) => {
   const { repo, app, tabId } = await start(t, { lang: "de" });
   try {
-    const label = await app.exec((selector) => document.querySelector(selector)?.getAttribute("aria-label"), `${TERMINAL} button[data-action="new-shell"]`);
+    const label = await app.exec(
+      (selector) => document.querySelector(selector)?.getAttribute("aria-label"),
+      `${TERMINAL} button[data-action="new-shell"]`,
+    );
     assertEqual(label, "Neue Shell");
     assertIncludes(await tabStripText(app), "läuft", "German state word");
     const key = (await sessions(app, tabId))[0].key;
     await app.click(`${TERMINAL} [data-terminal-tab="${key}"] button[data-action="close-session"]`);
     const info = await waitDialog(app, /„Shell“ schließen\?/);
-    assert(info.buttons.some((button) => button.text === "Sitzung schließen"), "German confirm button");
+    assert(
+      info.buttons.some((button) => button.text === "Sitzung schließen"),
+      "German confirm button",
+    );
     await dialogButton(app, "Abbrechen");
     await noDialog(app);
     await t.noConsoleErrors(app);

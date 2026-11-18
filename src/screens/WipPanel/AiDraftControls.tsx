@@ -19,13 +19,18 @@ import { isCli } from "../Preferences/ai/model";
 import { writeBlocked, writeLabel, type AiDraftPhase } from "./aiDraft";
 import { acceptOffer, toggleWriteMessage, useAiDraft, writeMessage } from "./aiDraftActions";
 
-const labelText = (label: "write" | "cancel" | "again") => (label === "cancel" ? t("ai.state.cancel") : label === "again" ? t("wip.ai.again") : t("wip.ai.write"));
+const labelText = (label: "write" | "cancel" | "again") =>
+  label === "cancel" ? t("ai.state.cancel") : label === "again" ? t("wip.ai.again") : t("wip.ai.write");
 
 export function AiWriteButtonView({ phase, staged, onToggle }: { phase: AiDraftPhase["kind"]; staged: number; onToggle: () => void }) {
   const label = writeLabel(phase);
   const blocked = label === "cancel" ? null : writeBlocked(staged);
   return (
-    <Tip side="top" label={blocked ?? (label === "cancel" ? t("ai.state.cancel") : t("wip.ai.writeTip"))} shortcut={blocked ? undefined : "Mod+Shift+M"}>
+    <Tip
+      side="top"
+      label={blocked ?? (label === "cancel" ? t("ai.state.cancel") : t("wip.ai.writeTip"))}
+      shortcut={blocked ? undefined : "Mod+Shift+M"}
+    >
       <Button
         size="sm"
         variant="ghost"
@@ -61,7 +66,15 @@ function WhatIsSent({ repoId, label }: { repoId: Id; label: string }) {
   );
 }
 
-function ErrorLine({ repoId, view, provider }: { repoId: Id; view: Exclude<AiErrorView, { kind: "cancelled" }>; provider: AiProviderKind | null }) {
+function ErrorLine({
+  repoId,
+  view,
+  provider,
+}: {
+  repoId: Id;
+  view: Exclude<AiErrorView, { kind: "cancelled" }>;
+  provider: AiProviderKind | null;
+}) {
   // Without an open repository tab there is no terminal for the sign-in: say so instead.
   const [noTerminal, setNoTerminal] = useState(false);
   const again = (label: string) => (
@@ -184,7 +197,17 @@ function useElapsed(startedAt: number | null): number {
   return startedAt === null ? 0 : now - startedAt;
 }
 
-export function AiDraftStatus({ repoId, local, staged, provider = null }: { repoId: Id; local: boolean; staged: number; provider?: AiProviderKind | null }) {
+export function AiDraftStatus({
+  repoId,
+  local,
+  staged,
+  provider = null,
+}: {
+  repoId: Id;
+  local: boolean;
+  staged: number;
+  provider?: AiProviderKind | null;
+}) {
   const { phase } = useAiDraft(repoId);
   const elapsed = useElapsed(phase.kind === "running" ? phase.startedAt : null);
   return <AiDraftStatusView repoId={repoId} phase={phase} local={local} elapsedMs={elapsed} staged={staged} provider={provider} />;

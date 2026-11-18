@@ -75,7 +75,8 @@ export function makeRepo(name) {
     },
     tip: (ref = "HEAD") => run(repoPath, ["rev-parse", ref]),
     subjects: (range) => run(repoPath, ["log", "--reverse", "--format=%s", range]).split("\n").filter(Boolean),
-    rebaseRunning: () => fs.existsSync(path.join(repoPath, ".git", "rebase-merge")) || fs.existsSync(path.join(repoPath, ".git", "rebase-apply")),
+    rebaseRunning: () =>
+      fs.existsSync(path.join(repoPath, ".git", "rebase-merge")) || fs.existsSync(path.join(repoPath, ".git", "rebase-apply")),
     cleanup() {
       fs.rmSync(root, { recursive: true, force: true });
       live.delete(root);
@@ -133,11 +134,27 @@ const ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf";
 export async function rightClick(app, element) {
   await app.exec((el) => el.scrollIntoView({ block: "center" }), element);
   await app.webdriver("POST", "/actions", {
-    actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0, duration: 0 }] }],
+    actions: [
+      {
+        type: "pointer",
+        id: "mouse",
+        parameters: { pointerType: "mouse" },
+        actions: [{ type: "pointerMove", origin: { [ELEMENT_KEY]: element.id }, x: 0, y: 0, duration: 0 }],
+      },
+    ],
   });
   await app.exec((el) => {
     const box = el.getBoundingClientRect();
-    const at = { bubbles: true, cancelable: true, composed: true, clientX: box.left + box.width / 2, clientY: box.top + box.height / 2, button: 2, buttons: 2, view: window };
+    const at = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX: box.left + box.width / 2,
+      clientY: box.top + box.height / 2,
+      button: 2,
+      buttons: 2,
+      view: window,
+    };
     el.dispatchEvent(new PointerEvent("pointerdown", { ...at, pointerType: "mouse", pointerId: 1, isPrimary: true }));
     el.dispatchEvent(new MouseEvent("mousedown", at));
     el.dispatchEvent(new PointerEvent("pointerup", { ...at, buttons: 0, pointerType: "mouse", pointerId: 1, isPrimary: true }));
@@ -148,15 +165,22 @@ export async function rightClick(app, element) {
 
 /** Visible toasts: [{ tone, text }]. */
 export const toasts = (app) =>
-  app.exec(() => [...document.querySelectorAll("[data-toast]")].map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+  app.exec(() =>
+    [...document.querySelectorAll("[data-toast]")].map((item) => ({
+      tone: item.getAttribute("data-toast"),
+      text: item.innerText.replace(/\s+/g, " ").trim(),
+    })),
+  );
 
 /** Waits for a toast whose text matches; returns it. */
 export async function waitToast(app, pattern, tone = null, timeout = 30_000) {
-  return app.waitFor(async () => (await toasts(app)).find((toast) => pattern.test(toast.text) && (!tone || toast.tone === tone)) ?? null, timeout, {
-    message: `toast ${pattern}${tone ? ` (${tone})` : ""}`,
-  }).catch(async (error) => {
-    throw new Error(`${error.message}; present: ${JSON.stringify(await toasts(app))}`);
-  });
+  return app
+    .waitFor(async () => (await toasts(app)).find((toast) => pattern.test(toast.text) && (!tone || toast.tone === tone)) ?? null, timeout, {
+      message: `toast ${pattern}${tone ? ` (${tone})` : ""}`,
+    })
+    .catch(async (error) => {
+      throw new Error(`${error.message}; present: ${JSON.stringify(await toasts(app))}`);
+    });
 }
 
 export async function closeToasts(app) {
@@ -191,7 +215,14 @@ export const nudge = (app) => app.exec(() => window.dispatchEvent(new Event("foc
 /** Moves the mouse out of the way (no hover tooltips in screenshots). */
 export async function parkMouse(app) {
   await app.webdriver("POST", "/actions", {
-    actions: [{ type: "pointer", id: "mouse", parameters: { pointerType: "mouse" }, actions: [{ type: "pointerMove", origin: "viewport", x: 2, y: 2, duration: 0 }] }],
+    actions: [
+      {
+        type: "pointer",
+        id: "mouse",
+        parameters: { pointerType: "mouse" },
+        actions: [{ type: "pointerMove", origin: "viewport", x: 2, y: 2, duration: 0 }],
+      },
+    ],
   });
   await app.webdriver("DELETE", "/actions").catch(() => undefined);
 }

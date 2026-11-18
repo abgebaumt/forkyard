@@ -1,13 +1,33 @@
 import { describe, expect, it } from "vitest";
 import type { CleanupPreview, CleanupResult, CleanupUndoBackup } from "../../core";
-import { backupsOlderThan, durationParts, initialForm, lowSpace, outcomeOf, plannedSteps, sizeChange, stepPosition, toOptions, visibleOptions } from "./model";
+import {
+  backupsOlderThan,
+  durationParts,
+  initialForm,
+  lowSpace,
+  outcomeOf,
+  plannedSteps,
+  sizeChange,
+  stepPosition,
+  toOptions,
+  visibleOptions,
+} from "./model";
 
 const GB = 1024 ** 3;
 const MB = 1024 ** 2;
 
 function preview(change: Partial<CleanupPreview> = {}): CleanupPreview {
   return {
-    objects: { looseCount: 120, looseBytes: 480 * 1024, inPack: 9000, packs: 2, packBytes: 200 * MB, garbageCount: 0, garbageBytes: 0, totalBytes: 200 * MB + 480 * 1024 },
+    objects: {
+      looseCount: 120,
+      looseBytes: 480 * 1024,
+      inPack: 9000,
+      packs: 2,
+      packBytes: 200 * MB,
+      garbageCount: 0,
+      garbageBytes: 0,
+      totalBytes: 200 * MB + 480 * 1024,
+    },
     lfsBytes: null,
     undoBackups: [],
     orphanedWorktrees: 0,
@@ -59,8 +79,20 @@ describe("which options the dialog shows and sends", () => {
 
   it("never sends a hidden option and keeps the days within 1 to 3650", () => {
     const form = { mode: "thorough" as const, lfs: true, worktrees: true, undo: true, undoDays: 0, reflog: true };
-    expect(toOptions(form, { lfs: false, worktrees: false })).toEqual({ mode: "thorough", lfs: false, worktrees: false, undoOlderThanDays: 1, reflog: true });
-    expect(toOptions({ ...form, undoDays: 99_999 }, { lfs: true, worktrees: true })).toEqual({ mode: "thorough", lfs: true, worktrees: true, undoOlderThanDays: 3650, reflog: true });
+    expect(toOptions(form, { lfs: false, worktrees: false })).toEqual({
+      mode: "thorough",
+      lfs: false,
+      worktrees: false,
+      undoOlderThanDays: 1,
+      reflog: true,
+    });
+    expect(toOptions({ ...form, undoDays: 99_999 }, { lfs: true, worktrees: true })).toEqual({
+      mode: "thorough",
+      lfs: true,
+      worktrees: true,
+      undoOlderThanDays: 3650,
+      reflog: true,
+    });
     expect(toOptions({ ...form, undo: false }, { lfs: true, worktrees: true }).undoOlderThanDays).toBeNull();
   });
 
@@ -86,9 +118,23 @@ describe("progress and result", () => {
     expect(durationParts(61_400)).toEqual({ minutes: 1, seconds: 1 });
     expect(durationParts(59_600)).toEqual({ minutes: 1, seconds: 0 });
     expect(durationParts(4_200)).toEqual({ minutes: 0, seconds: 4 });
-    const base: CleanupResult = { before: preview().objects, after: preview().objects, lfsBefore: null, lfsAfter: null, steps: [], durationMs: 0, cancelled: false, failure: null };
+    const base: CleanupResult = {
+      before: preview().objects,
+      after: preview().objects,
+      lfsBefore: null,
+      lfsAfter: null,
+      steps: [],
+      durationMs: 0,
+      cancelled: false,
+      failure: null,
+    };
     expect(outcomeOf(base)).toBe("done");
     expect(outcomeOf({ ...base, cancelled: true })).toBe("cancelled");
-    expect(outcomeOf({ ...base, failure: { step: "gc", error: { code: "locked", message: "x", gitOutput: null }, gcPid: 4711, diskFull: false } })).toBe("failed");
+    expect(
+      outcomeOf({
+        ...base,
+        failure: { step: "gc", error: { code: "locked", message: "x", gitOutput: null }, gcPid: 4711, diskFull: false },
+      }),
+    ).toBe("failed");
   });
 });

@@ -11,7 +11,10 @@ describe("nextCollapse", () => {
   });
 
   it("expanding one merge under “collapse all” keeps the other loaded merges collapsed", () => {
-    expect(nextCollapse(ALL_COLLAPSED, "m2", false, ["m1", "m2", "m3"])).toEqual({ collapsedMerges: ["m1", "m3"], collapseAllMerges: false });
+    expect(nextCollapse(ALL_COLLAPSED, "m2", false, ["m1", "m2", "m3"])).toEqual({
+      collapsedMerges: ["m1", "m3"],
+      collapseAllMerges: false,
+    });
     expect(nextCollapse(ALL_COLLAPSED, "m2", true, ["m1"])).toBe(ALL_COLLAPSED);
   });
 });

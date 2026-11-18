@@ -37,7 +37,12 @@ export function isUndoKey(event: { key: string; ctrlKey: boolean; metaKey: boole
 }
 
 /** null = the button may be used; an unknown commit count (`ahead: null`) is left to the core. */
-export function writeBlockedReason(input: { source: string | null; target: string | null; ahead: number | null; sameBranch: boolean }): string | null {
+export function writeBlockedReason(input: {
+  source: string | null;
+  target: string | null;
+  ahead: number | null;
+  sameBranch: boolean;
+}): string | null {
   if (!input.source) return t("pullRequest.create.ai.blocked.noSource");
   if (!input.target) return t("pullRequest.create.ai.blocked.noTarget");
   if (input.sameBranch) return t("pullRequest.create.ai.blocked.same");

@@ -46,10 +46,14 @@ export function MessageEditor({ repoId, tabId, commit, onClose }: MessageEditorP
       onClose(null);
       return;
     }
-    const result = await runAction(t("commitDetails.commit.editMessage"), () => core.commitReword({ repoId, summary: cleanSummary, description, sha: commit.sha }), {
-      busyKey,
-      success: t("commitDetails.reword.done"),
-    });
+    const result = await runAction(
+      t("commitDetails.commit.editMessage"),
+      () => core.commitReword({ repoId, summary: cleanSummary, description, sha: commit.sha }),
+      {
+        busyKey,
+        success: t("commitDetails.reword.done"),
+      },
+    );
     if (!result.ok) return;
     // The commit has a new SHA; the old one no longer exists on the branch.
     useAppStore.getState().selectCommits(tabId, [result.value.sha]);
@@ -89,7 +93,13 @@ export function MessageEditor({ repoId, tabId, commit, onClose }: MessageEditorP
         autoFocus
         maxLength={2000}
         error={summaryError}
-        hint={length >= SUMMARY_NOTICE ? (length > SUMMARY_LIMIT ? t("commitDetails.reword.lengthOver", { length, limit: SUMMARY_LIMIT }) : t("commitDetails.reword.length", { length })) : undefined}
+        hint={
+          length >= SUMMARY_NOTICE
+            ? length > SUMMARY_LIMIT
+              ? t("commitDetails.reword.lengthOver", { length, limit: SUMMARY_LIMIT })
+              : t("commitDetails.reword.length", { length })
+            : undefined
+        }
         onChange={(event) => setSummary(event.target.value.replace(/[\r\n]+/g, " "))}
       />
       <TextArea
