@@ -2,6 +2,7 @@
 //! the submodules and are re-exported here (`util::now_iso`, `util::decode_lossy`, …).
 
 mod fs;
+mod net;
 mod path;
 mod text;
 mod time;
@@ -9,6 +10,7 @@ mod time;
 use std::ffi::OsString;
 
 pub use fs::*;
+pub use net::*;
 pub use path::*;
 pub use text::*;
 pub use time::*;

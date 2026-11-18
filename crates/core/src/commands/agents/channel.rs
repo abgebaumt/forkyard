@@ -5,14 +5,13 @@
 //! the line reaches a log.
 
 use std::collections::HashMap;
-use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use parking_lot::Mutex;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{mpsc, Notify, OnceCell, Semaphore};
+use tokio::net::TcpStream;
+use tokio::sync::{mpsc, Notify, OnceCell};
 
 use crate::util;
 
@@ -93,15 +92,15 @@ impl StatusChannel {
         *self
             .port
             .get_or_init(|| async {
-                let listener = match TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await {
-                    Ok(listener) => listener,
-                    Err(e) => {
-                        log::warn!("status channel for coding agents not available: {e}");
-                        return None;
-                    }
-                };
-                let port = listener.local_addr().ok()?.port();
-                tokio::spawn(serve(listener, self.inner.clone()));
+                let (listener, port) = util::bind_loopback("Status channel for coding agents").await?;
+                let inner = self.inner.clone();
+                tokio::spawn(async move {
+                    util::serve_loopback(listener, MAX_CONNECTIONS, &inner.shutdown, |stream| {
+                        let inner = inner.clone();
+                        Some(async move { handle(stream, &inner).await })
+                    })
+                    .await
+                });
                 Some(port)
             })
             .await
@@ -116,30 +115,6 @@ impl StatusChannel {
 
     pub fn unregister(&self, token: &str) {
         self.inner.agents.lock().remove(token);
-    }
-}
-
-async fn serve(listener: TcpListener, inner: Arc<Inner>) {
-    let slots = Arc::new(Semaphore::new(MAX_CONNECTIONS));
-    loop {
-        tokio::select! {
-            _ = inner.shutdown.notified() => break,
-            accepted = listener.accept() => {
-                let Ok((stream, peer)) = accepted else {
-                    tokio::time::sleep(Duration::from_millis(50)).await;
-                    continue;
-                };
-                if !peer.ip().is_loopback() {
-                    continue;
-                }
-                let Ok(slot) = slots.clone().try_acquire_owned() else { continue };
-                let inner = inner.clone();
-                tokio::spawn(async move {
-                    handle(stream, &inner).await;
-                    drop(slot);
-                });
-            }
-        }
     }
 }
 

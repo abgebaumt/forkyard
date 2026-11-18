@@ -35,6 +35,8 @@ pub const INSTANCE_FILE: &str = "instance.json";
 const MAX_MESSAGE: u64 = 64 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_millis(400);
 const REPLY_TIMEOUT: Duration = Duration::from_millis(2000);
+/// Launch requests handled at once; more are dropped (a second instance sends one).
+const MAX_CONNECTIONS: usize = 8;
 
 #[derive(Default)]
 struct LaunchInner {
@@ -259,30 +261,22 @@ pub fn deliver(core: &Core, request: LaunchRequest) {
 /// Opens this instance's local channel and writes `instance.json`. Runs until the core ends; an
 /// error while opening is only logged (then there is simply no handover).
 pub async fn listen(core: Core) {
-    let listener = match tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await {
-        Ok(listener) => listener,
-        Err(e) => {
-            log::warn!("Local channel for launch requests not opened: {e}");
-            return;
-        }
-    };
-    let Ok(address) = listener.local_addr() else { return };
+    let Some((listener, port)) = util::bind_loopback("Local channel for launch requests").await else { return };
     let token = util::new_id();
-    let file = InstanceFile { port: address.port(), token: token.clone(), pid: std::process::id() };
+    let file = InstanceFile { port, token: token.clone(), pid: std::process::id() };
     if let Err(e) = write_instance_file(core.data_dir(), &file) {
         log::warn!("{INSTANCE_FILE} not written: {e}");
         return;
     }
-    loop {
-        let Ok((stream, peer)) = listener.accept().await else { continue };
-        if !peer.ip().is_loopback() {
-            continue;
-        }
+    // Never shut down: the channel lives as long as the core.
+    let forever = tokio::sync::Notify::new();
+    util::serve_loopback(listener, MAX_CONNECTIONS, &forever, |stream| {
         let (core, token) = (core.clone(), token.clone());
-        tokio::spawn(async move {
+        Some(async move {
             let _ = tokio::time::timeout(REPLY_TIMEOUT, serve(&core, &token, stream)).await;
-        });
-    }
+        })
+    })
+    .await;
 }
 
 async fn serve(core: &Core, token: &str, stream: tokio::net::TcpStream) {

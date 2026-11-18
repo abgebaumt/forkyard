@@ -13,14 +13,13 @@
 
 use std::collections::HashMap;
 use std::ffi::OsString;
-use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use parking_lot::Mutex;
 use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWriteExt, BufReader};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 use tokio::sync::{oneshot, Notify, OnceCell};
 
 use super::keychain;
@@ -224,15 +223,17 @@ impl Broker {
         *self
             .server
             .get_or_init(|| async {
-                let listener = match TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await {
-                    Ok(listener) => listener,
-                    Err(e) => {
-                        log::warn!("Channel for prompts not available: {e}");
-                        return None;
-                    }
-                };
-                let port = listener.local_addr().ok()?.port();
-                tokio::spawn(serve(listener, self.me.clone(), self.shutdown.clone()));
+                let (listener, port) = util::bind_loopback("Channel for prompts").await?;
+                let (me, shutdown) = (self.me.clone(), self.shutdown.clone());
+                // Each connection may cost up to 10 s and 64 KB (and stay open during a prompt):
+                // there are never more than a handful at once in practice.
+                tokio::spawn(async move {
+                    util::serve_loopback(listener, MAX_CONNECTIONS, &shutdown, |stream| {
+                        let broker = me.upgrade()?;
+                        Some(async move { broker.handle(stream).await })
+                    })
+                    .await
+                });
                 Some(port)
             })
             .await
@@ -718,32 +719,6 @@ impl Drop for Session {
     fn drop(&mut self) {
         if let Some(broker) = self.broker.take() {
             broker.take_session(&self.token);
-        }
-    }
-}
-
-async fn serve(listener: TcpListener, broker: Weak<Broker>, shutdown: Arc<Notify>) {
-    let slots = Arc::new(tokio::sync::Semaphore::new(MAX_CONNECTIONS));
-    loop {
-        tokio::select! {
-            _ = shutdown.notified() => break,
-            accepted = listener.accept() => {
-                let Ok((stream, peer)) = accepted else {
-                    tokio::time::sleep(Duration::from_millis(50)).await;
-                    continue;
-                };
-                if !peer.ip().is_loopback() {
-                    continue;
-                }
-                // Each connection may cost up to 10 s and 64 KB (and stay open during a prompt):
-                // there are never more than a handful at once in practice.
-                let Ok(slot) = slots.clone().try_acquire_owned() else { continue };
-                let Some(broker) = broker.upgrade() else { break };
-                tokio::spawn(async move {
-                    broker.handle(stream).await;
-                    drop(slot);
-                });
-            }
         }
     }
 }
