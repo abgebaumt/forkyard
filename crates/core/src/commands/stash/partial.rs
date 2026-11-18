@@ -209,7 +209,7 @@ async fn build_trees(core: &Core, repo_id: &str, head: &str, staged: &[Part], un
 
 /// `git apply` with the patch on stdin; never complains about or "fixes" whitespace.
 async fn apply(cmd: GitCmd, patch: &[u8], cached: bool, reverse: bool) -> CoreResult<()> {
-    let mut cmd = cmd.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
+    let mut cmd = cmd.args(crate::git::GIT_APPLY);
     if cached {
         cmd = cmd.arg("--cached");
     }

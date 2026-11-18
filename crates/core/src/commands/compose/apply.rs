@@ -267,11 +267,7 @@ async fn build_index(core: &Core, repo_id: &str, read: &ComposeRead, parts: &Par
         on_temp()?.args(["update-index", "-z", "--index-info"]).stdin(info).run().await?;
     }
     if !patches.is_empty() {
-        on_temp()?
-            .args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--cached", "--whitespace=nowarn"])
-            .stdin(patches)
-            .run()
-            .await?;
+        on_temp()?.args(crate::git::GIT_APPLY).arg("--cached").stdin(patches).run().await?;
     }
     on_temp()?.arg("write-tree").run_text().await
 }

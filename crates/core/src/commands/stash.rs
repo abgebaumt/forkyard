@@ -834,7 +834,7 @@ pub async fn stash_apply_paths(
             ));
         }
         let apply = || -> CoreResult<crate::git::GitCmd> {
-            Ok(quiet()?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]))
+            Ok(quiet()?.args(crate::git::GIT_APPLY))
         };
         let patch = if tracked_paths.is_empty() {
             Vec::new()
@@ -866,7 +866,7 @@ pub async fn stash_apply_paths(
             if !patch.is_empty() {
                 core.git_for(repo_id)?
                     .literal_paths()
-                    .args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"])
+                    .args(crate::git::GIT_APPLY)
                     .stdin(patch)
                     .run()
                     .await?;

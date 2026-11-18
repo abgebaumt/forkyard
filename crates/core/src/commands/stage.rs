@@ -427,8 +427,7 @@ async fn selected_patch(
 /// forwards or in reverse. Whitespace is neither complained about nor "fixed" – not even
 /// when the user's configuration asks for that from `git apply`.
 async fn apply(core: &Core, repo_id: &str, patch: Vec<u8>, cached: bool, reverse: bool) -> CoreResult<()> {
-    let mut cmd =
-        git(core, repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
+    let mut cmd = git(core, repo_id)?.args(crate::git::GIT_APPLY);
     if cached {
         cmd = cmd.arg("--cached");
     }

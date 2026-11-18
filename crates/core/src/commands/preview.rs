@@ -372,7 +372,7 @@ async fn patch(core: &Core, repo_id: &str, cancel: &CancelToken, text: &str) -> 
     if text.len() > MAX_PATCH_BYTES {
         return Ok(ConflictPreview::Unknown { reason: "The patch is larger than 32 MB.".to_string() });
     }
-    let args = ["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn", "--check"];
+    let args = [&crate::git::GIT_APPLY[..], &["--check"]].concat();
     let out = git(core, repo_id, cancel, &args, Some(text.as_bytes().to_vec())).await?;
     if out.success() {
         return Ok(ConflictPreview::Clean);
