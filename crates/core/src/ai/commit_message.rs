@@ -27,7 +27,16 @@ use crate::util;
 /// The same number as `SUMMARY_LIMIT` in `src/core/limits.ts` (checked by `limits.test.ts`).
 pub const SUMMARY_LIMIT: usize = 72;
 /// Longest own commit instruction of a repository (`RepoSettings.ai_commit_instruction`).
-pub const MAX_INSTRUCTION_CHARS: usize = 2_000;
+const MAX_INSTRUCTION_CHARS: usize = 2_000;
+/// The own commit instruction as stored: trimmed, empty → `None`, longer than
+/// `MAX_INSTRUCTION_CHARS` → `not_allowed`.
+pub fn own_instruction(text: Option<&str>) -> CoreResult<Option<String>> {
+    let text = text.map(str::trim).filter(|text| !text.is_empty()).map(str::to_string);
+    if text.as_deref().is_some_and(|text| text.chars().count() > MAX_INSTRUCTION_CHARS) {
+        return Err(CoreError::not_allowed(format!("The own commit instruction is too long: at most {MAX_INSTRUCTION_CHARS} characters.")));
+    }
+    Ok(text)
+}
 /// Subjects shown as style examples.
 pub const STYLE_EXAMPLES: usize = 30;
 /// Subjects the language is recognised from.
