@@ -279,7 +279,6 @@
     "applyKeys": "Ctrl ↵",
     "apply_one": "Create {{count}} commit",
     "apply_other": "Create {{count}} commits",
-    "applyAction": "Compose commits",
     "titleMissing": "Commit {{number}} needs a message.",
     "nothingPlanned": "Assign changes to at least one commit first.",
     "broken": {
@@ -312,25 +311,12 @@
       "close": "Close",
       "undone": "All commits taken back · the changes are back in the working directory"
     },
-    "undoHint": "One undo takes all commits back – for 14 days, as long as they are not pushed.",
     "enough": "One commit is enough",
     "signing_one": "Commits are signed: up to {{count}} passphrase prompt is possible.",
     "signing_other": "Commits are signed: up to {{count}} passphrase prompts are possible.",
     "outdated": "The local changes changed since they were read.",
     "outdatedHint": "Read them again; changes you already placed keep their place.",
     "reload": "Read again",
-    "keys": {
-      "select": "choose a change",
-      "number": "move to commit n",
-      "skip": "to “Don't commit”",
-      "move": "previous / next commit",
-      "new": "new commit from the selection",
-      "confirm": "confirm an unsure placement",
-      "unsure": "next unsure change",
-      "edit": "edit the commit's message",
-      "order": "reorder commit",
-      "apply": "create commits"
-    },
     "kind": {
       "hunk": "Part of a file",
       "file": "Whole file",
