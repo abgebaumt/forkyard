@@ -63,7 +63,8 @@
         "noCommaOperator": "off",
         "noBannedTypes": "off",
         "noImportantStyles": "off",
-        "useIndexOf": "off"
+        "useIndexOf": "off",
+        "noUselessFragments": "off"
       },
       "correctness": {
         "useExhaustiveDependencies": "off",
