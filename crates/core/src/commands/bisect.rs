@@ -8,7 +8,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use crate::ai::{self, run::AiRequest};
+use crate::ai;
 use crate::app::Core;
 use crate::git::rev::{is_sha, resolve_commit};
 
@@ -60,16 +60,10 @@ pub async fn bisect_autopilot_script(
     request: BisectScriptRequest,
     locale: String,
 ) -> CoreResult<BisectScript> {
-    let settings = ai::run::ensure_allowed(core, Some(&repo_id), AiFeature::BisectScript)?;
+    let frame = ai::run::ask(core, &repo_id, AiFeature::BisectScript).await?;
     let checked = ai::bisect::check(core, &repo_id, &request).await?;
-    let (budget, secrets) = crate::commands::ai::request_frame(core, &settings, AiFeature::BisectScript).await;
-    let built = ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?;
-    let schema = ai::bisect::schema();
-    let answer = ai::run::complete_json(
-        core,
-        AiRequest { repo_id: Some(&repo_id), feature: AiFeature::BisectScript, job_id: &job_id, prompt: &built.prompt, schema: &schema },
-    )
-    .await?;
+    let built = ai::bisect::build(core, &repo_id, &checked, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let answer = frame.send(core, &job_id, &built.prompt, &ai::bisect::schema()).await?;
     ai::bisect::parse_answer(&answer.value, BisectShell::current())
 }
 

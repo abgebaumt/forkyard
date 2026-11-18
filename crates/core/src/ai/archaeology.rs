@@ -254,7 +254,7 @@ pub fn sections(rendered: &Rendered) -> Vec<Section> {
 }
 
 /// `AiInput::Archaeology`: the prompt for one timeline. `budget_tokens` and `secrets` come from
-/// `commands::ai::request_frame` – the same values for “What is sent?” and the request.
+/// `ai::run::request_frame` – the same values for “What is sent?” and the request.
 pub async fn build(
     core: &Core,
     repo_id: &str,

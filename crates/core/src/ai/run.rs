@@ -145,6 +145,65 @@ pub fn situation<'a>(
     }
 }
 
+/// The stored key of a provider; `None` if there is none or the keychain is unreachable.
+pub(crate) async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
+    if !kind.accepts_key() {
+        return None;
+    }
+    crate::secrets::get(core, &crate::ai::key_account(kind)).await.ok().flatten()
+}
+
+/// Budget (tokens) and known secrets of a request for `feature` – the same for "What is sent?"
+/// and for the request itself, so both build the same text (the confirmation is bound to it).
+pub(crate) async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
+    let context_size = match (settings.ai_provider, settings.ai_model.as_deref()) {
+        (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
+        _ => 32_000,
+    };
+    let secrets = match settings.ai_provider {
+        Some(kind) => stored_key(core, kind).await.into_iter().collect(),
+        None => Vec::new(),
+    };
+    (context::budget_tokens(feature.budget_tokens(), context_size), secrets)
+}
+
+/// One AI function of a repository: `ask` checks that it may run (before anything is read) and
+/// fixes budget and known secrets; the feature builds its prompt with them (the same builder
+/// "What is sent?" uses) and sends it through `Frame::send`.
+pub struct Frame {
+    pub repo_id: String,
+    pub feature: AiFeature,
+    pub settings: Settings,
+    pub budget: u64,
+    pub secrets: Vec<String>,
+}
+
+pub async fn ask(core: &Core, repo_id: &str, feature: AiFeature) -> CoreResult<Frame> {
+    let settings = ensure_allowed(core, Some(repo_id), feature)?;
+    let (budget, secrets) = request_frame(core, &settings, feature).await;
+    Ok(Frame { repo_id: repo_id.to_string(), feature, settings, budget, secrets })
+}
+
+impl Frame {
+    /// `complete_json` as job `job_id`.
+    pub async fn send(&self, core: &Core, job_id: &str, prompt: &Prompt, schema: &Value) -> CoreResult<AiAnswer> {
+        self.send_checked(core, job_id, prompt, schema, &|_: &Value| Ok::<(), String>(())).await
+    }
+
+    /// `complete_json_checked` as job `job_id`.
+    pub async fn send_checked(
+        &self,
+        core: &Core,
+        job_id: &str,
+        prompt: &Prompt,
+        schema: &Value,
+        check: AnswerCheck<'_>,
+    ) -> CoreResult<AiAnswer> {
+        let request = AiRequest { repo_id: Some(&self.repo_id), feature: self.feature, job_id, prompt, schema };
+        complete_json_checked(core, request, check).await
+    }
+}
+
 pub async fn complete_json(core: &Core, request: AiRequest<'_>) -> CoreResult<AiAnswer> {
     complete_json_checked(core, request, &|_: &Value| Ok::<(), String>(())).await
 }
@@ -171,7 +230,7 @@ pub async fn complete_json_checked(core: &Core, request: AiRequest<'_>, check: A
     core.state::<AiJobs>().ids.lock().insert(request.job_id.to_string());
     let started_at = util::now_iso();
     let started = Instant::now();
-    let outcome = ask(core, provider.as_ref(), &request, estimate.tokens, job.token(), check).await;
+    let outcome = exchange(core, provider.as_ref(), &request, estimate.tokens, job.token(), check).await;
     core.state::<AiJobs>().ids.lock().remove(request.job_id);
     let (usage, result) = match outcome {
         Ok((value, usage)) => (usage, Ok(value)),
@@ -200,7 +259,7 @@ pub async fn complete_json_checked(core: &Core, request: AiRequest<'_>, check: A
     answer
 }
 
-async fn ask(
+async fn exchange(
     core: &Core,
     provider: &dyn Provider,
     request: &AiRequest<'_>,
