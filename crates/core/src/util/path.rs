@@ -194,6 +194,28 @@ pub(crate) fn resolve_for_write(root: &Path, rel: &str) -> CoreResult<PathBuf> {
     Ok(resolved)
 }
 
+/// The raw path the UI means by `name`. The UI only sees `decode_lossy` of a path, so a name
+/// with U+FFFD may stand for a path that is not UTF-8. `known` are the raw paths it can be
+/// (status entries, conflicts): one match is the path, none means `name`'s own bytes, several
+/// are refused (`invalid_name`) – never a guess that hits the wrong file.
+pub fn raw_path<P: AsRef<[u8]>>(name: &str, known: &[P]) -> crate::CoreResult<Vec<u8>> {
+    if !name.contains(char::REPLACEMENT_CHARACTER) {
+        return Ok(name.as_bytes().to_vec());
+    }
+    let mut found: Option<&[u8]> = None;
+    for path in known.iter().map(AsRef::as_ref).filter(|p| String::from_utf8_lossy(p) == name) {
+        match found {
+            Some(other) if other != path => {
+                return Err(crate::CoreError::invalid_name(format!(
+                    "“{name}” stands for several files whose names are not valid UTF-8. Rename them in a terminal or file manager first."
+                )))
+            }
+            _ => found = Some(path),
+        }
+    }
+    Ok(found.unwrap_or(name.as_bytes()).to_vec())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

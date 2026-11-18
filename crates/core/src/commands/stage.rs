@@ -12,7 +12,6 @@
 //! Discarding destroys work: beforehand a backup is created as a commit
 //! (`refs/forkyard/undo/<id>/worktree`) together with an undo entry.
 
-use std::collections::HashMap;
 use std::path::Path;
 
 use serde_json::json;
@@ -81,9 +80,9 @@ pub async fn stage_paths(core: &Core, repo_id: String, paths: Option<Vec<String>
             }
             Some(list) if list.is_empty() => {}
             Some(list) => {
-                let raw: Vec<Vec<u8>> = list.iter().map(|p| p.as_bytes().to_vec()).collect();
+                let raw = raw_paths(core, &repo_id, list).await?;
                 bulk::prestage(core, &repo_id, None, Some(&raw)).await?;
-                git(core, &repo_id)?.args(["add", "-A"]).args(PATHS_FROM_STDIN).stdin(nul_separated(list)).run().await?;
+                git(core, &repo_id)?.args(["add", "-A"]).args(PATHS_FROM_STDIN).stdin(nul_separated(&raw)).run().await?;
             }
         }
         read_status(core, &repo_id).await
@@ -103,10 +102,10 @@ pub async fn unstage_paths(core: &Core, repo_id: String, paths: Option<Vec<Strin
                 util::split_z(&out).filter(|p| !unmerged.iter().any(|u| u == p)).map(<[u8]>::to_vec).collect()
             }
             Some(list) => {
-                if let Some(path) = list.iter().find(|p| unmerged.iter().any(|u| u == p.as_bytes())) {
-                    return Err(conflicted(path));
+                let mut targets = raw_paths(core, &repo_id, list).await?;
+                if let Some(i) = targets.iter().position(|p| unmerged.contains(p)) {
+                    return Err(conflicted(&list[i]));
                 }
-                let mut targets: Vec<Vec<u8>> = list.iter().map(|p| p.as_bytes().to_vec()).collect();
                 if !targets.is_empty() {
                     for (new, old) in staged_renames(core, &repo_id).await? {
                         if targets.contains(&new) && !targets.contains(&old) {
@@ -132,6 +131,16 @@ pub async fn unstage_paths(core: &Core, repo_id: String, paths: Option<Vec<Strin
         read_status(core, &repo_id).await
     })
     .await
+}
+
+/// The raw paths the UI means (`util::raw_path`); reads the status only when a name may be lossy.
+async fn raw_paths(core: &Core, repo_id: &str, names: &[String]) -> CoreResult<Vec<Vec<u8>>> {
+    if !names.iter().any(|n| n.contains(char::REPLACEMENT_CHARACTER)) {
+        return Ok(names.iter().map(|n| n.as_bytes().to_vec()).collect());
+    }
+    let entries = status_entries(core, repo_id).await?;
+    let known: Vec<&[u8]> = entries.iter().flat_map(|e| std::iter::once(&e.path[..]).chain(e.orig_path.as_deref())).collect();
+    names.iter().map(|name| util::raw_path(name, &known)).collect()
 }
 
 fn conflicted(path: &str) -> CoreError {
@@ -757,14 +766,15 @@ async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
 async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreResult<()> {
     let entries = status_entries(core, repo_id).await?;
     // The UI only knows decoded paths; the entries provide the raw bytes for them.
-    let by_name: HashMap<String, &StatusEntry> = entries.iter().map(|e| (util::decode_lossy(&e.path), e)).collect();
+    let known: Vec<&[u8]> = entries.iter().map(|e| &e.path[..]).collect();
     // Back to the index state, delete, take out of the index (only "to be added" entries).
     let mut restore: Vec<Vec<u8>> = Vec::new();
     let mut delete: Vec<Vec<u8>> = Vec::new();
     let mut forget: Vec<Vec<u8>> = Vec::new();
     let mut names: Vec<String> = Vec::new();
     for wanted in requested {
-        let Some(entry) = by_name.get(wanted).copied() else { continue };
+        let raw = util::raw_path(wanted, &known)?;
+        let Some(entry) = entries.iter().find(|e| e.path == raw) else { continue };
         if names.contains(wanted) {
             continue;
         }

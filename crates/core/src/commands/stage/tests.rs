@@ -1850,3 +1850,101 @@ async fn file_delete_refuses_what_it_cannot_back_up() {
     assert_eq!(code_of(file_delete(&tc, id.clone(), "README.md".into()).await), ErrorCode::Conflict);
     assert!(repo.path().join("README.md").exists());
 }
+
+// ---------------------------------------------------------------------------
+// Non-UTF-8 file names (Linux): the UI only sees the lossy decoded name
+// ---------------------------------------------------------------------------
+
+#[cfg(unix)]
+mod non_utf8 {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    use super::*;
+    use crate::commands::merge::conflict_resolve;
+    use crate::model::ConflictSide;
+
+    fn write_raw(repo: &TestRepo, name: &[u8], content: &str) {
+        std::fs::write(repo.path().join(OsStr::from_bytes(name)), content).unwrap();
+    }
+
+    fn read_raw(repo: &TestRepo, name: &[u8]) -> String {
+        std::fs::read_to_string(repo.path().join(OsStr::from_bytes(name))).unwrap()
+    }
+
+    fn ui(name: &[u8]) -> String {
+        util::decode_lossy(name)
+    }
+
+    fn index_has(repo: &TestRepo, name: &[u8]) -> bool {
+        let out = repo.git_output(&["ls-files", "-z"]);
+        out.stdout.split(|&b| b == 0).any(|p| p == name)
+    }
+
+    #[tokio::test]
+    async fn staging_and_unstaging_find_the_raw_name() {
+        let repo = TestRepo::with_commit();
+        let name = b"gr\xfc\xdfe.txt"; // Latin-1 "grüße"
+        write_raw(&repo, name, "x\n");
+        let (tc, id) = open(&repo).await;
+
+        stage_paths(&tc, id.clone(), Some(vec![ui(name)])).await.unwrap();
+        assert!(index_has(&repo, name));
+        unstage_paths(&tc, id, Some(vec![ui(name)])).await.unwrap();
+        assert!(!index_has(&repo, name));
+    }
+
+    #[tokio::test]
+    async fn discard_refuses_a_name_two_files_share() {
+        let repo = TestRepo::with_commit();
+        let (a, b) = (b"a\xff.txt", b"a\xfe.txt");
+        write_raw(&repo, a, "a\n");
+        write_raw(&repo, b, "b\n");
+        repo.git(&["add", "-A"]);
+        repo.commit("two");
+        write_raw(&repo, a, "a changed\n");
+        write_raw(&repo, b, "b changed\n");
+        assert_eq!(ui(a), ui(b));
+        let (tc, id) = open(&repo).await;
+
+        let err = discard_paths(&tc, id, Some(vec![ui(a)])).await.unwrap_err();
+        assert_eq!(err.code, ErrorCode::InvalidName, "{}", err.message);
+        assert_eq!(read_raw(&repo, a), "a changed\n");
+        assert_eq!(read_raw(&repo, b), "b changed\n");
+    }
+
+    #[tokio::test]
+    async fn discard_hits_the_one_raw_file() {
+        let repo = TestRepo::with_commit();
+        let name = b"b\xff.txt";
+        write_raw(&repo, name, "b\n");
+        repo.git(&["add", "-A"]);
+        repo.commit("one");
+        write_raw(&repo, name, "b changed\n");
+        let (tc, id) = open(&repo).await;
+
+        discard_paths(&tc, id, Some(vec![ui(name)])).await.unwrap();
+        assert_eq!(read_raw(&repo, name), "b\n");
+    }
+
+    #[tokio::test]
+    async fn resolving_finds_the_raw_name() {
+        let repo = TestRepo::with_commit();
+        let name = b"k\xf6nflikt.txt";
+        write_raw(&repo, name, "base\n");
+        repo.git(&["add", "-A"]);
+        repo.commit("base");
+        repo.checkout_new("feature");
+        write_raw(&repo, name, "feature\n");
+        repo.git(&["commit", "-qam", "feature"]);
+        repo.checkout("main");
+        write_raw(&repo, name, "main\n");
+        repo.git(&["commit", "-qam", "main"]);
+        assert!(!repo.merge("feature"));
+        let (tc, id) = open(&repo).await;
+
+        let status = conflict_resolve(&tc, id, ui(name), None, Some(ConflictSide::Theirs)).await.unwrap();
+        assert!(status.conflicted.is_empty());
+        assert_eq!(read_raw(&repo, name), "feature\n");
+    }
+}
