@@ -2,12 +2,13 @@
 //! the notes with the AI provider, and inserting them into CHANGELOG.md of the working directory
 //! as a normal, uncommitted change. The host release is `host::release_create` (`commands/host.rs`).
 
+pub mod changelog;
+
 use std::path::Path;
 
 use crate::ai::release_notes;
 use crate::ai::run::{self, AiRequest};
 use crate::app::Core;
-use crate::changelog;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{AiFeature, ChangelogInsertResult, ReleaseNotes, ReleaseNotesRange, RepoChange};
 use crate::util;
