@@ -110,7 +110,11 @@
     },
     "binary": {
       "title": "Binary file",
-      "noTextTitle": "No text to compare"
+      "noTextTitle": "No text to compare",
+      "modifiedBinary": "Both sides changed the file. Binary content cannot be merged line by line – take one of the two versions completely.",
+      "modifiedNoText": "Both sides changed the file. The content cannot be read as text – take one of the two versions completely.",
+      "addedBinary": "Both sides created the file. Binary content cannot be merged line by line – take one of the two versions completely.",
+      "addedNoText": "Both sides created the file. The content cannot be read as text – take one of the two versions completely."
     },
     "decision": "Decision for this file",
     "force": "Compare line by line anyway",

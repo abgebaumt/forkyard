@@ -1,5 +1,5 @@
 // Records the README animation (docs/images/tour.gif): runs the showcase tour
-// (src/screens/Showcase/scenario.ts › tour) on the demo repository (with --history, for the statistics) under Xvfb and captures it with ffmpeg.
+// (src/dev/scenarios/Showcase/scenario.ts › tour) on the demo repository (with --history, for the statistics) under Xvfb and captures it with ffmpeg.
 //
 //   cargo build && node scripts/screenshots/record-gif.mjs
 //

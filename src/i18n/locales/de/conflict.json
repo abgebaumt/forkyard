@@ -110,7 +110,11 @@
     },
     "binary": {
       "title": "Binärdatei",
-      "noTextTitle": "Kein Text zum Abgleichen"
+      "noTextTitle": "Kein Text zum Abgleichen",
+      "modifiedBinary": "Beide Seiten haben die Datei geändert. Binäre Inhalte lassen sich nicht Zeile für Zeile zusammenführen – nimm eine der beiden Fassungen ganz.",
+      "modifiedNoText": "Beide Seiten haben die Datei geändert. Der Inhalt lässt sich nicht als Text lesen – nimm eine der beiden Fassungen ganz.",
+      "addedBinary": "Beide Seiten haben die Datei neu angelegt. Binäre Inhalte lassen sich nicht Zeile für Zeile zusammenführen – nimm eine der beiden Fassungen ganz.",
+      "addedNoText": "Beide Seiten haben die Datei neu angelegt. Der Inhalt lässt sich nicht als Text lesen – nimm eine der beiden Fassungen ganz."
     },
     "decision": "Entscheidung für diese Datei",
     "force": "Trotzdem Zeile für Zeile abgleichen",
