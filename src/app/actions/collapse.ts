@@ -2,12 +2,11 @@
  * Collapse and expand merges in the graph. Changes only the view (viewStateSet), nothing in the
  * repository; the graph then loads from the start, because rows and lanes change.
  */
-import type { InfiniteData } from "@tanstack/react-query";
-import { core, type GraphPage, type Id, type RepoViewState, type Sha } from "../../core";
+import { core, type Id, type RepoViewState, type Sha } from "../../core";
 import { ALL_COLLAPSED, isMergeCollapsed, nextCollapse, NONE_COLLAPSED, type CollapseState } from "../../components/graph/collapse";
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
-import { qk, queryClient } from "../queries";
+import { keepFirstPage, qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { cachedGraphRows, cachedViewState } from "./context";
 
@@ -29,9 +28,7 @@ async function writeCollapse(repoId: Id, patch: CollapseState): Promise<boolean>
   }
   queryClient.setQueryData(qk.viewState(repoId), result.value);
   // Other rows, other lanes: load from the start, keeping only the first page.
-  queryClient.setQueryData<InfiniteData<GraphPage, string | null>>(qk.graph(repoId), (data) =>
-    data && data.pages.length > 1 ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data,
-  );
+  queryClient.setQueryData(qk.graph(repoId), keepFirstPage);
   await queryClient.invalidateQueries({ queryKey: qk.graph(repoId) });
   return true;
 }

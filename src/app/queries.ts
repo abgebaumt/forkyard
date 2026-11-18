@@ -11,6 +11,7 @@ import {
   useInfiniteQuery,
   useQueries,
   useQuery,
+  type InfiniteData,
   type Query,
   type QueryKey,
 } from "@tanstack/react-query";
@@ -644,9 +645,16 @@ const STASH_PARTS = new Set(["stashes", "graph", "undo"]);
 const CONFIG_PARTS = new Set(["remotes", "repoSettings", "refs", "submodules", "lfs", "hostRepo", "linkRules", "lineArchaeology", "stack"]);
 const OPERATION_PARTS = new Set(["status", "conflict", "undo", "bisect"]);
 
+/** Keeps only the first page of an infinite query, so a refetch reloads one page instead of every loaded one. */
+export function keepFirstPage<T, P>(data: InfiniteData<T, P> | undefined): InfiniteData<T, P> | undefined {
+  return data && data.pages.length > 1 ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data;
+}
+
 /** What a `repo:changed` means for a repo's queries. */
 export function invalidateRepo(client: QueryClient, repoId: Id, what: RepoChange[]): Promise<void> {
   const changes = new Set(what);
+  // Other refs, other rows: refetching every scrolled page would be thousands of commits.
+  if (changes.has("refs") || changes.has("head") || changes.has("stash")) client.setQueryData(qk.graph(repoId), keepFirstPage);
   return client.invalidateQueries({
     queryKey: qk.repo(repoId),
     predicate: (query) => {

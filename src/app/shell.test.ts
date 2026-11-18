@@ -144,7 +144,7 @@ describe("Invalidation after repo:changed", () => {
       fileCommit: qk.file(r, "a.txt", "abc"),
       otherRepo: qk.status("r2"),
     };
-    for (const value of Object.values(keys)) client.setQueryData(value, 1);
+    for (const value of Object.values(keys)) client.setQueryData(value, value === keys.graph ? { pages: [1], pageParams: [null] } : 1);
     const invalid = () =>
       Object.entries(keys)
         .filter(([, value]) => client.getQueryState(value)?.isInvalidated)
