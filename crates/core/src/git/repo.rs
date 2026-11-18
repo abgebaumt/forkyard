@@ -96,10 +96,7 @@ pub async fn read_operation(core: &Core, repo_id: &str) -> CoreResult<Option<Ope
 
 pub(crate) async fn operation_at(core: &Core, path: &Path, repo_id: &str, head: &Head) -> CoreResult<Option<Operation>> {
     let dir = git_dir_at(core, path, repo_id).await?;
-    let current_branch = match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => Some(branch.clone()),
-        Head::Detached { .. } => None,
-    };
+    let current_branch = head.branch().map(str::to_string);
     let merge_msg = || read_text(&dir.join("MERGE_MSG")).and_then(|m| clean_message(&m));
 
     // Rebase first: during a rebase conflict CHERRY_PICK_HEAD is there as well.

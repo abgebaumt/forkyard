@@ -596,7 +596,7 @@ pub async fn stash_create(
                 Some(m) => format!("Undo stash “{}”", undo::shorten(m, 60)),
                 None => "Undo stash".to_string(),
             };
-            let token = undo::head_token(&head);
+            let token = head.token();
             undo::record(
                 core,
                 UndoRecord {
@@ -612,7 +612,7 @@ pub async fn stash_create(
                     head_after: Some(token),
                     payload: json!({
                         "stashSha": sha,
-                        "headSha": undo::head_sha(&head),
+                        "headSha": head.sha(),
                         "message": message,
                         "paths": paths,
                         "includeUntracked": include_untracked,
@@ -702,7 +702,7 @@ async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, expected_sha: Opti
             // only once the undo entry including the backup is written as well (a "Commit" right
             // after the pop would otherwise briefly find "Nothing to commit").
             core.emit_repo_changed(repo_id, &[RepoChange::Stash, RepoChange::Worktree, RepoChange::Index]);
-            let token = undo::head_token(&head);
+            let token = head.token();
             // The state after the pop: against it undo detects what the user has added since.
             let result = undo::keep_result(core, repo_id, &id, "result", None).await.ok();
             undo::record(
@@ -722,7 +722,7 @@ async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, expected_sha: Opti
                         "stashSha": row.sha,
                         "stashSubject": row.subject,
                         "stashIndex": index,
-                        "headSha": undo::head_sha(&head),
+                        "headSha": head.sha(),
                         "worktreeSnapshot": worktree_sha,
                         "indexTree": index_tree,
                         "resultSnapshot": result,

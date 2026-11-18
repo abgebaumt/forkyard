@@ -131,7 +131,7 @@ pub async fn commit_reword(
             }
         };
         let sha = head_sha(core, &repo_id).await?;
-        let head = head_label(&status.head);
+        let head = status.head.token();
         undo::record(
             core,
             UndoRecord {
@@ -238,7 +238,7 @@ async fn commit_locked(core: &Core, repo_id: &str, req: &CommitRequest<'_>) -> C
         log::warn!("Commit draft not cleared: {}", e.message);
     }
 
-    let head = head_label(&status.head);
+    let head = status.head.token();
     let on_branch = branch.is_some();
     let label = if req.amend { format!("Undo amend of {}", quoted(req.summary)) } else { format!("Undo commit {}", quoted(req.summary)) };
     undo::record(
@@ -332,20 +332,8 @@ pub(crate) fn quoted(text: &str) -> String {
     }
 }
 
-/// HEAD as undo records it: `refs/heads/<branch>` or the SHA.
-pub(crate) fn head_label(head: &Head) -> String {
-    match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => format!("refs/heads/{branch}"),
-        Head::Detached { sha } => sha.clone(),
-    }
-}
-
 fn branch_and_sha(head: &Head) -> (Option<String>, Option<String>) {
-    match head {
-        Head::Branch { branch, sha } => (Some(branch.clone()), Some(sha.clone())),
-        Head::Detached { sha } => (None, Some(sha.clone())),
-        Head::Unborn { branch } => (Some(branch.clone()), None),
-    }
+    (head.branch().map(str::to_string), head.sha().map(str::to_string))
 }
 
 async fn head_sha(core: &Core, repo_id: &str) -> CoreResult<String> {

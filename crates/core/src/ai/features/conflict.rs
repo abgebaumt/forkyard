@@ -26,8 +26,7 @@ use crate::git::redact;
 use crate::git::repo::read_head;
 use crate::git::repo::read_operation;
 use crate::model::{
-    AiOmitReason, AiOmitted, ConflictBlockRange, ConflictIntent, ConflictIntentBlock, Head, IntentSent, OperationKind, PrListState,
-    Settings,
+    AiOmitReason, AiOmitted, ConflictBlockRange, ConflictIntent, ConflictIntentBlock, IntentSent, OperationKind, PrListState, Settings,
 };
 use crate::util;
 use crate::util::normalize_rel_path;
@@ -333,10 +332,7 @@ pub async fn build(
     let known_markers: HashSet<String> = ours.iter().chain(&theirs).filter(|line| is_marker_line(line)).cloned().collect();
 
     let operation = read_operation(core, repo_id).await?;
-    let current_branch = match read_head(core, repo_id).await? {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => Some(branch),
-        Head::Detached { .. } => None,
-    };
+    let current_branch = read_head(core, repo_id).await?.branch().map(str::to_string);
     let (ours_branch, theirs_branch) = match &operation {
         Some(op) => (op.target.clone().or(current_branch), op.source.clone()),
         None => (current_branch, None),

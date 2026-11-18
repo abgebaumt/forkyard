@@ -24,7 +24,7 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::branches::{self, BranchInfo};
-use crate::commands::commit::{head_label, hook_failure, Hooks, ABORTING_HOOKS};
+use crate::commands::commit::{hook_failure, Hooks, ABORTING_HOOKS};
 use crate::commands::merge::stopped_or_failed;
 use crate::commands::status;
 use crate::commands::sync::{self, PushRequest};
@@ -415,8 +415,8 @@ impl Progress<'_> {
                     ref_name: None,
                     ref_before: None,
                     ref_after: None,
-                    head_before: head_label(&self.head_before),
-                    head_after: head_after.map(head_label),
+                    head_before: self.head_before.token(),
+                    head_after: head_after.map(Head::token),
                     payload: json!({
                         "composite": true,
                         "steps": steps,

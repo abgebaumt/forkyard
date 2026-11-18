@@ -323,6 +323,41 @@ pub enum Head {
     },
 }
 
+impl Head {
+    /// The commit HEAD points to; `None` without a commit.
+    pub fn sha(&self) -> Option<&str> {
+        match self {
+            Head::Branch { sha, .. } | Head::Detached { sha } => Some(sha),
+            Head::Unborn { .. } => None,
+        }
+    }
+
+    /// The checked-out branch (also without a commit); `None` when detached.
+    pub fn branch(&self) -> Option<&str> {
+        match self {
+            Head::Branch { branch, .. } | Head::Unborn { branch } => Some(branch),
+            Head::Detached { .. } => None,
+        }
+    }
+
+    /// HEAD in the notation of the undo entries (`head_before`/`head_after`):
+    /// `refs/heads/<branch>` when HEAD is on a branch (even without a commit), otherwise the SHA.
+    pub fn token(&self) -> String {
+        match self {
+            Head::Branch { branch, .. } | Head::Unborn { branch } => format!("refs/heads/{branch}"),
+            Head::Detached { sha } => sha.clone(),
+        }
+    }
+
+    /// Name for messages: branch or short SHA.
+    pub fn label(&self) -> String {
+        match self {
+            Head::Branch { branch, .. } | Head::Unborn { branch } => branch.clone(),
+            Head::Detached { sha } => crate::git::rev::short(sha).to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RefsSnapshot {
@@ -3379,6 +3414,26 @@ pub struct SubmodulesUpdatedEvent {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn head_accessors() {
+        let sha = "0123456789abcdef0123456789abcdef01234567".to_string();
+        let on = Head::Branch { branch: "main".into(), sha: sha.clone() };
+        let detached = Head::Detached { sha: sha.clone() };
+        let unborn = Head::Unborn { branch: "main".into() };
+        assert_eq!(
+            (on.sha(), on.branch(), on.token(), on.label()),
+            (Some(sha.as_str()), Some("main"), "refs/heads/main".into(), "main".into())
+        );
+        assert_eq!(
+            (detached.sha(), detached.branch(), detached.token(), detached.label()),
+            (Some(sha.as_str()), None, sha.clone(), "0123456".into())
+        );
+        assert_eq!(
+            (unborn.sha(), unborn.branch(), unborn.token(), unborn.label()),
+            (None, Some("main"), "refs/heads/main".into(), "main".into())
+        );
+    }
 
     fn person() -> Person {
         Person { name: "Ada".into(), email: "ada@example.com".into() }

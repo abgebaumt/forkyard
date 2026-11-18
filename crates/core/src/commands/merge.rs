@@ -57,11 +57,11 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
     ensure_no_operation(core, repo_id).await?;
     ensure_no_unmerged(core, repo_id).await?;
     let head = read_head(core, repo_id).await?;
-    let Some(old) = head_sha(&head).map(str::to_string) else {
+    let Some(old) = head.sha().map(str::to_string) else {
         return Err(CoreError::not_allowed("You can’t merge in a repository without commits. Create a commit first."));
     };
     let src = resolve_source(core, repo_id, source).await?;
-    let target = head_label(&head);
+    let target = head.label();
 
     if rev::is_ancestor(core, repo_id, &src.sha, &old).await? {
         return Ok(OpResult::UpToDate);
@@ -127,7 +127,7 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
                 head_after: Some(head_value(&head, &old)),
                 payload: json!({
                     "squash": true,
-                    "branch": branch_of(&head),
+                    "branch": head.branch(),
                     "source": src.label,
                     "worktreeSnapshot": saved.worktree,
                     "indexTree": saved.index_tree,
@@ -164,7 +164,7 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
             head_before: head_value(&head, &old),
             head_after: Some(head_value(&head, &new)),
             payload: json!({
-                "branch": branch_of(&head),
+                "branch": head.branch(),
                 "source": src.label,
                 "fastForward": fast_forward,
                 "summary": subject,
@@ -243,7 +243,7 @@ pub async fn conflict_get(core: &Core, repo_id: String, path: String) -> CoreRes
 
 /// Names of the two sides, matching index stages 2 and 3 (see the top of the file).
 fn side_labels(operation: Option<&Operation>, head: &Head) -> (String, String) {
-    let current = head_label(head);
+    let current = head.label();
     let Some(op) = operation else {
         // Conflict without a running operation: squash merge or applied stash.
         return (current, "Incoming change".to_string());
@@ -458,9 +458,9 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
     }
 
     let new_head = read_head(core, repo_id).await?;
-    let new = head_sha(&new_head).map(str::to_string);
+    let new = new_head.sha().map(str::to_string);
     let source = op.source.clone().unwrap_or_else(|| "?".to_string());
-    let target = op.target.clone().unwrap_or_else(|| head_label(&new_head));
+    let target = op.target.clone().unwrap_or_else(|| new_head.label());
     let (action, undo_label, summary) = match op.kind {
         OperationKind::Merge => {
             (UndoAction::Merge, format!("Undo merge of {source} into {target}"), format!("Merged {source} into {target}"))
@@ -521,7 +521,7 @@ struct OperationStart {
 
 impl OperationStart {
     async fn read(core: &Core, repo_id: &str, dir: &Path, op: &Operation, head: &Head) -> OperationStart {
-        let current = head_sha(head).unwrap_or_default().to_string();
+        let current = head.sha().unwrap_or_default().to_string();
         let first_line = |path: PathBuf| {
             std::fs::read_to_string(path).ok().and_then(|t| t.lines().next().map(|l| l.trim().to_string())).filter(|l| !l.is_empty())
         };
@@ -766,7 +766,7 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
     ensure_no_operation(core, repo_id).await?;
     ensure_no_unmerged(core, repo_id).await?;
     let head = read_head(core, repo_id).await?;
-    let Some(old) = head_sha(&head).map(str::to_string) else {
+    let Some(old) = head.sha().map(str::to_string) else {
         return Err(CoreError::not_allowed("There’s nothing to revert in a repository without commits."));
     };
     let target = rev::resolve_commit(core, repo_id, sha).await?;
@@ -840,7 +840,7 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
             head_before: head_value(&head, &old),
             head_after: Some(head_value(&head, &new)),
             payload: json!({
-                "branch": branch_of(&head),
+                "branch": head.branch(),
                 "source": rev::short(&target),
                 "summary": meta.subject,
             }),
@@ -874,7 +874,7 @@ pub async fn reset_branch(core: &Core, repo_id: String, sha: String, mode: Reset
 async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) -> CoreResult<Status> {
     ensure_no_operation(core, repo_id).await?;
     let head = read_head(core, repo_id).await?;
-    let Some(old) = head_sha(&head).map(str::to_string) else {
+    let Some(old) = head.sha().map(str::to_string) else {
         return Err(CoreError::not_allowed("There’s nothing to reset in a repository without commits."));
     };
     let target = rev::resolve_commit(core, repo_id, sha).await?;
@@ -908,7 +908,7 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
                 repo_id: repo_id.to_string(),
                 worktree_path: String::new(),
                 action: UndoAction::Reset,
-                label: format!("Undo reset of {} to {}", head_label(&head), rev::short(&target)),
+                label: format!("Undo reset of {} to {}", head.label(), rev::short(&target)),
                 ref_name: branch_ref(&head),
                 ref_before: Some(old.clone()),
                 ref_after: Some(target.clone()),
@@ -916,7 +916,7 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
                 head_after: Some(head_value(&head, &target)),
                 payload: json!({
                     "mode": mode_name,
-                    "branch": branch_of(&head),
+                    "branch": head.branch(),
                     "worktreeSnapshot": saved.worktree,
                     "indexTree": saved.index_tree,
                     // Provisionally the target commit; after the reset the actual state.
@@ -1290,36 +1290,14 @@ fn path_cmd(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
     Ok(core.git_for(repo_id)?.literal_paths())
 }
 
-fn head_sha(head: &Head) -> Option<&str> {
-    match head {
-        Head::Branch { sha, .. } | Head::Detached { sha } => Some(sha),
-        Head::Unborn { .. } => None,
-    }
-}
-
-fn branch_of(head: &Head) -> Option<&str> {
-    match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => Some(branch),
-        Head::Detached { .. } => None,
-    }
-}
-
 /// The checked-out branch as full ref name.
 fn branch_ref(head: &Head) -> Option<String> {
-    branch_of(head).map(|b| format!("refs/heads/{b}"))
+    head.branch().map(|b| format!("refs/heads/{b}"))
 }
 
 /// HEAD for an undo entry: the ref name if HEAD is on a branch, otherwise `sha`.
 fn head_value(head: &Head, sha: &str) -> String {
     branch_ref(head).unwrap_or_else(|| sha.to_string())
-}
-
-/// Name for messages: branch or short SHA.
-fn head_label(head: &Head) -> String {
-    match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => branch.clone(),
-        Head::Detached { sha } => rev::short(sha).to_string(),
-    }
 }
 
 fn commit_not_found(rev: &str) -> CoreError {

@@ -158,7 +158,7 @@ async fn finish(
                 moves.push(RefMove { name: name.clone(), from: before, to: after });
             }
         }
-        let (head_before, head_after) = (undo::head_token(&start.head), undo::head_token(&after_head));
+        let (head_before, head_after) = (start.head.token(), after_head.token());
         if done == 0 || (moves.is_empty() && head_before == head_after && !stashed) {
             undo::delete_backup_refs(core, repo_id, &start.entry).await?;
             return Ok(false);

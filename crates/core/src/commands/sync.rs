@@ -24,7 +24,7 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
-use crate::commands::remotes::{self, head_marker};
+use crate::commands::remotes;
 use crate::commands::status;
 use crate::commands::submodule::auto;
 use crate::db;
@@ -612,7 +612,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     } else {
         format!("Merged {upstream_name} ({} new).", commits(behind))
     };
-    let head_ref = head_marker(&head);
+    let head_ref = head.token();
     undo::record(
         core,
         UndoRecord {

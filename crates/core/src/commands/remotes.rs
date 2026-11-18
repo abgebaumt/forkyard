@@ -9,7 +9,7 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
-use crate::model::{Head, Remote, RemoteHost, RepoChange};
+use crate::model::{Remote, RemoteHost, RepoChange};
 use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
@@ -383,7 +383,7 @@ pub async fn remote_remove(core: &Core, repo_id: String, name: String) -> CoreRe
     core.with_write_lock(&repo_id, &[RepoChange::Config, RepoChange::Refs], async {
         let existing = read_remotes(core, &repo_id).await?;
         let current = existing.iter().find(|r| r.name == name).cloned().ok_or_else(|| missing_remote(&name))?;
-        let head = head_marker(&crate::git::repo::read_head(core, &repo_id).await?);
+        let head = crate::git::repo::read_head(core, &repo_id).await?.token();
 
         // What disappears with the remote: its remote branches and the upstream entries of local branches.
         let prefix = format!("refs/remotes/{name}/");
@@ -448,14 +448,6 @@ pub async fn remote_remove(core: &Core, repo_id: String, name: String) -> CoreRe
         Ok(to_models(&read_remotes(core, &repo_id).await?))
     })
     .await
-}
-
-/// HEAD for undo entries: `refs/heads/<branch>` or the SHA.
-pub fn head_marker(head: &Head) -> String {
-    match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => format!("refs/heads/{branch}"),
-        Head::Detached { sha } => sha.clone(),
-    }
 }
 
 /// Local branches whose upstream is on `remote`: (branch, `branch.<x>.merge`).

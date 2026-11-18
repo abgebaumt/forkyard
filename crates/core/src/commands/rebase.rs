@@ -397,7 +397,7 @@ pub(crate) fn pending_belongs_to(entry: &UndoEntry, kind: OperationKind, ref_nam
 pub(crate) async fn settle_entry(core: &Core, repo_id: &str, entry: &UndoEntry) -> CoreResult<()> {
     let (current, before) = match &entry.ref_name {
         Some(name) => (rev::rev_parse(core, repo_id, name).await?, entry.ref_before.clone()),
-        None => (head_sha(&crate::git::repo::read_head(core, repo_id).await?), Some(entry.head_before.clone())),
+        None => (crate::git::repo::read_head(core, repo_id).await?.sha().map(str::to_string), Some(entry.head_before.clone())),
     };
     let Some(current) = current.filter(|sha| Some(sha) != before.as_ref()) else {
         core.db.with(|c| db::undo::delete(c, &entry.id))?;
@@ -542,7 +542,7 @@ async fn start_rebase(
         label: format!("Undo rebase of {target} onto {onto_name}"),
         branch: target.clone(),
         old_tip: old_tip.clone(),
-        head_before: head_key(&head),
+        head_before: head.token(),
         payload: json!({ "branch": target, "onto": onto_sha, "ontoName": onto_name, "summary": Value::Null }),
         what: "rebase",
     };
@@ -765,7 +765,7 @@ async fn apply_plan(
         label,
         branch: branch.clone(),
         old_tip: head_sha.clone(),
-        head_before: head_key(&head),
+        head_before: head.token(),
         payload: json!({ "branch": branch, "base": base_sha, "summary": stats.single_summary() }),
         what: "interactive rebase",
     };
@@ -1162,7 +1162,7 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
         label: format!("Undo squash of {}", commits_label(wanted.len())),
         branch: branch.clone(),
         old_tip: head_sha.clone(),
-        head_before: head_key(&head),
+        head_before: head.token(),
         payload: json!({ "branch": branch, "base": base, "summary": summary_line, "count": wanted.len() }),
         what: "squash",
     };
@@ -1307,7 +1307,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
             ref_name: branch.as_ref().map(|b| format!("refs/heads/{b}")),
             ref_before: branch.as_ref().map(|_| old_head.clone()),
             ref_after: branch.as_ref().filter(|_| !pending).map(|_| new_head.clone()),
-            head_before: head_key(&head),
+            head_before: head.token(),
             head_after: (!pending).then(|| branch.as_ref().map_or(new_head.clone(), |b| format!("refs/heads/{b}"))),
             payload: json!({ "branch": branch, "summary": first.summary, "shas": shas, "count": applied, "pending": pending }),
         };
@@ -1485,20 +1485,6 @@ fn normalize_message(text: &str) -> Option<String> {
     let body = lines.join("\n");
     let body = body.trim_end();
     (!body.is_empty()).then(|| format!("{body}\n"))
-}
-
-fn head_key(head: &Head) -> String {
-    match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => format!("refs/heads/{branch}"),
-        Head::Detached { sha } => sha.clone(),
-    }
-}
-
-fn head_sha(head: &Head) -> Option<String> {
-    match head {
-        Head::Branch { sha, .. } | Head::Detached { sha } => Some(sha.clone()),
-        Head::Unborn { .. } => None,
-    }
 }
 
 /// How the UI names the target: branch name, or the short SHA.
