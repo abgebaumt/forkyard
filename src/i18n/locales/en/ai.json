@@ -335,6 +335,11 @@
     "done": {
       "whatIsSent": "What is sent?",
       "noRepo": "Open a repository to see an example of what is sent."
+    },
+    "where": {
+      "cli": "Requests go to {{name}} on this computer, which passes them to its provider with your sign-in. Forkyard stores nothing of it.",
+      "local": "Requests stay on this computer ({{name}}).",
+      "api": "Requests go over the internet to {{name}}, with the key from your keychain."
     }
   },
   "command": {

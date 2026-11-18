@@ -1,5 +1,5 @@
 // Takes the README screenshots on Linux: starts a virtual X display (Xvfb), a Vite server and the
-// debug build of the app once per view, runs a showcase scenario (src/screens/Showcase/scenario.ts)
+// debug build of the app once per view, runs a showcase scenario (src/dev/scenarios/Showcase/scenario.ts)
 // against the demo repository and saves the window as PNG in docs/images/.
 //
 //   cargo build && node scripts/screenshots/shoot.mjs [graph diff conflict rebase settings stats reflog bisect imageDiff] [--light]
