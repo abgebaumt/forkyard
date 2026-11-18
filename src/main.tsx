@@ -43,7 +43,7 @@ installEscapeGuard();
 // Closing the window with unsaved text or a running action: ask first.
 installCloseGuard();
 
-// Development build only: access for the E2E driver (scripts/e2e) and the console,
+// Development build only: access for the E2E tests (e2e/) and the console,
 // e.g. `__gc.store.getState().openOverlay({ kind: "clone" })`.
 if (import.meta.env.DEV) {
   window.__gc = { core, store: useAppStore, queryClient };

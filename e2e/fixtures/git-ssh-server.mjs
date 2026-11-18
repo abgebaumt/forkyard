@@ -26,7 +26,7 @@
  * `findSshd()` returns null if there is no sshd – then no SSH round trip is possible.
  *
  * Called directly (to try it out):
- *   node scripts/e2e/git-ssh-server.mjs [--repo <path>] [--key <path-to-.pub>]
+ *   node e2e/fixtures/git-ssh-server.mjs [--repo <path>] [--key <path-to-.pub>]
  */
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";

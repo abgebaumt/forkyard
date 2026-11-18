@@ -867,7 +867,7 @@ if (typeof window !== "undefined") {
   if (isTauri()) void ensureListening();
 
   if (import.meta.env.DEV) {
-    // For the E2E driver (scripts/e2e/screens/terminal.mjs) and the console.
+    // For the E2E tests (e2e/features/terminal-tabs.mjs) and the console.
     window.__gcTerminal = {
       tabs: () => [...groups.keys()],
       openIds: () => [...byTerminalId.keys()],

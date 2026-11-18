@@ -1,6 +1,6 @@
 /**
  * Development build only: access to menus, actions and commands for the E2E driver
- * (scripts/e2e) and the console – as long as the graph and the Left Panel do not open the menus
+ * (e2e/) and the console – as long as the graph and the Left Panel do not open the menus
  * themselves, they can be triggered like this:
  *
  *   __gcUi.openMenuAt({ x: 400, y: 200 }, __gcUi.menus.commitMenu({ repoId, tabId, shas }))

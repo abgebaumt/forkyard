@@ -7,7 +7,7 @@
  *   repo.cleanup();
  *
  * Available: makeRichRepo, makeCleanRepoWithRemote, makeEmptyRepo, makeConflictRepo, makeDetachedRepo,
- * makeLargeRepo(n), makeNotARepo. `node scripts/e2e/fixtures.mjs rich --keep` creates one and shows it.
+ * makeLargeRepo(n), makeNotARepo. `node e2e/fixtures/fixtures.mjs rich --keep` creates one and shows it.
  *
  * Properties:
  * - Fixed identity and fixed, increasing timestamps: the same steps produce the same SHAs.
@@ -1097,7 +1097,7 @@ export const fixtures = {
   notarepo: makeNotARepo,
 };
 
-// Called directly: `node scripts/e2e/fixtures.mjs rich [--keep]` creates the fixture and shows
+// Called directly: `node e2e/fixtures/fixtures.mjs rich [--keep]` creates the fixture and shows
 // what is in it. With --keep the folder stays (for a look); otherwise it is cleaned up.
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"))) {
   const name = process.argv[2] ?? "rich";

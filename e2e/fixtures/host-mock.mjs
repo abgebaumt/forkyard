@@ -39,7 +39,7 @@
  * (GitLab), team/demo (Bitbucket), firma/projekt/_git/demo (Azure DevOps). Work items (Azure
  * DevOps) = the 12 issues.
  *
- * Called directly (to try it out):  node scripts/e2e/host-mock.mjs [--tls] [--port 8123]
+ * Called directly (to try it out):  node e2e/fixtures/host-mock.mjs [--tls] [--port 8123]
  */
 import crypto from "node:crypto";
 import fs from "node:fs";

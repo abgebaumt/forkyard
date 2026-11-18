@@ -2197,7 +2197,7 @@ export interface CoreEvents {
    * The window is supposed to close, but the UI has reported via `appCloseGuard` that something
    * would be lost: it asks the user and calls `appQuit` – or leaves the window open.
    */
-  // No payload. (Written as a literal object type: that is how the contract check in scripts/e2e/contract.mjs reads it.)
+  // No payload. (Written as a literal object type: that is how the contract check in e2e/features/contract.mjs reads it.)
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   "app:close_requested": {};
   /** The follow-up job brought changed submodules along; `ok: false` is a warning (`message` says why), the main operation went through. */

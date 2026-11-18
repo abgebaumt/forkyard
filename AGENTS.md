@@ -36,21 +36,24 @@ cargo clippy --workspace --all-targets       # expect 0 warnings
 README screenshots (Linux, needs Xvfb, ImageMagick and ffmpeg): `cargo build && node scripts/screenshots/shoot.mjs` and `node scripts/screenshots/record-gif.mjs`.
 The demo repository comes from `scripts/screenshots/demo-repo.mjs`, the views from `src/screens/Showcase/scenario.ts`.
 
-### E2E (Windows only)
+### E2E
 
-`scripts/e2e/driver.mjs` starts the **built debug app** (`cargo build` first) and drives WebView2 over
-CDP with Playwright, using its own Vite server from port 1421 without HMR. On Linux/macOS it aborts (no CDP).
+`e2e/` drives the real debug app over W3C WebDriver (`tauri-driver` + WebKitWebDriver on Linux; Windows
+is prepared but untested; macOS has no WebDriver). Each launch gets its own Xvfb display, ports, data
+dir, gitconfig and keychain service; the UI comes from its own Vite server from port 1431 (no HMR,
+page error hook). Features live in `e2e/features/*.mjs` (`scenario(name, "main"|"edge", fn)` from
+`e2e/lib.mjs`), shared fixtures (repositories, host mock, local Git servers) in `e2e/fixtures/`.
+Details and the API: `e2e/README.md`.
 
 ```bash
-node scripts/e2e/screens/CommitPanel.mjs              # one script
-node scripts/e2e/screens/CommitPanel.mjs --only hook  # only sections whose title contains "hook"
-node scripts/e2e/run-all.mjs --set screens            # sets: base | screens | flows | all
-node scripts/e2e/driver.mjs --status | --stop-vite
+npm run e2e:wd:prepare                    # cargo build + copy to target/e2e-wd/bin/<mtime>/
+npm run e2e:wd                            # all features, 4 at a time; results in target/e2e-wd/results/
+node e2e/run.mjs smoke                    # features whose name contains "smoke"
+E2E_WD_ONLY="undo" node e2e/features/dataloss.mjs   # one feature, only scenarios whose name contains "undo"
 ```
 
-At most three scripts run at the same time. Logs go to `target/e2e/run-logs/`, screenshots to
-`target/e2e/shots/`. If a test turns red under load, fix the cause (wait for the concrete condition),
-never just raise timeouts.
+If a test turns red under load, fix the cause (wait for the concrete condition), never just raise
+timeouts.
 
 ## Architecture
 
