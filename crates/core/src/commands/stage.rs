@@ -710,9 +710,9 @@ fn discard_label(names: &[String]) -> String {
 
 async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
     if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
-        return Err(CoreError::new(
-            ErrorCode::OperationInProgress,
-            "A merge, rebase, cherry-pick or revert is in progress. Discarding everything would break it – abort the operation or discard individual files instead.",
+        return Err(CoreError::operation_in_progress(
+            None,
+            "Discarding everything would break it – abort the operation or discard individual files instead.",
         ));
     }
     let entries = status_entries(core, repo_id).await?;

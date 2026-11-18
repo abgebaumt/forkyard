@@ -38,7 +38,7 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
 pub(crate) const ORPHANED: &str = "The coding agent's worktree or branch no longer exists. Remove its entry in the cockpit.";
 pub(crate) const STAGED: &str =
     "Your staging area already holds changes. Commit or unstage them first, so that the commit contains only the agent's selection.";
-pub(crate) const OPERATION: &str = "A merge, rebase, cherry-pick or revert is in progress in your repository. Finish or abort it first, so that the commit contains only the agent's selection.";
+pub(crate) const OPERATION: &str = "Finish or abort it first, so that the commit contains only the agent's selection.";
 pub(crate) const STAYS_STAGED: &str = "The selection stays staged: commit it in the commit panel or undo the takeover.";
 pub(crate) const RUNNING: &str = "The coding agent is still running. Stop it first – otherwise it keeps writing into its worktree.";
 
@@ -158,7 +158,7 @@ pub(crate) async fn commit_selection(
     let status = read_status(core, &repo_id).await?;
     // During a merge (or with open conflicts) the commit would become that operation's commit.
     if status.operation.is_some() || !status.conflicted.is_empty() {
-        return Err(CoreError::new(ErrorCode::OperationInProgress, OPERATION));
+        return Err(CoreError::operation_in_progress(None, OPERATION));
     }
     if !status.staged.is_empty() {
         return Err(CoreError::not_allowed(STAGED));

@@ -429,7 +429,7 @@ async fn merge_error_cases() {
     for mode in [MergeMode::Default, MergeMode::Squash] {
         let err = merge_start(&tc, id.clone(), "feature".into(), mode).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::OperationInProgress);
-        assert!(err.message.contains("a merge"), "{}", err.message);
+        assert!(err.message.starts_with("A merge is in progress"), "{}", err.message);
     }
 }
 

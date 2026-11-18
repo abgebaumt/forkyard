@@ -448,10 +448,7 @@ struct PullPlan {
 }
 
 fn operation_running() -> CoreError {
-    CoreError::new(
-        ErrorCode::OperationInProgress,
-        "A merge, rebase, cherry-pick or revert is already in progress. Finish or abort it first.",
-    )
+    CoreError::operation_in_progress(None, "Finish or abort it first.")
 }
 
 /// The checked-out branch and its commit (`None` without a commit); a detached HEAD is an error.

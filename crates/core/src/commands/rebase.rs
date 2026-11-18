@@ -1369,10 +1369,7 @@ where
 }
 
 fn operation_in_progress() -> CoreError {
-    CoreError::new(
-        ErrorCode::OperationInProgress,
-        "A merge, rebase, cherry-pick or revert is already in progress. Finish or abort it first.",
-    )
+    CoreError::operation_in_progress(None, "Finish or abort it first.")
 }
 
 async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
