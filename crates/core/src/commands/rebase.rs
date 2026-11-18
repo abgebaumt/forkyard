@@ -21,11 +21,11 @@ use serde_json::{json, Value};
 
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
-use crate::commands::refs;
 use crate::commands::status::{self, EntryKind};
 use crate::commands::submodule::auto;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::git::{errors, GitOutput};
 use crate::model::{
     Head, HookOutput, OpResult, Operation, OperationKind, Person, RebaseAction, RebasePlan, RebasePlanRow, RebaseRefusal,
@@ -138,10 +138,10 @@ pub async fn rebase_dependents(core: &Core, repo_id: String, onto: String, branc
             _ => return Ok(Vec::new()),
         },
     };
-    let Some(tip) = rev_parse(core, repo_id, &format!("refs/heads/{target}^{{commit}}")).await? else {
+    let Some(tip) = rev::rev_parse(core, repo_id, &format!("refs/heads/{target}^{{commit}}")).await? else {
         return Ok(Vec::new());
     };
-    let onto_sha = resolve_commit(core, repo_id, &onto).await?;
+    let onto_sha = rev::resolve_commit(core, repo_id, &onto).await?;
     Ok(dependent_refs(core, repo_id, &onto_sha, &tip, &target).await?.into_iter().map(|(name, _)| name).collect())
 }
 
@@ -172,11 +172,11 @@ pub async fn rebase_plan(core: &Core, repo_id: String, base: String) -> CoreResu
         }
         Head::Unborn { .. } => return refused(RebaseRefusal::NothingToRebase, "The repository doesn't have any commits yet."),
     };
-    let base_sha = resolve_commit(core, repo_id, &base).await?;
+    let base_sha = rev::resolve_commit(core, repo_id, &base).await?;
     if base_sha == head_sha {
         return refused(RebaseRefusal::NothingToRebase, "There are no commits between the selected commit and HEAD.");
     }
-    if !is_ancestor(core, repo_id, &base_sha, &head_sha).await? {
+    if !rev::is_ancestor(core, repo_id, &base_sha, &head_sha).await? {
         let related = core.git_for(repo_id)?.read().args(["merge-base", &base_sha, &head_sha]).run_raw().await?.success();
         let (detail, message) = if related {
             (
@@ -396,7 +396,7 @@ pub(crate) fn pending_belongs_to(entry: &UndoEntry, kind: OperationKind, ref_nam
 /// running. Does NOT take the write lock itself.
 pub(crate) async fn settle_entry(core: &Core, repo_id: &str, entry: &UndoEntry) -> CoreResult<()> {
     let (current, before) = match &entry.ref_name {
-        Some(name) => (rev_parse(core, repo_id, name).await?, entry.ref_before.clone()),
+        Some(name) => (rev::rev_parse(core, repo_id, name).await?, entry.ref_before.clone()),
         None => (head_sha(&crate::git::repo::read_head(core, repo_id).await?), Some(entry.head_before.clone())),
     };
     let Some(current) = current.filter(|sha| Some(sha) != before.as_ref()) else {
@@ -462,7 +462,7 @@ pub(crate) async fn fill_updated_refs(core: &Core, repo_id: &str, payload: &mut 
     let Some(list) = payload.get_mut("updatedRefs").and_then(Value::as_array_mut) else { return Ok(()) };
     for item in list.iter_mut() {
         let Some(name) = item.get("ref").and_then(Value::as_str).map(str::to_string) else { continue };
-        let now = rev_parse(core, repo_id, &name).await?;
+        let now = rev::rev_parse(core, repo_id, &name).await?;
         item["after"] = json!(now);
     }
     Ok(())
@@ -497,14 +497,14 @@ async fn start_rebase(
         (None, None) => return Err(CoreError::not_allowed("HEAD doesn't point to a branch (detached HEAD). Check out a branch first.")),
     };
     let branch_ref = format!("refs/heads/{target}");
-    let Some(old_tip) = rev_parse(core, repo_id, &format!("{branch_ref}^{{commit}}")).await? else {
+    let Some(old_tip) = rev::rev_parse(core, repo_id, &format!("{branch_ref}^{{commit}}")).await? else {
         return Err(CoreError::not_found(format!("The branch “{target}” doesn't exist.")));
     };
-    let onto_sha = resolve_commit(core, repo_id, onto).await?;
+    let onto_sha = rev::resolve_commit(core, repo_id, onto).await?;
     ensure_clean(core, repo_id).await?;
 
     // Already up to date: `onto` is an ancestor and there is no merge in between that Git would flatten.
-    if is_ancestor(core, repo_id, &onto_sha, &old_tip).await? {
+    if rev::is_ancestor(core, repo_id, &onto_sha, &old_tip).await? {
         let merges = core
             .git_for(repo_id)?
             .read()
@@ -631,7 +631,7 @@ enum Finished {
 async fn conclude_rebase(core: &Core, repo_id: &str, out: &GitOutput, ctx: Rewrite) -> CoreResult<Finished> {
     let branch_ref = format!("refs/heads/{}", ctx.branch);
     if out.success() {
-        let new_tip = rev_parse(core, repo_id, &branch_ref).await?.unwrap_or_else(|| ctx.old_tip.clone());
+        let new_tip = rev::rev_parse(core, repo_id, &branch_ref).await?.unwrap_or_else(|| ctx.old_tip.clone());
         if new_tip == ctx.old_tip {
             undo::delete_backup_refs(core, repo_id, &ctx.undo_id).await?;
             return Ok(Finished::Unchanged);
@@ -734,8 +734,8 @@ async fn apply_plan(
     settle_pending_undo(core, repo_id).await?;
     let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, head_sha) = require_branch(&head, "An interactive rebase")?;
-    let base_sha = resolve_commit(core, repo_id, base).await?;
-    if base_sha == head_sha || !is_ancestor(core, repo_id, &base_sha, &head_sha).await? {
+    let base_sha = rev::resolve_commit(core, repo_id, base).await?;
+    if base_sha == head_sha || !rev::is_ancestor(core, repo_id, &base_sha, &head_sha).await? {
         return Err(CoreError::stale_state());
     }
     let commits = read_range(core, repo_id, &base_sha).await?;
@@ -899,7 +899,7 @@ fn plan_entries(steps: &[Step], commits: &[RangeCommit]) -> CoreResult<(Vec<Todo
         squashes: Vec<String>,
     }
     let by_sha: HashMap<&str, &RangeCommit> = commits.iter().map(|c| (c.sha.as_str(), c)).collect();
-    let summary_of = |sha: &str| by_sha.get(sha).map(|c| c.summary.clone()).unwrap_or_else(|| short_sha(sha));
+    let summary_of = |sha: &str| by_sha.get(sha).map(|c| c.summary.clone()).unwrap_or_else(|| rev::short(sha).to_string());
     let mut entries: Vec<TodoEntry> = Vec::new();
     let mut groups: Vec<Open> = Vec::new();
     let mut stats = PlanStats::default();
@@ -1024,7 +1024,7 @@ async fn render_todo(core: &Core, repo_id: &str, entries: &[TodoEntry], updates:
 /// the form Git intends for this: Git discards it and takes the rest verbatim –
 /// even if the message itself starts with "fixup!", "amend!" or "#".
 async fn message_commit(core: &Core, repo_id: &str, target: &str, message: &str) -> CoreResult<String> {
-    let Some(tree) = rev_parse(core, repo_id, &format!("{target}^{{tree}}")).await? else {
+    let Some(tree) = rev::rev_parse(core, repo_id, &format!("{target}^{{tree}}")).await? else {
         return Err(CoreError::stale_state());
     };
     let out = core
@@ -1182,7 +1182,7 @@ async fn squash(core: &Core, repo_id: &str, shas: &[String], message: &str, touc
         Finished::Unchanged => Ok(OpResult::UpToDate),
         Finished::Done(new_tip) => {
             // The new commit sits as far below the tip as there were commits above the selection.
-            let squashed = if newest == 0 { Some(new_tip) } else { rev_parse(core, repo_id, &format!("{new_tip}~{newest}")).await? };
+            let squashed = if newest == 0 { Some(new_tip) } else { rev::rev_parse(core, repo_id, &format!("{new_tip}~{newest}")).await? };
             Ok(OpResult::Done {
                 sha: squashed,
                 fast_forward: false,
@@ -1289,7 +1289,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
         core.git_for(repo_id)?.args(["cherry-pick", "--quit"]).run_raw().await?;
     }
 
-    let new_head = rev_parse(core, repo_id, "HEAD").await?.unwrap_or_else(|| old_head.clone());
+    let new_head = rev::rev_parse(core, repo_id, "HEAD").await?.unwrap_or_else(|| old_head.clone());
     let pending = matches!(stop, Some(Stop::Conflict(..) | Stop::Halted));
     let applied = count_commits(core, repo_id, &old_head, &new_head).await?;
     if pending || new_head != old_head {
@@ -1431,28 +1431,6 @@ fn require_shas(shas: &[String]) -> CoreResult<()> {
     Ok(())
 }
 
-async fn rev_parse(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.read().args(["rev-parse", "--verify", "--quiet", rev]).run_raw().await?;
-    Ok(out.success().then(|| out.stdout_text()).filter(|sha| !sha.is_empty()))
-}
-
-/// Resolve a branch, remote branch or SHA to a commit.
-async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<String> {
-    let rev = rev.trim();
-    // A short name means the local branch first, not a tag of the same name.
-    let found = crate::commands::branches::resolve_commit(core, repo_id, rev).await?;
-    found.ok_or_else(|| CoreError::not_found(format!("“{rev}” wasn't found in the repository.")))
-}
-
-async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.read().args(["merge-base", "--is-ancestor", ancestor, descendant]).run_raw().await?;
-    match out.code {
-        Some(0) => Ok(true),
-        Some(1) => Ok(false),
-        code => Err(errors::classify("merge-base", code, &out.stdout, &out.stderr)),
-    }
-}
-
 async fn count_commits(core: &Core, repo_id: &str, from: &str, to: &str) -> CoreResult<usize> {
     let text = core.git_for(repo_id)?.read().args(["rev-list", "--count", &format!("{from}..{to}")]).run_text().await?;
     Ok(text.trim().parse().unwrap_or(0))
@@ -1526,18 +1504,14 @@ fn head_sha(head: &Head) -> Option<String> {
     }
 }
 
-fn short_sha(sha: &str) -> String {
-    sha.chars().take(7).collect()
-}
-
 /// How the UI names the target: branch name, or the short SHA.
 fn display_rev(given: &str, sha: &str) -> String {
     let given = given.trim();
     let is_sha = given.len() >= 4 && given.bytes().all(|b| b.is_ascii_hexdigit()) && sha.starts_with(&given.to_ascii_lowercase());
     if is_sha {
-        return short_sha(sha);
+        return rev::short(sha).to_string();
     }
-    refs::short_ref_name(given).to_string()
+    rev::short_ref_name(given).to_string()
 }
 
 fn commits_label(count: usize) -> String {

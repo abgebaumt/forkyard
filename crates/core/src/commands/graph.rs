@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::app::Core;
-use crate::error::{CoreError, CoreResult};
+use crate::error::CoreResult;
 use crate::model::{CommitDetails, CommitSearchFilters, CommitSummary, DiffSource, GraphPage, RefKind, RefLabelInfo};
 use crate::util;
 
@@ -68,55 +68,6 @@ pub async fn tree_list(core: &Core, repo_id: String, sha: Option<String>, filter
 /// Switches for every `git log`: the user's configuration (`log.showSignature`,
 /// `i18n.logOutputEncoding`) must not change the output.
 pub(crate) const LOG_SAFE: [&str; 2] = ["--no-show-signature", "--encoding=UTF-8"];
-
-/// Full SHA (SHA-1 or SHA-256).
-pub(crate) fn is_full_sha(text: &str) -> bool {
-    (text.len() == 40 || text.len() == 64) && text.bytes().all(|b| b.is_ascii_hexdigit())
-}
-
-/// Resolves a commit name (SHA, prefix, branch, `HEAD` …) to the full SHA.
-/// `not_found` if the commit does not exist.
-pub async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> CoreResult<String> {
-    let path = core.repo_path(repo_id)?;
-    resolve_commit_at(core, &path, repo_id, rev).await
-}
-
-pub(crate) async fn resolve_commit_at(core: &Core, path: &Path, repo_id: &str, rev: &str) -> CoreResult<String> {
-    let rev = rev.trim();
-    if rev.is_empty() || rev.starts_with('-') || rev.chars().any(|c| c.is_control()) {
-        return Err(commit_not_found(rev));
-    }
-    let out = core
-        .git
-        .cmd(path)
-        .repo(repo_id)
-        .read()
-        .args(["rev-parse", "-q", "--verify", "--end-of-options"])
-        .arg(format!("{rev}^{{commit}}"))
-        .run_raw()
-        .await?;
-    let sha = out.stdout_text();
-    if out.success() && is_full_sha(&sha) {
-        Ok(sha)
-    } else {
-        Err(other_failure(&out, "rev-parse").unwrap_or_else(|| commit_not_found(rev)))
-    }
-}
-
-pub(crate) fn commit_not_found(rev: &str) -> CoreError {
-    let shown: String = rev.chars().filter(|c| !c.is_control()).take(40).collect();
-    CoreError::not_found(format!("Commit “{shown}” was not found."))
-}
-
-/// A failed call that does not mean "does not exist" but something else
-/// (no repository any more, folder not trusted …): this error takes precedence.
-pub(crate) fn other_failure(out: &crate::git::GitOutput, subcommand: &str) -> Option<CoreError> {
-    if out.success() {
-        return None;
-    }
-    let err = crate::git::errors::classify(subcommand, out.code, &out.stdout, &out.stderr);
-    (!matches!(err.code, crate::error::ErrorCode::NotFound | crate::error::ErrorCode::Unknown)).then_some(err)
-}
 
 /// Fields per ref, each terminated with NUL (Git appends a newline per record).
 const REF_FORMAT: &str = "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(HEAD)%00%(symref)%00";

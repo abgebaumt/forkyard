@@ -24,6 +24,7 @@ use crate::commands::{rebase, stash};
 use crate::db;
 use crate::db::undo::{UndoEntry, UndoEntryState};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::git::{errors, GitCmd};
 use crate::model::{Head, RepoChange, UndoState, UndoStep};
 use crate::undo::{self as u, UndoAction};
@@ -271,7 +272,7 @@ impl<'a> Probe<'a> {
         if let Some(known) = self.refs.get(name) {
             return Ok(known.clone());
         }
-        let sha = u::rev_parse(self.core, self.repo_id, name).await?;
+        let sha = rev::rev_parse(self.core, self.repo_id, name).await?;
         self.refs.insert(name.to_string(), sha.clone());
         Ok(sha)
     }
@@ -347,7 +348,7 @@ impl<'a> Probe<'a> {
             },
             _ if swaps_snapshots(action, &entry.payload) => match text("worktreeSnapshot") {
                 // The backup is tied to the commit the action ran on; HEAD must still be there.
-                Some(snapshot) => match u::rev_parse(self.core, self.repo_id, &format!("{snapshot}^1")).await? {
+                Some(snapshot) => match rev::rev_parse(self.core, self.repo_id, &format!("{snapshot}^1")).await? {
                     Some(parent) => same_sha(u::head_sha(&self.head).as_deref(), Some(&parent)),
                     None => true,
                 },
@@ -652,7 +653,7 @@ impl Run<'_> {
     }
 
     async fn commit_exists(&self, sha: &str) -> CoreResult<bool> {
-        Ok(u::rev_parse(self.core, self.repo_id, &format!("{sha}^{{commit}}")).await?.is_some())
+        Ok(rev::rev_parse(self.core, self.repo_id, &format!("{sha}^{{commit}}")).await?.is_some())
     }
 
     /// Executes the entry in this direction. Branches a rebase took along (`--update-refs`) move first,
@@ -744,7 +745,7 @@ impl Run<'_> {
         match (&self.entry.ref_name, &self.entry.ref_after) {
             (Some(_), Some(sha)) => Ok(Some(sha.clone())),
             // The end state was unknown when recording: undo backed it up as "after".
-            (Some(_), None) => u::rev_parse(self.core, self.repo_id, &u::backup_ref_name(&self.entry.id, "after")).await,
+            (Some(_), None) => rev::rev_parse(self.core, self.repo_id, &u::backup_ref_name(&self.entry.id, "after")).await,
             (None, _) => Ok(self.entry.head_after.clone().filter(|h| sha_like(h))),
         }
     }
@@ -881,7 +882,7 @@ impl Run<'_> {
         }
         match desired.strip_prefix("refs/heads/") {
             Some(branch) => {
-                if u::rev_parse(self.core, self.repo_id, desired).await?.is_none() {
+                if rev::rev_parse(self.core, self.repo_id, desired).await?.is_none() {
                     return Err(self.stale());
                 }
                 self.git()?.args(["switch", "-q", "--no-guess", branch]).run().await?;
@@ -1117,7 +1118,7 @@ impl Run<'_> {
             u::apply_ref_moves(self.core, self.repo_id, &rest, UNDO_MESSAGE).await?;
         }
         if let Some(m) = keep.first() {
-            let now = u::rev_parse(self.core, self.repo_id, &m.name).await;
+            let now = rev::rev_parse(self.core, self.repo_id, &m.name).await;
             let result = match (now, &m.from, &m.to) {
                 (Ok(now), Some(from), Some(to)) if same_sha(now.as_deref(), Some(from.as_str())) => self.reset_to(Mode::Keep, to).await,
                 (Err(e), _, _) => Err(e),
@@ -1475,7 +1476,7 @@ impl Run<'_> {
                 else {
                     continue;
                 };
-                if u::rev_parse(self.core, self.repo_id, &format!("refs/heads/{branch}")).await?.is_none() {
+                if rev::rev_parse(self.core, self.repo_id, &format!("refs/heads/{branch}")).await?.is_none() {
                     continue;
                 }
                 self.git()?.args(["config", &format!("branch.{branch}.remote"), remote]).run().await?;

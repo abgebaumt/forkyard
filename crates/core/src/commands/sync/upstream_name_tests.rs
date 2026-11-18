@@ -5,6 +5,7 @@
 
 use super::*;
 use crate::commands::branches;
+use crate::commands::refs;
 use crate::model::PushExtra;
 use crate::testkit::{TestCore, TestRemote, TestRepo};
 

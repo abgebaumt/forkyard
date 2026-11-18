@@ -14,6 +14,7 @@ use std::path::Path;
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::model::{
     BlameLine, CommitSummary, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, LineHistoryStep, Person, RepoChange,
 };
@@ -165,7 +166,7 @@ pub(crate) async fn line_history_with_diffs(
     if line == 0 {
         return Err(CoreError::not_allowed("Lines are counted from 1."));
     }
-    let commit = crate::commands::graph::resolve_commit(core, repo_id, sha).await?;
+    let commit = rev::resolve_commit(core, repo_id, sha).await?;
     let out = core
         .git_for(repo_id)?
         .args(["-c", "core.quotePath=false", "log"])

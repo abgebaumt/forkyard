@@ -10,12 +10,12 @@
 use super::describe;
 use crate::app::Core;
 use crate::commands::commit::commit_create;
-use crate::commands::graph;
 use crate::commands::range_apply::range_apply;
 use crate::commands::stage::discard_paths;
 use crate::commands::status::read_status;
 use crate::db::{self, agents::AgentRow};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::model::{AgentReview, AgentReviewSource, AgentStatus, CommitResult, PatchSelection, RangeApplyTarget, Status};
 use crate::undo;
 use crate::util;
@@ -57,10 +57,10 @@ pub(crate) fn row_of(core: &Core, agent_id: &str) -> CoreResult<AgentRow> {
 /// Tree of the worktree as on disk (`undo::worktree_tree`: a copy of its index, the real one stays),
 /// compared with its HEAD; with `snapshot` and a difference, a commit of it.
 pub(crate) async fn working_state(core: &Core, worktree_id: &str, snapshot: bool) -> CoreResult<WorkingState> {
-    let Some(head) = undo::rev_parse(core, worktree_id, "HEAD^{commit}").await? else {
+    let Some(head) = rev::rev_parse(core, worktree_id, "HEAD^{commit}").await? else {
         return Err(CoreError::not_allowed("The coding agent's worktree has no commit yet."));
     };
-    let head_tree = undo::rev_parse(core, worktree_id, &format!("{head}^{{tree}}"))
+    let head_tree = rev::rev_parse(core, worktree_id, &format!("{head}^{{tree}}"))
         .await?
         .ok_or_else(|| CoreError::not_found("The tree of the agent's last commit is missing."))?;
     let tree = undo::worktree_tree(core, worktree_id, None).await?;
@@ -93,7 +93,7 @@ pub(crate) async fn working_state(core: &Core, worktree_id: &str, snapshot: bool
 /// The commit the agent's state forked from: `merge-base` of its base as it is now (the recorded
 /// base commit if the ref is gone) and `to`; without a common ancestor the recorded base commit.
 async fn fork_point(core: &Core, row: &AgentRow, to: &str) -> CoreResult<String> {
-    let base = graph::resolve_commit(core, &row.repo_id, &row.base).await.unwrap_or_else(|_| row.base_sha.clone());
+    let base = rev::resolve_commit(core, &row.repo_id, &row.base).await.unwrap_or_else(|_| row.base_sha.clone());
     let out = core.git_for(&row.repo_id)?.args(["merge-base", &base, to]).read().run_raw().await?;
     let found = out.stdout_text();
     Ok(if out.success() && !found.is_empty() { found } else { row.base_sha.clone() })
@@ -106,7 +106,7 @@ pub(crate) async fn review(core: &Core, agent_id: &str, source: AgentReviewSourc
     if agent.status == AgentStatus::Orphaned {
         return Err(CoreError::not_allowed(ORPHANED));
     }
-    let tip = graph::resolve_commit(core, &row.repo_id, &format!("refs/heads/{}", row.branch)).await?;
+    let tip = rev::resolve_commit(core, &row.repo_id, &format!("refs/heads/{}", row.branch)).await?;
     let state = match agent.worktree_repo_id.as_deref() {
         Some(worktree) => working_state(core, worktree, source == AgentReviewSource::Snapshot).await?,
         None => WorkingState { snapshot: None, changed: 0 },

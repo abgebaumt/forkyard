@@ -4,6 +4,7 @@
 //! missing there). Oracle: `git rev-list --count` after a fetch from the real bare remote.
 
 use super::*;
+use crate::commands::refs;
 use crate::testkit::{TestCore, TestRemote, TestRepo};
 
 struct Fixture {

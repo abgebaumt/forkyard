@@ -25,6 +25,7 @@ use serde_json::{json, Map, Value};
 use crate::app::Core;
 use crate::db::{self, undo::UndoEntry, undo::UndoEntryState};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::git::{errors, GitCmd, GitOutput};
 use crate::model::{Head, UndoState, UndoStep};
 use crate::util;
@@ -362,12 +363,6 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
     ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
 ];
 
-/// Resolves a name to a SHA; `None` if it doesn't exist.
-pub async fn rev_parse(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", "--end-of-options", rev]).read().run_raw().await?;
-    Ok(if out.success() { Some(out.stdout_text()).filter(|s| !s.is_empty()) } else { None })
-}
-
 /// Temporary index file in the Git directory; deleted on drop.
 struct TempIndex(PathBuf);
 
@@ -461,7 +456,7 @@ async fn tree_from(core: &Core, repo_id: &str, git_dir: &Path, copy: Option<Temp
     }
     // The documented way: index from HEAD (without a commit: empty index).
     let index = TempIndex::new(git_dir);
-    if rev_parse(core, repo_id, "HEAD^{commit}").await?.is_some() {
+    if rev::rev_parse(core, repo_id, "HEAD^{commit}").await?.is_some() {
         core.git_for(repo_id)?.args(["read-tree", "HEAD"]).env("GIT_INDEX_FILE", &index.0).no_log().run().await?;
     }
     add_and_write_tree(core, repo_id, &index, paths).await
@@ -507,7 +502,7 @@ pub async fn snapshot(core: &Core, repo_id: &str, paths: Option<&[String]>) -> C
     let copy = copy_index(&git_dir);
     let (tree, head, index_tree) = tokio::join!(
         tree_from(core, repo_id, &git_dir, copy, paths),
-        rev_parse(core, repo_id, "HEAD^{commit}"),
+        rev::rev_parse(core, repo_id, "HEAD^{commit}"),
         index_tree(core, repo_id),
     );
     let (tree, head, index_tree) = (tree?, head?, index_tree?);
@@ -612,7 +607,7 @@ async fn checkout_rewrites_line_endings(core: &Core, repo_id: &str) -> bool {
 
 /// Tree of a backup's raw versions (see [`raw_overlay`]); `None` if `target` has none.
 async fn raw_tree_of(core: &Core, repo_id: &str, target: &str) -> Option<String> {
-    let parent = rev_parse(core, repo_id, &format!("{target}^2")).await.ok()??;
+    let parent = rev::rev_parse(core, repo_id, &format!("{target}^2")).await.ok()??;
     // A real merge commit also has a second parent: only our own counts.
     let subject = core.git_for(repo_id).ok()?.args(["log", "-1", "--format=%s%n%P", &parent]).read().run_raw().await.ok()?;
     let text = subject.stdout_text();
@@ -620,7 +615,7 @@ async fn raw_tree_of(core: &Core, repo_id: &str, target: &str) -> Option<String>
     if !subject.success() || lines.next() != Some(RAW_MESSAGE) || lines.next().is_some_and(|parents| !parents.trim().is_empty()) {
         return None;
     }
-    rev_parse(core, repo_id, &format!("{parent}^{{tree}}")).await.ok()?
+    rev::rev_parse(core, repo_id, &format!("{parent}^{{tree}}")).await.ok()?
 }
 
 /// Output of `git cat-file --batch`: per object `<id> <type> <size>\n<content>\n`, missing ones as `<id> missing\n`.
@@ -877,7 +872,7 @@ pub async fn plan_restore(
     target: &str,
     paths: Option<&[String]>,
 ) -> CoreResult<Result<RestorePlan, Vec<String>>> {
-    let Some(target_tree) = rev_parse(core, repo_id, &format!("{target}^{{tree}}")).await? else {
+    let Some(target_tree) = rev::rev_parse(core, repo_id, &format!("{target}^{{tree}}")).await? else {
         return Err(CoreError::not_found("The backup for this action no longer exists."));
     };
     let mut plan = RestorePlan { target_tree: target_tree.clone(), ..RestorePlan::default() };
@@ -886,7 +881,7 @@ pub async fn plan_restore(
     }
     plan.raw_tree = raw_tree_of(core, repo_id, target).await;
     let base_tree = match base {
-        Some(base) => rev_parse(core, repo_id, &format!("{base}^{{tree}}")).await?,
+        Some(base) => rev::rev_parse(core, repo_id, &format!("{base}^{{tree}}")).await?,
         None => None,
     };
     // (changed since the action, changed by the action) – only with a known base.
@@ -1229,7 +1224,7 @@ pub async fn record_group(core: &Core, rec: GroupRecord) -> CoreResult<UndoEntry
     }
     if rec.refs.is_empty() {
         // Nothing marks the state but HEAD: undo only fits on the same commit.
-        if let Some(head) = rev_parse(core, &rec.repo_id, "HEAD^{commit}").await? {
+        if let Some(head) = rev::rev_parse(core, &rec.repo_id, "HEAD^{commit}").await? {
             payload.insert("headSha".into(), json!(head));
         }
     }

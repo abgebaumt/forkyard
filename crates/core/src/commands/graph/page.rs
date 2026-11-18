@@ -25,11 +25,12 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use super::layout::{LayoutState, Placed};
-use super::{display_text, is_full_sha, parse_i64, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE};
+use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE};
 use crate::app::Core;
 use crate::commands::status;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev::is_sha;
 use crate::model::{GraphPage, GraphRow, GraphRowKind, RefLabelInfo, RepoViewState, SyncMark};
 use crate::util;
 
@@ -444,7 +445,7 @@ async fn ref_tips(core: &Core, path: &Path, repo_id: &str, filters: &[String]) -
         .stdout_lines()
         .into_iter()
         .flat_map(|line| line.split(|b| *b == 0).map(util::decode_lossy).collect::<Vec<_>>())
-        .filter(|sha| is_full_sha(sha))
+        .filter(|sha| is_sha(sha))
         .collect())
 }
 
@@ -479,7 +480,7 @@ async fn side_commits(
         .stdin(stdin)
         .run()
         .await?;
-    Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_full_sha(sha)).collect())
+    Ok(out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_sha(sha)).collect())
 }
 
 #[cfg(test)]
@@ -603,7 +604,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
         read_sync(core, &path, repo_id),
     );
     // If this fails there is no commit yet (or HEAD points nowhere): then nothing hangs off HEAD.
-    let head_sha = Some(head?).filter(|out| out.success()).map(|out| out.stdout_text()).filter(|sha| is_full_sha(sha));
+    let head_sha = Some(head?).filter(|out| out.success()).map(|out| out.stdout_text()).filter(|sha| is_sha(sha));
     let plan = build_plan(tips?, head_sha, stashes?, &view);
 
     let (offset, state, hidden) = match cursor {

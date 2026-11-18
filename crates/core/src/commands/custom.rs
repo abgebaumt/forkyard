@@ -28,11 +28,11 @@ use crate::commands::remotes;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
+use crate::git::rev;
 use crate::model::{
     AppChange, CustomCommandContext, CustomCommandCwd, CustomCommandDef, CustomCommandEntry, CustomCommandKind, CustomCommandList,
     CustomCommandResult, CustomCommandSource, CustomInputType, RepoCommands, RepoCommandsState,
 };
-use crate::undo;
 use crate::util;
 use crate::util::normalize_rel_path;
 use expand::{InputValue, Values};
@@ -354,7 +354,7 @@ async fn resolve(
     let sha = match context.sha.as_deref().map(str::trim).filter(|sha| !sha.is_empty()) {
         Some(sha) if (4..=64).contains(&sha.len()) && sha.bytes().all(|b| b.is_ascii_hexdigit()) => Some(sha.to_ascii_lowercase()),
         Some(other) => return Err(CoreError::not_allowed(format!("“{other}” is not a commit ID."))),
-        None => undo::rev_parse(core, repo_id, "HEAD^{commit}").await?,
+        None => rev::rev_parse(core, repo_id, "HEAD^{commit}").await?,
     };
     let branch = match context.branch.as_deref().filter(|name| !name.is_empty()) {
         Some(name) => {

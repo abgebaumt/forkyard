@@ -14,7 +14,8 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::graph::resolve_commit;
+use crate::git::rev::resolve_commit;
+
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
 use crate::model::{AiOmitReason, AiOmitted, BisectScript, BisectScriptRequest, BisectShell, Settings};

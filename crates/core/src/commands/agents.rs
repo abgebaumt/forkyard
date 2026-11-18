@@ -18,10 +18,11 @@ mod tests;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::{graph, trust, worktree};
+use crate::commands::{trust, worktree};
 use crate::db;
 use crate::db::agents::{AgentRow, EndReason};
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev;
 use crate::model::{Agent, AgentStatus, AgentStatusSource, AgentSuggestion, AgentTemplateInfo, AgentTemplateKind};
 use crate::tools::locate::{locate, ToolInfo};
 use crate::util;
@@ -61,7 +62,7 @@ pub async fn agent_suggest(
     let main = worktree::main_worktree_path(core, &repo_id).await?;
     let dir = names::agents_dir(&main)?;
     let base = base.as_deref().map(str::trim).filter(|b| !b.is_empty()).unwrap_or("HEAD").to_string();
-    let base_sha = graph::resolve_commit(core, &repo_id, &base).await?;
+    let base_sha = rev::resolve_commit(core, &repo_id, &base).await?;
     let rows = core.db.with(|c| db::agents::list_for_repo(c, &repo_id))?;
     let taken = |name: &str| rows.iter().any(|row| row.short_name == name);
     let wanted = branch.as_deref().map(str::trim).filter(|b| !b.is_empty()).map(str::to_string);
@@ -377,7 +378,7 @@ pub async fn agent_start(
     if worktree::local_branch_exists(core, &repo_id, &branch).await? {
         return Err(CoreError::name_exists(format!("A branch “{branch}” already exists.")));
     }
-    let base_sha = graph::resolve_commit(core, &repo_id, &base).await?;
+    let base_sha = rev::resolve_commit(core, &repo_id, &base).await?;
     let main = worktree::main_worktree_path(core, &repo_id).await?;
     let dir = names::agents_dir(&main)?;
     let rows_now = core.db.with(|c| db::agents::list_for_repo(c, &repo_id))?;

@@ -8,8 +8,9 @@ use std::path::Path;
 
 use crate::ai::context::{self, Exclusions};
 use crate::app::Core;
-use crate::commands::graph::{display_text, is_full_sha, LOG_SAFE, SEARCH_REFS};
+use crate::commands::graph::{display_text, LOG_SAFE, SEARCH_REFS};
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev::is_sha;
 use crate::jobs::CancelToken;
 use crate::model::AiOmitReason;
 use crate::util;
@@ -48,7 +49,7 @@ pub async fn reachable(core: &Core, path: &Path, repo_id: &str, cap: usize, toke
     if !out.success() {
         return Err(CoreError::unknown("Git could not list the commits of the repository.").with_git_output(out.stderr_text()));
     }
-    let mut shas: Vec<String> = out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_full_sha(sha)).collect();
+    let mut shas: Vec<String> = out.stdout_lines().into_iter().map(util::decode_lossy).filter(|sha| is_sha(sha)).collect();
     let capped = shas.len() > cap;
     shas.truncate(cap);
     Ok((shas, capped))
@@ -65,7 +66,7 @@ struct EntryParser {
 
 impl EntryParser {
     fn push(&mut self, field: &[u8]) {
-        if let Some(sha) = field.strip_prefix(b"\x1e").map(util::decode_lossy).filter(|sha| is_full_sha(sha)) {
+        if let Some(sha) = field.strip_prefix(b"\x1e").map(util::decode_lossy).filter(|sha| is_sha(sha)) {
             if let Some(done) = self.current.take() {
                 self.out.push(done);
             }
@@ -106,7 +107,7 @@ pub async fn entries(core: &Core, path: &Path, repo_id: &str, shas: &[String], t
     for chunk in shas.chunks(CHUNK) {
         token.check()?;
         let mut stdin = String::new();
-        for sha in chunk.iter().filter(|sha| is_full_sha(sha)) {
+        for sha in chunk.iter().filter(|sha| is_sha(sha)) {
             stdin.push_str(sha);
             stdin.push('\n');
         }

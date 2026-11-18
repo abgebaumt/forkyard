@@ -23,6 +23,7 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
 use crate::git::redact;
+use crate::git::rev;
 use crate::jobs::CancelToken;
 use crate::model::{
     Agent, AgentCollision, AgentStatus, CollisionBlock, CollisionCheckState, CollisionFile, CollisionKind, CollisionPreview,
@@ -46,7 +47,7 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
 /// commit around it whose parent is the worktree's HEAD. Returns `(commit, tree)`.
 pub(crate) async fn snapshot_commit(core: &Core, worktree_repo_id: &str) -> CoreResult<(String, String)> {
     let tree = undo::worktree_tree(core, worktree_repo_id, None).await?;
-    let head = undo::rev_parse(core, worktree_repo_id, "HEAD^{commit}").await?;
+    let head = rev::rev_parse(core, worktree_repo_id, "HEAD^{commit}").await?;
     let mut cmd = core.git_for(worktree_repo_id)?.read().args(["commit-tree", "--no-gpg-sign", &tree]);
     if let Some(head) = &head {
         cmd = cmd.args(["-p", head]);
@@ -63,7 +64,7 @@ pub(crate) async fn snapshot_commit(core: &Core, worktree_repo_id: &str) -> Core
 /// resolvable base, or without a merge base, it is the recorded `base_sha`. `(fork, tip)`.
 pub(crate) async fn fork_point(core: &Core, repo_id: &str, head: &str, base: &str, base_sha: &str) -> CoreResult<(String, Option<String>)> {
     let base = base.trim();
-    let tip = if base.is_empty() { None } else { undo::rev_parse(core, repo_id, &format!("{base}^{{commit}}")).await? };
+    let tip = if base.is_empty() { None } else { rev::rev_parse(core, repo_id, &format!("{base}^{{commit}}")).await? };
     let Some(tip) = tip else {
         return Ok((base_sha.to_string(), None));
     };
@@ -106,19 +107,15 @@ struct Prepared {
     changed: BTreeSet<Vec<u8>>,
 }
 
-fn short(sha: &str) -> &str {
-    &sha[..sha.len().min(7)]
-}
-
 async fn prepare(core: &Core, repo_id: &str, agent: Agent) -> CoreResult<Prepared> {
     let Some(worktree) = agent.worktree_repo_id.clone() else {
         return Err(CoreError::not_found("The agent's worktree is missing."));
     };
-    if undo::rev_parse(core, repo_id, &format!("{}^{{commit}}", agent.base_sha)).await?.is_none() {
-        return Err(CoreError::not_found(format!("The base commit {} of the agent no longer exists.", short(&agent.base_sha))));
+    if rev::rev_parse(core, repo_id, &format!("{}^{{commit}}", agent.base_sha)).await?.is_none() {
+        return Err(CoreError::not_found(format!("The base commit {} of the agent no longer exists.", rev::short(&agent.base_sha))));
     }
     let (commit, tree) = snapshot_commit(core, &worktree).await?;
-    let head = undo::rev_parse(core, &worktree, "HEAD^{commit}").await?.unwrap_or_else(|| agent.base_sha.clone());
+    let head = rev::rev_parse(core, &worktree, "HEAD^{commit}").await?.unwrap_or_else(|| agent.base_sha.clone());
     let (fork, tip) = fork_point(core, repo_id, &head, &agent.base, &agent.base_sha).await?;
     let changed = changed_paths(core, repo_id, &fork, &tree).await?;
     Ok(Prepared { agent, commit, fork, tip, changed })

@@ -24,6 +24,7 @@ use crate::commands::bisect::read_bisect_at;
 use crate::commands::worktree::{self, main_worktree_path};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
+use crate::git::rev;
 use crate::git::{redact, GitCmd};
 use crate::jobs::Job;
 use crate::model::{BisectAutopilot, BisectAutopilotPhase, BisectAutopilotStep, BisectShell, BisectStatus, BisectVerdict};
@@ -99,10 +100,6 @@ pub fn verdict_for(code: Option<i32>) -> Option<BisectVerdict> {
 
 pub(crate) fn status(core: &Core, repo_id: &str) -> Option<BisectAutopilot> {
     core.state::<AutopilotRuns>().get(repo_id)
-}
-
-fn short(sha: &str) -> &str {
-    &sha[..sha.len().min(7)]
 }
 
 fn elapsed_ms(started: Instant) -> u64 {
@@ -352,8 +349,8 @@ impl Session<'_> {
                         // As with `git bisect run`: such an exit means the script itself is broken.
                         self.reset(Some(&current)).await?;
                         let message = match output.code {
-                            Some(code) => format!("The test script ended with exit code {code} on {}. Exit codes above 127 stop the autopilot; use 125 to skip a commit.", short(&current)),
-                            None => format!("The test script was ended by a signal on {}; the autopilot stopped.", short(&current)),
+                            Some(code) => format!("The test script ended with exit code {code} on {}. Exit codes above 127 stop the autopilot; use 125 to skip a commit.", rev::short(&current)),
+                            None => format!("The test script was ended by a signal on {}; the autopilot stopped.", rev::short(&current)),
                         };
                         return finish(self.core, self.repo_id, |run| {
                             run.phase = BisectAutopilotPhase::Failed;
@@ -386,7 +383,7 @@ impl Session<'_> {
             run.remaining_steps = status.remaining_steps;
         });
         let percent = u32::try_from(done * 100 / total).unwrap_or(100);
-        self.job.progress(PROGRESS_PHASE, Some(percent), &format!("Step {step} of ~{total} · testing {}", short(current)));
+        self.job.progress(PROGRESS_PHASE, Some(percent), &format!("Step {step} of ~{total} · testing {}", rev::short(current)));
     }
 
     /// The commits among which the first bad one is: what lies between the bad and the good marks.

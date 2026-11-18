@@ -16,11 +16,11 @@ use serde_json::{json, Map};
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
 use crate::commands::diff::{self};
-use crate::commands::graph;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::TempIndex;
 use crate::git::repo::read_head;
+use crate::git::rev;
 use crate::git::{errors, GitCmd};
 use crate::model::{PatchSelection, RangeApplyTarget, RepoChange, Status};
 use crate::undo::{self, GroupRecord, UndoAction};
@@ -50,7 +50,7 @@ pub async fn range_apply(
 ) -> CoreResult<Status> {
     core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index], async {
         let from_sha = resolve_from(core, &repo_id, &from).await?;
-        let to_sha = graph::resolve_commit(core, &repo_id, &to).await?;
+        let to_sha = rev::resolve_commit(core, &repo_id, &to).await?;
         let (patch, paths) = build(core, &repo_id, &from_sha, &to_sha, &selections).await?;
         if patch.is_empty() {
             return read_status(core, &repo_id).await;
@@ -96,11 +96,7 @@ async fn resolve_from(core: &Core, repo_id: &str, from: &str) -> CoreResult<Stri
     if crate::git::index::is_empty_tree(from) {
         return Ok(from.trim().to_ascii_lowercase());
     }
-    graph::resolve_commit(core, repo_id, from).await
-}
-
-fn short(sha: &str) -> &str {
-    &sha[..sha.len().min(7)]
+    rev::resolve_commit(core, repo_id, from).await
 }
 
 fn label(from: &str, to: &str, paths: &[String]) -> String {
@@ -108,7 +104,7 @@ fn label(from: &str, to: &str, paths: &[String]) -> String {
         [one] => format!("‘{one}’"),
         many => format!("{} files", many.len()),
     };
-    format!("Undo taking over {what} from {}..{}", short(from), short(to))
+    format!("Undo taking over {what} from {}..{}", rev::short(from), rev::short(to))
 }
 
 /// The partial patches of all selections, concatenated, and the touched paths.

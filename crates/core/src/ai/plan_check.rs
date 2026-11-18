@@ -17,8 +17,9 @@ use sha2::{Digest, Sha256};
 
 use crate::ai::plan_commands::{self, Args, PlanAction};
 use crate::app::Core;
-use crate::commands::{branches, graph, preview, remotes, status, sync};
+use crate::commands::{branches, preview, remotes, status, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::jobs::CancelToken;
 use crate::model::{
     ConflictPreview, Head, MergeMode, PlanCheck, PlanCommand, PlanPreview, PlanStep, PlanStepView, PreviewOp, PullMode, RefNameKind,
@@ -196,7 +197,7 @@ impl<'a> Sim<'a> {
     async fn remote_branch(&self, target: &str) -> CoreResult<Option<String>> {
         for remote in &self.v.remotes {
             if let Some(rest) = target.strip_prefix(&format!("{remote}/")) {
-                if !rest.is_empty() && undo::rev_parse(self.core, self.repo_id, &format!("refs/remotes/{target}")).await?.is_some() {
+                if !rest.is_empty() && rev::rev_parse(self.core, self.repo_id, &format!("refs/remotes/{target}")).await?.is_some() {
                     return Ok(Some(rest.to_string()));
                 }
             }
@@ -228,9 +229,9 @@ impl<'a> Sim<'a> {
                 return Err(CoreError::not_found("The repository has no commit yet."));
             };
             let rest = rev.strip_prefix("HEAD").or_else(|| rev.strip_prefix('@')).unwrap_or("");
-            return Ok(Rev::Known(graph::resolve_commit(self.core, self.repo_id, &format!("{head}{rest}")).await?));
+            return Ok(Rev::Known(rev::resolve_commit(self.core, self.repo_id, &format!("{head}{rest}")).await?));
         }
-        let sha = graph::resolve_commit(self.core, self.repo_id, rev).await?;
+        let sha = rev::resolve_commit(self.core, self.repo_id, rev).await?;
         self.seen.insert(format!("rev:{rev}"), sha.clone());
         if let Some(step) = self.v.fetched_by {
             if rev.starts_with("refs/remotes/") || self.remote_branch(rev).await?.is_some() {
@@ -548,7 +549,7 @@ impl<'a> Sim<'a> {
                 let expected = if force {
                     // Force only with lease: the state of the remote branch the user sees now.
                     let tracking = format!("refs/remotes/{remote}/{remote_branch}");
-                    let sha = undo::rev_parse(self.core, self.repo_id, &tracking).await?;
+                    let sha = rev::rev_parse(self.core, self.repo_id, &tracking).await?;
                     self.seen.insert(format!("lease:{tracking}"), sha.clone().unwrap_or_default());
                     sha
                 } else {

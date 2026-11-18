@@ -5,14 +5,12 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
 
-use super::{
-    commit_not_found, display_text, is_full_sha, other_failure, parse_i64, read_ref_tips, read_stashes, resolve_commit_at, split_shas,
-    LOG_SAFE,
-};
+use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas, LOG_SAFE};
 use crate::app::Core;
 use crate::commands::status::{self, LineCounts};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::is_empty_tree;
+use crate::git::rev::{commit_not_found, is_sha, other_failure, resolve_commit};
 use crate::git::GitOutput;
 use crate::model::{CommitDetails, CommitInfo, DiffSource, FileArea, FileChange, FileStatus, Person, SignatureStatus};
 use crate::util;
@@ -66,7 +64,7 @@ async fn worktree(core: &Core, repo_id: &str, area: FileArea) -> CoreResult<Comm
 
 async fn commit(core: &Core, path: &Path, repo_id: &str, sha: &str) -> CoreResult<CommitDetails> {
     // A full SHA needs no Git call of its own; if it does not exist, `read_meta` reports that.
-    let sha = if is_full_sha(sha.trim()) { sha.trim().to_ascii_lowercase() } else { resolve_commit_at(core, path, repo_id, sha).await? };
+    let sha = if is_sha(sha.trim()) { sha.trim().to_ascii_lowercase() } else { resolve_commit(core, repo_id, sha).await? };
     let (meta, files, labels, head, pushed) = tokio::join!(
         read_meta(core, path, repo_id, &sha),
         // Against the first parent; a root commit against the empty tree.
@@ -410,11 +408,11 @@ async fn mark_lfs(core: &Core, path: &Path, repo_id: &str, files: &mut [ChangedF
 async fn range(core: &Core, path: &Path, repo_id: &str, from: &str, to: Option<&str>) -> CoreResult<CommitDetails> {
     // The empty tree as `from`: everything up to `to` counts as added (series starting at the root commit).
     let from_empty = is_empty_tree(from);
-    let from = if from_empty { from.trim().to_ascii_lowercase() } else { resolve_commit_at(core, path, repo_id, from).await? };
+    let from = if from_empty { from.trim().to_ascii_lowercase() } else { resolve_commit(core, repo_id, from).await? };
     let Some(to) = to else {
         return range_to_worktree(core, path, repo_id, &from).await;
     };
-    let to = resolve_commit_at(core, path, repo_id, to).await?;
+    let to = resolve_commit(core, repo_id, to).await?;
     if from == to {
         return Ok(details(None, Vec::new()));
     }

@@ -10,6 +10,7 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
 use crate::git::{errors, GitOutput};
 use crate::model::{Head, OpResult, RepoChange, Stash, StashSelection, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
@@ -190,7 +191,7 @@ pub(crate) async fn push_stash(
     paths: Option<&[String]>,
     include_untracked: bool,
 ) -> CoreResult<Option<String>> {
-    let before = undo::rev_parse(core, repo_id, "refs/stash").await?;
+    let before = rev::rev_parse(core, repo_id, "refs/stash").await?;
     // `git stash push -- <paths>` still puts the WHOLE index into the stash: staged changes outside the
     // selection went along, undo lost the staging, and a later pop put conflict markers
     // into files that were never selected. So they step out of the index for the duration
@@ -337,7 +338,7 @@ async fn push_stash_now(
         // `git stash push` first creates the stash and then resets the working directory.
         // If the reset fails on a file (another program holds it open), the stash
         // exists anyway – the message must say so, otherwise one stashes a second time.
-        let created = undo::rev_parse(core, repo_id, "refs/stash").await?;
+        let created = rev::rev_parse(core, repo_id, "refs/stash").await?;
         if created.is_some() && created != before {
             let stderr = out.stderr_text();
             let lower = stderr.to_ascii_lowercase();
@@ -360,7 +361,7 @@ async fn push_stash_now(
         }
         return Err(errors::classify("stash", out.code, &out.stdout, &out.stderr));
     }
-    let after = undo::rev_parse(core, repo_id, "refs/stash").await?;
+    let after = rev::rev_parse(core, repo_id, "refs/stash").await?;
     Ok(if after != before { after } else { None })
 }
 
@@ -456,7 +457,7 @@ pub(crate) async fn apply_stash(core: &Core, repo_id: &str, index: usize, row: &
 /// the stash itself brings staged changes (only then do they get in the way). `None`: nothing to set aside.
 async fn staged_untouched_by(core: &Core, repo_id: &str, row: &StashRow) -> CoreResult<Option<StagedAside>> {
     let (Some(base), Some(staged)) = (row.parents.first(), row.parents.get(1)) else { return Ok(None) };
-    let tree_of = |rev: String| async move { undo::rev_parse(core, repo_id, &format!("{rev}^{{tree}}")).await };
+    let tree_of = |rev: String| async move { rev::rev_parse(core, repo_id, &format!("{rev}^{{tree}}")).await };
     if tree_of(base.clone()).await? == tree_of(staged.clone()).await? {
         return Ok(None);
     }

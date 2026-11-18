@@ -4,7 +4,9 @@
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::refs::short_ref_name;
+use crate::git::rev;
+use crate::git::rev::short_ref_name;
+
 use crate::error::{CoreError, CoreResult};
 use crate::model::{Head, Operation, OperationKind};
 use crate::util;
@@ -115,7 +117,7 @@ pub(crate) async fn operation_at(core: &Core, path: &Path, repo_id: &str, head: 
         let head_name = read_line(&state.join("head-name")).filter(|n| n.starts_with("refs/"));
         let source = match &head_name {
             Some(full) => Some(short_ref_name(full).to_string()),
-            None => read_line(&state.join("orig-head")).map(|sha| short_sha(&sha)),
+            None => read_line(&state.join("orig-head")).map(|sha| rev::short(&sha).to_string()),
         };
         let target = match read_line(&state.join("onto")) {
             Some(onto) => Some(name_for_commit(core, path, repo_id, &onto, source.as_deref()).await),
@@ -162,7 +164,8 @@ pub(crate) async fn operation_at(core: &Core, path: &Path, repo_id: &str, head: 
     // The step at which Git stopped is still at the top of the list. If *_HEAD is missing,
     // it has already been committed by hand and counts as done.
     let open = if stopped_at.is_some() { &todo[..] } else { todo.get(1..).unwrap_or_default() };
-    let source = stopped_at.as_deref().map(short_sha).or_else(|| open.first().map(|(_, sha)| short_sha(sha)));
+    let source =
+        stopped_at.as_deref().map(|sha| rev::short(sha).to_string()).or_else(|| open.first().map(|(_, sha)| rev::short(sha).to_string()));
     let (step, total_steps) = if todo.is_empty() {
         (None, None)
     } else {
@@ -202,7 +205,7 @@ async fn name_for_commit(core: &Core, path: &Path, repo_id: &str, sha: &str, exc
             .find(|short| Some(*short) != exclude && !short.ends_with("/HEAD"))
             .map(str::to_string)
     };
-    pick("refs/heads/").or_else(|| pick("refs/remotes/")).unwrap_or_else(|| short_sha(sha))
+    pick("refs/heads/").or_else(|| pick("refs/remotes/")).unwrap_or_else(|| rev::short(sha).to_string())
 }
 
 async fn count_commits_since(core: &Core, path: &Path, repo_id: &str, start: &str) -> Option<u32> {
@@ -242,10 +245,6 @@ fn todo_lines(todo: &str) -> Vec<(String, String)> {
             Some((parts.next()?.to_string(), parts.next()?.to_string()))
         })
         .collect()
-}
-
-fn short_sha(sha: &str) -> String {
-    sha.chars().take(7).collect()
 }
 
 fn trim_bytes(bytes: &[u8]) -> &[u8] {

@@ -10,10 +10,10 @@ use crate::commands::commit::{hook_failure, Hooks};
 use crate::commands::refs;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
+use crate::git::rev;
 use crate::jobs::Job;
 use crate::model::{PushResult, RefsSnapshot, RepoChange};
 use crate::secret_scan;
-use crate::undo;
 use crate::util;
 
 fn check_name(name: &str) -> CoreResult<()> {
@@ -51,14 +51,14 @@ pub async fn tag_create(
         None => None,
     };
     core.with_write_lock(&repo_id, &[RepoChange::Refs], async {
-        if undo::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
+        if rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
             return Err(CoreError::name_exists(format!("A tag named “{name}” already exists.")));
         }
         let target = match &sha {
-            Some(sha) => undo::rev_parse(core, &repo_id, &format!("{sha}^{{commit}}"))
+            Some(sha) => rev::rev_parse(core, &repo_id, &format!("{sha}^{{commit}}"))
                 .await?
                 .ok_or_else(|| CoreError::not_found(format!("The commit “{sha}” wasn’t found.")))?,
-            None => undo::rev_parse(core, &repo_id, "HEAD^{commit}")
+            None => rev::rev_parse(core, &repo_id, "HEAD^{commit}")
                 .await?
                 .ok_or_else(|| CoreError::not_allowed("You can’t create a tag without a commit. Commit first."))?,
         };
@@ -78,7 +78,7 @@ pub async fn tag_delete(core: &Core, repo_id: String, name: String, remote: Opti
     core.repo_path(&repo_id)?;
     check_name(&name)?;
     let remote = util::non_empty(remote);
-    let exists_locally = undo::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some();
+    let exists_locally = rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some();
     match &remote {
         Some(remote) => {
             ensure_remote(core, &repo_id, remote).await?;
@@ -100,7 +100,7 @@ pub async fn tag_delete(core: &Core, repo_id: String, name: String, remote: Opti
         None => {}
     }
     core.with_write_lock(&repo_id, &[RepoChange::Refs], async {
-        if undo::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
+        if rev::rev_parse(core, &repo_id, &tag_ref(&name)).await?.is_some() {
             core.git_for(&repo_id)?.args(["tag", "-d", &name]).run().await?;
         }
         refs::read_refs(core, &repo_id).await
@@ -131,7 +131,7 @@ pub(crate) async fn push_tag(
 ) -> CoreResult<PushResult> {
     check_name(name)?;
     let full = tag_ref(name);
-    if undo::rev_parse(core, repo_id, &full).await?.is_none() {
+    if rev::rev_parse(core, repo_id, &full).await?.is_none() {
         return Err(CoreError::not_found(format!("The tag “{name}” doesn’t exist (anymore).")));
     }
     ensure_remote(core, repo_id, remote).await?;

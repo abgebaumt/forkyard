@@ -9,9 +9,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::graph::{display_text, is_full_sha, LOG_SAFE};
+use crate::commands::graph::{display_text, LOG_SAFE};
 use crate::error::{CoreError, CoreResult};
 use crate::git::redact;
+use crate::git::rev::is_sha;
 use crate::model::{ReflogAction, ReflogEntry, ReflogPage};
 use crate::util;
 
@@ -186,7 +187,7 @@ pub(crate) fn parse_reflog(bytes: &[u8]) -> Vec<RawEntry> {
             let mut parts = head.splitn(3, |&b| b == b' ');
             let (_old, new, who) = (parts.next()?, parts.next()?, parts.next()?);
             let sha = util::decode_lossy(new);
-            if !is_full_sha(&sha) {
+            if !is_sha(&sha) {
                 return None;
             }
             let time = who

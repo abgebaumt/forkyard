@@ -7,6 +7,7 @@ use std::path::Path;
 use crate::app::Core;
 use crate::commands::sync;
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev;
 use crate::model::{Head, Ref, RefKind, RefsSnapshot};
 use crate::util;
 
@@ -268,7 +269,7 @@ pub fn parse_for_each_ref(stdout: &[u8], remote_names: &[String], worktree: &Pat
         let is_head = kind == RefKind::Local && f[4] == b"*";
 
         let upstream_full = if kind == RefKind::Local { text(5) } else { String::new() };
-        let upstream = (!upstream_full.is_empty()).then(|| short_ref_name(&upstream_full).to_string());
+        let upstream = (!upstream_full.is_empty()).then(|| rev::short_ref_name(&upstream_full).to_string());
         let track = text(6);
         let upstream_gone = upstream.is_some() && (track.contains("gone") || !known.contains(upstream_full.as_str()));
         let (ahead, behind) = if upstream.is_some() && !upstream_gone { parse_track(&track) } else { (0, 0) };
@@ -310,16 +311,6 @@ pub fn parse_for_each_ref(stdout: &[u8], remote_names: &[String], worktree: &Pat
         }
     }
     out
-}
-
-/// `refs/remotes/origin/main` → `origin/main`, `refs/heads/main` → `main`.
-pub fn short_ref_name(full: &str) -> &str {
-    for prefix in ["refs/heads/", "refs/remotes/", "refs/tags/"] {
-        if let Some(rest) = full.strip_prefix(prefix) {
-            return rest;
-        }
-    }
-    full
 }
 
 /// Numbers from `%(upstream:track)`: `[ahead 2, behind 1]`. Fixed under `LC_ALL=C`.
@@ -600,7 +591,7 @@ mod tests {
         assert_eq!(remote_of("team/zwei/main", &remotes), "team/zwei");
         assert_eq!(remote_of("team/main", &remotes), "team");
         assert_eq!(remote_of("unbekannt/x/y", &remotes), "unbekannt");
-        assert_eq!(short_ref_name("refs/remotes/origin/a/b"), "origin/a/b");
+        assert_eq!(rev::short_ref_name("refs/remotes/origin/a/b"), "origin/a/b");
         assert_eq!(clean_annotation("Text\n\n-----BEGIN PGP SIGNATURE-----\nabc\n"), "Text");
     }
 

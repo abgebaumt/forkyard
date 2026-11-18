@@ -3,7 +3,8 @@
 use serde_json::Value;
 
 use crate::app::Core;
-use crate::commands::graph::is_full_sha;
+use crate::git::rev::is_sha;
+
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::model::{CommitDraft, RepoViewState};
@@ -41,7 +42,7 @@ fn check_collapsed(list: &[String]) -> CoreResult<()> {
     if list.len() > MAX_COLLAPSED_MERGES {
         return Err(CoreError::not_allowed(format!("View: at most {MAX_COLLAPSED_MERGES} collapsed merges.")));
     }
-    match list.iter().find(|sha| !is_full_sha(sha)) {
+    match list.iter().find(|sha| !is_sha(sha)) {
         Some(bad) => {
             let shown: String = bad.chars().filter(|c| !c.is_control()).take(80).collect();
             Err(CoreError::not_allowed(format!("View: “{shown}” is not a full commit SHA.")))

@@ -15,9 +15,11 @@ use std::path::Path;
 use serde_json::{json, Map};
 
 use crate::app::Core;
-use crate::commands::graph::{display_text, resolve_commit, LOG_SAFE};
+use crate::commands::graph::{display_text, LOG_SAFE};
 use crate::commands::{host, rebase, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::rev;
+use crate::git::rev::resolve_commit;
 use crate::model::{
     OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCheckResult, StackCommit, StackCut, StackPart, StackPlan,
     StackPrCreated, StackPrFailed, StackPrOutcome, StackPrPart, StackRestack, StackStatus, StackStatusPart,
@@ -265,11 +267,6 @@ async fn subjects(core: &Core, repo_id: &str, parent: Option<&str>, tip: &str) -
     Ok(out.stdout_z().into_iter().map(display_text).collect())
 }
 
-async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, of: &str) -> CoreResult<bool> {
-    let path = core.repo_path(repo_id)?;
-    Ok(core.git.cmd(&path).repo(repo_id).read().args(["merge-base", "--is-ancestor", ancestor, of]).run_raw().await?.success())
-}
-
 fn same_place(a: &str, b: &Path) -> bool {
     let key = |p: &Path| std::fs::canonicalize(p).map(|c| util::path_key(&c)).unwrap_or_else(|_| util::path_key(p));
     key(Path::new(a)) == key(b)
@@ -316,7 +313,7 @@ pub(crate) async fn status_of(core: &Core, repo_id: &str, name: &str) -> CoreRes
         // A base that is gone (pruned remote branch) can't be compared; the part counts as fine.
         let parent_sha = resolve_commit(core, repo_id, &parent).await.ok();
         let contains_parent = match &parent_sha {
-            Some(sha) => is_ancestor(core, repo_id, sha, &info.sha).await?,
+            Some(sha) => rev::is_ancestor(core, repo_id, sha, &info.sha).await?,
             None => true,
         };
         parts.push(StackStatusPart {

@@ -32,6 +32,7 @@ use crate::commands::tags;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::repo::read_head;
 use crate::git::repo::read_operation;
+use crate::git::rev;
 use crate::jobs::Job;
 use crate::model::{
     GitflowBranch, GitflowFinishOptions, GitflowKind, GitflowPrefixes, GitflowStatus, Head, OpResult, PushResult, RefNameKind, RepoChange,
@@ -185,7 +186,7 @@ pub async fn gitflow_init(
         if !existing.iter().any(|b| b.name == develop) {
             branches::check_new_name(core, repo_id, develop, RefNameKind::Branch, &branches::names_of(&existing), None).await?;
             let remote = format!("refs/remotes/origin/{develop}");
-            if branches::resolve_commit(core, repo_id, &remote).await?.is_some() {
+            if rev::try_resolve_commit(core, repo_id, &remote).await?.is_some() {
                 core.git_for(repo_id)?.args(["branch", "--track", develop, &remote]).run().await?;
             } else {
                 core.git_for(repo_id)?.args(["branch", "--no-track", develop, &format!("refs/heads/{main}")]).run().await?;
@@ -276,10 +277,10 @@ pub async fn gitflow_start(
         }
         let default_base = if kind == GitflowKind::Hotfix { &state.main } else { &state.develop };
         let sha = match util::non_empty(base.map(|b| b.trim().to_string())) {
-            Some(rev) => branches::resolve_commit(core, repo_id, &rev)
+            Some(rev) => rev::try_resolve_commit(core, repo_id, &rev)
                 .await?
                 .ok_or_else(|| CoreError::not_found(format!("The starting point “{rev}” wasn’t found.")))?,
-            None => branches::resolve_commit(core, repo_id, &format!("refs/heads/{default_base}")).await?.ok_or_else(|| {
+            None => rev::try_resolve_commit(core, repo_id, &format!("refs/heads/{default_base}")).await?.ok_or_else(|| {
                 CoreError::not_found(format!("The branch “{default_base}” that a {what} starts from doesn’t exist (anymore)."))
             })?,
         };
@@ -493,8 +494,8 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
             let tag = util::non_empty(options.tag.as_ref().map(|t| t.trim().to_string()))
                 .unwrap_or_else(|| format!("{}{name}", state.prefixes.version_tag));
             util::check_ref_name(&tag).map_err(|reason| CoreError::invalid_name(format!("“{tag}” isn’t a valid tag name: {reason}")))?;
-            if let Some(commit) = undo::rev_parse(core, repo_id, &format!("refs/tags/{tag}^{{commit}}")).await? {
-                let resumed = commit == main.sha && branches::is_ancestor(core, repo_id, &source.sha, &main.sha).await?;
+            if let Some(commit) = rev::rev_parse(core, repo_id, &format!("refs/tags/{tag}^{{commit}}")).await? {
+                let resumed = commit == main.sha && rev::is_ancestor(core, repo_id, &source.sha, &main.sha).await?;
                 if !resumed {
                     return Err(CoreError::name_exists(format!("A tag named “{tag}” already exists. Enter a different name for the tag.")));
                 }
@@ -575,7 +576,7 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
             let _ =
                 core.git_for(repo_id)?.args(["config", "--remove-section", &format!("branch.{}", source.name)]).no_log().run_raw().await;
             if let Some(upstream) = &source.upstream {
-                progress.upstreams.push((source.name.clone(), crate::commands::refs::short_ref_name(upstream).to_string()));
+                progress.upstreams.push((source.name.clone(), rev::short_ref_name(upstream).to_string()));
             }
             progress.steps.push(Step { name: full, before: Some(source.sha.clone()), after: None });
             done.push("deleted branch".to_string());
@@ -597,7 +598,7 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
     if let Some(tag) = tag {
         pushes.push(PushTarget::Tag(tag));
     }
-    let sha = undo::rev_parse(core, repo_id, &format!("refs/heads/{}", develop.name)).await?;
+    let sha = rev::rev_parse(core, repo_id, &format!("refs/heads/{}", develop.name)).await?;
     Ok(Finished {
         result: OpResult::Done { sha, fast_forward: false, summary: format!("{what} “{name}” finished: {}", done.join(", ")) },
         pushes,
@@ -607,7 +608,7 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
 /// Merges `source` into `target` with a merge commit (checks out `target` for that). If `source`
 /// is already contained there, nothing happens.
 async fn merge_into(core: &Core, repo_id: &str, target: &BranchInfo, source: &BranchInfo) -> CoreResult<MergeStep> {
-    if branches::is_ancestor(core, repo_id, &source.sha, &format!("refs/heads/{}", target.name)).await? {
+    if rev::is_ancestor(core, repo_id, &source.sha, &format!("refs/heads/{}", target.name)).await? {
         return Ok(MergeStep::AlreadyMerged);
     }
     if !matches!(read_head(core, repo_id).await?, Head::Branch { branch, .. } if branch == target.name) {
@@ -616,7 +617,7 @@ async fn merge_into(core: &Core, repo_id: &str, target: &BranchInfo, source: &Br
     // The short name gives the usual message ("Merge branch 'x'"); only if it means something
     // else (a tag of the same name) does Git get the full name.
     let full = format!("refs/heads/{}", source.name);
-    let plain = branches::resolve_commit(core, repo_id, &source.name).await?;
+    let plain = rev::try_resolve_commit(core, repo_id, &source.name).await?;
     let arg = if plain.as_deref() == Some(source.sha.as_str()) { source.name.clone() } else { full };
     let hooks = Hooks::start(core, repo_id).await;
     let out = hooks.wrap(core.git_for(repo_id)?).args(["merge", "--no-ff", "--no-edit"]).arg(&arg).run_raw().await;
@@ -628,7 +629,7 @@ async fn merge_into(core: &Core, repo_id: &str, target: &BranchInfo, source: &Br
         }
         return Ok(MergeStep::Conflict(stopped_or_failed(core, repo_id, "merge", &out).await?));
     }
-    let new = undo::rev_parse(core, repo_id, "HEAD^{commit}").await?.ok_or_else(CoreError::stale_state)?;
+    let new = rev::rev_parse(core, repo_id, "HEAD^{commit}").await?.ok_or_else(CoreError::stale_state)?;
     Ok(MergeStep::Merged(new))
 }
 
@@ -644,8 +645,8 @@ async fn create_tag(
     message: Option<&str>,
 ) -> CoreResult<Option<String>> {
     let full = format!("refs/tags/{tag}");
-    let tip = undo::rev_parse(core, repo_id, &format!("refs/heads/{main}^{{commit}}")).await?.ok_or_else(CoreError::stale_state)?;
-    if let Some(commit) = undo::rev_parse(core, repo_id, &format!("{full}^{{commit}}")).await? {
+    let tip = rev::rev_parse(core, repo_id, &format!("refs/heads/{main}^{{commit}}")).await?.ok_or_else(CoreError::stale_state)?;
+    if let Some(commit) = rev::rev_parse(core, repo_id, &format!("{full}^{{commit}}")).await? {
         if commit == tip {
             return Ok(None);
         }
@@ -656,7 +657,7 @@ async fn create_tag(
         None => format!("{} {name}\n", kind_label(kind)),
     };
     core.git_for(repo_id)?.args(["tag", "-a", "--cleanup=whitespace", "-F", "-", tag, &tip]).stdin(message).run().await?;
-    undo::rev_parse(core, repo_id, &full).await
+    rev::rev_parse(core, repo_id, &full).await
 }
 
 /// Pushes the target branches (to their upstream, otherwise to the only remote or `origin`) and the tag.

@@ -13,6 +13,7 @@ use crate::app::Core;
 use crate::commands::worktree;
 use crate::db::{self, agents::AgentRow};
 use crate::error::{CoreError, CoreResult};
+use crate::git::rev;
 use crate::model::{AgentCleanupPreview, RepoChange, UndoState};
 use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
 use crate::util;
@@ -166,7 +167,7 @@ pub async fn run(core: &Core, agent_id: String) -> CoreResult<UndoState> {
         if let Some(other) = checked_out_elsewhere(core, &repo_id, &branch_ref, &folder).await? {
             return Err(busy(other));
         }
-        let tip = u::rev_parse(core, &repo_id, &branch_ref).await?;
+        let tip = rev::rev_parse(core, &repo_id, &branch_ref).await?;
         let snapshot = if folder.is_dir() { back_up_changes(core, &repo_id, &folder, &entry_id).await? } else { None };
         let head = crate::git::repo::read_head(core, &repo_id).await?;
         remove_worktree(core, &repo_id, &folder).await?;
