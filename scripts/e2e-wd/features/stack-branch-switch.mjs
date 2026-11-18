@@ -57,7 +57,7 @@ const planner = (app) =>
       commits: [...root.querySelectorAll("[data-commit] span:first-child")].map((el) => el.textContent),
       parts: root.querySelectorAll("li[data-stack-part]").length,
       name: name ? (name.value ?? name.querySelector("input")?.value ?? "") : null,
-      error: Boolean(root.querySelector("[data-stack-list]")) ? null : root.innerText.replace(/\s+/g, " ").trim(),
+      error: root.querySelector("[data-stack-list]") ? null : root.innerText.replace(/\s+/g, " ").trim(),
     };
   }, VIEW);
 
@@ -65,7 +65,7 @@ async function waitPlanner(app, branch, count) {
   return app.waitFor(
     async () => {
       const state = await planner(app);
-      return state && state.title.includes(branch) && state.commits.length === count && state.error === null ? state : null;
+      return state?.title.includes(branch) && state.commits.length === count && state.error === null ? state : null;
     },
     20_000,
     { message: `planner of ${branch} with ${count} commits (last: ${JSON.stringify(await planner(app).catch(() => null))})` },

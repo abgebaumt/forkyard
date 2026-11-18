@@ -243,7 +243,7 @@ scenario(
     await app.press("Control+s");
     await eventually(() => String(fixture.read(REBASE_FILE)), expected, "saved file", 20_000);
     assertEqual(fixture.git("ls-files", "-u", "--", REBASE_FILE), "", "git: no conflict left");
-    assertEqual(fixture.git("cat-file", "blob", `:0:${REBASE_FILE}`) + "\n", expected, "git: staged blob");
+    assertEqual(`${fixture.git("cat-file", "blob", `:0:${REBASE_FILE}`)}\n`, expected, "git: staged blob");
     await t.noConsoleErrors(app);
   }),
 );

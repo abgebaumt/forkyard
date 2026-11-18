@@ -331,7 +331,7 @@ async function rowButton(app, title, pattern) {
 const settings = (app) => app.invoke("settings_get", {});
 const profiles = (app) => app.invoke("profile_list", {});
 const activeProfile = async (app) => (await profiles(app)).find((profile) => profile.isActive);
-const settingsQuery = (app) => app.exec(() => window.__gc.queryClient.getQueryData(["settings"]) ?? null);
+const _settingsQuery = (app) => app.exec(() => window.__gc.queryClient.getQueryData(["settings"]) ?? null);
 
 async function waitSetting(app, key, expected, message = `setting ${key}`) {
   return eventually(async () => (await settings(app))[key], expected, message, 15_000);

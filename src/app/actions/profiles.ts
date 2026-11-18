@@ -4,7 +4,7 @@
  */
 import { t } from "../../i18n";
 import { core, type Profile } from "../../core";
-import { type Losses } from "../closeGuard";
+import type { Losses } from "../closeGuard";
 import { confirm } from "../dialogs";
 import { qk, queryClient } from "../queries";
 import { runAction } from "../run";

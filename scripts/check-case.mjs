@@ -15,7 +15,7 @@ const note = (name) => {
 };
 for (const file of files) {
   const parts = file.split("/");
-  for (let depth = 1; depth < parts.length; depth += 1) note(parts.slice(0, depth).join("/") + "/");
+  for (let depth = 1; depth < parts.length; depth += 1) note(`${parts.slice(0, depth).join("/")}/`);
   note(file.replace(SCRIPT, ""));
 }
 const clashes = [...spellings.values()].filter((names) => names.size > 1).map((names) => [...names]);

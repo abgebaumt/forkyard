@@ -208,7 +208,7 @@ scenario("open: “Open …” with the folder dialog opens the repository in th
     await app.waitFor(async () => (await app.$$('[data-row-kind="commit"]')).length >= 2, 20_000, { message: "two commit rows" });
     await app.settle();
     const entry = await findRepo(app, repo);
-    assert(entry && entry.lastOpenedAt, "the core lists the repository with a timestamp");
+    assert(entry?.lastOpenedAt, "the core lists the repository with a timestamp");
     assertEqual(entry.trusted, true, "an ordinary repository is trusted right away");
     assert(!(await app.$('[data-shell="untrusted"]')), "no trust prompt");
     const summary = await app.exec(() => document.querySelector('[data-row-kind="commit"]')?.innerText ?? "");
@@ -962,8 +962,8 @@ scenario("groups: an unreachable remote and a missing folder fail per row, the r
     assertEqual(rows["station-ost"]?.status, "done", "ost: fetched despite the failures");
     assertEqual(rows["station-west"]?.status, "failed", "west: failed");
     assertMatch(rows["station-west"]?.text, /can’t be reached|reach/, "west: reason in plain words");
-    assertEqual(rows["verzogen"]?.status, "failed", "missing folder: failed");
-    assertMatch(rows["verzogen"]?.text, /Folder not found/, "missing folder: reason");
+    assertEqual(rows.verzogen?.status, "failed", "missing folder: failed");
+    assertMatch(rows.verzogen?.text, /Folder not found/, "missing folder: reason");
     assertEqual(repos[0].git("rev-parse", "origin/main"), ostSha, "git: ost is up to date");
     assert(
       await app.byText(/^Retry 2 repositories$/.source, { regex: true, within: '[role="dialog"]' }),

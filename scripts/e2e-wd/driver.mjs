@@ -716,7 +716,7 @@ export async function launchApp(options = {}) {
     };
   }
   const resolveTarget = async (target) => {
-    if (target && target.__element) return target;
+    if (target?.__element) return target;
     if (typeof target === "string") {
       const found = await handle.waitFor(target);
       return found;

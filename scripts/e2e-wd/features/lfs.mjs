@@ -729,7 +729,7 @@ scenario("lock and unlock a file from its context menu", "main", async (t) => {
       { message: "new commit in the graph" },
     );
     await app.click(head);
-    const committed = await app.waitFor(
+    const _committed = await app.waitFor(
       () =>
         app.exec(
           () =>

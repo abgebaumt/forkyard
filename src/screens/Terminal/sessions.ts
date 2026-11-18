@@ -763,7 +763,7 @@ export function selectSession(tabId: Id, key: Id): void {
 /** The shown session of the tab, or null. */
 export function getSession(tabId: Id): Session | null {
   const group = groups.get(tabId);
-  if (!group || !group.tabs.active) return null;
+  if (!group?.tabs.active) return null;
   return group.sessions.get(group.tabs.active) ?? null;
 }
 
@@ -805,7 +805,7 @@ function reconcileWithTabs(): void {
   if (!tabs) return;
   for (const [tabId, group] of [...groups]) {
     const tab = tabs.find((item) => item.id === tabId);
-    if (!tab || tab.kind !== "repo" || tab.repoId !== group.repoId) disposeSession(tabId);
+    if (tab?.kind !== "repo" || tab.repoId !== group.repoId) disposeSession(tabId);
   }
 }
 
@@ -924,9 +924,7 @@ declare global {
       text(tabId: Id): string | null;
       size(tabId: Id): { cols: number; rows: number; lines: number; viewportY: number; baseY: number } | null;
       selection(tabId: Id): string | null;
-      options(
-        tabId: Id,
-      ): {
+      options(tabId: Id): {
         theme: Record<string, unknown>;
         fontFamily: string | undefined;
         fontSize: number | undefined;

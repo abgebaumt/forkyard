@@ -22,7 +22,7 @@ function capture(): Opener {
 }
 
 function usable(element: HTMLElement | null): element is HTMLElement {
-  if (!element || !element.isConnected) return false;
+  if (!element?.isConnected) return false;
   if (element.closest("[inert], [aria-hidden='true']")) return false;
   const rect = element.getBoundingClientRect();
   return rect.width > 0 && rect.height > 0;

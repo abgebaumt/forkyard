@@ -656,7 +656,7 @@ function prepareMultiPush(repo) {
 }
 
 /** Opens "Push with more branches and tags …" through the palette. */
-async function openPushMany(app, ui) {
+async function openPushMany(_app, ui) {
   await ui.runCommand("Push with more", "sync.push.more");
   return ui.waitDialog(/^Push main and more$/);
 }
@@ -1342,7 +1342,7 @@ scenario("SSH: Schlüssel mit Passphrase – falsche Passphrase fragt erneut, ri
 /** A CONNECT proxy that records where it is asked to connect. */
 async function startConnectProxy() {
   const connects = [];
-  const proxy = http.createServer((request, response) => {
+  const proxy = http.createServer((_request, response) => {
     response.writeHead(405);
     response.end();
   });

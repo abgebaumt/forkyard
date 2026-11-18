@@ -538,7 +538,7 @@ export function leavingStats<T>(change: () => T): T {
 
 function centerBlocked(tabId: Id, center: CenterView, retry: (center: CenterView) => void): boolean {
   const guard = centerGuards.get(tabId);
-  if (!guard || !guard.dirty()) return false;
+  if (!guard?.dirty()) return false;
   if (!pendingLeave.has(tabId)) {
     pendingLeave.add(tabId);
     void guard
@@ -565,7 +565,7 @@ export function hasDirtyCenter(): boolean {
 /** For actions outside the centre (close tab): true if leaving is allowed. */
 export async function confirmLeaveCenter(tabId: Id): Promise<boolean> {
   const guard = centerGuards.get(tabId);
-  if (!guard || !guard.dirty()) return true;
+  if (!guard?.dirty()) return true;
   const leave = await guard.confirmLeave();
   if (leave && centerGuards.get(tabId) === guard) centerGuards.delete(tabId);
   return leave;

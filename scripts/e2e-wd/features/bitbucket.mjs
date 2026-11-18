@@ -61,7 +61,7 @@ function str(key, vars = {}) {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const _sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const basic = (user, token) => `Basic ${Buffer.from(`${user}:${token}`).toString("base64")}`;
 
 /** Launch in English and light theme, without auto-fetch. */
@@ -105,7 +105,7 @@ async function refreshHost(app) {
  * through the local stand-in (proxy + own CA, fixtures/bitbucket.mjs) and make sure the settings
  * took effect before anything is sent – otherwise the call would leave the computer.
  */
-async function useCloudFront(app, mock) {
+async function openCloudFront(app, mock) {
   const cloud = await startBitbucketCloudFront(mock);
   const settings = await app
     .invoke("settings_set", { patch: { proxyUrl: cloud.proxyUrl, sslCaFile: cloud.caFile } })
@@ -356,7 +356,7 @@ scenario("connect a Bitbucket account in the dialog with account e-mail and API 
   let cloud = null;
   try {
     app = await start(t);
-    cloud = await useCloudFront(app, mock);
+    cloud = await openCloudFront(app, mock);
     await runCommand(app, str("commands.hosts.connect.title"));
     await app.waitFor(CONNECT);
     t.step("connect dialog open (palette)");
@@ -422,7 +422,7 @@ scenario("connect a Bitbucket account in the dialog with account e-mail and API 
     assert(!JSON.stringify(account).includes(mock.token), "the account carries no token");
     const success = (await toasts(app)).find((toast) => toast.tone === "success");
     assert(
-      success && success.text.includes("Bitbucket") && success.text.includes("Lena Hartmann"),
+      success?.text.includes("Bitbucket") && success.text.includes("Lena Hartmann"),
       `success toast (${JSON.stringify(await toasts(app))})`,
     );
     assertEqual(keychainItems(app.keyringService).length, 1, "token stored in the Secret Service (one item)");
@@ -451,7 +451,7 @@ scenario("connect dialog: missing or invalid e-mail and a rejected token create 
   let cloud = null;
   try {
     app = await start(t);
-    cloud = await useCloudFront(app, mock);
+    cloud = await openCloudFront(app, mock);
     await runCommand(app, str("commands.hosts.connect.title"));
     await clickButton(app, "Bitbucket", { within: CONNECT, role: "radio" });
     await app.waitFor(`${CONNECT} input[name="username"]`);

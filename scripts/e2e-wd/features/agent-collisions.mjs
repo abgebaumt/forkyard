@@ -26,9 +26,9 @@ const REAL_AGENTS = ["claude", "codex", "opencode"];
 const git = (cwd, ...args) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", env: { ...process.env, LC_ALL: "C" } }).trim();
 /** 80 lines "line n"; with `side`, lines 40–62 read "<side> n". */
 const numbered = (side) =>
-  Array.from({ length: 80 }, (_, i) => i + 1)
+  `${Array.from({ length: 80 }, (_, i) => i + 1)
     .map((n) => (side && n >= 40 && n <= 62 ? `${side} ${n}` : `line ${n}`))
-    .join("\n") + "\n";
+    .join("\n")}\n`;
 
 /**
  * The app must never find a real coding agent (it would start it and send the task to a real
@@ -137,7 +137,7 @@ async function twoCollidingAgents(t, lang) {
     () =>
       ctx.app.exec(() => {
         const element = document.querySelector('[data-collision][data-kind="conflict"]');
-        return element && element.innerText.includes("src/auth.ts") ? element.innerText.replace(/\s+/g, " ") : null;
+        return element?.innerText.includes("src/auth.ts") ? element.innerText.replace(/\s+/g, " ") : null;
       }),
     90_000,
     { message: "collision banner with src/auth.ts" },

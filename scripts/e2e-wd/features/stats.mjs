@@ -79,7 +79,7 @@ async function statsButton(app) {
 }
 
 /** Finds an element and clicks it; looks it up again when React replaced it in between. */
-async function clickFresh(app, find, tries = 4) {
+async function clickFresh(_app, find, tries = 4) {
   for (let attempt = 1; ; attempt += 1) {
     try {
       return await (await find()).click();
@@ -237,7 +237,7 @@ async function waitStats(app, check = () => true, message = "statistics ready", 
     return await app.waitFor(
       async () => {
         last = await readStats(app);
-        if (!last || last.state !== "ready" || last.status?.kind === "updating") return null;
+        if (last?.state !== "ready" || last.status?.kind === "updating") return null;
         return check(last) ? last : null;
       },
       timeout,

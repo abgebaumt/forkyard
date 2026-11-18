@@ -1057,7 +1057,7 @@ scenario("partial stash of whole files selected in the diff (Ctrl+A)", "main", a
       await openDiff(app, "unstaged", file);
       // Ctrl+A in the diff selects all changed lines of the file.
       // Focus into the grid with one line, then Ctrl+A extends to every changed line.
-      await toggleLines(app, (row, index) => index === 0);
+      await toggleLines(app, (_row, index) => index === 0);
       await app.press("Control+a");
       await app.waitFor(async () => (await selectedLines(app)).length === lines, 5000, { message: `${file}: all lines selected` });
       await queueSelection(app, tabId, `Stash selection (${lines} line${lines === 1 ? "" : "s"}) …`);

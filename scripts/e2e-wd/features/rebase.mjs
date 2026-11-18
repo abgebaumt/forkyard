@@ -19,7 +19,6 @@ import {
   rightClick,
   selection,
   stackRepo,
-  toasts,
   waitToast,
 } from "../fixtures/rebase.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
@@ -33,7 +32,7 @@ const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };
 
 /** JSON with sorted object keys (key order from the page is not stable). */
 const stable = (value) =>
-  JSON.stringify(value, (key, inner) =>
+  JSON.stringify(value, (_key, inner) =>
     inner && typeof inner === "object" && !Array.isArray(inner)
       ? Object.fromEntries(Object.entries(inner).sort(([a], [b]) => a.localeCompare(b)))
       : inner,
@@ -534,7 +533,7 @@ async function openConflictFromList(app, file) {
 async function verifySaved(repo, file, expected, what) {
   assertEqual(String(repo.read(file)), expected, `${what}: file in the working directory`);
   assertEqual(repo.git("ls-files", "-u", "--", file), "", `${what}: git ls-files -u empty`);
-  assertEqual(repo.git("cat-file", "blob", `:0:${file}`) + "\n", expected, `${what}: staged blob`);
+  assertEqual(`${repo.git("cat-file", "blob", `:0:${file}`)}\n`, expected, `${what}: staged blob`);
 }
 
 scenario("Konflikt-Tool beim Rebase: Seite wählen, speichern und stagen, Rebase fortsetzen", "main", async (t) => {

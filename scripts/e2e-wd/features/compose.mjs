@@ -30,7 +30,7 @@ const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "de" };
 const VIEW = '[data-screen="compose"]';
 const ELEMENT_KEY = "element-6066-11e4-a52e-4f735466cecf";
 const CONTROL = "";
-const SHIFT = "";
+const _SHIFT = "";
 
 const PLAUSIBEL = "src/plausibel.py";
 const VERGLEICH = "src/vergleich.py";

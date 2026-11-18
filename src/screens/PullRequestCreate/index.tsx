@@ -217,7 +217,7 @@ export function PullRequestCreate({ repoId, tabId }: PullRequestCreateProps) {
         {error.text} {error.hint}
       </Blocked>
     );
-  } else if (!repo || !repo.kind) {
+  } else if (!repo?.kind) {
     body = (
       <Blocked
         state="no-host"

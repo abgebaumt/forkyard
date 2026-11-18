@@ -56,11 +56,7 @@ function makeStationRepo() {
 }
 
 /** The oracle: the commits Git itself names for line 3 at `rev`, newest first. */
-const gitLineLog = (repo, rev = "HEAD") =>
-  repo
-    .git("log", "-L3,3:" + FILE, "-s", "--format=%H", rev)
-    .split("\n")
-    .filter(Boolean);
+const gitLineLog = (repo, rev = "HEAD") => repo.git("log", `-L3,3:${FILE}`, "-s", "--format=%H", rev).split("\n").filter(Boolean);
 
 const store = (app, method, ...args) => app.exec((name, list) => window.__gc.store.getState()[name](...list), method, args);
 /** The tab's right panel, archaeology target and centre; objects in a fixed key order, since WebDriver does not keep it. */

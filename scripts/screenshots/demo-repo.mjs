@@ -100,7 +100,7 @@ ${extra}`;
 
 commit(r, 0, history ? "Move the service to the new project layout" : "Initial project setup", {
   "README.md": "# nimbus\n\nA tiny weather API for local stations.\n",
-  "package.json": JSON.stringify({ name: "nimbus", version: "0.1.0", type: "module", scripts: { test: "vitest run" } }, null, 2) + "\n",
+  "package.json": `${JSON.stringify({ name: "nimbus", version: "0.1.0", type: "module", scripts: { test: "vitest run" } }, null, 2)}\n`,
   ".gitignore": "node_modules/\ndist/\n.env\n",
   "src/station.ts":
     "export interface Station {\n  id: string;\n  name: string;\n  baseline: number;\n  swing: number;\n  rain: number;\n}\n",
@@ -155,7 +155,7 @@ commit(r, 3, "Add storm alert thresholds", {
     'export const STORM_WIND = 75;\nexport const HEAVY_RAIN = 8;\n\nexport function alertsFor(wind: number, rain: number): string[] {\n  const alerts: string[] = [];\n  if (wind >= STORM_WIND) alerts.push("storm");\n  if (rain >= HEAVY_RAIN) alerts.push("heavy-rain");\n  return alerts;\n}\n',
 });
 commit(r, 3, "Alerts: expose /alerts route", {
-  "src/server.ts": fs.readFileSync(path.join(r, "src/server.ts"), "utf8") + "\n// TODO: route /alerts to alertsFor()\n",
+  "src/server.ts": `${fs.readFileSync(path.join(r, "src/server.ts"), "utf8")}\n// TODO: route /alerts to alertsFor()\n`,
 });
 git(r, "push", "-q", "-u", "origin", "feature/alerts");
 
@@ -216,7 +216,7 @@ if (rebase) {
   write(r, "src/cache.ts", fs.readFileSync(path.join(r, "src/cache.ts"), "utf8").replace("ttl = 600_000", "ttl = 300_000"));
   git(r, "stash", "push", "-q", "-m", "Try a shorter cache TTL");
   write(r, "src/forecast.ts", forecast().replace("hours = 24", "hours = 36").replace(" * station.rain", " * station.rain * 1.1"));
-  write(r, "README.md", fs.readFileSync(path.join(r, "README.md"), "utf8") + "\n## Development\n\nRun `npm test` before pushing.\n");
+  write(r, "README.md", `${fs.readFileSync(path.join(r, "README.md"), "utf8")}\n## Development\n\nRun \`npm test\` before pushing.\n`);
   write(r, "src/units.ts", "export const toFahrenheit = (celsius: number) => celsius * 1.8 + 32;\n");
   git(r, "add", "README.md");
 }

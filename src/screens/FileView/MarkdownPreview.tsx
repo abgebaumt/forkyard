@@ -120,7 +120,7 @@ export function MarkdownPreview({ source, path }: { source: string; path: string
           className={cn(prose, "mx-auto max-w-180 px-6 py-5")}
           onClick={onClick}
           onKeyDown={onKeyDown}
-          // Bereinigt in RepoManagement/markdown.ts (DOMPurify + Nachbearbeitung).
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: sanitised in RepoManagement/markdown.ts (DOMPurify + post-processing).
           dangerouslySetInnerHTML={{ __html: rendered.html }}
         />
       </div>

@@ -209,7 +209,7 @@ export function syncUi(app) {
       return await app.waitFor(
         async () => {
           const top = await dialog();
-          return top && top.onTop && pattern.test(top.title) ? top : null;
+          return top?.onTop && pattern.test(top.title) ? top : null;
         },
         timeout,
         { interval: 100 },

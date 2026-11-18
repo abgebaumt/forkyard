@@ -654,17 +654,15 @@ export function FileList({
       style={virtual ? { height: measured ? virtualizer.getTotalSize() : rows.length * rowHeight.current } : undefined}
     >
       {virtual && !measured
-        ? rows
-            .slice(0, 40)
-            .map((row, index) =>
-              renderRow(row, index, {
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                transform: `translateY(${index * rowHeight.current}px)`,
-              }),
-            )
+        ? rows.slice(0, 40).map((row, index) =>
+            renderRow(row, index, {
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              transform: `translateY(${index * rowHeight.current}px)`,
+            }),
+          )
         : virtual
           ? virtualizer.getVirtualItems().map((item) => {
               const row = rows[item.index];

@@ -17,7 +17,7 @@ import type { GraphRow, RefLabelInfo, Sha } from "../../core";
 export type RowIndex = ReadonlyMap<string, number>;
 
 const isCommit = (row: GraphRow | undefined): row is GraphRow & { sha: Sha } =>
-  Boolean(row && row.sha && (row.kind === "commit" || row.kind === "merge"));
+  Boolean(row?.sha && (row.kind === "commit" || row.kind === "merge"));
 
 // ---------------------------------------------------------------------------
 // Highlighting

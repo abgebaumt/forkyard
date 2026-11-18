@@ -468,7 +468,7 @@ export function RepoList({ items, selectedId, onSelect, handle, ...props }: Repo
 
   const focusIndex = (index: number) => {
     const item = items[index];
-    if (!item || item.kind !== "repo") return;
+    if (item?.kind !== "repo") return;
     pendingFocus.current = item.repo.id;
     onSelect(item.repo.id);
     virtualizer.scrollToIndex(index, { align: "auto" });
