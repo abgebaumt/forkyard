@@ -125,7 +125,7 @@ pub(crate) async fn stash_selection(
         forget(core, repo_id, &entry_id).await;
         return Ok(stash_commit);
     }
-    let token = undo::head_token(&head);
+    let token = head.token();
     let label = match message {
         Some(text) => format!("Undo stash “{}”", undo::shorten(text, 60)),
         None => "Undo stash of the selected lines".to_string(),

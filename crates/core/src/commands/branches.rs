@@ -6,7 +6,6 @@ use std::path::PathBuf;
 use serde_json::json;
 
 use crate::app::Core;
-use crate::commands::commit::head_label;
 use crate::commands::refs::read_refs;
 use crate::commands::status::{parse_porcelain_v2, read_status};
 use crate::commands::submodule::auto;
@@ -557,8 +556,8 @@ pub(crate) async fn record_checkout(
     display: &str,
     created: Option<(&str, Option<&str>, &str)>,
 ) -> CoreResult<()> {
-    let head_before = head_label(before);
-    let head_after = head_label(after);
+    let head_before = before.token();
+    let head_after = after.token();
     if head_before == head_after && created.is_none() {
         return Ok(());
     }
@@ -684,7 +683,7 @@ async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool
         for info in &targets {
             remove_config(&info.name).await;
         }
-        let head = head_label(&read_head(core, repo_id).await?);
+        let head = read_head(core, repo_id).await?.token();
         let steps: Vec<_> =
             targets.iter().map(|info| json!({ "ref": format!("refs/heads/{}", info.name), "before": info.sha, "after": null })).collect();
         let upstreams: Vec<_> = targets
@@ -723,7 +722,7 @@ async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool
     }
     core.git_for(repo_id)?.args(["update-ref", "-z", "--stdin"]).stdin(script).run().await?;
 
-    let head = head_label(&read_head(core, repo_id).await?);
+    let head = read_head(core, repo_id).await?.token();
     for (id, info) in entries {
         remove_config(&info.name).await;
         undo::record(

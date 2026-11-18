@@ -328,7 +328,7 @@ impl<'a> Probe<'a> {
                 all
             }
             (_, Direction::Undo) if creates_commit(action) => {
-                let tip = if entry.ref_name.is_some() { ref_sha.clone() } else { u::head_sha(&self.head) };
+                let tip = if entry.ref_name.is_some() { ref_sha.clone() } else { self.head.sha().map(str::to_string) };
                 match tip {
                     Some(tip) => pushed_to(self.core, self.repo_id, &tip).await?.is_none(),
                     None => true,
@@ -349,7 +349,7 @@ impl<'a> Probe<'a> {
             _ if swaps_snapshots(action, &entry.payload) => match text("worktreeSnapshot") {
                 // The backup is tied to the commit the action ran on; HEAD must still be there.
                 Some(snapshot) => match rev::rev_parse(self.core, self.repo_id, &format!("{snapshot}^1")).await? {
-                    Some(parent) => same_sha(u::head_sha(&self.head).as_deref(), Some(&parent)),
+                    Some(parent) => same_sha(self.head.sha(), Some(&parent)),
                     None => true,
                 },
                 None => true,
@@ -407,7 +407,7 @@ impl<'a> Probe<'a> {
         if !precondition(&entry, action, Direction::Undo, &self.head, ref_sha.as_deref()) {
             return Ok(None);
         }
-        let tip = if entry.ref_name.is_some() { ref_sha } else { u::head_sha(&self.head) };
+        let tip = if entry.ref_name.is_some() { ref_sha } else { self.head.sha().map(str::to_string) };
         let Some(tip) = tip else { return Ok(None) };
         Ok(pushed_to(self.core, self.repo_id, &tip).await?.map(|remote| {
             format!("The last commit is already on the remote ({remote}), so it can no longer be undone locally. Use Revert instead.")
@@ -539,7 +539,7 @@ fn precondition(entry: &UndoEntry, action: UndoAction, dir: Direction, head: &He
         if !fits {
             return false;
         }
-    } else if open_end && entry.head_after.is_none() && same_sha(u::head_sha(head).as_deref(), Some(entry.head_before.as_str())) {
+    } else if open_end && entry.head_after.is_none() && same_sha(head.sha(), Some(entry.head_before.as_str())) {
         return false;
     }
     if let Some(expected) = expected_head.filter(|head| !head.is_empty()) {
@@ -549,7 +549,7 @@ fn precondition(entry: &UndoEntry, action: UndoAction, dir: Direction, head: &He
     }
     // Actions without a moved ref (stash, stash pop) record the commit separately.
     if let Some(expected) = entry.payload.get("headSha").and_then(Value::as_str) {
-        if !same_sha(u::head_sha(head).as_deref(), Some(expected)) {
+        if !same_sha(head.sha(), Some(expected)) {
             return false;
         }
     }
@@ -594,7 +594,7 @@ fn same_sha(a: Option<&str>, b: Option<&str>) -> bool {
 fn head_matches(expected: &str, head: &Head) -> bool {
     match expected.strip_prefix("refs/heads/") {
         Some(branch) => matches!(head, Head::Branch { branch: b, .. } | Head::Unborn { branch: b } if b == branch),
-        None => u::head_sha(head).is_some_and(|sha| sha.eq_ignore_ascii_case(expected)),
+        None => head.sha().is_some_and(|sha| sha.eq_ignore_ascii_case(expected)),
     }
 }
 
@@ -730,7 +730,7 @@ impl Run<'_> {
     fn tip(&self) -> Option<String> {
         match &self.entry.ref_name {
             Some(_) => self.ref_sha.clone(),
-            None => u::head_sha(&self.head),
+            None => self.head.sha().map(str::to_string),
         }
     }
 
@@ -873,11 +873,11 @@ impl Run<'_> {
         let Some(desired) = desired.filter(|head| !head.is_empty()) else { return Ok(()) };
         // A reset moves the branch, not HEAD: if HEAD was already on the desired branch,
         // there is nothing to do. Only a detached HEAD has to be re-read.
-        if !matches!(self.head, Head::Detached { .. }) && u::head_token(&self.head) == desired {
+        if !matches!(self.head, Head::Detached { .. }) && self.head.token() == desired {
             return Ok(());
         }
         let now = crate::git::repo::read_head(self.core, self.repo_id).await?;
-        if u::head_token(&now).eq_ignore_ascii_case(desired) {
+        if now.token().eq_ignore_ascii_case(desired) {
             return Ok(());
         }
         match desired.strip_prefix("refs/heads/") {
@@ -1007,10 +1007,7 @@ impl Run<'_> {
         }
         self.restore_head(self.desired_head()).await?;
         let head = crate::git::repo::read_head(self.core, self.repo_id).await?;
-        let current = match &head {
-            Head::Branch { branch, .. } | Head::Unborn { branch } => Some(format!("refs/heads/{branch}")),
-            Head::Detached { .. } => None,
-        };
+        let current = head.branch().map(|branch| format!("refs/heads/{branch}"));
         for (step, from, to) in &moves {
             let Some(from) = from else { continue };
             if same_sha(Some(from), *to) {
@@ -1082,10 +1079,7 @@ impl Run<'_> {
         // The branch checked out here once HEAD is where this direction wants it.
         let head_branch = match self.desired_head().filter(|head| !head.is_empty()) {
             Some(desired) => desired.starts_with("refs/heads/").then(|| desired.to_string()),
-            None => match &self.head {
-                Head::Branch { branch, .. } | Head::Unborn { branch } => Some(format!("refs/heads/{branch}")),
-                Head::Detached { .. } => None,
-            },
+            None => self.head.branch().map(|branch| format!("refs/heads/{branch}")),
         };
         let (keep, moves): (Vec<u::RefMove>, Vec<u::RefMove>) = if with_snapshot {
             (Vec::new(), moves)

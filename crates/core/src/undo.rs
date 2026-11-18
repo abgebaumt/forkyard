@@ -27,7 +27,7 @@ use crate::db::{self, undo::UndoEntry, undo::UndoEntryState};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::rev;
 use crate::git::{errors, GitCmd, GitOutput};
-use crate::model::{Head, UndoState, UndoStep};
+use crate::model::{UndoState, UndoStep};
 use crate::util;
 
 /// Namespace of the backup refs.
@@ -165,23 +165,6 @@ pub struct UndoRecord {
 
 pub fn new_id() -> String {
     util::new_id()
-}
-
-/// HEAD in the notation of the undo entries (`head_before`/`head_after`):
-/// `refs/heads/<branch>` when HEAD is on a branch (even without a commit), otherwise the SHA.
-pub fn head_token(head: &Head) -> String {
-    match head {
-        Head::Branch { branch, .. } | Head::Unborn { branch } => format!("refs/heads/{branch}"),
-        Head::Detached { sha } => sha.clone(),
-    }
-}
-
-/// The commit HEAD points to; `None` without a commit.
-pub fn head_sha(head: &Head) -> Option<String> {
-    match head {
-        Head::Branch { sha, .. } | Head::Detached { sha } => Some(sha.clone()),
-        Head::Unborn { .. } => None,
-    }
 }
 
 /// Shortens a text for a label to at most `max` characters.

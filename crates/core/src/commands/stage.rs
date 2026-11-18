@@ -437,10 +437,7 @@ impl Backup {
     /// `git add -A` for everything or the paths, `write-tree`, `commit-tree`. The real
     /// index, HEAD and the working directory stay untouched.
     pub(crate) async fn create(core: &Core, repo_id: &str, head: &Head, paths: Option<&[Vec<u8>]>) -> CoreResult<Backup> {
-        let head_sha = match head {
-            Head::Branch { sha, .. } | Head::Detached { sha } => Some(sha.as_str()),
-            Head::Unborn { .. } => None,
-        };
+        let head_sha = head.sha();
         // `write-tree` takes the index lock: a foreign index.lock shows up here
         // before anything is destroyed.
         let index_tree = match quiet(core, repo_id)?.args(["write-tree"]).run().await {
@@ -565,10 +562,7 @@ impl Backup {
         restored_from: Option<&str>,
         expected: Option<String>,
     ) -> CoreResult<Recorded> {
-        let head_name = match head {
-            Head::Branch { branch, .. } | Head::Unborn { branch } => format!("refs/heads/{branch}"),
-            Head::Detached { sha } => sha.clone(),
-        };
+        let head_name = head.token();
         let mut payload = json!({ "worktreeSnapshot": self.snapshot, "indexTree": self.index_tree, "paths": paths });
         if let Some(commit) = restored_from {
             payload["restoredFrom"] = json!(commit);
@@ -712,10 +706,7 @@ async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
     let backup = Backup::create(core, repo_id, &head, None).await?;
     // The undo entry exists before anything is discarded: even after a crash midway
     // undo offers the backup. Afterwards everything is at the state of HEAD.
-    let expected = match &head {
-        Head::Branch { sha, .. } | Head::Detached { sha } => sha.clone(),
-        Head::Unborn { .. } => undo::EMPTY_TREE.to_string(),
-    };
+    let expected = head.sha().unwrap_or(undo::EMPTY_TREE).to_string();
     let recorded = backup.record_before(core, repo_id, &head, discard_label(&names), None, Some(expected)).await?;
 
     let outcome = match head {

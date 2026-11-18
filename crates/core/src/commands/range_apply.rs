@@ -66,7 +66,7 @@ pub async fn range_apply(
             }
             return Err(e);
         }
-        let head_token = undo::head_token(&head);
+        let head_token = head.token();
         let mut extra = Map::new();
         extra.insert("from".into(), json!(from_sha));
         extra.insert("to".into(), json!(to_sha));
