@@ -694,5 +694,4 @@ async fn push_all(core: &Core, repo_id: &str, job: &Job, targets: &[PushTarget])
 }
 
 #[cfg(test)]
-#[path = "gitflow_tests.rs"]
 mod tests;

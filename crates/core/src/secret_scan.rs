@@ -695,5 +695,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "secret_scan_tests.rs"]
 mod repo_tests;

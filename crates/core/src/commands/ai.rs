@@ -1015,5 +1015,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "ai_push_review_tests.rs"]
 mod push_review_tests;

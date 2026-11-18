@@ -1466,9 +1466,7 @@ pub(crate) async fn stopped_or_failed(core: &Core, repo_id: &str, subcommand: &s
 }
 
 #[cfg(test)]
-#[path = "merge_tests.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "merge_hook_tests.rs"]
 mod hook_tests;
