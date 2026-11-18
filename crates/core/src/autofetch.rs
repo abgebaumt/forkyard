@@ -176,11 +176,29 @@ fn repo_auto_fetch(core: &Core, repo_id: &str) -> bool {
         .unwrap_or(true)
 }
 
+/// Where in the interval this repository's first fetch falls, so repositories opened together
+/// do not all fetch at the same moment. Deterministic per ID, always `< every`.
+fn start_offset(repo_id: &str, every: Duration) -> Duration {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    repo_id.hash(&mut hasher);
+    let ms = every.as_millis().max(1) as u64;
+    Duration::from_millis(hasher.finish() % ms)
+}
+
 async fn fetch_loop(core: &Core, repo_id: &str, stop: &CancelToken) {
     let state = core.state::<AutoFetchers>();
     let mut last = Instant::now();
+    let mut spread = false;
     loop {
         let timing = *state.timing.lock();
+        if !spread {
+            if let Some(every) = interval(core, repo_id, timing) {
+                // Only once, the first time an interval is known.
+                last = Instant::now().checked_sub(start_offset(repo_id, every)).unwrap_or_else(Instant::now);
+                spread = true;
+            }
+        }
         let wait = match interval(core, repo_id, timing) {
             Some(every) => every.saturating_sub(last.elapsed()).min(timing.poll),
             None => timing.poll,
