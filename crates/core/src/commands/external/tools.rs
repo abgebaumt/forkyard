@@ -25,6 +25,7 @@ use crate::app::Core;
 use crate::commands::diff::{self};
 use crate::error::{CoreError, CoreResult};
 use crate::git::index::{EMPTY_TREE_SHA1, EMPTY_TREE_SHA256};
+use crate::git::rev;
 use crate::model::{DiffSource, ExternalTarget, Settings};
 use crate::util;
 use crate::util::normalize_rel_path;
@@ -149,7 +150,7 @@ async fn diff_tool(core: &Core, repo_id: &str, root: &Path, rel: &str, source: D
 
 /// Only SHAs (abbreviated too) – nothing Git could read as an option or expression.
 fn check_sha(rev: &str) -> CoreResult<&str> {
-    if (4..=64).contains(&rev.len()) && rev.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if rev::is_sha_prefix(rev) {
         Ok(rev)
     } else {
         Err(CoreError::not_found(format!("The commit “{rev}” was not found.")))

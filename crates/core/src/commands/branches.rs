@@ -364,7 +364,7 @@ enum CheckoutPlan {
 }
 
 async fn checkout_locked(core: &Core, repo_id: &str, target: &str) -> CoreResult<()> {
-    if target.is_empty() || target.starts_with('-') {
+    if !rev::is_rev_arg(target) {
         return Err(target_not_found(target));
     }
     if let Some(op) = read_operation(core, repo_id).await? {

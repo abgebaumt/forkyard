@@ -9,6 +9,7 @@ use crate::app::Core;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult};
 use crate::git::index::TempIndex;
+use crate::git::rev;
 use crate::git::GitCmd;
 use crate::model::{DiffSource, PatchText, RepoChange, Status};
 use crate::util;
@@ -31,7 +32,7 @@ fn git(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
 /// Only SHAs (also abbreviated) – nothing Git could read as an option or expression.
 fn check_sha(rev: &str) -> CoreResult<&str> {
     let rev = rev.trim();
-    if (4..=64).contains(&rev.len()) && rev.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if rev::is_sha_prefix(rev) {
         Ok(rev)
     } else {
         Err(CoreError::not_found(format!("The commit “{rev}” wasn't found.")))

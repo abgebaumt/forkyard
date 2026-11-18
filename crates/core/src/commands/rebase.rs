@@ -1424,7 +1424,7 @@ fn require_shas(shas: &[String]) -> CoreResult<()> {
     }
     for sha in shas {
         let sha = sha.trim();
-        if !(4..=64).contains(&sha.len()) || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+        if !rev::is_sha_prefix(sha) {
             return Err(CoreError::not_found(format!("“{sha}” isn't a valid commit.")));
         }
     }

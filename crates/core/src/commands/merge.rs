@@ -189,7 +189,7 @@ struct MergeSource {
 /// Resolves `source`: local branch before remote branch before everything else (tag, SHA, full ref name).
 async fn resolve_source(core: &Core, repo_id: &str, source: &str) -> CoreResult<MergeSource> {
     let source = source.trim();
-    if source.is_empty() || source.starts_with('-') {
+    if !rev::is_rev_arg(source) {
         return Err(commit_not_found(source));
     }
     let plain = rev::rev_parse(core, repo_id, &format!("{}^{{commit}}", source)).await?;

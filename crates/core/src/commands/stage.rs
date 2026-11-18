@@ -24,6 +24,7 @@ use crate::commands::status::{parse_porcelain_v2, read_status, EntryKind, Status
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::TempIndex;
 use crate::git::repo::read_head;
+use crate::git::rev;
 use crate::git::GitCmd;
 use crate::model::{Head, PatchSelection, RepoChange, Status};
 use crate::undo::{self, UndoAction, UndoRecord};
@@ -996,7 +997,7 @@ pub async fn ignore_add(core: &Core, repo_id: String, pattern: String, stop_trac
 pub async fn file_restore(core: &Core, repo_id: String, sha: String, paths: Vec<String>) -> CoreResult<Status> {
     let unknown_commit = || CoreError::not_found(format!("Commit “{sha}” was not found."));
     // Only SHAs (abbreviated too) – nothing Git could read as an option or expression.
-    if !(4..=64).contains(&sha.len()) || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
+    if !rev::is_sha_prefix(&sha) {
         return Err(unknown_commit());
     }
     let resolved =

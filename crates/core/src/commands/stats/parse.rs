@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 
+use crate::git::rev;
 use crate::util;
 
 /// Marks the start of a commit in the output of `git log` (see `LOG_FORMAT`).
@@ -174,7 +175,7 @@ impl BlameAges {
         }
         let text = util::decode_lossy(line);
         let (key, value) = text.split_once(' ').unwrap_or((text.as_str(), ""));
-        let is_sha = (key.len() == 40 || key.len() == 64) && key.bytes().all(|b| b.is_ascii_hexdigit());
+        let is_sha = rev::is_sha(key);
         if is_sha && value.split(' ').count() >= 2 {
             self.current = key.to_string();
         } else if key == "author-time" {

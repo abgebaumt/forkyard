@@ -8,6 +8,7 @@ use crate::commands::{lfs, worktree};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
+use crate::git::rev;
 use crate::jobs::Job;
 use crate::model::{
     CleanupFailure, CleanupMode, CleanupOptions, CleanupResult, CleanupStep, CleanupStepResult, CleanupStepStatus, RepoChange,
@@ -253,7 +254,7 @@ async fn gc(core: &Core, repo_id: &str, ids: &[String], job: &Job, mode: Cleanup
 
 /// A full object ID (SHA-1 or SHA-256) rather than a ref name like `refs/heads/main`.
 fn is_object_id(value: &str) -> bool {
-    matches!(value.len(), 40 | 64) && value.bytes().all(|b| b.is_ascii_hexdigit())
+    rev::is_sha(value)
 }
 
 /// Puts `refs/forkyard/keep/<sha>` on every existing object that `head_before`, `ref_before` or

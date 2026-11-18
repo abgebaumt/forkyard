@@ -446,7 +446,7 @@ pub async fn stack_prs_create(
     remote: Option<String>,
 ) -> CoreResult<StackPrOutcome> {
     let target = target.trim().to_string();
-    if target.is_empty() || target.starts_with('-') {
+    if !rev::is_rev_arg(&target) {
         return Err(CoreError::not_allowed("The stack needs the target branch of its first pull request."));
     }
     if parts.is_empty() {
