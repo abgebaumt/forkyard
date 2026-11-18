@@ -431,9 +431,27 @@ async fn a_forced_stack_push_keeps_a_teammates_commit_that_arrived_after_the_pro
     let theirs = sha_of(&other, "HEAD");
     repo.git(&["fetch", "-q", "origin"]);
 
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(shown), None).await.unwrap();
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(shown.clone()), None).await.unwrap();
     assert!(matches!(result, PushResult::Rejected { .. }), "{result:?}");
     assert_eq!(remote_sha(&remote, P2), theirs, "the teammate's commit stays");
+    assert_eq!((remote_sha(&remote, P1), remote_sha(&remote, P3)), (shown[0].clone(), shown[2].clone()), "nothing was pushed partially");
+}
+
+#[tokio::test]
+async fn a_part_that_appeared_on_the_remote_after_the_prompt_is_not_overwritten() {
+    let (repo, remote) = with_remote();
+    let (tc, id) = created(&repo).await;
+    // Shown: no part on the remote. Meanwhile a teammate creates part 3 there, and a fetch brings it in.
+    let other = TestRepo::clone_of(&remote);
+    other.commit_file("kollegin.txt", "neu\n", "Beitrag der Kollegin");
+    other.git(&["push", "-q", "origin", &format!("HEAD:refs/heads/{P3}")]);
+    let theirs = sha_of(&other, "HEAD");
+    repo.git(&["fetch", "-q", "origin"]);
+
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(vec![None, None, None]), None).await.unwrap();
+    assert!(matches!(result, PushResult::Rejected { .. }), "{result:?}");
+    assert_eq!(remote_sha(&remote, P3), theirs, "the teammate's branch stays");
+    assert_eq!((remote_sha(&remote, P1), remote_sha(&remote, P2)), (None, None), "nothing was pushed");
 }
 
 #[tokio::test]
@@ -444,6 +462,7 @@ async fn a_forced_stack_push_without_expected_states_is_refused() {
     let push = |expected: Option<Vec<Option<String>>>| stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, expected, None);
     assert_eq!(push(None).await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(Some(vec![before.clone(), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "one entry per part");
+    assert_eq!(push(Some(vec![before.clone(), Some("zzzzzzz".into()), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "not a commit ID");
     assert_eq!(remote_sha(&remote, P1), before, "nothing was sent");
 }
 
