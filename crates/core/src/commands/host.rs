@@ -143,9 +143,10 @@ pub async fn pr_get(core: &Core, repo_id: String, number: u64, remote: Option<St
 
 fn clean_names(values: Option<Vec<String>>) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
     for value in values.unwrap_or_default() {
         let value = value.trim().trim_start_matches('@').to_string();
-        if !value.is_empty() && !names.contains(&value) {
+        if !value.is_empty() && seen.insert(value.clone()) {
             names.push(value);
         }
     }

@@ -158,24 +158,40 @@ async fn without_conversion_attributes(
 /// The requested paths: files or directories (then everything below them).
 struct Wanted {
     exact: HashSet<Vec<u8>>,
-    folders: Vec<Vec<u8>>,
+    /// Requested directories without the trailing slash.
+    folders: HashSet<Vec<u8>>,
 }
 
 impl Wanted {
     fn new(paths: &[Vec<u8>]) -> Wanted {
         let mut exact = HashSet::new();
-        let mut folders = Vec::new();
+        let mut folders = HashSet::new();
         for path in paths {
             let trimmed = path.strip_suffix(b"/").unwrap_or(path);
             exact.insert(trimmed.to_vec());
-            let mut folder = trimmed.to_vec();
-            folder.push(b'/');
-            folders.push(folder);
+            folders.insert(trimmed.to_vec());
         }
         Wanted { exact, folders }
     }
 
     fn covers(&self, path: &[u8]) -> bool {
-        self.exact.contains(path) || self.folders.iter().any(|f| path.starts_with(f))
+        // One lookup per ancestor directory instead of a scan over all requested folders.
+        self.exact.contains(path) || path.iter().enumerate().any(|(i, b)| *b == b'/' && self.folders.contains(&path[..i]))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Wanted;
+
+    #[test]
+    fn wanted_covers_exact_paths_and_everything_below_folders() {
+        let wanted = Wanted::new(&[b"a.txt".to_vec(), b"dir/".to_vec(), b"x/y".to_vec()]);
+        for covered in ["a.txt", "dir/f", "dir/sub/f", "x/y", "x/y/z"] {
+            assert!(wanted.covers(covered.as_bytes()), "{covered}");
+        }
+        for other in ["b.txt", "dir2/f", "dirf", "x/yz", "x/f", "a.txt2"] {
+            assert!(!wanted.covers(other.as_bytes()), "{other}");
+        }
     }
 }
