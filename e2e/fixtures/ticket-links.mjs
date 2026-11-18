@@ -1,5 +1,5 @@
 /**
- * Real Git repositories for scripts/e2e-wd/features/ticket-links.mjs: a small history whose commit
+ * Real Git repositories for e2e/features/ticket-links.mjs: a small history whose commit
  * messages carry ticket references (#42, !7, OPS-17, CVE-2024-1234 …), optionally with a remote
  * URL on a public host (never contacted: the remote only names the host for the link rules) and a
  * `.forkyard/links.json`.
@@ -14,7 +14,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../../e2e/fixtures/fixtures.mjs";
+import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "./fixtures.mjs";
 
 const EPOCH = 1772434800;
 

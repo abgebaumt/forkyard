@@ -3,8 +3,8 @@
  * from a stash and applying them (1.0), and the partial stash of files, hunks and lines (1.1).
  * Every result is checked in the UI and in Git (stash list, stash contents, index, working tree).
  *
- *   node scripts/e2e-wd/features/stash.mjs
- *   E2E_WD_ONLY="partial" node scripts/e2e-wd/features/stash.mjs
+ *   node e2e/features/stash.mjs
+ *   E2E_WD_ONLY="partial" node e2e/features/stash.mjs
  */
 import fs from "node:fs";
 import path from "node:path";

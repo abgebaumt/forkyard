@@ -22,7 +22,14 @@ export const SHOTS = "target/e2e/shots";
 
 /** git in `cwd` with an isolated configuration (`config` = path of a gitconfig). */
 export function gitIn(cwd, config, ...args) {
-  return execFileSync("git", args, { cwd, env: { ...process.env, ...gitIsolationEnv(config) }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).toString("utf8").trim();
+  return execFileSync("git", args, {
+    cwd,
+    env: { ...process.env, ...gitIsolationEnv(config) },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  })
+    .toString("utf8")
+    .trim();
 }
 /** Like gitIn, but asynchronous – required for calls against a server in this process. */
 export async function gitInAsync(cwd, config, ...args) {
@@ -45,10 +52,18 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
     }
     return Boolean(condition);
   };
-  const equal = (actual, expected, message) => check(JSON.stringify(actual) === JSON.stringify(expected), `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  const equal = (actual, expected, message) =>
+    check(
+      JSON.stringify(actual) === JSON.stringify(expected),
+      `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
 
   const toasts = () =>
-    page.locator("[data-toast]").evaluateAll((list) => list.map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })));
+    page
+      .locator("[data-toast]")
+      .evaluateAll((list) =>
+        list.map((item) => ({ tone: item.getAttribute("data-toast"), text: item.innerText.replace(/\s+/g, " ").trim() })),
+      );
 
   const eventually = async (read, expected, message, timeoutMs = 15_000) => {
     const deadline = Date.now() + timeoutMs;
@@ -67,12 +82,19 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
     }
     if (matches(actual)) return true;
     const shown = page ? await toasts().catch(() => []) : [];
-    return check(false, `${message}: ${typeof expected === "function" ? "condition not met" : `expected ${JSON.stringify(expected)}`}, got ${JSON.stringify(actual)}${shown.length ? ` – toasts: ${JSON.stringify(shown)}` : ""}`);
+    return check(
+      false,
+      `${message}: ${typeof expected === "function" ? "condition not met" : `expected ${JSON.stringify(expected)}`}, got ${JSON.stringify(actual)}${shown.length ? ` – toasts: ${JSON.stringify(shown)}` : ""}`,
+    );
   };
 
   const closeToasts = async () => {
     for (let round = 0; round < 12 && (await page.locator("[data-toast]").count()) > 0; round++) {
-      await page.getByRole("button", { name: "Close message" }).first().click({ timeout: 2000 }).catch(() => undefined);
+      await page
+        .getByRole("button", { name: "Close message" })
+        .first()
+        .click({ timeout: 2000 })
+        .catch(() => undefined);
       await sleep(80);
     }
   };
@@ -88,11 +110,17 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
       await sleep(80);
     }
   };
-  const noErrorToast = async (message) => equal((await toasts()).filter((toast) => toast.tone === "danger"), [], message);
+  const noErrorToast = async (message) =>
+    equal(
+      (await toasts()).filter((toast) => toast.tone === "danger"),
+      [],
+      message,
+    );
 
   const dialog = () => page.getByRole("dialog");
   /** Heading of the topmost dialog. */
-  const dialogTitle = () => page.evaluate(() => Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)?.querySelector("h2")?.textContent?.trim() ?? null);
+  const dialogTitle = () =>
+    page.evaluate(() => Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)?.querySelector("h2")?.textContent?.trim() ?? null);
   const waitDialog = async (pattern, timeoutMs = 20_000) => {
     await eventually(dialogTitle, (title) => title !== null && pattern.test(title), `Dialog ${pattern}`, timeoutMs);
     return dialog().last();
@@ -100,14 +128,30 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
   const focused = () =>
     page.evaluate(() => {
       const el = document.activeElement;
-      return { text: (el?.textContent ?? "").trim(), label: el?.getAttribute("aria-label") ?? el?.labels?.[0]?.textContent ?? null, tag: el?.tagName ?? null, role: el?.getAttribute("role") ?? null };
+      return {
+        text: (el?.textContent ?? "").trim(),
+        label: el?.getAttribute("aria-label") ?? el?.labels?.[0]?.textContent ?? null,
+        tag: el?.tagName ?? null,
+        role: el?.getAttribute("role") ?? null,
+      };
     });
   const overflow = () =>
-    page.evaluate(() => ({ x: document.documentElement.scrollWidth - document.documentElement.clientWidth, y: document.documentElement.scrollHeight - document.documentElement.clientHeight }));
+    page.evaluate(() => ({
+      x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      y: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+    }));
 
   const toolbar = () => page.getByRole("toolbar", { name: "Repository actions" });
-  const toolButton = (label) => toolbar().getByRole("button", { name: new RegExp(`^${label}`) }).first();
-  const toolState = (label) => toolButton(label).evaluate((button) => ({ disabled: button.getAttribute("aria-disabled") === "true", busy: button.getAttribute("aria-busy") === "true", label: button.getAttribute("aria-label") }));
+  const toolButton = (label) =>
+    toolbar()
+      .getByRole("button", { name: new RegExp(`^${label}`) })
+      .first();
+  const toolState = (label) =>
+    toolButton(label).evaluate((button) => ({
+      disabled: button.getAttribute("aria-disabled") === "true",
+      busy: button.getAttribute("aria-busy") === "true",
+      label: button.getAttribute("aria-label"),
+    }));
 
   /** Reloads status, refs, remotes, graph and undo of a repository (as after an event). */
   const refresh = async (repoId) => {
@@ -126,13 +170,22 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
       };
       // In-flight queries do not count: fetchQuery attaches to a running query, which may have read
       // the state before the test's last step. Cancel first, then load.
-      await Promise.all(["status", "refs", "remotes", "undo", "graph"].map((part) => client.cancelQueries({ queryKey: key(part), exact: true })));
+      await Promise.all(
+        ["status", "refs", "remotes", "undo", "graph"].map((part) => client.cancelQueries({ queryKey: key(part), exact: true })),
+      );
       await Promise.all([
         settle(() => client.fetchQuery({ queryKey: key("status"), queryFn: () => core.statusGet({ repoId: id }), staleTime: 0 })),
         settle(() => client.fetchQuery({ queryKey: key("refs"), queryFn: () => core.refsList({ repoId: id }), staleTime: 0 })),
         settle(() => client.fetchQuery({ queryKey: key("remotes"), queryFn: () => core.remoteList({ repoId: id }), staleTime: 0 })),
         settle(() => client.fetchQuery({ queryKey: key("undo"), queryFn: () => core.undoPeek({ repoId: id }), staleTime: 0 })),
-        settle(() => client.fetchInfiniteQuery({ queryKey: key("graph"), queryFn: ({ pageParam }) => core.graphPage({ repoId: id, cursor: pageParam, limit: 2000 }), initialPageParam: null, staleTime: 0 })),
+        settle(() =>
+          client.fetchInfiniteQuery({
+            queryKey: key("graph"),
+            queryFn: ({ pageParam }) => core.graphPage({ repoId: id, cursor: pageParam, limit: 2000 }),
+            initialPageParam: null,
+            staleTime: 0,
+          }),
+        ),
       ]);
     }, repoId);
     await app.settle();
@@ -154,7 +207,15 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
       await run();
     } catch (error) {
       check(false, `aborted: ${error?.stack ?? error}`);
-      if (app) await app.screenshot(`target/e2e/${name}-error-${title.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 60)}.png`).catch(() => undefined);
+      if (app)
+        await app
+          .screenshot(
+            `target/e2e/${name}-error-${title
+              .replace(/[^a-z0-9]+/gi, "-")
+              .toLowerCase()
+              .slice(0, 60)}.png`,
+          )
+          .catch(() => undefined);
     }
     if (app && page) {
       if (app.consoleErrors.length) {
@@ -174,7 +235,9 @@ export function createRun(name, { argv = process.argv.slice(2) } = {}) {
   };
 
   const finish = () => {
-    console.log(failures.length ? `\n${name}: ${failures.length} failures.\n${failures.map((line) => `- ${line}`).join("\n")}` : `\n${name}: green.`);
+    console.log(
+      failures.length ? `\n${name}: ${failures.length} failures.\n${failures.map((line) => `- ${line}`).join("\n")}` : `\n${name}: green.`,
+    );
     process.exit(failures.length ? 1 : 0);
   };
 

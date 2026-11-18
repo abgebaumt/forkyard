@@ -4,18 +4,18 @@
  * worktree; the test adds a CRLF change to a tracked list there. Results are checked byte for byte on
  * disk and in Git.
  *
- *   cargo build && node scripts/e2e-wd/features/agent-review.mjs
- *   E2E_WD_ONLY="undo" node scripts/e2e-wd/features/agent-review.mjs
+ *   cargo build && node e2e/features/agent-review.mjs
+ *   E2E_WD_ONLY="undo" node e2e/features/agent-review.mjs
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const FAKE = path.join(ROOT, "target", "debug", "forkyard-fake-agent");
 const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };
 const REAL_AGENTS = ["claude", "codex", "opencode"];

@@ -10,8 +10,8 @@
  * - edge: an unusable answer twice shows „Antwort unbrauchbar“ with „Nochmal“ (German texts);
  * - edge: cancelling drops the answer that arrives later.
  *
- *   node scripts/e2e-wd/features/ai-pr-description.mjs
- *   E2E_WD_ONLY=cancel node scripts/e2e-wd/features/ai-pr-description.mjs
+ *   node e2e/features/ai-pr-description.mjs
+ *   E2E_WD_ONLY=cancel node e2e/features/ai-pr-description.mjs
  */
 import http from "node:http";
 import { startForge } from "../fixtures/github-gitlab-host.mjs";

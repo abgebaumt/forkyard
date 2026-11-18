@@ -5,11 +5,11 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
-import { git, gitFile, makeLibrary, readGitmodules, worktreeList } from "../../../e2e/fixtures/submodules-lib.mjs";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
+import { git, gitFile, makeLibrary, readGitmodules, worktreeList } from "./submodules-lib.mjs";
 
 export { git, gitFile, makeLibrary, readGitmodules, worktreeList };
-export { LIBS, allowFileProtocol, makeSubmoduleRepo, startSilentServer } from "../../../e2e/fixtures/submodules-lib.mjs";
+export { LIBS, allowFileProtocol, makeSubmoduleRepo, startSilentServer } from "./submodules-lib.mjs";
 
 export const SUB = "libs/sensor-treiber";
 

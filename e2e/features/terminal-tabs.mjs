@@ -3,7 +3,7 @@
  * arrow keys move between the tabs, closing a running session asks first, the last one closes the
  * panel; German texts.
  *
- *   node scripts/e2e-wd/features/terminal-tabs.mjs
+ *   node e2e/features/terminal-tabs.mjs
  *
  * Like palette-shortcuts.mjs the app runs with SHELL=/bin/bash and a throw-away HOME (prompt "fy$ "),
  * so the user's shell profile and history are never touched.

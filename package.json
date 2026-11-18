@@ -42,8 +42,8 @@
     "e2e:contract": "node scripts/e2e/contract.mjs",
     "e2e:shell": "node scripts/e2e/shell.mjs",
     "e2e:shot": "node scripts/e2e/shot.mjs",
-    "e2e:wd:prepare": "node scripts/e2e-wd/prepare.mjs",
-    "e2e:wd": "node scripts/e2e-wd/run.mjs",
+    "e2e:wd:prepare": "node e2e/prepare.mjs",
+    "e2e:wd": "node e2e/run.mjs",
     "lint": "biome check",
     "format": "biome format --write",
     "check": "npm run typecheck && npm test && npm run test:scripts && npm run check:commands && npm run check:case && npm run check:contrast && npm run lint"

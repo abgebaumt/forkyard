@@ -64,7 +64,23 @@ function makeCertificate(dir) {
   const cert = path.join(dir, "server-cert.pem");
   execFileSync(
     opensslPath(),
-    ["req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", key, "-out", cert, "-days", "2", "-subj", "/CN=127.0.0.1", "-addext", "subjectAltName=IP:127.0.0.1,DNS:localhost"],
+    [
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-nodes",
+      "-keyout",
+      key,
+      "-out",
+      cert,
+      "-days",
+      "2",
+      "-subj",
+      "/CN=127.0.0.1",
+      "-addext",
+      "subjectAltName=IP:127.0.0.1,DNS:localhost",
+    ],
     { stdio: ["ignore", "pipe", "pipe"], windowsHide: true },
   );
   return { key, cert };
@@ -132,7 +148,9 @@ export async function startGitHttpServer({ users = { lena: "geheim" }, tls = fal
   const requests = [];
 
   const git = (cwd, ...args) =>
-    execFileSync("git", args, { cwd, env: { ...process.env, ...isolation }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).toString("utf8").trim();
+    execFileSync("git", args, { cwd, env: { ...process.env, ...isolation }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true })
+      .toString("utf8")
+      .trim();
 
   const authorize = (header) => {
     const match = /^Basic\s+(.+)$/i.exec(header ?? "");

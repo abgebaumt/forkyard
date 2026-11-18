@@ -8,12 +8,12 @@
  * - main: restart → first commit rows within the bound, the UI's startup report in the log, no
  *   call of the slow tool, no call slower than two seconds, the keychain not asked;
  *
- *   cargo build && node scripts/e2e-wd/features/startup.mjs
+ *   cargo build && node e2e/features/startup.mjs
  */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeRichRepo } from "../fixtures/fixtures.mjs";
 import { ROOT } from "../driver.mjs";
 import { logText, makeDataDir } from "../fixtures/crash.mjs";
 import { assert, assertEqual, scenario } from "../lib.mjs";

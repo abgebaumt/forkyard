@@ -1,5 +1,5 @@
 /**
- * Helpers for the crash report feature (scripts/e2e-wd/features/crash.mjs):
+ * Helpers for the crash report feature (e2e/features/crash.mjs):
  * data directories that survive a restart, the app's process from the crash marker, and report
  * files in exactly the format the core's panic hook writes (`crates/core/src/crash.rs`,
  * `ReportFile`, camelCase JSON in `<data_dir>/crash/<id>.json`).

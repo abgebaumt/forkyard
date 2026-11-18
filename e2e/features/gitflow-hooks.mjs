@@ -3,8 +3,8 @@
  * their output, "Skip Git hooks", notices for hooks that print something, core.hooksPath from the
  * preferences, pre-push, a hook stopping a Git Flow finish) in the real app over WebDriver.
  *
- *   node scripts/e2e-wd/features/gitflow-hooks.mjs
- *   E2E_WD_ONLY="hooks" node scripts/e2e-wd/features/gitflow-hooks.mjs
+ *   node e2e/features/gitflow-hooks.mjs
+ *   E2E_WD_ONLY="hooks" node e2e/features/gitflow-hooks.mjs
  *
  * Every scenario checks the UI and the repository (git config gitflow.*, branches, merge commits,
  * tags, HEAD, the remote, hook side effects).

@@ -16,13 +16,13 @@
  *   the index are as before;
  * - edge: "Zusammenstellen …" sits small to the right of the commit button, on the same row.
  *
- *   node scripts/e2e-wd/features/compose.mjs
- *   E2E_WD_ONLY="instruction" node scripts/e2e-wd/features/compose.mjs
+ *   node e2e/features/compose.mjs
+ *   E2E_WD_ONLY="instruction" node e2e/features/compose.mjs
  */
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { eventually, lines, until } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 

@@ -2,9 +2,9 @@
  * Smoke test of the real app over WebDriver: start -> shell -> open a fixture repository ->
  * the commit graph renders (rows + canvas with pixels) -> no console errors.
  *
- *   node scripts/e2e-wd/features/smoke.mjs
+ *   node e2e/features/smoke.mjs
  */
-import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeRichRepo } from "../fixtures/fixtures.mjs";
 import { assert, assertEqual, scenario } from "../lib.mjs";
 
 scenario("app starts and shows the commit graph of a repository", "main", async (t) => {

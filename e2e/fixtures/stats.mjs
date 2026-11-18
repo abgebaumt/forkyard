@@ -1,5 +1,5 @@
 /**
- * Real Git repositories for scripts/e2e-wd/features/stats.mjs. Every commit has a fixed author,
+ * Real Git repositories for e2e/features/stats.mjs. Every commit has a fixed author,
  * a fixed hour in a fixed time zone and a known day relative to today (the statistics' periods
  * are relative to "now"), so the expected numbers can be derived here – independently of the
  * core – from what was committed and from git itself.
@@ -13,7 +13,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../../e2e/fixtures/fixtures.mjs";
+import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "./fixtures.mjs";
 
 export const DAY_MS = 86_400_000;
 /** Time zone of the fixture commits (the heatmap uses the author's local time). */

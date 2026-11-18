@@ -8,18 +8,18 @@
  * "src/auth.ts (lines 40–62)", a preview with both sides, and "Inform agent" typing the confirmed
  * text into the later agent's terminal (seen in the fake agent's log).
  *
- *   cargo build && node scripts/e2e-wd/features/agent-collisions.mjs
- *   E2E_WD_ONLY="German" node scripts/e2e-wd/features/agent-collisions.mjs
+ *   cargo build && node e2e/features/agent-collisions.mjs
+ *   E2E_WD_ONLY="German" node e2e/features/agent-collisions.mjs
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const FAKE = path.join(ROOT, "target", "debug", "forkyard-fake-agent");
 const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };
 const REAL_AGENTS = ["claude", "codex", "opencode"];

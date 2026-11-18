@@ -87,8 +87,8 @@ jobs:
           cache-on-failure: true
       - run: cargo install tauri-driver --locked
       - run: npm ci
-      - run: node scripts/e2e-wd/prepare.mjs
-      - run: node scripts/e2e-wd/run.mjs smoke
+      - run: node e2e/prepare.mjs
+      - run: node e2e/run.mjs smoke
       - name: Show the E2E logs
         if: failure()
         run: |

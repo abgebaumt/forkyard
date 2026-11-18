@@ -7,14 +7,14 @@
  * every shell container (`[data-shell]`, `[data-no-scroll]`) sit at scroll position 0 and the status
  * bar ends exactly at the bottom of the window.
  *
- *   node scripts/e2e-wd/features/shell-no-scroll.mjs
- *   E2E_WD_ONLY="wheel" node scripts/e2e-wd/features/shell-no-scroll.mjs
+ *   node e2e/features/shell-no-scroll.mjs
+ *   E2E_WD_ONLY="wheel" node e2e/features/shell-no-scroll.mjs
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeRichRepo } from "../fixtures/fixtures.mjs";
 import { AssertionError, scenario } from "../lib.mjs";
 
 // Small window: the left panel has more rows than fit, so moving through it has to scroll its list.

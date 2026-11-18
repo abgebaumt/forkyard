@@ -9,17 +9,17 @@
  * Remotes are local bare repositories, e2e/fixtures/git-http-server.mjs (HTTPS with a self-signed
  * certificate) and e2e/fixtures/git-ssh-server.mjs. Nothing touches a real service.
  *
- *   node scripts/e2e-wd/features/sync.mjs
- *   node scripts/e2e-wd/run.mjs sync --only "atomic"
+ *   node e2e/features/sync.mjs
+ *   node e2e/run.mjs sync --only "atomic"
  */
 import fs from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote, makeEmptyRepo } from "../../../e2e/fixtures/fixtures.mjs";
-import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
-import { findSshd, startGitSshServer } from "../../../e2e/fixtures/git-ssh-server.mjs";
+import { makeCleanRepoWithRemote, makeEmptyRepo } from "../fixtures/fixtures.mjs";
+import { startGitHttpServer } from "../fixtures/git-http-server.mjs";
+import { findSshd, startGitSshServer } from "../fixtures/git-ssh-server.mjs";
 import { startPrivateKeyring } from "../fixtures/sync-keyring.mjs";
 import { NO_PROXY_ENV, appendAppGitConfig, closedPort, git, revParse, slash, sleep, syncUi } from "../fixtures/sync-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

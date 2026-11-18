@@ -7,8 +7,8 @@
  * the running instance, "Install command-line command" for the AppImage).
  * Every result is checked in the UI and in Git / on disk.
  *
- *   node scripts/e2e-wd/features/custom-commands.mjs
- *   E2E_WD_ONLY="approval" node scripts/e2e-wd/features/custom-commands.mjs
+ *   node e2e/features/custom-commands.mjs
+ *   E2E_WD_ONLY="approval" node e2e/features/custom-commands.mjs
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";

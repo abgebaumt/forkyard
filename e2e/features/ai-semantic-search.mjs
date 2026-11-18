@@ -10,11 +10,11 @@
  * - edge: German texts;
  * - edge: Settings › AI shows the index of the open repository, "Delete index" empties it.
  *
- *   node scripts/e2e-wd/features/ai-semantic-search.mjs
- *   E2E_WD_ONLY="rephras" node scripts/e2e-wd/features/ai-semantic-search.mjs
+ *   node e2e/features/ai-semantic-search.mjs
+ *   E2E_WD_ONLY="rephras" node e2e/features/ai-semantic-search.mjs
  */
 import http from "node:http";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 

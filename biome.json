@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["src/**", "scripts/**", "*.ts", "!scripts/e2e", "!src/styles/tokens.css", "!src/styles/theme.css"]
+    "includes": ["src/**", "scripts/**", "e2e/**", "*.ts", "!scripts/e2e", "!src/styles/tokens.css", "!src/styles/theme.css"]
   },
   "formatter": {
     "indentStyle": "space",

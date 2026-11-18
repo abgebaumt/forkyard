@@ -11,8 +11,8 @@
  * - edge: a signed-out tool shows its sign-in command and offers no one-click;
  * - edge: German texts.
  *
- *   cargo build && node scripts/e2e-wd/features/ai-setup-cli.mjs
- *   E2E_WD_ONLY="one signed-in" node scripts/e2e-wd/features/ai-setup-cli.mjs
+ *   cargo build && node e2e/features/ai-setup-cli.mjs
+ *   E2E_WD_ONLY="one signed-in" node e2e/features/ai-setup-cli.mjs
  */
 import fs from "node:fs";
 import http from "node:http";

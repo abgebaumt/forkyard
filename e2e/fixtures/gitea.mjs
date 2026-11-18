@@ -22,8 +22,8 @@
  * call against it would block forever.
  */
 import http from "node:http";
-import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
-import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
+import { startHostMock } from "./host-mock.mjs";
+import { startGitHttpServer } from "./git-http-server.mjs";
 
 const GIT_USER = "lena";
 const GIT_PASSWORD = "nur-fuer-den-testserver";

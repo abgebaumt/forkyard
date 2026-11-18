@@ -3,12 +3,12 @@
  * app over WebDriver, against real Git repositories in temp folders. Every flow is verified in the
  * UI and in the repository (git log, refs, files, .git/rebase-merge).
  *
- *   node scripts/e2e-wd/features/rebase.mjs
- *   E2E_WD_ONLY="update-refs" node scripts/e2e-wd/features/rebase.mjs
+ *   node e2e/features/rebase.mjs
+ *   E2E_WD_ONLY="update-refs" node e2e/features/rebase.mjs
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, toText } from "../../../e2e/fixtures/conflict-lib.mjs";
+import { makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, toText } from "../fixtures/conflict-lib.mjs";
 import {
   center,
   closeToasts,

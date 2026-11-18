@@ -1,11 +1,11 @@
 /**
- * Fixtures and UI helpers for scripts/e2e-wd/features/gitflow-hooks.mjs: the clean "messnetz"
+ * Fixtures and UI helpers for e2e/features/gitflow-hooks.mjs: the clean "messnetz"
  * repository (main, feature/export, remote origin) with Git helpers for Git Flow checks, hook
  * scripts, and a small driver for the palette, dialogs, toasts and menus of the real app.
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
 import { AssertionError } from "../lib.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

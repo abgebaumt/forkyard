@@ -25,7 +25,7 @@
  * during a test run does not pull the binary away from running sessions. `prepare.mjs` builds and
  * copies; `run.mjs` passes the copy to its features via E2E_WD_APP.
  *
- *   node scripts/e2e-wd/driver.mjs --status | --start-vite | --stop-vite
+ *   node e2e/driver.mjs --status | --start-vite | --stop-vite
  */
 import { spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
@@ -34,10 +34,10 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { TEST_IDENTITY, globalGitConfig, isAlive } from "../../e2e/fixtures/fixtures.mjs";
+import { TEST_IDENTITY, globalGitConfig, isAlive } from "./fixtures/fixtures.mjs";
 import { startPrivateKeyring } from "./fixtures/gitea-keyring.mjs";
 
-export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const STATE_DIR = path.join(ROOT, "target", "e2e-wd");
 const VITE_STATE = path.join(STATE_DIR, "vite.json");
 const VITE_LOCK = path.join(STATE_DIR, "vite.lock");
@@ -138,7 +138,7 @@ export async function ensureAppCopy() {
   }
   const source = builtBinary();
   const stat = fs.statSync(source, { throwIfNoEntry: false });
-  if (!stat) throw new Error(`The debug app is missing: ${source}\nBuild it first: node scripts/e2e-wd/prepare.mjs`);
+  if (!stat) throw new Error(`The debug app is missing: ${source}\nBuild it first: node e2e/prepare.mjs`);
   const dir = path.join(BIN_DIR, String(Math.floor(stat.mtimeMs)));
   const target = path.join(dir, `forkyard${EXE}`);
   const done = path.join(dir, ".complete");
@@ -1103,7 +1103,7 @@ if (process.argv[1] && samePath(process.argv[1], fileURLToPath(import.meta.url))
   } else {
     const found = await findOurServer();
     console.log(found.url ? `Vite server: ${found.url} (PID ${found.pid})` : "Vite server: not running");
-    console.log(`Debug app: ${fs.existsSync(builtBinary()) ? builtBinary() : "missing – node scripts/e2e-wd/prepare.mjs"}`);
+    console.log(`Debug app: ${fs.existsSync(builtBinary()) ? builtBinary() : "missing – node e2e/prepare.mjs"}`);
     console.log(`Tools: ${JSON.stringify(findTools(), null, 2)}`);
   }
 }

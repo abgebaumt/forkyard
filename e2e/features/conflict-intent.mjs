@@ -12,14 +12,14 @@
  *   off: no toggle or column where hidden, nothing sent; the toggle hides and shows;
  * - edge: German texts.
  *
- *   node scripts/e2e-wd/features/conflict-intent.mjs
- *   E2E_WD_ONLY="three conflicts" node scripts/e2e-wd/features/conflict-intent.mjs
+ *   node e2e/features/conflict-intent.mjs
+ *   E2E_WD_ONLY="three conflicts" node e2e/features/conflict-intent.mjs
  */
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeLabRepo, makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, STATION, toText } from "../../../e2e/fixtures/conflict-lib.mjs";
+import { makeLabRepo, makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, STATION, toText } from "../fixtures/conflict-lib.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

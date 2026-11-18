@@ -8,8 +8,8 @@
  * - edge: the branch is not checked out – "Branch auschecken", then the takeover works (German texts);
  * - edge: without AI the threads stay readable, "Suggest fix" is hidden and a reply still goes out.
  *
- *   node scripts/e2e-wd/features/review-fixups.mjs
- *   E2E_WD_ONLY="checked out" node scripts/e2e-wd/features/review-fixups.mjs
+ *   node e2e/features/review-fixups.mjs
+ *   E2E_WD_ONLY="checked out" node e2e/features/review-fixups.mjs
  */
 import http from "node:http";
 import path from "node:path";

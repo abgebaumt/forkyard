@@ -23,7 +23,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import tls from "node:tls";
-import { opensslPath } from "../../../e2e/fixtures/git-http-server.mjs";
+import { opensslPath } from "./git-http-server.mjs";
 
 const HOSTS = new Set(["dev.azure.com"]);
 

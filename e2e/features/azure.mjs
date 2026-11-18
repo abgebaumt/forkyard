@@ -11,14 +11,14 @@
  * run for real and can be asserted with git. Every app gets its own D-Bus session with a private,
  * unlocked gnome-keyring (fixtures/azure-keyring.mjs): tokens never reach the user's keychain.
  *
- *   node scripts/e2e-wd/features/azure.mjs
- *   E2E_WD_ONLY=merge node scripts/e2e-wd/features/azure.mjs
+ *   node e2e/features/azure.mjs
+ *   E2E_WD_ONLY=merge node e2e/features/azure.mjs
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { startHostMock } from "../fixtures/host-mock.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { startPrivateKeyring } from "../fixtures/azure-keyring.mjs";
 import { startAzureProxy } from "../fixtures/azure-proxy.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

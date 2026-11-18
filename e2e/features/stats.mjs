@@ -7,12 +7,12 @@
  * numbers come from the fixture (what was committed when, by whom) and from git itself
  * (numstat, blame, `log --follow`); the core's own result (`stats_compute`) is only a cross-check.
  *
- *   node scripts/e2e-wd/features/stats.mjs
- *   E2E_WD_ONLY="recompute" node scripts/e2e-wd/features/stats.mjs
+ *   node e2e/features/stats.mjs
+ *   E2E_WD_ONLY="recompute" node e2e/features/stats.mjs
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeLargeRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeLargeRepo } from "../fixtures/fixtures.mjs";
 import {
   PEOPLE,
   authorTotals,

@@ -3,12 +3,12 @@
  * update after checkout (1.1) in the real app over WebDriver, against real Git repositories
  * (submodule sources are local bare repositories). Every result is checked in the UI and in Git.
  *
- *   node scripts/e2e-wd/features/worktrees-submodules.mjs
- *   E2E_WD_ONLY="move" node scripts/e2e-wd/features/worktrees-submodules.mjs
+ *   node e2e/features/worktrees-submodules.mjs
+ *   E2E_WD_ONLY="move" node e2e/features/worktrees-submodules.mjs
  */
 import fs from "node:fs";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { AssertionError, assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import {
   LIBS,

@@ -3,11 +3,11 @@
  * merges and the push/pull arrows (1.1) – in the real app over WebDriver, against real temp
  * repositories. Every result in the UI is checked against Git in the temp repository.
  *
- *   node scripts/e2e-wd/features/graph.mjs
- *   E2E_WD_ONLY="collapse" node scripts/e2e-wd/features/graph.mjs
+ *   node e2e/features/graph.mjs
+ *   E2E_WD_ONLY="collapse" node e2e/features/graph.mjs
  */
 import path from "node:path";
-import { makeCleanRepoWithRemote, makeDetachedRepo, makeEmptyRepo, makeLargeRepo, makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote, makeDetachedRepo, makeEmptyRepo, makeLargeRepo, makeRichRepo } from "../fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
 // ---------------------------------------------------------------------------

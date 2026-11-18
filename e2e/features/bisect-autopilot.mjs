@@ -12,8 +12,8 @@
  * - edge: "Stop" ends a slow script and removes the worktree;
  * - edge: AI not set up – no menu entry and no palette command; after connecting, both appear.
  *
- *   node scripts/e2e-wd/features/bisect-autopilot.mjs
- *   E2E_WD_ONLY="stop" node scripts/e2e-wd/features/bisect-autopilot.mjs
+ *   node e2e/features/bisect-autopilot.mjs
+ *   E2E_WD_ONLY="stop" node e2e/features/bisect-autopilot.mjs
  */
 import fs from "node:fs";
 import http from "node:http";

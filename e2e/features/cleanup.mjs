@@ -4,15 +4,15 @@
  * with its result line, the warnings, closing the dialog while it runs, cancelling a Thorough run on
  * a large generated repository, and the German texts.
  *
- *   node scripts/e2e-wd/features/cleanup.mjs
- *   E2E_WD_ONLY=cancel node scripts/e2e-wd/features/cleanup.mjs
+ *   node e2e/features/cleanup.mjs
+ *   E2E_WD_ONLY=cancel node e2e/features/cleanup.mjs
  *
  * Every check also asks Git: `git count-objects -v`, `git fsck`, `git for-each-ref`.
  */
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import path from "node:path";
-import { gitIsolationEnv, makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { gitIsolationEnv, makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { assert, assertEqual, assertMatch, scenario } from "../lib.mjs";
 
 const LAUNCH = { width: 1440, height: 900, theme: "light", lang: "en" };

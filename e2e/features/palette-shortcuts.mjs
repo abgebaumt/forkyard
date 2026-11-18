@@ -3,8 +3,8 @@
  * terminal (all 1.0) in the real app. Every action is checked in the UI and, where it changes
  * something, in Git (branches, HEAD, commits of the temp repository).
  *
- *   node scripts/e2e-wd/features/palette-shortcuts.mjs
- *   E2E_WD_ONLY="terminal" node scripts/e2e-wd/features/palette-shortcuts.mjs
+ *   node e2e/features/palette-shortcuts.mjs
+ *   E2E_WD_ONLY="terminal" node e2e/features/palette-shortcuts.mjs
  *
  * The terminal scenarios start the app with SHELL=/bin/bash and a throw-away HOME (prompt "fy$ ",
  * no history file), so the user's shell profile and history are never touched.

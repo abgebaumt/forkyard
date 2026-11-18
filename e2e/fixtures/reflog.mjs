@@ -1,5 +1,5 @@
 /**
- * Real Git repositories for scripts/e2e-wd/features/reflog.mjs. Built fresh per scenario (a handful
+ * Real Git repositories for e2e/features/reflog.mjs. Built fresh per scenario (a handful
  * of commits); the reflog is written by Git itself, apart from the deliberately odd variants
  * (missing objects, many entries, secrets in a message).
  *
@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../../e2e/fixtures/fixtures.mjs";
+import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "./fixtures.mjs";
 
 const EPOCH = 1772434800;
 

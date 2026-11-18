@@ -9,13 +9,13 @@
  * - edge: German texts;
  * - edge: "What is sent?" shows the staged example of the open repository, never a .env file or a token.
  *
- *   node scripts/e2e-wd/features/ai-setup.mjs
- *   E2E_WD_ONLY="what is sent" node scripts/e2e-wd/features/ai-setup.mjs
+ *   node e2e/features/ai-setup.mjs
+ *   E2E_WD_ONLY="what is sent" node e2e/features/ai-setup.mjs
  */
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
