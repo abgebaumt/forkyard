@@ -5,6 +5,12 @@ All notable changes to Forkyard are listed here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A computer that was turned off hard, froze or restarted while Forkyard ran no longer shows a crash
+  report on the next start (Linux and Windows): Forkyard remembers which boot of the computer it ran in,
+  and a run that ended with the computer is only noted in the log.
+
 ## [1.2.0] – 2026-10-21
 
 ### Added

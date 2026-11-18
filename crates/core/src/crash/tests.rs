@@ -238,6 +238,45 @@ fn the_end_of_a_run_releases_the_marker_even_while_a_copy_of_its_descriptor_live
     drop(inherited);
 }
 
+/// The computer went down while the app ran (power cut, frozen system, hard reset): the next
+/// start is in another boot and reports no crash – the log says what happened instead.
+#[test]
+fn a_run_that_ended_with_the_computer_is_not_reported() {
+    let dir = tempfile::tempdir().unwrap();
+    {
+        let mut first = log_in(None);
+        first.boot = Some("boot-before".to_string());
+        assert!(first.attach(dir.path(), "1.2.3").owns_marker);
+        first.push_line("working");
+    }
+    let mut second = log_in(None);
+    second.boot = Some("boot-after".to_string());
+    let outcome = second.attach(dir.path(), "1.2.3");
+    assert!(outcome.owns_marker);
+    assert_eq!(outcome.unexpected_report, None);
+    assert!(reports(dir.path()).is_empty());
+    assert!(log_text(dir.path()).contains("ended with the computer"), "{}", log_text(dir.path()));
+    // The new run's marker names the new boot.
+    let marker = std::fs::read_to_string(dir.path().join(MARKER_FILE)).unwrap();
+    assert!(marker.contains("boot-after"), "{marker}");
+}
+
+/// Same boot, or a boot that cannot be told (an old marker, another platform): reported as before.
+#[test]
+fn a_run_in_the_same_or_an_unknown_boot_is_still_reported() {
+    for (before, after) in [(Some("same"), Some("same")), (None, Some("now")), (Some("then"), None)] {
+        let dir = tempfile::tempdir().unwrap();
+        {
+            let mut first = log_in(None);
+            first.boot = before.map(str::to_string);
+            first.attach(dir.path(), "1.2.3");
+        }
+        let mut second = log_in(None);
+        second.boot = after.map(str::to_string);
+        assert!(second.attach(dir.path(), "1.2.3").unexpected_report.is_some(), "{before:?} -> {after:?}");
+    }
+}
+
 #[test]
 fn a_clean_exit_leaves_no_report() {
     let dir = tempfile::tempdir().unwrap();
