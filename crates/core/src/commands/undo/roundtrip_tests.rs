@@ -1018,14 +1018,17 @@ async fn dropping_a_stash_voids_its_undo_entry() {
 
     stash_drop(&fx.tc, fx.id(), 0, None).await.unwrap();
     let entries = fx.entries();
-    assert_eq!(entries.iter().map(|e| e.action.as_str()).collect::<Vec<_>>(), ["commit"], "the \"stash\" entry is invalidated");
+    assert_eq!(entries.iter().map(|e| e.action.as_str()).collect::<Vec<_>>(), ["stash_drop", "commit"], "the \"stash\" entry is invalidated");
+    let listed = |fx: &Fx| fx.lines(&["stash", "list", "--format=%gs"]);
+    fx.round_trip("stash_drop", |fx| assert_eq!(listed(fx).len(), 1), |fx| assert!(listed(fx).is_empty())).await;
     // The older step is not blocked.
+    fx.undo().await.unwrap();
     assert_eq!(fx.peek().await.undo.unwrap().action, "commit");
     fx.undo().await.unwrap();
     assert_eq!(fx.repo.head(), a);
     fx.redo().await.unwrap();
     assert_eq!(fx.repo.head(), b);
-    assert!(stash_list(&fx.tc, fx.id()).await.unwrap().is_empty());
+    assert_eq!(stash_list(&fx.tc, fx.id()).await.unwrap().len(), 1);
 }
 
 // --- Pull ------------------------------------------------------------------------------
@@ -1106,7 +1109,7 @@ fn every_action_is_covered_here() {
     // Reminder when adding an action: it needs a test with the real command here.
     let covered = [
         "checkout", "commit", "amend", "discard", "delete_branch", "remove_remote", "reset", "rebase", "cherry_pick", "squash", "reword", "drop", "merge",
-        "revert", "stash", "stash_pop",
+        "revert", "stash", "stash_pop", "stash_drop",
     ];
     // Group actions (`record_group`) have no command of their own yet: `group_tests.rs` covers their
     // executor; the package that adds the command adds its round trip here.

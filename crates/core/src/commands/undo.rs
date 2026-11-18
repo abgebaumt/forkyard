@@ -218,6 +218,7 @@ fn changes_for(entry: &UndoEntry) -> Vec<RepoChange> {
         Some(UndoAction::DeleteBranch) => vec![Refs, Config],
         Some(UndoAction::RemoveRemote) => vec![Config, Refs],
         Some(UndoAction::Stash | UndoAction::StashPop) => vec![Stash, Worktree, Index],
+        Some(UndoAction::StashDrop) => vec![Stash],
         Some(UndoAction::Checkout) => vec![Refs, Head, Index, Worktree, Config],
         _ => vec![Refs, Head, Index, Worktree],
     }
@@ -330,7 +331,7 @@ impl<'a> Probe<'a> {
                 Some(sha) => self.stash_exists(&sha).await?,
                 None => true,
             },
-            (UndoAction::StashPop, _) => match text("stashSha") {
+            (UndoAction::StashPop | UndoAction::StashDrop, _) => match text("stashSha") {
                 Some(sha) => self.stash_exists(&sha).await? == (dir == Direction::Redo),
                 None => true,
             },
@@ -715,6 +716,7 @@ impl Run<'_> {
             UndoAction::RemoveRemote => self.remove_remote().await,
             UndoAction::Stash => self.stash().await,
             UndoAction::StashPop => self.stash_pop().await,
+            UndoAction::StashDrop => self.stash_drop().await,
         }
     }
 
@@ -1548,6 +1550,33 @@ impl Run<'_> {
                 let rows = stash::read_rows(self.core, self.repo_id).await?;
                 let Some(index) = rows.iter().position(|row| row.sha == sha) else { return Err(self.stale()) };
                 self.swap_state(None, None).await?;
+                stash::drop_stash(self.core, self.repo_id, index).await
+            }
+        }
+    }
+
+    /// Stash drop: undo puts the stash back at its old place in the list (or at the end, if the
+    /// list has become shorter); redo removes it again. The working directory is not touched.
+    async fn stash_drop(&mut self) -> CoreResult<()> {
+        let Some(sha) = self.text("stashSha") else { return Err(self.lost()) };
+        let rows = stash::read_rows(self.core, self.repo_id).await?;
+        match self.dir {
+            Direction::Undo => {
+                if !self.commit_exists(&sha).await? {
+                    return Err(self.lost());
+                }
+                if rows.iter().any(|row| row.sha == sha) {
+                    return Err(self.stale());
+                }
+                let position = self.payload.get("stashIndex").and_then(Value::as_u64).unwrap_or(0) as usize;
+                let position = position.min(rows.len());
+                let subject = self.text("stashSubject").unwrap_or_else(|| "Stash".to_string());
+                let mut top: Vec<(String, String)> = rows[..position].iter().map(|row| (row.sha.clone(), row.subject.clone())).collect();
+                top.push((sha, subject));
+                stash::rewrite_top(self.core, self.repo_id, &rows, position, &top).await
+            }
+            Direction::Redo => {
+                let Some(index) = rows.iter().position(|row| row.sha == sha) else { return Err(self.stale()) };
                 stash::drop_stash(self.core, self.repo_id, index).await
             }
         }

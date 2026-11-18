@@ -864,16 +864,42 @@ pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, expecte
     .await
 }
 
-/// Delete a stash. Not reversible.
+/// Delete a stash. Undo entry `stash_drop` puts it back at its old place.
 pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<Vec<Stash>> {
     core.with_write_lock(&repo_id, &[RepoChange::Stash], async {
-        let rows = read_rows(core, &repo_id).await?;
-        let sha = row_checked(&rows, index, expected_sha.as_deref())?.sha.clone();
-        drop_stash(core, &repo_id, index as usize).await?;
-        // "Undo stash" can no longer exist for this stash.
+        let (rows, head) = tokio::join!(read_rows(core, &repo_id), refs::read_head(core, &repo_id));
+        let (rows, head) = (rows?, head?);
+        let row = row_checked(&rows, index, expected_sha.as_deref())?;
+        let sha = row.sha.clone();
+        let id = undo::new_id();
+        // First hold on to it, then take it out of the list: the stash commit is never without a ref.
+        undo::create_backup_ref(core, &repo_id, &id, "stash", &sha).await?;
+        if let Err(e) = drop_stash(core, &repo_id, index as usize).await {
+            let _ = undo::delete_backup_refs(core, &repo_id, &id).await;
+            return Err(e);
+        }
+        // "Undo stash" can no longer exist for this stash (only entries of action `stash`).
         if let Err(e) = crate::commands::undo::forget_stash(core, &repo_id, &sha).await {
             log::warn!("Undo entry for the deleted stash not invalidated: {}", e.message);
         }
+        let token = undo::head_token(&head);
+        undo::record(
+            core,
+            UndoRecord {
+                id,
+                repo_id: repo_id.clone(),
+                worktree_path: String::new(),
+                action: UndoAction::StashDrop,
+                label: format!("Undo dropping stash “{}”", display_message(row)),
+                ref_name: None,
+                ref_before: None,
+                ref_after: None,
+                head_before: token.clone(),
+                head_after: Some(token),
+                payload: json!({ "stashSha": sha, "stashSubject": row.subject, "stashIndex": index }),
+            },
+        )
+        .await?;
         read_stashes(core, &repo_id).await
     })
     .await
@@ -1348,8 +1374,7 @@ mod tests {
         assert_eq!(list.iter().map(|s| s.message.as_str()).collect::<Vec<_>>(), ["drei", "eins"]);
         assert_eq!(list.iter().map(|s| s.index).collect::<Vec<_>>(), [0, 1]);
         assert_eq!(changed(&tc), ["stash"]);
-        // Deleting is not reversible: no new undo entry (the last stash is on top).
-        assert_eq!(undo_peek(&tc, id.clone()).await.unwrap().undo.unwrap().label, "Undo stash “drei”");
+        assert_eq!(undo_peek(&tc, id.clone()).await.unwrap().undo.unwrap().label, "Undo dropping stash “zwei”");
         stash_drop(&tc, id.clone(), 0, None).await.unwrap();
         let list = stash_drop(&tc, id.clone(), 0, None).await.unwrap();
         assert!(list.is_empty());
