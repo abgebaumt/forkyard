@@ -1,5 +1,6 @@
 //! Everything around calling Git: locating, running, interpreting errors, redacting credentials.
 
+pub mod blame;
 pub mod errors;
 pub mod index;
 pub mod locate;

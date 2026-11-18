@@ -8,7 +8,6 @@
 //! Paths come from the UI relative to the repository (with `/`). Anything leading out of the
 //! repository (`..`, absolute) is rejected with `not_allowed`.
 
-use std::collections::HashMap;
 use std::path::Path;
 
 use crate::app::Core;
@@ -445,77 +444,41 @@ fn uncommitted_file(file: &Path, rel: &str, preferred: &str, forced: Option<&'st
         .collect())
 }
 
-#[derive(Default, Clone)]
-struct BlameCommit {
-    author: Person,
-    authored_at: String,
-    summary: String,
-}
-
-/// Line-by-line parser for `git blame --porcelain`. The details of a commit only appear
-/// at its first occurrence; after that each line only has "<sha> <old> <new>" and the content.
+/// `git blame --porcelain` (see `git::blame::BlameParser`) into `BlameLine`s.
 struct BlameParser {
+    porcelain: crate::git::blame::BlameParser,
     preferred: String,
     /// Encoding given by the call; otherwise it is guessed per line.
     forced: Option<&'static encoding_rs::Encoding>,
-    commits: HashMap<String, BlameCommit>,
-    sha: String,
-    line_no: u32,
     lines: Vec<BlameLine>,
 }
 
 impl BlameParser {
     fn new(preferred: &str, forced: Option<&'static encoding_rs::Encoding>) -> Self {
-        BlameParser { preferred: preferred.to_string(), forced, commits: HashMap::new(), sha: String::new(), line_no: 0, lines: Vec::new() }
+        BlameParser { porcelain: Default::default(), preferred: preferred.to_string(), forced, lines: Vec::new() }
     }
 
     fn feed(&mut self, line: &[u8]) {
-        if let Some(content) = line.strip_prefix(b"\t") {
-            let content = content.strip_suffix(b"\r").unwrap_or(content);
-            let uncommitted = !self.sha.is_empty() && self.sha.bytes().all(|b| b == b'0');
-            let commit = self.commits.get(&self.sha).cloned().unwrap_or_default();
-            let (author, summary) = if uncommitted {
-                (Person { name: ZERO_AUTHOR.into(), email: String::new() }, ZERO_SUMMARY.to_string())
-            } else {
-                (commit.author, commit.summary)
-            };
-            self.lines.push(BlameLine {
-                line_no: self.line_no,
-                text: match self.forced {
-                    Some(enc) => enc.decode_without_bom_handling(content).0.into_owned(),
-                    None => util::decode_line(content, &self.preferred),
-                },
-                sha: self.sha.clone(),
-                author,
-                authored_at: commit.authored_at,
-                summary,
-                uncommitted,
-            });
-            return;
-        }
-        let text = util::decode_lossy(line);
-        let (key, value) = text.split_once(' ').unwrap_or((text.as_str(), ""));
-        let is_sha = rev::is_sha(key);
-        if is_sha {
-            // "<sha> <line in original> <line in result> [<count>]"
-            let final_line = value.split(' ').nth(1).and_then(|n| n.parse::<u32>().ok());
-            if let Some(n) = final_line {
-                self.sha = key.to_string();
-                self.line_no = n;
-                self.commits
-                    .entry(self.sha.clone())
-                    .or_insert_with(|| BlameCommit { authored_at: util::unix_to_iso(0), ..BlameCommit::default() });
-                return;
-            }
-        }
-        let Some(commit) = self.commits.get_mut(&self.sha) else { return };
-        match key {
-            "author" => commit.author.name = value.to_string(),
-            "author-mail" => commit.author.email = value.trim_start_matches('<').trim_end_matches('>').to_string(),
-            "author-time" => commit.authored_at = util::unix_to_iso(value.trim().parse().unwrap_or(0)),
-            "summary" => commit.summary = value.to_string(),
-            _ => {}
-        }
+        let Some(blamed) = self.porcelain.feed(line) else { return };
+        let content = blamed.content.strip_suffix(b"\r").unwrap_or(blamed.content);
+        let uncommitted = blamed.sha.bytes().all(|b| b == b'0');
+        let (author, summary) = if uncommitted {
+            (Person { name: ZERO_AUTHOR.into(), email: String::new() }, ZERO_SUMMARY.to_string())
+        } else {
+            (Person { name: blamed.info.author.clone(), email: blamed.info.email.clone() }, blamed.info.summary.clone())
+        };
+        self.lines.push(BlameLine {
+            line_no: blamed.final_line,
+            text: match self.forced {
+                Some(enc) => enc.decode_without_bom_handling(content).0.into_owned(),
+                None => util::decode_line(content, &self.preferred),
+            },
+            sha: blamed.sha.to_string(),
+            author,
+            authored_at: util::unix_to_iso(blamed.info.time),
+            summary,
+            uncommitted,
+        });
     }
 }
 
