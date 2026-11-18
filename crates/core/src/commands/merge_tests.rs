@@ -1479,3 +1479,19 @@ fn parses_unmerged_listing() {
     assert!(special_mode(&parsed[2].stages[1].as_ref().unwrap().mode));
     assert!(parse_unmerged(b"").is_empty());
 }
+
+#[tokio::test]
+async fn hard_reset_keeps_the_work_when_the_undo_entry_cannot_be_written() {
+    let repo = TestRepo::with_commit();
+    let first = repo.head();
+    repo.commit_file("a.txt", "two", "second");
+    let tc = TestCore::new().await;
+    let id = open(&tc, &repo).await;
+    repo.write_file("a.txt", "local work");
+    tc.db.with(|c| { c.execute_batch("create trigger fail_undo before insert on undo_entries begin select raise(abort, 'test'); end;")?; Ok(()) }).unwrap();
+    let err = reset_branch(&tc, id.clone(), first.clone(), ResetMode::Hard).await.unwrap_err();
+    assert_ne!(err.code, ErrorCode::StaleState);
+    assert_eq!(repo.read_file("a.txt"), b"local work");
+    assert_ne!(repo.head(), first);
+    assert!(repo.git(&["for-each-ref", "refs/forkyard/undo/"]).is_empty(), "no orphan backup refs");
+}

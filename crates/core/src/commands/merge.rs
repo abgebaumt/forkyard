@@ -859,7 +859,7 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
         ResetMode::Mixed => ("--mixed", "mixed"),
         ResetMode::Hard => ("--hard", "hard"),
     };
-    // The backup must exist before anything can be lost; if it fails, nothing is reset.
+    // The backup and the undo entry must exist before anything can be lost; if either fails, nothing is reset.
     let saved = match mode {
         ResetMode::Soft => SavedState::default(),
         ResetMode::Mixed => save_state(core, repo_id, &old, false, None).await?,
@@ -868,36 +868,46 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
         ResetMode::Hard => save_state(core, repo_id, &old, true, Some(&target)).await?,
     };
     let id = undo::new_id();
-    undo::create_backup_ref(core, repo_id, &id, "before", &old).await?;
-    saved.keep(core, repo_id, &id).await;
+    let backup = async {
+        undo::create_backup_ref(core, repo_id, &id, "before", &old).await?;
+        saved.keep_strict(core, repo_id, &id).await?;
 
-    // The undo entry exists before anything can be lost: if the app ends in the middle of the
-    // reset, undo still offers the backup after the restart.
-    record_undo(
-        core,
-        UndoRecord {
-            id: id.clone(),
-            repo_id: repo_id.to_string(),
-            worktree_path: String::new(),
-            action: UndoAction::Reset,
-            label: format!("Undo reset of {} to {}", head_label(&head), short_sha(&target)),
-            ref_name: branch_ref(&head),
-            ref_before: Some(old.clone()),
-            ref_after: Some(target.clone()),
-            head_before: head_value(&head, &old),
-            head_after: Some(head_value(&head, &target)),
-            payload: json!({
-                "mode": mode_name,
-                "branch": branch_of(&head),
-                "worktreeSnapshot": saved.worktree,
-                "indexTree": saved.index_tree,
-                // Provisionally the target commit; after the reset the actual state.
-                "resultSnapshot": if mode == ResetMode::Hard { Some(target.clone()) } else { None },
-                "paths": null,
-            }),
-        },
-    )
-    .await;
+        // The undo entry exists before anything can be lost: if the app ends in the middle of the
+        // reset, undo still offers the backup after the restart.
+        undo::record(
+            core,
+            UndoRecord {
+                id: id.clone(),
+                repo_id: repo_id.to_string(),
+                worktree_path: String::new(),
+                action: UndoAction::Reset,
+                label: format!("Undo reset of {} to {}", head_label(&head), short_sha(&target)),
+                ref_name: branch_ref(&head),
+                ref_before: Some(old.clone()),
+                ref_after: Some(target.clone()),
+                head_before: head_value(&head, &old),
+                head_after: Some(head_value(&head, &target)),
+                payload: json!({
+                    "mode": mode_name,
+                    "branch": branch_of(&head),
+                    "worktreeSnapshot": saved.worktree,
+                    "indexTree": saved.index_tree,
+                    // Provisionally the target commit; after the reset the actual state.
+                    "resultSnapshot": if mode == ResetMode::Hard { Some(target.clone()) } else { None },
+                    "paths": null,
+                }),
+            },
+        )
+    .await
+        .map(|_| ())
+    };
+    // Backup or undo entry missing: nothing is reset and no orphan refs stay behind.
+    if let Err(error) = backup.await {
+        if let Err(e) = undo::delete_backup_refs(core, repo_id, &id).await {
+            log::warn!("Backup refs of {id} not removed: {}", e.message);
+        }
+        return Err(error);
+    }
 
     if let Err(error) = core.git_for(repo_id)?.args(["reset", flag, &target, "--"]).run().await {
         // Failed on the lock: nothing has been reset, the entry disappears again.
@@ -929,6 +939,17 @@ struct SavedState {
 }
 
 impl SavedState {
+    /// Like `keep`, but the first failure is returned.
+    async fn keep_strict(&self, core: &Core, repo_id: &str, id: &str) -> CoreResult<()> {
+        if let Some(sha) = &self.worktree {
+            undo::create_backup_ref(core, repo_id, id, "worktree", sha).await?;
+        }
+        if let Some(sha) = &self.index_commit {
+            undo::create_backup_ref(core, repo_id, id, "index", sha).await?;
+        }
+        Ok(())
+    }
+
     /// Records the backups under `refs/forkyard/undo/<id>/…`.
     async fn keep(&self, core: &Core, repo_id: &str, id: &str) {
         if let Some(sha) = &self.worktree {
