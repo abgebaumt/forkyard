@@ -2221,6 +2221,7 @@ export interface CoreEvents {
    * is returned by that call.
    */
   "app:open_request": LaunchRequest;
+  "app:focus_request": null;
   /**
    * The window is supposed to close, but the UI has reported via `appCloseGuard` that something
    * would be lost: it asks the user and calls `appQuit` – or leaves the window open.

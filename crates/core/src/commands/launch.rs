@@ -63,6 +63,9 @@ struct Message {
     /// The request comes from a `forkyard://` link (see `LaunchRequest::from_link`).
     #[serde(default)]
     from_link: bool,
+    /// Only bring the window forward; `path` is ignored.
+    #[serde(default)]
+    focus: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +292,10 @@ fn accept(core: &Core, token: &str, line: &str) -> bool {
     if !util::constant_time_eq(message.token.as_bytes(), token.as_bytes()) {
         return false;
     }
+    if message.focus {
+        core.events.emit(names::APP_FOCUS_REQUEST, serde_json::Value::Null);
+        return true;
+    }
     // Check again: the message comes from outside this process. A request from a link stays a
     // request from a link (with its stricter rules).
     let request = if message.from_link {
@@ -330,6 +337,15 @@ pub fn remove_instance_file(data_dir: &Path) {
 /// accepted it (then the caller can exit); `false` if none is running or it does not answer.
 /// Blocks for a few seconds at most.
 pub fn forward(data_dir: &Path, request: &LaunchRequest) -> bool {
+    send(data_dir, |token| Message { token, path: request.path.clone(), commit: request.commit.clone(), from_link: request.from_link, focus: false })
+}
+
+/// Second instance without arguments: asks the running app to bring its window forward.
+pub fn forward_focus(data_dir: &Path) -> bool {
+    send(data_dir, |token| Message { token, path: String::new(), commit: None, from_link: false, focus: true })
+}
+
+fn send(data_dir: &Path, message: impl FnOnce(String) -> Message) -> bool {
     let Ok(text) = std::fs::read_to_string(data_dir.join(INSTANCE_FILE)) else { return false };
     let Ok(file) = serde_json::from_str::<InstanceFile>(&text) else { return false };
     if file.pid == std::process::id() {
@@ -339,8 +355,7 @@ pub fn forward(data_dir: &Path, request: &LaunchRequest) -> bool {
     let Ok(mut stream) = TcpStream::connect_timeout(&address, CONNECT_TIMEOUT) else { return false };
     let _ = stream.set_read_timeout(Some(REPLY_TIMEOUT));
     let _ = stream.set_write_timeout(Some(REPLY_TIMEOUT));
-    let message = Message { token: file.token, path: request.path.clone(), commit: request.commit.clone(), from_link: request.from_link };
-    let Ok(mut line) = serde_json::to_string(&message) else { return false };
+    let Ok(mut line) = serde_json::to_string(&message(file.token)) else { return false };
     line.push('\n');
     if stream.write_all(line.as_bytes()).is_err() {
         return false;
@@ -545,6 +560,34 @@ mod tests {
         let (dir_d, req_d) = (data_dir.clone(), request.clone());
         assert!(!tokio::task::spawn_blocking(move || forward(&dir_d, &req_d)).await.unwrap());
         assert_eq!(tc.events.named(names::APP_OPEN_REQUEST).len(), 1);
+        server.abort();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_focus_request_with_the_token_is_accepted_and_emitted() {
+        let tc = TestCore::new().await;
+        let data_dir = tc.data_dir().to_path_buf();
+        let server = tokio::spawn(listen(tc.core.clone()));
+        let file = data_dir.join(INSTANCE_FILE);
+        for _ in 0..200 {
+            if file.exists() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        let mut info: InstanceFile = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+        // `send` refuses to talk to its own process; the test pretends to be another one.
+        info.pid = info.pid.wrapping_add(1);
+        std::fs::write(&file, serde_json::to_string(&info).unwrap()).unwrap();
+
+        let dir_a = data_dir.clone();
+        assert!(tokio::task::spawn_blocking(move || forward_focus(&dir_a)).await.unwrap());
+        assert_eq!(tc.events.named(names::APP_FOCUS_REQUEST).len(), 1);
+
+        info.token = "falsch".into();
+        std::fs::write(&file, serde_json::to_string(&info).unwrap()).unwrap();
+        assert!(!tokio::task::spawn_blocking(move || forward_focus(&data_dir)).await.unwrap());
+        assert_eq!(tc.events.named(names::APP_FOCUS_REQUEST).len(), 1);
         server.abort();
     }
 }
