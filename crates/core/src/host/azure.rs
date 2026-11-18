@@ -11,8 +11,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks,
-    text, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath,
+    already_exists, detect, first_line, flag, host_user, list, missing_repo, not_found_as, number, opt_text, parallel, pr_not_found,
+    review_summary, summarize_checks, text, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -71,14 +71,6 @@ fn values_of(value: Value) -> CoreResult<Vec<Value>> {
     }
 }
 
-fn missing_repo(repo: &RepoPath) -> impl FnOnce() -> String + '_ {
-    move || format!("{LABEL} could not find the repository {} – or the token is not allowed to see it.", repo.full())
-}
-
-fn pr_not_found(repo: &RepoPath, number: u64) -> impl FnOnce() -> String + '_ {
-    move || format!("Pull request #{number} does not exist in {}.", repo.full())
-}
-
 /// A name of letters, digits, `-`, `_`, `.` – what Azure DevOps allows for an organization.
 fn is_organization(text: &str) -> bool {
     !text.is_empty() && text.bytes().all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
@@ -112,7 +104,7 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
 
 /// `GET {project}/_apis/git/repositories/{repo}`. Azure does not say whether the token may push.
 pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<RepoFacts> {
-    let value = api.get_json(core, &v(&repo_path(repo), &[])).await.map_err(|e| not_found_as(e, missing_repo(repo)))?;
+    let value = api.get_json(core, &v(&repo_path(repo), &[])).await.map_err(|e| not_found_as(e, missing_repo(LABEL, repo)))?;
     let fork_parent = value.get("parentRepository").filter(|p| p.is_object()).and_then(|parent| {
         let project = parent.get("project").map(|p| text(p, "name")).unwrap_or_default();
         let name = text(parent, "name");
@@ -231,7 +223,7 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
         &format!("{}/pullrequests", repo_path(repo)),
         &[("searchCriteria.status", status.to_string()), ("$top", (paging.per_page + 1).to_string()), ("$skip", skip.to_string())],
     );
-    let mut values = values_of(api.get_json(core, &path).await.map_err(|e| not_found_as(e, missing_repo(repo)))?)?;
+    let mut values = values_of(api.get_json(core, &path).await.map_err(|e| not_found_as(e, missing_repo(LABEL, repo)))?)?;
     let more = values.len() > paging.per_page as usize;
     values.truncate(paging.per_page as usize);
     let web = repo_web(api, repo);
@@ -450,7 +442,7 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
                     retry_at: None,
                 }
             } else {
-                not_found_as(e, missing_repo(repo))
+                not_found_as(e, missing_repo(LABEL, repo))
             }
         })?
         .json()?;

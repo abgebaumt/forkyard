@@ -10,8 +10,8 @@ use base64::Engine;
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text,
-    two_levels, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath, MAX_ITEMS,
+    already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, pr_not_found, review_summary,
+    summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -56,10 +56,6 @@ fn html_link(value: &Value) -> String {
 
 fn missing_repo(repo: &RepoPath) -> impl FnOnce() -> String + '_ {
     move || format!("{LABEL} could not find the repository {} – or the account is not allowed to see it.", repo.full())
-}
-
-fn pr_not_found(repo: &RepoPath, number: u64) -> impl FnOnce() -> String + '_ {
-    move || format!("Pull request #{number} does not exist in {}.", repo.full())
 }
 
 /// The entries of a list and the address of the next page.
