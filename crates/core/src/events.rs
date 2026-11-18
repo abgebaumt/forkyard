@@ -22,6 +22,8 @@ pub mod names {
     pub const TERMINAL_EXIT: &str = "terminal:exit";
     /// A second instance (or a link) asks the running app to open a folder.
     pub const APP_OPEN_REQUEST: &str = "app:open_request";
+    /// A second instance without arguments asks the running app to bring its window forward.
+    pub const APP_FOCUS_REQUEST: &str = "app:focus_request";
     /// The window is about to close, but the UI has reported something to lose
     /// (`app_close_guard`): it asks and then calls `app_quit`.
     pub const APP_CLOSE_REQUESTED: &str = "app:close_requested";
@@ -32,7 +34,7 @@ pub mod names {
     /// New result (or start) of the collision check of a repository's coding agents (payload `CollisionReport`).
     pub const AGENT_COLLISIONS: &str = "agents:collisions";
 
-    pub const ALL: [&str; 15] = [
+    pub const ALL: [&str; 16] = [
         REPO_CHANGED,
         JOB_PROGRESS,
         JOB_DONE,
@@ -44,6 +46,7 @@ pub mod names {
         TERMINAL_DATA,
         TERMINAL_EXIT,
         APP_OPEN_REQUEST,
+        APP_FOCUS_REQUEST,
         APP_CLOSE_REQUESTED,
         SUBMODULES_UPDATED,
         AGENTS_CHANGED,

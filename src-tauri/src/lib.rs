@@ -141,7 +141,7 @@ struct WindowSink {
 impl EventSink for WindowSink {
     fn emit(&self, event: &str, payload: serde_json::Value) {
         // An external request brings the window to the front – not under the E2E driver.
-        if event == gitcore::events::names::APP_OPEN_REQUEST && dev_env_value(E2E_WINDOW_ENV).is_none() {
+        if matches!(event, gitcore::events::names::APP_OPEN_REQUEST | gitcore::events::names::APP_FOCUS_REQUEST) && dev_env_value(E2E_WINDOW_ENV).is_none() {
             if let Some(window) = self.app.get_webview_window(MAIN_WINDOW) {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
@@ -445,11 +445,13 @@ pub fn run() {
     // External launch: `<folder>`, `--commit <sha>` or `forkyard://open?path=…&commit=…`.
     // If the app is already running with this data directory, it receives the request and this process ends.
     let launch = gitcore::commands::launch::from_args(std::env::args_os().skip(1), std::env::current_dir().ok().as_deref());
-    if let Some(request) = &launch {
-        let data_dir = env_value(DATA_DIR_ENV).map(PathBuf::from).or_else(|| gitcore::commands::launch::default_data_dir(&context.config().identifier));
-        if data_dir.is_some_and(|dir| gitcore::commands::launch::forward(&dir, request)) {
-            return;
-        }
+    let data_dir = env_value(DATA_DIR_ENV).map(PathBuf::from).or_else(|| gitcore::commands::launch::default_data_dir(&context.config().identifier));
+    let forwarded = data_dir.is_some_and(|dir| match &launch {
+        Some(request) => gitcore::commands::launch::forward(&dir, request),
+        None => gitcore::commands::launch::forward_focus(&dir),
+    });
+    if forwarded {
+        return;
     }
     let result = tauri::Builder::default()
         // The window only shows its own UI; any navigation to another address is rejected.
