@@ -379,20 +379,27 @@ pub(super) async fn collapse_for(
 
 /// `git for-each-ref` calls at a time for `mark_collapsible`.
 const COLLAPSIBLE_PARALLEL: usize = 8;
+/// Merges per page whose `collapsible` is computed (each costs up to one `for-each-ref` per side
+/// parent). The rest keep the arrow; the top of the page, which the user sees first, is checked first.
+const MAX_COLLAPSIBLE_CHECKS: usize = 64;
 
 /// Sets `collapsible` on the expanded merges of a page: collapsing hides something unless a visible
 /// ref, starting point or stash reaches every side parent without passing through the merge (then
 /// it reaches everything the merge brought in). If Git fails, the arrow stays – collapsing then
-/// shows that nothing disappeared.
-async fn mark_collapsible(core: &Core, path: &Path, repo_id: &str, plan: &Plan, rows: &mut [GraphRow]) {
+/// shows that nothing disappeared. Beyond `max_checks` merges the arrow stays as well.
+async fn mark_collapsible(core: &Core, path: &Path, repo_id: &str, plan: &Plan, rows: &mut [GraphRow], max_checks: usize) {
     let keep = std::sync::Arc::new(plan.keep.clone());
     let mut pending = rows
         .iter()
         .enumerate()
         .filter(|(_, row)| row.kind == GraphRowKind::Merge && row.collapsed_count.is_none() && !row.collapse_too_large)
         .filter_map(|(index, row)| Some((index, row.sha.clone()?, row.parents.iter().skip(1).cloned().collect::<Vec<_>>())))
-        .collect::<Vec<_>>()
-        .into_iter();
+        .collect::<Vec<_>>();
+    for (index, ..) in pending.iter().skip(max_checks) {
+        rows[*index].collapsible = true;
+    }
+    pending.truncate(max_checks);
+    let mut pending = pending.into_iter();
     let mut running = tokio::task::JoinSet::new();
     loop {
         while running.len() < COLLAPSIBLE_PARALLEL {
@@ -583,6 +590,17 @@ fn empty_row(id: &str, kind: GraphRowKind) -> GraphRow {
 }
 
 pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>, limit: u32) -> CoreResult<GraphPage> {
+    graph_page_checking(core, repo_id, cursor, limit, MAX_COLLAPSIBLE_CHECKS).await
+}
+
+/// `graph_page` with its own limit on the `collapsible` checks per page (tests lower it).
+pub(super) async fn graph_page_checking(
+    core: &Core,
+    repo_id: &str,
+    cursor: Option<&str>,
+    limit: u32,
+    max_checks: usize,
+) -> CoreResult<GraphPage> {
     let path = core.repo_path(repo_id)?;
     let view = core.db.with(|c| db::view_state::get(c, repo_id))?;
     let limit = limit.clamp(1, MAX_PAGE_SIZE) as usize;
@@ -667,7 +685,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
     }
 
     let PageBuilder { state, mut rows, max_lane, hidden, .. } = builder;
-    mark_collapsible(core, &path, repo_id, &plan, &mut rows).await;
+    mark_collapsible(core, &path, repo_id, &plan, &mut rows, max_checks).await;
     let next_cursor = if has_more {
         let mut f: Vec<String> = hidden.into_iter().collect();
         f.sort_unstable();

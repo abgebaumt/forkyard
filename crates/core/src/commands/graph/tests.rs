@@ -8,7 +8,7 @@ use std::time::Instant;
 use serde_json::json;
 
 use super::layout::check::check_rows;
-use super::page::{STASH_REF, WIP_ID};
+use super::page::{self, STASH_REF, WIP_ID};
 use super::*;
 use crate::commands::repos::repo_open;
 use crate::commands::view::view_state_set;
@@ -1688,6 +1688,20 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
         assert_eq!(find(&rows, &merge).collapsed_count, Some(0));
         check_rows(&rows, true).unwrap();
     }
+}
+
+/// Beyond the per-page cap the merge is not checked and keeps its arrow; within the cap the check
+/// decides (here: the tag keeps everything, so no arrow).
+#[tokio::test]
+async fn merges_beyond_the_check_cap_keep_the_arrow() {
+    let tc = TestCore::new().await;
+    let (repo, [_, _, f2, _, merge, _]) = merged_feature();
+    repo.git(&["tag", "v-side", &f2]);
+    let id = tc.open(&repo).await.repo.id;
+    let checked = page::graph_page_checking(&tc, &id, None, 100, 8).await.unwrap().rows;
+    assert!(!find(&checked, &merge).collapsible, "checked: the tag keeps everything");
+    let capped = page::graph_page_checking(&tc, &id, None, 100, 0).await.unwrap().rows;
+    assert!(find(&capped, &merge).collapsible, "over the cap: the arrow stays");
 }
 
 /// develop: A ── d1 ── d2 ── d3 (HEAD); staging: A ── s1 ── M (merge of develop at d2). d1 and d2
