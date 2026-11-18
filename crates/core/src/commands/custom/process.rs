@@ -3,11 +3,9 @@
 //! `job:progress`, everything redacted, and one entry in the repository's activity log.
 
 use std::path::Path;
-use std::process::Stdio;
 use std::time::Instant;
 
 use parking_lot::Mutex;
-use tokio::io::{AsyncBufReadExt, AsyncRead};
 
 use crate::app::Core;
 use crate::db;
@@ -16,7 +14,7 @@ use crate::events::names;
 use crate::git::redact;
 use crate::jobs::Job;
 use crate::model::{CustomCommandResult, RepoChange};
-use crate::proc::{kill_tree, ProcessTree};
+use crate::proc::Proc;
 use crate::util;
 
 /// At most this much output is collected (the rest still goes out as progress).
@@ -49,23 +47,7 @@ impl Planned {
     }
 }
 
-fn quote(arg: &str) -> String {
-    if !arg.is_empty() && !arg.chars().any(|c| c.is_whitespace() || c == '"') {
-        return arg.to_string();
-    }
-    format!("\"{}\"", arg.replace('"', "\\\""))
-}
-
-/// `program arg …` with quotes around arguments containing spaces, without credentials. Only for
-/// display – the program gets its arguments separately.
-pub(crate) fn display_line(program: &str, args: &[String]) -> String {
-    let mut line = quote(program);
-    for arg in args {
-        line.push(' ');
-        line.push_str(&quote(arg));
-    }
-    util::truncate_str(&redact::redact(&line), 2000)
-}
+pub(crate) use crate::proc::display_line;
 
 /// Runs `planned` in `cwd` as job `job_id` and reports `repo:changed` afterwards.
 pub(crate) async fn run(
@@ -83,80 +65,35 @@ pub(crate) async fn run(
     result
 }
 
-fn spawn_error(program: &str, e: std::io::Error) -> CoreError {
-    if e.kind() == std::io::ErrorKind::NotFound {
-        return CoreError::not_found(format!("The program “{program}” was not found. Write its full path or check PATH."))
-            .with_git_output(e.to_string());
-    }
-    let (code, reason) = crate::error::describe_io(&e);
-    CoreError::new(code, format!("“{program}” couldn’t be started. {reason}")).with_git_output(e.to_string())
-}
-
-/// Windows: std only tries `<name>.exe` on PATH, so `npm`, `npx` or `yarn` (`.cmd` shims) would be
-/// "not found". `which` follows PATHEXT; std then quotes `.cmd` arguments safely or refuses them.
-#[cfg(windows)]
-fn program_path(planned: &Planned, cwd: &Path) -> std::ffi::OsString {
-    let path = planned
-        .env
-        .iter()
-        .find(|(key, _)| key.eq_ignore_ascii_case("PATH"))
-        .map(|(_, value)| value.into())
-        .or_else(|| std::env::var_os("PATH"));
-    which::which_in(&planned.program, path, cwd).map(Into::into).unwrap_or_else(|_| planned.program.clone().into())
-}
-
-#[cfg(not(windows))]
-fn program_path(planned: &Planned, _cwd: &Path) -> std::ffi::OsString {
-    planned.program.clone().into()
-}
-
-/// Reads one pipe line by line: as progress (redacted) and into `collected`.
-async fn pump<R: AsyncRead + Unpin>(pipe: Option<R>, job: &Job, collected: &Mutex<Vec<u8>>) {
-    let Some(pipe) = pipe else { return };
-    let mut segments = tokio::io::BufReader::new(pipe).split(b'\n');
-    while let Ok(Some(segment)) = segments.next_segment().await {
-        let line = redact::redact_bytes(&segment);
-        job.progress("", None, line.trim_end_matches('\r'));
-        let mut all = collected.lock();
-        if all.len() < MAX_COLLECTED {
-            all.extend_from_slice(&segment);
-            all.push(b'\n');
-        }
-    }
-}
-
 async fn execute(core: &Core, repo_id: &str, job: &Job, title: &str, planned: &Planned, cwd: &Path) -> CoreResult<CustomCommandResult> {
     let started_at = util::now_iso();
     let start = Instant::now();
-    let mut command = tokio::process::Command::new(program_path(planned, cwd));
-    command.args(&planned.args).current_dir(cwd).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+    let mut proc = Proc::new(&planned.program).args(&planned.args).cwd(cwd);
     for (key, value) in &planned.env {
-        command.env(key, value);
+        proc = proc.env(key, value);
     }
-    #[cfg(windows)]
-    command.creation_flags(crate::git::runner::CREATE_NO_WINDOW);
-    #[cfg(unix)]
-    command.process_group(0);
-    let mut child = command.spawn().map_err(|e| spawn_error(&planned.program, e))?;
-    let tree = ProcessTree::attach(&child);
-    let (stdout, stderr) = (child.stdout.take(), child.stderr.take());
+    // The program is looked up on the command's own PATH first (on Windows with PATHEXT, so `npm` finds `npm.cmd`).
+    if let Some((_, path)) = planned.env.iter().find(|(key, _)| key.eq_ignore_ascii_case("PATH")) {
+        proc = proc.search_path(path);
+    }
     let collected = Mutex::new(Vec::new());
-    let token = job.token().clone();
-    let waited = tokio::select! {
-        status = async {
-            tokio::join!(pump(stdout, job, &collected), pump(stderr, job, &collected));
-            child.wait().await
-        } => Some(status),
-        _ = token.cancelled() => None,
-    };
-    let (exit_code, failure) = match waited {
-        Some(Ok(status)) => (status.code(), None),
-        Some(Err(e)) => (None, Some(CoreError::io(format!("Waiting for “{}” failed.", planned.program)).with_git_output(e.to_string()))),
-        None => {
-            kill_tree(&mut child, tree.as_ref()).await;
-            let _ = child.wait().await;
-            (None, Some(CoreError::cancelled()))
+    // Every line goes out as progress (redacted); at most `MAX_COLLECTED` is kept.
+    let on_line = |segment: &[u8]| {
+        let line = redact::redact_bytes(segment);
+        job.progress("", None, line.trim_end_matches('\r'));
+        let mut all = collected.lock();
+        if all.len() < MAX_COLLECTED {
+            all.extend_from_slice(segment);
+            all.push(b'\n');
         }
+    };
+    let (exit_code, failure) = match proc.run_lines(job.token(), &on_line).await {
+        Ok(out) => (out.code, None),
+        Err(e) if e.code == ErrorCode::NotFound => (
+            None,
+            Some(CoreError::not_found(format!("The program “{}” was not found. Write its full path or check PATH.", planned.program))),
+        ),
+        Err(e) => (None, Some(e)),
     };
     let output = util::truncate_str(redact::redact_bytes(&collected.into_inner()).trim_end(), MAX_OUTPUT);
     let entry = db::activity::NewActivity {

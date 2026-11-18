@@ -28,9 +28,6 @@ pub async fn connect(core: &Core, base_url: Option<String>) -> CoreResult<Hoster
 
 /// gh on the PATH or in the usual install locations.
 fn find() -> Option<PathBuf> {
-    if let Ok(path) = which::which("gh") {
-        return Some(path);
-    }
     let mut candidates = Vec::new();
     if cfg!(windows) {
         for var in ["ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"] {
@@ -43,7 +40,7 @@ fn find() -> Option<PathBuf> {
             candidates.push(PathBuf::from(path));
         }
     }
-    candidates.into_iter().find(|path| path.is_file())
+    crate::tools::locate::find("gh", candidates)
 }
 
 /// Runs `gh auth token --hostname <host>`. Never prompts: without a login it fails.

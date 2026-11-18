@@ -65,6 +65,24 @@ async fn passes_stdin_env_and_cwd_and_returns_the_exit_code() {
 
 #[cfg(unix)]
 #[tokio::test]
+async fn lines_of_both_pipes_stream_and_a_relative_program_counts_from_the_cwd() {
+    let dir = temp_folder();
+    std::fs::write(dir.path().join("tool.sh"), "#!/bin/sh\necho eins\necho zwei >&2\nprintf ohne-umbruch\n").unwrap();
+    std::fs::set_permissions(dir.path().join("tool.sh"), std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let lines = parking_lot::Mutex::new(Vec::new());
+    let out = Proc::new("./tool.sh")
+        .cwd(dir.path())
+        .run_lines(&CancelToken::new(), &|line: &[u8]| lines.lock().push(String::from_utf8_lossy(line).into_owned()))
+        .await
+        .unwrap();
+    let mut lines = lines.into_inner();
+    lines.sort();
+    assert_eq!(lines, ["eins", "ohne-umbruch", "zwei"]);
+    assert!(out.success() && out.stdout.is_empty() && out.stderr.is_empty(), "streamed output is not collected");
+}
+
+#[cfg(unix)]
+#[tokio::test]
 async fn arguments_reach_the_program_unchanged() {
     let out = Proc::new("/bin/sh")
         .args(["-c", "printf '%s\\n' \"$@\"", "sh", "-leading-dash", "mit Leerzeichen", "Grüße ä", ""])

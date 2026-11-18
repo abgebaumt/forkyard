@@ -117,6 +117,11 @@ pub fn known_locations(name: &str, env: &LocateEnv) -> Vec<PathBuf> {
     out
 }
 
+/// `name` on PATH, otherwise the first of `candidates` (full paths, usual install places) that exists.
+pub fn find(name: &str, candidates: impl IntoIterator<Item = PathBuf>) -> Option<PathBuf> {
+    which::which(name).ok().or_else(|| candidates.into_iter().find(|path| path.is_file()))
+}
+
 /// The program `name` in `dir`; on Windows `.exe` before `.cmd` and `.bat`.
 fn program_in(dir: &Path, name: &str) -> Option<PathBuf> {
     if cfg!(windows) {
@@ -222,7 +227,7 @@ pub async fn version_of(core: &Core, path: &Path) -> Option<String> {
     version
 }
 
-fn find(name: &str, spec: &SearchSpec) -> Option<(PathBuf, ToolSource)> {
+fn find_in(name: &str, spec: &SearchSpec) -> Option<(PathBuf, ToolSource)> {
     if let Some(path) = spec.configured.as_ref().filter(|path| path.is_file()) {
         return Some((path.clone(), ToolSource::Configured));
     }
@@ -238,7 +243,7 @@ fn find(name: &str, spec: &SearchSpec) -> Option<(PathBuf, ToolSource)> {
 
 /// Looks for `name` in `spec` (configured → PATH → install folders → login shell) and reads its version.
 pub async fn locate_in(core: &Core, name: &str, spec: &SearchSpec) -> Option<ToolInfo> {
-    let (path, source) = find(name, spec)?;
+    let (path, source) = find_in(name, spec)?;
     let version = version_of(core, &path).await;
     Some(ToolInfo { name: name.to_string(), path, version, source })
 }
@@ -253,7 +258,7 @@ pub async fn locate(core: &Core, name: &str, configured: Option<&Path>) -> Optio
         known: known_locations(name, &env),
         login_path: None,
     };
-    if find(name, &spec).is_some() {
+    if find_in(name, &spec).is_some() {
         return locate_in(core, name, &spec).await;
     }
     let login_path = login_shell_path(core).await?;

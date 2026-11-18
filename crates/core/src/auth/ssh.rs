@@ -61,18 +61,9 @@ pub fn find_ssh_keygen(config: &AuthConfig, git: Option<&GitInfo>) -> CoreResult
             }
         }
     }
-    if let Ok(path) = which::which("ssh-keygen") {
-        return Ok(path);
-    }
-    if cfg!(windows) {
-        if let Some(root) = std::env::var_os("SystemRoot") {
-            let candidate = Path::new(&root).join("System32").join("OpenSSH").join(&name);
-            if candidate.is_file() {
-                return Ok(candidate);
-            }
-        }
-    }
-    Err(keygen_missing())
+    let system =
+        std::env::var_os("SystemRoot").filter(|_| cfg!(windows)).map(|root| Path::new(&root).join("System32").join("OpenSSH").join(&name));
+    crate::tools::locate::find("ssh-keygen", system).ok_or_else(keygen_missing)
 }
 
 /// Checks a file name for a new key (only a name, no path).
