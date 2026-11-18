@@ -207,7 +207,7 @@ create table undo_entries (
                   'checkout', 'commit', 'amend', 'discard', 'delete_branch',
                   'remove_remote', 'reset', 'rebase', 'cherry_pick', 'squash',
                   'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop',
-                  'compose', 'plan', 'agent_cleanup', 'range_apply', 'stack_create', 'review_fixups')),
+                  'compose', 'plan', 'agent_cleanup', 'range_apply', 'stack_create', 'review_fixups', 'stash_drop')),
   -- Complete sentence for the tooltip of the undo button.
   label         text not null default '',
   ref_name      text,

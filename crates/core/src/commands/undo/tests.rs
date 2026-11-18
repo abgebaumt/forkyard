@@ -6,7 +6,7 @@
 use serde_json::{json, Value};
 
 use super::*;
-use crate::commands::stash::{stash_create, stash_list, stash_pop};
+use crate::commands::stash::{stash_create, stash_drop, stash_list, stash_pop};
 use crate::commands::status::read_status;
 use crate::events::names;
 use crate::model::OpResult;
@@ -852,6 +852,32 @@ async fn stash_undo_brings_the_changes_back_and_redo_stashes_again() {
     fx.repo.git(&["stash", "drop", "-q"]);
     assert_eq!(fx.peek().await.undo, None);
     assert_eq!(fx.undo().await.unwrap_err().code, ErrorCode::NothingToUndo);
+}
+
+#[tokio::test]
+async fn dropping_a_stash_is_undone_at_its_old_position() {
+    let fx = Fx::new().await;
+    let make = |name: &str| {
+        fx.repo.write_file("README.md", format!("# {name}\n"));
+        fx.repo.git(&["stash", "push", "-q", "-m", name]);
+        fx.sha("refs/stash")
+    };
+    let (s0, s1, s2) = (make("s0"), make("s1"), make("s2"));
+    let shas = |fx: &Fx| fx.lines(&["stash", "list", "--format=%H"]);
+    assert_eq!(shas(&fx), [s2.clone(), s1.clone(), s0.clone()]);
+
+    stash_drop(&fx.tc, fx.id.clone(), 1, None).await.unwrap();
+    assert_eq!(shas(&fx), [s2.clone(), s0.clone()]);
+    // Made outside the app: no undo step of its own, the drop stays the newest one.
+    let s3 = make("s3");
+    assert_eq!(fx.peek().await.undo.unwrap().label, "Undo dropping stash “s1”");
+    fx.tc.events.clear();
+
+    fx.undo().await.unwrap();
+    assert_eq!(shas(&fx), [s3.clone(), s1.clone(), s2.clone(), s0.clone()]);
+    fx.redo().await.unwrap();
+    assert_eq!(shas(&fx), [s3, s2, s0]);
+    assert_eq!(fx.changed(), ["stash"]);
 }
 
 #[tokio::test]

@@ -66,6 +66,8 @@ const UPGRADES: &[&str] = &[
     AI_USAGE_AND_PREVIEW,
     // Coding agents of the cockpit (metadata only). Written with `if not exists`, like STATS_CACHE.
     AGENTS,
+    // Undo: dropping a stash (`stash_drop`). Table rebuilt, because SQLite cannot change a CHECK in place.
+    UNDO_STASH_DROP,
 ];
 
 const STATS_CACHE: &str = "
@@ -223,6 +225,33 @@ create table undo_entries_next (
                   'remove_remote', 'reset', 'rebase', 'cherry_pick', 'squash',
                   'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop',
                   'compose', 'plan', 'agent_cleanup', 'range_apply', 'stack_create', 'review_fixups')),
+  label         text not null default '',
+  ref_name      text,
+  ref_before    text,
+  ref_after     text,
+  head_before   text not null,
+  head_after    text,
+  payload       text not null default '{}' check (json_valid(payload)),
+  state         text not null default 'done' check (state in ('done', 'undone')),
+  created_at    text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+insert into undo_entries_next (id, repository_id, worktree_path, action, label, ref_name, ref_before, ref_after, head_before, head_after, payload, state, created_at)
+  select id, repository_id, worktree_path, action, label, ref_name, ref_before, ref_after, head_before, head_after, payload, state, created_at from undo_entries;
+drop table undo_entries;
+alter table undo_entries_next rename to undo_entries;
+create index undo_entries_repo_time on undo_entries (repository_id, created_at desc);
+";
+
+const UNDO_STASH_DROP: &str = "
+create table undo_entries_next (
+  id            text primary key,
+  repository_id text not null references repositories (id) on delete cascade,
+  worktree_path text not null default '',
+  action        text not null check (action in (
+                  'checkout', 'commit', 'amend', 'discard', 'delete_branch',
+                  'remove_remote', 'reset', 'rebase', 'cherry_pick', 'squash',
+                  'reword', 'drop', 'merge', 'revert', 'stash', 'stash_pop',
+                  'compose', 'plan', 'agent_cleanup', 'range_apply', 'stack_create', 'review_fixups', 'stash_drop')),
   label         text not null default '',
   ref_name      text,
   ref_before    text,
@@ -707,6 +736,10 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         for (index, action) in ["compose", "plan", "agent_cleanup", "range_apply", "stack_create", "review_fixups"].iter().enumerate() {
             insert(&format!("g{index}"), action).unwrap();
         }
+        assert!(insert("sd0", "stash_drop").is_err(), "before: no stash_drop");
+        assert!(UPGRADES.contains(&UNDO_STASH_DROP), "the step is part of UPGRADES");
+        conn.execute_batch(UNDO_STASH_DROP).unwrap();
+        insert("sd1", "stash_drop").unwrap();
         assert!(insert("falsch", "bogus").is_err(), "unknown actions stay forbidden");
         assert!(conn.execute("insert into undo_entries (id, repository_id, action, head_before) values ('fk', 'gibt-es-nicht', 'plan', 'x')", []).is_err(), "the foreign key holds");
         let index: i64 = conn.query_row("select count(*) from sqlite_master where type = 'index' and name = 'undo_entries_repo_time'", [], |r| r.get(0)).unwrap();

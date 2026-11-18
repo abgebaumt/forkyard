@@ -52,6 +52,7 @@ pub enum UndoAction {
     Revert,
     Stash,
     StashPop,
+    StashDrop,
     /// Several commits from the working directory at once (3.2).
     Compose,
     /// A plan of several Git steps (5).
@@ -67,7 +68,7 @@ pub enum UndoAction {
 }
 
 impl UndoAction {
-    pub const ALL: [UndoAction; 22] = [
+    pub const ALL: [UndoAction; 23] = [
         UndoAction::Checkout,
         UndoAction::Commit,
         UndoAction::Amend,
@@ -84,6 +85,7 @@ impl UndoAction {
         UndoAction::Revert,
         UndoAction::Stash,
         UndoAction::StashPop,
+        UndoAction::StashDrop,
         UndoAction::Compose,
         UndoAction::Plan,
         UndoAction::AgentCleanup,
@@ -110,6 +112,7 @@ impl UndoAction {
             UndoAction::Revert => "revert",
             UndoAction::Stash => "stash",
             UndoAction::StashPop => "stash_pop",
+            UndoAction::StashDrop => "stash_drop",
             UndoAction::Compose => "compose",
             UndoAction::Plan => "plan",
             UndoAction::AgentCleanup => "agent_cleanup",
