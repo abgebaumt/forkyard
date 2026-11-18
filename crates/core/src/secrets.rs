@@ -17,7 +17,7 @@ use std::sync::Arc;
 use parking_lot::Mutex;
 
 use crate::app::Core;
-use crate::commands::auth::keychain;
+use crate::auth::keychain;
 use crate::error::{CoreError, CoreResult};
 
 /// In-memory replacement for the keychain (tests).

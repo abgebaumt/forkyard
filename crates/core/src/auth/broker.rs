@@ -146,7 +146,7 @@ pub struct Broker {
     /// Result of the keychain check per service name.
     keyring_probe: Mutex<Option<(String, bool)>>,
     /// Fingerprints by content of the public key.
-    pub(super) fingerprints: Mutex<HashMap<String, Option<String>>>,
+    pub(crate) fingerprints: Mutex<HashMap<String, Option<String>>>,
 }
 
 impl Drop for Broker {
@@ -791,7 +791,7 @@ fn auth_unclear(code: ErrorCode) -> bool {
     )
 }
 
-pub(super) fn keychain_ref(profile_id: &str, key: &StoreKey) -> String {
+pub(crate) fn keychain_ref(profile_id: &str, key: &StoreKey) -> String {
     let kind = match key.kind {
         HostAccountKind::Password => "password",
         HostAccountKind::Passphrase => "passphrase",
@@ -802,7 +802,7 @@ pub(super) fn keychain_ref(profile_id: &str, key: &StoreKey) -> String {
 /// Path of the helper program as Git and SSH can start it on all systems.
 /// Windows: forward slashes, without `\\?\`, and for characters outside ASCII the short 8.3
 /// path – Windows' OpenSSH (9.5) does not start an askpass with an umlaut in its path.
-pub(super) fn helper_env_value(path: &Path) -> OsString {
+pub(crate) fn helper_env_value(path: &Path) -> OsString {
     #[cfg(windows)]
     {
         let text = path.to_string_lossy();
@@ -837,7 +837,7 @@ fn short_path(path: &Path) -> Option<PathBuf> {
 
 /// Text of the prompt for the UI. Git only names the user name in its questions; should a URL
 /// ever contain `user:password@`, it is redacted.
-pub(super) fn display_prompt(prompt: &str) -> String {
+pub(crate) fn display_prompt(prompt: &str) -> String {
     let text = prompt.trim_end();
     let has_password = text.split("://").skip(1).any(|rest| {
         let authority = rest.split(['/', '\'', ' ']).next().unwrap_or("");
@@ -862,7 +862,7 @@ pub fn shell_quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', r"'\''"))
 }
 
-pub(super) fn to_hex(bytes: &[u8]) -> String {
+pub(crate) fn to_hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut out = String::with_capacity(bytes.len() * 2);
     for b in bytes {
@@ -872,7 +872,7 @@ pub(super) fn to_hex(bytes: &[u8]) -> String {
     out
 }
 
-pub(super) fn from_hex(text: &str) -> Option<Vec<u8>> {
+pub(crate) fn from_hex(text: &str) -> Option<Vec<u8>> {
     let bytes = text.as_bytes();
     if bytes.len() % 2 != 0 {
         return None;

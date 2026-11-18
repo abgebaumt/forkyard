@@ -1,10 +1,5 @@
-//! SSH keys and credentials.
-//!
-//! - `broker`: relays prompts from Git and SSH (helper program ↔ UI),
-//!   hooked into the Git runner via `.network()`.
-//! - `prompt`: recognises the kind of a prompt.
-//! - `keychain`: the operating system's keychain.
-//! - `ssh`: key files and ssh-keygen.
+//! SSH key and credential commands. The plumbing (broker, prompt, keychain, ssh) lives in
+//! `crate::auth`.
 //!
 //! For other parts of the core:
 //! - `core.git_for(..)?.network()` asks through the UI when needed;
@@ -12,18 +7,10 @@
 //! - `configure(core, |c| …)` redirects the SSH folder, keychain and helper program (tests).
 //! - `forget_profile_credentials` / `purge_keychain_entries` clean up the keychain.
 
-pub mod broker;
-pub mod keychain;
-pub mod prompt;
-#[cfg(target_os = "linux")]
-mod secret_service;
-pub mod ssh;
-
 use std::path::{Path, PathBuf};
 
-pub use broker::{AuthConfig, Broker, Session, SessionMode};
-
 use crate::app::Core;
+use crate::auth::{ssh, AuthConfig};
 use crate::db;
 use crate::db::host_accounts::HostAccountRow;
 use crate::db::ssh_keys::SshKeyRow;

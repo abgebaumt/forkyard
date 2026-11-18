@@ -16,7 +16,7 @@
 //! Network calls (`.network()`: clone, fetch, pull, push, ls-remote) additionally get the
 //! askpass environment: when Git or SSH asks for a user name, password, passphrase or an
 //! unknown host key, the question goes through the helper program to the broker
-//! (`commands::auth::broker`) and from there as `credential:request` to the UI. If the user
+//! (`auth::broker`) and from there as `credential:request` to the UI. If the user
 //! cancels the prompt, the call ends with `cancelled`; if it stays unanswered, with `timeout`.
 //! With `.no_prompt()` nothing is ever asked.
 
@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Notify;
 
-use crate::commands::auth::broker::{self, Broker, SessionMode};
+use crate::auth::broker::{self, Broker, SessionMode};
 use crate::db::{self, Db};
 use crate::error::{CoreError, CoreResult};
 use crate::events::{names, EventSink};

@@ -12,9 +12,10 @@ use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
-use super::broker::{from_hex, keychain_ref, ssh_command_with_key, to_hex, PORT_ENV, TOKEN_ENV};
-use super::prompt::StoreKey;
 use super::*;
+use crate::auth::broker::{from_hex, keychain_ref, ssh_command_with_key, to_hex, PORT_ENV, TOKEN_ENV};
+use crate::auth::prompt::StoreKey;
+use crate::auth::{keychain, Broker, Session, SessionMode};
 use crate::commands::settings;
 use crate::events::names;
 use crate::git::errors;
@@ -401,7 +402,7 @@ async fn sec09_a_session_answers_only_a_limited_number_of_questions() {
             None => break,
         }
     }
-    assert_eq!(answered, super::broker::MAX_QUESTIONS_PER_SESSION, "this many questions a session answers");
+    assert_eq!(answered, crate::auth::broker::MAX_QUESTIONS_PER_SESSION, "this many questions a session answers");
     // After that the session stays closed.
     assert_eq!(helper(&session, "noch eine: ").await.unwrap(), None);
 }
@@ -504,7 +505,7 @@ async fn git_questions_are_asked_once_per_session_ssh_questions_every_time() {
 
 #[test]
 fn prompt_for_the_ui_keeps_the_username_but_never_a_password() {
-    use super::broker::display_prompt;
+    use crate::auth::broker::display_prompt;
     assert_eq!(display_prompt("Password for 'https://anna@git.example.com': "), "Password for 'https://anna@git.example.com':");
     assert_eq!(display_prompt("Username for 'https://git.example.com': "), "Username for 'https://git.example.com':");
     assert_eq!(display_prompt("git@example.com's password: "), "git@example.com's password:");
@@ -516,7 +517,7 @@ fn prompt_for_the_ui_keeps_the_username_but_never_a_password() {
 #[cfg(windows)]
 #[test]
 fn helper_path_is_plain_ascii_with_slashes_on_windows() {
-    use super::broker::helper_env_value;
+    use crate::auth::broker::helper_env_value;
     let dir = tempfile::tempdir().unwrap();
     let folder = dir.path().join("Jörg Müller");
     std::fs::create_dir_all(&folder).unwrap();
