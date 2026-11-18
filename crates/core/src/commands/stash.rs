@@ -547,7 +547,7 @@ fn row_checked<'a>(rows: &'a [StashRow], index: u32, expected_sha: Option<&str>)
 }
 
 fn display_message(row: &StashRow) -> String {
-    undo::shorten(&split_subject(&row.subject).1, 60)
+    util::shorten(&split_subject(&row.subject).1, 60)
 }
 
 /// All stashes.
@@ -593,7 +593,7 @@ pub async fn stash_create(
                 return read_stashes(core, &repo_id).await;
             }
             let label = match &message {
-                Some(m) => format!("Undo stash “{}”", undo::shorten(m, 60)),
+                Some(m) => format!("Undo stash “{}”", util::shorten(m, 60)),
                 None => "Undo stash".to_string(),
             };
             let token = head.token();

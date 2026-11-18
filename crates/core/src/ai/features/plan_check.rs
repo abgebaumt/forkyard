@@ -25,7 +25,7 @@ use crate::model::{
     ConflictPreview, Head, MergeMode, PlanCheck, PlanCommand, PlanPreview, PlanStep, PlanStepView, PreviewOp, PullMode, RefNameKind,
     ResetMode,
 };
-use crate::{undo, util};
+use crate::util;
 
 pub const MAX_STEPS: usize = 10;
 /// Reason of `ai_invalid_answer` for longer plans; the UI recognises "plan too long".
@@ -122,7 +122,7 @@ fn remote_branch_name(name: &str) -> CoreResult<String> {
         || name.ends_with('/')
         || name.chars().any(|c| c.is_whitespace() || c.is_control() || matches!(c, ':' | '\\' | '~' | '^' | '?' | '*' | '['));
     if bad {
-        return Err(CoreError::new(ErrorCode::InvalidName, format!("“{}” is not a branch name.", undo::shorten(name, 40))));
+        return Err(CoreError::new(ErrorCode::InvalidName, format!("“{}” is not a branch name.", util::shorten(name, 40))));
     }
     Ok(name.to_string())
 }
@@ -158,7 +158,7 @@ impl<'a> Sim<'a> {
         if !self.v.branches.contains_key(&name) {
             return Err(CoreError::not_found(format!(
                 "The branch “{}” doesn't exist at that point of the plan.",
-                undo::shorten(&name, 60)
+                util::shorten(&name, 60)
             )));
         }
         Ok(name)
@@ -180,14 +180,14 @@ impl<'a> Sim<'a> {
         if taken {
             return Err(CoreError::new(
                 ErrorCode::NameExists,
-                format!("“{}” exists already at that point of the plan.", undo::shorten(&name, 60)),
+                format!("“{}” exists already at that point of the plan.", util::shorten(&name, 60)),
             ));
         }
         let check = branches::ref_name_check(self.core, self.repo_id.to_string(), name.clone(), kind).await?;
         if !check.valid {
             return Err(CoreError::new(
                 ErrorCode::InvalidName,
-                check.reason.unwrap_or_else(|| format!("“{}” is not a valid name.", undo::shorten(&name, 60))),
+                check.reason.unwrap_or_else(|| format!("“{}” is not a valid name.", util::shorten(&name, 60))),
             ));
         }
         Ok(name)
@@ -208,7 +208,7 @@ impl<'a> Sim<'a> {
     async fn rev(&mut self, rev: &str) -> CoreResult<Rev> {
         let rev = rev.trim();
         if rev.is_empty() || rev.starts_with('-') || rev.chars().any(|c| c.is_control() || c.is_whitespace()) {
-            return Err(CoreError::not_found(format!("“{}” is not a commit.", undo::shorten(rev, 40))));
+            return Err(CoreError::not_found(format!("“{}” is not a commit.", util::shorten(rev, 40))));
         }
         let local = rev.strip_prefix("refs/heads/").unwrap_or(rev);
         if self.v.deleted.contains(local) && !self.v.branches.contains_key(local) {
@@ -309,7 +309,7 @@ impl<'a> Sim<'a> {
         if self.v.remotes.iter().any(|remote| remote == name) {
             Ok(name.to_string())
         } else {
-            Err(CoreError::new(ErrorCode::NoRemote, format!("There is no remote “{}”.", undo::shorten(name, 40))))
+            Err(CoreError::new(ErrorCode::NoRemote, format!("There is no remote “{}”.", util::shorten(name, 40))))
         }
     }
 
@@ -567,7 +567,7 @@ impl<'a> Sim<'a> {
                 if !self.v.tags.contains(&name) {
                     return Err(CoreError::not_found(format!(
                         "The tag “{}” doesn't exist at that point of the plan.",
-                        undo::shorten(&name, 40)
+                        util::shorten(&name, 40)
                     )));
                 }
                 let remote = self.remote(&a.text("remote"))?;

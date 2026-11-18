@@ -163,7 +163,7 @@ async fn finish(
             undo::delete_backup_refs(core, repo_id, &start.entry).await?;
             return Ok(false);
         }
-        let mut label = format!("Undo plan “{}”", undo::shorten(text.trim(), 60));
+        let mut label = format!("Undo plan “{}”", crate::util::shorten(text.trim(), 60));
         if pushed {
             label.push_str(" – pushed refs stay pushed");
         }

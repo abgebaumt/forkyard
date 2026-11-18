@@ -16,7 +16,7 @@ use crate::error::{CoreError, CoreResult};
 use crate::model::PlanArgKind::{Boolean, Choice, List, OptionalChoice, OptionalText, Text};
 use crate::model::{MergeMode, PlanArgField, PlanArgKind, PlanClass, PlanCommand, PullMode, ResetMode};
 use crate::model::{OpResult, PushResult};
-use crate::undo;
+use crate::util;
 
 /// One argument of a command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -216,7 +216,7 @@ pub fn answer_schema() -> Value {
 pub fn project(command: PlanCommand, args: &Map<String, Value>) -> Result<Map<String, Value>, String> {
     let own = command.fields();
     if let Some((name, _)) = args.iter().find(|(name, value)| !value.is_null() && !own.iter().any(|f| f.name == name.as_str())) {
-        return Err(format!("“{}” is not an argument of {}.", undo::shorten(name, 40), command.as_str()));
+        return Err(format!("“{}” is not an argument of {}.", util::shorten(name, 40), command.as_str()));
     }
     let mut out = Map::new();
     for field in own {

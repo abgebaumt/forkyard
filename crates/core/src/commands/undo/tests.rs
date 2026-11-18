@@ -1321,8 +1321,8 @@ fn labels_and_actions() {
     assert!(!changes_for(&entry(UndoAction::Commit, json!({ "merge": false }))).contains(&RepoChange::Worktree));
     assert!(changes_for(&entry(UndoAction::Commit, json!({ "merge": true }))).contains(&RepoChange::Worktree));
     assert_eq!(UndoAction::parse("push"), None);
-    assert_eq!(u::shorten("kurz", 10), "kurz");
-    assert_eq!(u::shorten("ein längerer Text", 8), "ein län…");
+    assert_eq!(util::shorten("kurz", 10), "kurz");
+    assert_eq!(util::shorten("ein längerer Text", 8), "ein län…");
     assert!(head_matches("refs/heads/main", &Head::Unborn { branch: "main".into() }));
     assert!(head_matches("ABCDEF1", &Head::Detached { sha: "abcdef1".into() }));
     assert!(!head_matches("refs/heads/main", &Head::Detached { sha: "abcdef1".into() }));

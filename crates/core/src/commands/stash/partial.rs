@@ -128,7 +128,7 @@ pub(crate) async fn stash_selection(
     }
     let token = head.token();
     let label = match message {
-        Some(text) => format!("Undo stash “{}”", undo::shorten(text, 60)),
+        Some(text) => format!("Undo stash “{}”", util::shorten(text, 60)),
         None => "Undo stash of the selected lines".to_string(),
     };
     undo::record(

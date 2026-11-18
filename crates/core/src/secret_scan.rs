@@ -182,12 +182,7 @@ pub fn mask_line(line: &str, hits: &[LineHit]) -> String {
         position = hit.end;
     }
     out.push_str(&redact::redact(&line[position..]));
-    let trimmed = out.trim();
-    if trimmed.chars().count() > EXCERPT_CHARS {
-        format!("{}…", trimmed.chars().take(EXCERPT_CHARS).collect::<String>())
-    } else {
-        trimmed.to_string()
-    }
+    util::shorten(out.trim(), EXCERPT_CHARS + 1) // the characters plus "…"
 }
 
 /// SHA-256 (lower-case hex) of the path bytes, a zero byte and the line bytes (without CR).

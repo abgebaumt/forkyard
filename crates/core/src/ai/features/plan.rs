@@ -15,7 +15,7 @@ use crate::app::Core;
 use crate::commands::{remotes, status};
 use crate::error::{CoreError, CoreResult};
 use crate::model::{Head, PlanCommand, PlanStep};
-use crate::{undo, util};
+use crate::util;
 
 pub const MAX_REQUEST_CHARS: usize = 500;
 const MAX_WHY_CHARS: usize = 300;
@@ -124,7 +124,7 @@ pub async fn sections(core: &Core, repo_id: &str, secrets: &[String]) -> CoreRes
         let text = if lines.is_empty() {
             "(none)".to_string()
         } else {
-            lines.iter().map(|line| undo::shorten(line, MAX_LINE_CHARS)).collect::<Vec<_>>().join("\n")
+            lines.iter().map(|line| util::shorten(line, MAX_LINE_CHARS)).collect::<Vec<_>>().join("\n")
         };
         context::redact_for_ai(&text, secrets)
     };
@@ -176,7 +176,7 @@ pub async fn build_prompt(
 
 fn one_line(text: &str, max: usize) -> String {
     let flat: String = text.chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
-    undo::shorten(flat.trim(), max)
+    util::shorten(flat.trim(), max)
 }
 
 /// The steps of a schema-checked answer. Null arguments of other commands are dropped; non-null

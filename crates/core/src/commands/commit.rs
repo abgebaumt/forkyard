@@ -324,12 +324,8 @@ fn file_list(files: &[FileChange]) -> String {
 /// First line in single quotes, shortened for undo sentences.
 pub(crate) fn quoted(text: &str) -> String {
     const MAX: usize = 60;
-    let line = text.trim().lines().next().unwrap_or("").trim();
-    if line.chars().count() > MAX {
-        format!("‘{}…’", line.chars().take(MAX).collect::<String>())
-    } else {
-        format!("‘{line}’")
-    }
+    format!("‘{}’", util::shorten(text.trim().lines().next().unwrap_or("").trim(), MAX + 1))
+    // the characters plus "…"
 }
 
 fn branch_and_sha(head: &Head) -> (Option<String>, Option<String>) {
