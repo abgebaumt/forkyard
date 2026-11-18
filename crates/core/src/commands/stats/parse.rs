@@ -1,17 +1,20 @@
-//! Parsers for the two Git outputs of the statistics: `git log --numstat -z` (see `LOG_FORMAT`)
+//! Parsers for the two Git outputs of the statistics: `git log --numstat -z` (see `log_format`)
 //! and `git blame --porcelain`. Bytes in, plain numbers out; paths are decoded lossily (they
 //! are only shown and compared, never handed back to Git).
 
 use std::collections::HashMap;
 
-use crate::git::rev;
+use crate::git::{log, rev};
 use crate::util;
 
-/// Marks the start of a commit in the output of `git log` (see `LOG_FORMAT`).
-const COMMIT_MARK: &[u8] = b"\x01st\x01";
 /// SHA, author name, author e-mail and author date as "<unix> <+hhmm>" (needs `--date=raw`).
-pub(super) const LOG_FORMAT: &str = "--format=%x01st%x01%x00%H%x00%an%x00%ae%x00%ad%x00";
+const LOG_FIELDS: &str = "%H%x00%an%x00%ae%x00%ad";
 const HEADER_FIELDS: usize = 4;
+
+/// `--format=` for `LogParser`.
+pub(super) fn log_format() -> String {
+    log::marked_format(LOG_FIELDS)
+}
 
 /// One file of a commit (numstat). Binary files count with 0 lines; a rename under its new path,
 /// with the old one in `from`.
@@ -37,106 +40,41 @@ pub(super) struct LogCommit {
     pub files: Vec<FileDelta>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-enum Expect {
-    /// Before the first commit.
-    #[default]
-    Mark,
-    Header,
-    /// numstat lines or the next commit.
-    Body,
-    /// A rename: the old path follows, then the new one.
-    RenameOld,
-    RenameNew,
-}
+/// `git log -z --numstat --date=raw <log_format()>`, commit by commit (see `log::LogParser`).
+pub(super) struct LogParser(log::LogParser);
 
-/// State machine over the NUL-separated records of
-/// `git log -z --numstat --date=raw <LOG_FORMAT>`. A commit is complete when the next one
-/// starts (`feed` returns it) or the output ends (`finish`).
-#[derive(Debug, Default)]
-pub(super) struct LogParser {
-    expect: Expect,
-    header: Vec<Vec<u8>>,
-    files: Vec<FileDelta>,
-    /// Line counts of a rename whose paths are the next two records, then its old path.
-    rename: Option<(u64, u64)>,
-    rename_from: Option<String>,
+impl Default for LogParser {
+    fn default() -> Self {
+        LogParser(log::LogParser::new(HEADER_FIELDS))
+    }
 }
 
 impl LogParser {
     pub fn feed(&mut self, record: &[u8]) -> Option<LogCommit> {
-        match self.expect {
-            Expect::Header => {
-                self.header.push(record.to_vec());
-                if self.header.len() == HEADER_FIELDS {
-                    self.expect = Expect::Body;
-                }
-                None
-            }
-            Expect::RenameOld => {
-                self.rename_from = Some(util::decode_lossy(record));
-                self.expect = Expect::RenameNew;
-                None
-            }
-            Expect::RenameNew => {
-                let from = self.rename_from.take();
-                if let Some((added, removed)) = self.rename.take() {
-                    self.files.push(FileDelta { path: util::decode_lossy(record), from, added, removed });
-                }
-                self.expect = Expect::Body;
-                None
-            }
-            Expect::Mark | Expect::Body => self.feed_body(record),
-        }
-    }
-
-    fn feed_body(&mut self, record: &[u8]) -> Option<LogCommit> {
-        // The numstat block starts with a line break after the format.
-        let start = record.iter().position(|&b| b != b'\n').unwrap_or(record.len());
-        let token = &record[start..];
-        if token.is_empty() {
-            return None;
-        }
-        if token == COMMIT_MARK {
-            let done = self.take();
-            self.expect = Expect::Header;
-            return done;
-        }
-        if self.expect == Expect::Mark {
-            return None;
-        }
-        let mut fields = token.splitn(3, |&b| b == b'\t');
-        if let (Some(added), Some(removed), Some(path)) = (fields.next(), fields.next(), fields.next()) {
-            // "-" for binary files.
-            let count = |field: &[u8]| std::str::from_utf8(field).ok().and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-            let (added, removed) = (count(added), count(removed));
-            if path.is_empty() {
-                self.rename = Some((added, removed));
-                self.expect = Expect::RenameOld;
-            } else {
-                self.files.push(FileDelta { path: util::decode_lossy(path), from: None, added, removed });
-            }
-        }
-        None
-    }
-
-    fn take(&mut self) -> Option<LogCommit> {
-        let header = std::mem::take(&mut self.header);
-        let files = std::mem::take(&mut self.files);
-        self.rename = None;
-        self.rename_from = None;
-        if header.len() < HEADER_FIELDS {
-            return None;
-        }
-        let text = |i: usize| util::decode_lossy(&header[i]);
-        let (time, offset) = parse_raw_date(&text(3))?;
-        Some(LogCommit { sha: text(0), name: text(1), email: text(2), time, offset, files })
+        self.0.feed(record).and_then(convert)
     }
 
     /// The last commit at the end of the output.
-    pub fn finish(mut self) -> Option<LogCommit> {
-        self.take()
+    pub fn finish(self) -> Option<LogCommit> {
+        self.0.finish().and_then(convert)
     }
+}
+
+/// Binary files count with 0 lines; a commit with a cut-off header or bad date is skipped.
+fn convert(commit: log::LogCommit) -> Option<LogCommit> {
+    let [sha, name, email, date] = commit.header.as_slice() else { return None };
+    let (time, offset) = parse_raw_date(&util::decode_lossy(date))?;
+    let files = commit
+        .files
+        .into_iter()
+        .map(|file| FileDelta {
+            path: util::decode_lossy(&file.path),
+            from: file.old_path.as_deref().map(util::decode_lossy),
+            added: file.added.unwrap_or(0),
+            removed: file.deleted.unwrap_or(0),
+        })
+        .collect();
+    Some(LogCommit { sha: util::decode_lossy(sha), name: util::decode_lossy(name), email: util::decode_lossy(email), time, offset, files })
 }
 
 /// "1735812000 -0500" → (1735812000, -18000). Anything else → `None`.
@@ -194,8 +132,10 @@ mod tests {
     /// rename and a binary file, then the root commit.
     fn sample() -> Vec<u8> {
         let mut out = Vec::new();
-        out.extend_from_slice(b"\x01st\x01\0bbbb\0Ben\0ben@example.com\x001735812000 -0500\0\0\n1\t0\t\0f.txt\0g.txt\0-\t-\tsrc/b.bin\0");
-        out.extend_from_slice(b"\x01st\x01\0aaaa\0Ada\0ada@example.com\x001735725600 +0200\0\0\n3\t0\tf.txt\0");
+        out.extend_from_slice(
+            b"\x1e\x1efy\x1e\0bbbb\0Ben\0ben@example.com\x001735812000 -0500\0\0\n1\t0\t\0f.txt\0g.txt\0-\t-\tsrc/b.bin\0",
+        );
+        out.extend_from_slice(b"\x1e\x1efy\x1e\0aaaa\0Ada\0ada@example.com\x001735725600 +0200\0\0\n3\t0\tf.txt\0");
         out
     }
 
@@ -231,7 +171,7 @@ mod tests {
 
     #[test]
     fn commits_without_files_and_text_before_the_first_commit() {
-        let bytes = b"warning: noise\0\x01st\x01\0cccc\0Cleo\0cleo@example.com\x001700000000 +0000\0\0\x01st\x01\0dddd\0Dan\0\x001700000001 +0130\0\0\n2\t1\tx/\xffy.txt\0";
+        let bytes = b"warning: noise\0\x1e\x1efy\x1e\0cccc\0Cleo\0cleo@example.com\x001700000000 +0000\0\0\x1e\x1efy\x1e\0dddd\0Dan\0\x001700000001 +0130\0\0\n2\t1\tx/\xffy.txt\0";
         let commits = parse(bytes);
         assert_eq!(commits.iter().map(|c| c.sha.as_str()).collect::<Vec<_>>(), ["cccc", "dddd"]);
         assert!(commits[0].files.is_empty());
@@ -242,8 +182,7 @@ mod tests {
 
     #[test]
     fn the_log_format_matches_the_parser() {
-        assert!(LOG_FORMAT.starts_with("--format=%x01st%x01%x00"), "starts with the commit mark");
-        assert_eq!(LOG_FORMAT.matches("%x00").count(), HEADER_FIELDS + 1, "mark plus one NUL per header field");
+        assert_eq!(log_format().matches("%x00").count(), HEADER_FIELDS + 1, "mark plus one NUL per header field");
     }
 
     #[test]

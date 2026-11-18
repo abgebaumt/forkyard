@@ -8,8 +8,9 @@ use std::path::Path;
 
 use crate::ai::context::{self, Exclusions};
 use crate::app::Core;
-use crate::commands::graph::{display_text, LOG_SAFE, SEARCH_REFS};
+use crate::commands::graph::{display_text, SEARCH_REFS};
 use crate::error::{CoreError, CoreResult};
+use crate::git::log::LOG_SAFE;
 use crate::git::rev::is_sha;
 use crate::jobs::CancelToken;
 use crate::model::AiOmitReason;

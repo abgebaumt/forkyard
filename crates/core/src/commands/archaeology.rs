@@ -22,11 +22,11 @@ use parking_lot::Mutex;
 
 use crate::ai::{features::archaeology as ai_archaeology_context, run};
 use crate::app::Core;
-use crate::commands::graph::LOG_SAFE;
 use crate::commands::history::{line_history_with_diffs, repo_encoding, LINE_HISTORY_STEPS};
 use crate::commands::links::link_rules_get;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
+use crate::git::log::LOG_SAFE;
 use crate::git::rev::{is_sha, resolve_commit};
 use crate::model::{AiFeature, ArchaeologyAnswer, ArchaeologyHostLookup, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, LinkRule};
 use crate::util;

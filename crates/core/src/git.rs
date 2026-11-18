@@ -3,6 +3,7 @@
 pub mod errors;
 pub mod index;
 pub mod locate;
+pub mod log;
 pub mod netconfig;
 pub mod redact;
 pub mod repo;

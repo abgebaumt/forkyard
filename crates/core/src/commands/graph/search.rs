@@ -6,12 +6,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
-use super::{display_text, parse_i64, split_shas, Records, LOG_SAFE};
+use super::parse_i64;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
+use crate::git::log::{summary, Records, HEADER, HEADER_FIELDS, LOG_SAFE};
 use crate::git::rev::{is_sha, resolve_commit};
 use crate::jobs::CancelToken;
-use crate::model::{CommitSearchFilters, CommitSummary, Person};
+use crate::model::{CommitSearchFilters, CommitSummary};
 use crate::util;
 use crate::util::normalize_rel_path;
 
@@ -86,8 +87,8 @@ fn narrowing(filters: Option<&CommitSearchFilters>) -> CoreResult<Narrowing> {
     Ok(out)
 }
 
-const SEARCH_FORMAT: &str = "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%ct%x00%s";
-const SEARCH_FIELDS: usize = 7;
+/// `log::HEADER` plus the committer time.
+const SEARCH_FIELDS: usize = HEADER_FIELDS + 1;
 /// What is searched is what can appear in the graph: branches, remote branches, tags and HEAD
 /// (for detached HEAD) – not the app's backup refs and not the stash internals.
 /// `--ignore-missing`: in a repository without a commit HEAD does not exist yet.
@@ -133,16 +134,7 @@ struct Hit {
 }
 
 fn hit(fields: &[Vec<u8>]) -> Hit {
-    Hit {
-        committed_at: parse_i64(&fields[5]),
-        commit: CommitSummary {
-            sha: util::decode_lossy(&fields[0]),
-            parents: split_shas(&fields[1]),
-            author: Person { name: display_text(&fields[2]), email: display_text(&fields[3]) },
-            authored_at: util::unix_to_iso(parse_i64(&fields[4])),
-            summary: display_text(&fields[6]),
-        },
-    }
+    Hit { committed_at: parse_i64(&fields[HEADER_FIELDS]), commit: summary(fields) }
 }
 
 /// The input as one line without control characters and of reasonable length: it becomes an
@@ -242,7 +234,7 @@ async fn log_search(
             .literal_paths()
             .arg("log")
             .args(LOG_SAFE)
-            .args(["-z", SEARCH_FORMAT, "--fixed-strings", "--regexp-ignore-case"])
+            .args(["-z", &format!("--format={HEADER}%x00%ct"), "--fixed-strings", "--regexp-ignore-case"])
             .args(filter.iter())
             .args(&narrowing.args)
             .arg(format!("--max-count={limit}"))
@@ -338,7 +330,7 @@ async fn sha_search(core: &Core, path: &Path, repo_id: &str, query: &str, token:
             .read()
             .args(["log", "--no-walk=unsorted"])
             .args(LOG_SAFE)
-            .args(["-z", SEARCH_FORMAT, "--stdin"])
+            .args(["-z", &format!("--format={HEADER}%x00%ct"), "--stdin"])
             .stdin(stdin.clone())
             .run_records(0, Some(token), &mut on_field),
         core.git
@@ -386,7 +378,7 @@ pub(crate) async fn commit_summaries(
         .read()
         .args(["log", "--no-walk=unsorted"])
         .args(LOG_SAFE)
-        .args(["-z", SEARCH_FORMAT, "--stdin"])
+        .args(["-z", &format!("--format={HEADER}%x00%ct"), "--stdin"])
         .stdin(stdin)
         .run_records(0, Some(token), &mut on_field)
         .await?;

@@ -416,25 +416,14 @@ pub struct LineCounts {
 
 /// Parses `git diff --numstat -z`; the key is the (new) path in raw bytes.
 pub fn parse_numstat_z(stdout: &[u8]) -> HashMap<Vec<u8>, LineCounts> {
-    let mut out = HashMap::new();
-    let mut records = util::split_z(stdout);
-    while let Some(record) = records.next() {
-        let mut fields = record.splitn(3, |&b| b == b'\t');
-        let (Some(added), Some(removed), Some(path)) = (fields.next(), fields.next(), fields.next()) else { continue };
-        // For renames the path field is empty; old and new path follow as records of their own.
-        let path = if path.is_empty() {
-            let _old = records.next();
-            match records.next() {
-                Some(new) => new,
-                None => break,
-            }
-        } else {
-            path
-        };
-        let number = |field: &[u8]| std::str::from_utf8(field).ok().and_then(|t| t.parse::<u32>().ok());
-        out.insert(path.to_vec(), LineCounts { added: number(added), removed: number(removed), binary: added == b"-" && removed == b"-" });
-    }
-    out
+    let count = |n: Option<u64>| n.and_then(|n| u32::try_from(n).ok());
+    crate::git::log::parse_numstat(stdout)
+        .into_iter()
+        .map(|stat| {
+            let binary = stat.added.is_none() && stat.deleted.is_none();
+            (stat.path, LineCounts { added: count(stat.added), removed: count(stat.deleted), binary })
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

@@ -133,7 +133,9 @@ async fn count_old_reflog_reftable(core: &Core, repo_id: &str, cutoff: i64, dead
         }
         let out = core
             .git_for(repo_id)?
-            .args(["log", "-g", "--date=unix", "--format=%gd", "-z", "--end-of-options"])
+            .args(["log", "-g", "--date=unix", "--format=%gd", "-z"])
+            .args(crate::git::log::LOG_SAFE)
+            .arg("--end-of-options")
             .arg(&name)
             .arg("--")
             .read()

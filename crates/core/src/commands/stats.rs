@@ -25,16 +25,16 @@ mod tests;
 use std::collections::{BTreeMap, HashSet};
 
 use crate::app::Core;
-use crate::commands::graph::LOG_SAFE;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::log::LOG_SAFE;
 use crate::git::rev::resolve_commit;
 use crate::jobs::{CancelToken, Job};
 use crate::model::{RepoStats, StatsCodeAge, StatsRange};
 use crate::util;
 
 use aggregate::Aggregator;
-use parse::{BlameAges, LogParser, LOG_FORMAT};
+use parse::{BlameAges, LogParser};
 
 /// Change it whenever the numbers are computed differently: old cache entries then no longer match.
 const STATS_VERSION: u32 = 4;
@@ -166,7 +166,7 @@ async fn read_log(core: &Core, repo_id: &str, tip: &str, from: Option<i64>, job:
         .git_for(repo_id)?
         .args(["log", "--numstat", "-z", "--no-merges", "-M", "--no-textconv", "--no-decorate", "--date=raw"])
         .args(LOG_SAFE)
-        .arg(LOG_FORMAT);
+        .arg(parse::log_format());
     if let Some(since) = &since {
         log = log.arg(since);
     }
