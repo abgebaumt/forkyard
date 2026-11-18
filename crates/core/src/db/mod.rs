@@ -17,8 +17,8 @@ pub mod activity;
 pub mod agents;
 pub mod ai;
 pub mod app_settings;
+pub mod credentials;
 pub mod drafts;
-pub mod host_accounts;
 pub mod hoster_accounts;
 pub mod profile_repos;
 pub mod profiles;
@@ -967,18 +967,18 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         assert!(!keys[0].is_default);
         assert!(db.with(|c| ssh_keys::get(c, &profile, &a)).unwrap().is_none());
 
-        let first = db.with(|c| host_accounts::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-1")).unwrap();
-        let again = db.with(|c| host_accounts::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-2")).unwrap();
+        let first = db.with(|c| credentials::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-1")).unwrap();
+        let again = db.with(|c| credentials::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-2")).unwrap();
         assert_eq!(first, again, "same host and user = the same entry");
-        db.with(|c| host_accounts::upsert(c, &profile, "/k/id_b", "", HostAccountKind::Passphrase, "ref-3")).unwrap();
-        let rows = db.with(|c| host_accounts::list(c, &profile)).unwrap();
+        db.with(|c| credentials::upsert(c, &profile, "/k/id_b", "", HostAccountKind::Passphrase, "ref-3")).unwrap();
+        let rows = db.with(|c| credentials::list(c, &profile)).unwrap();
         assert_eq!(rows.len(), 2);
         let pw = rows.iter().find(|r| r.host == "github.com").unwrap();
         assert_eq!(pw.keychain_ref, "ref-2");
         assert_eq!(pw.to_model().kind, HostAccountKind::Password);
-        let removed = db.with(|c| host_accounts::delete_all(c, &profile)).unwrap();
+        let removed = db.with(|c| credentials::delete_all(c, &profile)).unwrap();
         assert_eq!(removed.len(), 2);
-        assert!(db.with(|c| host_accounts::list(c, &profile)).unwrap().is_empty());
+        assert!(db.with(|c| credentials::list(c, &profile)).unwrap().is_empty());
     }
 
     #[test]

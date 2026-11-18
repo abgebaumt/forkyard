@@ -25,7 +25,7 @@ use tokio::sync::{oneshot, Notify, OnceCell};
 
 use super::keychain;
 use super::prompt::{self, Question, StoreKey};
-use crate::db::host_accounts::HostAccountRow;
+use crate::db::credentials::CredentialRow;
 use crate::db::{self, Db};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::{names, EventSink};
@@ -103,7 +103,7 @@ struct SessionState {
     /// A question remained unanswered (Silent, connection gone).
     unanswered: bool,
     /// Entries supplied from the keychain.
-    served: Vec<HostAccountRow>,
+    served: Vec<CredentialRow>,
     /// Answers that should be stored after a success.
     remember: Vec<(StoreKey, String)>,
     /// Answers to Git's questions in this session (several Git processes, e.g. `fetch --all`).
@@ -505,7 +505,7 @@ impl Broker {
             CredentialKind::HostKey => None,
             CredentialKind::Username => {
                 // Exactly one remembered account for this host: its user name.
-                let rows = self.db.with(|c| db::host_accounts::list(c, profile_id)).ok()?;
+                let rows = self.db.with(|c| db::credentials::list(c, profile_id)).ok()?;
                 let mut matching = rows.into_iter().filter(|r| r.kind == HostAccountKind::Password && r.host == key.host);
                 let first = matching.next()?;
                 matching.next().is_none().then_some(first.username)
@@ -526,7 +526,7 @@ impl Broker {
                     }
                     Ok(None) => {
                         // The entry was deleted outside the app: update the index.
-                        if self.db.with(|c| db::host_accounts::delete(c, &row.profile_id, &row.id)).is_ok() {
+                        if self.db.with(|c| db::credentials::delete(c, &row.profile_id, &row.id)).is_ok() {
                             self.emit_credentials_changed();
                         }
                         None
@@ -554,9 +554,9 @@ impl Broker {
 
     // --- Keychain and index -------------------------------------------------
 
-    fn find_row(&self, profile_id: &str, key: &StoreKey) -> Option<HostAccountRow> {
+    fn find_row(&self, profile_id: &str, key: &StoreKey) -> Option<CredentialRow> {
         self.db
-            .with(|c| db::host_accounts::list(c, profile_id))
+            .with(|c| db::credentials::list(c, profile_id))
             .ok()?
             .into_iter()
             .find(|r| r.kind == key.kind && r.host == key.host && r.username == key.username)
@@ -572,7 +572,7 @@ impl Broker {
             log::warn!("Credentials not remembered: {}", e.message);
             return;
         }
-        let saved = self.db.with(|c| db::host_accounts::upsert(c, profile_id, &key.host, &key.username, key.kind, &account));
+        let saved = self.db.with(|c| db::credentials::upsert(c, profile_id, &key.host, &key.username, key.kind, &account));
         match saved {
             Ok(_) => self.emit_credentials_changed(),
             Err(e) => {
@@ -583,10 +583,10 @@ impl Broker {
         }
     }
 
-    async fn forget_row(&self, row: &HostAccountRow) -> bool {
+    async fn forget_row(&self, row: &CredentialRow) -> bool {
         match keychain::delete(&self.service(), &row.keychain_ref).await {
             Ok(_) => {
-                let deleted = self.db.with(|c| db::host_accounts::delete(c, &row.profile_id, &row.id)).is_ok();
+                let deleted = self.db.with(|c| db::credentials::delete(c, &row.profile_id, &row.id)).is_ok();
                 if deleted {
                     self.emit_credentials_changed();
                 }
@@ -603,14 +603,14 @@ impl Broker {
     pub fn accounts(&self) -> CoreResult<Vec<HostAccount>> {
         self.db.with(|c| {
             let profile_id = db::profiles::active_id(c)?;
-            Ok(db::host_accounts::list(c, &profile_id)?.iter().map(HostAccountRow::to_model).collect())
+            Ok(db::credentials::list(c, &profile_id)?.iter().map(CredentialRow::to_model).collect())
         })
     }
 
     /// Deletes the keychain entries and rows of a profile; returns the count.
     /// If the keychain is not reachable, the affected rows stay (`io`).
     pub async fn forget_profile(&self, profile_id: &str) -> CoreResult<u32> {
-        let rows = self.db.with(|c| db::host_accounts::list(c, profile_id))?;
+        let rows = self.db.with(|c| db::credentials::list(c, profile_id))?;
         let mut removed = 0u32;
         let mut failed = 0u32;
         for row in &rows {
@@ -627,7 +627,7 @@ impl Broker {
     }
 
     /// Deletes only the keychain entries for rows already removed (profile deleted).
-    pub async fn purge_keychain(&self, rows: &[HostAccountRow]) -> u32 {
+    pub async fn purge_keychain(&self, rows: &[CredentialRow]) -> u32 {
         let service = self.service();
         let mut removed = 0u32;
         for row in rows {

@@ -1,4 +1,4 @@
-//! Table `host_accounts`: directory of the keychain entries (without the secret).
+//! Table `host_accounts`: directory of the keychain entries for credentials (without the secret).
 
 use rusqlite::{params, Connection, Row};
 
@@ -7,7 +7,7 @@ use crate::model::{HostAccount, HostAccountKind};
 use crate::util;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HostAccountRow {
+pub struct CredentialRow {
     pub id: String,
     pub profile_id: String,
     pub host: String,
@@ -18,7 +18,7 @@ pub struct HostAccountRow {
     pub created_at: String,
 }
 
-impl HostAccountRow {
+impl CredentialRow {
     pub fn to_model(&self) -> HostAccount {
         HostAccount {
             id: self.id.clone(),
@@ -37,9 +37,9 @@ fn kind_to_db(kind: HostAccountKind) -> &'static str {
     }
 }
 
-fn from_row(r: &Row) -> rusqlite::Result<HostAccountRow> {
+fn from_row(r: &Row) -> rusqlite::Result<CredentialRow> {
     let kind: String = r.get("kind")?;
-    Ok(HostAccountRow {
+    Ok(CredentialRow {
         id: r.get("id")?,
         profile_id: r.get("profile_id")?,
         host: r.get("host")?,
@@ -52,7 +52,7 @@ fn from_row(r: &Row) -> rusqlite::Result<HostAccountRow> {
 
 const COLUMNS: &str = "id, profile_id, host, username, kind, keychain_ref, created_at";
 
-pub fn list(conn: &Connection, profile_id: &str) -> CoreResult<Vec<HostAccountRow>> {
+pub fn list(conn: &Connection, profile_id: &str) -> CoreResult<Vec<CredentialRow>> {
     let mut stmt = conn.prepare(&format!("select {COLUMNS} from host_accounts where profile_id = ?1 order by host, username"))?;
     let rows = stmt.query_map([profile_id], from_row)?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows)
@@ -90,7 +90,7 @@ pub fn delete(conn: &Connection, profile_id: &str, id: &str) -> CoreResult<()> {
 }
 
 /// Deletes all entries of the profile and returns them (so the keychain can be cleaned up too).
-pub fn delete_all(conn: &Connection, profile_id: &str) -> CoreResult<Vec<HostAccountRow>> {
+pub fn delete_all(conn: &Connection, profile_id: &str) -> CoreResult<Vec<CredentialRow>> {
     let rows = list(conn, profile_id)?;
     conn.execute("delete from host_accounts where profile_id = ?1", [profile_id])?;
     Ok(rows)
