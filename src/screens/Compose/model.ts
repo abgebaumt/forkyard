@@ -116,11 +116,6 @@ function sorted(ids: string[], order: ReadonlyMap<string, number>): string[] {
 
 const isProtected = (unit: ComposeUnit | undefined) => Boolean(unit?.protected);
 
-/** Before (or without) a proposal: everything in "Don't commit". */
-export function allSkipped(units: ComposeUnit[]): Arrangement {
-  return { skip: units.map((unit) => unit.id), commits: [] };
-}
-
 /** The provider's groups. Unknown, doubled and protected units never end up in a commit; what it did not place stays in "Don't commit". */
 export function fromProposal(units: ComposeUnit[], groups: ComposeGroup[]): Arrangement {
   const order = orderOf(units);

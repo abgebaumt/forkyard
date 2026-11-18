@@ -63,13 +63,6 @@ export const formatShortDate = (value: string | number | Date) => safeFormat(sho
 /** Short SHA (7 characters). */
 export const shortSha = (sha: string) => sha.slice(0, 7);
 
-const plural = new Intl.PluralRules(locale());
-
-/** "1 file" / "3 files". For new texts prefer `t()` with `count` (plurals in the translations). */
-export function countLabel(count: number, one: string, many: string): string {
-  return `${count.toLocaleString(locale())} ${plural.select(count) === "one" ? one : many}`;
-}
-
 /** Human-readable bytes: "12,4 KB" or "12.4 KB" (UI language; `loc` lets tests pick one). */
 export function formatBytes(bytes: number, loc: string = locale()): string {
   if (bytes < 1024) return `${bytes} B`;

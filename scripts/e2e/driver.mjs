@@ -384,7 +384,7 @@ export function appBinary() {
  *                                         A folder passed in stays (for "restart the app" tests).
  * @param {number}   [options.width=1440]  inner size of the real window in CSS pixels.
  * @param {number}   [options.height=900]
- * @param {string}   [options.scenario]    e.g. "RepoManagement.manage": runs after start (see src/screens/scenarios.ts).
+ * @param {string}   [options.scenario]    e.g. "RepoManagement.manage": runs after start (see src/dev/scenarios/index.ts).
  * @param {object}   [options.params]      more URL parameters, e.g. { fixture: repo.path } – available in the scenario as ctx.params.
  * @param {"dark"|"light"} [options.theme] forces the theme (URL parameter ?theme=).
  * @param {string}   [options.language="en"] UI language (URL parameter ?lang=, debug builds only).

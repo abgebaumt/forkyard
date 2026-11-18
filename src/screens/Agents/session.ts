@@ -34,8 +34,6 @@ export function useAgentSessionWaiting(key: Id): boolean {
   return useSyncExternalStore(subscribe, () => waiting.has(key));
 }
 
-export const agentSessionKey = (agentId: Id): Id | null => links.get(agentId)?.key ?? null;
-
 /** Takes over the newest agent list of a repository: which agent tabs wait for the user. */
 export function syncAgentSessions(agents: Agent[]): void {
   let changed = false;

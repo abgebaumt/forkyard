@@ -45,8 +45,3 @@ export function toggleSolo(repoId: Id, fullName: string) {
     hiddenRefs: view.hiddenRefs.filter((item) => item !== fullName),
   }));
 }
-
-/** Clears solo for all refs. */
-export function clearSolo(repoId: Id) {
-  return patchView(repoId, t("actions.graphView.change"), () => ({ soloRefs: [] }));
-}

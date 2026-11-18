@@ -4,11 +4,11 @@
  * Usage: `?scenario=Showcase.graph`, `.diff`, `.conflict`, `.rebase`, `.settings`, `.stats`, `.reflog`,
  * `.bisect`, `.imageDiff`, `.tour` (for the GIF).
  */
-import { qk } from "../../app/queries";
-import { markBisect } from "../Bisect/actions";
-import { saveImageMode } from "../DiffView/imageDiffModel";
-import type { Scenario, ScenarioContext } from "../scenarios";
-import { openStats, rememberChoice } from "../Stats/actions";
+import { qk } from "../../../app/queries";
+import { markBisect } from "../../../screens/Bisect/actions";
+import { saveImageMode } from "../../../screens/DiffView/imageDiffModel";
+import type { Scenario, ScenarioContext } from "..";
+import { openStats, rememberChoice } from "../../../screens/Stats/actions";
 
 async function open(ctx: ScenarioContext) {
   const opened = await ctx.repo();

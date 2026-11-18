@@ -1,5 +1,5 @@
 import "./i18n";
-import { lazy, StrictMode, Suspense } from "react";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClientProvider } from "@tanstack/react-query";
 import "./styles/app.css";
@@ -16,9 +16,6 @@ import { Toaster } from "./ui/Feedback";
 import { TooltipProvider } from "./ui/Tooltip";
 import { AvatarSourceContext } from "./ui/Git";
 
-// Only for `?design`: not part of the app's start.
-const DesignPage = lazy(() => import("./design/DesignPage").then((module) => ({ default: module.DesignPage })));
-
 declare global {
   interface Window {
     __gc?: { core: Core; store: typeof useAppStore; queryClient: typeof queryClient };
@@ -27,14 +24,11 @@ declare global {
 
 const params = new URLSearchParams(window.location.search);
 
-// ?theme=light|dark forces a theme (design page, screenshots); otherwise the app sets it from the settings.
+// ?theme=light|dark forces a theme (screenshots); otherwise the app sets it from the settings.
 const theme = params.get("theme");
 if (theme === "light" || theme === "dark") {
   document.documentElement.dataset.theme = theme;
 }
-
-// ?design shows the design page instead of the app.
-const showDesign = params.has("design");
 
 installWebviewGuards({ mac: /Mac/i.test(navigator.platform), dev: import.meta.env.DEV });
 // The window itself never scrolls (focus, scrollIntoView, selections dragged past the edge).
@@ -47,7 +41,7 @@ window.addEventListener("pointerdown", () => (document.documentElement.dataset.i
 // Esc reaches the open dialog even when a success message is currently on top of it.
 installEscapeGuard();
 // Closing the window with unsaved text or a running action: ask first.
-if (!showDesign) installCloseGuard();
+installCloseGuard();
 
 // Development build only: access for the E2E driver (scripts/e2e) and the console,
 // e.g. `__gc.store.getState().openOverlay({ kind: "clone" })`.
@@ -59,19 +53,13 @@ startupMark("script");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <TooltipProvider>
-      {showDesign ? (
-        <Suspense fallback={null}>
-          <DesignPage />
-        </Suspense>
-      ) : (
-        <QueryClientProvider client={queryClient}>
-          <AvatarSourceContext.Provider value={useAvatarUrl}>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
-          </AvatarSourceContext.Provider>
-        </QueryClientProvider>
-      )}
+      <QueryClientProvider client={queryClient}>
+        <AvatarSourceContext.Provider value={useAvatarUrl}>
+          <ErrorBoundary>
+            <App />
+          </ErrorBoundary>
+        </AvatarSourceContext.Provider>
+      </QueryClientProvider>
       <Toaster />
     </TooltipProvider>
   </StrictMode>,

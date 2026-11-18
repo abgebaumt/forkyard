@@ -139,50 +139,6 @@ export function StatusBadge({ status }: { status: FileStatus }) {
   );
 }
 
-export interface FileRowProps {
-  path: string;
-  status: FileStatus;
-  /** For renames, the old path. */
-  oldPath?: string;
-  selected?: boolean;
-  lfs?: boolean;
-  additions?: number;
-  deletions?: number;
-  /** Action that appears on hover, e.g. the stage button. */
-  action?: ReactNode;
-  onSelect?: () => void;
-}
-
-export function FileRow({ path, status, oldPath, selected, lfs, additions, deletions, action, onSelect }: FileRowProps) {
-  const slash = path.lastIndexOf("/");
-  const dir = slash >= 0 ? path.slice(0, slash + 1) : "";
-  const file = slash >= 0 ? path.slice(slash + 1) : path;
-  return (
-    <div
-      role="option"
-      aria-selected={selected ?? false}
-      tabIndex={selected ? 0 : -1}
-      onClick={onSelect}
-      className={cn("group flex h-row items-center gap-2 px-2 text-base", selected ? "bg-accent-surface" : "hover:bg-surface-raised")}
-    >
-      <StatusBadge status={status} />
-      <span className="min-w-0 flex-1 truncate" title={oldPath ? `${oldPath} → ${path}` : path}>
-        <span className={cn(status === "deleted" && "line-through")}>{file}</span>
-        {dir ? <span className="ml-2 text-sm text-text-muted">{dir}</span> : null}
-      </span>
-      {lfs ? <span className="rounded-sm border border-border-input px-1 text-xs font-medium text-text-muted">LFS</span> : null}
-      {additions !== undefined || deletions !== undefined ? (
-        <span className="shrink-0 font-mono text-xs group-hover:hidden">
-          {additions ? <span className="text-success">+{additions}</span> : null}
-          {additions && deletions ? " " : null}
-          {deletions ? <span className="text-danger">−{deletions}</span> : null}
-        </span>
-      ) : null}
-      {action ? <span className="hidden shrink-0 group-focus-within:inline-flex group-hover:inline-flex">{action}</span> : null}
-    </div>
-  );
-}
-
 // ---------------------------------------------------------------------------
 // Left panel: section and tree row
 // ---------------------------------------------------------------------------

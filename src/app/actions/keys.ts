@@ -18,6 +18,3 @@ export const busyKeys = {
   write: (repoId: Id, name: string) => `${repoId}:${name}`,
   openRepo: "app:openRepo",
 };
-
-/** The network actions of a repo; while one runs, the others wait for the same lock in the core anyway. */
-export const syncKeys = (repoId: Id) => [busyKeys.fetch(repoId), busyKeys.pull(repoId), busyKeys.push(repoId)];

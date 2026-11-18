@@ -1,6 +1,5 @@
 /** Git LFS: the section for the repository settings and the same content as its own dialog. */
 import type { Id } from "../../core";
-import { useAppStore } from "../../app/store";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { LfsPanel } from "./LfsPanel";
@@ -26,9 +25,4 @@ export function LfsDialog({ repoId, onClose }: { repoId: Id; onClose: () => void
       </div>
     </Dialog>
   );
-}
-
-/** Opens the LFS dialog for the repository in the active tab. */
-export function openLfsDialog(): void {
-  useAppStore.getState().openOverlay({ kind: "lfs" });
 }

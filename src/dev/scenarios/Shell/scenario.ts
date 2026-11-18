@@ -2,7 +2,7 @@
  * Scenarios for the shell's interaction layer: credential prompts, context menus, toolbar states.
  * Usage: `?scenario=shell.credential&kind=password`, `?scenario=shell.menu&which=commit`.
  */
-import type { CredentialKind, CredentialRequest, FileChange } from "../../core";
+import type { CredentialKind, CredentialRequest, FileChange } from "../../../core";
 import {
   branchMenu,
   branchesMenu,
@@ -14,9 +14,9 @@ import {
   stashMenu,
   tagMenu,
   wipMenu,
-} from "../../app/menus";
-import { GRAPH_PAGE_SIZE, qk } from "../../app/queries";
-import type { Scenario, ScenarioContext } from "../scenarios";
+} from "../../../app/menus";
+import { GRAPH_PAGE_SIZE, qk } from "../../../app/queries";
+import type { Scenario, ScenarioContext } from "..";
 
 const credentialSamples: Record<CredentialKind, Omit<CredentialRequest, "requestId">> = {
   username: {
