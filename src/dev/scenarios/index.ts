@@ -5,7 +5,7 @@
  *
  * in it. `?scenario=WipPanel.conflict` runs `scenarios.conflict` from the folder `WipPanel` after
  * start (prefix = folder name up to the first `_`). The result is then in `document.documentElement.dataset.scenario`
- * ("running" | "done" | "error" | "unknown") – Playwright can wait for that.
+ * ("running" | "done" | "error" | "unknown") – an E2E test can wait for that.
  */
 import type { QueryClient } from "@tanstack/react-query";
 import { core, type Core, type Id, type Tab } from "../../core";

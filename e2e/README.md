@@ -1,8 +1,8 @@
 # WebDriver E2E harness
 
 End-to-end tests against the **real desktop app** (debug build) over W3C WebDriver. Works on
-Linux today; Windows is prepared but untested. It complements the CDP driver in `scripts/e2e/`,
-which only runs on Windows.
+Linux today; Windows is prepared but untested. Features are in `features/`, shared fixtures
+(repositories, host mock, local Git servers, feature helpers) in `fixtures/`.
 
 ```
 feature script ──HTTP──> tauri-driver ──> WebKitWebDriver (Linux) / msedgedriver (Windows)
@@ -74,8 +74,7 @@ newest copies are kept.
 
 The **Vite server** is shared by all launches of this checkout: ports 1431 to 1460, no HMR, own
 dependency cache (`node_modules/.vite-e2e-wd`). It identifies itself under `/__gc_root`
-(`root`, `hmr: false`, `errorHook: true`), so a server of another checkout or the CDP driver's server
-is never taken. With `FORKYARD_E2E_ERROR_HOOK=1` it serves `/__gc_e2e_hook.js` in front of the app:
+(`root`, `hmr: false`, `errorHook: true`), so a server of another checkout is never taken. With `FORKYARD_E2E_ERROR_HOOK=1` it serves `/__gc_e2e_hook.js` in front of the app:
 it records `console.error`, uncaught errors, unhandled rejections and failed resource loads in
 `window.__gcE2E.errors` from the very first moment.
 
@@ -135,7 +134,7 @@ Element objects: `{ id, click(), type(text), text(), attr(name), prop(name), rec
 
 ```js
 import { scenario, assert, assertEqual, assertIncludes, assertMatch } from "../lib.mjs";
-import { makeRichRepo } from "../../e2e/fixtures.mjs";
+import { makeRichRepo } from "../fixtures/fixtures.mjs";
 
 scenario("graph renders", "main", async (t) => {
   const repo = makeRichRepo();

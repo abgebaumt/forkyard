@@ -14,7 +14,7 @@
  *   await server.close();                                    // stops and removes the temp folder
  *
  * Called directly (to try it out):
- *   node scripts/e2e/git-http-server.mjs --user lena:geheim [--tls] [--repo <path-to-a-repo>]
+ *   node e2e/fixtures/git-http-server.mjs --user lena:geheim [--tls] [--repo <path-to-a-repo>]
  *
  * Push is allowed (http.receivepack=true in every bare repo). Every request without valid
  * credentials gets 401 – reads too, so Git always asks for credentials.
