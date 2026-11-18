@@ -38,6 +38,16 @@ pub fn truncate_str(text: &str, max: usize) -> String {
     format!("{}\n… (truncated)", &text[..end])
 }
 
+/// Each path followed by a NUL: stdin for `--pathspec-from-file=- --pathspec-file-nul`, `-z` input.
+pub fn nul_join<P: AsRef<[u8]>>(paths: &[P]) -> Vec<u8> {
+    let mut out = Vec::new();
+    for path in paths {
+        out.extend_from_slice(path.as_ref());
+        out.push(0);
+    }
+    out
+}
+
 /// Splits `-z` output at NUL bytes; a trailing NUL does not produce an empty entry.
 pub fn split_z(bytes: &[u8]) -> impl Iterator<Item = &[u8]> {
     split_records(bytes, 0)

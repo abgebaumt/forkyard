@@ -381,15 +381,6 @@ impl Drop for TempIndex {
     }
 }
 
-fn join_z(paths: &[String]) -> Vec<u8> {
-    let mut data = Vec::new();
-    for p in paths {
-        data.extend_from_slice(p.as_bytes());
-        data.push(0);
-    }
-    data
-}
-
 fn add_all(core: &Core, repo_id: &str, index: &TempIndex) -> CoreResult<GitCmd> {
     Ok(core.git_for(repo_id)?.args(["-c", "core.safecrlf=false", "add", "-A"]).env("GIT_INDEX_FILE", &index.0).literal_paths().no_log())
 }
@@ -407,7 +398,7 @@ async fn add_and_write_tree(core: &Core, repo_id: &str, index: &TempIndex, paths
         Some(paths) => {
             let out = add_all(core, repo_id, index)?
                 .args(["--pathspec-from-file=-", "--pathspec-file-nul"])
-                .stdin(join_z(paths))
+                .stdin(util::nul_join(paths))
                 .run_raw()
                 .await?;
             if !out.success() {
@@ -974,22 +965,13 @@ async fn ignored_among(core: &Core, repo_id: &str, paths: &[Vec<u8>]) -> std::co
         return Default::default();
     }
     let checked = match core.git_for(repo_id) {
-        Ok(cmd) => cmd.args(["check-ignore", "--no-index", "-z", "--stdin"]).stdin(join_z_bytes(paths)).read().run_raw().await,
+        Ok(cmd) => cmd.args(["check-ignore", "--no-index", "-z", "--stdin"]).stdin(util::nul_join(paths)).read().run_raw().await,
         Err(e) => Err(e),
     };
     match checked {
         Ok(out) if out.code == Some(0) => out.stdout_z().into_iter().map(<[u8]>::to_vec).collect(),
         _ => Default::default(),
     }
-}
-
-fn join_z_bytes(paths: &[Vec<u8>]) -> Vec<u8> {
-    let mut data = Vec::new();
-    for path in paths {
-        data.extend_from_slice(path);
-        data.push(0);
-    }
-    data
 }
 
 fn is_ignore_file(path: &[u8]) -> bool {

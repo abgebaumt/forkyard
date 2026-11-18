@@ -158,16 +158,8 @@ pub async fn read_stashes(core: &Core, repo_id: &str) -> CoreResult<Vec<Stash>> 
 
 /// Paths with open conflicts in the index (each path once).
 pub(crate) async fn unmerged_paths(core: &Core, repo_id: &str) -> CoreResult<Vec<String>> {
-    let out = core.git_for(repo_id)?.args(["ls-files", "--unmerged", "-z"]).read().run().await?;
-    let mut paths: Vec<String> = Vec::new();
-    for record in out.stdout_z() {
-        let Some(tab) = record.iter().position(|b| *b == b'\t') else { continue };
-        let path = util::decode_lossy(&record[tab + 1..]);
-        if paths.last() != Some(&path) {
-            paths.push(path);
-        }
-    }
-    Ok(paths)
+    // For messages and checks only: the names are decoded for display.
+    Ok(crate::git::index::ls_unmerged(core, repo_id).await?.iter().map(|u| util::decode_lossy(&u.path)).collect())
 }
 
 fn one_line(text: &str) -> String {

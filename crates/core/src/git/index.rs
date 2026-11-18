@@ -69,3 +69,41 @@ fn remove_stale_temp_files(dir: &Path) {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct StageEntry {
+    pub(crate) mode: String,
+    pub(crate) sha: String,
+}
+
+/// A conflicted file: path in raw bytes and stages 1 (base), 2 (ours), 3 (theirs).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Unmerged {
+    pub(crate) path: Vec<u8>,
+    pub(crate) stages: [Option<StageEntry>; 3],
+}
+
+/// Parses `git ls-files --unmerged -z`: one record per stage, "mode SHA stage TAB path".
+pub(crate) fn parse_unmerged(stdout: &[u8]) -> Vec<Unmerged> {
+    let mut out: Vec<Unmerged> = Vec::new();
+    for record in util::split_z(stdout) {
+        let Some(tab) = record.iter().position(|&b| b == b'\t') else { continue };
+        let (meta, path) = (util::decode_lossy(&record[..tab]), &record[tab + 1..]);
+        let mut parts = meta.split(' ');
+        let (Some(mode), Some(sha), Some(stage)) = (parts.next(), parts.next(), parts.next()) else { continue };
+        let Some(index) = stage.parse::<usize>().ok().filter(|s| (1..=3).contains(s)) else { continue };
+        if out.last().map(|u| u.path.as_slice()) != Some(path) {
+            out.push(Unmerged { path: path.to_vec(), stages: Default::default() });
+        }
+        if let Some(last) = out.last_mut() {
+            last.stages[index - 1] = Some(StageEntry { mode: mode.to_string(), sha: sha.to_string() });
+        }
+    }
+    out
+}
+
+/// The open conflicts of the index, one entry per path.
+pub(crate) async fn ls_unmerged(core: &Core, repo_id: &str) -> CoreResult<Vec<Unmerged>> {
+    let out = core.git_for(repo_id)?.read().args(["ls-files", "--unmerged", "-z"]).run().await?;
+    Ok(parse_unmerged(&out.stdout))
+}
