@@ -26,11 +26,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run typecheck
-      - run: npm test
-      - run: npm run check:commands
-      - run: npm run check:case
-      - run: npm run check:contrast
+      - run: npm run check
+      - name: Generated token CSS is up to date
+        run: npm run tokens && git diff --exit-code -- src/styles/tokens.css src/styles/theme.css
       - run: npm run build
 
   rust:
@@ -52,7 +50,7 @@ jobs:
             libjavascriptcoregtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev libxdo-dev libdbus-1-dev
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
         with:
-          components: clippy
+          components: clippy, rustfmt
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           # Also keep the build after a failed or cancelled run, so the next one starts warm.
@@ -62,6 +60,7 @@ jobs:
           git config --global user.name "CI"
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
+      - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
