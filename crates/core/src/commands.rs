@@ -4,6 +4,7 @@
 pub mod activity;
 pub mod agents;
 pub mod ai;
+pub mod ai_features;
 pub mod ai_search;
 pub mod app;
 pub mod archaeology;

@@ -8,7 +8,8 @@ use serde_json::json;
 
 use super::*;
 use crate::ai::prompt::Prompt;
-use crate::commands::ai::{ai_pr_description, ai_preview, ai_preview_confirm};
+use crate::commands::ai::{ai_preview, ai_preview_confirm};
+use crate::commands::ai_features::ai_pr_description;
 use crate::commands::links::host_rules;
 use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::error::{CoreResult, ErrorCode};

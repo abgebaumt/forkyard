@@ -1546,7 +1546,7 @@ pub async fn ai_push_review(
     remote_branch: Option<String>,
     locale: String,
 ) -> R<AiPushReview> {
-    c::ai::ai_push_review(&core, repo_id, job_id, branch, remote, remote_branch, locale).await
+    c::ai_features::ai_push_review(&core, repo_id, job_id, branch, remote, remote_branch, locale).await
 }
 
 #[tauri::command]
@@ -1584,7 +1584,7 @@ pub async fn changelog_insert(
 
 #[tauri::command]
 pub async fn ai_commit_message(core: State<'_, Core>, repo_id: String, job_id: String, locale: String) -> R<AiCommitMessage> {
-    c::ai::ai_commit_message(&core, repo_id, job_id, locale).await
+    c::ai_features::ai_commit_message(&core, repo_id, job_id, locale).await
 }
 
 #[tauri::command]
@@ -1606,7 +1606,7 @@ pub async fn ai_pr_description(
     target: String,
     locale: String,
 ) -> R<AiPrDescription> {
-    c::ai::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
+    c::ai_features::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
 }
 
 #[tauri::command]
@@ -1641,7 +1641,7 @@ pub async fn ai_conflict_intent(
     blocks: Vec<ConflictBlockRange>,
     locale: String,
 ) -> R<ConflictIntent> {
-    c::ai::ai_conflict_intent(&core, repo_id, job_id, path, blocks, locale).await
+    c::ai_features::ai_conflict_intent(&core, repo_id, job_id, path, blocks, locale).await
 }
 
 #[tauri::command]
@@ -1720,7 +1720,7 @@ pub async fn ai_stack_split(
     base: String,
     locale: String,
 ) -> R<AiStackSplit> {
-    c::ai::ai_stack_split(&core, repo_id, job_id, branch, base, locale).await
+    c::ai_features::ai_stack_split(&core, repo_id, job_id, branch, base, locale).await
 }
 
 #[tauri::command]
@@ -1732,7 +1732,7 @@ pub async fn ai_review_fix(
     thread_id: String,
     locale: String,
 ) -> R<AiReviewFix> {
-    c::ai::ai_review_fix(&core, repo_id, job_id, number, thread_id, locale).await
+    c::ai_features::ai_review_fix(&core, repo_id, job_id, number, thread_id, locale).await
 }
 
 #[tauri::command]

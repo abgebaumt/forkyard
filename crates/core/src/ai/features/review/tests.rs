@@ -6,7 +6,8 @@ use std::sync::Arc;
 
 use serde_json::{json, Value};
 
-use crate::commands::ai::{ai_preview, ai_review_fix};
+use crate::commands::ai::ai_preview;
+use crate::commands::ai_features::ai_review_fix;
 use crate::commands::review_fix::test_host::{pr_repo, thread, BRANCH, FILE, FIX, P1_SUBJECT};
 use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::error::ErrorCode;

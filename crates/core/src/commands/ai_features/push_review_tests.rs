@@ -3,8 +3,11 @@
 use serde_json::json;
 
 use super::*;
+use crate::ai::features::push_review::push_review_schema;
+use crate::commands::ai::{ai_preview, ai_preview_confirm};
 use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::error::ErrorCode;
+use crate::model::{AiAskTrigger, AiInput, AiProviderKind};
 use crate::model::{AiPushFinding, AiPushFindingKind, AiPushReview};
 use crate::testkit::{MockResponse, MockServer, TestCore, TestRemote, TestRepo};
 
