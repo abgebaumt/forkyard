@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use crate::app::Core;
 use crate::commands::agents::{checks, names};
-use crate::commands::{settings, worktree};
+use crate::commands::worktree;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::Job;
 use crate::model::{RepoChange, StackCheckResult, StackCheckState, StackPart};
@@ -107,7 +107,7 @@ async fn check_all(
 
 /// Runs the repository's test command on every part, one after the other, as the job `job_id`.
 pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, parts: &[StackPart]) -> CoreResult<Vec<StackCheckResult>> {
-    let repo_settings = settings::repo_settings_get(core, repo_id.to_string()).await?;
+    let repo_settings = core.repo_settings(repo_id).await?;
     let command = repo_settings
         .test_command
         .map(|command| command.trim().to_string())

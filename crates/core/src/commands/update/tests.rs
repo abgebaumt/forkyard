@@ -59,11 +59,7 @@ fn point_at(tc: &TestCore, server: &MockServer) {
 }
 
 fn stored(tc: &TestCore) -> StoredState {
-    tc.db
-        .with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == STATE_KEY).map(|(_, value)| value)))
-        .unwrap()
-        .map(|value| serde_json::from_value(value).unwrap())
-        .unwrap_or_default()
+    tc.db.with(|c| db::app_settings::get(c, STATE_KEY)).unwrap().map(|value| serde_json::from_value(value).unwrap()).unwrap_or_default()
 }
 
 fn store(tc: &TestCore, state: &StoredState) {

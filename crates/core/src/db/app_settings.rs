@@ -2,7 +2,7 @@
 //! names of `Settings` in camelCase, values are JSON. All other fields belong to the profile
 //! (table `settings`).
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
 use crate::error::CoreResult;
@@ -54,6 +54,12 @@ pub fn get_all(conn: &Connection) -> CoreResult<Vec<(String, Value)>> {
     let mut stmt = conn.prepare("select key, value from app_settings")?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows.into_iter().filter_map(|(k, v)| serde_json::from_str(&v).ok().map(|v| (k, v))).collect())
+}
+
+/// One stored value; `None` if the key is not set (or not valid JSON).
+pub fn get(conn: &Connection, key: &str) -> CoreResult<Option<Value>> {
+    let text: Option<String> = conn.query_row("select value from app_settings where key = ?1", [key], |r| r.get(0)).optional()?;
+    Ok(text.and_then(|v| serde_json::from_str(&v).ok()))
 }
 
 pub fn set(conn: &Connection, key: &str, value: &Value) -> CoreResult<()> {

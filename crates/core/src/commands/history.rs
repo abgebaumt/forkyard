@@ -55,10 +55,10 @@ fn short_rev(rev: &str) -> String {
 /// The encoding preferred in the repository (`RepoSettings.encoding`), otherwise "utf-8".
 pub(crate) fn repo_encoding(core: &Core, repo_id: &str) -> String {
     core.db
-        .with(|c| db::repo_settings::get_all(c, repo_id))
+        .with(|c| db::repo_settings::get(c, repo_id, "encoding"))
         .ok()
-        .and_then(|all| all.into_iter().find(|(k, _)| k == "encoding"))
-        .and_then(|(_, v)| v.as_str().map(|s| s.trim().to_lowercase()))
+        .flatten()
+        .and_then(|v| v.as_str().map(|s| s.trim().to_lowercase()))
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "utf-8".into())
 }

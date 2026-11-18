@@ -416,42 +416,51 @@ async fn local_git_config(core: &Core, repo_id: &str) -> CoreResult<Vec<(String,
         .collect())
 }
 
-pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoSettings> {
-    let (stored, ssh_key_id) = core.db.with(|c| {
-        db::repos::require(c, &repo_id)?;
-        let profile_id = db::profiles::active_id(c)?;
-        Ok((db::repo_settings::get_all(c, &repo_id)?, db::repo_settings::repo_ssh_key_id(c, &repo_id, &profile_id)?))
-    })?;
-    let mut settings = RepoSettings::default();
-    for (key, value) in stored {
-        // The key choice is stored per profile under `sshKeyId:<profile>` (see below).
-        if GIT_KEYS.iter().any(|(field, _)| *field == key)
-            || READ_ONLY_KEYS.contains(&key.as_str())
-            || key.starts_with("sshKeyId")
-            || key == crate::secret_scan::IGNORED_KEY
-        {
-            continue;
+impl Core {
+    /// The settings of one repository (database and `.git/config`); what features read
+    /// instead of calling the `repo_settings_get` command.
+    pub async fn repo_settings(&self, repo_id: &str) -> CoreResult<RepoSettings> {
+        let core = self;
+        let (stored, ssh_key_id) = core.db.with(|c| {
+            db::repos::require(c, repo_id)?;
+            let profile_id = db::profiles::active_id(c)?;
+            Ok((db::repo_settings::get_all(c, repo_id)?, db::repo_settings::repo_ssh_key_id(c, repo_id, &profile_id)?))
+        })?;
+        let mut settings = RepoSettings::default();
+        for (key, value) in stored {
+            // The key choice is stored per profile under `sshKeyId:<profile>` (see below).
+            if GIT_KEYS.iter().any(|(field, _)| *field == key)
+                || READ_ONLY_KEYS.contains(&key.as_str())
+                || key.starts_with("sshKeyId")
+                || key == crate::secret_scan::IGNORED_KEY
+            {
+                continue;
+            }
+            let mut one = Map::new();
+            one.insert(key, value);
+            if let Ok((next, _)) = util::apply_patch(&settings, &Value::Object(one), "Repository settings") {
+                settings = next;
+            }
         }
-        let mut one = Map::new();
-        one.insert(key, value);
-        if let Ok((next, _)) = util::apply_patch(&settings, &Value::Object(one), "Repository settings") {
-            settings = next;
-        }
+        let config = local_git_config(core, repo_id).await?;
+        let lookup = |git_key: &str| {
+            let wanted = git_key.to_lowercase();
+            config.iter().rev().find(|(k, _)| *k == wanted).map(|(_, v)| v.clone())
+        };
+        settings.hooks_path = lookup("core.hooksPath");
+        settings.commit_template = lookup("commit.template");
+        settings.author_name = lookup("user.name");
+        settings.author_email = lookup("user.email");
+        settings.commit_template_text = commit_template_text(core, repo_id).await;
+        settings.ssh_key_id = ssh_key_id;
+        settings.secret_scan_ignored_count =
+            u32::try_from(core.db.with(|c| crate::secret_scan::ignored_ids(c, repo_id))?.len()).unwrap_or(u32::MAX);
+        Ok(settings)
     }
-    let config = local_git_config(core, &repo_id).await?;
-    let lookup = |git_key: &str| {
-        let wanted = git_key.to_lowercase();
-        config.iter().rev().find(|(k, _)| *k == wanted).map(|(_, v)| v.clone())
-    };
-    settings.hooks_path = lookup("core.hooksPath");
-    settings.commit_template = lookup("commit.template");
-    settings.author_name = lookup("user.name");
-    settings.author_email = lookup("user.email");
-    settings.commit_template_text = commit_template_text(core, &repo_id).await;
-    settings.ssh_key_id = ssh_key_id;
-    settings.secret_scan_ignored_count =
-        u32::try_from(core.db.with(|c| crate::secret_scan::ignored_ids(c, &repo_id))?.len()).unwrap_or(u32::MAX);
-    Ok(settings)
+}
+
+pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoSettings> {
+    core.repo_settings(&repo_id).await
 }
 
 /// Changes only the fields passed. Git fields (hooksPath, commitTemplate, authorName,
@@ -459,7 +468,7 @@ pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoS
 /// `commitTemplateText` is read-only and skipped in a patch.
 /// `linkRules` is checked (`not_allowed` with the reason) and stored in its canonical form.
 pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> CoreResult<RepoSettings> {
-    let current = repo_settings_get(core, repo_id.clone()).await?;
+    let current = core.repo_settings(&repo_id).await?;
     let (mut next, mut changed) = util::apply_patch(&current, &patch, "Repository settings")?;
     changed.retain(|key| !READ_ONLY_KEYS.contains(&key.as_str()));
     if changed.iter().any(|k| k == "linkRules") {
@@ -536,7 +545,7 @@ pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> Co
         })
         .await?;
     }
-    repo_settings_get(core, repo_id).await
+    core.repo_settings(&repo_id).await
 }
 
 // ---------------------------------------------------------------------------

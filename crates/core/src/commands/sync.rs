@@ -386,13 +386,9 @@ pub async fn fetch_background(core: &Core, repo_id: &str, prune: bool, cancel: &
 
 /// Default for the pull mode: the repository's setting, otherwise the global one.
 pub fn default_pull_mode(core: &Core, repo_id: &str) -> CoreResult<PullMode> {
-    let stored = core.db.with(|c| db::repo_settings::get_all(c, repo_id))?;
-    for (key, value) in stored {
-        if key == "defaultPullMode" {
-            if let Ok(Some(mode)) = serde_json::from_value::<Option<PullMode>>(value) {
-                return Ok(mode);
-            }
-        }
+    let stored = core.db.with(|c| db::repo_settings::get(c, repo_id, "defaultPullMode"))?;
+    if let Some(Ok(Some(mode))) = stored.map(serde_json::from_value::<Option<PullMode>>) {
+        return Ok(mode);
     }
     Ok(core.settings()?.default_pull_mode)
 }
@@ -1226,7 +1222,7 @@ pub async fn push_scan_ignore(core: &Core, repo_id: String, ids: Vec<String>) ->
 pub async fn push_scan_forget(core: &Core, repo_id: String) -> CoreResult<crate::model::RepoSettings> {
     core.repo_path(&repo_id)?;
     core.db.with(|c| secret_scan::forget_ignored(c, &repo_id))?;
-    crate::commands::settings::repo_settings_get(core, repo_id).await
+    core.repo_settings(&repo_id).await
 }
 
 #[cfg(test)]

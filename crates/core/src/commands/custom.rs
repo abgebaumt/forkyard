@@ -91,9 +91,7 @@ fn read_repo_file(root: &Path) -> RepoFile {
 }
 
 fn load_trust(core: &Core, repo_id: &str) -> CoreResult<Option<TrustRecord>> {
-    let stored = core
-        .db
-        .with(|c| Ok(db::repo_settings::get_all(c, repo_id)?.into_iter().find(|(key, _)| key == TRUST_KEY).map(|(_, value)| value)))?;
+    let stored = core.db.with(|c| db::repo_settings::get(c, repo_id, TRUST_KEY))?;
     Ok(stored.and_then(|value| serde_json::from_value(value).ok()))
 }
 
@@ -147,8 +145,7 @@ fn file_value(commands: &[CustomCommandDef]) -> serde_json::Value {
 
 /// The user's own commands. What no longer passes the checks (stored by an older version) is left out.
 fn load_global(core: &Core) -> CoreResult<Vec<CustomCommandDef>> {
-    let stored =
-        core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == GLOBAL_KEY).map(|(_, value)| value)))?;
+    let stored = core.db.with(|c| db::app_settings::get(c, GLOBAL_KEY))?;
     let Some(value) = stored else { return Ok(Vec::new()) };
     Ok(definition::parse_file(&serde_json::to_vec(&value)?, CustomCommandSource::Global).commands)
 }

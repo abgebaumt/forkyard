@@ -368,15 +368,11 @@ async fn read_links_file(core: &Core, repo_id: &str) -> CoreResult<Option<(LinkF
 pub async fn link_rules_get(core: &Core, repo_id: String) -> CoreResult<LinkRules> {
     let stored = core.db.with(|c| {
         db::repos::require(c, &repo_id)?;
-        db::repo_settings::get_all(c, &repo_id)
+        db::repo_settings::get(c, &repo_id, "linkRules")
     })?;
     // Locked (untrusted) or missing repositories answer like every other read.
     core.repo_path(&repo_id)?;
-    let config = stored
-        .into_iter()
-        .find(|(key, _)| key == "linkRules")
-        .and_then(|(_, value)| serde_json::from_value::<LinkRulesConfig>(value).ok())
-        .unwrap_or_default();
+    let config = stored.and_then(|value| serde_json::from_value::<LinkRulesConfig>(value).ok()).unwrap_or_default();
     let mut rules = stored_rules(&config);
     let mut problems = Vec::new();
     let mut file = None;
