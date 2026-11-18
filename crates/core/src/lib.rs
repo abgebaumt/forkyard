@@ -30,9 +30,12 @@ pub mod watcher;
 #[cfg(any(test, feature = "testkit"))]
 pub mod testkit;
 
-#[cfg(test)]
-mod security_tests;
-
 pub use app::{Core, CoreConfig, WriteGuard};
 pub use error::{CoreError, CoreResult, ErrorCode};
 pub use events::{EventCollector, EventSink, NullSink};
+
+/// Tests that span several modules.
+#[cfg(test)]
+mod tests {
+    mod security;
+}
