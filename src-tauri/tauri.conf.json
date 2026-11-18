@@ -2,7 +2,6 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Forkyard",
   "mainBinaryName": "forkyard",
-  "version": "1.2.0",
   "identifier": "app.forkyard.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",

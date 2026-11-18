@@ -903,7 +903,10 @@ mod tests {
     fn the_command_line_command_is_set_up_by_the_installers() {
         let config: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
         assert_eq!(config["mainBinaryName"], "forkyard");
-        assert_eq!(config["version"].as_str(), Some(env!("CARGO_PKG_VERSION")), "forkyard --version reports the app version");
+        // Without a version here Tauri takes the one from Cargo.toml, so `forkyard --version` and the bundles agree.
+        assert!(config["version"].is_null(), "the app version lives only in Cargo.toml and package.json");
+        let package: serde_json::Value = serde_json::from_str(include_str!("../../package.json")).unwrap();
+        assert_eq!(package["version"].as_str(), Some(env!("CARGO_PKG_VERSION")), "package.json and Cargo.toml disagree");
         let windows = &config["bundle"]["windows"];
         assert_eq!(windows["nsis"]["installerHooks"], "windows/installer-hooks.nsh");
         let hooks = include_str!("../windows/installer-hooks.nsh");
