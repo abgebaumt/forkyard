@@ -145,8 +145,7 @@ fn with_preimage(patch: Vec<u8>, old_id: Option<&str>, new_id: Option<&str>) -> 
 }
 
 fn apply_cmd(core: &Core, repo_id: &str, target: RangeApplyTarget, three_way: bool, check: bool) -> CoreResult<GitCmd> {
-    let mut cmd =
-        core.git_for(repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
+    let mut cmd = core.git_for(repo_id)?.args(crate::git::GIT_APPLY);
     match (target, three_way) {
         (RangeApplyTarget::Index, _) => cmd = cmd.arg("--cached"),
         (RangeApplyTarget::Both, _) | (RangeApplyTarget::Worktree, true) => cmd = cmd.arg("--index"),

@@ -336,8 +336,6 @@ pub(crate) async fn fixup_target(
 
 /// What a takeover can change.
 const CHANGES: [RepoChange; 4] = [RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Worktree];
-/// `git apply` as line staging calls it.
-const APPLY: [&str; 6] = ["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"];
 
 /// Commits a suggested fix as `fixup! <subject of target>` on the checked-out pull request branch
 /// through the normal commit path (hooks, signing). Everything is checked again: path and lines, the
@@ -421,7 +419,7 @@ impl TakeOver<'_> {
                 format!("“{path}” has uncommitted changes. Commit or discard them first."),
             ));
         }
-        let check = core.git_for(repo_id)?.args(APPLY).args(["--check", "--index"]).stdin(patch.to_vec()).run_raw().await?;
+        let check = core.git_for(repo_id)?.args(crate::git::GIT_APPLY).args(["--check", "--index"]).stdin(patch.to_vec()).run_raw().await?;
         if !check.success() {
             return Err(CoreError::new(
                 ErrorCode::Conflict,
@@ -429,7 +427,7 @@ impl TakeOver<'_> {
             )
             .with_git_output(check.stderr_text()));
         }
-        core.git_for(repo_id)?.args(APPLY).arg("--index").stdin(patch.to_vec()).run().await?;
+        core.git_for(repo_id)?.args(crate::git::GIT_APPLY).arg("--index").stdin(patch.to_vec()).run().await?;
         if let Err(error) = commit::run_commit(core, repo_id, &["commit", "--cleanup=verbatim", "-F", "-"], message).await {
             restore(core, repo_id, path).await;
             return Err(error);

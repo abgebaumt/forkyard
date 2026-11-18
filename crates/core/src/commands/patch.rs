@@ -301,16 +301,7 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
     }
     let changes: &[RepoChange] = if check_only { &[] } else { &[RepoChange::Worktree] };
     core.with_write_lock(repo_id, changes, async {
-        let apply = || -> CoreResult<GitCmd> {
-            Ok(git(core, repo_id)?.args([
-                "-c",
-                "apply.whitespace=nowarn",
-                "-c",
-                "apply.ignoreWhitespace=no",
-                "apply",
-                "--whitespace=nowarn",
-            ]))
-        };
+        let apply = || -> CoreResult<GitCmd> { Ok(git(core, repo_id)?.args(crate::git::GIT_APPLY)) };
         let failure = |out: &crate::git::GitOutput| {
             let classified = crate::git::errors::classify("apply", out.code, &out.stdout, &out.stderr);
             if classified.is(crate::error::ErrorCode::Locked) {
