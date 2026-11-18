@@ -20,7 +20,6 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::history::normalize_rel_path;
 use crate::commands::merge::{conflict_get, is_marker_line};
 use crate::commands::refs::read_head;
 use crate::commands::status::read_operation;
@@ -31,6 +30,7 @@ use crate::model::{
     Settings,
 };
 use crate::util;
+use crate::util::normalize_rel_path;
 
 /// At most this many conflict blocks of one file go into one request.
 pub const MAX_BLOCKS: usize = 200;

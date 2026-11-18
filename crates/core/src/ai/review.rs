@@ -9,12 +9,12 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::history::{self, normalize_rel_path};
 use crate::commands::refs;
 use crate::commands::review_fix::{self, PrRange};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::host::{self, RepoApi};
 use crate::model::{AiOmitReason, AiReviewFix, Head, ReviewSide, ReviewThread, Settings};
+use crate::util::normalize_rel_path;
 
 /// Lines before and after the commented ones that the AI sees.
 pub const WINDOW: u32 = 60;
@@ -107,7 +107,7 @@ pub async fn build(
         ));
     };
     let path = normalize_rel_path(&thread.path)?;
-    if history::is_inside_git_dir(&path) {
+    if crate::util::is_inside_git_dir(&path) {
         return Err(CoreError::not_allowed("Files inside the Git directory are never changed by a fix."));
     }
     let range =
@@ -119,10 +119,10 @@ pub async fn build(
         return Err(CoreError::not_allowed(format!("“{path}” is never sent to the AI: it {}.", never_sent(reason))));
     }
     let blob = review_fix::head_blob(core, repo_id, &range.head, &path).await?;
-    if history::is_binary_content(&blob) {
+    if crate::util::is_binary_content(&blob) {
         return Err(CoreError::not_allowed(format!("“{path}” is a binary file; fixes are only suggested for text files.")));
     }
-    let (text, _) = history::decode_content(&blob, "utf-8");
+    let (text, _) = crate::util::decode_content(&blob, "utf-8");
     let mut lines: Vec<&str> = text.split('\n').collect();
     if text.ends_with('\n') {
         lines.pop();

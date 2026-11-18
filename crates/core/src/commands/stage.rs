@@ -877,13 +877,13 @@ fn remove_file_and_empty_parents(root: &Path, relative: &[u8]) -> std::io::Resul
 /// `.git`, ignored file (there would be no backup of it) → `not_allowed`; conflicted file
 /// → `conflict`; foreign index.lock → `locked` (then nothing is deleted).
 pub async fn file_delete(core: &Core, repo_id: String, path: String) -> CoreResult<Status> {
-    let rel = crate::commands::history::normalize_rel_path(&path)?;
-    if crate::commands::history::is_inside_git_dir(&rel) {
+    let rel = crate::util::normalize_rel_path(&path)?;
+    if crate::util::is_inside_git_dir(&rel) {
         return Err(CoreError::not_allowed("Nothing is deleted inside the Git directory (.git)."));
     }
     core.with_write_lock(&repo_id, &[RepoChange::Worktree], async {
         let root = core.repo_path(&repo_id)?;
-        let full = crate::commands::history::join_rel(&root, &rel);
+        let full = crate::util::join_rel(&root, &rel);
         let meta = match std::fs::symlink_metadata(&full) {
             Ok(meta) => meta,
             Err(_) => return Err(CoreError::not_found(format!("The file “{rel}” does not exist in the working directory."))),

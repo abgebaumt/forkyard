@@ -288,7 +288,7 @@ pub async fn conflict_resolve(
         }
         // Only the backup of a merge tool the app started for this file: an `.orig` file the
         // user placed next to it themselves stays.
-        let rel = crate::commands::history::normalize_rel_path(&path).unwrap_or_else(|_| path.clone());
+        let rel = crate::util::normalize_rel_path(&path).unwrap_or_else(|_| path.clone());
         let tool_ran = core.state::<crate::commands::external::MergeToolRuns>().take(repo_id, &rel);
         if tool_ran && core.settings()?.delete_orig_files {
             remove_orig_file(core, repo_id, &root, &entry.path).await;

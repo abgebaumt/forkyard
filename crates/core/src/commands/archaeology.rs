@@ -26,12 +26,13 @@ use crate::ai::{archaeology as ai_archaeology_context, run};
 use crate::app::Core;
 use crate::commands::ai::request_frame;
 use crate::commands::graph::{is_full_sha, resolve_commit, LOG_SAFE};
-use crate::commands::history::{decode_line, line_history_with_diffs, normalize_rel_path, repo_encoding, LINE_HISTORY_STEPS};
+use crate::commands::history::{line_history_with_diffs, repo_encoding, LINE_HISTORY_STEPS};
 use crate::commands::links::link_rules_get;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
 use crate::model::{AiFeature, ArchaeologyAnswer, ArchaeologyHostLookup, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, LinkRule};
 use crate::util;
+use crate::util::{decode_line, normalize_rel_path};
 
 pub use refs::{number_of, CompiledRules, MAX_REFS_PER_MESSAGE};
 

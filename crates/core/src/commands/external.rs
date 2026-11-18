@@ -13,10 +13,10 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use parking_lot::Mutex;
 
 use crate::app::Core;
-use crate::commands::history::normalize_rel_path;
 use crate::error::{CoreError, CoreResult};
 use crate::model::{DiffSource, ExternalTarget, Settings};
 use crate::util;
+use crate::util::normalize_rel_path;
 
 pub mod tools;
 

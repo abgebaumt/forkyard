@@ -7,12 +7,12 @@
 
 use crate::app::Core;
 use crate::commands::diff::TempIndex;
-use crate::commands::history::normalize_rel_path;
 use crate::commands::status::{self, read_status};
 use crate::error::{CoreError, CoreResult};
 use crate::git::GitCmd;
 use crate::model::{DiffSource, PatchText, RepoChange, Status};
 use crate::util;
+use crate::util::normalize_rel_path;
 
 /// Largest patch that `patch_apply` accepts or `patch_create` returns.
 pub const MAX_PATCH_BYTES: usize = 32 * 1024 * 1024;

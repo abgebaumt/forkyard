@@ -3,6 +3,8 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+use crate::error::{CoreError, CoreResult};
+
 /// Path bytes from Git to an OS path. Byte-exact on Unix;
 /// on Windows Git delivers UTF-8, slashes become backslashes.
 pub fn bytes_to_path(bytes: &[u8]) -> PathBuf {
@@ -94,9 +96,121 @@ pub fn path_key(path: &Path) -> String {
     }
 }
 
+/// Checks a path from the UI and brings it into Git's form: relative to the
+/// repository, with `/`, without `.` parts. Absolute, `..` or empty → `not_allowed`.
+pub fn normalize_rel_path(path: &str) -> CoreResult<String> {
+    let outside = || CoreError::not_allowed(format!("The path “{path}” is outside the repository."));
+    if path.contains('\0') {
+        return Err(CoreError::not_allowed("The path contains an invalid character."));
+    }
+    let unified = if cfg!(windows) { path.replace('\\', "/") } else { path.to_string() };
+    let bytes = unified.as_bytes();
+    let has_drive = cfg!(windows) && bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic();
+    if unified.starts_with('/') || has_drive || Path::new(&unified).is_absolute() {
+        return Err(outside());
+    }
+    let mut parts: Vec<&str> = Vec::new();
+    for part in unified.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return Err(outside()),
+            other => parts.push(other),
+        }
+    }
+    if parts.is_empty() {
+        return Err(CoreError::not_allowed("No file path was given."));
+    }
+    Ok(parts.join("/"))
+}
+
+/// Whether a path component means the Git directory (also in the spellings Windows treats as equal).
+fn is_git_component(part: &str) -> bool {
+    let mut name = part.to_lowercase();
+    if cfg!(windows) {
+        name = name.trim_end_matches(['.', ' ']).to_string();
+        if name == "git~1" {
+            return true;
+        }
+    }
+    name == ".git"
+}
+
+/// Whether the (already normalised) path points into a `.git` directory.
+pub fn is_inside_git_dir(rel: &str) -> bool {
+    rel.split('/').any(is_git_component)
+}
+
+pub(crate) fn join_rel(root: &Path, rel: &str) -> PathBuf {
+    let mut path = root.to_path_buf();
+    for part in rel.split('/') {
+        path.push(part);
+    }
+    path
+}
+
+/// Absolute path for reading. If a symlink leads out of the repository: `not_allowed`.
+pub(crate) fn resolve_for_read(root: &Path, rel: &str) -> CoreResult<PathBuf> {
+    let target = join_rel(root, rel);
+    if let (Ok(real_root), Ok(real)) = (root.canonicalize(), target.canonicalize()) {
+        if !real.starts_with(&real_root) {
+            return Err(CoreError::not_allowed(format!("“{rel}” points to a file outside the repository.")));
+        }
+    }
+    Ok(target)
+}
+
+/// Absolute path for writing. Follows symlinks as far as the path already exists, and
+/// rejects everything that would then lie outside the repository or in `.git`.
+pub(crate) fn resolve_for_write(root: &Path, rel: &str) -> CoreResult<PathBuf> {
+    let git_error = || CoreError::not_allowed("Writing to the Git directory (.git) is not allowed.");
+    if is_inside_git_dir(rel) {
+        return Err(git_error());
+    }
+    let real_root = root.canonicalize()?;
+    let target = join_rel(root, rel);
+    // Deepest part of the path that already exists.
+    let mut existing = target.clone();
+    let mut rest: Vec<std::ffi::OsString> = Vec::new();
+    while existing.symlink_metadata().is_err() {
+        match (existing.file_name().map(|n| n.to_os_string()), existing.parent().map(Path::to_path_buf)) {
+            (Some(name), Some(parent)) => {
+                rest.push(name);
+                existing = parent;
+            }
+            _ => break,
+        }
+    }
+    let real = existing.canonicalize()?;
+    let inside = real
+        .strip_prefix(&real_root)
+        .map_err(|_| CoreError::not_allowed(format!("“{rel}” points to a location outside the repository.")))?;
+    if inside.components().any(|c| is_git_component(&c.as_os_str().to_string_lossy())) {
+        return Err(git_error());
+    }
+    let mut resolved = real;
+    for name in rest.iter().rev() {
+        resolved.push(name);
+    }
+    Ok(resolved)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::ErrorCode;
+
+    #[test]
+    fn path_rules() {
+        assert_eq!(normalize_rel_path("a/b.txt").unwrap(), "a/b.txt");
+        assert_eq!(normalize_rel_path("./a//b/./c").unwrap(), "a/b/c");
+        assert_eq!(normalize_rel_path("Über uns/ä ö.txt").unwrap(), "Über uns/ä ö.txt");
+        assert_eq!(normalize_rel_path("..a/b..").unwrap(), "..a/b..");
+        for bad in ["", "/", "..", "a/..", "/a", "a\0b", "./.."] {
+            assert_eq!(normalize_rel_path(bad).unwrap_err().code, ErrorCode::NotAllowed, "{bad:?}");
+        }
+        assert!(is_inside_git_dir(".git/config") && is_inside_git_dir("a/.GIT/x") && is_inside_git_dir(".git"));
+        assert!(!is_inside_git_dir(".gitignore") && !is_inside_git_dir("a/.github/x") && !is_inside_git_dir("x.git/y"));
+    }
 
     #[test]
     fn path_keys() {
