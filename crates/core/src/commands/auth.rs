@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use crate::app::Core;
 use crate::auth::{ssh, AuthConfig};
 use crate::db;
-use crate::db::host_accounts::HostAccountRow;
+use crate::db::credentials::CredentialRow;
 use crate::db::ssh_keys::SshKeyRow;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{AppChange, HostAccount, SshKey};
@@ -31,7 +31,7 @@ pub async fn forget_profile_credentials(core: &Core, profile_id: &str) -> CoreRe
 
 /// Deletes the keychain entries for rows that have already been removed from `host_accounts`
 /// (e.g. by deleting a profile); returns the count.
-pub async fn purge_keychain_entries(core: &Core, rows: &[HostAccountRow]) -> u32 {
+pub async fn purge_keychain_entries(core: &Core, rows: &[CredentialRow]) -> u32 {
     core.git.broker().purge_keychain(rows).await
 }
 

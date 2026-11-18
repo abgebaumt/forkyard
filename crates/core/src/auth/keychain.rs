@@ -140,7 +140,7 @@ pub fn remove_test_entries(core: &crate::app::Core, service: &str) -> usize {
         .with(|c| {
             let mut all = Vec::new();
             for profile in crate::db::profiles::list(c)? {
-                all.extend(crate::db::host_accounts::list(c, &profile.id)?.into_iter().map(|row| row.keychain_ref));
+                all.extend(crate::db::credentials::list(c, &profile.id)?.into_iter().map(|row| row.keychain_ref));
             }
             Ok(all)
         })

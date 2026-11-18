@@ -636,7 +636,7 @@ pub async fn profile_delete(core: &Core, id: String) -> CoreResult<Vec<Profile>>
             return Err(CoreError::not_allowed("The active profile can't be deleted. Activate another one first."));
         }
         // The rows disappear by cascade; their keychain entries must go afterwards as well.
-        let accounts = db::host_accounts::list(tx, &id)?;
+        let accounts = db::credentials::list(tx, &id)?;
         db::profiles::delete(tx, &id)?;
         // Repositories that only this profile listed go as well.
         db::profile_repos::delete_orphans(tx)?;
