@@ -106,9 +106,8 @@ pub async fn repo_update(core: State<'_, Core>, request: tauri::ipc::Request<'_>
     let tauri::ipc::InvokeBody::Json(body) = request.body() else {
         return Err(CoreError::not_allowed("repo_update expects a JSON object."));
     };
-    let repo_id = tri_state::<String>(body, "repoId")?
-        .flatten()
-        .ok_or_else(|| CoreError::not_allowed("repo_update: “repoId” is missing."))?;
+    let repo_id =
+        tri_state::<String>(body, "repoId")?.flatten().ok_or_else(|| CoreError::not_allowed("repo_update: “repoId” is missing."))?;
     let alias = tri_state::<String>(body, "alias")?;
     let is_favorite = tri_state::<bool>(body, "isFavorite")?.flatten();
     let group_name = tri_state::<String>(body, "groupName")?;
@@ -123,7 +122,14 @@ pub async fn repo_forget(core: State<'_, Core>, repo_id: String) -> R<()> {
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn repo_clone(core: State<'_, Core>, job_id: String, url: String, parent_path: String, name: String, options: CloneOptions) -> R<OpenedRepo> {
+pub async fn repo_clone(
+    core: State<'_, Core>,
+    job_id: String,
+    url: String,
+    parent_path: String,
+    name: String,
+    options: CloneOptions,
+) -> R<OpenedRepo> {
     c::clone_init::repo_clone(&core, job_id, url, parent_path, name, options).await
 }
 
@@ -208,7 +214,14 @@ pub async fn commit_details(core: State<'_, Core>, repo_id: String, source: Diff
 }
 
 #[tauri::command]
-pub async fn commit_search(core: State<'_, Core>, repo_id: String, query: String, limit: u32, search_id: Option<String>, filters: Option<CommitSearchFilters>) -> R<Vec<CommitSummary>> {
+pub async fn commit_search(
+    core: State<'_, Core>,
+    repo_id: String,
+    query: String,
+    limit: u32,
+    search_id: Option<String>,
+    filters: Option<CommitSearchFilters>,
+) -> R<Vec<CommitSummary>> {
     c::graph::commit_search(&core, repo_id, query, limit, search_id, filters).await
 }
 
@@ -228,7 +241,13 @@ pub async fn view_state_set(core: State<'_, Core>, repo_id: String, patch: Value
 }
 
 #[tauri::command]
-pub async fn reflog_list(core: State<'_, Core>, repo_id: String, ref_name: Option<String>, cursor: Option<String>, limit: u32) -> R<ReflogPage> {
+pub async fn reflog_list(
+    core: State<'_, Core>,
+    repo_id: String,
+    ref_name: Option<String>,
+    cursor: Option<String>,
+    limit: u32,
+) -> R<ReflogPage> {
     c::reflog::reflog_list(&core, repo_id, ref_name, cursor, limit).await
 }
 
@@ -277,7 +296,14 @@ pub async fn discard_patch(core: State<'_, Core>, repo_id: String, selection: Pa
 }
 
 #[tauri::command]
-pub async fn range_apply(core: State<'_, Core>, repo_id: String, from: String, to: String, selections: Vec<PatchSelection>, target: RangeApplyTarget) -> R<Status> {
+pub async fn range_apply(
+    core: State<'_, Core>,
+    repo_id: String,
+    from: String,
+    to: String,
+    selections: Vec<PatchSelection>,
+    target: RangeApplyTarget,
+) -> R<Status> {
     c::range_apply::range_apply(&core, repo_id, from, to, selections, target).await
 }
 
@@ -288,12 +314,29 @@ pub async fn discard_paths(core: State<'_, Core>, repo_id: String, paths: Option
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn commit_create(core: State<'_, Core>, repo_id: String, op_id: String, summary: String, description: String, amend: bool, skip_hooks: bool, push_after: bool, stage_all: bool, expected_head: Option<String>) -> R<CommitResult> {
+pub async fn commit_create(
+    core: State<'_, Core>,
+    repo_id: String,
+    op_id: String,
+    summary: String,
+    description: String,
+    amend: bool,
+    skip_hooks: bool,
+    push_after: bool,
+    stage_all: bool,
+    expected_head: Option<String>,
+) -> R<CommitResult> {
     c::commit::commit_create(&core, repo_id, op_id, summary, description, amend, skip_hooks, push_after, stage_all, expected_head).await
 }
 
 #[tauri::command]
-pub async fn commit_reword(core: State<'_, Core>, repo_id: String, summary: String, description: String, sha: Option<String>) -> R<CommitResult> {
+pub async fn commit_reword(
+    core: State<'_, Core>,
+    repo_id: String,
+    summary: String,
+    description: String,
+    sha: Option<String>,
+) -> R<CommitResult> {
     c::commit::commit_reword(&core, repo_id, summary, description, sha).await
 }
 
@@ -315,7 +358,13 @@ pub async fn compose_proposal(
 }
 
 #[tauri::command]
-pub async fn compose_apply(core: State<'_, Core>, repo_id: String, job_id: String, plan: ComposePlan, expect_token: String) -> R<ComposeResult> {
+pub async fn compose_apply(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    plan: ComposePlan,
+    expect_token: String,
+) -> R<ComposeResult> {
     c::compose::compose_apply(&core, repo_id, job_id, plan, expect_token).await
 }
 
@@ -385,12 +434,24 @@ pub async fn gitflow_status(core: State<'_, Core>, repo_id: String) -> R<Gitflow
 }
 
 #[tauri::command]
-pub async fn gitflow_init(core: State<'_, Core>, repo_id: String, main: String, develop: String, prefixes: Option<GitflowPrefixes>) -> R<GitflowStatus> {
+pub async fn gitflow_init(
+    core: State<'_, Core>,
+    repo_id: String,
+    main: String,
+    develop: String,
+    prefixes: Option<GitflowPrefixes>,
+) -> R<GitflowStatus> {
     c::gitflow::gitflow_init(&core, repo_id, main, develop, prefixes).await
 }
 
 #[tauri::command]
-pub async fn gitflow_start(core: State<'_, Core>, repo_id: String, kind: GitflowKind, name: String, base: Option<String>) -> R<GitflowStatus> {
+pub async fn gitflow_start(
+    core: State<'_, Core>,
+    repo_id: String,
+    kind: GitflowKind,
+    name: String,
+    base: Option<String>,
+) -> R<GitflowStatus> {
     c::gitflow::gitflow_start(&core, repo_id, kind, name, base).await
 }
 
@@ -424,7 +485,13 @@ pub async fn conflict_get(core: State<'_, Core>, repo_id: String, path: String) 
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn conflict_resolve(core: State<'_, Core>, repo_id: String, path: String, content: Option<String>, side: Option<ConflictSide>) -> R<Status> {
+pub async fn conflict_resolve(
+    core: State<'_, Core>,
+    repo_id: String,
+    path: String,
+    content: Option<String>,
+    side: Option<ConflictSide>,
+) -> R<Status> {
     c::merge::conflict_resolve(&core, repo_id, path, content, side).await
 }
 
@@ -439,7 +506,13 @@ pub async fn operation_abort(core: State<'_, Core>, repo_id: String) -> R<Status
 }
 
 #[tauri::command]
-pub async fn rebase_start(core: State<'_, Core>, repo_id: String, onto: String, branch: Option<String>, update_refs: Option<bool>) -> R<OpResult> {
+pub async fn rebase_start(
+    core: State<'_, Core>,
+    repo_id: String,
+    onto: String,
+    branch: Option<String>,
+    update_refs: Option<bool>,
+) -> R<OpResult> {
     c::rebase::rebase_start_with(&core, repo_id, onto, branch, update_refs).await
 }
 
@@ -454,7 +527,13 @@ pub async fn rebase_dependents(core: State<'_, Core>, repo_id: String, onto: Str
 }
 
 #[tauri::command]
-pub async fn rebase_apply(core: State<'_, Core>, repo_id: String, base: String, rows: Vec<RebasePlanRow>, update_refs: Option<bool>) -> R<OpResult> {
+pub async fn rebase_apply(
+    core: State<'_, Core>,
+    repo_id: String,
+    base: String,
+    rows: Vec<RebasePlanRow>,
+    update_refs: Option<bool>,
+) -> R<OpResult> {
     c::rebase::rebase_apply_with(&core, repo_id, base, rows, update_refs).await
 }
 
@@ -504,12 +583,26 @@ pub async fn bisect_reset(core: State<'_, Core>, repo_id: String) -> R<BisectSta
 }
 
 #[tauri::command]
-pub async fn bisect_autopilot_script(core: State<'_, Core>, repo_id: String, job_id: String, request: BisectScriptRequest, locale: String) -> R<BisectScript> {
+pub async fn bisect_autopilot_script(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    request: BisectScriptRequest,
+    locale: String,
+) -> R<BisectScript> {
     c::bisect::bisect_autopilot_script(&core, repo_id, job_id, request, locale).await
 }
 
 #[tauri::command]
-pub async fn bisect_autopilot_run(core: State<'_, Core>, repo_id: String, job_id: String, bad: String, good: Vec<String>, script: String, step_timeout_secs: u64) -> R<BisectAutopilot> {
+pub async fn bisect_autopilot_run(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    bad: String,
+    good: Vec<String>,
+    script: String,
+    step_timeout_secs: u64,
+) -> R<BisectAutopilot> {
     c::bisect::bisect_autopilot_run(&core, repo_id, job_id, bad, good, script, step_timeout_secs).await
 }
 
@@ -529,13 +622,26 @@ pub async fn remote_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Remote
 }
 
 #[tauri::command]
-pub async fn remote_add(core: State<'_, Core>, repo_id: String, name: String, fetch_url: String, push_url: Option<String>) -> R<Vec<Remote>> {
+pub async fn remote_add(
+    core: State<'_, Core>,
+    repo_id: String,
+    name: String,
+    fetch_url: String,
+    push_url: Option<String>,
+) -> R<Vec<Remote>> {
     c::remotes::remote_add(&core, repo_id, name, fetch_url, push_url).await
 }
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn remote_edit(core: State<'_, Core>, repo_id: String, name: String, new_name: String, fetch_url: String, push_url: Option<String>) -> R<Vec<Remote>> {
+pub async fn remote_edit(
+    core: State<'_, Core>,
+    repo_id: String,
+    name: String,
+    new_name: String,
+    fetch_url: String,
+    push_url: Option<String>,
+) -> R<Vec<Remote>> {
     c::remotes::remote_edit(&core, repo_id, name, new_name, fetch_url, push_url).await
 }
 
@@ -618,7 +724,13 @@ pub async fn stash_pop(core: State<'_, Core>, repo_id: String, index: u32, expec
 }
 
 #[tauri::command]
-pub async fn stash_apply_paths(core: State<'_, Core>, repo_id: String, index: u32, expected_sha: Option<String>, paths: Vec<String>) -> R<Status> {
+pub async fn stash_apply_paths(
+    core: State<'_, Core>,
+    repo_id: String,
+    index: u32,
+    expected_sha: Option<String>,
+    paths: Vec<String>,
+) -> R<Status> {
     c::stash::stash_apply_paths(&core, repo_id, index, expected_sha, paths).await
 }
 
@@ -633,7 +745,13 @@ pub async fn stash_rename(core: State<'_, Core>, repo_id: String, index: u32, me
 }
 
 #[tauri::command]
-pub async fn tag_create(core: State<'_, Core>, repo_id: String, name: String, sha: Option<String>, message: Option<String>) -> R<RefsSnapshot> {
+pub async fn tag_create(
+    core: State<'_, Core>,
+    repo_id: String,
+    name: String,
+    sha: Option<String>,
+    message: Option<String>,
+) -> R<RefsSnapshot> {
     c::tags::tag_create(&core, repo_id, name, sha, message).await
 }
 
@@ -643,7 +761,14 @@ pub async fn tag_delete(core: State<'_, Core>, repo_id: String, name: String, re
 }
 
 #[tauri::command]
-pub async fn tag_push(core: State<'_, Core>, repo_id: String, job_id: String, name: String, remote: String, accepted_secrets: Option<Vec<String>>) -> R<PushResult> {
+pub async fn tag_push(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    name: String,
+    remote: String,
+    accepted_secrets: Option<Vec<String>>,
+) -> R<PushResult> {
     c::tags::tag_push_checked(&core, repo_id, job_id, name, remote, accepted_secrets).await
 }
 
@@ -663,7 +788,13 @@ pub async fn undo_peek(core: State<'_, Core>, repo_id: String) -> R<UndoState> {
 }
 
 #[tauri::command]
-pub async fn file_history(core: State<'_, Core>, repo_id: String, path: String, limit: u32, offset: Option<u32>) -> R<Vec<FileHistoryEntry>> {
+pub async fn file_history(
+    core: State<'_, Core>,
+    repo_id: String,
+    path: String,
+    limit: u32,
+    offset: Option<u32>,
+) -> R<Vec<FileHistoryEntry>> {
     c::history::file_history(&core, repo_id, path, limit, offset).await
 }
 
@@ -691,12 +822,24 @@ pub async fn ai_archaeology(
 }
 
 #[tauri::command]
-pub async fn file_blame(core: State<'_, Core>, repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> R<Vec<BlameLine>> {
+pub async fn file_blame(
+    core: State<'_, Core>,
+    repo_id: String,
+    path: String,
+    sha: Option<String>,
+    encoding: Option<String>,
+) -> R<Vec<BlameLine>> {
     c::history::file_blame(&core, repo_id, path, sha, encoding).await
 }
 
 #[tauri::command]
-pub async fn file_read(core: State<'_, Core>, repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> R<FileContent> {
+pub async fn file_read(
+    core: State<'_, Core>,
+    repo_id: String,
+    path: String,
+    sha: Option<String>,
+    encoding: Option<String>,
+) -> R<FileContent> {
     c::history::file_read(&core, repo_id, path, sha, encoding).await
 }
 
@@ -780,7 +923,12 @@ pub async fn ssh_key_generate(core: State<'_, Core>, label: String, file_name: S
 }
 
 #[tauri::command]
-pub async fn ssh_key_import(core: State<'_, Core>, label: String, private_key_path: String, public_key_path: Option<String>) -> R<Vec<SshKey>> {
+pub async fn ssh_key_import(
+    core: State<'_, Core>,
+    label: String,
+    private_key_path: String,
+    public_key_path: Option<String>,
+) -> R<Vec<SshKey>> {
     c::auth::ssh_key_import(&core, label, private_key_path, public_key_path).await
 }
 
@@ -811,7 +959,13 @@ pub async fn credentials_forget_all(core: State<'_, Core>) -> R<u32> {
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn activity_list(core: State<'_, Core>, scope: ActivityScope, repo_id: Option<String>, cursor: Option<String>, limit: u32) -> R<ActivityPage> {
+pub async fn activity_list(
+    core: State<'_, Core>,
+    scope: ActivityScope,
+    repo_id: Option<String>,
+    cursor: Option<String>,
+    limit: u32,
+) -> R<ActivityPage> {
     c::activity::activity_list(&core, scope, repo_id, cursor, limit).await
 }
 
@@ -842,7 +996,14 @@ pub async fn worktree_list(core: State<'_, Core>, repo_id: String) -> R<Vec<Work
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn worktree_add(core: State<'_, Core>, repo_id: String, path: String, branch: String, new_branch: bool, start: Option<String>) -> R<Vec<Worktree>> {
+pub async fn worktree_add(
+    core: State<'_, Core>,
+    repo_id: String,
+    path: String,
+    branch: String,
+    new_branch: bool,
+    start: Option<String>,
+) -> R<Vec<Worktree>> {
     c::worktree::worktree_add(&core, repo_id, path, branch, new_branch, start).await
 }
 
@@ -872,13 +1033,29 @@ pub async fn agent_templates(core: State<'_, Core>) -> R<Vec<AgentTemplateInfo>>
 }
 
 #[tauri::command]
-pub async fn agent_suggest(core: State<'_, Core>, repo_id: String, task: String, branch: Option<String>, base: Option<String>) -> R<AgentSuggestion> {
+pub async fn agent_suggest(
+    core: State<'_, Core>,
+    repo_id: String,
+    task: String,
+    branch: Option<String>,
+    base: Option<String>,
+) -> R<AgentSuggestion> {
     c::agents::agent_suggest(&core, repo_id, task, branch, base).await
 }
 
 #[tauri::command]
 #[allow(clippy::too_many_arguments)]
-pub async fn agent_start(core: State<'_, Core>, repo_id: String, template_id: String, task: String, branch: String, base: String, unattended: bool, cols: u16, rows: u16) -> R<Agent> {
+pub async fn agent_start(
+    core: State<'_, Core>,
+    repo_id: String,
+    template_id: String,
+    task: String,
+    branch: String,
+    base: String,
+    unattended: bool,
+    cols: u16,
+    rows: u16,
+) -> R<Agent> {
     c::agents::agent_start(&core, repo_id, template_id, task, branch, base, unattended, cols, rows).await
 }
 
@@ -974,7 +1151,13 @@ pub async fn submodule_add(core: State<'_, Core>, repo_id: String, job_id: Strin
 }
 
 #[tauri::command]
-pub async fn submodule_update(core: State<'_, Core>, repo_id: String, job_id: String, paths: Option<Vec<String>>, init: bool) -> R<Vec<Submodule>> {
+pub async fn submodule_update(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    paths: Option<Vec<String>>,
+    init: bool,
+) -> R<Vec<Submodule>> {
     c::submodule::submodule_update(&core, repo_id, job_id, paths, init).await
 }
 
@@ -1096,7 +1279,13 @@ pub async fn terminal_close(core: State<'_, Core>, terminal_id: String) -> R<()>
 }
 
 #[tauri::command]
-pub async fn open_external(core: State<'_, Core>, repo_id: String, target: ExternalTarget, path: Option<String>, source: Option<DiffSource>) -> R<()> {
+pub async fn open_external(
+    core: State<'_, Core>,
+    repo_id: String,
+    target: ExternalTarget,
+    path: Option<String>,
+    source: Option<DiffSource>,
+) -> R<()> {
     c::external::open_external(&core, repo_id, target, path, source).await
 }
 
@@ -1161,7 +1350,13 @@ pub async fn host_accounts(core: State<'_, Core>) -> R<Vec<HosterAccount>> {
 }
 
 #[tauri::command]
-pub async fn host_connect(core: State<'_, Core>, kind: HostKind, base_url: Option<String>, token: String, username: Option<String>) -> R<HosterAccount> {
+pub async fn host_connect(
+    core: State<'_, Core>,
+    kind: HostKind,
+    base_url: Option<String>,
+    token: String,
+    username: Option<String>,
+) -> R<HosterAccount> {
     c::host::host_connect(&core, kind, base_url, token, username).await
 }
 
@@ -1186,7 +1381,14 @@ pub async fn host_repo_info(core: State<'_, Core>, repo_id: String, remote: Opti
 }
 
 #[tauri::command]
-pub async fn pr_list(core: State<'_, Core>, repo_id: String, state: PrListState, page: Option<u32>, per_page: Option<u32>, remote: Option<String>) -> R<PrPage> {
+pub async fn pr_list(
+    core: State<'_, Core>,
+    repo_id: String,
+    state: PrListState,
+    page: Option<u32>,
+    per_page: Option<u32>,
+    remote: Option<String>,
+) -> R<PrPage> {
     c::host::pr_list(&core, repo_id, state, page, per_page, remote).await
 }
 
@@ -1235,7 +1437,14 @@ pub async fn pr_comment(core: State<'_, Core>, repo_id: String, number: u64, bod
 }
 
 #[tauri::command]
-pub async fn pr_merge(core: State<'_, Core>, repo_id: String, number: u64, method: PrMergeMethod, delete_branch: bool, remote: Option<String>) -> R<PrSummary> {
+pub async fn pr_merge(
+    core: State<'_, Core>,
+    repo_id: String,
+    number: u64,
+    method: PrMergeMethod,
+    delete_branch: bool,
+    remote: Option<String>,
+) -> R<PrSummary> {
     c::host::pr_merge(&core, repo_id, number, method, delete_branch, remote).await
 }
 
@@ -1265,7 +1474,14 @@ pub async fn pr_review_threads(core: State<'_, Core>, repo_id: String, number: u
 }
 
 #[tauri::command]
-pub async fn pr_review_reply(core: State<'_, Core>, repo_id: String, number: u64, thread_id: String, body: String, remote: Option<String>) -> R<ReviewReply> {
+pub async fn pr_review_reply(
+    core: State<'_, Core>,
+    repo_id: String,
+    number: u64,
+    thread_id: String,
+    body: String,
+    remote: Option<String>,
+) -> R<ReviewReply> {
     c::host::pr_review_reply(&core, repo_id, number, thread_id, body, remote).await
 }
 
@@ -1294,7 +1510,15 @@ pub async fn issue_create(core: State<'_, Core>, repo_id: String, title: String,
 }
 
 #[tauri::command]
-pub async fn release_create(core: State<'_, Core>, repo_id: String, tag: String, name: String, body: String, prerelease: bool, remote: Option<String>) -> R<HostRelease> {
+pub async fn release_create(
+    core: State<'_, Core>,
+    repo_id: String,
+    tag: String,
+    name: String,
+    body: String,
+    prerelease: bool,
+    remote: Option<String>,
+) -> R<HostRelease> {
     c::host::release_create(&core, repo_id, tag, name, body, prerelease, remote).await
 }
 
@@ -1383,12 +1607,25 @@ pub async fn release_notes_range(core: State<'_, Core>, repo_id: String, from: O
 }
 
 #[tauri::command]
-pub async fn ai_release_notes(core: State<'_, Core>, repo_id: String, job_id: String, from: Option<String>, to: Option<String>, locale: String) -> R<ReleaseNotes> {
+pub async fn ai_release_notes(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    from: Option<String>,
+    to: Option<String>,
+    locale: String,
+) -> R<ReleaseNotes> {
     c::release_notes::ai_release_notes(&core, repo_id, job_id, from, to, locale).await
 }
 
 #[tauri::command]
-pub async fn changelog_insert(core: State<'_, Core>, repo_id: String, version: String, date: String, notes: String) -> R<ChangelogInsertResult> {
+pub async fn changelog_insert(
+    core: State<'_, Core>,
+    repo_id: String,
+    version: String,
+    date: String,
+    notes: String,
+) -> R<ChangelogInsertResult> {
     c::release_notes::changelog_insert(&core, repo_id, version, date, notes).await
 }
 
@@ -1408,7 +1645,14 @@ pub async fn ai_cli_login(core: State<'_, Core>, repo_id: String, provider: AiPr
 }
 
 #[tauri::command]
-pub async fn ai_pr_description(core: State<'_, Core>, repo_id: String, job_id: String, source: String, target: String, locale: String) -> R<AiPrDescription> {
+pub async fn ai_pr_description(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    source: String,
+    target: String,
+    locale: String,
+) -> R<AiPrDescription> {
     c::ai::ai_pr_description(&core, repo_id, job_id, source, target, locale).await
 }
 
@@ -1453,7 +1697,15 @@ pub async fn stack_plan(core: State<'_, Core>, repo_id: String, branch: String, 
 }
 
 #[tauri::command]
-pub async fn stack_create(core: State<'_, Core>, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>, expected_base: String, expected_tip: String) -> R<StackStatus> {
+pub async fn stack_create(
+    core: State<'_, Core>,
+    repo_id: String,
+    branch: String,
+    base: String,
+    cuts: Vec<StackCut>,
+    expected_base: String,
+    expected_tip: String,
+) -> R<StackStatus> {
     c::stack::stack_create(&core, repo_id, branch, base, cuts, expected_base, expected_tip).await
 }
 
@@ -1483,27 +1735,61 @@ pub async fn stack_push(
 }
 
 #[tauri::command]
-pub async fn stack_prs_create(core: State<'_, Core>, repo_id: String, target: String, parts: Vec<StackPrPart>, from: u32, remote: Option<String>) -> R<StackPrOutcome> {
+pub async fn stack_prs_create(
+    core: State<'_, Core>,
+    repo_id: String,
+    target: String,
+    parts: Vec<StackPrPart>,
+    from: u32,
+    remote: Option<String>,
+) -> R<StackPrOutcome> {
     c::stack::stack_prs_create(&core, repo_id, target, parts, from, remote).await
 }
 
 #[tauri::command]
-pub async fn stack_check(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> R<Vec<StackCheckResult>> {
+pub async fn stack_check(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    branch: String,
+    base: String,
+    cuts: Vec<StackCut>,
+) -> R<Vec<StackCheckResult>> {
     c::stack::stack_check(&core, repo_id, job_id, branch, base, cuts).await
 }
 
 #[tauri::command]
-pub async fn ai_stack_split(core: State<'_, Core>, repo_id: String, job_id: String, branch: String, base: String, locale: String) -> R<AiStackSplit> {
+pub async fn ai_stack_split(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    branch: String,
+    base: String,
+    locale: String,
+) -> R<AiStackSplit> {
     c::ai::ai_stack_split(&core, repo_id, job_id, branch, base, locale).await
 }
 
 #[tauri::command]
-pub async fn ai_review_fix(core: State<'_, Core>, repo_id: String, job_id: String, number: u64, thread_id: String, locale: String) -> R<AiReviewFix> {
+pub async fn ai_review_fix(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    number: u64,
+    thread_id: String,
+    locale: String,
+) -> R<AiReviewFix> {
     c::ai::ai_review_fix(&core, repo_id, job_id, number, thread_id, locale).await
 }
 
 #[tauri::command]
-pub async fn review_fix_apply(core: State<'_, Core>, repo_id: String, number: u64, fix: ReviewFixInput, target: String) -> R<ReviewFixApplied> {
+pub async fn review_fix_apply(
+    core: State<'_, Core>,
+    repo_id: String,
+    number: u64,
+    fix: ReviewFixInput,
+    target: String,
+) -> R<ReviewFixApplied> {
     c::review_fix::review_fix_apply(&core, repo_id, number, fix, target).await
 }
 
@@ -1515,7 +1801,13 @@ pub async fn ai_semantic_status(core: State<'_, Core>, repo_id: String) -> R<AiS
 }
 
 #[tauri::command]
-pub async fn ai_semantic_search(core: State<'_, Core>, repo_id: String, job_id: String, query: String, locale: String) -> R<AiSemanticResult> {
+pub async fn ai_semantic_search(
+    core: State<'_, Core>,
+    repo_id: String,
+    job_id: String,
+    query: String,
+    locale: String,
+) -> R<AiSemanticResult> {
     c::ai_search::ai_semantic_search(&core, repo_id, job_id, query, locale).await
 }
 

@@ -23,12 +23,7 @@ fn lines_are_scrubbed_before_they_are_stored() {
     let log = log_in(Some(&home));
     log.remember_secret("Sup3rGeheim-Proxy");
     log.attach(dir.path(), "1.2.3");
-    let secrets = [
-        "ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
-        "glpat-xYz12_3-AbCdEfGhIjK",
-        "hunter2pass",
-        "Sup3rGeheim-Proxy",
-    ];
+    let secrets = ["ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789", "glpat-xYz12_3-AbCdEfGhIjK", "hunter2pass", "Sup3rGeheim-Proxy"];
     log.push_line(&format!("push with {} failed", secrets[0]));
     log.push_line(&format!("GitLab rejected {}", secrets[1]));
     log.push_line(&format!("fetch https://anna:{}@git.example.com/r.git", secrets[2]));

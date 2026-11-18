@@ -310,10 +310,17 @@ pub struct Ref {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum Head {
-    Branch { branch: String, sha: Sha },
-    Detached { sha: Sha },
+    Branch {
+        branch: String,
+        sha: Sha,
+    },
+    Detached {
+        sha: Sha,
+    },
     /// Fresh repository without a commit.
-    Unborn { branch: String },
+    Unborn {
+        branch: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -554,10 +561,17 @@ pub enum DiffSource {
     Unstaged,
     Staged,
     /// A commit against its first parent.
-    Commit { sha: Sha },
+    Commit {
+        sha: Sha,
+    },
     /// Two commits; `to: None` means working directory.
-    Range { from: Sha, to: Option<Sha> },
-    Stash { index: u32 },
+    Range {
+        from: Sha,
+        to: Option<Sha>,
+    },
+    Stash {
+        index: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1069,11 +1083,19 @@ pub struct CommitResult {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum OpResult {
-    Done { sha: Option<Sha>, fast_forward: bool, summary: String },
+    Done {
+        sha: Option<Sha>,
+        fast_forward: bool,
+        summary: String,
+    },
     UpToDate,
     /// `note`: ready-made note on this conflict (e.g. that the stash is kept),
     /// otherwise `None`.
-    Conflict { files: Vec<String>, operation: Option<Operation>, note: Option<String> },
+    Conflict {
+        files: Vec<String>,
+        operation: Option<Operation>,
+        note: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -1141,15 +1163,30 @@ pub struct PushRefResult {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum PushResult {
-    Done { remote: String, branch: String, created_upstream: bool, forced: bool },
+    Done {
+        remote: String,
+        branch: String,
+        created_upstream: bool,
+        forced: bool,
+    },
     UpToDate,
     /// The remote has commits that are missing locally.
-    Rejected { reason: String },
+    Rejected {
+        reason: String,
+    },
     /// Several refs in one push (`extra`): one result per ref, the primary branch first.
-    Multi { remote: String, atomic: bool, refs: Vec<PushRefResult> },
+    Multi {
+        remote: String,
+        atomic: bool,
+        refs: Vec<PushRefResult>,
+    },
     /// The local secret scan found added lines that look like a key; nothing was sent. Push again
     /// with `accepted_secrets` = the IDs of these findings to push anyway.
-    SecretsFound { findings: Vec<SecretFinding>, commits: u32, partial: bool },
+    SecretsFound {
+        findings: Vec<SecretFinding>,
+        commits: u32,
+        partial: bool,
+    },
 }
 
 /// Why the local secret scan before a push (v1.2, 6.2) reported a line.
@@ -1364,9 +1401,14 @@ pub enum PreviewOp {
 pub enum ConflictPreview {
     Clean,
     /// `at_commit`: in a series, the first commit that conflicts.
-    Conflicts { files: Vec<String>, at_commit: Option<Sha> },
+    Conflicts {
+        files: Vec<String>,
+        at_commit: Option<Sha>,
+    },
     /// Could not be simulated (too many commits, merge commit, unrelated history, invalid patch …).
-    Unknown { reason: String },
+    Unknown {
+        reason: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -3553,14 +3595,17 @@ mod tests {
     #[test]
     fn push_result_json() {
         assert_eq!(
-            serde_json::to_value(PushResult::Done { remote: "origin".into(), branch: "main".into(), created_upstream: true, forced: false }).unwrap(),
+            serde_json::to_value(PushResult::Done {
+                remote: "origin".into(),
+                branch: "main".into(),
+                created_upstream: true,
+                forced: false
+            })
+            .unwrap(),
             json!({"status":"done","remote":"origin","branch":"main","createdUpstream":true,"forced":false})
         );
         assert_eq!(serde_json::to_value(PushResult::UpToDate).unwrap(), json!({"status":"up_to_date"}));
-        assert_eq!(
-            serde_json::to_value(PushResult::Rejected { reason: "x".into() }).unwrap(),
-            json!({"status":"rejected","reason":"x"})
-        );
+        assert_eq!(serde_json::to_value(PushResult::Rejected { reason: "x".into() }).unwrap(), json!({"status":"rejected","reason":"x"}));
     }
 
     #[test]
@@ -3575,7 +3620,8 @@ mod tests {
             }],
             fetched_at: "2026-01-02T03:05:00.000Z".into(),
         };
-        let outcome = LfsLockOutcome { locks: list, failed: vec![LfsLockFailure { path: "plan.psd".into(), reason: "already created lock".into() }] };
+        let outcome =
+            LfsLockOutcome { locks: list, failed: vec![LfsLockFailure { path: "plan.psd".into(), reason: "already created lock".into() }] };
         assert_eq!(
             serde_json::to_value(&outcome).unwrap(),
             json!({
@@ -3639,8 +3685,11 @@ mod tests {
             serde_json::to_value(&ok).unwrap(),
             json!({"status":"ok","branch":"feature","base":"b","rows":[{"sha":"s","summary":"sum","description":"","author":{"name":"Ada","email":"ada@example.com"},"authoredAt":"2026-01-01T00:00:00.000Z","action":"reword","message":"neu"}],"rewritesPushed":false,"dependentBranches":["teil"]})
         );
-        let refused =
-            RebasePlan::Refused { reason: RebaseRefusal::NoCommonAncestor, detail: Some(RebaseRefusalDetail::NotAncestor), message: "m".into() };
+        let refused = RebasePlan::Refused {
+            reason: RebaseRefusal::NoCommonAncestor,
+            detail: Some(RebaseRefusalDetail::NotAncestor),
+            message: "m".into(),
+        };
         assert_eq!(
             serde_json::to_value(&refused).unwrap(),
             json!({"status":"refused","reason":"no_common_ancestor","detail":"not_ancestor","message":"m"})
@@ -3667,7 +3716,10 @@ mod tests {
             serde_json::to_value(ConflictPreview::Conflicts { files: vec!["a.txt".into()], at_commit: Some("c".into()) }).unwrap(),
             json!({"status":"conflicts","files":["a.txt"],"atCommit":"c"})
         );
-        assert_eq!(serde_json::to_value(ConflictPreview::Unknown { reason: "x".into() }).unwrap(), json!({"status":"unknown","reason":"x"}));
+        assert_eq!(
+            serde_json::to_value(ConflictPreview::Unknown { reason: "x".into() }).unwrap(),
+            json!({"status":"unknown","reason":"x"})
+        );
     }
 
     #[test]
@@ -4133,7 +4185,6 @@ pub struct ReviewFixApplied {
     pub undo_label: String,
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrCommit {
@@ -4248,7 +4299,6 @@ mod host_kind_tests {
         assert_eq!(HostKind::parse(""), None);
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // Crash reports
@@ -4809,7 +4859,8 @@ mod stats_json_tests {
 
     #[test]
     fn stats_range_reads_ref_and_stats_are_camel_case() {
-        let range: StatsRange = serde_json::from_value(json!({ "from": "2025-06-01T00:00:00.000Z", "to": null, "ref": "refs/heads/main" })).unwrap();
+        let range: StatsRange =
+            serde_json::from_value(json!({ "from": "2025-06-01T00:00:00.000Z", "to": null, "ref": "refs/heads/main" })).unwrap();
         assert_eq!(range, StatsRange { from: Some("2025-06-01T00:00:00.000Z".into()), to: None, reference: "refs/heads/main".into() });
         assert_eq!(serde_json::to_value(&range).unwrap()["ref"], "refs/heads/main");
 
@@ -5018,12 +5069,22 @@ mod agent_json_tests {
 
     #[test]
     fn agent_types_are_camel_case_and_template_options_default() {
-        let template: AgentTemplate = serde_json::from_value(json!({ "id": "custom:1", "name": "Mein Agent", "program": "mein-agent" })).unwrap();
+        let template: AgentTemplate =
+            serde_json::from_value(json!({ "id": "custom:1", "name": "Mein Agent", "program": "mein-agent" })).unwrap();
         assert_eq!(
             template,
-            AgentTemplate { id: "custom:1".into(), name: "Mein Agent".into(), program: "mein-agent".into(), args: vec![], unattended_args: None, resume_args: None, status_hook: false }
+            AgentTemplate {
+                id: "custom:1".into(),
+                name: "Mein Agent".into(),
+                program: "mein-agent".into(),
+                args: vec![],
+                unattended_args: None,
+                resume_args: None,
+                status_hook: false
+            }
         );
-        let full = serde_json::to_value(AgentTemplate { unattended_args: Some(vec!["--yes".into()]), status_hook: true, ..template }).unwrap();
+        let full =
+            serde_json::to_value(AgentTemplate { unattended_args: Some(vec!["--yes".into()]), status_hook: true, ..template }).unwrap();
         assert_eq!(full["unattendedArgs"], json!(["--yes"]));
         assert_eq!(full["resumeArgs"], json!(null));
         assert_eq!(full["statusHook"], json!(true));
@@ -5040,14 +5101,42 @@ mod agent_json_tests {
         assert_eq!(Agent::default().status, AgentStatus::Starting);
         assert_eq!(Agent::default().status_source, AgentStatusSource::Guess);
 
-        let all = [AgentStatus::Starting, AgentStatus::Running, AgentStatus::Waiting, AgentStatus::Done, AgentStatus::Failed, AgentStatus::Stopped, AgentStatus::Orphaned];
+        let all = [
+            AgentStatus::Starting,
+            AgentStatus::Running,
+            AgentStatus::Waiting,
+            AgentStatus::Done,
+            AgentStatus::Failed,
+            AgentStatus::Stopped,
+            AgentStatus::Orphaned,
+        ];
         let names: Vec<serde_json::Value> = all.iter().map(|s| serde_json::to_value(s).unwrap()).collect();
-        assert_eq!(names, vec![json!("starting"), json!("running"), json!("waiting"), json!("done"), json!("failed"), json!("stopped"), json!("orphaned")]);
+        assert_eq!(
+            names,
+            vec![
+                json!("starting"),
+                json!("running"),
+                json!("waiting"),
+                json!("done"),
+                json!("failed"),
+                json!("stopped"),
+                json!("orphaned")
+            ]
+        );
         assert_eq!(serde_json::to_value(AgentTemplateKind::Opencode).unwrap(), json!("opencode"));
         assert_eq!(serde_json::to_value(SectionId::Agents).unwrap(), json!("agents"));
-        let test = AgentTestResult { state: AgentTestState::Passed, exit_code: Some(0), output: "ok".into(), started_at: "2026-10-16T08:00:00.000Z".into(), finished_at: None };
+        let test = AgentTestResult {
+            state: AgentTestState::Passed,
+            exit_code: Some(0),
+            output: "ok".into(),
+            started_at: "2026-10-16T08:00:00.000Z".into(),
+            finished_at: None,
+        };
         assert_eq!(serde_json::to_value(&test).unwrap()["startedAt"], json!("2026-10-16T08:00:00.000Z"));
-        assert_eq!(serde_json::to_value(AgentsChangedEvent { repo_id: "r".into(), running: 2 }).unwrap(), json!({ "repoId": "r", "running": 2 }));
+        assert_eq!(
+            serde_json::to_value(AgentsChangedEvent { repo_id: "r".into(), running: 2 }).unwrap(),
+            json!({ "repoId": "r", "running": 2 })
+        );
 
         // Old stored settings (without the field) still load; the default is an empty list.
         assert_eq!(serde_json::to_value(Settings::default()).unwrap()["agentTemplates"], json!([]));
@@ -5289,13 +5378,23 @@ mod conflict_intent_json_tests {
                 blocks: vec![ConflictBlockRange { ours_start: 1, ours_count: 0, theirs_start: 1, theirs_count: 2 }]
             }
         );
-        assert_eq!(serde_json::to_value(AiInput::StagedChanges).unwrap(), json!({ "kind": "staged_changes" }), "the variant of 1a keeps its shape");
+        assert_eq!(
+            serde_json::to_value(AiInput::StagedChanges).unwrap(),
+            json!({ "kind": "staged_changes" }),
+            "the variant of 1a keeps its shape"
+        );
 
         let intent = ConflictIntent {
             path: "a.txt".into(),
             blocks: vec![
                 ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None },
-                ConflictIntentBlock { block: 1, sent: IntentSent::Full, ours_why: Some("x".into()), theirs_why: Some("y".into()), text: Some("z\n".into()) },
+                ConflictIntentBlock {
+                    block: 1,
+                    sent: IntentSent::Full,
+                    ours_why: Some("x".into()),
+                    theirs_why: Some("y".into()),
+                    text: Some("z\n".into()),
+                },
             ],
         };
         assert_eq!(
@@ -5312,7 +5411,8 @@ mod conflict_intent_json_tests {
             assert!(serde_json::from_value::<IntentSent>(json!(sent)).is_ok(), "{sent}");
         }
         assert!(
-            serde_json::from_value::<ConflictBlockRange>(json!({ "oursStart": -1, "oursCount": 0, "theirsStart": 0, "theirsCount": 0 })).is_err(),
+            serde_json::from_value::<ConflictBlockRange>(json!({ "oursStart": -1, "oursCount": 0, "theirsStart": 0, "theirsCount": 0 }))
+                .is_err(),
             "no negative line numbers"
         );
     }

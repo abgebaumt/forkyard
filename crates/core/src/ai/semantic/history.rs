@@ -34,7 +34,12 @@ pub struct CommitEntry {
 
 /// Newest first, at most `cap`; `true` when there were more.
 pub async fn reachable(core: &Core, path: &Path, repo_id: &str, cap: usize, token: &CancelToken) -> CoreResult<(Vec<String>, bool)> {
-    let out = read_cmd(core, path, repo_id).arg("rev-list").arg(format!("--max-count={}", cap.saturating_add(1))).args(SEARCH_REFS).run_raw().await?;
+    let out = read_cmd(core, path, repo_id)
+        .arg("rev-list")
+        .arg(format!("--max-count={}", cap.saturating_add(1)))
+        .args(SEARCH_REFS)
+        .run_raw()
+        .await?;
     token.check()?;
     if !out.success() {
         return Err(CoreError::unknown("Git could not list the commits of the repository.").with_git_output(out.stderr_text()));
@@ -196,7 +201,8 @@ mod tests {
         repo.git(&["update-ref", "refs/forkyard/undo/test", &dangling]);
         let (tc, id, path) = opened(&repo).await;
         let token = CancelToken::new();
-        let oracle: Vec<String> = repo.git(&["rev-list", "--branches", "--remotes", "--tags", "HEAD"]).lines().map(str::to_string).collect();
+        let oracle: Vec<String> =
+            repo.git(&["rev-list", "--branches", "--remotes", "--tags", "HEAD"]).lines().map(str::to_string).collect();
         let (all, capped) = reachable(&tc, &path, &id, 100, &token).await.unwrap();
         assert_eq!(all, oracle, "the same commits in the same order as Git");
         assert_eq!(all, vec![tagged.clone(), second.clone(), first], "newest first, a tag-only commit included");
@@ -270,7 +276,17 @@ mod tests {
             sha: "a".repeat(40),
             subject: "Zugang eingerichtet\r".into(),
             body: "Token ghp_abcdefghijklmnopqrstuvwxyz0123456789 entfernt\r\nZweite Zeile\r\n".into(),
-            paths: [".env.local", "config/server.key", "dump.sql", "docs/intern/plan.md", "package-lock.json", "src/zugang/Übersicht.rs", "-rf"].map(String::from).to_vec(),
+            paths: [
+                ".env.local",
+                "config/server.key",
+                "dump.sql",
+                "docs/intern/plan.md",
+                "package-lock.json",
+                "src/zugang/Übersicht.rs",
+                "-rf",
+            ]
+            .map(String::from)
+            .to_vec(),
         };
         let text = entry_text(&entry, &exclusions, &[]);
         assert!(text.starts_with("Zugang eingerichtet\nToken "), "{text}");
@@ -280,7 +296,10 @@ mod tests {
         }
         let secret_key = "eigener-schluessel-4711";
         let with_key = CommitEntry { body: format!("Schlüssel {secret_key} getauscht"), paths: Vec::new(), ..entry.clone() };
-        assert!(!entry_text(&with_key, &exclusions, &[secret_key.to_string()]).contains(secret_key), "the provider key is scrubbed literally");
+        assert!(
+            !entry_text(&with_key, &exclusions, &[secret_key.to_string()]).contains(secret_key),
+            "the provider key is scrubbed literally"
+        );
 
         let many = CommitEntry {
             subject: "ü".repeat(400),

@@ -11,7 +11,12 @@ use crate::testkit::TestRepo;
 use crate::util;
 
 pub(super) fn commit(title: &str, body: &str, units: &[&str]) -> ComposeGroup {
-    ComposeGroup { title: title.to_string(), body: body.to_string(), units: units.iter().map(|unit| unit.to_string()).collect(), reason: String::new() }
+    ComposeGroup {
+        title: title.to_string(),
+        body: body.to_string(),
+        units: units.iter().map(|unit| unit.to_string()).collect(),
+        reason: String::new(),
+    }
 }
 
 pub(super) async fn apply(tc: &Core, id: &str, state: &ComposeState, commits: Vec<ComposeGroup>) -> CoreResult<ComposeResult> {
@@ -19,7 +24,12 @@ pub(super) async fn apply(tc: &Core, id: &str, state: &ComposeState, commits: Ve
 }
 
 pub(super) fn unit<'a>(state: &'a ComposeState, path: &str, hunk: Option<u32>) -> &'a str {
-    state.units.iter().find(|u| u.path == path && u.hunk_index == hunk).map(|u| u.id.as_str()).unwrap_or_else(|| panic!("no unit {path} {hunk:?}"))
+    state
+        .units
+        .iter()
+        .find(|u| u.path == path && u.hunk_index == hunk)
+        .map(|u| u.id.as_str())
+        .unwrap_or_else(|| panic!("no unit {path} {hunk:?}"))
 }
 
 pub(super) fn backup_refs(repo: &TestRepo) -> String {
@@ -105,7 +115,8 @@ async fn whole_files_are_committed_as_they_are() {
     apply(&tc, &id, &state, vec![commit("Alles auf einmal", "", &all)]).await.unwrap();
 
     assert_eq!(repo.git(&["status", "--porcelain"]), "", "everything is committed");
-    let names: Vec<String> = repo.git(&["-c", "core.quotePath=false", "show", "--name-status", "--format=", "-M", "HEAD"]).lines().map(str::to_string).collect();
+    let names: Vec<String> =
+        repo.git(&["-c", "core.quotePath=false", "show", "--name-status", "--format=", "-M", "HEAD"]).lines().map(str::to_string).collect();
     for expected in ["A\tbild.bin", "M\tbild.psd", "M\tlib/sub", "A\tnotizen/über uns.md", "D\tweg.txt"] {
         assert!(names.iter().any(|line| line == expected), "{expected} in {names:?}");
     }

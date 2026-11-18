@@ -7,7 +7,9 @@ use serde_json::json;
 use super::github_tests::back_origin_with_a_real_repository;
 use super::*;
 use crate::host::detect::normalize_base_url;
-use crate::model::{CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState, ReviewSide};
+use crate::model::{
+    CheckRunState, ChecksState, HostRepoRef, IssueListState, IssueState, PrListState, PrMergeMethod, PrReviewState, PrState, ReviewSide,
+};
 
 const KIND: HostKind = HostKind::AzureDevops;
 const LABEL: &str = "Azure DevOps";
@@ -26,7 +28,9 @@ async fn account_and_repository_are_recognised() {
     assert_eq!(seen.header("authorization"), Some(expected.as_str()));
     assert_eq!(seen.header("x-tfs-fedauthredirect"), Some("Suppress"), "a 401 instead of a sign-in page");
     assert_eq!(fx.sent("GET", "/firma/_apis/projects")[0].query("api-version").as_deref(), Some("7.1"));
-    let error = cmd::host_connect(&fx.tc, KIND, Some(format!("{}/firma", fx.server.url())), "ErfundenUndFalsch0000000000".into(), None).await.unwrap_err();
+    let error = cmd::host_connect(&fx.tc, KIND, Some(format!("{}/firma", fx.server.url())), "ErfundenUndFalsch0000000000".into(), None)
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::HostAuthFailed);
     assert!(error.message.contains(LABEL), "{}", error.message);
     // The organization is part of the address.
@@ -41,7 +45,10 @@ async fn account_and_repository_are_recognised() {
     assert_eq!((info.kind, info.owner.as_str(), info.name.as_str()), (KIND, "projekt", "demo"), "owner = project");
     assert_eq!(info.web_url, format!("{}/firma/projekt/_git/demo", fx.server.url()));
     assert_eq!((info.default_branch.as_deref(), info.can_push), (Some("main"), None));
-    assert_eq!(info.fork_parent, Some(HostRepoRef { owner: "quelle".into(), name: "demo".into(), web_url: format!("{}/firma/quelle/_git/demo", fx.server.url()) }));
+    assert_eq!(
+        info.fork_parent,
+        Some(HostRepoRef { owner: "quelle".into(), name: "demo".into(), web_url: format!("{}/firma/quelle/_git/demo", fx.server.url()) })
+    );
     let caps = &info.capabilities;
     assert!(caps.issues && caps.pr_labels && !caps.pr_reviewers && !caps.fork_checkout && caps.draft_toggle && caps.pr_reopen);
     assert_eq!(caps.merge_methods, vec![PrMergeMethod::Merge, PrMergeMethod::Squash, PrMergeMethod::Rebase]);
@@ -70,11 +77,18 @@ async fn pull_requests_are_listed_and_read() {
     assert_eq!((by_number(4).checks, by_number(4).review_state), (Some(ChecksState::Failing), Some(PrReviewState::ChangesRequested)));
     assert_eq!((by_number(6).checks, by_number(6).review_state), (None, None));
     assert!(by_number(3).is_draft && by_number(8).is_fork && !by_number(7).is_fork);
-    assert_eq!((by_number(7).source_branch.as_str(), by_number(7).target_branch.as_str()), ("feature/login", "main"), "without refs/heads/");
+    assert_eq!(
+        (by_number(7).source_branch.as_str(), by_number(7).target_branch.as_str()),
+        ("feature/login", "main"),
+        "without refs/heads/"
+    );
     assert_eq!(by_number(1).labels.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(), vec!["bug"]);
     assert_eq!(by_number(1).web_url, format!("{}/firma/projekt/_git/demo/pullrequest/1", fx.server.url()));
     let merged = cmd::pr_list(&fx.tc, fx.id(), PrListState::Merged, None, None, None).await.unwrap();
-    assert_eq!(merged.items.iter().map(|pr| (pr.number, pr.state)).collect::<Vec<_>>(), vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]);
+    assert_eq!(
+        merged.items.iter().map(|pr| (pr.number, pr.state)).collect::<Vec<_>>(),
+        vec![(40, PrState::Merged), (30, PrState::Merged), (20, PrState::Merged), (10, PrState::Merged)]
+    );
     let closed = cmd::pr_list(&fx.tc, fx.id(), PrListState::Closed, None, None, None).await.unwrap();
     assert_eq!(closed.items.iter().map(|pr| pr.number).collect::<Vec<_>>(), vec![45, 35, 25, 15, 5]);
     let all = cmd::pr_list(&fx.tc, fx.id(), PrListState::All, None, Some(100), None).await.unwrap();
@@ -82,12 +96,28 @@ async fn pull_requests_are_listed_and_read() {
 
     let pr = cmd::pr_get(&fx.tc, fx.id(), 1, None).await.unwrap();
     assert!(pr.body.contains("**Thema 1**"));
-    assert_eq!(pr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(), vec![("mira@example.org", Some(PrReviewState::Approved))]);
-    assert_eq!(pr.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(), vec![("2-1", "Sieht gut aus."), ("3-1", "Hier bitte prüfen.")], "system comments are left out");
+    assert_eq!(
+        pr.reviewers.iter().map(|r| (r.user.login.as_str(), r.state)).collect::<Vec<_>>(),
+        vec![("mira@example.org", Some(PrReviewState::Approved))]
+    );
+    assert_eq!(
+        pr.comments.iter().map(|c| (c.id.as_str(), c.body.as_str())).collect::<Vec<_>>(),
+        vec![("2-1", "Sieht gut aus."), ("3-1", "Hier bitte prüfen.")],
+        "system comments are left out"
+    );
     assert_eq!((pr.comments[1].path.as_deref(), pr.comments[1].line), (Some("src/anmeldung.rs"), Some(42)));
-    assert_eq!((pr.commits.len(), pr.commits[0].summary.as_str(), pr.commits[0].author_name.as_str()), (2, "Meldung übersetzt", "Jonas Weber"));
-    assert_eq!(pr.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(), vec![("ci/build", CheckRunState::Passing), ("ci/docs", CheckRunState::Skipped)]);
-    assert_eq!((pr.summary.checks, pr.mergeable, pr.head_sha.as_str()), (Some(ChecksState::Passing), Some(true), format!("{:040x}", 1).as_str()));
+    assert_eq!(
+        (pr.commits.len(), pr.commits[0].summary.as_str(), pr.commits[0].author_name.as_str()),
+        (2, "Meldung übersetzt", "Jonas Weber")
+    );
+    assert_eq!(
+        pr.check_runs.iter().map(|c| (c.name.as_str(), c.state)).collect::<Vec<_>>(),
+        vec![("ci/build", CheckRunState::Passing), ("ci/docs", CheckRunState::Skipped)]
+    );
+    assert_eq!(
+        (pr.summary.checks, pr.mergeable, pr.head_sha.as_str()),
+        (Some(ChecksState::Passing), Some(true), format!("{:040x}", 1).as_str())
+    );
     assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 13, None).await.unwrap().mergeable, Some(false));
     assert_eq!(cmd::pr_get(&fx.tc, fx.id(), 999, None).await.unwrap_err().message, "Pull request #999 does not exist in projekt/demo.");
 
@@ -102,7 +132,11 @@ async fn pull_requests_are_listed_and_read() {
 async fn work_items_are_listed_searched_and_read() {
     let fx = Fixture::new(KIND).await;
     let open = cmd::issue_list(&fx.tc, fx.id(), IssueListState::Open, None, None, None, None).await.unwrap();
-    assert_eq!(open.items.iter().map(|i| i.number).collect::<Vec<_>>(), vec![11, 10, 9, 7, 6, 5, 3, 2, 1], "in the order of the query, not of the batch");
+    assert_eq!(
+        open.items.iter().map(|i| i.number).collect::<Vec<_>>(),
+        vec![11, 10, 9, 7, 6, 5, 3, 2, 1],
+        "in the order of the query, not of the batch"
+    );
     assert_eq!((open.items[0].key.as_str(), open.items[0].state, open.next_page), ("#11", IssueState::Open, None));
     assert_eq!(open.items[0].web_url, format!("{}/firma/projekt/_workitems/edit/11", fx.server.url()));
     let one = open.items.iter().find(|i| i.number == 1).unwrap();
@@ -116,7 +150,10 @@ async fn work_items_are_listed_searched_and_read() {
     );
     assert_eq!(fx.sent("GET", "/_apis/wit/workitems")[0].query("ids").as_deref(), Some("11,10,9,7,6,5,3,2,1"), "one batch for the page");
     let closed = cmd::issue_list(&fx.tc, fx.id(), IssueListState::Closed, None, None, None, None).await.unwrap();
-    assert_eq!(closed.items.iter().map(|i| (i.number, i.state)).collect::<Vec<_>>(), vec![(12, IssueState::Closed), (8, IssueState::Closed), (4, IssueState::Closed)]);
+    assert_eq!(
+        closed.items.iter().map(|i| (i.number, i.state)).collect::<Vec<_>>(),
+        vec![(12, IssueState::Closed), (8, IssueState::Closed), (4, IssueState::Closed)]
+    );
     // A quote in the search text stays inside the WIQL literal.
     fx.server.clear();
     let found = cmd::issue_list(&fx.tc, fx.id(), IssueListState::All, Some("o'brien".into()), None, None, None).await.unwrap();
@@ -162,8 +199,24 @@ async fn checkout_works_for_branches_of_the_repository_but_not_from_forks() {
 #[tokio::test]
 async fn pull_requests_are_created_changed_commented_completed_and_abandoned() {
     let fx = Fixture::new(KIND).await;
-    let created = cmd::pr_create(&fx.tc, fx.id(), "Neue Anmeldung".into(), "Text".into(), "feature/neu".into(), "main".into(), true, None, Some(vec!["bug".into()]), None).await.unwrap();
-    assert_eq!((created.number, created.title.as_str(), created.is_draft, created.source_branch.as_str()), (101, "Neue Anmeldung", true, "feature/neu"));
+    let created = cmd::pr_create(
+        &fx.tc,
+        fx.id(),
+        "Neue Anmeldung".into(),
+        "Text".into(),
+        "feature/neu".into(),
+        "main".into(),
+        true,
+        None,
+        Some(vec!["bug".into()]),
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        (created.number, created.title.as_str(), created.is_draft, created.source_branch.as_str()),
+        (101, "Neue Anmeldung", true, "feature/neu")
+    );
     let sent = &fx.sent("POST", "/pullrequests")[0];
     assert_eq!(
         sent.json(),
@@ -171,27 +224,67 @@ async fn pull_requests_are_created_changed_commented_completed_and_abandoned() {
     );
     assert_eq!(sent.query("api-version").as_deref(), Some("7.1"));
     fx.server.clear();
-    let error = cmd::pr_create(&fx.tc, fx.id(), "x".into(), String::new(), "feature/neu".into(), "main".into(), false, Some(vec!["mira".into()]), None, None).await.unwrap_err();
+    let error = cmd::pr_create(
+        &fx.tc,
+        fx.id(),
+        "x".into(),
+        String::new(),
+        "feature/neu".into(),
+        "main".into(),
+        false,
+        Some(vec!["mira".into()]),
+        None,
+        None,
+    )
+    .await
+    .unwrap_err();
     assert_eq!(error.code, ErrorCode::HostUnsupported);
     assert!(fx.server.requests().is_empty(), "reviewers need identity IDs – refused before anything goes out");
-    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None).await.unwrap_err();
+    let error = cmd::pr_create(&fx.tc, fx.id(), "Doppelt".into(), String::new(), "schon-da".into(), "main".into(), false, None, None, None)
+        .await
+        .unwrap_err();
     assert_eq!(error.code, ErrorCode::NameExists);
     assert!(error.message.contains("already an open pull request"), "{}", error.message);
-    check_error_modes(&fx, LABEL, "pr_create", || cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)).await;
+    check_error_modes(&fx, LABEL, "pr_create", || {
+        cmd::pr_create(&fx.tc, fx.id(), "Titel".into(), String::new(), "feature/neu".into(), "main".into(), false, None, None, None)
+    })
+    .await;
 
     fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 3, Some("Neuer Titel".into()), Some("Neuer Text".into()), Some("develop".into()), Some(false), None, Some(vec!["ui".into()]), None).await.unwrap();
-    assert_eq!(fx.sent("PATCH", "/pullrequests/3")[0].json(), json!({ "title": "Neuer Titel", "description": "Neuer Text", "targetRefName": "refs/heads/develop", "isDraft": false }));
+    cmd::pr_update(
+        &fx.tc,
+        fx.id(),
+        3,
+        Some("Neuer Titel".into()),
+        Some("Neuer Text".into()),
+        Some("develop".into()),
+        Some(false),
+        None,
+        Some(vec!["ui".into()]),
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        fx.sent("PATCH", "/pullrequests/3")[0].json(),
+        json!({ "title": "Neuer Titel", "description": "Neuer Text", "targetRefName": "refs/heads/develop", "isDraft": false })
+    );
     assert_eq!(fx.sent("POST", "/pullrequests/3/labels")[0].json(), json!({ "name": "ui" }));
     fx.server.clear();
     cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, None, Some(Vec::new()), None).await.unwrap();
     assert!(fx.sent("PATCH", "/pullrequests/1").is_empty(), "only labels: no PATCH");
     assert_eq!(fx.sent("DELETE", "/pullrequests/1/labels/bug").len(), 1);
-    assert_eq!(cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, Some(vec!["mira".into()]), None, None).await.unwrap_err().code, ErrorCode::HostUnsupported);
+    assert_eq!(
+        cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, Some(vec!["mira".into()]), None, None).await.unwrap_err().code,
+        ErrorCode::HostUnsupported
+    );
 
     let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
     assert_eq!((comment.id.as_str(), comment.body.as_str()), ("7-1", "Passt so."));
-    assert_eq!(fx.sent("POST", "/pullrequests/1/threads")[0].json(), json!({ "comments": [{ "parentCommentId": 0, "content": "Passt so.", "commentType": 1 }], "status": 1 }));
+    assert_eq!(
+        fx.sent("POST", "/pullrequests/1/threads")[0].json(),
+        json!({ "comments": [{ "parentCommentId": 0, "content": "Passt so.", "commentType": 1 }], "status": 1 })
+    );
 
     let merged = cmd::pr_merge(&fx.tc, fx.id(), 1, PrMergeMethod::Squash, true, None).await.unwrap();
     assert_eq!(merged.state, PrState::Merged);
@@ -222,7 +315,10 @@ async fn work_items_are_created_as_issue_or_as_bug() {
     assert!(cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities.issue_create);
     fx.server.clear();
     let created = cmd::issue_create(&fx.tc, fx.id(), " Neuer Fehler ".into(), "Zeile 1\nZeile 2 <b>".into(), None).await.unwrap();
-    assert_eq!((created.number, created.key.as_str(), created.title.as_str(), created.state), (77, "#77", "Neuer Fehler", IssueState::Open));
+    assert_eq!(
+        (created.number, created.key.as_str(), created.title.as_str(), created.state),
+        (77, "#77", "Neuer Fehler", IssueState::Open)
+    );
     assert_eq!(created.web_url, format!("{}/firma/projekt/_workitems/edit/77", fx.server.url()));
     let sent = &fx.sent("POST", "/_apis/wit/workitems/$Issue")[0];
     assert_eq!(sent.header("content-type"), Some("application/json-patch+json"));
@@ -263,8 +359,15 @@ async fn review_threads_are_the_threads_with_a_file_position() {
         ],
         "general, deleted and system-only threads are no review threads"
     );
-    let comments: Vec<_> = threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str())).collect();
-    assert_eq!(comments, vec![("91-1", Some("mira@example.org"), "Hier fehlt die Prüfung auf leer."), ("91-2", Some("jonas@example.org"), "Stimmt, mache ich.")]);
+    let comments: Vec<_> =
+        threads[0].comments.iter().map(|c| (c.id.as_str(), c.author.as_ref().map(|a| a.login.as_str()), c.body.as_str())).collect();
+    assert_eq!(
+        comments,
+        vec![
+            ("91-1", Some("mira@example.org"), "Hier fehlt die Prüfung auf leer."),
+            ("91-2", Some("jonas@example.org"), "Stimmt, mache ich.")
+        ]
+    );
     assert_eq!(fx.sent("GET", "/pullrequests/9/threads")[0].query("api-version").as_deref(), Some("7.1"));
     check_error_modes(&fx, "Azure DevOps", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
     check_broken_json(&fx, "Azure DevOps", "review threads", || cmd::pr_review_threads(&fx.tc, fx.id(), 9, None)).await;
@@ -276,14 +379,20 @@ async fn a_reply_answers_the_first_comment_of_the_thread() {
     let fx = Fixture::new(KIND).await;
     let reply = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "91".into(), "Erledigt.".into(), None).await.unwrap();
     assert!(!reply.quoted);
-    assert_eq!((reply.comment.id.as_str(), reply.comment.body.as_str(), reply.comment.path.as_deref(), reply.comment.line), ("91-3", "Erledigt.", Some("src/anmeldung.rs"), Some(42)));
+    assert_eq!(
+        (reply.comment.id.as_str(), reply.comment.body.as_str(), reply.comment.path.as_deref(), reply.comment.line),
+        ("91-3", "Erledigt.", Some("src/anmeldung.rs"), Some(42))
+    );
     let sent = fx.sent("POST", "/pullrequests/9/threads/91/comments");
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].json(), json!({ "content": "Erledigt.", "parentCommentId": 1, "commentType": 1 }));
     assert_eq!(sent[0].query("api-version").as_deref(), Some("7.1"));
     // A thread whose first comment was deleted: the answer goes to the first comment still there.
     cmd::pr_review_reply(&fx.tc, fx.id(), 9, "97".into(), "Umbenannt.".into(), None).await.unwrap();
-    assert_eq!(fx.sent("POST", "/pullrequests/9/threads/97/comments")[0].json(), json!({ "content": "Umbenannt.", "parentCommentId": 2, "commentType": 1 }));
+    assert_eq!(
+        fx.sent("POST", "/pullrequests/9/threads/97/comments")[0].json(),
+        json!({ "content": "Umbenannt.", "parentCommentId": 2, "commentType": 1 })
+    );
     let error = cmd::pr_review_reply(&fx.tc, fx.id(), 9, "4711".into(), "Danke".into(), None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::HostNotFound);
     let caps = cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities;

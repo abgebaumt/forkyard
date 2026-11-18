@@ -133,7 +133,11 @@ async fn the_first_failing_step_ends_the_plan_and_the_done_steps_stay_one_undo()
     assert!(!has_ref(&repo, "refs/heads/a"));
 
     let invalid = plan(&tc, &id, vec![step(C::BranchDelete, json!({"name": "gibt-es-nicht", "force": false}))]).await;
-    assert_eq!(run(&tc, &id, "x", &invalid, vec![]).await.unwrap_err().code, ErrorCode::NotAllowed, "a plan that is not runnable never starts");
+    assert_eq!(
+        run(&tc, &id, "x", &invalid, vec![]).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "a plan that is not runnable never starts"
+    );
 }
 
 #[tokio::test]

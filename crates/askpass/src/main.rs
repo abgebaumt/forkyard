@@ -58,18 +58,14 @@ fn main() -> ExitCode {
 
 fn ask() -> Result<Vec<u8>, String> {
     let prompt = std::env::args_os().nth(1).map(os_bytes).unwrap_or_default();
-    let port: u16 = std::env::var(PORT_ENV)
-        .ok()
-        .and_then(|p| p.trim().parse().ok())
-        .ok_or("no connection to the app (port missing)")?;
+    let port: u16 = std::env::var(PORT_ENV).ok().and_then(|p| p.trim().parse().ok()).ok_or("no connection to the app (port missing)")?;
     let token = std::env::var(TOKEN_ENV).map_err(|_| "no connection to the app (token missing)")?;
     if token.is_empty() || !token.bytes().all(|b| b.is_ascii_alphanumeric()) {
         return Err("no connection to the app (invalid token)".into());
     }
 
     let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, port);
-    let mut stream =
-        TcpStream::connect_timeout(&addr.into(), CONNECT_TIMEOUT).map_err(|_| "the app can’t be reached")?;
+    let mut stream = TcpStream::connect_timeout(&addr.into(), CONNECT_TIMEOUT).map_err(|_| "the app can’t be reached")?;
     let _ = stream.set_nodelay(true);
     let request = format!("GCAP1 {token} {}\n", to_hex(&prompt));
     stream.write_all(request.as_bytes()).and_then(|()| stream.flush()).map_err(|_| "the app can’t be reached")?;
@@ -89,10 +85,8 @@ fn report_agent_status(state: &str) -> Result<(), String> {
     if !matches!(state, "waiting" | "done" | "running") {
         return Err(format!("unknown agent status “{state}”"));
     }
-    let port: u16 = std::env::var(AGENT_PORT_ENV)
-        .ok()
-        .and_then(|p| p.trim().parse().ok())
-        .ok_or("no connection to the app (port missing)")?;
+    let port: u16 =
+        std::env::var(AGENT_PORT_ENV).ok().and_then(|p| p.trim().parse().ok()).ok_or("no connection to the app (port missing)")?;
     let token = std::env::var(AGENT_TOKEN_ENV).map_err(|_| "no connection to the app (token missing)")?;
     if token.is_empty() || !token.bytes().all(|b| b.is_ascii_alphanumeric()) {
         return Err("no connection to the app (invalid token)".into());

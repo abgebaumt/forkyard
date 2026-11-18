@@ -28,7 +28,8 @@ fn pick(diff: &TextDiff, wanted: &[(&str, &str)]) -> PatchSelection {
     let mut hunks: Vec<HunkSelection> = Vec::new();
     for (sign, text) in wanted {
         let kind = if *sign == "+" { DiffLineKind::Add } else { DiffLineKind::Remove };
-        let found = diff.hunks.iter().find_map(|h| h.lines.iter().position(|l| l.kind == kind && l.text == *text).map(|p| (h.index, p as u32)));
+        let found =
+            diff.hunks.iter().find_map(|h| h.lines.iter().position(|l| l.kind == kind && l.text == *text).map(|p| (h.index, p as u32)));
         let (hunk, pos) = found.unwrap_or_else(|| panic!("line {sign}{text} missing in {:#?}", diff.hunks));
         match hunks.iter_mut().find(|h| h.index == hunk) {
             Some(sel) => sel.lines.get_or_insert_with(Vec::new).push(pos),

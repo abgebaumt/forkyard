@@ -14,8 +14,8 @@ use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::host::{self, NewPr, NewRelease, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
 use crate::model::{
-    HostComment, HostInfoError, HostKind, HostRelease, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary, PrDetails, PrListState, PrMergeMethod, PrPage,
-    PrSummary, RepoChange, ReviewReply, ReviewThread, Status,
+    HostComment, HostInfoError, HostKind, HostRelease, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary,
+    PrDetails, PrListState, PrMergeMethod, PrPage, PrSummary, RepoChange, ReviewReply, ReviewThread, Status,
 };
 use crate::util;
 
@@ -45,7 +45,13 @@ pub async fn host_accounts(core: &Core) -> CoreResult<Vec<HosterAccount>> {
 
 /// Checks the token against the host's API and stores it in the keychain. `username`: only for
 /// hosts that sign in with user name and token (Bitbucket); ignored elsewhere.
-pub async fn host_connect(core: &Core, kind: HostKind, base_url: Option<String>, token: String, username: Option<String>) -> CoreResult<HosterAccount> {
+pub async fn host_connect(
+    core: &Core,
+    kind: HostKind,
+    base_url: Option<String>,
+    token: String,
+    username: Option<String>,
+) -> CoreResult<HosterAccount> {
     host::connect_as(core, kind, base_url, username, token).await
 }
 
@@ -118,7 +124,14 @@ pub async fn host_repo_info(core: &Core, repo_id: String, remote: Option<String>
 
 /// One page of pull requests, most recently changed first. `page` from 1; `nextPage: null` = end.
 /// (GitHub does not know "merged" as a filter – pages there may come out shorter.)
-pub async fn pr_list(core: &Core, repo_id: String, state: PrListState, page_number: Option<u32>, per_page_count: Option<u32>, remote: Option<String>) -> CoreResult<PrPage> {
+pub async fn pr_list(
+    core: &Core,
+    repo_id: String,
+    state: PrListState,
+    page_number: Option<u32>,
+    per_page_count: Option<u32>,
+    remote: Option<String>,
+) -> CoreResult<PrPage> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     host::host(api.kind).pr_list(core, &api, &repo, state, paging(page_number, per_page_count)).await
 }
@@ -174,7 +187,8 @@ pub async fn pr_create(
     }
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     let (reviewers, labels) = (clean_names(reviewers), clean_names(labels));
-    let new = NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
+    let new =
+        NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
     host::host(api.kind).pr_create(core, &api, &repo, new).await
 }
 
@@ -197,7 +211,14 @@ pub async fn pr_update(
     let reviewers = reviewers.map(|r| clean_names(Some(r)));
     let labels = labels.map(|l| clean_names(Some(l)));
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let change = PrChange { title: title.as_deref(), body: body.as_deref(), target_branch: target, draft, reviewers: reviewers.as_deref(), labels: labels.as_deref() };
+    let change = PrChange {
+        title: title.as_deref(),
+        body: body.as_deref(),
+        target_branch: target,
+        draft,
+        reviewers: reviewers.as_deref(),
+        labels: labels.as_deref(),
+    };
     host::host(api.kind).pr_update(core, &api, &repo, number, change).await
 }
 
@@ -214,7 +235,10 @@ pub async fn pr_comment(core: &Core, repo_id: String, number: u64, body: String,
 /// an API path, so only letters, digits, `_` and `-` (not first), at most 128 characters.
 fn check_thread_id(thread_id: &str) -> CoreResult<&str> {
     let id = thread_id.trim();
-    let valid = !id.is_empty() && id.len() <= 128 && !id.starts_with('-') && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+    let valid = !id.is_empty()
+        && id.len() <= 128
+        && !id.starts_with('-')
+        && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
     if valid {
         Ok(id)
     } else {
@@ -247,7 +271,14 @@ pub async fn pr_review_threads(core: &Core, repo_id: String, number: u64, remote
 /// Posts `body` as an answer in a review thread – only on the user's click. Where the host's API has no
 /// answers inside threads (`review_reply_quotes`), it becomes a new review comment on the same line that
 /// quotes the thread.
-pub async fn pr_review_reply(core: &Core, repo_id: String, number: u64, thread_id: String, body: String, remote: Option<String>) -> CoreResult<ReviewReply> {
+pub async fn pr_review_reply(
+    core: &Core,
+    repo_id: String,
+    number: u64,
+    thread_id: String,
+    body: String,
+    remote: Option<String>,
+) -> CoreResult<ReviewReply> {
     if body.trim().is_empty() {
         return Err(CoreError::new(ErrorCode::EmptyMessage, "The answer must not be empty."));
     }
@@ -255,13 +286,23 @@ pub async fn pr_review_reply(core: &Core, repo_id: String, number: u64, thread_i
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     let hoster = host::host(api.kind);
     if !hoster.capabilities().review_reply {
-        return Err(CoreError::new(ErrorCode::HostUnsupported, format!("{} offers no answers to review comments through its API.", hoster.label())));
+        return Err(CoreError::new(
+            ErrorCode::HostUnsupported,
+            format!("{} offers no answers to review comments through its API.", hoster.label()),
+        ));
     }
     hoster.review_reply(core, &api, &repo, number, &thread_id, &body).await
 }
 
 /// Merges at the host. Nothing changes locally – fetch afterwards.
-pub async fn pr_merge(core: &Core, repo_id: String, number: u64, method: PrMergeMethod, delete_branch: bool, remote: Option<String>) -> CoreResult<PrSummary> {
+pub async fn pr_merge(
+    core: &Core,
+    repo_id: String,
+    number: u64,
+    method: PrMergeMethod,
+    delete_branch: bool,
+    remote: Option<String>,
+) -> CoreResult<PrSummary> {
     let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
     host::host(api.kind).pr_merge(core, &api, &repo, number, method, delete_branch).await
 }
@@ -311,7 +352,10 @@ pub async fn pr_checkout(core: &Core, repo_id: String, number: u64, remote: Opti
         Some(hoster.pr_ref(number).ok_or_else(|| {
             CoreError::new(
                 ErrorCode::HostUnsupported,
-                format!("{} offers no branch for {word}s from forks. Add the fork as a remote and check out its branch from there.", hoster.label()),
+                format!(
+                    "{} offers no branch for {word}s from forks. Add the fork as a remote and check out its branch from there.",
+                    hoster.label()
+                ),
             )
         })?)
     };
@@ -336,7 +380,11 @@ pub async fn pr_checkout(core: &Core, repo_id: String, number: u64, remote: Opti
     core.emit_repo_changed(&repo_id, &[RepoChange::Refs]);
     fetched.map_err(|e| {
         if e.git_output.as_deref().is_some_and(|o| o.contains("couldn't find remote ref")) {
-            CoreError::new(ErrorCode::HostNotFound, format!("The remote “{remote}” does not offer the branch of {word} #{number} (anymore).")).with_git_output(e.git_output.unwrap_or_default())
+            CoreError::new(
+                ErrorCode::HostNotFound,
+                format!("The remote “{remote}” does not offer the branch of {word} #{number} (anymore)."),
+            )
+            .with_git_output(e.git_output.unwrap_or_default())
         } else {
             e
         }
@@ -355,7 +403,14 @@ pub async fn pr_checkout(core: &Core, repo_id: String, number: u64, remote: Opti
 
 /// Second part of `pr_checkout`: create or fast-forward the local branch and check it out.
 /// `tracking`: the remote branch (`origin/x`) a new local branch should follow.
-async fn checkout_fetched(core: &Core, repo_id: &str, local: &str, newest: &str, tracking: Option<String>, word: &str) -> CoreResult<Status> {
+async fn checkout_fetched(
+    core: &Core,
+    repo_id: &str,
+    local: &str,
+    newest: &str,
+    tracking: Option<String>,
+    word: &str,
+) -> CoreResult<Status> {
     let on_it = current_branch(core, repo_id).await?.as_deref() == Some(local);
     let local_exists = rev_exists(core, repo_id, &format!("refs/heads/{local}")).await?;
     if !local_exists {
@@ -363,7 +418,10 @@ async fn checkout_fetched(core: &Core, repo_id: &str, local: &str, newest: &str,
             // Creates the local branch with an upstream.
             return branches::checkout_branch(core, repo_id.to_string(), tracking).await;
         }
-        core.with_write_lock(repo_id, &[RepoChange::Refs], async { core.git_for(repo_id)?.args(["branch", "--no-track", local, newest]).run().await.map(|_| ()) }).await?;
+        core.with_write_lock(repo_id, &[RepoChange::Refs], async {
+            core.git_for(repo_id)?.args(["branch", "--no-track", local, newest]).run().await.map(|_| ())
+        })
+        .await?;
         return branches::checkout_branch(core, repo_id.to_string(), local.to_string()).await;
     }
     if !on_it {
@@ -410,14 +468,26 @@ fn read_template(path: &Path) -> Option<String> {
 
 /// Looks for a template in a folder (case-insensitive); returns its file and text.
 fn template_in(dir: &Path) -> Option<(std::path::PathBuf, String)> {
-    let mut entries: Vec<(String, std::path::PathBuf)> = std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path())).collect();
+    let mut entries: Vec<(String, std::path::PathBuf)> =
+        std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path())).collect();
     entries.sort();
-    if let Some(found) = entries.iter().filter(|(name, _)| TEMPLATE_FILES.contains(&name.as_str())).find_map(|(_, path)| read_template(path).map(|text| (path.clone(), text))) {
+    if let Some(found) = entries
+        .iter()
+        .filter(|(name, _)| TEMPLATE_FILES.contains(&name.as_str()))
+        .find_map(|(_, path)| read_template(path).map(|text| (path.clone(), text)))
+    {
         return Some(found);
     }
-    for (_, folder) in entries.iter().filter(|(name, path)| TEMPLATE_DIRS.contains(&name.as_str()) && std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir())) {
-        let mut files: Vec<(String, std::path::PathBuf)> =
-            std::fs::read_dir(folder).ok()?.filter_map(|e| e.ok()).map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path())).filter(|(name, _)| name.ends_with(".md")).collect();
+    for (_, folder) in entries
+        .iter()
+        .filter(|(name, path)| TEMPLATE_DIRS.contains(&name.as_str()) && std::fs::symlink_metadata(path).is_ok_and(|meta| meta.is_dir()))
+    {
+        let mut files: Vec<(String, std::path::PathBuf)> = std::fs::read_dir(folder)
+            .ok()?
+            .filter_map(|e| e.ok())
+            .map(|e| (e.file_name().to_string_lossy().to_lowercase(), e.path()))
+            .filter(|(name, _)| name.ends_with(".md"))
+            .collect();
         // "Default.md" first (that is how GitLab picks), otherwise by name.
         files.sort_by_key(|(name, _)| (name != "default.md", name.clone()));
         if let Some(found) = files.iter().find_map(|(_, path)| read_template(path).map(|text| (path.clone(), text))) {
@@ -435,11 +505,13 @@ pub(crate) async fn find_pr_template(core: &Core, repo_id: &str) -> CoreResult<O
     let base = root.clone();
     // A folder inside the repository that is a symlink (`docs -> ~`) is not searched either.
     let found = tokio::task::spawn_blocking(move || {
-        let inside = |folder: &str| folder.is_empty() || std::fs::symlink_metadata(root.join(folder)).is_ok_and(|meta| !meta.file_type().is_symlink());
+        let inside = |folder: &str| {
+            folder.is_empty() || std::fs::symlink_metadata(root.join(folder)).is_ok_and(|meta| !meta.file_type().is_symlink())
+        };
         folders.iter().filter(|folder| inside(folder)).find_map(|folder| template_in(&root.join(folder)))
     })
-        .await
-        .map_err(|e| CoreError::unknown(format!("The search for the template was aborted: {e}")))?;
+    .await
+    .map_err(|e| CoreError::unknown(format!("The search for the template was aborted: {e}")))?;
     Ok(found.map(|(path, text)| {
         let relative = path.strip_prefix(&base).unwrap_or(&path);
         let parts: Vec<String> = relative.components().map(|part| part.as_os_str().to_string_lossy().into_owned()).collect();
@@ -501,7 +573,15 @@ const MAX_RELEASE_BODY: usize = 125_000;
 /// `name` empty = the tag. Errors: `not_allowed` (tag name, a name with line breaks, a text
 /// longer than 125 000 characters), `not_found` (no such local tag), `name_exists` (a release for
 /// the tag exists), host errors.
-pub async fn release_create(core: &Core, repo_id: String, tag: String, name: String, body: String, prerelease: bool, remote: Option<String>) -> CoreResult<HostRelease> {
+pub async fn release_create(
+    core: &Core,
+    repo_id: String,
+    tag: String,
+    name: String,
+    body: String,
+    prerelease: bool,
+    remote: Option<String>,
+) -> CoreResult<HostRelease> {
     let tag = tag.trim().to_string();
     util::check_ref_name(&tag).map_err(CoreError::not_allowed)?;
     let name = name.trim();
@@ -513,7 +593,14 @@ pub async fn release_create(core: &Core, repo_id: String, tag: String, name: Str
         return Err(CoreError::not_allowed(format!("The release text is longer than {MAX_RELEASE_BODY} characters.")));
     }
     let spec = format!("refs/tags/{tag}^{{commit}}");
-    let out = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "--end-of-options"]).arg(&spec).read_only().no_log().run_raw().await?;
+    let out = core
+        .git_for(&repo_id)?
+        .args(["rev-parse", "--verify", "--quiet", "--end-of-options"])
+        .arg(&spec)
+        .read_only()
+        .no_log()
+        .run_raw()
+        .await?;
     let target = out.stdout_text();
     if !out.success() || target.is_empty() {
         return Err(CoreError::not_found(format!("The tag “{tag}” does not exist in this repository.")));

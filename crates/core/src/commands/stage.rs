@@ -209,7 +209,10 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
         // line endings a checkout would give it – including lines nobody touched.
         // The state before is recorded so that they keep their line endings.
         let file = util::join_from_git(&core.repo_path(&repo_id)?, &patch.path);
-        let before = std::fs::metadata(&file).ok().filter(|meta| meta.is_file() && meta.len() <= KEEP_EOL_MAX_BYTES).and_then(|_| std::fs::read(&file).ok());
+        let before = std::fs::metadata(&file)
+            .ok()
+            .filter(|meta| meta.is_file() && meta.len() <= KEEP_EOL_MAX_BYTES)
+            .and_then(|_| std::fs::read(&file).ok());
         let hunks = patch::parse_diff(&patch.bytes).into_iter().next().map(|parsed| parsed.hunks).unwrap_or_default();
         // `git apply` checks everything first and then writes: after an error nothing has changed.
         if let Err(e) = apply(core, &repo_id, patch.bytes, false, true).await {
@@ -357,7 +360,12 @@ pub(crate) fn keep_line_endings(before: &[u8], after: &[u8], hunks: &[patch::Pat
                     let content = line.content.strip_suffix(b"\r").unwrap_or(&line.content);
                     out.extend_from_slice(content);
                     if !line.no_newline {
-                        let ending = freed.pop_front().filter(|ending| !ending.is_empty()).or(last).or_else(|| old.get(at).map(|next| ending_of(next)).filter(|ending| !ending.is_empty())).unwrap_or(usual);
+                        let ending = freed
+                            .pop_front()
+                            .filter(|ending| !ending.is_empty())
+                            .or(last)
+                            .or_else(|| old.get(at).map(|next| ending_of(next)).filter(|ending| !ending.is_empty()))
+                            .unwrap_or(usual);
                         // If the `\r` is already in the content from the index, it belongs to the line.
                         out.extend_from_slice(if line.content.ends_with(b"\r") { b"\r\n" } else { ending });
                         last = Some(ending);
@@ -386,7 +394,13 @@ struct SelectedPatch {
 
 /// Reads the diff again, checks the token and builds the patch for the selection.
 /// `None`: no changed line is selected.
-async fn selected_patch(core: &Core, repo_id: &str, selection: &PatchSelection, staged: bool, direction: Direction) -> CoreResult<Option<SelectedPatch>> {
+async fn selected_patch(
+    core: &Core,
+    repo_id: &str,
+    selection: &PatchSelection,
+    staged: bool,
+    direction: Direction,
+) -> CoreResult<Option<SelectedPatch>> {
     let basis = patch_basis(core, repo_id, &selection.path, staged).await?;
     if basis.token != selection.expect {
         return Err(CoreError::stale_state());
@@ -402,7 +416,8 @@ async fn selected_patch(core: &Core, repo_id: &str, selection: &PatchSelection, 
 /// forwards or in reverse. Whitespace is neither complained about nor "fixed" – not even
 /// when the user's configuration asks for that from `git apply`.
 async fn apply(core: &Core, repo_id: &str, patch: Vec<u8>, cached: bool, reverse: bool) -> CoreResult<()> {
-    let mut cmd = git(core, repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
+    let mut cmd =
+        git(core, repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
     if cached {
         cmd = cmd.arg("--cached");
     }
@@ -679,7 +694,8 @@ pub async fn discard_paths(core: &Core, repo_id: String, paths: Option<Vec<Strin
 
 /// Entries from `git status --porcelain=v2`, paths in raw bytes.
 async fn status_entries(core: &Core, repo_id: &str) -> CoreResult<Vec<StatusEntry>> {
-    let out = quiet(core, repo_id)?.read_only().args(["status", "--porcelain=v2", "-z", "--untracked-files=all", "--find-renames"]).run().await?;
+    let out =
+        quiet(core, repo_id)?.read_only().args(["status", "--porcelain=v2", "-z", "--untracked-files=all", "--find-renames"]).run().await?;
     Ok(parse_porcelain_v2(&out.stdout).entries)
 }
 
@@ -782,7 +798,8 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
 
     let mut failure: Option<CoreError> = None;
     if !restore.is_empty() {
-        let restored = git(core, repo_id)?.args(["restore", "--worktree"]).args(PATHS_FROM_STDIN).stdin(nul_separated(&restore)).run().await;
+        let restored =
+            git(core, repo_id)?.args(["restore", "--worktree"]).args(PATHS_FROM_STDIN).stdin(nul_separated(&restore)).run().await;
         match restored {
             // Failed on the lock: nothing is discarded, nobody needs the backup.
             Err(e) if e.is(ErrorCode::Locked) => {
@@ -801,7 +818,8 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
             }
         }
         if !forget.is_empty() {
-            let forgotten = git(core, repo_id)?.args(["update-index", "--force-remove", "-z", "--stdin"]).stdin(nul_separated(&forget)).run().await;
+            let forgotten =
+                git(core, repo_id)?.args(["update-index", "--force-remove", "-z", "--stdin"]).stdin(nul_separated(&forget)).run().await;
             if let Err(e) = forgotten {
                 failure.get_or_insert(e);
             }
@@ -980,7 +998,8 @@ pub async fn file_restore(core: &Core, repo_id: String, sha: String, paths: Vec<
     if !(4..=64).contains(&sha.len()) || !sha.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(unknown_commit());
     }
-    let resolved = quiet(core, &repo_id)?.read_only().args(["rev-parse", "--verify", "--quiet", &format!("{sha}^{{commit}}")]).run_raw().await?;
+    let resolved =
+        quiet(core, &repo_id)?.read_only().args(["rev-parse", "--verify", "--quiet", &format!("{sha}^{{commit}}")]).run_raw().await?;
     if !resolved.success() {
         return Err(unknown_commit());
     }
@@ -999,7 +1018,9 @@ pub async fn file_restore(core: &Core, repo_id: String, sha: String, paths: Vec<
     for (i, path) in paths.iter().enumerate() {
         match kinds.get(i).map(String::as_str) {
             Some("blob") => {}
-            Some("tree") => return Err(CoreError::not_allowed(format!("“{path}” is a folder in this commit; only files can be restored."))),
+            Some("tree") => {
+                return Err(CoreError::not_allowed(format!("“{path}” is a folder in this commit; only files can be restored.")))
+            }
             _ => return Err(CoreError::not_found(format!("The file “{path}” does not exist in this commit."))),
         }
     }

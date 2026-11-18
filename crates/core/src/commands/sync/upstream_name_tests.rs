@@ -79,7 +79,8 @@ async fn plain_push_of_a_branch_following_another_name_pushes_nothing() {
     // With extra refs (one `git push` with several refspecs) the same.
     f.repo.git(&["tag", "qa-tag"]);
     let extra = vec![PushExtra { local: "refs/tags/qa-tag".into(), remote_name: None, force: false, expected: None }];
-    let err = push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(true), None).await.unwrap_err();
+    let err =
+        push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(true), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NoUpstream, "{err:?}");
     assert_eq!(remote_sha(&f.remote, "refs/tags/qa-tag"), None);
     assert_eq!(remote_sha(&f.remote, "refs/heads/develop"), Some(develop_before.clone()));
@@ -105,10 +106,17 @@ async fn push_default_upstream_or_tracking_pushes_to_the_upstream_like_git() {
         f.repo.git(&["config", "push.default", mode]);
         // Git's own answer for the same configuration.
         let dry = f.repo.git_output(&["push", "--dry-run", "--porcelain"]);
-        assert!(String::from_utf8_lossy(&dry.stdout).contains("refs/heads/qa/blackbox:refs/heads/develop"), "git pushes to develop with {mode}");
+        assert!(
+            String::from_utf8_lossy(&dry.stdout).contains("refs/heads/qa/blackbox:refs/heads/develop"),
+            "git pushes to develop with {mode}"
+        );
 
         let result = plain_push(&f).await.unwrap();
-        assert_eq!(result, PushResult::Done { remote: "origin".into(), branch: "develop".into(), created_upstream: false, forced: false }, "{mode}");
+        assert_eq!(
+            result,
+            PushResult::Done { remote: "origin".into(), branch: "develop".into(), created_upstream: false, forced: false },
+            "{mode}"
+        );
         assert_eq!(remote_sha(&f.remote, "refs/heads/develop"), Some(f.repo.head()), "{mode}");
         assert_eq!(remote_sha(&f.remote, "refs/heads/qa/blackbox"), None, "{mode}");
     }
@@ -127,7 +135,10 @@ async fn an_explicit_push_under_another_name_is_remembered() {
 
     // The next plain push goes where the user chose.
     f.repo.commit_file("qa2.txt", "qa2\n", "QA 2");
-    assert_eq!(plain_push(&f).await.unwrap(), PushResult::Done { remote: "origin".into(), branch: "qa-remote".into(), created_upstream: false, forced: false });
+    assert_eq!(
+        plain_push(&f).await.unwrap(),
+        PushResult::Done { remote: "origin".into(), branch: "qa-remote".into(), created_upstream: false, forced: false }
+    );
     assert_eq!(remote_sha(&f.remote, "refs/heads/qa-remote"), Some(f.repo.head()));
     assert_eq!(remote_sha(&f.remote, "refs/heads/develop"), Some(develop_before.clone()));
 

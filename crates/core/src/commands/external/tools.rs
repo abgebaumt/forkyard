@@ -133,8 +133,15 @@ async fn diff_tool(core: &Core, repo_id: &str, root: &Path, rel: &str, source: D
     let local = write_version(&dir, old_name, "LOCAL", sides.old.as_deref())?;
     // If the new side is the working directory, the tool gets the real file: changes
     // in it end up where the user expects them.
-    let remote = if sides.new_is_worktree && merged.is_file() { merged.clone() } else { write_version(&dir, rel, "REMOTE", sides.new.as_deref())? };
-    let files = ToolFiles { local: arg_path(&local), remote: arg_path(&remote), base: arg_path(&local), merged: arg_path(&merged), repo: arg_path(root) };
+    let remote =
+        if sides.new_is_worktree && merged.is_file() { merged.clone() } else { write_version(&dir, rel, "REMOTE", sides.new.as_deref())? };
+    let files = ToolFiles {
+        local: arg_path(&local),
+        remote: arg_path(&remote),
+        base: arg_path(&local),
+        merged: arg_path(&merged),
+        repo: arg_path(root),
+    };
     let args = expand_tool_template(template, &files, &[LOCAL_PLACEHOLDER, REMOTE_PLACEHOLDER], Platform::current())?;
     Ok(launch_from(args, root))
 }
@@ -174,7 +181,13 @@ async fn git_difftool(core: &Core, repo_id: &str, root: &Path, rel: &str, source
         DiffSource::Staged => args.push("--cached".into()),
         DiffSource::Commit { sha } => {
             let sha = check_sha(sha)?;
-            let parent = core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet", &format!("{sha}^")]).read_only().no_log().run_raw().await?;
+            let parent = core
+                .git_for(repo_id)?
+                .args(["rev-parse", "--verify", "--quiet", &format!("{sha}^")])
+                .read_only()
+                .no_log()
+                .run_raw()
+                .await?;
             let from = if parent.success() {
                 parent.stdout_text()
             } else if sha.len() > 40 {
@@ -337,7 +350,10 @@ fn write_version(dir: &Path, rel: &str, label: &str, content: Option<&[u8]>) -> 
     let path = dir.join(&name);
     // Safety net below the net: the final path must be a single name in `dir`.
     if path.parent() != Some(dir) || !util::is_plain_relative(Path::new(&name)) || Path::new(&name).components().count() != 1 {
-        return Err(CoreError::not_allowed(format!("The file name “{}” can't be used to store the file for the tool.", util::display_path(Path::new(rel)))));
+        return Err(CoreError::not_allowed(format!(
+            "The file name “{}” can't be used to store the file for the tool.",
+            util::display_path(Path::new(rel))
+        )));
     }
     std::fs::write(&path, content.unwrap_or_default())?;
     Ok(path)
@@ -361,7 +377,18 @@ mod tests {
         let parent = tempfile::tempdir().unwrap();
         let dir = parent.path().join("tools").join("lauf");
         std::fs::create_dir_all(&dir).unwrap();
-        for hostile in ["x\\..\\..\\raus.bat", "a/b\\..\\..\\..\\raus.cmd", "..\\..\\raus.exe", "C:\\Windows\\raus.bat", "..", ".", "sub/..", "con", "a:b.txt", "NUL.txt"] {
+        for hostile in [
+            "x\\..\\..\\raus.bat",
+            "a/b\\..\\..\\..\\raus.cmd",
+            "..\\..\\raus.exe",
+            "C:\\Windows\\raus.bat",
+            "..",
+            ".",
+            "sub/..",
+            "con",
+            "a:b.txt",
+            "NUL.txt",
+        ] {
             let written = write_version(&dir, hostile, "LOCAL", Some(b"inhalt")).unwrap();
             assert_eq!(written.parent(), Some(dir.as_path()), "{hostile} → {}", written.display());
             let name = written.file_name().unwrap().to_string_lossy().into_owned();
@@ -392,16 +419,26 @@ mod tests {
     }
 
     fn files() -> ToolFiles {
-        ToolFiles { local: "/t/a_LOCAL.txt".into(), remote: "/r/mit leer/a.txt".into(), base: "/t/a_BASE.txt".into(), merged: "/r/mit leer/a.txt".into(), repo: "/r/mit leer".into() }
+        ToolFiles {
+            local: "/t/a_LOCAL.txt".into(),
+            remote: "/r/mit leer/a.txt".into(),
+            base: "/t/a_BASE.txt".into(),
+            merged: "/r/mit leer/a.txt".into(),
+            repo: "/r/mit leer".into(),
+        }
     }
 
     #[test]
     fn tool_templates_are_filled_after_splitting() {
         let f = files();
-        let args = expand_tool_template("meld --diff {local} {remote} --output={merged}", &f, &[LOCAL_PLACEHOLDER], Platform::Linux).unwrap();
+        let args =
+            expand_tool_template("meld --diff {local} {remote} --output={merged}", &f, &[LOCAL_PLACEHOLDER], Platform::Linux).unwrap();
         assert_eq!(args, ["meld", "--diff", "/t/a_LOCAL.txt", "/r/mit leer/a.txt", "--output=/r/mit leer/a.txt"]);
         let args = expand_tool_template("'kdiff3' {base} {local} {remote} -o {merged} --cs {repo}", &f, &[], Platform::Linux).unwrap();
-        assert_eq!(args, ["kdiff3", "/t/a_BASE.txt", "/t/a_LOCAL.txt", "/r/mit leer/a.txt", "-o", "/r/mit leer/a.txt", "--cs", "/r/mit leer"]);
+        assert_eq!(
+            args,
+            ["kdiff3", "/t/a_BASE.txt", "/t/a_LOCAL.txt", "/r/mit leer/a.txt", "-o", "/r/mit leer/a.txt", "--cs", "/r/mit leer"]
+        );
         // Without placeholders, arguments are appended; {path} counts as a placeholder (the file in the working directory).
         let args = expand_tool_template("bcompare", &f, &[LOCAL_PLACEHOLDER, REMOTE_PLACEHOLDER], Platform::Linux).unwrap();
         assert_eq!(args, ["bcompare", "/t/a_LOCAL.txt", "/r/mit leer/a.txt"]);
@@ -457,7 +494,8 @@ mod tests {
         let root = tc.repo_path(&id).unwrap();
         let worktree = arg_path(&root.join("src").join("a b.txt"));
         settings_set(&tc, json!({ "externalDiffTool": "mein-diff --links {local} --rechts {remote} --repo {repo}" })).await.unwrap();
-        let open = |source: Option<DiffSource>| open_external(&tc, id.clone(), ExternalTarget::DiffTool, Some("src/a b.txt".into()), source);
+        let open =
+            |source: Option<DiffSource>| open_external(&tc, id.clone(), ExternalTarget::DiffTool, Some("src/a b.txt".into()), source);
 
         // Without a source: unstaged changes; on the right is the real file.
         open(None).await.unwrap();
@@ -626,7 +664,9 @@ mod tests {
         settings_set(&tc, json!({ "externalDiffTool": template })).await.unwrap();
         open_external(&tc, id.clone(), ExternalTarget::DiffTool, Some("a.txt".into()), None).await.unwrap();
         let deadline = std::time::Instant::now() + Duration::from_secs(30);
-        while std::fs::read_to_string(&result).map(|t| !t.contains("+neu im Arbeitsverzeichnis")).unwrap_or(true) && std::time::Instant::now() < deadline {
+        while std::fs::read_to_string(&result).map(|t| !t.contains("+neu im Arbeitsverzeichnis")).unwrap_or(true)
+            && std::time::Instant::now() < deadline
+        {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
         let patch = std::fs::read_to_string(&result).unwrap_or_default();

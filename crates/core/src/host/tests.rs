@@ -2,15 +2,15 @@
 //! in the shape of the public documentation of GitHub (REST) and GitLab (REST v4) – no real
 //! data, no call leaves this computer.
 
+mod archaeology_tests;
 mod azure_tests;
+mod bitbucket_tests;
+mod conflict_intent_tests;
+mod gitea_tests;
 mod github_tests;
 mod gitlab_tests;
-mod bitbucket_tests;
-mod gitea_tests;
-mod archaeology_tests;
-mod conflict_intent_tests;
-mod stack_tests;
 mod mocks;
+mod stack_tests;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -101,7 +101,9 @@ impl Fixture {
             options.backoff = Duration::from_millis(5);
             options.retries = 1;
         });
-        let account = crate::host::connect_as(&tc, kind, Some(mock_base(kind, &server.url())), mock_username(kind), TOKEN.to_string()).await.expect("connect account");
+        let account = crate::host::connect_as(&tc, kind, Some(mock_base(kind, &server.url())), mock_username(kind), TOKEN.to_string())
+            .await
+            .expect("connect account");
         let repo = TestRepo::with_commit();
         repo.git(&["remote", "add", "origin", &format!("{}/{}.git", server.url(), mock_repo_path(kind))]);
         let repo_id = tc.open(&repo).await.repo.id;
@@ -178,7 +180,11 @@ where
 
     let error = expect("rate").await;
     assert_eq!(error.code, ErrorCode::HostRateLimited, "{what}: {error:?}");
-    assert!(error.message.contains("rate limit") && error.message.contains("continue at 20"), "the time is in the message: {}", error.message);
+    assert!(
+        error.message.contains("rate limit") && error.message.contains("continue at 20"),
+        "the time is in the message: {}",
+        error.message
+    );
     // … and as a separate field, so the UI doesn't have to parse it from the sentence.
     let at = error.retry_at.clone().expect("retryAt");
     assert!(error.message.contains(&at), "{at} / {}", error.message);
@@ -230,7 +236,10 @@ async fn repositories_without_a_supported_hoster_or_account_fail_clearly() {
     repo.git(&["remote", "add", "origin", "https://git.example.org/team/demo.git"]);
     repo.git(&["remote", "add", "azure", "https://code.example.net/firma/projekt/_git/demo"]);
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), None).await.unwrap(), None);
-    assert_eq!(cmd::issue_list(&tc, id.clone(), crate::model::IssueListState::Open, None, None, None, None).await.unwrap_err().code, ErrorCode::HostUnsupported);
+    assert_eq!(
+        cmd::issue_list(&tc, id.clone(), crate::model::IssueListState::Open, None, None, None, None).await.unwrap_err().code,
+        ErrorCode::HostUnsupported
+    );
     // github.com without an account: recognised but not connected – and no network call.
     repo.git(&["remote", "add", "hub", "git@github.com:octo/demo.git"]);
     let info = cmd::host_repo_info(&tc, id.clone(), None).await.unwrap().unwrap();
@@ -244,7 +253,10 @@ async fn repositories_without_a_supported_hoster_or_account_fail_clearly() {
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("fehlt".into())).await.unwrap_err().code, ErrorCode::NotFound);
     // A named remote on another host.
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("azure".into())).await.unwrap(), None);
-    assert!(tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")), "no API call without an account");
+    assert!(
+        tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")),
+        "no API call without an account"
+    );
 }
 
 #[tokio::test]
@@ -284,7 +296,10 @@ async fn the_template_is_found_with_its_path() {
     // The actual spelling of the name, `/` as separator on every system.
     repo.write_file(".github/PULL_REQUEST_TEMPLATE.md", "## Änderung\n");
     repo.write_file("docs/pull_request_template.md", "Docs\n");
-    assert_eq!(cmd::find_pr_template(&tc, &id).await.unwrap(), Some((".github/PULL_REQUEST_TEMPLATE.md".to_string(), "## Änderung\n".to_string())));
+    assert_eq!(
+        cmd::find_pr_template(&tc, &id).await.unwrap(),
+        Some((".github/PULL_REQUEST_TEMPLATE.md".to_string(), "## Änderung\n".to_string()))
+    );
     assert_eq!(cmd::pr_template(&tc, id.clone()).await.unwrap().as_deref(), Some("## Änderung\n"), "pr_template answers as before");
     assert_eq!(cmd::find_pr_template(&tc, "unbekannt").await.unwrap_err().code, ErrorCode::NotFound);
 }
@@ -323,9 +338,23 @@ fn every_kind_has_exactly_its_host_with_its_capabilities() {
     let lab = host(HostKind::Gitlab);
     assert_eq!(lab.capabilities().merge_methods, vec![PrMergeMethod::Merge, PrMergeMethod::Squash]);
     assert!(lab.capabilities().draft_toggle);
-    assert_eq!((lab.pr_ref(8).as_deref(), lab.fork_branch(8).as_str(), lab.pr_word()), (Some("refs/merge-requests/8/head"), "mr-8", "merge request"));
+    assert_eq!(
+        (lab.pr_ref(8).as_deref(), lab.fork_branch(8).as_str(), lab.pr_word()),
+        (Some("refs/merge-requests/8/head"), "mr-8", "merge request")
+    );
     let shape = serde_json::to_value(lab.capabilities()).unwrap();
-    for key in ["issues", "issueCreate", "draftPrs", "draftToggle", "mergeMethods", "deleteSourceBranch", "prReopen", "prReviewers", "prLabels", "forkCheckout"] {
+    for key in [
+        "issues",
+        "issueCreate",
+        "draftPrs",
+        "draftToggle",
+        "mergeMethods",
+        "deleteSourceBranch",
+        "prReopen",
+        "prReviewers",
+        "prLabels",
+        "forkCheckout",
+    ] {
         assert!(shape.get(key).is_some(), "{key} missing: {shape}");
     }
     assert_eq!(shape["mergeMethods"], serde_json::json!(["merge", "squash"]));
@@ -407,8 +436,14 @@ async fn the_new_public_services_are_recognised_without_an_account() {
     assert_eq!(error.code, ErrorCode::HostNotConnected);
     assert!(error.message.contains("https://dev.azure.com/firma"), "{}", error.message);
     assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("bb".into())).await.unwrap().unwrap().kind, HostKind::Bitbucket);
-    assert_eq!(cmd::host_repo_info(&tc, id.clone(), Some("cb".into())).await.unwrap().unwrap().web_url, "https://codeberg.org/lena/notizen");
-    assert!(tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")), "no API call without an account");
+    assert_eq!(
+        cmd::host_repo_info(&tc, id.clone(), Some("cb".into())).await.unwrap().unwrap().web_url,
+        "https://codeberg.org/lena/notizen"
+    );
+    assert!(
+        tc.events.named(names::LOG_APPENDED).iter().all(|e| !e["command"].as_str().unwrap_or("").starts_with("GET ")),
+        "no API call without an account"
+    );
 }
 
 #[test]
@@ -427,7 +462,8 @@ async fn bitbucket_and_azure_refuse_releases_before_any_request() {
         fx.repo.tag("v1.0.0");
         assert!(!cmd::host_repo_info(&fx.tc, fx.id(), None).await.unwrap().unwrap().capabilities.releases, "{kind:?}");
         fx.server.clear();
-        let error = cmd::release_create(&fx.tc, fx.id(), "v1.0.0".into(), String::new(), "### Added\n\n- x".into(), false, None).await.unwrap_err();
+        let error =
+            cmd::release_create(&fx.tc, fx.id(), "v1.0.0".into(), String::new(), "### Added\n\n- x".into(), false, None).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::HostUnsupported, "{kind:?}");
         assert!(error.message.contains("releases"), "{}", error.message);
         assert!(fx.server.requests().is_empty(), "{kind:?}: nothing was sent");

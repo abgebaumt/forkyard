@@ -239,16 +239,8 @@ async fn nested_links(core: &Core, repo_id: &str, sub_root: &Path) -> Option<Vec
 
 /// Gitlinks recorded in the tree of `rev` inside the submodule; `None` if `rev` is not there yet.
 async fn nested_links_at(core: &Core, repo_id: &str, sub_root: &Path, rev: &str) -> Option<Vec<(Vec<u8>, String)>> {
-    let out = core
-        .git
-        .cmd(sub_root)
-        .repo(repo_id)
-        .read_only()
-        .no_log()
-        .args(["ls-tree", "-r", "-z", "--full-tree", rev])
-        .run_raw()
-        .await
-        .ok()?;
+    let out =
+        core.git.cmd(sub_root).repo(repo_id).read_only().no_log().args(["ls-tree", "-r", "-z", "--full-tree", rev]).run_raw().await.ok()?;
     out.success().then(|| tree_gitlinks(&out.stdout))
 }
 
@@ -322,12 +314,7 @@ async fn update_changed(core: &Core, repo_id: &str, before: Vec<(Vec<u8>, String
         );
         message = Some(message.map_or(note.clone(), |error| format!("{error} {note}")));
     }
-    let event = SubmodulesUpdatedEvent {
-        repo_id: repo_id.to_string(),
-        ok: result.is_ok() && kept.is_empty(),
-        paths,
-        message,
-    };
+    let event = SubmodulesUpdatedEvent { repo_id: repo_id.to_string(), ok: result.is_ok() && kept.is_empty(), paths, message };
     core.emit(names::SUBMODULES_UPDATED, &event);
     job.finish(&result);
 }

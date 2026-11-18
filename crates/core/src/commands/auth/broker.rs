@@ -30,7 +30,9 @@ use crate::db::{self, Db};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::{names, EventSink};
 use crate::git::redact;
-use crate::model::{AppChange, AppChangedEvent, CredentialClosedEvent, CredentialKind, CredentialRequest, HostAccount, HostAccountKind, Settings};
+use crate::model::{
+    AppChange, AppChangedEvent, CredentialClosedEvent, CredentialKind, CredentialRequest, HostAccount, HostAccountKind, Settings,
+};
 use crate::util;
 
 /// Environment variables through which the helper program finds the core.
@@ -215,10 +217,7 @@ impl Broker {
         }
         let exe = std::env::current_exe().ok()?;
         let dir = exe.parent()?;
-        HELPER_NAMES
-            .iter()
-            .map(|name| dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX)))
-            .find(|candidate| candidate.is_file())
+        HELPER_NAMES.iter().map(|name| dir.join(format!("{name}{}", std::env::consts::EXE_SUFFIX))).find(|candidate| candidate.is_file())
     }
 
     async fn port(&self) -> Option<u16> {
@@ -350,9 +349,7 @@ impl Broker {
                 Ok(())
             }
             None if value.is_none() => Ok(()),
-            None => Err(CoreError::not_found(
-                "This prompt is no longer open (expired or cancelled). Start the action again.",
-            )),
+            None => Err(CoreError::not_found("This prompt is no longer open (expired or cancelled). Start the action again.")),
         }
     }
 
@@ -415,8 +412,7 @@ impl Broker {
             return None;
         }
 
-        let can_remember =
-            question.store.is_some() && question.kind != CredentialKind::Username && self.keyring_available().await;
+        let can_remember = question.store.is_some() && question.kind != CredentialKind::Username && self.keyring_available().await;
         let request_id = util::new_id();
         let (tx, rx) = oneshot::channel();
         {
@@ -625,9 +621,7 @@ impl Broker {
             }
         }
         if failed > 0 {
-            return Err(CoreError::io(format!(
-                "{failed} entries could not be deleted from the keychain because it is not available."
-            )));
+            return Err(CoreError::io(format!("{failed} entries could not be deleted from the keychain because it is not available.")));
         }
         Ok(removed)
     }
@@ -675,7 +669,10 @@ impl Broker {
             if !path.is_file() {
                 return Err(CoreError::new(
                     ErrorCode::PathNotFound,
-                    format!("This repository's SSH key is missing: {}. You can change it in the project settings.", util::display_path(&path)),
+                    format!(
+                        "This repository's SSH key is missing: {}. You can change it in the project settings.",
+                        util::display_path(&path)
+                    ),
                 ));
             }
             return Ok(Some(path));
@@ -778,8 +775,7 @@ fn parse_request(line: &str) -> Option<(String, String)> {
 
 /// Git rejects the supplied credentials (not: no permission for this repository).
 fn rejects_credentials(error: &CoreError) -> bool {
-    error.code == ErrorCode::AuthFailed
-        && !error.git_output.as_deref().unwrap_or("").to_lowercase().contains("returned error: 403")
+    error.code == ErrorCode::AuthFailed && !error.git_output.as_deref().unwrap_or("").to_lowercase().contains("returned error: 403")
 }
 
 /// With these errors it is not certain that the sign-in succeeded: remember nothing.

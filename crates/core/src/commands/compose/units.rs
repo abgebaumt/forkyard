@@ -10,6 +10,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+use super::deps;
+use crate::ai::context::Exclusions;
 use crate::app::Core;
 use crate::commands::commit::operation_error;
 use crate::commands::diff::patch::{self, FilePatch, LineKind, PatchHunk};
@@ -17,8 +19,6 @@ use crate::commands::diff::{only_this_file, parse_raw_z, token_of, RawEntry, Tem
 use crate::commands::status::{self, read_status};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::GitCmd;
-use super::deps;
-use crate::ai::context::Exclusions;
 use crate::model::{AiOmitReason, ComposeState, ComposeUnit, ComposeUnitKind, DiffLine, DiffLineKind, Head};
 use crate::{undo, util};
 
@@ -153,7 +153,8 @@ pub(crate) async fn read(core: &Core, repo_id: &str) -> CoreResult<ComposeRead> 
         file.protected = protection(&exclusions, file);
     }
     let requires = deps::read(core, repo_id, &head, &files).await?;
-    let head_subject = core.git_for(repo_id)?.args(["log", "-1", "--format=%s", head.as_str(), "--"]).read_only().no_log().run_text().await?;
+    let head_subject =
+        core.git_for(repo_id)?.args(["log", "-1", "--format=%s", head.as_str(), "--"]).read_only().no_log().run_text().await?;
     let mut hooks = Vec::new();
     for hook in COMMIT_HOOKS {
         if crate::commands::sync::hook_exists(core, repo_id, hook).await {
@@ -166,7 +167,8 @@ pub(crate) async fn read(core: &Core, repo_id: &str) -> CoreResult<ComposeRead> 
 /// Secret or ignored under its path or, for a rename, its old path (Grundregel 5): such a file is
 /// never sent and never committed by "Compose commits".
 fn protection(exclusions: &Exclusions, file: &ChangedFile) -> Option<AiOmitReason> {
-    let secret_or_ignored = |path: &str| exclusions.reason(path).filter(|reason| matches!(reason, AiOmitReason::Secret | AiOmitReason::Ignored));
+    let secret_or_ignored =
+        |path: &str| exclusions.reason(path).filter(|reason| matches!(reason, AiOmitReason::Secret | AiOmitReason::Ignored));
     secret_or_ignored(&file.path).or_else(|| file.old_path.as_deref().and_then(secret_or_ignored))
 }
 

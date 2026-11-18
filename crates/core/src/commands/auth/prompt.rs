@@ -35,7 +35,8 @@ pub struct Question {
 
 /// This is how OpenSSH's passphrase questions begin (`ssh`, `ssh-add`, `ssh-keygen`). They only
 /// count as such at the exact start of the question.
-const PASSPHRASE_STARTS: [&str; 5] = ["Enter passphrase", "Bad passphrase", "Enter same passphrase", "Enter new passphrase", "Enter old passphrase"];
+const PASSPHRASE_STARTS: [&str; 5] =
+    ["Enter passphrase", "Bad passphrase", "Enter same passphrase", "Enter new passphrase", "Enter old passphrase"];
 
 /// Parses the text of a prompt.
 ///
@@ -52,10 +53,7 @@ pub fn classify(prompt: &str) -> Question {
     }
     let lower = text.to_lowercase();
 
-    if lower.contains("authenticity of host")
-        || lower.contains("continue connecting")
-        || lower.contains("please type 'yes'")
-    {
+    if lower.contains("authenticity of host") || lower.contains("continue connecting") || lower.contains("please type 'yes'") {
         return host_key(text);
     }
     if let Some(target) = quoted_after(text, "Username for ") {
@@ -116,7 +114,14 @@ fn from_server(account: &str, server_text: &str) -> Question {
         host: format!("ssh://{host}"),
         username: user.to_string(),
     });
-    Question { kind: CredentialKind::Password, host: host.to_string(), username: Some(user.to_string()), detail: None, store, from_git: false }
+    Question {
+        kind: CredentialKind::Password,
+        host: host.to_string(),
+        username: Some(user.to_string()),
+        detail: None,
+        store,
+        from_git: false,
+    }
 }
 
 fn host_key(text: &str) -> Question {
@@ -412,7 +417,9 @@ mod tests {
         let q = classify("(anna@git.firma.de) Password: ");
         assert_eq!(q.store, store(HostAccountKind::Password, "ssh://git.firma.de", "anna"));
         // Passphrase questions only count at the exact start of the text.
-        for other in ["Hinweis: Enter passphrase for key '/k': ", "x Enter passphrase for /k: ", "please enter your passphrase for key '/k': "] {
+        for other in
+            ["Hinweis: Enter passphrase for key '/k': ", "x Enter passphrase for /k: ", "please enter your passphrase for key '/k': "]
+        {
             let q = classify(other);
             assert_eq!(q.store, None, "{other}");
             assert_ne!(q.kind, CredentialKind::Passphrase, "{other}");

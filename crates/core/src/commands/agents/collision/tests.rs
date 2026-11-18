@@ -50,7 +50,8 @@ async fn the_snapshot_holds_the_worktree_as_on_disk_and_touches_nothing() {
     assert_eq!(repo.git(&["rev-parse", &format!("{commit}^{{tree}}")]), tree);
     assert_eq!(repo.git(&["rev-list", "--parents", "-n", "1", &commit]), format!("{commit} {head}"));
     // The files as they are on disk: the unstaged version, the untracked file, not the deleted one.
-    let names: BTreeSet<String> = repo.git(&["ls-tree", "-r", "-z", "--name-only", &tree]).split('\0').filter(|n| !n.is_empty()).map(str::to_string).collect();
+    let names: BTreeSet<String> =
+        repo.git(&["ls-tree", "-r", "-z", "--name-only", &tree]).split('\0').filter(|n| !n.is_empty()).map(str::to_string).collect();
     let expected: BTreeSet<String> = ["-neu übersicht.txt", "README.md", "bleibt.txt", "crlf.txt"].into_iter().map(String::from).collect();
     assert_eq!(names, expected);
     for name in ["-neu übersicht.txt", "crlf.txt", "bleibt.txt"] {
@@ -91,7 +92,8 @@ async fn the_fork_follows_a_rebase_and_changed_paths_are_byte_exact() {
     repo.git(&["-C", &d, "mv", "README.md", "Lies mich.md"]);
     let (_, tree) = snapshot_commit(&tc, &worktree_id(&tc, &folder)).await.unwrap();
     let changed = changed_paths(&tc, &id, &m1, &tree).await.unwrap();
-    let expected: BTreeSet<Vec<u8>> = ["-Größe übersicht.txt", "Lies mich.md", "README.md", "agent.txt", "g.txt"].iter().map(|p| p.as_bytes().to_vec()).collect();
+    let expected: BTreeSet<Vec<u8>> =
+        ["-Größe übersicht.txt", "Lies mich.md", "README.md", "agent.txt", "g.txt"].iter().map(|p| p.as_bytes().to_vec()).collect();
     assert_eq!(changed, expected);
 }
 
@@ -246,7 +248,8 @@ async fn orphaned_agents_are_left_out_and_broken_ones_named_with_a_reason() {
     let (d, _folder_d) = agent_without_session(&tc, &repo, &id, "d-kaputt").await;
     // c's folder is gone (orphaned); d's recorded base exists no more.
     std::fs::remove_dir_all(&folder_c).unwrap();
-    let broken = db::agents::AgentRow { base: "gibt-es-nicht".into(), base_sha: "0000000000000000000000000000000000000001".into(), ..d.clone() };
+    let broken =
+        db::agents::AgentRow { base: "gibt-es-nicht".into(), base_sha: "0000000000000000000000000000000000000001".into(), ..d.clone() };
     tc.db
         .with(|c| {
             db::agents::delete(c, &d.id)?;
@@ -256,7 +259,10 @@ async fn orphaned_agents_are_left_out_and_broken_ones_named_with_a_reason() {
 
     let computed = compute(&tc, &id, &CancelToken::new()).await.unwrap();
     assert!(computed.collisions.is_empty());
-    assert_eq!(computed.skipped, vec![CollisionSkip { agent_id: "agent-d-kaputt".into(), reason: "The base commit 0000000 of the agent no longer exists.".into() }]);
+    assert_eq!(
+        computed.skipped,
+        vec![CollisionSkip { agent_id: "agent-d-kaputt".into(), reason: "The base commit 0000000 of the agent no longer exists.".into() }]
+    );
 }
 
 use std::time::Duration;
@@ -362,7 +368,15 @@ fn the_preview_is_limited_in_blocks_and_lines() {
     assert_eq!(preview.blocks[0].range, LineRange { start: 1, end: 250 });
     assert!(preview.truncated);
     let short = preview_of("a+b", "f.txt", b"<<<<<<< a\nx\n=======\ny\n>>>>>>> b\n");
-    assert_eq!(short, CollisionPreview { collision_id: "a+b".into(), path: "f.txt".into(), blocks: vec![CollisionBlock { range: LineRange { start: 1, end: 1 }, ours: "x\n".into(), theirs: "y\n".into() }], truncated: false });
+    assert_eq!(
+        short,
+        CollisionPreview {
+            collision_id: "a+b".into(),
+            path: "f.txt".into(),
+            blocks: vec![CollisionBlock { range: LineRange { start: 1, end: 1 }, ours: "x\n".into(), theirs: "y\n".into() }],
+            truncated: false
+        }
+    );
 }
 
 #[tokio::test]
@@ -411,7 +425,10 @@ async fn informing_needs_a_running_agent_and_a_sensible_text() {
     let (row, _folder) = agent_without_session(&tc, &repo, &id, "still").await;
     let inform = |text: String| agent_inform(&tc, row.id.clone(), text);
     let not_running = inform("Bitte warten".into()).await.unwrap_err();
-    assert_eq!((not_running.code, not_running.message.as_str()), (ErrorCode::NotAllowed, "“still” is not running – there is no terminal to type into."));
+    assert_eq!(
+        (not_running.code, not_running.message.as_str()),
+        (ErrorCode::NotAllowed, "“still” is not running – there is no terminal to type into.")
+    );
     let empty = inform("   \n".into()).await.unwrap_err();
     assert_eq!((empty.code, empty.message.as_str()), (ErrorCode::NotAllowed, "Write the note for the agent."));
     let long = inform("x".repeat(MAX_INFORM_BYTES + 1)).await.unwrap_err();

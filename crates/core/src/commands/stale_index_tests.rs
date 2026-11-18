@@ -56,7 +56,10 @@ fn branches() -> TestRepo {
 
 async fn clean(tc: &TestCore, id: &str) {
     let status = read_status(tc, id).await.unwrap();
-    assert!(status.unstaged.is_empty() && status.staged.is_empty() && status.conflicted.is_empty() && status.operation.is_none(), "{status:?}");
+    assert!(
+        status.unstaged.is_empty() && status.staged.is_empty() && status.conflicted.is_empty() && status.operation.is_none(),
+        "{status:?}"
+    );
 }
 
 #[tokio::test]

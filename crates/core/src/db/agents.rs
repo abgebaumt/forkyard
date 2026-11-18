@@ -94,7 +94,9 @@ pub fn insert(conn: &Connection, row: &AgentRow) -> CoreResult<()> {
     );
     match result {
         Ok(_) => Ok(()),
-        Err(e) if super::is_unique_violation(&e) => Err(CoreError::name_exists(format!("An agent named “{}” already exists in this repository.", row.short_name))),
+        Err(e) if super::is_unique_violation(&e) => {
+            Err(CoreError::name_exists(format!("An agent named “{}” already exists in this repository.", row.short_name)))
+        }
         Err(e) => Err(e.into()),
     }
 }
@@ -173,7 +175,9 @@ mod tests {
     fn rows_roundtrip_end_restart_and_go_with_their_repository() {
         let db = Db::open_in_memory().unwrap();
         let (repo, other) = db
-            .with(|c| Ok((db::repos::upsert(c, Path::new("/home/anna/Mein Projekt"))?.id, db::repos::upsert(c, Path::new("/srv/andere"))?.id)))
+            .with(|c| {
+                Ok((db::repos::upsert(c, Path::new("/home/anna/Mein Projekt"))?.id, db::repos::upsert(c, Path::new("/srv/andere"))?.id))
+            })
             .unwrap();
         let first = row("a1", &repo, "fix-login", "2026-10-16T08:00:00.000Z");
         let mut second = row("a2", &repo, "groesse-anpassen", "2026-10-16T09:30:00.000Z");
@@ -195,11 +199,17 @@ mod tests {
 
         db.with(|c| set_ended(c, "a1", "2026-10-16T08:45:00.000Z", Some(3), EndReason::Exited)).unwrap();
         let ended = db.with(|c| require(c, "a1")).unwrap();
-        assert_eq!((ended.ended_at.as_deref(), ended.exit_code, ended.end_reason), (Some("2026-10-16T08:45:00.000Z"), Some(3), Some(EndReason::Exited)));
+        assert_eq!(
+            (ended.ended_at.as_deref(), ended.exit_code, ended.end_reason),
+            (Some("2026-10-16T08:45:00.000Z"), Some(3), Some(EndReason::Exited))
+        );
         assert_eq!(db.with(list_open).unwrap().iter().map(|r| r.id.clone()).collect::<Vec<_>>(), vec!["a2".to_string(), "b1".to_string()]);
         db.with(|c| set_restarted(c, "a1", "2026-10-16T11:00:00.000Z")).unwrap();
         let again = db.with(|c| require(c, "a1")).unwrap();
-        assert_eq!((again.started_at.as_str(), again.ended_at, again.exit_code, again.end_reason), ("2026-10-16T11:00:00.000Z", None, None, None));
+        assert_eq!(
+            (again.started_at.as_str(), again.ended_at, again.exit_code, again.end_reason),
+            ("2026-10-16T11:00:00.000Z", None, None, None)
+        );
 
         db.with(|c| delete(c, "a2")).unwrap();
         assert!(db.with(|c| get(c, "a2")).unwrap().is_none());

@@ -50,11 +50,31 @@ pub struct DiffFile {
 impl DiffFile {
     /// A text file (tests and builders that already have the patch).
     pub fn text(path: &str, patch: &str, added: u64, deleted: u64) -> DiffFile {
-        DiffFile { path: path.to_string(), old_path: None, added: Some(added), deleted: Some(deleted), size: patch.len() as u64, patch: patch.to_string(), unread: false, raw: path.as_bytes().to_vec(), old_raw: None }
+        DiffFile {
+            path: path.to_string(),
+            old_path: None,
+            added: Some(added),
+            deleted: Some(deleted),
+            size: patch.len() as u64,
+            patch: patch.to_string(),
+            unread: false,
+            raw: path.as_bytes().to_vec(),
+            old_raw: None,
+        }
     }
 
     pub fn binary(path: &str, size: u64) -> DiffFile {
-        DiffFile { path: path.to_string(), old_path: None, added: None, deleted: None, size, patch: String::new(), unread: false, raw: path.as_bytes().to_vec(), old_raw: None }
+        DiffFile {
+            path: path.to_string(),
+            old_path: None,
+            added: None,
+            deleted: None,
+            size,
+            patch: String::new(),
+            unread: false,
+            raw: path.as_bytes().to_vec(),
+            old_raw: None,
+        }
     }
 
     pub fn is_binary(&self) -> bool {
@@ -108,7 +128,10 @@ impl Exclusions {
     fn reason_for(&self, file: &DiffFile) -> Option<AiOmitReason> {
         let hidden = |reason: &AiOmitReason| matches!(reason, AiOmitReason::Secret | AiOmitReason::Ignored);
         // A renamed secret stays a secret under its new name.
-        self.reason(&file.path).filter(hidden).or_else(|| file.old_path.as_deref().and_then(|old| self.reason(old)).filter(hidden)).or_else(|| self.reason(&file.path))
+        self.reason(&file.path)
+            .filter(hidden)
+            .or_else(|| file.old_path.as_deref().and_then(|old| self.reason(old)).filter(hidden))
+            .or_else(|| self.reason(&file.path))
     }
 }
 
@@ -200,10 +223,16 @@ pub async fn staged_files(core: &Core, repo_id: &str, exclusions: &Exclusions, s
 
 async fn staged_patch(core: &Core, repo_id: &str, file: &DiffFile) -> CoreResult<String> {
     // Literal pathspecs: a file named `[entwurf] notiz.md` must not pull in `e notiz.md`.
-    let mut cmd = core
-        .git_for(repo_id)?
-        .env("GIT_LITERAL_PATHSPECS", "1")
-        .args(["diff", "--cached", "--no-color", "--no-ext-diff", "--no-textconv", "-M", "-U3", "--"]);
+    let mut cmd = core.git_for(repo_id)?.env("GIT_LITERAL_PATHSPECS", "1").args([
+        "diff",
+        "--cached",
+        "--no-color",
+        "--no-ext-diff",
+        "--no-textconv",
+        "-M",
+        "-U3",
+        "--",
+    ]);
     if let Some(old) = &file.old_raw {
         cmd = cmd.arg_bytes(old);
     }
@@ -244,7 +273,9 @@ fn render_entry(file: &DiffFile, shown: Shown) -> String {
     match shown {
         Shown::Full => format!("{}\n{}", header(file), file.patch),
         Shown::Shortened => format!("{} (shortened: start and end of each hunk)\n{}", header(file), shorten_patch(&file.patch)),
-        Shown::NameOnly(AiOmitReason::Generated) => format!("{} – generated or lock file, {} bytes, content not sent\n", header(file), file.size),
+        Shown::NameOnly(AiOmitReason::Generated) => {
+            format!("{} – generated or lock file, {} bytes, content not sent\n", header(file), file.size)
+        }
         Shown::NameOnly(AiOmitReason::Binary) => format!("{} – binary file, {} bytes, content not sent\n", header(file), file.size),
         Shown::NameOnly(_) => format!("{} – content left out to stay within the size limit\n", header(file)),
     }
@@ -360,7 +391,14 @@ pub struct Built {
 
 /// `AiInput::StagedChanges`: the staged diff of the repository, filtered and within the budget.
 /// `secrets`: values known to be secret (the provider key), scrubbed literally.
-pub async fn staged_changes(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<Built> {
+pub async fn staged_changes(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<Built> {
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let files = staged_files(core, repo_id, &exclusions, secrets).await?;
     let fitted = fit(files, &exclusions, (budget_tokens as f64 * CHARS_PER_TOKEN) as usize);
@@ -395,7 +433,17 @@ pub struct Outgoing {
 /// The outgoing first-parent commits of `tip_ref` (not reachable from a remote-tracking branch of
 /// `remote`) and the base of their combined diff.
 pub async fn outgoing(core: &Core, repo_id: &str, tip_ref: &str, remote: &str) -> CoreResult<Outgoing> {
-    let tip = core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet"]).arg(format!("{tip_ref}^{{commit}}")).read_only().no_log().run().await?.stdout_text().trim().to_string();
+    let tip = core
+        .git_for(repo_id)?
+        .args(["rev-parse", "--verify", "--quiet"])
+        .arg(format!("{tip_ref}^{{commit}}"))
+        .read_only()
+        .no_log()
+        .run()
+        .await?
+        .stdout_text()
+        .trim()
+        .to_string();
     let out = core
         .git_for(repo_id)?
         .args(["log", "--first-parent", "-z", "--format=%H%x1f%s"])
@@ -421,7 +469,14 @@ pub async fn outgoing(core: &Core, repo_id: &str, tip_ref: &str, remote: &str) -
     let base = match commits.last() {
         None => tip.clone(),
         Some((oldest, _)) => {
-            let parent = core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet"]).arg(format!("{oldest}^1")).read_only().no_log().run_raw().await?;
+            let parent = core
+                .git_for(repo_id)?
+                .args(["rev-parse", "--verify", "--quiet"])
+                .arg(format!("{oldest}^1"))
+                .read_only()
+                .no_log()
+                .run_raw()
+                .await?;
             if parent.success() {
                 parent.stdout_text().trim().to_string()
             } else {
@@ -434,7 +489,14 @@ pub async fn outgoing(core: &Core, repo_id: &str, tip_ref: &str, remote: &str) -
 
 /// The files of `git diff from to` with their patches (excluded, generated and binary files
 /// without content), like `staged_files` for the staged changes – each patch redacted on reading.
-pub async fn range_files(core: &Core, repo_id: &str, from: &str, to: &str, exclusions: &Exclusions, secrets: &[String]) -> CoreResult<Vec<DiffFile>> {
+pub async fn range_files(
+    core: &Core,
+    repo_id: &str,
+    from: &str,
+    to: &str,
+    exclusions: &Exclusions,
+    secrets: &[String],
+) -> CoreResult<Vec<DiffFile>> {
     let out = core
         .git_for(repo_id)?
         .args(["diff", "--numstat", "-z", "-M", "--no-color", "--no-ext-diff", "--no-textconv", from, to, "--"])
@@ -474,10 +536,17 @@ pub async fn range_files(core: &Core, repo_id: &str, from: &str, to: &str, exclu
 
 async fn range_patch(core: &Core, repo_id: &str, from: &str, to: &str, file: &DiffFile) -> CoreResult<String> {
     // Literal pathspecs, as for the staged changes.
-    let mut cmd = core
-        .git_for(repo_id)?
-        .env("GIT_LITERAL_PATHSPECS", "1")
-        .args(["diff", "--no-color", "--no-ext-diff", "--no-textconv", "-M", "-U3", from, to, "--"]);
+    let mut cmd = core.git_for(repo_id)?.env("GIT_LITERAL_PATHSPECS", "1").args([
+        "diff",
+        "--no-color",
+        "--no-ext-diff",
+        "--no-textconv",
+        "-M",
+        "-U3",
+        from,
+        to,
+        "--",
+    ]);
     if let Some(old) = &file.old_raw {
         cmd = cmd.arg_bytes(old);
     }
@@ -516,19 +585,41 @@ pub struct OutgoingBuilt {
 
 /// `AiInput::OutgoingChanges`: the outgoing commit subjects and their combined diff, filtered,
 /// redacted and within the budget.
-pub async fn outgoing_changes(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String], outgoing: &Outgoing) -> CoreResult<OutgoingBuilt> {
+pub async fn outgoing_changes(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+    outgoing: &Outgoing,
+) -> CoreResult<OutgoingBuilt> {
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
-    let files = if outgoing.commits.is_empty() { Vec::new() } else { range_files(core, repo_id, &outgoing.base, &outgoing.tip, &exclusions, secrets).await? };
+    let files = if outgoing.commits.is_empty() {
+        Vec::new()
+    } else {
+        range_files(core, repo_id, &outgoing.base, &outgoing.tip, &exclusions, secrets).await?
+    };
     let file_count = u32::try_from(files.len()).unwrap_or(u32::MAX);
-    let list = outgoing.commits.iter().map(|(sha, subject)| format!("- {} {}", &sha[..sha.len().min(10)], subject)).collect::<Vec<_>>().join("\n");
+    let list =
+        outgoing.commits.iter().map(|(sha, subject)| format!("- {} {}", &sha[..sha.len().min(10)], subject)).collect::<Vec<_>>().join("\n");
     let list = redact_for_ai(&list, secrets);
     let budget_chars = ((budget_tokens as f64 * CHARS_PER_TOKEN) as usize).saturating_sub(list.len());
     let fitted = fit(files, &exclusions, budget_chars);
-    let shown = fitted.entries.iter().filter(|(_, shown)| matches!(shown, Shown::Full | Shown::Shortened)).map(|(file, _)| file.path.clone()).collect();
+    let shown = fitted
+        .entries
+        .iter()
+        .filter(|(_, shown)| matches!(shown, Shown::Full | Shown::Shortened))
+        .map(|(file, _)| file.path.clone())
+        .collect();
     let body = render(&fitted, secrets);
     let body = if body.trim().is_empty() { "(no changes)".to_string() } else { body };
     let list = if list.is_empty() { "(nothing to push)".to_string() } else { list };
-    let prompt = prompt::build(PUSH_REVIEW_INSTRUCTION, locale, &[Section { title: "Commits to push".into(), body: list }, Section { title: "Changes to push".into(), body }]);
+    let prompt = prompt::build(
+        PUSH_REVIEW_INSTRUCTION,
+        locale,
+        &[Section { title: "Commits to push".into(), body: list }, Section { title: "Changes to push".into(), body }],
+    );
     Ok(OutgoingBuilt {
         built: Built { prompt, omitted: fitted.omitted, shortened: fitted.shortened },
         shown,
@@ -563,7 +654,10 @@ mod tests {
         let tc = TestCore::new().await;
         let repo = TestRepo::with_commit();
         repo.write_file(".forkyard/ai-ignore", "intern/**\n!intern/oeffentlich.md\n");
-        repo.write_file("src/main.rs", "fn main() {\n    let key = \"sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWx\";\n    println!(\"{key}\");\n}\n");
+        repo.write_file(
+            "src/main.rs",
+            "fn main() {\n    let key = \"sk-ant-api03-AbCdEfGhIjKlMnOpQrStUvWx\";\n    println!(\"{key}\");\n}\n",
+        );
         repo.write_file(".env", "DB_PASSWORD=hunter2-sehr-geheim\n");
         repo.write_file("Cargo.lock", "# lock\nversion = 4\n");
         repo.write_file("intern/plan.md", "Übernahme von Firma X\n");
@@ -658,7 +752,8 @@ mod tests {
         let repo = TestRepo::with_commit();
         // 49 base64 lines of 64 characters, like the body of a 4096-bit RSA key.
         let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        let key_lines: Vec<String> = (0..49usize).map(|n| (0..64usize).map(|i| alphabet[(n * 7 + i * 13 + n * i) % 64] as char).collect()).collect();
+        let key_lines: Vec<String> =
+            (0..49usize).map(|n| (0..64usize).map(|i| alphabet[(n * 7 + i * 13 + n * i) % 64] as char).collect()).collect();
         let mut content = String::new();
         for n in 1..=14 {
             content.push_str(&format!("setting_{n}: wert {n}\n"));

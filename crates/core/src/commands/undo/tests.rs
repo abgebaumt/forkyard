@@ -478,8 +478,10 @@ async fn reset_soft_and_mixed() {
     let c2 = fx.repo.commit_file("a.txt", "a\n", "Zweiter");
 
     fx.repo.git(&["reset", "-q", "--soft", &c1]);
-    fx.record(rec(UndoAction::Reset, "Undo reset").branch("main", Some(&c2), Some(&c1)).payload(json!({ "mode": "soft" })).backup("before", &c2))
-        .await;
+    fx.record(
+        rec(UndoAction::Reset, "Undo reset").branch("main", Some(&c2), Some(&c1)).payload(json!({ "mode": "soft" })).backup("before", &c2),
+    )
+    .await;
     fx.back_and_forth(
         |fx| {
             assert_eq!(fx.repo.head(), c2);
@@ -651,8 +653,12 @@ async fn discard_of_everything_and_stale_after_a_commit() {
     // A commit was made in the meantime: the backup no longer matches HEAD. The entry is
     // skipped and no longer offered – until the repository is back at its state.
     let old = fx.repo.head();
-    fx.repo.commit_file("b.txt", "b
-", "Dazwischen");
+    fx.repo.commit_file(
+        "b.txt",
+        "b
+",
+        "Dazwischen",
+    );
     let err = fx.undo().await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NothingToUndo);
     assert!(fx.porcelain().is_empty());
@@ -1179,7 +1185,8 @@ async fn lost_backup_is_reported_instead_of_guessing() {
     assert_eq!(err.code, ErrorCode::NotFound);
     assert_eq!(fx.repo.head(), b);
 
-    fx.record(rec(UndoAction::Discard, "Undo discard").payload(json!({ "worktreeSnapshot": null, "indexTree": null, "paths": null }))).await;
+    fx.record(rec(UndoAction::Discard, "Undo discard").payload(json!({ "worktreeSnapshot": null, "indexTree": null, "paths": null })))
+        .await;
     assert_eq!(fx.undo().await.unwrap_err().code, ErrorCode::NotFound);
     let _ = a;
 }
@@ -1195,7 +1202,11 @@ async fn snapshot_works_without_commits_and_without_identity() {
     let before = fx.porcelain();
 
     let (snapshot, index_tree) = u::snapshot_worktree(&fx.tc, &fx.id, None).await.unwrap();
-    assert_eq!(fx.repo.git(&["log", "-1", "--format=%P|%s|%an", &snapshot]), "|forkyard: backup|forkyard", "without a commit the backup has no parent");
+    assert_eq!(
+        fx.repo.git(&["log", "-1", "--format=%P|%s|%an", &snapshot]),
+        "|forkyard: backup|forkyard",
+        "without a commit the backup has no parent"
+    );
     assert_eq!(fx.lines(&["ls-tree", "-r", "--name-only", &snapshot]), ["a ä.txt", "tief/b.txt"]);
     assert_eq!(fx.lines(&["ls-tree", "-r", "--name-only", index_tree.as_deref().unwrap()]), ["a ä.txt"]);
     assert_eq!(fx.porcelain(), before, "the real index stays untouched");
@@ -1227,7 +1238,11 @@ async fn restore_handles_file_directory_swaps_and_leaves_ignored_files_alone() {
     fx.repo.write_file("ordner/build.log", "log\n");
     let token = read_status(&fx.tc, &fx.id).await.unwrap().token;
     let (snapshot, _) = u::snapshot_worktree(&fx.tc, &fx.id, None).await.unwrap();
-    assert_eq!(fx.lines(&["ls-tree", "-r", "--name-only", &snapshot]), [".gitignore", "README.md", "ding", "ordner/kind.txt"], "ignored files are not backed up");
+    assert_eq!(
+        fx.lines(&["ls-tree", "-r", "--name-only", &snapshot]),
+        [".gitignore", "README.md", "ding", "ordner/kind.txt"],
+        "ignored files are not backed up"
+    );
     assert_eq!(read_status(&fx.tc, &fx.id).await.unwrap().token, token);
 
     // File becomes folder, folder becomes file.
@@ -1258,7 +1273,11 @@ async fn snapshot_of_paths_tolerates_missing_ones_and_open_conflicts() {
     let (snapshot, index_tree) = u::snapshot_worktree(&fx.tc, &fx.id, Some(&paths)).await.unwrap();
     assert!(index_tree.is_some());
     assert_eq!(fx.repo.git(&["show", &format!("{snapshot}:a.txt")]), "geändert");
-    assert_eq!(fx.lines(&["ls-tree", "-r", "--name-only", &snapshot]), ["README.md", "a.txt", "muster[1].txt"], "paths are literal, not patterns");
+    assert_eq!(
+        fx.lines(&["ls-tree", "-r", "--name-only", &snapshot]),
+        ["README.md", "a.txt", "muster[1].txt"],
+        "paths are literal, not patterns"
+    );
 
     // Open conflicts: there is no tree of the index, the backup is created anyway.
     fx.repo.git(&["checkout", "-q", "--", "a.txt"]);

@@ -1,10 +1,10 @@
 //! The UI's commands (api.ts). Each file belongs to one area; every command is
 //! `pub async fn name(core: &Core, <keys of the input object in snake_case>)`.
 
-pub mod ai;
-pub mod ai_search;
 pub mod activity;
 pub mod agents;
+pub mod ai;
+pub mod ai_search;
 pub mod app;
 pub mod archaeology;
 pub mod auth;
@@ -14,10 +14,10 @@ pub mod branches;
 pub mod cleanup;
 pub mod cli;
 pub mod clone_init;
-pub mod crash;
-pub mod custom;
 pub mod commit;
 pub mod compose;
+pub mod crash;
+pub mod custom;
 pub mod diff;
 pub mod external;
 pub mod gitflow;
@@ -30,15 +30,15 @@ pub mod links;
 pub mod merge;
 pub mod patch;
 pub mod plan;
-pub mod range_apply;
 pub mod preview;
+pub mod range_apply;
 pub mod rebase;
-pub mod review_fix;
 pub mod reflog;
-pub mod release_notes;
 pub mod refs;
+pub mod release_notes;
 pub mod remotes;
 pub mod repos;
+pub mod review_fix;
 pub mod settings;
 pub mod signing;
 pub mod stack;

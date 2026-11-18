@@ -330,7 +330,14 @@ async fn invalid_paths_are_rejected_before_git_runs() {
     let (tc, _repo, id) = setup("http://127.0.0.1:9/").await;
     tc.state::<LfsState>().set_pretend_missing(true);
     let too_many: Vec<String> = (0..201).map(|i| format!("f{i}.psd")).collect();
-    for paths in [vec![], vec!["../aussen.psd".to_string()], vec!["/etc/passwd".to_string()], vec!["a\0b".to_string()], vec![String::new()], too_many] {
+    for paths in [
+        vec![],
+        vec!["../aussen.psd".to_string()],
+        vec!["/etc/passwd".to_string()],
+        vec!["a\0b".to_string()],
+        vec![String::new()],
+        too_many,
+    ] {
         assert_eq!(lfs_lock(&tc, id.clone(), paths.clone()).await.unwrap_err().code, ErrorCode::NotAllowed, "{paths:?}");
         assert_eq!(lfs_unlock(&tc, id.clone(), paths.clone(), true).await.unwrap_err().code, ErrorCode::NotAllowed, "{paths:?}");
     }

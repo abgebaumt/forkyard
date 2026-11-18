@@ -367,12 +367,18 @@ pub async fn terminal_open_program(
 /// `cwd` is a worktree of the repository that still exists – otherwise `not_allowed`.
 async fn registered_worktree(core: &Core, repo_id: &str, cwd: &Path) -> CoreResult<()> {
     let refuse = || {
-        CoreError::not_allowed(format!("“{}” is not a worktree of this repository. Programs only start in one of its worktrees.", util::display_path(cwd)))
+        CoreError::not_allowed(format!(
+            "“{}” is not a worktree of this repository. Programs only start in one of its worktrees.",
+            util::display_path(cwd)
+        ))
     };
     let wanted = std::fs::canonicalize(cwd).map_err(|_| refuse())?;
     let key = util::path_key(&wanted);
     let worktrees = crate::commands::worktree::worktree_list(core, repo_id.to_string()).await?;
-    let found = worktrees.iter().filter(|worktree| !worktree.is_prunable).any(|worktree| std::fs::canonicalize(&worktree.path).is_ok_and(|path| util::path_key(&path) == key));
+    let found = worktrees
+        .iter()
+        .filter(|worktree| !worktree.is_prunable)
+        .any(|worktree| std::fs::canonicalize(&worktree.path).is_ok_and(|path| util::path_key(&path) == key));
     if found {
         Ok(())
     } else {
@@ -448,7 +454,13 @@ fn open_blocking(core: &Core, root: &Path, cols: u16, rows: u16) -> CoreResult<S
     spawn_session(core, command, &format!("The shell “{shell}” could not be started"), clamp_size(cols, rows), info, None)
 }
 
-fn open_program_blocking(core: &Core, launch: ProgramLaunch, cols: u16, rows: u16, observer: Option<Arc<dyn TerminalObserver>>) -> CoreResult<String> {
+fn open_program_blocking(
+    core: &Core,
+    launch: ProgramLaunch,
+    cols: u16,
+    rows: u16,
+    observer: Option<Arc<dyn TerminalObserver>>,
+) -> CoreResult<String> {
     let mut command = CommandBuilder::new(launch.program.as_os_str());
     command.args(&launch.args);
     command.cwd(launch.cwd.as_os_str());
@@ -456,7 +468,8 @@ fn open_program_blocking(core: &Core, launch: ProgramLaunch, cols: u16, rows: u1
         command.env(key, value);
     }
     let name = launch.program.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
-    let info = TerminalInfo { title: launch.title.clone(), program: true, cwd: launch.cwd.clone(), last_screen_change: None, last_signal: None };
+    let info =
+        TerminalInfo { title: launch.title.clone(), program: true, cwd: launch.cwd.clone(), last_screen_change: None, last_signal: None };
     spawn_session(core, command, &format!("“{name}” could not be started"), clamp_size(cols, rows), info, observer)
 }
 

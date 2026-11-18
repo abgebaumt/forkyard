@@ -76,8 +76,18 @@ async fn push_review_sends_only_what_goes_out_and_keeps_findings_of_shown_files(
     assert_eq!(
         review.findings,
         vec![
-            AiPushFinding { path: "einstellungen.py".into(), line: None, kind: AiPushFindingKind::LikelyBug, note: "Key *** is hard-coded.".into() },
-            AiPushFinding { path: "src/zähler.py".into(), line: Some(2), kind: AiPushFindingKind::DebugOutput, note: "Leftover print of the intermediate state.".into() },
+            AiPushFinding {
+                path: "einstellungen.py".into(),
+                line: None,
+                kind: AiPushFindingKind::LikelyBug,
+                note: "Key *** is hard-coded.".into()
+            },
+            AiPushFinding {
+                path: "src/zähler.py".into(),
+                line: Some(2),
+                kind: AiPushFindingKind::DebugOutput,
+                note: "Leftover print of the intermediate state.".into()
+            },
         ],
         "invented, hidden and outside files, duplicates and empty notes are dropped; keys in notes are redacted"
     );
@@ -106,7 +116,10 @@ async fn nothing_to_push_sends_nothing() {
 async fn the_review_asks_like_every_request_and_follows_the_push_target() {
     // Like 1a's tests: every route gets the answer; only `POST /v1/messages` is counted.
     let server = MockServer::start(|_| {
-        MockResponse::json(200, json!({"content": [{"type": "text", "text": "{\"findings\":[]}"}], "stop_reason": "end_turn", "usage": {"input_tokens": 1200, "output_tokens": 30}}))
+        MockResponse::json(
+            200,
+            json!({"content": [{"type": "text", "text": "{\"findings\":[]}"}], "stop_reason": "end_turn", "usage": {"input_tokens": 1200, "output_tokens": 30}}),
+        )
     });
     let tc = TestCore::new().await;
     crate::ai::configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
@@ -121,7 +134,9 @@ async fn the_review_asks_like_every_request_and_follows_the_push_target() {
     assert_eq!(server.count("POST /v1/messages"), 0);
     let preview = ai_preview(&tc, id.clone(), AiFeature::PushReview, input(None), "en".into()).await.unwrap();
     assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst]);
-    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::PushReview, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::PushReview, preview.fingerprint.clone(), preview.asks.clone(), false)
+        .await
+        .unwrap();
     let review = ai_push_review(&tc, id.clone(), "r2".into(), None, None, None, "en".into()).await.unwrap();
     assert!(review.findings.is_empty());
     assert_eq!(server.count("POST /v1/messages"), 1, "the confirmed preview is exactly what was sent");
@@ -136,5 +151,8 @@ async fn the_review_asks_like_every_request_and_follows_the_push_target() {
     assert!(to_origin.text.contains("Neu") && to_origin.text.contains("Zähler"), "everything not on origin goes out");
 
     repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
-    assert_eq!(ai_push_review(&tc, id, "r4".into(), None, Some("origin".into()), None, "en".into()).await.unwrap_err().code, ErrorCode::AiDisabled);
+    assert_eq!(
+        ai_push_review(&tc, id, "r4".into(), None, Some("origin".into()), None, "en".into()).await.unwrap_err().code,
+        ErrorCode::AiDisabled
+    );
 }

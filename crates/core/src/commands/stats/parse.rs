@@ -219,7 +219,11 @@ mod tests {
         assert_eq!(commits.len(), 2);
         assert_eq!((commits[0].sha.as_str(), commits[0].name.as_str(), commits[0].email.as_str()), ("bbbb", "Ben", "ben@example.com"));
         assert_eq!((commits[0].time, commits[0].offset), (1_735_812_000, -18_000));
-        assert_eq!(commits[0].files, [renamed("f.txt", "g.txt", 1, 0), delta("src/b.bin", 0, 0)], "rename under the new path with the old one, binary with 0 lines");
+        assert_eq!(
+            commits[0].files,
+            [renamed("f.txt", "g.txt", 1, 0), delta("src/b.bin", 0, 0)],
+            "rename under the new path with the old one, binary with 0 lines"
+        );
         assert_eq!((commits[1].sha.as_str(), commits[1].offset), ("aaaa", 7_200));
         assert_eq!(commits[1].files, [delta("f.txt", 3, 0)]);
     }

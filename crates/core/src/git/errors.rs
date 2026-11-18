@@ -22,12 +22,7 @@ const fn rule(any: &'static [&'static str], code: ErrorCode, message: &'static s
     Rule { any, and_any: &[], code, message }
 }
 
-const fn rule2(
-    any: &'static [&'static str],
-    and_any: &'static [&'static str],
-    code: ErrorCode,
-    message: &'static str,
-) -> Rule {
+const fn rule2(any: &'static [&'static str], and_any: &'static [&'static str], code: ErrorCode, message: &'static str) -> Rule {
     Rule { any, and_any, code, message }
 }
 
@@ -54,11 +49,7 @@ pub static RULES: &[Rule] = &[
         ErrorCode::IdentityMissing,
         "Name and email for commits are not set.",
     ),
-    rule(
-        &["aborting commit due to empty commit message", "empty commit message"],
-        ErrorCode::EmptyMessage,
-        "The commit message is empty.",
-    ),
+    rule(&["aborting commit due to empty commit message", "empty commit message"], ErrorCode::EmptyMessage, "The commit message is empty."),
     rule(
         &["nothing to commit", "no changes added to commit", "nothing added to commit"],
         ErrorCode::NothingToCommit,
@@ -123,15 +114,16 @@ pub static RULES: &[Rule] = &[
     ),
     // Network cases from clone, fetch, pull, push (sync.rs, clone_init.rs).
     rule(
-        &["permission denied (", "password authentication is not available", "support for password authentication was removed", "bad credentials"],
+        &[
+            "permission denied (",
+            "password authentication is not available",
+            "support for password authentication was removed",
+            "bad credentials",
+        ],
         ErrorCode::AuthFailed,
         "Signing in to the server failed.",
     ),
-    rule(
-        &["operation too slow", "timeout was reached", "timed out"],
-        ErrorCode::Timeout,
-        "Timeout: the server took too long to respond.",
-    ),
+    rule(&["operation too slow", "timeout was reached", "timed out"], ErrorCode::Timeout, "Timeout: the server took too long to respond."),
     rule(
         &["repository not found", "not found in upstream", "could not find remote branch"],
         ErrorCode::NotFound,
@@ -155,12 +147,7 @@ pub static RULES: &[Rule] = &[
         "No upstream is set for this branch.",
     ),
     rule(
-        &[
-            "does not appear to be a git repository",
-            "no such remote",
-            "no configured push destination",
-            "no remote repository specified",
-        ],
+        &["does not appear to be a git repository", "no such remote", "no configured push destination", "no remote repository specified"],
         ErrorCode::NoRemote,
         "The remote doesn’t exist or can’t be reached.",
     ),
@@ -180,7 +167,13 @@ pub static RULES: &[Rule] = &[
         "A merge, rebase, cherry-pick or revert is already in progress.",
     ),
     rule(
-        &["there is no merge to abort", "no rebase in progress", "no cherry-pick or revert in progress", "no cherry-pick in progress", "no revert in progress"],
+        &[
+            "there is no merge to abort",
+            "no rebase in progress",
+            "no cherry-pick or revert in progress",
+            "no cherry-pick in progress",
+            "no revert in progress",
+        ],
         ErrorCode::NoOperation,
         "No operation is in progress that could be continued or aborted.",
     ),
@@ -203,7 +196,14 @@ pub static RULES: &[Rule] = &[
     ),
     // `git apply` (staging, unstaging, discarding hunks and lines): the file has changed since the diff.
     rule(
-        &["patch does not apply", "patch failed:", "does not match index", "does not exist in index", "already exists in index", "already exists in working directory"],
+        &[
+            "patch does not apply",
+            "patch failed:",
+            "does not match index",
+            "does not exist in index",
+            "already exists in index",
+            "already exists in working directory",
+        ],
         ErrorCode::StaleState,
         "The file has changed in the meantime. The view is reloading; please make your selection again.",
     ),
@@ -219,16 +219,18 @@ pub static RULES: &[Rule] = &[
         ErrorCode::Conflict,
         "A soft reset isn’t possible with unresolved conflicts. Please resolve the conflicts first.",
     ),
-    rule2(
-        &["destination path"],
-        &["already exists"],
-        ErrorCode::PathExists,
-        "The target folder already exists and is not empty.",
-    ),
+    rule2(&["destination path"], &["already exists"], ErrorCode::PathExists, "The target folder already exists and is not empty."),
     rule2(&["cannot lock ref"], &["exists"], ErrorCode::NameExists, "A ref with this name (or a folder of the same name) already exists."),
     rule(&["already exists"], ErrorCode::NameExists, "The name already exists."),
     rule(
-        &["is not a valid branch name", "is not a valid tag name", "not a valid ref name", "is not a valid name", "invalid branch name", "invalid tag name"],
+        &[
+            "is not a valid branch name",
+            "is not a valid tag name",
+            "not a valid ref name",
+            "is not a valid name",
+            "invalid branch name",
+            "invalid tag name",
+        ],
         ErrorCode::InvalidName,
         "The name is invalid.",
     ),
@@ -257,7 +259,14 @@ pub static RULES: &[Rule] = &[
     rule(&["unable to create", "cannot lock"], ErrorCode::Locked, "A file in the repository is locked."),
     // At the very end, because these lines are often just the consequence of a more precise error.
     rule(
-        &["the remote end hung up unexpectedly", "connection reset", "connection was reset", "early eof", "rpc failed", "could not read from remote repository"],
+        &[
+            "the remote end hung up unexpectedly",
+            "connection reset",
+            "connection was reset",
+            "early eof",
+            "rpc failed",
+            "could not read from remote repository",
+        ],
         ErrorCode::Offline,
         "The connection to the server was lost.",
     ),
@@ -419,7 +428,12 @@ fn specific(text: &str) -> Option<CoreError> {
             "The Git configuration is damaged: line {line} in “{file}” can’t be read. Open the file in an editor and fix or remove the line."
         )));
     }
-    if has("index file corrupt") || has("bad index file") || has("index file smaller than expected") || has("bad signature 0x") || has("bad index version") {
+    if has("index file corrupt")
+        || has("bad index file")
+        || has("index file smaller than expected")
+        || has("bad signature 0x")
+        || has("bad index version")
+    {
         return Some(CoreError::io(
             "The repository’s index (.git/index) is damaged. The history is not affected. To fix it in a terminal: delete the file .git/index and run “git reset” – anything that was staged has to be staged again afterwards.",
         ));
@@ -445,9 +459,7 @@ fn specific(text: &str) -> Option<CoreError> {
 /// Maps Git output to an error code if a rule matches.
 pub fn match_rule(text: &str) -> Option<&'static Rule> {
     let lower = text.to_lowercase();
-    RULES.iter().find(|r| {
-        r.any.iter().any(|n| lower.contains(n)) && (r.and_any.is_empty() || r.and_any.iter().any(|n| lower.contains(n)))
-    })
+    RULES.iter().find(|r| r.any.iter().any(|n| lower.contains(n)) && (r.and_any.is_empty() || r.and_any.iter().any(|n| lower.contains(n))))
 }
 
 /// Builds a `CoreError` from a failed Git call.
@@ -512,7 +524,12 @@ mod tests {
     /// The output names the cause: then it appears in the message.
     #[test]
     fn specific_causes_are_named() {
-        let e = classify("branch", Some(128), b"", b"fatal: cannot lock ref 'refs/heads/lang/xxx': Unable to create 'C:/r/.git/refs/heads/lang/xxx.lock': Filename too long");
+        let e = classify(
+            "branch",
+            Some(128),
+            b"",
+            b"fatal: cannot lock ref 'refs/heads/lang/xxx': Unable to create 'C:/r/.git/refs/heads/lang/xxx.lock': Filename too long",
+        );
         assert_eq!(e.code, ErrorCode::InvalidName);
         assert!(e.message.contains("too long") && !e.message.contains("locked"), "{}", e.message);
 
@@ -537,7 +554,11 @@ mod tests {
         let e = classify("status", Some(128), b"", b"error: bad signature 0x4d5a9000\nfatal: index file corrupt");
         assert!(e.code == ErrorCode::Io && e.message.contains(".git/index"), "{}", e.message);
         let sha = "1234567890123456789012345678901234567890";
-        for text in [format!("fatal: unable to read {sha}"), format!("fatal: missing object {sha} for refs/heads/x"), format!("error: Could not read {sha}\nfatal: revision walk setup failed")] {
+        for text in [
+            format!("fatal: unable to read {sha}"),
+            format!("fatal: missing object {sha} for refs/heads/x"),
+            format!("error: Could not read {sha}\nfatal: revision walk setup failed"),
+        ] {
             let e = classify("log", Some(128), b"", text.as_bytes());
             assert!(e.code == ErrorCode::Io && e.message.contains("object") && e.message.contains("1234567"), "{text}: {}", e.message);
         }
@@ -550,14 +571,22 @@ mod tests {
     /// Signing failures name the signing problem – never "not found" or "locked".
     #[test]
     fn signing_failures_have_their_own_code() {
-        let e = classify("commit", Some(128), b"", b"error: Couldn't load public key /home/a/.ssh/weg.pub: No such file or directory?\n\nfatal: failed to write commit object");
+        let e = classify(
+            "commit",
+            Some(128),
+            b"",
+            b"error: Couldn't load public key /home/a/.ssh/weg.pub: No such file or directory?\n\nfatal: failed to write commit object",
+        );
         assert_eq!(e.code, ErrorCode::SigningFailed);
         assert!(e.message.contains("“/home/a/.ssh/weg.pub”") && e.message.contains("No such file or directory"), "{}", e.message);
         assert_eq!(code("error: gpg failed to sign the data\nfatal: failed to write commit object"), ErrorCode::SigningFailed);
         assert_eq!(code("error: cannot run gpg: No such file or directory\nerror: gpg failed to sign the data\nfatal: failed to write commit object"), ErrorCode::SigningFailed);
         assert_eq!(code("error: gpg failed to sign the data\nerror: unable to sign the tag"), ErrorCode::SigningFailed);
         assert_eq!(code("fatal: either user.signingkey or gpg.ssh.defaultKeyCommand needs to be configured"), ErrorCode::SigningFailed);
-        assert_eq!(code("error: ssh-keygen -Y sign is needed for ssh signing (available in openssh version 8.2p1+)"), ErrorCode::SigningFailed);
+        assert_eq!(
+            code("error: ssh-keygen -Y sign is needed for ssh signing (available in openssh version 8.2p1+)"),
+            ErrorCode::SigningFailed
+        );
         // Unrelated "no such file" stays not_found.
         assert_eq!(code("fatal: cannot stat 'x': No such file or directory"), ErrorCode::NotFound);
     }
@@ -582,8 +611,14 @@ mod tests {
         // A host name with " pid " in it does not confuse the number.
         assert_eq!(gc_running_pid("fatal: gc is already running on machine 'box pid 9' pid 12 (use --force if not)"), Some(12));
         assert_eq!(gc_running_pid("fatal: Unable to create '/r/.git/gc.pid.lock': File exists."), None);
-        assert_eq!(code("fatal: Unable to create '/r/.git/gc.pid.lock': File exists.\n\nAnother git process seems to be running"), ErrorCode::Locked);
-        assert_eq!(code("fatal: Unable to create 'C:/r/.git/index.lock': File exists.\n\nAnother git process seems to be running"), ErrorCode::Locked);
+        assert_eq!(
+            code("fatal: Unable to create '/r/.git/gc.pid.lock': File exists.\n\nAnother git process seems to be running"),
+            ErrorCode::Locked
+        );
+        assert_eq!(
+            code("fatal: Unable to create 'C:/r/.git/index.lock': File exists.\n\nAnother git process seems to be running"),
+            ErrorCode::Locked
+        );
     }
 
     #[test]
@@ -591,7 +626,10 @@ mod tests {
         assert_eq!(code("fatal: unable to access 'https://x/r.git/': The requested URL returned error: 403"), ErrorCode::AuthFailed);
         assert_eq!(code("fatal: Authentication failed for 'https://x/r.git/'"), ErrorCode::AuthFailed);
         assert_eq!(code("git@x: Permission denied (publickey).\nfatal: Could not read from remote repository."), ErrorCode::AuthFailed);
-        assert_eq!(code("user@x: Permission denied (password,keyboard-interactive).\nfatal: Could not read from remote repository."), ErrorCode::AuthFailed);
+        assert_eq!(
+            code("user@x: Permission denied (password,keyboard-interactive).\nfatal: Could not read from remote repository."),
+            ErrorCode::AuthFailed
+        );
         assert_eq!(code("Host key verification failed.\nfatal: Could not read from remote repository."), ErrorCode::HostKeyUnknown);
         assert_eq!(code("ssh: Could not resolve hostname x: Name or service not known"), ErrorCode::Offline);
         assert_eq!(code("ssh: connect to host x port 22: Connection refused"), ErrorCode::Offline);
@@ -604,12 +642,18 @@ mod tests {
             ErrorCode::Offline
         );
         assert_eq!(code("ssh: connect to host x port 22: Connection timed out"), ErrorCode::Offline);
-        assert_eq!(code("error: RPC failed; curl 28 Operation too slow. Less than 1000 bytes/sec transferred the last 10 seconds"), ErrorCode::Timeout);
+        assert_eq!(
+            code("error: RPC failed; curl 28 Operation too slow. Less than 1000 bytes/sec transferred the last 10 seconds"),
+            ErrorCode::Timeout
+        );
         assert_eq!(code("fatal: unable to connect to x: errno=Unknown error: read timed out"), ErrorCode::Timeout);
         assert_eq!(code("remote: Repository not found.\nfatal: repository 'https://x/a/b.git/' not found"), ErrorCode::NotFound);
         assert_eq!(code("fatal: Remote branch weg not found in upstream origin"), ErrorCode::NotFound);
         assert_eq!(code("fatal: repository 'C:/x/y' does not exist"), ErrorCode::NotFound);
-        assert_eq!(code("fatal: 'C:/x/y' does not appear to be a git repository\nfatal: Could not read from remote repository."), ErrorCode::NoRemote);
+        assert_eq!(
+            code("fatal: 'C:/x/y' does not appear to be a git repository\nfatal: Could not read from remote repository."),
+            ErrorCode::NoRemote
+        );
         assert_eq!(code("fatal: the remote end hung up unexpectedly\nfatal: early EOF"), ErrorCode::Offline);
         // The more precise cause wins over "hung up".
         assert_eq!(code("fatal: couldn't find remote ref x\nfatal: the remote end hung up unexpectedly"), ErrorCode::NotFound);

@@ -88,11 +88,23 @@ mod tests {
         assert_eq!(state, RepoViewState::default());
         assert_eq!(state.columns.len(), 6);
         let ids: Vec<SectionId> = state.sections.iter().map(|s| s.id).collect();
-        assert_eq!(ids, vec![SectionId::Local, SectionId::Remote, SectionId::Tags, SectionId::Stashes, SectionId::Worktrees, SectionId::Submodules, SectionId::Agents]);
+        assert_eq!(
+            ids,
+            vec![
+                SectionId::Local,
+                SectionId::Remote,
+                SectionId::Tags,
+                SectionId::Stashes,
+                SectionId::Worktrees,
+                SectionId::Submodules,
+                SectionId::Agents
+            ]
+        );
 
-        let next = view_state_set(&tc, id.clone(), json!({"hiddenRefs": ["refs/heads/a", "refs/heads/a"], "soloRefs": ["refs/heads/main"]}))
-            .await
-            .unwrap();
+        let next =
+            view_state_set(&tc, id.clone(), json!({"hiddenRefs": ["refs/heads/a", "refs/heads/a"], "soloRefs": ["refs/heads/main"]}))
+                .await
+                .unwrap();
         assert_eq!(next.hidden_refs, vec!["refs/heads/a"]);
         assert_eq!(next.solo_refs, vec!["refs/heads/main"]);
         assert_eq!(next.columns, RepoViewState::default().columns);

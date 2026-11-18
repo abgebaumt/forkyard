@@ -42,12 +42,19 @@ fn run() -> i32 {
     let mut stdin = Vec::new();
     let _ = std::io::stdin().read_to_end(&mut stdin);
     record(&dir, &name, &args, &stdin);
-    let config: Option<Value> = std::fs::read_to_string(dir.join(format!("{name}.fake.json"))).ok().and_then(|text| serde_json::from_str(&text).ok());
+    let config: Option<Value> =
+        std::fs::read_to_string(dir.join(format!("{name}.fake.json"))).ok().and_then(|text| serde_json::from_str(&text).ok());
     let Some(config) = config else {
         eprintln!("fake-cli: {name}.fake.json is missing or not JSON");
         return 97;
     };
-    let rule = config["rules"].as_array().into_iter().flatten().find(|rule| matches(rule, &args)).cloned().unwrap_or_else(|| config["fallback"].clone());
+    let rule = config["rules"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|rule| matches(rule, &args))
+        .cloned()
+        .unwrap_or_else(|| config["fallback"].clone());
     answer(&rule, &args)
 }
 
@@ -85,13 +92,17 @@ fn answer(rule: &Value, args: &[String]) -> i32 {
 
 fn record(dir: &Path, name: &str, args: &[String], stdin: &[u8]) {
     let cwd = std::env::current_dir().unwrap_or_default();
-    let mut entries: Vec<String> = std::fs::read_dir(&cwd).map(|list| list.filter_map(Result::ok).map(|entry| entry.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+    let mut entries: Vec<String> = std::fs::read_dir(&cwd)
+        .map(|list| list.filter_map(Result::ok).map(|entry| entry.file_name().to_string_lossy().into_owned()).collect())
+        .unwrap_or_default();
     entries.sort();
     let env: BTreeMap<&str, String> = RECORDED_ENV.iter().filter_map(|key| std::env::var(key).ok().map(|value| (*key, value))).collect();
     let files: BTreeMap<&str, String> = args
         .iter()
         .filter(|arg| !arg.is_empty() && Path::new(arg.as_str()).is_file())
-        .filter_map(|arg| std::fs::read(arg).ok().map(|bytes| (arg.as_str(), String::from_utf8_lossy(&bytes[..bytes.len().min(MAX_FILE)]).into_owned())))
+        .filter_map(|arg| {
+            std::fs::read(arg).ok().map(|bytes| (arg.as_str(), String::from_utf8_lossy(&bytes[..bytes.len().min(MAX_FILE)]).into_owned()))
+        })
         .collect();
     let line = json!({ "args": args, "cwd": cwd.to_string_lossy(), "cwdEntries": entries, "stdin": String::from_utf8_lossy(stdin), "env": env, "files": files });
     if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join(format!("{name}.calls.jsonl"))) {

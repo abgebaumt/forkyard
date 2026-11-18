@@ -87,7 +87,8 @@ pub fn candidates(base: &str) -> impl Iterator<Item = String> + '_ {
 
 /// `<parent>/<repo>.agents` for the main worktree `<parent>/<repo>`.
 pub fn agents_dir(main_root: &Path) -> CoreResult<PathBuf> {
-    let refuse = || CoreError::not_allowed("Coding agents need a folder next to the repository; the repository is at the top of the drive.");
+    let refuse =
+        || CoreError::not_allowed("Coding agents need a folder next to the repository; the repository is at the top of the drive.");
     let name = main_root.file_name().ok_or_else(refuse)?;
     let parent = main_root.parent().ok_or_else(refuse)?;
     let mut folder = name.to_os_string();
@@ -143,7 +144,10 @@ mod tests {
         let root = std::path::Path::new("/home/anna/Mein Projekt Ä/web app");
         assert_eq!(agents_dir(root).unwrap(), std::path::PathBuf::from("/home/anna/Mein Projekt Ä/web app.agents"));
         #[cfg(windows)]
-        assert_eq!(agents_dir(std::path::Path::new(r"C:\Users\Jörg\repo")).unwrap(), std::path::PathBuf::from(r"C:\Users\Jörg\repo.agents"));
+        assert_eq!(
+            agents_dir(std::path::Path::new(r"C:\Users\Jörg\repo")).unwrap(),
+            std::path::PathBuf::from(r"C:\Users\Jörg\repo.agents")
+        );
         assert_eq!(agents_dir(std::path::Path::new("/")).unwrap_err().code, crate::ErrorCode::NotAllowed);
 
         let dir = crate::testkit::temp_folder();

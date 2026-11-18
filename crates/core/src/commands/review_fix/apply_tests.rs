@@ -30,11 +30,17 @@ async fn takeovers_become_fixup_commits_with_one_undo_for_the_row() {
     assert_eq!(s.repo.git(&["show", "--format=", "--name-only", "HEAD"]), FILE, "the commit holds only the fix");
     assert_eq!(s.repo.git(&["status", "--porcelain"]), "");
 
-    let second = review_fix_apply(&s.tc, s.id.clone(), 7, input("docs/hinweis.md", 3, 3, "Passwörter brauchen 4 Zeichen.", &s.p2), s.p2.clone()).await.unwrap();
+    let second =
+        review_fix_apply(&s.tc, s.id.clone(), 7, input("docs/hinweis.md", 3, 3, "Passwörter brauchen 4 Zeichen.", &s.p2), s.p2.clone())
+            .await
+            .unwrap();
     assert_eq!(subjects_since(&s, &s.p2), format!("fixup! {P2_SUBJECT}\nfixup! {P1_SUBJECT}"));
     assert_eq!((second.fixups, second.undo_label.as_str()), (2, "Undo 2 fixup commits for #7"));
     let peek = undo_peek(&s.tc, s.id.clone()).await.unwrap();
-    assert_eq!(peek.undo.map(|step| (step.label, step.action)), Some(("Undo 2 fixup commits for #7".to_string(), "review_fixups".to_string())));
+    assert_eq!(
+        peek.undo.map(|step| (step.label, step.action)),
+        Some(("Undo 2 fixup commits for #7".to_string(), "review_fixups".to_string()))
+    );
 
     undo(&s.tc, s.id.clone()).await.unwrap();
     assert_eq!(s.repo.head(), s.p2, "both fixups are undone at once");
@@ -141,9 +147,14 @@ async fn undo_refuses_once_the_fixups_are_on_a_remote() {
 async fn autosquash_after_a_takeover_folds_the_fixup_into_its_target() {
     let s = pr_repo(Vec::new()).await;
     let applied = review_fix_apply(&s.tc, s.id.clone(), 7, input(FILE, 3, 4, FIX, &s.p2), s.p1.clone()).await.unwrap();
-    let RebasePlan::Ok { rows, .. } = rebase_plan_with(&s.tc, s.id.clone(), applied.base.clone(), Some(true)).await.unwrap() else { panic!("expected a plan") };
+    let RebasePlan::Ok { rows, .. } = rebase_plan_with(&s.tc, s.id.clone(), applied.base.clone(), Some(true)).await.unwrap() else {
+        panic!("expected a plan")
+    };
     let plan: Vec<(&str, RebaseAction)> = rows.iter().map(|r| (r.sha.as_str(), r.action)).collect();
-    assert_eq!(plan, vec![(s.p1.as_str(), RebaseAction::Pick), (applied.commit.as_str(), RebaseAction::Fixup), (s.p2.as_str(), RebaseAction::Pick)]);
+    assert_eq!(
+        plan,
+        vec![(s.p1.as_str(), RebaseAction::Pick), (applied.commit.as_str(), RebaseAction::Fixup), (s.p2.as_str(), RebaseAction::Pick)]
+    );
     rebase_apply_with(&s.tc, s.id.clone(), applied.base.clone(), rows, None).await.unwrap();
     assert_eq!(subjects_since(&s, &s.main), format!("{P2_SUBJECT}\n{P1_SUBJECT}"), "the fixup went into its commit");
     assert_eq!(s.repo.git(&["show", &format!("HEAD~1:{FILE}")]), FIXED_FILE.trim_end(), "the first commit now holds the fix");

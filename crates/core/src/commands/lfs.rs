@@ -126,7 +126,8 @@ fn check_pattern(pattern: &str) -> CoreResult<String> {
 /// filters the files would be committed normally, without `pre-push` they would never be uploaded.
 async fn ensure_installed_in_repo(core: &Core, repo_id: &str) -> CoreResult<()> {
     let filter = core.git_for(repo_id)?.args(["config", "--get", "filter.lfs.process"]).read_only().no_log().run_raw().await?;
-    let hook = crate::commands::status::git_dir(core, repo_id).await.map(|dir| dir.join("hooks").join("pre-push").is_file()).unwrap_or(false);
+    let hook =
+        crate::commands::status::git_dir(core, repo_id).await.map(|dir| dir.join("hooks").join("pre-push").is_file()).unwrap_or(false);
     if filter.success() && hook {
         return Ok(());
     }
@@ -346,7 +347,12 @@ mod tests {
         let hooks = repo.path().join(".git").join("hooks");
         let hook_names = || -> Vec<String> {
             let mut names: Vec<String> = std::fs::read_dir(&hooks)
-                .map(|dir| dir.filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().into_owned()).filter(|n| !n.ends_with(".sample")).collect())
+                .map(|dir| {
+                    dir.filter_map(|e| e.ok())
+                        .map(|e| e.file_name().to_string_lossy().into_owned())
+                        .filter(|n| !n.ends_with(".sample"))
+                        .collect()
+                })
                 .unwrap_or_default();
             names.sort();
             names

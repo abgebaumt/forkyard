@@ -104,13 +104,7 @@ async fn identity_missing_is_detected() {
     repo.write_file("a.txt", "a");
     let id = tc.open(&repo).await.repo.id;
     tc.git_for(&id).unwrap().args(["add", "a.txt"]).run().await.unwrap();
-    let err = tc
-        .git_for(&id)
-        .unwrap()
-        .args(["-c", "user.useConfigOnly=true", "commit", "-m", "x"])
-        .run()
-        .await
-        .unwrap_err();
+    let err = tc.git_for(&id).unwrap().args(["-c", "user.useConfigOnly=true", "commit", "-m", "x"]).run().await.unwrap_err();
     assert_eq!(err.code, ErrorCode::IdentityMissing, "{err:?}");
 }
 
@@ -120,14 +114,7 @@ async fn stdin_is_passed_byte_exact() {
     let repo = TestRepo::with_commit();
     let id = tc.open(&repo).await.repo.id;
     let data: Vec<u8> = vec![b'a', 0xff, 0x00, b'\r', b'\n', 0xfc];
-    let sha = tc
-        .git_for(&id)
-        .unwrap()
-        .args(["hash-object", "-w", "--stdin"])
-        .stdin(data.clone())
-        .run_text()
-        .await
-        .unwrap();
+    let sha = tc.git_for(&id).unwrap().args(["hash-object", "-w", "--stdin"]).stdin(data.clone()).run_text().await.unwrap();
     let back = tc.git_for(&id).unwrap().args(["cat-file", "blob", &sha]).read_only().run().await.unwrap();
     assert_eq!(back.stdout, data);
 }
@@ -271,14 +258,8 @@ async fn timeout_ends_the_process() {
     let repo = TestRepo::with_commit();
     let id = tc.open(&repo).await.repo.id;
     let started = Instant::now();
-    let err = tc
-        .git_for(&id)
-        .unwrap()
-        .args(["-c", "alias.warte=!sleep 5", "warte"])
-        .timeout(Duration::from_millis(300))
-        .run()
-        .await
-        .unwrap_err();
+    let err =
+        tc.git_for(&id).unwrap().args(["-c", "alias.warte=!sleep 5", "warte"]).timeout(Duration::from_millis(300)).run().await.unwrap_err();
     assert_eq!(err.code, ErrorCode::Timeout);
     assert!(started.elapsed() < Duration::from_secs(3));
 
@@ -363,9 +344,7 @@ async fn write_lock_serializes_per_repo_and_emits() {
 
     // repo:changed is reported even on an error.
     tc.events.clear();
-    let r: crate::CoreResult<()> = tc
-        .with_write_lock(&id, &[RepoChange::Refs], async { Err(crate::CoreError::unknown("x")) })
-        .await;
+    let r: crate::CoreResult<()> = tc.with_write_lock(&id, &[RepoChange::Refs], async { Err(crate::CoreError::unknown("x")) }).await;
     assert!(r.is_err());
     assert_eq!(tc.events.count(names::REPO_CHANGED), 1);
 }
@@ -631,10 +610,12 @@ async fn proxy_setting_reaches_git_for_network_calls_only() {
     let tc = TestCore::new().await;
     let (port, seen, server) = fake_proxy().await;
     let dir = tc.data_dir().to_path_buf();
-    let via_proxy = |seen: &Arc<parking_lot::Mutex<Vec<String>>>| seen.lock().iter().filter(|line| line.contains("ueber-proxy.invalid")).count();
+    let via_proxy =
+        |seen: &Arc<parking_lot::Mutex<Vec<String>>>| seen.lock().iter().filter(|line| line.contains("ueber-proxy.invalid")).count();
 
     // Without the setting nothing goes through the proxy.
-    let call = || tc.git_at(&dir).args(["ls-remote", "http://ueber-proxy.invalid/x.git"]).network().no_prompt().timeout(Duration::from_secs(60));
+    let call =
+        || tc.git_at(&dir).args(["ls-remote", "http://ueber-proxy.invalid/x.git"]).network().no_prompt().timeout(Duration::from_secs(60));
     assert!(!call().run_raw().await.unwrap().success());
     assert_eq!(via_proxy(&seen), 0);
 
@@ -654,7 +635,11 @@ async fn proxy_setting_reaches_git_for_network_calls_only() {
     assert!(via_proxy(&seen) >= 1, "the request reached the proxy: {:?}", seen.lock());
     // Git knows the proxy password (anna:geheim) – even though it is no longer on the command
     // line but comes through the environment (GIT_CONFIG_COUNT/KEY/VALUE).
-    assert!(seen.lock().iter().any(|head| head.contains("Proxy-Authorization: Basic YW5uYTpnZWhlaW0=")), "proxy authentication missing: {:?}", seen.lock());
+    assert!(
+        seen.lock().iter().any(|head| head.contains("Proxy-Authorization: Basic YW5uYTpnZWhlaW0=")),
+        "proxy authentication missing: {:?}",
+        seen.lock()
+    );
     let argv = call().argv().join(" ");
     assert!(!argv.contains("geheim") && !argv.contains("http.proxy"), "{argv}");
     // The log says that a proxy applied – without its password, and not in the command line.
@@ -666,7 +651,15 @@ async fn proxy_setting_reaches_git_for_network_calls_only() {
 
     // The per-host exception: direct, so nothing at the proxy.
     let before = seen.lock().len();
-    let direct = tc.git_at(&dir).args(["ls-remote", "http://127.0.0.1:9/x.git"]).network().no_prompt().timeout(Duration::from_secs(60)).run_raw().await.unwrap();
+    let direct = tc
+        .git_at(&dir)
+        .args(["ls-remote", "http://127.0.0.1:9/x.git"])
+        .network()
+        .no_prompt()
+        .timeout(Duration::from_secs(60))
+        .run_raw()
+        .await
+        .unwrap();
     assert!(!direct.success());
     assert_eq!(seen.lock().len(), before, "{:?}", seen.lock());
 

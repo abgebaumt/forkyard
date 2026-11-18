@@ -5,16 +5,18 @@
 use serde_json::{json, Value};
 
 use super::{
-    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, review_summary, summarize_checks, text, two_levels, MAX_ITEMS, Api, Host, HostFuture, NewPr, NewRelease, Paging,
-    PrChange, RepoFacts, RepoPath,
+    already_exists, color, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error,
+    review_summary, summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, PrChange, RepoFacts, RepoPath,
+    MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::http::{encode, with_query, Method};
 use crate::model::{
-    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState, IssuePage, IssueState, IssueSummary,
-    PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer, PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
+    CheckRunState, HostCapabilities, HostComment, HostKind, HostLabel, HostRelease, HostRepoRef, HostUser, IssueDetails, IssueListState,
+    IssuePage, IssueState, IssueSummary, PrCheck, PrCommit, PrDetails, PrListState, PrMergeMethod, PrPage, PrReviewState, PrReviewer,
+    PrState, PrSummary, ReviewReply, ReviewSide, ReviewThread,
 };
 
 fn repo_path(repo: &RepoPath) -> String {
@@ -56,12 +58,20 @@ pub async fn account_facts(core: &Core, api: &Api) -> CoreResult<AccountFacts> {
             missing.push("repo".to_string());
         }
     }
-    Ok(AccountFacts { login: Some(login), name: opt_text(&me, "name"), avatar_url: opt_text(&me, "avatar_url"), scopes_ok: missing.is_empty(), missing_scopes: missing })
+    Ok(AccountFacts {
+        login: Some(login),
+        name: opt_text(&me, "name"),
+        avatar_url: opt_text(&me, "avatar_url"),
+        scopes_ok: missing.is_empty(),
+        missing_scopes: missing,
+    })
 }
 
 /// `GET /repos/{owner}/{repo}`
 pub async fn repo_facts(core: &Core, api: &Api, repo: &RepoPath) -> CoreResult<RepoFacts> {
-    let value = api.get_json(core, &repo_path(repo)).await.map_err(|e| not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full())))?;
+    let value = api.get_json(core, &repo_path(repo)).await.map_err(|e| {
+        not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full()))
+    })?;
     let fork_parent = value.get("parent").filter(|p| p.is_object()).and_then(|parent| {
         let owner = parent.get("owner").map(|o| text(o, "login")).unwrap_or_default();
         let name = text(parent, "name");
@@ -96,7 +106,9 @@ fn head_sha(value: &Value) -> String {
 
 fn pr_summary(value: &Value) -> PrSummary {
     let branch = |side: &str| value.get(side).map(|v| text(v, "ref")).unwrap_or_default();
-    let repo_of = |side: &str| value.get(side).and_then(|v| v.get("repo")).and_then(|r| r.get("full_name")).and_then(Value::as_str).map(str::to_string);
+    let repo_of = |side: &str| {
+        value.get(side).and_then(|v| v.get("repo")).and_then(|r| r.get("full_name")).and_then(Value::as_str).map(str::to_string)
+    };
     let is_fork = match (repo_of("head"), repo_of("base")) {
         (Some(head), Some(base)) => !head.eq_ignore_ascii_case(&base),
         // The source repository has been deleted.
@@ -140,7 +152,11 @@ async fn checks(core: &Core, api: &Api, repo: &RepoPath, sha: &str) -> CoreResul
     let mut checks: Vec<PrCheck> = Vec::new();
     let runs = api.get_json(core, &format!("{base}/check-runs?per_page=100")).await?;
     for run in list(&runs, "check_runs") {
-        checks.push(PrCheck { name: text(run, "name"), state: check_run_state(run), url: opt_text(run, "html_url").or_else(|| opt_text(run, "details_url")) });
+        checks.push(PrCheck {
+            name: text(run, "name"),
+            state: check_run_state(run),
+            url: opt_text(run, "html_url").or_else(|| opt_text(run, "details_url")),
+        });
     }
     let status = api.get_json(core, &format!("{base}/status?per_page=100")).await?;
     for entry in list(&status, "statuses") {
@@ -204,9 +220,17 @@ pub async fn pr_list(core: &Core, api: &Api, repo: &RepoPath, state: PrListState
     };
     let path = with_query(
         &format!("{}/pulls", repo_path(repo)),
-        &[("state", api_state.to_string()), ("sort", "updated".into()), ("direction", "desc".into()), ("per_page", per_page.to_string()), ("page", page.to_string())],
+        &[
+            ("state", api_state.to_string()),
+            ("sort", "updated".into()),
+            ("direction", "desc".into()),
+            ("per_page", per_page.to_string()),
+            ("page", page.to_string()),
+        ],
     );
-    let (values, next_page) = api.get_page(core, &path).await.map_err(|e| not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full())))?;
+    let (values, next_page) = api.get_page(core, &path).await.map_err(|e| {
+        not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full()))
+    })?;
     // GitHub has no "merged" filter: both come as "closed" and are separated here.
     let wanted: Vec<&Value> = values
         .iter()
@@ -257,7 +281,11 @@ fn comment(prefix: &str, value: &Value, created_key: &str) -> HostComment {
         body: text(value, "body"),
         created_at: text(value, created_key),
         path: opt_text(value, "path"),
-        line: value.get("line").and_then(Value::as_u64).or_else(|| value.get("original_line").and_then(Value::as_u64)).and_then(|n| u32::try_from(n).ok()),
+        line: value
+            .get("line")
+            .and_then(Value::as_u64)
+            .or_else(|| value.get("original_line").and_then(Value::as_u64))
+            .and_then(|n| u32::try_from(n).ok()),
     }
 }
 
@@ -289,7 +317,12 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
         .map(|entry| {
             let commit = entry.get("commit").cloned().unwrap_or(Value::Null);
             let author = commit.get("author").cloned().unwrap_or(Value::Null);
-            PrCommit { sha: text(entry, "sha"), summary: first_line(&text(&commit, "message")), author_name: text(&author, "name"), authored_at: text(&author, "date") }
+            PrCommit {
+                sha: text(entry, "sha"),
+                summary: first_line(&text(&commit, "message")),
+                author_name: text(&author, "name"),
+                authored_at: text(&author, "date"),
+            }
         })
         .collect();
 
@@ -297,7 +330,16 @@ pub async fn pr_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> Cor
     // Fine-grained tokens are often not allowed to read the checks: then the list stays empty.
     let check_runs = checks(core, api, repo, &head_sha).await.unwrap_or_default();
     summary.checks = summarize_checks(&check_runs);
-    Ok(PrDetails { summary, body: text(&value, "body"), reviewers, comments, commits, mergeable: value.get("mergeable").and_then(Value::as_bool), check_runs, head_sha })
+    Ok(PrDetails {
+        summary,
+        body: text(&value, "body"),
+        reviewers,
+        comments,
+        commits,
+        mergeable: value.get("mergeable").and_then(Value::as_bool),
+        check_runs,
+        head_sha,
+    })
 }
 
 /// `POST /repos/{owner}/{repo}/pulls`, then reviewers and labels.
@@ -309,9 +351,19 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
         .await
         .map_err(|e| {
             if already_exists(&e) {
-                CoreError { code: ErrorCode::NameExists, message: format!("There is already an open pull request for the branch “{}”.", new.source_branch), git_output: e.git_output, retry_at: None }
+                CoreError {
+                    code: ErrorCode::NameExists,
+                    message: format!("There is already an open pull request for the branch “{}”.", new.source_branch),
+                    git_output: e.git_output,
+                    retry_at: None,
+                }
             } else {
-                not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to create pull requests there.", repo.full()))
+                not_found_as(e, || {
+                    format!(
+                        "GitHub could not find the repository {} – or the token is not allowed to create pull requests there.",
+                        repo.full()
+                    )
+                })
             }
         })?
         .json()?;
@@ -323,10 +375,14 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
         retry_at: e.retry_at,
     };
     if !new.reviewers.is_empty() {
-        api.send_json(core, Method::Post, &format!("{base}/pulls/{number}/requested_reviewers"), &json!({ "reviewers": new.reviewers })).await.map_err(|e| after("the reviewers", e))?;
+        api.send_json(core, Method::Post, &format!("{base}/pulls/{number}/requested_reviewers"), &json!({ "reviewers": new.reviewers }))
+            .await
+            .map_err(|e| after("the reviewers", e))?;
     }
     if !new.labels.is_empty() {
-        api.send_json(core, Method::Post, &format!("{base}/issues/{number}/labels"), &json!({ "labels": new.labels })).await.map_err(|e| after("the labels", e))?;
+        api.send_json(core, Method::Post, &format!("{base}/issues/{number}/labels"), &json!({ "labels": new.labels }))
+            .await
+            .map_err(|e| after("the labels", e))?;
     }
     if new.reviewers.is_empty() && new.labels.is_empty() {
         return Ok(pr_summary(&created));
@@ -355,7 +411,9 @@ pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, cha
         patch.insert("base".into(), json!(target));
     }
     if !patch.is_empty() {
-        api.send_json(core, Method::Patch, &format!("{base}/pulls/{number}"), &Value::Object(patch)).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
+        api.send_json(core, Method::Patch, &format!("{base}/pulls/{number}"), &Value::Object(patch))
+            .await
+            .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
     }
     if let Some(labels) = change.labels {
         api.send_json(core, Method::Put, &format!("{base}/issues/{number}/labels"), &json!({ "labels": labels })).await?;
@@ -386,7 +444,14 @@ pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64
 }
 
 /// `PUT /repos/{owner}/{repo}/pulls/{number}/merge`, then delete the source branch if requested.
-pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> CoreResult<PrSummary> {
+pub async fn pr_merge(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    number: u64,
+    method: PrMergeMethod,
+    delete_branch: bool,
+) -> CoreResult<PrSummary> {
     let base = repo_path(repo);
     let before = pr_head(core, api, repo, number).await?;
     let merge_method = match method {
@@ -394,7 +459,9 @@ pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, meth
         PrMergeMethod::Squash => "squash",
         PrMergeMethod::Rebase => "rebase",
     };
-    api.send_json(core, Method::Put, &format!("{base}/pulls/{number}/merge"), &json!({ "merge_method": merge_method })).await.map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
+    api.send_json(core, Method::Put, &format!("{base}/pulls/{number}/merge"), &json!({ "merge_method": merge_method }))
+        .await
+        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
     if delete_branch && !before.is_fork && !before.source_branch.is_empty() {
         let branch: Vec<String> = before.source_branch.split('/').map(encode).collect();
         match api.delete(core, &format!("{base}/git/refs/heads/{}", branch.join("/"))).await {
@@ -402,7 +469,15 @@ pub async fn pr_merge(core: &Core, api: &Api, repo: &RepoPath, number: u64, meth
             // Already gone (e.g. deleted automatically): not an error.
             Err(e) if matches!(e.code, ErrorCode::HostNotFound | ErrorCode::HostRejected) => {}
             Err(e) => {
-                return Err(CoreError { code: e.code, message: format!("Pull request #{number} was merged, but the branch “{}” could not be deleted: {}", before.source_branch, e.message), git_output: e.git_output, retry_at: e.retry_at })
+                return Err(CoreError {
+                    code: e.code,
+                    message: format!(
+                        "Pull request #{number} was merged, but the branch “{}” could not be deleted: {}",
+                        before.source_branch, e.message
+                    ),
+                    git_output: e.git_output,
+                    retry_at: e.retry_at,
+                })
             }
         }
     }
@@ -441,8 +516,17 @@ fn issue_summary(value: &Value) -> IssueSummary {
 
 /// Without search text `GET /repos/{owner}/{repo}/issues` (pull requests are filtered out), with
 /// search text `GET /search/issues`.
-pub async fn issue_list(core: &Core, api: &Api, repo: &RepoPath, state: IssueListState, query: Option<&str>, page: u32, per_page: u32) -> CoreResult<IssuePage> {
-    let missing = |e| not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full()));
+pub async fn issue_list(
+    core: &Core,
+    api: &Api,
+    repo: &RepoPath,
+    state: IssueListState,
+    query: Option<&str>,
+    page: u32,
+    per_page: u32,
+) -> CoreResult<IssuePage> {
+    let missing =
+        |e| not_found_as(e, || format!("GitHub could not find the repository {} – or the token is not allowed to see it.", repo.full()));
     let paging = [("per_page", per_page.to_string()), ("page", page.to_string())];
     let (values, next_page) = match query.map(str::trim).filter(|q| !q.is_empty()) {
         None => {
@@ -481,7 +565,12 @@ pub async fn issue_get(core: &Core, api: &Api, repo: &RepoPath, number: u64) -> 
     if value.get("pull_request").is_some() {
         return Err(CoreError::new(ErrorCode::HostNotFound, format!("#{number} in {} is a pull request, not an issue.", repo.full())));
     }
-    let comments = api.get_all(core, &format!("{base}/issues/{number}/comments?per_page=100")).await?.iter().map(|c| comment("c", c, "created_at")).collect();
+    let comments = api
+        .get_all(core, &format!("{base}/issues/{number}/comments?per_page=100"))
+        .await?
+        .iter()
+        .map(|c| comment("c", c, "created_at"))
+        .collect();
     Ok(IssueDetails { summary: issue_summary(&value), body: text(&value, "body"), comments })
 }
 
@@ -543,7 +632,9 @@ pub async fn review_threads(core: &Core, api: &Api, repo: &RepoPath, pr: u64) ->
     loop {
         let variables = json!({ "owner": repo.owner, "name": repo.name, "number": pr, "after": after });
         let data = api.graphql(core, &endpoint, REVIEW_THREADS, variables).await.map_err(|e| not_found_as(e, pr_not_found(repo, pr)))?;
-        let Some(page) = data.get("repository").and_then(|r| r.get("pullRequest")).filter(|p| p.is_object()).and_then(|p| p.get("reviewThreads")) else {
+        let Some(page) =
+            data.get("repository").and_then(|r| r.get("pullRequest")).filter(|p| p.is_object()).and_then(|p| p.get("reviewThreads"))
+        else {
             return Err(CoreError::new(ErrorCode::HostNotFound, pr_not_found(repo, pr)()));
         };
         threads.extend(list(page, "nodes").iter().filter_map(review_thread));
@@ -580,7 +671,11 @@ pub async fn release_create(core: &Core, api: &Api, repo: &RepoPath, new: NewRel
     let created: Value = api
         .send_json(core, Method::Post, &format!("{}/releases", repo_path(repo)), &body)
         .await
-        .map_err(|e| release_error(e, new.tag, || format!("GitHub could not find the repository {} – or the token is not allowed to create releases there.", repo.full())))?
+        .map_err(|e| {
+            release_error(e, new.tag, || {
+                format!("GitHub could not find the repository {} – or the token is not allowed to create releases there.", repo.full())
+            })
+        })?
         .json()?;
     Ok(HostRelease { tag: text(&created, "tag_name"), name: text(&created, "name"), web_url: opt_text(&created, "html_url") })
 }
@@ -647,7 +742,14 @@ impl Host for GithubHost {
     fn repo_facts<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath) -> HostFuture<'a, RepoFacts> {
         Box::pin(repo_facts(core, api, repo))
     }
-    fn pr_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: PrListState, paging: Paging) -> HostFuture<'a, PrPage> {
+    fn pr_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: PrListState,
+        paging: Paging,
+    ) -> HostFuture<'a, PrPage> {
         Box::pin(pr_list(core, api, repo, state, paging.page, paging.per_page))
     }
     fn pr_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrDetails> {
@@ -656,7 +758,15 @@ impl Host for GithubHost {
     fn pr_head<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_head(core, api, repo, number))
     }
-    fn issue_list<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, state: IssueListState, query: Option<&'a str>, paging: Paging) -> HostFuture<'a, IssuePage> {
+    fn issue_list<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        state: IssueListState,
+        query: Option<&'a str>,
+        paging: Paging,
+    ) -> HostFuture<'a, IssuePage> {
         Box::pin(issue_list(core, api, repo, state, query, paging.page, paging.per_page))
     }
     fn issue_get<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, IssueDetails> {
@@ -665,13 +775,35 @@ impl Host for GithubHost {
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
     }
-    fn pr_update<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, change: PrChange<'a>) -> HostFuture<'a, PrSummary> {
+    fn pr_update<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        change: PrChange<'a>,
+    ) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_update(core, api, repo, number, change))
     }
-    fn pr_comment<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, body: &'a str) -> HostFuture<'a, HostComment> {
+    fn pr_comment<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        body: &'a str,
+    ) -> HostFuture<'a, HostComment> {
         Box::pin(comment_create(core, api, repo, number, body))
     }
-    fn pr_merge<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, method: PrMergeMethod, delete_branch: bool) -> HostFuture<'a, PrSummary> {
+    fn pr_merge<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        method: PrMergeMethod,
+        delete_branch: bool,
+    ) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_merge(core, api, repo, number, method, delete_branch))
     }
     fn pr_set_open<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, open: bool) -> HostFuture<'a, PrSummary> {
@@ -684,7 +816,15 @@ impl Host for GithubHost {
     fn review_threads<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64) -> HostFuture<'a, Vec<ReviewThread>> {
         Box::pin(review_threads(core, api, repo, number))
     }
-    fn review_reply<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, number: u64, thread_id: &'a str, body: &'a str) -> HostFuture<'a, ReviewReply> {
+    fn review_reply<'a>(
+        &'a self,
+        core: &'a Core,
+        api: &'a Api,
+        repo: &'a RepoPath,
+        number: u64,
+        thread_id: &'a str,
+        body: &'a str,
+    ) -> HostFuture<'a, ReviewReply> {
         Box::pin(review_reply(core, api, repo, number, thread_id, body))
     }
 }

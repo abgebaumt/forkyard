@@ -33,7 +33,10 @@ async fn reasons_and_unsure_flags_come_back_per_unit_and_per_commit() {
     assert_eq!(proposal.groups[0].reason, "Beide Korrekturen in a.txt gehören zusammen.", "one line");
     assert_eq!(proposal.groups[1].reason, "");
     assert_eq!(proposal.notes.len(), 3);
-    assert_eq!((proposal.notes[0].unit.as_str(), proposal.notes[0].reason.as_str(), proposal.notes[0].unsure), (ids[0].as_str(), "Korrigiert die zweite Zeile.", false));
+    assert_eq!(
+        (proposal.notes[0].unit.as_str(), proposal.notes[0].reason.as_str(), proposal.notes[0].unsure),
+        (ids[0].as_str(), "Korrigiert die zweite Zeile.", false)
+    );
     assert_eq!(proposal.notes[1].unit, ids[1]);
     assert!(proposal.notes[1].unsure);
     assert!(proposal.notes[1].reason.chars().count() <= 200, "a long reason is cut: {}", proposal.notes[1].reason.chars().count());
@@ -45,10 +48,22 @@ async fn reasons_and_unsure_flags_come_back_per_unit_and_per_commit() {
 async fn answers_in_the_old_or_a_loose_shape_are_invalid() {
     let cases = vec![
         (json!({"commits": [{"title": "X", "body": "", "reason": "", "units": ["u1"]}]}), "units as plain aliases"),
-        (json!({"commits": [{"title": "X", "body": "", "units": [{"unit": "u1", "reason": "", "unsure": false}]}]}), "a commit without reason"),
-        (json!({"commits": [{"title": "X", "body": "", "reason": "", "units": [{"unit": "u1", "reason": "", "unsure": "yes"}]}]}), "unsure as text"),
-        (json!({"commits": [{"title": "X", "body": "", "reason": "", "units": [{"unit": "u1", "unsure": false}]}]}), "a unit without reason"),
-        (json!({"commits": [{"title": "X", "body": "", "reason": "", "units": [{"unit": "u1", "reason": "", "unsure": false, "confidence": 0.4}]}]}), "an extra field"),
+        (
+            json!({"commits": [{"title": "X", "body": "", "units": [{"unit": "u1", "reason": "", "unsure": false}]}]}),
+            "a commit without reason",
+        ),
+        (
+            json!({"commits": [{"title": "X", "body": "", "reason": "", "units": [{"unit": "u1", "reason": "", "unsure": "yes"}]}]}),
+            "unsure as text",
+        ),
+        (
+            json!({"commits": [{"title": "X", "body": "", "reason": "", "units": [{"unit": "u1", "unsure": false}]}]}),
+            "a unit without reason",
+        ),
+        (
+            json!({"commits": [{"title": "X", "body": "", "reason": "", "units": [{"unit": "u1", "reason": "", "unsure": false, "confidence": 0.4}]}]}),
+            "an extra field",
+        ),
     ];
     for (answer, why) in cases {
         let server = ollama(answer);
@@ -66,7 +81,15 @@ async fn the_instruction_goes_into_the_system_text_between_guillemets_and_previe
     let (tc, id) = with_ollama(&server, &repo).await;
     let instruction = "  Tests in einen\neigenen Commit  ";
 
-    let preview = ai_preview(&tc, id.clone(), AiFeature::Compose, AiInput::Compose { instruction: Some(instruction.into()), keep: Vec::new() }, "de".into()).await.unwrap();
+    let preview = ai_preview(
+        &tc,
+        id.clone(),
+        AiFeature::Compose,
+        AiInput::Compose { instruction: Some(instruction.into()), keep: Vec::new() },
+        "de".into(),
+    )
+    .await
+    .unwrap();
     compose_proposal(&tc, id.clone(), util::new_id(), "de".into(), Some(instruction.into()), Vec::new()).await.unwrap();
 
     let (system, user) = chats(&server).remove(0);
@@ -74,7 +97,15 @@ async fn the_instruction_goes_into_the_system_text_between_guillemets_and_previe
     assert!(!user.contains("Tests in einen"), "the instruction is not repository data");
     assert_eq!(normalized(&format!("{system}\n\n{user}")), normalized(&preview.text));
 
-    let empty = ai_preview(&tc, id.clone(), AiFeature::Compose, AiInput::Compose { instruction: Some(" \n ".into()), keep: Vec::new() }, "de".into()).await.unwrap();
+    let empty = ai_preview(
+        &tc,
+        id.clone(),
+        AiFeature::Compose,
+        AiInput::Compose { instruction: Some(" \n ".into()), keep: Vec::new() },
+        "de".into(),
+    )
+    .await
+    .unwrap();
     assert!(!empty.text.contains('«'), "a blank instruction is none");
     let err = compose_proposal(&tc, id, util::new_id(), "de".into(), Some("x".repeat(301)), Vec::new()).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
@@ -128,8 +159,13 @@ async fn secret_and_excluded_files_are_protected_and_never_committed() {
     let state = compose_units(&tc, id.clone()).await.unwrap();
 
     let protection: Vec<(&str, Option<AiOmitReason>)> = state.units.iter().map(|u| (u.path.as_str(), u.protected)).collect();
-    assert_eq!(protection, vec![(".env.local", Some(AiOmitReason::Secret)), ("a.txt", None), ("intern/plan.txt", Some(AiOmitReason::Ignored))]);
-    let err = apply(&tc, &id, &state, vec![commit("Alles", "", &[unit(&state, "a.txt", Some(0)), unit(&state, ".env.local", None)])]).await.unwrap_err();
+    assert_eq!(
+        protection,
+        vec![(".env.local", Some(AiOmitReason::Secret)), ("a.txt", None), ("intern/plan.txt", Some(AiOmitReason::Ignored))]
+    );
+    let err = apply(&tc, &id, &state, vec![commit("Alles", "", &[unit(&state, "a.txt", Some(0)), unit(&state, ".env.local", None)])])
+        .await
+        .unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
     assert!(err.message.contains(".env.local"), "{}", err.message);
     assert_eq!(repo.head(), base, "nothing was committed");
@@ -152,7 +188,14 @@ async fn the_state_names_the_commit_hooks_and_the_result_lists_them_per_commit()
     assert_eq!(state.head_subject, "Erster Stand der Datei b");
     assert_eq!(state.hooks, vec!["pre-commit".to_string(), "commit-msg".to_string()], "the hooks that can stop a commit, in Git's order");
 
-    let result = apply(&tc, &id, &state, vec![commit("a groß", "", &[unit(&state, "a.txt", Some(0))]), commit("b groß", "", &[unit(&state, "b.txt", Some(0))])]).await.unwrap();
+    let result = apply(
+        &tc,
+        &id,
+        &state,
+        vec![commit("a groß", "", &[unit(&state, "a.txt", Some(0))]), commit("b groß", "", &[unit(&state, "b.txt", Some(0))])],
+    )
+    .await
+    .unwrap();
 
     assert_eq!(result.steps.len(), 2);
     assert_eq!(result.steps.iter().map(|step| step.sha.clone()).collect::<Vec<_>>(), result.commits);

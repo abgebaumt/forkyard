@@ -16,7 +16,11 @@ pub async fn ai_plan(core: &Core, repo_id: String, job_id: String, text: String,
     let (budget, secrets) = crate::commands::ai::request_frame(core, &settings, AiFeature::Plan).await;
     let prompt = plan::build_prompt(core, &repo_id, &text, &locale, &secrets, budget).await?;
     let schema = plan_commands::answer_schema();
-    let answer = run::complete_json(core, run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::Plan, job_id: &job_id, prompt: &prompt, schema: &schema }).await?;
+    let answer = run::complete_json(
+        core,
+        run::AiRequest { repo_id: Some(&repo_id), feature: AiFeature::Plan, job_id: &job_id, prompt: &prompt, schema: &schema },
+    )
+    .await?;
     let (steps, note) = plan::parse_steps(&answer.value)?;
     let job = core.start_job(&format!("{job_id}:check"), Some(&repo_id))?;
     let result = plan_check::check(core, &repo_id, &steps, job.token()).await.map(|checked| PlanPreview { note, ..checked.preview });
@@ -36,7 +40,15 @@ pub async fn ai_plan_check(core: &Core, repo_id: String, job_id: String, steps: 
 /// Runs a checked plan step by step (job `job_id`). `confirmed`: the indexes of the outward steps
 /// the user confirmed one by one. `stale_state` when `expect` no longer holds; the result names
 /// every step as done, failed or not run.
-pub async fn ai_plan_run(core: &Core, repo_id: String, job_id: String, text: String, steps: Vec<PlanStep>, expect: String, confirmed: Vec<u32>) -> CoreResult<PlanRunResult> {
+pub async fn ai_plan_run(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    text: String,
+    steps: Vec<PlanStep>,
+    expect: String,
+    confirmed: Vec<u32>,
+) -> CoreResult<PlanRunResult> {
     core.repo_path(&repo_id)?;
     let job = core.start_job(&job_id, Some(&repo_id))?;
     let result = plan_run::run(core, &repo_id, &job, &text, &steps, &expect, &confirmed).await;

@@ -94,7 +94,9 @@ pub(crate) fn clean_instruction(text: Option<&str>) -> CoreResult<Option<String>
         return Ok(None);
     }
     if cleaned.chars().count() > MAX_INSTRUCTION_CHARS {
-        return Err(CoreError::not_allowed(format!("The instruction is longer than {MAX_INSTRUCTION_CHARS} characters. Say it in fewer words.")));
+        return Err(CoreError::not_allowed(format!(
+            "The instruction is longer than {MAX_INSTRUCTION_CHARS} characters. Say it in fewer words."
+        )));
     }
     Ok(Some(cleaned))
 }
@@ -104,14 +106,18 @@ pub(crate) fn clean_instruction(text: Option<&str>) -> CoreResult<Option<String>
 /// user's own instruction comes last, delimited like every request in the user's words.
 pub(crate) fn instruction(language: Option<&str>, own: Option<&str>, kept: bool) -> String {
     let mut text = match language {
-        Some(language) => format!("{INSTRUCTION} This repository writes its commit messages in {language}: write summary and body in {language}."),
+        Some(language) => {
+            format!("{INSTRUCTION} This repository writes its commit messages in {language}: write summary and body in {language}.")
+        }
         None => INSTRUCTION.to_string(),
     };
     if kept {
         text.push_str(" The user already placed the changes listed under \"Placed by the user\": leave their aliases out of your answer and group the other changes around them.");
     }
     if let Some(own) = own {
-        text.push_str(&format!("\nThe user's instruction for this proposal, in their own words (follow it where the changes allow): «{own}»"));
+        text.push_str(&format!(
+            "\nThe user's instruction for this proposal, in their own words (follow it where the changes allow): «{own}»"
+        ));
     }
     text
 }
@@ -123,7 +129,15 @@ pub(crate) struct Steering {
     pub(crate) keep: Vec<ComposeKeep>,
 }
 
-pub(crate) async fn build(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String], steering: &Steering) -> CoreResult<ComposePrompt> {
+pub(crate) async fn build(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+    steering: &Steering,
+) -> CoreResult<ComposePrompt> {
     let own = clean_instruction(steering.instruction.as_deref())?;
     let read = units::read(core, repo_id).await?;
     if read.files.is_empty() {
@@ -192,7 +206,12 @@ pub(crate) async fn build(core: &Core, repo_id: &str, settings: &Settings, budge
 fn diff_file(file: &ChangedFile, names: &[String]) -> DiffFile {
     let mut out = match (file.kind, &file.patch) {
         (ComposeUnitKind::Binary | ComposeUnitKind::Lfs | ComposeUnitKind::Submodule, _) => DiffFile::binary(&file.path, 0),
-        (kind, Some(patch)) => DiffFile::text(&file.path, &marked_patch(patch, kind == ComposeUnitKind::Hunk, names), u64::from(file.added), u64::from(file.removed)),
+        (kind, Some(patch)) => DiffFile::text(
+            &file.path,
+            &marked_patch(patch, kind == ComposeUnitKind::Hunk, names),
+            u64::from(file.added),
+            u64::from(file.removed),
+        ),
         (_, None) => DiffFile::text(&file.path, "", u64::from(file.added), u64::from(file.removed)),
     };
     out.old_path = file.old_path.clone();
@@ -303,7 +322,11 @@ fn reason_text(value: Option<&Value>) -> String {
 /// The provider's commits as unit IDs, and its note per unit. Unknown or doubled aliases, a commit
 /// with units but without a summary, more than `MAX_COMMITS` commits or no commit at all:
 /// `ai_invalid_answer`. Kept aliases are dropped – the user placed those units.
-pub(crate) fn groups_from_answer(value: &Value, aliases: &HashMap<String, String>, kept: &HashSet<String>) -> CoreResult<(Vec<ComposeGroup>, Vec<ComposeNote>)> {
+pub(crate) fn groups_from_answer(
+    value: &Value,
+    aliases: &HashMap<String, String>,
+    kept: &HashSet<String>,
+) -> CoreResult<(Vec<ComposeGroup>, Vec<ComposeNote>)> {
     let commits = value.get("commits").and_then(Value::as_array).ok_or_else(|| CoreError::ai_invalid_answer("no list of commits"))?;
     if commits.len() > MAX_COMMITS {
         return Err(CoreError::ai_invalid_answer(format!("more than {MAX_COMMITS} commits")));

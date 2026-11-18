@@ -102,9 +102,7 @@ fn unmask_url(submitted: &str, current: Option<&str>) -> CoreResult<String> {
             }
         }
     }
-    Err(CoreError::not_allowed(
-        "The URL contains redacted credentials (“***”). Enter the credentials again or remove them from the URL.",
-    ))
+    Err(CoreError::not_allowed("The URL contains redacted credentials (“***”). Enter the credentials again or remove them from the URL."))
 }
 
 /// Rough check of a remote or clone URL. Allowed are `scheme://…` with a known protocol, the
@@ -241,12 +239,8 @@ pub fn parse_remote_config(stdout: &[u8]) -> Vec<RawRemote> {
 /// All remotes from the Git configuration, sorted by name, URLs unmasked.
 /// Pure read command; may run inside the write lock.
 pub async fn read_remotes(core: &Core, repo_id: &str) -> CoreResult<Vec<RawRemote>> {
-    let out = core
-        .git_for(repo_id)?
-        .args(["config", "-z", "--get-regexp", r"^remote\..*\.(url|pushurl|fetch)$"])
-        .read_only()
-        .run_raw()
-        .await?;
+    let out =
+        core.git_for(repo_id)?.args(["config", "-z", "--get-regexp", r"^remote\..*\.(url|pushurl|fetch)$"]).read_only().run_raw().await?;
     match out.code {
         Some(0) => Ok(parse_remote_config(&out.stdout)),
         // Exit 1: no entry matches.
@@ -293,7 +287,13 @@ async fn unset_push_url(core: &Core, repo_id: &str, name: &str) -> CoreResult<()
 }
 
 /// Adds a remote.
-pub async fn remote_add(core: &Core, repo_id: String, name: String, fetch_url: String, push_url: Option<String>) -> CoreResult<Vec<Remote>> {
+pub async fn remote_add(
+    core: &Core,
+    repo_id: String,
+    name: String,
+    fetch_url: String,
+    push_url: Option<String>,
+) -> CoreResult<Vec<Remote>> {
     let name = name.trim().to_string();
     check_remote_name(&name)?;
     let fetch_url = unmask_url(&fetch_url, None)?;
@@ -322,7 +322,14 @@ pub async fn remote_add(core: &Core, repo_id: String, name: String, fetch_url: S
 
 /// Renames a remote and changes its URLs. `push_url: None` (or equal to the fetch URL) removes a
 /// separate push URL.
-pub async fn remote_edit(core: &Core, repo_id: String, name: String, new_name: String, fetch_url: String, push_url: Option<String>) -> CoreResult<Vec<Remote>> {
+pub async fn remote_edit(
+    core: &Core,
+    repo_id: String,
+    name: String,
+    new_name: String,
+    fetch_url: String,
+    push_url: Option<String>,
+) -> CoreResult<Vec<Remote>> {
     let new_name = new_name.trim().to_string();
     let renamed = new_name != name;
     if renamed {
@@ -453,12 +460,7 @@ pub fn head_marker(head: &Head) -> String {
 
 /// Local branches whose upstream is on `remote`: (branch, `branch.<x>.merge`).
 async fn branch_upstreams(core: &Core, repo_id: &str, remote: &str) -> CoreResult<Vec<(String, String)>> {
-    let out = core
-        .git_for(repo_id)?
-        .args(["config", "-z", "--get-regexp", r"^branch\..*\.(remote|merge)$"])
-        .read_only()
-        .run_raw()
-        .await?;
+    let out = core.git_for(repo_id)?.args(["config", "-z", "--get-regexp", r"^branch\..*\.(remote|merge)$"]).read_only().run_raw().await?;
     if out.code != Some(0) {
         return Ok(Vec::new());
     }
@@ -589,7 +591,10 @@ mod tests {
 remote.mit.punkt.url\ngit@host:x.git\0remote.mit.punkt.pushurl\ngit@host:y.git\0remote.nurfetch.fetch\n+refs/*:refs/*\0";
         let remotes = parse_remote_config(out);
         assert_eq!(remotes.len(), 3);
-        assert_eq!(remotes[0], RawRemote { name: "mit.punkt".into(), fetch_url: "git@host:x.git".into(), push_url: Some("git@host:y.git".into()) });
+        assert_eq!(
+            remotes[0],
+            RawRemote { name: "mit.punkt".into(), fetch_url: "git@host:x.git".into(), push_url: Some("git@host:y.git".into()) }
+        );
         assert_eq!(remotes[1].name, "nurfetch");
         assert_eq!(remotes[1].fetch_url, "");
         assert_eq!(remotes[2].name, "origin");
@@ -605,30 +610,49 @@ remote.mit.punkt.url\ngit@host:x.git\0remote.mit.punkt.pushurl\ngit@host:y.git\0
         tc.events.clear();
         let list = remote_add(&tc, id.clone(), "origin".into(), "https://github.com/a/b.git".into(), None).await.unwrap();
         assert_eq!(list.len(), 1);
-        assert_eq!(list[0], Remote { name: "origin".into(), fetch_url: "https://github.com/a/b.git".into(), push_url: None, host: RemoteHost::Github });
+        assert_eq!(
+            list[0],
+            Remote { name: "origin".into(), fetch_url: "https://github.com/a/b.git".into(), push_url: None, host: RemoteHost::Github }
+        );
         let changed = tc.events.named(names::REPO_CHANGED);
         assert_eq!(changed.len(), 1);
         assert_eq!(changed[0]["what"], serde_json::json!(["config"]));
 
         // Second remote with a separate push URL; a push URL equal to the fetch URL does not count.
-        let list = remote_add(&tc, id.clone(), "fork".into(), "git@gitlab.com:ich/b.git".into(), Some("git@gitlab.com:ich/push.git".into())).await.unwrap();
+        let list =
+            remote_add(&tc, id.clone(), "fork".into(), "git@gitlab.com:ich/b.git".into(), Some("git@gitlab.com:ich/push.git".into()))
+                .await
+                .unwrap();
         assert_eq!(list.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(), vec!["fork", "origin"]);
         assert_eq!(list[0].push_url.as_deref(), Some("git@gitlab.com:ich/push.git"));
         assert_eq!(list[0].host, RemoteHost::Gitlab);
         assert_eq!(repo.git(&["remote", "get-url", "--push", "fork"]), "git@gitlab.com:ich/push.git");
-        let list = remote_add(&tc, id.clone(), "gleich".into(), "https://example.com/x.git".into(), Some("https://example.com/x.git".into())).await.unwrap();
+        let list =
+            remote_add(&tc, id.clone(), "gleich".into(), "https://example.com/x.git".into(), Some("https://example.com/x.git".into()))
+                .await
+                .unwrap();
         assert_eq!(list.iter().find(|r| r.name == "gleich").unwrap().push_url, None);
         assert!(!repo.git_output(&["config", "--get", "remote.gleich.pushurl"]).status.success());
 
         // Rename, change fetch URL, remove push URL.
-        let list = remote_edit(&tc, id.clone(), "fork".into(), "mein-fork".into(), "git@gitlab.com:ich/neu.git".into(), None).await.unwrap();
+        let list =
+            remote_edit(&tc, id.clone(), "fork".into(), "mein-fork".into(), "git@gitlab.com:ich/neu.git".into(), None).await.unwrap();
         let fork = list.iter().find(|r| r.name == "mein-fork").unwrap();
         assert_eq!(fork.fetch_url, "git@gitlab.com:ich/neu.git");
         assert_eq!(fork.push_url, None);
         assert!(!list.iter().any(|r| r.name == "fork"));
         assert_eq!(repo.git(&["remote", "get-url", "--push", "mein-fork"]), "git@gitlab.com:ich/neu.git");
         // Set the push URL again without renaming.
-        let list = remote_edit(&tc, id.clone(), "mein-fork".into(), "mein-fork".into(), "git@gitlab.com:ich/neu.git".into(), Some("git@gitlab.com:ich/p.git".into())).await.unwrap();
+        let list = remote_edit(
+            &tc,
+            id.clone(),
+            "mein-fork".into(),
+            "mein-fork".into(),
+            "git@gitlab.com:ich/neu.git".into(),
+            Some("git@gitlab.com:ich/p.git".into()),
+        )
+        .await
+        .unwrap();
         assert_eq!(list.iter().find(|r| r.name == "mein-fork").unwrap().push_url.as_deref(), Some("git@gitlab.com:ich/p.git"));
 
         // Error cases
@@ -641,12 +665,16 @@ remote.mit.punkt.url\ngit@host:x.git\0remote.mit.punkt.pushurl\ngit@host:y.git\0
         // The core rejects FTP, as the message says – when adding and when editing, also as a push URL.
         let err = remote_add(&tc, id.clone(), "neu".into(), "ftp://server.example/projekt.git".into(), None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
-        let err = remote_add(&tc, id.clone(), "neu".into(), "https://x/y".into(), Some("ftps://server.example/p.git".into())).await.unwrap_err();
+        let err =
+            remote_add(&tc, id.clone(), "neu".into(), "https://x/y".into(), Some("ftps://server.example/p.git".into())).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
-        let err = remote_edit(&tc, id.clone(), "origin".into(), "origin".into(), "ftp://server.example/projekt.git".into(), None).await.unwrap_err();
+        let err = remote_edit(&tc, id.clone(), "origin".into(), "origin".into(), "ftp://server.example/projekt.git".into(), None)
+            .await
+            .unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
         assert!(!remote_list(&tc, id.clone()).await.unwrap().iter().any(|r| r.name == "neu"));
-        let err = remote_edit(&tc, id.clone(), "origin".into(), "mein-fork".into(), "https://github.com/a/b.git".into(), None).await.unwrap_err();
+        let err =
+            remote_edit(&tc, id.clone(), "origin".into(), "mein-fork".into(), "https://github.com/a/b.git".into(), None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NameExists);
         let err = remote_edit(&tc, id.clone(), "weg".into(), "weg".into(), "https://x/y".into(), None).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotFound);

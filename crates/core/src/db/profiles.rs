@@ -28,9 +28,7 @@ pub fn list(conn: &Connection) -> CoreResult<Vec<Profile>> {
 }
 
 pub fn get(conn: &Connection, id: &str) -> CoreResult<Option<Profile>> {
-    Ok(conn
-        .query_row(&format!("select {COLUMNS} from profiles where id = ?1"), [id], from_row)
-        .optional()?)
+    Ok(conn.query_row(&format!("select {COLUMNS} from profiles where id = ?1"), [id], from_row).optional()?)
 }
 
 pub fn count(conn: &Connection) -> CoreResult<i64> {

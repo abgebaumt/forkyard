@@ -80,7 +80,10 @@ mod tests {
         let near = score_of(&[0.8, 0.6, 0.0]);
         let apart = score_of(&[0.0, 0.0, 1.0]);
         let opposite = score_of(&[-1.0, 0.0, 0.0]);
-        assert!((same - 1.0).abs() < 0.01 && (near - 0.8).abs() < 0.01 && apart.abs() < 0.01 && (opposite + 1.0).abs() < 0.01, "{same} {near} {apart} {opposite}");
+        assert!(
+            (same - 1.0).abs() < 0.01 && (near - 0.8).abs() < 0.01 && apart.abs() < 0.01 && (opposite + 1.0).abs() < 0.01,
+            "{same} {near} {apart} {opposite}"
+        );
         let (scale, quantized) = quantize(&[0.6, 0.8]);
         assert!((score(&[0.6, 0.8], scale, &quantized) - 1.0).abs() < 0.01, "int8 keeps the cosine within 1 %");
     }

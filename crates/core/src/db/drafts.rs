@@ -22,10 +22,7 @@ pub fn get(conn: &Connection, repo_id: &str, worktree_path: &str) -> CoreResult<
 /// Saves the draft; an empty draft without amend is deleted.
 pub fn set(conn: &Connection, repo_id: &str, worktree_path: &str, draft: &CommitDraft) -> CoreResult<()> {
     if draft.summary.is_empty() && draft.description.is_empty() && !draft.amend {
-        conn.execute(
-            "delete from commit_drafts where repository_id = ?1 and worktree_path = ?2",
-            params![repo_id, worktree_path],
-        )?;
+        conn.execute("delete from commit_drafts where repository_id = ?1 and worktree_path = ?2", params![repo_id, worktree_path])?;
         return Ok(());
     }
     conn.execute(

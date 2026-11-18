@@ -151,9 +151,7 @@ pub fn delete(conn: &Connection, id: &str) -> CoreResult<()> {
 /// Entries older than `before` (ISO time): (id, repo_id).
 pub fn older_than(conn: &Connection, before: &str) -> CoreResult<Vec<(String, String)>> {
     let mut stmt = conn.prepare("select id, repository_id from undo_entries where created_at < ?1")?;
-    let rows = stmt
-        .query_map([before], |r| Ok((r.get(0)?, r.get(1)?)))?
-        .collect::<rusqlite::Result<Vec<(String, String)>>>()?;
+    let rows = stmt.query_map([before], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<rusqlite::Result<Vec<(String, String)>>>()?;
     Ok(rows)
 }
 

@@ -53,7 +53,11 @@ async fn undo_of_discarded_hunk_merges_with_later_edits_elsewhere_in_the_file() 
     let FileDiff::Text(diff) = diff_file(&fx.tc, fx.id(), "reihe.txt".into(), DiffSource::Unstaged, None, None, None).await.unwrap() else {
         panic!("expected a text diff")
     };
-    let selection = PatchSelection { path: "reihe.txt".into(), hunks: vec![HunkSelection { index: 0, lines: None }], expect: diff.token.clone().unwrap() };
+    let selection = PatchSelection {
+        path: "reihe.txt".into(),
+        hunks: vec![HunkSelection { index: 0, lines: None }],
+        expect: diff.token.clone().unwrap(),
+    };
     discard_patch(&fx.tc, fx.id(), selection).await.unwrap();
     assert_eq!(fx.text("reihe.txt"), original);
 

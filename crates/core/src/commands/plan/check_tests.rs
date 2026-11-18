@@ -137,7 +137,9 @@ async fn arguments_are_refused_like_git_and_the_ui_refuse_them() {
     assert!(invalid(c[9], "resetMode"), "{:?}", c[9]);
     assert!(!preview.runnable);
     // A Windows-style separator is a valid relative path on every platform (normalised on Windows).
-    let windows = check(&tc, &id, vec![step(C::StashCreate, json!({"message": null, "includeUntracked": false, "paths": ["notizen\\über uns.md"]}))]).await;
+    let windows =
+        check(&tc, &id, vec![step(C::StashCreate, json!({"message": null, "includeUntracked": false, "paths": ["notizen\\über uns.md"]}))])
+            .await;
     assert_eq!(windows.steps[0].check, PlanCheck::NotNeeded);
 }
 
@@ -243,7 +245,9 @@ async fn an_operation_in_progress_blocks_every_plan() {
 #[tokio::test]
 async fn too_long_plans_and_untrusted_repositories_are_refused() {
     let (tc, _repo, id) = setup().await;
-    let many = |n: usize| (0..n).map(|k| step(C::BranchCreate, json!({"name": format!("zweig-{k}"), "start": null, "checkout": false}))).collect::<Vec<_>>();
+    let many = |n: usize| {
+        (0..n).map(|k| step(C::BranchCreate, json!({"name": format!("zweig-{k}"), "start": null, "checkout": false}))).collect::<Vec<_>>()
+    };
     assert!(check(&tc, &id, many(10)).await.runnable, "ten steps are fine");
     let err = ai_plan_check(&tc, id.clone(), crate::util::new_id(), many(11)).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::AiInvalidAnswer);

@@ -66,7 +66,12 @@ impl Provider for Ollama {
         ProviderCaps { structured_output: true, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
     }
 
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             let context_max = self.context_max(core, cancel).await?;
             let needed = request.estimated_input_tokens + u64::from(request.max_output_tokens);
@@ -83,7 +88,10 @@ impl Provider for Ollama {
                 "messages": [{ "role": "system", "content": request.system }, { "role": "user", "content": request.user }],
                 "options": { "num_ctx": num_ctx(request.estimated_input_tokens, request.max_output_tokens, context_max), "num_predict": request.max_output_tokens },
             });
-            let http_request = Request::new(Method::Post, format!("{}/api/chat", self.base), LABEL).json(&body).timeout(request.timeout).repo(request.repo_id.as_deref());
+            let http_request = Request::new(Method::Post, format!("{}/api/chat", self.base), LABEL)
+                .json(&body)
+                .timeout(request.timeout)
+                .repo(request.repo_id.as_deref());
             let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
             if !response.is_success() {
                 return Err(http_failure(LABEL, &response, &[]));
@@ -94,7 +102,8 @@ impl Provider for Ollama {
                 input_tokens: value.get("prompt_eval_count").and_then(Value::as_u64).unwrap_or(0),
                 output_tokens: value.get("eval_count").and_then(Value::as_u64).unwrap_or(0),
             };
-            let finish = if value.get("done_reason").and_then(Value::as_str) == Some("length") { Finish::MaxTokens } else { Finish::Complete };
+            let finish =
+                if value.get("done_reason").and_then(Value::as_str) == Some("length") { Finish::MaxTokens } else { Finish::Complete };
             Ok(Completion { text, finish, usage })
         })
     }
@@ -154,12 +163,17 @@ mod tests {
     }
 
     fn chat(done_reason: &str) -> MockResponse {
-        MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": "{\"summary\":\"Fix\",\"body\":null}"}, "done": true, "done_reason": done_reason, "prompt_eval_count": 50, "eval_count": 7}))
+        MockResponse::json(
+            200,
+            json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": "{\"summary\":\"Fix\",\"body\":null}"}, "done": true, "done_reason": done_reason, "prompt_eval_count": 50, "eval_count": 7}),
+        )
     }
 
     fn server_with_context(context: u64) -> MockServer {
         MockServer::start(move |request| match request.route().as_str() {
-            "POST /api/show" => MockResponse::json(200, json!({"model_info": {"general.architecture": "qwen3", "qwen3.context_length": context}})),
+            "POST /api/show" => {
+                MockResponse::json(200, json!({"model_info": {"general.architecture": "qwen3", "qwen3.context_length": context}}))
+            }
             "GET /api/tags" => MockResponse::json(200, json!({"models": [{"name": "qwen3:8b"}, {"name": "llama3.2:3b"}]})),
             "POST /api/chat" => chat("stop"),
             _ => MockResponse::json(404, json!({"error": "not found"})),
@@ -213,9 +227,19 @@ mod tests {
             "POST /api/show" => MockResponse::json(200, json!({"model_info": {"llama.context_length": 8192}})),
             _ => chat("length"),
         });
-        assert_eq!(Ollama::new(cut.url(), "llama3.2:3b".into(), 8_192).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap().finish, Finish::MaxTokens);
+        assert_eq!(
+            Ollama::new(cut.url(), "llama3.2:3b".into(), 8_192)
+                .complete(&tc, &test_request(schema()), &CancelToken::new())
+                .await
+                .unwrap()
+                .finish,
+            Finish::MaxTokens
+        );
         let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-        let error = Ollama::new(format!("http://127.0.0.1:{port}"), "qwen3:8b".into(), 8_192).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
+        let error = Ollama::new(format!("http://127.0.0.1:{port}"), "qwen3:8b".into(), 8_192)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::AiProviderUnavailable);
         assert_eq!(error.message, format!("Ollama is not responding (127.0.0.1:{port})."));
     }

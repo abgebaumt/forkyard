@@ -115,7 +115,16 @@ pub async fn resolve(core: &Core, repo_id: &str, from: Option<&str>, to: Option<
         },
     };
     let excluded: Vec<String> = from_sha.iter().map(|sha| format!("^{sha}")).collect();
-    let count = core.git_for(repo_id)?.args(["rev-list", "--no-merges", "--count"]).arg(&to_sha).args(&excluded).arg("--").read_only().no_log().run().await?;
+    let count = core
+        .git_for(repo_id)?
+        .args(["rev-list", "--no-merges", "--count"])
+        .arg(&to_sha)
+        .args(&excluded)
+        .arg("--")
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
     let total: u32 = count.stdout_text().trim().parse().unwrap_or(0);
     let log = core
         .git_for(repo_id)?
@@ -164,7 +173,8 @@ fn entry(commit: &RangeCommit, with_body: bool) -> String {
 /// The commit list within `budget_chars`: with bodies if it fits, else subjects only, else the
 /// newest subjects that fit. Returns the text and how many commits it holds.
 pub fn commits_text(commits: &[RangeCommit], budget_chars: usize) -> (String, usize) {
-    let joined = |with_body: bool, count: usize| commits[..count].iter().map(|commit| entry(commit, with_body)).collect::<Vec<_>>().join("\n");
+    let joined =
+        |with_body: bool, count: usize| commits[..count].iter().map(|commit| entry(commit, with_body)).collect::<Vec<_>>().join("\n");
     let full = joined(true, commits.len());
     if full.chars().count() <= budget_chars {
         return (full, commits.len());
@@ -202,7 +212,15 @@ pub async fn known_secrets(core: &Core, settings: &Settings) -> Vec<String> {
     }
 }
 
-pub async fn build(core: &Core, repo_id: &str, from: Option<&str>, to: Option<&str>, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<ReleaseContext> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    from: Option<&str>,
+    to: Option<&str>,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<ReleaseContext> {
     let resolved = resolve(core, repo_id, from, to).await?;
     let to_short = &resolved.range.to_sha[..ID_LEN.min(resolved.range.to_sha.len())];
     let header = match &resolved.range.from {
@@ -231,7 +249,12 @@ pub async fn build(core: &Core, repo_id: &str, from: Option<&str>, to: Option<&s
     Ok(ReleaseContext { built: Built { prompt, omitted: Vec::new(), shortened: Vec::new() }, range, ids })
 }
 
-const GROUPS: [(ReleaseGroupKind, &str); 4] = [(ReleaseGroupKind::Added, "added"), (ReleaseGroupKind::Changed, "changed"), (ReleaseGroupKind::Fixed, "fixed"), (ReleaseGroupKind::Other, "other")];
+const GROUPS: [(ReleaseGroupKind, &str); 4] = [
+    (ReleaseGroupKind::Added, "added"),
+    (ReleaseGroupKind::Changed, "changed"),
+    (ReleaseGroupKind::Fixed, "fixed"),
+    (ReleaseGroupKind::Other, "other"),
+];
 
 /// Four fixed groups of `{ text, commits }` and the language – in the dialect of `ai::schema`.
 pub fn schema() -> Value {
@@ -285,7 +308,8 @@ pub fn notes_from_answer(answer: &Value, context: &ReleaseContext, file_headings
         Some("en") => ReleaseLanguage::En,
         _ => ReleaseLanguage::Other,
     };
-    let headings = file_headings.unwrap_or(if language == ReleaseLanguage::De { HeadingLanguage::De } else { HeadingLanguage::En }).headings();
+    let headings =
+        file_headings.unwrap_or(if language == ReleaseLanguage::De { HeadingLanguage::De } else { HeadingLanguage::En }).headings();
     let mut mentioned: Vec<&str> = Vec::new();
     let mut groups: Vec<ReleaseNoteGroup> = Vec::new();
     for (index, (kind, key)) in GROUPS.iter().enumerate() {
@@ -319,7 +343,6 @@ pub fn notes_from_answer(answer: &Value, context: &ReleaseContext, file_headings
 pub fn empty_notes(range: ReleaseNotesRange) -> ReleaseNotes {
     ReleaseNotes { range, language: ReleaseLanguage::Other, groups: Vec::new(), markdown: String::new(), unmentioned: 0 }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -398,9 +421,11 @@ mod tests {
         let repo = TestRepo::with_commit();
         repo.tag("v1.0.0");
         repo.write_file("a.txt", "a\n");
-        let old_author = repo.commit_as_dates("Messung aus 2005 übernommen", "Ada Alt", "ada@example.org", "@1104537600 +1400", "@1760000000 -1200");
+        let old_author =
+            repo.commit_as_dates("Messung aus 2005 übernommen", "Ada Alt", "ada@example.org", "@1104537600 +1400", "@1760000000 -1200");
         repo.write_file("b.txt", "b\n");
-        let early_committer = repo.commit_as_dates("Rebased: Grenzwerte angepasst", "Ben Neu", "ben@example.org", "@1760000500 +0530", "@1700000000 +0000");
+        let early_committer =
+            repo.commit_as_dates("Rebased: Grenzwerte angepasst", "Ben Neu", "ben@example.org", "@1760000500 +0530", "@1700000000 +0000");
         let id = tc.open(&repo).await.repo.id;
         let resolved = resolve(&tc, &id, None, None).await.unwrap();
         assert_eq!(shas(&resolved.commits), rev_list(&repo, "v1.0.0..HEAD"));
@@ -438,7 +463,11 @@ mod tests {
         for n in 0..320u64 {
             let when = 1_104_537_600 + n * 86_400;
             let subject = format!("Messung {n:03} übernommen");
-            stream.push_str(&format!("commit refs/heads/main\nmark :{}\ncommitter Ada Alt <ada@example.org> {when} +0100\ndata {}\n{subject}\n", n + 1, subject.len() + 1));
+            stream.push_str(&format!(
+                "commit refs/heads/main\nmark :{}\ncommitter Ada Alt <ada@example.org> {when} +0100\ndata {}\n{subject}\n",
+                n + 1,
+                subject.len() + 1
+            ));
             if n > 0 {
                 stream.push_str(&format!("from :{n}\n"));
             }
@@ -464,13 +493,23 @@ mod tests {
         assert_eq!(resolved.commits[MAX_COMMITS - 1].subject, "Messung 020 übernommen");
         let built = build(&tc, &id, None, None, 24_000, "de", &[]).await.unwrap();
         assert_eq!((built.range.commits, built.range.included, built.ids.len()), (320, 300, 300));
-        assert!(built.built.prompt.user.contains("(20 older commits left out.)"), "{}", built.built.prompt.user.chars().take(400).collect::<String>());
+        assert!(
+            built.built.prompt.user.contains("(20 older commits left out.)"),
+            "{}",
+            built.built.prompt.user.chars().take(400).collect::<String>()
+        );
     }
 
     #[test]
     fn the_budget_drops_bodies_first_then_the_oldest_commits() {
         // The number sits in the first 12 characters (the id the prompt shows), the rest is padding.
-        let commits: Vec<RangeCommit> = (0..4).map(|n| RangeCommit { sha: format!("{n:012x}{}", "0".repeat(28)), subject: format!("Änderung {n}"), body: "Eine längere Erklärung.".into() }).collect();
+        let commits: Vec<RangeCommit> = (0..4)
+            .map(|n| RangeCommit {
+                sha: format!("{n:012x}{}", "0".repeat(28)),
+                subject: format!("Änderung {n}"),
+                body: "Eine längere Erklärung.".into(),
+            })
+            .collect();
         let (full, n) = commits_text(&commits, 10_000);
         assert_eq!(n, 4);
         assert!(full.starts_with("- 000000000000 Änderung 0\n  Eine längere Erklärung.\n- 000000000001 Änderung 1"), "{full}");
@@ -517,8 +556,18 @@ mod tests {
 
     fn context_with(ids: &[&str]) -> ReleaseContext {
         let prompt = prompt::build_with_token(INSTRUCTION, "en", &[], "t0k");
-        let range = ReleaseNotesRange { from: Some("v1.1.0".into()), from_sha: Some("a".repeat(40)), to_sha: "b".repeat(40), commits: ids.len() as u32, included: ids.len() as u32 };
-        ReleaseContext { built: Built { prompt, omitted: Vec::new(), shortened: Vec::new() }, range, ids: ids.iter().map(|id| id.to_string()).collect() }
+        let range = ReleaseNotesRange {
+            from: Some("v1.1.0".into()),
+            from_sha: Some("a".repeat(40)),
+            to_sha: "b".repeat(40),
+            commits: ids.len() as u32,
+            included: ids.len() as u32,
+        };
+        ReleaseContext {
+            built: Built { prompt, omitted: Vec::new(), shortened: Vec::new() },
+            range,
+            ids: ids.iter().map(|id| id.to_string()).collect(),
+        }
     }
 
     #[test]
@@ -532,13 +581,24 @@ mod tests {
         let answer = json!({"language": "de", "other": [{"text": "Abhängigkeiten aktualisiert", "commits": [C]}], "fixed": [{"text": "Kein Absturz bei leerem Namen", "commits": [B]}], "changed": [], "added": [{"text": "Export als CSV", "commits": [A]}]});
         let notes = notes_from_answer(&answer, &context_with(&[A, B, C]), None);
         assert_eq!(notes.markdown, "### Neu\n\n- Export als CSV\n\n### Behoben\n\n- Kein Absturz bei leerem Namen\n\n### Sonstiges\n\n- Abhängigkeiten aktualisiert");
-        assert_eq!(notes.groups.iter().map(|group| group.kind).collect::<Vec<_>>(), vec![ReleaseGroupKind::Added, ReleaseGroupKind::Fixed, ReleaseGroupKind::Other]);
+        assert_eq!(
+            notes.groups.iter().map(|group| group.kind).collect::<Vec<_>>(),
+            vec![ReleaseGroupKind::Added, ReleaseGroupKind::Fixed, ReleaseGroupKind::Other]
+        );
         assert_eq!((notes.language, notes.unmentioned), (ReleaseLanguage::De, 0));
         assert_eq!(notes.range.from.as_deref(), Some("v1.1.0"));
 
-        let english = notes_from_answer(&json!({"language": "en", "added": [], "changed": [{"text": "Faster start", "commits": [A]}], "fixed": [], "other": []}), &context_with(&[A, B]), None);
+        let english = notes_from_answer(
+            &json!({"language": "en", "added": [], "changed": [{"text": "Faster start", "commits": [A]}], "fixed": [], "other": []}),
+            &context_with(&[A, B]),
+            None,
+        );
         assert_eq!((english.markdown.as_str(), english.unmentioned), ("### Changed\n\n- Faster start", 1));
-        let french = notes_from_answer(&json!({"language": "other", "added": [{"text": "Export en CSV", "commits": [A]}], "changed": [], "fixed": [], "other": []}), &context_with(&[A]), None);
+        let french = notes_from_answer(
+            &json!({"language": "other", "added": [{"text": "Export en CSV", "commits": [A]}], "changed": [], "fixed": [], "other": []}),
+            &context_with(&[A]),
+            None,
+        );
         assert_eq!(french.markdown, "### Added\n\n- Export en CSV", "only German has its own headings");
         // An English changelog keeps its English headings in a German repository.
         let file = notes_from_answer(&answer, &context_with(&[A, B, C]), Some(HeadingLanguage::En));

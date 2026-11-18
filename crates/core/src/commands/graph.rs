@@ -14,9 +14,9 @@ pub mod layout;
 mod page;
 mod search;
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod search_filter_tests;
+#[cfg(test)]
+mod tests;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -29,8 +29,8 @@ use crate::util;
 
 pub use details::parse_co_authors;
 pub use page::{MAX_PAGE_SIZE, STASH_REF, WIP_ID};
-pub use search::{MAX_SEARCH_PATHS, MAX_SEARCH_RESULTS, MIN_SHA_PREFIX};
 pub(crate) use search::{commit_summaries, is_search_date, SEARCH_REFS};
+pub use search::{MAX_SEARCH_PATHS, MAX_SEARCH_RESULTS, MIN_SHA_PREFIX};
 
 /// One page of the graph with a finished lane layout; first page with `cursor: None` (with WIP and stash rows).
 pub async fn graph_page(core: &Core, repo_id: String, cursor: Option<String>, limit: u32) -> CoreResult<GraphPage> {
@@ -120,8 +120,7 @@ pub(crate) fn other_failure(out: &crate::git::GitOutput, subcommand: &str) -> Op
 }
 
 /// Fields per ref, each terminated with NUL (Git appends a newline per record).
-const REF_FORMAT: &str =
-    "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(HEAD)%00%(symref)%00";
+const REF_FORMAT: &str = "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(HEAD)%00%(symref)%00";
 const REF_FIELDS: usize = 7;
 
 /// A branch, remote branch or tag with the commit it points to.

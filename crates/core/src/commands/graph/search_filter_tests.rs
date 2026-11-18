@@ -52,11 +52,27 @@ fn filters(pickaxe: Option<&str>, since: Option<&str>, until: Option<&str>, path
 #[tokio::test]
 async fn search_filters_narrow_by_code_and_path() {
     let fx = fixture().await;
-    assert_eq!(fx.search("", filters(Some("geheimefunktion"), None, None, &[])).await.unwrap(), vec![fx.other.clone(), fx.added.clone()], "code search ignores case");
-    assert_eq!(fx.search("", filters(Some("geheimeFunktion"), None, None, &["src/ä b"])).await.unwrap(), vec![fx.added.clone()], "plus a folder");
-    assert_eq!(fx.search("Juni", filters(None, Some("2025-06-14"), None, &[])).await.unwrap(), vec![fx.june_b.clone()], "message search and a date together");
+    assert_eq!(
+        fx.search("", filters(Some("geheimefunktion"), None, None, &[])).await.unwrap(),
+        vec![fx.other.clone(), fx.added.clone()],
+        "code search ignores case"
+    );
+    assert_eq!(
+        fx.search("", filters(Some("geheimeFunktion"), None, None, &["src/ä b"])).await.unwrap(),
+        vec![fx.added.clone()],
+        "plus a folder"
+    );
+    assert_eq!(
+        fx.search("Juni", filters(None, Some("2025-06-14"), None, &[])).await.unwrap(),
+        vec![fx.june_b.clone()],
+        "message search and a date together"
+    );
     // With filters a SHA prefix is not searched as such.
-    assert_eq!(fx.search(&fx.june_a[..8], CommitSearchFilters::default()).await.unwrap(), vec![fx.june_a.clone()], "no filters: SHA search as before");
+    assert_eq!(
+        fx.search(&fx.june_a[..8], CommitSearchFilters::default()).await.unwrap(),
+        vec![fx.june_a.clone()],
+        "no filters: SHA search as before"
+    );
     assert!(fx.search(&fx.june_a[..8], filters(None, Some("2000-01-01"), None, &[])).await.unwrap().is_empty());
     assert!(fx.search("", CommitSearchFilters::default()).await.unwrap().is_empty(), "nothing to look for");
 }
@@ -65,12 +81,24 @@ async fn search_filters_narrow_by_code_and_path() {
 async fn search_filters_respect_time_zones_and_literal_paths() {
     let fx = fixture().await;
     // 2025-12-31T23:30+14:00 is 09:30 UTC; 2026-01-01T10:00-12:00 is 22:00 UTC.
-    assert_eq!(fx.search("", filters(None, Some("2025-12-31T09:00:00Z"), Some("2025-12-31T10:00:00Z"), &[])).await.unwrap(), vec![fx.added.clone()]);
-    assert_eq!(fx.search("", filters(None, Some("2025-12-31T20:30:00+14:00"), Some("2025-12-31T23:59:00+14:00"), &[])).await.unwrap(), vec![fx.added.clone()]);
-    assert_eq!(fx.search("", filters(None, Some("2026-01-01T21:00:00Z"), Some("2026-01-01T23:00:00Z"), &[])).await.unwrap(), vec![fx.other.clone()]);
+    assert_eq!(
+        fx.search("", filters(None, Some("2025-12-31T09:00:00Z"), Some("2025-12-31T10:00:00Z"), &[])).await.unwrap(),
+        vec![fx.added.clone()]
+    );
+    assert_eq!(
+        fx.search("", filters(None, Some("2025-12-31T20:30:00+14:00"), Some("2025-12-31T23:59:00+14:00"), &[])).await.unwrap(),
+        vec![fx.added.clone()]
+    );
+    assert_eq!(
+        fx.search("", filters(None, Some("2026-01-01T21:00:00Z"), Some("2026-01-01T23:00:00Z"), &[])).await.unwrap(),
+        vec![fx.other.clone()]
+    );
     // A bare date means local midnight / end of day; the commits sit far enough from the borders that
     // every time zone between UTC−12 and UTC+14 gives the same answer.
-    assert_eq!(fx.search("", filters(None, Some("2025-06-15"), None, &[])).await.unwrap(), vec![fx.fix.clone(), fx.other.clone(), fx.added.clone(), fx.june_b.clone()]);
+    assert_eq!(
+        fx.search("", filters(None, Some("2025-06-15"), None, &[])).await.unwrap(),
+        vec![fx.fix.clone(), fx.other.clone(), fx.added.clone(), fx.june_b.clone()]
+    );
     assert_eq!(fx.search("", filters(None, None, Some("2025-06-13"), &[])).await.unwrap(), vec![fx.june_a.clone()]);
     // Paths are literal: a leading dash and brackets are no options or patterns.
     assert_eq!(fx.search("", filters(None, None, None, &["-start.txt"])).await.unwrap(), vec![fx.june_b.clone()]);

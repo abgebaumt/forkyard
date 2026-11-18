@@ -33,7 +33,11 @@ pub fn parse_login(out: &ProcOutput) -> LoginInfo {
     match value.get("loggedIn").and_then(Value::as_bool) {
         Some(true) => LoginInfo {
             state: AiLoginState::LoggedIn,
-            method: value.get("authMethod").and_then(Value::as_str).filter(|method| !method.is_empty() && *method != "none").map(str::to_string),
+            method: value
+                .get("authMethod")
+                .and_then(Value::as_str)
+                .filter(|method| !method.is_empty() && *method != "none")
+                .map(str::to_string),
         },
         Some(false) => LoginInfo { state: AiLoginState::LoggedOut, method: None },
         None => LoginInfo::unknown(),
@@ -47,7 +51,11 @@ pub fn args(schema: Option<&str>, model: Option<&str>) -> Vec<std::ffi::OsString
         args.push("--json-schema".into());
         args.push(schema.into());
     }
-    args.extend(["--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence"].iter().map(std::ffi::OsString::from));
+    args.extend(
+        ["--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence"]
+            .iter()
+            .map(std::ffi::OsString::from),
+    );
     if let Some(model) = model {
         args.push("--model".into());
         args.push(model.into());
@@ -61,10 +69,15 @@ pub fn parse_answer(out: &ProcOutput) -> crate::error::CoreResult<super::CliAnsw
     use crate::error::CoreError;
     let kind = crate::model::AiProviderKind::ClaudeCode;
     let Ok(value) = serde_json::from_slice::<Value>(&out.stdout) else {
-        return Err(if out.success() { CoreError::ai_invalid_answer("Claude Code sent no JSON result") } else { super::exit_failure(kind, out) });
+        return Err(if out.success() {
+            CoreError::ai_invalid_answer("Claude Code sent no JSON result")
+        } else {
+            super::exit_failure(kind, out)
+        });
     };
     let result = value.get("result").and_then(Value::as_str).unwrap_or_default();
-    let failed = value.get("is_error").and_then(Value::as_bool).unwrap_or(false) || value.get("subtype").and_then(Value::as_str).is_some_and(|subtype| subtype != "success");
+    let failed = value.get("is_error").and_then(Value::as_bool).unwrap_or(false)
+        || value.get("subtype").and_then(Value::as_str).is_some_and(|subtype| subtype != "success");
     if failed {
         if super::looks_signed_out(result) {
             return Err(super::not_logged_in(kind));
@@ -72,7 +85,9 @@ pub fn parse_answer(out: &ProcOutput) -> crate::error::CoreResult<super::CliAnsw
         return Err(CoreError::ai_provider_unavailable(format!("Claude Code reported an error: {}", super::reported(result))));
     }
     let usage = crate::ai::provider::Usage {
-        input_tokens: super::count(&value, "/usage/input_tokens") + super::count(&value, "/usage/cache_creation_input_tokens") + super::count(&value, "/usage/cache_read_input_tokens"),
+        input_tokens: super::count(&value, "/usage/input_tokens")
+            + super::count(&value, "/usage/cache_creation_input_tokens")
+            + super::count(&value, "/usage/cache_read_input_tokens"),
         output_tokens: super::count(&value, "/usage/output_tokens"),
     };
     let cost_micros = value.get("total_cost_usd").and_then(Value::as_f64).map(crate::ai::pricing::micros);

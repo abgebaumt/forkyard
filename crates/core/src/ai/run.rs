@@ -84,7 +84,8 @@ pub(crate) fn untrack(core: &Core, job_id: &str) {
 }
 
 pub fn repo_ai_off(core: &Core, repo_id: &str) -> CoreResult<bool> {
-    core.db.with(|c| Ok(db::repo_settings::get_all(c, repo_id)?.into_iter().any(|(key, value)| key == "aiOff" && value == Value::Bool(true))))
+    core.db
+        .with(|c| Ok(db::repo_settings::get_all(c, repo_id)?.into_iter().any(|(key, value)| key == "aiOff" && value == Value::Bool(true))))
 }
 
 pub fn ensure_allowed(core: &Core, repo_id: Option<&str>, feature: AiFeature) -> CoreResult<Settings> {
@@ -103,11 +104,20 @@ pub fn ensure_allowed(core: &Core, repo_id: Option<&str>, feature: AiFeature) ->
     Ok(settings)
 }
 
-pub fn estimate(core: &Core, settings: &Settings, kind: AiProviderKind, model: &str, feature: AiFeature, prompt: &Prompt) -> CoreResult<Estimate> {
+pub fn estimate(
+    core: &Core,
+    settings: &Settings,
+    kind: AiProviderKind,
+    model: &str,
+    feature: AiFeature,
+    prompt: &Prompt,
+) -> CoreResult<Estimate> {
     let chars = prompt.chars();
     let tokens = context::estimate_tokens(chars);
     let price = pricing::price_for(settings, kind, model);
-    let cost_usd = price.as_ref().map(|price| pricing::cost_usd(price, &Usage { input_tokens: tokens, output_tokens: u64::from(feature.max_output_tokens()) }));
+    let cost_usd = price
+        .as_ref()
+        .map(|price| pricing::cost_usd(price, &Usage { input_tokens: tokens, output_tokens: u64::from(feature.max_output_tokens()) }));
     let spent_usd = core.db.with(|c| db::ai::month_cost_micros(c, &pricing::current_month(), &API_PROVIDERS))? as f64 / 1_000_000.0;
     let limit_usd = settings.ai_monthly_limit_usd;
     let limit_reached = !kind.is_local() && price.is_some() && limit_usd.is_some_and(|limit| spent_usd >= limit);
@@ -117,7 +127,14 @@ pub fn estimate(core: &Core, settings: &Settings, kind: AiProviderKind, model: &
 /// What the gate weighs for this request. `local` (no first-use and no per-repository
 /// confirmation) only when the provider really answers on this computer: an Ollama or LM Studio
 /// pointed at another machine by `ai_base_url` receives repository content like any API.
-pub fn situation<'a>(core: &Core, settings: &Settings, kind: AiProviderKind, repo_id: Option<&'a str>, feature: AiFeature, estimate: &Estimate) -> Situation<'a> {
+pub fn situation<'a>(
+    core: &Core,
+    settings: &Settings,
+    kind: AiProviderKind,
+    repo_id: Option<&'a str>,
+    feature: AiFeature,
+    estimate: &Estimate,
+) -> Situation<'a> {
     Situation {
         repo_id,
         feature,
@@ -139,7 +156,8 @@ pub type AnswerCheck<'a> = &'a (dyn Fn(&Value) -> Result<(), String> + Send + Sy
 
 /// `complete_json` with a meaning check inside the same single repair attempt.
 pub async fn complete_json_checked(core: &Core, request: AiRequest<'_>, check: AnswerCheck<'_>) -> CoreResult<AiAnswer> {
-    schema::check_dialect(request.schema).map_err(|reason| CoreError::unknown(format!("Internal error: the answer schema is invalid ({reason}).")))?;
+    schema::check_dialect(request.schema)
+        .map_err(|reason| CoreError::unknown(format!("Internal error: the answer schema is invalid ({reason}).")))?;
     let settings = ensure_allowed(core, request.repo_id, request.feature)?;
     let provider = providers::active(core, &settings).await?;
     let kind = provider.id();
@@ -224,7 +242,10 @@ async fn ask(
             Ok(value) => return Ok((value, usage)),
             Err(reason) if !repaired => {
                 repaired = true;
-                call.user = format!("{}\n\nYour previous answer could not be used: {reason}. Answer again with JSON that matches the schema exactly.", request.prompt.user);
+                call.user = format!(
+                    "{}\n\nYour previous answer could not be used: {reason}. Answer again with JSON that matches the schema exactly.",
+                    request.prompt.user
+                );
             }
             Err(reason) => return Err((usage, CoreError::ai_invalid_answer(reason))),
         }
@@ -311,7 +332,10 @@ mod tests {
     }
 
     fn ollama_chat(content: &str, done_reason: &str) -> MockResponse {
-        MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": done_reason, "prompt_eval_count": 50, "eval_count": 7}))
+        MockResponse::json(
+            200,
+            json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": done_reason, "prompt_eval_count": 50, "eval_count": 7}),
+        )
     }
 
     fn ollama_show() -> MockResponse {
@@ -319,7 +343,10 @@ mod tests {
     }
 
     fn anthropic_answer(input: u64, output: u64) -> MockResponse {
-        MockResponse::json(200, json!({"content": [{"type": "text", "text": "{\"summary\":\"Fix\",\"body\":null}"}], "stop_reason": "end_turn", "usage": {"input_tokens": input, "output_tokens": output}}))
+        MockResponse::json(
+            200,
+            json!({"content": [{"type": "text", "text": "{\"summary\":\"Fix\",\"body\":null}"}], "stop_reason": "end_turn", "usage": {"input_tokens": input, "output_tokens": output}}),
+        )
     }
 
     async fn with_ollama(server: &MockServer) -> TestCore {
@@ -355,7 +382,11 @@ mod tests {
         settings_set(&tc, json!({"aiEnabled": false})).await.unwrap();
         assert_eq!(code(complete_json(&tc, request(None, "j2", &prompt, &schema)).await), ErrorCode::AiDisabled, "off");
         settings_set(&tc, json!({"aiEnabled": true})).await.unwrap();
-        assert_eq!(code(complete_json(&tc, request(None, "j3", &prompt, &schema)).await), ErrorCode::AiNotConfigured, "on, but no provider");
+        assert_eq!(
+            code(complete_json(&tc, request(None, "j3", &prompt, &schema)).await),
+            ErrorCode::AiNotConfigured,
+            "on, but no provider"
+        );
         settings_set(&tc, json!({"aiProvider": "ollama", "aiModel": "qwen3:8b", "aiFeaturesOff": ["commit_message"]})).await.unwrap();
         assert_eq!(code(complete_json(&tc, request(None, "j4", &prompt, &schema)).await), ErrorCode::AiDisabled, "this function is off");
         assert!(server.requests().is_empty(), "nothing was sent so far");
@@ -364,10 +395,18 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         complete_json(&tc, request(Some(&id), "j5", &prompt, &schema)).await.unwrap();
         repo_settings_set(&tc, id.clone(), json!({"aiOff": true})).await.unwrap();
-        assert_eq!(code(complete_json(&tc, request(Some(&id), "j6", &prompt, &schema)).await), ErrorCode::AiDisabled, "AI off for this repository");
+        assert_eq!(
+            code(complete_json(&tc, request(Some(&id), "j6", &prompt, &schema)).await),
+            ErrorCode::AiDisabled,
+            "AI off for this repository"
+        );
         repo_settings_set(&tc, id.clone(), json!({"aiOff": false})).await.unwrap();
         crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
-        assert_eq!(code(complete_json(&tc, request(Some(&id), "j7", &prompt, &schema)).await), ErrorCode::RepoUntrusted, "the AI core checks trust itself");
+        assert_eq!(
+            code(complete_json(&tc, request(Some(&id), "j7", &prompt, &schema)).await),
+            ErrorCode::RepoUntrusted,
+            "the AI core checks trust itself"
+        );
         assert_eq!(chats(&server).len(), 1);
     }
 
@@ -417,7 +456,8 @@ mod tests {
         });
         let tc = with_ollama(&server).await;
         let (prompt, schema) = (prompt_with("+fix"), schema());
-        let check = |value: &Value| if value["summary"] == "WIP" { Err("$.summary: “WIP” is not a summary".to_string()) } else { Ok(()) };
+        let check =
+            |value: &Value| if value["summary"] == "WIP" { Err("$.summary: “WIP” is not a summary".to_string()) } else { Ok(()) };
         let answer = complete_json_checked(&tc, request(None, "c1", &prompt, &schema), &check).await.unwrap();
         assert_eq!(answer.value, json!({"summary": "Fix login", "body": null}));
         let sent = chats(&server);
@@ -484,7 +524,15 @@ mod tests {
         let rows = tc.db.with(|c| db::ai::usage_rows(c, &pricing::current_month())).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(
-            (rows[0].provider.as_str(), rows[0].model.as_str(), rows[0].feature.as_str(), rows[0].requests, rows[0].input_tokens, rows[0].output_tokens, rows[0].cost_usd_micros),
+            (
+                rows[0].provider.as_str(),
+                rows[0].model.as_str(),
+                rows[0].feature.as_str(),
+                rows[0].requests,
+                rows[0].input_tokens,
+                rows[0].output_tokens,
+                rows[0].cost_usd_micros
+            ),
             ("anthropic", "claude-sonnet-5-5", "commit_message", 1, 12_345, 678, 31_470)
         );
         let log = tc.db.with(|c| db::activity::page(c, ActivityScope::App, None, None, 50)).unwrap();
@@ -495,7 +543,9 @@ mod tests {
         let everything: String = tc
             .db
             .with(|c| {
-                let mut stmt = c.prepare("select coalesce(description, '') || ' ' || coalesce(command, '') || ' ' || coalesce(output, '') from activity_log")?;
+                let mut stmt = c.prepare(
+                    "select coalesce(description, '') || ' ' || coalesce(command, '') || ' ' || coalesce(output, '') from activity_log",
+                )?;
                 let rows = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
                 Ok(rows.join("\n"))
             })
@@ -515,27 +565,45 @@ mod tests {
         let error = complete_json(&tc, request(Some(&id), "a1", &prompt, &schema)).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::NotAllowed, "{error:?}");
         assert!(server.requests().is_empty(), "nothing goes out unconfirmed");
-        gate::confirm(&tc, Some(&id), AiFeature::CommitMessage, &prompt_with("+other text").fingerprint(), &[AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst], false).unwrap();
+        gate::confirm(
+            &tc,
+            Some(&id),
+            AiFeature::CommitMessage,
+            &prompt_with("+other text").fingerprint(),
+            &[AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst],
+            false,
+        )
+        .unwrap();
         // Remembered as seen: from now on this repository and this function need no confirmation.
         complete_json(&tc, request(Some(&id), "a2", &prompt, &schema)).await.unwrap();
         assert_eq!(server.requests().len(), 1);
         let other = TestRepo::with_commit();
         let other_id = tc.open(&other).await.repo.id;
-        assert_eq!(complete_json(&tc, request(Some(&other_id), "a3", &prompt, &schema)).await.unwrap_err().code, ErrorCode::NotAllowed, "another repository asks for its own first time");
+        assert_eq!(
+            complete_json(&tc, request(Some(&other_id), "a3", &prompt, &schema)).await.unwrap_err().code,
+            ErrorCode::NotAllowed,
+            "another repository asks for its own first time"
+        );
         assert_eq!(server.requests().len(), 1);
     }
 
     #[tokio::test]
     async fn a_local_provider_on_another_machine_asks_like_an_api() {
         let tc = TestCore::new().await;
-        settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b", "aiBaseUrl": "https://ollama.firma.example"})).await.unwrap();
+        settings_set(
+            &tc,
+            json!({"aiEnabled": true, "aiProvider": "ollama", "aiModel": "qwen3:8b", "aiBaseUrl": "https://ollama.firma.example"}),
+        )
+        .await
+        .unwrap();
         let repo = TestRepo::with_commit();
         let id = tc.open(&repo).await.repo.id;
         let settings = tc.settings().unwrap();
         let prompt = prompt_with("+fix");
         let asks = |settings: &Settings| {
             let estimate = estimate(&tc, settings, AiProviderKind::Ollama, "qwen3:8b", AiFeature::CommitMessage, &prompt).unwrap();
-            gate::pending(&tc, settings, &situation(&tc, settings, AiProviderKind::Ollama, Some(&id), AiFeature::CommitMessage, &estimate)).unwrap()
+            gate::pending(&tc, settings, &situation(&tc, settings, AiProviderKind::Ollama, Some(&id), AiFeature::CommitMessage, &estimate))
+                .unwrap()
         };
         assert_eq!(asks(&settings), vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst], "repository content leaves this computer");
         let on_this_computer = Settings { ai_base_url: Some("http://127.0.0.1:11434".into()), ..settings.clone() };
@@ -551,7 +619,20 @@ mod tests {
         settings_set(&tc, json!({"aiMonthlyLimitUsd": 0.01})).await.unwrap();
         let month = pricing::current_month();
         tc.db
-            .with(|c| db::ai::add_usage(c, &db::ai::NewUsage { month: &month, provider: "anthropic", model: "claude-sonnet-5-5", feature: "compose", input_tokens: 1, output_tokens: 1, cost_usd_micros: 20_000 }))
+            .with(|c| {
+                db::ai::add_usage(
+                    c,
+                    &db::ai::NewUsage {
+                        month: &month,
+                        provider: "anthropic",
+                        model: "claude-sonnet-5-5",
+                        feature: "compose",
+                        input_tokens: 1,
+                        output_tokens: 1,
+                        cost_usd_micros: 20_000,
+                    },
+                )
+            })
             .unwrap();
         let schema = schema();
         let prompt = prompt_with("+fix");
@@ -568,7 +649,11 @@ mod tests {
             "“Send this time” holds for one request, even for the same text"
         );
         let next = prompt_with("+next change");
-        assert_eq!(complete_json(&tc, request(None, "l3", &next, &schema)).await.unwrap_err().code, ErrorCode::AiLimitReached, "asked again before every further request");
+        assert_eq!(
+            complete_json(&tc, request(None, "l3", &next, &schema)).await.unwrap_err().code,
+            ErrorCode::AiLimitReached,
+            "asked again before every further request"
+        );
         settings_set(&tc, json!({"aiModel": "claude-eigenbau"})).await.unwrap();
         complete_json(&tc, request(None, "l4", &next, &schema)).await.unwrap();
         assert_eq!(server.requests().len(), 2, "an unknown price has no limit protection (spec 1.5)");
@@ -592,7 +677,12 @@ mod tests {
         assert!(was_running, "the job was registered while the request ran");
         assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
         assert!(started.elapsed() < Duration::from_secs(3), "{:?}", started.elapsed());
-        let done = tc.events.all().into_iter().find(|(name, payload)| name == names::JOB_DONE && payload["jobId"] == "job-cancel").expect("job:done");
+        let done = tc
+            .events
+            .all()
+            .into_iter()
+            .find(|(name, payload)| name == names::JOB_DONE && payload["jobId"] == "job-cancel")
+            .expect("job:done");
         assert_eq!(done.1["cancelled"], true);
     }
 

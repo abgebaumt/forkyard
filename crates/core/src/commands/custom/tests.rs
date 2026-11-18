@@ -35,15 +35,25 @@ async fn global_commands_are_checked_saved_and_listed() {
     let saved = custom_commands_save(&tc, vec![build.clone(), log.clone()]).await.unwrap();
     assert_eq!(saved, vec![build, log.clone()]);
     let changed = tc.events.named(names::APP_CHANGED);
-    assert!(changed.iter().any(|e| e["what"].as_array().is_some_and(|what| what.contains(&serde_json::json!("custom_commands")))), "{changed:?}");
+    assert!(
+        changed.iter().any(|e| e["what"].as_array().is_some_and(|what| what.contains(&serde_json::json!("custom_commands")))),
+        "{changed:?}"
+    );
     let list = custom_commands_list(&tc, None).await.unwrap();
-    assert_eq!(list.commands.iter().map(|e| (e.key.as_str(), e.runnable)).collect::<Vec<_>>(), [("global:bauen", true), ("global:log", true)]);
+    assert_eq!(
+        list.commands.iter().map(|e| (e.key.as_str(), e.runnable)).collect::<Vec<_>>(),
+        [("global:bauen", true), ("global:log", true)]
+    );
     assert_eq!(list.repo, None);
 
     // Nothing invalid is stored – and what was there stays.
     let mut twice = log.clone();
     twice.title = "Noch einmal".into();
-    for bad in [vec![log.clone(), twice], vec![def("x", CustomCommandKind::Git, "push --force")], vec![def("y", CustomCommandKind::Shell, "echo ${user}")]] {
+    for bad in [
+        vec![log.clone(), twice],
+        vec![def("x", CustomCommandKind::Git, "push --force")],
+        vec![def("y", CustomCommandKind::Shell, "echo ${user}")],
+    ] {
         assert_eq!(custom_commands_save(&tc, bad).await.unwrap_err().code, ErrorCode::NotAllowed);
     }
     assert_eq!(custom_commands_list(&tc, None).await.unwrap().commands.len(), 2);
@@ -66,7 +76,8 @@ async fn a_list_larger_than_the_file_limit_is_not_saved() {
     let error = custom_commands_save(&tc, many).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::NotAllowed);
     assert!(error.message.contains("KiB"), "{}", error.message);
-    let listed: Vec<CustomCommandDef> = custom_commands_list(&tc, None).await.unwrap().commands.into_iter().map(|entry| entry.command).collect();
+    let listed: Vec<CustomCommandDef> =
+        custom_commands_list(&tc, None).await.unwrap().commands.into_iter().map(|entry| entry.command).collect();
     assert_eq!(listed, vec![kept], "what was there stays");
 }
 
@@ -118,7 +129,10 @@ async fn repo_commands_need_their_own_approval_bound_to_the_file_hash() {
     assert_eq!(info.state, RepoCommandsState::Untrusted);
     assert_eq!(info.path, ".forkyard/commands.json");
     assert_eq!(info.hash.as_deref(), Some(definition::file_hash(FILE_V1.as_bytes()).as_str()));
-    assert_eq!(list.commands.iter().map(|e| (e.key.as_str(), e.runnable)).collect::<Vec<_>>(), [("global:eigen", true), ("repo:hallo", false)]);
+    assert_eq!(
+        list.commands.iter().map(|e| (e.key.as_str(), e.runnable)).collect::<Vec<_>>(),
+        [("global:eigen", true), ("repo:hallo", false)]
+    );
 
     // An approval for another version of the file is refused.
     assert_eq!(custom_commands_trust(&tc, id.clone(), Some("0".repeat(64))).await.unwrap_err().code, ErrorCode::StaleState);
@@ -197,7 +211,13 @@ use std::time::Duration;
 
 use crate::model::ActivityScope;
 
-async fn run(tc: &TestCore, repo_id: &str, key: &str, context: CustomCommandContext, inputs: &[(&str, &str)]) -> CoreResult<CustomCommandResult> {
+async fn run(
+    tc: &TestCore,
+    repo_id: &str,
+    key: &str,
+    context: CustomCommandContext,
+    inputs: &[(&str, &str)],
+) -> CoreResult<CustomCommandResult> {
     let inputs: BTreeMap<String, String> = inputs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
     custom_command_run(tc, repo_id.to_string(), key.to_string(), context, inputs, util::new_id(), true).await
 }
@@ -221,7 +241,12 @@ async fn url_commands_encode_values_and_stay_http() {
     tc.events.clear();
     let context = CustomCommandContext { branch: Some("feature/äpfel+birnen".into()), ..Default::default() };
     let result = run(&tc, &id, "global:ci", context, &[("q", "a&b=c d")]).await.unwrap();
-    assert_eq!(result, CustomCommandResult::OpenUrl { url: format!("https://ci.example.com/build?branch=feature%2F%C3%A4pfel%2Bbirnen&sha={head}&q=a%26b%3Dc%20d") });
+    assert_eq!(
+        result,
+        CustomCommandResult::OpenUrl {
+            url: format!("https://ci.example.com/build?branch=feature%2F%C3%A4pfel%2Bbirnen&sha={head}&q=a%26b%3Dc%20d")
+        }
+    );
     // Without a context: HEAD and the current branch.
     let result = run(&tc, &id, "global:ci", CustomCommandContext::default(), &[("q", "")]).await.unwrap();
     assert_eq!(result, CustomCommandResult::OpenUrl { url: format!("https://ci.example.com/build?branch=main&sha={head}&q=") });
@@ -238,14 +263,20 @@ async fn repo_commands_run_only_while_their_approval_matches() {
     assert_eq!(run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap_err().code, ErrorCode::CommandUntrusted);
     let hash = custom_commands_list(&tc, Some(id.clone())).await.unwrap().repo.unwrap().hash;
     custom_commands_trust(&tc, id.clone(), hash).await.unwrap();
-    assert_eq!(run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap(), CustomCommandResult::OpenUrl { url: format!("https://example.com/hallo/{head}") });
+    assert_eq!(
+        run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap(),
+        CustomCommandResult::OpenUrl { url: format!("https://example.com/hallo/{head}") }
+    );
     repo.write_file(".forkyard/commands.json", FILE_V2);
     assert_eq!(run(&tc, &id, "repo:hallo", Default::default(), &[]).await.unwrap_err().code, ErrorCode::CommandUntrusted);
     assert_eq!(run(&tc, &id, "repo:fehlt", Default::default(), &[]).await.unwrap_err().code, ErrorCode::NotFound);
     assert_eq!(run(&tc, &id, "anders:hallo", Default::default(), &[]).await.unwrap_err().code, ErrorCode::NotFound);
     // A global command with the same ID is a different command.
     custom_commands_save(&tc, vec![def("hallo", CustomCommandKind::Url, "https://example.com/eigen")]).await.unwrap();
-    assert_eq!(run(&tc, &id, "global:hallo", Default::default(), &[]).await.unwrap(), CustomCommandResult::OpenUrl { url: "https://example.com/eigen".into() });
+    assert_eq!(
+        run(&tc, &id, "global:hallo", Default::default(), &[]).await.unwrap(),
+        CustomCommandResult::OpenUrl { url: "https://example.com/eigen".into() }
+    );
 }
 
 #[tokio::test]
@@ -293,21 +324,33 @@ async fn confirm_returns_the_finished_command_and_runs_nothing() {
     tc.events.clear();
 
     let inputs: BTreeMap<String, String> = [("text".to_string(), "zwei Wörter".to_string())].into();
-    let result = custom_command_run(&tc, id.clone(), "global:vorsicht".into(), Default::default(), inputs, "job-vorsicht".into(), false).await.unwrap();
+    let result = custom_command_run(&tc, id.clone(), "global:vorsicht".into(), Default::default(), inputs, "job-vorsicht".into(), false)
+        .await
+        .unwrap();
     let CustomCommandResult::Confirm { display, cwd } = result else { panic!("{result:?}") };
     assert_eq!(display, "git rev-parse --sq-quote \"zwei Wörter\"");
     assert_eq!(std::fs::canonicalize(&cwd).unwrap(), std::fs::canonicalize(repo.path()).unwrap());
     assert!(tc.events.named(names::JOB_DONE).is_empty() && !tc.jobs.is_running("job-vorsicht"), "nothing ran");
 
     let head = repo.head();
-    let result = custom_command_run(&tc, id.clone(), "global:ci".into(), Default::default(), BTreeMap::new(), util::new_id(), false).await.unwrap();
-    assert_eq!(result, CustomCommandResult::Confirm { display: format!("https://ci.example.com/{head}"), cwd: util::display_path(&tc.repo_path(&id).unwrap()) });
+    let result =
+        custom_command_run(&tc, id.clone(), "global:ci".into(), Default::default(), BTreeMap::new(), util::new_id(), false).await.unwrap();
+    assert_eq!(
+        result,
+        CustomCommandResult::Confirm {
+            display: format!("https://ci.example.com/{head}"),
+            cwd: util::display_path(&tc.repo_path(&id).unwrap())
+        }
+    );
 
     // `cwd: repo` in a linked worktree: the main working tree.
     let linked = repo.temp_dir().join("zweiter");
     repo.git(&["worktree", "add", "-q", &linked.to_string_lossy(), "-b", "nebenher"]);
     let worktree = crate::commands::repos::repo_open(&tc, linked.to_string_lossy().into_owned()).await.unwrap();
-    let result = custom_command_run(&tc, worktree.repo.id, "global:haupt".into(), Default::default(), BTreeMap::new(), util::new_id(), false).await.unwrap();
+    let result =
+        custom_command_run(&tc, worktree.repo.id, "global:haupt".into(), Default::default(), BTreeMap::new(), util::new_id(), false)
+            .await
+            .unwrap();
     let CustomCommandResult::Confirm { cwd, .. } = result else { panic!("{result:?}") };
     assert_eq!(std::fs::canonicalize(&cwd).unwrap(), std::fs::canonicalize(repo.path()).unwrap());
 }
@@ -362,7 +405,8 @@ async fn with_shell_true_quoted_placeholders_stay_single_arguments() {
     let tc = TestCore::new().await;
     let repo = TestRepo::with_commit();
     let id = tc.open(&repo).await.repo.id;
-    let mut quoted = def("quoted", CustomCommandKind::Shell, "printf '<%s>' \"${input:text}\" '${input:text}' \"x ${input:text}_y\" > ausgabe.txt");
+    let mut quoted =
+        def("quoted", CustomCommandKind::Shell, "printf '<%s>' \"${input:text}\" '${input:text}' \"x ${input:text}_y\" > ausgabe.txt");
     quoted.shell = true;
     quoted.inputs = vec![text_input("text")];
     custom_commands_save(&tc, vec![quoted]).await.unwrap();
@@ -408,7 +452,12 @@ async fn shell_output_is_redacted_in_result_progress_and_log() {
     let repo = TestRepo::with_commit();
     let id = tc.open(&repo).await.repo.id;
     let secret = "geheim-12345";
-    custom_commands_save(&tc, vec![def("leak", CustomCommandKind::Shell, &format!("git rev-parse --sq-quote https://anna:{secret}@example.invalid/x.git"))]).await.unwrap();
+    custom_commands_save(
+        &tc,
+        vec![def("leak", CustomCommandKind::Shell, &format!("git rev-parse --sq-quote https://anna:{secret}@example.invalid/x.git"))],
+    )
+    .await
+    .unwrap();
     tc.events.clear();
     let (exit_code, output) = finished(run(&tc, &id, "global:leak", Default::default(), &[]).await.unwrap());
     assert_eq!(exit_code, Some(0));
@@ -435,7 +484,9 @@ async fn a_running_program_can_be_cancelled() {
     custom_commands_save(&tc, vec![def("warten", CustomCommandKind::Shell, wait)]).await.unwrap();
     let (core, repo_id) = (tc.core.clone(), id.clone());
     let started = std::time::Instant::now();
-    let task = tokio::spawn(async move { custom_command_run(&core, repo_id, "global:warten".into(), Default::default(), BTreeMap::new(), "job-warten".into(), true).await });
+    let task = tokio::spawn(async move {
+        custom_command_run(&core, repo_id, "global:warten".into(), Default::default(), BTreeMap::new(), "job-warten".into(), true).await
+    });
     for _ in 0..500 {
         if tc.jobs.is_running("job-warten") {
             break;
@@ -459,16 +510,29 @@ async fn git_commands_run_in_the_queue_and_values_never_become_options() {
     let mut tag = def("markieren", CustomCommandKind::Git, "tag ${input:name} ${sha}");
     tag.inputs = vec![text_input("name")];
     let mut log = def("liste", CustomCommandKind::Git, "log ${input:format} -1");
-    log.inputs = vec![CustomCommandInput { id: "format".into(), label: "Format".into(), input_type: CustomInputType::Choice, default: None, options: vec!["--oneline".into(), "--stat".into()] }];
+    log.inputs = vec![CustomCommandInput {
+        id: "format".into(),
+        label: "Format".into(),
+        input_type: CustomInputType::Choice,
+        default: None,
+        options: vec!["--oneline".into(), "--stat".into()],
+    }];
     custom_commands_save(&tc, vec![tag, log]).await.unwrap();
     tc.events.clear();
 
-    assert_eq!(run(&tc, &id, "global:markieren", Default::default(), &[("name", "v-eins")]).await.unwrap(), CustomCommandResult::Finished { exit_code: Some(0), output: String::new() });
+    assert_eq!(
+        run(&tc, &id, "global:markieren", Default::default(), &[("name", "v-eins")]).await.unwrap(),
+        CustomCommandResult::Finished { exit_code: Some(0), output: String::new() }
+    );
     assert_eq!(repo.git(&["tag", "--list"]), "v-eins");
     assert_eq!(repo.git(&["rev-parse", "v-eins"]), head);
     assert!(tc.events.named(names::REPO_CHANGED).iter().any(|e| e["repoId"] == id.as_str()));
     let page = crate::commands::activity::activity_list(&tc, ActivityScope::Repo, Some(id.clone()), None, 50).await.unwrap();
-    assert!(page.entries.iter().any(|e| e.command == format!("git tag v-eins {head}")), "{:?}", page.entries.iter().map(|e| &e.command).collect::<Vec<_>>());
+    assert!(
+        page.entries.iter().any(|e| e.command == format!("git tag v-eins {head}")),
+        "{:?}",
+        page.entries.iter().map(|e| &e.command).collect::<Vec<_>>()
+    );
 
     // A value from a text field never becomes an option: nothing is deleted.
     let error = run(&tc, &id, "global:markieren", Default::default(), &[("name", "--delete")]).await.unwrap_err();

@@ -44,11 +44,16 @@ async fn autosquash_plan_gives_the_same_history_as_git() {
     let oracle = format!("{base}..oracle");
     let (want_subjects, want_trees) = (log(&repo, "%s", &oracle), log(&repo, "%T", &oracle));
     repo.git(&["checkout", "-q", "feature"]);
-    assert_eq!(want_subjects, ["Prüfung auf leere Eingaben", "Meldungen übersetzen", "Ausgabe als CSV", "fixup! Grundlage für die Prüfung"]);
+    assert_eq!(
+        want_subjects,
+        ["Prüfung auf leere Eingaben", "Meldungen übersetzen", "Ausgabe als CSV", "fixup! Grundlage für die Prüfung"]
+    );
 
     let tc = TestCore::new().await;
     let id = tc.open(&repo).await.repo.id;
-    let RebasePlan::Ok { rows, .. } = rebase_plan_with(&tc, id.clone(), base.clone(), Some(true)).await.unwrap() else { panic!("expected a plan") };
+    let RebasePlan::Ok { rows, .. } = rebase_plan_with(&tc, id.clone(), base.clone(), Some(true)).await.unwrap() else {
+        panic!("expected a plan")
+    };
     let plan: Vec<(&str, RebaseAction)> = rows.iter().map(|r| (r.summary.as_str(), r.action)).collect();
     assert_eq!(
         plan,
@@ -68,7 +73,11 @@ async fn autosquash_plan_gives_the_same_history_as_git() {
     assert_eq!(log(&repo, "%s", &range), want_subjects, "the same commits as Git's autosquash");
     assert_eq!(log(&repo, "%T", &range), want_trees, "with the same contents");
     assert_eq!(repo.git(&["log", "-1", "--format=%B", "feature~3"]), "Prüfung auf leere Eingaben", "fixup messages are dropped");
-    assert_eq!(repo.git(&["log", "-1", "--format=%B", "feature~2"]), "Meldungen übersetzen\n\nsquash! Meldungen übersetzen", "a squash keeps both messages");
+    assert_eq!(
+        repo.git(&["log", "-1", "--format=%B", "feature~2"]),
+        "Meldungen übersetzen\n\nsquash! Meldungen übersetzen",
+        "a squash keeps both messages"
+    );
 }
 
 #[tokio::test]

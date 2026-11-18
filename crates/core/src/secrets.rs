@@ -40,9 +40,7 @@ impl MemorySecrets {
 }
 
 fn unavailable() -> CoreError {
-    CoreError::io(
-        "The operating system’s keychain can’t be reached. Without it, Forkyard doesn’t store any tokens, keys or passwords.",
-    )
+    CoreError::io("The operating system’s keychain can’t be reached. Without it, Forkyard doesn’t store any tokens, keys or passwords.")
 }
 
 fn service(core: &Core) -> String {

@@ -123,7 +123,17 @@ pub(super) async fn undo_fixture(tc: &TestCore, repo: &TestRepo, id: &str) -> Un
     repo.git(&["update-ref", &undo::backup_ref_name(&young_orphan, "head"), &young_commit]);
     repo.git(&["update-ref", &undo::backup_ref_name(&young_orphan, "worktree"), &young_commit]);
     repo.git(&["update-ref", &undo::backup_ref_name(&tree_orphan, "index"), &tree]);
-    UndoFixture { old_entry, old_entry_at, young_entry, young_entry_at, old_orphan, old_orphan_time, young_orphan, young_orphan_time, tree_orphan }
+    UndoFixture {
+        old_entry,
+        old_entry_at,
+        young_entry,
+        young_entry_at,
+        old_orphan,
+        old_orphan_time,
+        young_orphan,
+        young_orphan_time,
+        tree_orphan,
+    }
 }
 
 /// Ids of the backup ref groups below `refs/forkyard/undo/`, sorted – as Git lists them.
@@ -166,7 +176,11 @@ pub(super) fn only_gc(mode: crate::model::CleanupMode) -> crate::model::CleanupO
 }
 
 /// `repo_cleanup_run` with a fresh job id.
-pub(super) async fn run_cleanup(core: &crate::app::Core, id: &str, options: crate::model::CleanupOptions) -> crate::error::CoreResult<crate::model::CleanupResult> {
+pub(super) async fn run_cleanup(
+    core: &crate::app::Core,
+    id: &str,
+    options: crate::model::CleanupOptions,
+) -> crate::error::CoreResult<crate::model::CleanupResult> {
     super::repo_cleanup_run(core, id.to_string(), format!("job-cleanup-{}", util::new_id()), options).await
 }
 

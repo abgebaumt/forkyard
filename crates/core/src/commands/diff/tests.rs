@@ -60,7 +60,8 @@ fn all_signed(diff: &TextDiff) -> Vec<String> {
     diff.hunks.iter().flat_map(|h| signed(&h.lines)).collect()
 }
 
-const RUST_FILE: &str = "fn main() {\n    let a = 1;\n    let b = 2;\n    let c = 3;\n    let d = 4;\n    let e = 5;\n    let f = 6;\n    let g = 7;\n}\n";
+const RUST_FILE: &str =
+    "fn main() {\n    let a = 1;\n    let b = 2;\n    let c = 3;\n    let d = 4;\n    let e = 5;\n    let f = 6;\n    let g = 7;\n}\n";
 
 #[tokio::test]
 async fn unstaged_modification_with_numbers_section_and_texts() {
@@ -85,7 +86,17 @@ async fn unstaged_modification_with_numbers_section_and_texts() {
     assert_eq!(h.section, "fn main() {");
     assert_eq!(
         signed(&h.lines),
-        vec!["     let b = 2;", "     let c = 3;", "     let d = 4;", "-    let e = 5;", "+    let e = 50;", "+    let neu = 0;", "     let f = 6;", "     let g = 7;", " }"]
+        vec![
+            "     let b = 2;",
+            "     let c = 3;",
+            "     let d = 4;",
+            "-    let e = 5;",
+            "+    let e = 50;",
+            "+    let neu = 0;",
+            "     let f = 6;",
+            "     let g = 7;",
+            " }"
+        ]
     );
     let numbers: Vec<(Option<u32>, Option<u32>)> = h.lines.iter().map(|l| (l.old_no, l.new_no)).collect();
     assert_eq!(
@@ -139,7 +150,9 @@ async fn untracked_file_is_all_added() {
     assert!(d.token.is_some());
     // The real index stays untouched, and no helper file is left behind.
     assert!(repo.git(&["ls-files"]).lines().all(|l| l == "README.md"));
-    let names = |dir: std::path::PathBuf| -> Vec<String> { std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect() };
+    let names = |dir: std::path::PathBuf| -> Vec<String> {
+        std::fs::read_dir(dir).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().into_owned()).collect()
+    };
     let leftovers = names(tc.data_dir().join("tmp"));
     assert!(leftovers.is_empty(), "{leftovers:?}");
     let mut in_git_dir = names(repo.path().join(".git"));
@@ -399,13 +412,22 @@ async fn binary_files_report_sizes() {
     let (tc, id) = open(&repo).await;
 
     let d = diff(&tc, &id, "daten.bin", DiffSource::Unstaged).await;
-    assert_eq!(d, FileDiff::Binary { path: "daten.bin".into(), old_path: None, status: FileStatus::Modified, old_size: Some(4), new_size: Some(6) });
+    assert_eq!(
+        d,
+        FileDiff::Binary { path: "daten.bin".into(), old_path: None, status: FileStatus::Modified, old_size: Some(4), new_size: Some(6) }
+    );
     let d = diff(&tc, &id, "neu.bin", DiffSource::Unstaged).await;
-    assert_eq!(d, FileDiff::Binary { path: "neu.bin".into(), old_path: None, status: FileStatus::Untracked, old_size: None, new_size: Some(10) });
+    assert_eq!(
+        d,
+        FileDiff::Binary { path: "neu.bin".into(), old_path: None, status: FileStatus::Untracked, old_size: None, new_size: Some(10) }
+    );
 
     repo.git(&["rm", "-q", "--cached", "daten.bin"]);
     let d = diff(&tc, &id, "daten.bin", DiffSource::Staged).await;
-    assert_eq!(d, FileDiff::Binary { path: "daten.bin".into(), old_path: None, status: FileStatus::Deleted, old_size: Some(4), new_size: None });
+    assert_eq!(
+        d,
+        FileDiff::Binary { path: "daten.bin".into(), old_path: None, status: FileStatus::Deleted, old_size: Some(4), new_size: None }
+    );
 }
 
 #[tokio::test]
@@ -501,14 +523,15 @@ async fn lfs_pointer_from_a_clean_filter() {
     let new_oid = "c".repeat(64);
     repo.write_file(".gitattributes", "*.big filter=fake\n");
     repo.commit_file("daten.big", lfs_pointer(&"a".repeat(64), 10), "Basis");
-    repo.git(&["config", "filter.fake.clean", &format!("printf 'version https://git-lfs.github.com/spec/v1\\noid sha256:{new_oid}\\nsize 4242\\n'")]);
+    repo.git(&[
+        "config",
+        "filter.fake.clean",
+        &format!("printf 'version https://git-lfs.github.com/spec/v1\\noid sha256:{new_oid}\\nsize 4242\\n'"),
+    ]);
     repo.write_file("daten.big", "echter inhalt, kein zeiger\n");
     let (tc, id) = open(&repo).await;
     let d = diff(&tc, &id, "daten.big", DiffSource::Unstaged).await;
-    assert!(
-        matches!(&d, FileDiff::Lfs { old_size: Some(10), new_oid: Some(oid), new_size: Some(4242), .. } if *oid == new_oid),
-        "{d:?}"
-    );
+    assert!(matches!(&d, FileDiff::Lfs { old_size: Some(10), new_oid: Some(oid), new_size: Some(4242), .. } if *oid == new_oid), "{d:?}");
 }
 
 #[tokio::test]
@@ -524,7 +547,13 @@ async fn too_large_by_lines_and_by_bytes() {
     let d = diff(&tc, &id, "viele.txt", DiffSource::Unstaged).await;
     assert_eq!(
         d,
-        FileDiff::TooLarge { path: "viele.txt".into(), old_path: None, status: FileStatus::Untracked, bytes: many.len() as u64, lines: Some(20_001) }
+        FileDiff::TooLarge {
+            path: "viele.txt".into(),
+            old_path: None,
+            status: FileStatus::Untracked,
+            bytes: many.len() as u64,
+            lines: Some(20_001)
+        }
     );
     let forced = text(diff_file(&tc, id.clone(), "viele.txt".into(), DiffSource::Unstaged, Some(true), None).await.unwrap());
     assert_eq!(forced.hunks[0].lines.len(), 20_001);
@@ -532,7 +561,16 @@ async fn too_large_by_lines_and_by_bytes() {
     assert!(forced.token.is_some());
 
     let d = diff(&tc, &id, "gross.txt", DiffSource::Unstaged).await;
-    assert_eq!(d, FileDiff::TooLarge { path: "gross.txt".into(), old_path: None, status: FileStatus::Untracked, bytes: big.len() as u64, lines: None });
+    assert_eq!(
+        d,
+        FileDiff::TooLarge {
+            path: "gross.txt".into(),
+            old_path: None,
+            status: FileStatus::Untracked,
+            bytes: big.len() as u64,
+            lines: None
+        }
+    );
     let forced = text(diff_file(&tc, id.clone(), "gross.txt".into(), DiffSource::Unstaged, Some(true), None).await.unwrap());
     assert_eq!(forced.hunks[0].lines.len(), 300);
     assert_eq!(forced.new_text, None, "the full version stays out above the size limit");
@@ -759,7 +797,9 @@ async fn encoding_can_be_given_for_one_call() {
     assert_eq!(auto.encoding, "windows-1252");
     assert_eq!(auto.hunks[0].lines[0].text, "Grüße");
 
-    let forced = text(super::diff_file(&tc, id.clone(), "l.txt".into(), DiffSource::Unstaged, None, None, Some("windows-1251".into())).await.unwrap());
+    let forced = text(
+        super::diff_file(&tc, id.clone(), "l.txt".into(), DiffSource::Unstaged, None, None, Some("windows-1251".into())).await.unwrap(),
+    );
     assert_eq!(forced.encoding, "windows-1251");
     assert_eq!(forced.hunks[0].lines[0].text, "GrьЯe");
     assert_eq!(forced.hunks[0].lines[1].text, "neu ь");

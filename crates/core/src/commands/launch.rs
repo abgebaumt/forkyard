@@ -128,7 +128,12 @@ pub fn validated_link(path: &str, commit: Option<&str>) -> Option<LaunchRequest>
         if trimmed.contains('\0') {
             return None;
         }
-        return Some(LaunchRequest { path: trimmed.to_string(), commit: None, invalid: Some(LaunchInvalid::PathNotAllowed), from_link: true });
+        return Some(LaunchRequest {
+            path: trimmed.to_string(),
+            commit: None,
+            invalid: Some(LaunchInvalid::PathNotAllowed),
+            from_link: true,
+        });
     }
     let mut request = validated(trimmed, commit, None)?;
     request.from_link = true;
@@ -195,7 +200,12 @@ pub fn validated(path: &str, commit: Option<&str>, cwd: Option<&Path>) -> Option
     let full = if given.is_absolute() { given } else { cwd?.join(given) };
     let full = std::path::absolute(&full).ok()?;
     if !full.is_dir() {
-        return Some(LaunchRequest { path: util::display_path(&full), commit: None, invalid: Some(LaunchInvalid::PathNotFound), from_link: false });
+        return Some(LaunchRequest {
+            path: util::display_path(&full),
+            commit: None,
+            invalid: Some(LaunchInvalid::PathNotFound),
+            from_link: false,
+        });
     }
     let commit = commit.map(str::trim).filter(|sha| (4..=64).contains(&sha.len()) && sha.bytes().all(|b| b.is_ascii_hexdigit()));
     Some(LaunchRequest { path: util::display_path(&full), commit: commit.map(str::to_ascii_lowercase), invalid: None, from_link: false })
@@ -327,7 +337,10 @@ fn write_instance_file(data_dir: &Path, file: &InstanceFile) -> std::io::Result<
 /// the same data directory may have overwritten it in the meantime).
 pub fn remove_instance_file(data_dir: &Path) {
     let path = data_dir.join(INSTANCE_FILE);
-    let own = std::fs::read_to_string(&path).ok().and_then(|text| serde_json::from_str::<InstanceFile>(&text).ok()).is_some_and(|file| file.pid == std::process::id());
+    let own = std::fs::read_to_string(&path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<InstanceFile>(&text).ok())
+        .is_some_and(|file| file.pid == std::process::id());
     if own {
         let _ = std::fs::remove_file(&path);
     }
@@ -337,7 +350,13 @@ pub fn remove_instance_file(data_dir: &Path) {
 /// accepted it (then the caller can exit); `false` if none is running or it does not answer.
 /// Blocks for a few seconds at most.
 pub fn forward(data_dir: &Path, request: &LaunchRequest) -> bool {
-    send(data_dir, |token| Message { token, path: request.path.clone(), commit: request.commit.clone(), from_link: request.from_link, focus: false })
+    send(data_dir, |token| Message {
+        token,
+        path: request.path.clone(),
+        commit: request.commit.clone(),
+        from_link: request.from_link,
+        focus: false,
+    })
 }
 
 /// Second instance without arguments: asks the running app to bring its window forward.
@@ -420,7 +439,10 @@ mod tests {
         let a_file = from_args(args(&[&file.to_string_lossy()]), None).unwrap();
         assert_eq!(a_file.invalid, Some(LaunchInvalid::PathNotFound), "a file is not a folder");
         let encoded_missing = encode(&missing.to_string_lossy());
-        assert_eq!(from_args(args(&[&format!("forkyard://open?path={encoded_missing}")]), None).unwrap().invalid, Some(LaunchInvalid::PathNotFound));
+        assert_eq!(
+            from_args(args(&[&format!("forkyard://open?path={encoded_missing}")]), None).unwrap().invalid,
+            Some(LaunchInvalid::PathNotFound)
+        );
         assert_eq!(from_args(args(&["relativ"]), None), None, "relative without a working directory");
         assert_eq!(from_args(args(&["https://example.com/x"]), Some(dir.path())), None);
         assert_eq!(from_args(args(&["forkyard://run?path=x"]), Some(dir.path())), None, "only the action open");
@@ -457,17 +479,33 @@ mod tests {
     /// would log in to the foreign server with the user's credentials).
     #[test]
     fn sec02_links_never_touch_network_or_device_paths() {
-        for hostile in [r"\\127.0.0.1\forkyard-gibt-es-nicht\repo", "//127.0.0.1/forkyard-gibt-es-nicht/repo", r"\\?\C:\Windows", r"\\.\C:\Windows", r"\\?\UNC\127.0.0.1\c$\x"] {
+        for hostile in [
+            r"\\127.0.0.1\forkyard-gibt-es-nicht\repo",
+            "//127.0.0.1/forkyard-gibt-es-nicht/repo",
+            r"\\?\C:\Windows",
+            r"\\.\C:\Windows",
+            r"\\?\UNC\127.0.0.1\c$\x",
+        ] {
             let link = format!("forkyard://open?path={}", encode(hostile));
             let request = from_args(args(&[&link]), None);
             let refused = request.as_ref().is_none_or(|r| r.invalid.is_some() && r.invalid != Some(LaunchInvalid::PathNotFound));
             assert!(refused, "{hostile}: {request:?}");
             let request = request.unwrap();
-            assert_eq!((request.invalid, request.from_link, request.commit.clone()), (Some(LaunchInvalid::PathNotAllowed), true, None), "{hostile}");
+            assert_eq!(
+                (request.invalid, request.from_link, request.commit.clone()),
+                (Some(LaunchInvalid::PathNotAllowed), true, None),
+                "{hostile}"
+            );
             assert_eq!(serde_json::to_value(&request).unwrap()["invalid"], "path_not_allowed");
         }
-        assert!(is_network_or_device_path(r"\\server\x") && is_network_or_device_path("//server/x") && is_network_or_device_path(r"/\server\x"));
-        assert!(!is_network_or_device_path(r"C:\repo") && !is_network_or_device_path("/home/anna/repo") && !is_network_or_device_path("relativ"));
+        assert!(
+            is_network_or_device_path(r"\\server\x") && is_network_or_device_path("//server/x") && is_network_or_device_path(r"/\server\x")
+        );
+        assert!(
+            !is_network_or_device_path(r"C:\repo")
+                && !is_network_or_device_path("/home/anna/repo")
+                && !is_network_or_device_path("relativ")
+        );
     }
 
     #[test]
@@ -536,7 +574,12 @@ mod tests {
         assert_eq!(tc.events.named(names::APP_OPEN_REQUEST).len(), 1);
 
         // A path that does not exist arrives with a reason (the UI explains it).
-        let gone = LaunchRequest { path: util::display_path(&dir.path().join("fehlt")), commit: None, invalid: Some(LaunchInvalid::PathNotFound), from_link: false };
+        let gone = LaunchRequest {
+            path: util::display_path(&dir.path().join("fehlt")),
+            commit: None,
+            invalid: Some(LaunchInvalid::PathNotFound),
+            from_link: false,
+        };
         let (dir_c, req_c) = (data_dir.clone(), gone.clone());
         assert!(tokio::task::spawn_blocking(move || forward(&dir_c, &req_c)).await.unwrap());
         let events = tc.events.named(names::APP_OPEN_REQUEST);

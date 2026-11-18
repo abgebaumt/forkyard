@@ -20,7 +20,10 @@ use crate::app::Core;
 use crate::commands::{branches, graph, history, preview, remotes, status, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::CancelToken;
-use crate::model::{ConflictPreview, Head, MergeMode, PlanCheck, PlanCommand, PlanPreview, PlanStep, PlanStepView, PreviewOp, PullMode, RefNameKind, ResetMode};
+use crate::model::{
+    ConflictPreview, Head, MergeMode, PlanCheck, PlanCommand, PlanPreview, PlanStep, PlanStepView, PreviewOp, PullMode, RefNameKind,
+    ResetMode,
+};
 use crate::{undo, util};
 
 pub const MAX_STEPS: usize = 10;
@@ -99,7 +102,15 @@ struct Sim<'a> {
 
 /// Errors that end the check instead of marking one step invalid.
 fn stays_error(code: ErrorCode) -> bool {
-    matches!(code, ErrorCode::Cancelled | ErrorCode::RepoUntrusted | ErrorCode::PathNotFound | ErrorCode::GitMissing | ErrorCode::GitTooOld | ErrorCode::Io)
+    matches!(
+        code,
+        ErrorCode::Cancelled
+            | ErrorCode::RepoUntrusted
+            | ErrorCode::PathNotFound
+            | ErrorCode::GitMissing
+            | ErrorCode::GitTooOld
+            | ErrorCode::Io
+    )
 }
 
 fn remote_branch_name(name: &str) -> CoreResult<String> {
@@ -120,7 +131,8 @@ impl<'a> Sim<'a> {
         let local = branches::local_branches(core, repo_id).await?;
         let elsewhere = local.iter().filter(|b| b.worktree.is_some() && !b.is_head).map(|b| b.name.clone()).collect();
         let branches = local.into_iter().map(|b| (b.name, Tip::At(b.sha))).collect();
-        let tags_out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(refname:strip=2)", "refs/tags"]).read_only().no_log().run().await?;
+        let tags_out =
+            core.git_for(repo_id)?.args(["for-each-ref", "--format=%(refname:strip=2)", "refs/tags"]).read_only().no_log().run().await?;
         let tags = tags_out.stdout_lines().into_iter().map(util::decode_lossy).filter(|tag| !tag.is_empty()).collect();
         let remotes = remotes::remote_names(core, repo_id).await?;
         let (head_branch, head_sha) = match head {
@@ -143,7 +155,10 @@ impl<'a> Sim<'a> {
         let name = name.trim();
         let name = name.strip_prefix("refs/heads/").unwrap_or(name).to_string();
         if !self.v.branches.contains_key(&name) {
-            return Err(CoreError::not_found(format!("The branch “{}” doesn't exist at that point of the plan.", undo::shorten(&name, 60))));
+            return Err(CoreError::not_found(format!(
+                "The branch “{}” doesn't exist at that point of the plan.",
+                undo::shorten(&name, 60)
+            )));
         }
         Ok(name)
     }
@@ -162,11 +177,17 @@ impl<'a> Sim<'a> {
             RefNameKind::Tag => self.v.tags.contains(&name),
         };
         if taken {
-            return Err(CoreError::new(ErrorCode::NameExists, format!("“{}” exists already at that point of the plan.", undo::shorten(&name, 60))));
+            return Err(CoreError::new(
+                ErrorCode::NameExists,
+                format!("“{}” exists already at that point of the plan.", undo::shorten(&name, 60)),
+            ));
         }
         let check = branches::ref_name_check(self.core, self.repo_id.to_string(), name.clone(), kind).await?;
         if !check.valid {
-            return Err(CoreError::new(ErrorCode::InvalidName, check.reason.unwrap_or_else(|| format!("“{}” is not a valid name.", undo::shorten(&name, 60)))));
+            return Err(CoreError::new(
+                ErrorCode::InvalidName,
+                check.reason.unwrap_or_else(|| format!("“{}” is not a valid name.", undo::shorten(&name, 60))),
+            ));
         }
         Ok(name)
     }
@@ -223,7 +244,9 @@ impl<'a> Sim<'a> {
     async fn known(&mut self, rev: &str) -> CoreResult<String> {
         match self.rev(rev).await? {
             Rev::Known(sha) => Ok(sha),
-            Rev::Later { rev, step } => Err(CoreError::not_allowed(format!("“{rev}” depends on what step {} does; name the commit instead.", step + 1))),
+            Rev::Later { rev, step } => {
+                Err(CoreError::not_allowed(format!("“{rev}” depends on what step {} does; name the commit instead.", step + 1)))
+            }
         }
     }
 
@@ -351,7 +374,9 @@ impl<'a> Sim<'a> {
                 let name = self.existing_branch(&a.text("name"))?;
                 self.not_elsewhere(&name)?;
                 if self.v.head_branch.as_deref() == Some(name.as_str()) {
-                    return Err(CoreError::not_allowed(format!("“{name}” is checked out at that point of the plan; check out another branch first.")));
+                    return Err(CoreError::not_allowed(format!(
+                        "“{name}” is checked out at that point of the plan; check out another branch first."
+                    )));
                 }
                 self.v.branches.remove(&name);
                 self.v.deleted.insert(name.clone());
@@ -392,7 +417,8 @@ impl<'a> Sim<'a> {
                     .ok_or_else(|| CoreError::not_found(format!("The branch “{branch}” doesn't exist at that point of the plan.")))?;
                 let check = match (&onto, &tip) {
                     (Rev::Known(onto_sha), Tip::At(tip_sha)) => {
-                        self.conflicts(tip_sha, PreviewOp::Rebase { onto: onto_sha.clone(), upstream: None, branch: None, commits: None }).await?
+                        self.conflicts(tip_sha, PreviewOp::Rebase { onto: onto_sha.clone(), upstream: None, branch: None, commits: None })
+                            .await?
                     }
                     (Rev::Later { step, .. }, _) | (_, Tip::MovedBy(step)) => PlanCheck::Unknown { reason: later(*step, "The result") },
                 };
@@ -447,7 +473,10 @@ impl<'a> Sim<'a> {
                 for path in a.list("paths") {
                     paths.push(history::normalize_rel_path(&path)?);
                 }
-                Ok((PlanAction::StashCreate { message: a.opt("message"), include_untracked: a.flag("includeUntracked"), paths }, PlanCheck::NotNeeded))
+                Ok((
+                    PlanAction::StashCreate { message: a.opt("message"), include_untracked: a.flag("includeUntracked"), paths },
+                    PlanCheck::NotNeeded,
+                ))
             }
             PlanCommand::TagCreate => {
                 let name = self.new_name(&a.text("name"), RefNameKind::Tag).await?;
@@ -486,11 +515,9 @@ impl<'a> Sim<'a> {
             }
             PlanCommand::Pull => {
                 let mode: Option<PullMode> = a.choice("pullMode")?;
-                let branch = self
-                    .v
-                    .head_branch
-                    .clone()
-                    .ok_or_else(|| CoreError::not_allowed("HEAD is detached at that point of the plan; there is no branch to pull into."))?;
+                let branch = self.v.head_branch.clone().ok_or_else(|| {
+                    CoreError::not_allowed("HEAD is detached at that point of the plan; there is no branch to pull into.")
+                })?;
                 self.upstream_of(&branch).await?;
                 self.v.fetched_by = Some(i);
                 self.moved(i);
@@ -499,12 +526,9 @@ impl<'a> Sim<'a> {
             PlanCommand::Push => {
                 let branch = match a.opt("branch") {
                     Some(name) => self.existing_branch(&name)?,
-                    None => self
-                        .v
-                        .head_branch
-                        .clone()
-                        .filter(|name| self.v.branches.contains_key(name))
-                        .ok_or_else(|| CoreError::not_allowed("No branch is checked out at that point of the plan; name the branch to push."))?,
+                    None => self.v.head_branch.clone().filter(|name| self.v.branches.contains_key(name)).ok_or_else(|| {
+                        CoreError::not_allowed("No branch is checked out at that point of the plan; name the branch to push.")
+                    })?,
                 };
                 let given = a.opt("remote");
                 let (remote, remote_branch) = match &given {
@@ -540,7 +564,10 @@ impl<'a> Sim<'a> {
             PlanCommand::TagPush => {
                 let name = a.text("name").trim().to_string();
                 if !self.v.tags.contains(&name) {
-                    return Err(CoreError::not_found(format!("The tag “{}” doesn't exist at that point of the plan.", undo::shorten(&name, 40))));
+                    return Err(CoreError::not_found(format!(
+                        "The tag “{}” doesn't exist at that point of the plan.",
+                        undo::shorten(&name, 40)
+                    )));
                 }
                 let remote = self.remote(&a.text("remote"))?;
                 Ok((PlanAction::TagPush { name, remote }, PlanCheck::NotNeeded))
@@ -585,7 +612,9 @@ pub async fn check(core: &Core, repo_id: &str, steps: &[PlanStep], cancel: &Canc
     }
     let Sim { seen, touched, .. } = sim;
     let expect = expect_token(core, repo_id, steps, &seen).await?;
-    let runnable = !blocked && !views.is_empty() && views.iter().all(|view| !matches!(view.check, PlanCheck::Invalid { .. } | PlanCheck::Conflicts { .. }));
+    let runnable = !blocked
+        && !views.is_empty()
+        && views.iter().all(|view| !matches!(view.check, PlanCheck::Invalid { .. } | PlanCheck::Conflicts { .. }));
     Ok(Checked { preview: PlanPreview { steps: views, note: None, blocked, expect, runnable }, actions, touched, seen })
 }
 
@@ -593,7 +622,13 @@ pub async fn check(core: &Core, repo_id: &str, steps: &[PlanStep], cancel: &Canc
 pub async fn expect_token(core: &Core, repo_id: &str, steps: &[PlanStep], seen: &BTreeMap<String, String>) -> CoreResult<String> {
     let mut hash = Sha256::new();
     hash.update(status::read_token(core, repo_id).await?.as_bytes());
-    let tips = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(refname)%00%(objectname)", "refs/heads", "refs/tags"]).read_only().no_log().run().await?;
+    let tips = core
+        .git_for(repo_id)?
+        .args(["for-each-ref", "--format=%(refname)%00%(objectname)", "refs/heads", "refs/tags"])
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
     hash.update(&tips.stdout);
     for (name, sha) in seen {
         hash.update(b"\0");

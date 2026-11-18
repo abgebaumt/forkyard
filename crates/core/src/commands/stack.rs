@@ -6,8 +6,8 @@
 //! Which branches form a stack is Git's own config: `branch.<part>.forkyardStackParent` names the
 //! full ref of the part below (part 1: the base). Nothing about a stack is kept in the database.
 
-pub mod plan;
 pub mod check;
+pub mod plan;
 
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
@@ -19,8 +19,8 @@ use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
 use crate::commands::{host, rebase, refs, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{
-    OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCheckResult, StackCommit, StackCut, StackPart, StackPlan, StackPrCreated, StackPrFailed, StackPrOutcome, StackPrPart, StackRestack,
-    StackStatus, StackStatusPart,
+    OpResult, PushExtra, PushRefStatus, PushResult, RepoChange, StackCheckResult, StackCommit, StackCut, StackPart, StackPlan,
+    StackPrCreated, StackPrFailed, StackPrOutcome, StackPrPart, StackRestack, StackStatus, StackStatusPart,
 };
 use crate::undo::{self as u, GroupRecord, RefMove, UndoAction};
 use crate::util;
@@ -99,7 +99,10 @@ pub(crate) async fn read_source(core: &Core, repo_id: &str, branch: &str, base: 
 /// All local branches with tip and worktree.
 pub(crate) async fn local_branches(core: &Core, repo_id: &str) -> CoreResult<Vec<LocalBranch>> {
     let path = core.repo_path(repo_id)?;
-    let out = read_cmd(core, &path, repo_id).args(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(worktreepath)", "refs/heads"]).run().await?;
+    let out = read_cmd(core, &path, repo_id)
+        .args(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(worktreepath)", "refs/heads"])
+        .run()
+        .await?;
     Ok(out
         .stdout_lines()
         .into_iter()
@@ -137,7 +140,14 @@ pub(crate) async fn plan_for(core: &Core, repo_id: &str, source: &Source, cuts: 
         let words = if cut.name.trim().is_empty() { commit.subject.as_str() } else { cut.name.as_str() };
         let branch = plan::branch_name(&source.branch, index + 1, cuts.len(), &plan::slug(words));
         let problem = util::check_ref_name(&branch).err().or_else(|| plan::ref_conflict(&existing, &branch));
-        parts.push(StackPart { number: index as u32 + 1, branch, first, end: cut.end, tip: source.commits[cut.end as usize - 1].sha.clone(), problem });
+        parts.push(StackPart {
+            number: index as u32 + 1,
+            branch,
+            first,
+            end: cut.end,
+            tip: source.commits[cut.end as usize - 1].sha.clone(),
+            problem,
+        });
         first = cut.end + 1;
     }
     Ok(StackPlan {
@@ -162,7 +172,12 @@ pub async fn stack_plan(core: &Core, repo_id: String, branch: String, base: Stri
 async fn set_parents(core: &Core, repo_id: &str, planned: &StackPlan) -> CoreResult<()> {
     let mut parent = planned.base.clone();
     for part in &planned.parts {
-        core.git_for(repo_id)?.args(["config", "--local"]).arg(format!("branch.{}.{}", part.branch, plan::PARENT_KEY)).arg(&parent).run().await?;
+        core.git_for(repo_id)?
+            .args(["config", "--local"])
+            .arg(format!("branch.{}.{}", part.branch, plan::PARENT_KEY))
+            .arg(&parent)
+            .run()
+            .await?;
         parent = format!("refs/heads/{}", part.branch);
     }
     Ok(())
@@ -170,7 +185,15 @@ async fn set_parents(core: &Core, repo_id: &str, planned: &StackPlan) -> CoreRes
 
 /// Creates the branches of the plan for `cuts` – without a checkout, in one ref transaction, as one
 /// undo step – and returns the new stack. `expected_base`/`expected_tip`: the tips the plan showed.
-pub async fn stack_create(core: &Core, repo_id: String, branch: String, base: String, cuts: Vec<StackCut>, expected_base: String, expected_tip: String) -> CoreResult<StackStatus> {
+pub async fn stack_create(
+    core: &Core,
+    repo_id: String,
+    branch: String,
+    base: String,
+    cuts: Vec<StackCut>,
+    expected_base: String,
+    expected_tip: String,
+) -> CoreResult<StackStatus> {
     let id = repo_id.as_str();
     let top = core
         .with_write_lock(id, &[RepoChange::Refs, RepoChange::Config], async {
@@ -255,14 +278,23 @@ async fn restack_for(core: &Core, repo_id: &str, parts: &[StackStatusPart]) -> C
         .filter(|path| !same_place(path, &here))
         .map(|path| format!("“{}” is checked out in another worktree ({path}); restack it there.", top.branch));
     let moves = rebase::rebase_dependents(core, repo_id.to_string(), parts[index].parent.clone(), Some(top.branch.clone())).await?;
-    let left_behind = parts[index..parts.len() - 1].iter().filter(|part| part.worktree_path.is_some()).map(|part| part.branch.clone()).collect();
-    Ok(Some(StackRestack { onto: parts[index].parent.clone(), top: top.branch.clone(), top_tip: top.tip.clone(), moves, left_behind, blocked }))
+    let left_behind =
+        parts[index..parts.len() - 1].iter().filter(|part| part.worktree_path.is_some()).map(|part| part.branch.clone()).collect();
+    Ok(Some(StackRestack {
+        onto: parts[index].parent.clone(),
+        top: top.branch.clone(),
+        top_tip: top.tip.clone(),
+        moves,
+        left_behind,
+        blocked,
+    }))
 }
 
 /// The stack `name` (short name) is a part of, from the parent links in the config.
 pub(crate) async fn status_of(core: &Core, repo_id: &str, name: &str) -> CoreResult<Option<StackStatus>> {
     let pattern = format!(r"^branch\..*\.{}$", plan::PARENT_KEY.to_ascii_lowercase());
-    let out = core.git_for(repo_id)?.args(["config", "--local", "-z", "--get-regexp", pattern.as_str()]).read_only().no_log().run_raw().await?;
+    let out =
+        core.git_for(repo_id)?.args(["config", "--local", "-z", "--get-regexp", pattern.as_str()]).read_only().no_log().run_raw().await?;
     // Exit code 1: no such entry.
     let parents = if out.success() { plan::parse_parents(&out.stdout) } else { BTreeMap::new() };
     let branches = local_branches(core, repo_id).await?;
@@ -305,13 +337,18 @@ pub async fn stack_status(core: &Core, repo_id: String, branch: String) -> CoreR
 /// `expected_top`: the top part's tip the view showed.
 pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expected_top: String) -> CoreResult<OpResult> {
     let name = branch_name_of(&branch)?;
-    let status = status_of(core, &repo_id, &name).await?.ok_or_else(|| CoreError::not_found(format!("“{name}” is not part of a stack.")))?;
-    let restack = status.restack.ok_or_else(|| CoreError::not_allowed("Every part contains the part below it; there is nothing to restack."))?;
+    let status =
+        status_of(core, &repo_id, &name).await?.ok_or_else(|| CoreError::not_found(format!("“{name}” is not part of a stack.")))?;
+    let restack =
+        status.restack.ok_or_else(|| CoreError::not_allowed("Every part contains the part below it; there is nothing to restack."))?;
     if let Some(reason) = restack.blocked {
         return Err(CoreError::not_allowed(reason));
     }
     if restack.top_tip != expected_top.trim() {
-        return Err(CoreError::new(ErrorCode::StaleState, "The stack has changed since it was shown. Nothing was rebased; check it again."));
+        return Err(CoreError::new(
+            ErrorCode::StaleState,
+            "The stack has changed since it was shown. Nothing was rebased; check it again.",
+        ));
     }
     rebase::rebase_start_with(core, repo_id, restack.onto, Some(restack.top), Some(true)).await
 }
@@ -322,7 +359,16 @@ pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expecte
 /// per part, `None` = not on the remote), so nothing that arrived since is overwritten. The secret scan runs
 /// as for every push (v1.2, 6.2): `accepted_secrets` as in `push_with`.
 #[allow(clippy::too_many_arguments)]
-pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool, expected: Option<Vec<Option<String>>>, accepted_secrets: Option<Vec<String>>) -> CoreResult<PushResult> {
+pub async fn stack_push(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    branches: Vec<String>,
+    remote: String,
+    force: bool,
+    expected: Option<Vec<Option<String>>>,
+    accepted_secrets: Option<Vec<String>>,
+) -> CoreResult<PushResult> {
     let names: Vec<String> = branches.iter().map(|branch| branch_name_of(branch)).collect::<CoreResult<_>>()?;
     let Some((first, rest)) = names.split_first() else {
         return Err(CoreError::not_allowed("There is no part to push."));
@@ -346,10 +392,30 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
     // `Some("")` = shown absent; `lease` checks that under the network lock (only this mapping produces "").
     let mut expected = expected.into_iter().map(|sha| Some(sha.unwrap_or_default()));
     let first_expected = expected.next().flatten();
-    let extra: Vec<PushExtra> = rest.iter().zip(expected).map(|(name, expected)| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force, expected }).collect();
-    let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, first_expected, Some(extra), Some(true), accepted_secrets).await?;
+    let extra: Vec<PushExtra> = rest
+        .iter()
+        .zip(expected)
+        .map(|(name, expected)| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force, expected })
+        .collect();
+    let result = sync::push_with(
+        core,
+        repo_id.clone(),
+        job_id,
+        Some(first.clone()),
+        Some(remote.clone()),
+        None,
+        force,
+        first_expected,
+        Some(extra),
+        Some(true),
+        accepted_secrets,
+    )
+    .await?;
     if let PushResult::Multi { refs, .. } = &result {
-        let arrived: Vec<&String> = rest.iter().filter(|name| refs.iter().any(|r| r.local == format!("refs/heads/{name}") && r.status != PushRefStatus::Rejected)).collect();
+        let arrived: Vec<&String> = rest
+            .iter()
+            .filter(|name| refs.iter().any(|r| r.local == format!("refs/heads/{name}") && r.status != PushRefStatus::Rejected))
+            .collect();
         if !arrived.is_empty() {
             core.with_write_lock(&repo_id, &[RepoChange::Config], async {
                 for name in &arrived {
@@ -367,7 +433,14 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
 /// Opens the pull requests of `parts[from..]` one after the other, each onto the part below it
 /// (the first part onto `target`, the base's branch name on the host). Everything is checked before
 /// the first request; the first failure stops the rest and is reported with its part.
-pub async fn stack_prs_create(core: &Core, repo_id: String, target: String, parts: Vec<StackPrPart>, from: u32, remote: Option<String>) -> CoreResult<StackPrOutcome> {
+pub async fn stack_prs_create(
+    core: &Core,
+    repo_id: String,
+    target: String,
+    parts: Vec<StackPrPart>,
+    from: u32,
+    remote: Option<String>,
+) -> CoreResult<StackPrOutcome> {
     let target = target.trim().to_string();
     if target.is_empty() || target.starts_with('-') {
         return Err(CoreError::not_allowed("The stack needs the target branch of its first pull request."));
@@ -403,7 +476,20 @@ pub async fn stack_prs_create(core: &Core, repo_id: String, target: String, part
     for (index, part) in parts.iter().enumerate().skip(from) {
         let into = if index == 0 { target.clone() } else { names[index - 1].clone() };
         let number = index as u32 + 1;
-        match host::pr_create(core, repo_id.clone(), part.title.clone(), part.body.clone(), names[index].clone(), into, part.draft, None, None, remote.clone()).await {
+        match host::pr_create(
+            core,
+            repo_id.clone(),
+            part.title.clone(),
+            part.body.clone(),
+            names[index].clone(),
+            into,
+            part.draft,
+            None,
+            None,
+            remote.clone(),
+        )
+        .await
+        {
             Ok(pr) => outcome.created.push(StackPrCreated { part: number, pr }),
             Err(error) => {
                 outcome.failed = Some(StackPrFailed { part: number, error });
@@ -416,7 +502,14 @@ pub async fn stack_prs_create(core: &Core, repo_id: String, target: String, part
 
 /// "Check each part": the repository's test command on the tip of every planned part, each in its
 /// own temporary worktree (see `check`). Job `job_id`, cancellable.
-pub async fn stack_check(core: &Core, repo_id: String, job_id: String, branch: String, base: String, cuts: Vec<StackCut>) -> CoreResult<Vec<StackCheckResult>> {
+pub async fn stack_check(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    branch: String,
+    base: String,
+    cuts: Vec<StackCut>,
+) -> CoreResult<Vec<StackCheckResult>> {
     let source = read_source(core, &repo_id, &branch, &base).await?;
     let planned = plan_for(core, &repo_id, &source, &cuts).await?;
     check::run(core, &repo_id, &job_id, &planned.parts).await

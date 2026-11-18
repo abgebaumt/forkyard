@@ -19,7 +19,8 @@ pub(crate) const P1_FILE: &str = "pub fn anmelden(name: &str, passwort: &str) ->
 pub(crate) const P1_SUBJECT: &str = "Anmeldung: kurze Passwörter ablehnen";
 pub(crate) const P2_SUBJECT: &str = "Hinweis zur Anmeldung";
 /// The replacement for lines 3–4 of `P1_FILE` the tests let the AI suggest.
-pub(crate) const FIX: &str = "    if name.is_empty() || passwort.is_empty() || passwort.len() < 4 {\n        return false; // leer oder zu kurz";
+pub(crate) const FIX: &str =
+    "    if name.is_empty() || passwort.is_empty() || passwort.len() < 4 {\n        return false; // leer oder zu kurz";
 /// `P1_FILE` with `FIX` in lines 3–4.
 pub(crate) const FIXED_FILE: &str = "pub fn anmelden(name: &str, passwort: &str) -> bool {\n    let name = name.trim();\n    if name.is_empty() || passwort.is_empty() || passwort.len() < 4 {\n        return false; // leer oder zu kurz\n    }\n    pruefen(name, passwort)\n}\n";
 
@@ -56,9 +57,10 @@ fn answer(request: &MockRequest, state: &PrState) -> MockResponse {
     match route.as_str() {
         "GET /api/v3/user" => MockResponse::json(200, json!({ "login": "lena", "name": "Lena" })),
         "GET /api/v3/repos/octo/demo/pulls/7" => MockResponse::json(200, pr),
-        "GET /api/v3/repos/octo/demo/pulls/7/reviews" | "GET /api/v3/repos/octo/demo/pulls/7/comments" | "GET /api/v3/repos/octo/demo/issues/7/comments" | "GET /api/v3/repos/octo/demo/pulls/7/commits" => {
-            MockResponse::json(200, json!([]))
-        }
+        "GET /api/v3/repos/octo/demo/pulls/7/reviews"
+        | "GET /api/v3/repos/octo/demo/pulls/7/comments"
+        | "GET /api/v3/repos/octo/demo/issues/7/comments"
+        | "GET /api/v3/repos/octo/demo/pulls/7/commits" => MockResponse::json(200, json!([])),
         "POST /api/graphql" => MockResponse::json(
             200,
             json!({ "data": { "repository": { "pullRequest": { "reviewThreads": { "pageInfo": { "hasNextPage": false, "endCursor": Value::Null }, "nodes": state.threads } } } } }),

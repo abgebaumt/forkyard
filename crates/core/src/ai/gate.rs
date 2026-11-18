@@ -72,7 +72,14 @@ struct Approvals {
 }
 
 /// "Send" in the preview dialog.
-pub fn confirm(core: &Core, repo_id: Option<&str>, feature: AiFeature, fingerprint: &str, triggers: &[AiAskTrigger], dont_ask_again: bool) -> CoreResult<()> {
+pub fn confirm(
+    core: &Core,
+    repo_id: Option<&str>,
+    feature: AiFeature,
+    fingerprint: &str,
+    triggers: &[AiAskTrigger],
+    dont_ask_again: bool,
+) -> CoreResult<()> {
     core.db.tx(|tx| {
         for trigger in triggers {
             match trigger {
@@ -130,19 +137,39 @@ mod tests {
     async fn large_and_cost_are_remembered_only_when_asked_to() {
         let tc = TestCore::new().await;
         let settings = Settings { ai_confirm_cost_usd: 0.05, ..Settings::default() };
-        let base = Situation { repo_id: None, feature: AiFeature::Compose, chars: 100, estimated_cost_usd: Some(0.01), local: true, limit_reached: false };
+        let base = Situation {
+            repo_id: None,
+            feature: AiFeature::Compose,
+            chars: 100,
+            estimated_cost_usd: Some(0.01),
+            local: true,
+            limit_reached: false,
+        };
         assert!(pending(&tc, &settings, &base).unwrap().is_empty());
-        assert!(pending(&tc, &settings, &Situation { chars: LARGE_CHARS, ..base }).unwrap().is_empty(), "exactly 100 000 characters do not ask");
+        assert!(
+            pending(&tc, &settings, &Situation { chars: LARGE_CHARS, ..base }).unwrap().is_empty(),
+            "exactly 100 000 characters do not ask"
+        );
         assert_eq!(pending(&tc, &settings, &Situation { chars: LARGE_CHARS + 1, ..base }).unwrap(), vec![Large]);
-        assert!(pending(&tc, &settings, &Situation { estimated_cost_usd: Some(0.05), ..base }).unwrap().is_empty(), "the threshold itself does not ask");
+        assert!(
+            pending(&tc, &settings, &Situation { estimated_cost_usd: Some(0.05), ..base }).unwrap().is_empty(),
+            "the threshold itself does not ask"
+        );
         assert_eq!(pending(&tc, &settings, &Situation { estimated_cost_usd: Some(0.0501), ..base }).unwrap(), vec![Cost]);
-        assert!(pending(&tc, &settings, &Situation { estimated_cost_usd: None, ..base }).unwrap().is_empty(), "unknown price: no cost question");
+        assert!(
+            pending(&tc, &settings, &Situation { estimated_cost_usd: None, ..base }).unwrap().is_empty(),
+            "unknown price: no cost question"
+        );
 
         let big = Situation { chars: 250_000, estimated_cost_usd: Some(0.2), ..base };
         confirm(&tc, None, AiFeature::Compose, "fp-1", &[Large, Cost], false).unwrap();
         assert_eq!(pending(&tc, &settings, &big).unwrap(), vec![Large, Cost], "without “Don't ask again” it asks next time");
         assert!(require(&tc, "fp-1", &[Large, Cost], 0.0, None).is_ok(), "but exactly this text is approved");
-        assert_eq!(require(&tc, "fp-1", &[Large, Cost], 0.0, None).unwrap_err().code, ErrorCode::NotAllowed, "an approval lets one request through, not two");
+        assert_eq!(
+            require(&tc, "fp-1", &[Large, Cost], 0.0, None).unwrap_err().code,
+            ErrorCode::NotAllowed,
+            "an approval lets one request through, not two"
+        );
         assert_eq!(require(&tc, "fp-2", &[Large], 0.0, None).unwrap_err().code, ErrorCode::NotAllowed, "another text is not");
         confirm(&tc, None, AiFeature::Compose, "fp-3", &[Large, Cost], true).unwrap();
         assert!(pending(&tc, &settings, &big).unwrap().is_empty());
@@ -156,7 +183,14 @@ mod tests {
         let repo = crate::testkit::TestRepo::with_commit();
         let id = tc.open(&repo).await.repo.id;
         let settings = Settings::default();
-        let api = Situation { repo_id: Some(&id), feature: AiFeature::CommitMessage, chars: 100, estimated_cost_usd: Some(0.001), local: false, limit_reached: false };
+        let api = Situation {
+            repo_id: Some(&id),
+            feature: AiFeature::CommitMessage,
+            chars: 100,
+            estimated_cost_usd: Some(0.001),
+            local: false,
+            limit_reached: false,
+        };
         assert_eq!(pending(&tc, &settings, &api).unwrap(), vec![FirstUse, RepoFirst]);
         assert!(pending(&tc, &settings, &Situation { local: true, ..api }).unwrap().is_empty(), "local providers skip both (Grundregel 4)");
         confirm(&tc, Some(&id), AiFeature::CommitMessage, "fp", &[FirstUse, RepoFirst], false).unwrap();

@@ -11,7 +11,10 @@ use crate::ai::prompt::{self, Section};
 use crate::app::Core;
 use crate::commands::archaeology::clip;
 use crate::error::{CoreError, CoreResult};
-use crate::model::{AiOmitReason, AiOmitted, ArchaeologyAnswer, ArchaeologyConfidence, ArchaeologyNote, ArchaeologyRefKind, ArchaeologyStep, LineArchaeology, Settings};
+use crate::model::{
+    AiOmitReason, AiOmitted, ArchaeologyAnswer, ArchaeologyConfidence, ArchaeologyNote, ArchaeologyRefKind, ArchaeologyStep,
+    LineArchaeology, Settings,
+};
 
 pub const INSTRUCTION: &str = "Explain why the selected line of code looks the way it does today, using only the history given below: \
 what each change did to the line and – where the commit messages or the linked pull requests, issues and tickets say so – why. \
@@ -96,7 +99,11 @@ impl StepText {
             }
         }
         let shown_path = if hidden { LEFT_OUT.to_string() } else { step.path.clone() };
-        let lines = if step.start_line == step.end_line { format!("line {}", step.start_line) } else { format!("lines {}–{}", step.start_line, step.end_line) };
+        let lines = if step.start_line == step.end_line {
+            format!("line {}", step.start_line)
+        } else {
+            format!("lines {}–{}", step.start_line, step.end_line)
+        };
         let head = format!(
             "Step {} – commit {}\nDate: {} · Author: {}\nFile: {}{}",
             index + 1,
@@ -172,7 +179,11 @@ fn line_text(timeline: &LineArchaeology, generated: bool) -> String {
 pub fn render(timeline: &LineArchaeology, exclusions: &Exclusions, budget_chars: usize, secrets: &[String]) -> CoreResult<Rendered> {
     let start_reason = exclusions.reason(&timeline.path);
     if let Some(reason @ (AiOmitReason::Secret | AiOmitReason::Ignored)) = start_reason {
-        return Err(CoreError::not_allowed(format!("“{}” is excluded from AI requests ({}), so “Why is this so?” is not available for it.", timeline.path, reason_word(reason))));
+        return Err(CoreError::not_allowed(format!(
+            "“{}” is excluded from AI requests ({}), so “Why is this so?” is not available for it.",
+            timeline.path,
+            reason_word(reason)
+        )));
     }
     // As in `Exclusions::reason_for`: a renamed secret stays a secret under its new name, so an
     // excluded earlier name keeps the current code and every change of the file out.
@@ -181,11 +192,16 @@ pub fn render(timeline: &LineArchaeology, exclusions: &Exclusions, budget_chars:
         _ => None,
     });
     if let Some(reason) = earlier {
-        return Err(CoreError::not_allowed(format!("An earlier name of “{}” is excluded from AI requests ({}), so “Why is this so?” is not available for it.", timeline.path, reason_word(reason))));
+        return Err(CoreError::not_allowed(format!(
+            "An earlier name of “{}” is excluded from AI requests ({}), so “Why is this so?” is not available for it.",
+            timeline.path,
+            reason_word(reason)
+        )));
     }
     let line = line_text(timeline, start_reason == Some(AiOmitReason::Generated));
     let mut omitted = Vec::new();
-    let mut steps: Vec<StepText> = timeline.steps.iter().enumerate().map(|(index, step)| StepText::new(index, step, exclusions, &mut omitted)).collect();
+    let mut steps: Vec<StepText> =
+        timeline.steps.iter().enumerate().map(|(index, step)| StepText::new(index, step, exclusions, &mut omitted)).collect();
     let mut shortened: Vec<String> = Vec::new();
     fn note(label: &str, shortened: &mut Vec<String>) {
         if !shortened.iter().any(|known| known == label) {
@@ -239,7 +255,15 @@ pub fn sections(rendered: &Rendered) -> Vec<Section> {
 
 /// `AiInput::Archaeology`: the prompt for one timeline. `budget_tokens` and `secrets` come from
 /// `commands::ai::request_frame` – the same values for “What is sent?” and the request.
-pub async fn build(core: &Core, repo_id: &str, settings: &Settings, budget_tokens: u64, locale: &str, secrets: &[String], timeline: &LineArchaeology) -> CoreResult<Built> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+    timeline: &LineArchaeology,
+) -> CoreResult<Built> {
     let exclusions = Exclusions::load(core, repo_id, &settings.ai_exclude).await?;
     let rendered = render(timeline, &exclusions, (budget_tokens as f64 * CHARS_PER_TOKEN) as usize, secrets)?;
     let prompt = prompt::build(INSTRUCTION, locale, &sections(&rendered));
@@ -265,7 +289,8 @@ pub fn parse_answer(value: &Value, timeline: &LineArchaeology) -> CoreResult<Arc
         if text.is_empty() || given.len() < 7 || !given.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             continue;
         }
-        let matching: Vec<&str> = timeline.steps.iter().map(|step| step.commit.sha.as_str()).filter(|sha| sha.starts_with(given.as_str())).collect();
+        let matching: Vec<&str> =
+            timeline.steps.iter().map(|step| step.commit.sha.as_str()).filter(|sha| sha.starts_with(given.as_str())).collect();
         let [sha] = matching.as_slice() else { continue };
         if notes.iter().any(|known| known.sha == *sha) {
             continue;
@@ -276,7 +301,6 @@ pub fn parse_answer(value: &Value, timeline: &LineArchaeology) -> CoreResult<Arc
     notes.sort_by_key(|note| position(&note.sha));
     Ok(ArchaeologyAnswer { summary: clip(summary, MAX_SUMMARY_BYTES), notes, confidence, cost_usd: None })
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -323,8 +347,14 @@ mod tests {
 
     #[test]
     fn the_prompt_lists_the_steps_newest_first_between_the_markers() {
-        let mut newest = step(0xaa, "src/station.py", "Intervall halbiert (#12)\n\nStrom sparen im Winter.", &["-INTERVALL = 10", "+INTERVALL = 5"]);
-        newest.refs = vec![ArchaeologyRef { text: "#12".into(), url: "https://github.example/o/r/pull/12".into(), kind: ArchaeologyRefKind::PullRequest, title: Some("Winterbetrieb".into()) }];
+        let mut newest =
+            step(0xaa, "src/station.py", "Intervall halbiert (#12)\n\nStrom sparen im Winter.", &["-INTERVALL = 10", "+INTERVALL = 5"]);
+        newest.refs = vec![ArchaeologyRef {
+            text: "#12".into(),
+            url: "https://github.example/o/r/pull/12".into(),
+            kind: ArchaeologyRefKind::PullRequest,
+            title: Some("Winterbetrieb".into()),
+        }];
         let older = step(0xbb, "alt.py", "Erster Stand", &["+INTERVALL = 10"]);
         let line = timeline("src/station.py", vec![newest, older]);
         let rendered = render(&line, &none(), 100_000, &[]).unwrap();
@@ -335,7 +365,14 @@ mod tests {
         let first = text.find(&"aa".repeat(20)).expect("newest step");
         let second = text.find(&"bb".repeat(20)).expect("older step");
         assert!(first < second, "newest first");
-        for expected in ["Strom sparen im Winter.", "-INTERVALL = 10", "+INTERVALL = 5", "#12 pull request “Winterbetrieb” <https://github.example/o/r/pull/12>", "File: alt.py, line 3", "Jörg Müller"] {
+        for expected in [
+            "Strom sparen im Winter.",
+            "-INTERVALL = 10",
+            "+INTERVALL = 5",
+            "#12 pull request “Winterbetrieb” <https://github.example/o/r/pull/12>",
+            "File: alt.py, line 3",
+            "Jörg Müller",
+        ] {
             assert!(text.contains(expected), "missing {expected:?} in {text}");
         }
         assert!(!text.contains("joerg.mueller@example.com"), "author e-mails are never sent");
@@ -346,14 +383,23 @@ mod tests {
     #[test]
     fn excluded_files_and_secrets_never_reach_the_prompt() {
         let secret_start = timeline(".env.production", vec![step(1, ".env.production", "Zugang", &["+DB=geheim"])]);
-        assert_eq!(render(&secret_start, &none(), 100_000, &[]).unwrap_err().code, ErrorCode::NotAllowed, "a secret file gets no AI at all");
+        assert_eq!(
+            render(&secret_start, &none(), 100_000, &[]).unwrap_err().code,
+            ErrorCode::NotAllowed,
+            "a secret file gets no AI at all"
+        );
         let ignored = Exclusions::new(&["intern/**".to_string()], "");
         let ignored_start = timeline("intern/plan.txt", vec![step(1, "intern/plan.txt", "Plan", &["+x"])]);
         assert_eq!(render(&ignored_start, &ignored, 100_000, &[]).unwrap_err().code, ErrorCode::NotAllowed);
 
         let key = "sk-ant-api03-testkey-0123456789abcdef";
         let steps = vec![
-            step(1, "src/zugang.py", &format!("Token getauscht\n\nalt: ghp_abcdefghijklmnopqrstuvwxyz0123456789 neu: {key}"), &["+TOKEN = lesen()"]),
+            step(
+                1,
+                "src/zugang.py",
+                &format!("Token getauscht\n\nalt: ghp_abcdefghijklmnopqrstuvwxyz0123456789 neu: {key}"),
+                &["+TOKEN = lesen()"],
+            ),
             step(2, "src/alt/zugang.py", "Umgezogen", &["+TOKEN = 1"]),
         ];
         let rendered = render(&timeline("src/zugang.py", steps), &ignored, 100_000, &[key.to_string()]).unwrap();
@@ -369,7 +415,10 @@ mod tests {
         // `.env.production` became `config/prod.txt`: the same DB line, now under a harmless name.
         let mut renamed_secret = timeline(
             "config/prod.txt",
-            vec![step(1, "config/prod.txt", "Konfiguration umbenannt", &[]), step(2, ".env.production", "Zugang angelegt", &["+DB=postgres://admin:geheim@db.intern/prod"])],
+            vec![
+                step(1, "config/prod.txt", "Konfiguration umbenannt", &[]),
+                step(2, ".env.production", "Zugang angelegt", &["+DB=postgres://admin:geheim@db.intern/prod"]),
+            ],
         );
         renamed_secret.code = vec!["# Produktion".into(), "HOST=db.intern".into(), "DB=postgres://admin:geheim@db.intern/prod".into()];
         let refused = render(&renamed_secret, &none(), 100_000, &[]).unwrap_err();
@@ -378,17 +427,30 @@ mod tests {
 
         // `intern/plan.txt` moved to `src/plan.txt` while `intern/**` is excluded.
         let ignored = Exclusions::new(&["intern/**".to_string()], "");
-        let moved = timeline("src/plan.txt", vec![step(1, "src/plan.txt", "Verschoben", &["+INTERVALL = 5"]), step(2, "intern/plan.txt", "Plan", &["+INTERVALL = 10"])]);
-        assert_eq!(render(&moved, &ignored, 100_000, &[]).unwrap_err().code, ErrorCode::NotAllowed, "an earlier ignored name keeps the file out too");
+        let moved = timeline(
+            "src/plan.txt",
+            vec![step(1, "src/plan.txt", "Verschoben", &["+INTERVALL = 5"]), step(2, "intern/plan.txt", "Plan", &["+INTERVALL = 10"])],
+        );
+        assert_eq!(
+            render(&moved, &ignored, 100_000, &[]).unwrap_err().code,
+            ErrorCode::NotAllowed,
+            "an earlier ignored name keeps the file out too"
+        );
 
         // A generated older name is not a reason to refuse.
-        let from_lock = timeline("src/versionen.txt", vec![step(1, "src/versionen.txt", "Umbenannt", &["+INTERVALL = 5"]), step(2, "package-lock.json", "Alt", &["+x"])]);
+        let from_lock = timeline(
+            "src/versionen.txt",
+            vec![step(1, "src/versionen.txt", "Umbenannt", &["+INTERVALL = 5"]), step(2, "package-lock.json", "Alt", &["+x"])],
+        );
         assert!(render(&from_lock, &none(), 100_000, &[]).is_ok());
     }
 
     #[test]
     fn generated_files_go_out_without_code_and_changes() {
-        let line = timeline("package-lock.json", vec![step(1, "package-lock.json", "Abhängigkeiten aktualisiert", &["-\"version\": \"1.0.0\"", "+\"version\": \"1.0.1\""])]);
+        let line = timeline(
+            "package-lock.json",
+            vec![step(1, "package-lock.json", "Abhängigkeiten aktualisiert", &["-\"version\": \"1.0.0\"", "+\"version\": \"1.0.1\""])],
+        );
         let rendered = render(&line, &none(), 100_000, &[]).unwrap();
         let all = format!("{}\n{}", rendered.line, rendered.history);
         assert!(all.contains("Abhängigkeiten aktualisiert") && all.contains("File: package-lock.json"));
@@ -401,7 +463,8 @@ mod tests {
         let body = "Begründung ".repeat(180);
         let diff: Vec<String> = (0..40).map(|n| format!("+zeile {n:02} mit etwas inhalt")).collect();
         let diff_refs: Vec<&str> = diff.iter().map(String::as_str).collect();
-        let steps: Vec<ArchaeologyStep> = (1..=20u8).map(|n| step(n, "src/lang.py", &format!("Betreff {n}\n\n{body}"), &diff_refs)).collect();
+        let steps: Vec<ArchaeologyStep> =
+            (1..=20u8).map(|n| step(n, "src/lang.py", &format!("Betreff {n}\n\n{body}"), &diff_refs)).collect();
         let newest = steps[0].commit.sha.clone();
         let line = timeline("src/lang.py", steps);
 
@@ -415,8 +478,14 @@ mod tests {
             assert!(rendered.history.contains(&format!("commit {newest}")), "the newest step always stays");
             let with_change: Vec<bool> = blocks.iter().map(|block| block.contains("\nChange:\n")).collect();
             let with_body: Vec<bool> = blocks.iter().map(|block| block.contains("Begründung")).collect();
-            assert!(with_change.windows(2).all(|pair| pair[0] || !pair[1]), "budget {budget}: changes go from the oldest step first: {with_change:?}");
-            assert!(with_body.windows(2).all(|pair| pair[0] || !pair[1]), "budget {budget}: bodies go from the oldest step first: {with_body:?}");
+            assert!(
+                with_change.windows(2).all(|pair| pair[0] || !pair[1]),
+                "budget {budget}: changes go from the oldest step first: {with_change:?}"
+            );
+            assert!(
+                with_body.windows(2).all(|pair| pair[0] || !pair[1]),
+                "budget {budget}: bodies go from the oldest step first: {with_body:?}"
+            );
             if with_body.iter().any(|kept| !kept) {
                 assert!(with_change.iter().all(|kept| !kept), "budget {budget}: bodies are cut only after every change is gone");
             }
@@ -441,7 +510,10 @@ mod tests {
 
     #[test]
     fn answers_name_only_commits_of_the_timeline() {
-        let line = timeline("src/a.py", vec![step(0xab, "src/a.py", "Neu", &["+a"]), step(0xcd, "src/a.py", "Alt", &["+a"]), step(0xce, "src/a.py", "Älter", &["+a"])]);
+        let line = timeline(
+            "src/a.py",
+            vec![step(0xab, "src/a.py", "Neu", &["+a"]), step(0xcd, "src/a.py", "Alt", &["+a"]), step(0xce, "src/a.py", "Älter", &["+a"])],
+        );
         let answer = parse_answer(
             &json!({
                 "summary": "  Das Intervall wurde halbiert.  ",
@@ -461,7 +533,11 @@ mod tests {
         .unwrap();
         assert_eq!(answer.summary, "Das Intervall wurde halbiert.");
         let notes: Vec<(&str, &str)> = answer.notes.iter().map(|note| (note.sha.as_str(), note.note.as_str())).collect();
-        assert_eq!(notes, vec![(line.steps[0].commit.sha.as_str(), "Halbiert."), (line.steps[1].commit.sha.as_str(), "Legt die Zeile an.")], "unknown, short, duplicate and empty notes are dropped; timeline order");
+        assert_eq!(
+            notes,
+            vec![(line.steps[0].commit.sha.as_str(), "Halbiert."), (line.steps[1].commit.sha.as_str(), "Legt die Zeile an.")],
+            "unknown, short, duplicate and empty notes are dropped; timeline order"
+        );
         assert_eq!((answer.confidence, answer.cost_usd), (ArchaeologyConfidence::Medium, None));
 
         let empty = parse_answer(&json!({"summary": " ", "steps": [], "confidence": "low"}), &line).unwrap_err();

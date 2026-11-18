@@ -68,7 +68,8 @@ fn from_row(r: &Row) -> rusqlite::Result<HosterAccountRow> {
     })
 }
 
-const COLUMNS: &str = "id, profile_id, kind, base_url, username, login, name, avatar_url, token_hint, scopes_ok, missing_scopes, last_error";
+const COLUMNS: &str =
+    "id, profile_id, kind, base_url, username, login, name, avatar_url, token_hint, scopes_ok, missing_scopes, last_error";
 
 /// Accounts of the profile: GitHub before GitLab, then by address.
 pub fn list(conn: &Connection, profile_id: &str) -> CoreResult<Vec<HosterAccountRow>> {
@@ -95,7 +96,15 @@ pub struct AccountFacts {
 
 /// Creates the account or replaces the details of the existing one (same kind and address).
 /// Returns the row; the ID of an existing account is kept.
-pub fn upsert(conn: &Connection, profile_id: &str, kind: HostKind, base_url: &str, username: Option<&str>, token_hint: &str, facts: &AccountFacts) -> CoreResult<HosterAccountRow> {
+pub fn upsert(
+    conn: &Connection,
+    profile_id: &str,
+    kind: HostKind,
+    base_url: &str,
+    username: Option<&str>,
+    token_hint: &str,
+    facts: &AccountFacts,
+) -> CoreResult<HosterAccountRow> {
     let now = util::now_iso();
     conn.execute(
         "insert into hoster_accounts (id, profile_id, kind, base_url, username, login, name, avatar_url, token_hint, scopes_ok, missing_scopes, last_error, created_at, updated_at)
@@ -170,7 +179,8 @@ mod tests {
             let base = format!("https://{}.example", kind.as_str());
             let row = db.with(|c| upsert(c, "p", kind, &base, Some("lena@example.org"), "…abcd", &facts)).unwrap();
             assert_eq!((row.kind, row.base_url.as_str(), row.username.as_deref()), (kind, base.as_str(), Some("lena@example.org")));
-            let stored: String = db.with(|c| Ok(c.query_row("select kind from hoster_accounts where id = ?1", [&row.id], |r| r.get(0))?)).unwrap();
+            let stored: String =
+                db.with(|c| Ok(c.query_row("select kind from hoster_accounts where id = ?1", [&row.id], |r| r.get(0))?)).unwrap();
             assert_eq!(stored, kind.as_str());
             // Reconnecting replaces the user name, the ID stays.
             let again = db.with(|c| upsert(c, "p", kind, &base, None, "…wxyz", &facts)).unwrap();
@@ -195,7 +205,12 @@ mod tests {
         assert!(error.message.contains("unknown host kind “svn”"), "{}", error.message);
         assert!(db.with(|c| get(c, "p", "x")).is_err(), "neither as GitHub nor silently skipped");
         // The CHECK itself refuses unknown names.
-        let refused = db.with(|c| Ok(c.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('y', 'p', 'svn', 'https://svn.example')", [])?));
+        let refused = db.with(|c| {
+            Ok(c.execute(
+                "insert into hoster_accounts (id, profile_id, kind, base_url) values ('y', 'p', 'svn', 'https://svn.example')",
+                [],
+            )?)
+        });
         assert!(refused.is_err());
     }
 }

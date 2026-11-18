@@ -24,8 +24,15 @@ const MAX_COLLECTED: usize = 1024 * 1024;
 /// At most this much goes into the result and the activity log.
 pub(crate) const MAX_OUTPUT: usize = 64 * 1024;
 /// A custom command may have changed anything.
-pub(crate) const ALL_CHANGES: [RepoChange; 7] =
-    [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Stash, RepoChange::Config, RepoChange::Operation];
+pub(crate) const ALL_CHANGES: [RepoChange; 7] = [
+    RepoChange::Worktree,
+    RepoChange::Index,
+    RepoChange::Refs,
+    RepoChange::Head,
+    RepoChange::Stash,
+    RepoChange::Config,
+    RepoChange::Operation,
+];
 
 /// What would be started: program, arguments, additional environment.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -61,7 +68,14 @@ pub(crate) fn display_line(program: &str, args: &[String]) -> String {
 }
 
 /// Runs `planned` in `cwd` as job `job_id` and reports `repo:changed` afterwards.
-pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, title: &str, planned: &Planned, cwd: &Path) -> CoreResult<CustomCommandResult> {
+pub(crate) async fn run(
+    core: &Core,
+    repo_id: &str,
+    job_id: &str,
+    title: &str,
+    planned: &Planned,
+    cwd: &Path,
+) -> CoreResult<CustomCommandResult> {
     let job = core.start_job(job_id, Some(repo_id))?;
     let result = execute(core, repo_id, &job, title, planned, cwd).await;
     core.emit_repo_changed(repo_id, &ALL_CHANGES);
@@ -71,7 +85,8 @@ pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, title: &str, p
 
 fn spawn_error(program: &str, e: std::io::Error) -> CoreError {
     if e.kind() == std::io::ErrorKind::NotFound {
-        return CoreError::not_found(format!("The program “{program}” was not found. Write its full path or check PATH.")).with_git_output(e.to_string());
+        return CoreError::not_found(format!("The program “{program}” was not found. Write its full path or check PATH."))
+            .with_git_output(e.to_string());
     }
     let (code, reason) = crate::error::describe_io(&e);
     CoreError::new(code, format!("“{program}” couldn’t be started. {reason}")).with_git_output(e.to_string())
@@ -81,7 +96,12 @@ fn spawn_error(program: &str, e: std::io::Error) -> CoreError {
 /// "not found". `which` follows PATHEXT; std then quotes `.cmd` arguments safely or refuses them.
 #[cfg(windows)]
 fn program_path(planned: &Planned, cwd: &Path) -> std::ffi::OsString {
-    let path = planned.env.iter().find(|(key, _)| key.eq_ignore_ascii_case("PATH")).map(|(_, value)| value.into()).or_else(|| std::env::var_os("PATH"));
+    let path = planned
+        .env
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("PATH"))
+        .map(|(_, value)| value.into())
+        .or_else(|| std::env::var_os("PATH"));
     which::which_in(&planned.program, path, cwd).map(Into::into).unwrap_or_else(|_| planned.program.clone().into())
 }
 

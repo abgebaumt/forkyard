@@ -153,11 +153,17 @@ pub fn host_base(input: &str) -> Result<String, String> {
 pub fn check_proxy(input: &str) -> Result<String, String> {
     let text = input.trim();
     let Some((scheme, rest)) = text.split_once("://") else {
-        return Err(format!("“{}” is not a proxy address. Expected something like http://proxy.company.example:8080.", redact::redact(text)));
+        return Err(format!(
+            "“{}” is not a proxy address. Expected something like http://proxy.company.example:8080.",
+            redact::redact(text)
+        ));
     };
     let plain = !rest.is_empty() && !text.chars().any(|c| c.is_whitespace() || c.is_control());
     if !PROXY_SCHEMES.contains(&scheme.to_ascii_lowercase().as_str()) || !plain {
-        return Err(format!("“{}” is not a proxy address. Expected something like http://proxy.company.example:8080.", redact::redact(text)));
+        return Err(format!(
+            "“{}” is not a proxy address. Expected something like http://proxy.company.example:8080.",
+            redact::redact(text)
+        ));
     }
     Ok(text.to_string())
 }
@@ -200,7 +206,8 @@ pub fn normalize_lenient(settings: &mut Settings) {
     settings.ssl_ca_file = settings.ssl_ca_file.take().map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
     let mut by_host: Vec<HostProxy> = Vec::new();
     for entry in std::mem::take(&mut settings.proxy_by_host) {
-        let (Ok(host), Ok(proxy)) = (host_base(&entry.host), if entry.proxy.trim().is_empty() { Ok(String::new()) } else { check_proxy(&entry.proxy) })
+        let (Ok(host), Ok(proxy)) =
+            (host_base(&entry.host), if entry.proxy.trim().is_empty() { Ok(String::new()) } else { check_proxy(&entry.proxy) })
         else {
             continue;
         };
@@ -258,7 +265,19 @@ mod tests {
         assert_eq!(host_base("http://127.0.0.1:8080/").unwrap(), "http://127.0.0.1:8080");
         assert_eq!(host_base("https://anna:geheim@git.example.com").unwrap(), "https://git.example.com", "no credentials in the key");
         assert_eq!(host_base("[::1]:8443").unwrap(), "https://[::1]:8443");
-        for bad in ["", "  ", "*", "*.example.com", "https://*", "ssh://git.example.com", "git example.com", "host:port", "host:99999", "a=b", "[::1"] {
+        for bad in [
+            "",
+            "  ",
+            "*",
+            "*.example.com",
+            "https://*",
+            "ssh://git.example.com",
+            "git example.com",
+            "host:port",
+            "host:99999",
+            "a=b",
+            "[::1",
+        ] {
             assert!(host_base(bad).is_err(), "{bad}");
         }
     }
@@ -332,7 +351,11 @@ mod tests {
         assert_eq!(from_settings(&Settings::default()), NetConfig::default());
 
         // Strict: the first invalid entry is an error. Lenient: it is dropped.
-        let mut bad = Settings { ssl_no_verify_hosts: vec!["*".into(), "ok.example".into()], proxy_url: Some("kaputt".into()), ..Settings::default() };
+        let mut bad = Settings {
+            ssl_no_verify_hosts: vec!["*".into(), "ok.example".into()],
+            proxy_url: Some("kaputt".into()),
+            ..Settings::default()
+        };
         assert!(normalize(&mut bad.clone()).is_err());
         normalize_lenient(&mut bad);
         assert_eq!(bad.ssl_no_verify_hosts, vec!["https://ok.example"]);

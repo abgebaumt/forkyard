@@ -145,8 +145,8 @@ pub fn start_watching(core: &Core, repo_id: &str) -> CoreResult<()> {
         return Ok(());
     }
     let root = core.repo_path(repo_id)?;
-    let runtime = tokio::runtime::Handle::try_current()
-        .map_err(|_| CoreError::unknown("File watching can only be started from the running app."))?;
+    let runtime =
+        tokio::runtime::Handle::try_current().map_err(|_| CoreError::unknown("File watching can only be started from the running app."))?;
     let timing = *state.timing.lock();
     let (generation, stop, phase_tx) = {
         let mut running = state.running.lock();
@@ -345,7 +345,10 @@ impl Intake {
         }
         // A folder can appear as a whole (created, renamed, moved in) without its files
         // getting events of their own.
-        let appears = matches!(event.kind, EventKind::Create(_) | EventKind::Modify(notify::event::ModifyKind::Name(_)) | EventKind::Any | EventKind::Other);
+        let appears = matches!(
+            event.kind,
+            EventKind::Create(_) | EventKind::Modify(notify::event::ModifyKind::Name(_)) | EventKind::Any | EventKind::Other
+        );
         for path in &event.paths {
             relevant |= self.absorb_path(path, appears);
         }
@@ -434,13 +437,8 @@ fn ancestors(rel: &[u8]) -> impl Iterator<Item = &[u8]> {
 
 /// Git directory and common Git directory as Git reports them (same spelling).
 async fn git_dirs(core: &Core, root: &Path) -> CoreResult<(PathBuf, PathBuf)> {
-    let out = core
-        .git_at(root)
-        .args(["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"])
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let out =
+        core.git_at(root).args(["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"]).read_only().no_log().run().await?;
     let lines = out.stdout_lines();
     let dir = |i: usize| lines.get(i).map(|l| util::native_path(&util::bytes_to_path(l)));
     match (dir(0), dir(1)) {
@@ -458,7 +456,13 @@ async fn watch_repo(
     phase: &watch::Sender<Phase>,
 ) -> CoreResult<()> {
     // macOS reports paths in their resolved form (/private/var instead of /var).
-    let resolved = |path: &Path| if cfg!(target_os = "macos") { path.canonicalize().unwrap_or_else(|_| path.to_path_buf()) } else { path.to_path_buf() };
+    let resolved = |path: &Path| {
+        if cfg!(target_os = "macos") {
+            path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+        } else {
+            path.to_path_buf()
+        }
+    };
     let root = &resolved(root);
     let git_inside = root.join(".git").is_dir();
     let mut git_roots: Vec<GitRoot> = Vec::new();
@@ -552,7 +556,11 @@ async fn watch_repo(
 /// Creates the watcher and adds the recursive watches (blocking: walks the trees). The working
 /// directory first, then the Git directories outside it – shortest paths first: if one lies below
 /// another (a worktree's own part below the common one), watching that one is enough.
-fn set_up_watches(root: &Path, git_roots: &[PathBuf], tx: mpsc::UnboundedSender<notify::Result<notify::Event>>) -> CoreResult<notify::RecommendedWatcher> {
+fn set_up_watches(
+    root: &Path,
+    git_roots: &[PathBuf],
+    tx: mpsc::UnboundedSender<notify::Result<notify::Event>>,
+) -> CoreResult<notify::RecommendedWatcher> {
     let failed = |e: notify::Error| CoreError::io(format!("File watching couldn’t be set up: {e}"));
     let mut watcher = notify::recommended_watcher(move |event| {
         let _ = tx.send(event);

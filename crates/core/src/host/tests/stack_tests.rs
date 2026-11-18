@@ -13,7 +13,12 @@ fn parts(branches: &[&str]) -> Vec<StackPrPart> {
     branches
         .iter()
         .enumerate()
-        .map(|(index, branch)| StackPrPart { branch: branch.to_string(), title: format!("Teil {} – Größen", index + 1), body: format!("- Schritt {}", index + 1), draft: false })
+        .map(|(index, branch)| StackPrPart {
+            branch: branch.to_string(),
+            title: format!("Teil {} – Größen", index + 1),
+            body: format!("- Schritt {}", index + 1),
+            draft: false,
+        })
         .collect()
 }
 
@@ -77,7 +82,10 @@ async fn titles_and_bodies_go_out_as_given() {
     let fx = fixture(HostKind::Github).await;
     stack_prs_create(&fx.tc, fx.id(), "main".into(), parts(&PARTS), 0, None).await.unwrap();
     let first = creates(&fx, HostKind::Github)[0].json();
-    assert_eq!((first["title"].as_str(), first["body"].as_str(), first["draft"].as_bool()), (Some("Teil 1 – Größen"), Some("- Schritt 1"), Some(false)));
+    assert_eq!(
+        (first["title"].as_str(), first["body"].as_str(), first["draft"].as_bool()),
+        (Some("Teil 1 – Größen"), Some("- Schritt 1"), Some(false))
+    );
 }
 
 #[tokio::test]
@@ -99,7 +107,10 @@ async fn a_failed_part_stops_the_rest() {
     fx.server.clear();
     let outcome = stack_prs_create(&fx.tc, fx.id(), "main".into(), parts(&branches), 2, None).await.unwrap();
     assert_eq!(outcome.created.iter().map(|created| created.part).collect::<Vec<_>>(), [3]);
-    assert_eq!(source_target(HostKind::Github, &creates(&fx, HostKind::Github)[0]), ("thema-3-diagramme".to_string(), "schon-da".to_string()));
+    assert_eq!(
+        source_target(HostKind::Github, &creates(&fx, HostKind::Github)[0]),
+        ("thema-3-diagramme".to_string(), "schon-da".to_string())
+    );
 
     // A rejected token stops at the first part, too.
     fx.server.clear();
@@ -112,7 +123,8 @@ async fn a_failed_part_stops_the_rest() {
 #[tokio::test]
 async fn invalid_input_sends_nothing() {
     let fx = fixture(HostKind::Github).await;
-    let create = |target: &str, parts: Vec<StackPrPart>, from: u32| stack_prs_create(&fx.tc, fx.id(), target.to_string(), parts, from, None);
+    let create =
+        |target: &str, parts: Vec<StackPrPart>, from: u32| stack_prs_create(&fx.tc, fx.id(), target.to_string(), parts, from, None);
     let mut empty_title = parts(&PARTS);
     empty_title[2].title = "  ".into();
     assert_eq!(create("main", empty_title, 0).await.unwrap_err().code, ErrorCode::EmptyMessage);

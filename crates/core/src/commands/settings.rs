@@ -8,7 +8,9 @@ use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::netconfig;
-use crate::model::{AiCliPaths, AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings, DEFAULT_AI_CONFIRM_COST_USD};
+use crate::model::{
+    AiCliPaths, AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings, DEFAULT_AI_CONFIRM_COST_USD,
+};
 use crate::util;
 
 // ---------------------------------------------------------------------------
@@ -56,7 +58,8 @@ const AI_KEYS: [&str; 13] = [
 fn normalize_ai(s: &mut Settings) {
     s.ai_model = util::non_empty(s.ai_model.take()).map(|model| model.trim().to_string());
     s.ai_base_url = util::non_empty(s.ai_base_url.take()).map(|url| url.trim().trim_end_matches('/').to_string());
-    s.ai_confirm_cost_usd = if s.ai_confirm_cost_usd.is_finite() { s.ai_confirm_cost_usd.clamp(0.0, 100.0) } else { DEFAULT_AI_CONFIRM_COST_USD };
+    s.ai_confirm_cost_usd =
+        if s.ai_confirm_cost_usd.is_finite() { s.ai_confirm_cost_usd.clamp(0.0, 100.0) } else { DEFAULT_AI_CONFIRM_COST_USD };
     s.ai_monthly_limit_usd = s.ai_monthly_limit_usd.filter(|limit| limit.is_finite() && *limit >= 0.0).map(|limit| limit.min(100_000.0));
     let mut known = std::collections::HashSet::new();
     s.ai_exclude = s
@@ -76,7 +79,11 @@ fn normalize_ai(s: &mut Settings) {
             continue;
         }
         prices.retain(|known| known.model != model);
-        prices.push(AiPriceOverride { model, input_usd_per_mtok: price.input_usd_per_mtok, output_usd_per_mtok: price.output_usd_per_mtok });
+        prices.push(AiPriceOverride {
+            model,
+            input_usd_per_mtok: price.input_usd_per_mtok,
+            output_usd_per_mtok: price.output_usd_per_mtok,
+        });
     }
     s.ai_prices = prices;
     s.ai_search_embed_model = util::non_empty(s.ai_search_embed_model.take()).map(|model| model.trim().to_string());
@@ -436,7 +443,8 @@ pub async fn load_proxy_passwords(core: &Core) {
 /// host accounts, leftovers of the removed AI feature) – so that deleting the profile takes them along.
 fn profile_secret_accounts(core: &Core, profile_id: &str) -> Vec<String> {
     let stored = core.db.with(|c| db::settings::get_all(c, profile_id)).unwrap_or_default();
-    let mut accounts: Vec<String> = stored_proxies(&stored).into_iter().map(|(slot, _)| netconfig::proxy_secret_account(profile_id, &slot)).collect();
+    let mut accounts: Vec<String> =
+        stored_proxies(&stored).into_iter().map(|(slot, _)| netconfig::proxy_secret_account(profile_id, &slot)).collect();
     let hosters = core.db.with(|c| db::hoster_accounts::list(c, profile_id)).unwrap_or_default();
     accounts.extend(hosters.iter().map(|row| crate::host::secret_account(&row.id)));
     accounts.push(format!("{REMOVED_AI_ACCOUNT_PREFIX}{profile_id}"));
@@ -448,12 +456,8 @@ fn profile_secret_accounts(core: &Core, profile_id: &str) -> Vec<String> {
 // ---------------------------------------------------------------------------
 
 /// Fields of `RepoSettings` that live in .git/config (field → Git key).
-const GIT_KEYS: [(&str, &str); 4] = [
-    ("hooksPath", "core.hooksPath"),
-    ("commitTemplate", "commit.template"),
-    ("authorName", "user.name"),
-    ("authorEmail", "user.email"),
-];
+const GIT_KEYS: [(&str, &str); 4] =
+    [("hooksPath", "core.hooksPath"), ("commitTemplate", "commit.template"), ("authorName", "user.name"), ("authorEmail", "user.email")];
 
 /// Fields of `RepoSettings` that the core only returns (never stored, skipped in a patch).
 const READ_ONLY_KEYS: [&str; 2] = ["commitTemplateText", "secretScanIgnoredCount"];
@@ -466,7 +470,15 @@ const MAX_TEMPLATE_BYTES: u64 = 256 * 1024;
 /// `None`: no template configured, file missing, too large or not text.
 async fn commit_template_text(core: &Core, repo_id: &str) -> Option<String> {
     let root = core.repo_path(repo_id).ok()?;
-    let out = core.git_for(repo_id).ok()?.args(["config", "--get", "--type=path", "commit.template"]).read_only().no_log().run_raw().await.ok()?;
+    let out = core
+        .git_for(repo_id)
+        .ok()?
+        .args(["config", "--get", "--type=path", "commit.template"])
+        .read_only()
+        .no_log()
+        .run_raw()
+        .await
+        .ok()?;
     if !out.success() {
         return None;
     }
@@ -518,7 +530,11 @@ pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoS
     let mut settings = RepoSettings::default();
     for (key, value) in stored {
         // The key choice is stored per profile under `sshKeyId:<profile>` (see below).
-        if GIT_KEYS.iter().any(|(field, _)| *field == key) || READ_ONLY_KEYS.contains(&key.as_str()) || key.starts_with("sshKeyId") || key == crate::secret_scan::IGNORED_KEY {
+        if GIT_KEYS.iter().any(|(field, _)| *field == key)
+            || READ_ONLY_KEYS.contains(&key.as_str())
+            || key.starts_with("sshKeyId")
+            || key == crate::secret_scan::IGNORED_KEY
+        {
             continue;
         }
         let mut one = Map::new();
@@ -538,7 +554,8 @@ pub async fn repo_settings_get(core: &Core, repo_id: String) -> CoreResult<RepoS
     settings.author_email = lookup("user.email");
     settings.commit_template_text = commit_template_text(core, &repo_id).await;
     settings.ssh_key_id = ssh_key_id;
-    settings.secret_scan_ignored_count = u32::try_from(core.db.with(|c| crate::secret_scan::ignored_ids(c, &repo_id))?.len()).unwrap_or(u32::MAX);
+    settings.secret_scan_ignored_count =
+        u32::try_from(core.db.with(|c| crate::secret_scan::ignored_ids(c, &repo_id))?.len()).unwrap_or(u32::MAX);
     Ok(settings)
 }
 
@@ -562,7 +579,8 @@ pub async fn repo_settings_set(core: &Core, repo_id: String, patch: Value) -> Co
         }
     }
     if changed.iter().any(|k| k == "aiCommitInstruction") {
-        next.ai_commit_instruction = next.ai_commit_instruction.as_deref().map(str::trim).filter(|text| !text.is_empty()).map(str::to_string);
+        next.ai_commit_instruction =
+            next.ai_commit_instruction.as_deref().map(str::trim).filter(|text| !text.is_empty()).map(str::to_string);
         let limit = crate::ai::commit_message::MAX_INSTRUCTION_CHARS;
         if next.ai_commit_instruction.as_deref().is_some_and(|text| text.chars().count() > limit) {
             return Err(CoreError::not_allowed(format!("The own commit instruction is too long: at most {limit} characters.")));
@@ -749,9 +767,12 @@ pub async fn profile_activate(core: &Core, id: String) -> CoreResult<Vec<Profile
     for repo_id in &new_repos {
         crate::commands::repos::start_background(core, repo_id);
     }
-    let synced = if profile.sync_gitconfig { write_global_identity(core, &profile.author_name, &profile.author_email).await } else { Ok(()) };
+    let synced =
+        if profile.sync_gitconfig { write_global_identity(core, &profile.author_name, &profile.author_email).await } else { Ok(()) };
     core.emit_app_changed(&[AppChange::Profiles, AppChange::Settings, AppChange::Tabs, AppChange::Credentials, AppChange::SshKeys]);
-    synced.map_err(|e| CoreError::io(format!("Switched to “{}”, but the global Git identity couldn't be written: {}", profile.name, e.message)))?;
+    synced.map_err(|e| {
+        CoreError::io(format!("Switched to “{}”, but the global Git identity couldn't be written: {}", profile.name, e.message))
+    })?;
     profile_list(core).await
 }
 
@@ -772,7 +793,8 @@ mod tests {
         let err = settings_set(&tc, bad).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
         assert!(load_settings(&tc).unwrap().agent_templates.is_empty());
-        let good = serde_json::json!({ "agentTemplates": [{ "id": "custom:x", "name": " X ", "program": "x", "unattendedArgs": ["--yes"] }] });
+        let good =
+            serde_json::json!({ "agentTemplates": [{ "id": "custom:x", "name": " X ", "program": "x", "unattendedArgs": ["--yes"] }] });
         assert_eq!(settings_set(&tc, good).await.unwrap().agent_templates[0].name, "X");
     }
 
@@ -854,12 +876,17 @@ mod tests {
         assert_eq!(s.ai_exclude, vec!["*.sql".to_string(), "geheim/**".to_string()]);
         assert_eq!(s.ai_features_off, vec![AiFeature::Compose, AiFeature::Plan]);
         assert_eq!(s.ai_prices.len(), 1);
-        assert_eq!((s.ai_prices[0].model.as_str(), s.ai_prices[0].input_usd_per_mtok, s.ai_prices[0].output_usd_per_mtok), ("mistral-large-latest", 2.0, 6.0));
+        assert_eq!(
+            (s.ai_prices[0].model.as_str(), s.ai_prices[0].input_usd_per_mtok, s.ai_prices[0].output_usd_per_mtok),
+            ("mistral-large-latest", 2.0, 6.0)
+        );
         let ai_events = tc
             .events
             .all()
             .into_iter()
-            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .filter(|(name, payload)| {
+                name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai"))
+            })
             .count();
         assert_eq!(ai_events, 1, "an AI change also reports app:changed with ai");
 
@@ -919,7 +946,9 @@ mod tests {
             .events
             .all()
             .into_iter()
-            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .filter(|(name, payload)| {
+                name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai"))
+            })
             .count();
         assert!(ai_events >= 1, "a change of the search embedder reports app:changed with ai");
 
@@ -933,7 +962,11 @@ mod tests {
             assert_eq!(err.code, ErrorCode::NotAllowed, "{url}");
             assert!(err.message.contains("this computer"), "{}", err.message);
         }
-        assert_eq!(settings_get(&tc).await.unwrap().ai_search_embed_base_url.as_deref(), Some("http://localhost:1235/v1"), "a refused value changes nothing");
+        assert_eq!(
+            settings_get(&tc).await.unwrap().ai_search_embed_base_url.as_deref(),
+            Some("http://localhost:1235/v1"),
+            "a refused value changes nothing"
+        );
 
         // Global (Entscheidung 1): another profile sees the same embedder.
         let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
@@ -948,7 +981,10 @@ mod tests {
         let repo = TestRepo::with_commit();
         let id = tc.open(&repo).await.repo.id;
         assert_eq!(repo_settings_get(&tc, id.clone()).await.unwrap().ai_commit_instruction, None);
-        let s = repo_settings_set(&tc, id.clone(), json!({"aiCommitInstruction": "  Betreff endet mit dem Ticket-Schlüssel („AB-123“).\n"})).await.unwrap();
+        let s =
+            repo_settings_set(&tc, id.clone(), json!({"aiCommitInstruction": "  Betreff endet mit dem Ticket-Schlüssel („AB-123“).\n"}))
+                .await
+                .unwrap();
         assert_eq!(s.ai_commit_instruction.as_deref(), Some("Betreff endet mit dem Ticket-Schlüssel („AB-123“)."));
         let config = String::from_utf8_lossy(&repo.read_file(".git/config")).to_lowercase();
         assert!(!config.contains("aicommitinstruction") && !config.contains("ticket"), "stored in the app database: {config}");
@@ -966,7 +1002,11 @@ mod tests {
         assert_eq!(s.ai_commit_instruction, Some(exact), "2000 characters – not bytes – are allowed");
 
         let tc = tc.restart().await;
-        assert_eq!(repo_settings_get(&tc, id).await.unwrap().ai_commit_instruction.map(|text| text.chars().count()), Some(2000), "kept across a restart");
+        assert_eq!(
+            repo_settings_get(&tc, id).await.unwrap().ai_commit_instruction.map(|text| text.chars().count()),
+            Some(2000),
+            "kept across a restart"
+        );
     }
 
     #[tokio::test]
@@ -975,23 +1015,33 @@ mod tests {
         assert_eq!(settings_get(&tc).await.unwrap().ai_cli_paths, AiCliPaths::default(), "found automatically by default");
         let own = std::env::temp_dir().join("Programme mit Leerzeichen").join("Grüße").join("claude");
         tc.events.clear();
-        let s = settings_set(&tc, json!({"aiCliPaths": {"claudeCode": format!("  {}  ", own.display()), "codex": "   ", "opencode": null}})).await.unwrap();
+        let s =
+            settings_set(&tc, json!({"aiCliPaths": {"claudeCode": format!("  {}  ", own.display()), "codex": "   ", "opencode": null}}))
+                .await
+                .unwrap();
         assert_eq!(s.ai_cli_paths.claude_code.as_deref(), Some(own.to_str().unwrap()), "trimmed, spaces and umlauts inside kept");
         assert_eq!((s.ai_cli_paths.codex.clone(), s.ai_cli_paths.opencode.clone()), (None, None), "blank = found automatically");
         let ai_events = tc
             .events
             .all()
             .into_iter()
-            .filter(|(name, payload)| name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai")))
+            .filter(|(name, payload)| {
+                name == names::APP_CHANGED && payload["what"].as_array().is_some_and(|what| what.iter().any(|w| w == "ai"))
+            })
             .count();
         assert_eq!(ai_events, 1, "a path change is an AI change");
 
         for relative in ["bin/claude", "claude", "-claude"] {
-            let err = settings_set(&tc, json!({"aiCliPaths": {"claudeCode": null, "codex": relative, "opencode": null}})).await.unwrap_err();
+            let err =
+                settings_set(&tc, json!({"aiCliPaths": {"claudeCode": null, "codex": relative, "opencode": null}})).await.unwrap_err();
             assert_eq!(err.code, ErrorCode::NotAllowed, "{relative}");
             assert!(err.message.contains("full path") && err.message.contains("Codex"), "{}", err.message);
         }
-        assert_eq!(settings_get(&tc).await.unwrap().ai_cli_paths.claude_code.as_deref(), Some(own.to_str().unwrap()), "a refused change keeps the old value");
+        assert_eq!(
+            settings_get(&tc).await.unwrap().ai_cli_paths.claude_code.as_deref(),
+            Some(own.to_str().unwrap()),
+            "a refused change keeps the old value"
+        );
 
         // Global like every AI setting (Entscheidung 1).
         let list = profile_save(&tc, None, "Privat".into(), "".into(), "".into(), false, None).await.unwrap();
@@ -1005,12 +1055,15 @@ mod tests {
         let tc = TestCore::new().await;
         let scopes = settings_scopes(&tc).await.unwrap();
         assert_eq!(scopes["agentTemplates"], crate::model::SettingScope::Global);
-        let template = serde_json::json!([{ "id": "custom:a", "name": "Eigener Agent", "program": "eigen", "args": ["--task", "${taskFile}"] }]);
+        let template =
+            serde_json::json!([{ "id": "custom:a", "name": "Eigener Agent", "program": "eigen", "args": ["--task", "${taskFile}"] }]);
         let saved = settings_set(&tc, serde_json::json!({ "agentTemplates": template })).await.unwrap();
         assert_eq!(saved.agent_templates.len(), 1);
-        let stored: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
+        let stored: i64 =
+            tc.db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(stored, 1, "global table");
-        let in_profile: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
+        let in_profile: i64 =
+            tc.db.with(|c| Ok(c.query_row("select count(*) from settings where key = 'agentTemplates'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(in_profile, 0);
 
         let repo = crate::testkit::TestRepo::with_commit();
@@ -1020,7 +1073,8 @@ mod tests {
         assert_eq!(next.test_command.as_deref(), Some("cargo test --workspace"));
         let cleared = repo_settings_set(&tc, id.clone(), serde_json::json!({ "testCommand": null })).await.unwrap();
         assert_eq!(cleared.test_command, None);
-        let rows: i64 = tc.db.with(|c| Ok(c.query_row("select count(*) from repo_settings where key = 'testCommand'", [], |r| r.get(0))?)).unwrap();
+        let rows: i64 =
+            tc.db.with(|c| Ok(c.query_row("select count(*) from repo_settings where key = 'testCommand'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(rows, 0, "a cleared value leaves no row");
     }
 
@@ -1060,9 +1114,10 @@ mod tests {
         let s = settings_get(&tc).await.unwrap();
         assert_eq!(s, Settings::default());
 
-        let s = settings_set(&tc, json!({"theme": "light", "zoom": 3.0, "initialCommits": 10, "autoFetchMinutes": 99, "externalEditor": "  "}))
-            .await
-            .unwrap();
+        let s =
+            settings_set(&tc, json!({"theme": "light", "zoom": 3.0, "initialCommits": 10, "autoFetchMinutes": 99, "externalEditor": "  "}))
+                .await
+                .unwrap();
         assert_eq!(s.theme, Theme::Light);
         assert_eq!(s.zoom, 2.0);
         assert_eq!(s.initial_commits, 500);

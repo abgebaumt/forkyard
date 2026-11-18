@@ -56,7 +56,9 @@ pub fn parse_remote_url(url: &str) -> Option<RemoteLocation> {
             (address.to_string(), tail.strip_prefix(':').and_then(|p| p.parse::<u16>().ok()))
         }
         None => match host_port.rsplit_once(':') {
-            Some((host, port)) if !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) => (host.to_string(), port.parse::<u16>().ok()),
+            Some((host, port)) if !port.is_empty() && port.bytes().all(|b| b.is_ascii_digit()) => {
+                (host.to_string(), port.parse::<u16>().ok())
+            }
             _ => (host_port.to_string(), None),
         },
     };
@@ -82,7 +84,11 @@ pub(crate) fn percent_decode(segment: &str) -> String {
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut index = 0;
     while index < bytes.len() {
-        let hex = bytes.get(index + 1..index + 3).and_then(|pair| std::str::from_utf8(pair).ok()).filter(|pair| pair.bytes().all(|b| b.is_ascii_hexdigit())).and_then(|pair| u8::from_str_radix(pair, 16).ok());
+        let hex = bytes
+            .get(index + 1..index + 3)
+            .and_then(|pair| std::str::from_utf8(pair).ok())
+            .filter(|pair| pair.bytes().all(|b| b.is_ascii_hexdigit()))
+            .and_then(|pair| u8::from_str_radix(pair, 16).ok());
         match (bytes[index], hex) {
             (b'%', Some(byte)) => {
                 out.push(byte);
@@ -206,7 +212,9 @@ fn azure_remote(location: &RemoteLocation) -> Option<(String, RepoPath)> {
     let (org, project, name): (&str, &str, &str) = match (location.host.as_str(), parts.as_slice()) {
         ("dev.azure.com", [org, project, "_git", name]) => (*org, *project, *name),
         ("ssh.dev.azure.com" | "vs-ssh.visualstudio.com", ["v3", org, project, name]) => (*org, *project, *name),
-        (host, [project, "_git", name] | ["DefaultCollection", project, "_git", name]) => (host.strip_suffix(".visualstudio.com")?, *project, *name),
+        (host, [project, "_git", name] | ["DefaultCollection", project, "_git", name]) => {
+            (host.strip_suffix(".visualstudio.com")?, *project, *name)
+        }
         _ => return None,
     };
     if [org, project, name].iter().any(|part| part.is_empty()) {
@@ -240,7 +248,13 @@ pub fn detect(url: &str, accounts: &[HosterAccountRow]) -> Option<Detected> {
     for account in accounts {
         if let Some(path) = path_under(&account.base_url, &location) {
             if let Some(repo) = host(account.kind).split_repo_path(&path) {
-                return Some(Detected { kind: account.kind, account: Some(account.clone()), web_base: account.base_url.clone(), owner: repo.owner, name: repo.name });
+                return Some(Detected {
+                    kind: account.kind,
+                    account: Some(account.clone()),
+                    web_base: account.base_url.clone(),
+                    owner: repo.owner,
+                    name: repo.name,
+                });
             }
         }
     }
@@ -300,7 +314,18 @@ mod tests {
             let location = parse_remote_url(url).unwrap_or_else(|| panic!("{url}"));
             assert_eq!((location.host.as_str(), location.path.as_str()), (host, path), "{url}");
         }
-        for url in ["", "C:/repos/demo", "C:\\repos\\demo", "/srv/git/demo.git", "../demo", "file:///srv/git/demo.git", "https://github.com/", "ftp://github.com/a/b", "git@github.com:", "https://github.com/a/../b"] {
+        for url in [
+            "",
+            "C:/repos/demo",
+            "C:\\repos\\demo",
+            "/srv/git/demo.git",
+            "../demo",
+            "file:///srv/git/demo.git",
+            "https://github.com/",
+            "ftp://github.com/a/b",
+            "git@github.com:",
+            "https://github.com/a/../b",
+        ] {
             assert_eq!(parse_remote_url(url), None, "{url}");
         }
     }
@@ -337,22 +362,53 @@ mod tests {
             ("https://lena@bitbucket.org/team/projekt.git", HostKind::Bitbucket, "https://bitbucket.org", "team", "projekt"),
             ("git@bitbucket.org:team/projekt.git", HostKind::Bitbucket, "https://bitbucket.org", "team", "projekt"),
             ("ssh://git@altssh.bitbucket.org:443/team/projekt.git", HostKind::Bitbucket, "https://bitbucket.org", "team", "projekt"),
-            ("https://firma@dev.azure.com/firma/Mein%20Projekt/_git/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "Mein Projekt", "app"),
+            (
+                "https://firma@dev.azure.com/firma/Mein%20Projekt/_git/app",
+                HostKind::AzureDevops,
+                "https://dev.azure.com/firma",
+                "Mein Projekt",
+                "app",
+            ),
             ("git@ssh.dev.azure.com:v3/Firma/projekt/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
             ("https://firma.visualstudio.com/projekt/_git/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
-            ("https://firma.visualstudio.com/DefaultCollection/projekt/_git/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
+            (
+                "https://firma.visualstudio.com/DefaultCollection/projekt/_git/app",
+                HostKind::AzureDevops,
+                "https://dev.azure.com/firma",
+                "projekt",
+                "app",
+            ),
             ("firma@vs-ssh.visualstudio.com:v3/firma/projekt/app", HostKind::AzureDevops, "https://dev.azure.com/firma", "projekt", "app"),
         ];
         for (url, kind, web, owner, name) in cases {
             let found = detect(url, &[]).unwrap_or_else(|| panic!("{url}"));
-            assert_eq!((found.kind, found.web_base.as_str(), found.owner.as_str(), found.name.as_str(), found.account.is_none()), (kind, web, owner, name, true), "{url}");
+            assert_eq!(
+                (found.kind, found.web_base.as_str(), found.owner.as_str(), found.name.as_str(), found.account.is_none()),
+                (kind, web, owner, name, true),
+                "{url}"
+            );
         }
-        assert_eq!(detect("git@ssh.dev.azure.com:v3/firma/projekt/app", &[]).unwrap().web_url(), "https://dev.azure.com/firma/projekt/_git/app");
-        assert_eq!(detect("https://dev.azure.com/firma/Mein%20Projekt/_git/app", &[]).unwrap().web_url(), "https://dev.azure.com/firma/Mein%20Projekt/_git/app");
+        assert_eq!(
+            detect("git@ssh.dev.azure.com:v3/firma/projekt/app", &[]).unwrap().web_url(),
+            "https://dev.azure.com/firma/projekt/_git/app"
+        );
+        assert_eq!(
+            detect("https://dev.azure.com/firma/Mein%20Projekt/_git/app", &[]).unwrap().web_url(),
+            "https://dev.azure.com/firma/Mein%20Projekt/_git/app"
+        );
         // With an account for the organization every form finds it; another organization doesn't.
-        let accounts = [account(HostKind::AzureDevops, "https://dev.azure.com/firma"), account(HostKind::Gitea, "https://git.firma.example")];
-        for url in ["git@ssh.dev.azure.com:v3/firma/projekt/app", "https://dev.azure.com/firma/projekt/_git/app", "https://firma.visualstudio.com/projekt/_git/app"] {
-            assert_eq!(detect(url, &accounts).unwrap().account.map(|a| a.base_url), Some("https://dev.azure.com/firma".to_string()), "{url}");
+        let accounts =
+            [account(HostKind::AzureDevops, "https://dev.azure.com/firma"), account(HostKind::Gitea, "https://git.firma.example")];
+        for url in [
+            "git@ssh.dev.azure.com:v3/firma/projekt/app",
+            "https://dev.azure.com/firma/projekt/_git/app",
+            "https://firma.visualstudio.com/projekt/_git/app",
+        ] {
+            assert_eq!(
+                detect(url, &accounts).unwrap().account.map(|a| a.base_url),
+                Some("https://dev.azure.com/firma".to_string()),
+                "{url}"
+            );
         }
         assert!(detect("git@ssh.dev.azure.com:v3/andere/projekt/app", &accounts).unwrap().account.is_none());
         assert_eq!(detect("git@git.firma.example:team/app.git", &accounts).unwrap().kind, HostKind::Gitea);

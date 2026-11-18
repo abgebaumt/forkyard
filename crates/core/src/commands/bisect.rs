@@ -8,6 +8,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
+use crate::ai::{self, run::AiRequest};
 use crate::app::Core;
 use crate::commands::graph::{is_full_sha, read_cmd, resolve_commit};
 use crate::commands::refs::for_each_ref;
@@ -15,7 +16,6 @@ use crate::commands::status::{self, read_operation};
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors::classify;
-use crate::ai::{self, run::AiRequest};
 use crate::model::{AiFeature, BisectAutopilot, BisectScript, BisectScriptRequest, BisectShell, BisectStatus, BisectVerdict, RepoChange};
 use crate::util;
 
@@ -52,20 +52,38 @@ pub async fn bisect_reset(core: &Core, repo_id: String) -> CoreResult<BisectStat
 
 /// Bisect autopilot (9.1): the AI writes a test script for the range. Only text comes back – shown
 /// and editable in the UI; nothing runs here. Job `job_id` (`jobCancel`).
-pub async fn bisect_autopilot_script(core: &Core, repo_id: String, job_id: String, request: BisectScriptRequest, locale: String) -> CoreResult<BisectScript> {
+pub async fn bisect_autopilot_script(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    request: BisectScriptRequest,
+    locale: String,
+) -> CoreResult<BisectScript> {
     let settings = ai::run::ensure_allowed(core, Some(&repo_id), AiFeature::BisectScript)?;
     let checked = ai::bisect::check(core, &repo_id, &request).await?;
     let (budget, secrets) = crate::commands::ai::request_frame(core, &settings, AiFeature::BisectScript).await;
     let built = ai::bisect::build(core, &repo_id, &checked, &settings, budget, &locale, &secrets).await?;
     let schema = ai::bisect::schema();
-    let answer = ai::run::complete_json(core, AiRequest { repo_id: Some(&repo_id), feature: AiFeature::BisectScript, job_id: &job_id, prompt: &built.prompt, schema: &schema }).await?;
+    let answer = ai::run::complete_json(
+        core,
+        AiRequest { repo_id: Some(&repo_id), feature: AiFeature::BisectScript, job_id: &job_id, prompt: &built.prompt, schema: &schema },
+    )
+    .await?;
     ai::bisect::parse_answer(&answer.value, BisectShell::current())
 }
 
 /// Bisect autopilot (9.1): runs the confirmed `script` commit by commit in a temporary, detached
 /// worktree next to the repository (base: `bad`) and returns the final state. Job `job_id`:
 /// `jobCancel` ends the script's process tree, resets the bisect and removes the worktree.
-pub async fn bisect_autopilot_run(core: &Core, repo_id: String, job_id: String, bad: String, good: Vec<String>, script: String, step_timeout_secs: u64) -> CoreResult<BisectAutopilot> {
+pub async fn bisect_autopilot_run(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    bad: String,
+    good: Vec<String>,
+    script: String,
+    step_timeout_secs: u64,
+) -> CoreResult<BisectAutopilot> {
     autopilot::run(core, &repo_id, &job_id, &bad, &good, &script, step_timeout_secs).await
 }
 
@@ -252,7 +270,12 @@ async fn evaluate(core: &Core, path: &Path, repo_id: &str, dir: &Path, bad: &str
     let names: Vec<std::ffi::OsString> = std::fs::read(dir.join("BISECT_NAMES"))
         .map(|raw| bisect_names(&raw).iter().map(|name| util::bytes_to_path(name).into_os_string()).collect())
         .unwrap_or_default();
-    let vars = read_cmd(core, path, repo_id).args(["rev-list", "--bisect-vars", "--stdin", "--"]).args(&names).stdin(stdin.clone()).run_raw().await?;
+    let vars = read_cmd(core, path, repo_id)
+        .args(["rev-list", "--bisect-vars", "--stdin", "--"])
+        .args(&names)
+        .stdin(stdin.clone())
+        .run_raw()
+        .await?;
     if !vars.success() {
         return Ok(());
     }
@@ -508,7 +531,8 @@ mod tests {
     fn autopilot_types_use_the_contract_spelling() {
         use crate::model::{AiInput, BisectAutopilot, BisectAutopilotPhase, BisectAutopilotStep, BisectScriptRequest, BisectShell};
         let request: BisectScriptRequest =
-            serde_json::from_value(serde_json::json!({"description": "Fahrenheit falsch", "testCommand": null, "bad": "b", "good": ["g"]})).unwrap();
+            serde_json::from_value(serde_json::json!({"description": "Fahrenheit falsch", "testCommand": null, "bad": "b", "good": ["g"]}))
+                .unwrap();
         assert_eq!(request.test_command, None);
         let input: AiInput = serde_json::from_value(serde_json::json!({
             "kind": "bisect_script", "description": "Fahrenheit falsch", "testCommand": "make test", "bad": "b", "good": ["g1", "g2"]
@@ -531,7 +555,14 @@ mod tests {
             good: vec!["g".into()],
             current: None,
             remaining_steps: Some(0),
-            steps: vec![BisectAutopilotStep { sha: "s".into(), verdict: BisectVerdict::Skip, exit_code: None, timed_out: true, duration_ms: 5, output_tail: String::new() }],
+            steps: vec![BisectAutopilotStep {
+                sha: "s".into(),
+                verdict: BisectVerdict::Skip,
+                exit_code: None,
+                timed_out: true,
+                duration_ms: 5,
+                output_tail: String::new(),
+            }],
             result: None,
             candidates: vec!["s".into(), "b".into()],
             step_timeout_secs: 600,

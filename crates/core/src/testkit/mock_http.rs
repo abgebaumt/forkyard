@@ -108,7 +108,12 @@ pub struct MockResponse {
 
 impl MockResponse {
     pub fn json(status: u16, body: Value) -> Self {
-        MockResponse { status, headers: vec![("content-type".into(), "application/json; charset=utf-8".into())], body: body.to_string().into_bytes(), delay: Duration::ZERO }
+        MockResponse {
+            status,
+            headers: vec![("content-type".into(), "application/json; charset=utf-8".into())],
+            body: body.to_string().into_bytes(),
+            delay: Duration::ZERO,
+        }
     }
 
     /// Arbitrary body (e.g. broken JSON), declared as `application/json`.
@@ -164,7 +169,9 @@ impl MockServer {
                         let Ok(stream) = stream else { continue };
                         let (requests, handler) = (requests.clone(), handler.clone());
                         // One thread per connection: delayed responses don't hold up others.
-                        let _ = std::thread::Builder::new().name("mock-http-verbindung".into()).spawn(move || serve(stream, &requests, &*handler));
+                        let _ = std::thread::Builder::new()
+                            .name("mock-http-verbindung".into())
+                            .spawn(move || serve(stream, &requests, &*handler));
                     }
                 })
                 .expect("thread of the test server");
@@ -234,7 +241,12 @@ fn read_request(stream: &TcpStream) -> Option<MockRequest> {
             headers.push((name.trim().to_ascii_lowercase(), value.trim().to_string()));
         }
     }
-    let length = headers.iter().find(|(name, _)| name == "content-length").and_then(|(_, value)| value.parse::<usize>().ok()).unwrap_or(0).min(MAX_BODY);
+    let length = headers
+        .iter()
+        .find(|(name, _)| name == "content-length")
+        .and_then(|(_, value)| value.parse::<usize>().ok())
+        .unwrap_or(0)
+        .min(MAX_BODY);
     let mut body = vec![0u8; length];
     reader.read_exact(&mut body).ok()?;
     Some(MockRequest { method, target, headers, body })

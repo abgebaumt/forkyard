@@ -88,7 +88,12 @@ impl Provider for OpenAi {
         ProviderCaps { structured_output: true, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
     }
 
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             let http_request = self
                 .authorized(Request::new(Method::Post, format!("{}/responses", self.base), LABEL))
@@ -105,7 +110,9 @@ impl Provider for OpenAi {
 
     fn models<'a>(&'a self, core: &'a Core, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>> {
         Box::pin(async move {
-            let response = send(core, self.authorized(Request::get(format!("{}/models", self.base), LABEL)), cancel, LABEL, &host_of(&self.base)).await?;
+            let response =
+                send(core, self.authorized(Request::get(format!("{}/models", self.base), LABEL)), cancel, LABEL, &host_of(&self.base))
+                    .await?;
             if !response.is_success() {
                 return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
             }
@@ -120,7 +127,8 @@ impl Provider for OpenAi {
             if self.model.starts_with("text-embedding-3") {
                 body["dimensions"] = json!(MAX_DIMS);
             }
-            let request = self.authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), LABEL)).json(&body).timeout(EMBED_TIMEOUT);
+            let request =
+                self.authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), LABEL)).json(&body).timeout(EMBED_TIMEOUT);
             let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
             if !response.is_success() {
                 return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
@@ -193,13 +201,19 @@ mod tests {
     async fn refusals_and_incomplete_answers() {
         let tc = TestCore::new().await;
         let refusing = MockServer::start(|_| {
-            MockResponse::json(200, json!({"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal", "refusal": "I can't help with that request."}]}], "usage": {"input_tokens": 5, "output_tokens": 3}}))
+            MockResponse::json(
+                200,
+                json!({"status": "completed", "output": [{"type": "message", "content": [{"type": "refusal", "refusal": "I can't help with that request."}]}], "usage": {"input_tokens": 5, "output_tokens": 3}}),
+            )
         });
         let error = provider(&refusing).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
         assert_eq!(error.code, ErrorCode::AiRefused);
         assert!(error.message.contains("I can't help with that request."));
         let cut = MockServer::start(|_| {
-            MockResponse::json(200, json!({"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}, "output": [{"type": "message", "content": [{"type": "output_text", "text": "{\"summ"}]}], "usage": {"input_tokens": 5, "output_tokens": 1024}}))
+            MockResponse::json(
+                200,
+                json!({"status": "incomplete", "incomplete_details": {"reason": "max_output_tokens"}, "output": [{"type": "message", "content": [{"type": "output_text", "text": "{\"summ"}]}], "usage": {"input_tokens": 5, "output_tokens": 1024}}),
+            )
         });
         assert_eq!(provider(&cut).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap().finish, Finish::MaxTokens);
     }
@@ -207,7 +221,12 @@ mod tests {
     #[tokio::test]
     async fn models_are_listed() {
         let tc = TestCore::new().await;
-        let server = MockServer::start(|_| MockResponse::json(200, json!({"object": "list", "data": [{"id": "gpt-5.1", "object": "model"}, {"id": "text-embedding-3-small", "object": "model"}]})));
+        let server = MockServer::start(|_| {
+            MockResponse::json(
+                200,
+                json!({"object": "list", "data": [{"id": "gpt-5.1", "object": "model"}, {"id": "text-embedding-3-small", "object": "model"}]}),
+            )
+        });
         let models = provider(&server).models(&tc, &CancelToken::new()).await.unwrap();
         assert_eq!(models.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["gpt-5.1", "text-embedding-3-small"]);
         assert_eq!(server.requests()[0].route(), "GET /v1/models");

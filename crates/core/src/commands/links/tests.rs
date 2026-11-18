@@ -41,7 +41,15 @@ fn url_templates_need_a_fixed_host_and_known_groups() {
 fn base_urls_are_trimmed_and_checked() {
     assert_eq!(check_base_url(" https://firma.atlassian.net/ ").unwrap(), "https://firma.atlassian.net");
     assert_eq!(check_base_url("https://linear.app/team/").unwrap(), "https://linear.app/team");
-    for bad in ["ftp://x.example", "https://", "https://u@x.example", "https://x.example/?a", "https://x.example/#a", "https://x.example/$0", "https://x y.example"] {
+    for bad in [
+        "ftp://x.example",
+        "https://",
+        "https://u@x.example",
+        "https://x.example/?a",
+        "https://x.example/#a",
+        "https://x.example/$0",
+        "https://x y.example",
+    ] {
         assert!(check_base_url(bad).is_err(), "{bad}");
     }
 }
@@ -64,11 +72,15 @@ fn config_is_checked_and_normalised() {
     assert!(normalised.presets[1].keys.is_empty(), "Redmine has no project keys");
     assert_eq!(normalised.custom, [rule("cve", r"CVE-(\d{4}-\d+)", "https://nvd.example/vuln/CVE-$1")]);
 
-    let bad = |custom: Vec<CustomLinkRule>, presets: Vec<LinkPreset>| normalize_config(&LinkRulesConfig { host_rules: true, presets, custom }).unwrap_err();
+    let bad = |custom: Vec<CustomLinkRule>, presets: Vec<LinkPreset>| {
+        normalize_config(&LinkRulesConfig { host_rules: true, presets, custom }).unwrap_err()
+    };
     let error = bad(vec![rule("a", "(?=x)", "https://x.example/$0")], vec![]);
     assert_eq!(error.code, ErrorCode::NotAllowed);
     assert!(error.message.starts_with("Rule 1:"), "{}", error.message);
-    assert!(bad(vec![rule("a", r"A-\d+", "https://x.example/$0"), rule("a", r"B-\d+", "https://x.example/$0")], vec![]).message.contains("twice"));
+    assert!(bad(vec![rule("a", r"A-\d+", "https://x.example/$0"), rule("a", r"B-\d+", "https://x.example/$0")], vec![])
+        .message
+        .contains("twice"));
     assert!(bad(vec![rule("a b", r"A-\d+", "https://x.example/$0")], vec![]).message.contains("ID"));
     assert!(bad(vec![rule("a", r"A-(\d+)", "https://x.example/$2")], vec![]).message.contains("$2"));
     assert!(bad(vec![], vec![preset(LinkPresetKind::Jira, "ftp://jira.example", &[])]).message.starts_with("Jira:"));

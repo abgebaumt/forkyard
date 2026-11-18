@@ -65,7 +65,9 @@ async fn gemini_embeddings_keep_the_key_out_of_the_url() {
 #[tokio::test]
 async fn ollama_lm_studio_and_compatible_services_use_their_own_routes() {
     let server = MockServer::start(|request| match request.route().as_str() {
-        "POST /api/embed" => MockResponse::json(200, json!({"model": "embeddinggemma", "embeddings": [[0.5, 0.5, 0.0]], "prompt_eval_count": 3})),
+        "POST /api/embed" => {
+            MockResponse::json(200, json!({"model": "embeddinggemma", "embeddings": [[0.5, 0.5, 0.0]], "prompt_eval_count": 3}))
+        }
         "POST /v1/embeddings" => MockResponse::json(200, json!({"data": [{"index": 0, "embedding": [0.0, 0.5, 0.5]}]})),
         _ => MockResponse::json(404, json!({"error": "not found"})),
     });
@@ -78,7 +80,15 @@ async fn ollama_lm_studio_and_compatible_services_use_their_own_routes() {
     assert_eq!(sent[0].json(), json!({"model": "embeddinggemma", "input": ["Grüße"], "truncate": true}), "native Ollama API");
     assert_eq!(sent[1].json(), json!({"model": "text-embedding-nomic-embed-text-v1.5", "input": ["Köln"]}));
     assert!(sent.iter().all(|request| request.header("authorization").is_none()), "local providers get no key");
-    let compatible = build(AiProviderKind::OpenaiCompatible, format!("{}/v1", server.url()), Some(KEY.into()), "bge-m3".into(), AiStructuredMode::Prompt, 8_192).unwrap();
+    let compatible = build(
+        AiProviderKind::OpenaiCompatible,
+        format!("{}/v1", server.url()),
+        Some(KEY.into()),
+        "bge-m3".into(),
+        AiStructuredMode::Prompt,
+        8_192,
+    )
+    .unwrap();
     compatible.embed(&tc, &texts(&["x"]), &CancelToken::new()).await.unwrap();
     let auth = format!("Bearer {KEY}");
     assert_eq!(server.requests()[2].header("authorization"), Some(auth.as_str()));
@@ -95,8 +105,16 @@ async fn wrong_answers_and_providers_without_embeddings() {
     let err = ollama.embed(&tc, &texts(&["eins", "zwei"]), &CancelToken::new()).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::AiInvalidAnswer, "one vector for two texts");
     let lmstudio = provider(AiProviderKind::Lmstudio, format!("{}/v1", server.url()), None, "fehlt");
-    assert_eq!(lmstudio.embed(&tc, &texts(&["x"]), &CancelToken::new()).await.unwrap_err().code, ErrorCode::AiProviderUnavailable, "404: model or address unknown");
+    assert_eq!(
+        lmstudio.embed(&tc, &texts(&["x"]), &CancelToken::new()).await.unwrap_err().code,
+        ErrorCode::AiProviderUnavailable,
+        "404: model or address unknown"
+    );
     let anthropic = provider(AiProviderKind::Anthropic, "https://api.anthropic.com/v1".into(), Some(KEY), "claude-haiku-5-5");
-    assert_eq!(anthropic.embed(&tc, &texts(&["x"]), &CancelToken::new()).await.unwrap_err().code, ErrorCode::Unsupported, "Anthropic has no embeddings");
+    assert_eq!(
+        anthropic.embed(&tc, &texts(&["x"]), &CancelToken::new()).await.unwrap_err().code,
+        ErrorCode::Unsupported,
+        "Anthropic has no embeddings"
+    );
     assert_eq!(server.requests().len(), 2, "nothing went to Anthropic");
 }

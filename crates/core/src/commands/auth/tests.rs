@@ -336,7 +336,8 @@ async fn host_key_needs_an_explicit_yes() {
         let got = asking.await.unwrap();
         assert_ne!(got.as_deref(), Some("yes"), "{answer:?}");
         assert_eq!(got.as_deref(), answer.map(|_| "no"), "{answer:?}");
-        let host_key_error = errors::classify("fetch", Some(128), b"", b"Host key verification failed.\nfatal: Could not read from remote repository.");
+        let host_key_error =
+            errors::classify("fetch", Some(128), b"", b"Host key verification failed.\nfatal: Could not read from remote repository.");
         assert_eq!(host_key_error.code, ErrorCode::HostKeyUnknown);
         assert_eq!(session.finish(Some(&host_key_error)).await.unwrap().code, ErrorCode::Cancelled);
     }
@@ -621,7 +622,12 @@ async fn remembered_password_roundtrip_through_the_keyring() {
     // 3. No access to this repository (403) does not mean the password is wrong.
     let session = fx.broker().begin(SessionMode::Interactive).await;
     assert_eq!(helper(&session, "Password for 'https://anna@git.example.com': ").await.unwrap().as_deref(), Some(SECRET));
-    let forbidden = errors::classify("push", Some(128), b"", b"fatal: unable to access 'https://git.example.com/r.git/': The requested URL returned error: 403");
+    let forbidden = errors::classify(
+        "push",
+        Some(128),
+        b"",
+        b"fatal: unable to access 'https://git.example.com/r.git/': The requested URL returned error: 403",
+    );
     assert_eq!(forbidden.code, ErrorCode::AuthFailed);
     assert!(session.finish(Some(&forbidden)).await.is_none());
     assert_eq!(credentials_list(&fx.tc).await.unwrap().len(), 1);
@@ -677,7 +683,8 @@ async fn remember_is_only_saved_when_the_login_worked() {
         credential_answer(&fx.tc, id_of(&request), Some(answer.into()), true).await.unwrap();
         asking.await.unwrap();
     }
-    let rejected = errors::classify("push", Some(1), b"", b" ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs to 'r'");
+    let rejected =
+        errors::classify("push", Some(1), b"", b" ! [rejected]        main -> main (fetch first)\nerror: failed to push some refs to 'r'");
     assert_eq!(rejected.code, ErrorCode::PushRejected);
     assert!(session.finish(Some(&rejected)).await.is_none());
     let accounts = credentials_list(&fx.tc).await.unwrap();
@@ -735,7 +742,8 @@ async fn forget_all_and_profile_delete_clear_the_keyring() {
     let fx = Fixture::new().await;
     let Some(mut keyring) = TestKeyring::new(&fx).await else { return };
     let first = fx.tc.active_profile_id().unwrap();
-    let profiles = settings::profile_save(&fx.tc, None, "Zweites".into(), "Berta".into(), "berta@example.com".into(), false, None).await.unwrap();
+    let profiles =
+        settings::profile_save(&fx.tc, None, "Zweites".into(), "Berta".into(), "berta@example.com".into(), false, None).await.unwrap();
     let second = profiles.iter().find(|p| p.name == "Zweites").unwrap().id.clone();
 
     async fn remember(fx: &Fixture, n: usize, prompt: &str, secret: &str) {
@@ -882,7 +890,8 @@ async fn default_key_is_forced_only_without_agent() {
     // The user's own SSH command line remains the basis.
     repo.git(&["config", "core.sshCommand", "ssh -v -o ConnectTimeout=5"]);
     assert_eq!(dump().await, format!("ssh -v -o ConnectTimeout=5 -i '{key_path}' -o IdentitiesOnly=yes"));
-    let own = fx.tc.git_for(&id).unwrap().args(["-c", ENV_DUMP, "envdump"]).env("GIT_SSH_COMMAND", "meinssh").network().run_text().await.unwrap();
+    let own =
+        fx.tc.git_for(&id).unwrap().args(["-c", ENV_DUMP, "envdump"]).env("GIT_SSH_COMMAND", "meinssh").network().run_text().await.unwrap();
     assert_eq!(field(&own, "C"), format!("meinssh -i '{key_path}' -o IdentitiesOnly=yes"));
 
     // The key choice also applies without prompts (auto-fetch) – with and without the helper program.
@@ -1002,7 +1011,10 @@ async fn a_key_of_another_profile_is_rejected() {
 
 #[test]
 fn ssh_command_quotes_the_key_path() {
-    assert_eq!(ssh_command_with_key("ssh", Path::new("/home/anna/.ssh/id_ed25519")), "ssh -i '/home/anna/.ssh/id_ed25519' -o IdentitiesOnly=yes");
+    assert_eq!(
+        ssh_command_with_key("ssh", Path::new("/home/anna/.ssh/id_ed25519")),
+        "ssh -i '/home/anna/.ssh/id_ed25519' -o IdentitiesOnly=yes"
+    );
     assert_eq!(
         ssh_command_with_key(" ssh -v ", Path::new("/home/o'brien/my key")),
         r"ssh -v -i '/home/o'\''brien/my key' -o IdentitiesOnly=yes"
@@ -1183,14 +1195,9 @@ async fn import_finds_the_public_key_and_detects_the_passphrase() {
     // Swapped: the .pub file as the private key, the private one as the public key.
     let err = ssh_key_import(&fx.tc, "X".into(), outside.join("id_plain.pub").to_string_lossy().into_owned(), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
-    let err = ssh_key_import(
-        &fx.tc,
-        "X".into(),
-        lonely.to_string_lossy().into_owned(),
-        Some(plain.to_string_lossy().into_owned()),
-    )
-    .await
-    .unwrap_err();
+    let err = ssh_key_import(&fx.tc, "X".into(), lonely.to_string_lossy().into_owned(), Some(plain.to_string_lossy().into_owned()))
+        .await
+        .unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
     assert_eq!(ssh_key_list(&fx.tc).await.unwrap().len(), 2);
 }
@@ -1231,7 +1238,8 @@ async fn remove_and_default_only_touch_the_entries() {
     assert!(fx.ssh_dir().join("id_zwei").is_file() && fx.ssh_dir().join("id_zwei.pub").is_file());
     assert_eq!(ssh_key_remove(&fx.tc, two).await.unwrap_err().code, ErrorCode::NotFound);
     // The key left behind can be registered again.
-    let keys = ssh_key_import(&fx.tc, "Zwei wieder".into(), fx.ssh_dir().join("id_zwei").to_string_lossy().into_owned(), None).await.unwrap();
+    let keys =
+        ssh_key_import(&fx.tc, "Zwei wieder".into(), fx.ssh_dir().join("id_zwei").to_string_lossy().into_owned(), None).await.unwrap();
     assert_eq!(keys.len(), 2);
     assert!(defaults(&keys).is_empty(), "the default went away with the removed entry");
     assert_eq!(fx.app_changes(), ["ssh_keys", "ssh_keys"], "removing and importing are reported");

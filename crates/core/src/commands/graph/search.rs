@@ -42,13 +42,16 @@ impl Narrowing {
 /// `YYYY-MM-DD`, optionally with `THH:MM[:SS]` and `Z` or an offset – nothing Git's free-form date
 /// parser could read differently from what was typed.
 pub(crate) fn is_search_date(value: &str) -> bool {
-    regex::Regex::new(r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$").is_ok_and(|pattern| pattern.is_match(value))
+    regex::Regex::new(r"^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:?\d{2})?)?$")
+        .is_ok_and(|pattern| pattern.is_match(value))
 }
 
 /// `--since=`/`--until=` for a checked date; a bare date covers the whole day (local time, as Git reads it).
 fn date_arg(option: &str, value: &str, end_of_day: bool) -> CoreResult<String> {
     if !is_search_date(value) {
-        return Err(CoreError::not_allowed(format!("“{value}” is not a date. Use YYYY-MM-DD or an ISO date with a time, e.g. 2026-01-31T18:00:00Z.")));
+        return Err(CoreError::not_allowed(format!(
+            "“{value}” is not a date. Use YYYY-MM-DD or an ISO date with a time, e.g. 2026-01-31T18:00:00Z."
+        )));
     }
     let value = match (value.len() == 10, end_of_day) {
         (true, false) => format!("{value} 00:00:00"),
@@ -173,7 +176,15 @@ pub(super) async fn commit_search(
     result
 }
 
-async fn search(core: &Core, path: &Path, repo_id: &str, query: &str, narrowing: &Narrowing, limit: usize, token: &CancelToken) -> CoreResult<Vec<CommitSummary>> {
+async fn search(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    query: &str,
+    narrowing: &Narrowing,
+    limit: usize,
+    token: &CancelToken,
+) -> CoreResult<Vec<CommitSummary>> {
     let mut hits = if query.is_empty() {
         // Only the narrowing: one `git log` with it.
         log_search(core, path, repo_id, None, narrowing, limit, token).await?
@@ -204,7 +215,15 @@ async fn search(core: &Core, path: &Path, repo_id: &str, query: &str, narrowing:
 }
 
 /// `git log` with an optional text filter (`--grep=…` or `--author=…`: fixed text, ignoring case) and the narrowing options.
-async fn log_search(core: &Core, path: &Path, repo_id: &str, filter: Option<String>, narrowing: &Narrowing, limit: usize, token: &CancelToken) -> CoreResult<Vec<Hit>> {
+async fn log_search(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    filter: Option<String>,
+    narrowing: &Narrowing,
+    limit: usize,
+    token: &CancelToken,
+) -> CoreResult<Vec<Hit>> {
     let run = |refs: Vec<String>| async {
         let mut hits = Vec::new();
         let mut records = Records::new(SEARCH_FIELDS);
@@ -328,7 +347,13 @@ async fn sha_search(core: &Core, path: &Path, repo_id: &str, query: &str, token:
 }
 
 /// The list entries of these commits (full SHAs), in the given order.
-pub(crate) async fn commit_summaries(core: &Core, path: &Path, repo_id: &str, shas: &[String], token: &CancelToken) -> CoreResult<Vec<CommitSummary>> {
+pub(crate) async fn commit_summaries(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    shas: &[String],
+    token: &CancelToken,
+) -> CoreResult<Vec<CommitSummary>> {
     if shas.is_empty() {
         return Ok(Vec::new());
     }

@@ -153,7 +153,8 @@ impl Drop for TempIndex {
 fn remove_stale_temp_files(dir: &Path) {
     let Ok(entries) = std::fs::read_dir(dir) else { return };
     for entry in entries.flatten() {
-        let old = entry.metadata().ok().and_then(|m| m.modified().ok()).and_then(|t| t.elapsed().ok()).is_some_and(|age| age > STALE_TEMP_AGE);
+        let old =
+            entry.metadata().ok().and_then(|m| m.modified().ok()).and_then(|t| t.elapsed().ok()).is_some_and(|age| age > STALE_TEMP_AGE);
         if old && entry.file_name().to_string_lossy().starts_with("index-") {
             let _ = std::fs::remove_file(entry.path());
         }
@@ -220,7 +221,9 @@ pub(crate) fn parse_raw_z(stdout: &[u8]) -> Vec<RawEntry> {
         let Some(meta) = record.strip_prefix(b":") else { continue };
         let meta = util::decode_lossy(meta);
         let mut fields = meta.split(' ');
-        let (Some(old_mode), Some(new_mode), Some(old_id), Some(new_id), Some(state)) = (fields.next(), fields.next(), fields.next(), fields.next(), fields.next()) else {
+        let (Some(old_mode), Some(new_mode), Some(old_id), Some(new_id), Some(state)) =
+            (fields.next(), fields.next(), fields.next(), fields.next(), fields.next())
+        else {
             continue;
         };
         let status = state.bytes().next().unwrap_or(b'M');
@@ -233,12 +236,26 @@ pub(crate) fn parse_raw_z(stdout: &[u8]) -> Vec<RawEntry> {
         } else {
             (first.to_vec(), None)
         };
-        out.push(RawEntry { old_mode: old_mode.into(), new_mode: new_mode.into(), old_id: old_id.into(), new_id: new_id.into(), status, path, old_path });
+        out.push(RawEntry {
+            old_mode: old_mode.into(),
+            new_mode: new_mode.into(),
+            old_id: old_id.into(),
+            new_id: new_id.into(),
+            status,
+            path,
+            old_path,
+        });
     }
     out
 }
 
-async fn raw(ctx: &Ctx<'_>, endpoints: &Endpoints, index_file: Option<&Path>, options: &[&str], path: Option<&[u8]>) -> CoreResult<Vec<RawEntry>> {
+async fn raw(
+    ctx: &Ctx<'_>,
+    endpoints: &Endpoints,
+    index_file: Option<&Path>,
+    options: &[&str],
+    path: Option<&[u8]>,
+) -> CoreResult<Vec<RawEntry>> {
     let mut all = vec!["--raw", "-z", "--no-abbrev"];
     all.extend_from_slice(options);
     let paths: Vec<&[u8]> = path.into_iter().collect();
@@ -393,7 +410,17 @@ async fn resolve_stored(ctx: &Ctx<'_>, path: Vec<u8>, endpoints: Endpoints, tag:
     let entries = raw(ctx, &endpoints, None, &["--no-renames"], Some(&path)).await?;
     let conflicted = entries.iter().any(|e| e.status == b'U');
     let mut entry = entries.into_iter().find(|e| e.status != b'U' && e.path == path);
-    let mut target = Target { endpoints, renames: false, ours: false, temp_index: None, entry: None, status: FileStatus::Modified, path, tag, range: false };
+    let mut target = Target {
+        endpoints,
+        renames: false,
+        ours: false,
+        temp_index: None,
+        entry: None,
+        status: FileStatus::Modified,
+        path,
+        tag,
+        range: false,
+    };
     if conflicted {
         target.status = FileStatus::Conflicted;
         return Ok(target);
@@ -428,7 +455,17 @@ async fn resolve_against_worktree(ctx: &Ctx<'_>, path: Vec<u8>, endpoints: Endpo
     let entries = raw(ctx, &endpoints, None, &["--no-renames"], Some(&path)).await?;
     let conflicted = entries.iter().any(|e| e.status == b'U');
     let mut entry = entries.into_iter().find(|e| e.status != b'U' && e.path == path);
-    let mut target = Target { endpoints, renames: false, ours: false, temp_index: None, entry: None, status: FileStatus::Modified, path, tag, range: false };
+    let mut target = Target {
+        endpoints,
+        renames: false,
+        ours: false,
+        temp_index: None,
+        entry: None,
+        status: FileStatus::Modified,
+        path,
+        tag,
+        range: false,
+    };
     if conflicted {
         target.status = FileStatus::Conflicted;
         target.ours = against_index;
@@ -467,7 +504,17 @@ async fn untracked_target(ctx: &Ctx<'_>, path: Vec<u8>, tag: Option<&'static str
     ctx.git().env("GIT_INDEX_FILE", temp.path()).args(["add", "-N", "-f", "--"]).arg_bytes(&path).run().await?;
     let entries = raw(ctx, &Endpoints::IndexWorktree, Some(temp.path()), &["--no-renames"], Some(&path)).await?;
     let entry = entries.into_iter().find(|e| e.path == path).ok_or_else(|| missing(&path))?;
-    Ok(Target { endpoints: Endpoints::IndexWorktree, renames: false, ours: false, temp_index: Some(temp), entry: Some(entry), status: FileStatus::Untracked, path, tag, range: false })
+    Ok(Target {
+        endpoints: Endpoints::IndexWorktree,
+        renames: false,
+        ours: false,
+        temp_index: Some(temp),
+        entry: Some(entry),
+        status: FileStatus::Untracked,
+        path,
+        tag,
+        range: false,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -954,7 +1001,13 @@ fn text_diff(
             if new.is_some() {
                 new_no += 1;
             }
-            lines.push(DiffLine { kind, old_no: old, new_no: new, text: decode_line(&line.content, encoding, forced), no_newline: line.no_newline });
+            lines.push(DiffLine {
+                kind,
+                old_no: old,
+                new_no: new,
+                text: decode_line(&line.content, encoding, forced),
+                no_newline: line.no_newline,
+            });
         }
         out.push(Hunk {
             index: index as u32,
@@ -971,7 +1024,17 @@ fn text_diff(
         None if new_bytes.is_some() || old_bytes.is_none() => new_encoding.to_string(),
         None => old_encoding.to_string(),
     };
-    TextDiff { path, old_path, status, hunks: out, old_text: whole(old_bytes), new_text: whole(new_bytes), encoding, token, range_token: None }
+    TextDiff {
+        path,
+        old_path,
+        status,
+        hunks: out,
+        old_text: whole(old_bytes),
+        new_text: whole(new_bytes),
+        encoding,
+        token,
+        range_token: None,
+    }
 }
 
 // ---------------------------------------------------------------------------

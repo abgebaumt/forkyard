@@ -75,13 +75,7 @@ pub fn split_subject(subject: &str) -> (Option<String>, String) {
 }
 
 pub(crate) async fn read_rows(core: &Core, repo_id: &str) -> CoreResult<Vec<StashRow>> {
-    let out = core
-        .git_for(repo_id)?
-        .args(["stash", "list", "-z", "--no-show-signature", LIST_FORMAT])
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let out = core.git_for(repo_id)?.args(["stash", "list", "-z", "--no-show-signature", LIST_FORMAT]).read_only().no_log().run().await?;
     Ok(parse_rows(&out.stdout))
 }
 
@@ -248,12 +242,19 @@ impl StagedAside {
     /// Takes staged changes out of the index, except at paths for which `stays` holds (the files
     /// in the working directory stay as they are). `None` if there are none.
     async fn take(core: &Core, repo_id: &str, stays: &(dyn Fn(&[u8]) -> bool + Sync)) -> CoreResult<Option<StagedAside>> {
-        let staged = core.git_for(repo_id)?.args(["diff", "--cached", "--name-only", "-z", "--no-renames", "--no-ext-diff"]).read_only().no_log().run_raw().await?;
+        let staged = core
+            .git_for(repo_id)?
+            .args(["diff", "--cached", "--name-only", "-z", "--no-renames", "--no-ext-diff"])
+            .read_only()
+            .no_log()
+            .run_raw()
+            .await?;
         if !staged.success() {
             // Without a commit (or with conflicts) there is no stash; `git stash` reports that.
             return Ok(None);
         }
-        let paths: Vec<Vec<u8>> = staged.stdout_z().into_iter().filter(|path| !path.is_empty() && !stays(path)).map(<[u8]>::to_vec).collect();
+        let paths: Vec<Vec<u8>> =
+            staged.stdout_z().into_iter().filter(|path| !path.is_empty() && !stays(path)).map(<[u8]>::to_vec).collect();
         if paths.is_empty() {
             return Ok(None);
         }
@@ -283,7 +284,12 @@ impl StagedAside {
             core.git_for(repo_id)?.args(["update-index", "-z", "--index-info"]).no_log().stdin(info).run().await?;
         }
         // What was missing from the index before was a staged deletion.
-        let gone: Vec<u8> = self.paths.iter().filter(|path| !present.contains(path.as_slice())).flat_map(|path| path.iter().copied().chain(std::iter::once(0))).collect();
+        let gone: Vec<u8> = self
+            .paths
+            .iter()
+            .filter(|path| !present.contains(path.as_slice()))
+            .flat_map(|path| path.iter().copied().chain(std::iter::once(0)))
+            .collect();
         if !gone.is_empty() {
             core.git_for(repo_id)?.args(["update-index", "-z", "--force-remove", "--stdin"]).no_log().stdin(gone).run().await?;
         }
@@ -343,12 +349,13 @@ async fn push_stash_now(
         if created.is_some() && created != before {
             let stderr = out.stderr_text();
             let lower = stderr.to_ascii_lowercase();
-            let file = ["unable to unlink old '", "unable to create file ", "could not open '", "cannot open '"].iter().find_map(|marker| {
-                let start = lower.find(marker)? + marker.len();
-                let rest = stderr.get(start..)?;
-                let end = rest.find(['\'', ':', '\n'])?;
-                Some(rest[..end].trim().to_string()).filter(|name| !name.is_empty())
-            });
+            let file =
+                ["unable to unlink old '", "unable to create file ", "could not open '", "cannot open '"].iter().find_map(|marker| {
+                    let start = lower.find(marker)? + marker.len();
+                    let rest = stderr.get(start..)?;
+                    let end = rest.find(['\'', ':', '\n'])?;
+                    Some(rest[..end].trim().to_string()).filter(|name| !name.is_empty())
+                });
             let which = match &file {
                 Some(file) => format!("“{file}”"),
                 None => "at least one file".to_string(),
@@ -370,7 +377,13 @@ fn apply_error(out: &GitOutput) -> CoreError {
     let blocked = ["would be overwritten", "already exists, no checkout", "could not restore untracked files", "local changes"];
     if blocked.iter().any(|needle| text.contains(needle)) {
         // Git lists the files indented below the message.
-        let files: Vec<String> = out.stderr_text().lines().filter_map(|line| line.strip_prefix('\t')).map(|file| file.trim().to_string()).filter(|file| !file.is_empty()).collect();
+        let files: Vec<String> = out
+            .stderr_text()
+            .lines()
+            .filter_map(|line| line.strip_prefix('\t'))
+            .map(|file| file.trim().to_string())
+            .filter(|file| !file.is_empty())
+            .collect();
         let what = match files.len() {
             0 => "uncommitted changes".to_string(),
             1 => format!("uncommitted changes to {}", quoted_list(&files)),
@@ -457,7 +470,13 @@ async fn staged_untouched_by(core: &Core, repo_id: &str, row: &StashRow) -> Core
     }
     let mut touched: std::collections::HashSet<Vec<u8>> = std::collections::HashSet::new();
     for other in [staged.as_str(), row.sha.as_str()] {
-        let out = core.git_for(repo_id)?.args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", base, other]).read_only().no_log().run().await?;
+        let out = core
+            .git_for(repo_id)?
+            .args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", base, other])
+            .read_only()
+            .no_log()
+            .run()
+            .await?;
         touched.extend(out.stdout_z().into_iter().filter(|path| !path.is_empty()).map(<[u8]>::to_vec));
     }
     StagedAside::take(core, repo_id, &|path: &[u8]| touched.contains(path)).await
@@ -480,7 +499,13 @@ pub(crate) async fn store_stash(core: &Core, repo_id: &str, sha: &str, subject: 
 /// preserved anyway. While entries are not in the list, refs under
 /// `refs/forkyard/stash-rebuild/` hold on to their commits.
 /// Does NOT take the write lock itself.
-pub(crate) async fn rewrite_top(core: &Core, repo_id: &str, rows: &[StashRow], drop_count: usize, new_top: &[(String, String)]) -> CoreResult<()> {
+pub(crate) async fn rewrite_top(
+    core: &Core,
+    repo_id: &str,
+    rows: &[StashRow],
+    drop_count: usize,
+    new_top: &[(String, String)],
+) -> CoreResult<()> {
     let drop_count = drop_count.min(rows.len());
     let prefix = format!("{REBUILD_REF_PREFIX}{}/", util::new_id());
     let mut held: Vec<&str> = Vec::new();
@@ -529,9 +554,8 @@ pub(crate) async fn rewrite_top(core: &Core, repo_id: &str, rows: &[StashRow], d
 }
 
 fn row_at(rows: &[StashRow], index: u32) -> CoreResult<&StashRow> {
-    rows.get(index as usize).ok_or_else(|| {
-        CoreError::not_found(format!("The stash stash@{{{index}}} no longer exists. The list will be reloaded."))
-    })
+    rows.get(index as usize)
+        .ok_or_else(|| CoreError::not_found(format!("The stash stash@{{{index}}} no longer exists. The list will be reloaded.")))
 }
 
 /// `row_at`, but refuses when the stash at `index` is no longer the one (SHA) the user saw.
@@ -681,7 +705,11 @@ async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, expected_sha: Opti
         ApplyOutcome::Done => {
             let message = display_message(row);
             let Some((worktree_sha, index_tree)) = before else {
-                return Ok(OpResult::Done { sha: None, fast_forward: false, summary: format!("Applied stash “{message}”. It stays in the list.") });
+                return Ok(OpResult::Done {
+                    sha: None,
+                    fast_forward: false,
+                    summary: format!("Applied stash “{message}”. It stays in the list."),
+                });
             };
             let id = undo::new_id();
             // First hold on to it, then take it out of the list: the stash commit is never without a ref.
@@ -723,7 +751,11 @@ async fn apply_or_pop(core: &Core, repo_id: &str, index: u32, expected_sha: Opti
                 },
             )
             .await?;
-            Ok(OpResult::Done { sha: None, fast_forward: false, summary: format!("Applied stash “{message}” and removed it from the list.") })
+            Ok(OpResult::Done {
+                sha: None,
+                fast_forward: false,
+                summary: format!("Applied stash “{message}” and removed it from the list."),
+            })
         }
     }
 }
@@ -737,12 +769,22 @@ fn conflict_note(pop: bool) -> String {
 
 /// Apply a stash without deleting it.
 pub async fn stash_apply(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index], apply_or_pop(core, &repo_id, index, expected_sha.as_deref(), false)).await
+    core.with_write_lock(
+        &repo_id,
+        &[RepoChange::Worktree, RepoChange::Index],
+        apply_or_pop(core, &repo_id, index, expected_sha.as_deref(), false),
+    )
+    .await
 }
 
 /// Apply and delete a stash. On a conflict the stash stays in the list.
 pub async fn stash_pop(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>) -> CoreResult<OpResult> {
-    core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index, RepoChange::Stash], apply_or_pop(core, &repo_id, index, expected_sha.as_deref(), true)).await
+    core.with_write_lock(
+        &repo_id,
+        &[RepoChange::Worktree, RepoChange::Index, RepoChange::Stash],
+        apply_or_pop(core, &repo_id, index, expected_sha.as_deref(), true),
+    )
+    .await
 }
 
 /// Applies only the named files of a stash to the working directory (the index
@@ -753,7 +795,13 @@ pub async fn stash_pop(core: &Core, repo_id: String, index: u32, expected_sha: O
 /// changed since in a way that the change no longer fits – then apply the whole stash,
 /// which merges), `dirty_worktree` (an untracked file already exists). The files
 /// are backed up first: undo entry `discard`.
-pub async fn stash_apply_paths(core: &Core, repo_id: String, index: u32, expected_sha: Option<String>, paths: Vec<String>) -> CoreResult<Status> {
+pub async fn stash_apply_paths(
+    core: &Core,
+    repo_id: String,
+    index: u32,
+    expected_sha: Option<String>,
+    paths: Vec<String>,
+) -> CoreResult<Status> {
     let mut wanted: Vec<String> = Vec::new();
     for path in &paths {
         let rel = crate::commands::history::normalize_rel_path(path)?;
@@ -983,7 +1031,15 @@ mod tests {
         repo.write_file("ordner/b größe.txt", lines("EINS", "8"));
         repo.git(&["add", "ordner/b größe.txt"]);
         repo.git(&["commit", "-q", "-m", "Zeile davor"]);
-        stash_apply_paths(&tc, id.clone(), 0, None, vec!["ordner\\b größe.txt".replace('\\', if cfg!(windows) { "\\" } else { "/" }), "neu/unverfolgt.txt".into()]).await.unwrap();
+        stash_apply_paths(
+            &tc,
+            id.clone(),
+            0,
+            None,
+            vec!["ordner\\b größe.txt".replace('\\', if cfg!(windows) { "\\" } else { "/" }), "neu/unverfolgt.txt".into()],
+        )
+        .await
+        .unwrap();
         assert_eq!(repo.read_file("ordner/b größe.txt"), lines("EINS", "ACHT").as_bytes());
         assert_eq!(repo.read_file("neu/unverfolgt.txt"), b"frisch\n");
         // … and undo takes back exactly this step, redo repeats it.
@@ -1181,9 +1237,20 @@ mod tests {
         let index_before = repo.git(&["ls-files", "--stage"]);
 
         stash_create(&tc, id.clone(), op(), Some("nur gewählt".into()), Some(vec!["gewaehlt.txt".into()]), false, None).await.unwrap();
-        assert_eq!(repo.git(&["stash", "show", "--name-only", "stash@{0}"]), "gewaehlt.txt", "the stash contains exactly the selected file");
+        assert_eq!(
+            repo.git(&["stash", "show", "--name-only", "stash@{0}"]),
+            "gewaehlt.txt",
+            "the stash contains exactly the selected file"
+        );
         assert_eq!(repo.read_file("gewaehlt.txt"), b"alt\n");
-        assert_eq!(repo.git(&["status", "--porcelain"]), "D  weg.txt\nA  neu.txt\nMM teils.txt".lines().collect::<Vec<_>>().join("\n").replace("D  weg.txt\nA  neu.txt\nMM teils.txt", "A  neu.txt\nMM teils.txt\nD  weg.txt"));
+        assert_eq!(
+            repo.git(&["status", "--porcelain"]),
+            "D  weg.txt\nA  neu.txt\nMM teils.txt"
+                .lines()
+                .collect::<Vec<_>>()
+                .join("\n")
+                .replace("D  weg.txt\nA  neu.txt\nMM teils.txt", "A  neu.txt\nMM teils.txt\nD  weg.txt")
+        );
         assert_eq!(repo.git(&["show", ":teils.txt"]), "EINS\nzwei\ndrei");
         assert_eq!(repo.read_file("teils.txt"), b"EINS\nzwei\nDREI\n");
 

@@ -129,7 +129,15 @@ impl UndoAction {
 
     /// Actions recorded with `record_group`: several refs and optionally a snapshot in one entry.
     pub fn is_group(self) -> bool {
-        matches!(self, UndoAction::Compose | UndoAction::Plan | UndoAction::AgentCleanup | UndoAction::RangeApply | UndoAction::StackCreate | UndoAction::ReviewFixups)
+        matches!(
+            self,
+            UndoAction::Compose
+                | UndoAction::Plan
+                | UndoAction::AgentCleanup
+                | UndoAction::RangeApply
+                | UndoAction::StackCreate
+                | UndoAction::ReviewFixups
+        )
     }
 }
 
@@ -330,9 +338,7 @@ pub async fn cleanup_older_than(core: &Core, days: i64) -> CoreResult<()> {
     let old = core.db.with(|c| db::undo::older_than(c, &before))?;
     for (id, repo_id) in old {
         if core.repo_path(&repo_id).is_ok() {
-            let result = core
-                .with_write_lock(&repo_id, &[], async { delete_backup_refs(core, &repo_id, &id).await })
-                .await;
+            let result = core.with_write_lock(&repo_id, &[], async { delete_backup_refs(core, &repo_id, &id).await }).await;
             if let Err(e) = result {
                 log::warn!("Backup refs of {id} not removed: {}", e.message);
             }
@@ -359,13 +365,7 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
 
 /// Resolves a name to a SHA; `None` if it doesn't exist.
 pub async fn rev_parse(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    let out = core
-        .git_for(repo_id)?
-        .args(["rev-parse", "-q", "--verify", "--end-of-options", rev])
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await?;
+    let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", "--end-of-options", rev]).read_only().no_log().run_raw().await?;
     Ok(if out.success() { Some(out.stdout_text()).filter(|s| !s.is_empty()) } else { None })
 }
 
@@ -562,8 +562,12 @@ async fn raw_overlay_commit(core: &Core, repo_id: &str, head: &str, tree: &str, 
     // newlines: names containing a newline are left out.)
     let candidates: Vec<&(Vec<u8>, RawChange)> = changed
         .iter()
-        .filter(|(path, change)| !is_zero(&change.new) && regular_file(&change.new_mode) && !path.contains(&b'\n') && !path.contains(&b'\r'))
-        .filter(|(path, _)| std::fs::symlink_metadata(util::join_from_git(&root, path)).is_ok_and(|meta| meta.is_file() && meta.len() <= RAW_MAX_BYTES))
+        .filter(|(path, change)| {
+            !is_zero(&change.new) && regular_file(&change.new_mode) && !path.contains(&b'\n') && !path.contains(&b'\r')
+        })
+        .filter(|(path, _)| {
+            std::fs::symlink_metadata(util::join_from_git(&root, path)).is_ok_and(|meta| meta.is_file() && meta.len() <= RAW_MAX_BYTES)
+        })
         .collect();
     if candidates.is_empty() {
         return Ok(None);
@@ -575,7 +579,8 @@ async fn raw_overlay_commit(core: &Core, repo_id: &str, head: &str, tree: &str, 
     }
     // With -w: new objects are only created where the raw bytes differ from the backup's version.
     let hashed = core.git_for(repo_id)?.args(["hash-object", "-w", "--no-filters", "--stdin-paths"]).stdin(input).no_log().run().await?;
-    let ids: Vec<String> = hashed.stdout_lines().into_iter().map(util::decode_lossy).map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect();
+    let ids: Vec<String> =
+        hashed.stdout_lines().into_iter().map(util::decode_lossy).map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect();
     if ids.len() != candidates.len() {
         return Ok(None);
     }
@@ -680,12 +685,15 @@ async fn restore_raw(core: &Core, repo_id: &str, raw_tree: &str, written: &[&Vec
         input.extend_from_slice(path);
         input.push(b'\n');
     }
-    let hashed = core.git_for(repo_id)?.args(["hash-object", "--no-filters", "--stdin-paths"]).stdin(input).read_only().no_log().run().await?;
-    let now: Vec<String> = hashed.stdout_lines().into_iter().map(util::decode_lossy).map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect();
+    let hashed =
+        core.git_for(repo_id)?.args(["hash-object", "--no-filters", "--stdin-paths"]).stdin(input).read_only().no_log().run().await?;
+    let now: Vec<String> =
+        hashed.stdout_lines().into_iter().map(util::decode_lossy).map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect();
     if now.len() != wanted.len() {
         return Ok(());
     }
-    let differing: Vec<&(&Vec<u8>, &String)> = wanted.iter().zip(&now).filter(|((_, id), current)| *id != *current).map(|(item, _)| item).collect();
+    let differing: Vec<&(&Vec<u8>, &String)> =
+        wanted.iter().zip(&now).filter(|((_, id), current)| *id != *current).map(|(item, _)| item).collect();
     if differing.is_empty() {
         return Ok(());
     }
@@ -751,10 +759,7 @@ fn remove_worktree_file(root: &Path, rel: &[u8]) -> CoreResult<()> {
         perms.set_readonly(false);
         let _ = std::fs::set_permissions(&full, perms);
         if std::fs::remove_file(&full).is_err() && std::fs::remove_dir(&full).is_err() {
-            return Err(CoreError::new(
-                ErrorCode::Io,
-                format!("The file “{}” couldn’t be removed: {first}", util::display_path(&rel)),
-            ));
+            return Err(CoreError::new(ErrorCode::Io, format!("The file “{}” couldn’t be removed: {first}", util::display_path(&rel))));
         }
     }
     let mut dir = full.parent();
@@ -823,12 +828,20 @@ async fn diff_raw(core: &Core, repo_id: &str, from: &str, to: &str, paths: Optio
         }
         let text = String::from_utf8_lossy(meta);
         let mut parts = text.trim_start_matches(':').split(' ');
-        let (Some(old_mode), Some(new_mode), Some(old), Some(new), Some(status)) = (parts.next(), parts.next(), parts.next(), parts.next(), parts.next()) else {
+        let (Some(old_mode), Some(new_mode), Some(old), Some(new), Some(status)) =
+            (parts.next(), parts.next(), parts.next(), parts.next(), parts.next())
+        else {
             continue;
         };
         changes.push((
             path.to_vec(),
-            RawChange { old_mode: old_mode.into(), new_mode: new_mode.into(), old: old.into(), new: new.into(), status: status.bytes().next().unwrap_or(b'M') },
+            RawChange {
+                old_mode: old_mode.into(),
+                new_mode: new_mode.into(),
+                old: old.into(),
+                new: new.into(),
+                status: status.bytes().next().unwrap_or(b'M'),
+            },
         ));
     }
     Ok(changes)
@@ -892,9 +905,13 @@ pub async fn plan_restore(
     // (changed since the action, changed by the action) – only with a known base.
     let known = match &base_tree {
         Some(base_tree) => {
-            let since: std::collections::HashMap<Vec<u8>, RawChange> =
-                if base_tree == current { Default::default() } else { diff_raw(core, repo_id, base_tree, current, paths).await?.into_iter().collect() };
-            let wanted: std::collections::HashSet<Vec<u8>> = diff_raw(core, repo_id, base_tree, &target_tree, paths).await?.into_iter().map(|(path, _)| path).collect();
+            let since: std::collections::HashMap<Vec<u8>, RawChange> = if base_tree == current {
+                Default::default()
+            } else {
+                diff_raw(core, repo_id, base_tree, current, paths).await?.into_iter().collect()
+            };
+            let wanted: std::collections::HashSet<Vec<u8>> =
+                diff_raw(core, repo_id, base_tree, &target_tree, paths).await?.into_iter().map(|(path, _)| path).collect();
             Some((since, wanted))
         }
         None => None,
@@ -983,7 +1000,9 @@ async fn ignored_among(core: &Core, repo_id: &str, paths: &[Vec<u8>]) -> std::co
         return Default::default();
     }
     let checked = match core.git_for(repo_id) {
-        Ok(cmd) => cmd.args(["check-ignore", "--no-index", "-z", "--stdin"]).stdin(join_z_bytes(paths)).read_only().no_log().run_raw().await,
+        Ok(cmd) => {
+            cmd.args(["check-ignore", "--no-index", "-z", "--stdin"]).stdin(join_z_bytes(paths)).read_only().no_log().run_raw().await
+        }
         Err(e) => Err(e),
     };
     match checked {
@@ -1028,7 +1047,13 @@ pub async fn apply_restore(core: &Core, repo_id: &str, plan: &RestorePlan) -> Co
             info.extend_from_slice(path);
             info.push(0);
         }
-        core.git_for(repo_id)?.args(["update-index", "-z", "--index-info"]).env("GIT_INDEX_FILE", &index.0).stdin(info).no_log().run().await?;
+        core.git_for(repo_id)?
+            .args(["update-index", "-z", "--index-info"])
+            .env("GIT_INDEX_FILE", &index.0)
+            .stdin(info)
+            .no_log()
+            .run()
+            .await?;
     }
     let all_writes = || plan.write.iter().chain(&plan.retype).chain(plan.merged.iter().map(|(_, _, path)| path));
     // First restore the target's ignore rules: they decide what gets deleted.
@@ -1219,7 +1244,8 @@ pub async fn record_group(core: &Core, rec: GroupRecord) -> CoreResult<UndoEntry
     let mut payload = rec.extra.clone();
     payload.insert("composite".into(), Value::Bool(true));
     payload.insert("group".into(), Value::Bool(true));
-    payload.insert("steps".into(), Value::Array(rec.refs.iter().map(|m| json!({ "ref": m.name, "before": m.from, "after": m.to })).collect()));
+    payload
+        .insert("steps".into(), Value::Array(rec.refs.iter().map(|m| json!({ "ref": m.name, "before": m.from, "after": m.to })).collect()));
     if let Some(snap) = &rec.snapshot {
         payload.insert("worktreeSnapshot".into(), json!(snap.worktree));
         payload.insert("indexTree".into(), json!(snap.index_tree));

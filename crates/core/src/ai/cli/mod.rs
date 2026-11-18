@@ -77,7 +77,8 @@ pub struct ScratchDir {
 impl ScratchDir {
     pub fn new(core: &Core) -> CoreResult<ScratchDir> {
         let path = core.data_dir().join("tmp").join(format!("ai-{}", util::new_id()));
-        std::fs::create_dir_all(&path).map_err(|e| CoreError::io(format!("The temporary folder for the AI tool could not be created: {e}")))?;
+        std::fs::create_dir_all(&path)
+            .map_err(|e| CoreError::io(format!("The temporary folder for the AI tool could not be created: {e}")))?;
         Ok(ScratchDir { path })
     }
 
@@ -112,7 +113,9 @@ pub fn check_model(model: &str) -> CoreResult<()> {
     if fine {
         Ok(())
     } else {
-        Err(CoreError::not_allowed("A model name for a command-line tool may only contain letters, digits and . _ : / @ + - [ ] and must not start with “-”."))
+        Err(CoreError::not_allowed(
+            "A model name for a command-line tool may only contain letters, digits and . _ : / @ + - [ ] and must not start with “-”.",
+        ))
     }
 }
 
@@ -167,7 +170,10 @@ impl CliCaps {
         }
         let label = kind.label();
         let version = self.version.as_deref().unwrap_or("unknown");
-        Some(format!("This {label} version ({version}) lacks the safety switches Forkyard needs: {}. Please update {label}.", self.missing.join(", ")))
+        Some(format!(
+            "This {label} version ({version}) lacks the safety switches Forkyard needs: {}. Please update {label}.",
+            self.missing.join(", ")
+        ))
     }
 
     fn unanswered(version: Option<&str>) -> CliCaps {
@@ -188,7 +194,12 @@ pub fn parse_caps(kind: AiProviderKind, help: &str, version: Option<&str>) -> Cl
     if tool == Tool::Opencode && !opencode::version_ok(version) {
         missing.push(format!("{} (opencode {} or newer)", opencode::CONFIG_ENV, opencode::MIN_VERSION));
     }
-    CliCaps { version: version.map(str::to_string), missing, schema: schema.is_some_and(|flag| help_has(help, flag)), model: help_has(help, model) }
+    CliCaps {
+        version: version.map(str::to_string),
+        missing,
+        schema: schema.is_some_and(|flag| help_has(help, flag)),
+        model: help_has(help, model),
+    }
 }
 
 #[derive(Default)]
@@ -320,7 +331,11 @@ pub fn configured_path(settings: &Settings, kind: AiProviderKind) -> Option<Path
 }
 
 fn found_map(conn: &rusqlite::Connection) -> CoreResult<serde_json::Map<String, Value>> {
-    Ok(db::app_settings::get_all(conn)?.into_iter().find(|(key, _)| key == FOUND_KEY).and_then(|(_, value)| value.as_object().cloned()).unwrap_or_default())
+    Ok(db::app_settings::get_all(conn)?
+        .into_iter()
+        .find(|(key, _)| key == FOUND_KEY)
+        .and_then(|(_, value)| value.as_object().cloned())
+        .unwrap_or_default())
 }
 
 /// The program the last search found (it may be gone since).
@@ -355,7 +370,12 @@ pub async fn locate_cli(core: &Core, kind: AiProviderKind, configured: Option<&P
     let name = kind.tool_name()?;
     match search_dir(core) {
         Some(dir) => {
-            let spec = locate::SearchSpec { configured: configured.map(Path::to_path_buf), path_var: Some(dir.into_os_string()), known: Vec::new(), login_path: None };
+            let spec = locate::SearchSpec {
+                configured: configured.map(Path::to_path_buf),
+                path_var: Some(dir.into_os_string()),
+                known: Vec::new(),
+                login_path: None,
+            };
             locate::locate_in(core, name, &spec).await
         }
         None => locate::locate(core, name, configured).await,
@@ -372,15 +392,22 @@ pub async fn program_for(core: &Core, kind: AiProviderKind, settings: &Settings)
         return if own.is_file() {
             Ok(own)
         } else {
-            Err(CoreError::ai_not_configured(format!("The program set for {} in Settings › AI does not exist: {}", kind.label(), util::display_path(&own))))
+            Err(CoreError::ai_not_configured(format!(
+                "The program set for {} in Settings › AI does not exist: {}",
+                kind.label(),
+                util::display_path(&own)
+            )))
         };
     }
     if let Some(path) = remembered(core, kind).filter(|path| path.is_file()) {
         return Ok(path);
     }
-    let found = locate_cli(core, kind, None)
-        .await
-        .ok_or_else(|| CoreError::ai_not_configured(format!("{} was not found on this computer. Install it, or set its path in Settings › AI.", kind.label())))?;
+    let found = locate_cli(core, kind, None).await.ok_or_else(|| {
+        CoreError::ai_not_configured(format!(
+            "{} was not found on this computer. Install it, or set its path in Settings › AI.",
+            kind.label()
+        ))
+    })?;
     remember(core, kind, &found.path)?;
     Ok(found.path)
 }
@@ -388,7 +415,17 @@ pub async fn program_for(core: &Core, kind: AiProviderKind, settings: &Settings)
 // --- Failures ---------------------------------------------------------------------------------
 
 /// Phrases with which the tools say that they are not signed in.
-const SIGNED_OUT: [&str; 9] = ["not logged in", "not signed in", "please run /login", "codex login", "providers login", "unauthorized", "invalid api key", "authentication", "providerautherror"];
+const SIGNED_OUT: [&str; 9] = [
+    "not logged in",
+    "not signed in",
+    "please run /login",
+    "codex login",
+    "providers login",
+    "unauthorized",
+    "invalid api key",
+    "authentication",
+    "providerautherror",
+];
 
 pub fn looks_signed_out(text: &str) -> bool {
     let lower = text.to_lowercase();
@@ -439,7 +476,10 @@ pub struct CliAnswer {
 /// Model choices offered in the settings; free text otherwise, empty = the tool's default.
 pub fn model_suggestions(kind: AiProviderKind) -> Vec<AiModelInfo> {
     match kind {
-        AiProviderKind::ClaudeCode => ["sonnet", "opus", "haiku"].iter().map(|id| AiModelInfo { id: id.to_string(), label: id.to_string(), context_tokens: None }).collect(),
+        AiProviderKind::ClaudeCode => ["sonnet", "opus", "haiku"]
+            .iter()
+            .map(|id| AiModelInfo { id: id.to_string(), label: id.to_string(), context_tokens: None })
+            .collect(),
         _ => Vec::new(),
     }
 }
@@ -479,8 +519,10 @@ impl CliProvider {
             AiProviderKind::Codex => {
                 let schema_file = dir.join("schema.json");
                 if switch {
-                    let text = serde_json::to_vec_pretty(&request.schema).map_err(|e| CoreError::unknown(format!("Internal error: the answer schema can't be written ({e}).")))?;
-                    std::fs::write(&schema_file, text).map_err(|e| CoreError::io(format!("The answer schema for Codex could not be written: {e}")))?;
+                    let text = serde_json::to_vec_pretty(&request.schema)
+                        .map_err(|e| CoreError::unknown(format!("Internal error: the answer schema can't be written ({e}).")))?;
+                    std::fs::write(&schema_file, text)
+                        .map_err(|e| CoreError::io(format!("The answer schema for Codex could not be written: {e}")))?;
                 }
                 codex::args(dir, switch.then_some(schema_file.as_path()), &out_file, model)
             }
@@ -515,10 +557,20 @@ impl Provider for CliProvider {
     }
 
     fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps { structured_output: self.schema_as_switch(), embeddings: false, max_context_tokens: Some(self.context_tokens), pricing: None }
+        ProviderCaps {
+            structured_output: self.schema_as_switch(),
+            embeddings: false,
+            max_context_tokens: Some(self.context_tokens),
+            pricing: None,
+        }
     }
 
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             let answer = self.call(core, request, cancel).await?;
             if let Some(micros) = answer.cost_micros {
@@ -554,7 +606,10 @@ async fn prepare(core: &Core, kind: AiProviderKind, settings: &Settings) -> Core
         return Err(CoreError::ai_unsupported_version(problem));
     }
     if model.is_some() && !caps.model {
-        return Err(CoreError::ai_unsupported_version(format!("This {0} version can’t choose a model. Clear the model in Settings › AI or update {0}.", kind.label())));
+        return Err(CoreError::ai_unsupported_version(format!(
+            "This {0} version can’t choose a model. Clear the model in Settings › AI or update {0}.",
+            kind.label()
+        )));
     }
     let context_tokens = crate::ai::providers::context_tokens(core, kind, model.as_deref().unwrap_or_default());
     Ok(CliProvider { kind, program, model, caps, context_tokens, path_env: child_path(core).await, cost_micros: Mutex::new(None) })

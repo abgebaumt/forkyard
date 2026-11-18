@@ -32,8 +32,22 @@ pub struct Compatible {
 }
 
 impl Compatible {
-    pub fn new(kind: AiProviderKind, base: String, key: Option<String>, model: String, mode: AiStructuredMode, context_tokens: u64) -> Self {
-        Compatible { kind, base: base.trim_end_matches('/').to_string(), key: key.filter(|key| !key.trim().is_empty()), model, mode, context_tokens }
+    pub fn new(
+        kind: AiProviderKind,
+        base: String,
+        key: Option<String>,
+        model: String,
+        mode: AiStructuredMode,
+        context_tokens: u64,
+    ) -> Self {
+        Compatible {
+            kind,
+            base: base.trim_end_matches('/').to_string(),
+            key: key.filter(|key| !key.trim().is_empty()),
+            model,
+            mode,
+            context_tokens,
+        }
     }
 
     fn label_text(&self) -> String {
@@ -67,7 +81,10 @@ impl Compatible {
             "messages": [{ "role": "system", "content": system }, { "role": "user", "content": request.user }],
         });
         match mode {
-            AiStructuredMode::JsonSchema => body["response_format"] = json!({ "type": "json_schema", "json_schema": { "name": "forkyard_answer", "strict": true, "schema": request.schema } }),
+            AiStructuredMode::JsonSchema => {
+                body["response_format"] =
+                    json!({ "type": "json_schema", "json_schema": { "name": "forkyard_answer", "strict": true, "schema": request.schema } })
+            }
             AiStructuredMode::JsonObject => body["response_format"] = json!({ "type": "json_object" }),
             AiStructuredMode::Prompt => {}
         }
@@ -77,7 +94,9 @@ impl Compatible {
     fn parse(value: &Value) -> CoreResult<Completion> {
         let choice = value.pointer("/choices/0");
         let message = choice.and_then(|choice| choice.get("message"));
-        if let Some(refusal) = message.and_then(|message| message.get("refusal")).and_then(Value::as_str).filter(|refusal| !refusal.is_empty()) {
+        if let Some(refusal) =
+            message.and_then(|message| message.get("refusal")).and_then(Value::as_str).filter(|refusal| !refusal.is_empty())
+        {
             return Err(CoreError::ai_refused(refusal));
         }
         let text = message.and_then(|message| message.get("content")).and_then(Value::as_str).unwrap_or("").to_string();
@@ -101,7 +120,8 @@ impl Compatible {
 
     /// Which structured mode the service accepts: a tiny request per mode (400/415/422 = not supported).
     pub async fn probe(&self, core: &Core, cancel: &CancelToken) -> CoreResult<AiStructuredMode> {
-        let probe_schema = json!({ "type": "object", "properties": { "ok": { "type": "boolean" } }, "required": ["ok"], "additionalProperties": false });
+        let probe_schema =
+            json!({ "type": "object", "properties": { "ok": { "type": "boolean" } }, "required": ["ok"], "additionalProperties": false });
         let request = CompletionRequest {
             system: "Reply with JSON only.".into(),
             user: "Return the JSON object {\"ok\": true}.".into(),
@@ -144,10 +164,20 @@ impl Provider for Compatible {
     }
 
     fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps { structured_output: self.mode == AiStructuredMode::JsonSchema, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
+        ProviderCaps {
+            structured_output: self.mode == AiStructuredMode::JsonSchema,
+            embeddings: true,
+            max_context_tokens: Some(self.context_tokens),
+            pricing: None,
+        }
     }
 
-    fn complete<'a>(&'a self, core: &'a Core, request: &'a CompletionRequest, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Completion>> {
+    fn complete<'a>(
+        &'a self,
+        core: &'a Core,
+        request: &'a CompletionRequest,
+        cancel: &'a CancelToken,
+    ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             let label = self.label_text();
             let response = send(core, self.chat_request(request, self.mode), cancel, &label, &host_of(&self.base)).await?;
@@ -161,7 +191,14 @@ impl Provider for Compatible {
     fn models<'a>(&'a self, core: &'a Core, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>> {
         Box::pin(async move {
             let label = self.label_text();
-            let response = send(core, self.authorized(Request::get(format!("{}/models", self.base), label.clone())), cancel, &label, &host_of(&self.base)).await?;
+            let response = send(
+                core,
+                self.authorized(Request::get(format!("{}/models", self.base), label.clone())),
+                cancel,
+                &label,
+                &host_of(&self.base),
+            )
+            .await?;
             if !response.is_success() {
                 return Err(http_failure(&label, &response, &self.secrets()));
             }
@@ -187,7 +224,11 @@ impl Provider for Compatible {
 
 /// The remembered mode for this address; `Prompt` until it was checked.
 pub fn stored_mode(core: &Core, base: &str) -> AiStructuredMode {
-    let stored = core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == MODE_KEY).map(|(_, value)| value))).ok().flatten();
+    let stored = core
+        .db
+        .with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == MODE_KEY).map(|(_, value)| value)))
+        .ok()
+        .flatten();
     stored
         .filter(|value| value.get("baseUrl").and_then(Value::as_str) == Some(base))
         .and_then(|value| value.get("mode").cloned())
@@ -215,27 +256,46 @@ mod tests {
     }
 
     fn chat(content: &str, finish: &str) -> MockResponse {
-        MockResponse::json(200, json!({"id": "c1", "choices": [{"index": 0, "message": {"role": "assistant", "content": content, "refusal": null}, "finish_reason": finish}], "usage": {"prompt_tokens": 40, "completion_tokens": 6}}))
+        MockResponse::json(
+            200,
+            json!({"id": "c1", "choices": [{"index": 0, "message": {"role": "assistant", "content": content, "refusal": null}, "finish_reason": finish}], "usage": {"prompt_tokens": 40, "completion_tokens": 6}}),
+        )
     }
 
     fn compatible(server: &MockServer, key: Option<&str>, mode: AiStructuredMode) -> Compatible {
-        Compatible::new(AiProviderKind::OpenaiCompatible, format!("{}/v1", server.url()), key.map(str::to_string), "mistral-large-latest".into(), mode, 32_000)
+        Compatible::new(
+            AiProviderKind::OpenaiCompatible,
+            format!("{}/v1", server.url()),
+            key.map(str::to_string),
+            "mistral-large-latest".into(),
+            mode,
+            32_000,
+        )
     }
 
     #[tokio::test]
     async fn json_schema_mode_sends_a_strict_response_format() {
         let tc = TestCore::new().await;
         let server = MockServer::start(|_| chat("{\"summary\":\"Fix\",\"body\":null}", "stop"));
-        let completion = compatible(&server, Some("or-key-0123456789"), AiStructuredMode::JsonSchema).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap();
+        let completion = compatible(&server, Some("or-key-0123456789"), AiStructuredMode::JsonSchema)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap();
         assert_eq!(completion.text, "{\"summary\":\"Fix\",\"body\":null}");
         let sent = &server.requests()[0];
         assert_eq!(sent.route(), "POST /v1/chat/completions");
         assert_eq!(sent.header("authorization"), Some("Bearer or-key-0123456789"));
         let body = sent.json();
-        assert_eq!(body["response_format"], json!({"type": "json_schema", "json_schema": {"name": "forkyard_answer", "strict": true, "schema": schema()}}));
+        assert_eq!(
+            body["response_format"],
+            json!({"type": "json_schema", "json_schema": {"name": "forkyard_answer", "strict": true, "schema": schema()}})
+        );
         assert_eq!(body["stream"], false);
         assert_eq!(body["messages"][0]["role"], "system");
-        assert!(!body["messages"][0]["content"].as_str().unwrap().contains("must match this JSON schema"), "the schema is enforced, not repeated");
+        assert!(
+            !body["messages"][0]["content"].as_str().unwrap().contains("must match this JSON schema"),
+            "the schema is enforced, not repeated"
+        );
     }
 
     #[tokio::test]
@@ -267,19 +327,35 @@ mod tests {
         assert_eq!(stored_mode(&tc, &base), AiStructuredMode::JsonObject);
         assert_eq!(stored_mode(&tc, "https://other.example/v1"), AiStructuredMode::Prompt, "only for this address");
         let refusing_all = MockServer::start(|_| MockResponse::json(422, json!({"error": {"message": "unsupported"}})));
-        assert_eq!(compatible(&refusing_all, None, AiStructuredMode::Prompt).probe(&tc, &CancelToken::new()).await.unwrap(), AiStructuredMode::Prompt);
+        assert_eq!(
+            compatible(&refusing_all, None, AiStructuredMode::Prompt).probe(&tc, &CancelToken::new()).await.unwrap(),
+            AiStructuredMode::Prompt
+        );
     }
 
     #[tokio::test]
     async fn refusal_and_length_are_read_from_the_choice() {
         let tc = TestCore::new().await;
         let refusing = MockServer::start(|_| {
-            MockResponse::json(200, json!({"choices": [{"message": {"role": "assistant", "content": null, "refusal": "No."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}}))
+            MockResponse::json(
+                200,
+                json!({"choices": [{"message": {"role": "assistant", "content": null, "refusal": "No."}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 1, "completion_tokens": 1}}),
+            )
         });
-        let error = compatible(&refusing, None, AiStructuredMode::JsonSchema).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap_err();
+        let error = compatible(&refusing, None, AiStructuredMode::JsonSchema)
+            .complete(&tc, &test_request(schema()), &CancelToken::new())
+            .await
+            .unwrap_err();
         assert_eq!(error.code, ErrorCode::AiRefused);
         let cut = MockServer::start(|_| chat("{\"sum", "length"));
-        assert_eq!(compatible(&cut, None, AiStructuredMode::JsonSchema).complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap().finish, Finish::MaxTokens);
+        assert_eq!(
+            compatible(&cut, None, AiStructuredMode::JsonSchema)
+                .complete(&tc, &test_request(schema()), &CancelToken::new())
+                .await
+                .unwrap()
+                .finish,
+            Finish::MaxTokens
+        );
     }
 
     #[tokio::test]
@@ -289,7 +365,15 @@ mod tests {
             "GET /v1/models" => MockResponse::json(200, json!({"data": [{"id": "qwen2.5-7b-instruct"}]})),
             _ => chat("{\"summary\":\"Fix\",\"body\":null}", "stop"),
         });
-        let lm = build(AiProviderKind::Lmstudio, format!("{}/v1", server.url()), Some("ignored".into()), "qwen2.5-7b-instruct".into(), AiStructuredMode::Prompt, 8_192).unwrap();
+        let lm = build(
+            AiProviderKind::Lmstudio,
+            format!("{}/v1", server.url()),
+            Some("ignored".into()),
+            "qwen2.5-7b-instruct".into(),
+            AiStructuredMode::Prompt,
+            8_192,
+        )
+        .unwrap();
         assert_eq!((lm.id(), lm.label()), (AiProviderKind::Lmstudio, "LM Studio".to_string()));
         assert!(lm.capabilities().structured_output);
         lm.complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap();

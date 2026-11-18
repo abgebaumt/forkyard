@@ -345,11 +345,8 @@ fn migrate(conn: &mut Connection) -> CoreResult<()> {
     if version <= 0 {
         // The pragmas are in schema.sql for documentation; they are set in `init` and must
         // not run inside the transaction.
-        let body: String = SCHEMA
-            .lines()
-            .filter(|l| !l.trim_start().to_ascii_lowercase().starts_with("pragma "))
-            .collect::<Vec<_>>()
-            .join("\n");
+        let body: String =
+            SCHEMA.lines().filter(|l| !l.trim_start().to_ascii_lowercase().starts_with("pragma ")).collect::<Vec<_>>().join("\n");
         let tx = conn.transaction()?;
         tx.execute_batch(&body)?;
         tx.pragma_update(None, "user_version", LATEST_VERSION)?;
@@ -380,9 +377,7 @@ pub fn open_or_set_aside(path: &Path) -> CoreResult<(Db, Option<PathBuf>)> {
     if !corrupt {
         return Err(e.into());
     }
-    let ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| d.as_millis());
+    let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis());
     let with = |suffix: &str| {
         let mut name = path.as_os_str().to_os_string();
         name.push(suffix);
@@ -466,7 +461,13 @@ mod tests {
         let err = open_or_set_aside(&path).err().expect("refused");
         assert!(err.to_string().contains("newer Forkyard"), "{err}");
         assert!(path.exists());
-        assert_eq!(std::fs::read_dir(dir.path()).unwrap().filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains(".broken-")).count(), 0);
+        assert_eq!(
+            std::fs::read_dir(dir.path())
+                .unwrap()
+                .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains(".broken-"))
+                .count(),
+            0
+        );
     }
 
     #[test]
@@ -474,9 +475,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("t.db");
         let db = Db::open(&path).unwrap();
-        let tables: i64 = db
-            .with(|c| Ok(c.query_row("select count(*) from sqlite_master where type = 'table'", [], |r| r.get(0))?))
-            .unwrap();
+        let tables: i64 =
+            db.with(|c| Ok(c.query_row("select count(*) from sqlite_master where type = 'table'", [], |r| r.get(0))?)).unwrap();
         assert!(tables >= 14, "{tables}");
         let mode: String = db.with(|c| Ok(c.query_row("pragma journal_mode", [], |r| r.get(0))?)).unwrap();
         assert_eq!(mode, "wal");
@@ -494,7 +494,8 @@ mod tests {
     fn existing_databases_are_upgraded_step_by_step() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("alt.db");
-        let code_lines: Vec<&str> = SCHEMA.lines().filter(|l| l.trim_start().starts_with("code ") || l.contains("Since version 2")).collect();
+        let code_lines: Vec<&str> =
+            SCHEMA.lines().filter(|l| l.trim_start().starts_with("code ") || l.contains("Since version 2")).collect();
         assert_eq!(code_lines.len(), 2, "schema.sql names the column code and its version: {code_lines:?}");
         // Version 1: without the column `code`, without the blocks of versions 3 and 4, but with `integrations`.
         let mut in_later = false;
@@ -531,7 +532,11 @@ mod tests {
             )
             .unwrap();
             conn.pragma_update(None, "user_version", 1).unwrap();
-            conn.execute("insert into activity_log (scope, description, command, exit_code) values ('application', 'git x', 'git x', 1)", []).unwrap();
+            conn.execute(
+                "insert into activity_log (scope, description, command, exit_code) values ('application', 'git x', 'git x', 1)",
+                [],
+            )
+            .unwrap();
             conn.execute("insert into profiles (id, name, author_name, author_email, is_active) values ('p', 'P', '', '', 1)", []).unwrap();
             conn.execute("insert into workspaces (id, profile_id, name) values ('w', 'p', 'Alt')", []).unwrap();
             conn.execute("insert into profiles (id, name, author_name, author_email, is_active) values ('q', 'Q', '', '', 0)", []).unwrap();
@@ -565,7 +570,23 @@ mod tests {
         let kept: String = db.with(|c| Ok(c.query_row("select name from workspaces where id = 'w'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(kept, "Alt");
         let fresh = Db::open_in_memory().unwrap();
-        for table in ["activity_log", "workspaces", "workspace_repositories", "hoster_accounts", "repositories", "repository_trust", "profiles", "settings", "app_settings", "profile_repositories", "repo_view_state", "stats_cache", "ai_usage", "ai_preview_seen", "agents"] {
+        for table in [
+            "activity_log",
+            "workspaces",
+            "workspace_repositories",
+            "hoster_accounts",
+            "repositories",
+            "repository_trust",
+            "profiles",
+            "settings",
+            "app_settings",
+            "profile_repositories",
+            "repo_view_state",
+            "stats_cache",
+            "ai_usage",
+            "ai_preview_seen",
+            "agents",
+        ] {
             assert_eq!(columns(&db, table), columns(&fresh, table), "{table}");
         }
         // The view state of before keeps its fields and gets the new ones with their defaults.
@@ -587,7 +608,8 @@ mod tests {
         assert_eq!(listed, vec![("p".into(), 1, Some("Kunden".into()), stamp.clone()), ("q".into(), 1, Some("Kunden".into()), stamp)]);
         let theme: String = db.with(|c| Ok(c.query_row("select value from app_settings where key = 'theme'", [], |r| r.get(0))?)).unwrap();
         assert_eq!(theme, "\"light\"");
-        let left: i64 = db.with(|c| Ok(c.query_row("select count(*) from settings where key in ('theme', 'aiModel')", [], |r| r.get(0))?)).unwrap();
+        let left: i64 =
+            db.with(|c| Ok(c.query_row("select count(*) from settings where key in ('theme', 'aiModel')", [], |r| r.get(0))?)).unwrap();
         assert_eq!(left, 0);
         let kept: String = db
             .with(|c| Ok(c.query_row("select value from settings where profile_id = 'p' and key = 'autoFetchMinutes'", [], |r| r.get(0))?))
@@ -609,7 +631,8 @@ mod tests {
         assert!(columns(&fresh, "integrations").is_empty());
         let indexes = |db: &Db| -> Vec<String> {
             db.with(|c| {
-                let mut stmt = c.prepare("select name from sqlite_master where type = 'index' and name not like 'sqlite_%' order by name")?;
+                let mut stmt =
+                    c.prepare("select name from sqlite_master where type = 'index' and name not like 'sqlite_%' order by name")?;
                 let names = stmt.query_map([], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
                 Ok(names)
             })
@@ -618,14 +641,20 @@ mod tests {
         assert_eq!(indexes(&db), indexes(&fresh), "the same indexes");
         // v1.2: an upgraded database announces the AI features once; a new installation does not.
         let intro = |db: &Db| -> i64 {
-            db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'ai.introPending' and value = 'true'", [], |r| r.get(0))?)).unwrap()
+            db.with(|c| {
+                Ok(c.query_row("select count(*) from app_settings where key = 'ai.introPending' and value = 'true'", [], |r| r.get(0))?)
+            })
+            .unwrap()
         };
         assert_eq!(intro(&db), 1, "after the upgrade");
         assert_eq!(intro(&fresh), 0, "not on a new installation");
         // Every undo action the core knows can be stored in the upgraded database.
         for (index, action) in crate::undo::UndoAction::ALL.iter().enumerate() {
             db.with(|c| {
-                c.execute("insert into undo_entries (id, repository_id, action, head_before) values (?1, 'r', ?2, 'refs/heads/main')", rusqlite::params![format!("a{index}"), action.as_str()])?;
+                c.execute(
+                    "insert into undo_entries (id, repository_id, action, head_before) values (?1, 'r', ?2, 'refs/heads/main')",
+                    rusqlite::params![format!("a{index}"), action.as_str()],
+                )?;
                 Ok(())
             })
             .unwrap();
@@ -702,7 +731,8 @@ mod tests {
         let shape = |db: &Db, table: &str| -> Vec<(String, String, i64, i64)> {
             db.with(|c| {
                 let mut stmt = c.prepare(&format!("select name, type, \"notnull\", pk from pragma_table_info('{table}') order by cid"))?;
-                let rows = stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
+                let rows =
+                    stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
                 Ok(rows)
             })
             .unwrap()
@@ -721,7 +751,9 @@ mod tests {
             assert!(!shape(&fresh, table).is_empty(), "{table} exists");
             assert_eq!(shape(&upgraded, table), shape(&fresh, table), "{table}");
         }
-        let pending: i64 = upgraded.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'ai.introPending'", [], |r| r.get(0))?)).unwrap();
+        let pending: i64 = upgraded
+            .with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'ai.introPending'", [], |r| r.get(0))?))
+            .unwrap();
         assert_eq!(pending, 1, "running the step twice keeps one entry");
     }
 
@@ -755,22 +787,49 @@ mod tests {
     #[test]
     fn the_hoster_upgrade_keeps_accounts_and_accepts_the_new_kinds() {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("pragma foreign_keys = on; create table profiles (id text primary key) strict; insert into profiles (id) values ('p');").unwrap();
+        conn.execute_batch(
+            "pragma foreign_keys = on; create table profiles (id text primary key) strict; insert into profiles (id) values ('p');",
+        )
+        .unwrap();
         conn.execute_batch(V3_HOSTER_ACCOUNTS).unwrap();
         conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url, login, token_hint) values ('h', 'p', 'gitlab', 'https://gitlab.com', 'lena', '…abcd')", []).unwrap();
-        assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('x', 'p', 'gitea', 'https://codeberg.org')", []).is_err(), "before: only GitHub and GitLab");
+        assert!(
+            conn.execute(
+                "insert into hoster_accounts (id, profile_id, kind, base_url) values ('x', 'p', 'gitea', 'https://codeberg.org')",
+                []
+            )
+            .is_err(),
+            "before: only GitHub and GitLab"
+        );
         conn.execute_batch(HOSTER_KINDS_AND_USERNAME).unwrap();
         let kept: (String, String, Option<String>, Option<String>, Option<String>) = conn
-            .query_row("select kind, base_url, login, token_hint, username from hoster_accounts where id = 'h'", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)))
+            .query_row("select kind, base_url, login, token_hint, username from hoster_accounts where id = 'h'", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })
             .unwrap();
         assert_eq!(kept, ("gitlab".into(), "https://gitlab.com".into(), Some("lena".into()), Some("…abcd".into()), None));
         for (id, kind) in [("g", "gitea"), ("b", "bitbucket"), ("a", "azure_devops")] {
-            conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url, username) values (?1, 'p', ?2, ?3, 'lena')", rusqlite::params![id, kind, format!("https://{kind}.example")]).unwrap();
+            conn.execute(
+                "insert into hoster_accounts (id, profile_id, kind, base_url, username) values (?1, 'p', ?2, ?3, 'lena')",
+                rusqlite::params![id, kind, format!("https://{kind}.example")],
+            )
+            .unwrap();
         }
-        assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('s', 'p', 'svn', 'https://svn.example')", []).is_err());
-        let unique: i64 = conn.query_row("select count(*) from sqlite_master where type = 'index' and name = 'hoster_accounts_key'", [], |r| r.get(0)).unwrap();
+        assert!(conn
+            .execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('s', 'p', 'svn', 'https://svn.example')", [])
+            .is_err());
+        let unique: i64 = conn
+            .query_row("select count(*) from sqlite_master where type = 'index' and name = 'hoster_accounts_key'", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(unique, 1, "the unique index is back");
-        assert!(conn.execute("insert into hoster_accounts (id, profile_id, kind, base_url) values ('h2', 'p', 'gitlab', 'https://gitlab.com')", []).is_err(), "and works");
+        assert!(
+            conn.execute(
+                "insert into hoster_accounts (id, profile_id, kind, base_url) values ('h2', 'p', 'gitlab', 'https://gitlab.com')",
+                []
+            )
+            .is_err(),
+            "and works"
+        );
     }
 
     /// `undo_entries` as versions 1 to 8 created it (only for this test).
@@ -801,7 +860,10 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
     #[test]
     fn the_undo_upgrade_keeps_entries_and_accepts_the_group_actions() {
         let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch("pragma foreign_keys = on; create table repositories (id text primary key) strict; insert into repositories (id) values ('r');").unwrap();
+        conn.execute_batch(
+            "pragma foreign_keys = on; create table repositories (id text primary key) strict; insert into repositories (id) values ('r');",
+        )
+        .unwrap();
         conn.execute_batch(OLD_UNDO_ENTRIES).unwrap();
         conn.execute(
             "insert into undo_entries (id, repository_id, action, label, ref_name, ref_before, ref_after, head_before, head_after, payload, state, created_at)
@@ -809,14 +871,24 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
             [],
         )
         .unwrap();
-        let insert = |id: &str, action: &str| conn.execute("insert into undo_entries (id, repository_id, action, head_before) values (?1, 'r', ?2, 'refs/heads/main')", rusqlite::params![id, action]);
+        let insert = |id: &str, action: &str| {
+            conn.execute(
+                "insert into undo_entries (id, repository_id, action, head_before) values (?1, 'r', ?2, 'refs/heads/main')",
+                rusqlite::params![id, action],
+            )
+        };
         assert!(insert("vorher", "compose").is_err(), "before: no group actions");
         assert!(UPGRADES.contains(&UNDO_GROUP_ACTIONS), "the step is part of UPGRADES");
         conn.execute_batch(UNDO_GROUP_ACTIONS).unwrap();
         let kept: (String, String, String, String, String, String) = conn
-            .query_row("select action, label, ref_after, payload, state, created_at from undo_entries where id = 'u1'", [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))
+            .query_row("select action, label, ref_after, payload, state, created_at from undo_entries where id = 'u1'", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?))
+            })
             .unwrap();
-        assert_eq!(kept, ("commit".into(), "Undo commit".into(), "bbb".into(), "{\"x\":1}".into(), "undone".into(), "2026-10-01T00:00:00.000Z".into()));
+        assert_eq!(
+            kept,
+            ("commit".into(), "Undo commit".into(), "bbb".into(), "{\"x\":1}".into(), "undone".into(), "2026-10-01T00:00:00.000Z".into())
+        );
         for (index, action) in ["compose", "plan", "agent_cleanup", "range_apply", "stack_create", "review_fixups"].iter().enumerate() {
             insert(&format!("g{index}"), action).unwrap();
         }
@@ -825,8 +897,17 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         conn.execute_batch(UNDO_STASH_DROP).unwrap();
         insert("sd1", "stash_drop").unwrap();
         assert!(insert("falsch", "bogus").is_err(), "unknown actions stay forbidden");
-        assert!(conn.execute("insert into undo_entries (id, repository_id, action, head_before) values ('fk', 'gibt-es-nicht', 'plan', 'x')", []).is_err(), "the foreign key holds");
-        let index: i64 = conn.query_row("select count(*) from sqlite_master where type = 'index' and name = 'undo_entries_repo_time'", [], |r| r.get(0)).unwrap();
+        assert!(
+            conn.execute(
+                "insert into undo_entries (id, repository_id, action, head_before) values ('fk', 'gibt-es-nicht', 'plan', 'x')",
+                []
+            )
+            .is_err(),
+            "the foreign key holds"
+        );
+        let index: i64 = conn
+            .query_row("select count(*) from sqlite_master where type = 'index' and name = 'undo_entries_repo_time'", [], |r| r.get(0))
+            .unwrap();
         assert_eq!(index, 1);
     }
 
@@ -862,12 +943,8 @@ create index undo_entries_repo_time on undo_entries (repository_id, created_at d
         assert!(!keys[0].is_default);
         assert!(db.with(|c| ssh_keys::get(c, &profile, &a)).unwrap().is_none());
 
-        let first = db
-            .with(|c| host_accounts::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-1"))
-            .unwrap();
-        let again = db
-            .with(|c| host_accounts::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-2"))
-            .unwrap();
+        let first = db.with(|c| host_accounts::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-1")).unwrap();
+        let again = db.with(|c| host_accounts::upsert(c, &profile, "github.com", "anna", HostAccountKind::Password, "ref-2")).unwrap();
         assert_eq!(first, again, "same host and user = the same entry");
         db.with(|c| host_accounts::upsert(c, &profile, "/k/id_b", "", HostAccountKind::Passphrase, "ref-3")).unwrap();
         let rows = db.with(|c| host_accounts::list(c, &profile)).unwrap();

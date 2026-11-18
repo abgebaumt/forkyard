@@ -27,7 +27,13 @@ fn ai_repo() -> TestRepo {
     repo.commit_as_dates("Datenmodell für Stationen", "Lena Ölmann", "lena@example.org", "@1760000000 +1400", "@1760000000 +1400");
     repo.write_file("import/-messwerte ä.csv", "datum;wert\r\n2026-01-01;3,5\r\n");
     repo.write_file("Cargo.lock", "# lock\n[[package]]\nname = \"a\"\n");
-    repo.commit_as_dates(&format!("Import der Messwerte\n\nCSV mit Semikolon.\n{INJECTION}"), "Jo Ånström", "jo@example.org", "@1600000000 -0930", "@1760000100 +0000");
+    repo.commit_as_dates(
+        &format!("Import der Messwerte\n\nCSV mit Semikolon.\n{INJECTION}"),
+        "Jo Ånström",
+        "jo@example.org",
+        "@1600000000 -0930",
+        "@1760000100 +0000",
+    );
     repo.git(&["mv", "src/modell.rs", "src/station.rs"]);
     repo.commit_as_dates("Auswertung je Monat", "Lena Ölmann", "lena@example.org", "@1760000200 +0530", "@1760000200 +0530");
     repo.write_file("diagramme/übersicht.png", [0x89u8, b'P', b'N', b'G', 0, 1, 2, 3]);
@@ -61,11 +67,17 @@ fn answers_are_checked_against_the_commits() {
     assert_eq!(check_answer(&answer(vec![part(2, "A"), part(4, "B")]), 4), Ok(()));
     assert_eq!(check_answer(&answer(vec![part(4, "Alles")]), 4), Ok(()));
     assert_eq!(check_answer(&answer(vec![]), 4).unwrap_err(), "parts is empty; return at least one part");
-    assert_eq!(check_answer(&answer(vec![part(2, "A"), part(2, "B"), part(4, "C")]), 4).unwrap_err(), "part 2: end 2 must be greater than 2");
+    assert_eq!(
+        check_answer(&answer(vec![part(2, "A"), part(2, "B"), part(4, "C")]), 4).unwrap_err(),
+        "part 2: end 2 must be greater than 2"
+    );
     assert_eq!(check_answer(&answer(vec![part(0, "A"), part(4, "B")]), 4).unwrap_err(), "part 1: end 0 must be greater than 0");
     assert_eq!(check_answer(&answer(vec![part(-1, "A"), part(4, "B")]), 4).unwrap_err(), "part 1: end is not a positive whole number");
     assert_eq!(check_answer(&answer(vec![part(2, "A"), part(5, "B")]), 4).unwrap_err(), "part 2: end 5 is beyond the last commit (4)");
-    assert_eq!(check_answer(&answer(vec![part(2, "A"), part(3, "B")]), 4).unwrap_err(), "the last part ends at commit 3, but the branch has 4 commits");
+    assert_eq!(
+        check_answer(&answer(vec![part(2, "A"), part(3, "B")]), 4).unwrap_err(),
+        "the last part ends at commit 3, but the branch has 4 commits"
+    );
     assert_eq!(check_answer(&answer(vec![part(4, "  ")]), 4).unwrap_err(), "part 1: the title is empty");
     assert_eq!(check_answer(&answer(vec![part(4, "Zeile\nzwei")]), 4).unwrap_err(), "part 1: the title must be one line");
     assert_eq!(check_answer(&answer(vec![part(4, &"ä".repeat(301))]), 4).unwrap_err(), "part 1: the title has more than 300 characters");
@@ -75,10 +87,18 @@ fn answers_are_checked_against_the_commits() {
 
 #[test]
 fn the_answer_is_tidied_up() {
-    let value = json!({ "parts": [{ "end": 2, "name": "  Datenmodell ", "title": " Datenmodell für Stationen\t", "why": " Eigenes Thema. " }] });
+    let value =
+        json!({ "parts": [{ "end": 2, "name": "  Datenmodell ", "title": " Datenmodell für Stationen\t", "why": " Eigenes Thema. " }] });
     assert_eq!(
         finish(&value),
-        crate::model::AiStackSplit { parts: vec![crate::model::AiStackPart { end: 2, name: "Datenmodell".into(), title: "Datenmodell für Stationen".into(), why: "Eigenes Thema.".into() }] }
+        crate::model::AiStackSplit {
+            parts: vec![crate::model::AiStackPart {
+                end: 2,
+                name: "Datenmodell".into(),
+                title: "Datenmodell für Stationen".into(),
+                why: "Eigenes Thema.".into()
+            }]
+        }
     );
 }
 
@@ -92,7 +112,8 @@ async fn the_context_numbers_the_commits_in_gits_order_and_never_names_secrets()
     let prompt = &built.built.prompt;
     let commits = section(prompt, COMMITS).expect("commits");
     // Oracle: Git's own order of the branch's commits.
-    let subjects: Vec<String> = repo.git(&["log", "--reverse", "--format=%s", "main..feature/auswertung"]).lines().map(str::to_string).collect();
+    let subjects: Vec<String> =
+        repo.git(&["log", "--reverse", "--format=%s", "main..feature/auswertung"]).lines().map(str::to_string).collect();
     assert_eq!(subjects.len(), 4, "fixture");
     for (index, subject) in subjects.iter().enumerate() {
         assert!(commits.contains(&format!("{}. {subject}\n", index + 1)), "{subject} as number {} in {commits}", index + 1);
@@ -192,7 +213,10 @@ async fn a_small_budget_drops_bodies_then_files_but_keeps_every_subject() {
 const KEY: &str = "sk-ant-api03-testkey-0123456789abcdef";
 
 fn chat(content: &str) -> MockResponse {
-    MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}))
+    MockResponse::json(
+        200,
+        json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}),
+    )
 }
 
 /// Local stand-in for Ollama: answers the chat requests in turn (the last answer repeats).
@@ -216,7 +240,13 @@ fn chats(server: &MockServer) -> Vec<MockRequest> {
 
 /// Every message of a chat request, joined.
 fn all_messages(request: &MockRequest) -> String {
-    request.json()["messages"].as_array().unwrap().iter().map(|m| m["content"].as_str().unwrap_or("").to_string()).collect::<Vec<_>>().join("\n")
+    request.json()["messages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["content"].as_str().unwrap_or("").to_string())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// The text with the per-request token replaced (as the fingerprint does).
@@ -304,13 +334,18 @@ async fn the_preview_works_while_ai_is_not_set_up() {
 async fn the_request_sends_exactly_the_previewed_text() {
     let answer = split(&[(2, "Modell", "Datenmodell"), (4, "Auswertung", "Auswertung")]);
     let server = MockServer::start(move |_| {
-        MockResponse::json(200, json!({"content": [{"type": "text", "text": answer}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 40}}))
+        MockResponse::json(
+            200,
+            json!({"content": [{"type": "text", "text": answer}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 40}}),
+        )
     });
     let tc = TestCore::new().await;
     crate::ai::configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
     crate::secrets::set(&tc, "llm:anthropic", KEY).await.unwrap();
     // Ask before every request (any cost is above 0.00 USD): only the confirmed text may go out.
-    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiConfirmCostUsd": 0.0})).await.unwrap();
+    settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5", "aiConfirmCostUsd": 0.0}))
+        .await
+        .unwrap();
     let repo = ai_repo();
     let id = tc.open(&repo).await.repo.id;
     let messages = |server: &MockServer| server.requests().into_iter().filter(|r| r.path().ends_with("/messages")).collect::<Vec<_>>();
@@ -322,7 +357,9 @@ async fn the_request_sends_exactly_the_previewed_text() {
     assert_eq!(ask("f1").await.unwrap_err().code, ErrorCode::NotAllowed, "unconfirmed: nothing goes out");
     assert!(messages(&server).is_empty());
 
-    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::StackSplit, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+    ai_preview_confirm(&tc, Some(id.clone()), AiFeature::StackSplit, preview.fingerprint.clone(), preview.asks.clone(), false)
+        .await
+        .unwrap();
     let done = ask("f2").await.unwrap();
     assert_eq!(done.parts.iter().map(|p| p.end).collect::<Vec<_>>(), [2, 4]);
     let sent = messages(&server);

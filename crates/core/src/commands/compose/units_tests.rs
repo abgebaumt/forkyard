@@ -89,7 +89,8 @@ async fn text_files_split_into_the_hunks_git_shows() {
     let first = &state.units[0];
     assert_eq!((first.kind, first.hunk_index, first.added, first.removed), (ComposeUnitKind::Hunk, Some(0), 1, 1));
     assert!(first.id.starts_with("a.txt#0@") && state.units[1].id.starts_with("a.txt#1@"), "{first:?}");
-    let shown: Vec<(DiffLineKind, Option<u32>, Option<u32>, &str)> = first.lines.iter().map(|l| (l.kind, l.old_no, l.new_no, l.text.as_str())).collect();
+    let shown: Vec<(DiffLineKind, Option<u32>, Option<u32>, &str)> =
+        first.lines.iter().map(|l| (l.kind, l.old_no, l.new_no, l.text.as_str())).collect();
     assert_eq!(shown[0], (DiffLineKind::Context, Some(1), Some(1), "zeile 1"));
     assert_eq!(shown[1], (DiffLineKind::Remove, Some(2), None, "zeile 2"));
     assert_eq!(shown[2], (DiffLineKind::Add, None, Some(2), "Zeile zwei"));
@@ -104,7 +105,8 @@ async fn new_deleted_renamed_binary_lfs_and_submodule_files_are_whole_units() {
     let (tc, id) = open(&repo).await;
     let state = compose_units(&tc, id).await.unwrap();
 
-    let kinds: BTreeMap<String, (Option<String>, ComposeUnitKind)> = state.units.iter().map(|u| (u.path.clone(), (u.old_path.clone(), u.kind))).collect();
+    let kinds: BTreeMap<String, (Option<String>, ComposeUnitKind)> =
+        state.units.iter().map(|u| (u.path.clone(), (u.old_path.clone(), u.kind))).collect();
     let expected: BTreeMap<String, (Option<String>, ComposeUnitKind)> = [
         ("bild.bin", None, ComposeUnitKind::Binary),
         ("bild.psd", None, ComposeUnitKind::Lfs),

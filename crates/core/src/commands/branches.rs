@@ -40,9 +40,7 @@ async fn create_branch(core: &Core, repo_id: String, name: String, start: Option
         let branches = local_branches(core, &repo_id).await?;
         check_new_name(core, &repo_id, name, RefNameKind::Branch, &names_of(&branches), None).await?;
         if matches!(head, Head::Unborn { .. }) {
-            return Err(CoreError::not_allowed(
-                "The repository has no commits yet. You can create a branch only after the first commit.",
-            ));
+            return Err(CoreError::not_allowed("The repository has no commits yet. You can create a branch only after the first commit."));
         }
         let start_rev = start.as_deref().map(str::trim).filter(|s| !s.is_empty()).unwrap_or("HEAD");
         let Some(sha) = resolve_commit(core, &repo_id, start_rev).await? else {
@@ -180,17 +178,11 @@ pub async fn ref_name_check(core: &Core, repo_id: String, name: String, kind: Re
         RefNameKind::Tag => "refs/tags/",
     };
     let out = core.git_for(&repo_id)?.args(["for-each-ref", "--format=%(refname)", prefix]).read_only().no_log().run().await?;
-    let existing: Vec<String> = out
-        .stdout_lines()
-        .into_iter()
-        .map(util::decode_lossy)
-        .filter_map(|full| full.strip_prefix(prefix).map(str::to_string))
-        .collect();
+    let existing: Vec<String> =
+        out.stdout_lines().into_iter().map(util::decode_lossy).filter_map(|full| full.strip_prefix(prefix).map(str::to_string)).collect();
     match check_new_name(core, &repo_id, &name, kind, &existing, None).await {
         Ok(()) => Ok(RefNameCheck { valid: true, reason: None }),
-        Err(e) if e.is(ErrorCode::InvalidName) || e.is(ErrorCode::NameExists) => {
-            Ok(RefNameCheck { valid: false, reason: Some(e.message) })
-        }
+        Err(e) if e.is(ErrorCode::InvalidName) || e.is(ErrorCode::NameExists) => Ok(RefNameCheck { valid: false, reason: Some(e.message) }),
         Err(e) => Err(e),
     }
 }
@@ -253,10 +245,7 @@ fn operation_error(kind: OperationKind) -> CoreError {
         OperationKind::CherryPick => "a cherry-pick",
         OperationKind::Revert => "a revert",
     };
-    CoreError::new(
-        ErrorCode::OperationInProgress,
-        format!("There’s {name} in progress. Finish or abort it first, then switch branches."),
-    )
+    CoreError::new(ErrorCode::OperationInProgress, format!("There’s {name} in progress. Finish or abort it first, then switch branches."))
 }
 
 /// SHA of the commit `rev` points to (tags are resolved); `None` if it does not exist.
@@ -269,7 +258,13 @@ pub(crate) async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> Cor
         return Ok(None);
     }
     let parse = |name: String| async move {
-        let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", &format!("{name}^{{commit}}")]).read_only().no_log().run_raw().await?;
+        let out = core
+            .git_for(repo_id)?
+            .args(["rev-parse", "-q", "--verify", &format!("{name}^{{commit}}")])
+            .read_only()
+            .no_log()
+            .run_raw()
+            .await?;
         Ok::<_, CoreError>(Some(out.stdout_text()).filter(|sha| out.success() && !sha.is_empty()))
     };
     if could_be_branch_name(rev) {
@@ -282,7 +277,11 @@ pub(crate) async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> Cor
 
 /// Whether `rev` can be a short name (no full ref name, no expression like `HEAD~2` or `a..b`).
 pub(crate) fn could_be_branch_name(rev: &str) -> bool {
-    !rev.starts_with("refs/") && rev != "HEAD" && !rev.contains(['~', '^', ':', '@', ' ']) && !rev.contains("..") && util::check_ref_name(rev).is_ok()
+    !rev.starts_with("refs/")
+        && rev != "HEAD"
+        && !rev.contains(['~', '^', ':', '@', ' '])
+        && !rev.contains("..")
+        && util::check_ref_name(rev).is_ok()
 }
 
 /// The first path part (at the same depth, with the same path before it) in which `name` and
@@ -364,14 +363,10 @@ pub(crate) async fn check_new_name(
         }
         // A name cannot be both a folder and a ref.
         if name.strip_prefix(other.as_str()).is_some_and(|rest| rest.starts_with('/')) {
-            return Err(CoreError::name_exists(format!(
-                "The {what} ‘{other}’ already exists; no other name can be placed below it."
-            )));
+            return Err(CoreError::name_exists(format!("The {what} ‘{other}’ already exists; no other name can be placed below it.")));
         }
         if other.strip_prefix(name).is_some_and(|rest| rest.starts_with('/')) {
-            return Err(CoreError::name_exists(format!(
-                "The {what} ‘{other}’ already exists; ‘{name}’ would also be its folder."
-            )));
+            return Err(CoreError::name_exists(format!("The {what} ‘{other}’ already exists; ‘{name}’ would also be its folder.")));
         }
     }
     // Git has the last word.
@@ -472,7 +467,8 @@ async fn plan_checkout(core: &Core, repo_id: &str, target: &str, branches: &[Bra
     }
     match resolve_commit(core, repo_id, target).await? {
         Some(sha) => {
-            let looks_like_sha = target.len() >= 4 && target.chars().all(|c| c.is_ascii_hexdigit()) && sha.starts_with(&target.to_lowercase());
+            let looks_like_sha =
+                target.len() >= 4 && target.chars().all(|c| c.is_ascii_hexdigit()) && sha.starts_with(&target.to_lowercase());
             let display = if looks_like_sha { sha.chars().take(7).collect() } else { short_ref_name(target).to_string() };
             Ok(CheckoutPlan::Detach { sha, display })
         }
@@ -484,11 +480,8 @@ async fn plan_checkout(core: &Core, repo_id: &str, target: &str, branches: &[Bra
 /// known remote name wins.
 async fn local_name_for_remote(core: &Core, repo_id: &str, short: &str) -> CoreResult<Option<String>> {
     let out = core.git_for(repo_id)?.arg("remote").read_only().no_log().run_raw().await?;
-    let remotes: Vec<String> = if out.success() {
-        out.stdout_lines().into_iter().map(util::decode_lossy).filter(|n| !n.is_empty()).collect()
-    } else {
-        Vec::new()
-    };
+    let remotes: Vec<String> =
+        if out.success() { out.stdout_lines().into_iter().map(util::decode_lossy).filter(|n| !n.is_empty()).collect() } else { Vec::new() };
     let rest = remotes
         .iter()
         .filter_map(|r| short.strip_prefix(r.as_str()).and_then(|rest| rest.strip_prefix('/')))
@@ -562,10 +555,7 @@ pub(crate) async fn run_checkout(core: &Core, repo_id: &str, args: &[&str], targ
             if many.len() > MAX_LISTED {
                 listed.push_str(&format!(" and {} more", many.len() - MAX_LISTED));
             }
-            format!(
-                "Uncommitted changes to {} files prevent the switch: {listed}. Commit, stash or discard them first.",
-                many.len()
-            )
+            format!("Uncommitted changes to {} files prevent the switch: {listed}. Commit, stash or discard them first.", many.len())
         }
     };
     Err(CoreError { message, ..err })
@@ -582,13 +572,8 @@ async fn blocking_paths(core: &Core, repo_id: &str, target_sha: &str) -> CoreRes
         .run()
         .await?;
     let differing: HashSet<&[u8]> = util::split_z(&diff.stdout).collect();
-    let status = core
-        .git_for(repo_id)?
-        .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let status =
+        core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=all"]).read_only().no_log().run().await?;
     let mut files = Vec::new();
     for entry in parse_porcelain_v2(&status.stdout).entries {
         for path in std::iter::once(&entry.path).chain(entry.orig_path.iter()) {
@@ -696,9 +681,9 @@ async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool
         let unmerged = unmerged_branches(core, repo_id, &targets).await?;
         if !unmerged.is_empty() {
             let message = match unmerged.as_slice() {
-                [one] => format!(
-                    "The branch ‘{one}’ isn’t merged yet. If you force the deletion, its commits are only reachable through Undo."
-                ),
+                [one] => {
+                    format!("The branch ‘{one}’ isn’t merged yet. If you force the deletion, its commits are only reachable through Undo.")
+                }
                 many => format!(
                     "These branches aren’t merged yet: {}. If you force the deletion, their commits are only reachable through Undo.",
                     quote_list(many)
@@ -741,10 +726,13 @@ async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool
             remove_config(&info.name).await;
         }
         let head = head_label(&read_head(core, repo_id).await?);
-        let steps: Vec<_> = targets.iter().map(|info| json!({ "ref": format!("refs/heads/{}", info.name), "before": info.sha, "after": null })).collect();
+        let steps: Vec<_> =
+            targets.iter().map(|info| json!({ "ref": format!("refs/heads/{}", info.name), "before": info.sha, "after": null })).collect();
         let upstreams: Vec<_> = targets
             .iter()
-            .filter_map(|info| info.upstream.as_deref().map(|upstream| json!({ "branch": info.name, "upstream": short_ref_name(upstream) })))
+            .filter_map(|info| {
+                info.upstream.as_deref().map(|upstream| json!({ "branch": info.name, "upstream": short_ref_name(upstream) }))
+            })
             .collect();
         return undo::record(
             core,
@@ -803,7 +791,15 @@ async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool
 /// Names of the branches with a `branch.<name>` section in the configuration; `None` if it
 /// cannot be read (then each branch is tried as before).
 async fn branches_with_config(core: &Core, repo_id: &str) -> Option<HashSet<String>> {
-    let out = core.git_for(repo_id).ok()?.args(["config", "--local", "--name-only", "-z", "--get-regexp", r"^branch\."]).read_only().no_log().run_raw().await.ok()?;
+    let out = core
+        .git_for(repo_id)
+        .ok()?
+        .args(["config", "--local", "--name-only", "-z", "--get-regexp", r"^branch\."])
+        .read_only()
+        .no_log()
+        .run_raw()
+        .await
+        .ok()?;
     // Exit code 1: no match.
     if !out.success() && out.code != Some(1) {
         return None;
@@ -836,11 +832,8 @@ async fn unmerged_branches<'a>(core: &Core, repo_id: &str, targets: &[&'a Branch
         .run_raw()
         .await?;
     // In a repository without a commit there is no HEAD that anything could be merged into.
-    let in_head: HashSet<String> = if merged.success() {
-        merged.stdout_lines().into_iter().map(util::decode_lossy).collect()
-    } else {
-        HashSet::new()
-    };
+    let in_head: HashSet<String> =
+        if merged.success() { merged.stdout_lines().into_iter().map(util::decode_lossy).collect() } else { HashSet::new() };
     let mut unmerged = Vec::new();
     for info in targets {
         if in_head.contains(&format!("refs/heads/{}", info.name)) {
@@ -859,13 +852,7 @@ async fn unmerged_branches<'a>(core: &Core, repo_id: &str, targets: &[&'a Branch
 
 /// `false` also if `descendant` does not exist (any more).
 pub(crate) async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = core
-        .git_for(repo_id)?
-        .args(["merge-base", "--is-ancestor", ancestor, descendant])
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await?;
+    let out = core.git_for(repo_id)?.args(["merge-base", "--is-ancestor", ancestor, descendant]).read_only().no_log().run_raw().await?;
     Ok(out.success())
 }
 
@@ -922,9 +909,7 @@ async fn fast_forward_locked(core: &Core, repo_id: &str, branch: &str) -> CoreRe
         )));
     }
     if info.worktree.is_some() {
-        return Err(CoreError::not_allowed(format!(
-            "The branch “{name}” is in use by an operation in progress and can’t be moved."
-        )));
+        return Err(CoreError::not_allowed(format!("The branch “{name}” is in use by an operation in progress and can’t be moved.")));
     }
     let Some(upstream_full) = info.upstream.as_deref() else {
         return Err(CoreError::new(
@@ -963,11 +948,8 @@ async fn fast_forward_locked(core: &Core, repo_id: &str, branch: &str) -> CoreRe
         if error.is(ErrorCode::Locked) {
             return Err(error);
         }
-        return Err(CoreError::new(
-            ErrorCode::StaleState,
-            format!("The branch “{name}” has just changed. Please try again."),
-        )
-        .with_git_output(out.stderr_text()));
+        return Err(CoreError::new(ErrorCode::StaleState, format!("The branch “{name}” has just changed. Please try again."))
+            .with_git_output(out.stderr_text()));
     }
     undo::record(
         core,
@@ -1020,9 +1002,7 @@ mod tests {
     }
 
     fn undo_count(tc: &TestCore, id: &str) -> i64 {
-        tc.db
-            .with(|c| Ok(c.query_row("select count(*) from undo_entries where repository_id = ?1", [id], |r| r.get(0))?))
-            .unwrap()
+        tc.db.with(|c| Ok(c.query_row("select count(*) from undo_entries where repository_id = ?1", [id], |r| r.get(0))?)).unwrap()
     }
 
     /// Repo with a remote and a remote branch `feature/x` that does not exist locally.
@@ -1489,9 +1469,8 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         tc.events.clear();
 
-        let refs = branch_delete(&tc, id.clone(), vec!["fertig".into(), "refs/heads/größe/zwei".into(), "fertig".into()], false)
-            .await
-            .unwrap();
+        let refs =
+            branch_delete(&tc, id.clone(), vec!["fertig".into(), "refs/heads/größe/zwei".into(), "fertig".into()], false).await.unwrap();
         assert!(!has(&refs.locals, "fertig") && !has(&refs.locals, "größe/zwei"));
         assert_eq!(refs.locals.len(), 1);
         assert_eq!(tc.events.named(names::REPO_CHANGED)[0]["what"], json!(["refs", "config"]));
@@ -1547,9 +1526,7 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
 
         // Not merged: nothing is deleted, not even the merged branch.
-        let err = branch_delete(&tc, id.clone(), vec!["gemergt".into(), "offen".into(), "auch-offen".into()], false)
-            .await
-            .unwrap_err();
+        let err = branch_delete(&tc, id.clone(), vec!["gemergt".into(), "offen".into(), "auch-offen".into()], false).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotMerged);
         assert!(err.message.contains("‘offen’") && err.message.contains("‘auch-offen’"), "{}", err.message);
         assert!(!err.message.contains("‘gemergt’"), "{}", err.message);
@@ -1660,7 +1637,8 @@ mod tests {
         let taken = check("v1.0", RefNameKind::Tag).await.unwrap();
         assert_eq!(taken.reason.as_deref(), Some("A tag named ‘v1.0’ already exists."));
 
-        for (bad, part) in [("", "empty"), ("a b", "spaces"), ("a..b", "“..”"), ("x.lock", "“.lock”"), ("a^", "“^”"), ("HEAD", "reserved")] {
+        for (bad, part) in [("", "empty"), ("a b", "spaces"), ("a..b", "“..”"), ("x.lock", "“.lock”"), ("a^", "“^”"), ("HEAD", "reserved")]
+        {
             for kind in [RefNameKind::Branch, RefNameKind::Tag] {
                 let result = check(bad, kind).await.unwrap();
                 assert!(!result.valid, "{bad}");

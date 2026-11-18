@@ -7,11 +7,9 @@ mod prompt;
 mod units;
 
 #[cfg(test)]
-mod units_tests;
+mod apply_tests;
 #[cfg(test)]
 mod deps_tests;
-#[cfg(test)]
-mod apply_tests;
 #[cfg(test)]
 mod hook_tests;
 #[cfg(test)]
@@ -20,6 +18,8 @@ mod proposal_tests;
 mod steering_tests;
 #[cfg(test)]
 mod undo_tests;
+#[cfg(test)]
+mod units_tests;
 
 use crate::ai::context::Built;
 use crate::ai::run::{self, AiRequest};
@@ -36,7 +36,13 @@ pub async fn compose_units(core: &Core, repo_id: String) -> CoreResult<ComposeSt
 /// Creates the planned commits under one undo entry. `expect_token`: from the units the plan was
 /// made on (`stale_state` otherwise). Job `job_id`: phase "compose", line "<n>/<total>",
 /// cancellable between two commits.
-pub async fn compose_apply(core: &Core, repo_id: String, job_id: String, plan: ComposePlan, expect_token: String) -> CoreResult<ComposeResult> {
+pub async fn compose_apply(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    plan: ComposePlan,
+    expect_token: String,
+) -> CoreResult<ComposeResult> {
     let job = core.start_job(&job_id, Some(&repo_id))?;
     let result = core.with_write_lock(&repo_id, &apply::CHANGES, apply::apply(core, &repo_id, &job, &plan, &expect_token)).await;
     job.finish(&result);
@@ -47,7 +53,14 @@ pub async fn compose_apply(core: &Core, repo_id: String, job_id: String, plan: C
 /// `ai_preview(…, AiInput::Compose { instruction, keep }, …)` and the confirmation gate first; this
 /// builds exactly that text. `instruction`: the user's words for a new proposal; `keep`: units the
 /// user placed – the answer leaves them out, so they stay where they are.
-pub async fn compose_proposal(core: &Core, repo_id: String, job_id: String, locale: String, instruction: Option<String>, keep: Vec<ComposeKeep>) -> CoreResult<ComposeProposal> {
+pub async fn compose_proposal(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    locale: String,
+    instruction: Option<String>,
+    keep: Vec<ComposeKeep>,
+) -> CoreResult<ComposeProposal> {
     let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Compose)?;
     // The same budget and secrets as `ai_preview` (Paket 3.1's helper), so both build the same text.
     let (budget, secrets) = request_frame(core, &settings, AiFeature::Compose).await;

@@ -47,11 +47,16 @@ fn check_node(node: &Value, at: &str) -> Result<(), String> {
     }
     match kind {
         "object" => {
-            let properties = map.get("properties").and_then(Value::as_object).ok_or_else(|| format!("{at}: an object needs \"properties\""))?;
+            let properties =
+                map.get("properties").and_then(Value::as_object).ok_or_else(|| format!("{at}: an object needs \"properties\""))?;
             if map.get("additionalProperties") != Some(&Value::Bool(false)) {
                 return Err(format!("{at}: \"additionalProperties\" must be false"));
             }
-            let mut required: Vec<&str> = map.get("required").and_then(Value::as_array).map(|list| list.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            let mut required: Vec<&str> = map
+                .get("required")
+                .and_then(Value::as_array)
+                .map(|list| list.iter().filter_map(Value::as_str).collect())
+                .unwrap_or_default();
             let mut names: Vec<&str> = properties.keys().map(String::as_str).collect();
             required.sort_unstable();
             names.sort_unstable();
@@ -211,7 +216,10 @@ mod tests {
             (json!({"type": "string", "format": "date-time"}), "\"format\" is not allowed"),
             (json!({"type": "string", "pattern": "^a"}), "\"pattern\" is not allowed"),
             (json!({"type": "object", "properties": {"a": {"type": "string"}}, "required": ["a"]}), "additionalProperties"),
-            (json!({"type": "object", "properties": {"a": {"type": "string"}, "b": {"type": "string"}}, "required": ["a"], "additionalProperties": false}), "every property"),
+            (
+                json!({"type": "object", "properties": {"a": {"type": "string"}, "b": {"type": "string"}}, "required": ["a"], "additionalProperties": false}),
+                "every property",
+            ),
             (json!({"type": ["string", "integer"]}), "[T, \"null\"]"),
             (json!({"type": "array"}), "needs \"items\""),
             (json!({"type": "integer", "enum": ["a"]}), "enum"),

@@ -25,8 +25,8 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks};
 use crate::commands::remotes::{self, head_marker};
-use crate::commands::{refs, status};
 use crate::commands::submodule::auto;
+use crate::commands::{refs, status};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::{errors, GitCmd};
@@ -37,8 +37,7 @@ use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
 /// What a pull can change.
-const PULL_CHANGES: [RepoChange; 5] =
-    [RepoChange::Refs, RepoChange::Head, RepoChange::Worktree, RepoChange::Index, RepoChange::Operation];
+const PULL_CHANGES: [RepoChange; 5] = [RepoChange::Refs, RepoChange::Head, RepoChange::Worktree, RepoChange::Index, RepoChange::Operation];
 
 fn no_remote() -> CoreError {
     CoreError::new(ErrorCode::NoRemote, "This repository has no remote set up.")
@@ -364,7 +363,8 @@ pub async fn fetch(core: &Core, repo_id: String, job_id: String, remote: Option<
 /// repositories): network lock, progress to `job`, `repo:changed` on changes.
 pub(crate) async fn fetch_with_job(core: &Core, repo_id: &str, job: &Job, remote: Option<&str>, prune: bool) -> CoreResult<FetchResult> {
     // Only the network lock: a long fetch doesn't block any of the user's write actions.
-    let result = with_network_lock(core, repo_id, job.token(), fetch_remotes(core, repo_id, job.token(), Some(job), remote, prune, true)).await;
+    let result =
+        with_network_lock(core, repo_id, job.token(), fetch_remotes(core, repo_id, job.token(), Some(job), remote, prune, true)).await;
     // Only report if something has changed (or could have after an error).
     let unchanged = matches!(&result, Ok(r) if r.updated_refs == 0 && r.pruned_refs == 0);
     let never_started = matches!(&result, Err(e) if matches!(e.code, ErrorCode::NoRemote | ErrorCode::NotFound | ErrorCode::PathNotFound));
@@ -519,7 +519,10 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     if branch != plan.branch {
         return Err(CoreError::new(
             ErrorCode::StaleState,
-            format!("The branch was switched from “{}” to “{branch}” during the fetch, so the pull was not applied. Please pull again.", plan.branch),
+            format!(
+                "The branch was switched from “{}” to “{branch}” during the fetch, so the pull was not applied. Please pull again.",
+                plan.branch
+            ),
         ));
     }
     let PullPlan { remote, merge_ref, .. } = plan;
@@ -541,7 +544,8 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     // remote-tracking branch '…'"). The short name reads as with a manual `git pull` – but only
     // if it unambiguously means the remote branch (no tag or local branch of the same name).
     let merge_arg = {
-        let resolved = probe(core, repo_id)?.args(["rev-parse", "--symbolic-full-name", "--verify", "--quiet", &upstream_name]).run_raw().await?;
+        let resolved =
+            probe(core, repo_id)?.args(["rev-parse", "--symbolic-full-name", "--verify", "--quiet", &upstream_name]).run_raw().await?;
         if resolved.success() && resolved.stdout_text() == tracking {
             upstream_name.clone()
         } else {
@@ -549,10 +553,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
         }
     };
     let Some(upstream_sha) = resolve_commit(core, repo_id, &tracking).await? else {
-        return Err(CoreError::new(
-            ErrorCode::NoUpstream,
-            format!("The upstream branch “{upstream_name}” does not exist (anymore)."),
-        ));
+        return Err(CoreError::new(ErrorCode::NoUpstream, format!("The upstream branch “{upstream_name}” does not exist (anymore).")));
     };
 
     let (ahead, behind) = match &old_sha {
@@ -616,7 +617,10 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     let summary = if fast_forward {
         format!("Fast-forwarded to {upstream_name} ({}).", commits(behind))
     } else if rebase {
-        format!("Rebased {} onto {upstream_name}.", if ahead == 1 { "1 local commit".to_string() } else { format!("{ahead} local commits") })
+        format!(
+            "Rebased {} onto {upstream_name}.",
+            if ahead == 1 { "1 local commit".to_string() } else { format!("{ahead} local commits") }
+        )
     } else {
         format!("Merged {upstream_name} ({} new).", commits(behind))
     };
@@ -750,7 +754,8 @@ pub async fn push_with(
         expected: expected.as_deref(),
         accepted_secrets: accepted_secrets.as_deref(),
     };
-    let result = with_network_lock(core, &repo_id, job.token(), push_many(core, &repo_id, &job, request, &extra, atomic.unwrap_or(true))).await;
+    let result =
+        with_network_lock(core, &repo_id, job.token(), push_many(core, &repo_id, &job, request, &extra, atomic.unwrap_or(true))).await;
     if let Ok(PushResult::Multi { refs, .. }) = &result {
         if refs.iter().any(|item| item.status == PushRefStatus::Ok) {
             core.emit_repo_changed(&repo_id, &[RepoChange::Refs, RepoChange::Config]);
@@ -806,9 +811,7 @@ async fn push_target(core: &Core, repo_id: &str, request: &PushRequest<'_>) -> C
         }
         None => match &configured {
             Some((name, _)) if name == "." => {
-                return Err(CoreError::not_allowed(format!(
-                    "The upstream of “{branch}” is a local branch; you can't push to it."
-                )));
+                return Err(CoreError::not_allowed(format!("The upstream of “{branch}” is a local branch; you can't push to it.")));
             }
             Some((name, merge)) => {
                 if !pushes_to_upstream(core, repo_id, &branch, merge).await? {
@@ -837,7 +840,13 @@ pub(crate) async fn push_destination(core: &Core, repo_id: &str, request: &PushR
 /// branch there, it must not exist. `Err(Rejected)` if the tracking ref moved away from what the
 /// prompt showed. `expected`: `Some(sha)` = shown tip, `Some("")` = shown absent (`Err(Rejected)` if
 /// the tracking ref exists now), `None` = lease against the tracking ref.
-async fn lease(core: &Core, repo_id: &str, remote: &str, remote_ref: &str, expected: Option<&str>) -> CoreResult<Result<String, PushResult>> {
+async fn lease(
+    core: &Core,
+    repo_id: &str,
+    remote: &str,
+    remote_ref: &str,
+    expected: Option<&str>,
+) -> CoreResult<Result<String, PushResult>> {
     let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(remote_ref);
     let tracking = format!("refs/remotes/{remote}/{remote_branch}");
     let known_tip = resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default();
@@ -873,14 +882,18 @@ async fn extra_refspec(core: &Core, repo_id: &str, item: &PushExtra) -> CoreResu
     } else if let Some(name) = local.strip_prefix("refs/tags/") {
         ("refs/tags/", name)
     } else {
-        return Err(CoreError::invalid_name(format!("“{local}” is neither a local branch nor a tag (expected refs/heads/… or refs/tags/…).")));
+        return Err(CoreError::invalid_name(format!(
+            "“{local}” is neither a local branch nor a tag (expected refs/heads/… or refs/tags/…)."
+        )));
     };
     util::check_ref_name(name).map_err(|reason| CoreError::invalid_name(format!("Invalid name “{name}”: {reason}")))?;
     if resolve_commit(core, repo_id, local).await?.is_none() {
         return Err(CoreError::not_found(format!("“{name}” does not exist.")));
     }
     if item.force && kind == "refs/tags/" {
-        return Err(CoreError::not_allowed(format!("The tag “{name}” can't be forced; tags are only pushed when they are new on the remote.")));
+        return Err(CoreError::not_allowed(format!(
+            "The tag “{name}” can't be forced; tags are only pushed when they are new on the remote."
+        )));
     }
     let target = item.remote_name.as_deref().map(str::trim).filter(|n| !n.is_empty()).unwrap_or(name);
     util::check_ref_name(target).map_err(|reason| CoreError::invalid_name(format!("Invalid name on the remote: {reason}")))?;
@@ -888,7 +901,14 @@ async fn extra_refspec(core: &Core, repo_id: &str, item: &PushExtra) -> CoreResu
 }
 
 /// The primary branch plus `extra` in one `git push`. The caller holds the network lock.
-async fn push_many(core: &Core, repo_id: &str, job: &Job, request: PushRequest<'_>, extra: &[PushExtra], atomic: bool) -> CoreResult<PushResult> {
+async fn push_many(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    request: PushRequest<'_>,
+    extra: &[PushExtra],
+    atomic: bool,
+) -> CoreResult<PushResult> {
     let cancel = job.token();
     let target = push_target(core, repo_id, &request).await?;
     let mut specs: Vec<(String, String)> = vec![(target.local_ref.clone(), target.remote_ref.clone())];
@@ -954,7 +974,8 @@ async fn push_many(core: &Core, repo_id: &str, job: &Job, request: PushRequest<'
         return Err(push_error(core, repo_id, &out).await);
     }
     if target.set_upstream && refs[0].status != PushRefStatus::Rejected {
-        with_lock_cancellable(core, repo_id, cancel, record_upstream(core, repo_id, &target.branch, &target.remote, &target.remote_ref)).await?;
+        with_lock_cancellable(core, repo_id, cancel, record_upstream(core, repo_id, &target.branch, &target.remote, &target.remote_ref))
+            .await?;
     }
     Ok(PushResult::Multi { remote: target.remote, atomic, refs })
 }
@@ -990,10 +1011,19 @@ fn rejection_reason(summary: &str) -> String {
 ///
 /// A rejected push (the remote has foreign commits, or the state there has changed since the
 /// last fetch) is not an error but `PushResult::Rejected`.
-pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelToken, job: Option<&Job>, request: PushRequest<'_>) -> CoreResult<PushResult> {
-    let PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream } = push_target(core, repo_id, &request).await?;
+pub(crate) async fn push_transfer(
+    core: &Core,
+    repo_id: &str,
+    cancel: &CancelToken,
+    job: Option<&Job>,
+    request: PushRequest<'_>,
+) -> CoreResult<PushResult> {
+    let PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream } =
+        push_target(core, repo_id, &request).await?;
     // The local secret scan (spec 6.2) runs before hooks and before anything is sent.
-    if let Some(stop) = secret_scan::check_push(core, repo_id, std::slice::from_ref(&local_ref), &remote, request.accepted_secrets, job, cancel).await? {
+    if let Some(stop) =
+        secret_scan::check_push(core, repo_id, std::slice::from_ref(&local_ref), &remote, request.accepted_secrets, job, cancel).await?
+    {
         return Ok(stop);
     }
 
@@ -1059,9 +1089,7 @@ pub(crate) async fn push_transfer(core: &Core, repo_id: &str, cancel: &CancelTok
             Ok(PushResult::Rejected { reason })
         }
         Some(('=', _)) if out.success() && !created_upstream => Ok(PushResult::UpToDate),
-        Some((flag, _)) if out.success() => {
-            Ok(PushResult::Done { remote, branch: remote_branch, created_upstream, forced: flag == '+' })
-        }
+        Some((flag, _)) if out.success() => Ok(PushResult::Done { remote, branch: remote_branch, created_upstream, forced: flag == '+' }),
         _ => Err(push_error(core, repo_id, &out).await),
     }
 }
@@ -1084,7 +1112,8 @@ fn server_said(stderr: &str) -> String {
 /// refuses (protected branch), that is the error `not_allowed`.
 pub async fn branch_delete_remote(core: &Core, repo_id: String, job_id: String, remote: String, name: String) -> CoreResult<PushResult> {
     let job = core.start_job(&job_id, Some(&repo_id))?;
-    let result = with_network_lock(core, &repo_id, job.token(), delete_remote_branch(core, &repo_id, &job, remote.trim(), name.trim())).await;
+    let result =
+        with_network_lock(core, &repo_id, job.token(), delete_remote_branch(core, &repo_id, &job, remote.trim(), name.trim())).await;
     if result.is_ok() {
         core.emit_repo_changed(&repo_id, &[RepoChange::Refs]);
     }
@@ -1121,7 +1150,9 @@ async fn delete_remote_branch(core: &Core, repo_id: &str, job: &Job, remote: &st
     let stderr = out.stderr_text().to_lowercase();
     let missing = stderr.contains("non-existent ref") || stderr.contains("remote ref does not exist");
     match parse_push_porcelain(&out.stdout, &remote_ref) {
-        Some(('-', _)) if out.success() && !missing => Ok(PushResult::Done { remote: remote.to_string(), branch: name.to_string(), created_upstream: false, forced: false }),
+        Some(('-', _)) if out.success() && !missing => {
+            Ok(PushResult::Done { remote: remote.to_string(), branch: name.to_string(), created_upstream: false, forced: false })
+        }
         Some(('!', detail)) if detail.to_lowercase().contains("remote rejected") => {
             let all = format!("{}\n{}", out.stderr_text(), util::decode_lossy(&out.stdout));
             Err(CoreError::not_allowed(format!("The server refused to delete “{remote}/{name}”: {detail}")).with_git_output(all))
@@ -1273,8 +1304,24 @@ mod tests {
         pull(&f.tc, f.id.clone(), util::new_id(), mode).await
     }
 
-    async fn do_push(f: &Fixture, branch: Option<&str>, remote: Option<&str>, remote_branch: Option<&str>, force: bool) -> CoreResult<PushResult> {
-        push(&f.tc, f.id.clone(), util::new_id(), branch.map(String::from), remote.map(String::from), remote_branch.map(String::from), force, None).await
+    async fn do_push(
+        f: &Fixture,
+        branch: Option<&str>,
+        remote: Option<&str>,
+        remote_branch: Option<&str>,
+        force: bool,
+    ) -> CoreResult<PushResult> {
+        push(
+            &f.tc,
+            f.id.clone(),
+            util::new_id(),
+            branch.map(String::from),
+            remote.map(String::from),
+            remote_branch.map(String::from),
+            force,
+            None,
+        )
+        .await
     }
 
     // --- Fetch ---------------------------------------------------------------
@@ -1454,7 +1501,18 @@ mod tests {
         assert!(!f.tc.write_lock_held(&f.id), "the fetch holds the write lock");
         f.repo.write_file("lokal.txt", "l\n");
         f.repo.git(&["add", "-A"]);
-        let commit = crate::commands::commit::commit_create(&f.tc, f.id.clone(), util::new_id(), "Während des Fetch".into(), String::new(), false, false, false, false, None);
+        let commit = crate::commands::commit::commit_create(
+            &f.tc,
+            f.id.clone(),
+            util::new_id(),
+            "Während des Fetch".into(),
+            String::new(),
+            false,
+            false,
+            false,
+            false,
+            None,
+        );
         let committed = tokio::time::timeout(Duration::from_secs(20), commit).await.expect("the commit hung on the running fetch").unwrap();
         assert_eq!(committed.sha, f.repo.head());
         assert!(f.tc.jobs.is_running("job-lang"), "the fetch is still running");
@@ -1509,7 +1567,10 @@ mod tests {
 
         // Pushing to the existing upstream doesn't need the write lock at all.
         let guard = f.tc.write_lock(&f.id).await;
-        let pushed = tokio::time::timeout(Duration::from_secs(20), do_push(&f, None, None, None, false)).await.expect("the push hung on the write lock").unwrap();
+        let pushed = tokio::time::timeout(Duration::from_secs(20), do_push(&f, None, None, None, false))
+            .await
+            .expect("the push hung on the write lock")
+            .unwrap();
         assert!(matches!(pushed, PushResult::Done { created_upstream: false, .. }), "{pushed:?}");
         assert_eq!(f.remote.git(&["rev-parse", "refs/heads/main"]), first);
 
@@ -1517,7 +1578,9 @@ mod tests {
         f.repo.checkout_new("feature");
         let second = f.repo.commit_file("b.txt", "b\n", "Feature");
         let (core, id) = (f.tc.core.clone(), f.id.clone());
-        let pushing = tokio::spawn(async move { push(&core, id, "job-push".into(), Some("feature".into()), Some("origin".into()), None, false, None).await });
+        let pushing = tokio::spawn(async move {
+            push(&core, id, "job-push".into(), Some("feature".into()), Some("origin".into()), None, false, None).await
+        });
         eventually("the branch is on the remote", || {
             let out = f.remote_output(&["rev-parse", "--verify", "-q", "refs/heads/feature"]);
             out.as_deref() == Some(second.as_str())
@@ -1542,9 +1605,13 @@ mod tests {
         f.repo.checkout("main");
         f.tc.events.clear();
 
-        let delete = |remote: &str, name: &str| branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), remote.to_string(), name.to_string());
+        let delete =
+            |remote: &str, name: &str| branch_delete_remote(&f.tc, f.id.clone(), util::new_id(), remote.to_string(), name.to_string());
         let result = delete("origin", "feature/alt").await.unwrap();
-        assert_eq!(result, PushResult::Done { remote: "origin".into(), branch: "feature/alt".into(), created_upstream: false, forced: false });
+        assert_eq!(
+            result,
+            PushResult::Done { remote: "origin".into(), branch: "feature/alt".into(), created_upstream: false, forced: false }
+        );
         assert_eq!(f.remote_output(&["rev-parse", "--verify", "-q", "refs/heads/feature/alt"]), None, "deleted on the remote");
         assert_eq!(tracking(&f.repo, "feature/alt"), None, "the remote branch is gone locally too");
         assert!(f.repo.git_output(&["rev-parse", "--verify", "-q", "refs/heads/feature/alt"]).status.success(), "the local branch stays");
@@ -1889,7 +1956,10 @@ mod tests {
         f.repo.checkout("main");
         f.repo.branch("lokal");
         let result = do_push(&f, Some("lokal"), Some("origin"), Some("dort/anders"), false).await.unwrap();
-        assert_eq!(result, PushResult::Done { remote: "origin".into(), branch: "dort/anders".into(), created_upstream: true, forced: false });
+        assert_eq!(
+            result,
+            PushResult::Done { remote: "origin".into(), branch: "dort/anders".into(), created_upstream: true, forced: false }
+        );
         assert_eq!(f.remote.git(&["rev-parse", "refs/heads/dort/anders"]), f.repo.head());
         assert_eq!(f.repo.git(&["rev-parse", "--abbrev-ref", "lokal@{upstream}"]), "origin/dort/anders");
         // Upstream newly set although there was nothing to transfer: "done" anyway.
@@ -1925,14 +1995,13 @@ mod tests {
         assert_eq!(f.remote.git(&["rev-parse", "refs/heads/main"]), ours);
 
         // The command line in the log carries the lease, never a bare --force.
-        let commands: Vec<String> = f
-            .tc
-            .events
-            .named(names::LOG_APPENDED)
-            .iter()
-            .filter_map(|e| e["command"].as_str().map(String::from))
-            .filter(|c| c.starts_with("git push"))
-            .collect();
+        let commands: Vec<String> =
+            f.tc.events
+                .named(names::LOG_APPENDED)
+                .iter()
+                .filter_map(|e| e["command"].as_str().map(String::from))
+                .filter(|c| c.starts_with("git push"))
+                .collect();
         assert!(commands.iter().any(|c| c.contains("--force-with-lease=refs/heads/main:")), "{commands:?}");
         assert!(!commands.iter().any(|c| c.split(' ').any(|a| a == "--force" || a == "-f")), "{commands:?}");
     }
@@ -1983,7 +2052,10 @@ mod tests {
         let empty = TestRepo::new();
         empty.git(&["remote", "add", "origin", &f.remote.url()]);
         let id = tc.open(&empty).await.repo.id;
-        assert_eq!(push(&tc, id, "j2".into(), None, Some("origin".into()), None, false, None).await.unwrap_err().code, ErrorCode::NotAllowed);
+        assert_eq!(
+            push(&tc, id, "j2".into(), None, Some("origin".into()), None, false, None).await.unwrap_err().code,
+            ErrorCode::NotAllowed
+        );
 
         // Remote not reachable.
         let missing = f.repo.temp_dir().join("weg.git").to_string_lossy().replace('\\', "/");

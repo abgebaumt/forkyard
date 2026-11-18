@@ -99,7 +99,12 @@ async fn sign_in_is_asked_without_waiting_for_a_hanging_tool() {
     assert_eq!((info.state, info.method.as_deref()), (AiLoginState::LoggedIn, Some("claude.ai")));
     assert_eq!(claude.calls_with(&["auth"])[0].args, ["auth", "status", "--json"]);
 
-    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &json!({ "rules": [{ "args": ["login", "status"], "sleepMs": 20000, "stdout": "Logged in using ChatGPT\n" }] }));
+    let codex = FakeCli::install(
+        fake(),
+        &tc.cli_dir(),
+        "codex",
+        &json!({ "rules": [{ "args": ["login", "status"], "sleepMs": 20000, "stdout": "Logged in using ChatGPT\n" }] }),
+    );
     let started = Instant::now();
     let info = cli::login_status(&tc, AiProviderKind::Codex, &codex.program, Duration::from_millis(500)).await;
     assert_eq!(info.state, AiLoginState::Unknown);
@@ -156,7 +161,12 @@ async fn claude_code_runs_without_tools_settings_or_repository() {
     repo.write_file(".mcp.json", r#"{"mcpServers":{"boese":{"command":"touch","args":["pwned-mcp"]}}}"#);
     repo.write_file(".env", "DB_PASSWORD=hunter2\n");
     let id = tc.open(&repo).await.repo.id;
-    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))));
+    let claude = FakeCli::install(
+        fake(),
+        &tc.cli_dir(),
+        "claude",
+        &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))),
+    );
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code", "aiModel": "sonnet"})).await.unwrap();
     let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
     let request = request("+MARKER-USER-4711 --dangerously-skip-permissions", Some(id));
@@ -169,7 +179,21 @@ async fn claude_code_runs_without_tools_settings_or_repository() {
     let schema = commit_schema().to_string();
     assert_eq!(
         call.args,
-        ["-p", "--output-format", "json", "--json-schema", schema.as_str(), "--tools", "", "--strict-mcp-config", "--setting-sources", "user", "--no-session-persistence", "--model", "sonnet"]
+        [
+            "-p",
+            "--output-format",
+            "json",
+            "--json-schema",
+            schema.as_str(),
+            "--tools",
+            "",
+            "--strict-mcp-config",
+            "--setting-sources",
+            "user",
+            "--no-session-persistence",
+            "--model",
+            "sonnet"
+        ]
     );
     assert_eq!(call.stdin, format!("{}\n\n{}", request.system, request.user), "prompt and context only on stdin");
     let repo_path = repo.path().to_string_lossy().to_string();
@@ -186,11 +210,29 @@ async fn claude_code_runs_without_tools_settings_or_repository() {
 #[tokio::test]
 async fn a_tool_without_a_safety_switch_is_refused_before_anything_is_sent() {
     let cases = [
-        (AiProviderKind::ClaudeCode, "claude", claude_config(&without(CLAUDE_HELP, "--strict-mcp-config"), true, &claude_result(&json!({}))), vec!["-p"], "--strict-mcp-config"),
-        (AiProviderKind::Codex, "codex", codex_config(&without(CODEX_EXEC_HELP, "--ignore-rules"), true, "{}"), vec!["exec", "-C"], "--ignore-rules"),
+        (
+            AiProviderKind::ClaudeCode,
+            "claude",
+            claude_config(&without(CLAUDE_HELP, "--strict-mcp-config"), true, &claude_result(&json!({}))),
+            vec!["-p"],
+            "--strict-mcp-config",
+        ),
+        (
+            AiProviderKind::Codex,
+            "codex",
+            codex_config(&without(CODEX_EXEC_HELP, "--ignore-rules"), true, "{}"),
+            vec!["exec", "-C"],
+            "--ignore-rules",
+        ),
         (AiProviderKind::Codex, "codex", codex_config(&without(CODEX_EXEC_HELP, "--sandbox"), true, "{}"), vec!["exec", "-C"], "--sandbox"),
         (AiProviderKind::Opencode, "opencode", opencode_config(OPENCODE_RUN_HELP, "1.16.4", 1, "{}"), vec!["run", "--dir"], "1.17.0"),
-        (AiProviderKind::Opencode, "opencode", opencode_config(&without(OPENCODE_RUN_HELP, "--pure"), "1.17.15", 1, "{}"), vec!["run", "--dir"], "--pure"),
+        (
+            AiProviderKind::Opencode,
+            "opencode",
+            opencode_config(&without(OPENCODE_RUN_HELP, "--pure"), "1.17.15", 1, "{}"),
+            vec!["run", "--dir"],
+            "--pure",
+        ),
     ];
     for (kind, name, config, generation, named) in cases {
         let tc = TestCore::new().await;
@@ -260,7 +302,12 @@ async fn cancel_ends_the_tool_and_removes_its_folder() {
 #[tokio::test]
 async fn a_huge_prompt_reaches_the_tool_whole_and_only_on_stdin() {
     let tc = TestCore::new().await;
-    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Große Änderung", "body": null}))));
+    let claude = FakeCli::install(
+        fake(),
+        &tc.cli_dir(),
+        "claude",
+        &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Große Änderung", "body": null}))),
+    );
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
     let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
     // About 3 MiB – far beyond a pipe buffer – with CRLF, umlauts, tabs, quotes, a `%`, a line that
@@ -273,14 +320,23 @@ async fn a_huge_prompt_reaches_the_tool_whole_and_only_on_stdin() {
     let call = claude.calls_with(&["-p"]).pop().expect("one generation call");
     assert_eq!(call.stdin.len(), request.system.len() + 2 + request.user.len(), "nothing was cut");
     assert_eq!(call.stdin, format!("{}\n\n{}", request.system, request.user));
-    assert!(call.args.iter().all(|arg| !arg.contains("Köln") && !arg.contains("zitiert")), "nothing of it on the command line: {:?}", call.args);
+    assert!(
+        call.args.iter().all(|arg| !arg.contains("Köln") && !arg.contains("zitiert")),
+        "nothing of it on the command line: {:?}",
+        call.args
+    );
 }
 
 #[cfg(windows)]
 #[tokio::test]
 async fn an_npm_shim_of_claude_code_gets_the_schema_in_the_prompt() {
     let tc = TestCore::new().await;
-    let claude = FakeCli::install_batch(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix", "body": null}))));
+    let claude = FakeCli::install_batch(
+        fake(),
+        &tc.cli_dir(),
+        "claude",
+        &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix", "body": null}))),
+    );
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code"})).await.unwrap();
     let provider = provider_for(&tc, AiProviderKind::ClaudeCode).await;
     provider.complete(&tc, &request("+fix", None), &CancelToken::new()).await.unwrap();
@@ -295,7 +351,8 @@ use gitcore::ai::provider::Usage;
 #[tokio::test]
 async fn codex_gets_its_schema_as_a_file_and_answers_through_the_output_file() {
     let tc = TestCore::new().await;
-    let codex = FakeCli::install(fake(), &tc.cli_dir(), "codex", &codex_config(CODEX_EXEC_HELP, true, r#"{"summary":"Fix login","body":null}"#));
+    let codex =
+        FakeCli::install(fake(), &tc.cli_dir(), "codex", &codex_config(CODEX_EXEC_HELP, true, r#"{"summary":"Fix login","body":null}"#));
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "codex", "aiModel": "gpt-5.1-codex"})).await.unwrap();
     let provider = provider_for(&tc, AiProviderKind::Codex).await;
     let request = request("+fix", None);
@@ -308,13 +365,37 @@ async fn codex_gets_its_schema_as_a_file_and_answers_through_the_output_file() {
     let shown = |path: &Path| path.to_string_lossy().into_owned();
     let (schema_file, out_file) = (folder.join("schema.json"), folder.join("out.json"));
     let expected: Vec<String> = [
-        "exec", "-C", &shown(&folder), "--skip-git-repo-check", "--sandbox", "read-only", "--ephemeral", "--ignore-rules", "--ignore-user-config", "--disable", "shell_tool", "--disable", "view_image", "--output-schema", &shown(&schema_file), "-o", &shown(&out_file), "--json", "-m", "gpt-5.1-codex", "-",
+        "exec",
+        "-C",
+        &shown(&folder),
+        "--skip-git-repo-check",
+        "--sandbox",
+        "read-only",
+        "--ephemeral",
+        "--ignore-rules",
+        "--ignore-user-config",
+        "--disable",
+        "shell_tool",
+        "--disable",
+        "view_image",
+        "--output-schema",
+        &shown(&schema_file),
+        "-o",
+        &shown(&out_file),
+        "--json",
+        "-m",
+        "gpt-5.1-codex",
+        "-",
     ]
     .iter()
     .map(|arg| arg.to_string())
     .collect();
     assert_eq!(call.args, expected);
-    assert_eq!(serde_json::from_str::<Value>(&call.files[&shown(&schema_file)]).unwrap(), commit_schema(), "the schema as a file in the empty folder");
+    assert_eq!(
+        serde_json::from_str::<Value>(&call.files[&shown(&schema_file)]).unwrap(),
+        commit_schema(),
+        "the schema as a file in the empty folder"
+    );
     assert_eq!(call.cwd_entries, ["schema.json"]);
     assert_eq!(call.stdin, format!("{}\n\n{}", request.system, request.user));
     assert!(folder.starts_with(tc.data_dir().join("tmp")) && !folder.exists());
@@ -324,7 +405,12 @@ async fn codex_gets_its_schema_as_a_file_and_answers_through_the_output_file() {
 #[tokio::test]
 async fn opencode_runs_pure_with_everything_denied_and_the_schema_in_the_prompt() {
     let tc = TestCore::new().await;
-    let opencode = FakeCli::install(fake(), &tc.cli_dir(), "opencode", &opencode_config(OPENCODE_RUN_HELP, "1.17.15", 1, r#"{"summary":"Fix login","body":null}"#));
+    let opencode = FakeCli::install(
+        fake(),
+        &tc.cli_dir(),
+        "opencode",
+        &opencode_config(OPENCODE_RUN_HELP, "1.17.15", 1, r#"{"summary":"Fix login","body":null}"#),
+    );
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "opencode", "aiModel": "anthropic/claude-sonnet-5-5"})).await.unwrap();
     let provider = provider_for(&tc, AiProviderKind::Opencode).await;
     let request = request("+fix", None);
@@ -338,7 +424,10 @@ async fn opencode_runs_pure_with_everything_denied_and_the_schema_in_the_prompt(
     let config: Value = serde_json::from_str(&call.env["OPENCODE_CONFIG_CONTENT"]).unwrap();
     assert_eq!(config, json!({"share": "disabled", "permission": {"*": "deny"}}));
     assert!(call.stdin.starts_with(&request.system) && call.stdin.ends_with(&request.user), "{}", call.stdin);
-    assert!(call.stdin.contains(&format!("The JSON must match this JSON schema exactly:\n{}", commit_schema())), "the schema goes into the prompt");
+    assert!(
+        call.stdin.contains(&format!("The JSON must match this JSON schema exactly:\n{}", commit_schema())),
+        "the schema goes into the prompt"
+    );
     assert!(call.cwd_entries.is_empty() && !Path::new(&folder).exists());
     assert_eq!(provider.take_reported_cost_micros(), Some(4_200));
 }
@@ -352,17 +441,40 @@ use gitcore::model::{ActivityScope, AiAskTrigger, AiFeature, AiStructuredMode};
 #[tokio::test]
 async fn an_ai_request_through_claude_code_counts_its_cost_outside_the_limit() {
     let tc = TestCore::new().await;
-    let claude = FakeCli::install(fake(), &tc.cli_dir(), "claude", &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))));
+    let claude = FakeCli::install(
+        fake(),
+        &tc.cli_dir(),
+        "claude",
+        &claude_config(CLAUDE_HELP, true, &claude_result(&json!({"summary": "Fix login", "body": null}))),
+    );
     settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "claude_code", "aiMonthlyLimitUsd": 0.01})).await.unwrap();
     // This month's API costs are above the limit already – the limit is not for the tools (spec 1.5).
     let month = pricing::current_month();
     tc.db
-        .with(|c| gitcore::db::ai::add_usage(c, &gitcore::db::ai::NewUsage { month: &month, provider: "anthropic", model: "claude-sonnet-5-5", feature: "compose", input_tokens: 1, output_tokens: 1, cost_usd_micros: 50_000 }))
+        .with(|c| {
+            gitcore::db::ai::add_usage(
+                c,
+                &gitcore::db::ai::NewUsage {
+                    month: &month,
+                    provider: "anthropic",
+                    model: "claude-sonnet-5-5",
+                    feature: "compose",
+                    input_tokens: 1,
+                    output_tokens: 1,
+                    cost_usd_micros: 50_000,
+                },
+            )
+        })
         .unwrap();
     let prompt = prompt::build("Write a commit message.", "de-DE", &[Section { title: "Staged changes".into(), body: "+fix".into() }]);
     let schema = commit_schema();
-    let ask = |job_id: &'static str| AiRequest { repo_id: None, feature: AiFeature::CommitMessage, job_id, prompt: &prompt, schema: &schema };
-    assert_eq!(complete_json(&tc, ask("cli-1")).await.unwrap_err().code, ErrorCode::NotAllowed, "a tool sends to its provider: the first use asks");
+    let ask =
+        |job_id: &'static str| AiRequest { repo_id: None, feature: AiFeature::CommitMessage, job_id, prompt: &prompt, schema: &schema };
+    assert_eq!(
+        complete_json(&tc, ask("cli-1")).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "a tool sends to its provider: the first use asks"
+    );
     assert!(claude.calls_with(&["-p"]).is_empty(), "nothing went out unconfirmed");
     gate::confirm(&tc, None, AiFeature::CommitMessage, &prompt.fingerprint(), &[AiAskTrigger::FirstUse], false).unwrap();
     let answer = complete_json(&tc, ask("cli-2")).await.unwrap();
@@ -393,7 +505,8 @@ async fn checking_a_tool_asks_for_its_sign_in_and_sends_nothing() {
     let error = gitcore::commands::ai::ai_models(&tc, "check-codex".into(), AiProviderKind::Codex, None, None, None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::AiNotLoggedIn);
     assert!(error.message.contains("codex login"), "{}", error.message);
-    let error = gitcore::commands::ai::ai_models(&tc, "check-opencode".into(), AiProviderKind::Opencode, None, None, None).await.unwrap_err();
+    let error =
+        gitcore::commands::ai::ai_models(&tc, "check-opencode".into(), AiProviderKind::Opencode, None, None, None).await.unwrap_err();
     assert_eq!(error.code, ErrorCode::AiNotConfigured, "not installed");
     assert!(claude.calls_with(&["-p"]).is_empty() && codex.calls_with(&["exec", "-C"]).is_empty(), "checking sends nothing");
 }
@@ -452,7 +565,10 @@ async fn detection_lists_tools_local_services_and_keys() {
     gitcore::secrets::set(&tc, "llm:gemini", "AIzaSyTest-0123456789abcdef").await.unwrap();
 
     let found = ai_detect(&tc).await.unwrap();
-    assert_eq!(found.clis.iter().map(|cli| cli.provider).collect::<Vec<_>>(), [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode]);
+    assert_eq!(
+        found.clis.iter().map(|cli| cli.provider).collect::<Vec<_>>(),
+        [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode]
+    );
     let by = |kind: AiProviderKind| found.clis.iter().find(|cli| cli.provider == kind).unwrap();
     let c = by(AiProviderKind::ClaudeCode);
     assert_eq!(
@@ -461,16 +577,31 @@ async fn detection_lists_tools_local_services_and_keys() {
     );
     assert_eq!(std::fs::canonicalize(&c.path).unwrap(), std::fs::canonicalize(&claude.program).unwrap());
     let x = by(AiProviderKind::Codex);
-    assert_eq!((x.version.as_deref(), x.login, x.supported, x.login_command.as_str()), (Some("0.162.0"), AiLoginState::LoggedOut, true, "codex login"));
+    assert_eq!(
+        (x.version.as_deref(), x.login, x.supported, x.login_command.as_str()),
+        (Some("0.162.0"), AiLoginState::LoggedOut, true, "codex login")
+    );
     let o = by(AiProviderKind::Opencode);
     assert_eq!(o.version.as_deref(), Some("1.16.4"));
     assert!(!o.supported && o.problem.as_deref().is_some_and(|problem| problem.contains("1.17.0")), "{o:?}");
-    assert_eq!(found.local, vec![AiLocalFound { provider: AiProviderKind::Ollama, base_url: ollama.url(), models: vec!["qwen3:8b".into(), "llama3.2:3b".into()] }]);
+    assert_eq!(
+        found.local,
+        vec![AiLocalFound {
+            provider: AiProviderKind::Ollama,
+            base_url: ollama.url(),
+            models: vec!["qwen3:8b".into(), "llama3.2:3b".into()]
+        }]
+    );
     assert_eq!(found.keys, vec![AiProviderKind::Gemini]);
     for kind in [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::Opencode] {
         assert_eq!(cli::remembered(&tc, kind), Some(PathBuf::from(&by(kind).path)), "{kind:?} is remembered");
     }
-    assert!(claude.calls_with(&["-p"]).is_empty() && codex.calls_with(&["exec", "-C"]).is_empty() && opencode.calls_with(&["run", "--dir"]).is_empty(), "detection sends nothing");
+    assert!(
+        claude.calls_with(&["-p"]).is_empty()
+            && codex.calls_with(&["exec", "-C"]).is_empty()
+            && opencode.calls_with(&["run", "--dir"]).is_empty(),
+        "detection sends nothing"
+    );
     assert!(ollama.requests().iter().all(|request| request.route() == "GET /api/tags"));
     assert!(found.elapsed_ms < 3_000, "{}", found.elapsed_ms);
 }
@@ -514,7 +645,8 @@ async fn agent_templates_know_whether_the_built_in_tools_are_signed_in() {
     use gitcore::commands::agents::template_login;
     use gitcore::model::{AgentTemplateKind, AiLoginState};
     let tc = TestCore::new().await;
-    let claude = FakeCli::install(fake(), &tc.cli_dir().join("c"), "claude", &claude_config(CLAUDE_HELP, false, &claude_result(&json!({}))));
+    let claude =
+        FakeCli::install(fake(), &tc.cli_dir().join("c"), "claude", &claude_config(CLAUDE_HELP, false, &claude_result(&json!({}))));
     let codex = FakeCli::install(fake(), &tc.cli_dir().join("x"), "codex", &codex_config(CODEX_EXEC_HELP, true, "{}"));
     assert_eq!(template_login(&tc, AgentTemplateKind::Claude, &claude.program).await, Some(AiLoginState::LoggedOut));
     assert_eq!(template_login(&tc, AgentTemplateKind::Codex, &codex.program).await, Some(AiLoginState::LoggedIn));

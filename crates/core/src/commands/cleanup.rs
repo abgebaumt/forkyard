@@ -23,15 +23,15 @@ mod measure;
 mod run;
 
 #[cfg(test)]
+mod failure_tests;
+#[cfg(test)]
+mod keep_tests;
+#[cfg(test)]
 mod measure_tests;
 #[cfg(test)]
 mod preview_tests;
 #[cfg(test)]
 mod run_tests;
-#[cfg(test)]
-mod keep_tests;
-#[cfg(test)]
-mod failure_tests;
 #[cfg(test)]
 mod test_support;
 

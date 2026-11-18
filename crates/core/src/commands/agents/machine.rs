@@ -191,7 +191,14 @@ mod tests {
         assert!(m.apply(Event::Exited(Some(0)), at(t0, 70)));
         assert_eq!((m.status(), m.is_final(), m.exit_code()), (AgentStatus::Done, true, Some(0)));
         // Final: nothing changes it any more.
-        for event in [Event::Output, Event::Hook(HookSignal::Waiting), Event::Terminal(Cue::Notification), Event::Tick, Event::AppClosed, Event::Exited(Some(1))] {
+        for event in [
+            Event::Output,
+            Event::Hook(HookSignal::Waiting),
+            Event::Terminal(Cue::Notification),
+            Event::Tick,
+            Event::AppClosed,
+            Event::Exited(Some(1)),
+        ] {
             assert!(!m.apply(event, at(t0, 80)));
         }
         assert_eq!(m.status(), AgentStatus::Done);

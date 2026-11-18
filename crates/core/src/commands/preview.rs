@@ -136,7 +136,10 @@ pub(crate) struct MergedConflict {
 pub(crate) enum Merged {
     Tree(String),
     /// `tree`: the merge result, with conflict markers in the conflicted text files.
-    Conflicts { tree: String, files: Vec<MergedConflict> },
+    Conflicts {
+        tree: String,
+        files: Vec<MergedConflict>,
+    },
 }
 
 fn paths(files: Vec<MergedConflict>) -> Vec<String> {
@@ -147,7 +150,15 @@ fn paths(files: Vec<MergedConflict>) -> Vec<String> {
 /// Git finds it). `with_ranges`: for each conflicted file (at most `MAX_RANGE_FILES`) the merged
 /// blob is read from the result tree and its conflict markers give the line ranges. The conflict
 /// style is fixed to `merge`, so the repository's `merge.conflictStyle` does not move them.
-pub(crate) async fn merge_tree(core: &Core, repo_id: &str, cancel: &CancelToken, base: Option<&str>, ours: &str, theirs: &str, with_ranges: bool) -> CoreResult<Merged> {
+pub(crate) async fn merge_tree(
+    core: &Core,
+    repo_id: &str,
+    cancel: &CancelToken,
+    base: Option<&str>,
+    ours: &str,
+    theirs: &str,
+    with_ranges: bool,
+) -> CoreResult<Merged> {
     let base_arg = base.map(|sha| format!("--merge-base={sha}"));
     let mut args = vec!["-c", "merge.conflictStyle=merge", "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z"];
     if let Some(arg) = &base_arg {
@@ -185,7 +196,13 @@ pub(crate) async fn merge_tree(core: &Core, repo_id: &str, cancel: &CancelToken,
 
 /// The merged version of a conflicted file from a `merge-tree` result tree (with its conflict
 /// markers); `None` if it is no blob there (deleted, submodule) or larger than `MAX_RANGE_BLOB`.
-pub(crate) async fn conflicted_blob(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str, raw_path: &[u8]) -> CoreResult<Option<Vec<u8>>> {
+pub(crate) async fn conflicted_blob(
+    core: &Core,
+    repo_id: &str,
+    cancel: &CancelToken,
+    tree: &str,
+    raw_path: &[u8],
+) -> CoreResult<Option<Vec<u8>>> {
     let mut spec = format!("{tree}:").into_bytes();
     spec.extend_from_slice(raw_path);
     let read = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.read_only().no_log().check(false)) };
@@ -216,7 +233,14 @@ fn too_many() -> ConflictPreview {
 }
 
 /// Cherry-pick or revert of `commits` on top of `head`.
-async fn series(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, commits: &[String], step: Step) -> CoreResult<ConflictPreview> {
+async fn series(
+    core: &Core,
+    repo_id: &str,
+    cancel: &CancelToken,
+    head: &str,
+    commits: &[String],
+    step: Step,
+) -> CoreResult<ConflictPreview> {
     if commits.len() > MAX_SERIES {
         return Ok(too_many());
     }
@@ -229,7 +253,14 @@ async fn series(core: &Core, repo_id: &str, cancel: &CancelToken, head: &str, co
 }
 
 /// Replays `commits` one after the other onto `start`; stops at the first conflict.
-async fn replay(core: &Core, repo_id: &str, cancel: &CancelToken, start: String, commits: &[String], step: Step) -> CoreResult<ConflictPreview> {
+async fn replay(
+    core: &Core,
+    repo_id: &str,
+    cancel: &CancelToken,
+    start: String,
+    commits: &[String],
+    step: Step,
+) -> CoreResult<ConflictPreview> {
     if commits.is_empty() {
         return Ok(ConflictPreview::Clean);
     }
@@ -249,7 +280,9 @@ async fn replay(core: &Core, repo_id: &str, cancel: &CancelToken, start: String,
         };
         let merged = merge_tree(core, repo_id, cancel, Some(base), &current, theirs, false).await?;
         match merged {
-            Merged::Conflicts { files, .. } => return Ok(ConflictPreview::Conflicts { files: paths(files), at_commit: Some(commit.clone()) }),
+            Merged::Conflicts { files, .. } => {
+                return Ok(ConflictPreview::Conflicts { files: paths(files), at_commit: Some(commit.clone()) })
+            }
             Merged::Tree(tree) if index + 1 < commits.len() => current = wrap_tree(core, repo_id, cancel, &tree).await?,
             Merged::Tree(_) => {}
         }
@@ -267,14 +300,17 @@ async fn only_parent(core: &Core, repo_id: &str, cancel: &CancelToken, commit: &
     let mut parents = text.split_whitespace().skip(1);
     match (parents.next(), parents.next()) {
         (Some(parent), None) => Ok(parent.to_string()),
-        (None, _) => Err(CoreError::unknown(format!("{} is the first commit of the repository; the preview can't replay it.", short(commit)))),
+        (None, _) => {
+            Err(CoreError::unknown(format!("{} is the first commit of the repository; the preview can't replay it.", short(commit))))
+        }
         (Some(_), Some(_)) => Err(CoreError::unknown(format!("{} is a merge commit; the preview can't replay it.", short(commit)))),
     }
 }
 
 /// A loose commit around an intermediate tree, so that the next step has a commit to merge with.
 async fn wrap_tree(core: &Core, repo_id: &str, cancel: &CancelToken, tree: &str) -> CoreResult<String> {
-    let mut cmd = core.git_for(repo_id)?.read_only().no_log().check(false).args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: preview"]);
+    let mut cmd =
+        core.git_for(repo_id)?.read_only().no_log().check(false).args(["commit-tree", "--no-gpg-sign", tree, "-m", "forkyard: preview"]);
     for (key, value) in PREVIEW_IDENTITY {
         cmd = cmd.env(key, value);
     }
@@ -321,7 +357,8 @@ async fn rebase(
                 None => onto_sha.clone(),
             };
             let range = format!("{from}...{tip}");
-            let out = git(core, repo_id, cancel, &["rev-list", "--reverse", "--no-merges", "--right-only", "--cherry-pick", &range], None).await?;
+            let out = git(core, repo_id, cancel, &["rev-list", "--reverse", "--no-merges", "--right-only", "--cherry-pick", &range], None)
+                .await?;
             if !out.success() {
                 return Err(git_failure(&out));
             }

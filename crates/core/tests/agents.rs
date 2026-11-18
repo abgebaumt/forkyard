@@ -69,7 +69,9 @@ fn same(a: &str, b: &Path) -> bool {
 async fn an_agent_starts_in_its_own_worktree_gets_its_task_and_reports_waiting() {
     let f = fixture(&[]).await;
     let task = "Größe der Übersicht anpassen\nZweite Zeile mit \"Anführung\" und ${worktree}";
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), task.into(), "agent/groesse".into(), "main".into(), false, 120, 40).await.unwrap();
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), task.into(), "agent/groesse".into(), "main".into(), false, 120, 40)
+        .await
+        .unwrap();
     let folder = f.repo.temp_dir().join("repo.agents").join("groesse");
     assert!(same(&agent.worktree_path, &folder), "{}", agent.worktree_path);
     assert_eq!((agent.short_name.as_str(), agent.branch.as_str(), agent.base.as_str()), ("groesse", "agent/groesse", "main"));
@@ -97,7 +99,8 @@ async fn an_agent_starts_in_its_own_worktree_gets_its_task_and_reports_waiting()
     // Its report makes it "waiting for you", according to the agent.
     let waiting = wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     assert_eq!(waiting.status_source, AgentStatusSource::Agent);
-    let porcelain = std::process::Command::new("git").args(["status", "--porcelain", "--untracked-files=all"]).current_dir(&folder).output().unwrap();
+    let porcelain =
+        std::process::Command::new("git").args(["status", "--porcelain", "--untracked-files=all"]).current_dir(&folder).output().unwrap();
     let expected = String::from_utf8_lossy(&porcelain.stdout).lines().count() as u32;
     assert_eq!((waiting.changed_files, expected), (1, 1));
     assert!(waiting.terminal_id.is_some());
@@ -117,7 +120,9 @@ async fn an_agent_starts_in_its_own_worktree_gets_its_task_and_reports_waiting()
 #[tokio::test]
 async fn an_agent_that_ends_with_zero_is_done() {
     let f = fixture(&["--exit-after-task", "0"]).await;
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Kurz".into(), "agent/kurz".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Kurz".into(), "agent/kurz".into(), "main".into(), false, 80, 24)
+        .await
+        .unwrap();
     // The agent's own "done" report comes just before its exit (a soft "done" while the program
     // still runs); the final status is the one after the program has ended.
     let deadline = Instant::now() + WAIT;
@@ -144,14 +149,18 @@ async fn start_refuses_bad_input_and_leaves_nothing_behind() {
     assert_eq!(start("custom:fake", "-x", "main").await.unwrap_err().code, ErrorCode::InvalidName);
     assert_eq!(start("custom:fake", "main", "main").await.unwrap_err().code, ErrorCode::NameExists);
     assert_eq!(start("custom:fake", "agent/b", "--all").await.unwrap_err().code, ErrorCode::NotFound);
-    let empty = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "   ".into(), "agent/c".into(), "main".into(), false, 80, 24).await.unwrap_err();
+    let empty = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "   ".into(), "agent/c".into(), "main".into(), false, 80, 24)
+        .await
+        .unwrap_err();
     assert_eq!(empty.code, ErrorCode::NotAllowed);
     // A template whose program is missing: refused before anything is created.
-    let missing = serde_json::json!({ "agentTemplates": [{ "id": "custom:weg", "name": "Weg", "program": "/gibt/es/nicht/agent", "args": [] }] });
+    let missing =
+        serde_json::json!({ "agentTemplates": [{ "id": "custom:weg", "name": "Weg", "program": "/gibt/es/nicht/agent", "args": [] }] });
     gitcore::commands::settings::settings_set(&f.tc, missing).await.unwrap();
     assert_eq!(start("custom:weg", "agent/d", "main").await.unwrap_err().code, ErrorCode::NotAllowed);
     // "Without prompts" for a template without unattended arguments.
-    let unattended = agent_start(&f.tc, f.id.clone(), "custom:weg".into(), "x".into(), "agent/e".into(), "main".into(), true, 80, 24).await.unwrap_err();
+    let unattended =
+        agent_start(&f.tc, f.id.clone(), "custom:weg".into(), "x".into(), "agent/e".into(), "main".into(), true, 80, 24).await.unwrap_err();
     assert_eq!(unattended.code, ErrorCode::NotAllowed);
     assert!(!f.repo.temp_dir().join("repo.agents").join("d").exists());
     assert_eq!(f.repo.git(&["branch", "--list", "agent/*"]), "");
@@ -162,11 +171,13 @@ async fn start_refuses_bad_input_and_leaves_nothing_behind() {
     assert_eq!(start("custom:fake", "agent/f", "main").await.unwrap_err().code, ErrorCode::RepoUntrusted);
 }
 
-
 #[tokio::test]
 async fn stopping_resuming_and_closing_the_terminal_end_as_stopped() {
     let f = fixture(&[]).await;
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Bleib da".into(), "agent/bleib".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent =
+        agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Bleib da".into(), "agent/bleib".into(), "main".into(), false, 80, 24)
+            .await
+            .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     agent_stop(&f.tc, agent.id.clone()).await.unwrap();
     // The status turns Stopped as soon as the stop is requested; the program's end (no terminal,
@@ -204,7 +215,9 @@ async fn stopping_resuming_and_closing_the_terminal_end_as_stopped() {
 #[tokio::test]
 async fn quitting_records_running_agents_as_closed_by_the_app() {
     let f = fixture(&[]).await;
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Läuft".into(), "agent/laeuft".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Läuft".into(), "agent/laeuft".into(), "main".into(), false, 80, 24)
+        .await
+        .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     gitcore::commands::terminal::close_all(&f.tc);
     let row = f.tc.db.with(|c| gitcore::db::agents::require(c, &agent.id)).unwrap();
@@ -218,7 +231,10 @@ async fn quitting_records_running_agents_as_closed_by_the_app() {
 #[tokio::test]
 async fn an_orphaned_agent_can_only_be_forgotten_and_git_keeps_its_branch() {
     let f = fixture(&["--exit-after-task", "0"]).await;
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Weg damit".into(), "agent/weg".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent =
+        agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Weg damit".into(), "agent/weg".into(), "main".into(), false, 80, 24)
+            .await
+            .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Done).await;
     assert_eq!(agent_forget(&f.tc, agent.id.clone()).await.unwrap_err().code, ErrorCode::NotAllowed, "not orphaned");
     // The folder is deleted outside Forkyard.
@@ -229,14 +245,21 @@ async fn an_orphaned_agent_can_only_be_forgotten_and_git_keeps_its_branch() {
     agent_forget(&f.tc, agent.id.clone()).await.unwrap();
     assert!(agent_list(&f.tc, f.id.clone()).await.unwrap().is_empty());
     // `for-each-ref`, not `branch --list`: the latter marks a branch of a (missing) linked worktree with "+".
-    assert_eq!(f.repo.git(&["for-each-ref", "--format=%(refname)", "refs/heads/agent/weg"]), "refs/heads/agent/weg", "forgetting never touches Git");
+    assert_eq!(
+        f.repo.git(&["for-each-ref", "--format=%(refname)", "refs/heads/agent/weg"]),
+        "refs/heads/agent/weg",
+        "forgetting never touches Git"
+    );
     assert_eq!(agent_forget(&f.tc, agent.id).await.unwrap_err().code, ErrorCode::NotFound);
 }
 
 #[tokio::test]
 async fn cleanup_ends_a_running_agent_first() {
     let f = fixture(&[]).await;
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Läuft noch".into(), "agent/noch".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent =
+        agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Läuft noch".into(), "agent/noch".into(), "main".into(), false, 80, 24)
+            .await
+            .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     agent_cleanup(&f.tc, agent.id.clone()).await.unwrap();
     assert!(!f.repo.temp_dir().join("repo.agents").join("noch").exists());
@@ -250,7 +273,10 @@ async fn the_test_command_runs_by_itself_when_the_agent_is_done() {
     let marker = f.repo.temp_dir().join("auto-test.txt");
     let command = format!("echo automatisch > '{}'", marker.display());
     gitcore::commands::settings::repo_settings_set(&f.tc, f.id.clone(), serde_json::json!({ "testCommand": command })).await.unwrap();
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Fertig werden".into(), "agent/fertig".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent =
+        agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Fertig werden".into(), "agent/fertig".into(), "main".into(), false, 80, 24)
+            .await
+            .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Done).await;
     wait_for("the test command's file", || marker.exists()).await;
     let deadline = Instant::now() + WAIT;
@@ -268,7 +294,19 @@ async fn the_test_command_runs_by_itself_when_the_agent_is_done() {
 #[tokio::test]
 async fn informing_types_the_confirmed_text_into_the_agents_terminal() {
     let f = fixture(&[]).await;
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), "Anmeldung umbauen".into(), "agent/umbauen".into(), "main".into(), false, 120, 40).await.unwrap();
+    let agent = agent_start(
+        &f.tc,
+        f.id.clone(),
+        "custom:fake".into(),
+        "Anmeldung umbauen".into(),
+        "agent/umbauen".into(),
+        "main".into(),
+        false,
+        120,
+        40,
+    )
+    .await
+    .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     let note = "Hinweis von Forkyard: „b“ ändert ebenfalls src/auth.ts (Zeilen 40–62).\nBitte dort nichts ändern.";
     gitcore::commands::agents::agent_inform(&f.tc, agent.id.clone(), note.into()).await.unwrap();
@@ -286,7 +324,9 @@ use gitcore::model::AgentReviewSource;
 async fn a_running_agent_can_be_reviewed_but_its_rest_is_not_discarded() {
     let f = fixture(&[]).await;
     let task = "Größe prüfen";
-    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), task.into(), "agent/pruefen".into(), "main".into(), false, 80, 24).await.unwrap();
+    let agent = agent_start(&f.tc, f.id.clone(), "custom:fake".into(), task.into(), "agent/pruefen".into(), "main".into(), false, 80, 24)
+        .await
+        .unwrap();
     wait_status(&f, &agent.id, AgentStatus::Waiting).await;
     let folder = f.repo.temp_dir().join("repo.agents").join("pruefen");
 

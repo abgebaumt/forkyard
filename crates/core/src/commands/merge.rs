@@ -31,8 +31,7 @@ use crate::undo::{self, UndoAction, UndoRecord};
 use crate::util;
 
 /// Merge, rebase, cherry-pick, revert and their completion can change everything.
-const ALL_CHANGES: [RepoChange; 5] =
-    [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
+const ALL_CHANGES: [RepoChange; 5] = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
 /// Paths are file names, not patterns: `*` or `[` in a name must not match anything else.
 const LITERAL_PATHSPECS: &str = "GIT_LITERAL_PATHSPECS";
 const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
@@ -56,9 +55,7 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
     ensure_no_unmerged(core, repo_id).await?;
     let head = read_head(core, repo_id).await?;
     let Some(old) = head_sha(&head).map(str::to_string) else {
-        return Err(CoreError::not_allowed(
-            "You can’t merge in a repository without commits. Create a commit first.",
-        ));
+        return Err(CoreError::not_allowed("You can’t merge in a repository without commits. Create a commit first."));
     };
     let src = resolve_source(core, repo_id, source).await?;
     let target = head_label(&head);
@@ -387,7 +384,12 @@ async fn remove_orig_file(core: &Core, repo_id: &str, root: &Path, rel: &[u8]) {
 /// `skip_hooks`: the merge commit is created with `--no-verify` (like "Skip Git hooks" for an
 /// ordinary commit). Git has no such option for rebase, cherry-pick and revert; there it has no effect.
 pub async fn operation_continue(core: &Core, repo_id: String, message: Option<String>, skip_hooks: Option<bool>) -> CoreResult<OpResult> {
-    auto::follow_operation(core, &repo_id, core.with_write_lock(&repo_id, &ALL_CHANGES, continue_locked(core, &repo_id, message, skip_hooks.unwrap_or(false)))).await
+    auto::follow_operation(
+        core,
+        &repo_id,
+        core.with_write_lock(&repo_id, &ALL_CHANGES, continue_locked(core, &repo_id, message, skip_hooks.unwrap_or(false))),
+    )
+    .await
 }
 
 async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, skip_hooks: bool) -> CoreResult<OpResult> {
@@ -403,7 +405,8 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
     // If it belongs to this operation, it is completed at the end; if it is orphaned
     // (finished or aborted in the terminal), it is closed now.
     let pending = rebase::pending_undo(core, repo_id)?;
-    let adopted = pending.as_ref().is_some_and(|entry| rebase::pending_belongs_to(entry, op.kind, start.ref_name.as_deref(), &start.before));
+    let adopted =
+        pending.as_ref().is_some_and(|entry| rebase::pending_belongs_to(entry, op.kind, start.ref_name.as_deref(), &start.before));
     if let Some(orphan) = pending.as_ref().filter(|_| !adopted) {
         if let Err(e) = rebase::settle_entry(core, repo_id, orphan).await {
             log::warn!("Orphaned undo entry not closed: {}", e.message);
@@ -414,25 +417,25 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
     let git = hooks.wrap(core.git_for(repo_id)?);
     let result: CoreResult<(&str, GitOutput)> = async {
         Ok(match op.kind {
-        OperationKind::Merge => {
-            let git = if skip_hooks { git.arg("commit").arg("--no-verify") } else { git.arg("commit") };
-            let out = match util::non_empty(message) {
-                Some(text) => git.args(["--cleanup=whitespace", "-F", "-"]).stdin(text).run_raw().await?,
-                // MERGE_MSG contains the conflict list as a comment; without an editor it would otherwise stay.
-                None => git.args(["--no-edit", "--cleanup=strip"]).run_raw().await?,
-            };
-            ("commit", out)
-        }
-        OperationKind::Rebase => ("rebase", git.args(["rebase", "--continue"]).run_raw().await?),
-        OperationKind::CherryPick | OperationKind::Revert => {
-            let (subcommand, marker) =
-                if op.kind == OperationKind::CherryPick { ("cherry-pick", "CHERRY_PICK_HEAD") } else { ("revert", "REVERT_HEAD") };
-            // If the resolution left nothing over, `--continue` would fail with "now empty":
-            // the step is skipped then.
-            let empty = dir.join(marker).exists() && index_matches_head(core, repo_id).await?;
-            let flag = if empty { "--skip" } else { "--continue" };
-            (subcommand, git.args([subcommand, flag]).run_raw().await?)
-        }
+            OperationKind::Merge => {
+                let git = if skip_hooks { git.arg("commit").arg("--no-verify") } else { git.arg("commit") };
+                let out = match util::non_empty(message) {
+                    Some(text) => git.args(["--cleanup=whitespace", "-F", "-"]).stdin(text).run_raw().await?,
+                    // MERGE_MSG contains the conflict list as a comment; without an editor it would otherwise stay.
+                    None => git.args(["--no-edit", "--cleanup=strip"]).run_raw().await?,
+                };
+                ("commit", out)
+            }
+            OperationKind::Rebase => ("rebase", git.args(["rebase", "--continue"]).run_raw().await?),
+            OperationKind::CherryPick | OperationKind::Revert => {
+                let (subcommand, marker) =
+                    if op.kind == OperationKind::CherryPick { ("cherry-pick", "CHERRY_PICK_HEAD") } else { ("revert", "REVERT_HEAD") };
+                // If the resolution left nothing over, `--continue` would fail with "now empty":
+                // the step is skipped then.
+                let empty = dir.join(marker).exists() && index_matches_head(core, repo_id).await?;
+                let flag = if empty { "--skip" } else { "--continue" };
+                (subcommand, git.args([subcommand, flag]).run_raw().await?)
+            }
         })
     }
     .await;
@@ -456,19 +459,15 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
     let source = op.source.clone().unwrap_or_else(|| "?".to_string());
     let target = op.target.clone().unwrap_or_else(|| head_label(&new_head));
     let (action, undo_label, summary) = match op.kind {
-        OperationKind::Merge => (
-            UndoAction::Merge,
-            format!("Undo merge of {source} into {target}"),
-            format!("Merged {source} into {target}"),
-        ),
+        OperationKind::Merge => {
+            (UndoAction::Merge, format!("Undo merge of {source} into {target}"), format!("Merged {source} into {target}"))
+        }
         OperationKind::Rebase => (
             UndoAction::Rebase,
             format!("Undo rebase of {source} onto {target}"),
             format!("Moved {source} onto {target} (rebase complete)"),
         ),
-        OperationKind::CherryPick => {
-            (UndoAction::CherryPick, "Undo cherry-pick".to_string(), "Cherry-pick complete".to_string())
-        }
+        OperationKind::CherryPick => (UndoAction::CherryPick, "Undo cherry-pick".to_string(), "Cherry-pick complete".to_string()),
         OperationKind::Revert => (UndoAction::Revert, "Undo revert".to_string(), "Revert complete".to_string()),
     };
     if let Some(entry) = pending.as_ref().filter(|_| adopted) {
@@ -603,7 +602,12 @@ async fn abort_past_leftovers(core: &Core, repo_id: &str, subcommand: &str, fail
     if !text.contains("untracked working tree files would be overwritten") {
         return Err(plain());
     }
-    let files: Vec<String> = text.lines().filter_map(|line| line.strip_prefix('\t')).map(|file| file.trim().to_string()).filter(|file| !file.is_empty()).collect();
+    let files: Vec<String> = text
+        .lines()
+        .filter_map(|line| line.strip_prefix('\t'))
+        .map(|file| file.trim().to_string())
+        .filter(|file| !file.is_empty())
+        .collect();
     let dir = status::git_dir(core, repo_id).await?;
     let target = ["rebase-merge/orig-head", "rebase-apply/orig-head"]
         .iter()
@@ -616,7 +620,8 @@ async fn abort_past_leftovers(core: &Core, repo_id: &str, subcommand: &str, fail
         for file in &files {
             let wanted = read(core, repo_id)?.args(["rev-parse", "-q", "--verify"]).arg(format!("{target}:{file}")).run_raw().await?;
             let found = read(core, repo_id)?.args(["hash-object", "--"]).arg(file).run_raw().await?;
-            let same = wanted.success() && found.success() && !wanted.stdout_text().is_empty() && wanted.stdout_text() == found.stdout_text();
+            let same =
+                wanted.success() && found.success() && !wanted.stdout_text().is_empty() && wanted.stdout_text() == found.stdout_text();
             if !same {
                 differing.push(file.clone());
             }
@@ -662,21 +667,28 @@ impl ExtraWork {
     async fn find(core: &Core, repo_id: &str, op: &Operation) -> CoreResult<Option<ExtraWork>> {
         let Some(head) = undo::rev_parse(core, repo_id, "HEAD^{commit}").await? else { return Ok(None) };
         let snapshot = undo::snapshot(core, repo_id, None).await?;
-        let changed = changed_names(core, repo_id, &["diff-tree", "-r", "-z", "--name-only", "--no-renames", &head, &snapshot.tree]).await?;
+        let changed =
+            changed_names(core, repo_id, &["diff-tree", "-r", "-z", "--name-only", "--no-renames", &head, &snapshot.tree]).await?;
         if changed.is_empty() {
             return Ok(None);
         }
         let mut touched: HashSet<Vec<u8>> = read_unmerged(core, repo_id).await?.into_iter().map(|entry| entry.path).collect();
         let dir = status::git_dir(core, repo_id).await?;
         let lines = |name: &str| -> Vec<String> {
-            std::fs::read_to_string(dir.join(name)).map(|text| text.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect()).unwrap_or_default()
+            std::fs::read_to_string(dir.join(name))
+                .map(|text| text.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect())
+                .unwrap_or_default()
         };
         match op.kind {
             OperationKind::Merge => {
                 // What the incoming side changed since the merge base.
                 for other in lines("MERGE_HEAD") {
                     let range = format!("{head}...{other}");
-                    touched.extend(changed_names(core, repo_id, &["diff", "--no-ext-diff", "-z", "--name-only", "--no-renames", &range]).await.unwrap_or_default());
+                    touched.extend(
+                        changed_names(core, repo_id, &["diff", "--no-ext-diff", "-z", "--name-only", "--no-renames", &range])
+                            .await
+                            .unwrap_or_default(),
+                    );
                 }
             }
             OperationKind::Rebase | OperationKind::CherryPick | OperationKind::Revert => {
@@ -688,7 +700,13 @@ impl ExtraWork {
                 };
                 match stopped {
                     Some(sha) => touched.extend(
-                        changed_names(core, repo_id, &["diff-tree", "-r", "-z", "--name-only", "--no-renames", "--no-commit-id", "--root", "-m", &sha]).await.unwrap_or_default(),
+                        changed_names(
+                            core,
+                            repo_id,
+                            &["diff-tree", "-r", "-z", "--name-only", "--no-renames", "--no-commit-id", "--root", "-m", &sha],
+                        )
+                        .await
+                        .unwrap_or_default(),
                     ),
                     // Without the commit, "unrelated" cannot be determined: then touch nothing.
                     None => return Ok(None),
@@ -706,7 +724,10 @@ impl ExtraWork {
         let moved: HashSet<Vec<u8>> = if now == self.head {
             HashSet::new()
         } else {
-            changed_names(core, repo_id, &["diff-tree", "-r", "-z", "--name-only", "--no-renames", &self.head, &now]).await?.into_iter().collect()
+            changed_names(core, repo_id, &["diff-tree", "-r", "-z", "--name-only", "--no-renames", &self.head, &now])
+                .await?
+                .into_iter()
+                .collect()
         };
         let keep: Vec<String> = self.paths.iter().filter(|path| !moved.contains(*path)).map(|path| util::decode_lossy(path)).collect();
         if keep.is_empty() {
@@ -767,7 +788,9 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
         // running operation (it only writes REVERT_HEAD on a conflict) – that could not be
         // continued. Hence back to the state before: `reset --merge` only takes what the revert
         // touched; other local changes stay.
-        if hook_failure(&ran, &rebase::REWRITE_ABORTING_HOOKS, &out, "the revert").is_some() && read_operation(core, repo_id).await?.is_none() {
+        if hook_failure(&ran, &rebase::REWRITE_ABORTING_HOOKS, &out, "the revert").is_some()
+            && read_operation(core, repo_id).await?.is_none()
+        {
             core.git_for(repo_id)?.args(["update-index", "-q", "--refresh"]).no_log().run_raw().await?;
             let reset = core.git_for(repo_id)?.args(["reset", "--merge", "-q", "HEAD"]).run_raw().await?;
             if !reset.success() {
@@ -820,11 +843,7 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
         },
     )
     .await;
-    Ok(OpResult::Done {
-        sha: Some(new),
-        fast_forward: false,
-        summary: format!("Reverted commit {} with a new commit", short_sha(&target)),
-    })
+    Ok(OpResult::Done { sha: Some(new), fast_forward: false, summary: format!("Reverted commit {} with a new commit", short_sha(&target)) })
 }
 
 // ---------------------------------------------------------------------------
@@ -898,7 +917,7 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
                 }),
             },
         )
-    .await
+        .await
         .map(|_| ())
     };
     // Backup or undo entry missing: nothing is reset and no orphan refs stay behind.
@@ -1338,10 +1357,7 @@ fn commit_not_found(rev: &str) -> CoreError {
 }
 
 fn identity_missing() -> CoreError {
-    CoreError::new(
-        ErrorCode::IdentityMissing,
-        "Name and email for commits aren’t set.",
-    )
+    CoreError::new(ErrorCode::IdentityMissing, "Name and email for commits aren’t set.")
 }
 
 async fn no_operation(core: &Core, repo_id: &str) -> CoreError {
@@ -1411,10 +1427,7 @@ async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
         OperationKind::CherryPick => "a cherry-pick",
         OperationKind::Revert => "a revert",
     };
-    Err(CoreError::new(
-        ErrorCode::OperationInProgress,
-        format!("There’s already {name} in progress. Finish or abort it first."),
-    ))
+    Err(CoreError::new(ErrorCode::OperationInProgress, format!("There’s already {name} in progress. Finish or abort it first.")))
 }
 
 /// Conflicts without a running operation (after squash merge or stash) would otherwise be reported as a new conflict.
@@ -1422,10 +1435,7 @@ async fn ensure_no_unmerged(core: &Core, repo_id: &str) -> CoreResult<()> {
     if read_unmerged(core, repo_id).await?.is_empty() {
         return Ok(());
     }
-    Err(CoreError::new(
-        ErrorCode::Conflict,
-        "There are still unresolved conflicts. Resolve them or discard the changes first.",
-    ))
+    Err(CoreError::new(ErrorCode::Conflict, "There are still unresolved conflicts. Resolve them or discard the changes first."))
 }
 
 /// A foreign `index.lock` is reported, never deleted.

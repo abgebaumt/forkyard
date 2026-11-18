@@ -9,13 +9,16 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::errors;
 use crate::jobs::Job;
-use crate::model::{CleanupFailure, CleanupMode, CleanupOptions, CleanupResult, CleanupStep, CleanupStepResult, CleanupStepStatus, RepoChange};
+use crate::model::{
+    CleanupFailure, CleanupMode, CleanupOptions, CleanupResult, CleanupStep, CleanupStepResult, CleanupStepStatus, RepoChange,
+};
 use crate::util;
 
 use super::measure;
 
 /// The order of the steps (spec Paket 10, „Kern“).
-pub(super) const ORDER: [CleanupStep; 5] = [CleanupStep::Worktrees, CleanupStep::Undo, CleanupStep::Reflog, CleanupStep::Lfs, CleanupStep::Gc];
+pub(super) const ORDER: [CleanupStep; 5] =
+    [CleanupStep::Worktrees, CleanupStep::Undo, CleanupStep::Reflog, CleanupStep::Lfs, CleanupStep::Gc];
 /// Largest age the undo option accepts, in days.
 pub(super) const MAX_UNDO_DAYS: u32 = 3650;
 /// `job:progress.line` while the run waits for the locks.
@@ -190,8 +193,11 @@ async fn prune_worktrees(core: &Core, repo_id: &str, job: &Job) -> CoreResult<Ra
 /// Removes undo backups older than `days` – their refs in one transaction, then their rows.
 async fn remove_undo_backups(core: &Core, repo_id: &str, ids: &[String], days: u32) -> CoreResult<Ran> {
     let cutoff = util::iso_days_ago(i64::from(days));
-    let old: Vec<measure::Backup> =
-        measure::undo_backups(core, repo_id, ids).await?.into_iter().filter(|backup| measure::is_older(backup.created_at.as_deref(), &cutoff)).collect();
+    let old: Vec<measure::Backup> = measure::undo_backups(core, repo_id, ids)
+        .await?
+        .into_iter()
+        .filter(|backup| measure::is_older(backup.created_at.as_deref(), &cutoff))
+        .collect();
     let script: String = old.iter().flat_map(|backup| backup.refs.iter()).map(|name| format!("delete {name}\n")).collect();
     if !script.is_empty() {
         core.git_for(repo_id)?.args(["update-ref", "--stdin"]).stdin(script).run().await?;

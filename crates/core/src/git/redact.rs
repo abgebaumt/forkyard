@@ -249,7 +249,8 @@ pub fn redact(text: &str) -> String {
         }
     }
     if let Some(re) = private_key_block() {
-        if let std::borrow::Cow::Owned(changed) = re.replace_all(&out, "-----BEGIN ${1}PRIVATE KEY----- *** -----END ${1}PRIVATE KEY-----") {
+        if let std::borrow::Cow::Owned(changed) = re.replace_all(&out, "-----BEGIN ${1}PRIVATE KEY----- *** -----END ${1}PRIVATE KEY-----")
+        {
             out = changed;
         }
     }
@@ -275,7 +276,11 @@ mod tests {
     fn sec08_headers_keys_and_awkward_passwords_are_removed() {
         // Password with "@" or "/": none of it remains.
         assert_eq!(redact("https://anna:ge@heim@github.com/a/b.git"), "https://***@github.com/a/b.git");
-        assert!(!redact("https://anna:ge/heim@github.com/a/b.git").contains("heim"), "{}", redact("https://anna:ge/heim@github.com/a/b.git"));
+        assert!(
+            !redact("https://anna:ge/heim@github.com/a/b.git").contains("heim"),
+            "{}",
+            redact("https://anna:ge/heim@github.com/a/b.git")
+        );
         assert!(!redact("fatal: unable to access 'https://anna:a/b@c@host.example/r.git/'").contains("a/b@c"));
         // Header lines and keys from `git config --list`.
         for (line, secret) in [
@@ -308,7 +313,10 @@ mod tests {
             ("token github_pat_11ABCDEFG0123456789_abcdefghijklmnop rejected", "github_pat_11ABCDEFG0123456789_abcdefghijklmnop"),
             ("gitlab says glpat-xYz12_3-AbCdEfGhIjK is expired", "glpat-xYz12_3-AbCdEfGhIjK"),
             ("bitbucket said ATBBkUqP7XeN3QzFvJm8aR2sLdW5yH6tC1gZ0xB4 is wrong", "ATBBkUqP7XeN3QzFvJm8aR2sLdW5yH6tC1gZ0xB4"),
-            ("token ATATT3xFfGF0aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789=ABCD1234 expired", "ATATT3xFfGF0aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789=ABCD1234"),
+            (
+                "token ATATT3xFfGF0aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789=ABCD1234 expired",
+                "ATATT3xFfGF0aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789=ABCD1234",
+            ),
         ] {
             let out = redact(line);
             assert!(!out.contains(secret), "{line} → {out}");
@@ -350,15 +358,23 @@ mod tests {
     /// The push scan needs to know where a value is, not only that one is there.
     #[test]
     fn secret_spans_name_the_value_not_its_name() {
-        let found = |line: &str| secret_spans(line).into_iter().map(|span| (line[span.start..span.end].to_string(), span.kind)).collect::<Vec<_>>();
+        let found =
+            |line: &str| secret_spans(line).into_iter().map(|span| (line[span.start..span.end].to_string(), span.kind)).collect::<Vec<_>>();
         // Built at run time: no literal key format in this file.
         let token = format!("ghp_{}", "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789");
         let aws = format!("AKIA{}", "Q7RZ4M2XK9PLW3NB");
-        assert_eq!(found(&format!("export GITHUB_TOKEN={token}")), vec![(token.clone(), SecretKind::KnownToken)], "the known format wins over the named value");
+        assert_eq!(
+            found(&format!("export GITHUB_TOKEN={token}")),
+            vec![(token.clone(), SecretKind::KnownToken)],
+            "the known format wins over the named value"
+        );
         assert_eq!(found(&format!("aws {aws} eu-central-1")), vec![(aws.clone(), SecretKind::KnownToken)]);
         assert_eq!(found(r#"db_password = "hunter2-lang""#), vec![("hunter2-lang".to_string(), SecretKind::Credential)]);
         assert_eq!(found("Authorization: Bearer abc.def-123456"), vec![("Bearer abc.def-123456".to_string(), SecretKind::Credential)]);
-        assert_eq!(found("url = https://anna:ge@heim2026@git.example.com/a/b.git"), vec![("ge@heim2026".to_string(), SecretKind::UrlPassword)]);
+        assert_eq!(
+            found("url = https://anna:ge@heim2026@git.example.com/a/b.git"),
+            vec![("ge@heim2026".to_string(), SecretKind::UrlPassword)]
+        );
         let pem = format!("-----BEGIN {}PRIVATE KEY-----", "OPENSSH ");
         assert_eq!(found(&pem), vec![(pem.clone(), SecretKind::PrivateKey)]);
         let two = format!("a={token} b={aws}");

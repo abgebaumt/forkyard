@@ -102,7 +102,8 @@ pub fn report_line(report: &StartupReport) -> Option<String> {
     }
     let mut calls = report.calls.clone();
     calls.sort_by(|a, b| b.ms.total_cmp(&a.ms));
-    let slowest: Vec<String> = calls.iter().take(8).map(|call| format!("{} {} ms (from {})", call.command, call.ms.round() as i64, at(call.start))).collect();
+    let slowest: Vec<String> =
+        calls.iter().take(8).map(|call| format!("{} {} ms (from {})", call.command, call.ms.round() as i64, at(call.start))).collect();
     let mut line = format!("Startup (UI): {}", parts.join(", "));
     if !slowest.is_empty() {
         line.push_str(&format!("; slowest calls: {}", slowest.join(", ")));

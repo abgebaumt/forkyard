@@ -45,7 +45,10 @@ fn hook_dirs(tc: &TestCore) -> usize {
 
 async fn clean(tc: &TestCore, id: &str) {
     let status = read_status(tc, id).await.unwrap();
-    assert!(status.unstaged.is_empty() && status.staged.is_empty() && status.conflicted.is_empty() && status.operation.is_none(), "{status:?}");
+    assert!(
+        status.unstaged.is_empty() && status.staged.is_empty() && status.conflicted.is_empty() && status.operation.is_none(),
+        "{status:?}"
+    );
 }
 
 /// main: README, m.txt; feature (from the root): f.txt.
@@ -70,7 +73,11 @@ async fn pre_rebase_can_refuse_a_rebase_and_hooks_are_reported() {
 
     let err = rebase_start(&tc, id.clone(), "main".into(), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::HookFailed, "{err:?}");
-    assert!(err.message.contains("pre-rebase") && err.message.contains("the rebase") && err.message.contains("exit code 4"), "{}", err.message);
+    assert!(
+        err.message.contains("pre-rebase") && err.message.contains("the rebase") && err.message.contains("exit code 4"),
+        "{}",
+        err.message
+    );
     assert!(!err.message.contains("paused"), "nothing is in progress: {}", err.message);
     assert!(err.git_output.clone().unwrap_or_default().contains("ist hier verboten"), "{err:?}");
     let events = hook_events(&tc);
@@ -124,7 +131,9 @@ async fn interactive_rebase_and_squash_report_their_hooks() {
     tc.events.clear();
     assert!(matches!(squash_commits(&tc, id.clone(), vec![one, two], "Eins und zwei".into()).await.unwrap(), OpResult::Done { .. }));
     // The hook runs per rewritten commit and at the end for the rebase: one event with all lines.
-    let rewritten = |tc: &TestCore| hook_events(tc).iter().any(|(hook, output, code)| hook == "post-rewrite" && output.ends_with("fertig: rebase") && *code == 0);
+    let rewritten = |tc: &TestCore| {
+        hook_events(tc).iter().any(|(hook, output, code)| hook == "post-rewrite" && output.ends_with("fertig: rebase") && *code == 0)
+    };
     assert!(rewritten(&tc), "{:?}", hook_events(&tc));
     let RebasePlan::Ok { mut rows, .. } = rebase_plan(&tc, id.clone(), base.clone()).await.unwrap() else { panic!("expected a plan") };
     assert_eq!(rows.len(), 2);
@@ -155,7 +164,11 @@ async fn cherry_pick_reports_hooks_and_a_refusing_hook_halts_it() {
     tc.events.clear();
     let err = cherry_pick(&tc, id.clone(), vec![feature]).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::HookFailed, "{err:?}");
-    assert!(err.message.contains("prepare-commit-msg") && err.message.contains("cherry-pick") && err.message.contains("exit code 2"), "{}", err.message);
+    assert!(
+        err.message.contains("prepare-commit-msg") && err.message.contains("cherry-pick") && err.message.contains("exit code 2"),
+        "{}",
+        err.message
+    );
     assert!(err.message.contains("paused"), "{}", err.message);
     assert!(hook_events(&tc).contains(&ran("prepare-commit-msg", "Message nicht erlaubt", 2)), "{:?}", hook_events(&tc));
     assert_eq!(repo.head(), main, "no commit");

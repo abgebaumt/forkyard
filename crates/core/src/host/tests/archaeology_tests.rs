@@ -17,7 +17,9 @@ fn item_requests(f: &Fixture) -> Vec<String> {
         .map(|request| request.path().to_string())
         .filter(|path| {
             let segments: Vec<&str> = path.split('/').collect();
-            segments.len() >= 2 && matches!(segments[segments.len() - 2], "issues" | "pulls") && segments[segments.len() - 1].parse::<u64>().is_ok()
+            segments.len() >= 2
+                && matches!(segments[segments.len() - 2], "issues" | "pulls")
+                && segments[segments.len() - 1].parse::<u64>().is_ok()
         })
         .collect()
 }

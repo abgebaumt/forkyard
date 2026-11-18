@@ -17,12 +17,18 @@ use crate::model::{AiAskTrigger, AiFeature, AiInput, AiProviderKind, PlanCheck, 
 use crate::testkit::{MockRequest, MockResponse, MockServer, TestCore, TestRepo};
 
 fn answer(steps: Vec<(&str, Value)>, note: Option<&str>) -> Value {
-    let steps: Vec<Value> = steps.into_iter().map(|(command, args)| json!({"command": command, "args": full_args(args), "why": "Weil es verlangt wurde."})).collect();
+    let steps: Vec<Value> = steps
+        .into_iter()
+        .map(|(command, args)| json!({"command": command, "args": full_args(args), "why": "Weil es verlangt wurde."}))
+        .collect();
     json!({"steps": steps, "note": note})
 }
 
 fn ollama_chat(content: &str) -> MockResponse {
-    MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}))
+    MockResponse::json(
+        200,
+        json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content}, "done": true, "done_reason": "stop", "prompt_eval_count": 50, "eval_count": 7}),
+    )
 }
 
 /// A local Ollama stand-in that always gives `reply`.
@@ -52,7 +58,11 @@ fn chats(server: &MockServer) -> Vec<MockRequest> {
 fn delimited(user: &str) -> String {
     let start = user.find("<<<REPO ").expect("a repository section");
     let token: String = user[start + 8..].chars().take_while(|c| c.is_ascii_alphanumeric()).collect();
-    user.split(&format!("<<<REPO {token}>>>")).skip(1).map(|part| part.split(&format!("<<<END {token}>>>")).next().unwrap_or("")).collect::<Vec<_>>().join("\n")
+    user.split(&format!("<<<REPO {token}>>>"))
+        .skip(1)
+        .map(|part| part.split(&format!("<<<END {token}>>>")).next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 async fn plan(tc: &TestCore, id: &str, text: &str) -> CoreResult<PlanPreview> {
@@ -109,7 +119,11 @@ async fn foreign_arguments_and_injected_force_pushes_are_shown_but_not_runnable_
     let (tc, repo, id) = with_ollama(&server).await;
     let _remote = repo.add_remote();
     let preview = plan(&tc, &id, "zeig mir was neu ist").await.unwrap();
-    assert!(matches!(&preview.steps[0].check, PlanCheck::Invalid { reason } if reason.contains("“force” is not an argument of branchCreate")), "{:?}", preview.steps[0].check);
+    assert!(
+        matches!(&preview.steps[0].check, PlanCheck::Invalid { reason } if reason.contains("“force” is not an argument of branchCreate")),
+        "{:?}",
+        preview.steps[0].check
+    );
     assert_eq!(preview.steps[0].args.get("force"), Some(&json!(true)), "the foreign argument stays visible");
     assert!(!preview.steps[0].args.contains_key("resetMode"), "unused null arguments are dropped");
     assert_eq!(preview.steps[1].class, PlanClass::Outward);
@@ -163,11 +177,13 @@ async fn the_repository_context_is_small_newest_first_and_cut_per_line() {
     let server = ollama(answer(Vec::new(), Some("Nichts zu tun.")));
     let (tc, repo, id) = with_ollama(&server).await;
     for n in 0..12 {
-        let sha = repo.commit_as(&format!("Früher Stand {n}"), "Test Person", "test@example.com", &format!("@{} +1400", 1_262_304_000 + n * 60));
+        let sha =
+            repo.commit_as(&format!("Früher Stand {n}"), "Test Person", "test@example.com", &format!("@{} +1400", 1_262_304_000 + n * 60));
         repo.branch_at(&format!("alt-{n:02}"), &sha);
     }
     for n in 0..49 {
-        let sha = repo.commit_as(&format!("Neuer Stand {n}"), "Test Person", "test@example.com", &format!("@{} -0930", 1_790_000_000 + n * 60));
+        let sha =
+            repo.commit_as(&format!("Neuer Stand {n}"), "Test Person", "test@example.com", &format!("@{} -0930", 1_790_000_000 + n * 60));
         repo.branch_at(&format!("neu-{n:02}"), &sha);
     }
     let long_subject = format!("Sehr lange Betreffzeile {}", "ä".repeat(300));
@@ -195,7 +211,10 @@ async fn the_preview_and_the_request_send_the_same_text() {
     let server = MockServer::start(move |request| match request.route().as_str() {
         "POST /v1/messages" => {
             counter.fetch_add(1, Ordering::SeqCst);
-            MockResponse::json(200, json!({"content": [{"type": "text", "text": reply.as_str()}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 60}}))
+            MockResponse::json(
+                200,
+                json!({"content": [{"type": "text", "text": reply.as_str()}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 60}}),
+            )
         }
         _ => MockResponse::json(404, json!({})),
     });

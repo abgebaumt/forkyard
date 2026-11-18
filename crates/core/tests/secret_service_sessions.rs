@@ -48,7 +48,12 @@ impl Drop for PrivateKeyring {
 }
 
 fn gdbus(address: &str, args: &[&str]) -> Option<String> {
-    let out = Command::new("gdbus").env("DBUS_SESSION_BUS_ADDRESS", address).args(["call", "--session", "--timeout", "10", "--dest", "org.freedesktop.secrets"]).args(args).output().ok()?;
+    let out = Command::new("gdbus")
+        .env("DBUS_SESSION_BUS_ADDRESS", address)
+        .args(["call", "--session", "--timeout", "10", "--dest", "org.freedesktop.secrets"])
+        .args(args)
+        .output()
+        .ok()?;
     out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
@@ -72,7 +77,14 @@ fn start_keyring() -> Option<PrivateKeyring> {
     )
     .unwrap();
     let address = format!("unix:path={}", bus.display());
-    let mut children = vec![Command::new("dbus-daemon").arg("--config-file").arg(path("bus.conf")).arg("--nofork").stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap()];
+    let mut children = vec![Command::new("dbus-daemon")
+        .arg("--config-file")
+        .arg(path("bus.conf"))
+        .arg("--nofork")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .unwrap()];
     wait_for(|| bus.exists());
     children.push(spawn_daemon(&address, dir.path()));
     let keyring = PrivateKeyring { children, address, dir };
@@ -103,7 +115,18 @@ fn spawn_daemon(address: &str, dir: &Path) -> Child {
 }
 
 fn unlocked(address: &str) -> bool {
-    gdbus(address, &["--object-path", "/org/freedesktop/secrets/aliases/default", "--method", "org.freedesktop.DBus.Properties.Get", "org.freedesktop.Secret.Collection", "Locked"]).is_some_and(|s| s.contains("false"))
+    gdbus(
+        address,
+        &[
+            "--object-path",
+            "/org/freedesktop/secrets/aliases/default",
+            "--method",
+            "org.freedesktop.DBus.Properties.Get",
+            "org.freedesktop.Secret.Collection",
+            "Locked",
+        ],
+    )
+    .is_some_and(|s| s.contains("false"))
 }
 
 fn wait_for(mut ready: impl FnMut() -> bool) {
@@ -116,7 +139,11 @@ fn wait_for(mut ready: impl FnMut() -> bool) {
 /// Number of the session the daemon hands out next ("/org/freedesktop/secrets/session/s7" → 7):
 /// it counts every session opened so far, also those of clients that are gone.
 fn next_session_number(address: &str) -> u32 {
-    let out = gdbus(address, &["--object-path", "/org/freedesktop/secrets", "--method", "org.freedesktop.Secret.Service.OpenSession", "plain", "<''>"]).expect("OpenSession answers");
+    let out = gdbus(
+        address,
+        &["--object-path", "/org/freedesktop/secrets", "--method", "org.freedesktop.Secret.Service.OpenSession", "plain", "<''>"],
+    )
+    .expect("OpenSession answers");
     let tail = out.rsplit("/session/s").next().unwrap();
     tail.trim_end_matches(|c: char| !c.is_ascii_digit()).parse().unwrap_or_else(|_| panic!("session path in {out}"))
 }

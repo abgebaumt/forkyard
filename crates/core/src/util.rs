@@ -45,7 +45,13 @@ pub fn decode_lossy(bytes: &[u8]) -> String {
 pub fn decode_text(bytes: &[u8]) -> (String, &'static str) {
     if let Some((enc, bom_len)) = encoding_rs::Encoding::for_bom(bytes) {
         let (text, _) = enc.decode_without_bom_handling(&bytes[bom_len..]);
-        let name = if enc == encoding_rs::UTF_8 { "utf-8" } else if enc == encoding_rs::UTF_16LE { "utf-16le" } else { "utf-16be" };
+        let name = if enc == encoding_rs::UTF_8 {
+            "utf-8"
+        } else if enc == encoding_rs::UTF_16LE {
+            "utf-16le"
+        } else {
+            "utf-16be"
+        };
         return (text.into_owned(), name);
     }
     match std::str::from_utf8(bytes) {
@@ -317,8 +323,7 @@ where
         map.insert(key.clone(), value.clone());
         changed.push(key.clone());
     }
-    let value: T = serde_json::from_value(base)
-        .map_err(|e| CoreError::not_allowed(format!("{what}: invalid value ({e}).")))?;
+    let value: T = serde_json::from_value(base).map_err(|e| CoreError::not_allowed(format!("{what}: invalid value ({e}).")))?;
     Ok((value, changed))
 }
 

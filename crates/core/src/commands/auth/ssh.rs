@@ -130,9 +130,7 @@ async fn run_keygen(keygen: &Path, args: &[&std::ffi::OsStr], env: &[(std::ffi::
         Err(e) => return Err(CoreError::io(format!("ssh-keygen could not be started: {e}"))),
     };
     match tokio::time::timeout(KEYGEN_TIMEOUT, child.wait_with_output()).await {
-        Ok(Ok(out)) => {
-            Ok(ToolOutput { success: out.status.success(), stdout: out.stdout, stderr: util::decode_lossy(&out.stderr) })
-        }
+        Ok(Ok(out)) => Ok(ToolOutput { success: out.status.success(), stdout: out.stdout, stderr: util::decode_lossy(&out.stderr) }),
         Ok(Err(e)) => Err(CoreError::io(format!("ssh-keygen was aborted: {e}"))),
         Err(_) => Err(CoreError::new(ErrorCode::Timeout, "ssh-keygen did not respond in time.")),
     }
@@ -140,13 +138,7 @@ async fn run_keygen(keygen: &Path, args: &[&std::ffi::OsStr], env: &[(std::ffi::
 
 /// Generates an ed25519 pair. The passphrase reaches ssh-keygen through the askpass helper
 /// and thus never appears on a command line.
-pub async fn generate(
-    broker: &Broker,
-    keygen: &Path,
-    private: &Path,
-    comment: &str,
-    passphrase: Option<&str>,
-) -> CoreResult<()> {
+pub async fn generate(broker: &Broker, keygen: &Path, private: &Path, comment: &str, passphrase: Option<&str>) -> CoreResult<()> {
     let mut args: Vec<&std::ffi::OsStr> =
         vec!["-q".as_ref(), "-t".as_ref(), "ed25519".as_ref(), "-f".as_ref(), private.as_os_str(), "-C".as_ref(), comment.as_ref()];
     let session = match passphrase {

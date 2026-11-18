@@ -83,10 +83,19 @@ fn whole(diff: &TextDiff) -> PatchSelection {
 /// Only the changed lines with these texts, from the first hunk.
 fn lines(diff: &TextDiff, texts: &[&str]) -> PatchSelection {
     let hunk = &diff.hunks[0];
-    let picked: Vec<u32> =
-        hunk.lines.iter().enumerate().filter(|(_, line)| line.kind != DiffLineKind::Context && texts.contains(&line.text.as_str())).map(|(index, _)| index as u32).collect();
+    let picked: Vec<u32> = hunk
+        .lines
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| line.kind != DiffLineKind::Context && texts.contains(&line.text.as_str()))
+        .map(|(index, _)| index as u32)
+        .collect();
     assert_eq!(picked.len(), texts.len(), "{:?}", hunk.lines);
-    PatchSelection { path: diff.path.clone(), hunks: vec![HunkSelection { index: hunk.index, lines: Some(picked) }], expect: diff.range_token.clone().expect("range token") }
+    PatchSelection {
+        path: diff.path.clone(),
+        hunks: vec![HunkSelection { index: hunk.index, lines: Some(picked) }],
+        expect: diff.range_token.clone().expect("range token"),
+    }
 }
 
 #[tokio::test]
@@ -95,7 +104,11 @@ async fn takes_single_lines_byte_exact_into_the_working_directory() {
     let diff = fx.diff("crlf.txt").await;
     assert!(diff.token.is_none(), "a range diff offers no line staging");
     let status = fx.apply(vec![lines(&diff, &["zwei", "ZWEI"])], RangeApplyTarget::Worktree).await.unwrap();
-    assert_eq!(fx.repo.read_file("crlf.txt"), b"eins\r\nZWEI\r\ndrei\r\nvier", "only the selected pair; CRLF and the missing final newline stay");
+    assert_eq!(
+        fx.repo.read_file("crlf.txt"),
+        b"eins\r\nZWEI\r\ndrei\r\nvier",
+        "only the selected pair; CRLF and the missing final newline stay"
+    );
     assert_eq!(fx.staged(), "", "the index is untouched");
     assert!(status.unstaged.iter().any(|change| change.path == "crlf.txt"), "{status:?}");
     let latin = fx.diff("latin1.txt").await;
@@ -198,7 +211,11 @@ async fn range_apply_handles_dash_space_and_umlaut_paths() {
     let mut outside = whole(&diff);
     outside.path = "../draußen.txt".into();
     assert_eq!(fx.apply(vec![outside], RangeApplyTarget::Worktree).await.unwrap_err().code, ErrorCode::NotAllowed);
-    assert_eq!(fx.apply(vec![whole(&diff), whole(&diff)], RangeApplyTarget::Worktree).await.unwrap_err().code, ErrorCode::NotAllowed, "the same file twice");
+    assert_eq!(
+        fx.apply(vec![whole(&diff), whole(&diff)], RangeApplyTarget::Worktree).await.unwrap_err().code,
+        ErrorCode::NotAllowed,
+        "the same file twice"
+    );
 }
 
 /// A file far above the diff view's line limit (opened with "show anyway"): only the selected hunk
@@ -223,7 +240,11 @@ async fn a_huge_crlf_file_takes_over_only_the_selected_hunk() {
     };
     assert_eq!(diff.hunks.len(), 2, "two changes far apart");
     let last = &diff.hunks[1];
-    let selection = PatchSelection { path: diff.path.clone(), hunks: vec![HunkSelection { index: last.index, lines: None }], expect: diff.range_token.clone().expect("range token") };
+    let selection = PatchSelection {
+        path: diff.path.clone(),
+        hunks: vec![HunkSelection { index: last.index, lines: None }],
+        expect: diff.range_token.clone().expect("range token"),
+    };
     range_apply(&tc, id.clone(), base, agent, vec![selection], RangeApplyTarget::Worktree).await.unwrap();
     let expected = base_text.replacen("Zeile 59999\r\n", "ENDE\r\n", 1);
     assert_eq!(repo.read_file("riesig.txt"), expected.as_bytes(), "only the second hunk");
@@ -239,7 +260,8 @@ async fn a_renamed_file_ends_in_a_conflict_with_its_name() {
     fx.repo.checkout("main");
     let diff = fx.diff_to("umbenannt.txt", &renamed).await;
     assert_eq!(diff.old_path.as_deref(), Some("zehn.txt"), "Git sees a rename");
-    let err = range_apply(&fx.tc, fx.id.clone(), fx.base.clone(), renamed, vec![whole(&diff)], RangeApplyTarget::Worktree).await.unwrap_err();
+    let err =
+        range_apply(&fx.tc, fx.id.clone(), fx.base.clone(), renamed, vec![whole(&diff)], RangeApplyTarget::Worktree).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::Conflict, "{err:?}");
     assert!(err.message.contains("umbenannt.txt"), "{}", err.message);
     assert!(!fx.repo.path().join("umbenannt.txt").exists());

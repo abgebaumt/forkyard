@@ -30,7 +30,8 @@ async fn save_list_rename_and_delete() {
     assert!(workspace_list(&tc).await.unwrap().is_empty());
     tc.events.clear();
 
-    let list = workspace_save(&tc, None, "  Kunden   Nord ".into(), vec![id_b.clone(), id_a.clone(), id_b.clone(), " ".into()]).await.unwrap();
+    let list =
+        workspace_save(&tc, None, "  Kunden   Nord ".into(), vec![id_b.clone(), id_a.clone(), id_b.clone(), " ".into()]).await.unwrap();
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].name, "Kunden Nord");
     assert_eq!(list[0].repo_ids, vec![id_b.clone(), id_a.clone()], "order is kept, duplicates count once");

@@ -154,7 +154,10 @@ async fn merge_creates_a_merge_commit_when_branches_diverged() {
     assert_eq!(status.operation, None);
     assert_eq!(paths(&status.unstaged), vec!["a.txt"]);
     let entry = last_undo(&tc, &id);
-    assert_eq!((entry.action.as_str(), entry.ref_before.as_deref(), entry.ref_after.as_deref()), ("merge", Some(before.as_str()), Some(sha.as_str())));
+    assert_eq!(
+        (entry.action.as_str(), entry.ref_before.as_deref(), entry.ref_after.as_deref()),
+        ("merge", Some(before.as_str()), Some(sha.as_str()))
+    );
     assert_eq!(entry.payload["fastForward"], false);
 }
 
@@ -292,7 +295,10 @@ async fn merge_prefers_the_branch_over_a_tag_of_the_same_name() {
     assert!(matches!(&result, OpResult::Done { summary, .. } if summary.starts_with("Merged feature into main")), "{result:?}");
     repo.git(&["reset", "-q", "--hard", &base]);
     let result = merge_start(&tc, id, "v1.0".into(), MergeMode::Default).await.unwrap();
-    assert!(matches!(&result, OpResult::Done { fast_forward: true, summary, .. } if summary.starts_with("Merged v1.0 into main")), "{result:?}");
+    assert!(
+        matches!(&result, OpResult::Done { fast_forward: true, summary, .. } if summary.starts_with("Merged v1.0 into main")),
+        "{result:?}"
+    );
     assert_eq!(repo.head(), tip);
 }
 
@@ -332,7 +338,10 @@ async fn merge_conflict_and_hard_reset_in_a_linked_worktree() {
     assert_eq!(backup_ref(&repo, &entry, "before"), Some(merged));
     let snapshot = entry.payload["worktreeSnapshot"].as_str().unwrap().to_string();
     assert_eq!(repo.git(&["show", &format!("{snapshot}:ohne-nl.txt")]), "lokal");
-    let leftovers = std::fs::read_dir(&state_dir).unwrap().filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().starts_with("forkyard")).count();
+    let leftovers = std::fs::read_dir(&state_dir)
+        .unwrap()
+        .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().starts_with("forkyard"))
+        .count();
     assert_eq!(leftovers, 0);
 
     // The first worktree noticed none of it.
@@ -664,10 +673,7 @@ async fn delete_modify_conflicts_keeping_the_file() {
     assert_eq!(repo.read_file("name-von-uns.txt"), b"neu\n");
 
     assert!(matches!(operation_continue(&tc, id, None, None).await.unwrap(), OpResult::Done { .. }));
-    assert_eq!(
-        repo.git(&["ls-tree", "-r", "--name-only", "HEAD"]),
-        "name-von-uns.txt\nvon-denen-geloescht.txt\nvon-uns-geloescht.txt"
-    );
+    assert_eq!(repo.git(&["ls-tree", "-r", "--name-only", "HEAD"]), "name-von-uns.txt\nvon-denen-geloescht.txt\nvon-uns-geloescht.txt");
 }
 
 #[tokio::test]
@@ -710,7 +716,8 @@ async fn conflict_keeps_encoding_bom_and_known_marker_lines() {
     assert_eq!(repo.read_file("bom.txt"), "\u{feff}eins\nbeides ü\n".as_bytes());
 
     // "=======" was already in both versions: that is content, not a marker.
-    let err = conflict_resolve(&tc, id.clone(), "doku.md".into(), Some("Titel\n=======\n\n<<<<<<< HEAD\nMain\n".into()), None).await.unwrap_err();
+    let err =
+        conflict_resolve(&tc, id.clone(), "doku.md".into(), Some("Titel\n=======\n\n<<<<<<< HEAD\nMain\n".into()), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NotAllowed);
     assert!(err.message.contains("line 4"), "{}", err.message);
     let status = conflict_resolve(&tc, id.clone(), "doku.md".into(), Some("Titel\n=======\n\nBeides\n".into()), None).await.unwrap();
@@ -783,7 +790,9 @@ async fn conflict_resolve_removes_orig_file_only_when_enabled() {
     crate::commands::settings::settings_set(&tc, serde_json::json!({ "externalMergeTool": "mein-merge-tool {merged}" })).await.unwrap();
     tc.state::<crate::commands::external::ExternalState>().set_dry_run(true);
     for path in ["ohne-nl.txt", "ä b.txt"] {
-        crate::commands::external::open_external(&tc, id.clone(), crate::model::ExternalTarget::MergeTool, Some(path.into()), None).await.unwrap();
+        crate::commands::external::open_external(&tc, id.clone(), crate::model::ExternalTarget::MergeTool, Some(path.into()), None)
+            .await
+            .unwrap();
     }
     repo.write_file("ohne-nl.txt.orig", "sicherung");
     repo.write_file("ä b.txt.orig", "sicherung");
@@ -817,7 +826,9 @@ async fn conflict_resolve_keeps_an_orig_file_the_user_created() {
     repo.write_file("ä b.txt.orig", "auch meine");
     crate::commands::settings::settings_set(&tc, serde_json::json!({ "externalMergeTool": "mein-merge-tool {merged}" })).await.unwrap();
     tc.state::<crate::commands::external::ExternalState>().set_dry_run(true);
-    crate::commands::external::open_external(&tc, id.clone(), crate::model::ExternalTarget::MergeTool, Some("ä b.txt".into()), None).await.unwrap();
+    crate::commands::external::open_external(&tc, id.clone(), crate::model::ExternalTarget::MergeTool, Some("ä b.txt".into()), None)
+        .await
+        .unwrap();
     conflict_resolve(&tc, id, "ä b.txt".into(), Some("eins\nx\n".into()), None).await.unwrap();
     assert_eq!(repo.read_file("ä b.txt.orig"), b"auch meine");
 }
@@ -1026,7 +1037,10 @@ async fn cherry_pick_sequence_continues_after_a_commit_made_by_hand() {
     assert_eq!(read_status(&tc, &id).await.unwrap().operation, None);
     // Undo goes back to before the whole sequence.
     let entry = last_undo(&tc, &id);
-    assert_eq!((entry.action.as_str(), entry.ref_before.as_deref(), entry.ref_after.as_deref()), ("cherry_pick", Some(before.as_str()), Some(sha.as_str())));
+    assert_eq!(
+        (entry.action.as_str(), entry.ref_before.as_deref(), entry.ref_after.as_deref()),
+        ("cherry_pick", Some(before.as_str()), Some(sha.as_str()))
+    );
 }
 
 #[tokio::test]
@@ -1139,7 +1153,10 @@ async fn revert_with_conflict_then_continue() {
     assert_eq!(repo.read_file("README.md"), "# Test, später\n".as_bytes());
     assert_eq!(read_status(&tc, &id).await.unwrap().operation, None);
     let entry = last_undo(&tc, &id);
-    assert_eq!((entry.action.as_str(), entry.ref_before.as_deref(), entry.ref_after.as_deref()), ("revert", Some(before.as_str()), Some(sha.as_str())));
+    assert_eq!(
+        (entry.action.as_str(), entry.ref_before.as_deref(), entry.ref_after.as_deref()),
+        ("revert", Some(before.as_str()), Some(sha.as_str()))
+    );
 }
 
 #[tokio::test]
@@ -1304,7 +1321,10 @@ async fn reset_hard_backs_up_the_worktree_first() {
     assert_eq!(backup_ref(&repo, &entry, "worktree"), Some(snapshot.clone()));
     assert_eq!(repo.git(&["rev-parse", &format!("{snapshot}^")]), c3);
     assert_eq!(repo.git(&["log", "-1", "--format=%s|%an", &snapshot]), "forkyard: backup|forkyard");
-    assert_eq!(repo.git(&["-c", "core.quotepath=false", "ls-tree", "-r", "--name-only", &snapshot]), "a.txt\nb.txt\nc.txt\nneu datei ü.txt");
+    assert_eq!(
+        repo.git(&["-c", "core.quotepath=false", "ls-tree", "-r", "--name-only", &snapshot]),
+        "a.txt\nb.txt\nc.txt\nneu datei ü.txt"
+    );
     assert_eq!(repo.git(&["show", &format!("{snapshot}:a.txt")]), "lokal");
     assert_eq!(repo.git(&["show", &format!("{snapshot}:c.txt")]), "gestaged");
     assert_eq!(repo.git(&["show", &format!("{snapshot}:neu datei ü.txt")]), "unverfolgt");
@@ -1466,7 +1486,9 @@ fn format_follows_ours_then_theirs() {
 fn parses_unmerged_listing() {
     let a = "1111111111111111111111111111111111111111";
     let b = "2222222222222222222222222222222222222222";
-    let raw = format!("100644 {a} 1\tmit leer zeichen.txt\0100644 {b} 3\tmit leer zeichen.txt\0100755 {a} 2\tnur\tuns.sh\0120000 {b} 2\tlink\0kaputt\0");
+    let raw = format!(
+        "100644 {a} 1\tmit leer zeichen.txt\0100644 {b} 3\tmit leer zeichen.txt\0100755 {a} 2\tnur\tuns.sh\0120000 {b} 2\tlink\0kaputt\0"
+    );
     let parsed = parse_unmerged(raw.as_bytes());
     assert_eq!(parsed.len(), 3);
     assert_eq!(parsed[0].path, b"mit leer zeichen.txt");
@@ -1488,7 +1510,12 @@ async fn hard_reset_keeps_the_work_when_the_undo_entry_cannot_be_written() {
     let tc = TestCore::new().await;
     let id = open(&tc, &repo).await;
     repo.write_file("a.txt", "local work");
-    tc.db.with(|c| { c.execute_batch("create trigger fail_undo before insert on undo_entries begin select raise(abort, 'test'); end;")?; Ok(()) }).unwrap();
+    tc.db
+        .with(|c| {
+            c.execute_batch("create trigger fail_undo before insert on undo_entries begin select raise(abort, 'test'); end;")?;
+            Ok(())
+        })
+        .unwrap();
     let err = reset_branch(&tc, id.clone(), first.clone(), ResetMode::Hard).await.unwrap_err();
     assert_ne!(err.code, ErrorCode::StaleState);
     assert_eq!(repo.read_file("a.txt"), b"local work");

@@ -180,8 +180,7 @@ pub fn expand_template(template: &str, path: &str, repo: &str, append_path: bool
         return Err(CoreError::not_allowed("The command in Settings is empty."));
     }
     let has_path = parts.iter().any(|p| p.contains(PATH_PLACEHOLDER));
-    let mut args: Vec<String> =
-        parts.iter().map(|p| p.replace(PATH_PLACEHOLDER, path).replace(REPO_PLACEHOLDER, repo)).collect();
+    let mut args: Vec<String> = parts.iter().map(|p| p.replace(PATH_PLACEHOLDER, path).replace(REPO_PLACEHOLDER, repo)).collect();
     if !has_path && append_path {
         args.push(path.to_string());
     }
@@ -221,10 +220,68 @@ fn arg_path(path: &Path) -> String {
 /// `vbs`, `ps1`, `sh`, `py`, `rb`, `pl`, `php`, `lua`) and formats a browser renders with
 /// scripts (`html`, `svg`).
 const TEXT_EXTENSIONS: [&str; 62] = [
-    "txt", "md", "markdown", "rst", "adoc", "log", "json", "jsonc", "json5", "xml", "yml", "yaml", "toml", "ini", "cfg", "conf", "properties", "csv",
-    "tsv", "css", "scss", "sass", "less", "c", "h", "cc", "cpp", "cxx", "hpp", "hh", "rs", "go", "java", "kt", "kts", "swift", "m", "mm", "ts", "tsx",
-    "jsx", "cs", "fs", "sql", "graphql", "proto", "tex", "bib", "diff", "patch", "lock", "gitignore", "gitattributes", "gitmodules", "editorconfig",
-    "cmake", "gradle", "dart", "scala", "ex", "erl", "hs",
+    "txt",
+    "md",
+    "markdown",
+    "rst",
+    "adoc",
+    "log",
+    "json",
+    "jsonc",
+    "json5",
+    "xml",
+    "yml",
+    "yaml",
+    "toml",
+    "ini",
+    "cfg",
+    "conf",
+    "properties",
+    "csv",
+    "tsv",
+    "css",
+    "scss",
+    "sass",
+    "less",
+    "c",
+    "h",
+    "cc",
+    "cpp",
+    "cxx",
+    "hpp",
+    "hh",
+    "rs",
+    "go",
+    "java",
+    "kt",
+    "kts",
+    "swift",
+    "m",
+    "mm",
+    "ts",
+    "tsx",
+    "jsx",
+    "cs",
+    "fs",
+    "sql",
+    "graphql",
+    "proto",
+    "tex",
+    "bib",
+    "diff",
+    "patch",
+    "lock",
+    "gitignore",
+    "gitattributes",
+    "gitmodules",
+    "editorconfig",
+    "cmake",
+    "gradle",
+    "dart",
+    "scala",
+    "ex",
+    "erl",
+    "hs",
 ];
 
 /// Whether the file has a text or source format from `TEXT_EXTENSIONS`. Dot files
@@ -351,9 +408,7 @@ fn default_terminal(
                 .iter()
                 .find(|(program, _)| has_program(program))
                 .map(|(program, args)| Launch::new(program, args, folder, true))
-                .ok_or_else(|| {
-                    CoreError::not_found("No terminal program was found. Set one in Settings.")
-                })
+                .ok_or_else(|| CoreError::not_found("No terminal program was found. Set one in Settings."))
         }
     }
 }
@@ -515,12 +570,7 @@ mod new_console {
 /// Starts the program detached: no inherited input/output, its own process group;
 /// it keeps running when the app exits. Program not found → `not_found`.
 pub fn launch(launch: &Launch) -> CoreResult<()> {
-    let missing = || {
-        CoreError::not_found(format!(
-            "The program “{}” was not found. Check the command in Settings.",
-            launch.program
-        ))
-    };
+    let missing = || CoreError::not_found(format!("The program “{}” was not found. Check the command in Settings.", launch.program));
     let failed = |e: std::io::Error| match e.kind() {
         std::io::ErrorKind::NotFound => missing(),
         _ => CoreError::io(format!("“{}” could not be started: {e}", launch.program)),
@@ -593,7 +643,13 @@ pub fn launch(launch: &Launch) -> CoreResult<()> {
 /// Errors: path outside the repository → `not_allowed`; file missing (editor) or
 /// program not found → `not_found`; no diff/merge tool configured → `not_found`;
 /// start fails → `io`.
-pub async fn open_external(core: &Core, repo_id: String, target: ExternalTarget, path: Option<String>, source: Option<DiffSource>) -> CoreResult<()> {
+pub async fn open_external(
+    core: &Core,
+    repo_id: String,
+    target: ExternalTarget,
+    path: Option<String>,
+    source: Option<DiffSource>,
+) -> CoreResult<()> {
     let root = core.repo_path(&repo_id)?;
     let settings = core.settings()?;
     if matches!(target, ExternalTarget::DiffTool | ExternalTarget::MergeTool) {
@@ -694,7 +750,10 @@ mod tests {
         assert_eq!(split(r"/opt/mein\ editor/ed a\\b", true), ["/opt/mein editor/ed", r"a\b"]);
         assert_eq!(split(r#"pre"mit te"post"#, true), ["premit tepost"]);
         // Shell characters have no meaning.
-        assert_eq!(split("ed {path}; rm -rf ~ && echo $HOME | x > y `z`", true), ["ed", "{path};", "rm", "-rf", "~", "&&", "echo", "$HOME", "|", "x", ">", "y", "`z`"]);
+        assert_eq!(
+            split("ed {path}; rm -rf ~ && echo $HOME | x > y `z`", true),
+            ["ed", "{path};", "rm", "-rf", "~", "&&", "echo", "$HOME", "|", "x", ">", "y", "`z`"]
+        );
         assert!(split("", true).is_empty() && split("   ", false).is_empty());
         for bad in [r#"ed "offen"#, "ed 'offen", r#"ed "a\""#] {
             assert_eq!(split_command_line(bad, true).unwrap_err().code, ErrorCode::NotAllowed, "{bad}");
@@ -761,7 +820,8 @@ mod tests {
         // File manager: select the file where the system can.
         let l = plan(Platform::Windows, &defaults, &request(ExternalTarget::FileManager, repo, Some(&file), false), &none).unwrap();
         assert_eq!(l.args, [LaunchArg::Raw(format!("/select,\"{}\"", shown(&file)))]);
-        let l = plan(Platform::Windows, &defaults, &request(ExternalTarget::FileManager, repo, Some(&repo.join("src")), true), &none).unwrap();
+        let l =
+            plan(Platform::Windows, &defaults, &request(ExternalTarget::FileManager, repo, Some(&repo.join("src")), true), &none).unwrap();
         assert_eq!(l.args, [LaunchArg::Raw(format!("\"{}\"", shown(&repo.join("src"))))]);
         let l = plan(Platform::Windows, &defaults, &request(ExternalTarget::FileManager, repo, None, false), &none).unwrap();
         assert_eq!(l.args, [LaunchArg::Raw(format!("\"{}\"", shown(repo)))]);
@@ -778,7 +838,20 @@ mod tests {
         let defaults = Settings::default();
         let none = |_: &str| false;
         let repo = Path::new("/home/a/Mein Repo");
-        for name in ["start.bat", "setup.cmd", "werkzeug.exe", "klick.lnk", "skript.js", "makro.vbs", "seite.hta", "paket.msi", "eintrag.reg", "lauf.ps1", "ohne-endung", "bild.png"] {
+        for name in [
+            "start.bat",
+            "setup.cmd",
+            "werkzeug.exe",
+            "klick.lnk",
+            "skript.js",
+            "makro.vbs",
+            "seite.hta",
+            "paket.msi",
+            "eintrag.reg",
+            "lauf.ps1",
+            "ohne-endung",
+            "bild.png",
+        ] {
             let file = repo.join(name);
             let l = plan(Platform::Windows, &defaults, &request(ExternalTarget::Editor, repo, Some(&file), false), &none).unwrap();
             let runs_it = l.program.eq_ignore_ascii_case("explorer.exe") && l.args == [LaunchArg::Raw(format!("\"{}\"", arg_path(&file)))];
@@ -821,9 +894,15 @@ mod tests {
         // Linux: $TERMINAL first, then the usual names; the working directory is the file's folder.
         let l = term(Platform::Linux, Some(&file), false, Some("kitty"), &["kitty", "xterm"]).unwrap();
         assert_eq!((l.program.as_str(), l.cwd.as_path()), ("kitty", sub.as_path()));
-        assert_eq!(term(Platform::Linux, None, false, Some("fehlt"), &["x-terminal-emulator", "xterm"]).unwrap().program, "x-terminal-emulator");
+        assert_eq!(
+            term(Platform::Linux, None, false, Some("fehlt"), &["x-terminal-emulator", "xterm"]).unwrap().program,
+            "x-terminal-emulator"
+        );
         let l = term(Platform::Linux, Some(&sub), true, None, &["gnome-terminal", "konsole"]).unwrap();
-        assert_eq!((l.program.as_str(), l.arg_strings()), ("gnome-terminal", vec![format!("--working-directory={}", shown(&sub)).as_str()]));
+        assert_eq!(
+            (l.program.as_str(), l.arg_strings()),
+            ("gnome-terminal", vec![format!("--working-directory={}", shown(&sub)).as_str()])
+        );
         let l = term(Platform::Linux, None, false, None, &["konsole"]).unwrap();
         assert_eq!(l.arg_strings(), ["--workdir", shown(repo).as_str()]);
         assert_eq!(term(Platform::Linux, None, false, None, &["xterm"]).unwrap().program, "xterm");
@@ -838,7 +917,10 @@ mod tests {
         let none = |_: &str| false;
         let custom = Settings { external_terminal: Some("alacritty --working-directory {path}".into()), ..Settings::default() };
         let l = plan(Platform::Linux, &custom, &request(ExternalTarget::Terminal, repo, Some(&file), false), &none).unwrap();
-        assert_eq!((l.program.as_str(), l.arg_strings(), l.terminal), ("alacritty", vec!["--working-directory", shown(&sub).as_str()], true));
+        assert_eq!(
+            (l.program.as_str(), l.arg_strings(), l.terminal),
+            ("alacritty", vec!["--working-directory", shown(&sub).as_str()], true)
+        );
         let plain = Settings { external_terminal: Some("kitty".into()), ..Settings::default() };
         let l = plan(Platform::Linux, &plain, &request(ExternalTarget::Terminal, repo, None, false), &none).unwrap();
         assert!(l.args.is_empty() && l.cwd == repo);
@@ -887,9 +969,12 @@ mod tests {
         let file = arg_path(&tc.repo_path(&id).unwrap().join("Mein Ordner").join("Größe 1.txt"));
         let folder = arg_path(&tc.repo_path(&id).unwrap().join("Mein Ordner"));
 
-        crate::commands::settings::settings_set(&tc, json!({ "externalEditor": "mein-editor --datei {path} --repo {repo}", "externalTerminal": "mein-terminal" }))
-            .await
-            .unwrap();
+        crate::commands::settings::settings_set(
+            &tc,
+            json!({ "externalEditor": "mein-editor --datei {path} --repo {repo}", "externalTerminal": "mein-terminal" }),
+        )
+        .await
+        .unwrap();
         open_external(&tc, id.clone(), ExternalTarget::Editor, Some("Mein Ordner/Größe 1.txt".into()), None).await.unwrap();
         open_external(&tc, id.clone(), ExternalTarget::Editor, None, None).await.unwrap();
         open_external(&tc, id.clone(), ExternalTarget::Terminal, Some("Mein Ordner/Größe 1.txt".into()), None).await.unwrap();
@@ -898,9 +983,15 @@ mod tests {
         open_external(&tc, id.clone(), ExternalTarget::Terminal, Some("fehlt.txt".into()), None).await.unwrap();
         let launched = state.take_launched();
         assert_eq!(launched.len(), 5);
-        assert_eq!((launched[0].program.as_str(), launched[0].arg_strings()), ("mein-editor", vec!["--datei", file.as_str(), "--repo", root.as_str()]));
+        assert_eq!(
+            (launched[0].program.as_str(), launched[0].arg_strings()),
+            ("mein-editor", vec!["--datei", file.as_str(), "--repo", root.as_str()])
+        );
         assert_eq!(launched[1].arg_strings(), ["--datei", root.as_str(), "--repo", root.as_str()]);
-        assert_eq!((launched[2].program.as_str(), arg_path(&launched[2].cwd), launched[2].terminal), ("mein-terminal", folder.clone(), true));
+        assert_eq!(
+            (launched[2].program.as_str(), arg_path(&launched[2].cwd), launched[2].terminal),
+            ("mein-terminal", folder.clone(), true)
+        );
         assert_eq!(arg_path(&launched[3].cwd), folder);
         assert_eq!(arg_path(&launched[4].cwd), root);
 
@@ -921,7 +1012,10 @@ mod tests {
             let err = open_external(&tc, id.clone(), ExternalTarget::Editor, Some(bad.into()), None).await.unwrap_err();
             assert_eq!(err.code, ErrorCode::NotAllowed, "{bad}");
         }
-        assert_eq!(open_external(&tc, "unbekannt".into(), ExternalTarget::Terminal, None, None).await.unwrap_err().code, ErrorCode::NotFound);
+        assert_eq!(
+            open_external(&tc, "unbekannt".into(), ExternalTarget::Terminal, None, None).await.unwrap_err().code,
+            ErrorCode::NotFound
+        );
         crate::commands::settings::settings_set(&tc, json!({ "externalEditor": "ed \"offen" })).await.unwrap();
         assert_eq!(open_external(&tc, id.clone(), ExternalTarget::Editor, None, None).await.unwrap_err().code, ErrorCode::NotAllowed);
         assert!(state.take_launched().is_empty());

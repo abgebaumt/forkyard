@@ -39,7 +39,14 @@ enum Mode {
 /// Selected hunks or lines of the diff `from..to` into the working directory, the index or both.
 /// `selections[].expect` is `TextDiff.range_token` of that file. Conflicts → `conflict` (nothing
 /// changed); a range that changed for a selected file → `stale_state`.
-pub async fn range_apply(core: &Core, repo_id: String, from: String, to: String, selections: Vec<PatchSelection>, target: RangeApplyTarget) -> CoreResult<Status> {
+pub async fn range_apply(
+    core: &Core,
+    repo_id: String,
+    from: String,
+    to: String,
+    selections: Vec<PatchSelection>,
+    target: RangeApplyTarget,
+) -> CoreResult<Status> {
     core.with_write_lock(&repo_id, &[RepoChange::Worktree, RepoChange::Index], async {
         let from_sha = resolve_from(core, &repo_id, &from).await?;
         let to_sha = graph::resolve_commit(core, &repo_id, &to).await?;
@@ -141,7 +148,8 @@ fn with_preimage(patch: Vec<u8>, old_id: Option<&str>, new_id: Option<&str>) -> 
 }
 
 fn apply_cmd(core: &Core, repo_id: &str, target: RangeApplyTarget, three_way: bool, check: bool) -> CoreResult<GitCmd> {
-    let mut cmd = core.git_for(repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
+    let mut cmd =
+        core.git_for(repo_id)?.args(["-c", "apply.whitespace=nowarn", "-c", "apply.ignoreWhitespace=no", "apply", "--whitespace=nowarn"]);
     match (target, three_way) {
         (RangeApplyTarget::Index, _) => cmd = cmd.arg("--cached"),
         (RangeApplyTarget::Both, _) | (RangeApplyTarget::Worktree, true) => cmd = cmd.arg("--index"),
@@ -211,7 +219,11 @@ async fn apply(core: &Core, repo_id: &str, patch: &[u8], target: RangeApplyTarge
         return Ok(());
     }
     let conflicts = conflicted_files(&out.stderr_text());
-    Err(if conflicts.is_empty() { errors::classify("apply", out.code, &out.stdout, &out.stderr) } else { conflict_error(&conflicts, target) })
+    Err(if conflicts.is_empty() {
+        errors::classify("apply", out.code, &out.stdout, &out.stderr)
+    } else {
+        conflict_error(&conflicts, target)
+    })
 }
 
 fn push_unique(list: &mut Vec<String>, path: &str) {
@@ -233,7 +245,13 @@ fn conflicted_files(stderr: &str) -> Vec<String> {
 
 /// The files `git apply --check` names: `error: patch failed: <path>:<line>`, `error: <path>: …`.
 fn failed_files(stderr: &str) -> Vec<String> {
-    const ENDINGS: [&str; 5] = [": patch does not apply", ": does not match index", ": does not exist in index", ": No such file or directory", ": already exists in working directory"];
+    const ENDINGS: [&str; 5] = [
+        ": patch does not apply",
+        ": does not match index",
+        ": does not exist in index",
+        ": No such file or directory",
+        ": already exists in working directory",
+    ];
     let mut out = Vec::new();
     for line in stderr.lines() {
         let Some(rest) = line.strip_prefix("error: ") else { continue };
@@ -256,6 +274,10 @@ fn conflict_error(files: &[String], target: RangeApplyTarget) -> CoreError {
         RangeApplyTarget::Index => "the staging area",
         RangeApplyTarget::Both => "your working directory and the staging area",
     };
-    let list = if files.is_empty() { "the selected files".to_string() } else { files.iter().map(|file| format!("“{file}”")).collect::<Vec<_>>().join(", ") };
+    let list = if files.is_empty() {
+        "the selected files".to_string()
+    } else {
+        files.iter().map(|file| format!("“{file}”")).collect::<Vec<_>>().join(", ")
+    };
     CoreError::new(ErrorCode::Conflict, format!("The selection conflicts with {place} in {list}. Nothing was changed."))
 }

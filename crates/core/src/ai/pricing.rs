@@ -42,7 +42,12 @@ pub fn price_for(settings: &Settings, kind: AiProviderKind, model: &str) -> Opti
         return None;
     }
     if let Some(own) = settings.ai_prices.iter().find(|price| price.model == model) {
-        return Some(AiPrice { input_usd_per_mtok: own.input_usd_per_mtok, output_usd_per_mtok: own.output_usd_per_mtok, source: AiPriceSource::Own, as_of: None });
+        return Some(AiPrice {
+            input_usd_per_mtok: own.input_usd_per_mtok,
+            output_usd_per_mtok: own.output_usd_per_mtok,
+            source: AiPriceSource::Own,
+            as_of: None,
+        });
     }
     builtin_price(kind, model)
 }

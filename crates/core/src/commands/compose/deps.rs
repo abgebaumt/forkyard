@@ -58,7 +58,12 @@ pub(crate) fn unit_texts(files: &[ChangedFile]) -> Vec<UnitText> {
         match (file.hunk_count(), &file.patch) {
             (Some(_), Some(patch)) => {
                 for (index, hunk) in patch.hunks.iter().enumerate() {
-                    out.push(UnitText { id: file.unit_id(Some(index)), path: file.path.clone(), new_file, added: added_of(&mut std::iter::once(hunk)) });
+                    out.push(UnitText {
+                        id: file.unit_id(Some(index)),
+                        path: file.path.clone(),
+                        new_file,
+                        added: added_of(&mut std::iter::once(hunk)),
+                    });
                 }
             }
             (_, patch) => {
@@ -182,11 +187,15 @@ impl Candidate {
 
     pub(crate) fn matches(&self, file: &str) -> bool {
         let stem = strip_extension(file);
-        let same = |p: &str| file == p || stem == p || ["index", "mod", "__init__"].iter().any(|name| strip_extension(file) == format!("{p}/{name}"));
+        let same = |p: &str| {
+            file == p || stem == p || ["index", "mod", "__init__"].iter().any(|name| strip_extension(file) == format!("{p}/{name}"))
+        };
         if same(&self.path) {
             return true;
         }
-        self.suffix && (stem.ends_with(&format!("/{}", self.path)) || ["__init__"].iter().any(|name| stem.ends_with(&format!("/{}/{name}", self.path))))
+        self.suffix
+            && (stem.ends_with(&format!("/{}", self.path))
+                || ["__init__"].iter().any(|name| stem.ends_with(&format!("/{}/{name}", self.path))))
     }
 }
 
@@ -232,7 +241,11 @@ fn looks_like_import(line: &str) -> bool {
 
 /// `mod name;`, `pub mod name;`, `pub(crate) mod name;` → `name`.
 fn mod_declaration(trimmed: &str) -> Option<&str> {
-    let rest = trimmed.strip_prefix("pub ").or_else(|| trimmed.strip_prefix("pub(crate) ")).or_else(|| trimmed.strip_prefix("pub(super) ")).unwrap_or(trimmed);
+    let rest = trimmed
+        .strip_prefix("pub ")
+        .or_else(|| trimmed.strip_prefix("pub(crate) "))
+        .or_else(|| trimmed.strip_prefix("pub(super) "))
+        .unwrap_or(trimmed);
     let name = rest.strip_prefix("mod ")?.trim().strip_suffix(';')?.trim();
     is_identifier(name).then_some(name)
 }
@@ -265,7 +278,11 @@ pub(crate) fn references(line: &str, from: &str) -> Vec<Candidate> {
         } else if let Some(root) = spec.strip_prefix('/') {
             out.extend(join("", root).map(Candidate::exact));
         } else {
-            let spec = spec.strip_prefix("@/").or_else(|| spec.strip_prefix("~/")).map(|rest| format!("src/{rest}")).unwrap_or_else(|| spec.to_string());
+            let spec = spec
+                .strip_prefix("@/")
+                .or_else(|| spec.strip_prefix("~/"))
+                .map(|rest| format!("src/{rest}"))
+                .unwrap_or_else(|| spec.to_string());
             out.extend(join(dir, &spec).map(Candidate::exact));
             out.extend(join("", &spec).map(Candidate::exact));
         }
@@ -339,7 +356,10 @@ pub(crate) fn tested_sources(path: &str) -> Option<Vec<Candidate>> {
     if base.is_none() && (name.ends_with(".java") || name.ends_with(".kt")) {
         if let Some(rest) = stem.strip_suffix("Test").or_else(|| stem.strip_suffix("Tests")) {
             base = Some(rest);
-            java = dir.contains("/test/").then(|| dir.replacen("/test/", "/main/", 1)).or_else(|| dir.strip_prefix("test/").map(|rest| format!("main/{rest}")));
+            java = dir
+                .contains("/test/")
+                .then(|| dir.replacen("/test/", "/main/", 1))
+                .or_else(|| dir.strip_prefix("test/").map(|rest| format!("main/{rest}")));
         }
     }
     if base.is_none() && dir_of(path).split('/').any(|part| part == "__tests__") {
@@ -385,8 +405,40 @@ pub(crate) fn contains_word(line: &str, name: &str) -> bool {
     false
 }
 
-const MODIFIERS: [&str; 13] = ["export ", "default ", "pub(crate) ", "pub(super) ", "pub ", "async ", "declare ", "abstract ", "unsafe ", "extern ", "static ", "final ", "public "];
-const KEYWORDS: [&str; 17] = ["function* ", "function ", "class ", "interface ", "type ", "enum ", "const ", "let ", "var ", "fn ", "struct ", "trait ", "def ", "func ", "macro_rules! ", "union ", "record "];
+const MODIFIERS: [&str; 13] = [
+    "export ",
+    "default ",
+    "pub(crate) ",
+    "pub(super) ",
+    "pub ",
+    "async ",
+    "declare ",
+    "abstract ",
+    "unsafe ",
+    "extern ",
+    "static ",
+    "final ",
+    "public ",
+];
+const KEYWORDS: [&str; 17] = [
+    "function* ",
+    "function ",
+    "class ",
+    "interface ",
+    "type ",
+    "enum ",
+    "const ",
+    "let ",
+    "var ",
+    "fn ",
+    "struct ",
+    "trait ",
+    "def ",
+    "func ",
+    "macro_rules! ",
+    "union ",
+    "record ",
+];
 
 /// The name a top-level added line defines, if any.
 pub(crate) fn defined_name(line: &str) -> Option<&str> {

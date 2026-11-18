@@ -45,8 +45,12 @@ pub async fn read_refs(core: &Core, repo_id: &str) -> CoreResult<RefsSnapshot> {
     // Not on the remote under a name a plain push reaches: how much of it is on no remote branch.
     if !remote_names.is_empty() {
         let unpublished = |r: &Ref| r.upstream.is_none() || r.upstream_gone || !r.pushes_to_upstream;
-        let wanted: Vec<(String, Option<String>)> =
-            parsed.locals.iter().filter(|r| unpublished(r)).map(|r| (r.sha.clone(), parsed.upstream_remotes.get(&r.name).cloned())).collect();
+        let wanted: Vec<(String, Option<String>)> = parsed
+            .locals
+            .iter()
+            .filter(|r| unpublished(r))
+            .map(|r| (r.sha.clone(), parsed.upstream_remotes.get(&r.name).cloned()))
+            .collect();
         if !wanted.is_empty() {
             let mut counts = unpublished_counts(core, &path, repo_id, &wanted).await?.into_iter();
             for local in parsed.locals.iter_mut().filter(|r| unpublished(r)) {
@@ -71,9 +75,19 @@ pub async fn read_head(core: &Core, repo_id: &str) -> CoreResult<Head> {
 /// `git for-each-ref <options> <patterns>` that does not fail completely because of a single
 /// damaged ref: if a ref points to a missing object, Git aborts with "missing object" – then the
 /// call runs again without the damaged refs (previously one broken ref emptied the whole list).
-pub(crate) async fn for_each_ref(core: &Core, path: &Path, repo_id: &str, options: &[String], patterns: &[&str]) -> CoreResult<crate::git::GitOutput> {
+pub(crate) async fn for_each_ref(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    options: &[String],
+    patterns: &[&str],
+) -> CoreResult<crate::git::GitOutput> {
     let run = |broken: Vec<String>, watched: bool| {
-        let cmd = read_cmd(core, path, repo_id).arg("for-each-ref").args(options).args(broken.into_iter().map(|name| format!("--exclude={name}"))).args(patterns);
+        let cmd = read_cmd(core, path, repo_id)
+            .arg("for-each-ref")
+            .args(options)
+            .args(broken.into_iter().map(|name| format!("--exclude={name}")))
+            .args(patterns);
         if watched { cmd.idle_timeout(HANG_GUARD) } else { cmd }.run_raw()
     };
     // Git for Windows (seen with 2.54) no longer exits after "fatal: missing object" with the full
@@ -150,7 +164,12 @@ pub(crate) async fn broken_refs(core: &Core, path: &Path, repo_id: &str) -> Vec<
 /// For each `(tip, remote)`: the commits reachable from `tip` that no remote-tracking ref of `remote`
 /// (all remotes for `None`) contains – `git rev-list --count <tip> --not --remotes[=<remote>]`, but
 /// with one `git rev-list --parents` per remote for all tips together.
-pub(crate) async fn unpublished_counts(core: &Core, path: &Path, repo_id: &str, wanted: &[(String, Option<String>)]) -> CoreResult<Vec<u32>> {
+pub(crate) async fn unpublished_counts(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    wanted: &[(String, Option<String>)],
+) -> CoreResult<Vec<u32>> {
     use std::collections::{HashMap, HashSet};
     // A remote name with glob characters can't be a `--remotes=` pattern: count against all remotes.
     let filter = |remote: &Option<String>| remote.as_ref().filter(|name| !name.contains(['*', '?', '[', '\\'])).cloned();
@@ -167,7 +186,8 @@ pub(crate) async fn unpublished_counts(core: &Core, path: &Path, repo_id: &str, 
             Some(name) => format!("--remotes={name}"),
             None => "--remotes".to_string(),
         };
-        let out = read_cmd(core, path, repo_id).arg("rev-list").arg("--parents").args(&tips).args(["--not", not.as_str(), "--"]).run().await?;
+        let out =
+            read_cmd(core, path, repo_id).arg("rev-list").arg("--parents").args(&tips).args(["--not", not.as_str(), "--"]).run().await?;
         // The commits on no remote branch, with their parents (only those in the set matter).
         let mut parents: HashMap<String, Vec<String>> = HashMap::new();
         for line in out.stdout_lines() {
@@ -382,7 +402,8 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
 
         let started = std::time::Instant::now();
-        let refs = tokio::time::timeout(std::time::Duration::from_secs(30), refs_list(&tc, id)).await.expect("refs_list does not hang").unwrap();
+        let refs =
+            tokio::time::timeout(std::time::Duration::from_secs(30), refs_list(&tc, id)).await.expect("refs_list does not hang").unwrap();
         assert!(started.elapsed() < std::time::Duration::from_secs(20), "{:?}", started.elapsed());
         let names: Vec<&str> = refs.locals.iter().map(|r| r.name.as_str()).collect();
         assert_eq!(names, vec!["main"], "the damaged branch is skipped, the rest is there");

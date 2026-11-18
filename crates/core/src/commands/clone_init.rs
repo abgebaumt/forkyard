@@ -94,10 +94,7 @@ fn target_dir(parent_path: &str, name: &str) -> CoreResult<(PathBuf, bool)> {
         Err(_) => Ok((target, false)),
         Ok(meta) if meta.is_dir() => {
             if std::fs::read_dir(&target)?.next().is_some() {
-                return Err(CoreError::new(
-                    ErrorCode::PathExists,
-                    format!("The folder “{shown}” already exists and is not empty."),
-                ));
+                return Err(CoreError::new(ErrorCode::PathExists, format!("The folder “{shown}” already exists and is not empty.")));
             }
             Ok((target, true))
         }
@@ -180,7 +177,14 @@ fn sparse_paths(options: &CloneOptions) -> CoreResult<Vec<String>> {
 }
 
 /// Clones into `parent_path/name`. Progress via `job:progress` under `job_id`.
-pub async fn repo_clone(core: &Core, job_id: String, url: String, parent_path: String, name: String, options: CloneOptions) -> CoreResult<OpenedRepo> {
+pub async fn repo_clone(
+    core: &Core,
+    job_id: String,
+    url: String,
+    parent_path: String,
+    name: String,
+    options: CloneOptions,
+) -> CoreResult<OpenedRepo> {
     let job = core.start_job(&job_id, None)?;
     let result = clone_job(core, &job, url.trim(), &parent_path, name.trim(), &options).await;
     job.finish(&result);
@@ -192,7 +196,8 @@ pub async fn repo_clone(core: &Core, job_id: String, url: String, parent_path: S
 /// cutoff day were included would then depend on the time of day the clone runs.
 fn shallow_since_arg(since: &str) -> String {
     let bytes = since.as_bytes();
-    let plain_date = bytes.len() == 10 && bytes.iter().enumerate().all(|(i, b)| if i == 4 || i == 7 { *b == b'-' } else { b.is_ascii_digit() });
+    let plain_date =
+        bytes.len() == 10 && bytes.iter().enumerate().all(|(i, b)| if i == 4 || i == 7 { *b == b'-' } else { b.is_ascii_digit() });
     if plain_date {
         format!("{since}T00:00:00")
     } else {
@@ -375,7 +380,9 @@ async fn init_in(
                 let hook = e.is(ErrorCode::HookFailed) || output.as_deref().is_some_and(|text| text.to_lowercase().contains("hook"));
                 let why = if hook { "A Git hook rejected it.".to_string() } else { e.message.clone() };
                 notice = Some(crate::model::OpenNotice {
-                    message: format!("The first commit was not created: {why} The files are staged – commit them yourself once the cause is fixed."),
+                    message: format!(
+                        "The first commit was not created: {why} The files are staged – commit them yourself once the cause is fixed."
+                    ),
                     output,
                 });
             }
@@ -449,7 +456,8 @@ mod tests {
         let (source, remote) = seeded_remote();
         let dest = tempfile::tempdir().unwrap();
         tc.events.clear();
-        let opened = repo_clone(&tc, "klon-1".into(), remote.url(), parent_of(&dest), "Mein Klon".into(), CloneOptions::default()).await.unwrap();
+        let opened =
+            repo_clone(&tc, "klon-1".into(), remote.url(), parent_of(&dest), "Mein Klon".into(), CloneOptions::default()).await.unwrap();
         let target = dest.path().join("Mein Klon");
         assert_eq!(opened.repo.name, "Mein Klon");
         assert_eq!(opened.tab.kind, TabKind::Repo);
@@ -502,9 +510,16 @@ mod tests {
         repo_clone(&tc, "j3".into(), file_url(&remote), parent_of(&dest), "seit".into(), options).await.unwrap();
         assert_eq!(git_in(&dest.path().join("seit"), &["rev-list", "--count", "HEAD"]), "2");
 
-        let err = repo_clone(&tc, "j4".into(), remote.url(), parent_of(&dest), "null".into(), CloneOptions { depth: Some(0), ..Default::default() })
-            .await
-            .unwrap_err();
+        let err = repo_clone(
+            &tc,
+            "j4".into(),
+            remote.url(),
+            parent_of(&dest),
+            "null".into(),
+            CloneOptions { depth: Some(0), ..Default::default() },
+        )
+        .await
+        .unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
         assert!(!dest.path().join("null").exists());
     }
@@ -660,7 +675,14 @@ mod tests {
     const IDENTITY: &str = "[user]\n\tname = Erika Müller\n\temail = erika@example.com\n";
 
     fn init_options(parent: &tempfile::TempDir, name: &str) -> InitOptions {
-        InitOptions { parent_path: parent_of(parent), name: name.into(), default_branch: None, gitignore_template: None, license_template: None, create_readme: true }
+        InitOptions {
+            parent_path: parent_of(parent),
+            name: name.into(),
+            default_branch: None,
+            gitignore_template: None,
+            license_template: None,
+            create_readme: true,
+        }
     }
 
     #[tokio::test]
@@ -683,7 +705,10 @@ mod tests {
         assert!(ignore.contains("target/") && !ignore.contains('\r'));
         let license = std::fs::read_to_string(target.join("LICENSE")).unwrap();
         let year = chrono::Utc::now().format("%Y").to_string();
-        assert!(license.starts_with(&format!("MIT License\n\nCopyright (c) {year} Erika Müller\n\nPermission is hereby granted")), "{license}");
+        assert!(
+            license.starts_with(&format!("MIT License\n\nCopyright (c) {year} Erika Müller\n\nPermission is hereby granted")),
+            "{license}"
+        );
         assert!(!license.contains("{{"));
 
         assert_eq!(git_in(&target, &["log", "--format=%s|%an|%ae"]), format!("{INITIAL_COMMIT_MESSAGE}|Erika Müller|erika@example.com"));
@@ -702,7 +727,13 @@ mod tests {
         let target = dest.path().join("ohne-identität");
         // The branch name comes from the settings.
         assert_eq!(git_in(&target, &["symbolic-ref", "--short", "HEAD"]), "main");
-        assert!(!std::process::Command::new("git").args(["rev-parse", "--verify", "-q", "HEAD"]).current_dir(&target).output().unwrap().status.success());
+        assert!(!std::process::Command::new("git")
+            .args(["rev-parse", "--verify", "-q", "HEAD"])
+            .current_dir(&target)
+            .output()
+            .unwrap()
+            .status
+            .success());
         assert_eq!(git_in(&target, &["status", "--porcelain"]), "A  LICENSE\nA  README.md");
         let status = crate::commands::status::status_get(&tc, opened.repo.id.clone()).await.unwrap();
         assert!(matches!(status.head, Head::Unborn { ref branch } if branch == "main"));
@@ -716,9 +747,17 @@ mod tests {
     async fn init_uses_the_profile_identity_and_the_default_branch_setting() {
         let tc = TestCore::new().await;
         let profile = tc.db.with(crate::db::profiles::active).unwrap();
-        crate::commands::settings::profile_save(&tc, Some(profile.id), profile.name, "Profil Person".into(), "profil@example.com".into(), false, None)
-            .await
-            .unwrap();
+        crate::commands::settings::profile_save(
+            &tc,
+            Some(profile.id),
+            profile.name,
+            "Profil Person".into(),
+            "profil@example.com".into(),
+            false,
+            None,
+        )
+        .await
+        .unwrap();
         crate::commands::settings::settings_set(&tc, serde_json::json!({ "defaultBranchName": "entwicklung" })).await.unwrap();
         let dest = tempfile::tempdir().unwrap();
         let options = InitOptions { license_template: Some("BSD-3-Clause".into()), ..init_options(&dest, "profil") };
@@ -775,7 +814,10 @@ mod tests {
         let tc = TestCore::new().await;
         let all = init_templates(&tc).await.unwrap();
         let keys: Vec<&str> = all.gitignore.iter().map(|t| t.key.as_str()).collect();
-        assert_eq!(keys, ["node", "python", "rust", "java", "go", "cpp", "dotnet", "unity", "macos", "windows", "linux", "jetbrains", "vscode"]);
+        assert_eq!(
+            keys,
+            ["node", "python", "rust", "java", "go", "cpp", "dotnet", "unity", "macos", "windows", "linux", "jetbrains", "vscode"]
+        );
         let keys: Vec<&str> = all.licenses.iter().map(|t| t.key.as_str()).collect();
         assert_eq!(keys, ["MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "Unlicense"]);
         assert!(all.gitignore.iter().chain(&all.licenses).all(|t| !t.label.is_empty()));

@@ -562,9 +562,10 @@ mod tests {
         let opened = tc.open(&repo).await;
         let id = opened.repo.id.clone();
 
-        let updated = repo_update(&tc, id.clone(), Some(Some("  Mein Repo ".into())), Some(true), Some(Some("Arbeit".into())), Some(Some(3)))
-            .await
-            .unwrap();
+        let updated =
+            repo_update(&tc, id.clone(), Some(Some("  Mein Repo ".into())), Some(true), Some(Some("Arbeit".into())), Some(Some(3)))
+                .await
+                .unwrap();
         assert_eq!(updated.alias.as_deref(), Some("Mein Repo"));
         assert!(updated.is_favorite);
         assert_eq!(updated.group_name.as_deref(), Some("Arbeit"));

@@ -14,7 +14,9 @@ use std::path::{Path, PathBuf};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::model::{BlameLine, CommitSummary, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, LineHistoryStep, Person, RepoChange};
+use crate::model::{
+    BlameLine, CommitSummary, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, LineHistoryStep, Person, RepoChange,
+};
 use crate::util;
 
 /// Above this size `file_read` no longer returns text (`text: null`, `isBinary: false`).
@@ -117,9 +119,9 @@ fn resolve_for_write(root: &Path, rel: &str) -> CoreResult<PathBuf> {
         }
     }
     let real = existing.canonicalize()?;
-    let inside = real.strip_prefix(&real_root).map_err(|_| {
-        CoreError::not_allowed(format!("“{rel}” points to a location outside the repository."))
-    })?;
+    let inside = real
+        .strip_prefix(&real_root)
+        .map_err(|_| CoreError::not_allowed(format!("“{rel}” points to a location outside the repository.")))?;
     if inside.components().any(|c| is_git_component(&c.as_os_str().to_string_lossy())) {
         return Err(git_error());
     }
@@ -142,7 +144,11 @@ fn check_rev(sha: &str) -> CoreResult<&str> {
 
 fn short_rev(rev: &str) -> String {
     let is_sha = rev.len() >= 40 && rev.bytes().all(|b| b.is_ascii_hexdigit());
-    if is_sha { rev.chars().take(7).collect() } else { rev.to_string() }
+    if is_sha {
+        rev.chars().take(7).collect()
+    } else {
+        rev.to_string()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -317,15 +323,15 @@ pub(crate) fn decode_line(bytes: &[u8], preferred: &str) -> String {
 /// already loaded). Git starts from the newest commit every time – only that way does following
 /// renames stay correct (`git log --follow --skip` loses track across a
 /// rename) –, but only the `limit` entries from `offset` on are returned.
-pub async fn file_history(core: &Core, repo_id: String, path: String, limit: u32, offset: Option<u32>) -> CoreResult<Vec<FileHistoryEntry>> {
+pub async fn file_history(
+    core: &Core,
+    repo_id: String,
+    path: String,
+    limit: u32,
+    offset: Option<u32>,
+) -> CoreResult<Vec<FileHistoryEntry>> {
     let rel = normalize_rel_path(&path)?;
-    let head = core
-        .git_for(&repo_id)?
-        .args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await?;
+    let head = core.git_for(&repo_id)?.args(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"]).read_only().no_log().run_raw().await?;
     if !head.success() {
         return Ok(Vec::new());
     }
@@ -368,7 +374,13 @@ pub async fn line_history(core: &Core, repo_id: String, path: String, line: u32,
 /// `line_history` plus the change of the line range in each step: the ` `, `+` and `-` lines of its
 /// hunks without headers, `\ No newline` notes and CR, decoded like blame lines. For the line
 /// archaeology (v1.2); the output holds file contents and is never logged.
-pub(crate) async fn line_history_with_diffs(core: &Core, repo_id: &str, path: &str, line: u32, sha: &str) -> CoreResult<Vec<(LineHistoryStep, Vec<String>)>> {
+pub(crate) async fn line_history_with_diffs(
+    core: &Core,
+    repo_id: &str,
+    path: &str,
+    line: u32,
+    sha: &str,
+) -> CoreResult<Vec<(LineHistoryStep, Vec<String>)>> {
     let rel = normalize_rel_path(path)?;
     if line == 0 {
         return Err(CoreError::not_allowed("Lines are counted from 1."));
@@ -402,7 +414,8 @@ pub(crate) async fn line_history_with_diffs(core: &Core, repo_id: &str, path: &s
 fn parse_line_records(stdout: &[u8], newest_path: &str, preferred: &str) -> Vec<(LineHistoryStep, Vec<String>)> {
     let mut steps = Vec::new();
     let mut last_path = newest_path.to_string();
-    let mut starts: Vec<usize> = stdout.windows(LINE_MARK.len()).enumerate().filter(|(_, window)| *window == LINE_MARK).map(|(index, _)| index).collect();
+    let mut starts: Vec<usize> =
+        stdout.windows(LINE_MARK.len()).enumerate().filter(|(_, window)| *window == LINE_MARK).map(|(index, _)| index).collect();
     starts.push(stdout.len());
     for pair in starts.windows(2) {
         let record = &stdout[pair[0] + LINE_MARK.len()..pair[1]];
@@ -454,7 +467,10 @@ fn hunk_of(diff: &[u8]) -> Option<(Option<String>, u32, u32)> {
     for line in diff.split(|&byte| byte == b'\n') {
         let line = line.strip_prefix(b"\0").unwrap_or(line);
         if let Some(rest) = line.strip_prefix(b"+++ ") {
-            path = rest.strip_prefix(b"b/").filter(|name| !name.starts_with(b"\"")).map(|name| util::decode_lossy(name).trim_end_matches('\t').to_string());
+            path = rest
+                .strip_prefix(b"b/")
+                .filter(|name| !name.starts_with(b"\""))
+                .map(|name| util::decode_lossy(name).trim_end_matches('\t').to_string());
         } else if line.starts_with(b"@@ ") {
             let text = util::decode_lossy(line);
             let new = text.split_whitespace().find(|part| part.starts_with('+'))?;
@@ -619,7 +635,13 @@ impl HistoryParser {
 ///
 /// `encoding` sets the encoding for this one call (otherwise: UTF-8, falling back to the
 /// repository's default).
-pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> CoreResult<Vec<BlameLine>> {
+pub async fn file_blame(
+    core: &Core,
+    repo_id: String,
+    path: String,
+    sha: Option<String>,
+    encoding: Option<String>,
+) -> CoreResult<Vec<BlameLine>> {
     let rel = normalize_rel_path(&path)?;
     let forced = forced_encoding(encoding.as_deref())?;
     let preferred = repo_encoding(core, &repo_id);
@@ -631,11 +653,10 @@ pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<
             let rev = check_rev(sha)?;
             let spec = format!("{rev}:{rel}");
             let is_binary = blob_looks_binary(core, &repo_id, &spec).await.map_err(|e| match e.code {
-                ErrorCode::NotFound | ErrorCode::Unknown => CoreError::not_found(format!(
-                    "The file “{rel}” does not exist in commit {}.",
-                    short_rev(rev)
-                ))
-                .with_git_output(e.git_output.unwrap_or_default()),
+                ErrorCode::NotFound | ErrorCode::Unknown => {
+                    CoreError::not_found(format!("The file “{rel}” does not exist in commit {}.", short_rev(rev)))
+                        .with_git_output(e.git_output.unwrap_or_default())
+                }
                 _ => e,
             })?;
             if is_binary {
@@ -659,14 +680,8 @@ pub async fn file_blame(core: &Core, repo_id: String, path: String, sha: Option<
             if file.metadata()?.len() > MAX_TEXT_BYTES {
                 return Err(too_large());
             }
-            let in_head = core
-                .git_for(&repo_id)?
-                .args(["cat-file", "-e", &format!("HEAD:{rel}")])
-                .read_only()
-                .no_log()
-                .run_raw()
-                .await?
-                .success();
+            let in_head =
+                core.git_for(&repo_id)?.args(["cat-file", "-e", &format!("HEAD:{rel}")]).read_only().no_log().run_raw().await?.success();
             if !in_head {
                 return uncommitted_file(&file, &rel, &preferred, forced);
             }
@@ -803,10 +818,9 @@ impl BlameParser {
             if let Some(n) = final_line {
                 self.sha = key.to_string();
                 self.line_no = n;
-                self.commits.entry(self.sha.clone()).or_insert_with(|| BlameCommit {
-                    authored_at: util::unix_to_iso(0),
-                    ..BlameCommit::default()
-                });
+                self.commits
+                    .entry(self.sha.clone())
+                    .or_insert_with(|| BlameCommit { authored_at: util::unix_to_iso(0), ..BlameCommit::default() });
                 return;
             }
         }
@@ -838,18 +852,18 @@ impl BlameParser {
 /// `encoding` sets the encoding for this one call ("Reopen with encoding"): then it is
 /// decoded exactly like that instead of detected; with UTF-16 the file counts as text even without a BOM.
 /// Unknown name → `not_allowed`. `None` = detect, with the repository's default.
-pub async fn file_read(core: &Core, repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> CoreResult<FileContent> {
+pub async fn file_read(
+    core: &Core,
+    repo_id: String,
+    path: String,
+    sha: Option<String>,
+    encoding: Option<String>,
+) -> CoreResult<FileContent> {
     let rel = normalize_rel_path(&path)?;
     let forced = forced_encoding(encoding.as_deref())?;
     let preferred = repo_encoding(core, &repo_id);
-    let no_text = |size: u64, is_binary: bool| FileContent {
-        path: rel.clone(),
-        text: None,
-        is_binary,
-        encoding: String::new(),
-        eol: Eol::Lf,
-        size,
-    };
+    let no_text =
+        |size: u64, is_binary: bool| FileContent { path: rel.clone(), text: None, is_binary, encoding: String::new(), eol: Eol::Lf, size };
     let bytes = match sha.as_deref() {
         None => {
             let root = core.repo_path(&repo_id)?;
@@ -948,6 +962,6 @@ fn write_atomic(target: &Path, bytes: &[u8]) -> CoreResult<()> {
 }
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod line_history_tests;
+#[cfg(test)]
+mod tests;

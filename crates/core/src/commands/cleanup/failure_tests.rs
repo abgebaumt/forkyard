@@ -15,7 +15,10 @@ async fn assert_gc_refused(tc: &TestCore, repo: &TestRepo, id: &str, content: St
     std::fs::write(&gc_pid, content).unwrap();
     let result = run_cleanup(tc, id, CleanupOptions { worktrees: true, ..only_gc(CleanupMode::Normal) }).await.unwrap();
     let failure = result.failure.clone().expect("gc refused");
-    assert_eq!((failure.step, failure.error.code, failure.gc_pid, failure.disk_full), (CleanupStep::Gc, ErrorCode::Locked, Some(pid), false));
+    assert_eq!(
+        (failure.step, failure.error.code, failure.gc_pid, failure.disk_full),
+        (CleanupStep::Gc, ErrorCode::Locked, Some(pid), false)
+    );
     assert_eq!(status_of(&result, CleanupStep::Worktrees), CleanupStepStatus::Done, "the step before gc ran");
     assert!(gc_pid.exists(), "Forkyard never removes Git's gc.pid");
     let done = tc.events.named(names::JOB_DONE);
@@ -93,7 +96,8 @@ async fn a_foreign_index_lock_survives_a_normal_run() {
 
 #[test]
 fn a_full_disk_is_marked_for_the_dialog() {
-    let error = crate::git::errors::classify("gc", Some(128), b"", b"fatal: write error: No space left on device\nerror: failed to run repack");
+    let error =
+        crate::git::errors::classify("gc", Some(128), b"", b"fatal: write error: No space left on device\nerror: failed to run repack");
     let failure = run::failure_of(CleanupStep::Gc, error);
     assert!(failure.disk_full && failure.gc_pid.is_none());
     let other = run::failure_of(CleanupStep::Gc, crate::error::CoreError::io("Access denied."));
@@ -128,7 +132,8 @@ async fn cancel_during_gc_ends_the_process_and_leaves_a_valid_repository() {
 
     let core = tc.core.clone();
     let repo_id = id.clone();
-    let running = tokio::spawn(async move { repo_cleanup_run(&core, repo_id, "job-gc-abbruch".into(), only_gc(CleanupMode::Thorough)).await });
+    let running =
+        tokio::spawn(async move { repo_cleanup_run(&core, repo_id, "job-gc-abbruch".into(), only_gc(CleanupMode::Thorough)).await });
     eventually("gc started", || marker.exists()).await;
     assert_ne!(repo.git(&["for-each-ref", "refs/forkyard/keep/"]), "", "keep refs are in place while gc runs");
     crate::commands::sync::job_cancel(&tc, "job-gc-abbruch".into()).await.unwrap();

@@ -131,7 +131,10 @@ mod tests {
         let mock = server();
         configure(&tc, Some(mock.url()));
         assert_eq!(avatar_get(&tc, "Lena@Example.com".into()).await.unwrap().as_deref(), Some("data:image/png;base64,UE5H"));
-        assert_eq!(avatar_get(&tc, "583231+octo@users.noreply.github.com".into()).await.unwrap().as_deref(), Some("data:image/jpeg;base64,SlBH"));
+        assert_eq!(
+            avatar_get(&tc, "583231+octo@users.noreply.github.com".into()).await.unwrap().as_deref(),
+            Some("data:image/jpeg;base64,SlBH")
+        );
         assert_eq!(avatar_get(&tc, "niemand@example.com".into()).await.unwrap(), None, "the placeholder does not count");
         assert_eq!(avatar_get(&tc, "kein-at".into()).await.unwrap(), None);
     }

@@ -27,7 +27,8 @@ struct Fixture {
 
 fn sub_git(repo: &TestRepo, args: &[&str]) -> String {
     let dir = repo.path().join(SUB).to_string_lossy().into_owned();
-    let mut all = vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
+    let mut all =
+        vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
     all.extend_from_slice(args);
     repo.git(&all)
 }
@@ -224,7 +225,8 @@ struct Nested {
 impl Nested {
     fn nested_git(&self, args: &[&str]) -> String {
         let dir = self.repo.path().join(SUB).join("innen").to_string_lossy().into_owned();
-        let mut all = vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
+        let mut all =
+            vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
         all.extend_from_slice(args);
         self.repo.git(&all)
     }

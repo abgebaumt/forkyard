@@ -8,8 +8,8 @@ use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveDateTime, Timelike};
 
 use super::parse::LogCommit;
 use crate::model::{
-    Person, RepoStats, StatsAuthor, StatsBigCommit, StatsBucket, StatsBusyDay, StatsCodeAge, StatsFile, StatsFolder, StatsFolderShare, StatsHotspot,
-    StatsRecords, StatsStreak,
+    Person, RepoStats, StatsAuthor, StatsBigCommit, StatsBucket, StatsBusyDay, StatsCodeAge, StatsFile, StatsFolder, StatsFolderShare,
+    StatsHotspot, StatsRecords, StatsStreak,
 };
 use crate::util;
 
@@ -228,12 +228,25 @@ impl Aggregator {
         let living: Vec<(&String, &FileAcc)> = self.files.iter().filter(|(path, _)| existing.contains(path.as_str())).collect();
         let mut files: Vec<StatsFile> = living
             .iter()
-            .map(|(path, acc)| StatsFile { path: (*path).clone(), commits: acc.commits, authors: acc.weights.len() as u32, added: acc.added, removed: acc.removed })
+            .map(|(path, acc)| StatsFile {
+                path: (*path).clone(),
+                commits: acc.commits,
+                authors: acc.weights.len() as u32,
+                added: acc.added,
+                removed: acc.removed,
+            })
             .collect();
-        files.sort_by(|a, b| b.commits.cmp(&a.commits).then_with(|| (b.added + b.removed).cmp(&(a.added + a.removed))).then_with(|| a.path.cmp(&b.path)));
+        files.sort_by(|a, b| {
+            b.commits.cmp(&a.commits).then_with(|| (b.added + b.removed).cmp(&(a.added + a.removed))).then_with(|| a.path.cmp(&b.path))
+        });
         let mut hotspots: Vec<StatsHotspot> = files
             .iter()
-            .map(|f| StatsHotspot { path: f.path.clone(), commits: f.commits, authors: f.authors, score: f.commits.saturating_mul(f.authors) })
+            .map(|f| StatsHotspot {
+                path: f.path.clone(),
+                commits: f.commits,
+                authors: f.authors,
+                score: f.commits.saturating_mul(f.authors),
+            })
             .collect();
         hotspots.sort_by(|a, b| b.score.cmp(&a.score).then_with(|| b.commits.cmp(&a.commits)).then_with(|| a.path.cmp(&b.path)));
         hotspots.truncate(MAX_HOTSPOTS);
@@ -319,7 +332,11 @@ fn folders(files: &[(&String, &FileAcc)], authors: &HashMap<String, AuthorAcc>) 
             let total: u64 = sorted.iter().sum();
             let person = |key: &str| authors.get(key).map(|a| Person { name: a.name.clone(), email: a.email.clone() }).unwrap_or_default();
             let main_author = ranked.first().map(|(key, _)| person(key)).unwrap_or_default();
-            let top = ranked.iter().take(MAX_FOLDER_AUTHORS).map(|(key, weight)| StatsFolderShare { author: person(key), weight: *weight }).collect();
+            let top = ranked
+                .iter()
+                .take(MAX_FOLDER_AUTHORS)
+                .map(|(key, weight)| StatsFolderShare { author: person(key), weight: *weight })
+                .collect();
             StatsFolder {
                 path,
                 weight: total,
@@ -400,7 +417,10 @@ mod tests {
             email: who.1.into(),
             time,
             offset,
-            files: files.iter().map(|(path, added, removed)| FileDelta { path: (*path).into(), from: None, added: *added, removed: *removed }).collect(),
+            files: files
+                .iter()
+                .map(|(path, added, removed)| FileDelta { path: (*path).into(), from: None, added: *added, removed: *removed })
+                .collect(),
         }
     }
 
@@ -437,7 +457,10 @@ mod tests {
         let stats = aggregate(None, None);
         assert_eq!((stats.commits, stats.added, stats.removed), (5, 25, 2));
         assert_eq!((stats.tip.as_deref(), stats.reference_time.as_deref()), (Some("d"), Some("2025-06-04T09:00:00.000Z")));
-        assert_eq!((stats.first_at.as_deref(), stats.last_at.as_deref()), (Some("2023-03-06T08:15:00.000Z"), Some("2025-06-04T09:00:00.000Z")));
+        assert_eq!(
+            (stats.first_at.as_deref(), stats.last_at.as_deref()),
+            (Some("2023-03-06T08:15:00.000Z"), Some("2025-06-04T09:00:00.000Z"))
+        );
         let cells: Vec<(usize, usize, u32)> = stats
             .heatmap
             .iter()
@@ -451,23 +474,36 @@ mod tests {
         assert_eq!(months, [("2023-03", 1), ("2025-06", 4)]);
         let authors: Vec<(&str, u32, u64, u64)> = stats.authors.iter().map(|a| (a.name.as_str(), a.commits, a.added, a.removed)).collect();
         assert_eq!(authors, [("Ben", 3, 8, 1), ("Ada", 2, 17, 1)]);
-        assert_eq!((stats.authors[1].first_at.as_str(), stats.authors[1].last_at.as_str()), ("2023-03-06T08:15:00.000Z", "2025-06-02T08:00:00.000Z"));
+        assert_eq!(
+            (stats.authors[1].first_at.as_str(), stats.authors[1].last_at.as_str()),
+            ("2023-03-06T08:15:00.000Z", "2025-06-02T08:00:00.000Z")
+        );
         assert_eq!(stats.author_count, 2);
         assert_eq!(stats.records.longest_streak, Some(StatsStreak { days: 3, start: "2025-06-02".into(), end: "2025-06-04".into() }));
         assert_eq!(stats.records.busiest_day, Some(StatsBusyDay { date: "2025-06-04".into(), commits: 2 }));
-        assert_eq!(stats.records.biggest_commit, Some(StatsBigCommit { sha: "e".into(), added: 15, removed: 0, at: "2023-03-06T08:15:00.000Z".into() }));
+        assert_eq!(
+            stats.records.biggest_commit,
+            Some(StatsBigCommit { sha: "e".into(), added: 15, removed: 0, at: "2023-03-06T08:15:00.000Z".into() })
+        );
     }
 
     #[test]
     fn files_hotspots_and_folders_only_count_files_that_still_exist() {
         let stats = aggregate(None, None);
-        let files: Vec<(&str, u32, u32, u64, u64)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
-        assert_eq!(files, [("src/app/main.rs", 3, 2, 13, 1), ("docs/guide.md", 3, 1, 7, 1), ("README.md", 1, 1, 3, 0), ("logo.bin", 1, 1, 0, 0)]);
+        let files: Vec<(&str, u32, u32, u64, u64)> =
+            stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
+        assert_eq!(
+            files,
+            [("src/app/main.rs", 3, 2, 13, 1), ("docs/guide.md", 3, 1, 7, 1), ("README.md", 1, 1, 3, 0), ("logo.bin", 1, 1, 0, 0)]
+        );
         assert_eq!(stats.file_count, 4, "old.txt no longer exists");
         let hotspots: Vec<(&str, u32)> = stats.hotspots.iter().map(|h| (h.path.as_str(), h.score)).collect();
         assert_eq!(hotspots, [("src/app/main.rs", 6), ("docs/guide.md", 3), ("README.md", 1), ("logo.bin", 1)]);
-        let folders: Vec<(&str, u64, u32, &str, u32, u32)> =
-            stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.authors, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
+        let folders: Vec<(&str, u64, u32, &str, u32, u32)> = stats
+            .folders
+            .iter()
+            .map(|f| (f.path.as_str(), f.weight, f.authors, f.main_author.name.as_str(), f.main_share, f.bus_factor))
+            .collect();
         assert_eq!(
             folders,
             [("", 26, 2, "Ada", 62, 1), ("src", 14, 2, "Ada", 93, 1), ("src/app", 14, 2, "Ada", 93, 1), ("docs", 8, 1, "Ben", 100, 1)]
@@ -506,7 +542,15 @@ mod tests {
 
     fn moved(sha: &str, who: (&str, &str), time: i64, files: &[(&str, &str, u64, u64)]) -> LogCommit {
         let mut out = commit(sha, who, time, 0, &[]);
-        out.files = files.iter().map(|(from, path, added, removed)| FileDelta { path: (*path).into(), from: Some((*from).into()), added: *added, removed: *removed }).collect();
+        out.files = files
+            .iter()
+            .map(|(from, path, added, removed)| FileDelta {
+                path: (*path).into(),
+                from: Some((*from).into()),
+                added: *added,
+                removed: *removed,
+            })
+            .collect();
         out
     }
 
@@ -530,9 +574,15 @@ mod tests {
         }
         let existing: HashSet<String> = ["src/a.rs", "src/b.rs", "c.md"].into_iter().map(String::from).collect();
         let stats = agg.finish(&existing, StatsCodeAge::default(), "5".into(), 500);
-        let files: Vec<(&str, u32, u32, u64, u64)> = stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
-        assert_eq!(files, [("c.md", 5, 2, 11, 1), ("src/a.rs", 3, 2, 10, 0), ("src/b.rs", 2, 1, 4, 0)], "every commit since the file was created, under its current path");
-        let folders: Vec<(&str, u64, &str, u32, u32)> = stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
+        let files: Vec<(&str, u32, u32, u64, u64)> =
+            stats.files.iter().map(|f| (f.path.as_str(), f.commits, f.authors, f.added, f.removed)).collect();
+        assert_eq!(
+            files,
+            [("c.md", 5, 2, 11, 1), ("src/a.rs", 3, 2, 10, 0), ("src/b.rs", 2, 1, 4, 0)],
+            "every commit since the file was created, under its current path"
+        );
+        let folders: Vec<(&str, u64, &str, u32, u32)> =
+            stats.folders.iter().map(|f| (f.path.as_str(), f.weight, f.main_author.name.as_str(), f.main_share, f.bus_factor)).collect();
         // src: Ada 6 + 1 (move) + 3 + 1 = 11, Ben 4.
         assert_eq!(folders[1], ("src", 15, "Ada", 73, 1), "the folder counts the history from before the move");
         assert!(stats.folders.iter().all(|f| f.path != "lib"), "the old folder does not exist any more");
@@ -560,7 +610,11 @@ mod tests {
         agg.add(&commit("1", ("C. Lastname", "CLEO@Example.com"), 100, 0, &[("a.txt", 1, 0)]));
         let stats = agg.finish(&HashSet::from(["a.txt".to_string()]), StatsCodeAge::default(), "2".into(), 200);
         assert_eq!(stats.authors.len(), 1);
-        assert_eq!((stats.authors[0].name.as_str(), stats.authors[0].email.as_str(), stats.authors[0].commits), ("Cleo", "cleo@example.com", 2), "name of the newest commit");
+        assert_eq!(
+            (stats.authors[0].name.as_str(), stats.authors[0].email.as_str(), stats.authors[0].commits),
+            ("Cleo", "cleo@example.com", 2),
+            "name of the newest commit"
+        );
         assert_eq!(stats.files[0].authors, 1);
     }
 
@@ -617,6 +671,10 @@ mod tests {
         assert_eq!((stats.tip, stats.commits, stats.records.biggest_commit), (None, 0, None));
         let mut agg = Aggregator::new(None, None);
         agg.add(&commit("x", ADA, 100, 0, &[]));
-        assert_eq!(agg.finish(&HashSet::new(), StatsCodeAge::default(), "x".into(), 100).records.biggest_commit, None, "a commit without lines is no record");
+        assert_eq!(
+            agg.finish(&HashSet::new(), StatsCodeAge::default(), "x".into(), 100).records.biggest_commit,
+            None,
+            "a commit without lines is no record"
+        );
     }
 }

@@ -197,9 +197,7 @@ async fn cancelling_the_job_closes_the_open_request() {
     let token = gitcore::jobs::CancelToken::new();
     let call = {
         let (core, id, token) = (fx.core(), id.clone(), token.clone());
-        tokio::spawn(async move {
-            core.git_for(&id)?.args(["-c", ASK_ALIAS, "ask"]).network().run_stream(&token, &mut |_| {}).await
-        })
+        tokio::spawn(async move { core.git_for(&id)?.args(["-c", ASK_ALIAS, "ask"]).network().run_stream(&token, &mut |_| {}).await })
     };
     let request = fx.request(1).await;
     token.cancel();
@@ -272,10 +270,8 @@ fn handle_http(mut stream: TcpStream, root: &Path, creds: &Mutex<(String, String
         format!("Basic {}", base64::engine::general_purpose::STANDARD.encode(format!("{user}:{password}")))
     };
     let respond = |stream: &mut TcpStream, status: &str, extra: &str, body: &[u8]| {
-        let header = format!(
-            "HTTP/1.1 {status}\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n",
-            body.len()
-        );
+        let header =
+            format!("HTTP/1.1 {status}\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n{extra}\r\n", body.len());
         let _ = stream.write_all(header.as_bytes());
         let _ = stream.write_all(body);
         let _ = stream.flush();
@@ -303,12 +299,8 @@ fn handle_http(mut stream: TcpStream, root: &Path, creds: &Mutex<(String, String
 async fn ls_remote(fx: &Fixture, url: &str, no_prompt: bool) -> tokio::task::JoinHandle<Result<String, CoreError>> {
     let (core, url, cwd) = (fx.core(), url.to_string(), fx.dir.path().to_path_buf());
     tokio::spawn(async move {
-        let mut cmd = core
-            .git_at(&cwd)
-            .args(["ls-remote", url.as_str()])
-            .env("NO_PROXY", "127.0.0.1")
-            .env("no_proxy", "127.0.0.1")
-            .network();
+        let mut cmd =
+            core.git_at(&cwd).args(["ls-remote", url.as_str()]).env("NO_PROXY", "127.0.0.1").env("no_proxy", "127.0.0.1").network();
         if no_prompt {
             cmd = cmd.no_prompt();
         }

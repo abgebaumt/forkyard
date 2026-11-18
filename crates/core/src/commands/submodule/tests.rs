@@ -27,19 +27,32 @@ fn code<T: std::fmt::Debug>(result: CoreResult<T>) -> ErrorCode {
 
 fn sub_git(repo: &TestRepo, sub: &str, args: &[&str]) -> String {
     let dir = repo.path().join(sub).to_string_lossy().into_owned();
-    let mut all = vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
+    let mut all =
+        vec!["-C", dir.as_str(), "-c", "user.name=Test Person", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false"];
     all.extend_from_slice(args);
     repo.git(&all)
 }
 
 #[test]
 fn gitmodules_and_status_fields_are_parsed() {
-    let config = b"submodule.libs/a.path\nlibs/a\0submodule.libs/a.url\nhttps://u:geheim@example.com/a.git\0submodule.libs/a.branch\nstable\0\
+    let config =
+        b"submodule.libs/a.path\nlibs/a\0submodule.libs/a.url\nhttps://u:geheim@example.com/a.git\0submodule.libs/a.branch\nstable\0\
 submodule.mit.punkt.path\nx y\0submodule.mit.punkt.URL\n../y.git\0core.bare\nfalse\0";
     let parsed = parse_gitmodules(config);
     assert_eq!(parsed.len(), 2);
-    assert_eq!(parsed[0], Declared { name: "libs/a".into(), path: Some("libs/a".into()), url: Some("https://u:geheim@example.com/a.git".into()), branch: Some("stable".into()) });
-    assert_eq!((parsed[1].name.as_str(), parsed[1].path.as_deref(), parsed[1].url.as_deref()), ("mit.punkt", Some("x y"), Some("../y.git")));
+    assert_eq!(
+        parsed[0],
+        Declared {
+            name: "libs/a".into(),
+            path: Some("libs/a".into()),
+            url: Some("https://u:geheim@example.com/a.git".into()),
+            branch: Some("stable".into())
+        }
+    );
+    assert_eq!(
+        (parsed[1].name.as_str(), parsed[1].path.as_deref(), parsed[1].url.as_deref()),
+        ("mit.punkt", Some("x y"), Some("../y.git"))
+    );
 
     let a = "a".repeat(40);
     let status = format!(
@@ -114,7 +127,11 @@ async fn add_list_states_and_remove() {
     assert!(!String::from_utf8_lossy(&repo.read_file(".gitmodules")).contains("werkzeug"));
     assert!(!repo.git_output(&["config", "--get", "submodule.libs/werkzeug.url"]).status.success());
     let status = crate::commands::status::read_status(&tc, &id).await.unwrap();
-    assert!(status.staged.iter().any(|f| f.path == "libs/werkzeug" && f.status == crate::model::FileStatus::Deleted), "{:?}", status.staged);
+    assert!(
+        status.staged.iter().any(|f| f.path == "libs/werkzeug" && f.status == crate::model::FileStatus::Deleted),
+        "{:?}",
+        status.staged
+    );
     assert_eq!(tc.events.named(names::REPO_CHANGED)[0]["what"], serde_json::json!(["worktree", "index", "config"]));
     repo.commit("Submodul entfernt");
 
@@ -122,7 +139,10 @@ async fn add_list_states_and_remove() {
     let list = submodule_add(&tc, id.clone(), "job-add-2".into(), lib_remote.url(), "libs/werkzeug".into()).await.unwrap();
     assert_eq!(list[0].state, SubmoduleState::Initialized);
     // Unchanged: removing without forcing.
-    assert!(submodule_remove(&tc, id.clone(), "libs\\werkzeug".replace('\\', if cfg!(windows) { "\\" } else { "/" }), None).await.unwrap().is_empty());
+    assert!(submodule_remove(&tc, id.clone(), "libs\\werkzeug".replace('\\', if cfg!(windows) { "\\" } else { "/" }), None)
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]
@@ -170,7 +190,10 @@ async fn update_initializes_and_follows_the_recorded_commit() {
     assert_eq!(clone.read_file("extern/lib mit leer/lib.txt"), b"eins\nzwei\ndrei\n");
 
     // Error cases.
-    assert_eq!(code(submodule_update(&tc, id.clone(), "job-5".into(), Some(vec!["kein/submodul".into()]), true).await), ErrorCode::NotFound);
+    assert_eq!(
+        code(submodule_update(&tc, id.clone(), "job-5".into(), Some(vec!["kein/submodul".into()]), true).await),
+        ErrorCode::NotFound
+    );
     assert!(submodule_update(&tc, id.clone(), "job-6".into(), Some(vec![]), true).await.is_ok());
     // Local change in the way: setting the recorded submodule back to the old commit does not work.
     clone.git(&["update-index", "--cacheinfo", &format!("160000,{},extern/lib mit leer", lib.git(&["rev-parse", "HEAD~1"]))]);
@@ -252,7 +275,10 @@ async fn move_updates_gitmodules_and_keeps_the_checkout() {
     assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "belegt".into()).await), ErrorCode::PathExists);
     assert_eq!(code(submodule_move(&tc, id.clone(), "gibt/es/nicht".into(), "x".into()).await), ErrorCode::NotFound);
     assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "../draußen".into()).await), ErrorCode::NotAllowed);
-    assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "extern/neuer Ort/innen".into()).await), ErrorCode::NotAllowed);
+    assert_eq!(
+        code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), "extern/neuer Ort/innen".into()).await),
+        ErrorCode::NotAllowed
+    );
     assert_eq!(code(submodule_move(&tc, id.clone(), "extern/neuer Ort".into(), ".git/modules/x".into()).await), ErrorCode::NotAllowed);
     assert_eq!(submodule_list(&tc, id).await.unwrap()[0].path, "extern/neuer Ort");
 }

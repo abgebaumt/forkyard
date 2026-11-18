@@ -76,14 +76,21 @@ async fn refs_lines(core: &Core, repo_id: &str, prefix: &str, count: usize, form
             if remote && fields.get(2).is_some_and(|symref| !symref.is_empty()) {
                 return None;
             }
-            let shown: Vec<&str> = fields.iter().take(if remote { 2 } else { 3 }).map(String::as_str).filter(|field| !field.is_empty()).collect();
+            let shown: Vec<&str> =
+                fields.iter().take(if remote { 2 } else { 3 }).map(String::as_str).filter(|field| !field.is_empty()).collect();
             (!shown.is_empty()).then(|| shown.join(" "))
         })
         .collect())
 }
 
 async fn recent_commits(core: &Core, repo_id: &str) -> CoreResult<Vec<String>> {
-    let out = core.git_for(repo_id)?.args(["log", "-z", "--no-color", &format!("-n{COMMITS}"), "--format=%h %s", "HEAD", "--"]).read_only().no_log().run().await?;
+    let out = core
+        .git_for(repo_id)?
+        .args(["log", "-z", "--no-color", &format!("-n{COMMITS}"), "--format=%h %s", "HEAD", "--"])
+        .read_only()
+        .no_log()
+        .run()
+        .await?;
     Ok(util::split_z(&out.stdout).map(util::decode_lossy).filter(|line| !line.is_empty()).collect())
 }
 
@@ -99,7 +106,12 @@ pub async fn sections(core: &Core, repo_id: &str, secrets: &[String]) -> CoreRes
         let gone = if upstream.gone { ", gone on the remote" } else { "" };
         state.push(format!("Upstream: {} ({} ahead, {} behind{gone})", upstream.name, upstream.ahead, upstream.behind));
     }
-    state.push(format!("Changes: {} staged, {} not staged, {} conflicted", current.staged.len(), current.unstaged.len(), current.conflicted.len()));
+    state.push(format!(
+        "Changes: {} staged, {} not staged, {} conflicted",
+        current.staged.len(),
+        current.unstaged.len(),
+        current.conflicted.len()
+    ));
     if let Some(operation) = &current.operation {
         state.push(format!("Operation in progress: {}", format!("{:?}", operation.kind).to_lowercase()));
     }
@@ -109,7 +121,11 @@ pub async fn sections(core: &Core, repo_id: &str, secrets: &[String]) -> CoreRes
     let names = remotes::remote_names(core, repo_id).await?;
     let commits = if matches!(current.head, Head::Unborn { .. }) { Vec::new() } else { recent_commits(core, repo_id).await? };
     let body = |lines: Vec<String>| -> String {
-        let text = if lines.is_empty() { "(none)".to_string() } else { lines.iter().map(|line| undo::shorten(line, MAX_LINE_CHARS)).collect::<Vec<_>>().join("\n") };
+        let text = if lines.is_empty() {
+            "(none)".to_string()
+        } else {
+            lines.iter().map(|line| undo::shorten(line, MAX_LINE_CHARS)).collect::<Vec<_>>().join("\n")
+        };
         context::redact_for_ai(&text, secrets)
     };
     Ok(vec![
@@ -129,7 +145,9 @@ fn fit(sections: &mut [Section], max_chars: usize) {
         if total <= max_chars {
             return;
         }
-        let Some(longest) = sections.iter_mut().filter(|section| section.body.contains('\n')).max_by_key(|section| section.body.chars().count()) else {
+        let Some(longest) =
+            sections.iter_mut().filter(|section| section.body.contains('\n')).max_by_key(|section| section.body.chars().count())
+        else {
             return;
         };
         if let Some(cut) = longest.body.rfind('\n') {
@@ -140,7 +158,14 @@ fn fit(sections: &mut [Section], max_chars: usize) {
 
 /// The prompt of `AiInput::Plan` (`ai_preview`) and of `ai_plan` – both pass the budget and the
 /// known secrets of Paket 3.1's `request_frame`, so the texts match (1a's gate is bound to them).
-pub async fn build_prompt(core: &Core, repo_id: &str, text: &str, locale: &str, secrets: &[String], budget_tokens: u64) -> CoreResult<Prompt> {
+pub async fn build_prompt(
+    core: &Core,
+    repo_id: &str,
+    text: &str,
+    locale: &str,
+    secrets: &[String],
+    budget_tokens: u64,
+) -> CoreResult<Prompt> {
     let request = context::redact_for_ai(&clean_request(text)?, secrets);
     let instruction = instruction(&request);
     let mut sections = sections(core, repo_id, secrets).await?;
@@ -169,7 +194,12 @@ pub fn parse_steps(value: &Value) -> CoreResult<(Vec<PlanStep>, Option<String>)>
         let args = item
             .get("args")
             .and_then(Value::as_object)
-            .map(|args| args.iter().filter(|(name, value)| own.iter().any(|f| f.name == name.as_str()) || !value.is_null()).map(|(name, value)| (name.clone(), value.clone())).collect())
+            .map(|args| {
+                args.iter()
+                    .filter(|(name, value)| own.iter().any(|f| f.name == name.as_str()) || !value.is_null())
+                    .map(|(name, value)| (name.clone(), value.clone()))
+                    .collect()
+            })
             .unwrap_or_default();
         let why = one_line(item.get("why").and_then(Value::as_str).unwrap_or(""), MAX_WHY_CHARS);
         steps.push(PlanStep { command, args, why });

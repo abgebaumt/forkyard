@@ -14,24 +14,124 @@ const LANGUAGES: [(&str, &[&str]); 5] = [
     (
         "English",
         &[
-            "the", "and", "for", "with", "from", "into", "when", "add", "adds", "added", "fix", "fixes", "fixed", "update", "updates", "updated", "remove", "removes",
-            "removed", "use", "make", "allow", "support", "improve", "refactor", "rename", "move", "bump", "should", "not", "of", "to", "on",
+            "the", "and", "for", "with", "from", "into", "when", "add", "adds", "added", "fix", "fixes", "fixed", "update", "updates",
+            "updated", "remove", "removes", "removed", "use", "make", "allow", "support", "improve", "refactor", "rename", "move", "bump",
+            "should", "not", "of", "to", "on",
         ],
     ),
     (
         "German",
         &[
-            "der", "die", "das", "und", "für", "mit", "von", "zum", "zur", "im", "auf", "nicht", "ein", "eine", "einen", "den", "dem", "beim", "bei", "aus", "nach", "ist",
-            "wenn", "statt", "ohne", "über", "füge", "behebe", "entferne", "aktualisiere", "hinzu", "neu", "neue", "neuer", "angelegt", "ergänzt", "korrigiert", "entfernt",
-            "geändert", "überarbeitet", "behoben",
+            "der",
+            "die",
+            "das",
+            "und",
+            "für",
+            "mit",
+            "von",
+            "zum",
+            "zur",
+            "im",
+            "auf",
+            "nicht",
+            "ein",
+            "eine",
+            "einen",
+            "den",
+            "dem",
+            "beim",
+            "bei",
+            "aus",
+            "nach",
+            "ist",
+            "wenn",
+            "statt",
+            "ohne",
+            "über",
+            "füge",
+            "behebe",
+            "entferne",
+            "aktualisiere",
+            "hinzu",
+            "neu",
+            "neue",
+            "neuer",
+            "angelegt",
+            "ergänzt",
+            "korrigiert",
+            "entfernt",
+            "geändert",
+            "überarbeitet",
+            "behoben",
         ],
     ),
     (
         "French",
-        &["les", "du", "et", "pour", "avec", "dans", "une", "sur", "ajout", "ajoute", "ajouter", "corrige", "correction", "supprime", "suppression", "mise", "jour", "à", "pas"],
+        &[
+            "les",
+            "du",
+            "et",
+            "pour",
+            "avec",
+            "dans",
+            "une",
+            "sur",
+            "ajout",
+            "ajoute",
+            "ajouter",
+            "corrige",
+            "correction",
+            "supprime",
+            "suppression",
+            "mise",
+            "jour",
+            "à",
+            "pas",
+        ],
     ),
-    ("Spanish", &["el", "los", "las", "del", "y", "para", "añade", "agrega", "elimina", "actualiza", "corregido", "nuevo", "nueva", "cuando", "sin", "más", "también"]),
-    ("Dutch", &["het", "een", "voor", "met", "van", "niet", "toevoegen", "toegevoegd", "verwijderd", "aangepast", "bijgewerkt", "opgelost", "bij", "naar", "ook", "wanneer"]),
+    (
+        "Spanish",
+        &[
+            "el",
+            "los",
+            "las",
+            "del",
+            "y",
+            "para",
+            "añade",
+            "agrega",
+            "elimina",
+            "actualiza",
+            "corregido",
+            "nuevo",
+            "nueva",
+            "cuando",
+            "sin",
+            "más",
+            "también",
+        ],
+    ),
+    (
+        "Dutch",
+        &[
+            "het",
+            "een",
+            "voor",
+            "met",
+            "van",
+            "niet",
+            "toevoegen",
+            "toegevoegd",
+            "verwijderd",
+            "aangepast",
+            "bijgewerkt",
+            "opgelost",
+            "bij",
+            "naar",
+            "ook",
+            "wanneer",
+        ],
+    ),
 ];
 const GERMAN: usize = 1;
 /// Fewer subjects with a clear language say nothing about the repository.
@@ -90,8 +190,24 @@ mod tests {
     #[test]
     fn the_language_of_clear_histories_is_recognised() {
         let cases: [(&str, &[&str]); 5] = [
-            ("German", &["Projekt für das Messnetz angelegt", "Liste der Stationen", "Vergleich der Tagesmittel zweier Stationen", "CSV-Export für den Vergleich"]),
-            ("English", &["feat(api): add the export endpoint", "fix: handle empty input in the parser", "chore: bump serde to 1.0.200", "docs: update the README for 1.1"]),
+            (
+                "German",
+                &[
+                    "Projekt für das Messnetz angelegt",
+                    "Liste der Stationen",
+                    "Vergleich der Tagesmittel zweier Stationen",
+                    "CSV-Export für den Vergleich",
+                ],
+            ),
+            (
+                "English",
+                &[
+                    "feat(api): add the export endpoint",
+                    "fix: handle empty input in the parser",
+                    "chore: bump serde to 1.0.200",
+                    "docs: update the README for 1.1",
+                ],
+            ),
             ("French", &["Ajoute la page de connexion", "Corrige le calcul des totaux pour les mois", "Mise à jour des dépendances"]),
             ("Spanish", &["Añade la página de inicio", "Elimina los archivos temporales", "Actualiza las dependencias del proyecto"]),
             ("Dutch", &["Knop voor het exporteren toegevoegd", "Fout bij het opslaan opgelost", "Teksten van de instellingen aangepast"]),
@@ -105,7 +221,10 @@ mod tests {
     fn conventional_prefixes_do_not_count_as_english() {
         assert_eq!(subject_language("fix: Fehler beim Speichern behoben"), Some("German"));
         assert_eq!(subject_language("feat(export)!: Export nach CSV"), Some("German"));
-        assert_eq!(detect(&subjects(&["fix: Fehler beim Speichern behoben", "feat: Export nach CSV", "fix: Absturz bei leerer Liste"])), Some("German"));
+        assert_eq!(
+            detect(&subjects(&["fix: Fehler beim Speichern behoben", "feat: Export nach CSV", "fix: Absturz bei leerer Liste"])),
+            Some("German")
+        );
     }
 
     #[test]
@@ -113,7 +232,14 @@ mod tests {
         assert_eq!(detect(&subjects(&["WIP", "wip", "asdf", "v1.2.0"])), None, "no words to go by");
         assert_eq!(detect(&subjects(&["Liste der Stationen", "CSV-Export für den Vergleich"])), None, "fewer than three votes");
         assert_eq!(
-            detect(&subjects(&["Liste der Stationen", "CSV-Export für den Vergleich", "Vergleich der Tagesmittel", "add the parser", "fix the build", "update the docs"])),
+            detect(&subjects(&[
+                "Liste der Stationen",
+                "CSV-Export für den Vergleich",
+                "Vergleich der Tagesmittel",
+                "add the parser",
+                "fix the build",
+                "update the docs"
+            ])),
             None,
             "a tie is no majority"
         );
@@ -124,7 +250,14 @@ mod tests {
     #[test]
     fn the_majority_wins_and_umlauts_count_for_german() {
         assert_eq!(
-            detect(&subjects(&["Liste der Stationen", "CSV-Export für den Vergleich", "Vergleich der Tagesmittel", "Projekt für das Messnetz angelegt", "add the parser", "fix the build"])),
+            detect(&subjects(&[
+                "Liste der Stationen",
+                "CSV-Export für den Vergleich",
+                "Vergleich der Tagesmittel",
+                "Projekt für das Messnetz angelegt",
+                "add the parser",
+                "fix the build"
+            ])),
             Some("German")
         );
         assert_eq!(subject_language("Größere Schrift"), Some("German"), "only the umlaut decides here");

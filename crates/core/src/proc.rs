@@ -244,7 +244,10 @@ impl Proc {
         }
         let program = self.resolve()?;
         let mut cmd = self.command(&program)?;
-        cmd.stdin(if self.stdin.is_some() { Stdio::piped() } else { Stdio::null() }).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
+        cmd.stdin(if self.stdin.is_some() { Stdio::piped() } else { Stdio::null() })
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true);
         if let Some(dir) = &self.cwd {
             cmd.current_dir(dir);
         }
@@ -346,7 +349,8 @@ impl Proc {
                     _ = sleep_until(deadline) => Err(Stop::TimedOut),
                 };
                 match waited {
-                    Ok(status) => status.map_err(|e| CoreError::io(format!("Waiting for “{}” failed.", self.name())).with_git_output(e.to_string()))?,
+                    Ok(status) => status
+                        .map_err(|e| CoreError::io(format!("Waiting for “{}” failed.", self.name())).with_git_output(e.to_string()))?,
                     Err(stop) => {
                         kill_tree(&mut child, tree.as_ref()).await;
                         let _ = child.wait().await;
@@ -362,10 +366,13 @@ impl Proc {
         let name = self.name();
         match stop {
             Stop::Cancelled => CoreError::cancelled(),
-            Stop::TimedOut => {
-                CoreError::new(ErrorCode::Timeout, format!("“{name}” did not finish within {} and was stopped.", seconds(self.timeout.unwrap_or_default())))
+            Stop::TimedOut => CoreError::new(
+                ErrorCode::Timeout,
+                format!("“{name}” did not finish within {} and was stopped.", seconds(self.timeout.unwrap_or_default())),
+            ),
+            Stop::Overflow => {
+                CoreError::not_allowed(format!("“{name}” wrote more than {} of output and was stopped.", size(self.max_stdout)))
             }
-            Stop::Overflow => CoreError::not_allowed(format!("“{name}” wrote more than {} of output and was stopped.", size(self.max_stdout))),
         }
     }
 
@@ -435,7 +442,9 @@ pub fn batch_command_line(program: &Path, args: &[OsString]) -> CoreResult<Strin
 #[cfg(windows)]
 fn batch_command(line: &str) -> CoreResult<tokio::process::Command> {
     // Not ComSpec: the environment must not choose the interpreter.
-    let shell = std::env::var_os("SystemRoot").map(|root| PathBuf::from(root).join("System32").join("cmd.exe")).unwrap_or_else(|| PathBuf::from("cmd.exe"));
+    let shell = std::env::var_os("SystemRoot")
+        .map(|root| PathBuf::from(root).join("System32").join("cmd.exe"))
+        .unwrap_or_else(|| PathBuf::from("cmd.exe"));
     let mut cmd = tokio::process::Command::new(shell);
     cmd.raw_arg(format!("/d /s /c \"{line}\""));
     Ok(cmd)

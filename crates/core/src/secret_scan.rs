@@ -185,7 +185,9 @@ fn unquote_c(quoted: &[u8]) -> Option<Vec<u8>> {
                 let next = *inner.get(index + 1)?;
                 if next.is_ascii_digit() {
                     let digits = inner.get(index + 1..index + 4)?;
-                    let value = digits.iter().try_fold(0u32, |acc, digit| (b'0'..=b'7').contains(digit).then(|| acc * 8 + u32::from(*digit - b'0')))?;
+                    let value = digits
+                        .iter()
+                        .try_fold(0u32, |acc, digit| (b'0'..=b'7').contains(digit).then(|| acc * 8 + u32::from(*digit - b'0')))?;
                     out.push(u8::try_from(value).ok()?);
                     index += 4;
                     continue;
@@ -310,7 +312,11 @@ impl<'a> PatchScanner<'a> {
     /// `@@ -a,b +c,d @@`: the next added line has number `c`.
     fn hunk(&mut self, line: &[u8]) {
         let text = util::decode_lossy(line);
-        let start = text.split(' ').find_map(|part| part.strip_prefix('+')).and_then(|range| range.split(',').next()).and_then(|number| number.parse::<u32>().ok());
+        let start = text
+            .split(' ')
+            .find_map(|part| part.strip_prefix('+'))
+            .and_then(|range| range.split(',').next())
+            .and_then(|number| number.parse::<u32>().ok());
         self.next_line = start.unwrap_or(1);
         self.in_hunk = true;
     }
@@ -333,7 +339,15 @@ impl<'a> PatchScanner<'a> {
             return;
         }
         let hint = if first.rule == SecretRule::PrivateKey { String::new() } else { secrets::hint(&text[first.start..first.end]) };
-        self.findings.push(SecretFinding { id, path: path_text, line: number, commit: self.commit.clone(), rule: first.rule, excerpt: mask_line(&text, &hits), hint });
+        self.findings.push(SecretFinding {
+            id,
+            path: path_text,
+            line: number,
+            commit: self.commit.clone(),
+            rule: first.rule,
+            excerpt: mask_line(&text, &hits),
+            hint,
+        });
     }
 
     pub fn finish(mut self) -> SecretScan {
@@ -354,7 +368,18 @@ pub async fn scan_outgoing(core: &Core, repo_id: &str, tips: &[String], remote: 
     let ignored = core.db.with(|c| ignored_ids(c, repo_id))?;
     let mut scanner = PatchScanner::new(&ignored, MAX_COMMITS, MAX_PATCH_BYTES);
     core.git_for(repo_id)?
-        .args(["log", "--format=%x00%H", "-p", "-U0", "-M", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"])
+        .args([
+            "log",
+            "--format=%x00%H",
+            "-p",
+            "-U0",
+            "-M",
+            "--no-color",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--src-prefix=a/",
+            "--dst-prefix=b/",
+        ])
         .arg(format!("--max-count={}", MAX_COMMITS + 1))
         .args(tips)
         .arg("--not")
@@ -407,7 +432,15 @@ pub fn forget_ignored(conn: &Connection, repo_id: &str) -> CoreResult<()> {
 
 /// Before every push: `Some(SecretsFound)` if an outgoing added line looks like a key and is not
 /// among `accepted` (the IDs the user saw and pushed anyway); then nothing may be sent.
-pub async fn check_push(core: &Core, repo_id: &str, tips: &[String], remote: &str, accepted: Option<&[String]>, job: Option<&Job>, cancel: &CancelToken) -> CoreResult<Option<PushResult>> {
+pub async fn check_push(
+    core: &Core,
+    repo_id: &str,
+    tips: &[String],
+    remote: &str,
+    accepted: Option<&[String]>,
+    job: Option<&Job>,
+    cancel: &CancelToken,
+) -> CoreResult<Option<PushResult>> {
     if let Some(job) = job {
         job.progress("Push", None, "Checking the added lines for keys …");
     }
@@ -585,7 +618,8 @@ mod tests {
     fn the_patch_scanner_reads_only_added_lines_with_their_new_line_numbers() {
         let lines = sample_patch();
         let scan = scan_lines(&lines, &HashSet::new(), MAX_COMMITS, MAX_PATCH_BYTES);
-        let places: Vec<(&str, u32, SecretRule, &str)> = scan.findings.iter().map(|f| (f.path.as_str(), f.line, f.rule, f.commit.as_str())).collect();
+        let places: Vec<(&str, u32, SecretRule, &str)> =
+            scan.findings.iter().map(|f| (f.path.as_str(), f.line, f.rule, f.commit.as_str())).collect();
         let (a, c) = ("a".repeat(40), "c".repeat(40));
         assert_eq!(
             places,
@@ -599,14 +633,21 @@ mod tests {
         let first = &scan.findings[0];
         assert_eq!(first.excerpt, "AWS = \"…W3NB\"", "no CR, value masked");
         assert_eq!(first.hint, "…W3NB");
-        assert_eq!(first.id, sha256_hex(format!("-geheim/zügang daten.txt\0AWS = \"{}\"", aws()).as_bytes()), "hash of path and line content");
+        assert_eq!(
+            first.id,
+            sha256_hex(format!("-geheim/zügang daten.txt\0AWS = \"{}\"", aws()).as_bytes()),
+            "hash of path and line content"
+        );
         assert_eq!(scan.findings[2].hint, "", "a private key has no tail to show");
         assert!(!format!("{:?}", scan.findings).contains(&aws()));
 
         // "Don't report again" for the second one.
         let ignored: HashSet<String> = [sha256_hex(b"doku/mit leer.md\0password = \"anders-2026x\"")].into_iter().collect();
         let quiet = scan_lines(&lines, &ignored, MAX_COMMITS, MAX_PATCH_BYTES);
-        assert_eq!(quiet.findings.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(), vec!["-geheim/zügang daten.txt", "schluessel/id_ed25519"]);
+        assert_eq!(
+            quiet.findings.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(),
+            vec!["-geheim/zügang daten.txt", "schluessel/id_ed25519"]
+        );
 
         // Limits: two commits, or a few bytes.
         let two = scan_lines(&lines, &HashSet::new(), 2, MAX_PATCH_BYTES);
@@ -627,9 +668,19 @@ mod tests {
 
     #[test]
     fn a_thousand_added_lines_are_scanned_in_under_200_ms() {
-        let mut lines: Vec<Vec<u8>> = vec![format!("\0{}", "d".repeat(40)).into_bytes(), Vec::new(), b"diff --git a/gross.rs b/gross.rs".to_vec(), b"+++ b/gross.rs".to_vec(), b"@@ -0,0 +1,1000 @@".to_vec()];
+        let mut lines: Vec<Vec<u8>> = vec![
+            format!("\0{}", "d".repeat(40)).into_bytes(),
+            Vec::new(),
+            b"diff --git a/gross.rs b/gross.rs".to_vec(),
+            b"+++ b/gross.rs".to_vec(),
+            b"@@ -0,0 +1,1000 @@".to_vec(),
+        ];
         for n in 1..=1000u32 {
-            let line = if n % 100 == 0 { format!("+let token_{n} = \"ghp_{}{n:04}\";", "AbCdEfGhIjKlMnOpQrStUvWxYz012345") } else { format!("+let wert_{n} = berechne({n}, \"Messreihe Hafen\");") };
+            let line = if n % 100 == 0 {
+                format!("+let token_{n} = \"ghp_{}{n:04}\";", "AbCdEfGhIjKlMnOpQrStUvWxYz012345")
+            } else {
+                format!("+let wert_{n} = berechne({n}, \"Messreihe Hafen\");")
+            };
             lines.push(line.into_bytes());
         }
         // Compile the patterns before timing.

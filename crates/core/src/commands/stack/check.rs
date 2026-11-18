@@ -41,7 +41,9 @@ async fn remove_worktree(core: &Core, repo_id: &str, folder: &Path) -> CoreResul
         if folder.exists() {
             let out = core.git_for(repo_id)?.args(["worktree", "remove", "--force", "--force"]).arg(folder).run_raw().await?;
             if !out.success() && folder.exists() {
-                std::fs::remove_dir_all(folder).map_err(|e| CoreError::io(format!("The temporary worktree “{}” couldn't be removed: {e}", util::display_path(folder))))?;
+                std::fs::remove_dir_all(folder).map_err(|e| {
+                    CoreError::io(format!("The temporary worktree “{}” couldn't be removed: {e}", util::display_path(folder)))
+                })?;
             }
         }
         core.git_for(repo_id)?.args(["worktree", "prune"]).run().await?;
@@ -50,8 +52,16 @@ async fn remove_worktree(core: &Core, repo_id: &str, folder: &Path) -> CoreResul
     .await
 }
 
-async fn check_all(core: &Core, repo_id: &str, job: &Job, dir: &Path, command: &str, parts: &[StackPart]) -> CoreResult<Vec<StackCheckResult>> {
-    std::fs::create_dir_all(dir).map_err(|e| CoreError::io(format!("The folder “{}” couldn't be created: {e}", util::display_path(dir))))?;
+async fn check_all(
+    core: &Core,
+    repo_id: &str,
+    job: &Job,
+    dir: &Path,
+    command: &str,
+    parts: &[StackPart],
+) -> CoreResult<Vec<StackCheckResult>> {
+    std::fs::create_dir_all(dir)
+        .map_err(|e| CoreError::io(format!("The folder “{}” couldn't be created: {e}", util::display_path(dir))))?;
     let path = crate::tools::locate::login_shell_path(core).await;
     let total = parts.len();
     let mut results = Vec::with_capacity(total);
@@ -59,7 +69,11 @@ async fn check_all(core: &Core, repo_id: &str, job: &Job, dir: &Path, command: &
         job.progress(&format!("Checking part {} of {total}", part.number), Some(((part.number as usize - 1) * 100 / total) as u32), "");
         let folder = add_worktree(core, repo_id, dir, part.number, &part.tip).await?;
         let started = Instant::now();
-        let mut proc = checks::shell_command(command).cwd(folder.clone()).timeout(checks::TEST_TIMEOUT).logged(core, Some(repo_id), format!("Stack check: part {}", part.number));
+        let mut proc = checks::shell_command(command).cwd(folder.clone()).timeout(checks::TEST_TIMEOUT).logged(
+            core,
+            Some(repo_id),
+            format!("Stack check: part {}", part.number),
+        );
         if let Some(path) = &path {
             proc = proc.env("PATH", path);
         }

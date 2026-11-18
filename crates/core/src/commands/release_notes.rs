@@ -22,7 +22,14 @@ pub async fn release_notes_range(core: &Core, repo_id: String, from: Option<Stri
 }
 
 /// Writes the release notes (job `job_id`). No commits in the range: empty notes, nothing sent.
-pub async fn ai_release_notes(core: &Core, repo_id: String, job_id: String, from: Option<String>, to: Option<String>, locale: String) -> CoreResult<ReleaseNotes> {
+pub async fn ai_release_notes(
+    core: &Core,
+    repo_id: String,
+    job_id: String,
+    from: Option<String>,
+    to: Option<String>,
+    locale: String,
+) -> CoreResult<ReleaseNotes> {
     let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::ReleaseNotes)?;
     let budget = release_notes::budget(core, &settings);
     let secrets = release_notes::known_secrets(core, &settings).await;
@@ -32,7 +39,17 @@ pub async fn ai_release_notes(core: &Core, repo_id: String, job_id: String, from
     }
     let file_headings = changelog_headings(core, &repo_id).await;
     let schema = release_notes::schema();
-    let answer = run::complete_json(core, AiRequest { repo_id: Some(&repo_id), feature: AiFeature::ReleaseNotes, job_id: &job_id, prompt: &context.built.prompt, schema: &schema }).await?;
+    let answer = run::complete_json(
+        core,
+        AiRequest {
+            repo_id: Some(&repo_id),
+            feature: AiFeature::ReleaseNotes,
+            job_id: &job_id,
+            prompt: &context.built.prompt,
+            schema: &schema,
+        },
+    )
+    .await?;
     Ok(release_notes::notes_from_answer(&answer.value, &context, file_headings))
 }
 
@@ -71,7 +88,13 @@ fn check_date(date: &str) -> CoreResult<()> {
 /// Inserts the section `## [<version>] - <date>` (style of the file) into CHANGELOG.md – created
 /// if missing. Errors: `not_allowed` (version, date, a link, not UTF-8), `empty_message`,
 /// `name_exists` (the version has a section), `io`.
-pub async fn changelog_insert(core: &Core, repo_id: String, version: String, date: String, notes: String) -> CoreResult<ChangelogInsertResult> {
+pub async fn changelog_insert(
+    core: &Core,
+    repo_id: String,
+    version: String,
+    date: String,
+    notes: String,
+) -> CoreResult<ChangelogInsertResult> {
     let version = version.trim().to_string();
     util::check_ref_name(&version).map_err(CoreError::not_allowed)?;
     check_date(&date)?;
@@ -100,7 +123,8 @@ fn write_changelog(root: &Path, version: &str, date: &str, notes: &str) -> CoreR
                 Some(rest) => (UTF8_BOM, rest),
                 None => (&b""[..], &existing[..]),
             };
-            let text = std::str::from_utf8(body).map_err(|_| CoreError::not_allowed(format!("{name} is not UTF-8 text; Forkyard leaves it unchanged.")))?;
+            let text = std::str::from_utf8(body)
+                .map_err(|_| CoreError::not_allowed(format!("{name} is not UTF-8 text; Forkyard leaves it unchanged.")))?;
             let updated = changelog::insert(text, version, date, notes).map_err(CoreError::name_exists)?;
             let mut bytes = bom.to_vec();
             bytes.extend_from_slice(updated.as_bytes());
@@ -128,7 +152,10 @@ mod tests {
     fn ollama(content: Value) -> impl Fn(&MockRequest) -> MockResponse + Send + Sync + 'static {
         move |request| match request.route().as_str() {
             "POST /api/show" => MockResponse::json(200, json!({"model_info": {"qwen3.context_length": 40960}})),
-            _ => MockResponse::json(200, json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content.to_string()}, "done": true, "done_reason": "stop", "prompt_eval_count": 120, "eval_count": 40})),
+            _ => MockResponse::json(
+                200,
+                json!({"model": "qwen3:8b", "message": {"role": "assistant", "content": content.to_string()}, "done": true, "done_reason": "stop", "prompt_eval_count": 120, "eval_count": 40}),
+            ),
         }
     }
 
@@ -144,7 +171,10 @@ mod tests {
     }
 
     fn sent_text(request: &MockRequest) -> String {
-        request.json()["messages"].as_array().map(|messages| messages.iter().filter_map(|m| m["content"].as_str()).collect::<Vec<_>>().join("\n")).unwrap_or_default()
+        request.json()["messages"]
+            .as_array()
+            .map(|messages| messages.iter().filter_map(|m| m["content"].as_str()).collect::<Vec<_>>().join("\n"))
+            .unwrap_or_default()
     }
 
     struct Story {
@@ -157,7 +187,11 @@ mod tests {
     fn story() -> Story {
         let repo = TestRepo::with_commit();
         repo.git(&["tag", "-a", "v1.0.0", "-m", "Erste Version"]);
-        let export = repo.commit_file("src/export.py", "def zeile(station, wert):\n    return f\"{station};{wert}\"\n", "CSV-Export für den Vergleich");
+        let export = repo.commit_file(
+            "src/export.py",
+            "def zeile(station, wert):\n    return f\"{station};{wert}\"\n",
+            "CSV-Export für den Vergleich",
+        );
         let fix = repo.commit_file("src/bericht.py", "name = name or \"?\"\n", "Absturz bei leerem Stationsnamen behoben");
         let ci = repo.commit_file(".github/workflows/ci.yml", "on: push\n", "CI: Cache für pip");
         Story { repo, export, fix, ci }
@@ -174,14 +208,21 @@ mod tests {
         let tc = with_ollama(&server).await;
         let id = tc.open(&s.repo).await.repo.id;
         let notes = ai_release_notes(&tc, id.clone(), "rn-1".into(), None, None, "de-DE".into()).await.unwrap();
-        assert_eq!(notes.markdown, "### Neu\n\n- Export des Vergleichs als CSV-Datei\n\n### Behoben\n\n- Kein Absturz mehr bei leerem Stationsnamen");
+        assert_eq!(
+            notes.markdown,
+            "### Neu\n\n- Export des Vergleichs als CSV-Datei\n\n### Behoben\n\n- Kein Absturz mehr bei leerem Stationsnamen"
+        );
         assert_eq!((notes.range.from.as_deref(), notes.language), (Some("v1.0.0"), ReleaseLanguage::De));
         assert_eq!(notes.range.commits.to_string(), s.repo.git(&["rev-list", "--no-merges", "--count", "v1.0.0..HEAD"]));
         assert_eq!(notes.unmentioned, 1, "the CI commit has no visible effect");
         let sent = chats(&server);
         assert_eq!(sent.len(), 1);
         let text = sent_text(&sent[0]);
-        for (sha, subject) in [(&s.export, "CSV-Export für den Vergleich"), (&s.fix, "Absturz bei leerem Stationsnamen behoben"), (&s.ci, "CI: Cache für pip")] {
+        for (sha, subject) in [
+            (&s.export, "CSV-Export für den Vergleich"),
+            (&s.fix, "Absturz bei leerem Stationsnamen behoben"),
+            (&s.ci, "CI: Cache für pip"),
+        ] {
             assert!(text.contains(&format!("- {} {subject}", &sha[..12])), "{text}");
         }
         let tagged = s.repo.git(&["rev-parse", "v1.0.0^{commit}"]);
@@ -197,7 +238,10 @@ mod tests {
         let tc = with_ollama(&server).await;
         let id = tc.open(&s.repo).await.repo.id;
         let notes = ai_release_notes(&tc, id, "rn-2".into(), None, None, "de".into()).await.unwrap();
-        assert_eq!(notes.markdown, "### Added\n\n- Export des Vergleichs als CSV-Datei\n\n### Fixed\n\n- Kein Absturz mehr bei leerem Stationsnamen");
+        assert_eq!(
+            notes.markdown,
+            "### Added\n\n- Export des Vergleichs als CSV-Datei\n\n### Fixed\n\n- Kein Absturz mehr bei leerem Stationsnamen"
+        );
     }
 
     #[tokio::test]
@@ -215,21 +259,30 @@ mod tests {
     async fn api_providers_send_release_notes_only_after_the_preview_was_confirmed() {
         let s = story();
         let answer = json!({"language": "de", "added": [{"text": "Export als CSV", "commits": [&s.export[..12]]}], "changed": [], "fixed": [], "other": []});
-        let server = MockServer::start(move |_| MockResponse::json(200, json!({"content": [{"type": "text", "text": answer.to_string()}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 60}})));
+        let server = MockServer::start(move |_| {
+            MockResponse::json(
+                200,
+                json!({"content": [{"type": "text", "text": answer.to_string()}], "stop_reason": "end_turn", "usage": {"input_tokens": 900, "output_tokens": 60}}),
+            )
+        });
         let tc = TestCore::new().await;
         configure_base(&tc, AiProviderKind::Anthropic, Some(format!("{}/v1", server.url())));
         crate::secrets::set(&tc, "llm:anthropic", KEY).await.unwrap();
         settings_set(&tc, json!({"aiEnabled": true, "aiProvider": "anthropic", "aiModel": "claude-sonnet-5-5"})).await.unwrap();
         let id = tc.open(&s.repo).await.repo.id;
 
-        let preview = ai_preview(&tc, id.clone(), AiFeature::ReleaseNotes, AiInput::ReleaseNotes { from: None, to: None }, "de".into()).await.unwrap();
+        let preview = ai_preview(&tc, id.clone(), AiFeature::ReleaseNotes, AiInput::ReleaseNotes { from: None, to: None }, "de".into())
+            .await
+            .unwrap();
         assert_eq!(preview.asks, vec![AiAskTrigger::FirstUse, AiAskTrigger::RepoFirst]);
         assert!(preview.text.contains(&format!("- {} CSV-Export für den Vergleich", &s.export[..12])), "{}", preview.text);
         let refused = ai_release_notes(&tc, id.clone(), "rn-a".into(), None, None, "de".into()).await.unwrap_err();
         assert_eq!(refused.code, ErrorCode::NotAllowed);
         assert!(server.requests().is_empty(), "nothing leaves before the confirmation");
 
-        ai_preview_confirm(&tc, Some(id.clone()), AiFeature::ReleaseNotes, preview.fingerprint.clone(), preview.asks.clone(), false).await.unwrap();
+        ai_preview_confirm(&tc, Some(id.clone()), AiFeature::ReleaseNotes, preview.fingerprint.clone(), preview.asks.clone(), false)
+            .await
+            .unwrap();
         let notes = ai_release_notes(&tc, id.clone(), "rn-b".into(), None, None, "de".into()).await.unwrap();
         assert_eq!(notes.markdown, "### Neu\n\n- Export als CSV");
         assert_eq!(server.requests().len(), 1, "the confirmed text is exactly the one sent");
@@ -249,7 +302,10 @@ mod tests {
         settings_set(&tc, json!({"aiFeaturesOff": ["release_notes"]})).await.unwrap();
         assert_eq!(code(ai_release_notes(&tc, id.clone(), "x2".into(), None, None, "en".into()).await), ErrorCode::AiDisabled);
         settings_set(&tc, json!({"aiFeaturesOff": []})).await.unwrap();
-        assert_eq!(code(ai_release_notes(&tc, id.clone(), "x3".into(), Some("--all".into()), None, "en".into()).await), ErrorCode::NotFound);
+        assert_eq!(
+            code(ai_release_notes(&tc, id.clone(), "x3".into(), Some("--all".into()), None, "en".into()).await),
+            ErrorCode::NotFound
+        );
         assert_eq!(release_notes_range(&tc, id.clone(), None, Some("-n".into())).await.unwrap_err().code, ErrorCode::NotFound);
         crate::commands::trust::repo_trust_set(&tc, id.clone(), false).await.unwrap();
         assert_eq!(code(ai_release_notes(&tc, id, "x4".into(), None, None, "en".into()).await), ErrorCode::RepoUntrusted);
@@ -269,10 +325,14 @@ mod tests {
     async fn the_changelog_gets_a_normal_change_byte_exact_and_never_through_a_link() {
         let tc = TestCore::new().await;
         let repo = TestRepo::with_commit();
-        let original = "\u{feff}# Changelog\r\n\r\n## [Unreleased]\r\n\r\n## [1.0.0] – 2026-01-02\r\n\r\n### Neu\r\n\r\n- Erste Version für „Süd“\r\n";
+        let original =
+            "\u{feff}# Changelog\r\n\r\n## [Unreleased]\r\n\r\n## [1.0.0] – 2026-01-02\r\n\r\n### Neu\r\n\r\n- Erste Version für „Süd“\r\n";
         repo.commit_file("CHANGELOG.md", original, "Changelog angelegt");
         let id = tc.open(&repo).await.repo.id;
-        let result = changelog_insert(&tc, id.clone(), "v1.1.0".into(), "2026-10-20".into(), "### Behoben\n\n- Absturz bei leerem Namen\n".into()).await.unwrap();
+        let result =
+            changelog_insert(&tc, id.clone(), "v1.1.0".into(), "2026-10-20".into(), "### Behoben\n\n- Absturz bei leerem Namen\n".into())
+                .await
+                .unwrap();
         assert_eq!(result, ChangelogInsertResult { path: "CHANGELOG.md".into(), created: false, keep_a_changelog: true });
         assert_eq!(
             String::from_utf8(repo.read_file("CHANGELOG.md")).unwrap(),
@@ -280,18 +340,36 @@ mod tests {
         );
         assert_eq!(repo.git(&["status", "--porcelain"]), " M CHANGELOG.md", "a normal change in the working directory");
         assert_eq!(repo.git(&["diff", "--cached", "--name-only"]), "", "nothing is staged");
-        assert!(tc.events.all().iter().any(|(name, payload)| name == crate::events::names::REPO_CHANGED && payload.to_string().contains("worktree")));
+        assert!(tc
+            .events
+            .all()
+            .iter()
+            .any(|(name, payload)| name == crate::events::names::REPO_CHANGED && payload.to_string().contains("worktree")));
 
         let before = repo.read_file("CHANGELOG.md");
-        assert_eq!(changelog_insert(&tc, id.clone(), "1.1.0".into(), "2026-10-21".into(), "- noch einmal".into()).await.unwrap_err().code, ErrorCode::NameExists);
+        assert_eq!(
+            changelog_insert(&tc, id.clone(), "1.1.0".into(), "2026-10-21".into(), "- noch einmal".into()).await.unwrap_err().code,
+            ErrorCode::NameExists
+        );
         for (version, date) in [("-v1", "2026-10-20"), ("v1.2.0", "20.10.2026"), ("v1.2.0", "2026-13-01"), ("v 1", "2026-10-20")] {
-            assert_eq!(changelog_insert(&tc, id.clone(), version.into(), date.into(), "- x".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "{version} {date}");
+            assert_eq!(
+                changelog_insert(&tc, id.clone(), version.into(), date.into(), "- x".into()).await.unwrap_err().code,
+                ErrorCode::NotAllowed,
+                "{version} {date}"
+            );
         }
-        assert_eq!(changelog_insert(&tc, id.clone(), "v1.2.0".into(), "2026-10-20".into(), "  \n".into()).await.unwrap_err().code, ErrorCode::EmptyMessage);
+        assert_eq!(
+            changelog_insert(&tc, id.clone(), "v1.2.0".into(), "2026-10-20".into(), "  \n".into()).await.unwrap_err().code,
+            ErrorCode::EmptyMessage
+        );
         assert_eq!(repo.read_file("CHANGELOG.md"), before, "refused calls change nothing");
 
         std::fs::write(repo.path().join("CHANGELOG.md"), b"# \xc4nderungen\n").unwrap();
-        assert_eq!(changelog_insert(&tc, id.clone(), "v1.2.0".into(), "2026-10-20".into(), "- x".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "not UTF-8");
+        assert_eq!(
+            changelog_insert(&tc, id.clone(), "v1.2.0".into(), "2026-10-20".into(), "- x".into()).await.unwrap_err().code,
+            ErrorCode::NotAllowed,
+            "not UTF-8"
+        );
         assert_eq!(repo.read_file("CHANGELOG.md"), b"# \xc4nderungen\n".to_vec());
 
         #[cfg(unix)]
@@ -300,7 +378,11 @@ mod tests {
             std::fs::write(&outside, "# Draußen\n").unwrap();
             std::fs::remove_file(repo.path().join("CHANGELOG.md")).unwrap();
             std::os::unix::fs::symlink(&outside, repo.path().join("CHANGELOG.md")).unwrap();
-            assert_eq!(changelog_insert(&tc, id, "v1.2.0".into(), "2026-10-20".into(), "- x".into()).await.unwrap_err().code, ErrorCode::NotAllowed, "a link");
+            assert_eq!(
+                changelog_insert(&tc, id, "v1.2.0".into(), "2026-10-20".into(), "- x".into()).await.unwrap_err().code,
+                ErrorCode::NotAllowed,
+                "a link"
+            );
             assert_eq!(std::fs::read_to_string(&outside).unwrap(), "# Draußen\n");
         }
     }
@@ -310,9 +392,13 @@ mod tests {
         let tc = TestCore::new().await;
         let repo = TestRepo::with_commit();
         let id = tc.open(&repo).await.repo.id;
-        let created = changelog_insert(&tc, id.clone(), "v0.1.0".into(), "2026-10-20".into(), "### Neu\n\n- Erste Version".into()).await.unwrap();
+        let created =
+            changelog_insert(&tc, id.clone(), "v0.1.0".into(), "2026-10-20".into(), "### Neu\n\n- Erste Version".into()).await.unwrap();
         assert_eq!(created, ChangelogInsertResult { path: "CHANGELOG.md".into(), created: true, keep_a_changelog: true });
-        assert_eq!(String::from_utf8(repo.read_file("CHANGELOG.md")).unwrap(), "# Changelog\n\n## [0.1.0] - 2026-10-20\n\n### Neu\n\n- Erste Version\n");
+        assert_eq!(
+            String::from_utf8(repo.read_file("CHANGELOG.md")).unwrap(),
+            "# Changelog\n\n## [0.1.0] - 2026-10-20\n\n### Neu\n\n- Erste Version\n"
+        );
         assert_eq!(repo.git(&["status", "--porcelain"]), "?? CHANGELOG.md");
 
         let other = TestRepo::with_commit();
@@ -320,7 +406,10 @@ mod tests {
         let other_id = tc.open(&other).await.repo.id;
         let found = changelog_insert(&tc, other_id, "0.4.0".into(), "2026-10-20".into(), "- Export".into()).await.unwrap();
         assert_eq!((found.path.as_str(), found.created, found.keep_a_changelog), ("changelog.md", false, false));
-        assert_eq!(String::from_utf8(other.read_file("changelog.md")).unwrap(), "# Änderungen\n\n## 0.4.0 - 2026-10-20\n\n- Export\n\n## 0.3.0 - 2024-03-01\n\n- Größere Schrift\n");
+        assert_eq!(
+            String::from_utf8(other.read_file("changelog.md")).unwrap(),
+            "# Änderungen\n\n## 0.4.0 - 2026-10-20\n\n- Export\n\n## 0.3.0 - 2024-03-01\n\n- Größere Schrift\n"
+        );
         assert_eq!(other.git(&["status", "--porcelain"]), " M changelog.md");
     }
 }

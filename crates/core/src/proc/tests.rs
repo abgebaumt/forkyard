@@ -20,7 +20,8 @@ fn shell(unix: &str, windows: &str) -> Proc {
 
 fn process_alive(pid: &str) -> bool {
     if cfg!(windows) {
-        let out = std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"]).output().expect("tasklist");
+        let out =
+            std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH", "/FO", "CSV"]).output().expect("tasklist");
         String::from_utf8_lossy(&out.stdout).contains(&format!("\"{pid}\""))
     } else {
         std::process::Command::new("kill").args(["-0", pid]).status().map(|s| s.success()).unwrap_or(false)
@@ -132,14 +133,19 @@ async fn too_much_stdout_stops_the_program_and_stderr_is_cut() {
     assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
     assert!(err.message.contains("1 KiB"), "{}", err.message);
     // Exits right away: the limit still counts, even if the pipes close at the same moment.
-    let err = shell("yes 0123456789 | head -c 20000", "[Console]::Out.Write('x' * 20000)").max_output(1024, 1024).run(&CancelToken::new()).await.unwrap_err();
-    assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
-
-    let out = shell("head -c 5000 /dev/zero | tr '\\000' e >&2; printf ok", "[Console]::Error.Write('e' * 5000); [Console]::Out.Write('ok')")
+    let err = shell("yes 0123456789 | head -c 20000", "[Console]::Out.Write('x' * 20000)")
         .max_output(1024, 1024)
         .run(&CancelToken::new())
         .await
-        .unwrap();
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::NotAllowed, "{err:?}");
+
+    let out =
+        shell("head -c 5000 /dev/zero | tr '\\000' e >&2; printf ok", "[Console]::Error.Write('e' * 5000); [Console]::Out.Write('ok')")
+            .max_output(1024, 1024)
+            .run(&CancelToken::new())
+            .await
+            .unwrap();
     assert_eq!(out.stdout, b"ok");
     assert_eq!(out.stderr, vec![b'e'; 1024]);
     assert!(out.stderr_truncated);
@@ -291,7 +297,11 @@ async fn a_program_file_still_open_for_writing_is_started_once_it_is_closed() {
     file.write_all(b"#!/bin/sh\necho 'fy-tool 4.2.0'\n").unwrap();
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
     let busy = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
-    assert_eq!(std::process::Command::new(&path).output().map_err(|e| e.raw_os_error()).err(), Some(Some(26)), "the file is busy while open for writing");
+    assert_eq!(
+        std::process::Command::new(&path).output().map_err(|e| e.raw_os_error()).err(),
+        Some(Some(26)),
+        "the file is busy while open for writing"
+    );
     drop(file);
     let release = std::thread::spawn(move || {
         std::thread::sleep(Duration::from_millis(150));

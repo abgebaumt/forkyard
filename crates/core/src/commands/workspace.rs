@@ -142,7 +142,9 @@ async fn run_all(core: &Core, job: &Job, workspace: &Workspace, action: Action) 
             Ok(done) => done,
             Err(e) if e.code == ErrorCode::Cancelled => return Err(e),
             // Nothing to fetch is not a failure: no remote, no upstream, no branch checked out.
-            Err(e) if matches!(e.code, ErrorCode::NoRemote | ErrorCode::NoUpstream) => (WorkspaceRepoStatus::Skipped, e.message, Some(e.code)),
+            Err(e) if matches!(e.code, ErrorCode::NoRemote | ErrorCode::NoUpstream) => {
+                (WorkspaceRepoStatus::Skipped, e.message, Some(e.code))
+            }
             Err(e) => (WorkspaceRepoStatus::Failed, e.message, Some(e.code)),
         };
         scoped.progress(status.as_str(), Some(100), &message);

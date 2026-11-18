@@ -70,7 +70,8 @@ fn atx_heading(line: &str) -> Option<String> {
     }
     let text = rest.trim();
     let stripped = text.trim_end_matches('#');
-    let text = if stripped.len() < text.len() && (stripped.is_empty() || stripped.ends_with([' ', '\t'])) { stripped.trim_end() } else { text };
+    let text =
+        if stripped.len() < text.len() && (stripped.is_empty() || stripped.ends_with([' ', '\t'])) { stripped.trim_end() } else { text };
     if text.is_empty() {
         return None;
     }
@@ -177,7 +178,12 @@ fn hits<'a>(message: &str, compiled: &'a [(LinkRule, Regex)]) -> Vec<Hit<'a>> {
             }
             taken.push((whole.start(), whole.end()));
             let number = caps.get(1).and_then(|m| m.as_str().parse::<u64>().ok()).filter(|n| *n > 0);
-            out.push(Hit { start: whole.start(), rule, ticket: Ticket { text: whole.as_str().to_string(), url: expand(&rule.url, &caps) }, number });
+            out.push(Hit {
+                start: whole.start(),
+                rule,
+                ticket: Ticket { text: whole.as_str().to_string(), url: expand(&rule.url, &caps) },
+                number,
+            });
         }
     }
     out.sort_by_key(|hit| hit.start);
@@ -260,8 +266,7 @@ pub fn strip_foreign_closes(body: &str, closes: &[u64]) -> String {
 
 /// Appends `Closes #n` for every number the text does not close yet.
 pub fn with_closes(body: &str, closes: &[u64]) -> String {
-    let present: BTreeSet<u64> =
-        closing_keyword().captures_iter(body).filter_map(|caps| plain_numbers(&caps[1])).flatten().collect();
+    let present: BTreeSet<u64> = closing_keyword().captures_iter(body).filter_map(|caps| plain_numbers(&caps[1])).flatten().collect();
     let lines: Vec<String> = closes.iter().filter(|n| !present.contains(n)).map(|n| format!("Closes #{n}")).collect();
     if lines.is_empty() {
         body.to_string()
@@ -362,15 +367,23 @@ async fn branch_commits(core: &Core, repo_id: &str, target_sha: &str, source_sha
         .run()
         .await?;
     let fields = out.stdout_z();
-    let mut commits: Vec<BranchCommit> =
-        fields.chunks(3).filter(|chunk| chunk.len() == 3).map(|chunk| BranchCommit { subject: display_text(chunk[1]), body: display_text(chunk[2]).trim_end().to_string() }).collect();
+    let mut commits: Vec<BranchCommit> = fields
+        .chunks(3)
+        .filter(|chunk| chunk.len() == 3)
+        .map(|chunk| BranchCommit { subject: display_text(chunk[1]), body: display_text(chunk[2]).trim_end().to_string() })
+        .collect();
     commits.reverse();
     let total = total.max(commits.len());
     Ok((commits, total))
 }
 
 /// `git diff --numstat` from the merge base (or, without one, from the target) to the source.
-async fn diff_stats(core: &Core, repo_id: &str, target_sha: &str, source_sha: &str) -> CoreResult<Vec<(Option<u64>, Option<u64>, Option<String>, String)>> {
+async fn diff_stats(
+    core: &Core,
+    repo_id: &str,
+    target_sha: &str,
+    source_sha: &str,
+) -> CoreResult<Vec<(Option<u64>, Option<u64>, Option<String>, String)>> {
     let path = core.repo_path(repo_id)?;
     let merge_base = read_cmd(core, &path, repo_id).args(["merge-base", target_sha, source_sha]).run_raw().await?;
     let base = if merge_base.success() { merge_base.stdout_text() } else { target_sha.to_string() };
@@ -462,7 +475,10 @@ fn sections(parts: &Parts, body_lines: Option<usize>, listed: usize, with_sample
         out.push(Section { title: "Pull request template".into(), body: template.clone() });
     }
     if with_sample && !parts.sample.is_empty() {
-        out.push(Section { title: "Recent commit subjects of the target branch (sample of the repository's language)".into(), body: parts.sample.join("\n") });
+        out.push(Section {
+            title: "Recent commit subjects of the target branch (sample of the repository's language)".into(),
+            body: parts.sample.join("\n"),
+        });
     }
     for section in &mut out {
         section.body = context::redact_for_ai(&section.body, secrets);
@@ -506,7 +522,16 @@ fn fit(parts: &Parts, budget_chars: usize, secrets: &[String], omitted: &mut Vec
 /// The prompt for the pull request from `source` into `target` (full ref names or any commit).
 /// `secrets`: values known to be secret (the provider key), scrubbed literally.
 #[allow(clippy::too_many_arguments)]
-pub async fn build(core: &Core, repo_id: &str, settings: &Settings, source: &str, target: &str, budget_tokens: u64, locale: &str, secrets: &[String]) -> CoreResult<PrBuilt> {
+pub async fn build(
+    core: &Core,
+    repo_id: &str,
+    settings: &Settings,
+    source: &str,
+    target: &str,
+    budget_tokens: u64,
+    locale: &str,
+    secrets: &[String],
+) -> CoreResult<PrBuilt> {
     let source_sha = resolve_commit(core, repo_id, source).await?;
     let target_sha = resolve_commit(core, repo_id, target).await?;
     let (commits, total_commits) = branch_commits(core, repo_id, &target_sha, &source_sha).await?;

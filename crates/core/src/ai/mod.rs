@@ -9,29 +9,29 @@
 //! - No streaming; every request is a cancellable job (`run`).
 
 pub mod archaeology;
+pub mod bisect;
+pub mod cli;
 pub mod commit_message;
 pub mod conflict;
-pub mod bisect;
 pub mod context;
+pub mod detect;
 pub mod gate;
 pub mod ignore;
 pub mod language;
+pub mod plan;
+pub mod plan_check;
+pub mod plan_commands;
+pub mod plan_run;
+pub mod pr;
 pub mod pricing;
 pub mod prompt;
-pub mod pr;
 pub mod provider;
 pub mod providers;
 pub mod release_notes;
 pub mod review;
 pub mod run;
-pub mod plan;
-pub mod plan_check;
-pub mod plan_commands;
-pub mod plan_run;
-pub mod semantic;
-pub mod cli;
-pub mod detect;
 pub mod schema;
+pub mod semantic;
 pub mod stack;
 
 use std::collections::HashMap;
@@ -107,7 +107,8 @@ pub fn base_url_for(core: &Core, kind: AiProviderKind, settings: &Settings) -> O
 /// address is a loopback host. Grundregel 4 skips the first-use and per-repository confirmation
 /// only then; `is_local` alone says "no price", not "no data leaves the machine".
 pub fn runs_on_this_computer(core: &Core, kind: AiProviderKind, settings: &Settings) -> bool {
-    kind.is_local() && base_url_for(core, kind, settings).is_some_and(|base| crate::http::Target::parse(&base).is_ok_and(|target| target.loopback))
+    kind.is_local()
+        && base_url_for(core, kind, settings).is_some_and(|base| crate::http::Target::parse(&base).is_ok_and(|target| target.loopback))
 }
 
 impl AiProviderKind {
@@ -313,7 +314,14 @@ mod tests {
         for feature in [AiFeature::Compose, AiFeature::ConflictIntent, AiFeature::PushReview, AiFeature::ReviewFix] {
             assert_eq!(feature.timeout(), Duration::from_secs(180), "{feature:?}");
         }
-        for feature in [AiFeature::PrDescription, AiFeature::Plan, AiFeature::Archaeology, AiFeature::ReleaseNotes, AiFeature::BisectScript, AiFeature::SemanticSearch] {
+        for feature in [
+            AiFeature::PrDescription,
+            AiFeature::Plan,
+            AiFeature::Archaeology,
+            AiFeature::ReleaseNotes,
+            AiFeature::BisectScript,
+            AiFeature::SemanticSearch,
+        ] {
             assert_eq!(feature.timeout(), Duration::from_secs(120), "{feature:?}");
         }
     }
@@ -356,7 +364,10 @@ mod tests {
     fn only_local_providers_skip_keys() {
         assert!(AiProviderKind::Ollama.is_local() && AiProviderKind::Lmstudio.is_local());
         assert!(!AiProviderKind::Ollama.accepts_key() && !AiProviderKind::Lmstudio.accepts_key());
-        assert!(AiProviderKind::OpenaiCompatible.accepts_key() && !AiProviderKind::OpenaiCompatible.needs_key(), "company proxies may need no key");
+        assert!(
+            AiProviderKind::OpenaiCompatible.accepts_key() && !AiProviderKind::OpenaiCompatible.needs_key(),
+            "company proxies may need no key"
+        );
         for kind in [AiProviderKind::Anthropic, AiProviderKind::Openai, AiProviderKind::Gemini] {
             assert!(kind.needs_key() && !kind.is_local(), "{kind:?}");
         }
@@ -373,7 +384,11 @@ mod tests {
         assert_eq!(base_url_for(&tc, AiProviderKind::OpenaiCompatible, &settings), None, "the compatible service needs an address");
         settings.ai_base_url = Some("https://llm.firma.example/v1".into());
         assert_eq!(base_url_for(&tc, AiProviderKind::OpenaiCompatible, &settings).as_deref(), Some("https://llm.firma.example/v1"));
-        assert_eq!(base_url_for(&tc, AiProviderKind::Anthropic, &settings).as_deref(), Some("https://api.anthropic.com/v1"), "the setting is not for fixed providers");
+        assert_eq!(
+            base_url_for(&tc, AiProviderKind::Anthropic, &settings).as_deref(),
+            Some("https://api.anthropic.com/v1"),
+            "the setting is not for fixed providers"
+        );
         configure_base(&tc, AiProviderKind::Anthropic, Some("http://127.0.0.1:9/v1/".into()));
         assert_eq!(base_url_for(&tc, AiProviderKind::Anthropic, &settings).as_deref(), Some("http://127.0.0.1:9/v1"));
         configure_base(&tc, AiProviderKind::Anthropic, None);
@@ -394,7 +409,10 @@ mod tests {
             assert!(crate::ai::pricing::price_for(&settings, kind, "sonnet").is_none(), "billed through the tool (spec 1.5): {kind:?}");
         }
         assert_eq!(cli.map(AiProviderKind::tool_name), [Some("claude"), Some("codex"), Some("opencode")]);
-        assert_eq!(cli.map(|kind| serde_json::to_value(kind).unwrap()), [serde_json::json!("claude_code"), serde_json::json!("codex"), serde_json::json!("opencode")]);
+        assert_eq!(
+            cli.map(|kind| serde_json::to_value(kind).unwrap()),
+            [serde_json::json!("claude_code"), serde_json::json!("codex"), serde_json::json!("opencode")]
+        );
         assert_eq!(cli.map(AiProviderKind::label), ["Claude Code", "Codex", "opencode"]);
         assert!(AiProviderKind::ALL.iter().filter(|kind| !kind.is_cli()).all(|kind| kind.tool_name().is_none()));
         assert_eq!(cli.map(crate::ai::providers::default_context), [200_000, 128_000, 32_000]);

@@ -8,7 +8,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::commands::external::split_command_line;
-use crate::model::{CustomCommandChange, CustomCommandChangeKind, CustomCommandDef, CustomCommandInput, CustomCommandKind, CustomCommandSource, CustomInputType};
+use crate::model::{
+    CustomCommandChange, CustomCommandChangeKind, CustomCommandDef, CustomCommandInput, CustomCommandKind, CustomCommandSource,
+    CustomInputType,
+};
 
 /// Version of the file format.
 pub const FORMAT_VERSION: u32 = 1;
@@ -63,7 +66,9 @@ fn valid_id(id: &str) -> bool {
 
 fn valid_input_id(id: &str) -> bool {
     let mut chars = id.chars();
-    chars.next().is_some_and(|c| c.is_ascii_lowercase()) && id.len() <= 32 && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+    chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && id.len() <= 32
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
 }
 
 fn placeholder(name: &str) -> Result<Placeholder, String> {
@@ -197,10 +202,12 @@ fn placeholder_in_code(tokens: &[String]) -> bool {
             Some(i) => &rest[i + 1..],
             None => &[],
         },
-        "powershell" | "pwsh" => match rest.iter().position(|t| matches!(t.to_ascii_lowercase().as_str(), "-c" | "-command" | "-ec" | "-encodedcommand")) {
-            Some(i) => &rest[i + 1..],
-            None => &[],
-        },
+        "powershell" | "pwsh" => {
+            match rest.iter().position(|t| matches!(t.to_ascii_lowercase().as_str(), "-c" | "-command" | "-ec" | "-encodedcommand")) {
+                Some(i) => &rest[i + 1..],
+                None => &[],
+            }
+        }
         _ => &[],
     };
     code.iter().any(|token| token.contains("${"))
@@ -213,7 +220,8 @@ pub fn check_git_args(args: &[String]) -> Result<(), String> {
     if sub == "git" {
         return Err("Leave out “git” at the start: the command lists only Git's arguments, e.g. “log --oneline”.".into());
     }
-    let plain = sub.chars().next().is_some_and(|c| c.is_ascii_lowercase()) && sub.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    let plain = sub.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+        && sub.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
     if !plain {
         return Err(format!("“{sub}” is not a Git command; the command must start with one (e.g. “log”, “tag”)."));
     }
@@ -252,7 +260,9 @@ pub fn check_url_template(run: &str) -> Result<(), String> {
 /// one sentence.
 pub fn validate(def: &CustomCommandDef, source: CustomCommandSource) -> Result<(), String> {
     if !valid_id(&def.id) {
-        return Err("The ID may only contain lowercase letters, digits, “.”, “_” and “-” (at most 64, starting with a letter or digit).".into());
+        return Err(
+            "The ID may only contain lowercase letters, digits, “.”, “_” and “-” (at most 64, starting with a letter or digit).".into()
+        );
     }
     let title = def.title.trim();
     if title.is_empty() {
@@ -319,7 +329,13 @@ pub fn changes(before: &[CustomCommandDef], after: &[CustomCommandDef]) -> Vec<C
     let mut out = Vec::new();
     for new in after {
         match before.iter().find(|old| old.id == new.id) {
-            None => out.push(CustomCommandChange { id: new.id.clone(), title: new.title.clone(), change: CustomCommandChangeKind::Added, before: None, after: Some(new.run.clone()) }),
+            None => out.push(CustomCommandChange {
+                id: new.id.clone(),
+                title: new.title.clone(),
+                change: CustomCommandChangeKind::Added,
+                before: None,
+                after: Some(new.run.clone()),
+            }),
             Some(old) if old != new => out.push(CustomCommandChange {
                 id: new.id.clone(),
                 title: new.title.clone(),
@@ -332,7 +348,13 @@ pub fn changes(before: &[CustomCommandDef], after: &[CustomCommandDef]) -> Vec<C
     }
     for old in before {
         if !after.iter().any(|new| new.id == old.id) {
-            out.push(CustomCommandChange { id: old.id.clone(), title: old.title.clone(), change: CustomCommandChangeKind::Removed, before: Some(old.run.clone()), after: None });
+            out.push(CustomCommandChange {
+                id: old.id.clone(),
+                title: old.title.clone(),
+                change: CustomCommandChangeKind::Removed,
+                before: Some(old.run.clone()),
+                after: None,
+            });
         }
     }
     out
@@ -420,7 +442,13 @@ mod tests {
         assert!(reason(&program).contains("program"));
         assert!(reason(&def(Shell, "make ${input:fehlt}")).contains("no input"));
         // A placeholder in code that a program interprets would turn a value into commands.
-        for line in ["sh -c ${branch}", "bash -lc \"echo ${branch}\"", "/bin/sh -c x${sha}", "cmd /C echo ${branch}", "powershell -NoProfile -Command Write-Output ${branch}"] {
+        for line in [
+            "sh -c ${branch}",
+            "bash -lc \"echo ${branch}\"",
+            "/bin/sh -c x${sha}",
+            "cmd /C echo ${branch}",
+            "powershell -NoProfile -Command Write-Output ${branch}",
+        ] {
             assert!(reason(&def(Shell, line)).contains("shell: true"), "{line}");
         }
         // Positional arguments after a shell's script and scripts run by file name are plain values.
@@ -457,7 +485,13 @@ mod tests {
         assert!(with(vec![unlabeled]).contains("label"));
         assert!(with(vec![choice("c", &[], None)]).contains("options"));
         assert!(with(vec![choice("c", &["a"], Some("b"))]).contains("default"));
-        let mut checkbox = CustomCommandInput { id: "k".into(), label: "K".into(), input_type: CustomInputType::Checkbox, default: Some("ja".into()), options: vec![] };
+        let mut checkbox = CustomCommandInput {
+            id: "k".into(),
+            label: "K".into(),
+            input_type: CustomInputType::Checkbox,
+            default: Some("ja".into()),
+            options: vec![],
+        };
         assert!(with(vec![checkbox.clone()]).contains("true"));
         checkbox.default = None;
         checkbox.options = vec!["--a".into(), "--b".into()];

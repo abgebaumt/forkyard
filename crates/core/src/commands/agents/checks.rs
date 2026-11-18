@@ -116,7 +116,11 @@ pub(crate) async fn run_tests(core: &Core, agent_id: &str, job_id: &str) -> Core
     };
     // A job the UI did not start shows its phase as the title (like auto-fetch).
     job.progress(&format!("Tests of {}", row.short_name), None, "");
-    let mut proc = shell_command(&command).cwd(folder).timeout(TEST_TIMEOUT).logged(core, Some(&row.repo_id), format!("Agent tests: {}", row.short_name));
+    let mut proc = shell_command(&command).cwd(folder).timeout(TEST_TIMEOUT).logged(
+        core,
+        Some(&row.repo_id),
+        format!("Agent tests: {}", row.short_name),
+    );
     // The same PATH as in the user's terminal (npm, cargo …).
     if let Some(path) = crate::tools::locate::login_shell_path(core).await {
         proc = proc.env("PATH", path);

@@ -168,7 +168,8 @@ mod tests {
         assert_eq!(parse_line("FYAS1 abc123 waiting\n"), Some(("abc123", HookSignal::Waiting)));
         assert_eq!(parse_line("FYAS1 abc123 done\r\n"), Some(("abc123", HookSignal::Done)));
         assert_eq!(parse_line("FYAS1 abc123 running"), Some(("abc123", HookSignal::Running)));
-        for bad in ["GCAP1 abc123 done", "FYAS1 abc123 fertig", "FYAS1 abc123", "FYAS1  done", "FYAS1 abc 123 done", "FYAS1 ab-c done", ""] {
+        for bad in ["GCAP1 abc123 done", "FYAS1 abc123 fertig", "FYAS1 abc123", "FYAS1  done", "FYAS1 abc 123 done", "FYAS1 ab-c done", ""]
+        {
             assert_eq!(parse_line(bad), None, "{bad:?}");
         }
     }

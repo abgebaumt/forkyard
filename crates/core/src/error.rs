@@ -268,16 +268,10 @@ impl CoreError {
         Self::new(ErrorCode::PathExists, format!("“{path}” already exists."))
     }
     pub fn git_missing() -> Self {
-        Self::new(
-            ErrorCode::GitMissing,
-            "Git was not found. Please install Git 2.39 or later.",
-        )
+        Self::new(ErrorCode::GitMissing, "Git was not found. Please install Git 2.39 or later.")
     }
     pub fn git_too_old(found: &str) -> Self {
-        Self::new(
-            ErrorCode::GitTooOld,
-            format!("Git {found} is too old. At least version 2.39 is required."),
-        )
+        Self::new(ErrorCode::GitTooOld, format!("Git {found} is too old. At least version 2.39 is required."))
     }
     pub fn invalid_name(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::InvalidName, message)
@@ -309,10 +303,7 @@ impl CoreError {
         )
     }
     pub fn stale_state() -> Self {
-        Self::new(
-            ErrorCode::StaleState,
-            "The repository has changed in the meantime. The view is reloading; please try again.",
-        )
+        Self::new(ErrorCode::StaleState, "The repository has changed in the meantime. The view is reloading; please try again.")
     }
     pub fn locked(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Locked, message)
@@ -392,7 +383,8 @@ pub fn describe_io(e: &std::io::Error) -> (ErrorCode, &'static str) {
     use std::io::ErrorKind;
     const DENIED: &str = "Access denied: you don’t have permission for this file or folder, or another program currently has it open.";
     const IN_USE: &str = "The file is currently open in another program. Close it there and try again.";
-    const TOO_LONG: &str = "The name or path is too long or invalid for the file system. Please choose a shorter name or a location with a shorter path.";
+    const TOO_LONG: &str =
+        "The name or path is too long or invalid for the file system. Please choose a shorter name or a location with a shorter path.";
     const FULL: &str = "There is no space left on the disk.";
     #[cfg(windows)]
     let by_code = match e.raw_os_error() {
@@ -481,7 +473,13 @@ mod tests {
         assert_eq!(denied.code, ErrorCode::Io);
         assert_eq!(denied.message.matches("Access denied").count(), 1, "{}", denied.message);
         #[cfg(windows)]
-        for (raw, code, word) in [(5, ErrorCode::Io, "Access denied"), (32, ErrorCode::Io, "another program"), (267, ErrorCode::InvalidName, "too long"), (123, ErrorCode::InvalidName, "too long"), (206, ErrorCode::InvalidName, "too long")] {
+        for (raw, code, word) in [
+            (5, ErrorCode::Io, "Access denied"),
+            (32, ErrorCode::Io, "another program"),
+            (267, ErrorCode::InvalidName, "too long"),
+            (123, ErrorCode::InvalidName, "too long"),
+            (206, ErrorCode::InvalidName, "too long"),
+        ] {
             let e: CoreError = std::io::Error::from_raw_os_error(raw).into();
             assert_eq!(e.code, code, "{raw}");
             assert!(e.message.contains(word) && !e.message.contains("os error"), "{raw}: {}", e.message);
@@ -512,7 +510,8 @@ mod tests {
             "ai_unsupported_version",
         ];
         for name in expected {
-            let code: ErrorCode = serde_json::from_value(serde_json::Value::String(name.to_string())).unwrap_or_else(|_| panic!("{name} is not an ErrorCode"));
+            let code: ErrorCode = serde_json::from_value(serde_json::Value::String(name.to_string()))
+                .unwrap_or_else(|_| panic!("{name} is not an ErrorCode"));
             assert!(ErrorCode::ALL.contains(&code), "{name} is missing from ErrorCode::ALL");
             assert_eq!(code.as_str(), name);
         }
@@ -532,6 +531,9 @@ mod tests {
         let long = CoreError::ai_refused(&"x".repeat(5000));
         assert!(long.message.len() < 700, "the provider's text is shortened");
         assert_eq!(CoreError::ai_disabled().code, ErrorCode::AiDisabled);
-        assert_eq!(CoreError::ai_invalid_answer("$.summary: expected text").message, "The AI's answer could not be used ($.summary: expected text).");
+        assert_eq!(
+            CoreError::ai_invalid_answer("$.summary: expected text").message,
+            "The AI's answer could not be used ($.summary: expected text)."
+        );
     }
 }
