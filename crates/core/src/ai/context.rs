@@ -6,12 +6,13 @@
 //!
 //! Git output with file contents is read with `no_log`: contents never reach the activity log.
 
-use crate::ai::ignore::{builtin_reason, IgnoreRules};
+use crate::ai::ignore::IgnoreRules;
 use crate::ai::prompt::{self, Prompt, Section};
 use crate::app::Core;
 use crate::error::CoreResult;
 use crate::git::redact;
 use crate::model::{AiOmitReason, AiOmitted, Settings};
+use crate::secret_scan::builtin_reason;
 use crate::{secrets, util};
 
 pub const CHARS_PER_TOKEN: f64 = 3.5;

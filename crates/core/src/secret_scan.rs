@@ -11,7 +11,6 @@ use rusqlite::Connection;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::ai::ignore::builtin_reason;
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
@@ -28,6 +27,33 @@ pub const MAX_FINDINGS: usize = 200;
 /// Bits per character from which a quoted or assigned string counts as random.
 pub const ENTROPY_MIN: f64 = 4.3;
 const EXCERPT_CHARS: usize = 160;
+
+const LOCKFILES: [&str; 6] = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock", "poetry.lock", "go.sum"];
+const GENERATED_DIRS: [&str; 2] = ["dist", "build"];
+/// OpenSSH default private-key file names (also `_sk`), `.pub` included as before.
+const SSH_KEYS: [&str; 4] = ["id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"];
+const SECRET_SUFFIXES: [&str; 6] = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
+
+/// secrets (never sent) and lock/generated files (name and size only). Windows
+/// separators are accepted.
+pub fn builtin_reason(path: &str) -> Option<AiOmitReason> {
+    let normalized = path.replace('\\', "/");
+    let mut parts: Vec<&str> = normalized.split('/').filter(|part| !part.is_empty()).collect();
+    let name = parts.pop()?.to_lowercase();
+    if name.starts_with(".env")
+        || SSH_KEYS.iter().any(|key| name.starts_with(key))
+        || SECRET_SUFFIXES.iter().any(|suffix| name.ends_with(suffix))
+    {
+        return Some(AiOmitReason::Secret);
+    }
+    if LOCKFILES.contains(&name.as_str())
+        || name.contains(".min.")
+        || parts.iter().any(|dir| GENERATED_DIRS.contains(&dir.to_lowercase().as_str()))
+    {
+        return Some(AiOmitReason::Generated);
+    }
+    None
+}
 
 /// Where in a line a value looks like a key, and why.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -690,6 +716,42 @@ mod tests {
         assert_eq!(scan.findings.len(), 10);
         assert_eq!(scan.findings.iter().map(|f| f.line).collect::<Vec<_>>(), (1..=10).map(|n| n * 100).collect::<Vec<u32>>());
         assert!(elapsed.as_millis() < 200, "target: < 200 ms, took {elapsed:?}");
+    }
+
+    #[test]
+    fn built_in_rules_follow_grundregel_5() {
+        let cases = [
+            (".env", Some(AiOmitReason::Secret)),
+            (".env.local", Some(AiOmitReason::Secret)),
+            ("config/prod.PEM", Some(AiOmitReason::Secret)),
+            ("config\\server.key", Some(AiOmitReason::Secret)),
+            ("home/.ssh/id_rsa", Some(AiOmitReason::Secret)),
+            ("home/.ssh/id_rsa.pub", Some(AiOmitReason::Secret)),
+            ("id_ed25519", Some(AiOmitReason::Secret)),
+            ("keys/id_ecdsa_sk", Some(AiOmitReason::Secret)),
+            ("id_ed25519.pub", Some(AiOmitReason::Secret)),
+            ("certs/client.p12", Some(AiOmitReason::Secret)),
+            ("certs/client.pfx", Some(AiOmitReason::Secret)),
+            ("android/release.keystore", Some(AiOmitReason::Secret)),
+            ("android/release.jks", Some(AiOmitReason::Secret)),
+            ("package-lock.json", Some(AiOmitReason::Generated)),
+            ("web/pnpm-lock.yaml", Some(AiOmitReason::Generated)),
+            ("yarn.lock", Some(AiOmitReason::Generated)),
+            ("Cargo.lock", Some(AiOmitReason::Generated)),
+            ("py/poetry.lock", Some(AiOmitReason::Generated)),
+            ("go.sum", Some(AiOmitReason::Generated)),
+            ("frontend/dist/app.js", Some(AiOmitReason::Generated)),
+            ("build/output.txt", Some(AiOmitReason::Generated)),
+            ("static/jquery.min.js", Some(AiOmitReason::Generated)),
+            ("docs/env.md", None),
+            ("src/keys.rs", None),
+            ("build.rs", None),
+            ("src/builder/mod.rs", None),
+            ("Übersicht mit Leerzeichen.md", None),
+        ];
+        for (path, expected) in cases {
+            assert_eq!(builtin_reason(path), expected, "{path}");
+        }
     }
 }
 
