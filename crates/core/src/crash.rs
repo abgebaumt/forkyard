@@ -14,6 +14,9 @@
 //!   killed): a report of kind `unexpected_exit` is made from that run's lines in the log (from its
 //!   start header to its end), with the time of its last line as the time it ended. A second
 //!   instance with the same data directory does not get the lock and leaves the marker alone.
+//!   The marker also names the boot of the computer (`boot.rs`). If the computer has been
+//!   started again since, the run ended with it (power cut, frozen system, hard reset) and is not
+//!   reported as a crash – the log says so instead.
 //! - At most `MAX_REPORTS` reports are kept; nothing is ever sent anywhere.
 //!
 //! The reports are read and handed to the UI by `commands::crash`.
@@ -112,6 +115,10 @@ struct Marker {
     pid: u32,
     started_ms: i64,
     app_version: String,
+    /// The boot of the computer this run started in (`boot::current`); markers from before
+    /// this field have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    boot: Option<String>,
 }
 
 struct Sink {
@@ -130,6 +137,8 @@ pub struct CrashLog {
     /// Identifies this run in the marker and in its reports.
     pub run_id: String,
     started_ms: i64,
+    /// The boot of the computer this process runs in (`boot::current`); tests set their own.
+    boot: Option<String>,
     home: Option<String>,
     max_log_bytes: u64,
     secrets: RwLock<Vec<String>>,
@@ -219,6 +228,7 @@ impl CrashLog {
         CrashLog {
             run_id: util::new_id(),
             started_ms: now_ms(),
+            boot: boot::current(),
             home: home.map(|h| h.to_string_lossy().trim_end_matches(['/', '\\']).to_string()).filter(|h| !h.is_empty()),
             max_log_bytes: max_log_bytes.max(256),
             secrets: RwLock::new(Vec::new()),
@@ -345,11 +355,24 @@ impl CrashLog {
         let mut unexpected_report = None;
         if let Ok(marker) = serde_json::from_str::<Marker>(&previous) {
             let reported = list_reports(data_dir).iter().any(|r| r.run_id == marker.run_id);
-            if !reported {
+            if reported {
+                // A panic report of that run exists already.
+            } else if ended_with_the_computer(marker.boot.as_deref(), self.boot.as_deref()) {
+                self.push_line(&format!(
+                    "INFO  gitcore::crash: The previous run (started {}) ended with the computer (turned off or restarted); not reported as a crash",
+                    iso(marker.started_ms)
+                ));
+            } else {
                 unexpected_report = self.report_unexpected_exit(data_dir, &marker);
             }
         }
-        let own = Marker { run_id: self.run_id.clone(), pid: std::process::id(), started_ms: self.started_ms, app_version: version.to_string() };
+        let own = Marker {
+            run_id: self.run_id.clone(),
+            pid: std::process::id(),
+            started_ms: self.started_ms,
+            app_version: version.to_string(),
+            boot: self.boot.clone(),
+        };
         let written = serde_json::to_string(&own).ok().is_some_and(|text| {
             file.set_len(0).is_ok() && file.seek(SeekFrom::Start(0)).is_ok() && file.write_all(text.as_bytes()).is_ok() && file.sync_all().is_ok()
         });
@@ -425,6 +448,15 @@ impl CrashLog {
                 self.write_line(sink, &line);
             }
         }
+    }
+}
+
+/// The run that left the marker started in another boot of the computer than this one: it ended
+/// when the computer went down, not on its own. Unknown on either side: `false` (report as before).
+fn ended_with_the_computer(previous: Option<&str>, current: Option<&str>) -> bool {
+    match (previous, current) {
+        (Some(previous), Some(current)) => !boot::same(previous, current),
+        _ => false,
     }
 }
 
@@ -656,6 +688,7 @@ pub fn install() {
     });
 }
 
+mod boot;
 mod termination;
 pub use termination::install_termination_handler;
 
