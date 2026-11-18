@@ -6,6 +6,7 @@ import { discardUnsaved, saveUnsaved, unsavedFiles } from "../../screens/FileVie
 import { clip } from "./context";
 import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
+import { enqueueWrite } from "../writeQueue";
 import { confirmLeaveCenter, useAppStore } from "../store";
 import { confirmCloseTerminal } from "../../screens/Terminal/actions";
 import { busyKeys } from "./keys";
@@ -183,7 +184,7 @@ export async function setZoom(zoom: number) {
   const value = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom)) * 100) / 100;
   const previous = queryClient.getQueryData<Settings>(qk.settings);
   if (previous) queryClient.setQueryData<Settings>(qk.settings, { ...previous, zoom: value });
-  const result = await runAction(t("actions.repos.zoom"), () => core.settingsSet({ patch: { zoom: value } }));
+  const result = await runAction(t("actions.repos.zoom"), () => enqueueWrite(() => core.settingsSet({ patch: { zoom: value } })));
   if (result.ok) queryClient.setQueryData(qk.settings, result.value);
   else if (previous) queryClient.setQueryData(qk.settings, previous);
   return result;

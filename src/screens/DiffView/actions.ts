@@ -9,6 +9,7 @@ import { undo } from "../../app/actions/undo";
 import { confirm } from "../../app/dialogs";
 import { qk, queryClient } from "../../app/queries";
 import { runAction } from "../../app/run";
+import { enqueueWrite } from "../../app/writeQueue";
 import { withStatus } from "../../app/statusCache";
 import { toast } from "../../ui/Feedback";
 import { t } from "../../i18n";
@@ -80,7 +81,7 @@ export async function saveViewSetting(patch: Partial<Pick<Settings, "diffMode" |
   // Switch immediately; the core's answer only confirms.
   const before = queryClient.getQueryData<Settings>(qk.settings);
   if (before) queryClient.setQueryData(qk.settings, { ...before, ...patch });
-  const result = await runAction(t("diff.saveSetting"), () => core.settingsSet({ patch }));
+  const result = await runAction(t("diff.saveSetting"), () => enqueueWrite(() => core.settingsSet({ patch })));
   if (result.ok) queryClient.setQueryData(qk.settings, result.value);
   else if (before) queryClient.setQueryData(qk.settings, before);
 }
