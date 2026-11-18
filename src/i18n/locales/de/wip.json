@@ -279,7 +279,6 @@
     "applyKeys": "Strg ↵",
     "apply_one": "{{count}} Commit anlegen",
     "apply_other": "{{count}} Commits anlegen",
-    "applyAction": "Commits zusammenstellen",
     "titleMissing": "Commit {{number}} braucht eine Nachricht.",
     "nothingPlanned": "Erst mindestens einem Commit Änderungen zuordnen.",
     "broken": {
@@ -312,25 +311,12 @@
       "close": "Schließen",
       "undone": "Alle Commits zurückgenommen · Änderungen wieder im Arbeitsverzeichnis"
     },
-    "undoHint": "Ein Rückgängig nimmt alle Commits zurück – 14 Tage lang, solange sie nicht gepusht sind.",
     "enough": "Ein Commit genügt",
     "signing_one": "Commits werden signiert: bis zu {{count}} Passphrase-Abfrage möglich.",
     "signing_other": "Commits werden signiert: bis zu {{count}} Passphrase-Abfragen möglich.",
     "outdated": "Die lokalen Änderungen haben sich seit dem Lesen geändert.",
     "outdatedHint": "Neu lesen; bereits zugeordnete Änderungen behalten ihren Platz.",
     "reload": "Neu lesen",
-    "keys": {
-      "select": "Änderung wählen",
-      "number": "in Commit n verschieben",
-      "skip": "nach „Nicht committen“",
-      "move": "in den vorigen / nächsten Commit",
-      "new": "neuer Commit aus der Auswahl",
-      "confirm": "unsichere Zuordnung bestätigen",
-      "unsure": "zur nächsten unsicheren Änderung",
-      "edit": "Nachricht des Commits bearbeiten",
-      "order": "Commit umordnen",
-      "apply": "Commits anlegen"
-    },
     "kind": {
       "hunk": "Teil einer Datei",
       "file": "ganze Datei",

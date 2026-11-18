@@ -208,9 +208,5 @@
     "center": "Ansicht",
     "right": "Commit Panel"
   },
-  "placeholder": {
-    "backToGraph": "Zurück zum Graphen",
-    "notBuilt": "Noch nicht gebaut"
-  },
   "starting": "Wird gestartet …"
 }

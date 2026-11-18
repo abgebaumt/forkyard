@@ -48,14 +48,12 @@
     "start": "Starten",
     "startUnattended": "Ohne Rückfragen starten",
     "cancel": "Abbrechen",
-    "action": "Coding-Agent starten",
     "chooseTemplate": "Wähle einen Agenten.",
     "notFound": "{{name}} wurde nicht gefunden.",
     "taskEmpty": "Beschreibe die Aufgabe.",
     "branchEmpty": "Gib einen Branch-Namen ein.",
     "branchChecking": "Branch-Name wird geprüft …",
     "noTemplates": "Kein Coding-Agent gefunden. Installiere Claude Code, Codex oder opencode oder lege eine eigene Vorlage an.",
-    "templates": "Vorlagen …",
     "shortcutHint": "{{mod}}+Enter startet"
   },
   "cockpit": {
@@ -159,7 +157,7 @@
     "own": "Eigene Vorlagen",
     "found": "{{version}} · {{path}}",
     "foundNoVersion": "{{path}}",
-    "foundLogin": "{{found}} \u00b7 {{login}}",
+    "foundLogin": "{{found}} · {{login}}",
     "missing": "nicht gefunden",
     "add": "Vorlage hinzufügen",
     "remove": "Entfernen",
@@ -175,11 +173,9 @@
     "resumeArgsHint": "Eines pro Zeile; leer = kein Fortsetzen.",
     "statusHook": "Meldet seinen Status selbst",
     "statusHookHint": "Das Programm ruft $FORKYARD_AGENT_HELPER --agent-status waiting|done|running auf.",
-    "saveAction": "Agenten-Vorlagen speichern",
     "newName": "Mein Agent",
     "testCommand": "Testbefehl für Coding-Agenten",
-    "testCommandHint": "Läuft im Worktree des Agenten, wenn er fertig ist, z. B. „npm test“. Leer = keiner.",
-    "testCommandAction": "Testbefehl speichern"
+    "testCommandHint": "Läuft im Worktree des Agenten, wenn er fertig ist, z. B. „npm test“. Leer = keiner."
   },
   "collision": {
     "regionLabel": "Kollisionen zwischen Coding-Agenten",

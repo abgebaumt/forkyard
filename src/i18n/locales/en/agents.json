@@ -48,14 +48,12 @@
     "start": "Start",
     "startUnattended": "Start without prompts",
     "cancel": "Cancel",
-    "action": "Start coding agent",
     "chooseTemplate": "Choose an agent.",
     "notFound": "{{name}} was not found.",
     "taskEmpty": "Describe the task.",
     "branchEmpty": "Enter a branch name.",
     "branchChecking": "Checking the branch name …",
     "noTemplates": "No coding agent was found. Install Claude Code, Codex or opencode, or add your own template.",
-    "templates": "Templates …",
     "shortcutHint": "{{mod}}+Enter starts"
   },
   "cockpit": {
@@ -159,7 +157,7 @@
     "own": "Own templates",
     "found": "{{version}} · {{path}}",
     "foundNoVersion": "{{path}}",
-    "foundLogin": "{{found}} \u00b7 {{login}}",
+    "foundLogin": "{{found}} · {{login}}",
     "missing": "not found",
     "add": "Add template",
     "remove": "Remove",
@@ -175,11 +173,9 @@
     "resumeArgsHint": "One per line; empty = no resume.",
     "statusHook": "Reports its status itself",
     "statusHookHint": "The program calls $FORKYARD_AGENT_HELPER --agent-status waiting|done|running.",
-    "saveAction": "Save agent templates",
     "newName": "My agent",
     "testCommand": "Test command for coding agents",
-    "testCommandHint": "Runs in the agent's worktree when it is done, e.g. “npm test”. Empty = none.",
-    "testCommandAction": "Save test command"
+    "testCommandHint": "Runs in the agent's worktree when it is done, e.g. “npm test”. Empty = none."
   },
   "collision": {
     "regionLabel": "Collisions between coding agents",

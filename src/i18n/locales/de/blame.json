@@ -104,7 +104,6 @@
     "inGraph": "Im Graph",
     "inGraphLabel": "{{sha}} im Graph zeigen",
     "linked": "Verknüpft",
-    "linkWhat": "die verknüpfte Seite",
     "hostNotConnected": "Verbinde den Hoster unter Einstellungen › Hoster, um die Titel von Pull Requests und Issues zu sehen.",
     "hostFailed": "Der Hoster hat nicht geantwortet; die Links stehen ohne Titel da.",
     "explain": "Erklären",

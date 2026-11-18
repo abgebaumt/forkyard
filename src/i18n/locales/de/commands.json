@@ -269,17 +269,6 @@
       "keywords": "ausklappen, entfalten, Merges, Seitenzweige zeigen"
     }
   },
-  "groups": {
-    "branch": "Branch",
-    "commit": "Commit",
-    "file": "Datei",
-    "general": "Allgemein",
-    "remote": "Remote",
-    "repository": "Repository",
-    "stash": "Stash",
-    "tabs": "Tabs",
-    "view": "Ansicht"
-  },
   "hosts": {
     "check": {
       "keywords": "prüfen, gültig, abgelaufen, Berechtigungen",

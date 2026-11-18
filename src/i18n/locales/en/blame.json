@@ -104,7 +104,6 @@
     "inGraph": "In graph",
     "inGraphLabel": "Show {{sha}} in the graph",
     "linked": "Linked",
-    "linkWhat": "the linked page",
     "hostNotConnected": "Connect the host in Settings › Hosts to see the titles of pull requests and issues.",
     "hostFailed": "The host did not answer; the links are shown without titles.",
     "explain": "Explain",
