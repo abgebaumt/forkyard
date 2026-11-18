@@ -7,6 +7,7 @@ import { desktopNotify, markManualSync } from "../notify";
 import { qk, queryClient } from "../queries";
 import { newJobId, runAction, showError, type ActionResult } from "../run";
 import { withFreshStatus } from "../statusCache";
+import { enqueueWrite } from "../writeQueue";
 import { guardSecrets, reviewContext } from "./pushCheck";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
@@ -184,11 +185,11 @@ export async function pull(repoId: Id, mode: PullMode | null = null, tabId?: Id 
 export async function setDefaultPullMode(repoId: Id, mode: PullMode) {
   const repoSettings = queryClient.getQueryData<{ defaultPullMode: PullMode | null }>(qk.repoSettings(repoId));
   if (repoSettings?.defaultPullMode) {
-    const result = await runAction(t("actions.sync.pullMode.save"), () => core.repoSettingsSet({ repoId, patch: { defaultPullMode: mode } }));
+    const result = await runAction(t("actions.sync.pullMode.save"), () => enqueueWrite(() => core.repoSettingsSet({ repoId, patch: { defaultPullMode: mode } })));
     if (result.ok) queryClient.setQueryData(qk.repoSettings(repoId), result.value);
     return result;
   }
-  const result = await runAction(t("actions.sync.pullMode.save"), () => core.settingsSet({ patch: { defaultPullMode: mode } }));
+  const result = await runAction(t("actions.sync.pullMode.save"), () => enqueueWrite(() => core.settingsSet({ patch: { defaultPullMode: mode } })));
   if (result.ok) queryClient.setQueryData(qk.settings, result.value);
   return result;
 }
