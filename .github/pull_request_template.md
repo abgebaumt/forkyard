@@ -4,8 +4,8 @@
 
 ## How was it tested?
 
-- [ ] `npm run typecheck` and `npm test`
-- [ ] `cargo clippy --workspace --all-targets` and `cargo test --workspace`
+- [ ] `npm run check`
+- [ ] `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `cargo test --workspace`
 - [ ] New UI text is in both `src/i18n/locales/en` and `src/i18n/locales/de`
 
 <!-- Screenshots for UI changes help a lot. -->

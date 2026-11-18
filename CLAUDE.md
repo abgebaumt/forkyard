@@ -19,6 +19,8 @@ npm install
 npm run app                  # tauri dev: Vite on 127.0.0.1:1420 (HMR) + debug app
 npm run build                # tokens + tsc + vite build (UI only)
 npm run tauri build          # release bundle. NOT `cargo build --release` – such a binary does not start
+npm run check                # typecheck + test + test:scripts + check:commands + check:case + check:contrast + lint
+npm run lint                 # biome check (format + lint); npm run format fixes formatting
 npm run typecheck            # tsc --noEmit
 npm test                     # vitest run (UI logic, *.test.ts next to the code)
 npx vitest run src/screens/ConflictTool/model.test.ts   # single test file
@@ -30,6 +32,7 @@ node scripts/find-german.mjs src/screens/Foo   # leftover German UI strings (heu
 cargo build                                  # target/debug/forkyard (needed by E2E and screenshots)
 cargo test --workspace                       # Rust tests against real temp repositories
 cargo test -p gitcore <testname>             # single Rust test
+cargo fmt --all                              # rustfmt.toml: max_width 140
 cargo clippy --workspace --all-targets       # expect 0 warnings
 ```
 

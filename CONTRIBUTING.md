@@ -30,12 +30,14 @@ npm run app          # starts the app with hot reload
 Run these before you open a pull request. CI runs the same.
 
 ```bash
-npm run typecheck
-npm test
-npm run check:commands                    # frontend ↔ Rust command contract
-cargo clippy --workspace --all-targets    # expect 0 warnings
+npm run check                             # typecheck, tests, command contract, contrast, lint
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+
+`npm run format` and `cargo fmt --all` fix formatting. To hide the bulk formatting commits in
+`git blame`, run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once.
 
 ## How the code is organised
 
