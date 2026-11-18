@@ -1,12 +1,11 @@
 /**
- * Shared by hosts.mjs, pr-create.mjs and pr-view.mjs: a LOCAL host for testing and a repository whose remote
- * points to it.
+ * A LOCAL host for testing (used by features/a11y.mjs) and a repository whose remote points to it.
  *
  * `startHost({ kind })` starts a small server on 127.0.0.1 that mimics the parts of the public
  * GitHub (`/api/v3/…`) or GitLab (`/api/v4/…`) REST API the core calls – with made-up data. No call
  * ever goes to a real service: the app gets this server's address as a "custom instance", and the
  * test repository's remote points to the same server (under `/<owner>/<name>.git` it forwards to
- * scripts/e2e/git-http-server.mjs, so fetch and push really run).
+ * git-http-server.mjs, so fetch and push really run).
  *
  *   const host = await startHost({ kind: "github" });
  *   host.base                      // http://127.0.0.1:<port> – enter as the instance address
@@ -14,17 +13,10 @@
  *   host.addPr({ number: 12, … })  // add a pull request
  *   host.requests                  // everything the app sent: [{ method, path, body, token }]
  *   host.set({ rateLimited: true }) / host.revoke(token) / host.set({ readOnly: true })
- *
- * The scripts also check that the token shows up nowhere: `tokenLeaks(app, token)`.
  */
-import { execFileSync } from "node:child_process";
-import fs from "node:fs";
 import http from "node:http";
-import path from "node:path";
-import { isAlive, makeCleanRepoWithRemote } from "../fixtures.mjs";
-import { startGitHttpServer } from "../git-http-server.mjs";
-
-export const SHOTS = "target/e2e/shots";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
+import { startGitHttpServer } from "./git-http-server.mjs";
 
 export const PEOPLE = {
   lena: { login: "lena-hartmann", name: "Lena Hartmann", id: 101 },
@@ -90,7 +82,8 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
   const web = (number) => (kind === "github" ? `${base}/${full}/pull/${number}` : `${base}/${full}/-/merge_requests/${number}`);
 
   // --- GitHub shape --------------------------------------------------------------------------
-  const ghUser = (user) => (user ? { login: user.login, id: user.id, name: user.name, avatar_url: `${base}/avatars/${user.login}.png` } : null);
+  const ghUser = (user) =>
+    user ? { login: user.login, id: user.id, name: user.name, avatar_url: `${base}/avatars/${user.login}.png` } : null;
   const ghPr = (item) => ({
     number: item.number,
     title: item.title,
@@ -112,16 +105,22 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     id: index + 1,
     name: check.name,
     status: check.state === "pending" ? "in_progress" : "completed",
-    conclusion: check.state === "passing" ? "success" : check.state === "failing" ? "failure" : check.state === "skipped" ? "skipped" : null,
+    conclusion:
+      check.state === "passing" ? "success" : check.state === "failing" ? "failure" : check.state === "skipped" ? "skipped" : null,
     html_url: check.url ?? null,
   });
 
   // --- GitLab shape --------------------------------------------------------------------------
-  const glUser = (user) => (user ? { id: user.id, username: user.login, name: user.name, avatar_url: `${base}/avatars/${user.login}.png` } : null);
+  const glUser = (user) =>
+    user ? { id: user.id, username: user.login, name: user.name, avatar_url: `${base}/avatars/${user.login}.png` } : null;
   const glPipeline = (item) => {
     const real = item.checks.filter((check) => check.state !== "skipped");
     if (!item.checks.length) return null;
-    const status = real.some((check) => check.state === "failing") ? "failed" : real.some((check) => check.state === "pending") ? "running" : "success";
+    const status = real.some((check) => check.state === "failing")
+      ? "failed"
+      : real.some((check) => check.state === "pending")
+        ? "running"
+        : "success";
     return { id: 5000 + item.number, project_id: 77, status, web_url: `${base}/${full}/-/pipelines/${5000 + item.number}` };
   };
   const glMr = (item) => ({
@@ -140,7 +139,9 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     updated_at: item.updatedAt,
     web_url: web(item.number),
     labels: item.labels,
-    reviewers: [...item.requested, ...item.reviews.filter((review) => review.state === "approved").map((review) => review.user)].map(glUser),
+    reviewers: [...item.requested, ...item.reviews.filter((review) => review.state === "approved").map((review) => review.user)].map(
+      glUser,
+    ),
     sha: item.headSha,
     detailed_merge_status: item.mergeable === null ? "checking" : item.mergeable ? "mergeable" : "conflict",
     merge_status: item.mergeable ? "can_be_merged" : "cannot_be_merged",
@@ -149,7 +150,11 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
 
   const json = (response, status, body, headers = {}) => {
     const text = body === undefined ? "" : JSON.stringify(body);
-    response.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Content-Length": Buffer.byteLength(text), ...headers });
+    response.writeHead(status, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Length": Buffer.byteLength(text),
+      ...headers,
+    });
     response.end(text);
   };
   const paged = (response, request, all) => {
@@ -179,8 +184,17 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
   const issue = (number) => state.issues.find((item) => item.number === Number(number)) ?? null;
   const issueWeb = (number) => (kind === "github" ? `${base}/${full}/issues/${number}` : `${base}/${full}/-/issues/${number}`);
   const issueBlocked = (response) => {
-    if (state.issuesForbidden) return json(response, 403, kind === "github" ? { message: "Resource not accessible by personal access token" } : { message: "403 Forbidden" }), true;
-    if (state.issuesMissing) return json(response, 404, kind === "github" ? { message: "Not Found" } : { message: "404 Project Not Found" }), true;
+    if (state.issuesForbidden)
+      return (
+        json(
+          response,
+          403,
+          kind === "github" ? { message: "Resource not accessible by personal access token" } : { message: "403 Forbidden" },
+        ),
+        true
+      );
+    if (state.issuesMissing)
+      return (json(response, 404, kind === "github" ? { message: "Not Found" } : { message: "404 Project Not Found" }), true);
     return false;
   };
   const issuesIn = (wanted, words) => {
@@ -211,7 +225,9 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
       if (issueBlocked(response)) return true;
       const wanted = url.searchParams.get("state") ?? "open";
       // As on GitHub, open pull requests are in the list too (with `pull_request`); the core filters them out.
-      const pulls = state.prs.filter((item) => item.state === "open" && wanted !== "closed").map((item) => ({ ...ghPr(item), pull_request: { url: `${base}/api/v3${repo}/pulls/${item.number}` } }));
+      const pulls = state.prs
+        .filter((item) => item.state === "open" && wanted !== "closed")
+        .map((item) => ({ ...ghPr(item), pull_request: { url: `${base}/api/v3${repo}/pulls/${item.number}` } }));
       paged(response, request, [...issuesIn(wanted, "").map(ghIssue), ...pulls]);
       return true;
     }
@@ -229,7 +245,12 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
         next.searchParams.set("page", String(page + 1));
         headers.Link = `<${next.toString()}>; rel="next"`;
       }
-      json(response, 200, { total_count: found.length, incomplete_results: false, items: found.slice((page - 1) * perPage, page * perPage) }, headers);
+      json(
+        response,
+        200,
+        { total_count: found.length, incomplete_results: false, items: found.slice((page - 1) * perPage, page * perPage) },
+        headers,
+      );
       return true;
     }
     if ((match = new RegExp(`^GET ${repo}/issues/(\\d+)(/comments)?$`).exec(route))) {
@@ -237,7 +258,17 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
       // No issue with this number: if it is a pull request, its routes answer.
       if (!item) return pr(match[1]) ? false : (json(response, 404, { message: "Not Found" }), true);
       if (issueBlocked(response)) return true;
-      if (match[2]) paged(response, request, item.comments.map((comment) => ({ id: comment.id, user: ghUser(comment.author), body: comment.body, created_at: comment.createdAt })));
+      if (match[2])
+        paged(
+          response,
+          request,
+          item.comments.map((comment) => ({
+            id: comment.id,
+            user: ghUser(comment.author),
+            body: comment.body,
+            created_at: comment.createdAt,
+          })),
+        );
       else json(response, 200, ghIssue(item));
       return true;
     }
@@ -270,8 +301,19 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     if ((match = /^GET \/issues\/(\d+)(\/notes)?$/.exec(route))) {
       if (issueBlocked(response)) return true;
       const item = issue(match[1]);
-      if (!item) return json(response, 404, { message: "404 Not found" }), true;
-      if (match[2]) paged(response, request, item.comments.map((comment) => ({ id: comment.id, author: glUser(comment.author), body: comment.body, created_at: comment.createdAt, system: Boolean(comment.system) })));
+      if (!item) return (json(response, 404, { message: "404 Not found" }), true);
+      if (match[2])
+        paged(
+          response,
+          request,
+          item.comments.map((comment) => ({
+            id: comment.id,
+            author: glUser(comment.author),
+            body: comment.body,
+            created_at: comment.createdAt,
+            system: Boolean(comment.system),
+          })),
+        );
       else json(response, 200, glIssue(item));
       return true;
     }
@@ -290,7 +332,16 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
         default_branch: state.defaultBranch,
         html_url: `${base}/${full}`,
         permissions: { pull: true, push: state.canPush, admin: false },
-        ...(state.forkParent ? { fork: true, parent: { name: state.forkParent.name, owner: { login: state.forkParent.owner }, html_url: `${base}/${state.forkParent.owner}/${state.forkParent.name}` } } : {}),
+        ...(state.forkParent
+          ? {
+              fork: true,
+              parent: {
+                name: state.forkParent.name,
+                owner: { login: state.forkParent.owner },
+                html_url: `${base}/${state.forkParent.owner}/${state.forkParent.name}`,
+              },
+            }
+          : {}),
       });
     }
     if (route === `GET ${repo}/pulls`) {
@@ -299,12 +350,34 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
       return paged(response, request, list.map(ghPr));
     }
     if (route === `POST ${repo}/pulls`) {
-      if (!body.title?.trim()) return json(response, 422, { message: "Validation Failed", errors: [{ resource: "PullRequest", field: "title", code: "missing_field" }] });
-      const head = String(body.head ?? "").split(":").pop();
+      if (!body.title?.trim())
+        return json(response, 422, {
+          message: "Validation Failed",
+          errors: [{ resource: "PullRequest", field: "title", code: "missing_field" }],
+        });
+      const head = String(body.head ?? "")
+        .split(":")
+        .pop();
       if (state.prs.some((item) => item.state === "open" && item.source === head)) {
-        return json(response, 422, { message: "Validation Failed", errors: [{ resource: "PullRequest", code: "custom", message: `A pull request already exists for ${owner}:${head}.` }] });
+        return json(response, 422, {
+          message: "Validation Failed",
+          errors: [{ resource: "PullRequest", code: "custom", message: `A pull request already exists for ${owner}:${head}.` }],
+        });
       }
-      return json(response, 201, ghPr(create({ title: body.title, body: body.body ?? "", source: head, target: body.base, draft: Boolean(body.draft), author: who.user })));
+      return json(
+        response,
+        201,
+        ghPr(
+          create({
+            title: body.title,
+            body: body.body ?? "",
+            source: head,
+            target: body.base,
+            draft: Boolean(body.draft),
+            author: who.user,
+          }),
+        ),
+      );
     }
     if ((match = /^GET \/repos\/[^/]+\/[^/]+\/commits\/([0-9a-f]+)\/(check-runs|status)$/.exec(route))) {
       const item = state.prs.find((candidate) => candidate.headSha === match[1]);
@@ -328,33 +401,83 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
       const item = pr(number);
       if (!item) return json(response, 404, { message: "Not Found" });
       if (method === "GET" && family === "pulls" && what === "reviews") {
-        return paged(response, request, item.reviews.map((review, index) => ({ id: index + 1, user: ghUser(review.user), state: review.state.toUpperCase(), body: review.body ?? "", submitted_at: review.at ?? iso(90) })));
+        return paged(
+          response,
+          request,
+          item.reviews.map((review, index) => ({
+            id: index + 1,
+            user: ghUser(review.user),
+            state: review.state.toUpperCase(),
+            body: review.body ?? "",
+            submitted_at: review.at ?? iso(90),
+          })),
+        );
       }
       if (method === "GET" && family === "issues" && what === "comments") {
-        return paged(response, request, item.comments.filter((comment) => !comment.path).map((comment) => ({ id: comment.id, user: ghUser(comment.author), body: comment.body, created_at: comment.createdAt })));
+        return paged(
+          response,
+          request,
+          item.comments
+            .filter((comment) => !comment.path)
+            .map((comment) => ({ id: comment.id, user: ghUser(comment.author), body: comment.body, created_at: comment.createdAt })),
+        );
       }
       if (method === "GET" && family === "pulls" && what === "comments") {
-        return paged(response, request, item.comments.filter((comment) => comment.path).map((comment) => ({ id: comment.id, user: ghUser(comment.author), body: comment.body, created_at: comment.createdAt, path: comment.path, line: comment.line })));
+        return paged(
+          response,
+          request,
+          item.comments
+            .filter((comment) => comment.path)
+            .map((comment) => ({
+              id: comment.id,
+              user: ghUser(comment.author),
+              body: comment.body,
+              created_at: comment.createdAt,
+              path: comment.path,
+              line: comment.line,
+            })),
+        );
       }
       if (method === "GET" && family === "pulls" && what === "commits") {
-        return paged(response, request, item.commits.map((commit) => ({ sha: commit.sha, commit: { message: commit.message, author: { name: commit.authorName, date: commit.date } } })));
+        return paged(
+          response,
+          request,
+          item.commits.map((commit) => ({
+            sha: commit.sha,
+            commit: { message: commit.message, author: { name: commit.authorName, date: commit.date } },
+          })),
+        );
       }
       if (method === "POST" && family === "issues" && what === "comments") {
-        const comment = { id: state.nextCommentId++, author: who.user, body: String(body.body ?? ""), createdAt: iso(0), path: null, line: null };
+        const comment = {
+          id: state.nextCommentId++,
+          author: who.user,
+          body: String(body.body ?? ""),
+          createdAt: iso(0),
+          path: null,
+          line: null,
+        };
         item.comments.push(comment);
         item.updatedAt = iso(0);
         return json(response, 201, { id: comment.id, user: ghUser(comment.author), body: comment.body, created_at: comment.createdAt });
       }
       if (method === "POST" && family === "pulls" && what === "requested_reviewers") {
-        item.requested = (body.reviewers ?? []).map((login) => Object.values(PEOPLE).find((person) => person.login === login) ?? { login, name: login, id: 900 });
+        item.requested = (body.reviewers ?? []).map(
+          (login) => Object.values(PEOPLE).find((person) => person.login === login) ?? { login, name: login, id: 900 },
+        );
         return json(response, 201, ghPr(item));
       }
       if (method === "POST" && family === "issues" && what === "labels") {
         item.labels = [...new Set([...item.labels, ...(body.labels ?? [])])];
-        return json(response, 200, item.labels.map((label) => ({ name: label, color: "8250df" })));
+        return json(
+          response,
+          200,
+          item.labels.map((label) => ({ name: label, color: "8250df" })),
+        );
       }
       if (method === "PUT" && family === "pulls" && what === "merge") {
-        if (item.state !== "open" || item.mergeable === false || item.draft) return json(response, 405, { message: "Pull Request is not mergeable" });
+        if (item.state !== "open" || item.mergeable === false || item.draft)
+          return json(response, 405, { message: "Pull Request is not mergeable" });
         item.state = "merged";
         item.mergedWith = body.merge_method;
         item.updatedAt = iso(0);
@@ -380,14 +503,31 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     if (rest !== null && gitlabIssues(request, response, url, rest)) return;
     if (rest === null) {
       if (route === "GET /user") return json(response, 200, glUser(who.user));
-      if (route === "GET /personal_access_tokens/self") return json(response, 200, { id: 1, name: "forkyard", scopes: who.scopes, active: true });
+      if (route === "GET /personal_access_tokens/self")
+        return json(response, 200, { id: 1, name: "forkyard", scopes: who.scopes, active: true });
       if (route === "GET /users") {
         const found = Object.values(PEOPLE).filter((person) => person.login === url.searchParams.get("username"));
         return json(response, 200, found.map(glUser));
       }
       if ((match = /^GET \/projects\/77\/pipelines\/(\d+)\/jobs$/.exec(route))) {
         const item = pr(Number(match[1]) - 5000);
-        return paged(response, request, (item?.checks ?? []).map((check, index) => ({ id: index + 1, name: check.name, status: check.state === "passing" ? "success" : check.state === "failing" ? "failed" : check.state === "skipped" ? "skipped" : "running", web_url: check.url ?? null })));
+        return paged(
+          response,
+          request,
+          (item?.checks ?? []).map((check, index) => ({
+            id: index + 1,
+            name: check.name,
+            status:
+              check.state === "passing"
+                ? "success"
+                : check.state === "failing"
+                  ? "failed"
+                  : check.state === "skipped"
+                    ? "skipped"
+                    : "running",
+            web_url: check.url ?? null,
+          })),
+        );
       }
       return json(response, 404, { message: "404 Not Found" });
     }
@@ -398,7 +538,14 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
         default_branch: state.defaultBranch,
         web_url: `${base}/${full}`,
         permissions: { project_access: { access_level: state.canPush ? 40 : 20 }, group_access: null },
-        ...(state.forkParent ? { forked_from_project: { path_with_namespace: `${state.forkParent.owner}/${state.forkParent.name}`, web_url: `${base}/${state.forkParent.owner}/${state.forkParent.name}` } } : {}),
+        ...(state.forkParent
+          ? {
+              forked_from_project: {
+                path_with_namespace: `${state.forkParent.owner}/${state.forkParent.name}`,
+                web_url: `${base}/${state.forkParent.owner}/${state.forkParent.name}`,
+              },
+            }
+          : {}),
       });
     }
     if (route === "GET /merge_requests") {
@@ -409,11 +556,20 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     if (route === "POST /merge_requests") {
       if (!body.title?.trim()) return json(response, 400, { message: { title: ["can't be blank"] } });
       const clash = state.prs.find((item) => item.state === "open" && item.source === body.source_branch);
-      if (clash) return json(response, 409, { message: [`Another open merge request already exists for this source branch: !${clash.number}`] });
+      if (clash)
+        return json(response, 409, { message: [`Another open merge request already exists for this source branch: !${clash.number}`] });
       const draft = /^Draft:/.test(body.title);
-      const item = create({ title: body.title.replace(/^Draft:\s*/, ""), body: body.description ?? "", source: body.source_branch, target: body.target_branch, draft, author: who.user });
+      const item = create({
+        title: body.title.replace(/^Draft:\s*/, ""),
+        body: body.description ?? "",
+        source: body.source_branch,
+        target: body.target_branch,
+        draft,
+        author: who.user,
+      });
       if (typeof body.labels === "string" && body.labels) item.labels = body.labels.split(",");
-      if (Array.isArray(body.reviewer_ids)) item.requested = body.reviewer_ids.map((id) => Object.values(PEOPLE).find((person) => person.id === id)).filter(Boolean);
+      if (Array.isArray(body.reviewer_ids))
+        item.requested = body.reviewer_ids.map((id) => Object.values(PEOPLE).find((person) => person.id === id)).filter(Boolean);
       return json(response, 201, glMr(item));
     }
     if (route === "GET /issues") return json(response, 200, []);
@@ -430,21 +586,58 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
         return json(response, 200, glMr(item));
       }
       if (what === "approvals" && method === "GET") {
-        return json(response, 200, { approved_by: item.reviews.filter((review) => review.state === "approved").map((review) => ({ user: glUser(review.user) })), approvals_left: 0 });
+        return json(response, 200, {
+          approved_by: item.reviews.filter((review) => review.state === "approved").map((review) => ({ user: glUser(review.user) })),
+          approvals_left: 0,
+        });
       }
       if (what === "notes" && method === "GET") {
-        return paged(response, request, item.comments.map((comment) => ({ id: comment.id, author: glUser(comment.author), body: comment.body, created_at: comment.createdAt, system: false, ...(comment.path ? { position: { new_path: comment.path, new_line: comment.line } } : {}) })));
+        return paged(
+          response,
+          request,
+          item.comments.map((comment) => ({
+            id: comment.id,
+            author: glUser(comment.author),
+            body: comment.body,
+            created_at: comment.createdAt,
+            system: false,
+            ...(comment.path ? { position: { new_path: comment.path, new_line: comment.line } } : {}),
+          })),
+        );
       }
       if (what === "notes" && method === "POST") {
-        const comment = { id: state.nextCommentId++, author: who.user, body: String(body.body ?? ""), createdAt: iso(0), path: null, line: null };
+        const comment = {
+          id: state.nextCommentId++,
+          author: who.user,
+          body: String(body.body ?? ""),
+          createdAt: iso(0),
+          path: null,
+          line: null,
+        };
         item.comments.push(comment);
-        return json(response, 201, { id: comment.id, author: glUser(comment.author), body: comment.body, created_at: comment.createdAt, system: false });
+        return json(response, 201, {
+          id: comment.id,
+          author: glUser(comment.author),
+          body: comment.body,
+          created_at: comment.createdAt,
+          system: false,
+        });
       }
       if (what === "commits" && method === "GET") {
-        return paged(response, request, item.commits.map((commit) => ({ id: commit.sha, title: commit.message.split("\n")[0], author_name: commit.authorName, authored_date: commit.date })));
+        return paged(
+          response,
+          request,
+          item.commits.map((commit) => ({
+            id: commit.sha,
+            title: commit.message.split("\n")[0],
+            author_name: commit.authorName,
+            authored_date: commit.date,
+          })),
+        );
       }
       if (what === "merge" && method === "PUT") {
-        if (item.state !== "open" || item.mergeable === false || item.draft) return json(response, 405, { message: "405 Method Not Allowed" });
+        if (item.state !== "open" || item.mergeable === false || item.draft)
+          return json(response, 405, { message: "405 Method Not Allowed" });
         item.state = "merged";
         item.mergedWith = body.squash ? "squash" : "merge";
         if (body.should_remove_source_branch) state.deletedBranches.push(item.source);
@@ -462,7 +655,17 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     if (decodeURIComponent(url.pathname).startsWith(gitPrefix)) {
       const target = `/${bare}${decodeURIComponent(url.pathname).slice(gitPrefix.length)}${url.search}`;
       const upstream = http.request(
-        { host: "127.0.0.1", port: git.port, method: request.method, path: target, headers: { ...request.headers, host: `127.0.0.1:${git.port}`, authorization: `Basic ${Buffer.from(`${GIT_USER}:${GIT_PASSWORD}`).toString("base64")}` } },
+        {
+          host: "127.0.0.1",
+          port: git.port,
+          method: request.method,
+          path: target,
+          headers: {
+            ...request.headers,
+            host: `127.0.0.1:${git.port}`,
+            authorization: `Basic ${Buffer.from(`${GIT_USER}:${GIT_PASSWORD}`).toString("base64")}`,
+          },
+        },
         (answer) => {
           response.writeHead(answer.statusCode ?? 502, answer.headers);
           answer.pipe(response);
@@ -486,7 +689,15 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
         body = { unreadable: text };
       }
       const sent = /^Bearer\s+(.+)$/i.exec(request.headers.authorization ?? "")?.[1] ?? null;
-      const entry = { method: request.method, path: decodeURIComponent(url.pathname), query: url.search, body, token: sent, status: 0, at: Date.now() };
+      const entry = {
+        method: request.method,
+        path: decodeURIComponent(url.pathname),
+        query: url.search,
+        body,
+        token: sent,
+        status: 0,
+        at: Date.now(),
+      };
       requests.push(entry);
       const answer = () => {
         response.on("finish", () => {
@@ -498,11 +709,24 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
         if (!who) return json(response, 401, kind === "github" ? { message: "Bad credentials" } : { message: "401 Unauthorized" });
         if (state.rateLimited) {
           return kind === "github"
-            ? json(response, 403, { message: "API rate limit exceeded for user." }, { "X-RateLimit-Limit": "5000", "X-RateLimit-Remaining": "0", "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 1800) })
+            ? json(
+                response,
+                403,
+                { message: "API rate limit exceeded for user." },
+                {
+                  "X-RateLimit-Limit": "5000",
+                  "X-RateLimit-Remaining": "0",
+                  "X-RateLimit-Reset": String(Math.floor(Date.now() / 1000) + 1800),
+                },
+              )
             : json(response, 429, { message: "429 Too Many Requests" }, { "Retry-After": "1800", "RateLimit-Remaining": "0" });
         }
         if (state.readOnly && request.method !== "GET") {
-          return json(response, 403, kind === "github" ? { message: "Resource not accessible by personal access token" } : { message: "403 Forbidden" });
+          return json(
+            response,
+            403,
+            kind === "github" ? { message: "Resource not accessible by personal access token" } : { message: "403 Forbidden" },
+          );
         }
         return kind === "github" ? github(request, response, url, body, who) : gitlab(request, response, url, body, who);
       };
@@ -568,15 +792,34 @@ export async function startHost({ kind, owner = "schule", name = "messnetz" }) {
     serverGit: (...args) => git.git(bare, ...args),
     addPr(input) {
       const item = normalize(input);
-      state.prs = [...state.prs.filter((existing) => existing.number !== item.number), item].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+      state.prs = [...state.prs.filter((existing) => existing.number !== item.number), item].sort((a, b) =>
+        a.updatedAt < b.updatedAt ? 1 : -1,
+      );
       return item;
     },
     pr,
     webUrlOf: web,
     /** Adds an issue (issues.mjs): `{ number, title, body?, state?, author?, assignees?, labels?, comments?, updatedAt? }`. */
     addIssue(input) {
-      const item = { title: "", body: "", state: "open", author: PEOPLE.jonas, assignees: [], labels: [], comments: [], createdAt: iso(600), updatedAt: iso(180), ...input };
-      item.comments = item.comments.map((comment) => ({ id: state.nextCommentId++, author: PEOPLE.aylin, body: "", createdAt: iso(60), ...comment }));
+      const item = {
+        title: "",
+        body: "",
+        state: "open",
+        author: PEOPLE.jonas,
+        assignees: [],
+        labels: [],
+        comments: [],
+        createdAt: iso(600),
+        updatedAt: iso(180),
+        ...input,
+      };
+      item.comments = item.comments.map((comment) => ({
+        id: state.nextCommentId++,
+        author: PEOPLE.aylin,
+        body: "",
+        createdAt: iso(60),
+        ...comment,
+      }));
       state.issues = [...state.issues.filter((existing) => existing.number !== item.number), item];
       return item;
     },
@@ -629,7 +872,8 @@ export const EVIL_BODY = [
   "```",
 ].join("\n");
 
-export const LONG_TITLE = "Plausibilitätsprüfung für alle Sensoren eingeführt, damit Ausreißer des Datenloggers bei Frost nicht länger unbemerkt in die Tagesmittel und Monatsberichte gelangen";
+export const LONG_TITLE =
+  "Plausibilitätsprüfung für alle Sensoren eingeführt, damit Ausreißer des Datenloggers bei Frost nicht länger unbemerkt in die Tagesmittel und Monatsberichte gelangen";
 export const LONG_BRANCH = "thema/plausibilitaetspruefung-fuer-alle-sensoren-mit-einem-sehr-langen-branch-namen";
 
 /**
@@ -656,7 +900,12 @@ export function makeHostRepo(host, { name = "messnetz" } = {}) {
   // branch nor the commit – only a fetch brings it.
   repo.git("push", "-q", "origin", "main:refs/heads/station/hafen");
   repo.git("update-ref", "-d", "refs/remotes/origin/station/hafen");
-  sha.hafen = repo.commitOnRemote({ branch: "station/hafen", file: "stationen/hafen.md", content: "# Hafen\n\nDritte Station, 3 m über dem Meer.\n", message: "Hafenstation ergänzt" });
+  sha.hafen = repo.commitOnRemote({
+    branch: "station/hafen",
+    file: "stationen/hafen.md",
+    content: "# Hafen\n\nDritte Station, 3 m über dem Meer.\n",
+    message: "Hafenstation ergänzt",
+  });
 
   // The server gets what has been pushed so far.
   host.publish(repo.remotePath);
@@ -697,7 +946,14 @@ export function seedPrs(host, sha) {
     requested: [PEOPLE.lena],
     labels: ["export", "daten"],
     comments: [
-      { id: 501, author: PEOPLE.lena, body: "Sieht gut aus. Fehlt noch der **Kopf** der Datei?", createdAt: iso(50), path: null, line: null },
+      {
+        id: 501,
+        author: PEOPLE.lena,
+        body: "Sieht gut aus. Fehlt noch der **Kopf** der Datei?",
+        createdAt: iso(50),
+        path: null,
+        line: null,
+      },
       { id: 502, author: PEOPLE.jonas, body: "Kommt im nächsten Commit.", createdAt: iso(40), path: "src/export.py", line: 4 },
     ],
     commits: [{ sha: sha.feature, message: "CSV-Export für den Vergleich", authorName: "Jonas Albrecht", date: iso(600) }],
@@ -741,7 +997,14 @@ export function seedPrs(host, sha) {
 /** Many open pull requests (for loading more and long lists). */
 export function seedMany(host, count = 45) {
   for (let index = 0; index < count; index++) {
-    host.addPr({ number: 100 + index, title: `Messlauf ${String(index + 1).padStart(3, "0")} nachgetragen`, author: index % 3 === 0 ? PEOPLE.lena : PEOPLE.mats, source: `messlauf/${String(index + 1).padStart(3, "0")}`, headSha: (3 + (index % 6)).toString().repeat(40), updatedAt: iso(1000 + index) });
+    host.addPr({
+      number: 100 + index,
+      title: `Messlauf ${String(index + 1).padStart(3, "0")} nachgetragen`,
+      author: index % 3 === 0 ? PEOPLE.lena : PEOPLE.mats,
+      source: `messlauf/${String(index + 1).padStart(3, "0")}`,
+      headSha: (3 + (index % 6)).toString().repeat(40),
+      updatedAt: iso(1000 + index),
+    });
   }
 }
 
@@ -758,195 +1021,14 @@ export async function connectDirect(app, host, token = host.token) {
 
 /** Reload accounts, the repository's host and pull requests – as after a core event. */
 export async function refreshHostQueries(app) {
-  await app.page.evaluate(() => {
+  await app.exec(() => {
     const client = window.__gc.queryClient;
     return Promise.all([
       client.invalidateQueries({ queryKey: ["app", "hostAccounts"] }),
-      client.invalidateQueries({ predicate: (query) => query.queryKey[0] === "repo" && ["hostRepo", "prs", "pr", "prTemplate"].includes(String(query.queryKey[2])) }),
+      client.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "repo" && ["hostRepo", "prs", "pr", "prTemplate"].includes(String(query.queryKey[2])),
+      }),
     ]);
   });
   await app.settle();
 }
-
-/**
- * Where does the token appear? Searches the document (including attributes and field values), the
- * query cache, the store, localStorage and sessionStorage and the console messages.
- * Empty list = nowhere.
- */
-export async function tokenLeaks(app, token, { allowField = false } = {}) {
-  const found = await app.page.evaluate(
-    ([secret, fieldAllowed]) => {
-      const places = [];
-      if (document.documentElement.outerHTML.includes(secret)) places.push("document (HTML)");
-      if ((document.body.innerText ?? "").includes(secret)) places.push("visible text");
-      for (const field of document.querySelectorAll("input, textarea")) {
-        if (field.value.includes(secret) && !(fieldAllowed && field.type === "password")) places.push(`field ${field.name || field.type}`);
-        if ((field.getAttribute("value") ?? "").includes(secret)) places.push(`value attribute of ${field.name || field.type}`);
-        if (field.value.includes(secret) && field.type !== "password") places.push(`field ${field.name || field.type} is not a password field`);
-      }
-      const seen = new WeakSet();
-      const dump = (value) => {
-        try {
-          return JSON.stringify(value, (_key, item) => {
-            if (typeof item === "object" && item !== null) {
-              if (seen.has(item)) return undefined;
-              seen.add(item);
-            }
-            return typeof item === "function" ? undefined : item;
-          });
-        } catch {
-          return "";
-        }
-      };
-      const cache = window.__gc.queryClient.getQueryCache().getAll().map((query) => ({ key: query.queryKey, data: query.state.data, error: String(query.state.error?.message ?? "") }));
-      if ((dump(cache) ?? "").includes(secret)) places.push("query cache");
-      if ((dump(window.__gc.store.getState()) ?? "").includes(secret)) places.push("store");
-      for (const [name, storage] of [["localStorage", localStorage], ["sessionStorage", sessionStorage]]) {
-        for (let index = 0; index < storage.length; index++) {
-          const key = storage.key(index);
-          if (`${key}=${storage.getItem(key)}`.includes(secret)) places.push(`${name}: ${key}`);
-        }
-      }
-      return places;
-    },
-    [token, allowField],
-  );
-  if (app.consoleErrors.some((line) => line.includes(token))) found.push("console");
-  return found;
-}
-
-/**
- * Separate keychain service name per run (`FORKYARD_KEYRING_SERVICE`): this run's entries can be
- * found in the system keychain – and nothing is left under the real app's name.
- */
-export const keyringName = (script) => `forkyard-e2e-${script}-${process.pid}`;
-
-/** This run's entries in the Windows Credential Manager (`cmdkey /list`); elsewhere: empty. */
-export function keychainEntries(service) {
-  if (process.platform !== "win32") return [];
-  const out = execFileSync("cmdkey", ["/list"], { windowsHide: true }).toString("utf8");
-  return out.split(/\r?\n/).filter((line) => line.includes(service));
-}
-
-/**
- * Removes entries of aborted runs from the keychain (made-up tokens for the local host): everything
- * under `forkyard-e2e-<script>-<pid>` whose process is no longer alive. At the start of every script.
- */
-export function sweepKeychain() {
-  if (process.platform !== "win32") return 0;
-  let removed = 0;
-  const out = execFileSync("cmdkey", ["/list"], { windowsHide: true }).toString("utf8");
-  for (const match of out.matchAll(/target=(\S+\.forkyard-e2e-[a-z0-9]+-(\d+))\s*$/gim)) {
-    if (isAlive(Number(match[2]))) continue;
-    try {
-      execFileSync("cmdkey", [`/delete:${match[1]}`], { windowsHide: true, stdio: "ignore" });
-      removed += 1;
-    } catch {
-      // already gone
-    }
-  }
-  return removed;
-}
-
-/** Is the token in a file (app log, database)? */
-export function fileContains(file, token) {
-  try {
-    return fs.readFileSync(file).includes(Buffer.from(token, "utf8"));
-  } catch {
-    return false;
-  }
-}
-
-/** All files under `dir` that contain the token (app data dir: SQLite, logs). */
-export function filesContaining(dir, token) {
-  const hits = [];
-  const walk = (folder) => {
-    let entries = [];
-    try {
-      entries = fs.readdirSync(folder, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = path.join(folder, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (fileContains(full, token)) hits.push(full);
-    }
-  };
-  walk(dir);
-  return hits;
-}
-
-/** Records what the page writes to the console (all levels) – to search it for the token. */
-export function recordConsole(app) {
-  const lines = [];
-  app.page.on("console", (message) => lines.push(`[${message.type()}] ${message.text()}`));
-  return lines;
-}
-
-/** Run a command via the command palette – keyboard only. */
-export async function runCommand(app, text, commandId) {
-  const { page } = app;
-  await page.keyboard.press("Control+p");
-  await page.locator('[data-screen="command-palette"] input[role="combobox"]').waitFor({ timeout: 10_000 });
-  await page.keyboard.type(`>${text}`, { delay: 5 });
-  const keys = () => page.locator('[data-screen="command-palette"] [role="option"]').evaluateAll((rows) => rows.map((row) => row.dataset.key));
-  const deadline = Date.now() + 10_000;
-  while (!(await keys()).includes(`command:${commandId}`)) {
-    if (Date.now() > deadline) throw new Error(`The palette does not find "${text}" (${commandId}). Present: ${JSON.stringify(await keys())}`);
-    await page.waitForTimeout(80);
-  }
-  const index = (await keys()).indexOf(`command:${commandId}`);
-  for (let step = 0; step < index; step++) await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("Enter");
-  await page.locator('[data-screen="command-palette"]').waitFor({ state: "detached", timeout: 10_000 });
-}
-
-/** Accessible name of the focused element (aria-label, <label for>, else its text). */
-export const focusedName = (page) =>
-  page.evaluate(() => {
-    const element = document.activeElement;
-    if (!element || element === document.body) return null;
-    const aria = element.getAttribute("aria-label");
-    if (aria) return aria.trim();
-    const label = element.id ? document.querySelector(`label[for="${CSS.escape(element.id)}"]`) : null;
-    if (label?.textContent) return label.textContent.trim();
-    return (element.textContent ?? "").trim().replace(/\s+/g, " ");
-  });
-
-/** Press Tab (or Shift+Tab) until the element with this name has focus. */
-export async function tabTo(page, wanted, { back = false, max = 60 } = {}) {
-  const matches = (name) => name !== null && (wanted instanceof RegExp ? wanted.test(name) : name === wanted);
-  const seen = [];
-  for (let step = 0; step <= max; step++) {
-    const name = await focusedName(page);
-    if (matches(name)) return name;
-    seen.push(name);
-    await page.keyboard.press(back ? "Shift+Tab" : "Tab");
-  }
-  throw new Error(`Not reachable by Tab: ${wanted}. Visited: ${seen.join(" → ")}`);
-}
-
-/** Does anything stick out sideways from the box, or does the page scroll horizontally? Empty list = everything fits. */
-export const escaping = (page, selector) =>
-  page.evaluate((target) => {
-    const root = document.querySelector(target);
-    const box = root?.getBoundingClientRect();
-    if (!root || !box) return ["box missing"];
-    const out = [];
-    if (document.documentElement.scrollWidth > document.documentElement.clientWidth) out.push("the page scrolls horizontally");
-    for (const element of root.querySelectorAll("*")) {
-      const rect = element.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) continue;
-      let clipped = false;
-      for (let parent = element.parentElement; parent && parent !== root.parentElement; parent = parent.parentElement) {
-        const style = getComputedStyle(parent);
-        if (style.overflowX !== "visible" || style.overflowY !== "visible") {
-          clipped = true;
-          break;
-        }
-      }
-      if (!clipped && (rect.right > box.right + 1 || rect.left < box.left - 1)) out.push((element.textContent ?? element.tagName).trim().slice(0, 40));
-    }
-    return out;
-  }, selector);
