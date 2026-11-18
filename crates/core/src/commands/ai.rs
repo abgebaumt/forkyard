@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 
+use crate::ai::run::{request_frame, stored_key};
 use crate::ai::{self, commit_message, context, gate, pricing, providers, release_notes, run};
 use crate::app::Core;
 use crate::commands::sync::{push_destination, PushRequest};
@@ -17,32 +18,10 @@ use crate::jobs::CancelToken;
 use crate::model::{
     AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiPushFinding,
     AiPushFindingKind, AiPushReview, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, ConflictBlockRange,
-    ConflictIntent, Settings,
+    ConflictIntent,
 };
 use crate::secrets;
 use crate::util;
-
-/// The stored key of a provider; `None` if there is none or the keychain is unreachable.
-async fn stored_key(core: &Core, kind: AiProviderKind) -> Option<String> {
-    if !kind.accepts_key() {
-        return None;
-    }
-    secrets::get(core, &ai::key_account(kind)).await.ok().flatten()
-}
-
-/// Budget (tokens) and known secrets of a request for `feature` – the same for "What is sent?"
-/// and for the request itself, so both build the same text (the confirmation is bound to it).
-pub(crate) async fn request_frame(core: &Core, settings: &Settings, feature: AiFeature) -> (u64, Vec<String>) {
-    let context_size = match (settings.ai_provider, settings.ai_model.as_deref()) {
-        (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
-        _ => 32_000,
-    };
-    let secrets = match settings.ai_provider {
-        Some(kind) => stored_key(core, kind).await.into_iter().collect(),
-        None => Vec::new(),
-    };
-    (context::budget_tokens(feature.budget_tokens(), context_size), secrets)
-}
 
 pub async fn ai_status(core: &Core) -> CoreResult<AiStatus> {
     let settings = core.settings()?;
@@ -362,28 +341,15 @@ pub async fn ai_push_review(
     remote_branch: Option<String>,
     locale: String,
 ) -> CoreResult<AiPushReview> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::PushReview)?;
+    let frame = run::ask(core, &repo_id, AiFeature::PushReview).await?;
     let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
     if outgoing.commits.is_empty() {
         return Ok(AiPushReview { findings: Vec::new(), commits: 0, files: 0, partial: false });
     }
-    // Budget and known secrets exactly as `ai_preview` computes them (`request_frame`).
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::PushReview).await;
-    let built = context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?;
-    let schema = push_review_schema();
-    let answer = run::complete_json(
-        core,
-        run::AiRequest {
-            repo_id: Some(&repo_id),
-            feature: AiFeature::PushReview,
-            job_id: &job_id,
-            prompt: &built.built.prompt,
-            schema: &schema,
-        },
-    )
-    .await?;
+    let built = context::outgoing_changes(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets, &outgoing).await?;
+    let answer = frame.send(core, &job_id, &built.built.prompt, &push_review_schema()).await?;
     Ok(AiPushReview {
-        findings: review_findings(&answer.value, &built.shown, &secrets),
+        findings: review_findings(&answer.value, &built.shown, &frame.secrets),
         commits: built.commits,
         files: built.files,
         partial: built.partial,
@@ -402,18 +368,10 @@ pub async fn ai_pr_description(
     target: String,
     locale: String,
 ) -> CoreResult<crate::model::AiPrDescription> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::PrDescription)?;
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::PrDescription).await;
-    let pr = ai::pr::build(core, &repo_id, &settings, &source, &target, budget, &locale, &secrets).await?;
-    let schema = ai::pr::schema();
-    let request = run::AiRequest {
-        repo_id: Some(&repo_id),
-        feature: AiFeature::PrDescription,
-        job_id: &job_id,
-        prompt: &pr.built.prompt,
-        schema: &schema,
-    };
-    let answer = run::complete_json_checked(core, request, &|value: &serde_json::Value| ai::pr::check_answer(value, &pr.headings)).await?;
+    let frame = run::ask(core, &repo_id, AiFeature::PrDescription).await?;
+    let pr = ai::pr::build(core, &repo_id, &frame.settings, &source, &target, frame.budget, &locale, &frame.secrets).await?;
+    let check = |value: &Value| ai::pr::check_answer(value, &pr.headings);
+    let answer = frame.send_checked(core, &job_id, &pr.built.prompt, &ai::pr::schema(), &check).await?;
     Ok(ai::pr::finish(&answer.value, &pr.closes))
 }
 
@@ -428,19 +386,10 @@ pub async fn ai_review_fix(
     thread_id: String,
     locale: String,
 ) -> CoreResult<crate::model::AiReviewFix> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::ReviewFix)?;
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::ReviewFix).await;
-    let review = ai::review::build(core, &repo_id, &settings, number, &thread_id, budget, &locale, &secrets).await?;
-    let schema = ai::review::schema();
-    let request = run::AiRequest {
-        repo_id: Some(&repo_id),
-        feature: AiFeature::ReviewFix,
-        job_id: &job_id,
-        prompt: &review.built.prompt,
-        schema: &schema,
-    };
-    let answer =
-        run::complete_json_checked(core, request, &|value: &serde_json::Value| ai::review::check_answer(value, &review.ctx)).await?;
+    let frame = run::ask(core, &repo_id, AiFeature::ReviewFix).await?;
+    let review = ai::review::build(core, &repo_id, &frame.settings, number, &thread_id, frame.budget, &locale, &frame.secrets).await?;
+    let check = |value: &Value| ai::review::check_answer(value, &review.ctx);
+    let answer = frame.send_checked(core, &job_id, &review.built.prompt, &ai::review::schema(), &check).await?;
     ai::review::finish(core, &repo_id, &review.ctx, &answer.value).await
 }
 
@@ -455,19 +404,10 @@ pub async fn ai_stack_split(
     base: String,
     locale: String,
 ) -> CoreResult<crate::model::AiStackSplit> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::StackSplit)?;
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::StackSplit).await;
-    let stack = ai::stack::build(core, &repo_id, &settings, &branch, &base, budget, &locale, &secrets).await?;
-    let schema = ai::stack::schema();
-    let request = run::AiRequest {
-        repo_id: Some(&repo_id),
-        feature: AiFeature::StackSplit,
-        job_id: &job_id,
-        prompt: &stack.built.prompt,
-        schema: &schema,
-    };
-    let commits = stack.commits;
-    let answer = run::complete_json_checked(core, request, &|value: &serde_json::Value| ai::stack::check_answer(value, commits)).await?;
+    let frame = run::ask(core, &repo_id, AiFeature::StackSplit).await?;
+    let stack = ai::stack::build(core, &repo_id, &frame.settings, &branch, &base, frame.budget, &locale, &frame.secrets).await?;
+    let check = |value: &Value| ai::stack::check_answer(value, stack.commits);
+    let answer = frame.send_checked(core, &job_id, &stack.built.prompt, &ai::stack::schema(), &check).await?;
     Ok(ai::stack::finish(&answer.value))
 }
 
@@ -525,21 +465,9 @@ pub async fn ai_usage(core: &Core) -> CoreResult<AiUsageSummary> {
 /// core commits nothing. Built exactly as `ai_preview` with `AiInput::CommitMessage` shows it, so a
 /// confirmation given there holds here; `complete_json` refuses everything unconfirmed.
 pub async fn ai_commit_message(core: &Core, repo_id: String, job_id: String, locale: String) -> CoreResult<AiCommitMessage> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::CommitMessage)?;
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::CommitMessage).await;
-    let built = commit_message::build(core, &repo_id, &settings, budget, &locale, &secrets).await?;
-    let schema = commit_message::schema();
-    let answer = run::complete_json(
-        core,
-        run::AiRequest {
-            repo_id: Some(&repo_id),
-            feature: AiFeature::CommitMessage,
-            job_id: &job_id,
-            prompt: &built.prompt,
-            schema: &schema,
-        },
-    )
-    .await?;
+    let frame = run::ask(core, &repo_id, AiFeature::CommitMessage).await?;
+    let built = commit_message::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let answer = frame.send(core, &job_id, &built.prompt, &commit_message::schema()).await?;
     commit_message::parse(&answer.value)
 }
 
@@ -586,21 +514,9 @@ pub async fn ai_conflict_intent(
     blocks: Vec<ConflictBlockRange>,
     locale: String,
 ) -> CoreResult<ConflictIntent> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::ConflictIntent)?;
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::ConflictIntent).await;
-    let plan = ai::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?;
-    let schema = ai::conflict::schema();
-    let answer = run::complete_json(
-        core,
-        run::AiRequest {
-            repo_id: Some(&repo_id),
-            feature: AiFeature::ConflictIntent,
-            job_id: &job_id,
-            prompt: &plan.built.prompt,
-            schema: &schema,
-        },
-    )
-    .await?;
+    let frame = run::ask(core, &repo_id, AiFeature::ConflictIntent).await?;
+    let plan = ai::conflict::build(core, &repo_id, &path, &blocks, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
+    let answer = frame.send(core, &job_id, &plan.built.prompt, &ai::conflict::schema()).await?;
     ai::conflict::accept(&plan, &answer.value)
 }
 

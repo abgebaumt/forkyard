@@ -7,7 +7,7 @@ pub mod changelog;
 use std::path::Path;
 
 use crate::ai::release_notes;
-use crate::ai::run::{self, AiRequest};
+use crate::ai::run;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{AiFeature, ChangelogInsertResult, ReleaseNotes, ReleaseNotesRange, RepoChange};
@@ -31,26 +31,13 @@ pub async fn ai_release_notes(
     to: Option<String>,
     locale: String,
 ) -> CoreResult<ReleaseNotes> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::ReleaseNotes)?;
-    let budget = release_notes::budget(core, &settings);
-    let secrets = release_notes::known_secrets(core, &settings).await;
-    let context = release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), budget, &locale, &secrets).await?;
+    let frame = run::ask(core, &repo_id, AiFeature::ReleaseNotes).await?;
+    let context = release_notes::build(core, &repo_id, from.as_deref(), to.as_deref(), frame.budget, &locale, &frame.secrets).await?;
     if context.ids.is_empty() {
         return Ok(release_notes::empty_notes(context.range));
     }
     let file_headings = changelog_headings(core, &repo_id).await;
-    let schema = release_notes::schema();
-    let answer = run::complete_json(
-        core,
-        AiRequest {
-            repo_id: Some(&repo_id),
-            feature: AiFeature::ReleaseNotes,
-            job_id: &job_id,
-            prompt: &context.built.prompt,
-            schema: &schema,
-        },
-    )
-    .await?;
+    let answer = frame.send(core, &job_id, &context.built.prompt, &release_notes::schema()).await?;
     Ok(release_notes::notes_from_answer(&answer.value, &context, file_headings))
 }
 

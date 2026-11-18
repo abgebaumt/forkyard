@@ -22,9 +22,8 @@ mod undo_tests;
 mod units_tests;
 
 use crate::ai::context::Built;
-use crate::ai::run::{self, AiRequest};
+use crate::ai::run;
 use crate::app::Core;
-use crate::commands::ai::request_frame;
 use crate::error::CoreResult;
 use crate::model::{AiFeature, ComposeKeep, ComposePlan, ComposeProposal, ComposeResult, ComposeState, Settings};
 
@@ -61,17 +60,10 @@ pub async fn compose_proposal(
     instruction: Option<String>,
     keep: Vec<ComposeKeep>,
 ) -> CoreResult<ComposeProposal> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Compose)?;
-    // The same budget and secrets as `ai_preview` (helper), so both build the same text.
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::Compose).await;
+    let frame = run::ask(core, &repo_id, AiFeature::Compose).await?;
     let steering = prompt::Steering { instruction, keep };
-    let built = prompt::build(core, &repo_id, &settings, budget, &locale, &secrets, &steering).await?;
-    let schema = prompt::answer_schema();
-    let answer = run::complete_json(
-        core,
-        AiRequest { repo_id: Some(&repo_id), feature: AiFeature::Compose, job_id: &job_id, prompt: &built.built.prompt, schema: &schema },
-    )
-    .await?;
+    let built = prompt::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets, &steering).await?;
+    let answer = frame.send(core, &job_id, &built.built.prompt, &prompt::answer_schema()).await?;
     let (groups, notes) = prompt::groups_from_answer(&answer.value, &built.aliases, &built.kept)?;
     Ok(ComposeProposal { state: built.read.state(), groups, notes })
 }

@@ -22,7 +22,6 @@ use parking_lot::Mutex;
 
 use crate::ai::{archaeology as ai_archaeology_context, run};
 use crate::app::Core;
-use crate::commands::ai::request_frame;
 use crate::commands::graph::LOG_SAFE;
 use crate::commands::history::{line_history_with_diffs, repo_encoding, LINE_HISTORY_STEPS};
 use crate::commands::links::link_rules_get;
@@ -92,22 +91,10 @@ pub async fn ai_archaeology(
     sha: Option<String>,
     locale: String,
 ) -> CoreResult<ArchaeologyAnswer> {
-    let settings = run::ensure_allowed(core, Some(&repo_id), AiFeature::Archaeology)?;
+    let frame = run::ask(core, &repo_id, AiFeature::Archaeology).await?;
     let found = timeline(core, &repo_id, &path, line, sha.as_deref()).await?;
-    let (budget, secrets) = request_frame(core, &settings, AiFeature::Archaeology).await;
-    let built = ai_archaeology_context::build(core, &repo_id, &settings, budget, &locale, &secrets, &found).await?;
-    let schema = ai_archaeology_context::schema();
-    let answer = run::complete_json(
-        core,
-        run::AiRequest {
-            repo_id: Some(&repo_id),
-            feature: AiFeature::Archaeology,
-            job_id: &job_id,
-            prompt: &built.prompt,
-            schema: &schema,
-        },
-    )
-    .await?;
+    let built = ai_archaeology_context::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets, &found).await?;
+    let answer = frame.send(core, &job_id, &built.prompt, &ai_archaeology_context::schema()).await?;
     let mut parsed = ai_archaeology_context::parse_answer(&answer.value, &found)?;
     parsed.cost_usd = answer.cost_usd;
     Ok(parsed)

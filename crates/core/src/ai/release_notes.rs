@@ -8,14 +8,14 @@ use serde_json::{json, Value};
 
 use crate::ai::context::{self, Built};
 use crate::ai::prompt::{self, Section};
-use crate::ai::{key_account, providers};
+
 use crate::app::Core;
 use crate::commands::graph;
 use crate::commands::release_notes::changelog::HeadingLanguage;
 use crate::error::{CoreError, CoreResult};
 use crate::git::rev;
-use crate::model::{AiFeature, ReleaseGroupKind, ReleaseLanguage, ReleaseNoteGroup, ReleaseNotes, ReleaseNotesRange, Settings};
-use crate::{secrets, util};
+use crate::model::{ReleaseGroupKind, ReleaseLanguage, ReleaseNoteGroup, ReleaseNotes, ReleaseNotesRange};
+use crate::util;
 
 pub const MAX_COMMITS: usize = 300;
 pub const SAMPLE_SUBJECTS: usize = 50;
@@ -194,23 +194,6 @@ pub fn commits_text(commits: &[RangeCommit], budget_chars: usize) -> (String, us
         count += 1;
     }
     (joined(false, count), count)
-}
-
-/// min(function budget, 70 % of the model's context) – the same numbers as `ai_preview`.
-pub fn budget(core: &Core, settings: &Settings) -> u64 {
-    let size = match (settings.ai_provider, settings.ai_model.as_deref()) {
-        (Some(kind), Some(model)) => providers::context_tokens(core, kind, model),
-        _ => 32_000,
-    };
-    context::budget_tokens(AiFeature::ReleaseNotes.budget_tokens(), size)
-}
-
-/// The stored key of the chosen provider, scrubbed literally from the prompt (as `ai_preview` does).
-pub async fn known_secrets(core: &Core, settings: &Settings) -> Vec<String> {
-    match settings.ai_provider {
-        Some(kind) if kind.accepts_key() => secrets::get(core, &key_account(kind)).await.ok().flatten().into_iter().collect(),
-        _ => Vec::new(),
-    }
 }
 
 pub async fn build(
