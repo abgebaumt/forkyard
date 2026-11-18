@@ -105,10 +105,7 @@ async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) ->
         return Err(CoreError::new(ErrorCode::BisectActive, "A bisect is already running. Finish it first."));
     }
     if read_operation(core, repo_id).await?.is_some() {
-        return Err(CoreError::new(
-            ErrorCode::OperationInProgress,
-            "A merge, rebase, cherry-pick or revert is in progress. Finish or abort it before starting a bisect.",
-        ));
+        return Err(CoreError::operation_in_progress(None, "Finish or abort it before starting a bisect."));
     }
     if good.is_empty() {
         return Err(CoreError::not_allowed("A bisect needs at least one good commit."));

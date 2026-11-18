@@ -242,13 +242,7 @@ fn branch_not_found(name: &str) -> CoreError {
 }
 
 fn operation_error(kind: OperationKind) -> CoreError {
-    let name = match kind {
-        OperationKind::Merge => "a merge",
-        OperationKind::Rebase => "a rebase",
-        OperationKind::CherryPick => "a cherry-pick",
-        OperationKind::Revert => "a revert",
-    };
-    CoreError::new(ErrorCode::OperationInProgress, format!("There’s {name} in progress. Finish or abort it first, then switch branches."))
+    CoreError::operation_in_progress(Some(kind), "Finish or abort it first, then switch branches.")
 }
 
 /// The first path part (at the same depth, with the same path before it) in which `name` and

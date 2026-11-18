@@ -1398,13 +1398,7 @@ async fn commit_meta(core: &Core, repo_id: &str, sha: &str) -> CoreResult<Commit
 
 async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
     let Some(op) = read_operation(core, repo_id).await? else { return Ok(()) };
-    let name = match op.kind {
-        OperationKind::Merge => "a merge",
-        OperationKind::Rebase => "a rebase",
-        OperationKind::CherryPick => "a cherry-pick",
-        OperationKind::Revert => "a revert",
-    };
-    Err(CoreError::new(ErrorCode::OperationInProgress, format!("There’s already {name} in progress. Finish or abort it first.")))
+    Err(CoreError::operation_in_progress(Some(op.kind), "Finish or abort it first."))
 }
 
 /// Conflicts without a running operation (after squash merge or stash) would otherwise be reported as a new conflict.

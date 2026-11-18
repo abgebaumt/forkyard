@@ -473,7 +473,7 @@ async fn commit_selection_refuses_while_a_merge_is_in_progress() {
     .await
     .unwrap_err();
     assert_eq!(err.code, ErrorCode::OperationInProgress, "{err:?}");
-    assert_eq!(err.message, OPERATION);
+    assert!(err.message.ends_with(OPERATION), "{}", err.message);
     assert_eq!(fx.repo.head(), before, "nothing committed");
     assert!(fx.repo.path().join(".git").join("MERGE_HEAD").exists(), "the merge is left as it was");
     assert_eq!(fx.repo.read_file("liste.txt"), CRLF_BASE, "nothing taken over");

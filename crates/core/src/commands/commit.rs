@@ -299,13 +299,13 @@ pub(crate) fn check_committable(status: &Status) -> CoreResult<()> {
 }
 
 pub(crate) fn operation_error(kind: OperationKind, what: &str) -> CoreError {
-    let (name, hint) = match kind {
-        OperationKind::Merge => ("a merge", "Finish the merge with a commit or abort it first."),
-        OperationKind::Rebase => ("a rebase", "Continue the rebase with “Continue” or abort it."),
-        OperationKind::CherryPick => ("a cherry-pick", "Finish the cherry-pick with “Continue” or abort it."),
-        OperationKind::Revert => ("a revert", "Finish the revert with “Continue” or abort it."),
+    let hint = match kind {
+        OperationKind::Merge => "Finish the merge with a commit or abort it first.",
+        OperationKind::Rebase => "Continue the rebase with “Continue” or abort it.",
+        OperationKind::CherryPick => "Finish the cherry-pick with “Continue” or abort it.",
+        OperationKind::Revert => "Finish the revert with “Continue” or abort it.",
     };
-    CoreError::new(ErrorCode::OperationInProgress, format!("There is {name} in progress, so you can't {what} right now. {hint}"))
+    CoreError::operation_in_progress(Some(kind), &format!("You can't {what} right now. {hint}"))
 }
 
 /// "‘a.txt’" or "3 files (a.txt, b.txt, …)".

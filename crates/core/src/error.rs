@@ -273,6 +273,18 @@ impl CoreError {
     pub fn git_too_old(found: &str) -> Self {
         Self::new(ErrorCode::GitTooOld, format!("Git {found} is too old. At least version 2.39 is required."))
     }
+    /// `operation_in_progress`: "A merge is in progress. {next}"; `None` when the kind is not known.
+    pub fn operation_in_progress(kind: Option<crate::model::OperationKind>, next: &str) -> Self {
+        use crate::model::OperationKind::*;
+        let what = match kind {
+            Some(Merge) => "A merge",
+            Some(Rebase) => "A rebase",
+            Some(CherryPick) => "A cherry-pick",
+            Some(Revert) => "A revert",
+            None => "A merge, rebase, cherry-pick or revert",
+        };
+        Self::new(ErrorCode::OperationInProgress, format!("{what} is in progress. {next}"))
+    }
     pub fn invalid_name(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::InvalidName, message)
     }

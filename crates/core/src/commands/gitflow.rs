@@ -297,17 +297,7 @@ pub async fn gitflow_start(
 }
 
 fn operation_running(kind: &crate::model::OperationKind) -> CoreError {
-    use crate::model::OperationKind::*;
-    let name = match kind {
-        Merge => "a merge",
-        Rebase => "a rebase",
-        CherryPick => "a cherry-pick",
-        Revert => "a revert",
-    };
-    CoreError::new(
-        ErrorCode::OperationInProgress,
-        format!("There’s still {name} in progress. Finish or abort it first – then you can continue with Gitflow."),
-    )
+    CoreError::operation_in_progress(Some(*kind), "Finish or abort it first – then you can continue with Gitflow.")
 }
 
 // ---------------------------------------------------------------------------

@@ -129,12 +129,7 @@ async fn step_locked(core: &Core, repo_id: &str, dir: Direction, touched: &mut O
             Direction::Redo => "be redone",
         };
         return Err(match blocked {
-            Blocked::Operation => CoreError::new(
-                ErrorCode::OperationInProgress,
-                format!(
-                    "Nothing can {verb} while a merge, rebase, cherry-pick or revert is in progress. Finish or abort the operation first."
-                ),
-            ),
+            Blocked::Operation => CoreError::operation_in_progress(None, &format!("Nothing can {verb} until you finish or abort it.")),
             Blocked::Conflict => CoreError::new(
                 ErrorCode::Conflict,
                 format!("Nothing can {verb} while there are unresolved conflicts. Resolve the conflicts first."),

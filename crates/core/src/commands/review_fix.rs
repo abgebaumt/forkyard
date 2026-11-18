@@ -386,10 +386,7 @@ impl TakeOver<'_> {
         let TakeOver { repo_id, number, branch, path, range, patch, message } = self;
         let status = read_status(core, repo_id).await?;
         if status.operation.is_some() {
-            return Err(CoreError::new(
-                ErrorCode::OperationInProgress,
-                "A merge, rebase, cherry-pick or revert is in progress. Finish or abort it first.",
-            ));
+            return Err(CoreError::operation_in_progress(None, "Finish or abort it first."));
         }
         let head_before = match &status.head {
             Head::Branch { branch: current, sha } if current == branch => sha.clone(),
