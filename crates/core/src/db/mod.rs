@@ -405,6 +405,7 @@ pub fn open_or_set_aside(path: &Path) -> CoreResult<(Db, Option<PathBuf>)> {
 /// Raw SQLite view of the file, so corruption is decided from the SQLite error code.
 fn probe(path: &Path) -> rusqlite::Result<()> {
     let conn = Connection::open(path)?;
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
     let _mode: String = conn.query_row("pragma journal_mode = wal", [], |r| r.get(0))?;
     // Reads page 1: garbage bytes fail here with NotADatabase. No full quick_check (reads the whole file).
     let _n: i64 = conn.query_row("select count(*) from sqlite_master", [], |r| r.get(0))?;
