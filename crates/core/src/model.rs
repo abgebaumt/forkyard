@@ -1111,6 +1111,10 @@ pub struct PushExtra {
     pub remote_name: Option<String>,
     /// Branches only: overwrite with `--force-with-lease` (against the tracking ref).
     pub force: bool,
+    /// With `force` only: the remote tip the prompt showed; the lease uses it instead of the
+    /// tracking ref. `None` = lease against the tracking ref.
+    #[serde(default)]
+    pub expected: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -3588,7 +3592,7 @@ mod tests {
     #[test]
     fn push_many_json() {
         let extra: PushExtra = serde_json::from_value(json!({"local":"refs/tags/v1","remoteName":null,"force":false})).unwrap();
-        assert_eq!(extra, PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: false });
+        assert_eq!(extra, PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: false, expected: None });
         let multi = PushResult::Multi {
             remote: "origin".into(),
             atomic: true,

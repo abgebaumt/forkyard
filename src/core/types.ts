@@ -905,6 +905,8 @@ export interface PushExtra {
   remoteName: string | null;
   /** Branches only: overwrite with `--force-with-lease`. Tags are never forced. */
   force: boolean;
+  /** With `force` only: the remote tip the prompt showed; null = lease against the tracking ref. */
+  expected?: Sha | null;
 }
 
 export type PushRefStatus = "ok" | "up_to_date" | "rejected";

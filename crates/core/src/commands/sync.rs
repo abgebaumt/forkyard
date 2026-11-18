@@ -897,7 +897,7 @@ async fn push_many(core: &Core, repo_id: &str, job: &Job, request: PushRequest<'
             return Err(CoreError::not_allowed(format!("“{remote_ref}” is named twice in the push.")));
         }
         if item.force {
-            match lease(core, repo_id, &target.remote, &remote_ref, None).await? {
+            match lease(core, repo_id, &target.remote, &remote_ref, item.expected.as_deref()).await? {
                 Ok(arg) => leases.push(arg),
                 Err(rejected) => return Ok(rejected),
             }

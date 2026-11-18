@@ -7,6 +7,7 @@ import {
   cutsOf,
   defaultBase,
   defaultBody,
+  expectedRemoteTips,
   firstWithoutPr,
   fromSuggestion,
   isCutAfter,
@@ -190,6 +191,11 @@ describe("base and push", () => {
     expect(rejectedRefs(multi)).toEqual(["f-1-modell: atomic push failed", "f-2-auswertung: non-fast-forward"]);
     expect(rejectedRefs({ status: "rejected", reason: "fetch first" })).toEqual(["fetch first"]);
     expect(rejectedRefs({ status: "up_to_date" })).toEqual([]);
+  });
+
+  it("a forced push leases against the remote tips shown, null where the part is new there", () => {
+    const remotes = [ref("origin/a", { remote: "origin", sha: "1111111" }), ref("upstream/b", { remote: "upstream", sha: "2222222" })];
+    expect(expectedRemoteTips(["a", "b"], remotes, "origin")).toEqual(["1111111", null]);
   });
 });
 

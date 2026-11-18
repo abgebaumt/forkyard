@@ -363,7 +363,7 @@ fn statuses(result: &PushResult) -> Vec<PushRefStatus> {
 async fn all_parts_go_out_in_one_push_with_their_upstreams() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None, None).await.unwrap();
     assert!(matches!(result, PushResult::Multi { atomic: true, .. }), "{result:?}");
     assert_eq!(statuses(&result), [PushRefStatus::Ok; 3]);
     for branch in [P1, P2, P3] {
@@ -381,7 +381,7 @@ async fn one_rejected_part_pushes_nothing() {
     let other = TestRepo::clone_of(&remote);
     other.commit_file("fremd.txt", "fremd\n", "Fremder Stand");
     other.git(&["push", "-q", "origin", &format!("HEAD:refs/heads/{P2}")]);
-    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None, None).await.unwrap();
     assert_eq!(statuses(&result), [PushRefStatus::Rejected; 3], "atomic: one refusal refuses all");
     assert_eq!((remote_sha(&remote, P1), remote_sha(&remote, P3)), (None, None), "nothing arrived");
     for branch in [P1, P3] {
@@ -393,15 +393,66 @@ async fn one_rejected_part_pushes_nothing() {
 async fn restacked_parts_need_force_with_lease() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
+    stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None, None).await.unwrap();
     change_part_one(&repo, "src/notiz.md");
     let top = stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap().restack.unwrap().top_tip;
     stack_restack(&tc, id.clone(), P1.into(), top).await.unwrap();
 
-    let plain = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None).await.unwrap();
+    let plain = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None, None).await.unwrap();
     assert_eq!(statuses(&plain), [PushRefStatus::Rejected; 3], "rewritten parts are no fast-forward, and the push is atomic");
-    let forced = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, None).await.unwrap();
+    let shown: Vec<Option<String>> = [P1, P2, P3].iter().map(|branch| remote_sha(&remote, branch)).collect();
+    let forced = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(shown), None).await.unwrap();
     assert_eq!(statuses(&forced), [PushRefStatus::Ok; 3]);
+    for branch in [P1, P2, P3] {
+        assert_eq!(remote_sha(&remote, branch), sha_of(&repo, branch), "{branch}");
+    }
+}
+
+/// Pushes all parts, adds a commit to part one and restacks: every part now needs a force push.
+async fn restacked(repo: &TestRepo) -> (TestCore, String) {
+    let (tc, id) = created(repo).await;
+    stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), false, None, None).await.unwrap();
+    change_part_one(repo, "src/notiz.md");
+    let top = stack_status(&tc, id.clone(), P1.into()).await.unwrap().unwrap().restack.unwrap().top_tip;
+    stack_restack(&tc, id.clone(), P1.into(), top).await.unwrap();
+    (tc, id)
+}
+
+#[tokio::test]
+async fn a_forced_stack_push_keeps_a_teammates_commit_that_arrived_after_the_prompt() {
+    let (repo, remote) = with_remote();
+    let (tc, id) = restacked(&repo).await;
+    let shown: Vec<Option<String>> = [P1, P2, P3].iter().map(|branch| remote_sha(&remote, branch)).collect();
+    // While the confirmation is open, a teammate adds a commit to part 2, and a fetch brings it in.
+    let other = TestRepo::clone_of(&remote);
+    other.git(&["checkout", "-q", P2]);
+    other.commit_file("kollegin.txt", "neu\n", "Beitrag der Kollegin");
+    other.git(&["push", "-q", "origin", P2]);
+    let theirs = sha_of(&other, "HEAD");
+    repo.git(&["fetch", "-q", "origin"]);
+
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(shown), None).await.unwrap();
+    assert!(matches!(result, PushResult::Rejected { .. }), "{result:?}");
+    assert_eq!(remote_sha(&remote, P2), theirs, "the teammate's commit stays");
+}
+
+#[tokio::test]
+async fn a_forced_stack_push_without_expected_states_is_refused() {
+    let (repo, remote) = with_remote();
+    let (tc, id) = restacked(&repo).await;
+    let before = remote_sha(&remote, P1);
+    let push = |expected: Option<Vec<Option<String>>>| stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, expected, None);
+    assert_eq!(push(None).await.unwrap_err().code, ErrorCode::NotAllowed);
+    assert_eq!(push(Some(vec![before.clone(), None])).await.unwrap_err().code, ErrorCode::NotAllowed, "one entry per part");
+    assert_eq!(remote_sha(&remote, P1), before, "nothing was sent");
+}
+
+#[tokio::test]
+async fn a_part_new_on_the_remote_is_pushed_with_expected_null() {
+    let (repo, remote) = with_remote();
+    let (tc, id) = created(&repo).await;
+    let result = stack_push(&tc, id.clone(), util::new_id(), all_parts(), "origin".into(), true, Some(vec![None, None, None]), None).await.unwrap();
+    assert_eq!(statuses(&result), [PushRefStatus::Ok; 3]);
     for branch in [P1, P2, P3] {
         assert_eq!(remote_sha(&remote, branch), sha_of(&repo, branch), "{branch}");
     }
@@ -411,7 +462,7 @@ async fn restacked_parts_need_force_with_lease() {
 async fn bad_push_input_sends_nothing() {
     let (repo, remote) = with_remote();
     let (tc, id) = created(&repo).await;
-    let push = |branches: Vec<String>, remote: &str| stack_push(&tc, id.clone(), util::new_id(), branches, remote.to_string(), false, None);
+    let push = |branches: Vec<String>, remote: &str| stack_push(&tc, id.clone(), util::new_id(), branches, remote.to_string(), false, None, None);
     assert_eq!(push(vec![], "origin").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(vec![P1.into(), P1.into()], "origin").await.unwrap_err().code, ErrorCode::NotAllowed);
     assert_eq!(push(all_parts(), "--mirror").await.unwrap_err().code, ErrorCode::NotAllowed);
@@ -551,7 +602,7 @@ async fn a_key_in_a_part_stops_the_stack_push_until_it_is_accepted() {
     stack_create(&tc, id.clone(), BRANCH.into(), MAIN.into(), cuts, plan.base_sha, plan.tip).await.unwrap();
     let parts = vec![format!("{BRANCH}-1-eins"), format!("{BRANCH}-2-zwei")];
 
-    let stopped = stack_push(&tc, id.clone(), util::new_id(), parts.clone(), "origin".into(), false, None).await.unwrap();
+    let stopped = stack_push(&tc, id.clone(), util::new_id(), parts.clone(), "origin".into(), false, None, None).await.unwrap();
     let PushResult::SecretsFound { findings, .. } = &stopped else { panic!("expected secrets_found, got {stopped:?}") };
     assert_eq!(findings.iter().map(|f| (f.path.as_str(), f.line)).collect::<Vec<_>>(), [("dienst/zugang.py", 1)]);
     assert!(!findings[0].excerpt.contains(&key), "the value is masked");
@@ -560,7 +611,7 @@ async fn a_key_in_a_part_stops_the_stack_push_until_it_is_accepted() {
     }
 
     let accepted: Vec<String> = findings.iter().map(|f| f.id.clone()).collect();
-    let pushed = stack_push(&tc, id.clone(), util::new_id(), parts.clone(), "origin".into(), false, Some(accepted)).await.unwrap();
+    let pushed = stack_push(&tc, id.clone(), util::new_id(), parts.clone(), "origin".into(), false, None, Some(accepted)).await.unwrap();
     assert_eq!(statuses(&pushed), [PushRefStatus::Ok; 2]);
     for part in &parts {
         assert_eq!(remote_sha(&remote, part), sha_of(&repo, part), "{part} on the remote");

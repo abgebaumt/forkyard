@@ -78,7 +78,7 @@ async fn plain_push_of_a_branch_following_another_name_pushes_nothing() {
 
     // With extra refs (one `git push` with several refspecs) the same.
     f.repo.git(&["tag", "qa-tag"]);
-    let extra = vec![PushExtra { local: "refs/tags/qa-tag".into(), remote_name: None, force: false }];
+    let extra = vec![PushExtra { local: "refs/tags/qa-tag".into(), remote_name: None, force: false, expected: None }];
     let err = push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra), Some(true), None).await.unwrap_err();
     assert_eq!(err.code, ErrorCode::NoUpstream, "{err:?}");
     assert_eq!(remote_sha(&f.remote, "refs/tags/qa-tag"), None);

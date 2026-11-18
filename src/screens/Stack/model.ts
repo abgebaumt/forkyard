@@ -3,7 +3,7 @@
  * suggestion, the texts and targets of the pull requests, the default base, the tone of a check
  * state, what pushing needs, and the keys of the commit list.
  */
-import type { AiStackSplit, PushResult, Ref, RefsSnapshot, StackCheckState, StackCommit, StackCut, StackPrPart, StackStatus } from "../../core";
+import type { AiStackSplit, PushResult, Ref, RefsSnapshot, Sha, StackCheckState, StackCommit, StackCut, StackPrPart, StackStatus } from "../../core";
 
 export interface DraftPart {
   /** The part ends after commit `end` (1 = the oldest commit). */
@@ -156,6 +156,11 @@ export function needsForce(status: StackStatus, locals: Ref[]): boolean {
     const local = locals.find((item) => item.name === part.branch);
     return Boolean(local?.upstream && !local.upstreamGone && local.behind > 0);
   });
+}
+
+/** Per part, the tip of `<remote>/<branch>` as shown; a forced push may only overwrite that (null = not on the remote). */
+export function expectedRemoteTips(branches: string[], remotes: Ref[], remote: string): (Sha | null)[] {
+  return branches.map((branch) => remotes.find((item) => item.name === `${remote}/${branch}`)?.sha ?? null);
 }
 
 export function rejectedRefs(result: PushResult): string[] {

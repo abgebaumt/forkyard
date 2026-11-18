@@ -1245,12 +1245,13 @@ export interface CoreCommands {
   stackRestack(input: R & { branch: string; expectedTop: Sha }): Promise<OpResult>;
   /**
    * Pushes every part in one atomic push (`--atomic`: all arrive or none) and records each part's
-   * upstream. `force`: every ref only with `--force-with-lease` (after a restack). Result: one line
+   * upstream. `force`: every ref only with `--force-with-lease` against `expected` (after a restack;
+   * required then, one remote tip per part as shown, null = not on the remote). Result: one line
    * per part (`status: "multi"`; a single part: as `push`). Job `jobId` (cancellable). Errors:
    * `not_allowed`, `invalid_name`, everything of `push`. The secret scan runs as for `push`
    * (`secrets_found`); `acceptedSecrets` as there.
    */
-  stackPush(input: R & { jobId: string; branches: string[]; remote: string; force: boolean; acceptedSecrets?: string[] | null }): Promise<PushResult>;
+  stackPush(input: R & { jobId: string; branches: string[]; remote: string; force: boolean; expected?: (Sha | null)[] | null; acceptedSecrets?: string[] | null }): Promise<PushResult>;
   /**
    * Opens the pull requests of `parts[from..]` one after the other, each targeting the part below it
    * (the first one `target`, the base's branch name on the host). Titles and branches are checked

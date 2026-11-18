@@ -33,11 +33,11 @@ describe("pushStack", () => {
     calls.stackPush.length = 0;
     calls.results.push(found, multi);
     const show = vi.fn(async () => [ID]);
-    const result = await pushStack("repo-1", parts, "origin", false, show);
+    const result = await pushStack("repo-1", parts, "origin", false, null, show);
     expect(show).toHaveBeenCalledWith("repo-1", found);
     expect(calls.stackPush).toEqual([
-      { repoId: "repo-1", jobId: "job-1", branches: parts, remote: "origin", force: false, acceptedSecrets: null },
-      { repoId: "repo-1", jobId: "job-2", branches: parts, remote: "origin", force: false, acceptedSecrets: [ID] },
+      { repoId: "repo-1", jobId: "job-1", branches: parts, remote: "origin", force: false, expected: null, acceptedSecrets: null },
+      { repoId: "repo-1", jobId: "job-2", branches: parts, remote: "origin", force: false, expected: null, acceptedSecrets: [ID] },
     ]);
     expect(result).toEqual({ ok: true, value: multi });
   });
@@ -45,7 +45,7 @@ describe("pushStack", () => {
   it("“Back” pushes nothing more and ends as cancelled", async () => {
     calls.stackPush.length = 0;
     calls.results.push(found);
-    const result = await pushStack("repo-1", parts, "origin", true, async () => null);
+    const result = await pushStack("repo-1", parts, "origin", true, ["a".repeat(40), null], async () => null);
     expect(calls.stackPush).toHaveLength(1);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("cancelled");
