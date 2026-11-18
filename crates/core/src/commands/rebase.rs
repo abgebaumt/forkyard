@@ -25,6 +25,7 @@ use crate::commands::status::{self, EntryKind};
 use crate::commands::submodule::auto;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::log::{HEADER, HEADER_FIELDS, LOG_SAFE};
 use crate::git::rev;
 use crate::git::{errors, GitOutput};
 use crate::model::{
@@ -89,8 +90,11 @@ pub(crate) async fn prefer_hook_failure<T>(
 }
 
 /// Fields per commit, separated by NUL (`git log -z`).
-const COMMIT_FORMAT: &str = "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00%b%x00%B";
-const COMMIT_FIELDS: usize = 8;
+/// `log::HEADER`, body and whole message.
+fn commit_format() -> String {
+    format!("--format={HEADER}%x00%b%x00%B")
+}
+const COMMIT_FIELDS: usize = HEADER_FIELDS + 2;
 
 /// From this version on, `git cherry-pick` knows the option `--empty=drop`.
 const CHERRY_PICK_EMPTY_DROP: (u32, u32, u32) = (2, 45, 0);
@@ -1208,8 +1212,7 @@ async fn pick_commits(core: &Core, repo_id: &str, shas: &[String], empty_drop: b
             return Err(CoreError::not_allowed("The repository doesn't have any commits yet; a cherry-pick needs a commit to build on."))
         }
     };
-    let mut listing =
-        core.git_for(repo_id)?.read().args(["log", "--no-walk=unsorted", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT]);
+    let mut listing = core.git_for(repo_id)?.read().args(["log", "--no-walk=unsorted"]).args(LOG_SAFE).args(["-z", &commit_format()]);
     for sha in shas {
         listing = listing.arg(sha.trim());
     }
@@ -1451,7 +1454,9 @@ async fn read_range(core: &Core, repo_id: &str, base: &str) -> CoreResult<Vec<Ra
     let out = core
         .git_for(repo_id)?
         .read()
-        .args(["log", "--reverse", "--topo-order", "--no-show-signature", "--encoding=UTF-8", "-z", COMMIT_FORMAT])
+        .args(["log", "--reverse", "--topo-order"])
+        .args(LOG_SAFE)
+        .args(["-z", &commit_format()])
         .arg(format!("{base}..HEAD"))
         .run()
         .await?;

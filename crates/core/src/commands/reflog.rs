@@ -9,8 +9,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use crate::app::Core;
-use crate::commands::graph::{display_text, LOG_SAFE};
+use crate::commands::graph::display_text;
 use crate::error::{CoreError, CoreResult};
+use crate::git::log::LOG_SAFE;
 use crate::git::redact;
 use crate::git::rev::is_sha;
 use crate::model::{ReflogAction, ReflogEntry, ReflogPage};

@@ -237,7 +237,8 @@ pub(crate) async fn pr_range(core: &Core, repo_id: &str, head: &str, target_ref:
     let log = core
         .git_for(repo_id)?
         .read()
-        .args(["log", "--no-merges", "--topo-order", "--no-show-signature", "-z", "--format=%H%x1f%s"])
+        .args(["log", "--no-merges", "--topo-order", "-z", "--format=%H%x1f%s"])
+        .args(crate::git::log::LOG_SAFE)
         .arg(format!("{base}..{head}"))
         .run()
         .await?;
@@ -318,6 +319,7 @@ pub(crate) async fn fixup_target(
         .read()
         .literal_paths()
         .args(["log", "-1", "--no-merges", "--topo-order", "--format=%H"])
+        .args(crate::git::log::LOG_SAFE)
         .arg(format!("{}..{}", range.base, range.head))
         .args(["--", path])
         .run()
@@ -434,7 +436,14 @@ impl TakeOver<'_> {
         }
         let after = core.git_for(repo_id)?.read().args(["rev-parse", "--verify", "HEAD^{commit}"]).run_text().await?;
         let undo_label = record_fixups(core, repo_id, number, &format!("refs/heads/{branch}"), &head_before, &after).await?;
-        let subjects = core.git_for(repo_id)?.read().args(["log", "-z", "--format=%s"]).arg(format!("{}..HEAD", range.base)).run().await?;
+        let subjects = core
+            .git_for(repo_id)?
+            .read()
+            .args(["log", "-z", "--format=%s"])
+            .args(crate::git::log::LOG_SAFE)
+            .arg(format!("{}..HEAD", range.base))
+            .run()
+            .await?;
         let fixups = util::split_z(&subjects.stdout).filter(|subject| subject.starts_with(b"fixup!")).count() as u32;
         Ok(ReviewFixApplied { commit: after, summary: message.trim_end().to_string(), fixups, base: range.base.clone(), undo_label })
     }

@@ -5,11 +5,12 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
 
-use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas, LOG_SAFE};
+use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas};
 use crate::app::Core;
 use crate::commands::status::{self, LineCounts};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::is_empty_tree;
+use crate::git::log::LOG_SAFE;
 use crate::git::rev::{commit_not_found, is_sha, other_failure, resolve_commit};
 use crate::git::GitOutput;
 use crate::model::{CommitDetails, CommitInfo, DiffSource, FileArea, FileChange, FileStatus, Person, SignatureStatus};

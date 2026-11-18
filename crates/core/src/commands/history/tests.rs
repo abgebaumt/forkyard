@@ -207,12 +207,12 @@ async fn history_includes_merges_and_works_detached() {
 fn history_parser_survives_odd_input() {
     // A commit without a diff entry (e.g. a merge without differences) keeps the tracked name.
     let mut p = HistoryParser::new("neu.txt");
-    for rec in [COMMIT_MARK, b"aaaa", b"bbbb cccc", b"N", b"n@x", b"60", b"Ohne Diff", b""] {
+    for rec in [gitlog::MARK, b"aaaa", b"bbbb cccc", b"N", b"n@x", b"60", b"Ohne Diff", b""] {
         p.feed(rec);
     }
     // Rename: raw line with two paths, numstat with an empty path and two following entries.
     for rec in
-        [b"\n".as_slice(), COMMIT_MARK, b"dddd", b"", b"N", b"n@x", b"0", b"", b"", b"\n:100644 100644 1 2 R090", b"alt.txt", b"neu.txt"]
+        [b"\n".as_slice(), gitlog::MARK, b"dddd", b"", b"N", b"n@x", b"0", b"", b"", b"\n:100644 100644 1 2 R090", b"alt.txt", b"neu.txt"]
     {
         p.feed(rec);
     }
@@ -220,7 +220,7 @@ fn history_parser_survives_odd_input() {
         p.feed(rec);
     }
     // A file name that looks like the marker does not start a new commit.
-    for rec in [COMMIT_MARK, b"eeee", b"", b"N", b"n@x", b"0", b"Seltsam", b":000000 100644 0 1 A", COMMIT_MARK, b"-\t-\tx"] {
+    for rec in [gitlog::MARK, b"eeee", b"", b"N", b"n@x", b"0", b"Seltsam", b":000000 100644 0 1 A", gitlog::MARK, b"-\t-\tx"] {
         p.feed(rec);
     }
     let entries = p.finish();
@@ -231,7 +231,7 @@ fn history_parser_survives_odd_input() {
     assert_eq!((entries[1].old_path.as_deref(), entries[1].added, entries[1].removed), (Some("alt.txt"), Some(3), Some(1)));
     assert_eq!(entries[1].commit.summary, "");
     assert_eq!(entries[2].status, FileStatus::Added);
-    assert_eq!(entries[2].path.as_bytes(), COMMIT_MARK);
+    assert_eq!(entries[2].path.as_bytes(), gitlog::MARK);
     assert_eq!((entries[2].added, entries[2].removed), (None, None));
 }
 

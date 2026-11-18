@@ -15,9 +15,10 @@ use std::path::Path;
 use serde_json::{json, Map};
 
 use crate::app::Core;
-use crate::commands::graph::{display_text, LOG_SAFE};
+use crate::commands::graph::display_text;
 use crate::commands::{host, rebase, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::log::LOG_SAFE;
 use crate::git::rev;
 use crate::git::rev::resolve_commit;
 use crate::model::{
@@ -92,7 +93,8 @@ pub(crate) async fn read_source(core: &Core, repo_id: &str, branch: &str, base: 
         .read()
         .args(["log", "--reverse", "--topo-order", "-z", "-M", "--numstat", "--no-color"])
         .args(LOG_SAFE)
-        .args(["--format=%x1e%H%x00%s%x00%b", range.as_str(), "--"])
+        .arg(plan::log_format())
+        .args([range.as_str(), "--"])
         .run()
         .await?;
     let commits = plan::parse_log(&out.stdout);

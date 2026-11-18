@@ -25,11 +25,12 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use super::layout::{LayoutState, Placed};
-use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE};
+use super::{display_text, parse_i64, read_ref_tips, read_stashes, split_shas, RefTip, StashEntry};
 use crate::app::Core;
 use crate::commands::status;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
+use crate::git::log::{Records, HEADER, HEADER_FIELDS, LOG_SAFE};
 use crate::git::rev::is_sha;
 use crate::model::{GraphPage, GraphRow, GraphRowKind, RefLabelInfo, RepoViewState, SyncMark};
 use crate::util;
@@ -41,8 +42,6 @@ pub const STASH_REF: &str = "refs/stash";
 /// `id` of the WIP row.
 pub const WIP_ID: &str = "wip";
 
-const LOG_FORMAT: &str = "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s";
-const LOG_FIELDS: usize = 6;
 /// Version 2: the frontier of hidden commits (`f`).
 const CURSOR_VERSION: u32 = 2;
 /// More commits than this under one merge: it stays expanded (`collapseTooLarge`).
@@ -292,7 +291,7 @@ impl PageBuilder<'_> {
         (self.plan.collapses(&sha) && !self.is_hidden(&sha)).then_some(parents)
     }
 
-    /// One record from `git log` (fields as in `LOG_FORMAT`).
+    /// One record from `git log` (fields as in `log::HEADER`).
     /// `collapse`: what `collapse_for` found for a merge to be collapsed. Returns whether the commit
     /// got a row (hidden commits do not).
     fn commit(&mut self, fields: &[Vec<u8>], collapse: Option<Collapse>) -> bool {
@@ -493,7 +492,7 @@ thread_local! {
 async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip: u64, limit: usize) -> CoreResult<Vec<Vec<Vec<u8>>>> {
     #[cfg(test)]
     LOG_READS.with(|n| n.set(n.get() + 1));
-    let mut records = Records::new(LOG_FIELDS);
+    let mut records = Records::new(HEADER_FIELDS);
     let mut out = Vec::with_capacity(limit);
     let mut on_field = |field: &[u8]| -> bool {
         if let Some(record) = records.push(field) {
@@ -507,7 +506,7 @@ async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip
         .read()
         .args(["log", "--date-order"])
         .args(LOG_SAFE)
-        .args(["--ignore-missing", "-z", LOG_FORMAT])
+        .args(["--ignore-missing", "-z", &format!("--format={HEADER}")])
         .arg(format!("--skip={skip}"))
         .arg(format!("--max-count={limit}"))
         .arg("--stdin")

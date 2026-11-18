@@ -9,7 +9,6 @@ use serde_json::{json, Value};
 use crate::ai::context::{self, Built};
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::graph;
 use crate::commands::release_notes::changelog::HeadingLanguage;
 use crate::error::{CoreError, CoreResult};
 use crate::git::rev;
@@ -129,7 +128,7 @@ pub async fn resolve(core: &Core, repo_id: &str, from: Option<&str>, to: Option<
     let log = core
         .git_for(repo_id)?
         .args(["log", "--no-merges"])
-        .args(graph::LOG_SAFE)
+        .args(crate::git::log::LOG_SAFE)
         .arg("-z")
         .arg("--format=%H%x00%s%x00%b")
         .arg(format!("--max-count={MAX_COMMITS}"))
@@ -144,7 +143,7 @@ pub async fn resolve(core: &Core, repo_id: &str, from: Option<&str>, to: Option<
     let sample_out = core
         .git_for(repo_id)?
         .arg("log")
-        .args(graph::LOG_SAFE)
+        .args(crate::git::log::LOG_SAFE)
         .arg("-z")
         .arg("--format=%s")
         .arg(format!("--max-count={SAMPLE_SUBJECTS}"))

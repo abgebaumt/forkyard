@@ -18,9 +18,10 @@ use crate::ai::context::{self, Built, Exclusions, CHARS_PER_TOKEN};
 use crate::ai::language;
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::graph::{display_text, LOG_SAFE};
+use crate::commands::graph::display_text;
 use crate::commands::settings::repo_settings_get;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::log::LOG_SAFE;
 use crate::model::{AiCommitMessage, Settings};
 use crate::util;
 

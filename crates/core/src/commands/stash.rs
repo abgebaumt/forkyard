@@ -75,7 +75,7 @@ pub fn split_subject(subject: &str) -> (Option<String>, String) {
 }
 
 pub(crate) async fn read_rows(core: &Core, repo_id: &str) -> CoreResult<Vec<StashRow>> {
-    let out = core.git_for(repo_id)?.args(["stash", "list", "-z", "--no-show-signature", LIST_FORMAT]).read().run().await?;
+    let out = core.git_for(repo_id)?.args(["stash", "list", "-z", LIST_FORMAT]).args(crate::git::log::LOG_SAFE).read().run().await?;
     Ok(parse_rows(&out.stdout))
 }
 

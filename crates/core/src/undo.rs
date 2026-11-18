@@ -583,7 +583,16 @@ async fn checkout_rewrites_line_endings(core: &Core, repo_id: &str) -> bool {
 async fn raw_tree_of(core: &Core, repo_id: &str, target: &str) -> Option<String> {
     let parent = rev::rev_parse(core, repo_id, &format!("{target}^2")).await.ok()??;
     // A real merge commit also has a second parent: only our own counts.
-    let subject = core.git_for(repo_id).ok()?.args(["log", "-1", "--format=%s%n%P", &parent]).read().run_raw().await.ok()?;
+    let subject = core
+        .git_for(repo_id)
+        .ok()?
+        .args(["log", "-1", "--format=%s%n%P"])
+        .args(crate::git::log::LOG_SAFE)
+        .arg(&parent)
+        .read()
+        .run_raw()
+        .await
+        .ok()?;
     let text = subject.stdout_text();
     let mut lines = text.lines();
     if !subject.success() || lines.next() != Some(RAW_MESSAGE) || lines.next().is_some_and(|parents| !parents.trim().is_empty()) {

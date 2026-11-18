@@ -14,10 +14,9 @@ use std::path::Path;
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::log::{self as gitlog, HEADER, HEADER_FIELDS, LOG_SAFE};
 use crate::git::rev;
-use crate::model::{
-    BlameLine, CommitSummary, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, LineHistoryStep, Person, RepoChange,
-};
+use crate::model::{BlameLine, Eol, FileContent, FileHistoryEntry, FileStatus, LineEnding, LineHistoryStep, Person, RepoChange};
 use crate::util;
 
 /// Above this size `file_read` no longer returns text (`text: null`, `isBinary: false`).
@@ -25,9 +24,6 @@ pub const MAX_TEXT_BYTES: u64 = 5 * 1024 * 1024;
 /// `file_history` without a limit (`limit: 0`).
 const DEFAULT_HISTORY_LIMIT: u32 = 1000;
 const MAX_HISTORY_LIMIT: u32 = 50_000;
-/// Marks the start of a commit in the output of `git log`.
-const COMMIT_MARK: &[u8] = b"\x01gc\x01";
-const HISTORY_FORMAT: &str = "--format=%x01gc%x01%x00%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00";
 
 /// A commit or ref as an argument for Git: nothing that could be misread as a switch or as
 /// `<rev>:<path>`.
@@ -124,7 +120,8 @@ pub async fn file_history(
         // The path is meant literally, even if it contains "*" or "[".
         .literal_paths()
         .args(["log", "--follow", "-M", "--diff-merges=first-parent", "--raw", "--numstat", "-z"])
-        .args(["--no-show-signature", "--no-decorate", max_count.as_str(), HISTORY_FORMAT, "--", rel.as_str()])
+        .args(LOG_SAFE)
+        .args(["--no-decorate", max_count.as_str(), &gitlog::marked_format(HEADER), "--", rel.as_str()])
         .read_only()
         .run_records(0, None, &mut |record| {
             parser.feed(record);
@@ -140,10 +137,6 @@ pub async fn file_history(
 
 /// `line_history` returns at most this many steps.
 pub const LINE_HISTORY_STEPS: u32 = 20;
-/// Start of a commit in the output of `git log -L`. It stands at a line start, where a diff line never
-/// begins with 0x1e.
-const LINE_MARK: &[u8] = b"\x1e\x1efy\x1e";
-const LINE_FORMAT: &str = "--format=%x1e%x1efy%x1e%H%x00%P%x00%an%x00%ae%x00%at%x00%s%x00";
 
 /// The commits that shaped line `line` (1-based) of `path` at commit `sha`, newest first, at most
 /// `LINE_HISTORY_STEPS` (`git log -L<n>,<n>:<path>`); follows renames. Each step names the file's path
@@ -170,10 +163,10 @@ pub(crate) async fn line_history_with_diffs(
     let out = core
         .git_for(repo_id)?
         .args(["-c", "core.quotePath=false", "log"])
-        .args(crate::commands::graph::LOG_SAFE)
+        .args(LOG_SAFE)
         .args(["--no-decorate", "--no-color", "--no-ext-diff", "-z"])
         .arg(format!("--max-count={LINE_HISTORY_STEPS}"))
-        .arg(LINE_FORMAT)
+        .arg(gitlog::marked_format(HEADER))
         .arg(format!("-L{line},{line}:{rel}"))
         .arg(&commit)
         .arg("--")
@@ -190,30 +183,28 @@ pub(crate) async fn line_history_with_diffs(
     Ok(parse_line_records(&out.stdout, &rel, &repo_encoding(core, repo_id)))
 }
 
-/// The records of `git log -L` with `LINE_FORMAT`: header fields, then the diff of the line range.
+/// The records of `git log -L` with `marked_format(HEADER)`: header fields, then the diff of the line
+/// range. The mark stands at a line start, where a diff line never begins with 0x1e.
 fn parse_line_records(stdout: &[u8], newest_path: &str, preferred: &str) -> Vec<(LineHistoryStep, Vec<String>)> {
     let mut steps = Vec::new();
     let mut last_path = newest_path.to_string();
     let mut starts: Vec<usize> =
-        stdout.windows(LINE_MARK.len()).enumerate().filter(|(_, window)| *window == LINE_MARK).map(|(index, _)| index).collect();
+        stdout.windows(gitlog::MARK.len()).enumerate().filter(|(_, window)| *window == gitlog::MARK).map(|(index, _)| index).collect();
     starts.push(stdout.len());
     for pair in starts.windows(2) {
-        let record = &stdout[pair[0] + LINE_MARK.len()..pair[1]];
-        let mut fields = record.splitn(7, |&byte| byte == 0);
-        let header: Vec<&[u8]> = (0..6).filter_map(|_| fields.next()).collect();
-        let [sha, parents, name, email, time, summary] = header.as_slice() else { continue };
+        let record = &stdout[pair[0] + gitlog::MARK.len()..pair[1]];
+        let record = record.strip_prefix(b"\0").unwrap_or(record);
+        let mut fields = record.splitn(HEADER_FIELDS + 1, |&byte| byte == 0);
+        let header: Vec<&[u8]> = (0..HEADER_FIELDS).filter_map(|_| fields.next()).collect();
+        if header.len() < HEADER_FIELDS {
+            continue;
+        }
         let diff = fields.next().unwrap_or_default();
         let Some((path, start, count)) = hunk_of(diff) else { continue };
         let path = path.unwrap_or_else(|| last_path.clone());
         last_path = path.clone();
         let step = LineHistoryStep {
-            commit: CommitSummary {
-                sha: util::decode_lossy(sha),
-                parents: util::decode_lossy(parents).split_whitespace().map(str::to_string).collect(),
-                author: Person { name: util::decode_lossy(name), email: util::decode_lossy(email) },
-                authored_at: util::unix_to_iso(util::decode_lossy(time).trim().parse().unwrap_or(0)),
-                summary: util::decode_lossy(summary),
-            },
+            commit: gitlog::summary(&header),
             path,
             start_line: start,
             end_line: if count == 0 { start } else { start + count - 1 },
@@ -264,37 +255,9 @@ fn hunk_of(diff: &[u8]) -> Option<(Option<String>, u32, u32)> {
     None
 }
 
-#[derive(Default)]
-struct PendingEntry {
-    header: Vec<Vec<u8>>,
-    status: Option<u8>,
-    first_path: Option<Vec<u8>>,
-    second_path: Option<Vec<u8>>,
-    added: Option<u32>,
-    removed: Option<u32>,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Expect {
-    /// Before the first commit.
-    Mark,
-    /// Header field number n (SHA, parents, name, e-mail, time, summary).
-    Header,
-    /// Diff entries or the next commit.
-    Body,
-    RawPath,
-    RawSecondPath,
-    NumstatOld,
-    NumstatNew,
-}
-
-const HEADER_FIELDS: usize = 6;
-
-/// State machine over the NUL-separated output of
-/// `git log -z --raw --numstat --format=<HISTORY_FORMAT>`.
+/// `git log -z --raw --numstat <marked_format(HEADER)>` of one file, commit by commit.
 struct HistoryParser {
-    expect: Expect,
-    current: Option<PendingEntry>,
+    log: gitlog::LogParser,
     /// Name of the file in the commit currently being read (changes at renames).
     name: String,
     entries: Vec<FileHistoryEntry>,
@@ -302,105 +265,48 @@ struct HistoryParser {
 
 impl HistoryParser {
     fn new(path: &str) -> Self {
-        HistoryParser { expect: Expect::Mark, current: None, name: path.to_string(), entries: Vec::new() }
+        HistoryParser { log: gitlog::LogParser::new(HEADER_FIELDS), name: path.to_string(), entries: Vec::new() }
     }
 
     fn feed(&mut self, record: &[u8]) {
-        match self.expect {
-            Expect::Header => {
-                if let Some(cur) = self.current.as_mut() {
-                    cur.header.push(record.to_vec());
-                    if cur.header.len() == HEADER_FIELDS {
-                        self.expect = Expect::Body;
-                    }
-                }
-            }
-            Expect::RawPath => {
-                let two_paths = matches!(self.current.as_ref().and_then(|c| c.status), Some(b'R' | b'C'));
-                if let Some(cur) = self.current.as_mut() {
-                    cur.first_path = Some(record.to_vec());
-                }
-                self.expect = if two_paths { Expect::RawSecondPath } else { Expect::Body };
-            }
-            Expect::RawSecondPath => {
-                if let Some(cur) = self.current.as_mut() {
-                    cur.second_path = Some(record.to_vec());
-                }
-                self.expect = Expect::Body;
-            }
-            Expect::NumstatOld => self.expect = Expect::NumstatNew,
-            Expect::NumstatNew => self.expect = Expect::Body,
-            Expect::Mark | Expect::Body => self.feed_body(record),
+        if let Some(commit) = self.log.feed_complete(record) {
+            self.add(commit);
         }
     }
 
-    fn feed_body(&mut self, record: &[u8]) {
-        let start = record.iter().position(|&b| b != b'\n').unwrap_or(record.len());
-        let token = &record[start..];
-        if token.is_empty() {
-            return;
-        }
-        if token == COMMIT_MARK {
-            self.flush();
-            self.current = Some(PendingEntry::default());
-            self.expect = Expect::Header;
-            return;
-        }
-        let Some(cur) = self.current.as_mut() else { return };
-        if token[0] == b':' {
-            // ":<mode> <mode> <blob> <blob> <status>[similarity]", then the path or two paths.
-            if cur.status.is_none() {
-                cur.status = token.rsplit(|&b| b == b' ').next().and_then(|s| s.first().copied());
-                self.expect = Expect::RawPath;
-            }
-            return;
-        }
-        let mut fields = token.splitn(3, |&b| b == b'\t');
-        if let (Some(added), Some(removed), Some(path)) = (fields.next(), fields.next(), fields.next()) {
-            let number = |field: &[u8]| std::str::from_utf8(field).ok().and_then(|s| s.parse::<u32>().ok());
-            if cur.added.is_none() && cur.removed.is_none() {
-                cur.added = number(added);
-                cur.removed = number(removed);
-            }
-            if path.is_empty() {
-                // Rename: old and new path follow as separate entries.
-                self.expect = Expect::NumstatOld;
-            }
-        }
-    }
-
-    fn flush(&mut self) {
-        let Some(cur) = self.current.take() else { return };
-        if cur.header.len() < HEADER_FIELDS {
-            return;
-        }
-        let text = |i: usize| util::decode_lossy(&cur.header[i]);
-        let commit = CommitSummary {
-            sha: text(0),
-            parents: text(1).split_whitespace().map(str::to_string).collect(),
-            author: Person { name: text(2), email: text(3) },
-            authored_at: util::unix_to_iso(text(4).trim().parse().unwrap_or(0)),
-            summary: text(5),
-        };
-        let decode = |p: &Option<Vec<u8>>| p.as_deref().map(util::decode_lossy);
-        let (status, path, old_path) = match cur.status {
-            Some(b'R') => (FileStatus::Renamed, decode(&cur.second_path), decode(&cur.first_path)),
+    fn add(&mut self, commit: gitlog::LogCommit) {
+        let raw = commit.raw.first();
+        let path = raw.map(|raw| util::decode_lossy(&raw.path));
+        let old = raw.and_then(|raw| raw.old_path.as_deref()).map(util::decode_lossy);
+        let (status, old_path) = match raw.map(|raw| raw.status) {
+            Some(b'R') => (FileStatus::Renamed, old),
             // Copy: like a new file, with a reference to the source.
-            Some(b'C') => (FileStatus::Added, decode(&cur.second_path), decode(&cur.first_path)),
-            Some(b'A') => (FileStatus::Added, decode(&cur.first_path), None),
-            Some(b'D') => (FileStatus::Deleted, decode(&cur.first_path), None),
-            _ => (FileStatus::Modified, decode(&cur.first_path), None),
+            Some(b'C') => (FileStatus::Added, old),
+            Some(b'A') => (FileStatus::Added, None),
+            Some(b'D') => (FileStatus::Deleted, None),
+            _ => (FileStatus::Modified, None),
         };
         let path = path.unwrap_or_else(|| self.name.clone());
         if let Some(old) = &old_path {
             // Older commits know the file under the old name.
             self.name = old.clone();
         }
-        self.entries.push(FileHistoryEntry { commit, path, old_path, status, added: cur.added, removed: cur.removed });
+        let counts = commit.files.iter().find(|stat| stat.added.is_some() || stat.deleted.is_some());
+        let count = |n: Option<u64>| n.and_then(|n| u32::try_from(n).ok());
+        self.entries.push(FileHistoryEntry {
+            commit: gitlog::summary(&commit.header),
+            path,
+            old_path,
+            status,
+            added: count(counts.and_then(|stat| stat.added)),
+            removed: count(counts.and_then(|stat| stat.deleted)),
+        });
     }
 
     fn finish(mut self) -> Vec<FileHistoryEntry> {
-        self.flush();
+        if let Some(commit) = std::mem::replace(&mut self.log, gitlog::LogParser::new(0)).finish() {
+            self.add(commit);
+        }
         self.entries
     }
 }

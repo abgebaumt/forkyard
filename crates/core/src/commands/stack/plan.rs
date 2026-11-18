@@ -4,6 +4,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use crate::commands::graph::display_text;
+use crate::git::log;
 use crate::model::StackCut;
 use crate::util;
 
@@ -117,54 +118,31 @@ pub fn ref_conflict(existing: &HashSet<String>, name: &str) -> Option<String> {
 }
 
 /// The bytes up to the next NUL and the rest after it.
-fn take_z(bytes: &[u8]) -> Option<(&[u8], &[u8])> {
-    let at = bytes.iter().position(|&b| b == 0)?;
-    Some((&bytes[..at], &bytes[at + 1..]))
+/// `--format=` for `parse_log`: SHA, subject, body.
+pub fn log_format() -> String {
+    log::marked_format("%H%x00%s%x00%b")
 }
 
-fn count(field: Option<&[u8]>) -> Option<u64> {
-    std::str::from_utf8(field?).ok()?.trim().parse().ok()
-}
-
-/// Reads `git log -z -M --numstat --format=%x1e%H%x00%s%x00%b` field by field, so a 0x1e inside
-/// a message cannot split a record.
+/// Reads `git log -z -M --numstat <log_format()>` (see `log::LogParser`).
 pub fn parse_log(bytes: &[u8]) -> Vec<SourceCommit> {
-    let mut out = Vec::new();
-    let mut rest = bytes;
-    while let Some(start) = rest.iter().position(|&b| b == 0x1e) {
-        rest = &rest[start + 1..];
-        let Some((sha, after)) = take_z(rest) else { break };
-        let Some((subject, after)) = take_z(after) else { break };
-        let Some((body, mut after)) = take_z(after) else { break };
-        if after.first() == Some(&b'\n') {
-            after = &after[1..];
-        }
-        let mut files = Vec::new();
-        while matches!(after.first(), Some(b'0'..=b'9' | b'-')) {
-            let Some((entry, next)) = take_z(after) else { break };
-            let mut fields = entry.splitn(3, |&b| b == b'\t');
-            let added = count(fields.next());
-            let deleted = count(fields.next());
-            let path = fields.next().unwrap_or_default();
-            if path.is_empty() {
-                let Some((old, next)) = take_z(next) else { break };
-                let Some((new, next)) = take_z(next) else { break };
-                files.push(FileStat { path: util::decode_lossy(new), old_path: Some(util::decode_lossy(old)), added, deleted });
-                after = next;
-            } else {
-                files.push(FileStat { path: util::decode_lossy(path), old_path: None, added, deleted });
-                after = next;
-            }
-        }
-        out.push(SourceCommit {
-            sha: util::decode_lossy(sha),
-            subject: display_text(subject),
-            body: display_text(body).trim_end().to_string(),
-            files,
-        });
-        rest = after;
-    }
-    out
+    log::parse_log(bytes, 3)
+        .into_iter()
+        .map(|commit| SourceCommit {
+            sha: util::decode_lossy(&commit.header[0]),
+            subject: display_text(&commit.header[1]),
+            body: display_text(&commit.header[2]).trim_end().to_string(),
+            files: commit
+                .files
+                .into_iter()
+                .map(|file| FileStat {
+                    path: util::decode_lossy(&file.path),
+                    old_path: file.old_path.as_deref().map(util::decode_lossy),
+                    added: file.added,
+                    deleted: file.deleted,
+                })
+                .collect(),
+        })
+        .collect()
 }
 
 /// `git config -z --get-regexp '^branch\..*\.forkyardstackparent$'`: `key\nvalue\0` per entry;
@@ -310,13 +288,13 @@ mod tests {
 
     #[test]
     fn git_log_with_numstat_is_read_record_by_record() {
-        // Shape of `git log --reverse -z -M --numstat --format=%x1e%H%x00%s%x00%b` (Git 2.53): a record
-        // separator, three NUL-terminated fields, then – after a newline – NUL-terminated numstat
+        // Shape of `git log --reverse -z -M --numstat <log_format()>` (Git 2.53): the commit
+        // mark, three NUL-terminated fields, then – after a newline – NUL-terminated numstat
         // entries; a rename has an empty path followed by old and new path. A body may contain 0x1e.
-        let bytes: &[u8] = b"\x1eaaa1\x00zwei dateien\x00\x00\n1\t1\ta\x001\t0\tb \xc3\xa4.txt\x00\
-\x1ebbb2\x00rename\x00\x00\n0\t0\t\x00src/modell.rs\x00src/station.rs\x00\
-\x1eccc3\x00leer\x00Trenner \x1e mitten\nZeile zwei\n\x00\
-\x1eddd4\x00dash\x00\x00\n1\t0\t-lead.txt\x00-\t-\tlogo.png\x00";
+        let bytes: &[u8] = b"\x1e\x1efy\x1e\x00aaa1\x00zwei dateien\x00\x00\n1\t1\ta\x001\t0\tb \xc3\xa4.txt\x00\
+\x1e\x1efy\x1e\x00bbb2\x00rename\x00\x00\n0\t0\t\x00src/modell.rs\x00src/station.rs\x00\
+\x1e\x1efy\x1e\x00ccc3\x00leer\x00Trenner \x1e mitten\nZeile zwei\n\x00\
+\x1e\x1efy\x1e\x00ddd4\x00dash\x00\x00\n1\t0\t-lead.txt\x00-\t-\tlogo.png\x00";
         let commits = parse_log(bytes);
         let file = |path: &str, old: Option<&str>, added: Option<u64>, deleted: Option<u64>| FileStat {
             path: path.into(),

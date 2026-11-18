@@ -394,18 +394,9 @@ pub async fn scan_outgoing(core: &Core, repo_id: &str, tips: &[String], remote: 
     let ignored = core.db.with(|c| ignored_ids(c, repo_id))?;
     let mut scanner = PatchScanner::new(&ignored, MAX_COMMITS, MAX_PATCH_BYTES);
     core.git_for(repo_id)?
-        .args([
-            "log",
-            "--format=%x00%H",
-            "-p",
-            "-U0",
-            "-M",
-            "--no-color",
-            "--no-ext-diff",
-            "--no-textconv",
-            "--src-prefix=a/",
-            "--dst-prefix=b/",
-        ])
+        .arg("log")
+        .args(crate::git::log::LOG_SAFE)
+        .args(["--format=%x00%H", "-p", "-U0", "-M", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/"])
         .arg(format!("--max-count={}", MAX_COMMITS + 1))
         .args(tips)
         .arg("--not")

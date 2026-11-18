@@ -23,6 +23,7 @@ use std::path::Path;
 
 use crate::app::Core;
 use crate::error::CoreResult;
+use crate::git::log::{HEADER, HEADER_FIELDS, LOG_SAFE};
 use crate::model::{CommitDetails, CommitSearchFilters, CommitSummary, DiffSource, GraphPage, RefKind, RefLabelInfo};
 use crate::util;
 
@@ -64,10 +65,6 @@ pub async fn tree_list(core: &Core, repo_id: String, sha: Option<String>, filter
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-
-/// Switches for every `git log`: the user's configuration (`log.showSignature`,
-/// `i18n.logOutputEncoding`) must not change the output.
-pub(crate) const LOG_SAFE: [&str; 2] = ["--no-show-signature", "--encoding=UTF-8"];
 
 /// Fields per ref, each terminated with NUL (Git appends a newline per record).
 const REF_FORMAT: &str = "--format=%(refname)%00%(objectname)%00%(objecttype)%00%(*objectname)%00%(*objecttype)%00%(HEAD)%00%(symref)%00";
@@ -194,12 +191,13 @@ pub async fn read_stashes(core: &Core, path: &Path, repo_id: &str) -> CoreResult
         .read()
         .args(["log", "--no-walk=unsorted"])
         .args(LOG_SAFE)
-        .args(["-z", "--format=%H%x00%P%x00%an%x00%ae%x00%at", "--stdin"])
+        .args(["-z", &format!("--format={HEADER}"), "--stdin"])
         .stdin(stdin)
         .run()
         .await?;
     let fields = meta.stdout_z();
-    let by_sha: HashMap<String, &[&[u8]]> = fields.chunks(5).filter(|c| c.len() == 5).map(|c| (util::decode_lossy(c[0]), c)).collect();
+    let by_sha: HashMap<String, &[&[u8]]> =
+        fields.chunks(HEADER_FIELDS).filter(|c| c.len() == HEADER_FIELDS).map(|c| (util::decode_lossy(c[0]), c)).collect();
     let mut out = Vec::with_capacity(entries.len());
     for (index, (sha, message)) in entries.into_iter().enumerate() {
         let Some(f) = by_sha.get(&sha) else { continue };
@@ -229,26 +227,4 @@ pub(crate) fn split_shas(field: &[u8]) -> Vec<String> {
 
 pub(crate) fn parse_i64(field: &[u8]) -> i64 {
     std::str::from_utf8(field).ok().and_then(|t| t.trim().parse().ok()).unwrap_or(0)
-}
-
-/// Collects the NUL-separated fields of a `git log -z --format=…` stream into records
-/// with a fixed number of fields.
-pub(crate) struct Records {
-    width: usize,
-    fields: Vec<Vec<u8>>,
-}
-
-impl Records {
-    pub(crate) fn new(width: usize) -> Self {
-        Records { width, fields: Vec::with_capacity(width) }
-    }
-    /// Takes one field; if that completes the record, it is returned.
-    pub(crate) fn push(&mut self, field: &[u8]) -> Option<Vec<Vec<u8>>> {
-        self.fields.push(field.to_vec());
-        if self.fields.len() == self.width {
-            Some(std::mem::replace(&mut self.fields, Vec::with_capacity(self.width)))
-        } else {
-            None
-        }
-    }
 }

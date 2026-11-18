@@ -154,7 +154,14 @@ pub(crate) async fn read(core: &Core, repo_id: &str) -> CoreResult<ComposeRead> 
         file.protected = protection(&exclusions, file);
     }
     let requires = deps::read(core, repo_id, &head, &files).await?;
-    let head_subject = core.git_for(repo_id)?.args(["log", "-1", "--format=%s", head.as_str(), "--"]).read().run_text().await?;
+    let head_subject = core
+        .git_for(repo_id)?
+        .args(["log", "-1", "--format=%s"])
+        .args(crate::git::log::LOG_SAFE)
+        .args([head.as_str(), "--"])
+        .read()
+        .run_text()
+        .await?;
     let mut hooks = Vec::new();
     for hook in COMMIT_HOOKS {
         if crate::commands::sync::hook_exists(core, repo_id, hook).await {

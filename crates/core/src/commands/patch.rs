@@ -352,22 +352,11 @@ async fn touched_paths(core: &Core, repo_id: &str, patch: &[u8]) -> CoreResult<V
         return Err(apply_error(&out.stderr_text()));
     }
     let mut paths: Vec<Vec<u8>> = Vec::new();
-    let mut add = |path: &[u8]| {
-        if !path.is_empty() && !paths.iter().any(|known| known == path) {
-            paths.push(path.to_vec());
-        }
-    };
-    // "<plus>\t<minus>\t<path>" per file; for a rename the path is empty and the two following
-    // entries name the old and the new name.
-    let mut records = out.stdout_z().into_iter();
-    while let Some(record) = records.next() {
-        let path = record.splitn(3, |&b| b == b'\t').nth(2).unwrap_or_default();
-        if path.is_empty() {
-            for name in records.by_ref().take(2) {
-                add(name);
+    for stat in crate::git::log::parse_numstat(&out.stdout) {
+        for path in stat.old_path.into_iter().chain([stat.path]) {
+            if !path.is_empty() && !paths.contains(&path) {
+                paths.push(path);
             }
-        } else {
-            add(path);
         }
     }
     Ok(paths)

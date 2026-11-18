@@ -76,7 +76,14 @@ pub(crate) async fn working_state(core: &Core, worktree_id: &str, snapshot: bool
     }
     // The date of HEAD instead of "now": the same working state gives the same commit, so the
     // review only notices real changes of the agent.
-    let when = core.git_for(worktree_id)?.args(["show", "-s", "--format=%ct", &head]).read().run_text().await?;
+    let when = core
+        .git_for(worktree_id)?
+        .args(["show", "-s", "--format=%ct"])
+        .args(crate::git::log::LOG_SAFE)
+        .arg(&head)
+        .read()
+        .run_text()
+        .await?;
     let date = format!("@{when} +0000");
     let mut cmd = core
         .git_for(worktree_id)?
