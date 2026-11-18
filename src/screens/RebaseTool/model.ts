@@ -216,11 +216,6 @@ export function moveItem<T>(list: T[], from: number, to: number): T[] {
   return next;
 }
 
-/** New position after moving `from` to the insertion point `to`. */
-export function movedIndex(from: number, to: number): number {
-  return to > from ? to - 1 : to;
-}
-
 /** Orders commits into a chain: oldest first, each is the parent of the next. null if it is not a gapless chain. */
 export function chainOldestFirst(commits: { sha: Sha; parents: Sha[] }[]): Sha[] | null {
   if (commits.length === 0) return [];

@@ -26,25 +26,8 @@ export interface CommandContext {
   source: "keyboard" | "palette" | "menu";
 }
 
-/** Group of a command. The values are identifiers; what is displayed is `commandGroupLabel(group)`. */
+/** Group of a command. The values are identifiers; what is displayed comes from `commands.groups.*`. */
 export type CommandGroup = "Allgemein" | "Tabs" | "Ansicht" | "Repository" | "Remote" | "Branch" | "Stash" | "Commit" | "Datei";
-
-const GROUP_KEYS: Record<CommandGroup, string> = {
-  Allgemein: "general",
-  Tabs: "tabs",
-  Ansicht: "view",
-  Repository: "repository",
-  Remote: "remote",
-  Branch: "branch",
-  Stash: "stash",
-  Commit: "commit",
-  Datei: "file",
-};
-
-/** Displayed name of a command group in the UI language. */
-export function commandGroupLabel(group: CommandGroup): string {
-  return t(`commands.groups.${GROUP_KEYS[group]}`);
-}
 
 /** Search words for the palette from a translation (comma-separated), plus fixed words. */
 export function kw(key: string, extra: readonly string[] = []): string[] {

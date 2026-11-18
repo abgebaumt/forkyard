@@ -10,7 +10,6 @@ import { Button } from "../ui/Button";
 import { setShortcutPlatform } from "../ui/shortcut";
 import { AgentWatch } from "../screens/Agents/Watch";
 import { RepoManagement } from "../screens/RepoManagement";
-import { runScenarioFromUrl } from "../screens/scenarios";
 import { DialogHost } from "./dialogs";
 import { t } from "../i18n";
 import { describeError } from "./errors";
@@ -281,6 +280,7 @@ function useStartupScenario(ready: boolean) {
   useEffect(() => {
     if (!ready || started.current) return;
     started.current = true;
-    void runScenarioFromUrl(queryClient);
+    // Dev-only: the scenarios are not part of the release bundle.
+    if (import.meta.env.DEV) void import("../dev/scenarios").then((module) => module.runScenarioFromUrl(queryClient));
   }, [ready]);
 }

@@ -16,8 +16,6 @@ export type Side = "ours" | "theirs";
 export type Eol = "lf" | "crlf";
 export type ChunkKind = "same" | "auto" | "conflict";
 
-export const otherSide = (side: Side): Side => (side === "ours" ? "theirs" : "ours");
-
 export interface SplitText {
   lines: string[];
   finalNewline: boolean;

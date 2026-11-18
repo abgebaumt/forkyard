@@ -130,28 +130,6 @@ export function nextFileSelection(
   return { selected: [path], anchor: path };
 }
 
-/** Selection of a single file list as React state, matching `selected` and `onSelect`. */
-export function useFileSelection(files: FileChange[]) {
-  const [state, setState] = useState<{ selected: string[]; anchor: string | null }>({ selected: [], anchor: null });
-  const paths = useMemo(() => files.map((file) => file.path), [files]);
-  const known = useMemo(() => new Set(paths), [paths]);
-  const selected = useMemo(() => state.selected.filter((path) => known.has(path)), [state.selected, known]);
-  const onSelect = useCallback(
-    (path: string, modifiers: FileSelectModifiers) =>
-      setState((current) => nextFileSelection(paths, current.selected, current.anchor, path, modifiers)),
-    [paths],
-  );
-  const selectAll = useCallback(() => setState({ selected: [...paths], anchor: paths[0] ?? null }), [paths]);
-  const clear = useCallback(() => setState({ selected: [], anchor: null }), []);
-  return {
-    selected,
-    onSelect,
-    selectAll,
-    clear,
-    setSelected: (next: string[]) => setState({ selected: next, anchor: next[next.length - 1] ?? null }),
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Rows: flat or as a tree
 // ---------------------------------------------------------------------------

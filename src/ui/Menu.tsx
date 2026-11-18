@@ -172,37 +172,6 @@ export function PopupMenu({ entries, point, label, onClose }: PopupMenuProps) {
   );
 }
 
-/** Menu surface without behaviour – for the context menu, the dropdown and the design page. */
-export function MenuPreview({ entries }: { entries: MenuEntry[] }) {
-  return (
-    <div role="menu" className={cn(menuSurface, "w-fit max-w-full animate-none")}>
-      {entries.map((entry, index) => {
-        if (entry.type === "separator") {
-          return <div key={index} role="separator" className="my-1 h-px bg-border" />;
-        }
-        if (entry.type === "label") {
-          return (
-            <div key={index} className="px-2 py-1 text-xs font-medium text-text-muted">
-              {entry.label}
-            </div>
-          );
-        }
-        return (
-          <div
-            key={index}
-            role="menuitem"
-            aria-disabled={entry.disabled || undefined}
-            data-disabled={entry.disabled ? "" : undefined}
-            className={itemClass(entry)}
-          >
-            <ItemBody entry={entry} />
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 interface MenuProps {
   entries: MenuEntry[];
   children: ReactElement;

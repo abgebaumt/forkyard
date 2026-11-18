@@ -37,7 +37,7 @@ cargo clippy --workspace --all-targets       # expect 0 warnings
 ```
 
 README screenshots (Linux, needs Xvfb, ImageMagick and ffmpeg): `cargo build && node scripts/screenshots/shoot.mjs` and `node scripts/screenshots/record-gif.mjs`.
-The demo repository comes from `scripts/screenshots/demo-repo.mjs`, the views from `src/screens/Showcase/scenario.ts`.
+The demo repository comes from `scripts/screenshots/demo-repo.mjs`, the views from `src/dev/scenarios/Showcase/scenario.ts`.
 
 ### E2E
 
@@ -128,4 +128,4 @@ Settings have three levels: **global** (`app_settings`; which `Settings` fields 
 - **i18n:** `src/i18n` (i18next). Every visible string is `t("<area>.<key>")` with the text in `src/i18n/locales/en/<area>.json` and `de/<area>.json` (same keys; `src/i18n/i18n.test.ts` checks this and that every literal key exists). `t()` works at module level; changing the language reloads the window. Use `locale()` for `Intl` formats. Messages from the Rust core are English.
 - **Design tokens only**, no raw hex or pixel values in components. Source is `design/tokens.json`; `src/styles/tokens.css` and `theme.css` are generated (`npm run tokens`), never edited by hand.
 - Focus handling is a frequent source of bugs: views must not take focus while a dialog, menu or overlay is open (`src/app/viewFocus.ts`).
-- `?scenario=<Folder>.<name>` runs a scenario from `src/screens/<Folder>/scenario.ts` after start (screenshots, tests).
+- `?scenario=<Folder>.<name>` runs a scenario from `src/dev/scenarios/<Folder>/scenario.ts` after start (screenshots, tests; dev builds only, loaded by dynamic import).

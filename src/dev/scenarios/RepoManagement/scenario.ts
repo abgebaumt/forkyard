@@ -1,5 +1,5 @@
-import type { Scenario } from "../scenarios";
-import { qk } from "../../app/queries";
+import type { Scenario } from "..";
+import { qk } from "../../../app/queries";
 
 /** Scenarios for repo-management. Usage: `?scenario=repo-management.manage` etc. */
 export const scenarios: Record<string, Scenario> = {

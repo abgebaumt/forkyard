@@ -1,5 +1,5 @@
 /**
- * Scenarios for screenshots and tests. Every screen folder can have a `scenario.ts` with
+ * Scenarios for screenshots and tests. Every folder here has a `scenario.ts` with
  *
  *   export const scenarios: Record<string, Scenario> = { conflict: async (ctx) => { … } };
  *
@@ -8,9 +8,9 @@
  * ("running" | "done" | "error" | "unknown") – Playwright can wait for that.
  */
 import type { QueryClient } from "@tanstack/react-query";
-import { core, type Core, type Id, type Tab } from "../core";
-import { qk } from "../app/queries";
-import { useAppStore } from "../app/store";
+import { core, type Core, type Id, type Tab } from "../../core";
+import { qk } from "../../app/queries";
+import { useAppStore } from "../../app/store";
 
 export interface ScenarioContext {
   core: Core;

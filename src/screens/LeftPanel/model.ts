@@ -262,11 +262,6 @@ export function toggleNames(list: string[], names: string[]): string[] {
   return [...list, ...names.filter((name) => !current.has(name))];
 }
 
-/** Names a node stands for in hide and solo: its refs. */
-export function namesOf(node: TreeNode): string[] {
-  return node.refNames;
-}
-
 /** First node in the tree that `test` matches. */
 export function findNode(nodes: TreeNode[], test: (node: TreeNode) => boolean): TreeNode | null {
   for (const node of nodes) {

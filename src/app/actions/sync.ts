@@ -1,5 +1,5 @@
 import { locale, t } from "../../i18n";
-import { core, type Id, type PullMode, type PushResult, type Ref, type Remote, type Settings } from "../../core";
+import { core, type Id, type PullMode, type PushResult, type Ref, type Remote } from "../../core";
 import { toast } from "../../ui/Feedback";
 import { askPushTarget } from "../actionDialogs";
 import { choose, confirm, showOutput } from "../dialogs";
@@ -47,13 +47,6 @@ export const pullModeHints: Record<PullMode, string> = {
   ff_only: t("actions.sync.pullMode.ffOnlyHint"),
   rebase: t("actions.sync.pullMode.rebaseHint"),
 };
-
-/** Pull mode that applies without an explicit choice: repo setting, otherwise global. */
-export function effectivePullMode(repoId: Id): PullMode {
-  const repoSettings = queryClient.getQueryData<{ defaultPullMode: PullMode | null }>(qk.repoSettings(repoId));
-  const settings = queryClient.getQueryData<Settings>(qk.settings);
-  return repoSettings?.defaultPullMode ?? settings?.defaultPullMode ?? "ff";
-}
 
 /** Opens the "Add remote" dialog. */
 export function addRemote(): void {
