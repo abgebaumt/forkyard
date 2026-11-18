@@ -9,6 +9,7 @@ pub mod plan_check;
 pub mod plan_commands;
 pub mod plan_run;
 pub mod pr;
+pub mod push_review;
 pub mod release_notes;
 pub mod review;
 pub mod semantic;

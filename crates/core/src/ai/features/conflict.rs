@@ -664,7 +664,8 @@ fn mask_secret_lines(lines: &[String], secrets: &[String]) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::ai::prompt::Prompt;
-    use crate::commands::ai::{ai_conflict_intent, ai_preview};
+    use crate::commands::ai::ai_preview;
+    use crate::commands::ai_features::ai_conflict_intent;
     use crate::commands::settings::{repo_settings_set, settings_set};
     use crate::error::ErrorCode;
     use crate::model::{AiFeature, AiInput, AiProviderKind};

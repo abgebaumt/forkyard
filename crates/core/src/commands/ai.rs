@@ -1,13 +1,13 @@
 //! AI commands: status, keys, checking a provider, the one-time notice, "What is sent?",
 //! confirmations and this month's usage. The AI settings themselves are `Settings` fields
-//! (`settings_set`); the AI functions of later packages call `ai::run::complete_json`.
+//! (`settings_set`); the AI functions are in `commands::ai_features` and others, each through `ai::run::ask`.
 
-use std::collections::HashSet;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use serde_json::{json, Value};
+use serde_json::Value;
 
+use crate::ai::features::push_review;
 use crate::ai::run::{request_frame, stored_key};
 use crate::ai::{
     self, context,
@@ -15,17 +15,14 @@ use crate::ai::{
     gate, pricing, providers, run,
 };
 use crate::app::Core;
-use crate::commands::sync::{push_destination, PushRequest};
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
 use crate::model::{
-    AiAskTrigger, AiCommitMessage, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiPushFinding,
-    AiPushFindingKind, AiPushReview, AiState, AiStatus, AiStructuredMode, AiUsageRow, AiUsageSummary, AppChange, ConflictBlockRange,
-    ConflictIntent,
+    AiAskTrigger, AiDetection, AiFeature, AiInput, AiModelList, AiPreview, AiProviderKind, AiState, AiStatus, AiStructuredMode, AiUsageRow,
+    AiUsageSummary, AppChange,
 };
 use crate::secrets;
-use crate::util;
 
 pub async fn ai_status(core: &Core) -> CoreResult<AiStatus> {
     let settings = core.settings()?;
@@ -180,19 +177,6 @@ pub async fn ai_intro_dismiss(core: &Core) -> CoreResult<AiStatus> {
     ai_status(core).await
 }
 
-/// The outgoing changes of a push with these arguments (`AiInput::OutgoingChanges`, `ai_push_review`).
-async fn outgoing_for(
-    core: &Core,
-    repo_id: &str,
-    branch: Option<&str>,
-    remote: Option<&str>,
-    remote_branch: Option<&str>,
-) -> CoreResult<context::Outgoing> {
-    let request = PushRequest { branch, remote, remote_branch, ..PushRequest::default() };
-    let (local_ref, remote, _) = push_destination(core, repo_id, &request).await?;
-    context::outgoing(core, repo_id, &local_ref, &remote).await
-}
-
 /// "What is sent?": builds the exact text without sending anything. Works in every state; the
 /// confirmation triggers are computed only while AI is on with a provider.
 pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input: AiInput, locale: String) -> CoreResult<AiPreview> {
@@ -226,7 +210,8 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
             ai::features::conflict::build(core, &repo_id, &path, &blocks, &settings, budget, &locale, &secrets).await?.built
         }
         AiInput::OutgoingChanges { branch, remote, remote_branch } => {
-            let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
+            let outgoing =
+                push_review::outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
             context::outgoing_changes(core, &repo_id, &settings, budget, &locale, &secrets, &outgoing).await?.built
         }
         AiInput::ReleaseNotes { from, to } => {
@@ -266,154 +251,6 @@ pub async fn ai_preview(core: &Core, repo_id: String, feature: AiFeature, input:
         preview.asks = gate::pending(core, &settings, &run::situation(core, &settings, kind, Some(&repo_id), feature, &estimate))?;
     }
     Ok(preview)
-}
-
-const MAX_REVIEW_FINDINGS: usize = 50;
-const MAX_NOTE_CHARS: usize = 300;
-
-/// Answer schema of the review before a push (1a's dialect: every field required, no formats).
-fn push_review_schema() -> Value {
-    json!({
-        "type": "object",
-        "properties": {
-            "findings": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "path": {"type": "string"},
-                        "line": {"type": ["integer", "null"]},
-                        "kind": {"type": "string", "enum": ["debug_output", "commented_code", "likely_bug"]},
-                        "note": {"type": "string"}
-                    },
-                    "required": ["path", "line", "kind", "note"],
-                    "additionalProperties": false
-                }
-            }
-        },
-        "required": ["findings"],
-        "additionalProperties": false
-    })
-}
-
-/// The answer is data: only files the model saw, sensible lines, redacted notes,
-/// no duplicates, at most `MAX_REVIEW_FINDINGS`; sorted by path and line.
-fn review_findings(value: &Value, shown: &[String], secrets: &[String]) -> Vec<AiPushFinding> {
-    let known: HashSet<&str> = shown.iter().map(String::as_str).collect();
-    let mut seen: HashSet<(String, Option<u32>, AiPushFindingKind)> = HashSet::new();
-    let mut out = Vec::new();
-    for item in value.get("findings").and_then(Value::as_array).into_iter().flatten() {
-        let Some(raw) = item.get("path").and_then(Value::as_str) else { continue };
-        let Some(path) = [raw.to_string(), raw.replace('\\', "/")]
-            .into_iter()
-            .filter_map(|candidate| crate::util::normalize_rel_path(&candidate).ok())
-            .find(|candidate| known.contains(candidate.as_str()))
-        else {
-            continue;
-        };
-        let kind = match item.get("kind").and_then(Value::as_str) {
-            Some("debug_output") => AiPushFindingKind::DebugOutput,
-            Some("commented_code") => AiPushFindingKind::CommentedCode,
-            Some("likely_bug") => AiPushFindingKind::LikelyBug,
-            _ => continue,
-        };
-        let line = item.get("line").and_then(Value::as_u64).filter(|number| *number >= 1).and_then(|number| u32::try_from(number).ok());
-        let note = context::redact_for_ai(item.get("note").and_then(Value::as_str).unwrap_or("").trim(), secrets);
-        let note = util::truncate_str(&note, MAX_NOTE_CHARS);
-        if note.trim().is_empty() || !seen.insert((path.clone(), line, kind)) {
-            continue;
-        }
-        out.push(AiPushFinding { path, line, kind, note });
-        if out.len() == MAX_REVIEW_FINDINGS {
-            break;
-        }
-    }
-    out.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
-    out
-}
-
-/// "Review and push …": asks the provider about leftovers in what a `push` with these
-/// arguments would send. Same target rules and errors as `push`; nothing outgoing → no request.
-/// Budget, secrets (`request_frame`) and builder are those of `ai_preview` for `AiInput::OutgoingChanges`, so the
-/// confirmation of "What is sent?" matches.
-pub async fn ai_push_review(
-    core: &Core,
-    repo_id: String,
-    job_id: String,
-    branch: Option<String>,
-    remote: Option<String>,
-    remote_branch: Option<String>,
-    locale: String,
-) -> CoreResult<AiPushReview> {
-    let frame = run::ask(core, &repo_id, AiFeature::PushReview).await?;
-    let outgoing = outgoing_for(core, &repo_id, branch.as_deref(), remote.as_deref(), remote_branch.as_deref()).await?;
-    if outgoing.commits.is_empty() {
-        return Ok(AiPushReview { findings: Vec::new(), commits: 0, files: 0, partial: false });
-    }
-    let built = context::outgoing_changes(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets, &outgoing).await?;
-    let answer = frame.send(core, &job_id, &built.built.prompt, &push_review_schema()).await?;
-    Ok(AiPushReview {
-        findings: review_findings(&answer.value, &built.shown, &frame.secrets),
-        commits: built.commits,
-        files: built.files,
-        partial: built.partial,
-    })
-}
-
-/// Title and description of a pull request from the commits of `source` that `target`
-/// does not have. A suggestion only – nothing is written; the form places it. The prompt is the
-/// one `ai_preview` shows for `AiInput::PrDescription` with the same refs; with a template the
-/// answer must keep every heading (one repair attempt), and "Closes #n" comes from the commits.
-pub async fn ai_pr_description(
-    core: &Core,
-    repo_id: String,
-    job_id: String,
-    source: String,
-    target: String,
-    locale: String,
-) -> CoreResult<crate::model::AiPrDescription> {
-    let frame = run::ask(core, &repo_id, AiFeature::PrDescription).await?;
-    let pr = ai::features::pr::build(core, &repo_id, &frame.settings, &source, &target, frame.budget, &locale, &frame.secrets).await?;
-    let check = |value: &Value| ai::features::pr::check_answer(value, &pr.headings);
-    let answer = frame.send_checked(core, &job_id, &pr.built.prompt, &ai::features::pr::schema(), &check).await?;
-    Ok(ai::features::pr::finish(&answer.value, &pr.closes))
-}
-
-/// 8.2: a fix for one review thread – nothing is written. The prompt is the one `ai_preview` shows for
-/// `AiInput::ReviewFix` with the same number and thread; the answer must name the thread's file and lines
-/// of the excerpt and give a patch the core can build (one repair attempt); the core adds the fixup target.
-pub async fn ai_review_fix(
-    core: &Core,
-    repo_id: String,
-    job_id: String,
-    number: u64,
-    thread_id: String,
-    locale: String,
-) -> CoreResult<crate::model::AiReviewFix> {
-    let frame = run::ask(core, &repo_id, AiFeature::ReviewFix).await?;
-    let review =
-        ai::features::review::build(core, &repo_id, &frame.settings, number, &thread_id, frame.budget, &locale, &frame.secrets).await?;
-    let check = |value: &Value| ai::features::review::check_answer(value, &review.ctx);
-    let answer = frame.send_checked(core, &job_id, &review.built.prompt, &ai::features::review::schema(), &check).await?;
-    ai::features::review::finish(core, &repo_id, &review.ctx, &answer.value).await
-}
-
-/// Where to cut `branch` into stacked pull requests – a suggestion only, nothing is
-/// created. The prompt is the one `ai_preview` shows for `AiInput::StackSplit` with the same refs;
-/// the cuts must rise and end with the last commit (one repair attempt).
-pub async fn ai_stack_split(
-    core: &Core,
-    repo_id: String,
-    job_id: String,
-    branch: String,
-    base: String,
-    locale: String,
-) -> CoreResult<crate::model::AiStackSplit> {
-    let frame = run::ask(core, &repo_id, AiFeature::StackSplit).await?;
-    let stack = ai::features::stack::build(core, &repo_id, &frame.settings, &branch, &base, frame.budget, &locale, &frame.secrets).await?;
-    let check = |value: &Value| ai::features::stack::check_answer(value, stack.commits);
-    let answer = frame.send_checked(core, &job_id, &stack.built.prompt, &ai::features::stack::schema(), &check).await?;
-    Ok(ai::features::stack::finish(&answer.value))
 }
 
 /// "Send" in the preview dialog: approves exactly this text and remembers what is remembered.
@@ -466,16 +303,6 @@ pub async fn ai_usage(core: &Core) -> CoreResult<AiUsageSummary> {
     })
 }
 
-/// "Write" in the commit form: a commit message for the staged changes – a draft, the
-/// core commits nothing. Built exactly as `ai_preview` with `AiInput::CommitMessage` shows it, so a
-/// confirmation given there holds here; `complete_json` refuses everything unconfirmed.
-pub async fn ai_commit_message(core: &Core, repo_id: String, job_id: String, locale: String) -> CoreResult<AiCommitMessage> {
-    let frame = run::ask(core, &repo_id, AiFeature::CommitMessage).await?;
-    let built = commit_message::build(core, &repo_id, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
-    let answer = frame.send(core, &job_id, &built.prompt, &commit_message::schema()).await?;
-    commit_message::parse(&answer.value)
-}
-
 /// Setup dialog: Claude Code, Codex and opencode with version, path and sign-in, Ollama / LM Studio on
 /// this computer and the providers with a stored key – about two seconds at most, sends nothing.
 pub async fn ai_detect(core: &Core) -> CoreResult<AiDetection> {
@@ -505,33 +332,14 @@ pub async fn ai_cli_login(core: &Core, repo_id: String, provider: AiProviderKind
     crate::commands::terminal::terminal_open_login(core, &repo_id, launch, cols, rows).await
 }
 
-/// “Explain intent” in the conflict tool: what both sides of every conflict block
-/// wanted and a proposed text per block (`ai::features::conflict`). Checks that AI is on for this function and
-/// repository before anything is read, builds exactly the text `ai_preview` shows for
-/// `AiInput::ConflictIntent` (same builder, same `request_frame`), asks the provider as job `job_id`
-/// (confirmations, usage and the activity entry by `complete_json`) and checks the answer per block.
-/// Changes nothing in the repository.
-pub async fn ai_conflict_intent(
-    core: &Core,
-    repo_id: String,
-    job_id: String,
-    path: String,
-    blocks: Vec<ConflictBlockRange>,
-    locale: String,
-) -> CoreResult<ConflictIntent> {
-    let frame = run::ask(core, &repo_id, AiFeature::ConflictIntent).await?;
-    let plan =
-        ai::features::conflict::build(core, &repo_id, &path, &blocks, &frame.settings, frame.budget, &locale, &frame.secrets).await?;
-    let answer = frame.send(core, &job_id, &plan.built.prompt, &ai::features::conflict::schema()).await?;
-    ai::features::conflict::accept(&plan, &answer.value)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ai::configure_base;
+    use crate::commands::ai_features::ai_commit_message;
     use crate::commands::settings::settings_set;
     use crate::error::ErrorCode;
+    use crate::model::AiCommitMessage;
     use crate::testkit::{MockResponse, MockServer, TestCore, TestRepo};
     use serde_json::json;
 
@@ -935,6 +743,3 @@ mod tests {
         assert!(server.requests().iter().all(|r| r.route() != "POST /api/chat"), "nothing was sent");
     }
 }
-
-#[cfg(test)]
-mod push_review_tests;

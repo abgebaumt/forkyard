@@ -5,7 +5,8 @@ use serde_json::{json, Value};
 
 use super::*;
 use crate::ai::prompt::Prompt;
-use crate::commands::ai::{ai_preview, ai_preview_confirm, ai_stack_split};
+use crate::commands::ai::{ai_preview, ai_preview_confirm};
+use crate::commands::ai_features::ai_stack_split;
 use crate::commands::settings::{repo_settings_set, settings_set};
 use crate::error::ErrorCode;
 use crate::model::{AiAskTrigger, AiFeature, AiInput, AiOmitReason, AiOmitted, AiProviderKind};
