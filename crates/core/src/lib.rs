@@ -6,6 +6,7 @@
 
 pub mod ai;
 pub mod app;
+pub mod auth;
 pub mod autofetch;
 pub mod changelog;
 pub mod commands;

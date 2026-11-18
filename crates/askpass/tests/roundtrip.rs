@@ -17,7 +17,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use base64::Engine;
-use gitcore::commands::auth::{self, keychain, ssh, AuthConfig, SessionMode};
+use gitcore::auth::{keychain, ssh, AuthConfig, Session, SessionMode};
+use gitcore::commands::auth;
 use gitcore::model::HostAccountKind;
 use gitcore::testkit::{TestCore, TestRepo};
 use gitcore::{Core, CoreError, ErrorCode};
@@ -500,7 +501,7 @@ async fn openssh_asks_for_the_passphrase_through_the_helper() {
         let public = std::fs::read_to_string(ssh::public_path_for(&key)).unwrap();
 
         // `ssh-keygen -y` needs the passphrase and asks for it via SSH_ASKPASS.
-        let unlock = |session: &auth::Session| {
+        let unlock = |session: &Session| {
             let mut cmd = tokio::process::Command::new(&keygen);
             cmd.args(["-y", "-f"]).arg(&key).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
             for (k, v) in session.env() {

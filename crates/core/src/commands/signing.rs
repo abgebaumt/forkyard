@@ -276,8 +276,8 @@ mod tests {
         let tc = TestCore::new().await;
         let repo = TestRepo::with_commit();
         let id = tc.open(&repo).await.repo.id;
-        let config = crate::commands::auth::broker::AuthConfig::default();
-        let Ok(keygen) = crate::commands::auth::ssh::find_ssh_keygen(&config, tc.git_found().as_ref()) else {
+        let config = crate::auth::AuthConfig::default();
+        let Ok(keygen) = crate::auth::ssh::find_ssh_keygen(&config, tc.git_found().as_ref()) else {
             eprintln!("ssh-keygen not found – test skipped.");
             return;
         };

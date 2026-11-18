@@ -12,7 +12,7 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
-use gitcore::commands::auth::keychain;
+use gitcore::auth::keychain;
 
 fn on_path(name: &str) -> bool {
     Command::new("sh").args(["-c", &format!("command -v {name}")]).stdout(Stdio::null()).status().is_ok_and(|s| s.success())
