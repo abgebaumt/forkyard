@@ -95,7 +95,7 @@ async fn run(core: &Core, repo_id: &str, index_file: Option<&Path>, paths: Optio
     }
     cmd.args(["-c", "core.autocrlf=false", "-c", "core.safecrlf=false", "-c", "core.bigFileThreshold=1"])
         .args(["add", "--pathspec-from-file=-", "--pathspec-file-nul"])
-        .stdin(nul_separated(&candidates))
+        .stdin(util::nul_join(&candidates))
         .run()
         .await?;
     Ok(())
@@ -139,7 +139,7 @@ async fn without_conversion_attributes(
     let out = base(core, repo_id, index_file)?
         .read_only()
         .args(["check-attr", "-z", "--stdin", "filter", "ident", "working-tree-encoding"])
-        .stdin(nul_separated(&candidates))
+        .stdin(util::nul_join(&candidates))
         .run()
         .await?;
     // Output: path NUL attribute NUL value NUL.
@@ -153,15 +153,6 @@ async fn without_conversion_attributes(
         }
     }
     Ok(candidates.into_iter().filter(|p| !converted.contains(p.as_slice())).collect())
-}
-
-fn nul_separated(paths: &[Vec<u8>]) -> Vec<u8> {
-    let mut out = Vec::new();
-    for path in paths {
-        out.extend_from_slice(path);
-        out.push(0);
-    }
-    out
 }
 
 /// The requested paths: files or directories (then everything below them).

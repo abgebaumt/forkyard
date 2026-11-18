@@ -56,15 +56,6 @@ fn quiet(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
     Ok(git(core, repo_id)?.no_log())
 }
 
-fn nul_separated<P: AsRef<[u8]>>(paths: &[P]) -> Vec<u8> {
-    let mut out = Vec::new();
-    for path in paths {
-        out.extend_from_slice(path.as_ref());
-        out.push(0);
-    }
-    out
-}
-
 // ---------------------------------------------------------------------------
 // Staging and unstaging whole files
 // ---------------------------------------------------------------------------
@@ -82,7 +73,7 @@ pub async fn stage_paths(core: &Core, repo_id: String, paths: Option<Vec<String>
             Some(list) => {
                 let raw = raw_paths(core, &repo_id, list).await?;
                 bulk::prestage(core, &repo_id, None, Some(&raw)).await?;
-                git(core, &repo_id)?.args(["add", "-A"]).args(PATHS_FROM_STDIN).stdin(nul_separated(&raw)).run().await?;
+                git(core, &repo_id)?.args(["add", "-A"]).args(PATHS_FROM_STDIN).stdin(util::nul_join(&raw)).run().await?;
             }
         }
         read_status(core, &repo_id).await
@@ -126,7 +117,7 @@ pub async fn unstage_paths(core: &Core, repo_id: String, paths: Option<Vec<Strin
                 // could otherwise never be unstaged and would drag "Unstage all" down with it.
                 git(core, &repo_id)?.args(["-c", "core.protectNTFS=false", "restore", "--staged"])
             };
-            cmd.args(PATHS_FROM_STDIN).stdin(nul_separated(&targets)).run().await?;
+            cmd.args(PATHS_FROM_STDIN).stdin(util::nul_join(&targets)).run().await?;
         }
         read_status(core, &repo_id).await
     })
@@ -168,18 +159,7 @@ async fn staged_renames(core: &Core, repo_id: &str) -> CoreResult<Vec<(Vec<u8>, 
 
 /// Paths with an open conflict (index entries of stages 1 to 3).
 async fn unmerged_paths(core: &Core, repo_id: &str) -> CoreResult<Vec<Vec<u8>>> {
-    let out = quiet(core, repo_id)?.read_only().args(["ls-files", "--unmerged", "-z"]).run().await?;
-    let mut paths: Vec<Vec<u8>> = Vec::new();
-    for record in util::split_z(&out.stdout) {
-        // `<mode> <blob> <stage>TAB<path>`
-        if let Some(tab) = record.iter().position(|&b| b == b'\t') {
-            let path = &record[tab + 1..];
-            if paths.last().map(Vec::as_slice) != Some(path) {
-                paths.push(path.to_vec());
-            }
-        }
-    }
-    Ok(paths)
+    Ok(crate::git::index::ls_unmerged(core, repo_id).await?.into_iter().map(|u| u.path).collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -489,7 +469,7 @@ impl Backup {
                 let present = paths_to_snapshot(core, repo_id, head_sha.is_some(), list).await?;
                 if !present.is_empty() {
                     bulk::prestage(core, repo_id, Some(temp.path()), Some(&present)).await?;
-                    on_temp(&["add", "-A"])?.args(PATHS_FROM_STDIN).stdin(nul_separated(&present)).run().await?;
+                    on_temp(&["add", "-A"])?.args(PATHS_FROM_STDIN).stdin(util::nul_join(&present)).run().await?;
                 }
             }
         }
@@ -810,7 +790,7 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
     let mut failure: Option<CoreError> = None;
     if !restore.is_empty() {
         let restored =
-            git(core, repo_id)?.args(["restore", "--worktree"]).args(PATHS_FROM_STDIN).stdin(nul_separated(&restore)).run().await;
+            git(core, repo_id)?.args(["restore", "--worktree"]).args(PATHS_FROM_STDIN).stdin(util::nul_join(&restore)).run().await;
         match restored {
             // Failed on the lock: nothing is discarded, nobody needs the backup.
             Err(e) if e.is(ErrorCode::Locked) => {
@@ -830,7 +810,7 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
         }
         if !forget.is_empty() {
             let forgotten =
-                git(core, repo_id)?.args(["update-index", "--force-remove", "-z", "--stdin"]).stdin(nul_separated(&forget)).run().await;
+                git(core, repo_id)?.args(["update-index", "--force-remove", "-z", "--stdin"]).stdin(util::nul_join(&forget)).run().await;
             if let Err(e) = forgotten {
                 failure.get_or_insert(e);
             }
@@ -1046,7 +1026,7 @@ pub async fn file_restore(core: &Core, repo_id: String, sha: String, paths: Vec<
             .args(["restore", "--staged", "--worktree"])
             .arg(format!("--source={commit}"))
             .args(PATHS_FROM_STDIN)
-            .stdin(nul_separated(&paths))
+            .stdin(util::nul_join(&paths))
             .run()
             .await;
         if let Err(e) = restored {

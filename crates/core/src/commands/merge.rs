@@ -18,6 +18,7 @@ use serde_json::json;
 use crate::app::Core;
 use crate::commands::commit::{hook_failure, Hooks, ABORTING_HOOKS};
 use crate::commands::rebase;
+use crate::git::index::{ls_unmerged, parse_unmerged, StageEntry, Unmerged};
 use crate::git::rev;
 use crate::git::rev::short_ref_name;
 
@@ -396,7 +397,7 @@ pub async fn operation_continue(core: &Core, repo_id: String, message: Option<St
 
 async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, skip_hooks: bool) -> CoreResult<OpResult> {
     let Some(op) = read_operation(core, repo_id).await? else { return Err(no_operation(core, repo_id).await) };
-    let unmerged = read_unmerged(core, repo_id).await?;
+    let unmerged = ls_unmerged(core, repo_id).await?;
     if !unmerged.is_empty() {
         return Ok(OpResult::Conflict { files: display_paths(&unmerged), operation: Some(op), note: None });
     }
@@ -444,7 +445,7 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
     let ran = hooks.finish(core, repo_id);
     let (subcommand, out) = result?;
     if !out.success() {
-        if read_unmerged(core, repo_id).await?.is_empty() {
+        if ls_unmerged(core, repo_id).await?.is_empty() {
             if let Some(error) = hook_failure(&ran, &ABORTING_HOOKS, &out, "the commit") {
                 return Err(error);
             }
@@ -675,7 +676,7 @@ impl ExtraWork {
         if changed.is_empty() {
             return Ok(None);
         }
-        let mut touched: HashSet<Vec<u8>> = read_unmerged(core, repo_id).await?.into_iter().map(|entry| entry.path).collect();
+        let mut touched: HashSet<Vec<u8>> = ls_unmerged(core, repo_id).await?.into_iter().map(|entry| entry.path).collect();
         let dir = crate::git::repo::git_dir(core, repo_id).await?;
         let lines = |name: &str| -> Vec<String> {
             std::fs::read_to_string(dir.join(name))
@@ -783,7 +784,7 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
     let ran = hooks.finish(core, repo_id);
     let out = out?;
     if !out.success() {
-        let unmerged = read_unmerged(core, repo_id).await?;
+        let unmerged = ls_unmerged(core, repo_id).await?;
         if !unmerged.is_empty() {
             return conflict_result(core, repo_id, &unmerged).await;
         }
@@ -1098,43 +1099,6 @@ async fn record_undo(core: &Core, record: UndoRecord) {
 // Index stages of a conflicted file
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StageEntry {
-    mode: String,
-    sha: String,
-}
-
-/// A conflicted file: path in raw bytes and stages 1 (base), 2 (ours), 3 (theirs).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct Unmerged {
-    path: Vec<u8>,
-    stages: [Option<StageEntry>; 3],
-}
-
-/// Parses `git ls-files --unmerged -z`: one record per stage, "mode SHA stage TAB path".
-fn parse_unmerged(stdout: &[u8]) -> Vec<Unmerged> {
-    let mut out: Vec<Unmerged> = Vec::new();
-    for record in util::split_z(stdout) {
-        let Some(tab) = record.iter().position(|&b| b == b'\t') else { continue };
-        let (meta, path) = (util::decode_lossy(&record[..tab]), &record[tab + 1..]);
-        let mut parts = meta.split(' ');
-        let (Some(mode), Some(sha), Some(stage)) = (parts.next(), parts.next(), parts.next()) else { continue };
-        let Some(index) = stage.parse::<usize>().ok().filter(|s| (1..=3).contains(s)) else { continue };
-        if out.last().map(|u| u.path.as_slice()) != Some(path) {
-            out.push(Unmerged { path: path.to_vec(), stages: Default::default() });
-        }
-        if let Some(last) = out.last_mut() {
-            last.stages[index - 1] = Some(StageEntry { mode: mode.to_string(), sha: sha.to_string() });
-        }
-    }
-    out
-}
-
-async fn read_unmerged(core: &Core, repo_id: &str) -> CoreResult<Vec<Unmerged>> {
-    let out = core.git_for(repo_id)?.read().args(["ls-files", "--unmerged", "-z"]).run().await?;
-    Ok(parse_unmerged(&out.stdout))
-}
-
 /// The conflict entry of exactly this path, or `not_found`.
 async fn unmerged_entry(core: &Core, repo_id: &str, path: &str) -> CoreResult<Unmerged> {
     let missing = || CoreError::not_found(format!("“{path}” has no open conflict."));
@@ -1143,8 +1107,7 @@ async fn unmerged_entry(core: &Core, repo_id: &str, path: &str) -> CoreResult<Un
     }
     if path.contains(char::REPLACEMENT_CHARACTER) {
         // Possibly a name that is not UTF-8: find its raw bytes among all conflicts.
-        let out = core.git_for(repo_id)?.read().args(["ls-files", "--unmerged", "-z"]).run().await?;
-        let all = parse_unmerged(&out.stdout);
+        let all = ls_unmerged(core, repo_id).await?;
         let raw = util::raw_path(path, &all.iter().map(|u| &u.path[..]).collect::<Vec<_>>())?;
         return all.into_iter().find(|u| u.path == raw).ok_or_else(missing);
     }
@@ -1410,7 +1373,7 @@ async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
 
 /// Conflicts without a running operation (after squash merge or stash) would otherwise be reported as a new conflict.
 async fn ensure_no_unmerged(core: &Core, repo_id: &str) -> CoreResult<()> {
-    if read_unmerged(core, repo_id).await?.is_empty() {
+    if ls_unmerged(core, repo_id).await?.is_empty() {
         return Ok(());
     }
     Err(CoreError::new(ErrorCode::Conflict, "There are still unresolved conflicts. Resolve them or discard the changes first."))
@@ -1434,7 +1397,7 @@ async fn conflict_result(core: &Core, repo_id: &str, unmerged: &[Unmerged]) -> C
 /// Git came back with an error: conflict (if the index has unresolved entries) or a real error.
 /// Also usable for rebase, cherry-pick, pull and stash: `out` is the result of `run_raw()`.
 pub(crate) async fn stopped_or_failed(core: &Core, repo_id: &str, subcommand: &str, out: &GitOutput) -> CoreResult<OpResult> {
-    let unmerged = read_unmerged(core, repo_id).await?;
+    let unmerged = ls_unmerged(core, repo_id).await?;
     if unmerged.is_empty() {
         return Err(classify(subcommand, out.code, &out.stdout, &out.stderr));
     }

@@ -216,20 +216,8 @@ async fn git_difftool(core: &Core, repo_id: &str, root: &Path, rel: &str, source
 /// Blob IDs of stages 1 to 3 of a conflicted file; empty if it has no conflict.
 async fn conflict_stages(core: &Core, repo_id: &str, rel: &str) -> CoreResult<[Option<String>; 3]> {
     let out = core.git_for(repo_id)?.literal_paths().args(["ls-files", "--unmerged", "-z", "--", rel]).read().run().await?;
-    let mut stages: [Option<String>; 3] = [None, None, None];
-    for record in util::split_z(&out.stdout) {
-        // `<mode> <blob> <stage>TAB<path>`
-        let Some(tab) = record.iter().position(|&b| b == b'\t') else { continue };
-        if &record[tab + 1..] != rel.as_bytes() {
-            continue;
-        }
-        let meta = util::decode_lossy(&record[..tab]);
-        let mut fields = meta.split(' ');
-        let (Some(_mode), Some(blob), Some(stage)) = (fields.next(), fields.next(), fields.next()) else { continue };
-        if let Some(slot) = stage.parse::<usize>().ok().and_then(|n| n.checked_sub(1)).and_then(|i| stages.get_mut(i)) {
-            *slot = Some(blob.to_string());
-        }
-    }
+    let entry = crate::git::index::parse_unmerged(&out.stdout).into_iter().find(|u| u.path == rel.as_bytes());
+    let stages = entry.map(|u| u.stages.map(|stage| stage.map(|s| s.sha))).unwrap_or_default();
     Ok(stages)
 }
 
