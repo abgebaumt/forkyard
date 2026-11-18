@@ -873,18 +873,11 @@ pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: 
         let id = undo::new_id();
         // First hold on to it, then take it out of the list: the stash commit is never without a ref.
         undo::create_backup_ref(core, &repo_id, &id, "stash", &sha).await?;
-        if let Err(e) = drop_stash(core, &repo_id, index as usize).await {
-            let _ = undo::delete_backup_refs(core, &repo_id, &id).await;
-            return Err(e);
-        }
-        // "Undo stash" can no longer exist for this stash (only entries of action `stash`).
-        if let Err(e) = crate::commands::undo::forget_stash(core, &repo_id, &sha).await {
-            log::warn!("Undo entry for the deleted stash not invalidated: {}", e.message);
-        }
-        undo::record(
+        // The undo entry exists before the stash leaves the list; if either step fails, nothing stays behind.
+        let recorded = undo::record(
             core,
             UndoRecord {
-                id,
+                id: id.clone(),
                 repo_id: repo_id.clone(),
                 worktree_path: String::new(),
                 action: UndoAction::StashDrop,
@@ -898,7 +891,19 @@ pub async fn stash_drop(core: &Core, repo_id: String, index: u32, expected_sha: 
                 payload: json!({ "stashSha": sha, "stashSubject": row.subject, "stashIndex": index }),
             },
         )
-        .await?;
+        .await;
+        if let Err(e) = recorded {
+            let _ = undo::delete_backup_refs(core, &repo_id, &id).await;
+            return Err(e);
+        }
+        if let Err(e) = drop_stash(core, &repo_id, index as usize).await {
+            crate::commands::undo::discard_entry(core, &repo_id, &id).await;
+            return Err(e);
+        }
+        // "Undo stash" can no longer exist for this stash (only entries of action `stash`).
+        if let Err(e) = crate::commands::undo::forget_stash(core, &repo_id, &sha).await {
+            log::warn!("Undo entry for the deleted stash not invalidated: {}", e.message);
+        }
         read_stashes(core, &repo_id).await
     })
     .await
