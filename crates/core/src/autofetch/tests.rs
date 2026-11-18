@@ -389,3 +389,13 @@ fn progress_noise_is_removed_from_the_log_text() {
     assert_eq!(clean_progress(b""), "");
 }
 
+
+#[test]
+fn start_offsets_differ_per_repo_and_stay_inside_the_interval() {
+    let every = Duration::from_secs(600);
+    let offsets: Vec<Duration> = (0..20).map(|i| start_offset(&format!("repo-{i}"), every)).collect();
+    assert!(offsets.iter().all(|o| *o < every));
+    let distinct: std::collections::HashSet<_> = offsets.iter().collect();
+    assert!(distinct.len() >= 10, "{offsets:?}");
+    assert_eq!(start_offset("repo-3", every), offsets[3]);
+}
