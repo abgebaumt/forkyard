@@ -1,0 +1,4 @@
+# Same channel as CI (dtolnay/rust-toolchain@stable); cross targets for releases are added by CI.
+[toolchain]
+channel = "stable"
+components = ["clippy", "rustfmt"]

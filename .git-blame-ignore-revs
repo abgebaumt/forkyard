@@ -1,0 +1,3 @@
+# Bulk formatting commits (cargo fmt, biome format). Use with: git config blame.ignoreRevsFile .git-blame-ignore-revs
+00bd4893bd9b98f67a843d5a56c242581a5803b8
+02f49c5d8260e430c755b0ae888b134d334c9cff
