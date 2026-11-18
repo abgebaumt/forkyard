@@ -14,9 +14,9 @@ use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
 use crate::git::redact;
-use crate::git::runner::{kill_tree, ProcessTree};
 use crate::jobs::Job;
 use crate::model::{CustomCommandResult, RepoChange};
+use crate::proc::{kill_tree, ProcessTree};
 use crate::util;
 
 /// At most this much output is collected (the rest still goes out as progress).

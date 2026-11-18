@@ -39,6 +39,7 @@ use crate::git::netconfig::{self, NetConfig};
 use crate::git::{errors, redact};
 use crate::jobs::CancelToken;
 use crate::model::Settings;
+use crate::proc::{kill_tree, ProcessTree};
 use crate::util;
 
 /// Windows: no console window for child processes.
@@ -569,7 +570,7 @@ impl GitCmd {
                     None
                 };
                 if let Some(base) = legacy {
-                    cmd.env("GIT_SSH_COMMAND", format!("{base} {SSH_NO_SERVER_PROMPTS}"));
+                    cmd.env("GIT_SSH_COMMAND", format!("{base} {}", netconfig::SSH_NO_SERVER_PROMPTS));
                 } else if let Some(ssh) = forced {
                     cmd.env("GIT_SSH_COMMAND", ssh);
                 }
@@ -848,11 +849,11 @@ impl GitCmd {
     /// `GIT_SSH`), otherwise `ssh`.
     async fn batch_ssh_command(&self, forced: Option<String>) -> String {
         if let Some(command) = forced {
-            return compose_ssh_command(Some(&command), None, None);
+            return netconfig::compose_ssh_command(Some(&command), None, None);
         }
         let from_env = |name: &str| self.env_seen(name).map(|v| v.to_string_lossy().into_owned()).filter(|v| !v.trim().is_empty());
         let configured = config_value(&self.runner, &self.cwd, "core.sshCommand").await;
-        compose_ssh_command(from_env("GIT_SSH_COMMAND").as_deref(), configured.as_deref(), from_env("GIT_SSH").as_deref())
+        netconfig::compose_ssh_command(from_env("GIT_SSH_COMMAND").as_deref(), configured.as_deref(), from_env("GIT_SSH").as_deref())
     }
 
     /// The SSH invocation Git would use without our involvement, as a command line:
@@ -893,11 +894,6 @@ impl GitCmd {
     }
 }
 
-/// First OpenSSH version that marks server questions with `(user@host) `.
-const SSH_MARKS_SERVER_PROMPTS: (u32, u32) = (8, 5);
-/// Switches off login via server questions for an older OpenSSH.
-const SSH_NO_SERVER_PROMPTS: &str = "-o KbdInteractiveAuthentication=no";
-
 /// Whether the SSH program of this command line is an OpenSSH before 8.5. From 8.5 on, OpenSSH
 /// prefixes every server question with `(user@host) `; older ones pass the server's text
 /// unchanged to the askpass program. The result is determined once per program
@@ -907,7 +903,7 @@ const SSH_NO_SERVER_PROMPTS: &str = "-o KbdInteractiveAuthentication=no";
 ///
 /// As a boxed future because the call uses `execute` again from within `execute`.
 fn ssh_is_legacy(runner: &GitRunner, command: &str) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send>> {
-    let program = ssh_program(command);
+    let program = netconfig::ssh_program(command);
     let known = runner.inner.legacy_ssh.lock().get(&program).copied();
     if program.is_empty() || known.is_some() {
         return Box::pin(std::future::ready(known.unwrap_or(false)));
@@ -929,59 +925,13 @@ fn ssh_is_legacy(runner: &GitRunner, command: &str) -> std::pin::Pin<Box<dyn std
         let legacy = match probe.run_raw().await {
             Ok(out) => {
                 let text = format!("{}\n{}", util::decode_lossy(&out.stderr), util::decode_lossy(&out.stdout));
-                openssh_version(&text).is_some_and(|version| version < SSH_MARKS_SERVER_PROMPTS)
+                netconfig::openssh_version(&text).is_some_and(|version| version < netconfig::SSH_MARKS_SERVER_PROMPTS)
             }
             Err(_) => false,
         };
         runner.inner.legacy_ssh.lock().insert(program, legacy);
         legacy
     })
-}
-
-/// The program of an SSH command line (first word, with its quotes).
-fn ssh_program(command: &str) -> String {
-    let command = command.trim();
-    let end = match command.chars().next() {
-        Some(quote @ ('\'' | '"')) => command[1..].find(quote).map(|at| at + 2),
-        _ => command.find(char::is_whitespace),
-    };
-    command[..end.unwrap_or(command.len())].to_string()
-}
-
-/// Reads "OpenSSH_9.5p1" or "OpenSSH_for_Windows_9.5p1" from the output of `ssh -V`.
-fn openssh_version(text: &str) -> Option<(u32, u32)> {
-    let start = text.find("OpenSSH_")? + "OpenSSH_".len();
-    let rest = &text[start..];
-    let digits = rest.find(|c: char| c.is_ascii_digit())?;
-    // Between "OpenSSH_" and the number there are only letters and underscores.
-    if !rest[..digits].chars().all(|c| c.is_ascii_alphabetic() || c == '_') {
-        return None;
-    }
-    let mut numbers = rest[digits..].split(|c: char| !c.is_ascii_digit());
-    let major = numbers.next()?.parse().ok()?;
-    let minor = numbers.next()?.parse().ok()?;
-    Some((major, minor))
-}
-
-/// SSH invocation with the switch that forbids prompts. Precedence as in Git:
-/// `GIT_SSH_COMMAND`, then `core.sshCommand` (both complete command lines), then `GIT_SSH`
-/// (a program path; put in single quotes for the shell), otherwise `ssh`.
-pub fn compose_ssh_command(env_command: Option<&str>, config_command: Option<&str>, env_program: Option<&str>) -> String {
-    let (base, program) = match (env_command, config_command, env_program) {
-        (Some(command), _, _) | (None, Some(command), _) => {
-            let command = command.trim();
-            (command.to_string(), command.split_whitespace().next().unwrap_or(command).to_string())
-        }
-        (None, None, Some(program)) => {
-            let program = program.trim();
-            (format!("'{}'", program.replace('\'', r"'\''")), program.to_string())
-        }
-        (None, None, None) => ("ssh".to_string(), "ssh".to_string()),
-    };
-    let name = program.trim_matches(['"', '\'']).rsplit(['/', '\\']).next().unwrap_or("").to_lowercase();
-    // PuTTY (plink, TortoisePlink) doesn't know "-o", but "-batch".
-    let flag = if name.contains("plink") { "-batch" } else { "-o BatchMode=yes" };
-    format!("{base} {flag}")
 }
 
 /// The lock file a call failed on – only if it is the index lock
@@ -1028,106 +978,6 @@ async fn sleep_until_opt(deadline: Option<tokio::time::Instant>) {
         Some(d) => tokio::time::sleep_until(d).await,
         None => std::future::pending().await,
     }
-}
-
-/// Windows: a job object around Git and all its child processes so that a cancel ends the
-/// whole tree at once (taskkill needs seconds for that under load).
-#[cfg(windows)]
-pub(crate) struct ProcessTree(windows_sys::Win32::Foundation::HANDLE);
-
-// SAFETY: The handle is owned by this value alone; job objects may be used from any thread.
-#[cfg(windows)]
-unsafe impl Send for ProcessTree {}
-#[cfg(windows)]
-unsafe impl Sync for ProcessTree {}
-
-#[cfg(windows)]
-impl ProcessTree {
-    /// Puts the just-started process into a new job object; `None` if Windows refuses.
-    pub(crate) fn attach(child: &tokio::process::Child) -> Option<ProcessTree> {
-        use windows_sys::Win32::Foundation::CloseHandle;
-        use windows_sys::Win32::System::JobObjects::{AssignProcessToJobObject, CreateJobObjectW};
-        let process = child.raw_handle()?;
-        // SAFETY: valid arguments (no name, no security attributes); the process handle lives
-        // as long as `child`. No KILL_ON_JOB_CLOSE: Git's background services (credential
-        // cache, maintenance) should survive a normal exit.
-        unsafe {
-            let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-            if job.is_null() {
-                return None;
-            }
-            if AssignProcessToJobObject(job, process as _) == 0 {
-                CloseHandle(job);
-                return None;
-            }
-            Some(ProcessTree(job))
-        }
-    }
-
-    fn terminate(&self) {
-        // SAFETY: `self.0` is an open job handle.
-        unsafe {
-            windows_sys::Win32::System::JobObjects::TerminateJobObject(self.0, 1);
-        }
-    }
-}
-
-#[cfg(windows)]
-impl Drop for ProcessTree {
-    fn drop(&mut self) {
-        // SAFETY: `self.0` is an open handle and is closed only here.
-        unsafe {
-            windows_sys::Win32::Foundation::CloseHandle(self.0);
-        }
-    }
-}
-
-/// Unix needs no object of its own: there `kill_tree` kills the process group.
-#[cfg(not(windows))]
-#[allow(dead_code)]
-pub(crate) struct ProcessTree;
-
-#[cfg(not(windows))]
-impl ProcessTree {
-    pub(crate) fn attach(_child: &tokio::process::Child) -> Option<ProcessTree> {
-        None
-    }
-}
-
-/// Kills Git including its child processes (git-remote-https, ssh, hooks).
-pub(crate) async fn kill_tree(child: &mut tokio::process::Child, tree: Option<&ProcessTree>) {
-    #[cfg(windows)]
-    if let Some(tree) = tree {
-        tree.terminate();
-        let _ = child.start_kill();
-        return;
-    }
-    #[cfg(not(windows))]
-    let _ = tree;
-    if let Some(pid) = child.id() {
-        #[cfg(windows)]
-        {
-            // Fallback in case the job object couldn't be created.
-            let mut kill = tokio::process::Command::new("taskkill");
-            kill.args(["/T", "/F", "/PID", &pid.to_string()])
-                .stdin(Stdio::null())
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .creation_flags(CREATE_NO_WINDOW);
-            let _ = kill.status().await;
-        }
-        #[cfg(unix)]
-        {
-            // Git runs in its own process group (process_group(0)); kill the whole group.
-            if let Ok(pgid) = i32::try_from(pid) {
-                // SAFETY: kill(2) with a negative PID addresses only this child's process group.
-                unsafe {
-                    libc::kill(-pgid, libc::SIGKILL);
-                }
-            }
-        }
-    }
-    let _ = child.start_kill();
 }
 
 /// First argument that is not a switch (`fetch` in `git -c x=y fetch --all`).
@@ -1189,25 +1039,6 @@ mod tests {
         assert_eq!(parse_progress("Receiving objects:  45% (450/1000), 1.2 MiB | 1.0 MiB/s"), Some(("Receiving objects".into(), Some(45))));
         assert_eq!(parse_progress("remote: Counting objects: 100% (5/5), done."), Some(("Counting objects".into(), Some(100))));
         assert_eq!(parse_progress("Cloning into 'x'..."), None);
-    }
-
-    /// Only an OpenSSH from 8.5 on marks server questions.
-    #[test]
-    fn openssh_versions_and_programs_are_read() {
-        assert_eq!(openssh_version("OpenSSH_9.5p1, LibreSSL 3.8.2"), Some((9, 5)));
-        assert_eq!(openssh_version("OpenSSH_for_Windows_9.5p1, LibreSSL 3.8.2"), Some((9, 5)));
-        assert_eq!(openssh_version("OpenSSH_8.2p1 Ubuntu-4ubuntu0.11, OpenSSL 1.1.1f  31 Mar 2020"), Some((8, 2)));
-        assert_eq!(openssh_version("OpenSSH_10.0p2, OpenSSL 3.5.0"), Some((10, 0)));
-        assert!(openssh_version("OpenSSH_8.2p1").is_some_and(|v| v < SSH_MARKS_SERVER_PROMPTS));
-        assert!(openssh_version("OpenSSH_8.5p1").is_some_and(|v| v >= SSH_MARKS_SERVER_PROMPTS));
-        assert_eq!(openssh_version("plink: Release 0.78"), None);
-        assert_eq!(openssh_version(""), None);
-        assert_eq!(openssh_version("OpenSSH_ 9.5"), None);
-        assert_eq!(ssh_program("ssh"), "ssh");
-        assert_eq!(ssh_program("  ssh -i '/k/id' -o IdentitiesOnly=yes"), "ssh");
-        assert_eq!(ssh_program("'C:/Program Files/OpenSSH/ssh.exe' -v"), "'C:/Program Files/OpenSSH/ssh.exe'");
-        assert_eq!(ssh_program("\"C:/Program Files/x/ssh.exe\""), "\"C:/Program Files/x/ssh.exe\"");
-        assert_eq!(ssh_program(""), "");
     }
 
     #[test]

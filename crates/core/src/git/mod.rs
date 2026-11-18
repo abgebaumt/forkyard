@@ -12,6 +12,5 @@ pub mod runner;
 mod tests;
 
 pub use locate::{GitInfo, MIN_VERSION, MIN_VERSION_TEXT};
-pub use runner::{
-    compose_ssh_command, parse_progress, GitCmd, GitOutput, GitRunner, LineFn, RecordFn, NETWORK_IDLE_TIMEOUT, NETWORK_TIMEOUT,
-};
+pub use netconfig::compose_ssh_command;
+pub use runner::{parse_progress, GitCmd, GitOutput, GitRunner, LineFn, RecordFn, NETWORK_IDLE_TIMEOUT, NETWORK_TIMEOUT};
