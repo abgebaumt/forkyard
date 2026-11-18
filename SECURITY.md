@@ -23,3 +23,8 @@ Only the latest release receives security fixes.
   GitHub/GitLab APIs you connect, author avatars from GitHub (can be turned off in Settings) and a
   daily update check to api.github.com that sends nothing but the app version (can be turned off in
   Settings › About).
+- AI is off until you set it up in Settings › AI. Requests then go only to the provider you chose
+  (Anthropic, OpenAI, Google Gemini, an OpenAI-compatible server, Ollama, or a local AI command-line
+  tool: Claude Code, Codex or opencode). "What is sent?" shows the exact text of a request without
+  sending it, and Forkyard asks first on first use, for large or costly requests and above your
+  monthly limit. Secrets, `.env` files and keys are never sent.
