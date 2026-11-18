@@ -39,6 +39,7 @@ import { hasOpenMenu } from "../../app/menus/host";
 import { viewMayTakeFocus } from "../../app/viewFocus";
 import { qk, queryClient, useDiff, useFileContent } from "../../app/queries";
 import { runAction } from "../../app/run";
+import { enqueueWrite } from "../../app/writeQueue";
 import { useAppStore, useBusy } from "../../app/store";
 import { CodeEditor } from "../../components/code";
 import { Button, IconButton } from "../../ui/Button";
@@ -479,7 +480,7 @@ export function FileView({ repoId, tabId, path, sha, mode }: FileViewProps) {
   const certain = loadedEncoding.startsWith("utf-") && (loadedEncoding !== "utf-8" || NON_ASCII.test(baseText));
   const rereadBlocked = dirty ? t("fileView.encoding.saveFirst") : certain ? t("fileView.encoding.certain", { encoding: encodingShort(loadedEncoding) }) : null;
   const rereadAs = async (encoding: string) => {
-    const result = await runAction(t("fileView.encoding.reread"), () => core.repoSettingsSet({ repoId, patch: { encoding } }));
+    const result = await runAction(t("fileView.encoding.reread"), () => enqueueWrite(() => core.repoSettingsSet({ repoId, patch: { encoding } })));
     if (!result.ok) return;
     queryClient.setQueryData(qk.repoSettings(repoId), result.value);
     await queryClient.invalidateQueries({ queryKey: ["repo", repoId, "file"] });
