@@ -22,8 +22,9 @@ use std::time::{Duration, SystemTime};
 
 use super::{arg_path, Launch, LaunchArg, Platform, PATH_PLACEHOLDER, REPO_PLACEHOLDER};
 use crate::app::Core;
-use crate::commands::diff::{self, EMPTY_TREE_SHA1, EMPTY_TREE_SHA256};
+use crate::commands::diff::{self};
 use crate::error::{CoreError, CoreResult};
+use crate::git::index::{EMPTY_TREE_SHA1, EMPTY_TREE_SHA256};
 use crate::model::{DiffSource, ExternalTarget, Settings};
 use crate::util;
 use crate::util::normalize_rel_path;

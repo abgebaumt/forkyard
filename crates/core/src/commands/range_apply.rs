@@ -15,10 +15,11 @@ use serde_json::{json, Map};
 
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
-use crate::commands::diff::{self, TempIndex};
+use crate::commands::diff::{self};
 use crate::commands::graph;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::index::TempIndex;
 use crate::git::repo::read_head;
 use crate::git::{errors, GitCmd};
 use crate::model::{PatchSelection, RangeApplyTarget, RepoChange, Status};
@@ -92,7 +93,7 @@ pub async fn range_apply(
 }
 
 async fn resolve_from(core: &Core, repo_id: &str, from: &str) -> CoreResult<String> {
-    if diff::is_empty_tree(from) {
+    if crate::git::index::is_empty_tree(from) {
         return Ok(from.trim().to_ascii_lowercase());
     }
     graph::resolve_commit(core, repo_id, from).await

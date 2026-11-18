@@ -19,9 +19,10 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
-use crate::commands::diff::{patch_basis, TempIndex};
+use crate::commands::diff::patch_basis;
 use crate::commands::status::{parse_porcelain_v2, read_status, EntryKind, StatusEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::index::TempIndex;
 use crate::git::repo::read_head;
 use crate::git::GitCmd;
 use crate::model::{Head, PatchSelection, RepoChange, Status};

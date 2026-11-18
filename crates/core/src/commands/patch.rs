@@ -6,9 +6,9 @@
 //! `patch_apply` applies a patch to the working directory or only checks whether it fits.
 
 use crate::app::Core;
-use crate::commands::diff::TempIndex;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult};
+use crate::git::index::TempIndex;
 use crate::git::GitCmd;
 use crate::model::{DiffSource, PatchText, RepoChange, Status};
 use crate::util;
@@ -225,8 +225,7 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
             let mut out = diff(&[])?.arg(base).arg(stash).arg("--").args(&wanted).run().await?;
             // Untracked files (`--include-untracked`) live in a separate third parent: new files.
             if let Some(untracked) = shas.get(3) {
-                let new_files =
-                    diff(&[])?.arg(crate::commands::diff::empty_tree(stash)).arg(untracked).arg("--").args(&wanted).run().await?;
+                let new_files = diff(&[])?.arg(crate::git::index::empty_tree(stash)).arg(untracked).arg("--").args(&wanted).run().await?;
                 out.stdout.extend_from_slice(&new_files.stdout);
             }
             out
