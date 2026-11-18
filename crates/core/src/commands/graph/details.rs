@@ -6,8 +6,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use super::{
-    commit_not_found, display_text, is_full_sha, other_failure, parse_i64, read_cmd, read_ref_tips, read_stashes, resolve_commit_at,
-    split_shas, LOG_SAFE,
+    commit_not_found, display_text, is_full_sha, other_failure, parse_i64, read_ref_tips, read_stashes, resolve_commit_at, split_shas,
+    LOG_SAFE,
 };
 use crate::app::Core;
 use crate::commands::status::{self, LineCounts};
@@ -72,7 +72,7 @@ async fn commit(core: &Core, path: &Path, repo_id: &str, sha: &str) -> CoreResul
         // Against the first parent; a root commit against the empty tree.
         diff_files(core, path, repo_id, &["diff-tree", "-r", "--root", "--no-commit-id", "--diff-merges=first-parent"], vec![sha.clone()]),
         read_ref_tips(core, path, repo_id, Some(&sha)),
-        read_cmd(core, path, repo_id).args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
+        core.git.cmd(path).repo(repo_id).read().args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
         is_pushed(core, path, repo_id, &sha),
     );
     let mut info = meta?;
@@ -98,7 +98,7 @@ async fn read_meta(core: &Core, path: &Path, repo_id: &str, sha: &str) -> CoreRe
 /// `verify: false` leaves the signature unchecked (`unknown`); Git then does not start GnuPG.
 pub(super) async fn read_meta_with(core: &Core, path: &Path, repo_id: &str, sha: &str, verify: bool) -> CoreResult<CommitInfo> {
     let format = META_FORMAT.replace("%G?", if verify { "%G?" } else { "?" });
-    let mut cmd = read_cmd(core, path, repo_id).args(["log", "-1", "--no-walk"]).args(LOG_SAFE).args([
+    let mut cmd = core.git.cmd(path).repo(repo_id).read().args(["log", "-1", "--no-walk"]).args(LOG_SAFE).args([
         "--date=raw",
         "-z",
         format.as_str(),
@@ -193,7 +193,7 @@ pub fn parse_co_authors(description: &str) -> Vec<Person> {
 /// Whether the commit is contained in at least one remote branch. One run instead of a
 /// check per remote branch: `rev-list` returns the commit only if no remote ref contains it.
 async fn is_pushed(core: &Core, path: &Path, repo_id: &str, sha: &str) -> bool {
-    let out = read_cmd(core, path, repo_id).args(["rev-list", "--max-count=1", sha, "--not", "--remotes"]).run_raw().await;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["rev-list", "--max-count=1", sha, "--not", "--remotes"]).run_raw().await;
     matches!(out, Ok(out) if out.success() && out.stdout_text().is_empty())
 }
 
@@ -312,7 +312,7 @@ async fn diff_files(core: &Core, path: &Path, repo_id: &str, command: &[&str], r
     let no_index = core.data_dir().join("kein-index");
     let run = |format: &'static str, renames: bool, without_index: bool| {
         let (pre, rest): (&[&str], &[&str]) = if command.first() == Some(&"diff") { (&NO_INDEX_REFRESH, command) } else { (&[], command) };
-        let mut cmd = read_cmd(core, path, repo_id).args(pre).args(rest).arg(if renames { "-M" } else { "--no-renames" });
+        let mut cmd = core.git.cmd(path).repo(repo_id).read().args(pre).args(rest).arg(if renames { "-M" } else { "--no-renames" });
         if without_index {
             cmd = cmd.env("GIT_INDEX_FILE", &no_index);
         }
@@ -362,7 +362,7 @@ async fn drop_untouched(core: &Core, path: &Path, repo_id: &str, files: Vec<Chan
         stdin.extend_from_slice(&files[i].raw_path);
         stdin.push(b'\n');
     }
-    let Ok(out) = read_cmd(core, path, repo_id).args(["hash-object", "--stdin-paths"]).stdin(stdin).run_raw().await else {
+    let Ok(out) = core.git.cmd(path).repo(repo_id).read().args(["hash-object", "--stdin-paths"]).stdin(stdin).run_raw().await else {
         return files;
     };
     let hashes = out.stdout_lines();
@@ -390,7 +390,7 @@ async fn mark_lfs(core: &Core, path: &Path, repo_id: &str, files: &mut [ChangedF
         stdin.extend_from_slice(&f.raw_path);
         stdin.push(0);
     }
-    let out = read_cmd(core, path, repo_id).args(["check-attr", "-z", "--stdin", "filter"]).stdin(stdin).run_raw().await;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["check-attr", "-z", "--stdin", "filter"]).stdin(stdin).run_raw().await;
     let Ok(out) = out else { return };
     if !out.success() {
         return;
@@ -423,7 +423,7 @@ async fn range(core: &Core, path: &Path, repo_id: &str, from: &str, to: Option<&
             // A tree has no history; the question of the common ancestor does not arise.
             Ok(GitOutput { code: Some(0), ..GitOutput::default() })
         } else {
-            read_cmd(core, path, repo_id).args(["merge-base", &from, &to]).run_raw().await
+            core.git.cmd(path).repo(repo_id).read().args(["merge-base", &from, &to]).run_raw().await
         }
     },);
     // Exit code 1 without output: there is no common ancestor.
@@ -442,7 +442,7 @@ async fn range(core: &Core, path: &Path, repo_id: &str, from: &str, to: Option<&
 async fn range_to_worktree(core: &Core, path: &Path, repo_id: &str, from: &str) -> CoreResult<CommitDetails> {
     let (files, untracked) = tokio::join!(
         diff_files(core, path, repo_id, &["diff"], vec![from.to_string()]),
-        read_cmd(core, path, repo_id).args(["ls-files", "--others", "--exclude-standard", "-z"]).run(),
+        core.git.cmd(path).repo(repo_id).read().args(["ls-files", "--others", "--exclude-standard", "-z"]).run(),
     );
     let mut files = drop_untouched(core, path, repo_id, files?).await;
     files.extend(untracked?.stdout_z().into_iter().map(ChangedFile::untracked));

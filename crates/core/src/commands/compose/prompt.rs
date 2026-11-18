@@ -295,7 +295,7 @@ fn render(file: &ChangedFile, entry: &DiffFile, shown: Shown, names: &[String]) 
 /// The last 50 commit subjects of HEAD, newest first (style examples and language detection).
 async fn recent_subjects(core: &Core, repo_id: &str) -> CoreResult<Vec<String>> {
     let count = format!("--max-count={SUBJECTS}");
-    let out = core.git_for(repo_id)?.args(["log", "-z", "--format=%s", count.as_str(), "HEAD", "--"]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["log", "-z", "--format=%s", count.as_str(), "HEAD", "--"]).read().run().await?;
     Ok(util::split_z(&out.stdout)
         .map(util::decode_lossy)
         .map(|subject| subject.trim().to_string())

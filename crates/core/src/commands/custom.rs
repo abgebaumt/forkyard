@@ -288,15 +288,14 @@ fn find_runnable(core: &Core, repo_id: &str, root: &Path, key: &str) -> CoreResu
 }
 
 async fn current_branch(core: &Core, repo_id: &str) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.args(["symbolic-ref", "--short", "-q", "HEAD"]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["symbolic-ref", "--short", "-q", "HEAD"]).read().run_raw().await?;
     Ok(if out.success() { util::non_empty(Some(out.stdout_text())) } else { None })
 }
 
 /// The remote of the branch's upstream, otherwise the only remote.
 async fn upstream_remote(core: &Core, repo_id: &str, branch: Option<&str>, remotes: &[String]) -> CoreResult<Option<String>> {
     if let Some(branch) = branch {
-        let out =
-            core.git_for(repo_id)?.args(["config", "--get", &format!("branch.{branch}.remote")]).read_only().no_log().run_raw().await?;
+        let out = core.git_for(repo_id)?.args(["config", "--get", &format!("branch.{branch}.remote")]).read().run_raw().await?;
         let name = out.stdout_text();
         if out.success() && remotes.contains(&name) {
             return Ok(Some(name));

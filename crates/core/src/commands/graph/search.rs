@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
-use super::{display_text, is_full_sha, parse_i64, read_cmd, resolve_commit_at, split_shas, Records, LOG_SAFE};
+use super::{display_text, is_full_sha, parse_i64, resolve_commit_at, split_shas, Records, LOG_SAFE};
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
@@ -233,9 +233,12 @@ async fn log_search(
             }
             true
         };
-        read_cmd(core, path, repo_id)
+        core.git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
             // Paths are meant literally, even with `*` or `[`.
-            .env("GIT_LITERAL_PATHSPECS", "1")
+            .literal_paths()
             .arg("log")
             .args(LOG_SAFE)
             .args(["-z", SEARCH_FORMAT, "--fixed-strings", "--regexp-ignore-case"])
@@ -289,7 +292,7 @@ async fn sha_search(core: &Core, path: &Path, repo_id: &str, query: &str, token:
     }
     let prefix = query.to_ascii_lowercase();
     // All objects with this prefix, trees and blobs too; those drop out in the next step.
-    let listed = read_cmd(core, path, repo_id).arg("rev-parse").arg(format!("--disambiguate={prefix}")).run_raw().await?;
+    let listed = core.git.cmd(path).repo(repo_id).read().arg("rev-parse").arg(format!("--disambiguate={prefix}")).run_raw().await?;
     token.check()?;
     let candidates: Vec<String> = listed
         .stdout_lines()
@@ -328,13 +331,19 @@ async fn sha_search(core: &Core, path: &Path, repo_id: &str, query: &str, token:
         true
     };
     let (found, unreachable) = tokio::join!(
-        read_cmd(core, path, repo_id)
+        core.git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
             .args(["log", "--no-walk=unsorted"])
             .args(LOG_SAFE)
             .args(["-z", SEARCH_FORMAT, "--stdin"])
             .stdin(stdin.clone())
             .run_records(0, Some(token), &mut on_field),
-        read_cmd(core, path, repo_id)
+        core.git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
             .args(["rev-list", "--ignore-missing", "--stdin", "--not", "--branches", "--remotes", "--tags", "HEAD"])
             .stdin(stdin.clone())
             .run_records(b'\n', Some(token), &mut on_line),
@@ -370,7 +379,10 @@ pub(crate) async fn commit_summaries(
         }
         true
     };
-    read_cmd(core, path, repo_id)
+    core.git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["log", "--no-walk=unsorted"])
         .args(LOG_SAFE)
         .args(["-z", SEARCH_FORMAT, "--stdin"])
@@ -400,7 +412,10 @@ pub(super) async fn tree_list(core: &Core, repo_id: &str, sha: Option<&str>, fil
                 }
                 true
             };
-            read_cmd(core, &path, repo_id)
+            core.git
+                .cmd(&path)
+                .repo(repo_id)
+                .read()
                 .args(["ls-tree", "-r", "-z", "--name-only", "--full-tree", sha.as_str()])
                 .run_records(0, None, &mut on_path)
                 .await?;
@@ -408,8 +423,8 @@ pub(super) async fn tree_list(core: &Core, repo_id: &str, sha: Option<&str>, fil
         }
         None => {
             let (present, deleted) = tokio::join!(
-                read_cmd(core, &path, repo_id).args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).run(),
-                read_cmd(core, &path, repo_id).args(["ls-files", "-z", "--deleted"]).run(),
+                core.git.cmd(&path).repo(repo_id).read().args(["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).run(),
+                core.git.cmd(&path).repo(repo_id).read().args(["ls-files", "-z", "--deleted"]).run(),
             );
             let (present, deleted) = (present?, deleted?);
             let gone: HashSet<&[u8]> = deleted.stdout_z().into_iter().collect();

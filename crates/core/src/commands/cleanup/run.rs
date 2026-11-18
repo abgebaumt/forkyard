@@ -273,14 +273,7 @@ async fn keep_undo_objects(core: &Core, repo_id: &str, ids: &[String]) -> CoreRe
     }
     let mut query = shas.join("\n");
     query.push('\n');
-    let out = core
-        .git_for(repo_id)?
-        .args(["cat-file", "--batch-check=%(objectname) %(objecttype)"])
-        .stdin(query)
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let out = core.git_for(repo_id)?.args(["cat-file", "--batch-check=%(objectname) %(objecttype)"]).stdin(query).read().run().await?;
     let script: String = out
         .stdout_lines()
         .iter()
@@ -298,7 +291,7 @@ async fn keep_undo_objects(core: &Core, repo_id: &str, ids: &[String]) -> CoreRe
 
 /// Deletes every ref below `prefix` in one transaction; returns how many.
 async fn delete_refs_under(core: &Core, repo_id: &str, prefix: &str) -> CoreResult<usize> {
-    let out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(refname)", prefix]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(refname)", prefix]).read().run().await?;
     let names: Vec<String> = out.stdout_lines().iter().map(|line| util::decode_lossy(line)).filter(|name| !name.is_empty()).collect();
     if names.is_empty() {
         return Ok(0);

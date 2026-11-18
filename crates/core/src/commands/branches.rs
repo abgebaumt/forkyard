@@ -100,8 +100,7 @@ async fn left_behind(core: &Core, repo_id: &str, sha: &str) -> Option<crate::mod
         .git_for(repo_id)
         .ok()?
         .args(["rev-list", "--count", sha, "--not", "--branches", "--tags", "--remotes"])
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await
         .ok()?;
@@ -179,7 +178,7 @@ pub async fn ref_name_check(core: &Core, repo_id: String, name: String, kind: Re
         RefNameKind::Branch => "refs/heads/",
         RefNameKind::Tag => "refs/tags/",
     };
-    let out = core.git_for(&repo_id)?.args(["for-each-ref", "--format=%(refname)", prefix]).read_only().no_log().run().await?;
+    let out = core.git_for(&repo_id)?.args(["for-each-ref", "--format=%(refname)", prefix]).read().run().await?;
     let existing: Vec<String> =
         out.stdout_lines().into_iter().map(util::decode_lossy).filter_map(|full| full.strip_prefix(prefix).map(str::to_string)).collect();
     match check_new_name(core, &repo_id, &name, kind, &existing, None).await {
@@ -205,7 +204,7 @@ pub(crate) struct BranchInfo {
 }
 
 pub(crate) async fn local_branches(core: &Core, repo_id: &str) -> CoreResult<Vec<BranchInfo>> {
-    let out = core.git_for(repo_id)?.args(["for-each-ref", BRANCH_FORMAT, "refs/heads"]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["for-each-ref", BRANCH_FORMAT, "refs/heads"]).read().run().await?;
     let fields: Vec<&[u8]> = out.stdout.split(|&b| b == 0).collect();
     let mut branches = Vec::new();
     for chunk in fields.chunks(BRANCH_FIELDS) {
@@ -260,13 +259,7 @@ pub(crate) async fn resolve_commit(core: &Core, repo_id: &str, rev: &str) -> Cor
         return Ok(None);
     }
     let parse = |name: String| async move {
-        let out = core
-            .git_for(repo_id)?
-            .args(["rev-parse", "-q", "--verify", &format!("{name}^{{commit}}")])
-            .read_only()
-            .no_log()
-            .run_raw()
-            .await?;
+        let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", &format!("{name}^{{commit}}")]).read().run_raw().await?;
         Ok::<_, CoreError>(Some(out.stdout_text()).filter(|sha| out.success() && !sha.is_empty()))
     };
     if could_be_branch_name(rev) {
@@ -372,7 +365,7 @@ pub(crate) async fn check_new_name(
         }
     }
     // Git has the last word.
-    let cmd = core.git_for(repo_id)?.read_only().no_log();
+    let cmd = core.git_for(repo_id)?.read();
     let out = match kind {
         RefNameKind::Branch => cmd.args(["check-ref-format", "--branch", name]),
         RefNameKind::Tag => cmd.args(["check-ref-format", &format!("refs/tags/{name}")]),
@@ -481,7 +474,7 @@ async fn plan_checkout(core: &Core, repo_id: &str, target: &str, branches: &[Bra
 /// `origin/feature/x` → `feature/x`. Remote names may contain slashes themselves; the longest
 /// known remote name wins.
 async fn local_name_for_remote(core: &Core, repo_id: &str, short: &str) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.arg("remote").read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.arg("remote").read().run_raw().await?;
     let remotes: Vec<String> =
         if out.success() { out.stdout_lines().into_iter().map(util::decode_lossy).filter(|n| !n.is_empty()).collect() } else { Vec::new() };
     let rest = remotes
@@ -519,7 +512,7 @@ pub(crate) async fn run_checkout(core: &Core, repo_id: &str, args: &[&str], targ
     // exit code 1 although the branch has been switched. That is not a failed checkout –
     // the UI has already received the hook's output via `hook:output`.
     if ran.iter().any(|hook| hook.hook == "post-checkout" && hook.exit_code != 0) {
-        let now = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).read_only().no_log().run_raw().await?;
+        let now = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).read().run_raw().await?;
         if now.success() && now.stdout_text() == target_sha {
             return Ok(());
         }
@@ -569,13 +562,11 @@ async fn blocking_paths(core: &Core, repo_id: &str, target_sha: &str) -> CoreRes
     let diff = core
         .git_for(repo_id)?
         .args(["-c", "diff.autoRefreshIndex=false", "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "HEAD", target_sha])
-        .read_only()
-        .no_log()
+        .read()
         .run()
         .await?;
     let differing: HashSet<&[u8]> = util::split_z(&diff.stdout).collect();
-    let status =
-        core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=all"]).read_only().no_log().run().await?;
+    let status = core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=all"]).read().run().await?;
     let mut files = Vec::new();
     for entry in parse_porcelain_v2(&status.stdout).entries {
         for path in std::iter::once(&entry.path).chain(entry.orig_path.iter()) {
@@ -797,8 +788,7 @@ async fn branches_with_config(core: &Core, repo_id: &str) -> Option<HashSet<Stri
         .git_for(repo_id)
         .ok()?
         .args(["config", "--local", "--name-only", "-z", "--get-regexp", r"^branch\."])
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await
         .ok()?;
@@ -826,13 +816,8 @@ fn quote_list(names: &[&str]) -> String {
 /// Branches whose commits would no longer be reachable anywhere after deleting: neither from
 /// HEAD nor from their (existing) upstream.
 async fn unmerged_branches<'a>(core: &Core, repo_id: &str, targets: &[&'a BranchInfo]) -> CoreResult<Vec<&'a str>> {
-    let merged = core
-        .git_for(repo_id)?
-        .args(["for-each-ref", "--merged", "HEAD", "--format=%(refname)", "refs/heads"])
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await?;
+    let merged =
+        core.git_for(repo_id)?.args(["for-each-ref", "--merged", "HEAD", "--format=%(refname)", "refs/heads"]).read().run_raw().await?;
     // In a repository without a commit there is no HEAD that anything could be merged into.
     let in_head: HashSet<String> =
         if merged.success() { merged.stdout_lines().into_iter().map(util::decode_lossy).collect() } else { HashSet::new() };
@@ -854,7 +839,7 @@ async fn unmerged_branches<'a>(core: &Core, repo_id: &str, targets: &[&'a Branch
 
 /// `false` also if `descendant` does not exist (any more).
 pub(crate) async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, descendant: &str) -> CoreResult<bool> {
-    let out = core.git_for(repo_id)?.args(["merge-base", "--is-ancestor", ancestor, descendant]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["merge-base", "--is-ancestor", ancestor, descendant]).read().run_raw().await?;
     Ok(out.success())
 }
 
@@ -981,7 +966,7 @@ async fn fast_forward_locked(core: &Core, repo_id: &str, branch: &str) -> CoreRe
 
 /// Number of commits in `range` (`a..b`).
 async fn count_commits(core: &Core, repo_id: &str, range: &str) -> CoreResult<u32> {
-    let out = core.git_for(repo_id)?.args(["rev-list", "--count", range]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["rev-list", "--count", range]).read().run().await?;
     Ok(out.stdout_text().trim().parse().unwrap_or(0))
 }
 

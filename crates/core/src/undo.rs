@@ -364,7 +364,7 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
 
 /// Resolves a name to a SHA; `None` if it doesn't exist.
 pub async fn rev_parse(core: &Core, repo_id: &str, rev: &str) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", "--end-of-options", rev]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["rev-parse", "-q", "--verify", "--end-of-options", rev]).read().run_raw().await?;
     Ok(if out.success() { Some(out.stdout_text()).filter(|s| !s.is_empty()) } else { None })
 }
 
@@ -396,12 +396,7 @@ fn join_z(paths: &[String]) -> Vec<u8> {
 }
 
 fn add_all(core: &Core, repo_id: &str, index: &TempIndex) -> CoreResult<GitCmd> {
-    Ok(core
-        .git_for(repo_id)?
-        .args(["-c", "core.safecrlf=false", "add", "-A"])
-        .env("GIT_INDEX_FILE", &index.0)
-        .env("GIT_LITERAL_PATHSPECS", "1")
-        .no_log())
+    Ok(core.git_for(repo_id)?.args(["-c", "core.safecrlf=false", "add", "-A"]).env("GIT_INDEX_FILE", &index.0).literal_paths().no_log())
 }
 
 fn pathspec_missing(out: &GitOutput) -> bool {
@@ -474,7 +469,7 @@ async fn tree_from(core: &Core, repo_id: &str, git_dir: &Path, copy: Option<Temp
 
 /// Tree of the real index; `None` while conflicts are open (then there is no tree).
 pub async fn index_tree(core: &Core, repo_id: &str) -> CoreResult<Option<String>> {
-    let unmerged = core.git_for(repo_id)?.args(["ls-files", "--unmerged", "-z"]).read_only().no_log().run().await?;
+    let unmerged = core.git_for(repo_id)?.args(["ls-files", "--unmerged", "-z"]).read().run().await?;
     if !unmerged.stdout.is_empty() {
         return Ok(None);
     }
@@ -609,7 +604,7 @@ async fn raw_overlay_commit(core: &Core, repo_id: &str, head: &str, tree: &str, 
 /// Whether a checkout would write files with LF line endings as CRLF (`core.autocrlf=true`).
 async fn checkout_rewrites_line_endings(core: &Core, repo_id: &str) -> bool {
     let Ok(cmd) = core.git_for(repo_id) else { return false };
-    match cmd.args(["config", "--get", "core.autocrlf"]).read_only().no_log().run_raw().await {
+    match cmd.args(["config", "--get", "core.autocrlf"]).read().run_raw().await {
         Ok(out) => out.success() && out.stdout_text().trim().eq_ignore_ascii_case("true"),
         Err(_) => false,
     }
@@ -619,7 +614,7 @@ async fn checkout_rewrites_line_endings(core: &Core, repo_id: &str) -> bool {
 async fn raw_tree_of(core: &Core, repo_id: &str, target: &str) -> Option<String> {
     let parent = rev_parse(core, repo_id, &format!("{target}^2")).await.ok()??;
     // A real merge commit also has a second parent: only our own counts.
-    let subject = core.git_for(repo_id).ok()?.args(["log", "-1", "--format=%s%n%P", &parent]).read_only().no_log().run_raw().await.ok()?;
+    let subject = core.git_for(repo_id).ok()?.args(["log", "-1", "--format=%s%n%P", &parent]).read().run_raw().await.ok()?;
     let text = subject.stdout_text();
     let mut lines = text.lines();
     if !subject.success() || lines.next() != Some(RAW_MESSAGE) || lines.next().is_some_and(|parents| !parents.trim().is_empty()) {
@@ -662,7 +657,7 @@ async fn restore_raw(core: &Core, repo_id: &str, raw_tree: &str, written: &[&Vec
         return Ok(());
     }
     let root = core.repo_path(repo_id)?;
-    let listed = core.git_for(repo_id)?.args(["ls-tree", "-r", "-z", raw_tree]).read_only().no_log().run().await?;
+    let listed = core.git_for(repo_id)?.args(["ls-tree", "-r", "-z", raw_tree]).read().run().await?;
     let mut raw: std::collections::HashMap<&[u8], String> = std::collections::HashMap::new();
     for record in listed.stdout_z() {
         let Some(tab) = record.iter().position(|byte| *byte == b'\t') else { continue };
@@ -684,8 +679,7 @@ async fn restore_raw(core: &Core, repo_id: &str, raw_tree: &str, written: &[&Vec
         input.extend_from_slice(path);
         input.push(b'\n');
     }
-    let hashed =
-        core.git_for(repo_id)?.args(["hash-object", "--no-filters", "--stdin-paths"]).stdin(input).read_only().no_log().run().await?;
+    let hashed = core.git_for(repo_id)?.args(["hash-object", "--no-filters", "--stdin-paths"]).stdin(input).read().run().await?;
     let now: Vec<String> =
         hashed.stdout_lines().into_iter().map(util::decode_lossy).map(|id| id.trim().to_string()).filter(|id| !id.is_empty()).collect();
     if now.len() != wanted.len() {
@@ -697,7 +691,7 @@ async fn restore_raw(core: &Core, repo_id: &str, raw_tree: &str, written: &[&Vec
         return Ok(());
     }
     let ids: Vec<u8> = differing.iter().flat_map(|(_, id)| id.bytes().chain(std::iter::once(b'\n'))).collect();
-    let blobs = core.git_for(repo_id)?.args(["cat-file", "--batch"]).stdin(ids).read_only().no_log().run().await?;
+    let blobs = core.git_for(repo_id)?.args(["cat-file", "--batch"]).stdin(ids).read().run().await?;
     let contents = parse_cat_file_batch(&blobs.stdout);
     if contents.len() != differing.len() {
         return Ok(());
@@ -811,13 +805,7 @@ fn regular_file(mode: &str) -> bool {
 
 /// Per-path differences of two trees (without rename detection), limited to `paths`.
 async fn diff_raw(core: &Core, repo_id: &str, from: &str, to: &str, paths: Option<&[String]>) -> CoreResult<Vec<(Vec<u8>, RawChange)>> {
-    let out = core
-        .git_for(repo_id)?
-        .args(["diff-tree", "-r", "-z", "--raw", "--no-abbrev", "--no-renames", from, to])
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let out = core.git_for(repo_id)?.args(["diff-tree", "-r", "-z", "--raw", "--no-abbrev", "--no-renames", from, to]).read().run().await?;
     let records = out.stdout_z();
     let mut changes = Vec::new();
     for pair in records.chunks(2) {
@@ -967,7 +955,7 @@ async fn merge_content(core: &Core, repo_id: &str, git_dir: &Path, mine: &RawCha
     let id = util::new_id();
     let mut files = Vec::new();
     for (name, sha) in ["jetzt", "basis", "ziel"].iter().zip(blobs) {
-        let out = core.git_for(repo_id)?.args(["cat-file", "blob", sha]).read_only().no_log().run_raw().await?;
+        let out = core.git_for(repo_id)?.args(["cat-file", "blob", sha]).read().run_raw().await?;
         if !out.success() || util::looks_binary(&out.stdout) {
             return Ok(None);
         }
@@ -975,16 +963,8 @@ async fn merge_content(core: &Core, repo_id: &str, git_dir: &Path, mine: &RawCha
         std::fs::write(&file.0, &out.stdout)?;
         files.push(file);
     }
-    let out = core
-        .git_for(repo_id)?
-        .args(["merge-file", "-p", "-q"])
-        .arg(&files[0].0)
-        .arg(&files[1].0)
-        .arg(&files[2].0)
-        .read_only()
-        .no_log()
-        .run_raw()
-        .await?;
+    let out =
+        core.git_for(repo_id)?.args(["merge-file", "-p", "-q"]).arg(&files[0].0).arg(&files[1].0).arg(&files[2].0).read().run_raw().await?;
     // Exit code = number of conflicts; anything but 0 means: not mergeable.
     if out.code != Some(0) {
         return Ok(None);
@@ -999,9 +979,7 @@ async fn ignored_among(core: &Core, repo_id: &str, paths: &[Vec<u8>]) -> std::co
         return Default::default();
     }
     let checked = match core.git_for(repo_id) {
-        Ok(cmd) => {
-            cmd.args(["check-ignore", "--no-index", "-z", "--stdin"]).stdin(join_z_bytes(paths)).read_only().no_log().run_raw().await
-        }
+        Ok(cmd) => cmd.args(["check-ignore", "--no-index", "-z", "--stdin"]).stdin(join_z_bytes(paths)).read().run_raw().await,
         Err(e) => Err(e),
     };
     match checked {

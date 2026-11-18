@@ -88,7 +88,7 @@ pub(crate) async fn stash_selection(
 
     // The stash commits – the real index stays untouched.
     let (index_tree, worktree_tree) = build_trees(core, repo_id, &head_sha, &staged, &unstaged).await?;
-    let head_subject = core.git_for(repo_id)?.args(["log", "-1", "--format=%s", &head_sha]).read_only().no_log().run_text().await?;
+    let head_subject = core.git_for(repo_id)?.args(["log", "-1", "--format=%s", &head_sha]).read().run_text().await?;
     let short = &head_sha[..head_sha.len().min(7)];
     let subject = match message {
         Some(text) => format!("On {on}: {text}"),

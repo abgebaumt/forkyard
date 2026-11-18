@@ -7,7 +7,6 @@ use std::path::Path;
 use crate::app::Core;
 use crate::commands::sync;
 use crate::error::{CoreError, CoreResult};
-use crate::git::GitCmd;
 use crate::model::{Head, Ref, RefKind, RefsSnapshot};
 use crate::util;
 
@@ -27,7 +26,7 @@ pub async fn read_refs(core: &Core, repo_id: &str) -> CoreResult<RefsSnapshot> {
     let options = [FORMAT.to_string()];
     let (refs, remotes) = tokio::join!(
         for_each_ref(core, &path, repo_id, &options, &["refs/heads", "refs/remotes", "refs/tags"]),
-        read_cmd(core, &path, repo_id).arg("remote").run_raw(),
+        core.git.cmd(&path).repo(repo_id).read().arg("remote").run_raw(),
     );
     let refs = refs?;
     let remote_names: Vec<String> = match &remotes {
@@ -77,7 +76,11 @@ pub(crate) async fn for_each_ref(
     patterns: &[&str],
 ) -> CoreResult<crate::git::GitOutput> {
     let run = |broken: Vec<String>, watched: bool| {
-        let cmd = read_cmd(core, path, repo_id)
+        let cmd = core
+            .git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
             .arg("for-each-ref")
             .args(options)
             .args(broken.into_iter().map(|name| format!("--exclude={name}")))
@@ -128,7 +131,8 @@ const HANG_GUARD: std::time::Duration = std::time::Duration::from_secs(3);
 /// Refs that make Git commands fail: the ref file is empty or contains garbage ("broken ref"),
 /// or it points to an object that does not exist. Full ref names.
 pub(crate) async fn broken_refs(core: &Core, path: &Path, repo_id: &str) -> Vec<String> {
-    let Ok(listed) = read_cmd(core, path, repo_id).args(["for-each-ref", "--format=%(refname) %(objectname)"]).run_raw().await else {
+    let Ok(listed) = core.git.cmd(path).repo(repo_id).read().args(["for-each-ref", "--format=%(refname) %(objectname)"]).run_raw().await
+    else {
         return Vec::new();
     };
     let mut broken: Vec<String> = listed
@@ -144,7 +148,7 @@ pub(crate) async fn broken_refs(core: &Core, path: &Path, repo_id: &str) -> Vec<
         .collect();
     if !pairs.is_empty() {
         let stdin: String = pairs.iter().map(|(_, sha)| format!("{sha}\n")).collect();
-        if let Ok(checked) = read_cmd(core, path, repo_id).args(["cat-file", "--batch-check"]).stdin(stdin).run_raw().await {
+        if let Ok(checked) = core.git.cmd(path).repo(repo_id).read().args(["cat-file", "--batch-check"]).stdin(stdin).run_raw().await {
             for ((name, _), answer) in pairs.iter().zip(checked.stdout_text().lines()) {
                 if answer.trim_end().ends_with(" missing") && !broken.contains(name) {
                     broken.push(name.clone());
@@ -180,8 +184,17 @@ pub(crate) async fn unpublished_counts(
             Some(name) => format!("--remotes={name}"),
             None => "--remotes".to_string(),
         };
-        let out =
-            read_cmd(core, path, repo_id).arg("rev-list").arg("--parents").args(&tips).args(["--not", not.as_str(), "--"]).run().await?;
+        let out = core
+            .git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
+            .arg("rev-list")
+            .arg("--parents")
+            .args(&tips)
+            .args(["--not", not.as_str(), "--"])
+            .run()
+            .await?;
         // The commits on no remote branch, with their parents (only those in the set matter).
         let mut parents: HashMap<String, Vec<String>> = HashMap::new();
         for line in out.stdout_lines() {
@@ -204,10 +217,6 @@ pub(crate) async fn unpublished_counts(
         }
     }
     Ok(wanted.iter().map(|(tip, remote)| counts.get(&(filter(remote), tip.clone())).copied().unwrap_or(0)).collect())
-}
-
-fn read_cmd(core: &Core, path: &Path, repo_id: &str) -> GitCmd {
-    core.git.cmd(path).repo(repo_id).read_only().no_log()
 }
 
 /// Result of `parse_for_each_ref`.

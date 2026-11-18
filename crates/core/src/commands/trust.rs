@@ -162,7 +162,7 @@ fn config_findings(entries: &[(String, String)], git_is_directory: bool) -> Vec<
 
 /// The common Git directory (for worktrees the one of the main repository), as a full path.
 pub(crate) async fn common_dir(core: &Core, root: &Path) -> Option<PathBuf> {
-    let out = core.git.cmd(root).args(["rev-parse", "--git-common-dir"]).read_only().no_log().guarded().run_raw().await.ok()?;
+    let out = core.git.cmd(root).args(["rev-parse", "--git-common-dir"]).read().guarded().run_raw().await.ok()?;
     if !out.success() {
         return None;
     }
@@ -179,8 +179,7 @@ pub(crate) async fn common_dir(core: &Core, root: &Path) -> Option<PathBuf> {
 /// Runs none of it itself.
 pub(crate) async fn scan(core: &Core, root: &Path) -> Vec<TrustFinding> {
     let mut findings = Vec::new();
-    let listed =
-        core.git.cmd(root).args(["config", "--list", "--show-scope", "--includes", "-z"]).read_only().no_log().guarded().run_raw().await;
+    let listed = core.git.cmd(root).args(["config", "--list", "--show-scope", "--includes", "-z"]).read().guarded().run_raw().await;
     match listed {
         Ok(out) if out.success() => {
             let git_is_directory = root.join(".git").is_dir();
@@ -232,7 +231,7 @@ async fn shares_a_trusted_repository(core: &Core, root: &Path) -> bool {
     }
     // A forged `.git/commondir` points at any repository; only Git registers real worktrees:
     // the git dir sits in `<common>/worktrees` and its `gitdir` file points back at `root/.git`.
-    let Ok(out) = core.git.cmd(root).args(["rev-parse", "--absolute-git-dir"]).read_only().no_log().guarded().run_raw().await else {
+    let Ok(out) = core.git.cmd(root).args(["rev-parse", "--absolute-git-dir"]).read().guarded().run_raw().await else {
         return false;
     };
     if !out.success() {

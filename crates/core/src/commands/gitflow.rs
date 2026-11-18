@@ -93,7 +93,7 @@ pub async fn gitflow_status(core: &Core, repo_id: String) -> CoreResult<GitflowS
 
 /// All `gitflow.*` entries of the effective configuration (local before global), keys in lower case.
 async fn read_config(core: &Core, repo_id: &str) -> CoreResult<HashMap<String, String>> {
-    let out = core.git_for(repo_id)?.args(["config", "-z", "--get-regexp", r"^gitflow\."]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["config", "-z", "--get-regexp", r"^gitflow\."]).read().run_raw().await?;
     let mut map = HashMap::new();
     // Exit 1 only means: nothing set.
     if out.success() {
@@ -476,7 +476,7 @@ async fn finish_locked(core: &Core, repo_id: &str, kind: GitflowKind, name: &str
             )));
         }
     }
-    let dirty = core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).read_only().no_log().run().await?;
+    let dirty = core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).read().run().await?;
     if !dirty.stdout.is_empty() {
         return Err(CoreError::new(
             ErrorCode::DirtyWorktree,

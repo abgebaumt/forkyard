@@ -333,7 +333,7 @@ async fn init_in(
 ) -> CoreResult<OpenedRepo> {
     core.git_at(target).args(["init", "-b", branch]).run().await?;
     let config = |key: &'static str| async move {
-        match core.git_at(target).args(["config", "--get", key]).read_only().no_log().run_raw().await {
+        match core.git_at(target).args(["config", "--get", key]).read().run_raw().await {
             Ok(out) if out.success() => out.stdout_text().trim().to_string(),
             _ => String::new(),
         }

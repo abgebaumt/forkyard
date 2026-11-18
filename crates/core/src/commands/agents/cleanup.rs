@@ -73,8 +73,7 @@ pub async fn preview(core: &Core, agent_id: String) -> CoreResult<AgentCleanupPr
     let branch_ref = format!("refs/heads/{}", row.branch);
     let unpushed = core
         .git_for(&row.repo_id)?
-        .read_only()
-        .no_log()
+        .read()
         .args(["rev-list", "--count", &branch_ref, "--not", &row.base_sha, "--remotes"])
         .run_raw()
         .await?;
@@ -138,7 +137,7 @@ pub(crate) async fn remove_worktree(core: &Core, repo_id: &str, folder: &Path) -
 
 /// The worktree other than the agent's own `folder` that has `branch_ref` checked out, if any.
 async fn checked_out_elsewhere(core: &Core, repo_id: &str, branch_ref: &str, folder: &Path) -> CoreResult<Option<String>> {
-    let out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(worktreepath)", branch_ref]).read_only().no_log().run().await?;
+    let out = core.git_for(repo_id)?.args(["for-each-ref", "--format=%(worktreepath)", branch_ref]).read().run().await?;
     let key = |path: &Path| util::path_key(&std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()));
     let own = key(folder);
     Ok(out.stdout_lines().into_iter().map(util::decode_lossy).find(|path| !path.is_empty() && key(Path::new(path)) != own))

@@ -22,7 +22,7 @@ use crate::commands::preview::{self, Merged, MergedConflict};
 use crate::db;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::events::names;
-use crate::git::{redact, GitCmd};
+use crate::git::redact;
 use crate::jobs::CancelToken;
 use crate::model::{
     Agent, AgentCollision, AgentStatus, CollisionBlock, CollisionCheckState, CollisionFile, CollisionKind, CollisionPreview,
@@ -41,18 +41,13 @@ const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
     ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
 ];
 
-/// A background read in `repo_id` (the main repository or an agent's worktree).
-fn read(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
-
 /// Snapshot of an agent's worktree: the tree of its files as they are on disk (tracked and
 /// untracked, not ignored; built on a temporary index, the real one stays untouched) and a loose
 /// commit around it whose parent is the worktree's HEAD. Returns `(commit, tree)`.
 pub(crate) async fn snapshot_commit(core: &Core, worktree_repo_id: &str) -> CoreResult<(String, String)> {
     let tree = undo::worktree_tree(core, worktree_repo_id, None).await?;
     let head = undo::rev_parse(core, worktree_repo_id, "HEAD^{commit}").await?;
-    let mut cmd = read(core, worktree_repo_id)?.args(["commit-tree", "--no-gpg-sign", &tree]);
+    let mut cmd = core.git_for(worktree_repo_id)?.read().args(["commit-tree", "--no-gpg-sign", &tree]);
     if let Some(head) = &head {
         cmd = cmd.args(["-p", head]);
     }
@@ -72,14 +67,14 @@ pub(crate) async fn fork_point(core: &Core, repo_id: &str, head: &str, base: &st
     let Some(tip) = tip else {
         return Ok((base_sha.to_string(), None));
     };
-    let out = read(core, repo_id)?.args(["merge-base", head, &tip]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["merge-base", head, &tip]).run_raw().await?;
     let fork = if out.success() { out.stdout_text().trim().to_string() } else { String::new() };
     Ok((if fork.is_empty() { base_sha.to_string() } else { fork }, Some(tip)))
 }
 
 /// Paths that differ between two trees (or commits), renames as delete + add, byte for byte.
 pub(crate) async fn changed_paths(core: &Core, repo_id: &str, from: &str, to: &str) -> CoreResult<BTreeSet<Vec<u8>>> {
-    let out = read(core, repo_id)?.args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", from, to]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", from, to]).run().await?;
     Ok(util::split_z(&out.stdout).filter(|path| !path.is_empty()).map(<[u8]>::to_vec).collect())
 }
 

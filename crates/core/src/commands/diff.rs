@@ -101,7 +101,7 @@ impl<'a> Ctx<'a> {
     /// Read call: never blocks a write action, no log entry, paths taken literally
     /// (no wildcards such as `*` or `[a]`).
     fn git(&self) -> GitCmd {
-        self.core.git.cmd(&self.root).repo(self.repo_id).read_only().no_log().env("GIT_LITERAL_PATHSPECS", "1")
+        self.core.git.cmd(&self.root).repo(self.repo_id).read().literal_paths()
     }
 
     fn worktree_path(&self, path: &[u8]) -> PathBuf {

@@ -67,20 +67,15 @@ pub(crate) async fn working_state(core: &Core, worktree_id: &str, snapshot: bool
     if tree == head_tree {
         return Ok(WorkingState { snapshot: None, changed: 0 });
     }
-    let diff = core
-        .git_for(worktree_id)?
-        .args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", &head_tree, &tree])
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let diff =
+        core.git_for(worktree_id)?.args(["diff-tree", "-r", "-z", "--name-only", "--no-renames", &head_tree, &tree]).read().run().await?;
     let changed = u32::try_from(util::split_z(&diff.stdout).count()).unwrap_or(u32::MAX);
     if !snapshot {
         return Ok(WorkingState { snapshot: None, changed });
     }
     // The date of HEAD instead of "now": the same working state gives the same commit, so the
     // review only notices real changes of the agent.
-    let when = core.git_for(worktree_id)?.args(["show", "-s", "--format=%ct", &head]).read_only().no_log().run_text().await?;
+    let when = core.git_for(worktree_id)?.args(["show", "-s", "--format=%ct", &head]).read().run_text().await?;
     let date = format!("@{when} +0000");
     let mut cmd = core
         .git_for(worktree_id)?
@@ -99,7 +94,7 @@ pub(crate) async fn working_state(core: &Core, worktree_id: &str, snapshot: bool
 /// base commit if the ref is gone) and `to`; without a common ancestor the recorded base commit.
 async fn fork_point(core: &Core, row: &AgentRow, to: &str) -> CoreResult<String> {
     let base = graph::resolve_commit(core, &row.repo_id, &row.base).await.unwrap_or_else(|_| row.base_sha.clone());
-    let out = core.git_for(&row.repo_id)?.args(["merge-base", &base, to]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(&row.repo_id)?.args(["merge-base", &base, to]).read().run_raw().await?;
     let found = out.stdout_text();
     Ok(if out.success() && !found.is_empty() { found } else { row.base_sha.clone() })
 }

@@ -385,8 +385,7 @@ pub async fn scan_outgoing(core: &Core, repo_id: &str, tips: &[String], remote: 
         .arg("--not")
         .arg(format!("--remotes={remote}"))
         .arg("--")
-        .read_only()
-        .no_log()
+        .read()
         .run_records(b'\n', Some(cancel), &mut |line: &[u8]| scanner.feed(line))
         .await?;
     Ok(scanner.finish())

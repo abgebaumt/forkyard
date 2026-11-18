@@ -15,7 +15,7 @@ use std::path::Path;
 use serde_json::{json, Map};
 
 use crate::app::Core;
-use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
+use crate::commands::graph::{display_text, resolve_commit, LOG_SAFE};
 use crate::commands::{host, rebase, remotes, sync};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::model::{
@@ -69,13 +69,13 @@ pub(crate) async fn read_source(core: &Core, repo_id: &str, branch: &str, base: 
     let path = core.repo_path(repo_id)?;
     let range = format!("{base_sha}..{tip}");
     let shown_base = plan::short_ref(&base).to_string();
-    let merges = read_cmd(core, &path, repo_id).args(["rev-list", "--count", "--merges", range.as_str(), "--"]).run().await?;
+    let merges = core.git.cmd(&path).repo(repo_id).read().args(["rev-list", "--count", "--merges", range.as_str(), "--"]).run().await?;
     if merges.stdout_text().trim() != "0" {
         return Err(CoreError::not_allowed(format!(
             "“{branch}” contains merge commits since “{shown_base}”. A stack is cut at commit boundaries of a straight history; rebase the branch onto its base first."
         )));
     }
-    let count = read_cmd(core, &path, repo_id).args(["rev-list", "--count", range.as_str(), "--"]).run().await?;
+    let count = core.git.cmd(&path).repo(repo_id).read().args(["rev-list", "--count", range.as_str(), "--"]).run().await?;
     let total: usize = count.stdout_text().trim().parse().unwrap_or(0);
     if total == 0 {
         return Err(CoreError::not_allowed(format!("“{branch}” has no commits that “{shown_base}” does not have.")));
@@ -83,7 +83,11 @@ pub(crate) async fn read_source(core: &Core, repo_id: &str, branch: &str, base: 
     if total > MAX_COMMITS {
         return Err(CoreError::not_allowed(format!("“{branch}” has {total} commits; a stack is cut from at most {MAX_COMMITS}.")));
     }
-    let out = read_cmd(core, &path, repo_id)
+    let out = core
+        .git
+        .cmd(&path)
+        .repo(repo_id)
+        .read()
         .args(["log", "--reverse", "--topo-order", "-z", "-M", "--numstat", "--no-color"])
         .args(LOG_SAFE)
         .args(["--format=%x1e%H%x00%s%x00%b", range.as_str(), "--"])
@@ -99,7 +103,11 @@ pub(crate) async fn read_source(core: &Core, repo_id: &str, branch: &str, base: 
 /// All local branches with tip and worktree.
 pub(crate) async fn local_branches(core: &Core, repo_id: &str) -> CoreResult<Vec<LocalBranch>> {
     let path = core.repo_path(repo_id)?;
-    let out = read_cmd(core, &path, repo_id)
+    let out = core
+        .git
+        .cmd(&path)
+        .repo(repo_id)
+        .read()
         .args(["for-each-ref", "--format=%(refname)%00%(objectname)%00%(worktreepath)", "refs/heads"])
         .run()
         .await?;
@@ -249,7 +257,7 @@ pub async fn stack_create(
 async fn subjects(core: &Core, repo_id: &str, parent: Option<&str>, tip: &str) -> CoreResult<Vec<String>> {
     let path = core.repo_path(repo_id)?;
     let limit = if parent.is_some() { "--max-count=50" } else { "--max-count=1" };
-    let mut cmd = read_cmd(core, &path, repo_id).args(["log", "--reverse", "-z", limit, "--format=%s"]).args(LOG_SAFE).arg(tip);
+    let mut cmd = core.git.cmd(&path).repo(repo_id).read().args(["log", "--reverse", "-z", limit, "--format=%s"]).args(LOG_SAFE).arg(tip);
     if let Some(parent) = parent {
         cmd = cmd.args(["--not", parent]);
     }
@@ -259,7 +267,7 @@ async fn subjects(core: &Core, repo_id: &str, parent: Option<&str>, tip: &str) -
 
 async fn is_ancestor(core: &Core, repo_id: &str, ancestor: &str, of: &str) -> CoreResult<bool> {
     let path = core.repo_path(repo_id)?;
-    Ok(read_cmd(core, &path, repo_id).args(["merge-base", "--is-ancestor", ancestor, of]).run_raw().await?.success())
+    Ok(core.git.cmd(&path).repo(repo_id).read().args(["merge-base", "--is-ancestor", ancestor, of]).run_raw().await?.success())
 }
 
 fn same_place(a: &str, b: &Path) -> bool {
@@ -293,8 +301,7 @@ async fn restack_for(core: &Core, repo_id: &str, parts: &[StackStatusPart]) -> C
 /// The stack `name` (short name) is a part of, from the parent links in the config.
 pub(crate) async fn status_of(core: &Core, repo_id: &str, name: &str) -> CoreResult<Option<StackStatus>> {
     let pattern = format!(r"^branch\..*\.{}$", plan::PARENT_KEY.to_ascii_lowercase());
-    let out =
-        core.git_for(repo_id)?.args(["config", "--local", "-z", "--get-regexp", pattern.as_str()]).read_only().no_log().run_raw().await?;
+    let out = core.git_for(repo_id)?.args(["config", "--local", "-z", "--get-regexp", pattern.as_str()]).read().run_raw().await?;
     // Exit code 1: no such entry.
     let parents = if out.success() { plan::parse_parents(&out.stdout) } else { BTreeMap::new() };
     let branches = local_branches(core, repo_id).await?;

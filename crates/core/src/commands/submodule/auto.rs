@@ -104,7 +104,7 @@ async fn operation_start(core: &Core, repo_id: &str) -> Option<String> {
 /// Recorded submodule commits in the tree of `rev` (`git ls-tree -r -z --full-tree`).
 async fn recorded_at(core: &Core, repo_id: &str, rev: &str) -> Vec<(Vec<u8>, String)> {
     let listed = match core.git_for(repo_id) {
-        Ok(cmd) => cmd.read_only().no_log().args(["ls-tree", "-r", "-z", "--full-tree", rev]).run_raw().await,
+        Ok(cmd) => cmd.read().args(["ls-tree", "-r", "-z", "--full-tree", rev]).run_raw().await,
         Err(e) => Err(e),
     };
     match listed {
@@ -206,8 +206,7 @@ async fn held_by_ref(core: &Core, repo_id: &str, sub_root: &Path, head: &str) ->
         .git
         .cmd(sub_root)
         .repo(repo_id)
-        .read_only()
-        .no_log()
+        .read()
         .args(["rev-list", "--count", head, "--not", "--branches", "--tags", "--remotes"])
         .run_raw()
         .await;
@@ -217,7 +216,7 @@ async fn held_by_ref(core: &Core, repo_id: &str, sub_root: &Path, head: &str) ->
 /// Gitlinks in the index of the submodule at `sub_root` (`ls-files --stage -z`, stage 0 and the
 /// first of a conflict). `None` = unreadable.
 async fn nested_links(core: &Core, repo_id: &str, sub_root: &Path) -> Option<Vec<(Vec<u8>, String)>> {
-    let out = core.git.cmd(sub_root).repo(repo_id).read_only().no_log().args(["ls-files", "--stage", "-z"]).run_raw().await.ok()?;
+    let out = core.git.cmd(sub_root).repo(repo_id).read().args(["ls-files", "--stage", "-z"]).run_raw().await.ok()?;
     if !out.success() {
         return None;
     }
@@ -238,8 +237,7 @@ async fn nested_links(core: &Core, repo_id: &str, sub_root: &Path) -> Option<Vec
 
 /// Gitlinks recorded in the tree of `rev` inside the submodule; `None` if `rev` is not there yet.
 async fn nested_links_at(core: &Core, repo_id: &str, sub_root: &Path, rev: &str) -> Option<Vec<(Vec<u8>, String)>> {
-    let out =
-        core.git.cmd(sub_root).repo(repo_id).read_only().no_log().args(["ls-tree", "-r", "-z", "--full-tree", rev]).run_raw().await.ok()?;
+    let out = core.git.cmd(sub_root).repo(repo_id).read().args(["ls-tree", "-r", "-z", "--full-tree", rev]).run_raw().await.ok()?;
     out.success().then(|| tree_gitlinks(&out.stdout))
 }
 

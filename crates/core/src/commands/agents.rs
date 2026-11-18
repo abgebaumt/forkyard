@@ -34,7 +34,7 @@ pub(crate) const CONFIG_NAMES: [&str; 3] = [".claude", ".codex", "opencode.json"
 
 /// Which of `CONFIG_NAMES` the commit has (folders with a trailing `/`), in the order of `CONFIG_NAMES`.
 async fn agent_configs(core: &Core, repo_id: &str, sha: &str) -> CoreResult<Vec<String>> {
-    let out = core.git_for(repo_id)?.read_only().no_log().args(["ls-tree", "-z", sha, "--"]).args(CONFIG_NAMES).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["ls-tree", "-z", sha, "--"]).args(CONFIG_NAMES).run().await?;
     let mut found: Vec<String> = Vec::new();
     for entry in util::split_z(&out.stdout) {
         // "<mode> <type> <object>\t<path>"
@@ -242,15 +242,7 @@ fn same_path(a: &Path, b: &Path) -> bool {
 }
 
 async fn changed_files(core: &Core, repo_id: &str, folder: &Path) -> u32 {
-    let out = core
-        .git
-        .cmd(folder)
-        .repo(repo_id)
-        .read_only()
-        .no_log()
-        .args(["status", "--porcelain=v2", "-z", "--untracked-files=all"])
-        .run_raw()
-        .await;
+    let out = core.git.cmd(folder).repo(repo_id).read().args(["status", "--porcelain=v2", "-z", "--untracked-files=all"]).run_raw().await;
     match out {
         Ok(out) if out.success() => count_status_entries(&out.stdout),
         _ => 0,
@@ -260,15 +252,7 @@ async fn changed_files(core: &Core, repo_id: &str, folder: &Path) -> u32 {
 async fn commits_ahead(core: &Core, repo_id: &str, row: &AgentRow) -> u32 {
     let range = format!("{}..refs/heads/{}", row.base_sha, row.branch);
     match core.git_for(repo_id) {
-        Ok(cmd) => cmd
-            .read_only()
-            .no_log()
-            .args(["rev-list", "--count", &range])
-            .run_text()
-            .await
-            .ok()
-            .and_then(|n| n.trim().parse().ok())
-            .unwrap_or(0),
+        Ok(cmd) => cmd.read().args(["rev-list", "--count", &range]).run_text().await.ok().and_then(|n| n.trim().parse().ok()).unwrap_or(0),
         Err(_) => 0,
     }
 }

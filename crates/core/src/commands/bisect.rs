@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::ai::{self, run::AiRequest};
 use crate::app::Core;
-use crate::commands::graph::{is_full_sha, read_cmd, resolve_commit};
+use crate::commands::graph::{is_full_sha, resolve_commit};
 use crate::commands::refs::for_each_ref;
 use crate::commands::submodule::auto;
 use crate::error::{CoreError, CoreResult, ErrorCode};
@@ -120,7 +120,7 @@ async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) ->
     if goods.contains(&bad) {
         return Err(CoreError::not_allowed("The same commit can’t be both good and bad."));
     }
-    let dirty = core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).read_only().no_log().run().await?;
+    let dirty = core.git_for(repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).read().run().await?;
     if !dirty.stdout.is_empty() {
         return Err(CoreError::not_allowed(
             "A bisect checks out other commits, so the working directory must be clean. Commit or stash your changes first.",
@@ -252,7 +252,16 @@ fn count_steps(log: &str, terms: &Terms) -> u32 {
 /// With `--no-checkout` Git moves BISECT_HEAD instead of HEAD.
 async fn current_commit(core: &Core, path: &Path, repo_id: &str, dir: &Path) -> Option<String> {
     let name = if dir.join("BISECT_HEAD").is_file() { "BISECT_HEAD" } else { "HEAD" };
-    let out = read_cmd(core, path, repo_id).args(["rev-parse", "-q", "--verify"]).arg(format!("{name}^{{commit}}")).run_raw().await.ok()?;
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
+        .args(["rev-parse", "-q", "--verify"])
+        .arg(format!("{name}^{{commit}}"))
+        .run_raw()
+        .await
+        .ok()?;
     let sha = out.stdout_text();
     (out.success() && is_full_sha(&sha)).then_some(sha)
 }
@@ -270,7 +279,11 @@ async fn evaluate(core: &Core, path: &Path, repo_id: &str, dir: &Path, bad: &str
     let names: Vec<std::ffi::OsString> = std::fs::read(dir.join("BISECT_NAMES"))
         .map(|raw| bisect_names(&raw).iter().map(|name| util::bytes_to_path(name).into_os_string()).collect())
         .unwrap_or_default();
-    let vars = read_cmd(core, path, repo_id)
+    let vars = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["rev-list", "--bisect-vars", "--stdin", "--"])
         .args(&names)
         .stdin(stdin.clone())
@@ -290,7 +303,7 @@ async fn evaluate(core: &Core, path: &Path, repo_id: &str, dir: &Path, bad: &str
     }
     status.remaining_steps = Some(u32::try_from(steps.max(0)).unwrap_or(u32::MAX));
     if all <= status.skipped.len() + 1 {
-        let listed = read_cmd(core, path, repo_id).args(["rev-list", "--stdin", "--"]).args(&names).stdin(stdin).run().await?;
+        let listed = core.git.cmd(path).repo(repo_id).read().args(["rev-list", "--stdin", "--"]).args(&names).stdin(stdin).run().await?;
         let skipped: HashSet<&str> = status.skipped.iter().map(String::as_str).collect();
         let candidates: Vec<String> = listed.stdout_lines().into_iter().map(util::decode_lossy).collect();
         if candidates.iter().all(|c| c == bad || skipped.contains(c.as_str())) {

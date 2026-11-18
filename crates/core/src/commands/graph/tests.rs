@@ -1499,7 +1499,11 @@ async fn performance_with_50k_commits() {
     let path = tc.repo_path(&id).unwrap();
     for skip in [0, 10_000, 25_000, 49_000] {
         let t = Instant::now();
-        let out = read_cmd(&tc, &path, &id)
+        let out = tc
+            .git
+            .cmd(&path)
+            .repo(&id)
+            .read()
             .args(["log", "--topo-order", "-z", "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s", "--max-count=501"])
             .arg(format!("--skip={skip}"))
             .args(["--branches", "--remotes", "--tags", "HEAD"])
@@ -1513,7 +1517,7 @@ async fn performance_with_50k_commits() {
     let mut spawn_times = Vec::new();
     for _ in 0..100 {
         let t = Instant::now();
-        read_cmd(&tc, &path, &id).args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run().await.unwrap();
+        tc.git.cmd(&path).repo(&id).read().args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run().await.unwrap();
         spawn_times.push(t.elapsed());
     }
     spawn_times.sort();
@@ -1580,7 +1584,10 @@ async fn performance_with_50k_commits() {
     assert_eq!(rows_with_graph[..], rows[..rows_with_graph.len()]);
     for skip in [0, 25_000, 49_000] {
         let t = Instant::now();
-        read_cmd(&tc, &path, &id)
+        tc.git
+            .cmd(&path)
+            .repo(&id)
+            .read()
             .args(["log", "--topo-order", "-z", "--format=%H%x00%P%x00%an%x00%ae%x00%at%x00%s", "--max-count=501"])
             .arg(format!("--skip={skip}"))
             .args(["--branches", "--remotes", "--tags", "HEAD"])

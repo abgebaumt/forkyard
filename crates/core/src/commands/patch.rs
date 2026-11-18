@@ -25,7 +25,7 @@ const DIFF_OPTIONS: [&str; 7] =
     ["--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", "--full-index", "-M"];
 
 fn git(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.env("GIT_LITERAL_PATHSPECS", "1"))
+    Ok(core.git_for(repo_id)?.literal_paths())
 }
 
 /// Only SHAs (also abbreviated) – nothing Git could read as an option or expression.
@@ -154,7 +154,7 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
         return Ok(PatchText { text: String::new(), skipped: Vec::new() });
     }
     let diff = |extra: &[&str]| -> CoreResult<GitCmd> {
-        Ok(git(core, repo_id)?.read_only().no_log().args(["-c", "diff.autoRefreshIndex=false", "diff"]).args(DIFF_OPTIONS).args(extra))
+        Ok(git(core, repo_id)?.read().args(["-c", "diff.autoRefreshIndex=false", "diff"]).args(DIFF_OPTIONS).args(extra))
     };
     let out = match &source {
         DiffSource::Unstaged => {
@@ -177,8 +177,7 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
         DiffSource::Commit { sha } => {
             let sha = check_sha(sha)?;
             git(core, repo_id)?
-                .read_only()
-                .no_log()
+                .read()
                 .args([
                     "format-patch",
                     "-1",
@@ -210,8 +209,7 @@ pub async fn patch_create(core: &Core, repo_id: String, source: DiffSource, path
                 CoreError::not_found(format!("There is no stash number {index}.")).with_git_output(e.git_output.unwrap_or_default())
             };
             let parents = git(core, repo_id)?
-                .read_only()
-                .no_log()
+                .read()
                 .args(["rev-list", "--parents", "-n", "1"])
                 .arg(format!("stash@{{{index}}}"))
                 .arg("--")
@@ -322,7 +320,7 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
         };
         let text = text.into_bytes();
         // Check first: if the patch does not fit, neither a backup nor an undo entry is created.
-        let checked = apply()?.arg("--check").read_only().no_log().stdin(text.clone()).run_raw().await?;
+        let checked = apply()?.arg("--check").read().stdin(text.clone()).run_raw().await?;
         if !checked.success() {
             return Err(failure(&checked));
         }
@@ -357,7 +355,7 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
 /// The paths the patch touches (for renames the old and the new name), as Git reads them:
 /// `git apply --numstat -z` only evaluates and changes nothing.
 async fn touched_paths(core: &Core, repo_id: &str, patch: &[u8]) -> CoreResult<Vec<Vec<u8>>> {
-    let out = git(core, repo_id)?.args(["apply", "--numstat", "-z"]).read_only().no_log().stdin(patch.to_vec()).run_raw().await?;
+    let out = git(core, repo_id)?.args(["apply", "--numstat", "-z"]).read().stdin(patch.to_vec()).run_raw().await?;
     if !out.success() {
         return Err(apply_error(&out.stderr_text()));
     }

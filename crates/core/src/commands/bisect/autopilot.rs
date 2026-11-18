@@ -393,7 +393,7 @@ impl Session<'_> {
     async fn candidates(&self, status: &BisectStatus) -> CoreResult<Vec<String>> {
         let Some(bad) = &status.bad else { return Ok(Vec::new()) };
         let not_good: Vec<String> = status.good.iter().map(|sha| format!("^{sha}")).collect();
-        let out = self.git().read_only().no_log().arg("rev-list").arg(bad).args(&not_good).arg("--").run().await?;
+        let out = self.git().read().arg("rev-list").arg(bad).args(&not_good).arg("--").run().await?;
         Ok(out.stdout_lines().into_iter().map(util::decode_lossy).collect())
     }
 

@@ -13,7 +13,6 @@ use crate::commands::graph;
 use crate::commands::status::read_status;
 use crate::db::{self, undo::UndoEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::git::GitCmd;
 use crate::host::{self, Host, RepoApi};
 use crate::model::{
     FixupReason, FixupTarget, Head, PrSummary, RepoChange, ReviewFixApplied, ReviewFixInput, ReviewFixLine, ReviewFixLineKind,
@@ -28,10 +27,6 @@ pub const CONTEXT_LINES: usize = 3;
 pub const MAX_NEW_TEXT: usize = 64 * 1024;
 /// Largest file a fix is built for.
 pub const MAX_FILE_BYTES: usize = 8 * 1024 * 1024;
-
-fn read(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
 
 fn short(sha: &str) -> String {
     sha.chars().take(7).collect()
@@ -238,12 +233,14 @@ pub(crate) async fn pr_range(core: &Core, repo_id: &str, head: &str, target_ref:
     let target = graph::resolve_commit(core, repo_id, target_ref).await.map_err(|_| {
         CoreError::not_found(format!("“{}” is not in this repository yet. Fetch first.", target_ref.trim_start_matches("refs/remotes/")))
     })?;
-    let out = read(core, repo_id)?.args(["merge-base", head.as_str(), target.as_str()]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["merge-base", head.as_str(), target.as_str()]).run_raw().await?;
     let base = out.stdout_text();
     if !out.success() || !graph::is_full_sha(&base) {
         return Err(CoreError::not_allowed("The pull request's branch and its target have no history in common."));
     }
-    let log = read(core, repo_id)?
+    let log = core
+        .git_for(repo_id)?
+        .read()
         .args(["log", "--no-merges", "--topo-order", "--no-show-signature", "-z", "--format=%H%x1f%s"])
         .arg(format!("{base}..{head}"))
         .run()
@@ -260,7 +257,9 @@ pub(crate) async fn pr_range(core: &Core, repo_id: &str, head: &str, target_ref:
 
 /// Files the pull request changes, renamed ones under their new name.
 pub(crate) async fn changed_paths(core: &Core, repo_id: &str, range: &PrRange) -> CoreResult<Vec<String>> {
-    let out = read(core, repo_id)?
+    let out = core
+        .git_for(repo_id)?
+        .read()
         .args(["-c", "core.quotePath=false", "diff", "--name-only", "-z", "-M", "--no-ext-diff", range.base.as_str(), range.head.as_str()])
         .run()
         .await?;
@@ -269,7 +268,7 @@ pub(crate) async fn changed_paths(core: &Core, repo_id: &str, range: &PrRange) -
 
 /// The file at the pull request's newest commit, as bytes.
 pub(crate) async fn head_blob(core: &Core, repo_id: &str, head: &str, path: &str) -> CoreResult<Vec<u8>> {
-    let out = read(core, repo_id)?.args(["cat-file", "blob"]).arg(format!("{head}:{path}")).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["cat-file", "blob"]).arg(format!("{head}:{path}")).run_raw().await?;
     if !out.success() {
         return Err(CoreError::not_found(format!("“{path}” does not exist in the pull request's newest commit.")));
     }
@@ -281,8 +280,15 @@ pub(crate) async fn head_blob(core: &Core, repo_id: &str, head: &str, path: &str
 
 /// Commits `git blame` names for lines `start..=end` at `head`.
 async fn blamed_commits(core: &Core, repo_id: &str, head: &str, path: &str, start: u32, end: u32) -> CoreResult<HashSet<String>> {
-    let out =
-        read(core, repo_id)?.args(["blame", "--porcelain", "-L"]).arg(format!("{start},{end}")).arg(head).args(["--", path]).run().await?;
+    let out = core
+        .git_for(repo_id)?
+        .read()
+        .args(["blame", "--porcelain", "-L"])
+        .arg(format!("{start},{end}"))
+        .arg(head)
+        .args(["--", path])
+        .run()
+        .await?;
     let mut found = HashSet::new();
     for line in out.stdout_lines() {
         let text = util::decode_lossy(line);
@@ -311,8 +317,10 @@ pub(crate) async fn fixup_target(
     if let Some(found) = range.commits.iter().find(|commit| blamed.contains(&commit.sha)) {
         return Ok(Some(FixupTarget { reason: Some(FixupReason::Blame), ..found.clone() }));
     }
-    let out = read(core, repo_id)?
-        .env("GIT_LITERAL_PATHSPECS", "1")
+    let out = core
+        .git_for(repo_id)?
+        .read()
+        .literal_paths()
         .args(["log", "-1", "--no-merges", "--topo-order", "--format=%H"])
         .arg(format!("{}..{}", range.base, range.head))
         .args(["--", path])
@@ -395,7 +403,9 @@ impl TakeOver<'_> {
                 )))
             }
         };
-        let contains = read(core, repo_id)?
+        let contains = core
+            .git_for(repo_id)?
+            .read()
             .args(["merge-base", "--is-ancestor", range.head.as_str(), head_before.as_str()])
             .run_raw()
             .await?
@@ -431,9 +441,9 @@ impl TakeOver<'_> {
             restore(core, repo_id, path).await;
             return Err(error);
         }
-        let after = read(core, repo_id)?.args(["rev-parse", "--verify", "HEAD^{commit}"]).run_text().await?;
+        let after = core.git_for(repo_id)?.read().args(["rev-parse", "--verify", "HEAD^{commit}"]).run_text().await?;
         let undo_label = record_fixups(core, repo_id, number, &format!("refs/heads/{branch}"), &head_before, &after).await?;
-        let subjects = read(core, repo_id)?.args(["log", "-z", "--format=%s"]).arg(format!("{}..HEAD", range.base)).run().await?;
+        let subjects = core.git_for(repo_id)?.read().args(["log", "-z", "--format=%s"]).arg(format!("{}..HEAD", range.base)).run().await?;
         let fixups = util::split_z(&subjects.stdout).filter(|subject| subject.starts_with(b"fixup!")).count() as u32;
         Ok(ReviewFixApplied { commit: after, summary: message.trim_end().to_string(), fixups, base: range.base.clone(), undo_label })
     }
@@ -444,7 +454,7 @@ impl TakeOver<'_> {
 async fn restore(core: &Core, repo_id: &str, path: &str) {
     for args in [["reset", "-q", "HEAD", "--", path], ["checkout", "-q", "HEAD", "--", path]] {
         let result = match core.git_for(repo_id) {
-            Ok(git) => git.env("GIT_LITERAL_PATHSPECS", "1").args(args).run().await.map(|_| ()),
+            Ok(git) => git.literal_paths().args(args).run().await.map(|_| ()),
             Err(error) => Err(error),
         };
         if let Err(error) = result {

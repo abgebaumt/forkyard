@@ -348,7 +348,7 @@ async fn read_links_file(core: &Core, repo_id: &str) -> CoreResult<Option<(LinkF
         return Ok(Some((LinkFileOrigin::Worktree, read_inside(&root, &path).await)));
     }
     let spec = format!("HEAD:{LINKS_FILE}");
-    let size = core.git_for(repo_id)?.args(["cat-file", "-s", spec.as_str()]).read_only().no_log().run_raw().await?;
+    let size = core.git_for(repo_id)?.args(["cat-file", "-s", spec.as_str()]).read().run_raw().await?;
     if !size.success() {
         return Ok(None);
     }
@@ -356,7 +356,7 @@ async fn read_links_file(core: &Core, repo_id: &str) -> CoreResult<Option<(LinkF
     if bytes > MAX_FILE_BYTES as u64 {
         return Ok(Some((LinkFileOrigin::Head, Err(too_large()))));
     }
-    let blob = core.git_for(repo_id)?.args(["cat-file", "blob", spec.as_str()]).read_only().no_log().run_raw().await?;
+    let blob = core.git_for(repo_id)?.args(["cat-file", "blob", spec.as_str()]).read().run_raw().await?;
     if !blob.success() {
         return Ok(None);
     }

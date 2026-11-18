@@ -24,7 +24,7 @@ use crate::ai::context::{self, Built, Exclusions};
 use crate::ai::language;
 use crate::ai::prompt::{self, Section};
 use crate::app::Core;
-use crate::commands::graph::{display_text, read_cmd, resolve_commit, LOG_SAFE};
+use crate::commands::graph::{display_text, resolve_commit, LOG_SAFE};
 use crate::commands::host::find_pr_template;
 use crate::commands::links;
 use crate::error::{CoreError, CoreResult};
@@ -357,9 +357,13 @@ fn short_ref(name: &str) -> &str {
 async fn branch_commits(core: &Core, repo_id: &str, target_sha: &str, source_sha: &str) -> CoreResult<(Vec<BranchCommit>, usize)> {
     let path = core.repo_path(repo_id)?;
     let range = format!("{target_sha}..{source_sha}");
-    let count = read_cmd(core, &path, repo_id).args(["rev-list", "--count", "--no-merges", range.as_str(), "--"]).run().await?;
+    let count = core.git.cmd(&path).repo(repo_id).read().args(["rev-list", "--count", "--no-merges", range.as_str(), "--"]).run().await?;
     let total: usize = count.stdout_text().trim().parse().unwrap_or(0);
-    let out = read_cmd(core, &path, repo_id)
+    let out = core
+        .git
+        .cmd(&path)
+        .repo(repo_id)
+        .read()
         .args(["log", "--no-merges", "--topo-order", "-z"])
         .args(LOG_SAFE)
         .arg(format!("--max-count={MAX_COMMITS}"))
@@ -385,9 +389,13 @@ async fn diff_stats(
     source_sha: &str,
 ) -> CoreResult<Vec<(Option<u64>, Option<u64>, Option<String>, String)>> {
     let path = core.repo_path(repo_id)?;
-    let merge_base = read_cmd(core, &path, repo_id).args(["merge-base", target_sha, source_sha]).run_raw().await?;
+    let merge_base = core.git.cmd(&path).repo(repo_id).read().args(["merge-base", target_sha, source_sha]).run_raw().await?;
     let base = if merge_base.success() { merge_base.stdout_text() } else { target_sha.to_string() };
-    let out = read_cmd(core, &path, repo_id)
+    let out = core
+        .git
+        .cmd(&path)
+        .repo(repo_id)
+        .read()
         .args(["diff", "--numstat", "-z", "-M", "--no-color", "--no-ext-diff", "--no-textconv", base.as_str(), source_sha, "--"])
         .run()
         .await?;
@@ -400,7 +408,11 @@ async fn diff_stats(
 /// Up to 50 commit subjects of the target, newest first.
 async fn language_sample(core: &Core, repo_id: &str, target_sha: &str) -> CoreResult<Vec<String>> {
     let path = core.repo_path(repo_id)?;
-    let out = read_cmd(core, &path, repo_id)
+    let out = core
+        .git
+        .cmd(&path)
+        .repo(repo_id)
+        .read()
         .args(["log", "--no-merges", "-z"])
         .args(LOG_SAFE)
         .arg(format!("--max-count={LANGUAGE_SAMPLE}"))

@@ -23,11 +23,6 @@ use crate::util::{is_inside_git_dir, normalize_rel_path};
 pub(crate) mod auto;
 
 const GITLINK_MODE: &[u8] = b"160000";
-const LITERAL: &str = "GIT_LITERAL_PATHSPECS";
-
-fn read(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
-    Ok(core.git_for(repo_id)?.read_only().no_log())
-}
 
 /// An entry of the `.gitmodules`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -70,13 +65,13 @@ async fn declared(core: &Core, repo_id: &str) -> CoreResult<Vec<Declared>> {
     if !root.join(".gitmodules").is_file() {
         return Ok(Vec::new());
     }
-    let out = read(core, repo_id)?.args(["config", "-z", "--file", ".gitmodules", "--list"]).run_raw().await?;
+    let out = core.git_for(repo_id)?.read().args(["config", "-z", "--file", ".gitmodules", "--list"]).run_raw().await?;
     Ok(if out.success() { parse_gitmodules(&out.stdout) } else { Vec::new() })
 }
 
 /// Submodule entries in the index: (path, recorded commit, in conflict).
 async fn gitlinks(core: &Core, repo_id: &str) -> CoreResult<Vec<(Vec<u8>, String, bool)>> {
-    let out = read(core, repo_id)?.args(["ls-files", "--stage", "-z"]).run().await?;
+    let out = core.git_for(repo_id)?.read().args(["ls-files", "--stage", "-z"]).run().await?;
     let mut links: Vec<(Vec<u8>, String, bool)> = Vec::new();
     for record in util::split_z(&out.stdout) {
         // `<mode> <object> <stage>TAB<path>`
@@ -171,8 +166,12 @@ async fn list(core: &Core, repo_id: &str) -> CoreResult<Vec<Submodule>> {
     }
     let declared = declared(core, repo_id).await?;
     let flags = {
-        let out =
-            read(core, repo_id)?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none"]).run().await?;
+        let out = core
+            .git_for(repo_id)?
+            .read()
+            .args(["status", "--porcelain=v2", "-z", "--untracked-files=no", "--ignore-submodules=none"])
+            .run()
+            .await?;
         parse_sub_flags(&out.stdout)
     };
     let mut out = Vec::with_capacity(links.len());
@@ -195,15 +194,7 @@ async fn list(core: &Core, repo_id: &str) -> CoreResult<Vec<Submodule>> {
         if git_dir.is_some() && head_sha.is_none() {
             head_sha = if state == SubmoduleState::OutOfSync || branch.is_some() {
                 // On a branch (or when in doubt): ask Git.
-                let asked = core
-                    .git
-                    .cmd(&sub_root)
-                    .repo(repo_id)
-                    .read_only()
-                    .no_log()
-                    .args(["rev-parse", "--verify", "--quiet", "HEAD"])
-                    .run_raw()
-                    .await;
+                let asked = core.git.cmd(&sub_root).repo(repo_id).read().args(["rev-parse", "--verify", "--quiet", "HEAD"]).run_raw().await;
                 asked.ok().filter(|o| o.success()).map(|o| o.stdout_text()).filter(|s| !s.is_empty())
             } else {
                 Some(sha.clone())
@@ -295,7 +286,7 @@ async fn add_job(core: &Core, repo_id: &str, job: &Job, url: &str, path: &str) -
             return Err(CoreError::path_exists(util::display_path(&target)));
         }
     }
-    let known = !read(core, repo_id)?.env(LITERAL, "1").args(["ls-files", "-z", "--"]).arg(&rel).run().await?.stdout.is_empty();
+    let known = !core.git_for(repo_id)?.read().literal_paths().args(["ls-files", "-z", "--"]).arg(&rel).run().await?.stdout.is_empty();
     if known {
         return Err(CoreError::path_exists(&rel));
     }
@@ -323,8 +314,10 @@ async fn add_job(core: &Core, repo_id: &str, job: &Job, url: &str, path: &str) -
             .await;
         if let Err(error) = added {
             // Clean up: half-cloned directory, Git directory of the submodule, .gitmodules.
-            let staged = !read(core, repo_id)?
-                .env(LITERAL, "1")
+            let staged = !core
+                .git_for(repo_id)?
+                .read()
+                .literal_paths()
                 .args(["ls-files", "-z", "--"])
                 .arg(&rel)
                 .run()
@@ -457,7 +450,7 @@ async fn update_job(core: &Core, repo_id: &str, job: &Job, paths: Option<Vec<Str
 /// `git submodule update --recursive [--init] -- <paths>` (`paths` empty = all) with progress to
 /// `job`. Takes no lock itself. Local changes in the way become `dirty_worktree`.
 pub(crate) async fn run_update(core: &Core, repo_id: &str, job: &Job, paths: &[String], init: bool) -> CoreResult<()> {
-    let mut cmd = core.git_for(repo_id)?.env(LITERAL, "1").args(["submodule", "update", "--progress", "--recursive"]);
+    let mut cmd = core.git_for(repo_id)?.literal_paths().args(["submodule", "update", "--progress", "--recursive"]);
     if init {
         cmd = cmd.arg("--init");
     }
@@ -489,8 +482,7 @@ async fn unpushed_commits(core: &Core, repo_id: &str, sub_root: &Path) -> usize 
         .git
         .cmd(sub_root)
         .repo(repo_id)
-        .read_only()
-        .no_log()
+        .read()
         .args(["rev-list", "--count", "HEAD", "--branches", "--tags", "--glob=refs/stash", "--not", "--remotes"])
         .run_raw()
         .await;
@@ -538,7 +530,7 @@ pub async fn submodule_remove(core: &Core, repo_id: String, path: String, force:
         }
         let name = sub.name.clone();
         let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
-        let git = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.env(LITERAL, "1")) };
+        let git = || -> CoreResult<GitCmd> { Ok(core.git_for(repo_id)?.literal_paths()) };
         // deinit does not fail for an uninitialised submodule; `-f` also takes local changes.
         git()?.args(["submodule", "deinit", "-f", "--"]).arg(&rel).run().await?;
         git()?.args(["rm", "-f", "-q", "--"]).arg(&rel).run().await?;
@@ -588,7 +580,7 @@ pub async fn submodule_move(core: &Core, repo_id: String, path: String, new_path
         if let Some(parent) = destination.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        core.git_for(repo_id)?.env(LITERAL, "1").args(["mv", "--"]).arg(&rel).arg(&target).run().await?;
+        core.git_for(repo_id)?.literal_paths().args(["mv", "--"]).arg(&rel).arg(&target).run().await?;
         list(core, repo_id).await
     })
     .await

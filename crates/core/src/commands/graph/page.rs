@@ -25,9 +25,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 
 use super::layout::{LayoutState, Placed};
-use super::{
-    display_text, is_full_sha, parse_i64, read_cmd, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE,
-};
+use super::{display_text, is_full_sha, parse_i64, read_ref_tips, read_stashes, split_shas, Records, RefTip, StashEntry, LOG_SAFE};
 use crate::app::Core;
 use crate::commands::status;
 use crate::db;
@@ -432,7 +430,11 @@ async fn refs_containing(core: &Core, path: &Path, repo_id: &str, merge: &str) -
 
 /// `git for-each-ref <filters> refs/heads refs/remotes refs/tags`: the commits (and tag objects) the refs point to.
 async fn ref_tips(core: &Core, path: &Path, repo_id: &str, filters: &[String]) -> CoreResult<HashSet<String>> {
-    let out = read_cmd(core, path, repo_id)
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["for-each-ref", "--format=%(objectname)%00%(*objectname)"])
         .args(filters)
         .args(["refs/heads", "refs/remotes", "refs/tags"])
@@ -466,7 +468,11 @@ async fn side_commits(
         stdin.push_str(sha);
         stdin.push('\n');
     }
-    let out = read_cmd(core, path, repo_id)
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["rev-list", "--ignore-missing"])
         .arg(format!("--max-count={}", max + 1))
         .arg("--stdin")
@@ -494,7 +500,10 @@ async fn read_records(core: &Core, path: &Path, repo_id: &str, stdin: &str, skip
         }
         true
     };
-    read_cmd(core, path, repo_id)
+    core.git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["log", "--date-order"])
         .args(LOG_SAFE)
         .args(["--ignore-missing", "-z", LOG_FORMAT])
@@ -529,7 +538,17 @@ impl SyncSets {
 /// Without an upstream (or with a detached HEAD) Git refuses `@{u}`: then both sets stay empty.
 async fn read_sync(core: &Core, path: &Path, repo_id: &str) -> SyncSets {
     let range = |spec: &'static str| async move {
-        let out = read_cmd(core, path, repo_id).arg("rev-list").arg(format!("--max-count={MAX_SYNC}")).arg(spec).arg("--").run_raw().await;
+        let out = core
+            .git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
+            .arg("rev-list")
+            .arg(format!("--max-count={MAX_SYNC}"))
+            .arg(spec)
+            .arg("--")
+            .run_raw()
+            .await;
         match out {
             Ok(out) if out.success() => out.stdout_lines().into_iter().map(util::decode_lossy).collect::<HashSet<String>>(),
             _ => HashSet::new(),
@@ -572,7 +591,7 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
 
     let (tips, head, stashes, wip_count, sync) = tokio::join!(
         read_ref_tips(core, &path, repo_id, None),
-        read_cmd(core, &path, repo_id).args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
+        core.git.cmd(&path).repo(repo_id).read().args(["rev-parse", "-q", "--verify", "HEAD^{commit}"]).run_raw(),
         read_stashes(core, &path, repo_id),
         async {
             if first_page {
@@ -662,8 +681,14 @@ pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>,
 /// Number of changed files (staged, unstaged, untracked, conflicts; once per path).
 /// If `git status` fails, the graph still shows the history – `status_get` reports the error.
 async fn changed_file_count(core: &Core, path: &Path, repo_id: &str) -> u32 {
-    let out =
-        read_cmd(core, path, repo_id).args(["status", "--porcelain=v2", "-z", "--untracked-files=all", "--find-renames"]).run_raw().await;
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
+        .args(["status", "--porcelain=v2", "-z", "--untracked-files=all", "--find-renames"])
+        .run_raw()
+        .await;
     match out {
         Ok(out) if out.success() => status::parse_porcelain_v2(&out.stdout).entries.len() as u32,
         _ => 0,
@@ -683,7 +708,15 @@ async fn head_in_graph(core: &Core, path: &Path, repo_id: &str, plan: &Plan, hea
         stdin.push_str(tip);
         stdin.push('\n');
     }
-    let out = read_cmd(core, path, repo_id).args(["rev-list", "--max-count=1", "--ignore-missing", "--stdin"]).stdin(stdin).run_raw().await;
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
+        .args(["rev-list", "--max-count=1", "--ignore-missing", "--stdin"])
+        .stdin(stdin)
+        .run_raw()
+        .await;
     matches!(out, Ok(out) if out.success() && out.stdout_text().is_empty())
 }
 

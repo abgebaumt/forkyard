@@ -1,6 +1,6 @@
 //! What the search by meaning reads from Git: the commits reachable from branches, remote
 //! branches, tags and HEAD (the refs of the text search, newest first), and per commit the
-//! subject, the message and the changed paths. Reads only (`read_cmd`: read-only, no log of
+//! subject, the message and the changed paths. Reads only (`GitCmd::read`: read-only, no log of
 //! contents); commits go to Git as full SHAs on stdin.
 
 use std::collections::HashMap;
@@ -8,7 +8,7 @@ use std::path::Path;
 
 use crate::ai::context::{self, Exclusions};
 use crate::app::Core;
-use crate::commands::graph::{display_text, is_full_sha, read_cmd, LOG_SAFE, SEARCH_REFS};
+use crate::commands::graph::{display_text, is_full_sha, LOG_SAFE, SEARCH_REFS};
 use crate::error::{CoreError, CoreResult};
 use crate::jobs::CancelToken;
 use crate::model::AiOmitReason;
@@ -34,7 +34,11 @@ pub struct CommitEntry {
 
 /// Newest first, at most `cap`; `true` when there were more.
 pub async fn reachable(core: &Core, path: &Path, repo_id: &str, cap: usize, token: &CancelToken) -> CoreResult<(Vec<String>, bool)> {
-    let out = read_cmd(core, path, repo_id)
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .arg("rev-list")
         .arg(format!("--max-count={}", cap.saturating_add(1)))
         .args(SEARCH_REFS)
@@ -114,7 +118,10 @@ pub async fn entries(core: &Core, path: &Path, repo_id: &str, shas: &[String], t
             parser.push(field);
             true
         };
-        read_cmd(core, path, repo_id)
+        core.git
+            .cmd(path)
+            .repo(repo_id)
+            .read()
             .arg("log")
             .args(LOG_SAFE)
             .args(["--no-walk=unsorted", "--stdin", "-z", "--name-only", ENTRY_FORMAT])
@@ -130,7 +137,7 @@ pub async fn entries(core: &Core, path: &Path, repo_id: &str, shas: &[String], t
 
 /// Names in the root folder of HEAD (for the rephrase route); none without a commit.
 pub async fn top_level(core: &Core, path: &Path, repo_id: &str) -> CoreResult<Vec<String>> {
-    let out = read_cmd(core, path, repo_id).args(["ls-tree", "-z", "--name-only", "HEAD"]).run_raw().await?;
+    let out = core.git.cmd(path).repo(repo_id).read().args(["ls-tree", "-z", "--name-only", "HEAD"]).run_raw().await?;
     if !out.success() {
         return Ok(Vec::new());
     }

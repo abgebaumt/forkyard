@@ -159,7 +159,7 @@ fn check_sha(rev: &str) -> CoreResult<&str> {
 /// Whether Git itself knows a tool: (`tool` set, otherwise `guitool` set).
 async fn configured_tool(core: &Core, repo_id: &str, section: &str) -> CoreResult<Option<bool>> {
     for (key, gui) in [("tool", false), ("guitool", true)] {
-        let out = core.git_for(repo_id)?.args(["config", "--get", &format!("{section}.{key}")]).read_only().no_log().run_raw().await?;
+        let out = core.git_for(repo_id)?.args(["config", "--get", &format!("{section}.{key}")]).read().run_raw().await?;
         if out.success() && !out.stdout_text().trim().is_empty() {
             return Ok(Some(gui));
         }
@@ -182,13 +182,7 @@ async fn git_difftool(core: &Core, repo_id: &str, root: &Path, rel: &str, source
         DiffSource::Staged => args.push("--cached".into()),
         DiffSource::Commit { sha } => {
             let sha = check_sha(sha)?;
-            let parent = core
-                .git_for(repo_id)?
-                .args(["rev-parse", "--verify", "--quiet", &format!("{sha}^")])
-                .read_only()
-                .no_log()
-                .run_raw()
-                .await?;
+            let parent = core.git_for(repo_id)?.args(["rev-parse", "--verify", "--quiet", &format!("{sha}^")]).read().run_raw().await?;
             let from = if parent.success() {
                 parent.stdout_text()
             } else if sha.len() > 40 {
@@ -220,14 +214,7 @@ async fn git_difftool(core: &Core, repo_id: &str, root: &Path, rel: &str, source
 
 /// Blob IDs of stages 1 to 3 of a conflicted file; empty if it has no conflict.
 async fn conflict_stages(core: &Core, repo_id: &str, rel: &str) -> CoreResult<[Option<String>; 3]> {
-    let out = core
-        .git_for(repo_id)?
-        .env("GIT_LITERAL_PATHSPECS", "1")
-        .args(["ls-files", "--unmerged", "-z", "--", rel])
-        .read_only()
-        .no_log()
-        .run()
-        .await?;
+    let out = core.git_for(repo_id)?.literal_paths().args(["ls-files", "--unmerged", "-z", "--", rel]).read().run().await?;
     let mut stages: [Option<String>; 3] = [None, None, None];
     for record in util::split_z(&out.stdout) {
         // `<mode> <blob> <stage>TAB<path>`
@@ -275,7 +262,7 @@ async fn merge_tool(core: &Core, repo_id: &str, root: &Path, rel: &str, settings
     let mut written: Vec<PathBuf> = Vec::with_capacity(3);
     for (blob, label) in stages.iter().zip(["BASE", "LOCAL", "REMOTE"]) {
         let content = match blob {
-            Some(id) => Some(core.git_for(repo_id)?.args(["cat-file", "blob", id.as_str()]).read_only().no_log().run().await?.stdout),
+            Some(id) => Some(core.git_for(repo_id)?.args(["cat-file", "blob", id.as_str()]).read().run().await?.stdout),
             // If a stage is missing (e.g. added on both sides), the tool gets an empty file.
             None => None,
         };

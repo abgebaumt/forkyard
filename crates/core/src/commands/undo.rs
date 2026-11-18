@@ -286,7 +286,7 @@ impl<'a> Probe<'a> {
 
     async fn remote_exists(&mut self, name: &str) -> CoreResult<bool> {
         if self.remotes.is_none() {
-            let listed = self.core.git_for(self.repo_id)?.arg("remote").read_only().no_log().run().await?;
+            let listed = self.core.git_for(self.repo_id)?.arg("remote").read().run().await?;
             self.remotes = Some(listed.stdout_lines().into_iter().map(util::decode_lossy).collect());
         }
         Ok(self.remotes.as_ref().is_some_and(|list| list.iter().any(|r| r == name)))
@@ -383,8 +383,7 @@ impl<'a> Probe<'a> {
 
     /// Whether the branch `name` (`refs/heads/…`) is checked out in this or another worktree.
     async fn checked_out_in_worktree(&self, name: &str) -> CoreResult<bool> {
-        let out =
-            self.core.git_for(self.repo_id)?.args(["for-each-ref", "--format=%(worktreepath)", name]).read_only().no_log().run().await?;
+        let out = self.core.git_for(self.repo_id)?.args(["for-each-ref", "--format=%(worktreepath)", name]).read().run().await?;
         Ok(out.stdout_lines().into_iter().any(|line| !line.is_empty()))
     }
 
@@ -504,8 +503,7 @@ async fn pushed_to(core: &Core, repo_id: &str, tip: &str) -> CoreResult<Option<S
     let out = core
         .git_for(repo_id)?
         .args(["for-each-ref", "--format=%(symref)%00%(refname:short)", "--contains", tip, "refs/remotes"])
-        .read_only()
-        .no_log()
+        .read()
         .run_raw()
         .await?;
     if !out.success() {
@@ -861,7 +859,7 @@ impl Run<'_> {
     /// No changes to tracked files (untracked ones do not matter; `reset --keep` additionally
     /// protects them from being overwritten).
     async fn require_clean(&self) -> CoreResult<()> {
-        let out = self.git()?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).read_only().no_log().run().await?;
+        let out = self.git()?.args(["status", "--porcelain=v2", "-z", "--untracked-files=no"]).read().run().await?;
         if out.stdout.is_empty() {
             Ok(())
         } else {
@@ -1219,13 +1217,8 @@ impl Run<'_> {
 
     /// Whether a remote-tracking ref contains `sha` (it was pushed, or fetched from elsewhere).
     async fn on_a_remote(&self, sha: &str) -> CoreResult<bool> {
-        let out = self
-            .git()?
-            .args(["for-each-ref", "--count=1", "--format=%(refname)", "--contains", sha, "refs/remotes"])
-            .read_only()
-            .no_log()
-            .run()
-            .await?;
+        let out =
+            self.git()?.args(["for-each-ref", "--count=1", "--format=%(refname)", "--contains", sha, "refs/remotes"]).read().run().await?;
         Ok(!out.stdout_text().is_empty())
     }
 
@@ -1234,7 +1227,7 @@ impl Run<'_> {
         if !name.starts_with("refs/heads/") {
             return Ok(false);
         }
-        let out = self.git()?.args(["for-each-ref", "--format=%(worktreepath)", name]).read_only().no_log().run().await?;
+        let out = self.git()?.args(["for-each-ref", "--format=%(worktreepath)", name]).read().run().await?;
         let own = self.core.repo_path(self.repo_id)?;
         let key = |path: &Path| util::path_key(&std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()));
         let own_key = key(&own);
@@ -1407,7 +1400,7 @@ impl Run<'_> {
             if direct.success() {
                 return Ok(());
             }
-            let listed = self.git()?.arg("remote").read_only().no_log().run().await?;
+            let listed = self.git()?.arg("remote").read().run().await?;
             let remotes: Vec<String> = listed.stdout_lines().into_iter().map(util::decode_lossy).collect();
             let remote = remotes.iter().filter(|r| upstream.starts_with(&format!("{r}/"))).max_by_key(|r| r.len());
             let (remote, merge) = match remote {
@@ -1434,7 +1427,7 @@ impl Run<'_> {
         if name.starts_with('-') || fetch_url.starts_with('-') {
             return Err(self.lost());
         }
-        let listed = self.git()?.arg("remote").read_only().no_log().run().await?;
+        let listed = self.git()?.arg("remote").read().run().await?;
         let exists = listed.stdout_lines().into_iter().any(|line| line == name.as_bytes());
         match self.dir {
             Direction::Undo => {

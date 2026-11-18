@@ -437,8 +437,7 @@ fn ancestors(rel: &[u8]) -> impl Iterator<Item = &[u8]> {
 
 /// Git directory and common Git directory as Git reports them (same spelling).
 async fn git_dirs(core: &Core, root: &Path) -> CoreResult<(PathBuf, PathBuf)> {
-    let out =
-        core.git_at(root).args(["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"]).read_only().no_log().run().await?;
+    let out = core.git_at(root).args(["rev-parse", "--path-format=absolute", "--git-dir", "--git-common-dir"]).read().run().await?;
     let lines = out.stdout_lines();
     let dir = |i: usize| lines.get(i).map(|l| util::native_path(&util::bytes_to_path(l)));
     match (dir(0), dir(1)) {
@@ -631,7 +630,7 @@ async fn has_visible_change(core: &Core, intake: &mut Intake, paths: &BTreeSet<V
         input.extend_from_slice(path);
         input.push(0);
     }
-    let out = core.git_at(&intake.root).args(["check-ignore", "-z", "--stdin"]).stdin(input).read_only().no_log().run_raw().await;
+    let out = core.git_at(&intake.root).args(["check-ignore", "-z", "--stdin"]).stdin(input).read().run_raw().await;
     let out = match out {
         // Exit 0: at least one ignored; 1: none; anything else is an error.
         Ok(out) if matches!(out.code, Some(0) | Some(1)) => out,
@@ -660,11 +659,10 @@ async fn dirs_have_visible_content(core: &Core, root: &Path, dirs: &[&Vec<u8>]) 
     let mut found = false;
     let listing = core
         .git_at(root)
-        .env("GIT_LITERAL_PATHSPECS", "1")
+        .literal_paths()
         .args(["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--directory", "--no-empty-directory", "--"])
         .args(dirs.iter().map(|dir| util::bytes_to_os(dir)))
-        .read_only()
-        .no_log()
+        .read()
         .run_records(0, None, &mut |_| {
             found = true;
             false

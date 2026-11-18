@@ -23,7 +23,6 @@ use std::path::Path;
 
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
-use crate::git::GitCmd;
 use crate::model::{CommitDetails, CommitSearchFilters, CommitSummary, DiffSource, GraphPage, RefKind, RefLabelInfo};
 use crate::util;
 
@@ -70,10 +69,6 @@ pub async fn tree_list(core: &Core, repo_id: String, sha: Option<String>, filter
 /// `i18n.logOutputEncoding`) must not change the output.
 pub(crate) const LOG_SAFE: [&str; 2] = ["--no-show-signature", "--encoding=UTF-8"];
 
-pub(crate) fn read_cmd(core: &Core, path: &Path, repo_id: &str) -> GitCmd {
-    core.git.cmd(path).repo(repo_id).read_only().no_log()
-}
-
 /// Full SHA (SHA-1 or SHA-256).
 pub(crate) fn is_full_sha(text: &str) -> bool {
     (text.len() == 40 || text.len() == 64) && text.bytes().all(|b| b.is_ascii_hexdigit())
@@ -91,7 +86,11 @@ pub(crate) async fn resolve_commit_at(core: &Core, path: &Path, repo_id: &str, r
     if rev.is_empty() || rev.starts_with('-') || rev.chars().any(|c| c.is_control()) {
         return Err(commit_not_found(rev));
     }
-    let out = read_cmd(core, path, repo_id)
+    let out = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["rev-parse", "-q", "--verify", "--end-of-options"])
         .arg(format!("{rev}^{{commit}}"))
         .run_raw()
@@ -212,7 +211,11 @@ impl StashEntry {
 /// All stashes, `stash@{0}` first. Without a stash: empty list.
 pub async fn read_stashes(core: &Core, path: &Path, repo_id: &str) -> CoreResult<Vec<StashEntry>> {
     // Reflog of refs/stash; if the ref is missing Git reports an error – that only means "no stash".
-    let listed = read_cmd(core, path, repo_id)
+    let listed = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["log", "-g"])
         .args(LOG_SAFE)
         .args(["-z", "--format=%H%x00%gs", "refs/stash", "--"])
@@ -233,7 +236,11 @@ pub async fn read_stashes(core: &Core, path: &Path, repo_id: &str) -> CoreResult
         stdin.push_str(sha);
         stdin.push('\n');
     }
-    let meta = read_cmd(core, path, repo_id)
+    let meta = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
         .args(["log", "--no-walk=unsorted"])
         .args(LOG_SAFE)
         .args(["-z", "--format=%H%x00%P%x00%an%x00%ae%x00%at", "--stdin"])
