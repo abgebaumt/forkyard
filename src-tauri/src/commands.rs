@@ -825,7 +825,7 @@ pub async fn file_write(core: State<'_, Core>, repo_id: String, path: String, co
 
 #[tauri::command]
 pub async fn profile_list(core: State<'_, Core>) -> R<Vec<Profile>> {
-    c::settings::profile_list(&core).await
+    c::profiles::profile_list(&core).await
 }
 
 #[tauri::command]
@@ -839,17 +839,17 @@ pub async fn profile_save(
     sync_gitconfig: bool,
     color: Option<u8>,
 ) -> R<Vec<Profile>> {
-    c::settings::profile_save(&core, id, name, author_name, author_email, sync_gitconfig, color).await
+    c::profiles::profile_save(&core, id, name, author_name, author_email, sync_gitconfig, color).await
 }
 
 #[tauri::command]
 pub async fn profile_delete(core: State<'_, Core>, id: String) -> R<Vec<Profile>> {
-    c::settings::profile_delete(&core, id).await
+    c::profiles::profile_delete(&core, id).await
 }
 
 #[tauri::command]
 pub async fn profile_activate(core: State<'_, Core>, id: String) -> R<Vec<Profile>> {
-    c::settings::profile_activate(&core, id).await
+    c::profiles::profile_activate(&core, id).await
 }
 
 #[tauri::command]

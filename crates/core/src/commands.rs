@@ -31,6 +31,7 @@ pub mod merge;
 pub mod patch;
 pub mod plan;
 pub mod preview;
+pub mod profiles;
 pub mod range_apply;
 pub mod rebase;
 pub mod reflog;

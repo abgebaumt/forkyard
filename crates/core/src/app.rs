@@ -164,7 +164,7 @@ impl Core {
         }
         crate::startup::timed_async("profile", core.ensure_profile()).await?;
         crate::startup::timed("tabs", || core.ensure_tabs_on_start())?;
-        crate::startup::timed_async("proxy passwords", crate::commands::settings::load_proxy_passwords(&core)).await;
+        crate::startup::timed_async("proxy passwords", crate::commands::settings::proxy_secrets::load_proxy_passwords(&core)).await;
         Ok(core)
     }
 

@@ -747,7 +747,7 @@ mod tests {
     async fn init_uses_the_profile_identity_and_the_default_branch_setting() {
         let tc = TestCore::new().await;
         let profile = tc.db.with(crate::db::profiles::active).unwrap();
-        crate::commands::settings::profile_save(
+        crate::commands::profiles::profile_save(
             &tc,
             Some(profile.id),
             profile.name,
