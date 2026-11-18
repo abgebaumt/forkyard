@@ -844,5 +844,4 @@ mod tests {
 }
 
 #[cfg(test)]
-#[path = "outgoing_tests.rs"]
 mod outgoing_tests;

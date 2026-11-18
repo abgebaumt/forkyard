@@ -1146,5 +1146,4 @@ fn every_action_is_covered_here() {
 }
 
 // Work created after an action survives its undo.
-#[path = "keep_work_tests.rs"]
 mod keep_work_tests;
