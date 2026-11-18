@@ -1091,7 +1091,7 @@ fn server_said(stderr: &str) -> String {
         .map(str::trim)
         .filter(|line| !line.is_empty() && !line.to_lowercase().starts_with("error: hook declined"))
         .collect();
-    crate::undo::shorten(&lines.join(" "), 400)
+    util::shorten(&lines.join(" "), 400)
 }
 
 /// Deletes a branch on the remote (`git push <remote> --delete <name>`). `done`: deleted

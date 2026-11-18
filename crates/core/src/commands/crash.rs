@@ -25,11 +25,7 @@ fn iso(ms: i64) -> String {
 
 fn short(message: &str) -> String {
     let first = message.lines().next().unwrap_or_default().trim();
-    if first.chars().count() <= SHORT_MESSAGE_CHARS {
-        first.to_string()
-    } else {
-        format!("{}…", first.chars().take(SHORT_MESSAGE_CHARS).collect::<String>())
-    }
+    util::shorten(first, SHORT_MESSAGE_CHARS + 1) // the characters plus "…"
 }
 
 fn checked_id(id: &str) -> CoreResult<&str> {

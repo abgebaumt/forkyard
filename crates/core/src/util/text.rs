@@ -26,6 +26,16 @@ pub fn looks_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(8000).any(|&b| b == 0)
 }
 
+/// Shortens a text to at most `max` characters, the closing `…` included.
+pub fn shorten(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        return text.to_string();
+    }
+    let mut short: String = text.chars().take(max.saturating_sub(1)).collect();
+    short.push('…');
+    short
+}
+
 /// Shortens a text to at most `max` bytes (at a character boundary) and marks the cut.
 pub fn truncate_str(text: &str, max: usize) -> String {
     if text.len() <= max {

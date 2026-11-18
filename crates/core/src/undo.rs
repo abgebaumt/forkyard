@@ -167,16 +167,6 @@ pub fn new_id() -> String {
     util::new_id()
 }
 
-/// Shortens a text for a label to at most `max` characters.
-pub fn shorten(text: &str, max: usize) -> String {
-    if text.chars().count() <= max {
-        return text.to_string();
-    }
-    let mut short: String = text.chars().take(max.saturating_sub(1)).collect();
-    short.push('…');
-    short
-}
-
 /// `refs/forkyard/undo/<entry_id>/<name>`
 pub fn backup_ref_name(entry_id: &str, name: &str) -> String {
     format!("{BACKUP_REF_PREFIX}{entry_id}/{name}")

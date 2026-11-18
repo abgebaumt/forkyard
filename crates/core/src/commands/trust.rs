@@ -121,11 +121,7 @@ fn outside_repo(value: &str) -> bool {
 
 fn shorten(value: &str) -> String {
     let clean: String = redact::redact(value).chars().map(|c| if c.is_control() { ' ' } else { c }).collect();
-    let mut short: String = clean.chars().take(MAX_VALUE_CHARS).collect();
-    if clean.chars().count() > MAX_VALUE_CHARS {
-        short.push('…');
-    }
-    short
+    util::shorten(&clean, MAX_VALUE_CHARS + 1) // the characters plus "…"
 }
 
 /// Parses the output of `git config --list --show-scope -z` and returns the entries from the
