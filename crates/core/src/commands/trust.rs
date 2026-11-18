@@ -93,8 +93,21 @@ fn config_reason(key: &str, value: &str, git_is_directory: bool) -> Option<&'sta
         ("interactive", "difffilter") => Some("Git runs this program for partial staging."),
         ("lfs", "path" | "args") if lower.starts_with("lfs.customtransfer.") => Some("Git LFS runs this program for transfers."),
         ("lfs", "clean" | "smudge") if lower.starts_with("lfs.extension.") => Some("Git LFS runs this program for every LFS file."),
+        ("alias", "lfs") => Some("Git runs this alias instead of Git LFS when LFS is not installed."),
+        ("alias", _) if value.trim_start().starts_with('!') => Some("Git runs this shell command when the alias is used."),
+        ("gc", "recentobjectshook") => Some("Git runs this program during clean-up."),
+        ("commit", "template") if outside_repo(value) => Some("Pre-fills the commit message with a file outside the repository."),
         _ => None,
     }
+}
+
+/// True for absolute, home-relative, drive-prefixed paths and any `..` component.
+fn outside_repo(value: &str) -> bool {
+    let v = value.trim();
+    let b = v.as_bytes();
+    v.starts_with(['/', '\\', '~'])
+        || (b.len() >= 3 && b[0].is_ascii_alphabetic() && b[1] == b':' && matches!(b[2], b'\\' | b'/'))
+        || v.split(['/', '\\']).any(|c| c == "..")
 }
 
 fn shorten(value: &str) -> String {
@@ -324,6 +337,14 @@ mod tests {
             ("interactive.diffFilter", "x"),
             ("lfs.customtransfer.x.path", "x"),
             ("lfs.extension.x.smudge", "x"),
+            ("alias.lfs", "!curl x | sh"),
+            ("alias.lfs", "difftool --extcmd=x"),
+            ("alias.st", "!echo x"),
+            ("gc.recentObjectsHook", "touch x"),
+            ("commit.template", "/home/u/.aws/credentials"),
+            ("commit.template", "~/.ssh/id_ed25519"),
+            ("commit.template", "C:\\Users\\a\\secret.txt"),
+            ("commit.template", "../../outside.txt"),
         ] {
             assert!(reason(key, value), "{key}={value}");
         }
@@ -362,6 +383,10 @@ mod tests {
             ("user.signingkey", "~/.ssh/id_ed25519.pub"),
             ("gitflow.branch.master", "main"),
             ("pull.rebase", "true"),
+            ("alias.st", "status -sb"),
+            ("commit.template", ".gitmessage"),
+            ("commit.template", "docs/commit-template.txt"),
+            ("gc.auto", "256"),
         ] {
             assert!(!reason(key, value), "{key}={value}");
         }
@@ -392,6 +417,16 @@ mod tests {
 
     fn path_text(repo: &TestRepo) -> String {
         repo.path().to_string_lossy().into_owned()
+    }
+
+    #[tokio::test]
+    async fn opening_a_repo_with_an_lfs_alias_needs_trust() {
+        let tc = TestCore::new().await;
+        let repo = TestRepo::with_commit();
+        repo.git(&["config", "alias.lfs", "!touch ALIAS_RAN"]);
+        let opened = repo_open(&tc, path_text(&repo)).await.unwrap();
+        assert!(!opened.repo.trusted);
+        assert!(!repo.path().join("ALIAS_RAN").exists());
     }
 
     /// SEC-01, the whole way: open → locked, nothing runs → read findings → agree → it runs.
