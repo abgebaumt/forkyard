@@ -73,7 +73,7 @@ affect running sessions. `run.mjs` resolves the copy once and passes it as `E2E_
 newest copies are kept.
 
 The **Vite server** is shared by all launches of this checkout: ports 1431 to 1460, no HMR, own
-dependency cache (`node_modules/.vite-e2e-wd`). It identifies itself under `/__gc_root`
+dependency cache per checkout (`target/e2e-wd/vite-cache`; `node_modules` may be a shared symlink). It identifies itself under `/__gc_root`
 (`root`, `hmr: false`, `errorHook: true`), so a server of another checkout is never taken. With `FORKYARD_E2E_ERROR_HOOK=1` it serves `/__gc_e2e_hook.js` in front of the app:
 it records `console.error`, uncaught errors, unhandled rejections and failed resource loads in
 `window.__gcE2E.errors` from the very first moment.
