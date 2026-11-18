@@ -14,9 +14,10 @@ use serde_json::json;
 
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
-use crate::commands::diff::{patch_basis, TempIndex};
+use crate::commands::diff::patch_basis;
 use crate::commands::stage::keep_line_endings;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::index::TempIndex;
 use crate::git::GitCmd;
 use crate::model::{Head, PatchSelection, StashSelection};
 use crate::undo::{self, UndoAction, UndoRecord};

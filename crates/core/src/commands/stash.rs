@@ -885,7 +885,7 @@ pub async fn stash_apply_paths(
             }
             if let (Some(commit), false) = (row.parents.get(2), untracked_paths.is_empty()) {
                 // Via an index of its own, so that line endings and filters apply as in a checkout.
-                let temp = crate::commands::diff::TempIndex::create(core)?;
+                let temp = crate::git::index::TempIndex::create(core)?;
                 quiet()?.args(["read-tree", commit]).env("GIT_INDEX_FILE", temp.path()).run().await?;
                 let mut input = Vec::new();
                 for rel in &untracked_paths {

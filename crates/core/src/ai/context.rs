@@ -480,7 +480,7 @@ pub async fn outgoing(core: &Core, repo_id: &str, tip_ref: &str, remote: &str) -
             if parent.success() {
                 parent.stdout_text().trim().to_string()
             } else {
-                crate::commands::diff::empty_tree(&tip).to_string()
+                crate::git::index::empty_tree(&tip).to_string()
             }
         }
     };

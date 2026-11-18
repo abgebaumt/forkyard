@@ -67,7 +67,7 @@ async fn a_new_branch_and_a_first_push_start_from_the_right_base() {
 
     let root = outgoing(&tc, &id, "refs/heads/main", "origin").await.unwrap();
     assert_eq!(root.commits.len(), 2);
-    assert_eq!(root.base, crate::commands::diff::empty_tree(&first), "nothing on the remote: from the empty tree");
+    assert_eq!(root.base, crate::git::index::empty_tree(&first), "nothing on the remote: from the empty tree");
 
     repo.git(&["push", "-q", "origin", "main"]);
     repo.git(&["fetch", "-q", "origin"]);

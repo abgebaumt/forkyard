@@ -10,9 +10,9 @@ use super::{
     split_shas, LOG_SAFE,
 };
 use crate::app::Core;
-use crate::commands::diff::is_empty_tree;
 use crate::commands::status::{self, LineCounts};
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::index::is_empty_tree;
 use crate::git::GitOutput;
 use crate::model::{CommitDetails, CommitInfo, DiffSource, FileArea, FileChange, FileStatus, Person, SignatureStatus};
 use crate::util;
