@@ -9,8 +9,6 @@
 //! The timeline is cached for ten minutes per start commit, path and line, so “What is sent?” and
 //! the request build the same text. Messages and file contents are read with `no_log`.
 
-mod refs;
-
 #[cfg(test)]
 mod tests;
 
@@ -34,7 +32,7 @@ use crate::model::{AiFeature, ArchaeologyAnswer, ArchaeologyHostLookup, Archaeol
 use crate::util;
 use crate::util::{decode_line, normalize_rel_path};
 
-pub use refs::{number_of, CompiledRules, MAX_REFS_PER_MESSAGE};
+use crate::commands::links::refs::{number_of, CompiledRules};
 
 /// Longer commit messages are cut (with `…`).
 pub const MAX_MESSAGE_BYTES: usize = 4_000;

@@ -5,6 +5,7 @@
 //! nothing runs – the repository file therefore needs no trust of its own.
 
 mod pattern;
+pub(crate) mod refs;
 
 use std::collections::HashSet;
 use std::path::Path;
