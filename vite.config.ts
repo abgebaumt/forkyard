@@ -57,7 +57,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), identity],
   clearScreen: false,
   // Separate cache, so that the test server and `tauri dev` do not rewrite each other's bundled dependencies.
-  cacheDir: e2ePort ? "node_modules/.vite-e2e-wd" : "node_modules/.vite",
+  cacheDir: e2ePort ? "target/e2e-wd/vite-cache" : "node_modules/.vite",
   server: {
     host: "127.0.0.1",
     port: e2ePort ?? 1420,
