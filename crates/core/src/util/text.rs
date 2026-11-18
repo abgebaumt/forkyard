@@ -213,6 +213,37 @@ mod tests {
         assert!(looks_binary(b"ab\0c"));
     }
 
+    /// The two guessers agree on the text; they differ only where callers need it: `decode_text`
+    /// (merge, diff, display) names UTF-8 with a BOM "utf-8" (callers track the BOM separately),
+    /// `decode_content` (file editor) names it "utf-8-bom" and honours the preferred encoding.
+    #[test]
+    fn decode_text_and_decode_content_rules() {
+        let cases: [&[u8]; 8] = [
+            b"",
+            b"plain",
+            "Gr\u{fc}\u{df}e".as_bytes(),
+            b"Gr\xfc\xdfe",
+            b"\xef\xbb\xbfhi",
+            b"\xff\xfeh\0",
+            b"\xfe\xff\0h",
+            b"\x81\x8d\x8f",
+        ];
+        for bytes in cases {
+            let (text, name) = decode_text(bytes);
+            let (content, content_name) = decode_content(bytes, "utf-8");
+            assert_eq!(text, content, "{bytes:?}");
+            let expected = if content_name == UTF8_BOM { "utf-8" } else { content_name.as_str() };
+            assert_eq!(name, expected, "{bytes:?}");
+        }
+        assert_eq!(decode_text(b"\xef\xbb\xbfhi"), ("hi".to_string(), "utf-8"));
+        assert_eq!(decode_content(b"\xef\xbb\xbfhi", "utf-8"), ("hi".to_string(), UTF8_BOM.to_string()));
+        assert_eq!(decode_text(b"\xff\xfeh\0"), ("h".to_string(), "utf-16le"));
+        assert_eq!(decode_text(b"\xfe\xff\0h"), ("h".to_string(), "utf-16be"));
+        // Only `decode_content` takes the repository's preferred encoding into account.
+        assert_eq!(decode_text(b"\xe4").1, "windows-1252");
+        assert_eq!(decode_content(b"\xe4", "iso-8859-2").1, "iso-8859-2");
+    }
+
     #[test]
     fn truncation() {
         assert_eq!(truncate_str("abc", 10), "abc");
