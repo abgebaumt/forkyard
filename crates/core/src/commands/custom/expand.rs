@@ -6,9 +6,9 @@
 use std::collections::BTreeMap;
 
 use super::definition::{self, Piece, Placeholder};
-use crate::commands::external::split_command_line;
 use crate::error::{CoreError, CoreResult};
 use crate::model::CustomCommandDef;
+use crate::util::split_command_line;
 
 /// Value of an input. `from_definition`: it is one of the definition's own options (`choice`,
 /// `checkbox`), as trusted as the template itself.

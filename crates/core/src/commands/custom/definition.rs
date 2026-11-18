@@ -7,11 +7,11 @@ use std::collections::HashSet;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::commands::external::split_command_line;
 use crate::model::{
     CustomCommandChange, CustomCommandChangeKind, CustomCommandDef, CustomCommandInput, CustomCommandKind, CustomCommandSource,
     CustomInputType,
 };
+use crate::util::split_command_line;
 
 /// Version of the file format.
 pub const FORMAT_VERSION: u32 = 1;
