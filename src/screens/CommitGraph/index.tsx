@@ -19,7 +19,6 @@
  * the selected merge), menu key.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
-import type { InfiniteData } from "@tanstack/react-query";
 import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import { Filter, GitCommitHorizontal, Highlighter, Loader2, RefreshCw, TriangleAlert, Unplug } from "lucide-react";
 import { core, CoreError, startupMark, type GraphPage, type GraphRow, type Id, type Ref, type RefLabelInfo, type RepoViewState, type Sha } from "../../core";
@@ -30,7 +29,7 @@ import { confirm, showOutput } from "../../app/dialogs";
 import { describeError } from "../../app/errors";
 import { shortSha } from "../../app/format";
 import { branchMenu, commitMenu, dropMenu, stashMenu, tagMenu, wipMenu } from "../../app/menus";
-import { qk, queryClient, useBisectStatus, useGraph, useRefs, useSettings, useStashes, useStatus, useTicketLinks, useViewState } from "../../app/queries";
+import { keepFirstPage, qk, queryClient, useBisectStatus, useGraph, useRefs, useSettings, useStashes, useStatus, useTicketLinks, useViewState } from "../../app/queries";
 import { runAction } from "../../app/run";
 import { useAppStore } from "../../app/store";
 import { layoutColumns, normalizeColumns, type ColumnState } from "../../components/graph/columns";
@@ -144,9 +143,7 @@ function filterText(view: RepoViewState, smart: SmartSelection | null): string {
 
 /** Load the graph from the start: keep only the first page so that not all loaded pages are fetched again. */
 function reloadGraph(repoId: Id) {
-  queryClient.setQueryData<InfiniteData<GraphPage, string | null>>(qk.graph(repoId), (data) =>
-    data && data.pages.length > 1 ? { pages: data.pages.slice(0, 1), pageParams: data.pageParams.slice(0, 1) } : data,
-  );
+  queryClient.setQueryData(qk.graph(repoId), keepFirstPage);
   return queryClient.invalidateQueries({ queryKey: qk.graph(repoId) });
 }
 
