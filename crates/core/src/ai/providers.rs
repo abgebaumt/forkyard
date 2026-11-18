@@ -67,7 +67,8 @@ pub async fn send(core: &Core, request: Request, cancel: &CancelToken, label: &s
     http::send_cancellable(core, request, cancel).await.map_err(|error| transport_failure(error, label, host))
 }
 
-/// `send`, then an error status as `http_failure` (without `secrets`) and the body as JSON.
+/// `send`, then an error status as `http_failure` (with `secrets` scrubbed from the provider's text)
+/// and the body as JSON.
 pub async fn send_json(
     core: &Core,
     request: Request,

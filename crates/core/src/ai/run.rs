@@ -180,8 +180,14 @@ pub struct Frame {
 
 pub async fn ask(core: &Core, repo_id: &str, feature: AiFeature) -> CoreResult<Frame> {
     let settings = ensure_allowed(core, Some(repo_id), feature)?;
+    Ok(frame(core, repo_id, feature, settings).await)
+}
+
+/// `ask` for a function that validates its input between `ensure_allowed` and the frame: the key
+/// is read from the keychain (possibly an unlock prompt) only once the request is known to be valid.
+pub async fn frame(core: &Core, repo_id: &str, feature: AiFeature, settings: Settings) -> Frame {
     let (budget, secrets) = request_frame(core, &settings, feature).await;
-    Ok(Frame { repo_id: repo_id.to_string(), feature, settings, budget, secrets })
+    Frame { repo_id: repo_id.to_string(), feature, settings, budget, secrets }
 }
 
 impl Frame {
