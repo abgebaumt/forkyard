@@ -329,6 +329,7 @@ if (isMain) {
       "terminal:data": { terminalId: "x", data: "" },
       "terminal:exit": { terminalId: "x", code: null },
       "app:open_request": { path: "x", commit: null },
+      "app:focus_request": null,
       "app:close_requested": {},
       "submodules:updated": { repoId: "x", ok: true, paths: [], message: null },
       "agents:changed": { repoId: "x", running: 0 },

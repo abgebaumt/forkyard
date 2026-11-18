@@ -2221,6 +2221,7 @@ export interface CoreEvents {
    * is returned by that call.
    */
   "app:open_request": LaunchRequest;
+  /** A second start without arguments: the window sink brings the window forward; the UI does not subscribe. */
   "app:focus_request": null;
   /**
    * The window is supposed to close, but the UI has reported via `appCloseGuard` that something
