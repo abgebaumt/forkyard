@@ -1,5 +1,5 @@
 /**
- * Start page: one muted text button "Set up AI features" while AI is not set up 
+ * Start page: one muted text button "Set up AI features" while AI is not set up.
  * Not disabled (focusable with Tab, Enter and click open Settings › AI); gone
  * as soon as AI is on or was turned off on purpose.
  */

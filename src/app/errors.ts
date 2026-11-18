@@ -89,7 +89,7 @@ export function describeError(error: unknown): { text: string; hint: string } {
   return { text: message || info.text, hint: message && givesAdvice(message) ? "" : info.hint };
 }
 
-/** Whether a sentence from the core already contains an instruction ("Please …", "Choose …", "Check …"; German and English). */
+/** Whether a sentence from the core already contains an instruction ("Please …", "Choose …", "Check …"). */
 const ADVICE =
-  /(^|[.:!?–]\s+|„|“)(Please|Choose|Select|Check|Open|Save|Push|Pull|Fetch|Clone|Compare|Remove|Commit|Stash|Wait|Close|Delete|Tick|Try|Install|Update|Use|Add|Create|Set|Start|Run|Take|Resolve|Enter|Connect|Sign in|Make sure|Rename|Move|Restart|Finish|Abort|Do not try|First |Bitte|Wähle|Prüfe|Öffne|Speichere|Pushe|Klone|Vergleiche|Entferne|Committe|Stashe|Warte|Schließe|Lösche|Hake|Versuche|Installiere|Aktualisiere|Verwende|Füge|Lege|Stelle|Starte|Nimm|Hole|Nicht noch einmal|Ausweg|Hier sind|Erst )/u;
+  /(^|[.:!?–]\s+|“)(Please|Choose|Select|Check|Open|Save|Push|Pull|Fetch|Clone|Compare|Remove|Commit|Stash|Wait|Close|Delete|Tick|Try|Install|Update|Use|Add|Create|Set|Start|Run|Take|Resolve|Enter|Connect|Sign in|Make sure|Rename|Move|Restart|Finish|Abort|Do not try|First )/u;
 export const givesAdvice = (message: string) => ADVICE.test(message);

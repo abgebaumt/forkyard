@@ -11,7 +11,7 @@ import { operationNames } from "../../app/actions/merge";
 import { qk } from "../../app/queries";
 import { t } from "../../i18n";
 
-const REPO_GROUPS = new Set(["Repository", "Remote", "Branch", "Stash", "Commit", "Datei"]);
+const REPO_GROUPS = new Set(["Repository", "Remote", "Branch", "Stash", "Commit", "File"]);
 
 export function unavailableReason(command: AppCommand, ctx: CommandContext): string {
   try {

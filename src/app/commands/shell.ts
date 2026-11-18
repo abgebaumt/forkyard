@@ -66,7 +66,7 @@ export const commands: AppCommand[] = [
   {
     id: "view.toggleLeftPanel",
     title: t("commands.view.toggleLeftPanel.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+J",
     when: hasPanels,
     run: (ctx) => ctx.store.toggleLeftPanel(ctx.tabId!),
@@ -74,7 +74,7 @@ export const commands: AppCommand[] = [
   {
     id: "view.toggleCommitPanel",
     title: t("commands.view.toggleCommitPanel.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+K",
     when: hasPanels,
     run: (ctx) => ctx.store.toggleRightPanel(ctx.tabId!),
@@ -82,7 +82,7 @@ export const commands: AppCommand[] = [
   {
     id: "app.palette",
     title: t("commands.app.palette.title"),
-    group: "Allgemein",
+    group: "General",
     shortcut: "Mod+P",
     keywords: kw("commands.app.palette.keywords"),
     run: (ctx) => ctx.store.openOverlay({ kind: "palette", mode: "all" }),
@@ -90,7 +90,7 @@ export const commands: AppCommand[] = [
   {
     id: "view.search",
     title: t("commands.view.search.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+F",
     keywords: kw("commands.view.search.keywords"),
     when: hasRepo,
@@ -102,7 +102,7 @@ export const commands: AppCommand[] = [
   {
     id: "app.preferences",
     title: t("commands.app.preferences.title"),
-    group: "Allgemein",
+    group: "General",
     shortcut: "Mod+,",
     keywords: kw("commands.app.preferences.keywords"),
     run: (ctx) => ctx.store.openOverlay({ kind: "preferences", section: "general" }),
@@ -110,7 +110,7 @@ export const commands: AppCommand[] = [
   {
     id: "app.shortcuts",
     title: t("commands.app.shortcuts.title"),
-    group: "Allgemein",
+    group: "General",
     shortcut: "Mod+/",
     keywords: kw("commands.app.shortcuts.keywords"),
     run: (ctx) => ctx.store.openOverlay({ kind: "shortcuts" }),
@@ -118,14 +118,14 @@ export const commands: AppCommand[] = [
   {
     id: "app.activity",
     title: t("commands.app.activity.title"),
-    group: "Allgemein",
+    group: "General",
     keywords: kw("commands.app.activity.keywords"),
     run: (ctx) => ctx.store.openOverlay({ kind: "activity" }),
   },
   {
     id: "view.zoomIn",
     title: t("commands.view.zoomIn.title"),
-    group: "Ansicht",
+    group: "View",
     // The key shown is the one called "Plus" everywhere; "=" (the same key on the US layout) counts as an alias.
     shortcut: "Mod++",
     aliases: ["Mod+=", "Mod+Shift+="],
@@ -134,14 +134,14 @@ export const commands: AppCommand[] = [
   {
     id: "view.zoomOut",
     title: t("commands.view.zoomOut.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+-",
     run: () => changeZoom(-ZOOM_STEP),
   },
   {
     id: "view.zoomReset",
     title: t("commands.view.zoomReset.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+0",
     run: () => setZoom(1),
   },

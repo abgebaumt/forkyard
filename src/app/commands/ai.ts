@@ -10,7 +10,7 @@ export const commands: AppCommand[] = [
   {
     id: "ai.setup",
     title: t("ai.command.setup"),
-    group: "Allgemein",
+    group: "General",
     keywords: kw("ai.command.keywords"),
     hidden: (ctx) => !aiVisibility(ctx.queryClient.getQueryData<AiStatus>(qk.aiStatus)).setupCommand,
     run: () => openAiSettings(),

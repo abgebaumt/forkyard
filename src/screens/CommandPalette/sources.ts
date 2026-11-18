@@ -38,15 +38,15 @@ export const kindLabels: Record<PaletteKind, string> = {
 
 /** Display names of the command groups (the groups themselves are fixed identifiers). */
 export const groupTitles: Record<CommandGroup, string> = {
-  Allgemein: t("palette.groups.general"),
+  General: t("palette.groups.general"),
   Tabs: t("palette.groups.tabs"),
-  Ansicht: t("palette.groups.view"),
+  View: t("palette.groups.view"),
   Repository: t("palette.groups.repository"),
   Remote: t("palette.groups.remote"),
   Branch: t("palette.groups.branch"),
   Stash: t("palette.groups.stash"),
   Commit: t("palette.groups.commit"),
-  Datei: t("palette.groups.file"),
+  File: t("palette.groups.file"),
 };
 
 /** Search words from a translation: comma-separated. */

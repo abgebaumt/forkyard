@@ -96,7 +96,7 @@ export const commands: AppCommand[] = [
   {
     id: "selection.menu",
     title: t("commands.selection.menu.title"),
-    group: "Allgemein",
+    group: "General",
     shortcut: "Mod+.",
     keywords: kw("commands.selection.menu.keywords"),
     when: (ctx) => hasRepo(ctx) && Boolean(ctx.view?.selection),

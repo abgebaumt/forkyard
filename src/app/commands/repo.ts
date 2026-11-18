@@ -138,7 +138,7 @@ export const commands: AppCommand[] = [
   {
     id: "view.terminal",
     title: t("commands.view.terminal.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+`",
     when: hasRepo,
     run: (ctx) => ctx.store.toggleTerminal(ctx.tabId!),
@@ -146,7 +146,7 @@ export const commands: AppCommand[] = [
   {
     id: "view.graph",
     title: t("commands.view.graph.title"),
-    group: "Ansicht",
+    group: "View",
     when: (ctx) => hasRepo(ctx) && ctx.view?.center.kind !== "graph",
     run: (ctx) => ctx.store.closeCenter(ctx.tabId!),
   },

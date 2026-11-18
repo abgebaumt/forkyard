@@ -22,7 +22,7 @@ export const commands: AppCommand[] = [
   {
     id: "leftPanel.filter",
     title: t("commands.leftPanel.filter.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Mod+Alt+F",
     keywords: kw("commands.leftPanel.filter.keywords"),
     when: hasRepo,

@@ -42,17 +42,17 @@ interface Section {
   entries: Entry[];
 }
 
-const GROUP_ORDER: CommandGroup[] = ["Allgemein", "Ansicht", "Tabs", "Repository", "Remote", "Branch", "Commit", "Stash", "Datei"];
+const GROUP_ORDER: CommandGroup[] = ["General", "View", "Tabs", "Repository", "Remote", "Branch", "Commit", "Stash", "File"];
 const GROUP_TITLES: Record<CommandGroup, string> = {
-  Allgemein: t("shortcuts.groups.general"),
-  Ansicht: t("shortcuts.groups.view"),
+  General: t("shortcuts.groups.general"),
+  View: t("shortcuts.groups.view"),
   Tabs: t("shortcuts.groups.tabs"),
   Repository: t("shortcuts.groups.repository"),
   Remote: t("shortcuts.groups.remote"),
   Branch: t("shortcuts.groups.branch"),
   Commit: t("shortcuts.groups.commit"),
   Stash: t("shortcuts.groups.stash"),
-  Datei: t("shortcuts.groups.file"),
+  File: t("shortcuts.groups.file"),
 };
 
 function registrySections(commands: readonly AppCommand[]): Section[] {

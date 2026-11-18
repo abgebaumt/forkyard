@@ -25,7 +25,7 @@ export const commands: AppCommand[] = [
   {
     id: "graph.smartVisibility",
     title: t("commands.graph.smartVisibility.title"),
-    group: "Ansicht",
+    group: "View",
     keywords: kw("commands.graph.smartVisibility.keywords"),
     when: (ctx) => hasRepo(ctx) && (isSmartOn(ctx.repoId!) || smartBlock(ctx.repoId!) === null),
     disabledReason: (ctx) => (ctx.repoId ? smartBlock(ctx.repoId) : t("commands.reason.repoTabOnly")),
@@ -37,7 +37,7 @@ export const commands: AppCommand[] = [
   {
     id: "graph.pinCurrentBranch",
     title: t("commands.graph.pinCurrentBranch.title"),
-    group: "Ansicht",
+    group: "View",
     keywords: kw("commands.graph.pinCurrentBranch.keywords"),
     when: (ctx) => hasRepo(ctx) && headBranch(ctx) !== null,
     disabledReason: needsBranch,
@@ -50,7 +50,7 @@ export const commands: AppCommand[] = [
   {
     id: "graph.highlightCurrentBranch",
     title: t("commands.graph.highlightCurrentBranch.title"),
-    group: "Ansicht",
+    group: "View",
     keywords: kw("commands.graph.highlightCurrentBranch.keywords"),
     when: (ctx) => hasRepo(ctx) && (headBranch(ctx) !== null || Boolean(currentHighlight(ctx.repoId!)?.sticky)),
     disabledReason: needsBranch,

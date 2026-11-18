@@ -10,7 +10,7 @@ export const commands: AppCommand[] = [
   {
     id: "profile.switch",
     title: t("commands.profile.switch.title"),
-    group: "Allgemein",
+    group: "General",
     keywords: kw("commands.profile.switch.keywords"),
     run: () => {
       // Only after the palette has closed: otherwise its focus guard would close the menu again right away.
@@ -20,7 +20,7 @@ export const commands: AppCommand[] = [
   {
     id: "profile.new",
     title: t("commands.profile.new.title"),
-    group: "Allgemein",
+    group: "General",
     keywords: kw("commands.profile.new.keywords"),
     run: () => useAppStore.getState().openOverlay({ kind: "preferences", section: "profiles", createProfile: true }),
   },

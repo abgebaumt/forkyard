@@ -10,7 +10,7 @@ export const commands: AppCommand[] = [
   {
     id: "palette.commands",
     title: t("commands.palette.commands.title"),
-    group: "Allgemein",
+    group: "General",
     shortcut: "F1",
     keywords: kw("commands.palette.commands.keywords"),
     run: (ctx) => ctx.store.openOverlay({ kind: "palette", mode: "commands" }),
@@ -18,7 +18,7 @@ export const commands: AppCommand[] = [
   {
     id: "palette.files",
     title: t("commands.palette.files.title"),
-    group: "Datei",
+    group: "File",
     shortcut: "Mod+Shift+O",
     keywords: kw("commands.palette.files.keywords"),
     when: hasRepo,

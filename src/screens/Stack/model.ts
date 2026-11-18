@@ -85,7 +85,7 @@ const sameParts = (a: DraftPart[] | null, b: DraftPart[] | null) =>
   JSON.stringify((a ?? []).map((part) => [part.end, part.name, part.title])) ===
   JSON.stringify((b ?? []).map((part) => [part.end, part.name, part.title]));
 
-/** "Umgang mit Vorschlägen": an untouched plan takes it; own cuts get an offer ("ready" if they changed meanwhile). */
+/** Placing a suggestion: an untouched plan takes it; own cuts get an offer ("ready" if they changed meanwhile). */
 export function placeSplit(current: DraftPart[] | null, atStart: DraftPart[] | null, commitCount: number): SplitPlacement {
   if (isUntouched(current, commitCount)) return "insert";
   return sameParts(current, atStart) ? "choose" : "ready";

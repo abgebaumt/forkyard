@@ -24,7 +24,7 @@ export const commands: AppCommand[] = [
   {
     id: "terminal.focus",
     title: t("commands.terminal.focus.title"),
-    group: "Ansicht",
+    group: "View",
     shortcut: "Alt+4",
     keywords: kw("commands.terminal.focus.keywords"),
     when: hasRepo,
@@ -34,7 +34,7 @@ export const commands: AppCommand[] = [
   {
     id: "terminal.restart",
     title: t("commands.terminal.restart.title"),
-    group: "Ansicht",
+    group: "View",
     keywords: kw("commands.terminal.restart.keywords"),
     when: hasSession,
     disabledReason: noSession,
@@ -43,7 +43,7 @@ export const commands: AppCommand[] = [
   {
     id: "terminal.clear",
     title: t("commands.terminal.clear.title"),
-    group: "Ansicht",
+    group: "View",
     keywords: kw("commands.terminal.clear.keywords"),
     when: hasSession,
     disabledReason: noSession,
@@ -52,7 +52,7 @@ export const commands: AppCommand[] = [
   {
     id: "terminal.end",
     title: t("commands.terminal.end.title"),
-    group: "Ansicht",
+    group: "View",
     keywords: kw("commands.terminal.end.keywords"),
     when: hasSession,
     disabledReason: noSession,

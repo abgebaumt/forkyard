@@ -7,7 +7,7 @@ export const commands: AppCommand[] = [
   {
     id: "app.installCli",
     title: t("commands.app.installCli.title"),
-    group: "Allgemein",
+    group: "General",
     keywords: kw("commands.app.installCli.keywords"),
     when: (ctx) => ctx.platform !== "windows",
     run: () => installCli(),

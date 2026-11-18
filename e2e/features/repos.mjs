@@ -838,7 +838,7 @@ scenario("tabs: the same repository again activates its tab; tabs come back afte
 });
 
 // =============================================================================================
-// Groups (local workspaces)
+// Groups (groups)
 // =============================================================================================
 
 async function addRepos(app, paths) {

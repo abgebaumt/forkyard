@@ -1,5 +1,5 @@
 /**
- * Batch fetch and batch pull for a group of repositories (local workspace): a dialog with one row
+ * Batch fetch and batch pull for a group of repositories (group): a dialog with one row
  * per repository – waiting, running (with progress), result or reason of failure. Each repository
  * runs as its own job in the core (`fetch` or `pull`), at most three at a time; an error in one
  * does not stop the others.

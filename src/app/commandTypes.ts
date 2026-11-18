@@ -27,7 +27,7 @@ export interface CommandContext {
 }
 
 /** Group of a command. The values are identifiers; what is displayed comes from `commands.groups.*`. */
-export type CommandGroup = "Allgemein" | "Tabs" | "Ansicht" | "Repository" | "Remote" | "Branch" | "Stash" | "Commit" | "Datei";
+export type CommandGroup = "General" | "Tabs" | "View" | "Repository" | "Remote" | "Branch" | "Stash" | "Commit" | "File";
 
 /** Search words for the palette from a translation (comma-separated), plus fixed words. */
 export function kw(key: string, extra: readonly string[] = []): string[] {

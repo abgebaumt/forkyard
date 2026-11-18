@@ -7,7 +7,7 @@ src-tauri/target/
 src-tauri/gen/
 .claude/worktrees/
 src-tauri/binaries/
-# Umgebungsdateien mit Werten gehören nie ins Repository; .env.example nennt nur die Namen.
+# Environment files with values never belong in the repository; .env.example only lists the names.
 .env
 .env.*
 !.env.example
