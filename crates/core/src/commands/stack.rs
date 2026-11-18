@@ -318,10 +318,11 @@ pub async fn stack_restack(core: &Core, repo_id: String, branch: String, expecte
 
 /// Pushes every part in one atomic push (v1.1 `push_with`: the first part as the primary branch,
 /// the others as extra refs) and records the upstream of every part that arrived. `force`: each ref
-/// only with `--force-with-lease` against its tracking ref (after a restack). The secret scan runs
+/// only with `--force-with-lease` against the remote tip the prompt showed (`expected`, one entry
+/// per part, `None` = not on the remote), so nothing that arrived since is overwritten. The secret scan runs
 /// as for every push (v1.2, 6.2): `accepted_secrets` as in `push_with`.
 #[allow(clippy::too_many_arguments)]
-pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool, accepted_secrets: Option<Vec<String>>) -> CoreResult<PushResult> {
+pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: Vec<String>, remote: String, force: bool, expected: Option<Vec<Option<String>>>, accepted_secrets: Option<Vec<String>>) -> CoreResult<PushResult> {
     let names: Vec<String> = branches.iter().map(|branch| branch_name_of(branch)).collect::<CoreResult<_>>()?;
     let Some((first, rest)) = names.split_first() else {
         return Err(CoreError::not_allowed("There is no part to push."));
@@ -334,8 +335,15 @@ pub async fn stack_push(core: &Core, repo_id: String, job_id: String, branches: 
     if remote.is_empty() || remote.starts_with('-') || remote.chars().any(char::is_control) {
         return Err(CoreError::not_allowed("Choose the remote to push the stack to."));
     }
-    let extra: Vec<PushExtra> = rest.iter().map(|name| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force }).collect();
-    let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, None, Some(extra), Some(true), accepted_secrets).await?;
+    let expected = match expected {
+        _ if !force => vec![None; names.len()],
+        Some(expected) if expected.len() == names.len() => expected,
+        _ => return Err(CoreError::not_allowed("A forced stack push needs the remote state that was shown for every part.")),
+    };
+    let mut expected = expected.into_iter();
+    let first_expected = expected.next().flatten();
+    let extra: Vec<PushExtra> = rest.iter().zip(expected).map(|(name, expected)| PushExtra { local: format!("refs/heads/{name}"), remote_name: None, force, expected }).collect();
+    let result = sync::push_with(core, repo_id.clone(), job_id, Some(first.clone()), Some(remote.clone()), None, force, first_expected, Some(extra), Some(true), accepted_secrets).await?;
     if let PushResult::Multi { refs, .. } = &result {
         let arrived: Vec<&String> = rest.iter().filter(|name| refs.iter().any(|r| r.local == format!("refs/heads/{name}") && r.status != PushRefStatus::Rejected)).collect();
         if !arrived.is_empty() {

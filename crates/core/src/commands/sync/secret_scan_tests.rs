@@ -120,7 +120,7 @@ async fn every_kind_of_push_is_checked() {
     f.repo.checkout_new("feature/zugang");
     f.repo.commit_file("zugang.env", format!("AWS={}\n", fake_key()), "Zugang");
     f.repo.checkout("main");
-    let extra = vec![PushExtra { local: "refs/heads/feature/zugang".into(), remote_name: None, force: false }];
+    let extra = vec![PushExtra { local: "refs/heads/feature/zugang".into(), remote_name: None, force: false, expected: None }];
     let stopped = push_with(&f.tc, f.id.clone(), util::new_id(), None, None, None, false, None, Some(extra.clone()), Some(true), None).await.unwrap();
     assert_eq!(places(&stopped), vec![("zugang.env".to_string(), 1, SecretRule::KnownToken)]);
     assert_eq!(remote_sha(&f.remote, "refs/heads/feature/zugang"), None);

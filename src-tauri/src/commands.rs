@@ -1468,6 +1468,7 @@ pub async fn stack_restack(core: State<'_, Core>, repo_id: String, branch: Strin
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn stack_push(
     core: State<'_, Core>,
     repo_id: String,
@@ -1475,9 +1476,10 @@ pub async fn stack_push(
     branches: Vec<String>,
     remote: String,
     force: bool,
+    expected: Option<Vec<Option<String>>>,
     accepted_secrets: Option<Vec<String>>,
 ) -> R<PushResult> {
-    c::stack::stack_push(&core, repo_id, job_id, branches, remote, force, accepted_secrets).await
+    c::stack::stack_push(&core, repo_id, job_id, branches, remote, force, expected, accepted_secrets).await
 }
 
 #[tauri::command]

@@ -28,7 +28,7 @@ fn remote_sha(remote: &TestRemote, name: &str) -> Option<String> {
 }
 
 fn extra(local: &str) -> PushExtra {
-    PushExtra { local: local.into(), remote_name: None, force: false }
+    PushExtra { local: local.into(), remote_name: None, force: false, expected: None }
 }
 
 async fn push_refs(f: &Fixture, extra: Vec<PushExtra>, atomic: bool) -> CoreResult<PushResult> {
@@ -100,8 +100,8 @@ async fn without_atomic_the_other_refs_go_through_and_force_uses_a_lease() {
     // Forced branch (lease against origin/feature, which the fetch knows) and a tag under another name.
     f.repo.tag("v2");
     let forced = vec![
-        PushExtra { local: "refs/heads/feature".into(), remote_name: None, force: true },
-        PushExtra { local: "refs/tags/v2".into(), remote_name: Some("release-2".into()), force: false },
+        PushExtra { local: "refs/heads/feature".into(), remote_name: None, force: true, expected: None },
+        PushExtra { local: "refs/tags/v2".into(), remote_name: Some("release-2".into()), force: false, expected: None },
     ];
     let result = push_refs(&f, forced, true).await.unwrap();
     let PushResult::Multi { refs, .. } = &result else { panic!("{result:?}") };
@@ -126,7 +126,7 @@ async fn invalid_extra_refs_are_refused_before_anything_is_sent() {
     assert_eq!(code(push_refs(&f, vec![extra("feature")], true).await), ErrorCode::InvalidName);
     assert_eq!(code(push_refs(&f, vec![extra("refs/heads/-x")], true).await), ErrorCode::InvalidName);
     assert_eq!(code(push_refs(&f, vec![extra("refs/heads/gibt-es-nicht")], true).await), ErrorCode::NotFound);
-    assert_eq!(code(push_refs(&f, vec![PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: true }], true).await), ErrorCode::NotAllowed);
+    assert_eq!(code(push_refs(&f, vec![PushExtra { local: "refs/tags/v1".into(), remote_name: None, force: true, expected: None }], true).await), ErrorCode::NotAllowed);
     assert_eq!(code(push_refs(&f, vec![extra("refs/heads/main")], true).await), ErrorCode::NotAllowed, "the same remote ref twice");
     assert_eq!(remote_sha(&f.remote, "refs/tags/v1"), None);
 }

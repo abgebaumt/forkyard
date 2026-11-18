@@ -38,6 +38,7 @@ import {
   checkTone,
   cutsOf,
   defaultBase,
+  expectedRemoteTips,
   firstWithoutPr,
   isCutAfter,
   listKey,
@@ -451,6 +452,8 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
           : null;
 
   const push = async () => {
+    // Taken before the prompt: the forced push may only overwrite what the user saw.
+    const expected = force ? expectedRemoteTips(branches, refs?.remotes ?? [], remote) : null;
     const ok = await confirm({
       title: t("pullRequest.stack.pushTitle", { count: branches.length, remote }),
       body: force ? t("pullRequest.stack.pushForceBody") : t("pullRequest.stack.pushBody"),
@@ -460,7 +463,7 @@ function Existing({ repoId, status }: { repoId: Id; tabId: Id; status: StackStat
       detailsWrap: true,
     });
     if (!ok) return;
-    const result = await pushStack(repoId, branches, remote, force);
+    const result = await pushStack(repoId, branches, remote, force, expected);
     if (!result.ok) return;
     const refused = rejectedRefs(result.value);
     setPushNote(refused.length ? t("pullRequest.stack.pushRejected", { reasons: refused.join("; ") }) : null);
