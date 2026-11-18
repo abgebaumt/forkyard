@@ -30,7 +30,6 @@ pub mod stats_cache;
 pub mod tabs;
 pub mod undo;
 pub mod view_state;
-pub mod workspaces;
 
 /// The schema source is db/schema.sql: the complete schema in the latest version. A new
 /// database is created directly from it.
@@ -68,6 +67,8 @@ const UPGRADES: &[&str] = &[
     AGENTS,
     // Undo: dropping a stash (`stash_drop`). Table rebuilt, because SQLite cannot change a CHECK in place.
     UNDO_STASH_DROP,
+    // The never used workspaces (named repository groups) are gone.
+    "drop table workspace_repositories; drop table workspaces;",
 ];
 
 const STATS_CACHE: &str = "
@@ -267,6 +268,30 @@ insert into undo_entries_next (id, repository_id, worktree_path, action, label, 
 drop table undo_entries;
 alter table undo_entries_next rename to undo_entries;
 create index undo_entries_repo_time on undo_entries (repository_id, created_at desc);
+";
+
+/// The workspace tables as versions 1 to 13 created them (only for the migration test).
+#[cfg(test)]
+const OLD_WORKSPACES: &str = "
+create table workspaces (
+  id          text primary key,
+  profile_id  text not null references profiles (id) on delete cascade,
+  name        text not null,
+  description text,
+  color       text,
+  sync_dir    text,
+  created_at  text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+  updated_at  text not null default (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+) strict;
+create unique index workspaces_name on workspaces (profile_id, name);
+
+create table workspace_repositories (
+  workspace_id  text not null references workspaces (id) on delete cascade,
+  repository_id text not null references repositories (id) on delete cascade,
+  position      integer not null default 0,
+  primary key (workspace_id, repository_id)
+) strict, without rowid;
+create index workspace_repositories_repo on workspace_repositories (repository_id);
 ";
 
 /// The table `integrations` as versions 1 and 2 created it (only for the migration test; new
@@ -518,7 +543,7 @@ mod tests {
         assert!(!v1.contains("collapsed_merges") && !v1.contains("collapse_all_merges"));
         assert!(!v1.contains("hoster_accounts") && !v1.contains("repository_trust"));
         assert!(!v1.contains("create table app_settings") && !v1.contains("create table profile_repositories"));
-        let v1 = format!("{v1}\n{OLD_INTEGRATIONS}");
+        let v1 = format!("{v1}\n{OLD_INTEGRATIONS}\n{OLD_WORKSPACES}");
         {
             let conn = Connection::open(&path).unwrap();
             conn.execute_batch(&v1).unwrap();
@@ -567,13 +592,9 @@ mod tests {
         let page = db.with(|c| activity::page(c, crate::model::ActivityScope::App, None, None, 10)).unwrap();
         assert_eq!(page.entries.len(), 1, "the old row is still there");
         assert_eq!((page.entries[0].command.as_str(), page.entries[0].code), ("git x", None));
-        let kept: String = db.with(|c| Ok(c.query_row("select name from workspaces where id = 'w'", [], |r| r.get(0))?)).unwrap();
-        assert_eq!(kept, "Alt");
         let fresh = Db::open_in_memory().unwrap();
         for table in [
             "activity_log",
-            "workspaces",
-            "workspace_repositories",
             "hoster_accounts",
             "repositories",
             "repository_trust",
@@ -629,6 +650,9 @@ mod tests {
         // The old table is gone, in the upgraded as well as in the new database.
         assert!(columns(&db, "integrations").is_empty());
         assert!(columns(&fresh, "integrations").is_empty());
+        for table in ["workspaces", "workspace_repositories"] {
+            assert!(columns(&db, table).is_empty() && columns(&fresh, table).is_empty(), "{table} is gone");
+        }
         let indexes = |db: &Db| -> Vec<String> {
             db.with(|c| {
                 let mut stmt =

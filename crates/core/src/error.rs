@@ -323,10 +323,6 @@ impl CoreError {
     pub fn unsupported(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Unsupported, message)
     }
-    /// For commands that a later agent builds.
-    pub fn not_built(command: &str) -> Self {
-        Self::new(ErrorCode::Unsupported, format!("Not built yet: {command}"))
-    }
     pub fn io(message: impl Into<String>) -> Self {
         Self::new(ErrorCode::Io, message)
     }

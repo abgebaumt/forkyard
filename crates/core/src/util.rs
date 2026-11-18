@@ -63,17 +63,6 @@ pub fn decode_text(bytes: &[u8]) -> (String, &'static str) {
     }
 }
 
-/// Write text back into a named encoding (for write actions).
-/// Unknown names fall back to UTF-8.
-pub fn encode_text(text: &str, encoding: &str) -> Vec<u8> {
-    match encoding_rs::Encoding::for_label(encoding.as_bytes()) {
-        Some(enc) if enc != encoding_rs::UTF_8 && enc != encoding_rs::UTF_16LE && enc != encoding_rs::UTF_16BE => {
-            enc.encode(text).0.into_owned()
-        }
-        _ => text.as_bytes().to_vec(),
-    }
-}
-
 /// Heuristic for binary files as in Git: a NUL byte in the first 8000 bytes.
 pub fn looks_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(8000).any(|&b| b == 0)
@@ -439,7 +428,6 @@ mod tests {
         assert_eq!(decode_text("Grüße".as_bytes()), ("Grüße".to_string(), "utf-8"));
         assert_eq!(decode_text(b"Gr\xfc\xdfe"), ("Grüße".to_string(), "windows-1252"));
         assert_eq!(decode_text(b"\xef\xbb\xbfhi").1, "utf-8");
-        assert_eq!(encode_text("Grüße", "windows-1252"), b"Gr\xfc\xdfe".to_vec());
         assert!(looks_binary(b"ab\0c"));
     }
 

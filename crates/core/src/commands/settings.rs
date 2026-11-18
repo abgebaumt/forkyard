@@ -1,16 +1,12 @@
 //! Settings (global, per profile and per repository) and profiles.
 
-use std::collections::BTreeMap;
-
 use serde_json::{Map, Value};
 
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::netconfig;
-use crate::model::{
-    AiCliPaths, AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, SettingScope, Settings, DEFAULT_AI_CONFIRM_COST_USD,
-};
+use crate::model::{AiCliPaths, AiPriceOverride, AppChange, Profile, RepoChange, RepoSettings, Settings, DEFAULT_AI_CONFIRM_COST_USD};
 use crate::util;
 
 // ---------------------------------------------------------------------------
@@ -237,15 +233,6 @@ pub async fn settings_set(core: &Core, patch: Value) -> CoreResult<Settings> {
     Ok(next)
 }
 
-/// Which fields of `Settings` apply globally and which per profile.
-/// Does not need the core; takes it like every command (contract, `check-commands`).
-pub async fn settings_scopes(core: &Core) -> CoreResult<BTreeMap<String, SettingScope>> {
-    let _ = core;
-    let fields = serde_json::to_value(Settings::default())?;
-    let scope = |key: &str| if db::app_settings::is_global(key) { SettingScope::Global } else { SettingScope::Profile };
-    Ok(fields.as_object().map(|o| o.keys().map(|k| (k.clone(), scope(k))).collect()).unwrap_or_default())
-}
-
 // ---------------------------------------------------------------------------
 // Proxy passwords: keychain instead of the settings table
 // ---------------------------------------------------------------------------
@@ -336,89 +323,6 @@ fn stored_proxies(stored: &[(String, Value)]) -> Vec<(String, String)> {
     all
 }
 
-/// Prefix of the keychain entries of the removed AI feature (until 2026-10).
-const REMOVED_AI_ACCOUNT_PREFIX: &str = "ai:anthropic:";
-/// Marker in `app_settings` that the old AI keys have already been removed.
-const REMOVED_AI_KEYS_DONE: &str = "cleanup.removedAiKeys";
-
-/// At startup: remove the API keys of the removed AI feature from the keychain.
-/// Errors (keychain unreachable) are skipped; the next start tries again.
-pub async fn forget_removed_ai_keys(core: &Core) {
-    let done = core.db.with(|c| Ok(db::app_settings::get_all(c)?.iter().any(|(key, _)| key == REMOVED_AI_KEYS_DONE)));
-    if done.unwrap_or(true) {
-        return;
-    }
-    let Ok(profiles) = core.db.with(db::profiles::list) else {
-        return;
-    };
-    for profile in profiles {
-        let _ = crate::secrets::delete(core, &format!("{REMOVED_AI_ACCOUNT_PREFIX}{}", profile.id)).await;
-    }
-    // Once is enough: the app no longer creates new entries under this name.
-    let _ = core.db.with(|c| db::app_settings::set(c, REMOVED_AI_KEYS_DONE, &serde_json::Value::Bool(true)));
-}
-
-/// At startup: move proxy passwords that an older version stored in plain text in the settings
-/// table into the keychain. If the keychain is unreachable, the old value stays
-/// (and still applies); the next start tries again.
-pub async fn migrate_proxy_passwords(core: &Core) {
-    let Ok(profiles) = core.db.with(db::profiles::list) else {
-        return;
-    };
-    for profile in profiles {
-        let stored = core.db.with(|c| db::settings::get_all(c, &profile.id)).unwrap_or_default();
-        for (key, value) in &stored {
-            let rewritten = match key.as_str() {
-                "proxyUrl" => {
-                    let Some(url) = value.as_str() else { continue };
-                    let (plain, password) = netconfig::split_proxy_password(url);
-                    let Some(password) = password else { continue };
-                    if !move_proxy_password(core, &profile.id, netconfig::PROXY_SLOT_GLOBAL, &password).await {
-                        continue;
-                    }
-                    Value::String(plain)
-                }
-                "proxyByHost" => {
-                    let mut entries: Vec<crate::model::HostProxy> = serde_json::from_value(value.clone()).unwrap_or_default();
-                    let mut moved = false;
-                    for entry in entries.iter_mut() {
-                        let (plain, password) = netconfig::split_proxy_password(&entry.proxy);
-                        let (Some(password), Ok(host)) = (password, netconfig::host_base(&entry.host)) else { continue };
-                        if move_proxy_password(core, &profile.id, &host, &password).await {
-                            entry.proxy = plain;
-                            moved = true;
-                        }
-                    }
-                    if !moved {
-                        continue;
-                    }
-                    match serde_json::to_value(&entries) {
-                        Ok(value) => value,
-                        Err(_) => continue,
-                    }
-                }
-                _ => continue,
-            };
-            if let Err(e) = core.db.with(|c| db::settings::set(c, &profile.id, key, &rewritten)) {
-                log::warn!("Proxy setting could not be saved after moving the password: {}", e.message);
-            }
-        }
-    }
-}
-
-async fn move_proxy_password(core: &Core, profile_id: &str, slot: &str, password: &str) -> bool {
-    if password.is_empty() {
-        return true;
-    }
-    match crate::secrets::set(core, &netconfig::proxy_secret_account(profile_id, slot), password).await {
-        Ok(()) => true,
-        Err(e) => {
-            log::warn!("Proxy password stays in the settings for now: {}", e.message);
-            false
-        }
-    }
-}
-
 /// At startup: load the proxy passwords of all profiles from the keychain into the cache
 /// of the Git runner. The keychain is only asked if there are proxies with user names.
 pub async fn load_proxy_passwords(core: &Core) {
@@ -440,14 +344,13 @@ pub async fn load_proxy_passwords(core: &Core) {
 }
 
 /// Keychain accounts that belong to a profile (proxy passwords, tokens of the
-/// host accounts, leftovers of the removed AI feature) – so that deleting the profile takes them along.
+/// host accounts) – so that deleting the profile takes them along.
 fn profile_secret_accounts(core: &Core, profile_id: &str) -> Vec<String> {
     let stored = core.db.with(|c| db::settings::get_all(c, profile_id)).unwrap_or_default();
     let mut accounts: Vec<String> =
         stored_proxies(&stored).into_iter().map(|(slot, _)| netconfig::proxy_secret_account(profile_id, &slot)).collect();
     let hosters = core.db.with(|c| db::hoster_accounts::list(c, profile_id)).unwrap_or_default();
     accounts.extend(hosters.iter().map(|row| crate::host::secret_account(&row.id)));
-    accounts.push(format!("{REMOVED_AI_ACCOUNT_PREFIX}{profile_id}"));
     accounts
 }
 
@@ -827,20 +730,13 @@ mod tests {
         assert!(!profile.iter().any(|(k, _)| k == "zoom"));
     }
 
-    #[tokio::test]
-    async fn every_settings_field_has_exactly_one_scope() {
-        let tc = TestCore::new().await;
-        let scopes = settings_scopes(&tc).await.unwrap();
+    #[test]
+    fn every_global_key_is_a_settings_field() {
         let fields = serde_json::to_value(Settings::default()).unwrap();
-        let fields: Vec<&String> = fields.as_object().unwrap().keys().collect();
-        assert_eq!(scopes.len(), fields.len());
-        for key in fields {
-            assert!(scopes.contains_key(key), "{key} has no level");
-        }
         for key in db::app_settings::GLOBAL_KEYS {
-            assert_eq!(scopes[key], crate::model::SettingScope::Global, "{key}");
+            assert!(fields.get(key).is_some(), "{key} is not a Settings field");
         }
-        assert_eq!(scopes["proxyUrl"], crate::model::SettingScope::Profile);
+        assert!(!db::app_settings::is_global("proxyUrl"));
     }
 
     #[tokio::test]
@@ -1053,8 +949,7 @@ mod tests {
     #[tokio::test]
     async fn agent_templates_are_global_and_the_test_command_is_per_repository() {
         let tc = TestCore::new().await;
-        let scopes = settings_scopes(&tc).await.unwrap();
-        assert_eq!(scopes["agentTemplates"], crate::model::SettingScope::Global);
+        assert!(db::app_settings::is_global("agentTemplates"));
         let template =
             serde_json::json!([{ "id": "custom:a", "name": "Eigener Agent", "program": "eigen", "args": ["--task", "${taskFile}"] }]);
         let saved = settings_set(&tc, serde_json::json!({ "agentTemplates": template })).await.unwrap();
@@ -1090,22 +985,6 @@ mod tests {
         assert_eq!(err.code, ErrorCode::NotAllowed);
         let err = profile_save(&tc, None, "Y".into(), "".into(), "".into(), false, Some(0)).await.unwrap_err();
         assert_eq!(err.code, ErrorCode::NotAllowed);
-    }
-
-    #[tokio::test]
-    async fn removed_ai_keys_are_cleaned_from_the_keychain() {
-        let tc = TestCore::new().await;
-        let profile_id = tc.active_profile_id().unwrap();
-        let account = format!("ai:anthropic:{profile_id}");
-        crate::secrets::set(&tc, &account, "sk-alt").await.unwrap();
-        // Startup has already cleaned up; the test replays the first start after the update.
-        tc.db.with(|c| Ok(c.execute("delete from app_settings where key = ?1", [REMOVED_AI_KEYS_DONE])?)).unwrap();
-        forget_removed_ai_keys(&tc).await;
-        assert_eq!(crate::secrets::get(&tc, &account).await.unwrap(), None);
-        // After that it no longer runs: an entry created later stays untouched.
-        crate::secrets::set(&tc, &account, "sk-neu").await.unwrap();
-        forget_removed_ai_keys(&tc).await;
-        assert_eq!(crate::secrets::get(&tc, &account).await.unwrap().as_deref(), Some("sk-neu"));
     }
 
     #[tokio::test]

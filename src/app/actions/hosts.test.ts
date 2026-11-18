@@ -223,7 +223,6 @@ describe("host integration errors", () => {
     expect(hostErrorKind(error("host_rejected"))).toBe("rejected");
     expect(hostErrorKind(error("offline"))).toBe("offline");
     expect(hostErrorKind(error("dirty_worktree"))).toBe("other");
-    expect(hostErrorKind(error("unknown", "Command host_accounts not found"))).toBe("not_built");
   });
 
   it("the core's message takes precedence (it contains e.g. the time of the limit)", () => {

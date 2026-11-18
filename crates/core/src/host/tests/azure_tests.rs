@@ -250,35 +250,6 @@ async fn pull_requests_are_created_changed_commented_completed_and_abandoned() {
     })
     .await;
 
-    fx.server.clear();
-    cmd::pr_update(
-        &fx.tc,
-        fx.id(),
-        3,
-        Some("Neuer Titel".into()),
-        Some("Neuer Text".into()),
-        Some("develop".into()),
-        Some(false),
-        None,
-        Some(vec!["ui".into()]),
-        None,
-    )
-    .await
-    .unwrap();
-    assert_eq!(
-        fx.sent("PATCH", "/pullrequests/3")[0].json(),
-        json!({ "title": "Neuer Titel", "description": "Neuer Text", "targetRefName": "refs/heads/develop", "isDraft": false })
-    );
-    assert_eq!(fx.sent("POST", "/pullrequests/3/labels")[0].json(), json!({ "name": "ui" }));
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, None, Some(Vec::new()), None).await.unwrap();
-    assert!(fx.sent("PATCH", "/pullrequests/1").is_empty(), "only labels: no PATCH");
-    assert_eq!(fx.sent("DELETE", "/pullrequests/1/labels/bug").len(), 1);
-    assert_eq!(
-        cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, Some(vec!["mira".into()]), None, None).await.unwrap_err().code,
-        ErrorCode::HostUnsupported
-    );
-
     let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
     assert_eq!((comment.id.as_str(), comment.body.as_str()), ("7-1", "Passt so."));
     assert_eq!(

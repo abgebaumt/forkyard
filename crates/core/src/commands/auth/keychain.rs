@@ -13,8 +13,6 @@ use crate::error::{CoreError, CoreResult};
 
 /// Service name of the app in the keychain.
 pub const DEFAULT_SERVICE: &str = "forkyard";
-/// Service name before the rename to Forkyard; entries there are adopted on first read.
-const LEGACY_SERVICE: &str = "git-client";
 /// Account used to check availability (never created).
 const PROBE_ACCOUNT: &str = "__probe__";
 /// How often a write is repeated when reading it back shows something else.
@@ -65,19 +63,7 @@ pub async fn probe(service: &str) -> bool {
 /// Reads a secret; `None` if the entry does not exist.
 pub async fn get(service: &str, account: &str) -> CoreResult<Option<String>> {
     let (service, account) = (service.to_string(), account.to_string());
-    blocking(move || {
-        let found = read(&service, &account)?;
-        if found.is_some() || service != DEFAULT_SERVICE {
-            return Ok(found);
-        }
-        // One-time adoption from the old service name.
-        let Some(old) = read(LEGACY_SERVICE, &account)? else { return Ok(None) };
-        if entry(&service, &account)?.set_password(&old).is_ok() {
-            let _ = entry(LEGACY_SERVICE, &account)?.delete_credential();
-        }
-        Ok(Some(old))
-    })
-    .await
+    blocking(move || read(&service, &account)).await
 }
 
 /// Creates an entry or overwrites it.

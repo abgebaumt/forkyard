@@ -11,7 +11,7 @@ use serde_json::{json, Value};
 
 use super::{
     already_exists, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks, text,
-    two_levels, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts, RepoPath, MAX_ITEMS,
+    two_levels, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath, MAX_ITEMS,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -399,33 +399,6 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
     Ok(pr_summary(&created))
 }
 
-/// `PUT …/pullrequests/{id}` with only what changes.
-pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
-    refuse_extras(change.reviewers.unwrap_or(&[]), change.labels.unwrap_or(&[]))?;
-    let mut patch = serde_json::Map::new();
-    if let Some(title) = change.title {
-        patch.insert("title".into(), json!(title));
-    }
-    if let Some(body) = change.body {
-        patch.insert("description".into(), json!(body));
-    }
-    if let Some(target) = change.target_branch {
-        patch.insert("destination".into(), json!({ "branch": { "name": target } }));
-    }
-    if let Some(draft) = change.draft {
-        patch.insert("draft".into(), json!(draft));
-    }
-    if patch.is_empty() {
-        return pr_head(core, api, repo, number).await;
-    }
-    let value: Value = api
-        .send_json(core, Method::Put, &pr_path(repo, number), &Value::Object(patch))
-        .await
-        .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?
-        .json()?;
-    Ok(pr_summary(&value))
-}
-
 /// `POST …/pullrequests/{id}/comments`
 pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64, body: &str) -> CoreResult<HostComment> {
     let value: Value = api
@@ -763,16 +736,6 @@ impl Host for BitbucketHost {
     }
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
-    }
-    fn pr_update<'a>(
-        &'a self,
-        core: &'a Core,
-        api: &'a Api,
-        repo: &'a RepoPath,
-        number: u64,
-        change: PrChange<'a>,
-    ) -> HostFuture<'a, PrSummary> {
-        Box::pin(pr_update(core, api, repo, number, change))
     }
     fn pr_comment<'a>(
         &'a self,

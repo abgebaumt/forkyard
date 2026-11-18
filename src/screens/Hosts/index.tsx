@@ -181,12 +181,7 @@ export function HostsSection() {
       <SectionHeader
         title={t("hosts.section.title")}
         actions={
-          <Button
-            variant="primary"
-            icon={<Plus className="size-icon" aria-hidden />}
-            disabled={failure?.kind === "not_built"}
-            onClick={() => void openConnectDialog()}
-          >
+          <Button variant="primary" icon={<Plus className="size-icon" aria-hidden />} onClick={() => void openConnectDialog()}>
             {t("hosts.section.connect")}
           </Button>
         }

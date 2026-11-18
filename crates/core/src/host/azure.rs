@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 
 use super::{
     already_exists, detect, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, review_summary, summarize_checks,
-    text, Api, Host, HostFuture, NewPr, Paging, PrChange, RepoFacts, RepoPath,
+    text, Api, Host, HostFuture, NewPr, Paging, RepoFacts, RepoPath,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -457,47 +457,6 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
     Ok(pr_summary(&repo_web(api, repo), &created))
 }
 
-/// `PATCH …/pullrequests/{id}` for title, description, target and draft; labels through `…/labels`.
-pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
-    if change.reviewers.is_some_and(|r| !r.is_empty()) {
-        return Err(no_reviewers());
-    }
-    let mut patch = serde_json::Map::new();
-    if let Some(title) = change.title {
-        patch.insert("title".into(), json!(title));
-    }
-    if let Some(body) = change.body {
-        patch.insert("description".into(), json!(body));
-    }
-    if let Some(target) = change.target_branch {
-        patch.insert("targetRefName".into(), json!(heads(target)));
-    }
-    if let Some(draft) = change.draft {
-        patch.insert("isDraft".into(), json!(draft));
-    }
-    if !patch.is_empty() {
-        api.send_json(core, Method::Patch, &v(&pr_path(repo, number), &[]), &Value::Object(patch))
-            .await
-            .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
-    }
-    if let Some(wanted) = change.labels {
-        let current = pr_raw(core, api, repo, number).await?;
-        let have: Vec<String> = list(&current, "labels")
-            .iter()
-            .filter(|l| l.get("active").and_then(Value::as_bool).unwrap_or(true))
-            .map(|l| text(l, "name"))
-            .collect();
-        let labels = format!("{}/labels", pr_path(repo, number));
-        for name in wanted.iter().filter(|w| !have.iter().any(|h| h.eq_ignore_ascii_case(w))) {
-            api.send_json(core, Method::Post, &v(&labels, &[]), &json!({ "name": name })).await?;
-        }
-        for name in have.iter().filter(|h| !wanted.iter().any(|w| w.eq_ignore_ascii_case(h))) {
-            api.delete(core, &v(&format!("{labels}/{}", encode(name)), &[])).await?;
-        }
-    }
-    pr_head(core, api, repo, number).await
-}
-
 /// A new thread with one comment (`POST …/threads`, status "active").
 pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64, body: &str) -> CoreResult<HostComment> {
     let thread: Value = api
@@ -842,16 +801,6 @@ impl Host for AzureHost {
     }
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
-    }
-    fn pr_update<'a>(
-        &'a self,
-        core: &'a Core,
-        api: &'a Api,
-        repo: &'a RepoPath,
-        number: u64,
-        change: PrChange<'a>,
-    ) -> HostFuture<'a, PrSummary> {
-        Box::pin(pr_update(core, api, repo, number, change))
     }
     fn pr_comment<'a>(
         &'a self,

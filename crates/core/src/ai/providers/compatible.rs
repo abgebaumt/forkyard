@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::openai::model_ids;
 use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send};
 use crate::ai::schema;
@@ -28,26 +28,11 @@ pub struct Compatible {
     key: Option<String>,
     model: String,
     mode: AiStructuredMode,
-    context_tokens: u64,
 }
 
 impl Compatible {
-    pub fn new(
-        kind: AiProviderKind,
-        base: String,
-        key: Option<String>,
-        model: String,
-        mode: AiStructuredMode,
-        context_tokens: u64,
-    ) -> Self {
-        Compatible {
-            kind,
-            base: base.trim_end_matches('/').to_string(),
-            key: key.filter(|key| !key.trim().is_empty()),
-            model,
-            mode,
-            context_tokens,
-        }
+    pub fn new(kind: AiProviderKind, base: String, key: Option<String>, model: String, mode: AiStructuredMode) -> Self {
+        Compatible { kind, base: base.trim_end_matches('/').to_string(), key: key.filter(|key| !key.trim().is_empty()), model, mode }
     }
 
     fn label_text(&self) -> String {
@@ -163,15 +148,6 @@ impl Provider for Compatible {
         self.label_text()
     }
 
-    fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps {
-            structured_output: self.mode == AiStructuredMode::JsonSchema,
-            embeddings: true,
-            max_context_tokens: Some(self.context_tokens),
-            pricing: None,
-        }
-    }
-
     fn complete<'a>(
         &'a self,
         core: &'a Core,
@@ -269,7 +245,6 @@ mod tests {
             key.map(str::to_string),
             "mistral-large-latest".into(),
             mode,
-            32_000,
         )
     }
 
@@ -375,7 +350,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!((lm.id(), lm.label()), (AiProviderKind::Lmstudio, "LM Studio".to_string()));
-        assert!(lm.capabilities().structured_output);
         lm.complete(&tc, &test_request(schema()), &CancelToken::new()).await.unwrap();
         let models = lm.models(&tc, &CancelToken::new()).await.unwrap();
         assert_eq!(models[0].id, "qwen2.5-7b-instruct");

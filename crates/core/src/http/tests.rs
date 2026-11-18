@@ -377,17 +377,17 @@ async fn proxy_from_the_settings_is_used_and_its_password_comes_from_the_keyring
     );
 }
 
-/// A proxy password that an older version stored in plain text is moved on start.
+/// Proxy passwords live in the keyring and are loaded again on start.
 #[tokio::test]
-async fn stored_proxy_passwords_move_to_the_keyring_on_start() {
+async fn proxy_passwords_are_loaded_from_the_keyring_on_start() {
     let tc = TestCore::new().await;
     let profile_id = tc.active_profile_id().unwrap();
-    tc.db
-        .with(|c| {
-            db::settings::set(c, &profile_id, "proxyUrl", &json!("http://anna:alt-geheim@proxy.firma.example:8080"))?;
-            db::settings::set(c, &profile_id, "proxyByHost", &json!([{ "host": "https://git.intern.example", "proxy": "socks5://bob:auch-geheim@127.0.0.1:1080" }, { "host": "https://frei.example", "proxy": "" }]))
-        })
-        .unwrap();
+    settings_set(
+        &tc,
+        json!({ "proxyUrl": "http://anna:alt-geheim@proxy.firma.example:8080", "proxyByHost": [{ "host": "https://git.intern.example", "proxy": "socks5://bob:auch-geheim@127.0.0.1:1080" }, { "host": "https://frei.example", "proxy": "" }] }),
+    )
+    .await
+    .unwrap();
     let tc = tc.restart().await;
     let stored = format!("{:?}", tc.db.with(|c| db::settings::get_all(c, &profile_id)).unwrap());
     assert!(!stored.contains("geheim"), "{stored}");

@@ -144,7 +144,6 @@ import type {
   RepoStats,
   RepoViewState,
   ResetMode,
-  SettingScope,
   Settings,
   Sha,
   SigningFormat,
@@ -164,8 +163,6 @@ import type {
   Tab,
   UndoState,
   UpdateInfo,
-  Workspace,
-  WorkspaceRunResult,
   Worktree,
   AiSemanticIndexUpdate,
   AiSemanticResult,
@@ -240,28 +237,6 @@ export interface CoreCommands {
   initTemplates(): Promise<InitTemplates>;
   /** README.md in the root directory for the preview in the repository manager; null if there is none. */
   repoReadme(input: R): Promise<string | null>;
-
-  // --- Workspaces (local groups of repositories) ----------------------------------------
-  /** Sorted by name. */
-  workspaceList(): Promise<Workspace[]>;
-  /**
-   * Without `id` a workspace is created, otherwise name and repositories are replaced (`repoIds`
-   * in the desired order). Errors: `invalid_name` (empty, over 80 characters), `name_exists`,
-   * `not_found` (workspace or a repository unknown). Reports `app:changed` with `workspaces`.
-   */
-  workspaceSave(input: { id?: Id | null; name: string; repoIds: Id[] }): Promise<Workspace[]>;
-  /** The repositories stay in the list and on disk. */
-  workspaceDelete(input: { id: Id }): Promise<Workspace[]>;
-  /**
-   * Fetch of all remotes in every repository of the workspace, one after another, as ONE job
-   * (`jobCancel` cancels the run → `cancelled`). An error in one repository does not cancel the
-   * others; the result says per repository what happened. Progress per repository:
-   * see `job:progress` in types.ts. Each repository reports its changes as `repo:changed`, like
-   * a single fetch.
-   */
-  workspaceFetch(input: { jobId: string; workspaceId: Id }): Promise<WorkspaceRunResult>;
-  /** Like `workspaceFetch`, with pull. `mode: null` takes each repository's default. */
-  workspacePull(input: { jobId: string; workspaceId: Id; mode: PullMode | null }): Promise<WorkspaceRunResult>;
 
   tabsList(): Promise<Tab[]>;
   /** Opens a repository manager tab (repoId null) or a repo tab. */
@@ -647,8 +622,6 @@ export interface CoreCommands {
 
   settingsGet(): Promise<Settings>;
   settingsSet(input: { patch: Partial<Settings> }): Promise<Settings>;
-  /** Level of each `Settings` field (the same for all profiles or per profile); only changes with a new version. */
-  settingsScopes(): Promise<Record<keyof Settings, SettingScope>>;
   /** Avatar for the email address from GitHub as a data URL; null if none is known. */
   avatarGet(input: { email: string }): Promise<string | null>;
   repoSettingsGet(input: R): Promise<RepoSettings>;
@@ -1035,22 +1008,6 @@ export interface CoreCommands {
       remote?: string | null;
     },
   ): Promise<PrSummary>;
-  /**
-   * Changes only what is given (omitted or null = stays). `reviewers` and `labels`
-   * replace the respective list. Only GitLab can toggle `draft` (GitHub: `host_unsupported`).
-   */
-  prUpdate(
-    input: R & {
-      number: number;
-      title?: string | null;
-      body?: string | null;
-      targetBranch?: string | null;
-      draft?: boolean | null;
-      reviewers?: string[] | null;
-      labels?: string[] | null;
-      remote?: string | null;
-    },
-  ): Promise<PrSummary>;
   /** General comment (Markdown). `empty_message` if empty. */
   prComment(input: R & { number: number; body: string; remote?: string | null }): Promise<HostComment>;
   /**
@@ -1375,7 +1332,6 @@ export interface CoreSystem {
   notifyPermission(): Promise<"granted" | "denied" | "default">;
   /** Text from the clipboard, without the WebView's prompt; empty if there is no text there. */
   clipboardRead(): Promise<string>;
-  clipboardWrite(input: { text: string }): Promise<void>;
 }
 
 export type Core = CoreCommands & CoreSystem;

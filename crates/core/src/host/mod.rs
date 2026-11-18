@@ -161,16 +161,6 @@ pub struct NewRelease<'a> {
     pub prerelease: bool,
 }
 
-/// Changes to a pull request; `None` = stays as it is.
-pub struct PrChange<'a> {
-    pub title: Option<&'a str>,
-    pub body: Option<&'a str>,
-    pub target_branch: Option<&'a str>,
-    pub draft: Option<bool>,
-    pub reviewers: Option<&'a [String]>,
-    pub labels: Option<&'a [String]>,
-}
-
 /// A call this host cannot make: `host_unsupported`, before anything is sent.
 pub(crate) fn unsupported<'a, T: Send + 'a>(label: &str, what: &str) -> HostFuture<'a, T> {
     let error = CoreError::new(ErrorCode::HostUnsupported, format!("{label} does not offer {what} through its API."));
@@ -262,16 +252,6 @@ pub trait Host: Sync {
 
     fn pr_create<'a>(&'a self, _core: &'a Core, _api: &'a Api, _repo: &'a RepoPath, _new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         unsupported(self.label(), "creating pull requests")
-    }
-    fn pr_update<'a>(
-        &'a self,
-        _core: &'a Core,
-        _api: &'a Api,
-        _repo: &'a RepoPath,
-        _number: u64,
-        _change: PrChange<'a>,
-    ) -> HostFuture<'a, PrSummary> {
-        unsupported(self.label(), "changing pull requests")
     }
     fn pr_comment<'a>(
         &'a self,

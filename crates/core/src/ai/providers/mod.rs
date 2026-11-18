@@ -153,12 +153,10 @@ pub fn build(
 ) -> CoreResult<Box<dyn Provider>> {
     match kind {
         AiProviderKind::Anthropic => Ok(Box::new(anthropic::Anthropic::new(base, key.unwrap_or_default(), model, context_tokens))),
-        AiProviderKind::Openai => Ok(Box::new(openai::OpenAi::new(base, key.unwrap_or_default(), model, context_tokens))),
-        AiProviderKind::OpenaiCompatible => Ok(Box::new(compatible::Compatible::new(kind, base, key, model, mode, context_tokens))),
-        AiProviderKind::Lmstudio => {
-            Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema, context_tokens)))
-        }
-        AiProviderKind::Gemini => Ok(Box::new(gemini::Gemini::new(base, key.unwrap_or_default(), model, context_tokens))),
+        AiProviderKind::Openai => Ok(Box::new(openai::OpenAi::new(base, key.unwrap_or_default(), model))),
+        AiProviderKind::OpenaiCompatible => Ok(Box::new(compatible::Compatible::new(kind, base, key, model, mode))),
+        AiProviderKind::Lmstudio => Ok(Box::new(compatible::Compatible::new(kind, base, None, model, AiStructuredMode::JsonSchema))),
+        AiProviderKind::Gemini => Ok(Box::new(gemini::Gemini::new(base, key.unwrap_or_default(), model))),
         AiProviderKind::Ollama => Ok(Box::new(ollama::Ollama::new(base, model, context_tokens))),
         AiProviderKind::ClaudeCode | AiProviderKind::Codex | AiProviderKind::Opencode => {
             Err(CoreError::unknown(format!("Internal error: {} is started through ai::cli::provider.", kind.label())))

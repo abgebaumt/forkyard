@@ -209,7 +209,6 @@ pub async fn repo_forget(core: &Core, repo_id: String) -> CoreResult<()> {
         let profile_id = db::profiles::active_id(tx)?;
         db::profile_repos::remove(tx, &profile_id, &repo_id)?;
         db::tabs::close_repo(tx, &profile_id, &repo_id)?;
-        db::workspaces::remove_repo(tx, &profile_id, &repo_id)?;
         let gone = db::profile_repos::profiles_of(tx, &repo_id)?.is_empty();
         if gone {
             db::repos::delete(tx, &repo_id)?;
@@ -223,7 +222,7 @@ pub async fn repo_forget(core: &Core, repo_id: String) -> CoreResult<()> {
     } else {
         stop_background_if_closed(core, &repo_id);
     }
-    core.emit_app_changed(&[AppChange::Repos, AppChange::Tabs, AppChange::Workspaces]);
+    core.emit_app_changed(&[AppChange::Repos, AppChange::Tabs]);
     Ok(())
 }
 
@@ -438,20 +437,6 @@ mod tests {
         // If the last profile forgets it too, the row is gone.
         repo_forget(&tc, id.clone()).await.unwrap();
         assert!(tc.db.with(|c| db::repos::get(c, &id)).unwrap().is_none());
-    }
-
-    #[tokio::test]
-    async fn forgetting_removes_the_repo_from_the_workspaces_of_the_profile() {
-        let tc = TestCore::new().await;
-        let repo = TestRepo::with_commit();
-        let id = tc.open(&repo).await.repo.id;
-        let work = second_profile(&tc).await;
-        crate::commands::settings::profile_activate(&tc, work).await.unwrap();
-        repo_open_with(&tc, path_of(&repo), true).await.unwrap();
-        crate::commands::workspace::workspace_save(&tc, None, "Kunden".into(), vec![id.clone()]).await.unwrap();
-        repo_forget(&tc, id.clone()).await.unwrap();
-        let workspaces = crate::commands::workspace::workspace_list(&tc).await.unwrap();
-        assert!(workspaces[0].repo_ids.is_empty(), "{workspaces:?}");
     }
 
     #[tokio::test]

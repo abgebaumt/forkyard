@@ -104,9 +104,6 @@ Settings have three levels: **global** (`app_settings`; which `Settings` fields 
 (`profile_repositories`: last opened, favourite, group); path, alias, colour and trust live in
 `repositories`. `repo_open` reports `repo_other_profile` when only other profiles list the repo.
 
-Data from before the rename (data dir `dev.gitclient.desktop`, `gitclient.db`, keychain service
-`git-client`) is adopted once on first start.
-
 ### UI (`src/`)
 
 - `src/screens/<Name>/`: one folder per screen.

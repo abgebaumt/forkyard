@@ -25,24 +25,8 @@ use crate::util;
 
 /// Name of the database file in the data directory.
 pub const DB_FILE: &str = "forkyard.db";
-/// Name of the database file before the rename to Forkyard.
-const LEGACY_DB_FILE: &str = "gitclient.db";
 /// Always-empty folder in the data directory; target of `core.hooksPath` for guarded calls.
 pub const GUARD_HOOKS_DIR: &str = "no-hooks";
-/// Renames a database from before Forkyard, as long as there is no new one yet.
-fn adopt_legacy_db(data_dir: &std::path::Path) {
-    if data_dir.join(DB_FILE).exists() || !data_dir.join(LEGACY_DB_FILE).exists() {
-        return;
-    }
-    for suffix in ["", "-wal", "-shm"] {
-        let old = data_dir.join(format!("{LEGACY_DB_FILE}{suffix}"));
-        if old.exists() {
-            if let Err(e) = std::fs::rename(&old, data_dir.join(format!("{DB_FILE}{suffix}"))) {
-                log::warn!("Old database not adopted: {e}");
-            }
-        }
-    }
-}
 
 /// How long an operation ID (op_id) counts as “already seen”.
 const OP_ID_TTL: Duration = Duration::from_secs(10 * 60);
@@ -129,7 +113,6 @@ impl Core {
             log::warn!("Permissions of the data directory not restricted: {e}");
         }
         let db_path = config.data_dir.join(DB_FILE);
-        adopt_legacy_db(&config.data_dir);
         // SQLite creates -wal and -shm with the permissions of the database file – already when
         // opening (WAL mode). The file therefore has to be private BEFORE opening.
         if let Err(e) = util::create_private_file(&db_path).and_then(|()| util::restrict_to_owner(&db_path)) {
@@ -181,13 +164,7 @@ impl Core {
         }
         crate::startup::timed_async("profile", core.ensure_profile()).await?;
         crate::startup::timed("tabs", || core.ensure_tabs_on_start())?;
-        // Proxy passwords belong in the keychain: move old plain-text values, then load.
-        crate::startup::timed_async("proxy passwords", async {
-            crate::commands::settings::migrate_proxy_passwords(&core).await;
-            crate::commands::settings::load_proxy_passwords(&core).await;
-        })
-        .await;
-        crate::startup::timed_async("removed AI keys", crate::commands::settings::forget_removed_ai_keys(&core)).await;
+        crate::startup::timed_async("proxy passwords", crate::commands::settings::load_proxy_passwords(&core)).await;
         Ok(core)
     }
 

@@ -78,7 +78,6 @@ const problemIcons: Partial<Record<HostErrorKind, typeof Plug>> = {
   unsupported: Unplug,
   permission: Lock,
   offline: WifiOff,
-  not_built: TriangleAlert,
   other: TriangleAlert,
 };
 
@@ -138,7 +137,7 @@ export function HostProblem({ error, onRetry, retrying }: ProblemProps) {
                 {t("issues.problem.openIntegrations")}
               </Button>
             ) : null}
-            {info.kind === "not_built" || info.kind === "unsupported" ? null : (
+            {info.kind === "unsupported" ? null : (
               <Button loading={retrying} icon={<RefreshCw className="size-icon" aria-hidden />} onClick={onRetry}>
                 {t("issues.problem.retry")}
               </Button>

@@ -238,38 +238,6 @@ async fn pull_requests_are_created_changed_commented_merged_and_closed() {
     })
     .await;
 
-    // Update: the draft state lives in the title.
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 3, None, None, None, Some(false), None, None, None).await.unwrap();
-    assert_eq!(fx.sent("PATCH", "/pulls/3")[0].json(), json!({ "title": "Thema 3 umsetzen" }));
-    fx.server.clear();
-    cmd::pr_update(
-        &fx.tc,
-        fx.id(),
-        3,
-        Some("Neuer Titel".into()),
-        Some("Neuer Text".into()),
-        Some("develop".into()),
-        None,
-        None,
-        Some(vec!["frage".into()]),
-        None,
-    )
-    .await
-    .unwrap();
-    assert_eq!(
-        fx.sent("PATCH", "/pulls/3")[0].json(),
-        json!({ "title": "WIP: Neuer Titel", "body": "Neuer Text", "base": "develop", "labels": [12] }),
-        "a draft stays a draft when renamed"
-    );
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 1, None, None, None, None, Some(vec!["jonas".into()]), None, None).await.unwrap();
-    assert_eq!(fx.sent("POST", "/pulls/1/requested_reviewers")[0].json(), json!({ "reviewers": ["jonas"] }));
-    assert!(fx.sent("PATCH", "/pulls/1").is_empty(), "no PATCH without title, body, target, labels or draft");
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 2, None, None, None, None, Some(Vec::new()), None, None).await.unwrap();
-    assert_eq!(fx.sent("DELETE", "/pulls/2/requested_reviewers")[0].json(), json!({ "reviewers": ["mira"] }));
-
     let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
     assert_eq!((comment.id.as_str(), comment.body.as_str()), ("c99", "Passt so."));
     assert_eq!(fx.sent("POST", "/issues/1/comments")[0].json(), json!({ "body": "Passt so." }));

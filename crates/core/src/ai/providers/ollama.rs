@@ -6,7 +6,7 @@
 
 use serde_json::{json, Value};
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage, EMBED_TIMEOUT};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::{expect_count, host_of, http_failure, json_body, numbers, send, ContextCache};
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
@@ -60,10 +60,6 @@ impl Provider for Ollama {
 
     fn label(&self) -> String {
         LABEL.to_string()
-    }
-
-    fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps { structured_output: true, embeddings: true, max_context_tokens: Some(self.context_tokens), pricing: None }
     }
 
     fn complete<'a>(

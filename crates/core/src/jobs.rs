@@ -165,22 +165,6 @@ impl Job {
         &self.id
     }
 
-    /// The same job, but its progress carries `repo_id` – for runs across several
-    /// repositories. Shares jobId and cancel signal; never reports `job:done` (the actual
-    /// job does that).
-    pub fn scoped(&self, repo_id: &str) -> Job {
-        Job {
-            id: self.id.clone(),
-            repo_id: Some(repo_id.to_string()),
-            token: self.token.clone(),
-            registry: self.registry.clone(),
-            events: self.events.clone(),
-            last: Mutex::new((String::new(), None, None)),
-            // Counts as finished: neither `finish` nor dropping reports anything.
-            finished: AtomicBool::new(true),
-        }
-    }
-
     /// For `GitCmd::run_stream`.
     pub fn token(&self) -> &CancelToken {
         &self.token

@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 
 use super::{
     already_exists, color, first_line, flag, host_user, list, not_found_as, number, opt_text, parallel, release_error, review_summary,
-    summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, PrChange, RepoFacts, RepoPath,
+    summarize_checks, text, two_levels, Api, Host, HostFuture, NewPr, NewRelease, Paging, RepoFacts, RepoPath,
 };
 use crate::app::Core;
 use crate::db::hoster_accounts::AccountFacts;
@@ -399,45 +399,6 @@ pub async fn pr_create(core: &Core, api: &Api, repo: &RepoPath, new: NewPr<'_>) 
     pr_head(core, api, repo, number).await
 }
 
-/// `PATCH /repos/{owner}/{repo}/pulls/{index}`; reviewers through their own endpoint.
-pub async fn pr_update(core: &Core, api: &Api, repo: &RepoPath, number: u64, change: PrChange<'_>) -> CoreResult<PrSummary> {
-    let base = repo_path(repo);
-    let current = pr_raw(core, api, repo, number).await?;
-    let current_title = text(&current, "title");
-    let was_draft = is_draft(&current);
-    let mut patch = serde_json::Map::new();
-    if change.title.is_some() || change.draft.is_some_and(|draft| draft != was_draft) {
-        patch.insert("title".into(), json!(draft_title(change.title.unwrap_or(&current_title), change.draft.unwrap_or(was_draft))));
-    }
-    if let Some(body) = change.body {
-        patch.insert("body".into(), json!(body));
-    }
-    if let Some(target) = change.target_branch {
-        patch.insert("base".into(), json!(target));
-    }
-    if let Some(labels) = change.labels {
-        patch.insert("labels".into(), json!(label_ids(core, api, repo, labels).await?));
-    }
-    if !patch.is_empty() {
-        api.send_json(core, Method::Patch, &format!("{base}/pulls/{number}"), &Value::Object(patch))
-            .await
-            .map_err(|e| not_found_as(e, pr_not_found(repo, number)))?;
-    }
-    if let Some(wanted) = change.reviewers {
-        let requested: Vec<String> = list(&current, "requested_reviewers").iter().map(|r| text(r, "login")).collect();
-        let add: Vec<&String> = wanted.iter().filter(|w| !requested.iter().any(|r| r.eq_ignore_ascii_case(w))).collect();
-        let remove: Vec<&String> = requested.iter().filter(|r| !wanted.iter().any(|w| w.eq_ignore_ascii_case(r))).collect();
-        let path = format!("{base}/pulls/{number}/requested_reviewers");
-        if !add.is_empty() {
-            api.send_json(core, Method::Post, &path, &json!({ "reviewers": add })).await?;
-        }
-        if !remove.is_empty() {
-            api.send_json(core, Method::Delete, &path, &json!({ "reviewers": remove })).await?;
-        }
-    }
-    pr_head(core, api, repo, number).await
-}
-
 /// `POST /repos/{owner}/{repo}/issues/{index}/comments` – pull requests are issues there.
 pub async fn comment_create(core: &Core, api: &Api, repo: &RepoPath, number: u64, body: &str) -> CoreResult<HostComment> {
     let value: Value = api
@@ -756,16 +717,6 @@ impl Host for GiteaHost {
     }
     fn pr_create<'a>(&'a self, core: &'a Core, api: &'a Api, repo: &'a RepoPath, new: NewPr<'a>) -> HostFuture<'a, PrSummary> {
         Box::pin(pr_create(core, api, repo, new))
-    }
-    fn pr_update<'a>(
-        &'a self,
-        core: &'a Core,
-        api: &'a Api,
-        repo: &'a RepoPath,
-        number: u64,
-        change: PrChange<'a>,
-    ) -> HostFuture<'a, PrSummary> {
-        Box::pin(pr_update(core, api, repo, number, change))
     }
     fn pr_comment<'a>(
         &'a self,

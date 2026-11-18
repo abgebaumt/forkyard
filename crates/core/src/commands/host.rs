@@ -12,7 +12,7 @@ use crate::app::Core;
 use crate::commands::branches;
 use crate::commands::status::read_status;
 use crate::error::{CoreError, CoreResult, ErrorCode};
-use crate::host::{self, NewPr, NewRelease, Paging, PrChange, RepoApi, DEFAULT_PER_PAGE};
+use crate::host::{self, NewPr, NewRelease, Paging, RepoApi, DEFAULT_PER_PAGE};
 use crate::model::{
     HostComment, HostInfoError, HostKind, HostRelease, HostRepoInfo, HosterAccount, IssueDetails, IssueListState, IssuePage, IssueSummary,
     PrDetails, PrListState, PrMergeMethod, PrPage, PrSummary, RepoChange, ReviewReply, ReviewThread, Status,
@@ -190,36 +190,6 @@ pub async fn pr_create(
     let new =
         NewPr { title: &title, body: &body, source_branch: source, target_branch: target, draft, reviewers: &reviewers, labels: &labels };
     host::host(api.kind).pr_create(core, &api, &repo, new).await
-}
-
-/// Changes only what is given (`None` = stays). `reviewers` and `labels` replace the list.
-#[allow(clippy::too_many_arguments)]
-pub async fn pr_update(
-    core: &Core,
-    repo_id: String,
-    number: u64,
-    title: Option<String>,
-    body: Option<String>,
-    target_branch: Option<String>,
-    draft: Option<bool>,
-    reviewers: Option<Vec<String>>,
-    labels: Option<Vec<String>>,
-    remote: Option<String>,
-) -> CoreResult<PrSummary> {
-    let title = title.as_deref().map(check_title).transpose()?;
-    let target = target_branch.as_deref().map(str::trim).filter(|t| !t.is_empty());
-    let reviewers = reviewers.map(|r| clean_names(Some(r)));
-    let labels = labels.map(|l| clean_names(Some(l)));
-    let RepoApi { api, repo, .. } = host::api_for_repo(core, &repo_id, remote.as_deref()).await?;
-    let change = PrChange {
-        title: title.as_deref(),
-        body: body.as_deref(),
-        target_branch: target,
-        draft,
-        reviewers: reviewers.as_deref(),
-        labels: labels.as_deref(),
-    };
-    host::host(api.kind).pr_update(core, &api, &repo, number, change).await
 }
 
 /// General comment (Markdown) on a pull request.

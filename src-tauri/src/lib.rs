@@ -163,48 +163,11 @@ impl EventSink for WindowSink {
     }
 }
 
-/// Identifier of the app before the rename to Forkyard; its data folder is adopted once.
-const LEGACY_IDENTIFIER: &str = "dev.gitclient.desktop";
-
 fn data_dir(app: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
     match env_value(DATA_DIR_ENV) {
         Some(dir) => Ok(PathBuf::from(dir)),
-        None => {
-            let dir = app.path().app_data_dir()?;
-            adopt_legacy_data_dir(&dir);
-            Ok(dir)
-        }
+        None => Ok(app.path().app_data_dir()?),
     }
-}
-
-/// If the new data folder has no database yet, the contents of the old one are moved into it.
-/// The new folder may already exist: WebKit creates its caches there before `setup` runs.
-/// Whatever is already there was freshly created and gives way to the old state.
-fn adopt_legacy_data_dir(dir: &std::path::Path) {
-    let Some(old) = dir.parent().map(|parent| parent.join(LEGACY_IDENTIFIER)) else { return };
-    if dir.join(gitcore::app::DB_FILE).exists() || !old.is_dir() {
-        return;
-    }
-    if let Err(e) = move_contents(&old, dir) {
-        log::warn!("Old data folder not adopted: {e}");
-        return;
-    }
-    let _ = std::fs::remove_dir(&old);
-}
-
-fn move_contents(from: &std::path::Path, to: &std::path::Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(to)?;
-    for entry in std::fs::read_dir(from)? {
-        let entry = entry?;
-        let target = to.join(entry.file_name());
-        if target.is_dir() {
-            std::fs::remove_dir_all(&target)?;
-        } else if target.exists() {
-            std::fs::remove_file(&target)?;
-        }
-        std::fs::rename(entry.path(), &target)?;
-    }
-    Ok(())
 }
 
 fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) -> Result<(), Box<dyn std::error::Error>> {
@@ -494,11 +457,6 @@ pub fn run() {
             commands::repo_init,
             commands::init_templates,
             commands::repo_readme,
-            commands::workspace_list,
-            commands::workspace_save,
-            commands::workspace_delete,
-            commands::workspace_fetch,
-            commands::workspace_pull,
             commands::tabs_list,
             commands::tab_open,
             commands::tab_close,
@@ -601,7 +559,6 @@ pub fn run() {
             commands::profile_activate,
             commands::settings_get,
             commands::settings_set,
-            commands::settings_scopes,
             commands::avatar_get,
             commands::repo_settings_get,
             commands::repo_settings_set,
@@ -684,7 +641,6 @@ pub fn run() {
             commands::pr_list,
             commands::pr_get,
             commands::pr_create,
-            commands::pr_update,
             commands::pr_comment,
             commands::pr_merge,
             commands::pr_close,
@@ -853,47 +809,6 @@ mod tests {
         assert_eq!(directive("frame-ancestors"), ["'none'"]);
         assert!(!csp.contains("unsafe-eval") && !csp.contains('*') && !csp.contains("https:"), "{csp}");
         assert!(directive("img-src").iter().all(|s| ["'self'", "data:", "blob:"].contains(s)));
-    }
-
-    fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("forkyard-adopt-{name}-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
-    }
-
-    #[test]
-    fn the_old_data_dir_is_adopted_even_if_webkit_created_the_new_one_first() {
-        let parent = scratch("webkit");
-        let old = parent.join(LEGACY_IDENTIFIER);
-        std::fs::create_dir_all(old.join("storage")).unwrap();
-        std::fs::write(old.join("gitclient.db"), "alt").unwrap();
-        let new = parent.join("app.forkyard.desktop");
-        std::fs::create_dir_all(new.join("WebKitCache")).unwrap();
-
-        adopt_legacy_data_dir(&new);
-
-        assert_eq!(std::fs::read_to_string(new.join("gitclient.db")).unwrap(), "alt");
-        assert!(new.join("storage").is_dir());
-        assert!(!old.exists(), "the old folder is empty and removed");
-        let _ = std::fs::remove_dir_all(&parent);
-    }
-
-    #[test]
-    fn an_existing_new_database_is_left_alone() {
-        let parent = scratch("keep");
-        let old = parent.join(LEGACY_IDENTIFIER);
-        std::fs::create_dir_all(&old).unwrap();
-        std::fs::write(old.join("gitclient.db"), "alt").unwrap();
-        let new = parent.join("app.forkyard.desktop");
-        std::fs::create_dir_all(&new).unwrap();
-        std::fs::write(new.join(gitcore::app::DB_FILE), "neu").unwrap();
-
-        adopt_legacy_data_dir(&new);
-
-        assert!(!new.join("gitclient.db").exists());
-        assert!(old.join("gitclient.db").exists());
-        let _ = std::fs::remove_dir_all(&parent);
     }
 
     /// `forkyard` is the command on every system: the program's name (deb/rpm install

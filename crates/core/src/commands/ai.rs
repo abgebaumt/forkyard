@@ -178,14 +178,8 @@ async fn check(
     }
     let structured = match provider {
         AiProviderKind::OpenaiCompatible if !model.is_empty() => {
-            let probe = providers::compatible::Compatible::new(
-                provider,
-                base.to_string(),
-                key,
-                model.to_string(),
-                AiStructuredMode::Prompt,
-                providers::default_context(provider),
-            );
+            let probe =
+                providers::compatible::Compatible::new(provider, base.to_string(), key, model.to_string(), AiStructuredMode::Prompt);
             let mode = probe.probe(core, cancel).await?;
             providers::compatible::remember_mode(core, base, mode)?;
             mode
@@ -675,24 +669,6 @@ mod tests {
             })
             .count();
         assert!(ai_changes >= 3, "key set, settings, key removed: {ai_changes}");
-    }
-
-    #[tokio::test]
-    async fn the_llm_key_survives_the_cleanup_of_the_removed_ai_feature() {
-        let tc = TestCore::new().await;
-        let profile_id = tc.active_profile_id().unwrap();
-        let old = format!("ai:anthropic:{profile_id}");
-        crate::secrets::set(&tc, &old, "sk-alt-0123456789").await.unwrap();
-        ai_key_set(&tc, AiProviderKind::Anthropic, "sk-ant-api03-NEUNEUNEU-5678".into()).await.unwrap();
-        // Replays the first start after the update to 1.2.
-        tc.db.with(|c| Ok(c.execute("delete from app_settings where key = 'cleanup.removedAiKeys'", [])?)).unwrap();
-        crate::commands::settings::forget_removed_ai_keys(&tc).await;
-        assert_eq!(crate::secrets::get(&tc, &old).await.unwrap(), None, "the entry of the removed feature is gone");
-        assert_eq!(
-            crate::secrets::get(&tc, "llm:anthropic").await.unwrap().as_deref(),
-            Some("sk-ant-api03-NEUNEUNEU-5678"),
-            "the new key stays"
-        );
     }
 
     #[tokio::test]

@@ -357,11 +357,6 @@
         "fallback": "The connection failed.",
         "hint": "Check the network connection, a proxy, or the instance address."
       },
-      "notBuilt": {
-        "title": "The host integration is missing from this build",
-        "fallback": "This version of the app does not know the command yet.",
-        "hint": "Update the app."
-      },
       "other": {
         "title": "That didn’t work",
         "fallback": "An unexpected error occurred."

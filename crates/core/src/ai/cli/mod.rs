@@ -23,7 +23,7 @@ use std::time::Duration;
 use parking_lot::Mutex;
 use serde_json::Value;
 
-use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, ProviderCaps, Usage};
+use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage};
 use crate::app::Core;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
@@ -491,7 +491,6 @@ pub struct CliProvider {
     program: PathBuf,
     model: Option<String>,
     caps: CliCaps,
-    context_tokens: u64,
     path_env: Option<OsString>,
     /// Cost the tool reported for the requests of this instance (micro-USD).
     cost_micros: Mutex<Option<i64>>,
@@ -556,15 +555,6 @@ impl Provider for CliProvider {
         self.kind.label().to_string()
     }
 
-    fn capabilities(&self) -> ProviderCaps {
-        ProviderCaps {
-            structured_output: self.schema_as_switch(),
-            embeddings: false,
-            max_context_tokens: Some(self.context_tokens),
-            pricing: None,
-        }
-    }
-
     fn complete<'a>(
         &'a self,
         core: &'a Core,
@@ -611,8 +601,7 @@ async fn prepare(core: &Core, kind: AiProviderKind, settings: &Settings) -> Core
             kind.label()
         )));
     }
-    let context_tokens = crate::ai::providers::context_tokens(core, kind, model.as_deref().unwrap_or_default());
-    Ok(CliProvider { kind, program, model, caps, context_tokens, path_env: child_path(core).await, cost_micros: Mutex::new(None) })
+    Ok(CliProvider { kind, program, model, caps, path_env: child_path(core).await, cost_micros: Mutex::new(None) })
 }
 
 /// The provider for `ai::providers::active` (the command-line tools are not built by `providers::build`).

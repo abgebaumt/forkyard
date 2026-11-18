@@ -112,10 +112,10 @@ export function IssuesSection({ repoId, tabId, query }: IssuesSectionProps) {
     return () => window.removeEventListener("focus", onFocus);
   }, [connected, section.hidden, issues]);
 
-  // No host detected (or the integration is missing entirely, or the repository has no tracker): no section.
+  // No host detected (or the repository has no tracker): no section.
   if (section.hidden || hostRepo.isPending || !repo || !repo.capabilities.issues) return null;
   const problem = hostRepo.isError ? describeHostError(hostRepo.error) : null;
-  if (problem && (problem.kind === "not_built" || problem.kind === "unsupported")) return null;
+  if (problem?.kind === "unsupported") return null;
 
   const all = issues.data?.pages.flatMap((page) => page.items) ?? [];
   const items = filtering ? all.filter((issue) => matchesIssue(issue, query)) : all;

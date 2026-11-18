@@ -259,34 +259,6 @@ async fn pull_requests_are_created_changed_commented_merged_and_declined() {
     })
     .await;
 
-    fx.server.clear();
-    cmd::pr_update(
-        &fx.tc,
-        fx.id(),
-        3,
-        Some("Neuer Titel".into()),
-        Some("Neuer Text".into()),
-        Some("develop".into()),
-        Some(false),
-        None,
-        Some(Vec::new()),
-        None,
-    )
-    .await
-    .unwrap();
-    assert_eq!(
-        fx.sent("PUT", "/pullrequests/3")[0].json(),
-        json!({ "title": "Neuer Titel", "description": "Neuer Text", "destination": { "branch": { "name": "develop" } }, "draft": false }),
-        "an empty label list is no change"
-    );
-    fx.server.clear();
-    cmd::pr_update(&fx.tc, fx.id(), 4, None, None, None, None, None, None, None).await.unwrap();
-    assert!(fx.sent("PUT", "/pullrequests/4").is_empty(), "no write call without a change");
-    assert_eq!(
-        cmd::pr_update(&fx.tc, fx.id(), 4, None, None, None, None, Some(vec!["mira".into()]), None, None).await.unwrap_err().code,
-        ErrorCode::HostUnsupported
-    );
-
     let comment = cmd::pr_comment(&fx.tc, fx.id(), 1, "Passt so.".into(), None).await.unwrap();
     assert_eq!((comment.id.as_str(), comment.body.as_str()), ("99", "Passt so."));
     assert_eq!(fx.sent("POST", "/pullrequests/1/comments")[0].json(), json!({ "content": { "raw": "Passt so." } }));
