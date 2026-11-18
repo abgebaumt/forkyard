@@ -74,7 +74,7 @@ async function applyOrPop(repoId: Id, kind: "apply" | "pop", stash: StashRef, ta
   const label = kind === "pop" ? t("actions.stash.pop") : t("actions.stash.apply");
   const index = await resolveIndex(repoId, stash);
   if (index === null) return null;
-  const result = await runAction(label, withFreshStatus(repoId, () => (kind === "pop" ? core.stashPop({ repoId, index }) : core.stashApply({ repoId, index }))), {
+  const result = await runAction(label, withFreshStatus(repoId, () => (kind === "pop" ? core.stashPop({ repoId, index, expectedSha: stash.sha ?? null }) : core.stashApply({ repoId, index, expectedSha: stash.sha ?? null }))), {
     busyKey: busyKeys.pop(repoId),
     quiet: ["dirty_worktree"],
   });
@@ -117,7 +117,7 @@ export async function applyStashFiles(repoId: Id, stash: StashRef & { sha: Sha }
   if (!untracked.length) return null;
   const index = await resolveIndex(repoId, stash);
   if (index === null) return null;
-  return runAction(t("actions.stash.applyFiles.label"), withStatus(repoId, () => core.stashApplyPaths({ repoId, index, paths: untracked })), {
+  return runAction(t("actions.stash.applyFiles.label"), withStatus(repoId, () => core.stashApplyPaths({ repoId, index, expectedSha: stash.sha ?? null, paths: untracked })), {
     busyKey: busyKeys.pop(repoId),
     success:
       untracked.length === 1 ? t("actions.stash.applyFiles.doneOne", { path: clip(untracked[0]!, 44) }) : t("actions.stash.applyFiles.doneMany", { count: untracked.length }),
@@ -134,7 +134,7 @@ export async function dropStash(repoId: Id, stash: StashRef) {
   if (!ok) return null;
   const index = await resolveIndex(repoId, stash);
   if (index === null) return null;
-  const result = await runAction(t("actions.stash.drop.action"), () => core.stashDrop({ repoId, index }), {
+  const result = await runAction(t("actions.stash.drop.action"), () => core.stashDrop({ repoId, index, expectedSha: stash.sha ?? null }), {
     busyKey: busyKeys.pop(repoId),
     success: t("actions.stash.drop.done"),
   });

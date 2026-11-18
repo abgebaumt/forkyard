@@ -989,7 +989,7 @@ async fn stash_create_and_pop_undo_and_redo() {
     )
     .await;
 
-    let result = stash_pop(&fx.tc, fx.id(), 0).await.unwrap();
+    let result = stash_pop(&fx.tc, fx.id(), 0, None).await.unwrap();
     assert!(matches!(result, OpResult::Done { .. }), "{result:?}");
     fx.round_trip(
         "stash_pop",
@@ -1016,7 +1016,7 @@ async fn dropping_a_stash_voids_its_undo_entry() {
     stash_create(&fx.tc, fx.id(), util::new_id(), None, None, true, None).await.unwrap();
     assert_eq!(fx.peek().await.undo.unwrap().action, "stash");
 
-    stash_drop(&fx.tc, fx.id(), 0).await.unwrap();
+    stash_drop(&fx.tc, fx.id(), 0, None).await.unwrap();
     let entries = fx.entries();
     assert_eq!(entries.iter().map(|e| e.action.as_str()).collect::<Vec<_>>(), ["commit"], "the \"stash\" entry is invalidated");
     // The older step is not blocked.

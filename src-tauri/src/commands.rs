@@ -608,23 +608,23 @@ pub async fn stash_create(
 }
 
 #[tauri::command]
-pub async fn stash_apply(core: State<'_, Core>, repo_id: String, index: u32) -> R<OpResult> {
-    c::stash::stash_apply(&core, repo_id, index).await
+pub async fn stash_apply(core: State<'_, Core>, repo_id: String, index: u32, expected_sha: Option<String>) -> R<OpResult> {
+    c::stash::stash_apply(&core, repo_id, index, expected_sha).await
 }
 
 #[tauri::command]
-pub async fn stash_pop(core: State<'_, Core>, repo_id: String, index: u32) -> R<OpResult> {
-    c::stash::stash_pop(&core, repo_id, index).await
+pub async fn stash_pop(core: State<'_, Core>, repo_id: String, index: u32, expected_sha: Option<String>) -> R<OpResult> {
+    c::stash::stash_pop(&core, repo_id, index, expected_sha).await
 }
 
 #[tauri::command]
-pub async fn stash_apply_paths(core: State<'_, Core>, repo_id: String, index: u32, paths: Vec<String>) -> R<Status> {
-    c::stash::stash_apply_paths(&core, repo_id, index, paths).await
+pub async fn stash_apply_paths(core: State<'_, Core>, repo_id: String, index: u32, expected_sha: Option<String>, paths: Vec<String>) -> R<Status> {
+    c::stash::stash_apply_paths(&core, repo_id, index, expected_sha, paths).await
 }
 
 #[tauri::command]
-pub async fn stash_drop(core: State<'_, Core>, repo_id: String, index: u32) -> R<Vec<Stash>> {
-    c::stash::stash_drop(&core, repo_id, index).await
+pub async fn stash_drop(core: State<'_, Core>, repo_id: String, index: u32, expected_sha: Option<String>) -> R<Vec<Stash>> {
+    c::stash::stash_drop(&core, repo_id, index, expected_sha).await
 }
 
 #[tauri::command]

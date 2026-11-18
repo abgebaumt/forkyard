@@ -85,7 +85,7 @@ async fn undo_of_reset_pop_and_squash_keeps_work_done_afterwards() {
     // Stash Pop
     fx.repo.write_file("README.md", "im Stash geparkt\n");
     stash_create(&fx.tc, fx.id(), util::new_id(), Some("geparkt".into()), None, true, None).await.unwrap();
-    stash_pop(&fx.tc, fx.id(), 0).await.unwrap();
+    stash_pop(&fx.tc, fx.id(), 0, None).await.unwrap();
     fx.repo.write_file("nach-dem-pop.txt", "neu\n");
     fx.repo.write_file("b.txt", "nach dem Pop geändert\n");
     fx.undo().await.unwrap();

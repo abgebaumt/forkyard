@@ -178,11 +178,11 @@ async fn reset_checkout_and_stash() {
     assert_eq!(stash_create(&tc, id.clone(), "op-1".into(), Some("Test".into()), None, true, None).await.unwrap().len(), 1);
     clean(&tc, &id).await;
     make_stale(&repo);
-    assert!(done(&stash_apply(&tc, id.clone(), 0).await.unwrap()));
+    assert!(done(&stash_apply(&tc, id.clone(), 0, None).await.unwrap()));
     repo.git(&["checkout", "-q", "--", "a.txt"]);
     repo.remove_file("unverfolgt.txt");
     make_stale(&repo);
-    assert!(done(&stash_pop(&tc, id.clone(), 0).await.unwrap()));
+    assert!(done(&stash_pop(&tc, id.clone(), 0, None).await.unwrap()));
     assert_eq!(repo.read_file("a.txt"), b"main\nlokal\n");
 }
 
