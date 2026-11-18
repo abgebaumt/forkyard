@@ -835,11 +835,19 @@ pub(crate) async fn push_destination(core: &Core, repo_id: &str, request: &PushR
 /// `--force-with-lease=<remote_ref>:<expected>` for one branch: only the state we know from the
 /// tracking ref (or the one the prompt showed, `expected`) may be overwritten; if we don't know the
 /// branch there, it must not exist. `Err(Rejected)` if the tracking ref moved away from what the
-/// prompt showed.
+/// prompt showed. `expected`: `Some(sha)` = shown tip, `Some("")` = shown absent (`Err(Rejected)` if
+/// the tracking ref exists now), `None` = lease against the tracking ref.
 async fn lease(core: &Core, repo_id: &str, remote: &str, remote_ref: &str, expected: Option<&str>) -> CoreResult<Result<String, PushResult>> {
     let remote_branch = remote_ref.strip_prefix("refs/heads/").unwrap_or(remote_ref);
     let tracking = format!("refs/remotes/{remote}/{remote_branch}");
     let known_tip = resolve_commit(core, repo_id, &tracking).await?.unwrap_or_default();
+    if expected.map(str::trim) == Some("") && !known_tip.is_empty() {
+        return Ok(Err(PushResult::Rejected {
+            reason: format!(
+                "The remote branch “{remote}/{remote_branch}” appeared while the confirmation was open. Nothing was overwritten. Choose “Push” again and check what is on the remote now."
+            ),
+        }));
+    }
     let expected = match expected.map(str::trim).filter(|sha| sha.len() >= 7 && sha.bytes().all(|b| b.is_ascii_hexdigit())) {
         Some(shown) => {
             if !known_tip.eq_ignore_ascii_case(shown) {
