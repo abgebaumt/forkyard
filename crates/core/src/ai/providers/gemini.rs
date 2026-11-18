@@ -6,7 +6,7 @@
 use serde_json::{json, Value};
 
 use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
-use crate::ai::providers::{expect_count, host_of, http_failure, json_body, numbers, send};
+use crate::ai::providers::{expect_count, numbers, send_json};
 use crate::ai::semantic::vector::MAX_DIMS;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult};
@@ -89,11 +89,8 @@ impl Provider for Gemini {
                 .json(&self.body(request))
                 .timeout(request.timeout)
                 .repo(request.repo_id.as_deref());
-            let response = send(core, http_request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-            }
-            Self::parse(&json_body(LABEL, &response)?)
+            let value = send_json(core, http_request, cancel, LABEL, &self.base, std::slice::from_ref(&self.key)).await?;
+            Self::parse(&value)
         })
     }
 
@@ -107,11 +104,9 @@ impl Provider for Gemini {
                     params.push(("pageToken", token.clone()));
                 }
                 let url = http::with_query(&format!("{}/models", self.base), &params);
-                let response = send(core, self.authorized(Request::get(url, LABEL)), cancel, LABEL, &host_of(&self.base)).await?;
-                if !response.is_success() {
-                    return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-                }
-                let page = json_body(LABEL, &response)?;
+                let page =
+                    send_json(core, self.authorized(Request::get(url, LABEL)), cancel, LABEL, &self.base, std::slice::from_ref(&self.key))
+                        .await?;
                 for entry in page.get("models").and_then(Value::as_array).into_iter().flatten() {
                     let generates = entry
                         .get("supportedGenerationMethods")
@@ -144,11 +139,7 @@ impl Provider for Gemini {
             let url = format!("{}/models/{}:batchEmbedContents", self.base, http::encode(self.model_id()));
             let request =
                 self.authorized(Request::new(Method::Post, url, LABEL)).json(&json!({ "requests": requests })).timeout(EMBED_TIMEOUT);
-            let response = send(core, request, cancel, LABEL, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(LABEL, &response, std::slice::from_ref(&self.key)));
-            }
-            let value = json_body(LABEL, &response)?;
+            let value = send_json(core, request, cancel, LABEL, &self.base, std::slice::from_ref(&self.key)).await?;
             let vectors = value
                 .get("embeddings")
                 .and_then(Value::as_array)

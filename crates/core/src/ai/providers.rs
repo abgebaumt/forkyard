@@ -67,6 +67,22 @@ pub async fn send(core: &Core, request: Request, cancel: &CancelToken, label: &s
     http::send_cancellable(core, request, cancel).await.map_err(|error| transport_failure(error, label, host))
 }
 
+/// `send`, then an error status as `http_failure` (without `secrets`) and the body as JSON.
+pub async fn send_json(
+    core: &Core,
+    request: Request,
+    cancel: &CancelToken,
+    label: &str,
+    base: &str,
+    secrets: &[String],
+) -> CoreResult<Value> {
+    let response = send(core, request, cancel, label, &host_of(base)).await?;
+    if !response.is_success() {
+        return Err(http_failure(label, &response, secrets));
+    }
+    json_body(label, &response)
+}
+
 pub fn transport_failure(error: CoreError, label: &str, host: &str) -> CoreError {
     match error.code {
         ErrorCode::Offline => {

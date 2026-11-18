@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::ai::provider::{BoxFuture, Completion, CompletionRequest, Finish, Provider, Usage, EMBED_TIMEOUT};
 use crate::ai::providers::openai::model_ids;
-use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send};
+use crate::ai::providers::{host_of, http_failure, json_body, openai_vectors, send, send_json};
 use crate::ai::schema;
 use crate::app::Core;
 use crate::db;
@@ -156,29 +156,24 @@ impl Provider for Compatible {
     ) -> BoxFuture<'a, CoreResult<Completion>> {
         Box::pin(async move {
             let label = self.label_text();
-            let response = send(core, self.chat_request(request, self.mode), cancel, &label, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(&label, &response, &self.secrets()));
-            }
-            Self::parse(&json_body(&label, &response)?)
+            let value = send_json(core, self.chat_request(request, self.mode), cancel, &label, &self.base, &self.secrets()).await?;
+            Self::parse(&value)
         })
     }
 
     fn models<'a>(&'a self, core: &'a Core, cancel: &'a CancelToken) -> BoxFuture<'a, CoreResult<Vec<AiModelInfo>>> {
         Box::pin(async move {
             let label = self.label_text();
-            let response = send(
+            let value = send_json(
                 core,
                 self.authorized(Request::get(format!("{}/models", self.base), label.clone())),
                 cancel,
                 &label,
-                &host_of(&self.base),
+                &self.base,
+                &self.secrets(),
             )
             .await?;
-            if !response.is_success() {
-                return Err(http_failure(&label, &response, &self.secrets()));
-            }
-            Ok(model_ids(&json_body(&label, &response)?))
+            Ok(model_ids(&value))
         })
     }
 
@@ -189,11 +184,8 @@ impl Provider for Compatible {
                 .authorized(Request::new(Method::Post, format!("{}/embeddings", self.base), label.clone()))
                 .json(&json!({ "model": self.model, "input": texts }))
                 .timeout(EMBED_TIMEOUT);
-            let response = send(core, request, cancel, &label, &host_of(&self.base)).await?;
-            if !response.is_success() {
-                return Err(http_failure(&label, &response, &self.secrets()));
-            }
-            openai_vectors(&label, &json_body(&label, &response)?, texts.len())
+            let value = send_json(core, request, cancel, &label, &self.base, &self.secrets()).await?;
+            openai_vectors(&label, &value, texts.len())
         })
     }
 }
