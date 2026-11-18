@@ -138,11 +138,7 @@ pub(crate) async fn after_status_change(core: &Core, session: &registry::Session
     if session.snapshot().status != AgentStatus::Done {
         return;
     }
-    let configured = crate::commands::settings::repo_settings_get(core, session.repo_id.clone())
-        .await
-        .ok()
-        .and_then(|s| s.test_command)
-        .is_some_and(|c| !c.trim().is_empty());
+    let configured = core.repo_settings(&session.repo_id).await.ok().and_then(|s| s.test_command).is_some_and(|c| !c.trim().is_empty());
     let registry = core.state::<AgentRegistry>();
     if !configured || registry.test_of(&session.agent_id).is_some_and(|t| t.state == crate::model::AgentTestState::Running) {
         return;

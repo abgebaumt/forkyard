@@ -2,7 +2,7 @@
 //! Keys are field names of `RepoSettings` in camelCase. What Git itself understands
 //! (hooksPath, commitTemplate, authorName, authorEmail) lives in .git/config, not here.
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 
 use crate::error::CoreResult;
@@ -13,6 +13,14 @@ pub fn get_all(conn: &Connection, repo_id: &str) -> CoreResult<Vec<(String, Valu
     let rows =
         stmt.query_map([repo_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?.collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(rows.into_iter().filter_map(|(k, v)| serde_json::from_str(&v).ok().map(|v| (k, v))).collect())
+}
+
+/// One stored value; `None` if the key is not set (or not valid JSON).
+pub fn get(conn: &Connection, repo_id: &str, key: &str) -> CoreResult<Option<Value>> {
+    let text: Option<String> = conn
+        .query_row("select value from repo_settings where repository_id = ?1 and key = ?2", params![repo_id, key], |r| r.get(0))
+        .optional()?;
+    Ok(text.and_then(|v| serde_json::from_str(&v).ok()))
 }
 
 pub fn set(conn: &Connection, repo_id: &str, key: &str, value: &Value) -> CoreResult<()> {
@@ -31,7 +39,7 @@ pub fn delete(conn: &Connection, repo_id: &str, key: &str) -> CoreResult<()> {
 
 /// A text value (e.g. `sshKeyId`) or `None` if nothing or no text is stored.
 fn text_value(conn: &Connection, repo_id: &str, key: &str) -> CoreResult<Option<String>> {
-    Ok(get_all(conn, repo_id)?.into_iter().find(|(k, _)| k == key).and_then(|(_, v)| v.as_str().map(str::to_string)))
+    Ok(get(conn, repo_id, key)?.and_then(|v| v.as_str().map(str::to_string)))
 }
 
 /// Storage key of the key choice: per profile, because the SSH keys belong to a profile,

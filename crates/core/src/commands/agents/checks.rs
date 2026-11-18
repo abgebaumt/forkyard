@@ -90,7 +90,7 @@ fn console_text(bytes: &[u8]) -> String {
 pub(crate) async fn run_tests(core: &Core, agent_id: &str, job_id: &str) -> CoreResult<AgentTestResult> {
     let row = core.db.with(|c| db::agents::require(c, agent_id))?;
     core.repo_path(&row.repo_id)?;
-    let settings = crate::commands::settings::repo_settings_get(core, row.repo_id.clone()).await?;
+    let settings = core.repo_settings(&row.repo_id).await?;
     let command = settings
         .test_command
         .map(|c| c.trim().to_string())

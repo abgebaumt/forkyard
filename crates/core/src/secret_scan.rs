@@ -392,7 +392,7 @@ pub async fn scan_outgoing(core: &Core, repo_id: &str, tips: &[String], remote: 
 }
 
 fn stored_ids(conn: &Connection, repo_id: &str) -> CoreResult<Vec<String>> {
-    let value = db::repo_settings::get_all(conn, repo_id)?.into_iter().find(|(key, _)| key == IGNORED_KEY).map(|(_, value)| value);
+    let value = db::repo_settings::get(conn, repo_id, IGNORED_KEY)?;
     Ok(match value {
         Some(Value::Array(items)) => items.into_iter().filter_map(|item| item.as_str().map(str::to_string)).collect(),
         _ => Vec::new(),

@@ -244,10 +244,10 @@ async fn nested_links_at(core: &Core, repo_id: &str, sub_root: &Path, rev: &str)
 /// `RepoSettings.submodules_auto_update` (default: on).
 fn enabled(core: &Core, repo_id: &str) -> bool {
     core.db
-        .with(|c| db::repo_settings::get_all(c, repo_id))
+        .with(|c| db::repo_settings::get(c, repo_id, "submodulesAutoUpdate"))
         .ok()
-        .and_then(|all| all.into_iter().find(|(key, _)| key == "submodulesAutoUpdate"))
-        .and_then(|(_, value)| value.as_bool())
+        .flatten()
+        .and_then(|value| value.as_bool())
         .unwrap_or(true)
 }
 

@@ -170,12 +170,7 @@ fn interval(core: &Core, repo_id: &str, timing: FetchTiming) -> Option<Duration>
 
 /// `RepoSettings.auto_fetch` (default: on).
 fn repo_auto_fetch(core: &Core, repo_id: &str) -> bool {
-    core.db
-        .with(|c| db::repo_settings::get_all(c, repo_id))
-        .ok()
-        .and_then(|all| all.into_iter().find(|(key, _)| key == "autoFetch"))
-        .and_then(|(_, value)| value.as_bool())
-        .unwrap_or(true)
+    core.db.with(|c| db::repo_settings::get(c, repo_id, "autoFetch")).ok().flatten().and_then(|value| value.as_bool()).unwrap_or(true)
 }
 
 /// Where in the interval this repository's first fetch falls, so repositories opened together

@@ -71,8 +71,7 @@ pub fn configure(core: &Core, base: Option<String>) {
 }
 
 fn load(core: &Core) -> CoreResult<StoredState> {
-    let value =
-        core.db.with(|c| Ok(db::app_settings::get_all(c)?.into_iter().find(|(key, _)| key == STATE_KEY).map(|(_, value)| value)))?;
+    let value = core.db.with(|c| db::app_settings::get(c, STATE_KEY))?;
     // A broken entry is as good as none.
     Ok(value.and_then(|value| serde_json::from_value(value).ok()).unwrap_or_default())
 }
