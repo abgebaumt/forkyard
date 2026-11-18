@@ -339,7 +339,7 @@ fn migrate(conn: &mut Connection) -> CoreResult<()> {
         let path = conn.path().unwrap_or("").to_string();
         return Err(CoreError::new(
             ErrorCode::Io,
-            format!("The app database was created by a newer Forkyard version. Install that version again, or move {path} away to start fresh."),
+            format!("The app database was created by a newer Forkyard version. Install that version again, or move the database file {path} and its -wal/-shm files away to start fresh."),
         ));
     }
     if version <= 0 {
@@ -389,13 +389,16 @@ pub fn open_or_set_aside(path: &Path) -> CoreResult<(Db, Option<PathBuf>)> {
         PathBuf::from(name)
     };
     let broken = with(&format!(".broken-{ms}"));
-    std::fs::rename(path, &broken)?;
+    // Sidecars first, the main file last: a failure never leaves a stale WAL next to a fresh DB.
     for extra in ["-wal", "-shm"] {
         let from = with(extra);
         if from.exists() {
             std::fs::rename(&from, with(&format!(".broken-{ms}{extra}")))?;
         }
     }
+    std::fs::rename(path, &broken)?;
+    // The new file must be private BEFORE SQLite opens it.
+    crate::util::create_private_file(path).and_then(|()| crate::util::restrict_to_owner(path))?;
     Ok((Db::open(path)?, Some(broken)))
 }
 
@@ -403,13 +406,8 @@ pub fn open_or_set_aside(path: &Path) -> CoreResult<(Db, Option<PathBuf>)> {
 fn probe(path: &Path) -> rusqlite::Result<()> {
     let conn = Connection::open(path)?;
     let _mode: String = conn.query_row("pragma journal_mode = wal", [], |r| r.get(0))?;
-    let check: String = conn.query_row("pragma quick_check", [], |r| r.get(0))?;
-    if check != "ok" {
-        return Err(rusqlite::Error::SqliteFailure(
-            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
-            Some(check),
-        ));
-    }
+    // Reads page 1: garbage bytes fail here with NotADatabase. No full quick_check (reads the whole file).
+    let _n: i64 = conn.query_row("select count(*) from sqlite_master", [], |r| r.get(0))?;
     Ok(())
 }
 
@@ -438,14 +436,21 @@ pub fn is_foreign_key_violation(e: &rusqlite::Error) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
     fn a_corrupt_database_is_set_aside_and_a_fresh_one_opens() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("t.db");
         std::fs::write(&path, vec![0xAB; 4096]).unwrap();
-        let (db, broken) = super::open_or_set_aside(&path).unwrap();
+        let (db, broken) = open_or_set_aside(&path).unwrap();
         let broken = broken.expect("set aside");
         assert_eq!(std::fs::read(&broken).unwrap(), vec![0xAB; 4096]);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        }
         db.with(|c| Ok(c.query_row("select count(*) from profiles", [], |r| r.get::<_, i64>(0))?)).unwrap();
     }
 
@@ -457,13 +462,11 @@ mod tests {
         let c = Connection::open(&path).unwrap();
         c.pragma_update(None, "user_version", super::LATEST_VERSION + 1).unwrap();
         drop(c);
-        let err = super::open_or_set_aside(&path).err().expect("refused");
+        let err = open_or_set_aside(&path).err().expect("refused");
         assert!(err.to_string().contains("newer Forkyard"), "{err}");
         assert!(path.exists());
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains(".broken-")).count(), 0);
     }
-
-    use super::*;
 
     #[test]
     fn schema_loads_and_is_idempotent() {
