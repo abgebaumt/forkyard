@@ -1,17 +1,17 @@
 /**
  * Gitea/Forgejo (v1.1) in the real app: connect an account, pull requests (list, view, comment,
  * merge, close/reopen, check out, create) and issues (list, details, filter, branch) – against a
- * local Gitea instance (scripts/e2e-wd/fixtures/gitea.mjs: API from e2e/fixtures/host-mock.mjs plus
+ * local Gitea instance (e2e/fixtures/gitea.mjs: API from e2e/fixtures/host-mock.mjs plus
  * the repository `octo/demo` over Git smart HTTP on the same address). Nothing calls a real service.
  *
- *   node scripts/e2e-wd/features/gitea.mjs
- *   node scripts/e2e-wd/run.mjs gitea --only "merge"
+ *   node e2e/features/gitea.mjs
+ *   node e2e/run.mjs gitea --only "merge"
  *
  * Every scenario checks the UI, what reached the host (mock requests) and – where Git is involved –
  * the repository itself. Every app gets a private Secret Service (fixtures/gitea-keyring.mjs), so
  * test tokens never reach the user's keychain.
  */
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { startGitea } from "../fixtures/gitea.mjs";
 import { startPrivateKeyring } from "../fixtures/gitea-keyring.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

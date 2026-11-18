@@ -24,7 +24,7 @@ function testCsp(port: number | null): string | null {
 const cspHeader = testCsp(e2ePort);
 
 /**
- * For the WebDriver harness (scripts/e2e-wd): WebDriver cannot hook into a page before its own
+ * For the WebDriver harness (e2e): WebDriver cannot hook into a page before its own
  * scripts run, so the test server puts a small classic script in front of the app. It records
  * uncaught errors, unhandled rejections, console.error calls and failed resource loads in
  * `window.__gcE2E.errors` from the very first moment.

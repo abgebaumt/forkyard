@@ -4,13 +4,13 @@
  * local bare repositories or e2e/fixtures/git-http-server.mjs. Results are checked in the UI AND
  * with git in the temp repositories.
  *
- *   node scripts/e2e-wd/features/repos.mjs
- *   E2E_WD_ONLY="clone:" node scripts/e2e-wd/features/repos.mjs
+ *   node e2e/features/repos.mjs
+ *   E2E_WD_ONLY="clone:" node e2e/features/repos.mjs
  */
 import fs from "node:fs";
 import path from "node:path";
-import { TEST_IDENTITY, makeCleanRepoWithRemote, makeNotARepo } from "../../../e2e/fixtures/fixtures.mjs";
-import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
+import { TEST_IDENTITY, makeCleanRepoWithRemote, makeNotARepo } from "../fixtures/fixtures.mjs";
+import { startGitHttpServer } from "../fixtures/git-http-server.mjs";
 import {
   FSMONITOR_MARKER,
   HOOK_MARKER,

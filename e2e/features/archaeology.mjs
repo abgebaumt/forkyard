@@ -10,8 +10,8 @@
  * - edge: the diff line menu on a removed line opens the history at the parent commit;
  * - edge: German texts.
  *
- *   node scripts/e2e-wd/features/archaeology.mjs
- *   E2E_WD_ONLY="Explain" node scripts/e2e-wd/features/archaeology.mjs
+ *   node e2e/features/archaeology.mjs
+ *   E2E_WD_ONLY="Explain" node e2e/features/archaeology.mjs
  */
 import http from "node:http";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";

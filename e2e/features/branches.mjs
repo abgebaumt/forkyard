@@ -4,8 +4,8 @@
  * and revert (1.1). Every scenario works on a fresh real repository (fixtures/branches.mjs) and
  * checks the result in the UI and with git in the repository.
  *
- *   node scripts/e2e-wd/features/branches.mjs
- *   node scripts/e2e-wd/run.mjs branches --only preflight
+ *   node e2e/features/branches.mjs
+ *   node e2e/run.mjs branches --only preflight
  */
 import { makeBranchRepo, werte } from "../fixtures/branches.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

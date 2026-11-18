@@ -11,8 +11,8 @@
  *   fails, part 2 passes, no worktree is left behind; AI on without a provider shows only "Suggest parts";
  * - edge: a new commit on part 1 offers „Nachziehen“ (German texts), which rebases part 2 onto it.
  *
- *   node scripts/e2e-wd/features/stacked-prs.mjs
- *   E2E_WD_ONLY=check node scripts/e2e-wd/features/stacked-prs.mjs
+ *   node e2e/features/stacked-prs.mjs
+ *   E2E_WD_ONLY=check node e2e/features/stacked-prs.mjs
  */
 import fs from "node:fs";
 import http from "node:http";

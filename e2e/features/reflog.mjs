@@ -5,8 +5,8 @@
  * the empty state, paging through a long reflog, redacted messages, keyboard use and live updates.
  * Every result is checked in the UI and with git in the temp repository.
  *
- *   node scripts/e2e-wd/features/reflog.mjs
- *   E2E_WD_ONLY="keyboard" node scripts/e2e-wd/features/reflog.mjs
+ *   node e2e/features/reflog.mjs
+ *   E2E_WD_ONLY="keyboard" node e2e/features/reflog.mjs
  */
 import { dropObject, makeEmptyReflogRepo, makeReflogRepo, writeLongReflog } from "../fixtures/reflog.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

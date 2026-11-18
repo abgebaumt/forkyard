@@ -43,7 +43,11 @@ export function makeChecks(screenId) {
     }
     return Boolean(condition);
   };
-  const equal = (actual, expected, message) => check(JSON.stringify(actual) === JSON.stringify(expected), `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  const equal = (actual, expected, message) =>
+    check(
+      JSON.stringify(actual) === JSON.stringify(expected),
+      `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const attempt = async (read) => {
     try {
@@ -62,9 +66,13 @@ export function makeChecks(screenId) {
       actual = await attempt(read);
     }
     if (matches(actual)) return true;
-    return check(false, `${message}: ${typeof expected === "function" ? "condition not met" : `expected ${JSON.stringify(expected)}`}, got ${JSON.stringify(actual)}`);
+    return check(
+      false,
+      `${message}: ${typeof expected === "function" ? "condition not met" : `expected ${JSON.stringify(expected)}`}, got ${JSON.stringify(actual)}`,
+    );
   };
-  const until = (read, message, timeoutMs) => eventually(read, (value) => Boolean(value) && !String(value).startsWith("Error:"), message, timeoutMs);
+  const until = (read, message, timeoutMs) =>
+    eventually(read, (value) => Boolean(value) && !String(value).startsWith("Error:"), message, timeoutMs);
   const section = async (title, run) => {
     if (state.only && !state.only.some((part) => title.toLowerCase().includes(part.toLowerCase()))) return;
     state.current = title;
@@ -75,7 +83,10 @@ export function makeChecks(screenId) {
       await run();
     } catch (error) {
       check(false, `aborted: ${error?.stack ?? error}`);
-      if (state.app) await state.app.screenshot(`target/e2e/${screenId}-error-${title.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40)}.png`).catch(() => undefined);
+      if (state.app)
+        await state.app
+          .screenshot(`target/e2e/${screenId}-error-${title.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 40)}.png`)
+          .catch(() => undefined);
     }
     console.log(`${failures.length === before ? "✓" : "✗"} ${title} (${((Date.now() - started) / 1000).toFixed(1)} s)`);
   };
@@ -107,13 +118,13 @@ export const EVIL_MD = [
   "Normaler **Text** mit [Projektseite](https://example.org/projekt) und [Skript-Link](javascript:alert(1)).",
   "",
   "<script>window.__evil = (window.__evil || 0) + 1</script>",
-  "<img src=x onerror=\"window.__evil = (window.__evil || 0) + 1\">",
+  '<img src=x onerror="window.__evil = (window.__evil || 0) + 1">',
   "",
   "![Radarbild](https://example.org/radar.png)",
   "",
-  "<iframe src=\"https://example.org\"></iframe>",
-  "<a href=\"https://example.org/klick\" onclick=\"window.__evil = 99\">Klick</a>",
-  "<div style=\"position:fixed;inset:0;background:red\">Überdeckung</div>",
+  '<iframe src="https://example.org"></iframe>',
+  '<a href="https://example.org/klick" onclick="window.__evil = 99">Klick</a>',
+  '<div style="position:fixed;inset:0;background:red">Überdeckung</div>',
   "",
   "- [x] Sensor geprüft",
   "- [ ] Bericht verschickt",
@@ -202,7 +213,10 @@ export function makeFilesRepo() {
   gitRaw(["mv", FILES.renamedOld, FILES.renamed]);
   write(FILES.renamed, "# Messkonzept\n\nDie Station misst alle fünf Minuten.\n\n## Sensoren\n\n- Temperatur\n- Luftfeuchte\n- Regen\n");
   shas.planRenamed = commit("Messplan heißt jetzt Messkonzept", PEOPLE.lena);
-  write(FILES.renamed, "# Messkonzept\n\nDie Station misst alle fünf Minuten.\n\n## Sensoren\n\n- Temperatur\n- Luftfeuchte\n- Regen\n- Wind\n");
+  write(
+    FILES.renamed,
+    "# Messkonzept\n\nDie Station misst alle fünf Minuten.\n\n## Sensoren\n\n- Temperatur\n- Luftfeuchte\n- Regen\n- Wind\n",
+  );
   shas.planAfter = commit("Messkonzept: Wind ergänzt", PEOPLE.mats);
 
   // --- Deleted file    -------------------------------------------------------------------------
@@ -221,7 +235,10 @@ export function makeFilesRepo() {
   shas.textFiles = commit("Testdateien: Zeilenenden, Latin-1, Markdown", PEOPLE.lena);
 
   // --- Big file from three commits  ------------------------------------------------------------
-  const big = Array.from({ length: 20_000 }, (_, index) => `Messwert ${String(index + 1).padStart(5, "0")}: ${(index * 0.37).toFixed(2)} °C`);
+  const big = Array.from(
+    { length: 20_000 },
+    (_, index) => `Messwert ${String(index + 1).padStart(5, "0")}: ${(index * 0.37).toFixed(2)} °C`,
+  );
   write(FILES.big, `${big.join("\n")}\n`);
   shas.bigFirst = commit("Große Messreihe abgelegt", PEOPLE.lena);
   for (let index = 5000; index < 10_000; index++) big[index] = `${big[index]} korrigiert`;
@@ -266,7 +283,11 @@ export function addManyCommits(fx, file, count) {
 /** Closes all toasts (they would otherwise cover parts of the screenshots). */
 export async function closeToasts(page) {
   for (let round = 0; round < 10 && (await page.locator("[data-toast]").count()) > 0; round++) {
-    await page.getByRole("button", { name: "Close message" }).first().click().catch(() => undefined);
+    await page
+      .getByRole("button", { name: "Close message" })
+      .first()
+      .click()
+      .catch(() => undefined);
     await page.waitForTimeout(120);
   }
 }
@@ -296,10 +317,18 @@ export const measureScroll = (page, selector) =>
       if (rows === 0) blank = true;
     }
     const sorted = [...times].sort((a, b) => a - b);
-    return { avg: times.reduce((sum, value) => sum + value, 0) / times.length, p95: sorted[Math.floor(sorted.length * 0.95)], max: sorted[sorted.length - 1], maxRows, scrolled: element.scrollTop, blank };
+    return {
+      avg: times.reduce((sum, value) => sum + value, 0) / times.length,
+      p95: sorted[Math.floor(sorted.length * 0.95)],
+      max: sorted[sorted.length - 1],
+      maxRows,
+      scrolled: element.scrollTop,
+      blank,
+    };
   }, selector);
 
-export const formatMeasure = (result) => `avg ${result.avg.toFixed(1)} ms, p95 ${result.p95.toFixed(1)} ms, max ${result.max.toFixed(1)} ms per frame, at most ${result.maxRows} lines in the DOM`;
+export const formatMeasure = (result) =>
+  `avg ${result.avg.toFixed(1)} ms, p95 ${result.p95.toFixed(1)} ms, max ${result.max.toFixed(1)} ms per frame, at most ${result.maxRows} lines in the DOM`;
 
 // ---------------------------------------------------------------------------
 // Interaction
@@ -328,7 +357,10 @@ export function makeDriver(app, tabId, checks) {
         screen: element.closest("[data-screen]")?.getAttribute("data-screen") ?? null,
       };
     });
-  const dialogs = () => page.locator('[role="dialog"], [role="alertdialog"]').evaluateAll((list) => list.map((dialog) => dialog.querySelector("h2")?.textContent ?? dialog.getAttribute("aria-label") ?? ""));
+  const dialogs = () =>
+    page
+      .locator('[role="dialog"], [role="alertdialog"]')
+      .evaluateAll((list) => list.map((dialog) => dialog.querySelector("h2")?.textContent ?? dialog.getAttribute("aria-label") ?? ""));
   const toasts = () => page.locator("[data-toast]").allInnerTexts();
   const center = () => centerOf(page, tabId);
   /** Closes dialogs, menus and the center view (for the start of a section). */
@@ -347,7 +379,8 @@ export function makeDriver(app, tabId, checks) {
     const input = page.locator('[data-screen="command-palette"] input[role="combobox"]');
     await input.waitFor({ timeout: 10_000 });
     await page.keyboard.type(`>${text}`, { delay: 5 });
-    const keys = () => page.locator('[data-screen="command-palette"] [role="option"]').evaluateAll((rows) => rows.map((row) => row.dataset.key));
+    const keys = () =>
+      page.locator('[data-screen="command-palette"] [role="option"]').evaluateAll((rows) => rows.map((row) => row.dataset.key));
     await until(async () => (await keys()).includes(`command:${commandId}`), `the palette finds "${text}"`);
     const index = (await keys()).indexOf(`command:${commandId}`);
     for (let step = 0; step < index; step++) await page.keyboard.press("ArrowDown");
@@ -390,7 +423,12 @@ export async function finish(screenId, checks, app, cleanup) {
   if (app) await app.close().catch(() => undefined);
   cleanup();
   if (measurements.length) console.log(`\nMeasurements\n${measurements.map((line) => `- ${line}`).join("\n")}`);
-  if (errors.length && !failures.some((line) => /console error|Konsolenfehler/i.test(line))) failures.push(`Console errors: ${errors.join(" | ")}`);
-  console.log(failures.length ? `\n${screenId}: ${failures.length} failures\n${failures.map((line) => `- ${line}`).join("\n")}` : `\n${screenId}: green.`);
+  if (errors.length && !failures.some((line) => /console error|Konsolenfehler/i.test(line)))
+    failures.push(`Console errors: ${errors.join(" | ")}`);
+  console.log(
+    failures.length
+      ? `\n${screenId}: ${failures.length} failures\n${failures.map((line) => `- ${line}`).join("\n")}`
+      : `\n${screenId}: green.`,
+  );
   process.exit(failures.length ? 1 : 0);
 }

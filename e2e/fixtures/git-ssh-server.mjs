@@ -103,14 +103,22 @@ export async function startGitSshServer({ user = os.userInfo().username } = {}) 
   fs.writeFileSync(gitConfig, globalGitConfig());
   const isolation = gitIsolationEnv(gitConfig);
   const git = (cwd, ...args) =>
-    execFileSync("git", args, { cwd, env: { ...process.env, ...isolation }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true }).toString("utf8").trim();
+    execFileSync("git", args, { cwd, env: { ...process.env, ...isolation }, stdio: ["ignore", "pipe", "pipe"], windowsHide: true })
+      .toString("utf8")
+      .trim();
 
   // Host key
   const hostKey = path.join(root, "host_ed25519");
   const keygen = keygenFor(sshd);
-  execFileSync(keygen, ["-q", "-t", "ed25519", "-N", "", "-C", "gc-e2e-host", "-f", hostKey], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+  execFileSync(keygen, ["-q", "-t", "ed25519", "-N", "", "-C", "gc-e2e-host", "-f", hostKey], {
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
   restrict(hostKey);
-  const hostFingerprint = execFileSync(keygen, ["-l", "-E", "sha256", "-f", `${hostKey}.pub`], { windowsHide: true }).toString("utf8").trim().split(/\s+/)[1];
+  const hostFingerprint = execFileSync(keygen, ["-l", "-E", "sha256", "-f", `${hostKey}.pub`], { windowsHide: true })
+    .toString("utf8")
+    .trim()
+    .split(/\s+/)[1];
   const hostPublicKey = fs.readFileSync(`${hostKey}.pub`, "utf8").trim().split(/\s+/).slice(0, 2).join(" ");
 
   const authorizedKeys = path.join(root, "authorized_keys");
@@ -124,17 +132,17 @@ export async function startGitSshServer({ user = os.userInfo().username } = {}) 
     [
       "#!/bin/sh",
       `root='${slash(reposDir)}'`,
-      'set -f',
-      'service=${SSH_ORIGINAL_COMMAND%% *}',
-      'target=${SSH_ORIGINAL_COMMAND#* }',
-      "target=$(printf '%s' \"$target\" | tr -d \"'\")",
+      "set -f",
+      "service=${SSH_ORIGINAL_COMMAND%% *}",
+      "target=${SSH_ORIGINAL_COMMAND#* }",
+      'target=$(printf \'%s\' "$target" | tr -d "\'")',
       'case "$service" in',
-      '  git-upload-pack|git-receive-pack) ;;',
+      "  git-upload-pack|git-receive-pack) ;;",
       '  *) echo "Git services only: $service" >&2; exit 1 ;;',
-      'esac',
+      "esac",
       'case "$target" in',
       '  *..*) echo "Invalid path" >&2; exit 1 ;;',
-      'esac',
+      "esac",
       `export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL='${slash(gitConfig)}'`,
       'exec "$service" "$root/${target#/}"',
       "",

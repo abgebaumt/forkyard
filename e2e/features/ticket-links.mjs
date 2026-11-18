@@ -9,8 +9,8 @@
  * instead. Every scenario checks the UI and the state behind it (repo settings through the core,
  * the repository through git).
  *
- *   node scripts/e2e-wd/features/ticket-links.mjs
- *   E2E_WD_ONLY=Jira node scripts/e2e-wd/features/ticket-links.mjs
+ *   node e2e/features/ticket-links.mjs
+ *   E2E_WD_ONLY=Jira node e2e/features/ticket-links.mjs
  */
 import fs from "node:fs";
 import path from "node:path";

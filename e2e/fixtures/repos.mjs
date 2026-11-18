@@ -6,8 +6,8 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
-export { makeWorkspace, fileUrl } from "../../../e2e/fixtures/repo-entry-lib.mjs";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
+export { makeWorkspace, fileUrl } from "./repo-entry-lib.mjs";
 
 /** Marker files: if they appear, a command from the repository's configuration or hooks has run. */
 export const FSMONITOR_MARKER = "FSMONITOR-RAN";

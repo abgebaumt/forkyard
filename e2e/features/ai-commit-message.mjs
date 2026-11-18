@@ -11,11 +11,11 @@
  * - edge: Ctrl+Shift+M, "Nothing staged", "AI off for this repository" hides it;
  * - edge: German texts.
  *
- *   cargo build && node scripts/e2e-wd/features/ai-commit-message.mjs
- *   E2E_WD_ONLY="Cancel" node scripts/e2e-wd/features/ai-commit-message.mjs
+ *   cargo build && node e2e/features/ai-commit-message.mjs
+ *   E2E_WD_ONLY="Cancel" node e2e/features/ai-commit-message.mjs
  */
 import http from "node:http";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { commitUi, eventually, lines } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 

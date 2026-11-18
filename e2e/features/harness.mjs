@@ -2,9 +2,9 @@
  * Checks the harness itself (driver API): error hook, window size, theme/lang parameters, exec,
  * invoke errors, $, waitFor, click, type, press, byText. Keeps the API honest for feature authors.
  *
- *   node scripts/e2e-wd/features/harness.mjs
+ *   node e2e/features/harness.mjs
  */
-import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeRichRepo } from "../fixtures/fixtures.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 
 scenario("page errors are recorded from the error hook", "edge", async (t) => {

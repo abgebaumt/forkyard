@@ -1,5 +1,5 @@
 /**
- * Helpers for the sync feature (scripts/e2e-wd/features/sync.mjs): toolbar buttons, toasts (recorded,
+ * Helpers for the sync feature (e2e/features/sync.mjs): toolbar buttons, toasts (recorded,
  * even after they vanished), dialogs, checkboxes, the command palette, the preferences, a counter of
  * credential prompts and git in temp repositories without locks.
  *

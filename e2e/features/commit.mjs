@@ -3,12 +3,12 @@
  * hunks and single lines (CRLF, Latin-1, missing final newline – index checked byte by byte),
  * amend, commit and push, commit templates, co-author trailers and signed commits.
  *
- *   node scripts/e2e-wd/features/commit.mjs
- *   E2E_WD_ONLY="amend" node scripts/e2e-wd/features/commit.mjs
+ *   node e2e/features/commit.mjs
+ *   E2E_WD_ONLY="amend" node e2e/features/commit.mjs
  *
  * Every scenario checks the UI and the repository (git log / diff --cached / cat-file).
  */
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { commitUi, eventually, indexBlob, lines, readText, until, writeBytes } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

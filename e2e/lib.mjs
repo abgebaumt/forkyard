@@ -1,5 +1,5 @@
 /**
- * Tiny test framework for WebDriver features (scripts/e2e-wd/features/*.mjs).
+ * Tiny test framework for WebDriver features (e2e/features/*.mjs).
  *
  *   import { scenario, assert, assertEqual } from "../lib.mjs";
  *   scenario("graph renders", "main", async (t) => {

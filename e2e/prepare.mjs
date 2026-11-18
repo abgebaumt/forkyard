@@ -2,8 +2,8 @@
  * Builds the debug app (`cargo build`) and makes the copy the WebDriver tests run from
  * (target/e2e-wd/bin/<mtime>/forkyard plus its helpers). Prints the path of the copy.
  *
- *   node scripts/e2e-wd/prepare.mjs              build + copy
- *   node scripts/e2e-wd/prepare.mjs --no-build   only copy the current build
+ *   node e2e/prepare.mjs              build + copy
+ *   node e2e/prepare.mjs --no-build   only copy the current build
  */
 import { spawnSync } from "node:child_process";
 import { ROOT, ensureAppCopy, ensureDevServer, findTools } from "./driver.mjs";

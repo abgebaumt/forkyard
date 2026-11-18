@@ -8,7 +8,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { gitIsolationEnv, globalGitConfig } from "../../../e2e/fixtures/fixtures.mjs";
+import { gitIsolationEnv, globalGitConfig } from "./fixtures.mjs";
 import { AssertionError } from "../lib.mjs";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

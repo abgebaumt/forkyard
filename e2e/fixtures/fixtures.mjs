@@ -186,7 +186,13 @@ function publish(ws, name, info, remote) {
            * Creates a new commit on the remote – as if someone else had pushed. The local
            * repository only notices on the next fetch. Returns the SHA.
            */
-          commitOnRemote({ branch = "main", file = "docs/aus-dem-remote.md", content, message = "Nachtrag aus dem Remote", person = JONAS } = {}) {
+          commitOnRemote({
+            branch = "main",
+            file = "docs/aus-dem-remote.md",
+            content,
+            message = "Nachtrag aus dem Remote",
+            person = JONAS,
+          } = {}) {
             colleagues += 1;
             const clone = path.join(ws.root, `kollege-${colleagues}`);
             ws.git(ws.root, ["clone", "-q", "--branch", branch, remotePath, clone]);
@@ -260,7 +266,10 @@ function workspace(prefix) {
           .toString("utf8")
           .replace(/\r?\n$/, "");
       } catch (error) {
-        const detail = [error.stdout, error.stderr].map((part) => (part ? part.toString("utf8") : "")).join("\n").trim();
+        const detail = [error.stdout, error.stderr]
+          .map((part) => (part ? part.toString("utf8") : ""))
+          .join("\n")
+          .trim();
         throw new Error(`git ${args.join(" ")} failed (in ${cwd}):\n${detail || error.message}`);
       }
     },
@@ -320,8 +329,15 @@ export function makePng(width, height, seed = 0) {
       // Sky at the top, meadow at the bottom, a "mast" in the middle – visibly different per seed.
       const sky = y < height * 0.62;
       const mast = Math.abs(x - width / 2) < 2 && y > height * 0.25 && y < height * 0.8;
-      const base = mast ? [70, 70, 80] : sky ? [90 + seed * 40, 150 + Math.round((y / height) * 60), 230 - seed * 50] : [70 + seed * 60, 150 - seed * 30, 80];
-      raw.set(base.map((value) => Math.max(0, Math.min(255, value + ((x * 7 + y * 3) % 9)))), row + 1 + x * 3);
+      const base = mast
+        ? [70, 70, 80]
+        : sky
+          ? [90 + seed * 40, 150 + Math.round((y / height) * 60), 230 - seed * 50]
+          : [70 + seed * 60, 150 - seed * 30, 80];
+      raw.set(
+        base.map((value) => Math.max(0, Math.min(255, value + ((x * 7 + y * 3) % 9)))),
+        row + 1 + x * 3,
+      );
     }
   }
   return Buffer.concat([
@@ -483,7 +499,7 @@ Das war bei mehr als einem Monat Daten zu langsam.
 
 function addTagesmittel(text) {
   return text.replace(
-    "def hauptprogramm(pfad):\n    zeilen = lies_messwerte(pfad)\n    print(f\"{len(zeilen)} Messtage gelesen\")",
+    'def hauptprogramm(pfad):\n    zeilen = lies_messwerte(pfad)\n    print(f"{len(zeilen)} Messtage gelesen")',
     `def tagesmittel(zeilen, spalte):
     """Mittelwert einer Spalte über alle Zeilen."""
     werte = [zahl(zeile[spalte]) for zeile in zeilen]
@@ -570,7 +586,11 @@ function buildRichRepo({ dirty, name }) {
   git(["checkout", "-q", "-b", "feature/regen-auswertung"]);
   write(repo, "src/auswertung.py", addRegen(addTagesmittel(FILES.auswertung)));
   commit("Regenmengen zusammenzählen", { person: JONAS });
-  write(repo, "src/auswertung.py", addRegen(addTagesmittel(FILES.auswertung)).replace('°C")', '°C")\n    print(f"Regen gesamt: {regensumme(zeilen):.1f} mm")'));
+  write(
+    repo,
+    "src/auswertung.py",
+    addRegen(addTagesmittel(FILES.auswertung)).replace('°C")', '°C")\n    print(f"Regen gesamt: {regensumme(zeilen):.1f} mm")'),
+  );
   commit("Regensumme in der Ausgabe zeigen", { person: JONAS });
   git(["checkout", "-q", "main"]);
   write(repo, "daten/kalibrierung.bin", binaryBlob(2048, 1));
@@ -579,11 +599,17 @@ function buildRichRepo({ dirty, name }) {
   git(["merge", "-q", "--no-ff", "-m", "Merge branch 'feature/regen-auswertung'", "feature/regen-auswertung"], { time: ws.tick() });
   shas.firstMerge = git(["rev-parse", "HEAD"]);
   git(["branch", "-q", "-d", "feature/regen-auswertung"]);
-  git(["tag", "-a", "v0.1.0", "-m", "Erste nutzbare Fassung\n\nLiest Messwerte, berechnet Tagesmittel und Regensummen."], { time: ws.tick(5) });
+  git(["tag", "-a", "v0.1.0", "-m", "Erste nutzbare Fassung\n\nLiest Messwerte, berechnet Tagesmittel und Regensummen."], {
+    time: ws.tick(5),
+  });
 
   // --- bugfix/sensor-ausfall, merged, branch stays ------------------------------------------
   git(["checkout", "-q", "-b", "bugfix/sensor-ausfall"]);
-  write(repo, "src/sensoren.py", `${FILES.sensoren}\n\ndef ist_ausfall(wert):\n    """Der Logger schreibt -999, wenn ein Sensor nichts liefert."""\n    return wert <= -999\n`);
+  write(
+    repo,
+    "src/sensoren.py",
+    `${FILES.sensoren}\n\ndef ist_ausfall(wert):\n    """Der Logger schreibt -999, wenn ein Sensor nichts liefert."""\n    return wert <= -999\n`,
+  );
   commit("Ausfallwert -999 des Loggers erkennen");
   git(["checkout", "-q", "main"]);
   write(repo, "README.md", `${FILES.readme}\n## Daten\n\nDie Rohdaten liegen unter \`daten/\`, eine Datei je Monat.\n`);
@@ -595,7 +621,10 @@ function buildRichRepo({ dirty, name }) {
   write(repo, "src/pruefung.py", FILES.pruefung);
   shas.longSummary = commit(LONG_MESSAGE, { person: AYLIN });
   write(repo, "tests/test_pruefung.py", FILES.testPruefung);
-  shas.coAuthored = commit(`Tests für die Plausibilitätsprüfung\n\nDrei Fälle: Wert im Bereich, Wert darüber, Ausfallwert des Loggers.\n\nCo-authored-by: ${JONAS.name} <${JONAS.email}>\nCo-authored-by: ${GRETA.name} <${GRETA.email}>`, { person: MATS });
+  shas.coAuthored = commit(
+    `Tests für die Plausibilitätsprüfung\n\nDrei Fälle: Wert im Bereich, Wert darüber, Ausfallwert des Loggers.\n\nCo-authored-by: ${JONAS.name} <${JONAS.email}>\nCo-authored-by: ${GRETA.name} <${GRETA.email}>`,
+    { person: MATS },
+  );
 
   // --- set up origin --------------------------------------------------------------------------
   git(["remote", "add", "origin", remote]);
@@ -604,9 +633,17 @@ function buildRichRepo({ dirty, name }) {
 
   // --- feature/wind-diagramm: pushed, still open ----------------------------------------------
   git(["checkout", "-q", "-b", "feature/wind-diagramm"]);
-  write(repo, "src/diagramm.py", '"""Zeichnet die Windgeschwindigkeit als Textdiagramm."""\n\n\ndef balken(wert, breite=40, maximum=60):\n    laenge = round(wert / maximum * breite)\n    return "#" * laenge\n');
+  write(
+    repo,
+    "src/diagramm.py",
+    '"""Zeichnet die Windgeschwindigkeit als Textdiagramm."""\n\n\ndef balken(wert, breite=40, maximum=60):\n    laenge = round(wert / maximum * breite)\n    return "#" * laenge\n',
+  );
   commit("Textdiagramm für die Windgeschwindigkeit", { person: JONAS });
-  write(repo, "src/diagramm.py", '"""Zeichnet die Windgeschwindigkeit als Textdiagramm."""\n\n\ndef balken(wert, breite=40, maximum=60):\n    laenge = round(min(wert, maximum) / maximum * breite)\n    return "#" * laenge\n\n\ndef zeile(datum, wert):\n    return f"{datum} {balken(wert)} {wert} km/h"\n');
+  write(
+    repo,
+    "src/diagramm.py",
+    '"""Zeichnet die Windgeschwindigkeit als Textdiagramm."""\n\n\ndef balken(wert, breite=40, maximum=60):\n    laenge = round(min(wert, maximum) / maximum * breite)\n    return "#" * laenge\n\n\ndef zeile(datum, wert):\n    return f"{datum} {balken(wert)} {wert} km/h"\n',
+  );
   commit("Böen über dem Maximum abschneiden", { person: JONAS });
   git(["push", "-q", "-u", "origin", "feature/wind-diagramm"]);
 
@@ -629,7 +666,13 @@ function buildRichRepo({ dirty, name }) {
   fs.rmSync(other, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
 
   // --- locally two commits further (2 ahead) -------------------------------------------------
-  write(repo, "src/sensoren.py", fs.readFileSync(path.join(repo, "src/sensoren.py"), "utf8").replace('"regen": {', '"wind": {"einheit": "km/h", "minimum": 0.0, "maximum": 200.0},\n    "regen": {'));
+  write(
+    repo,
+    "src/sensoren.py",
+    fs
+      .readFileSync(path.join(repo, "src/sensoren.py"), "utf8")
+      .replace('"regen": {', '"wind": {"einheit": "km/h", "minimum": 0.0, "maximum": 200.0},\n    "regen": {'),
+  );
   commit("Windsensor in die Sensorliste aufgenommen");
   git(["tag", "-a", "v0.2.0", "-m", "Windsensor und Ausfallerkennung"], { time: ws.tick(3) });
   write(repo, "daten/messwerte-2026-02.csv", csv(28, 3).replaceAll("2026-01-", "2026-02-"));
@@ -641,28 +684,65 @@ function buildRichRepo({ dirty, name }) {
 
   if (dirty) {
     // --- two stashes --------------------------------------------------------------------------
-    write(repo, "src/sensoren.py", fs.readFileSync(path.join(repo, "src/sensoren.py"), "utf8").replace('"maximum": 60.0', '"maximum": 55.0'));
+    write(
+      repo,
+      "src/sensoren.py",
+      fs.readFileSync(path.join(repo, "src/sensoren.py"), "utf8").replace('"maximum": 60.0', '"maximum": 55.0'),
+    );
     git(["stash", "push", "-q", "-m", "Kalibrierung: engere Grenzen ausprobieren"], { time: ws.tick(11) });
-    write(repo, "README.md", `${fs.readFileSync(path.join(repo, "README.md"), "utf8")}\n## Offene Punkte\n\n- Diagramm als Bild ausgeben\n`);
+    write(
+      repo,
+      "README.md",
+      `${fs.readFileSync(path.join(repo, "README.md"), "utf8")}\n## Offene Punkte\n\n- Diagramm als Bild ausgeben\n`,
+    );
     write(repo, "notizen/ideen.txt", "Regenradar einbinden?\n");
     git(["stash", "push", "-q", "--include-untracked", "-m", "Ideen für das README"], { time: ws.tick(11) });
 
     // --- uncommitted changes ------------------------------------------------------------------
     // staged: modified, new, deleted, renamed
-    write(repo, "README.md", fs.readFileSync(path.join(repo, "README.md"), "utf8").replace("Kleine Sammlung von Skripten", "Sammlung von Skripten"));
-    write(repo, "src/export.py", '"""Schreibt die Auswertung als Textdatei."""\n\n\ndef schreibe(pfad, zeilen):\n    with open(pfad, "w", encoding="utf-8") as datei:\n        datei.write("\\n".join(zeilen))\n');
+    write(
+      repo,
+      "README.md",
+      fs.readFileSync(path.join(repo, "README.md"), "utf8").replace("Kleine Sammlung von Skripten", "Sammlung von Skripten"),
+    );
+    write(
+      repo,
+      "src/export.py",
+      '"""Schreibt die Auswertung als Textdatei."""\n\n\ndef schreibe(pfad, zeilen):\n    with open(pfad, "w", encoding="utf-8") as datei:\n        datei.write("\\n".join(zeilen))\n',
+    );
     git(["add", "README.md", "src/export.py"]);
     git(["rm", "-q", "daten/testlauf.csv"]);
     git(["mv", "docs/aufbau.md", "docs/stationsaufbau.md"]);
     // the same file staged AND changed further afterwards
     const sensoren = fs.readFileSync(path.join(repo, "src/sensoren.py"), "utf8");
-    write(repo, "src/sensoren.py", sensoren.replace('"""Beschreibung der Sensoren der Wetterstation."""', '"""Beschreibung der Sensoren der Wetterstation auf dem Schuldach."""'));
+    write(
+      repo,
+      "src/sensoren.py",
+      sensoren.replace(
+        '"""Beschreibung der Sensoren der Wetterstation."""',
+        '"""Beschreibung der Sensoren der Wetterstation auf dem Schuldach."""',
+      ),
+    );
     git(["add", "src/sensoren.py"]);
-    write(repo, "src/sensoren.py", `${fs.readFileSync(path.join(repo, "src/sensoren.py"), "utf8")}\n\ndef einheit(sensor):\n    return SENSOREN[sensor]["einheit"]\n`);
+    write(
+      repo,
+      "src/sensoren.py",
+      `${fs.readFileSync(path.join(repo, "src/sensoren.py"), "utf8")}\n\ndef einheit(sensor):\n    return SENSOREN[sensor]["einheit"]\n`,
+    );
     // unstaged: modified, deleted, new, binary, image, long name, umlaut
-    write(repo, "src/auswertung.py", fs.readFileSync(path.join(repo, "src/auswertung.py"), "utf8").replace('print(f"{len(zeilen)} Messtage gelesen")', 'print(f"{len(zeilen)} Messtage aus {pfad} gelesen")'));
+    write(
+      repo,
+      "src/auswertung.py",
+      fs
+        .readFileSync(path.join(repo, "src/auswertung.py"), "utf8")
+        .replace('print(f"{len(zeilen)} Messtage gelesen")', 'print(f"{len(zeilen)} Messtage aus {pfad} gelesen")'),
+    );
     fs.rmSync(path.join(repo, "docs/alt-konzept.md"));
-    write(repo, "notizen/offene-fragen.md", "# Offene Fragen\n\n- Wie gehen wir mit Sommerzeit im Logger um?\n- Reicht eine Nachkommastelle beim Regen?\n");
+    write(
+      repo,
+      "notizen/offene-fragen.md",
+      "# Offene Fragen\n\n- Wie gehen wir mit Sommerzeit im Logger um?\n- Reicht eine Nachkommastelle beim Regen?\n",
+    );
     write(repo, "daten/kalibrierung.bin", binaryBlob(3072, 2));
     write(repo, "daten/rohdaten-logger.bin", binaryBlob(1024, 3));
     write(repo, "docs/station.png", makePng(96, 64, 1));
@@ -756,7 +836,11 @@ function buildCleanRepoWithRemote({ name }) {
   commit("Projekt für das Messnetz angelegt");
   write(repo, "stationen.csv", "kürzel;name;höhe_m\nN;Schule Nord;41\nS;Schule Süd;37\nH;Hafen;3\n");
   commit("Liste der Stationen", AYLIN);
-  write(repo, "src/vergleich.py", '"""Vergleicht die Tagesmittel der Stationen."""\n\n\ndef differenz(a, b):\n    return round(a - b, 1)\n');
+  write(
+    repo,
+    "src/vergleich.py",
+    '"""Vergleicht die Tagesmittel der Stationen."""\n\n\ndef differenz(a, b):\n    return round(a - b, 1)\n',
+  );
   const mainHead = commit("Vergleich der Tagesmittel zweier Stationen");
   git(["remote", "add", "origin", remote]);
   git(["push", "-q", "-u", "origin", "main"]);
@@ -769,7 +853,13 @@ function buildCleanRepoWithRemote({ name }) {
   return {
     root: ws.root,
     ws,
-    info: { branch: "main", head: mainHead, featureHead, localBranches: ["feature/export", "main"], remoteBranches: ["origin/feature/export", "origin/main"] },
+    info: {
+      branch: "main",
+      head: mainHead,
+      featureHead,
+      localBranches: ["feature/export", "main"],
+      remoteBranches: ["origin/feature/export", "origin/main"],
+    },
     cleanup: ws.cleanup,
   };
 }
@@ -810,13 +900,27 @@ function buildConflictRepo({ name }) {
   commit("Ausgangsstand der Auswertung");
 
   git(["checkout", "-q", "-b", "feature/einheiten"]);
-  write(repo, "src/auswertung.py", addTagesmittel(FILES.auswertung).replace("Mittlere Temperatur: {tagesmittel(zeilen, 'temperatur_c'):.1f} °C", "Temperatur im Mittel: {tagesmittel(zeilen, 'temperatur_c'):.2f} Grad Celsius"));
+  write(
+    repo,
+    "src/auswertung.py",
+    addTagesmittel(FILES.auswertung).replace(
+      "Mittlere Temperatur: {tagesmittel(zeilen, 'temperatur_c'):.1f} °C",
+      "Temperatur im Mittel: {tagesmittel(zeilen, 'temperatur_c'):.2f} Grad Celsius",
+    ),
+  );
   write(repo, "docs/aufbau.md", FILES.aufbau.replace("| Temperatur | 2,0 m | 10 Minuten |", "| Temperatur | 2,0 m | 5 Minuten |"));
   write(repo, "README.md", FILES.readme.replace("## Aufruf", "## Einheiten\n\nAlle Temperaturen in Grad Celsius.\n\n## Aufruf"));
   commit("Einheiten ausschreiben, Messintervall auf 5 Minuten", JONAS);
 
   git(["checkout", "-q", "main"]);
-  write(repo, "src/auswertung.py", addTagesmittel(FILES.auswertung).replace("Mittlere Temperatur: {tagesmittel(zeilen, 'temperatur_c'):.1f} °C", "Durchschnittstemperatur: {tagesmittel(zeilen, 'temperatur_c'):.1f} °C"));
+  write(
+    repo,
+    "src/auswertung.py",
+    addTagesmittel(FILES.auswertung).replace(
+      "Mittlere Temperatur: {tagesmittel(zeilen, 'temperatur_c'):.1f} °C",
+      "Durchschnittstemperatur: {tagesmittel(zeilen, 'temperatur_c'):.1f} °C",
+    ),
+  );
   write(repo, "docs/aufbau.md", FILES.aufbau.replace("| Temperatur | 2,0 m | 10 Minuten |", "| Temperatur | 2,5 m | 10 Minuten |"));
   commit("Ausgabe umformuliert, Sensorhöhe korrigiert");
 
@@ -861,9 +965,40 @@ function buildDetachedRepo({ name }) {
   return { root: ws.root, ws, info: { sha: detachedAt, tag: "v0.1.0" }, cleanup: ws.cleanup };
 }
 
-const VERBS = ["Auswertung", "Einlesen", "Diagramm", "Kalibrierung", "Export", "Plausibilitätsprüfung", "Regensumme", "Tagesmittel", "Windmessung", "Protokoll"];
-const CHANGES = ["beschleunigt", "aufgeräumt", "korrigiert", "erweitert", "vereinfacht", "dokumentiert", "robuster gemacht", "an neue Logger-Fassung angepasst", "mit Tests abgesichert", "umbenannt"];
-const DETAILS = ["für Station Nord", "für Station Süd", "bei fehlenden Werten", "im Winterhalbjahr", "für Monatsberichte", "bei Sommerzeit", "für große Dateien", "nach Rückmeldung aus dem Kollegium"];
+const VERBS = [
+  "Auswertung",
+  "Einlesen",
+  "Diagramm",
+  "Kalibrierung",
+  "Export",
+  "Plausibilitätsprüfung",
+  "Regensumme",
+  "Tagesmittel",
+  "Windmessung",
+  "Protokoll",
+];
+const CHANGES = [
+  "beschleunigt",
+  "aufgeräumt",
+  "korrigiert",
+  "erweitert",
+  "vereinfacht",
+  "dokumentiert",
+  "robuster gemacht",
+  "an neue Logger-Fassung angepasst",
+  "mit Tests abgesichert",
+  "umbenannt",
+];
+const DETAILS = [
+  "für Station Nord",
+  "für Station Süd",
+  "bei fehlenden Werten",
+  "im Winterhalbjahr",
+  "für Monatsberichte",
+  "bei Sommerzeit",
+  "für große Dateien",
+  "nach Rückmeldung aus dem Kollegium",
+];
 
 /**
  * Large repository for performance tests: `n` commits (default 50,000) via `git fast-import`.
@@ -881,7 +1016,8 @@ function buildLargeRepo(n, { name }) {
   let mark = 0;
   let time = EPOCH - n * 600;
   let produced = 0;
-  const message = (index) => `${VERBS[index % VERBS.length]} ${CHANGES[(index * 7) % CHANGES.length]} ${DETAILS[(index * 3) % DETAILS.length]} (#${index + 1})`;
+  const message = (index) =>
+    `${VERBS[index % VERBS.length]} ${CHANGES[(index * 7) % CHANGES.length]} ${DETAILS[(index * 3) % DETAILS.length]} (#${index + 1})`;
 
   const emit = (ref, { from, merge, file }) => {
     mark += 1;
@@ -915,7 +1051,8 @@ function buildLargeRepo(n, { name }) {
       for (let step = 0; step < 12; step++) {
         tip = emit(branch, { from: tip, file: `themen/zweig-${side % 8}.txt` });
         // main keeps going meanwhile so the lanes run side by side
-        if (step % 4 === 3) main = emit("refs/heads/main", { from: main, file: `daten/reihe-${String(produced % 40).padStart(2, "0")}.csv` });
+        if (step % 4 === 3)
+          main = emit("refs/heads/main", { from: main, file: `daten/reihe-${String(produced % 40).padStart(2, "0")}.csv` });
       }
       const merged = { name: `thema/zweig-${String(side).padStart(3, "0")}`, mark: tip };
       main = emit("refs/heads/main", { from: main, merge: merged, file: "README.md" });

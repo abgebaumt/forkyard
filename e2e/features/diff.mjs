@@ -4,10 +4,10 @@
  * in the real app against real temp repositories. Every result is checked in the UI and, where
  * something is written, in Git itself.
  *
- *   node scripts/e2e-wd/features/diff.mjs
- *   E2E_WD_ONLY="Bild" node scripts/e2e-wd/features/diff.mjs
+ *   node e2e/features/diff.mjs
+ *   E2E_WD_ONLY="Bild" node e2e/features/diff.mjs
  */
-import { EVIL_MD } from "../../../e2e/fixtures/files-lib.mjs";
+import { EVIL_MD } from "../fixtures/files-lib.mjs";
 import { assert, assertEqual as rawEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import { PEOPLE, blameBlocks, blamePorcelain, followLog, landscape, makeDiffRepo, pngFrom } from "../fixtures/diff-repo.mjs";
 

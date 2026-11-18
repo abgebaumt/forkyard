@@ -164,12 +164,19 @@ export function sideHelpers(app) {
   const panel = () => page.locator('[data-screen="sidebar"]');
   const section = (id) => panel().locator(`[data-extra-section="${id}"]`);
   const header = (id) => section(id).locator("[data-section-header] button").first();
-  const headerText = (id) => header(id).innerText().then((text) => text.replace(/\s+/g, " ").trim());
+  const headerText = (id) =>
+    header(id)
+      .innerText()
+      .then((text) => text.replace(/\s+/g, " ").trim());
   const rows = (id) => section(id).locator("[data-side-row]");
   const row = (id, key) => section(id).locator(`[data-side-row="${key.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"]`);
   /** Row whose key (path) ends with `suffix`, for worktrees whose full path is long. */
   const rowEnding = async (id, suffix) => {
-    const key = await rows(id).evaluateAll((list, end) => list.map((el) => el.dataset.sideRow).find((item) => item.replaceAll("\\", "/").toLowerCase().endsWith(end.toLowerCase())) ?? null, slashed(suffix));
+    const key = await rows(id).evaluateAll(
+      (list, end) =>
+        list.map((el) => el.dataset.sideRow).find((item) => item.replaceAll("\\", "/").toLowerCase().endsWith(end.toLowerCase())) ?? null,
+      slashed(suffix),
+    );
     return key ? row(id, key) : null;
   };
   const rowTexts = (id) => rows(id).evaluateAll((list) => list.map((el) => el.innerText.replace(/\s+/g, " ").trim()));
@@ -178,14 +185,22 @@ export function sideHelpers(app) {
     page.evaluate(() => {
       const el = document.activeElement;
       if (!el || el === document.body) return null;
-      return el.getAttribute("data-side-row") ?? el.getAttribute("data-row-id") ?? el.getAttribute("aria-label") ?? (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) ?? el.tagName;
+      return (
+        el.getAttribute("data-side-row") ??
+        el.getAttribute("data-row-id") ??
+        el.getAttribute("aria-label") ??
+        (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60) ??
+        el.tagName
+      );
     });
   const menu = () => page.locator('[role="menu"]');
   const menuItems = () =>
     menu()
       .last()
       .locator('[role="menuitem"]')
-      .evaluateAll((list) => list.map((item) => ({ text: item.innerText.replace(/\s+/g, " ").trim(), disabled: item.hasAttribute("data-disabled") })));
+      .evaluateAll((list) =>
+        list.map((item) => ({ text: item.innerText.replace(/\s+/g, " ").trim(), disabled: item.hasAttribute("data-disabled") })),
+      );
   const closeMenu = async () => {
     await page.keyboard.press("Escape");
     await menu().first().waitFor({ state: "detached" });
@@ -195,13 +210,19 @@ export function sideHelpers(app) {
     await menu().first().waitFor();
     const highlighted = () => page.evaluate(() => document.querySelector('[role="menuitem"][data-highlighted]')?.textContent ?? "");
     // Opened by keyboard, the first entry is already focused (a moment after opening).
-    await page.waitForFunction(() => Boolean(document.querySelector('[role="menuitem"][data-highlighted]')), null, { timeout: 600 }).catch(() => undefined);
+    await page
+      .waitForFunction(() => Boolean(document.querySelector('[role="menuitem"][data-highlighted]')), null, { timeout: 600 })
+      .catch(() => undefined);
     for (let step = 0; step < 30; step++) {
       const before = await highlighted();
       if (step > 0 || !before) {
         await page.keyboard.press("ArrowDown");
         // Radix moves focus a moment after the key: wait for it, otherwise the key counts twice.
-        await page.waitForFunction((old) => (document.querySelector('[role="menuitem"][data-highlighted]')?.textContent ?? "") !== old, before, { timeout: 400 }).catch(() => undefined);
+        await page
+          .waitForFunction((old) => (document.querySelector('[role="menuitem"][data-highlighted]')?.textContent ?? "") !== old, before, {
+            timeout: 400,
+          })
+          .catch(() => undefined);
       }
       const text = await highlighted();
       if (pattern.test(text)) {
@@ -226,10 +247,23 @@ export function sideHelpers(app) {
     await page.keyboard.press("F1");
     await page.locator('input[role="combobox"]').first().waitFor();
     await page.keyboard.type(text, { delay: 5 });
-    await page.waitForFunction((wanted) => (document.querySelector('[role="option"][aria-selected="true"]')?.textContent ?? "").toLowerCase().includes(wanted.toLowerCase()), text, { timeout: 5000 }).catch(() => undefined);
+    await page
+      .waitForFunction(
+        (wanted) =>
+          (document.querySelector('[role="option"][aria-selected="true"]')?.textContent ?? "").toLowerCase().includes(wanted.toLowerCase()),
+        text,
+        { timeout: 5000 },
+      )
+      .catch(() => undefined);
     await page.keyboard.press("Enter");
   };
-  const tabs = () => page.locator('[role="tablist"] [role="tab"]').evaluateAll((list) => list.map((tab) => ({ title: tab.getAttribute("aria-label") ?? tab.innerText.replace(/\s+/g, " ").trim(), active: tab.getAttribute("aria-selected") === "true" })));
+  const tabs = () =>
+    page.locator('[role="tablist"] [role="tab"]').evaluateAll((list) =>
+      list.map((tab) => ({
+        title: tab.getAttribute("aria-label") ?? tab.innerText.replace(/\s+/g, " ").trim(),
+        active: tab.getAttribute("aria-selected") === "true",
+      })),
+    );
   const escaping = (selector) =>
     page.evaluate((sel) => {
       const root = Array.from(document.querySelectorAll(sel)).at(-1);
@@ -239,7 +273,8 @@ export function sideHelpers(app) {
       for (const el of root.querySelectorAll("*")) {
         const rect = el.getBoundingClientRect();
         if (!rect.width || !rect.height || el.closest(".sr-only")) continue;
-        if (rect.left < box.left - 1 || rect.right > box.right + 1) out.push(`${el.tagName.toLowerCase()}: ${(el.textContent ?? "").trim().slice(0, 40)}`);
+        if (rect.left < box.left - 1 || rect.right > box.right + 1)
+          out.push(`${el.tagName.toLowerCase()}: ${(el.textContent ?? "").trim().slice(0, 40)}`);
       }
       return out.slice(0, 5);
     }, selector);
@@ -250,7 +285,9 @@ export function sideHelpers(app) {
    */
   const focusRowByKeyboard = async (id, ending) => {
     await page.keyboard.press("Control+Alt+f");
-    await page.waitForFunction(() => document.activeElement?.hasAttribute("data-left-filter"), null, { timeout: 5000 }).catch(() => undefined);
+    await page
+      .waitForFunction(() => document.activeElement?.hasAttribute("data-left-filter"), null, { timeout: 5000 })
+      .catch(() => undefined);
     await page.keyboard.press("ArrowDown");
     await page.waitForFunction(() => document.activeElement?.hasAttribute("data-row-id"), null, { timeout: 3000 }).catch(() => undefined);
     await page.keyboard.press("End");
@@ -262,7 +299,11 @@ export function sideHelpers(app) {
         ([section, end]) => {
           const element = document.activeElement;
           const key = element?.getAttribute("data-side-row");
-          return Boolean(key && element.closest(`[data-extra-section="${section}"]`) && key.replaceAll("\\", "/").toLowerCase().endsWith(end.toLowerCase()));
+          return Boolean(
+            key &&
+              element.closest(`[data-extra-section="${section}"]`) &&
+              key.replaceAll("\\", "/").toLowerCase().endsWith(end.toLowerCase()),
+          );
         },
         [id, slashed(ending)],
       );
@@ -278,12 +319,19 @@ export function sideHelpers(app) {
   const panelOverflow = () =>
     page.evaluate(() => {
       const scroller = document.querySelector("[data-left-scroll]");
-      return { page: document.documentElement.scrollWidth - document.documentElement.clientWidth, panel: scroller ? scroller.scrollWidth - scroller.clientWidth : -1 };
+      return {
+        page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        panel: scroller ? scroller.scrollWidth - scroller.clientWidth : -1,
+      };
     });
-  const activeTabId = () => page.evaluate(() => window.__gc.queryClient.getQueryData(["app", "tabs"])?.find((tab) => tab.isActive)?.id ?? null);
+  const activeTabId = () =>
+    page.evaluate(() => window.__gc.queryClient.getQueryData(["app", "tabs"])?.find((tab) => tab.isActive)?.id ?? null);
   const activateTab = async (tabId) => {
     await page.locator(`[data-tab-id="${tabId}"] [role="tab"]`).click();
-    await page.waitForFunction((id) => document.querySelector(`[data-tab-id="${id}"] [role="tab"]`)?.getAttribute("aria-selected") === "true", tabId);
+    await page.waitForFunction(
+      (id) => document.querySelector(`[data-tab-id="${id}"] [role="tab"]`)?.getAttribute("aria-selected") === "true",
+      tabId,
+    );
     await app.settle();
   };
   return {

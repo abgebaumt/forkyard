@@ -15,12 +15,12 @@ feature script ──HTTP──> tauri-driver ──> WebKitWebDriver (Linux) / 
 ```bash
 npm run e2e:wd:prepare          # cargo build, copy the app to target/e2e-wd/bin/<mtime>/, start Vite
 npm run e2e:wd                  # run every feature, 4 at a time
-node scripts/e2e-wd/run.mjs smoke              # features whose file name contains "smoke"
-node scripts/e2e-wd/run.mjs --only "graph"     # only scenarios whose name contains "graph"
-node scripts/e2e-wd/run.mjs --repeat 4 smoke   # 4 copies at once (isolation check)
-node scripts/e2e-wd/run.mjs --jobs 2           # other parallelism
-node scripts/e2e-wd/features/smoke.mjs         # one feature directly
-node scripts/e2e-wd/driver.mjs --status | --start-vite | --stop-vite
+node e2e/run.mjs smoke              # features whose file name contains "smoke"
+node e2e/run.mjs --only "graph"     # only scenarios whose name contains "graph"
+node e2e/run.mjs --repeat 4 smoke   # 4 copies at once (isolation check)
+node e2e/run.mjs --jobs 2           # other parallelism
+node e2e/features/smoke.mjs         # one feature directly
+node e2e/driver.mjs --status | --start-vite | --stop-vite
 ```
 
 Output:

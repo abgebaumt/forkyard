@@ -1,11 +1,11 @@
 /**
- * Runs the WebDriver features (scripts/e2e-wd/features/*.mjs), at most 4 at a time.
+ * Runs the WebDriver features (e2e/features/*.mjs), at most 4 at a time.
  *
- *   node scripts/e2e-wd/run.mjs                 all features
- *   node scripts/e2e-wd/run.mjs smoke graph     only features whose file name contains one of the words
- *   node scripts/e2e-wd/run.mjs --jobs 2        other parallelism (default 4)
- *   node scripts/e2e-wd/run.mjs --only "text"   only scenarios whose name contains the text
- *   node scripts/e2e-wd/run.mjs --repeat 4 smoke  the same feature 4 times at once (isolation check)
+ *   node e2e/run.mjs                 all features
+ *   node e2e/run.mjs smoke graph     only features whose file name contains one of the words
+ *   node e2e/run.mjs --jobs 2        other parallelism (default 4)
+ *   node e2e/run.mjs --only "text"   only scenarios whose name contains the text
+ *   node e2e/run.mjs --repeat 4 smoke  the same feature 4 times at once (isolation check)
  *
  * All features of one run use the same copy of the app binary (E2E_WD_APP). Per feature:
  * target/e2e-wd/results/<name>.json, target/e2e-wd/shots/<name>/, log target/e2e-wd/logs/<name>.log.
@@ -28,7 +28,7 @@ const only = option("--only", null);
 const repeat = Math.max(1, Number(option("--repeat", 1)) || 1);
 const filters = argv.filter((arg) => !arg.startsWith("--"));
 
-const featuresDir = path.join(ROOT, "scripts", "e2e-wd", "features");
+const featuresDir = path.join(ROOT, "e2e", "features");
 const features = fs
   .readdirSync(featuresDir)
   .filter((file) => file.endsWith(".mjs") && !file.startsWith("_"))

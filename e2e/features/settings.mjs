@@ -13,13 +13,13 @@
  *
  * Every result is checked in the UI and in the core / in Git (git in the temp repository).
  *
- *   node scripts/e2e-wd/features/settings.mjs
- *   E2E_WD_ONLY="undo" node scripts/e2e-wd/features/settings.mjs
+ *   node e2e/features/settings.mjs
+ *   E2E_WD_ONLY="undo" node e2e/features/settings.mjs
  */
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { commitUi, eventually, until } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

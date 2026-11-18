@@ -10,8 +10,8 @@
  * - edge: a skipped version does not come back after a restart;
  * - edge: only a draft or prerelease exists (/releases/latest answers 404) → nothing reported.
  *
- *   node scripts/e2e-wd/features/updates.mjs
- *   E2E_WD_ONLY=skipped node scripts/e2e-wd/features/updates.mjs
+ *   node e2e/features/updates.mjs
+ *   E2E_WD_ONLY=skipped node e2e/features/updates.mjs
  */
 import fs from "node:fs";
 import http from "node:http";

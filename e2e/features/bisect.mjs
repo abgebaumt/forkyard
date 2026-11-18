@@ -5,8 +5,8 @@
  * step is checked in the UI and in the Git directory of the temp repository (refs/bisect/*,
  * BISECT_START, BISECT_LOG, HEAD).
  *
- *   node scripts/e2e-wd/features/bisect.mjs
- *   E2E_WD_ONLY="extern" node scripts/e2e-wd/features/bisect.mjs
+ *   node e2e/features/bisect.mjs
+ *   E2E_WD_ONLY="extern" node e2e/features/bisect.mjs
  */
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import { gitBisect, gitBisectSteps, hasBug, makeBisectRepo } from "../fixtures/bisect.mjs";

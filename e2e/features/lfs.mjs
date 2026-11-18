@@ -1,12 +1,12 @@
 /**
  * Git LFS in the real app over WebDriver: track and untrack patterns, fetch LFS files against a
  * local bare repository, clean up local storage (1.0), and LFS file locks against a local stand-in
- * for the LFS locking API (scripts/e2e-wd/fixtures/lfs-lock-server.mjs): lock list with filter,
+ * for the LFS locking API (e2e/fixtures/lfs-lock-server.mjs): lock list with filter,
  * lock/unlock from the file context menu, lock symbol with owner tooltip, force unlock with prompt,
  * commit warning, server without locking (1.1).
  *
- *   node scripts/e2e-wd/features/lfs.mjs
- *   E2E_WD_ONLY=lock node scripts/e2e-wd/features/lfs.mjs
+ *   node e2e/features/lfs.mjs
+ *   E2E_WD_ONLY=lock node e2e/features/lfs.mjs
  *
  * Every check also looks at Git itself: .gitattributes, `git lfs ls-files`, .git/lfs/objects, the
  * working directory, and the lock server's state. Needs Git LFS installed; without it every
@@ -20,7 +20,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { promisify } from "node:util";
-import { gitIsolationEnv, makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { gitIsolationEnv, makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { startLockServer } from "../fixtures/lfs-lock-server.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 

@@ -55,16 +55,16 @@ At most three scripts run at the same time. Logs go to `target/e2e/run-logs/`, s
 `target/e2e/shots/`. If a test turns red under load, fix the cause (wait for the concrete condition),
 never just raise timeouts.
 
-**Linux (WebDriver):** `scripts/e2e-wd/` drives the real debug app through `tauri-driver` +
+**Linux (WebDriver):** `e2e/` drives the real debug app through `tauri-driver` +
 WebKitWebDriver, each launch on its own Xvfb display with its own ports, data dir, gitconfig and
 keychain service; UI from its own Vite server from port 1431 (no HMR, page error hook). Features
-live in `scripts/e2e-wd/features/*.mjs` (`scenario(name, "main"|"edge", fn)` from `lib.mjs`).
-Details and the API: `scripts/e2e-wd/README.md`.
+live in `e2e/features/*.mjs` (`scenario(name, "main"|"edge", fn)` from `lib.mjs`).
+Details and the API: `e2e/README.md`.
 
 ```bash
 npm run e2e:wd:prepare                    # cargo build + copy to target/e2e-wd/bin/<mtime>/
 npm run e2e:wd                            # all features, 4 at a time; results in target/e2e-wd/results/
-node scripts/e2e-wd/run.mjs smoke         # features whose name contains "smoke"
+node e2e/run.mjs smoke         # features whose name contains "smoke"
 ```
 
 ## Architecture

@@ -4,12 +4,12 @@
  * tracker) – in the real app over WebDriver, against the core's host test server
  * (e2e/fixtures/host-mock.mjs, 127.0.0.1). Nothing calls bitbucket.org.
  *
- *   node scripts/e2e-wd/features/bitbucket.mjs
- *   E2E_WD_ONLY=merge node scripts/e2e-wd/features/bitbucket.mjs
+ *   node e2e/features/bitbucket.mjs
+ *   E2E_WD_ONLY=merge node e2e/features/bitbucket.mjs
  *
  * The repositories are real: `origin` carries the test server's address (that is how the core finds
  * team/demo on "Bitbucket"), Git's transfers go to a local bare repository (url.<bare>.insteadOf,
- * scripts/e2e-wd/fixtures/bitbucket.mjs) – push, fetch and "check out pull request" really run.
+ * e2e/fixtures/bitbucket.mjs) – push, fetch and "check out pull request" really run.
  *
  * The connect dialog offers Bitbucket only as bitbucket.org (Cloud), so the core then calls
  * https://api.bitbucket.org/2.0. For the dialog scenarios the app's own network settings (proxy +
@@ -23,7 +23,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
+import { startHostMock } from "../fixtures/host-mock.mjs";
 import { ROOT } from "../driver.mjs";
 import {
   clearKeychain,

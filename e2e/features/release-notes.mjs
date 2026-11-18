@@ -9,13 +9,13 @@
  * - edge: German, from the commit menu: "What is sent?" shows the commits without a token, the
  *   notes go to the clipboard.
  *
- *   cargo build && node scripts/e2e-wd/features/release-notes.mjs
- *   E2E_WD_ONLY="commit menu" node scripts/e2e-wd/features/release-notes.mjs
+ *   cargo build && node e2e/features/release-notes.mjs
+ *   E2E_WD_ONLY="commit menu" node e2e/features/release-notes.mjs
  */
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { startForge } from "../fixtures/github-gitlab-host.mjs";
 import { rightClick, waitToast } from "../fixtures/rebase.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";

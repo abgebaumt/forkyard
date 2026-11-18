@@ -18,7 +18,11 @@ export function createChecks() {
     }
     return Boolean(condition);
   };
-  const equal = (actual, expected, message) => check(JSON.stringify(actual) === JSON.stringify(expected), `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  const equal = (actual, expected, message) =>
+    check(
+      JSON.stringify(actual) === JSON.stringify(expected),
+      `${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
+    );
   /** Waits up to `timeoutMs` for `read()` to return the expected value. */
   const eventually = async (read, expected, message, timeoutMs = 8000) => {
     const deadline = Date.now() + timeoutMs;
@@ -58,7 +62,10 @@ export function makeWorkspace(prefix) {
     GIT_AUTHOR_DATE: "1772434800 +0100",
     GIT_COMMITTER_DATE: "1772434800 +0100",
   };
-  const git = (cwd, ...args) => execFileSync("git", args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, maxBuffer: 64 * 1024 * 1024 }).toString("utf8").replace(/\r?\n$/, "");
+  const git = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, maxBuffer: 64 * 1024 * 1024 })
+      .toString("utf8")
+      .replace(/\r?\n$/, "");
   const ws = {
     root,
     git,
@@ -161,7 +168,8 @@ export async function addRepo(app, repoPath, patch = null) {
 }
 
 export const repoList = (app) => app.invoke("repo_list");
-export const findRepo = async (app, repoPath) => (await repoList(app)).find((repo) => repo.path.toLowerCase() === repoPath.toLowerCase()) ?? null;
+export const findRepo = async (app, repoPath) =>
+  (await repoList(app)).find((repo) => repo.path.toLowerCase() === repoPath.toLowerCase()) ?? null;
 
 /** Reloads the UI's repository list (as after a core event). */
 export async function refreshRepos(app) {
@@ -198,7 +206,10 @@ export async function tabUntil(page, predicate, arg, { max = 40, shift = false }
 }
 
 export const overflow = (page) =>
-  page.evaluate(() => ({ x: document.documentElement.scrollWidth - document.documentElement.clientWidth, y: document.documentElement.scrollHeight - document.documentElement.clientHeight }));
+  page.evaluate(() => ({
+    x: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    y: document.documentElement.scrollHeight - document.documentElement.clientHeight,
+  }));
 
 export const toasts = (page) => page.locator("[data-toast]").allInnerTexts();
 
@@ -210,9 +221,12 @@ export async function closeToasts(page) {
 }
 
 /** Heading of the topmost open dialog, or null. */
-export const dialogTitle = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)?.querySelector("h2")?.textContent ?? null);
+export const dialogTitle = (page) =>
+  page.evaluate(() => Array.from(document.querySelectorAll('[role="dialog"]')).at(-1)?.querySelector("h2")?.textContent ?? null);
 
 export function finish(name, failures, picture) {
-  console.log(failures.length ? `\n${name}: ${failures.length} failures${picture ? ` (screenshot: ${picture})` : ""}.` : `\n${name}: green.`);
+  console.log(
+    failures.length ? `\n${name}: ${failures.length} failures${picture ? ` (screenshot: ${picture})` : ""}.` : `\n${name}: green.`,
+  );
   process.exit(failures.length ? 1 : 0);
 }

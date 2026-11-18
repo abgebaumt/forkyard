@@ -11,11 +11,11 @@
  *
  * Fake keys are built at run time. Nothing touches a real service.
  *
- *   node scripts/e2e-wd/features/push-check.mjs
- *   E2E_WD_ONLY="Review" node scripts/e2e-wd/features/push-check.mjs
+ *   node e2e/features/push-check.mjs
+ *   E2E_WD_ONLY="Review" node e2e/features/push-check.mjs
  */
 import http from "node:http";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { NO_PROXY_ENV, git, syncUi } from "../fixtures/sync-ui.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";
 

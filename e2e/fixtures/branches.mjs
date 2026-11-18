@@ -1,5 +1,5 @@
 /**
- * Small real Git repositories for the branch feature (scripts/e2e-wd/features/branches.mjs):
+ * Small real Git repositories for the branch feature (e2e/features/branches.mjs):
  * create/rename/delete branches, drag and drop merge/rebase, cherry-pick, revert, reset and the
  * conflict preflight. Built fresh per scenario (a handful of commits, well under a second).
  *
@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "../../../e2e/fixtures/fixtures.mjs";
+import { TEST_IDENTITY, gitIsolationEnv, globalGitConfig } from "./fixtures.mjs";
 
 const EPOCH = 1772434800;
 

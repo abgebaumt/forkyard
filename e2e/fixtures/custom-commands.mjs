@@ -1,5 +1,5 @@
 /**
- * Fixtures for scripts/e2e-wd/features/custom-commands.mjs: a small real repository (the branch
+ * Fixtures for e2e/features/custom-commands.mjs: a small real repository (the branch
  * fixture layout) plus helpers to write `.forkyard/commands.json` and command definitions.
  *
  *   const repo = makeCommandsRepo();   // { path, git, write, read, exists, commit, head, ..., writeCommands(list) }

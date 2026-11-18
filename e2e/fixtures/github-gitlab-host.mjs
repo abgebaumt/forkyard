@@ -24,9 +24,9 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
-import { startGitHttpServer } from "../../../e2e/fixtures/git-http-server.mjs";
-import { startHostMock } from "../../../e2e/fixtures/host-mock.mjs";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
+import { startGitHttpServer } from "./git-http-server.mjs";
+import { startHostMock } from "./host-mock.mjs";
 
 export const REPO_PATHS = { github: "octo/demo", gitlab: "gruppe/unter/demo" };
 const GIT_USER = "lena";

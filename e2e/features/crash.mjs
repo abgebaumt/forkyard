@@ -5,7 +5,7 @@
  * hook's format are offered the same way. SIGTERM, SIGINT and SIGHUP end the app like quitting:
  * marker removed, no report, no dialog on the next start.
  *
- *   node scripts/e2e-wd/features/crash.mjs
+ *   node e2e/features/crash.mjs
  *
  * Every scenario uses its own data directory that survives the restart (launchApp's `dataDir`).
  * Note: `app.close()` ends a still running app cleanly (SIGTERM) before it ends the WebDriver
@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { makeRichRepo } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeRichRepo } from "../fixtures/fixtures.mjs";
 import { openApps } from "../driver.mjs";
 import { SHOTS_DIR, assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 import {
@@ -32,7 +32,7 @@ import {
 } from "../fixtures/crash.mjs";
 
 /** The version the built app reports (the workspace version, same as package.json). */
-const APP_VERSION = JSON.parse(fs.readFileSync(new URL("../../../package.json", import.meta.url), "utf8")).version;
+const APP_VERSION = JSON.parse(fs.readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const git = (cwd, args) =>

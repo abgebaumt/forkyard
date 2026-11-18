@@ -12,7 +12,7 @@
  * - edge: palette path. A cut in B after the first commit "fits" A, so the old cuts would be accepted.
  *   After checking out A and running "pr.stack", A is still one part without B's name.
  *
- *   node scripts/e2e-wd/features/stack-branch-switch.mjs
+ *   node e2e/features/stack-branch-switch.mjs
  */
 import { makeEmptyReflogRepo } from "../fixtures/reflog.mjs";
 import { assertEqual, scenario } from "../lib.mjs";

@@ -11,11 +11,11 @@
  *   pre-confirmed;
  * - edge: German texts; nothing of it once AI is turned off.
  *
- *   node scripts/e2e-wd/features/plan.mjs
- *   E2E_WD_ONLY="expires" node scripts/e2e-wd/features/plan.mjs
+ *   node e2e/features/plan.mjs
+ *   E2E_WD_ONLY="expires" node e2e/features/plan.mjs
  */
 import http from "node:http";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
+import { makeCleanRepoWithRemote } from "../fixtures/fixtures.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { waitToast } from "../fixtures/rebase.mjs";
 import { assert, assertEqual, assertIncludes, scenario } from "../lib.mjs";

@@ -1,5 +1,5 @@
 /**
- * Fixtures for the Bitbucket WebDriver feature (scripts/e2e-wd/features/bitbucket.mjs).
+ * Fixtures for the Bitbucket WebDriver feature (e2e/features/bitbucket.mjs).
  *
  *   const mock = await startHostMock();
  *   const repo = makeBitbucketRepo(mock.remoteUrl("bitbucket"));  // real repo, origin = the mock's address
@@ -20,8 +20,8 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import tls from "node:tls";
-import { makeCleanRepoWithRemote } from "../../../e2e/fixtures/fixtures.mjs";
-import { opensslPath } from "../../../e2e/fixtures/git-http-server.mjs";
+import { makeCleanRepoWithRemote } from "./fixtures.mjs";
+import { opensslPath } from "./git-http-server.mjs";
 
 /** Git in a fixture repository, isolated from the machine's configuration like the fixtures. */
 function gitIn(cwd, args, env = {}) {

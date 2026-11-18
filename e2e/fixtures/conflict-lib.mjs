@@ -69,7 +69,12 @@ export const stationParts = [
   same('        return list(csv.DictReader(datei, delimiter=";"))', "", "", "def mittel(zeilen, spalte):"),
   conflict(
     ["    werte = [float(z[spalte]) for z in zeilen]", "    return statistics.mean(werte)"],
-    ["    werte = [float(z[spalte]) for z in zeilen if z[spalte]]", "    if not werte:", "        return None", "    return statistics.mean(werte)"],
+    [
+      "    werte = [float(z[spalte]) for z in zeilen if z[spalte]]",
+      "    if not werte:",
+      "        return None",
+      "    return statistics.mean(werte)",
+    ],
     ['    werte = [float(z[spalte].replace(",", ".")) for z in zeilen]', "    return round(statistics.mean(werte), 2)"],
   ),
   same("", "", "def bericht(zeilen):"),
@@ -84,17 +89,31 @@ export const stationParts = [
 ];
 
 export const CRLF = "daten/crlf.txt";
-export const crlfParts = [same("eins"), conflict(["zwei"], ["ZWEI (main)"], ["zwei (feature)"]), same("drei", "vier"), one("theirs", [], ["fünf"])];
+export const crlfParts = [
+  same("eins"),
+  conflict(["zwei"], ["ZWEI (main)"], ["zwei (feature)"]),
+  same("drei", "vier"),
+  one("theirs", [], ["fünf"]),
+];
 
 /** Current side with CRLF, incoming with LF; the changes themselves do not touch. */
 export const MIXED = "daten/gemischt.txt";
 export const mixedParts = [same("eins"), one("ours", ["zwei"], ["ZWEI"]), same("drei"), one("theirs", ["vier"], ["VIER"]), same("fünf")];
 
 export const NO_EOL = "daten/ohne-ende.txt";
-export const noEolParts = [same("alpha"), conflict(["beta"], ["BETA-main"], ["beta-feature"]), same("mitte"), conflict(["gamma"], ["gamma-main"], ["gamma-feature"])];
+export const noEolParts = [
+  same("alpha"),
+  conflict(["beta"], ["BETA-main"], ["beta-feature"]),
+  same("mitte"),
+  conflict(["gamma"], ["gamma-main"], ["gamma-feature"]),
+];
 
 export const LATIN1 = "text/latin1.txt";
-export const latin1Parts = [same("Größe;Einheit"), conflict(["Temperatur;°C"], ["Temperatur;°C (Mittel)"], ["Temperatur;Grad Celsius"]), same("Druck;hPa")];
+export const latin1Parts = [
+  same("Größe;Einheit"),
+  conflict(["Temperatur;°C"], ["Temperatur;°C (Mittel)"], ["Temperatur;Grad Celsius"]),
+  same("Druck;hPa"),
+];
 
 export const BOTH_ADDED = "neu/beide.txt";
 export const bothAdded = { ours: ["kopf", "eins", "mitte", "zwei", "ende"], theirs: ["kopf", "EINS", "mitte", "ZWEI", "ende"] };
@@ -110,7 +129,11 @@ export const manyParts = [
   same(...range(5001, 10000)),
   one("theirs", [manyLine(10000)], [`${manyLine(10000)};nur feature`]),
   same(...range(10001, 15000)),
-  conflict([manyLine(15000)], [`${manyLine(15000)};Ausreißer entfernt`], [`${manyLine(15000)};Ausreißer markiert`, `${manyLine(15000)};Zusatzzeile`]),
+  conflict(
+    [manyLine(15000)],
+    [`${manyLine(15000)};Ausreißer entfernt`],
+    [`${manyLine(15000)};Ausreißer markiert`, `${manyLine(15000)};Zusatzzeile`],
+  ),
   same(...range(15001, 20000)),
 ];
 
@@ -145,7 +168,22 @@ export const deletedByThemOurs = "# Wegweiser\n\nDer Weg zur Station führt jetz
 const renamedText = "# Namensliste\n\nStation Nord, Station Süd, Station Tal.\nDiese Datei wurde auf beiden Seiten umbenannt.\n";
 
 /** All conflict files of the lab, in Git's order. */
-export const LAB_CONFLICTS = [BINARY, CRLF, MIXED, NO_EOL, DELETED_BY_US, RENAMED.theirs, RENAMED.ours, RENAMED.old, DELETED_BY_THEM, HUGE, MANY, BOTH_ADDED, STATION, LATIN1];
+export const LAB_CONFLICTS = [
+  BINARY,
+  CRLF,
+  MIXED,
+  NO_EOL,
+  DELETED_BY_US,
+  RENAMED.theirs,
+  RENAMED.ours,
+  RENAMED.old,
+  DELETED_BY_THEM,
+  HUGE,
+  MANY,
+  BOTH_ADDED,
+  STATION,
+  LATIN1,
+];
 export const LAB = { ours: "main", theirs: "feature/umbau" };
 
 // ---------------------------------------------------------------------------
@@ -197,7 +235,10 @@ export function gitRaw(repoPath, args, { allowFail = false } = {}) {
     });
   } catch (error) {
     if (allowFail) return Buffer.concat([error.stdout ?? Buffer.alloc(0), error.stderr ?? Buffer.alloc(0)]);
-    const detail = [error.stdout, error.stderr].map((part) => (part ? part.toString("utf8") : "")).join("\n").trim();
+    const detail = [error.stdout, error.stderr]
+      .map((part) => (part ? part.toString("utf8") : ""))
+      .join("\n")
+      .trim();
     throw new Error(`git ${args.join(" ")} failed (in ${repoPath}):\n${detail || error.message}`);
   }
 }
@@ -219,7 +260,10 @@ function init(root, name) {
 
 /** What every fixture exposes. */
 function publish(root, repo, info) {
-  const git = (...args) => gitRaw(repo, args).toString("utf8").replace(/\r?\n$/, "");
+  const git = (...args) =>
+    gitRaw(repo, args)
+      .toString("utf8")
+      .replace(/\r?\n$/, "");
   return {
     path: repo,
     root,
