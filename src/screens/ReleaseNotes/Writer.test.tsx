@@ -29,7 +29,7 @@ const writerWith = (state: Partial<WriterState>): Writer => ({
 const html = (node: ReactNode) => renderToStaticMarkup(<TooltipProvider>{node}</TooltipProvider>);
 const notLoggedIn = writerWith({ phase: "error", error: { kind: "notLoggedIn", text: "Claude Code is not signed in." } });
 
-describe("release notes writer: not signed in (spec “Zustände jedes KI-Elements”)", () => {
+describe("release notes writer: not signed in", () => {
   it("offers “Sign in in the terminal” when the surrounding dialog can hand over to the terminal", () => {
     const markup = html(
       <ReleaseNotesWriter repoId="r" to={null} writer={notLoggedIn} openSetup={false} local={false} onSetup={none} onSignIn={none} />,

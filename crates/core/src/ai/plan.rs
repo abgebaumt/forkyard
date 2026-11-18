@@ -1,9 +1,9 @@
-//! "Git in plain language" (spec Paket 5): the request the provider gets and the answer it gives.
+//! "Git in plain language": the request the provider gets and the answer it gives.
 //!
 //! The user's sentence is the only instruction; it goes into the system text. Everything about the
 //! repository (state, branches, remotes, tags, recent commits) is data between the delimiters of
 //! `ai::prompt`, filtered by `redact_for_ai`, because branch names and commit messages can carry text
-//! that tries to steer the model (Grundregel 3). The answer is only data: `parse_steps` turns it into
+//! that tries to steer the model. The answer is only data: `parse_steps` turns it into
 //! `PlanStep`s, and nothing runs before `plan_check` and the user's confirmation.
 
 use serde_json::Value;
@@ -157,7 +157,7 @@ fn fit(sections: &mut [Section], max_chars: usize) {
 }
 
 /// The prompt of `AiInput::Plan` (`ai_preview`) and of `ai_plan` – both pass the budget and the
-/// known secrets of Paket 3.1's `request_frame`, so the texts match (1a's gate is bound to them).
+/// known secrets of `request_frame`, so the texts match (1a's gate is bound to them).
 pub async fn build_prompt(
     core: &Core,
     repo_id: &str,

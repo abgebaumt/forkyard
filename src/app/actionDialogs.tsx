@@ -316,7 +316,7 @@ export interface TagInput {
   name: string;
   /** null = lightweight tag. */
   message: string | null;
-  /** Release notes (v1.2): where the annotation also goes once the tag exists. */
+  /** Release notes: where the annotation also goes once the tag exists. */
   targets: ReleaseTarget[];
 }
 

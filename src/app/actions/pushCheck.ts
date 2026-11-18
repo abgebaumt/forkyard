@@ -1,5 +1,5 @@
 /**
- * The push check (v1.2, spec 6.2) on the UI side. Every push action runs through `guardSecrets`:
+ * The push check on the UI side. Every push action runs through `guardSecrets`:
  * the core's secret scan stops a push with `secrets_found`, the dialog shows the findings, and only
  * "Push anyway" repeats the push with exactly those finding IDs (the core scans again; a new finding
  * asks again). "Back" ends like a cancelled action – silently, nothing was sent.

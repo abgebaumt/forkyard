@@ -1,4 +1,4 @@
-/** The diff line menu's entry “Why is this so?” / “History of this line” (v1.2, 7.1). */
+/** The diff line menu's entry “Why is this so?” / “History of this line”. */
 import type { DiffSource } from "../../core";
 import type { ArchaeologyTarget } from "../../app/store";
 import type { MenuEntry } from "../../ui/Menu";

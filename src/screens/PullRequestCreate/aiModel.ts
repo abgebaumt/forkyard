@@ -1,5 +1,5 @@
 /**
- * Pure rules of "Write from commits" in the pull request form (Paket 4): when the title is
+ * Pure rules of "Write from commits" in the pull request form: when the title is
  * replaced, where the suggested description goes, the field's one-step undo of an insertion and
  * why the button is disabled.
  */

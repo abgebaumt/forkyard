@@ -1,5 +1,5 @@
 /**
- * Line archaeology in the UI (v1.2, 7.1): which line a blame or diff row means, the rows of the
+ * Line archaeology in the UI: which line a blame or diff row means, the rows of the
  * timeline panel and the AI notes next to their steps. Pure – no core calls.
  */
 import {
@@ -61,7 +61,7 @@ export function diffLineTarget(source: DiffSource, file: { path: string; oldPath
   }
 }
 
-/** “Why is this so?” while the AI function is visible, otherwise “History of this line” (Entscheidung 11). */
+/** “Why is this so?” while the AI function is visible, otherwise “History of this line”. */
 export function whyLabel(aiVisible: boolean): string {
   return aiVisible ? t("blame.menu.why") : t("blame.menu.lineHistory");
 }
@@ -177,7 +177,7 @@ export function explainView(state: ExplainState, now: number, local: boolean): E
 export type ExplainErrorAction = "signIn" | "sendOnce" | "setup" | "showSent";
 
 /**
- * Spec “Zustände jedes KI-Elements”: a signed-out command-line tool offers “Sign in in the terminal”,
+ * a signed-out command-line tool offers “Sign in in the terminal”,
  * the limit offers “Send this time” (a new request whose preview asks with the limit trigger), both
  * next to “Set up AI …” (Settings › AI holds the sign-in of API providers and the limit).
  */

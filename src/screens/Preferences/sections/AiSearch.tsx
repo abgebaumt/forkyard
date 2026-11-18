@@ -1,5 +1,5 @@
 /**
- * Settings › AI › Search by meaning (spec 9.2, Entscheidung 7): an optional embedding provider on
+ * Settings › AI › Search by meaning: an optional embedding provider on
  * this computer with address and model, the index of the open repository and "Delete index".
  */
 import { core, type Id, type Settings } from "../../../core";

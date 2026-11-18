@@ -377,7 +377,7 @@ function TextSearch({ repoId, tabId, text, setText, modeSwitch }: SearchPartProp
 
 /**
  * The commit search: "Text" (as you type) or – while AI is on for this repository – "Meaning"
- * (on Enter, spec 9.2). The typed text stays when switching; the switch opens the AI setup while
+ * (on Enter). The typed text stays when switching; the switch opens the AI setup while
  * no provider is connected.
  */
 export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
@@ -390,7 +390,7 @@ export function CommitSearch({ repoId, tabId }: CommitSearchProps) {
   const current: SearchMode = meaningShown ? mode : "text";
   const choose = (next: SearchMode) => {
     if (next === "meaning" && aiVisibility(aiStatus).elementsOpenSetup) {
-      // On, but no provider connected: the setup dialog of 1b (spec "Klick öffnet die Ersteinrichtung").
+      // On, but no provider connected: the setup dialog.
       void openAiSetup();
       return;
     }

@@ -1,10 +1,10 @@
-//! The request of "Compose commits" (v1.2, Teilpaket 3.2): the units as the provider sees them,
+//! The request of "Compose commits": the units as the provider sees them,
 //! the answer schema and the way back from the answer to unit IDs.
 //!
 //! Units go out under short aliases (`u1`, `u2` …, in the order of the units): the real IDs carry
 //! paths and tokens that would cost tokens and that redaction could alter. Only units that appear
 //! in the text get an alias, so an answer can name nothing the provider has not seen. Secret and
-//! ignored files do not appear at all (Grundregel 5); generated files, binaries and files cut for
+//! ignored files do not appear at all; generated files, binaries and files cut for
 //! the budget appear by name with their aliases. The answer only assigns aliases to commits –
 //! `compose_apply` builds every patch itself.
 
@@ -36,7 +36,7 @@ pub(crate) const MAX_INSTRUCTION_CHARS: usize = 300;
 pub(crate) const MAX_REASON_CHARS: usize = 200;
 /// More commits than this are not a sensible proposal.
 pub(crate) const MAX_COMMITS: usize = 20;
-/// Recent subjects for style and language (Grundregel 6).
+/// Recent subjects for style and language.
 const SUBJECTS: usize = 50;
 
 pub(crate) struct ComposePrompt {
@@ -101,8 +101,8 @@ pub(crate) fn clean_instruction(text: Option<&str>) -> CoreResult<Option<String>
     Ok(Some(cleaned))
 }
 
-/// The instruction with the repository's language when Paket 3.1's detector recognises one from
-/// the last 50 subjects (Grundregel 6); otherwise the model follows the example subjects. The
+/// The instruction with the repository's language when detector recognises one from
+/// the last 50 subjects; otherwise the model follows the example subjects. The
 /// user's own instruction comes last, delimited like every request in the user's words.
 pub(crate) fn instruction(language: Option<&str>, own: Option<&str>, kept: bool) -> String {
     let mut text = match language {

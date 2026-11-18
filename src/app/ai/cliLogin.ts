@@ -1,5 +1,5 @@
 /**
- * “Sign in in the terminal” (spec “Zustände”: `ai_not_logged_in`): opens a terminal tab in the active
+ * “Sign in in the terminal”: opens a terminal tab in the active
  * repository tab that runs the tool's own sign-in in an empty folder of the app (`aiCliLogin`, never the
  * repository). A terminal belongs to a repository tab: without one, the caller shows the command as text.
  */

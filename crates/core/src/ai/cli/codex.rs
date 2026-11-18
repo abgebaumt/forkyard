@@ -6,7 +6,7 @@
 //! The read-only sandbox stops writes and the network, not reading: the model could still run
 //! `cat` on any file through its shell tool, open images through `view_image`, or reach files
 //! through an MCP server of the user's `config.toml`. So the shell and image tools are switched off
-//! and the user config is not loaded (the sign-in still is) – Grundregel 5: no access to the
+//! and the user config is not loaded (the sign-in still is) – no access to the
 //! repository. A version without `--disable` or `--ignore-user-config` is refused.
 
 use super::{Flag, LoginInfo};

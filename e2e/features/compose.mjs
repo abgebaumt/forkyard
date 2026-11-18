@@ -1,5 +1,5 @@
 /**
- * "Compose commits" (v1.2, Teilpaket 3.2) in the real app, in German, against a local stand-in for
+ * "Compose commits" in the real app, in German, against a local stand-in for
  * Ollama (FORKYARD_AI_BASE_URL_OLLAMA, debug builds only) – never a real provider.
  *
  * The repository "messnetz" gets a new module src/plausibel.py that src/vergleich.py imports, a

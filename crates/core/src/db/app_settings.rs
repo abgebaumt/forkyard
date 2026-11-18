@@ -28,7 +28,7 @@ pub const GLOBAL_KEYS: [&str; 31] = [
     "notifyOnFetch",
     "notifyOnError",
     "checkForUpdates",
-    // AI (v1.2): one provider and one key for all profiles (Entscheidung 1).
+    // AI: one provider and one key for all profiles.
     "aiEnabled",
     "aiProvider",
     "aiModel",
@@ -40,7 +40,7 @@ pub const GLOBAL_KEYS: [&str; 31] = [
     "aiPrices",
     "aiCliPaths",
     "agentTemplates",
-    // Search by meaning (v1.2, 9.2): the optional local embedding provider.
+    // Search by meaning: the optional local embedding provider.
     "aiSearchEmbedProvider",
     "aiSearchEmbedModel",
     "aiSearchEmbedBaseUrl",

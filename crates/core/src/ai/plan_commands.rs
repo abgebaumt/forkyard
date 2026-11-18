@@ -1,4 +1,4 @@
-//! The allow list of "Git in plain language" (spec Paket 5): which Forkyard commands a plan may
+//! The allow list of "Git in plain language": which Forkyard commands a plan may
 //! contain, their class, their arguments (in the schema dialect of `ai::schema`) and – further
 //! down – the typed action each checked step becomes and the existing core command it calls.
 //! Everything else (settings, repository trust, custom commands, terminal, cockpit, cleanup,
@@ -100,7 +100,7 @@ impl PlanCommand {
         }
     }
 
-    /// Steps that reach a remote are confirmed one by one and cannot be undone (spec Paket 5).
+    /// Steps that reach a remote are confirmed one by one and cannot be undone.
     pub fn class(self) -> PlanClass {
         match self {
             PlanCommand::Push | PlanCommand::BranchDeleteRemote | PlanCommand::TagPush => PlanClass::Outward,
@@ -469,7 +469,7 @@ async fn settle(core: &Core, repo_id: &str, step: impl std::future::Future<Outpu
 }
 
 /// The outcome of an outward step. `label` names what was to be pushed ("“main”", "Tag “v3”"). A
-/// secret-scan finding (Paket 6.2) stops the step: nothing was sent, the user decides in the push
+/// secret-scan finding stops the step: nothing was sent, the user decides in the push
 /// dialog; a plan never passes accepted findings.
 fn pushed(label: &str, result: PushResult) -> CoreResult<()> {
     match result {

@@ -1,6 +1,6 @@
 /**
  * Pushing the parts of a stack: one atomic push through the core, guarded by the secret scan like
- * every push (v1.2, spec 6.2) – a key in any part stops it until "Push anyway".
+ * every push – a key in any part stops it until "Push anyway".
  */
 import { core, type Id, type Sha } from "../../core";
 import { guardSecrets, type ShowFindings } from "../../app/actions/pushCheck";

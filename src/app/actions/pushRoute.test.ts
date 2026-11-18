@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AiStatus, PushResult, RepoSettings } from "../../core";
 
-// How push() routes with the project switch "AI review before every push" (spec 6.2):
+// How push() routes with the project switch "AI review before every push":
 // the review runs first only where it can run; a plain push must always stay possible.
 const corePush = vi.fn<(input: { force: boolean }) => Promise<PushResult>>();
 const aiPreview = vi.fn<(input: unknown) => Promise<unknown>>();

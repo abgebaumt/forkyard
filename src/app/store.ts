@@ -42,7 +42,7 @@ export type CenterView =
   | { kind: "reflog"; ref: string | null }
   /** Statistics of the repository (src/screens/Stats). */
   | { kind: "stats" }
-  /** "Compose commits" (v1.2, 3.2): the local changes as units, grouped into commits. */
+  /** "Compose commits": the local changes as units, grouped into commits. */
   | { kind: "compose" }
   /** The coding agents of the repository (src/screens/Agents). */
   | { kind: "cockpit" }

@@ -26,7 +26,7 @@ use crate::jobs::CancelToken;
 use crate::model::{AiFeature, AiProviderKind, AiState, Settings};
 use crate::util;
 
-/// Providers whose costs count for the monthly limit (command-line tools do not, spec 1.5).
+/// Providers whose costs count for the monthly limit (command-line tools do not).
 pub const API_PROVIDERS: [&str; 4] = ["anthropic", "openai", "openai_compatible", "gemini"];
 const MAX_RAISED_OUTPUT: u32 = 32_000;
 
@@ -177,7 +177,7 @@ pub async fn complete_json_checked(core: &Core, request: AiRequest<'_>, check: A
         Ok((value, usage)) => (usage, Ok(value)),
         Err((usage, error)) => (usage, Err(error)),
     };
-    // API providers by the price table; the command-line tools report their own cost (spec 1.5).
+    // API providers by the price table; the command-line tools report their own cost.
     let reported_usd = provider.take_reported_cost_micros().map(|micros| micros as f64 / 1_000_000.0);
     let cost_usd = pricing::price_for(&settings, kind, &model).map(|price| pricing::cost_usd(&price, &usage)).or(reported_usd);
     record(
@@ -656,7 +656,7 @@ mod tests {
         );
         settings_set(&tc, json!({"aiModel": "claude-eigenbau"})).await.unwrap();
         complete_json(&tc, request(None, "l4", &next, &schema)).await.unwrap();
-        assert_eq!(server.requests().len(), 2, "an unknown price has no limit protection (spec 1.5)");
+        assert_eq!(server.requests().len(), 2, "an unknown price has no limit protection");
     }
 
     #[tokio::test]

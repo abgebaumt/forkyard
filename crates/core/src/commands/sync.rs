@@ -933,7 +933,7 @@ async fn push_many(
         specs.push((local, remote_ref));
     }
 
-    // The local secret scan (spec 6.2) runs before hooks and before anything is sent.
+    // The local secret scan runs before hooks and before anything is sent.
     let tips: Vec<String> = specs.iter().map(|(local, _)| local.clone()).collect();
     if let Some(stop) = secret_scan::check_push(core, repo_id, &tips, &target.remote, request.accepted_secrets, Some(job), cancel).await? {
         return Ok(stop);
@@ -1020,7 +1020,7 @@ pub(crate) async fn push_transfer(
 ) -> CoreResult<PushResult> {
     let PushTarget { branch, local_ref, remote, remote_ref, remote_branch, set_upstream, created_upstream } =
         push_target(core, repo_id, &request).await?;
-    // The local secret scan (spec 6.2) runs before hooks and before anything is sent.
+    // The local secret scan runs before hooks and before anything is sent.
     if let Some(stop) =
         secret_scan::check_push(core, repo_id, std::slice::from_ref(&local_ref), &remote, request.accepted_secrets, job, cancel).await?
     {

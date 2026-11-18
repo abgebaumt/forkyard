@@ -1,5 +1,5 @@
 /**
- * Where a suggestion goes (spec "Umgang mit Vorschlägen"): an empty field gets it as a draft; text
+ * Where a suggestion goes: an empty field gets it as a draft; text
  * the user wrote is never replaced unasked ("Replace" / "Append" / "Discard"); if the user typed
  * while the request ran, the answer is only offered ("Suggestion ready"). Inserted text is plain
  * text at once – the field's own history undoes it.

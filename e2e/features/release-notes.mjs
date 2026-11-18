@@ -1,5 +1,5 @@
 /**
- * Release notes in the real app (v1.2, Teilpaket 7.2):
+ * Release notes in the real app:
  *
  * - main: the tag dialog writes grouped notes (a local Ollama stand-in behind
  *   FORKYARD_AI_BASE_URL_OLLAMA, debug builds only) into the annotation; with "Insert into

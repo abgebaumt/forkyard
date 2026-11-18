@@ -58,7 +58,7 @@ describe("the proposal as a small diff against the block's current text", () => 
   });
 });
 
-describe("Apply replaces exactly one block (spec 6.1)", () => {
+describe("Apply replaces exactly one block", () => {
   const model = buildModel(
     "kopf\neins\nmitte\nzwei\nende\n",
     "kopf\nEINS main\nmitte\nZWEI main\nende\n",

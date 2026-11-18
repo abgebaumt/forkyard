@@ -1,5 +1,5 @@
 /**
- * Stacked pull requests (Paket 8.1) in the centre.
+ * Stacked pull requests in the centre.
  *
  * For a branch that is no part of a stack: its commits oldest first, grouped into the planned parts.
  * The user cuts with the keyboard (↑/↓, Home/End select · Space splits after the commit or joins

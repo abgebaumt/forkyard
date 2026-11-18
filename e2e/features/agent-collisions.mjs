@@ -1,5 +1,5 @@
 /**
- * Collision warning between coding agents (v1.2, package 2b) in the real app over WebDriver. Two
+ * Collision warning between coding agents in the real app over WebDriver. Two
  * fake agents (target/debug/forkyard-fake-agent as an own template) start from a commit with an
  * 80-line src/auth.ts; the test then writes different lines 40–62 into both worktrees, as the
  * agents would. Both fake agents also write their task into an untracked AGENT_RESULT.md, so Git

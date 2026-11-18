@@ -96,7 +96,7 @@ export const commands: AppCommand[] = [
     title: t("commands.bisect.autopilot.title"),
     group: "Commit",
     keywords: kw("commands.bisect.autopilot.keywords"),
-    // An AI element: hidden while AI is not set up, off, or off for this repository (spec 1.3).
+    // An AI element: hidden while AI is not set up, off, or off for this repository.
     hidden: (ctx) => autopilotAccessFor(ctx.repoId) === "hidden",
     when: (ctx) => hasRepo(ctx) && !autopilotRunning(ctx.repoId),
     disabledReason: (ctx) =>

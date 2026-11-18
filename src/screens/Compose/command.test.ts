@@ -50,7 +50,7 @@ function ctx({
 }
 
 describe("palette command “Compose commits …”", () => {
-  it("is hidden wherever the AI element is hidden (spec 1.3)", () => {
+  it("is hidden wherever the AI element is hidden", () => {
     expect(command.hidden!(ctx())).toBe(false);
     expect(command.hidden!(ctx({ status: ai({ connected: false }) })), "shown; it opens the setup").toBe(false);
     expect(command.hidden!(ctx({ status: ai({ state: "unset", connected: false }) }))).toBe(true);

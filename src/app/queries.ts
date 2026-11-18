@@ -78,11 +78,11 @@ export const qk = {
   initTemplates: ["app", "initTemplates"] as const,
   sshKeys: ["app", "sshKeys"] as const,
   credentials: ["app", "credentials"] as const,
-  // AI (v1.2): state and connection, this month's usage.
+  // AI: state and connection, this month's usage.
   aiStatus: ["app", "aiStatus"] as const,
   aiUsage: ["app", "aiUsage"] as const,
   agentTemplates: ["app", "agentTemplates"] as const,
-  // Search by meaning (v1.2, 9.2): way and index per repository.
+  // Search by meaning: way and index per repository.
   aiSemanticStatus: (repoId: Id) => ["repo", repoId, "aiSemantic"] as const,
   activity: (scope: ActivityScope, repoId: Id | null) => ["activity", scope, repoId] as const,
   activityAll: ["activity"] as const,

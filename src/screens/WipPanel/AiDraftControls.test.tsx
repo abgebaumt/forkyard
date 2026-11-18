@@ -18,7 +18,7 @@ import { AiDraftStatusView, AiWriteButtonView } from "./AiDraftControls";
 const html = (node: ReactNode) => renderToStaticMarkup(<TooltipProvider>{node}</TooltipProvider>);
 const none = () => undefined;
 
-describe("Write button (spec 3.1)", () => {
+describe("Write button", () => {
   it("is blocked with a reason while nothing is staged", () => {
     const markup = html(<AiWriteButtonView phase="idle" staged={0} onToggle={none} />);
     expect(markup).toContain('data-ai-write=""');
@@ -34,10 +34,10 @@ describe("Write button (spec 3.1)", () => {
   });
 });
 
-describe("status line (spec “Zustände jedes KI-Elements”)", () => {
+describe("status line", () => {
   const running = { kind: "running", jobId: "job-1", startedAt: 0, atStart: { summary: "", description: "" } } as const;
 
-  it("offers “What is sent?” before the first use, without a live region (Grundregel 4)", () => {
+  it("offers “What is sent?” before the first use, without a live region", () => {
     const idle = html(<AiDraftStatusView repoId="r" phase={{ kind: "idle" }} local elapsedMs={0} staged={2} />);
     expect(idle).toContain("data-ai-write-idle");
     expect(idle).toContain("data-ai-commit-preview");

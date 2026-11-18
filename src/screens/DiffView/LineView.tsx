@@ -82,7 +82,7 @@ export interface LineViewProps {
   onPatch: (action: PatchAction, target: PatchTarget) => void;
   /** Put the selected lines aside for a partial stash; missing = not offered. */
   onStash?: () => void;
-  /** More entries for a code row, after a separator (v1.2: “Why is this so?”); missing = none. */
+  /** More entries for a code row, after a separator (“Why is this so?”); missing = none. */
   lineMenu?: (row: LineRow) => MenuEntry[];
   onToggleFold: (id: number) => void;
   /** Reports which change block the cursor is in (−1 = before the first). */

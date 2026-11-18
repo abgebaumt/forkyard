@@ -1,6 +1,6 @@
 /**
- * Grows the index of the search by meaning after fetches and commits (spec 9.2: "inkrementell im
- * Hintergrund"): a `repo:changed` with `refs` or `head` starts a quiet period per repository; when it
+ * Grows the index of the search by meaning after fetches and commits (incrementally, in the
+ * background): a `repo:changed` with `refs` or `head` starts a quiet period per repository; when it
  * ends and the search is shown for the repository, `update` runs – never twice at once, a change
  * during a run is caught up afterwards. Errors stay quiet (background work is no toast). The core
  * itself does nothing before the first search and never asks.

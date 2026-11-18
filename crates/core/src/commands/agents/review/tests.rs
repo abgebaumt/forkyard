@@ -29,7 +29,7 @@ pub(super) struct Fx {
 }
 
 /// An agent as `agent_start` leaves it, without a session: branch `agent/<short>` from `base` in
-/// `<temp>/repo.agents/<short>` (Entscheidung 3 written out), its own repository row, its row.
+/// `<temp>/repo.agents/<short>` (written out), its own repository row, its row.
 pub(super) async fn agent_at(tc: &TestCore, repo: &TestRepo, id: &str, short: &str, base: &str) -> (AgentRow, PathBuf) {
     let folder = repo.temp_dir().join("repo.agents").join(short);
     std::fs::create_dir_all(folder.parent().unwrap()).unwrap();
@@ -235,7 +235,7 @@ async fn unknown_and_orphaned_agents_are_refused() {
 }
 
 // ---------------------------------------------------------------------------
-// Taking a selection over (Paket 0's range_apply from the agent's diff) and committing it
+// Taking a selection over (range_apply from the agent's diff) and committing it
 // ---------------------------------------------------------------------------
 
 use crate::commands::agents::agent_review_commit;

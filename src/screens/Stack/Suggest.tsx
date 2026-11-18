@@ -1,5 +1,5 @@
 /**
- * "Suggest parts" in the stacked pull requests view (Paket 8.1): the AI proposes cuts, names and
+ * "Suggest parts" in the stacked pull requests view: the AI proposes cuts, names and
  * pull request titles. Shown only while AI is on for this function and this repository; with AI on
  * but no provider connected a click opens the AI setup (1b). An untouched plan takes the suggestion
  * directly (marked as suggested); cuts the user made are never replaced unasked ("Take suggestion" /

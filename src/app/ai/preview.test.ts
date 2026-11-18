@@ -17,7 +17,7 @@ const preview = (patch: Partial<AiPreview> = {}): AiPreview => ({
 });
 
 describe("What is sent?", () => {
-  it("estimates are always 'about' and below a cent 'under 0.01 USD' (spec 1.5)", () => {
+  it("estimates are always 'about' and below a cent 'under 0.01 USD'", () => {
     expect(formatUsd(0.0314, "en-US")).toBe("about 0.03 USD");
     expect(formatUsd(0.004, "en-US")).toBe("under 0.01 USD");
     expect(formatUsd(1234.5, "de-DE")).toBe("about 1.234,50 USD");

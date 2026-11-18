@@ -1,6 +1,6 @@
 /**
- * State and calls of the plan mode of the command palette (spec Paket 5). `start` shows "What is
- * sent?" where Grundregel 4 asks (`confirmSend`), then asks for a plan; the keys select, confirm,
+ * State and calls of the plan mode of the command palette. `start` shows "What is
+ * sent?" where it asks (`confirmSend`), then asks for a plan; the keys select, confirm,
  * edit, remove and run steps; Esc cancels a request, leaves the editor or goes back to the input –
  * the typed text stays. An answer that arrives after Esc or after a newer request is dropped
  * (`generation`), and nothing here moves the focus except into the editor the user opened with E

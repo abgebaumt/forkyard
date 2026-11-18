@@ -141,7 +141,7 @@ async fn a_force_push_never_overwrites_what_its_lease_has_not_seen() {
     assert_eq!(remote.git(&["rev-parse", "refs/heads/main"]), theirs, "the remote keeps the other commit");
 }
 
-/// Paket 6.2: the local secret scan runs before every push, plan steps included, and a plan never
+/// The local secret scan runs before every push, plan steps included, and a plan never
 /// pushes past a finding. The fake key is built at run time (6.2's rule: no literal key formats in
 /// the sources); the oracle is the bare remote itself.
 #[tokio::test]

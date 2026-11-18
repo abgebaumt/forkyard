@@ -92,7 +92,7 @@ beforeEach(() => {
   openAiSetup.mockReset().mockResolvedValue(false);
 });
 
-describe("Write (commit message, spec 3.1)", () => {
+describe("Write (commit message)", () => {
   it("fills empty fields as a draft after the preview passed the gate", async () => {
     await writeMessage(REPO);
     expect(aiPreview).toHaveBeenCalledWith({ repoId: REPO, feature: "commit_message", input: { kind: "commit_message" }, locale: "en-US" });

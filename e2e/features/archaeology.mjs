@@ -1,5 +1,5 @@
 /**
- * Line archaeology (v1.2, Teilpaket 7.1) in the real app against a real temp repository:
+ * Line archaeology in the real app against a real temp repository:
  *
  * - main: without AI the blame line menu offers “History of this line”; the panel lists exactly the
  *   commits of `git log -L3,3:src/station.py`, newest first, with the change of the line; W opens it

@@ -321,7 +321,7 @@ export interface CoreCommands {
    * message was edited – if HEAD has become a different one in the meantime, `stale_state` comes back.
    */
   commitReword(input: R & { summary: string; description: string; sha: Sha | null }): Promise<CommitResult>;
-  /** "Compose commits" (v1.2): every change since HEAD as units (hunks, whole files). Reads only, no AI. */
+  /** "Compose commits": every change since HEAD as units (hunks, whole files). Reads only, no AI. */
   composeUnits(input: R): Promise<ComposeState>;
   /**
    * The AI provider's grouping of the units, as job `jobId` (`jobCancel` → `cancelled`). Show and
@@ -1087,7 +1087,7 @@ export interface CoreCommands {
    */
   statsCompute(input: R & { jobId: string; range: StatsRange }): Promise<RepoStats>;
 
-  // --- AI (v1.2; one provider for all profiles; settings are `Settings.ai*` via settingsSet) ----
+  // --- AI (one provider for all profiles; settings are `Settings.ai*` via settingsSet) ----
   /** State (`unset`/`off`/`on`), chosen provider and model, whether it is connected, key hint, price, notice. */
   aiStatus(): Promise<AiStatus>;
   /** Stores the key in the keychain under `llm:<provider>`; success only after reading it back. `not_allowed` for local providers or a value that is no key. */
@@ -1138,7 +1138,7 @@ export interface CoreCommands {
   /** This month's usage (numbers only). */
   aiUsage(): Promise<AiUsageSummary>;
 
-  // --- Release notes (v1.2) ----------------------------------------------------------------------
+  // --- Release notes ----------------------------------------------------------------------
   /**
    * The commits after `from` (null: the nearest earlier tag, tags on `to` itself left out) up to
    * `to` (null: HEAD), without merges – for "12 commits since v1.1.0". No AI, no network; works in
@@ -1159,7 +1159,7 @@ export interface CoreCommands {
    */
   changelogInsert(input: R & { version: string; date: string; notes: string }): Promise<ChangelogInsertResult>;
   /**
-   * Teilpaket 6.1 – “Explain intent” in the conflict tool: what both sides of every conflict block
+   * “Explain intent” in the conflict tool: what both sides of every conflict block
    * wanted (block texts, commit messages of both sides, pull request texts if a host account is
    * connected) and a proposed text per block. `blocks`: the conflict blocks of the tool's model as
    * line ranges, in order; the core reads the text itself from the index. A job (`jobCancel`).
@@ -1167,7 +1167,7 @@ export interface CoreCommands {
    * binary or one-sided, ranges out of date), `repo_untrusted`, `cancelled`, `timeout`.
    */
   aiConflictIntent(input: R & { jobId: string; path: string; blocks: ConflictBlockRange[]; locale: string }): Promise<ConflictIntent>;
-  // --- Search by meaning (v1.2, 9.2) ---
+  // --- Search by meaning ---
   /** The way of the search by meaning for this repository and the size of its index – sends nothing. */
   aiSemanticStatus(input: R): Promise<AiSemanticStatus>;
   /**
@@ -1182,7 +1182,7 @@ export interface CoreCommands {
   /** "Delete index": every repository and model; returns the number of indexes removed. */
   aiSemanticIndexDelete(): Promise<number>;
   /**
-   * Paket 4: title and description of a pull request from the commits of `source` that `target`
+   * Title and description of a pull request from the commits of `source` that `target`
    * does not have (full ref names: `refs/heads/…`, `refs/remotes/<remote>/…`). Fills the repository's
    * template (all its headings stay) and adds "Closes #n" for host issues of the commits. Job `jobId`
    * (cancellable). Show and confirm `aiPreview` with `{ kind: "pr_description", source, target }`
@@ -1203,7 +1203,7 @@ export interface CoreCommands {
    */
   aiReviewFix(input: R & { jobId: string; number: number; threadId: string; locale: string }): Promise<AiReviewFix>;
   /**
-   * "Write" in the commit form (spec 3.1): a commit message for the staged changes – a draft, never
+   * "Write" in the commit form: a commit message for the staged changes – a draft, never
    * committed. Built exactly like `aiPreview` with `{ kind: "commit_message" }`, so a confirmation
    * given there holds. Job under `jobId` (`jobCancel` → `cancelled`). Errors: `nothing_to_commit`
    * (nothing staged), `ai_disabled`, `ai_not_configured`, `ai_provider_unavailable`, `ai_invalid_answer`,
@@ -1212,7 +1212,7 @@ export interface CoreCommands {
    */
   aiCommitMessage(input: R & { jobId: string; locale: string }): Promise<AiCommitMessage>;
   /**
-   * Setup dialog (Teilpaket 1b): Claude Code, Codex and opencode with version, path and sign-in, Ollama /
+   * Setup dialog: Claude Code, Codex and opencode with version, path and sign-in, Ollama /
    * LM Studio on this computer and the providers with a stored key – about two seconds at most, sends
    * nothing. Remembers the found programs.
    */
@@ -1223,7 +1223,7 @@ export interface CoreCommands {
    * command-line tool, more than 16 terminals), `ai_not_configured` (tool not found), `unsupported` (batch shim).
    */
   aiCliLogin(input: R & { provider: AiProviderKind; cols: number; rows: number }): Promise<Id>;
-  // --- Git in plain language (v1.2, Paket 5) -----------------------------------------------
+  // --- Git in plain language -----------------------------------------------
   /**
    * A sentence → a checked plan of allowed steps. The AI request runs as job `jobId` (cancel with
    * `jobCancel`), the check as job `${jobId}:check`. Nothing in the repository changes. Errors as
@@ -1239,7 +1239,7 @@ export interface CoreCommands {
    */
   aiPlanRun(input: R & { jobId: string; text: string; steps: PlanStep[]; expect: string; confirmed: number[] }): Promise<PlanRunResult>;
 
-  // --- Stacked pull requests (v1.2, Paket 8.1) --------------------------------------
+  // --- Stacked pull requests --------------------------------------
   /**
    * The commits of `branch` that `base` (full ref: `refs/heads/…`, `refs/remotes/…`) does not have,
    * oldest first, and the parts `cuts` makes of them (empty = one part), with branch names
@@ -1299,7 +1299,7 @@ export interface CoreCommands {
    */
   stackCheck(input: R & { jobId: string; branch: string; base: string; cuts: StackCut[] }): Promise<StackCheckResult[]>;
   /**
-   * Paket 8.1: where to cut `branch` above `base` (full ref) into stacked pull requests – parts with
+   * Where to cut `branch` above `base` (full ref) into stacked pull requests – parts with
    * the number of their last commit, a name for the branch, a pull request title and a reason. A
    * suggestion only. Job `jobId` (cancellable). Show and confirm `aiPreview` with
    * `{ kind: "stack_split", branch, base }` first. Errors: `ai_disabled`, `ai_not_configured`,

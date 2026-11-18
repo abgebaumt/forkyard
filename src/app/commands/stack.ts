@@ -1,5 +1,5 @@
 /**
- * Palette command for stacked pull requests (Paket 8.1): opens the stack view for the checked-out
+ * Palette command for stacked pull requests: opens the stack view for the checked-out
  * branch. The same view opens from every local branch's context menu.
  */
 import { t } from "../../i18n";

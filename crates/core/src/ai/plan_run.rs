@@ -1,4 +1,4 @@
-//! Running a checked plan (spec Paket 5): the expected state must still hold (checked again inside
+//! Running a checked plan: the expected state must still hold (checked again inside
 //! the write lock before step 1), every outward step must be confirmed on its own, then the steps
 //! run one after another through their existing commands (each takes the write lock itself), and
 //! the first error ends the plan. Before step 1 the working directory and index are backed up and

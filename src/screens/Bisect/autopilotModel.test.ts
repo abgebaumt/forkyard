@@ -97,7 +97,7 @@ describe("autopilotBar", () => {
 });
 
 describe("exit codes, time limit and script", () => {
-  it("reads exit codes as git bisect run does (spec 9.1)", () => {
+  it("reads exit codes as git bisect run does", () => {
     const table: [number, string][] = [
       [0, "good"],
       [1, "bad"],
@@ -142,7 +142,7 @@ describe("range and availability", () => {
     expect(rangeFromBisect(bisect({ bad: "b", good: ["g1", "g2"] }))).toEqual({ bad: "b", good: ["g1", "g2"] });
   });
 
-  it("follows the visibility of AI elements (spec 1.3)", () => {
+  it("follows the visibility of AI elements", () => {
     expect(autopilotAccess(undefined, false)).toBe("hidden");
     expect(autopilotAccess(ai({ state: "unset", connected: false }), false)).toBe("hidden");
     expect(autopilotAccess(ai({ state: "off" }), false)).toBe("hidden");

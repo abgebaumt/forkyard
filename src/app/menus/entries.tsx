@@ -482,7 +482,7 @@ function pullRequestEntry(ctx: MenuBase, ref: Ref): MenuEntry | null {
   });
 }
 
-/** "Split into stacked pull requests …": the stack view for this local branch (Paket 8.1). */
+/** "Split into stacked pull requests …": the stack view for this local branch. */
 function stackEntry(ctx: MenuBase, ref: Ref): MenuEntry {
   return item(t("menus.pr.stack"), null, () => useAppStore.getState().setCenter(ctx.tabId, { kind: "stack", branch: ref.name }), {
     tooltip: t("menus.pr.stackTip", { name: t("menus.quoted", { name: ref.name }) }),

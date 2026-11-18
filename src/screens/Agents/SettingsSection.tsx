@@ -70,7 +70,7 @@ function OwnTemplate({ form, onChange, onRemove }: { form: TemplateForm; onChang
   );
 }
 
-/** Version, path and sign-in of a built-in template (spec 2a). */
+/** Version, path and sign-in of a built-in template. */
 function builtInDescription(item: AgentTemplateInfo): string {
   if (!item.path) return t("agents.settings.missing");
   const found = item.version

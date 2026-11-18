@@ -1,5 +1,5 @@
 /**
- * "Write" in the summary field and the line below it (spec 3.1). The button reads "Write", becomes
+ * "Write" in the summary field and the line below it. The button reads "Write", becomes
  * "Cancel" while the request runs and "New" afterwards; without staged changes it is blocked with the
  * reason "Nothing staged". The line counts seconds from 3 s (role status = polite), names the draft,
  * offers a suggestion without replacing the user's text, or shows an error inline (role alert, never
@@ -137,7 +137,7 @@ export function AiDraftStatusView({
 }) {
   switch (phase.kind) {
     case "idle":
-      // Grundregel 4: the exact text can be looked at before anything is sent (no live region – nothing changed).
+      // the exact text can be looked at before anything is sent (no live region – nothing changed).
       return staged > 0 ? (
         <p data-ai-write-idle="" className="flex justify-end text-sm">
           <WhatIsSent repoId={repoId} label={t("wip.ai.whatIsSent")} />

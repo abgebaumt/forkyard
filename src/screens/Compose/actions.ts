@@ -1,4 +1,4 @@
-/** Who may see "Compose commits", and opening and closing it (v1.2, 3.2). */
+/** Who may see "Compose commits", and opening and closing it. */
 import type { AiStatus, Id, RepoSettings, Status } from "../../core";
 import { openAiSetup } from "../../app/ai/open";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
@@ -20,7 +20,7 @@ export function openCompose(tabId: Id): void {
   useAppStore.getState().setCenter(tabId, { kind: "compose" });
 }
 
-/** The button and the palette: without a connected provider the setup dialog opens instead (spec 1.3). */
+/** The button and the palette: without a connected provider the setup dialog opens instead. */
 export function startCompose(tabId: Id): void {
   if (aiVisibility(queryClient.getQueryData<AiStatus>(qk.aiStatus)).elementsOpenSetup) void openAiSetup();
   else openCompose(tabId);

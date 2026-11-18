@@ -1,6 +1,6 @@
 /**
  * Settings › AI (global, the same for every profile): master switch, provider, address, key,
- * model, price, functions, exclusions, "What is sent?", confirmations, costs. Teilpaket 1b adds
+ * model, price, functions, exclusions, "What is sent?", confirmations, costs. the command-line tools add
  * the setup dialog with detection; until then provider, model and key are set up here directly.
  */
 import { useEffect, useState } from "react";
@@ -62,7 +62,7 @@ export function AiSection({ settings, repoId }: { settings: Settings; repoId: Id
               ariaDescribedBy={ids.descriptionId}
               checked={settings.aiEnabled === true}
               onCheckedChange={(checked) => {
-                // Spec 1.3: switching on without a provider opens the setup; Cancel there changes nothing.
+                // switching on without a provider opens the setup; Cancel there changes nothing.
                 if (checked && !settings.aiProvider) void openAiSetup();
                 else void applySettings({ aiEnabled: checked });
               }}
@@ -341,7 +341,7 @@ function ProviderCard({ settings }: { settings: Settings }) {
   );
 }
 
-/** Own paths of Claude Code, Codex and opencode (spec 1.3: „Pfade der CLIs“); empty = found automatically. */
+/** Own paths of Claude Code, Codex and opencode; empty = found automatically. */
 function CliPathsCard({ settings }: { settings: Settings }) {
   return (
     <div data-ai-cli-paths>

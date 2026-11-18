@@ -1,5 +1,5 @@
 /**
- * Git in plain language (v1.2, Paket 5) in the real app, against a local stand-in for Ollama
+ * Git in plain language in the real app, against a local stand-in for Ollama
  * (FORKYARD_AI_BASE_URL_OLLAMA, debug builds only) whose answer each scenario sets:
  *
  * - main: a sentence that matches nothing offers "Ask in plain language: “…”"; Enter shows the plan

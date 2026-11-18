@@ -1,5 +1,5 @@
 /**
- * "Git in plain language" in the command palette (spec Paket 5) – the pure part: when the ask row
+ * "Git in plain language" in the command palette – the pure part: when the ask row
  * appears, what the keys do in the plan preview, why Enter may not run, the words and tones of
  * classes, checks and outcomes, the step editor's drafts and the texts around a run. The palette
  * (`index.tsx`) and `usePlanSession.ts` render it and call the core.
@@ -340,7 +340,7 @@ export function footerKeys(phase: PlanPhase): [string, string][] {
 export type AskMode = "hidden" | "setup" | "ask";
 
 /**
- * What the ask row does (spec 1.3 table): nothing in `unset`/`off`, with this function or this
+ * What the ask row does: nothing in `unset`/`off`, with this function or this
  * repository switched off and outside a repository tab; with `on` but no provider connected it
  * opens the setup instead of sending (1a `elementsOpenSetup`, 1b `openAiSetup`).
  */

@@ -1,5 +1,5 @@
 /**
- * "Write from commits" in the pull request form (Paket 4): the AI suggests title and description
+ * "Write from commits" in the pull request form: the AI suggests title and description
  * from the commits of the branch. Shown only while AI is on for this function and this repository;
  * with AI on but no provider connected a click opens Settings › AI. The form stays usable while the
  * request runs: a description the user wrote is never replaced unasked (Replace / Append / Discard),

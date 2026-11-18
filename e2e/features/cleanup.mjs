@@ -1,5 +1,5 @@
 /**
- * "Clean up repository" in the real app over WebDriver (Paket 10): opening it from the command
+ * "Clean up repository" in the real app over WebDriver: opening it from the command
  * palette and from the repository list, the preview against `git count-objects -v`, a Normal run
  * with its result line, the warnings, closing the dialog while it runs, cancelling a Thorough run on
  * a large generated repository, and the German texts.

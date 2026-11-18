@@ -1,4 +1,4 @@
-//! Pull request texts for “Explain intent” (v1.2, Teilpaket 6.1) against the GitHub test server.
+//! Pull request texts for “Explain intent” against the GitHub test server.
 //! The test data set: no. 7 comes from `feature/login`, no. 8 (`korrektur`) from a fork.
 
 use super::*;

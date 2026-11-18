@@ -1,4 +1,4 @@
-/** "Set up AI …": opens Settings › AI – offered only while AI is not set up or not connected (spec 1.3). */
+/** "Set up AI …": opens Settings › AI – offered only while AI is not set up or not connected. */
 import type { AiStatus } from "../../core";
 import { t } from "../../i18n";
 import { openAiSettings } from "../ai/open";

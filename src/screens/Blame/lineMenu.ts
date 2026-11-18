@@ -1,5 +1,5 @@
 /**
- * The line menu of Blame (v1.2, 7.1): copy the line, show its commit, blame of the previous version,
+ * The line menu of Blame: copy the line, show its commit, blame of the previous version,
  * “Why is this so?” (“History of this line” while AI is hidden). Pure – the view passes the actions.
  */
 import type { ArchaeologyTarget } from "../../app/store";

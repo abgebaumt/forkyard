@@ -1,5 +1,5 @@
 /**
- * Commit search by meaning (v1.2, spec 9.2). The question runs on Enter – not while typing, every run
+ * Commit search by meaning. The question runs on Enter – not while typing, every run
  * is an AI request. The core picks the way (local embeddings, the main provider's embeddings, or
  * rephrasing into a Git search) and returns the hits with a reason each. Keys as in the text search:
  *   ↓/↑ marker · Enter search, or jump if the question was searched · Shift+Enter previous ·

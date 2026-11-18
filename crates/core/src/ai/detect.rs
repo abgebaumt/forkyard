@@ -1,5 +1,5 @@
-//! `ai_detect` (spec 1.3): which AI tools, local models and keys this computer has – for the setup
-//! dialog. The three command-line tools are probed side by side (Paket 0's `tools::locate` with its
+//! `ai_detect`: which AI tools, local models and keys this computer has – for the setup
+//! dialog. The three command-line tools are probed side by side (`tools::locate` with its
 //! cached version, then `--help` and the sign-in status in parallel with what is left of two
 //! seconds), Ollama and LM Studio are asked on this computer with a 300 ms limit, the keychain is
 //! looked into. Nothing is sent. Found programs are remembered (`ai::cli::FOUND_KEY`) and checked
@@ -15,11 +15,11 @@ use crate::error::CoreResult;
 use crate::http::{self, Request};
 use crate::model::{AiCliFound, AiDetection, AiLocalFound, AiLoginState, AiProviderKind, Settings, ToolSource};
 
-/// Spec 1.3: „Gesamtdauer ≤ 2 s“.
+/// „Gesamtdauer ≤ 2 s“.
 pub const DETECT_BUDGET: Duration = Duration::from_secs(2);
 /// Every probe gets at least this long, also when the budget is used up.
 const MIN_PROBE: Duration = Duration::from_millis(300);
-/// Spec 1.3: local services with `quick(300 ms, 0)`.
+/// local services with `quick(300 ms, 0)`.
 const LOCAL_LIMIT: Duration = Duration::from_millis(300);
 const KEY_PROVIDERS: [AiProviderKind; 4] =
     [AiProviderKind::Anthropic, AiProviderKind::Openai, AiProviderKind::OpenaiCompatible, AiProviderKind::Gemini];
@@ -116,7 +116,7 @@ async fn stored_keys(core: &Core) -> Vec<AiProviderKind> {
     found
 }
 
-/// At app start, in the background: reads the login shell's PATH once (spec 1.3), so the setup
+/// At app start, in the background: reads the login shell's PATH once, so the setup
 /// does not wait for it.
 pub async fn warm_up(core: &Core) {
     let _ = crate::tools::locate::login_shell_path(core).await;

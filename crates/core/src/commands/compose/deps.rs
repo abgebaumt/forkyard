@@ -1,4 +1,4 @@
-//! "Doesn't build on its own" (v1.2, 3.2): which unit needs which other unit, worked out without
+//! "Doesn't build on its own": which unit needs which other unit, worked out without
 //! the AI and the same way every time. The UI marks a unit whose requirement sits in a later
 //! commit or in "Don't commit".
 //!

@@ -1,4 +1,4 @@
-/** "Compose commits …" in the palette (v1.2, 3.2): only where the AI element is visible (spec 1.3). */
+/** "Compose commits …" in the palette: only where the AI element is visible. */
 import type { AiStatus, RepoSettings } from "../../core";
 import { t } from "../../i18n";
 import { composeVisible, hasChanges, startCompose } from "../../screens/Compose/actions";

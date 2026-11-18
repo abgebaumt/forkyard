@@ -1,8 +1,7 @@
 /**
  * Runs `statsCompute` for the statistics view: one job per repository, period and branch (shown
  * in the status bar, cancellable there), shared by every view that shows the same (runs.ts) and
- * cancelled when the last of them closes. Errors stay in the view as state – no toast (spec:
- * background checks report in the view).
+ * cancelled when the last of them closes. Errors stay in the view as state – no toast, background checks report in the view.
  *
  * Keeping up with the branch: `tip` is its current commit (from the refs query, which follows
  * `repo:changed`; undefined while it loads). A view that comes back shows the session's last

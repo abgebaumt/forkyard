@@ -54,7 +54,7 @@ fn the_route_prefers_the_local_embedder_then_the_main_provider_then_rephrasing()
     assert_eq!(
         pick(json!({"aiProvider": "openai", "aiSearchEmbedProvider": "lmstudio", "aiSearchEmbedModel": "nomic"})),
         Some((Lmstudio, "nomic".into(), LocalEmbeddings)),
-        "the local embedder comes first (Entscheidung 7)"
+        "the local embedder comes first"
     );
     assert_eq!(
         pick(json!({"aiProvider": "anthropic", "aiSearchEmbedProvider": "ollama"})),
@@ -383,7 +383,7 @@ async fn turning_ai_off_cancels_an_index_build_and_keeps_the_index() {
     let (result, ()) = tokio::join!(search(&tc, &id, "off-1", "Login", "de"), off);
     assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
     assert!(started.elapsed() < Duration::from_secs(3), "{:?}", started.elapsed());
-    assert!(tc.data_dir().join(index::INDEX_FILE).exists(), "the index stays until “Delete index” (Grundregel 1)");
+    assert!(tc.data_dir().join(index::INDEX_FILE).exists(), "the index stays until “Delete index”");
 }
 
 #[tokio::test]

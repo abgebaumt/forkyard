@@ -1,5 +1,5 @@
 /**
- * Collision warning (package 2b): one banner per pair of coding agents – or agent and the current
+ * Collision warning: one banner per pair of coding agents – or agent and the current
  * tip of its base – whose work touches the same files. “would collide” when Git's merge of both
  * states stops on conflicts (with the line ranges), “both change” when it merges cleanly. “Show
  * preview” shows both sides of every conflict; “Inform agent …” types a text the user confirmed

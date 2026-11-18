@@ -40,7 +40,7 @@ export function autopilotBar(run: BisectAutopilot | null | undefined): Autopilot
 
 export type ExitMeaning = "good" | "bad" | "skip" | "stops";
 
-/** As `git bisect run` reads an exit code (spec 9.1). */
+/** As `git bisect run` reads an exit code. */
 export function exitMeaning(code: number): ExitMeaning {
   if (code === 0) return "good";
   if (code === 125) return "skip";

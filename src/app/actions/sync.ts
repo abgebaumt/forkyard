@@ -313,7 +313,7 @@ async function confirmForcePush(
  * if the push is rejected, it offers "Pull first" or "Force push".
  */
 export async function push(repoId: Id, options: PushOptions = {}): Promise<ActionResult<PushResult> | null> {
-  // Project switch "AI review before every push" (spec 6.2): only where the review can run (visible, provider connected).
+  // Project switch "AI review before every push": only where the review can run (visible, provider connected).
   if (!options.force && !options.reviewed) {
     const { status, repo } = await reviewContext(repoId);
     if (reviewFirst(status, repo)) return reviewAndPush(repoId, options);
@@ -418,7 +418,7 @@ export async function push(repoId: Id, options: PushOptions = {}): Promise<Actio
 }
 
 /**
- * "Review and push …" (spec 6.2): the AI review of what the push sends, then – only on "Push" /
+ * "Review and push …": the AI review of what the push sends, then – only on "Push" /
  * "Push anyway" – the normal push with its secret scan. Without an upstream it asks "Push where?"
  * first; "What is sent?" asks before the first request (`confirmSend`). Back or Cancel pushes nothing.
  */

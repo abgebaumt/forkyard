@@ -1,6 +1,6 @@
 /**
- * Start page: one muted text button "Set up AI features" while AI is not set up (spec 1.3,
- * Entscheidung 11). Not disabled (focusable with Tab, Enter and click open Settings › AI); gone
+ * Start page: one muted text button "Set up AI features" while AI is not set up 
+ * Not disabled (focusable with Tab, Enter and click open Settings › AI); gone
  * as soon as AI is on or was turned off on purpose.
  */
 import { useAiStatus } from "../../app/queries";

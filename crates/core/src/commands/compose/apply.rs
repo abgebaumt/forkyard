@@ -1,4 +1,4 @@
-//! Creating the planned commits of "Compose commits" (v1.2, Teilpaket 3.2).
+//! Creating the planned commits of "Compose commits".
 //!
 //! Inside the write lock: the state token must still match, then ONE group undo entry is
 //! prepared (snapshot of index and working directory before anything moves). Every commit is
@@ -316,7 +316,7 @@ async fn reset_committed_paths(core: &Core, repo_id: &str, read: &ComposeRead, p
     Ok(())
 }
 
-/// ONE group undo entry for all commits (Paket 0): the branch back to the old HEAD, index and
+/// ONE group undo entry for all commits: the branch back to the old HEAD, index and
 /// working directory from the snapshot.
 async fn record(
     core: &Core,

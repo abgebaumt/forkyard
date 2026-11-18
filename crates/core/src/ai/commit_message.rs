@@ -1,5 +1,5 @@
-//! The commit message of spec 3.1: the context (staged diff, branch name, the 30 newest commit
-//! subjects as style examples – 50 for the language, Grundregel 6 –, the commit template, the
+//! The commit message: the context (staged diff, branch name, the 30 newest commit
+//! subjects as style examples – 50 for the language, the commit template, the
 //! user's own instruction for this repository), the answer schema `{ summary, body }` and its
 //! normalisation. `ai_preview` (`AiInput::CommitMessage`) and `ai_commit_message` build with the
 //! same `build`, so the confirmation of "What is sent?" holds for exactly this text.
@@ -28,9 +28,9 @@ use crate::util;
 pub const SUMMARY_LIMIT: usize = 72;
 /// Longest own commit instruction of a repository (`RepoSettings.ai_commit_instruction`).
 pub const MAX_INSTRUCTION_CHARS: usize = 2_000;
-/// Subjects shown as style examples (spec: "Stil wie die letzten 30 Commits").
+/// Subjects shown as style examples.
 pub const STYLE_EXAMPLES: usize = 30;
-/// Subjects the language is recognised from (Grundregel 6).
+/// Subjects the language is recognised from.
 pub const LANGUAGE_SAMPLE: usize = 50;
 const MAX_SUBJECT_CHARS: usize = 200;
 const MAX_TEMPLATE_CHARS: usize = 4_000;

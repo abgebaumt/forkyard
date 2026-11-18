@@ -1,6 +1,6 @@
 //! “Stop agent and clean up”: end the program, back up branch tip and uncommitted changes, remove
 //! the worktree, delete the branch – one group undo entry `agent_cleanup` in the main repository
-//! (Paket 0's group undo moves the branch; `commands::undo::Run::agent_cleanup` recreates the
+//! (group undo moves the branch; `commands::undo::Run::agent_cleanup` recreates the
 //! worktree and writes the changes back).
 
 use std::path::{Path, PathBuf};

@@ -1,5 +1,5 @@
 /**
- * Terminal tabs (1.2, Paket 0): several shells in one repository tab, switching keeps each output,
+ * Terminal tabs: several shells in one repository tab, switching keeps each output,
  * arrow keys move between the tabs, closing a running session asks first, the last one closes the
  * panel; German texts.
  *

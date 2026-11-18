@@ -1,4 +1,4 @@
-//! Paket 8.2: "Suggest fix" for one review thread. The AI sees the pull request (number, title,
+//! "Suggest fix" for one review thread. The AI sees the pull request (number, title,
 //! branches), the thread's comments and an excerpt of the commented file at the pull request's newest
 //! commit with line numbers – nothing else. Its answer (`{ path, startLine, endLine, newText, why }`) is
 //! data: only the thread's file, only lines of the excerpt, and a patch the core can build itself

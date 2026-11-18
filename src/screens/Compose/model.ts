@@ -1,5 +1,5 @@
 /**
- * Pure logic of "Compose commits" (v1.2, 3.2): where each unit sits, moves of one or several units
+ * Pure logic of "Compose commits": where each unit sits, moves of one or several units
  * by keyboard and pointer, the review of what the AI provider was unsure about, the dependency
  * check ("doesn't build on its own"), the file matrix, the plan for the core and how a new proposal
  * keeps what the user placed. Without React, tested in model.test.ts.

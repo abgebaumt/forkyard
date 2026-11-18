@@ -1,4 +1,4 @@
-//! The language of a repository's commit messages (Grundregel 6: texts for the repository in its
+//! The language of a repository's commit messages (texts for the repository in its
 //! language, recognised from the last 50 commit subjects). A small word vote, no dictionary: each
 //! subject votes for the language whose distinctive short words it uses most (a conventional
 //! prefix such as `fix:` or `feat(api)!:` does not count; ä, ö, ü or ß count once for German; a

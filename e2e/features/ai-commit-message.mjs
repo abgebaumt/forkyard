@@ -1,5 +1,5 @@
 /**
- * Commit message from the staged changes (v1.2, Teilpaket 3.1) in the real app, against a local
+ * Commit message from the staged changes in the real app, against a local
  * stand-in for Ollama (FORKYARD_AI_BASE_URL_OLLAMA, debug builds only). A local provider asks no
  * first-use question; the confirmation gate itself is pinned by the Rust tests.
  *

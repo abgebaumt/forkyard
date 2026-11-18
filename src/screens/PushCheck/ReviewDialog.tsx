@@ -1,5 +1,5 @@
 /**
- * "Review and push …" (v1.2, spec 6.2): the AI provider looks at what the push sends and names
+ * "Review and push …": the AI provider looks at what the push sends and names
  * leftovers – debug output, commented-out code, likely mistakes. Hints without a promise of
  * severity; keys come from the local scan only. "Push anyway" is always possible; "Back" (or
  * Escape) never pushes and cancels a running request. Waiting, slowness and errors are shown here,

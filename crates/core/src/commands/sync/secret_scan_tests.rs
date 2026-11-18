@@ -1,4 +1,4 @@
-//! The secret scan before every push (v1.2, 6.2) against a local bare remote: the push stops
+//! The secret scan before every push against a local bare remote: the push stops
 //! until exactly the findings shown are accepted – for every kind of push.
 
 use serde_json::json;

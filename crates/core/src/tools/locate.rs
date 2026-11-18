@@ -29,7 +29,7 @@ const LOGIN_SHELL_TIMEOUT: Duration = Duration::from_secs(2);
 const MARK: &[u8] = b"__FY__";
 const SMALL_OUTPUT: usize = 64 * 1024;
 
-/// Lives in `crate::model` since the AI setup sends it to the UI (Teilpaket 1b).
+/// Lives in `crate::model` since the AI setup sends it to the UI.
 pub use crate::model::ToolSource;
 
 /// A located program.

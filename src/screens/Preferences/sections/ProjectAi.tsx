@@ -46,7 +46,7 @@ export function ProjectAiSection({ repoId }: { repoId: Id }) {
   );
 }
 
-/** Own instruction for AI commit messages (spec 1.3, 3.1): saved when the field is left; the core trims and limits it. */
+/** Own instruction for AI commit messages : saved when the field is left; the core trims and limits it. */
 function CommitInstructionRow({ repoId, value }: { repoId: Id; value: string | null }) {
   const [draft, setDraft] = useState(value ?? "");
   const [error, setError] = useState<string | null>(null);

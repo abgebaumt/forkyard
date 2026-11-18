@@ -191,7 +191,7 @@ async fn long_series_are_unknown_and_the_preview_runs_as_a_cancellable_job() {
     assert_eq!(preview(&tc, &id, &cancelled, merge_op("main")).await.unwrap_err().code, ErrorCode::Cancelled);
 }
 
-/// The plan pre-check (Paket 5) simulates a step from the state the earlier steps leave – not
+/// The plan pre-check simulates a step from the state the earlier steps leave – not
 /// from HEAD. The oracle is `git merge-tree` itself.
 #[tokio::test]
 async fn a_simulation_can_start_at_any_commit() {

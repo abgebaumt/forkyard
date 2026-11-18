@@ -1,5 +1,5 @@
 /**
- * The states every AI element shows (spec "Zustände jedes KI-Elements"), as a pure model so every
+ * The states every AI element shows, as a pure model so every
  * function renders the same words: while loading the button becomes "Cancel" and the text counts
  * seconds from 3 s, after 30 s a hint says local models take longer / the provider is slow; errors
  * map to the inline states (never a toast for an unreachable local service). Texts: `ai.state.*`.

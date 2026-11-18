@@ -1,5 +1,5 @@
 /**
- * Push check in the real app (v1.2, Teilpaket 6.2), against a local bare remote:
+ * Push check in the real app, against a local bare remote:
  *
  * - main: a fake key in a new commit stops the push – "1 added line looks like a key", file:line, only
  *   the last four characters; Back pushes nothing, Push anyway pushes (checked with git on the remote);

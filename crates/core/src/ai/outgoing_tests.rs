@@ -1,4 +1,4 @@
-//! What a push sends, as AI context (v1.2, 6.2).
+//! What a push sends, as AI context.
 
 use super::*;
 use crate::commands::ai::ai_preview;

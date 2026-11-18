@@ -1,4 +1,4 @@
-/** Texts of "What is sent?": costs (always "about", spec 1.5), triggers, reasons. */
+/** Texts of "What is sent?": costs (always "about"), triggers, reasons. */
 import type { AiAskTrigger, AiOmitReason, AiPreview } from "../../core";
 import { locale, t } from "../../i18n";
 

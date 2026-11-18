@@ -1,6 +1,6 @@
 //! Repository clean-up: what takes space, and freeing it on request (`git gc` and friends).
 //!
-//! Nothing here runs on its own (spec Paket 10: no automatism, no AI). The preview only reads
+//! Nothing here runs on its own(no automatism, no AI). The preview only reads
 //! (`GIT_OPTIONAL_LOCKS=0`). The run is a cancellable job under the network lock and then the
 //! write lock of the repository and of every listed worktree that shares its Git directory, so no
 //! fetch, commit or agent clean-up from Forkyard writes objects meanwhile. The coding agents' own
@@ -52,7 +52,7 @@ fn sharing_ids(core: &Core, repo_id: &str, worktrees: &[WorktreeEntry]) -> CoreR
     Ok(ids)
 }
 
-/// What takes space now (spec „Jetzt“): `git count-objects -v`, LFS cache, undo backups, orphaned
+/// What takes space now: `git count-objects -v`, LFS cache, undo backups, orphaned
 /// and linked worktrees, reflog entries older than 90 days (2 s budget), free space. Only reads.
 pub async fn repo_cleanup_preview(core: &Core, repo_id: String) -> CoreResult<CleanupPreview> {
     let repo_id = repo_id.as_str();

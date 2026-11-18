@@ -1,6 +1,6 @@
-//! Release notes (v1.2, Teilpaket 7.2): the commits after the nearest earlier tag – tags on the
+//! Release notes: the commits after the nearest earlier tag – tags on the
 //! target itself left out, merges left out, newest first, at most 300 – go to the provider
-//! together with a language sample of the last 50 subjects (Grundregel 6). Everything from the
+//! together with a language sample of the last 50 subjects. Everything from the
 //! repository is redacted and sits between the prompt's delimiters; the answer is only data
 //! (see `notes_from_answer`).
 

@@ -1,5 +1,5 @@
 /**
- * The inline error line of a compose suggestion (spec "Zustände jedes KI-Elements"): role alert, never
+ * The inline error line of a compose suggestion: role alert, never
  * a toast; each state offers its own way on ("Retry", "Again", "What was sent", the setup, the limit
  * choice, "Sign in in the terminal" for a signed-out command-line tool). A cancelled request shows nothing.
  */

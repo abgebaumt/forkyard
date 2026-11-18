@@ -76,7 +76,7 @@ export interface PaletteItem {
   path?: boolean;
   /** Bonus when sorting across sources. */
   boost?: number;
-  /** The ask row (v1.2): the request it would send. */
+  /** The ask row: the request it would send. */
   request?: string;
   run(): void | Promise<unknown>;
   /** Zweite Stufe (Tab). */
@@ -85,7 +85,7 @@ export interface PaletteItem {
 
 const item = (value: Omit<PaletteItem, "folded">): PaletteItem => ({ ...value, folded: fold(value.title) });
 
-/** The row "Ask in plain language: “…”" (v1.2, Paket 5): Enter makes a plan inside the palette. */
+/** The row "Ask in plain language: “…”": Enter makes a plan inside the palette. */
 export function askItem(text: string, run: () => void): PaletteItem {
   return item({ key: "ask:plain-language", kind: "ask", title: t("palette.ask.row", { text }), request: text, run });
 }

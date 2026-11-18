@@ -1,4 +1,4 @@
-//! Search by meaning (v1.2, spec 9.2): status, search, background growth, "Delete index".
+//! Search by meaning: status, search, background growth, "Delete index".
 
 use crate::ai::semantic;
 use crate::app::Core;

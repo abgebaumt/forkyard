@@ -163,7 +163,7 @@ describe("agents: start dialog", () => {
     expect(defaultTemplateId([templates[1]!])).toBeNull();
   });
 
-  it("names the sign-in state of a built-in tool (spec 2a: version and sign-in)", () => {
+  it("names the sign-in state of a built-in tool", () => {
     expect(templateOptionLabel(template({ login: "logged_out" }))).toBe("Claude Code · 2.1.301 · not signed in");
     expect(templateOptionLabel(template({ login: "logged_out", version: null }))).toBe("Claude Code · not signed in");
     // No readable answer: nothing is claimed.

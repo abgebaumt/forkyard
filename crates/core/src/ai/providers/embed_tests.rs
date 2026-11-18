@@ -1,4 +1,4 @@
-//! Embeddings of the providers (spec 9.2), against local mocks.
+//! Embeddings of the providers, against local mocks.
 
 use super::*;
 use crate::error::ErrorCode;
@@ -39,7 +39,7 @@ async fn openai_embeddings_send_the_model_and_512_dimensions_and_keep_the_order(
     let body = request.json();
     assert_eq!(body["model"], "text-embedding-3-small");
     assert_eq!(body["input"], json!(["Anmeldung repariert", "Absturz behoben"]));
-    assert_eq!(body["dimensions"], 512, "spec: at most 512 dimensions");
+    assert_eq!(body["dimensions"], 512, "at most 512 dimensions");
     let older = provider(AiProviderKind::Openai, format!("{}/v1", server.url()), Some(KEY), "text-embedding-ada-002");
     older.embed(&tc, &texts(&["a", "b"]), &CancelToken::new()).await.unwrap();
     assert!(server.requests()[1].json().get("dimensions").is_none(), "older models have a fixed size");

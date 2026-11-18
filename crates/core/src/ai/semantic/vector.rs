@@ -1,5 +1,5 @@
 //! Vectors of the search index: at most 512 components, normalised, stored as int8 with one
-//! scale per vector (spec 9.2: "256–512 Dimensionen, als f16/int8"). Models that return more
+//! scale per vector. Models that return more
 //! components are cut and normalised again – exact for Matryoshka models, an approximation for
 //! others.
 
@@ -49,7 +49,7 @@ mod tests {
     fn vectors_are_cut_to_512_and_normalised() {
         assert_eq!(prepare(vec![3.0, 4.0]), Some(vec![0.6, 0.8]));
         let long = prepare(vec![1.0; 768]).unwrap();
-        assert_eq!(long.len(), 512, "spec: at most 512 dimensions");
+        assert_eq!(long.len(), 512, "at most 512 dimensions");
         let expected = 1.0 / (512.0f32).sqrt();
         assert!(long.iter().all(|v| (v - expected).abs() < 1e-6));
         assert_eq!(prepare(vec![2.0, 0.0, 0.0, 0.0]), Some(vec![1.0, 0.0, 0.0, 0.0]), "small vectors stay as they are");

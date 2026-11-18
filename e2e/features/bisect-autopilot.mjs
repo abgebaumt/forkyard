@@ -1,5 +1,5 @@
 /**
- * Bisect autopilot in the real app (v1.2, 9.1), with a local Ollama stand-in that answers with a
+ * Bisect autopilot in the real app, with a local Ollama stand-in that answers with a
  * fixed test script. The oracle for "first bad commit" is the fixture's own bug commit; every
  * verdict is checked against the file Git has at that commit.
  *

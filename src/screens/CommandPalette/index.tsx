@@ -298,7 +298,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
   const tabId = tab?.id ?? null;
   const target = repoId && tabId ? { repoId, tabId } : null;
 
-  // Git in plain language (v1.2): "?" asks, and so does the last row when nothing matched.
+  // Git in plain language: "?" asks, and so does the last row when nothing matched.
   const aiStatus = useAiStatus();
   const repoSettings = useRepoSettings(repoId);
   const ask = askMode(aiStatus.data, repoSettings.data?.aiOff ?? false, repoId !== null);

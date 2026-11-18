@@ -1,5 +1,5 @@
 /**
- * “Explain intent” in the conflict tool (v1.2, Teilpaket 6.1) in the real app over WebDriver, against a
+ * “Explain intent” in the conflict tool in the real app over WebDriver, against a
  * local stand-in for Ollama (FORKYARD_AI_BASE_URL_OLLAMA, debug builds only) and real Git repositories:
  *
  * - main: rebase conflict – nothing is sent before the click; the column explains both sides; the

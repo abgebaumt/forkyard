@@ -1,5 +1,5 @@
 //! Exclusion patterns for AI context in gitignore syntax: `.forkyard/ai-ignore` of the repository
-//! and the global list from the settings, plus the fixed rules of Grundregel 5.
+//! and the global list from the settings, plus the fixed rules.
 //!
 //! The patterns only exclude: a `!` pattern re-includes only what an earlier pattern of the *same*
 //! list excluded – never what the other list or a built-in rule excluded (`context::Exclusions`
@@ -149,7 +149,7 @@ const GENERATED_DIRS: [&str; 2] = ["dist", "build"];
 const SSH_KEYS: [&str; 4] = ["id_rsa", "id_dsa", "id_ecdsa", "id_ed25519"];
 const SECRET_SUFFIXES: [&str; 6] = [".pem", ".key", ".p12", ".pfx", ".jks", ".keystore"];
 
-/// Grundregel 5: secrets (never sent) and lock/generated files (name and size only). Windows
+/// secrets (never sent) and lock/generated files (name and size only). Windows
 /// separators are accepted.
 pub fn builtin_reason(path: &str) -> Option<AiOmitReason> {
     let normalized = path.replace('\\', "/");

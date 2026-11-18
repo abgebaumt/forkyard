@@ -1,5 +1,5 @@
 /**
- * Coding agents in the terminal tabs (Paket 0's program sessions). Starting opens a program
+ * Coding agents in the terminal tabs (program sessions). Starting opens a program
  * session whose opener asks the core to start the agent – so the terminal output is caught from the
  * first byte, as for a shell. A later start of the same session (the terminal's "Restart") resumes
  * the agent instead of creating a new one. The link session ↔ agent lets the cockpit show an agent's
@@ -29,7 +29,7 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Whether the agent in this terminal tab waits for the user (for Paket 0's tab strip). */
+/** Whether the agent in this terminal tab waits for the user (for tab strip). */
 export function useAgentSessionWaiting(key: Id): boolean {
   return useSyncExternalStore(subscribe, () => waiting.has(key));
 }
