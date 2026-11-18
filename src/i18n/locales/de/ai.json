@@ -96,7 +96,7 @@
     "privacyCard": "Was gesendet wird",
     "exclude": {
       "title": "Nie senden",
-      "description": "Muster in .gitignore-Syntax, eines pro Zeile, für jedes Repository. Ein Repository kann in .forkyard/ai-ignore eigene ergänzen. Dateien, die wie Geheimnisse aussehen (.env, private Schlüssel, Zertifikate), werden nie gesendet; bekannte Geheimnismuster im übrigen Inhalt werden nach Möglichkeit entfernt."
+      "description": "Muster in .gitignore-Syntax, eines pro Zeile, für jedes Repository. Ein Repository kann in .forkyard/ai-ignore eigene ergänzen. Dateien, die wie Geheimnisse aussehen (.env, private Schlüssel, Schlüsselspeicher), werden nie gesendet; bekannte Geheimnismuster im übrigen Inhalt werden nach Möglichkeit entfernt."
     },
     "whatIsSent": {
       "title": "Was wird gesendet?",
