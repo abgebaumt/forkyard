@@ -443,8 +443,8 @@ struct PullPlan {
     merge_ref: String,
 }
 
-fn operation_running() -> CoreError {
-    CoreError::operation_in_progress(None, "Finish or abort it first.")
+fn operation_running(kind: crate::model::OperationKind) -> CoreError {
+    CoreError::operation_in_progress(Some(kind), "Finish or abort it first.")
 }
 
 /// The checked-out branch and its commit (`None` without a commit); a detached HEAD is an error.
@@ -460,8 +460,8 @@ fn pull_branch(head: &Head) -> CoreResult<(String, Option<String>)> {
 /// under the network lock, without the write lock.
 async fn pull_fetch(core: &Core, repo_id: &str, job: &Job, fetched: &mut bool) -> CoreResult<PullPlan> {
     let cancel = job.token();
-    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
-        return Err(operation_running());
+    if let Some(op) = crate::git::repo::read_operation(core, repo_id).await? {
+        return Err(operation_running(op.kind));
     }
     let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, _) = pull_branch(&head)?;
@@ -495,8 +495,8 @@ async fn pull_fetch(core: &Core, repo_id: &str, job: &Job, fetched: &mut bool) -
 /// rebase). Runs under the write lock; whatever may have changed since the fetch
 /// is read again.
 async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, plan: PullPlan) -> CoreResult<OpResult> {
-    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
-        return Err(operation_running());
+    if let Some(op) = crate::git::repo::read_operation(core, repo_id).await? {
+        return Err(operation_running(op.kind));
     }
     let head = crate::git::repo::read_head(core, repo_id).await?;
     let (branch, old_sha) = pull_branch(&head)?;

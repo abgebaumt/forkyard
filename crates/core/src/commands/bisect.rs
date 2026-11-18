@@ -104,8 +104,8 @@ async fn start_locked(core: &Core, repo_id: &str, bad: &str, good: &[String]) ->
     if read_bisect(core, repo_id).await?.active {
         return Err(CoreError::new(ErrorCode::BisectActive, "A bisect is already running. Finish it first."));
     }
-    if read_operation(core, repo_id).await?.is_some() {
-        return Err(CoreError::operation_in_progress(None, "Finish or abort it before starting a bisect."));
+    if let Some(op) = read_operation(core, repo_id).await? {
+        return Err(CoreError::operation_in_progress(Some(op.kind), "Finish or abort it before starting a bisect."));
     }
     if good.is_empty() {
         return Err(CoreError::not_allowed("A bisect needs at least one good commit."));

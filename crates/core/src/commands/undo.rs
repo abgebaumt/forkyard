@@ -129,7 +129,9 @@ async fn step_locked(core: &Core, repo_id: &str, dir: Direction, touched: &mut O
             Direction::Redo => "be redone",
         };
         return Err(match blocked {
-            Blocked::Operation => CoreError::operation_in_progress(None, &format!("Nothing can {verb} until you finish or abort it.")),
+            Blocked::Operation(kind) => {
+                CoreError::operation_in_progress(Some(kind), &format!("Nothing can {verb} until you finish or abort it."))
+            }
             Blocked::Conflict => CoreError::new(
                 ErrorCode::Conflict,
                 format!("Nothing can {verb} while there are unresolved conflicts. Resolve the conflicts first."),
@@ -229,7 +231,7 @@ fn changes_for(entry: &UndoEntry) -> Vec<RepoChange> {
 /// Why nothing at all can be undone or redone right now.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Blocked {
-    Operation,
+    Operation(crate::model::OperationKind),
     Conflict,
 }
 
@@ -249,12 +251,15 @@ impl<'a> Probe<'a> {
         // The running operation is recorded in the Git directory. Without any of its traces
         // none is running for sure; only otherwise is a closer look worthwhile.
         let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
-        let operation = OPERATION_MARKERS.iter().any(|marker| git_dir.join(marker).exists())
-            && crate::git::repo::read_operation(core, repo_id).await?.is_some();
+        let operation = if OPERATION_MARKERS.iter().any(|marker| git_dir.join(marker).exists()) {
+            crate::git::repo::read_operation(core, repo_id).await?
+        } else {
+            None
+        };
         let (head, unmerged) = tokio::join!(crate::git::repo::read_head(core, repo_id), stash::unmerged_paths(core, repo_id));
         let (head, unmerged) = (head?, unmerged?);
-        let blocked = if operation {
-            Some(Blocked::Operation)
+        let blocked = if let Some(op) = operation {
+            Some(Blocked::Operation(op.kind))
         } else if !unmerged.is_empty() {
             Some(Blocked::Conflict)
         } else {

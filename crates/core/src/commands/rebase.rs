@@ -1368,13 +1368,13 @@ where
     result
 }
 
-fn operation_in_progress() -> CoreError {
-    CoreError::operation_in_progress(None, "Finish or abort it first.")
+fn operation_in_progress(kind: OperationKind) -> CoreError {
+    CoreError::operation_in_progress(Some(kind), "Finish or abort it first.")
 }
 
 async fn ensure_no_operation(core: &Core, repo_id: &str) -> CoreResult<()> {
     match crate::git::repo::read_operation(core, repo_id).await? {
-        Some(_) => Err(operation_in_progress()),
+        Some(op) => Err(operation_in_progress(op.kind)),
         None => Ok(()),
     }
 }

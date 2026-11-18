@@ -697,9 +697,9 @@ fn discard_label(names: &[String]) -> String {
 }
 
 async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
-    if crate::git::repo::read_operation(core, repo_id).await?.is_some() {
+    if let Some(op) = crate::git::repo::read_operation(core, repo_id).await? {
         return Err(CoreError::operation_in_progress(
-            None,
+            Some(op.kind),
             "Discarding everything would break it – abort the operation or discard individual files instead.",
         ));
     }
