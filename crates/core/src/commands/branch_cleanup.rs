@@ -1,16 +1,19 @@
 //! Branch cleaner: which local branches can go and why.
 //!
-//! Pure read: no lock, no event. Git gives the facts; the host only adds what its pull requests
-//! say, and without it the list comes without PR reasons (`pr_data_missing`).
+//! The list is a pure read: no lock, no event. Git gives the facts; the host only adds what its pull
+//! requests say, and without it the list comes without PR reasons (`pr_data_missing`). Deleting
+//! checks every target against what the list showed, then deletes all as one undo step.
 
 use std::collections::{HashMap, HashSet};
 
 use crate::app::Core;
-use crate::commands::{host as host_cmd, refs, settings};
-use crate::error::CoreResult;
+use crate::commands::{branches, host as host_cmd, refs, settings};
+use crate::error::{CoreError, CoreResult};
 use crate::git::rev;
 use crate::host;
-use crate::model::{BranchCleanupCandidate, BranchCleanupList, HostKind, PrListState, PrState, Ref};
+use crate::model::{
+    BranchCleanupCandidate, BranchCleanupList, BranchCleanupTarget, HostKind, PrListState, PrState, Ref, RefsSnapshot, RepoChange,
+};
 use crate::util;
 
 mod classify;
@@ -50,7 +53,7 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
     let options = ["--format=%(refname:lstrip=2)%00%(committerdate:unix)%00%(upstream:remotename)%00%(upstream:remoteref)%00".to_string()];
     let out = refs::for_each_ref(core, &path, repo_id, &options, &["refs/heads"]).await?;
     let details: HashMap<String, (i64, String, String)> =
-        fields(&out.stdout, 4).into_iter().map(|f| (f[0].clone(), (f[1].parse().unwrap_or(0), f[2].clone(), f[3].clone()))).collect();
+        fields(&out.stdout, 4).into_iter().filter_map(|f| Some((f[0].clone(), (f[1].parse().ok()?, f[2].clone(), f[3].clone())))).collect();
 
     // Never the current or the default branch.
     let branches: Vec<&Ref> = snapshot.locals.iter().filter(|r| !r.is_head && Some(&r.name) != default.as_ref()).collect();
@@ -58,7 +61,8 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
 
     let mut candidates = Vec::new();
     for branch in branches {
-        let (committed_at, remote, remote_ref) = details.get(&branch.name).cloned().unwrap_or_default();
+        // No row (created meanwhile) or no readable date: skip rather than call it stale since 1970.
+        let Some((committed_at, remote, remote_ref)) = details.get(&branch.name).cloned() else { continue };
         let has_upstream = branch.upstream.is_some() && !branch.upstream_gone;
         let mut facts = BranchFacts {
             name: branch.name.clone(),
@@ -93,6 +97,49 @@ pub(crate) async fn candidates_at(core: &Core, repo_id: &str, now: i64) -> CoreR
     }
     candidates.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(BranchCleanupList { default_branch: default, candidates, pr_data_missing })
+}
+
+/// Deletes the chosen branches as one undo step. Refuses all if one has moved, is gone, is checked
+/// out, is the default branch or is protected; `delete_locked` adds worktrees and in-progress operations.
+pub async fn branch_cleanup_delete(core: &Core, repo_id: String, targets: Vec<BranchCleanupTarget>) -> CoreResult<RefsSnapshot> {
+    if targets.is_empty() {
+        return refs::read_refs(core, &repo_id).await;
+    }
+    core.with_write_lock(&repo_id, &[RepoChange::Refs, RepoChange::Config], async {
+        let mut names: Vec<String> = Vec::new();
+        let mut unique: Vec<&BranchCleanupTarget> = Vec::new();
+        for target in &targets {
+            if !names.contains(&target.name) {
+                names.push(target.name.clone());
+                unique.push(target);
+            }
+        }
+        let branches = branches::local_branches(core, &repo_id).await?;
+        let default = default_branch(core, &repo_id, &refs::read_refs(core, &repo_id).await?.locals).await;
+        let own_patterns = core.repo_settings(&repo_id).await?.protected_branch_patterns;
+        // Check everything first, then delete: either all or none.
+        for target in unique {
+            let name = &target.name;
+            let Some(info) = branches.iter().find(|b| &b.name == name) else {
+                return Err(CoreError::not_found(format!("The branch ‘{name}’ doesn’t exist (anymore).")));
+            };
+            if info.sha != target.sha {
+                return Err(CoreError::stale_state());
+            }
+            if info.is_head {
+                return Err(CoreError::not_allowed(format!("The branch ‘{name}’ is checked out and can’t be cleaned up.")));
+            }
+            if default.as_ref() == Some(name) {
+                return Err(CoreError::not_allowed(format!("The branch ‘{name}’ is the default branch and can’t be cleaned up.")));
+            }
+            if is_protected(name, &own_patterns) {
+                return Err(CoreError::not_allowed(format!("The branch ‘{name}’ is protected and can’t be cleaned up.")));
+            }
+        }
+        branches::delete_locked(core, &repo_id, &names, true).await?;
+        refs::read_refs(core, &repo_id).await
+    })
+    .await
 }
 
 /// Records of `count` NUL-terminated fields; Git ends every record with a newline that sticks to the next one.
@@ -150,11 +197,14 @@ async fn pr_facts(core: &Core, repo_id: &str, branches: &[&Ref]) -> CoreResult<(
         return missing();
     }
     let mut prs = Vec::new();
+    // Still more pages after the last one read: a branch without a match may have an older PR.
+    let mut cut_off = false;
     for page in 1..=2 {
         match host_cmd::pr_list(core, repo_id.to_string(), PrListState::All, Some(page), Some(100), Some(found.remote.clone())).await {
             Ok(list) => {
                 prs.extend(list.items);
-                if list.next_page.is_none() {
+                cut_off = list.next_page.is_some();
+                if !cut_off {
                     break;
                 }
             }
@@ -168,6 +218,7 @@ async fn pr_facts(core: &Core, repo_id: &str, branches: &[&Ref]) -> CoreResult<(
     for branch in branches {
         // The host lists the newest first.
         let fact = match prs.iter().find(|pr| !pr.is_fork && pr.source_branch == branch.name) {
+            None if cut_off => PrFact::Unknown,
             None => PrFact::None,
             Some(pr) if pr.state != PrState::Merged => PrFact::Open,
             Some(pr) => {

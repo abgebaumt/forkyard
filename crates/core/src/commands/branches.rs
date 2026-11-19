@@ -589,7 +589,7 @@ pub(crate) async fn record_checkout(
 // Deleting and upstream
 // ---------------------------------------------------------------------------
 
-async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool) -> CoreResult<()> {
+pub(crate) async fn delete_locked(core: &Core, repo_id: &str, names: &[String], force: bool) -> CoreResult<()> {
     let mut wanted: Vec<&str> = Vec::new();
     for name in names.iter().map(|n| local_name(n)) {
         if !name.is_empty() && !wanted.contains(&name) {
