@@ -86,6 +86,20 @@ export type BlameLine = {
 };
 
 /**
+ * Lines `start_line .. start_line + count` (1-based) of a blame and the commit that last changed
+ * them (`blame:chunk`). Uncommitted lines carry a SHA of zeros, as in `BlameLine`.
+ */
+export type BlameSpan = {
+  sha: string;
+  startLine: number;
+  count: number;
+  author: Person;
+  authoredAt: string;
+  summary: string;
+  uncommitted: boolean;
+};
+
+/**
  * Line endings of a file that was read.
  */
 export type Eol = "lf" | "crlf" | "mixed";

@@ -597,6 +597,12 @@ export interface CoreCommands {
   /** `sha: null` = working directory. `encoding`: encoding for this one call, otherwise detected. */
   fileBlame(input: R & { path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
   /**
+   * `fileBlame` as job `jobId` (`jobCancel` → `cancelled`): sends `blame:chunk` (all lines first, then
+   * the spans as Git finds them) and `job:progress` (phase `blame`), resolves with the same lines as
+   * `fileBlame`. Results are cached (the 32 most recently used); a cached one sends no `blame:chunk`.
+   */
+  fileBlameJob(input: R & { jobId: string; path: string; sha: Sha | null; encoding?: string | null }): Promise<BlameLine[]>;
+  /**
    * `sha: null` = working directory. `encoding` ("Reopen as"): read with exactly this encoding
    * instead of detecting – `utf-8`, `utf-8-bom`, `utf-16le`, `utf-16be`, `windows-1252`,
    * `iso-8859-15` … (any name the Encoding Standard knows); unknown: `not_allowed`.

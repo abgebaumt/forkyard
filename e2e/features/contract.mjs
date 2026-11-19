@@ -515,6 +515,7 @@ scenario("every command response and event matches src/core/types.ts", "main", a
       "submodules:updated": { repoId: "x", ok: true, paths: [], message: null },
       "agents:changed": { repoId: "x", running: 0 },
       "agents:collisions": { repoId: "x", state: "pending", checkedAt: null, error: null, collisions: [], skipped: [] },
+      "blame:chunk": { jobId: "x", repoId: "x", total: 0, done: 0, text: null, spans: [] },
     };
     const emptyEvents = () => structuredClone(placeholders);
     const whatOf = (list, name) => list.filter((event) => event.name === name).flatMap((event) => event.payload.what ?? []);
@@ -1009,6 +1010,11 @@ scenario("every command response and event matches src/core/types.ts", "main", a
         blame.some((line) => line.sha === rich.info.shas.csv),
         "lines from the first commit of the file",
       );
+      const blameJob = await invoke("file_blame_job", { repoId, jobId: "contract-blame", path: "src/auswertung.py", sha: null });
+      shape("BlameLine[]", blameJob, "file_blame_job (working tree)");
+      // Uncommitted lines carry the time of the blame run.
+      const withoutRunTime = (lines) => lines.map((line) => (line.uncommitted ? { ...line, authoredAt: "" } : line));
+      equal(withoutRunTime(blameJob), withoutRunTime(blame), "file_blame_job equals file_blame");
       const atCommit = await invoke("file_blame", { repoId, path: "README.md", sha: rich.info.shas.first });
       truthy(atCommit.length > 0 && atCommit.every((line) => line.sha === rich.info.shas.first && !line.uncommitted), "blame at a commit");
       await rejects("unsupported", "file_blame of a binary file", () =>

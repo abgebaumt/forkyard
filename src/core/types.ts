@@ -40,7 +40,7 @@ import type { CollisionReport } from "./generated/agent_collisions";
 import type { LaunchRequest } from "./generated/app";
 import type { CredentialRequest } from "./generated/credentials";
 import type { CoreErrorData, ErrorCode } from "./generated/error";
-import type { AppChange, RepoChange } from "./generated/events";
+import type { AppChange, BlameChunkEvent, RepoChange } from "./generated/events";
 import type { ActivityEntry } from "./generated/log";
 
 export type Id = string;
@@ -113,4 +113,6 @@ export interface CoreEvents {
   "agents:changed": { repoId: Id; running: number };
   /** The collision check of `repoId`'s coding agents started (`state: "checking"`) or has a new result. */
   "agents:collisions": CollisionReport;
+  /** Progress of `fileBlameJob`: the first chunk carries all lines (`text`), later ones the blamed `spans`. */
+  "blame:chunk": BlameChunkEvent;
 }

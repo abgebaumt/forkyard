@@ -163,6 +163,7 @@ commands! {
     line_archaeology => archaeology::line_archaeology(repo_id: String, path: String, line: u32, sha: Option<String>) -> LineArchaeology;
     ai_archaeology => archaeology::ai_archaeology(repo_id: String, job_id: String, path: String, line: u32, sha: Option<String>, locale: String) -> ArchaeologyAnswer;
     file_blame => history::file_blame(repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> Vec<BlameLine>;
+    file_blame_job => history::file_blame_job(repo_id: String, job_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> Vec<BlameLine>;
     file_read => history::file_read(repo_id: String, path: String, sha: Option<String>, encoding: Option<String>) -> FileContent;
     file_write => history::file_write(repo_id: String, path: String, content: String, encoding: String, eol: LineEnding) -> ();
     profile_list => profiles::profile_list() -> Vec<Profile>;

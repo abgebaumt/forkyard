@@ -2,13 +2,14 @@
 //!
 //! - `file_history`: `git log --follow` with a fixed format, parsed as a stream.
 //! - `file_blame`: `git blame --porcelain`, parsed as a stream.
+//! - `file_blame_job`: `git blame --incremental` as a cancellable job with `blame:chunk` events and a cache.
 //! - `line_history`: `git log -L` for one line – the commits that shaped it, with its range in each.
 //! - `file_read` / `file_write`: content for the editor, with encoding and line endings.
 //!
 //! Paths come from the UI relative to the repository (with `/`). Anything leading out of the
 //! repository (`..`, absolute) is rejected with `not_allowed`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::app::Core;
 use crate::db;
@@ -44,9 +45,11 @@ fn short_rev(rev: &str) -> String {
 }
 
 mod blame;
+mod blame_job;
 mod line;
 mod log;
 pub use blame::*;
+pub use blame_job::*;
 pub use line::*;
 pub use log::*;
 
@@ -219,6 +222,8 @@ fn write_atomic(target: &Path, bytes: &[u8]) -> CoreResult<()> {
     util::write_file_atomic(target, bytes).map_err(CoreError::from)
 }
 
+#[cfg(test)]
+mod blame_job_tests;
 #[cfg(test)]
 mod line_history_tests;
 #[cfg(test)]

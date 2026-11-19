@@ -33,8 +33,10 @@ pub mod names {
     pub const AGENTS_CHANGED: &str = "agents:changed";
     /// New result (or start) of the collision check of a repository's coding agents (payload `CollisionReport`).
     pub const AGENT_COLLISIONS: &str = "agents:collisions";
+    /// Lines (first) and blamed spans (then) of a running `file_blame_job` (payload `BlameChunkEvent`).
+    pub const BLAME_CHUNK: &str = "blame:chunk";
 
-    pub const ALL: [&str; 16] = [
+    pub const ALL: [&str; 17] = [
         REPO_CHANGED,
         JOB_PROGRESS,
         JOB_DONE,
@@ -51,6 +53,7 @@ pub mod names {
         SUBMODULES_UPDATED,
         AGENTS_CHANGED,
         AGENT_COLLISIONS,
+        BLAME_CHUNK,
     ];
 }
 
