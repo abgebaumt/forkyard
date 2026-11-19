@@ -56,7 +56,7 @@
     },
     "git": {
       "label": "Git behavior",
-      "keywords": "Auto-fetch|Prune stale remote branches|Default pull mode|Push after commit|Squash on merge|.orig files|Default branch name|Commits on first load|Load more while scrolling|Remember tabs"
+      "keywords": "Auto-fetch|Prune stale remote branches|Default pull mode|Push after commit|Squash on merge|.orig files|Default branch name|Commits on first load|Load more while scrolling|Remember tabs|Branches stale after (days)|Clean up branches"
     },
     "ssh": {
       "label": "SSH keys",
@@ -80,7 +80,7 @@
     },
     "pGit": {
       "label": "Pull and fetch",
-      "keywords": "Pull mode|Auto-fetch"
+      "keywords": "Pull mode|Auto-fetch|Protected branches|Branch patterns"
     },
     "pFiles": {
       "label": "Files and hooks",

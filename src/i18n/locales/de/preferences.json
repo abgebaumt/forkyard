@@ -56,7 +56,7 @@
     },
     "git": {
       "label": "Git-Verhalten",
-      "keywords": "Auto-Fetch|Verwaiste Remote-Branches entfernen|Standard-Pull-Modus|Nach dem Commit pushen|Merge als Squash|.orig-Dateien|Standard-Branch-Name|Commits beim ersten Laden|Beim Scrollen nachladen|Tabs merken"
+      "keywords": "Auto-Fetch|Verwaiste Remote-Branches entfernen|Standard-Pull-Modus|Nach dem Commit pushen|Merge als Squash|.orig-Dateien|Standard-Branch-Name|Commits beim ersten Laden|Beim Scrollen nachladen|Tabs merken|Branches gelten als alt nach (Tagen)|Branches aufräumen"
     },
     "ssh": {
       "label": "SSH-Schlüssel",
@@ -80,7 +80,7 @@
     },
     "pGit": {
       "label": "Pull und Fetch",
-      "keywords": "Pull-Modus|Auto-Fetch"
+      "keywords": "Pull-Modus|Auto-Fetch|Geschützte Branches|Branch-Muster"
     },
     "pFiles": {
       "label": "Dateien und Hooks",
