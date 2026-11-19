@@ -1,5 +1,5 @@
 // Cross-check of the error codes: `ErrorCode` in crates/core/src/error.rs (variants, `ErrorCode::ALL`,
-// `as_str`), the TS union `ErrorCode` in src/core/types.ts, the `CODES` record in src/app/errors.ts
+// `as_str`), the TS union `ErrorCode` in src/core/generated/error.ts (ts-rs, so a stale `npm run gen:types` shows up here), the `CODES` record in src/app/errors.ts
 // and the texts in src/i18n/locales/{en,de}/errors.json. Used by scripts/check-commands.mjs;
 // tests: node --test scripts/error-codes.test.mjs
 import { readFileSync } from "node:fs";
@@ -52,7 +52,7 @@ export function compareErrorCodes({ rust, types, errorsTs, en, de }) {
     for (const code of codes) if (!list.includes(code)) problems.push(`${label}: "${code}" is missing`);
     for (const code of list) if (!codes.includes(code)) problems.push(`${label}: "${code}" is not an ErrorCode in error.rs`);
   };
-  compare("src/core/types.ts ErrorCode", tsUnion(types));
+  compare("src/core/generated/error.ts ErrorCode", tsUnion(types));
   compare("src/app/errors.ts CODES", tsRecord(errorsTs));
   for (const [label, texts] of [
     ["en/errors.json", en],
@@ -73,7 +73,7 @@ export function readErrorCodeSources(root) {
   const read = (...parts) => readFileSync(join(root, ...parts), "utf8").replace(/\r\n/g, "\n");
   return {
     rust: read("crates", "core", "src", "error.rs"),
-    types: read("src", "core", "types.ts"),
+    types: read("src", "core", "generated", "error.ts"),
     errorsTs: read("src", "app", "errors.ts"),
     en: JSON.parse(read("src", "i18n", "locales", "en", "errors.json")),
     de: JSON.parse(read("src", "i18n", "locales", "de", "errors.json")),

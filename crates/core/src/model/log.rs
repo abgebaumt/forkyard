@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "log.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ActivityScope {
     App,
@@ -10,6 +11,7 @@ pub enum ActivityScope {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "log.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ActivityEntry {
     pub id: Id,
@@ -25,6 +27,7 @@ pub struct ActivityEntry {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "log.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ActivityPage {
     pub entries: Vec<ActivityEntry>,
@@ -32,6 +35,7 @@ pub struct ActivityPage {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "log.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ExternalTarget {
     Editor,

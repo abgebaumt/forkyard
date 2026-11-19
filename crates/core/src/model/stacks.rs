@@ -5,6 +5,7 @@ use super::*;
 /// Where a part of a stack ends: after commit number `end` (1 = the oldest commit of the branch).
 /// `name`: words for its branch name; empty = the subject of the part's first commit.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackCut {
     pub end: u32,
@@ -13,6 +14,7 @@ pub struct StackCut {
 
 /// A commit of the branch being split, oldest first.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackCommit {
     pub sha: Sha,
@@ -24,6 +26,7 @@ pub struct StackCommit {
 
 /// A planned part: commits `first..=end` (1-based), its branch and why it can't be created yet.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPart {
     pub number: u32,
@@ -36,6 +39,7 @@ pub struct StackPart {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPlan {
     /// The branch being split (short name).
@@ -52,6 +56,7 @@ pub struct StackPlan {
 
 /// A part of an existing stack (from the parent links in `.git/config`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackStatusPart {
     pub branch: String,
@@ -68,6 +73,7 @@ pub struct StackStatusPart {
 
 /// "Restack": rebase `top` onto `onto` with `--update-refs`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackRestack {
     pub onto: String,
@@ -82,6 +88,7 @@ pub struct StackRestack {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackStatus {
     pub base: String,
@@ -91,6 +98,7 @@ pub struct StackStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum StackCheckState {
     Passed,
@@ -100,6 +108,7 @@ pub enum StackCheckState {
 
 /// Result of the test command on one part, in its temporary worktree.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackCheckResult {
     pub part: u32,
@@ -113,6 +122,7 @@ pub struct StackCheckResult {
 
 /// A pull request to open for a part.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPrPart {
     pub branch: String,
@@ -122,6 +132,7 @@ pub struct StackPrPart {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPrCreated {
     pub part: u32,
@@ -129,6 +140,7 @@ pub struct StackPrCreated {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPrFailed {
     pub part: u32,
@@ -138,6 +150,7 @@ pub struct StackPrFailed {
 /// What `stack_prs_create` did: the pull requests created in order, and the first failure (the
 /// parts above it were not sent).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StackPrOutcome {
     pub created: Vec<StackPrCreated>,
@@ -146,6 +159,7 @@ pub struct StackPrOutcome {
 
 /// A part the AI proposes: it ends after commit `end`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiStackPart {
     pub end: u32,
@@ -157,6 +171,7 @@ pub struct AiStackPart {
 
 /// `aiStackSplit`: a suggestion only – nothing is created.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "stacks.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct AiStackSplit {
     pub parts: Vec<AiStackPart>,

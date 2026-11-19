@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "credentials.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct SshKey {
     pub id: Id,
@@ -17,6 +18,7 @@ pub struct SshKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "credentials.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum HostAccountKind {
     Password,
@@ -24,6 +26,7 @@ pub enum HostAccountKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "credentials.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HostAccount {
     pub id: Id,
@@ -34,6 +37,7 @@ pub struct HostAccount {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "credentials.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CredentialKind {
     Username,
@@ -43,6 +47,7 @@ pub enum CredentialKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "credentials.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialRequest {
     pub request_id: String,
@@ -56,6 +61,7 @@ pub struct CredentialRequest {
 
 /// `credential:closed`: the prompt `request_id` ended without an answer.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "credentials.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialClosedEvent {
     pub request_id: String,

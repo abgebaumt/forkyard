@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum DiffLineKind {
     Context,
@@ -11,6 +12,7 @@ pub enum DiffLineKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct DiffLine {
     pub kind: DiffLineKind,
@@ -21,6 +23,7 @@ pub struct DiffLine {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Hunk {
     pub index: u32,
@@ -34,6 +37,7 @@ pub struct Hunk {
 
 /// Content of the variant `{ kind: "text" }` of `FileDiff` (without the field `kind`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct TextDiff {
     pub path: String,
@@ -51,6 +55,7 @@ pub struct TextDiff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum FileDiff {
     Text(TextDiff),
@@ -90,6 +95,7 @@ pub enum FileDiff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HunkSelection {
     pub index: u32,
@@ -98,6 +104,7 @@ pub struct HunkSelection {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PatchSelection {
     pub path: String,
@@ -107,6 +114,7 @@ pub struct PatchSelection {
 
 /// Where `range_apply` puts the selected changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RangeApplyTarget {
     /// Unstaged, into the working directory.
@@ -120,6 +128,7 @@ pub enum RangeApplyTarget {
 /// Selected hunks and lines for a partial stash (`stash_create` with `selection`). Each entry is a
 /// selection like `stage_patch` takes it, from the staged or the unstaged diff of one file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "diff.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct StashSelection {
     /// HEAD the UI made the selection on; anything else is `stale_state`.

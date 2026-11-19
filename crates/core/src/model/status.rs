@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum OperationKind {
     Merge,
@@ -12,6 +13,7 @@ pub enum OperationKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Operation {
     pub kind: OperationKind,
@@ -24,7 +26,7 @@ pub struct Operation {
 
 /// Verdict on a commit during a bisect.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum BisectVerdict {
     Good,
@@ -34,6 +36,7 @@ pub enum BisectVerdict {
 
 /// State of a bisect, read from the Git directory (`active: false` = none running).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BisectStatus {
     pub active: bool,
@@ -54,6 +57,7 @@ pub struct BisectStatus {
 
 /// What the AI writes a bisect test script from (`bisect_autopilot_script`, `AiInput::BisectScript`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BisectScriptRequest {
     /// The problem in the user's words.
@@ -66,6 +70,7 @@ pub struct BisectScriptRequest {
 
 /// The shell a bisect test script runs with: `/bin/sh` on Linux and macOS, Windows PowerShell on Windows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum BisectShell {
     Sh,
@@ -74,6 +79,7 @@ pub enum BisectShell {
 
 /// The AI's test script – shown and editable; `bisect_autopilot_script` never runs it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BisectScript {
     pub script: String,
@@ -83,6 +89,7 @@ pub struct BisectScript {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum BisectAutopilotPhase {
     /// Worktree and bisect are being set up.
@@ -99,7 +106,7 @@ pub enum BisectAutopilotPhase {
 
 /// One tested commit of an autopilot run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "spike.ts"))]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BisectAutopilotStep {
     pub sha: Sha,
@@ -116,6 +123,7 @@ pub struct BisectAutopilotStep {
 /// The bisect autopilot run of a repository. Kept in memory as job state; the bisect itself lives in
 /// the temporary worktree's own Git directory and is read from there after every mark.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct BisectAutopilot {
     pub job_id: String,
@@ -137,6 +145,7 @@ pub struct BisectAutopilot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct UpstreamState {
     pub name: String,
@@ -151,6 +160,7 @@ pub struct UpstreamState {
 
 /// Commits that after a checkout are only reachable by their SHA.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LeftBehind {
     /// The commit that was left (HEAD before the switch).
@@ -160,6 +170,7 @@ pub struct LeftBehind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "status.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Status {
     pub head: Head,

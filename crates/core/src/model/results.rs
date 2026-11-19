@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct HookOutput {
     pub hook: String,
@@ -11,6 +12,7 @@ pub struct HookOutput {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CommitResult {
     pub sha: Sha,
@@ -20,6 +22,7 @@ pub struct CommitResult {
 
 /// Result of merge, rebase, cherry-pick, revert, pull, stash apply.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum OpResult {
     Done {
@@ -38,6 +41,7 @@ pub enum OpResult {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum MergeMode {
     Default,
@@ -47,6 +51,7 @@ pub enum MergeMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PullMode {
     Ff,
@@ -55,6 +60,7 @@ pub enum PullMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ResetMode {
     Soft,
@@ -64,6 +70,7 @@ pub enum ResetMode {
 
 /// A further branch or tag for the same push (`push` with `extra`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PushExtra {
     /// Full local ref: `refs/heads/<branch>` or `refs/tags/<tag>`.
@@ -75,10 +82,12 @@ pub struct PushExtra {
     /// With `force` only: the remote tip the prompt showed; the lease uses it instead of the
     /// tracking ref. `None` = lease against the tracking ref.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub expected: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum PushRefStatus {
     Ok,
@@ -88,6 +97,7 @@ pub enum PushRefStatus {
 
 /// Result of one ref in a push with several refs (from `git push --porcelain`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct PushRefResult {
     pub local: String,
@@ -100,6 +110,7 @@ pub struct PushRefResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum PushResult {
     Done {
@@ -130,6 +141,7 @@ pub enum PushResult {
 
 /// Why the local secret scan before a push reported a line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum SecretRule {
     /// A token or key with a well-known prefix.
@@ -147,6 +159,7 @@ pub enum SecretRule {
 /// One added line that looks like a key. The value never leaves the core: `excerpt` is the line
 /// with every value masked, `hint` at most its last four characters.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct SecretFinding {
     /// SHA-256 (hex) of path and line content; "Don't report again" stores it.
@@ -162,6 +175,7 @@ pub struct SecretFinding {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct FetchFailure {
     pub remote: String,
@@ -169,6 +183,7 @@ pub struct FetchFailure {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct FetchResult {
     pub updated_refs: u32,
@@ -177,6 +192,7 @@ pub struct FetchResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "results.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ConflictFile {
     pub path: String,

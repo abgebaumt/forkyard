@@ -4,6 +4,7 @@ use super::*;
 
 /// What one unit of "Compose commits" is: one hunk of a text file or a whole file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ComposeUnitKind {
     Hunk,
@@ -22,6 +23,7 @@ pub enum ComposeUnitKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeUnit {
     /// `<path>#<hunk index>@<token>`; whole files `<path>#file@<token>`.
@@ -46,6 +48,7 @@ pub struct ComposeUnit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeState {
     /// Over HEAD, the index and the working directory; `compose_apply` expects it back.
@@ -63,6 +66,7 @@ pub struct ComposeState {
 
 /// A commit of a proposal or a plan: message and the unit IDs it takes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeGroup {
     pub title: String,
@@ -70,11 +74,13 @@ pub struct ComposeGroup {
     pub units: Vec<String>,
     /// The AI provider's short reason why these changes form one commit; empty in a plan.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub reason: String,
 }
 
 /// The AI provider's note on one unit it placed.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeNote {
     pub unit: String,
@@ -86,6 +92,7 @@ pub struct ComposeNote {
 
 /// A unit the user placed: a new proposal leaves it where it is.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeKeep {
     pub unit: String,
@@ -94,6 +101,7 @@ pub struct ComposeKeep {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeProposal {
     pub state: ComposeState,
@@ -104,6 +112,7 @@ pub struct ComposeProposal {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposePlan {
     /// In creation order (the first is the oldest).
@@ -112,6 +121,7 @@ pub struct ComposePlan {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeResult {
     /// The new commits, oldest first.
@@ -122,6 +132,7 @@ pub struct ComposeResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "compose.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct ComposeStep {
     pub sha: Sha,

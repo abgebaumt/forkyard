@@ -3,6 +3,7 @@
 use super::*;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Person {
     pub name: String,
@@ -10,6 +11,7 @@ pub struct Person {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum SignatureStatus {
     None,
@@ -19,6 +21,7 @@ pub enum SignatureStatus {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CommitInfo {
     pub sha: Sha,
@@ -38,6 +41,7 @@ pub struct CommitInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum FileStatus {
     Modified,
@@ -49,6 +53,7 @@ pub enum FileStatus {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum FileArea {
     Unstaged,
@@ -57,6 +62,7 @@ pub enum FileArea {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ConflictKind {
     BothModified,
@@ -69,6 +75,7 @@ pub enum ConflictKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct FileChange {
     pub path: String,
@@ -84,6 +91,7 @@ pub struct FileChange {
 
 /// What `commit_details` and `diff_file` compare.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum DiffSource {
     Unstaged,
@@ -103,6 +111,7 @@ pub enum DiffSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CommitDetails {
     pub commit: Option<CommitInfo>,
@@ -113,6 +122,7 @@ pub struct CommitDetails {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CommitSummary {
     pub sha: Sha,
@@ -124,6 +134,7 @@ pub struct CommitSummary {
 
 /// Narrowing for `commit_search`; every field is optional.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "commits.ts", optional_fields = nullable))]
 #[serde(rename_all = "camelCase", default)]
 pub struct CommitSearchFilters {
     /// Commits that add or remove this text in a file (`git log -S`, ignoring case).

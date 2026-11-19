@@ -1,12 +1,13 @@
 //! Uniform error of the core. Arrives in the UI as
-//! `{ code, message, gitOutput }` (see `CoreErrorData` in types.ts).
+//! `{ code, message, gitOutput }` (`CoreErrorData` in src/core/generated/error.ts).
 
 use serde::{Deserialize, Serialize};
 
 use crate::git::redact;
 
-/// Error codes, exactly like `ErrorCode` in src/core/types.ts.
+/// Error codes; `ErrorCode` in src/core/generated/error.ts is generated from this.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "error.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     NotARepo,
@@ -216,6 +217,7 @@ impl std::fmt::Display for ErrorCode {
 /// Error of the core. `message` is human-readable,
 /// `git_output` the raw output of Git without credentials.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "error.ts", rename = "CoreErrorData"))]
 #[serde(rename_all = "camelCase")]
 #[error("{message} ({code})")]
 pub struct CoreError {

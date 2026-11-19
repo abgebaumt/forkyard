@@ -4,6 +4,7 @@ use super::*;
 
 /// What a custom command does: start a program, run Git, or open a web address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CustomCommandKind {
     Shell,
@@ -13,6 +14,7 @@ pub enum CustomCommandKind {
 
 /// Working directory of a `shell` command: the open folder (default) or the main working tree.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CustomCommandCwd {
     Repo,
@@ -21,6 +23,7 @@ pub enum CustomCommandCwd {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CustomInputType {
     Text,
@@ -31,6 +34,7 @@ pub enum CustomInputType {
 
 /// Where a command appears: palette (`repo`) and the context menus of the other kinds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CustomCommandScope {
     Repo,
@@ -42,6 +46,7 @@ pub enum CustomCommandScope {
 
 /// A field of the form that is shown before the command runs (`${input:<id>}`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomCommandInput {
     pub id: String,
@@ -62,6 +67,7 @@ fn default_scope() -> Vec<CustomCommandScope> {
 
 /// One custom command as it is stored (global) or written in `.forkyard/commands.json`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomCommandDef {
     pub id: String,
@@ -86,6 +92,7 @@ pub struct CustomCommandDef {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CustomCommandSource {
     Global,
@@ -93,6 +100,7 @@ pub enum CustomCommandSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomCommandEntry {
     /// `global:<id>` or `repo:<id>` – what `custom_command_run` takes.
@@ -105,6 +113,7 @@ pub struct CustomCommandEntry {
 
 /// Approval state of `.forkyard/commands.json`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum RepoCommandsState {
     /// No file.
@@ -117,6 +126,7 @@ pub enum RepoCommandsState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum CustomCommandChangeKind {
     Added,
@@ -126,6 +136,7 @@ pub enum CustomCommandChangeKind {
 
 /// What changed in the repository file since the approval (by command id).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomCommandChange {
     pub id: String,
@@ -137,6 +148,7 @@ pub struct CustomCommandChange {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct RepoCommands {
     pub state: RepoCommandsState,
@@ -151,6 +163,7 @@ pub struct RepoCommands {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CustomCommandList {
     /// Global commands first, then those of the repository.
@@ -162,6 +175,7 @@ pub struct CustomCommandList {
 /// Where a command was started: the selected commit, branch, file and remote. Missing values fall
 /// back to HEAD, the current branch and the upstream remote.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts", optional_fields = nullable))]
 #[serde(rename_all = "camelCase", default)]
 pub struct CustomCommandContext {
     pub sha: Option<Sha>,
@@ -171,6 +185,7 @@ pub struct CustomCommandContext {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(tag = "status", rename_all = "snake_case", rename_all_fields = "camelCase")]
 pub enum CustomCommandResult {
     /// `confirm: true` and not confirmed yet: what would run, nothing has run.
@@ -183,6 +198,7 @@ pub enum CustomCommandResult {
 
 /// Whether the palette can link the `forkyard` command into a folder on the PATH.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "custom_commands.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct CliStatus {
     /// AppImage or macOS app: the app can create the link itself.

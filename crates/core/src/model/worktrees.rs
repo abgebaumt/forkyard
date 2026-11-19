@@ -4,6 +4,7 @@ use super::*;
 
 /// A working directory of the repository (`git worktree`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "worktrees.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Worktree {
     pub path: String,
@@ -23,6 +24,7 @@ pub struct Worktree {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "worktrees.ts"))]
 #[serde(rename_all = "snake_case")]
 pub enum SubmoduleState {
     /// Checked out, at the recorded commit, without own changes.
@@ -36,6 +38,7 @@ pub enum SubmoduleState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "worktrees.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct Submodule {
     /// Name in `.gitmodules` (usually the same as the path).
@@ -55,6 +58,7 @@ pub struct Submodule {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export, export_to = "worktrees.ts"))]
 #[serde(rename_all = "camelCase")]
 pub struct LfsStatus {
     pub installed: bool,
