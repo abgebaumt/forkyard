@@ -278,6 +278,14 @@ impl Core {
         }
     }
 
+    /// Like `emit`, but only to the window `window`.
+    pub fn emit_to<T: Serialize>(&self, window: &str, event: &str, payload: &T) {
+        match serde_json::to_value(payload) {
+            Ok(v) => self.events.emit_to(window, event, v),
+            Err(e) => log::warn!("Event {event} not serializable: {e}"),
+        }
+    }
+
     /// `repo:changed` with the affected areas (duplicates are removed).
     pub fn emit_repo_changed(&self, repo_id: &str, what: &[RepoChange]) {
         let mut what = what.to_vec();

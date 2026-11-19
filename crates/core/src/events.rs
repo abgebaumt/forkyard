@@ -60,6 +60,11 @@ pub mod names {
 /// Receiver for events. `payload` is already the JSON from `crate::model`.
 pub trait EventSink: Send + Sync {
     fn emit(&self, event: &str, payload: Value);
+    /// An event for exactly one window (by label). Sinks without windows send it like `emit`.
+    fn emit_to(&self, window: &str, event: &str, payload: Value) {
+        let _ = window;
+        self.emit(event, payload);
+    }
 }
 
 /// Discards everything.
@@ -73,6 +78,8 @@ impl EventSink for NullSink {
 #[derive(Default)]
 pub struct EventCollector {
     events: Mutex<Vec<(String, Value)>>,
+    /// `emit_to` calls: (event, window, payload).
+    targeted: Mutex<Vec<(String, String, Value)>>,
 }
 
 impl EventCollector {
@@ -85,6 +92,7 @@ impl EventCollector {
     }
     /// Take all events (afterwards the collector is empty).
     pub fn take(&self) -> Vec<(String, Value)> {
+        self.targeted.lock().clear();
         std::mem::take(&mut *self.events.lock())
     }
     /// Payloads of all events with this name.
@@ -94,7 +102,12 @@ impl EventCollector {
     pub fn count(&self, name: &str) -> usize {
         self.events.lock().iter().filter(|(n, _)| n == name).count()
     }
+    /// (window, payload) of all events with this name that went to one window.
+    pub fn targeted(&self, name: &str) -> Vec<(String, Value)> {
+        self.targeted.lock().iter().filter(|(n, _, _)| n == name).map(|(_, w, v)| (w.clone(), v.clone())).collect()
+    }
     pub fn clear(&self) {
+        self.targeted.lock().clear();
         self.events.lock().clear();
     }
 }
@@ -102,5 +115,23 @@ impl EventCollector {
 impl EventSink for EventCollector {
     fn emit(&self, event: &str, payload: Value) {
         self.events.lock().push((event.to_string(), payload));
+    }
+    fn emit_to(&self, window: &str, event: &str, payload: Value) {
+        self.targeted.lock().push((event.to_string(), window.to_string(), payload.clone()));
+        self.emit(event, payload);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn targeted_events_are_also_collected_by_name() {
+        let c = EventCollector::new();
+        c.emit_to("w-x", names::APP_OPEN_REQUEST, json!({"path": "/p"}));
+        assert_eq!(c.named(names::APP_OPEN_REQUEST).len(), 1);
+        assert_eq!(c.targeted(names::APP_OPEN_REQUEST)[0].0, "w-x");
     }
 }

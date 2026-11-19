@@ -62,10 +62,10 @@ impl CancelToken {
 /// How many cancels for jobIds that are not running are remembered (see `JobRegistry::cancel`).
 const EARLY_CANCELS: usize = 64;
 
-/// jobId → cancel signal of the running jobs.
+/// jobId → cancel signal and calling window of the running jobs.
 #[derive(Default)]
 pub struct JobRegistry {
-    jobs: Mutex<HashMap<String, CancelToken>>,
+    jobs: Mutex<HashMap<String, (CancelToken, Option<String>)>>,
     /// Cancels of jobIds that were not running (yet), newest last. The UI sends a command and,
     /// if its view closes at once, `job_cancel` right after; both run concurrently, so the
     /// cancel can arrive before the job registers. A job that registers later starts cancelled.
@@ -76,8 +76,8 @@ impl JobRegistry {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Registers a job. A jobId that is already running yields `duplicate`.
-    pub fn register(&self, job_id: &str) -> CoreResult<CancelToken> {
+    /// Registers a job started from window `origin` (`None`: main). A jobId that is already running yields `duplicate`.
+    pub fn register(&self, job_id: &str, origin: Option<&str>) -> CoreResult<CancelToken> {
         let mut jobs = self.jobs.lock();
         if jobs.contains_key(job_id) {
             return Err(CoreError::duplicate());
@@ -88,7 +88,7 @@ impl JobRegistry {
             early.remove(index);
             token.cancel();
         }
-        jobs.insert(job_id.to_string(), token.clone());
+        jobs.insert(job_id.to_string(), (token.clone(), origin.map(str::to_string)));
         Ok(token)
     }
     /// Cancels a job. `false` if the jobId is not running (any more); it is then remembered, so
@@ -96,7 +96,7 @@ impl JobRegistry {
     pub fn cancel(&self, job_id: &str) -> bool {
         let jobs = self.jobs.lock();
         match jobs.get(job_id) {
-            Some(token) => {
+            Some((token, _)) => {
                 token.cancel();
                 true
             }
@@ -122,14 +122,27 @@ impl JobRegistry {
     /// Cancels all running jobs (the app is exiting) and returns their number.
     pub fn cancel_all(&self) -> usize {
         let jobs = self.jobs.lock();
-        for token in jobs.values() {
+        for (token, _) in jobs.values() {
             token.cancel();
         }
         jobs.len()
     }
+    /// Cancels the running jobs started from `window` (the window closes) and returns their number.
+    pub fn cancel_from(&self, window: &str) -> usize {
+        let jobs = self.jobs.lock();
+        jobs.values().filter(|(_, origin)| started_in(origin, window)).map(|(token, _)| token.cancel()).count()
+    }
+    /// Number of running jobs started from `window`.
+    pub fn running_from(&self, window: &str) -> usize {
+        self.jobs.lock().values().filter(|(_, origin)| started_in(origin, window)).count()
+    }
     pub fn remove(&self, job_id: &str) {
         self.jobs.lock().remove(job_id);
     }
+}
+
+fn started_in(origin: &Option<String>, window: &str) -> bool {
+    origin.as_deref().unwrap_or(crate::windowing::MAIN) == window
 }
 
 /// A running job. Created via `Core::start_job`. Call `finish` at the end;
@@ -149,7 +162,7 @@ const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 
 impl Job {
     pub(crate) fn new(job_id: &str, repo_id: Option<&str>, registry: Arc<JobRegistry>, events: Arc<dyn EventSink>) -> CoreResult<Job> {
-        let token = registry.register(job_id)?;
+        let token = registry.register(job_id, crate::windowing::caller().as_deref())?;
         Ok(Job {
             id: job_id.to_string(),
             repo_id: repo_id.map(str::to_string),
@@ -279,6 +292,26 @@ mod tests {
         assert!(!again.token().is_cancelled(), "an early cancel is used up once");
     }
 
+    #[tokio::test]
+    async fn cancel_from_cancels_only_that_windows_jobs() {
+        let w = "w-0123456789abcdef0123456789abcdef";
+        let reg = Arc::new(JobRegistry::new());
+        let events = Arc::new(EventCollector::new());
+        let a = crate::windowing::scoped("main".into(), async { Job::new("a", None, reg.clone(), events.clone()) }).await.unwrap();
+        let b = crate::windowing::scoped(w.into(), async { Job::new("b", None, reg.clone(), events.clone()) }).await.unwrap();
+        let unscoped = Job::new("c", None, reg.clone(), events.clone()).unwrap();
+        assert_eq!(reg.running_from(w), 1);
+        assert_eq!(reg.running_from("main"), 2, "a job without an origin counts as main's");
+        assert_eq!(reg.cancel_from(w), 1);
+        assert!(b.token().is_cancelled());
+        assert!(!a.token().is_cancelled() && !unscoped.token().is_cancelled());
+        assert_eq!(reg.running_from("main"), 2);
+        b.finish::<()>(&Err(CoreError::cancelled()));
+        assert_eq!(reg.running_from(w), 0);
+        assert_eq!(reg.cancel_from("main"), 2);
+        assert!(a.token().is_cancelled() && unscoped.token().is_cancelled());
+    }
+
     #[test]
     fn early_cancels_are_bounded() {
         let reg = JobRegistry::new();
@@ -286,7 +319,7 @@ mod tests {
             reg.cancel(&format!("gone-{n}"));
         }
         assert_eq!(reg.early.lock().len(), EARLY_CANCELS);
-        assert!(!reg.register("gone-0").unwrap().is_cancelled(), "the oldest early cancel was dropped");
-        assert!(reg.register(&format!("gone-{}", EARLY_CANCELS + 9)).unwrap().is_cancelled());
+        assert!(!reg.register("gone-0", None).unwrap().is_cancelled(), "the oldest early cancel was dropped");
+        assert!(reg.register(&format!("gone-{}", EARLY_CANCELS + 9), None).unwrap().is_cancelled());
     }
 }
