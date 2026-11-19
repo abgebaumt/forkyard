@@ -8,6 +8,10 @@
  *   and stages exactly that text;
  * - edge: three conflicts – Alt+↓ moves to the next conflict and the column follows without taking the
  *   focus; “Discard” changes nothing in the result;
+ * - edge: three conflicts – “Apply all” applies the open proposals in one step, skips the block edited
+ *   by hand and names it; one Ctrl+Z takes the step back; proposals say why they fit;
+ * - edge: base column – the toggle shows the ancestor as an aligned third column, keeps the current
+ *   conflict, is remembered after a restart and says why it is off for a file both sides created;
  * - edge: not set up, on without a provider (Explain intent opens the setup dialog), function off, AI
  *   off: no toggle or column where hidden, nothing sent; the toggle hides and shows;
  * - edge: German texts.
@@ -19,7 +23,17 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { makeLabRepo, makeRebaseRepo, REBASE_FILE, rebaseParts, resultLines, STATION, toText } from "../fixtures/conflict-lib.mjs";
+import {
+  BOTH_ADDED,
+  makeLabRepo,
+  makeRebaseRepo,
+  REBASE_FILE,
+  rebaseParts,
+  resultLines,
+  STATION,
+  stationParts,
+  toText,
+} from "../fixtures/conflict-lib.mjs";
 import { eventually } from "../fixtures/commit-ui.mjs";
 import { assert, assertEqual, assertIncludes, assertMatch, scenario } from "../lib.mjs";
 
@@ -52,7 +66,7 @@ function answerFor(user) {
         ours: `Main zu Konflikt ${index + 1}.`,
         theirs: `Feature zu Konflikt ${index + 1}.`,
         text: `${lines.join("\n")}\n`,
-        reason: null,
+        reason: index === 1 ? null : "Beide Seiten bleiben erhalten.",
       })),
     };
   }
@@ -63,7 +77,7 @@ function answerFor(user) {
         ours: "Main misst öfter: alle 5 statt 10 Minuten.",
         theirs: "Der Branch misst nachts seltener, alle 30 Minuten.",
         text: `${REBASE_PROPOSAL}\n`,
-        reason: "Beide Messintervalle bleiben erhalten.",
+        reason: "Beide Messintervalle bleiben.",
       },
     ],
   };
@@ -338,16 +352,209 @@ scenario(
   }),
 );
 
+const HAND_EDIT = "        return None  # geprüft";
+const cardReasons = (app) =>
+  app.exec(
+    (css) =>
+      [...document.querySelectorAll(`${css} [data-intent-card]`)].map(
+        (card) => card.querySelector("[data-intent-reason]")?.innerText.trim() ?? null,
+      ),
+    COLUMN,
+  );
+
+scenario(
+  "three conflicts: Apply all applies the open proposals in one step and one Ctrl+Z takes it back",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeLabRepo();
+    t.cleanups.push(() => fixture.cleanup());
+    const { app } = await launchWithAi(t);
+    await app.openRepo(fixture.path);
+    await openConflictFromList(app, STATION);
+    await showColumn(app);
+    await app.click(await app.waitFor(`${COLUMN} [data-intent-explain]`, 10_000, { message: "Explain intent" }));
+    await app.waitFor(`${COLUMN} [data-intent-card="2"] [data-intent-apply]`, 30_000, { message: "three proposals" });
+    assertEqual(
+      await cardReasons(app),
+      ["Why this fits: Beide Seiten bleiben erhalten.", null, "Why this fits: Beide Seiten bleiben erhalten."],
+      "cards with a reason say why it fits, card 2 has none",
+    );
+
+    // Conflict 2 by hand: take “ours”, then type in the result.
+    await app.click(`${CONFLICT} [data-sides] [data-conflict-head="1"][data-side="ours"]`);
+    await eventually(() => blockState(app, 1), "ours", "conflict 2: ours taken");
+    const line = await app.waitFor(
+      () =>
+        app.exec(
+          () =>
+            [...document.querySelectorAll("[data-result-editor] .cm-line")].find((el) => el.innerText === "        return None") ?? null,
+        ),
+      5000,
+      { message: "result line of conflict 2" },
+    );
+    await app.click(line);
+    await app.press("End");
+    await app.press(..."  # geprüft".split(""));
+    await eventually(() => blockState(app, 1), "manual", "conflict 2 counts as edited by hand");
+    const handEdited = await resultText(app);
+    assertIncludes(handEdited, `${HAND_EDIT}\n`, "the hand edit is in the result");
+
+    await app.click(`${COLUMN} [data-intent-apply-all]`);
+    await eventually(
+      () => app.exec((css) => document.querySelector(`${css} [data-intent-apply-all-result]`)?.innerText.trim() ?? null, COLUMN),
+      "2 applied, 1 skipped: edited by hand",
+      "the result line names the skipped block",
+    );
+    assertEqual(
+      await app.exec((css) => document.querySelector(`${css} [role="status"][aria-live="polite"]`)?.textContent ?? null, COLUMN),
+      "2 applied, 1 skipped: edited by hand",
+      "the live region announces it",
+    );
+    const ours2 = stationParts
+      .filter((part) => part.kind === "conflict")[1]
+      .ours.map((text) => (text === "        return None" ? HAND_EDIT : text));
+    const applied = toText(resultLines(stationParts, (index) => (index === 1 ? ours2 : STATION_PROPOSALS[index])));
+    await eventually(() => resultText(app), applied, "proposals 1 and 3 applied, the hand edit kept");
+    assertEqual(
+      await app.exec((css) => document.querySelector(`${css} [data-intent-apply-all]`) === null, COLUMN),
+      true,
+      "nothing left to apply",
+    );
+    await t.shot("intent-apply-all");
+
+    await app.exec(() => document.querySelector("[data-result-editor] .cm-content")?.focus());
+    await app.press("Control+z");
+    await eventually(() => resultText(app), handEdited, "one Ctrl+Z takes both proposals back, the hand edit stays");
+    await t.noConsoleErrors(app);
+  }),
+);
+
+/** [aria-pressed, aria-disabled, coloured like disabled text, the reason it is described by] */
+const baseToggle = (app) =>
+  app.exec((root) => {
+    const toggle = document.querySelector(`${root} [data-base-toggle]`);
+    if (!toggle) return null;
+    const probe = document.createElement("span");
+    probe.className = "text-text-disabled";
+    document.body.append(probe);
+    const disabledColor = getComputedStyle(probe).color;
+    probe.remove();
+    const reason = document.getElementById(toggle.getAttribute("aria-describedby") ?? "")?.textContent ?? null;
+    // A list, not an object: the WebDriver answer does not keep the key order assertEqual compares.
+    return [
+      toggle.getAttribute("aria-pressed"),
+      toggle.getAttribute("aria-disabled"),
+      getComputedStyle(toggle).color === disabledColor,
+      reason,
+    ];
+  }, CONFLICT);
+
+/** Every rendered row has its ours, base and theirs cells side by side at the same height. */
+const rowsAligned = (app) =>
+  app.exec((root) => {
+    const rows = [...document.querySelectorAll(`${root} [data-sides] [data-row]`)];
+    return (
+      rows.length > 0 &&
+      rows.every((row) => {
+        const cells = [...row.firstElementChild.children];
+        return cells.length === 3 && cells.every((cell) => cell.offsetTop === cells[0].offsetTop);
+      })
+    );
+  }, CONFLICT);
+
+const position = (app) =>
+  app.exec((root) => document.querySelector(`${root} [data-conflict-position]`)?.innerText.trim() ?? null, CONFLICT);
+
+scenario(
+  "base column: toggle, three aligned columns, remembered after a restart",
+  "edge",
+  withCleanup(async (t) => {
+    const fixture = makeLabRepo();
+    t.cleanups.push(() => fixture.cleanup());
+    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "fy-intent-data-"));
+    t.cleanups.push(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+    const first = await t.launch({ ...LAUNCH, dataDir });
+    await first.openRepo(fixture.path);
+    await openConflictFromList(first, STATION);
+    assertEqual(await baseToggle(first), ["false", null, false, null], "base toggle off");
+    assertEqual(
+      await first.exec((root) => document.querySelector(`${root} [data-side-heading="base"]`) === null, CONFLICT),
+      true,
+      "no base column",
+    );
+
+    await first.exec(() => document.activeElement?.blur());
+    await first.press("Alt+ArrowDown");
+    await eventually(() => position(first), "2/3", "conflict 2 is current");
+    await first.click(`${CONFLICT} [data-base-toggle]`);
+    await eventually(() => baseToggle(first).then((toggle) => toggle?.[0]), "true", "base toggle on");
+    await first.waitFor(`${CONFLICT} [data-side-heading="base"]`, 5000, { message: "base heading" });
+    await eventually(() => rowsAligned(first), true, "ours, base and theirs aligned row by row");
+    assertEqual(await position(first), "2/3", "toggling the base keeps the current conflict");
+    await t.shot("base-column");
+
+    await first.exec((root) => {
+      const scroller = document.querySelector(`${root} [data-sides]`);
+      scroller.scrollTop = scroller.scrollHeight;
+    }, CONFLICT);
+    await eventually(
+      () =>
+        first.exec((root) => {
+          const scroller = document.querySelector(`${root} [data-sides]`);
+          const box = scroller.getBoundingClientRect();
+          const rows = [...scroller.querySelectorAll("[data-row]")];
+          const last = rows.reduce((a, b) => (Number(b.dataset.row) > Number(a.dataset.row) ? b : a), rows[0]);
+          const cells = [...last.firstElementChild.children];
+          const inView = cells.every((cell) => {
+            const rect = cell.getBoundingClientRect();
+            return rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1;
+          });
+          return [scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1, cells.length, inView];
+        }, CONFLICT),
+      [true, 3, true],
+      "the last row is visible in all three columns",
+    );
+    await t.noConsoleErrors(first);
+    await first.close();
+
+    const app = await t.launch({ ...LAUNCH, dataDir });
+    await app.openRepo(fixture.path);
+    await openConflictFromList(app, STATION);
+    await eventually(() => baseToggle(app).then((toggle) => toggle?.[0]), "true", "remembered after a restart");
+    await app.waitFor(`${CONFLICT} [data-side-heading="base"]`, 5000, { message: "base column after a restart" });
+
+    // Both sides created the file: no ancestor, the switch is off and says why.
+    await openConflictFromList(app, BOTH_ADDED);
+    assertEqual(
+      await baseToggle(app),
+      ["false", "true", true, "No base: both sides created this file."],
+      "no base: the toggle is off, looks disabled and says why",
+    );
+    await app.click(`${CONFLICT} [data-base-toggle]`);
+    assertEqual(
+      await app.exec((root) => document.querySelector(`${root} [data-side-heading="base"]`) === null, CONFLICT),
+      true,
+      "a click changes nothing",
+    );
+    await t.shot("base-unavailable");
+    await t.noConsoleErrors(app);
+  }),
+);
+
 scenario(
   "German texts",
   "edge",
   withCleanup(async (t) => {
-    const fixture = makeRebaseRepo();
+    const fixture = makeLabRepo();
     t.cleanups.push(() => fixture.cleanup());
     const { app } = await launchWithAi(t, { lang: "de" });
     await app.openRepo(fixture.path);
-    await openConflictFromList(app, REBASE_FILE, `Konflikt lösen: ${REBASE_FILE}`);
+    await openConflictFromList(app, STATION, `Konflikt lösen: ${STATION}`);
     await showColumn(app);
+    assertEqual(
+      await app.exec((root) => document.querySelector(`${root} [data-base-toggle]`)?.innerText.trim() ?? null, CONFLICT),
+      "Basis zeigen",
+    );
     assertEqual(
       await app.exec((root) => document.querySelector(`${root} [data-intent-toggle]`)?.innerText.trim() ?? null, CONFLICT),
       "Absicht",
@@ -364,7 +571,18 @@ scenario(
     );
     assertIncludes(
       await app.exec((css) => document.querySelector(`${css} [data-intent-status="ready"]`)?.innerText ?? "", COLUMN),
-      "Absicht für 1 Konflikt erklärt.",
+      "Absicht für 3 Konflikte erklärt.",
+    );
+    assertEqual(
+      await app.exec((css) => document.querySelector(`${css} [data-intent-apply-all]`)?.innerText.trim() ?? null, COLUMN),
+      "Alle übernehmen (3)",
+    );
+    assertEqual(
+      await app.exec(
+        (css) => document.querySelector(`${css} [data-intent-card="0"] [data-intent-reason] span`)?.innerText.trim() ?? null,
+        COLUMN,
+      ),
+      "Warum das passt:",
     );
     assert(apply, "apply button present");
     await t.shot("intent-de");

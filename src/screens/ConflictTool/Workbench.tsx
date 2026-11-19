@@ -685,13 +685,10 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
                 aria-describedby={baseReason ? `conflict-base-reason-${tabId}` : undefined}
                 data-base-toggle=""
                 icon={baseView.shown ? <Check className="size-icon" aria-hidden /> : undefined}
-                className={
-                  baseReason
-                    ? "text-text-disabled hover:bg-transparent active:bg-transparent"
-                    : baseView.shown
-                      ? "bg-surface-raised"
-                      : undefined
-                }
+                className={cn(
+                  "aria-disabled:cursor-default aria-disabled:text-text-disabled aria-disabled:hover:bg-transparent aria-disabled:active:bg-transparent",
+                  baseView.shown && "bg-surface-raised",
+                )}
                 onClick={() => {
                   if (!baseReason) void saveShowBase(!baseView.shown);
                 }}

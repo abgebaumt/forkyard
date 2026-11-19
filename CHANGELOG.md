@@ -15,6 +15,11 @@ All notable changes to Forkyard are listed here. The format follows
 
 ### Added
 
+- Conflict tool: “Show base” adds the common ancestor as a third column between both sides, aligned
+  block by block and scrolling with them; the choice is remembered. Without a common ancestor the switch
+  is off and says why. In the intent column, “Apply all” applies every undecided proposal at once – one
+  Ctrl+Z in the result takes the whole step back, blocks edited by hand are skipped and named – and each
+  proposal says in one line why it fits.
 - `scripts/bench/large-repo.mjs` measures the graph and blame on a generated repository with 120 000
   commits.
 
