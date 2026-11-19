@@ -22,7 +22,8 @@ import {
   type ConnectField,
   type ConnectTarget,
 } from "../../app/actions/hosts";
-import { HOST_KINDS, hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "../../app/hosts";
+import type { HosterAccount, HostKind } from "../../core";
+import { HOST_KINDS, hostKindLabels, type HostErrorText } from "../../app/hosts";
 import { showDialog } from "../../app/dialogs";
 import { useKeyringAvailable } from "../../app/queries";
 import { useBusy } from "../../app/store";
@@ -38,7 +39,7 @@ export interface ConnectPreset {
   /** Address of a self-hosted instance (Azure DevOps: of the organization); null = the public service. */
   baseUrl?: string | null;
   /** Replace the token of an existing account: host, address and user name are fixed. */
-  replace?: HostAccountInfo;
+  replace?: HosterAccount;
 }
 
 function Guide({ kind, baseUrl }: { kind: HostKind; baseUrl: string | null }) {
@@ -81,7 +82,7 @@ function Guide({ kind, baseUrl }: { kind: HostKind; baseUrl: string | null }) {
   );
 }
 
-function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (account: HostAccountInfo | null) => void }) {
+function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (account: HosterAccount | null) => void }) {
   const replace = preset.replace ?? null;
   const [kind, setKind] = useState<HostKind>(replace?.kind ?? preset.kind ?? "github");
   const presetBase = replace ? replace.baseUrl : (preset.baseUrl ?? null);
@@ -362,6 +363,6 @@ function ConnectDialog({ preset, onDone }: { preset: ConnectPreset; onDone: (acc
 }
 
 /** Opens the dialog; returns the connected account, or null on cancel. */
-export function openConnectDialog(preset: ConnectPreset = {}): Promise<HostAccountInfo | null> {
-  return showDialog<HostAccountInfo>((done) => <ConnectDialog preset={preset} onDone={done} />);
+export function openConnectDialog(preset: ConnectPreset = {}): Promise<HosterAccount | null> {
+  return showDialog<HosterAccount>((done) => <ConnectDialog preset={preset} onDone={done} />);
 }

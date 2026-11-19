@@ -276,12 +276,6 @@
     "prWord": {
       "gitlab": "merge request"
     },
-    "unexpectedShape": "The core returned {{what}} in an unexpected form.",
-    "what": {
-      "account": "the account",
-      "pr": "the pull request",
-      "newPr": "the new pull request"
-    },
     "localTime": "{{time}}",
     "error": {
       "notConnected": {

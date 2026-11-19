@@ -13,7 +13,7 @@ import { Button, IconButton } from "../../ui/Button";
 import { Tip } from "../../ui/Tooltip";
 import { t } from "../../i18n";
 import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
-import type { IssueSummary } from "./api";
+import type { IssueSummary } from "../../core";
 import { copyIssueLink, createIssueBranch, openIssueInBrowser } from "./actions";
 import { HostProblem, Labels, Person, StateBadge } from "./parts";
 
@@ -86,12 +86,11 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
                   {t("issues.details.by")} <Person user={issue.author} />
                 </span>
               ) : null}
-              <When value={details?.createdAt ?? null} prefix={t("ui.created")} />
               <When value={issue.updatedAt} prefix={t("ui.changed")} />
-              {issue.commentCount ? (
+              {details?.comments.length ? (
                 <span className="inline-flex items-center gap-1 whitespace-nowrap">
                   <MessageSquare className="size-3.5" aria-hidden />
-                  {t("issues.comments", { count: issue.commentCount })}
+                  {t("issues.comments", { count: details.comments.length })}
                 </span>
               ) : null}
             </p>
@@ -199,11 +198,6 @@ export function IssueDetailsPane({ repoId, tabId, number, known, onBack }: Issue
                     ))}
                   </ol>
                 )}
-                {details.commentCount !== null && details.commentCount > details.comments.length ? (
-                  <p className="mt-2 text-sm text-text-muted" data-comments-more>
-                    {t("issues.details.moreComments", { count: details.commentCount - details.comments.length })}
-                  </p>
-                ) : null}
               </section>
             </>
           ) : (

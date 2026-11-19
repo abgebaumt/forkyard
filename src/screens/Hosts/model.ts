@@ -4,7 +4,7 @@
  * they can be found there; everything else in our own words.
  */
 import { accountPerson, type AccountState } from "../../app/actions/hosts";
-import type { HostAccountInfo, HostKind } from "../../app/hosts";
+import type { HosterAccount, HostKind } from "../../core";
 import { t } from "../../i18n";
 
 export interface TokenPermission {
@@ -133,7 +133,7 @@ export const instanceLabels: Record<HostKind, { public: string; own: string; own
 };
 
 /** The account row's badge text and the line under it. */
-export function stateText(account: HostAccountInfo, state: AccountState): { label: string; detail: string | null } {
+export function stateText(account: HosterAccount, state: AccountState): { label: string; detail: string | null } {
   const person = accountPerson(account);
   switch (state) {
     case "ok":

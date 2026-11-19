@@ -28,18 +28,9 @@ import {
   X,
 } from "lucide-react";
 import { Tabs } from "radix-ui";
-import { core, CoreError, type Id } from "../../core";
+import { core, CoreError, type Id, type HostCapabilities, type HostComment, type PrCommit, type PrDetails } from "../../core";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import {
-  defaultCapabilities,
-  describeHostError,
-  hostKindLabels,
-  type HostCapabilities,
-  type HostErrorText,
-  type PrComment,
-  type PrCommit,
-  type PrDetails,
-} from "../../app/hosts";
+import { defaultCapabilities, describeHostError, hostKindLabels, type HostErrorText } from "../../app/hosts";
 import { checkoutPr, closePr, commentOnPr, mergeBlock, prBusyKeys, refreshPullRequests, reopenPr } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";
@@ -142,7 +133,7 @@ function Skeleton() {
 // Conversation
 // ---------------------------------------------------------------------------
 
-function CommentCard({ comment }: { comment: PrComment }) {
+function CommentCard({ comment }: { comment: HostComment }) {
   const name = userName(comment.author);
   return (
     <li data-comment={comment.id} className="rounded-md border border-border bg-surface">

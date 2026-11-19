@@ -1,4 +1,4 @@
-import type { PrSummary } from "../../app/hosts";
+import type { PrSummary } from "../../core";
 import { t } from "../../i18n";
 
 export type PrGroup = "mine" | "review" | "all";
@@ -49,7 +49,7 @@ export function matchesPr(pr: PrSummary, query: string): boolean {
     pr.author?.name ?? "",
     pr.sourceBranch,
     pr.targetBranch,
-    ...pr.labels,
+    ...pr.labels.map((label) => label.name),
   ];
   return haystack.some((part) => part.toLowerCase().includes(needle));
 }

@@ -9,22 +9,14 @@
  */
 import { t } from "../../i18n";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import type { ErrorCode, Id } from "../../core";
+import { core, type ErrorCode, type Id, type HosterAccount, type HostKind } from "../../core";
 import { toast } from "../../ui/Feedback";
 import { confirm } from "../dialogs";
 import { errorInfo } from "../errors";
 import { qk, queryClient } from "../queries";
 import { runAction, showError, type ActionResult, type RunOptions } from "../run";
 import { useAppStore } from "../store";
-import {
-  describeHostError,
-  hostApi,
-  hostErrorKind,
-  hostKindLabels,
-  type HostAccountInfo,
-  type HostErrorText,
-  type HostKind,
-} from "../hosts";
+import { describeHostError, hostErrorKind, hostKindLabels, type HostErrorText } from "../hosts";
 
 /** Error codes of the host integration (the core adds them to `ErrorCode`). */
 const HOST_CODES = [
@@ -42,7 +34,7 @@ export const hostBusyKeys = {
   account: (accountId: Id) => `app:host:${accountId}`,
 };
 
-export const cachedHostAccounts = () => queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts);
+export const cachedHostAccounts = () => queryClient.getQueryData<HosterAccount[]>(qk.hostAccounts);
 
 /** Settings › Integrations. */
 export function openIntegrations(): void {
@@ -240,16 +232,16 @@ export type AccountState = "ok" | "expired" | "scopes" | "error";
 const TOKEN_TROUBLE = /token|401|abgelaufen|widerrufen|abgelehnt|unauthori|anmeld|expired|revoked|rejected/i;
 
 /** State of an account in one word; the row adds text, icon and colour. */
-export function accountState(account: HostAccountInfo): AccountState {
+export function accountState(account: HosterAccount): AccountState {
   if (account.lastError) return TOKEN_TROUBLE.test(account.lastError) ? "expired" : "error";
   if (!account.user) return "expired";
   return account.scopesOk ? "ok" : "scopes";
 }
 
-export const accountHost = (account: Pick<HostAccountInfo, "kind" | "baseUrl">) =>
-  (account.baseUrl ?? PUBLIC_HOSTS[account.kind] ?? "").replace(/^https?:\/\//, "").replace(/\/+$/, "");
-export const accountPerson = (account: HostAccountInfo) => account.user?.name ?? account.user?.login ?? null;
-export const accountTitle = (account: HostAccountInfo) => `${hostKindLabels[account.kind]} – ${accountHost(account)}`;
+export const accountHost = (account: Pick<HosterAccount, "kind" | "baseUrl">) =>
+  account.baseUrl.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+export const accountPerson = (account: HosterAccount) => account.user?.name ?? account.user?.login ?? null;
+export const accountTitle = (account: HosterAccount) => `${hostKindLabels[account.kind]} – ${accountHost(account)}`;
 
 /** Reload everything that depends on the accounts: the accounts themselves, the repositories' hosts, pull requests. */
 export function refreshHostData(): void {
@@ -259,7 +251,7 @@ export function refreshHostData(): void {
   });
 }
 
-export type ConnectResult = { ok: true; account: HostAccountInfo } | { ok: false; error: HostErrorText };
+export type ConnectResult = { ok: true; account: HosterAccount } | { ok: false; error: HostErrorText };
 
 /**
  * Connects an account: the core checks the token against the host's API and stores it in the
@@ -272,14 +264,14 @@ export async function connectAccount(input: {
   username?: string | null;
 }): Promise<ConnectResult> {
   return finishConnect(
-    await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connect(input), { busyKey: hostBusyKeys.connect, inline: true }),
+    await runHostAction(t("actions.hosts.connect.label"), () => core.hostConnect(input), { busyKey: hostBusyKeys.connect, inline: true }),
     input.token,
   );
 }
 
 /** Connects GitHub with the login of the GitHub CLI; the token never passes through the UI. */
 export async function connectWithGh(baseUrl: string | null): Promise<ConnectResult> {
-  const result = await runHostAction(t("actions.hosts.connect.label"), () => hostApi.connectGh(baseUrl), {
+  const result = await runHostAction(t("actions.hosts.connect.label"), () => core.hostConnectGh({ baseUrl }), {
     busyKey: hostBusyKeys.connect,
     inline: true,
   });
@@ -291,7 +283,7 @@ export async function connectWithGh(baseUrl: string | null): Promise<ConnectResu
   return finishConnect(result, "");
 }
 
-function finishConnect(result: ActionResult<HostAccountInfo>, token: string): ConnectResult {
+function finishConnect(result: ActionResult<HosterAccount>, token: string): ConnectResult {
   if (!result.ok) {
     const info = describeHostError(result.error);
     const kind = hostErrorKind(result.error);
@@ -323,8 +315,8 @@ function finishConnect(result: ActionResult<HostAccountInfo>, token: string): Co
 }
 
 /** Asks the host whether the token is still valid and shows the result. */
-export async function checkAccount(account: HostAccountInfo, options: { silent?: boolean } = {}): Promise<HostAccountInfo | null> {
-  const result = await runHostAction(t("actions.hosts.check.label"), () => hostApi.check(account.id), {
+export async function checkAccount(account: HosterAccount, options: { silent?: boolean } = {}): Promise<HosterAccount | null> {
+  const result = await runHostAction(t("actions.hosts.check.label"), () => core.hostCheck({ accountId: account.id }), {
     busyKey: hostBusyKeys.account(account.id),
     inline: true,
   });
@@ -342,7 +334,7 @@ export async function checkAccount(account: HostAccountInfo, options: { silent?:
     }
     return null;
   }
-  const next = result.value ?? cachedHostAccounts()?.find((item) => item.id === account.id) ?? null;
+  const next = result.value;
   if (next && !options.silent) {
     const state = accountState(next);
     const title = accountTitle(next);
@@ -373,7 +365,7 @@ export async function checkAccount(account: HostAccountInfo, options: { silent?:
 }
 
 /** Disconnects an account after a prompt: the token is deleted from the keychain. Nothing changes at the host. */
-export async function disconnectAccount(account: HostAccountInfo): Promise<boolean> {
+export async function disconnectAccount(account: HosterAccount): Promise<boolean> {
   const person = accountPerson(account);
   const ok = await confirm({
     title: t("actions.hosts.disconnect.title", { host: hostKindLabels[account.kind] }),
@@ -382,7 +374,7 @@ export async function disconnectAccount(account: HostAccountInfo): Promise<boole
     danger: true,
   });
   if (!ok) return false;
-  const result = await runHostAction(t("actions.hosts.disconnect.action"), () => hostApi.disconnect(account.id), {
+  const result = await runHostAction(t("actions.hosts.disconnect.action"), () => core.hostDisconnect({ accountId: account.id }), {
     busyKey: hostBusyKeys.account(account.id),
   });
   refreshHostData();

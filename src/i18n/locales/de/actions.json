@@ -276,12 +276,6 @@
     "prWord": {
       "gitlab": "Merge Request"
     },
-    "unexpectedShape": "Der Kern hat {{what}} in einer unerwarteten Form geliefert.",
-    "what": {
-      "account": "das Konto",
-      "pr": "den Pull Request",
-      "newPr": "den neuen Pull Request"
-    },
     "localTime": "{{time}} Uhr",
     "error": {
       "notConnected": {

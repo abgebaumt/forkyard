@@ -5,7 +5,21 @@
  */
 import { t } from "../../i18n";
 import type { InfiniteData } from "@tanstack/react-query";
-import { core, type Id, type PushResult, type Ref, type Remote, type Sha, type Status } from "../../core";
+import {
+  core,
+  type Id,
+  type PushResult,
+  type Ref,
+  type Remote,
+  type Sha,
+  type Status,
+  type HosterAccount,
+  type HostRepoInfo,
+  type PrMergeMethod,
+  type PrDetails,
+  type PrPage,
+  type PrSummary,
+} from "../../core";
 import { toast } from "../../ui/Feedback";
 import { confirm } from "../dialogs";
 import { qk, queryClient } from "../queries";
@@ -13,18 +27,7 @@ import { newJobId, runAction, type ActionResult } from "../run";
 import { useAppStore } from "../store";
 import { commitsBetween, loadGraphIndex } from "./ancestry";
 import { cachedRefs, clip, loadRefs, loadRemotes } from "./context";
-import {
-  hostApi,
-  hostErrorKind,
-  hostPrWord,
-  type HostAccountInfo,
-  type HostRepo,
-  type MergeMethod,
-  type PrCreateInput,
-  type PrDetails,
-  type PrPage,
-  type PrSummary,
-} from "../hosts";
+import { hostErrorKind, hostPrWord } from "../hosts";
 import { cachedHostAccounts, runHostAction } from "./hosts";
 import { busyKeys } from "./keys";
 import { fetchAll, toastPushRejected } from "./sync";
@@ -34,7 +37,7 @@ import { guardSecrets } from "./pushCheck";
 // From the cache
 // ---------------------------------------------------------------------------
 
-export const cachedHostRepo = (repoId: Id) => queryClient.getQueryData<HostRepo | null>(qk.hostRepo(repoId));
+export const cachedHostRepo = (repoId: Id) => queryClient.getQueryData<HostRepoInfo | null>(qk.hostRepo(repoId));
 
 /** The loaded open pull requests (all pages). */
 export function cachedOpenPrs(repoId: Id): PrSummary[] | undefined {
@@ -49,9 +52,9 @@ export function cachedPrForBranch(repoId: Id, branch: string): PrSummary | undef
 export type HostLink =
   /** State not loaded yet. */
   | { state: "unknown" }
-  | { state: "connected"; repo: HostRepo; account: HostAccountInfo }
+  | { state: "connected"; repo: HostRepoInfo; account: HosterAccount }
   /** The host is recognised (or not), but no account matches it. */
-  | { state: "not_connected"; repo: HostRepo | null };
+  | { state: "not_connected"; repo: HostRepoInfo | null };
 
 /** Whether the repository is linked to a connected account – for menus and commands, without asking the core. */
 export function hostLink(repoId: Id): HostLink {
@@ -182,9 +185,11 @@ export async function pushBranchForPr(repoId: Id, branch: string, jobId: string)
 // Writing
 // ---------------------------------------------------------------------------
 
+export type PrCreateInput = Parameters<typeof core.prCreate>[0];
+
 /** Creates the pull request. Errors go back to the form (without a message); on success its view opens. */
 export async function createPullRequest(input: PrCreateInput, tabId: Id): Promise<ActionResult<PrSummary>> {
-  const result = await runHostAction(t("ui.createPullRequest"), () => hostApi.prCreate(input), {
+  const result = await runHostAction(t("ui.createPullRequest"), () => core.prCreate(input), {
     busyKey: prBusyKeys.create(input.repoId),
     inline: true,
   });
@@ -203,7 +208,7 @@ export async function createPullRequest(input: PrCreateInput, tabId: Id): Promis
 }
 
 export async function commentOnPr(repoId: Id, number: number, body: string): Promise<boolean> {
-  const result = await runHostAction(t("ui.comment"), () => hostApi.prComment(repoId, number, body), {
+  const result = await runHostAction(t("ui.comment"), () => core.prComment({ repoId, number, body }), {
     busyKey: prBusyKeys.write(repoId, number),
   });
   if (result.ok) {
@@ -213,12 +218,12 @@ export async function commentOnPr(repoId: Id, number: number, body: string): Pro
   return result.ok;
 }
 
-export const mergeMethodLabels: Record<MergeMethod, string> = {
+export const mergeMethodLabels: Record<PrMergeMethod, string> = {
   merge: t("ui.mergeCommit"),
   squash: t("actions.pullrequests.method.squash"),
   rebase: t("actions.pullrequests.method.rebase"),
 };
-export const mergeMethodHints: Record<MergeMethod, string> = {
+export const mergeMethodHints: Record<PrMergeMethod, string> = {
   merge: t("actions.pullrequests.method.mergeHint"),
   squash: t("actions.pullrequests.method.squashHint"),
   rebase: t("actions.pullrequests.method.rebaseHint"),
@@ -228,11 +233,11 @@ export const mergeMethodHints: Record<MergeMethod, string> = {
  * Why the pull request cannot be merged right now – or null. The host decides in the end;
  * this only blocks what it would certainly refuse or what should not be done by accident.
  */
-export function mergeBlock(pr: Pick<PrDetails, "state" | "isDraft" | "mergeable" | "mergeBlocked" | "checks">): string | null {
+export function mergeBlock(pr: Pick<PrDetails, "state" | "isDraft" | "mergeable" | "checks">): string | null {
   if (pr.state === "merged") return t("actions.pullrequests.block.merged");
   if (pr.state === "closed") return t("actions.pullrequests.block.closed");
   if (pr.isDraft) return t("actions.pullrequests.block.draft");
-  if (pr.mergeable === false) return pr.mergeBlocked ?? t("actions.pullrequests.block.conflicts");
+  if (pr.mergeable === false) return t("actions.pullrequests.block.conflicts");
   if (pr.checks === "failing") return t("actions.pullrequests.block.checksFailing");
   if (pr.checks === "pending") return t("actions.pullrequests.block.checksPending");
   if (pr.mergeable === null) return t("actions.pullrequests.block.checking");
@@ -242,12 +247,12 @@ export function mergeBlock(pr: Pick<PrDetails, "state" | "isDraft" | "mergeable"
 export async function mergePr(
   repoId: Id,
   pr: Pick<PrSummary, "number" | "targetBranch" | "sourceBranch">,
-  method: MergeMethod,
+  method: PrMergeMethod,
   deleteBranch: boolean,
 ): Promise<boolean> {
   const result = await runHostAction(
     t("actions.pullrequests.merge.label"),
-    () => hostApi.prMerge(repoId, pr.number, method, deleteBranch),
+    () => core.prMerge({ repoId, number: pr.number, method, deleteBranch }),
     { busyKey: prBusyKeys.write(repoId, pr.number) },
   );
   refreshPullRequests(repoId, pr.number);
@@ -272,7 +277,7 @@ export async function closePr(repoId: Id, pr: Pick<PrSummary, "number" | "title"
     confirmLabel: t("actions.pullrequests.close.action"),
   });
   if (!ok) return false;
-  const result = await runHostAction(t("ui.close"), () => hostApi.prClose(repoId, pr.number), {
+  const result = await runHostAction(t("ui.close"), () => core.prClose({ repoId, number: pr.number }), {
     busyKey: prBusyKeys.write(repoId, pr.number),
     success: t("actions.pullrequests.close.done", { number: pr.number }),
   });
@@ -281,7 +286,7 @@ export async function closePr(repoId: Id, pr: Pick<PrSummary, "number" | "title"
 }
 
 export async function reopenPr(repoId: Id, pr: Pick<PrSummary, "number">): Promise<boolean> {
-  const result = await runHostAction(t("ui.reopen"), () => hostApi.prReopen(repoId, pr.number), {
+  const result = await runHostAction(t("ui.reopen"), () => core.prReopen({ repoId, number: pr.number }), {
     busyKey: prBusyKeys.write(repoId, pr.number),
     success: t("actions.pullrequests.reopen.done", { number: pr.number }),
   });
@@ -292,7 +297,7 @@ export async function reopenPr(repoId: Id, pr: Pick<PrSummary, "number">): Promi
 /** Fetches the pull request's branch and checks it out. */
 export async function checkoutPr(repoId: Id, pr: Pick<PrSummary, "number" | "sourceBranch">): Promise<boolean> {
   const jobId = newJobId();
-  const result = await runHostAction(t("ui.checkOutBranch"), () => hostApi.prCheckout(repoId, pr.number), {
+  const result = await runHostAction(t("ui.checkOutBranch"), () => core.prCheckout({ repoId, number: pr.number }), {
     busyKey: busyKeys.history(repoId),
     job: { id: jobId, title: t("actions.pullrequests.checkout.job", { number: pr.number }), repoId },
   });

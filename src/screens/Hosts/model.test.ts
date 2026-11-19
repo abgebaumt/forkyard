@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { HostAccountInfo, HostKind } from "../../app/hosts";
+import type { HosterAccount, HostKind } from "../../core";
 import { t } from "../../i18n";
 import { instanceLabels, stateText, tokenGuides } from "./model";
 
-const account = (patch: Partial<HostAccountInfo> = {}): HostAccountInfo => ({
+const account = (patch: Partial<HosterAccount> = {}): HosterAccount => ({
   id: "acc-1",
   kind: "github",
-  baseUrl: null,
+  baseUrl: "https://github.com",
   username: null,
   user: { login: "anna", name: "Anna Muster", avatarUrl: null },
   tokenHint: "abcd",

@@ -8,10 +8,10 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { Copy, ExternalLink, GitBranch, GitPullRequestArrow, GitPullRequestCreate, Plug, Plus, RefreshCw, Settings2 } from "lucide-react";
-import type { Id } from "../../core";
+import type { Id, PrSummary } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, type PrSummary } from "../../app/hosts";
+import { describeHostError, hostKindLabels } from "../../app/hosts";
 import { checkoutPr, openPr, openPrCreate, refreshPullRequests } from "../../app/actions/pullrequests";
 import { qk, queryClient, useHostRepo, usePullRequests } from "../../app/queries";
 import { useTabView } from "../../app/store";

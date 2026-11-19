@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toIssueDetails, toIssueSummary } from "./api";
+import type { IssueSummary } from "../../core";
 import { checkIssueTitle, isAssignedTo, issueBranchName, localizeTimes, matchesIssue, retryTime, slugify } from "./model";
 
 describe("branch name from an issue", () => {
@@ -36,46 +36,26 @@ describe("branch name from an issue", () => {
   });
 });
 
-describe("reading and filtering issues", () => {
-  const raw = {
+describe("filtering issues", () => {
+  const issue: IssueSummary = {
     number: 12,
+    key: "#12",
     title: "Anmeldung schlägt fehl",
     state: "open",
     author: { login: "lena", name: "Lena Hartmann", avatarUrl: null },
-    assignees: [{ login: "Jonas" }, "mira"],
-    labels: [{ name: "bug", color: "d73a4a" }, "hilfe gesucht"],
+    assignees: [
+      { login: "Jonas", name: null, avatarUrl: null },
+      { login: "mira", name: null, avatarUrl: null },
+    ],
+    labels: [
+      { name: "bug", color: "#d73a4a" },
+      { name: "hilfe gesucht", color: null },
+    ],
     updatedAt: "2026-10-01T10:00:00Z",
     webUrl: "https://git.example/o/r/issues/12",
   };
 
-  it("brings the core's answer into a fixed shape", () => {
-    const issue = toIssueSummary(raw);
-    expect(issue).toMatchObject({ number: 12, key: "#12", state: "open", labels: ["bug", "hilfe gesucht"], commentCount: null });
-    expect(issue?.assignees.map((user) => user.login)).toEqual(["Jonas", "mira"]);
-    expect(issue?.author).toEqual({ login: "lena", name: "Lena Hartmann", avatarUrl: null });
-  });
-
-  it("takes the project-level number for GitLab and only knows open/closed", () => {
-    expect(toIssueSummary({ iid: 5, title: "x", state: "closed" })).toMatchObject({ number: 5, key: "#5", state: "closed" });
-    expect(toIssueSummary({ number: "9", title: "x", state: "opened" })).toMatchObject({ number: 9, state: "open" });
-    expect(toIssueSummary({ title: "ohne Nummer" })).toBeNull();
-    expect(toIssueSummary(null)).toBeNull();
-  });
-
-  it("details: text and comments, missing fields become empty", () => {
-    const details = toIssueDetails({
-      ...raw,
-      body: "Text",
-      comments: [{ id: 1, author: "mira", body: "Bei mir auch", createdAt: "2026-10-02T08:00:00Z" }, { body: "ohne alles" }],
-    });
-    expect(details?.body).toBe("Text");
-    expect(details?.commentCount).toBe(2);
-    expect(details?.comments.map((comment) => comment.id)).toEqual(["1", "kommentar-1"]);
-    expect(toIssueDetails({ number: 1 })).toMatchObject({ body: "", comments: [], title: "" });
-  });
-
   it('"Assigned to me" compares the login case-insensitively', () => {
-    const issue = toIssueSummary(raw)!;
     expect(isAssignedTo(issue, "jonas")).toBe(true);
     expect(isAssignedTo(issue, "MIRA")).toBe(true);
     expect(isAssignedTo(issue, "lena")).toBe(false);
@@ -83,7 +63,6 @@ describe("reading and filtering issues", () => {
   });
 
   it("the filter matches title, number and labels", () => {
-    const issue = toIssueSummary(raw)!;
     expect(matchesIssue(issue, "anmeld")).toBe(true);
     expect(matchesIssue(issue, "#12")).toBe(true);
     expect(matchesIssue(issue, "12")).toBe(true);

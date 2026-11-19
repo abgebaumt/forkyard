@@ -24,9 +24,9 @@ import {
   Unplug,
   X,
 } from "lucide-react";
-import type { Id, Ref } from "../../core";
+import type { Id, Ref, HostRepoInfo } from "../../core";
 import { openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, hostPrWord, type HostErrorText, type HostRepo } from "../../app/hosts";
+import { describeHostError, hostKindLabels, hostPrWord, type HostErrorText } from "../../app/hosts";
 import {
   commitsAhead,
   createPullRequest,
@@ -267,7 +267,7 @@ export function PullRequestCreate({ repoId, tabId }: PullRequestCreateProps) {
   );
 }
 
-function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: HostRepo }) {
+function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: HostRepoInfo }) {
   const center = useTabView(tabId).center;
   const preset = center.kind === "pr_create" ? center : { source: undefined, target: undefined };
   const refs = useRefs(repoId);
@@ -507,7 +507,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
       >
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="@container mx-auto flex w-full max-w-180 flex-col gap-4 px-6 py-5">
-            {!repo.canPush && !repo.forkParent ? (
+            {repo.canPush === false && !repo.forkParent ? (
               <div className="overflow-hidden rounded-md" data-pr-note="no-push">
                 <Banner tone="warning" title={t("pullRequest.create.noPush.title")}>
                   {t("pullRequest.create.noPush.text", { word })}

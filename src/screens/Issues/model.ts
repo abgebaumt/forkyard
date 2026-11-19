@@ -3,7 +3,7 @@
  */
 import { formatRelative } from "../../app/format";
 import { locale, t } from "../../i18n";
-import type { IssueListState, IssueState, IssueSummary } from "./api";
+import type { IssueListState, IssueState, IssueSummary } from "../../core";
 
 /** Longest name part taken from the title; the number goes in front. */
 const SLUG_LIMIT = 48;
@@ -59,16 +59,15 @@ export function matchesIssue(issue: IssueSummary, query: string): boolean {
     issue.title.toLowerCase().includes(needle) ||
     issue.key.toLowerCase().includes(needle) ||
     String(issue.number) === needle.replace(/^#/, "") ||
-    issue.labels.some((label) => label.toLowerCase().includes(needle))
+    issue.labels.some((label) => label.name.toLowerCase().includes(needle))
   );
 }
 
-/** Second line of a list row: who, when, how many comments. */
+/** Second line of a list row: who, when. */
 export function issueSecondary(issue: IssueSummary): string {
   const parts: string[] = [];
   if (issue.author) parts.push(issue.author.login);
   if (issue.updatedAt) parts.push(formatRelative(issue.updatedAt));
-  if (issue.commentCount) parts.push(t("issues.comments", { count: issue.commentCount }));
   return parts.join(" · ");
 }
 

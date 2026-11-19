@@ -2,8 +2,8 @@
  * Commands for the host accounts (GitHub, GitLab): open integrations, connect an account, check accounts.
  */
 import { t } from "../../i18n";
+import { core } from "../../core";
 import { cachedHostAccounts, checkAccount, openIntegrations } from "../actions/hosts";
-import { hostApi } from "../hosts";
 import { kw, type AppCommand } from "../commandTypes";
 import { qk } from "../queries";
 import { runAction } from "../run";
@@ -37,7 +37,7 @@ export const commands: AppCommand[] = [
     when: () => (cachedHostAccounts()?.length ?? 1) > 0,
     disabledReason: () => t("ui.noAccountConnected"),
     run: async (ctx) => {
-      const loaded = await runAction(t("commands.hosts.check.loadAction"), () => hostApi.accounts());
+      const loaded = await runAction(t("commands.hosts.check.loadAction"), () => core.hostAccounts());
       if (!loaded.ok) return;
       ctx.queryClient.setQueryData(qk.hostAccounts, loaded.value);
       if (loaded.value.length === 0) {

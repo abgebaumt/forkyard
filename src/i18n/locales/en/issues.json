@@ -7,7 +7,6 @@
     "label": "Create branch for this issue …",
     "button": "Create branch …"
   },
-  "unexpected": "The core returned the issue in an unexpected form.",
   "state": {
     "open": "Open"
   },
@@ -32,9 +31,7 @@
     "descriptionOrigin": "in the issue description",
     "commentsCount": "Comments ({{count}})",
     "commentOrigin": "in an issue comment",
-    "emptyComment": "Empty comment.",
-    "moreComments_one": "{{count}} more comment is on the host – “Open in browser” shows all.",
-    "moreComments_other": "{{count}} more comments are on the host – “Open in browser” shows all."
+    "emptyComment": "Empty comment."
   },
   "problem": {
     "notFound": "There are no issues to see here",

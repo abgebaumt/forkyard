@@ -5,15 +5,14 @@
 import { t } from "../../i18n";
 import type { InfiniteData } from "@tanstack/react-query";
 import { openInBrowser } from "../actions/hosts";
-import type { HostRepo } from "../hosts";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { qk } from "../queries";
 import { createIssueBranch, issuesWebUrl, openIssues, refreshIssues } from "../../screens/Issues/actions";
-import type { IssueDetails, IssuePage, IssueSummary } from "../../screens/Issues/api";
+import type { IssueDetails, IssuePage, IssueSummary, HostRepoInfo } from "../../core";
 
 const hasRepo = (ctx: CommandContext) => Boolean(ctx.repoId && ctx.tabId);
 const hostRepo = (ctx: CommandContext) =>
-  ctx.repoId ? (ctx.queryClient.getQueryData<HostRepo | null>(qk.hostRepo(ctx.repoId)) ?? null) : null;
+  ctx.repoId ? (ctx.queryClient.getQueryData<HostRepoInfo | null>(qk.hostRepo(ctx.repoId)) ?? null) : null;
 /** As long as the host is not determined, "maybe" applies; the view then explains what is missing. */
 const mayHaveIssues = (ctx: CommandContext) => hasRepo(ctx) && ctx.queryClient.getQueryData(qk.hostRepo(ctx.repoId!)) !== null;
 const noHostReason = (ctx: CommandContext) => (hasRepo(ctx) ? t("commands.issues.noHost") : null);
