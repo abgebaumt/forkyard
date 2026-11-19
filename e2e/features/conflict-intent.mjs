@@ -52,6 +52,7 @@ function answerFor(user) {
         ours: `Main zu Konflikt ${index + 1}.`,
         theirs: `Feature zu Konflikt ${index + 1}.`,
         text: `${lines.join("\n")}\n`,
+        reason: null,
       })),
     };
   }
@@ -62,6 +63,7 @@ function answerFor(user) {
         ours: "Main misst öfter: alle 5 statt 10 Minuten.",
         theirs: "Der Branch misst nachts seltener, alle 30 Minuten.",
         text: `${REBASE_PROPOSAL}\n`,
+        reason: "Beide Messintervalle bleiben erhalten.",
       },
     ],
   };

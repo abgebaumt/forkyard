@@ -102,13 +102,14 @@ mod conflict_intent_json_tests {
         let intent = ConflictIntent {
             path: "a.txt".into(),
             blocks: vec![
-                ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None },
+                ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None, reason: None },
                 ConflictIntentBlock {
                     block: 1,
                     sent: IntentSent::Full,
                     ours_why: Some("x".into()),
                     theirs_why: Some("y".into()),
                     text: Some("z\n".into()),
+                    reason: Some("w".into()),
                 },
             ],
         };
@@ -117,8 +118,8 @@ mod conflict_intent_json_tests {
             json!({
                 "path": "a.txt",
                 "blocks": [
-                    { "block": 0, "sent": "left_out", "oursWhy": null, "theirsWhy": null, "text": null },
-                    { "block": 1, "sent": "full", "oursWhy": "x", "theirsWhy": "y", "text": "z\n" }
+                    { "block": 0, "sent": "left_out", "oursWhy": null, "theirsWhy": null, "text": null, "reason": null },
+                    { "block": 1, "sent": "full", "oursWhy": "x", "theirsWhy": "y", "text": "z\n", "reason": "w" }
                 ]
             })
         );

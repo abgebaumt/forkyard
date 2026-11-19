@@ -51,11 +51,13 @@ const HEAD_LINES: usize = 20;
 const TAIL_LINES: usize = 10;
 /// Longest explanation of one side kept.
 const MAX_WHY: usize = 2_000;
+/// Characters of the one-line reason why a proposal fits.
+const MAX_REASON: usize = 200;
 /// What a line touched by a multi-line redaction becomes.
 const MASK_LINE: &str = "***";
 
 /// What the AI is asked (the part of the system text that `ai::prompt::build` frames).
-pub const INSTRUCTION: &str = "Explain a conflict between two versions of a file. For every section \"Conflict block n\" give one entry: \"block\" is n, \"ours\" says in one or two sentences what the current side wanted with its change, \"theirs\" the same for the incoming side - judged from the block texts, the commit messages and the pull request texts. \"text\" holds the lines that should replace the block so that the intent of both sides is kept: only the block's own lines, not the lines before or after it, without conflict markers, line numbers or remarks. For a block marked \"explain only\" give the explanations; its \"text\" is not used. Answer every block section exactly once.";
+pub const INSTRUCTION: &str = "Explain a conflict between two versions of a file. For every section \"Conflict block n\" give one entry: \"block\" is n, \"ours\" says in one or two sentences what the current side wanted with its change, \"theirs\" the same for the incoming side - judged from the block texts, the commit messages and the pull request texts. \"text\" holds the lines that should replace the block so that the intent of both sides is kept: only the block's own lines, not the lines before or after it, without conflict markers, line numbers or remarks. For a block marked \"explain only\" give the explanations; its \"text\" is not used. Answer every block section exactly once. \"reason\" says in one short sentence why \"text\" keeps the intent of both sides, or null.";
 
 /// Lines without line endings, exactly as the conflict tool splits a version (`splitText` in
 /// `src/screens/ConflictTool/model.ts`): CRLF counts as LF, a final line break starts no new line.
@@ -536,9 +538,10 @@ pub fn schema() -> Value {
                         "block": { "type": "integer" },
                         "ours": { "type": "string" },
                         "theirs": { "type": "string" },
-                        "text": { "type": "string" }
+                        "text": { "type": "string" },
+                        "reason": { "type": ["string", "null"] }
                     },
-                    "required": ["block", "ours", "theirs", "text"],
+                    "required": ["block", "ours", "theirs", "text", "reason"],
                     "additionalProperties": false
                 }
             }
@@ -552,7 +555,7 @@ pub fn schema() -> Value {
 /// block; proposals only for `full` blocks, with `\n` line endings and without conflict markers.
 pub fn accept(plan: &IntentPlan, answer: &Value) -> CoreResult<ConflictIntent> {
     let field = |item: &Value, key: &str| item.get(key).and_then(Value::as_str).unwrap_or_default().to_string();
-    let mut answered: Vec<Option<(String, String, String)>> = vec![None; plan.sent.len()];
+    let mut answered: Vec<Option<(String, String, String, String)>> = vec![None; plan.sent.len()];
     for item in answer.get("blocks").and_then(Value::as_array).into_iter().flatten() {
         let number = item.get("block").and_then(Value::as_u64).unwrap_or(0);
         let index = usize::try_from(number)
@@ -565,20 +568,22 @@ pub fn accept(plan: &IntentPlan, answer: &Value) -> CoreResult<ConflictIntent> {
         if answered[index].is_some() {
             return Err(CoreError::ai_invalid_answer(format!("block {number} is answered twice")));
         }
-        answered[index] = Some((field(item, "ours"), field(item, "theirs"), field(item, "text")));
+        answered[index] = Some((field(item, "ours"), field(item, "theirs"), field(item, "text"), field(item, "reason")));
     }
     let mut blocks = Vec::with_capacity(plan.sent.len());
     for (index, sent) in plan.sent.iter().copied().enumerate() {
         let block = index as u32;
         if sent == IntentSent::LeftOut {
-            blocks.push(ConflictIntentBlock { block, sent, ours_why: None, theirs_why: None, text: None });
+            blocks.push(ConflictIntentBlock { block, sent, ours_why: None, theirs_why: None, text: None, reason: None });
             continue;
         }
-        let Some((ours, theirs, text)) = answered[index].take() else {
+        let Some((ours, theirs, text, reason)) = answered[index].take() else {
             return Err(CoreError::ai_invalid_answer(format!("block {} is missing", index + 1)));
         };
-        let text = if sent == IntentSent::Full { Some(proposal(&text, index, &plan.known_markers)?) } else { None };
-        blocks.push(ConflictIntentBlock { block, sent, ours_why: Some(why(&ours)), theirs_why: Some(why(&theirs)), text });
+        let full = sent == IntentSent::Full;
+        let text = if full { Some(proposal(&text, index, &plan.known_markers)?) } else { None };
+        let reason = Some(reason.trim()).filter(|reason| full && !reason.is_empty()).map(|reason| util::shorten(reason, MAX_REASON));
+        blocks.push(ConflictIntentBlock { block, sent, ours_why: Some(why(&ours)), theirs_why: Some(why(&theirs)), text, reason });
     }
     Ok(ConflictIntent { path: plan.path.clone(), blocks })
 }
@@ -1275,8 +1280,7 @@ mod tests {
         let id = tc.open(&repo).await.repo.id;
         let plan = build(&tc, &id, PLAN, &[plan_range()], &Settings::default(), 32_000, "en", &[]).await.unwrap();
         let answer = |blocks: Value| json!({ "blocks": blocks });
-        let one =
-            |block: u64, text: &str| json!({ "block": block, "ours": "  Öfter messen.  ", "theirs": "Nachts seltener.", "text": text });
+        let one = |block: u64, text: &str| json!({ "block": block, "ours": "  Öfter messen.  ", "theirs": "Nachts seltener.", "text": text, "reason": null });
 
         let intent = accept(&plan, &answer(json!([one(1, "- Temperatur: alle 5 Minuten, nachts alle 30\r\n")]))).unwrap();
         assert_eq!(
@@ -1289,6 +1293,7 @@ mod tests {
                     ours_why: Some("Öfter messen.".into()),
                     theirs_why: Some("Nachts seltener.".into()),
                     text: Some("- Temperatur: alle 5 Minuten, nachts alle 30\n".into()),
+                    reason: None,
                 }],
             }
         );
@@ -1318,29 +1323,65 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_reason_is_nullable_but_required_in_the_schema() {
+        use crate::ai::schema::validate;
+        let item = |reason: Value| json!({ "blocks": [{ "block": 1, "ours": "a", "theirs": "b", "text": "x\n", "reason": reason }] });
+        assert_eq!(validate(&schema(), &item(json!("Beide Absichten bleiben erhalten."))), Ok(()));
+        assert_eq!(validate(&schema(), &item(Value::Null)), Ok(()));
+        let missing = json!({ "blocks": [{ "block": 1, "ours": "a", "theirs": "b", "text": "x\n" }] });
+        assert!(validate(&schema(), &missing).unwrap_err().contains("field “reason” is missing"));
+    }
+
+    #[tokio::test]
+    async fn a_reason_is_optional_trimmed_and_cut_to_200_characters() {
+        let tc = TestCore::new().await;
+        let repo = rebase_conflict();
+        let id = tc.open(&repo).await.repo.id;
+        let plan = build(&tc, &id, PLAN, &[plan_range()], &Settings::default(), 32_000, "en", &[]).await.unwrap();
+        let with = |reason: Value| json!({ "blocks": [{ "block": 1, "ours": "o", "theirs": "t", "text": "x\n", "reason": reason }] });
+        assert_eq!(
+            accept(&plan, &with(json!("  Beide Messintervalle bleiben.  "))).unwrap().blocks[0].reason.as_deref(),
+            Some("Beide Messintervalle bleiben.")
+        );
+        assert_eq!(accept(&plan, &with(Value::Null)).unwrap().blocks[0].reason, None);
+        assert_eq!(accept(&plan, &with(json!("   "))).unwrap().blocks[0].reason, None);
+        let long = accept(&plan, &with(json!("ä".repeat(250)))).unwrap().blocks[0].reason.clone().unwrap();
+        assert_eq!(long.chars().count(), 200);
+        assert!(long.ends_with('…'));
+        let no_key = json!({ "blocks": [{ "block": 1, "ours": "o", "theirs": "t", "text": "x\n" }] });
+        assert_eq!(accept(&plan, &no_key).unwrap().blocks[0].reason, None, "accept tolerates a missing key");
+    }
+
     #[tokio::test]
     async fn explain_only_blocks_never_carry_a_proposal() {
         let tc = TestCore::new().await;
         let repo = big_merge_conflict();
         let id = tc.open(&repo).await.repo.id;
         let both = json!({ "blocks": [
-            { "block": 1, "ours": "geprüft", "theirs": "korrigiert", "text": "Messpunkt 00000;beides\n" },
-            { "block": 2, "ours": "Token", "theirs": "klein", "text": "api_token = \"***\"\n" }
+            { "block": 1, "ours": "geprüft", "theirs": "korrigiert", "text": "Messpunkt 00000;beides\n", "reason": "Beides bleibt." },
+            { "block": 2, "ours": "Token", "theirs": "klein", "text": "api_token = \"***\"\n", "reason": "Der Schlüssel bleibt geheim." }
         ]});
         let medium = build(&tc, &id, BIG, &big_ranges(), &Settings::default(), 2_000, "en", &[]).await.unwrap();
         let intent = accept(&medium, &both).unwrap();
         assert_eq!(
-            intent.blocks.iter().map(|block| (block.sent, block.text.clone(), block.ours_why.is_some())).collect::<Vec<_>>(),
-            vec![(IntentSent::Shortened, None, true), (IntentSent::Redacted, None, true)],
+            intent
+                .blocks
+                .iter()
+                .map(|block| (block.sent, block.text.clone(), block.ours_why.is_some(), block.reason.clone()))
+                .collect::<Vec<_>>(),
+            vec![(IntentSent::Shortened, None, true, None), (IntentSent::Redacted, None, true, None)],
             "shortened and masked blocks are explained, never proposed"
         );
 
         let tight = build(&tc, &id, BIG, &big_ranges(), &Settings::default(), 300, "en", &[]).await.unwrap();
         assert!(accept(&tight, &both).unwrap_err().message.contains("block 1 was not asked for"), "a left-out block cannot be answered");
-        let intent = accept(&tight, &json!({ "blocks": [{ "block": 2, "ours": "Token", "theirs": "klein", "text": "x\n" }] })).unwrap();
+        let intent =
+            accept(&tight, &json!({ "blocks": [{ "block": 2, "ours": "Token", "theirs": "klein", "text": "x\n", "reason": null }] }))
+                .unwrap();
         assert_eq!(
             intent.blocks[0],
-            ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None }
+            ConflictIntentBlock { block: 0, sent: IntentSent::LeftOut, ours_why: None, theirs_why: None, text: None, reason: None }
         );
         assert_eq!(intent.blocks[1].text, None);
     }
@@ -1379,7 +1420,7 @@ mod tests {
     #[tokio::test]
     async fn explaining_sends_exactly_the_previewed_text() {
         let server = ollama(
-            json!({"blocks": [{"block": 1, "ours": "Main misst öfter.", "theirs": "Nachts seltener messen.", "text": "- Temperatur: alle 5 Minuten, nachts alle 30"}]}),
+            json!({"blocks": [{"block": 1, "ours": "Main misst öfter.", "theirs": "Nachts seltener messen.", "text": "- Temperatur: alle 5 Minuten, nachts alle 30", "reason": "Beide Messintervalle bleiben."}]}),
         );
         let tc = with_ollama(&server).await;
         let repo = rebase_conflict();
@@ -1403,6 +1444,7 @@ mod tests {
                     ours_why: Some("Main misst öfter.".into()),
                     theirs_why: Some("Nachts seltener messen.".into()),
                     text: Some("- Temperatur: alle 5 Minuten, nachts alle 30\n".into()),
+                    reason: Some("Beide Messintervalle bleiben.".into()),
                 }],
             }
         );

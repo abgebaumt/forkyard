@@ -4,7 +4,8 @@
  * the core asks for it), then the request as a cancellable job. Per conflict a card with what each
  * side wanted and – where the block went out completely – the proposal as a small diff against the
  * block's current text, with “Apply” / “Discard”. “Apply” replaces only this block in the result (it
- * then counts as edited by hand); saving stays the user's Mod+S. An answer that arrives never moves
+ * then counts as edited by hand); “Apply all” takes every undecided proposal in one undo step and
+ * skips blocks edited by hand. Saving stays the user's Mod+S. An answer that arrives never moves
  * the focus; when another conflict becomes current (Alt+↑/↓, F7) its card scrolls into view.
  */
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -16,7 +17,17 @@ import { useAiJob } from "../../app/ai/useAiJob";
 import { locale, t } from "../../i18n";
 import { Button } from "../../ui/Button";
 import { cn } from "../../ui/cn";
-import { blockNote, canApply, hasChange, suggestionDiff, type DiffRow, type IntentDecision, type IntentResult } from "./intent";
+import {
+  blockNote,
+  canApply,
+  hasChange,
+  openProposals,
+  planApplyAll,
+  suggestionDiff,
+  type DiffRow,
+  type IntentDecision,
+  type IntentResult,
+} from "./intent";
 import type { SideTitles } from "./titles";
 
 export interface IntentColumnProps {
@@ -37,7 +48,10 @@ export interface IntentColumnProps {
   openSetup: boolean;
   /** Hidden by the toolbar switch; stays mounted so an answer survives. */
   hidden: boolean;
-  onApply: (conflict: number, text: string) => void;
+  /** Replaces these conflict blocks in the result, all in one undo step. */
+  onApply: (changes: { conflict: number; text: string }[]) => void;
+  /** The block was edited by hand in the result (“Apply all” leaves it alone). */
+  isManual: (conflict: number) => boolean;
   onHide: () => void;
   style?: CSSProperties;
 }
@@ -56,11 +70,15 @@ export function IntentColumn({
   openSetup,
   hidden,
   onApply,
+  isManual,
   onHide,
   style,
 }: IntentColumnProps) {
   const job = useAiJob(local, t("ui.explaining"));
   const [result, setResult] = useState<IntentResult | null>(null);
+  /** What the last “Apply all” did; stays until the next decision. */
+  const [applyAllNote, setApplyAllNote] = useState<string | null>(null);
+  const applyAllStatus = useRef<HTMLParagraphElement>(null);
   const cards = useRef(new Map<number, HTMLElement>());
   const kind = job.running ? "loading" : job.run.kind === "failed" ? "error" : result ? "ready" : "idle";
 
@@ -79,6 +97,7 @@ export function IntentColumn({
     const intent = await job.start(
       (jobId) => {
         setResult(null);
+        setApplyAllNote(null);
         return core.aiConflictIntent({ repoId, jobId, path, blocks: ranges, locale: locale() });
       },
       () => askAi(repoId, "conflict_intent", input),
@@ -91,10 +110,30 @@ export function IntentColumn({
   const whatIsSent = () => showWhatIsSent(repoId, "conflict_intent", input);
 
   const decide = (block: ConflictIntentBlock, decision: IntentDecision) => {
-    if (decision === "taken" && block.text !== null) onApply(block.block, block.text);
+    if (decision === "taken" && block.text !== null) onApply([{ conflict: block.block, text: block.text }]);
     setResult((r) => r && { ...r, decisions: { ...r.decisions, [block.block]: decision } });
+    setApplyAllNote(null);
     cards.current.get(block.block)?.focus();
   };
+
+  const applyAll = (current: IntentResult) => {
+    const plan = planApplyAll(current, isManual);
+    if (plan.apply.length > 0) onApply(plan.apply);
+    const taken = Object.fromEntries(plan.apply.map(({ conflict }) => [conflict, "taken" as const]));
+    setResult((r) => r && { ...r, decisions: { ...r.decisions, ...taken } });
+    setApplyAllNote(
+      plan.skipped.length > 0
+        ? t("conflict.intent.applyAllSkipped", { applied: plan.apply.length, skipped: plan.skipped.length })
+        : t("conflict.intent.applyAllDone", { count: plan.apply.length }),
+    );
+  };
+
+  // Focus stays on “Apply all”; only when the button goes away (fewer than two proposals left) does it
+  // move to the result line next to it instead of falling back to the page.
+  const buttonGone = result !== null && openProposals(result) < 2;
+  useEffect(() => {
+    if (applyAllNote !== null && buttonGone && document.activeElement === document.body) applyAllStatus.current?.focus();
+  }, [applyAllNote, buttonGone]);
 
   let content: ReactNode;
   let announcement = "";
@@ -135,15 +174,32 @@ export function IntentColumn({
     );
   } else {
     announcement = t("conflict.intent.ready", { count: result.intent.blocks.length });
+    const open = openProposals(result);
     content = (
       <>
-        <div className="flex items-center gap-2 border-b border-border px-3 py-1.5">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-1.5">
           <p className="m-0 min-w-0 flex-1 text-sm text-text-muted" data-intent-status="ready">
             {announcement}
           </p>
+          {open >= 2 ? (
+            <Button size="sm" data-intent-apply-all="" onClick={() => applyAll(result)}>
+              {t("conflict.intent.applyAll", { count: open })}
+            </Button>
+          ) : null}
           <Button size="sm" variant="ghost" data-intent-again="" onClick={() => void explain()}>
             {t("conflict.intent.again")}
           </Button>
+          {applyAllNote !== null ? (
+            <p
+              ref={applyAllStatus}
+              tabIndex={-1}
+              role="status"
+              data-intent-apply-all-result=""
+              className="m-0 basis-full text-sm text-text outline-none"
+            >
+              {applyAllNote}
+            </p>
+          ) : null}
         </div>
         {result.intent.blocks.map((block) => (
           <IntentCard
@@ -286,6 +342,11 @@ function IntentCard({ block, decision, isCurrent, currentText, titles, register,
                 ))}
               </pre>
               {changed ? null : <p className="m-0 mt-1 text-sm text-text-muted">{t("conflict.intent.same")}</p>}
+              {block.reason !== null ? (
+                <p className="m-0 mt-1 text-sm text-text" data-intent-reason="">
+                  <span className="text-text-muted">{t("conflict.intent.reason")}</span> {block.reason}
+                </p>
+              ) : null}
               <div className="mt-2 flex flex-wrap gap-1">
                 {changed ? (
                   <Button size="sm" variant="primary" data-intent-apply="" onClick={() => onDecide("taken")}>

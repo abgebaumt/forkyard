@@ -220,6 +220,11 @@
     "discarded": "Discarded – the result is unchanged.",
     "shortened": "Explained only – the block is too large to propose a text for it.",
     "redacted": "Explained only – the block contains values that were masked before sending.",
-    "leftOut": "Not explained – left out to stay within the size limit."
+    "leftOut": "Not explained – left out to stay within the size limit.",
+    "applyAll": "Apply all ({{count}})",
+    "applyAllDone_one": "{{count}} applied",
+    "applyAllDone_other": "{{count}} applied",
+    "applyAllSkipped": "{{applied}} applied, {{skipped}} skipped: edited by hand",
+    "reason": "Why this fits:"
   }
 }

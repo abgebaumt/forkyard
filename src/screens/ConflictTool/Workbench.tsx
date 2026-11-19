@@ -549,12 +549,15 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
     const id = model.conflicts[conflict];
     return id === undefined ? "" : (manual[id] ?? expected.current[id] ?? "");
   };
-  const applyProposal = useCallback(
-    (conflict: number, text: string) => {
-      const id = model.conflicts[conflict];
-      if (id === undefined) return;
-      // Into the editor's history: Mod+Z in the result takes “Apply” back like typing.
-      editor.current?.replaceChunks([{ chunk: id, text }], { history: true });
+  const applyProposals = useCallback(
+    (changes: { conflict: number; text: string }[]) => {
+      const edits = changes.flatMap(({ conflict, text }) => {
+        const id = model.conflicts[conflict];
+        return id === undefined ? [] : [{ chunk: id, text }];
+      });
+      if (edits.length === 0) return;
+      // One transaction in the editor's history: Mod+Z in the result takes “Apply (all)” back in one step.
+      editor.current?.replaceChunks(edits, { history: true });
       recompute();
     },
     [model, recompute],
@@ -901,7 +904,8 @@ export const Workbench = forwardRef<WorkbenchHandle, WorkbenchProps>(function Wo
             provider={aiStatus?.provider ?? null}
             openSetup={aiVisibility(aiStatus).elementsOpenSetup}
             hidden={!intentOpen}
-            onApply={applyProposal}
+            onApply={applyProposals}
+            isManual={(conflict) => manual[model.conflicts[conflict] ?? -1] != null}
             onHide={() => setIntentOpen(false)}
             style={{ flex: `0 0 ${intentWidth * 100}%` }}
           />

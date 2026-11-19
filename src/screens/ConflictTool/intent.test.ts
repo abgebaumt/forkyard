@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { ConflictIntentBlock } from "../../core";
-import { blockNote, canApply, clampIntentWidth, conflictRanges, hasChange, suggestionDiff } from "./intent";
+import {
+  blockNote,
+  canApply,
+  clampIntentWidth,
+  conflictRanges,
+  hasChange,
+  type IntentResult,
+  openProposals,
+  planApplyAll,
+  suggestionDiff,
+} from "./intent";
 import { buildModel, chunkText, emptyChoice, isResolved, manualOf, shiftBounds } from "./model";
 
 const labels = { ours: "main", theirs: "feature" };
@@ -96,6 +106,7 @@ describe("blocks that may be applied", () => {
     oursWhy: "a",
     theirsWhy: "b",
     text: "x\n",
+    reason: null,
     ...patch,
   });
 
@@ -109,6 +120,36 @@ describe("blocks that may be applied", () => {
       "redacted",
       "leftOut",
     ]);
+  });
+});
+
+describe("apply all", () => {
+  const full = (n: number): ConflictIntentBlock => ({
+    block: n,
+    sent: "full",
+    oursWhy: "…",
+    theirsWhy: "…",
+    text: `Vorschlag ${n}\n`,
+    reason: null,
+  });
+  const shortened = (n: number): ConflictIntentBlock => ({ ...full(n), sent: "shortened", text: null });
+  // 0 full open · 1 full taken · 2 full discarded · 3 shortened (no text) · 4 full open, edited by hand · 5 full open
+  const result: IntentResult = {
+    intent: { path: "src/station.py", blocks: [full(0), full(1), full(2), shortened(3), full(4), full(5)] },
+    decisions: { 1: "taken", 2: "discarded" },
+  };
+  it("counts undecided proposals, hand-edited ones included", () => {
+    expect(openProposals(result)).toBe(3);
+    expect(openProposals({ ...result, decisions: { ...result.decisions, 0: "taken", 4: "discarded", 5: "taken" } })).toBe(0);
+  });
+  it("applies every undecided proposal and skips blocks edited by hand", () => {
+    expect(planApplyAll(result, (conflict) => conflict === 4)).toEqual({
+      apply: [
+        { conflict: 0, text: "Vorschlag 0\n" },
+        { conflict: 5, text: "Vorschlag 5\n" },
+      ],
+      skipped: [4],
+    });
   });
 });
 
