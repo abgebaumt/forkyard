@@ -11,6 +11,7 @@ import { cn } from "../../ui/cn";
 import { Avatar } from "../../ui/Git";
 import { Tip } from "../../ui/Tooltip";
 import { locale, t } from "../../i18n";
+import { writeClipboard } from "../../app/actions/clipboard";
 
 // ---------------------------------------------------------------------------
 // Skelett
@@ -96,38 +97,6 @@ export function errorParts(error: unknown): { code: string; text: string; hint: 
   return { code: core.code, text, hint };
 }
 
-// ---------------------------------------------------------------------------
-// Kopieren
-// ---------------------------------------------------------------------------
-
-/** Writes to the clipboard; falls back to a hidden text field if the page has no focus. */
-export async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // continue with the fallback
-  }
-  try {
-    const field = document.createElement("textarea");
-    field.value = text;
-    field.setAttribute("readonly", "");
-    field.style.position = "fixed";
-    field.style.opacity = "0";
-    document.body.appendChild(field);
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    field.select();
-    const ok = document.execCommand("copy");
-    field.remove();
-    previous?.focus();
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
 /** Copy button with feedback: checkmark and announcement for two seconds. */
 export function CopyButton({
   text,
@@ -155,7 +124,7 @@ export function CopyButton({
         data-copied={state === "copied" ? "true" : undefined}
         icon={state === "copied" ? <Check className="size-3.5 text-success" aria-hidden /> : <Copy className="size-3.5" aria-hidden />}
         onClick={() => {
-          void copyText(text).then((ok) => {
+          void writeClipboard(text).then((ok) => {
             setState(ok ? "copied" : "failed");
             if (timer.current !== null) window.clearTimeout(timer.current);
             timer.current = window.setTimeout(() => setState("idle"), 2000);

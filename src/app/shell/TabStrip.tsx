@@ -13,6 +13,7 @@ import { readStatus } from "../statusOrder";
 import { ProfileChip } from "./ProfileChip";
 import { onTabRenameRequest, setTabAlias } from "./tabAlias";
 import { t } from "../../i18n";
+import { writeClipboard } from "../actions/clipboard";
 
 /** Tab strip from the core's tab list: activate, close, drag, context menu, dot for changes. */
 export function TabStrip({ tabs }: { tabs: Tab[] }) {
@@ -112,10 +113,12 @@ export function TabStrip({ tabs }: { tabs: Tab[] }) {
           disabled: !tab.path,
           onSelect: () => {
             if (!tab.path) return;
-            void navigator.clipboard
-              ?.writeText(tab.path)
-              .then(() => toast({ tone: "success", title: t("shell.tabMenu.pathCopied"), description: tab.path ?? undefined }))
-              .catch(() => toast({ tone: "warning", title: t("shell.tabMenu.clipboardUnavailable") }));
+            const path = tab.path;
+            void writeClipboard(path).then((ok) =>
+              ok
+                ? toast({ tone: "success", title: t("shell.tabMenu.pathCopied"), description: path })
+                : toast({ tone: "warning", title: t("shell.tabMenu.clipboardUnavailable") }),
+            );
           },
         },
       );

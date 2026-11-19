@@ -54,6 +54,7 @@ import {
   type WordDiffCache,
 } from "./model";
 import { t } from "../../i18n";
+import { writeClipboard } from "../../app/actions/clipboard";
 
 export type PatchTarget = { kind: "selection" } | { kind: "hunk"; hunkOrd: number };
 
@@ -687,9 +688,10 @@ export const LineView = forwardRef<LineViewHandle, LineViewProps>(function LineV
   // --- Context menu ----------------------------------------------------------
 
   const copy = (text: string) => {
-    navigator.clipboard.writeText(text).then(
-      () => toast({ tone: "success", title: t("diff.copy.done") }),
-      () => toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
+    void writeClipboard(text).then((ok) =>
+      ok
+        ? toast({ tone: "success", title: t("diff.copy.done") })
+        : toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
     );
   };
 

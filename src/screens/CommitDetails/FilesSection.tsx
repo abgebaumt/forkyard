@@ -15,7 +15,8 @@ import { cn } from "../../ui/cn";
 import { EmptyState, toast } from "../../ui/Feedback";
 import { SegmentedControl } from "../../ui/Field";
 import type { MenuEntry } from "../../ui/Menu";
-import { copyText, errorParts, LineCounts, PanelError, SectionLabel, SkeletonRows } from "./parts";
+import { errorParts, LineCounts, PanelError, SectionLabel, SkeletonRows } from "./parts";
+import { writeClipboard } from "../../app/actions/clipboard";
 import { VirtualList } from "./VirtualList";
 import { locale, t } from "../../i18n";
 
@@ -222,7 +223,7 @@ export function ChangedFiles({ repoId, tabId, source, files, view, emptyText, li
         label: single ? t("commitDetails.files.copyPath") : t("commitDetails.files.copyPaths", { count: targets.length }),
         icon: <ClipboardCopy className="size-icon" aria-hidden />,
         onSelect: () => {
-          void copyText(targets.map((file) => file.path).join("\n")).then((ok) => {
+          void writeClipboard(targets.map((file) => file.path).join("\n")).then((ok) => {
             toast(
               ok
                 ? { tone: "success", title: single ? t("commitDetails.files.pathCopied") : t("commitDetails.files.pathsCopied") }

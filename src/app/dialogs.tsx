@@ -11,6 +11,7 @@ import { ConfirmDialog, Dialog } from "../ui/Dialog";
 import { TextField } from "../ui/Field";
 import { cn } from "../ui/cn";
 import { locale, t } from "../i18n";
+import { writeClipboard } from "./actions/clipboard";
 
 export interface ConfirmOptions {
   /** As a question naming the concrete subject, e.g. "Delete branch 'feature/x'?" */
@@ -251,7 +252,7 @@ export function DialogHost() {
             <>
               <Button
                 onClick={() => {
-                  void navigator.clipboard?.writeText(current.options.text).catch(() => undefined);
+                  void writeClipboard(current.options.text);
                 }}
               >
                 {t("app.dialogs.copy")}

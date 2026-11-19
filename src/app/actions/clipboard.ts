@@ -25,11 +25,8 @@ function legacyCopy(text: string): boolean {
   return ok;
 }
 
-/**
- * Copies text to the clipboard and briefly confirms it. `what` names what was copied
- * ("SHA", "branch name"), for the message.
- */
-export async function copyText(text: string, what: string): Promise<boolean> {
+/** Writes text to the clipboard without feedback; the only place that does. False if both ways failed. */
+export async function writeClipboard(text: string): Promise<boolean> {
   let ok = false;
   try {
     await navigator.clipboard.writeText(text);
@@ -37,8 +34,17 @@ export async function copyText(text: string, what: string): Promise<boolean> {
   } catch {
     ok = legacyCopy(text);
   }
+  if (ok) lastCopied = text;
+  return ok;
+}
+
+/**
+ * Copies text to the clipboard and briefly confirms it. `what` names what was copied
+ * ("SHA", "branch name"), for the message.
+ */
+export async function copyText(text: string, what: string): Promise<boolean> {
+  const ok = await writeClipboard(text);
   if (ok) {
-    lastCopied = text;
     toast({
       tone: "success",
       title: t("actions.clipboard.copied", { what }),

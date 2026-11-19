@@ -18,6 +18,7 @@ import { ContextMenu } from "../../ui/Menu";
 import { Tip } from "../../ui/Tooltip";
 import { cn } from "../../ui/cn";
 import { locale, t } from "../../i18n";
+import { writeClipboard } from "../../app/actions/clipboard";
 
 /** Height of a collapsed row in pixels – must match the row's `h-7` class. */
 const ROW_HEIGHT = 28;
@@ -53,12 +54,8 @@ const failed = (entry: ActivityEntry) => entry.exitCode !== null && entry.exitCo
 
 /** `done`: message after copying, e.g. “Command copied”. */
 async function copy(text: string, done: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast({ tone: "success", title: done });
-  } catch {
-    toast({ tone: "danger", title: t("activity.copy.failed"), description: t("activity.copy.failedText") });
-  }
+  if (await writeClipboard(text)) toast({ tone: "success", title: done });
+  else toast({ tone: "danger", title: t("activity.copy.failed"), description: t("activity.copy.failedText") });
 }
 
 function ExitBadge({ code }: { code: number | null }) {

@@ -51,6 +51,7 @@ import "./blame.css";
 import { blameLineMenu } from "./lineMenu";
 import { AGE_STEPS, ageColor, blameGutter, buildModel, initials, type BlameBlock, type BlameColorMode } from "./model";
 import { locale, t } from "../../i18n";
+import { writeClipboard } from "../../app/actions/clipboard";
 
 export interface BlameViewProps {
   repoId: Id;
@@ -215,9 +216,10 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
     [blockAtLine, path, sha, store, tabId],
   );
   const copyLine = useCallback((text: string) => {
-    navigator.clipboard.writeText(text).then(
-      () => toast({ tone: "success", title: t("diff.copy.done") }),
-      () => toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
+    void writeClipboard(text).then((ok) =>
+      ok
+        ? toast({ tone: "success", title: t("diff.copy.done") })
+        : toast({ tone: "danger", title: t("diff.copy.failed"), description: t("diff.copy.failedBody") }),
     );
   }, []);
   const menuFor = useCallback(
