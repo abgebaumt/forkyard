@@ -120,15 +120,27 @@ export async function enterGraphEdit(
     if (!(await confirmLeaveCenter(tabId))) return false;
     useAppStore.getState().closeCenter(tabId);
     // The statistics only close through their own button.
-    if (getTabView(tabId).center.kind !== "graph") return false;
+    if (getTabView(tabId).center.kind !== "graph") {
+      toast({ tone: "info", title: t("commitGraph.edit.statsOpen") });
+      return false;
+    }
   }
   if (graphEditOf(tabId)) return true;
   const edit: GraphEdit = { repoId, from, plan, state: editStart(plan.rows), drag: options.drag ?? null, updateRefs: false };
   useGraphEdit.setState(({ byTab }) => ({ byTab: { ...byTab, [tabId]: edit } }));
-  const guard = guardFor(tabId);
-  guards.set(tabId, guard);
-  setCenterGuard(tabId, guard);
+  guards.set(tabId, guardFor(tabId));
   return true;
+}
+
+/**
+ * Puts the edit's guard into the store's centre slot while the graph shows the edit; returns the
+ * unregister. Another view in the centre takes the slot over, so the graph registers again each time it shows.
+ */
+export function registerEditGuard(tabId: Id): () => void {
+  const guard = guards.get(tabId);
+  if (!guard) return () => undefined;
+  setCenterGuard(tabId, guard);
+  return () => setCenterGuard(tabId, null, guard);
 }
 
 export function leaveGraphEdit(tabId: Id, notice?: "stale"): void {

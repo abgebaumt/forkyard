@@ -64,7 +64,7 @@ import {
   useTicketLinks,
   useViewState,
 } from "../../app/queries";
-import { enterGraphEdit, useGraphEdit } from "../../app/rebasePlan/graphEdit";
+import { enterGraphEdit, registerEditGuard, useGraphEdit } from "../../app/rebasePlan/graphEdit";
 import { runAction } from "../../app/run";
 import { noteGraphTop } from "../../app/windows/handoff";
 import { useAppStore } from "../../app/store";
@@ -1137,6 +1137,8 @@ export function CommitGraph({ repoId, tabId }: CommitGraphProps) {
   const { data: bisect } = useBisectStatus(repoId);
   const flat = useMemo(() => flatten(graph.data?.pages), [graph.data]);
   const editing = useGraphEdit((state) => state.byTab[tabId] !== undefined);
+  // While the edit is shown its guard holds the centre (another view may have taken the slot meanwhile).
+  useEffect(() => (editing ? registerEditGuard(tabId) : undefined), [editing, tabId]);
   const hasRows = flat.rows.length > 1;
   useEffect(() => {
     if (hasRows) startupMark("graph");

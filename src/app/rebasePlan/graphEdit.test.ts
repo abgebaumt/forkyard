@@ -2,8 +2,21 @@ import { describe, expect, it } from "vitest";
 import type { RebasePlan, RebasePlanRow } from "../../core";
 import { t } from "../../i18n";
 import type { OkPlan } from "./apply";
-import { editStart } from "./gestures";
-import { confirmLeaveGraphEdit, entryDecision, type GraphEdit, graphEditOf, staleAfter, useGraphEdit } from "./graphEdit";
+import { qk, queryClient } from "../queries";
+import { hasDirtyCenter, setCenterGuard } from "../store";
+import { editStart, toggleDrop } from "./gestures";
+import {
+  confirmLeaveGraphEdit,
+  enterGraphEdit,
+  entryDecision,
+  type GraphEdit,
+  graphEditOf,
+  leaveGraphEdit,
+  registerEditGuard,
+  staleAfter,
+  updateGraphEdit,
+  useGraphEdit,
+} from "./graphEdit";
 
 const row = (sha: string): RebasePlanRow => ({
   sha,
@@ -58,5 +71,23 @@ describe("graph edit", () => {
     useGraphEdit.setState({ byTab: { t1: editOf(okPlan(["a"])) } });
     await expect(confirmLeaveGraphEdit("t1")).resolves.toBe(true);
     expect(graphEditOf("t1")).toBeNull();
+  });
+  it("the graph puts the edit's guard back after another view used the centre", async () => {
+    queryClient.setQueryData(qk.rebaseBranchPlan("r", null), okPlan(["a", "b"]));
+    await expect(enterGraphEdit("r", "t2", { sha: "a" })).resolves.toBe(true);
+    updateGraphEdit("t2", (edit) => ({ ...edit, state: toggleDrop(edit.state, "a") }));
+    const unmount = registerEditGuard("t2");
+    expect(hasDirtyCenter()).toBe(true);
+    // The graph leaves the centre; another view registers its own guard and removes it again.
+    unmount();
+    const other = { dirty: () => false, confirmLeave: async () => true };
+    setCenterGuard("t2", other);
+    setCenterGuard("t2", null, other);
+    expect(hasDirtyCenter()).toBe(false);
+    // Back in the graph, the unapplied edit is guarded again.
+    registerEditGuard("t2");
+    expect(hasDirtyCenter()).toBe(true);
+    leaveGraphEdit("t2");
+    expect(hasDirtyCenter()).toBe(false);
   });
 });

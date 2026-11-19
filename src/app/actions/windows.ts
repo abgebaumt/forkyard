@@ -9,6 +9,7 @@ import { saveDraftNow } from "../../screens/WipPanel/draft";
 import { qk, queryClient } from "../queries";
 import { runAction } from "../run";
 import { confirmLeaveCenter, useAppStore } from "../store";
+import { confirmLeaveGraphEdit } from "../rebasePlan/graphEdit";
 import { dropTarget } from "../windows/dropTarget";
 import { applyHandoff, buildHandoff, parseHandoff, serializeHandoff } from "../windows/handoff";
 import { indexWithout } from "../shell/tabDrag";
@@ -26,6 +27,8 @@ export async function newWindow(): Promise<void> {
  */
 async function moveOut(tabId: Id, move: () => Promise<unknown>): Promise<boolean> {
   if (!(await confirmLeaveCenter(tabId))) return false;
+  // The history edit does not move along with the tab.
+  if (!(await confirmLeaveGraphEdit(tabId))) return false;
   const repoId = tabsHere().find((tab) => tab.id === tabId)?.repoId ?? null;
   const settled = await settleUnsaved(repoId);
   if (!settled) return false;
