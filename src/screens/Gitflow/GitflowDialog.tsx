@@ -8,7 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Trans } from "react-i18next";
 import { ArrowLeft, Check, GitBranch, GitMerge, RefreshCw, Settings2, Workflow } from "lucide-react";
 import { core, type GitflowKind, type GitflowPrefixes, type GitflowStatus, type Id } from "../../core";
-import { gitflowBusyKey, initGitflow, kindLabels, startGitflow } from "./actions";
+import { gitflowBusyKey, initGitflow, startGitflow } from "./actions";
+import { GITFLOW_KINDS as kinds, dashed, kindLabels, mainChoice, setupBlocked, startBlocked } from "./model";
 import { describeError } from "../../app/errors";
 import { qk, useRefs, useStatus } from "../../app/queries";
 import { useBusy } from "../../app/store";
@@ -21,10 +22,6 @@ import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
 
 export const useGitflow = (repoId: Id) => useQuery({ queryKey: qk.gitflow(repoId), queryFn: () => core.gitflowStatus({ repoId }) });
-
-const kinds: GitflowKind[] = ["feature", "release", "hotfix"];
-/** Spaces turn into "-" while typing (as with branch names everywhere in the app). */
-const dashed = (value: string) => value.replace(/\s/g, "-");
 
 export interface GitflowDialogProps {
   repoId: Id;
@@ -67,20 +64,10 @@ function SetupForm({ repoId, status, onCancel }: { repoId: Id; status: GitflowSt
   const [failure, setFailure] = useState<string | null>(null);
 
   // The core's suggestion applies as long as that branch exists; otherwise the checked-out or the first one.
-  const mainOptions = locals.length ? locals : [status.main];
-  const mainValue = mainOptions.includes(main) ? main : (refs?.locals.find((ref) => ref.isHead)?.name ?? mainOptions[0] ?? main);
+  const { options: mainOptions, value: mainValue } = mainChoice(locals, refs?.locals.find((ref) => ref.isHead)?.name, main, status.main);
   const developName = develop.trim();
   const developExists = locals.includes(developName);
-  const sameBranch = developName !== "" && developName === mainValue;
-  const developError = sameBranch ? t("gitflow.setup.sameBranch") : null;
-  const emptyPrefix = kinds.find((kind) => !prefixes[kind].trim());
-  const duplicate = new Set(kinds.map((kind) => prefixes[kind].trim())).size < kinds.length;
-  const prefixError = emptyPrefix
-    ? t("gitflow.setup.prefixMissing", { kind: kindLabels[emptyPrefix] })
-    : duplicate
-      ? t("gitflow.setup.prefixDuplicate")
-      : null;
-  const blocked = !developName ? t("gitflow.setup.developMissing") : (developError ?? prefixError);
+  const { developError, prefixError, blocked } = setupBlocked(developName, mainValue, prefixes);
 
   const submit = async () => {
     if (blocked || busy) return;
@@ -245,15 +232,7 @@ function StartForm({
     return () => window.clearTimeout(timer);
   }, [repoId, full, name, ready]);
 
-  const blocked = !ready
-    ? t("gitflow.start.notReady")
-    : operation
-      ? t("gitflow.start.operation")
-      : running
-        ? t("gitflow.start.running", { kind: kindLabels[kind], name: running.name, branch: running.branch })
-        : !name.trim()
-          ? t("gitflow.start.nameMissing")
-          : reason;
+  const blocked = startBlocked({ ready, operation: operation !== null, running, kind, name, reason });
 
   const submit = async () => {
     if (blocked || busy) return;

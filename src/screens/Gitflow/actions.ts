@@ -11,15 +11,10 @@ import { newJobId, runAction } from "../../app/run";
 import { withFreshStatus } from "../../app/statusCache";
 import { showWip } from "../../app/actions/merge";
 import { busyKeys } from "../../app/actions/keys";
+import { kindLabels } from "./model";
 
 export const cachedGitflow = (repoId: Id) => queryClient.getQueryData<GitflowStatus>(qk.gitflow(repoId));
 export const gitflowBusyKey = (repoId: Id) => busyKeys.write(repoId, "gitflow");
-
-export const kindLabels: Record<GitflowKind, string> = {
-  feature: t("actions.gitflow.kind.feature"),
-  release: t("actions.gitflow.kind.release"),
-  hotfix: t("actions.gitflow.kind.hotfix"),
-};
 
 /** The running Gitflow branch with this name, if Gitflow is set up and the state is in the cache. */
 export function gitflowBranch(repoId: Id, branch: string | null) {
