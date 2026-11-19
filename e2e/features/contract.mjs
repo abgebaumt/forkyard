@@ -495,7 +495,7 @@ scenario("every command response and event matches src/core/types.ts", "main", a
       "credential:request": { requestId: "x", kind: "password", host: "", username: null, detail: null, prompt: "", canRemember: false },
       "credential:closed": { requestId: "x" },
       "hook:output": { repoId: "x", hook: "", output: "", exitCode: 0 },
-      "log:appended": { id: "x", scope: "app", repoId: null, startedAt: "", durationMs: 0, command: "", exitCode: null, output: "" },
+      "log:appended": { id: "x", scope: "app", repoId: null, startedAt: "", durationMs: 0, command: "", exitCode: null, output: "", code: null },
       "app:changed": { what: [] },
       "terminal:data": { terminalId: "x", data: "" },
       "terminal:exit": { terminalId: "x", code: null },
