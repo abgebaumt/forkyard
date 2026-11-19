@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildModel,
+  baseColumn,
   buildRows,
   chunkText,
   diffLines,
@@ -92,6 +93,7 @@ describe("buildModel", () => {
       "y|y",
     ]);
     expect(chunkStart).toEqual([0, 1, 4]);
+    expect(rows[3]).toEqual({ type: "line", chunk: 1, ours: { line: 2, offset: 1, text: "o2" }, base: null, theirs: null });
   });
 });
 
@@ -176,5 +178,80 @@ describe("comparison with the file in the working directory", () => {
   it("detects a file edited by hand", () => {
     expect(worktreeMatches(model, "a\nganz anders\nc\n")).toBe(false);
     expect(worktreeMatches(model, null)).toBe(true);
+  });
+});
+
+describe("base column", () => {
+  it("every block carries its lines of the common ancestor", () => {
+    const model = buildModel("a\nb\nc\nd\ne\nf\ng\n", "a\nB1\nc\nd\ne\nf\nG\n", "a\nB2\nc\nD\ne\nf\ng\n");
+    expect(model.chunks.map((chunk) => [chunk.kind, chunk.base, chunk.baseStart])).toEqual([
+      ["same", ["a"], 0],
+      ["conflict", ["b"], 1],
+      ["same", ["c"], 2],
+      ["auto", ["d"], 3],
+      ["same", ["e", "f"], 4],
+      ["auto", ["g"], 6],
+    ]);
+  });
+
+  it("three columns: a block is as tall as the longest of base, ours and theirs", () => {
+    const model = buildModel("x\n1\n2\n3\ny\n", "x\nö1\ny\n", "x\nt1\nt2\ny\n");
+    const id = model.conflicts[0]!;
+    expect(model.chunks[id]!.base).toEqual(["1", "2", "3"]);
+    const { rows, chunkStart } = buildRows(model, true);
+    const block = rows.slice(chunkStart[id]!, chunkStart[id + 1]);
+    expect(block.map((row) => row.type)).toEqual(["head", "line", "line", "line"]);
+    expect(block[3]).toEqual({ type: "line", chunk: id, ours: null, base: { line: 3, offset: 2, text: "3" }, theirs: null });
+    // Without the base the same block has the height of the longer side only.
+    expect(buildRows(model, false).rows.filter((row) => row.type === "line" && row.chunk === id)).toHaveLength(2);
+  });
+
+  it("both sides added lines where the ancestor had none: the base side is empty", () => {
+    const model = buildModel("x\ny\n", "x\nNeue Zeile\ny\n", "x\nÄnderung\ny\n");
+    const id = model.conflicts[0]!;
+    expect(model.chunks[id]!.base).toEqual([]);
+    const lines = buildRows(model, true).rows.filter((row) => row.type === "line" && row.chunk === id);
+    expect(lines).toHaveLength(1);
+    expect(lines.every((row) => row.type === "line" && row.base === null)).toBe(true);
+  });
+
+  it("a conflict split along shared lines keeps its whole base on the first piece", () => {
+    const model = buildModel("k\n1\nm\n", "k\nA\nGleiche Zeile\nB\nm\n", "k\nC\nGleiche Zeile\nD\nm\n");
+    expect(model.chunks.map((chunk) => [chunk.kind, chunk.base])).toEqual([
+      ["same", ["k"]],
+      ["conflict", ["1"]],
+      ["same", []],
+      ["conflict", []],
+      ["same", ["m"]],
+    ]);
+  });
+
+  it("without an ancestor every block has an empty base", () => {
+    const model = buildModel(null, "a\nb\n", "a\nc\n");
+    expect(model.hasBase).toBe(false);
+    expect(model.chunks.every((chunk) => chunk.base.length === 0)).toBe(true);
+  });
+
+  it("the base does not change the blocks", () => {
+    // Same chunk boundaries as before the base existed: sessions saved by older builds still fit.
+    const model = buildModel("a\nb\nc\nd\ne\nf\ng\n", "a\nB1\nc\nd\ne\nf\nG\n", "a\nB2\nc\nD\ne\nf\ng\n");
+    expect(model.chunks.map((chunk) => [chunk.ours, chunk.theirs])).toEqual([
+      [["a"], ["a"]],
+      [["B1"], ["B2"]],
+      [["c"], ["c"]],
+      [["d"], ["D"]],
+      [
+        ["e", "f"],
+        ["e", "f"],
+      ],
+      [["G"], ["g"]],
+    ]);
+  });
+
+  it("baseColumn says when and why the base cannot be shown", () => {
+    expect(baseColumn({ setting: true, hasBase: true, wide: true })).toEqual({ shown: true, disabled: null });
+    expect(baseColumn({ setting: false, hasBase: true, wide: true })).toEqual({ shown: false, disabled: null });
+    expect(baseColumn({ setting: true, hasBase: false, wide: true })).toEqual({ shown: false, disabled: "noBase" });
+    expect(baseColumn({ setting: true, hasBase: true, wide: false })).toEqual({ shown: false, disabled: "narrow" });
   });
 });

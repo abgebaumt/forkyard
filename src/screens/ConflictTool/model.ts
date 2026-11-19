@@ -49,9 +49,12 @@ export interface Chunk {
   kind: ChunkKind;
   ours: string[];
   theirs: string[];
+  /** The common ancestor's lines of this block (empty without an ancestor). */
+  base: string[];
   /** First line (0-based) of this block in the respective version. */
   oursStart: number;
   theirsStart: number;
+  baseStart: number;
   /** For `auto`: which side changed. */
   from: Side | "both" | null;
   /** For `conflict`: sequence number among the conflicts (0-based), otherwise −1. */
@@ -75,6 +78,8 @@ interface Region {
   kind: ChunkKind;
   a: Range;
   b: Range;
+  /** The ancestor's lines of the region. */
+  o: Range;
   from: Side | "both" | null;
 }
 
@@ -200,7 +205,7 @@ function regions(a: string[], o: string[], b: string[]): Region[] {
   const same = (oEnd: number) => {
     const length = oEnd - oPos;
     if (length <= 0) return;
-    out.push({ kind: "same", a: [aPos, aPos + length], b: [bPos, bPos + length], from: null });
+    out.push({ kind: "same", a: [aPos, aPos + length], b: [bPos, bPos + length], o: [oPos, oEnd], from: null });
     aPos += length;
     bPos += length;
     oPos = oEnd;
@@ -235,9 +240,9 @@ function regions(a: string[], o: string[], b: string[]): Region[] {
     const bRange: Range = [bPos, bPos + bLength];
     if (changedA && changedB) {
       const equal = sameLines(a.slice(...aRange), b.slice(...bRange));
-      out.push({ kind: equal ? "auto" : "conflict", a: aRange, b: bRange, from: equal ? "both" : null });
+      out.push({ kind: equal ? "auto" : "conflict", a: aRange, b: bRange, o: [start, end], from: equal ? "both" : null });
     } else {
-      out.push({ kind: "auto", a: aRange, b: bRange, from: changedA ? "ours" : "theirs" });
+      out.push({ kind: "auto", a: aRange, b: bRange, o: [start, end], from: changedA ? "ours" : "theirs" });
     }
     aPos += aLength;
     bPos += bLength;
@@ -297,9 +302,14 @@ function refine(region: Region, a: string[], b: string[]): Region[] {
       last.b = [last.b[0], piece.b[1]];
     } else merged.push({ ...piece });
   }
+  // The whole ancestor range goes to the first conflict piece; earlier pieces get an empty range before it, later ones after it.
+  const firstConflict = merged.findIndex((piece) => !piece.common);
   return merged
-    .filter((piece) => piece.a[1] > piece.a[0] || piece.b[1] > piece.b[0])
-    .map((piece) => ({ kind: piece.common ? "same" : "conflict", a: piece.a, b: piece.b, from: null }));
+    .map((piece, index): Region => {
+      const o: Range = index === firstConflict ? region.o : index < firstConflict ? [region.o[0], region.o[0]] : [region.o[1], region.o[1]];
+      return { kind: piece.common ? "same" : "conflict", a: piece.a, b: piece.b, o, from: null };
+    })
+    .filter((piece) => piece.a[1] > piece.a[0] || piece.b[1] > piece.b[0]);
 }
 
 /** Common start and common end of all three versions – saves the diff the work. */
@@ -349,19 +359,31 @@ export function buildModel(base: string | null, ours: string, theirs: string): M
 
   const { prefix, suffix } = commonEdges(A, O, B);
   const regionsOut: Region[] = [];
-  if (prefix > 0) regionsOut.push({ kind: "same", a: [0, prefix], b: [0, prefix], from: null });
+  if (prefix > 0) regionsOut.push({ kind: "same", a: [0, prefix], b: [0, prefix], o: [0, O ? prefix : 0], from: null });
   const aMid = A.slice(prefix, A.length - suffix);
   const bMid = B.slice(prefix, B.length - suffix);
   const oMid = O ? O.slice(prefix, O.length - suffix) : [];
   for (const region of regions(aMid, oMid, bMid)) {
-    const shifted: Region = { ...region, a: [region.a[0] + prefix, region.a[1] + prefix], b: [region.b[0] + prefix, region.b[1] + prefix] };
+    const shifted: Region = {
+      ...region,
+      a: [region.a[0] + prefix, region.a[1] + prefix],
+      b: [region.b[0] + prefix, region.b[1] + prefix],
+      o: O ? [region.o[0] + prefix, region.o[1] + prefix] : [0, 0],
+    };
     if (shifted.kind === "conflict") regionsOut.push(...refine(shifted, A, B));
     else if (shifted.kind === "auto" && !O) {
       // Without an ancestor there is no one-sided change: what only one side has is a conflict (against nothing).
       regionsOut.push({ ...shifted, kind: shifted.from === "both" ? "same" : "conflict", from: null });
     } else regionsOut.push(shifted);
   }
-  if (suffix > 0) regionsOut.push({ kind: "same", a: [A.length - suffix, A.length], b: [B.length - suffix, B.length], from: null });
+  if (suffix > 0)
+    regionsOut.push({
+      kind: "same",
+      a: [A.length - suffix, A.length],
+      b: [B.length - suffix, B.length],
+      o: O ? [O.length - suffix, O.length] : [0, 0],
+      from: null,
+    });
 
   // Merge neighbours of the same kind, drop empty blocks.
   const compact: Region[] = [];
@@ -371,6 +393,7 @@ export function buildModel(base: string | null, ours: string, theirs: string): M
     if (last && last.kind === "same" && region.kind === "same") {
       last.a = [last.a[0], region.a[1]];
       last.b = [last.b[0], region.b[1]];
+      last.o = [last.o[0], region.o[1]];
     } else compact.push({ ...region });
   }
 
@@ -385,8 +408,10 @@ export function buildModel(base: string | null, ours: string, theirs: string): M
       kind: region.kind,
       ours: A.slice(...region.a),
       theirs: B.slice(...region.b),
+      base: O ? O.slice(...region.o) : [],
       oursStart: region.a[0],
       theirsStart: region.b[0],
+      baseStart: region.o[0],
       from: region.from,
       conflict,
     });
@@ -558,7 +583,9 @@ export interface SideCell {
   text: string;
 }
 
-export type Row = { type: "head"; chunk: number } | { type: "line"; chunk: number; ours: SideCell | null; theirs: SideCell | null };
+export type Row =
+  | { type: "head"; chunk: number }
+  | { type: "line"; chunk: number; ours: SideCell | null; base: SideCell | null; theirs: SideCell | null };
 
 export interface RowModel {
   rows: Row[];
@@ -572,20 +599,23 @@ export interface RowModel {
  * this way both columns run in one scroll area. Conflicts and automatically taken blocks get a
  * header row.
  */
-export function buildRows(model: MergeModel): RowModel {
+export function buildRows(model: MergeModel, withBase = false): RowModel {
   const rows: Row[] = [];
   const chunkStart: number[] = [];
   for (const chunk of model.chunks) {
     chunkStart.push(rows.length);
     if (chunk.kind !== "same") rows.push({ type: "head", chunk: chunk.id });
-    const height = Math.max(chunk.ours.length, chunk.theirs.length);
+    const height = Math.max(chunk.ours.length, chunk.theirs.length, withBase ? chunk.base.length : 0);
     for (let offset = 0; offset < height; offset++) {
-      const cell = (side: Side): SideCell | null => {
-        const lines = chunk[side];
-        if (offset >= lines.length) return null;
-        return { line: (side === "ours" ? chunk.oursStart : chunk.theirsStart) + offset, offset, text: lines[offset]! };
-      };
-      rows.push({ type: "line", chunk: chunk.id, ours: cell("ours"), theirs: cell("theirs") });
+      const cell = (lines: string[], start: number): SideCell | null =>
+        offset >= lines.length ? null : { line: start + offset, offset, text: lines[offset]! };
+      rows.push({
+        type: "line",
+        chunk: chunk.id,
+        ours: cell(chunk.ours, chunk.oursStart),
+        base: withBase ? cell(chunk.base, chunk.baseStart) : null,
+        theirs: cell(chunk.theirs, chunk.theirsStart),
+      });
     }
   }
   return { rows, chunkStart };
@@ -647,4 +677,13 @@ export function worktreeMatches(model: MergeModel, merged: string | null): boole
     if (resolved === null || resolved !== resolvedLines(model, side).join("\n")) return false;
   }
   return true;
+}
+
+/** Whether the base column is shown, and why it cannot be (no ancestor, window too narrow). */
+export function baseColumn(input: { setting: boolean; hasBase: boolean; wide: boolean }): {
+  shown: boolean;
+  disabled: "noBase" | "narrow" | null;
+} {
+  const disabled = !input.hasBase ? "noBase" : !input.wide ? "narrow" : null;
+  return { shown: input.setting && disabled === null, disabled };
 }
