@@ -34,6 +34,7 @@ use crate::commands::status;
 use crate::db;
 use crate::error::{CoreError, CoreResult};
 use crate::git::rev::is_sha;
+use crate::git::GitRecordStream;
 use crate::model::{GraphPage, GraphRow, GraphRowKind, RefLabelInfo, RepoViewState, SyncMark};
 use crate::util;
 
@@ -378,57 +379,110 @@ pub(super) async fn collapse_for(
     Ok(Collapse::Hide { count: u32::try_from(hidden.len()).unwrap_or(u32::MAX), hidden_parents })
 }
 
-/// `git for-each-ref` calls at a time for `mark_collapsible`.
-const COLLAPSIBLE_PARALLEL: usize = 8;
-/// Merges per page whose `collapsible` is computed (each costs up to one `for-each-ref` per side
-/// parent). The rest keep the arrow; the top of the page, which the user sees first, is checked first.
-const MAX_COLLAPSIBLE_CHECKS: usize = 64;
-
-/// Sets `collapsible` on the expanded merges of a page: collapsing hides something unless a visible
-/// ref, starting point or stash reaches every side parent without passing through the merge (then
-/// it reaches everything the merge brought in). If Git fails, the arrow stays – collapsing then
-/// shows that nothing disappeared. Beyond `max_checks` merges the arrow stays as well.
-async fn mark_collapsible(core: &Core, path: &Path, repo_id: &str, plan: &Plan, rows: &mut [GraphRow], max_checks: usize) {
-    let keep = std::sync::Arc::new(plan.keep.clone());
-    let mut pending = rows
+/// Sets `collapsible` on the expanded merges of a page: collapsing hides something unless every
+/// side parent is kept itself or reached by a branch, remote branch or tag on a kept commit that
+/// does not contain the merge (that ref then reaches everything the merge brought in). One
+/// `git rev-list` from those refs (`kept_refs`, `reach` from `start_reach`) answers this for the
+/// whole page. If Git fails, the arrow stays – collapsing then shows that nothing disappeared.
+async fn mark_collapsible(plan: &Plan, kept_refs: &[String], reach: CoreResult<Option<GitRecordStream>>, rows: &mut [GraphRow]) {
+    let merges: Vec<usize> = rows
         .iter()
         .enumerate()
-        .filter(|(_, row)| row.kind == GraphRowKind::Merge && row.collapsed_count.is_none() && !row.collapse_too_large)
-        .filter_map(|(index, row)| Some((index, row.sha.clone()?, row.parents.iter().skip(1).cloned().collect::<Vec<_>>())))
-        .collect::<Vec<_>>();
-    for (index, ..) in pending.iter().skip(max_checks) {
-        rows[*index].collapsible = true;
+        .filter(|(_, row)| row.kind == GraphRowKind::Merge && row.collapsed_count.is_none() && !row.collapse_too_large && row.sha.is_some())
+        .map(|(index, _)| index)
+        .collect();
+    if merges.is_empty() {
+        return;
     }
-    pending.truncate(max_checks);
-    let mut pending = pending.into_iter();
-    let mut running = tokio::task::JoinSet::new();
-    loop {
-        while running.len() < COLLAPSIBLE_PARALLEL {
-            let Some((index, merge, side)) = pending.next() else { break };
-            let (core, path, repo_id, keep) = (core.clone(), path.to_path_buf(), repo_id.to_string(), keep.clone());
-            running.spawn(async move {
-                for parent in &side {
-                    if keep.contains(parent) {
-                        continue;
-                    }
-                    match refs_reaching_without(&core, &path, &repo_id, parent, &merge).await {
-                        Ok(tips) if tips.iter().any(|sha| keep.contains(sha)) => {}
-                        _ => return (index, true),
-                    }
-                }
-                (index, false)
-            });
-        }
-        let Some(joined) = running.join_next().await else { break };
-        if let Ok((index, collapsible)) = joined {
-            rows[index].collapsible = collapsible;
-        }
+    let mut targets = HashSet::new();
+    for &index in &merges {
+        let row = &rows[index];
+        targets.extend(row.sha.clone());
+        targets.extend(row.parents.iter().skip(1).filter(|p| !plan.keep.contains(*p)).cloned());
+    }
+    let reach = match reach {
+        Ok(Some(stream)) => reaching_tips(stream, kept_refs, targets).await.ok(),
+        Ok(None) => Some(HashMap::new()),
+        Err(_) => None,
+    };
+    for index in merges {
+        let row = &mut rows[index];
+        row.collapsible = match &reach {
+            None => true,
+            Some(reach) => {
+                let merge = row.sha.as_ref().and_then(|sha| reach.get(sha));
+                row.parents.iter().skip(1).any(|parent| !plan.keep.contains(parent) && !has_tip_beyond(reach.get(parent), merge))
+            }
+        };
     }
 }
 
-/// Commits that branches, remote branches and tags containing `commit` but not `merge` point to.
-async fn refs_reaching_without(core: &Core, path: &Path, repo_id: &str, commit: &str, merge: &str) -> CoreResult<HashSet<String>> {
-    ref_tips(core, path, repo_id, &[format!("--contains={commit}"), format!("--no-contains={merge}")]).await
+/// Whether `set` holds a tip that `other` lacks (both from `reaching_tips`; missing = no tip).
+fn has_tip_beyond(set: Option<&Vec<u64>>, other: Option<&Vec<u64>>) -> bool {
+    let other = other.map_or(&[][..], Vec::as_slice);
+    set.is_some_and(|set| set.iter().enumerate().any(|(i, word)| word & !other.get(i).copied().unwrap_or(0) != 0))
+}
+
+/// The branches, remote branches and tags on kept commits, and `git rev-list --topo-order` over
+/// them for `mark_collapsible`; no Git without such a ref. Started before the page reads its
+/// commits: without a commit-graph, Git sorts the whole history first, beside the `git log`.
+async fn start_reach(
+    core: &Core,
+    path: &Path,
+    repo_id: &str,
+    plan: &Plan,
+    ref_shas: HashSet<String>,
+) -> (Vec<String>, CoreResult<Option<GitRecordStream>>) {
+    let mut kept_refs: Vec<String> = ref_shas.into_iter().filter(|sha| plan.keep.contains(sha)).collect();
+    kept_refs.sort_unstable();
+    if kept_refs.is_empty() {
+        return (kept_refs, Ok(None));
+    }
+    let stdin: String = kept_refs.iter().map(|sha| format!("{sha}\n")).collect();
+    let stream = core
+        .git
+        .cmd(path)
+        .repo(repo_id)
+        .read()
+        .args(["rev-list", "--topo-order", "--parents", "--ignore-missing", "--stdin"])
+        .stdin(stdin)
+        .spawn_records(b'\n')
+        .await
+        .map(Some);
+    (kept_refs, stream)
+}
+
+/// For each of `targets`: the `tips` it is contained in, as a bit set (bit `i` = `tips[i]`), read
+/// from `stream` (`start_reach`). `--topo-order` lists every commit before its parents, so a
+/// commit's set is complete when it comes; reading stops once every target came. Targets no tip
+/// reaches are missing.
+async fn reaching_tips(
+    mut stream: GitRecordStream,
+    tips: &[String],
+    mut targets: HashSet<String>,
+) -> CoreResult<HashMap<String, Vec<u64>>> {
+    let mut found = HashMap::new();
+    let index: HashMap<&str, usize> = tips.iter().enumerate().map(|(i, sha)| (sha.as_str(), i)).collect();
+    let words = tips.len().div_ceil(64);
+    // Sets handed down to commits not listed yet.
+    let mut pending: HashMap<String, Vec<u64>> = HashMap::new();
+    while !targets.is_empty() {
+        let Some(line) = stream.next_record().await? else { break };
+        let mut shas = line.split(|b| *b == b' ').map(util::decode_lossy);
+        let Some(sha) = shas.next().filter(|sha| is_sha(sha)) else { continue };
+        let mut set = pending.remove(&sha).unwrap_or_else(|| vec![0; words]);
+        if let Some(&i) = index.get(sha.as_str()) {
+            set[i / 64] |= 1 << (i % 64);
+        }
+        for parent in shas {
+            let entry = pending.entry(parent).or_insert_with(|| vec![0; words]);
+            entry.iter_mut().zip(&set).for_each(|(a, b)| *a |= b);
+        }
+        if targets.remove(&sha) {
+            found.insert(sha, set);
+        }
+    }
+    Ok(found)
 }
 
 /// Commits that branches, remote branches and tags containing `merge` point to.
@@ -557,17 +611,6 @@ fn empty_row(id: &str, kind: GraphRowKind) -> GraphRow {
 }
 
 pub(super) async fn graph_page(core: &Core, repo_id: &str, cursor: Option<&str>, limit: u32) -> CoreResult<GraphPage> {
-    graph_page_checking(core, repo_id, cursor, limit, MAX_COLLAPSIBLE_CHECKS).await
-}
-
-/// `graph_page` with its own limit on the `collapsible` checks per page (tests lower it).
-pub(super) async fn graph_page_checking(
-    core: &Core,
-    repo_id: &str,
-    cursor: Option<&str>,
-    limit: u32,
-    max_checks: usize,
-) -> CoreResult<GraphPage> {
     let path = core.repo_path(repo_id)?;
     let view = core.db.with(|c| db::view_state::get(c, repo_id))?;
     let limit = limit.clamp(1, MAX_PAGE_SIZE) as usize;
@@ -589,13 +632,16 @@ pub(super) async fn graph_page_checking(
     );
     // If this fails there is no commit yet (or HEAD points nowhere): then nothing hangs off HEAD.
     let head_sha = Some(head?).filter(|out| out.success()).map(|out| out.stdout_text()).filter(|sha| is_sha(sha));
-    let plan = build_plan(tips?, head_sha, stashes?, &view);
+    let tips = tips?;
+    let ref_shas: HashSet<String> = tips.iter().map(|tip| tip.sha.clone()).collect();
+    let plan = build_plan(tips, head_sha, stashes?, &view);
 
     let (offset, state, hidden, walker_id) = match cursor {
         Some(c) if c.h == plan.fingerprint => (c.o, c.s, c.f.into_iter().collect(), c.w),
         Some(_) => return Err(CoreError::stale_state()),
         None => (0, LayoutState::new(), HashSet::new(), None),
     };
+    let (kept_refs, reach) = start_reach(core, &path, repo_id, &plan, ref_shas).await;
     let walkers = core.state::<GraphWalkers>();
     if first_page {
         walkers.drop_other_fingerprints(repo_id, &plan.fingerprint);
@@ -655,7 +701,7 @@ pub(super) async fn graph_page_checking(
     }
 
     let PageBuilder { state, mut rows, max_lane, hidden, .. } = builder;
-    mark_collapsible(core, &path, repo_id, &plan, &mut rows, max_checks).await;
+    mark_collapsible(&plan, &kept_refs, reach, &mut rows).await;
     let next_cursor = if has_more {
         let mut f: Vec<String> = hidden.into_iter().collect();
         f.sort_unstable();

@@ -1690,18 +1690,127 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
     }
 }
 
-/// Beyond the per-page cap the merge is not checked and keeps its arrow; within the cap the check
-/// decides (here: the tag keeps everything, so no arrow).
+/// The Git calls of a first page, whatever the number of merges on it: the `collapsible` checks
+/// cost one `git rev-list` for the page, no `for-each-ref --contains` per merge.
 #[tokio::test]
-async fn merges_beyond_the_check_cap_keep_the_arrow() {
+async fn collapsible_checks_cost_one_git_call_per_page() {
     let tc = TestCore::new().await;
-    let (repo, [_, _, f2, _, merge, _]) = merged_feature();
-    repo.git(&["tag", "v-side", &f2]);
+    let mut calls = Vec::new();
+    for rounds in [12, 90] {
+        let repo = branchy_repo(rounds);
+        repo.git(&["tag", "-a", "-m", "Marke", "v1", "HEAD~3"]);
+        let id = tc.open(&repo).await.repo.id;
+        tc.git.take_spawned();
+        let rows = graph_page(&tc, id, None, 200).await.unwrap().rows;
+        let spawned = tc.git.take_spawned();
+        assert!(rows.iter().filter(|r| r.kind == GraphRowKind::Merge).count() >= rounds / 4);
+        assert!(!spawned.iter().flatten().any(|a| a.starts_with("--contains")), "{spawned:?}");
+        let reach = spawned.iter().filter(|argv| argv.iter().any(|a| a == "rev-list") && argv.iter().any(|a| a == "--topo-order"));
+        assert_eq!(reach.count(), 1, "{spawned:?}");
+        calls.push(spawned.len());
+    }
+    assert_eq!(calls[0], calls[1], "more merges, same number of Git calls");
+}
+
+/// The old check, as the oracle: a merge is collapsible unless every side parent is kept or a
+/// branch, remote branch or tag on a kept commit contains it but not the merge
+/// (`git for-each-ref --contains=<parent> --no-contains=<merge>`).
+async fn collapsible_by_for_each_ref(tc: &TestCore, repo: &TestRepo, id: &str, merge: &GraphRow) -> bool {
+    let path = tc.repo_path(id).unwrap();
+    let view = tc.db.with(|c| crate::db::view_state::get(c, id)).unwrap();
+    let tips = read_ref_tips(tc, &path, id, None).await.unwrap();
+    let plan = page::build_plan(tips, Some(repo.head()), read_stashes(tc, &path, id).await.unwrap(), &view);
+    let sha = merge.sha.clone().unwrap();
+    merge.parents[1..].iter().any(|parent| {
+        if plan.keep.contains(parent) {
+            return false;
+        }
+        let refs = repo.git(&[
+            "for-each-ref",
+            "--format=%(objectname) %(*objectname)",
+            &format!("--contains={parent}"),
+            &format!("--no-contains={sha}"),
+            "refs/heads",
+            "refs/remotes",
+            "refs/tags",
+        ]);
+        !refs.split_whitespace().any(|tip| plan.keep.contains(tip))
+    })
+}
+
+/// Merges whose side commits are or are not reachable from other refs: deleted branch, annotated
+/// tag, branch that went on, hidden branch, octopus with one kept side, stash on a side commit,
+/// nested merges, remote branch – in the normal, hidden and solo view, on small and large pages.
+#[tokio::test]
+async fn collapsible_matches_the_for_each_ref_check() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    let side = |name: &str, commits: usize| {
+        repo.checkout("main");
+        repo.checkout_new(name);
+        for i in 0..commits {
+            repo.commit_file(&format!("{name}.txt"), format!("{i}\n"), &format!("{name} {i}"));
+        }
+        repo.checkout("main");
+        repo.commit_file("main.txt", format!("{name}\n"), &format!("Main vor {name}"));
+    };
+    let mut merges = Vec::new();
+    let mut merge = |args: &[&str]| {
+        repo.git(&[&["merge", "--no-edit", "-q"][..], args].concat());
+        merges.push(repo.head());
+    };
+    side("weg", 2);
+    merge(&["weg"]);
+    side("getaggt", 2);
+    repo.git(&["tag", "-a", "-m", "Marke", "seite", "getaggt"]);
+    merge(&["getaggt"]);
+    side("weiter", 2);
+    merge(&["weiter~1"]);
+    side("versteckt", 1);
+    merge(&["versteckt"]);
+    side("okto1", 1);
+    side("okto2", 1);
+    merge(&["okto1", "okto2"]);
+    side("gestasht", 1);
+    repo.checkout("gestasht");
+    repo.write_file("gestasht.txt", "dreckig\n");
+    repo.git(&["stash", "-q"]);
+    repo.checkout("main");
+    merge(&["gestasht"]);
+    side("innen", 1);
+    side("aussen", 1);
+    repo.checkout("aussen");
+    merge(&["innen"]);
+    repo.checkout("main");
+    merge(&["aussen"]);
+    side("fern", 2);
+    repo.git(&["update-ref", "refs/remotes/origin/fern", "fern~1"]);
+    merge(&["fern"]);
+    repo.git(&["branch", "-D", "weg", "getaggt", "okto2", "gestasht", "innen", "aussen", "fern"]);
     let id = tc.open(&repo).await.repo.id;
-    let checked = page::graph_page_checking(&tc, &id, None, 100, 8).await.unwrap().rows;
-    assert!(!find(&checked, &merge).collapsible, "checked: the tag keeps everything");
-    let capped = page::graph_page_checking(&tc, &id, None, 100, 0).await.unwrap().rows;
-    assert!(find(&capped, &merge).collapsible, "over the cap: the arrow stays");
+
+    let views = [
+        json!({ "hiddenRefs": [], "soloRefs": [] }),
+        json!({ "hiddenRefs": ["refs/heads/versteckt", "refs/tags/seite"], "soloRefs": [] }),
+        json!({ "hiddenRefs": [], "soloRefs": ["refs/heads/main"] }),
+        json!({ "hiddenRefs": ["refs/remotes/origin/fern"], "soloRefs": ["refs/heads/weiter"] }),
+    ];
+    for view in views {
+        view_state_set(&tc, id.clone(), view.clone()).await.unwrap();
+        for page_size in [2, 100] {
+            let rows = all_rows(&tc, &id, page_size).await;
+            for row in rows.iter().filter(|r| r.kind == GraphRowKind::Merge) {
+                let expected = collapsible_by_for_each_ref(&tc, &repo, &id, row).await;
+                assert_eq!(row.collapsible, expected, "{view} page size {page_size}: {}\n{}", row.summary, sketch(&rows));
+            }
+        }
+    }
+
+    // The oracle tells the cases apart.
+    view_state_set(&tc, id.clone(), json!({ "hiddenRefs": [], "soloRefs": [] })).await.unwrap();
+    let rows = all_rows(&tc, &id, 100).await;
+    let flags: Vec<bool> = merges.iter().map(|m| find(&rows, m).collapsible).collect();
+    assert_eq!(flags, vec![true, false, false, false, true, false, true, true, true], "{}", sketch(&rows));
 }
 
 /// develop: A ── d1 ── d2 ── d3 (HEAD); staging: A ── s1 ── M (merge of develop at d2). d1 and d2
