@@ -32,7 +32,7 @@ const chunk = (patch: Partial<BlameChunkEvent>): BlameChunkEvent => ({
 });
 
 /** Fake deps: the test sends chunks and settles the run by hand. */
-function fakeDeps() {
+function fakeDeps(jobId = "job-1") {
   let handler: ((chunk: BlameChunkEvent) => void) | null = null;
   let markReady!: () => void;
   const ready = new Promise<void>((resolve) => {
@@ -57,7 +57,7 @@ function fakeDeps() {
       });
     }),
     cancel: vi.fn((jobId: string) => settle.reject(new Error(`cancelled ${jobId}`))),
-    newJobId: () => "job-1",
+    newJobId: () => jobId,
   };
   return {
     deps,
@@ -110,7 +110,43 @@ describe("blame job", () => {
     await expect(result).resolves.toBe(lines);
     expect(seen[0]).toBeNull();
     expect(seen[1]?.text).toEqual(["a", "b", "c"]);
-    // Settled: the progress is gone.
+    // Settled: the progress is gone one macrotask later.
+    await flush();
+    expect(progressOf(KEY)).toBeNull();
+  });
+
+  test("on success the progress stays until the query has the result", async () => {
+    const fake = fakeDeps();
+    const result = runBlameJob(fake.deps, input);
+    fake.markReady();
+    await flush();
+    fake.send(chunk({ text: ["a", "b", "c"] }));
+    fake.resolve([]);
+    await result;
+    // Still there right after the promise resolved: the view keeps its editor until the data arrives.
+    expect(progressOf(KEY)?.text).toEqual(["a", "b", "c"]);
+    await flush();
+    expect(progressOf(KEY)).toBeNull();
+  });
+
+  test("an older job settling late does not clear a newer job's progress for the same file", async () => {
+    const older = fakeDeps("job-old");
+    const newer = fakeDeps("job-new");
+    const first = runBlameJob(older.deps, input);
+    older.markReady();
+    await flush();
+    older.send(chunk({ jobId: "job-old", text: ["a", "b", "c"] }));
+    const second = runBlameJob(newer.deps, input);
+    newer.markReady();
+    await flush();
+    newer.send(chunk({ jobId: "job-new", text: ["x", "y", "z"] }));
+    older.resolve([]);
+    await first;
+    await flush();
+    expect(progressOf(KEY)?.text).toEqual(["x", "y", "z"]);
+    newer.resolve([]);
+    await second;
+    await flush();
     expect(progressOf(KEY)).toBeNull();
   });
 

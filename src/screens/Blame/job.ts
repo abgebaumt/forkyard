@@ -78,6 +78,11 @@ export function publishProgress(key: string, progress: BlameProgress | null): vo
   listeners.forEach((listener) => listener());
 }
 
+/** Clears the progress of `key` only if it is still `own` – a newer job for the same file keeps its own. */
+function clearIfOwn(key: string, own: BlameProgress | null): void {
+  if (own && progresses.get(key) === own) publishProgress(key, null);
+}
+
 /** The current progress of a running blame (null when none runs). */
 export const progressOf = (key: string): BlameProgress | null => progresses.get(key) ?? null;
 
@@ -100,7 +105,11 @@ export const liveBlameDeps: BlameJobDeps = {
   newJobId: () => newJobId(),
 };
 
-/** Listens (awaits ready) before run; filters chunks by jobId; abort → cancel + publishProgress(key, null); clears progress when settled. */
+/**
+ * Listens (awaits ready) before run; filters chunks by jobId; abort → cancel + clear the progress.
+ * Clears only its own progress; on success one macrotask late, so the view keeps the lines until
+ * the query has the result (React Query notifies after a setTimeout) and the editor stays.
+ */
 export async function runBlameJob(
   deps: BlameJobDeps,
   input: { repoId: Id; path: string; sha: Sha | null },
@@ -116,16 +125,21 @@ export async function runBlameJob(
   });
   const onAbort = () => {
     deps.cancel(jobId);
-    publishProgress(key, null);
+    clearIfOwn(key, progress);
   };
   try {
     await stop.ready;
     signal?.throwIfAborted();
     signal?.addEventListener("abort", onAbort, { once: true });
-    return await deps.run({ ...input, jobId });
+    const lines = await deps.run({ ...input, jobId });
+    const own = progress;
+    setTimeout(() => clearIfOwn(key, own), 0);
+    return lines;
+  } catch (error) {
+    clearIfOwn(key, progress);
+    throw error;
   } finally {
     signal?.removeEventListener("abort", onAbort);
     stop();
-    publishProgress(key, null);
   }
 }
