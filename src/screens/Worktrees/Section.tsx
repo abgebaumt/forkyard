@@ -44,7 +44,7 @@ import { t } from "../../i18n";
 import { EMPTY_VIEW, sectionState, setSection } from "../LeftPanel/viewState";
 import { askLockReason, openWorktreeDialog } from "./Dialog";
 import { describeWorktree, matchesWorktree, sortWorktrees, splitFolderName, worktreeSecondary, worktreeTipLines } from "./model";
-import { LoadError } from "../../ui/Feedback";
+import { LoadError } from "../../components/LoadError";
 
 export interface WorktreesSectionProps {
   repoId: Id;

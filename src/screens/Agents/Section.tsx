@@ -13,7 +13,7 @@ import { startNewAgent } from "./Cockpit";
 import { displayName, formatRuntime, sortAgents, statusLabel } from "./model";
 import { StatusDot } from "./parts";
 import { agentMenu, runAgentAction, useActionOptions } from "./rowActions";
-import { LoadError } from "../../ui/Feedback";
+import { LoadError } from "../../components/LoadError";
 
 export function AgentsSection({ repoId, tabId, query }: { repoId: Id; tabId: Id; query: string }) {
   const agents = useAgents(repoId);

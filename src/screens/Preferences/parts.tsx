@@ -8,7 +8,7 @@ import { Button } from "../../ui/Button";
 import { TextField } from "../../ui/Field";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
-import { LoadError as BaseLoadError } from "../../ui/Feedback";
+import { LoadError as BaseLoadError } from "../../components/LoadError";
 
 // ---------------------------------------------------------------------------
 // Section
