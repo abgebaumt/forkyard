@@ -1,7 +1,9 @@
 /** Pure helpers of the bisect bar and the marks in the graph. */
 import type { BisectStatus, Sha } from "../../core";
 
-export type BisectMark = "good" | "bad" | "skip";
+import type { BisectMark } from "../../components/graph/GraphRowView";
+
+export type { BisectMark };
 
 export type BisectBarState =
   | { kind: "off" }
