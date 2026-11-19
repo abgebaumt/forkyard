@@ -167,6 +167,10 @@
       "title": "Standard-Branch-Name",
       "description": "So heißt der erste Branch in Repositories, die du hier neu anlegst."
     },
+    "branchCleanupStaleDays": {
+      "title": "Branches gelten als alt nach (Tagen)",
+      "description": "Für „Branches aufräumen“."
+    },
     "initialCommits": {
       "title": "Commits beim ersten Laden",
       "description": "So viele Commits zeigt der Graph direkt nach dem Öffnen (mindestens 500). Mehr kostet Startzeit."
@@ -371,6 +375,10 @@
       "noAccount": "Kein Konto für diesen Remote"
     },
     "git": {
+      "protectedBranches": {
+        "title": "Geschützte Branches",
+        "description": "Ein Muster pro Zeile, * passt auf alles, Groß- und Kleinschreibung (A–Z) wird nicht unterschieden. main, master, develop, release/* und hotfix/* sind immer geschützt."
+      },
       "card": "Abgleich",
       "pullMode": "Pull-Modus",
       "pullModeDescription": "So arbeitet der Pull-Button in diesem Repository.",

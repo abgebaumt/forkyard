@@ -2,6 +2,7 @@
  * Settings that only apply to the repository in the active tab. What the profile specifies is
  * inherited by the project until it sets an own value ("Override", "Reset").
  */
+import { useEffect, useState } from "react";
 import { FolderOpen } from "lucide-react";
 import { Trans } from "react-i18next";
 import { core, type Id, type PullMode, type RepoSettings } from "../../../core";
@@ -9,6 +10,8 @@ import { pullModeHints } from "../../../app/actions/sync";
 import { forgetIgnoredFindings } from "../../../app/actions/pushCheck";
 import { useHostRepo, useProfiles, useRepo, useRepoSettings, useSettings, useSshKeys } from "../../../app/queries";
 import { Button } from "../../../ui/Button";
+import { TextArea } from "../../../ui/Field";
+import { patternsText, parsePatterns } from "../ai/model";
 import { Select } from "../../../ui/Select";
 import { Switch } from "../../../ui/Switch";
 import { LfsPanel } from "../../Lfs/LfsPanel";
@@ -182,6 +185,36 @@ export function ProjectIdentitySection({ repoId }: { repoId: Id }) {
   );
 }
 
+function ProtectedBranchesRow({ repoId, patterns }: { repoId: Id; patterns: string[] }) {
+  const [draft, setDraft] = useState(patternsText(patterns));
+  useEffect(() => setDraft(patternsText(patterns)), [patterns]);
+  const save = () => {
+    const next = parsePatterns(draft);
+    if (JSON.stringify(next) !== JSON.stringify(patterns)) void applyRepoSettings(repoId, { protectedBranchPatterns: next });
+  };
+  return (
+    <SettingRow
+      stacked
+      title={t("preferences.project.git.protectedBranches.title")}
+      description={t("preferences.project.git.protectedBranches.description")}
+    >
+      {(ids) => (
+        <TextArea
+          id={ids.id}
+          aria-describedby={ids.descriptionId}
+          data-protected-branches
+          rows={4}
+          spellCheck={false}
+          className="font-mono text-code"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={save}
+        />
+      )}
+    </SettingRow>
+  );
+}
+
 export function ProjectGitSection({ repoId }: { repoId: Id }) {
   const { repoSettings, ctx } = useProject(repoId);
   if (!repoSettings.data || !ctx) return <Loading repoSettings={repoSettings} />;
@@ -226,6 +259,7 @@ export function ProjectGitSection({ repoId }: { repoId: Id }) {
             />
           )}
         </InheritRow>
+        <ProtectedBranchesRow repoId={repoId} patterns={repo.protectedBranchPatterns} />
         <SettingRow title={t("submoduleSync.setting.title")} description={t("submoduleSync.setting.description")}>
           {(ids) => (
             <Switch

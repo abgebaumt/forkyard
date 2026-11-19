@@ -157,6 +157,25 @@ export function GitSection({ settings }: { settings: Settings }) {
             />
           )}
         </SettingRow>
+        <SettingRow
+          title={t("preferences.git.branchCleanupStaleDays.title")}
+          description={t("preferences.git.branchCleanupStaleDays.description")}
+          changed={changedFor(settings, "branchCleanupStaleDays")}
+        >
+          {(ids) => (
+            <NumberField
+              id={ids.id}
+              ariaDescribedBy={ids.descriptionId}
+              className="w-32"
+              value={settings.branchCleanupStaleDays}
+              min={1}
+              max={3650}
+              step={1}
+              largeStep={30}
+              onCommit={(value) => void applySettings({ branchCleanupStaleDays: value })}
+            />
+          )}
+        </SettingRow>
         <ToggleRow
           settings={settings}
           field="lazyLoad"

@@ -168,6 +168,8 @@ export interface SectionMenuContext {
   toggleMaximized(): void;
   toggleHide(): void;
   toggleSolo(): void;
+  /** Opens the branch cleaner; offered in the Local section only. */
+  cleanBranches?: () => void;
   setVisible(section: SectionKey, visible: boolean): void;
 }
 
@@ -194,7 +196,12 @@ export function sectionMenu(ctx: SectionMenuContext): MenuEntry[] {
               ]),
         ]
       : [];
+  const cleanup: MenuEntry[] =
+    ctx.section === "local" && ctx.cleanBranches
+      ? [{ label: t("cleanupBranches.open"), onSelect: ctx.cleanBranches }, { type: "separator" }]
+      : [];
   return [
+    ...cleanup,
     { label: ctx.collapsed ? t("ui.expand") : t("ui.collapse"), onSelect: ctx.toggleCollapsed },
     { label: ctx.maximized ? t("sidebar.section.showAll") : t("sidebar.section.maximize"), onSelect: ctx.toggleMaximized },
     { label: t("ui.hideSection"), disabled: shown.length <= 1, onSelect: () => ctx.setVisible(ctx.section, false) },
