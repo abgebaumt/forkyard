@@ -52,7 +52,7 @@ import { SafeMarkdown } from "../../components/markdown/SafeMarkdown";
 import { openConnectDialog } from "../Hosts";
 import { t } from "../../i18n";
 import { usePrAiWriter } from "./AiWrite";
-import { parentRemote, splitNames, targetBranches, targetRef } from "./model";
+import { createBlocked, defaultTarget, parentRemote, splitNames, targetBranches, targetRef } from "./model";
 
 export interface PullRequestCreateProps {
   repoId: Id;
@@ -321,15 +321,8 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
   // known one applies; otherwise the usual name – never simply the first branch in the list.
   const knownDefault = useRef(repo.defaultBranch);
   if (repo.defaultBranch) knownDefault.current = repo.defaultBranch;
-  const usual = (names: string[]) =>
-    names.find((name) => name === knownDefault.current) ??
-    names.find((name) => name === "main") ??
-    names.find((name) => name === "master") ??
-    names[0] ??
-    null;
   const hostDefault = toParent ? null : knownDefault.current;
-  const defaultTarget = toParent ? usual(targetOptions) : (knownDefault.current ?? usual(targetOptions));
-  const targetName = target ?? defaultTarget;
+  const targetName = target ?? defaultTarget(targetOptions, knownDefault.current, toParent);
   const pushed = pushState(sourceRef);
   const existing = sourceName
     ? (openPrs.data?.pages.flatMap((page) => page.items).find((pr) => pr.sourceBranch === sourceName) ?? null)
@@ -426,17 +419,7 @@ function CreateForm({ repoId, tabId, repo }: { repoId: Id; tabId: Id; repo: Host
   };
 
   const needsPush = pushed.state === "no_upstream" || pushed.state === "ahead";
-  const blockedReason = !sourceName
-    ? t("pullRequest.create.blocked.noSource")
-    : !targetName
-      ? t("pullRequest.create.blocked.noTarget")
-      : sameBranch
-        ? t("pullRequest.create.blocked.same")
-        : existing
-          ? t("pullRequest.create.blocked.existing", { branch: sourceName, number: existing.number })
-          : ahead === 0 && !needsPush
-            ? t("pullRequest.create.blocked.nothing", { source: sourceName, target: targetName })
-            : null;
+  const blockedReason = createBlocked({ source: sourceName, target: targetName, sameBranch, existing, ahead, needsPush });
 
   // "Write from commits": visible only while AI is on for this function and repository.
   const ai = usePrAiWriter({

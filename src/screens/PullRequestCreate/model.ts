@@ -1,4 +1,5 @@
 import type { Ref, Remote } from "../../core";
+import { t } from "../../i18n";
 
 /**
  * The remote that points to the original of a fork (often "upstream"): the one whose address ends
@@ -84,4 +85,38 @@ export function targetRef<T extends Pick<Ref, "name" | "remote">>(
     locals.find((ref) => ref.name === name) ??
     null
   );
+}
+
+/**
+ * The target branch shown before the user picks one. The default branch comes from the host; if it
+ * does not answer right now (limit, token) the last known one applies, otherwise the usual name –
+ * never simply the first branch in the list. Into the original of a fork the host's default does
+ * not apply, only the usual names.
+ */
+export function defaultTarget(options: string[], knownDefault: string | null, toParent: boolean): string | null {
+  const usual =
+    options.find((name) => name === knownDefault) ??
+    options.find((name) => name === "main") ??
+    options.find((name) => name === "master") ??
+    options[0] ??
+    null;
+  return toParent ? usual : (knownDefault ?? usual);
+}
+
+/** Why the pull request cannot be created yet (a sentence), or null. */
+export function createBlocked(input: {
+  source: string | null;
+  target: string | null;
+  sameBranch: boolean;
+  existing: { number: number } | null;
+  ahead: number | null;
+  needsPush: boolean;
+}): string | null {
+  const { source, target, existing } = input;
+  if (!source) return t("pullRequest.create.blocked.noSource");
+  if (!target) return t("pullRequest.create.blocked.noTarget");
+  if (input.sameBranch) return t("pullRequest.create.blocked.same");
+  if (existing) return t("pullRequest.create.blocked.existing", { branch: source, number: existing.number });
+  if (input.ahead === 0 && !input.needsPush) return t("pullRequest.create.blocked.nothing", { source, target });
+  return null;
 }
