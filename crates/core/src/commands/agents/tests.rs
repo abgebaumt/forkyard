@@ -142,6 +142,26 @@ async fn templates_list_built_ins_first_and_find_own_programs_by_path() {
 }
 
 #[tokio::test]
+async fn with_a_search_folder_templates_find_programs_only_there() {
+    // The isolation of tests and E2E: no PATH, install folder or login shell – `sh` is on PATH and in
+    // the login shell's, a real agent may be too (/snap/bin through /etc/profile).
+    let tc = TestCore::new().await;
+    let mine = serde_json::json!({ "agentTemplates": [{ "id": "custom:sh", "name": "Sh", "program": "sh", "args": [] }] });
+    crate::commands::settings::settings_set(&tc, mine).await.unwrap();
+    let found = |list: &[AgentTemplateInfo]| list.iter().filter(|t| t.path.is_some()).map(|t| t.id.clone()).collect::<Vec<_>>();
+    assert!(found(&agent_templates(&tc).await.unwrap()).is_empty());
+
+    let name = if cfg!(windows) { "sh.exe" } else { "sh" };
+    let own = tc.cli_dir().join(name);
+    std::fs::write(&own, "#!/bin/sh\n").unwrap();
+    #[cfg(unix)]
+    std::fs::set_permissions(&own, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+    let list = agent_templates(&tc).await.unwrap();
+    assert_eq!(found(&list), vec!["custom:sh".to_string()]);
+    assert!(same(list[3].path.as_deref().unwrap(), &own), "{:?}", list[3].path);
+}
+
+#[tokio::test]
 async fn after_a_restart_unfinished_sessions_count_as_closed_by_the_app() {
     let (tc, repo, id) = setup().await;
     let folder = expected_folder(&repo, "alt");
