@@ -2,7 +2,7 @@
 //! foreign commits, the files of yours they touch, and how far the current branch is behind.
 //! A pure read: no lock.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::app::Core;
 use crate::commands::{branch_cleanup, refs, status};
@@ -16,7 +16,7 @@ use crate::util;
 
 use super::seen;
 
-/// Commits read per ref; also the limit for "your files".
+/// Commits read per ref, before own commits are dropped; also the limit for "your files".
 const MAX_COMMITS: &str = "--max-count=500";
 /// Subjects listed per ref.
 const LISTED: usize = 20;
@@ -40,9 +40,11 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
     );
     let (current, snapshot, status) = (current?, snapshot?, status?);
     let names: BTreeSet<&String> = seen.refs.keys().chain(current.keys()).collect();
-    // Seen SHAs that are gone from the object database (pruned, gc) would make `git log` fail.
-    let known = existing(core, repo_id, seen.refs.values()).await?;
-    let all_seen: Vec<String> = seen.refs.values().filter(|sha| known.contains(*sha)).cloned().collect();
+    // Seen SHAs peeled to their commit. Ones gone from the object database (pruned, gc) are left
+    // out: they would make `git log` fail.
+    let peeled = peel(core, repo_id, seen.refs.values()).await?;
+    // Everything reachable from any seen tip was seen, also when it reaches this ref by a merge or rebase.
+    let all_seen: Vec<String> = peeled.values().cloned().collect::<BTreeSet<_>>().into_iter().collect();
 
     let mut digest_refs = Vec::new();
     let mut foreign: HashSet<String> = HashSet::new();
@@ -61,16 +63,17 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
         let change = match (old, new) {
             (None, _) => DigestRefChange::New,
             (_, None) => DigestRefChange::Deleted,
-            (Some(o), Some(n)) if kind == RefKind::Remote && !rev::is_ancestor(core, repo_id, o, n).await? => DigestRefChange::Rewritten,
+            (Some(o), Some(n))
+                if kind == RefKind::Remote && (!peeled.contains_key(o) || !rev::is_ancestor(core, repo_id, o, n).await?) =>
+            {
+                DigestRefChange::Rewritten
+            }
             _ => DigestRefChange::Updated,
         };
         let mut commits = Vec::new();
-        if let (RefKind::Remote, Some(new)) = (kind, new) {
-            let not = match old.filter(|o| known.contains(*o)) {
-                Some(o) => std::slice::from_ref(o),
-                None => all_seen.as_slice(),
-            };
-            commits = log(core, repo_id, new, not).await?.into_iter().filter(|c| !is_own(&c.email, &own)).collect();
+        // Nothing seen to compare with (an empty seen state): the ref is new, its history not listed.
+        if let (RefKind::Remote, Some(new), false) = (kind, new, all_seen.is_empty()) {
+            commits = log(core, repo_id, new, &all_seen).await?.into_iter().filter(|c| !is_own(&c.email, &own)).collect();
             // Only own commits: the user pushed it elsewhere, nothing new.
             if change == DigestRefChange::Updated && commits.is_empty() {
                 continue;
@@ -90,7 +93,7 @@ pub(crate) async fn compose_at(core: &Core, repo_id: &str, seen: &SeenRow) -> Co
             name: short.to_string(),
             kind,
             change,
-            old_sha: old.cloned(),
+            old_sha: old.map(|o| peeled.get(o).unwrap_or(o).clone()),
             new_sha,
             new_commits: commits.len() as u32,
             commits: commits.into_iter().take(LISTED).map(|c| DigestCommit { sha: c.sha, subject: c.subject, author: c.author }).collect(),
@@ -167,19 +170,22 @@ fn is_own(email: &str, own: &[String]) -> bool {
     })
 }
 
-/// Which of `shas` are commits or tags in the object database.
-async fn existing<'a>(core: &Core, repo_id: &str, shas: impl Iterator<Item = &'a String>) -> CoreResult<HashSet<String>> {
-    let query: String = shas.map(|sha| format!("{sha}\n")).collect();
+/// Each of `shas` that is in the object database and peels to a commit, mapped to that commit (a
+/// commit to itself, an annotated tag to the commit it points to).
+async fn peel<'a>(core: &Core, repo_id: &str, shas: impl Iterator<Item = &'a String>) -> CoreResult<HashMap<String, String>> {
+    // `<sha>^{} <sha>`: the object peeled, the original echoed back as `%(rest)`.
+    let query: String = shas.map(|sha| format!("{sha}^{{}} {sha}\n")).collect();
     if query.is_empty() {
-        return Ok(HashSet::new());
+        return Ok(HashMap::new());
     }
-    let out = core.git_for(repo_id)?.read().args(["cat-file", "--batch-check=%(objectname) %(objecttype)"]).stdin(query).run().await?;
+    let format = "--batch-check=%(objectname) %(objecttype) %(rest)";
+    let out = core.git_for(repo_id)?.read().args(["cat-file", format]).stdin(query).run().await?;
     Ok(out
         .stdout_lines()
         .into_iter()
         .map(util::decode_lossy)
-        .filter_map(|line| match line.split_once(' ') {
-            Some((sha, "commit" | "tag")) => Some(sha.to_string()),
+        .filter_map(|line| match line.split(' ').collect::<Vec<_>>()[..] {
+            [commit, "commit", sha] => Some((sha.to_string(), commit.to_string())),
             _ => None,
         })
         .collect())

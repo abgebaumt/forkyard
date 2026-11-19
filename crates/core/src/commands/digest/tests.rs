@@ -301,5 +301,66 @@ async fn the_noreply_address_of_a_connected_github_account_is_own() {
     assert!(own.contains(&"lena@example.com".to_string()), "{own:?}");
     let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
     assert!(digest.refs.is_empty(), "{:?}", digest.refs);
-    let _ = &d.remote;
+}
+
+#[tokio::test]
+async fn merging_the_seen_main_into_a_seen_branch_reports_only_the_merge() {
+    let d = colleague_day(colleague_story).await;
+    digest_mark_seen(&d.tc, d.id.clone(), None).await.unwrap();
+    let c = TestRepo::clone_of(&d.remote);
+    c.git(&["checkout", "-q", "-b", "feature/alt", "origin/feature/alt"]);
+    c.git(&["merge", "-q", "--no-ff", "--no-edit", "origin/main"]);
+    c.git(&["push", "-q", "origin", "feature/alt"]);
+    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    let refs: Vec<_> = digest.refs.iter().map(|r| (r.name.as_str(), r.change, r.new_commits)).collect();
+    assert_eq!(refs, vec![("origin/feature/alt", DigestRefChange::Updated, 1)]);
+    assert_eq!(digest.new_commits, 1);
+}
+
+#[tokio::test]
+async fn a_seen_tip_gone_from_the_object_database_counts_as_rewritten() {
+    let d = colleague_day(colleague_story).await;
+    let profile = d.tc.active_profile_id().unwrap();
+    let mut row = seen_row(&d.tc, &d.id);
+    row.refs.insert("refs/remotes/origin/feature/alt".into(), "0123456789abcdef0123456789abcdef01234567".into());
+    d.tc.db.with(|c| repo_seen::put(c, &profile, &d.id, &row)).unwrap();
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    let alt = digest.refs.iter().find(|r| r.name == "origin/feature/alt").unwrap();
+    assert_eq!((alt.change, alt.new_commits), (DigestRefChange::Rewritten, 1));
+}
+
+#[tokio::test]
+async fn without_any_seen_ref_new_refs_list_no_commits() {
+    let d = colleague_day(colleague_story).await;
+    let profile = d.tc.active_profile_id().unwrap();
+    let mut row = seen_row(&d.tc, &d.id);
+    row.refs.clear();
+    d.tc.db.with(|c| repo_seen::put(c, &profile, &d.id, &row)).unwrap();
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    assert!(!digest.refs.is_empty());
+    assert!(digest.refs.iter().all(|r| r.change == DigestRefChange::New && r.new_commits == 0), "{:?}", digest.refs);
+    assert_eq!(digest.new_commits, 0);
+}
+
+#[tokio::test]
+async fn a_moved_annotated_tag_reports_both_commits() {
+    let d = colleague_day(|c| {
+        c.git(&["tag", "-a", "v0.9", "-m", "Vorab", "main"]);
+        c.git(&["push", "-q", "origin", "v0.9"]);
+    })
+    .await;
+    digest_mark_seen(&d.tc, d.id.clone(), None).await.unwrap();
+    let old = d.repo.git(&["rev-parse", "v0.9^{commit}"]);
+    let c = TestRepo::clone_of(&d.remote);
+    c.commit_file("später.txt", "x\n", "Später");
+    c.git(&["push", "-q", "origin", "main"]);
+    sync::fetch(&d.tc, d.id.clone(), util::new_id(), None, true).await.unwrap();
+    // A plain fetch never moves an existing tag: move it the way a forced tag fetch would.
+    d.repo.git(&["tag", "-f", "-a", "v0.9", "-m", "Verschoben", "origin/main"]);
+    let digest = digest_get(&d.tc, d.id.clone(), None).await.unwrap().unwrap();
+    let tag = digest.refs.iter().find(|r| r.name == "v0.9").unwrap();
+    assert_eq!(tag.change, DigestRefChange::Updated);
+    assert_eq!(tag.old_sha.as_deref(), Some(old.as_str()));
+    assert_eq!(tag.new_sha.as_deref(), Some(d.repo.git(&["rev-parse", "origin/main"]).as_str()));
 }

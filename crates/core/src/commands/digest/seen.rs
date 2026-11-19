@@ -44,11 +44,20 @@ pub(crate) async fn ensure(core: &Core, repo_id: &str) -> CoreResult<SeenRow> {
         return Ok(existing);
     }
     // An own push absorbed before the row existed did nothing, and the first snapshot may predate
-    // it: take the refs once more now that the row is there.
+    // it: take the refs once more now that the row is there. Only refs that moved in between are
+    // taken over, so an `absorb` that ran meanwhile stays.
     let refs = current_refs(core, repo_id).await?;
+    let first = row.refs.clone();
     core.db.with(|c| {
         if let Some(mut stored) = repo_seen::get(c, &profile_id, repo_id)? {
-            stored.refs = refs;
+            for name in first.keys().chain(refs.keys()) {
+                if first.get(name) != refs.get(name) {
+                    match refs.get(name) {
+                        Some(sha) => stored.refs.insert(name.clone(), sha.clone()),
+                        None => stored.refs.remove(name),
+                    };
+                }
+            }
             repo_seen::put(c, &profile_id, repo_id, &stored)?;
             row = stored;
         }
