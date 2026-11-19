@@ -1,4 +1,5 @@
-//! Merge, conflicts, running operations, revert, reset.
+//! Merge and reset; conflicts in `merge/conflict.rs`, continuing and aborting the running operation in
+//! `merge/operation.rs` (revert lives next to cherry-pick in `rebase/cherry_pick.rs`).
 //!
 //! What "ours" and "theirs" mean: always index stages 2 and 3, the way Git creates them.
 //! In a merge, stage 2 is the checked-out branch and stage 3 the incoming one. In a rebase
