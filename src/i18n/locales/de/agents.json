@@ -83,7 +83,8 @@
     "changes_one": "{{count}} nicht committete Datei wird für Undo gesichert.",
     "changes_other": "{{count}} nicht committete Dateien werden für Undo gesichert.",
     "running": "Der Agent läuft noch und wird beendet.",
-    "removed": "Worktree-Ordner und Branch werden entfernt. Rückgängig ({{mod}}+Z) holt beides 14 Tage lang zurück.",
+    "removed": "Worktree-Ordner und Branch werden entfernt. Rückgängig ({{shortcut}}) holt beides 14 Tage lang zurück.",
+    "removedNoKey": "Worktree-Ordner und Branch werden entfernt. Rückgängig holt beides 14 Tage lang zurück.",
     "locked": "Der Worktree ist gesperrt. Entsperre ihn zuerst im Bereich „Worktrees“.",
     "action": "Coding-Agent aufräumen",
     "done": "Agent „{{name}}“ aufgeräumt"

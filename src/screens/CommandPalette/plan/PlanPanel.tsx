@@ -7,10 +7,12 @@
 import { useEffect, useRef } from "react";
 import type { PlanArgField, PlanStepOutcome, PlanStepView } from "../../../core";
 import { errorView, loadingView } from "../../../app/ai/requestState";
+import { useCommandShortcut } from "../../../app/registry";
 import { Button, Spinner } from "../../../ui/Button";
 import { Checkbox, SegmentedControl, TextField } from "../../../ui/Field";
 import { Kbd } from "../../../ui/Kbd";
 import { cn } from "../../../ui/cn";
+import { formatShortcut } from "../../../ui/shortcut";
 import { t } from "../../../i18n";
 import {
   ARG_LABELS,
@@ -134,10 +136,11 @@ function PlanSteps({ session, phase, idPrefix }: { session: PlanSession; phase: 
   const { preview } = phase;
   const selected = phase.kind === "preview" || phase.kind === "editing" ? phase.selected : -1;
   const outcomes = phase.kind === "result" ? phase.result.steps : null;
+  const undoKey = useCommandShortcut("repo.undo");
   return (
     <div className="flex flex-col gap-2 p-1" data-plan-state={phase.kind}>
       <p className="sr-only" aria-live="polite">
-        {liveText(phase)}
+        {liveText(phase, undoKey)}
       </p>
       {preview.blocked ? (
         <p role="alert" className="rounded-md bg-warning-surface px-3 py-2 text-sm text-text" data-plan-blocked>
@@ -179,11 +182,11 @@ function PlanSteps({ session, phase, idPrefix }: { session: PlanSession; phase: 
       ) : null}
       {phase.kind === "result" ? (
         <p role="alert" className="px-2 text-sm text-text" data-plan-result>
-          {resultText(phase.result)}
+          {resultText(phase.result, undoKey)}
         </p>
       ) : (
         <p className="px-2 text-xs text-text-muted" data-plan-undo-hint>
-          {t("palette.plan.undoHint")}
+          {undoKey ? t("palette.plan.undoHint", { shortcut: formatShortcut(undoKey) }) : t("palette.plan.undoHintNoKey")}
         </p>
       )}
     </div>

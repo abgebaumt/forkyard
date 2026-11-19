@@ -226,14 +226,17 @@ describe("agents: actions and cleanup", () => {
     expect(actionsFor(agent({ status: "orphaned", terminalId: null }), opts)).toEqual(["forget"]);
   });
   it("warns about unpushed commits and names what is kept", () => {
-    expect(cleanupLines({ unpushedCommits: 0, changedFiles: 0, running: false, locked: false })).toEqual([
+    expect(cleanupLines({ unpushedCommits: 0, changedFiles: 0, running: false, locked: false }, "Mod+Z")).toEqual([
       { tone: "info", text: "The worktree folder and the branch are removed. Undo (Ctrl+Z) brings them back for 14 days." },
     ]);
-    expect(cleanupLines({ unpushedCommits: 2, changedFiles: 1, running: true, locked: false })).toEqual([
+    expect(cleanupLines({ unpushedCommits: 2, changedFiles: 1, running: true, locked: false }, "Mod+Z")).toEqual([
       { tone: "warning", text: "Warning: 2 commits of this branch are not pushed. They are only kept by the undo backup (14 days)." },
       { tone: "info", text: "1 uncommitted file is backed up for undo." },
       { tone: "info", text: "The agent is still running and will be stopped." },
       { tone: "info", text: "The worktree folder and the branch are removed. Undo (Ctrl+Z) brings them back for 14 days." },
+    ]);
+    expect(cleanupLines({ unpushedCommits: 0, changedFiles: 0, running: false, locked: false }, undefined)).toEqual([
+      { tone: "info", text: "The worktree folder and the branch are removed. Undo brings them back for 14 days." },
     ]);
   });
 });

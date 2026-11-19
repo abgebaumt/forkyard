@@ -68,9 +68,11 @@ async function cleanUp(agent: Agent): Promise<void> {
     toast({ tone: "warning", title: t("agents.cleanup.locked") });
     return;
   }
+  // Loaded lazily: the registry imports the command files, and they import the agent actions.
+  const { commandShortcut } = await import("../../app/registry");
   const ok = await confirm({
     title: t("agents.cleanup.title", { name: agent.shortName }),
-    body: cleanupLines(preview.value)
+    body: cleanupLines(preview.value, commandShortcut("repo.undo"))
       .map((line) => line.text)
       .join(" "),
     details: [agent.worktreePath, agent.branch],

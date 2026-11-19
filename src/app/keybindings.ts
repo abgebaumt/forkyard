@@ -73,10 +73,11 @@ const TEXT_KEYS = ["Mod+A", "Mod+C", "Mod+V", "Mod+X"];
 
 // Mod+Space off macOS: input method switch.
 const DESKTOP_SYSTEM_KEYS = ["Alt+F4", "Alt+Tab", "Ctrl+Alt+Delete", "Ctrl+Alt+ArrowLeft", "Ctrl+Alt+ArrowRight"];
+// Alt+Space: the window menu on Windows and Linux, a non-breaking space on macOS. Cmd+Shift+3/4/5: macOS screenshots.
 const SYSTEM_KEYS: Record<ShortcutPlatform, string[]> = {
-  windows: [...DESKTOP_SYSTEM_KEYS, "Mod+Space"],
-  linux: [...DESKTOP_SYSTEM_KEYS, "Mod+Space", "Ctrl+Alt+T"],
-  mac: ["Mod+Q", "Mod+H", "Mod+M", "Mod+Tab", "Mod+Space", "Mod+Alt+Escape"],
+  windows: [...DESKTOP_SYSTEM_KEYS, "Mod+Space", "Alt+Space"],
+  linux: [...DESKTOP_SYSTEM_KEYS, "Mod+Space", "Alt+Space", "Ctrl+Alt+T"],
+  mac: ["Mod+Q", "Mod+H", "Mod+M", "Mod+Tab", "Mod+Space", "Alt+Space", "Mod+Alt+Escape", "Mod+Shift+3", "Mod+Shift+4", "Mod+Shift+5"],
 };
 
 /** Why a combination cannot be assigned at all; `null` if it can. A command's own defaults always can. */
@@ -134,6 +135,11 @@ export function reset(overrides: Keybindings, commandId: string): Keybindings {
   return rest;
 }
 
+/** Windows AltGr arrives as Ctrl+Alt: a typed character ("{", "@", "€") is text, not a shortcut. */
+export function isAltGrText(event: Pick<KeyboardEvent, "key" | "ctrlKey" | "altKey">, mac: boolean): boolean {
+  return !mac && event.ctrlKey && event.altKey && event.key.length === 1 && !/^[a-z0-9 ]$/i.test(event.key);
+}
+
 const NO_KEY = new Set(["Shift", "Control", "Alt", "AltGraph", "Meta", "OS", "CapsLock", "Dead", "Unidentified", "Process"]);
 
 /**
@@ -145,8 +151,7 @@ export function shortcutFromEvent(
   mac: boolean,
 ): string | null {
   if (NO_KEY.has(event.key) || (event.metaKey && !mac)) return null;
-  // Windows AltGr arrives as Ctrl+Alt: a typed character ("{", "@", "€") is text, not a shortcut.
-  if (!mac && event.ctrlKey && event.altKey && event.key.length === 1 && !/^[a-z0-9 ]$/i.test(event.key)) return null;
+  if (isAltGrText(event, mac)) return null;
   let key: string;
   let shift = event.shiftKey;
   // Numpad only when it types the digit (NumLock off gives End, ArrowDown …).

@@ -1,6 +1,7 @@
 {
   "change": "Kürzel für {{command}} ändern, derzeit {{keys}}",
   "none": "Kein Kürzel",
+  "reset": "Kürzel für {{command}} zurücksetzen",
   "recording": "Drücke neue Kombination …",
   "recordingHint": "Esc bricht ab, Rücktaste entfernt das Kürzel.",
   "recordingHintMac": "Esc bricht ab, die Löschtaste entfernt das Kürzel.",

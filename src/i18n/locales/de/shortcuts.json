@@ -90,7 +90,8 @@
         "previous": "Voriger Treffer",
         "mark": "Treffer in der Liste markieren"
       },
-      "where": "Suchleiste über dem Graphen ({{mod}}+F)"
+      "where": "Suchleiste über dem Graphen ({{shortcut}})",
+      "whereNoKey": "Suchleiste über dem Graphen"
     },
     "conflict": {
       "entries": {
@@ -176,7 +177,8 @@
         "moreActions": "Weitere Aktionen zum Treffer",
         "back": "Zurück bzw. schließen"
       },
-      "where": "Nach {{mod}}+P"
+      "where": "Nach {{shortcut}}",
+      "whereNoKey": "In der Befehlspalette"
     },
     "dialogs": {
       "entries": {

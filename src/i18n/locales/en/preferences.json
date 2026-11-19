@@ -201,7 +201,8 @@
       "description": "Language of the interface. “System” follows the language of your operating system. Changing it reloads the window."
     },
     "zoom": {
-      "description": "Enlarges or shrinks the whole interface (80 to 200 %). Also works with {{mod}} and plus or minus. In a small window, only as much zoom applies as fits – make the window larger for more."
+      "description": "Enlarges or shrinks the whole interface (80 to 200 %). In a small window, only as much zoom applies as fits – make the window larger for more.",
+      "keys": "Also works with {{zoomIn}} and {{zoomOut}}."
     },
     "dateFormat": {
       "title": "Date format",

@@ -18,8 +18,8 @@ export interface FixedKey {
 export interface FixedKeyGroup {
   id: string;
   title: string;
-  /** Where it applies, as a short sentence below the heading. */
-  where: string;
+  /** Where it applies, as a short sentence below the heading; a function gets a command's effective key, formatted (undefined = none). */
+  where: string | ((keyOf: (commandId: string) => string | undefined) => string);
   entries: FixedKey[];
 }
 
@@ -55,7 +55,7 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
       { keys: ["Mod+A"], label: t("shortcuts.fixed.lists.entries.markAll") },
       { keys: ["F2"], label: t("shortcuts.fixed.lists.entries.renameBranch") },
       { keys: ["Delete"], label: t("shortcuts.fixed.lists.entries.delete") },
-      { keys: ["Mod+Alt+F"], label: t("shortcuts.fixed.lists.entries.filter") },
+      { keys: ["Mod+Alt+F"], label: t("shortcuts.fixed.lists.entries.filter"), commands: ["leftPanel.filter"] },
       { keys: ["ContextMenu", "Shift+F10"], label: t("shortcuts.fixed.lists.entries.contextMenu") },
     ],
   },
@@ -67,8 +67,8 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
       { keys: ["S"], label: t("shortcuts.fixed.wip.entries.stage") },
       { keys: ["U"], label: t("shortcuts.fixed.wip.entries.unstage") },
       { keys: ["Delete"], label: t("shortcuts.fixed.wip.entries.discard") },
-      { keys: ["Mod+Enter"], label: t("shortcuts.fixed.wip.entries.commit") },
-      { keys: ["Mod+Shift+Enter"], label: t("shortcuts.fixed.wip.entries.stageAllCommit") },
+      { keys: ["Mod+Enter"], label: t("shortcuts.fixed.wip.entries.commit"), commands: ["wip.commit"] },
+      { keys: ["Mod+Shift+Enter"], label: t("shortcuts.fixed.wip.entries.stageAllCommit"), commands: ["wip.commitAll"] },
       { keys: ["ArrowLeft", "ArrowRight"], label: t("shortcuts.fixed.wip.entries.toggleCommitStash") },
     ],
   },
@@ -91,7 +91,10 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
   {
     id: "search",
     title: t("ui.commitSearch"),
-    where: t("shortcuts.fixed.search.where"),
+    where: (keyOf) => {
+      const shortcut = keyOf("view.search");
+      return shortcut ? t("shortcuts.fixed.search.where", { shortcut }) : t("shortcuts.fixed.search.whereNoKey");
+    },
     entries: [
       { keys: ["Enter", "F3"], label: t("shortcuts.fixed.search.entries.next") },
       { keys: ["Shift+Enter", "Shift+F3"], label: t("shortcuts.fixed.search.entries.previous") },
@@ -202,7 +205,10 @@ export const fixedKeyGroups: FixedKeyGroup[] = [
   {
     id: "palette",
     title: t("ui.commandPalette"),
-    where: t("shortcuts.fixed.palette.where"),
+    where: (keyOf) => {
+      const shortcut = keyOf("app.palette");
+      return shortcut ? t("shortcuts.fixed.palette.where", { shortcut }) : t("shortcuts.fixed.palette.whereNoKey");
+    },
     entries: [
       { keys: [">"], label: t("shortcuts.fixed.palette.entries.commands") },
       { keys: ["@"], label: t("shortcuts.fixed.palette.entries.refs") },

@@ -201,7 +201,8 @@
       "description": "Sprache der Oberfläche. „System“ folgt der Sprache deines Betriebssystems. Beim Wechsel lädt das Fenster neu."
     },
     "zoom": {
-      "description": "Vergrößert oder verkleinert die ganze Oberfläche (80 bis 200 %). Geht auch mit {{mod}} und Plus oder Minus. In einem kleinen Fenster wirkt nur so viel Vergrößerung, wie hineinpasst – für mehr das Fenster größer ziehen."
+      "description": "Vergrößert oder verkleinert die ganze Oberfläche (80 bis 200 %). In einem kleinen Fenster wirkt nur so viel Vergrößerung, wie hineinpasst – für mehr das Fenster größer ziehen.",
+      "keys": "Geht auch mit {{zoomIn}} und {{zoomOut}}."
     },
     "dateFormat": {
       "title": "Datumsformat",

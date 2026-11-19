@@ -30,7 +30,7 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import type { PaletteMode } from "../../app/store";
-import { buildCommandContext, isAvailable, useCommands } from "../../app/registry";
+import { buildCommandContext, isAvailable, useCommandShortcut, useCommands } from "../../app/registry";
 import { describeError } from "../../app/errors";
 import { showError } from "../../app/run";
 import { afterFocusReturn, useFocusReturn } from "../../app/focusReturn";
@@ -49,6 +49,7 @@ import {
 import { Kbd } from "../../ui/Kbd";
 import { Spinner } from "../../ui/Button";
 import { cn } from "../../ui/cn";
+import { formatShortcut } from "../../ui/shortcut";
 import { fuzzyBest, fuzzyMatch, highlightParts, isWeakMatch, prepareQuery } from "./fuzzy";
 import { readRecent } from "./recent";
 import { locale, t } from "../../i18n";
@@ -304,6 +305,7 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
   const ask = askMode(aiStatus.data, repoSettings.data?.aiOff ?? false, repoId !== null);
   const askEnabled = ask !== "hidden";
   const plan = usePlanSession(repoId, onClose, () => inputRef.current?.focus());
+  const openKey = useCommandShortcut("repo.open");
   const askText = stage || plan.active ? null : askQuery(raw, askEnabled);
   const startAsk = useRef<(request: string) => void>(() => undefined);
   startAsk.current = (request: string) => {
@@ -664,7 +666,8 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
             ? t("palette.empty.noRepoFiles")
             : scope === "commits"
               ? t("palette.empty.noRepoCommits")
-              : t("palette.empty.noRepoBranches")}
+              : t("palette.empty.noRepoBranches")}{" "}
+          {openKey ? t("palette.empty.openRepo", { shortcut: formatShortcut(openKey) }) : t("palette.empty.openRepoNoKey")}
         </PaletteEmpty>
       );
     } else if (scope === "commits" && !text) {
@@ -682,7 +685,11 @@ export function CommandPalette({ mode, onClose }: CommandPaletteProps) {
     } else {
       empty = (
         <PaletteEmpty icon={<Search className="size-6" aria-hidden />} title={t("palette.empty.nothingHere")}>
-          {scope === "repos" ? t("palette.empty.noRepos") : t("palette.empty.listEmpty")}
+          {scope !== "repos"
+            ? t("palette.empty.listEmpty")
+            : openKey
+              ? t("palette.empty.noRepos", { shortcut: formatShortcut(openKey) })
+              : t("palette.empty.noReposNoKey", { command: t("ui.openRepository") })}
         </PaletteEmpty>
       );
     }

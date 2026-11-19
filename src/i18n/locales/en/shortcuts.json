@@ -85,7 +85,8 @@
       }
     },
     "search": {
-      "where": "Search bar above the graph ({{mod}}+F)",
+      "where": "Search bar above the graph ({{shortcut}})",
+      "whereNoKey": "Search bar above the graph",
       "entries": {
         "next": "Next result",
         "previous": "Previous result",
@@ -168,7 +169,8 @@
       }
     },
     "palette": {
-      "where": "After {{mod}}+P",
+      "where": "After {{shortcut}}",
+      "whereNoKey": "In the command palette",
       "entries": {
         "commands": "Commands only",
         "refs": "Branches and tags only",

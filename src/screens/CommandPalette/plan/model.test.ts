@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CoreError, type AiStatus, type PlanPreview, type PlanRunResult, type PlanStepView } from "../../../core";
+import { formatShortcut } from "../../../ui/shortcut";
 import {
   afterRun,
   applyDraft,
@@ -312,17 +313,19 @@ describe("running and the result", () => {
     expect(afterRun(result(["done", "failed", "not_run"])).close).toBe(false);
   });
 
-  it("says where the plan stopped and what Mod+Z does", () => {
-    expect(resultText(result(["done", "failed", "not_run"]))).toContain("stopped at step 2");
-    expect(resultText(result(["done", "failed", "not_run"]))).toContain("takes them back");
-    expect(resultText(result(["failed", "not_run"]))).toBe("Step 1 failed; nothing was changed.");
-    expect(resultText(result(["done", "not_run"], { cancelled: true }))).toContain("Cancelled. The steps already done stay done");
-    expect(resultText(result(["not_run", "not_run"], { cancelled: true }))).toBe("Cancelled; nothing was changed.");
+  it("says where the plan stopped and what undo does", () => {
+    expect(resultText(result(["done", "failed", "not_run"]), "Mod+Z")).toContain("stopped at step 2");
+    expect(resultText(result(["done", "failed", "not_run"]), "Mod+Alt+U")).toContain(`${formatShortcut("Mod+Alt+U")} takes them back`);
+    expect(resultText(result(["done", "failed", "not_run"]), undefined)).toContain("Undo takes them back");
+    expect(resultText(result(["failed", "not_run"]), "Mod+Z")).toBe("Step 1 failed; nothing was changed.");
+    expect(resultText(result(["done", "not_run"], { cancelled: true }), "Mod+Z")).toContain("Cancelled. The steps already done stay done");
+    expect(resultText(result(["done", "not_run"], { cancelled: true }), undefined)).toContain("Undo takes them back");
+    expect(resultText(result(["not_run", "not_run"], { cancelled: true }), "Mod+Z")).toBe("Cancelled; nothing was changed.");
   });
 
   it("announces a ready plan politely", () => {
-    expect(liveText(previewPhase(plan([create, push])))).toBe("Plan with 2 steps ready");
-    expect(liveText(previewPhase(plan([create]), 0, [], true))).toBe("");
-    expect(liveText({ kind: "loading", text: "x", jobId: "j", startedAt: 0 })).toBe("");
+    expect(liveText(previewPhase(plan([create, push])), "Mod+Z")).toBe("Plan with 2 steps ready");
+    expect(liveText(previewPhase(plan([create]), 0, [], true), "Mod+Z")).toBe("");
+    expect(liveText({ kind: "loading", text: "x", jobId: "j", startedAt: 0 }, "Mod+Z")).toBe("");
   });
 });

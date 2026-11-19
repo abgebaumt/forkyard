@@ -83,7 +83,8 @@
     "changes_one": "{{count}} uncommitted file is backed up for undo.",
     "changes_other": "{{count}} uncommitted files are backed up for undo.",
     "running": "The agent is still running and will be stopped.",
-    "removed": "The worktree folder and the branch are removed. Undo ({{mod}}+Z) brings them back for 14 days.",
+    "removed": "The worktree folder and the branch are removed. Undo ({{shortcut}}) brings them back for 14 days.",
+    "removedNoKey": "The worktree folder and the branch are removed. Undo brings them back for 14 days.",
     "locked": "The worktree is locked. Unlock it in the Worktrees section first.",
     "action": "Clean up coding agent",
     "done": "Agent “{{name}}” cleaned up"

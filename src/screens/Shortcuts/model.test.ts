@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { AppCommand } from "../../app/commandTypes";
+import { applyKeybindings, conflictWith, refusal } from "../../app/keybindings";
+import { getCommands } from "../../app/registry";
 import { t } from "../../i18n";
+import { formatShortcut } from "../../ui/shortcut";
 import { GROUP_TITLES, filterSections, fixedSections, registrySections } from "./model";
 
 const command = (id: string, group: AppCommand["group"], shortcut?: string, title = id): AppCommand =>
@@ -68,5 +71,23 @@ describe("shortcut overview in edit mode", () => {
     const rebound = tabs.map((item) => (item.id === "tab.goto.3" ? { ...item, shortcut: "Mod+Alt+3" } : item));
     expect(ids(registrySections(rebound))).toHaveLength(9);
     expect(ids(registrySections(tabs, { editing: true })), "each tab is editable").toHaveLength(9);
+  });
+
+  it("a rebound command that also works in a view frees its old key and shows the new one", () => {
+    const effective = applyKeybindings(getCommands(), { "leftPanel.filter": ["Mod+Shift+L"] });
+    expect(refusal("Mod+Alt+F", "linux", [])).toBeNull();
+    expect(conflictWith("Mod+Alt+F", "repo.x", effective, "linux")).toBeNull();
+    const filter = fixedSections(effective)
+      .find((section) => section.id === "fixed-lists")!
+      .entries.find((entry) => entry.label === t("shortcuts.fixed.lists.entries.filter"));
+    expect(filter?.keys).toEqual([["Mod+Shift+L"]]);
+  });
+
+  it("names the effective key that opens a view, and reads well without one", () => {
+    const where = (list: AppCommand[], id: string) => fixedSections(list).find((section) => section.id === id)!.where;
+    expect(where([command("view.search", "View", "Mod+Alt+S")], "fixed-search")).toContain(formatShortcut("Mod+Alt+S"));
+    expect(where([command("app.palette", "General", "Mod+K")], "fixed-palette")).toContain(formatShortcut("Mod+K"));
+    expect(where([], "fixed-search")).toBe(t("shortcuts.fixed.search.whereNoKey"));
+    expect(where([], "fixed-palette")).toBe(t("shortcuts.fixed.palette.whereNoKey"));
   });
 });

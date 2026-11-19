@@ -1,6 +1,7 @@
 {
   "change": "Change shortcut for {{command}}, currently {{keys}}",
   "none": "No shortcut",
+  "reset": "Reset shortcut for {{command}}",
   "recording": "Press the new combination …",
   "recordingHint": "Esc cancels, Backspace removes the shortcut.",
   "recordingHintMac": "Esc cancels, Delete removes the shortcut.",
