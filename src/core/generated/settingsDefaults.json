@@ -29,6 +29,7 @@
   "conflictShowBase": false,
   "branchCleanupStaleDays": 90,
   "agentTemplates": [],
+  "keybindings": {},
   "sshUseAgent": true,
   "proxyUrl": null,
   "proxyByHost": [],

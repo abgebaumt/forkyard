@@ -467,6 +467,10 @@ pub struct Settings {
     /// templates (Claude Code, Codex, opencode) are not stored.
     #[serde(default)]
     pub agent_templates: Vec<AgentTemplate>,
+    /// Own keyboard shortcuts (global): command id → shortcuts in notation "Mod+Shift+P"; `None` = the command has no key.
+    /// Missing id = the command's default.
+    #[serde(default)]
+    pub keybindings: std::collections::BTreeMap<String, Option<Vec<String>>>,
     pub ssh_use_agent: bool,
     /// Proxy for all HTTP(S) remotes (`http.proxy`); `None` = whatever Git already uses.
     #[serde(default)]
@@ -564,6 +568,7 @@ impl Default for Settings {
             conflict_show_base: false,
             branch_cleanup_stale_days: default_branch_cleanup_stale_days(),
             agent_templates: Vec::new(),
+            keybindings: Default::default(),
             ssh_use_agent: true,
             proxy_url: None,
             proxy_by_host: Vec::new(),

@@ -455,3 +455,41 @@ async fn protected_branch_patterns_are_tidied_and_stored() {
     assert_eq!(s.protected_branch_patterns, vec!["team/*".to_string(), "qa".to_string()]);
     assert_eq!(repo_settings_get(&tc, id).await.unwrap().protected_branch_patterns, vec!["team/*".to_string(), "qa".to_string()]);
 }
+
+#[tokio::test]
+async fn keybindings_are_global_and_tidied() {
+    let tc = TestCore::new().await;
+    assert!(settings_get(&tc).await.unwrap().keybindings.is_empty());
+    let s = settings_set(
+        &tc,
+        json!({ "keybindings": {
+            "sync.push": [" Mod+Shift+K ", "Mod+Shift+K", ""],
+            "sync.pull": null,
+            "tab.new": [],
+            "": ["Mod+1"],
+            "x".repeat(101): ["Mod+2"]
+        }}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(s.keybindings.get("sync.push"), Some(&Some(vec!["Mod+Shift+K".to_string()])));
+    assert_eq!(s.keybindings.get("sync.pull"), Some(&None));
+    assert_eq!(s.keybindings.get("tab.new"), Some(&None), "an empty list means no key");
+    assert_eq!(s.keybindings.len(), 3, "empty and too long ids are dropped");
+    assert!(db::app_settings::is_global("keybindings"));
+    let stored: i64 =
+        tc.db.with(|c| Ok(c.query_row("select count(*) from app_settings where key = 'keybindings'", [], |r| r.get(0))?)).unwrap();
+    assert_eq!(stored, 1, "global table");
+}
+
+#[tokio::test]
+async fn keybindings_are_capped() {
+    let tc = TestCore::new().await;
+    let many: serde_json::Map<String, serde_json::Value> = (0..501).map(|i| (format!("c{i:03}"), json!(["Mod+1"]))).collect();
+    let s = settings_set(&tc, json!({ "keybindings": many })).await.unwrap();
+    assert_eq!(s.keybindings.len(), 500);
+    let s =
+        settings_set(&tc, json!({ "keybindings": { "a": ["1", "2", "3", "4", "5", "6"], "b": ["M".repeat(41), "Mod+K"] } })).await.unwrap();
+    assert_eq!(s.keybindings["a"].as_ref().unwrap().len(), 4);
+    assert_eq!(s.keybindings["b"], Some(vec!["Mod+K".to_string()]), "a 41-character shortcut is dropped");
+}

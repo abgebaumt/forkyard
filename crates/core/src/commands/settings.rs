@@ -29,6 +29,7 @@ fn normalize(mut s: Settings) -> Settings {
     s.external_diff_tool = util::non_empty(s.external_diff_tool.take());
     s.external_merge_tool = util::non_empty(s.external_merge_tool.take());
     normalize_ai(&mut s);
+    normalize_keybindings(&mut s.keybindings);
     // Stored network values that are not (or no longer) valid are dropped one by one.
     crate::git::netconfig::normalize_lenient(&mut s);
     s
@@ -87,6 +88,29 @@ fn normalize_ai(s: &mut Settings) {
     for path in [&mut s.ai_cli_paths.claude_code, &mut s.ai_cli_paths.codex, &mut s.ai_cli_paths.opencode] {
         *path = util::non_empty(path.take()).map(|value| value.trim().to_string());
     }
+}
+
+/// Tidies the own shortcuts: trimmed, no empty or repeated shortcuts (at most 4, each up to 40 characters),
+/// an empty list means "no key", empty or overlong command ids are dropped (at most 500 commands).
+fn normalize_keybindings(map: &mut std::collections::BTreeMap<String, Option<Vec<String>>>) {
+    *map = std::mem::take(map)
+        .into_iter()
+        .filter(|(id, _)| !id.is_empty() && id.chars().count() <= 100)
+        .take(500)
+        .map(|(id, keys)| {
+            let keys = keys.and_then(|keys| {
+                let mut tidy: Vec<String> = Vec::new();
+                for key in keys.iter().map(|k| k.trim()).filter(|k| !k.is_empty() && k.chars().count() <= 40) {
+                    if !tidy.iter().any(|known| known == key) {
+                        tidy.push(key.to_string());
+                    }
+                }
+                tidy.truncate(4);
+                (!tidy.is_empty()).then_some(tidy)
+            });
+            (id, keys)
+        })
+        .collect();
 }
 
 /// Own paths of the AI command-line tools must be absolute: a bare name would be searched like PATH.
