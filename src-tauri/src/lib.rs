@@ -2,10 +2,13 @@
 //! registers the commands from src/core/api.ts. All logic lives in `gitcore`.
 
 mod commands;
+mod windows;
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use gitcore::model::WindowState;
+use gitcore::windowing::MAIN;
 use gitcore::{Core, CoreConfig, EventSink};
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -35,7 +38,6 @@ const UPDATE_URL_ENV: &str = "FORKYARD_UPDATE_URL";
 /// Development build only: search the AI command-line tools only in this folder – no PATH, no login
 /// shell (E2E with the fake tool target/debug/forkyard-fake-cli).
 const AI_CLI_DIR_ENV: &str = "FORKYARD_AI_CLI_DIR";
-const MAIN_WINDOW: &str = "main";
 /// WebKitGTK's switch for its timer-based vblank instead of watching the display through DRM.
 #[cfg(target_os = "linux")]
 const VBLANK_TIMER_ENV: &str = "WEBKIT_FORCE_VBLANK_TIMER";
@@ -141,25 +143,36 @@ fn navigation_guard<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
         .build()
 }
 
-/// Sends core events to all windows; names exactly as `CoreEvents` in types.ts.
+/// Sends core events to the windows; names exactly as `CoreEvents` in types.ts.
 struct WindowSink {
     app: AppHandle,
 }
 
 impl EventSink for WindowSink {
     fn emit(&self, event: &str, payload: serde_json::Value) {
+        if let Err(e) = self.app.emit(event, payload) {
+            log::warn!("Event {event} not delivered: {e}");
+        }
+    }
+
+    /// Reaches only that window's UI: it listens with its own label as target (src/core/index.ts).
+    fn emit_to(&self, window: &str, event: &str, payload: serde_json::Value) {
         // An external request brings the window to the front – not under the E2E driver.
         if matches!(event, gitcore::events::names::APP_OPEN_REQUEST | gitcore::events::names::APP_FOCUS_REQUEST)
             && dev_env_value(E2E_WINDOW_ENV).is_none()
         {
-            if let Some(window) = self.app.get_webview_window(MAIN_WINDOW) {
+            if let Some(window) = self.app.get_webview_window(window) {
                 let _ = window.unminimize();
                 let _ = window.set_focus();
             }
         }
-        if let Err(e) = self.app.emit(event, payload) {
-            log::warn!("Event {event} not delivered: {e}");
+        if let Err(e) = self.app.emit_to(window, event, payload) {
+            log::warn!("Event {event} for window {window} not delivered: {e}");
         }
+    }
+
+    fn sync_windows(&self, windows: &[WindowState], place_existing: bool) {
+        windows::reconcile(&self.app, windows, place_existing);
     }
 }
 
@@ -210,15 +223,16 @@ fn setup(app: &mut tauri::App, launch: Option<gitcore::model::LaunchRequest>) ->
     if let Err(e) = gitcore::crash::install_termination_handler(move |reason| end_on_request(&quit_handle, reason)) {
         log::warn!("Requests to end the app are not handled: {e}");
     }
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
-        let under_test = dev_env_value(E2E_WINDOW_ENV).is_some();
-        // In the development build F5 and F12 keep working – except under the E2E driver.
-        if !dev_mode() || under_test {
-            disable_browser_keys(&window);
-        }
-        if dev_mode() {
-            prepare_test_window(app, &window);
-        }
+    if dev_mode() {
+        grant_test_window_size(app.handle());
+    }
+    // The windows of the last session; the one from tauri.conf.json is `main` (`db::windows::ensure`).
+    match gitcore::commands::window::restore(&core) {
+        Ok(wanted) => windows::reconcile(app.handle(), &wanted, true),
+        Err(e) => log::warn!("Windows of the last session not restored: {}", e.message),
+    }
+    if let Some(window) = app.get_webview_window(MAIN) {
+        prepare_window(app.handle(), &window);
     }
     tauri::async_runtime::spawn(async move {
         gitcore::startup::reached("setup done");
@@ -279,16 +293,34 @@ fn parse_size(text: &str) -> Option<(u32, u32)> {
     (width > 0 && height > 0).then_some((width, height))
 }
 
-/// Development build: window size from the environment, and the UI may set the size itself
-/// (`plugin:window|set_size`) – that is how the E2E driver sizes the real window.
-fn prepare_test_window(app: &tauri::App, window: &tauri::WebviewWindow) {
+/// Every app window after it was built: browser shortcuts and, in the development build, the test size.
+fn prepare_window(app: &AppHandle, window: &tauri::WebviewWindow) {
+    // In the development build F5 and F12 keep working – except under the E2E driver.
+    if !dev_mode() || dev_env_value(E2E_WINDOW_ENV).is_some() {
+        disable_browser_keys(window);
+    }
+    if dev_mode() {
+        size_test_window(app, window);
+    }
+}
+
+/// Labels of the app windows, as in capabilities/default.json.
+const WINDOW_LABELS: [&str; 2] = [MAIN, "w-*"];
+
+/// Development build: the UI may set the window size itself (`plugin:window|set_size`) – that is how
+/// the E2E driver sizes the real window.
+fn grant_test_window_size(app: &AppHandle) {
     let capability = tauri::ipc::CapabilityBuilder::new("dev-window-size")
-        .window(MAIN_WINDOW)
+        .windows(WINDOW_LABELS)
         .permission("core:window:allow-set-size")
         .permission("core:window:allow-set-min-size");
     if let Err(e) = app.add_capability(capability) {
         eprintln!("Could not grant the window-size permissions for tests: {e}");
     }
+}
+
+/// Development build: window size from the environment.
+fn size_test_window(app: &AppHandle, window: &tauri::WebviewWindow) {
     let Some(text) = env_value(WINDOW_SIZE_ENV).and_then(|v| v.into_string().ok()) else {
         return;
     };
@@ -296,7 +328,7 @@ fn prepare_test_window(app: &tauri::App, window: &tauri::WebviewWindow) {
         eprintln!("{WINDOW_SIZE_ENV} expects WIDTHxHEIGHT, e.g. 1440x900 (was: {text}).");
         return;
     };
-    let minimum = app.config().app.windows.iter().find(|w| w.label == MAIN_WINDOW).and_then(|w| Some((w.min_width?, w.min_height?)));
+    let minimum = app.config().app.windows.iter().find(|w| w.label == MAIN).and_then(|w| Some((w.min_width?, w.min_height?)));
     let outcome = match minimum {
         Some((min_width, min_height)) => window.set_min_size(Some(tauri::PhysicalSize::new(min_width as u32, min_height as u32))),
         None => Ok(()),
@@ -330,32 +362,52 @@ fn context() -> tauri::Context {
     context
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-/// Closing the window (×, Alt+F4, logging off): if the UI has reported that something would be
-/// lost, the window does not close and the UI asks instead. Otherwise the running actions are
-/// cancelled first (no Git process keeps running without the app, a half-finished clone is
-/// cleaned up), then the window closes.
+/// Events of every app window, by its label. Closing (×, Alt+F4, logging off): if the window's UI has
+/// reported that something would be lost, the window does not close and its UI asks instead.
+/// Otherwise the actions it started are cancelled first – as the last window, all running actions
+/// (no Git process keeps running without the app, a half-finished clone is cleaned up) – then it closes.
 fn on_window_event(window: &tauri::Window, event: &tauri::WindowEvent) {
-    let tauri::WindowEvent::CloseRequested { api, .. } = event else { return };
     let Some(core) = window.try_state::<Core>() else { return };
     let core: Core = (*core).clone();
+    let label = window.label();
+    match event {
+        tauri::WindowEvent::CloseRequested { api, .. } => close_requested(window, api, core),
+        tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_) => {
+            if let Some(g) = windows::geometry_of(window) {
+                gitcore::commands::window::note_geometry(&core, label, g);
+            }
+        }
+        tauri::WindowEvent::Focused(true) => gitcore::commands::window::note_focus(&core, label),
+        tauri::WindowEvent::Focused(false) => gitcore::commands::window::save_geometry(&core, label),
+        tauri::WindowEvent::Destroyed => {
+            gitcore::commands::window::save_geometry(&core, label);
+            gitcore::commands::window::window_closed(&core, label);
+        }
+        _ => {}
+    }
+}
+
+fn close_requested(window: &tauri::Window, api: &tauri::CloseRequestApi, core: Core) {
+    let label = window.label().to_string();
     let guard = core.state::<gitcore::commands::app::CloseGuard>();
-    if guard.intercept(window.label()) {
+    if guard.intercept(&label) {
         api.prevent_close();
-        core.events.emit(gitcore::events::names::APP_CLOSE_REQUESTED, serde_json::json!({}));
+        core.emit_to(&label, gitcore::events::names::APP_CLOSE_REQUESTED, &serde_json::json!({}));
         return;
     }
-    if core.jobs.running() == 0 || guard.quitting() {
+    let last = window.app_handle().webview_windows().len() <= 1;
+    let running = if last { core.jobs.running() } else { core.jobs.running_from(&label) };
+    if guard.quitting() || guard.closing(&label) || running == 0 {
         return;
     }
     // Something is still running: hide immediately, clean up, then really close.
     api.prevent_close();
     let window = window.clone();
     let _ = window.hide();
-    tauri::async_runtime::spawn(async move {
-        let _ = gitcore::commands::app::app_quit(&core).await;
+    tauri::async_runtime::spawn(gitcore::windowing::scoped(label, async move {
+        let _ = gitcore::commands::window::window_close(&core).await;
         let _ = window.close();
-    });
+    }));
 }
 
 /// The last steps of every orderly end (quitting, closing the window, a termination request).
@@ -387,6 +439,7 @@ fn end_on_request(handle: &tauri::AppHandle, reason: &str) {
     std::process::exit(0);
 }
 
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // First of all: the log and the panic hook. Until the data directory is known (`setup`), lines
     // wait in memory; with `windows_subsystem = "windows"` there is no console to see a panic in.
@@ -439,11 +492,16 @@ pub fn run() {
         .invoke_handler(commands::handler())
         .build(context);
     match result {
-        Ok(app) => app.run(|handle, event| {
-            // On exit, close the shells of the built-in terminals together with their child processes.
-            if let tauri::RunEvent::Exit = event {
-                finish_exit(handle);
+        Ok(app) => app.run(|handle, event| match event {
+            // Before the windows go: they keep their rows for the next start.
+            tauri::RunEvent::ExitRequested { .. } => {
+                if let Some(core) = handle.try_state::<Core>() {
+                    gitcore::commands::app::mark_quitting(&core);
+                }
             }
+            // On exit, close the shells of the built-in terminals together with their child processes.
+            tauri::RunEvent::Exit => finish_exit(handle),
+            _ => {}
         }),
         Err(e) => {
             log::error!("The app couldn’t be started: {e}");
@@ -585,6 +643,14 @@ mod tests {
         {
             assert!(fragment.contains(part), "{part}\n{fragment}");
         }
+    }
+
+    /// Every app window (`main` and the `w-…` ones) gets the app's permissions.
+    #[test]
+    fn every_window_label_has_the_capabilities() {
+        let capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/default.json")).unwrap();
+        assert_eq!(capability["windows"], serde_json::json!(["main", "w-*"]));
+        assert_eq!(WINDOW_LABELS, ["main", "w-*"]);
     }
 
     /// build.rs gives the main thread 8 MB on Windows: with the default 1 MB, a double-click on a

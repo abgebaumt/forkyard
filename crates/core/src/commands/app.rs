@@ -126,9 +126,14 @@ pub async fn app_close_guard(core: &Core, active: bool) -> CoreResult<()> {
 /// Git process keeps running without the app and a half-finished clone gets cleaned up; then
 /// the window closes without another prompt.
 pub async fn app_quit(core: &Core) -> CoreResult<()> {
-    core.state::<CloseGuard>().quitting.store(true, Ordering::SeqCst);
+    mark_quitting(core);
     stop_running_jobs(core).await;
     Ok(())
+}
+
+/// The app is ending: windows that close from now on keep their rows and tabs for the next start.
+pub fn mark_quitting(core: &Core) {
+    core.state::<CloseGuard>().quitting.store(true, Ordering::SeqCst);
 }
 
 /// Cancels all running jobs and waits briefly until they have cleaned up.

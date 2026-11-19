@@ -163,7 +163,11 @@ import type {
   Tab,
   UndoState,
   UpdateInfo,
+  WindowInfo,
+  WindowLayout,
   Worktree,
+  ScreenPoint,
+  StripReport,
   AiSemanticIndexUpdate,
   AiSemanticResult,
   AiSemanticStatus,
@@ -205,7 +209,7 @@ export interface CoreCommands {
    * `Startup (UI): …` line, with the slowest core calls of the start.
    */
   appStartupReport(input: { report: StartupReport }): Promise<void>;
-  /** Quits the app: cancels running actions (cleans up a half-finished clone) and closes the window. */
+  /** Quits the app: cancels running actions (cleans up a half-finished clone) and closes all windows. */
   appQuit(): Promise<void>;
 
   // --- Repositories and tabs ----------------------------------------------------
@@ -244,6 +248,29 @@ export interface CoreCommands {
   tabClose(input: { tabId: Id }): Promise<Tab[]>;
   tabMove(input: { tabId: Id; position: number }): Promise<Tab[]>;
   tabActivate(input: { tabId: Id }): Promise<Tab[]>;
+
+  // --- Windows ---------------------------------------------------------------
+  /** Windows of the active profile in their order. */
+  windowList(): Promise<WindowInfo[]>;
+  /** Opens a further window with a repository manager tab; returns its label. */
+  windowNew(): Promise<string>;
+  /**
+   * Closing the calling window is confirmed: stops the jobs it started and closes it. As the only
+   * window it quits the app (cancels all running actions).
+   */
+  windowClose(): Promise<void>;
+  /** All windows for a drop decision: strips and tab middles in screen coordinates, ranked by focus. */
+  windowLayout(): Promise<WindowLayout>;
+  /** Where the calling window's tab strip is (client coordinates); `null` forgets it. */
+  windowStripReport(input: { strip: StripReport | null }): Promise<void>;
+  /** Moves a tab of the calling window into `window` at `position`; returns the caller's tabs. */
+  tabMoveToWindow(input: { tabId: Id; window: string; position: number }): Promise<Tab[]>;
+  /** Tears a tab out into a new window at `at` (screen, logical; null: next to this window); returns its label. */
+  tabMoveToNewWindow(input: { tabId: Id; at: ScreenPoint | null }): Promise<string>;
+  /** Keeps a tab's view state (JSON, at most 4 MB) for the window it moves to. */
+  tabHandoffPut(input: { tabId: Id; handoff: string }): Promise<void>;
+  /** The view state left for this tab, once; null when there is none. */
+  tabHandoffTake(input: { tabId: Id }): Promise<string | null>;
 
   // --- Graph, refs, search ---------------------------------------------------
   /** First page with `cursor: null`. Contains the WIP row at the top if there are changes, and stash rows. */

@@ -7,6 +7,7 @@
 
 use gitcore::commands as c;
 use gitcore::model::*;
+use gitcore::windowing::scoped;
 use gitcore::{Core, CoreError};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
@@ -27,7 +28,8 @@ fn tri_state<T: DeserializeOwned>(body: &Value, key: &str) -> R<Option<Option<T>
 
 /// Emits one `#[tauri::command]` wrapper per table line
 /// `name => area::core_fn(param: Type, ...) -> Ret;` that passes `State<Core>` and the parameters
-/// on to `gitcore::commands::area::core_fn`, plus `handler()`: `generate_handler!` for the table
+/// on to `gitcore::commands::area::core_fn`, run in the calling window's scope
+/// (`gitcore::windowing::scoped`), plus `handler()`: `generate_handler!` for the table
 /// and the `hand_written` commands (defined below the table).
 macro_rules! commands {
     (
@@ -37,8 +39,8 @@ macro_rules! commands {
         $(
             #[tauri::command]
             #[allow(clippy::too_many_arguments)]
-            pub async fn $name(core: State<'_, Core>, $($arg: $ty),*) -> R<$ret> {
-                c::$area::$func(&core, $($arg),*).await
+            pub async fn $name(core: State<'_, Core>, caller: tauri::WebviewWindow, $($arg: $ty),*) -> R<$ret> {
+                scoped(caller.label().to_string(), c::$area::$func(&core, $($arg),*)).await
             }
         )*
 
@@ -50,7 +52,7 @@ macro_rules! commands {
 }
 
 commands! {
-    hand_written: app_quit, repo_open, repo_update, signing_set;
+    hand_written: app_quit, repo_open, repo_update, signing_set, window_close, window_layout;
 
     app_info => app::app_info() -> AppInfo;
     app_keyring_available => app::app_keyring_available() -> bool;
@@ -74,6 +76,13 @@ commands! {
     tab_close => repos::tab_close(tab_id: String) -> Vec<Tab>;
     tab_move => repos::tab_move(tab_id: String, position: i64) -> Vec<Tab>;
     tab_activate => repos::tab_activate(tab_id: String) -> Vec<Tab>;
+    window_list => window::window_list() -> Vec<WindowInfo>;
+    window_new => window::window_new() -> String;
+    window_strip_report => window::window_strip_report(strip: Option<StripReport>) -> ();
+    tab_move_to_window => window::tab_move_to_window(tab_id: String, window: String, position: i64) -> Vec<Tab>;
+    tab_move_to_new_window => window::tab_move_to_new_window(tab_id: String, at: Option<ScreenPoint>) -> String;
+    tab_handoff_put => window::tab_handoff_put(tab_id: String, handoff: String) -> ();
+    tab_handoff_take => window::tab_handoff_take(tab_id: String) -> Option<String>;
     graph_page => graph::graph_page(repo_id: String, cursor: Option<String>, limit: u32) -> GraphPage;
     refs_list => refs::refs_list(repo_id: String) -> RefsSnapshot;
     commit_details => graph::commit_details(repo_id: String, source: DiffSource) -> CommitDetails;
@@ -310,10 +319,20 @@ commands! {
 
 // --- Hand-written: bodies that do more than delegate (listed in `hand_written` above) ---------
 
-/// Quits the app after a confirmed prompt: cancel running actions, close the window.
+/// Quits the app after a confirmed prompt: cancel running actions, close every window. Quitting is
+/// marked first, so the windows keep their rows for the next start.
 #[tauri::command]
-pub async fn app_quit(core: State<'_, Core>, window: tauri::Window) -> R<()> {
+pub async fn app_quit(core: State<'_, Core>, app: tauri::AppHandle) -> R<()> {
     c::app::app_quit(&core).await?;
+    app.exit(0);
+    Ok(())
+}
+
+/// Closing the calling window is confirmed: its jobs stop (as the only window, the app quits),
+/// then it closes without asking again.
+#[tauri::command]
+pub async fn window_close(core: State<'_, Core>, window: tauri::WebviewWindow) -> R<()> {
+    scoped(window.label().to_string(), c::window::window_close(&core)).await?;
     if let Err(e) = window.close() {
         log::warn!("Could not close the window: {e}");
     }
@@ -321,15 +340,21 @@ pub async fn app_quit(core: State<'_, Core>, window: tauri::Window) -> R<()> {
 }
 
 #[tauri::command]
-pub async fn repo_open(core: State<'_, Core>, path: String, add_to_profile: Option<bool>) -> R<OpenedRepo> {
-    c::repos::repo_open_with(&core, path, add_to_profile.unwrap_or(false)).await
+pub async fn window_layout(core: State<'_, Core>, app: tauri::AppHandle, window: tauri::WebviewWindow) -> R<WindowLayout> {
+    let (frames, cursor) = crate::windows::layout_frames(&app);
+    scoped(window.label().to_string(), c::window::window_layout(&core, frames, cursor)).await
+}
+
+#[tauri::command]
+pub async fn repo_open(core: State<'_, Core>, window: tauri::WebviewWindow, path: String, add_to_profile: Option<bool>) -> R<OpenedRepo> {
+    scoped(window.label().to_string(), c::repos::repo_open_with(&core, path, add_to_profile.unwrap_or(false))).await
 }
 
 // `alias`, `groupName` and `color` distinguish “missing” from `null`; Tauri can't do that for
 // individual parameters, so the raw input object is read here.
 // gc:params repoId,alias,isFavorite,groupName,color
 #[tauri::command]
-pub async fn repo_update(core: State<'_, Core>, request: tauri::ipc::Request<'_>) -> R<Repo> {
+pub async fn repo_update(core: State<'_, Core>, window: tauri::WebviewWindow, request: tauri::ipc::Request<'_>) -> R<Repo> {
     let tauri::ipc::InvokeBody::Json(body) = request.body() else {
         return Err(CoreError::not_allowed("repo_update expects a JSON object."));
     };
@@ -339,14 +364,14 @@ pub async fn repo_update(core: State<'_, Core>, request: tauri::ipc::Request<'_>
     let is_favorite = tri_state::<bool>(body, "isFavorite")?.flatten();
     let group_name = tri_state::<String>(body, "groupName")?;
     let color = tri_state::<u8>(body, "color")?;
-    c::repos::repo_update(&core, repo_id, alias, is_favorite, group_name, color).await
+    scoped(window.label().to_string(), c::repos::repo_update(&core, repo_id, alias, is_favorite, group_name, color)).await
 }
 
 // `program` and `allowedSignersFile` distinguish “missing” (leave untouched) from `null` (remove
 // the entry); so the raw input object is read here.
 // gc:params repoId,enabled,format,key,program,allowedSignersFile
 #[tauri::command]
-pub async fn signing_set(core: State<'_, Core>, request: tauri::ipc::Request<'_>) -> R<SigningStatus> {
+pub async fn signing_set(core: State<'_, Core>, window: tauri::WebviewWindow, request: tauri::ipc::Request<'_>) -> R<SigningStatus> {
     let tauri::ipc::InvokeBody::Json(body) = request.body() else {
         return Err(CoreError::not_allowed("signing_set expects a JSON object."));
     };
@@ -356,5 +381,5 @@ pub async fn signing_set(core: State<'_, Core>, request: tauri::ipc::Request<'_>
     let key = tri_state::<String>(body, "key")?.flatten();
     let program = tri_state::<String>(body, "program")?;
     let allowed_signers_file = tri_state::<String>(body, "allowedSignersFile")?;
-    c::signing::signing_set(&core, repo_id, enabled, format, key, program, allowed_signers_file).await
+    scoped(window.label().to_string(), c::signing::signing_set(&core, repo_id, enabled, format, key, program, allowed_signers_file)).await
 }
