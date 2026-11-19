@@ -43,6 +43,14 @@ export function dropZone(offset: number, rowHeight: number): "before" | "onto" |
   return offset > rowHeight - rowHeight / 4 ? "after" : "onto";
 }
 
+/**
+ * A drag handed over from elsewhere ends without a drop when a move comes with no button down: it was released
+ * before this list listened. Only then – WebKitGTK also sends button-less moves in the middle of a drag of its own.
+ */
+export function releasedEarly(drag: { started: boolean; handedOver?: boolean }, buttons: number): boolean {
+  return Boolean(drag.handedOver) && drag.started && buttons === 0;
+}
+
 export interface ReorderListProps {
   count: number;
   getKey: (index: number) => string;
@@ -81,6 +89,8 @@ interface Drag {
   over: number;
   /** Row the dragged one would be folded onto (instead of inserting). */
   onto: number | null;
+  /** Started elsewhere (`initialDrag`); this list never saw its pointerdown. */
+  handedOver?: boolean;
 }
 
 export function ReorderList(props: ReorderListProps) {
@@ -172,8 +182,7 @@ export function ReorderList(props: ReorderListProps) {
     const onPointerMove = (event: PointerEvent) => {
       const state = dragRef.current;
       if (!state || event.pointerId !== state.pointerId) return;
-      // Released before this list saw the pointerup (a handed-over drag flicked fast): end it without dropping.
-      if (state.started && event.buttons === 0) {
+      if (releasedEarly(state, event.buttons)) {
         update(null);
         return;
       }
@@ -233,7 +242,16 @@ export function ReorderList(props: ReorderListProps) {
   useEffect(() => {
     if (!initialDrag) return;
     const { index, pointerId, clientX, clientY } = initialDrag;
-    update({ from: index, pointerId, startY: clientY, lastX: clientX, lastY: clientY, started: true, ...targetAt(clientY, index) });
+    update({
+      from: index,
+      pointerId,
+      startY: clientY,
+      lastX: clientX,
+      lastY: clientY,
+      started: true,
+      handedOver: true,
+      ...targetAt(clientY, index),
+    });
   }, []);
 
   const onRowPointerDown = (event: ReactPointerEvent, index: number) => {
