@@ -1,7 +1,8 @@
 import { QueryClient, type InfiniteData } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { invalidateRepo, jobBelongsHere } from "./coreSync";
-import { keepFirstPage, qk } from "./queries";
+import { invalidateRepo, jobBelongsHere, ownsJob } from "./coreSync";
+import { useAppStore } from "./store";
+import { keepFirstPage, qk, queryClient } from "./queries";
 
 const three: InfiniteData<string, string | null> = { pages: ["a", "b", "c"], pageParams: [null, "x", "y"] };
 
@@ -35,5 +36,21 @@ describe("jobBelongsHere", () => {
     expect(jobBelongsHere("j2", "r1", new Set(), new Set(["r1"]))).toBe(true);
     expect(jobBelongsHere("j2", "r2", new Set(), new Set(["r1"]))).toBe(false);
     expect(jobBelongsHere("j3", null, new Set(), new Set(["r1"]))).toBe(false);
+  });
+});
+
+describe("ownsJob", () => {
+  it("takes the store's jobs and the repositories of this window's tabs", () => {
+    useAppStore.getState().startJob({ id: "mine", title: "Clone", repoId: null });
+    queryClient.setQueryData(qk.tabs, [
+      { id: "t1", kind: "repo", repoId: "r1" },
+      { id: "t2", kind: "manager", repoId: null },
+    ]);
+    expect(ownsJob("mine", null)).toBe(true);
+    expect(ownsJob("other", "r1")).toBe(true);
+    expect(ownsJob("other", "r2")).toBe(false);
+    expect(ownsJob("other", null)).toBe(false);
+    useAppStore.getState().finishJob("mine");
+    queryClient.removeQueries({ queryKey: qk.tabs });
   });
 });

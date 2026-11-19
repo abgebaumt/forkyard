@@ -10,7 +10,7 @@
  */
 import { QueryObserver } from "@tanstack/react-query";
 import { core, type WindowInfo } from "../core";
-import { t } from "../i18n";
+import { otherLanguageChosen, t } from "../i18n";
 import { discardUnsaved, onUnsavedChange, saveUnsaved, unsavedFiles } from "../screens/FileView/buffer";
 import { choose, confirm } from "./dialogs";
 import { hasDirtyCenter, useAppStore } from "./store";
@@ -28,6 +28,11 @@ export interface Losses {
   agents: number;
 }
 
+/** Whether this window is the only one, so closing it quits the app (unknown list: assume so, the guard then asks). */
+export const isLastWindow = (windows: readonly WindowInfo[] | undefined) => (windows?.length ?? 0) <= 1;
+
+const lastWindow = () => isLastWindow(queryClient.getQueryData<WindowInfo[]>(qk.windows));
+
 function losses(): Losses {
   const state = useAppStore.getState();
   return {
@@ -36,14 +41,26 @@ function losses(): Losses {
     jobs: Object.values(state.jobs)
       .filter((job) => job.askBeforeQuit)
       .map((job) => job.title),
-    agents: (queryClient.getQueryData<WindowInfo[]>(qk.windows)?.length ?? 0) <= 1 ? state.agentsRunning : 0,
+    agents: lastWindow() ? state.agentsRunning : 0,
   };
 }
 
 const anything = (now: Losses) => now.files.length > 0 || now.views || now.jobs.length > 0 || now.agents > 0;
 
+/** Another window chose a language: this one follows by reloading, but only once nothing here would be lost. */
+let languageWaiting = false;
+function followLanguage() {
+  if (anything(losses()) || useAppStore.getState().credentialQueue.length > 0) {
+    if (!languageWaiting) toast({ tone: "info", sticky: true, title: t("app.closeGuard.languageWaiting") });
+    languageWaiting = true;
+    return;
+  }
+  window.location.reload();
+}
+
 let reported: boolean | null = null;
 function sync() {
+  if (languageWaiting) followLanguage();
   const active = anything(losses());
   if (active === reported) return;
   reported = active;
@@ -61,6 +78,8 @@ async function onCloseRequested() {
   asking = true;
   try {
     const now = losses();
+    // Several windows: × closes only this one, the texts say so.
+    const key = (name: string) => `app.closeGuard.${lastWindow() ? name : `${name}Window`}`;
     if (!anything(now)) {
       await core.windowClose();
       return;
@@ -73,17 +92,17 @@ async function onCloseRequested() {
           : t("app.closeGuard.jobsRunning", { count: now.jobs.length }),
       );
     if (now.agents > 0) lines.push(t("app.closeGuard.agentsRunning", { count: now.agents }));
-    if (now.views) lines.push(t("app.closeGuard.dirtyView"));
+    if (now.views) lines.push(t(key("dirtyView")));
     if (now.files.length > 0) {
       lines.push(t("app.closeGuard.unsavedText", { count: now.files.length }));
       const answer = await choose({
-        title: t("app.closeGuard.title"),
+        title: t(key("title")),
         description: lines.join(" "),
         details: now.files,
         detailsLabel: t("app.closeGuard.unsavedFiles", { count: now.files.length }),
         options: [
-          { key: "save", label: t("app.closeGuard.save"), description: t("app.closeGuard.saveHint", { count: now.files.length }) },
-          { key: "discard", label: t("app.closeGuard.discard"), description: t("app.closeGuard.discardHint"), danger: true },
+          { key: "save", label: t(key("save")), description: t(key("saveHint"), { count: now.files.length }) },
+          { key: "discard", label: t(key("discard")), description: t("app.closeGuard.discardHint"), danger: true },
         ],
       });
       if (answer === null) return;
@@ -102,9 +121,9 @@ async function onCloseRequested() {
       }
     } else {
       const ok = await confirm({
-        title: t("app.closeGuard.title"),
+        title: t(key("title")),
         body: lines.join(" "),
-        confirmLabel: t("app.closeGuard.quit"),
+        confirmLabel: t(key("quit")),
         danger: true,
       });
       if (!ok) return;
@@ -129,5 +148,8 @@ export function installCloseGuard(): void {
   // Keeps the window list fresh (`app:changed` refetches only observed queries): whether this is the last window decides about agents.
   new QueryObserver(queryClient, { queryKey: qk.windows, queryFn: () => core.windowList() }).subscribe(sync);
   core.onWindow("app:close_requested", () => void onCloseRequested());
+  window.addEventListener("storage", (event) => {
+    if (otherLanguageChosen(event)) followLanguage();
+  });
   sync();
 }
