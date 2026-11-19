@@ -29,6 +29,7 @@ import {
 } from "../core";
 import { prRange } from "./hosts";
 import { isFixedRev } from "../screens/Archaeology/model";
+import { liveBlameDeps, runBlameJob } from "../screens/Blame/job";
 import { readStatus } from "./statusOrder";
 import type { ArchaeologyTarget } from "./store";
 import { compileRules, type CompiledRule } from "./ticketLinks";
@@ -416,7 +417,7 @@ export const useFileHistory = (repoId: Id | null | undefined, path: string | nul
 export const useBlame = (repoId: Id | null | undefined, path: string | null | undefined, sha: Sha | null) =>
   useQuery({
     queryKey: qk.blame(repoId ?? "", path ?? "", sha),
-    queryFn: () => core.fileBlame({ repoId: repoId!, path: path!, sha }),
+    queryFn: ({ signal }) => runBlameJob(liveBlameDeps, { repoId: repoId!, path: path!, sha }, signal),
     enabled: enabledFor(repoId) && Boolean(path),
     staleTime: sha ? Infinity : undefined,
   });

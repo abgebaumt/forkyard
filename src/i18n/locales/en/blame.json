@@ -2,6 +2,8 @@
   "ariaLabel": "Blame of {{path}}",
   "loading": "Loading blame of {{name}}",
   "uncommitted": "Not committed yet",
+  "progress": "Assigning lines … {{percent}} %",
+  "pending": "Not assigned yet",
   "line": "Line {{line}}",
   "lineRange": "Lines {{from}}–{{to}}",
   "stand": {

@@ -47,7 +47,18 @@ import { goBack, showInGraph } from "../../app/backNav";
 import { BackButton, CodeSkeleton, Divider, FileTitle, isPlainEscape } from "../../components/ViewParts";
 import "./blame.css";
 import { blameLineMenu } from "./lineMenu";
-import { AGE_STEPS, ageColor, blameGutter, buildModel, initials, type BlameBlock, type BlameColorMode } from "./model";
+import { progressKey, progressLines, progressPercent, useBlameProgress } from "./job";
+import {
+  AGE_STEPS,
+  ageColor,
+  blameGutter,
+  blameModelChanged,
+  buildModel,
+  initials,
+  type BlameBlock,
+  type BlameColorMode,
+  type BlameModel,
+} from "./model";
 import { locale, t } from "../../i18n";
 import { writeClipboard } from "../../app/actions/clipboard";
 import { baseName } from "../../app/paths";
@@ -60,8 +71,8 @@ export interface BlameViewProps {
   sha: Sha | null;
 }
 
-/** Counts the blame models; the editor's key is derived from it. */
-let modelCounter = 0;
+/** Counts the blame texts; the editor's key is derived from it. */
+let textCounter = 0;
 
 /** Line the next blame of this tab should jump to (parent revision, reload). */
 const pendingLine = new Map<Id, number>();
@@ -93,12 +104,28 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   const store = useAppStore.getState;
   const query = useBlame(repoId, path, sha);
   const history = useFileHistory(repoId, path, 200);
-  const model = useMemo(() => (query.data ? buildModel(query.data) : null), [query.data]);
+  // While git blame runs: the lines so far (all text, the gutter fills in); then the final lines.
+  const progress = useBlameProgress(progressKey(repoId, path, sha));
+  const running = query.isPending && progress !== null;
+  const model = useMemo(() => {
+    const lines = running ? progressLines(progress) : query.data;
+    return lines ? buildModel(lines) : null;
+  }, [running, progress, query.data]);
+  const modelRef = useRef<BlameModel>(model as BlameModel);
+  if (model) modelRef.current = model;
 
   const [currentLine, setCurrentLine] = useState(1);
   const lineRef = useRef(1);
   lineRef.current = currentLine;
-  const current: BlameBlock | null = model ? (model.blocks[model.blockOfLine[currentLine - 1] ?? 0] ?? null) : null;
+  /** Block of a line; null for lines not assigned yet – W, P, Enter and the card do nothing there. */
+  const blockAtLine = useCallback(
+    (lineNo: number): BlameBlock | null => {
+      const block = model ? (model.blocks[model.blockOfLine[lineNo - 1] ?? -1] ?? null) : null;
+      return block && !block.pending ? block : null;
+    },
+    [model],
+  );
+  const current = blockAtLine(currentLine);
 
   // --- Colour: per author or by age --------------------------------------------------------------
   const [colorMode, setColorModeState] = useState<BlameColorMode>(storedColorMode);
@@ -203,10 +230,6 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   const { data: aiStatus } = useAiStatus();
   const { data: repoSettings } = useRepoSettings(repoId);
   const aiVisible = featureVisible(aiStatus, "archaeology", repoSettings?.aiOff ?? false);
-  const blockAtLine = useCallback(
-    (lineNo: number): BlameBlock | null => (model ? (model.blocks[model.blockOfLine[lineNo - 1] ?? -1] ?? null) : null),
-    [model],
-  );
   const why = useCallback(
     (lineNo: number) => {
       const found = blameTarget(path, sha, lineNo, blockAtLine(lineNo)?.uncommitted ?? true);
@@ -265,10 +288,11 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   useEffect(() => {
     placeKeyCard();
   }, [cardOpen, currentLine, model, placeKeyCard]);
+  const hasModel = model !== null;
   const extensions = useMemo(() => {
-    if (!model) return [];
+    if (!hasModel) return [];
     return [
-      blameGutter(model, {
+      blameGutter(modelRef, {
         onActivate: (block) => handlers.current.reveal(block),
         onHover,
         onMenu: (lineNo, event) => handlers.current.openLineMenu(lineNo, { x: event.clientX, y: event.clientY }),
@@ -306,12 +330,19 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
         },
       }),
     ];
-  }, [model, onHover]);
+  }, [hasModel, onHover]);
 
-  // The editor is only rebuilt when the blame really changed: a reload with the same result
-  // delivers the same data (and thus the same model) – scroll position and cursor stay.
-  const modelId = useMemo(() => ++modelCounter, [model]);
-  const editorKey = `${path}|${sha ?? ""}|${modelId}`;
+  // The editor is only rebuilt when the text changed: lines filling in, the final result and a
+  // reload with the same text only redraw the column – scroll position and cursor stay.
+  const text = model?.text;
+  const textId = useMemo(() => {
+    void text;
+    return ++textCounter;
+  }, [text]);
+  const editorKey = `${path}|${sha ?? ""}|${textId}`;
+  useEffect(() => {
+    viewRef.current?.dispatch({ effects: blameModelChanged.of(null) });
+  }, [model]);
   const onView = useCallback(
     (view: EditorView | null) => {
       viewRef.current = view;
@@ -379,7 +410,7 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
   // --- Inhalt ----------------------------------------------------------------------------------
   const name = baseName(path);
   let body: ReactNode;
-  if (query.isPending) {
+  if (query.isPending && !model) {
     body = <CodeSkeleton label={t("blame.loading", { name })} gutter />;
   } else if (query.isError || !model) {
     const error = toCoreError(query.error);
@@ -495,6 +526,15 @@ export function BlameView({ repoId, tabId, path, sha }: BlameViewProps) {
         </div>
         {model && model.blocks.length > 0 ? <Legend model={model} mode={colorMode} onMode={setColorMode} /> : null}
       </header>
+      {running ? (
+        <div
+          aria-live="polite"
+          data-loading=""
+          className="shrink-0 border-b border-border bg-surface px-3 py-1 text-xs text-text-muted tabular-nums"
+        >
+          {t("blame.progress", { percent: progressPercent(progress) })}
+        </div>
+      ) : null}
       <div className="relative min-h-0 flex-1">{body}</div>
       {model && current ? (
         <footer

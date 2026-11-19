@@ -5,7 +5,7 @@
  * (`data-blame-color` on the view) – the editor is not rebuilt when toggling.
  */
 import { GutterMarker, gutter, type EditorView, type BlockInfo } from "@codemirror/view";
-import { Prec, type Extension } from "@codemirror/state";
+import { Prec, StateEffect, type Extension } from "@codemirror/state";
 import type { BlameLine } from "../../core";
 import { formatRelative } from "../../app/format";
 import { laneColor } from "../../ui/cn";
@@ -24,9 +24,14 @@ export interface BlameBlock {
   endLine: number;
   /** Author colour (one of the eight lane colours). */
   color: string;
-  /** Age step 0 (newest) to AGE_STEPS − 1 (oldest); null for uncommitted lines. */
+  /** Age step 0 (newest) to AGE_STEPS − 1 (oldest); null for uncommitted and pending lines. */
   age: number | null;
+  /** Lines the running blame has not assigned yet (`sha` is PENDING_SHA). */
+  pending: boolean;
 }
+
+/** SHA of a line the running blame has not assigned yet. */
+export const PENDING_SHA = "";
 
 /** Number of steps on the “by age” scale (see --gc-blame-age-* in blame.css). */
 export const AGE_STEPS = 5;
@@ -94,7 +99,8 @@ export function buildModel(lines: BlameLine[]): BlameModel {
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]!;
     texts[index] = line.text;
-    commits.add(line.sha);
+    const pending = line.sha === PENDING_SHA;
+    if (!pending) commits.add(line.sha);
     let block = blocks[blocks.length - 1];
     if (!block || block.sha !== line.sha) {
       block = {
@@ -109,12 +115,14 @@ export function buildModel(lines: BlameLine[]): BlameModel {
         endLine: index + 1,
         color: line.uncommitted ? "var(--gc-text-muted)" : authorColor(line.author.name, line.author.email),
         age: null,
+        pending,
       };
       blocks.push(block);
     } else {
       block.endLine = index + 1;
     }
     blockOfLine[index] = block.index;
+    if (pending) continue;
     const key = line.uncommitted ? "\u0000uncommitted" : (line.author.email || line.author.name).toLowerCase();
     const stat = stats.get(key);
     if (stat) stat.lines++;
@@ -134,7 +142,7 @@ export function buildModel(lines: BlameLine[]): BlameModel {
   let min = Infinity;
   let max = -Infinity;
   for (const block of blocks) {
-    if (block.uncommitted) continue;
+    if (block.uncommitted || block.pending) continue;
     const time = Date.parse(block.authoredAt);
     if (Number.isNaN(time)) continue;
     min = Math.min(min, time);
@@ -143,6 +151,7 @@ export function buildModel(lines: BlameLine[]): BlameModel {
   const ages: AgeStat[] = Array.from({ length: AGE_STEPS }, (_, step) => ({ step, lines: 0, newest: null, oldest: null }));
   let uncommittedLines = 0;
   for (const block of blocks) {
+    if (block.pending) continue;
     const count = block.endLine - block.startLine + 1;
     if (block.uncommitted) {
       uncommittedLines += count;
@@ -198,10 +207,16 @@ class BlameMarker extends GutterMarker {
     const { block, part } = this;
     const cell = document.createElement("div");
     cell.className = "gc-blame-cell";
+    cell.dataset.block = String(block.index);
+    if (block.pending) {
+      // Only the muted bar (blame.css) – who wrote these lines is not known yet.
+      cell.classList.add("gc-blame-pending");
+      cell.title = t("blame.pending");
+      return cell;
+    }
     // Both colours are on the cell; which one the bar shows is chosen by CSS via data-blame-color.
     cell.style.setProperty("--gc-blame-author", block.color);
     cell.style.setProperty("--gc-blame-age", ageColor(block.age));
-    cell.dataset.block = String(block.index);
     if (block.age !== null) cell.dataset.age = String(block.age);
     if (block.uncommitted) cell.dataset.uncommitted = "";
     if (part === "start" || part === "repeat") {
@@ -251,7 +266,10 @@ export interface BlameGutterHandlers {
   onMenu(line: number, event: MouseEvent): void;
 }
 
-export function blameGutter(model: BlameModel, handlers: BlameGutterHandlers): Extension {
+/** Dispatched when `blameGutter`'s model was replaced (lines filled in): the column redraws, the editor stays. */
+export const blameModelChanged = StateEffect.define<null>();
+
+function buildMarkers(model: BlameModel): BlameMarker[] {
   const markers: BlameMarker[] = new Array(model.blockOfLine.length);
   for (let index = 0; index < model.blockOfLine.length; index++) {
     const block = model.blocks[model.blockOfLine[index]!]!;
@@ -272,19 +290,33 @@ export function blameGutter(model: BlameModel, handlers: BlameGutterHandlers): E
               : "rest",
     );
   }
+  return markers;
+}
+
+/** The column for `model.current`, read anew after each `blameModelChanged`. */
+export function blameGutter(model: { current: BlameModel }, handlers: BlameGutterHandlers): Extension {
+  let built = model.current;
+  let markers = buildMarkers(built);
+  const markerAt = (index: number) => {
+    if (built !== model.current) {
+      built = model.current;
+      markers = buildMarkers(built);
+    }
+    return markers[index] ?? null;
+  };
+  /** The block of a line; null for pending lines (nothing to show or open yet). */
   const blockAt = (view: EditorView, line: BlockInfo) => {
     const number = view.state.doc.lineAt(line.from).number;
-    const index = model.blockOfLine[number - 1];
-    return index === undefined ? null : (model.blocks[index] ?? null);
+    const index = model.current.blockOfLine[number - 1];
+    const block = index === undefined ? null : (model.current.blocks[index] ?? null);
+    return block && !block.pending ? block : null;
   };
   // Highest rank: the blame column is on the far left, the line numbers right next to the code.
   return Prec.highest(
     gutter({
       class: "gc-blame-gutter",
-      lineMarker: (view, line) => {
-        const number = view.state.doc.lineAt(line.from).number;
-        return markers[number - 1] ?? null;
-      },
+      lineMarker: (view, line) => markerAt(view.state.doc.lineAt(line.from).number - 1),
+      lineMarkerChange: (update) => update.transactions.some((tr) => tr.effects.some((effect) => effect.is(blameModelChanged))),
       initialSpacer: () => new SpacerMarker(),
       domEventHandlers: {
         click: (view, line) => {

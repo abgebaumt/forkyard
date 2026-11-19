@@ -17,6 +17,7 @@ const block = (patch: Partial<BlameBlock> = {}): BlameBlock => ({
   endLine: 4,
   color: "var(--gc-lane-1)",
   age: 0,
+  pending: false,
   ...patch,
 });
 
