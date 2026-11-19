@@ -99,8 +99,8 @@ pub fn agents_dir(main_root: &Path) -> CoreResult<PathBuf> {
 /// The first of `candidates(base)` whose folder in `dir` does not exist and which `taken` does not
 /// report (short names of other agents).
 pub fn free_name(dir: &Path, base: &str, taken: &dyn Fn(&str) -> bool) -> CoreResult<String> {
-    candidates(base)
-        .find(|name| !dir.join(name).exists() && !taken(name))
+    crate::commands::worktree::free_folder(dir, candidates(base).filter(|name| !taken(name)))
+        .and_then(|folder| folder.file_name().map(|name| name.to_string_lossy().into_owned()))
         .ok_or_else(|| CoreError::name_exists(format!("There are already {MAX_SUFFIX} agents named “{base}”. Choose another branch name.")))
 }
 

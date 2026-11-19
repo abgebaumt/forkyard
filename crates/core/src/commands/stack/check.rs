@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use crate::app::Core;
-use crate::commands::agents::{checks, names};
+use crate::commands::agents::checks;
 use crate::commands::worktree;
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::jobs::Job;
@@ -25,9 +25,8 @@ const MAX_FOLDERS: u32 = 99;
 /// `stack-check-<part>`, `stack-check-<part>-2`, …; claimed inside the write lock.
 async fn add_worktree(core: &Core, repo_id: &str, dir: &Path, part: u32, tip: &str) -> CoreResult<PathBuf> {
     core.with_write_lock(repo_id, &[RepoChange::Refs], async {
-        let folder = (1..=MAX_FOLDERS)
-            .map(|n| if n == 1 { dir.join(format!("{CHECK_PREFIX}{part}")) } else { dir.join(format!("{CHECK_PREFIX}{part}-{n}")) })
-            .find(|path| !path.exists() && std::fs::symlink_metadata(path).is_err())
+        let names = (1..=MAX_FOLDERS).map(|n| if n == 1 { format!("{CHECK_PREFIX}{part}") } else { format!("{CHECK_PREFIX}{part}-{n}") });
+        let folder = worktree::free_folder(dir, names)
             .ok_or_else(|| CoreError::path_exists(util::display_path(&dir.join(format!("{CHECK_PREFIX}{part}")))))?;
         core.git_for(repo_id)?.args(["worktree", "add", "--detach"]).arg(&folder).arg(tip).run().await?;
         Ok(folder)
@@ -60,8 +59,6 @@ async fn check_all(
     command: &str,
     parts: &[StackPart],
 ) -> CoreResult<Vec<StackCheckResult>> {
-    std::fs::create_dir_all(dir)
-        .map_err(|e| CoreError::io(format!("The folder “{}” couldn't be created: {e}", util::display_path(dir))))?;
     let path = crate::tools::locate::login_shell_path(core).await;
     let total = parts.len();
     let mut results = Vec::with_capacity(total);
@@ -113,8 +110,7 @@ pub(crate) async fn run(core: &Core, repo_id: &str, job_id: &str, parts: &[Stack
         .map(|command| command.trim().to_string())
         .filter(|command| !command.is_empty())
         .ok_or_else(|| CoreError::not_allowed("This repository has no test command (Settings › Project › AI and agents)."))?;
-    let main = worktree::main_worktree_path(core, repo_id).await?;
-    let dir = names::agents_dir(&main)?;
+    let dir = worktree::scratch_dir(core, repo_id).await?;
     let job = core.start_job(job_id, Some(repo_id))?;
     let result = check_all(core, repo_id, &job, &dir, &command, parts).await;
     job.finish(&result);
