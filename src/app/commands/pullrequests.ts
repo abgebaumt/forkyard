@@ -7,7 +7,7 @@
 import { t } from "../../i18n";
 import type { Tab } from "../../core";
 import { openInBrowser, runHostAction } from "../actions/hosts";
-import { hostApi, hostKindLabels, type HostAccountInfo, type PrDetails } from "../actions/hostTypes";
+import { hostApi, hostKindLabels, type HostAccountInfo, type PrDetails } from "../hosts";
 import { cachedHostRepo, cachedPrForBranch, hostLink, openPr, openPrCreate, refreshPullRequests } from "../actions/pullrequests";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { pickFromList } from "../dialogs";

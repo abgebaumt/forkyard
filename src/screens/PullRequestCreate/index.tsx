@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import type { Id, Ref } from "../../core";
 import { openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, hostPrWord, type HostErrorText, type HostRepo } from "../../app/actions/hostTypes";
+import { describeHostError, hostKindLabels, hostPrWord, type HostErrorText, type HostRepo } from "../../app/hosts";
 import {
   commitsAhead,
   createPullRequest,

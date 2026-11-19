@@ -8,7 +8,7 @@ import { createBranch } from "../../app/actions/branches";
 import { copyText } from "../../app/actions/clipboard";
 import { currentBranch } from "../../app/actions/context";
 import { openInBrowser } from "../../app/actions/hosts";
-import type { HostRepo } from "../../app/actions/hostTypes";
+import type { HostRepo } from "../../app/hosts";
 import { qk, queryClient } from "../../app/queries";
 import { useAppStore } from "../../app/store";
 import { t } from "../../i18n";

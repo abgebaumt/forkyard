@@ -5,7 +5,7 @@
  */
 import type { AiStatus, ReleaseNotes, ReleaseNotesRange } from "../../core";
 import { t } from "../../i18n";
-import { hostKindLabels, type HostRepo } from "../../app/actions/hostTypes";
+import { hostKindLabels, type HostRepo } from "../../app/hosts";
 import { placeSuggestion, type Placement } from "../../app/ai/suggestion";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 

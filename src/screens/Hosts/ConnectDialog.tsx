@@ -22,7 +22,7 @@ import {
   type ConnectField,
   type ConnectTarget,
 } from "../../app/actions/hosts";
-import { HOST_KINDS, hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "../../app/actions/hostTypes";
+import { HOST_KINDS, hostKindLabels, type HostAccountInfo, type HostErrorText, type HostKind } from "../../app/hosts";
 import { showDialog } from "../../app/dialogs";
 import { useKeyringAvailable } from "../../app/queries";
 import { useBusy } from "../../app/store";

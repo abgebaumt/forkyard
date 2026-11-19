@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AiStatus, ReleaseNotes } from "../../core";
-import { toHostRepo } from "../../app/actions/hostTypes";
+import { toHostRepo } from "../../app/hosts";
 import {
   answerPlacement,
   availabilityOf,

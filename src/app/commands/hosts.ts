@@ -3,7 +3,7 @@
  */
 import { t } from "../../i18n";
 import { cachedHostAccounts, checkAccount, openIntegrations } from "../actions/hosts";
-import { hostApi } from "../actions/hostTypes";
+import { hostApi } from "../hosts";
 import { kw, type AppCommand } from "../commandTypes";
 import { qk } from "../queries";
 import { runAction } from "../run";

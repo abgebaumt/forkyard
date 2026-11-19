@@ -15,7 +15,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { core, type Id, type StackCheckResult, type StackCheckState, type StackStatus } from "../../core";
-import { hostKindLabels } from "../../app/actions/hostTypes";
+import { hostKindLabels } from "../../app/hosts";
 import { cachedPrForBranch, hostLink, refreshPullRequests } from "../../app/actions/pullrequests";
 import { confirm } from "../../app/dialogs";
 import { describeError, toCoreError } from "../../app/errors";

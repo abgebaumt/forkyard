@@ -24,7 +24,7 @@ import {
   type PrDetails,
   type PrPage,
   type PrSummary,
-} from "./hostTypes";
+} from "../hosts";
 import { cachedHostAccounts, runHostAction } from "./hosts";
 import { busyKeys } from "./keys";
 import { fetchAll, toastPushRejected } from "./sync";

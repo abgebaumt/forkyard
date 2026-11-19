@@ -13,7 +13,7 @@ import { askAi, showWhatIsSent } from "../../app/ai/gate";
 import { openAiSetup } from "../../app/ai/open";
 import { useAiJob } from "../../app/ai/useAiJob";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
-import { describeHostError, hostApi, type HostCapabilities, type PrDetails } from "../../app/actions/hostTypes";
+import { describeHostError, hostApi, type HostCapabilities, type PrDetails } from "../../app/hosts";
 import { runHostAction } from "../../app/actions/hosts";
 import { checkoutPr, prBusyKeys } from "../../app/actions/pullrequests";
 import { shortSha } from "../../app/format";

@@ -11,7 +11,7 @@ import { Copy, ExternalLink, GitBranch, GitPullRequestArrow, GitPullRequestCreat
 import type { Id } from "../../core";
 import { copyText } from "../../app/actions/clipboard";
 import { openInBrowser, openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, type PrSummary } from "../../app/actions/hostTypes";
+import { describeHostError, hostKindLabels, type PrSummary } from "../../app/hosts";
 import { checkoutPr, openPr, openPrCreate, refreshPullRequests } from "../../app/actions/pullrequests";
 import { qk, queryClient, useHostRepo, usePullRequests } from "../../app/queries";
 import { useTabView } from "../../app/store";

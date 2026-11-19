@@ -16,7 +16,7 @@ import {
   MessageSquareWarning,
   ThumbsUp,
 } from "lucide-react";
-import type { CheckState, HostCapabilities, HostUser, PrCheck, PrState, PrSummary } from "../../app/actions/hostTypes";
+import type { CheckState, HostCapabilities, HostUser, PrCheck, PrState, PrSummary } from "../../app/hosts";
 import { formatDateTime, formatRelative } from "../../app/format";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";

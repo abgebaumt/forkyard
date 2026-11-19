@@ -9,7 +9,7 @@
  * Jira and Trello are not integrated (separate accounts and interfaces).
  */
 import { core, CoreError, type Id } from "../../core";
-import { toUser, type HostUser } from "../../app/actions/hostTypes";
+import { toUser, type HostUser } from "../../app/hosts";
 import { t } from "../../i18n";
 
 export type IssueState = "open" | "closed";

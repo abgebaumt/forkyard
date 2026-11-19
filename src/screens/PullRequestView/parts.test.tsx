@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { defaultCapabilities } from "../../app/actions/hostTypes";
+import { defaultCapabilities } from "../../app/hosts";
 import { LabelsBlock } from "./parts";
 
 describe("LabelsBlock", () => {

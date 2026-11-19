@@ -5,7 +5,7 @@
 import type { ReactNode } from "react";
 import { CircleCheck, CircleDot, Hourglass, KeyRound, Lock, Plug, RefreshCw, SearchX, TriangleAlert, Unplug, WifiOff } from "lucide-react";
 import { openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, type HostErrorKind, type HostRepo, type HostUser } from "../../app/actions/hostTypes";
+import { describeHostError, hostKindLabels, type HostErrorKind, type HostRepo, type HostUser } from "../../app/hosts";
 import { Button } from "../../ui/Button";
 import { EmptyState } from "../../ui/Feedback";
 import { Avatar } from "../../ui/Git";
