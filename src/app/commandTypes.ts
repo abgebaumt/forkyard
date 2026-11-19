@@ -144,8 +144,9 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: string, mac: boo
     if (event.key === key) return true;
     return codePunctuation[event.code] === key && event.shiftKey === parsed.shift;
   }
-  // Named keys: Enter, Escape, F7, ArrowUp …
-  return event.key.toLowerCase() === key.toLowerCase() && event.shiftKey === parsed.shift;
+  // Named keys: Enter, Escape, F7, ArrowUp, Space (key " ") …
+  const named = event.key === " " ? "space" : event.key.toLowerCase();
+  return named === key.toLowerCase() && event.shiftKey === parsed.shift;
 }
 
 /**
