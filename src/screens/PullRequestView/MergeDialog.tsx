@@ -5,8 +5,7 @@
  */
 import { useState } from "react";
 import { GitMerge } from "lucide-react";
-import type { Id } from "../../core";
-import type { HostCapabilities, MergeMethod, PrDetails } from "../../app/hosts";
+import type { Id, HostCapabilities, PrMergeMethod, PrDetails } from "../../core";
 import { mergeMethodHints, mergeMethodLabels, mergePr, prBusyKeys } from "../../app/actions/pullrequests";
 import { showDialog } from "../../app/dialogs";
 import { useBusy } from "../../app/store";
@@ -19,9 +18,9 @@ import { t } from "../../i18n";
 const METHOD_KEY = "gc.prMergeMethod";
 
 /** The last chosen method – if the host knows it; otherwise a merge commit (every host has it). */
-function rememberedMethod(allowed: MergeMethod[]): MergeMethod {
+function rememberedMethod(allowed: PrMergeMethod[]): PrMergeMethod {
   try {
-    const stored = localStorage.getItem(METHOD_KEY) as MergeMethod | null;
+    const stored = localStorage.getItem(METHOD_KEY) as PrMergeMethod | null;
     if (stored && allowed.includes(stored)) return stored;
   } catch {
     // no localStorage: default
@@ -38,11 +37,11 @@ function MergeDialog({
 }: {
   repoId: Id;
   pr: PrDetails;
-  methods: MergeMethod[];
+  methods: PrMergeMethod[];
   canDeleteBranch: boolean;
   onDone: (merged: boolean | null) => void;
 }) {
-  const [method, setMethod] = useState<MergeMethod>(() => rememberedMethod(methods));
+  const [method, setMethod] = useState<PrMergeMethod>(() => rememberedMethod(methods));
   const [deleteBranch, setDeleteBranch] = useState(false);
   const busy = useBusy(prBusyKeys.write(repoId, pr.number));
 

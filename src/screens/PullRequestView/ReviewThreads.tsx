@@ -7,13 +7,22 @@
  * fixups in the interactive rebase (autosquash). AI errors stay inline; a late answer never moves focus.
  */
 import { useState } from "react";
-import { core, type AiProviderKind, type AiReviewFix, type Id, type ReviewFixApplied, type ReviewThread } from "../../core";
+import {
+  core,
+  type AiProviderKind,
+  type AiReviewFix,
+  type Id,
+  type ReviewFixApplied,
+  type ReviewThread,
+  type HostCapabilities,
+  type PrDetails,
+} from "../../core";
 import { AiErrorNotice } from "../../app/ai/AiErrorNotice";
 import { askAi, showWhatIsSent } from "../../app/ai/gate";
 import { openAiSetup } from "../../app/ai/open";
 import { useAiJob } from "../../app/ai/useAiJob";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
-import { describeHostError, hostApi, type HostCapabilities, type PrDetails } from "../../app/hosts";
+import { describeHostError } from "../../app/hosts";
 import { runHostAction } from "../../app/actions/hosts";
 import { checkoutPr, prBusyKeys } from "../../app/actions/pullrequests";
 import { shortSha } from "../../app/format";
@@ -163,7 +172,7 @@ function ThreadCard({
     if (!body || posting) return;
     const result = await runHostAction(
       t("pullRequest.view.reviewThreads.replyPost"),
-      () => hostApi.reviewReply(repoId, pr.number, thread.id, body),
+      () => core.prReviewReply({ repoId, number: pr.number, threadId: thread.id, body }),
       { busyKey: prBusyKeys.write(repoId, pr.number) },
     );
     if (!result.ok) return;

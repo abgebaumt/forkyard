@@ -3,9 +3,9 @@
  * order they run, the range and status lines, where an answer goes (rules for suggestions), and
  * whether the function is visible. The tag message is the tag dialog's annotation field itself.
  */
-import type { AiStatus, ReleaseNotes, ReleaseNotesRange } from "../../core";
+import type { AiStatus, ReleaseNotes, ReleaseNotesRange, HostRepoInfo } from "../../core";
 import { t } from "../../i18n";
-import { hostKindLabels, type HostRepo } from "../../app/hosts";
+import { hostKindLabels } from "../../app/hosts";
 import { placeSuggestion, type Placement } from "../../app/ai/suggestion";
 import { aiVisibility, featureVisible } from "../../app/ai/visibility";
 
@@ -89,7 +89,11 @@ export interface ReleaseNotesAvailability {
   remote: string | null;
 }
 
-export function availabilityOf(status: AiStatus | null | undefined, repoAiOff: boolean, host: HostRepo | null): ReleaseNotesAvailability {
+export function availabilityOf(
+  status: AiStatus | null | undefined,
+  repoAiOff: boolean,
+  host: HostRepoInfo | null,
+): ReleaseNotesAvailability {
   const visible = featureVisible(status, "release_notes", repoAiOff);
   return {
     visible,

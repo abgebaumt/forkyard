@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PrSummary } from "../../app/hosts";
+import type { PrSummary } from "../../core";
 import { parentRemote, splitNames, targetBranches } from "../PullRequestCreate/model";
 import { checksText, prPhase, reviewLabel } from "./parts";
 import { groupPrs, matchesPr } from "./sectionModel";
@@ -12,8 +12,8 @@ const pr = (number: number, patch: Partial<PrSummary> = {}): PrSummary => ({
   author: { login: "jonas", name: "Jonas Albrecht", avatarUrl: null },
   sourceBranch: `thema/${number}`,
   targetBranch: "main",
-  updatedAt: null,
-  webUrl: null,
+  updatedAt: "2026-01-01T00:00:00Z",
+  webUrl: "https://example.org/pr",
   checks: null,
   reviewState: null,
   labels: [],
@@ -44,7 +44,7 @@ describe('"Pull Requests" section', () => {
   });
 
   it("the filter matches number, title, author, branches and labels", () => {
-    const item = pr(12, { title: "CSV-Export", sourceBranch: "feature/export", labels: ["Daten"] });
+    const item = pr(12, { title: "CSV-Export", sourceBranch: "feature/export", labels: [{ name: "Daten", color: null }] });
     for (const query of ["#12", "12", "csv", "jonas", "albrecht", "feature/", "main", "daten", "  CSV "])
       expect(matchesPr(item, query), query).toBe(true);
     expect(matchesPr(item, "regen")).toBe(false);

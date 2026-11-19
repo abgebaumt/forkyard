@@ -5,14 +5,14 @@
 import type { ReactNode } from "react";
 import { CircleCheck, CircleDot, Hourglass, KeyRound, Lock, Plug, RefreshCw, SearchX, TriangleAlert, Unplug, WifiOff } from "lucide-react";
 import { openIntegrations } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, type HostErrorKind, type HostRepo, type HostUser } from "../../app/hosts";
+import { describeHostError, hostKindLabels, type HostErrorKind } from "../../app/hosts";
 import { Button } from "../../ui/Button";
 import { EmptyState } from "../../ui/Feedback";
 import { Avatar } from "../../ui/Git";
 import { cn } from "../../ui/cn";
 import { Badge } from "../Preferences/parts";
 import { t } from "../../i18n";
-import type { IssueState } from "./api";
+import type { HostLabel, IssueState, HostRepoInfo, HostUser } from "../../core";
 import { localizeTimes, retryTime, stateLabels } from "./model";
 
 export function StateIcon({ state, className }: { state: IssueState; className?: string }) {
@@ -32,7 +32,7 @@ export function StateBadge({ state }: { state: IssueState }) {
 }
 
 /** Labels as badges – without the host's colours (the app sticks to its own readable tones). */
-export function Labels({ labels, max }: { labels: string[]; max?: number }) {
+export function Labels({ labels, max }: { labels: HostLabel[]; max?: number }) {
   if (labels.length === 0) return null;
   const shown = max === undefined ? labels : labels.slice(0, max);
   const rest = labels.length - shown.length;
@@ -40,15 +40,21 @@ export function Labels({ labels, max }: { labels: string[]; max?: number }) {
     <span className="inline-flex min-w-0 flex-wrap items-center gap-1" data-issue-labels>
       {shown.map((label) => (
         <span
-          key={label}
-          title={label}
+          key={label.name}
+          title={label.name}
           className="inline-flex h-5 max-w-40 items-center rounded-sm border border-border bg-surface-raised px-1.5 text-xs font-medium text-text-muted"
         >
-          <span className="truncate">{label}</span>
+          <span className="truncate">{label.name}</span>
         </span>
       ))}
       {rest > 0 ? (
-        <span className="text-xs text-text-muted" title={labels.slice(shown.length).join(", ")}>
+        <span
+          className="text-xs text-text-muted"
+          title={labels
+            .slice(shown.length)
+            .map((label) => label.name)
+            .join(", ")}
+        >
           +{rest}
         </span>
       ) : null}
@@ -59,7 +65,10 @@ export function Labels({ labels, max }: { labels: string[]; max?: number }) {
 /** A person: initials avatar (nothing from the network) and login. */
 export function Person({ user, size = 18 }: { user: HostUser; size?: number }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-1.5" title={user.name ? `${user.name} (${user.login})` : user.login}>
+    <span
+      className="inline-flex min-w-0 items-center gap-1.5"
+      title={user.name && user.name !== user.login ? `${user.name} (${user.login})` : user.login}
+    >
       <Avatar name={user.name ?? user.login} size={size} />
       <span className="selectable min-w-0 truncate">{user.login}</span>
     </span>
@@ -156,7 +165,7 @@ export function HostProblem({ error, onRetry, retrying }: ProblemProps) {
 }
 
 /** The repository's host is detected, but no account is connected for it. */
-export function NotConnected({ repo }: { repo: HostRepo }) {
+export function NotConnected({ repo }: { repo: HostRepoInfo }) {
   const host = repo.kind ? hostKindLabels[repo.kind] : t("issues.notConnected.fallbackHost");
   return (
     <div data-issues-state="not_connected" className="flex min-h-0 flex-1 items-center justify-center overflow-auto">

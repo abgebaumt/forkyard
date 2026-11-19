@@ -5,7 +5,6 @@
  */
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import type { Id } from "../../core";
 import { runHostAction } from "../../app/actions/hosts";
 import { showDialog } from "../../app/dialogs";
 import { useBusy } from "../../app/store";
@@ -14,7 +13,7 @@ import { Dialog } from "../../ui/Dialog";
 import { toast } from "../../ui/Feedback";
 import { TextArea, TextField } from "../../ui/Field";
 import { t } from "../../i18n";
-import { issueApi, type IssueSummary } from "./api";
+import { core, type Id, type IssueSummary } from "../../core";
 import { refreshIssues } from "./actions";
 import { checkIssueTitle } from "./model";
 import { busyKeys } from "../../app/actions/keys";
@@ -34,7 +33,7 @@ function CreateDialog({ repoId, where, onDone }: { repoId: Id; where: string; on
       setError(problem);
       return;
     }
-    const result = await runHostAction(t("issues.create.label"), () => issueApi.create(repoId, title.trim(), body), {
+    const result = await runHostAction(t("issues.create.label"), () => core.issueCreate({ repoId, title: title.trim(), body }), {
       busyKey: busyKey(repoId),
     });
     if (!result.ok) return;

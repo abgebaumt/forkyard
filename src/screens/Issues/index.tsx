@@ -22,7 +22,7 @@ import { Button, IconButton } from "../../ui/Button";
 import { Checkbox, SegmentedControl, TextField } from "../../ui/Field";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
-import type { IssueListState, IssueSummary } from "./api";
+import type { IssueListState, IssueSummary } from "../../core";
 import { issuesWebUrl, openIssues, refreshIssues, useIssueFilter, useIssueFilters } from "./actions";
 import { openCreateIssueDialog } from "./CreateDialog";
 import { IssueDetailsPane } from "./Details";

@@ -5,9 +5,9 @@
  * in the cache (the app's accounts, the repository's host).
  */
 import { t } from "../../i18n";
-import type { Tab } from "../../core";
+import { core, type Tab, type PrDetails } from "../../core";
 import { openInBrowser, runHostAction } from "../actions/hosts";
-import { hostApi, hostKindLabels, type HostAccountInfo, type PrDetails } from "../hosts";
+import { hostKindLabels } from "../hosts";
 import { cachedHostRepo, cachedPrForBranch, hostLink, openPr, openPrCreate, refreshPullRequests } from "../actions/pullrequests";
 import { kw, type AppCommand, type CommandContext } from "../commandTypes";
 import { pickFromList } from "../dialogs";
@@ -35,7 +35,7 @@ const viewedPr = (ctx: CommandContext) =>
 /** Loads the open pull requests and lets the user pick one. */
 async function pickPullRequest(ctx: CommandContext) {
   const repoId = ctx.repoId!;
-  const loaded = await runHostAction(t("commands.pr.pick.loadAction"), () => hostApi.prList(repoId, "open", 1));
+  const loaded = await runHostAction(t("commands.pr.pick.loadAction"), () => core.prList({ repoId, state: "open", page: 1 }));
   if (!loaded.ok) return;
   if (loaded.value.items.length === 0) {
     toast({ tone: "info", title: t("commands.pr.pick.noneTitle"), description: t("commands.pr.pick.noneText") });
@@ -134,12 +134,12 @@ if (typeof window !== "undefined") {
     const repoId = tab.repoId;
     if (queryClient.getQueryState(qk.hostRepo(repoId))) return;
     void (async () => {
-      // Accounts first: the repository's host may name its account only as an ID.
+      // Accounts too: `hostLink` reads them while the repository is still loading.
       if (!queryClient.getQueryState(qk.hostAccounts))
-        await queryClient.prefetchQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
+        await queryClient.prefetchQuery({ queryKey: qk.hostAccounts, queryFn: () => core.hostAccounts() });
       await queryClient.prefetchQuery({
         queryKey: qk.hostRepo(repoId),
-        queryFn: () => hostApi.repoInfo(repoId, queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts) ?? []),
+        queryFn: () => core.hostRepoInfo({ repoId }),
         staleTime: 2 * 60_000,
       });
     })();

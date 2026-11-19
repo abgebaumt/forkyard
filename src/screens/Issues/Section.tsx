@@ -19,7 +19,7 @@ import { Button, IconButton } from "../../ui/Button";
 import { TreeRow } from "../../ui/Git";
 import type { MenuEntry } from "../../ui/Menu";
 import { t } from "../../i18n";
-import type { IssueSummary } from "./api";
+import type { IssueSummary } from "../../core";
 import {
   copyIssueLink,
   createIssueBranch,

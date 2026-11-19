@@ -4,8 +4,7 @@
  */
 import { useEffect, useState } from "react";
 import { CloudDownload, FileQuestion, GitBranch, RefreshCw } from "lucide-react";
-import type { Id } from "../../core";
-import type { PrDetails } from "../../app/hosts";
+import type { Id, PrDetails } from "../../core";
 import { checkoutPr } from "../../app/actions/pullrequests";
 import { busyKeys } from "../../app/actions/keys";
 import { fetchAll } from "../../app/actions/sync";

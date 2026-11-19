@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { AiStatus, ReleaseNotes } from "../../core";
-import { toHostRepo } from "../../app/hosts";
+import { defaultCapabilities } from "../../app/hosts";
+import type { AiStatus, HosterAccount, HostKind, HostRepoInfo, ReleaseNotes } from "../../core";
 import {
   answerPlacement,
   availabilityOf,
@@ -100,31 +100,33 @@ describe("where the answer goes", () => {
 });
 
 describe("availability", () => {
-  const github = toHostRepo({
+  const account = (kind: HostKind): HosterAccount => ({
+    id: `a-${kind}`,
+    kind,
+    baseUrl: "https://example.org",
+    username: null,
+    user: null,
+    tokenHint: null,
+    scopesOk: true,
+    missingScopes: [],
+    lastError: null,
+  });
+  const repo = (kind: HostKind, connected: boolean): HostRepoInfo => ({
     remote: "origin",
-    kind: "github",
-    account: { id: "a1", kind: "github" },
+    kind,
+    account: connected ? account(kind) : null,
     owner: "octo",
     name: "demo",
-    webUrl: "https://github.com/octo/demo",
-    capabilities: { releases: true },
+    webUrl: "https://example.org/octo/demo",
+    defaultBranch: null,
+    canPush: null,
+    forkParent: null,
+    capabilities: defaultCapabilities[kind],
+    error: null,
   });
-  const bitbucket = toHostRepo({
-    remote: "origin",
-    kind: "bitbucket",
-    account: { id: "a2", kind: "bitbucket" },
-    owner: "team",
-    name: "demo",
-    webUrl: "https://bitbucket.org/team/demo",
-  });
-  const unconnected = toHostRepo({
-    remote: "origin",
-    kind: "github",
-    account: null,
-    owner: "octo",
-    name: "demo",
-    webUrl: "https://github.com/octo/demo",
-  });
+  const github = repo("github", true);
+  const bitbucket = repo("bitbucket", true);
+  const unconnected = repo("github", false);
 
   it("follows the AI state, the function switch and the repository switch", () => {
     expect(availabilityOf(on, false, null).visible).toBe(true);

@@ -8,7 +8,7 @@ import { core, type Id } from "../../core";
 import { t } from "../../i18n";
 import { toast } from "../../ui/Feedback";
 import { copyText } from "../../app/actions/clipboard";
-import { hostApi, hostKindLabels, type HostAccountInfo } from "../../app/hosts";
+import { hostKindLabels } from "../../app/hosts";
 import { openInBrowser, runHostAction } from "../../app/actions/hosts";
 import { pushTag } from "../../app/actions/tags";
 import { confirm } from "../../app/dialogs";
@@ -52,12 +52,9 @@ async function applyOne(target: ReleaseTarget, { repoId, tag, notes }: ApplyInpu
     }
     return result.ok;
   }
-  // The account list may not have been loaded yet (no settings or host view opened): without it the
-  // repository's account cannot be resolved, so load it first.
-  const accounts = await queryClient.fetchQuery<HostAccountInfo[]>({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
   const host = await queryClient.fetchQuery({
     queryKey: qk.hostRepo(repoId),
-    queryFn: () => hostApi.repoInfo(repoId, accounts),
+    queryFn: () => core.hostRepoInfo({ repoId }),
     staleTime: HOST_STALE_MS,
   });
   if (!host?.kind || !host.remote || !host.account || !host.capabilities.releases) {

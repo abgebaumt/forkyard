@@ -18,14 +18,16 @@ import {
   type FileHistoryEntry,
   type GraphPage,
   type Id,
+  type IssueListState,
+  type PrDetails,
+  type PrListState,
   type ReflogPage,
   type LineArchaeology,
   type Sha,
   type StackStatus,
   type Tab,
 } from "../core";
-import { hostApi, type HostAccountInfo, type PrDetails, type PrListState } from "./hosts";
-import { issueApi, type IssueFilter } from "../screens/Issues/api";
+import { prRange } from "./hosts";
 import { isFixedRev } from "../screens/Archaeology/model";
 import { readStatus } from "./statusOrder";
 import type { ArchaeologyTarget } from "./store";
@@ -553,13 +555,13 @@ export const useLfsInUse = (repoId: Id | null | undefined) =>
 export const HOST_STALE_MS = 2 * 60_000;
 
 /** The connected accounts – without token; that lives in the system keychain. */
-export const useHostAccounts = () => useQuery({ queryKey: qk.hostAccounts, queryFn: () => hostApi.accounts() });
+export const useHostAccounts = () => useQuery({ queryKey: qk.hostAccounts, queryFn: () => core.hostAccounts() });
 
 /** Host, owner and name of the repository according to its remote URL; null if nothing was recognised. */
 export const useHostRepo = (repoId: Id | null | undefined) =>
   useQuery({
     queryKey: qk.hostRepo(repoId ?? ""),
-    queryFn: () => hostApi.repoInfo(repoId!, queryClient.getQueryData<HostAccountInfo[]>(qk.hostAccounts) ?? []),
+    queryFn: () => core.hostRepoInfo({ repoId: repoId! }),
     enabled: enabledFor(repoId),
     staleTime: HOST_STALE_MS,
   });
@@ -576,7 +578,7 @@ export const useReleaseNotesRange = (repoId: Id | null | undefined, to: string |
 export const usePullRequests = (repoId: Id | null | undefined, state: PrListState, enabled = true) =>
   useInfiniteQuery({
     queryKey: qk.prList(repoId ?? "", state),
-    queryFn: ({ pageParam }) => hostApi.prList(repoId!, state, pageParam),
+    queryFn: ({ pageParam }) => core.prList({ repoId: repoId!, state, page: pageParam }),
     initialPageParam: 1,
     getNextPageParam: (last) => last.nextPage ?? undefined,
     enabled: enabledFor(repoId) && enabled,
@@ -586,7 +588,7 @@ export const usePullRequests = (repoId: Id | null | undefined, state: PrListStat
 export const usePullRequest = (repoId: Id | null | undefined, number: number | null | undefined) =>
   useQuery({
     queryKey: qk.pr(repoId ?? "", number ?? 0),
-    queryFn: () => hostApi.prGet(repoId!, number!),
+    queryFn: () => core.prGet({ repoId: repoId!, number: number! }),
     enabled: enabledFor(repoId) && typeof number === "number",
     staleTime: HOST_STALE_MS,
   });
@@ -602,7 +604,7 @@ export const usePrRange = (
 ) =>
   useQuery({
     queryKey: [...qk.pr(repoId ?? "", pr?.number ?? 0), "range", pr?.headSha ?? null, pr?.commits.length ?? 0] as const,
-    queryFn: () => hostApi.prRange(repoId!, pr!),
+    queryFn: () => prRange(repoId!, pr!),
     enabled: enabledFor(repoId) && Boolean(pr) && enabled,
     staleTime: 0,
   });
@@ -611,7 +613,7 @@ export const usePrRange = (
 export const usePrReviewThreads = (repoId: Id | null | undefined, number: number | null | undefined, enabled = true) =>
   useQuery({
     queryKey: qk.prReviewThreads(repoId ?? "", number ?? 0),
-    queryFn: () => hostApi.reviewThreads(repoId!, number!),
+    queryFn: () => core.prReviewThreads({ repoId: repoId!, number: number! }),
     enabled: enabledFor(repoId) && typeof number === "number" && enabled,
     staleTime: HOST_STALE_MS,
   });
@@ -620,7 +622,8 @@ export const usePrReviewThreads = (repoId: Id | null | undefined, number: number
 export const usePrTemplate = (repoId: Id | null | undefined, enabled = true) =>
   useQuery({
     queryKey: qk.prTemplate(repoId ?? ""),
-    queryFn: () => hostApi.prTemplate(repoId!),
+    // An empty template file counts as none.
+    queryFn: async () => (await core.prTemplate({ repoId: repoId! })) || null,
     enabled: enabledFor(repoId) && enabled,
     staleTime: Infinity,
   });
@@ -629,11 +632,27 @@ export const usePrTemplate = (repoId: Id | null | undefined, enabled = true) =>
 // Issues of the host
 // ---------------------------------------------------------------------------
 
+/** This many issues per page are requested by the UI. */
+const ISSUE_PAGE_SIZE = 30;
+
+export interface IssueFilter {
+  state: IssueListState;
+  /** Search text; empty = all. */
+  query: string;
+}
+
 /** Issues page by page (page 1 first); the core names the next page. */
 export const useIssues = (repoId: Id | null | undefined, filter: IssueFilter, enabled = true) =>
   useInfiniteQuery({
     queryKey: qk.issueList(repoId ?? "", filter),
-    queryFn: ({ pageParam }) => issueApi.list(repoId!, filter, pageParam),
+    queryFn: ({ pageParam }) =>
+      core.issueList({
+        repoId: repoId!,
+        state: filter.state,
+        query: filter.query.trim() || null,
+        page: pageParam,
+        perPage: ISSUE_PAGE_SIZE,
+      }),
     initialPageParam: 1,
     getNextPageParam: (last) => last.nextPage ?? undefined,
     enabled: enabledFor(repoId) && enabled,
@@ -643,7 +662,7 @@ export const useIssues = (repoId: Id | null | undefined, filter: IssueFilter, en
 export const useIssue = (repoId: Id | null | undefined, number: number | null | undefined) =>
   useQuery({
     queryKey: qk.issue(repoId ?? "", number ?? 0),
-    queryFn: () => issueApi.get(repoId!, number!),
+    queryFn: () => core.issueGet({ repoId: repoId!, number: number! }),
     enabled: enabledFor(repoId) && typeof number === "number",
     staleTime: HOST_STALE_MS,
   });

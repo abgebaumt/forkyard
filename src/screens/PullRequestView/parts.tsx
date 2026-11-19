@@ -16,7 +16,7 @@ import {
   MessageSquareWarning,
   ThumbsUp,
 } from "lucide-react";
-import type { CheckState, HostCapabilities, HostUser, PrCheck, PrState, PrSummary } from "../../app/hosts";
+import type { ChecksState, HostCapabilities, HostLabel, HostUser, PrCheck, PrState, PrSummary } from "../../core";
 import { formatDateTime, formatRelative } from "../../app/format";
 import { cn } from "../../ui/cn";
 import { t } from "../../i18n";
@@ -81,17 +81,17 @@ export function PhaseBadge({ pr, className }: { pr: Pick<PrSummary, "state" | "i
   );
 }
 
-export const checkInfo: Record<CheckState, { label: string; icon: Icon; tone: string }> = {
+export const checkInfo: Record<ChecksState, { label: string; icon: Icon; tone: string }> = {
   passing: { label: t("ui.passed"), icon: CircleCheck, tone: "text-success" },
   failing: { label: t("ui.failed"), icon: CircleX, tone: "text-danger" },
   pending: { label: t("pullRequest.view.check.pending"), icon: Clock, tone: "text-warning" },
 };
 
 /** "Checks: 3 passed", "1 of 3 failed", "2 of 3 still running", "none". */
-export function checksText(summary: CheckState | null, runs: Pick<PrCheck, "state">[] = []): string {
+export function checksText(summary: ChecksState | null, runs: Pick<PrCheck, "state">[] = []): string {
   if (!summary) return t("pullRequest.view.check.none");
   const total = runs.length;
-  const count = (state: CheckState) => runs.filter((run) => run.state === state).length;
+  const count = (state: ChecksState) => runs.filter((run) => run.state === state).length;
   if (summary === "failing")
     return total ? t("pullRequest.view.check.failingOf", { count: count("failing"), total }) : t("pullRequest.view.check.failingAll");
   if (summary === "pending")
@@ -108,7 +108,7 @@ export function ChecksSummary({
   runs,
   className,
 }: {
-  summary: CheckState | null;
+  summary: ChecksState | null;
   runs?: Pick<PrCheck, "state">[];
   className?: string;
 }) {
@@ -190,7 +190,7 @@ export function BlockTitle({ children, count }: { children: ReactNode; count?: n
 }
 
 /** Labels of a pull request; left out entirely for hosts without labels (Bitbucket). */
-export function LabelsBlock({ labels, capabilities }: { labels: string[]; capabilities: Pick<HostCapabilities, "prLabels"> }) {
+export function LabelsBlock({ labels, capabilities }: { labels: HostLabel[]; capabilities: Pick<HostCapabilities, "prLabels"> }) {
   if (!capabilities.prLabels) return null;
   return (
     <section aria-label={t("ui.labels")} data-pr-labels="">
@@ -201,11 +201,11 @@ export function LabelsBlock({ labels, capabilities }: { labels: string[]; capabi
         <ul className="flex flex-wrap gap-1">
           {labels.map((label) => (
             <li
-              key={label}
-              title={label}
+              key={label.name}
+              title={label.name}
               className="selectable max-w-full truncate rounded-pill border border-border bg-surface-raised px-2 text-sm text-text"
             >
-              {label}
+              {label.name}
             </li>
           ))}
         </ul>

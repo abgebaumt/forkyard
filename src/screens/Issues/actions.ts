@@ -3,16 +3,15 @@
  * reload. Plus the view's filter (per repository) and the state of the section in the left panel.
  */
 import { create } from "zustand";
-import type { Id } from "../../core";
+import type { Id, HostRepoInfo } from "../../core";
 import { createBranch } from "../../app/actions/branches";
 import { copyText } from "../../app/actions/clipboard";
 import { currentBranch } from "../../app/actions/context";
 import { openInBrowser } from "../../app/actions/hosts";
-import type { HostRepo } from "../../app/hosts";
 import { qk, queryClient } from "../../app/queries";
 import { useAppStore } from "../../app/store";
 import { t } from "../../i18n";
-import type { IssueListState, IssueSummary } from "./api";
+import type { IssueListState, IssueSummary } from "../../core";
 import { issueBranchName } from "./model";
 
 // ---------------------------------------------------------------------------
@@ -35,7 +34,7 @@ export function refreshIssues(repoId: Id): Promise<void> {
 }
 
 /** Address of the issue list at the host (Azure DevOps: the project's work items). */
-export function issuesWebUrl(repo: HostRepo | null | undefined): string | null {
+export function issuesWebUrl(repo: HostRepoInfo | null | undefined): string | null {
   if (!repo?.webUrl) return null;
   const base = repo.webUrl.replace(/\/+$/, "");
   switch (repo.kind) {
@@ -150,4 +149,4 @@ export const setIssueSection = (repoId: Id, change: Partial<IssueSectionState>) 
 /** The open issues of the first page – what the section in the left panel shows. */
 export const SECTION_FILTER = { state: "open", query: "" } as const;
 
-export const cachedHostRepo = (repoId: Id) => queryClient.getQueryData<HostRepo | null>(qk.hostRepo(repoId));
+export const cachedHostRepo = (repoId: Id) => queryClient.getQueryData<HostRepoInfo | null>(qk.hostRepo(repoId));

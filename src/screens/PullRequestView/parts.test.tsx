@@ -9,7 +9,9 @@ describe("LabelsBlock", () => {
   });
 
   it("shows the labels or the empty note where the host has labels", () => {
-    expect(renderToStaticMarkup(<LabelsBlock labels={["bug"]} capabilities={defaultCapabilities.github} />)).toContain("bug");
+    expect(
+      renderToStaticMarkup(<LabelsBlock labels={[{ name: "bug", color: null }]} capabilities={defaultCapabilities.github} />),
+    ).toContain("bug");
     expect(renderToStaticMarkup(<LabelsBlock labels={[]} capabilities={defaultCapabilities.github} />)).toContain("data-pr-labels");
   });
 });

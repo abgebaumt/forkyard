@@ -1,16 +1,11 @@
 /**
  * Host integration (GitHub, GitLab, Gitea/Forgejo, Bitbucket Cloud, Azure DevOps via their public REST APIs, with the user's token):
- * the shapes the UI works with, and the one place that calls the core for it.
- *
- * The core is authoritative. What it returns is brought into a fixed shape here once
- * (`to…` functions), so that screens and actions don't have to reckon with "field missing" or
- * "name as text instead of object" everywhere. The token itself never comes back: the core
- * stores it in the system keychain and reveals at most the last characters (`tokenHint`).
+ * what the UI adds to the core's host contract – labels, fallback capabilities, the local range of a
+ * pull request and how host errors are told to the user. The shapes themselves are the generated
+ * core types; the token never comes back (the core reveals at most `tokenHint`).
  */
-import { core, CoreError, EMPTY_TREE_SHA, type Id, type ReviewReply, type ReviewThread, type Sha, type Status } from "../core";
+import { core, CoreError, EMPTY_TREE_SHA, type HostCapabilities, type HostKind, type Id, type PrDetails, type Sha } from "../core";
 import { locale, t } from "../i18n";
-
-export type HostKind = "github" | "gitlab" | "gitea" | "bitbucket" | "azure_devops";
 
 /** In the order the app offers them. */
 export const HOST_KINDS: HostKind[] = ["github", "gitlab", "gitea", "bitbucket", "azure_devops"];
@@ -31,73 +26,6 @@ export const hostPrWord: Record<HostKind, string> = {
   bitbucket: t("ui.pullRequest"),
   azure_devops: t("ui.pullRequest"),
 };
-
-export interface HostUser {
-  login: string;
-  name: string | null;
-  avatarUrl: string | null;
-}
-
-export interface HostAccountInfo {
-  id: Id;
-  kind: HostKind;
-  /** Address of the web UI, e.g. `https://github.com` or that of the self-hosted instance; null = the public service. */
-  baseUrl: string | null;
-  /** User name for Basic authentication (Bitbucket); null for the other hosts. */
-  username: string | null;
-  /** null while the token is not (or no longer) valid. */
-  user: HostUser | null;
-  /** The last characters of the token, for recognition. Never the token. */
-  tokenHint: string | null;
-  scopesOk: boolean;
-  /** Permissions the token lacks – named the way the host names them. */
-  missingScopes: string[];
-  lastError: string | null;
-}
-
-export interface HostRepo {
-  /** Name of the remote at which the host was recognised. */
-  remote: string | null;
-  account: HostAccountInfo | null;
-  kind: HostKind | null;
-  owner: string;
-  name: string;
-  webUrl: string | null;
-  defaultBranch: string | null;
-  canPush: boolean;
-  forkParent: { owner: string; name: string; defaultBranch: string | null } | null;
-  /** What the host offers for this repository. */
-  capabilities: HostCapabilities;
-  /** The account is there, but the host did not answer or refused (token, quota, network). */
-  error: CoreError | null;
-}
-
-export type PrState = "open" | "closed" | "merged";
-export type PrListState = PrState | "all";
-export type CheckState = "passing" | "failing" | "pending";
-export type CheckRunState = CheckState | "skipped";
-export type MergeMethod = "merge" | "squash" | "rebase";
-
-/** What the host offers – the core reports it per repository; these are the fallbacks per host kind. */
-export interface HostCapabilities {
-  issues: boolean;
-  issueCreate: boolean;
-  draftPrs: boolean;
-  draftToggle: boolean;
-  mergeMethods: MergeMethod[];
-  deleteSourceBranch: boolean;
-  prReopen: boolean;
-  prReviewers: boolean;
-  prLabels: boolean;
-  forkCheckout: boolean;
-  releases: boolean;
-  /** Review threads can be read (8.2). */
-  reviewThreads: boolean;
-  /** Answers can be posted to a review thread. */
-  reviewReply: boolean;
-  /** Answers are posted as a quoted new comment on the same line (Gitea/Forgejo). */
-  reviewReplyQuotes: boolean;
-}
 
 const ALL_FEATURES: Omit<HostCapabilities, "mergeMethods"> = {
   issues: true,
@@ -139,310 +67,6 @@ export const defaultCapabilities: Record<HostKind, HostCapabilities> = {
   },
 };
 
-export interface PrSummary {
-  number: number;
-  title: string;
-  state: PrState;
-  isDraft: boolean;
-  author: HostUser | null;
-  sourceBranch: string;
-  targetBranch: string;
-  updatedAt: string | null;
-  webUrl: string | null;
-  checks: CheckState | null;
-  /** `approved`, `changes_requested`, `review_required` (requested, still open), `commented` – or null. */
-  reviewState: string | null;
-  labels: string[];
-  /** The source branch lives in a fork. */
-  isFork: boolean;
-}
-
-export interface PrPage {
-  items: PrSummary[];
-  /** Number of the next page; null = end. */
-  nextPage: number | null;
-}
-
-export interface PrComment {
-  id: string;
-  author: HostUser | null;
-  body: string;
-  createdAt: string | null;
-  /** Comment on a line of the diff. */
-  path: string | null;
-  line: number | null;
-}
-
-export interface PrCheck {
-  name: string;
-  state: CheckRunState;
-  url: string | null;
-}
-
-export interface PrCommit {
-  sha: Sha;
-  summary: string;
-  authorName: string;
-  authoredAt: string | null;
-}
-
-export interface PrReviewer {
-  user: HostUser;
-  /** `approved`, `changes_requested`, `commented`, `pending` … or null if the host says nothing. */
-  state: string | null;
-}
-
-export interface PrDetails extends PrSummary {
-  body: string;
-  reviewers: PrReviewer[];
-  comments: PrComment[];
-  commits: PrCommit[];
-  /** null = the host is still computing. */
-  mergeable: boolean | null;
-  /** Reason given by the host why the pull request cannot be merged. */
-  mergeBlocked: string | null;
-  checkRuns: PrCheck[];
-  baseSha: Sha | null;
-  headSha: Sha | null;
-}
-
-export interface PrCreateInput {
-  repoId: Id;
-  title: string;
-  body: string;
-  sourceBranch: string;
-  targetBranch: string;
-  draft: boolean;
-  reviewers: string[];
-  labels: string[];
-  /**
-   * Remote of the target repository if it is not our own (pull request from a fork into the
-   * original; `sourceBranch` is then "<owner>:<branch>" on GitHub). Otherwise null.
-   */
-  remote: string | null;
-}
-
-// ---------------------------------------------------------------------------
-// Reading what the core returns
-// ---------------------------------------------------------------------------
-
-type Loose = Record<string, unknown>;
-
-const isObject = (value: unknown): value is Loose => typeof value === "object" && value !== null && !Array.isArray(value);
-const text = (value: unknown): string | null =>
-  typeof value === "string" && value.length > 0 ? value : typeof value === "number" ? String(value) : null;
-const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
-const flag = (value: unknown, fallback = false): boolean => (typeof value === "boolean" ? value : fallback);
-const pick = (source: Loose, ...keys: string[]): unknown => {
-  for (const key of keys) if (source[key] !== undefined && source[key] !== null) return source[key];
-  return null;
-};
-
-export function toUser(value: unknown): HostUser | null {
-  if (typeof value === "string") return value ? { login: value, name: null, avatarUrl: null } : null;
-  if (!isObject(value)) return null;
-  const login = text(pick(value, "login", "username", "name"));
-  if (!login) return null;
-  const name = text(value.name);
-  return { login, name: name && name !== login ? name : null, avatarUrl: text(value.avatarUrl) };
-}
-
-const toLabel = (value: unknown): string | null => (isObject(value) ? text(value.name) : text(value));
-const notNull = <T>(value: T | null): value is T => value !== null;
-
-const toKind = (value: unknown): HostKind | null => ((HOST_KINDS as unknown[]).includes(value) ? (value as HostKind) : null);
-
-export function toAccount(value: unknown): HostAccountInfo | null {
-  if (!isObject(value)) return null;
-  const id = text(value.id);
-  const kind = toKind(value.kind);
-  if (!id || !kind) return null;
-  return {
-    id,
-    kind,
-    baseUrl: text(value.baseUrl),
-    username: text(value.username),
-    user: toUser(value.user),
-    tokenHint: text(value.tokenHint),
-    scopesOk: flag(value.scopesOk, true),
-    missingScopes: list(value.missingScopes).map(text).filter(notNull),
-    lastError: text(value.lastError),
-  };
-}
-
-type CapabilityFlag = Exclude<keyof HostCapabilities, "mergeMethods">;
-const CAPABILITY_FLAGS: CapabilityFlag[] = [
-  "issues",
-  "issueCreate",
-  "draftPrs",
-  "draftToggle",
-  "deleteSourceBranch",
-  "prReopen",
-  "prReviewers",
-  "prLabels",
-  "forkCheckout",
-  "releases",
-  "reviewThreads",
-  "reviewReply",
-  "reviewReplyQuotes",
-];
-const isMergeMethod = (value: unknown): value is MergeMethod => value === "merge" || value === "squash" || value === "rebase";
-
-/** The core's capabilities; whatever is missing or malformed comes from the host kind's defaults. */
-export function toCapabilities(value: unknown, kind: HostKind | null): HostCapabilities {
-  const fallback = defaultCapabilities[kind ?? "github"];
-  if (!isObject(value)) return fallback;
-  const result: HostCapabilities = {
-    ...fallback,
-    mergeMethods: Array.isArray(value.mergeMethods) ? value.mergeMethods.filter(isMergeMethod) : fallback.mergeMethods,
-  };
-  for (const key of CAPABILITY_FLAGS) result[key] = flag(value[key], fallback[key]);
-  return result;
-}
-
-export function toHostRepo(value: unknown, accounts: HostAccountInfo[] = []): HostRepo | null {
-  if (!isObject(value)) return null;
-  const owner = text(value.owner);
-  const name = text(value.name);
-  if (!owner || !name) return null;
-  // The core names the account as an object or as an ID.
-  const account = toAccount(value.account) ?? accounts.find((item) => item.id === text(pick(value, "accountId", "account"))) ?? null;
-  const parent = isObject(value.forkParent) ? value.forkParent : null;
-  const parentOwner = parent ? text(parent.owner) : null;
-  const parentName = parent ? text(parent.name) : null;
-  const failure = isObject(value.error) ? value.error : null;
-  const kind = toKind(value.kind) ?? account?.kind ?? null;
-  return {
-    remote: text(value.remote),
-    account,
-    kind,
-    owner,
-    name,
-    webUrl: text(value.webUrl),
-    defaultBranch: text(value.defaultBranch),
-    canPush: flag(value.canPush, true),
-    forkParent:
-      parent && parentOwner && parentName ? { owner: parentOwner, name: parentName, defaultBranch: text(parent.defaultBranch) } : null,
-    capabilities: toCapabilities(value.capabilities, kind),
-    error: failure
-      ? new CoreError({
-          code: (text(failure.code) ?? "unknown") as CoreError["code"],
-          message: text(failure.message) ?? "",
-          gitOutput: null,
-        })
-      : null,
-  };
-}
-
-const toPrState = (value: unknown): PrState => (value === "closed" || value === "merged" ? value : "open");
-const toCheckState = (value: unknown): CheckState | null =>
-  value === "passing" || value === "failing" || value === "pending" ? value : null;
-
-export function toPrSummary(value: unknown): PrSummary | null {
-  if (!isObject(value)) return null;
-  const number = typeof value.number === "number" ? value.number : Number(value.number);
-  if (!Number.isFinite(number)) return null;
-  return {
-    number,
-    title: text(value.title) ?? "",
-    state: toPrState(value.state),
-    isDraft: flag(value.isDraft),
-    author: toUser(value.author),
-    sourceBranch: text(value.sourceBranch) ?? "",
-    targetBranch: text(value.targetBranch) ?? "",
-    updatedAt: text(value.updatedAt),
-    webUrl: text(value.webUrl),
-    checks: toCheckState(value.checks),
-    reviewState: text(value.reviewState),
-    labels: list(value.labels).map(toLabel).filter(notNull),
-    isFork: flag(value.isFork),
-  };
-}
-
-function toComment(value: unknown, index: number): PrComment | null {
-  if (!isObject(value)) return null;
-  return {
-    id: text(value.id) ?? `kommentar-${index}`,
-    author: toUser(value.author),
-    body: text(value.body) ?? "",
-    createdAt: text(value.createdAt),
-    path: text(value.path),
-    line: typeof value.line === "number" ? value.line : null,
-  };
-}
-
-function toCheck(value: unknown): PrCheck | null {
-  if (!isObject(value)) return null;
-  const name = text(value.name);
-  const state = value.state === "skipped" ? "skipped" : toCheckState(value.state);
-  return name && state ? { name, state, url: text(value.url) } : null;
-}
-
-function toCommit(value: unknown): PrCommit | null {
-  if (!isObject(value)) return null;
-  const sha = text(value.sha);
-  if (!sha) return null;
-  const author = value.author;
-  return {
-    sha,
-    summary: (text(pick(value, "summary", "message", "title")) ?? "").split("\n")[0] ?? "",
-    authorName: (isObject(author) ? text(pick(author, "name", "login")) : text(author)) ?? text(value.authorName) ?? "",
-    authoredAt: text(pick(value, "authoredAt", "date", "createdAt")),
-  };
-}
-
-function toReviewer(value: unknown): PrReviewer | null {
-  // Either { user, state } or the user directly.
-  const user = isObject(value) && value.user !== undefined ? toUser(value.user) : toUser(value);
-  if (!user) return null;
-  return { user, state: isObject(value) ? text(value.state) : null };
-}
-
-export function toPrDetails(value: unknown): PrDetails | null {
-  const summary = toPrSummary(value);
-  if (!summary || !isObject(value)) return null;
-  const mergeable = value.mergeable;
-  const commits = list(value.commits).map(toCommit).filter(notNull);
-  return {
-    ...summary,
-    body: text(value.body) ?? "",
-    reviewers: list(value.reviewers).map(toReviewer).filter(notNull),
-    comments: list(value.comments).map(toComment).filter(notNull),
-    commits,
-    mergeable:
-      typeof mergeable === "boolean"
-        ? mergeable
-        : mergeable === "mergeable"
-          ? true
-          : mergeable === "conflicting" || mergeable === "blocked"
-            ? false
-            : null,
-    mergeBlocked: text(pick(value, "mergeBlocked", "mergeBlockedReason", "mergeableReason")),
-    // `checks` is the summary in the list, and the list of individual checks in the details.
-    checkRuns: list(Array.isArray(value.checks) ? value.checks : value.checkRuns)
-      .map(toCheck)
-      .filter(notNull),
-    checks:
-      summary.checks ??
-      summarizeChecks(
-        list(Array.isArray(value.checks) ? value.checks : value.checkRuns)
-          .map(toCheck)
-          .filter(notNull),
-      ),
-    baseSha: text(value.baseSha),
-    headSha: text(value.headSha) ?? commits[commits.length - 1]?.sha ?? null,
-  };
-}
-
-/** A failed check makes everything red; if one is still running, "running" applies; without checks (or only skipped ones): null. */
-export function summarizeChecks(all: Pick<PrCheck, "state">[]): CheckState | null {
-  const checks = all.filter((check) => check.state !== "skipped");
-  if (checks.length === 0) return null;
-  if (checks.some((check) => check.state === "failing")) return "failing";
-  if (checks.some((check) => check.state === "pending")) return "pending";
-  return "passing";
-}
-
 // ---------------------------------------------------------------------------
 // What a pull request changes, from the local repository
 // ---------------------------------------------------------------------------
@@ -460,7 +84,7 @@ export type PrRange =
  * commit to its newest. The order of the list doesn't matter (hosts deliver it
  * differently) – the oldest is the one whose parent does not itself belong to the pull request.
  */
-async function prRange(repoId: Id, pr: Pick<PrDetails, "commits" | "headSha">): Promise<PrRange> {
+export async function prRange(repoId: Id, pr: Pick<PrDetails, "commits" | "headSha">): Promise<PrRange> {
   const shas = pr.commits.map((commit) => commit.sha);
   if (shas.length === 0) return { state: "empty" };
   const own = new Set(shas);
@@ -480,63 +104,6 @@ async function prRange(repoId: Id, pr: Pick<PrDetails, "commits" | "headSha">): 
 }
 
 // ---------------------------------------------------------------------------
-// Calls
-// ---------------------------------------------------------------------------
-
-const need = <T>(value: T | null, what: string): T => {
-  if (value === null) throw new CoreError({ code: "unknown", message: t("actions.hosts.unexpectedShape", { what }), gitOutput: null });
-  return value;
-};
-
-/** The host integration commands from src/core/api.ts, with the results in the shape above. */
-export const hostApi = {
-  accounts: async (): Promise<HostAccountInfo[]> =>
-    list(await core.hostAccounts())
-      .map(toAccount)
-      .filter(notNull),
-  /** Checks the token against the API and stores it in the keychain. `username` only for Bitbucket. */
-  connect: async (input: { kind: HostKind; baseUrl: string | null; token: string; username?: string | null }): Promise<HostAccountInfo> =>
-    need(toAccount(await core.hostConnect(input)), t("actions.hosts.what.account")),
-  /** GitHub with the GitHub CLI's login: the core reads the token from gh itself. */
-  connectGh: async (baseUrl: string | null): Promise<HostAccountInfo> =>
-    need(toAccount(await core.hostConnectGh({ baseUrl })), t("actions.hosts.what.account")),
-  disconnect: (accountId: Id): Promise<unknown> => core.hostDisconnect({ accountId }),
-  /** Returns even when the host refuses – the reason is in `lastError`. */
-  check: async (accountId: Id): Promise<HostAccountInfo | null> => toAccount(await core.hostCheck({ accountId })),
-  repoInfo: async (repoId: Id, accounts: HostAccountInfo[] = []): Promise<HostRepo | null> =>
-    toHostRepo(await core.hostRepoInfo({ repoId }), accounts),
-
-  /** One page of the list (page 1 first), most recently changed first. */
-  prList: async (repoId: Id, state: PrListState, page: number): Promise<PrPage> => {
-    const raw: unknown = await core.prList({ repoId, state, page });
-    const items = list(isObject(raw) ? raw.items : raw)
-      .map(toPrSummary)
-      .filter(notNull);
-    const next = isObject(raw) ? raw.nextPage : null;
-    return { items, nextPage: typeof next === "number" ? next : null };
-  },
-  prGet: async (repoId: Id, number: number): Promise<PrDetails> =>
-    need(toPrDetails(await core.prGet({ repoId, number })), t("actions.hosts.what.pr")),
-  prCreate: async (input: PrCreateInput): Promise<PrSummary> =>
-    need(toPrSummary(await core.prCreate(input)), t("actions.hosts.what.newPr")),
-  prComment: (repoId: Id, number: number, body: string): Promise<unknown> => core.prComment({ repoId, number, body }),
-  prMerge: (repoId: Id, number: number, method: MergeMethod, deleteBranch: boolean): Promise<unknown> =>
-    core.prMerge({ repoId, number, method, deleteBranch }),
-  prClose: (repoId: Id, number: number): Promise<unknown> => core.prClose({ repoId, number }),
-  prReopen: (repoId: Id, number: number): Promise<unknown> => core.prReopen({ repoId, number }),
-  /** Fetches the pull request's branch and checks it out. */
-  prCheckout: (repoId: Id, number: number): Promise<Status> => core.prCheckout({ repoId, number }),
-  /** From the working directory; no network call. */
-  prTemplate: async (repoId: Id): Promise<string | null> => text(await core.prTemplate({ repoId })),
-  /** Review threads (comments on lines) with their resolved state; `host_unsupported` where the host has none. */
-  reviewThreads: (repoId: Id, number: number): Promise<ReviewThread[]> => core.prReviewThreads({ repoId, number }),
-  /** Answer in a review thread; `quoted: true` = posted as a new comment on the same line with a quote. */
-  reviewReply: (repoId: Id, number: number, threadId: string, body: string): Promise<ReviewReply> =>
-    core.prReviewReply({ repoId, number, threadId, body }),
-  prRange,
-};
-
-// ---------------------------------------------------------------------------
 // Host integration errors
 // ---------------------------------------------------------------------------
 
@@ -552,7 +119,7 @@ export type HostErrorKind =
   | "other";
 
 export function hostErrorKind(error: unknown): HostErrorKind {
-  const code = isObject(error) || error instanceof Error ? String((error as { code?: unknown }).code ?? "") : "";
+  const code = typeof error === "object" && error !== null ? String((error as { code?: unknown }).code ?? "") : "";
   switch (code) {
     case "host_not_connected":
       return "not_connected";
@@ -609,7 +176,9 @@ const errorTitles: Record<HostErrorKind, { title: string; fallback: string; hint
 export function describeHostError(error: unknown): HostErrorText {
   const kind = hostErrorKind(error);
   const info = errorTitles[kind];
-  const message = error instanceof Error ? error.message.trim() : "";
+  // Thrown `CoreError`s and the plain `HostRepoInfo.error` both carry `message`.
+  const raw = typeof error === "object" && error !== null ? (error as { message?: unknown }).message : null;
+  const message = typeof raw === "string" ? raw.trim() : "";
   return { kind, title: info.title, text: localTimes(message) || info.fallback, hint: info.hint };
 }
 

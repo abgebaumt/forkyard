@@ -14,7 +14,8 @@ import {
   hostBusyKeys,
   type AccountState,
 } from "../../app/actions/hosts";
-import { describeHostError, hostKindLabels, type HostAccountInfo } from "../../app/hosts";
+import type { HosterAccount } from "../../core";
+import { describeHostError, hostKindLabels } from "../../app/hosts";
 import { describeError } from "../../app/errors";
 import { qk, queryClient, useHostAccounts, useKeyringAvailable } from "../../app/queries";
 import { useBusy } from "../../app/store";
@@ -35,7 +36,7 @@ const stateBadge: Record<AccountState, { tone: BadgeTone; icon: typeof CircleChe
   error: { tone: "warning", icon: TriangleAlert },
 };
 
-function AccountRow({ account }: { account: HostAccountInfo }) {
+function AccountRow({ account }: { account: HosterAccount }) {
   const busy = useBusy(hostBusyKeys.account(account.id));
   const state = accountState(account);
   const badge = stateBadge[state];

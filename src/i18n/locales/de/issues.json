@@ -7,7 +7,6 @@
     "label": "Branch für dieses Issue anlegen …",
     "button": "Branch anlegen …"
   },
-  "unexpected": "Der Kern hat das Issue in einer unerwarteten Form geliefert.",
   "state": {
     "open": "Offen"
   },
@@ -32,9 +31,7 @@
     "descriptionOrigin": "in der Beschreibung des Issues",
     "commentsCount": "Kommentare ({{count}})",
     "commentOrigin": "in einem Kommentar des Issues",
-    "emptyComment": "Leerer Kommentar.",
-    "moreComments_one": "{{count}} weiterer Kommentar steht beim Hoster – „Im Browser öffnen“ zeigt alle.",
-    "moreComments_other": "{{count}} weitere Kommentare stehen beim Hoster – „Im Browser öffnen“ zeigt alle."
+    "emptyComment": "Leerer Kommentar."
   },
   "problem": {
     "notFound": "Hier gibt es keine Issues zu sehen",
