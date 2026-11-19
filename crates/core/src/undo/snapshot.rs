@@ -1,10 +1,12 @@
-//! Backing up the working directory and index as commits, and restoring them.
+//! Backing up the working directory and index as commits, and restoring them. This is the one
+//! snapshot every destructive action uses (directly or through `Pending`).
 
 use std::path::{Path, PathBuf};
 
 use super::create_backup_ref;
 use crate::app::Core;
 use crate::error::{CoreError, CoreResult, ErrorCode};
+use crate::git::index::TempIndex;
 use crate::git::rev;
 use crate::git::{errors, GitCmd, GitOutput};
 use crate::util;
@@ -12,30 +14,30 @@ use crate::util;
 /// Message of the backup commits.
 pub const SNAPSHOT_MESSAGE: &str = "forkyard: backup";
 
-/// Fixed identity of the backup commits so they can be created even without user.name/user.email.
-pub(super) const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
+/// Fixed identity of the app's own commits (backups, previews, stashes it builds): they can be
+/// created even without user.name/user.email.
+pub(crate) const BACKUP_IDENTITY: [(&str, &str); 4] = [
     ("GIT_AUTHOR_NAME", "forkyard"),
     ("GIT_AUTHOR_EMAIL", "forkyard@localhost"),
     ("GIT_COMMITTER_NAME", "forkyard"),
     ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
 ];
 
-/// Temporary index file in the Git directory; deleted on drop.
-struct TempIndex(PathBuf);
-
-impl TempIndex {
-    fn new(git_dir: &Path) -> Self {
-        TempIndex(git_dir.join(format!("forkyard-{}.index", util::new_id())))
+/// `git commit-tree` with [`BACKUP_IDENTITY`] and without signing (a backup must not wait for a
+/// key or fail on one). Not logged.
+pub(crate) async fn commit_tree(core: &Core, repo_id: &str, tree: &str, parents: &[&str], message: &str) -> CoreResult<String> {
+    let mut cmd = core.git_for(repo_id)?.args(["commit-tree", "--no-gpg-sign", tree]).no_log();
+    for parent in parents {
+        cmd = cmd.args(["-p", parent]);
     }
-}
-
-impl Drop for TempIndex {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-        let mut lock = self.0.clone().into_os_string();
-        lock.push(".lock");
-        let _ = std::fs::remove_file(lock);
+    for (key, value) in BACKUP_IDENTITY {
+        cmd = cmd.env(key, value);
     }
+    let sha = cmd.args(["-m", message]).run_text().await?;
+    if sha.is_empty() {
+        return Err(CoreError::unknown("Couldn’t create a backup of the working directory."));
+    }
+    Ok(sha)
 }
 
 /// Git call in `root` (the repository or one of its worktrees), logged under `repo_id`.
@@ -43,26 +45,45 @@ fn git_in(core: &Core, repo_id: &str, root: &Path) -> GitCmd {
     core.git.cmd(root).repo(repo_id)
 }
 
-fn add_all(core: &Core, repo_id: &str, root: &Path, index: &TempIndex) -> CoreResult<GitCmd> {
-    Ok(git_in(core, repo_id, root)
+fn add_all(core: &Core, repo_id: &str, root: &Path, index: &TempIndex) -> GitCmd {
+    git_in(core, repo_id, root)
         .args(["-c", "core.safecrlf=false", "add", "-A"])
-        .env("GIT_INDEX_FILE", &index.0)
+        .env("GIT_INDEX_FILE", index.path())
         .literal_paths()
-        .no_log())
+        .no_log()
 }
 
 fn pathspec_missing(out: &GitOutput) -> bool {
     out.stderr_text().to_lowercase().contains("did not match any file")
 }
 
+fn as_bytes(paths: Option<&[String]>) -> Option<Vec<Vec<u8>>> {
+    paths.map(|list| list.iter().map(|path| path.as_bytes().to_vec()).collect())
+}
+
+/// What goes into a snapshot besides `git add -A`.
+#[derive(Clone, Copy)]
+struct Scope<'a> {
+    /// `None` = everything; otherwise only these paths (literal, raw bytes).
+    paths: Option<&'a [Vec<u8>]>,
+    /// Commit that is about to be hard-reset to: files tracked there but untracked and ignored
+    /// here are overwritten by Git without a prompt – they are included even though `add -A`
+    /// leaves them out.
+    overwrites: Option<&'a str>,
+}
+
 /// `git add -A` into the temporary index file, then `git write-tree`.
-async fn add_and_write_tree(core: &Core, repo_id: &str, root: &Path, index: &TempIndex, paths: Option<&[String]>) -> CoreResult<String> {
-    match paths {
+async fn add_and_write_tree(core: &Core, repo_id: &str, root: &Path, index: &TempIndex, scope: Scope<'_>) -> CoreResult<String> {
+    // Many new files: the fast pre-step (only in the repository itself, it reads from there).
+    if core.repo_path(repo_id).is_ok_and(|own| own == root) {
+        crate::git::bulk::prestage(core, repo_id, Some(index.path()), scope.paths).await?;
+    }
+    match scope.paths {
         None => {
-            add_all(core, repo_id, root, index)?.run().await?;
+            add_all(core, repo_id, root, index).run().await?;
         }
         Some(paths) => {
-            let out = add_all(core, repo_id, root, index)?
+            let out = add_all(core, repo_id, root, index)
                 .args(["--pathspec-from-file=-", "--pathspec-file-nul"])
                 .stdin(util::nul_join(paths))
                 .run_raw()
@@ -73,7 +94,7 @@ async fn add_and_write_tree(core: &Core, repo_id: &str, root: &Path, index: &Tem
                 }
                 // A path exists neither in the index nor on disk: add the remaining ones one by one.
                 for path in paths {
-                    let one = add_all(core, repo_id, root, index)?.arg("--").arg(path).run_raw().await?;
+                    let one = add_all(core, repo_id, root, index).arg("--").arg_bytes(path).run_raw().await?;
                     if !one.success() && !pathspec_missing(&one) {
                         return Err(errors::classify("add", one.code, &one.stdout, &one.stderr));
                     }
@@ -81,7 +102,27 @@ async fn add_and_write_tree(core: &Core, repo_id: &str, root: &Path, index: &Tem
             }
         }
     }
-    git_in(core, repo_id, root).arg("write-tree").env("GIT_INDEX_FILE", &index.0).no_log().run_text().await
+    if let Some(target) = scope.overwrites {
+        // Tracked in the target, now not in the index but on disk: untracked. Whatever of it is
+        // ignored is still missing after `add -A` and is added with force.
+        let listed = git_in(core, repo_id, root)
+            .env("GIT_INDEX_FILE", index.path())
+            .read()
+            .args(["diff-index", "--cached", "-z", "--name-only", "--no-renames", "--diff-filter=D", target])
+            .run()
+            .await?;
+        let mut input = Vec::new();
+        for path in listed.stdout_z() {
+            if std::fs::symlink_metadata(util::join_from_git(root, path)).is_ok_and(|meta| meta.is_file()) {
+                input.extend_from_slice(path);
+                input.push(0);
+            }
+        }
+        if !input.is_empty() {
+            add_all(core, repo_id, root, index).args(["-f", "--pathspec-from-file=-", "--pathspec-file-nul"]).stdin(input).run().await?;
+        }
+    }
+    git_in(core, repo_id, root).arg("write-tree").env("GIT_INDEX_FILE", index.path()).no_log().run_text().await
 }
 
 /// Tree of the current working directory: tracked and untracked (not ignored) files as
@@ -91,40 +132,37 @@ async fn add_and_write_tree(core: &Core, repo_id: &str, root: &Path, index: &Tem
 pub async fn worktree_tree(core: &Core, repo_id: &str, paths: Option<&[String]>) -> CoreResult<String> {
     let root = core.repo_path(repo_id)?;
     let git_dir = crate::git::repo::git_dir_at(core, &root, repo_id).await?;
-    let copy = copy_index(&git_dir);
-    tree_from(core, repo_id, &root, &git_dir, copy, paths).await
+    let copy = copy_index(core, &git_dir)?;
+    let paths = as_bytes(paths);
+    tree_from(core, repo_id, &root, copy, Scope { paths: paths.as_deref(), overwrites: None }).await
 }
 
 /// Copy of the real index as a starting point, so Git doesn't have to rehash unchanged
 /// files. `None` if there is no index (yet) or copying fails.
-fn copy_index(git_dir: &Path) -> Option<TempIndex> {
+fn copy_index(core: &Core, git_dir: &Path) -> CoreResult<Option<TempIndex>> {
     let real_index = git_dir.join("index");
     if !real_index.is_file() {
-        return None;
+        return Ok(None);
     }
-    let index = TempIndex::new(git_dir);
-    util::copy_index_file(&real_index, &index.0).ok().map(|_| index)
+    let index = TempIndex::create(core)?;
+    Ok(util::copy_index_file(&real_index, index.path()).ok().map(|_| index))
 }
 
-async fn tree_from(
-    core: &Core,
-    repo_id: &str,
-    root: &Path,
-    git_dir: &Path,
-    copy: Option<TempIndex>,
-    paths: Option<&[String]>,
-) -> CoreResult<String> {
+async fn tree_from(core: &Core, repo_id: &str, root: &Path, copy: Option<TempIndex>, scope: Scope<'_>) -> CoreResult<String> {
     if let Some(index) = copy {
-        if let Ok(tree) = add_and_write_tree(core, repo_id, root, &index, paths).await {
-            return Ok(tree);
+        match add_and_write_tree(core, repo_id, root, &index, scope).await {
+            Ok(tree) => return Ok(tree),
+            // A foreign lock stays an error; nothing is backed up around it.
+            Err(e) if e.is(ErrorCode::Locked) => return Err(e),
+            Err(_) => {}
         }
     }
     // The documented way: index from HEAD (without a commit: empty index).
-    let index = TempIndex::new(git_dir);
+    let index = TempIndex::create(core)?;
     if head_commit(core, repo_id, root).await?.is_some() {
-        git_in(core, repo_id, root).args(["read-tree", "HEAD"]).env("GIT_INDEX_FILE", &index.0).no_log().run().await?;
+        git_in(core, repo_id, root).args(["read-tree", "HEAD"]).env("GIT_INDEX_FILE", index.path()).no_log().run().await?;
     }
-    add_and_write_tree(core, repo_id, root, &index, paths).await
+    add_and_write_tree(core, repo_id, root, &index, scope).await
 }
 
 /// HEAD's commit in `root`; `None` without a commit.
@@ -144,6 +182,7 @@ async fn index_tree_in(core: &Core, repo_id: &str, root: &Path) -> CoreResult<Op
     if !unmerged.stdout.is_empty() {
         return Ok(None);
     }
+    // `write-tree` takes the index lock: a foreign index.lock shows up here, before anything is destroyed.
     Ok(Some(git_in(core, repo_id, root).arg("write-tree").no_log().run_text().await?))
 }
 
@@ -153,7 +192,7 @@ async fn index_tree_in(core: &Core, repo_id: &str, root: &Path) -> CoreResult<Op
 /// these paths (literal, no patterns).
 ///
 /// The commit is not on any ref: the caller keeps it with
-/// `create_backup_ref(core, repo_id, &id, "worktree", &worktree_sha)`.
+/// `create_backup_ref(core, repo_id, &id, "worktree", &worktree_sha)` – or uses `Pending`.
 /// Does NOT take the write lock itself.
 pub async fn snapshot_worktree(core: &Core, repo_id: &str, paths: Option<&[String]>) -> CoreResult<(String, Option<String>)> {
     let snapshot = snapshot(core, repo_id, paths).await?;
@@ -173,32 +212,41 @@ pub struct Snapshot {
 
 /// Like `snapshot_worktree`, additionally returns the backup's tree.
 pub async fn snapshot(core: &Core, repo_id: &str, paths: Option<&[String]>) -> CoreResult<Snapshot> {
-    snapshot_at(core, repo_id, &core.repo_path(repo_id)?, paths).await
+    let paths = as_bytes(paths);
+    take(core, repo_id, &core.repo_path(repo_id)?, Scope { paths: paths.as_deref(), overwrites: None }).await
 }
 
-/// Like `snapshot`, for the working directory `root` – the repository's or one of its
-/// worktrees' (logged under `repo_id`).
-pub async fn snapshot_at(core: &Core, repo_id: &str, root: &Path, paths: Option<&[String]>) -> CoreResult<Snapshot> {
+/// `snapshot` of raw paths (names that are not UTF-8 stay as they are).
+pub(crate) async fn snapshot_paths(core: &Core, repo_id: &str, paths: Option<&[Vec<u8>]>) -> CoreResult<Snapshot> {
+    take(core, repo_id, &core.repo_path(repo_id)?, Scope { paths, overwrites: None }).await
+}
+
+/// `snapshot` before `reset --hard <target>`: also the ignored files the reset would overwrite.
+pub(crate) async fn snapshot_before_reset(core: &Core, repo_id: &str, target: &str) -> CoreResult<Snapshot> {
+    take(core, repo_id, &core.repo_path(repo_id)?, Scope { paths: None, overwrites: Some(target) }).await
+}
+
+/// `snapshot` of the working directory `root` – one of the repository's worktrees (logged under
+/// `repo_id`).
+pub async fn snapshot_at(core: &Core, repo_id: &str, root: &Path) -> CoreResult<Snapshot> {
+    take(core, repo_id, root, Scope { paths: None, overwrites: None }).await
+}
+
+async fn take(core: &Core, repo_id: &str, root: &Path, scope: Scope<'_>) -> CoreResult<Snapshot> {
     let git_dir = crate::git::repo::git_dir_at(core, root, repo_id).await?;
     // Copy first, then continue in parallel: `write-tree` may rewrite the real index meanwhile.
-    let copy = copy_index(&git_dir);
-    let (tree, head, index_tree) = tokio::join!(
-        tree_from(core, repo_id, root, &git_dir, copy, paths),
-        head_commit(core, repo_id, root),
-        index_tree_in(core, repo_id, root),
-    );
+    let copy = copy_index(core, &git_dir)?;
+    let (tree, head, index_tree) =
+        tokio::join!(tree_from(core, repo_id, root, copy, scope), head_commit(core, repo_id, root), index_tree_in(core, repo_id, root),);
     let (tree, head, index_tree) = (tree?, head?, index_tree?);
-    let mut cmd = core.git_for(repo_id)?.args(["commit-tree", &tree]).no_log();
-    if let Some(head) = &head {
-        cmd = cmd.args(["-p", head]);
-        if let Some(raw) = raw_overlay_at(core, repo_id, root, head, &tree, paths).await {
-            cmd = cmd.args(["-p", &raw]);
-        }
+    let mut parents: Vec<String> = Vec::new();
+    if let Some(head) = head {
+        let raw = raw_overlay(core, repo_id, root, &head, &tree, scope.paths).await;
+        parents.push(head);
+        parents.extend(raw);
     }
-    for (key, value) in SNAPSHOT_IDENTITY {
-        cmd = cmd.env(key, value);
-    }
-    let commit = cmd.args(["-m", SNAPSHOT_MESSAGE]).run_text().await?;
+    let parents: Vec<&str> = parents.iter().map(String::as_str).collect();
+    let commit = commit_tree(core, repo_id, &tree, &parents, SNAPSHOT_MESSAGE).await?;
     Ok(Snapshot { commit, tree, index_tree })
 }
 
@@ -216,11 +264,7 @@ const RAW_MAX_BYTES: u64 = 8 * 1024 * 1024;
 /// `None` if there is nothing to record: no changed files, or their bytes are exactly those of the
 /// backup and a checkout would not change them. Errors are no reason to give up the backup – it
 /// then applies without raw versions.
-pub(crate) async fn raw_overlay(core: &Core, repo_id: &str, head: &str, tree: &str, paths: Option<&[String]>) -> Option<String> {
-    raw_overlay_at(core, repo_id, &core.repo_path(repo_id).ok()?, head, tree, paths).await
-}
-
-async fn raw_overlay_at(core: &Core, repo_id: &str, root: &Path, head: &str, tree: &str, paths: Option<&[String]>) -> Option<String> {
+async fn raw_overlay(core: &Core, repo_id: &str, root: &Path, head: &str, tree: &str, paths: Option<&[Vec<u8>]>) -> Option<String> {
     match raw_overlay_commit(core, repo_id, root, head, tree, paths).await {
         Ok(commit) => commit,
         Err(e) => {
@@ -236,7 +280,7 @@ async fn raw_overlay_commit(
     root: &Path,
     head: &str,
     tree: &str,
-    paths: Option<&[String]>,
+    paths: Option<&[Vec<u8>]>,
 ) -> CoreResult<Option<String>> {
     let changed = diff_raw(core, repo_id, head, tree, paths).await?;
     // Regular files of the backup that exist as a file on disk. (`--stdin-paths` splits at
@@ -272,21 +316,22 @@ async fn raw_overlay_commit(
     if !checkout_converts {
         return Ok(None);
     }
-    let git_dir = crate::git::repo::git_dir_at(core, root, repo_id).await?;
-    let index = TempIndex::new(&git_dir);
+    let index = TempIndex::create(core)?;
     let mut info = Vec::new();
     for ((path, change), id) in candidates.iter().zip(&ids) {
         info.extend_from_slice(format!("{} {id}\t", change.new_mode).as_bytes());
         info.extend_from_slice(path);
         info.push(0);
     }
-    core.git_for(repo_id)?.args(["update-index", "-z", "--index-info"]).env("GIT_INDEX_FILE", &index.0).stdin(info).no_log().run().await?;
-    let raw_tree = core.git_for(repo_id)?.arg("write-tree").env("GIT_INDEX_FILE", &index.0).no_log().run_text().await?;
-    let mut cmd = core.git_for(repo_id)?.args(["commit-tree", &raw_tree]).no_log();
-    for (key, value) in SNAPSHOT_IDENTITY {
-        cmd = cmd.env(key, value);
-    }
-    Ok(Some(cmd.args(["-m", RAW_MESSAGE]).run_text().await?).filter(|sha| !sha.is_empty()))
+    core.git_for(repo_id)?
+        .args(["update-index", "-z", "--index-info"])
+        .env("GIT_INDEX_FILE", index.path())
+        .stdin(info)
+        .no_log()
+        .run()
+        .await?;
+    let raw_tree = core.git_for(repo_id)?.arg("write-tree").env("GIT_INDEX_FILE", index.path()).no_log().run_text().await?;
+    commit_tree(core, repo_id, &raw_tree, &[], RAW_MESSAGE).await.map(Some)
 }
 
 /// Whether a checkout would write files with LF line endings as CRLF (`core.autocrlf=true`).
@@ -402,9 +447,12 @@ async fn restore_raw(core: &Core, repo_id: &str, raw_tree: &str, written: &[&Vec
     Ok(())
 }
 
-fn in_paths(path: &[u8], paths: &[String]) -> bool {
+fn in_paths<P: AsRef<[u8]>>(path: &[u8], paths: &[P]) -> bool {
     paths.iter().any(|p| {
-        let p = p.trim_end_matches('/').as_bytes();
+        let mut p = p.as_ref();
+        while let Some(rest) = p.strip_suffix(b"/") {
+            p = rest;
+        }
         p.is_empty() || path == p || (path.len() > p.len() && path.starts_with(p) && path[p.len()] == b'/')
     })
 }
@@ -501,7 +549,13 @@ fn regular_file(mode: &str) -> bool {
 }
 
 /// Per-path differences of two trees (without rename detection), limited to `paths`.
-async fn diff_raw(core: &Core, repo_id: &str, from: &str, to: &str, paths: Option<&[String]>) -> CoreResult<Vec<(Vec<u8>, RawChange)>> {
+async fn diff_raw<P: AsRef<[u8]>>(
+    core: &Core,
+    repo_id: &str,
+    from: &str,
+    to: &str,
+    paths: Option<&[P]>,
+) -> CoreResult<Vec<(Vec<u8>, RawChange)>> {
     let out = core.git_for(repo_id)?.args(["diff-tree", "-r", "-z", "--raw", "--no-abbrev", "--no-renames", from, to]).read().run().await?;
     let records = out.stdout_z();
     let mut changes = Vec::new();
@@ -702,9 +756,8 @@ pub async fn apply_restore(core: &Core, repo_id: &str, plan: &RestorePlan) -> Co
     for path in &plan.retype {
         remove_worktree_file(&root, path)?;
     }
-    let git_dir = crate::git::repo::git_dir(core, repo_id).await?;
-    let index = TempIndex::new(&git_dir);
-    core.git_for(repo_id)?.args(["read-tree", &plan.target_tree]).env("GIT_INDEX_FILE", &index.0).no_log().run().await?;
+    let index = TempIndex::create(core)?;
+    core.git_for(repo_id)?.args(["read-tree", &plan.target_tree]).env("GIT_INDEX_FILE", index.path()).no_log().run().await?;
     if !plan.merged.is_empty() {
         let mut info = Vec::new();
         for (mode, blob, path) in &plan.merged {
@@ -714,7 +767,7 @@ pub async fn apply_restore(core: &Core, repo_id: &str, plan: &RestorePlan) -> Co
         }
         core.git_for(repo_id)?
             .args(["update-index", "-z", "--index-info"])
-            .env("GIT_INDEX_FILE", &index.0)
+            .env("GIT_INDEX_FILE", index.path())
             .stdin(info)
             .no_log()
             .run()
@@ -753,7 +806,7 @@ async fn checkout_from(core: &Core, repo_id: &str, index: &TempIndex, paths: &[&
     }
     core.git_for(repo_id)?
         .args(["checkout-index", "-f", "-z", "--stdin"])
-        .env("GIT_INDEX_FILE", &index.0)
+        .env("GIT_INDEX_FILE", index.path())
         .stdin(input)
         .no_log()
         .run()
@@ -766,11 +819,7 @@ async fn checkout_from(core: &Core, repo_id: &str, index: &TempIndex, paths: &[&
 /// uses to tell what has been added since. Does NOT take the write lock itself.
 pub async fn keep_result(core: &Core, repo_id: &str, entry_id: &str, name: &str, paths: Option<&[String]>) -> CoreResult<String> {
     let tree = worktree_tree(core, repo_id, paths).await?;
-    let mut cmd = core.git_for(repo_id)?.args(["commit-tree", &tree]).no_log();
-    for (key, value) in SNAPSHOT_IDENTITY {
-        cmd = cmd.env(key, value);
-    }
-    let commit = cmd.args(["-m", "forkyard: state after the action"]).run_text().await?;
+    let commit = commit_tree(core, repo_id, &tree, &[], "forkyard: state after the action").await?;
     create_backup_ref(core, repo_id, entry_id, name, &commit).await?;
     Ok(commit)
 }

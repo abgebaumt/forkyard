@@ -321,16 +321,16 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
         }
         let paths = touched_paths(core, repo_id, &text).await?;
         let head = crate::git::repo::read_head(core, repo_id).await?;
-        let backup = crate::commands::stage::Backup::create(core, repo_id, &head, Some(&paths)).await?;
+        let backup = crate::undo::Pending::back_up(core, repo_id, Some(&paths)).await?;
         let out = match apply()?.stdin(text).run_raw().await {
             Ok(out) => out,
             Err(e) => {
-                backup.forget(core, repo_id).await;
+                backup.forget(core).await;
                 return Err(e);
             }
         };
         if !out.success() {
-            backup.forget(core, repo_id).await;
+            backup.forget(core).await;
             return Err(failure(&out));
         }
         let label = match paths.as_slice() {
@@ -338,7 +338,7 @@ pub async fn patch_apply(core: &Core, repo_id: String, text: String, check_only:
             many => format!("Undo applying the patch ({} files)", many.len()),
         };
         let listed = paths.iter().map(|p| util::decode_lossy(p)).collect();
-        backup.record(core, repo_id, &head, label, Some(listed)).await?;
+        backup.record_discard(core, &head, label, Some(listed), serde_json::Value::Null).await;
         read_status(core, repo_id).await
     })
     .await

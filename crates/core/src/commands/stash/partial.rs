@@ -20,18 +20,11 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::index::TempIndex;
 use crate::git::GitCmd;
 use crate::model::{Head, PatchSelection, StashSelection};
-use crate::undo::{self, UndoAction, UndoRecord};
+use crate::undo::{self, Pending, UndoAction, UndoRecord};
 use crate::util;
 
 use super::{drop_stash, read_rows, store_stash, unmerged_paths};
 
-/// Identity of the backup commit for the index (never on the stash list).
-const BACKUP_IDENTITY: [(&str, &str); 4] = [
-    ("GIT_AUTHOR_NAME", "forkyard"),
-    ("GIT_AUTHOR_EMAIL", "forkyard@localhost"),
-    ("GIT_COMMITTER_NAME", "forkyard"),
-    ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
-];
 /// Up to this size the line endings of a file are kept exactly when lines are taken out.
 const KEEP_EOL_MAX_BYTES: u64 = 64 * 1024 * 1024;
 
@@ -95,35 +88,29 @@ pub(crate) async fn stash_selection(
         Some(text) => format!("On {on}: {text}"),
         None => format!("WIP on {on}: {short} {head_subject}"),
     };
-    let index_commit =
-        commit_tree(core, repo_id, &index_tree, &[&head_sha], &format!("index on {on}: {short} {head_subject}"), false).await?;
-    let stash_commit = commit_tree(core, repo_id, &worktree_tree, &[&head_sha, &index_commit], &subject, false).await?;
+    let index_commit = commit_tree(core, repo_id, &index_tree, &[&head_sha], &format!("index on {on}: {short} {head_subject}")).await?;
+    let stash_commit = commit_tree(core, repo_id, &worktree_tree, &[&head_sha, &index_commit], &subject).await?;
 
     // Backup of the selected files and the whole index before anything is taken out.
-    let entry_id = undo::new_id();
-    let snapshot = undo::snapshot(core, repo_id, Some(paths.as_slice())).await?;
-    let Some(index_before) = snapshot.index_tree.clone() else {
+    let raw: Vec<Vec<u8>> = paths.iter().map(|path| path.as_bytes().to_vec()).collect();
+    let pending = Pending::back_up(core, repo_id, Some(&raw)).await?;
+    let (Some(worktree_before), Some(index_before)) = (pending.worktree().map(str::to_string), pending.index_tree()) else {
+        pending.forget(core).await;
         return Err(CoreError::new(ErrorCode::Conflict, "The index has unresolved conflicts."));
     };
-    let index_keep = commit_tree(core, repo_id, &index_before, &[&head_sha], "forkyard: backup (index)", true).await?;
-    for (name, sha) in [("worktree", snapshot.commit.as_str()), ("index", index_keep.as_str()), ("stash", stash_commit.as_str())] {
-        if let Err(e) = undo::create_backup_ref(core, repo_id, &entry_id, name, sha).await {
-            forget(core, repo_id, &entry_id).await;
-            return Err(e);
-        }
-    }
+    let pending = pending.keep(core, "stash", &stash_commit).await?;
 
     if let Err(e) = store_stash(core, repo_id, &stash_commit, &subject).await {
-        forget(core, repo_id, &entry_id).await;
+        pending.forget(core).await;
         return Err(e);
     }
     if let Err(e) = remove_selection(core, repo_id, &staged, &unstaged).await {
-        roll_back(core, repo_id, &entry_id, &snapshot.commit, &index_before, &paths, &stash_commit).await;
+        roll_back(core, repo_id, pending, &worktree_before, &index_before, &paths, &stash_commit).await;
         return Err(removal_error(e));
     }
 
     if !undoable {
-        forget(core, repo_id, &entry_id).await;
+        pending.forget(core).await;
         return Ok(stash_commit);
     }
     let token = head.token();
@@ -131,31 +118,33 @@ pub(crate) async fn stash_selection(
         Some(text) => format!("Undo stash “{}”", util::shorten(text, 60)),
         None => "Undo stash of the selected lines".to_string(),
     };
-    undo::record(
-        core,
-        UndoRecord {
-            id: entry_id.clone(),
-            repo_id: repo_id.to_string(),
-            worktree_path: String::new(),
-            action: UndoAction::Stash,
-            label,
-            ref_name: None,
-            ref_before: None,
-            ref_after: None,
-            head_before: token.clone(),
-            head_after: Some(token),
-            payload: json!({
-                "partial": true,
-                "stashSha": stash_commit,
-                "stashSubject": subject,
-                "headSha": head_sha,
-                "worktreeSnapshot": snapshot.commit,
-                "indexTree": index_before,
-                "paths": paths,
-            }),
-        },
-    )
-    .await?;
+    let entry_id = pending.id().to_string();
+    pending
+        .record(
+            core,
+            UndoRecord {
+                id: entry_id.clone(),
+                repo_id: repo_id.to_string(),
+                worktree_path: String::new(),
+                action: UndoAction::Stash,
+                label,
+                ref_name: None,
+                ref_before: None,
+                ref_after: None,
+                head_before: token.clone(),
+                head_after: Some(token),
+                payload: json!({
+                    "partial": true,
+                    "stashSha": stash_commit,
+                    "stashSubject": subject,
+                    "headSha": head_sha,
+                    "worktreeSnapshot": worktree_before,
+                    "indexTree": index_before,
+                    "paths": paths,
+                }),
+            },
+        )
+        .await;
     // The state right after: against it, undo detects what the user changed since.
     undo::record_result(core, repo_id, &entry_id, Some(paths.as_slice())).await;
     Ok(stash_commit)
@@ -221,15 +210,11 @@ async fn apply(cmd: GitCmd, patch: &[u8], cached: bool, reverse: bool) -> CoreRe
     Ok(())
 }
 
-async fn commit_tree(core: &Core, repo_id: &str, tree: &str, parents: &[&str], message: &str, fixed_identity: bool) -> CoreResult<String> {
+/// A stash commit, with the user's identity like `git stash`.
+async fn commit_tree(core: &Core, repo_id: &str, tree: &str, parents: &[&str], message: &str) -> CoreResult<String> {
     let mut cmd = core.git_for(repo_id)?.no_log().args(["commit-tree", "--no-gpg-sign", tree]);
     for parent in parents {
         cmd = cmd.args(["-p", parent]);
-    }
-    if fixed_identity {
-        for (key, value) in BACKUP_IDENTITY {
-            cmd = cmd.env(key, value);
-        }
     }
     Ok(cmd.args(["-m", message]).run().await?.stdout_text())
 }
@@ -282,15 +267,9 @@ fn removal_error(cause: CoreError) -> CoreError {
     error
 }
 
-async fn forget(core: &Core, repo_id: &str, entry_id: &str) {
-    if let Err(e) = undo::delete_backup_refs(core, repo_id, entry_id).await {
-        log::warn!("Backup refs of the partial stash {entry_id} not removed: {}", e.message);
-    }
-}
-
 /// After a failure: files and index back from the backup, the stash off the list. The backup refs
 /// stay if restoring failed, so nothing is lost.
-async fn roll_back(core: &Core, repo_id: &str, entry_id: &str, snapshot: &str, index_tree: &str, paths: &[String], stash_commit: &str) {
+async fn roll_back(core: &Core, repo_id: &str, pending: Pending, snapshot: &str, index_tree: &str, paths: &[String], stash_commit: &str) {
     let restored: CoreResult<()> = async {
         undo::restore_worktree(core, repo_id, snapshot, Some(paths)).await?;
         undo::restore_index(core, repo_id, index_tree).await
@@ -307,7 +286,7 @@ async fn roll_back(core: &Core, repo_id: &str, entry_id: &str, snapshot: &str, i
         Err(e) => log::error!("Stash list not read after the failure: {}", e.message),
     }
     match restored {
-        Ok(()) => forget(core, repo_id, entry_id).await,
+        Ok(()) => pending.forget(core).await,
         Err(e) => log::error!("Selection not restored after the failure (backup {snapshot}, index {index_tree}): {}", e.message),
     }
 }

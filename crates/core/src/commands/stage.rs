@@ -15,7 +15,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::app::Core;
 use crate::commands::diff::patch::{self, Direction};
@@ -23,12 +23,11 @@ use crate::commands::diff::patch_basis;
 use crate::commands::status::{parse_porcelain_v2, read_status, EntryKind, StatusEntry};
 use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::bulk;
-use crate::git::index::TempIndex;
 use crate::git::repo::read_head;
 use crate::git::rev;
 use crate::git::GitCmd;
 use crate::model::{Head, PatchSelection, RepoChange, Status};
-use crate::undo::{self, UndoAction, UndoRecord};
+use crate::undo::{self, Pending};
 use crate::util;
 
 #[cfg(test)]
@@ -38,14 +37,6 @@ mod tests;
 
 /// Paths NUL-separated via stdin instead of as arguments.
 const PATHS_FROM_STDIN: [&str; 2] = ["--pathspec-from-file=-", "--pathspec-file-nul"];
-
-/// Identity of the backup commits; that way the backup works even without user.name/user.email.
-const BACKUP_IDENTITY: [(&str, &str); 4] = [
-    ("GIT_AUTHOR_NAME", "forkyard"),
-    ("GIT_AUTHOR_EMAIL", "forkyard@localhost"),
-    ("GIT_COMMITTER_NAME", "forkyard"),
-    ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
-];
 
 /// Git invocation in the repository; paths are taken literally.
 fn git(core: &Core, repo_id: &str) -> CoreResult<GitCmd> {
@@ -197,7 +188,7 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
             return read_status(core, &repo_id).await;
         };
         let head = read_head(core, &repo_id).await?;
-        let backup = Backup::create(core, &repo_id, &head, Some(std::slice::from_ref(&patch.path))).await?;
+        let backup = Pending::back_up(core, &repo_id, Some(std::slice::from_ref(&patch.path))).await?;
         // With `core.autocrlf` (or `eol` attributes) `git apply` rewrites the WHOLE file with the
         // line endings a checkout would give it – including lines nobody touched.
         // The state before is recorded so that they keep their line endings.
@@ -209,7 +200,7 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
         let hunks = patch::parse_diff(&patch.bytes).into_iter().next().map(|parsed| parsed.hunks).unwrap_or_default();
         // `git apply` checks everything first and then writes: after an error nothing has changed.
         if let Err(e) = apply(core, &repo_id, patch.bytes, false, true).await {
-            backup.forget(core, &repo_id).await;
+            backup.forget(core).await;
             return Err(e);
         }
         if let (Some(before), Ok(after)) = (before, std::fs::read(&file)) {
@@ -220,7 +211,7 @@ pub async fn discard_patch(core: &Core, repo_id: String, selection: PatchSelecti
             }
         }
         let label = format!("Undo discarding changes in ‘{}’", selection.path);
-        backup.record(core, &repo_id, &head, label, Some(vec![selection.path.clone()])).await?;
+        backup.record_discard(core, &head, label, Some(vec![selection.path.clone()]), Value::Null).await;
         read_status(core, &repo_id).await
     })
     .await
@@ -421,239 +412,6 @@ async fn apply(core: &Core, repo_id: &str, patch: Vec<u8>, cached: bool, reverse
 }
 
 // ---------------------------------------------------------------------------
-// Backup before discarding (undo)
-// ---------------------------------------------------------------------------
-
-/// Backup of the working directory before a destructive action.
-pub(crate) struct Backup {
-    /// ID of the future undo entry; the backup refs live under it.
-    id: String,
-    /// Commit whose tree records the working directory (or the selected paths).
-    snapshot: String,
-    /// Tree of the index before the action; `None` if it contains open conflicts.
-    index_tree: Option<String>,
-}
-
-impl Backup {
-    /// Creates the backup: its own index outside the repository (copy of the real one, reset to HEAD),
-    /// `git add -A` for everything or the paths, `write-tree`, `commit-tree`. The real
-    /// index, HEAD and the working directory stay untouched.
-    pub(crate) async fn create(core: &Core, repo_id: &str, head: &Head, paths: Option<&[Vec<u8>]>) -> CoreResult<Backup> {
-        let head_sha = head.sha();
-        // `write-tree` takes the index lock: a foreign index.lock shows up here
-        // before anything is destroyed.
-        let index_tree = match quiet(core, repo_id)?.args(["write-tree"]).run().await {
-            Ok(out) => Some(out.stdout_text()),
-            // Locked or not writable: without a backup nothing is discarded.
-            Err(e) if e.is(ErrorCode::Locked) || e.is(ErrorCode::Io) => return Err(e),
-            Err(_) => None,
-        };
-
-        let temp = TempIndex::create(core)?;
-        // The copy keeps the stat data of the real index; `git add` then only has to
-        // re-read changed files instead of the whole working directory.
-        let real_index = crate::git::repo::git_dir(core, repo_id).await?.join("index");
-        if real_index.is_file() {
-            util::copy_index_file(&real_index, temp.path())?;
-        }
-        let on_temp = |args: &[&str]| -> CoreResult<GitCmd> { Ok(quiet(core, repo_id)?.env("GIT_INDEX_FILE", temp.path()).args(args)) };
-        let reset: &[&str] = if head_sha.is_some() { &["read-tree", "--reset", "HEAD"] } else { &["read-tree", "--empty"] };
-        on_temp(reset)?.run().await?;
-        match paths {
-            None => {
-                bulk::prestage(core, repo_id, Some(temp.path()), None).await?;
-                on_temp(&["add", "-A"])?.run().await?;
-            }
-            Some(list) => {
-                let present = paths_to_snapshot(core, repo_id, head_sha.is_some(), list).await?;
-                if !present.is_empty() {
-                    bulk::prestage(core, repo_id, Some(temp.path()), Some(&present)).await?;
-                    on_temp(&["add", "-A"])?.args(PATHS_FROM_STDIN).stdin(util::nul_join(&present)).run().await?;
-                }
-            }
-        }
-        let tree = on_temp(&["write-tree"])?.run().await?.stdout_text();
-        let parents: Vec<&str> = head_sha.into_iter().collect();
-        // The bytes as they are on disk (line endings): second parent of the backup.
-        let scope: Option<Vec<String>> = paths.map(|list| list.iter().map(|path| util::decode_lossy(path)).collect());
-        let raw = match head_sha {
-            Some(head) => undo::raw_overlay(core, repo_id, head, &tree, scope.as_deref()).await,
-            None => None,
-        };
-        let snapshot_parents: Vec<&str> = parents.iter().copied().chain(raw.as_deref()).collect();
-        let snapshot = commit_tree(core, repo_id, &tree, &snapshot_parents, "forkyard: backup").await?;
-
-        // A commit of its own keeps the index tree alive as long as the undo entry exists.
-        let index_commit = match &index_tree {
-            Some(index_tree) => Some(commit_tree(core, repo_id, index_tree, &parents, "forkyard: backup (index)").await?),
-            None => None,
-        };
-
-        let backup = Backup { id: undo::new_id(), snapshot, index_tree };
-        let mut refs = vec![("worktree", backup.snapshot.as_str())];
-        if let Some(index_commit) = &index_commit {
-            refs.push(("index", index_commit));
-        }
-        for (name, sha) in refs {
-            if let Err(e) = undo::create_backup_ref(core, repo_id, &backup.id, name, sha).await {
-                backup.forget(core, repo_id).await;
-                return Err(e);
-            }
-        }
-        Ok(backup)
-    }
-
-    /// The action did not happen: remove the backup refs again.
-    pub(crate) async fn forget(self, core: &Core, repo_id: &str) {
-        if let Err(e) = undo::delete_backup_refs(core, repo_id, &self.id).await {
-            log::warn!("Backup refs of {} not removed: {}", self.id, e.message);
-        }
-    }
-
-    /// Undo entry following the undo convention; `paths: None` = everything.
-    pub(crate) async fn record(self, core: &Core, repo_id: &str, head: &Head, label: String, paths: Option<Vec<String>>) -> CoreResult<()> {
-        self.record_with(core, repo_id, head, label, paths, None).await
-    }
-
-    /// Like `record`; `restored_from` names the commit from which `file_restore` took the files.
-    async fn record_with(
-        self,
-        core: &Core,
-        repo_id: &str,
-        head: &Head,
-        label: String,
-        paths: Option<Vec<String>>,
-        restored_from: Option<&str>,
-    ) -> CoreResult<()> {
-        let recorded = self.store(core, repo_id, head, label, paths, restored_from, None).await?;
-        // The action has already run: its result is the state against which undo later
-        // detects what the user has added since.
-        recorded.finish(core, repo_id).await;
-        Ok(())
-    }
-
-    /// Stores the undo entry BEFORE the action destroys anything: if the app ends midway,
-    /// undo still offers the backup after the restart. `expected` is the state that
-    /// the action will produce (tree or commit); `Recorded::finish` replaces it with the
-    /// real one, `Recorded::cancel` withdraws the entry if nothing happened.
-    pub(crate) async fn record_before(
-        self,
-        core: &Core,
-        repo_id: &str,
-        head: &Head,
-        label: String,
-        paths: Option<Vec<String>>,
-        expected: Option<String>,
-    ) -> CoreResult<Recorded> {
-        self.store(core, repo_id, head, label, paths, None, expected).await
-    }
-
-    /// The index tree before the action: discarded tracked files fall back to it.
-    pub(crate) fn index_tree(&self) -> Option<String> {
-        self.index_tree.clone()
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    async fn store(
-        self,
-        core: &Core,
-        repo_id: &str,
-        head: &Head,
-        label: String,
-        paths: Option<Vec<String>>,
-        restored_from: Option<&str>,
-        expected: Option<String>,
-    ) -> CoreResult<Recorded> {
-        let head_name = head.token();
-        let mut payload = json!({ "worktreeSnapshot": self.snapshot, "indexTree": self.index_tree, "paths": paths });
-        if let Some(commit) = restored_from {
-            payload["restoredFrom"] = json!(commit);
-        }
-        if let Some(expected) = expected {
-            payload["resultSnapshot"] = json!(expected);
-        }
-        let id = self.id.clone();
-        undo::record(
-            core,
-            UndoRecord {
-                id: self.id,
-                repo_id: repo_id.to_string(),
-                worktree_path: String::new(),
-                action: UndoAction::Discard,
-                label,
-                ref_name: None,
-                ref_before: None,
-                ref_after: None,
-                head_before: head_name.clone(),
-                head_after: Some(head_name),
-                payload,
-            },
-        )
-        .await?;
-        Ok(Recorded { id, paths })
-    }
-}
-
-/// An already stored undo entry of a destructive action.
-pub(crate) struct Recorded {
-    id: String,
-    paths: Option<Vec<String>>,
-}
-
-impl Recorded {
-    /// The action has run (fully or partially): record the real state afterwards.
-    pub(crate) async fn finish(self, core: &Core, repo_id: &str) {
-        undo::record_result(core, repo_id, &self.id, self.paths.as_deref()).await;
-    }
-
-    /// The action changed nothing: the entry disappears together with the backup.
-    pub(crate) async fn cancel(self, core: &Core, repo_id: &str) {
-        crate::commands::undo::discard_entry(core, repo_id, &self.id).await;
-    }
-}
-
-async fn commit_tree(core: &Core, repo_id: &str, tree: &str, parents: &[&str], message: &str) -> CoreResult<String> {
-    let mut cmd = quiet(core, repo_id)?.args(["commit-tree", "--no-gpg-sign", tree]);
-    for parent in parents {
-        cmd = cmd.args(["-p", parent]);
-    }
-    for (key, value) in BACKUP_IDENTITY {
-        cmd = cmd.env(key, value);
-    }
-    Ok(cmd.args(["-m", message]).run().await?.stdout_text())
-}
-
-/// `git add -A -- <path>` fails on paths that exist neither in the working directory nor
-/// in the index (reset to HEAD) – such as a staged new file that was deleted
-/// again. Such paths have no place in the backup.
-async fn paths_to_snapshot(core: &Core, repo_id: &str, has_head: bool, paths: &[Vec<u8>]) -> CoreResult<Vec<Vec<u8>>> {
-    let root = core.repo_path(repo_id)?;
-    let (mut present, mut gone): (Vec<Vec<u8>>, Vec<Vec<u8>>) = (Vec::new(), Vec::new());
-    for path in paths {
-        if std::fs::symlink_metadata(util::join_from_git(&root, path)).is_ok() {
-            present.push(path.clone());
-        } else {
-            gone.push(path.clone());
-        }
-    }
-    if has_head && !gone.is_empty() {
-        let mut stdin = Vec::new();
-        for path in &gone {
-            stdin.extend_from_slice(b"HEAD:");
-            stdin.extend_from_slice(path);
-            stdin.push(0);
-        }
-        let out = quiet(core, repo_id)?.read_only().args(["cat-file", "--batch-check=%(objecttype)", "-z"]).stdin(stdin).run().await?;
-        for (path, answer) in gone.iter().zip(out.stdout_lines()) {
-            if !answer.ends_with(b"missing") {
-                present.push(path.clone());
-            }
-        }
-    }
-    Ok(present)
-}
-
-// ---------------------------------------------------------------------------
 // Discarding files
 // ---------------------------------------------------------------------------
 
@@ -705,17 +463,17 @@ async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
     }
     let names: Vec<String> = entries.iter().map(|e| util::decode_lossy(&e.path)).collect();
     let head = read_head(core, repo_id).await?;
-    let backup = Backup::create(core, repo_id, &head, None).await?;
+    let backup = Pending::back_up(core, repo_id, None).await?;
     // The undo entry exists before anything is discarded: even after a crash midway
     // undo offers the backup. Afterwards everything is at the state of HEAD.
     let expected = head.sha().unwrap_or(undo::EMPTY_TREE).to_string();
-    let recorded = backup.record_before(core, repo_id, &head, discard_label(&names), None, Some(expected)).await?;
+    let recorded = backup.record_discard_before(core, &head, discard_label(&names), None, Some(expected)).await?;
 
     let outcome = match head {
         // Without a commit, "back to HEAD" is an empty index; `clean` removes the files.
         Head::Unborn { .. } => match git(core, repo_id)?.args(["read-tree", "--empty"]).run().await {
             Err(e) if e.is(ErrorCode::Locked) => {
-                recorded.cancel(core, repo_id).await;
+                recorded.cancel(core).await;
                 return Err(e);
             }
             Err(e) => Err(e),
@@ -731,7 +489,7 @@ async fn discard_all(core: &Core, repo_id: &str) -> CoreResult<()> {
         },
     };
     // Even after an error midway, work may already have been discarded: the entry stays.
-    recorded.finish(core, repo_id).await;
+    recorded.finish(core).await;
     outcome
 }
 
@@ -776,11 +534,11 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
     }
     let affected: Vec<Vec<u8>> = restore.iter().chain(&delete).cloned().collect();
     let head = read_head(core, repo_id).await?;
-    let backup = Backup::create(core, repo_id, &head, Some(&affected)).await?;
+    let backup = Pending::back_up(core, repo_id, Some(&affected)).await?;
     // The undo entry exists before anything is discarded (crash midway). Discarded
     // files fall back to the index state, untracked ones disappear.
     let expected = backup.index_tree();
-    let recorded = backup.record_before(core, repo_id, &head, discard_label(&names), Some(names), expected).await?;
+    let recorded = backup.record_discard_before(core, &head, discard_label(&names), Some(names), expected).await?;
 
     let mut failure: Option<CoreError> = None;
     if !restore.is_empty() {
@@ -789,7 +547,7 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
         match restored {
             // Failed on the lock: nothing is discarded, nobody needs the backup.
             Err(e) if e.is(ErrorCode::Locked) => {
-                recorded.cancel(core, repo_id).await;
+                recorded.cancel(core).await;
                 return Err(e);
             }
             Err(e) => failure = Some(e),
@@ -812,7 +570,7 @@ async fn discard_some(core: &Core, repo_id: &str, requested: &[String]) -> CoreR
         }
     }
     // Even after an error midway, work may already have been discarded: the entry stays.
-    recorded.finish(core, repo_id).await;
+    recorded.finish(core).await;
     match failure {
         Some(e) => Err(e),
         None => Ok(()),
@@ -900,12 +658,12 @@ pub async fn file_delete(core: &Core, repo_id: String, path: String) -> CoreResu
             }
         }
         let head = read_head(core, &repo_id).await?;
-        let backup = Backup::create(core, &repo_id, &head, Some(std::slice::from_ref(&raw))).await?;
+        let backup = Pending::back_up(core, &repo_id, Some(std::slice::from_ref(&raw))).await?;
         if let Err(e) = remove_file_and_empty_parents(&root, &raw) {
-            backup.forget(core, &repo_id).await;
+            backup.forget(core).await;
             return Err(CoreError::io(format!("“{rel}” could not be deleted: {e}")));
         }
-        backup.record(core, &repo_id, &head, format!("Undo deleting ‘{rel}’"), Some(vec![rel.clone()])).await?;
+        backup.record_discard(core, &head, format!("Undo deleting ‘{rel}’"), Some(vec![rel.clone()]), Value::Null).await;
         read_status(core, &repo_id).await
     })
     .await
@@ -1016,7 +774,7 @@ pub async fn file_restore(core: &Core, repo_id: String, sha: String, paths: Vec<
         }
         let head = read_head(core, &repo_id).await?;
         let raw: Vec<Vec<u8>> = paths.iter().map(|p| p.as_bytes().to_vec()).collect();
-        let backup = Backup::create(core, &repo_id, &head, Some(&raw)).await?;
+        let backup = Pending::back_up(core, &repo_id, Some(&raw)).await?;
         let restored = git(core, &repo_id)?
             .args(["restore", "--staged", "--worktree"])
             .arg(format!("--source={commit}"))
@@ -1027,14 +785,16 @@ pub async fn file_restore(core: &Core, repo_id: String, sha: String, paths: Vec<
         if let Err(e) = restored {
             // `git restore` checks first and then writes; failed on the lock, nothing has changed.
             if e.is(ErrorCode::Locked) {
-                backup.forget(core, &repo_id).await;
+                backup.forget(core).await;
                 return Err(e);
             }
             // Otherwise something may already be overwritten: the undo entry is created anyway.
-            backup.record_with(core, &repo_id, &head, restore_label(&paths, &commit), Some(paths.clone()), Some(&commit)).await?;
+            backup
+                .record_discard(core, &head, restore_label(&paths, &commit), Some(paths.clone()), json!({ "restoredFrom": commit }))
+                .await;
             return Err(e);
         }
-        backup.record_with(core, &repo_id, &head, restore_label(&paths, &commit), Some(paths.clone()), Some(&commit)).await?;
+        backup.record_discard(core, &head, restore_label(&paths, &commit), Some(paths.clone()), json!({ "restoredFrom": commit })).await;
         read_status(core, &repo_id).await
     })
     .await

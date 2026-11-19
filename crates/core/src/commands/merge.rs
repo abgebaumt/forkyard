@@ -32,15 +32,12 @@ use crate::git::{GitCmd, GitOutput};
 use crate::model::{
     ConflictFile, ConflictKind, ConflictSide, Head, MergeMode, OpResult, Operation, OperationKind, RepoChange, ResetMode, Status,
 };
-use crate::undo::{self, UndoAction, UndoRecord};
+use crate::undo::{self, Pending, UndoAction, UndoRecord};
 use crate::util;
 
 /// Merge, rebase, cherry-pick, revert and their completion can change everything.
 const ALL_CHANGES: [RepoChange; 5] = [RepoChange::Worktree, RepoChange::Index, RepoChange::Refs, RepoChange::Head, RepoChange::Operation];
 const UTF8_BOM: &[u8] = b"\xEF\xBB\xBF";
-const BACKUP_MESSAGE: &str = "forkyard: backup";
-const BACKUP_IDENT_NAME: &str = "forkyard";
-const BACKUP_IDENT_EMAIL: &str = "forkyard@localhost";
 
 // ---------------------------------------------------------------------------
 // merge_start
@@ -83,7 +80,7 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
         return Err(identity_missing());
     }
     // A squash moves no ref; it can only be undone via the state before it.
-    let before_squash = if mode == MergeMode::Squash { Some(save_state(core, repo_id, &old, true, None).await?) } else { None };
+    let mut before_squash = if mode == MergeMode::Squash { Some(Pending::back_up(core, repo_id, None).await?) } else { None };
 
     let hooks = Hooks::start(core, repo_id).await;
     let cmd = hooks.wrap(core.git_for(repo_id)?).arg("merge");
@@ -96,7 +93,15 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
     };
     let out = cmd.arg(&src.arg).run_raw().await;
     let ran = hooks.finish(core, repo_id);
-    let out = out?;
+    let out = match out {
+        Ok(out) if out.success() => out,
+        other => {
+            if let Some(pending) = before_squash.take() {
+                pending.forget(core).await;
+            }
+            other?
+        }
+    };
     if !out.success() {
         // A hook (pre-merge-commit, commit-msg) prevented the merge commit: the merge is then
         // pending without a conflict and can be continued or aborted.
@@ -106,37 +111,37 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
         return stopped_or_failed(core, repo_id, "merge", &out).await;
     }
 
-    if mode == MergeMode::Squash {
-        let id = undo::new_id();
-        let saved = before_squash.unwrap_or_default();
-        saved.keep(core, repo_id, &id).await;
+    if let Some(pending) = before_squash {
         // The state after the squash: against it, undo detects what the user has added since.
-        let result = undo::keep_result(core, repo_id, &id, "result", None).await.ok();
-        record_undo(
-            core,
-            UndoRecord {
-                id,
-                repo_id: repo_id.to_string(),
-                worktree_path: String::new(),
-                action: UndoAction::Merge,
-                label: format!("Undo squash merge of {} into {target}", src.label),
-                ref_name: branch_ref(&head),
-                ref_before: Some(old.clone()),
-                ref_after: Some(old.clone()),
-                head_before: head_value(&head, &old),
-                head_after: Some(head_value(&head, &old)),
-                payload: json!({
-                    "squash": true,
-                    "branch": head.branch(),
-                    "source": src.label,
-                    "worktreeSnapshot": saved.worktree,
-                    "indexTree": saved.index_tree,
-                    "resultSnapshot": result,
-                    "paths": null,
-                }),
-            },
-        )
-        .await;
+        let result = undo::keep_result(core, repo_id, pending.id(), "result", None).await.ok();
+        let (worktree, index_tree) = (pending.worktree().map(str::to_string), pending.index_tree());
+        let id = pending.id().to_string();
+        pending
+            .record(
+                core,
+                UndoRecord {
+                    id,
+                    repo_id: repo_id.to_string(),
+                    worktree_path: String::new(),
+                    action: UndoAction::Merge,
+                    label: format!("Undo squash merge of {} into {target}", src.label),
+                    ref_name: branch_ref(&head),
+                    ref_before: Some(old.clone()),
+                    ref_after: Some(old.clone()),
+                    head_before: head_value(&head, &old),
+                    head_after: Some(head_value(&head, &old)),
+                    payload: json!({
+                        "squash": true,
+                        "branch": head.branch(),
+                        "source": src.label,
+                        "worktreeSnapshot": worktree,
+                        "indexTree": index_tree,
+                        "resultSnapshot": result,
+                        "paths": null,
+                    }),
+                },
+            )
+            .await;
         return Ok(OpResult::Done {
             sha: None,
             fast_forward: false,
@@ -150,28 +155,31 @@ async fn merge_locked(core: &Core, repo_id: &str, source: &str, mode: MergeMode)
     }
     let fast_forward = new == src.sha;
     let subject = commit_meta(core, repo_id, &new).await.map(|m| m.subject).unwrap_or_default();
-    record_undo(
-        core,
-        UndoRecord {
-            id: undo::new_id(),
-            repo_id: repo_id.to_string(),
-            worktree_path: String::new(),
-            action: UndoAction::Merge,
-            label: format!("Undo merge of {} into {target}", src.label),
-            ref_name: branch_ref(&head),
-            ref_before: Some(old.clone()),
-            ref_after: Some(new.clone()),
-            head_before: head_value(&head, &old),
-            head_after: Some(head_value(&head, &new)),
-            payload: json!({
-                "branch": head.branch(),
-                "source": src.label,
-                "fastForward": fast_forward,
-                "summary": subject,
-            }),
-        },
-    )
-    .await;
+    let pending = Pending::new(repo_id);
+    let id = pending.id().to_string();
+    pending
+        .record(
+            core,
+            UndoRecord {
+                id,
+                repo_id: repo_id.to_string(),
+                worktree_path: String::new(),
+                action: UndoAction::Merge,
+                label: format!("Undo merge of {} into {target}", src.label),
+                ref_name: branch_ref(&head),
+                ref_before: Some(old.clone()),
+                ref_after: Some(new.clone()),
+                head_before: head_value(&head, &old),
+                head_after: Some(head_value(&head, &new)),
+                payload: json!({
+                    "branch": head.branch(),
+                    "source": src.label,
+                    "fastForward": fast_forward,
+                    "summary": subject,
+                }),
+            },
+        )
+        .await;
     let summary = if fast_forward {
         format!("Merged {} into {target} (fast-forward)", src.label)
     } else {
@@ -480,34 +488,36 @@ async fn continue_locked(core: &Core, repo_id: &str, message: Option<String>, sk
             log::warn!("Undo entry not completed: {}", e.message);
         }
     } else if let Some(new) = new.as_ref().filter(|new| **new != start.before) {
-        let id = undo::new_id();
+        let pending = Pending::new(repo_id);
         if op.kind == OperationKind::Rebase {
             // The branch's old commits are afterwards only reachable through this backup.
-            keep_ref(core, repo_id, &id, "before", &start.before).await;
+            keep_ref(core, repo_id, pending.id(), "before", &start.before).await;
         }
         let head_after = start.ref_name.clone().unwrap_or_else(|| new.clone());
         let subject = commit_meta(core, repo_id, new).await.map(|m| m.subject).unwrap_or_default();
-        record_undo(
-            core,
-            UndoRecord {
-                id,
-                repo_id: repo_id.to_string(),
-                worktree_path: String::new(),
-                action,
-                label: undo_label,
-                ref_name: start.ref_name.clone(),
-                ref_before: Some(start.before.clone()),
-                ref_after: Some(new.clone()),
-                head_before: start.ref_name.clone().unwrap_or_else(|| start.before.clone()),
-                head_after: Some(head_after),
-                payload: json!({
-                    "branch": start.ref_name.as_deref().map(short_ref_name),
-                    "source": op.source,
-                    "summary": subject,
-                }),
-            },
-        )
-        .await;
+        let id = pending.id().to_string();
+        pending
+            .record(
+                core,
+                UndoRecord {
+                    id,
+                    repo_id: repo_id.to_string(),
+                    worktree_path: String::new(),
+                    action,
+                    label: undo_label,
+                    ref_name: start.ref_name.clone(),
+                    ref_before: Some(start.before.clone()),
+                    ref_after: Some(new.clone()),
+                    head_before: start.ref_name.clone().unwrap_or_else(|| start.before.clone()),
+                    head_after: Some(head_after),
+                    payload: json!({
+                        "branch": start.ref_name.as_deref().map(short_ref_name),
+                        "source": op.source,
+                        "summary": subject,
+                    }),
+                },
+            )
+            .await;
     }
     Ok(OpResult::Done { sha: new, fast_forward: false, summary })
 }
@@ -569,10 +579,10 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
         // operation: `rebase --abort` resets hard, `merge --abort` discards staged changes.
         // Without its backup (kept under a backup ref until it is written back) there is no abort.
         let extra = ExtraWork::find(core, repo_id, &op).await?;
-        let backup = undo::new_id();
-        if let Some(extra) = &extra {
-            undo::create_backup_ref(core, repo_id, &backup, "worktree", &extra.snapshot.commit).await?;
-        }
+        let backup = match &extra {
+            Some(extra) => Pending::new(repo_id).keep(core, "worktree", &extra.snapshot.commit).await?,
+            None => Pending::new(repo_id),
+        };
         let aborted = async {
             let out = core.git_for(repo_id)?.args([subcommand, "--abort"]).run_raw().await?;
             if !out.success() {
@@ -586,14 +596,10 @@ pub async fn operation_abort(core: &Core, repo_id: String) -> CoreResult<Status>
             _ => Ok(()),
         };
         match restored {
-            Ok(()) => {
-                if let Err(e) = undo::delete_backup_refs(core, repo_id, &backup).await {
-                    log::warn!("Backup refs of {backup} not removed: {}", e.message);
-                }
-            }
+            Ok(()) => backup.forget(core).await,
             Err(e) => log::warn!(
                 "Extra work not restored after the abort; it stays in {}: {}",
-                undo::backup_ref_name(&backup, "worktree"),
+                undo::backup_ref_name(backup.id(), "worktree"),
                 e.message
             ),
         }
@@ -841,27 +847,30 @@ async fn revert_locked(core: &Core, repo_id: &str, sha: &str) -> CoreResult<OpRe
     if new == old {
         return Ok(OpResult::UpToDate);
     }
-    record_undo(
-        core,
-        UndoRecord {
-            id: undo::new_id(),
-            repo_id: repo_id.to_string(),
-            worktree_path: String::new(),
-            action: UndoAction::Revert,
-            label: format!("Undo revert of ‘{}’", meta.subject),
-            ref_name: branch_ref(&head),
-            ref_before: Some(old.clone()),
-            ref_after: Some(new.clone()),
-            head_before: head_value(&head, &old),
-            head_after: Some(head_value(&head, &new)),
-            payload: json!({
-                "branch": head.branch(),
-                "source": rev::short(&target),
-                "summary": meta.subject,
-            }),
-        },
-    )
-    .await;
+    let pending = Pending::new(repo_id);
+    let id = pending.id().to_string();
+    pending
+        .record(
+            core,
+            UndoRecord {
+                id,
+                repo_id: repo_id.to_string(),
+                worktree_path: String::new(),
+                action: UndoAction::Revert,
+                label: format!("Undo revert of ‘{}’", meta.subject),
+                ref_name: branch_ref(&head),
+                ref_before: Some(old.clone()),
+                ref_after: Some(new.clone()),
+                head_before: head_value(&head, &old),
+                head_after: Some(head_value(&head, &new)),
+                payload: json!({
+                    "branch": head.branch(),
+                    "source": rev::short(&target),
+                    "summary": meta.subject,
+                }),
+            },
+        )
+        .await;
     Ok(OpResult::Done {
         sha: Some(new),
         fast_forward: false,
@@ -902,211 +911,57 @@ async fn reset_locked(core: &Core, repo_id: &str, sha: &str, mode: ResetMode) ->
         ResetMode::Hard => ("--hard", "hard"),
     };
     // The backup and the undo entry must exist before anything can be lost; if either fails, nothing is reset.
-    let saved = match mode {
-        ResetMode::Soft => SavedState::default(),
-        ResetMode::Mixed => save_state(core, repo_id, &old, false, None).await?,
+    let pending = match mode {
+        ResetMode::Soft => Pending::new(repo_id),
+        ResetMode::Mixed => Pending::back_up_index(core, repo_id).await?,
         // `reset --hard` also overwrites ignored files that are tracked in the target:
         // they are therefore added to the backup explicitly.
-        ResetMode::Hard => save_state(core, repo_id, &old, true, Some(&target)).await?,
+        ResetMode::Hard => Pending::back_up_before_reset(core, repo_id, &target).await?,
     };
-    let id = undo::new_id();
-    let backup = async {
-        undo::create_backup_ref(core, repo_id, &id, "before", &old).await?;
-        saved.keep_strict(core, repo_id, &id).await?;
-
-        // The undo entry exists before anything can be lost: if the app ends in the middle of the
-        // reset, undo still offers the backup after the restart.
-        undo::record(
-            core,
-            UndoRecord {
-                id: id.clone(),
-                repo_id: repo_id.to_string(),
-                worktree_path: String::new(),
-                action: UndoAction::Reset,
-                label: format!("Undo reset of {} to {}", head.label(), rev::short(&target)),
-                ref_name: branch_ref(&head),
-                ref_before: Some(old.clone()),
-                ref_after: Some(target.clone()),
-                head_before: head_value(&head, &old),
-                head_after: Some(head_value(&head, &target)),
-                payload: json!({
-                    "mode": mode_name,
-                    "branch": head.branch(),
-                    "worktreeSnapshot": saved.worktree,
-                    "indexTree": saved.index_tree,
-                    // Provisionally the target commit; after the reset the actual state.
-                    "resultSnapshot": if mode == ResetMode::Hard { Some(target.clone()) } else { None },
-                    "paths": null,
-                }),
-            },
-        )
-        .await
-        .map(|_| ())
+    let pending = pending.keep(core, "before", &old).await?;
+    let (worktree, index_tree) = (pending.worktree().map(str::to_string), pending.index_tree());
+    // The undo entry exists before anything can be lost: if the app ends in the middle of the
+    // reset, undo still offers the backup after the restart.
+    let record = UndoRecord {
+        id: pending.id().to_string(),
+        repo_id: repo_id.to_string(),
+        worktree_path: String::new(),
+        action: UndoAction::Reset,
+        label: format!("Undo reset of {} to {}", head.label(), rev::short(&target)),
+        ref_name: branch_ref(&head),
+        ref_before: Some(old.clone()),
+        ref_after: Some(target.clone()),
+        head_before: head_value(&head, &old),
+        head_after: Some(head_value(&head, &target)),
+        payload: json!({
+            "mode": mode_name,
+            "branch": head.branch(),
+            "worktreeSnapshot": worktree,
+            "indexTree": index_tree,
+            // Provisionally the target commit; after the reset the actual state.
+            "resultSnapshot": if mode == ResetMode::Hard { Some(target.clone()) } else { None },
+            "paths": null,
+        }),
     };
-    // Backup or undo entry missing: nothing is reset and no orphan refs stay behind.
-    if let Err(error) = backup.await {
-        if let Err(e) = undo::delete_backup_refs(core, repo_id, &id).await {
-            log::warn!("Backup refs of {id} not removed: {}", e.message);
-        }
-        return Err(error);
-    }
+    let recorded = pending.record_before(core, record, None).await?;
 
     if let Err(error) = core.git_for(repo_id)?.args(["reset", flag, &target, "--"]).run().await {
         // Failed on the lock: nothing has been reset, the entry disappears again.
         // After any other error something may already have been overwritten – the backup stays.
         if error.is(ErrorCode::Locked) && current_sha(core, repo_id).await.is_ok_and(|now| now == old) {
-            crate::commands::undo::discard_entry(core, repo_id, &id).await;
+            recorded.cancel(core).await;
         }
         return Err(error);
     }
     if mode == ResetMode::Hard {
-        undo::record_result(core, repo_id, &id, None).await;
+        recorded.finish(core).await;
     }
     read_status(core, repo_id).await
-}
-
-// ---------------------------------------------------------------------------
-// Backup of working directory and index
-// ---------------------------------------------------------------------------
-
-/// State before an action that destroys uncommitted work.
-#[derive(Debug, Clone, Default)]
-struct SavedState {
-    /// Commit with the whole working directory (including untracked files, without ignored ones).
-    worktree: Option<String>,
-    /// Tree of the index; `None` if it could not be written (unresolved conflicts).
-    index_tree: Option<String>,
-    /// Commit that protects `index_tree` from garbage collection.
-    index_commit: Option<String>,
-}
-
-impl SavedState {
-    /// Like `keep`, but the first failure is returned.
-    async fn keep_strict(&self, core: &Core, repo_id: &str, id: &str) -> CoreResult<()> {
-        if let Some(sha) = &self.worktree {
-            undo::create_backup_ref(core, repo_id, id, "worktree", sha).await?;
-        }
-        if let Some(sha) = &self.index_commit {
-            undo::create_backup_ref(core, repo_id, id, "index", sha).await?;
-        }
-        Ok(())
-    }
-
-    /// Records the backups under `refs/forkyard/undo/<id>/…`.
-    async fn keep(&self, core: &Core, repo_id: &str, id: &str) {
-        if let Some(sha) = &self.worktree {
-            keep_ref(core, repo_id, id, "worktree", sha).await;
-        }
-        if let Some(sha) = &self.index_commit {
-            keep_ref(core, repo_id, id, "index", sha).await;
-        }
-    }
-}
-
-/// Backs up the index and – with `with_worktree` – the working directory as commits on `head`.
-/// The real index and the working directory stay untouched.
-///
-/// `overwrites`: commit that is about to be hard-reset to. Files tracked there but untracked
-/// and ignored here are overwritten by Git without a prompt – they are therefore included in
-/// the backup even though `add -A` leaves them out.
-async fn save_state(core: &Core, repo_id: &str, head: &str, with_worktree: bool, overwrites: Option<&str>) -> CoreResult<SavedState> {
-    let dir = crate::git::repo::git_dir(core, repo_id).await?;
-    let index_tree = match core.git_for(repo_id)?.no_log().arg("write-tree").run().await {
-        Ok(out) => Some(out.stdout_text()).filter(|t| !t.is_empty()),
-        Err(e) if e.is(ErrorCode::Locked) => return Err(e),
-        // With unresolved conflicts there is no tree.
-        Err(_) => None,
-    };
-    let index_commit = match &index_tree {
-        Some(tree) => Some(commit_tree(core, repo_id, tree, head, "forkyard: backup (index)").await?),
-        None => None,
-    };
-    let worktree = if with_worktree { Some(snapshot_worktree(core, repo_id, &dir, head, overwrites).await?) } else { None };
-    Ok(SavedState { worktree, index_tree, index_commit })
-}
-
-/// Stores the whole working directory as a commit via a temporary index file.
-async fn snapshot_worktree(core: &Core, repo_id: &str, dir: &Path, head: &str, overwrites: Option<&str>) -> CoreResult<String> {
-    let temp = dir.join(format!("forkyard-snapshot-{}.index", util::new_id()));
-    let result = snapshot_into(core, repo_id, dir, &temp, head, overwrites).await;
-    let mut lock = temp.clone().into_os_string();
-    lock.push(".lock");
-    for leftover in [temp, PathBuf::from(lock)] {
-        let _ = std::fs::remove_file(leftover);
-    }
-    result
-}
-
-async fn snapshot_into(core: &Core, repo_id: &str, dir: &Path, temp: &Path, head: &str, overwrites: Option<&str>) -> CoreResult<String> {
-    let with_index = |cmd: GitCmd| cmd.no_log().env("GIT_INDEX_FILE", temp);
-    // A copy of the real index instead of `read-tree HEAD`: Git then knows the files'
-    // timestamps and only has to re-read what changed. The result of `add -A` is the same.
-    let real = dir.join("index");
-    if real.is_file() {
-        util::copy_index_file(&real, temp)?;
-    } else {
-        with_index(core.git_for(repo_id)?).args(["read-tree", head]).run().await?;
-    }
-    with_index(core.git_for(repo_id)?).args(["-c", "core.safecrlf=false", "add", "-A"]).run().await?;
-    if let Some(target) = overwrites {
-        // Tracked in the target, now not in the index but on disk: untracked. Whatever of it is
-        // ignored is still missing after `add -A` and is added with force.
-        let root = core.repo_path(repo_id)?;
-        let listed = with_index(core.git_for(repo_id)?)
-            .read_only()
-            .args(["diff-index", "--cached", "-z", "--name-only", "--no-renames", "--diff-filter=D", target])
-            .run()
-            .await?;
-        let mut input = Vec::new();
-        for path in listed.stdout_z() {
-            if std::fs::symlink_metadata(util::join_from_git(&root, path)).is_ok_and(|meta| meta.is_file()) {
-                input.extend_from_slice(path);
-                input.push(0);
-            }
-        }
-        if !input.is_empty() {
-            with_index(core.git_for(repo_id)?)
-                .literal_paths()
-                .args(["-c", "core.safecrlf=false", "add", "-f", "--pathspec-from-file=-", "--pathspec-file-nul"])
-                .stdin(input)
-                .run()
-                .await?;
-        }
-    }
-    let tree = with_index(core.git_for(repo_id)?).arg("write-tree").run().await?.stdout_text();
-    commit_tree(core, repo_id, &tree, head, BACKUP_MESSAGE).await
-}
-
-/// `git commit-tree` with a fixed identity: the backup must not fail because of a missing
-/// `user.name`.
-async fn commit_tree(core: &Core, repo_id: &str, tree: &str, parent: &str, message: &str) -> CoreResult<String> {
-    let out = core
-        .git_for(repo_id)?
-        .no_log()
-        .env("GIT_AUTHOR_NAME", BACKUP_IDENT_NAME)
-        .env("GIT_AUTHOR_EMAIL", BACKUP_IDENT_EMAIL)
-        .env("GIT_COMMITTER_NAME", BACKUP_IDENT_NAME)
-        .env("GIT_COMMITTER_EMAIL", BACKUP_IDENT_EMAIL)
-        .args(["commit-tree", tree, "-p", parent, "-m", message])
-        .run()
-        .await?;
-    let sha = out.stdout_text();
-    if sha.is_empty() {
-        return Err(CoreError::unknown("Couldn’t create a backup of the working directory."));
-    }
-    Ok(sha)
 }
 
 async fn keep_ref(core: &Core, repo_id: &str, id: &str, name: &str, sha: &str) {
     if let Err(e) = undo::create_backup_ref(core, repo_id, id, name, sha).await {
         log::warn!("Backup ref {name} for {id} not created: {}", e.message);
-    }
-}
-
-/// The action has already succeeded; a failure to record it for undo must not make it fail.
-async fn record_undo(core: &Core, record: UndoRecord) {
-    if let Err(e) = undo::record(core, record).await {
-        log::warn!("Undo entry not saved: {}", e.message);
     }
 }
 

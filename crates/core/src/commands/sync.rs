@@ -34,7 +34,7 @@ use crate::git::{errors, GitCmd};
 use crate::jobs::{CancelToken, Job};
 use crate::model::{FetchFailure, FetchResult, Head, OpResult, PullMode, PushExtra, PushRefResult, PushRefStatus, PushResult, RepoChange};
 use crate::secret_scan;
-use crate::undo::{self, UndoAction, UndoRecord};
+use crate::undo::{Pending, UndoAction, UndoRecord};
 use crate::util;
 
 /// What a pull can change.
@@ -569,10 +569,11 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     }
     let rebase = !fast_forward && mode == PullMode::Rebase;
 
-    let undo_id = undo::new_id();
-    if let Some(old) = &old_sha {
-        undo::create_backup_ref(core, repo_id, &undo_id, "before", old).await?;
-    }
+    let pending = match &old_sha {
+        Some(old) => Pending::new(repo_id).keep(core, "before", old).await?,
+        None => Pending::new(repo_id),
+    };
+    let undo_id = pending.id().to_string();
     let (subcommand, args): (&str, Vec<&str>) = if fast_forward {
         ("merge", vec!["merge", "--ff-only", &merge_arg])
     } else if rebase {
@@ -584,7 +585,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     let out = match core.git_for(repo_id)?.args(args).run_raw().await {
         Ok(out) => out,
         Err(e) => {
-            let _ = undo::delete_backup_refs(core, repo_id, &undo_id).await;
+            pending.forget(core).await;
             return Err(e);
         }
     };
@@ -626,16 +627,10 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
             rebase && state.as_ref().is_ok_and(|s| s.operation.as_ref().is_some_and(|op| op.kind == crate::model::OperationKind::Rebase));
         // A stopped rebase keeps an open entry (as `rebase_start` does): continuing completes it,
         // aborting removes it. A conflicted merge gets its entry when it is completed.
-        let kept = stopped_rebase
-            && match undo::record(core, record(None)).await {
-                Ok(_) => true,
-                Err(e) => {
-                    log::warn!("Undo entry of the pull not saved: {}", e.message);
-                    false
-                }
-            };
-        if !kept {
-            let _ = undo::delete_backup_refs(core, repo_id, &undo_id).await;
+        if stopped_rebase {
+            pending.record(core, record(None)).await;
+        } else {
+            pending.forget(core).await;
         }
         let state = state?;
         if state.operation.is_some() || !state.conflicted.is_empty() {
@@ -649,7 +644,7 @@ async fn pull_integrate(core: &Core, repo_id: &str, job: &Job, mode: PullMode, p
     }
 
     let new_sha = rev::try_resolve_commit(core, repo_id, "HEAD").await?;
-    undo::record(core, record(new_sha.clone())).await?;
+    pending.record(core, record(new_sha.clone())).await;
     Ok(OpResult::Done { sha: new_sha, fast_forward, summary })
 }
 
@@ -1260,6 +1255,7 @@ mod tests {
     use crate::events::names;
     use crate::model::OperationKind;
     use crate::testkit::{TestCore, TestRemote, TestRepo};
+    use crate::undo;
 
     struct Fixture {
         tc: TestCore,

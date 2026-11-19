@@ -27,7 +27,7 @@ use crate::error::{CoreError, CoreResult, ErrorCode};
 use crate::git::rev;
 use crate::git::{errors, GitCmd};
 use crate::model::{Head, RepoChange, UndoState, UndoStep};
-use crate::undo::{self as u, UndoAction};
+use crate::undo::{self as u, discard_entry, UndoAction};
 use crate::util;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -182,16 +182,6 @@ fn candidates(core: &Core, repo_id: &str, dir: Direction) -> CoreResult<Vec<Undo
         Direction::Undo => db::undo::list_done(c, repo_id, ""),
         Direction::Redo => db::undo::list_undone(c, repo_id, ""),
     })
-}
-
-/// Deletes an entry along with its backup refs. Call within the write lock.
-pub(crate) async fn discard_entry(core: &Core, repo_id: &str, entry_id: &str) {
-    if let Err(e) = core.db.with(|c| db::undo::delete(c, entry_id)) {
-        log::warn!("undo entry {entry_id} not deleted: {}", e.message);
-    }
-    if let Err(e) = u::delete_backup_refs(core, repo_id, entry_id).await {
-        log::warn!("backup refs of {entry_id} not removed: {}", e.message);
-    }
 }
 
 /// Invalidates the "stash" undo entries whose stash no longer exists (after `stash_drop`).

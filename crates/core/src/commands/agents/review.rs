@@ -27,14 +27,6 @@ mod tests;
 /// a loose object (two weeks by default), long enough for a review.
 pub(crate) const SNAPSHOT_MESSAGE: &str = "forkyard: agent review snapshot";
 
-/// Fixed identity: the snapshot works without `user.name` and gives the same SHA for the same state.
-const SNAPSHOT_IDENTITY: [(&str, &str); 4] = [
-    ("GIT_AUTHOR_NAME", "forkyard"),
-    ("GIT_AUTHOR_EMAIL", "forkyard@localhost"),
-    ("GIT_COMMITTER_NAME", "forkyard"),
-    ("GIT_COMMITTER_EMAIL", "forkyard@localhost"),
-];
-
 pub(crate) const ORPHANED: &str = "The coding agent's worktree or branch no longer exists. Remove its entry in the cockpit.";
 pub(crate) const STAGED: &str =
     "Your staging area already holds changes. Commit or unstage them first, so that the commit contains only the agent's selection.";
@@ -91,7 +83,8 @@ pub(crate) async fn working_state(core: &Core, worktree_id: &str, snapshot: bool
         .env("GIT_AUTHOR_DATE", &date)
         .env("GIT_COMMITTER_DATE", &date)
         .no_log();
-    for (key, value) in SNAPSHOT_IDENTITY {
+    // Fixed identity and dates: the same state gives the same SHA.
+    for (key, value) in crate::undo::BACKUP_IDENTITY {
         cmd = cmd.env(key, value);
     }
     let commit = cmd.run_text().await?;

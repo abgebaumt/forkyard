@@ -2,19 +2,18 @@
 //! (backup refs, backing up and restoring the working directory).
 //! Executing undo and redo lives in `commands::undo`.
 //!
+//! - `log`: storing entries, the undo/redo stacks, labels, cleanup, group entries.
+//! - `snapshot`: the one backup of working directory and index, and restoring it.
+//! - `pending`: `Pending`, the backups of an entry in the making, with the one failure policy.
+//!
 //! Flow inside a write action (within `with_write_lock`):
 //! ```ignore
-//! let id = undo::new_id();
-//! // optional: backup, e.g. before a discard
-//! let (worktree_sha, index_tree) = undo::snapshot_worktree(core, &repo_id, None).await?;
-//! undo::create_backup_ref(core, &repo_id, &id, "worktree", &worktree_sha).await?;
-//! undo::record(core, UndoRecord {
-//!     id, repo_id: repo_id.clone(), worktree_path: String::new(),
-//!     action: UndoAction::Discard, label: "Undo discarding 3 files".into(),
-//!     ref_name: None, ref_before: None, ref_after: None,
-//!     head_before: head.clone(), head_after: Some(head),
-//!     payload: serde_json::json!({ "worktreeSnapshot": worktree_sha, "indexTree": index_tree, "paths": null }),
-//! }).await?;
+//! let pending = Pending::back_up(core, &repo_id, None).await?; // backup failed: nothing happens
+//! if let Err(e) = discard(core, &repo_id).await {
+//!     pending.forget(core).await; // the step did not happen: the backup goes
+//!     return Err(e);
+//! }
+//! pending.record_discard(core, &head, "Undo discarding 3 files".into(), None, Value::Null).await; // failure only logged
 //! ```
 
 use serde_json::Value;
@@ -24,9 +23,11 @@ use crate::error::CoreResult;
 use crate::util;
 
 mod log;
+mod pending;
 mod snapshot;
 
 pub use log::*;
+pub(crate) use pending::Pending;
 pub use snapshot::*;
 
 /// Namespace of the backup refs.
