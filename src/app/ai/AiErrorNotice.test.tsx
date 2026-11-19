@@ -42,4 +42,20 @@ describe("the inline error of an AI element", () => {
     expect(markup).toContain("Show what was sent</button>");
     expect(markup).not.toContain("Leave out");
   });
+
+  it("offers “Send this time” next to “Change limit” over the limit", () => {
+    const markup = renderToStaticMarkup(
+      <AiErrorNotice
+        name="review-error"
+        view={{ kind: "limit", text: "The daily limit of 20 requests is reached." }}
+        provider="ollama"
+        onAgain={none}
+        onShowSent={none}
+      />,
+    );
+    expect(markup).toContain('data-review-error="limit"');
+    expect(markup).toContain("Send this time</button>");
+    expect(markup).toContain("Change limit</button>");
+    expect(markup).not.toContain("Open settings");
+  });
 });
