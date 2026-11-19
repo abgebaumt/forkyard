@@ -13,6 +13,7 @@ import { Button } from "../../ui/Button";
 import { Kbd } from "../../ui/Kbd";
 import { cn } from "../../ui/cn";
 import { ariaShortcut, isMacShortcuts, shortcutPlatform } from "../../ui/shortcut";
+import { LoadError, SettingsSkeleton } from "../Preferences/parts";
 import { applySettings } from "../Preferences/settings";
 import { assignKey, onRecordKey, type RecordState } from "./editor";
 import { filterSections, registrySections } from "./model";
@@ -26,7 +27,8 @@ function reasonText(reason: Refusal): string {
 export function KeybindingEditor({ filter }: { filter: string }) {
   const commands = useCommands();
   // Undefined while loading or failed: a write would then replace every override with one entry.
-  const overrides = useSettings().data?.keybindings;
+  const settings = useSettings();
+  const overrides = settings.data?.keybindings;
   const [state, setState] = useState<RecordState>({ kind: "idle" });
   const rootRef = useRef<HTMLDivElement>(null);
   const sections = useMemo(() => filterSections(registrySections(commands, { editing: true }), filter), [commands, filter]);
@@ -60,7 +62,9 @@ export function KeybindingEditor({ filter }: { filter: string }) {
     if (ok) save({});
   };
 
-  if (!overrides) return null;
+  if (settings.isError)
+    return <LoadError title={t("preferences.loadError.settings")} error={settings.error} onRetry={() => void settings.refetch()} />;
+  if (!overrides) return <SettingsSkeleton />;
 
   return (
     <div ref={rootRef} data-keys-editor>
