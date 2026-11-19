@@ -1692,10 +1692,10 @@ async fn a_ref_on_the_side_branch_keeps_its_commits_visible() {
 }
 
 /// The Git calls of a first page, whatever the number of merges on it: the `collapsible` checks
-/// and the refs that keep a collapsed merge's commits cost one `git rev-list` for the page, no
-/// `for-each-ref --contains` per merge. A collapsed merge still reads its own side commits.
+/// and the refs that keep a collapsed merge's commits cost one `git rev-list --topo-order` for the
+/// page, no `for-each-ref --contains` per merge. A collapsed merge still reads its own side commits.
 #[tokio::test]
-async fn collapsible_checks_cost_one_git_call_per_page() {
+async fn merges_cost_one_reach_walk_per_page_whatever_their_number() {
     let tc = TestCore::new().await;
     for collapse_all in [false, true] {
         let mut calls = Vec::new();
@@ -1716,6 +1716,32 @@ async fn collapsible_checks_cost_one_git_call_per_page() {
         }
         assert_eq!(calls[0], calls[1], "collapse all {collapse_all}: more merges, same number of other Git calls");
     }
+}
+
+/// A later page without merges asks nothing about refs: no `git rev-list --topo-order`.
+#[tokio::test]
+async fn a_later_page_without_merges_runs_no_reach_walk() {
+    let tc = TestCore::new().await;
+    let repo = TestRepo::with_commit();
+    for i in 0..6 {
+        repo.commit_file("main.txt", format!("{i}\n"), &format!("Main {i}"));
+    }
+    repo.checkout_new("feature");
+    repo.commit_file("f.txt", "1\n", "Feature 1");
+    repo.checkout("main");
+    repo.commit_file("m.txt", "1\n", "Main oben");
+    assert!(repo.merge("feature"));
+    let id = tc.open(&repo).await.repo.id;
+    let reach_walks = |spawned: &[Vec<String>]| spawned.iter().filter(|argv| argv.iter().any(|a| a == "--topo-order")).count();
+
+    tc.git.take_spawned();
+    let first = graph_page(&tc, id.clone(), None, 3).await.unwrap();
+    assert!(first.rows.iter().any(|r| r.kind == GraphRowKind::Merge));
+    assert_eq!(reach_walks(&tc.git.take_spawned()), 1);
+    let second = graph_page(&tc, id.clone(), first.next_cursor, 3).await.unwrap();
+    assert!(!second.rows.is_empty() && second.rows.iter().all(|r| r.kind == GraphRowKind::Commit), "{}", sketch(&second.rows));
+    let spawned = tc.git.take_spawned();
+    assert_eq!(reach_walks(&spawned), 0, "{spawned:?}");
 }
 
 /// The plan of the current view, as `graph_page` builds it.

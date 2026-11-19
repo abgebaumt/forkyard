@@ -421,17 +421,32 @@ pub(super) struct Reach {
     path: PathBuf,
     repo_id: String,
     tips: Vec<String>,
-    index: HashMap<String, usize>,
+    index: HashMap<Oid, usize>,
     started: bool,
     stream: Option<GitRecordStream>,
     /// A failed start or read; every later question gets it again.
     error: Option<CoreError>,
     /// Sets handed down to commits not read yet.
-    pending: HashMap<String, Vec<u64>>,
+    pending: HashMap<Oid, Vec<u64>>,
     /// Side parents of merges read so far whose sets are kept once they come.
-    wanted: HashSet<String>,
-    sets: HashMap<String, Vec<u64>>,
-    reached: HashSet<String>,
+    wanted: HashSet<Oid>,
+    sets: HashMap<Oid, Vec<u64>>,
+    reached: HashSet<Oid>,
+}
+
+/// A SHA-1 or SHA-256 object id in binary, SHA-1 padded with zeros: half the memory of the hex text.
+type Oid = [u8; 32];
+
+/// The `Oid` of a full hex SHA; `None` for anything else.
+fn oid(hex: &[u8]) -> Option<Oid> {
+    if !matches!(hex.len(), 40 | 64) {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (byte, pair) in out.iter_mut().zip(hex.chunks(2)) {
+        *byte = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
+    }
+    Some(out)
 }
 
 impl Reach {
@@ -439,7 +454,7 @@ impl Reach {
     pub(super) fn new(core: &Core, path: &Path, repo_id: &str, plan: &Plan, ref_shas: HashSet<String>) -> Reach {
         let mut tips: Vec<String> = ref_shas.into_iter().filter(|sha| plan.keep.contains(sha)).collect();
         tips.sort_unstable();
-        let index = tips.iter().enumerate().map(|(i, sha)| (sha.clone(), i)).collect();
+        let index = tips.iter().enumerate().filter_map(|(i, sha)| Some((oid(sha.as_bytes())?, i))).collect();
         Reach {
             core: core.clone(),
             path: path.to_path_buf(),
@@ -482,7 +497,8 @@ impl Reach {
     pub(super) async fn read_until(&mut self, shas: &[&str]) -> CoreResult<()> {
         self.start().await?;
         let words = self.tips.len().div_ceil(64);
-        while shas.iter().any(|sha| !self.reached.contains(*sha)) {
+        let mut missing: HashSet<Oid> = shas.iter().filter_map(|sha| oid(sha.as_bytes())).filter(|id| !self.reached.contains(id)).collect();
+        while !missing.is_empty() {
             let Some(stream) = self.stream.as_mut() else { break };
             let line = match stream.next_record().await {
                 Ok(Some(line)) => line,
@@ -496,40 +512,42 @@ impl Reach {
                     return Err(err);
                 }
             };
-            let mut shas_in_line = line.split(|b| *b == b' ').map(util::decode_lossy);
-            let Some(sha) = shas_in_line.next().filter(|sha| is_sha(sha)) else { continue };
-            let parents: Vec<String> = shas_in_line.collect();
-            let mut set = self.pending.remove(&sha).unwrap_or_else(|| vec![0; words]);
-            if let Some(&i) = self.index.get(&sha) {
+            let mut ids = line.split(|b| *b == b' ').map(oid);
+            let Some(Some(id)) = ids.next() else { continue };
+            let parents: Vec<Oid> = ids.flatten().collect();
+            let mut set = self.pending.remove(&id).unwrap_or_else(|| vec![0; words]);
+            if let Some(&i) = self.index.get(&id) {
                 set[i / 64] |= 1 << (i % 64);
             }
             for parent in &parents {
-                let entry = self.pending.entry(parent.clone()).or_insert_with(|| vec![0; words]);
+                let entry = self.pending.entry(*parent).or_insert_with(|| vec![0; words]);
                 entry.iter_mut().zip(&set).for_each(|(a, b)| *a |= b);
             }
             let is_merge = parents.len() > 1;
             if is_merge {
                 self.wanted.extend(parents.into_iter().skip(1));
             }
-            if self.wanted.remove(&sha) || is_merge {
-                self.sets.insert(sha.clone(), set);
+            if self.wanted.remove(&id) || is_merge {
+                self.sets.insert(id, set);
             }
-            self.reached.insert(sha);
+            self.reached.insert(id);
+            missing.remove(&id);
         }
         Ok(())
     }
 
     /// The tips that contain the merge or side parent `sha` (after `read_until`).
     fn tips_containing(&self, sha: &str) -> HashSet<&str> {
-        let Some(set) = self.sets.get(sha) else { return HashSet::new() };
+        let Some(set) = oid(sha.as_bytes()).and_then(|id| self.sets.get(&id)) else { return HashSet::new() };
         self.tips.iter().enumerate().filter(|(i, _)| set[i / 64] & (1 << (i % 64)) != 0).map(|(_, tip)| tip.as_str()).collect()
     }
 
     /// Whether a tip contains the side parent `parent` but not the merge `merge` (after `read_until`
     /// for both). A reached parent without a kept set: the merge was never read, so no tip contains it.
     fn has_tip_beyond(&self, parent: &str, merge: &str) -> bool {
-        let Some(set) = self.sets.get(parent) else { return self.reached.contains(parent) };
-        let other = self.sets.get(merge).map_or(&[][..], Vec::as_slice);
+        let Some(parent) = oid(parent.as_bytes()) else { return false };
+        let Some(set) = self.sets.get(&parent) else { return self.reached.contains(&parent) };
+        let other = oid(merge.as_bytes()).and_then(|id| self.sets.get(&id)).map_or(&[][..], Vec::as_slice);
         set.iter().enumerate().any(|(i, word)| word & !other.get(i).copied().unwrap_or(0) != 0)
     }
 }
