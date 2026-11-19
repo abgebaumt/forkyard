@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { core, type Id, type Operation, type Tab } from "../../core";
 import { IconButton } from "../../ui/Button";
-import { StatusBar } from "../../ui/Chrome";
+import { StatusBar } from "./Chrome";
 import { toast } from "../../ui/Feedback";
 import { Tip } from "../../ui/Tooltip";
 import { changeZoom, setZoom, ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from "../actions/repos";

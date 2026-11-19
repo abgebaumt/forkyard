@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import type { Id, PullMode, Status } from "../../core";
 import { CommandIcon } from "../../ui/commandIcon";
-import { Toolbar, ToolbarButton, ToolbarSeparator } from "../../ui/Chrome";
+import { Toolbar, ToolbarButton, ToolbarSeparator } from "./Chrome";
 import type { MenuEntry } from "../../ui/Menu";
 import { createBranch, selectedBranchStart } from "../actions/branches";
 import { busyKeys } from "../actions/keys";
