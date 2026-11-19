@@ -4,7 +4,7 @@
  * actions from `src/app/actions/`. That way Left Panel, graph, Commit Panel and
  * Command Palette show the same actions everywhere.
  *
- * The signatures here are fixed. The contents live in `./entries.tsx`.
+ * The signatures here are fixed. The contents live in `./entries/` (one file per subject).
  *
  * Opening a menu at a position (drop menu after dragging, menu from a command):
  * `openMenuAt({ x, y }, dropMenu({ … }))` from `./host`.
