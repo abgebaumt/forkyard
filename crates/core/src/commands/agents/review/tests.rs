@@ -240,7 +240,7 @@ async fn unknown_and_orphaned_agents_are_refused() {
 
 use crate::commands::agents::agent_review_commit;
 use crate::commands::diff::diff_file;
-use crate::commands::range_apply::range_apply;
+use crate::commands::patch::range_apply;
 use crate::model::{DiffLineKind, FileDiff, HunkSelection, PatchSelection, RangeApplyTarget, TextDiff};
 
 /// The agent changed the list (uncommitted, CRLF) and created the odd Latin-1 file.

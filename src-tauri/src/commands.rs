@@ -279,7 +279,7 @@ pub async fn range_apply(
     selections: Vec<PatchSelection>,
     target: RangeApplyTarget,
 ) -> R<Status> {
-    c::range_apply::range_apply(&core, repo_id, from, to, selections, target).await
+    c::patch::range_apply(&core, repo_id, from, to, selections, target).await
 }
 
 #[tauri::command]

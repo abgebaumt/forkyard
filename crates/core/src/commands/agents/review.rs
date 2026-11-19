@@ -10,7 +10,7 @@
 use super::describe;
 use crate::app::Core;
 use crate::commands::commit::commit_create;
-use crate::commands::range_apply::range_apply;
+use crate::commands::patch::range_apply;
 use crate::commands::stage::discard_paths;
 use crate::commands::status::read_status;
 use crate::db::{self, agents::AgentRow};
